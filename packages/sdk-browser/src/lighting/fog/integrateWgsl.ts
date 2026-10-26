@@ -12,7 +12,8 @@ import { FOG_CELLS_WGSL } from './gridWgsl.ts'
  * raster's rest pass and the transparents' front pass (`encodeDepthPyramid`) — none of it the last
  * image's, none unfinished —; where the transparents' front is folded into it, the host gives the
  * volume no pyramid and no cell is held hidden (`opaquePyramidOf`). The rectangle is the cell's
- * pixels and half a cell each side of them (the footprint's margin), the pixels it covers by their
+ * pixels and half a cell each side of them (the footprint's margin), and `fogFurthestOver` reads the
+ * furthest depth under any rectangle of the image: the pixels it covers by their
  * centres are the footprint, and the footprint is taken at the level of the pyramid at which four
  * texels cover it, the least depth over them. The pyramid's level 1 is half the image, the first
  * level of the pyramid the footprint's levels are counted from: its level `l + 1` is the
@@ -20,8 +21,8 @@ import { FOG_CELLS_WGSL } from './gridWgsl.ts'
  * The level is the least where four texels reach: the highest bit of the footprint's width less
  * the one the four hold, one more where the footprint's alignment to the texels needs it.
  */
-export const FOG_FURTHEST_WGSL = wgslBlock(
-  'FOG_FURTHEST_WGSL',
+export const FOG_FURTHEST_READ_WGSL = wgslBlock(
+  'FOG_FURTHEST_READ_WGSL',
   [],
   `
 /** The level at which four texels of the pyramid cover the footprint \`texels\` (x0, y0, x1, y1, inclusive). */
@@ -37,16 +38,9 @@ fn fogFarthestAt(cell:vec2i,at:i32)->f32{
  if(at==0){return hizOpaqueDepth(cell);}
  return hizCellCullFarthest(cell,at);
 }
-@compute @workgroup_size(8,8,1)
-fn furthestMain(@builtin(global_invocation_id) id:vec3u){
- if(any(id.xy>=vec2u(frame.grid.xy))){return;}
- let view=frame.view.xy;
- // The cell's pixels and half a cell around them, as device coordinates, then as pixel centres.
- let tile=frame.grid.w*frame.view.zw*vec2f(2.0,-2.0);
- let a=(vec2f(id.xy)-0.5)*tile+vec2f(-1.0,1.0);
- let b=(vec2f(id.xy)+1.5)*tile+vec2f(-1.0,1.0);
- let low=min(a,b);let high=max(a,b);
- let uv=saturate(vec4f(low.x,high.y,high.x,low.y)*vec4f(0.5,-0.5,0.5,-0.5)+0.5);
+/** The furthest depth under the rectangle \`uv\` (x0, y0, x1, y1, as fractions of an image of \`view\` pixels, y
+ *  down), taken at the pyramid's level four texels cover it at. */
+fn fogFurthestOver(uv:vec4f,view:vec2f)->f32{
  var pixels=vec4i(uv*view.xyxy+vec4f(0.5,0.5,-0.5,-0.5));
  pixels=vec4i(max(pixels.xy,vec2i(0)),min(pixels.zw,vec2i(view)-vec2i(1)));
  // The footprint in the first level's texels (two pixels a side), then at the level four texels cover.
@@ -60,7 +54,25 @@ fn furthestMain(@builtin(global_invocation_id) id:vec3u){
  for(var y=texels.y;y<=texels.w;y++){
   for(var x=texels.x;x<=texels.z;x++){furthest=min(furthest,fogFarthestAt(vec2i(x,y),at));}
  }
- textureStore(fogFurthestOut,vec2i(id.xy),vec4f(furthest,0.0,0.0,0.0));
+ return furthest;
+}`,
+)
+
+/** The conservative depth of each cell of the grid (`FOG_FURTHEST_READ_WGSL`). */
+export const FOG_FURTHEST_WGSL = wgslBlock(
+  'FOG_FURTHEST_WGSL',
+  [FOG_FURTHEST_READ_WGSL],
+  `
+@compute @workgroup_size(8,8,1)
+fn furthestMain(@builtin(global_invocation_id) id:vec3u){
+ if(any(id.xy>=vec2u(frame.grid.xy))){return;}
+ // The cell's pixels and half a cell around them, as device coordinates, then as fractions of the image.
+ let tile=frame.grid.w*frame.view.zw*vec2f(2.0,-2.0);
+ let a=(vec2f(id.xy)-0.5)*tile+vec2f(-1.0,1.0);
+ let b=(vec2f(id.xy)+1.5)*tile+vec2f(-1.0,1.0);
+ let low=min(a,b);let high=max(a,b);
+ let uv=saturate(vec4f(low.x,high.y,high.x,low.y)*vec4f(0.5,-0.5,0.5,-0.5)+0.5);
+ textureStore(fogFurthestOut,vec2i(id.xy),vec4f(fogFurthestOver(uv,frame.view.xy),0.0,0.0,0.0));
 }`,
 )
 

@@ -54,7 +54,7 @@ export function listenToWorker(c: SessionParts) {
     } else if (data.type === 'results') receiveResults(c, posed, data)
     else if (data.type === 'rest') c.link.rested(data.heard, data.step)
     else if (data.type === 'broken') c.joints.broke(data.joints)
-    else if (data.type === 'cast') {
+    else if (data.type === 'cast' || data.type === 'overlap') {
       c.casts.get(data.id)?.(data.hits)
       c.casts.delete(data.id)
     } else receiveRefused(c, data)

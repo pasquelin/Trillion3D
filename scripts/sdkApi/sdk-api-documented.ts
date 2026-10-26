@@ -17,7 +17,6 @@ export const DOCUMENTED_GAPS: ExportRow[] = [
   gap('ColumnKind', 'type', 'packages/sdk-core/src/manifest/binaryFormat.ts', 'core'),
   gap('DIVISOR_FLOOR', 'value', 'packages/math/src/matrix/singular.ts', 'core'),
   gap('EngineCamera', 'type', 'packages/sdk-browser/src/camera/engineCamera.ts', 'browser'),
-  gap('HostCamera', 'type', 'packages/sdk-browser/src/camera/world.ts', 'browser'),
   gap('adjugateFactor', 'value', 'packages/math/src/matrix/singular.ts', 'core'),
   gap('createEngineCamera', 'value', 'packages/sdk-browser/src/camera/engineCamera.ts', 'browser'),
   gap('defaultEngineCamera', 'value', 'packages/sdk-browser/src/camera/engineCamera.ts', 'browser'),
@@ -27,5 +26,6 @@ export const DOCUMENTED_GAPS: ExportRow[] = [
   gap('normalizedLinearDeterminant', 'value', 'packages/math/src/matrix/singular.ts', 'core'),
   gap('readCameraWorld', 'value', 'packages/sdk-browser/src/camera/world.ts', 'browser'),
   gap('sideOf', 'value', 'packages/sdk-browser/src/materials/surface/materialSide.ts', 'browser'),
+  gap('ViewCamera', 'type', 'packages/sdk-browser/src/camera/world.ts', 'browser'),
   gap('writeEngineCamera', 'value', 'packages/sdk-browser/src/camera/engineCamera.ts', 'browser'),
 ]

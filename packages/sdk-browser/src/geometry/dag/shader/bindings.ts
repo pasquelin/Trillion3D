@@ -14,14 +14,16 @@ import { nodeTableWgsl } from '../nodeTable.ts'
 import { CLUSTER_TABLE, COLD_TABLE, FLAG_TABLE } from '../cut/cutTables.ts'
 
 /** Group-0 binding of each table the selection kernel reads, under its WGSL name: its uniforms,
- *  the readout and `work` — two storage buffers, whatever the world —, and the record tables
+ *  the readout, `work`, the list of visible clusters it writes (`../visible/layout.ts`) and the
+ *  clusters' records and measured edges it reads (`../info/clusterInfoLayout.ts`) — five storage
+ *  buffers, whatever the world —, and the record tables
  *  (`../cut/cutTables.ts`, `../nodeTable.ts`, `../worlds/worldTable.ts`, `../frameTable.ts`,
  *  `../tree/treeTable.ts`, the poses the previous image drew, `../previousPoses.ts`), the flags the
  *  one the kernels write. */
-const DAG_BINDING = {
+export const DAG_BINDING = {
   clusters: 0,
   nodes: 1,
-  views: 2,
+  cutView: 2,
   flags: 3,
   out: 4,
   work: 5,
@@ -30,12 +32,22 @@ const DAG_BINDING = {
   cold: 8,
   tree: 9,
   previous: 10,
+  visible: 11,
+  info: 12,
+  edges: 13,
 } as const
 
 const B = DAG_BINDING
 
 /** The bindings that are buffers; every other is a record table's view. */
-const DAG_BUFFERS = { views: 'uniform', out: 'storage', work: 'storage' } as const
+const DAG_BUFFERS = {
+  cutView: 'uniform',
+  out: 'storage',
+  work: 'storage',
+  visible: 'storage',
+  info: 'read-only-storage',
+  edges: 'read-only-storage',
+} as const
 type DagBufferName = keyof typeof DAG_BUFFERS
 type DagTableName = Exclude<keyof typeof DAG_BINDING, DagBufferName>
 
@@ -44,12 +56,15 @@ type DagTableName = Exclude<keyof typeof DAG_BINDING, DagBufferName>
 export function dagGroupEntries(
   group: Record<DagBufferName, GPUBuffer> & Record<DagTableName, GPUTextureView>,
 ) {
-  const { views, out, work, ...tables } = group
+  const { cutView, out, work, visible, info, edges, ...tables } = group
   return namedEntries(DAG_BINDING, {
     ...tables,
-    views: { buffer: views },
+    cutView: { buffer: cutView },
     out: { buffer: out },
     work: { buffer: work },
+    visible: { buffer: visible },
+    info: { buffer: info },
+    edges: { buffer: edges },
   })
 }
 
@@ -96,9 +111,12 @@ export const DAG_BINDINGS_WGSL = wgslBlock(
     recordTextureWgsl(COLD_TABLE, { name: 'cold', group: 0, binding: B.cold, access: 'read' }),
     worldTableWgsl('previous', { group: 0, binding: B.previous, access: 'read' }),
   ],
-  `@group(0) @binding(${B.views}) var<uniform> views:array<Uniforms,MAX_VIEWS>;
+  `@group(0) @binding(${B.cutView}) var<uniform> cutView:Uniforms;
 @group(0) @binding(${B.out}) var<storage, read_write> out:Output;
 @group(0) @binding(${B.work}) var<storage, read_write> work:array<atomic<u32>>;
+@group(0) @binding(${B.visible}) var<storage, read_write> visible:array<atomic<u32>>;
+@group(0) @binding(${B.info}) var<storage, read> info:array<ClusterInfo>;
+@group(0) @binding(${B.edges}) var<storage, read> edges:array<f32>;
 `,
 )
 
@@ -111,6 +129,19 @@ export const DAG_COLD_AT_WGSL = wgslFn(
   'fn coldAt(i:u32)->u32{return coldWord(i,0u).x;}',
 )
 
+/** The hot record `i` as the struct the packing laid (`Cluster`), read through `accessor`, the
+ *  texel reader of the table that holds the clusters (`recordTextureWgsl`: its name and
+ *  `Cluster`'s suffix, `clustersCluster` for a table bound as `clusters`). */
+const clusterAtWgsl = (accessor: string) =>
+  wgslFn(
+    'clusterAt',
+    [],
+    `fn clusterAt(i:u32)->Cluster{
+ let a=${accessor}(i,0u);let b=${accessor}(i,1u);let c=${accessor}(i,2u);
+ return Cluster(bitcast<vec4f>(a),bitcast<vec4f>(b),bitcast<f32>(c.x),bitcast<f32>(c.y),c.z);
+}`,
+  )
+
 /**
  * How the kernel reads its record tables: one accessor each, a record's texels loaded and read as
  * the struct the packing laid (`Cluster`, `CullNode`), a word of the cold words
@@ -118,12 +149,8 @@ export const DAG_COLD_AT_WGSL = wgslFn(
  */
 export const DAG_ACCESS_WGSL = wgslBlock(
   'DAG_ACCESS_WGSL',
-  [DAG_BINDINGS_WGSL, DAG_COLD_AT_WGSL],
-  `fn clusterAt(i:u32)->Cluster{
- let a=clustersCluster(i,0u);let b=clustersCluster(i,1u);let c=clustersCluster(i,2u);
- return Cluster(bitcast<vec4f>(a),bitcast<vec4f>(b),bitcast<f32>(c.x),bitcast<f32>(c.y),c.z);
-}
-fn nodeAt(i:u32)->CullNode{
+  [DAG_BINDINGS_WGSL, DAG_COLD_AT_WGSL, clusterAtWgsl('clustersCluster')],
+  `fn nodeAt(i:u32)->CullNode{
  let a=nodesNode(i,0u);let b=nodesNode(i,1u);let c=nodesNode(i,2u);
  let d=nodesNode(i,3u);let e=nodesNode(i,4u);
  return CullNode(bitcast<vec3f>(a.xyz),a.w,bitcast<vec3f>(b.xyz),bitcast<f32>(b.w),bitcast<vec4f>(c),d.x,d.y,d.z,d.w,bitcast<f32>(e.x),e.y,e.z,e.w);

@@ -1,5 +1,6 @@
-//! The flattened mesh laid into its atlas: each part's texture coordinates moved into its entry's
-//! cell (`remapped`), and which atlas texels the cells hold (`occupancy`).
+//! The flattened mesh laid into its atlas: the coordinates each entry's mesh is baked and laid at
+//! (`Laid`), each part's moved into its entry's cell (`remapped`), and which atlas texels the
+//! cells hold (`occupancy`).
 use super::ground::{oriented, Ground};
 use crate::hlod::flatten::first_seen::first_seen;
 use crate::hlod::flatten::merge::grid::Cell;
@@ -23,17 +24,58 @@ pub(super) fn occupancy(cells: &[Cell], side: usize) -> Vec<u32> {
     occupancy
 }
 
-/// Each mesh's texture coordinates as generated for it, three to a triangle.
-type LaidCoordinates = BTreeMap<usize, Vec<[[f64; 2]; 3]>>;
+/// The texture coordinates each entry's mesh is baked and laid at, three to a triangle.
+pub(super) enum Laid {
+    /// Each mesh laid on its own, from its first part, in the mesh's own corner order: an entry
+    /// takes its mesh's, its corners turned where its parts mirror the mesh (`oriented`).
+    PerMesh(BTreeMap<usize, Vec<[[f64; 2]; 3]>>),
+    /// Each entry's, every entry laid together (`global`), in the entry's own corner order.
+    PerEntry(Vec<Vec<[[f64; 2]; 3]>>),
+}
+
+/// The coordinates one entry's triangles are laid at, in the order of its parts' triangles.
+pub(super) struct EntryCoordinates<'a> {
+    set: &'a [[[f64; 2]; 3]],
+    mirrored: bool,
+}
+
+impl EntryCoordinates<'_> {
+    /// The triangles' coordinates in order, their corners turned where the entry's parts mirror
+    /// their mesh (`oriented`).
+    pub(super) fn iter(&self) -> impl Iterator<Item = [[f64; 2]; 3]> + '_ {
+        self.set.iter().map(|&t| oriented(t, self.mirrored))
+    }
+}
+
+impl Laid {
+    /// The coordinates of entry `entry`, baked on the mesh `mesh` that its parts `mirrored` or not.
+    pub(super) fn of_entry(
+        &self,
+        entry: usize,
+        mesh: usize,
+        mirrored: bool,
+    ) -> EntryCoordinates<'_> {
+        match self {
+            Self::PerMesh(laid) => EntryCoordinates {
+                set: &laid[&mesh],
+                mirrored,
+            },
+            Self::PerEntry(laid) => EntryCoordinates {
+                set: &laid[entry],
+                mirrored: false,
+            },
+        }
+    }
+}
 
 /// The merged mesh of `parts`, each part's texture coordinates in its entry's cell: on a quad its
 /// own first set, on its mesh the coordinates generated for it (`laid`), its vertices split where
 /// two of its corners take two; each moved by its cell, `uv · scale + offset`, a cell of no scale
-/// leaving them as they are.
+/// leaving them as they are, as does no cell at all, where the entries share the atlas.
 pub(super) fn remapped(
     parts: &[&Part],
     (grounds, entry_of): (&[Ground], &[usize]),
-    (laid, cells): (&LaidCoordinates, &[Cell]),
+    (laid, cells): (&Laid, Option<&[Cell]>),
 ) -> Flat {
     let mut flat = Flat {
         positions: Vec::new(),
@@ -43,16 +85,18 @@ pub(super) fn remapped(
         colours: Vec::new(),
         indices: Vec::new(),
     };
-    for ((part, ground), &entry) in parts.iter().zip(grounds).zip(entry_of) {
-        let Cell { offset, scale, .. } = cells[entry];
-        let moved = |uv: [f64; 2]| match scale == [0.0; 2] {
-            true => uv,
-            false => [0, 1].map(|k| uv[k] * scale[k] + offset[k]),
+    for ((part, &ground), &entry) in parts.iter().zip(grounds).zip(entry_of) {
+        let cell = cells.map(|cells| cells[entry]);
+        let moved = |uv: [f64; 2]| match cell {
+            Some(Cell { offset, scale, .. }) if scale != [0.0; 2] => {
+                [0, 1].map(|k| uv[k] * scale[k] + offset[k])
+            }
+            _ => uv,
         };
         let (positions, _, indices) = &part.geometry;
         let normals = part.normals();
         let base = (flat.positions.len() / 3) as u32;
-        match *ground {
+        match ground {
             Ground::Quad => {
                 let own = part.carried(FLAG_UV);
                 flat.positions.extend_from_slice(positions);
@@ -65,12 +109,10 @@ pub(super) fn remapped(
             }
             Ground::Mesh(mesh, mirrored) => {
                 // Each corner's vertex and coordinates, numbered as the corners first name them.
+                let coordinates = laid.of_entry(entry, mesh, mirrored);
                 let keys: Vec<(u32, [u64; 2])> = (indices.as_chunks::<3>().0.iter())
-                    .zip(&laid[&mesh])
-                    .flat_map(|(&t, &uv)| {
-                        let uv = oriented(uv, mirrored);
-                        [0, 1, 2].map(|k| (t[k], uv[k].map(f64::to_bits)))
-                    })
+                    .zip(coordinates.iter())
+                    .flat_map(|(&t, uv)| [0, 1, 2].map(|k| (t[k], uv[k].map(f64::to_bits))))
                     .collect();
                 let (vertices, ranks) = first_seen(keys);
                 for (v, uv) in vertices {
@@ -86,4 +128,60 @@ pub(super) fn remapped(
         }
     }
     flat
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SET: [[f64; 2]; 3] = [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]];
+
+    /// A part of one triangle over `positions`.
+    fn triangle(mirrored: bool) -> Part {
+        Part {
+            material: None,
+            mesh: 7,
+            mirrored,
+            geometry: (
+                vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+                Vec::new(),
+                vec![0, 1, 2],
+            ),
+        }
+    }
+
+    #[test]
+    fn an_entry_takes_its_meshs_coordinates_turned_or_its_own_as_they_are() {
+        let per_mesh = Laid::PerMesh(BTreeMap::from([(7, vec![SET])]));
+        let turned: Vec<_> = per_mesh.of_entry(3, 7, true).iter().collect();
+        assert_eq!(turned, [[SET[0], SET[2], SET[1]]]);
+        let per_entry = Laid::PerEntry(vec![vec![], vec![], vec![], vec![SET]]);
+        // Entry 3's own, in its parts' order: the mesh and the turn name nothing.
+        let own: Vec<_> = per_entry.of_entry(3, 99, true).iter().collect();
+        assert_eq!(own, [SET]);
+    }
+
+    #[test]
+    fn entries_sharing_the_atlas_keep_the_coordinates_as_laid_and_cells_move_them() {
+        let part = triangle(false);
+        let parts = [&part];
+        let at = (&[Ground::Mesh(7, false)][..], &[0][..]);
+        let laid = Laid::PerEntry(vec![vec![SET]]);
+        let none = remapped(&parts, at, (&laid, None));
+        let expected: Vec<f32> = SET.iter().flatten().map(|&x| x as f32).collect();
+        assert_eq!(none.uvs, expected);
+        let cell = Cell {
+            at: [0, 0],
+            size: [1, 1],
+            offset: [0.25, 0.5],
+            scale: [0.5, 0.5],
+        };
+        let moved = remapped(&parts, at, (&laid, Some(&[cell][..])));
+        let expected: Vec<f32> = SET
+            .iter()
+            .flat_map(|uv| [uv[0] * 0.5 + 0.25, uv[1] * 0.5 + 0.5])
+            .map(|x| x as f32)
+            .collect();
+        assert_eq!(moved.uvs, expected);
+    }
 }

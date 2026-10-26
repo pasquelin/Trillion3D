@@ -90,6 +90,30 @@ function rollOnto(root: Object3D, axis: Float64Array, bent: Float64Array, toward
   turnInWorld(root, axis, roll)
 }
 
+/** Swings the whole chain onto the target: its root-to-end direction turned onto the root-to-target one. */
+function swingOntoTarget(root: Object3D, mid: Object3D, end: Object3D, tiny: number) {
+  const { a, b, c, at, ab, ac, plane } = scratch
+  worldPoint(end, c)
+  subVector3(ac, c, a)
+  crossVector3(plane, ac, at)
+  // Opposite collinear directions need a half-turn: about the bend's own normal, which keeps both
+  // bones in their plane, or about any perpendicular axis when the chain is straight.
+  if (!(length(plane) > 1e-9 * length(ac) * length(at)) && dotVector3(ac, at) < 0) {
+    crossVector3(plane, ac, subVector3(ab, worldPoint(mid, b), a))
+    if (!(length(plane) > tiny)) across(plane, ac)
+  }
+  turnInWorld(root, plane, angle(ac, at))
+}
+
+/** Rolls the chain about the target axis until its elbow lies in the pole's plane. */
+function alignElbow(root: Object3D, mid: Object3D) {
+  const { a, b, ab, ba, at, plane, toPole } = scratch
+  worldPoint(mid, b)
+  crossVector3(ba, at, subVector3(ab, b, a))
+  crossVector3(plane, at, toPole)
+  if (length(ba) && length(plane)) rollOnto(root, at, ba, plane)
+}
+
 /**
  * A two-bone chain — `root`, `mid`, and `end` hanging from `mid` — bent so that `end` reaches
  * `target`, or as near as the two bones reach, by the law of cosines: `root` and `mid` turn in the
@@ -144,23 +168,9 @@ export function solveTwoBoneIK(
   if (pole && length(ac) && length(crossVector3(ba, ac, ab)) > tiny) rollOnto(root, ac, ba, plane)
   turnInWorld(root, plane, bend1 - bend0)
   turnInWorld(mid, plane, knee1 - knee0)
-  worldPoint(end, c)
-  subVector3(ac, c, a)
-  crossVector3(plane, ac, at)
-  // Opposite collinear directions need a half-turn: about the bend's own normal, which keeps both
-  // bones in their plane, or about any perpendicular axis when the chain is straight.
-  if (!(length(plane) > 1e-9 * length(ac) * length(at)) && dotVector3(ac, at) < 0) {
-    crossVector3(plane, ac, subVector3(ab, worldPoint(mid, b), a))
-    if (!(length(plane) > tiny)) across(plane, ac)
-  }
-  turnInWorld(root, plane, angle(ac, at))
+  swingOntoTarget(root, mid, end, tiny)
   // Align the solved elbow with the pole around the target axis, preserving the endpoint.
-  if (pole && length(at)) {
-    worldPoint(mid, b)
-    crossVector3(ba, at, subVector3(ab, b, a))
-    crossVector3(plane, at, toPole)
-    if (length(ba) && length(plane)) rollOnto(root, at, ba, plane)
-  }
+  if (pole && length(at)) alignElbow(root, mid)
   if (partial) {
     root.quaternion.slerp(scratch.keptRoot, 1 - Math.max(0, weight))
     mid.quaternion.slerp(scratch.keptMid, 1 - Math.max(0, weight))

@@ -1,11 +1,10 @@
-//! The page's vertices as the encoder numbers and stores them: renumbered by first use, the
-//! distinct positions kept once.
+//! The page's vertices as the encoder merges and stores them: those that quantize alike merged
+//! (`first_use`; the strips then number the vertices they lay), the distinct positions kept once.
 
 use super::cells::Cell;
 use super::{EncodeError, Result};
 use crate::bits::{bits_for, stream_words};
 use crate::hash::word_map;
-use crate::MAX_VERTICES;
 
 /// The positions the page stores and, when it stores each once, every vertex's link to its own
 /// position: a flat-shaded page repeats a corner's position under every face normal meeting
@@ -44,7 +43,8 @@ pub fn first_use<T: Copy + Eq + std::hash::Hash>(
 }
 
 /// Local vertex renumbering of a page (`first_use`), refused when an index lies past the
-/// positions or the page would carry more than `MAX_VERTICES`.
+/// positions. The page's own bound (`MAX_PAGE_CORNERS` corners, so as many vertices) is the
+/// encoder's, checked before it renumbers (`encode_deformed`).
 pub fn localise(indices: &[u32], vertices: usize) -> Result<(Vec<u32>, Vec<u32>)> {
     if indices.iter().any(|&source| source as usize >= vertices) {
         return Err(EncodeError::new(
@@ -52,12 +52,5 @@ pub fn localise(indices: &[u32], vertices: usize) -> Result<(Vec<u32>, Vec<u32>)
             "Page index exceeds positions",
         ));
     }
-    let (original, local) = first_use(indices.iter().copied());
-    if original.len() > MAX_VERTICES {
-        return Err(EncodeError::new(
-            "PAGE_VERTEX_LIMIT",
-            "Page has more than 65535 vertices",
-        ));
-    }
-    Ok((original, local))
+    Ok(first_use(indices.iter().copied()))
 }

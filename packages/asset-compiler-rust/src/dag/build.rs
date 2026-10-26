@@ -100,12 +100,7 @@ pub(super) fn build_levels(
         let _t = Timer::new(Phase::Weld);
         match skinned {
             true => input::welded_skinned(&mut built, settings.input.skinned_weld),
-            false => {
-                let near = settings.drop_near_collapsed;
-                let (kept, ranks) = input::kept_triangles(&built.positions, &built.indices, near);
-                let source: Vec<u32> = ranks.iter().map(|&t| built.source[t as usize]).collect();
-                (input::welded(&built, &kept), source)
-            }
+            false => kept_and_welded(&built, settings.drop_near_collapsed),
         }
     };
     if indices.is_empty() {
@@ -142,12 +137,9 @@ pub(super) fn build_levels(
             .iter()
             .map(|&v| first_use.get(v as usize).copied().unwrap_or(u32::MAX))
             .min()
-            .map_or(0, |corner| {
-                if corner == u32::MAX {
-                    corner
-                } else {
-                    corner / 3
-                }
+            .map_or(0, |corner| match corner {
+                u32::MAX => NO_SOURCE_RANK,
+                corner => corner / 3,
             });
         dag.push(DagCluster::leaf(cluster, 0.0, sphere, source_rank));
     }
@@ -180,6 +172,17 @@ pub(super) fn finish(build: &mut DagBuild, positions: &[f32]) {
     input::held(&mut build.grown);
 }
 
+/// A mesh without bones as built, its triangles kept — those two of whose corners meet dropped
+/// where `drop_near_collapsed` — and welded: the corners of the triangles kept, and each one's rank
+/// among the source's triangles. The one reading of these steps, a build's (`build_levels`) and a
+/// displacement's (`laid_source`).
+fn kept_and_welded(built: &input::Built, drop_near_collapsed: bool) -> (Vec<u32>, Vec<u32>) {
+    let (kept, ranks) =
+        input::kept_triangles(&built.positions, &built.indices, drop_near_collapsed);
+    let source = ranks.iter().map(|&t| built.source[t as usize]).collect();
+    (input::welded(built, &kept), source)
+}
+
 /// A mesh without bones as the build's input lays it (`laid_source`): its positions, its
 /// attributes and the corners of its triangles, each at the vertex it is welded to.
 pub(crate) struct Laid {
@@ -201,8 +204,7 @@ pub(crate) fn laid_source(
     (rules, drop_near_collapsed): (&InputRules, bool),
 ) -> Laid {
     let built = input::built(positions, attributes, indices, rules);
-    let (kept, _) = input::kept_triangles(&built.positions, &built.indices, drop_near_collapsed);
-    let welded = input::welded(&built, &kept);
+    let (welded, _) = kept_and_welded(&built, drop_near_collapsed);
     let grown = input::finished(built, &welded, (positions, attributes));
     let (laid, carried) = Grown::level(&grown, positions, attributes);
     Laid {

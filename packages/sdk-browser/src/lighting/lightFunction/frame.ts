@@ -75,7 +75,7 @@ function shapeOf(rt: Rt, device: GPUDevice): AtlasShape {
 
 const frameOf = (rt: Rt, device: GPUDevice) =>
   (rt.lights.lightFunction ??= {
-    atlas: createLightFunctionAtlas(device),
+    atlas: createLightFunctionAtlas(device, rt.run.graphClocks),
     epoch: -1,
     settings: '',
     limited: false,

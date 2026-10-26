@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
-import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/geometry/dag/shader/shader.ts'
+import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/geometry/dag/shader/selectionShader.fixture.ts'
 import {
   scenePages,
   sceneRoots,

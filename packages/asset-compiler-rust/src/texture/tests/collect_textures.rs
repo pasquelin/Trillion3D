@@ -103,48 +103,18 @@ fn a_texture_read_by_both_atlases_has_one_entry_per_atlas() {
     assert_eq!(keys, [(4, AtlasKind::Color), (4, AtlasKind::Data)]);
 }
 
-// A colour texture takes the `Coverage` chain, the one weighted by alpha, only when
-// every reader takes its alpha for coverage — MASK or BLEND base colours. One opaque base
-// colour or one emissive among its readers and it keeps the plain chain, which that reader
-// draws as written; so do a MASK cutoff of 0 and a mode glTF does not name, which the engine
-// draws opaque, and a transmissive BLEND, which tints by its colour whatever its alpha; the data
-// atlas never weighs. A texture a blended reader shares with a masked one is not cut.
+// The base colour of a masked or blended material, an opaque one and an emissive read the same
+// colour chain: no reader takes a chain of its own for its alpha.
 #[test]
-fn only_a_texture_every_reader_takes_for_coverage_is_weighted() {
+fn a_masked_or_blended_base_colour_takes_the_colour_chain() {
     let base = |index: u64, mode: &str| json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": index}}, "alphaMode": mode});
     let g = json!({
-        "materials": [
-            base(0, "MASK"), base(0, "BLEND"),
-            base(1, "OPAQUE"),
-            base(2, "MASK"), base(2, "OPAQUE"),
-            {"pbrMetallicRoughness": {"baseColorTexture": {"index": 3}}, "alphaMode": "MASK",
-             "emissiveTexture": {"index": 3}},
-            {"pbrMetallicRoughness": {"baseColorTexture": {"index": 4}}, "alphaMode": "BLEND",
-             "occlusionTexture": {"index": 4}},
-            {"pbrMetallicRoughness": {"baseColorTexture": {"index": 5}}, "alphaMode": "MASK",
-             "alphaCutoff": 0.0},
-            base(6, "blend"),
-            {"pbrMetallicRoughness": {"baseColorTexture": {"index": 7}}, "alphaMode": "BLEND",
-             "extensions": {"KHR_materials_transmission": {"transmissionFactor": 1.0}}},
-        ],
-        "meshes": meshes_using(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
+        "materials": [base(0, "MASK"), base(1, "BLEND"), base(1, "OPAQUE")],
+        "meshes": meshes_using(&[0, 1, 2]),
     });
     let found = atlas_textures(&g, &used(&g, 0));
     let keys: Vec<_> = found.iter().map(|t| (t.texture, t.kind)).collect();
-    assert_eq!(
-        keys,
-        [
-            (0, AtlasKind::Coverage(0)),
-            (1, AtlasKind::Color),
-            (2, AtlasKind::Color),
-            (3, AtlasKind::Color),
-            (4, AtlasKind::Coverage(0)),
-            (4, AtlasKind::Data),
-            (5, AtlasKind::Color),
-            (6, AtlasKind::Color),
-            (7, AtlasKind::Color),
-        ]
-    );
+    assert_eq!(keys, [(0, AtlasKind::Color), (1, AtlasKind::Color)]);
 }
 
 // Behavior 5 (c): only materials of retained meshes count.
@@ -163,4 +133,31 @@ fn only_materials_of_selected_meshes_are_collected() {
     let found = atlas_textures(&g, &used(&g, 1));
     let keys: Vec<_> = found.iter().map(|t| (t.texture, t.kind)).collect();
     assert_eq!(keys, [(1, AtlasKind::Color)]);
+}
+
+// A texture's compression setting is its glTF `extras.compression`: absent is the default, a name of
+// the list is that setting, any other is refused by name and cooked as the default.
+#[test]
+fn a_texture_names_its_compression_setting_in_its_extras() {
+    use crate::texture::blocks::Layout;
+    use crate::texture::setting::{Compression, Route, UNKNOWN};
+    let g = json!({"textures": [
+        {"source": 0},
+        {"source": 0, "extras": {"compression": "alpha"}},
+        {"source": 0, "extras": {"compression": "hdrCompressed"}},
+        {"source": 0, "extras": {"compression": "normalmap"}},
+        {"source": 0, "extras": {"compression": "sparkles"}},
+        {"source": 0, "extras": {"compression": 3}},
+    ]});
+    let of = |texture| Compression::of(&g, texture);
+    assert_eq!(of(0), Ok(Compression::Default));
+    assert_eq!(of(1).map(Compression::route), Ok(Route::OneChannel));
+    assert_eq!(of(2).map(Compression::route), Ok(Route::FloatBlocks));
+    assert_eq!(
+        of(3).map(Compression::route),
+        Ok(Route::Gated(Some(Layout::TwoChannel)))
+    );
+    assert_eq!(of(4), Err(UNKNOWN));
+    assert_eq!(of(5), Err(UNKNOWN));
+    assert_eq!(of(9), Ok(Compression::Default));
 }

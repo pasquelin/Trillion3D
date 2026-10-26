@@ -11,13 +11,16 @@ import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection
  *  lighting term a view of the lit image shows in place of the surface (`x`, `LIT_VIEWS`,
  *  `../../visibility/shader/shadeMode.ts`, `writeLightView`; `y` how the ambient occlusion applies, 0 none,
  *  1 to the emission and the sky light, 2 to the screen probes' light, and `z` the share it applies at,
- *  `writeAmbientOcclusion`; `w` unused); `preExposure` the number every light is written multiplied
+ *  `writeAmbientOcclusion`; `w` the shading models' switches, bit 0 an eye's iris with
+ *  a normal of its own, bit 1 a clear coat with a bottom normal, `writeModelSwitches`); `preExposure` the number every light is written multiplied
  *  by (`x`, `../../post/exposure/pre.ts`) and the scale the composition multiplies the image by
  *  (`y`): the exposure over that number, the scene's, or the one an automatic exposure measured
- *  and copied there on the GPU (`../../post/exposure/frame.ts`; `z`, `w` unused); `screenProbes` how the resolve reads the screen probes' history: `x` whether the
+ *  and copied there on the GPU (`../../post/exposure/frame.ts`; `z` whether the image carries an alpha channel, 1 or 0 (`propagateAlpha`); `w` the distance at which a subsurface-model surface's colour is the light's transmittance, `writeSubsurfaceDistance`); `screenProbes` how the resolve reads the screen probes' history: `x` whether the
  *  material's occlusion multiplies their light (through the multi-bounce of the albedo), `y` the albedo that is capped at,
- *  `z` the strength of their short-range occlusion and `w` their mode, 0 their light, 1 their occlusion alone over the
- *  world's probes' light (`writeScreenProbes`). The
+ *  `z` the strength of their short-range occlusion and `w` their mode (bit 0 their occlusion alone over the
+ *  world's probes' light, bit 1 no back light gathered; `writeScreenProbes`); `surface` the surfaces' render pixels per display
+ *  pixel on each axis (`xy`) and their last pixel (`zw`), where the composition reads a debug view's
+ *  as-is pixel (`view.ts`, `writeSource`). The
  *  environment's irradiance and fog travel with the lights. */
 export const VIEW_LAYOUT = fieldLayout('View', [
   ['inverseViewProjection', 'mat4x4f'],
@@ -31,6 +34,7 @@ export const VIEW_LAYOUT = fieldLayout('View', [
   ['views', 'vec4f'],
   ['preExposure', 'vec4f'],
   ['screenProbes', 'vec4f'],
+  ['surface', 'vec4f'],
 ] as const)
 export const VIEW_WGSL = wgslBlock('VIEW_WGSL', [], VIEW_LAYOUT.wgsl)
 /** World position of a pixel at a depth, reconstructed through that view: the one reading of

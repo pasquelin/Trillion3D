@@ -154,11 +154,12 @@ test('an explicit image upload request notifies once and false does not request 
   assert.equal(notifications, 2)
 })
 
-test('a new texture is unnamed, clamps, filters smoothly through its mips, reads colours and flips', () => {
+test('a new texture is unnamed, repeats, filters smoothly through its mips at 8 taps, reads colours and flips', () => {
   const texture = new Texture(null)
   assert.ok(!texture.name)
-  assert.deepEqual([texture.wrapS, texture.wrapT], [wrap.clamp, wrap.clamp])
+  assert.deepEqual([texture.wrapS, texture.wrapT], [wrap.repeat, wrap.repeat])
   assert.deepEqual([texture.minFilter, texture.magFilter], [filter.linearMipLinear, filter.linear])
+  assert.equal(texture.anisotropy, 8)
   assert.equal(texture.colorSpace, colorSpace.srgb)
   assert.equal(texture.flipY, true)
 })

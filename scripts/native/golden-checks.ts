@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { NATIVE_CRATES } from './native-crates.ts'
 
-// The golden checks a change of reference values runs (`../test/check-changed.ts`): the values of
+// The golden checks a change of reference values runs (`../check/check-changed.ts`): the values of
 // `packages/math/golden/<name>.json` are read by the crates' `golden_twins` tests, each through a
 // `Twin` of `file: "<name>"` (`packages/math/rust/src/golden.rs`), and by the TypeScript golden
 // tests, each through `assertGolden('<name>', …)` or `eachGolden('<name>', …)` (`packages/math/src/golden.fixture.ts`).

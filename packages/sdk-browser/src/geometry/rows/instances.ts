@@ -17,49 +17,65 @@ type PrimitivePage = { readonly placements: number[]; readonly offset: number }
  */
 export type PackedInstances = ReturnType<typeof createPackedInstances>
 
-export function createPackedInstances(roots: readonly Root[], placement: PlacementIndex) {
-  const byAddress = new Map<string, PrimitivePage[]>(),
-    placementsOf = new Map<readonly PageRec[], number[]>(),
-    /** The blended pages, each once per primitive: what the casters' rows follow
-     *  (`blendCasters.ts`), never a walk over every page. */
-    blended: PrimitivePage[] = []
-  let indexed = 0,
-    entries = 0
+/** What the index keeps: the entries of each address, the placements of each primitive, and the
+ *  counts. */
+interface InstanceIndex {
+  byAddress: Map<string, PrimitivePage[]>
+  placementsOf: Map<readonly PageRec[], number[]>
   /** How many packed ranks each address holds: the rows its pool slot feeds. */
-  const counts = new Map<string, number>()
-  /** Root `rank` joins its primitive's placements, the primitive's pages indexed at its first. */
-  const indexRoot = (rank: number) => {
-    const { pages } = roots[rank]
-    let placements = placementsOf.get(pages)
-    if (!placements) {
-      placementsOf.set(pages, (placements = []))
-      for (let offset = 0; offset < pages.length; offset++) {
-        const page = { placements, offset }
-        appendTo(byAddress, pageAddress(pages[offset]), page)
-        if (pages[offset].transparent) blended.push(page)
-        entries++
-      }
+  counts: Map<string, number>
+  indexed: number
+  entries: number
+  copiesMax: number
+}
+
+/** Root `rank` joins its primitive's placements, the primitive's pages indexed at its first. */
+function indexRoot(ix: InstanceIndex, roots: readonly Root[], rank: number) {
+  const { pages } = roots[rank]
+  let placements = ix.placementsOf.get(pages)
+  if (!placements) {
+    ix.placementsOf.set(pages, (placements = []))
+    for (let offset = 0; offset < pages.length; offset++) {
+      const page = { placements, offset }
+      appendTo(ix.byAddress, pageAddress(pages[offset]), page)
+      ix.entries++
     }
-    placements.push(rank)
-    return pages
   }
+  placements.push(rank)
+  return pages
+}
+
+/** Indexes the roots ranked from the last call on: those a growth appended. Each primitive
+ *  that took placements counts each of its pages once, by those placements (#1235). */
+function addRoots(ix: InstanceIndex, roots: readonly Root[]) {
+  const grown = new Map<readonly PageRec[], number>()
+  for (; ix.indexed < roots.length; ix.indexed++) {
+    const pages = indexRoot(ix, roots, ix.indexed)
+    countBy(grown, pages, 1)
+  }
+  for (const [pages, by] of grown)
+    for (const page of pages) {
+      const n = countBy(ix.counts, pageAddress(page), by)
+      ix.copiesMax = Math.max(ix.copiesMax, n)
+    }
+}
+
+export function createPackedInstances(roots: readonly Root[], placement: PlacementIndex) {
+  const ix: InstanceIndex = {
+    byAddress: new Map<string, PrimitivePage[]>(),
+    placementsOf: new Map<readonly PageRec[], number[]>(),
+    counts: new Map<string, number>(),
+    indexed: 0,
+    entries: 0,
+    copiesMax: 1,
+  }
+  const { byAddress } = ix
   const instances = {
     /** The most packed ranks one address holds, 1 at least: what the page table sizes by. */
-    copiesMax: 1,
-    /** Indexes the roots ranked from the last call on: those a growth appended. Each primitive
-     *  that took placements counts each of its pages once, by those placements (#1235). */
-    add() {
-      const grown = new Map<readonly PageRec[], number>()
-      for (; indexed < roots.length; indexed++) {
-        const pages = indexRoot(indexed)
-        countBy(grown, pages, 1)
-      }
-      for (const [pages, by] of grown)
-        for (const page of pages) {
-          const n = countBy(counts, pageAddress(page), by)
-          instances.copiesMax = Math.max(instances.copiesMax, n)
-        }
+    get copiesMax() {
+      return ix.copiesMax
     },
+    add: () => addRoots(ix, roots),
     /** Hands `visit` every packed rank at `address`; false when the address holds none. */
     each(address: string, visit: (packed: number) => void) {
       const list = byAddress.get(address)
@@ -74,11 +90,6 @@ export function createPackedInstances(roots: readonly Root[], placement: Placeme
       for (const { placements, offset } of byAddress.get(address) ?? [])
         visit(placement.baseOfRoot[placements[0]] + offset)
     },
-    /** Hands `visit` the packed rank of every blended instance, primitive page by primitive page. */
-    eachBlended(visit: (packed: number) => void) {
-      for (const { placements, offset } of blended)
-        for (const root of placements) visit(placement.baseOfRoot[root] + offset)
-    },
     /** The least packed rank at `address`, the one that names it: the address's first entry's
      *  first placement. Entries follow the root order their primitive first appears in, roots are
      *  only appended, and packed bases grow with the root rank (`postPackedBases`), so no later
@@ -89,7 +100,7 @@ export function createPackedInstances(roots: readonly Root[], placement: Placeme
     },
     /** Entries stored: one per primitive page, never one per packed rank. */
     get size() {
-      return entries
+      return ix.entries
     },
   }
   instances.add()

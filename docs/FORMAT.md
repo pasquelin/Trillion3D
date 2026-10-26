@@ -50,11 +50,16 @@ same bytes.
 
 `manifest-page-<sha256>.bin`: per-cluster numbers as typed-array columns, mapped, not parsed.
 
-- Version: `MANIFEST_BINARY_VERSION` 18, 27 columns in `COLUMN_NAMES` order, with the
+- Version: `MANIFEST_BINARY_VERSION` 21, 27 columns in `COLUMN_NAMES` order, with the
   `texturePreviewBc7`, `texturePreviewAstc` and `texturePreviewEtc2` block columns
-  (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`). 18 drops the page normal-cone
+  (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`). 20 keeps every column: the pages are
+  the `WGP3` format 12, which carries up to eight texture sets ([Pages](#pages)). 19 widens a geometry page's record,
+  the `geometryU32` column, from five words to seven — its bytes on disk, vertex count, index count,
+  flags and decoded bytes, then the bytes it takes in the pool once installed and its offset in its
+  streaming page's place there ([Pages](#pages)) — and its pages are the `WGP3` format 11: a 18
+  reader would stride through the records wrongly. 18 drops the page normal-cone
   column, the last, which the runtime read none of: a 17 reader would expect 28 columns. 17 keeps
-  every column: the pages are the `WGP3` format 9 ([Pages](#pages)), and the culling boxes bound the
+  every column: the pages are then the `WGP3` format 9 ([Pages](#pages); format 11 from 19), and the culling boxes bound the
   positions the pages decode to, so the pages, the box columns and the page sizes differ from a 16
   cook's; no record carries a quantization error any more. 16 lays the clusters in the order
   their streaming pages are filled in, and the `cullingNodes` column holds `CULLING_STRIDE` (16)
@@ -85,7 +90,7 @@ finest — the roots first, as one group —, within a level by the Morton code 
 centres on a 1024-cell grid along the longest side of the box of every centre, the code's bits
 flipped on an odd level so the end of one level lies near the start of the next
 (`bundles/order.rs`); each group's clusters along the diagonal of their own balls. Each cluster
-fills the current page while it holds its bytes and one more cluster, else a new page: a group
+fills the current page while it holds its resident bytes ([Pages](#pages)) and one more cluster, else a new page: a group
 spreads over several pages. The first pages are the ROOT PAGES — `streams.pinned` counts them —,
 32 KiB and 64 clusters at most (`ROOT_PAGE_BYTES`, `ROOT_PAGE_CLUSTERS`), as many as the mesh's
 `alwaysResidentKib` fills, one at least ([COMPILER.md](COMPILER.md#mesh-build-settings)), and every
@@ -112,8 +117,8 @@ below it; its children lie side by side after it (`rust/compiler/hierarchy.rs`,
 
 A position a simplification leaves on a source vertex's comes back from the build's frame bit for
 bit (`rust/simplify/region.rs`): the coarse pages of a simplified cook, in the content-addressed
-`objects/*.bin` (any version change allows them), in `world-roots.dag` (`WORLD_ROOTS_VERSION`) and in
-the cuts `proxy.bin` holds (`SCENE_PROXY_VERSION`), differ from an earlier cook's for the same source.
+`objects/*.bin` (any version change allows them) and in `world-roots.dag` (`WORLD_ROOTS_VERSION`),
+differ from an earlier cook's for the same source.
 
 - Types: `core/contracts/geometry.ts` (`Page`, `ClusterStructure`, `StreamCatalogue`); the cut,
   `browser/geometry/cut/rule.ts:drawsCluster`.
@@ -124,26 +129,190 @@ the cuts `proxy.bin` holds (`SCENE_PROXY_VERSION`), differ from an earlier cook'
 
 ## Pages
 
-Index pages (`u32` indices, concatenated in bundles) and `WGP3` geometry pages, quantized clusters a
-shader reads in place, decoded alike by Rust, JavaScript and WGSL.
+Index pages (`u32` indices, concatenated in bundles) and `WGP3` geometry pages, quantized clusters. A
+geometry page lives in two forms. ON DISK (format 12, `VERSION`) it is what the compiler writes, the
+containers hold and the browser reads: its triangles are strips, the vertices it shares with other
+clusters are references to them, every other attribute a stream of deltas, split in byte planes
+([On disk](#on-disk)). RESIDENT (format 10, `RESIDENT_VERSION`) it is what the geometry pool holds and
+the shaders read in place, each field of every stream at its own width: the install passes of the
+engine transcode the first into the second as the page lands in its slot, on the GPU. The first
+pass, one workgroup a page, unpacks the strips and writes every field of the vertices the page
+stores; the second, a level of pages a dispatch, copies the vertices a page names from the clusters
+that hold them, once those are installed — the pages whose references are installed first. The two
+sizes differ: the page assignment fills a streaming page by the RESIDENT bytes, the bundles lay the
+pages by their bytes on disk, and a page's record names both (`geometry.bytes`,
+`geometry.residentBytes`) and where it lies in the pool's place of its streaming page
+(`geometry.residentOffset`). A page holds at most `MAX_PAGE_TRIANGLES` (128) triangles on
+`MAX_PAGE_VERTICES` (256) vertices laid: a cluster's.
 
-- Versions: `VERSION`, `HEADER_WORDS` (`codec/lib.rs`), printed into `GEOMETRY_PAGE_FORMAT_VERSION`
-  and the other constants of `core/page/format.ts` (`pnpm run generate:shared-rules`), declared by the
-  manifest's `geometryPages`.
-- Writes `codec/encode.rs:encode_deformed`, the one encoder: the compiler's
+- Versions: `VERSION`, `RESIDENT_VERSION`, `HEADER_WORDS`, `DISK_HEADER_WORDS`, `STRIP_REF_BITS`,
+  `REF_PLACE_BITS`, `SELF_PLACE`, `NO_UNIT` (`codec/lib.rs`), printed into
+  `GEOMETRY_PAGE_FORMAT_VERSION`, `GEOMETRY_PAGE_RESIDENT_VERSION` and the other constants of
+  `core/page/format.ts` (`pnpm run generate:shared-rules`), declared by the manifest's `geometryPages`.
+  Format 10 wrote the page on disk as delta streams; format 11 writes its triangles as strips and
+  the vertices it shares with other clusters as references; format 12 carries up to eight texture
+  sets (`MAX_UV_SETS`, the glTF `TEXCOORD_0` to `TEXCOORD_7`), the ranges of those past the fourth in
+  an extension of the header ([Resident](#resident)): a reader refuses a page of any other format,
+  and a cache whose manifest binary is of another version. The resident layout is format 10's streams
+  behind a table of their offsets (`GEOMETRY_PAGE_RESIDENT_VERSION` 11, [Resident](#resident)): a cache
+  compiled before it holds `residentBytes` too small by the table: the manifest binary's version (21)
+  says so, a reader refuses the file and the compiler cooks it again.
+- Writes `codec/encode.rs:encode_deformed`, the one encoder, which lays a cluster's triangles in
+  strips in their order (`codec/clusters/strip.rs:strips_in_order`), gathers the values of every
+  field (`codec/streams.rs`) and writes the cluster alone on disk (`codec/refs.rs:alone`,
+  `codec/disk.rs:write`), naming only the vertices a strip lays twice: the compiler's
   `rust/compiler/pages/record.rs:encode_page`, `rust/hlod/chain/pages.rs:encode_pages` and
   the run-time cut (`browser/geometry/codec/encodeGeometryPage.ts`, `codec/wasm/encode.rs`) call it; the
   grid, one a primitive (`codec/bits/grid.rs:PageGrid::of`, `rust/geometry_page/quant.rs:page_grid`).
+  Once the streaming pages are assigned, `rust/compiler/pages/bundles/lay.rs:lay_bundles` writes the
+  clusters of each again in the order they lie in it, each naming the vertices the earlier ones store
+  and, where its page is relative (`rust/compiler/pages/bundles/relative.rs`), those of the clusters
+  of the pages it depends on directly (`codec/refs.rs:share`).
+  The install passes are `browser/geometry/pages/install/transcodeWgsl.ts` (`PAGE_TRANSCODE_WGSL`,
+  `PAGE_LINK_WGSL`), run by `browser/geometry/pages/install/installer.ts` from
+  `browser/geometry/pages/pool/commit.ts`; their CPU twin is `codec/resident.rs:expand_in`, the
+  resident layout's one writer (`resident::write`), which the tests compare the passes to
+  (`browser/geometry/codec/geometryPage.ts:residentGeometryPage`).
 - Reads `browser/geometry/cluster/pages.ts:fetchVerified`, `browser/geometry/codec/geometryPage.ts:decodeGeometryPage`,
-  `codec/unpack.rs:decode`, `browser/geometry/cluster/decodeWgsl.ts`.
-- Format 9 puts every attribute on a grid of its own, named by the header (`HEADER_WORDS`, 23 words):
+  `codec/disk.rs:read_raw` (the gate of a page on disk), `codec/disk.rs:read` and `read_in` (the
+  vertices it names found), `codec/unpack.rs:decode`, `browser/geometry/cluster/decodeWgsl.ts` (the
+  resident page).
+
+### On disk
+
+A page on disk (format 12) is, in order: the 23 header words of the resident page — their version
+word the disk's, their vertex count the vertices LAID —, the morph targets' records, the ranges of the
+texture sets past the fourth ([Resident](#resident)), the
+`DISK_HEADER_WORDS` (12) words, the strips, the references, the three byte planes (each closed on a
+word) and the raw words of the skin and the morph targets, which the pass copies as they are.
+
+The `DISK_HEADER_WORDS` words are: how many vertices the page names; how many pairs of clusters it
+names them in; the vertices the strips NAMED and the vertices they LAID before the second, third and
+fourth word of 32 triangles — ten bits each, the total of the first word lowest —; then the byte the
+distances start at, the pairs, the bits that say which vertices are named, the vertices named, the
+three planes and the raw words, from the page's first.
+
+**The strips.** A cluster's triangles are laid in strips (`strip.rs`, the module doc), a vertex
+reused named by how far back among the vertices laid so far it was laid, `STRIP_WINDOW` (32) at
+most: a vertex further back is laid again, so a vertex can be laid twice and the vertices laid
+outnumber the cluster's; a cluster whose merged vertices (those that quantize alike) lay more than
+`MAX_PAGE_VERTICES` is laid again with them kept apart, as the cluster came. The page holds, per 32 triangles — `MASK_GROUPS` (4) groups of them, the
+most a page holds, the bits past its last triangle zero —, three words of one bit a triangle — S, a
+strip starts; L, a start naming two or three vertices, or a growth to the left; W, a start naming one
+or three vertices, or a growth naming its third —, then, in triangle order, one distance of
+`STRIP_REF_BITS` (5) bits for each vertex a triangle names, closed on a word. A start names 0 to 3
+vertices (L and W their count, two bits), which come first, and lays the others after them; a growth
+names at most its third vertex, the other two being the edge it grew across. The two words of counts
+give the place of a triangle in the code from its own word alone (`unpack_triangle`, read the same
+by `PAGE_TRANSCODE_WGSL`, a lane a triangle). The vertices of the page are numbered in the order
+they are laid, and so are the resident page's, whose corners are the triangles unpacked: the
+resident triangle order is the order of the strips (every triangle in the order the cluster lists
+it, each turned to the corner its strip lays it from), where it was the cluster's own and the
+vertices numbered by first use.
+
+**The references.** A vertex of a page is NAMED when another cluster holds a vertex that quantizes
+alike on the same grids — the same precisions, the same attributes — : in a cluster of a streaming
+page this page depends on, in an earlier cluster of its own streaming page that stores it, or
+earlier in the very page, a vertex a strip laid twice (`refs.rs`, the module doc: the order of the
+search). The page then stores no field of it, only where to find it. A PAIR names a cluster: its
+streaming page's rank in the page's list of dependencies — the closed list its bundle carries,
+`streams.pages[].dependencies`, from 1; 0 for its own — above, in `REF_PLACE_BITS` (24) bits, the
+words from the start of that streaming page's place in the pool to the cluster's resident page
+(`geometry.residentOffset`); `SELF_PLACE` names the page itself. The page holds its pairs, each
+once, ascending; one bit a vertex, set for a vertex it names; and, for each vertex named, in vertex
+order, the rank of its cluster's pair, a byte, then its index in that cluster, a byte as the
+zig-zag delta (shortest-wrapped to a byte) to the index before it. A page names the vertices of
+the pages it depends on only when it is RELATIVE (`rust/compiler/pages/bundles/relative.rs`): a
+page of the cover's roots never is — it is always resident, the root of its chains —, a page whose
+dependencies are root pages alone always is, any other is unless it has `MAX_RELATIVE_CHAIN` (6)
+levels of relative pages below it, counted from the finest, which stores its vertices instead and
+starts the count again: no chain of pages installed one after the other is longer. A streaming
+page ranked past `MAX_PAIR_RANK` (255) in the list, the most a pair holds, is not searched: its
+vertices are stored.
+
+**The fields.** Every field of a vertex the page stores — all but those it names — is the DIFFERENCE
+to the field before it in its stream (`disk.rs:put`): the delta wrapped to the field's own width,
+the shortest way round its cells (`shortest_wrap`: a field of `b` bits takes the delta as the signed
+`b`-bit number it is congruent to), its sign folded into its low bit (`encode_zigzag`: 0, -1, 1, -2
+as 0, 1, 2, 3), and its bytes spread over the planes — the low byte of every value in the first, the
+middle byte in the second, the high in the third; a value of one byte lies in the first plane alone,
+of three in all of them. A value takes as many bytes as the widest component of its stream needs
+(`ceil(bits / 8)`). A stream's components lie together per field — `x`, `y`, `z`, `x`, `y`, `z` —,
+its streams one after the other in each plane, in this order: the links, of every vertex, when the
+page stores each position once (one component, `bits_for(positions - 1)` bits); the positions (three
+components) — the whole table of such a page, else those of the vertices the page stores —; the
+normals (two), the tangents, the colours (four, a byte each, none where all four widths are zero)
+and each texture set present (two), of the vertices the page stores. The first delta of a position
+is counted from the middle of its cells (`2^(bits-1)`), the first of every other stream from zero.
+A reader sums the deltas and masks each sum to the field's width (`disk.rs:get`), which gives back
+the cell, the octahedral cell, the colour byte above its least, the texture code above its least.
+Where each section and each stream start follows from the header's counts and widths and the code's
+counts, never from the page (`DiskLayout::of`); the words after the header name them and must
+match.
+
+**The passes.** The first pass writes, for each vertex the page stores, every field at the vertex's
+own place in the resident streams, and zero in the places of the vertices it names. The second reads
+each vertex named — the cluster of its pair is found at the start of its streaming page in the pool
+(its own, or the one of its rank in the list of dependencies the page was installed with) plus the
+words of the pair —, and writes its fields in the page's own grid: a position cell, a colour byte,
+a texture code moved from the cluster's range to the page's. The second pass runs a LEVEL a
+dispatch: the pages of a batch that name no vertex need no second pass; each of the others installs
+a level after the last level of the staged streaming pages its pairs name — the ranks they hold,
+not the whole list of dependencies; the first level for a page that names only its own streaming
+page or itself —, so that every cluster it names is complete, those of its own streaming page by
+the first pass alone: they are only vertices it stores. A chain longer than the levels one submit
+holds (`PAGE_INSTALL_LEVELS`, 16) is submitted in turns; no compiled page makes one. A page the
+first pass finds wider than its room is left unwritten but for its version word, zeroed, which the
+second pass reads as "not installed". A cluster of a streaming page not resident gives no vertex:
+the engine installs a page after every page its list names (`dependencies.rs`).
+
+**Bytes.** On the formulas of the first version of format 10, for a page of 128 triangles on 75
+vertices — positions stored once at 11, 11 and 10 bits, normals at 8 bits, one texture set of 12 and
+12 bits, the corner blocks of the resident page averaging 4 bits a corner —: resident, the same
+before and after, `92 + 4 · 230 = 1012` bytes; on disk, format 10, `92 + 16 + 912 + 376 = 1396`
+bytes (corner, position, normal and texture planes). In format 11, laid in 4 strips (the least the
+32-triangle runs allow) on 75 vertices laid, one page alone: `92` header, `48` disk header words,
+`48` masks (4 words of 3), `40` distances (61 vertices named by the strips, 5 bits each), `12` bytes
+of bits that say which vertices are named, then the planes of the 75 vertices stored — `528 + 376` —: `1144` bytes, 18% less
+than format 10's, 13% over the resident page. With half its vertices named (38 stored, 2 pairs):
+`92 + 48 + 48 + 40 + 8 + 12 + 76` (the 37 vertices named, two bytes each) `+ 268 + 192` (the planes
+of the 38 stored) = `784` bytes, 44% less than format 10's and 22.5% under the resident page.
+These are the formulas' numbers, measured on none: `geometry.bytes` against
+`geometry.residentBytes` of a cooked scene's `clusters.json` pages gives the sums.
+
+The gate of a page on disk (`disk::read_raw`, `Header::parse`, checked once on arrival,
+`page_check`) refuses, before reading any stream, a header outside the format's bounds, a count
+outside the page's (`MAX_PAGE_*`), a length that is not the counts', a section named elsewhere, a
+strip that lays other vertices than the header's count or that has a bit past its last triangle, a
+pair that is not above the one before it and a rank past the pairs; and after it, a corner past the
+vertices (`GEOMETRY_PAGE_INDEX`), a link past the stored positions, a corner stream whose blocks do
+not take the bits the header says and a raw float that is not finite. A page whose references find
+nothing — a pair that names no cluster of the pool, a vertex past a cluster's, a vertex that does
+not fit this page's grids — is refused when it is made whole (`GEOMETRY_PAGE_REFS`).
+
+### Resident
+
+- Format 9 puts every attribute on a grid of its own, named by the header (`HEADER_WORDS`, 23 words,
+  then the morph targets' records and the extension of format 12, below):
   word 5 the position widths, six bits an axis, and the position precision as the signed top byte;
-  words 6 to 8 the least cell of each axis, signed; words 9 to 16 the four texture sets' ranges, two
+  words 6 to 8 the least cell of each axis, signed; words 9 to 16 the first four texture sets' ranges, two
   words a set, `min << 5 | bits` for `u` then `v`; word 17 the least byte of each colour channel,
   red lowest; word 18 the colour channels' widths, four bits each from bit 0, then the normal
   precision from bit 16 and the tangent precision from bit 20; word 19 the corner bits; word 20 the
   positions stored; word 21 the skin and morph record; word 22 the skin influences. No word holds an
   error: nothing adds a page's rounding to a cluster's error.
+- The table of offsets (`RESIDENT_TABLE_WORDS`, 15 words) closes the header, the morph records and the
+  extension, and the streams follow it. It holds the word offset, from the page's first word, of
+  every stream a shader reads, two to a word, 16 bits each, the first in the low half, in this order:
+  the block table, the corners, the three positions, the links, the two normals, the two streams of
+  each of the eight texture sets, the four colours, the tangents, the skin
+  (`Layout::table`, `clusterTableWord`). A stream the page does not carry has the offset it would
+  start at. The install pass writes it from the page on disk's counts and widths
+  (`clusterDiskHeader`); a shader loads the offsets it needs (`clusterOffsets`) and recomputes none,
+  and the morph targets' records count from the first word behind the table. A page of the format's
+  bounds never passes 65535 words (at most 9 829, a header of at most 2 341 included: `MAX_TABLE_OFFSET`, proved
+  at compile time in `attributes.rs`), and the install pass refuses a page whose table would; the gate refuses a
+  table that is not the layout's.
 - Positions are cells of `2^-precision` centimetre. A vertex's cell on an axis is
   `floor((p · 100) · 2^precision + 0.5)`, in `f32` (`codec/bits/quant.rs:rounded_cell`); the page keeps
   the least cell of each axis and, per vertex, its cell above it in the widths of word 5 (at most 21
@@ -162,7 +331,7 @@ shader reads in place, decoded alike by Rust, JavaScript and WGSL.
   each dot's two low bits replaced by the cell's rank, so that near ties go to the later cell). The
   decode takes each cell times `2/(2^bits − 1)` less one, `z` one less their magnitudes, unfolds
   the lower half by what `z` lacks of zero, and makes the vector unit (`normal_decode`,
-  `clusterOctahedron`).
+  `octCellsDecode`).
 - Tangents (`FLAG_TANGENT`) are set only on a page whose mesh stores them (`meshBuild.storedTangents`,
   [docs/COMPILER.md](COMPILER.md)) and always with `FLAG_NORMAL`. Their stream follows the colour's:
   one field of `tangent_precision + 1` bits per vertex (`tangent_precision` 0 to 12, 7 by default,
@@ -178,15 +347,24 @@ shader reads in place, decoded alike by Rust, JavaScript and WGSL.
   channel constant on the page; the least is lowered where the greatest offset its bits hold
   (`2^bits − 1`) would pass 255, which the header's gate refuses (`ColorRange::unpack`). It decodes as the byte times `1/255` in `f32` (`color_value`,
   `clusterColor`).
-- Texture coordinates are up to `MAX_UV_SETS` (4) sets, `FLAG_UV`, `FLAG_UV1`, `FLAG_UV2`, `FLAG_UV3`,
+- Texture coordinates are up to `MAX_UV_SETS` (8) sets, `FLAG_UV` to `FLAG_UV7`,
   each two streams, `u` then `v`, of float codes of 20 bits: a sign, a 5-bit exponent and a 14-bit
   mantissa, the code's order the value's (`codec/bits/quant.rs:uv_code`, `uv_value`; `clusterUvValue`).
   A page stores per coordinate the least code and the bits above it, the least lowered where the
   greatest offset those bits hold would pass the greatest code (`UvRange::unpack`). A material reads a map at the
-  set its `texCoord` names (`channelsOf`, two bits a map).
+  set its `texCoord` names (`channelsOf`, `MAP_CHANNEL_BITS` (3) bits a map).
+- Format 12 holds the ranges of the sets past the fourth (`HEADER_UV_SETS`) in an extension after
+  the morph targets' records: `UV_EXTENSION_WORDS` (2) words, one per coordinate, for each of those
+  sets whose flag is set, in set order (`Header::extended_sets`, `clusterSurfaceHeader`). A page of
+  four sets or fewer has no extension and is the bytes it was in format 11, but for its version
+  word; a page of eight pays 8 words (32 bytes) of header and the two streams of each of the
+  sets, no more than a page of four pays for its own.
 - Streams, in `Layout::of` order: the block table, the corners, positions `x`, `y`, `z`, the links,
   the two normal streams, each set's `u` and `v`, the four colour channels, the tangents, then the
-  skin and the morph targets.
+  skin and the morph targets. The install pass writes the block of each eight triangles — its least
+  corner, the width of the distances to it, the widths of the blocks before it — and the corner
+  stream from the corners it read, and each stream's words whole, so that the bits past a stream's
+  last field are zero: the bytes it writes are `resident::write`'s.
 
 ### Voxels
 
@@ -198,8 +376,7 @@ its DAG group or compiled mesh; first brick and count; first voxel and count; it
 it is replaced at and its voxels' side as `f32`; its first brick's corner, `f32` × 3), 16-byte bricks
 (mask `u64`, bit `x + 4y + 16z`; corner in bricks from the group's first, `u16` × 3; joint `u16`,
 `0xFFFF` none), 12-byte voxels in each brick's mask order (sRGB base colour and a zero; occlusion,
-roughness, metalness and a zero, or the voxel's coverage as its opacity when the build keeps it
-(`voxelOpacity`), which no pass of the engine reads; normal, octahedral: the axis of the fitted
+roughness, metalness and a zero; normal, octahedral: the axis of the fitted
 distribution of the normals (`voxelNdf`), else the direction of their mean; the ratio of the fitted
 distribution's two widths, from which the resolve draws each pixel's shading normal, else zero; a
 zero): what the runtime reads of a voxel, no more. Version 4: a voxel's coverage and material stay in the compiler, and a
@@ -241,12 +418,69 @@ tile's blocks and gutter) raw DEFLATE alone: one Range reads the head, one a til
 inflates it (`DecompressionStream`). The runtime takes the first family the device's features allow
 (`browser/materials/texture/blockFormats.ts:chooseBlockFormat`); a device with none reads the BC files and
 decodes them to RGBA8 (`browser/materials/texture/blockDecode.ts`).
-Coverage-preserving alpha: `rust/texture/coverage.rs`, mirrored by
-`browser/materials/texture/coverageRule.ts`.
+Mip levels: the mean of the four texels of each channel (`rust/texture/reduce.rs`), the colours in
+linear light for the colour atlas, alpha as it is; the levels a DDS stores are kept and the rest
+reduced from the last. A 16-bit PNG is reduced from its 16-bit samples, in `f32`, each level rounded
+to 8 bits once when it is written (`reduce.rs:chain_wide`), and counted (`image-depth-reduced`). The
+engine builds the mips of a host texture the same way, the mean of the four texels of every channel
+(`browser/materials/texture/mipsWgsl.ts`).
 
-- Version: `TEXTURE_PREVIEW_VERSION` 8 (`rust/texture.rs`, `core/texture/previewFormat.ts`).
+A texture whose file stores floating point (OpenEXR, Radiance HDR) read as a base colour or an
+emissive map is chained in `f32` and held in half-float RGBA, the atlas of word 2 (`hdr`,
+`rust/texture/hdr.rs`): the sidecar's pixel column holds its tail at eight bytes a texel, no block
+family holds it (all three layout words are `lossless`), and the levels above the tail are
+`hdr-<level>.rgba16f` files, tile records of half-float texels cut as the block files are
+(`levels.rs:tile_records`, `HALF_CELL`). A value past the half-float range holds at its largest
+finite value; a NaN reads as zero; no gate or codec touches it. The runtime holds it in the colour
+atlas's third pool, `rgba16float`, where the data atlas holds its two-channel one
+(`browser/materials/texture/blockFormats.ts:atlasLanes`): the sampled textures a stage binds stay
+within the sixteen WebGPU guarantees. A floating image read only as a metal-roughness, normal,
+occlusion or height map is not baked (`image-float-data-unsupported`).
+
+A texture can name how it is stored: `extras.compression` of its glTF texture, one of `default`,
+`masks`, `normalmap`, `bc7`, `alpha`, `grayscale`, `displacementmap`, `vectorDisplacementmap`, `hdr`,
+`hdrF32`, `halfFloat`, `singleFloat` or `hdrCompressed` (`rust/texture/setting.rs`; a name outside the
+list is cooked as `default` and reported, `texture-compression-unknown`). `default` and `masks` are
+the gated BC7 (BC5 for a normal map) above; `normalmap` and `bc7` fix the layout whatever reads the
+texture; `alpha` writes one channel in BC4, eight bytes a block (layout word 4, level files `bc4`,
+no gate); `grayscale` writes the red channel in eight-bit texels (layout word 5, level files `g8`), and
+`displacementmap` the alpha channel (layout word 6, level files `a8`): sixteen-byte "blocks" holding a
+4 × 4 square row by row, kept to the bit, no codec; their sidecar tails hold the RGBA8 texels the
+engine reads (the channel in RGB and opaque, or in all four); `vectorDisplacementmap` writes no block: the
+tail in RGBA8 and the source image; `hdr` is the half-float atlas above (a byte image is read as linear
+values; values hold at the half-float range); `hdrF32` keeps the four channels as 32-bit floats (layout
+word 7, level files `rgba32f`), `singleFloat` the red channel as 32-bit floats of the data atlas (word 8,
+`r32f`) and `halfFloat` as half-floats (word 9, `r16f`): files and sidecar tails of 4 × 4 squares of exact
+texels, row by row (`rust/texture/blocks/texels.rs`), the sidecar's own texels a half-float or grey copy;
+a one-channel float on a colour map is cooked as `hdr`. The runtime holds the half-float lane's pool in
+`rgba32float` where a chain is kept so and the device has `float32-filterable` (the engine requests it
+among its optional features), else in `rgba16float`, the 32-bit values cut to the half range, said once
+(`material-textures-float32-unfiltered`); the data atlas's channel pool holds the float maps in `r32float`
+or `r16float` likewise, beside no normal map. No pool is added: a scene picks the format of the pools it
+has, so the sampled textures of a stage stay as counted below. `hdrCompressed` writes a half-float chain in BC6H, unsigned RGB, sixteen-byte blocks (layout word 3
+of the stored family, level files `bc6h` in place of `rgba16f`; its sidecar entry keeps the
+half-float pixel tail as well). A floating-point setting on a map the data atlas reads is cooked as
+`default` (`texture-compression-float-data-unsupported`). The runtime samples BC6H blocks where the
+device has `texture-compression-bc` and every half-float chain is BC6H, else decodes them to
+half-float texels. The data atlas binds a fourth pool for the one-channel layouts (words 4, 5 and 6;
+`browser/materials/texture/blockFormats.ts:atlasLanes`): BC4 blocks, `bc4-r-unorm`, half a byte a
+texel, where the device has `texture-compression-bc` and every chain of the lane is BC4; else `r8unorm`,
+one byte a texel, the BC4 blocks decoded (`blockDecodeMore.ts`) and the eight-bit blocks unpacked. The
+shader reads it by the texture's tap: BC4 in R alone, `grayscale` in RGB and opaque, `displacementmap`
+in all four. A colour map with one of these settings is read from the lossless pool, decoded to RGBA8
+(a colour needs the sRGB curve, which no one-channel format has). The sampled textures a stage binds
+count three for the colour atlas and four for the data atlas, at most 13 in the fragment stage of the
+transparents, under the sixteen WebGPU guarantees. The layout words 3 to 6 are new chains under names
+of their own: no existing byte moves, the version stays.
+
+```json
+{ "textures": [{ "source": 0, "extras": { "compression": "grayscale" } }] }
+```
+
+- Version: `TEXTURE_PREVIEW_VERSION` 12 (`rust/texture.rs`, `core/contracts/writtenFormats.ts`).
 - Writes `rust/texture/bake/write.rs:write_levels`, `rust/texture/levels.rs:tile_records`,
-  `rust/manifest_binary/preview.rs:encode_previews`; gate `rust/texture/blocks/quality.rs`.
+  `rust/manifest_binary/preview.rs:encode_previews`; gate `rust/texture/blocks/quality.rs`; the
+  half-float cook `rust/texture/bake/half.rs:cook`.
 - Reads `core/manifest/binaryPreview.ts:decodeTexturePreviews`,
   `browser/materials/texture/levelReader.ts:createTextureLevelReader`, `browser/materials/texture/tileRecords.ts:tileRecord`.
 
@@ -259,8 +493,20 @@ light, and no node names one.
 
 - `hlodMaterials`: per HLOD actor the chain builds, by the rank its world clusters name, the
   `materials` rank of the material it wears.
-- Versions: `SCENE_TABLES_VERSION` 9, `NODE_TABLE_VERSION` 7, `MATERIAL_TABLE_VERSION`,
+- A material's `displacement` ([Displacement](COMPILER.md#displacement)): only a displaced
+  material has the field, `{ "map": slot, "magnitude", "center", "fade": { "start", "end" } | null,
+"uvDensities": [d0, d1, d2, d3] }`, `map` a texture slot as the other maps' (`texture`,
+  `texCoord`, `slotTexCoord`, `transform`), `uvDensities` the measured density of each of the first
+  four coordinate sets (0 for a set no triangle measured; the field is absent when none was). The
+  table's version is unchanged: a reader that does not know a field reads the material flat, as
+  before, and a displaced material with no `uvDensities` reads a density of 1 for every set.
+- A material's `responsive` ([Temporal anti-aliasing](COMPILER.md#temporal-anti-aliasing)): only a
+  material above `off` has the field, `"medium"` or `"full"`, the compiler's one resolution of the
+  job's `materials`, its `responsive` match and the material's `extras`.
+- Versions: `SCENE_TABLES_VERSION` 9, `NODE_TABLE_VERSION` 7, `MATERIAL_TABLE_VERSION` 6,
   `GEOMETRY_TABLE_VERSION` (`rust/compiler/tables.rs`, `core/scene/core/tableContracts.ts`).
+  Material table 6 names the level in `responsive`; versions 4 and 5 wrote `responsive: true` and a
+  `temporalAntialiasing` number there.
   Tables 8 / node table 6 dropped `lights` and each node's `light`: they copied the glTF fields raw
   and failed the compile on a non-punctual type, where `lights.json` counts it in `rejected`.
   Node table 7: an animated node that streams carries `"streamed": true` — its mesh is drawn only
@@ -268,6 +514,10 @@ light, and no node names one.
   row's animation source —, and an instanced skinned node loaded with the scene carries
   `"bank": <item>` — the item of [`animation-banks.bin`](#animation-banksbin) its mesh plays —,
   hung under its skin's frame at no pose (glTF ignores a skinned node's own transform).
+  A static object the core keeps as the frame of the nodes under it, its mesh drawn by a row of its
+  cell, carries `"meshStreams": true`: its collider is made and let go of with that cell. A node
+  that is no such frame carries no byte of it, so the version is as it was; a runtime that does not
+  read it streams that collider by distance alone.
 - Writes `rust/compiler/tables.rs:stage_scene_tables`; reads
   `core/scene/core/tableContracts.ts:assertSceneTables`, `browser/scene/host/prepared/build.ts:buildPreparedScene`.
 
@@ -290,22 +540,49 @@ level of its cell there, and its main grid when that is not the first (`rust/hlo
 
 - A cell file's node is `{parent, mesh, matrix | translation, rotation, scale}` — a static
   leaf under its nearest core node, at its declared pose —, `{parent, mesh}` — a static object
-  with nodes under it, under its own core node, which keeps no mesh, at no pose —,
+  with nodes under it, under its own core node, which keeps no mesh and says so (`meshStreams`), at
+  no pose —,
   `{parent, mesh, "track": <item>}` —
   an instanced skinned object under its skin's frame (the node its top joints hang under), at no
   pose, playing that item of [`animation-banks.bin`](#animation-banksbin) —, or
   `{parent, mesh, "source": true}` — an animated object of the core (skinned, morphed, moved by a
   clip, or a joint), drawn by a row under its own node at no pose, its host mesh the row's
   animation source. Every object streams on its main grid unless its `objectSettings` say
-  `spatiallyLoaded: false`; an object an animation moves — itself or through a parent — takes no
+  `spatiallyLoaded: false`. An object [`physics.json`](#physicsjson--cooked-colliders) moves or
+  bends — a soft body it declares, a moving rigid body it or a node above it declares — is an
+  animated object: its node stays in the core and its cell draws it (`"source": true`); its body is
+  made when that cell is placed and let go when it leaves, a static collider's alike, as render and
+  physics of one object stream together. Every cell node names the source node it draws
+  (`"sourceNode"`, its rank in eight lowercase hexadecimal digits, as in the node table of
+  [`scene-tables.json`](#prepared-scene-tables)). An object an animation moves — itself or through a parent — takes no
   HLOD layer, nor does an instanced skinned object of `movable` mobility. An instanced skinned
   object's box is its item's sampled bounds at its frame's world, a plain skinned one's the bounds
   of every clip moving its skin, a morphed one's its mesh's grown by its targets' extents. A node
-  whose object names a farthest draw distance (`drawDistance` of `objectSettings`,
-  [COMPILER.md](COMPILER.md#object-settings)) carries `"drawDistance": {"min", "max"}`, in the
-  scene's units, here and in the node table of [`scene-tables.json`](#prepared-scene-tables); one
-  naming none carries no byte of it, so the versions are as they were.
-- Versions: `PARTITION_VERSION` 13, `CELL_VERSION` 3 (`rust/compiler/tables/partition.rs`,
+  whose object names a draw distance (`drawDistance` of `objectSettings`,
+  [COMPILER.md](COMPILER.md#object-settings)) carries `"drawDistance": {"min", "max", "perInstance"}`,
+  in the scene's units (`perInstance` a boolean: the object is one instance of an instanced mesh,
+  tested at its bounds' centre; a `min` or `max` of 0 names none of its end), here and in the node
+  table of [`scene-tables.json`](#prepared-scene-tables); one naming none carries no byte of it, so
+  the versions are as they were.
+  A node that is an instance of an assembly (`allowAssemblies`,
+  [COMPILER.md](COMPILER.md#assemblies)) carries `"rootParents"`, here and in the node table of
+  [`scene-tables.json`](#prepared-scene-tables): a list with one entry for each primitive of the
+  mesh it draws, in order — `[error, x, y, z, radius]`, the error and the LOD ball, in the
+  primitive's own space, of the group that replaces its root in the assembly's primitive —, or
+  `null` for a primitive no group replaces. A node that is no instance carries no byte of it, so
+  the versions are as they were (`PARTITION_VERSION` 13, `CELL_VERSION` 4). A runtime that does not
+  read the field never closes an instance: it draws every instance down to its parts' roots, and
+  the merged clusters of the assembly's primitive draw beside them far away — a doubled surface
+  there, not only finer detail — a known break of an older runtime, which the unmoved versions do
+  not announce. The assembly's mesh names the primitives that carry its levels in its own
+  `extras.assemblyBuilt` of `source.gltf`, and each node of the assembly carries
+  `extras.assemblyInstance` `{ "of": mesh, "at": rank }`. Two more marks of the load stay in the
+  document the compile reads: a primitive the load added to carry an assembly's levels (a
+  placeholder, never read) carries `extras.assemblyTop`, and a mesh drawn as a part of an assembly
+  carries `extras.assemblyPart`, the rank of the assembly's mesh, which gives it the tangents, the
+  voxel settings and the voxelization of its assembly. A placeholder no instance can join builds no
+  primitive of the compiled scene: `source.gltf` keeps it, the manifest does not list it.
+- Versions: `PARTITION_VERSION` 13, `CELL_VERSION` 4 (`rust/compiler/tables/partition.rs`,
   `core/scene/core/tablePartition.ts`, `core/scene/core/tableCell.ts`). Version 5: a lamp's node
   may stand in a cell. Version 6: a cell record adds `grid` (`[level, x, z]`), `bounds` and `hlod`, the root `hlod`. Version 7: the HLOD grids
   `· (2 << i)` the main one's. Version 8: every grid is a square grid over the world, its cells of
@@ -349,7 +626,9 @@ streams by on its grid, that grid's rank]`, `null` for objects in no layer, whic
   grid, four on one that is not, by its own grid. An HLOD 0 cell of a layer that is not instanced
   lies on the main grid of the cell its objects are in (its `hlod[2]` is that rank). The flag bit `2`
   (cell files stream on the grid) is set on a main grid only when a cell file or an HLOD 0 cell lies
-  on it.
+  on it. Cell 4: every cell node names the source node it draws (`sourceNode`), and an object the
+  cooked physics moves or bends streams with its cell, its body with it, instead of staying whole in
+  the core.
 - Writes `rust/compiler/tables/partition.rs:partition`, `rust/compiler/tables/partition/pages.rs:write_page`.
 - Reads `core/scene/core/tablePartition.ts:readCellPage`, `core/scene/core/tableCell.ts:assertCellNodes`.
 
@@ -362,11 +641,17 @@ instanced, any other's built per main cell of its objects; each level above is, 
 level below, the closed shell, the merge, the voxels or the instances of the cell's original objects
 — every object under the cell, at every level: no level reads an actor of the level below, its
 shape nor its texture —, each at its layer's accuracy and simplified within its geometric
-deviation, a merge taking each object's LOD at its level's own deviation. Each shell is simplified
+deviation, a merge taking each object's LOD as its layer selects (`lodSelection`) and never
+simplifying the merged mesh. Each shell is simplified
 by volume-preserving quadrics, given unique texture coordinates and baked: those objects'
-materials read onto it, so every detail under a pixel lives in the texture. Each actor is built
-into its own DAG, its errors its own, and wears its flattened
-material: a material of `source.gltf`
+materials read onto it, so every detail under a pixel lives in the texture. Each actor is its own
+mesh and wears its flattened material. A layer that asks for a cluster DAG (`clusterDag`) builds
+the actor into its own DAG, its errors its own; by default the actor is its level 0 alone — exact
+clusters, every one a root, none made by a group, every page a root page held with its cell —,
+which the runtime draws whole at every distance: its roots of one cell stand in together, none
+drawn while another is not resident, none cut by an error
+(`browser/geometry/hlod/worldHlod.ts`, `rust/hlod/chain/builds.rs:build`). That flattened
+material is a material of `source.gltf`
 — a base colour and the maps its layer bakes beside it, each texel's own: a shell's, by default,
 a normal map, its roughness 0.5 and metallic 0 the material's factors, or a metal-roughness map
 where the layer bakes either — a shell's holding its baked specular, where its layer bakes it, in
@@ -455,17 +740,29 @@ in the page cache, every cluster of them in the cover, each world page naming it
   it is loaded and let go with it (`rust/hlod/chain/builds/instanced.rs`, `lay_rows`); the table
   names that bundle and their count. A world whose built actors are all rows publishes a DAG of
   no cluster, its hierarchy one empty node, which the cut packs to carry the switch. Version 33:
-  the pages are the `WGP3` format 9 ([Pages](#pages)), each actor's grid its own, and a cluster's
+  the pages are then the `WGP3` format 9 ([Pages](#pages); format 11 from version 35), each actor's grid its own, and a cluster's
   page facts carry no quantization error — five words, not six: the cluster record is 180 bytes,
-  not 184. Version 34 (`WORLD_ROOTS_VERSION`): a row names no more whether it is drawn whole — a
-  word that no runtime read —, 136 bytes, not 140: an `instanced` layer asking for no cluster DAG
-  builds its objects' fallbacks as a `merge` layer does, none of its objects standing as rows.
-- DAG layout (version 34): a 24-byte header (magic, version, cluster count, group count, pool
-  length, node count), 180-byte clusters — level, triangles, its actor's rank (`hlodMaterials`),
+  not 184. Version 34: a row names no more whether it is drawn whole — a
+  word that no runtime read —, 136 bytes, not 140.
+  Version 35 (`WORLD_ROOTS_VERSION`): the pages are the `WGP3` format 11, and a cluster's page facts
+  gain the bytes it takes in the pool and its offset in its streaming page's place there — seven
+  words: the cluster record is 188 bytes. Version 36: the pages are the `WGP3` format 12, which
+  carries up to eight texture sets. Version 37: an `instanced` layer asking for no cluster DAG
+  (`disallowClusterDag`) keeps its objects as rows, each naming the FALLBACK MESH of its source
+  mesh in place of the source (`rust/compiler/source/fallback.rs`): a mesh of the published scene
+  whose `extras.hlodFallbackOf` is the published rank of its source, one primitive per source
+  primitive wearing its material, its clusters the source's fallback (the last LOD, a fraction of
+  its triangles) built as exact clusters, every one a root, so drawn whole at every distance. The
+  partition's root lists it with no node and no row at any rung (a total of zero), the core's
+  `meshPages` name its pages, and its rows come from the actors alone. The layout is the version
+  36's: a runtime reads both.
+- DAG layout (versions 36 and 37): a 24-byte header (magic, version, cluster count, group count, pool
+  length, node count), 188-byte clusters — level, triangles, its actor's rank (`hlodMaterials`),
   bundle, offset, HLOD cell — whose level plus one is its HLOD layer —, two zeros, then the `f64`
   error, parent error (NaN for a root),
-  sphere, parent sphere, minimum and maximum, then its page's facts: length, vertex count, index
-  count, attribute flags and decoded bytes —, 64-byte groups, 128-byte culling nodes, then a `u32`
+  sphere, parent sphere, minimum and maximum, then its page's facts: length on disk, vertex count,
+  index count, attribute flags, decoded bytes, bytes resident in the pool and offset in its place
+  there —, 64-byte groups, 128-byte culling nodes, then a `u32`
   pool. The clusters lie in the order their streaming pages are filled
   in: a cluster's rank is the one every record names it by, and each node — `CULLING_STRIDE` (16) `f64`,
   a primitive's node layout ([Cluster DAG](#cluster-dag)) — a leaf naming its group part's run of
@@ -519,8 +816,10 @@ in the page cache, every cluster of them in the cover, each world page naming it
 ## `animation-banks.bin`
 
 The clips the scene's instanced skinned objects play on the GPU (`objectSettings`'
-`skinnedInstance`, [COMPILER.md](COMPILER.md)), each sampled once. A bake is one skin's clip at 30
-frames a second (`ANIMATION_BANK_SAMPLE_RATE`): each joint's transform in the skin's frame — the
+`skinnedInstance`, [COMPILER.md](COMPILER.md)), each sampled once. A bake is one skin's clip at its
+own rate in frames a second — the first of 30, 24, 23.976, 25, 29.97, 48, 50, 60, 59.94, 72, 90, 100,
+120, 144, 165, 240 and 480 at which the clip's duration is a whole number of frames within a
+millisecond, else 30 (`ANIMATION_BANK_SAMPLE_RATE`): each joint's transform in the skin's frame — the
 node its top joints hang under — per frame, translation then rotation, and each joint's inverse
 bind matrix; identical bakes are written once. An item is what objects play: a bake on a mesh,
 whether its track loops, the second it starts from, its play rate, the screen size under which it
@@ -528,9 +827,9 @@ rests (0 the run-time setting's, negative never) and its sampled bounds — the 
 every joint's translation of every frame, scaled by its `boundsScale` about its centre —, in the
 frame's space. Every instance of one item is in one pose: one track.
 
-- Layout (little-endian, version 1): a 5-word header (magic `TBNK`, version, bake count, item
-  count, pool length in floats); 4-word bakes (joints, frames, inverse binds' and keys' first
-  float in the pool); 12-word items (bake, flags — bit 0 looping —, position, play rate, minimum
+- Layout (little-endian, version 2): a 5-word header (magic `TBNK`, version, bake count, item
+  count, pool length in floats); 5-word bakes (joints, frames, inverse binds' and keys' first
+  float in the pool, the rate as `f32`); 12-word items (bake, flags — bit 0 looping —, position, play rate, minimum
   screen size as `f32`, six `f32` bounds, mesh rank); the `f32` pool: per bake its inverse binds
   (twelve floats a joint, the three rows of its affine part) and its keys (seven floats a joint a
   frame: translation, then the rotation quaternion `x y z w`).
@@ -545,18 +844,30 @@ frame's space. Every instance of one item is in one pose: one track.
 
 The precomputed indirect light of a baked scene: a sparse grid of bricks of third-order spherical
 harmonics (`rust/volumetric_lightmap`, read by `sdk-core/src/lighting/volumetricLightmapFile.ts`).
-Words are little-endian `u32`. The head, 35 words: the magic `T3VL`, the version (1), the brick
+Words are little-endian `u32`. The head, 35 words: the magic `T3VL`, the version (2; a file of version 1 is still read), the brick
 size (4), the world box the grid covers (lower then upper corner, `f32` × 3 each), the indirection
 volume's size in texels and the atlas's (`u32` × 3 each), then for each of the ten layers its texel
 format (1 `rgba8uint`, 2 `rg11b10ufloat`, 3 `rgba8unorm`, 4 `r8unorm`) and its byte length. The
-layers follow, each on a four-byte boundary, texels in x, then y, then z order:
+layers follow, each on a four-byte boundary, texels in x, then y, then z order. Version 2 adds two
+words after the head, the side of a streaming cell in finest bricks and the number of cells (0 for a
+file whose bricks are all in its layers, as in version 1), and, after the layers, a record of 14 words
+for each cell: its three coordinates in the grid of cells, its bricks, where its bytes start in the
+file and their length, then their SHA-256 (32 bytes). The cells' bytes follow the records. A cell
+holds, in this order, each part brick after brick: the three coordinates of every brick in the
+indirection volume (`u32`), then the 5 × 5 × 5 texels of its ambient, of its six coefficient layers,
+of its bent normal (where the file has one) and of its sun's shadowing, in the formats of the layers.
+With cells, the layers hold the coarser bricks alone and the indirection volume names, for a finest
+brick's place, the coarser brick over it; a cell loaded takes slots of the atlas past the layers' and
+points its indirection texels at them. The part always read, from the head to the end of the records,
+is `baseBytes` long in the manifest's section, with `baseSha256`; a cell is read by a Range and
+checked against its own digest.
 
 | Layer  | Format          | Volume      | Holds                                                                                                                                                                         |
 | ------ | --------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0      | `rgba8uint`     | indirection | per texel of the finest level: the brick's place in the atlas layout (three bytes) and how many finest bricks it spans                                                        |
 | 1      | `rg11b10ufloat` | atlas       | the ambient colour (the zeroth coefficient)                                                                                                                                   |
 | 2 to 7 | `rgba8unorm`    | atlas       | the other coefficients, red low and high, green low and high, blue low and high: each divided by the ambient and by its basis function's scale, mapped from [-1, 1] to [0, 1] |
-| 8      | `rgba8unorm`    | atlas       | the sky's bent normal mapped to [0, 1], its length the sky's visibility; empty (0 bytes) where the sky is not shadowed                                                        |
+| 8      | `rgba8unorm`    | atlas       | the sky's bent normal mapped to [0, 1] (alpha a half), its length the sky's visibility; empty (0 bytes) where the job names no sky light or the sky does not cast shadows     |
 | 9      | `r8unorm`       | atlas       | the stationary sun's unshadowed fraction                                                                                                                                      |
 
 The atlas is a layout of up to 256 bricks a side, each brick `brickSize + 1` texels wide: the
@@ -569,22 +880,132 @@ Written by the compiler when the job names `lightmapBake` ([COMPILER.md](COMPILE
 `volumetricLightmap` section names it: `{ version, file, bytes, bounds, bricks, levels, indirection,
 passes, sky }` — the version of the file, its name, its size, the world box the volume covers (lower then
 upper corner, metres), the bricks it holds and the levels they come in, the indirection volume's size,
-the passes each probe took, and whether a sky light was baked (it never is: the bent normal layer is
-empty).
+the passes each probe took, and whether the job named a sky light (`sky`); the bent normal layer is
+written only where that sky casts shadows.
 
 - Versions: `VOLUMETRIC_LIGHTMAP_VERSION` (`rust/volumetric_lightmap/format.rs`); the head's
   constants `VOLUMETRIC_LIGHTMAP_MAGIC`, `VOLUMETRIC_LIGHTMAP_LAYERS`,
   `VOLUMETRIC_LIGHTMAP_FIXED_WORDS`, `VOLUMETRIC_LIGHTMAP_LAYER_WORDS`,
   `VOLUMETRIC_LIGHTMAP_HEADER_WORDS`, `VOLUMETRIC_LIGHTMAP_MAX_LAYOUT`.
 
+## `distanceFields.bin`
+
+The signed distance fields of the meshes that built one, and of the HLOD cells whose layer allowed one
+(`rust/distance_field/encode.rs`, read by `sdk-core/src/lighting/distanceFieldFile.ts`; the settings are in
+[COMPILER.md](COMPILER.md#distance-fields)). Words are little-endian. The head, 16 bytes: the magic `T3DF`, the version (2), the
+number of fields and a reserved word. Then a record of 200 bytes for each field: two words, the owner
+and the flags, the box's low and high corners in metres (six `f32`), then three mip records of 56 bytes,
+finest first: the bricks along each axis (three `u32`), the distance scale and bias, the
+volume-to-virtual-coordinate scale and add (three `f32` each), the bricks stored, and where the mip's
+data starts in the file and how long it is (`u32` each). After the records come the mips' data, each
+field's coarsest first so that the mip always loaded leads: the indirection table (a `u32` for each cell of
+bricks, `0xffffffff` where none is stored) and the bricks stored, 512 bytes each (8 × 8 × 8 voxels, a byte
+the distance to the surface over the band).
+
+The record's second word holds flags:
+
+| Bit     | Name                            | Meaning                                                                                                                                                                                                        |
+| ------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 (`1`) | `DISTANCE_FIELD_FLAG_TWO_SIDED` | a quarter of the triangles or more are two-sided (or the build asked for all): the field's hits are less accurate                                                                                              |
+| 1 (`2`) | `DISTANCE_FIELD_FLAG_HLOD_CELL` | the field is an HLOD cell's: the first word names a cell of the world's chain of HLOD cells ([World HLOD](#world-hlod)), not a compiled mesh, and the box is in the world's space, not the mesh's object space |
+
+Version 2 added the flags (a file of version 1 is refused: `UNSUPPORTED_FORMAT`). The manifest's
+`distanceFields` section names the file and lists, for each field, `{ "mesh": <mesh or cell>, "twoSided":
+<bool>, "mips": [...] }`, with `"hlodCell": true` on an HLOD cell's:
+
+```json
+{
+  "distanceFields": {
+    "version": 2,
+    "file": "distanceFields.bin",
+    "meshes": [
+      { "mesh": 0, "twoSided": false, "mips": [{ "bricks": [4, 4, 1], "stored": 11 }] },
+      {
+        "mesh": 5,
+        "twoSided": false,
+        "hlodCell": true,
+        "mips": [{ "bricks": [18, 18, 3], "stored": 240 }]
+      }
+    ]
+  }
+}
+```
+
+(The section also carries `bytes`, `headBytes`, `meshBytes`, `mipBytes` and the `bricks` total.) The file is read
+by parts, since its bricks are megabytes the view mostly never asks for: the head and the records, `baseBytes`
+long, once, checked against `baseSha256`, then each mip's data (its table and bricks, at the offset and length its
+record gives) by a Range when the atlas takes the mip in, checked against its entry of `mipSha256` (the SHA-256 of
+each mip's data, in the records' order, a field's mips finest first). A section without them has its file read
+whole. A scene whose meshes build none writes neither the file nor the section. Constants: `DISTANCE_FIELD_VERSION`,
+`DISTANCE_FIELD_MAGIC`, `DISTANCE_FIELD_HEAD_BYTES`, `DISTANCE_FIELD_MESH_BYTES`, `DISTANCE_FIELD_MIP_BYTES`,
+`DISTANCE_FIELD_FLAG_*` (`packages/sdk-core/src/contracts/distanceFieldAbi.ts`).
+
+## `meshCards.bin`
+
+The cards of the meshes that kept some, and of the HLOD cells whose layer allowed a distance field
+(`rust/card_representation/encode.rs`, read by `sdk-core/src/lighting/meshCardsFile.ts`; the settings are in
+[COMPILER.md](COMPILER.md#mesh-cards)). A card is a box looking at the mesh along one of the six axis
+directions; the cards of a mesh cover its surface. Words are little-endian, lengths are metres in the
+mesh's object space (the world's space for an HLOD cell's). The head, 16 bytes: the magic `T3MC`, the version
+(1), the number of meshes and the number of cards. Then a record of 40 bytes for each mesh: two words, the
+owner and the flags, the low and high corners of the box the cards were fitted in (six `f32`), the rank of
+the mesh's first card in the card table and how many cards it has (`u32` each). The records are followed by
+the card table, 64 bytes a card, the cards of each mesh one after the other in the order of the records:
+the centre of the card's box (three `f32`), its half-extents along its own axes (three `f32`), its three
+axes (three `f32` each: unit vectors, the third facing out of the mesh) and the direction it looks along
+(`u32`).
+
+| Direction | Faces out along | Direction | Faces out along |
+| --------- | --------------- | --------- | --------------- |
+| 0         | `-x`            | 3         | `+y`            |
+| 1         | `+x`            | 4         | `-z`            |
+| 2         | `-y`            | 5         | `+z`            |
+
+The record's second word holds flags:
+
+| Bit     | Name                        | Meaning                                                                                                                                                                                                              |
+| ------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 (`1`) | `MESH_CARDS_FLAG_TWO_SIDED` | a quarter of the triangles or more are two-sided (or the build asked for all): the mesh was covered as foliage is, by its outer cards alone                                                                          |
+| 1 (`2`) | `MESH_CARDS_FLAG_HLOD_CELL` | the cards are an HLOD cell's: the first word names a cell of the world's chain of HLOD cells ([World HLOD](#world-hlod)), not a compiled mesh, and the lengths are in the world's space, not the mesh's object space |
+
+A mesh whose build keeps no card (`maxMeshCards` 0) has no record; a mesh the cards found none for has a
+record of no card. The manifest's `meshCards` section names the file and lists, for each record,
+`{ "mesh": <mesh or cell>, "twoSided": <bool>, "cards": <count> }`, with `"hlodCell": true` on an HLOD
+cell's:
+
+```json
+{
+  "meshCards": {
+    "version": 1,
+    "file": "meshCards.bin",
+    "cards": 14,
+    "meshes": [
+      { "mesh": 0, "twoSided": false, "cards": 6 },
+      { "mesh": 5, "twoSided": false, "hlodCell": true, "cards": 8 }
+    ]
+  }
+}
+```
+
+(The section also carries `bytes`, `headBytes`, `meshBytes` and `cardBytes`.) A scene whose meshes keep no
+card writes neither the file nor the section. Constants: `MESH_CARDS_VERSION`, `MESH_CARDS_MAGIC`,
+`MESH_CARDS_HEAD_BYTES`, `MESH_CARDS_MESH_BYTES`, `MESH_CARDS_CARD_BYTES`, `MESH_CARDS_DIRECTIONS`,
+`MESH_CARDS_FLAG_*` (`packages/sdk-core/src/contracts/meshCardsAbi.ts`).
+
 ## `lights.json`
 
-The source's punctual lights in the engine's radiometric light contract, world space: the one
+The source's punctual lights in the engine's light contract (candela and lux as the source writes
+them), world space: the one
 product that reads a light (type, colour, intensity, range, cone, transform). A light of another
 type, a bad matrix or a non-positive intensity is counted in `rejected`, never a failed compile.
 
 - Versions: `SCENE_LIGHTS_VERSION`, `SCENE_LIGHT_CONTRACT` (`rust/compiler/lights.rs`);
-  `IMPORTED_LIGHTS_VERSION` (`browser/lighting/importedLights.ts`).
+  `IMPORTED_LIGHTS_VERSION` (`browser/lighting/importedLights.ts`). 2 writes the intensities as the
+  source declares them, in candela and lux; 1 divided them by 683, and a 1 file is read as no light.
+  `sceneLightVersion` is `SCENE_LIGHT_CONTRACT`, 4: the contract's lamp has an `intensityUnits`
+  (unitless when it names none) and a spot an `innerConeAngle` and an `outerConeAngle`; a point or
+  spot record here names `candelas`, the same light as under 2, and a spot its two cones as the
+  source writes them (3 wrote a `coneAngle` alone). `SCENE_LIGHTS_VERSION` is 3 for the same change.
 - Writes `rust/compiler/lights.rs:stage_scene_lights`; reads
   `browser/lighting/importedLights.ts:loadImportedLights` (an unknown version reads as no light).
 
@@ -596,6 +1017,11 @@ instances.
 - Versions: `PHYSICS_FORMAT_VERSION`, `PIECES_FORMAT_VERSION`, `JOLT_COMMIT` (`rust/physics_cook.rs`);
   `PHYSICS_FORMAT_VERSIONS` (`core/physics/cooked.ts`).
 - Writes `rust/physics_cook/stage.rs:stage_physics`; reads `core/physics/cooked.ts:readCookedPhysics`.
+- A `node` names the source node — its `sourceNode` in the [prepared scene tables](#prepared-scene-tables),
+  never its rank in a partition's core —; the node of a body that moves or bends stays in the core
+  and a cell draws it ([World partition](#world-partition)), each cell node naming the source node
+  it draws; the runtime finds a body's node by that source rank, and makes the body while a placed
+  cell draws it.
 
 ### `bodies` — declared rigid bodies
 
@@ -617,22 +1043,6 @@ read through the [prepared scene tables](#prepared-scene-tables), which lay out 
 The input: a folder with a source manifest, a folder with one glTF or GLB, or the file.
 `SOURCE_FORMAT_VERSION` (`rust/compiler/cache/format.rs`); `rust/compiler/source/load.rs:load_model_file`,
 `rust/compiler/source/safe_path.rs:is_safe_source_name`, `rust/compiler/accessor/layout.rs`.
-
-## Resident lighting proxy
-
-`proxy.bin`: one proxy a compiled mesh, in the mesh's own space — its coarse cut snapped to a grid and built
-into a 4-wide BVH by the one builder the browser's run-time cuts go through (`page-codec-wasm/src/proxy.rs`,
-`columns_of`) — which a ray meets through the world of the node that places it. No instance is written: the
-engine's placements are the instances (`browser/geometry/dag/proxy/proxyInstances.ts`).
-
-- Version: `SCENE_PROXY_VERSION` (`rust/proxy.rs`, `core/contracts/proxy.ts`): 6.
-- Layout, little-endian words: the header (`SCENE_PROXY_HEADER_WORDS`: magic, version, mesh count, triangle
-  total, node total, reserved); a table of three words a mesh, in compiled-primitive order — its triangles, its
-  nodes, its grid step as an `f32` — (a primitive no shown node places holds zero of both); then every mesh's
-  triangles (nine floats), their packed albedo, the nodes' exact bounds (six floats) and the nodes' children
-  (twelve words), each column of all the meshes in table order. A mesh's links name its own triangles and nodes,
-  from zero.
-- Writes `rust/proxy/encode.rs:SceneProxy::encode`; reads `core/scene/core/proxy.ts:decodeSceneProxy`.
 
 ## Deformation in geometry page format 9
 

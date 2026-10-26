@@ -49,8 +49,8 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
       boxes: true,
       parked,
       placement,
-      // What a ray meets of it past the visible cut: its primitive's proxy, once it has one (`proxy`).
-      proxy: { primitive, surface },
+      // The surface its placement wears (`worn`), which the surface cache's cards are captured with.
+      worn: { surface },
       // How far its GPU deformation can move a vertex, measured by the compiler (#357).
       ...(primitive.deformation ? { deformation: primitive.deformation } : {}),
       ...(drawDistance ? { drawDistance } : {}),
@@ -81,6 +81,11 @@ export const collectedSink = (): Collected => ({
  * that places it. `source` is the graph the nodes of the sources live in, whose world matrices the
  * engine reads in place. A source added later, to a session in place, runs the same function on
  * its own content (`addPlacements`).
+ *
+ * ONE record per primitive page (#1235), shared by every placement of a source object: its world,
+ * its row and its packed rank are the layout's, never a field of it. A mesh has a distance-field
+ * representation where it has a field and casts a dynamic shadow (its affecting the distance-field
+ * lighting is the default, which no node turns off).
  */
 export function createCollector(
   source: Object3D,
@@ -118,10 +123,6 @@ export function createCollector(
     noteCollected(draw)
     const transparent = pagesBlend(primitive, surface)
     const shape = templates.shapeOf(primitive, template)
-    // ONE record per primitive page (#1235), shared by every placement of this source object: its
-    // world, its row and its packed rank are the layout's, never a field here.
-    // A mesh has a distance-field representation where it has a field and casts a dynamic shadow
-    // (its affecting the distance-field lighting is the default, which no node turns off).
     const distanceField =
       !!options.distanceFieldMeshes?.has(primitive.mesh) && !(draw.casting & SHADOWLESS_ROOT)
     const pages = createPageRecords(

@@ -23,17 +23,20 @@ export const hasPage = (rec: Pick<PageRec, 'url' | 'geometryPage'>) => pageAddre
 /** The STREAMING PAGE `rec`'s address lies in, and where: its bundle (`PageRec.streamUrl`) at its
  *  offset there — what one pool slot holds and the residency streams whole
  *  (`../../residency/pageUnits.ts`) —, or for a record its cache gives no bundle, its own address
- *  at its start. The one rule of the pool's census (`describePageSlots`) and the residency's. */
+ *  at its start. The offset is the page's place in the slot, resident: a geometry page's
+ *  `residentOffset`, else the offset of its index bytes in the bundle. The one rule of the pool's
+ *  census (`describePageSlots`) and the residency's. */
 export const pageUnit = (
   rec: Pick<PageRec, 'url' | 'geometryPage' | 'streamUrl' | 'streamOffset'>,
 ): PageUnit =>
   rec.streamUrl !== undefined && hasPage(rec)
-    ? { unit: rec.streamUrl, offset: rec.streamOffset ?? 0 }
+    ? { unit: rec.streamUrl, offset: rec.geometryPage?.residentOffset ?? rec.streamOffset ?? 0 }
     : { unit: pageAddress(rec), offset: 0 }
 
-/** The bytes a page is stored in, and read as: its geometry page's, else its index bytes. */
+/** The bytes a page takes in the pool, as it is stored there: its geometry page's resident bytes,
+ *  else its index bytes. */
 export const storedPageBytes = (page: Pick<PageRec, 'geometryPage' | 'array' | 'indexBytes'>) =>
-  page.geometryPage ? page.geometryPage.bytes : (page.array?.byteLength ?? page.indexBytes)
+  page.geometryPage ? page.geometryPage.residentBytes : (page.array?.byteLength ?? page.indexBytes)
 
 /** The bytes a page takes in its pool slot: those it is stored in, padded to a word. */
 export const paddedPageBytes = (page: Pick<PageRec, 'geometryPage' | 'array' | 'indexBytes'>) =>
@@ -79,8 +82,7 @@ export const geometryFailedAhead =
  * cache carries them, their index pages otherwise, each at its offset there, and it is as wide as
  * the widest streaming page, so any admitted one fits (`pageBytes`; `units`, each address's page
  * and offset; `unitWidths`, each page's width — the end of its last cluster —; `unitPages`, the
- * most clusters one holds; `clusterBytes`, the widest cluster's page, which bounds a row's
- * triangles). That width is a BYTE count and says nothing about how many corners a
+ * most clusters one holds). That width is a BYTE count and says nothing about how many corners a
  * cluster draws: a page under twelve packed bytes per triangle is narrower than its own corner
  * list. The draw ceiling is therefore the catalogue's largest corner count, taken here and nowhere
  * else — a draw bounded by the slot's word count would silently drop the tail triangles of every
@@ -89,8 +91,9 @@ export const geometryFailedAhead =
  * The slot's content is chosen per cluster ADDRESS (`geometryUrls`), while the row's
  * `FLAG_CLUSTER_PAGE` is decided per RECORD (`pageRowMaterial.ts`, from `rec.geometryPage`).
  * Two records at one address that disagreed would make one row decode index words as a page, and
- * `pageAddress` makes that impossible: a record's page is part of its address. The refusal below is
- * that invariant said out loud, on the one walk where both sides are read together.
+ * `pageAddress` makes that impossible: a record's page is part of its address. The refusals below
+ * are that invariant said out loud (and the resident width of every geometry page, which sizes its
+ * slot), on the one walk where both sides are read together.
  *
  * `homes` is each address's own width, its bytes padded to a word: the room its page has in its
  * streaming page, which a page joining the session later may not outgrow
@@ -106,13 +109,15 @@ export function describePageSlots(allPages: readonly PageRec[], held = pageSlotC
     if (homes.has(address) && geometryUrls.get(address) !== geometry?.url)
       throw new Error(`CLUSTER_PAGE_DISAGREEMENT: ${address}`)
     if (geometry) {
+      // The slot is as wide as the resident page, which only the descriptor says: a page without
+      // it would size the slot at nothing and be skipped by the install pass, silently.
+      if (!(geometry.residentBytes > 0)) throw new Error(`CLUSTER_PAGE_RESIDENT_BYTES: ${address}`)
       geometryUrls.set(address, geometry.url)
       held.fromGeometryPage++
     } else if (page.transparent) held.transparentClusters++
     else held.fromSourceGeometry++
     const padded = paddedPageBytes(page)
     if (padded > (homes.get(address) ?? 0)) homes.set(address, padded)
-    if (padded > held.clusterBytes) held.clusterBytes = padded
     // An address keeps the streaming page it was first described in.
     let placed = units.get(address)
     if (!placed) {
@@ -154,7 +159,6 @@ export type PageSlotCensus = ReturnType<typeof pageSlotCensus>
 const pageSlotCensus = () => ({
   geometryUrls: new Map<string, string>(),
   pageBytes: 4,
-  clusterBytes: 4,
   homes: new Map<string, number>(),
   units: new Map<string, PageUnit>(),
   unitWidths: new Map<string, number>(),

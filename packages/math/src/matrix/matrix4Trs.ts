@@ -1,4 +1,4 @@
-import { determinantMatrix4, type NumberSink } from './matrix4.ts'
+import { determinantIsNegative, type NumberSink } from './matrix4.ts'
 import { length3 } from '../vector/vector.ts'
 
 /**
@@ -9,6 +9,60 @@ import { length3 } from '../vector/vector.ts'
 
 /** The nine rotation terms of the last decomposition, stored by row: read immediately. */
 const rotation = new Float64Array(9)
+
+/** The three unit rotation columns of the last decomposition, stored axis after axis. */
+const axes = /* @__PURE__ */ new Float64Array(9)
+
+/** `axes[o..o+2] = axes[a..a+2] × axes[b..b+2]`. */
+function crossAxes(o: number, a: number, b: number) {
+  const ax = axes[a],
+    ay = axes[a + 1],
+    az = axes[a + 2],
+    bx = axes[b],
+    by = axes[b + 1],
+    bz = axes[b + 2]
+  axes[o] = ay * bz - az * by
+  axes[o + 1] = az * bx - ax * bz
+  axes[o + 2] = ax * by - ay * bx
+}
+
+/**
+ * Fills the zero-length axes of `axes`. One missing axis is the cross product of the next two
+ * (cyclic, right-handed); with two missing, the next axis takes an identity column orthogonalised
+ * against the kept one; with three, the identity.
+ */
+function completeAxes(zx: boolean, zy: boolean, zz: boolean) {
+  const zero = [zx, zy, zz]
+  const count = +zx + +zy + +zz
+  if (count === 0) return
+  if (count === 3) {
+    axes.fill(0)
+    axes[0] = axes[4] = axes[8] = 1
+    return
+  }
+  if (count === 2) {
+    const k = zero.indexOf(false)
+    const n = ((k + 1) % 3) * 3
+    const a = k * 3
+    for (let tries = 0; tries < 2; tries++) {
+      axes[n] = axes[n + 1] = axes[n + 2] = 0
+      axes[n + ((k + 1 + tries) % 3)] = 1
+      const d = axes[n] * axes[a] + axes[n + 1] * axes[a + 1] + axes[n + 2] * axes[a + 2]
+      axes[n] -= d * axes[a]
+      axes[n + 1] -= d * axes[a + 1]
+      axes[n + 2] -= d * axes[a + 2]
+      const l = length3(axes[n], axes[n + 1], axes[n + 2])
+      if (l > 1e-6) {
+        axes[n] /= l
+        axes[n + 1] /= l
+        axes[n + 2] /= l
+        break
+      }
+    }
+    zero[(k + 1) % 3] = false
+  }
+  for (let i = 0; i < 3; i++) if (zero[i]) crossAxes(i * 3, ((i + 1) % 3) * 3, ((i + 2) % 3) * 3)
+}
 
 /**
  * Quaternion of a pure rotation matrix, read from its nine terms stored by row, via the
@@ -68,22 +122,29 @@ export function decomposeMatrix4(
   let sx = length3(m[0], m[1], m[2])
   const sy = length3(m[4], m[5], m[6])
   const sz = length3(m[8], m[9], m[10])
-  if (determinantMatrix4(m) < 0) sx = -sx
+  if (determinantIsNegative(m)) sx = -sx
   position[0] = m[12]
   position[1] = m[13]
   position[2] = m[14]
-  const invSX = 1 / sx,
-    invSY = 1 / sy,
-    invSZ = 1 / sz
-  rotation[0] = m[0] * invSX
-  rotation[1] = m[4] * invSY
-  rotation[2] = m[8] * invSZ
-  rotation[3] = m[1] * invSX
-  rotation[4] = m[5] * invSY
-  rotation[5] = m[9] * invSZ
-  rotation[6] = m[2] * invSX
-  rotation[7] = m[6] * invSY
-  rotation[8] = m[10] * invSZ
+  // A column of zero length has no direction: it is rebuilt from the other two (right-handed).
+  const invSX = sx !== 0 ? 1 / sx : 0,
+    invSY = sy !== 0 ? 1 / sy : 0,
+    invSZ = sz !== 0 ? 1 / sz : 0
+  axes[0] = m[0] * invSX
+  axes[1] = m[1] * invSX
+  axes[2] = m[2] * invSX
+  axes[3] = m[4] * invSY
+  axes[4] = m[5] * invSY
+  axes[5] = m[6] * invSY
+  axes[6] = m[8] * invSZ
+  axes[7] = m[9] * invSZ
+  axes[8] = m[10] * invSZ
+  completeAxes(sx === 0, sy === 0, sz === 0)
+  for (let c = 0; c < 3; c++) {
+    rotation[c] = axes[c * 3]
+    rotation[3 + c] = axes[c * 3 + 1]
+    rotation[6 + c] = axes[c * 3 + 2]
+  }
   writeRotationQuaternion(quaternion, rotation)
   scale[0] = sx
   scale[1] = sy
@@ -91,8 +152,7 @@ export function decomposeMatrix4(
 }
 
 /**
- * `out = [u | v | n | origin]`: the three columns of a basis, then its origin — `makeBasis`
- * followed by `setPosition`. Sixteen stores, the last row `(0, 0, 0, 1)` exactly.
+ * `out = [u | v | n | origin]`: the three columns of a basis, then its origin. Sixteen stores, the last row `(0, 0, 0, 1)` exactly.
  */
 export function basisMatrix4<T extends NumberSink>(
   out: T,
@@ -121,7 +181,7 @@ export function basisMatrix4<T extends NumberSink>(
   return out
 }
 
-/** `out` = uniform scale `s` placed at `center` — `makeScale(s, s, s)` followed by `setPosition`.
+/** `out` = uniform scale `s` placed at `center`.
  *  Sixteen stores, each index a constant: a zeroing loop then the diagonal cost 4% more. */
 export function uniformScaleMatrix4<T extends NumberSink>(
   out: T,

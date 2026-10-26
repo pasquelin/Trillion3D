@@ -3,14 +3,14 @@
 //! leaves by a uniform direction, so that its weight is the whole hemisphere's, and the path goes
 //! on from surface to surface — at each one a light is drawn and shadowed, then a bounce is drawn
 //! by the cosine — up to `MAX_BOUNCES`, a path surviving a bounce in proportion to the light it
-//! still carries. A path that meets the back of a surface drawn on one side only is no sample.
+//! still carries. A path that meets the back of a surface drawn on one side only is no sample. The
+//! probe facing up also gathers the sky's bent normal at its first bounce (`bent.rs`).
+use super::bounce::bounce_from;
 use super::irradiance::{Decision, Effect, IrradianceCache};
 use super::lights::BakeLight;
 use super::nee::times;
 use super::random::Sequence;
-use super::sampling::{
-    cosine_hemisphere_world, positive, tangent_to_world, uniform_hemisphere, Vec3,
-};
+use super::sampling::{positive, Vec3};
 use super::world::{offset_origin, BakeWorld};
 use std::f64::consts::PI;
 use trillion3d_math::vector::vecn::{add, scale};
@@ -27,6 +27,8 @@ pub struct PathContext<'a> {
     pub cache: Option<&'a IrradianceCache>,
     /// A distance that crosses the scene and the volume.
     pub reach: f64,
+    /// Whether the bake fills the layer of the sky's bent normal (`bent::fills_bent_normal`).
+    pub bent: bool,
 }
 
 /// What the lights' choice at a surface leaves for the rays of the bounce after it.
@@ -36,14 +38,30 @@ pub struct Scratch {
     pub(super) total: f64,
 }
 
+impl Scratch {
+    /// The share by which the light `index` was picked: its part of the lights' total.
+    pub(super) fn pick_probability(&self, index: usize) -> f64 {
+        let before = if index > 0 {
+            self.cumulative[index - 1]
+        } else {
+            0.0
+        };
+        (self.cumulative[index] - before) / self.total
+    }
+}
+
 /// What one path gathered.
 pub struct PathResult {
     pub radiance: Vec3,
     /// The direction the probe's ray left by.
     pub direction: Vec3,
     pub valid: bool,
+    /// The sky's bent normal the path gathered, none unless the probe faces up.
+    pub bent: Vec3,
     /// What the path wants of the irradiance cache once its pass is over.
     pub effect: Option<Effect>,
+    /// How far the first surface the path met lies from the probe; infinite where it met none.
+    pub nearest: f64,
 }
 
 /// The surface a path stands on.
@@ -69,31 +87,6 @@ fn probe_stand(point: Vec3, normal: Vec3) -> Stand {
     }
 }
 
-/// How the walk goes on from a surface: the direction, the density it was drawn with and the
-/// weight of the colour it carries.
-struct Bounce {
-    direction: Vec3,
-    pdf: f64,
-    weight: Vec3,
-}
-
-fn bounce_from(bounce: u32, on: &Stand, draw: &[f64; 4]) -> Bounce {
-    if bounce == 0 {
-        let (local, pdf) = uniform_hemisphere([draw[1], draw[0]]);
-        return Bounce {
-            direction: tangent_to_world(local, on.normal),
-            pdf,
-            weight: [1.0 / pdf; 3],
-        };
-    }
-    let (direction, pdf) = cosine_hemisphere_world([draw[0], draw[1]], on.normal);
-    Bounce {
-        direction,
-        pdf,
-        weight: on.base,
-    }
-}
-
 #[derive(PartialEq)]
 enum Flow {
     On,
@@ -114,6 +107,11 @@ struct Walk<'a> {
     probe_pdf: f64,
     fill: Option<u32>,
     place: Option<(u32, u32)>,
+    /// Whether the walk gathers the sky's bent normal, and what it has gathered.
+    keeps_bent: bool,
+    bent: Vec3,
+    /// The distance to the first surface met.
+    nearest: f64,
 }
 
 impl Walk<'_> {
@@ -128,6 +126,9 @@ impl Walk<'_> {
         else {
             return Flow::Stop;
         };
+        if bounce == 1 {
+            self.nearest = hit.distance;
+        }
         let glow = times(self.carried, hit.emission);
         if bounce == MAX_BOUNCES || brightest(times(self.carried, hit.base)) <= 0.0 {
             self.radiance = add(self.radiance, glow);
@@ -203,6 +204,10 @@ impl Walk<'_> {
         if bounce == 0 {
             self.direction = step.direction;
             self.probe_pdf = step.pdf;
+            if self.keeps_bent {
+                let met = self.context.bent_met(self.ray, self.carried, scratch);
+                self.bent = add(self.bent, met);
+            }
         } else {
             let carried = self.carried;
             self.context
@@ -228,7 +233,9 @@ impl Walk<'_> {
             radiance: self.radiance,
             direction: self.direction,
             valid: self.valid,
+            bent: self.bent,
             effect,
+            nearest: self.nearest,
         }
     }
 }
@@ -255,6 +262,9 @@ pub fn trace_path(
         probe_pdf: 1.0 / (2.0 * PI),
         fill: None,
         place: None,
+        keeps_bent: context.bent && facing[1] > 0.0,
+        bent: [0.0; 3],
+        nearest: f64::INFINITY,
     };
     for bounce in 0..=MAX_BOUNCES {
         if bounce > 0 && walk.arrive(bounce) == Flow::Stop {
@@ -264,6 +274,8 @@ pub fn trace_path(
         if bounce > 0 && !context.lights.is_empty() {
             let (on, carried) = (&walk.on, walk.carried);
             context.next_event(on, &draw, carried, scratch, &mut walk.radiance);
+        } else if bounce == 0 && walk.keeps_bent {
+            walk.bent = context.bent_sampled(&walk.on, &draw, scratch);
         }
         if walk.leave(bounce, &draw, scratch) == Flow::Stop {
             break;

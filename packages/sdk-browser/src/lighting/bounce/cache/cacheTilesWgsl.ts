@@ -1,11 +1,10 @@
-import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { harmonicsShader } from '../../../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { SCREEN_PROBE_CONSTANTS } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
 import { listWgsl } from '../../../gpu/dispatch/list.ts'
-import { WORKGROUP_THREADS, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
+import { WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { bounceBindingsWgsl } from '../gridWgsl.ts'
 import { QUEUED_PROBE_WGSL } from '../probes/probeQueueWgsl.ts'
 import { CACHE_TILES_BINDINGS as B } from './cacheBindings.ts'
@@ -33,15 +32,13 @@ export const cacheTileList = (binding: number, append: boolean) =>
  * within the supersample distance, a tile of level one into four where it is above the threshold. Without the pixels' lobes a probe is
  * traced whole at one level (the mode of the setting, the frame's default where it is `adaptive`): and a probe past the downsample
  * distance, or one first traced where the budget had no room (`downsampled`), at level zero, one within the supersample distance
- * at level two (`size.w` is the level of an `adaptive` probe the pixels' lobes do not reach). A probe that sleeps (its cell unchanged, nothing lit moved since) is not traced: its flag stays down
- * (`cacheEntries`). A probe's importance function is cleared before the screen probes add to it (`clearPdf`).
+ * at level two (`size.w` is the level of an `adaptive` probe the pixels' lobes do not reach). A probe's importance function is cleared before the screen probes add to it (`clearPdf`).
  */
 export const CACHE_TILES_PROGRAM = wgslProgram(
   `${RADIANCE_CACHE_PARAMS.wgsl}
 @group(0) @binding(${B.queue}) var<storage,read> probeQueue:array<u32>;
 @group(0) @binding(${B.params}) var<uniform> cache:RadianceCacheParams;
 @group(0) @binding(${B.pdf}) var<storage,read_write> cachePdf:array<atomic<i32>>;
-@group(0) @binding(${B.entries}) var<storage,read_write> cacheEntries:array<u32>;
 ${wgslConsts({
   CACHE_PDF_WORDS,
   CACHE_TILE_SIDE,
@@ -109,14 +106,10 @@ fn generateTiles(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_in
  if(entry>=bounce.frame.y||bounce.counts.w==0u){return;}
  let queued=queuedProbe(entry);
  if(!queued.valid){return;}
- if(lane==0u){cacheEntries[entry]=0u;}
- let held=!queued.fresh&&all(probeCell(queued.probe)==queued.cell)&&probeLevel(queued.probe)==queued.level;
- if(held&&probeAt(queued.probe,PROBE_IDLE).w==f32(bounce.frame.x)){return;}
  let away=probeCentre(queued.cell,bounce.levels[queued.level].spacing)-cache.eye.xyz;
  let farness=dot(away,away);
  let mode=cache.size.z;
  let pixels=(cache.size.y&CACHE_FLAG_IMPORTANCE)!=0u&&mode==CACHE_MODE_ADAPTIVE;
- if(lane==0u){cacheEntries[entry]=1u;}
  if(pixels){
   var levels=1u;
   if(farness<cache.distances.x&&!queued.downsampled){levels=select(2u,3u,farness<cache.distances.y);}
@@ -133,13 +126,10 @@ fn generateTiles(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_in
  cacheUniformTiles(entry,level,lane);
 }`,
   [
-    bounceBindingsWgsl(0, B.grid, B.probes),
+    bounceBindingsWgsl(0, B.grid, B.table),
     QUEUED_PROBE_WGSL,
     CACHE_WORDS_WGSL,
     cacheTileList(B.tiles, true),
     WORKGROUP_THREADS_WGSL,
   ],
 )
-
-/** The workgroups of the clear for `probes` queued probes: a thread a word of a probe's importance function. */
-export const clearGroups = (probes: number) => ceilDiv(probes * CACHE_PDF_WORDS, WORKGROUP_THREADS)

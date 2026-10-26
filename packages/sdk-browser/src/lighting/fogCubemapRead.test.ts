@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { near } from '../../../math/src/float/near.fixture.ts'
 import { cubemapMipCount } from '../../../sdk-core/src/scene/core/fogCubemap.ts'
-import { fogResourcesWgsl } from './fog/readWgsl.ts'
+import { fogBlockOf } from './fog/readWgsl.ts'
 import type { V3 } from './fogVolumeRun.fixture.ts'
 import { fogRun } from './fogShaderRun.fixture.ts'
 
@@ -26,7 +26,7 @@ function cubeLook(
     ['fogInscattering'],
     {
       resources: {
-        decl: fogResourcesWgsl({ group: 0, cubemap: 1, sampler: 2 }),
+        block: fogBlockOf({ group: 0, cubemap: 1, sampler: 2 }),
         scope: {
           fogCubemap: {},
           fogSampler: {},

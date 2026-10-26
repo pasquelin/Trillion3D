@@ -11,6 +11,7 @@ import {
   type Water,
   type WaterSpec,
 } from '../../../../sdk-core/src/fluids/buoyancy.ts'
+import { waveHeight } from '../../../../sdk-core/src/fluids/surface.ts'
 import { WATER_PIECE_WORDS } from '../../../../sdk-core/src/physics/layout.ts'
 import type { JoltModule } from '../joltModule.ts'
 
@@ -24,6 +25,9 @@ export function createWaterStep() {
     from = 0
   const words = new StepWords()
   return {
+    /** The height of the water's surface over `(x, z)` at the last step's time, or null with no water. */
+    surface: (x: number, z: number): number | null =>
+      water ? water.level + waveHeight(water.waves, x, z) : null,
     /** Declares the water (null removes it); its waves start at 0 s on the page's step `at`. */
     set(spec: WaterSpec | null, at: number) {
       water = spec ? createWater(spec) : null

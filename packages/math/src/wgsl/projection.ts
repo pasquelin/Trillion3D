@@ -53,14 +53,6 @@ export const clipToFramebuffer = wgslFn(
 }`,
 )
 
-/** Normalised device coordinates to texture coordinates, y kept up: a projection that already
- *  flips it. */
-export const ndcToUvUnflipped = wgslFn(
-  'ndcToUvUnflipped',
-  [],
-  'fn ndcToUvUnflipped(ndc:vec2f)->vec2f{return ndc*0.5+vec2f(0.5);}',
-)
-
 /** The homogeneous image of the point `p`, no division (`../vector/vector.ts`). */
 export const transformHomogeneousPoint = wgslFn(
   'transformHomogeneousPoint',
@@ -90,4 +82,19 @@ export const slabPerspective = wgslFn(
   'slabPerspective',
   [],
   'fn slabPerspective(slab:vec4f)->bool{return slab.w>0.5;}',
+)
+
+/** The slice of a view depth in a grid whose depth slices follow its logarithm (the fog volume's, the translucency global illumination
+ *  volume's): `log2(depth · law.x + law.y) · law.z`, the law `(scale, offset, slices a doubling)` the grid carries; fractional. */
+export const logSliceOfDepth = wgslFn(
+  'logSliceOfDepth',
+  [],
+  'fn logSliceOfDepth(depth:f32,law:vec3f)->f32{return log2(depth*law.x+law.y)*law.z;}',
+)
+
+/** The view depth a slice of such a grid starts at under the law `law` (`logSliceOfDepth`'s inverse). */
+export const depthOfLogSlice = wgslFn(
+  'depthOfLogSlice',
+  [],
+  'fn depthOfLogSlice(slice:f32,law:vec3f)->f32{return (exp2(slice/law.z)-law.y)/law.x;}',
 )

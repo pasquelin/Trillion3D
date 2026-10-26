@@ -35,6 +35,51 @@ export interface PivotCore {
   dolly(steps: number): void
 }
 
+/** The eye put back on its offset from the pivot, at the distance the controls keep. A pivot
+ *  reached exactly is no direction at all: back off along what the camera faces. An eye at the
+ *  least distance kept (`keptDistance`, never under `RADIUS_EPSILON`) stays there. */
+function seatEye(
+  api: PivotCameraControls,
+  eye: Pick<PivotCore, 'position' | 'center' | 'offset' | 'orientation'>,
+) {
+  const { position, center, offset, orientation } = eye
+  let radius = length3(offset[0], offset[1], offset[2])
+  if (radius < RADIUS_EPSILON) {
+    rotateByQuaternion(offset, orientation, 0, 0, 1)
+    radius = 1
+  }
+  const kept = keptDistance(api, radius)
+  for (let i = 0; i < 3; i++) position[i] = center[i] + (offset[i] * kept) / radius
+}
+
+/** A drag of `(dx, dy)` pixels pans the pivot across the view plane. */
+function panPivot(core: PivotCore, dx: number, dy: number) {
+  const { api, center, orientation, pose, offset } = core
+  if (!api.enablePan) return
+  core.sample()
+  panCenter(
+    center,
+    orientation,
+    pose,
+    length3(offset[0], offset[1], offset[2]),
+    core.height(),
+    dx,
+    dy,
+  )
+  core.apply()
+}
+
+/** `steps` notches of the wheel move the eye along its offset from the pivot. */
+function dollyPivot(core: PivotCore, steps: number) {
+  const { api, offset } = core
+  if (!api.enableZoom) return
+  core.sample()
+  const distance = length3(offset[0], offset[1], offset[2]) || 1
+  const kept = dollyDistance(distance, steps, api.zoomSpeed)
+  for (let i = 0; i < 3; i++) offset[i] = (offset[i] * kept) / distance
+  core.apply()
+}
+
 export function createPivotControls(camera: ControlCamera, surface: HTMLElement): PivotCore {
   const pose = controlPose(camera),
     base = createControlBase()
@@ -43,6 +88,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     offset = new Float64Array(3),
     orientation = new Float64Array(4),
     moved = new Float64Array(10)
+  const eye = { position, center, offset, orientation }
   // Eye, pivot AND orientation: a trackball seen from its pivot's axis turns the view without
   // moving a single point, and that spin is a change the host must redraw.
   const gate = createChangeGate(base, 10)
@@ -54,15 +100,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     for (let i = 0; i < 3; i++) offset[i] = position[i] - center[i]
   }
   const apply = () => {
-    let radius = length3(offset[0], offset[1], offset[2])
-    // A pivot reached exactly is no direction at all: back off along what the camera faces. An
-    // eye at the least distance kept (`keptDistance`, never under `RADIUS_EPSILON`) stays there.
-    if (radius < RADIUS_EPSILON) {
-      rotateByQuaternion(offset, orientation, 0, 0, 1)
-      radius = 1
-    }
-    const kept = keptDistance(api, radius)
-    for (let i = 0; i < 3; i++) position[i] = center[i] + (offset[i] * kept) / radius
+    seatEye(api, eye)
     pose.write(position, orientation)
     writeVector(api.target, center)
     moved.set(position)
@@ -74,40 +112,18 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     sample()
     return apply()
   })
-  return {
+  const core: PivotCore = {
     base,
     pose,
     api,
-    position,
-    center,
-    offset,
-    orientation,
+    ...eye,
     height,
     sample,
     apply,
-    panBy(dx, dy) {
-      if (!api.enablePan) return
-      sample()
-      panCenter(
-        center,
-        orientation,
-        pose,
-        length3(offset[0], offset[1], offset[2]),
-        height(),
-        dx,
-        dy,
-      )
-      apply()
-    },
-    dolly(steps) {
-      if (!api.enableZoom) return
-      sample()
-      const distance = length3(offset[0], offset[1], offset[2]) || 1
-      const kept = dollyDistance(distance, steps, api.zoomSpeed)
-      for (let i = 0; i < 3; i++) offset[i] = (offset[i] * kept) / distance
-      apply()
-    },
+    panBy: (dx, dy) => panPivot(core, dx, dy),
+    dolly: (steps) => dollyPivot(core, steps),
   }
+  return core
 }
 
 /** Scratch offset of `panCenter`, which is not reentrant. */
@@ -141,6 +157,10 @@ export const PIVOT_DEFAULTS = {
   maxDistance: Infinity,
   rotateSpeed: 1,
   zoomSpeed: 1,
+  // Both gestures on: among the settings `world.controls` keeps and hands to every controller it
+  // makes (`CONTROL_SETTINGS`), so a page that turns one off keeps it off.
+  enableZoom: true,
+  enablePan: true,
 }
 
 /** The pivot contract at its defaults: unbounded distance, both gestures on, unit speeds. */
@@ -154,8 +174,6 @@ function pivotControlsApi(
     object: pose.object,
     target: pose.vector(),
     ...PIVOT_DEFAULTS,
-    enableZoom: true,
-    enablePan: true,
     update,
   }
 }

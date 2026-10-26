@@ -16,6 +16,9 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { queueTableGrowth } from '../prepare/growthQueue.ts'
 import { appendWebgpuTexture } from './appendTexture.ts'
 
+/** The images the history ring's members take to all have been bound after a rebuild. */
+const RING_IMAGES = 5
+
 type Group = { entries: Array<{ resource?: { buffer?: unknown } }> }
 
 test('a texture appended after open joins the atlas, regrows its table and rebinds once', async () => {
@@ -70,9 +73,13 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
       group.entries.some((entry) => entry.resource?.buffer === pages[1]),
     )
     assert.ok(naming.length > 0, 'the groups naming the atlas are rebuilt on the new table')
+    // The temporal histories keep their frames in a ring (the two slots of the last images, the slots
+    // kept for good), each member made, with the groups that bind it, the first time an image
+    // reaches it: the groups settle on the fifth image after the append, not on the second.
+    for (let image = 1; image < RING_IMAGES - 1; image++) backend.render(camera())
     groups.length = 0
     backend.render(camera())
-    assert.equal(groups.length, 0, 'once')
+    assert.equal(groups.length, 0, 'once the ring has been through every member')
     const after = backend.metrics()
     // A scene with no map opens with no layer: the map opens its lane, the fill with it.
     assert.deepEqual([before.textureTilesResident, before.texturePoolBytes], [0, 0])

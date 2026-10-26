@@ -75,15 +75,15 @@ fn the_punctual_uslux_schemas_become_gltf_lights_and_the_others_stay_counted() {
         "the converted lights have changed"
     );
     // A sphere of radius 0.25 has a projected area of π/16: its radiant intensity
-    // is 4 · π/16 W/sr, which glTF carries in candela. The rectangle, exposed by
+    // is 4 · π/16 W/sr, which glTF carries as its candela. The rectangle, exposed by
     // one stop, carries 2 · 2 · 12 W/sr, and the sun carries its illuminance as-is.
     close(
         &lights[0],
         "/intensity",
-        4.0 * std::f64::consts::PI * 0.0625 * 683.0,
+        4.0 * std::f64::consts::PI * 0.0625,
     );
-    close(&lights[1], "/intensity", 48.0 * 683.0);
-    close(&lights[2], "/intensity", 5.0 * 683.0);
+    close(&lights[1], "/intensity", 48.0);
+    close(&lights[2], "/intensity", 5.0);
     close(&lights[1], "/spot/outerConeAngle", 40f64.to_radians());
     close(&lights[1], "/spot/innerConeAngle", 30f64.to_radians());
     assert_eq!(

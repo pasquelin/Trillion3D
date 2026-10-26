@@ -7,6 +7,8 @@ import { createPlacementRows } from '../rows/rows.ts'
 import { composeRuntime } from './composeRuntime.fixture.ts'
 import { createChangedRuns } from '../../geometry/residency/ranges.ts'
 import { fieldStart } from '../../gpu/core/recordLayout.ts'
+import { askComposedPlacements } from './gpuComposeFrame.ts'
+import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { WORLD_TABLE } from '../../geometry/dag/worlds/worldTable.ts'
 
 /** A parent's world turned by `angle` about y, moved off the origin. */
@@ -61,12 +63,11 @@ export function session() {
     capacity: 2,
     sent: 2,
     held: 2,
+    noted: 0,
     moved: createChangedRuns(),
     whole: false,
-    epoch: 1,
     worldWords: new Uint32Array(0),
     localWords: new Uint32Array(0),
-    rows: { whole: false, ranks: createChangedRuns() },
     roots: { whole: false, ranks: createChangedRuns() },
     pass: undefined,
   }
@@ -78,10 +79,13 @@ export function session() {
     pass.end()
     return revision
   }
+  /** The compose kernels asked once the roots are linked, and compiled, as the frames wait for them. */
+  const ready = () => (askComposedPlacements(rt, device), pipelinesSettled(device, true))
   return {
     rt,
     rows,
     frame,
+    ready,
     device,
     encoder,
     compiled,

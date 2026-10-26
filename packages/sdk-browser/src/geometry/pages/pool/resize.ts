@@ -76,6 +76,55 @@ function heldUnits(context: GpuPageContext, old: Placement, fits: boolean): Held
  *  asks, and the width of each streaming page new to it (`extendHomes`). */
 export type GrownPages = { pageBytes: number; widths: ReadonlyMap<string, number> }
 
+type Planned = { held: HeldUnit; start: number; bytes: number }
+
+/** The layout first, nothing moved yet: where each streaming page held keeps its place in
+ *  `placement`, and whether any moved. */
+function planLayout(
+  context: GpuPageContext,
+  old: GpuPageContext['placement'],
+  placement: GpuPageContext['placement'],
+  bytes: number,
+) {
+  let total = 0
+  for (const unit of old.placed.keys()) total += placement.widthOf(unit)
+  const plan: Planned[] = []
+  let moved = false
+  for (const held of heldUnits(context, old, total <= bytes)) {
+    const start = placement.keep(held.unit, held.start, held.key)
+    for (const page of held.pages) if (start >= 0) placement.hold(page.key)
+    const copied = Math.min(old.widthOf(held.unit), placement.widthOf(held.unit))
+    plan.push({ held, start, bytes: copied })
+    if (start !== held.start) moved = true
+  }
+  return { plan, moved }
+}
+
+/** Each streaming page of `plan` moved to its new place or evicted, every page logged; the runs
+ *  to copy — old start, new start, width — gathered into `runs`. Returns the evicted keys. */
+function movePlanned(context: GpuPageContext, plan: Planned[], runs: number[]) {
+  const evicted: string[] = []
+  for (const { held, start, bytes: width } of plan.sort((x, y) => x.held.start - y.held.start)) {
+    if (start < 0) {
+      for (const page of held.pages) {
+        evictResident(context, page, 'resize')
+        evicted.push(page.key)
+      }
+      continue
+    }
+    const at = runs.length - 3
+    if (at >= 0 && runs[at] + runs[at + 2] === held.start && runs[at + 1] + runs[at + 2] === start)
+      runs[at + 2] += width
+    else runs.push(held.start, start, width)
+    if (start === held.start) continue
+    for (const page of held.pages) {
+      page.offset += start - held.start
+      context.changes.placed(page.key, page.offset)
+    }
+  }
+  return evicted
+}
+
 /**
  * The pool changes size WITHOUT losing what it holds, through its one allocator (`placement.ts`):
  * a new layout of the new bytes, the streaming pages placed in it in rank — the root cover's
@@ -99,52 +148,27 @@ export function resizeGpuPages(
   roots = context.roots,
 ): string[] {
   const { device, resident } = context
+  // The pages staged are installed into the pool as it is, before it is copied.
+  context.install.flush()
   const pageBytes = Math.max(context.pageBytes, grown?.pageBytes ?? context.pageBytes)
-  if (grown) joinHomes(context, grown.widths)
-  const bytes = pageBufferBytes(device, pageBytes, slots, context.homes, roots)
+  // The homes joined are the new layout's alone until its buffer is made: a buffer the device
+  // refuses leaves the pool's homes as they were.
+  const homes = grown ? joinedHomes(context.homes, grown.widths) : context.homes
+  const bytes = pageBufferBytes(device, pageBytes, slots, homes, roots)
   const old = context.placement
-  const { homes, units, rootUrls } = context
+  const { units, rootUrls } = context
   const placement = createPlacement({
     bytes,
     widest: pageBytes,
     ...{ homes, units, roots, rootUrls, resident },
   })
-  let total = 0
-  for (const unit of old.placed.keys()) total += placement.widthOf(unit)
-  // The layout first, nothing moved yet: a buffer the device refuses leaves the pool as it was.
-  const plan: { held: HeldUnit; start: number; bytes: number }[] = []
-  let moved = false
-  for (const held of heldUnits(context, old, total <= bytes)) {
-    const start = placement.keep(held.unit, held.start, held.key)
-    for (const page of held.pages) if (start >= 0) placement.hold(page.key)
-    const copied = Math.min(old.widthOf(held.unit), placement.widthOf(held.unit))
-    plan.push({ held, start, bytes: copied })
-    if (start !== held.start) moved = true
-  }
+  const { plan, moved } = planLayout(context, old, placement, bytes)
   const next =
     moved || bytes !== context.buffer.size
       ? ledgerReplacing(device, context.buffer.size, () => createPageBuffer(device, bytes))
       : context.buffer
-  const evicted: string[] = []
   const runs: number[] = []
-  for (const { held, start, bytes: width } of plan.sort((x, y) => x.held.start - y.held.start)) {
-    if (start < 0) {
-      for (const page of held.pages) {
-        evictResident(context, page, 'resize')
-        evicted.push(page.key)
-      }
-      continue
-    }
-    const at = runs.length - 3
-    if (at >= 0 && runs[at] + runs[at + 2] === held.start && runs[at + 1] + runs[at + 2] === start)
-      runs[at + 2] += width
-    else runs.push(held.start, start, width)
-    if (start === held.start) continue
-    for (const page of held.pages) {
-      page.offset += start - held.start
-      context.changes.placed(page.key, page.offset)
-    }
-  }
+  const evicted = movePlanned(context, plan, runs)
   if (next !== context.buffer) {
     const held = context.buffer
     context.buffer = next
@@ -158,6 +182,7 @@ export function resizeGpuPages(
       'Trillion3D geometry page cache resize',
     )
   }
+  context.homes = homes
   context.placement = placement
   context.slots = slots
   context.roots = roots
@@ -165,8 +190,11 @@ export function resizeGpuPages(
   return evicted
 }
 
-/** The homes of the streaming pages `widths` names, behind the pool's own. */
-function joinHomes(context: GpuPageContext, widths: ReadonlyMap<string, number>) {
-  if (context.homes) extendHomes(context.homes, widths)
-  else context.homes = pageHomes(widths)
+/** The pool's `homes` with the homes of the streaming pages `widths` names behind them, as a copy:
+ *  `homes` itself is the held layout's. */
+function joinedHomes(homes: PageHomes | undefined, widths: ReadonlyMap<string, number>) {
+  if (!homes) return pageHomes(widths)
+  const joined: PageHomes = { homes: new Map(homes.homes), bytes: homes.bytes }
+  extendHomes(joined, widths)
+  return joined
 }

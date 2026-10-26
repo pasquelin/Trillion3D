@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { CommandWriter } from './commands.ts'
 import {
   ADD_WORDS,
-  DAMPING,
+  ANGULAR_DAMPING,
+  LINEAR_DAMPING,
   JOINT_WORDS,
   OP,
   PART_WORDS,
@@ -20,7 +21,7 @@ const ADD_AT = { position: 6, quaternion: 9, size: 13, matter: 16, damping: 21, 
 test('ADD carries its fixed words at their layout offsets, then the mesh', () => {
   const writer = new CommandWriter()
   writer.add({
-    ...{ id: 7, motion: 2, layer: 1, shape: SHAPE.triangles, flags: 4 },
+    ...{ id: 7, motion: 2, filter: 1, shape: SHAPE.triangles, flags: 4 },
     ...{ position: [1, 2, 3], quaternion: [0, 0, 0, 1], size: [0.5, 0.25, 0.125] },
     ...{ mass: 80, density: 600, friction: 0.25, restitution: 0.75, gravityScale: 0.5 },
     ...{ damping: [0, 0.125], vertices: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2] },
@@ -45,7 +46,7 @@ test('ADD of a body that sets no damping carries the simulation’s own', () => 
   const { floats } = read(writer.take())
   assert.deepEqual(
     [...floats.subarray(ADD_AT.damping, ADD_AT.counts)],
-    [DAMPING, DAMPING].map(Math.fround),
+    [LINEAR_DAMPING, ANGULAR_DAMPING].map(Math.fround),
   )
 })
 
@@ -155,7 +156,12 @@ test('JOINT carries its ids and frames, its motor, then its own words; MOTOR its
   writer.wake(19)
   writer.joint({
     ...{ id: 23, kind: 8, a: 31, b: -1, frameA, frameB, limits },
-    ...{ motor: { mode: 2, axis: 5, target: 6, maxForce: 7 }, breakForce: 8, extra },
+    ...{
+      motor: { mode: 2, axis: 5, target: 6, maxForce: 7 },
+      breakForce: 8,
+      breakTorque: 10,
+      extra,
+    },
   })
   writer.motor(23, { mode: 1, axis: 4, target: -3, maxForce: 9 })
   const { words, floats } = read(writer.take())
@@ -165,7 +171,7 @@ test('JOINT carries its ids and frames, its motor, then its own words; MOTOR its
   assert.deepEqual([...joint.subarray(0, 8)], [OP.joint, 23, 8, 31, 0xffffffff, 2, 5, extra.length])
   assert.deepEqual(
     [...jointFloats.subarray(8, JOINT_WORDS + extra.length)],
-    [...frameA, ...frameB, ...limits, 6, 7, 8, ...extra],
+    [...frameA, ...frameB, ...limits, 6, 7, 8, 10, ...extra],
   )
   const motor = read(joint.slice(JOINT_WORDS + extra.length))
   assert.deepEqual([...motor.words.subarray(0, 4)], [OP.motor, 23, 1, 4])

@@ -6,7 +6,7 @@ import { drawnQuad } from '../frame/backend/drawnQuad.fixture.ts'
 import { camera as quadCamera } from '../frame/backend/testScenes.fixture.ts'
 import { renderWebgpuPages } from '../frame/render/render.ts'
 import { flushWebgpuPages } from '../frame/render/flush.ts'
-import { DEFERRED_LIGHTING_PASS } from '../diagnostic/stage/passLabels.ts'
+import { HEIGHT_FOG_PASS } from '../diagnostic/stage/passLabels.ts'
 
 /** A lit scene drawn by the engine's own frame on the kit's device: a sun, the fog `fog`, and the
  *  frames its pipelines compile in (a frame is held while one does). */
@@ -33,4 +33,5 @@ export async function litFrames(fog?: SceneFog, options: Partial<EngineContext> 
   return { rt, gpu, draw }
 }
 export const FOG_PASS = 'compute Trillion3D fog volume'
-export const LIGHTING_PASS = `render ${DEFERRED_LIGHTING_PASS}`
+/** The pass that lays the fog over the lit image, the first that reads the volume the fog built. */
+export const LIGHTING_PASS = `render ${HEIGHT_FOG_PASS}`

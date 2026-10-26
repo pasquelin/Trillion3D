@@ -1,3 +1,5 @@
+import { isFiniteNumber } from '../../../math/src/scalar/reals.ts'
+
 /**
  * What the bloom's settings are read from, shared by the glow's own (`./bloomOptions.ts`), the
  * convolution's (`./bloomConvolutionOptions.ts`) and the dirt mask's (`./bloomDirtOptions.ts`):
@@ -10,8 +12,7 @@ export type BloomTint = number | readonly [red: number, green: number, blue: num
 /** `value` when it is a finite number of at least `least`.
  *  @throws RangeError naming `label` and the value otherwise. */
 export const finiteAtLeast = (value: unknown, least: number, label: string): number => {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < least)
-    throw new RangeError(`${label}:${String(value)}`)
+  if (!isFiniteNumber(value) || value < least) throw new RangeError(`${label}:${String(value)}`)
   return value
 }
 

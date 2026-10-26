@@ -4,10 +4,9 @@
  * (`world`, `../hlod/worldRoots.ts`), counted once per cell, until it is released. They are read
  * through the session's queue at the priority the cell is held with, and a cell that leaves while
  * its hold reads lets its reads go at once: those still queued are never fetched. A read that fails
- * and may pass waits its turn in the queue, the hold still on its way
- * (`../streaming/failures.ts`), and one whose session closed reads in the next one
- * (`worldBundles.ts`); a hold that fails for good stays failed till its cell leaves: another read
- * would meet it again.
+ * is asked again at once by the queue, the hold still on its way (`../streaming/failures.ts`), and
+ * one whose session closed reads in the next one (`worldBundles.ts`); a hold given up, its tries
+ * spent, stays failed till its cell leaves.
  */
 import type { WorldRootsHold } from '../hlod/worldRoots.ts'
 import { createDeferred } from '../../../../sdk-core/src/runtime/deferred.ts'

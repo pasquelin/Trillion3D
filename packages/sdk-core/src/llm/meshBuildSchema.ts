@@ -23,11 +23,9 @@ import {
 import { int, num, ruleSchema, sceneAndRules } from './schemaParts.ts'
 import type { JsonSchemaProperty } from './types.ts'
 
-/** The settings of one source of `meshBuild` (`meshBuildOptions.ts`): the scene's or a rule's. Each
- *  one's kind and bounds are its rule's (`MESH_BUILD_RULES`); the page format's bounds are the
- *  precisions'. */
-const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty> =
-  /* @__PURE__ */ (() => ({
+/** What the build keeps of the source and how it rebuilds normals, tangents and skinned welds. */
+const SOURCE_SETTINGS = /* @__PURE__ */ (() =>
+  ({
     storedTangents: ruleSchema(
       rules.storedTangents,
       `Whether the pages store the build's tangents — the source's glTF TANGENT unless the build rebuilds them (recomputeNormals, recomputeTangents) or the source has none —, which the shading takes in place of the frame it rebuilds from the triangle (default ${rules.storedTangents.default}).`,
@@ -76,6 +74,11 @@ const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>
       rules.skinnedWeldTexture,
       `How far two texture coordinates of a skinned mesh may differ and their corners be welded into one vertex (default ${rules.skinnedWeldTexture.default}).`,
     ),
+  }) satisfies Partial<Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>>)()
+
+/** How voxels are sampled and whether the mesh's assembly is built. */
+const VOXEL_AND_ASSEMBLY_SETTINGS = /* @__PURE__ */ (() =>
+  ({
     voxelRays: ruleSchema(
       rules.voxelRays,
       `How many rays are cast across each voxel of a voxelized mesh to sample its surface: at most ${MAX_VOXEL_RAYS}, a count past 1 rounded up to a multiple of ${VOXEL_RAY_PACKET}; 0 or 1 casts one ray, a voxel then covered whole or not at all and no coverage handed over to its neighbours (default ${rules.voxelRays.default}).`,
@@ -98,15 +101,20 @@ const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>
     ),
     voxelOpacity: ruleSchema(
       rules.voxelOpacity,
-      `Whether a voxel's record carries its coverage as its opacity, no coverage handed over to its neighbours and every voxel a ray hit kept; false hands the coverage over until no more voxels are left than it sums to. The reference only gives that opacity to a material as the vertex colour and draws no voxel by it: the engine does not either (default ${rules.voxelOpacity.default}).`,
+      `Whether the coverage stays with its voxels, none handed over to the neighbours of a voxel dropped and every voxel a ray hit kept; false hands the coverage over until no more voxels are left than it sums to. The voxel record holds no opacity (default ${rules.voxelOpacity.default}).`,
     ),
     allowAssemblies: ruleSchema(
       rules.allowAssemblies,
       `Whether the assembly the mesh's glTF extras.assembly names is built: parts (meshes by their rank, each with an optional materialRemap, a glTF material for each of its primitives) and nodes (a part and a glTF node's matrix, or translation, rotation and scale each); each node of the assembly is then a node of the scene under every node that places the mesh, carrying its part's mesh, whose pages are written once however many nodes name it. False draws the mesh's own triangles alone and the import report counts the assembly (default ${rules.allowAssemblies.default}).`,
     ),
+  }) satisfies Partial<Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>>)()
+
+/** The mesh's distance field and its cards. */
+const DISTANCE_FIELD_AND_CARD_SETTINGS = /* @__PURE__ */ (() =>
+  ({
     distanceField: ruleSchema(
       rules.distanceField,
-      `Whether the mesh's signed distance field is built, in bricks of voxels around its surface, for the distance-field occlusion of the sky light and the software ray tracing; the reference builds none unless its project turns the generation on (default ${rules.distanceField.default}).`,
+      `Whether the mesh's signed distance field is built, in bricks of voxels around its surface, for the distance-field occlusion of the sky light and the software ray tracing; false builds none, and with it the sun's distance-field shadow of the mesh (default ${rules.distanceField.default}).`,
     ),
     distanceFieldScale: ruleSchema(
       rules.distanceFieldScale,
@@ -118,12 +126,29 @@ const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>
     ),
     distanceFieldDensity: ruleSchema(
       rules.distanceFieldDensity,
-      `The voxels a centimetre of a mesh of distance field scale 1 holds, from 0.05 to 0.4; changing it rebuilds every field (default ${rules.distanceFieldDensity.default}).`,
+      `The voxels a centimetre of a mesh of distance field scale 1 holds, any finite number (the field's bricks are rounded and held between 1 and what the maximum resolution allows); changing it rebuilds every field (default ${rules.distanceFieldDensity.default}).`,
     ),
     distanceFieldMaxResolution: ruleSchema(
       rules.distanceFieldMaxResolution,
       `The most voxels along one axis a mesh's distance field holds; a mesh of scale 1 or less holds half of it (default ${rules.distanceFieldMaxResolution.default}).`,
     ),
+    maxMeshCards: ruleSchema(
+      rules.maxMeshCards,
+      `The most cards the compiler keeps for the mesh: boxes, each looking at the mesh along one of the six axis directions, that cover its surface and that a surface cache captures the mesh into. More cards cover the surface better and cost more to capture and to light; 0 builds none (default ${rules.maxMeshCards.default}).`,
+    ),
+    meshCardMinDensity: ruleSchema(
+      rules.meshCardMinDensity,
+      `How much of its box's face the surfaces a card covers must fill for the card to be kept, from 0 to 1; changing it rebuilds every mesh's cards (default ${rules.meshCardMinDensity.default}).`,
+    ),
+    meshCardNormalThreshold: ruleSchema(
+      rules.meshCardNormalThreshold,
+      `How squarely a surface must face a card's direction to be covered by it, the cosine of the angle between them, from 0 to 1; changing it rebuilds every mesh's cards (default ${rules.meshCardNormalThreshold.default}).`,
+    ),
+  }) satisfies Partial<Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>>)()
+
+/** The height maps baked into the mesh and the precisions of its pages. */
+const DISPLACEMENT_AND_PRECISION_SETTINGS = /* @__PURE__ */ (() =>
+  ({
     displacementMaps: {
       type: 'array',
       description: `The height maps baked into the mesh's triangles before its clusters are built: the mesh is tessellated, each vertex moved along its normal by the height of the first map, the triangles split where the displacement strays from what their corners' interpolate, to the error trimmedError holds the build to. Nothing is baked unless the mesh names a map AND a trimmedError above 0 and has one triangle primitive; a mesh that deforms is left as it is. [] bakes nothing (default []).`,
@@ -133,7 +158,7 @@ const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>
         properties: {
           texture: {
             type: 'object',
-            description: `A glTF textureInfo, {"index": n}, of an image whose first channel holds the height: 8 bits or floats, at most ${MAX_DISPLACEMENT_MAP_SIZE} texels a side (a larger map displaces nothing), wrapped or clamped by its sampler.`,
+            description: `A glTF textureInfo, {"index": n}, of an image whose first channel holds the height: 8 or 16 bits a channel, or floats, at most ${MAX_DISPLACEMENT_MAP_SIZE} texels a side (a larger map displaces nothing), wrapped or clamped by its sampler. No other field: the set the map is read at is displacementUvChannel's alone.`,
             properties: { index: int('The index of the glTF texture.', 0) },
             required: ['index'],
           },
@@ -168,6 +193,17 @@ const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>
       0,
       MAX_TANGENT_PRECISION,
     ),
+  }) satisfies Partial<Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>>)()
+
+/** The settings of one source of `meshBuild` (`meshBuildOptions.ts`): the scene's or a rule's. Each
+ *  one's kind and bounds are its rule's (`MESH_BUILD_RULES`); the page format's bounds are the
+ *  precisions'. */
+const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty> =
+  /* @__PURE__ */ (() => ({
+    ...SOURCE_SETTINGS,
+    ...VOXEL_AND_ASSEMBLY_SETTINGS,
+    ...DISTANCE_FIELD_AND_CARD_SETTINGS,
+    ...DISPLACEMENT_AND_PRECISION_SETTINGS,
   }))()
 
 /** A layer's `meshBuild`: a `merge` or `simplify` layer's (`HLOD_MESH_BUILD_SETTINGS`), a mesh's

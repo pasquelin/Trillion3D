@@ -9,8 +9,8 @@ import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
  * prev page marks, prev allocated page rect bounds; the invalidation bits are OR'ed into the prev
  * page requests, which the pool's page carry (step 4) folds into the pool page info.
  *
- * An instance (`VsmInvalidationInstance`) is a world box and one flag (cached as dynamic): its
- * centre, its half extent along the world's axes. The one entry that builds them is
+ * An instance (`VsmInvalidationInstance`) is an oriented world box and one flag (cached as dynamic): its
+ * centre and its three half axes. The one entry that builds them is
  * the shadow changes' (`invalidation/castInvalidationWgsl.ts`), from the list's records.
  */
 import { VSM_BOX_CULL_WGSL } from './invalidation/boxCullWgsl.ts'
@@ -48,12 +48,12 @@ export const VSM_INVALIDATION_SPECS: readonly VsmBindingSpec[] = [
   },
 ]
 
-/** The world box an invalidation stales the pages of, and its flag. */
+/** The oriented world box an invalidation stales the pages of, and its flag. */
 const VSM_INVALIDATION_INSTANCE_WGSL = wgslBlock(
   'VSM_INVALIDATION_INSTANCE_WGSL',
   [],
   `
-struct VsmInvalidationInstance{centre:vec3f,flags:u32,extent:vec3f,}
+struct VsmInvalidationInstance{centre:vec3f,flags:u32,axisX:vec3f,views:u32,axisY:vec3f,_padY:u32,axisZ:vec3f,_padZ:u32,}
 ${wgslConsts({ VSM_BOX_MOVING })}
 `,
 )
@@ -65,11 +65,13 @@ const VSM_STALE_PAGES_WGSL = wgslBlock(
   'VSM_STALE_PAGES_WGSL',
   [VSM_INVALIDATION_INSTANCE_WGSL, VSM_BOX_CULL_WGSL],
   `
+/** A page rect that holds no page: its first corner past its last. */
+const VSM_EMPTY_PAGE_RECT:vec4u=vec4u(0xffffffffu,0xffffffffu,0u,0u);
 /** Clips the page rect of a pixel rect to the allocated bounds (at map id · 8 + mip). */
 fn vsmMappedRectPages(pixels:vec4i,h:VsmHandle,mipLevel:u32)->vec4u{
  let pagesRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE);
  let i=h.id*VSM_MIPS+mipLevel;
- var bounds=vec4u(0xFFFFFFFFu,0xFFFFFFFFu,0u,0u);
+ var bounds=VSM_EMPTY_PAGE_RECT;
  if(i<arrayLength(&vsmMappedRects)){bounds=vsmMappedRects[i];}
  return vec4u(max(pagesRect.xy,bounds.xy),min(pagesRect.zw,bounds.zw));
 }
@@ -84,18 +86,24 @@ fn vsmMarkStale(o:VsmTableCell,flags:u32){
 }
 /** Invalidates the pages of one instance. */
 fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
+ // A box of casters already moving needs no explicit dynamic stale in a map that uses the receiver
+ // cover: that map draws its dynamic layer again each frame (\`KeepPages\`).
+ if(pd.useCover&&(inst.flags&VSM_BOX_MOVING)!=0u){return;}
+ // A box staled in some views' maps alone (an instance whose cache state turned there).
+ if(((inst.views>>pd.viewSlot)&1u)==0u){return;}
  let sunMap=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
  // The box's centre in the shadow view's shifted space (the origin shift split high and low).
  let translation=(inst.centre+pd.originShiftHigh)+pd.originShiftLow;
- // Its world axes and that translation, as a matrix. Its products with the box's point and axes
- // stay: a zero times an infinite or NaN term — a record's infinite extent, a view's non-finite
- // clip matrix — is NaN, where the sums written out would not be, so their pages could differ.
+ // Its half axes and that translation, as a matrix carrying the unit box (extent one) to the oriented
+ // one.
  let localToShifted=mat4x4f(
-  vec4f(1.0,0.0,0.0,0.0),
-  vec4f(0.0,1.0,0.0,0.0),
-  vec4f(0.0,0.0,1.0,0.0),
+  vec4f(inst.axisX,0.0),
+  vec4f(inst.axisY,0.0),
+  vec4f(inst.axisZ,0.0),
   vec4f(translation,1.0));
- let boxRadius=length(inst.extent);
+ let unitExtent=vec3f(1.0);
+ // The radius of the box's bounding sphere: the length of its extents scaled by its axes' lengths.
+ let boxRadius=sqrt(dot(inst.axisX,inst.axisX)+dot(inst.axisY,inst.axisY)+dot(inst.axisZ,inst.axisZ));
  // Distance cull for local lights, on the bounds' shifted centre — the translation itself: its
  // product with the matrix differs from it in a zero's sign alone, which a length cannot see.
  let shiftedCenter=translation;
@@ -107,11 +115,18 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  let nearClip=!sunMap;
  // The box to clip space through its local-to-shifted, then the view's shifted-to-clip.
  let toClip=vsmShiftedToClip(pd.shiftedToMapUv);
- let boxPoint=vsmBoxCullPoint(vec3f(0.0),inst.extent,isOrtho,nearClip);
+ let boxPoint=vsmBoxCullPoint(vec3f(0.0),unitExtent,isOrtho,nearClip);
  let cull=vsmBoxInView(toClip*(localToShifted*vec4f(boxPoint,1.0)),toClip*localToShifted[0],toClip*localToShifted[1],toClip*localToShifted[2],
-  inst.extent,pd.lightViewToClip,isOrtho,nearClip);
+  unitExtent,pd.lightViewToClip,isOrtho,nearClip);
  var pixelRadius=vsmClipRadius(isOrtho,boxRadius,shiftedCenter,pd.lightViewToClip)*f32(VSM_LEVEL0_TEXELS);
  if(!cull.inMapView){return;}
+ // A map of one page (a distant light's: its last mip alone) has that page's static layer staled and
+ // is done, whatever layer the box was cached in.
+ if(!sunMap&&pd.finestMip>=VSM_MIPS-1u){
+  let lastMip=VSM_MIPS-1u;
+  vsmMarkStale(vsmTableEntryAt(vsmTableLevelOrigin(pd.handle,lastMip),lastMip,vec2u(0u,0u)),VSM_META_STATIC_STALE);
+  return;
+ }
  let staticBox=vsmCachesAsStatic(inst,pd.uncached);
  let staleBits=select(VSM_META_DYNAMIC_STALE,VSM_META_STATIC_STALE,staticBox);
  let staleStatic=(staleBits&VSM_META_STATIC_STALE)!=0u;
@@ -122,21 +137,23 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
   let pixels=vsmRectPixels(vec4i(0,0,mapTexels,mapTexels),cull);
   // All allocated pages, cached or not, referenced this frame or not.
   let pagesRect=vsmMappedRectPages(pixels,pd.handle,mip);
-  // A fine caster drew into fine pages alone; a mover's box skips the coarse pages of a map whose
-  // coarse pages keep their dynamic layer.
-  let fineOnly=vsmIsFineCaster(staleStatic,pixelRadius)||(pd.coarseDynamicCached&&!staleStatic);
+  // A fine caster is looked for in fine pages alone, in the rect's hierarchical test; then any
+  // allocated page of the rect is staled, but for the coarse pages of a map whose coarse pages keep
+  // their dynamic layer, which a mover's box leaves.
+  let fineRect=vsmIsFineCaster(staleStatic,pixelRadius);
   pixelRadius*=0.5;
   // Hierarchical test: skip areas without any allocated page.
-  if(vsmTouchesMappedPage(pd.handle,mip,pagesRect,VSM_PAGE_WANTED,fineOnly)){
+  if(vsmTouchesMappedPage(pd.handle,mip,pagesRect,VSM_PAGE_WANTED,fineRect)){
+   let hzbRect=vsmHzbRectOf(cull,mapTexels);
    let levelOffset=vsmTableLevelOrigin(pd.handle,mip);
-   let wantedBits=VSM_PAGE_WANTED|select(0u,VSM_PAGE_FINE,fineOnly);
+   let wantedBits=VSM_PAGE_WANTED|select(0u,VSM_PAGE_FINE,pd.coarseDynamicCached&&!staleStatic);
    for(var y=pagesRect.y;y<=pagesRect.w;y++){
     for(var x=pagesRect.x;x<=pagesRect.z;x++){
      let markCell=vsmTableEntryAt(levelOffset,mip,vec2u(x,y));
      let pageMarks=vsmPageMarkWord(markCell);
-     // Every page the map holds, requested last frame or not, with the same bits as the
-     // hierarchical test.
-     if((pageMarks&wantedBits)==wantedBits){
+     // Every page the map holds, requested last frame or not.
+     // A page the box is hidden on, in the previous frame's depth pyramid, keeps its cache.
+     if((pageMarks&wantedBits)==wantedBits&&vsmHzbPageSeen(pd.handle,mip,hzbRect,x,y)){
       // Not through the page table: pages not requested last frame are not in it, but still
       // hold cached data. The next page address remap picks the bits up.
       vsmMarkStale(markCell,staleBits);
@@ -149,9 +166,23 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
 `,
 )
 
+/** The stale of an instance's pages tests no page against a depth pyramid: its hooks
+ *  (\`vsmHzbRectOf\`, \`vsmHzbPageSeen\`) always see the page. A module that does gives its own
+ *  (\`invalidation/hzbWgsl.ts\`). */
+export const VSM_NO_HZB_WGSL = wgslBlock(
+  'VSM_NO_HZB_WGSL',
+  [],
+  `
+struct VsmHzbRect{unused:u32,}
+fn vsmHzbRectOf(cull:VsmBoxInView,mapTexels:i32)->VsmHzbRect{return VsmHzbRect(0u);}
+fn vsmHzbPageSeen(h:VsmHandle,mipLevel:u32,r:VsmHzbRect,x:u32,y:u32)->bool{return true;}
+`,
+)
+
 /** An invalidation module over the previous frame's maps (group 0, `VSM_INVALIDATION_SPECS`): its
  *  own group 1 and entry point (`text`) with the declarations it names (`deps`), and the stale of
- *  an instance's pages they call (`vsmStaleBoxPages`). */
+ *  an instance's pages they call (`vsmStaleBoxPages`), which asks the module's hooks
+ *  (\`vsmHzbRectOf\`, \`vsmHzbPageSeen\`: \`VSM_NO_HZB_WGSL\` or the pyramid's) whether a page is seen. */
 export function vsmInvalidationProgram(
   layout: VsmLayout,
   text: string,

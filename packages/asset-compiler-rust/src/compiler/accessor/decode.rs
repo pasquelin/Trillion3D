@@ -4,6 +4,20 @@ use crate::compiler::accessor::codes::{
 };
 use crate::*;
 
+/// What a position is named in a refusal of a value that is not finite (`non_finite`).
+pub(crate) const POSITION: &str = "Position";
+
+/// The refusal of a value of `what` that is not finite: a position's is `NONFINITE_POSITION`, any
+/// other attribute's — a page attribute's semantic (`NORMAL`) — is `NONFINITE_ATTRIBUTE`; the
+/// message names which.
+pub(crate) fn non_finite(what: &str) -> CompilerError {
+    let code = match what == POSITION {
+        true => "NONFINITE_POSITION",
+        false => "NONFINITE_ATTRIBUTE",
+    };
+    CompilerError::new(code, format!("{what} is not finite"))
+}
+
 impl Accessor<'_> {
     /// Every element's bytes, `width × bytes` from `base + i·stride`, tightly packed or
     /// interleaved: the one walk the collectors and the content digest read. Its range is the one
@@ -87,7 +101,14 @@ impl Accessor<'_> {
         }
         Ok(out)
     }
+    /// Every component as a float; a value that is not finite is refused as a position's
+    /// (`NONFINITE_POSITION`), the reader of positions.
     pub(crate) fn collect_f32(&self) -> Result<Vec<f32>> {
+        self.collect_f32_of(POSITION)
+    }
+    /// Every component as a float; a value that is not finite is refused (`non_finite`) naming
+    /// `what` it was read as: `POSITION`, a page attribute's semantic (`NORMAL`).
+    pub(crate) fn collect_f32_of(&self, what: &str) -> Result<Vec<f32>> {
         let n = self
             .count
             .checked_mul(self.width)
@@ -95,10 +116,7 @@ impl Accessor<'_> {
         let finite = |component| -> Result<f32> {
             let value = self.decoded_value(component)? as f32;
             if !value.is_finite() {
-                return Err(CompilerError::new(
-                    "NONFINITE_POSITION",
-                    "Position is not finite",
-                ));
+                return Err(non_finite(what));
             }
             Ok(value)
         };

@@ -6,8 +6,8 @@ import { keepsBeautyChain } from '../../visibility/shader/shadeMode.ts'
 /** Releases the display layers, the bytes they counted and their temporal history. */
 function dropDisplayFilter(gpu: WebgpuGpuState) {
   if (!gpu.displayFilter) return undefined
-  gpu.targetBytes -= gpu.displayFilter.bytes + (gpu.temporal?.filterHistory.bytes ?? 0)
-  gpu.temporal?.filterHistory.drop()
+  gpu.targetBytes -= gpu.displayFilter.bytes + (gpu.temporal?.layers.bytes ?? 0)
+  gpu.temporal?.layers.drop()
   gpu.displayFilter.dispose()
   gpu.displayFilter = undefined
 }
@@ -55,11 +55,12 @@ export function endDisplayFilter(
   if (!filter.written) return
   const { targetSize, allocatedSize, displayView } = rt.gpu
   // The raw layers, where the image drew them: the top-left of targets it may not fill.
-  if (resolved) filter.apply(encoder, resolved, displayView!, presentation)
+  let applied: boolean
+  if (resolved) applied = filter.apply(encoder, resolved, displayView!, presentation)
   else {
     const x = targetSize[0] / allocatedSize[0],
       y = targetSize[1] / allocatedSize[1]
-    filter.apply(encoder, filter.views, displayView!, presentation, x, y)
+    applied = filter.apply(encoder, filter.views, displayView!, presentation, x, y)
   }
-  rt.run.gpuDrawCalls += 2
+  if (applied) rt.run.gpuDrawCalls += 2
 }

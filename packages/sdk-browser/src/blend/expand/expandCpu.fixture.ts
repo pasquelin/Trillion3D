@@ -5,6 +5,7 @@ import { RUN_WORDS, slotCapacity } from '../plan/planLayout.ts'
 import { sortSeedsFarToNear } from '../sortPlan.ts'
 import { eyeKey } from '../eyeKey.ts'
 import type { WebgpuBlendState } from '../state.ts'
+import type { ViewFilter } from './expansionViews.ts'
 import { hasBit } from '../../../../math/src/scalar/bits.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
@@ -22,7 +23,7 @@ export type BlendExpansion = {
   runs: Uint32Array
   runCount: number
   /** Four words per item: table rank (`NO_INDEX` for one the table does not hold yet), instances
-   *  it can expand at most, table base, and a word unused. */
+   *  it can expand at most, table base, and its filter word (`../expand/expansionViews.ts`). */
   draws: Uint32Array
   /** One bit per item: zero for the item the frustum rejects, which expands no instance. */
   keep: Uint32Array
@@ -35,6 +36,9 @@ export type BlendExpansion = {
   /** Where the pass expands its instances, and where it writes its arguments: two regions per pass. */
   instanceBase: number
   argsBase: number
+  /** The view's filter (`ViewFilter`): an item with a bit of `exclude` in its word, or without every bit of `require`, expands nothing.
+   *  The view of every layer by default. */
+  filter?: ViewFilter
   /** Outputs: two words per instance, four indirect-argument words per run. */
   expanded: Uint32Array
   args: Uint32Array
@@ -73,6 +77,14 @@ export function expandBlendPlan(x: BlendExpansion) {
       const word = instanceWord(item, planVertexCull(entry))
       const paged = draws[item * 4]
       if (paged === NO_INDEX) continue
+      // The view's filter, read here as its definition says: no bit it excludes, every bit it
+      // requires.
+      const filter = draws[item * 4 + 3]
+      if (
+        x.filter &&
+        ((filter & x.filter.exclude) !== 0 || (filter & x.filter.require) !== x.filter.require)
+      )
+        continue
       const tableBase = draws[item * 4 + 2],
         tenues = itemCounts[paged]
       for (let j = 0; j < tenues; j++) {

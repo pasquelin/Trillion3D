@@ -1,37 +1,25 @@
 /**
- * What the rows pass (`../rows/rowWordsWgsl.ts`), the root boxes pass (`../roots/rootBoxesWgsl.ts`)
- * and the transparent entries pass (`../../blend/transparent/entryCornersWgsl.ts`) derive from a
- * root's world besides the words of the row itself, each the CPU formula's to the word — the
- * doubles it derives them in, rounded where it rounds them: the root's world box, the eight corners
- * of a transparent entry its occlusion test projects, and the detail words the shadows' levels are
- * judged by. They read what a world does not change from a row's inputs (`../rows/rowInputPack.ts`),
- * `ROW_INPUT_DOUBLES` doubles a row, the declarations the program holds:
+ * What the root boxes pass (`../roots/rootBoxesWgsl.ts`) and the transparent entries pass
+ * (`../../blend/transparent/entryCornersWgsl.ts`) derive from a root's world, each the CPU formula's
+ * to the word — the doubles it derives them in, rounded where it rounds them: the root's world box
+ * and the eight corners of a transparent entry its occlusion test projects. The declarations the
+ * program holds:
  *
- *   inputs    array<vec2u>   a row's inputs, `ROW_INPUT_DOUBLES` doubles each
  *   corners   array<u32>     `CORNER_VALUES` words an entry, its occlusion corners
- *   lods      array<u32>     `ROW_LOD_FLOATS` words a row, the shadow detail
- *   rootBoxes array<vec2u>   `ROOT_BOX_DOUBLES` a root, its world box then its stretch
+ *   rootBoxes array<vec2u>   `ROOT_BOX_DOUBLES` a root, its world box, its stretch, then its ball
  *
  * An affine world — its last row `(0, 0, 0, 1)`, as every product of the poses a node tree makes
  * is — takes the corners' divide by `w` as the CPU does: it is 1.
  */
 import { wgslDouble } from '../../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { dDot3, dLess, dMul, dSqrt, dSub, splitDouble } from '../../../../math/src/wgsl/double.ts'
+import { dAdd, dLess, dMul, dSub, splitDouble } from '../../../../math/src/wgsl/double.ts'
+import { D_HALF } from '../../../../math/src/wgsl/doubleConstants.ts'
+import { fromF32, toF32 } from '../../../../math/src/wgsl/f32.ts'
 import { affineAxis, dBoxAffine } from '../../../../math/src/wgsl/doubleAffine.ts'
 import { dIsFinite } from '../../../../math/src/wgsl/doubleRound.ts'
 import { dIsNan } from '../../../../math/src/wgsl/doubleWords.ts'
-import { FINITE_SENTINEL } from '../../../../math/src/wgsl/constants.ts'
-import { D_HALF } from '../../../../math/src/wgsl/doubleConstants.ts'
-import { toF32 } from '../../../../math/src/wgsl/f32.ts'
 import { STRETCH_DOUBLE_WGSL } from '../gpuStretchWgsl.ts'
-import {
-  LOD_BIT,
-  LOD_INPUT,
-  LOD_OBJECT,
-  ROW_LOD_FLOATS,
-} from '../../lighting/shadows/casters/rowLodWords.ts'
-import { INPUT_LOD, ROW_INPUT_DOUBLES } from '../rows/rowInputPack.ts'
 import { ROOT_BOX_DOUBLES, ROOT_LOCAL_DOUBLES } from '../roots/rootWorldSends.ts'
 
 /** The eight corners of the box of bounds `lo` and `hi` at `world`, from word `out` of `corners`, as
@@ -85,11 +73,20 @@ fn carriedBox(world:array<vec2u,16>,lo:array<vec2u,3>,hi:array<vec2u,3>)->array<
 
 /** Root `rank`'s words (`rootBoxes`, `ROOT_BOX_DOUBLES` a root): its world box, its local box
  *  (`rootInputs`) carried by `world`, zero when it has none, then the stretch of `world`
- *  (`maxStretchOf`), solved once a root for every row of it (`composeLod`); the stretch returned. */
+ *  (`maxStretchOf`), then its ball, zero when it has no local box: the centre of the local box
+ *  carried by `world` (three doubles) and the radius, a single widened — the half extent of the
+ *  local box scaled along each axis by the length of that axis of `world`, its length: what a map
+ *  judges the whole object by —, then its oriented box: the three half axes (each column of `world`'s
+ *  linear part times the local half extent along it, singles), what a shadow change stales the pages
+ *  of. The stretch returned. */
 export const WORLD_BOX_WGSL = wgslBlock(
   'WORLD_BOX_WGSL',
-  [CARRIED_BOX_WGSL, STRETCH_DOUBLE_WGSL],
+  [CARRIED_BOX_WGSL, STRETCH_DOUBLE_WGSL, affineAxis, dAdd, dSub, dMul, D_HALF, toF32, fromF32],
   `
+/** The f32 length of column \`c\` of \`world\`'s linear part. */
+fn axisScale(world:array<vec2u,16>,c:u32)->f32{
+ return length(vec3f(bitcast<f32>(toF32(world[4u*c])),bitcast<f32>(toF32(world[4u*c+1u])),bitcast<f32>(toF32(world[4u*c+2u]))));
+}
 fn composeRoot(rank:u32,world:array<vec2u,16>)->vec2u{
  let at=rank*${ROOT_LOCAL_DOUBLES}u;
  let o=rank*${ROOT_BOX_DOUBLES}u;
@@ -99,66 +96,29 @@ fn composeRoot(rank:u32,world:array<vec2u,16>)->vec2u{
   for(var a=0u;a<3u;a++){lo[a]=rootInputs[at+a];hi[a]=rootInputs[at+3u+a];}
   let box=carriedBox(world,lo,hi);
   for(var k=0u;k<6u;k++){rootBoxes[o+k]=box[k];}
- }else{for(var k=0u;k<6u;k++){rootBoxes[o+k]=vec2u(0u,0u);}}
+  var mid:array<vec2u,3>;
+  var halfSize=vec3f(0.0);
+  for(var a=0u;a<3u;a++){
+   mid[a]=dMul(dAdd(lo[a],hi[a]),D_HALF);
+   halfSize[a]=bitcast<f32>(toF32(dMul(dSub(hi[a],lo[a]),D_HALF)));
+  }
+  for(var a=0u;a<3u;a++){rootBoxes[o+7u+a]=affineAxis(world,a,mid[0],mid[1],mid[2]);}
+  rootBoxes[o+10u]=fromF32(bitcast<u32>(length(halfSize*vec3f(axisScale(world,0u),axisScale(world,1u),axisScale(world,2u)))));
+  // The oriented box: the half axes, the local half extent along each column of \`world\`, nine singles
+  // in the five doubles after the ball.
+  var axes:array<u32,10>;
+  for(var c=0u;c<3u;c++){
+   let axisHalf=halfSize[c]*vec3f(bitcast<f32>(toF32(world[4u*c])),bitcast<f32>(toF32(world[4u*c+1u])),bitcast<f32>(toF32(world[4u*c+2u])));
+   for(var a=0u;a<3u;a++){axes[3u*c+a]=bitcast<u32>(axisHalf[a]);}
+  }
+  axes[9]=0u;
+  for(var k=0u;k<5u;k++){rootBoxes[o+11u+k]=vec2u(axes[2u*k],axes[2u*k+1u]);}
+ }else{
+  for(var k=0u;k<6u;k++){rootBoxes[o+k]=vec2u(0u,0u);}
+  for(var k=7u;k<${ROOT_BOX_DOUBLES}u;k++){rootBoxes[o+k]=vec2u(0u,0u);}
+ }
  let stretch=maxStretchOf(world);
  rootBoxes[o+6u]=stretch;
  return stretch;
-}`,
-)
-
-/** Row `row`'s detail words at `world`: the errors and their centres by the stretch of
- *  the world, the radii, the radius of the root's world box — both the root's words
- *  (`composeRoot`) —, the row's whole object (`composeObject`), the residency folded in. */
-export const LOD_WGSL = wgslBlock(
-  'LOD_WGSL',
-  [splitDouble, toF32, affineAxis, dSqrt, dMul, dDot3, dSub, FINITE_SENTINEL, D_HALF],
-  `
-fn lodCentre(o:u32,at:u32,world:array<vec2u,16>,src:u32,low:u32){
- for(var axis=0u;axis<3u;axis++){
-  let s=splitDouble(affineAxis(world,axis,inputs[at+src],inputs[at+src+1u],inputs[at+src+2u]));
-  lods[o+low-8u+axis]=s.x;
-  lods[o+low+axis]=s.y;
- }
-}
-/** The row's whole object (\`rowObjectInputs\`): the offset of its centre from the row's own, turned
- *  by the linear part of \`world\`, and its radius by the root's stretch \`scale\`, in single
- *  precision, as the cull reads them (\`lods\`, \`VsmRenderRowLod.object\`); zeros for none. */
-fn composeObject(o:u32,at:u32,world:array<vec2u,16>,scale:vec2u){
- let a=inputs[at+${LOD_INPUT.object}u];
- let b=inputs[at+${LOD_INPUT.object + 1}u];
- let d=vec3f(bitcast<f32>(a.x),bitcast<f32>(a.y),bitcast<f32>(b.x));
- for(var axis=0u;axis<3u;axis++){
-  let l=vec3f(bitcast<f32>(toF32(world[axis])),bitcast<f32>(toF32(world[4u+axis])),bitcast<f32>(toF32(world[8u+axis])));
-  lods[o+${LOD_OBJECT}u+axis]=bitcast<u32>(l.x*d.x+l.y*d.y+l.z*d.z);
- }
- lods[o+${LOD_OBJECT + 3}u]=bitcast<u32>(bitcast<f32>(b.y)*bitcast<f32>(toF32(scale)));
-}
-fn composeLod(row:u32,rank:u32,world:array<vec2u,16>){
- let at=row*${ROW_INPUT_DOUBLES}u+${INPUT_LOD}u;
- let o=row*${ROW_LOD_FLOATS}u;
- let r=rank*${ROOT_BOX_DOUBLES}u;
- for(var k=0u;k<${ROW_LOD_FLOATS}u;k++){lods[o+k]=0u;}
- lods[o+7u]=bitcast<u32>(FINITE_SENTINEL);
- composeObject(o,at,world,rootBoxes[r+6u]);
- let flags=inputs[at+${LOD_INPUT.flags}u].x;
- if((flags&${LOD_BIT.hasBox}u)!=0u){
-  let a=rootBoxes[r];let b=rootBoxes[r+1u];let c=rootBoxes[r+2u];
-  let dx=dSub(rootBoxes[r+3u],a);
-  let dy=dSub(rootBoxes[r+4u],b);
-  let dz=dSub(rootBoxes[r+5u],c);
-  let s=dDot3(dx,dx,dy,dy,dz,dz);
-  lods[o+18u]=toF32(dMul(dSqrt(s),D_HALF));
- }
- if((flags&${LOD_BIT.has}u)==0u){return;}
- let scale=rootBoxes[r+6u];
- if((flags&${LOD_BIT.childReady}u)!=0u){lods[o+3u]=toF32(dMul(inputs[at+${LOD_INPUT.own}u],scale));}
- lodCentre(o,at,world,${LOD_INPUT.sphere}u,8u);
- lods[o+16u]=toF32(dMul(inputs[at+${LOD_INPUT.sphere + 3}u],scale));
- if((flags&${LOD_BIT.ready}u)==0u){lods[o+7u]=0u;return;}
- if((flags&${LOD_BIT.hasParent}u)!=0u){
-  lodCentre(o+4u,at,world,${LOD_INPUT.parentSphere}u,8u);
-  lods[o+7u]=toF32(dMul(inputs[at+${LOD_INPUT.parent}u],scale));
-  lods[o+17u]=toF32(dMul(inputs[at+${LOD_INPUT.parentSphere + 3}u],scale));
- }
 }`,
 )

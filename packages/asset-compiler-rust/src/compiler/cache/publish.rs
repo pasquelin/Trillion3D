@@ -1,5 +1,5 @@
-//! Publication of a compiled job: the resident proxy, the manifest's pages and
-//! their sidecars, its root, then the scope pointer.
+//! Publication of a compiled job: the manifest's pages and their sidecars, its root, then the
+//! scope pointer.
 use crate::compiler::pages::manifest::{write_manifest, MeshPages};
 use crate::texture::TexturePreview;
 use crate::*;
@@ -10,8 +10,6 @@ pub(crate) struct Publication<'a> {
     pub key: &'a str,
     pub directory: &'a Path,
     pub cache_format: u32,
-    pub proxy_bytes: &'a [u8],
-    pub proxy_sha: &'a str,
     /// Every product already on disk in the folder, as its writer recorded it.
     pub products: &'a [Product],
     pub previews: &'a [TexturePreview],
@@ -36,13 +34,7 @@ pub(crate) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
         "version": crate::texture::TEXTURE_PREVIEW_VERSION,
     });
     let directory = inputs.directory;
-    let proxy = product_of(
-        directory,
-        crate::proxy::SCENE_PROXY_FILE,
-        inputs.proxy_bytes,
-        inputs.proxy_sha,
-    )?;
-    slim[FILES_FIELD] = files_record(inputs.products.iter().chain([&proxy]));
+    slim[FILES_FIELD] = files_record(inputs.products.iter());
     // The scene's temporal anti-aliasing level, only when the job names it: the runtime's
     // `'scene'` setting, below the quality, the page and the editor.
     if let Some(level) = inputs
@@ -60,10 +52,8 @@ pub(crate) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
 
 /// The `files` record: fingerprint and size, by name, of every product of the
 /// key folder other than the manifest's pages and sidecars — proven through its
-/// root, which cannot carry its own fingerprint. `proxy.bin`
-/// is in it under the digest `proxy.sha256` already carries, so that a later job
-/// proves the folder whole from this one record before reusing it
-/// (`reuse_proof.rs`). Each entry is what its writer had in hand: no
+/// root, which cannot carry its own fingerprint, so that a later job
+/// proves the folder whole from this one record before reusing it (`reuse_proof.rs`). Each entry is what its writer had in hand: no
 /// product is read back from disk to record it.
 fn files_record<'a>(products: impl Iterator<Item = &'a Product>) -> Value {
     Value::Object(

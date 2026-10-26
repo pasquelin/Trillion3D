@@ -8,7 +8,7 @@ import { spawnSync, type SpawnSyncOptions } from 'node:child_process'
 import { accessSync, constants, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { git } from '../git-paths.ts'
-import { runChecked } from '../../test/run.ts'
+import { runChecked } from '../../check/run.ts'
 
 /**
  * The branch checked out at `root`, named even before its first commit; empty when detached

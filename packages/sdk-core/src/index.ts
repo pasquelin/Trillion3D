@@ -1,11 +1,8 @@
 export * from './contracts/index.ts'
 export * from './bounce/contracts.ts'
-export * from './contracts/proxy.ts'
 export * from './modules/descriptor.ts'
 export * from './modules/manager.ts'
 export * from './bounce/cascades.ts'
-export * from './bounce/probePool.ts'
-export { assertSceneProxy, decodeSceneProxy } from './scene/core/proxy.ts'
 export {
   DEPTH_LAYER_BIAS_UNITS,
   MAX_DEPTH_LAYER,
@@ -34,7 +31,7 @@ export { textureLevelFormat, textureLevelUrl, type TextureLevelFormat } from './
 export { GEOMETRY_PAGE_CODEC } from './manifest/binaryFormat.ts'
 export {
   PREVIEW_ATLAS_COLOR,
-  PREVIEW_ATLAS_COVERAGE,
+  PREVIEW_ATLAS_HDR,
   PREVIEW_ATLAS_DATA,
   PREVIEW_ATLAS_NAMES,
   PREVIEW_BLOCK_BYTES,
@@ -156,6 +153,8 @@ export {
   SCENE_LIGHT_VERSION,
 } from './scene/light/contracts.ts'
 export { cloneSceneLight } from './scene/light/clone.ts'
+export { DEFAULT_LIGHT_UNITS, LIGHT_UNITS } from './scene/light/lightUnits.ts'
+export type { LightUnits } from './scene/light/lightUnits.ts'
 export {
   SCENE_ENVIRONMENT_FLOATS,
   TONE_MAPPING_RANK,
@@ -172,6 +171,12 @@ export type {
   SceneHeightFog,
   SceneLinearFog,
 } from './scene/core/fog.ts'
+export type { SceneFogCubemap } from './scene/core/fogCubemap.ts'
+export type { SceneSecondLayer } from './scene/core/fogSecond.ts'
+export type { SceneSkyLightScattering } from './scene/core/fogHeight.ts'
+export type { SceneVolumetricFog } from './scene/core/fogVolumetric.ts'
+/** The displacement a surface record carries: a signature of the scene's tables names it. */
+export type { DisplacementWire, TemporalAntialiasingLevel } from './contracts/materialAbi.ts'
 export type {
   ResolvedAtmosphere,
   SceneAtmosphere,
@@ -213,3 +218,34 @@ export {
   toOpenAiTool,
 } from './llm/toolDefinitions.ts'
 export { TRILLION3D_SYSTEM_PROMPT, getTrillion3dLlmPrompt } from './llm/systemPrompt.ts'
+
+/** Named by signatures of the public API (views, materials' graphs, lights, collision): exported so
+ *  a caller can name what it is handed. */
+export type { ClipPlane, ClipPlaneValues } from './contracts/viewOptions.ts'
+export type { CollisionEnabled, CollisionOptions } from './physics/collisionChannels.ts'
+export type {
+  ExposureCurveExtrapolation,
+  ExposureCurveInterpolation,
+  ExposureCurveKeyObject,
+  ExposureCurveKeyOption,
+  ExposureCurveObject,
+  ExposureCurveOption,
+  ExposureCurveTangentMode,
+  ExposureCurveWeightMode,
+} from './contracts/exposureCurve.ts'
+export type { HardwareBenchmarkResult } from './runtime/hardwareBenchmark.ts'
+export type { HostImage } from './contracts/hostImage.ts'
+export type { LightCloudShadowParameters } from './world/light/lightCloudShadowSettings.ts'
+export type { LightShaftParameters } from './world/light/lightShaftSettings.ts'
+export type { ShadowCacheInvalidation } from './world/object/offsetSwitches.ts'
+export type { VolumeMaterial } from './contracts/volumeMaterial.ts'
+/** The inputs a public signature takes a colour or a point by. */
+export type { ColorInput } from './world/math/color.ts'
+export type { Vec3Input } from './world/math/vector3.ts'
+export type { XYZLike } from './world/math/likes.ts'
+export type { CharacterMode } from './collision/characterModes.ts'
+export type { MaterialShadingModel } from './world/material/shadingModel.ts'
+export type {
+  SubsurfaceImplementation,
+  SubsurfaceProfile,
+} from './lighting/subsurfaceProfile/profile.ts'

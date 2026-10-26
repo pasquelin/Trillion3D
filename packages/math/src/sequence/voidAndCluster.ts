@@ -1,5 +1,5 @@
 import { mulberry32 } from './random.ts'
-import { NOISE_SIGMA, type NoiseVolume } from './noiseEnergy.ts'
+import { NOISE_SEED, NOISE_SIGMA, type NoiseVolume } from './noiseEnergy.ts'
 import {
   buildTree,
   createField,
@@ -13,9 +13,6 @@ import {
 
 /** The share of the pixels the first binary pattern turns on: the density that gave the best masks. */
 const INITIAL_DENSITY = 0.1
-
-/** The seed of the first pattern, so that a mask is the same on every run. */
-const NOISE_SEED = 0x1337feed
 
 /** Turns `pixel` on or off and brings the trees up to date with what that changed. */
 function move(field: EnergyField, trees: readonly ExtremumTree[], pixel: number, on: boolean) {
@@ -52,15 +49,19 @@ function relax(field: EnergyField) {
   }
 }
 
+/** The tightest cluster turned off, again and again until no pixel is on; its rank is `rankOf` the number of pixels on before it went. */
+function peel(field: EnergyField, ranks: Uint32Array, rankOf: (left: number) => number) {
+  const tree = buildTree(field, 'cluster')
+  for (let left = field.onCount; left > 0; left--) {
+    const pixel = extremum(tree)
+    move(field, [tree], pixel, false)
+    ranks[pixel] = rankOf(left)
+  }
+}
+
 /** Phase I: the pattern ordered. The tightest cluster is turned off, its rank the number of pixels still on, until none is. */
 function orderPattern(field: EnergyField, ranks: Uint32Array) {
-  const tree = buildTree(field, 'cluster')
-  for (let left = field.onCount; left > 0;) {
-    const pixel = extremum(tree)
-    left--
-    move(field, [tree], pixel, false)
-    ranks[pixel] = left
-  }
+  peel(field, ranks, (left) => left - 1)
 }
 
 /** The pattern put back: every pixel that has a rank is on, its energy given. */
@@ -102,12 +103,7 @@ function reversePattern(field: EnergyField) {
 
 /** Phase III: the tightest cluster of the pixels that were off is turned off, its rank counting up from where phase II stopped. */
 function orderSecondHalf(field: EnergyField, ranks: Uint32Array) {
-  const tree = buildTree(field, 'cluster')
-  for (let left = field.onCount; left > 0; left--) {
-    const pixel = extremum(tree)
-    move(field, [tree], pixel, false)
-    ranks[pixel] = ranks.length - left
-  }
+  peel(field, ranks, (left) => ranks.length - left)
 }
 
 /**

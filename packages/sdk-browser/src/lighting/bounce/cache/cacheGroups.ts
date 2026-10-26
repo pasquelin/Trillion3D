@@ -1,9 +1,6 @@
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
-import type { ProxyResources } from '../../../geometry/dag/cut/cutReaders.ts'
-import { sceneBindEntries } from '../sceneBindings.ts'
-import { PROBE_CLOUD_SHADOW, PROBE_PROXY, PROBE_SKY_LIGHT } from '../probes/probeBindings.ts'
-import { cloudShadowBindEntries, type CloudShadowSet } from '../../atmosphere/cloudShadowRead.ts'
+import { surfaceHitEntries, type SurfaceHitReads } from '../../surfaceCache/hitWgsl.ts'
 import {
   skyLightReadBindEntries,
   type SkyLightReadSet,
@@ -13,6 +10,8 @@ import {
   CACHE_MIPS_BINDINGS,
   CACHE_TILES_BINDINGS,
   CACHE_TRACE_BINDINGS,
+  CACHE_TRACE_HIT,
+  CACHE_TRACE_SKY_LIGHT,
 } from './cacheBindings.ts'
 import type { CacheKernels } from './cacheKernels.ts'
 import {
@@ -22,24 +21,21 @@ import {
 } from './cacheLayout.ts'
 import type { CacheStorage } from './cacheStorage.ts'
 
-/** What the cache is wired to: the levels' uniform, the probes' atlas, the frame's queue, the pool's slots. */
+/** What the cache is wired to: the levels' uniform, the cell table, the frame's queue, the pool's slots. */
 export interface CacheWiring {
   grid: GPUBuffer
-  probes: GPUTextureView
+  table: GPUTextureView
   queue: GPUBuffer
   slots: number
 }
 
-/** What an image queued for the cache: the probes, what the trace reads — the light functions' atlas, the sky light and the clouds' shade
- *  as the probe pass reads them —, the image's eye. */
+/** What an image queued for the cache: the arguments of the dispatches over the probes (the pool wrote them), what the trace reads — the
+ *  lights, the sky light, the global field and the surface cache —, the image's eye. */
 export interface Queued {
-  groups: number
-  proxy: ProxyResources
+  args: GPUBuffer
   lights: GPUBuffer
-  lists: GPUBuffer
-  lightFunction: GPUTextureView
   sky: SkyLightReadSet
-  cloudShadow: CloudShadowSet
+  reads: SurfaceHitReads
   eye: ArrayLike<number>
 }
 
@@ -53,10 +49,10 @@ export function cacheGroupsOf(
   const T = CACHE_TILES_BINDINGS,
     F = CACHE_FILTER_BINDINGS,
     M = CACHE_MIPS_BINDINGS
-  /** The first four bindings every kernel but the trace shares: the levels' uniform, the probes' atlas, the queue, the parameters. */
+  /** The first four bindings every kernel but the trace shares: the levels' uniform, the cell table, the queue, the parameters. */
   const common = [
     { binding: 0, resource: { buffer: wiring.grid } },
-    { binding: 1, resource: wiring.probes },
+    { binding: 1, resource: wiring.table },
     { binding: 2, resource: { buffer: wiring.queue } },
     { binding: 3, resource: { buffer: s.params } },
   ]
@@ -67,14 +63,12 @@ export function cacheGroupsOf(
         ...common,
         { binding: T.pdf, resource: { buffer: s.pdf } },
         { binding: T.tiles, resource: { buffer: s.tiles } },
-        { binding: T.entries, resource: { buffer: s.entries } },
       ],
     }),
     filter: device.createBindGroup({
       layout: kernels.filter.layout,
       entries: [
         ...common,
-        { binding: F.entries, resource: { buffer: s.entries } },
         { binding: F.raw, resource: s.views.raw },
         { binding: F.final, resource: s.views.levels[0] },
         { binding: F.tags, resource: { buffer: s.tags } },
@@ -87,7 +81,6 @@ export function cacheGroupsOf(
         layout: kernels.mips.layout,
         entries: [
           ...common,
-          { binding: M.entries, resource: { buffer: s.entries } },
           { binding: M.above, resource: s.views.levels[k] },
           { binding: M.below, resource: below },
         ],
@@ -103,17 +96,16 @@ export function cacheTraceBinder(device: GPUDevice, kernels: CacheKernels, wirin
   return (s: CacheStorage, q: Queued) => {
     const { next } = identity
     next[0] = s
-    next[1] = q.proxy.buffer
-    next[2] = q.proxy.worlds
-    next[3] = q.proxy.tree
-    next[4] = q.lights
-    next[5] = q.lists
-    next[6] = q.lightFunction
-    next[7] = q.sky.cube
-    next[8] = q.sky.params
-    next[9] = q.cloudShadow.block
-    next[10] = q.cloudShadow.maps[0]
-    next[11] = q.cloudShadow.maps[1]
+    next[1] = q.lights
+    next[2] = q.sky.cube
+    next[3] = q.sky.harmonics
+    next[4] = q.sky.params
+    next[5] = q.reads.field.readGeneration
+    next[6] = q.reads.hit.tables
+    next[7] = q.reads.hit.depth
+    next[8] = q.reads.hit.final
+    next[9] = q.reads.hit.grid
+    next[10] = q.reads.hit.instances
     if (identity.moved()) {
       const B = CACHE_TRACE_BINDINGS
       group = device.createBindGroup({
@@ -122,15 +114,12 @@ export function cacheTraceBinder(device: GPUDevice, kernels: CacheKernels, wirin
           { binding: B.grid, resource: { buffer: wiring.grid } },
           { binding: B.lights, resource: { buffer: q.lights } },
           { binding: B.queue, resource: { buffer: wiring.queue } },
-          { binding: B.probes, resource: wiring.probes },
-          { binding: B.lists, resource: { buffer: q.lists } },
+          { binding: B.table, resource: wiring.table },
           { binding: B.tiles, resource: { buffer: s.tiles } },
           { binding: B.raw, resource: s.views.raw },
           { binding: B.params, resource: { buffer: s.params } },
-          ...sceneBindEntries(PROBE_PROXY, q.proxy),
-          { binding: B.lightFunction, resource: q.lightFunction },
-          ...skyLightReadBindEntries(PROBE_SKY_LIGHT, q.sky),
-          ...cloudShadowBindEntries(PROBE_CLOUD_SHADOW, q.cloudShadow),
+          ...skyLightReadBindEntries(CACHE_TRACE_SKY_LIGHT, q.sky),
+          ...surfaceHitEntries(CACHE_TRACE_HIT, q.reads.field, q.reads.hit),
         ],
       })
     }

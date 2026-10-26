@@ -4,7 +4,7 @@
 // source and a wave.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/outputs.ts'
+import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/vertexWords.ts'
 import { MOVED, REST, waves } from './deformationKernelCases.ts'
 import { deformationRecords } from './deformationKernelRun.ts'
 

@@ -3,26 +3,13 @@
 //! their triangles (none for a rope), their masses from the scaled area — a rope's length — each
 //! holds, or the declared mass spread so, its pins held, and a volume's pressure. Each stored value
 //! is rounded to 32 bits where the page's `Float32Array` rounds it: both weigh a vertex alike.
-use super::SOFT_VERTEX_WORDS;
+use super::rules::{
+    EARTH_GRAVITY, PHYSICS_STEP, SOFT_AREAL_DENSITY, SOFT_FOOTPRINT, SOFT_LINEAR_DENSITY,
+    SOFT_MAX_SWELL, SOFT_SUBSTEPS, SOFT_VERTEX_WORDS,
+};
 use crate::simplify::welded_region;
 use trillion3d_math::geometry::triangle::triangle_area;
 use trillion3d_math::vector::vecn::{length, sub};
-
-/// kg/m² of a cloth's or a volume's skin, and kg/m of a rope, left undeclared (`SOFT_AREAL_DENSITY`,
-/// `SOFT_LINEAR_DENSITY`).
-const AREAL_DENSITY: f64 = 0.2;
-const LINEAR_DENSITY: f64 = 0.065;
-/// A volume's default pressure rests its weight on this share of its mean cross-section
-/// (`SOFT_FOOTPRINT`), and a volume keeps within this share of its rest volume (`SOFT_MAX_SWELL`).
-const FOOTPRINT: f64 = 0.25;
-const MAX_SWELL: f64 = 0.1;
-/// The step a cooked volume's skin is reckoned at (`heldPressure`): the engine's fixed step
-/// (`PHYSICS_STEP`), the page's unless its address asks another, for a volume is cooked before any
-/// page steps it; the solver's substeps of a soft body per step, and Earth's pull, the standard
-/// one (`GRAVITY_PRESETS.earth`).
-const STEP: f64 = 1.0 / 60.0;
-const SUBSTEPS: f64 = 5.0;
-const EARTH: f64 = 9.80665;
 
 /// What a node declares of its soft body: its options once read (`SoftSettings`).
 pub(super) struct SoftDeclared {
@@ -43,12 +30,14 @@ pub(super) struct SoftRecord {
     pub pressure: f64,
 }
 
-/// The most gauge pressure a volume's skin holds within `MAX_SWELL` (`heldPressure`), at `STEP`.
+/// The most gauge pressure a volume's skin holds within `SOFT_MAX_SWELL` (`heldPressure`), at
+/// `PHYSICS_STEP`: a volume is cooked before any page steps it, and a page that sets
+/// `physics.step` checks the pressure again at its own.
 fn held_pressure(vertex_mass: f64, area: f64, stretch: f64) -> f64 {
-    let dt = STEP / SUBSTEPS;
+    let dt = PHYSICS_STEP / f64::from(SOFT_SUBSTEPS);
     let radius = (area / (4.0 * std::f64::consts::PI)).sqrt();
     let give = ((stretch + dt * dt / vertex_mass) * radius) / (2.0 * 3f64.sqrt());
-    ((1.0 + MAX_SWELL).cbrt() - 1.0) / give
+    ((1.0 + SOFT_MAX_SWELL).cbrt() - 1.0) / give
 }
 
 /// The soft body of `pos` (3 floats per vertex) and its triangle `corners` (every vertex in order
@@ -91,7 +80,11 @@ pub(super) fn soft_record(
         .flat_map(|&[x, y, z]| [x, y, z, 0.0])
         .collect();
     let measure = spread_mass(&mut vertices, &indices, scale)?;
-    let density = if rope { LINEAR_DENSITY } else { AREAL_DENSITY };
+    let density = if rope {
+        SOFT_LINEAR_DENSITY
+    } else {
+        SOFT_AREAL_DENSITY
+    };
     let factor = d.mass.map_or(density, |mass| mass / measure);
     for mass in vertices.iter_mut().skip(3).step_by(SOFT_VERTEX_WORDS) {
         *mass = (*mass as f64 * factor) as f32;
@@ -101,7 +94,7 @@ pub(super) fn soft_record(
         let held = held_pressure(factor * measure / kept as f64, measure, d.stretch);
         pressure = d
             .pressure
-            .unwrap_or((4.0 * factor * EARTH / FOOTPRINT).min(held));
+            .unwrap_or((4.0 * factor * EARTH_GRAVITY / SOFT_FOOTPRINT).min(held));
         if pressure > held {
             return Err(format!(
                 "A soft volume's pressure {pressure} Pa swells it past a tenth: its skin holds {held:.1}."

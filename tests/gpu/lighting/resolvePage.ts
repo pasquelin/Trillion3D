@@ -1,12 +1,12 @@
 /**
- * The deferred resolve's lists on the GPU: each scene's lights go through the engine's light store
+ * The lit passes' lists on the GPU: each scene's lights go through the engine's light store
  * and buffer, its view through the deferred view uniform, its shadows through the deferred pass's
- * own stand-ins (`createDeferredPlaceholders`); each cell record is bound as the resolve's tile
- * lists, and the sums the shipped resolve writes (`resolveHarness.ts`) are read back as f32 bits.
+ * own stand-ins (`createDeferredPlaceholders`); each cell record is bound as the pass's tile
+ * lists, and the sums the shipped light terms write (`resolveHarness.ts`) are read back as f32 bits.
  *
- * The bindings are the resolve's layout (`deferredLayoutEntries`) seen by a compute stage, minus
- * what the harness never reads; each is given the resource the deferred program binds there when a
- * frame has none of its own (`lighting/deferred/program.ts`). A binding the layout gains and this
+ * The bindings are the local lights' pass's layout (`localLayoutEntries`) seen by a compute stage, minus
+ * what the harness never reads; each is given the resource the pass binds there when a
+ * frame has none of its own (`lighting/deferred/litProgram.ts`). A binding the layout gains and this
  * page does not know fails by its number, never as a drifted copy.
  */
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
@@ -19,7 +19,7 @@ import {
 import { createWebgpuLightState } from '../../../packages/sdk-browser/src/frame/backend/state/lights.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { createDeferredPlaceholders } from '../../../packages/sdk-browser/src/lighting/deferred/setup.ts'
-import { deferredLayoutEntries } from '../../../packages/sdk-browser/src/lighting/deferred/layoutEntries.ts'
+import { localLayoutEntries } from '../../../packages/sdk-browser/src/lighting/deferred/layoutEntries.ts'
 import {
   ZERO_DIRECT,
   createDeferredView,
@@ -64,7 +64,7 @@ export async function run(scenes: ResolveScene[]) {
     bufferHolding(device, data, GPUBufferUsage.STORAGE | (read ? GPUBufferUsage.COPY_SRC : 0), 16)
   const placeholders = createDeferredPlaceholders(device)
   const view = createDeferredView(device)
-  const resolveEntries = deferredLayoutEntries(true)
+  const resolveEntries = localLayoutEntries(false)
     .filter(({ binding }) => binding >= 5 && !UNREAD.has(binding))
     .map((entry) => ({ ...entry, visibility: GPUShaderStage.COMPUTE }))
   const layout = device.createBindGroupLayout({
@@ -102,9 +102,16 @@ export async function run(scenes: ResolveScene[]) {
   // What the deferred program binds where a frame brings nothing of its own.
   const standIns = new Map<number, GPUBindingResource>([
     [5, { buffer: view.buffer }],
-    [CONTRACT_SHADOW_BINDINGS.transmittance, placeholders.vsmMask],
-    [DEFERRED_BINDINGS.maskTiles, placeholders.vsmMaskTiles],
-    [DEFERRED_BINDINGS.transmissionResolve, placeholders.transmittanceView],
+    [CONTRACT_SHADOW_BINDINGS.vsmMask, placeholders.vsmMask],
+    [DEFERRED_BINDINGS.vsmSunMask, placeholders.vsmSunMask],
+    [DEFERRED_BINDINGS.vsmUniforms, { buffer: placeholders.vsmUniforms }],
+    [DEFERRED_BINDINGS.vsmPageTable, { buffer: placeholders.vsmPageTable }],
+    [DEFERRED_BINDINGS.vsmProjectionData, { buffer: placeholders.vsmProjectionData }],
+    [DEFERRED_BINDINGS.vsmPool, { buffer: placeholders.vsmPool }],
+    [DEFERRED_BINDINGS.vsmView, { buffer: placeholders.vsmProjectionView }],
+    [DEFERRED_BINDINGS.vsmLightGrid, { buffer: placeholders.vsmLightGrid }],
+    [DEFERRED_BINDINGS.farShadowMask, { buffer: placeholders.farShadowMask }],
+    [DEFERRED_BINDINGS.lightFunctionAtlas, placeholders.lightFunction],
   ])
   const runs: Record<string, number[]>[] = []
   for (const scene of scenes) {

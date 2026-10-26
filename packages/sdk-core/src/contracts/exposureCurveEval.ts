@@ -146,6 +146,15 @@ function remapEv(curve: NonNullable<ExposureCurve>, ev: number) {
   return { ev: at, offset }
 }
 
+/** The line through the key `from` and the key `toward` at `at`; the key's value where they sit
+ *  within `SMALL` of one another. */
+function lineFrom(from: ExposureCurveKey, toward: ExposureCurveKey, at: number) {
+  const dt = toward.ev - from.ev
+  return Math.abs(dt) <= SMALL
+    ? from.compensation
+    : ((toward.compensation - from.compensation) / dt) * (at - from.ev) + from.compensation
+}
+
 /**
  * The compensation in stops `curve` gives at `ev`, as the reference evaluates a curve: the EV100
  * repeated into the keys' span by a cycling extrapolation; before the first key and after the last,
@@ -160,25 +169,14 @@ export function exposureCurveAt(curve: ExposureCurve, ev: number) {
   const at = remapped.ev
   let value: number
   if (last === 0 || at < keys[0].ev) {
-    if (curve.before === 'linear' && last > 0) {
-      const dt = keys[1].ev - keys[0].ev
-      value =
-        Math.abs(dt) <= SMALL
-          ? keys[0].compensation
-          : ((keys[1].compensation - keys[0].compensation) / dt) * (at - keys[0].ev) +
-            keys[0].compensation
-    } else value = keys[0].compensation
+    value =
+      curve.before === 'linear' && last > 0 ? lineFrom(keys[0], keys[1], at) : keys[0].compensation
   } else if (at <= keys[last].ev) {
     let upper = 1
     while (upper < last && at >= keys[upper].ev) upper++
     value = between(keys[upper - 1], keys[upper], at)
-  } else if (curve.after === 'linear') {
-    const dt = keys[last - 1].ev - keys[last].ev
+  } else
     value =
-      Math.abs(dt) <= SMALL
-        ? keys[last].compensation
-        : ((keys[last - 1].compensation - keys[last].compensation) / dt) * (at - keys[last].ev) +
-          keys[last].compensation
-  } else value = keys[last].compensation
+      curve.after === 'linear' ? lineFrom(keys[last], keys[last - 1], at) : keys[last].compensation
   return value + remapped.offset
 }

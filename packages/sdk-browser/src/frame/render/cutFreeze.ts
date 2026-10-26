@@ -11,8 +11,8 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
  * camera the cut and its occlusion were made from, the last image's when the cut froze. While it
  * stands, the main view's selection uniforms are no longer rewritten (`./gpuCut.ts`), so the cut —
  * its level of detail, its HLOD, its frustum, its occlusion, its requests — stays the one of that
- * camera: its uniforms unchanged, it stands and is not cut again (`../../geometry/dag/swap/swap.ts`,
- * `stampMatches`). The transparents' verdicts too: the first frozen image tests once more and keeps
+ * camera: its uniforms unchanged, its readback stands and is not taken again
+ * (`../../geometry/dag/owner/cutOwner.ts`, `stampMatches`). The transparents' verdicts too: the first frozen image tests once more and keeps
  * them aside, every later one puts them back and tests nothing (`CullStep`,
  * `../../gpu/core/heldCopy.ts`), whatever a view drawn aside wrote in the buffers they share.
  * The image follows the camera that moves on: what the cut submitted and dropped can be walked

@@ -1,6 +1,4 @@
-use crate::compiler::materials::albedo::Palette;
 use crate::texture::TexturePreview;
-use serde_json::Value;
 use trillion3d_math::color::srgb_byte_to_linear;
 
 /// Mean color of texture: last level of progressive pyramid, i.e.
@@ -17,9 +15,4 @@ pub(crate) fn average(previews: &[TexturePreview], texture: u64) -> Option<[f64;
         srgb_byte_to_linear(pixel[1]),
         srgb_byte_to_linear(pixel[2]),
     ])
-}
-
-/// Linear diffuse albedo of each scene material, in `materials` array order.
-pub fn material_albedo(g: &Value, previews: &[TexturePreview]) -> Palette {
-    crate::compiler::materials::albedo::palette(g, |texture| average(previews, texture))
 }

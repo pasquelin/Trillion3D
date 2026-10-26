@@ -6,10 +6,11 @@
 //! sample's footprint as the GPU filters a texture. A material cuts where the texture chains take
 //! its coverage (`coverage_cut`), on the filtered alpha. Each texture's levels and their filter
 //! are `texels.rs`'s.
-use crate::compiler::materials::{coverage_cutoff, AlphaMode, MaterialFactors};
+use crate::compiler::materials::{
+    coverage_cutoff, AlphaMode, MaterialFactors, ALPHA_CUTOFF_DEFAULT,
+};
 use crate::compiler::tables::materials::slot;
-use crate::cutout::CUTOUT_ALPHA;
-use crate::texture::coverage::{keeps, material_cut, Cut};
+use crate::texture::cut::{keeps, material_cut, Cut};
 use crate::texture::{AtlasKind, TexturePreview};
 use serde_json::Value;
 use std::sync::Arc;
@@ -21,12 +22,12 @@ pub(crate) use texels::Texels;
 /// Texture coordinate steps across a footprint, `[du, dv]` along each of its two sides.
 pub(crate) type Across = [[f64; 2]; 2];
 
-/// Where a material cuts its coverage, as the texture chains judge it (`coverage_cutoff`): a
-/// cutting `MASK` at its cutoff, a `BLEND` that does not transmit at `CUTOUT_ALPHA`, the
-/// threshold `cutout` gives a reclassified one; `None` when the engine draws it opaque.
+/// Where a material cuts its coverage, as the traced surfaces judge it (`coverage_cutoff`): a
+/// cutting `MASK` at its cutoff, a `BLEND` that does not transmit at `ALPHA_CUTOFF_DEFAULT`; `None`
+/// when the engine draws it opaque.
 pub(crate) fn coverage_cut(material: &Value) -> Option<Cut> {
     coverage_cutoff(material)
-        .map(|cutoff| material_cut(material, cutoff.unwrap_or(CUTOUT_ALPHA as f32)))
+        .map(|cutoff| material_cut(material, cutoff.unwrap_or(ALPHA_CUTOFF_DEFAULT as f32)))
 }
 
 /// The texture slots a hit reads, in the order of `Surface::sets` and `Surface::transforms`: base
@@ -47,11 +48,6 @@ pub(crate) const SPECULAR_SLOT: usize = 5;
 /// The anisotropy map's slot (`KHR_materials_anisotropy`'s `anisotropyTexture`: the direction in
 /// its red and green channels, the strength in its blue).
 pub(crate) const ANISOTROPY_SLOT: usize = 6;
-
-/// The specular input of a material declaring no `KHR_materials_specular`: one half, a
-/// dielectric's reflectance of four hundredths on an input whose full scale gives eight — the
-/// reflectance that extension's factor of one keeps, so a declared factor scales this half.
-const SPECULAR: f64 = 0.5;
 
 /// A material as a traced hit reads it.
 #[derive(Clone)]
@@ -78,9 +74,9 @@ pub(crate) struct Surface {
     /// atlas.
     pub emission: [f64; 3],
     pub emission_map: Option<Arc<Texels>>,
-    /// Its specular input: half its `KHR_materials_specular` factor — one half where it declares
-    /// none, a dielectric's reflectance of four hundredths —, and its specular map, data atlas, its
-    /// alpha read.
+    /// Its specular input: its `KHR_materials_specular` factor as declared — one half where it
+    /// declares none, a dielectric's reflectance of four hundredths on an input whose full scale
+    /// gives eight —, and its specular map, data atlas, its alpha read.
     pub specular: f64,
     pub specular_map: Option<Arc<Texels>>,
     /// Its `KHR_materials_anisotropy`: the strength (0 where it declares none), the direction's
@@ -122,17 +118,17 @@ impl Surface {
     /// Material `id` of `g`, or glTF's default material, its textures read from the carried tails
     /// of `previews`.
     pub fn of(g: &Value, id: Option<u64>, previews: &[TexturePreview]) -> Self {
-        Self::with(g, id, &|texture, atlas, coverage| {
-            Texels::of(previews, texture, atlas, coverage).map(Arc::new)
+        Self::with(g, id, &|texture, atlas| {
+            Texels::of(previews, texture, atlas).map(Arc::new)
         })
     }
 
-    /// Material `id` of `g`, or glTF's default material, each texture's chain in an atlas — with
-    /// coverage, the coverage chain where one exists — given by `chain`.
+    /// Material `id` of `g`, or glTF's default material, each texture's chain in an atlas given by
+    /// `chain`.
     pub fn with(
         g: &Value,
         id: Option<u64>,
-        chain: &dyn Fn(Option<u64>, AtlasKind, bool) -> Option<Arc<Texels>>,
+        chain: &dyn Fn(Option<u64>, AtlasKind) -> Option<Arc<Texels>>,
     ) -> Self {
         let empty = Value::Null;
         let material = id
@@ -158,20 +154,20 @@ impl Surface {
         };
         Self {
             factor: factors.base_colour,
-            colour: chain(read[0].0, AtlasKind::Color, cut.is_some()),
-            metal_rough: chain(read[METAL_ROUGH_SLOT].0, AtlasKind::Data, false),
-            occlusion: chain(read[OCCLUSION_SLOT].0, AtlasKind::Data, false),
+            colour: chain(read[0].0, AtlasKind::Color),
+            metal_rough: chain(read[METAL_ROUGH_SLOT].0, AtlasKind::Data),
+            occlusion: chain(read[OCCLUSION_SLOT].0, AtlasKind::Data),
             occlusion_strength: number("/occlusionTexture/strength", 1.0),
             rough_metal: [factors.roughness, factors.metallic],
-            normal_map: chain(read[NORMAL_SLOT].0, AtlasKind::Data, false),
+            normal_map: chain(read[NORMAL_SLOT].0, AtlasKind::Data),
             normal_scale: number("/normalTexture/scale", 1.0),
             cut,
             blend: AlphaMode::of(material) == AlphaMode::Blend,
             transmission: factors.transmission.clamp(0.0, 1.0),
             emission: factors.emission,
-            emission_map: chain(read[EMISSION_SLOT].0, AtlasKind::Color, false),
-            specular: SPECULAR * factors.specular,
-            specular_map: chain(read[SPECULAR_SLOT].0, AtlasKind::Data, false),
+            emission_map: chain(read[EMISSION_SLOT].0, AtlasKind::Color),
+            specular: factors.specular,
+            specular_map: chain(read[SPECULAR_SLOT].0, AtlasKind::Data),
             anisotropy: number(
                 "/extensions/KHR_materials_anisotropy/anisotropyStrength",
                 0.0,
@@ -180,7 +176,7 @@ impl Surface {
                 "/extensions/KHR_materials_anisotropy/anisotropyRotation",
                 0.0,
             ),
-            anisotropy_map: chain(read[ANISOTROPY_SLOT].0, AtlasKind::Data, false),
+            anisotropy_map: chain(read[ANISOTROPY_SLOT].0, AtlasKind::Data),
             sets: read.map(|r| r.1),
             transforms: read.map(|r| r.2),
         }

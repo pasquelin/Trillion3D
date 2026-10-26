@@ -183,8 +183,6 @@ const PIO2_HI = 1.570796326794896558,
   QS3 = -6.8828397160545329303e-1,
   QS4 = 7.70381505559019352791e-2
 const BELOW_2_57 = fromHigh(0x3c600001)
-/** 2^(e − 1023) for each biased exponent `e` of a finite double. */
-const POWERS_OF_TWO = Float64Array.from({ length: 2047 }, (_, e) => 2 ** (e - 1023))
 
 /** The rational part `R(z)` of fdlibm's arc sine. */
 function rational(z: number) {
@@ -209,10 +207,8 @@ export function fdlibmAcos(x: number) {
   }
   const z = (1 - x) * 0.5,
     s = Math.sqrt(z)
-  // `s` with its low word cleared, its high part whose square is exact: rebuilt from the high
-  // word, its exponent's power of two times 1 and twenty bits (s >= 2^-27, a normal number).
-  const high = f64High(s),
-    df = POWERS_OF_TWO[high >>> 20] * (1 + (high & 0xfffff) * 2 ** -20),
+  // `s` with its low word cleared, its high part whose square is exact.
+  const df = fromHigh(f64High(s)),
     c = (z - df * df) / (s + df),
     w = rational(z) * s + c
   return 2 * (df + w)

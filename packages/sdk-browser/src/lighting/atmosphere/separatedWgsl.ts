@@ -43,7 +43,6 @@ fn hazeCaptureWords(index:u32,full:bool)->vec4f{return volumeWords(2u,index,full
       extra: ',startKm:f32,fadeInv:f32',
       start: 'startKm',
       fade: 'fadeInv',
-      validity: `directLights.atmosphereView[${VIEW_SLOT.haze}].w==0.0`,
     },
   )}${viewHazeFunction({
     name: 'airOnly',
@@ -51,7 +50,6 @@ fn hazeCaptureWords(index:u32,full:bool)->vec4f{return volumeWords(2u,index,full
     extra: ',startKm:f32,fadeInv:f32',
     start: 'startKm',
     fade: 'fadeInv',
-    validity: `directLights.atmosphereView[${VIEW_SLOT.haze}].w==0.0`,
   })}
 fn captureHaze(dir:vec3f,distanceKm:f32,startKm:f32)->vec4f{
  let none=vec4f(0.0,0.0,0.0,1.0);

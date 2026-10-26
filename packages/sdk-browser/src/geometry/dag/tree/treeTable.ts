@@ -17,8 +17,7 @@ import { nodeCornersWgsl } from '../nodeLayout.ts'
  * `Always`, the members drawn whatever the view (`PlacementTree.always`). The tree holds at least a
  * node a group, so the lists fit beside the nodes.
  *
- * Every reader reads it in place — the culling's level loop (`../shader/placementTreeWgsl.ts`), the
- * proxy's rays (`../../../lighting/bounce/runtime/runtimeSceneWgsl.ts`), the ray query
+ * Every reader reads it in place — the culling's level loop (`../shader/placementTreeWgsl.ts`), the ray query
  * (`../../../lighting/rays/rayQueryWgsl.ts`) —, the refit reads and writes its boxes in place
  * (`treeRefitWgsl.ts`, the WGSL feature `readonly_and_readwrite_storage_textures`), and the host
  * writes what a packing, a join or an append moved (`createTreeTable`). Copied by none.
@@ -51,6 +50,27 @@ ${written ? `fn ${name}SetWord(n:u32,k:u32,v:u32){${name}NodeStore(n,k,vec4u(v,0
   )
 }
 
+/** `tree`'s nodes, order and members drawn whatever the view, written whole to `table`. */
+function writeWhole(table: ReturnType<typeof createRecordTexture>, tree: PlacementTree) {
+  table.write(
+    'Node',
+    0,
+    treeNodeCount(tree),
+    tree.nodes.buffer as ArrayBuffer,
+    tree.nodes.byteOffset,
+  )
+  const { order } = tree
+  table.writeTexels('Members', 0, order.length, order.buffer as ArrayBuffer, order.byteOffset)
+  const always = mirroredWords(tree.always)
+  table.writeTexels(
+    'Always',
+    0,
+    tree.always.set.count,
+    always.buffer as ArrayBuffer,
+    always.byteOffset,
+  )
+}
+
 /**
  * The table of `tree` on `device` — a node's worth without one, which no program reads —, made by
  * `make` (a cut's admission, `../resources.ts`) and written whole: the nodes as the packing laid them,
@@ -67,25 +87,7 @@ export function createTreeTable(
   const table = createRecordTexture(device, TREE_TABLE, treeNodeCount(tree), usage, make)
   const nodeTarget = table.target('Node'),
     alwaysTarget = table.target('Always')
-  if (tree) {
-    table.write(
-      'Node',
-      0,
-      treeNodeCount(tree),
-      tree.nodes.buffer as ArrayBuffer,
-      tree.nodes.byteOffset,
-    )
-    const { order } = tree
-    table.writeTexels('Members', 0, order.length, order.buffer as ArrayBuffer, order.byteOffset)
-    const always = mirroredWords(tree.always)
-    table.writeTexels(
-      'Always',
-      0,
-      tree.always.set.count,
-      always.buffer as ArrayBuffer,
-      always.byteOffset,
-    )
-  }
+  if (tree) writeWhole(table, tree)
   return {
     view: table.view,
     bytes: table.bytes,

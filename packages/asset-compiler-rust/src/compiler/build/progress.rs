@@ -4,8 +4,8 @@ use serde_json::{json, Value};
 /// Whole-job completion estimate attached to every progress event, so a host draws one bar without
 /// knowing the phases: source import (FBX/OBJ) up to 0.30, glTF import 0.35, clustering 0.35–0.95
 /// spread over the primitives announced by the `import` event, root bundles 0.95–0.96, coplanar cuts
-/// 0.96–0.97, resident proxy 0.97, voxels 0.977, lights 0.98, HLOD actors 0.98–0.989, reused
-/// folder 0.98, prune 0.99, pointer 1.
+/// 0.96–0.97, voxels 0.977, lights 0.98, HLOD actors 0.98–0.989, the distance fields' and the mesh cards' files, written once the
+/// world's cells joined them, 0.9895 and 0.9898, reused folder 0.98, prune 0.99, pointer 1.
 ///
 /// This estimate never goes backwards: a phase the table does not know keeps the
 /// last progress reached, and a job that imports several files does not restart
@@ -47,11 +47,12 @@ pub(crate) fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sy
             }
             Some("geometry") => 0.95 + 0.01 * frac(&event),
             Some("coplanar") => 0.96 + 0.005 * frac(&event),
-            // Textures bake between coplanar layers and the proxy: one image per step.
+            // Textures bake between coplanar layers and the voxels: one image per step.
             Some("textures") => 0.965 + 0.005 * frac(&event),
-            Some("proxy") => 0.97,
             Some("voxels") => 0.977,
-            Some("distanceFields") => 0.978,
+            // Written after the tables' stage (`products.rs`): past the HLOD actors' band.
+            Some("distanceFields") => 0.9895,
+            Some("meshCards") => 0.9898,
             Some("volumetricLightmap") => 0.9785 + 0.0015 * frac(&event),
             Some("lights") => 0.98,
             // The HLOD actors build inside the tables' stage: one step per cell's job.

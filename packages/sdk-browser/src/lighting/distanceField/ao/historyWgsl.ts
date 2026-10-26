@@ -31,7 +31,8 @@ fn dfaoUpsampleOnly(@builtin(global_invocation_id) id:vec3u){
  * WHERE THE LAST IMAGE'S VALUE IS: `dfaoHistoryWeight`, the share of the last image kept at a cell, 0 where the
  * history is another surface's — the point the last image's depth there puts in the world (`previousUnproject`)
  * further from this cell's point than `dfao.history.y / 1000` of its depth —, and the cell's place in the last
- * image, from the motion of its surface: the vector the velocity stage drew, else the camera's alone (`clipToPreviousClip`).
+ * image, from the motion of its surface: the vector the velocity stage drew where the surface moves by itself
+ * (`hasOwnMotion`), else the camera's alone (`clipToPreviousClip`).
  */
 const HISTORY_PLACE = wgslBlock(
   'DFAO_HISTORY_PLACE_WGSL',
@@ -40,7 +41,8 @@ const HISTORY_PLACE = wgslBlock(
 fn dfaoMotion(texel:vec2u,ndc:vec2f,depth:f32)->vec2f{
  if((dfao.counts.w&${DFAO_FLAG.velocity}u)!=0u){
   let last=vec2i(dfao.grid.zw)-vec2i(1);
-  return decodeVector(textureLoad(surfaceVectors,min(vec2i(texel)*2,last),0).r);
+  let word=textureLoad(surfaceVectors,min(vec2i(texel)*2,last),0).r;
+  if(hasOwnMotion(word)){return decodeVector(word);}
  }
  let before=dfao.clipToPreviousClip*vec4f(ndc,dfaoDeviceDepth(depth),1.0);
  return ndc-before.xy/before.w;

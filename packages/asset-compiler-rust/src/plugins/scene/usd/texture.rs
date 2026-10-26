@@ -6,11 +6,26 @@
 //! directory is counted in the report and the scene continues without it — never a compilation
 //! failure.
 use super::*;
+use trillion3d_page_codec::MAX_UV_SETS;
 
 /// Identifier of the texture node this driver reads.
 const UV_TEXTURE: &str = "UsdUVTexture";
-/// Coordinate set the intermediate scene carries: glTF receives only one here.
-const UV_SET: &str = "st";
+/// The primvar of the first coordinate set; the sets past it are `st1` to `st7`
+/// (`UsdPreviewSurface`'s convention), the glTF `TEXCOORD_1` to `TEXCOORD_7`.
+pub(super) const UV_SET: &str = "st";
+
+/// The glTF rank of the coordinate set the primvar `name` is: `st` the first, `st` and a number
+/// from 1 to 7 the others; `None` for any other name.
+pub(super) fn set_rank(name: &str) -> Option<usize> {
+    let rank = match name.strip_prefix(UV_SET)? {
+        "" => 0,
+        digits if digits.bytes().all(|b| b.is_ascii_digit()) && !digits.starts_with('0') => {
+            digits.parse().ok()?
+        }
+        _ => return None,
+    };
+    (rank < MAX_UV_SETS).then_some(rank)
+}
 /// Pattern of a per-tile texture set, which names several files not one.
 const UDIM: &str = "<UDIM>";
 
@@ -60,7 +75,8 @@ pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path, colour: bool) -
             .add(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
         return None;
     }
-    if uv_set(world, &shader).as_deref().unwrap_or(UV_SET) != UV_SET {
+    let set = uv_set(world, &shader).map_or(Some(0), |name| set_rank(&name));
+    if set.is_none() {
         world
             .scene
             .report
@@ -69,8 +85,12 @@ pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path, colour: bool) -
     let index = image(world, file)?;
     sampling::colour_space(world, &shader, colour);
     let sampler = sampling::sampler(world, &shader);
+    let mut value = json!({ "index": world.scene.texture(index, sampler) });
+    if let Some(set) = set.filter(|&set| set != 0) {
+        value["texCoord"] = json!(set);
+    }
     Some(Bound {
-        value: json!({ "index": world.scene.texture(index, sampler) }),
+        value,
         scale: sampling::scale(&shader),
     })
 }

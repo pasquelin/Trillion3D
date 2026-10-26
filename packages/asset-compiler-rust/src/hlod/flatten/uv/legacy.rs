@@ -71,9 +71,12 @@ pub(crate) fn lay_out(corners: &Corners, texture_size: usize) -> Option<Vec<[f32
 mod tests {
     use super::*;
 
+    /// A triangle soup: its positions, its normals and its coordinates.
+    type Soup = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>);
+
     /// The corners of a unit square, in centimetres, as two triangles over its corners 0, 1, 2 and
     /// 0, 2, 3, wearing its own coordinates, those of the second triangle moved by `shift`.
-    fn square(shift: f32) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>) {
+    fn square(shift: f32) -> Soup {
         let corner = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
         let named = [0usize, 1, 2, 0, 2, 3];
         let positions = (named.iter())
@@ -146,6 +149,22 @@ mod tests {
         // and every chart would "fit" at the origin.
         let (positions, normals, mut uvs) = square(0.0);
         uvs[2] = [f32::INFINITY, 1.0];
+        let corners = Corners {
+            positions: &positions,
+            normals: &normals,
+            uvs: &uvs,
+        };
+        assert!(lay_out(&corners, 256).is_none());
+    }
+
+    #[test]
+    fn an_area_that_overflows_to_infinity_gives_no_layout() {
+        // Finite coordinates of 1e20: each length is finite, the area of a triangle (1e40) is
+        // past the single-precision floats. Left to the search, its scale starts at zero, every
+        // chart collapses to a point and "fits", and the first set is lost without a number
+        // wrong in it.
+        let (positions, normals, mut uvs) = square(0.0);
+        uvs.iter_mut().for_each(|uv| *uv = uv.map(|x| x * 1.0e20));
         let corners = Corners {
             positions: &positions,
             normals: &normals,

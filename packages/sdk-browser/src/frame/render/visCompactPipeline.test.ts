@@ -19,7 +19,7 @@ import { MODE_DEPTH, rasterEntry } from '../../visibility/raster/contract.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
-test('GPU Hi-Z builds the pyramid after the main pass, whose slots write the visibility buffer alone', async () => {
+test('GPU Hi-Z builds the pyramid after the main pass, whose depth the buffer exports to level zero', async () => {
   installGpuGlobals()
   const scene = occluderScene()
   const { source, metadata: occluderMetadata, indices, associations, geometry, material } = scene
@@ -52,8 +52,9 @@ test('GPU Hi-Z builds the pyramid after the main pass, whose slots write the vis
   draws.length = 0
   dispatches.length = 0
   backend.render(cam)
-  // Each pass's hardware slots write the one visibility buffer alone, their depth target held
-  // read-only; the pyramid is built once the main pass's software depth is down.
+  // On this device, without the 64-bit atomic maximum, each pass's hardware slots draw once into
+  // the identifiers target and the scene's depth, the hardware depth test keeping the nearest; the
+  // pyramid is built once the main pass's software depth is down and the buffer exported.
   const visPasses = passes.filter(
     (pass) =>
       pass.label === 'Trillion3D visibility primary' ||
@@ -61,12 +62,13 @@ test('GPU Hi-Z builds the pyramid after the main pass, whose slots write the vis
   )
   assert.ok(visPasses.length >= 1)
   for (const pass of visPasses) {
-    assert.deepEqual(pass.colors, [])
-    assert.equal(pass.depth?.depthReadOnly, true)
+    assert.equal(pass.colors.length, 1)
+    assert.notEqual(pass.depth?.depthReadOnly, true)
   }
   const at = (entry: string) => dispatchedEntries(dispatches).indexOf(entry)
-  assert.ok(at(rasterEntry('fine', MODE_DEPTH)) >= 0)
-  assert.ok(at('buildHiz') > at(rasterEntry('fine', MODE_DEPTH)))
+  assert.ok(at(rasterEntry(MODE_DEPTH)) >= 0)
+  assert.ok(at('exportDepth') > at(rasterEntry(MODE_DEPTH)))
+  assert.ok(at('buildHiz') > at('exportDepth'))
   assert.deepEqual(backend.selectedPageIds().sort(), cpu.shown.map((page) => page.url).sort())
   assertOccluderImage(backend, cpu.shown, collected.roots, cam, viewport)
   indirectDraws(draws)
@@ -75,14 +77,14 @@ test('GPU Hi-Z builds the pyramid after the main pass, whose slots write the vis
   material.dispose()
 })
 
-test('a device that refuses the draw compaction refuses the scene by name', async () => {
+test('a device that refuses the bins refuses the scene by name', async () => {
   installGpuGlobals()
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const { device } = fakeDevice({
     ...BACKEND,
     packed: packDagSelection(collected.roots),
-    failCompact: true,
+    failBins: true,
   })
   const backend = webgpuPagesEngine({
     textureCaches: createTextureCaches(createPageCache()),
@@ -94,7 +96,7 @@ test('a device that refuses the draw compaction refuses the scene by name', asyn
     maxResidentPages: 2,
     viewport: [32, 32],
   })
-  // The GPU cut draws through the compaction alone (#1483): no per-page loop stands in for it.
+  // The GPU cut draws through the decode and the bins alone (#1483): no per-page loop stands in for them.
   await assert.rejects(backend.prepare(), /WEBGPU_DRAW_UNAVAILABLE/)
   backend.dispose()
   geometry.dispose()

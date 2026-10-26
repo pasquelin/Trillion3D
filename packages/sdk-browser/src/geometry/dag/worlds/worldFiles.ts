@@ -16,9 +16,9 @@
  * (`CELL_DRAW.placements`), whatever their HLOD 0 cell draws: that cell's visibility — every file
  * of it loaded — gates the HLOD 0 actor alone (`worldFollow.ts`).
  *
- * The world may be hidden as a whole (`hide`): every file placed and counted as before, its word
- * zero, and no cell draws what it holds (`worldFollow.ts`) — what a cell loaded and not activated
- * is; the actors always loaded, which no cell holds, stay drawn.
+ * The cells may be loaded and not activated: every file stays placed and counted as before, its
+ * word zero while the follower says nothing draws (`drawn`, `worldFollow.ts`); the actors always
+ * loaded, which no cell holds, stay drawn.
  *
  * While a load blocks on slow streaming, a file it does not block on stays hidden, wished and
  * loaded, asked again at each sync till the load ends (`settle`). The files wished and not shown are
@@ -34,140 +34,178 @@ import { CELL_DRAW } from './worldLinks.ts'
 import { createMarkStack } from './worldMarks.ts'
 import { createUnshown } from './worldUnshown.ts'
 
+/** What the files hold, per slot: its file's key (`key`), its placements, those whose main cell is
+ *  wished, those not resident, and whether it is shown; those wished and not shown
+ *  (`worldUnshown.ts`), and the slots waiting to be switched again (`worldMarks.ts`). Then the slot
+ *  of each file, its rows waiting for a root, the slots given back, those held back; the first slot
+ *  never taken, and how many times a slot was taken or given back; the files `settle` keeps hidden
+ *  while a load blocks (`holding`), and whether a word moved meanwhile (`changed`); `visit`
+ *  switches a slot marked. */
+type Files = {
+  words: Uint32Array
+  instances: number
+  drawn: () => boolean
+  keyOf: Float64Array
+  members: Int32Array
+  mains: Int32Array
+  uncovered: Int32Array
+  shown: Uint8Array
+  unshown: ReturnType<typeof createUnshown>
+  marks: ReturnType<typeof createMarkStack>
+  moved: ReturnType<typeof createChangedRuns>
+  slotOf: Map<number, number>
+  waitingOf: Map<number, number>
+  free: number[]
+  heldBack: number[]
+  next: number
+  slotRevision: number
+  holding: ((key: number) => boolean) | undefined
+  changed: boolean
+  visit: (g: number) => void
+}
+
+/** The slot of file `file` of instance `instance`, undefined while no placement lies in it. */
+const slotAt = (f: Files, instance: number, file: number) =>
+  instance < f.instances ? f.slotOf.get(file * f.instances + instance) : undefined
+
+/** Slot `g` switched as its counts stand, its word written — a file `holding` keeps hidden held
+ *  back —; a word that moved is noted in `changed`. */
+function settleSlot(f: Files, g: number) {
+  const { shown, words } = f
+  const wished = f.members[g] > 0 && f.mains[g] === f.members[g],
+    loaded = f.uncovered[g] === 0 && !f.waitingOf.get(f.keyOf[g])
+  if (shown[g] && !wished) shown[g] = 0
+  else if (!shown[g] && wished && loaded) {
+    if (f.holding?.(f.keyOf[g])) f.heldBack.push(g)
+    else shown[g] = 1
+  }
+  f.unshown.set(g, wished && !shown[g])
+  const word = shown[g] && f.drawn() ? CELL_DRAW.placements : 0
+  if (words[g] === word) return
+  words[g] = word
+  f.moved.mark(g)
+  f.changed = true
+}
+
+/** The slot of the file `key` names, taken at its first placement. */
+function openSlot(f: Files, key: number) {
+  const known = f.slotOf.get(key)
+  if (known !== undefined) return known
+  const g = f.free.pop() ?? f.next++
+  f.slotOf.set(key, g)
+  f.keyOf[g] = key
+  f.members[g] = f.mains[g] = f.uncovered[g] = f.shown[g] = 0
+  f.slotRevision++
+  f.marks.mark(g)
+  return g
+}
+
+/** Slot `g` given back once no placement lies in its file. */
+function closeSlot(f: Files, g: number) {
+  if (f.members[g] > 0) return
+  f.slotOf.delete(f.keyOf[g])
+  f.shown[g] = 0
+  f.unshown.set(g, false)
+  f.slotRevision++
+  f.free.push(g)
+}
+
+/** Every slot waiting switched — those held back asked again, a file `holds` keeps hidden held
+ *  back while a load blocks, every one when `all` —; whether a word moved. */
+function settleFiles(f: Files, holds: ((key: number) => boolean) | undefined, all: boolean) {
+  for (let g = f.heldBack.pop(); g !== undefined; g = f.heldBack.pop()) f.marks.mark(g)
+  if (all) for (const g of f.slotOf.values()) f.marks.mark(g)
+  f.holding = holds
+  f.changed = false
+  f.marks.drain(f.visit)
+  f.holding = undefined
+  return f.changed
+}
+
+function createFiles(words: Uint32Array, instances: number, drawn: () => boolean): Files {
+  const slots = words.length
+  const f: Files = {
+    words,
+    instances,
+    drawn,
+    keyOf: new Float64Array(slots),
+    members: new Int32Array(slots),
+    mains: new Int32Array(slots),
+    uncovered: new Int32Array(slots),
+    shown: new Uint8Array(slots),
+    unshown: createUnshown(slots),
+    marks: createMarkStack(slots),
+    moved: createChangedRuns(),
+    slotOf: new Map(),
+    waitingOf: new Map(),
+    free: [],
+    heldBack: [],
+    next: 0,
+    slotRevision: 0,
+    holding: undefined,
+    changed: false,
+    visit: (g) => settleSlot(f, g),
+  }
+  return f
+}
+
 /** The files of `instances` instances of the world DAG, their words in `words`, one slot per
  *  placement slot. */
-export function createWorldFiles(words: Uint32Array, instances: number) {
-  const slots = words.length
-  /** Per slot: its file's key (`key`), its placements, those whose main cell is wished, those not
-   *  resident, and whether it is shown; and those wished and not shown (`worldUnshown.ts`), and
-   *  the slots waiting to be switched again (`worldMarks.ts`). */
-  const keyOf = new Float64Array(slots),
-    members = new Int32Array(slots),
-    mains = new Int32Array(slots),
-    uncovered = new Int32Array(slots),
-    shown = new Uint8Array(slots),
-    unshown = createUnshown(slots),
-    marks = createMarkStack(slots),
-    { mark } = marks
-  /** The slot of each file holding one, the rows of each file waiting for their root, the slots
-   *  given back, and those a blocking load holds hidden. */
-  const slotOf = new Map<number, number>(),
-    waitingOf = new Map<number, number>(),
-    free: number[] = [],
-    heldBack: number[] = []
-  /** The first slot never taken, and how many times a slot was taken or given back. */
-  let next = 0,
-    slotRevision = 0
-  const moved = createChangedRuns()
-  /** The slot of file `file` of instance `instance`, undefined while no placement lies in it. */
-  const slotAt = (instance: number, file: number) =>
-    instance < instances ? slotOf.get(file * instances + instance) : undefined
-  /** The files `settle` keeps hidden while a load blocks, and whether a word moved meanwhile. */
-  let holding: ((key: number) => boolean) | undefined,
-    changed = false
-  /** Whether the world is hidden as a whole: no file draws, whatever its state (`hide`). */
-  let hidden = false
-  /** Slot `g` switched as its counts stand, its word written — a file `holding` keeps hidden held
-   *  back —; a word that moved is noted in `changed`. */
-  const settleSlot = (g: number) => {
-    const wished = members[g] > 0 && mains[g] === members[g],
-      loaded = uncovered[g] === 0 && !waitingOf.get(keyOf[g])
-    if (shown[g] && !wished) shown[g] = 0
-    else if (!shown[g] && wished && loaded) {
-      if (holding?.(keyOf[g])) heldBack.push(g)
-      else shown[g] = 1
-    }
-    unshown.set(g, wished && !shown[g])
-    const word = shown[g] && !hidden ? CELL_DRAW.placements : 0
-    if (words[g] === word) return
-    words[g] = word
-    moved.mark(g)
-    changed = true
-  }
+export function createWorldFiles(words: Uint32Array, instances: number, drawn: () => boolean) {
+  const f = createFiles(words, instances, drawn)
   return {
     /** The key of file `file` of instance `instance`. */
     key: (file: number, instance: number) => file * instances + instance,
     /** The key of the file whose slot is `g`. */
-    keyOf: (g: number) => keyOf[g],
+    keyOf: (g: number) => f.keyOf[g],
     /** The slot of file `file` of instance `instance`, -1 while no placement lies in it. */
-    slotIn: (instance: number, file: number) => slotAt(instance, file) ?? -1,
+    slotIn: (instance: number, file: number) => slotAt(f, instance, file) ?? -1,
     /** Whether file `file` of instance `instance` is shown as its main cell. */
     shownIn(instance: number, file: number) {
-      const g = slotAt(instance, file)
-      return g !== undefined && shown[g] === 1
+      const g = slotAt(f, instance, file)
+      return g !== undefined && f.shown[g] === 1
     },
     /** How many times a slot was taken or given back: what names one is stale once it moves. */
     get slotRevision() {
-      return slotRevision
+      return f.slotRevision
     },
-    /** The slot of the file `key` names, taken at its first placement. */
-    open(key: number) {
-      const known = slotOf.get(key)
-      if (known !== undefined) return known
-      const g = free.pop() ?? next++
-      slotOf.set(key, g)
-      keyOf[g] = key
-      members[g] = mains[g] = uncovered[g] = shown[g] = 0
-      slotRevision++
-      mark(g)
-      return g
-    },
+    open: (key: number) => openSlot(f, key),
     /** Slot `g`'s counts moved by `placements` placements, `wished` of them saying their main cell
      *  is wished, `missing` without their roots resident. */
     count(g: number, placements: number, wished: number, missing: number) {
-      members[g] += placements
-      mains[g] += wished
-      uncovered[g] += missing
-      mark(g)
+      f.members[g] += placements
+      f.mains[g] += wished
+      f.uncovered[g] += missing
+      f.marks.mark(g)
     },
-    /** Slot `g` given back once no placement lies in its file. */
-    close(g: number) {
-      if (members[g] > 0) return
-      slotOf.delete(keyOf[g])
-      shown[g] = 0
-      unshown.set(g, false)
-      slotRevision++
-      free.push(g)
-    },
+    close: (g: number) => closeSlot(f, g),
     /** `by` rows of the file `key` names wait for their root, or no more. */
     wait(key: number, by: number) {
-      const count = (waitingOf.get(key) ?? 0) + by
-      if (count) waitingOf.set(key, count)
-      else waitingOf.delete(key)
-      const g = slotOf.get(key)
-      if (g !== undefined) mark(g)
+      const count = (f.waitingOf.get(key) ?? 0) + by
+      if (count) f.waitingOf.set(key, count)
+      else f.waitingOf.delete(key)
+      const g = f.slotOf.get(key)
+      if (g !== undefined) f.marks.mark(g)
     },
-    /** The world hidden as a whole, or drawn again: every file's word written again; whether that
-     *  moved. */
-    hide(on: boolean) {
-      if (hidden === on) return false
-      hidden = on
-      for (const g of slotOf.values()) mark(g)
-      return true
-    },
-    /** Whether the world is hidden as a whole. */
-    get hidden() {
-      return hidden
-    },
-    /** Every slot waiting switched — those held back asked again, a file `holds` keeps hidden held
-     *  back while a load blocks —; whether a word moved. */
-    settle(holds?: (key: number) => boolean) {
-      for (let g = heldBack.pop(); g !== undefined; g = heldBack.pop()) mark(g)
-      holding = holds
-      changed = false
-      marks.drain(settleSlot)
-      holding = undefined
-      return changed
-    },
+    settle: (holds?: (key: number) => boolean, all = false) => settleFiles(f, holds, all),
     /** Whether every file wished is shown as its main cell. */
     get shown() {
-      return unshown.none
+      return f.unshown.none
     },
     /** The words that moved, taken. */
-    moved,
+    moved: f.moved,
     /** Bytes of its host tables. */
     get hostBytes() {
-      return byteLengths(keyOf, members, mains, uncovered, shown, unshown, marks, moved)
+      return byteLengths(
+        f.keyOf,
+        f.members,
+        f.mains,
+        f.uncovered,
+        f.shown,
+        f.unshown,
+        f.marks,
+        f.moved,
+      )
     },
   }
 }

@@ -128,7 +128,6 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   return {
     importedLights,
     // The engine draws its own light store: no host places a copy of its lights.
-    witnessLights: null,
     movingNode,
     selection,
     metrics,

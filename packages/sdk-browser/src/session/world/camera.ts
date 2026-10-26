@@ -1,7 +1,7 @@
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
-import type { HostCamera } from '../../camera/world.ts'
+import type { ViewCamera } from '../../camera/world.ts'
 import { drawnAspect } from '../../api/viewportApi.ts'
 import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts'
 import { createFlyCameraControls } from '../../camera/controls/flyControls.ts'
@@ -30,7 +30,7 @@ const position = new Vector3(),
  * and its optics, at the shape of the canvas. The session's camera is its own object; the world's
  * is copied onto it number by number, never handed in.
  */
-export function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
+export function copyWorldCamera(camera: Camera, into: ViewCamera, aspect: number) {
   camera.updateWorldMatrix(true, false)
   camera.matrixWorld.decompose(position, rotation, scale)
   into.position.set(position.x, position.y, position.z)
@@ -53,7 +53,7 @@ export function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number
 /** Puts a session's camera on the page's `camera()`, at the shape of `canvas`: before the session
  *  reads anything for its first frame, then before every frame. */
 export const followPageCamera =
-  (camera: () => Camera, canvas: HTMLCanvasElement) => (into: HostCamera) =>
+  (camera: () => Camera, canvas: HTMLCanvasElement) => (into: ViewCamera) =>
     copyWorldCamera(camera(), into, drawnAspect(canvas))
 
 /** The controller a world drives its camera with, `none` for a page that poses it itself. */

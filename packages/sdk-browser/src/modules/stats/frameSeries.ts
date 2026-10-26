@@ -1,4 +1,4 @@
-import { quantileOf } from '../../../../math/src/scalar/quantile.ts'
+import { quantileOf, sum } from '../../../../math/src/scalar/quantile.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import { frameStatistics } from '../../../../sdk-core/src/runtime/stats.ts'
 
@@ -109,10 +109,7 @@ export function frameSeries() {
     figures: () => ({
       fps: frameStatistics(intervalsMs.slice(drawn.start)).fps,
       cpuMs: quantileOf(cpuFrames.slice(drawn.start), 0.5) ?? null,
-      viewsGpuMs:
-        viewMs.length > viewSeen.start
-          ? viewMs.slice(viewSeen.start).reduce((sum, ms) => sum + ms, 0)
-          : null,
+      viewsGpuMs: viewMs.length > viewSeen.start ? sum(viewMs.slice(viewSeen.start)) : null,
       gpuMs,
     }),
   }

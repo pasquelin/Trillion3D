@@ -16,7 +16,8 @@ import { worldControlsHandle } from './controls/controlsHandle.ts'
 import { worldDiagnostic } from './handles.ts'
 import { worldPools } from './budget.ts'
 import { createWorldPhysics } from '../../physics/worldPhysics.ts'
-import { worldSwitches } from './switches.ts'
+import { worldSwitches, type WorldSwitches } from './switches.ts'
+import { worldBenchmark as benchmarkOf } from './benchmarkSource.ts'
 import { worldMixerView } from './mixerView.ts'
 import { createWorldViews } from './views.ts'
 import { worldRuntimeOf, type WorldState } from './worldRuntime.ts'
@@ -35,7 +36,7 @@ const startingState = (): WorldState => ({
 
 /** The parts of one world: its canvas, frames, pools, device, scene, session runtime, physics and
  *  controls, built around one state. */
-export function worldParts(target: WorldTarget, options: WorldOptions) {
+export function worldParts(target: WorldTarget, options: WorldOptions): WorldParts {
   const { canvas, release: releaseCanvas } = resolveWorldTarget(target)
   const frames = createWorldFrames()
   const pools = worldPools()
@@ -57,7 +58,7 @@ export function worldParts(target: WorldTarget, options: WorldOptions) {
   const invalidate = () => runtime.invalidate()
   const views = createWorldViews({ canvas, pixelRatio: options.pixelRatio, invalidate })
   const diagnostic = worldDiagnostic(() => runtime.explorer, options.debug, invalidate)
-  const switches = worldSwitches(options, () => runtime, frames)
+  const switches: WorldSwitches = worldSwitches(options, () => runtime, frames, benchmarkOf(device))
   const modules = createWorldModules({ canvas, changed: () => runtime.displayChanged() })
   const runtime = worldRuntimeOf({
     ...{ canvas, options, device, scene, state, frames, switches, pools, diagnostic, invalidate },
@@ -94,5 +95,24 @@ export function worldParts(target: WorldTarget, options: WorldOptions) {
     ...{ switches, modules, runtime, physics, adopt, controls, ahead, live },
   }
 }
-/** What `worldParts` builds. */
-export type WorldParts = ReturnType<typeof worldParts>
+/** What `worldParts` builds, each part by the type of what builds it. */
+export interface WorldParts {
+  canvas: HTMLCanvasElement
+  releaseCanvas(): void
+  frames: ReturnType<typeof createWorldFrames>
+  pools: ReturnType<typeof worldPools>
+  state: WorldState
+  device: ReturnType<typeof holdWorldDevice>
+  scene: Scene
+  invalidate(): void
+  diagnostic: ReturnType<typeof worldDiagnostic>
+  views: ReturnType<typeof createWorldViews>
+  switches: WorldSwitches
+  modules: ReturnType<typeof createWorldModules>
+  runtime: ReturnType<typeof worldRuntimeOf>
+  physics: ReturnType<typeof createWorldPhysics>
+  adopt: ReturnType<typeof cameraAdopter>
+  controls: ReturnType<typeof worldControlsHandle>
+  ahead(by: ReturnType<typeof worldControlsHandle> | null): boolean
+  live(): ReturnType<typeof worldRuntimeOf>['explorer']
+}

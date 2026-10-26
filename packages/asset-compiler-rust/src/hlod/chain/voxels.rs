@@ -71,5 +71,7 @@ pub(super) fn voxel_actor(
         wears: Wears::Merged(material),
         triangles: 0,
         voxels: dag.pages,
+        field: None,
+        cards: None,
     }))
 }

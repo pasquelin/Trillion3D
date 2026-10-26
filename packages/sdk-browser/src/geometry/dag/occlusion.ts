@@ -1,4 +1,5 @@
 import { computeTextureEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
+import { standInTexture } from '../../gpu/core/standIns.ts'
 import { HIZ_FORMAT, HIZ_LEVELS } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { OCCLUSION_BINDING } from './shader/occlusionWgsl.ts'
 
@@ -21,11 +22,8 @@ export function createCutOcclusion(device: GPUDevice) {
       computeUniformEntry(OCCLUSION_BINDING.levels),
     ],
   })
-  const none = device.createTexture({
-    label: 'Trillion3D cut occlusion, no pyramid',
-    size: { width: 1, height: 1, depthOrArrayLayers: 3 },
-    format: HIZ_FORMAT,
-    usage: GPUTextureUsage.TEXTURE_BINDING,
+  const none = standInTexture(device, 'Trillion3D cut occlusion, no pyramid', HIZ_FORMAT, {
+    layers: 3,
   })
   // A zeroed levels uniform counts no level: every footprint lies past the pyramid's last.
   const noLevels = device.createBuffer({

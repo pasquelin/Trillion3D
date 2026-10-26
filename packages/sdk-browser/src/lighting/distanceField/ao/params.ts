@@ -1,4 +1,6 @@
 import { hypot3 } from '../../../../../math/src/float/hypot.ts'
+import { clipPlanesFromMatrix } from '../../../../../math/src/geometry/frustum/frustum.ts'
+import { dotVector3 } from '../../../../../math/src/vector/vector.ts'
 import type { DistanceFieldOcclusionSettings } from '../../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
 import { multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
@@ -71,18 +73,26 @@ function putScaledColumns(out: Float32Array, at: number, m: ArrayLike<number>, b
     for (let r = 0; r < 4; r++) out[at + c * 4 + r] = m[c * 4 + r] * (c < 3 ? by : 1)
 }
 
+/** The frustum's raw planes (`clipPlanesFromMatrix`: x ≤ w, −w ≤ x, −w ≤ y, y ≤ w, z ≥ 0, z ≤ w) and the clip
+ *  matrix they are taken from, kept between the frames. */
+const rawPlanes = new Float64Array(24)
+const clipScaled = new Float32Array(16)
+/** The raw planes' slots in the order the passes read them: −w ≤ x, x ≤ w, −w ≤ y, y ≤ w, z ≥ 0, z ≤ w. */
+const PLANE_SLOTS = [1, 0, 2, 3, 4, 5]
+
 /**
  * The six planes of the frustum of a view-projection of positions in centimetres, each as `(n, w)` with `dot(n, p) -
  * w` positive outside and `n` of unit length; a plane with no direction (the far plane of an infinite projection)
  * is left out. The count follows.
  */
 function putPlanes(out: Float32Array, at: number, clip: ArrayLike<number>) {
-  const row = (r: number) => [clip[r], clip[4 + r], clip[8 + r], clip[12 + r]]
-  const [x, y, z, w] = [row(0), row(1), row(2), row(3)]
-  const sum = (a: number[], b: number[], s: number) => a.map((v, i) => v + s * b[i])
-  const inside = [sum(w, x, 1), sum(w, x, -1), sum(w, y, 1), sum(w, y, -1), z, sum(w, z, -1)]
+  clipPlanesFromMatrix(rawPlanes, clip)
   let count = 0
-  for (const [a, b, c, d] of inside) {
+  for (const slot of PLANE_SLOTS) {
+    const a = rawPlanes[4 * slot],
+      b = rawPlanes[4 * slot + 1],
+      c = rawPlanes[4 * slot + 2],
+      d = rawPlanes[4 * slot + 3]
     const length = hypot3(a, b, c)
     if (length < 1e-12) continue
     putVec4(out, at + count * 4, -a / length, -b / length, -c / length, d / length)
@@ -99,11 +109,10 @@ function putViewFrames(out: Float32Array, image: DfaoImage) {
   const up = [m[4], m[5], m[6]]
   const forward = [-m[8], -m[9], -m[10]]
   const eye = [m[12] * CM, m[13] * CM, m[14] * CM]
-  const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
   const axes = [right, up, forward]
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 3; c++) out[at.worldToView + c * 4 + r] = axes[r][c]
-    out[at.worldToView + 12 + r] = -dot(axes[r], eye)
+    out[at.worldToView + 12 + r] = -dotVector3(axes[r], eye)
     for (let c = 0; c < 3; c++) out[at.viewToWorld + r * 4 + c] = axes[r][c]
     out[at.viewToWorld + 12 + r] = eye[r]
   }
@@ -124,14 +133,13 @@ function putMatrices(out: Float32Array, image: DfaoImage) {
   invertMatrix4(inverse, previous)
   putScaledRows(out, at.previousUnproject, inverse, CM)
   putViewFrames(out, image)
-  const clip = new Float32Array(16)
-  putScaledColumns(clip, 0, image.viewProjection, 1 / CM)
-  return putPlanes(out, at.planes, clip)
+  putScaledColumns(clipScaled, 0, image.viewProjection, 1 / CM)
+  return putPlanes(out, at.planes, clipScaled)
 }
 
 /** The step the cones' samples start at and the spacing exponent gives: the farthest sample of a cone over the
  *  mesh-field occlusion distance (`AOStepScale`). */
-export function stepScale(objectDistance: number, exponent: number) {
+function stepScale(objectDistance: number, exponent: number) {
   return objectDistance / (1 + Math.tan(CONE_HALF_ANGLE)) / 2 ** (exponent * (CONE_STEPS - 1))
 }
 
@@ -147,6 +155,42 @@ function putHistoryView(out: Float32Array, last: DfaoHistory['lastView'], grid: 
   const [w, h] = last
   putVec4(out, at.historyScale, w / grid[0] / 2, h / grid[1] / -2, h / 2 / grid[1], w / 2 / grid[0])
   putVec4(out, at.historyUv, 0.5 / grid[0], 0.5 / grid[1], (w - 0.5) / grid[0], (h - 0.5) / grid[1])
+}
+
+/** Writes the jitter, the history's weights, the view's bounds, the lens and the depth's range of the uniform. */
+function putImageParams(
+  floats: Float32Array,
+  image: DfaoImage,
+  settings: DistanceFieldOcclusionSettings,
+  history: DfaoHistory,
+  grid: readonly number[],
+) {
+  const at = DFAO_PARAMS.at
+  const [jx, jy] = coneGridJitter(image.temporalIndex, settings.useJitter, settings.useHistory)
+  putVec4(floats, at.jitter, jx, jy, 1 / Math.cos(Math.PI / BOUNDING_SPHERE_RINGS))
+  putVec4(
+    floats,
+    at.history,
+    settings.historyWeight,
+    settings.historyDistanceThreshold,
+    settings.stabilityPass ? 1 : 0,
+  )
+  const view = [
+    Math.floor(image.view[0] / AO_DOWNSAMPLE),
+    Math.floor(image.view[1] / AO_DOWNSAMPLE),
+  ]
+  putHistoryView(floats, history.lastView, grid)
+  putVec4(
+    floats,
+    at.uvMax,
+    (view[0] - 0.51) / grid[0],
+    (view[1] - 0.51) / grid[1],
+    (view[0] - 0.5 - AO_DOWNSAMPLE) / grid[0],
+    (view[1] - 0.5 - AO_DOWNSAMPLE) / grid[1],
+  )
+  putVec4(floats, at.lens, image.projection[0], image.projection[5], image.near * CM)
+  if (image.perspective) putVec4(floats, at.depth, image.near, 0, 1)
+  else putVec4(floats, at.depth, image.far - image.near, image.near, 0)
 }
 
 /**
@@ -199,29 +243,5 @@ export function writeDfaoParams(
     bentNormalNormalizeFactor(directions),
     fade,
   )
-  const [jx, jy] = coneGridJitter(image.temporalIndex, settings.useJitter, settings.useHistory)
-  putVec4(floats, at.jitter, jx, jy, 1 / Math.cos(Math.PI / BOUNDING_SPHERE_RINGS))
-  putVec4(
-    floats,
-    at.history,
-    settings.historyWeight,
-    settings.historyDistanceThreshold,
-    settings.stabilityPass ? 1 : 0,
-  )
-  const view = [
-    Math.floor(image.view[0] / AO_DOWNSAMPLE),
-    Math.floor(image.view[1] / AO_DOWNSAMPLE),
-  ]
-  putHistoryView(floats, history.lastView, grid)
-  putVec4(
-    floats,
-    at.uvMax,
-    (view[0] - 0.51) / grid[0],
-    (view[1] - 0.51) / grid[1],
-    (view[0] - 0.5 - AO_DOWNSAMPLE) / grid[0],
-    (view[1] - 0.5 - AO_DOWNSAMPLE) / grid[1],
-  )
-  putVec4(floats, at.lens, image.projection[0], image.projection[5], image.near * CM)
-  if (image.perspective) putVec4(floats, at.depth, image.near, 0, 1)
-  else putVec4(floats, at.depth, image.far - image.near, image.near, 0)
+  putImageParams(floats, image, settings, history, grid)
 }

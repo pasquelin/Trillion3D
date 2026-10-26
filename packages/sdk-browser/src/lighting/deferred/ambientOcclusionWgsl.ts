@@ -10,7 +10,7 @@ import { VIEW_WGSL } from './worldAtWgsl.ts'
  *  - `emission`, on what the base pass left in the picture — a surface's emission: the material's occlusion and the
  *    image's, taken at the share `views.z` (the static fraction) between none and all of both;
  *  - `sky`, the occlusion the sky light's diffuse and the environment's go under, and, in a program that reads the
- *    world's probes — which carry the sky with the bounce, the two not told apart —, the probes' diffuse: the smaller of
+ *    screen probes, the sky light's diffuse they leave unread: the smaller of
  *    the material's and the image's;
  *  - `bounce`, on the light the screen probes gathered: the image's occlusion taken at the share `views.z` (the
  *    probes' own occlusion's strength);
@@ -48,7 +48,7 @@ export const AMBIENT_SPECULAR_OCCLUSION_WGSL = wgslBlock(
 }`,
 )
 
-/** The statements that apply it in the body of the resolve, after the lights are summed and the indirect light read:
+/** The statements that apply it in the body of the colour pass and of the indirect pass, which apply it to the emission and to the indirect light:
  *  `occlusion` names the three factors. */
 export const AMBIENT_OCCLUSION_STATEMENT =
   'let occlusion=ambientOcclusionApplied(coord,emissive.a);'

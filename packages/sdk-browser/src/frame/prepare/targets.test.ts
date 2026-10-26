@@ -13,9 +13,11 @@ import { frameTargetBytes } from '../../materials/surface/surfaceBuffer.ts'
 import { reflectionBytes } from '../../lighting/reflections/gpu.ts'
 import { level0LayerBytes } from '../../visibility/hiz/gpu/pyramid.ts'
 import { taaTargetBytes } from '../../post/taa/historyTargets.ts'
+import { wantedShapeOf } from '../../post/taa/historyShape.ts'
 import { MEASURE_HEIGHT, MEASURE_WIDTH } from '../../../../../tests/gpu/webgpu/measureResolution.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { createScaleControl } from '../scale/scaleControl.ts'
+import { createResidentSurfaces } from '../../geometry/clusters/surfaces.ts'
 
 /** Both sizes of a frame drawn at the display's. */
 const native = (width: number, height: number) => ({
@@ -39,7 +41,7 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
     [3840, 2160],
   ]) {
     const base = frameTargetAllocation(rt, native(width, height))
-    // The frame's targets, and the reflection's target and pyramids (`lighting/reflections/gpu.ts`), and
+    // The frame's targets, and the reflection's targets and last lit image (`lighting/reflections/gpu.ts`), and
     // the Hi-Z level 0's front layer, made with every pyramid (`level0LayerBytes`). A scene with no
     // blend: its front depth is a texel of the reflection's target.
     assert.equal(
@@ -48,7 +50,13 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
         reflectionBytes(width, height, false) +
         level0LayerBytes(width, height),
     )
-    assert.equal(ensureTaaTargets(rt, native(width, height)), taaTargetBytes(native(width, height)))
+    // The history at the level's size, twice the display's where the device makes it.
+    const shape = wantedShapeOf(rt, temporal, 'max', width, height)
+    assert.equal(shape.width, 2 * width)
+    assert.equal(
+      ensureTaaTargets(rt, native(width, height)),
+      taaTargetBytes(native(width, height), shape),
+    )
   }
   assert.ok(frameTargetBytes(3840, 2160, true) > 288 * MIB, '4K exceeds the old ceiling')
   assert.deepEqual(resized, [
@@ -71,50 +79,62 @@ test("a surface capture does not touch the view's history targets", () => {
   assert.deepEqual(resized, [])
 })
 
-// A blended scene pays for the share target only when a debug view or the temporal pass reads it.
-test('a blended scene costs the share only when a debug view or the temporal pass reads it', () => {
+// A blended scene pays for the responsive target only when the temporal pass reads the
+// responsiveness a blend carries: a debug view makes none (it made the as-is share beside it, which
+// the composition no longer reads since a debug view's as-is pixels are drawn from the surfaces).
+test('a blended scene costs the responsiveness only when the temporal pass reads it', () => {
   const { rt } = runtime()
   const glass = { surface: surfaceOf(standardSurface({ roughness: 0.5 })) }
   Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { ...rt.vis, asIsShown: false } })
   rt.gpu.temporalLevel = 'off'
   const base = frameTargetAllocation(rt, native(64, 32))
   rt.vis.asIsShown = true
-  // Its two channels and, beside them, the history the transparents give up: three bytes a pixel.
-  assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 3, 'a debug view shown')
+  assert.equal(frameTargetAllocation(rt, native(64, 32)), base, 'a debug view shown costs none')
   rt.vis.asIsShown = false
   rt.gpu.temporalLevel = 'max'
-  assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 3, 'its reactive value')
+  assert.equal(
+    frameTargetAllocation(rt, native(64, 32)),
+    base,
+    'a temporal pass alone reads nothing of it',
+  )
+  rt.blendState.responsive = true
+  assert.equal(
+    frameTargetAllocation(rt, native(64, 32)),
+    base + 64 * 32,
+    'unless a blend carries a responsiveness: a byte a pixel',
+  )
 })
 
-// With no debug view the frame targets hold no share texture and cost none; with one, the
-// share is made with them and costed.
-test('the frame targets hold the share only while a debug view reads it', () => {
+// Without a blend that carries a responsiveness into the temporal pass the frame targets hold no
+// responsive texture and cost none; with one, it is made with them and costed (the subject was the
+// as-is share a debug view read, which is gone).
+test('the frame targets hold the responsiveness only while the temporal pass reads it', () => {
   const { rt } = runtime()
   const glass = { surface: surfaceOf(standardSurface({ roughness: 1 })) }
   Object.assign(rt, {
-    blendState: { blendGpu: [glass] },
+    blendState: { blendGpu: [glass], responsive: false },
     vis: { asIsShown: false },
     capture: { capturing: false },
   })
-  rt.gpu.temporalLevel = 'off'
+  rt.gpu.temporalLevel = 'max'
   const { device, textures } = fakeDevice({ limits: { maxTextureDimension2D: 8192 } })
-  const made = (shown: boolean) => {
-    rt.vis.asIsShown = shown
+  const made = (responsive: boolean) => {
+    rt.blendState.responsive = responsive
     const bytes = frameTargetAllocation(rt, native(64, 32))
     textures.length = 0
     makeTargets(rt, device, native(64, 32), bytes)
     const labels = textures.map(({ label }) => label)
     return {
       bytes,
-      share: labels.includes('Trillion3D current as-is share'),
-      held: !!rt.gpu.asIsShare,
+      target: labels.includes('Trillion3D current responsiveness'),
+      held: !!rt.gpu.responsive,
     }
   }
-  const shown = made(true)
-  assert.ok(shown.share && shown.held, 'a debug view: the share is made')
+  const carried = made(true)
+  assert.ok(carried.target && carried.held, 'a responsive blend: the target is made')
   const plain = made(false)
-  assert.ok(!plain.share && !plain.held, 'no debug view: no share texture')
-  assert.equal(shown.bytes - plain.bytes, 64 * 32 * 3, 'the total drops by its bytes')
+  assert.ok(!plain.target && !plain.held, 'none: no responsive texture')
+  assert.equal(carried.bytes - plain.bytes, 64 * 32, 'the total drops by its bytes')
 })
 
 test('targets that fit ask nothing of the device: the steady frame is free', () => {
@@ -125,7 +145,7 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
       diagnostic: 'beauty',
       funding: { refreshing: undefined, cutAsked: 0, pending: Promise.resolve() },
     },
-    layout: { rows: { packedCount: 0, packedRecs: [] } },
+    layout: { clusters: { surfaces: createResidentSurfaces() } },
     blendState: { blendGpu: [], refracts: false, refractGranted: false },
     context: {},
     capture: { capturing: false },
@@ -175,6 +195,7 @@ test('a frame drawn below the display costs its render targets and the display c
 test('a new render size at the same display keeps the temporal history, a new display drops it', () => {
   const { rt, temporal } = runtime()
   Object.assign(rt, { vis: {}, capture: { capturing: false } })
+  rt.gpu.temporalLevel = 'max'
   let released = 0
   temporal.release = () => void released++
   const make = (renderWidth: number, width = 64) => {

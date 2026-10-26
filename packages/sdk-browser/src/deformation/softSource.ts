@@ -26,7 +26,7 @@ export function cookedSoftSource(model: Model, soft: CookedSoftBody): SoftSource
     render.indices.some((v) => !Number.isInteger(v) || v < 0 || v >= soft.vertices)
   )
     throw new EngineError('PHYSICS_FORMAT', 'The cooked soft render source is invalid.')
-  const graph = model.record.scene?.nodes?.[soft.node]
+  const graph = model._graphNodeAt?.(soft.node)
   if (!graph) throw new EngineError('PHYSICS_FORMAT', 'The cooked soft render node is missing.')
   const rest = Float32Array.from(render.positions)
   const source: SoftSource = {

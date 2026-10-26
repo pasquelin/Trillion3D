@@ -29,6 +29,12 @@ pub(super) fn mesh_json(
     };
     let has_normal = mesh.vertex_normal.exists;
     let has_uv = mesh.vertex_uv.exists;
+    // The sets past the first the file holds, each by its rank in its own list.
+    let extra: Vec<_> = (1..MAX_UV_SETS)
+        .filter_map(|set| {
+            Some((set, &mesh.uv_sets.get(set)?.vertex_uv)).filter(|(_, uv)| uv.exists)
+        })
+        .collect();
     let has_color = mesh.vertex_color.exists;
     let deform = MeshDeform::of(mesh);
     for (material_slot, faces) in parts {
@@ -64,6 +70,11 @@ pub(super) fn mesh_json(
                     let t = mesh.vertex_uv.values[mesh.vertex_uv.indices[c] as usize];
                     values[CORNER_UV].copy_from_slice(&gltf_uv([t.x as f32, t.y as f32]));
                 }
+                for &(set, uv) in &extra {
+                    let t = uv.values[uv.indices[c] as usize];
+                    values[corner_extra_uv(set)]
+                        .copy_from_slice(&gltf_uv([t.x as f32, t.y as f32]));
+                }
                 if has_color {
                     let k = mesh.vertex_color.values[mesh.vertex_color.indices[c] as usize];
                     values[CORNER_COLOR]
@@ -81,6 +92,9 @@ pub(super) fn mesh_json(
                     }
                     if has_uv {
                         out.uvs.extend_from_slice(&values[CORNER_UV]);
+                    }
+                    for &(set, _) in &extra {
+                        out.extra_uvs[set - 1].extend_from_slice(&values[corner_extra_uv(set)]);
                     }
                     if has_color {
                         out.colors.extend_from_slice(&values[CORNER_COLOR]);

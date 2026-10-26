@@ -43,7 +43,7 @@ const queued: Uint32Array[] = []
  *  results hand them back. The character's own words stay here. */
 const received: ArrayBuffer[] = [],
   spent: ArrayBuffer[] = []
-const character = createCharacterDriver()
+const character = createCharacterDriver((x, z) => water.surface(x, z))
 const clock = createStepTimes()
 /** The page's messages not run yet, in its order: before the module is there, and behind a step
  *  short of room. */
@@ -130,10 +130,18 @@ function cast({ id, queries }: Extract<ToPhysics, { type: 'cast' }>) {
   scope.postMessage({ type: 'cast', id, hits }, [hits.buffer])
 }
 
+/** An overlap query between two steps, as a cast is. */
+function overlap({ id, query }: Extract<ToPhysics, { type: 'overlap' }>) {
+  if (queued.length && results!.room()) run(0)
+  const hits = jolt!.overlap(query)
+  scope.postMessage({ type: 'overlap', id, hits }, [hits.buffer])
+}
+
 /** Runs one of the page's messages; false when it must wait for room. */
 function handle(message: ToPhysics) {
   if (message.type === 'advance') return advance(message)
   if (message.type === 'cast') cast(message)
+  else if (message.type === 'overlap') overlap(message)
   else if (message.type === 'water') water.set(message.water, message.at)
   else {
     heard++
@@ -141,7 +149,7 @@ function handle(message: ToPhysics) {
       queued.push(message.words)
       received.push(message.words.buffer)
     } else if (message.type === 'character') {
-      const words = character.configure(message.settings, message.feet)
+      const words = character.configure(message.settings, message.gravity, message.feet)
       if (words) queued.push(words)
     } else if (message.type === 'input') character.press(message.input, message.jumps)
   }

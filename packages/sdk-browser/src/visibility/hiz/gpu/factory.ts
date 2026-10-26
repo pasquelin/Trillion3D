@@ -84,7 +84,7 @@ function hizState(device: GPUDevice, pipelines: HizPipelines, buffers: GPUBuffer
   }
 }
 
-/** One layer of the drawn pyramid, by its build's `pipeline`, in the open compute pass. */
+/** The drawn pyramid built by `pipeline`, in the open compute pass. */
 function encodeLayer(h: HizState, open: OpenPass, pipeline: GPUComputePipeline) {
   bindHiz(h)
   const { at, bindGroup } = h
@@ -99,9 +99,9 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
     height: 0,
     level0: first.level0,
     level0View: first.level0View,
-    // A whole layer, four mips per dispatch (`buildHiz`), in the frame's compute pass.
+    // Every layer it builds, four mips per dispatch (`buildHiz`), in the frame's compute pass.
     encodePyramid: (open) => encodeLayer(h, open, h.buildPipeline),
-    encodeNearest: (open) => encodeLayer(h, open, h.nearestPipeline),
+    encodeFull: (open) => encodeLayer(h, open, h.fullPipeline),
     encodePrimed: (open, push) => encodePrimedLayer(h, open, push),
     levelTable: h.levelTable,
     extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),

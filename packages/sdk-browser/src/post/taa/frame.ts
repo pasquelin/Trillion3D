@@ -1,45 +1,108 @@
 import { jitterViewProjection, taaJitter, upscalePhases } from './jitter.ts'
-import { taaExposure, writeTaaView } from './view.ts'
+import { taaExposure, writeTaaView, type TaaHistoryTerms } from './view.ts'
 import { preExposureOf } from '../exposure/pre.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { AccumulatedImage } from '../../lighting/deferred/program.ts'
-import type { AsIsShare } from '../../lighting/deferred/asIsShare.ts'
+import type { Responsive } from '../../blend/responsive.ts'
 import { writtenFilter } from '../../blend/display/displayFilter.ts'
+import { shownTranslucency } from '../../blend/translucency.ts'
 import { drawFrameAt, scalesTargets, taaRuns } from '../../frame/backend/state/renderScale.ts'
 import { dropTaaHistory } from './landing.ts'
+import type { MeasuredScene } from './analysis.ts'
 import type { TaaFrameState } from './frameState.ts'
 import type { TaaInputs } from './inputs.ts'
 import { followVelocity, keepImage, readVelocityInputs } from './velocityFrame.ts'
 import { taaViewCode } from '../../visibility/shader/shadeMode.ts'
-import { FULL_ANALYSIS, taaKnobs } from './levels.ts'
-import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
-import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import { FULL_ANALYSIS, taaKnobs, type AnalysisWork } from './levels.ts'
+import {
+  TEMPORAL_RULES,
+  THIN_GEOMETRY_SHADING_RANGES,
+  type TemporalValues,
+} from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import { resolveSettingsStamped } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { SURFACE_OUTPUTS } from '../../materials/surface/surfaceOutputs.ts'
 import { FIRST_ANALYSIS_VIEW } from './rejectionWgsl.ts'
-import { writesGivenUp } from '../../frame/prepare/asIsShareTarget.ts'
+import { writesResponsive } from '../../frame/prepare/responsiveTarget.ts'
+import { keepFrame, planFrame, type FrameSlices } from './historyFrames.ts'
+import { sameShape, wantedShapeOf, type HistoryShape } from './historyShape.ts'
+import { executionOf } from './waveOps.ts'
+import { remakeTemporalFormats } from './prepare.ts'
+import { fuseMotionBlur, motionBlurPlanned } from '../../frame/render/effectsFrame.ts'
 
-/** The temporal pass's setting `field` the session holds (`temporalOptions.ts`), by its one
- *  resolver, read at each image. */
-const temporalSetting = contextReader(TEMPORAL_RULES)
+/** What the pass's uniform says of its history this image (`writeTaaView`), rewritten by each. */
+const historyTerms = {} as { -readonly [K in keyof TaaHistoryTerms]: TaaHistoryTerms[K] }
+/** The pass's settings this image, resolved in place: the one reading of them every image makes. */
+const settings = {} as TemporalValues
 
-/** The analysis the level runs: the flicker measure where it rejects by it or a view shows it, the
- *  thin geometry detection where the setting asks for it or a view shows it. A history the measure
- *  left unwritten describes no image: it starts again, with the history it is told against. */
-function analysisFor(
+/** The analyses of a level without the flicker measure, made once for each: a flicker period of 0
+ *  runs none. */
+const withoutFlicker = new WeakMap<AnalysisWork, AnalysisWork>()
+const flickerlessOf = (work: AnalysisWork) => {
+  let made = withoutFlicker.get(work)
+  if (!made) withoutFlicker.set(work, (made = { ...work, flicker: false }))
+  return made
+}
+
+/** The analysis the level and the settings ask of an image of view `viewCode`. */
+function workOf(knobs: ReturnType<typeof taaKnobs>, viewCode: number) {
+  const shown = viewCode >= FIRST_ANALYSIS_VIEW
+  const work = shown ? FULL_ANALYSIS : settings.temporalThinGeometry ? knobs.thinWork : knobs.work
+  return !shown && settings.temporalFlickeringPeriod === 0 ? flickerlessOf(work) : work
+}
+
+/** The place of the flags in the surfaces' views (`SurfaceBuffer.views`). */
+const FLAGS_VIEW = SURFACE_OUTPUTS.findIndex(({ name }) => name === 'flags')
+
+/** What the thin coverage measure reads of this image, rewritten by each. */
+const measured = {} as MeasuredScene
+
+/** The image each view's measures were last taken for. */
+const measuredAt = new WeakMap<object, number>()
+
+/**
+ * The measures the analysis takes on the scene before any translucency is composed onto `image` —
+ * the lit image, or the one its depth of field blurred where no near layer came before —, once an image, where the flicker measure or the thin geometry
+ * detection runs (`TemporalAntialiasing.measure`): the flicker luma exposed as the shading rejection
+ * measures it (the image's scale times the shading's exposure offset, `view.exposure.x`,
+ * `view.preExposure.y`), the material's coverage where the detection runs. Called before each
+ * composition of the translucency (`../../frame/render/encodeBlend.ts`, `surfaceLighting.ts`), the
+ * first one measuring.
+ */
+export function measureBeforeTranslucency(
   rt: WebgpuPagesRuntime,
-  state: TaaFrameState,
-  knobs: ReturnType<typeof taaKnobs>,
-  viewCode: number,
+  encoder: GPUCommandEncoder,
+  image: GPUTextureView,
 ) {
-  const thinOn = temporalSetting(rt, 'temporalThinGeometry')
-  const work =
-    viewCode >= FIRST_ANALYSIS_VIEW ? FULL_ANALYSIS : thinOn ? knobs.thinWork : knobs.work
-  if (work.flicker && !state.flickerRan) dropTaaHistory(state)
+  const temporal = rt.gpu.temporal,
+    { gpu, vis, run } = rt
+  if (!temporal?.frame.active || !vis.visView || !vis.pageTable || !gpu.surfaces) return
+  if (measuredAt.get(temporal) === run.frame) return
+  resolveSettingsStamped(TEMPORAL_RULES, rt.context, settings)
+  const work = workOf(taaKnobs(gpu.temporalLevel, settings), taaViewCode(run.diagnostic))
+  if (!work.flicker && !work.thin) return
+  const scale = taaExposure(preExposureOf(rt).shown) * 2 ** settings.temporalShadingExposureOffset
+  measured.ids = vis.visView
+  measured.pages = vis.pageTable
+  measured.flags = gpu.surfaces.views()[FLAGS_VIEW]
+  measured.range = THIN_GEOMETRY_SHADING_RANGES.indexOf(settings.temporalThinGeometryShadingRange)
+  if (temporal.measure(encoder, image, measured, gpu.targetSize, scale, work.thin))
+    measuredAt.set(temporal, run.frame)
+}
+
+/** Whether the analysis `work` makes a history it left unwritten describe no image: a flicker or
+ *  thin geometry measure running again after images without it. Such a history starts again, with
+ *  the history it is told against (`keepAnalysis`). */
+const analysisRestarts = (state: TaaFrameState, work: AnalysisWork) =>
+  (work.flicker && !state.flickerRan) || (work.thin && !state.thinRan)
+
+/** Keeps the analysis `work` this image runs, the history started again where `restart`
+ *  (`analysisRestarts`). */
+function keepAnalysis(state: TaaFrameState, work: AnalysisWork, restart: boolean) {
+  if (restart) dropTaaHistory(state)
   state.flickerRan = work.flicker
-  if (work.thin && !state.thinRan) dropTaaHistory(state)
   state.thinRan = work.thin
-  return work
 }
 
 /**
@@ -79,9 +142,6 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { targetSize, displaySize } = rt.gpu
   state.phases = upscalePhases(targetSize[0], displaySize[0])
   taaJitter(state.sample, state.jitter, state.phases)
-  // A view that has a plane draws unjittered: the cut would move with the jitter (a stand-in
-  // camera no frame entry made carries no set).
-  if (cam.viewSet?.jitters === false) state.jitter.fill(0)
   state.jitterGrid[0] = targetSize[0]
   state.jitterGrid[1] = targetSize[1]
   jitterViewProjection(
@@ -114,32 +174,126 @@ export function taaRenderProjection(rt: WebgpuPagesRuntime, cam: EngineCamera, o
     jitterGrid[1],
   )
 }
-/** Writes into `inputs` the lit image and what the blends wrote beside it: the as-is flags, or the
- *  share where the frame has one, the reactive value and what they give up of the history. */
+/** Writes into `inputs` the lit image and what the blends wrote beside it: the responsiveness they
+ *  carry. */
 function readSharedInputs(
   rt: WebgpuPagesRuntime,
   inputs: TaaInputs,
   current: GPUTextureView,
-  asIs: boolean,
-  share?: AsIsShare,
+  responsive?: Responsive,
 ) {
   inputs.current = current
-  inputs.flags = asIs ? rt.gpu.surfaces!.views()[3] : undefined
-  inputs.share = asIs ? share?.view : undefined
-  inputs.reactive = share?.view
-  // Bound where the blends wrote it; else the 1×1 zero: nothing given up (`writesGivenUp`).
-  inputs.givenUp = writesGivenUp(rt) ? share?.givenUpView : undefined
+  inputs.translucency = shownTranslucency(rt.gpu)
+  // Bound where the blends wrote it; else the 1×1 zero: none (`writesResponsive`).
+  inputs.responsive = writesResponsive(rt) ? responsive?.view : undefined
+}
+
+/** The pass of the view this image is encoded for. */
+type Temporal = NonNullable<WebgpuPagesRuntime['gpu']['temporal']>
+
+/** Remakes the history where the level and these settings ask another shape — a level of another
+ *  size, a setting of the resurrection —, which starts again; the pass itself, where the history
+ *  formats the setting asks are not the ones it was made with. Returns the shape asked. */
+function fitHistory(rt: WebgpuPagesRuntime, temporal: Temporal) {
+  const { gpu } = rt
+  if (temporal.packed !== settings.temporalHistoryPacked) remakeTemporalFormats(rt, temporal)
+  const shape = wantedShapeOf(
+    rt,
+    temporal,
+    gpu.temporalLevel,
+    gpu.displaySize[0],
+    gpu.displaySize[1],
+  )
+  if (!temporal.shape || !sameShape(temporal.shape, shape)) {
+    const before = temporal.historyBytes
+    if (temporal.resize(shape, ...gpu.allocatedSize)) dropTaaHistory(temporal.frame)
+    gpu.targetBytes += temporal.historyBytes - before
+  }
+  return shape
+}
+
+/** What the uniform of an image says besides the camera and the settings: the history's shape and
+ *  frames, the level's knobs and analysis, the view, the exposures, and whether a placement moved. */
+interface ImageTerms {
+  readonly shape: HistoryShape
+  readonly slices: FrameSlices
+  readonly knobs: ReturnType<typeof taaKnobs>
+  readonly work: AnalysisWork
+  readonly viewCode: number
+  readonly exposure: number
+  readonly pre: ReturnType<typeof preExposureOf>
+  readonly moved: boolean
+}
+
+/** Writes the pass's uniform for this image. */
+function writeImageUniform(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  temporal: Temporal,
+  cam: EngineCamera,
+  { shape, slices, knobs, work, viewCode, exposure, pre, moved }: ImageTerms,
+) {
+  const { gpu, vis, views } = rt
+  const { inputs, frame, filterHistory } = temporal
+  historyTerms.width = shape.width
+  historyTerms.height = shape.height
+  historyTerms.scale = frame.historyScale
+  historyTerms.field = knobs.reprojectionField
+  historyTerms.fieldSpeed = settings.temporalReprojectionFieldSpeed
+  historyTerms.resurrects = slices.resurrects
+  historyTerms.settings = settings
+  writeTaaView(
+    device,
+    temporal.uniform,
+    frame,
+    cam,
+    gpu.targetSize,
+    gpu.displaySize,
+    temporal.analysisSize,
+    moved,
+    !!inputs.filter && filterHistory.written,
+    !!vis.deformationCompute || vis.rasters.offsets.length > 0,
+    exposure,
+    // The display's interval, the world's controller's (`rt.views.main`), whichever view is drawn.
+    views.main.scale.frameIntervalMs,
+    viewCode,
+    knobs,
+    work,
+    // The colour history holds light multiplied by the pre-exposure of the image before, brought to this image's by the ratio.
+    pre.now / pre.previous,
+    historyTerms,
+    pre.now,
+  )
+}
+
+/** Keeps what the next image reads of this one: its camera and frame, the exposure, the number of
+ *  still images, and the ranks of the jitter and of the lighting samples. */
+function keepTaaImage(
+  rt: WebgpuPagesRuntime,
+  state: TaaFrameState,
+  cam: EngineCamera,
+  { slices, exposure, pre }: ImageTerms,
+  holds: boolean,
+  still: boolean,
+) {
+  const { targetSize } = rt.gpu
+  keepImage(rt, state, cam, targetSize)
+  keepFrame(state.ring, slices, holds, cam.viewProjection, cam.eye, exposure, pre.now, targetSize)
+  state.previousExposure = exposure
+  state.accumulated = still ? state.accumulated + 1 : 1
+  state.sample = (state.sample + 1) % state.phases
+  state.stochasticSample++
 }
 
 /**
  * Encodes this image's temporal pass and its display layers; returns the accumulated image
  * composition reads, `undefined` when none. Writes the uniform, advances the jitter, keeps the
  * unjittered view-projection, the render grid and the exposure the render-resolution histories are
- * kept at; its motion is the velocity stage's (`encodeVelocity`); `asIs` false reads no as-is flags;
- * the image is reconstructed to the display from whatever size it was drawn at. `share`, seeded when blends or particles draw,
- * holds the as-is share and the reactive value the blends, particles and water wrote
- * (`../../lighting/deferred/asIsShare.ts`), which shortens a moving pixel's history, and beside it
- * what the blends and transmissive layers give up of that history, which caps it.
+ * kept at; its motion is the velocity stage's (`encodeVelocity`); the image is reconstructed to the
+ * display from whatever size it was drawn at. `responsive`, cleared when blends draw, holds the
+ * responsiveness the blends and transmissive layers carry (`../../blend/responsive.ts`), which the
+ * analysis reads as the flags of the pixel. The as-is pixels of a debug view are none of its: the
+ * composition draws them over its output (`../../lighting/deferred/shaders.ts`).
  */
 export function encodeTaaPass(
   rt: WebgpuPagesRuntime,
@@ -147,58 +301,61 @@ export function encodeTaaPass(
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
   current: GPUTextureView,
-  asIs = true,
-  share?: AsIsShare,
+  responsive?: Responsive,
 ): AccumulatedImage | undefined {
   const temporal = rt.gpu.temporal,
     velocity = rt.gpu.velocity,
-    { gpu, vis, run } = rt
+    { gpu, run } = rt
+  // Nothing is flattened for the motion blur until this image asks it (below).
+  if (temporal) temporal.inputs.flatten = undefined
   // The vectors and the placements' motion are the velocity stage's, drawn before the lighting
   // (`encodeVelocity`): the pass reads them, and its decisions about this image.
   if (!temporal?.frame.active || !gpu.surfaces || !velocity?.measured) return undefined
-  const { inputs, filterHistory } = temporal
-  if (!readVelocityInputs(rt, inputs, velocity)) return undefined
+  const { inputs } = temporal
+  if (!readVelocityInputs(rt, inputs)) return undefined
   inputs.vectors = velocity.vectors
   const state = temporal.frame,
     { moved, still } = velocity
-  const { targetSize, displaySize } = gpu
   inputs.filter = writtenFilter(gpu.displayFilter) // `displayFilter.ts`
+  resolveSettingsStamped(TEMPORAL_RULES, rt.context, settings)
   const pre = preExposureOf(rt)
-  const exposure = taaExposure(pre.shown)
-  const knobs = taaKnobs(gpu.temporalLevel),
+  const knobs = taaKnobs(gpu.temporalLevel, settings),
     viewCode = taaViewCode(run.diagnostic)
-  const work = analysisFor(rt, state, knobs, viewCode)
-  writeTaaView(
-    device,
-    temporal.uniform,
-    state,
-    cam,
-    targetSize,
-    displaySize,
-    temporal.analysisSize,
-    moved,
-    !!inputs.filter && filterHistory.written,
-    !!vis.deformationCompute,
-    exposure,
-    // The display's interval, the world's controller's (`rt.views.main`), whichever view is drawn.
-    rt.views.main.scale.frameIntervalMs,
-    viewCode,
-    knobs,
+  const work = workOf(knobs, viewCode),
+    restart = analysisRestarts(state, work)
+  const shape = fitHistory(rt, temporal)
+  // The frames this image reads and writes in the history, which starts again with the analysis.
+  const holds = state.hasHistory && !restart
+  const slices = planFrame(state.ring, holds)
+  // The half-size image the scene's chain reads, written beside the resolved colour: nothing
+  // then draws it — unless the quality asks the chain's own pass for it, or the motion blur,
+  // which draws after and writes its own, does (`temporalDownsampleQuality`).
+  const half = settings.temporalDownsampleQuality === 'low' && !motionBlurPlanned(rt)
+  const execution = executionOf(rt, device)
+  // The analysis, the update and the resolve run whole or not at all: a pass missing a program
+  // leaves the histories, the flags and the counts as the last image left them (`chainReady`).
+  if (!temporal.ready(inputs, slices, work, half, execution)) return undefined
+  keepAnalysis(state, work, restart)
+  state.slices = slices
+  const exposure = taaExposure(pre.shown)
+  const terms = { shape, slices, knobs, work, viewCode, exposure, pre, moved }
+  writeImageUniform(rt, device, temporal, cam, terms)
+  readSharedInputs(rt, inputs, current, responsive)
+  // The motion blur flattens its motion in the nearest velocity, which dilates it: the blur's
+  // targets and uniform are set up here, ahead of the dispatch.
+  inputs.flatten = fuseMotionBlur(rt, cam, velocity)
+  const output = temporal.encode(
+    encoder,
+    inputs,
+    gpu.targetSize,
+    slices,
+    cam.perspective === 0,
     work,
-    pre.now / state.previousPreExposure,
+    half,
+    execution,
   )
-  readSharedInputs(rt, inputs, current, asIs, share)
-  const output = temporal.encode(encoder, inputs, targetSize, cam.perspective === 0, work)
-  if (inputs.filter) gpu.targetBytes += filterHistory.uncounted()
-  // Its draws, the spatial anti-aliaser where the level runs one and the history update; the
-  // analysis' passes are dispatches.
-  run.gpuDrawCalls += work.antiAlias ? 2 : 1
-  keepImage(rt, state, cam, targetSize)
-  state.previousExposure = exposure
-  state.previousPreExposure = pre.now
-  state.accumulated = still ? state.accumulated + 1 : 1
-  state.sample = (state.sample + 1) % state.phases
-  state.stochasticSample++
+  if (inputs.filter) gpu.targetBytes += temporal.layers.uncounted()
+  keepTaaImage(rt, state, cam, terms, holds, still)
   return output
 }
 

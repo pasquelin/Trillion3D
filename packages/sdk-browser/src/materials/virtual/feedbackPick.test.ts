@@ -2,7 +2,13 @@
 // "every pixel" bit, on every image.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { FEEDBACK_EVERY, PICK_SHIFT, createWebgpuTileFeedback } from './feedback.ts'
+import {
+  FEEDBACK_EVERY,
+  FEEDBACK_STRIDE,
+  PICK_SHIFT,
+  createWebgpuTileFeedback,
+} from './feedback.ts'
+import { reversedMortonOffset } from '../../../../math/src/sequence/reversedMorton.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { PICK_CYCLE } from './pickCycle.ts'
@@ -22,6 +28,25 @@ test('ordinary images turn the pick once per whole phase round', () => {
     feedback.submitted()
   }
   assert.equal(picks.size, PICK_CYCLE, 'one pixel of the square named every pick')
+})
+
+// One pixel in 16 × 16 speaks an image; a round of images names each pixel of the square once, and
+// its first images speak from pixels far apart.
+test('a phase round speaks every pixel of the square once, the first images spread over it', () => {
+  const heard = new Set<number>()
+  for (let phase = 0; phase < FEEDBACK_EVERY; phase++)
+    heard.add(reversedMortonOffset(phase, FEEDBACK_STRIDE))
+  assert.equal(heard.size, FEEDBACK_EVERY)
+  assert.ok(FEEDBACK_STRIDE === 16 && [...heard].every((word) => word < FEEDBACK_EVERY))
+  const column = (word: number) => word % FEEDBACK_STRIDE,
+    row = (word: number) => Math.floor(word / FEEDBACK_STRIDE)
+  const quadrants = new Set(
+    [0, 1, 2, 3].map((phase) => {
+      const word = reversedMortonOffset(phase, FEEDBACK_STRIDE)
+      return Number(column(word) >= 8) + 2 * Number(row(word) >= 8)
+    }),
+  )
+  assert.equal(quadrants.size, 4, 'four images, four quarters of the square')
 })
 
 test('feedback growth discards completed and in-flight counts from the previous slot layout', async () => {

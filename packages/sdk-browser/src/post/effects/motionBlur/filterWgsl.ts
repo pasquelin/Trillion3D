@@ -6,6 +6,7 @@ import { LEAST_STREAK_PIXELS } from './classifyWgsl.ts'
 import { SUBGROUP_ALL_WGSL } from '../../../gpu/core/subgroups.ts'
 import { unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
 import { listWgsl } from '../../../gpu/dispatch/list.ts'
+import { HALF_IMAGE_FORMAT } from '../../filters/levelSizes.ts'
 import {
   FILTER_TILE,
   FLAT_FORMS,
@@ -14,6 +15,8 @@ import {
   type FlatForm,
 } from './motionBlurLayout.ts'
 import { MOTION_BLUR_PARAMS_WGSL } from './motionBlurWgsl.ts'
+import { layersOver } from '../../../blend/translucencyComposeWgsl.ts'
+import { LAYERS_BINDINGS } from '../../../blend/translucencyLayers.ts'
 
 /** What a filter program is made for: how the flattened motion it reads is kept (`FlatForm`), and
  *  whether the samples a tile takes and the vote that gathers it are the subgroup's, where the
@@ -21,7 +24,8 @@ import { MOTION_BLUR_PARAMS_WGSL } from './motionBlurWgsl.ts'
 export type FilterShape = { flat?: FlatForm; subgroups?: boolean }
 
 /** The filter's bindings: the blur's uniform, the image to blur and its sampler, the flattened
- *  motion, the tile ranges, the list of the filter tiles of the class, the blurred image written. */
+ *  motion, the tile ranges, the list of the filter tiles of the class, the blurred image written
+ *  and the half-size image beside it. */
 export const FILTER_BINDINGS = {
   params: 0,
   color: 1,
@@ -30,6 +34,7 @@ export const FILTER_BINDINGS = {
   tiles: 4,
   list: 5,
   blurred: 6,
+  half: 7,
 } as const
 
 /** The scene depth, in centimetres, the unit the flattened depth is kept in, two samples must
@@ -80,6 +85,7 @@ export const filterInputs = once((flat) =>
     `FILTER_INPUTS_WGSL(${flat})`,
     [
       MOTION_BLUR_PARAMS_WGSL,
+      layersOver,
       FLAT_LOAD_WGSL[flat],
       listWgsl({
         name: 'tileList',
@@ -95,6 +101,18 @@ export const filterInputs = once((flat) =>
 @group(0) @binding(${FILTER_BINDINGS.sampler}) var colorSampler:sampler;
 @group(0) @binding(${FILTER_BINDINGS.tiles}) var tilesTexture:texture_2d<f32>;
 @group(0) @binding(${FILTER_BINDINGS.blurred}) var blurredOut:texture_storage_2d<${OUTPUT_FORMAT},write>;
+@group(0) @binding(${FILTER_BINDINGS.half}) var halfOut:texture_storage_2d<${HALF_IMAGE_FORMAT},write>;
+@group(1) @binding(${LAYERS_BINDINGS.layers}) var lateLayers:texture_2d<f32>;
+@group(1) @binding(${LAYERS_BINDINGS.modulation}) var lateModulation:texture_2d<f32>;
+@group(1) @binding(${LAYERS_BINDINGS.sampler}) var lateSampler:sampler;
+// The layers drawn after the motion blur over a blurred pixel, in the pass that writes the image
+// the rest of the chain reads (\`mb.outputs.y\`): they were drawn at the render size, and are read
+// through the bilinear sampler at the pixel's place.
+fn lateOver(pixel:vec4f,p:vec2i)->vec4f{
+ if(mb.outputs.y==0.0){return pixel;}
+ let uv=min((vec2f(p)+0.5)*mb.color.zw*mb.grid*mb.layers.xy,mb.layers.zw);
+ return layersOver(pixel,textureSampleLevel(lateLayers,lateSampler,uv,0.0),textureSampleLevel(lateModulation,lateSampler,uv,0.0));
+}
 fn colorAt(uv:vec2f,mip:f32)->vec4f{
  let size=mb.color.xy;
  if(mip<0.5||mb.knobs.z==0.0){
@@ -189,6 +207,11 @@ fn finished(centre:vec4f,blend:f32,blurred:vec4f)->vec4f{
   ),
 )
 
+/** The workgroup memory the half-size image of a full-resolution class is gathered in: a lane's
+ *  colour, its place the workgroup's index. */
+const HALF_TILE = `var<workgroup> halfTile:array<vec4f,${FILTER_TILE * FILTER_TILE}>;
+`
+
 /** The workgroup's way of the head: its lanes' raster order, the samples a tile takes and the vote
  *  that gathers it counted in workgroup memory, by atomics and barriers. */
 const WORKGROUP_COUNTS = `var<workgroup> sampleCount:atomic<u32>;
@@ -220,7 +243,7 @@ const SUBGROUP_VOTE = ` let count=subgroupMax(u32(wanted));
 export const filterHead = (entry: string, subgroups = false) => `override TILE:u32=${FILTER_TILE}u;
 override HALF_RES:bool=false;
 override WEIGH:bool=false;
-${subgroups ? '' : WORKGROUP_COUNTS}@compute @workgroup_size(TILE,TILE)
+${subgroups ? '' : WORKGROUP_COUNTS}${HALF_TILE}@compute @workgroup_size(TILE,TILE)
 fn ${entry}(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) groups:vec3u,${subgroups ? '' : '@builtin(local_invocation_id) lid:vec3u,'}@builtin(local_invocation_index) lane:u32){
  let index=flatIndex(wg,groups,1u);
  let valid=index<tileList.count;
@@ -245,16 +268,53 @@ ${subgroups ? SUBGROUP_VOTE : WORKGROUP_VOTE} let inv=1.0/f32(count);
 export const headDeclarations = (subgroups = false): readonly WgslDecl[] =>
   subgroups ? [SUBGROUP_ALL_WGSL, zOrderDecode] : []
 
-/** The tail of the filter's entry, the classes' too: the blurred pixels written, a half-resolution
- *  thread's four, each its own colour kept by `blend`. */
-export const FILTER_STORE = ` let size=vec2i(mb.color.xy);
+/** The four lanes of a quad, from the lane of its top left pixel `top`: in the raster order of the
+ *  workgroup (`lid`) a pixel across is the next lane and a row down `TILE` further; in Z order
+ *  (`zOrderDecode`) the four lanes follow each other. */
+const QUAD_LANES = (subgroups: boolean) =>
+  subgroups
+    ? `let top=lane&~3u;
+   mean=(halfTile[top]+halfTile[top+1u]+halfTile[top+2u]+halfTile[top+3u])*0.25;`
+    : `let top=lane&~(1u|TILE);
+   mean=(halfTile[top]+halfTile[top+1u]+halfTile[top+TILE]+halfTile[top+TILE+1u])*0.25;`
+
+/**
+ * The tail of the filter's entry, the classes' too: the blurred pixels written, a half-resolution
+ * thread's four, each its own colour kept by `blend`; and, where the uniform says the scene's chain
+ * reads it (`mb.outputs.x`), the half-size image: each texel the mean of the four pixels it covers.
+ * A half-resolution thread holds the four: their mean, written where its quad is. A full-resolution
+ * thread holds its pixel alone: the four lanes of a quad are gathered in workgroup memory,
+ * `halfTile`, one barrier, and the lane of the quad's top left pixel writes their mean
+ * (`QUAD_LANES`, by the way the head lays the lanes out, `subgroups`). The workgroup's index is the
+ * lane's place whichever way the pixels are laid out from it: WGSL ties a subgroup's lanes to no
+ * place in the workgroup (§ 15.5 "Subgroups" of the WGSL specification, "There is no defined
+ * relationship between subgroup values … and local_invocation_index"), so no shuffle stands in for
+ * it. The barrier is in uniform control flow: no lane has left the entry, and the pipeline's override
+ * decides the branch. A quad past the image's edge holds the colours its clamped reads gave.
+ */
+export const filterStore = (subgroups = false) => ` let size=vec2i(mb.color.xy);
  var base=vec2i(uv*mb.color.xy);
  if(HALF_RES){base=base&vec2i(-2);}
+ var taken=vec4f(0.0);
  for(var k=0i;k<select(1i,4i,HALF_RES);k++){
   let p=min(base+select(vec2i(0),vec2i(k&1,k>>1),HALF_RES),size-vec2i(1));
   var centre=vec4f(0.0);
   if(blend>0.0){centre=textureLoad(colorTexture,p,0);}
-  if(valid&&all(base<size)){textureStore(blurredOut,p,finished(centre,blend,color));}
+  let pixel=lateOver(finished(centre,blend,color),p);
+  taken+=pixel;
+  if(valid&&all(base<size)){textureStore(blurredOut,p,pixel);}
+ }
+ if(mb.outputs.x!=0.0){
+  var mean=taken*0.25;
+  if(!HALF_RES){
+   halfTile[lane]=taken;
+   workgroupBarrier();
+   ${QUAD_LANES(subgroups)}
+  }
+  let texel=vec2i(base>>vec2u(1u));
+  if(valid&&all(base<size)&&((base.x|base.y)&1)==0&&all(texel<vec2i(textureDimensions(halfOut)))){
+   textureStore(halfOut,texel,mean);
+  }
  }
 }`
 
@@ -292,7 +352,7 @@ const ONE_MOTION = ` let mip=saturate(reach*inv-1.0);
  * `shape.flat` is the form of the flattened motion it reads (`FlatForm`).
  */
 export const filterShader = ({ flat = 'packed', subgroups = false }: FilterShape = {}) =>
-  wgslProgram(`${filterHead('filterTiles', subgroups)}${ONE_MOTION}${FILTER_STORE}`, [
+  wgslProgram(`${filterHead('filterTiles', subgroups)}${ONE_MOTION}${filterStore(subgroups)}`, [
     MOTION_BLUR_PARAMS_WGSL,
     streakWgsl(flat),
     interleavedGradientNoise,

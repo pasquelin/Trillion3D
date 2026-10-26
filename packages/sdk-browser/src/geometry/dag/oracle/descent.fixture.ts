@@ -1,8 +1,17 @@
 import { DAG_NODE_FLOATS } from '../types.ts'
-import { dagNodeFloor, dagNodeVerdict, dagTreeVerdict } from './nodeVerdict.fixture.ts'
-import { NODE_FIRST_CHILD, NODE_KIND } from '../nodeLayout.ts'
+import {
+  dagNodeFloor,
+  dagNodeVerdict,
+  dagTreeVerdict,
+  outsideRootDrawDistance,
+} from './nodeVerdict.fixture.ts'
+import { drawDistanceAt } from '../drawDistance.ts'
+import { NODE_FIRST_CHILD, NODE_KIND, NODE_MAX, NODE_MIN } from '../nodeLayout.ts'
 import { drawnAlways, TREE_GROUP, type PlacementTree } from '../placement/placementTree.ts'
 import type { DagViewFrames } from './math.fixture.ts'
+
+/** The eye of the render frame, whose worlds have it taken off. */
+const AT_THE_EYE = [0, 0, 0]
 
 /** One view's verdict on node `n` read by placement `w`: `-1` rejected — outside, too fine or too
  *  coarse —, else its children. `open`, the placement's open count there (`dagNodeFloor`). A node of
@@ -19,6 +28,21 @@ function keeps(
   if (t >= 0) {
     const tree = packed.placementTree!
     return dagTreeVerdict(frames, tree.nodes, treeInts(tree), t)
+  }
+  // The root of a placement that names the distances it is drawn at is tested first, as the kernel
+  // does: its world is the render frame's, the eye taken off it already, so the eye is the origin.
+  if (n === packed.rootNodes[w] && packed.worlds) {
+    const base = n * DAG_NODE_FLOATS
+    if (
+      outsideRootDrawDistance(
+        drawDistanceAt(packed.drawDistance, w),
+        packed.worlds.subarray(16 * w, 16 * w + 16),
+        AT_THE_EYE,
+        nodes.subarray(base + NODE_MIN, base + NODE_MIN + 3),
+        nodes.subarray(base + NODE_MAX, base + NODE_MAX + 3),
+      )
+    )
+      return -1
   }
   const children = dagNodeVerdict(frames, nodes, nodeInts, n, w)
   if (children < 0) return -1
@@ -55,6 +79,9 @@ type Descended = {
   nodes: Float32Array
   rootNodes: Uint32Array
   mark?: Uint32Array
+  /** The placements' worlds and the distances they name they are drawn at (`DagRoot.drawDistance`). */
+  worlds?: Float32Array
+  drawDistance?: Float32Array
   placementTree?: PlacementTree
   heldOpen?: { get(w: number, node: number): number | undefined }
 }
@@ -117,12 +144,16 @@ function placementRoot(packed: Descended, w: number, covers: Covers) {
  * Top-down pruning drops a leaf whose least own error is above the threshold, unless the leaf is
  * open — it holds the nearest resident ancestor of something missing (`../shader/floorWgsl.ts`).
  *
+ * `levels`: the levels the cut dispatches (`levelsDispatched`, `../encode.ts`): an entry deposited
+ * at a later level is never read, as on the device, and its node keeps no verdict.
+ *
  * Split from `oracle.fixture.ts`: it is a whole step, it has its own WGSL mirror.
  */
 export function dagOracleDescent(
   packed: Descended,
   frames: DagViewFrames,
   covers: Covers = () => false,
+  levels = Infinity,
 ) {
   const nodeInts = new Uint32Array(packed.nodes.buffer),
     tree = packed.placementTree
@@ -144,6 +175,7 @@ export function dagOracleDescent(
     const level = frontier.pop() as number
     let w = frontier.pop() as number
     let n = frontier.pop() as number
+    if (level >= levels) continue
     if (n >= packed.nodeCount) {
       const member = memberRoot(packed, n - packed.nodeCount, covers)
       if (member.root < 0) continue
@@ -157,8 +189,11 @@ export function dagOracleDescent(
     }
     if (children) {
       const first = firstChild(packed, nodeInts, n)
-      for (let c = 0; c < children; c++) frontier.push(first + c, w, level + 1)
-      work.levels[level + 1] = (work.levels[level + 1] ?? 0) + children
+      // A group's members are tested a level later than a cell's children, as the kernel does: the
+      // group is opened at the next level, which hands them on untested (`openCell`, `memberShift`).
+      const next = level + (first >= packed.nodeCount ? 2 : 1)
+      for (let c = 0; c < children; c++) frontier.push(first + c, w, next)
+      work.levels[next] = (work.levels[next] ?? 0) + children
       continue
     }
     // A group of the tree with no member yet opens nothing: it is no leaf.

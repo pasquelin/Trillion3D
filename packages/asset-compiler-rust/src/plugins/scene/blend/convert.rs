@@ -8,6 +8,9 @@
 use super::*;
 use crate::plugins::scene::convert::SceneTables;
 
+/// `UnitSettings.system` of a scene that measures in no physical unit.
+const UNIT_SYSTEM_NONE: i64 = 0;
+
 /// Reads the file and writes its conversion into the cache. Nothing is written next to the source.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
@@ -34,7 +37,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         cancelled: request.cancelled,
     };
     scene.out.scene.nodes.push(json!({
-        "name": name_of(source), "matrix": crate::plugins::scene::axes::root(1.0, true), "children": [],
+        "name": name_of(source), "matrix": crate::plugins::scene::axes::root(metres_per_unit(&file), true), "children": [],
     }));
     let scenes = file.of(*b"SC\0\0").count();
     if scenes > 1 {
@@ -77,6 +80,22 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         started,
         &format!("blend: {} carries no mesh object", source.display()),
     )
+}
+
+/// Metres in one Blender unit: the active scene's `scale_length`. A scene whose unit system is
+/// `None` has no physical unit, and a file that does not describe its scene or states a scale
+/// that is not a positive number is read as one metre.
+fn metres_per_unit(file: &BlendFile<'_>) -> f64 {
+    let units = file
+        .of(*b"GLOB")
+        .next()
+        .and_then(|block| file.view(block))
+        .and_then(|global| global.follow("curscene")?.inner("unit"));
+    units
+        .filter(|units| units.int("system", 1) != UNIT_SYSTEM_NONE)
+        .map(|units| f64::from(units.float("scale_length", 1.0)))
+        .filter(|scale| scale.is_finite() && *scale > 0.0)
+        .unwrap_or(1.0)
 }
 
 fn name_of(path: impl AsRef<Path>) -> String {

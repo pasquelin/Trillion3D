@@ -4,6 +4,7 @@ import { shaderFunctions } from '../texture/shaderRule.fixture.ts'
 import { TILE_POOL_WGSL } from './wgsl.ts'
 import { atlasLodWgsl } from '../texture/samplingFootprint.ts'
 import { TILE_REQUEST_WGSL } from './requestWgsl.ts'
+import { tileKindWgsl } from './kindWgsl.ts'
 import { upscaleMipBias } from '../../post/taa/jitter.ts'
 import { type WgslSource, wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
@@ -40,4 +41,13 @@ test('every texture level, read or asked, adds the frame offset: zero at native 
   assert.match(request, /lod=slotLod\(s,ddx,ddy\)/)
   // The camera passes read the offset from their uniform.
   assert.match(body(TILE_POOL_WGSL, 'atlasLod'), /\+uni\.mipBias;\}/)
+})
+
+// A texture the oversubscribed pool takes levels from adds its own offset, from its page-table
+// header, to the level of every read and every request: both go through the one slot header.
+test('the residency bias of the texture header raises the level of the read and of the request', () => {
+  assert.match(body(TILE_POOL_WGSL, 'slotLod'), /atlasLod\([^)]*\)\+s\.bias,0\.0,/)
+  assert.match(body(TILE_POOL_WGSL, 'tileRead'), /atlasLod\(px,py\)\+s\.bias;/)
+  const slot = wgslSource(tileKindWgsl('color', TILE_POOL_WGSL))
+  assert.match(slot, /f32\(\(first>>8u\)&0xffu\)\/16\.0\);/)
 })

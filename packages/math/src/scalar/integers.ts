@@ -43,13 +43,16 @@ export function nextPow2(v: number) {
  *  of two, two slots at least. */
 export const halfLoadSlots = (entries: number) => nextPow2(2 * Math.max(1, entries))
 
+/** The greatest power of two not over `n`, one at least; `n` is floored. */
+export const floorPow2 = (n: number) => 2 ** floorLog2(Math.max(1, Math.floor(n)))
+
 /** The most slots of `slotBytes` bytes each that `bytes` holds, a power of two: 0 when it holds
  *  none, `Infinity` for unbounded bytes. Exact up to 2^64 slots. */
 export function slotsWithin(bytes: number, slotBytes: number) {
   const fit = Math.floor(bytes / slotBytes)
   if (!(fit >= 1)) return 0
   if (fit === Infinity) return Infinity
-  return fit < 2 ** 32 ? 2 ** floorLog2(fit) : 2 ** (32 + floorLog2(Math.floor(fit / 2 ** 32)))
+  return fit < 2 ** 32 ? floorPow2(fit) : 2 ** (32 + floorLog2(Math.floor(fit / 2 ** 32)))
 }
 
 /** Side of mip level `level` of a texture whose base side is `size`, a non-negative int32: `size`

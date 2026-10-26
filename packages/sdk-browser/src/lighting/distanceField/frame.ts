@@ -4,9 +4,14 @@ import { resolveSettingsInto } from '../../../../sdk-core/src/contracts/settingR
 import { DISTANCE_FIELD_UNITS_PER_METRE } from '../../../../sdk-core/src/contracts/distanceFieldAbi.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import { occlusionDistances } from '../../../../sdk-core/src/lighting/globalDistanceField.ts'
+import {
+  occlusionDistances,
+  sizeForTraces,
+} from '../../../../sdk-core/src/lighting/globalDistanceField.ts'
 import type { SkyLightPart } from '../../../../sdk-core/src/modules/sky/skyLight.ts'
+import { createReflectionSettingsReader } from '../reflections/settings.ts'
 import { createSkyOcclusionState, releaseSkyOcclusion, type SkyOcclusionState } from './ao/state.ts'
+import { createSunShadowState, releaseSunShadow, type SunShadowState } from './shadow/state.ts'
 import {
   createDistanceFieldScene,
   DEFAULT_OCCLUSION_DISTANCE,
@@ -29,12 +34,16 @@ import {
 export interface DistanceFieldFrameState {
   readonly scene: DistanceFieldScene
   readonly settings: GlobalDistanceFieldSettings
+  /** The reflections' settings of the context, which say whether rays are marched through the field. */
+  readonly reflections: ReturnType<typeof createReflectionSettingsReader>
   /** The clock of the last image, milliseconds. */
   time: number
   /** The sky light the frame held at this image's update, none where it has none. */
   skyLight: SkyLightPart | undefined
   /** The sky light's distance-field occlusion (`encodeSkyOcclusion`). */
   readonly occlusion: SkyOcclusionState
+  /** The sun's distance-field shadow (`encodeSunFieldShadow`). */
+  readonly sunShadow: SunShadowState
 }
 
 const origin: [number, number, number] = [0, 0, 0]
@@ -46,9 +55,11 @@ function stateOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return (rt.distanceFields ??= {
     scene: createDistanceFieldScene(device, fields),
     settings: {} as GlobalDistanceFieldSettings,
+    reflections: createReflectionSettingsReader(),
     time: performance.now(),
     skyLight: undefined,
     occlusion: createSkyOcclusionState(),
+    sunShadow: createSunShadowState(),
   })
 }
 
@@ -67,6 +78,13 @@ export function encodeDistanceFields(
   const delta = Math.max(0, (now - state.time) / 1000)
   state.time = now
   resolveSettingsInto(GLOBAL_DISTANCE_FIELD_RULES, rt.context, state.settings)
+  // Rays marched through the field (the reflections' scene stage, and the passes that read the surface cache: the
+  // cache's own lighting, the probes' traces) ask it the sizes of a march, and its pages flagged; a pass that reads
+  // the surface cache asks for the object grid beside it (`demandSurfaceCache`, set by the last image, reset by the
+  // cache's own encode that follows this one).
+  const demanded = !!rt.surfaceCache?.demanded
+  const traced = state.reflections(rt.context).marchesField || demanded
+  if (traced) sizeForTraces(state.settings)
   state.skyLight = part
   state.scene.occlusionDistance = occlusionDistances(
     state.settings,
@@ -79,11 +97,14 @@ export function encodeDistanceFields(
     encoder,
     {
       roots: rt.layout.selectionRoots,
+      world: rt.run.gpuSelection?.world,
       moving: (rank) => rt.lights.mobility.moves(rank),
       epoch: 0,
       origin,
       frame: rt.run.frame,
       delta,
+      traced,
+      grid: demanded,
     },
     state.settings,
   )
@@ -96,7 +117,10 @@ export function distanceFieldsSubmitted(rt: Pick<WebgpuPagesRuntime, 'distanceFi
 
 /** Frees the distance fields of `rt`. */
 export function disposeDistanceFields(rt: Pick<WebgpuPagesRuntime, 'distanceFields'>) {
-  if (rt.distanceFields) releaseSkyOcclusion(rt.distanceFields.occlusion)
+  if (rt.distanceFields) {
+    releaseSkyOcclusion(rt.distanceFields.occlusion)
+    releaseSunShadow(rt.distanceFields.sunShadow)
+  }
   rt.distanceFields?.scene.dispose()
   rt.distanceFields = undefined
 }

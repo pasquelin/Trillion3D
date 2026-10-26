@@ -2,8 +2,8 @@
  * 4×4 matrices of the math kernel: free functions on column-major arrays (`m[column ·
  * 4 + row]`), output passed in, no allocation. Product and inverse follow term
  * by term the closed-form formulas (cofactor expansion for the inverse), in a fixed floating-point
- * operation order: the same inputs always yield the same bits. `bench/perf/browser/core-math.perf.ts`
- * proves it, and quantifies the gap where a formula in this repo differs from the closed form.
+ * operation order: the same inputs always yield the same bits, which the Rust twins' reference
+ * cases check.
  */
 
 /** What an output accepts: `Float32Array`, `Float64Array` or a plain array. */
@@ -104,35 +104,75 @@ export function determinantMatrix4(m: ArrayLike<number>) {
     n42 = m[7],
     n43 = m[11],
     n44 = m[15]
+  // Each product of two entries met twice below is formed once, the same two operands: every sum
+  // keeps its terms and order. The products met once, one of them of a negated entry (`-n13 * n22`), stay as written.
+  const n14n23 = n14 * n23,
+    n13n24 = n13 * n24,
+    n14n22 = n14 * n22,
+    n12n24 = n12 * n24,
+    n12n23 = n12 * n23,
+    n11n23 = n11 * n23,
+    n11n24 = n11 * n24,
+    n14n21 = n14 * n21,
+    n13n21 = n13 * n21,
+    n11n22 = n11 * n22,
+    n12n21 = n12 * n21
   return (
     n41 *
-      (+n14 * n23 * n32 -
-        n13 * n24 * n32 -
-        n14 * n22 * n33 +
-        n12 * n24 * n33 +
+      (+n14n23 * n32 -
+        n13n24 * n32 -
+        n14n22 * n33 +
+        n12n24 * n33 +
         n13 * n22 * n34 -
-        n12 * n23 * n34) +
+        n12n23 * n34) +
     n42 *
-      (+n11 * n23 * n34 -
-        n11 * n24 * n33 +
-        n14 * n21 * n33 -
-        n13 * n21 * n34 +
-        n13 * n24 * n31 -
-        n14 * n23 * n31) +
+      (+n11n23 * n34 - n11n24 * n33 + n14n21 * n33 - n13n21 * n34 + n13n24 * n31 - n14n23 * n31) +
     n43 *
-      (+n11 * n24 * n32 -
-        n11 * n22 * n34 -
-        n14 * n21 * n32 +
-        n12 * n21 * n34 +
-        n14 * n22 * n31 -
-        n12 * n24 * n31) +
+      (+n11n24 * n32 - n11n22 * n34 - n14n21 * n32 + n12n21 * n34 + n14n22 * n31 - n12n24 * n31) +
     n44 *
-      (-n13 * n22 * n31 -
-        n11 * n23 * n32 +
-        n11 * n22 * n33 +
-        n13 * n21 * n32 -
-        n12 * n21 * n33 +
-        n12 * n23 * n31)
+      (-n13 * n22 * n31 - n11n23 * n32 + n11n22 * n33 + n13n21 * n32 - n12n21 * n33 + n12n23 * n31)
+  )
+}
+
+/** Bound under which every product of three entries, and a sum of six, stays finite. */
+const AFFINE_TERM_BOUND = 1e100
+/** The twelve upper entries of a column-major 4×4: the ones an affine matrix's determinant reads. */
+const UPPER_ENTRIES = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14] as const
+
+/** Whether the last row of the column-major 4×4 `m` is `0, 0, 0, 1`: an affine matrix, whose
+ *  projective row leaves `w` at 1 for every finite point. */
+export const isAffineMatrix4 = (m: ArrayLike<number>) =>
+  m[3] === 0 && m[7] === 0 && m[11] === 0 && m[15] === 1
+
+/**
+ * `determinantMatrix4(m) < 0`, the same answer on every input. On an affine matrix whose twelve
+ * upper entries lie within `AFFINE_TERM_BOUND` (NaN and ±Infinity fail it), the expansion along the
+ * last row is three finite `0 · cofactor` terms, signed zeros, plus `1 · C44`: only the zero's sign
+ * can differ, never `< 0`. C44 is that expansion's own term, the same products in the same order
+ * (the last six of `determinantMatrix4`). Any other matrix takes the full determinant, where an
+ * infinite or NaN cofactor makes it NaN.
+ */
+export function determinantIsNegative(m: ArrayLike<number>) {
+  if (!isAffineMatrix4(m)) return determinantMatrix4(m) < 0
+  for (let k = 0; k < UPPER_ENTRIES.length; k++)
+    if (!(Math.abs(m[UPPER_ENTRIES[k]]) <= AFFINE_TERM_BOUND)) return determinantMatrix4(m) < 0
+  const n11 = m[0],
+    n21 = m[1],
+    n31 = m[2],
+    n12 = m[4],
+    n22 = m[5],
+    n32 = m[6],
+    n13 = m[8],
+    n23 = m[9],
+    n33 = m[10]
+  return (
+    -n13 * n22 * n31 -
+      n11 * n23 * n32 +
+      n11 * n22 * n33 +
+      n13 * n21 * n32 -
+      n12 * n21 * n33 +
+      n12 * n23 * n31 <
+    0
   )
 }
 
@@ -144,11 +184,26 @@ export function determinantMatrix4(m: ArrayLike<number>) {
  * matrix, where neither rounding decides. The bench quantifies both.
  */
 export function linearPartDeterminant(m: ArrayLike<number>) {
-  return (
-    m[0] * (m[5] * m[10] - m[6] * m[9]) -
-    m[1] * (m[4] * m[10] - m[6] * m[8]) +
-    m[2] * (m[4] * m[9] - m[5] * m[8])
-  )
+  return linearPartDeterminantOf(m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10])
+}
+
+/**
+ * `linearPartDeterminant` on the nine terms given as numbers, column by column — `a, b, c` the
+ * first column, `d, e, f` the second, `g, h, i` the third —: the one home of its terms and order,
+ * for the callers that hold the block in locals.
+ */
+export function linearPartDeterminantOf(
+  a: number,
+  b: number,
+  c: number,
+  d: number,
+  e: number,
+  f: number,
+  g: number,
+  h: number,
+  i: number,
+) {
+  return a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
 }
 
 /** Column-major identity, read and never written: the pose of a node or a root with no pose. */

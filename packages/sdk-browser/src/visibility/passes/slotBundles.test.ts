@@ -5,14 +5,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { replayBundles } from '../../../../../tests/kit/fakeDevice/fakeBundles.ts'
-import { BASE_SLOTS, BIN_KIND, CULL_BINS } from '../draw/contract.ts'
+import { BASE_SLOTS, BIN_KIND, CULL_BINS } from '../bins/contract.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { createWebgpuVisState } from '../../frame/backend/state/vis.ts'
 import { drawVis } from './drawVis.ts'
-import { createDrawItemWordsHold } from './itemWords.ts'
-import { VIS_DEPTH } from './pipelines.ts'
+import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 
-/** The slots a half walks while no voxel row is held: its opaque and cutout bins. */
+/** The slots a half walks while no voxel cluster is held: its opaque and cutout bins. */
 const DRAWN = BIN_KIND.VOXEL * CULL_BINS
 
 /** A runtime of one layer whose slots all have their pipeline and group, under a pyramid. */
@@ -24,15 +23,11 @@ function slots() {
     visPipelineFront: pipeline('front'),
     visBindGroupLayout: {} as GPUBindGroupLayout,
     zeroRows: {} as GPUBuffer,
-    gpuDraw: { indirectBuffer: {} },
-    gpuRaster: { hardwareGroup: {} },
+    gpuBins: { indirectBuffer: {} },
+    gpuRaster: { hardwareGroup: {}, wide: true },
   })
   vis.visSlotGroups.fill({} as GPUBindGroup, 0, BASE_SLOTS)
-  const rt = {
-    vis,
-    run: { gpuDrawCalls: 0 },
-    layout: { itemWordsHold: createDrawItemWordsHold(1) },
-  } as unknown as WebgpuPagesRuntime
+  const rt = { vis, run: { gpuDrawCalls: 0 } } as unknown as WebgpuPagesRuntime
   const offsets: number[] = []
   const pass = {
     setPipeline() {},
@@ -40,7 +35,7 @@ function slots() {
     drawIndirect: (_: GPUBuffer, offset: number) => void offsets.push(offset),
     executeBundles: (list: GPURenderBundle[]): void => replayBundles(pass, list),
   } as unknown as GPURenderPassEncoder
-  const draw = (rest: boolean) => drawVis(rt, device, pass, rest, false)
+  const draw = (rest: boolean) => drawVis(rt, device, pass, rest)
   return { rt, vis, bundles, offsets, draw }
 }
 
@@ -55,7 +50,7 @@ test('an image over the same slots replays the bundle its first image recorded',
   const [{ descriptor }] = bundles
   assert.deepEqual(
     [[...descriptor.colorFormats], descriptor.depthStencilFormat, descriptor.depthReadOnly],
-    [[], VIS_DEPTH.format, true],
+    [[], DEPTH_FORMAT, true],
     'recorded for the read-only depth the pass attaches alone',
   )
 })

@@ -13,16 +13,14 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
  *  its pass; `rows`: the rows of a flat dispatch past one row (`../../gpu/dispatch/grid.ts`). */
 type Dispatch = { kernel: string; groups: number | 'indirect'; list?: number; rows?: number }
 
-export const LIVE = 1234,
+export const VISIBLE = 1234,
   CAND = 3000,
-  DRAWN = 4000,
   /** Descent queue `q`'s record: `QUEUE + q`. */
   QUEUE = 5000
 /** The list each argument record of `dispatchArgs` holds once armed (`DAG_ARGS`). */
 const LIST_OF_RECORD = new Map<number, number>([
-  [DAG_ARGS.drawn, DRAWN],
   [DAG_ARGS.cand, CAND],
-  [DAG_ARGS.live, LIVE],
+  [DAG_ARGS.visible, VISIBLE],
   ...DAG_ARGS.queues.map((record, q): [number, number] => [record, QUEUE + q]),
 ])
 /** Nodes of each stage as the layout counts them: the levels the descent runs. */
@@ -93,12 +91,9 @@ export function cutResources(levelCount = 3, pageCount = 4096) {
     armGroup: { nom: 'armGroup' },
     levelPipelines: [step('dagLevel0'), step('dagLevel1'), step('dagLevel2')],
     preparePipeline: step('dagPrepare'),
-    clearDrawnPipeline: step('dagClearDrawn'),
     wantedPipeline: step('dagWanted'),
-    maskPipeline: step('dagMask'),
-    drawPrefixPipeline: step('dagDrawPrefix'),
-    drawScatterPipeline: step('dagDrawScatter'),
-    commitPipeline: step('dagCommitMask'),
+    finishPipeline: step('dagFinish'),
+    drawnPipeline: step('dagDrawn'),
     // The blank pyramid's group, a group the witness does not count as the arming one.
     occlusion: { group: () => ({}) },
   } as unknown as Parameters<typeof encodeDagKernels>[1]

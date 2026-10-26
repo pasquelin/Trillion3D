@@ -14,7 +14,7 @@ export const DAG_VIEW_FILTER_WGSL = wgslBlock(
   [],
   `/** Whether the view does not draw placement \`w\`: its bit in the filter region of \`work\`. */
 fn filteredOut(w:u32)->bool{
- let base=views[0u].filterBase;
+ let base=cutView.filterBase;
  if(base==0u){return false;}
  return (atomicLoad(&work[base+(w>>5u)])&(1u<<(w&31u)))!=0u;
 }

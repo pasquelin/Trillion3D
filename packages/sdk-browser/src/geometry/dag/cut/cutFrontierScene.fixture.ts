@@ -1,7 +1,6 @@
 /**
  * Frontier-count scene: a pyramid of detail levels, as many poses, and the cut
- * hierarchy packing gives them. No host-library dependency — the world matrix
- * comes from the caller — `tests/integration/engine-without-three.test.ts` forbids it here.
+ * hierarchy packing gives them; the world matrix comes from the caller.
  */
 import { cullingInPlace } from '../culling.fixture.ts'
 import type { DagRoot } from '../types.ts'
@@ -39,9 +38,7 @@ export function scenePages(feuilles: number, levels: number) {
   return pages
 }
 
-/** Scene poses. The world matrix comes from the caller: this module does not know the
- *  witness library, and the closed list in `tests/integration/engine-without-three.test.ts` forbids it.
- *  They carry the hierarchy the one builder gives (`cullingInPlace`): each detail level its own
+/** Scene poses. The world matrix comes from the caller. They carry the hierarchy the one builder gives (`cullingInPlace`): each detail level its own
  *  spatial tree under the root, every page a leaf of its own; `pages` keep their ranks, so the CPU
  *  cut, which reads the same array, reads the same ranks. */
 export function sceneRoots(

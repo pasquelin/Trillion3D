@@ -46,16 +46,7 @@ test('the screen probes default to their ultra level with every pass on, and a l
     ],
     [true, true, true, true, true, true],
   )
-  assert.deepEqual(
-    [
-      values.screenProbeSceneTraces,
-      settings.meshTraces,
-      values.screenProbeMeshTraceDistance,
-      values.screenProbeMeshTraceEndDistance,
-      values.screenProbeMaxTraceDistance,
-    ],
-    [true, false, 1.8, 40, 200],
-  )
+  assert.deepEqual([values.screenProbeSceneTraces, values.screenProbeMaxTraceDistance], [true, 200])
   assert.deepEqual(
     [
       values.screenProbeSurfaceBias,
@@ -63,7 +54,7 @@ test('the screen probes default to their ultra level with every pass on, and a l
       values.screenProbeHistoryDistanceThreshold,
       values.screenProbeRelativeSpeedThreshold,
     ],
-    [0.05, 0, 0.01, 0.005],
+    [0.05, 0.0001, 0.01, 0.005],
   )
   assert.deepEqual(
     [
@@ -108,7 +99,7 @@ test('the screen probes default to their ultra level with every pass on, and a l
   )
 })
 
-test('each level holds its own row of the table, the detail trace is a switch over a level that allows it, and true and false are the default level and off', () => {
+test('each level holds its own row of the table, and true and false are the default level and off', () => {
   for (const level of ['high', 'ultra', 'cinematic'] as const) {
     const row = SCREEN_PROBE_LEVEL_KNOBS[level]
     const at = screenProbeSettings({ screenProbes: level })
@@ -157,17 +148,13 @@ test('each level holds its own row of the table, the detail trace is a switch ov
     ],
     ['off', false],
   )
-  // The presets below the top write the levels the reference's scalability levels run: the lowest lights nothing, its bounce off too.
+  // The presets below the top write the levels the reference's scalability levels run: the lowest lights nothing, its bounce off too;
+  // the cinematic preset writes the level of its name.
   assert.deepEqual(
     Object.values(SCREEN_PROBE_PRESET_LEVELS).map((preset) => preset.screenProbes),
-    ['off', 'low', 'high'],
+    ['off', 'low', 'high', 'cinematic'],
   )
   assert.equal(SCREEN_PROBE_PRESET_LEVELS.smooth.bounce, false)
-  // The detail trace is a switch, off, over a level that allows it: the high level never does.
-  const detail = (screenProbes: 'high' | 'ultra' | 'cinematic') =>
-    screenProbeSettings({ screenProbes, screenProbeMeshTraces: true }).meshTraces
-  assert.deepEqual([detail('high'), detail('ultra'), detail('cinematic')], [false, true, true])
-  assert.equal(screenProbeSettings({ screenProbes: 'cinematic' }).meshTraces, false)
 })
 
 test('the quality scales the rays and the tile, the update speed the history, each as the reference truncates and rounds it', () => {

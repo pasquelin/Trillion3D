@@ -23,14 +23,7 @@ export const vectorRejection = wgslFn(
   'fn vectorRejection(v:vec3f,N:vec3f)->vec3f{return v-N*dot(N,v);}',
 )
 
-/** The sine of an angle in [0, π] from its cosine, 0 where a rounded cosine passes ±1. */
-export const sinFromCos = wgslFn(
-  'sinFromCos',
-  [],
-  'fn sinFromCos(c:f32)->f32{return sqrt(max(0.0,1.0-c*c));}',
-)
-
-/** The same, unfloored: a cosine known in [−1, 1]. */
+/** The sine of an angle in [0, π] from its cosine, a cosine known in [−1, 1]. */
 export const sinFromCosUnclamped = wgslFn(
   'sinFromCosUnclamped',
   [],

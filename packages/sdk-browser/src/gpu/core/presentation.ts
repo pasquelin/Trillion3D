@@ -1,6 +1,7 @@
 import { sharedGpuDevice } from './sessionHandle.ts'
 import { createPresent, type PresentRect } from './presentAt.ts'
 import { canvasImageKept, canvasImageReplaced, closeCanvasImage } from './canvasHandover.ts'
+import { CANVAS_FORMAT } from './canvasFormat.ts'
 
 /** Configures `context` on `device` itself — WebGPU refuses a session's handle, no `GPUDevice` —:
  *  configuring blanks the canvas, so the image of a closed session stays until this one draws. */
@@ -102,7 +103,7 @@ function withdraw(canvas: HTMLCanvasElement, context: GPUCanvasContext) {
 export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement) {
   const context = canvas.getContext('webgpu')
   if (!context) throw new Error('WEBGPU_CANVAS_UNAVAILABLE')
-  const format: GPUTextureFormat = 'bgra8unorm'
+  const format = CANVAS_FORMAT
   const hold = canvasHold(device, canvas, context, format)
   try {
     return presenterOf(device, canvas, context, format, hold)
@@ -151,7 +152,8 @@ function presenterOf(
         if (current === hold.shown) program.at(encoder, current.createView(), image, at, canvas)
         return true
       }
-      program.whole(encoder, hold.targetView(width, height), image)
+      // The canvas holds the image once drawn only: a program not compiled leaves it to the next frame.
+      if (!program.whole(encoder, hold.targetView(width, height), image)) return false
       hold.composed(image, width, height)
       return true
     },

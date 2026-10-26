@@ -22,7 +22,7 @@ pub(super) fn core_ranks(count: usize, drawn: &BTreeMap<usize, &Candidate>) -> V
 
 /// The core's nodes: each node of `table` its `rank` keeps, its children renumbered, and the mesh
 /// off each a cell draws under it at no pose (`Row::Own`): its cell draws that mesh, its node a
-/// frame of the nodes under it.
+/// frame of the nodes under it, saying so (`"meshStreams"`) — its collider streams with that cell.
 pub(super) fn core_nodes(
     table: &[Value],
     rank: &[Option<usize>],
@@ -42,6 +42,7 @@ pub(super) fn core_nodes(
             ));
             if drawn.get(&id).is_some_and(|c| matches!(c.row, Row::Own)) {
                 node["mesh"] = Value::Null;
+                node["meshStreams"] = json!(true);
             }
             node
         })

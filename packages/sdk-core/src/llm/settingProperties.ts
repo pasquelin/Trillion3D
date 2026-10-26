@@ -20,8 +20,10 @@ import { CUT_VIEW_MEANINGS, type CutViewField } from './cutViewMeanings.ts'
 import { CUT_SCALE_MEANINGS, type CutScaleField } from './cutScaleMeanings.ts'
 import { ANIMATION_RULES, type AnimationField } from '../contracts/animationOptions.ts'
 import { SHADING_RULES, type ShadingField } from '../contracts/shadingOptions.ts'
-import { EXPOSURE_RULES, type ExposureField } from '../contracts/exposureOptions.ts'
+import { EXPOSURE_RULES } from '../contracts/exposureOptions.ts'
+import { EXPOSURE_MEANINGS } from './exposureMeanings.ts'
 import { SKY_QUALITY_RULES, type SkyQualityField } from '../modules/sky/quality.ts'
+import { SKY_TRANSLUCENT_MEANINGS, type SkyTranslucentField } from './skyTranslucentMeanings.ts'
 import { TEMPORAL_RULES, type TemporalField } from '../contracts/temporalOptions.ts'
 import { HIZ_RULES, type HizField } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES, type LightFunctionField } from '../contracts/lightFunctionOptions.ts'
@@ -36,8 +38,9 @@ import {
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../contracts/distanceFieldOcclusionOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_MEANINGS } from './distanceFieldOcclusionMeanings.ts'
 import { HIZ_PRIME_MEANINGS, type HizPrimeField } from './hizPrimeMeanings.ts'
-import { SHADOW_RULES, type ShadowField } from '../contracts/shadowOptions.ts'
-import { SHADOW_VIEW_MEANINGS, type ShadowViewField } from './shadowViewMeanings.ts'
+import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
+import { SHADOW_SUN_MEANINGS } from './shadowSunMeanings.ts'
+import { SHADOW_VIEW_MEANINGS } from './shadowViewMeanings.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { MOTION_BLUR_MEANINGS } from './motionBlurMeanings.ts'
 import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
@@ -50,12 +53,24 @@ import { BLOOM_MEANINGS } from './bloomMeanings.ts'
 import { GAUSSIAN_BLUR_MEANINGS } from './gaussianBlurMeanings.ts'
 import { FILM_RULES } from '../contracts/filmOptions.ts'
 import { FILM_MEANINGS } from './filmMeanings.ts'
+import { COLOR_GRADING_RULES } from '../contracts/colorGradingOptions.ts'
+import { COLOR_GRADING_MEANINGS } from './colorGradingMeanings.ts'
+import { SUBSURFACE_SCATTERING_RULES } from '../contracts/subsurfaceScatteringOptions.ts'
+import { SUBSURFACE_SCATTERING_MEANINGS } from './subsurfaceScatteringMeanings.ts'
 import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
 import { VOLUMETRIC_FOG_MEANINGS } from './volumetricFogMeanings.ts'
+import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.ts'
+import { SINGLE_LAYER_WATER_MEANINGS } from './singleLayerWaterMeanings.ts'
+import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
+import { TRANSLUCENCY_VOLUME_MEANINGS } from './translucencyVolumeMeanings.ts'
+import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
+import { TRANSLUCENCY_GI_MEANINGS } from './translucencyGiMeanings.ts'
 import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { SCREEN_PROBE_MEANINGS } from './screenProbeMeanings.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
 import { REFLECTION_MEANINGS } from './reflectionMeanings.ts'
+import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
+import { SURFACE_CACHE_MEANINGS } from './surfaceCacheMeanings.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 import { AMBIENT_OCCLUSION_MEANINGS } from './ambientOcclusionMeanings.ts'
 import { choiceSchema } from './schemaParts.ts'
@@ -75,6 +90,10 @@ const rasterMeanings = (): Readonly<Record<RasterField, string>> => ({
   softwareRaster:
     'Rasterizes in compute the clusters whose longest edge projects under hardwareRasterEdgePixels and that cross neither clip plane; the others go to the hardware rasterizer. false draws every cluster with the hardware rasterizer.',
   hardwareRasterEdgePixels: `Projected edge length in pixels, a finite number above zero, from which a cluster goes to the hardware rasterizer instead of the software one; ${DEFAULT_HARDWARE_RASTER_EDGE_PIXELS} by default. Any other value is refused.`,
+  depthBucketing:
+    "Orders the software rasterizer's cutout clusters nearest first by the view depth of their box, so that a hidden cutout pixel leaves before its texture is read; true by default, and, as in the reference, it orders only where the scene holds voxels. false keeps the clusters unordered.",
+  depthBucketsMinZ: `Depth in metres, a finite number above zero, at which the depth buckets start; ${RASTER_RULES.depthBucketsMinZ.default} by default. Any other value is refused.`,
+  depthBucketsMaxZ: `Depth in metres, a finite number above zero, at which the depth buckets end; ${RASTER_RULES.depthBucketsMaxZ.default} by default. Any other value is refused.`,
 })
 
 /** What each setting of a partitioned scene's streaming and of the HLOD warm-up means
@@ -105,22 +124,6 @@ const WORLD_STREAMING_MEANINGS: Readonly<
     'Whether a grid compiled with blockOnSlowStreaming blocks: once the first image is shown, a cell of it wished and not yet shown near the eye (its ratio under worldStreamingBlockOnSlowStreamingRatio) holds the images back till it shows, only such cells loading meanwhile, no HLOD cell nor warm-up among them. false, no grid blocks.',
   worldStreamingBlockOnSlowStreamingRatio:
     "Ratio under which a cell of a blocking grid not yet shown blocks: on a square grid, its content's distance from the eye less its half side, over the grid's loading range; on a loose grid, the distance to the bounds it streams by over the view's radius for the grid.",
-  worldStreamingUpdateOptimization:
-    'Whether the cells the view wishes are worked out again only once its position or heading moved enough (worldStreamingLocationQuantization, worldStreamingRotationQuantization), at once while a cell wished is still loading or not yet shown or the initial load runs; false, at every frame. Both quantizations at 0 count as false.',
-  worldStreamingLocationQuantization:
-    "Metres: the squares the view's position is cut into on the ground, and in height on a grid that streams in 3D, to tell whether it moved enough for the cells to be wished again; 0, its exact position.",
-  worldStreamingRotationQuantization:
-    "Degrees: the steps the view's yaw is cut into, and its pitch on a grid that streams in 3D, to tell whether it turned enough for the cells to be wished again; 0, its exact angle.",
-  worldStreamingForceUpdateFrameCount:
-    'Frames: every that many frames the cells the view wishes are worked out again whatever the view did (worldStreamingUpdateOptimization); 0, never forced.',
-  worldStreamingForce2D:
-    "Whether a loose grid (partitionScheme hashSet) that streams in 3D wishes its cells by their footprint on the ground, the view's height ignored, as a flat grid does; no effect on a flat or a square grid.",
-  worldStreamingExtraRadius:
-    "Metres added to the radius of the view's streaming circle (a sphere on a grid that streams in 3D).",
-  worldStreamingExtraAngle:
-    "Degrees added to the angle of the view's sector (worldStreamingSector), a whole turn at most.",
-  worldStreamingTargetState:
-    'What the view asks of the cells it reaches: activated, to load and draw them; loaded, to load them and keep them placed in memory without activating them: no cell file, HLOD 0 actor nor HLOD actor a cell holds draws, and none holds the images back. The actors always loaded — held by no cell — stay activated and drawn. Cells of a scene whose cut packs no world DAG have nothing to hide and stay drawn.',
   hlodEnabled:
     "Whether the HLOD actors load and draw; false, no HLOD cell is held, none draws its actor, and the main grid's cells draw alone.",
   hlodWarmup:
@@ -144,9 +147,9 @@ const CUT_MEANINGS: Readonly<Record<Exclude<CutField, CutViewField | CutScaleFie
   cutMinLodCulling:
     'Whether the cut culls a leaf too coarse for the threshold, its least own error showing even at its nearest; false, such a leaf is kept and streams its pages.',
   cutDrawDistanceCulling:
-    "Whether the cut culls an object that names a draw distance (drawDistance, in the compile job's object settings) when its centre lies nearer than the distance's min or farther than its max from the eye, and a group of 64 placements when none of its objects can be drawn at its distance; false, every object is drawn at every distance.",
+    "Whether the cut culls an instance of an instanced mesh (drawDistance with perInstance, in the compile job's object settings) when its bounds' centre lies nearer than the distance's min or farther than its max from the eye, and a group of 64 placements when none of its objects can be drawn at its distance; false, every instance is drawn at every distance. An object of its own is always culled by the sphere of its bounds (cutDistanceCullToSphereEdge): this switch does not reach it.",
   cutViewDistanceScale:
-    "Scale every object's draw distance, min and max, is multiplied by: 2 doubles the distances, 0 culls every object that names one; objects that name none are not affected. The quality presets write it: 0.4 at smooth, 0.6 at balanced, 0.8 at fine, 1 (nothing written) at max.",
+    "Scale every object's draw distance, min and max, is multiplied by: 2 doubles the distances, 0 culls every object that names one; objects that name none are not affected. The quality presets write it: 0.4 at smooth, 0.6 at balanced, 0.8 at fine, 1 (nothing written) at max, 10 at cinematic.",
   cutLodBiasFollowsUpscale:
     "Whether an image the temporal pass reconstructs to a wider display is cut at the display's level of detail: its threshold divided by the width ratio; false, at the size it is drawn at.",
   cutLodBiasOffset:
@@ -172,15 +175,85 @@ const ANIMATION_MEANINGS: Readonly<Record<AnimationField, string>> = {
 }
 
 /** What each setting of the material shading means (`../contracts/shadingOptions.ts`). */
-const SHADING_MEANINGS: Readonly<Record<ShadingField, string>> = {
+const SHADING_MEANINGS: Readonly<Record<ShadingField, string>> = /* @__PURE__ */ (() => ({
   shadeBinningMode:
     "How the material pass bins each material's pixels before shading them: 'auto' as the material's shading asks (by pixel for every material of the engine, whose gradients are its triangles' own), 'pixel' every pixel alone, 'quad' every pixel with its 2 × 2 quad. The image is the same in each mode; only the shading's cost moves.",
-}
+  clearCoatNormal:
+    "Whether the clear coat shading model keeps a base normal beside the coat's: true, a graph that wires the clearCoatBottomNormal output (a float3 in tangent space, like normal) gives the base this normal and the normal output is the coat's, the difference between the two kept in 8 bits as the reference's surface buffer keeps it, and the coat's highlight moves its half vector without the Newton step; false (the default), the coat and its base share the one normal.",
+  gpuTimingDetail:
+    "Whether the GPU timing goes inside the material pass: true, a frame sampled for the timing encodes the shading bins and each material class's shading as passes of their own ('Trillion3D material bins', 'Trillion3D material shading <class key>'), each with its own duration in the pass profile; false (the default), one pass for all, as cheap as can be. The image is the same either way.",
+  gpuShadeStage:
+    "Diagnostic: the stage at which each material class's shading stops, to time the stages by difference with gpuTimingDetail: 0 (the default) the whole kernel; 1 after finding the binned pixel; 2 after the triangle's header and index decode; 3 after the vertex fetch and transform; 4 after the interpolation and the derivatives; 5 after the material record and the surface. A stage under 5 writes no surface (a stage 5 none either), the image is not the scene's; compiles each class again when it changes.",
+  normalCurvatureScale:
+    'Scale of the roughness a material with normalCurvatureToRoughness takes from the change of its vertex normal across a pixel; any number, held to [0, 2] where it is read; 1 by default.',
+  normalCurvatureBias:
+    'Bias added to the roughness a material with normalCurvatureToRoughness takes from the change of its vertex normal across a pixel; any number, held to [-1, 1] where it is read; 0 by default.',
+  normalCurvatureExponent:
+    'Exponent on the change of the vertex normal across a pixel (the larger of the squared changes right and down) a material with normalCurvatureToRoughness takes its roughness from; any number, held to [0.05, 20] where it is read; 0.333 by default.',
+  irisNormal:
+    "Whether the eye shading model lights its iris by an iris normal of its own: true, the graph's clearCoatBottomNormal output (the surface's normal where it is not wired) is the iris normal, the caustic normal is the tangent output bent toward the opposite of the normal by the iris mask times its distance, and the eye's specular is held at 0.25; false (the default), the tangent output is the iris direction, in the world's axes, and the clearCoat and clearCoatRoughness outputs are the iris mask and distance.",
+}))()
 
 /** What each setting of the temporal pass means (`../contracts/temporalOptions.ts`). */
 const TEMPORAL_MEANINGS: Readonly<Record<TemporalField, string>> = {
+  temporalResurrection:
+    "Whether the temporal anti-aliasing keeps older frames to bring a pixel's detail back after a disocclusion: 'level' (the default) as the level of temporalAntialiasing says (medium and above), 'on' or 'off' whatever the level. 'on' costs the bytes of the frames temporalResurrectionFrames sets.",
+  temporalReprojectionField:
+    "Whether the temporal anti-aliasing reprojects its history by a field — a vector, its jacobian and a boundary — rather than by the dilated vector alone, so a fast geometric edge is not extruded: 'level' (the default) as the level of temporalAntialiasing says (high and above), 'on' or 'off' whatever the level.",
+  temporalShadingRejectionFlickering:
+    "Whether the temporal anti-aliasing widens its shading rejection by the flicker measure, so a texel that oscillates is let ghost to steady the image: 'level' (the default) as the level of temporalAntialiasing says (high and above), 'on' or 'off' whatever the level. 'on' runs the measure temporalFlickeringPeriod sets, unless that is 0.",
   temporalThinGeometry:
     "Whether the temporal anti-aliasing looks for geometry thinner than a pixel — a wire, a rail — and relaxes its history there, so it flickers less; off by default, the finding costing every image some work. Applies at any level of temporalAntialiasing but 'off'.",
+  temporalResurrectionFrames:
+    "How many older frames the temporal anti-aliasing keeps for good, beside the last two, to bring a pixel's detail back after a disocclusion (rounded up to an even count, 2 by default); each costs the bytes of a history. Applies where the pass resurrects (temporalResurrection).",
+  temporalResurrectionInterval:
+    'How many images pass between two frames the temporal anti-aliasing stores for good for its resurrection (made odd, 31 by default). Applies where the pass resurrects (temporalResurrection).',
+  temporalReprojectionFieldSpeed:
+    "The speed, in display pixels an image, from which the temporal anti-aliasing's reprojection field anti-aliases its dilation by the depth, so a fast geometric edge is not extruded (0.125 by default). Applies where the pass reprojects by a field (temporalReprojectionField).",
+  temporalWaveOps:
+    "Whether the temporal anti-aliasing's programs that gather over a tile (the half-size image of its update) run through the lanes of a subgroup instead of workgroup memory, where the device grants subgroups and runs them at 16, 32 or 64 lanes (true by default); the image is the same either way.",
+  temporalWaveSize:
+    "The lanes a subgroup holds in the temporal anti-aliasing's wave programs: 16, 32 or 64 where the device runs that size, 0 (the default) the device's smallest size from 16. Applies where temporalWaveOps is true.",
+  temporalHalfPrecision:
+    "Whether the temporal anti-aliasing's programs that have a 16-bit float variant (its spatial anti-aliaser) compute in it, where the device grants 16-bit shader floats (true by default); false, or a device without them, computes in 32 bits. The image differs by a hundredth of a texel at most.",
+  temporalHistoryPacked:
+    "Whether the temporal anti-aliasing's history keeps its colour in the 11-11-10 format where the device stores to it, four bytes a pixel (true by default); false keeps half floats, eight bytes a pixel, a finer blue and shadows: the cinematic preset's value. Read when the pass is made, and made again when it changes.",
+  temporalHistorySampleCount:
+    "The most samples a display pixel's history holds in the temporal anti-aliasing, 8 to 32 (16 by default): higher is steadier on highlights of a still image but ghosts more on fireflies. A history at twice the display's size holds a quarter of it a history pixel.",
+  temporalShadingRejectionSampleCount:
+    "The most samples a display pixel's history keeps after a total shading rejection (2 by default): lower is clearer after a rejection but less steady while the pixel accumulates its new details.",
+  temporalVelocityWeightClampingSampleCount:
+    'The samples a history pixel keeps once its pixel moves at temporalVelocityWeightClampingPixelSpeed (4 by default): higher is steadier on a movement at the cost of blur from each resampling of the history.',
+  temporalVelocityWeightClampingPixelSpeed:
+    'The speed, in half display pixels an image (the motion vector spans two per image), at which temporalVelocityWeightClampingSampleCount holds (1 by default); a slower pixel is clamped less, in proportion.',
+  temporalFlickeringPeriod:
+    'The period, in images, at which a luma oscillation, or a faster one, is taken for a flicker the temporal anti-aliasing lets ghost to steady the image (2 by default); 0 runs no flicker measure. Applies where the shading rejection widens by it (temporalShadingRejectionFlickering).',
+  temporalFlickeringAdjustToFrameRate:
+    'Whether temporalFlickeringPeriod shortens in proportion where the frame rate falls below temporalFlickeringFrameRateCap, so an effect animated in time is not taken for a flicker at a low frame rate (true by default).',
+  temporalFlickeringFrameRateCap:
+    'The frame rate, in hertz, below which temporalFlickeringPeriod is adjusted to the frame rate (60 by default).',
+  temporalFlickeringMaxParallaxVelocity:
+    'The parallax speed, in pixels of a 1080p image at temporalFlickeringFrameRateCap, past which a texel is taken for moving, not flickering, as the window interiors a material fakes by parallax (10 by default).',
+  temporalShadingExposureOffset:
+    "Stops added to the exposure the temporal anti-aliasing's shading rejection measures the colours at, -20 to 20 (0 by default): higher lifts the shadows, so the rejection sees subtler changes there and fewer in the highlights.",
+  temporalThinGeometryErrorMultiplier:
+    'The depth step, in pixel depth errors taken at a twentieth of this number (200 by default, ten errors), past which a texel stands out as a thin line for the thin geometry detection; lower finds thinner steps. Applies where temporalThinGeometry is true.',
+  temporalThinGeometryMinKeepLineContrast:
+    'The luma contrast, 0 to 1 (0.3 by default), past which a texel stands out as a thin line of light for the thin geometry detection. Applies where temporalThinGeometry is true.',
+  temporalThinGeometryLineFadeRate:
+    'How often a high contrast line the thin geometry detection does not see again fades, outside a cluster hole region, 0 never to 1 at once (0.1 by default). Applies where temporalThinGeometry is true.',
+  temporalThinGeometryLineFadeRateInsideRegion:
+    'How often a high contrast line the thin geometry detection does not see again fades inside a cluster hole region, 0 never to 1 at once (0.03 by default). Applies where temporalThinGeometry is true.',
+  temporalThinGeometryLineWeight:
+    'The weight by which the thin geometry detection relaxes the history near a high contrast line where no cluster relaxes it, 0 to 1 (0.6 by default). Applies where temporalThinGeometry is true.',
+  temporalThinGeometryMaxRelaxationWeight:
+    'The greatest weight, 0 to 1 (0.037 by default), by which the thin geometry detection relaxes the history on a cluster hole region, before a 3×3 average spreads it to the neighbouring texels; higher relaxes the history clamp more on thin geometry. Applies where temporalThinGeometry is true.',
+  temporalThinGeometryRejectTranslucency:
+    'The share of the luma of a texel that the translucent layers make, 0 to 1 (0.6 by default), past which the thin geometry detection rejects its thin geometry in the next image; 0 never. Applies where temporalThinGeometry is true.',
+  temporalThinGeometryShadingRange:
+    "The shading models the thin geometry detection counts as thin geometry: 'foliage' the two-sided foliage alone, 'foliageAndHair' it and the hair, 'all' every lit surface, 'varying' (the default) every lit surface, the foliage relaxed with the dilation and the other surfaces by their edge alone. 'varying' needs the flicker measure running (temporalShadingRejectionFlickering on and temporalFlickeringPeriod above 0) or temporalThinGeometryMinKeepLineContrast above 0, else it counts the foliage alone. Applies where temporalThinGeometry is true.",
+  temporalDownsampleQuality:
+    "How the half-size image the exposure and the bloom read is made: 'low' (the default) has the temporal anti-aliasing and the motion blur write it beside their own image, one filtered sample of the four pixels a texel covers, and the chain's own pass only where neither draws; 'high' has the chain's own pass draw it from the image, four filtered samples of the 4 × 4 pixels around a texel, which keeps a bright pixel steadier as it moves, at the cost of that pass.",
 }
 
 /** What each setting of the depth pyramid means (`../contracts/hizOptions.ts`). */
@@ -190,79 +263,110 @@ const HIZ_MEANINGS: Readonly<Record<Exclude<HizField, HizPrimeField>, string>> =
   hizFoldTransparents:
     "Whether the trace layers of the pyramid hold, beside the opaque depth, the nearest transparent surface of each pixel, so that a ray stops at glass; off by default, the traces read the opaque depth alone. The cut's occlusion never reads it.",
   hizTransparentTest:
-    "How a transparent cluster is tested against the opaque depth already drawn: 'finer' reads up to sixteen texels a side of a level fine enough to hold its rectangle and rejects the clusters wholly behind it; 'reference' reads four texels a side of the lowest level that holds it. Neither rejects a visible cluster; 'finer' rejects more.",
+    "How a transparent cluster is tested against the opaque depth already drawn: 'finer' reads up to sixteen texels a side of a level fine enough to hold its rectangle (the half-resolution mip at the finest) and rejects the clusters wholly behind it; 'reference' reads four texels a side of the lowest level that holds it. Neither rejects a visible cluster; 'finer' rejects more.",
   hizFullResDepth:
     "Whether the screen probes' 'reference' screen trace goes down to the full-resolution depth, which is more accurate and adds incoherency to the inner loop (true, the default), or stops at the half-resolution level of the pyramid, a texel there taking the closest depth of its 2 × 2 pixels, a little farther at the start of the ray. The reflections' trace always goes down to the full-resolution depth.",
   lightGridHizCull:
     "Whether the light grid leaves empty the cells no pixel can read: those whose nearest face is behind the farthest depth of the opaque image in their 64-pixel column (read from the depth pyramid the image built, with the margin the fog volume reads the lists behind a surface with), and ends every light's run at the cell that holds that depth. true by default; false lists every cell the lights reach.",
+  lightGridMaxCulledLightsPerCell:
+    "The light entries the view's light grid holds for each of its cells (32 by default, from 1 to 1024): the grid's pool is its cells times this. A column of cells that needs more keeps the lights it got, cell by cell and in light order, and drops the rest, which then neither light nor shadow its pixels; the engine says so once on the console, as the count it needed rises. It does nothing to the bounce's world grid.",
 }
 
 /** What the volumetric lightmap's setting means (`../contracts/volumetricLightmapOptions.ts`). */
 const VOLUMETRIC_LIGHTMAP_MEANINGS: Readonly<Record<VolumetricLightmapField, string>> = {
   volumetricLightmap:
     "Whether the precomputed indirect light of the scene (its volumetric lightmap) is read, by the fog's static term and by the lighting of movable objects; true by default. False, every read of it answers black, as a scene without one does. It does nothing where the scene has no lightmap.",
+  volumetricLightmapLoadingRange:
+    "The distance, in metres, around the view within which the cells of the lightmap's finest bricks are loaded and kept; the others are let go (64 by default). It does nothing where the scene's lightmap holds no cells.",
+  volumetricLightmapBrickMemory:
+    "The memory, in megabytes, the loaded finest bricks of the lightmap may take (30 by default); the cells nearest the view win it, and a cell that does not fit is not loaded. It does nothing where the scene's lightmap holds no cells.",
 }
 
+const GDF = GLOBAL_DISTANCE_FIELD_RULES
+
+/** The field, its clipmaps and how they are updated. */
+const FIELD_UPDATE_MEANINGS = /* @__PURE__ */ (() =>
+  ({
+    globalDistanceField:
+      "Whether the global distance field is made from the meshes' distance fields; true by default. It does nothing where no mesh built a field.",
+    globalDistanceFieldUpdate:
+      'Whether the clipmaps are updated; false keeps what they hold. true by default.',
+    globalDistanceFieldClipmaps:
+      'How many clipmaps, 0 to 6; 4 by default. While the reflections march rays through the field (on by default) the field adds one or two to it where globalDistanceFieldTraceViewDistance reaches.',
+    globalDistanceFieldViewDistance:
+      'The view distance of the field in centimetres; the outermost clipmap is this over the exponent squared. 20000 by default. No effect while the reflections march rays through the field (on by default): globalDistanceFieldTraceClipmapExtent sizes the clipmaps then.',
+    globalDistanceFieldClipmapExponent:
+      "The factor between one clipmap's extent and the next, at least 1; 2 by default. No effect while the reflections march rays through the field (on by default): the factor is 2 then.",
+    globalDistanceFieldResolution:
+      'The voxels along a clipmap, rounded up to whole groups of 4 pages of 7; 128 by default. No effect while the reflections march rays through the field (on by default): globalDistanceFieldTraceResolution is the count then.',
+    globalDistanceFieldMipFactor: "The divider of a clipmap's coarse mip, 1 to 8; 4 by default.",
+    globalDistanceFieldOccupancyRatio:
+      'The share of its pages the page atlas expects filled, 0.1 to 1; 0.3 by default.',
+    globalDistanceFieldCacheMostlyStaticSeparately:
+      'Whether the static meshes are composited into a clipmap of their own, so a moving mesh recomposites the movable ones alone; true by default.',
+    globalDistanceFieldPartialUpdates:
+      'Whether a clipmap updates only the pages that moved or changed; true by default.',
+    globalDistanceFieldStaggeredUpdates:
+      'Whether the larger clipmaps update less often; true by default.',
+    globalDistanceFieldUpdatesPerFrame:
+      'How many clipmaps update each frame, at least 1; 2 by default.',
+    globalDistanceFieldForceFullUpdate:
+      'Whether every clipmap is composited whole on every frame; false by default.',
+    globalDistanceFieldForceUpdateOnce:
+      'One whole composition of every clipmap each time this turns on; false by default.',
+    globalDistanceFieldFastCameraMode:
+      'Whether the field follows a fast camera at lower quality: clipmaps centred ahead of the camera, one more clipmap, one updated a frame, larger smallest meshes; false by default.',
+    globalDistanceFieldCameraVelocityDecay:
+      "The share of the camera's velocity offset kept after a second in the fast camera mode; 0.7 by default.",
+    globalDistanceFieldAverageCulledObjectsPerCell:
+      'The objects a cell of the culling grid is expected to hold, 1 to 8192, which sizes its list; 512 by default.',
+    globalDistanceFieldRecacheOnStreaming:
+      'Whether a clipmap composited while a mesh had only its coarsest mip is composited again when the streaming is done; true by default.',
+    globalDistanceFieldForceRecacheOnStreaming:
+      'Whether each such update is always whole; false by default.',
+    globalDistanceFieldStartDistance:
+      "The distance along an occlusion cone from which the global field replaces the meshes' own, in centimetres; 100 by default.",
+    globalDistanceFieldMinMeshRadius:
+      'A mesh whose bounding sphere is smaller (centimetres) is left out of the field, unless the voxel rule below is larger; 20 by default.',
+  }) satisfies Partial<Record<GlobalDistanceFieldField, string>>)()
+
+/** The field's rays and the mesh distance fields' atlas. */
+const FIELD_TRACE_AND_MESH_MEANINGS = /* @__PURE__ */ (() =>
+  ({
+    globalDistanceFieldMinMeshRadiusInVoxels: 'The same in voxels of the clipmap; 0.5 by default.',
+    globalDistanceFieldTraceResolution: `The voxels along a clipmap while the reflections march rays through the field, rounded up to whole groups of 4 pages of 7 (${GDF.globalDistanceFieldTraceResolution.default} by default); the field takes it in place of globalDistanceFieldResolution then.`,
+    globalDistanceFieldTraceClipmapExtent: `The half-extent in centimetres of the first clipmap while rays are marched through the field (${GDF.globalDistanceFieldTraceClipmapExtent.default} by default); each next clipmap is twice the one before, the field taking it and that factor in place of globalDistanceFieldViewDistance and globalDistanceFieldClipmapExponent.`,
+    globalDistanceFieldTraceViewDistance: `The distance in centimetres the scene is kept to while rays are marched through the field (${GDF.globalDistanceFieldTraceViewDistance.default} by default). The field makes one clipmap more than globalDistanceFieldClipmaps when the extent of the next clipmap is within it, two more when the extent of the one after that is; with a first clipmap of 2500 and 4 clipmaps, 40000 gives a fifth and 80000 a sixth.`,
+    globalDistanceFieldCoveredExpandSurfaceScale: `The scale of the half voxel by which a marched ray expands the surface it meets, in the pages the meshes cover, to close surfaces thinner than the gap between two voxels (${GDF.globalDistanceFieldCoveredExpandSurfaceScale.default} by default).`,
+    globalDistanceFieldNotCoveredExpandSurfaceScale: `The same scale in the pages only two-sided meshes reach, foliage and thin cloth (${GDF.globalDistanceFieldNotCoveredExpandSurfaceScale.default} by default).`,
+    globalDistanceFieldSimpleCoverageBasedExpand: `Whether a page only two-sided meshes reach counts as wholly not covered by a marched ray (${GDF.globalDistanceFieldSimpleCoverageBasedExpand.default} by default). False reads the coverage atlas, the coverage of each voxel of the page, so that a wall beside foliage keeps its full expansion; true saves that read.`,
+    globalDistanceFieldNotCoveredMinStepScale: `The scale of the least step of a marched ray in the pages only two-sided meshes reach (${GDF.globalDistanceFieldNotCoveredMinStepScale.default} by default); a larger one costs less.`,
+    globalDistanceFieldDitheredTransparencyStepThreshold: `For a dithered ray: the noise, at each step, under which a surface of the pages only two-sided meshes reach stops it (${GDF.globalDistanceFieldDitheredTransparencyStepThreshold.default} by default).`,
+    globalDistanceFieldDitheredTransparencyTraceThreshold: `For a dithered ray: the noise, along the whole ray, under which such a surface stops it (${GDF.globalDistanceFieldDitheredTransparencyTraceThreshold.default} by default); under 1 it lets some rays through.`,
+    meshDistanceFieldMaxObjectRadius:
+      "A placement whose bounding sphere is larger (centimetres) is left out of the scene's fields; 100000 by default.",
+    meshDistanceFieldSurfaceBiasExpand:
+      "The share of a voxel a mesh's surface is expanded by when a distance is taken; 0.25 by default.",
+    meshDistanceFieldBrickAtlasSize:
+      'The bricks along the first two axes of the brick atlas, a power of two; 128 by default. Read when the atlas is made.',
+    meshDistanceFieldBrickAtlasDepth:
+      'The bricks the atlas grows to along its third axis before it drops the finer mips; 32 by default (256 MiB).',
+    meshDistanceFieldUploadKiB:
+      'The KiB of finer mips uploaded to the atlas each frame; 8192 by default.',
+    meshDistanceFieldBlockBricks:
+      'The bricks an allocation of the atlas holds; 16 by default. Read when the atlas is made.',
+    meshDistanceFieldForceMips:
+      '1 to 3 loads that many mips of every mesh whatever the view; 0, the default, follows the view.',
+    meshDistanceFieldReverseAllocation:
+      "Whether the mips added in a frame take the atlas's space in the reverse order; false by default.",
+  }) satisfies Partial<Record<GlobalDistanceFieldField, string>>)()
+
 /** What each setting of the global distance field means (`../contracts/globalDistanceFieldOptions.ts`). */
-const GLOBAL_DISTANCE_FIELD_MEANINGS: Readonly<Record<GlobalDistanceFieldField, string>> = {
-  globalDistanceField:
-    "Whether the global distance field is made from the meshes' distance fields; true by default. It does nothing where no mesh built a field.",
-  globalDistanceFieldUpdate:
-    'Whether the clipmaps are updated; false keeps what they hold. true by default.',
-  globalDistanceFieldClipmaps: 'How many clipmaps, 0 to 6; 4 by default.',
-  globalDistanceFieldViewDistance:
-    'The view distance of the field in centimetres; the outermost clipmap is this over the exponent squared. 20000 by default.',
-  globalDistanceFieldClipmapExponent:
-    "The factor between one clipmap's extent and the next, at least 1; 2 by default.",
-  globalDistanceFieldResolution:
-    'The voxels along a clipmap, rounded up to whole groups of 4 pages of 7; 128 by default.',
-  globalDistanceFieldMipFactor: "The divider of a clipmap's coarse mip, 1 to 8; 4 by default.",
-  globalDistanceFieldOccupancyRatio:
-    'The share of its pages the page atlas expects filled, 0.1 to 1; 0.3 by default.',
-  globalDistanceFieldCacheMostlyStaticSeparately:
-    'Whether the static meshes are composited into a clipmap of their own, so a moving mesh recomposites the movable ones alone; true by default.',
-  globalDistanceFieldPartialUpdates:
-    'Whether a clipmap updates only the pages that moved or changed; true by default.',
-  globalDistanceFieldStaggeredUpdates:
-    'Whether the larger clipmaps update less often; true by default.',
-  globalDistanceFieldUpdatesPerFrame:
-    'How many clipmaps update each frame, at least 1; 2 by default.',
-  globalDistanceFieldForceFullUpdate:
-    'Whether every clipmap is composited whole on every frame; false by default.',
-  globalDistanceFieldForceUpdateOnce:
-    'One whole composition of every clipmap each time this turns on; false by default.',
-  globalDistanceFieldFastCameraMode:
-    'Whether the field follows a fast camera at lower quality: clipmaps centred ahead of the camera, one more clipmap, one updated a frame, larger smallest meshes; false by default.',
-  globalDistanceFieldCameraVelocityDecay:
-    "The share of the camera's velocity offset kept after a second in the fast camera mode; 0.7 by default.",
-  globalDistanceFieldAverageCulledObjectsPerCell:
-    'The objects a cell of the culling grid is expected to hold, 1 to 8192, which sizes its list; 512 by default.',
-  globalDistanceFieldRecacheOnStreaming:
-    'Whether a clipmap composited while a mesh had only its coarsest mip is composited again when the streaming is done; true by default.',
-  globalDistanceFieldForceRecacheOnStreaming:
-    'Whether each such update is always whole; false by default.',
-  globalDistanceFieldStartDistance:
-    "The distance along an occlusion cone from which the global field replaces the meshes' own, in centimetres; 100 by default.",
-  globalDistanceFieldMinMeshRadius:
-    'A mesh whose bounding sphere is smaller (centimetres) is left out of the field, unless the voxel rule below is larger; 20 by default.',
-  globalDistanceFieldMinMeshRadiusInVoxels: 'The same in voxels of the clipmap; 0.5 by default.',
-  meshDistanceFieldMaxObjectRadius:
-    "A placement whose bounding sphere is larger (centimetres) is left out of the scene's fields; 100000 by default.",
-  meshDistanceFieldSurfaceBiasExpand:
-    "The share of a voxel a mesh's surface is expanded by when a distance is taken; 0.25 by default.",
-  meshDistanceFieldBrickAtlasSize:
-    'The bricks along the first two axes of the brick atlas, a power of two; 128 by default. Read when the atlas is made.',
-  meshDistanceFieldBrickAtlasDepth:
-    'The bricks the atlas grows to along its third axis before it drops the finer mips; 32 by default (256 MiB).',
-  meshDistanceFieldUploadKiB:
-    'The KiB of finer mips uploaded to the atlas each frame; 8192 by default.',
-  meshDistanceFieldBlockBricks:
-    'The bricks an allocation of the atlas holds; 16 by default. Read when the atlas is made.',
-  meshDistanceFieldForceMips:
-    '1 to 3 loads that many mips of every mesh whatever the view; 0, the default, follows the view.',
-  meshDistanceFieldReverseAllocation:
-    "Whether the mips added in a frame take the atlas's space in the reverse order; false by default.",
-}
+const GLOBAL_DISTANCE_FIELD_MEANINGS: Readonly<Record<GlobalDistanceFieldField, string>> =
+  /* @__PURE__ */ (() => ({
+    ...FIELD_UPDATE_MEANINGS,
+    ...FIELD_TRACE_AND_MESH_MEANINGS,
+  }))()
 
 /** What each setting of the light functions means (`../contracts/lightFunctionOptions.ts`). */
 const LIGHT_FUNCTION_MEANINGS: Readonly<Record<LightFunctionField, string>> = {
@@ -277,7 +381,7 @@ const LIGHT_FUNCTION_MEANINGS: Readonly<Record<LightFunctionField, string>> = {
   lightFunctionFormat:
     "What an atlas texel holds: 'grey', the default, the mean of the colour, one channel; 'colour', the three channels.",
   lightFunctionDeferred:
-    'Whether the lighting of the opaque image reads the atlas (diffuse and specular alike); true by default.',
+    "Whether the lighting of the opaque image and the translucency volume's injection read the atlas (diffuse and specular alike); true by default.",
   lightFunctionFog:
     "Whether the volumetric fog's local lights read the atlas; true by default. The fog's sun always reads it.",
   lightFunctionBounce:
@@ -285,83 +389,16 @@ const LIGHT_FUNCTION_MEANINGS: Readonly<Record<LightFunctionField, string>> = {
   lightFunctionTranslucent: 'Whether the translucent layers read the atlas; false by default.',
 }
 
-/** What each setting of the sun's shadows means (`../contracts/shadowOptions.ts`). */
-const SHADOW_MEANINGS: Readonly<Record<Exclude<ShadowField, ShadowViewField>, string>> = {
-  shadowDistanceScale:
-    'Factor from 0 to 2 on the shadow distance of every directional light (its shadowDistance, 400 metres by default): the quality levels write 0.6, 0.7 and 0.85 below the top one. 0 leaves the far-shadow culling nothing to test against: it culls nothing.',
-  farShadowCulling:
-    "Whether a directional light's shadow maps leave out the casters past the edge of its shadow distance, scaled — a little farther than the distance, 427 metres at 400 —: a caster whose depth along the view, less its bounding radius, is past the edge is left out unless its object sets castFarShadow. The far part of the shadows is then not drawn; false draws every caster at any distance.",
-  farShadowCullsAllMeshes:
-    "Whether that test reaches every caster, or, false, the default, only the merged far-field shells of the world's coarser levels of detail: the objects drawn as themselves, at the finest level and as the instanced actors of the first, keep casting at any distance.",
-  shadowNearLevels:
-    "How many near levels a directional light's shadows have, from 0 to 10, never more than the light's own four: they shape the edge of the far-shadow test. 10, the default, is the light's four; the quality levels write 1 at the two coarser ones and 4 below the top. 0 leaves no near level, so no edge: nothing is culled.",
-  shadowOverlapScale:
-    'Factor from 0 to 2 on the tenth of its span the last near level overlaps into the next: it moves the edge of the far-shadow test past the shadow distance, when a far-field shadow follows. The quality levels write 0, 0.25 and 0.8 below the top one.',
-  shadowFarField:
-    'Whether a far-field shadow follows the near levels of a directional light whose scaled shadow distance is under 512 metres: the edge of the far-shadow test then lies past the distance by the overlap of the last near level; false puts the edge at the distance. The quality levels turn it off at the two coarser ones.',
-}
-
-/** What each setting of the exposure means (`../contracts/exposureOptions.ts`); the first twelve
- *  apply where the exposure is 'auto', the default, which measures each image on the GPU, the
- *  pre-exposure's and the local exposure's to a lit view whatever its exposure. */
-const EXPOSURE_MEANINGS: Readonly<Record<ExposureField, string>> = {
-  exposureBias:
-    'Stops added to the target of the automatic exposure: the mean of the image lands at 0.18 times two to the bias, before the display curve.',
-  exposureMinBrightness:
-    'Lowest mean luminance the automatic exposure follows, in EV100 (a stop is a doubling of luminance, EV100 0 a luminance of 1). The same value as exposureMaxBrightness fixes the exposure.',
-  exposureMaxBrightness: 'Highest mean luminance the automatic exposure follows, in EV100.',
-  exposureHistogramLogMin:
-    "Lowest stop of luminance the exposure's histogram spans; read no higher than one stop under exposureHistogramLogMax. A pixel under it counts in the lowest bucket.",
-  exposureHistogramLogMax:
-    "Highest stop of luminance the exposure's histogram spans; a pixel over it counts in the highest bucket.",
-  exposureLowPercent:
-    'Share of the pixels, darkest first, in percent from 1 to 99, left out of the mean; read no higher than exposureHighPercent.',
-  exposureHighPercent:
-    'Share of the pixels, darkest first, in percent from 1 to 99, past which the brightest are left out of the mean.',
-  exposureSpeedUp:
-    'Stops a second the automatic exposure moves when the view brightens; 0 holds it. A camera cut jumps to the target.',
-  exposureSpeedDown:
-    'Stops a second the automatic exposure moves when the view darkens; 0 holds it.',
-  exposureTransitionDistance:
-    'Distance in stops from its target inside which the automatic exposure slows from its linear speed to an exponential approach.',
-  exposureBlackBucketWeight:
-    "How much the darkest bucket of the exposure's histogram, the pixels of no light, counts: 0 ignores them, 1 counts them as any pixel.",
-  exposureLuminanceMethod:
-    "How a pixel's luminance is read for the histogram: 'uniform' the mean of its three channels, 'ntsc' the legacy video weights, 'workingSpace' the weights of the sRGB primaries.",
-  preExposure:
-    'Whether every light is written to the image already multiplied by the exposure of the image before, and the composition divides it back out: the picture is the same, the half floats keep their range at any exposure, and the histories (temporal pass, fog volume, clouds, reflections) are brought to the new number by the ratio of the two. false writes every light as it is.',
-  preExposureOverride:
-    'When above 0, the pre-exposure every light is multiplied by, in place of the exposure of the image before; 0 keeps that exposure. Only read where preExposure is true.',
-  localExposureHighlightContrast:
-    'Scale of the smooth light of the neighbourhood above middle grey, from 0 up: under 1 the highlights come down, 1 leaves them. 1 for both contrasts and for the detail strength turns the local exposure off.',
-  localExposureShadowContrast:
-    'Scale of the smooth light of the neighbourhood under middle grey, from 0 up: under 1 the shadows come up, 1 leaves them.',
-  localExposureDetailStrength:
-    'Scale of what each pixel adds to the light around it, from 0 up: 1 keeps the detail as it is, 0 flattens it.',
-  localExposureBlurBlend:
-    'Share of the base layer taken from a wide blur of the luminance, from 0 to 1; the rest comes from the bilateral grid, which follows edges but rings at them.',
-  localExposureBlurSize:
-    "Width of the luminance blur, in percent of the image, read at 1/32 of the image's size.",
-  localExposureMiddleGreyBias:
-    'Stops added to the middle grey the base layer is pulled toward; an automatic exposure already moves it by exposureBias.',
-  localExposureHighlightThreshold:
-    'Distance in stops above middle grey inside which the base layer keeps its own contrast, from 0 up.',
-  localExposureShadowThreshold:
-    'Distance in stops under middle grey inside which the base layer keeps its own contrast, from 0 up.',
-  localExposureHighlightThresholdStrength:
-    'How sharply the highlight contrast takes over past its threshold, from 0 to 1: 1 the sharpest.',
-  localExposureShadowThresholdStrength:
-    'How sharply the shadow contrast takes over past its threshold, from 0 to 1: 1 the sharpest.',
-}
-
 /** What each quality setting of the sky means (`../modules/sky/quality.ts`). The atmosphere's and
  *  the light shafts' are written by the quality presets; the clouds' and the sky light's capture
  *  stay at their defaults at every preset. */
-const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
+const SKY_QUALITY_MEANINGS: Readonly<
+  Record<Exclude<SkyQualityField, SkyTranslucentField>, string>
+> = {
   skyTableFast:
     'Whether the sky is read from a table of the view directions instead of marched per pixel (its samples between atmosphereSamplesMin and atmosphereSamplesMax, jittered by blue noise): faster, with artefacts where the sky has fine detail such as the earth shadow or a scattering lobe.',
   aerialFastOnOpaque:
-    'Whether the haze on opaque surfaces is read from the low-resolution volume made for translucent ones: faster, with the same artefacts. Off is not drawn differently yet: a surface reads the volume either way.',
+    'Whether the haze on opaque surfaces is read from the low-resolution volume made for translucent ones: faster, with the same artefacts. Off, a pass over the lit image marches the haze of each opaque pixel from the eye to its depth, shaded by the shadow maps and the clouds; translucent surfaces read the volume either way.',
   atmosphereSamplesMin:
     'Fewest samples of the atmosphere march, from 1; the count grows with the distance up to atmosphereSamplesMax.',
   atmosphereSamplesMax:
@@ -393,9 +430,9 @@ const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
   cloudShadowMapHorizonMultiplier:
     'Factor on the samples of the clouds shadow map when the sun reaches the horizon, from 1; 1 leaves them.',
   cloudShadowMapSpatialFiltering:
-    'Blur passes smoothing the clouds shadow map, from 0 (none) to 4.',
+    'Blur passes smoothing the clouds shadow map, read from 0 (none) to 4: a value beyond is read as the nearer end.',
   cloudShadowMapNewFrameWeight:
-    "Share of the current image in the clouds shadow map's temporal blend, from 0 to 1; 1 turns the blend off.",
+    "Share of the current image in the clouds shadow map's temporal blend, read from 0 to 1 (a value beyond is read as the nearer end); 1 turns the blend off.",
   cloudDistantSkyLight: 'Whether the distant sky light lights the clouds.',
   atmosphereOn: 'Whether the atmosphere is drawn at all.',
   cloudsOn: 'Whether the clouds are drawn at all.',
@@ -416,7 +453,7 @@ const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
     "Whether the table of the distant sky light, the fog's sky, is made every image; off, it is black.",
 
   multiScatterHighQuality:
-    'Whether the multiple scattering is built from 64 directions over the sphere and not from two: more exact, dearer.',
+    'Whether the multiple scattering is built from 8 directions over the sphere and not from two: more exact, dearer.',
   distantSkyLightAltitudeKm:
     'Altitude in kilometres at which the sky is sampled to integrate the distant sky light.',
   skyTablesFullPrecision:
@@ -439,7 +476,7 @@ const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
     'Whether the fog is applied where the clouds do not cover as well, a little dearer, which removes a jump where the coverage reaches 0.',
   cloudLocalLights: 'Whether the lamps light the clouds: experimental and dear.',
   cloudLocalLightShadowSamples:
-    'Samples of the shadow of a lamp on the clouds, from 0 to 128; read only with cloudLocalLights.',
+    'Samples of the shadow of a lamp on the clouds, read from 0 to 128 (a value beyond is read as the nearer end); read only with cloudLocalLights.',
   cloudShadowMap:
     'Whether the clouds shadow map of the sun is built, for a sun that casts cloud shadows.',
   cloudShadowMapLightRotationCutDegrees:
@@ -451,16 +488,18 @@ const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
   cloudShadowMapLightDistanceOverrideKm:
     'Above 0, the distance in kilometres of the light from the ground for the clouds shadow map; 0 or less leaves the distance from its extent.',
   cloudSkyAO:
-    "Whether the clouds' occlusion of the sky light is built, for a sky light that asks for it.",
+    "Whether the clouds' sky occlusion map is built, for a sky light that asks for it: the air's multiple scattering is dimmed by it under the clouds.",
   cloudSkyAOResolutionMax: "Largest side of the clouds' sky occlusion map, a whole number.",
   cloudSkyAOTraceSamples:
     'Samples taken to find the ground occlusion of the clouds sky occlusion, a whole number.',
-  cloudSkyAOFiltering: 'Whether the clouds sky occlusion map is dilated and smoothed.',
+  cloudSkyAOFiltering:
+    'Whether the clouds sky occlusion map is dilated and smoothed: integrated over the hemisphere above each texel.',
   cloudSkyAOSnapKm:
     "Length in kilometres the clouds sky occlusion map's position is snapped to so it does not flicker; 0 or less breaks the map's position.",
   cloudEmptySpaceSkipping:
-    'Whether a table of where the clouds start lets the rays skip the empty air: experimental.',
-  cloudEmptySpaceSkippingDepthKm: 'Distance in kilometres the empty-space table covers, from 1.',
+    'Whether a table of where the clouds start, built before the tracing, lets the rays begin their march there; the built-in material leaves the table input unconnected, which says clouds are everywhere, so the table holds only the start moved by the slice bias.',
+  cloudEmptySpaceSkippingDepthKm:
+    'Distance in kilometres the empty-space table covers, read from 1: a lower value is read as 1.',
   cloudEmptySpaceSkippingSliceBias:
     'Slices the start of the empty-space table is moved by; -1 moves it one slice toward the eye.',
   cloudEmptySpaceSkippingCorners:
@@ -470,25 +509,25 @@ const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
   cloudUpsampling:
     "The way the traced clouds are laid over the scene: 'bilinear'; 'bilinearJitter'; 'nearestDepth', the nearest with a depth test; 'bilinearJitterClosest', with a jitter keeping the closest; 'bilateral'. A cloudTraceSize of 'quarterToFull' or 'full' reads 'nearestDepth' whatever is asked.",
   cloudRenderTargetScale:
-    "Size of the clouds' target, from 0.1 to 1; read only with a cloudTraceSize of 'quarterToFull'.",
+    "Size of the clouds' target, read from 0.1 to 1 (a value beyond is read as the nearer end); read only with a cloudTraceSize of 'quarterToFull'.",
   cloudReprojectionBoxConstraint:
     'Whether the reprojected cloud image is held to the neighbourhood of the new one.',
   cloudReprojectionMinDistanceKm:
     "Distance in kilometres a cloud surface must be at for the last image to be reprojected, from 0; 4 hides the errors of reprojecting a layer's single front depth, at the price of a noisier near cloud.",
   cloudDisocclusionMaxDistanceKm:
     'Distance in kilometres past which the pixels uncovered by a moving cloud are no longer rebuilt, from 0.',
-  cloudFogLateOnTranslucent:
-    'Whether the late fog pass also gives the clouds with their fog, for the translucent surfaces behind them; dearer and takes more memory; read only with cloudFogLate.',
   cloudTraceSize:
-    "Size the clouds are traced at: 'quarterToHalf' a quarter of the view rebuilt at half, then enlarged; 'half' half of the view, then enlarged; 'quarterToFull' a quarter rebuilt at the full size, where a cloud cannot hide behind an opaque mesh; 'full' the full size, so that clouds also show on translucent surfaces.",
+    "Size the clouds are traced at: 'quarterToHalf' a quarter of the view rebuilt at half, then enlarged; 'half' half of the view, then enlarged; 'quarterToFull' a quarter rebuilt at the full size, where a cloud cannot hide behind an opaque mesh; 'full' the full size, with nothing rebuilt.",
   cloudFogLate:
     'Whether the fog is applied to the clouds late in the frame, after they are rebuilt and enlarged, so it does not lag with them; the enlarging pass costs about twice as much.',
+  cloudFogLateOnTranslucent:
+    "Whether the translucent surfaces whose material has cloudFog read the cloud image with the fog already laid on it (cloudFogLate on, a fog in the scene): the rebuild then writes one more image, which costs a pass over the rebuilt image and its memory. Off, they read the image without the fog, and a translucent surface behind a cloud can show it with another fog than the cloud's.",
+  cloudSoftBlendingDistanceOnTranslucent:
+    "Kilometres, from the cloud's front, over which the cloud fades in over a translucent surface whose material has cloudFog (read from 0.0001).",
   lightShafts: 'Whether the sun and the lamps that ask for them draw light shafts.',
   lightShaftDownsample:
     'Factor the light shafts are computed at under the view size, a whole number from 1 to 8.',
   lightShaftTemporalFilter: 'Whether the light shafts are filtered over the images.',
-  lightShaftAfterDof:
-    'Whether the light shafts are drawn in the separate translucency, after the depth of field.',
   lightShaftBlurPasses: 'Radial blur passes of the light shafts, a whole number from 0.',
   lightShaftFirstPassDistance:
     'Fraction of the distance to the light that the first radial blur pass blurs over.',
@@ -501,27 +540,23 @@ const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
     "Factor the clouds' size is divided by in the sky light's capture, a whole number from 1 to 8.",
   skyLightShadowFromOpaque:
     "Whether opaque meshes shadow the sky and the clouds from the sun in the sky light's capture.",
-  skyLightDepthBuffer:
-    "Whether the sky light's capture has a depth buffer, so that meshes cover each other and the height fog follows the depth.",
   skyLightAlwaysClear:
     "Whether the sky light's capture is cleared to black before the sky is drawn.",
   skyLightResolutionOverride:
-    "Side in texels of the sky light's capture, from 16, in place of the sky light's own; a lower value leaves its own.",
+    "Side in texels of the sky light's real-time capture, from 16, in place of the sky light's own; a lower value leaves its own. A captured scene and a specified cubemap keep the sky light's own side.",
   skyLightCubemapMaxResolution:
     "Largest side in texels of the sky light's cube when above 0; below that the sky light's own side is kept.",
   skyLightCaptureSupersample:
     "Factor the faces of the sky light's captured scene are drawn larger by than the cube's side and averaged down, a whole number from 1 to 8.",
   skyLightCaptureLodDistanceScale:
     "Factor the detail of the sky light's captured scene is asked at: above 1 draws finer geometry in its faces; zero or less is 1.",
-  skyLightCaptureReflections:
-    "Whether the scene's reflections are traced in the faces of the sky light's captured scene.",
   skyLightIntensityScale:
     "Factor on the sky light's intensity: it keeps the contrast of a level that draws less occlusion.",
 }
 
 /** The schema of each setting of a contract's rules by field (`SettingRule`): its kind, its
  *  default, its bounds and what it means. */
-function ruleProperties<F extends string>(
+export function ruleProperties<F extends string>(
   rules: Readonly<Record<F, SettingRule>>,
   meanings: Readonly<Record<F, string>>,
 ): Record<F, JsonSchemaProperty> {
@@ -558,7 +593,8 @@ function ruleProperties<F extends string>(
 }
 
 /** The schema of the sky's quality settings, by field. */
-export const skyQualityProperties = () => ruleProperties(SKY_QUALITY_RULES, SKY_QUALITY_MEANINGS)
+const skyQualityProperties = () =>
+  ruleProperties(SKY_QUALITY_RULES, { ...SKY_QUALITY_MEANINGS, ...SKY_TRANSLUCENT_MEANINGS })
 
 /** The schema of the geometry streaming's nine settings, by field. */
 export const streamingProperties = () => ruleProperties(STREAMING_RULES, streamingMeanings())
@@ -587,16 +623,22 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(VOLUMETRIC_LIGHTMAP_RULES, VOLUMETRIC_LIGHTMAP_MEANINGS),
   ...ruleProperties(GLOBAL_DISTANCE_FIELD_RULES, GLOBAL_DISTANCE_FIELD_MEANINGS),
   ...ruleProperties(DISTANCE_FIELD_OCCLUSION_RULES, DISTANCE_FIELD_OCCLUSION_MEANINGS),
-  ...ruleProperties(SHADOW_RULES, { ...SHADOW_MEANINGS, ...SHADOW_VIEW_MEANINGS }),
+  ...ruleProperties(SHADOW_RULES, { ...SHADOW_SUN_MEANINGS, ...SHADOW_VIEW_MEANINGS }),
   ...ruleProperties(MOTION_BLUR_RULES, MOTION_BLUR_MEANINGS),
   ...ruleProperties(DEPTH_OF_FIELD_RULES, DEPTH_OF_FIELD_MEANINGS),
   ...ruleProperties(TESSELLATION_RULES, TESSELLATION_MEANINGS),
   ...ruleProperties(BLOOM_RULES, BLOOM_MEANINGS),
   ...ruleProperties(GAUSSIAN_BLUR_RULES, GAUSSIAN_BLUR_MEANINGS),
   ...ruleProperties(FILM_RULES, FILM_MEANINGS),
+  ...ruleProperties(COLOR_GRADING_RULES, COLOR_GRADING_MEANINGS),
   ...ruleProperties(VOLUMETRIC_FOG_RULES, VOLUMETRIC_FOG_MEANINGS),
+  ...ruleProperties(TRANSLUCENCY_VOLUME_RULES, TRANSLUCENCY_VOLUME_MEANINGS),
+  ...ruleProperties(TRANSLUCENCY_GI_RULES, TRANSLUCENCY_GI_MEANINGS),
+  ...ruleProperties(SUBSURFACE_SCATTERING_RULES, SUBSURFACE_SCATTERING_MEANINGS),
+  ...ruleProperties(SINGLE_LAYER_WATER_RULES, SINGLE_LAYER_WATER_MEANINGS),
   ...ruleProperties(SCREEN_PROBE_RULES, SCREEN_PROBE_MEANINGS),
   ...ruleProperties(REFLECTION_RULES, REFLECTION_MEANINGS),
+  ...ruleProperties(SURFACE_CACHE_RULES, SURFACE_CACHE_MEANINGS),
   ...ruleProperties(AMBIENT_OCCLUSION_RULES, AMBIENT_OCCLUSION_MEANINGS),
   ...skyQualityProperties(),
 })

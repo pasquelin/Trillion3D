@@ -4,73 +4,93 @@
 //! of heights a rectangle of the image reaches (`DisplacementMap::bounds`), from a chain of the
 //! least and the most of each block of texels, level by level (`mips`). Both are the displacement
 //! itself: a height less the map's `center`, times its `magnitude`.
+//!
+//! The image and its chain (`HeightImage`) hold heights only, each as its source holds it — a byte,
+//! a 16-bit word or a float —, and are shared by every map that reads the texture, whatever its
+//! magnitude and centre (`DisplacementMap::over`).
 use super::abi::MAX_DISPLACEMENT_MAP_SIZE;
+use std::sync::Arc;
 
-/// A height image and the displacement it makes.
+/// The heights of an image's first channel, each as its source holds it: a byte over 255, a 16-bit
+/// word over 65535, a float as it is.
 #[derive(Debug)]
-pub(crate) struct DisplacementMap {
+pub(crate) enum Heights {
+    Bytes(Vec<u8>),
+    Words(Vec<u16>),
+    Floats(Vec<f32>),
+}
+
+impl Heights {
+    fn len(&self) -> usize {
+        match self {
+            Self::Bytes(heights) => heights.len(),
+            Self::Words(heights) => heights.len(),
+            Self::Floats(heights) => heights.len(),
+        }
+    }
+
+    /// The height of texel `at`.
+    fn get(&self, at: usize) -> f32 {
+        match self {
+            Self::Bytes(heights) => f32::from(heights[at]) / 255.0,
+            Self::Words(heights) => f32::from(heights[at]) / 65535.0,
+            Self::Floats(heights) => heights[at],
+        }
+    }
+}
+
+/// A height image and the chain of the least and the most height of its blocks.
+#[derive(Debug)]
+pub(crate) struct HeightImage {
     width: usize,
     height: usize,
-    magnitude: f32,
-    center: f32,
     /// Whether each axis wraps past the image's edge, else it holds its last texel.
     wrap: [bool; 2],
     /// The levels of the chain, the image's own the first: one past the cells' levels.
     levels: u32,
     /// The height of each texel, row by row from the top.
-    texels: Vec<f32>,
+    texels: Heights,
     /// The least and the most height of each cell of each level from the second, the cells of a
     /// level a block of two by two of the one before it, those at the edge of an odd side one wide.
     mips: Vec<Vec<[f32; 2]>>,
 }
 
-impl DisplacementMap {
-    /// The map of the `texels` of an image of `width` by `height`, each a height, whose
-    /// displacement is `(height − center) · magnitude`, `wrap` saying for each axis whether it
-    /// wraps. An image that has no texel, or more than `MAX_DISPLACEMENT_MAP_SIZE` on a side,
-    /// or the wrong number of texels, makes the blank map (`blank`).
+impl HeightImage {
+    /// The image of the `texels` of `width` by `height`, `wrap` saying for each axis whether it
+    /// wraps; none for an image that has no texel, or more than `MAX_DISPLACEMENT_MAP_SIZE` on a
+    /// side, or the wrong number of texels, which displaces nothing (`DisplacementMap::over`).
     pub(crate) fn new(
-        texels: Vec<f32>,
+        texels: Heights,
         (width, height): (usize, usize),
-        (magnitude, center): (f32, f32),
         wrap: [bool; 2],
-    ) -> Self {
+    ) -> Option<Arc<Self>> {
         let size = MAX_DISPLACEMENT_MAP_SIZE;
         let fits = (1..=size).contains(&width) && (1..=size).contains(&height);
         if !fits || texels.len() != width * height {
-            return Self::blank();
+            return None;
         }
-        let mut map = Self {
+        let mut image = Self {
             width,
             height,
-            magnitude,
-            center,
             wrap,
             levels: 1,
             texels,
             mips: Vec::new(),
         };
-        map.chain();
-        map
+        image.chain();
+        Some(Arc::new(image))
     }
 
-    /// The map that displaces nothing: one black texel, no magnitude.
-    pub(crate) fn blank() -> Self {
-        Self {
+    /// The image of one black texel.
+    fn blank() -> Arc<Self> {
+        Arc::new(Self {
             width: 1,
             height: 1,
-            magnitude: 0.0,
-            center: 0.0,
             wrap: [true; 2],
             levels: 1,
-            texels: vec![0.0],
+            texels: Heights::Floats(vec![0.0]),
             mips: Vec::new(),
-        }
-    }
-
-    /// The texels along x and along y.
-    pub(crate) fn size(&self) -> (usize, usize) {
-        (self.width, self.height)
+        })
     }
 
     /// The chain of the least and the most height, from 2 × 2 blocks of the image, then of each
@@ -114,7 +134,7 @@ impl DisplacementMap {
         let mut range = [f32::INFINITY, f32::NEG_INFINITY];
         for &(x, y) in block {
             let [low, high] = match level {
-                1 => [self.texels[x + y * self.width]; 2],
+                1 => [self.texels.get(x + y * self.width); 2],
                 _ => self.mips[level as usize - 2][x + y * across],
             };
             range = [range[0].min(low), range[1].max(high)];
@@ -140,6 +160,71 @@ impl DisplacementMap {
         )
     }
 
+    /// The height of the texel `(x, y)`.
+    fn texel(&self, x: i64, y: i64) -> f32 {
+        let (x, y) = self.address(x, y);
+        self.texels.get(x + y * self.width)
+    }
+
+    /// The least and the most height of the cell of `level` (from 1) the texel `(x, y)` lies in.
+    fn cell(&self, x: i64, y: i64, level: u32) -> [f32; 2] {
+        let (x, y) = self.address(x, y);
+        let across = self.cells(self.width, level);
+        self.mips[level as usize - 1][(x >> level) + (y >> level) * across]
+    }
+}
+
+/// A height image and the displacement it makes.
+#[derive(Debug)]
+pub(crate) struct DisplacementMap {
+    image: Arc<HeightImage>,
+    magnitude: f32,
+    center: f32,
+}
+
+impl DisplacementMap {
+    /// The map of `image` whose displacement is `(height − center) · magnitude`; the map of no
+    /// image displaces nothing: one black texel, no magnitude.
+    pub(crate) fn over(image: Option<Arc<HeightImage>>, (magnitude, center): (f32, f32)) -> Self {
+        match image {
+            Some(image) => Self {
+                image,
+                magnitude,
+                center,
+            },
+            None => Self {
+                image: HeightImage::blank(),
+                magnitude: 0.0,
+                center: 0.0,
+            },
+        }
+    }
+
+    /// The map of the float `texels` of an image of `width` by `height` (`HeightImage::new`).
+    #[cfg(test)]
+    pub(crate) fn new(
+        texels: Vec<f32>,
+        size: (usize, usize),
+        displacement: (f32, f32),
+        wrap: [bool; 2],
+    ) -> Self {
+        Self::over(
+            HeightImage::new(Heights::Floats(texels), size, wrap),
+            displacement,
+        )
+    }
+
+    /// Whether `other` reads the very image this does.
+    #[cfg(test)]
+    pub(crate) fn shares(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.image, &other.image)
+    }
+
+    /// The texels along x and along y.
+    pub(crate) fn size(&self) -> (usize, usize) {
+        (self.image.width, self.image.height)
+    }
+
     /// The displacement a height makes.
     fn displaced(&self, height: f32) -> f32 {
         (height - self.center) * self.magnitude
@@ -147,24 +232,21 @@ impl DisplacementMap {
 
     /// The displacement at the texel `(x, y)`.
     fn texel(&self, x: i64, y: i64) -> f32 {
-        let (x, y) = self.address(x, y);
-        self.displaced(self.texels[x + y * self.width])
+        self.displaced(self.image.texel(x, y))
     }
 
     /// The displacements of the least and of the most height of the cell of `level` (from 1) the
     /// texel `(x, y)` lies in, either end the greater of the two where the magnitude is negative.
     fn cell(&self, x: i64, y: i64, level: u32) -> [f32; 2] {
-        let (x, y) = self.address(x, y);
-        let across = self.cells(self.width, level);
-        let [low, high] = self.mips[level as usize - 1][(x >> level) + (y >> level) * across];
+        let [low, high] = self.image.cell(x, y, level);
         [self.displaced(low), self.displaced(high)]
     }
 
     /// The displacement at texture coordinates `uv`: the four texels around the point, on a grid
     /// shifted by half a texel, weighed bilinearly.
     pub(crate) fn sample(&self, uv: [f32; 2]) -> f32 {
-        let x = uv[0] * self.width as f32 - 0.5;
-        let y = uv[1] * self.height as f32 - 0.5;
+        let x = uv[0] * self.image.width as f32 - 0.5;
+        let y = uv[1] * self.image.height as f32 - 0.5;
         let (x0, y0) = (x.floor() as i64, y.floor() as i64);
         let (x1, y1) = (x0.saturating_add(1), y0.saturating_add(1));
         let wx1 = x - x0 as f32;
@@ -182,8 +264,8 @@ impl DisplacementMap {
     pub(crate) fn bounds(&self, low: [f32; 2], high: [f32; 2]) -> [f32; 2] {
         let scaled = |uv: [f32; 2]| {
             [
-                uv[0] * self.width as f32 - 0.5,
-                uv[1] * self.height as f32 - 0.5,
+                uv[0] * self.image.width as f32 - 0.5,
+                uv[1] * self.image.height as f32 - 0.5,
             ]
         };
         let (low, high) = (scaled(low), scaled(high));
@@ -199,7 +281,7 @@ impl DisplacementMap {
         if straddles(x0, x1) || straddles(y0, y1) {
             level += 1;
         }
-        level = level.min(self.levels - 1);
+        level = level.min(self.image.levels - 1);
         let corners = [(x0, y0), (x1, y0), (x0, y1), (x1, y1)];
         let mut range = [f32::INFINITY, f32::NEG_INFINITY];
         for (x, y) in corners {

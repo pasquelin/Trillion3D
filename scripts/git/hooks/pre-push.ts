@@ -12,7 +12,7 @@ for (const line of refs.split('\n')) {
   if (branch === 'develop' || branch === 'main')
     refuse(`no push to '${branch}': open a pull request instead.`)
 }
-gate('node', ['scripts/test/check-changed.ts', '--push'], {
+gate('node', ['scripts/check/check-changed.ts', '--push'], {
   TRILLION3D_BASE_REF: 'origin/develop',
 })
 runLocalHook('pre-push', process.argv.slice(2), refs)

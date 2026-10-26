@@ -1,8 +1,10 @@
 import { pixelToNdc, unprojectPoint } from '../../../../../math/src/wgsl/projection.ts'
 import { rand3dPcg16 } from '../../../../../math/src/wgsl/sampling.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
-import { FULLSCREEN_VERTEX } from '../../../lighting/deferred/shaders.ts'
+import { FULLSCREEN_VERTEX } from '../../../gpu/shader/fullscreenTriangle.ts'
 import { fogBlockOf } from '../../../lighting/fog/readWgsl.ts'
+import { AIR_SHOWN } from '../../../lighting/fogBlockAccess.ts'
 import { preExposedWgsl } from '../../../post/exposure/preWgsl.ts'
 import {
   AIR_FOG_BINDINGS,
@@ -51,7 +53,7 @@ const B = COMPOSE_BINDING
 
 /** What every program declares: the uniform, the cloud images (the secondary one with two
  *  surfaces), the scene's depth and the sampler. */
-const declarations = (minMax: boolean) => `
+const composeDeclarations = (minMax: boolean) => `
 ${COMPOSE_VIEW.wgsl}
 @group(1) @binding(${B.view}) var<uniform> view:ComposeView;
 @group(1) @binding(${B.colour}) var cloudColour:texture_2d<f32>;${
@@ -85,15 +87,28 @@ fn jitters(pixel:vec2f)->array<vec2f,4>{
 
 /** The fog laid on a cloud sample whose ray is the view pixel \`pixel\`'s, at the cloud's depth
  *  \`depthKm\`: the fog along the ray to that depth; the cloud's luminance through the fog's
- *  transmittance, the fog's light over its coverage. A sample that covers nothing is left as it is. */
-const FOG = `
-fn fogAtPixel(pixel:vec2f,depthKm:f32,cloud:vec4f)->vec4f{
+ *  transmittance, the fog's light, multiplied by the pre-exposure (\`preExposed\`), over its coverage.
+ *  A sample that covers nothing is left as it is. The program that lists it declares the image's
+ *  frame (\`frame\`) and the fog's read (\`fogOverNoHaze\`). */
+export const FOG_ON_CLOUD_WGSL = wgslBlock(
+  'FOG_ON_CLOUD_WGSL',
+  [pixelToNdc, unprojectPoint],
+  `fn fogOnCloudAt(pixel:vec2f,depthKm:f32,cloud:vec4f)->vec4f{
  let coverage=saturate(1.0-cloud.a);
- if(view.distances.z==0.0||coverage<=0.0){return cloud;}
+ if(coverage<=0.0){return cloud;}
  let ndc=pixelToNdc(pixel,frame.size.xy);
  let dir=normalize(unprojectPoint(frame.inverseViewProj,vec3f(ndc,0.5))-frame.eye.xyz);
- let fog=fogOverNoHaze(frame.eye.xyz+dir*(depthKm*1000.0),frame.eye.xyz);
+ let fog=fogOverNoHaze(frame.eye.xyz+dir*(depthKm*1000.0),frame.eye.xyz,pixel);
  return vec4f(cloud.rgb*fog.a+coverage*preExposed(fog.rgb),cloud.a);
+}`,
+)
+
+/** The fog laid on a cloud sample of the composition: where the setup lays it here and not in the
+ *  trace (\`distances.z\`), as \`fogOnCloudAt\` lays it. */
+const COMPOSE_FOG = `
+fn fogAtPixel(pixel:vec2f,depthKm:f32,cloud:vec4f)->vec4f{
+ if(view.distances.z==0.0){return cloud;}
+ return fogOnCloudAt(pixel,depthKm,cloud);
 }
 /** The same for the sample at texture coordinates \`uv\` of the cloud images, whose pixel in the view
  *  they name. */
@@ -103,6 +118,45 @@ fn fogOnCloud(uv:vec2f,depthKm:f32,cloud:vec4f)->vec4f{
 /** The same at the cloud's front depth read bilinearly there. */
 fn fogFromUv(uv:vec2f,cloud:vec4f)->vec4f{
  if(view.distances.z==0.0){return cloud;}
+ return fogOnCloud(uv,sampleBounded(cloudDepth,view.bounds,uv).x,cloud);
+}
+`
+
+/** The alpha holdout of clouds (`CloudViewFrame.holdout`): whether the clouds hold their light out
+ *  themselves (`alphaHole`), or only the sky's haze and the fog in front of them hold theirs. */
+export interface HeldClouds {
+  readonly cloud: boolean
+}
+
+/**
+ * THE ALPHA HOLDOUT'S COVERAGE of a cloud sample at the front depth `depthKm` of the pixel `pixel`'s ray:
+ * the clouds' own coverage, one minus their transmittance, let through by the haze in front of them
+ * and by the fog, where the clouds hold out; and, for the haze that holds out (\`frame.hidden.y\`) and the
+ * fog that does (\`fogHoldout\`), their own coverage of the cloud's, added behind what is in front of it.
+ * The composition's ways enlarge it as they enlarge the cloud, the program's \`fogAtPixel\`,
+ * \`fogOnCloud\` and \`fogFromUv\` giving it in place of the fogged cloud, in the alpha.
+ */
+const heldFog = (held: HeldClouds) => `
+const CLOUD_HOLDS:bool=${held.cloud};
+fn holdoutAt(pixel:vec2f,depthKm:f32,cloud:vec4f)->f32{
+ let coverage=saturate(1.0-cloud.a);
+ if(coverage<=0.0){return 0.0;}
+ let ndc=pixelToNdc(pixel,frame.size.xy);
+ let dir=normalize(unprojectPoint(frame.inverseViewProj,vec3f(ndc,0.5))-frame.eye.xyz);
+ let there=frame.eye.xyz+dir*(depthKm*1000.0);
+ var air=1.0;
+ if(${AIR_SHOWN}){air=aerialPerspective(there,frame.eye.xyz).a;}
+ let fog=fogOverNoHaze(there,frame.eye.xyz,pixel).a;
+ var kept=select(0.0,coverage*air*fog,CLOUD_HOLDS);
+ var above=select(0.0,coverage*(1.0-air),frame.hidden.y!=0.0);
+ above=above*fog+select(0.0,coverage*(1.0-fog),fogHoldout());
+ return kept+above;
+}
+fn fogAtPixel(pixel:vec2f,depthKm:f32,cloud:vec4f)->vec4f{return vec4f(0.0,0.0,0.0,holdoutAt(pixel,depthKm,cloud));}
+fn fogOnCloud(uv:vec2f,depthKm:f32,cloud:vec4f)->vec4f{
+ return fogAtPixel(uv*view.textureSize.xy/view.scale.x,depthKm,cloud);
+}
+fn fogFromUv(uv:vec2f,cloud:vec4f)->vec4f{
  return fogOnCloud(uv,sampleBounded(cloudDepth,view.bounds,uv).x,cloud);
 }
 `
@@ -136,12 +190,29 @@ function bodyOf({ upsampling, minMaxDepth, direct }: ComposeVariant) {
   }
 }
 
+/** What every program of the composition's family is made of besides its text: the fog's read, the
+ *  pre-exposure, the unprojections, the noise, the full-screen vertex and the bounded reads. */
+const composeBlocks = (localFog = true) => [
+  fogBlockOf({ ...AIR_FOG_BINDINGS, localFog }),
+  FOG_ON_CLOUD_WGSL,
+  preExposedWgsl('view.scale.z'),
+  pixelToNdc,
+  unprojectPoint,
+  rand3dPcg16,
+  FULLSCREEN_VERTEX,
+  BOUNDED_READ_WGSL,
+  DEVICE_DEPTH_FLOOR,
+]
+
 const programs = new Map<string, string>()
 
 /**
  * THE CLOUDS COMPOSED OVER THE LIT IMAGE, a full-screen pass drawing the cloud's luminance and
  * transmittance, which the blend lays over the image: the luminance added, the image multiplied by
- * the transmittance (`COMPOSE_TARGET`, `compose.ts`). The way the images are enlarged is the
+ * the transmittance, its alpha, the share of the background left visible, the same
+ * (`COMPOSE_TARGET`, `compose.ts`). An orthographic view is traced
+ * directly (`CloudSetup.direct`) and its image is laid as the trace wrote it; the ways that enlarge
+ * a reduced image read the eye's rays, which an orthographic view has none of, and discard there. The way the images are enlarged is the
  * setup's (`CloudSetup.upsampling`): the four are in `composeUpsampleWgsl.ts`, the bilateral one
  * in `composeBilateralWgsl.ts`. A program is made for each way and for the images holding two
  * surfaces or one, and one for a direct trace (`DIRECT_COMPOSE`); each is made once.
@@ -150,28 +221,22 @@ const programs = new Map<string, string>()
  * the eye, from the scene depth, under the cloud's start distance takes no cloud.
  * The fog lies on a sample at the cloud's front depth (`fogOnCloud`): the ray of the sample's pixel,
  * the fog along it, the haze apart.
+ *
+ * With `held`, the program of the alpha holdout's second draw (`heldFog`): the same ways, each sample
+ * giving, in place of its light, the coverage it adds to the image's alpha.
  */
-export function composeProgram(variant: ComposeVariant) {
-  const key = `${variant.direct ? 'd' : variant.upsampling}${variant.minMaxDepth}`
+export function composeProgram(variant: ComposeVariant, localFog = true, held?: HeldClouds) {
+  const key = `${variant.direct ? 'd' : variant.upsampling}${variant.minMaxDepth}${localFog}${held ? `|held ${held.cloud}` : ''}`
   let code = programs.get(key)
   if (code === undefined) {
     code = airProgram(
       COMPOSE_AIR_BINDINGS,
-      `${declarations(variant.minMaxDepth)}${PLACES}${FOG}
+      `${composeDeclarations(variant.minMaxDepth)}${PLACES}${held ? heldFog(held) : COMPOSE_FOG}
 @fragment fn composeMain(@builtin(position) position:vec4f)->@location(0) vec4f{
- if(frame.eye.w==0.0){discard;}${bodyOf(variant)}
+${variant.direct ? '' : ' if(frame.eye.w==0.0){discard;}'}${bodyOf(variant)}
 }
 `,
-      [
-        fogBlockOf(AIR_FOG_BINDINGS),
-        preExposedWgsl('view.scale.z'),
-        pixelToNdc,
-        unprojectPoint,
-        rand3dPcg16,
-        FULLSCREEN_VERTEX,
-        BOUNDED_READ_WGSL,
-        DEVICE_DEPTH_FLOOR,
-      ],
+      composeBlocks(localFog),
     ).code
     programs.set(key, code)
   }

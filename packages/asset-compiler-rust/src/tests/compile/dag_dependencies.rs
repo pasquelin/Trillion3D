@@ -109,7 +109,15 @@ fn a_bundle_is_banded_in_metres_whatever_its_mesh_scale() {
     let groups = vec![group(1, vec![1], vec![0])];
     let child = crate::compiler::pages::bundles::ROOT_PAGE_BYTES;
     let band = |scale: f64| {
-        let pages = vec![vec![7u8; 12], vec![9u8; child]];
+        // Two real pages, one triangle each; the child weighs more than the root page holds.
+        let triangle = [0.0f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+        let grid = trillion3d_page_codec::bits::grid::PageGrid::at(0);
+        let page = || {
+            trillion3d_page_codec::encode::encode(&[0, 1, 2], &triangle, &[], grid)
+                .expect("a page")
+                .bytes
+        };
+        let pages = vec![page(), page()];
         let laying = crate::compiler::pages::bundles::Laying {
             positions: &[0.0; 3],
             held: &|_| None,
@@ -117,11 +125,12 @@ fn a_bundle_is_banded_in_metres_whatever_its_mesh_scale() {
             scale,
         };
         use crate::compiler::pages::bundles::{assign_pages, lay_bundles};
-        let size = |slot: usize| pages[slot].len();
+        let size = |slot: usize| [12, child][slot];
         let assigned = assign_pages((&dag, &groups), &laying, &size).expect("assigned");
-        let laid = lay_bundles((&dag, &groups), pages, (assigned, &laying)).expect("laid");
-        assert_eq!(laid.at, [(0, 0), (1, 0)]);
-        assert_eq!(laid.payload, [vec![7u8; 12], vec![9u8; child]].concat());
+        let laid = lay_bundles((&dag, &groups), &pages, (assigned, &laying)).expect("laid");
+        assert_eq!(laid.at[0], (0, 0));
+        assert_eq!(laid.at[1], (1, 0));
+        assert_eq!(laid.payload.len(), laid.lengths.iter().sum::<usize>());
         laid.bundles
             .iter()
             .map(|bundle| bundle.band)

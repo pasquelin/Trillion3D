@@ -15,7 +15,7 @@ export const CULL_GROUP = 64
  * that are drawn at this distance (the squared distance over `drawDistance2.x` if it is above 0.0001, under
  * `.y` likewise), are listed, a group at a time (one atomic add for the group's share of the list). The draw's
  * arguments (`objectArgs`: the index count of the bounding sphere, the meshes listed, zeros) are cleared to zero by
- * the host before the pass. Under an orthographic projection the distance is that along the view's forward.
+ * the host before the pass. Under an orthographic projection the distance is the length over the view's forward component (squared), so an object off the axis is farther.
  */
 export const DFAO_CULL_OBJECTS_WGSL = wgslProgram(
   `@group(0) @binding(${B.culledObjects}) var<storage,read_write> culledObjects:array<u32>;
@@ -24,10 +24,11 @@ var<workgroup> groupCount:atomic<u32>;
 var<workgroup> groupBase:u32;
 var<workgroup> groupObjects:array<u32,${CULL_GROUP}>;
 fn dfaoDistanceSquared(v:vec3f)->f32{
- let own=dot(v,v);
- if(dfao.depth.z>0.5){return own;}
- let along=own/dot(v,dfao.viewToWorld[2].xyz);
- return along*along;
+ if(dfao.depth.z>0.5){return dot(v,v);}
+ let along=dot(v,dfao.viewToWorld[2].xyz);
+ if(along==0.0){return 3.0e38;}
+ let d=dot(v,v)/along;
+ return d*d;
 }
 fn dfaoInFrustum(center:vec3f,radius:f32)->bool{
  for(var plane=0u;plane<dfao.counts.x;plane++){

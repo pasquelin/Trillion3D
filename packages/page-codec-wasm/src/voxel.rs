@@ -50,6 +50,7 @@ impl VoxelPage {
     pub fn facts(&self) -> PageFacts {
         PageFacts {
             bytes: self.bytes.clone(),
+            resident_bytes: self.bytes.len(),
             vertex_count: VOXEL_BRICK_CORNERS * self.bricks,
             index_count: 3 * VOXEL_BRICK_TRIANGLES * self.bricks,
             flags: GEOMETRY_VOXEL,

@@ -23,7 +23,7 @@ import type { EffectPassOf } from './targets.ts'
 
 /** What the view's settings of each kind resolve to (`KIND_RULES[kind].settings`): the values its
  *  `encode` or `resolve` is handed, by kind. A kind with no entry reads none. */
-export interface KindValues {
+interface KindValues {
   /** The bloom's own settings and the Gaussian blur's, which its levels are blurred by. */
   bloom: BloomValues & GaussianBlurValues
   motionBlur: MotionBlurValues
@@ -56,9 +56,6 @@ interface KindRules<K extends EffectKind> {
   readonly ask?: (pass: EffectPassOf<K>, device: GPUDevice, rt: WebgpuPagesRuntime) => void
   /** Whether a pass of the kind reads the motion the velocity stage measures. */
   readonly motion?: boolean
-  /** The smallest object, in percent of the screen, whose own motion the kind's pass wants measured,
-   *  which the velocity stage decides once for every pass that reads it. */
-  readonly objectSize?: (pass: EffectPassOf<K>) => number
 }
 
 /**
@@ -83,7 +80,6 @@ export const KIND_RULES: { readonly [K in EffectKind]: KindRules<K> } = {
     off: (values) => values.motionBlurQuality === 'off',
     idle: motionBlurIdle,
     motion: true,
-    objectSize: (pass) => pass.perObjectSize,
   },
   bloom: {
     stage: 'before-tone-mapping',

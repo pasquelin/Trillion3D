@@ -13,7 +13,27 @@ use super::*;
 use crate::compiler::budget::admission::{alone, run_admitted, Done, Room};
 use crate::compiler::tables::partition::HlodNode;
 use crate::hlod::flatten::Recipe;
+use crate::HlodLayer;
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+/// The bytes the job making the actors of a cell holds: its recipe's, and, where its layer allows
+/// one, the field of its actors, built with them from their triangles (`fields::working_bytes`).
+fn job_bytes(
+    instances: &[Instance],
+    (recipe, hlod, families): (Recipe, &HlodLayer, usize),
+    members: &[usize],
+    builder: &Builder,
+) -> usize {
+    let actors = match recipe {
+        Recipe::Voxel => return voxels::working_bytes(instances, members),
+        Recipe::Shell => working_bytes(instances, (hlod, families), members),
+        Recipe::Merge => merged_bytes(instances, (hlod, families, builder.library), members),
+        Recipe::Simplified => simplified_bytes(instances, (hlod, families), members),
+    };
+    actors.saturating_add(super::fields::working_bytes(
+        instances, hlod, members, builder,
+    ))
+}
 
 /// What `world_dag` makes: the world DAG, its actors, each cell's rows, the cells whose actor could
 /// not be made, and what the making measured.
@@ -61,7 +81,8 @@ pub(crate) fn world_dag(
         let layer = built_by(cell).expect("a cell whose layer builds actors");
         let builds = layer.builder;
         let (built, standing) = split(instances, &objects, builds);
-        rows[cell] = actor_rows(instances, &standing);
+        let stands_on_fallback = builds == HlodBuilder::Instanced && !layer.cluster_dag;
+        rows[cell] = actor_rows(instances, &standing, stands_on_fallback);
         if let Some(recipe) = Recipe::of(builds).filter(|_| !built.is_empty()) {
             jobs.push((cell, recipe, built));
         }
@@ -73,13 +94,8 @@ pub(crate) fn world_dag(
     let seen_of = |job: usize| tree[jobs[job].0].seen_from;
     // Each job's bytes, from the original objects it reads alone: no job reads another's result.
     let estimate = |job: usize, _: &Done<Job>| {
-        let (hlod, members) = (hlod_of(job), &jobs[job].2);
-        match jobs[job].1 {
-            Recipe::Voxel => voxels::working_bytes(instances, members),
-            Recipe::Shell => working_bytes(instances, (hlod, families), members),
-            Recipe::Merge => merged_bytes(instances, (hlod, families, builder.library), members),
-            Recipe::Simplified => simplified_bytes(instances, (hlod, families), members),
-        }
+        let recipe = (jobs[job].1, hlod_of(job), families);
+        job_bytes(instances, recipe, &jobs[job].2, builder)
     };
     // Each level's jobs from HLOD 0, told once at the start, and the jobs ended, of all and of the
     // job's level, told as each job ends: a long cook shows where it stands.

@@ -1,4 +1,5 @@
 import type { DagRoot } from '../types.ts'
+import { parentErrorOf } from '../../selection/helpers.ts'
 import {
   CLUSTER_WORDS,
   COLD_HAS_BOX,
@@ -45,8 +46,7 @@ function writeRecords(
       dst = i * CLUSTER_WORDS
     writeSphere(hot, dst + HOT_SPHERE, rec.sphere)
     writeSphere(hot, dst + HOT_PARENT_SPHERE, rec.parentSphere ?? rec.sphere)
-    const parent =
-      typeof rec.parentError === 'number' && Number.isFinite(rec.parentError) ? rec.parentError : -1
+    const parent = parentErrorOf(rec) ?? -1
     hot[dst + HOT_LOD_ERROR] = rec.lodError ?? 0
     hot[dst + HOT_PARENT_ERROR] = parent
     // A cluster that no culling leaf owns is unreachable for the CPU cut too; never select it.
@@ -71,6 +71,40 @@ function writeRecords(
 
 type Block = { hot: Uint32Array; cold: Uint32Array; base: number }
 
+/** The scratch the words of a placement's pages are written in: grown to the largest placement. */
+type Scratch = { hot: Float32Array; cold: Float32Array }
+
+/** The words `pages` write, in `scratch`. */
+function writtenIn(
+  scratch: Scratch,
+  pages: DagRoot['pages'],
+  owner: Uint32Array,
+  nodeBase: number,
+) {
+  const n = pages.length
+  if (scratch.hot.length < n * CLUSTER_WORDS) {
+    scratch.hot = new Float32Array(n * CLUSTER_WORDS)
+    scratch.cold = new Float32Array(n * COLD_WORDS)
+  }
+  const { hot, cold } = scratch
+  writeRecords(pages, owner, nodeBase, hot, cold)
+  return {
+    hotBits: new Uint32Array(hot.buffer, 0, n * CLUSTER_WORDS),
+    coldBits: new Uint32Array(cold.buffer, 0, n * COLD_WORDS),
+  }
+}
+
+/** The first record of an earlier block of `shape` holding these words exactly, or -1. */
+function matchBlock(
+  byShape: Map<object, Block[]>,
+  shape: object,
+  { hotBits, coldBits }: ReturnType<typeof writtenIn>,
+) {
+  for (const block of byShape.get(shape) ?? [])
+    if (sameValues(block.hot, hotBits) && sameValues(block.cold, coldBits)) return block.base
+  return -1
+}
+
 /**
  * The unique records of a packing. Each placement writes its records into a scratch, then takes
  * those of an earlier placement of the same culling shape when they match TO THE BIT, or keeps
@@ -80,28 +114,12 @@ type Block = { hot: Uint32Array; cold: Uint32Array; base: number }
 export function createRecordTable() {
   const blocks: Block[] = [],
     byShape = new Map<object, Block[]>()
-  let hot = new Float32Array(0),
-    cold = new Float32Array(0),
-    count = 0
-  /** The words `pages` write, in the scratch. */
-  const written = (pages: DagRoot['pages'], owner: Uint32Array, nodeBase: number) => {
-    const n = pages.length
-    if (hot.length < n * CLUSTER_WORDS) {
-      hot = new Float32Array(n * CLUSTER_WORDS)
-      cold = new Float32Array(n * COLD_WORDS)
-    }
-    writeRecords(pages, owner, nodeBase, hot, cold)
-    return {
-      hotBits: new Uint32Array(hot.buffer, 0, n * CLUSTER_WORDS),
-      coldBits: new Uint32Array(cold.buffer, 0, n * COLD_WORDS),
-    }
-  }
-  /** The first record of an earlier block of `shape` holding these words exactly, or -1. */
-  const match = (shape: object, { hotBits, coldBits }: ReturnType<typeof written>) => {
-    for (const block of byShape.get(shape) ?? [])
-      if (sameValues(block.hot, hotBits) && sameValues(block.cold, coldBits)) return block.base
-    return -1
-  }
+  const scratch: Scratch = { hot: new Float32Array(0), cold: new Float32Array(0) }
+  let count = 0
+  const written = (pages: DagRoot['pages'], owner: Uint32Array, nodeBase: number) =>
+    writtenIn(scratch, pages, owner, nodeBase)
+  const match = (shape: object, words: ReturnType<typeof written>) =>
+    matchBlock(byShape, shape, words)
   return {
     get count() {
       return count

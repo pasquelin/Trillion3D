@@ -68,11 +68,13 @@ function fit(gaps: Float64Array, length: number, period: number, resolution: num
 function gridPeriod(
   gaps: Float64Array,
   length: number,
-  resolution: number,
-  floor: number,
+  at: { resolution: number; floor: number },
   into: { cadence: number },
 ) {
-  const shortest = Math.max(SHORTEST_PERIOD_MS, COARSE_PERIODS * resolution),
+  // `resolution` and `floor` are read of their fields: a call that is not inlined (the window
+  // sorter and this are too large to both be, in `tick`) boxes a fractional number it is passed.
+  const { resolution, floor } = at,
+    shortest = Math.max(SHORTEST_PERIOD_MS, COARSE_PERIODS * resolution),
     finest = Math.max(shortest, floor)
   for (let i = 0, j = 0; i < length; i = j) {
     while (j < length && gaps[j] <= gaps[i] + slack(gaps[i], resolution)) j++
@@ -87,6 +89,45 @@ function gridPeriod(
     }
   }
   return 0
+}
+
+/** Slides the window of `count` intervals (`gaps`, ascending, and when each `ends` ended) to `now`:
+ *  the intervals past a second out, the oldest too when it is full, then `gap` in its place. The
+ *  new count. `now` and `gap` are read of the fields they sit in (`at.last`, `clock.gap`): a call
+ *  boxes a fractional number it is passed. */
+function admitInterval(
+  gaps: Float64Array,
+  ends: Float64Array,
+  count: number,
+  at: { last: number },
+  clock: { gap: number },
+) {
+  const { last: now } = at,
+    { gap } = clock
+  // Out: the intervals that ended a second ago or more, then, the window full, the oldest.
+  let n = 0,
+    oldest = -1
+  for (let i = 0; i < count; i++)
+    if (ends[i] > now - SECOND_MS) {
+      gaps[n] = gaps[i]
+      ends[n] = ends[i]
+      if (oldest < 0 || ends[n] < ends[oldest]) oldest = n
+      n++
+    }
+  if (n === REFRESH_WINDOW) {
+    n--
+    gaps.copyWithin(oldest, oldest + 1, REFRESH_WINDOW)
+    ends.copyWithin(oldest, oldest + 1, REFRESH_WINDOW)
+  }
+  // In: the new interval, after the ones not longer.
+  let i = n
+  for (; i > 0 && gaps[i - 1] > gap; i--) {
+    gaps[i] = gaps[i - 1]
+    ends[i] = ends[i - 1]
+  }
+  gaps[i] = gap
+  ends[i] = now
+  return n + 1
 }
 
 /**
@@ -118,7 +159,7 @@ export function createRefreshClock(fallback: number) {
     ends = new Float64Array(REFRESH_WINDOW),
     /** The last frame's timestamp and the timer's rounding — whole milliseconds until a
      *  timestamp shows a fraction —, ms; whether the refresh was seen, intervals of one period. */
-    at = { last: Number.NaN, resolution: COARSE_MS, seen: false }
+    at = { last: Number.NaN, resolution: COARSE_MS, floor: 0, seen: false }
   let count = 0
   /** What the clock reads, as fields its readers load in place: a number read through a getter
    *  or a return is boxed anew at each read. */
@@ -146,32 +187,9 @@ export function createRefreshClock(fallback: number) {
       at.last = now
       at.resolution = resolutionAfter(now, at.resolution)
       if (!(gap > 0 && gap < PAUSE_MS)) return
-      // Out: the intervals that ended a second ago or more, then, the window full, the oldest.
-      let n = 0,
-        oldest = -1
-      for (let i = 0; i < count; i++)
-        if (ends[i] > now - SECOND_MS) {
-          gaps[n] = gaps[i]
-          ends[n] = ends[i]
-          if (oldest < 0 || ends[n] < ends[oldest]) oldest = n
-          n++
-        }
-      if (n === REFRESH_WINDOW) {
-        n--
-        gaps.copyWithin(oldest, oldest + 1, REFRESH_WINDOW)
-        ends.copyWithin(oldest, oldest + 1, REFRESH_WINDOW)
-      }
-      // In: the new interval, after the ones not longer.
-      let i = n
-      for (; i > 0 && gaps[i - 1] > gap; i--) {
-        gaps[i] = gaps[i - 1]
-        ends[i] = ends[i - 1]
-      }
-      gaps[i] = gap
-      ends[i] = now
-      count = n + 1
-      const floor = at.seen ? (1 - GRID_TOLERANCE) * clock.display : 0,
-        divisor = gridPeriod(gaps, count, at.resolution, floor, clock)
+      count = admitInterval(gaps, ends, count, at, clock)
+      at.floor = at.seen ? (1 - GRID_TOLERANCE) * clock.display : 0
+      const divisor = gridPeriod(gaps, count, at, clock)
       if (divisor === 0) return
       if (!clock.settled || clock.cadence <= (1 + GRID_TOLERANCE) * clock.display) {
         clock.display = clock.cadence

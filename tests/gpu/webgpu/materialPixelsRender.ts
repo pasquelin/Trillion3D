@@ -1,17 +1,10 @@
-// Rendering one material fixture on each renderer: the witness renderer, the prepared scene, and
-// the images compared point by point. Split from `materialPixelsPage.ts` (fixture run and
-// comparison) to keep each file under the line gate.
-import * as THREE from 'three/webgpu'
+// Rendering one material fixture: the prepared scene and the engine image read point by point.
+// Split from `materialPixelsPage.ts` (fixture run and readings) to keep each file under the line
+// gate.
 import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
-import { threeCamera } from '../../../bench/witnesses/three/fromGraphNodes.ts'
-import { witnessScene } from '../../../bench/witnesses/three/displayObjects.ts'
-import {
-  createWitnessRenderer,
-  readWitnessImage,
-} from '../../../bench/runner/witness/threeRenderer.ts'
 import {
   batisseur,
   engine,
@@ -23,17 +16,8 @@ import { SIZE, type Fixture } from './materialFixtureShape.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { SceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 
-/** Background the page and both engines clear to, so an uncovered pixel is one colour. */
+/** Background the engine clears to, so an uncovered pixel is one colour. */
 export const CLEAR_COLOR = 0x2a303c
-
-/** The witness renderer — Three's WebGPU renderer, sRGB output at exposure 1 — on a canvas of the
- *  fixtures' side. */
-export async function witnessRenderer() {
-  const canvas = document.createElement('canvas')
-  document.body.append(canvas)
-  const renderer = await createWitnessRenderer(canvas, { width: SIZE, height: SIZE })
-  return { renderer, canvas }
-}
 
 /** The side of the fixture's square, and the side and depth of the square behind it. */
 export const SQUARE_SIDE = 2,
@@ -70,24 +54,6 @@ export function sceneOf(fixture: Fixture, sun: Object3D): ScenePreparee {
 export const rgbAt = (pixels: ArrayLike<number>, [x, y]: number[]): number[] =>
   [0, 1, 2].map((k) => pixels[(y * SIZE + x) * 4 + k])
 
-/** The witness image of a prepared scene, bottom-left rows: the source's meshes and lights copied
- *  into the library, drawn the way the explorer draws a witness — the filmic curve once a light
- *  exists, identity without one —; the scene is left for the engine. */
-export async function witnessImage(
-  scene: ScenePreparee,
-  renderer: THREE.WebGPURenderer,
-  camera: Camera,
-): Promise<Uint8Array> {
-  const witness = witnessScene(scene.source, CLEAR_COLOR)
-  try {
-    renderer.toneMapping = witness.lit() ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping
-    witness.update()
-    return await readWitnessImage(renderer, witness.scene, threeCamera(camera))
-  } finally {
-    witness.dispose()
-  }
-}
-
 /** The engine image of a prepared scene, held when the engine holds it, the last rendered one
  *  otherwise; releases the scene. */
 export async function engineImage(
@@ -100,8 +66,7 @@ export async function engineImage(
   const { backend, canvas } = engine(scene, device, (e: EngineDiagnostic) => events.push(e), {
     clearColor: CLEAR_COLOR,
     sceneLights,
-    // No dither of the display's steps (24 bits or more): the images are compared pixel for pixel
-    // with the witness, which draws none.
+    // No dither of the display's steps (24 bits or more): the image is read pixel for pixel.
     quantizationDitheringBits: 32,
   })
   try {

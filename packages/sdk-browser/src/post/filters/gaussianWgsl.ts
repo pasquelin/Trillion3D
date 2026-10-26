@@ -1,6 +1,6 @@
 import { fieldLayout, vec4Array } from '../../gpu/core/fieldLayout.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
+import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
 import { GAUSSIAN_MAX_TAPS } from './gaussianKernel.ts'
 
 /** How a read past the image is taken: as the nearest texel, as zero, or mirrored back. */
@@ -28,9 +28,8 @@ export const BLUR_PARAMS = fieldLayout('Blur', [
 export const BLUR_BYTES = BLUR_PARAMS.words * 4
 
 /**
- * One pass of a separable Gaussian blur, on premultiplied radiance whose alpha is blurred with
- * its colour (coverage): the sum of the reads, each weighted per channel — the alpha by the mean
- * of the three weights —, plus the image added, read at the pixel. The sampler clamps to the
+ * One pass of a separable Gaussian blur, on radiance whose alpha is blurred with its colour: the
+ * sum of the reads, each weighted per channel — the alpha by the mean of the three weights —, plus the image added, read at the pixel. The sampler clamps to the
  * edge of the texture; a read past the image `edge` takes otherwise: at the nearest texel of the
  * image and scaled by how far inside it was, which is what a border colour of zero gives, or at
  * the point the edge mirrors it to. The image fills `scale` of its texture's width, so every read

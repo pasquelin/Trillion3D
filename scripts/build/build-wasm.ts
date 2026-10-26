@@ -8,7 +8,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'nod
 import { dirname, join } from 'node:path'
 import { WASM_CRATE } from '../native/native-crates.ts'
 import { REPOSITORY_ROOT } from '../git/repository-files.ts'
-import { runChecked } from '../test/run.ts'
+import { runChecked } from '../check/run.ts'
 
 const MANIFEST = join(REPOSITORY_ROOT, WASM_CRATE.path, 'Cargo.toml')
 const TARGET = 'wasm32-unknown-unknown'

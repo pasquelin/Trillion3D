@@ -1,15 +1,16 @@
 //! The spatial queries over a triangle soup, on the one tree the compiler builds over triangles
 //! (`trillion3d_page_codec::proxy::bvh`) — the tree the rays of a capture and of a merged atlas's
-//! translucent texels walk on the GPU (`gpu/walk.wgsl`) —: whether a ray escapes, and the nearest
-//! point of the triangles.
+//! translucent texels walk on the GPU (`gpu/walk.wgsl`), whose nodes the packers read —: whether a
+//! ray escapes, the nearest triangle a ray meets, the nearest point of the triangles.
 //! The queries over the tree live in `queries`.
 use crate::trace::surface::Traceable;
 use trillion3d_math::geometry::aabb::point_box_distance2;
-use trillion3d_math::geometry::ray_box::ray_aabb;
+use trillion3d_math::geometry::ray_box::ray_span;
 use trillion3d_math::vector::vec3::point;
-use trillion3d_math::vector::vecn::{add, scale};
 use trillion3d_page_codec::proxy::bvh::{build_ordered, Node};
 mod queries;
+#[cfg(test)]
+mod tests;
 
 /// A tree over triangles: its nodes in preorder, and its leaves' triangles in leaf order, each
 /// named by its rank in the soup it was built from (`order`).
@@ -40,25 +41,19 @@ fn corner(triangles: &[f32], slot: usize, corner: usize) -> [f64; 3] {
 }
 
 /// The squared distance from `point` to `node`'s box: what the nearest walk prunes a node by
-/// (`closest`).
+/// (`nearest`).
 fn box_distance2(node: &Node, point: [f64; 3]) -> f64 {
     point_box_distance2(node.low.map(f64::from), node.high.map(f64::from), point)
 }
 
-/// Whether `origin + t·ray`, `inverse` its direction's reciprocal, crosses `node`'s box for `t`
-/// in `[from, to]`: the slab test from the point at `from`.
-fn crosses(
-    node: &Node,
-    (origin, ray, inverse): ([f64; 3], [f64; 3], [f64; 3]),
-    (from, to): (f64, f64),
-) -> bool {
-    let start = add(origin, scale(ray, from));
-    ray_aabb(
-        node.low.map(f64::from),
-        node.high.map(f64::from),
-        start,
-        inverse,
-        to - from,
+/// Where `origin + t·ray`, `inverse` its direction's reciprocal (`ray_box::inverse`), first meets
+/// `node`'s box for `t` in `[from, to]`: that `t`, none when the ray misses the box there
+/// (`ray_span`).
+fn entered(node: &Node, line: ([f64; 3], [f64; 3]), range: (f64, f64)) -> Option<f64> {
+    ray_span(
+        (node.low.map(f64::from), node.high.map(f64::from)),
+        line,
+        range,
     )
 }
 

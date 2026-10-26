@@ -1,25 +1,26 @@
 // Debug views are output untouched: a normal or depth material is never exposed nor tone
-// mapped, so on WebGPU a normal or depth surface carries one flag through the resolve
-// and the lighting pass, and the composition keeps exposure and the display curve off it — from
-// the surface flag of a still image, from the share the temporal pass accumulated beside the
-// colour of a jittered one. Every expression is read out of the shipped shader text and run by the
-// shared WGSL run on grey scalars, so a shader edit is what the tests see.
+// mapped, so on WebGPU a normal or depth surface carries one flag through the resolve and the
+// lighting pass, and the composition draws it after the temporal pass and the chain from the
+// surfaces — its flag and its base colour at the render texel under the display pixel — as the
+// reference's buffer visualisation does.
+// Every expression is read out of the shipped shader text and run by the shared WGSL run, so a
+// shader edit is what the tests see. (The composition weighed a share — the flags', or one the
+// temporal pass accumulated beside the colour —, which is gone.)
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { AS_IS_FLAG, SURFACE_MODEL, shownAsIs } from '../materials/surface/surfaceModel.ts'
+import { AS_IS_FLAG, SURFACE_MODEL } from '../materials/surface/surfaceModelWord.ts'
+import { shownAsIs } from '../materials/surface/surfaceModel.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from './deferred/shaders.ts'
-import { taaResolveShader } from '../post/taa/resolveWgsl.ts'
 import { BLEND_MODES } from '../materials/surface/materialBlending.ts'
-import { written, type Rgba } from '../blend/blendModel.fixture.ts'
+import { written } from '../blend/blendModel.fixture.ts'
 import {
   BLEND_SHADER,
   BOUNCE_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
   TAA_SHADER,
 } from '../gpu/core/shaderTexts.fixture.ts'
-import { AS_IS_SHARE_SHADER } from './deferred/asIsShareWgsl.ts'
-import { blendTargets } from '../blend/blendTargets.ts'
+import { RESPONSIVE_TARGET } from '../blend/responsive.ts'
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 
 /** The capture of `pattern` in `source`, asserted present. */
@@ -38,35 +39,45 @@ const runLines = <T extends (...args: never[]) => unknown>(
 ) =>
   shaderRun<{ lines: T }>(`fn lines(${params})->f32{${lines}return ${result};}`, ['lines'], scope)
     .lines
-/** A texture of one texel holding `texel`, as the lines below load it. */
-const textureLoad = (texel: number) => ({ r: texel })
 /** A stand-in display curve that bends every value, as ACES does. */
 const curve = (rgb: number) => rgb / (1 + rgb)
 const EXPOSURE = 0.7
 
-/** The composition of `shader` for one grey pixel: its HDR value and what binding 2 reads. */
-function composition(shader: string) {
-  const [lines] = capture(
+/** The as-is compositions: the lit chain's plain and finishing ones, the unlit chain's. */
+const AS_IS_COMPOSITIONS = [
+  CONTRACT_COMPOSITIONS.plain.asIs,
+  CONTRACT_COMPOSITIONS.finish!.asIs,
+  UNLIT_COMPOSITIONS.plain.asIs,
+]
+/** `composeColor` of `shader` at the display pixel `pixel`, the surfaces drawn at `surface` render
+ *  pixels per display pixel, their texel holding `flag` and the grey base colour `base`; the chain
+ *  (`composeChain`) a stand-in that exposes and curves the image's grey `lit`. Returns the colour
+ *  and the texels the surfaces were read at. */
+function composeOf(
+  shader: string,
+  { pixel = [7.5, 1.5], surface = 1, flag = AS_IS_FLAG, base = 0.25, lit = 2, raw = 0 } = {},
+) {
+  const read: number[][] = []
+  const { composeColor } = shaderRun<{ composeColor: (pixel: number[]) => number[] }>(
     shader,
-    /(let share=.*?;let curved=.*?;let untouched=.*?;\n let color=.*?;)\n/,
-  )
-  // The pixel as-is is the source's; the value the chain exposes is the source finished, which a
-  // plain composition leaves as it is.
-  const run = runLines<(asIs: number, coord: number, value: object, source: object) => number>(
-    lines,
-    'asIs:u32,coord:vec2i,value:vec4f,source:vec4f',
-    'color',
+    ['composeColor'],
     {
-      textureLoad,
-      toneMap: curve,
-      linearToSrgb: (rgb: number) => rgb,
-      view: { preExposure: [1, EXPOSURE, 0, 0], display: [0, 0, 0, 0] },
+      asIsFlags: 'flags',
+      asIsBase: 'base',
+      textureLoad: (texture: string, texel: number[]) => (
+        read.push([...texel]),
+        texture === 'flags' ? [flag, 0, 0, 0] : [base, base, base, 1]
+      ),
+      view: {
+        viewport: [8, 4, raw, 0],
+        surface: [surface, surface, 8 * surface - 1, 4 * surface - 1],
+      },
+      composeChain: () => [curve(lit * EXPOSURE), 0, 0, 1],
+      linearToSrgb: (rgb: number[]) => rgb.map((c) => c * 2),
     },
   )
-  return (rgb: number, binding: number) => run(binding, 0, { rgb, a: 1 }, { rgb, a: 1 })
+  return { color: composeColor([...pixel, 0, 1]), read }
 }
-const still = composition(CONTRACT_COMPOSITIONS.plain.still)
-const accumulated = composition(CONTRACT_COMPOSITIONS.plain.accumulated)
 
 test('A normal or depth surface resolves to the as-is flag, passed through unlit', () => {
   const flagOf = runLines<(model: number, page: { flags: number }) => number>(
@@ -84,116 +95,66 @@ test('A normal or depth surface resolves to the as-is flag, passed through unlit
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER])
     assert.match(
       shader,
-      new RegExp(`if\\(flag==${AS_IS_FLAG}u\\)\\{return vec4f\\(base\\.rgb,1\\.0\\);\\}`),
+      new RegExp(`if\\(flag==${AS_IS_FLAG}u\\)\\{return vec4f\\(base\\.rgb,0\\.0\\);\\}`),
     )
 })
 
-test('A still image: a debug view reaches sRGB untouched, a lit surface keeps exposure and curve', () => {
-  for (const ramp of [1, 0.5, 0.25]) assert.equal(still(ramp, AS_IS_FLAG), ramp)
-  for (const flag of [1, 2, 4, 5]) assert.equal(still(2, flag), curve(2 * EXPOSURE), `flag ${flag}`)
-  // The accumulated input at its two ends is the same rule, exactly.
-  assert.equal(accumulated(0.5, 1), 0.5)
-  assert.equal(accumulated(2, 0), curve(2 * EXPOSURE))
-  // The identity chain has nothing to keep off, and reads no share.
-  for (const shader of Object.values(UNLIT_COMPOSITIONS.plain))
-    assert.doesNotMatch(shader, /@binding\(2\)|share/)
+// A debug view's pixel is drawn over the chain's output, after the temporal pass, from the
+// surfaces at the view's place, unfiltered — the reference's visualisation reads its scene textures
+// at the view's UV with a point sampler after the tonemapper; a lit surface keeps the chain's
+// exposure and curve, bit for bit.
+test('A debug view reaches sRGB untouched from the surfaces, a lit surface keeps exposure and curve', () => {
+  for (const shader of AS_IS_COMPOSITIONS) {
+    for (const base of [1, 0.5, 0.25])
+      assert.deepEqual(composeOf(shader, { base }).color, [2 * base, 2 * base, 2 * base, 1])
+    for (const flag of [0, 1, 2, 4, 5])
+      assert.deepEqual(composeOf(shader, { flag }).color, [curve(2 * EXPOSURE), 0, 0, 1])
+    // A raw view's output is the chain's.
+    assert.deepEqual(composeOf(shader, { raw: 1 }).color, [curve(2 * EXPOSURE), 0, 0, 1])
+    // At the display's size the surfaces' texel is the pixel's; drawn at half of it, the render
+    // texel under it, the last one past the edge.
+    assert.deepEqual(composeOf(shader).read, [
+      [7, 1],
+      [7, 1],
+    ])
+    assert.deepEqual(composeOf(shader, { surface: 0.5 }).read, [
+      [3, 0],
+      [3, 0],
+    ])
+    assert.deepEqual(
+      composeOf(shader, { flag: 2 }).read,
+      [[7, 1]],
+      'a lit pixel reads its flag alone',
+    )
+  }
+  // The flagless compositions read none.
+  for (const shader of [CONTRACT_COMPOSITIONS.plain.flagless, UNLIT_COMPOSITIONS.plain.flagless])
+    assert.doesNotMatch(shader, /asIs/)
 })
 
-test('A jittered edge: the accumulated share follows the colour, no flip between curve and none', () => {
-  // Each sample and its flag enter the filter with one weight; history is clamped and mixed with
-  // the colour's weights too.
-  assert.match(TAA_SHADER, /let weight=taaWindow\([^;]*\);\n {2}sum\+=sample\*weight;/)
-  assert.match(
-    TAA_SHADER,
-    new RegExp(`let asIs=f32\\(textureLoad\\(flags,at,0\\)\\.r==${AS_IS_FLAG}u\\);`),
-  )
-  assert.match(TAA_SHADER, /share\+=asIs\*weight;/)
-  // The share and the colour leave the history update by the same weights: the image's `wc`, the
-  // history's `wh`, one reciprocal (`../post/taa/layers.ts`); the validity beside it in green (rg8unorm).
-  assert.match(TAA_SHADER, /var color=blended\*\(wh\*blendScale\)\+filtered\*\(wc\*blendScale\);/)
-  assert.match(
-    TAA_SHADER,
-    /return TaaOut\(color,vec4f\(\(share\*wc\+keptShare\*wh\)\*blendScale,validity,0\.0,0\.0\)\);/,
-  )
-  // Each weight is a share times the tone weight of its grey, `1 / (R + 2G + B + 4)` at an
-  // exposure of 1 (`toneWeight`).
-  const tone = (grey: number) => 1 / (4 * grey + 4)
-  const blend = (
-    alpha: number,
-    filtered: number,
-    kept: number,
-    share: number,
-    keptShare: number,
-  ) => {
-    const wc = alpha * tone(filtered),
-      wh = (1 - alpha) * tone(kept),
-      scale = 1 / (wc + wh)
-    return [(filtered * wc + kept * wh) * scale, (share * wc + keptShare * wh) * scale]
-  }
-  // One pixel on the edge of a depth view (0.5) and a lit surface (3, HDR): the jitter lands its
-  // sample on one then the other, in motion (an eighth of the current frame).
-  let color = 0.5,
-    share = 1
-  const composed: number[] = [],
-    fromFlags: number[] = []
-  for (let frame = 1; frame < 96; frame++) {
-    const onDepth = frame % 2 === 0
-    ;[color, share] = blend(1 / 8, onDepth ? 0.5 : 3, color, onDepth ? 1 : 0, share)
-    composed.push(accumulated(color, share))
-    fromFlags.push(still(color, onDepth ? AS_IS_FLAG : 2))
-  }
-  const swing = (values: number[]) =>
-    Math.max(...values.slice(32).map((value, i) => Math.abs(value - values[i + 31])))
-  assert.ok(share > 0.1 && share < 0.9, `the edge settles on a blend: ${share}`)
-  // The current flag alone would flip the history's colour in and out of the curve every frame.
-  assert.ok(swing(fromFlags) > 0.3, `flag swing ${swing(fromFlags)}`)
-  assert.ok(swing(composed) < swing(fromFlags) / 4, `share swing ${swing(composed)}`)
+// The temporal pass accumulates no as-is pixel: no update reads a flag, nor keeps a share beside
+// the colour (it accumulated the share by the colour's weights so that a jittered edge did not flip).
+test('The temporal pass reads no flag and keeps no as-is share', () => {
+  assert.doesNotMatch(TAA_SHADER, /flags|asIs|shareOut|keptShare/)
 })
 
-test('a lit transparent at opacity 0.4 over a debug surface leaves it a 0.6 share', () => {
-  // The seed pass: the opaque flags give a share of 1 under a debug view, 0 under a lit surface.
-  const [seedWgsl] = capture(AS_IS_SHARE_SHADER, /return vec2f\((f32\(.*?\)),0\.0\);/)
-  const seedOf = runLines<(flags: number, pixel: number[]) => number>(
-    '',
-    'flags:u32,pixel:vec4f',
-    seedWgsl,
-    { textureLoad },
-  )
-  const seed = (flag: number) => seedOf(flag, [0, 0, 0, 0])
-  assert.equal(seed(AS_IS_FLAG), 1)
-  assert.equal(seed(2), 0)
-  // What the lit transparent's fragment writes to the share target, at its opacity.
-  const [shareWgsl] = capture(
-    BLEND_SHADER,
-    /return BlendOut\(vec4f\(hdr,alpha\*r\.keep\),s\.request,(vec4f\(.*?\)),r\.tint/,
-  )
-  const shareOf = runLines<(alpha: number, r: object) => Rgba>('', 'alpha:f32,r:R', shareWgsl, {})
-  const src = shareOf(0.4, { keep: 1 })
-  // The pass's own share target blends it over the seed, in every mode.
-  let left = 1
+// A transparent over a debug surface is not shown there: the reference's visualisation reads the
+// scene textures, which no translucency writes, and draws them over the scene colour that holds
+// it — so the base colour is drawn over the blended image.
+test('a lit transparent over a debug surface leaves it as it is', () => {
+  // The blend writes no share: its outputs are its colour, the request, the display layers and the
+  // responsiveness.
+  assert.doesNotMatch(BLEND_SHADER, /asIs/)
+  // Whatever the blended image holds under the as-is pixel, its base colour is drawn.
+  for (const shader of AS_IS_COMPOSITIONS)
+    for (const lit of [0, 0.4, 2])
+      assert.deepEqual(composeOf(shader, { lit }).color, [0.5, 0.5, 0.5, 1])
   for (const mode of BLEND_MODES) {
-    const target = blendTargets(mode, 0xf, true)[2]
-    assert.equal(target?.format, 'rg8unorm', mode)
-    left = written(target!, src, [seed(AS_IS_FLAG), 0, 0, 0])[0]
-    assert.ok(Math.abs(left - 0.6) < 1e-9, `${mode} over a debug view leaves ${left}`)
-    assert.equal(written(target!, src, [seed(2), 0, 0, 0])[0], 0, `${mode} over a lit surface`)
-    // Beside it, what the layers give up of the temporal history: the largest of their own at
-    // their coverage, so a layer keeping its whole history (0) lowers none, in any order.
-    const givenUp = blendTargets(mode, 0xf, true)[5]!
-    assert.equal(givenUp.format, 'r8unorm', mode)
-    assert.equal(written(givenUp, [0.1, 0, 0, 0.4], [0.5, 0, 0, 0])[0], 0.5, mode)
-    assert.equal(written(givenUp, [0.75, 0, 0, 1], [0.5, 0, 0, 0])[0], 0.75, mode)
+    // The responsiveness the layers carry into the temporal analysis: the largest of their own
+    // marks, so a layer of none (0) lowers none, in any order.
+    const responsive = RESPONSIVE_TARGET
+    assert.equal(responsive.format, 'r8unorm', mode)
+    assert.equal(written(responsive, [1 / 3, 0, 0, 1], [0.5, 0, 0, 0])[0], 0.5, mode)
+    assert.equal(written(responsive, [1, 0, 0, 1], [0.5, 0, 0, 0])[0], 1, mode)
   }
-  // The temporal resolve reads that share as it is, and composition curves the lit 0.4 alone.
-  const [readWgsl] = capture(
-    taaResolveShader(true, true),
-    /let asIs=(textureLoad\(flags,at,0\)\.r);/,
-  )
-  const read = runLines<(flags: number, at: number) => number>('', 'flags:u32,at:vec2i', readWgsl, {
-    textureLoad,
-  })
-  const share = read(left, 0)
-  assert.equal(share, left)
-  const expected = curve(2 * EXPOSURE) * 0.4 + 2 * 0.6
-  assert.ok(Math.abs(accumulated(2, share) - expected) < 1e-9, 'the lit overlap keeps its curve')
 })

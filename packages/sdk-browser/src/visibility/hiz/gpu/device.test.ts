@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { destroyRetired } from '../../../gpu/core/frameRetire.ts'
 import { createGpuHiz } from './factory.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
@@ -24,6 +25,8 @@ test('GPU Hi-Z allocates only the current pyramid and releases it on resize', as
   assert.equal(pyramids().length, 1)
   const [firstPyramid] = pyramids()
   assert.equal(hiz.resize(device, 32, 32), true)
+  assert.ok(!destroyed.includes(firstPyramid), 'the old pyramid lives until the frame is submitted')
+  destroyRetired(device)
   assert.ok(destroyed.includes(firstPyramid))
   assert.equal(pyramids().length, 2)
   hiz.dispose()

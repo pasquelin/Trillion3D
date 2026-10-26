@@ -1,32 +1,53 @@
 import {
-  BLEND_GIVEN_UP_WGSL,
+  BLEND_RESPONSIVE_WGSL,
   TRI_CHANNELS_SHIFT,
-  TRI_GIVEN_UP_SHIFT,
+  TRI_HOLDOUT_SHIFT,
+  TRI_RESPONSIVE_SHIFT,
   VERTEX_LISTS_WGSL,
   VERTEX_READS_WGSL,
+  WORDS,
   vsOutWgsl,
 } from './vertexReadsWgsl.ts'
 import * as itemFlags from '../visibility/types.ts'
-import * as surfaceModel from '../materials/surface/surfaceModel.ts'
+import {
+  MODEL_LANE_BITS,
+  MODEL_SHIFT,
+  TRANSLUCENT_SHADOW_FLAG_SHIFT,
+  TRANSLUCENT_SHADOW_MODEL_SHIFT,
+  normalCurvatureFlag,
+} from '../materials/surface/surfaceModelWord.ts'
+import { shadingUnlitOfModel } from '../materials/surface/shadingModelCode.ts'
 import { NORMAL_TRANSFORM_WGSL } from '../lighting/standardLighting.ts'
 import { DIAGNOSTIC_VIEWS } from '../visibility/shader/shadeMode.ts'
 import { DIAGNOSTIC_PALETTE_WGSL } from '../diagnostic/colors.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_UV_SET_WGSL } from '../visibility/shader/pageUvSetWgsl.ts'
-import { MAP_CHANNEL_WGSL } from '../visibility/shader/physicalWgsl.ts'
+import { CHANNEL_SLOTS, MAP_CHANNEL_WGSL } from '../visibility/shader/physicalWgsl.ts'
 import { SURFACE_MAP_FIELDS } from '../visibility/materialType.ts'
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts'
 import { FACING_DROP, FACING_MATERIAL_MASK, FACING_SHIFT, FACING_WGSL } from './facing.ts'
-import { ITEM_FLAG_BITS, ITEM_HISTORY_SHIFT, ITEM_HLOD } from './items.ts'
+import { ITEM_FLAG_BITS, ITEM_HLOD, ITEM_HOLDOUT, ITEM_RESPONSIVE_SHIFT } from './items.ts'
 import { clipReturn, clipReturnType, cutByPixel, type Clipping } from '../gpu/core/clipDistances.ts'
 import { planeDistance } from '../../../math/src/wgsl/geometry.ts'
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
+import { windingKept, worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { lowBits } from '../../../math/src/wgsl/integer.ts'
 import { cornerBarycentric } from '../../../math/src/wgsl/barycentric.ts'
+import { NO_VERTEX_WORDS, type CloudVertexText } from './cloudVertexText.ts'
+import { NO_WPO, wpoKey, type WpoSet } from '../materials/graph/wpoProgram.ts'
+import { wpoGraphWgsl } from '../visibility/shader/wpoGraphWgsl.ts'
+import { translucencyLightingFlags } from '../lighting/translucency/modeWgsl.ts'
+import { blendShadingFlags } from './shaderSurface.ts'
+
+/** The pass's flags an item's own carry beside its row's: every bit of the view's but the diagnostic view's
+ *  code (`DIAGNOSTIC_CODE_SHIFT`), which a fragment reads from `uni.viewFlags` where the pixel model's number
+ *  (`PIXEL_MODEL_SHIFT`) sits in the same bits of the item's. */
+const VIEW_FLAGS_OF_ITEM =
+  ~(itemFlags.DIAGNOSTIC_CODE_MASK << itemFlags.DIAGNOSTIC_CODE_SHIFT) >>> 0
 
 /** The diagnostic view a transparent fragment draws (`DIAGNOSTIC_VIEWS`), out of its frame flags
- *  (`DIAGNOSTIC_CODE_SHIFT`): zero in the image. */
+ *  (`DIAGNOSTIC_CODE_SHIFT`), read from the pass's uniform (`uni.viewFlags`): zero in the image. */
 const BLEND_DIAGNOSTIC_CODE_WGSL = wgslBlock(
   'BLEND_DIAGNOSTIC_CODE_WGSL',
   [],
@@ -41,7 +62,7 @@ const CHANNELS_ALT_WGSL = wgslFn(
   [MAP_CHANNEL_WGSL],
   `fn channelsAlt(channels:u32)->u32{
  var alt=0u;
- for(var i=16u;i>0u;i--){
+ for(var i=${CHANNEL_SLOTS}u;i>0u;i--){
   let s=mapChannel(channels,i-1u);
   if(s!=0u){alt=s;}
  }
@@ -72,7 +93,7 @@ const UV_PAIR = `let uv0=pageUv(page,h,v);var uv1=uv0;
  var alt=channelsAlt(m.channels);
  if(alt==0u&&m.lobes!=0u){alt=channelsAlt(physicalAt(m.lobes).channels);}
  if(alt!=0u&&pageHasUvSet(page,h,alt)){uv1=pageUvSet(page,h,v,alt,normalTexels());}
- out.uv=vec4f(uv0,uv1);out.tri|=channelsRead(m.channels)<<${TRI_CHANNELS_SHIFT}u;`
+ out.uv=vec4f(uv0,uv1);out.${WORDS.tri}|=channelsRead(m.channels)<<${TRI_CHANNELS_SHIFT}u;`
 
 /** What a lobed program's vertex stage adds (`blendVertexWgsl`): the second UV set beside the
  *  first, the item's material word beside its ids and in its page, and their reads. */
@@ -102,16 +123,25 @@ const LAYOUTS = {
  *
  * With `lobes`, a lobed program's (`physicalWgsl.ts`): `uv` carries a second UV set in its last
  * two lanes (`pageUvSet`, the first where the geometry has none) and `ids` the item's material word
- * in its fourth — no varying more, a fragment stage reading its front face holding fifteen of the
- * sixteen WebGPU guarantees. Without `clipping`, the stage as it was, word for word: the text of a
+ * in its fourth — no varying more. Without `clipping`, the stage as it was, word for word: the text of a
  * session whose project switch is off. Cutting at the view's plane by distance, the stage returns the struct
  * that carries the distance of its vertex to the plane (`vsOutWgsl`); by pixel, `blendClipped` tells
- * a fragment stage the pixel behind it (`../gpu/core/clipDistances.ts`).
+ * a fragment stage the pixel behind it (`../gpu/core/clipDistances.ts`). With `clouds`, the words of a
+ * program that reads the fog per vertex, and the clouds where it reads them (`cloudVertexText`): the stage
+ * works the fog out at each vertex (`fogLaidFar`) and, with the clouds, reads their shade (`cloudShadeAt`) and
+ * the cloud image (`cloudFogOver`), and hands them over as two extras of its output (`cloudVertexText.ts`,
+ * `vertexExtras.ts`); without, the stage as it was.
  */
-export const blendVertexWgsl = (lobes: boolean, clipping?: Clipping, graphs = false) => {
+export const blendVertexWgsl = (
+  lobes: boolean,
+  clipping?: Clipping,
+  clouds: CloudVertexText = NO_VERTEX_WORDS,
+  wpo: WpoSet = NO_WPO,
+) => {
   const layout = LAYOUTS[lobes ? 'lobed' : 'lobeless']
+  const moved = wpo.programs.length > 0
   return wgslBlock(
-    `blendVertexWgsl(${lobes}${clipping ? `, ${clipping}` : ''}${graphs ? ', graphs' : ''})`,
+    `blendVertexWgsl(${lobes}${clipping ? `, ${clipping}` : ''}${clouds.key}${moved ? `, offsets ${wpoKey(wpo)}` : ''})`,
     [
       PAGE_GEOMETRY_WGSL,
       NORMAL_TRANSFORM_WGSL,
@@ -119,18 +149,32 @@ export const blendVertexWgsl = (lobes: boolean, clipping?: Clipping, graphs = fa
       VERTEX_READS_WGSL,
       ...layout.read,
       VERTEX_LISTS_WGSL,
-      vsOutWgsl(layout.uv, layout.ids, clipping),
+      vsOutWgsl(layout.uv, layout.ids, clipping, clouds.extras),
       DIAGNOSTIC_PALETTE_WGSL,
       BLEND_DIAGNOSTIC_CODE_WGSL,
-      BLEND_GIVEN_UP_WGSL,
+      BLEND_RESPONSIVE_WGSL,
       FACING_WGSL,
+      windingKept,
+      worldMatrix3,
+      translucencyLightingFlags,
+      blendShadingFlags,
+      shadingUnlitOfModel,
+      normalCurvatureFlag,
       lowBits,
       cornerBarycentric,
+      ...clouds.declared,
       ...(clipping ? [planeDistance] : []),
+      ...(moved ? [wpoGraphWgsl(wpo)] : []),
     ],
-    `${blendVertexStage(layout, clipping, graphs)}${clipping === 'pixel' ? BLEND_CLIPPED : ''}`,
+    `${blendVertexStage(layout, clipping, clouds, moved)}${clipping === 'pixel' ? BLEND_CLIPPED : ''}`,
   )
 }
+
+/** What a module that moves vertices adds to the page its vertex stage builds from the item: its world,
+ *  its surface's record and the words of its offset (`wpo` and the three beside it), which
+ *  `pagePosition` reads the offset from; a record without an offset program has none. */
+const WPO_PAGE = (layoutPage: string) =>
+  `page.world=it.world;page.wpo=it.wpo;page.wpoDisableSq=it.wpoDisableSq;page.wpoCentre=it.wpoCentre;page.wpoMost=it.wpoMost;${layoutPage ? '' : 'page.material=it.material;'}`
 
 /** The cluster's span, the corners of its triangle and its facing; a padding lane reads none. */
 const VERTEX_PAGE = ` let span=clusterSpans[slot.y];
@@ -144,19 +188,11 @@ const VERTEX_PAGE = ` let span=clusterSpans[slot.y];
   corners=pageTriangle(page,h,local/3u);
   if(cull!=0u){facing=vertexFacing(cull,it.world,page,h,corners);}
  }
- out.material=(it.material&${FACING_MATERIAL_MASK}u)|(facing<<${FACING_SHIFT}u);`
+ out.${WORDS.material}=(it.material&${FACING_MATERIAL_MASK}u)|(facing<<${FACING_SHIFT}u);`
 
-/** What the vertex stage hands the fragments of an item whose surface wears a graph: the factors and the
- *  maps of its record neutral — one, no map — so that its fragments read what its graph gives
- *  (`graphWgsl.ts`), which the factors multiply. */
-const GRAPH_NEUTRAL = ` if(m.graph!=0u){
-  out.color=vec4f(1.0);out.ids.x=0u;out.ids.z=0u;out.maps=vec4u(0u);
-  out.alphaAo.y=1.0;out.pbr=vec4f(1.0);out.emissive=vec4f(1.0,1.0,1.0,0.0);
- }
-`
-
-/** The corner's colour, position, diagnostics and frame. */
-const VERTEX_CORNER = ` let v=corners[local%3u];
+/** The corner's colour, position, diagnostics and frame, the clouds' values (`clouds`, `cloudVertexText.ts`)
+ *  written once it has its place. */
+const vertexCorner = (clouds: CloudVertexText) => ` let v=corners[local%3u];
  // The material colour times the vertex colour, alpha included, as the forward path reads it.
  if((flags&${itemFlags.FLAG_HAS_COLOR}u)!=0u){out.color*=pageColor(page,h,v);}
  let p=pagePosition(page,h,v);
@@ -166,29 +202,34 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  if(m.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(it.world*vec4f(pageNormal(page,h,v),0.0)),m.lineWidth,uni.viewport,uni.pixelRatio);}
  // A sprite's quad turns to face the camera (\`spriteAt\`), about its origin.
  if(m.sprite.y!=0.0){let s=spriteAt(uni.viewProj,it.world,p.xy,m.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}
- // The triangle's rank, and above it the item's history share code (\`TRI_GIVEN_UP_SHIFT\`).
- out.tri=(local/3u)|(((it.flags>>${ITEM_HISTORY_SHIFT}u)&${itemFlags.HISTORY_SHARE_MASK}u)<<${TRI_GIVEN_UP_SHIFT}u);
+ // The triangle's rank, and above it the item's responsiveness code (\`TRI_RESPONSIVE_SHIFT\`).
+ out.${WORDS.tri}=(local/3u)|(((it.flags>>${ITEM_RESPONSIVE_SHIFT}u)&${itemFlags.RESPONSIVE_MASK}u)<<${TRI_RESPONSIVE_SHIFT}u)|(select(0u,1u,(it.flags&${ITEM_HOLDOUT}u)!=0u)<<${TRI_HOLDOUT_SHIFT}u);
+ // The item's opacity clip (\`blendResponsive\`), in the word the diagnostic views' cluster word takes.
+ out.${WORDS.diagId}=bitcast<u32>(it.opacityClip);
  // The diagnostic views' cluster word and triangle (\`diagnosticColor\`), the opaque resolve's:
  // the screen-error view's word turned to the cluster's world error, which needs the item's world.
  // Read in a diagnostic view alone: a test of the image's view flags, the same for every lane.
  if((uni.viewFlags&${itemFlags.FLAG_DIAGNOSTIC_VIEW}u)!=0u){
-  out.diagId=clusterDiagnostic[slot.y];
+  out.${WORDS.diagId}=clusterIdentity(slot.y);
   // The HLOD view's word, of a placement drawn as an HLOD level (\`ITEM_HLOD\`).
-  if(blendDiagnosticCode(uni.viewFlags)==${DIAGNOSTIC_VIEWS.hlod.code}u){out.diagId=diagnosticDrawnAs(out.diagId,(it.flags>>${ITEM_HLOD.shift}u)&${ITEM_HLOD.mask}u);}
-  if(blendDiagnosticCode(uni.viewFlags)==${DIAGNOSTIC_VIEWS['screen-error'].code}u){out.diagId=bitcast<u32>(diagnosticWorldError(out.diagId,it.world));}
+  if(blendDiagnosticCode(uni.viewFlags)==${DIAGNOSTIC_VIEWS.hlod.code}u){out.${WORDS.diagId}=diagnosticDrawnAs(out.${WORDS.diagId},(it.flags>>${ITEM_HLOD.shift}u)&${ITEM_HLOD.mask}u);}
+  if(blendDiagnosticCode(uni.viewFlags)==${DIAGNOSTIC_VIEWS['screen-error'].code}u){out.${WORDS.diagId}=bitcast<u32>(diagnosticWorldError(out.${WORDS.diagId},it.world));}
  }
- out.bary=cornerBarycentric(local%3u);
+ ${clouds.vertexLanes}out.bary=cornerBarycentric(local%3u);
  out.normal=vec4f(vec3f(0.0),out.normal.w);
  if((flags&${itemFlags.FLAG_HAS_NORMAL}u)!=0u){out.normal=vec4f(xformNormal(it.world,pageNormal(page,h,v)),out.normal.w);}
  out.tangent=vec4f(vec3f(0.0),out.tangent.w);out.bitangent=vec4f(vec3f(0.0),out.bitangent.w);
- if((flags&${itemFlags.FLAG_BACK}u)!=0u){out.normal=vec4f(-out.normal.xyz,out.normal.w);}
+ // A two-sided item's mirrored placement turns the vertex normal and tangent: the hardware \`front\`
+ // the fragment multiplies by is that of the mirrored winding, so the determinant's sign rides here.
+ let turned=((flags&${itemFlags.FLAG_BACK}u)!=0u)!=((flags&${itemFlags.FLAG_DOUBLE}u)!=0u&&!windingKept(worldMatrix3(it.world)));
+ if(turned){out.normal=vec4f(-out.normal.xyz,out.normal.w);}
  // An item that reads a tangent reads its page's stored one or its source's floats (\`pageTangent\`);
  // one without carries no flag (\`prepare.ts\`), its frame rebuilt from the screen (\`shaderSurface.ts\`).
  if((flags&${itemFlags.FLAG_HAS_TANGENT}u)!=0u){
   let t=pageTangent(page,h,v);
   out.tangent=vec4f(unitOrZero((it.world*vec4f(t.xyz,0.0)).xyz),out.tangent.w);
-  if((flags&${itemFlags.FLAG_BACK}u)!=0u){out.tangent=vec4f(-out.tangent.xyz,out.tangent.w);}
-  out.bitangent=vec4f(unitOrZero(cross(out.normal.xyz,out.tangent.xyz)*t.w),out.bitangent.w);
+  if(turned){out.tangent=vec4f(-out.tangent.xyz,out.tangent.w);}
+  out.bitangent=vec4f(unitOrZero(cross(out.normal.xyz,out.tangent.xyz)*t.w*select(1.0,-1.0,turned)),out.bitangent.w);
  }`
 
 /**
@@ -202,33 +243,34 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  */
 const blendVertexStage = (
   { ids, word, page, write }: (typeof LAYOUTS)['lobed'],
-  clipping?: Clipping,
-  graphs = false,
+  clipping: Clipping | undefined,
+  clouds: CloudVertexText,
+  moved: boolean,
 ) => `@vertex fn vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instance:u32)->${clipReturnType('VSOut', clipping)}{
  var out:VSOut;
  let slot=planInstances[(vertexIndex>>uni.vertexShift)+instance];
  let it=items[slot.x&${INSTANCE_ITEM_MASK}u];
  let cull=slot.x>>${INSTANCE_CULL_SHIFT}u;
  let local=vertexIndex&lowBits(uni.vertexShift);
- let flags=(it.flags&${ITEM_FLAG_BITS}u)|uni.viewFlags;
+ let flags=(it.flags&${ITEM_FLAG_BITS}u)|(uni.viewFlags&${VIEW_FLAGS_OF_ITEM}u);
  var page:PageInfo;
- page.flags=flags;page.vertexBase=it.vertexBase;page.deform=it.deform;${page}
+ page.flags=flags;page.vertexBase=it.vertexBase;page.deform=it.deform;${page}${moved ? WPO_PAGE(page) : ''}
 ${VERTEX_PAGE}
- // A padding or dropped lane leaves the clip volume; every output but \`material\` and the normal
- // stays zero, as declared.
+ // A padding or dropped lane leaves the clip volume; every output but \`material\` and the normal stays zero, as declared.
  if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.normal=vec4f(0.0,0.0,1.0,0.0);return ${clipReturn('VSOut', clipping, 'out', '1.0')};}
  // Its surface's record (\`materialAt\`): its factors, maps, model and fog, read once a drawn
  // vertex, never by a padding or dropped lane.
  let m=materialAt(it.material);
- out.color=vec4f(m.baseColor,m.opacity);
- out.ids=${ids}(m.mapIndex,flags|(m.model<<${surfaceModel.MODEL_SHIFT}u),m.emissiveIndex${word});
+ // The unlit shading model shows its emission alone: no base colour, and the lit flag cleared (\`blendShadingFlags\`).
+ out.color=vec4f(select(m.baseColor,vec3f(0.0),shadingUnlitOfModel(m.model)),m.opacity);
+ out.ids=${ids}(m.mapIndex,blendShadingFlags(flags,m.model)|((m.model&${MODEL_LANE_BITS}u)<<${MODEL_SHIFT}u)|(((m.model>>${TRANSLUCENT_SHADOW_MODEL_SHIFT}u)&7u)<<${TRANSLUCENT_SHADOW_FLAG_SHIFT}u)|translucencyLightingFlags(m.model)|normalCurvatureFlag(m.model),m.emissiveIndex${word});
  out.maps=vec4u(m.roughnessIndex,m.metalnessIndex,m.normalIndex,m.aoIndex);
  out.alphaAo=vec4f(m.alphaTest,m.aoIntensity,m.dash);
  // The second normal factor of the frame the item's normal map is read in (\`frameNormalScaleY\`).
  out.pbr=vec4f(m.roughness,m.metalness,m.normalScale,select(m.normalScaleY,m.tangentNormalScaleY,(it.flags&${itemFlags.FLAG_HAS_TANGENT}u)!=0u));
  out.emissive=vec4f(m.emissive,f32(m.subsurfaceMap));
  out.normal.w=m.subsurface.x;out.tangent.w=m.subsurface.y;out.bitangent.w=m.subsurface.z;
-${graphs ? GRAPH_NEUTRAL : ''}${VERTEX_CORNER}
+${vertexCorner(clouds)}
  ${write}
  return ${clipReturn('VSOut', clipping, 'out', 'planeDistance(uni.clipPlane,out.view)')};
 }`

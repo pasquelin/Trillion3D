@@ -1,5 +1,5 @@
 import type { VisMaterial } from '../materialType.ts'
-import { SHADOWLESS_ROOT } from './castingMark.ts'
+import { MARK_BITS, SHADOWLESS_ROOT } from './castingMark.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -57,11 +57,11 @@ export const neverCulled = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
 
 /** The root mark's bit on every sprite (`ClusterRoot.mark`): a sprite casts no shadow, so the
  *  shadow raster leaves its rows out and the sun's scene box leaves it out. */
-const SPRITE_ROOT = 1
+const SPRITE_ROOT = MARK_BITS.sprite
 /** The root mark's bit on a never-culled sprite (`neverCulled`): no camera cut rejects it. */
-export const SPRITE_UNCULLED = 2
+export const SPRITE_UNCULLED = MARK_BITS.spriteNeverCulled
 /** The bits of a root that casts no shadow: a sprite, or a node that says so (`castingMark.ts`); what
- *  the shadow raster's rows test (`../../lighting/shadows/casters/bounds.ts`). */
+ *  the shadow casters' flags test (`../../lighting/shadows/casters/castFlags.ts`). */
 export const CASTS_NO_SHADOW = SPRITE_ROOT | SHADOWLESS_ROOT
 
 /**

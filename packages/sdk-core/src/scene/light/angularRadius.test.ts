@@ -7,7 +7,7 @@ import { cloneSceneLight } from './clone.ts'
 import type { SceneLight } from './contracts.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
-import { temperatureFactor } from '../../modules/sky/sunColour.ts'
+import { temperatureFactor } from '../../modules/sky/blackBody.ts'
 import { validateSceneAtmosphere } from '../core/atmosphere.ts'
 import { ATMOSPHERE_SLOT } from '../core/atmospherePack.ts'
 import { diskSolidAngle } from '../core/atmosphereOptics.ts'
@@ -113,4 +113,17 @@ test('the sun’s colour follows its temperature, its disk its tint, and the air
       }),
     /shadowsAir/,
   )
+})
+
+test('a sun whose disk is a point draws no disk: a radius of 0 is kept, a cosine of 1 and no luminance', () => {
+  const store = createSceneLightStore()
+  store.setEnvironment({ exposure: 1, atmosphere: validateSceneAtmosphere(true) })
+  store.add({ ...source, id: 'point', angularRadius: 0 })
+  // The disk's luminance is the illuminance over its solid angle, which is 0 at a radius of 0: none
+  // is written, not an infinity (and a NaN for a channel of 0), and the cosine of its edge is 1.
+  assert.equal(diskSolidAngle(0), 0)
+  const block = (slot: number) =>
+    Array.from(store.atmospherePacked.subarray(slot * 4, slot * 4 + 4))
+  assert.deepEqual(block(ATMOSPHERE_SLOT.sunDisk), [0, 0, 0, 1])
+  assert.equal(block(ATMOSPHERE_SLOT.sunDirection)[3], 1)
 })

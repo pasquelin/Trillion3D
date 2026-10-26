@@ -1,6 +1,6 @@
 // Bench reference scenes, and the cache that carries them. The engine names no scene: the harness
 // infers the name from the cache, and the campaign plays these when none is given.
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 
 // Bench assets, read-only: `<scene>/` (sources) and `<scene>-derived/` (compiled cache, see
@@ -62,21 +62,3 @@ export function assetsManifest(scene: string, needed: boolean) {
   if (needed && !cachePret(scene, ASSETS)) throw new Error(`cache absent : ${sceneDerived(scene)}`)
   return `/benchmark-assets/${scene}-derived/native/full/manifest.json`
 }
-
-/**
- * glTF URL of the Three witness: the sources file, otherwise `source.gltf` written by the
- * compiler next to the cache — an FBX has no glTF in the source folder.
- */
-export function gltfUrlIn(assets: string, scene: string) {
-  const dossier = join(assets, scene)
-  const gltf = existsSync(dossier) ? readdirSync(dossier).find((f) => f.endsWith('.gltf')) : null
-  if (gltf) return `/benchmark-assets/${scene}/${gltf}`
-  const full = join(sceneDerived(scene, assets), 'native/full')
-  if (existsSync(full))
-    for (const key of readdirSync(full))
-      if (existsSync(join(full, key, 'source.gltf')))
-        return `/benchmark-assets/${scene}-derived/native/full/${key}/source.gltf`
-  throw new Error(`glTF source absent : ${dossier}`)
-}
-
-export const sceneGltf = (scene: string) => gltfUrlIn(ASSETS, scene)

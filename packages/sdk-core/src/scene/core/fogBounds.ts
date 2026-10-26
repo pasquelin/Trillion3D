@@ -10,7 +10,7 @@ import { clamp } from '../../../../math/src/scalar/reals.ts'
 import type { SceneSecondLayer } from './fogSecond.ts'
 
 /** The bounds of the second layer's numbers, each `[lowest, highest]`. */
-export const FOG_BOUNDS = {
+const FOG_BOUNDS = {
   /** Density per metre of a layer: the 10 of the engines per 1000 centimetres. */
   baseDensity: [0, 1],
   /** Falloff per metre of a layer: the 2 of the engines per 1000 centimetres. */

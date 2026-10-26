@@ -13,7 +13,8 @@
  * again. The atmosphere's block (`atmospherePack.ts`) holds, for each light, its direction, its
  * illuminance outside the air and its disk; the light a surface receives is that illuminance times
  * the air's transmittance toward the light, which the store writes into the light's own slot of the
- * light buffer — the declared light stays as the host declared it.
+ * light buffer — the declared light stays as the host declared it. With no air the block holds the
+ * lights only where the clouds ask (`SceneLightStore.setAirlessSuns`).
  */
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import { sameSceneAtmosphere, type ResolvedAtmosphere } from '../core/atmosphere.ts'
@@ -25,7 +26,13 @@ import {
   type AtmosphereSunIndex,
   type SceneLight,
 } from './contracts.ts'
-import { atmosphereSunIndexOf, lightColour, lightLuminance, sunDiskTintOf } from './fields.ts'
+import {
+  atmosphereSunIndexOf,
+  brightnessOf,
+  lightColour,
+  lightLuminance,
+  sunDiskTintOf,
+} from './fields.ts'
 
 /** Whether a light may light the air: a directional one not set off. */
 const mayLightAir = (light: SceneLight) =>
@@ -137,8 +144,8 @@ const sunValues = (sun: SceneLight | undefined, slot: number | undefined) =>
         1,
         ...sun.direction!,
         ...lightColour(sun),
-        sun.intensity,
-        sun.angularRadius || LIGHT_SETTINGS.sunAngularRadius,
+        brightnessOf(sun),
+        sun.angularRadius ?? LIGHT_SETTINGS.sunAngularRadius,
         ...sunDiskTintOf(sun),
         sun.shadowsAir ? 1 : 0,
         sun.transmittancePerPixel ? 1 : 0,
@@ -151,14 +158,11 @@ const NO_AIR: Rgb = [1, 1, 1]
 /** A light as the block packs it, with the transmittance of the air toward it and its slot. */
 const packedSun = (sun: SceneLight, transmittance: Rgb, lightSlot: number | undefined) => {
   const colour = lightColour(sun)
+  const brightness = brightnessOf(sun)
   return {
     direction: sun.direction!,
-    illuminance: [
-      colour[0] * sun.intensity,
-      colour[1] * sun.intensity,
-      colour[2] * sun.intensity,
-    ] as Rgb,
-    angularRadius: sun.angularRadius || LIGHT_SETTINGS.sunAngularRadius,
+    illuminance: [colour[0] * brightness, colour[1] * brightness, colour[2] * brightness] as Rgb,
+    angularRadius: sun.angularRadius ?? LIGHT_SETTINGS.sunAngularRadius,
     transmittance,
     diskTint: sunDiskTintOf(sun),
     shadowsAir: sun.shadowsAir === true,
@@ -168,7 +172,7 @@ const packedSun = (sun: SceneLight, transmittance: Rgb, lightSlot: number | unde
 }
 
 /** The atmosphere's block in the form a store keeps: written again when the air or its lights
- *  changed, its two versions told apart — the air's alone is what the lookup tables hang on. With
+ *  changed, its version bumped when the air alone changed — what the lookup tables hang on. With
  *  no air the block still holds the lights of the air, as the clouds light a medium by them
  *  (`packAtmosphere`). */
 export function createAtmosphereBlock() {
@@ -176,8 +180,7 @@ export function createAtmosphereBlock() {
   let atmosphere: ResolvedAtmosphere | undefined,
     held: number[] = [],
     tints: Rgb[] = ATMOSPHERE_SUN_INDICES.map(() => NO_AIR),
-    version = 0,
-    epoch = 0
+    version = 0
   return {
     /** The block as the GPU reads it. */
     packed,
@@ -188,10 +191,6 @@ export function createAtmosphereBlock() {
     /** Bumped when the air changes: what its lookup tables are made from. */
     get version() {
       return version
-    },
-    /** Bumped when the air or a light of it changes: what the sky and the sky light show. */
-    get epoch() {
-      return epoch
     },
     /** The transmittance of the air toward each light, by index, one while there is no air or no
      *  light. */
@@ -209,7 +208,6 @@ export function createAtmosphereBlock() {
       const values = suns.flatMap((sun, index) => sunValues(sun, slots[index]))
       if (!airChanged && sameValues(values, held)) return false
       if (airChanged) version++
-      epoch++
       atmosphere = next
       held = values
       const toward = suns.map((sun) =>

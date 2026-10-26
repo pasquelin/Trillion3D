@@ -14,6 +14,7 @@
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
 
+#include "filters.h"
 #include "layout.h"
 #include "pairIndex.h"
 
@@ -22,11 +23,6 @@
 #include <vector>
 
 namespace trillion {
-
-/// Standard gravity, m/s²: what brakes and a soft body's least pull are sized on, whatever the world's.
-constexpr float STANDARD_GRAVITY = 9.80665f;
-/// Object layers: static geometry, moving bodies, decorative bodies (debris: meet statics only).
-enum Layer : JPH::ObjectLayer { STATIC = 0, MOVING = 1, DECORATIVE = 2, LAYER_COUNT = 3 };
 
 struct Slot {
   JPH::BodyID id;
@@ -75,6 +71,8 @@ class Listener final : public JPH::ContactListener,
 public:
   void OnContactAdded(const JPH::Body &a, const JPH::Body &b, const JPH::ContactManifold &manifold,
                       JPH::ContactSettings &settings) override;
+  void OnContactPersisted(const JPH::Body &a, const JPH::Body &b, const JPH::ContactManifold &manifold,
+                          JPH::ContactSettings &settings) override;
   void OnContactRemoved(const JPH::SubShapeIDPair &pair) override;
   void OnBodyActivated(const JPH::BodyID &, JPH::uint64) override {}
   void OnBodyDeactivated(const JPH::BodyID &id, JPH::uint64 user) override;
@@ -121,6 +119,9 @@ struct World {
   /** The page's fixed step, s (`jolt_init`), the only step the world advances by; and whether
    *  this run advances by it (`jolt_step`): the seconds it advances, `elapsed`. */
   float fixedStep = 0;
+  /** The approach speed, m/s, below which a contact does not bounce: the page's restitution
+   *  threshold (an acceleration, `jolt_init`) times the fixed step. */
+  float restitutionSpeed = 0;
   bool stepping = false;
   float elapsed() const { return stepping ? fixedStep : 0.0f; }
 };

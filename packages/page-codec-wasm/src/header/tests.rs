@@ -1,4 +1,4 @@
-//! Refusals of the page header, in the order the decoder raises them.
+//! Refusals of the resident page's header, in the order the decoder raises them.
 
 use crate::*;
 
@@ -26,14 +26,20 @@ fn page() -> Header {
 
 #[test]
 fn short_header_then_magic_then_bounds_are_refused_in_that_order() {
-    assert_eq!(decode(&[0u8; 8], 1 << 24).unwrap_err(), PageError::Header);
-    let mut wrong = octets(&page().words());
+    assert_eq!(
+        decode_resident(&[0u8; 8], 1 << 24).unwrap_err(),
+        PageError::Header
+    );
+    let mut wrong = octets(&page().words(RESIDENT_VERSION));
     wrong[0] ^= 1;
-    assert_eq!(decode(&wrong, 1 << 24).unwrap_err(), PageError::Version);
+    assert_eq!(
+        decode_resident(&wrong, 1 << 24).unwrap_err(),
+        PageError::Version
+    );
     let index_stream = octets(&[0]);
-    let mut expected = octets(&page().words());
+    let mut expected = octets(&page().words(RESIDENT_VERSION));
     expected.extend(&index_stream);
-    assert!(decode(&expected, 1 << 24).is_ok());
+    assert!(decode_resident(&expected, 1 << 24).is_ok());
     for alter in [
         |h: &mut Header| h.vertex_count = 0,
         |h: &mut Header| h.vertex_count = MAX_VERTICES + 1,
@@ -49,24 +55,30 @@ fn short_header_then_magic_then_bounds_are_refused_in_that_order() {
     ] {
         let mut header = page();
         alter(&mut header);
-        let mut bytes = octets(&header.words());
+        let mut bytes = octets(&header.words(RESIDENT_VERSION));
         bytes.extend(&index_stream);
-        assert_eq!(decode(&bytes, 1 << 24).unwrap_err(), PageError::Bounds);
+        assert_eq!(
+            decode_resident(&bytes, 1 << 24).unwrap_err(),
+            PageError::Bounds
+        );
     }
     assert_eq!(
-        decode(&octets(&page().words()), 1 << 24).unwrap_err(),
+        decode_resident(&octets(&page().words(RESIDENT_VERSION)), 1 << 24).unwrap_err(),
         PageError::Bounds
     );
     let mut reserved = expected.clone();
     reserved[HEADER_BYTES - 1] = 1;
-    assert_eq!(decode(&reserved, 1 << 24).unwrap_err(), PageError::Bounds);
+    assert_eq!(
+        decode_resident(&reserved, 1 << 24).unwrap_err(),
+        PageError::Bounds
+    );
 }
 
 #[test]
 fn the_decoded_budget_is_refused_before_any_stream_is_read() {
-    let mut bytes = octets(&page().words());
+    let mut bytes = octets(&page().words(RESIDENT_VERSION));
     bytes.extend(octets(&[0]));
-    assert_eq!(decode(&bytes, 8).unwrap_err(), PageError::Bounds);
+    assert_eq!(decode_resident(&bytes, 8).unwrap_err(), PageError::Bounds);
 }
 
 #[test]
@@ -78,11 +90,47 @@ fn a_forged_index_count_is_refused_by_the_budget_before_any_allocation() {
     header.position_count = 1;
     header.index_count = 3 << 30;
     assert_eq!(
-        decode(&octets(&header.words()), 1 << 24).unwrap_err(),
+        decode_resident(&octets(&header.words(RESIDENT_VERSION)), 1 << 24).unwrap_err(),
         PageError::Bounds
     );
     assert_eq!(
         header.decoded_bytes(),
         (3usize << 30).saturating_mul(4).saturating_add(12)
+    );
+}
+
+#[test]
+fn the_texture_sets_past_the_fourth_cost_words_only_where_a_page_carries_them() {
+    let mut header = page();
+    header.flags = FLAG_UV | FLAG_UV1 | FLAG_UV3;
+    assert_eq!(header.bytes(), HEADER_BYTES);
+    assert_eq!(
+        header.words(RESIDENT_VERSION).len(),
+        HEADER_WORDS + RESIDENT_TABLE_WORDS
+    );
+    header.flags |= FLAG_UV5 | FLAG_UV7;
+    header.uv[5] = UvRange {
+        min: [3, 4],
+        bits: [5, 6],
+    };
+    header.uv[7] = UvRange {
+        min: [7, 8],
+        bits: [9, 10],
+    };
+    let words = header.words(RESIDENT_VERSION);
+    assert_eq!(
+        words.len(),
+        HEADER_WORDS + 2 * UV_EXTENSION_WORDS + RESIDENT_TABLE_WORDS
+    );
+    assert_eq!(header.body_at(), words.len() * 4);
+    let bytes = octets(&words);
+    assert_eq!(
+        Header::read_words(&bytes, RESIDENT_VERSION).unwrap(),
+        header
+    );
+    let short = &bytes[..bytes.len() - 4 * RESIDENT_TABLE_WORDS - 4];
+    assert_eq!(
+        Header::read_words(short, RESIDENT_VERSION).unwrap_err(),
+        PageError::Bounds
     );
 }

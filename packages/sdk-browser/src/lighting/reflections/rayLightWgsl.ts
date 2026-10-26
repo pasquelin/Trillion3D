@@ -11,6 +11,7 @@ import {
   reflectionBindingsWgsl,
 } from './viewLayout.ts'
 import { hizDepthWgsl } from '../../visibility/hiz/gpu/pyramidTexture.ts'
+import { SKY_DIFFUSE_READ_WGSL } from '../atmosphere/skyReadWgsl.ts'
 
 /**
  * WHAT A RAY BRINGS BACK, once it has found its surface: the radiance it carries, fogged along its length, and the lit
@@ -20,13 +21,15 @@ import { hizDepthWgsl } from '../../visibility/hiz/gpu/pyramidTexture.ts'
  * through the height fog along `along`, the vector from the ray's origin `start` to what it lit — the sky's over the
  * longest of its length and `ReflectionView.light.w` —, where the settings turn it on and the scene's fog is a height
  * fog; the fog module's one law (`heightFogAlong`), read from the origin's height. `reflectionHeld`: the lit image
- * the view holds, where a hit at `at`, its face turned to the ray `N`, agrees with it — the depth the image drew
+ * the view holds, in the units of a ray's radiance (the last image's exposure taken out), where a hit at `at`, its face turned to the ray `N`, agrees with it — the depth the image drew
  * there within `ReflectionView.light.y` of its own, its face looking at the eye within the cosine `light.z` — and, as a
  * weight, how far from the edge of this image and the last it lies (the stochastic acceptance's expectation); zero
- * elsewhere. `reflectionSeenAt`: what a surface of the proxy not lit by the lights shows — its tint under the light
- * the probes hold, its emission, fogged along the ray from the surface it left (`reflectionOrigin`) — over the lit
- * image where it agrees (`reflectionHeld`), which the screen already fogged; the proxy walk's reading of every layer
- * it meets (`runtimeRadianceWgsl`). The history's own depth is not read: the image holds none of its own.
+ * elsewhere. `reflectionSkylightLeak`: the sky light's diffuse light at the normal `N` of what a ray reaches — the zero vector for a ray
+ * that reaches the sky — that leaks onto it whatever hides it (`ReflectionView.leak`, none by default). `reflectionSeenAt`: what a surface
+ * the march met shows — the light the surface cache's final lighting gives it at `at`, its face `N`, and the leaking, fogged along the
+ * ray from the surface it left (`reflectionOrigin`) — over the lit
+ * image where it agrees (`reflectionHeld`), which the screen already fogged. The history's own depth is not read: the image
+ * holds none of its own.
  */
 export const reflectionRayLightWgsl = (group: number) =>
   wgslBlock(
@@ -38,8 +41,10 @@ export const reflectionRayLightWgsl = (group: number) =>
       REFLECTION_CONE_WGSL,
       REFLECTION_CLAMP_WGSL,
       REFLECTION_LINEAR_DEPTH_WGSL,
+      SKY_DIFFUSE_READ_WGSL,
       clipToFramebuffer,
-      fogBlockOf({ group: 0 }),
+      // A ray is fogged by the height fog alone: no local fog volumes' code.
+      fogBlockOf({ group: 0, localFog: false }),
     ],
     `fn reflectionFogged(rgb:vec3f,start:vec3f,along:vec3f)->vec3f{
  if(!reflectionDone(REFLECTION_HEIGHT_FOG)||directLights.fog[${FOG_SLOT.color}].w<${FOG_MODE.exponential - 0.5}){return rgb;}
@@ -63,11 +68,16 @@ fn reflectionHeld(at:vec3f,N:vec3f)->vec4f{
  let Q=clipToFramebuffer(previous,reflectionView.radiance.xy).xy;
  let weight=reflectionEdgeFade(S.xy,size)*reflectionEdgeFade(Q,reflectionView.radiance.xy);
  let lit=textureLoad(reflectionImage,vec2i(Q),0);
- return vec4f(lit.rgb,weight*clamp(lit.a,0.0,1.0));
+ return vec4f(lit.rgb*reflectionView.radiance.w,weight);
 }
-fn reflectionSeenAt(tint:vec3f,emission:vec3f,at:vec3f,N:vec3f)->vec3f{
- let proxied=reflectionFogged(surfaceSeen(tint,at,N)+emission,reflectionOrigin,at-reflectionOrigin);
+fn reflectionSkylightLeak(N:vec3f)->vec3f{
+ let leak=reflectionView.leak.xyz;
+ if(all(leak<=vec3f(0.0))||!skyLit()){return vec3f(0.0);}
+ return skyLightDiffuse(N)*leak;
+}
+fn reflectionSeenAt(radiance:vec3f,at:vec3f,N:vec3f)->vec3f{
+ let cached=reflectionFogged(radiance+reflectionSkylightLeak(N),reflectionOrigin,at-reflectionOrigin);
  let held=reflectionHeld(at,N);
- return reflectionClampRay(mix(proxied,held.rgb,held.w));
+ return reflectionClampRay(mix(cached,held.rgb,held.w));
 }`,
   )

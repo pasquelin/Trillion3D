@@ -47,8 +47,8 @@
       // - Pebble bed: 10 000 small spheres under a low sun: the densest, hardest sun shadows.
       // - Glass: six panes and four tinted balls of the transmission material (refraction, IOR 1.5,
       //   absorption over a thickness), composed on a frozen copy of the image.
-      // - Water: the engine's own (`world.physics.water`): a 60 × 40 m grid lying on the water's
-      //   level, moved on the GPU by the same waves the physics floats bodies on, drawn as
+      // - Water: the engine's own (`world.physics.water`): a 60 × 40 m grid linked to its surface
+      //   (`waves`), moved on the GPU by the same waves the physics floats bodies on, drawn as
       //   transmissive water (IOR 1.33, absorbed with depth).
       // - Bodies (Jolt, in its worker): 240 bodies stirred in a bin by a paddle on a motored hinge,
       //   which never lets them sleep, and 24 floating on the waves: steps, contacts, buoyancy and
@@ -339,8 +339,8 @@
         glass.add(mesh)
       }
 
-      // The water: the physics' own, four waves of its model; the grid lying on its level is its
-      // surface, carried by those waves on the GPU. Its crests stay below the basin's rim.
+      // The water: the physics' own, four waves of its model; the grid linked to it
+      // (`water.waves`, below) is its surface, carried by those waves on the GPU. Its crests stay below the basin's rim.
       const WATER = {
         level: BASIN.level,
         waves: [
@@ -622,8 +622,11 @@
             world.camera.position.set(...position)
             world.controls.target.set(...target)
           }
-          if (key === undefined || key === 'water')
+          if (key === undefined || key === 'water') {
             world.physics.water = values.water ? WATER : null
+            // The grid is the water's surface: linked again each time the water changes.
+            water.waves = world.physics.waterSurface ?? undefined
+          }
           if (key === undefined || key === 'bodies') {
             for (const body of bodies)
               if (values.bodies) world.scene.add(body)

@@ -9,15 +9,33 @@ import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import { MIB } from '../../../../math/src/constants.ts'
 import type { QueueState, Started } from './queueState.ts'
 import { dependOn, letGo, residentAddress, takeDesired, unloadStranded } from './queueHold.ts'
+import { entryOf } from '../../../../math/src/sequence/counts.ts'
+
+const addressesFor = (list: readonly PageRec[]) => list.map(pageAddress)
 
 /** `entry`'s pages handed to the pool, each into its streaming page's slot — the first written over
  *  its victim's, or into a free one (`../pages/pool/placement.ts`) —, pinned when it is the root
- *  cover's. It lands once every page did; one that fails fails it. */
+ *  cover's, each with one page of each streaming page it depends on, where the clusters it names
+ *  vertices of are found (`PageRec.dependencies`). It lands once every page did; one that fails
+ *  fails it. */
 export function install(s: QueueState, cache: GpuPageCache, entry: Started) {
   const { signal } = s.o
   const victim = entry.victim?.address
+  // The pages of a bundle share their list of dependencies: its addresses are made once.
+  const addresses = new Map<readonly PageRec[], readonly string[]>()
+  const addressesOf = (list: readonly PageRec[] | undefined) => {
+    if (!list) return undefined
+    return entryOf(addresses, list, addressesFor)
+  }
   const loads = entry.pages.map((page) =>
-    cache.load(pageAddress(page), signal, entry.cover, undefined, victim),
+    cache.load(
+      pageAddress(page),
+      signal,
+      entry.cover,
+      undefined,
+      victim,
+      addressesOf(page.dependencies),
+    ),
   )
   const load: Promise<void> = Promise.allSettled(loads)
     .then((settled) => {
@@ -131,36 +149,39 @@ function refillInstalls(s: QueueState) {
 /**
  * The bytes the simulated bandwidth (`streamingBandwidthLimit`, megabytes a second, negative for
  * none) gives each page of the frame the engine is on: the seconds since the frame it was last
- * paced for, at that rate, whole bytes — none the first time. Paced once a frame, by the update
- * that begins it or, when the gate counts a frame no update began, by the first page that asks,
- * with the time that frame really took. No clock is read while no limit holds.
+ * paced for, at that rate, whole bytes — none the first time, none while no limit holds. Paced
+ * once a frame, by the update that begins it or, when the gate counts a frame no update began, by
+ * the first page that asks, with the time that frame really took. The clock is read at every
+ * frame, a limit or none, so the first frame a limit is set on has its real time.
  */
-export function paceFrame(s: QueueState, now?: number) {
+export function paceFrame(s: QueueState) {
   const p = s.pacing,
     limit = s.limits.bandwidthLimit
-  if (limit < 0) {
-    p.bandwidthAt = undefined
-    return
-  }
   if (p.bandwidthFrame === s.gate.count) return
-  const at = now ?? cpuNow()
+  const at = cpuNow()
   p.bandwidthFrame = s.gate.count
   p.share =
-    p.bandwidthAt === undefined ? 0 : Math.floor(((at - p.bandwidthAt) / 1000) * limit * MIB)
+    p.bandwidthAt === undefined || limit < 0
+      ? 0
+      : Math.floor(((at - p.bandwidthAt) / 1000) * limit * MIB)
   p.bandwidthAt = at
 }
 
 /**
  * `entry` takes its bytes, before it is counted ready or skipped: a share of the frame's
  * (`paceFrame`) of its own, each page's, as the pages of the reference's simulated link do — the
- * pages it is stored in, the bytes it is read as, counted at its first look. A root page is
+ * bytes it is read as (a geometry page's on disk, not the bytes it takes resident), counted at its
+ * first look. A root page is
  * installed whole. True while it has bytes left: it and the pages behind it wait for the next
  * frame.
  */
 function takeBandwidth(s: QueueState, entry: Started) {
   if (s.limits.bandwidthLimit < 0 || entry.root) return false
   paceFrame(s)
-  entry.bytesLeft ??= entry.pages.reduce((sum, page) => sum + storedPageBytes(page), 0)
+  entry.bytesLeft ??= entry.pages.reduce(
+    (sum, page) => sum + (page.geometryPage?.bytes ?? storedPageBytes(page)),
+    0,
+  )
   entry.bytesLeft -= Math.min(entry.bytesLeft, s.pacing.share)
   return entry.bytesLeft > 0
 }

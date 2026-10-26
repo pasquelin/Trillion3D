@@ -51,19 +51,26 @@ fn carried_sizes(width: u32, height: u32) -> impl Iterator<Item = (u32, u32)> {
     preview_level_sizes(width, height).skip(preview_first_level(width, height) as usize)
 }
 
-/// RGBA8 bytes of every carried level, end to end from finest to coarsest.
-pub fn preview_pixel_bytes(width: u32, height: u32) -> usize {
+/// Bytes of every carried level of a chain of the atlas `kind`, end to end from finest to
+/// coarsest: RGBA8 in the colour and data atlases, half-float RGBA in the other.
+pub fn preview_pixel_bytes(width: u32, height: u32, kind: AtlasKind) -> usize {
     carried_sizes(width, height)
-        .map(|(w, h)| (w as usize) * (h as usize) * 4)
+        .map(|(w, h)| (w as usize) * (h as usize) * kind.texel_bytes())
         .sum()
 }
 
-/// Bytes of every carried level once block-compressed, whole 4 × 4 blocks of
-/// sixteen bytes, end to end from finest to coarsest — the same in both formats.
-pub fn preview_block_bytes(width: u32, height: u32) -> usize {
+/// Bytes of every carried level once block-compressed in `layout`, whole 4 × 4 blocks, end to
+/// end from finest to coarsest.
+pub fn preview_layout_bytes(width: u32, height: u32, layout: super::Layout) -> usize {
     carried_sizes(width, height)
-        .map(|(w, h)| super::blocks::level_block_bytes(w, h))
+        .map(|(w, h)| super::blocks::layout_block_bytes(w, h, layout))
         .sum()
+}
+
+/// The same for the layouts of sixteen-byte blocks, which is every one the gate writes — the
+/// same in every family.
+pub fn preview_block_bytes(width: u32, height: u32) -> usize {
+    preview_layout_bytes(width, height, super::Layout::Rgba)
 }
 
 /// A streamed tile's side in texels: the engine's (`texture/tiles.ts`), printed there.
@@ -71,10 +78,39 @@ pub const TILE_SIZE: u32 = 128;
 /// A streamed tile's gutter on each side, in texels.
 pub const TILE_BORDER: u32 = 4;
 
-/// Block columns — or rows — `[from, to)` of each tile's record along a side
+/// What a level file's records are cut in: units `side` texels wide, `bytes` each — the 4 × 4
+/// blocks of the block families, or the single half-float texels of the half-float atlas.
+#[derive(Clone, Copy)]
+pub struct Cell {
+    pub side: u32,
+    pub bytes: usize,
+}
+/// The cell of the block families' level files.
+pub const BLOCK_CELL: Cell = Cell {
+    side: crate::plugins::image::blocks::BLOCK_SIDE,
+    bytes: super::blocks::BLOCK_BYTES,
+};
+/// The cell of the BC4 level files: eight-byte blocks.
+pub const ONE_CHANNEL_CELL: Cell = Cell {
+    side: crate::plugins::image::blocks::BLOCK_SIDE,
+    bytes: super::Layout::OneChannel.block_bytes(),
+};
+/// The cell of the level files of a layout's blocks: 4 × 4 squares of `layout.block_bytes()`.
+pub const fn layout_cell(layout: super::Layout) -> Cell {
+    Cell {
+        side: crate::plugins::image::blocks::BLOCK_SIDE,
+        bytes: layout.block_bytes(),
+    }
+}
+/// The cell of the half-float atlas's level files: one texel.
+pub const HALF_CELL: Cell = Cell {
+    side: 1,
+    bytes: super::hdr::HALF_TEXEL_BYTES,
+};
+
+/// Cell columns — or rows — `[from, to)` of each tile's record along a side
 /// `texels` long: the tile and its gutter, clipped at the level's edge.
-fn record_spans(texels: u32) -> impl Iterator<Item = (usize, usize)> {
-    let side = crate::plugins::image::blocks::BLOCK_SIDE;
+fn record_spans(texels: u32, side: u32) -> impl Iterator<Item = (usize, usize)> {
     (0..texels.div_ceil(TILE_SIZE)).map(move |t| {
         let from = (t * TILE_SIZE).saturating_sub(TILE_BORDER) / side;
         let to = ((t + 1) * TILE_SIZE + TILE_BORDER)
@@ -84,27 +120,28 @@ fn record_spans(texels: u32) -> impl Iterator<Item = (usize, usize)> {
     })
 }
 
-/// A row-major block level (`quality::encode_chain`) as its file holds it (version 8 on): its tile records,
+/// A row-major level of `cell`s (`quality::encode_chain` for blocks, `hdr::chain` for half-floats)
+/// as its file holds it (version 8 on): its tile records,
 /// laid out as the engine reads them (`packages/sdk-browser/src/materials/texture/tileRecords.ts`), each
 /// compressed alone by raw DEFLATE — the browser's own `DecompressionStream('deflate-raw')`
 /// inflates it, no decoder downloaded —, after a head of one little-endian `u32` per record: the
 /// end of its bytes, counted from the end of the head. The head's length follows from the level's
 /// size, so one HTTP Range reads it and one more reads a tile.
-pub fn tile_records(blocks: &[u8], width: u32, height: u32) -> Vec<u8> {
+pub fn tile_records(level: &[u8], width: u32, height: u32, cell: Cell) -> Vec<u8> {
     use flate2::{write::DeflateEncoder, Compression};
     use rayon::prelude::*;
     use std::io::Write;
-    let bytes = super::blocks::BLOCK_BYTES;
-    let row = crate::plugins::image::blocks::blocks_of(width, height).0 as usize * bytes;
-    let spans: Vec<((usize, usize), (usize, usize))> = record_spans(height)
-        .flat_map(|ys| record_spans(width).map(move |xs| (ys, xs)))
+    let bytes = cell.bytes;
+    let row = width.div_ceil(cell.side) as usize * bytes;
+    let spans: Vec<((usize, usize), (usize, usize))> = record_spans(height, cell.side)
+        .flat_map(|ys| record_spans(width, cell.side).map(move |xs| (ys, xs)))
         .collect();
     let records: Vec<Vec<u8>> = spans
         .par_iter()
         .map(|&((y0, y1), (x0, x1))| {
             let mut deflate = DeflateEncoder::new(Vec::new(), Compression::best());
             for by in y0..y1 {
-                let line = &blocks[by * row + x0 * bytes..by * row + x1 * bytes];
+                let line = &level[by * row + x0 * bytes..by * row + x1 * bytes];
                 deflate.write_all(line).expect("a vector takes every byte");
             }
             deflate.finish().expect("a vector takes every byte")

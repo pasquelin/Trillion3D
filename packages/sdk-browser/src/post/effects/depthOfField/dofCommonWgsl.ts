@@ -1,8 +1,8 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { PI } from '../../../../../math/src/wgsl/constants.ts'
+import { safeRcp } from '../../../../../math/src/wgsl/reals.ts'
 import { COLOR_SPACES_WGSL } from '../../taa/colorSpaceWgsl.ts'
 import { DEPTH_WGSL } from '../../taa/depthWgsl.ts'
-import { SAFE_RCP_WGSL } from '../../taa/historyWgsl.ts'
 import { DOF_PARAMS, DOF_STEP, MAX_RECOMBINE_COC } from './dofLayout.ts'
 
 /**
@@ -47,7 +47,7 @@ export const DOF_STEP_WGSL = wgslBlock(
  */
 export const DOF_COC_WGSL = wgslBlock(
   'DOF_COC_WGSL',
-  [DOF_PARAMS_WGSL, DEPTH_WGSL, COLOR_SPACES_WGSL, SAFE_RCP_WGSL, PI],
+  [DOF_PARAMS_WGSL, DEPTH_WGSL, COLOR_SPACES_WGSL, safeRcp, PI],
   `
 const DOF_EXTREME:f32=16384.0;
 const DOF_SLIGHT:f32=${MAX_RECOMBINE_COC}.0;

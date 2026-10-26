@@ -102,7 +102,7 @@ test("one instance's states switch none of the other's: past its range, an insta
   assert.equal(drawn.filter((p) => p < 2 * leaves).length, 0, 'a returning placement draws none')
 })
 
-test('a world hidden stays placed and switched as ever, its cells and files drawing nothing but the actors always loaded', () => {
+test('a world only loaded stays placed and switched as ever: its cells and files draw nothing, the actors always loaded draw over them', () => {
   const s = worldScene()
   const world = s.packed.world!
   // The links the fixture wrote are the follower's to make; the last cell's actor lies in the first.
@@ -122,16 +122,24 @@ test('a world hidden stays placed and switched as ever, its cells and files draw
     [placements, hlod, hlod],
     [1, 1, 1],
   ])
+  // `draws` reads the word: whether a cell's actor stands for it, as the distance fields follow it.
+  const standing = () => [0, 1, 2].map((cell) => follower.draws(0, cell))
+  assert.deepEqual(standing(), [false, true, true])
+  assert.equal(follower.draws(0, 3), false, 'no such cell')
+  assert.equal(follower.draws(1, 0), false, 'no such instance')
   follower.activated(false)
   assert.equal(follower.sync(), true, 'the words moved')
+  // Cell 0 is wished and shown, and its actor, always loaded, still draws: no cell is shown while
+  // the cells are only loaded, so nothing covers it. Cell 2's actor lies in cell 0, not shown.
   assert.deepEqual(
     drawn(),
     [
-      [0, hlod, 0],
+      [hlod, hlod, 0],
       [0, 0, 0],
     ],
-    'only the actor always loaded draws',
+    'the actors always loaded draw over every cell, wished or not',
   )
+  assert.deepEqual(standing(), [true, true, false], 'the actors over the cells that are not shown')
   assert.equal(follower.visible(0, 0), true, 'the cell stays shown')
   assert.equal(follower.fileShown(0, 0), true, 'and the files')
   assert.equal(follower.shown, true, 'every cell and file wished is as shown as it was')

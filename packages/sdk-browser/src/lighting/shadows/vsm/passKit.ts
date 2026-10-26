@@ -14,7 +14,7 @@ import { sequentialEntries } from '../../../gpu/core/computeBindings.ts'
  *  prepare step awaits it, `prepareVsmPipelines`); `pipeline`, read where it is bound, is the one
  *  compiled — compiled at once by a frame that binds it unprepared. */
 export interface VsmComputePipe {
-  readonly pipeline: GPUComputePipeline
+  readonly pipeline: GPUComputePipeline | undefined
   groups: GPUBindGroupLayout[]
   prepared: PreparedPipeline<GPUComputePipeline>
 }

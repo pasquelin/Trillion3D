@@ -17,7 +17,7 @@ import type { createPhysicsBodies } from '../bodies/bodies.ts'
 import { createSimulatedIds, engineIdOf } from '../simulatedIds.ts'
 import { interpolateAll, landAll } from '../drawnPoses.ts'
 import type { TickRecords } from '../protocol.ts'
-import { createTwoSteps, eachRecord } from '../step/twoSteps.ts'
+import { createTwoSteps, drawEach, eachRecord } from '../step/twoSteps.ts'
 
 /** Each wheel's pose as the page placed it, given back when the vehicle leaves the simulation. */
 type Rest = { position: Vector3; quaternion: Quaternion }[]
@@ -41,6 +41,82 @@ let wheels = new Int32Array(0),
   position = new Float64Array(0),
   quaternion = new Float64Array(0)
 
+/** Draws the wheels of `made` at `t` of its step. */
+function drawWheels({ vehicle, rest, from, to, arcs }: Made, t: number) {
+  const count = rest.length,
+    s = vehicle.body.scale
+  if (wheels.length < count) {
+    wheels = Int32Array.from({ length: count }, (_, i) => i)
+    ;[position, quaternion] = [new Float64Array(count * 3), new Float64Array(count * 4)]
+  }
+  if (t === 1) landAll(wheels, count, to, position, quaternion)
+  else interpolateAll(wheels, count, from, to, arcs, t, position, quaternion)
+  for (let i = 0; i < count; i++) {
+    const p = i * 3,
+      q = i * 4
+    vehicle.wheels[i].position.set(position[p] / s.x, position[p + 1] / s.y, position[p + 2] / s.z)
+    turned.set(quaternion[q], quaternion[q + 1], quaternion[q + 2], quaternion[q + 3])
+    vehicle.wheels[i].quaternion.multiplyQuaternions(turned, rest[i].quaternion)
+  }
+}
+
+/** The vehicles on their way, by their id's slot (fewer than the bodies, each needing one), and
+ *  the vehicle drawn under each. */
+function createVehicleDrawing(capacity: number) {
+  const steps2 = createTwoSteps(capacity)
+  const byKey: (Made | undefined)[] = []
+  /** Draws the wheels of the vehicle under `key` at `t` of its step. */
+  const draw = (key: number, t: number) => drawWheels(byKey[key]!, t)
+  return {
+    steps2,
+    byKey,
+    draw,
+    drawAll: drawEach(draw),
+    alive: (key: number) => byKey[key] !== undefined,
+  }
+}
+
+/** The made vehicle on `body`: its wheels at rest as the page placed them, and their states. */
+function madeOf(vehicle: Vehicle, body: number): Made {
+  const rest = vehicle.wheels.map((w) => ({
+    position: w.position.clone(),
+    quaternion: w.quaternion.clone(),
+  }))
+  const count = rest.length
+  const [from, to] = [new Float32Array(count * 7), new Float32Array(count * 7)]
+  return { vehicle, body, rest, from, to, arcs: new Float64Array(count * 3) }
+}
+
+/** A tick's vehicle states, after `steps` fixed steps: speed, engine and gear read, each wheel's
+ *  two states kept. */
+function receiveStates(
+  live: {
+    ids: ReturnType<typeof createSimulatedIds<Vehicle>>
+    made: Map<Vehicle, Made>
+    steps2: ReturnType<typeof createTwoSteps>
+    byKey: (Made | undefined)[]
+    draw: (key: number, t: number) => void
+  },
+  records: TickRecords | null,
+  steps: number,
+) {
+  const { ids, made, steps2, byKey, draw } = live
+  steps2.begin(steps)
+  if (records)
+    eachRecord(records, VEHICLE_STATE_WORDS, WHEEL_STATE_WORDS, (id, newest, before, f) => {
+      const vehicle = ids.of(id),
+        own = vehicle && made.get(vehicle)
+      if (!own) return
+      vehicle._state(f[2], f[3], f[4])
+      const key = id & BODY_INDEX
+      if (!steps2.record(key, own, newest, before, byKey[key] !== own)) return
+      byKey[key] = own
+      for (let i = 0; i < own.rest.length; i++)
+        slerpArc(own.arcs, i * 3, own.from, i * 7 + 3, own.to, i * 7 + 3)
+    })
+  steps2.end((key) => byKey[key] && draw(key, 1))
+}
+
 /**
  * The vehicles of a session: which are made in the simulation, under which id (a slot and its
  * generation). A vehicle is made once its body is simulated, and taken out when the body leaves
@@ -57,37 +133,8 @@ export function createPhysicsVehicles(
 ) {
   const made = new Map<Vehicle, Made>()
   const ids = createSimulatedIds<Vehicle>()
-  /** The vehicles on their way, by their id's slot (fewer than the bodies, each needing one), and
-   *  the vehicle drawn under each. */
-  const steps2 = createTwoSteps(bodies.generation.length)
-  const byKey: (Made | undefined)[] = []
-  /** Draws the wheels of the vehicle under `key` at `t` of its step. */
-  const draw = (key: number, t: number) => {
-    const { vehicle, rest, from, to, arcs } = byKey[key]!,
-      count = rest.length,
-      s = vehicle.body.scale
-    if (wheels.length < count) {
-      wheels = Int32Array.from({ length: count }, (_, i) => i)
-      ;[position, quaternion] = [new Float64Array(count * 3), new Float64Array(count * 4)]
-    }
-    if (t === 1) landAll(wheels, count, to, position, quaternion)
-    else interpolateAll(wheels, count, from, to, arcs, t, position, quaternion)
-    for (let i = 0; i < count; i++) {
-      const p = i * 3,
-        q = i * 4
-      vehicle.wheels[i].position.set(
-        position[p] / s.x,
-        position[p + 1] / s.y,
-        position[p + 2] / s.z,
-      )
-      turned.set(quaternion[q], quaternion[q + 1], quaternion[q + 2], quaternion[q + 3])
-      vehicle.wheels[i].quaternion.multiplyQuaternions(turned, rest[i].quaternion)
-    }
-  }
-  const alive = (key: number) => byKey[key] !== undefined
-  const drawAll = (moving: Readonly<Int32Array>, count: number, t: number) => {
-    for (let i = 0; i < count; i++) draw(moving[i], t)
-  }
+  const { steps2, byKey, draw, drawAll, alive } = createVehicleDrawing(bodies.generation.length)
+  const live = { ids, made, steps2, byKey, draw }
   const host: NonNullable<Vehicle['_host']> = {
     drive(vehicle) {
       writeDrive(writer, vehicle._id, vehicle)
@@ -113,13 +160,7 @@ export function createPhysicsVehicles(
     const id = ids.take(vehicle)
     writeVehicle(writer, id, body, vehicle)
     writeDrive(writer, id, vehicle)
-    const rest = vehicle.wheels.map((w) => ({
-      position: w.position.clone(),
-      quaternion: w.quaternion.clone(),
-    }))
-    const count = rest.length
-    const [from, to] = [new Float32Array(count * 7), new Float32Array(count * 7)]
-    made.set(vehicle, { vehicle, body, rest, from, to, arcs: new Float64Array(count * 3) })
+    made.set(vehicle, madeOf(vehicle, body))
     vehicle._host = host
     vehicle._id = id
   }
@@ -130,24 +171,7 @@ export function createPhysicsVehicles(
         if (!vehicles.has(vehicle) || engineIdOf(bodies, vehicle.body) !== body) drop(vehicle)
       for (const vehicle of vehicles) if (!made.has(vehicle)) connect(vehicle)
     },
-    /** A tick's vehicle states, after `steps` fixed steps: speed, engine and gear read, each
-     *  wheel's two states kept. */
-    receive(records: TickRecords | null, steps: number) {
-      steps2.begin(steps)
-      if (records)
-        eachRecord(records, VEHICLE_STATE_WORDS, WHEEL_STATE_WORDS, (id, newest, before, f) => {
-          const live = ids.of(id),
-            own = live && made.get(live)
-          if (!own) return
-          live._state(f[2], f[3], f[4])
-          const key = id & BODY_INDEX
-          if (!steps2.record(key, own, newest, before, byKey[key] !== own)) return
-          byKey[key] = own
-          for (let i = 0; i < own.rest.length; i++)
-            slerpArc(own.arcs, i * 3, own.from, i * 7 + 3, own.to, i * 7 + 3)
-        })
-      steps2.end((key) => byKey[key] && draw(key, 1))
-    },
+    receive: (records: TickRecords | null, steps: number) => receiveStates(live, records, steps),
     /** Draws every moving vehicle's wheels at `t` of their step (`along`), `waiting` while the
      *  page waits for the worker's next state; whether any is still on its way. */
     apply: (t: number, waiting: boolean) => steps2.apply(t, waiting, alive, drawAll),

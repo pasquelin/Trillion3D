@@ -1,25 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
-import { createPageRowWriter } from '../../geometry/rows/page/pageRowWriter.ts'
-import { testRowWriter } from '../../geometry/rows/page/pageRowWriter.fixture.ts'
-import {
-  FLAG_MASK,
-  MATERIAL_RANK_MASK,
-  PAGE_INFO_STRIDE,
-  ROW_WORDS,
-} from '../../visibility/types.ts'
+import { createInfoWriter } from '../../geometry/clusters/infoWrite.ts'
+import { testInfoWriter } from '../../geometry/clusters/infoWrite.fixture.ts'
+import { CLUSTER_INFO } from '../../geometry/dag/info/clusterInfoLayout.ts'
+import { FLAG_MASK, MATERIAL_RANK_MASK } from '../../visibility/types.ts'
 import { createMaterialTable } from '../table/materialTable.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../table/materialLayout.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createShadeCensus } from '../../visibility/passes/shadeCensus.ts'
-import { SURFACE_MODEL } from '../surface/surfaceModel.ts'
-import { createWebgpuRowState } from '../../geometry/rows/state.ts'
+import { SURFACE_MODEL } from '../surface/surfaceModelWord.ts'
 import { scene } from './materialClasses.fixture.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
-import { createPresentClasses, markPresentClasses } from '../../gpu/core/presentClasses.ts'
+import { createPresentClasses, noteClass, presentClassKeys } from '../../gpu/core/presentClasses.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { surfaceOf } from '../../geometry/pages/surface.ts'
 
 test('the three material classes take the three paths the engine has for them', () => {
@@ -44,42 +38,38 @@ test('the three material classes take the three paths the engine has for them', 
 test('a cut-out cluster names its surface, whose record carries its alpha test', () => {
   const { source, metadata, indices, associations } = scene()
   const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
-  const floats = new Float32Array(ROW_WORDS),
-    ints = new Uint32Array(floats.buffer)
   const materialTable = createMaterialTable(),
     { device, textureWrites } = fakeDevice()
-  /** The threshold the record of the row's surface holds, as the table sends it up. */
-  const cut = () => {
+  /** The threshold the record of the cluster's surface holds, as the table sends it up. */
+  const cut = (rank: number) => {
     materialTable.viewFor(device)
-    const sent = new Float32Array(textureWrites.at(-1)!.data.buffer as ArrayBuffer),
-      rank = ints[PAGE_INFO.at.material] & MATERIAL_RANK_MASK
-    return sent[rank * MATERIAL_RECORD_WORDS + MATERIAL_RECORD.at.cut]
+    const sent = new Float32Array(textureWrites.at(-1)!.data.buffer as ArrayBuffer)
+    return sent[(rank & MATERIAL_RANK_MASK) * MATERIAL_RECORD_WORDS + MATERIAL_RECORD.at.cut]
   }
-  const writeRow = createPageRowWriter(
-    {
-      geometryBlocks: new Map(),
-      mapLayer: new Map(),
-      dataLayer: new Map(),
-      materialTable,
-      asIsShown: false,
-      emissiveAoShown: false,
-    },
-    () => {},
-    (packed) => packed,
-  )
-  // A page written as a row belongs to a placement: its collection ranked its root.
+  const writeInfo = createInfoWriter({
+    geometryBlocks: new Map(),
+    mapLayer: new Map(),
+    dataLayer: new Map(),
+    materialTable,
+    asIsShown: false,
+    emissiveAoShown: false,
+  })
   const mask = collected.roots[0].pages[0]
-  writeRow(mask, 0, 0, 0, floats, ints)
-  assert.equal((ints[PAGE_INFO.at.flags] & FLAG_MASK) !== 0, true, 'the cut-out flag is set')
-  assert.equal(cut(), 0.5, 'the material alpha threshold travels with its record')
-  // A blend never becomes a cut-out: its row would otherwise discard instead of blending.
+  const { words } = writeInfo(mask, 0)
+  assert.equal((words[CLUSTER_INFO.at.flags] & FLAG_MASK) !== 0, true, 'the cut-out flag is set')
+  assert.equal(
+    cut(words[CLUSTER_INFO.at.material]),
+    0.5,
+    'the material alpha threshold travels with its record',
+  )
+  // A blend never becomes a cut-out: its cluster would otherwise discard instead of blending.
   const blend = collected.roots[1].pages[0]
-  writeRow(blend, 0, 0, 0, floats, ints)
-  assert.equal((ints[PAGE_INFO.at.flags] & FLAG_MASK) !== 0, false)
-  assert.equal(cut(), 1)
+  const written = writeInfo(blend, 0).words
+  assert.equal((written[CLUSTER_INFO.at.flags] & FLAG_MASK) !== 0, false)
+  assert.equal(cut(written[CLUSTER_INFO.at.material]), 1)
 })
 
-test('a row carries its resolve class, the census of the scene knows it before any image', () => {
+test('a cluster record carries its resolve class, the census of the scene knows it before any image', () => {
   const { source, metadata, indices, associations } = scene()
   const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const geometryBlocks = new Map(
@@ -96,36 +86,37 @@ test('a row carries its resolve class, the census of the scene knows it before a
     ]),
   )
   const layers = { mapLayer: new Map(), dataLayer: new Map() }
-  const writeRow = testRowWriter(geometryBlocks, layers)
-  const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
-    ints = new Uint32Array(floats.buffer)
+  const writeInfo = testInfoWriter(geometryBlocks, layers)
   const [mask, blend] = collected.roots.map((root) => root.pages[0])
-  writeRow(mask, 0, 0, 0, floats, ints)
-  writeRow(blend, 1, 1, 0, floats, ints)
   const { HAS_MASK, HAS_VERTEX_NORMAL, DOUBLE_SIDED, HAS_UV } = CLASS_FEATURE
   const cutout = HAS_MASK | HAS_VERTEX_NORMAL | DOUBLE_SIDED
-  assert.equal(ints[PAGE_INFO.at.materialClass], cutout, 'double-sided cut-out with vertex normals')
-  assert.equal(ints[ROW_WORDS + PAGE_INFO.at.materialClass], HAS_VERTEX_NORMAL, 'the plain blend')
+  assert.equal(writeInfo(mask, 0).classKey, cutout, 'double-sided cut-out with vertex normals')
+  assert.equal(writeInfo(blend, 1).classKey, HAS_VERTEX_NORMAL, 'the plain blend')
   assert.equal(cutout & HAS_UV, 0, 'no uv block, no uv class bit')
-  // The census reads the same fields the rows will carry, for the pages that take a row: the
+  // The census reads the same fields the records will carry, for the pages that take a record: the
   // blend and the transmission are transparent pages, so the cut-out's class alone
   // is compiled at preparation.
   const census = createShadeCensus(collected.allPages, geometryBlocks, layers)
   assert.deepEqual(census.keys, [cutout])
   assert.equal(census.emits, false, 'no surface emits or occludes')
-  // An image draws the classes of its packed rows only: the second row alone leaves the cut-out out.
+  // An image draws the classes of its resident clusters only: the cut-out's cluster gone leaves its
+  // class out.
   const present = createPresentClasses()
-  assert.deepEqual(markPresentClasses(ints, 2, present, 0), [cutout, HAS_VERTEX_NORMAL])
-  assert.deepEqual(markPresentClasses(ints.subarray(ROW_WORDS), 1, present, 0), [HAS_VERTEX_NORMAL])
+  noteClass(present, cutout, 1)
+  noteClass(present, HAS_VERTEX_NORMAL, 1)
+  assert.deepEqual(
+    [...presentClassKeys(present)],
+    [HAS_VERTEX_NORMAL, cutout].sort((a, b) => a - b),
+  )
+  noteClass(present, cutout, -1)
+  assert.deepEqual([...presentClassKeys(present)], [HAS_VERTEX_NORMAL])
 })
 
-// The image reads its as-is flags from the first opaque row that shows a surface as-is —
-// a normal or depth view —; a lit row, or a blended one, which writes no flag, leaves it unread.
-test('an opaque row showing a surface as-is tells the image its flags are read', () => {
+// The image reads its as-is flags from the first opaque cluster that shows a surface as-is —
+// a normal or depth view —; a lit cluster, or a blended one, which writes no flag, leaves it unread.
+test('an opaque cluster showing a surface as-is tells the image its flags are read', () => {
   const { source, metadata, indices, associations } = scene()
   const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
-  const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
-    ints = new Uint32Array(floats.buffer)
   const layers = { geometryBlocks: new Map(), mapLayer: new Map(), dataLayer: new Map() },
     vis = {
       ...layers,
@@ -133,40 +124,30 @@ test('an opaque row showing a surface as-is tells the image its flags are read',
       emissiveAoShown: false,
       materialTable: createMaterialTable(),
     }
-  const writeRow = createPageRowWriter(
-    vis,
-    () => {},
-    (packed) => packed,
-  )
+  const writeInfo = createInfoWriter(vis)
   const [opaque, blend] = collected.roots.map((root) => root.pages[0])
-  writeRow(opaque, 0, 0, 0, floats, ints)
+  writeInfo(opaque, 0)
   assert.equal(vis.asIsShown, false, 'a lit surface')
   blend.material.model = SURFACE_MODEL.normal
-  writeRow(blend, 1, 1, 0, floats, ints)
-  assert.equal(vis.asIsShown, false, 'a blended row draws no surface flag')
+  writeInfo(blend, 1)
+  assert.equal(vis.asIsShown, false, 'a blended cluster draws no surface flag')
   opaque.material.model = SURFACE_MODEL.matcap
-  writeRow(opaque, 0, 0, 0, floats, ints)
+  writeInfo(opaque, 0)
   assert.equal(vis.asIsShown, false, 'a matcap is drawn unlit, not as-is')
   opaque.material.model = SURFACE_MODEL.depth
-  writeRow(opaque, 0, 0, 0, floats, ints)
+  writeInfo(opaque, 0)
   assert.equal(vis.asIsShown, true, 'a depth view is shown as-is')
 })
 
-// An image over the same rows reuses its classes; a pose moves none.
-test('the classes an image draws are read off the rows again only once a row is written', () => {
-  const rows = createWebgpuRowState([], 3, 0, undefined, () => -1),
-    ints = new Uint32Array(3 * ROW_WORDS),
-    present = createPresentClasses()
-  rows.packedCount = 3
-  ;[5, 9, 5].forEach((key, row) => (ints[row * ROW_WORDS + PAGE_INFO.at.materialClass] = key))
-  const classes = () => [...markPresentClasses(ints, rows.packedCount, present, rows.rowWrites)]
-  assert.deepEqual(classes(), [5, 9])
-  ints[ROW_WORDS + PAGE_INFO.at.materialClass] = 5
-  assert.deepEqual(classes(), [5, 9], 'an unmarked word is not reread')
-  rows.markRowWords(1)
-  assert.deepEqual(classes(), [5, 9], 'a pose keeps the occupant and its class')
-  rows.markRowDirty(1)
-  assert.deepEqual(classes(), [5])
-  ;[rows.packedCount, ints[ROW_WORDS + PAGE_INFO.at.materialClass]] = [2, 9]
-  assert.deepEqual(classes(), [5, 9], 'a shorter table is read again')
+// A class stays present while one resident cluster wears it; a pose moves none.
+test('the classes an image draws are listed again only once a class came or went', () => {
+  const present = createPresentClasses()
+  ;[5, 9, 5].forEach((key) => noteClass(present, key, 1))
+  assert.deepEqual([...presentClassKeys(present)], [5, 9])
+  const listed = presentClassKeys(present)
+  assert.equal(presentClassKeys(present), listed, 'the same list while nothing came or went')
+  noteClass(present, 5, -1)
+  assert.deepEqual([...presentClassKeys(present)], [5, 9], 'another cluster still wears it')
+  noteClass(present, 5, -1)
+  assert.deepEqual([...presentClassKeys(present)], [9])
 })

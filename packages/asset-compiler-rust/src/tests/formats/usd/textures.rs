@@ -142,3 +142,44 @@ fn the_wrap_scale_bias_and_colour_space_of_a_uv_texture_are_carried_or_counted()
     );
     assert_eq!(unsupported(&run)["usd-texture-colour-space-unsupported"], 1);
 }
+
+// A texture reads the coordinate set its primvar reader names: `st` the first, `st1` to `st7` the
+// others, written as the texture's `texCoord`; any other name is counted and read as the first.
+#[test]
+fn a_texture_reads_the_coordinate_set_its_primvar_reader_names() {
+    let read = |varname: &str| {
+        let reader = format!(
+            "        def Shader \"R\"\n        {{\n            uniform token info:id = \"UsdPrimvarReader_float2\"\n            string inputs:varname = \"{varname}\"\n            float2 outputs:result\n        }}\n"
+        );
+        let wired = "            float2 inputs:st.connect = </Root/M/R.outputs:result>\n";
+        let inputs = "            color3f inputs:diffuseColor.connect = </Root/M/T.outputs:rgb>";
+        let shaders = format!("{}{reader}", texture("T", "checker.png", wired));
+        let run = compile_files(
+            &format!("set-{varname}"),
+            &[("scene.usda", &layer(inputs, &shaders))],
+            &["textures/checker.png"],
+        );
+        let (_, gltf) = run.prepared("usd");
+        (
+            pbr(&gltf)["baseColorTexture"]["texCoord"].clone(),
+            unsupported(&run)["texture-unsupported"].clone(),
+        )
+    };
+    assert_eq!(
+        read("st"),
+        (Value::Null, Value::Null),
+        "the first set is glTF's default"
+    );
+    assert_eq!(read("st1"), (json!(1), Value::Null));
+    assert_eq!(read("st7"), (json!(7), Value::Null));
+    assert_eq!(
+        read("st8"),
+        (Value::Null, json!(1)),
+        "no eighth past the seventh"
+    );
+    assert_eq!(
+        read("uvmap"),
+        (Value::Null, json!(1)),
+        "a name that is no set"
+    );
+}

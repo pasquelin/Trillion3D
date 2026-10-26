@@ -128,12 +128,13 @@ pub fn page_deformation(
     })
 }
 
-/// Writes the streams of `unique` vertices (their field rows), skin first, then each target,
-/// and records the word each target's streams start at among the page's streams.
-pub fn write(page: &mut PageDeformation, unique: &[&[u32]], out: &mut BitWriter) {
+/// Writes the streams of the page's vertices (their field rows, one for each vertex a strip lays,
+/// one twice laid twice), skin first, then each target, and records the word each target's streams
+/// start at among the page's streams.
+pub fn write(page: &mut PageDeformation, rows: &[&[u32]], out: &mut BitWriter) {
     let mut column = 0;
     let mut stream = |bits: u32, out: &mut BitWriter| {
-        out.stream(unique.iter().map(|row| row[column]), bits);
+        out.stream(rows.iter().map(|row| row[column]), bits);
         column += 1;
     };
     if let Some(skin) = page.skin {

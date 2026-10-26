@@ -42,13 +42,18 @@ for (let k = 0; k < 16; k++) {
     direction: sphere(),
   }
   LIGHTS.push({ ...base('point', k), ...local, castsShadow: true })
-  LIGHTS.push({ ...base('spot', k), ...local, coneAngle: 0.15 + 1.05 * rand(), castsShadow: true })
+  LIGHTS.push({
+    ...base('spot', k),
+    ...local,
+    outerConeAngle: 0.15 + 1.05 * rand(),
+    castsShadow: true,
+  })
   LIGHTS.push({
     ...base('rect', k),
     ...local,
     right: unit(cross(local.direction, sphere())),
     size: [0.5 + rand(), 0.5 + rand()],
-    castsShadow: false,
+    castsShadow: true,
   })
   if (k < 8) LIGHTS.push({ ...base('directional', k), direction: sphere(), castsShadow: true })
 }

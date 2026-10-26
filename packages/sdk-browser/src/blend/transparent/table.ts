@@ -2,6 +2,7 @@ import { alignUp, workgroupCount } from '../../../../math/src/scalar/integers.ts
 import type { PageRec, ClusterRoot } from '../../geometry/selection/types.ts'
 
 import type { BlendGpuItem } from '../state.ts'
+import { readsVolume } from '../../materials/surface/blendLightSource.ts'
 import { createPageCatalogue, type PageList } from '../../geometry/selection/catalogue.ts'
 import { createSparseInts } from '../../geometry/cut/sparseInts.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
@@ -139,6 +140,8 @@ function transparentTable(recordOf: (packed: number) => PageRec | undefined) {
     entryOf: (page: number) => entryPlus.get(page) - 1,
     /** Items the table describes, in the order the transparent pass draws them. */
     pagedItems: [] as BlendGpuItem[],
+    /** Items of `pagedItems` lit from the translucency lighting volume (`readsVolume`): the frame asks it in O(1). */
+    volumeReaders: 0,
     /** Entries in use, including alignment padding. */
     length: 0,
     capacity: 0,
@@ -164,6 +167,7 @@ function transparentTable(recordOf: (packed: number) => PageRec | undefined) {
           rank = table.pagedItems.length
         items[item].pagedIndex = rank
         table.pagedItems.push(items[item])
+        if (readsVolume(items[item])) table.volumeReaders++
         table.itemRanges[rank * 2] = at
         table.itemRanges[rank * 2 + 1] = order.length
         for (let i = 0; i < order.length; i++) {

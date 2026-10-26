@@ -190,31 +190,17 @@ const widen = (value: number, bits: number) =>
   ((value << (8 - bits)) | (value >> (2 * bits - 8))) & 255
 const mix = (e0: number, e1: number, w: number) => ((64 - w) * e0 + w * e1 + 32) >> 6
 
-/** One BC7 block into the sixteen texels at `out[at]`, rows `pitch` bytes apart. */
-function decodeBc7Block(
-  bytes: Uint8Array,
-  offset: number,
-  out: Uint8Array,
-  at: number,
-  pitch: number,
-) {
+/** Loads the sixteen bytes at `offset` into the block words and rewinds the bit reader. */
+function loadBlock(bytes: Uint8Array, offset: number) {
   for (let w = 0; w < 4; w++) {
     const o = offset + 4 * w
     words[w] = bytes[o] | (bytes[o + 1] << 8) | (bytes[o + 2] << 16) | (bytes[o + 3] << 24)
   }
   bit = 0
-  let m = 0
-  while (m < 8 && read(1) === 0) m++
-  if (m === 8) {
-    // A reserved mode decodes to transparent black.
-    for (let row = 0; row < 4; row++) out.fill(0, at + row * pitch, at + row * pitch + 16)
-    return
-  }
-  const md = MODES[m]
-  const partition = read(md.partitionBits)
-  const rotation = read(md.rotationBits)
-  const selection = read(md.selectionBits)
-  const ends = md.subsets * 2
+}
+
+/** Reads the block's endpoints into `endpoints`, p-bits applied and every channel widened to a byte. */
+function readEndpoints(md: Mode, ends: number) {
   for (let c = 0; c < 3; c++)
     for (let e = 0; e < ends; e++) endpoints[e * 4 + c] = read(md.colourBits)
   for (let e = 0; e < ends; e++) endpoints[e * 4 + 3] = md.alphaBits ? read(md.alphaBits) : 255
@@ -233,10 +219,25 @@ function decodeBc7Block(
       endpoints[e * 4 + c] = widen(endpoints[e * 4 + c], md.colourBits + p)
     if (md.alphaBits) endpoints[e * 4 + 3] = widen(endpoints[e * 4 + 3], md.alphaBits + p)
   }
-  const subsets = SUBSETS[md.subsets - 1][partition]
+}
+
+/** Reads the primary and secondary indices of the block into `index` and `index2`. */
+function readIndices(md: Mode, subsets: Uint8Array) {
   for (let t = 0; t < 16; t++) index[t] = read(md.indexBits - (subsets[t] >> 2))
   if (md.index2Bits)
     for (let t = 0; t < 16; t++) index2[t] = read(md.index2Bits - (t === 0 ? 1 : 0))
+}
+
+/** Interpolates the sixteen texels of the block from its endpoints and indices into `out[at]`. */
+function writeTexels(
+  md: Mode,
+  subsets: Uint8Array,
+  selection: number,
+  rotation: number,
+  out: Uint8Array,
+  at: number,
+  pitch: number,
+) {
   // Mode 4's selection bit gives colour the secondary (three-bit) indices and alpha the primary.
   const swap = md.index2Bits && selection
   const colourIndex = swap ? index2 : index,
@@ -259,17 +260,45 @@ function decodeBc7Block(
   }
 }
 
+/** One BC7 block into the sixteen texels at `out[at]`, rows `pitch` bytes apart. */
+function decodeBc7Block(
+  bytes: Uint8Array,
+  offset: number,
+  out: Uint8Array,
+  at: number,
+  pitch: number,
+) {
+  loadBlock(bytes, offset)
+  let m = 0
+  while (m < 8 && read(1) === 0) m++
+  if (m === 8) {
+    // A reserved mode decodes to transparent black.
+    for (let row = 0; row < 4; row++) out.fill(0, at + row * pitch, at + row * pitch + 16)
+    return
+  }
+  const md = MODES[m]
+  const partition = read(md.partitionBits)
+  const rotation = read(md.rotationBits)
+  const selection = read(md.selectionBits)
+  readEndpoints(md, md.subsets * 2)
+  const subsets = SUBSETS[md.subsets - 1][partition]
+  readIndices(md, subsets)
+  writeTexels(md, subsets, selection, rotation, out, at, pitch)
+}
+
 /** The eight values a BC4 block's codes name (`decodeBc4Channel`), one ramp every block fills. */
 const ramp = new Uint8Array(8)
 
-/** One BC4 channel of a block (eight bytes at `offset`) into channel `c` of the sixteen texels. */
-function decodeBc4Channel(
+/** One BC4 channel of a block (eight bytes at `offset`) into channel `c` of the sixteen texels,
+ *  `texel` bytes each (four in RGBA8, one in a one-channel surface). */
+export function decodeBc4Channel(
   bytes: Uint8Array,
   offset: number,
   out: Uint8Array,
   at: number,
   pitch: number,
   c: number,
+  texel = 4,
 ) {
   const r0 = bytes[offset],
     r1 = bytes[offset + 1]
@@ -287,7 +316,7 @@ function decodeBc4Channel(
     const byte = offset + (bit >> 3),
       shift = bit & 7
     const code = ((bytes[byte] | (bytes[byte + 1] << 8)) >> shift) & 7
-    out[at + (t >> 2) * pitch + (t & 3) * 4 + c] = ramp[code]
+    out[at + (t >> 2) * pitch + (t & 3) * texel + c] = ramp[code]
   }
 }
 

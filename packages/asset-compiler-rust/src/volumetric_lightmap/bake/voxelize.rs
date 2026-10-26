@@ -9,7 +9,8 @@ use super::layout::{ALLOCATED, IN_IMPORTANCE};
 use super::sampling::{positive, Vec3};
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicU8, Ordering};
-use trillion3d_math::vector::vecn::{dot, sub};
+use trillion3d_math::vector::vec3::cross;
+use trillion3d_math::vector::vecn::{length, sub};
 
 /// Pixels along a cell of the voxel grid.
 const SUPER_RESOLUTION: f64 = 4.0;
@@ -71,12 +72,8 @@ fn permute(axis: usize, w: Vec3) -> Vec3 {
 fn project(triangle: [Vec3; 3], max_dim: f64) -> Option<Projected> {
     let a = sub(triangle[1], triangle[0]);
     let b = sub(triangle[2], triangle[0]);
-    let normal = [
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-    ];
-    let length = dot(normal, normal).sqrt();
+    let normal = cross(a, b);
+    let length = length(normal);
     if !positive(length) {
         return None;
     }

@@ -60,7 +60,8 @@ pub(super) struct Bent {
     pub tangent: Option<V3>,
 }
 
-/// `a` made unit; NaN when it has no length, which the bend refuses by name.
+/// `a` made unit; NaN when it has no length, which the bent mesh's reader then refuses
+/// (`Accessor::collect_f32`).
 fn unit(a: V3) -> V3 {
     normalize_finite_f32(a).unwrap_or([f32::NAN; 3])
 }

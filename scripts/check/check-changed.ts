@@ -1,0 +1,117 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { relatedTests } from './affected-tests.ts'
+import { changedSteps, formatPattern, isCodeChange, sourcePattern } from './changed-steps.ts'
+import { goldenChecks } from '../native/golden-checks.ts'
+import { heavyStep } from '../native/heavy-lock.ts'
+import { pnpmCommand } from '../lint/only-pnpm.ts'
+import { changedFiles, repositoryFiles } from '../git/repository-files.ts'
+import { run } from './run.ts'
+import { compileCaches } from '../native/scene-caches.ts'
+import { changedTypeErrors, tsProjects } from './ts-projects.ts'
+import { runUnitTests } from './unit-tests.ts'
+
+// `pnpm run check:changed`, the one local gate: the gates of `validate` on the changed files, and
+// the unit tests the change can affect (`scripts/check/affected-tests.ts`), capped and run one heavy step
+// at a time on the machine. The whole `validate` is the CI's. `--push` runs only the gates that
+// answer in seconds — no scene caches, tests or Clippy, which wait for other worktrees' heavy steps
+// — since git holds the remote's connection open while its pre-push hook runs.
+
+export function existingChangedFiles(changed: Iterable<string>, root = process.cwd()): string[] {
+  const maintained = new Set(repositoryFiles(root))
+  return [...changed].filter((file) => maintained.has(file))
+}
+
+async function main(): Promise<void> {
+  const changed = await changedFiles()
+  const paths = repositoryFiles() ?? []
+  const existing = existingChangedFiles(changed)
+  const code = isCodeChange([...changed])
+  const files = new Map(
+    paths
+      .filter((file) => code && sourcePattern.test(file) && existsSync(file))
+      .map((file): [string, string] => [file, readFileSync(file, 'utf8')]),
+  )
+  const withTests = !process.argv.includes('--push')
+  // A push's one heavy step, the seconds-long build the type check may need, runs beside other
+  // worktrees' heavy steps rather than wait for them (`scripts/native/heavy-lock.ts`).
+  if (!withTests) process.env.TRILLION3D_HEAVY_LOCK = 'push'
+  // A changed reference value runs the golden tests that read it, Rust and TypeScript: a reader
+  // not yet added to the index (untracked, not ignored) is a candidate too.
+  const golden = withTests ? goldenChecks(changed, paths) : { crates: [], tests: [] }
+  const testFiles = !withTests
+    ? []
+    : [...new Set([...relatedTests(files, changed), ...golden.tests])]
+  console.log(`Changed files: ${existing.length}; related tests: ${testFiles.length}`)
+  const linted = existing.filter((file) => sourcePattern.test(file))
+  for (const step of changedSteps([...changed], existing, testFiles.length))
+    switch (step) {
+      // The tests read these untracked files; without a compiler, the caches only warn.
+      case 'compile:caches':
+        if (withTests) compileCaches(false)
+        break
+      case 'check:lines':
+        run('node', ['scripts/check/check-file-lines.ts', '--changed'])
+        break
+      // The two bounds a runtime module answers to instead of the line count, read on the modules
+      // this branch touches.
+      case 'check:cohesion':
+        run('node', ['scripts/check/check-cohesion.ts', '--changed'])
+        break
+      case 'format':
+        run('node_modules/.bin/prettier', [
+          '--check',
+          ...existing.filter((file) => formatPattern.test(file)),
+        ])
+        break
+      case 'lint':
+        run('node_modules/.bin/eslint', linted)
+        break
+      case 'types': {
+        // `tsc --noEmit` on every project that owns a changed file.
+        const typeErrors = changedTypeErrors(process.cwd(), tsProjects(paths), linted, () =>
+          run(...pnpmCommand('run', 'build')),
+        )
+        if (typeErrors.length) {
+          console.error(typeErrors.join('\n'))
+          process.exit(1)
+        }
+        break
+      }
+      case 'duplicates':
+        run('node_modules/.bin/jscpd', [
+          ...existing.filter((file) => sourcePattern.test(file) || file.endsWith('.rs')),
+          '--format',
+          'typescript,javascript,rust',
+          '--cross-formats',
+          'js-ts',
+          '--no-tips',
+        ])
+        break
+      case 'rust':
+        if (withTests) heavyStep('clippy', runRust)
+        break
+      case 'golden':
+        if (withTests && golden.crates.length)
+          heavyStep('golden', () =>
+            run('node', ['scripts/native/native.ts', 'golden-check', ...golden.crates]),
+          )
+        break
+      case 'tests':
+        runUnitTests(testFiles)
+        break
+      // `check:x` is `node scripts/check-x.ts`, run directly: `pnpm run` would add a second to each.
+      default:
+        run('node', [`scripts/${step.replace(':', '-')}.ts`])
+    }
+  if (!code) console.log('Documentation only: no scene cache, type check or unit test.')
+  else if (!testFiles.length) console.log('No related unit test; the CI runs the whole suite.')
+}
+
+// Every crate of `../native/native-crates.ts`, formatted and linted with its own flags (`../native/native.ts`): the
+// compiler links the codec and the maths, so a change in one is checked across them all.
+function runRust(): void {
+  run('node', ['scripts/native/native.ts', 'fmt-check'])
+  run('node', ['scripts/native/native.ts', 'lint'])
+}
+
+if (import.meta.main) await main()

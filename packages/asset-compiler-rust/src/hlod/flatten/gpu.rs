@@ -1,11 +1,12 @@
 //! The compile's one GPU: one headless device per process, opened the first time an HLOD step
 //! needs it and shared by every job (`open`). Each job packs, uploads, submits and waits for its
 //! own work while others do theirs: no job waits for another's submissions, which the device runs
-//! between its own (`submit`). Two programs run on it, each compiled the first time it is asked for
-//! and kept with the device: the atlas bake (`bake/gpu.rs`), of an approximated shell's atlas and
-//! of a merged or simplified layer's flattened materials, and the approximated shell's point
-//! queries (`approximate/gpu.rs`).
-//! What both share — the layout's common constants, the bindings, the compile, the packing of
+//! between its own (`submit`). Three programs run on it, each compiled the first time it is asked
+//! for and kept with the device: the atlas bake (`bake/gpu.rs`), of an approximated shell's atlas
+//! and of a merged or simplified layer's flattened materials, the approximated shell's point
+//! queries (`approximate/gpu.rs`), and the voxels of a mesh's distance field
+//! (`distance_field/gpu.rs`).
+//! What they share — the layout's common constants, the bindings, the compile, the packing of
 //! positions and tree links, and the batches a pass runs in, two at once (`batches`) — is written
 //! once here (`layout`, `pack`, `batches`).
 //!
@@ -14,7 +15,8 @@
 //!
 //! Without an adapter no HLOD can be built: the compile fails with `GPU_UNAVAILABLE`. The device
 //! is opened once per process and never again: lost, every later bake or query of the process
-//! fails with `GPU_BAKE_FAILED`, as does a program that does not compile.
+//! fails with `GPU_BAKE_FAILED`, as does a program that does not compile. A distance field is the
+//! one step that does not need it: its build falls back to the CPU's (`distance_field/build.rs`).
 use std::sync::OnceLock;
 mod batches;
 pub(crate) mod layout;
@@ -30,13 +32,14 @@ pub(crate) use submit::{scoped, Pace, Reading};
 pub(crate) enum Program {
     Bake = 0,
     Shell = 1,
+    DistanceField = 2,
 }
 
 /// The process's device: its queue and its programs as compiled.
 pub(crate) struct Device {
     device: wgpu::Device,
     queue: wgpu::Queue,
-    programs: [OnceLock<Result<Passes, String>>; 2],
+    programs: [OnceLock<Result<Passes, String>>; 3],
     /// Taken by each submission and each poll, and by nothing longer: a poll is one look at the
     /// device that takes no time (`Poll`, never a wait on it), so its maintenance never runs beside
     /// another job's submission — the device's own checks assume a queue it finds empty has finished

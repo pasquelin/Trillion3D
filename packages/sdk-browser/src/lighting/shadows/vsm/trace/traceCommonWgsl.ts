@@ -86,15 +86,14 @@ export const vsmLoneVoteWgsl = (subgroups: boolean) =>
     `fn vsmLoneAllTrue(c:bool)->bool{return ${subgroups ? 'subgroupAllTrue(c)' : 'c'};}`,
   )
 
-/** What a trace returns: the share of its rays that missed, how many it traced — none, its factor
- *  1, where it traced no ray (`vsmEmptyTrace`) —, and what the translucent casters let through
- *  along its missed rays, averaged over them (1 where none missed or no pane lies on them). */
+/** What a trace returns: the share of its rays that missed, and how many it traced — none, its
+ *  factor 1, where it traced no ray (`vsmEmptyTrace`). */
 export const VSM_TRACE_RESULT_WGSL = wgslBlock(
   'VSM_TRACE_RESULT_WGSL',
   [],
   `
-struct VsmTraceResult{shadowFactor:f32,rayCount:u32,through:vec3f,}
-fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(1.0,0u,vec3f(1.0));}
+struct VsmTraceResult{shadowFactor:f32,rayCount:u32,occluderDistance:f32,}
+fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(1.0,0u,-1.0);}
 `,
 )
 
@@ -116,13 +115,16 @@ fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(1.0,0u,vec3f(1.0));}
  */
 export const rayCountStatement = (lone: boolean) =>
   lone
-    ? /* wgsl */ `  if(!directional&&(i==0u||i==u32(VSM_TRACE_VOTE_AFTER))){
+    ? /* wgsl */ `  if(!directional&&vsm.adaptiveRayCount>0u&&(i==0u||i==vsm.adaptiveRayCount)){
    if(vsmLoneAllTrue(!running||select(missed==0u,!hit,i==0u))){if(running){stopped=true;stopIndex=i;}break;}
   }
 `
     : /* wgsl */ `  var halfStops=false;
-  if(i==0u){halfStops=vsmVoteAllTrue(!running||!hit);}
-  else if(i==u32(VSM_TRACE_VOTE_AFTER)){halfStops=vsmVoteAllTrue(!running||missed==0u);}
+  let votes=vsm.adaptiveRayCount>0u&&(i==0u||i==vsm.adaptiveRayCount);
+  if(votes){
+   if(i==0u){halfStops=vsmVoteAllTrue(!running||!hit);}
+   else{halfStops=vsmVoteAllTrue(!running||missed==0u);}
+  }
   if(halfStops&&running){stopped=true;stopIndex=i;}
-  if((i==0u||i==u32(VSM_TRACE_VOTE_AFTER))&&i+1u<rayCap&&vsmGroupVoted(halfStops)){break;}
+  if(votes&&i+1u<rayCap&&vsmGroupVoted(halfStops)){break;}
 `

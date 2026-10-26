@@ -1,7 +1,6 @@
 import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
 import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
@@ -12,6 +11,7 @@ import { quadScene, camera } from './testScenes.fixture.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 test('mixed GPU and transparent pages wait for initial coverage before validating the resident cut', async () => {
   installGpuGlobals()
@@ -19,10 +19,11 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
   mock.method(performance, 'now', () => 0)
   const fixture = quadScene(),
     blend = quadScene()
-  const mesh = blend.source.children[0] as HostMesh
+  const mesh = blend.source.children[0] as PageMesh
   fixture.source.add(mesh)
   blend.material.transparent = true
   G.sided(blend.material, G.DOUBLE_SIDE)
+  blend.material.twoSidedPasses = true
   const primitive = blend.metadata.primitives[0]
   primitive.mesh = 1
   primitive.pass = 'clustered-blend'
@@ -88,19 +89,22 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
     { device, writes, draws } = fakeDevice(BACKEND)
   fixture.material.transparent = true
   G.sided(fixture.material, G.DOUBLE_SIDE)
+  fixture.material.twoSidedPasses = true
   fixture.metadata.primitives[0].pass = 'clustered-blend'
-  const mesh = fixture.source.children[0] as HostMesh,
-    legacyMesh = legacy.source.children[0] as HostMesh
+  const mesh = fixture.source.children[0] as PageMesh,
+    legacyMesh = legacy.source.children[0] as PageMesh
   legacy.material.transparent = true
   G.sided(legacy.material, G.DOUBLE_SIDE)
+  legacy.material.twoSidedPasses = true
   legacy.metadata.primitives[0].mesh = 1
   legacy.metadata.primitives[0].pass = 'clustered-blend'
   fixture.source.add(legacyMesh)
   fixture.metadata.primitives.push(legacy.metadata.primitives[0])
   fixture.associations.set(legacyMesh, { meshes: 1, primitives: 0 })
-  const otherMesh = other.source.children[0] as HostMesh
+  const otherMesh = other.source.children[0] as PageMesh
   other.material.transparent = true
   G.sided(other.material, G.DOUBLE_SIDE)
+  other.material.twoSidedPasses = true
   const otherPrimitive = other.metadata.primitives[0]
   otherPrimitive.mesh = 2
   otherPrimitive.pass = 'clustered-blend'

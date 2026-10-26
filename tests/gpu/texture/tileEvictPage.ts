@@ -22,6 +22,7 @@ export async function run(kase: TileEvictCase) {
   const raw = (size: number) => ({
     layout: tileLayout(size, size),
     lane: 'lossless' as const,
+    tap: 0,
     source: { kind: 'bytes' as const, tail: empty },
   })
   const clock = () => published.clock
@@ -29,7 +30,7 @@ export async function run(kase: TileEvictCase) {
     createWebgpuTileAtlas(device, {
       kind,
       encoding: poolEncoding(undefined),
-      layers: { lossless: layers, rgba: 0, 'two-channel': 0 },
+      layers: { lossless: layers, rgba: 0, 'two-channel': 0, hdr: 0 },
       feedbackOffset: offset,
       textures: [raw(size)],
       clock,

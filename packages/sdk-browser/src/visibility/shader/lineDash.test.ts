@@ -8,7 +8,7 @@ import { runShaderText } from './shaderText.fixture.ts'
 import { PAGE_INFO_STRUCT_WGSL, maskKeepWgsl } from './pageWgsl.ts'
 import { maskAlphaWgsl } from '../../materials/virtual/wgsl.ts'
 import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts'
-import { VIS_SHADER } from './visWgsl.ts'
+import { VIS_SHADER } from './visShader.fixture.ts'
 import { rasterSource } from '../raster/shader.ts'
 import { BLEND_ITEM_WGSL } from '../../blend/items.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
@@ -75,7 +75,7 @@ test('every path that draws a line reads the dash, and a solid surface keeps eve
   )
   // The camera's one cutting fragment stage, and the software raster's cut.
   assert.equal(VIS_SHADER.split('maskKeep(page,in.tc.xy,').length, 2)
-  assert.ok(rasterSource(4).includes('maskKeep(page,tc.xy,tc.z,ddx,ddy)'))
+  assert.ok(rasterSource().includes('maskKeep(page,tc.xy,tc.z,ddx,ddy)'))
   // The transparent pass.
   assert.ok(BLEND_SHADER.includes(LINE_DASH_WGSL.text))
   // Its dash is its surface's record's too, read by its vertex stage.

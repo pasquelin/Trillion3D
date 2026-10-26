@@ -78,6 +78,13 @@ export function createMaterialRecords(release: (entry: MaterialEntry) => void) {
      *  record; the atlas's slots moved since; the surfaces written since (`surfaceJournals`). */
     moved: false,
     forgotten: false,
+    /** How many times a surface's offset facts changed — it came to wear an offset, lost it, its
+     *  greatest offset or its program changed: what the roots' offsets are read again by
+     *  (`../../frame/render/offsetReach.ts`). */
+    offsetEpoch: 0,
+    /** Whether a surface that dithers its cutout (`ditherOpacityMask`) was written: the blue noise is
+     *  asked of the device then. Never unset. */
+    dithers: false,
     journal: undefined as Set<PageSurface> | undefined,
   }
 }

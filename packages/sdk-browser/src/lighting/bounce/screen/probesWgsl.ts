@@ -1,7 +1,8 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { SURFACE_MODEL_MASK, MODEL_FLAG } from '../../../materials/surface/surfaceModel.ts'
+import { SURFACE_MODEL_MASK, MODEL_FLAG } from '../../../materials/surface/surfaceModelWord.ts'
 import { WORLD_AT_WGSL } from '../../deferred/worldAtWgsl.ts'
 import { CACHE_WORDS_WGSL } from '../cache/cacheWordsWgsl.ts'
+import { SCREEN_PROBE_FORMATS as F } from './screenProbeLayout.ts'
 
 /**
  * THE WEIGHTS OF THE PROBES ROUND A PIXEL: bilinear in the tile, each corner's by how near its plane the pixel's point lies
@@ -71,21 +72,29 @@ fn spSurfaceAt(pix:vec2u)->SpSurface{
 }`,
   )
 
-/** The probes' records as a kernel reads them: the world point and signed depth, the normal and speed
- *  (`spReadProbe`), `probeCounts` the adaptive probes placed (`spProbeLive`), and the record of a probe placed or an
+/** The probes' records as a kernel reads them: the world point and signed depth, the normal and speed (`spReadProbe`). The
+ *  points are a sampled texture, or, where `stored`, a texture read as the storage it is written through: none of the stage's
+ *  sixteen sampled textures spent on it. */
+export const spProbeRecords = (info: number, normal: number, stored = false) =>
+  wgslBlock(
+    `spProbeRecords(${info}, ${normal}, ${stored})`,
+    [],
+    `@group(0) @binding(${info}) var probeInfo:${stored ? `texture_storage_2d<${F.info},read>` : 'texture_2d<f32>'};
+@group(0) @binding(${normal}) var probeNormal:texture_2d<f32>;
+fn spReadProbe(atlas:vec2u)->SpProbe{
+ let a=${stored ? 'textureLoad(probeInfo,vec2i(atlas))' : 'textureLoad(probeInfo,vec2i(atlas),0)'};
+ let n=textureLoad(probeNormal,vec2i(atlas),0);
+ return SpProbe(a.xyz,a.w,n.xyz,n.w);
+}`,
+  )
+
+/** The probes' records and `probeCounts` the adaptive probes placed (`spProbeLive`), and the record of a probe placed or an
  *  empty one where the index is past them (`spProbeOrDead`). */
 export const spProbes = (info: number, normal: number, counts: number) =>
   wgslBlock(
     `spProbes(${info}, ${normal}, ${counts})`,
-    [],
-    `@group(0) @binding(${info}) var probeInfo:texture_2d<f32>;
-@group(0) @binding(${normal}) var probeNormal:texture_2d<f32>;
-@group(0) @binding(${counts}) var<storage,read> probeCounts:array<u32>;
-fn spReadProbe(atlas:vec2u)->SpProbe{
- let a=textureLoad(probeInfo,vec2i(atlas),0);
- let n=textureLoad(probeNormal,vec2i(atlas),0);
- return SpProbe(a.xyz,a.w,n.xyz,n.w);
-}
+    [spProbeRecords(info, normal)],
+    `@group(0) @binding(${counts}) var<storage,read> probeCounts:array<u32>;
 fn spProbeLive(index:u32)->bool{
  return index<sp.counts.y+min(probeCounts[0],sp.grid.w);
 }
@@ -103,9 +112,10 @@ fn spProbeOrDead(atlas:vec2u)->SpProbe{
 export const spReach = wgslBlock(
   'spReach',
   [CACHE_WORDS_WGSL],
-  `fn spLocalReach(P:vec3f)->f32{
+  `fn spLocalReachBiased(P:vec3f,bias:u32)->f32{
  if(!spFlag(SP_FLAG_CACHE)){return spMaxTrace();}
- let cover=cacheCoverage(P);
+ let cover=cacheCoverageBiased(P,bias);
  return select(spMaxTrace(),min(spMaxTrace(),cover.minTrace),cover.valid);
-}`,
+}
+fn spLocalReach(P:vec3f)->f32{return spLocalReachBiased(P,0u);}`,
 )

@@ -19,7 +19,7 @@ import type {
  * cells kept once, positions once each when that is smaller; positions sit on cells of
  * `2 ** -positionPrecision` centimetre, which the header carries for every decoder, texture
  * coordinates as float codes, colours as bytes, normals and tangents at the format's precisions.
- * Up to four texture sets, `TEXCOORD_0` to `TEXCOORD_3`. A page the encoder refuses throws its
+ * Up to eight texture sets, `TEXCOORD_0` to `TEXCOORD_7`. A page the encoder refuses throws its
  * code (`INVALID_PAGE`, `PAGE_ATTRIBUTE_RANGE`...).
  */
 
@@ -29,6 +29,10 @@ const TEXTURE_SETS = [
   ['TEXCOORD_1', 'uv1', REQUEST.UV1],
   ['TEXCOORD_2', 'uv2', REQUEST.UV2],
   ['TEXCOORD_3', 'uv3', REQUEST.UV3],
+  ['TEXCOORD_4', 'uv4', REQUEST.UV4],
+  ['TEXCOORD_5', 'uv5', REQUEST.UV5],
+  ['TEXCOORD_6', 'uv6', REQUEST.UV6],
+  ['TEXCOORD_7', 'uv7', REQUEST.UV7],
 ] as const
 
 /** The skin of `attributes`, every `JOINTS_n` rank side by side per vertex, or null. */
@@ -63,33 +67,39 @@ function skinOf(attributes: PageAttributes, vertices: number) {
   return { joints, weights, influences: width }
 }
 
-/** Encodes one page: `module` is the SDK WebAssembly module (`requireSdkWasm`). */
-export function encodeGeometryPage(
-  module: SdkWasm,
-  sourceIndices: ArrayLike<number>,
+type Skin = ReturnType<typeof skinOf>
+
+/** The attribute `name` of `attributes`, none when absent; its width one of `widths` and its length
+ *  one item a vertex. */
+function optionalAttribute(
   attributes: PageAttributes,
-  positionPrecision = 7,
-  targets: readonly PageTarget[] = [],
+  vertices: number,
+  name: 'NORMAL' | (typeof TEXTURE_SETS)[number][0] | 'COLOR_0',
+  widths: number[],
 ) {
-  const position = attributes.POSITION
-  if (!position || position.itemSize !== 3 || !position.array.length)
-    throw new Error('INVALID_PAGE')
-  const vertices = position.array.length / 3
-  const skin = skinOf(attributes, vertices)
+  const attribute: PageAttribute | undefined = attributes[name]
+  if (!attribute) return null
+  if (
+    !widths.includes(attribute.itemSize) ||
+    attribute.array.length !== vertices * attribute.itemSize
+  )
+    throw new Error('INVALID_PAGE_ATTRIBUTE')
+  return attribute
+}
+
+/** The columns a page may carry, in the encoder's order, each with the array it has. */
+function pageColumns(
+  attributes: PageAttributes,
+  sourceIndices: ArrayLike<number>,
+  position: PageAttribute,
+  vertices: number,
+  skin: Skin,
+) {
   const optional = (
     name: 'NORMAL' | (typeof TEXTURE_SETS)[number][0] | 'COLOR_0',
     widths: number[],
-  ) => {
-    const attribute: PageAttribute | undefined = attributes[name]
-    if (!attribute) return null
-    if (
-      !widths.includes(attribute.itemSize) ||
-      attribute.array.length !== vertices * attribute.itemSize
-    )
-      throw new Error('INVALID_PAGE_ATTRIBUTE')
-    return attribute
-  }
-  const columns = [
+  ) => optionalAttribute(attributes, vertices, name, widths)
+  return [
     { name: 'indices', type: 'u32', array: sourceIndices, word: REQUEST.INDICES },
     { name: 'positions', type: 'f32', array: position.array, word: REQUEST.POSITIONS },
     { name: 'normals', type: 'f32', array: optional('NORMAL', [3])?.array, word: REQUEST.NORMALS },
@@ -108,19 +118,58 @@ export function encodeGeometryPage(
     { name: 'joints', type: 'u32', array: skin?.joints, word: REQUEST.JOINTS },
     { name: 'weights', type: 'f32', array: skin?.weights, word: REQUEST.WEIGHTS },
   ] as const
+}
+
+type Columns = ReturnType<typeof pageColumns>
+
+/** The arrays sent to the encoder: the columns present, then each target's positions and normals. */
+function pageSources(columns: Columns, targets: readonly PageTarget[], vertices: number) {
   const present = columns.filter((column) => column.array)
   for (const target of targets) {
     if (target.POSITION.array.length !== vertices * 3) throw new Error('INVALID_PAGE_ATTRIBUTE')
     if (target.NORMAL && target.NORMAL.array.length !== vertices * 3)
       throw new Error('INVALID_PAGE_ATTRIBUTE')
   }
-  const sources = [
+  return [
     ...present.map(({ type, array }) => ({ type, array: array! })),
     ...targets.flatMap((target) => [
       { type: 'f32' as const, array: target.POSITION.array },
       ...(target.NORMAL ? [{ type: 'f32' as const, array: target.NORMAL.array }] : []),
     ]),
   ]
+}
+
+/** What the encoder returns of a page, read from its answer `meta`. */
+function pageResult(meta: Uint32Array) {
+  return {
+    vertexCount: meta[META.VERTEX_COUNT],
+    indexCount: meta[META.INDEX_COUNT],
+    flags: meta[META.FLAGS],
+    uncompressedBytes: meta[META.DECODED_BYTES],
+    // What the page takes in the pool once the install pass has written it.
+    residentBytes: meta[META.RESIDENT_BYTES],
+    // The box of the positions the page decodes to, its six words from `LOW_X` to `HIGH_Z`: the
+    // low corner then the high one, what a view's culling bounds it by.
+    min: [0, 1, 2].map((axis) => fromF32Bits(meta[META.LOW_X + axis])),
+    max: [2, 1, 0].map((back) => fromF32Bits(meta[META.HIGH_Z - back])),
+  }
+}
+
+/** Encodes one page: `module` is the SDK WebAssembly module (`requireSdkWasm`). */
+export function encodeGeometryPage(
+  module: SdkWasm,
+  sourceIndices: ArrayLike<number>,
+  attributes: PageAttributes,
+  positionPrecision = 7,
+  targets: readonly PageTarget[] = [],
+) {
+  const position = attributes.POSITION
+  if (!position || position.itemSize !== 3 || !position.array.length)
+    throw new Error('INVALID_PAGE')
+  const vertices = position.array.length / 3
+  const skin = skinOf(attributes, vertices)
+  const columns = pageColumns(attributes, sourceIndices, position, vertices, skin)
+  const sources = pageSources(columns, targets, vertices)
   const requests = [
     { type: 'u32' as const, length: REQUEST_WORDS + META_WORDS },
     { type: 'u32' as const, length: targets.length * 2 },
@@ -149,16 +198,6 @@ export function encodeGeometryPage(
     const answer = arena.blocks()[0].view as Uint32Array
     const meta = answer.subarray(REQUEST_WORDS, REQUEST_WORDS + META_WORDS)
     if (status !== 0) refused(meta)
-    const result = {
-      vertexCount: meta[META.VERTEX_COUNT],
-      indexCount: meta[META.INDEX_COUNT],
-      flags: meta[META.FLAGS],
-      uncompressedBytes: meta[META.DECODED_BYTES],
-      // The box of the positions the page decodes to, its six words from `LOW_X` to `HIGH_Z`: the
-      // low corner then the high one, what a view's culling bounds it by.
-      min: [0, 1, 2].map((axis) => fromF32Bits(meta[META.LOW_X + axis])),
-      max: [2, 1, 0].map((back) => fromF32Bits(meta[META.HIGH_Z - back])),
-    }
-    return { ...result, data: new Uint8Array(takeHeld(module)[0]) }
+    return { ...pageResult(meta), data: new Uint8Array(takeHeld(module)[0]) }
   })
 }

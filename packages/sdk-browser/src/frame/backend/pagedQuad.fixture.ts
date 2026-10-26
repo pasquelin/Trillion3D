@@ -52,6 +52,8 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
           url: `g${id}`,
           sha256: 'g',
           bytes: geo.data.byteLength,
+          residentBytes: geo.residentBytes,
+          residentOffset: 0,
           vertexCount: geo.vertexCount,
           indexCount: geo.indexCount,
           flags: geo.flags,

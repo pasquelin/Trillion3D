@@ -1,12 +1,12 @@
+import { toHalf } from '../../../../math/src/float/half.ts'
 import { SUBSURFACE_FORMAT, SUBSURFACE_TARGET } from './subsurface.ts'
 import { PHYSICAL_LOBES_FORMAT, PHYSICAL_LOBES_TARGET } from './physicalLobes.ts'
 import { EMISSIVE_AO_BYTES } from './surfaceEmission.ts'
 import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
-import { standInTexture } from '../../gpu/core/standInTexture.ts'
+import { standInTexture } from '../../gpu/core/standIns.ts'
 import {
   SURFACE_COLOURS_FORMAT,
-  SURFACE_RECEIVER_WORDS,
   SURFACE_WORD_LAYERS,
   SURFACE_WORDS,
   SURFACE_WORDS_FORMAT,
@@ -47,7 +47,7 @@ const lobesTarget = (device: GPUDevice, size: readonly [number, number], wanted:
   })
 
 /** `(0, 0, 0, 1)`'s last channel in half float. */
-const HALF_ONE = 0x3c00
+const HALF_ONE = toHalf(1)
 
 /** The view of the emission-and-occlusion layer of a frame without it: a 1×1 `(0, 0, 0, 1)`. */
 function noEmission(device: GPUDevice) {
@@ -200,11 +200,6 @@ function assemble(parts: SurfaceParts, coloured: ColouredParts): SurfaceBuffer {
     hasEmissiveAo: coloured.hasEmissiveAo,
     hasSubsurface: coloured.hasSubsurface,
     subsurfaceView: thin ? layerView(colours, thin) : standIns.thin!.createView(),
-    receiverView: words.createView({
-      dimension: '2d-array',
-      baseArrayLayer: SURFACE_WORDS.receiver,
-      arrayLayerCount: SURFACE_RECEIVER_WORDS,
-    }),
     lobesView: lobes.createView(),
     views: () => live(views),
     stores: () => live(stores),

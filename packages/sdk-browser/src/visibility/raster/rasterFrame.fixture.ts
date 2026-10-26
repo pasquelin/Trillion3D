@@ -1,20 +1,28 @@
-import { createGpuRaster } from './raster.ts'
+import { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
+import { NO_RASTERS } from '../../materials/graph/graphRasters.ts'
+import { createGpuRaster, type BinningSteps } from './raster.ts'
 import type { GpuRasterInput } from './types.ts'
 import { RASTER_PASS_MAIN, RASTER_PASS_POST } from './contract.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { WIDE_ATOMIC_FEATURE } from '../../gpu/core/wideAtomics.ts'
 
-/** A raster over a fake device, whose split holds the plane's code or not (`clipping`), and an image
- *  that asks the tessellation or not. */
-export function rasterOf(tessellating: boolean, clipping = false) {
+/** The binning's steps, none encoded: what a test of the raster alone leaves to the decode and the
+ *  bins (`../passes/binning.ts`). */
+const NO_STEPS: BinningSteps = { ready: () => true, clear() {}, decode() {}, bins() {} }
+
+/** A raster over a fake device — with the 64-bit atomic maximum or without it (`wide`) —, whose
+ *  passes hold the plane's code or not (`clipping`), and an image that asks the tessellation or not. */
+export function rasterOf(tessellating: boolean, clipping = false, wide = false) {
   const f = fakeDevice({
+    ...(wide && { features: [WIDE_ATOMIC_FEATURE] }),
     limits: {
       maxStorageBufferBindingSize: 134217728,
       maxBufferSize: 268435456,
       maxComputeWorkgroupsPerDimension: 65535,
-    } as unknown as GPUSupportedLimits,
+    },
   })
   const device = f.device as unknown as GPUDevice
-  const raster = createGpuRaster(device, 64, 64, 4096, clipping)
+  const raster = createGpuRaster(device, 64, 64, 4096, NO_RASTERS, clipping)
   const buffer = (label: string) =>
     device.createBuffer({ label, size: 4096, usage: 0x80 | 0x40 | 0x8 })
   const input = {
@@ -22,14 +30,17 @@ export function rasterOf(tessellating: boolean, clipping = false) {
     positions: buffer('positions'),
     pages: buffer('pages'),
     uniform: buffer('uniform'),
-    postUniformOffset: 256,
     uvs: buffer('uvs'),
     textures: { data: { views: [{}, {}, {}], pages: { buffer: buffer('data pages') } } },
     sampler: {},
     material: {},
     normals: {},
-    items: buffer('items'),
-    pageRows: 3,
+    frame: buffer('graph frame'),
+    noise: {},
+    idsView: {},
+    classBins: {},
+    depthView: {},
+    hizView: {},
     ...(tessellating && {
       tessellation: {
         displaced: { ints: new Uint32Array(24), version: 1 },
@@ -47,10 +58,12 @@ export function rasterOf(tessellating: boolean, clipping = false) {
   const encoder = device.createCommandEncoder()
   /** The kernels dispatched, in order, from the pass `label` on. */
   const frame = () => {
-    raster.encodeBinning(encoder, input, RASTER_PASS_MAIN)
-    raster.encodeDepth(encoder, RASTER_PASS_MAIN)
-    raster.encodeBinning(encoder, input, RASTER_PASS_POST)
-    raster.encodeIds(encoder, input, [64, 64], true)
+    raster.encodeBinning(encoder, input, RASTER_PASS_MAIN, NO_STEPS)
+    const steps = new ComputeRun().begin(encoder)
+    raster.encodeDepth(steps, RASTER_PASS_MAIN, input)
+    steps.end()
+    raster.encodeBinning(encoder, input, RASTER_PASS_POST, NO_STEPS)
+    raster.encodeClose(encoder, input, [64, 64], true)
     return f.dispatches.map((d) => d.entryPoint)
   }
   return { f, device, raster, frame, input }

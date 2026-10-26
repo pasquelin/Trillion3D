@@ -17,7 +17,8 @@ import type { TessellationValues } from '../../../../sdk-core/src/contracts/tess
  * occlusion test of the patches (`splitWgsl.ts`): `occlusion` says which pyramid it reads
  * (`OCCLUSION_*`), `depthMap` the projection's clip depth, `prevViewProj`, `prevDepthMap` and
  * `prevSize` the previous image's view for the main pass, `maxOccluded` the patches the pass may keep
- * and `mainArgs` where the main pass's state lies, the post pass's source of those it kept.
+ * and `mainArgs` where the main pass's state lies, the post pass's source of those it kept; `list`
+ * the first word of the pass's header in the raster's lists (`../raster/contract.ts`).
  */
 export const TESS_UNIFORM = fieldLayout('TessUni', [
   ['edgesPerUnit', 'f32'],
@@ -34,6 +35,7 @@ export const TESS_UNIFORM = fieldLayout('TessUni', [
   ['maxOccluded', 'u32'],
   ['mainArgs', 'u32'],
   ['dispBase', 'u32'],
+  ['list', 'u32'],
   ['depthMap', 'vec2f'],
   ['prevDepthMap', 'vec2f'],
   ['prevSize', 'vec2u'],
@@ -60,6 +62,7 @@ type TessellationRegions = {
   visible: number
   dispatch: number
   disp: number
+  list: number
 }
 
 /** What a pass's occlusion test reads (`TessUni`): `mode`, none, the previous image's pyramid or this
@@ -107,6 +110,7 @@ export function writeTessellationUniform(
   ints[at.visible] = regions.visible
   ints[at.dispatch] = regions.dispatch
   ints[at.dispBase] = regions.disp
+  ints[at.list] = regions.list
   ints[at.occlusion] = sight.mode
   ints[at.maxOccluded] = sight.maxOccluded
   ints[at.mainArgs] = sight.mainArgs

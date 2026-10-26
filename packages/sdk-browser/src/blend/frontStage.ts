@@ -3,19 +3,20 @@ import { FRONT_OUTPUTS, type FrontOutputs } from '../lighting/reflections/frontL
 import { fragmentTargets } from '../gpu/core/fragmentOutputs.ts'
 import { stageDescriptors, type FrontStagePipelines } from './stagePipelines.ts'
 import { blendFrontShader, blendReflects } from './frontStageWgsl.ts'
-import { hasPhysicalLobes } from '../materials/surface/physicalLobes.ts'
+import { hasLightingLobes } from '../materials/surface/physicalLobes.ts'
 import { cullOf } from './plan/planCull.ts'
-import type { PageSurface } from '../geometry/pages/surface.ts'
+import type { BlendedSurface } from './pipelines.ts'
 import type { Clipping } from '../gpu/core/clipDistances.ts'
 import type { SurfaceProgram } from '../materials/graph/surfaceProgram.ts'
+import { NO_WPO, type WpoSet } from '../materials/graph/wpoProgram.ts'
 
 /** What a front pass of the transparents `items` writes (`FrontOutputs`): nothing past the covering
  *  depth and flags unless one reflects, the lobes too where one carries a lobe. The one decision of
  *  prepare's compile (`prepareFrontStage`) and of the scene refresh the frame reads
  *  (`blendState.frontOutputs`). */
-export function frontStageOf(items: readonly { surface: PageSurface }[]): FrontOutputs {
+export function frontStageOf(items: readonly BlendedSurface[]): FrontOutputs {
   if (!items.some((item) => blendReflects(item.surface))) return 0
-  return items.some((item) => hasPhysicalLobes(item.surface)) ? 2 : 1
+  return items.some((item) => hasLightingLobes(item.surface)) ? 2 : 1
 }
 
 /**
@@ -27,13 +28,14 @@ export function frontStageOf(items: readonly { surface: PageSurface }[]): FrontO
  * reaches another (`ask`), off the frame, the frames held until it lands. A scene without a transparent
  * never asks one. A rank of any blending mode draws its cull's. `clipping`, how their modules cut
  * at a view's plane (`../gpu/core/clipDistances.ts`); `graphs`, the programs of the graphs its items
- * wear (`graphWgsl.ts`).
+ * wear (`graphWgsl.ts`), `offsets` those of them that move their vertices.
  */
 export function createFrontStages(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   clipping?: Clipping,
   graphs: readonly SurfaceProgram[] = [],
+  offsets: WpoSet = NO_WPO,
 ) {
   const sets: FrontStagePipelines[] = []
   const setOf = (outputs: FrontOutputs): FrontStagePipelines => {
@@ -42,7 +44,7 @@ export function createFrontStages(
       if (culls) return culls
       const module = device.createShaderModule({
         label: 'Trillion3D front stage',
-        code: blendFrontShader(outputs, clipping, graphs),
+        code: blendFrontShader(outputs, clipping, graphs, offsets),
       })
       const fragment = {
         module,
@@ -67,14 +69,16 @@ export function createFrontStages(
   return (outputs: FrontOutputs) => (sets[outputs] ??= setOf(outputs))
 }
 
-/** Prepare's compile of the front stage the scene's transparents `items` reach (`frontStageOf`), with
- *  them; none without a transparent. Refused, no front pass draws (`frontPass.ts`). */
+/** Prepare's compile of the front stage the scene's transparents `items` reach (`frontStageOf`) where the settings trace the
+ *  front layer (`traced`, `reflectionFrontLayer`), else of the covering depth's alone, the one the pass draws; with them; none
+ *  without a transparent. Refused, no front pass draws (`frontPass.ts`). */
 export const prepareFrontStage = (
   stages: ReturnType<typeof createFrontStages>,
-  items: readonly { surface: PageSurface }[],
+  items: readonly BlendedSurface[],
+  traced: boolean,
 ) =>
   items.length
-    ? stages(frontStageOf(items))
+    ? stages(traced ? frontStageOf(items) : 0)
         .prepare()
         .catch(() => undefined)
     : undefined

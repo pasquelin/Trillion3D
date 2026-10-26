@@ -7,28 +7,34 @@ import { DFAO_READ_WORDS } from './readWgsl.ts'
 
 /**
  * WHAT THE FRAME KEEPS OF THE SKY LIGHT'S DISTANCE-FIELD OCCLUSION (`DistanceFieldFrameState.occlusion`): the
- * view's resources (`DfaoState`), the last image's view-projection, the temporal revision it was drawn at, and what
- * this image leaves for the lighting — the texture of the bent normals (`output`, none where nothing was drawn), the
- * words of the read uniform that describes it (`dfaoRead`, `DFAO_READ_WORDS`), and how the sky light applies it
- * (`use`, for `writeSkyLightRead`).
+ * view's resources (`DfaoState`), the number of the last image it was drawn at (`seen`: the view's camera of the image before is
+ * its history's camera where that is the image — `cameraSeen`), the temporal revision it was drawn at, and what
+ * this image leaves for the lighting — the buffers the lit pass reads the image from (`read`, none where nothing was
+ * drawn), the words of the read uniform that describes it (`dfaoRead`, `DFAO_READ_WORDS`), and how the sky light
+ * applies it (`use`, for `writeSkyLightRead`).
  */
 export interface SkyOcclusionState {
   readonly dfao: DfaoState
-  readonly previous: Float64Array
-  hasPrevious: boolean
+  seen: number
   revision: number | undefined
-  output: GPUTextureView | undefined
-  readonly dfaoRead: Float32Array
+  read: SkyOcclusionRead | undefined
+  readonly dfaoRead: Float32Array<ArrayBuffer>
   use: SkyLightOcclusionUse
+}
+
+/** What the lit pass binds to read the image: the bent normals and depths, packed (`DfaoView.packed`), and the
+ *  uniform that describes them (`DfaoView.readParams`). */
+export interface SkyOcclusionRead {
+  readonly bent: GPUBuffer
+  readonly params: GPUBuffer
 }
 
 /** A state with nothing drawn. */
 export const createSkyOcclusionState = (): SkyOcclusionState => ({
   dfao: createDfaoState(),
-  previous: new Float64Array(16),
-  hasPrevious: false,
+  seen: 0,
   revision: undefined,
-  output: undefined,
+  read: undefined,
   dfaoRead: new Float32Array(DFAO_READ_WORDS),
   use: NO_SKY_LIGHT_OCCLUSION,
 })
@@ -37,8 +43,8 @@ export const createSkyOcclusionState = (): SkyOcclusionState => ({
 export function releaseSkyOcclusion(state: SkyOcclusionState) {
   state.dfao.view?.dispose()
   state.dfao.view = undefined
-  state.hasPrevious = false
-  state.output = undefined
+  state.seen = 0
+  state.read = undefined
   state.use = NO_SKY_LIGHT_OCCLUSION
 }
 
@@ -46,3 +52,8 @@ export function releaseSkyOcclusion(state: SkyOcclusionState) {
 export const skyOcclusionUse = (frame: {
   readonly distanceFields?: { readonly occlusion: SkyOcclusionState }
 }): SkyLightOcclusionUse => frame.distanceFields?.occlusion.use ?? NO_SKY_LIGHT_OCCLUSION
+
+/** What the lit pass reads the image from this image, or none where the sky light is not occluded by the distance fields. */
+export const skyOcclusionRead = (frame: {
+  readonly distanceFields?: { readonly occlusion: SkyOcclusionState }
+}): SkyOcclusionRead | undefined => frame.distanceFields?.occlusion.read

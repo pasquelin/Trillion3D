@@ -123,3 +123,33 @@ fn holeindices_faces_leave_the_surface_and_are_counted() {
         "a hole index outside the face array is an invalid face, not a hole"
     );
 }
+
+// A mesh carries up to eight coordinate sets, `primvars:st` and `primvars:st1` to `primvars:st7`,
+// each the glTF `TEXCOORD_n` of its rank; the sets it lacks are no attribute.
+#[test]
+fn a_mesh_carries_each_of_its_coordinate_sets_as_the_texcoord_of_its_rank() {
+    let set = |name: &str, shift: f32| {
+        let at = |u: f32, v: f32| format!("({}, {})", u + shift, v);
+        format!(
+            "        texCoord2f[] primvars:{name} = [{}, {}, {}, {}] (\n            interpolation = \"vertex\"\n        )\n",
+            at(0.0, 0.0),
+            at(1.0, 0.0),
+            at(1.0, 1.0),
+            at(0.0, 1.0)
+        )
+    };
+    let attributes = format!(
+        "        int[] faceVertexCounts = [4]\n        int[] faceVertexIndices = [0, 1, 2, 3]\n        point3f[] points = [(0,0,0), (1,0,0), (1,1,0), (0,1,0)]\n{}{}{}",
+        set("st", 0.0),
+        set("st1", 0.5),
+        set("st7", 2.0)
+    );
+    let run = mesh_layer("uv-sets", &attributes, "none");
+    let (_, gltf) = run.prepared("usd");
+    let named = &gltf["meshes"][0]["primitives"][0]["attributes"];
+    let carried: Vec<String> = (0..8)
+        .map(|set| format!("TEXCOORD_{set}"))
+        .filter(|name| named.get(name).is_some())
+        .collect();
+    assert_eq!(carried, ["TEXCOORD_0", "TEXCOORD_1", "TEXCOORD_7"]);
+}

@@ -1,58 +1,92 @@
-import { reflectionLayout } from '../lighting/reflections/reflectionPipelines.ts'
+import { reflectionForwardLayout } from '../lighting/reflections/reflectionPipelines.ts'
 import { REFLECTION_LIGHT_VIEW_BINDING } from '../lighting/reflections/viewLayout.ts'
 import type { FrontOutputs } from '../lighting/reflections/frontLayer.ts'
 import { DEPTH_COMPARE_OR_EQUAL } from '../camera/depthConvention.ts'
 import {
+  pipelineLayoutOf,
   preparedPipeline,
-  started,
   type PreparedPipeline,
 } from '../lighting/deferred/fullscreen.ts'
-import { BLEND_MODES } from '../materials/surface/materialBlending.ts'
-import type { Blending } from '../../../sdk-core/src/world/constants/index.ts'
+import { blendLightingConstant, blendLightingOf } from '../materials/surface/blendLightSource.ts'
+import { blendModeConstant } from '../materials/surface/materialBlending.ts'
+import { feedbackConstants } from '../materials/virtual/requestWgsl.ts'
+import { blendTargets } from './blendTargets.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { ContractKey } from '../lighting/deferred/contractCuts.ts'
+import type { TranslucentMaterialShadow } from '../lighting/direct/shadowWgsl.ts'
 import { DEPTH_FORMAT } from '../scene/targetFormats.ts'
-import { CULL_MODES } from './plan/planCull.ts'
+import {
+  CULL_MODES,
+  modulatesRank,
+  transmitsRank,
+  variantBlending,
+  variantLighting,
+  variantOfBlend,
+} from './plan/planCull.ts'
 import type { DualPasses } from './pipelines.ts'
-import type { ShareTargets } from './blendTargets.ts'
+import type { VertexReads } from './cloudVertexText.ts'
+import type { WaterPipelines } from './water/waterPipelines.ts'
 
 /** Pipelines a transparent pass picks by plan rank (`draw.ts`): the blend pass's modes and
  *  transmissive culls, `filtered` in an image with display layers (`display/displayFilter.ts`); a rank
  *  the pass `skips` is not drawn (the display mask draws the filtering modes alone, the distortion
- *  the transmissive items alone); `share`, the share targets they write (`ShareTargets`,
- *  `blendTargets`). */
+ *  the transmissive items alone). */
 export type RankedPipelines = {
-  at(rank: number, filtered?: boolean, share?: ShareTargets): GPURenderPipeline | undefined
+  at(rank: number, filtered?: boolean): GPURenderPipeline | undefined
   skips?(rank: number): boolean
 }
 
-/** Ranked pipelines that make the one a rank asks for (`RankedPipelines`). */
-type MadePipelines = Omit<RankedPipelines, 'at'> & {
-  at(rank: number, filtered?: boolean, share?: ShareTargets): GPURenderPipeline
+/** The ranks a pass of one target draws: the translucency target's — every mode that adds to it, the
+ *  transmissive layers —, the modulation target's — the modes that multiply the scene. */
+type TargetRanks = 'translucency' | 'modulation'
+const RANKS_OF: Record<TargetRanks, (rank: number) => boolean> = {
+  translucency: (rank) => !modulatesRank(rank),
+  modulation: modulatesRank,
+}
+const restrictions = new WeakMap<RankedPipelines, Partial<Record<TargetRanks, RankedPipelines>>>()
+/** `set` drawing the ranks of `target` alone, made once for a set and a target. */
+export function onTarget(set: RankedPipelines, target: TargetRanks): RankedPipelines {
+  let made = restrictions.get(set)
+  if (!made) restrictions.set(set, (made = {}))
+  return (made[target] ??= {
+    at: (rank, filtered) => set.at(rank, filtered),
+    skips: (rank) => !!set.skips?.(rank) || !RANKS_OF[target](rank),
+  })
 }
 
 /**
  * What a blend program draws its transmissive items with (`./transmission/pipelines.ts`), each set picked
  * by a plan rank's cull past the blend modes' (`TRANSMIT_BASE`): the layer under the single-source
- * fallback on the blend pass's targets (`over`), under its dual blend on the HDR target alone (`dual`, none
- * on a device without `dual-source-blending`), the companion pass of the dual blend (`coverage`:
- * the request and the reactive value), the distortion's accumulation — of the refracting ranks
- * alone (`distortion`), or of every transmissive rank with the companion pass's outputs
- * (`distortionCoverage`), each on the blend group and its own (`distortionGroup`) — and its
+ * fallback on the blend pass's targets (`over`), under its dual blend on the translucency target
+ * alone (`dual`, none on a device without `dual-source-blending`) and on the modulation target
+ * (`dualModulate`, the request beside it), the request alone of the layers that pass multiplies
+ * nothing by (`coverage`), the responsiveness pass (`responsive`), the distortion's accumulation — of the refracting ranks
+ * alone (`distortion`), on the blend group and its own (`distortionGroup`) — and its
  * full-screen application (`apply`, on an empty group 0, `applyEmpty`, and its own, `applyGroup`);
  * then the compile of what the scene reaches (`precompile`).
  */
 export interface TransmitPipelines {
-  readonly over: MadePipelines
-  readonly dual?: MadePipelines
-  readonly coverage: MadePipelines
-  readonly distortion: MadePipelines
-  readonly distortionCoverage: MadePipelines
+  readonly over: RankedPipelines
+  readonly dual?: RankedPipelines
+  readonly dualModulate?: RankedPipelines
+  readonly coverage: RankedPipelines
+  readonly responsive: RankedPipelines
+  /** The alpha holdout's accumulation (`holdout.ts`). */
+  readonly holdout: RankedPipelines
+  readonly distortion: RankedPipelines
   readonly apply: PreparedPipeline<GPURenderPipeline>
+  /** The distortion's whole chain, its accumulation's culls then its application (`chainReady`). */
+  distortionChain(): PreparedPipeline<unknown>[]
   readonly applyEmpty: GPUBindGroup
   distortionGroup(view: GPUBuffer, depth: GPUTextureView): GPUBindGroup
   applyGroup(view: GPUBuffer, offsets: GPUTextureView, scene: GPUTextureView): GPUBindGroup
-  precompile(reached: { shares: ReadonlySet<ShareTargets>; filtered: boolean }): Promise<unknown>
+  precompile(reached: {
+    responsive: boolean
+    refracts: boolean
+    chromatic: boolean
+    filtered: boolean
+    holdout: boolean
+  }): Promise<unknown>
 }
 
 /** The distortion's bind group, after the blend's (`TransmitPipelines.distortion`, `.apply`), and
@@ -82,56 +116,95 @@ export type FrontStagePipelines = RankedPipelines & {
   prepare(): Promise<unknown>
 }
 
-/** What a transparent pass compiles per blending mode (`BLEND_MODES`): each mode's pipelines, one
- *  per descriptor its `describe` gives, prepared off the frame (`preparedPipeline`). `precompile`
- *  compiles modes without blocking the thread; `at` gives a mode's pipeline at `rank` of its
- *  descriptors, and a pipeline nothing prepared is made by the draw that asks for it, alone, once:
- *  a blending written later draws in its own mode at once, its other pipelines compiling off the
- *  thread from that draw on. */
-export interface ModePipelines {
-  at(mode: Blending, rank: number): GPURenderPipeline
-  precompile(modes: readonly Blending[]): Promise<void>
+/** What a transparent pass compiles per blend variant (`variantOf`: a blending mode in a lighting program): each
+ *  variant's pipelines, one per descriptor its `describe` gives, prepared off the frame (`preparedPipeline`).
+ *  `precompile` compiles variants without blocking the thread, `ask` compiles them with the frames
+ *  waiting (`pipelinesCompiling`); `at` gives a variant's pipeline at `rank` of its descriptors, none
+ *  until it is compiled: a pipeline nothing asked is asked by the draw that needs it, which is skipped
+ *  meanwhile. */
+export interface VariantPipelines {
+  at(variant: number, rank: number): GPURenderPipeline | undefined
+  precompile(variants: Iterable<number>): Promise<void>
+  ask(variants: Iterable<number>): void
 }
 
-/** The transparent pass's lazy set: its three culls per mode. A mode's descriptors are described
- *  once, at its first use. */
-export function pipelinesByMode(
+/** The blend modes' pipelines by variant on `module`, the stage `stage` drawing them, three culls each:
+ *  every target of the pass — the translucency or modulation target, the request where `feedback`
+ *  writes it —, or with `single` the first alone, the pass under the dual blend holding one attachment,
+ *  and with `single` and `feedback` the first and the request. */
+export function modePipelines(
   device: GPUDevice,
-  describe: (mode: Blending) => readonly GPURenderPipelineDescriptor[],
-): ModePipelines {
-  const byMode: (readonly ReturnType<typeof preparedPipeline>[] | undefined)[] = []
-  const of = (mode: Blending) =>
-    (byMode[BLEND_MODES.indexOf(mode)] ??= describe(mode).map((descriptor) =>
+  module: GPUShaderModule,
+  layout: GPUBindGroupLayout,
+  { entryPoint, writeMask }: { entryPoint: string; writeMask: GPUColorWriteFlags },
+  feedback: boolean,
+  single = false,
+) {
+  return pipelinesByVariant(device, (variant) => {
+    const mode = variantBlending(variant)!
+    const targets = blendTargets(mode, writeMask, feedback)
+    return stageDescriptors(
+      device,
+      module,
+      layout,
+      {
+        module,
+        entryPoint,
+        constants: {
+          ...feedbackConstants(feedback),
+          ...blendModeConstant(mode),
+          ...blendLightingConstant(variantLighting(variant)),
+        },
+        targets: single ? targets.slice(0, feedback ? 2 : 1) : targets,
+      },
+      false,
+      reflectedGroups(device),
+    )
+  })
+}
+
+/** The transparent pass's lazy set: its three culls per variant. A variant's descriptors are described
+ *  once, at its first use. */
+export function pipelinesByVariant(
+  device: GPUDevice,
+  describe: (variant: number) => readonly GPURenderPipelineDescriptor[],
+): VariantPipelines {
+  const byVariant: (readonly ReturnType<typeof preparedPipeline>[] | undefined)[] = []
+  const of = (variant: number) =>
+    (byVariant[variant] ??= describe(variant).map((descriptor) =>
       preparedPipeline(device, descriptor),
     ))
   return {
-    at(mode, rank) {
-      const first = !byMode[BLEND_MODES.indexOf(mode)],
-        set = of(mode)
-      // A mode a draw describes first: its other pipelines start off the thread, once.
-      if (first) for (const [at, pipeline] of set.entries()) if (at !== rank) started(pipeline)
-      return set[rank].get()
+    at: (variant, rank) => of(variant)[rank].get(),
+    ask(variants) {
+      for (const variant of variants) for (const pipeline of of(variant)) pipeline.ask()
     },
-    async precompile(modes) {
-      await Promise.all(modes.flatMap((mode) => of(mode).map((pipeline) => pipeline.prepare())))
+    async precompile(variants) {
+      await Promise.all(
+        [...variants].flatMap((variant) => of(variant).map((pipeline) => pipeline.prepare())),
+      )
     },
   }
 }
 
-/** Normal as soon as a transparent item exists — a transmissive one draws in it under a diagnostic
- *  variant —, then every mode a blend item declares: what the transparent pass compiles up front. A scene of plain glass
- *  compiles normal alone; one with no transparent item compiles no blend program, a mode
+/** Normal in the forward lighting as soon as a transmissive item exists — it draws in it under a diagnostic variant —,
+ *  then every variant a non-transmissive item draws (`variantOf`): what the transparent pass compiles up front. A scene of plain glass
+ *  compiles that one alone; one with no transparent item compiles no blend program, a variant
  *  asked later compiles at its first draw (`at`). */
-export const declaredBlendModes = (
+export const declaredBlendVariants = (
   items: readonly Pick<BlendGpuItem, 'surface' | 'transmissive'>[],
-) =>
-  BLEND_MODES.filter(
-    (mode, rank) =>
-      (!rank && items.length > 0) ||
-      items.some((item) => !item.transmissive && item.surface.blending === mode),
-  )
+) => {
+  const declared = new Set<number>()
+  for (const item of items)
+    declared.add(
+      item.transmissive
+        ? variantOfBlend('normal', 'forward')
+        : variantOfBlend(item.surface.blending ?? 'normal', blendLightingOf(item)),
+    )
+  return [...declared].sort((a, b) => a - b)
+}
 
-/** The blend pass's pipelines by plan rank — mode rank × 3 + cull rank, then the transmissive
+/** The blend pass's pipelines by plan rank — variant rank × 3 + cull rank, then the transmissive
  *  items' three (`plan/plan.ts`) —, read from its `ModePipelines`, each mode's three culls, and its
  *  `TransmitPipelines`. */
 export interface BlendModePipelines extends RankedPipelines {
@@ -143,28 +216,54 @@ export interface BlendModePipelines extends RankedPipelines {
   /** What the program draws its transmissive items with, none in a scene that transmits nothing
    *  or under a diagnostic variant (`TransmitPipelines`). */
   readonly transmission?: TransmitPipelines
-  /** The colour and companion passes under the dual blend, where the transmissive items blend dual
+  /** What the program draws its single-layer water with, none in a scene with no water
+   *  (`WaterPipelines`). */
+  readonly water?: WaterPipelines
+  /** The colour and modulation passes under the dual blend, where the transmissive items blend dual
    *  (`createDualPasses`). */
   readonly dualPasses?: DualPasses
   /** The ids of the graph programs its modules hold the functions of (`programOf`, `blendGraphs`): a
    *  surface whose graph is none of them is drawn by a program built again (`grantGraphs`). */
   readonly graphs?: readonly number[]
+  /** What its modules' vertex stage reads (`VertexReads`): the clouds' shade and, for the surfaces whose
+   *  material has `cloudFog`, the cloud image, and the fog per vertex (`fogVertexOf`): a surface of
+   *  that kind drawn by a program that does not read it is drawn by one built again (`grantGraphs`). */
+  readonly reads?: VertexReads
+  /** Whether its modules read the translucency lighting volume, for the surfaces whose material is
+   *  lit from it: a surface of that kind drawn by a program that does not is drawn by one built
+   *  again (`grantGraphs`). */
+  readonly translucencyVolume?: boolean
+  /** What some surface asked of its own about the shadows its fragments read when its modules were
+   *  made, which they hold the code of (`translucentShadowOf`): a surface asking more is drawn by a
+   *  program built again (`grantGraphs`). */
+  readonly translucentShadow?: TranslucentMaterialShadow
   /** The pipelines of the program a frame of the lights' key `key` is lit with, its items `lobed`
-   *  or not (`createForwardVariants`). */
-  lit(key: Partial<ContractKey>, lobed: boolean): BlendModePipelines
-  /** The compile a frame of lobed items waits for while no program with the lobe code is ready:
-   *  the one with every code path, which lights any (`askLobedPrograms`). */
-  lobedAwaited(): Promise<unknown> | undefined
+   *  or not (`createForwardVariants`); none while the program that serves it compiles: the pass is
+   *  skipped, the frame held for it (`litAwaited`). */
+  lit(key: Partial<ContractKey>, lobed: boolean): BlendModePipelines | undefined
+  /** The compile a frame of `key` waits for while no ready program serves it, asked now. */
+  litAwaited(key: Partial<ContractKey>, lobed: boolean): Promise<unknown> | undefined
   /** Starts the compile of what a change of the scene or of a setting now reaches (`reach.ts`). */
-  reach(next: { modes?: readonly Blending[]; share?: ShareTargets; filtered?: boolean }): void
-  at(rank: number, filtered?: boolean, share?: ShareTargets): GPURenderPipeline
+  reach(next: {
+    variants?: readonly number[]
+    responsive?: boolean
+    refracts?: boolean
+    chromatic?: boolean
+    filtered?: boolean
+    holdout?: boolean
+  }): void
+  /** The responsiveness pass's, the layers' marks in their own target (`drawResponsive`). */
+  readonly responsive: RankedPipelines
+  /** The alpha holdout's, what each layer leaves of the background visible, in a target of its own
+   *  (`drawHoldout`). */
+  readonly holdout: RankedPipelines
 }
 
 /** The groups after the blend's of a stage that reads the reflection (`REFLECTION_GROUP`), the
  *  display mask's last where `mask` is given: what `stageDescriptors` is handed by every stage but
  *  the front's and those with groups of their own. */
 export const reflectedGroups = (device: GPUDevice, mask?: GPUBindGroupLayout) =>
-  mask ? [reflectionLayout(device), mask] : [reflectionLayout(device)]
+  mask ? [reflectionForwardLayout(device), mask] : [reflectionForwardLayout(device)]
 
 /** The three cull modes of one fragment stage of the blend module, on the blend bind group layout
  *  then `groups` — the reflection's and the mask's (`reflectedGroups`), a stage's own, or none for
@@ -182,7 +281,7 @@ export function stageDescriptors(
   depthWrite: boolean,
   groups: readonly GPUBindGroupLayout[],
 ): GPURenderPipelineDescriptor[] {
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout, ...groups] })
+  const pipelineLayout = pipelineLayoutOf(device, [layout, ...groups])
   return CULL_MODES.map((cullMode) => ({
     layout: pipelineLayout,
     vertex: { module, entryPoint: 'vs' },
@@ -195,3 +294,25 @@ export function stageDescriptors(
     },
   }))
 }
+
+/** `stageDescriptors` of a stage that draws no depth, each cull made a pipeline. */
+export const cullPipelines = (
+  device: GPUDevice,
+  module: GPUShaderModule,
+  layout: GPUBindGroupLayout,
+  fragment: GPUFragmentState,
+  groups: readonly GPUBindGroupLayout[],
+) =>
+  stageDescriptors(device, module, layout, fragment, false, groups).map((descriptor) =>
+    preparedPipeline(device, descriptor),
+  )
+
+/** The pipeline of a stage both kinds of layer draw (request, responsiveness, holdout) by a plan
+ *  rank: `transmitted`, the transmissive stage's where the rank is a transmissive one, else the
+ *  blends' `blends`. */
+export const ofLayerKind = (
+  transmitted: ((rank: number) => GPURenderPipeline | undefined) | undefined,
+  blends: (rank: number) => GPURenderPipeline | undefined,
+): Pick<RankedPipelines, 'at'> => ({
+  at: (rank) => (transmitted && transmitsRank(rank) ? transmitted(rank) : blends(rank)),
+})

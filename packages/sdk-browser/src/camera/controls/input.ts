@@ -39,23 +39,29 @@ function capture(surface: HTMLElement, pointerId: number, on: boolean) {
   }
 }
 
+/** The mean place of `pointers`. */
+function midpointOf(pointers: ReadonlyMap<number, Point>): Point {
+  let x = 0,
+    y = 0
+  for (const point of pointers.values()) {
+    x += point.x
+    y += point.y
+  }
+  return { x: x / pointers.size, y: y / pointers.size }
+}
+
+/** The span between the two `pointers`. */
+function distanceOf(pointers: ReadonlyMap<number, Point>) {
+  const [a, b] = [...pointers.values()]
+  return length2(a.x - b.x, a.y - b.y)
+}
+
 export function trackPointers(surface: HTMLElement, base: ControlBase, handlers: DragHandlers) {
   const pointers = new Map<number, Point>()
   let button = 0,
     span = 0
-  const midpoint = (): Point => {
-    let x = 0,
-      y = 0
-    for (const point of pointers.values()) {
-      x += point.x
-      y += point.y
-    }
-    return { x: x / pointers.size, y: y / pointers.size }
-  }
-  const distance = () => {
-    const [a, b] = [...pointers.values()]
-    return length2(a.x - b.x, a.y - b.y)
-  }
+  const midpoint = () => midpointOf(pointers)
+  const distance = () => distanceOf(pointers)
   const scrolling = surface.style.touchAction
   surface.style.touchAction = 'none'
   const letGo = () => {

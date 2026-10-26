@@ -1,12 +1,12 @@
 import type { EngineCamera } from '../../camera/engineCamera.ts'
-import type { HostCamera } from '../../camera/world.ts'
+import type { ViewCamera } from '../../camera/world.ts'
 import type { ViewHold } from './viewRevision.ts'
 
 /** A replacement describing the identical view is continuous, even when a host hands over a
  * fresh camera wrapper each image. Explicit cuts do not depend on a pose-distance heuristic. */
 export function trackViewCamera(
   view: ViewHold,
-  camera: HostCamera,
+  camera: ViewCamera,
   cam: EngineCamera,
   width: number,
   height: number,

@@ -80,9 +80,8 @@ test('the layout keeps the world DAG among the opaque roots, wherever it sits', 
       bootstrap: [],
       cap: 64,
       // The census the layout reads: one page a slot, 64 bytes the widest cluster.
-      census: { unitPages: 1, clusterBytes: 64 },
+      census: { unitPages: 1 },
     } as unknown as WebgpuPagesSetup,
-    undefined,
     () => -1,
   )
   // The world DAG first, as the scene listed it, the blended placement after every opaque one.

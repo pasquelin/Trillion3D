@@ -12,6 +12,15 @@ use crate::hlod::chain::{WORLD_ROOTS_BIN, WORLD_ROOTS_FILE};
 /// compiled whole and simplified: its result and its cache's directory. Each placement is scaled
 /// twice.
 fn grid_world(side: usize, materials: Value) -> (PathBuf, Value, PathBuf) {
+    grid_world_with(side, materials, crate::tests::fixtures::hlod_chain())
+}
+
+/// `grid_world` under the HLOD `hlod`.
+pub(super) fn grid_world_with(
+    side: usize,
+    materials: Value,
+    hlod: crate::Hlod,
+) -> (PathBuf, Value, PathBuf) {
     let (root, mut options) = fixture();
     let mut gltf = read_gltf(&options);
     gltf["accessors"][0]["min"] = json!([0.0, 0.0, 0.0]);
@@ -25,7 +34,7 @@ fn grid_world(side: usize, materials: Value) -> (PathBuf, Value, PathBuf) {
     write_gltf(&options, &gltf, None);
     options.scope = "full".into();
     options.simplification = "qem-endpoints".into();
-    options.hlod = Ok(crate::tests::fixtures::hlod_chain());
+    options.hlod = Ok(hlod);
     let result = compile(&options, |_| {}).expect("compile");
     let directory = options.key_directory(result["key"].as_str().expect("key"));
     (root, result, directory)
@@ -199,13 +208,47 @@ fn a_layer_whose_parent_is_invalid_loses_it_and_the_job_is_told() {
     );
 }
 
+// Behaviour: as the reference's builders have it, the mesh an approximated
+// layer builds gets a distance field unless the layer says otherwise, the mesh a merged or
+// simplified layer builds none unless it asks: a setting of the layers that build a mesh, refused
+// on an instanced or voxel layer.
+#[test]
+fn a_layer_allows_the_distance_field_of_its_actors_as_its_builder_defaults_it() {
+    let allowed = |builder: &str, extra: Value| {
+        let mut layer = json!({"name": "only", "builder": builder});
+        layer
+            .as_object_mut()
+            .expect("an object")
+            .extend(extra.as_object().cloned().unwrap_or_default());
+        crate::Hlod::read(Some(&json!({"layers": [layer]})))
+            .map(|hlod| hlod.layers[0].allow_distance_field)
+    };
+    assert_eq!(allowed("approximate", json!({})), Ok(true));
+    assert_eq!(allowed("merge", json!({})), Ok(false));
+    assert_eq!(allowed("simplify", json!({})), Ok(false));
+    for builder in ["approximate", "merge", "simplify"] {
+        let (yes, no) = (
+            json!({"allowDistanceField": true}),
+            json!({"allowDistanceField": false}),
+        );
+        assert_eq!(allowed(builder, yes), Ok(true), "{builder}");
+        assert_eq!(allowed(builder, no), Ok(false), "{builder}");
+    }
+    for builder in ["instanced", "voxel"] {
+        assert!(allowed(builder, json!({})).is_ok(), "{builder} reads");
+        let refused = allowed(builder, json!({"allowDistanceField": true}));
+        assert!(refused.is_err(), "{builder}: it builds no mesh of its own");
+    }
+    assert!(allowed("merge", json!({"allowDistanceField": "yes"})).is_err());
+}
+
 // Behaviour: as the reference has them, two settings: the mesh a merge, approximate or simplify
 // layer builds gets no cluster DAG unless the layer asks for one (`clusterDag`, off by default),
 // and an instanced layer's objects keep their own unless it disallows it (`disallowClusterDag`,
-// off by default), which makes it a merge layer taking each object's fallback.
+// off by default), which stands each object on a fallback mesh.
 #[test]
 fn a_built_mesh_gets_a_cluster_dag_only_when_asked_and_instances_keep_theirs() {
-    use crate::hlod::options::{HlodBuilder, HlodLodSelection};
+    use crate::hlod::options::HlodBuilder;
     let layer = |extra: Value| {
         let mut layer = json!({"name": "only", "builder": "merge"});
         layer
@@ -227,9 +270,19 @@ fn a_built_mesh_gets_a_cluster_dag_only_when_asked_and_instances_keep_theirs() {
     );
     let fallback = layer(json!({"builder": "instanced", "disallowClusterDag": true}));
     assert_eq!(
-        (fallback.builder, fallback.lod_selection),
-        (HlodBuilder::Merge, HlodLodSelection::Lowest)
+        (fallback.builder, fallback.cluster_dag),
+        (HlodBuilder::Instanced, false),
+        "it stays instanced: its objects stand on fallback meshes"
     );
+    // The chain from a layer up decides what its objects stand on: any instanced layer without a
+    // cluster DAG in it, its own or one above, gives them a fallback.
+    let chain = json!({"layers": [
+        {"name": "below", "builder": "instanced", "parent": "above"},
+        {"name": "above", "builder": "instanced", "disallowClusterDag": true}]});
+    let hlod = crate::Hlod::read(Some(&chain)).expect("reads");
+    assert!(hlod.has_fallback_layer());
+    assert!(hlod.takes_fallback(Some(0)) && hlod.takes_fallback(Some(1)));
+    assert!(!hlod.takes_fallback(None));
     let refused = json!({"layers": [{"name": "i", "builder": "instanced", "clusterDag": false}]});
     assert!(
         crate::Hlod::read(Some(&refused)).is_err(),

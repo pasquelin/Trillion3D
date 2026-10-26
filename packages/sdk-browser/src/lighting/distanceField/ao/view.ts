@@ -1,15 +1,10 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
-import {
-  budgetRefused,
-  ledgerReplacing,
-  ledgerRoom,
-  ledgerTentative,
-} from '../../../gpu/core/deviceLedger.ts'
-import { constructGpuResources } from '../../../gpu/core/errorScope.ts'
-import { retire } from '../../../gpu/core/frameRetire.ts'
+import { ledgerAdmitted } from '../../../gpu/core/deviceLedger.ts'
 import { textureBytesOf } from '../../../gpu/core/textureBytes.ts'
+import { viewResources, type ViewTexture } from '../viewResources.ts'
 import { occlusionBuffers, tileCounts, CONE_DIRECTIONS } from './cones.ts'
 import { CULLED_TILE_DATA_STRIDE } from './coneObjectsWgsl.ts'
+import { DFAO_READ_WORDS } from './readWgsl.ts'
 import {
   DFAO_BENT_FORMAT,
   DFAO_NORMAL_FORMAT,
@@ -18,12 +13,6 @@ import {
 } from './layout.ts'
 
 const LABEL = 'Trillion3D distance-field occlusion'
-
-/** A texture of the occlusion and the view the passes bind it through. */
-export interface DfaoTexture {
-  readonly texture: GPUTexture
-  readonly view: GPUTextureView
-}
 
 /** What decides the size of a view's resources: the extent of the scene's buffers, the meshes the lists have room for
  *  (rounded up to 256), and the meshes a tile has room for. */
@@ -40,15 +29,17 @@ export const objectCapacity = (count: number) => Math.max(1, ceilDiv(count, 256)
  * A VIEW'S OCCLUSION RESOURCES, at the extent its buffers are made at: the normals and depths grid, the bent normals at
  * the cones' size, the history and the image being built (two textures that take turns), the uniform, the cones'
  * visibilities, the lists of the meshes the view reaches and of the screen tiles each reaches — their runs, counts,
- * the cone traces' dispatch — and the target the scatter draws into. Held on the view's GPU state and counted in its
+ * the cone traces' dispatch — and the target the scatter draws into, and what the lit pass reads of the image: the
+ * image packed in a buffer (`packed`, `packWgsl.ts`) and the uniform that describes it (`readParams`,
+ * `DFAO_READ_WORDS`). Held on the view's GPU state and counted in its
  * bytes; the history says where it is (`historyAt`, the texture that holds it), whether it is valid and the size of
  * the view it was drawn at.
  */
 export interface DfaoView {
   readonly shape: DfaoShape
-  readonly normals: DfaoTexture
-  readonly cones: DfaoTexture
-  readonly history: readonly [DfaoTexture, DfaoTexture]
+  readonly normals: ViewTexture
+  readonly cones: ViewTexture
+  readonly history: readonly [ViewTexture, ViewTexture]
   readonly params: GPUBuffer
   readonly visibility: GPUBuffer
   readonly culledObjects: GPUBuffer
@@ -59,7 +50,9 @@ export interface DfaoView {
   readonly tileOffsets: GPUBuffer
   readonly tileData: GPUBuffer
   readonly tileArgs: GPUBuffer
-  readonly standIn: DfaoTexture
+  readonly packed: GPUBuffer
+  readonly readParams: GPUBuffer
+  readonly standIn: ViewTexture
   /** The texture of `history` that holds the last image's result, and whether it is to be read. */
   historyAt: 0 | 1
   historyValid: boolean
@@ -71,7 +64,7 @@ export interface DfaoView {
 }
 
 /** The key two shapes that agree on agree on. */
-export const dfaoShapeKey = (s: DfaoShape) => `${s.extent}|${s.objects}|${s.perTile}`
+const dfaoShapeKey = (s: DfaoShape) => `${s.extent}|${s.objects}|${s.perTile}`
 
 /** The sizes in bytes of the buffers of a shape, by name. */
 function bufferSizes(shape: DfaoShape) {
@@ -93,12 +86,14 @@ function bufferSizes(shape: DfaoShape) {
       tileOffsets: shape.objects * 4,
       tileData: shape.perTile * tileTotal * CULLED_TILE_DATA_STRIDE * 4,
       tileArgs: 12,
+      packed: grid[0] * grid[1] * 8,
+      readParams: DFAO_READ_WORDS * 4,
     },
   }
 }
 
 /** The bytes a view of `shape` holds: its textures and buffers. */
-export function dfaoViewBytes(shape: DfaoShape) {
+function dfaoViewBytes(shape: DfaoShape) {
   const { grid, cones, tiles, sizes } = bufferSizes(shape)
   const texture = (size: readonly number[], format: GPUTextureFormat) =>
     textureBytesOf({ size: [size[0], size[1]], format }) ?? 0
@@ -114,34 +109,11 @@ export function dfaoViewBytes(shape: DfaoShape) {
 /** Makes the view of `shape` (`DfaoView`). */
 function makeView(device: GPUDevice, shape: DfaoShape, bytes: number): DfaoView {
   const { grid, cones, tiles, sizes } = bufferSizes(shape)
-  const made: { destroy(): void }[] = []
+  const { buffer: bufferOf, texture, dispose } = viewResources(device, LABEL)
   // Read when a view is made: the usage flags are the device's globals, which the modules that import this one may not have.
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   const ARGS = STORAGE | GPUBufferUsage.INDIRECT
-  const buffer = (name: keyof typeof sizes, usage: number) => {
-    const made1 = device.createBuffer({
-      label: `${LABEL} ${name}`,
-      size: Math.max(sizes[name], 16),
-      usage,
-    })
-    made.push(made1)
-    return made1
-  }
-  const texture = (
-    name: string,
-    size: readonly number[],
-    format: GPUTextureFormat,
-    usage: number,
-  ): DfaoTexture => {
-    const gpu = device.createTexture({
-      label: `${LABEL} ${name}`,
-      size: [Math.max(size[0], 1), Math.max(size[1], 1)],
-      format,
-      usage,
-    })
-    made.push(gpu)
-    return { texture: gpu, view: gpu.createView() }
-  }
+  const buffer = (name: keyof typeof sizes, usage: number) => bufferOf(name, sizes[name], usage)
   const sampled = GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
   return {
     shape,
@@ -161,20 +133,21 @@ function makeView(device: GPUDevice, shape: DfaoShape, bytes: number): DfaoView 
     tileOffsets: buffer('tileOffsets', STORAGE),
     tileData: buffer('tileData', STORAGE),
     tileArgs: buffer('tileArgs', ARGS),
+    packed: buffer('packed', STORAGE),
+    readParams: buffer('readParams', GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
     standIn: texture('stand-in', tiles, DFAO_STAND_IN_FORMAT, GPUTextureUsage.RENDER_ATTACHMENT),
     historyAt: 0,
     historyValid: false,
     lastView: undefined,
     groups: undefined,
     bytes,
-    dispose: () =>
-      retire(device, { destroy: () => made.forEach((resource) => resource.destroy()) }),
+    dispose,
   }
 }
 
 /**
  * The view of `shape`: the one `held` while it is that, else made, the old one given back — made where the device's
- * budget leaves room (`ledgerRoom`, the bytes the old one gives back credited); none where it does not, and the
+ * budget leaves room (`ledgerAdmitted`, the bytes the old one gives back credited); none where it does not, and the
  * reason: the image is then lit without the occlusion.
  */
 export function ensureDfaoView(
@@ -183,24 +156,12 @@ export function ensureDfaoView(
   shape: DfaoShape,
 ): { view?: DfaoView; why?: string } {
   if (held && dfaoShapeKey(held.shape) === dfaoShapeKey(shape)) return { view: held }
-  const replaced = held?.bytes ?? 0
   const asked = dfaoViewBytes(shape)
-  if (asked - replaced > ledgerRoom(device)) {
-    held?.dispose()
-    return { why: 'the memory budget leaves no room for the distance-field occlusion' }
-  }
-  try {
-    const view = ledgerTentative(device, () =>
-      ledgerReplacing(device, replaced, () =>
-        constructGpuResources(device, () => makeView(device, shape, asked)),
-      ),
-    )
-    held?.dispose()
-    return { view }
-  } catch (error) {
-    held?.dispose()
-    if (budgetRefused(error))
-      return { why: 'the memory budget refused the distance-field occlusion' }
-    throw error
-  }
+  const { value, why } = ledgerAdmitted(device, {
+    held,
+    asked,
+    what: 'the distance-field occlusion',
+    make: () => makeView(device, shape, asked),
+  })
+  return { view: value, why }
 }

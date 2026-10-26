@@ -13,9 +13,9 @@ use crate::wasm::math::{view, view_mut};
 use crate::{Header, FLAG_COLOR, FLAG_NORMAL};
 
 /// Words of a request block. Offsets are bytes in linear memory, 0 for an absent array.
-pub const REQUEST_WORDS: usize = 17;
+pub const REQUEST_WORDS: usize = 21;
 /// The request's words: `indices` (`index_count` words), `positions` (`vertex_count` × 3 floats),
-/// the optional `normals` (× 3), `uv0` to `uv3` (× 2), `colors` (× `color_width`, 3 or 4); the
+/// the optional `normals` (× 3), `uv0` to `uv7` (× 2), `colors` (× `color_width`, 3 or 4); the
 /// position precision of the grid (signed: the step is `2^-precision` centimetre), which a cut
 /// takes from `grid.rs`; the skin's `joints` (words) and `weights` (floats), `influences` each per
 /// vertex; the morph `targets`, a table of two offsets (position, normal) each over every vertex.
@@ -37,14 +37,22 @@ pub mod request {
     pub const INFLUENCES: usize = 14;
     pub const TARGET_COUNT: usize = 15;
     pub const TARGETS: usize = 16;
+    pub const UV4: usize = 17;
+    pub const UV5: usize = 18;
+    pub const UV6: usize = 19;
+    pub const UV7: usize = 20;
 }
 
 /// Words of the block `encode_page` and the decoder's `page_check` (`decode.rs`) answer in.
 pub const META_WORDS: usize = 16;
+/// Words of the block that tells the decoder where the pool lies: the byte offset and length of the
+/// pool's bytes, then the byte offset and count of the words that start the streaming pages a page
+/// names the clusters of (`decode.rs`).
+pub const POOL_WORDS: usize = 4;
 /// The answer's words on success, the header of the page written or checked (`answer_header`):
-/// its `vertex_count`, `index_count`, `flags`, decoded bytes, morph targets and skin influences;
-/// and, of a page written only, the box of the positions it decodes to, as float bits: its low
-/// corner, then its high one. On refusal, word 0 is the length of the refusal's code and its ASCII
+/// its `vertex_count`, `index_count`, `flags`, decoded bytes, morph targets, skin influences and
+/// the bytes it takes resident in the pool once installed; and, of a page written only, the box
+/// of the positions it decodes to, as float bits: its low corner, then its high one. On refusal, word 0 is the length of the refusal's code and its ASCII
 /// bytes follow from byte 4 (`refuse`).
 pub mod meta {
     pub const VERTEX_COUNT: usize = 0;
@@ -56,6 +64,8 @@ pub mod meta {
     /// The box's six words, low x, y, z then high x, y, z: the first and the last.
     pub const LOW_X: usize = 6;
     pub const HIGH_Z: usize = 11;
+    /// The bytes the page takes in the pool, resident (`Header::resident_bytes`).
+    pub const RESIDENT_BYTES: usize = 12;
 }
 
 /// Writes the page `request` describes. Returns 0, its header answered in `meta` and the page held;
@@ -71,7 +81,16 @@ pub unsafe extern "C" fn encode_page(request: u32, meta: u32) -> u32 {
     let indices = view(r[request::INDICES], r[request::INDEX_COUNT] as usize);
     let positions = view::<f32>(r[request::POSITIONS], vertices * 3);
     let mut attributes = Vec::new();
-    let uv_words = [request::UV0, request::UV1, request::UV2, request::UV3];
+    let uv_words = [
+        request::UV0,
+        request::UV1,
+        request::UV2,
+        request::UV3,
+        request::UV4,
+        request::UV5,
+        request::UV6,
+        request::UV7,
+    ];
     let mut slots = vec![(request::NORMALS, FLAG_NORMAL, 3)];
     slots.extend(
         uv_words
@@ -143,6 +162,7 @@ pub(crate) unsafe fn answer_header(answer: u32, header: &Header) {
     words[meta::DECODED_BYTES] = header.decoded_bytes() as u32;
     words[meta::MORPH_TARGETS] = header.morphs.len() as u32;
     words[meta::SKIN_INFLUENCES] = header.skin.influences as u32;
+    words[meta::RESIDENT_BYTES] = header.resident_bytes() as u32;
 }
 
 /// Writes a refusal's `code` in the answer block at `meta`: its length in word 0, its ASCII bytes

@@ -35,6 +35,23 @@ test('a name declared twice with two texts is refused', () => {
   assert.throws(() => wgslModule(wgslFn('use', [other], 'fn use(){}'), four), /declared twice/)
 })
 
+test('a default gives way to the declaration of its name that replaces it, in either order', () => {
+  const fallback = wgslFn('twice', [], 'fn twice(x:f32)->f32{return x;}', { weak: true })
+  const caller = wgslFn('caller', [fallback], 'fn caller(x:f32)->f32{return twice(x);}')
+  const own = wgslFn('twice', [k], 'fn twice(x:f32)->f32{return x*K;}')
+  assert.equal(wgslModule(caller), written(fallback, caller), 'alone, it stands')
+  // Module-scope order is free in WGSL: the replacement takes the default's place.
+  const lines = (text: string) => text.split('\n').sort()
+  const replaced = lines(written(k, own, caller))
+  assert.deepEqual(lines(wgslModule(caller, own)), replaced, 'listed after, it is replaced')
+  assert.deepEqual(lines(wgslModule(own, caller)), replaced, 'listed before, it is skipped')
+  // Two defaults of one name that differ, or two replacements, are still a conflict.
+  const another = wgslFn('twice', [], 'fn twice(x:f32)->f32{return -x;}', { weak: true })
+  assert.throws(() => wgslModule(caller, another), /'twice' declared twice/)
+  const other = wgslFn('twice', [], 'fn twice(x:f32)->f32{return x+x;}')
+  assert.throws(() => wgslModule(caller, own, other), /'twice' declared twice/)
+})
+
 test('a dependency cycle is refused', () => {
   // Frozen declarations cannot point back at themselves; one built by hand can.
   const a: { name: string; kind: 'fn'; deps: WgslDecl[]; text: string } = {

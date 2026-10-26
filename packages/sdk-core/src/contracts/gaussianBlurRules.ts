@@ -45,9 +45,11 @@ export type GaussianBlurValues = SettingValues<typeof GAUSSIAN_BLUR_RULES>
 /** What each quality level below the top writes of the blur, the reference's own scalability rows:
  *  every blur halved from a radius of 0 and the reach at 0.6 of the radius at `smooth`, 2 and 0.7 at
  *  `balanced`, 3 and 0.8 at `fine`; `max` writes nothing: the defaults are its row
- *  (`runtime/qualityLevels.ts`). */
+ *  (`runtime/qualityLevels.ts`); `cinematic` the reference's last row, a radius of 100 and the
+ *  whole reach. */
 export const GAUSSIAN_BLUR_PRESET_LEVELS = {
   smooth: { gaussianFastBlurThreshold: 0, gaussianSampleScale: 0.6 },
   balanced: { gaussianFastBlurThreshold: 2, gaussianSampleScale: 0.7 },
   fine: { gaussianFastBlurThreshold: 3, gaussianSampleScale: 0.8 },
+  cinematic: { gaussianFastBlurThreshold: 100, gaussianSampleScale: 1 },
 } as const

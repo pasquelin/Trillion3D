@@ -5,8 +5,16 @@ import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.t
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { camera, quadBackend } from '../backend/testScenes.fixture.ts'
-import { setWebgpuMemoryBudgets } from './memory.ts'
+import { followTexturePressure, setWebgpuMemoryBudgets } from './memory.ts'
 import { geometryPoolFor } from '../../session/memory/pools.ts'
+import { texturePoolFor } from '../../geometry/residency/memoryBudgets.ts'
+import {
+  laneCounts,
+  poolEncoding,
+  type AtlasLanes,
+  type PoolLane,
+} from '../../materials/texture/blockFormats.ts'
+import { noTails } from '../../materials/texture/noTails.fixture.ts'
 
 // The engine changes pools mid-session — what an application slider calls — without preparing
 // again and without losing the image: the report says what it actually holds.
@@ -164,4 +172,73 @@ test('a geometry pool the device refuses mid-session shrinks, and the session go
     { kind: 'warning', pool: 'geometry', requestedBytes: 72, grantedBytes: 16, clamp: null },
   ])
   assert.equal(gpu.scopes.length, 0)
+})
+
+// The texture pool is made at its floors and grows where a lane runs out of places
+// (`followTexturePressure`): a pressed lane grows a layer at each image it is short, within the
+// share its budget gives it, the tiles kept; a growth the device refuses keeps the pool in place
+// and waits for its retry.
+test('a lane that ran out of places grows a layer at a time within the budget, a refused growth waits', async () => {
+  const encoding = poolEncoding(undefined),
+    budget = 512 * MIB
+  // 20 000 tiles to stream: the budget's share is four layers a lane, the floor one.
+  const demand = { color: { ...laneCounts(), lossless: 20_000 }, data: laneCounts() }
+  const poolFor = (bytes: number, held?: AtlasLanes) =>
+    texturePoolFor(bytes, undefined, demand, encoding.texelBytes, noTails, held)
+  const floors = { color: laneCounts(), data: laneCounts() }
+  const pools = { encoding, poolFor, pool: poolFor(budget, floors), growing: undefined }
+  assert.equal(pools.pool.layers.color.lossless, 1)
+  const refused = { value: false }
+  const gpu = fakeDevice({
+    limits: {},
+    refuse: (descriptor) =>
+      refused.value && descriptor.label === 'Trillion3D pool probe' ? 'oom' : undefined,
+  })
+  const pressed: PoolLane[] = [],
+    resized: AtlasLanes[] = [],
+    phases: string[] = []
+  let changes = 0
+  const run = { lost: false, frame: 0, gate: { resourcesChanged: () => changes++ } }
+  const rt = {
+    setup: { texturePoolBudget: budget, texturePools: pools },
+    gpu: { device: gpu.device },
+    vis: {
+      textures: {
+        color: { takePressure: () => pressed.splice(0) },
+        data: { takePressure: () => [] },
+        resize: (layers: AtlasLanes) => (resized.push(layers), 0),
+        sources: { liveBytes: 0 },
+      },
+    },
+    run,
+    layout: {},
+    signal: new AbortController().signal,
+    diag: { engineDiagnostic: (phase: string) => phases.push(phase), diagnosticFailure() {} },
+  }
+  const press = async () => {
+    pressed.push('lossless')
+    await followTexturePressure(rt as never)
+  }
+  await press()
+  assert.equal(pools.pool.layers.color.lossless, 2, 'one layer more')
+  assert.deepEqual([resized.length, changes, phases], [1, 1, ['texture-pool-grown']])
+  await press()
+  await press()
+  assert.equal(pools.pool.layers.color.lossless, 4, 'within the share: four layers, no more')
+  await press()
+  assert.equal(resized.length, 3, 'a lane at its share asks nothing more')
+  // A growth the device refuses: the pool in place, the refusal waiting before the next ask.
+  pools.pool = poolFor(budget, floors)
+  refused.value = true
+  await press()
+  assert.equal(pools.pool.layers.color.lossless, 1)
+  const probes = () => gpu.textures.filter(({ label }) => label === 'Trillion3D pool probe').length
+  const asked = probes()
+  run.frame = 10
+  await press()
+  assert.equal(probes(), asked, 'not asked again every image')
+  run.frame = 1000
+  refused.value = false
+  await press()
+  assert.equal(pools.pool.layers.color.lossless, 2, 'asked again once its wait is over')
 })

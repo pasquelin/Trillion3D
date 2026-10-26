@@ -65,7 +65,7 @@ impl Plugin for Usd {
     /// The version names the reader and the conversion generation: changing it invalidates
     /// caches, so every already compiled USD scene is reread.
     fn version(&self) -> &'static str {
-        "usd-openusd-0.7.0-gltf-8"
+        "usd-openusd-0.7.0-gltf-9"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["usd", "usda", "usdc"]

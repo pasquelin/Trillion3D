@@ -1,5 +1,4 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
 import {
   COLOR_SAMPLE_WGSL,
   TILE_POOL_WGSL,
@@ -10,22 +9,35 @@ import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL } from '../shader/pageWgsl.ts'
 import { PAGE_GEOMETRY_WGSL } from '../shader/pageGeometryWgsl.ts'
 import { maskUvWgsl } from '../shader/pageUvSetWgsl.ts'
 import { SMALL_BINDINGS } from '../../gpu/bind/bindLayout.ts'
-import { RASTER_PIXEL_WGSL, pixelCount, pixelOffset } from './pixelWgsl.ts'
-import { rasterKernels, rasterListWgsl } from './kernelsWgsl.ts'
+import { rasterPixelWgsl, visWorkDeclaration } from './pixelWgsl.ts'
+import { NO_MASKS, type MaskSet } from '../../materials/graph/maskProgram.ts'
+import { NO_WPO, type WpoSet } from '../../materials/graph/wpoProgram.ts'
+import { wpoGraphWgsl } from '../shader/wpoGraphWgsl.ts'
+import { clusterKernels } from './clusterWgsl.ts'
+import { RASTER_PAGE_TRANSFORM_WGSL } from './triWgsl.ts'
 import { visTriangle } from '../visWords.ts'
-import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 
 /**
- * Software raster of the clusters the split hands it (`binWgsl.ts`), opaque and masked: it writes
- * the visibility buffer the hardware raster writes too — a depth key, then an identifier, a pixel —
- * by the same rule (`VIS_WRITE_WGSL`), and the full-screen resolves then copy it into the
- * attachments every consumer reads. Blend and transmission surfaces keep their pass.
+ * Software raster of the clusters the bins list for it (`../bins/binsWgsl.ts`), opaque and masked: it writes
+ * the visibility buffer the hardware raster writes too by the same rule (`visWriteWgsl`) — with
+ * the 64-bit atomic maximum (`wide`) a pair a pixel, without it a depth key then an identifier —,
+ * and the export then turns it into the attachments every consumer reads (`exportWgsl.ts`). Blend
+ * and transmission surfaces keep their pass.
  *
  * A mask material does its alpha test HERE, at the perspective-correct weights of the pixel,
  * its footprint the weights' screen steps: the colour sampler's own level and anisotropy path, at
- * the same threshold as the hardware raster's.
+ * the same threshold as the hardware raster's. A surface whose graph wires an `opacityMask` is cut
+ * by the graph, as the hardware raster cuts it (`masks`), and its triangles are set up on the vertices
+ * its surface's offsets move (`wpo`). `subgroups` is the device's subgroup operations, which the
+ * lanes of a group vote the way they raster a triangle by (`clusterKernels`).
  */
-export const rasterSource = (capacity: number) =>
+export const rasterSource = (
+  masks: MaskSet = NO_MASKS,
+  wpo: WpoSet = NO_WPO,
+  wide = false,
+  subgroups = false,
+) =>
   wgslProgram(
     `@group(0) @binding(${SMALL_BINDINGS.indices}) var<storage,read> indices:array<u32>;
 @group(0) @binding(${SMALL_BINDINGS.positions}) var<storage,read> positions:array<f32>;
@@ -34,11 +46,12 @@ export const rasterSource = (capacity: number) =>
 @group(0) @binding(${SMALL_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;
 ${tileDeclarations(SMALL_BINDINGS.color, 'color')}
 @group(0) @binding(${SMALL_BINDINGS.sampler}) var mapsSampler:sampler;
-// One work buffer: first the visibility buffer — depth keys, then identifiers one screen
-// further —, then each pass's two triangle lists, their counts, the dispatches they imply, then
-// one row and one triangle per entry; the pipeline's pass names its lists (\`LIST\`).
-@group(0) @binding(${SMALL_BINDINGS.work}) var<storage,read_write> work:array<atomic<u32>>;
-${rasterKernels(capacity)}`,
+// The visibility buffer: a depth key and an identifier a pixel, in one 64-bit word or in two planes.
+${visWorkDeclaration(wide, SMALL_BINDINGS.work)}
+// The pass's list of clusters (\`../bins/binsWgsl.ts\`), the pipeline's pass naming its header (\`LIST\`).
+@group(0) @binding(${SMALL_BINDINGS.lists}) var<storage,read> lists:array<u32>;
+override LIST:u32;
+${clusterKernels(subgroups)}`,
     [
       PAGE_INFO_STRUCT_WGSL,
       VIS_UNIFORMS_WGSL,
@@ -47,28 +60,11 @@ ${rasterKernels(capacity)}`,
       PAGE_GEOMETRY_WGSL,
       materialTableWgsl(SMALL_BINDINGS.material),
       maskUvWgsl(SMALL_BINDINGS.normals),
-      RASTER_PIXEL_WGSL,
-      rasterListWgsl(capacity),
+      rasterPixelWgsl(masks, wide),
+      RASTER_PAGE_TRANSFORM_WGSL,
       visTriangle,
       FLAT_INDEX_WGSL,
+      WORKGROUP_THREADS_WGSL,
+      ...(wpo.programs.length ? [wpoGraphWgsl(wpo)] : []),
     ],
   )
-
-/**
- * Full-screen resolves of the visibility buffer: a triangle that covers the screen rereads the
- * work buffer and writes every pixel into the attachments consumers read — identifiers as
- * `r32uint`, depth-buffer depth, linear depth of pyramid level zero —, the background's too, its
- * key the far plane's and its identifier zero.
- *
- * `depthLevel` serves between the two halves of the frame: the pyramid needs occluder depth
- * before any identifier is resolved, so it writes level zero alone. `resolved` closes the frame,
- * when depth is final and the identifier chosen.
- */
-export const RESOLVE = wgslProgram(
-  `@group(0) @binding(0) var<storage,read> frame:array<u32>;
-@group(0) @binding(1) var<uniform> uni:Uniforms;
-struct Resolved{@location(0) id:u32,@location(1) hiz:f32,@builtin(frag_depth) depth:f32,}
-@fragment fn resolved(@builtin(position) pos:vec4f)->Resolved{let i=pixelOffset(vec2u(pos.xy));let depth=bitcast<f32>(frame[i]);return Resolved(frame[pixelCount()+i],depth,depth);}
-@fragment fn depthLevel(@builtin(position) pos:vec4f)->@location(0) f32{return bitcast<f32>(frame[pixelOffset(vec2u(pos.xy))]);}`,
-  [VIS_UNIFORMS_WGSL, pixelCount, pixelOffset, FULLSCREEN_VERTEX],
-)

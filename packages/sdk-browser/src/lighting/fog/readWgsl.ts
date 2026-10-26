@@ -1,17 +1,27 @@
 import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
-import { ndcToUv, perspectiveDivide, uvToNdc } from '../../../../math/src/wgsl/projection.ts'
+import {
+  logSliceOfDepth,
+  ndcToUv,
+  perspectiveDivide,
+  uvToNdc,
+} from '../../../../math/src/wgsl/projection.ts'
 import { rand3dPcg16 } from '../../../../math/src/wgsl/sampling.ts'
 import { FOG_SLOT } from '../../../../sdk-core/src/scene/core/fog.ts'
 import { fogWgsl } from '../fogShader.ts'
+import { hazeSampledWgsl } from '../atmosphere/hazeReadWgsl.ts'
+import { view } from '../fogBlockAccess.ts'
+import { SKY_CUBE_WGSL } from '../../modules/sky/skyLight/cubeWgsl.ts'
 import { FOG_VOLUME_FRAME_WGSL } from './frame.ts'
+import { fogTilesWgsl } from './localWgsl.ts'
 import { FOG_VIEW_SLOT } from './viewSlots.ts'
 
 /** The structure of the frame, written once for every program that reads it. */
 export const FOG_FRAME_STRUCT_WGSL = wgslBlock('FOG_FRAME_STRUCT_WGSL', [], FOG_VOLUME_FRAME_WGSL)
 
 /** Where a program binds what the fog reads past the light buffer, in the bind group `group`: the
- *  cubemap, the volume, and the sampler both are read through. A binding left out answers as no
- *  cubemap or no volume would (`fogResourcesWgsl`). The volume's view — where a surface finds its
+ *  cubemap, the volume, and the sampler both are read through, and the lists of the local fog volumes
+ *  over each tile. A binding left out answers as no cubemap or no volume would, and the view's own
+ *  list of local fog volumes for no tiles (`fogResourcesWgsl`). The volume's view — where a surface finds its
  *  cell — is not a binding: it lies in the light buffer (`viewSlots.ts`). `translucent` reads the
  *  volume as a translucent layer does: through the sampler alone, the cubic filters left out, at
  *  where the point lies in the view; the passes that draw the whole image read it at the pixel,
@@ -25,14 +35,22 @@ export interface FogResourceBindings {
   /** The light shafts' occlusion mask, a filterable `texture_2d<f32>` read through the sampler
    *  (`lightShaftMask`); left out, the mask answers 1, no occlusion. */
   readonly lightShaft?: number
+  /** The lists of the local fog volumes over each tile of the view, a read-only storage buffer of words
+   *  (`localFogTileWord`, `localWgsl.ts`); left out, the program walks every volume of the view. */
+  readonly tiles?: number
+  /** Whether the program holds the local fog volumes' code (the project switch `localFogVolumeSupport`):
+   *  true unless it says false, which leaves them out of its text and `tiles` unread. */
+  readonly localFog?: boolean
+  /** The 3D texture the volume of the haze is sampled from, read through `sampler` (`hazeSampledWgsl`,
+   *  `../atmosphere/hazeReadWgsl.ts`); left out, the haze is read by hand from the light buffer's region
+   *  (`HAZE_READ_WGSL`). */
+  readonly haze?: number
 }
 
 /** The bindings as a block name reads them, in their declared order. */
 export const fogBindingsLabel = (b: FogResourceBindings) =>
-  `${b.group}, ${b.cubemap}, ${b.volume}, ${b.sampler}${b.translucent ? ', translucent' : ''}${b.lightShaft === undefined ? '' : `, ${b.lightShaft}`}`
+  `${b.group}, ${b.cubemap}, ${b.volume}, ${b.sampler}${b.translucent ? ', translucent' : ''}${b.lightShaft === undefined ? '' : `, ${b.lightShaft}`}${b.tiles === undefined ? '' : `, tiles ${b.tiles}`}${b.localFog === false ? ', no local fog volumes' : ''}${b.haze === undefined ? '' : `, haze ${b.haze}`}`
 
-/** The slot `slot` of the view block, a `vec4f`. */
-const view = (slot: number) => `directLights.fogView[${slot}]`
 /** The view-projection the volume was built with, from the first four slots. */
 const viewProjection = () =>
   `mat4x4f(${[0, 1, 2, 3].map((k) => view(FOG_VIEW_SLOT.projection + k)).join(',')})`
@@ -42,11 +60,28 @@ const reach = `directLights.fog[${FOG_SLOT.reach}]`
 /** The cubemap's read: its colour along a direction, at its sharpest (level 0) and at its smallest
  *  (the last level, one texel a face), through the sampler — trilinear, seamless across the faces'
  *  edges. The level asked for the smallest is the cubemap's count of levels, past the last, which
- *  the sampler holds to it. */
+ *  the sampler holds to it. While the sky light lights the height fog the binding holds the sky
+ *  light's filtered cube in the place of the fog's (`fogReadOf`): the view block carries the strength
+ *  the fog mixes it in by, the roughness and the count of mips it is read at (`FOG_VIEW_SLOT.heightFog`)
+ *  and the light's colour (`skyLightColour`), and `fogSkyLightColour` reads it along a direction of the
+ *  scene, turned into the cube's frame, at the mip of the roughness. */
 const cubemapText = (b: Required<Pick<FogResourceBindings, 'group' | 'cubemap'>>) => `
 @group(${b.group}) @binding(${b.cubemap}) var fogCubemap:texture_cube<f32>;
 fn fogCubeSharp(direction:vec3f)->vec3f{return textureSampleLevel(fogCubemap,fogSampler,direction,0.0).rgb;}
-fn fogCubeAverage(direction:vec3f)->vec3f{return textureSampleLevel(fogCubemap,fogSampler,direction,directLights.fog[${FOG_SLOT.cubemap}].z).rgb;}`
+fn fogCubeAverage(direction:vec3f)->vec3f{return textureSampleLevel(fogCubemap,fogSampler,direction,directLights.fog[${FOG_SLOT.cubemap}].z).rgb;}
+fn fogSkyLightStrength()->f32{return ${view(FOG_VIEW_SLOT.heightFog)}.y;}
+fn fogSkyLightColour(direction:vec3f)->vec3f{
+ let read=${view(FOG_VIEW_SLOT.heightFog)};
+ let mip=roughnessMip(read.z,read.w);
+ return ${view(FOG_VIEW_SLOT.skyLightColour)}.rgb*textureSampleLevel(fogCubemap,fogSampler,sceneToCube(direction),mip).rgb;
+}`
+
+/** The answers of a program with no cubemap: the fog's own is white, so that the tint alone colours
+ *  it, and the sky light does not light the fog. */
+const NO_CUBEMAP_TEXT = `fn fogCubeSharp(direction:vec3f)->vec3f{return vec3f(1.0);}
+fn fogCubeAverage(direction:vec3f)->vec3f{return vec3f(1.0);}
+fn fogSkyLightStrength()->f32{return 0.0;}
+fn fogSkyLightColour(direction:vec3f)->vec3f{return vec3f(0.0);}`
 
 /** The volume's sample at \`uvw\`, trilinear, by the sampler. */
 const SAMPLE_TEXT = `
@@ -140,7 +175,7 @@ fn fogVolumeLookup(toward:vec3f)->vec4f{
  let depth=dot(toward,${view(FOG_VIEW_SLOT.forward)}.xyz);
  let uv=ndcToUv(perspectiveDivide(clip).xy);
  let sliceMap=${view(FOG_VIEW_SLOT.sliceMap)};
- let slice=log2(depth*sliceMap.x+sliceMap.y)*sliceMap.z*sliceMap.w;
+ let slice=logSliceOfDepth(depth,sliceMap.xyz)*sliceMap.w;
  let found=fogSampleFiltered(vec3f(fogReadUV(uv),slice));
  let unexposed=vec4f(found.rgb*${view(FOG_VIEW_SLOT.exposure)}.z,found.a);
  return mix(none,unexposed,saturate((depth-${reach}.z)*100000000.0));
@@ -158,36 +193,52 @@ fn lightShaftMask(pixel:vec2f)->f32{
 }`
 
 /** What the fog reads past the light buffer, from a program that binds `b`: its declarations, and
- *  the answers `fogShader.ts` asks for (`fogCubeSharp`, `fogCubeAverage`, `fogVolumeExclude`,
- *  `fogVolumeLookup`); what `b` leaves out is answered as no cubemap and no volume would be: white,
- *  so that the tint alone colours the fog, no volume to exclude and none to read, `(0, 0, 0, 1)`.
- *  The program lists it over the fog's text (`fogWgsl`). */
-export function fogResourcesWgsl(b: FogResourceBindings): WgslDecl {
-  const { group, cubemap, volume, sampler, translucent, lightShaft } = b
+ *  the answers `fogShader.ts` asks for (`fogCubeSharp`, `fogCubeAverage`, `fogSkyLightStrength`,
+ *  `fogSkyLightColour`, `fogVolumeExclude`, `fogVolumeLookup`); what `b` leaves out is answered as no
+ *  cubemap and no volume would be: white, so that the tint alone colours the fog, no sky light on
+ *  it, no volume to exclude and none to read, `(0, 0, 0, 1)`. The program lists it over the fog's
+ *  text (`fogWgsl`). */
+function fogResourcesWgsl(b: FogResourceBindings): WgslDecl {
+  const { group, cubemap, volume, sampler, translucent, lightShaft, localFog } = b
   if (
-    (volume !== undefined || cubemap !== undefined || lightShaft !== undefined) &&
+    (volume !== undefined ||
+      cubemap !== undefined ||
+      lightShaft !== undefined ||
+      b.haze !== undefined) &&
     sampler === undefined
   )
-    throw new Error('the cubemap, the volume and the light shafts are read through a sampler')
+    throw new Error('the cubemap, the volumes and the light shafts are read through a sampler')
   const declarations = [
     sampler === undefined ? '' : `@group(${group}) @binding(${sampler}) var fogSampler:sampler;`,
     volume === undefined
       ? 'fn fogVolumeExclude(toward:vec3f)->f32{return 0.0;}\nfn fogVolumeLookup(toward:vec3f)->vec4f{return vec4f(0.0,0.0,0.0,1.0);}'
       : `@group(${group}) @binding(${volume}) var fogVolume:texture_3d<f32>;${SAMPLE_TEXT}${translucent ? TRILINEAR_TEXT : FILTERED_TEXT}${translucent ? TRANSLUCENT_UV_TEXT : SCREEN_UV_TEXT}${VOLUME_TEXT}`,
-    cubemap === undefined
-      ? 'fn fogCubeSharp(direction:vec3f)->vec3f{return vec3f(1.0);}\nfn fogCubeAverage(direction:vec3f)->vec3f{return vec3f(1.0);}'
-      : cubemapText({ group, cubemap }),
+    cubemap === undefined ? NO_CUBEMAP_TEXT : cubemapText({ group, cubemap }),
     lightShaft === undefined
       ? 'fn lightShaftMask(pixel:vec2f)->f32{return 1.0;}'
       : lightShaftText({ group, lightShaft }),
   ]
   return wgslBlock(
     `fogResourcesWgsl(${fogBindingsLabel(b)})`,
-    [uvToNdc, ndcToUv, perspectiveDivide, rand3dPcg16],
+    // The local fog volumes' lists are declared for a program that holds their code.
+    [
+      uvToNdc,
+      ndcToUv,
+      perspectiveDivide,
+      rand3dPcg16,
+      logSliceOfDepth,
+      ...(cubemap === undefined ? [] : [SKY_CUBE_WGSL]),
+      ...(localFog === false ? [] : [fogTilesWgsl(b)]),
+    ],
     declarations.join('\n'),
   )
 }
 
 /** The fog's text a program lists, over the resources it binds as `b` (`fogResourcesWgsl`). The same
  *  bindings give the same text, which a module lists once. */
-export const fogBlockOf = (b: FogResourceBindings) => fogWgsl(fogResourcesWgsl(b))
+export const fogBlockOf = (b: FogResourceBindings) =>
+  fogWgsl(
+    fogResourcesWgsl(b),
+    b.localFog !== false,
+    b.haze === undefined ? undefined : hazeSampledWgsl(b.group, b.haze),
+  )

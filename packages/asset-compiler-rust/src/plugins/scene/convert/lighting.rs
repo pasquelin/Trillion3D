@@ -53,8 +53,7 @@ impl Importer<'_> {
         }
         // FBX carries no photometric unit: its intensity is a percentage, which the
         // published `compiler::lights` setting turns into candela or lux, like glTF.
-        // And FBX declares no emitter radius: the compiler then measures it on the
-        // light's emissive body.
+        // And FBX declares no emitter radius: the light carries none.
         let source = crate::plugins::scene::convert::LightSource {
             name: light.element.name.to_string(),
             kind,

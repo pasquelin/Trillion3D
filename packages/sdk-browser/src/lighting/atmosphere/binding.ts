@@ -1,3 +1,5 @@
+import type { CloudShadowBindings } from './cloudShadowRead.ts'
+
 /** Where every atmosphere program binds what it reads and writes, in group 0: one table of
  *  numbers, so that the passes and their shaders agree. A program binds only what it names
  *  (`boundNames`, `programs.ts`). */
@@ -18,7 +20,7 @@ export const AIR_BINDING = {
   skyView: 7,
   /** The surface flags, which tell the sky's pixels from a surface's. */
   flags: 8,
-  /** What the fog laid over the sky reads past the light buffer (`AIR_FOG_BINDINGS`): the sampler
+  /** What the fog laid over the clouds reads past the light buffer (`AIR_FOG_BINDINGS`): the sampler
    *  its cubemap and volume are read through, the cubemap and the volume. */
   fogSampler: 9,
   fogCubemap: 10,
@@ -42,9 +44,26 @@ export const AIR_BINDING = {
   cloudShadowMap1: 21,
   /** The scene's depth, which the haze marched on the opaque surfaces reads (`opaqueHazeWgsl.ts`). */
   depth: 22,
-  /** The light shafts' occlusion mask the fog laid over the sky is multiplied by (`SKY_FOG_BINDINGS`). */
-  lightShaft: 23,
+  /** The clouds' sky occlusion map (`cloudShadowRead.ts`), bound with the clouds' shade and read
+   *  through the same sampler: the marches that read the shade dim the multiple scattering by it. */
+  cloudSkyAO: 24,
+  /** The lists of the local fog volumes over each tile of the view the fog laid over the
+   *  clouds reads (`AIR_FOG_BINDINGS`, `fogTilesWgsl`, `../fog/localWgsl.ts`), a read-only storage buffer of words. */
+  fogTiles: 25,
+  /** The volume of the haze as a 3D texture, which the haze pass writes beside the light buffer's
+   *  region and the fog pass samples (`hazeSampledWgsl`, `../fog/fogPass.ts`): a storage texture. */
+  hazeVolume: 26,
 } as const
 
 /** The name of a binding. */
 export type AirBindingName = keyof typeof AIR_BINDING
+
+/** Where the air's programs bind the clouds' shade: in group 0, read through the tables' sampler. */
+export const AIR_CLOUD_SHADOW: CloudShadowBindings = {
+  group: 0,
+  block: AIR_BINDING.cloudShadow,
+  map0: AIR_BINDING.cloudShadowMap0,
+  map1: AIR_BINDING.cloudShadowMap1,
+  ao: AIR_BINDING.cloudSkyAO,
+  samplerName: 'tableSampler',
+}

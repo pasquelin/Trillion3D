@@ -1,7 +1,6 @@
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { groupWidth, groupWidthConstants } from '../../gpu/dispatch/grid.ts'
 import type { CutSteps } from './cut/cutSteps.ts'
-import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
 import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 import { buildDagArm, type DagArmWords } from './arm.ts'
 
@@ -10,19 +9,7 @@ import { buildDagArm, type DagArmWords } from './arm.ts'
 const levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => `dagLevel${q}`)
 const SIGHTED = [...levels, 'dagWanted', 'dagPostNodes', 'dagPostClusters'] as const
 /** The others, on the cut's group alone. */
-const PLAIN = [
-  'dagPrepare',
-  'dagClearDrawn',
-  'dagMask',
-  'dagDrawPrefix',
-  'dagCommitMask',
-  'dagDrawScatter',
-  'dagPostPrepare',
-  ...DIFFERENCE_STAGES,
-  ...KEEP_STAGES,
-  ...REKEEP_STAGES,
-  'dagRestoreJournal',
-] as const
+const PLAIN = ['dagPrepare', 'dagPostPrepare', 'dagFinish', 'dagDrawn'] as const
 
 /** Every selection stage of `module`: those that read the pyramid on `layout` and `occlusion`, the
  *  others on `layout` alone, and its arming kernel on `arm.layout` at the list words `arm.words`
@@ -56,25 +43,17 @@ export async function createDagStages(
   const levelPipelines = levels.map((level) => sighted[level])
   return {
     preparePipeline: stage.dagPrepare,
-    clearDrawnPipeline: stage.dagClearDrawn,
     levelPipelines,
+    /** The cluster cull: the descent's candidates judged, the visible clusters appended
+     *  (`shader/wantedWgsl.ts`). */
     wantedPipeline: sighted.dagWanted,
-    maskPipeline: stage.dagMask,
-    drawPrefixPipeline: stage.dagDrawPrefix,
-    drawScatterPipeline: stage.dagDrawScatter,
-    /** The cut's mask and drawn log made the frame's, when no work was dropped. */
-    commitPipeline: stage.dagCommitMask,
+    /** The cut's ending: its peaks and the drawn list (`shader/finishWgsl.ts`). */
+    finishPipeline: stage.dagFinish,
+    drawnPipeline: stage.dagDrawn,
     /** The post pass: its opening, its held items' and clusters' retests (`shader/postPassWgsl.ts`). */
     postPreparePipeline: stage.dagPostPrepare,
     postNodesPipeline: sighted.dagPostNodes,
     postClustersPipeline: sighted.dagPostClusters,
-    /** Each kept list's difference, then its keep (`shader/differenceWgsl.ts`). */
-    differencePipelines: DIFFERENCE_STAGES.map((name) => stage[name]),
-    keepPipelines: KEEP_STAGES.map((name) => stage[name]),
-    /** Each kept list ranked in a readout made again (`lists/listGrowth.ts`). */
-    rekeepPipelines: REKEEP_STAGES.map((name) => stage[name]),
-    /** A view's saved journal written back with its draw flags (`shader/swapWgsl.ts`). */
-    restorePipeline: stage.dagRestoreJournal,
     /** Every list's indirect arguments armed in the pass (`shader/armWgsl.ts`). */
     armPipeline,
   }

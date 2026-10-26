@@ -225,7 +225,7 @@ test('the setup applies the local exposure read at the pixel’s corner, then th
   assert.deepEqual(setup(pixel, 100, 0, 0.5), [0, 0, 0, 0], 'a pixel under it glows none')
 })
 
-test('the composite adds the glow to the pixel, light and coverage, coverage up to 1', () => {
+test('the composite adds the glow to the pixel’s light and keeps its alpha', () => {
   const composite = (look: object) =>
     fragment(BLOOM_COMPOSITE_WGSL, 'composite', {
       scene: 'scene',
@@ -238,16 +238,16 @@ test('the composite adds the glow to the pixel, light and coverage, coverage up 
       textureSampleLevel: (image: string, _: string, uv: number[]) =>
         image === 'dirt' ? [0.5, 0.25, 1, 1] : [uv[0], uv[1], 0.5, 0.5],
     })
-  const none = { keep: [0, 0, 0, 0], dirt: [0, 0, 0, 0] }
-  assert.deepEqual(composite(none), [1 + 2.5 / 8, 2 + 1.5 / 4, 3.5, 1], 'a coverage of 1')
+  const none = { keep: [0, 0, 0, 0], dirt: [0, 0, 0, 0], lens: [0, 0, 1, 1] }
+  assert.deepEqual(composite(none), [1 + 2.5 / 8, 2 + 1.5 / 4, 3.5, 0.75], 'the pixel’s alpha')
   // The glow times the dirt the mask shows, the image times what the glow left it.
   const dirty = composite({ ...none, dirt: [2, 2, 2, 1] })
-  assert.deepEqual(dirty, [1 + (2.5 / 8) * 2, 2 + (1.5 / 4) * 1.5, 3 + 0.5 * 3, 1])
+  assert.deepEqual(dirty, [1 + (2.5 / 8) * 2, 2 + (1.5 / 4) * 1.5, 3 + 0.5 * 3, 0.75])
   assert.deepEqual(composite({ ...none, keep: [0.5, 0.25, 1, 1] }), [
     0.5 + 2.5 / 8,
     0.5 + 1.5 / 4,
     3.5,
-    1,
+    0.75,
   ])
 })
 

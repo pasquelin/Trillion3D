@@ -10,16 +10,15 @@
  * - `VSM_PROJECTION_DATA_WGSL`: the raw and decoded structs and the decode (no bindings), and the
  *   helpers every pass shares, each the one text of its maths: the clipmap level and distance, the
  *   cube face, a view's depth from device depth, a pixel's world size and a local map's pixel
- *   footprint, a sun's back face.
+ *   footprint, a sun's back face and a local light's (`../facesAwayWgsl.ts`).
  * - `VSM_PROJECTION_DATA_READ_WGSL`: `vsmProjectionOf(handle)`, through the module's
  *   `vsmProjectionData` binding.
  * The page sampling is `projectionSampleWgsl.ts`'s.
  */
-import { VSM_CONSTANTS_WGSL, VSM_UNIT_PER_CM } from '../constants.ts'
+import { VSM_CONSTANTS_WGSL } from '../constants.ts'
+import { vsmFacesAwayFromLocal } from '../facesAwayWgsl.ts'
 import { VSM_HANDLE_WGSL } from '../pageTableWgsl.ts'
 import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
-
-const CM = `${VSM_UNIT_PER_CM}`
 
 /** The fields of a map's record (`VsmProjectionRecord`), in memory order, as `name:type`: the one
  *  list the record's struct, the decoded struct's first members and the decode's copy are made from
@@ -28,7 +27,8 @@ const RECORD_FIELDS = (
   'lightKind:u32 emitterSize:f32 finestMip:u32 mapLevel:i32 lightViewToClip:mat4x4f ' +
   'lightDirection:vec3f levelsLeft:i32 planesToMapUv:mat4x4f shiftedToMapUv:mat4x4f ' +
   'originShiftHigh:vec3f flags:u32 originShiftLow:vec3f levelBias:f32 clipmapOrigin:vec3f ' +
-  'ditherTexels:f32 cornerSteps:vec2i lightRange:f32 tableOrigin:u32 farShadowDistance:f32'
+  'ditherTexels:f32 cornerSteps:vec2i lightRange:f32 tableOrigin:u32 farShadowEdge:f32 wpoThreshold:f32 ' +
+  'prevMapId:u32 prevTableOrigin:u32 prevShiftedToClip:mat4x4f prevClipDepth:vec4f prevFinestMip:u32 viewSlot:u32'
 ).split(' ')
 const recordMembers = RECORD_FIELDS.map((field) => ` ${field},`).join('\n')
 const recordCopy = RECORD_FIELDS.map((field) => {
@@ -38,7 +38,7 @@ const recordCopy = RECORD_FIELDS.map((field) => {
 
 export const VSM_PROJECTION_DATA_WGSL = wgslBlock(
   'VSM_PROJECTION_DATA_WGSL',
-  [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL],
+  [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, vsmFacesAwayFromLocal],
   `
 struct VsmProjectionRecord{
 ${recordMembers}
@@ -51,6 +51,7 @@ ${recordMembers}
  coarseLevel:bool,
  useCover:bool,
  coarseDynamicCached:bool,
+ firstPerson:bool,
 }
 /** Decodes the raw record into the projection data struct. */
 fn vsmUnpackProjection(raw:VsmProjectionRecord,h:VsmHandle)->VsmProjectionData{
@@ -62,6 +63,7 @@ ${recordCopy}
  r.coarseLevel=(r.flags&VSM_MAP_COARSE)!=0u;
  r.useCover=(r.flags&VSM_MAP_COVERAGE)!=0u;
  r.coarseDynamicCached=(r.flags&VSM_MAP_COARSE_KEEPS_DYNAMIC)!=0u;
+ r.firstPerson=(r.flags&VSM_MAP_FIRST_PERSON)!=0u;
  return r;
 }
 /** The shifted-to-clip matrix of a map, from its record's shiftedToMapUv
@@ -117,17 +119,6 @@ fn vsmLocalPixelFootprint(pd:VsmProjectionData,pointInMap:vec3f,sceneDepth:f32,v
  let pixelClip4=pd.lightViewToClip*vec4f(pixelWorld,0.0,mapUvz.w,1.0);
  let pixelClip=abs(pixelClip4.x/pixelClip4.w);
  return pixelClip*f32(2u*VSM_LEVEL0_TEXELS);
-}
-/** Whether the normal faces away from a local light \`toLight\` away (the vector, not its direction):
- *  further than the sine of the light's half angle as the point sees it. The "+ 1 cm²" (·${CM}²)
- *  keeps the nearInverse finite at the light's centre. */
-fn vsmFacesAwayFromLocal(toLight:vec3f,normal:vec3f,emitterSize:f32)->bool{
- let rangeSq=dot(toLight,toLight);
- let nearInverse=1.0/(rangeSq+${CM}*${CM});
- let invDist=inverseSqrt(rangeSq);
- let emitterSinSq=saturate(emitterSize*emitterSize*nearInverse);
- let emitterSin=sqrt(emitterSinSq);
- return dot(normal,toLight*invDist)< -emitterSin;
 }
 /** Whether the normal faces away from a sun of this angular radius. */
 fn vsmFacesAwayFromSun(normal:vec3f,lightDirection:vec3f,emitterSize:f32)->bool{

@@ -8,7 +8,6 @@ import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
-import type { HostMesh, HostMaterials } from '../host/resources.ts'
 import { preparedGraph } from '../../scene/host/prepared/graph.ts'
 import { clothPrimitives } from '../../scene/host/prepared/meshes.ts'
 import { preparedMaterials } from '../../scene/host/prepared/materials.ts'
@@ -24,13 +23,14 @@ import { createWorldModels } from './models/models.ts'
 import { buildWorldSource } from './source.ts'
 import type { Cut } from './cuts.ts'
 import { drawSourceOf } from '../../geometry/selection/drawSource.ts'
+import type { PageMaterials, PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 /**
  * What every pass reads of the faces a host surface draws: the side the WebGPU pipelines cull by,
  * the row flag the material pass flips a back face's normal by and the
  * shadow raster culls nothing on, both read off the record's side.
  */
-function faces(surface: HostMaterials) {
+function faces(surface: PageMaterials) {
   const record = surfaceOf(surface)
   const layers = { mapLayer: new Map(), dataLayer: new Map() }
   return {
@@ -162,8 +162,8 @@ async function cookedScene() {
     materialOf: preparedMaterials(tables.materials, () => Promise.resolve(null)),
     clothOf: clothPrimitives(metadata),
   })
-  const parts: HostMesh[] = []
-  scene.traverse((part) => part instanceof Mesh && parts.push(part as HostMesh))
+  const parts: PageMesh[] = []
+  scene.traverse((part) => part instanceof Mesh && parts.push(part as PageMesh))
   // Each part's source, with the association the open gives it.
   return parts.map((part) => drawSourceOf(part, ranks.get(part)))
 }

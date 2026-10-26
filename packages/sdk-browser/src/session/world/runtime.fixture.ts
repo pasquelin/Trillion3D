@@ -50,7 +50,7 @@ export const runtimeOf = (
     opened: () => {},
     frame: () => {},
     drawn: () => false,
-    display: () => ({ exposure: 1, toneMapping: 'aces' }),
+    display: () => ({ exposure: 1, toneMapping: 'filmic' }),
     modules: createWorldModules({ canvas, changed: () => {} }),
     diagnostic: { notices: createWorldNotices(), failed, opening },
   })

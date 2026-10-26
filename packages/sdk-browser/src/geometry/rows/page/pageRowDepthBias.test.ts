@@ -11,9 +11,9 @@ import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 import { createTextureCaches } from '../../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 
-// Behaviour 22: writePageRow writes the bias in positive units at the table row's depthBias
-// slot; a layer-0 row keeps that field at zero.
-test('writePageRow writes the layer bias in positive units at the table row depthBias slot', async () => {
+// Behaviour 22: the cluster's record carries the bias in positive units, which the decode puts at
+// the decoded cluster's depthBias word; a layer-0 cluster keeps that field at zero.
+test('a cluster record carries the layer bias in positive units at the decoded depthBias word', async () => {
   installGpuGlobals()
   const scene = quadScene()
   // The quad's second cluster carries the layer the coplanar step would have assigned; the first
@@ -32,8 +32,8 @@ test('writePageRow writes the layer bias in positive units at the table row dept
     await backend.prepare()
     backend.render(view)
     await backend.flush?.()
-    const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')
-    assert.ok(table, 'the page table is allocated once')
+    const table = buffers.findLast((buffer) => buffer.label === 'Trillion3D decoded clusters')
+    assert.ok(table, 'the decoded clusters are allocated')
     const rows = new Uint32Array(
       table!.data.buffer,
       table!.data.byteOffset,
@@ -50,11 +50,11 @@ test('writePageRow writes the layer bias in positive units at the table row dept
         sawZeroBias = true
         continue
       }
-      assert.equal(bias, depthLayerUnits(5), 'row depthBias equals the layer units')
-      assert.ok(bias > 0, 'writePageRow stores the bias in positive units')
+      assert.equal(bias, depthLayerUnits(5), 'depthBias equals the layer units')
+      assert.ok(bias > 0, 'the bias is in positive units')
       sawPositiveBias = true
     }
-    assert.ok(sawPositiveBias, 'the layered cluster wrote a positive depthBias')
+    assert.ok(sawPositiveBias, 'the layered cluster carries a positive depthBias')
     assert.ok(sawZeroBias, 'the untouched cluster kept depthBias at zero')
   } finally {
     await backend.dispose()

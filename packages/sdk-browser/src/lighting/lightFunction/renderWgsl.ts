@@ -1,4 +1,4 @@
-import { FULLSCREEN_XY } from '../../gpu/shader/fullscreenTriangle.ts'
+import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import {
@@ -41,7 +41,6 @@ export const lightFunctionRenderWgsl = (slot: number, format: AtlasFormat, mappe
     `struct Given{colour:vec3f,map:u32,}
 @group(0) @binding(0) var<uniform> given:Given;
 ${mapped ? `${tileDeclarations(MAP_BINDINGS, 'color')}\n@group(0) @binding(${MAP_SAMPLER_BINDING}) var mapsSampler:sampler;` : ''}
-@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY},0.0,1.0);}
 @fragment fn slotTexel(@builtin(position) at:vec4f)->@location(0) vec4u{
  let size=${wgslF32(slot)};
  let corner=floor(at.xy/size)*size;
@@ -50,5 +49,5 @@ ${mapped ? `${tileDeclarations(MAP_BINDINGS, 'color')}\n@group(0) @binding(${MAP
  ${mapped ? 'let texelStep=1.0/(size-1.0);\n given_colour*=colorSample(given.map,uv,vec2f(texelStep,0.0),vec2f(0.0,texelStep),true).rgb;' : ''}
  ${packSlotColour(format, 'given_colour')}
 }`,
-    mapped ? [COLOR_SAMPLE] : [],
+    [FULLSCREEN_VERTEX, ...(mapped ? [COLOR_SAMPLE] : [])],
   )

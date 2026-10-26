@@ -7,8 +7,8 @@ import { viewLoading } from './unsettled.ts'
  * THE SESSION'S FIRST IMAGE, SHOWN ONLY ONCE THE VIEW HAS LOADED: the initial load. A world is
  * never presented before the streaming of the cells around its viewer has completed: until the
  * main view has loaded once — every cell wished within its grid's loading range visible, its
- * content placed and its roots resident, the root cover in, the cut read back and the row table
- * still (`viewLoading`) — each image is drawn whole, its cut read back, its pages and tiles asked,
+ * content placed and its roots resident, the root cover in, the cut read back and the
+ * view still (`viewLoading`) — each image is drawn whole, its cut read back, its pages and tiles asked,
  * but none is presented (`WebgpuRunState.imageWithheld`): the canvas keeps what it showed — the
  * page behind it, or the image of a session closed on it (`../../gpu/core/canvasHandover.ts`).
  * Every view's images are withheld with the main view's. During it the partition holds no cell

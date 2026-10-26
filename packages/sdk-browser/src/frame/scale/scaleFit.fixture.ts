@@ -1,8 +1,16 @@
 // A device drawing on a display, for the render-scale controller's tests (`scaleFit.test.ts`).
-import type { ScaleControl } from './scaleControl.ts'
+import { createScaleControl, type ScaleControl } from './scaleControl.ts'
 
 export const HZ120 = 1000 / 120
 export const HZ60 = 1000 / 60
+
+/** A controller of `bounds` fitted to the display's refresh: its frame time budget 0, the page's
+ *  frame cap interval, in place of the reference's 33.3 ms default. */
+export function refreshControl(bounds: Parameters<typeof createScaleControl>[0] = 'auto') {
+  const control = createScaleControl(bounds)
+  control.rules.dynamicResolutionFrameTimeBudgetMs = 0
+  return control
+}
 
 /** What a frame costs at scale `s`, frame `f`: `gpu` ms on the GPU, `other` ms outside its timer
  *  (compositing, the CPU); `timed`: GPU times arrive, `lag` frames late. */

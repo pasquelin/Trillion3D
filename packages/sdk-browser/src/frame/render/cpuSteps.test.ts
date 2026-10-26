@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTimingState } from '../backend/state/timing.ts'
-import { CPU_STEP } from './cpuStepTable.ts'
+import { CPU_STEP } from '../../diagnostic/stage/cpuStepTable.ts'
 import { endCpuFrame, hostCpuStep } from './cpuSteps.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { setDebugMode } from '../../session/host/debugMode.ts'

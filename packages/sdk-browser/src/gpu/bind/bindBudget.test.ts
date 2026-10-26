@@ -7,13 +7,17 @@ import { createGpuRaster } from '../../visibility/raster/raster.ts'
 import { createTemporalAntialiasing } from '../../post/taa/temporalAntialiasing.ts'
 import { createVelocity } from '../../post/taa/velocity.ts'
 import { SHADE_SHADER } from '../../visibility/shader/shadeWgsl.ts'
-import { VIS_SHADER } from '../../visibility/shader/visWgsl.ts'
+import { VIS_SHADER } from '../../visibility/shader/visShader.fixture.ts'
 import { wgslStageBindings } from '../core/wgslBindings.fixture.ts'
 import { VIS_BINDINGS } from './bindLayout.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { BLEND_SHADER } from '../core/shaderTexts.fixture.ts'
-import { createDeferredLightingLayout } from '../../lighting/deferred/setup.ts'
-import { createShadeCache } from '../../visibility/passes/shadeCache.ts'
+import {
+  colourLayoutEntries,
+  indirectLayoutEntries,
+  localLayoutEntries,
+  sunLayoutEntries,
+} from '../../lighting/deferred/layoutEntries.ts'
 
 // Defect this test catches: a layout gains one more storage buffer than WebGPU's guaranteed
 // minimum, and the device refuses to create it — “The number of storage buffers (9) in the
@@ -31,23 +35,25 @@ async function passLayouts() {
     [],
   )
   const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, [])
-  // The resolve's frame cache: its marks and rows, then its triangles, which bind the geometry.
-  const cache = fakeDevice()
-  await createShadeCache(cache.device)
   return {
     visibility: visBindGroupLayout,
     'hardware resolve': shadeBindGroupLayout,
     transparents: blendBindGroupLayout,
     'small triangles': await firstLayout((d) => createGpuRaster(d, 4, 4, 8)),
     'temporal antialiasing': await firstLayout((d) =>
-      createTemporalAntialiasing(d, createVelocity(d, [])),
+      createTemporalAntialiasing(d, createVelocity(d)),
     ),
-    // The lit resolve recomputes it too, reading the float pool through one binding.
-    'deferred lighting': createDeferredLightingLayout(device, true),
-    // With bounce: its probes and surface cache are atlases, no storage buffer.
-    'deferred lighting with bounce': createDeferredLightingLayout(device, true, true),
-    'material cache rows': cache.bindGroupLayouts[0],
-    'material cache triangles': cache.bindGroupLayouts[1],
+    // The lit image's passes bind what each reads alone: the surfaces' colour, the sun's light, the local
+    // lights', the indirect light — with bounce, its probes and surface cache are atlases, no storage buffer.
+    'surface colour': device.createBindGroupLayout({ entries: colourLayoutEntries() }),
+    'sun light': device.createBindGroupLayout({ entries: sunLayoutEntries(true) }),
+    'local lights': device.createBindGroupLayout({ entries: localLayoutEntries(true) }),
+    'indirect light': device.createBindGroupLayout({
+      entries: indirectLayoutEntries({ bounce: false, skyShadowing: true, lobes: true }),
+    }),
+    'indirect light with bounce': device.createBindGroupLayout({
+      entries: indirectLayoutEntries({ bounce: true, skyShadowing: false, lobes: true }),
+    }),
   } as Record<string, unknown>
 }
 

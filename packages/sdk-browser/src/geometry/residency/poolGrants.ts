@@ -1,11 +1,10 @@
-import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { deviceMade } from '../../gpu/core/errorScope.ts'
 import { budgetRefused, ledgerTentative } from '../../gpu/core/deviceLedger.ts'
 import { createPageBuffer } from '../pages/pool/resize.ts'
 import { tilePoolTexture } from '../../materials/virtual/pool/pool.ts'
 import { tileUseBuffer } from '../../materials/virtual/slotUse.ts'
 import { TILES_PER_LAYER } from '../../materials/texture/tiles.ts'
-import type { PoolEncoding } from '../../materials/texture/blockFormats.ts'
+import { POOL_LANES, type PoolEncoding } from '../../materials/texture/blockFormats.ts'
 import type { GeometryPool } from '../../session/memory/pools.ts'
 import type { TexturePool, TexturePools } from './memoryBudgets.ts'
 import {
@@ -133,7 +132,7 @@ export const textureProbe =
   (device: GPUDevice, encoding: PoolEncoding) =>
   (pool: TexturePool): Made => {
     const made: Made[] = (['color', 'data'] as const).flatMap((kind) => {
-      const lanes = PREVIEW_LAYOUT_NAMES.filter((lane) => pool.layers[kind][lane] > 0)
+      const lanes = POOL_LANES.filter((lane) => pool.layers[kind][lane] > 0)
       const places = lanes.reduce((sum, lane) => sum + pool.layers[kind][lane], 0) * TILES_PER_LAYER
       return [
         ...lanes.map((lane) =>
@@ -165,5 +164,5 @@ export async function probed<P>(granted: Promise<Granted<P, Made> | undefined>) 
 /** True when two texture pools hold the same layers in every lane: nothing to replace. */
 export const sameLayers = (a: TexturePool, b: TexturePool) =>
   (['color', 'data'] as const).every((kind) =>
-    PREVIEW_LAYOUT_NAMES.every((lane) => a.layers[kind][lane] === b.layers[kind][lane]),
+    POOL_LANES.every((lane) => a.layers[kind][lane] === b.layers[kind][lane]),
   )

@@ -6,7 +6,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -19,6 +18,7 @@ import { gateCompiles } from '../../lighting/deferred/gatedDevice.fixture.ts'
 import { surfaceWritten } from '../../geometry/pages/surfaceWrites.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 /** The executing device, whose compiles land off the thread a task after they are asked, and which
  *  counts each synchronous compile made inside `frame`. */
@@ -49,7 +49,7 @@ test('no image compiles a pipeline, whatever enters the scene after preparation'
   const { gpu, counted, frame } = offThreadGpu()
   const fixture = quadScene()
   const material = G.standardSurface({ roughness: 0.5 })
-  const mesh = fixture.source.children[0] as HostMesh
+  const mesh = fixture.source.children[0] as PageMesh
   mesh.material = material
   const guides = createGuideSet()
   const backend = webgpuPagesEngine({

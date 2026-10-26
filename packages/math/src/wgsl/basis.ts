@@ -3,7 +3,7 @@ import { wgslFn, wgslStruct } from './decl.ts'
 /**
  * A unit vector across a direction: the cross product with an axis the direction is not along.
  * Each shader picks its own axes, threshold and order, and each choice turns a frame differently:
- * five formulas, five declarations, none merged into another. Last, a whole orthonormal frame around
+ * two formulas, two declarations, none merged into another. Last, a whole orthonormal frame around
  * a unit axis, branchless, and the moves into and out of it.
  */
 
@@ -12,12 +12,6 @@ export const tangentFallback = wgslFn(
   'tangentFallback',
   [],
   'fn tangentFallback(N:vec3f)->vec3f{return cross(select(vec3f(0.0,1.0,0.0),vec3f(0.0,0.0,1.0),abs(N.z)<0.999),N);}',
-)
-
-export const tangentBillboard = wgslFn(
-  'tangentBillboard',
-  [],
-  'fn tangentBillboard(toEye:vec3f)->vec3f{return normalize(cross(select(vec3f(0, 1, 0), vec3f(1, 0, 0), abs(toEye.y) > 0.99), toEye));}',
 )
 
 /** Not normalised. */

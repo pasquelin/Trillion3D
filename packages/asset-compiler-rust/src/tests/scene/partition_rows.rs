@@ -158,3 +158,14 @@ fn the_rows_a_view_holds_are_the_same_at_one_and_sixteen_times_the_world() {
     }
     assert_eq!(large_rows[RUNGS - 1], large_total);
 }
+
+// Behaviour: a mesh no cell places (a fallback mesh the actors' rows stand on) is listed with no node
+// and no row at any rung, in the width every entry has.
+#[test]
+fn a_mesh_only_actors_place_is_listed_with_no_row() {
+    let listed = unplaced_rows(&[7]);
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].len(), 8 + 8 + 8 * RUNGS);
+    assert!(listed[0].starts_with("00000007"));
+    assert!(listed[0][8..].bytes().all(|b| b == b'0'));
+}

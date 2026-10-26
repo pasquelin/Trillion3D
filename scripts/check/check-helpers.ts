@@ -5,7 +5,9 @@
 // `convert` or a codec's `encode` share a name and a signature with their siblings by design and
 // hold different code. A free TypeScript function anywhere in the tree whose signature and body are
 // those of a `packages/math` function, whatever its name and its parameters' names, is a copy of
-// the maths, a declared oracle aside (`scripts/lint/lint-maths.ts`). `pnpm run check:helpers`;
+// the maths, a declared oracle aside (`scripts/lint/lint-maths.ts`); a Rust function of another
+// crate whose signature and body are those of a `packages/math/rust` function, whatever its name,
+// is a copy of the Rust maths. `pnpm run check:helpers`;
 // `scripts/check/check-helpers.test.ts` plants a copy.
 import ts from 'typescript'
 import { cfgTestModules, rsHelpers } from './check-helpers-rust.ts'
@@ -92,6 +94,9 @@ function tsHelpers(file: string, text: string): Helper[] {
 }
 
 const MATH_UNIT = 'packages/math/src'
+/** The Rust maths, the one home the other crates read: a crate's helper of its signature and body
+ *  is a copy of it. */
+const RUST_MATH_UNIT = 'packages/math/rust/src'
 
 /** The trees outside the packages, whose TypeScript helpers are compared with the maths alone: a
  *  declared oracle among them (`scripts/lint/lint-maths.ts`) keeps its copies on purpose. */
@@ -120,7 +125,15 @@ export function duplicateHelpers(files: Map<string, string>): Helper[][] {
     for (const helper of helpers) {
       if (helper.name === 'main' || helper.name === 'default') continue
       if (unit) add(`${unit}\0${helper.name}\0${helper.signature}\0${helper.body}`, helper)
-      if (file.endsWith('.rs')) continue
+      if (file.endsWith('.rs')) {
+        const shape = `${helper.signature}\0${helper.body}`
+        if (unit !== RUST_MATH_UNIT) add(`${RUST_MATH_UNIT}>${unit}\0${shape}`, helper)
+        else
+          for (const crate of NATIVE_CRATES)
+            if (`${crate.path}/src` !== RUST_MATH_UNIT)
+              add(`${RUST_MATH_UNIT}>${crate.path}/src\0${shape}`, helper, true)
+        continue
+      }
       const shape = helper.anonymous ?? `${helper.name}\0${helper.signature}\0${helper.body}`
       if (home !== MATH_UNIT) add(`${MATH_UNIT}>${home}\0${shape}`, helper)
       else
@@ -128,13 +141,16 @@ export function duplicateHelpers(files: Map<string, string>): Helper[][] {
           if (other !== MATH_UNIT) add(`${MATH_UNIT}>${other}\0${shape}`, helper, true)
     }
   }
-  const inMath = (h: Helper) => h.file.startsWith(MATH_UNIT + '/')
+  const homeOf = (key: string) => [MATH_UNIT, RUST_MATH_UNIT].find((m) => key.startsWith(m + '>'))
   return [...seen]
-    .filter(
-      ([key, group]) =>
+    .filter(([key, group]) => {
+      const home = homeOf(key)
+      const inMath = (h: Helper) => h.file.startsWith(home + '/')
+      return (
         new Set(group.map((h) => h.file)).size > 1 &&
-        (!key.startsWith(MATH_UNIT + '>') || (group.some(inMath) && !group.every(inMath))),
-    )
+        (!home || (group.some(inMath) && !group.every(inMath)))
+      )
+    })
     .map(([, group]) => group)
 }
 

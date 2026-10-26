@@ -9,7 +9,6 @@
 // obtained with the full page-by-page descent must be the one the pruned descent returns.
 // Both read the same f32 records: what separates them is the pruning, and nothing else.
 import test from 'node:test'
-import { asHostLibrary } from '../../../session/host/resources.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../../scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
@@ -69,7 +68,7 @@ test('the one hierarchy: top-down pruning removes no kept cluster', () => {
   for (const [nom, x, z] of POSES)
     for (const threshold of SEUILS) {
       for (let w = 0; w < roots.length; w++)
-        asHostLibrary<Matrix4>(roots[w].world).makeTranslation(
+        (roots[w].world as unknown as Matrix4).makeTranslation(
           (w % 2) * 6.5 - 3.25,
           Math.floor(w / 2) * 6.5 - 3.25,
           0,

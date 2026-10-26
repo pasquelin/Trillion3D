@@ -17,16 +17,17 @@ import {
 } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import { dotVector3 } from '../../../math/src/vector/vector.ts'
 import type { Vec3 as V3 } from '../../../math/src/vector/vectorTuple.ts'
-import { cellGrid, FOG_VOLUME_FRAME_AT, sliceParams } from './fog/layout.ts'
+import { cellGrid, FOG_VOLUME_FRAME_AT, FOG_VOLUME_FRAME_WORDS, sliceParams } from './fog/layout.ts'
 import type { ResolvedHeightFog } from '../../../sdk-core/src/scene/core/fogHeight.ts'
 import { writeFogViewBlock } from './fog/viewBlock.ts'
 import { FOG_VIEW_FLOATS, FOG_VIEW_SLOTS } from './fog/viewSlots.ts'
-import {
-  writeFogVolumeFrame,
-  newFogVolumeFrame,
-  type FogVolumeCamera,
-  type FogVolumeImage,
-} from './fog/frame.ts'
+import { LOCAL_FOG_SLOTS } from './fog/localLayout.ts'
+import { writeFogVolumeFrame, type FogVolumeImage, type FogVolumePrevious } from './fog/frame.ts'
+
+type FogVolumeCamera = FogVolumeImage['camera']
+
+/** A frame's worth of words, to write into (`writeFogVolumeFrame`). */
+export const newFogVolumeFrame = () => new Float32Array(FOG_VOLUME_FRAME_WORDS)
 
 /** The settings every field at its default. */
 export const DEFAULT_SETTINGS = Object.fromEntries(
@@ -77,7 +78,7 @@ function cameraOf(
   near: number,
   perspective: boolean,
   half: [number, number],
-): FogVolumeCamera & { half: [number, number] } {
+): FogVolumeCamera & { half: [number, number]; viewProj: Float64Array } {
   const view = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -eye[0], -eye[1], -eye[2], 1])
   const viewProj = multiplyMatrix4(new Float64Array(16), projection, view)
   return {
@@ -95,6 +96,14 @@ function cameraOf(
     half,
   }
 }
+
+/** What the volume kept of an image drawn from `cam` (the size of the view, or `width` by `height`), written with the
+ *  pre-exposure `image` gives: the image before, as the history reads it. */
+export const previousOf = (
+  cam: FogVolumeCamera,
+  width = cam.width,
+  height = cam.height,
+): FogVolumePrevious => ({ viewProj: cam.viewProj, width, height, preExposure: 1 })
 
 /** An image of the volume over `camera`: the medium `volumetric` names, the defaults but for `settings`. */
 export function image(
@@ -191,13 +200,13 @@ export function table(value: (coords: number[]) => number | number[] = () => [0,
   }
 }
 
-/** The light buffer's block a program reads, every slot zero: the fog, the sky and the air. */
-export const emptyLights = (slots: { fog: number; sky: number; atmosphere: number }) => ({
+/** The light buffer's block a program reads, every slot zero: the fog and the air. */
+export const emptyLights = (slots: { fog: number; atmosphere: number }) => ({
   count: 0,
   fog: Array.from({ length: slots.fog }, () => [0, 0, 0, 0]),
-  sky: Array.from({ length: slots.sky }, () => [0, 0, 0, 0]),
   atmosphere: Array.from({ length: slots.atmosphere }, () => [0, 0, 0, 0]),
   fogView: Array.from({ length: FOG_VIEW_SLOTS }, () => [0, 0, 0, 0]),
+  localFog: Array.from({ length: LOCAL_FOG_SLOTS }, () => [0, 0, 0, 0]),
   items: [] as Record<string, number[]>[],
 })
 

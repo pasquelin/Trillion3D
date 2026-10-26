@@ -1,44 +1,98 @@
-// The shadow settings read by their rules: the sun's distance and the edge of its far-shadow test
-// follow the quality levels, and the shadow maps' own settings (`shadowMapOptions.ts`: the clipmap's
-// levels, the coarse pages, the resolution biases, the radius threshold, the rays and steps of a
-// trace, the page pool) take the numbers of the reference's scalability rows.
+// The shadow settings read by their rules: the sun's distance, its far-shadow edge and distance-field
+// cascade follow the light's own settings, the view's and the quality levels; the shadow maps' own
+// (`shadowMapOptions.ts`: clipmap levels, coarse pages, resolution biases, radius threshold, a trace's
+// rays and steps, the page pool) take the numbers of the reference's scalability rows.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { near } from '../../../math/src/float/near.fixture.ts'
+
 import { QUALITY_LEVELS } from '../runtime/qualityLevels.ts'
 import { resolveSetting, resolveSettings } from './settingRules.ts'
 import {
-  farShadowDistance,
+  LIGHT_SHADOW_RULES,
+  resolveLightShadow,
   SHADOW_DISTANCE_DEFAULT,
-  SHADOW_RULES,
-  shadowDistanceOf,
-  type ShadowValues,
-} from './shadowOptions.ts'
+  type LightShadowOptions,
+} from './lightShadowOptions.ts'
+import { presetShadows } from './shadowOptions.fixture.ts'
+import { readShadowSetting, SHADOW_PRESET_LEVELS, SHADOW_RULES } from './shadowOptions.ts'
 
 /** The shadow maps' own settings at their defaults, the reference's fourth row. */
 const SHADOW_MAP_DEFAULTS = {
   ...{ shadowClipmapFirstLevel: 6, shadowClipmapLastLevel: 22 },
   ...{ shadowClipmapFirstCoarseLevel: 15, shadowClipmapLastCoarseLevel: 18 },
   ...{ shadowClipmapZRangeScale: 1000, shadowMarkCoarsePagesDirectional: 2 },
+  ...{ shadowClipmapWpoDisableDistance: true, shadowClipmapWpoDisableDistanceLodBias: 3 },
   ...{ shadowMarkCoarsePagesLocal: 1, shadowResolutionLodBiasDirectional: -1.5 },
   ...{ shadowResolutionLodBiasDirectionalMoving: -1.5, shadowResolutionLodBiasLocal: 0 },
   ...{ shadowResolutionLodBiasLocalMoving: 1, shadowLightActiveFrameCount: 10 },
   ...{ shadowRadiusThreshold: 0.01, shadowRadiusThresholdUncached: true },
   ...{ shadowRayCountDirectional: 8, shadowSamplesPerRayDirectional: 4 },
   ...{ shadowRayCountLocal: 8, shadowSamplesPerRayLocal: 4, shadowMaxPhysicalPages: 4096 },
+  ...{ shadowDistantLightMode: 1, shadowMaxDistantUpdatePerFrame: 1 },
+  ...{ shadowPointLightShadows: true, shadowPointLightCubemaps: true },
+  ...{ shadowResolutionScaleZeroDisables: true, shadowMaxResolution: 2048 },
+  ...{ shadowFadeResolution: 64, shadowMinResolution: 32, shadowFadeExponent: 0.25 },
+  ...{ shadowFadeUsesResolutionScale: true, shadowTexelsPerPixelPoint: 1.27324 },
+  ...{ shadowTexelsPerPixelSpot: 2.54648, shadowTexelsPerPixelRect: 1.27324 },
+  ...{ shadowQuality: 5, shadowTranslucentQuality: 0, shadowTranslucentLocalLights: false },
+  ...{ shadowCoarsePagePixelThresholdStatic: 1, shadowCoarsePagePixelThresholdDynamic: 4 },
+  ...{ shadowPageDilationBorderSizeDirectional: 0.05, shadowPageDilationBorderSizeLocal: 0.05 },
+  ...{
+    shadowCullBackfacingPixels: true,
+    shadowMarkPagesUseFroxels: false,
+    shadowPageMarkingPixelStrideX: 2,
+    shadowMarkPixelPagesMipModeLocal: 0,
+  },
+  ...{ shadowPageMarkingPixelStrideY: 2, shadowNormalBias: 0.5, shadowScreenRayLength: 0.015 },
+  shadowRasterIndirectionMultiplier: 1.5,
+  ...{ shadowCacheInvalidateUseHzb: true, shadowDeferredInvalidationBudget: -1 },
+  shadowFirstPersonClipmap: true,
+  shadowFirstPersonClipmapFirstLevel: 8,
+  shadowFirstPersonClipmapLastLevel: 18,
+  shadowFirstPersonPixelRequestBias: 2,
+  shadowFirstPersonRequestMinLevelClamp: 8,
+  shadowSubsurfaceMinSourceAngle: 5,
+  shadowOnePassProjectionMaxLightsPerPixel: 16,
+  shadowAllowScreenOverflowMessages: true,
+  shadowMaxDofResolutionBias: 1,
+  shadowInvalidateOnLodDelta: false,
+  ...{ shadowCacheFramesStaticThreshold: 100, shadowCacheMaxPageAgeSinceLastRequest: 1000 },
+  ...{ shadowCacheMaxLightAgeSinceLastRequest: 10, shadowDynamicResolutionMaxResolutionLodBias: 2 },
+  ...{ shadowDynamicResolutionMaxPagePoolLoadFactor: 0.85, shadowSmrtAdaptiveRayCount: 1 },
+  ...{ shadowSmrtMaxRayAngleFromLight: 0.03, shadowSmrtExtrapolateMaxSlopeLocal: 0.05 },
+  ...{ shadowSmrtExtrapolateMaxSlopeDirectional: 5, shadowSmrtTexelDitherScaleLocal: 2 },
+  ...{ shadowSmrtTexelDitherScaleDirectional: 2, shadowSmrtMaxSlopeBiasLocal: 50 },
+  shadowSmrtRayLengthScaleDirectional: 1.5,
+  translucentRectLights: false,
 }
 
-/** The sun's shadow settings a quality preset resolves to: the shadows group's level over the
- *  defaults. */
-const presetShadows = (level: 'smooth' | 'balanced' | 'fine' | 'max') =>
-  resolveSettings(SHADOW_RULES, QUALITY_LEVELS.shadows[level] as never)
+/** The view's far-shadow settings at their defaults. */
+const SUN_SHADOW_DEFAULTS = {
+  ...{ shadowMaxFarCascades: 10, shadowFarDistanceOverride: 0, distanceFieldDistanceScale: 1 },
+  ...{ distanceFieldFarTransitionScale: 1, distanceFieldShadowQuality: 3 },
+  ...{ distanceFieldShadowFullResolution: false, distanceFieldShadowTileSize: 2 },
+  ...{ distanceFieldShadowTwoSidedBias: 1, distanceFieldShadowObjectsPerTile: 128 },
+}
 
-test('the sun’s shadow settings read by their rules, and its far-shadow edge follows its quality levels', () => {
+test('the shadow settings read by their rules, a light’s own beside them', () => {
   assert.deepEqual(resolveSettings(SHADOW_RULES, {}), {
     ...{ shadowDistanceScale: 1, farShadowCulling: true, farShadowCullsAllMeshes: false },
     ...{ shadowNearLevels: 10, shadowOverlapScale: 1, shadowFarField: true },
-    ...{ shadowMultipassViews: true, ...SHADOW_MAP_DEFAULTS },
+    ...{ shadowMultipassViews: true, ...SUN_SHADOW_DEFAULTS, ...SHADOW_MAP_DEFAULTS },
+    ...{
+      shadowGeometryLodBias: 1,
+      shadowOcclusionCulling: true,
+      shadowOcclusionFullUpdate: false,
+      shadowDynamicHzb: false,
+    },
   })
+  assert.deepEqual(resolveLightShadow({}), {
+    ...{ shadowDistance: 400, shadowCascades: 4, shadowCascadeExponent: 3 },
+    ...{ shadowCascadeTransition: 0.1, farShadowCascades: 0, farShadowDistance: 3000 },
+    ...{ distanceFieldShadows: true, distanceFieldShadowDistance: 512 },
+    ...{ distanceFieldTraceDistance: 100, distanceFieldRayStartOffset: 0.003, shadowAmount: 1 },
+  })
+  assert.equal(SHADOW_DISTANCE_DEFAULT, 400)
   assert.equal(resolveSetting(SHADOW_RULES.shadowDistanceScale, 2), 2)
   assert.throws(() => resolveSetting(SHADOW_RULES.shadowDistanceScale, 2.1), /from 0 to 2/)
   assert.throws(() => resolveSetting(SHADOW_RULES.shadowDistanceScale, -0.1), /from 0 to 2/)
@@ -48,46 +102,35 @@ test('the sun’s shadow settings read by their rules, and its far-shadow edge f
   assert.throws(() => resolveSetting(SHADOW_RULES.shadowNearLevels, 11), /from 0 to 10/)
   assert.throws(() => resolveSetting(SHADOW_RULES.shadowNearLevels, 1.5), /whole/)
   assert.throws(() => resolveSetting(SHADOW_RULES.shadowOverlapScale, 2.1), /from 0 to 2/)
-  // The edge: the last near level's far end, with its overlap into the next while a far-field
-  // shadow follows. Of N levels each 3 times the one before, the last starts at (3^(N−1) − 1) /
-  // (3^N − 1) of the span from the near plane, its overlap a tenth of its length times the scale.
-  const edges = (settings: ShadowValues, distance = SHADOW_DISTANCE_DEFAULT) =>
-    farShadowDistance(distance, 0.05, settings)
-  near(edges(presetShadows('smooth')), 240, 'smooth: one level, no far field: the distance', 1e-9)
-  near(edges(presetShadows('balanced')), 280, 'balanced: the same, at 0.7', 1e-9)
-  near(edges(presetShadows('fine')), 358.357, 'fine: four levels, an overlap of 0.8', 1e-3)
-  near(edges(presetShadows('max')), 427.0, 'max, the defaults: 427.0', 0.01)
-  const max = presetShadows('max')
-  near(farShadowDistance(400, 0, max), 427, 'no near plane: 427 exactly', 1e-9)
-  near(edges(max, 500), 500 + 0.0675 * (500 - 0.05), 'under 512: a far field follows', 1e-9)
-  assert.equal(edges(max, 512), 512, 'at 512, none follows')
-  assert.equal(edges(max, 600), 600, 'past 512: the distance itself')
-  assert.equal(farShadowDistance(400, 0.05, { ...max, shadowDistanceScale: 2 }), 800, 'scaled')
-  // Two levels: the last starts at 2/8 of the span from the near plane.
-  near(
-    edges({ ...max, shadowNearLevels: 2 }),
-    400 + 0.1 * (400 - (0.05 + 0.25 * 399.95)),
-    'two',
-    1e-9,
-  )
-  assert.equal(edges({ ...max, shadowNearLevels: 4 }), edges(max), 'no more than the light’s four')
-  assert.equal(edges({ ...max, shadowFarField: false }), 400, 'no far field: the distance')
-  assert.equal(edges({ ...max, shadowOverlapScale: 0 }), 400, 'no overlap: the distance')
-  near(edges({ ...max, shadowOverlapScale: 2 }), 400 + 0.135 * 399.95, 'twice the overlap', 1e-9)
-  for (const none of [
-    { ...max, farShadowCulling: false },
-    { ...max, shadowDistanceScale: 0 },
-    { ...max, shadowNearLevels: 0 },
-  ])
-    assert.equal(edges(none), 0, 'no limit')
-  assert.equal(farShadowDistance(0, 0.05, max), 0, 'a light of no distance: no limit')
-  // The distance as a page writes it: metres, true the default, false none, nothing else.
+  const refuses = (field: keyof typeof SUN_SHADOW_DEFAULTS, value: unknown, words: RegExp) =>
+    assert.throws(() => resolveSetting(SHADOW_RULES[field], value as never), words, field)
+  refuses('distanceFieldDistanceScale', 0, /from 0.0001 to 10000/)
+  refuses('distanceFieldFarTransitionScale', 1.5, /from 0 to 1/)
+  refuses('distanceFieldShadowQuality', 4, /from 0 to 3/)
+  refuses('distanceFieldShadowTileSize', 0, /above 0/)
+  refuses('shadowMaxFarCascades', -1, /at least 0/)
+  refuses('distanceFieldShadowObjectsPerTile', 0, /at least 1/)
+  refuses('distanceFieldShadowFullResolution', 1, /true or false/)
+  // A light's own: a distance takes true, false and metres; the rest what its rule says.
+  const light = (options: LightShadowOptions) => resolveLightShadow(options)
   assert.deepEqual(
-    [undefined, null, true, false, 0, 90.5].map((option) => shadowDistanceOf(option)),
-    [400, 400, 400, 0, 0, 90.5],
+    [true, false, 0, 90.5].map((value) => light({ shadowDistance: value }).shadowDistance),
+    [400, 0, 0, 90.5],
   )
+  assert.equal(light({ distanceFieldShadowDistance: false }).distanceFieldShadowDistance, 0)
   for (const bad of [-1, NaN, Infinity, '400', {}])
-    assert.throws(() => shadowDistanceOf(bad as number), /shadowDistance: must be a finite number/)
+    assert.throws(() => light({ shadowDistance: bad as never }), /shadowDistance: must be a finite/)
+  assert.throws(() => light({ shadowCascades: 1.5 }), /shadowCascades: must be a whole number/)
+  assert.throws(() => light({ distanceFieldTraceDistance: 5 }), /from 10 to 10000/)
+  assert.throws(() => light({ shadowCascadeExponent: -1 }), /at least 0/)
+  assert.throws(() => resolveLightShadow({ shadowDistanse: 1 }), /no field shadowDistanse/)
+  assert.equal(LIGHT_SHADOW_RULES.shadowDistance.distance, true)
+})
+
+test('a runtime’s context reads a shadow setting through the contract’s one reader', () => {
+  assert.equal(readShadowSetting({ context: {} }, 'shadowNearLevels'), 10)
+  assert.equal(readShadowSetting({ context: { shadowNearLevels: 3 } }, 'shadowNearLevels'), 3)
+  assert.equal(readShadowSetting({ context: { shadowQuality: null } }, 'shadowQuality'), 5)
 })
 
 /** The reference's scalability rows of the shadow maps' settings: smooth, balanced, fine. */
@@ -103,6 +146,9 @@ const ROWS = {
   shadowRayCountLocal: [0, 4, 4],
   shadowSamplesPerRayLocal: [2, 2, 4],
   shadowMaxPhysicalPages: [512, 512, 2048],
+  shadowMaxResolution: [512, 1024, 1024],
+  // The first level turns every shadow off, the second keeps a middle level, the third the top.
+  shadowQuality: [0, 3, 5],
 } as const
 
 test('the shadow maps’ settings take the rows of the first three quality levels, the fourth the defaults', () => {
@@ -124,18 +170,51 @@ test('the shadow maps’ settings refuse what they cannot take, in words', () =>
     assert.throws(() => resolveSetting(SHADOW_RULES[field], value as never), words, field)
   refuses('shadowMarkCoarsePagesLocal', 3, /from 0 to 2/)
   refuses('shadowMarkCoarsePagesDirectional', 0.5, /whole/)
-  refuses('shadowRayCountLocal', 16, /from 0 to 15/)
+  refuses('shadowRayCountLocal', 17, /from 0 to 16/)
   refuses('shadowRayCountDirectional', 1.5, /whole/)
   refuses('shadowSamplesPerRayLocal', 65, /from 0 to 64/)
   refuses('shadowClipmapLastLevel', 31, /from 0 to 30/)
   refuses('shadowClipmapZRangeScale', 0, /above 0/)
+  refuses('shadowClipmapWpoDisableDistance', 1, /true or false/)
+  refuses('shadowClipmapWpoDisableDistanceLodBias', 31, /from 0 to 30/)
   refuses('shadowLightActiveFrameCount', 0, /at least 1/)
   refuses('shadowMaxPhysicalPages', 0, /at least 1/)
   refuses('shadowRadiusThreshold', -1, /at least 0/)
-  refuses('shadowRadiusThresholdUncached', 1, /true or false/)
+  refuses('shadowDistantLightMode', 3, /from 0 to 2/)
+  refuses('shadowMaxDistantUpdatePerFrame', -2, /from -1/)
+  refuses('shadowMaxResolution', 0, /from 1 to 8192/)
+  for (const field of ['shadowMinResolution', 'shadowTexelsPerPixelRect'] as const)
+    refuses(field, -1, /at least 0/)
+  for (const field of ['shadowPointLightCubemaps', 'shadowRadiusThresholdUncached'] as const)
+    refuses(field, 1, /true or false/)
   refuses('shadowResolutionLodBiasLocal', 17, /from -16 to 16/)
-  // The ends are taken; 16 rays, one more than a mask lane's nibble holds, is refused above.
-  assert.equal(resolveSetting(SHADOW_RULES.shadowRayCountLocal, 15), 15)
+  for (const quality of [6, -1]) refuses('shadowQuality', quality, /from 0 to 5/)
+  refuses('shadowQuality', 2.5, /whole/)
+  for (const bias of [128, -127, Infinity])
+    refuses('shadowGeometryLodBias' as never, bias, /from -126 to 127/)
+  // The ends are taken; 17 rays, one more than a mask lane holds, is refused above; the quality's
+  // (0 turns every shadow off); a bias of 20 (its one bound: 2 to it a finite, normal f32 factor).
+  assert.equal(resolveSetting(SHADOW_RULES.shadowRayCountLocal, 16), 16)
   assert.equal(resolveSetting(SHADOW_RULES.shadowResolutionLodBiasDirectional, -16), -16)
   assert.equal(resolveSetting(SHADOW_RULES.shadowRadiusThreshold, 0), 0)
+  assert.equal(resolveSetting(SHADOW_RULES.shadowMaxDistantUpdatePerFrame, -1), -1, 'all of them')
+  assert.deepEqual(
+    [0, 5].map((q) => resolveSetting(SHADOW_RULES.shadowQuality, q)),
+    [0, 5],
+  )
+  assert.equal(resolveSetting(SHADOW_RULES.shadowGeometryLodBias, 20), 20)
+})
+
+test('the quality levels write the shadow rules’ own rows, each a shadow setting, and the top level none', () => {
+  for (const level of ['smooth', 'balanced', 'fine'] as const) {
+    const row = SHADOW_PRESET_LEVELS[level]
+    assert.ok(
+      Object.keys(row).every((f) => f in SHADOW_RULES),
+      `${level}: rules only`,
+    )
+    // The table holds the row whole; what it adds beside it is the fog's, no shadow setting.
+    const written = Object.entries(QUALITY_LEVELS.shadows[level]).filter(([f]) => f in SHADOW_RULES)
+    assert.deepEqual(Object.fromEntries(written), row, level)
+  }
+  assert.deepEqual(QUALITY_LEVELS.shadows.max, {})
 })

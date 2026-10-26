@@ -19,11 +19,58 @@ type Inputs = {
   engine: Engine
 }
 
+/** Partitions joining the session while it runs: their pages catalogued, their roots counted and
+ *  bound, the cells the view reaches placed, as the open does (`prepareExplorer`). */
+function partitionJoins(
+  session: ExplorerSession,
+  prepared: PreparedExplorer,
+  followCells: ReturnType<typeof createPartitionFrame>,
+) {
+  const { camera, pageSources } = prepared
+  const { streamer } = pageSources
+  return {
+    async prime(cells: readonly PartitionCells[], roots: readonly WorldRootsHold[]) {
+      holdPartitions(streamer, cells, roots)
+      prepared.worldRoots.push(...roots)
+      await primeFirstView(
+        session,
+        { partitions: cells },
+        camera,
+        streamer,
+        resolveWorldStreaming(prepared.context),
+      )
+    },
+    follow: followCells.follow,
+    leave: followCells.leave,
+  }
+}
+
+/** The cells the session places each frame, over its streaming settings as they stand. */
+function cellFrame(
+  prepared: PreparedExplorer,
+  renew: ExplorerSession['options']['onPartitionOutgrown'],
+  engine: Engine,
+) {
+  const { camera, pageSources, partitions, frameBudget } = prepared
+  // The session's streaming settings as they stand, read by their resolvers at each frame into one
+  // object, which each cell frame copies at once (`cells.ts`).
+  const streamingNow = resolveWorldStreaming()
+  return createPartitionFrame({
+    partitions,
+    streamer: pageSources.streamer,
+    camera,
+    engine,
+    renew,
+    budget: frameBudget,
+    streaming: () => resolveWorldStreaming(prepared.context, streamingNow),
+  })
+}
+
 /** The session's frame: its metrics, its page streaming, the cells it places and its draw. */
 export function createSessionFrame(session: ExplorerSession, inputs: Inputs) {
   const { options, metadata } = session
   const { prepared, host, engine } = inputs
-  const { camera, pageSources, partitions, frameBudget, hostBytes } = prepared
+  const { camera, pageSources, frameBudget, hostBytes } = prepared
   const { pageIdByUrl, streamer } = pageSources
   const { state, lookAtTarget, check, setPose } = host
   const { metricsScratch, profiler, fillMetrics } = createExplorerMetrics(
@@ -49,35 +96,8 @@ export function createSessionFrame(session: ExplorerSession, inputs: Inputs) {
     ...{ camera, streamer, streaming, engine, hostBytes },
     drawViews: options.drawViews,
   })
-  // The session's streaming settings as they stand, read by their resolvers at each frame into one
-  // object, which each cell frame copies at once (`cells.ts`).
-  const streamingNow = resolveWorldStreaming()
-  const followCells = createPartitionFrame({
-    partitions,
-    streamer,
-    camera,
-    engine,
-    renew: options.onPartitionOutgrown,
-    budget: frameBudget,
-    streaming: () => resolveWorldStreaming(prepared.context, streamingNow),
-  })
-  // Partitions joining the session while it runs: their pages catalogued, their roots counted and
-  // bound, the cells the view reaches placed, as the open does (`prepareExplorer`).
-  const partitionsJoin = {
-    async prime(cells: readonly PartitionCells[], roots: readonly WorldRootsHold[]) {
-      holdPartitions(streamer, cells, roots)
-      prepared.worldRoots.push(...roots)
-      await primeFirstView(
-        session,
-        { partitions: cells },
-        camera,
-        streamer,
-        resolveWorldStreaming(prepared.context),
-      )
-    },
-    follow: followCells.follow,
-    leave: followCells.leave,
-  }
+  const followCells = cellFrame(prepared, options.onPartitionOutgrown, engine)
+  const partitionsJoin = partitionJoins(session, prepared, followCells)
   const render = createExplorerRender(session, {
     check,
     followCells,

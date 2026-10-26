@@ -278,10 +278,10 @@ void add(const uint32_t *w) {
   vehicle.shape = lock.GetBody().GetShape();
   lower(lock.GetBody(), w);
   vehicle.constraint = new VehicleConstraint(lock.GetBody(), settingsOf(w, lock.GetBody()));
-  if (w[2] == TRACKED) vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterRay(MOVING, UP));
+  if (w[2] == TRACKED) vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterRay(lock.GetBody().GetObjectLayer(), UP));
   // A motorcycle's tyre is rounded across (the whole half width as convex radius, as the
   // motorcycle's cast does): leaned, it rolls on its shoulder rather than on an edge.
-  else vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterCastCylinder(MOVING, w[2] == MOTORCYCLE ? 1.0f : 0.1f));
+  else vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterCastCylinder(lock.GetBody().GetObjectLayer(), w[2] == MOTORCYCLE ? 1.0f : 0.1f));
   vehicle.id = id, vehicle.body = slotIndex, vehicle.kind = w[2];
   vehicle.onBodyAt = onBody.add(slotIndex, index);
   float steerTime = f32(w + 5 + 29);

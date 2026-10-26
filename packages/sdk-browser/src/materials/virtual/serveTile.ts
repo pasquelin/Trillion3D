@@ -1,13 +1,16 @@
 import { previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels.ts'
 import type { HeldLevels, LevelFailed } from '../texture/heldLevels.ts'
 import type { TextureLevelAddress } from '../texture/levelReader.ts'
+import { PREVIEW_HALF_FILE } from '../../../../sdk-core/src/texture/previewFormat.ts'
+import { cellOf } from '../texture/tileRecords.ts'
+import { TEXEL_BYTES } from '../texture/floatTexels.ts'
 import type { PoolEncoding, PoolLane } from '../texture/blockFormats.ts'
 import { writeTileFromBlocks } from './writeBlocks.ts'
 import type { WebgpuTileAtlas } from './atlas/atlasTypes.ts'
 import type { createScratches } from './scratchBuilds.ts'
 import type { TileKey } from './page/pageTable.ts'
 import type { TileTexture } from './tileTexture.ts'
-import { copyTileFromTexture, tileRegion, writeTileDecoded } from './write.ts'
+import { copyTileFromTexture, tileRegion, writeTileTexels } from './write.ts'
 
 /** A tile served: `waiting`, its bytes are not there yet, it will come back; `refused`, the pool
  *  is full for this view, or the level does not fit beside the pages kept, nothing will come — and
@@ -28,7 +31,11 @@ function levelAddress(
 ): TextureLevelAddress {
   const format = encoding.levelFormat(lane, source.tail)
   const { sha256, atlas } = source
-  return { sha256, atlas, level, format, rgba: lane === 'lossless' }
+  return {
+    ...{ sha256, atlas, level, format },
+    rgba: lane === 'lossless',
+    texels: encoding.texelsOf(lane),
+  }
 }
 
 /** Each source's level addresses (`levelAddress`), by level: one object a level read the same way,
@@ -43,6 +50,7 @@ function heldAddress(source: ReadSource, level: number, lane: PoolLane, encoding
   if (
     held &&
     held.rgba === (lane === 'lossless') &&
+    held.texels === encoding.texelsOf(lane) &&
     held.format === encoding.levelFormat(lane, source.tail)
   )
     return held
@@ -76,8 +84,18 @@ export function serveBaked(
   if (typeof held === 'string') return held
   const place = atlas.place(key)
   if (!place) return 'refused'
-  if (address.rgba) writeTileDecoded(device.queue, pool, place, held, region)
-  else writeTileFromBlocks(device.queue, pool, place, held, region)
+  if (address.rgba) writeTileTexels(device.queue, pool, place, held, region, 4)
+  else if (address.texels)
+    writeTileTexels(
+      device.queue,
+      pool,
+      place,
+      held,
+      region,
+      TEXEL_BYTES[address.texels],
+      address.format !== PREVIEW_HALF_FILE,
+    )
+  else writeTileFromBlocks(device.queue, pool, place, held, region, cellOf(address.format).bytes)
   return 'served'
 }
 

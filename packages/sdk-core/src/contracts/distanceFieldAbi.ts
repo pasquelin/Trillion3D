@@ -19,12 +19,22 @@
  * - `distanceFieldTwoSided`: whether the field is built as if every triangle were two-sided (the
  *   mesh's own double-sided materials are two-sided either way): no back face then makes a voxel
  *   inside the mesh.
- * - `distanceFieldDensity`: the voxels a centimetre of a mesh of scale 1 holds, from 0.05 to 0.4
- *   (0.2): changing it rebuilds every field.
+ * - `distanceFieldDensity`: the voxels a centimetre of a mesh of scale 1 holds, a finite number
+ *   (0.2): changing it rebuilds every field. The reference's build reads its density unclamped —
+ *   a mesh's bricks are rounded and held between 1 and what `distanceFieldMaxResolution` allows —;
+ *   only its editor's field is held to 0.05 to 0.4, which a job is not.
  * - `distanceFieldMaxResolution`: the most voxels along one axis a mesh's field holds, a whole
  *   number of at least 1 (256): a mesh of scale 1 or less holds half of it.
  */
-import { atLeast, countSetting, flagSetting, numberSetting, rulesOf } from './settingRules.ts'
+import {
+  ANY_NUMBER,
+  atLeast,
+  countSetting,
+  flagSetting,
+  numberSetting,
+  ruleFields,
+  rulesOf,
+} from './settingRules.ts'
 
 /** The reference's length unit per metre: its centimetres, which its density and its resolution
  *  scale are written in. */
@@ -47,13 +57,23 @@ export const DISTANCE_FIELD_FILE = 'distanceFields.bin'
 /** The first four bytes of `distanceFields.bin`: `T3DF` read as a little-endian `u32`. */
 export const DISTANCE_FIELD_MAGIC = 0x46443354
 /** Format of `distanceFields.bin` and of the manifest's `distanceFields` section
- *  (`asset-compiler-rust/src/distance_field/encode.rs` lays it out). */
-export const DISTANCE_FIELD_VERSION = 1
+ *  (`asset-compiler-rust/src/distance_field/encode.rs` lays it out). Version 2: a record's flags
+ *  say whether it is an HLOD cell's field (`DISTANCE_FIELD_FLAG_HLOD_CELL`). */
+export const DISTANCE_FIELD_VERSION = 2
 /** The bytes of the file's head: the magic, the version, the mesh count and a reserved word. */
 export const DISTANCE_FIELD_HEAD_BYTES = 16
-/** The bytes of a mesh's record: its compiled mesh and its flags (bit 0: mostly two-sided), the
- *  low and the high corner of its box in metres (six `f32`), then a record for each mip. */
+/** The bytes of a mesh's record: its compiled mesh (or, an HLOD cell's field, the cell) and its
+ *  flags (`DISTANCE_FIELD_FLAG_TWO_SIDED`, `DISTANCE_FIELD_FLAG_HLOD_CELL`), the low and the high
+ *  corner of its box in metres (six `f32`), then a record for each mip. */
 export const DISTANCE_FIELD_MESH_BYTES = 200
+/** The bit of a record's flags that says a quarter of the mesh's triangles or more are two-sided
+ *  (or the build asked for all): its hits are less accurate. */
+export const DISTANCE_FIELD_FLAG_TWO_SIDED = 1
+/** The bit of a record's flags that says the field is an HLOD actor's, not a compiled mesh's: its
+ *  `mesh` word names a cell of the world's chain of HLOD cells, and its box lies in the world's
+ *  space — the actor's triangles are world-space. It is placed where the world DAG is, and
+ *  casts while the cell draws its actor. */
+export const DISTANCE_FIELD_FLAG_HLOD_CELL = 2
 /** The bytes of a mip's record: its three indirection sides, its distance scale and bias, its
  *  volume-to-virtual-UV scale and add (three `f32` each), the bricks it holds, and where its data
  *  starts in the file and how long it is. The data is the indirection table (one `u32` a brick
@@ -66,18 +86,12 @@ export const DISTANCE_FIELD_RULES = /* @__PURE__ */ (() =>
     flagSetting('distanceField', true),
     numberSetting('distanceFieldScale', 1, atLeast(0)),
     flagSetting('distanceFieldTwoSided', false),
-    numberSetting('distanceFieldDensity', 0.2, [0.05, 0.4]),
+    numberSetting('distanceFieldDensity', 0.2, ANY_NUMBER),
     countSetting('distanceFieldMaxResolution', 256, 1),
   ]))()
 
 /** The fields of `DISTANCE_FIELD_RULES`, in order. */
-export const DISTANCE_FIELD_SETTINGS = [
-  'distanceField',
-  'distanceFieldScale',
-  'distanceFieldTwoSided',
-  'distanceFieldDensity',
-  'distanceFieldMaxResolution',
-] as const
+export const DISTANCE_FIELD_SETTINGS = /* @__PURE__ */ ruleFields(DISTANCE_FIELD_RULES)
 
 /** A source's distance field settings as the compiler reads them, each left out when not named. */
 export type MeshDistanceFieldSettingsWire = {

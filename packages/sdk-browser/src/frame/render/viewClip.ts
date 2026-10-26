@@ -10,15 +10,15 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
  * `../../../../sdk-core/src/contracts/viewOptions.ts`). A view that does not clip holds a zero
  * plane, which the programs made for the switch keep whole.
  */
-export function viewClips(rt: WebgpuPagesRuntime, cam: EngineCamera) {
+function viewClips(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // A stand-in camera no frame entry made (a bench's) carries no set, hence no plane.
   const set = cam.viewSet as EngineCamera['viewSet'] | undefined
   return !!set && hasClipPlane(set.clipPlane) && !!rt.setup.clipping
 }
 
-/** Whether the cut culls by the view's plane (`cutClipPlaneCulling`) while it clips: the split then
+/** Whether the cut culls by the view's plane (`cutClipPlaneCulling`) while it clips: the cut's cull then
  *  hands a cluster that reaches behind it to the hardware raster
- *  (`../../visibility/raster/binWgsl.ts`, `clipRoute`). */
+ *  (`../../geometry/dag/shader/clipPlaneWgsl.ts`, `straddlesClipPlane`, `clipRoute`). */
 export const viewClipRoutes = (rt: WebgpuPagesRuntime, cam: EngineCamera) =>
   viewClips(rt, cam) && cutSetting(rt, 'cutClipPlaneCulling')
 

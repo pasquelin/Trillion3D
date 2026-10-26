@@ -2,15 +2,17 @@
 // form where one exists (sphere, ellipsoid, box, post, quad, disc) and the root of the torus's quartic
 // bracketed and bisected to 1e-9, in the shape's own frame; and the radiance a ray brings back through up
 // to three layers, as the proxy's contract says (a blended surface weighs its own radiance by its opacity and
-// lets the rest through, an opaque one ends the ray). Nothing here reads the engine but the contract's layer
-// count (`RAY_LAYERS`).
+// lets the rest through, an opaque one ends the ray). Nothing here reads the engine: the contract's layer
+// count is `LAYERS`.
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { subtract, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { add } from '../../../packages/math/src/vector/vectorTuple.fixture.ts'
 import { slabCut } from '../../../packages/math/src/geometry/slab.ts'
 import { rayRectangle, raySphere } from './rayShapes.ts'
-import { RAY_LAYERS } from '../../../packages/sdk-browser/src/lighting/bounce/runtime/runtimeLayout.ts'
 import type { FamilyCase, Rgb, Shape } from './runtimeFamilyCases.ts'
+
+/** Surfaces met in a ray before it ends: a blended one is looked through, up to this many. */
+const LAYERS = 3
 
 /** A world vector in a shape's frame: the inverse of its pose, `pitch` about x then `yaw` about y. */
 function unturn(v: Vec3, yaw: number, pitch: number): Vec3 {
@@ -139,7 +141,7 @@ export function radiance(c: FamilyCase, o: Vec3, d: Vec3): { rgb: Rgb; first: nu
   hits.sort((x, y) => x.t - y.t)
   const rgb: Rgb = [0, 0, 0]
   let through = 1
-  for (const { at } of hits.slice(0, RAY_LAYERS)) {
+  for (const { at } of hits.slice(0, LAYERS)) {
     const s = c.shapes[at],
       weight = through * s.opacity
     for (let k = 0; k < 3; k++) rgb[k] += weight * s.emission[k]

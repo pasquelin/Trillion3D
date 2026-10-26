@@ -1,8 +1,5 @@
 use super::*;
 
-/// No textures to measure: tests cover previews only.
-static RIEN_A_MESURER: BTreeSet<usize> = BTreeSet::new();
-
 fn inputs<'a>(
     o: &'a Options,
     g: &'a Value,
@@ -19,8 +16,6 @@ fn inputs<'a>(
         image_root,
         used_materials,
         view_map,
-        to_measure: &RIEN_A_MESURER,
-        measurements: crate::cutout::MeasureCache::EMPTY,
         image_shas: crate::texture::source::ImageShas::EMPTY,
     }
 }
@@ -90,4 +85,30 @@ fn a_data_uri_is_refused() {
         .err()
         .expect("expected error");
     assert_eq!(error, "image-uri-not-relative");
+}
+
+// Behaviour: the bake chains a 16-bit PNG from its samples (`reduce::chain_wide`), not from the
+// bytes they round to: the sidecar's tail is the wide chain's.
+#[test]
+fn a_sixteen_bit_png_is_chained_from_its_samples_in_the_bake() {
+    let dir = scratch("texture-preview", "png16");
+    let bytes = fs::read(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/formats/png/rgb16.png"),
+    )
+    .expect("fixture");
+    fs::write(dir.join("deep.png"), &bytes).expect("write");
+    let g = json!({
+        "materials": [{"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}}],
+        "meshes": [{"primitives": [{"attributes": {}, "material": 0}]}],
+        "textures": [{"source": 0}],
+        "images": [{"uri": "deep.png"}],
+    });
+    let (previews, _) = stage_scene(&dir, &g);
+    let decoded = crate::plugins::image::decode(&bytes, PREVIEW_MAX_ALLOC).expect("decode");
+    let wide = decoded.wide.expect("16-bit samples");
+    let crate::plugins::image::DecodedImage::Rgba8(source) = decoded.image else {
+        panic!("a byte image")
+    };
+    let chain = reduce::chain_wide(&source, &wide, AtlasKind::Color);
+    assert_eq!(previews[0].pixels, chain.concat());
 }

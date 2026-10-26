@@ -1,28 +1,35 @@
 // The display layers' shipped WGSL run in JavaScript (`shaderRun`): the route every
 // transparent layer takes, the mask it reads and the display filter pass that composes them. The
-// tone curve is the reference display's (`../blendModel.fixture.ts`): the curves are proved on their own.
+// route runs the baking's chain (`../../lighting/toneBakeWgsl.ts`) on the words a view carries.
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
-import { filmic, type Rgba } from '../blendModel.fixture.ts'
+import type { ColorGradingSettings } from '../../../../sdk-core/src/contracts/colorGradingOptions.ts'
+import { bakeRun } from '../../lighting/toneBake.fixture.ts'
+import type { Rgba } from '../blendModel.fixture.ts'
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts'
 import { DISPLAY_FILTER_SHADER } from './displayFilterWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
-/** The curve the routes are run with, the reference display's. */
-export const ACES = TONE_MAPPING_RANK.aces
+/** The curve the routes are run with: the default display curve. */
+export const FILMIC = TONE_MAPPING_RANK.filmic
+
+/** The baking's words a view carries, as the shader reads them, for the colour settings `settings`
+ *  and the display curve of rank `rank`: the defaults of the curve the routes are run with. */
+export const toneOf = (settings: ColorGradingSettings = {}, rank: number = FILMIC) =>
+  bakeRun(settings, rank).bake
 
 type Route = { keep: number; tint: Rgba; add: Rgba }
 type Texel = (at: number[]) => unknown
 
 /** The functions a shader that routes its layers adds to its own. */
-export const ROUTE_FUNCTIONS = ['displayRoute', 'displayValue', 'linearToSrgb', 'maskAt']
+export const ROUTE_FUNCTIONS = ['displayRoute', 'maskAt']
 
-/** What they run with: the pipeline's `DISPLAY_ROUTE` `kind`, the mask `mask` at a pixel. */
+/** What they run with: the pipeline's `DISPLAY_ROUTE` `kind`, the mask `mask` at a pixel; the film
+ *  curve reads a hue as an angle, which the interpreter's built-ins hold no `atan2` for. */
 export const routeScope = (kind: 0 | 1 | 2, mask: (at: number[]) => number = () => 1) => ({
   DISPLAY_ROUTE: kind,
-  toneMap: (rgb: number[], curve: number) =>
-    curve === TONE_MAPPING_RANK.none ? rgb : (assert.equal(curve, ACES), filmic(rgb)),
+  atan2: Math.atan2,
   displayMask: (at: number[]) => [mask(at), 0, 0, 0],
   textureLoad: (texture: Texel, at: number[], level: number) => (
     assert.equal(level, 0),
@@ -30,22 +37,28 @@ export const routeScope = (kind: 0 | 1 | 2, mask: (at: number[]) => number = () 
   ),
 })
 
-type RouteRun = (
+type RouteArgs = [
   rgb: number[],
   exposure: number,
   curve: number,
   unlit: boolean,
   alpha: number,
   masked: number,
-) => Route
+]
+/** The words of the curve's defaults, what a route is run with where it is given none. */
+const DEFAULT_TONE = toneOf()
 
-/** The shipped `displayRoute` of a pipeline made with `DISPLAY_ROUTE` `kind`. */
-const routeOf = (kind: 0 | 1 | 2) =>
-  shaderRun<{ displayRoute: RouteRun }>(
+/** The shipped `displayRoute` of a pipeline made with `DISPLAY_ROUTE` `kind`, a view's `tone` words
+ *  given last: the curve's defaults where none is. */
+const routeOf = (kind: 0 | 1 | 2) => {
+  const run = shaderRun<{ displayRoute: (...args: [...RouteArgs, object]) => Route }>(
     wgslModule(DISPLAY_ROUTE_WGSL, displayMaskWgsl(0)),
     ROUTE_FUNCTIONS,
     routeScope(kind),
   ).displayRoute
+  return (...args: [...RouteArgs, object?]): Route =>
+    run(...(args.slice(0, 6) as RouteArgs), args[6] ?? DEFAULT_TONE)
+}
 
 /** The shipped `displayRoute` of each pipeline route: 0 none, 1 where masked, 2 always. */
 export const displayRoute = [routeOf(0), routeOf(1), routeOf(2)] as const

@@ -126,3 +126,100 @@ fn z_is_rebuilt_as_the_shader_rebuilds_it() {
     assert_eq!(crate::texture::blocks::decode::rebuilt_z(0, 0), 128);
     assert_eq!(crate::texture::blocks::decode::rebuilt_z(191, 128), 238);
 }
+
+// Behaviour: a one-channel level is BC4 blocks of eight bytes holding the first channel — the
+// independent decoder gives back a flat block exactly and a ramp within the gate's bar — and the
+// level is half the bytes of a sixteen-byte layout.
+#[test]
+fn one_channel_blocks_are_bc4_of_the_first_channel() {
+    use texture2ddecoder::decode_bc4_block;
+    let flat = encode_one_channel(&constant([77, 200, 3, 255]), 4, 4);
+    assert_eq!(flat.len(), Layout::OneChannel.block_bytes());
+    let mut words = [0u32; 16];
+    decode_bc4_block(&flat, &mut words);
+    assert!(words.iter().all(|w| w.to_le_bytes()[2] == 77), "{words:?}");
+    let ramp: Vec<u8> = (0..16 * 16)
+        .flat_map(|at| [(at % 16 * 16 + at / 16) as u8, 0, 0, 255])
+        .collect();
+    let level = encode_one_channel(&ramp, 16, 16);
+    assert_eq!(level.len(), level_block_bytes(16, 16) / 2);
+    let mut red = Vec::new();
+    for block in level.chunks_exact(8) {
+        decode_bc4_block(block, &mut words);
+        red.extend(words.iter().map(|w| w.to_le_bytes()[2]));
+    }
+    let source: Vec<u8> = (0..16 * 16).map(|at| ramp[at * 4]).collect();
+    // Blocks come back block by block: compare in the same order.
+    let in_blocks: Vec<u8> = (0..16 * 16)
+        .map(|i| {
+            let (block, texel) = (i / 16, i % 16);
+            let (x, y) = (block % 4 * 4 + texel % 4, block / 4 * 4 + texel / 4);
+            source[y * 16 + x]
+        })
+        .collect();
+    let worst = red
+        .iter()
+        .zip(&in_blocks)
+        .map(|(a, b)| a.abs_diff(*b))
+        .max();
+    // Eight rungs across the block's range: half a rung off at most.
+    assert!(worst <= Some(4), "worst gap {worst:?}");
+}
+
+// Behaviour: a half-float level is BC6H blocks of sixteen bytes: the format's decoder
+// (`block_compression::decode`) gives a flat block back within a thousandth, a ramp within a few
+// percent of its range, a negative value reads as zero, and a side that is not a multiple of four pads by its
+// edge.
+#[test]
+fn half_float_levels_are_bc6h_blocks() {
+    use half::f16;
+    let level = |values: &[[f32; 4]], width: u32, height: u32| -> Vec<u8> {
+        let bytes: Vec<u8> = values
+            .iter()
+            .flatten()
+            .flat_map(|&v| f16::from_f32(v).to_le_bytes())
+            .collect();
+        encode_hdr(&bytes, width, height)
+    };
+    // The 16 texels of a 4 × 4 block as RGB, row-major.
+    let decoded = |block: &[u8]| -> [f32; 48] {
+        let mut floats = [0f32; 48];
+        block_compression::decode::decode_block_bc6h_float(block, &mut floats, 12, false);
+        floats
+    };
+    let flat = level(&[[0.5, 0.25, 1.0, 1.0]; 16], 4, 4);
+    assert_eq!(flat.len(), Layout::Hdr.block_bytes());
+    for texel in decoded(&flat).chunks(3) {
+        assert!(
+            (texel[0] - 0.5).abs() < 1e-3
+                && (texel[1] - 0.25).abs() < 1e-3
+                && (texel[2] - 1.0).abs() < 1e-3,
+            "{texel:?}"
+        );
+    }
+    // Three channels of magnitudes 0..8, 1 and 85..100 share one index a texel and endpoints
+    // interpolated in the half-float bit pattern, which the red channel's span (zero to 7.5) rules: the
+    // encoder, the format's usual quality (`BC6HSettings::basic`), lands the red within a
+    // seventh of its range and the blue within a quarter of its value, 17 % at worst.
+    let ramp: Vec<[f32; 4]> = (0..16)
+        .map(|i| [i as f32 * 0.5, 1.0, 100.0 - i as f32, 1.0])
+        .collect();
+    for (i, texel) in decoded(&level(&ramp, 4, 4)).chunks(3).enumerate() {
+        assert!(
+            (texel[0] - i as f32 * 0.5).abs() < 1.0
+                && (texel[1] - 1.0).abs() < 0.3
+                && (texel[2] / (100.0 - i as f32) - 1.0).abs() < 0.25,
+            "{i}: {texel:?}"
+        );
+    }
+    let negative = level(&[[-3.0, 0.0, 0.0, 1.0]; 16], 4, 4);
+    assert!(decoded(&negative).chunks(3).all(|t| t[0] == 0.0));
+    let odd = level(&[[0.5; 4]; 5 * 3], 5, 3);
+    assert_eq!(odd.len(), 2 * Layout::Hdr.block_bytes());
+    // The bytes of the flat block are the vector the page's decoder reads back
+    // (`blockDecodeMore.test.ts`).
+    assert_eq!(
+        flat,
+        [175, 243, 173, 191, 7, 7, 44, 240, 18, 17, 17, 17, 17, 17, 17, 17]
+    );
+}

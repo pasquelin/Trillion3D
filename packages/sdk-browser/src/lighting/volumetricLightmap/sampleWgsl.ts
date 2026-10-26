@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { IRRADIANCE_TERMS } from '../../../../sdk-core/src/scene/core/irradianceTerms.ts'
 
 /**
  * THE VOLUMETRIC LIGHTMAP'S SAMPLING: where a world position lies in the atlas of bricks, and the
@@ -22,10 +23,13 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  * The bindings are consecutive from `first` in the bind group `group`: the view block, the
  * sampler, the indirection volume (a read-only storage texture, read by load alone: it spends none
  * of a stage's sixteen sampled textures), the ambient, the six coefficient layers (red low, red high, green
- * low, green high, blue low, blue high), the bent normal, the sun's shadowing.
+ * low, green high, blue low, blue high), the bent normal.
  */
 
-const SH_SCALE = '0.282095'
+/** The harmonics' scale of term `k` as the file stores it, from the basis table. */
+const termScale = (k: number) => Math.abs(IRRADIANCE_TERMS[k].contract)
+
+const SH_SCALE = termScale(0)
 
 const SAMPLE_LIGHT = `
 fn vlmAmbient(uv:vec3f)->vec3f{return textureSampleLevel(vlmAmbientTexture,vlmSampler,uv,0.0).xyz;}
@@ -36,7 +40,7 @@ fn vlmSh1(uv:vec3f)->VlmSh1{
 struct VlmLow{ambient:vec3f,red:vec4f,green:vec4f,blue:vec4f}
 fn vlmLowCoefficients(uv:vec3f)->VlmLow{
  let a=vlmAmbient(uv);
- let scales=vec4f(0.488603/${SH_SCALE},0.488603/${SH_SCALE},0.488603/${SH_SCALE},1.092548/${SH_SCALE});
+ let scales=vec4f(${termScale(1)}/${SH_SCALE},${termScale(2)}/${SH_SCALE},${termScale(3)}/${SH_SCALE},${termScale(4)}/${SH_SCALE});
  let r=(textureSampleLevel(vlmCoefficients0,vlmSampler,uv,0.0)*2.0-1.0)*a.x*scales;
  let g=(textureSampleLevel(vlmCoefficients2,vlmSampler,uv,0.0)*2.0-1.0)*a.y*scales;
  let b=(textureSampleLevel(vlmCoefficients4,vlmSampler,uv,0.0)*2.0-1.0)*a.z*scales;
@@ -48,7 +52,7 @@ fn vlmSh2(uv:vec3f)->VlmSh2{
 }
 fn vlmSh3(uv:vec3f)->VlmSh3{
  let l=vlmLowCoefficients(uv);
- let scales=vec4f(1.092548/${SH_SCALE},4.0*0.315392/${SH_SCALE},1.092548/${SH_SCALE},2.0*0.546274/${SH_SCALE});
+ let scales=vec4f(${termScale(5)}/${SH_SCALE},4.0*${termScale(6)}/${SH_SCALE},${termScale(7)}/${SH_SCALE},2.0*${termScale(8)}/${SH_SCALE});
  let r=(textureSampleLevel(vlmCoefficients1,vlmSampler,uv,0.0)*2.0-1.0)*l.ambient.x*scales;
  let g=(textureSampleLevel(vlmCoefficients3,vlmSampler,uv,0.0)*2.0-1.0)*l.ambient.y*scales;
  let b=(textureSampleLevel(vlmCoefficients5,vlmSampler,uv,0.0)*2.0-1.0)*l.ambient.z*scales;
@@ -57,8 +61,7 @@ fn vlmSh3(uv:vec3f)->VlmSh3{
   vec4f(l.ambient.y,l.green.xyz),vec4f(l.green.w,g.xyz),g.w,
   vec4f(l.ambient.z,l.blue.xyz),vec4f(l.blue.w,b.xyz),b.w);
 }
-fn vlmSkyBentNormal(uv:vec3f)->vec3f{return textureSampleLevel(vlmSkyBentNormalTexture,vlmSampler,uv,0.0).xyz*2.0-1.0;}
-fn vlmDirectionalShadowing(uv:vec3f)->f32{return textureSampleLevel(vlmShadowingTexture,vlmSampler,uv,0.0).x;}`
+fn vlmSkyBentNormal(uv:vec3f)->vec3f{return textureSampleLevel(vlmSkyBentNormalTexture,vlmSampler,uv,0.0).xyz*2.0-1.0;}`
 
 /** The dot of an SH projection with a basis: the light's colour along it, band by band. */
 const DOTS = `
@@ -96,16 +99,15 @@ const declarations = (group: number, first: number) =>
     'var vlmAmbientTexture:texture_3d<f32>',
     ...[0, 1, 2, 3, 4, 5].map((k) => `var vlmCoefficients${k}:texture_3d<f32>`),
     'var vlmSkyBentNormalTexture:texture_3d<f32>',
-    'var vlmShadowingTexture:texture_3d<f32>',
   ]
     .map((text, k) => `@group(${group}) @binding(${first + k}) ${text};`)
     .join('\n')
 
 /** The lightmap's sampling for a program that binds it in `group` from binding `first`
- *  (`VOLUMETRIC_LIGHTMAP_BINDINGS` of them): `vlmBrickUvs` the position's place in the atlas,
- *  `vlmSh1`, `vlmSh2` and `vlmSh3` the light there in one to three bands, `vlmSkyBentNormal`,
- *  `vlmDirectionalShadowing` the stored sky and sun shadowing, and the dots `vlmDotSh1`,
- *  `vlmDotSh2` and `vlmDotSh3` of a projection with a basis. */
+ *  (eleven of them): `vlmBrickUvs` the position's place in the atlas,
+ *  `vlmSh1`, `vlmSh2` and `vlmSh3` the light there in one to three bands, `vlmSkyBentNormal` the
+ *  sky's stored shadowing, and the dots `vlmDotSh1`, `vlmDotSh2` and `vlmDotSh3` of a projection
+ *  with a basis. */
 export const volumetricLightmapWgsl = (group: number, first: number) =>
   wgslBlock(
     `volumetricLightmapWgsl(${group}, ${first})`,

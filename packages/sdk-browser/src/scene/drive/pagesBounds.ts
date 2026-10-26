@@ -1,6 +1,5 @@
 import { meshes } from '../meshes.ts'
 import type { HostBoundedNode } from '../host/scan/graphNodes.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { primitiveFinder } from '../primitiveLookup.ts'
 import { emptyWorldBox, readHostBox } from '../host/world/bounds.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
@@ -9,6 +8,7 @@ import { boxUnionCollector } from '../../geometry/selection/batchBoxes.ts'
 import type { DrawAssociations } from '../../geometry/selection/drawSource.ts'
 import { hostWorldPlacements } from '../host/world/placements.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 /**
  * World bounds of the exact pages of a prepared scene: not those of the host geometries but those
@@ -35,7 +35,7 @@ function ecritPage(out: Float64Array, at: number, item: ManifestPage) {
 
 /** The box a mesh placed by rows holds for every row (`scene/host/prepared/placed.ts`): its pages
  *  bound one placement, and its own pose places none. */
-function placedBox(mesh: HostMesh, associations: DrawAssociations) {
+function placedBox(mesh: PageMesh, associations: DrawAssociations) {
   return associations.get(mesh)?.placements ? (mesh as HostBoundedNode).boundingBox : undefined
 }
 
@@ -64,7 +64,7 @@ export function pagesBounds(
   source: Object3D,
   associations: DrawAssociations,
   metadata: ClusterManifest,
-  onMissing: (mesh: HostMesh) => void,
+  onMissing: (mesh: PageMesh) => void,
   into = emptyWorldBox(),
   lot?: BoxTransformLot | null,
 ) {

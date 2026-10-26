@@ -1,7 +1,5 @@
-//! Golden of the PNG driver: depth decides, and it decides before decoding. Up to eight bits
-//! per channel the image comes out pixel for pixel; at sixteen it is refused by naming it, like
-//! 16-bit TIFF and for the same reason — the contract output cannot carry that precision yet,
-//! and clipping it in silence would add a loss the source did not have.
+//! Golden of the PNG driver: up to eight bits per channel the image comes out pixel for pixel; at
+//! sixteen it comes out rounded to eight bits and the reduction is counted.
 use super::super::image as registry;
 use super::{declared, fixture, rgba8};
 
@@ -18,7 +16,7 @@ const REFERENCE: [[u8; 4]; 4] = [
 
 // PNG driver golden: the depths it reads — eight bits per channel, and below that the four-bit
 // palette — yield the same image, pixel for pixel. A depth is a way of writing the image, never
-// of changing it, and the 16-bit refusal has not changed that.
+// of changing it.
 #[test]
 fn each_read_depth_yields_the_reference_pixels() {
     for name in ["rgb8.png", "palette4.png"] {
@@ -38,36 +36,40 @@ fn each_read_depth_yields_the_reference_pixels() {
     }
 }
 
-// Driver contract: a 16-bit-per-channel PNG is refused under its own reason, read in the IHDR
-// before any decoding. Yielding it lowered to eight bits would add a loss the source did not
-// have; the refusal, for its part, simply lets the engine fall back on its white and never
-// panics.
+// Driver contract: a 16-bit-per-channel PNG is read, each sample rounded to the nearest of 256
+// values, its 16-bit samples kept beside the bytes, and counted under its own reason, read in the
+// IHDR. A file too short to carry its IHDR
+// is not judged on its depth.
 #[test]
-fn a_sixteen_bit_png_comes_out_as_a_report_reason_never_clipped() {
+fn a_sixteen_bit_png_comes_out_rounded_and_counted() {
     let bytes = fixture("png", "rgb16.png");
     assert_eq!(
         registry::by_head(&bytes).map(|driver| driver.name()),
         Some("png")
     );
+    let decoded = registry::decode(&bytes, MAX_ALLOC).expect("rgb16.png");
+    let wide = decoded.wide.clone().expect("the 16-bit samples ride along");
+    let rendered = rgba8(decoded);
+    assert_eq!(wide.len(), rendered.as_raw().len());
+    assert!(wide
+        .iter()
+        .zip(rendered.as_raw())
+        .all(|(&v, &byte)| (u32::from(v) + 128) / 257 == u32::from(byte)));
+    // The fixture writes each byte of the drawing as a word (`byte × 256`): rounding to the
+    // nearest of 256 values lands within one of it.
+    for (pixel, wanted) in rendered.pixels().zip(REFERENCE) {
+        assert!(pixel.0.iter().zip(wanted).all(|(&a, b)| a.abs_diff(b) <= 1));
+    }
     assert_eq!(
-        registry::decode(&bytes, MAX_ALLOC).err(),
-        Some("image-depth-unsupported")
+        declared("png", "rgb16.png", MAX_ALLOC).1,
+        vec!["image-depth-reduced"]
     );
-    // This refusal changed what the driver produces, so its cache identity: the version
-    // carries it, otherwise an entry written in the silent-lowering days would be reread as
-    // correct.
+    // The version carries the rule, so a cache written when the chain was reduced from bytes is
+    // not reread.
     assert_eq!(
         registry::by_head(&bytes).map(|driver| driver.version()),
-        Some("png-image-0.25-depth8-apng-icc-gama")
+        Some("png-image-0.25-depth16-chain-apng-icc-gama")
     );
-    // It is depth that refuses, not size: the reason does not move with the allocation
-    // ceiling, and it comes out without a single pixel having been decoded.
-    assert_eq!(
-        registry::decode(&bytes, 16).err(),
-        Some("image-depth-unsupported")
-    );
-    // A file too short to carry its IHDR is not judged on its depth: it stays judged by the
-    // decoder.
     assert_eq!(
         registry::decode(b"\x89PNG\r\n\x1a\ntruncated", MAX_ALLOC).err(),
         Some("image-decode-failed")

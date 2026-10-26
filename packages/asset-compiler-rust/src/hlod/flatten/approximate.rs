@@ -41,7 +41,7 @@ use crate::hlod::flatten::{millis, timed};
 use crate::hlod::options::{HlodApproximation, HlodGroundClipping, HlodOcclusion};
 use std::sync::atomic::AtomicBool;
 use trillion3d_math::geometry::aabb::centre;
-mod gpu;
+pub(crate) mod gpu;
 mod ground;
 mod scene;
 use scene::scene;

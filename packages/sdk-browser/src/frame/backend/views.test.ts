@@ -104,20 +104,20 @@ test('a host resize while another view is drawn lands on the main view', async (
   releaseWebgpuView(rt, side)
 })
 
-// The rows are a cache of what the GPU cut draws (`../../geometry/rows/slots.ts`): a view that draws nothing
+// The clusters' records are what the pool holds, whichever view draws them: a view that draws nothing
 // keeps them, and the main view finds its own back.
-test('the drawn list follows the cut of the view drawn, the rows its cache', async () => {
+test('the drawn list follows the cut of the view drawn, the records stay', async () => {
   const { rt } = await drawnQuad()
-  assert.equal(rt.run.drawn.length, 2)
+  assert.equal(rt.run.shown.length, 2)
   const side = createWebgpuView(32, 32)
   useWebgpuView(rt, side)
   renderWebgpuPages(rt, awayCamera())
   await flushWebgpuPages(rt)
-  assert.equal(rt.run.drawn.length, 0, 'nothing is drawn for a cut the view does not hold')
+  assert.equal(rt.run.shown.length, 0, 'nothing is drawn for a cut the view does not hold')
   useWebgpuView(rt, rt.views.main)
   renderWebgpuPages(rt, camera())
   await flushWebgpuPages(rt)
-  assert.equal(rt.layout.rows.packedCount, 2)
+  assert.equal(rt.layout.clusters.candidateCount, 2)
   releaseWebgpuView(rt, side)
 })
 
@@ -126,7 +126,7 @@ test("each view keeps its own packed ranks: another view's cut never lands on th
   // lists are the view's as much as its records are.
   const { rt } = await drawnQuad()
   const packed = () =>
-    [rt.run.desiredPacked, rt.run.shownPacked, rt.run.drawnPacked].map((l) => [...l])
+    [rt.run.desiredPacked, rt.run.shownPacked].map((l) => [...l.ids.subarray(0, l.count)])
   const main = packed()
   assert.equal(main[1].length, 2, 'the main view shows its two pages')
   const side = createWebgpuView(32, 32)

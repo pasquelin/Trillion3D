@@ -3,7 +3,6 @@
 // checking of cited files are managed by `report.ts`.
 import { chronometre, type Reglages } from './chrono.ts'
 import { gap } from './diff.ts'
-import type { Counter } from './ulp.ts'
 import { resultRow, type Measurement, type ResultRow } from '../kit/measureTypes.ts'
 
 /** One named input to measure, or to verify only when `measure` is `false`. */
@@ -29,7 +28,6 @@ export interface MeasureParams<Entree = unknown, Sortie = unknown> {
   calculation: (input: Entree) => Sortie | Promise<Sortie>
   expected?: (input: Entree) => Sortie | Promise<Sortie>
   temoin?: (input: Entree) => unknown
-  differences?: (ref: Sortie, obt: Sortie, path: string) => Counter
   /** Reads, untimed, what a call left — its result or the state it wrote — for the oracle check:
    *  the timed call then runs the engine alone, with no copy or allocation of its output. */
   lecture?: (input: Entree, sortie: Sortie) => unknown
@@ -51,31 +49,23 @@ export function parElement<E, R>(f: (element: E, index: number) => R) {
   }
 }
 
-const countText = (c: Counter) => `${c.count} discrepancy(ies), ${c.ulpMax} ULP at most`
-
 type VerifyConf<Entree, Sortie> = Omit<MeasureParams<Entree, Sortie>, 'name' | 'fichier' | 'cas'>
 
 /**
- * Compares a case to its oracle. Without `differences`, equality is strict bitwise; with, the
- * count of discrepancies is published as is — the benchmark then measures a REFUSED candidate and quantifies what it
- * displaces, instead of demanding equality that does not apply. The caller's `motif` is always
+ * Compares a case to its oracle: equality is strict bitwise. The caller's `motif` is always
  * kept: without an oracle it says where correctness is held, with one it says what the comparison
  * leaves out; never silence.
  */
 async function verifyCase<Entree, Sortie>(
   item: MeasureCase<Entree>,
-  { calculation, expected, differences, lecture, motif }: VerifyConf<Entree, Sortie>,
+  { calculation, expected, lecture, motif }: VerifyConf<Entree, Sortie>,
 ): Promise<Verdict> {
   if (!expected) return { correct: null, difference: null, motif: motif ?? null }
   const lit = (sortie: Sortie) => (lecture ? lecture(item.input, sortie) : sortie)
   const ref = lit(await expected(item.input))
   const obt = lit(await calculation(item.input))
-  if (!differences) {
-    const diff = gap(ref, obt, item.name)
-    return { correct: diff === null, difference: diff, motif: motif ?? null }
-  }
-  const count = countText(differences(ref as Sortie, obt as Sortie, item.name))
-  return { correct: null, difference: null, motif: motif ? `${count} ; ${motif}` : count }
+  const diff = gap(ref, obt, item.name)
+  return { correct: diff === null, difference: diff, motif: motif ?? null }
 }
 
 /**

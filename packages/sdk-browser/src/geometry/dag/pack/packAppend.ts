@@ -1,9 +1,10 @@
 import type { DagRoot, PackedDag } from '../types.ts'
 import { coldBase } from '../layout.ts'
 import { joinPlacementTree, joinStart } from '../placement/placementTreePack.ts'
-import { treeNodeCount } from '../placement/placementTree.ts'
+import { memberShift, treeNodeCount } from '../placement/placementTree.ts'
 import { cullingOf, levelSizesOf, placeRoot, type Packing, type PackShared } from './packRoots.ts'
 import { countRoots } from './packCapacity.ts'
+import { takesParents } from './packParents.ts'
 
 /** The live ranges `appendDagRoots` filled: pages and placements `[from, to)`, the primitive nodes
  *  and records of the primitives it brought — none of them for placements of a primitive the
@@ -49,7 +50,7 @@ export function appendDagRoots(
       shared.records!.place(root.pages, culling.nodes, owner, nodeBase),
     )
     const sizes = levelSizesOf(cullingOf(root), shared),
-      shift = tree?.depth ?? 0
+      shift = memberShift(tree)
     for (let level = 0; level < sizes.length; level++)
       packed.levelSizes[level + shift] += sizes[level]
     const sources = packed.worldSources as DagRoot[]
@@ -59,7 +60,7 @@ export function appendDagRoots(
   packed.rootCount = p.rootClusters
   // The distances' and the parents' columns, when a placement appended is the first to name one.
   packed.drawDistance = p.drawDistance
-  packed.rootParent = p.rootParent
+  packed.parentNode = p.parentNode
   const recordsTo = shared.records!.count
   shared.records!.finish(packed.clusters, packed.coldWords, coldBase(packed.pageCount), blocks)
   // Members of the tree from now on, in new groups (`joinPlacementTree`): their order words sent
@@ -87,30 +88,42 @@ function recordsOf(root: DagRoot, shared: PackShared) {
 
 /** Whether `roots` fit the room `packed` kept: no deeper than its levels, within its pages, queue
  *  entries and placements — and, for a primitive it does not hold, within the nodes and records it
- *  kept. */
+ *  kept, for the groups above instances' roots as for the primitives'. */
 function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShared) {
   // The world DAG's links are laid out over every placement at once (`packWorldLinks`): it is
   // packed with them all, never appended.
   if (roots.some((root) => root.hlod)) return false
+  // The leaves of a tree that named no group hold no ball (`takesParents`): packed again, wide.
+  if (!takesParents(packed) && roots.some((root) => root.rootParent)) return false
   const live = packed.live!,
-    shift = packed.placementTree?.depth ?? 0,
+    shift = memberShift(packed.placementTree),
     added = countRoots(
       roots,
       shared,
       () => shift,
       (nodes) => shared.nodeBlocks.has(nodes),
+      packed.parentNodes,
     )
   if (added.levels.length > packed.levelSizes.length) return false
   const pages = live.pages + added.pages,
     entries = live.entries + added.entries,
     nodes = live.nodes + added.nodes
-  let records = shared.records!.count
+  let records = shared.records!.count,
+    infos = live.infos
   const arrays = new Set<DagRoot['pages']>()
-  for (const root of roots)
+  for (const root of roots) {
     // The placements of one source share its page array: its records are written once.
     if (!arrays.has(root.pages) && recordsOf(root, shared) < 0) {
       arrays.add(root.pages)
       records += root.pages.length
+    }
+  }
+  // A page array the packing holds has its cluster records; any other brings one for each page.
+  const counted = new Set<DagRoot['pages']>()
+  for (const root of roots)
+    if (!counted.has(root.pages) && !shared.firstOf.has(root.pages)) {
+      counted.add(root.pages)
+      infos += root.pages.length
     }
   // Its member slots take the batch from a new group on (`joinStart`).
   const tree = packed.placementTree
@@ -120,6 +133,7 @@ function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShar
     entries <= packed.entryCount - treeNodeCount(tree) &&
     live.worlds + roots.length <= packed.worldCount &&
     nodes <= packed.primitiveNodeCount &&
-    records <= packed.recordCount
+    records <= packed.recordCount &&
+    infos <= packed.infoCount
   )
 }

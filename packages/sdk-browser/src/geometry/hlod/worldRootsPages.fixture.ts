@@ -19,10 +19,15 @@ import { inCullingOrder } from './worldCulling.fixture.ts'
 export function worldPage(x: number) {
   const array = Float32Array.of(x, 0, 0, x + 1, 0, 0, x, 1, 0)
   // The world DAG records the page's counts alone: its box (`min`, `max`) the page carries.
-  const { data, vertexCount, indexCount, flags, uncompressedBytes } = encodePage([0, 1, 2], {
-    POSITION: { itemSize: 3, array },
-  })
-  const facts = { bytes: data.byteLength, vertexCount, indexCount, flags, uncompressedBytes }
+  const { data, vertexCount, indexCount, flags, uncompressedBytes, residentBytes } = encodePage(
+    [0, 1, 2],
+    { POSITION: { itemSize: 3, array } },
+  )
+  // Each page lies at the start of its streaming page's place in the pool.
+  const facts = {
+    ...{ bytes: data.byteLength, residentBytes, residentOffset: 0 },
+    ...{ vertexCount, indexCount, flags, uncompressedBytes },
+  }
   return { bytes: data as Uint8Array, facts }
 }
 

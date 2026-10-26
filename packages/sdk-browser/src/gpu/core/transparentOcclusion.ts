@@ -18,6 +18,8 @@ import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { TRANSPARENT_OCCLUSION_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../bind/bindIdentity.ts'
 
+const PASS: GPUComputePassDescriptor = { label: TRANSPARENT_OCCLUSION_PASS }
+
 export type TransparentOcclusion = NonNullable<
   Awaited<ReturnType<typeof createTransparentOcclusion>>
 >
@@ -27,6 +29,8 @@ export type TransparentOcclusion = NonNullable<
 type TransparentOcclusionSources = {
   pyramid: () => GPUTextureView | undefined
   levels: GPUBuffer
+  /** The opaque depth at full resolution (the Hi-Z's level 0, its layers), which a footprint under sixteen pixels is tested on. */
+  depth: () => GPUTextureView | undefined
   /** The verdict buffer the compact owns, read at each image: it follows the compact's growth. */
   occluded: () => GPUBuffer
 }
@@ -143,10 +147,11 @@ function occlusionHandle(device: GPUDevice, o: Occlusion) {
      *  names no size. Returns whether they were — the corners and bits are then to be sent again. */
     grow(entries: number) {
       if (o.disposed || entries <= o.entryCount) return false
+      const next = occlusionBuffers(device, entries)
       // The old buffers may be named by this image's commands: retired, never destroyed now.
       retire(device, o.corners)
       retire(device, o.unculled)
-      Object.assign(o, occlusionBuffers(device, entries), { entryCount: entries })
+      Object.assign(o, next, { entryCount: entries })
       o.groups = workgroupCount(entries, WORKGROUP_THREADS)
       return true
     },
@@ -250,6 +255,7 @@ async function occlusionPipeline(device: GPUDevice) {
       computeBufferEntry(3, 'uniform'),
       computeBufferEntry(4, 'read-only-storage'),
       computeBufferEntry(5, 'uniform'),
+      computeTextureEntry(6, 'unfilterable-float', '2d-array'),
     ],
   })
   const module = device.createShaderModule({ code: transparentOcclusionShader() })
@@ -288,8 +294,9 @@ function testOcclusion(
   occluded: GPUBuffer,
 ) {
   const { sources } = o
-  const pyramid = pyramidFresh ? sources.pyramid() : undefined
-  if (!pyramid) {
+  const pyramid = pyramidFresh ? sources.pyramid() : undefined,
+    depth = pyramid ? sources.depth() : undefined
+  if (!pyramid || !depth) {
     encoder.clearBuffer(occluded, 0, o.entryCount * 4)
     return
   }
@@ -300,6 +307,7 @@ function testOcclusion(
   next[3] = o.unculled
   next[4] = o.uniforms
   next[5] = sources.levels
+  next[6] = depth
   if (o.bound.moved())
     o.bindGroup = o.device.createBindGroup({
       layout: o.layout,
@@ -310,9 +318,10 @@ function testOcclusion(
         { buffer: o.uniforms },
         { buffer: o.unculled },
         { buffer: sources.levels },
+        depth,
       ]),
     })
-  const pass = encoder.beginComputePass({ label: TRANSPARENT_OCCLUSION_PASS })
+  const pass = encoder.beginComputePass(PASS)
   pass.setPipeline(o.referenceTest ? o.referencePipeline : o.pipeline)
   pass.setBindGroup(0, o.bindGroup!)
   dispatchRows(pass, o.groups)

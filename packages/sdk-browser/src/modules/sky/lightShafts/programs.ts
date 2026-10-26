@@ -1,13 +1,14 @@
 import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import { fullscreenDescriptor, preparedPipeline } from '../../../lighting/deferred/fullscreen.ts'
-import { LIGHT_SHAFT_SAMPLER, describeLightShaftPass, type LightShaftPass } from './describe.ts'
+import { postSamplers } from '../../../gpu/core/postSamplers.ts'
+import { describeLightShaftPass, type LightShaftPass } from './describe.ts'
 import { lightShaftPassSizes } from './layout.ts'
 import { describeLightShaftTemporal } from './temporalDescribe.ts'
 import { lightShaftTemporalProgram } from './temporalWgsl.ts'
 import { lightShaftProgram } from './wgsl.ts'
 
 /** Every pass the chains draw, the temporal filter besides. */
-export const LIGHT_SHAFT_PASS_NAMES = ['occlusion', 'bloom', 'blur', 'finish', 'apply'] as const
+const LIGHT_SHAFT_PASS_NAMES = ['occlusion', 'bloom', 'blur', 'finish', 'apply'] as const
 
 /** What a pass is made from: its code, fragment entry, group entries and target. */
 interface PassDescription {
@@ -58,7 +59,7 @@ export const lightShaftPrograms = oncePerDevice((device: GPUDevice) => {
   return {
     passes,
     temporal,
-    sampler: device.createSampler(LIGHT_SHAFT_SAMPLER),
+    sampler: postSamplers(device).clamped,
     /** Whether the programs `names` are compiled, asked of the device where they are not. */
     ready: (names: readonly (LightShaftPass | 'temporal')[]) =>
       names.every((name) => (name === 'temporal' ? temporal : passes[name]).pipeline.ask().ready),

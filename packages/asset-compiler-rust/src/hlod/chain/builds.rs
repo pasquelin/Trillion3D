@@ -1,7 +1,9 @@
 //! The world's HLOD builds (`merge.rs` splices them), per cell of the layer below its actors, each
-//! a mesh wearing a material (`Wears`, `../flatten.rs`), built into its own DAG as any
-//! primitive's (`dag::build_dag`): the same clustering, grouping, simplification and monotone
-//! error, the actor's own.
+//! a mesh wearing a material (`Wears`, `../flatten.rs`), built through `dag::build_dag` as any
+//! primitive's is. A layer that asks for a cluster DAG (`clusterDag`) gets the same clustering,
+//! grouping, simplification and monotone error, the actor's own; by default the mesh is its level
+//! 0 alone — exact clusters, every one a root, no group, no simplification — and the runtime draws
+//! it whole at every distance, as a plain merged mesh is drawn (`build`).
 //!
 //! Every level is built from its cell's original objects — every object under the cell, at HLOD 1
 //! an HLOD 0 cell's, above it those of every HLOD 0 cell under it —, its shape and its texture
@@ -23,7 +25,8 @@
 //! admits. The jobs come back in cell order, the order the layers and their cells always ranked
 //! the actors in, whatever order they ran in.
 //! The actors' builds live in `actors`, the objects standing as themselves in `instanced`, the
-//! measures in `measures`, the world's jobs in `schedule`.
+//! distance field of a cell's actors in `fields`, the measures in `measures`, the world's jobs in
+//! `schedule`.
 use super::*;
 use crate::dag::{
     build_dag, DagAttributes, DagBuild, DagCluster, DagGroup, DagSettings, DagStrategy, InputRules,
@@ -36,6 +39,7 @@ use trillion3d_page_codec::bits::grid::Extent;
 use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_TANGENT, FLAG_UV};
 mod actors;
+mod fields;
 mod instanced;
 mod measures;
 mod schedule;
@@ -134,6 +138,12 @@ pub(crate) struct Actor {
     pub triangles: usize,
     /// A voxel actor's page per cluster of its build (`voxels.rs`); none for a mesh's.
     pub voxels: Vec<crate::voxel::VoxelPage>,
+    /// The distance field of its cell's actors, on the first of them, when its layer allows one
+    /// (`allowDistanceField`, `fields.rs`); `stage_world_roots` hands it on.
+    pub field: Option<crate::distance_field::Placed>,
+    /// The cards of its cell's actors, on the first of them, built with the field
+    /// (`fields.rs`); `stage_world_roots` hands them on.
+    pub cards: Option<crate::card_representation::PlacedCards>,
 }
 
 impl Actor {
@@ -147,16 +157,27 @@ impl Actor {
 }
 
 /// The steps an actor's making is timed by, as the job's measures name them: the shell's
-/// (`flatten::step`), then the merge of a merged layer's sources, the DAG build, the images' cook
-/// and a voxel layer's whole job.
+/// (`flatten::step`), then the merge of a merged layer's sources, the DAG build, the images' cook,
+/// a voxel layer's whole job and the distance field of a cell's actors.
 const STEPS: [&str; STEP_COUNT] = [
-    "field", "march", "close", "simplify", "unwrap", "bake", "merge", "dag", "cook", "voxel",
+    "field",
+    "march",
+    "close",
+    "simplify",
+    "unwrap",
+    "bake",
+    "merge",
+    "dag",
+    "cook",
+    "voxel",
+    "distanceField",
 ];
-const STEP_COUNT: usize = step::COUNT + 4;
+const STEP_COUNT: usize = step::COUNT + 5;
 const MERGE: usize = step::COUNT;
 const DAG: usize = step::COUNT + 1;
 const COOK: usize = step::COUNT + 2;
 const VOXEL: usize = step::COUNT + 3;
+const DISTANCE_FIELD: usize = step::COUNT + 4;
 
 /// The milliseconds of each step (`STEPS`).
 type StepMs = [u64; STEP_COUNT];
@@ -209,6 +230,8 @@ fn actor(
         });
     }
     let geometry = (flat.positions, carried, flat.indices);
+    let flat_mesh = (&geometry.0[..], &geometry.2[..], atlas.double_sided);
+    let (field, cards) = fields::mesh_fields((cell, hlod), flat_mesh, (builder, &mut *spent))?;
     let shaping = (builder, hlod.cluster_dag, &hlod.mesh_build.shaping);
     let built = timed(&mut spent.ms[DAG], || build(geometry, shaping))?;
     spent.tone_gap = Some(crate::hlod::flatten::tone_gap(atlas.tone));
@@ -223,6 +246,8 @@ fn actor(
         },
         triangles,
         voxels: Vec::new(),
+        field,
+        cards,
     })
 }
 

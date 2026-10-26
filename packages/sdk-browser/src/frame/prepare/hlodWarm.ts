@@ -79,17 +79,11 @@ function settingsOf(rt: WebgpuPagesRuntime) {
   return resolveHlodWarmup(rt.context, settings)
 }
 
-/**
- * The warm-up of `rt`'s world's actors under its session's settings (`settingsOf`): whether the
- * actor of HLOD cell `actor` of instance `instance`, asked by cell `cell`'s switch, still waits a
- * frame (`warmth`); and each image, the geometry and the textures of the actors warming in view
- * asked (`ask`).
- */
-function createWarmUp(rt: WebgpuPagesRuntime): WarmUp {
-  const hold = rt.context.worldRoots!,
-    dag = hold.dag!,
-    cells = dag.hlod.parent.length
-  /** Each cell's actor materials, by rank: the materials its clusters wear. */
+type Hold = NonNullable<WebgpuPagesRuntime['context']['worldRoots']>
+type Dag = NonNullable<Hold['dag']>
+
+/** Each cell's actor materials, by rank: the materials its clusters wear. */
+function materialsOfCells(dag: Dag) {
   const materials = new Map<number, Set<number>>()
   dag.pages.forEach((page, rank) => {
     const cell = dag.hlod.cells[rank]
@@ -97,9 +91,13 @@ function createWarmUp(rt: WebgpuPagesRuntime): WarmUp {
     if (!own) materials.set(cell, (own = new Set()))
     own.add((page as { material: number }).material)
   })
-  /** Each material's maps, read once its surface is worn. */
+  return materials
+}
+
+/** Each material's maps, read once its surface is worn. */
+function createMaps(hold: Hold) {
   const mapsOf = new Map<number, ActorMap[]>()
-  const maps = (material: number): readonly ActorMap[] => {
+  return (material: number): readonly ActorMap[] => {
     const known = mapsOf.get(material)
     if (known) return known
     const surface = hold.surfaces[material] as unknown as Record<string, Texture | undefined>
@@ -112,18 +110,27 @@ function createWarmUp(rt: WebgpuPagesRuntime): WarmUp {
     mapsOf.set(material, found)
     return found
   }
-  /** The actors warming, by cell slot: instance by instance, `cells` slots each. */
-  const actors = new Map<number, Warming>()
-  /** Cell `cell`'s content bounds as instance `instance`'s pose carries them, into `out`. */
-  const contentOf = (instance: number, cell: number, out: Float64Array) => {
-    const { content } = hold.table.chain,
-      rows = hold.pose,
-      at = BOX_VALUES * cell
-    if (rows && instance < rows.capacity)
-      boxTransform(out, 0, content, at, placementWorld(rows, instance).elements)
-    else out.set(content.subarray(at, at + BOX_VALUES))
-  }
-  const warmth: ActorWarmth = {
+}
+
+/** Cell `cell`'s content bounds as instance `instance`'s pose carries them, into `out`. */
+function contentOf(hold: Hold, instance: number, cell: number, out: Float64Array) {
+  const { content } = hold.table.chain,
+    rows = hold.pose,
+    at = BOX_VALUES * cell
+  if (rows && instance < rows.capacity)
+    boxTransform(out, 0, content, at, placementWorld(rows, instance).elements)
+  else out.set(content.subarray(at, at + BOX_VALUES))
+}
+
+/** What its cut's world cells ask: the actors warming, by cell slot (instance by instance, `cells`
+ *  slots each), and the switch's answer for each. */
+function createWarmth(
+  rt: WebgpuPagesRuntime,
+  hold: Hold,
+  cells: number,
+  actors: Map<number, Warming>,
+): ActorWarmth {
+  return {
     warming(instance, actor, cell) {
       const slot = instance * cells + actor,
         frame = rt.views.mainImages
@@ -131,7 +138,7 @@ function createWarmUp(rt: WebgpuPagesRuntime): WarmUp {
       if (!state || state.askedAt + 1 < frame) {
         state ??= { left: 0, askedAt: frame, bounds: new Float64Array(BOX_VALUES) }
         state.left = settingsOf(rt).frames
-        contentOf(instance, cell, state.bounds)
+        contentOf(hold, instance, cell, state.bounds)
         actors.set(slot, state)
       } else if (state.askedAt < frame && state.left > 0) state.left--
       state.askedAt = frame
@@ -141,10 +148,13 @@ function createWarmUp(rt: WebgpuPagesRuntime): WarmUp {
       actors.delete(instance * cells + actor)
     },
   }
-  /** Each cell's actor's ranks its warm-up asks: those of its first `PREFETCH_BUNDLES` bundles past
-   *  its root page — the coarsest: the bundles lie coarsest first —, made at the first ask. */
+}
+
+/** Each cell's actor's ranks its warm-up asks: those of its first `PREFETCH_BUNDLES` bundles past
+ *  its root page — the coarsest: the bundles lie coarsest first —, made at the first ask. */
+function createPrefetchOf(dag: Dag, cells: number) {
   let prefetchRanks: number[][] | undefined
-  const prefetchOf = (cell: number) => {
+  return (cell: number) => {
     if (prefetchRanks) return prefetchRanks[cell]
     const { bundleOf, pages } = dag,
       cellOf = dag.hlod.cells
@@ -168,9 +178,16 @@ function createWarmUp(rt: WebgpuPagesRuntime): WarmUp {
     }
     return (prefetchRanks = lists)[cell]
   }
-  /** The actor of cell slot `slot`, in view, asks its geometry (`HlodWarmup.geometry`): as its
-   *  count starts, for as many updates as the count; standing at zero, for one. */
-  const prefetch = (slot: number, left: number) => {
+}
+
+/** The actor of cell slot `slot`, in view, asks its geometry (`HlodWarmup.geometry`): as its
+ *  count starts, for as many updates as the count; standing at zero, for one. */
+function createPrefetch(
+  rt: WebgpuPagesRuntime,
+  cells: number,
+  prefetchOf: (cell: number) => number[],
+) {
+  return (slot: number, left: number) => {
     const { geometry, frames } = settingsOf(rt),
       world = rt.run.gpuSelection?.world
     const updates = left === frames ? frames : left === 0 ? 1 : 0
@@ -184,11 +201,13 @@ function createWarmUp(rt: WebgpuPagesRuntime): WarmUp {
       updates,
     )
   }
-  const planes = new Float64Array(FRUSTUM_PLANE_VALUES),
-    sizes = new Map<number, number>()
-  /** The drawn view as `pixelsOf` reads it, taken once an image (`seeView`): its eye in the render
-   *  frame, its frustum (`planes`), and half the projection's scale per axis (`multiple`) and the
-   *  view's pixels per unit of it (`scale`). */
+}
+
+/** The drawn view as `pixelsOf` reads it, taken once an image (`seeView`): its eye in the render
+ *  frame, its frustum, and half the projection's scale per axis (`multiple`) and the view's pixels
+ *  per unit of it (`scale`). */
+function createViewPixels(rt: WebgpuPagesRuntime) {
+  const planes = new Float64Array(FRUSTUM_PLANE_VALUES)
   let eye: readonly number[] = [0, 0, 0],
     multiple = 0,
     scale = 0
@@ -216,6 +235,26 @@ function createWarmUp(rt: WebgpuPagesRuntime): WarmUp {
       distance = length3(x0 + x1, y0 + y1, z0 + z1) / 2
     return ((2 * multiple * radius) / Math.max(NEAREST, distance)) * scale * 2
   }
+  return { seeView, pixelsOf }
+}
+
+/**
+ * The warm-up of `rt`'s world's actors under its session's settings (`settingsOf`): whether the
+ * actor of HLOD cell `actor` of instance `instance`, asked by cell `cell`'s switch, still waits a
+ * frame (`warmth`); and each image, the geometry and the textures of the actors warming in view
+ * asked (`ask`).
+ */
+function createWarmUp(rt: WebgpuPagesRuntime): WarmUp {
+  const hold = rt.context.worldRoots!,
+    dag = hold.dag!,
+    cells = dag.hlod.parent.length
+  const materials = materialsOfCells(dag),
+    maps = createMaps(hold),
+    actors = new Map<number, Warming>(),
+    warmth = createWarmth(rt, hold, cells, actors),
+    prefetch = createPrefetch(rt, cells, createPrefetchOf(dag, cells)),
+    { seeView, pixelsOf } = createViewPixels(rt),
+    sizes = new Map<number, number>()
   /** Each image: every actor warming in view asks its geometry, and every map of each material
    *  those in view wear is asked at the most pixels any of them asks of it. */
   const ask = () => {

@@ -38,39 +38,37 @@ const VIEW_FIELDS = [
   ['nodeCount', 'u32'],
   ['worldCount', 'u32'],
   // What the occlusion runs (`OCCLUSION_TWO_PASS`), and the culls the host turned off
-  // (`CULL_FRUSTUM_OFF`, `CULL_MIN_LOD_OFF`, `CULL_DRAW_DISTANCE_OFF`, `shader/viewsWgsl.ts`).
+  // (`CULL_FRUSTUM_OFF`, `CULL_MIN_LOD_OFF`, `CULL_DRAW_DISTANCE_OFF`, `shader/viewsWgsl.ts`), and
+  // that no placement names a draw distance (`CULL_NO_DRAW_DISTANCES`).
   ['occlusion', 'u32'],
   ['cullOff', 'u32'],
-  // The live list and the drawn log hold \`visCap\` entries each, and one pass opens \`nodeBudget\`
-  // nodes at most (`shader/listsWgsl.ts`, `../flagSections.ts`): in the words `cameraWorld`'s
-  // alignment leaves.
+  // The list of visible clusters holds `visCap` records (`visible/layout.ts`), and one pass opens
+  // `nodeBudget` nodes at most (`shader/listsWgsl.ts`, `../flagSections.ts`): in the words
+  // `cameraWorld`'s alignment leaves.
   ['visCap', 'u32'],
   ['nodeBudget', 'u32'],
+  // The placement tree's members drawn whatever the view (`placement/placementTree.ts`, `drawnAlways`): how
+  // many its list holds (`tree/treeTable.ts`); in the word `cameraWorld`'s alignment leaves.
+  ['alwaysCount', 'u32'],
   ['cameraWorld', 'vec3f'],
   ['listCap', 'u32'],
   ['perspective', 'f32'],
   ['queueCap', 'u32'],
-  ['swapRegions', 'u32'],
   ['treeTop', 'u32'],
   ['cellBase', 'u32'],
   ['worldLinks', 'u32'],
-  // The open counts placements hold of their own (\`heldOpen.ts\`): the first word of their table in
-  // \`out.pages\`, and its slots less one.
+  // The open counts placements hold of their own (`heldOpen.ts`): the first word of their table in
+  // `out.pages`, and its slots less one.
   ['heldBase', 'u32'],
   ['heldMask', 'u32'],
-  // The candidates hold \`candCap\` entries (\`shader/listsWgsl.ts\`, \`../flagSections.ts\`); then
-  // the host's frame, the clock the rows' closure stamps a row's use with
-  // (`../rows/rowClosureWgsl.ts`).
+  // The candidates hold `candCap` entries (`shader/listsWgsl.ts`, `../flagSections.ts`).
   ['candCap', 'u32'],
-  ['frame', 'u32'],
-  // The placement tree's members drawn whatever the view (`placement/placementTree.ts`, `drawnAlways`): how
-  // many its list holds (`tree/treeTable.ts`).
-  ['alwaysCount', 'u32'],
-  // The scale every draw distance is multiplied by (`shader/drawDistanceWgsl.ts`), in the word
-  // `eye`'s alignment leaves.
+  // The scale every draw distance of an instance is multiplied by, and the one an object of its own's
+  // is, the field of view's scale included (`shader/drawDistanceWgsl.ts`).
   ['viewDistanceScale', 'f32'],
-  // The eye the cut reads its translations at, \`cameraWorld\` in doubles, high word then low word
-  // (\`shader/worldPoseWgsl.ts\`): x and y in the first, z in the second.
+  ['primitiveDistanceScale', 'f32'],
+  // The eye the cut reads its translations at, `cameraWorld` in doubles, high word then low word
+  // (`shader/worldPoseWgsl.ts`): x and y in the first, z in the second.
   ['eye', 'array<vec4u,2>'],
   // The view's clip plane in the render frame, `dot(xyz, p) + w` at least 0 drawn, all zero for none
   // (`shader/clipPlaneWgsl.ts`), and the word of `work` its filter's bits start at — a bit a
@@ -78,6 +76,16 @@ const VIEW_FIELDS = [
   // (`shader/viewFilterWgsl.ts`).
   ['clipPlane', 'vec4f'],
   ['filterBase', 'u32'],
+  // What the cluster cull judges the rasters by (`shader/visibleWgsl.ts`): the software raster on
+  // (1) or off (0), the view's pixels per unit at depth one over the threshold of
+  // `hardwareRasterEdgePixels`, whether the frame tessellates the surfaces that name a
+  // displacement, and the span the depth buckets are spread over (`depthBuckets` 0 for none).
+  ['hardwareEdge', 'f32'],
+  ['softwareRaster', 'u32'],
+  ['tessellation', 'u32'],
+  ['depthBuckets', 'u32'],
+  ['bucketMinZ', 'f32'],
+  ['bucketMaxZ', 'f32'],
 ] as const
 
 const LAYOUT = fieldLayout('Uniforms', VIEW_FIELDS)
@@ -86,7 +94,7 @@ const LAYOUT = fieldLayout('Uniforms', VIEW_FIELDS)
 export const VIEW_BLOCK_WORDS = LAYOUT.words
 
 /** The word a field starts at. `viewWord('occlusion')` is where the host writes what the kernels
- *  read as `views[0u].occlusion`; nothing else may hold that number. */
+ *  read as `cutView.occlusion`; nothing else may hold that number. */
 export const viewWord = (field: FieldName): number => {
   const at: number | undefined = LAYOUT.at[field]
   if (at === undefined) throw new Error(`${field} is not a field of the cut's uniform block`)

@@ -47,7 +47,8 @@ function rest(device: GPUDevice, hold: Held) {
 /**
  * THE explicit capture, never a frame's: `bytes` taken from the device's capture ring, `encode`
  * copying into it, submitted, mapped, `read` from its mapped range (`bytes` long at least), given
- * back. `signal` is checked once mapped. The proof tools and an explicit capture read through it.
+ * back. `signal` is checked once mapped. The proof tools, an explicit capture and the hardware
+ * benchmark the page asks (`../benchmark/gpuBenchmark.ts`) read through it.
  */
 export async function captureRead<T>(
   device: GPUDevice,

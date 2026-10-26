@@ -5,6 +5,7 @@ import {
   type AssetScope,
 } from './base.ts'
 import { primitiveUsesClusterErrors, type ClusterManifest } from './geometry.ts'
+import { isRecord } from './nameMatch.ts'
 import { TEXTURE_PREVIEW_VERSION } from './writtenFormats.ts'
 
 /**
@@ -40,6 +41,14 @@ export function assertFormat(formatVersion: number) {
     )
 }
 
+/** The refusal of a cache whose clusters were certified with another error model than this one's. */
+const staleErrorModel = (errorModel: unknown) =>
+  new EngineError(
+    'STALE_CACHE',
+    `Cache error model ${errorModel ?? 'absent'} cannot be used; recompile with ${DAG_ERROR_MODEL}`,
+    { errorModel: errorModel ?? null, expected: DAG_ERROR_MODEL },
+  )
+
 /**
  * What a host can check on a preparation pointer, before it knows anything about clusters: the
  * preparation is finished, it carries the scope that was asked for, and its format is one this SDK
@@ -47,7 +56,7 @@ export function assertFormat(formatVersion: number) {
  * A host has no business reading these fields itself; this is the check the reader runs.
  */
 export function assertCachePointer(pointer: unknown, scope: AssetScope): string {
-  if (!pointer || typeof pointer !== 'object' || Array.isArray(pointer))
+  if (!isRecord(pointer))
     throw new EngineError('INVALID_POINTER', 'preparation pointer is not a JSON object', {})
   const value = pointer as Record<string, unknown>
   if (typeof value.status !== 'string' || typeof value.url !== 'string' || !value.url)
@@ -70,7 +79,7 @@ export function assertCachePointer(pointer: unknown, scope: AssetScope): string 
 /** What a host checks on the root `clusters.json` before any page: the cache is ready, of the
  *  requested scope, in a format this SDK reads. */
 export function assertCacheRoot(root: unknown, scope: AssetScope): void {
-  if (!root || typeof root !== 'object' || Array.isArray(root))
+  if (!isRecord(root))
     throw new EngineError('INVALID_CACHE', 'cache manifest is not a JSON object', {})
   const value = root as Record<string, unknown>
   // The number first: an earlier format is refused by it, never by a field it wrote otherwise.
@@ -100,11 +109,7 @@ export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
   // The one identity statement a slim manifest can make on its own: a DAG cache names the model its
   // clusters were certified with. Older caches name neither and stay readable.
   if (value.clusterStrategy === 'dag-groups' && value.errorModel !== DAG_ERROR_MODEL)
-    throw new EngineError(
-      'STALE_CACHE',
-      `Cache error model ${value.errorModel ?? 'absent'} cannot be used; recompile with ${DAG_ERROR_MODEL}`,
-      { errorModel: value.errorModel ?? null, expected: DAG_ERROR_MODEL },
-    )
+    throw staleErrorModel(value.errorModel)
   return value.selectedTriangles
 }
 /**
@@ -151,12 +156,7 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
       },
     )
   }
-  if (metadata.errorModel !== DAG_ERROR_MODEL)
-    throw new EngineError(
-      'STALE_CACHE',
-      `Cache error model ${metadata.errorModel ?? 'absent'} cannot be used; recompile with ${DAG_ERROR_MODEL}`,
-      { errorModel: metadata.errorModel ?? null, expected: DAG_ERROR_MODEL },
-    )
+  if (metadata.errorModel !== DAG_ERROR_MODEL) throw staleErrorModel(metadata.errorModel)
   // Texture levels of another version — before 6, block files not laid out in tile records —
   // would be cut at the wrong bytes: the cache is refused whole, never drawn coarse.
   const { textures } = metadata

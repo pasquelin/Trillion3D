@@ -12,6 +12,31 @@ pub(super) fn times(a: Vec3, b: Vec3) -> Vec3 {
 }
 
 impl PathContext<'_> {
+    /// The light the draw `e` picks for a surface at `point`, with the share it was picked by; the
+    /// lights' shares are kept in `scratch`. None when no light gives the point anything.
+    pub(super) fn pick_light(
+        &self,
+        point: Vec3,
+        e: f64,
+        scratch: &mut Scratch,
+    ) -> Option<(usize, f64)> {
+        scratch.cumulative.clear();
+        let mut total = 0.0;
+        for light in self.lights {
+            total += light.estimate(point);
+            scratch.cumulative.push(total);
+        }
+        scratch.total = total;
+        if total <= 0.0 {
+            return None;
+        }
+        let chosen = scratch
+            .cumulative
+            .partition_point(|&c| c <= e * total)
+            .min(self.lights.len() - 1);
+        Some((chosen, scratch.pick_probability(chosen)))
+    }
+
     /// The light picked for the surface `on` by the draw `draw`, sampled and shadowed, with the
     /// weight of its strategy, added to `radiance`; the lights' shares are kept in `scratch`.
     pub(super) fn next_event(
@@ -22,26 +47,9 @@ impl PathContext<'_> {
         scratch: &mut Scratch,
         radiance: &mut Vec3,
     ) {
-        scratch.cumulative.clear();
-        let mut total = 0.0;
-        for light in self.lights {
-            total += light.estimate(on.point);
-            scratch.cumulative.push(total);
-        }
-        scratch.total = total;
-        if total <= 0.0 {
+        let Some((chosen, pick)) = self.pick_light(on.point, draw[0], scratch) else {
             return;
-        }
-        let cumulative = &scratch.cumulative;
-        let chosen = cumulative
-            .partition_point(|&c| c <= draw[0] * total)
-            .min(self.lights.len() - 1);
-        let before = if chosen > 0 {
-            cumulative[chosen - 1]
-        } else {
-            0.0
         };
-        let pick = (cumulative[chosen] - before) / total;
         let light = &self.lights[chosen];
         let sample = light.sample(on.point, [draw[1], draw[2]], self.reach);
         let cosine = dot(on.normal, sample.direction);
@@ -81,12 +89,7 @@ impl PathContext<'_> {
             };
             let mut given = times(carried, met.radiance);
             if weighs {
-                let before = if index > 0 {
-                    scratch.cumulative[index - 1]
-                } else {
-                    0.0
-                };
-                let pick = (scratch.cumulative[index] - before) / scratch.total;
+                let pick = scratch.pick_probability(index);
                 given = scale(given, power_heuristic(material_pdf, met.pdf * pick));
             }
             if !given.iter().any(|&c| positive(c)) {

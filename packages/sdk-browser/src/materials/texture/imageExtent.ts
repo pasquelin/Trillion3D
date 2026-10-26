@@ -12,11 +12,19 @@ export function pictureSize(image: unknown): [number, number] {
     videoHeight?: number
     displayWidth?: number
     displayHeight?: number
+    naturalWidth?: number
+    naturalHeight?: number
     width?: number
     height?: number
   } | null
-  const width = picture?.videoWidth ?? picture?.displayWidth ?? picture?.width ?? 1,
-    height = picture?.videoHeight ?? picture?.displayHeight ?? picture?.height ?? 1
+  const width =
+      picture?.videoWidth ?? picture?.displayWidth ?? picture?.naturalWidth ?? picture?.width ?? 1,
+    height =
+      picture?.videoHeight ??
+      picture?.displayHeight ??
+      picture?.naturalHeight ??
+      picture?.height ??
+      1
   return [Math.max(1, width), Math.max(1, height)]
 }
 

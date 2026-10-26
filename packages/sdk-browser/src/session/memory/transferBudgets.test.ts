@@ -21,7 +21,7 @@ test('the tile pass budgets are what the host declared, 16 MiB and 1 ms by defau
 // A texture taken after open grows its lane only when its tail finds no free place — never
 // by evicting a held tile —, under the budget and the device's layers, else refused by name.
 test('a lane takes a texture after open in a free place, else one layer more, else refused by name', () => {
-  const lanes = { lossless: 1, rgba: 0, 'two-channel': 0 }
+  const lanes = { lossless: 1, rgba: 0, 'two-channel': 0, hdr: 0 }
   const pool = {
     budgetBytes: 100,
     layers: { color: lanes, data: lanes },

@@ -1,5 +1,6 @@
+import { blueNoiseMade } from '../../gpu/noise/blueNoiseTextures.ts'
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
-import type { HostCamera } from '../../camera/world.ts'
+import type { ViewCamera } from '../../camera/world.ts'
 import { renderGpuCut } from './gpuCut.ts'
 import { uploadWorlds } from './worldUpload.ts'
 import { holdWebgpuFrame } from '../loop/hold.ts'
@@ -8,23 +9,28 @@ import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant
 import { deviceAnswering } from '../loop/deviceAnswer.ts'
 import { refreshBlendWorlds } from '../../blend/worlds.ts'
 import { refreshBlendScene } from '../../blend/sceneRefresh.ts'
+import { followBlendScene } from '../../blend/resources.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { followLiveTextures } from '../io/memory.ts'
 import { followFeedback } from '../prepare/feedbackVariant.ts'
+import { followModelSwitches } from '../prepare/lobesTarget.ts'
 import { beginTaaFrame } from '../../post/taa/frame.ts'
 import { frameStart } from '../scheduling.ts'
 import { askFramePipelines } from '../loop/framePipelines.ts'
 import { adoptGrownCut } from '../../placement/webgpuGrownCut.ts'
 import { startGrownCut } from '../../placement/growth/grownCutStart.ts'
+import { takeGraphClocks } from '../../materials/graph/clocks.ts'
+import { followShadowSettings } from '../../lighting/shadows/vsm/frame/vsmFarShadow.ts'
+import { followOffsets } from './offsetReach.ts'
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut, the engine's one cut (#1483), whichever view is drawn. */
-export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, aspect?: number) {
+export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: ViewCamera, aspect?: number) {
   const { run } = rt
   const gpuDevice = enterImage(rt, camera, aspect)
-  // The poses the last frame drew are kept as the main view's image opens the frame, held or drawn,
-  // before it sends one: every view's main pass of the frame tests against them
-  // (`../../geometry/dag/previousPoses.ts`).
+  // The poses the last drawn frame drew are kept as the main view's image opens the frame, held or
+  // drawn, before it sends one: every view's main pass of the frame tests against them, and every
+  // velocity measures from them (`../../geometry/dag/previousPoses.ts`).
   if (rt.views.active === rt.views.main) run.gpuSelection?.keepPoses()
   // Targets that no longer fit the view are asked; the frame is held until granted.
   void requestFrameTargets(rt, gpuDevice)
@@ -42,15 +48,17 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     beginTaaFrame(rt, run.gate.cam)
     run.frameHeld = false
   } else if (holdWebgpuFrame(rt, gpuDevice)) return
+  // Drawn: the next frame keeps the poses this one draws at.
+  run.gpuSelection?.posesDrawn()
   drawFrameInputs(rt, gpuDevice, pixelError, cam)
   const cpuStart = cpuNow()
-  resetFrameCounters(run)
+  resetFrameCounters(rt)
   renderGpuCut(rt, cam, pixelError, cpuStart)
 }
 
 /** The image's entry: the session checked, the grown placements joined, the scale paced and the
  *  gate entered. Returns the device the image draws on. */
-function enterImage(rt: WebgpuPagesRuntime, camera: HostCamera, aspect: number | undefined) {
+function enterImage(rt: WebgpuPagesRuntime, camera: ViewCamera, aspect: number | undefined) {
   const { run, gpu, capture, context } = rt,
     { source } = rt.setup,
     gpuDevice = gpu.device
@@ -85,17 +93,21 @@ function followSceneInputs(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   // The atlases' records brought up to their host textures once for the image (#360, #361): a
   // sampling or a placement moved rewrites the texture's header, a resource change that releases a
   // held image. A filter rule switched on or off moves the resolve class of the pages that wear
-  // the texture (`FLAG_SAMPLED`): their rows and the transparent records are written again. So
-  // does a surface rewritten since in what its rows read beside its record — a flag, its class —
+  // the texture (`FLAG_SAMPLED`): their clusters' records and the transparent records are written again. So
+  // does a surface rewritten since in what its clusters read beside its record — a flag, its class —
   // (`follow`, `../../materials/table/materialTable.ts`): a colour, a factor, a map's slot writes its one
-  // record and no row.
+  // record and no cluster's.
   const sampling = !!vis.textures?.followSampling()
   if (vis.materialTable.follow(vis) || sampling) {
-    rt.layout.rows.tableEpoch++
+    rt.layout.clusters.infoEpoch++
     vis.shadeCensus?.moved()
-    refreshBlendScene(rt, gpuDevice)
+    followBlendScene(rt, gpuDevice)
   }
   followLiveTextures(rt)
+  // The shadow settings are the view's quality: a change moves the view's revision before the hold.
+  followShadowSettings(rt)
+  // The surfaces' format turned since the last image: the scene moved in place.
+  followModelSwitches(rt)
   // Textures that came or went switch the pipelines' feedback output, the target following.
   followFeedback(rt, gpuDevice)
   // What entered the scene since has its pipelines asked, compiled off the thread: the frame is
@@ -123,6 +135,8 @@ function drawFrameInputs(
   const worldsMoved = uploadWorlds(rt)
   // The GPU deformation of this image, on the poses just uploaded (#357).
   rt.vis.deformationCode?.updateWebgpuDeformation(rt, cam)
+  // The reach the surfaces' offsets add to their roots' bounds, and the shadows they stale.
+  followOffsets(rt)
   marks.blendStart = cpuNow()
   // A transparent item READS the world matrix of its source mesh: nothing is to be copied. Only
   // its world box, which is a computation, is remade — and only when the scene has changed matrices.
@@ -137,14 +151,25 @@ function drawFrameInputs(
   }
 }
 
-/** The image's counters, zeroed before its cut. */
-function resetFrameCounters(run: WebgpuPagesRuntime['run']) {
+/** The image's counters, zeroed before its cut, and the clocks its graphs read, taken once and given
+ *  to the masks that read them. */
+function resetFrameCounters({ run, context, vis, gpu }: WebgpuPagesRuntime) {
   run.overBudget = false
   run.submittedTriangles = 0
   run.blendPagedTriangles = 0
   run.blendSubmittedTriangles = 0
   run.blendDrawCalls = 0
   run.frame++
+  takeGraphClocks(run.graphClocks, context.worldClock)
+  // The masks that read a clock, and the offsets that move vertices, read the clocks and the camera
+  // from the graph frame every raster binds (`graphFrameWgsl.ts`).
+  const device = gpu.device
+  vis.graphFrame.write(
+    device,
+    run.graphClocks,
+    run.gate.cam.eye,
+    !!device && !!blueNoiseMade(device),
+  )
   run.feedbackWritten = false
   run.hizPyramidFresh = false
   run.depthDrawn = false

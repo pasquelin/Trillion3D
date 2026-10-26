@@ -122,7 +122,7 @@ uint32_t writePoses() {
     // Awake is not frozen, even when a contact woke a frozen body.
     if (!asleep) slot.frozen = false;
     Placement at = place(w, slot, body);
-    bool decorative = body.GetObjectLayer() == DECORATIVE;
+    bool decorative = (slot.flags & DECORATIVE) != 0;
     bool frozen = false;
     if (!asleep && (at.far || (decorative && !at.seen))) {
       slot.frozen = frozen = true;
@@ -158,7 +158,7 @@ uint32_t writePoses() {
     }
     const Body &body = lock.GetBody();
     Placement at = place(w, slot, body);
-    bool decorative = body.GetObjectLayer() == DECORATIVE;
+    bool decorative = (slot.flags & DECORATIVE) != 0;
     if (slot.frozen) noteFar(w, slot, at);
     if (slot.frozen && !at.far && (!decorative || at.seen)) {
       slot.frozen = false;

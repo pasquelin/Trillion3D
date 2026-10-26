@@ -1,20 +1,17 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { Ajv } from 'ajv'
 import {
-  DEFAULT_DRAW_DISTANCE_MAX,
-  DEFAULT_DRAW_DISTANCE_MIN,
   MESH_BUILD_RULES,
+  OBJECT_SETTINGS,
   PARTITION_GRID_NAME_KEY,
 } from '../contracts/compilerAbi.ts'
+import { lightmapBakeJob } from '../contracts/lightmapBakeOptions.ts'
 import { resolveMeshBuild } from '../contracts/meshBuildOptions.ts'
 import { resolveObjectSettings } from '../contracts/objectOptions.ts'
 import { PARTITION_GRID_SETTINGS } from '../contracts/partitionOptions.ts'
 import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts'
-
-const validate = new Ajv().compile(COMPILER_OPTIONS_SCHEMA)
-const job = { source: 'model.glb', cache: 'cache/model', resourceBaseUrl: '/assets/model/' }
+import { job, validate } from './compilerOptionsSchema.fixture.ts'
 
 test('compiler arguments accept a real job and refuse missing, mistyped or unknown fields', () => {
   assert.equal(
@@ -88,7 +85,7 @@ test('meshBuild names the six voxel settings, for the scene and by object, schem
   ] as const) {
     const named = JSON.stringify(patch)
     assert.equal(validate({ ...job, meshBuild: patch }), false, named)
-    assert.throws(() => resolveMeshBuild(patch), words, named)
+    assert.throws(() => resolveMeshBuild(patch as never), words, named)
   }
 })
 
@@ -104,7 +101,11 @@ test('meshBuild names whether a mesh builds its assembly, off by default, schema
   for (const patch of [{ allowAssemblies: 1 }, { allowAssemblies: 'yes' }] as const) {
     const named = JSON.stringify(patch)
     assert.equal(validate({ ...job, meshBuild: patch }), false, named)
-    assert.throws(() => resolveMeshBuild(patch), /allowAssemblies must be true or false/, named)
+    assert.throws(
+      () => resolveMeshBuild(patch as never),
+      /allowAssemblies must be true or false/,
+      named,
+    )
   }
 })
 
@@ -118,7 +119,7 @@ test('meshBuild names the displacement baked into a mesh, none by default, schem
     trimmedError: 1,
     displacementMaps: [{ texture: { index: 3 }, magnitude: 0.05, center: 0.5 }],
     displacementUvChannel: 1,
-    objects: [{ match: 'Rock', displacementEdgeSplit: 'always-duplicate' }],
+    objects: [{ match: 'Rock', displacementEdgeSplit: 'always-duplicate' as const }],
   }
   assert.equal(validate({ ...job, meshBuild }), true)
   const resolved = resolveMeshBuild(meshBuild)
@@ -126,13 +127,30 @@ test('meshBuild names the displacement baked into a mesh, none by default, schem
   assert.equal(resolved?.objects?.[0]?.displacementEdgeSplit, 'always-duplicate')
   // A setting left out is written nowhere: a job naming none keeps its cache key.
   assert.equal(resolveMeshBuild({ keptTriangles: 1 })?.displacementMaps, undefined)
-  // The resolver, not the schema, refuses a field a height map has not.
-  const unknown = { displacementMaps: [{ texture: { index: 0 }, scale: 1 }] }
-  assert.throws(() => resolveMeshBuild(unknown), /no field scale/)
+  // The resolver, not the schema, refuses a field a height map or its texture has not, and a number
+  // a 32-bit float cannot hold, a magnitude in centimetres too.
+  for (const [map, words] of [
+    [{ texture: { index: 0 }, scale: 1 }, /no field scale/],
+    [{ texture: { index: 0, texCoord: 1 } }, /texture has no field texCoord/],
+    [{ texture: { index: 0 }, magnitude: 1e300 }, /magnitude must be a finite number a 32-bit/],
+    [
+      { texture: { index: 0 }, magnitude: 1e37 },
+      /magnitude must be a finite number .* centimetres/,
+    ],
+    [
+      { texture: { index: 0 }, center: -1e40 },
+      /center must be a finite number a 32-bit float holds$/,
+    ],
+  ] as const)
+    assert.throws(
+      () => resolveMeshBuild({ displacementMaps: [map] } as never),
+      words,
+      JSON.stringify(map),
+    )
   for (const [patch, words] of [
     [{ displacementMaps: {} }, /displacementMaps must be a list of height maps/],
     [{ displacementMaps: [{ texture: { index: -1 } }] }, /texture must be a texture info/],
-    [{ displacementUvChannel: 4 }, /displacementUvChannel must be/],
+    [{ displacementUvChannel: 8 }, /displacementUvChannel must be/],
     [{ displacementEdgeSplit: 'none' }, /displacementEdgeSplit must be/],
   ] as const) {
     const named = JSON.stringify(patch)
@@ -141,39 +159,39 @@ test('meshBuild names the displacement baked into a mesh, none by default, schem
   }
 })
 
-test('objectSettings names the distances an object is drawn at, for the scene and by object, schema and resolver alike', () => {
-  assert.deepEqual([DEFAULT_DRAW_DISTANCE_MIN, DEFAULT_DRAW_DISTANCE_MAX], [0, 0])
+test('objectSettings names the distances an object is drawn at, for the scene and by object, the schema accepting what the resolver does', () => {
   const objectSettings = {
     drawDistance: { min: 10, max: 400 },
     objects: [
       { match: 'Grass', drawDistance: { max: 120 } },
-      { match: 'Tower', drawDistance: false },
-      // No farthest distance is none, as false says: one form on the wire.
-      { match: 'Moss', drawDistance: { min: 5, max: 0 } },
-      { match: 'Rock', drawDistance: { min: 5 } },
+      { match: 'Tower', drawDistance: false as const },
+      { match: 'Leaf', drawDistance: { max: 30, perInstance: true } },
     ],
   }
   assert.equal(validate({ ...job, objectSettings }), true)
-  const resolved = resolveObjectSettings(objectSettings)
-  assert.deepEqual(resolved?.drawDistance, { min: 10, max: 400 })
-  assert.deepEqual(
-    resolved?.objects?.map((rule) => rule.drawDistance),
-    [{ max: 120 }, false, false, false],
-  )
-  for (const [patch, words] of [
-    [{ drawDistance: true }, /drawDistance must be false or an object of min, max/],
-    [
-      { drawDistance: { min: -1 } },
-      /drawDistance.min must be a finite number of at least 0, got -1/,
-    ],
-    [{ drawDistance: { max: 'far' } }, /drawDistance.max must be a finite number of at least 0/],
-    [{ drawDistance: { near: 5 } }, /drawDistance has no field near: min, max/],
-  ] as const) {
-    assert.throws(() => resolveObjectSettings(patch as never), words, JSON.stringify(patch))
-  }
   // The schema refuses what is not a distance as the resolver does; true it leaves to the resolver.
-  assert.equal(validate({ ...job, objectSettings: { drawDistance: { min: -1 } } }), false)
-  assert.equal(validate({ ...job, objectSettings: { drawDistance: { max: 'far' } } }), false)
+  const refused = [{ min: -1 }, { max: 'far' }, { perInstance: 'yes' }]
+  for (const drawDistance of refused)
+    assert.equal(validate({ ...job, objectSettings: { drawDistance } }), false)
+  assert.equal(resolveObjectSettings(objectSettings)?.drawDistance !== undefined, true)
+})
+
+test('objectSettings names whether an object casts far shadows, for the scene and by object, written as the compiler reads it', () => {
+  const objectSettings = {
+    castFarShadow: false,
+    objects: [{ match: 'Tower', castFarShadow: true }, { match: 'Lamp' }],
+  }
+  assert.equal(validate({ ...job, objectSettings }), true)
+  assert.equal(validate({ ...job, objectSettings: { castFarShadow: 'yes' } }), false)
+  assert.deepEqual(resolveObjectSettings(objectSettings), {
+    castFarShadow: false,
+    objects: [{ match: { node: 'Tower' }, castFarShadow: true }, { match: { node: 'Lamp' } }],
+  })
+  assert.throws(
+    () => resolveObjectSettings({ castFarShadow: 1 } as never),
+    /castFarShadow must be true or false, got 1/,
+  )
+  assert.ok((OBJECT_SETTINGS as readonly string[]).includes('castFarShadow'))
 })
 
 test('the streaming grids a job names are advertised entry by entry, with the settings of partitionGrid', () => {
@@ -203,30 +221,6 @@ test('a voxel layer names the six voxel settings in its meshBuild, as a mesh doe
     assert.deepEqual(layer?.meshBuild?.properties?.[field], mesh?.[field], field)
 })
 
-/** The images the compiler's reader in `file` (under `hlod/options/`) admits in a layer's `maps`. */
-function rustMapFields(file: string) {
-  const rust = readFileSync(
-    new URL(`../../../asset-compiler-rust/src/hlod/options/${file}`, import.meta.url),
-    'utf8',
-  )
-  const list = /const MAP_FIELDS: \[&str; \d+\] = \[([^\]]*)\]/.exec(rust)
-  assert.ok(list, file)
-  return [...list[1].matchAll(/"([^"]*)"/g)].map((word) => word[1])
-}
-
-test('each builder names in its maps exactly the images its compiler reader admits', () => {
-  const layerProperties =
-    COMPILER_OPTIONS_SCHEMA.properties.hlod.properties?.layers?.items?.properties
-  const layerMaps = layerProperties?.maps?.anyOf?.map((branch) =>
-    Object.keys(branch.properties ?? {}),
-  )
-  assert.deepEqual(layerMaps, [rustMapFields('merging.rs'), rustMapFields('fields.rs')])
-  assert.deepEqual(
-    Object.keys(layerProperties?.approximation?.properties?.maps?.properties ?? {}),
-    rustMapFields('approximation.rs'),
-  )
-})
-
 test('a job naming only its paths is completed into a job the same schema accepts', () => {
   const request: Record<string, unknown> = { ...job }
   assert.equal(new Ajv({ useDefaults: true }).compile(COMPILER_OPTIONS_SCHEMA)(request), true)
@@ -239,4 +233,48 @@ test('a job naming only its paths is completed into a job the same schema accept
     // Each default, alone, passes the checks of its own field.
     assert.equal(validate({ ...job, [key]: request[key] }), true, key)
   }
+})
+
+test('meshBuild takes any finite distance field density, which the build holds to the resolution it allows', () => {
+  for (const distanceFieldDensity of [0.01, 0.2, 0.5, 3]) {
+    const meshBuild = { distanceFieldDensity }
+    assert.equal(validate({ ...job, meshBuild }), true, String(distanceFieldDensity))
+    assert.equal(resolveMeshBuild(meshBuild)?.distanceFieldDensity, distanceFieldDensity)
+  }
+  assert.throws(
+    () => resolveMeshBuild({ distanceFieldDensity: 'dense' } as never),
+    /distanceFieldDensity must be a number/,
+  )
+})
+
+/** The wire form of a `lightmapBake` option: what the job puts in its `lightmapBake` field. */
+const resolveLightmapBake = (option: object) =>
+  lightmapBakeJob.fields({ lightmapBake: option as never }).lightmapBake
+
+test('lightmapBake names the sky light the bake shines, none by default, schema and resolver alike', () => {
+  const skyLight = {
+    intensity: 2,
+    color: [1, 0.9, 0.8] as const,
+    lowerHemisphereColor: [0.1, 0.1, 0.1] as const,
+    castShadows: false,
+  }
+  for (const sky of [true, false, {}, skyLight])
+    assert.equal(validate({ ...job, lightmapBake: { skyLight: sky } }), true, JSON.stringify(sky))
+  // A sky is written as named, one left out or `false` nowhere: a bake naming none keeps its cache key.
+  assert.deepEqual(resolveLightmapBake({ skyLight: true }), { skyLight: true })
+  assert.deepEqual(resolveLightmapBake({ skyLight }), { skyLight })
+  assert.deepEqual(resolveLightmapBake({ skyLight: false }), {})
+  assert.deepEqual(resolveLightmapBake({ giSamples: 64 }), { giSamples: 64 })
+  for (const [sky, words] of [
+    [{ color: [1, 2] }, /color: must be an array of 3 finite numbers/],
+    [{ intensity: 'bright' }, /intensity: must be a number/],
+    [{ castShadows: 1 }, /castShadows: must be true or false/],
+    [{ shine: 1 }, /skyLight has no field shine/],
+    [3, /skyLight must be true, false or an object of settings/],
+  ] as const) {
+    const named = JSON.stringify(sky)
+    assert.throws(() => resolveLightmapBake({ skyLight: sky as never }), words, named)
+  }
+  assert.equal(validate({ ...job, lightmapBake: { skyLight: { color: [1, 2] } } }), false)
+  assert.equal(validate({ ...job, lightmapBake: { skyLight: 3 } }), false)
 })

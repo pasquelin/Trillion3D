@@ -2,8 +2,13 @@
 //! attributes no page may carry.
 
 use trillion3d_page_codec::bits::grid::PageGrid;
+use trillion3d_page_codec::bits::{ColorRange, PositionGrid, UvRange};
+use trillion3d_page_codec::clusters::strip::strips_in_order;
 use trillion3d_page_codec::encode::{encode, Attribute};
-use trillion3d_page_codec::HEADER_BYTES;
+use trillion3d_page_codec::refs::Refs;
+use trillion3d_page_codec::streams::{Page, Streams};
+use trillion3d_page_codec::triangles::Spans;
+use trillion3d_page_codec::{disk, Header, Skin, DISK_HEADER_WORDS, HEADER_BYTES, MAX_UV_SETS};
 use trillion3d_page_codec::{FLAG_NORMAL, FLAG_UV, MAX_POSITION_BITS, MIN_POSITION_PRECISION};
 
 const TRIANGLE: [f32; 9] = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
@@ -20,27 +25,50 @@ fn the_decoder_refuses_what_the_encoder_never_writes() {
         .expect("encode")
         .bytes;
     assert!(trillion3d_page_codec::decode(&good, 1 << 20).is_ok());
-    // An index past the vertex count, forged in the corner stream after the one-word block table:
-    // a base of zero, two bits per corner.
+    // A strip that goes on past the last triangle, forged in the first word of masks, the first
+    // after the header and the words that name the sections: the start bit of a triangle that is
+    // not there.
     let mut forged = good.clone();
-    forged[HEADER_BYTES + 4] = 0b11_01_00;
+    forged[HEADER_BYTES + 4 * DISK_HEADER_WORDS] |= 2;
     assert_eq!(
         trillion3d_page_codec::decode(&forged, 1 << 20).unwrap_err(),
-        trillion3d_page_codec::PageError::Index
+        trillion3d_page_codec::PageError::Bounds
     );
     // The widest field on the finest grid, from the farthest start: still a finite float, so no
     // page needs a nonfinite refusal and the decoder has none. Three corners on one cell make a
-    // single vertex, so the page is its header, the block table's one word (a zero width) and one
-    // word of `x`.
-    let mut extreme = encode(&[0, 1, 2], &[0.0; 9], &[], GRID)
-        .expect("flat")
-        .bytes;
-    assert_eq!(extreme.len(), HEADER_BYTES + 4);
-    let start = i32::MAX - ((1 << MAX_POSITION_BITS) - 1);
-    extreme[24..28].copy_from_slice(&start.to_le_bytes());
-    extreme[20] = MAX_POSITION_BITS as u8;
-    extreme[23] = MIN_POSITION_PRECISION as i8 as u8;
-    extreme.extend([0xFFu8; 4]);
+    // vertex laid three times, whose `x` takes every cell of the widest field.
+    let top = (1u32 << MAX_POSITION_BITS) - 1;
+    let strips = strips_in_order(&[0, 0, 0]);
+    let header = Header {
+        vertex_count: 3,
+        index_count: 3,
+        flags: 0,
+        position: PositionGrid {
+            start: [i32::MAX - top as i32, 0, 0],
+            bits: [MAX_POSITION_BITS, 0, 0],
+            precision: MIN_POSITION_PRECISION,
+        },
+        uv: [UvRange::default(); MAX_UV_SETS],
+        color: ColorRange::default(),
+        normal_precision: 8,
+        tangent_precision: 7,
+        corner_bits: Spans::of(&strips.triangles).bits,
+        position_count: 1,
+        skin: Skin::default(),
+        morphs: Vec::new(),
+    };
+    let values = Streams {
+        corners: strips.triangles,
+        position: [vec![top], vec![0], vec![0]],
+        links: vec![0, 0, 0],
+        ..Streams::default()
+    };
+    let page = Page {
+        header,
+        streams: values,
+        strip: strips.strip,
+    };
+    let extreme = disk::write(&page, &Refs::none(3));
     let page = trillion3d_page_codec::decode(&extreme, 1 << 20).expect("finite");
     assert!(page
         .attribute(0)

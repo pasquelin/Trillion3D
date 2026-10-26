@@ -20,9 +20,9 @@ import {
   regimes,
   spans,
   type BenchSide,
+  type Side,
   type Frame,
 } from './scenesTransparent.ts'
-import type * as THREE from 'three'
 import {
   argumentsReference,
   classementReference,
@@ -130,7 +130,7 @@ function tours(before: BenchSide, after: BenchSide) {
 }
 
 /** A bench scene: both sides built apart, so neither benefits from the state the other leaves. */
-export function sceneDe(name: string, side: THREE.Side) {
+export function sceneDe(name: string, side: Side) {
   const before = benchSide(side),
     after = benchSide(side)
   return { name, before, after, ...tours(before, after) }

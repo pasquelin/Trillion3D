@@ -38,7 +38,7 @@ impl RunningFloor {
 /// Every sample of `from`'s triangles once: its vertices, its edge midpoints and its centroids.
 /// An edge's midpoint is its triangles' `lerp`, taken in each direction they list it, both kept
 /// only when the two round apart: the same points as seven per triangle, so the same maximum.
-fn distinct_samples(pos: &[f32], from: &[u32]) -> Vec<P> {
+pub(super) fn distinct_samples(pos: &[f32], from: &[u32]) -> Vec<P> {
     let mut vertices = from.to_vec();
     vertices.par_sort_unstable();
     vertices.dedup();
@@ -78,11 +78,15 @@ fn distinct_samples(pos: &[f32], from: &[u32]) -> Vec<P> {
 /// Largest distance from the samples of `from` to the triangles of `to`, exact above `floor`, the
 /// floor raised to each distance found ([`RunningFloor`]).
 pub(super) fn one_sided(pos: &[f32], from: &[u32], to: &Grid, floor: f64) -> f64 {
+    one_sided_samples(&distinct_samples(pos, from), to, floor)
+}
+
+/// [`one_sided`] from the samples of `from` already taken ([`distinct_samples`]).
+pub(super) fn one_sided_samples(samples: &[P], to: &Grid, floor: f64) -> f64 {
     let running = RunningFloor::new(floor);
-    let samples = distinct_samples(pos, from);
     samples
-        .into_par_iter()
-        .map(|p| {
+        .par_iter()
+        .map(|&p| {
             let floor = running.get();
             running.raise(to.nearest(p, floor))
         })

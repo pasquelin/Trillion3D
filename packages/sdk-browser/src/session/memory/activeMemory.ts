@@ -1,7 +1,7 @@
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 /** Actual active allocations admitted by the existing global split. Shadow bytes
- * include static/transmission/request storage once, plus held batch buffers. Frame
+ * include static/request storage once, plus held batch buffers. Frame
  * targets include the other live views and the proposed replacement of this view.
  * Minima come from the existing poolFor(1) rules, including vertex/live storage. */
 export interface ActiveGpuMemory {
@@ -30,7 +30,9 @@ export type AdmitGpuMemory = ((active: ActiveGpuMemory) => {
   geometryPoolBytes: number
   texturePoolBytes: number
 }) & {
-  /** The same owning budget, read immediately before GPU allocation. */ readonly limit?: () => number
+  /** The ceiling on the session's live bytes, read immediately before each GPU allocation: the
+   *  GPU total the page set, none while it set none (`sessionPools`). */
+  readonly limit?: () => number | undefined
 }
 
 export function validateActiveMemory(active: ActiveGpuMemory) {

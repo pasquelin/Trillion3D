@@ -27,42 +27,12 @@ pub(super) fn name_of(owner: &Value) -> &str {
     owner.get("name").and_then(Value::as_str).unwrap_or("")
 }
 
-/// Each node's children by rank, read from the nodes' `children` (`children_of`), each refused
-/// unless it is a node of the document.
-pub(super) fn child_lists(nodes: &[Value]) -> Result<Vec<Vec<usize>>> {
-    (0..nodes.len())
-        .map(|id| crate::compiler::source::nodes::children_of(nodes, id))
-        .collect()
-}
-
-/// Each node's parent by rank, none for a root, from `children`, each node's children
-/// (`child_lists`): a hierarchy is a forest, each node the child of one parent at most.
-pub(super) fn parents_of(children: &[Vec<usize>]) -> Vec<Option<usize>> {
-    let mut parent = vec![None; children.len()];
-    for (id, below) in children.iter().enumerate() {
-        for &child in below {
-            parent[child] = Some(id);
-        }
-    }
-    parent
-}
-
-/// Each node's parent by rank, none for a root, read from the nodes' `children` (`child_lists`,
-/// `parents_of`).
-pub(super) fn node_parents(nodes: &[Value]) -> Result<Vec<Option<usize>>> {
-    Ok(parents_of(&child_lists(nodes)?))
-}
-
 /// One entry per node of the document: its name, its children, the mesh, camera and skin it carries,
 /// its local pose as declared, whether it declares itself visible (`KHR_node_visibility`), and,
-/// for a node that draws a mesh, the distances its settings say it is drawn at (`"drawDistance"`,
-/// `objects`, `DrawDistance`), whether a view's primed depth draws it (`"farField"`), and, for a node
-/// that is an instance of an assembly, the error and the LOD ball of the group that replaces each
-/// primitive's root of its part (`"rootParents"`, `parents`), each left out when it names none.
-pub(super) fn node_table(
-    g: &Value,
-    (objects, parents): (&crate::ObjectSettings, &AssemblyParents),
-) -> Result<Vec<Value>> {
+/// for a node that is an instance of an assembly, the error and the LOD ball of the group that
+/// replaces each primitive's root of its part (`"rootParents"`, `parents`), left out when it
+/// names none.
+pub(super) fn node_table(g: &Value, parents: &AssemblyParents) -> Result<Vec<Value>> {
     let nodes = values(g, "nodes")?;
     let meshes = g
         .get("meshes")
@@ -112,13 +82,6 @@ pub(super) fn node_table(
             "visible": !crate::compiler::source::nodes::declared_hidden(node),
         });
         if mesh.is_some() {
-            let setting = objects.node(g, id)?;
-            if let Some(distance) = setting.draw_distance {
-                entry["drawDistance"] = distance.entry();
-            }
-            if setting.far_field {
-                entry["farField"] = json!(true);
-            }
             if let Some(roots) = parents.of_node(node) {
                 entry["rootParents"] = roots;
             }
@@ -126,6 +89,40 @@ pub(super) fn node_table(
         table.push(entry);
     }
     Ok(table)
+}
+
+/// Writes, on each of `nodes` that draws a mesh, what its settings say of it that the runtime reads
+/// from the node table: the distances it is drawn at (`"drawDistance"`, `DrawDistance`), whether a
+/// view's primed depth draws it (`"farField"`), whether it casts far shadows
+/// (`"castFarShadow"`) and whether a sun's far-shadow test reaches it (`"farShadowTest"`), each
+/// left out when it names none. The settings are those of the node's rank in `g` (`"sourceNode"`), resolved once for each node the core keeps
+/// — a node that moved to a cell resolved them for its row (`partition/candidates.rs`).
+pub(super) fn name_object_settings(
+    nodes: &mut [Value],
+    g: &Value,
+    objects: &crate::ObjectSettings,
+) -> Result<()> {
+    for entry in nodes.iter_mut().filter(|entry| !entry["mesh"].is_null()) {
+        let source = entry["sourceNode"].as_str();
+        let id = source.and_then(|rank| usize::from_str_radix(rank, 16).ok());
+        let setting = objects.node(
+            g,
+            id.ok_or_else(|| invalid("a node names its source rank"))?,
+        )?;
+        if let Some(distance) = setting.draw_distance {
+            entry["drawDistance"] = distance.entry();
+        }
+        if setting.far_field {
+            entry["farField"] = json!(true);
+        }
+        if setting.cast_far_shadow {
+            entry["castFarShadow"] = json!(true);
+        }
+        if let Some(test) = setting.far_shadow_test {
+            entry["farShadowTest"] = json!(test);
+        }
+    }
+    Ok(())
 }
 
 /// The cameras the nodes carry, as the document declares them: the host builds its own camera from

@@ -22,7 +22,6 @@ test('one image of screen probes encodes its passes in order, hands the lighting
     'screenData',
     'genRays',
     'traceScreen',
-    'traceField',
     'traceScene',
     'composite',
     'spatialFilter',
@@ -57,7 +56,7 @@ test('the screen probes leave out the passes their settings leave out, and cast 
     'probeArgs',
     'screenData',
     'traceScreen',
-    'traceField',
+    'traceScene',
     'composite',
     'spatialFilter',
     'convert',
@@ -71,7 +70,7 @@ test('the screen probes leave out the passes their settings leave out, and cast 
   const held = await probesRuntime()
   await held.encode()
   assert.ok(held.rt.gpu.screenProbes!.bytes > 0, 'the probes of the view are held')
-  held.rt.context.screenProbes = false
+  Object.assign(held.rt.context, { screenProbes: false })
   encodeScreenProbes(held.rt, held.h.encoder)
   assert.equal(held.rt.gpu.screenProbes, undefined, 'off gives them back')
 })
@@ -137,7 +136,7 @@ test('the frame runs the screen probes after the reflections, the radiance cache
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
   const preLight = read('../../frame/render/preLight.ts')
   const order = [
-    'encodeReflections(rt, encoder)',
+    'encodeReflections(rt, encoder, reflects(overrides))',
     'encodeScreenProbes(rt, encoder)',
     'flushRadianceCache(rt, encoder)',
     'encodeAmbientOcclusion(rt, encoder, cam)',
@@ -168,7 +167,7 @@ test('the probes cast nothing and give the view back where the image is not lit:
     const made = await probesRuntime()
     await made.encode()
     assert.ok(made.rt.gpu.screenProbes!.bytes > 0, `${label}: held while the image is lit`)
-    if (unlit) made.rt.lights.store.unlit = true
+    if (unlit) Object.assign(made.rt.lights.store, { unlit: true })
     else made.rt.run.diagnostic = 'wireframe'
     const before = made.h.dispatches.length
     encodeScreenProbes(made.rt, made.h.encoder)

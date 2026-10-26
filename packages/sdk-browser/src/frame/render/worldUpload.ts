@@ -4,6 +4,7 @@ import { blendSource, followHostVisibility } from '../../placement/hidden.ts'
 import { noteKeyRecord } from '../../blend/keyRecords.ts'
 import { flipWorld } from '../../placement/webgpuPlacements.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
+import { noteRootWorld } from '../../placement/roots/rootWorlds.ts'
 import { worldMoved } from '../../geometry/selection/rootWorld.ts'
 import { finishMoves, noteMoved } from './movedBatch.ts'
 import { composeHostWrites } from '../../placement/compose/gpuComposeState.ts'
@@ -28,34 +29,17 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
  */
 export function uploadWorlds(rt: WebgpuPagesRuntime) {
   const { run } = rt,
-    { selectionRoots, worldUpdates, rows } = rt.layout
+    { selectionRoots, worldUpdates } = rt.layout
   const write = run.gate.updateWorlds(rt.setup.worlds, (nodes) => noteMoved(rt, nodes))
   const reshaped = !!write && write.reshaped
   // The deformation's staleness noted before this refresh (`pending`, read by the hold) compared
   // the worlds the host has since rewritten: the frame's `update` reads them again.
   if (write) rt.vis.deformation?.frame.forget()
-  // The poses the host wrote: their roots' rows, boxes and motion, the revision already bumped.
+  // The poses the host wrote: their roots' worlds, boxes and motion, the revision already bumped.
   if (write && !reshaped) finishMoves(rt, false)
   // A cut made beside the running one takes every world at its swap (`replayMoves`).
   if (reshaped && run.movedWorlds.since) run.movedWorlds.since.walked = true
-  // A node the host hid or showed parks its roots and hides its blend items, or takes them back,
-  // in every cut, and one set to cast or not leaves or enters every light cut; the shadow pages its
-  // roots covered are drawn again, by their rows (`flipWorld`), static casters included unless they
-  // were moving already: the static layer never held those (`../../lighting/shadows/casters/mobility.ts`).
-  if (reshaped || (write && write.flipped.length)) {
-    const { blendState } = rt
-    // A blend item hidden or shown rewrites the drawn bit of its key record (`keyRecords.ts`).
-    followHostVisibility(
-      selectionRoots,
-      {
-        entries: blendState.blendGpu,
-        sourceOf: blendSource,
-        flipped: (_, rank) => noteKeyRecord(blendState, rank),
-      },
-      flipWorld(rt),
-      reshaped ? undefined : underFlipped(rt, write.flipped),
-    )
-  }
+  followFlips(rt, reshaped, write ? write.flipped : undefined)
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene
   rt.timing.worldCounts.rootsUploaded = 0
   if (!worldsMoved) return false
@@ -74,9 +58,55 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
     rt.timing.worldCounts.rootsUploaded = named.length
     const moved = selection && named.length ? selection.updateWorlds(worldUpdates, named) : named
     composeHostWrites(rt, moved)
-    rt.gpu?.velocity?.motion.noteMoved(moved)
     return true
   }
+  const moved = reshapedMoves(rt, selection)
+  composeHostWrites(rt, moved)
+  // A scene that changed shape names no root: every world is sent again, the decode of the clusters
+  // reads them on the GPU.
+  if (moved.length) {
+    // Each moved root's world version moves: its box, stretch and winding are taken again.
+    // Its world goes up to the roots' doubles too, and its box is derived again (the shadows' diff).
+    for (const rank of moved) {
+      worldMoved(selectionRoots[rank])
+      noteRootWorld(rt, rank)
+    }
+    invalidateOccluderHistory(run)
+  }
+  return true
+}
+
+// A node the host hid or showed parks its roots and hides its blend items, or takes them back,
+// in every cut, and one set to cast or not leaves or enters every light cut; the shadow pages its
+// roots covered are drawn again, by their placements (`flipWorld`), static casters included unless they
+// were moving already: the static layer never held those (`../../lighting/shadows/casters/mobility.ts`).
+function followFlips(
+  rt: WebgpuPagesRuntime,
+  reshaped: boolean,
+  flipped: readonly Object3D[] | undefined,
+) {
+  if (!(reshaped || (flipped && flipped.length))) return
+  const { blendState } = rt,
+    { selectionRoots } = rt.layout
+  // A blend item hidden or shown rewrites the drawn bit of its key record (`keyRecords.ts`).
+  followHostVisibility(
+    selectionRoots,
+    {
+      entries: blendState.blendGpu,
+      sourceOf: blendSource,
+      flipped: (_, rank) => noteKeyRecord(blendState, rank),
+    },
+    flipWorld(rt),
+    flipped && !reshaped ? underFlipped(rt, flipped) : undefined,
+  )
+}
+
+/** The roots a reshaped scene moved the poses of, their worlds written for the GPU cut. */
+function reshapedMoves(
+  rt: WebgpuPagesRuntime,
+  selection: WebgpuPagesRuntime['run']['gpuSelection'],
+) {
+  const { selectionRoots, worldUpdates } = rt.layout
   rt.timing.worldCounts.rootsUploaded = selectionRoots.length
   // A reshape that moved no pose keeps the table. The GPU cut compares the worlds it holds with
   // those sent, and says so; without one, the host scans.
@@ -92,17 +122,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
     moved = rootWorldsMoved(worldUpdates, selectionRoots, scanned)
     rootWorlds(worldUpdates, selectionRoots)
   }
-  composeHostWrites(rt, moved)
-  rt.gpu?.velocity?.motion.noteMoved(moved)
-  // A scene that changed shape names no root: every row's world matrix, the only shared input to
-  // a row the scene can still change after `prepare()`, is written again.
-  if (moved.length) {
-    // Each moved root's world version moves: its box, stretch and winding are taken again.
-    for (const rank of moved) worldMoved(selectionRoots[rank])
-    rows.tableEpoch++
-    invalidateOccluderHistory(run)
-  }
-  return true
+  return moved
 }
 
 /** The roots and the see-through draws under the nodes `flipped`, read in the tree

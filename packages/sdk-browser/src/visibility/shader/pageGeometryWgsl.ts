@@ -1,5 +1,5 @@
 import { clusterDecodeWgsl } from '../../geometry/cluster/decodeWgsl.ts'
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import {
   DEFORM_ADDRESS,
   FLAG_CLUSTER_PAGE,
@@ -8,7 +8,10 @@ import {
   FLAG_LINE,
   FLAG_MASK,
   FLAG_VOXEL,
+  WPO_ROW_VELOCITY,
 } from '../types.ts'
+import { VOXEL_BRICK_CORNERS } from '../../../../sdk-core/src/page/voxelPage.ts'
+import { DEFORM_VERTEX_WORDS, DEFORMED_FIELD } from '../../deformation/vertexWords.ts'
 import { VOXEL_WGSL } from './voxelWgsl.ts'
 import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts'
 import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from './lineWgsl.ts'
@@ -35,9 +38,10 @@ const VOXEL = `(page.flags&${FLAG_VOXEL}u)!=0u`
  * always read, and its rows carry the bit at zero. Both paths are written here once, so no pass
  * can read one geometry and another pass the other.
  *
- * The header is decoded once per invocation and passed down: twenty-three words of the page and a
- * chain of twenty-one stream offsets. A vertex stage decodes it per corner, so it asks `pageHeaderFor`
- * for the nine words and five streams of corners and positions alone when its row draws no surface
+ * The header is decoded once per invocation and passed down: at most twenty-three words of the page,
+ * those of the texture sets it stores alone, and the words of the table that holds its streams' offsets,
+ * which are loaded, never recomputed (`clusterOffsets`). A vertex stage decodes it per corner, so it asks `pageHeaderFor`
+ * for the ten words and three table words of corners and positions alone when its row draws no surface
  * attribute. `pageHeader` of a row that is not quantized costs nothing and returns zeroes.
  *
  * A row of voxel bricks (\`FLAG_VOXEL\`) builds each brick's box from its record in place
@@ -55,11 +59,28 @@ const VOXEL = `(page.flags&${FLAG_VOXEL}u)!=0u`
  * proof, compiles it as it is. What places a corner on the camera's screen is `PAGE_SCREEN_WGSL`,
  * which the camera passes add.
  */
+/**
+ * The offset a row's surface moves vertex `vertex` by, in the primitive's space, `local` being the
+ * vertex as the page and its deformation place it: `previous` asks for the offset of the image before,
+ * which the temporal pass reprojects by, the object then placed where the placement's motion `before`
+ * (the previous world taken to this one, relative to the eye) says it was. A default of zero, which a
+ * pass that evaluates the offsets replaces by listing its own (`wpoGraphWgsl.ts`): every page-geometry
+ * pass calls it from `pagePosition`, only the ones that list the real one move a vertex.
+ */
+const PAGE_WPO_NONE = wgslFn(
+  'pageWpoLocal',
+  [],
+  'fn pageWpoLocal(page:PageInfo,h:ClusterHeader,vertex:u32,local:vec3f,previous:bool,before:mat4x4f)->vec3f{return vec3f(0.0);}',
+  { weak: true },
+)
+
 /** The corners, positions and deformed tail of a page, read from \`indices\` and \`positions\`. */
 const PAGE_POINT_WGSL = wgslBlock(
   'PAGE_POINT_WGSL',
-  [VOXEL_WGSL],
-  `fn pageHeader(page:PageInfo)->ClusterHeader{return pageHeaderFor(page,true);}
+  [VOXEL_WGSL, PAGE_WPO_NONE],
+  `/** The placement's motion of a pass that has none: the object was where it is. */
+const WPO_STILL=mat4x4f(vec4f(1.0,0.0,0.0,0.0),vec4f(0.0,1.0,0.0,0.0),vec4f(0.0,0.0,1.0,0.0),vec4f(0.0,0.0,0.0,1.0));
+fn pageHeader(page:PageInfo)->ClusterHeader{return pageHeaderFor(page,true);}
 /** Whether a raster's corner reads a surface attribute of its page: a line's direction
  *  (\`pageLine\`), a masked row's UV and vertex alpha (\`pageUv\`, \`pageMaskAlpha\`). */
 fn pageSurfaceRead(page:PageInfo)->bool{return (page.flags&${FLAG_LINE | FLAG_MASK}u)!=0u;}
@@ -93,24 +114,43 @@ fn pageRestPosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
  if(${QUANTIZED}){return clusterPosition(h,page.pageOffset,vertex);}
  return vertPos(page.vertexBase,vertex);
 }
+/** The offset of a row that has one at vertex \`vertex\`, placed at \`p\` (\`field\` 0, or 3 where the
+ *  deformation placed it the image before); \`previous\` asks for the clocks and the camera of the
+ *  image before. A brick of voxels moves rigidly, its box and the cells traced in it (\`voxelCarry\`)
+ *  alike: its offset is its surface's at the centre of its box, the same at each of its corners. */
+fn pageOffset(page:PageInfo,h:ClusterHeader,vertex:u32,p:vec3f,field:u32,previous:bool,before:mat4x4f)->vec3f{
+ if(${VOXEL}){
+  let v=vertex-vertex%${VOXEL_BRICK_CORNERS}u;
+  var lo=voxelBoxCorner(page.pageOffset,v);var hi=voxelBoxCorner(page.pageOffset,v+${VOXEL_BRICK_CORNERS - 1}u);
+  if(page.deformOutput!=0u){lo=pageDeformed(page,v,field);hi=pageDeformed(page,v+${VOXEL_BRICK_CORNERS - 1}u,field);}
+  return pageWpoLocal(page,h,v,(lo+hi)*0.5,previous,before);
+ }
+ return pageWpoLocal(page,h,vertex,p,previous,before);
+}
 /** Position of a page vertex in the primitive's local space, as this frame deforms it
- *  (\`DEFORM_WGSL\`): what every pass draws. */
+ *  (\`DEFORM_WGSL\`) and its surface's world position offset moves it: what every pass draws. */
 fn pagePosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
- if(page.deformOutput!=0u){return pageDeformed(page,vertex,0u);}
- return pageRestPosition(page,h,vertex);
+ var p:vec3f;
+ if(page.deformOutput!=0u){p=pageDeformed(page,vertex,${DEFORMED_FIELD.position}u);}else{p=pageRestPosition(page,h,vertex);}
+ if(page.wpo!=0u){p+=pageOffset(page,h,vertex,p,0u,false,WPO_STILL);}
+ return p;
 }
 /** Positions of the page vertices \`corners\` of one triangle, as \`pagePosition\` reads each. */
 fn pageTrianglePositions(page:PageInfo,h:ClusterHeader,corners:vec3u)->mat3x3f{
  return mat3x3f(pagePosition(page,h,corners.x),pagePosition(page,h,corners.y),pagePosition(page,h,corners.z));
 }
-/** Where the last frame drew that vertex: what the temporal pass reprojects a pixel by. */
-fn pagePreviousPosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
- if(page.deformOutput!=0u){return pageDeformed(page,vertex,3u);}
- return pageRestPosition(page,h,vertex);
+/** Where the last frame drew that vertex: what the temporal pass reprojects a pixel by. \`before\` is
+ *  the placement's motion (previous world taken to the current one, relative to the eye). */
+fn pagePreviousPosition(page:PageInfo,h:ClusterHeader,vertex:u32,before:mat4x4f)->vec3f{
+ var p:vec3f;
+ if(page.deformOutput!=0u){p=pageDeformed(page,vertex,${DEFORMED_FIELD.previous}u);}else{p=pageRestPosition(page,h,vertex);}
+ // A row whose offset is no motion for the temporal pass was where it is.
+ if(page.wpo!=0u){p+=pageOffset(page,h,vertex,p,3u,(page.wpo&${WPO_ROW_VELOCITY}u)!=0u,before);}
+ return p;
 }
 /** A computed result, stored in the float pool: a page's own, or a float page's block. */
 fn pageDeformed(page:PageInfo,vertex:u32,field:u32)->vec3f{
- let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+vertex*11u+field;
+ let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+vertex*${DEFORM_VERTEX_WORDS}u+field;
  return vec3f(positions[at],positions[at+1u],positions[at+2u]);
 }`,
 )
@@ -163,14 +203,17 @@ export const PAGE_NORMAL_WGSL = wgslBlock(
   'PAGE_NORMAL_WGSL',
   [],
   `fn pageNormal(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
- if(page.deformOutput!=0u){return pageDeformed(page,vertex,6u);}
+ if(page.deformOutput!=0u){return pageDeformed(page,vertex,${DEFORMED_FIELD.normal}u);}
  if(${VOXEL}){return voxelVertexNormal(page.pageOffset,vertex);}
  if(${QUANTIZED}){return clusterNormal(h,page.pageOffset,vertex);}
  return vertN(page.vertexBase,vertex);
 }
 fn pageTangent(page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
- if(${QUANTIZED}){return clusterTangent(h,page.pageOffset,vertex);}
- return vertT(page.vertexBase,vertex);
+ var rest:vec4f;
+ if(${QUANTIZED}){rest=clusterTangent(h,page.pageOffset,vertex);}
+ else{rest=vertT(page.vertexBase,vertex);}
+ if(page.deformOutput!=0u){return vec4f(pageDeformed(page,vertex,${DEFORMED_FIELD.tangent}u),rest.w);}
+ return rest;
 }`,
 )
 
@@ -192,7 +235,7 @@ struct PageShape{sprite:vec2f,lineWidth:f32,}
  *  else its quantized page's. A row with neither keeps no direction, and no width. */
 fn pageLine(page:PageInfo,h:ClusterHeader,vertex:u32,vp:mat4x4f,clip:vec4f,width:f32)->vec4f{
  var along=vec3f(0.0);
- if(page.deformOutput!=0u){along=pageDeformed(page,vertex,6u);}
+ if(page.deformOutput!=0u){along=pageDeformed(page,vertex,${DEFORMED_FIELD.normal}u);}
  else if(${QUANTIZED}){along=clusterNormal(h,page.pageOffset,vertex);}
  return lineClip(clip,vp*vec4f(along,0.0),width,uni.viewport.xy,uni.pixelRatio);
 }

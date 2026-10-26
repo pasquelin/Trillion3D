@@ -1,13 +1,16 @@
 import { EngineError } from '../contracts/cache.ts'
+import { sum } from '../../../math/src/scalar/quantile.ts'
 import type { TexturePreview } from '../texture/previewContracts.ts'
 import {
-  PREVIEW_LAYOUT_NAMES,
+  PREVIEW_STORED_LAYOUTS,
+  previewLayoutBlockBytes,
   PREVIEW_BLOCK_FORMATS,
   PREVIEW_WORDS,
   PREVIEW_TEXTURE,
   PREVIEW_WIDTH,
   PREVIEW_HEIGHT,
   PREVIEW_ATLAS,
+  PREVIEW_ATLAS_HDR,
   PREVIEW_BAKED_LEVELS,
   PREVIEW_FIRST_LEVEL,
   PREVIEW_LEVEL_COUNT,
@@ -18,6 +21,7 @@ import {
   PREVIEW_IMAGE,
   PREVIEW_SOURCE_URI,
   PREVIEW_SOURCE_VIEW,
+  previewTexelBytes,
   type TextureBlockFormat,
 } from '../texture/previewFormat.ts'
 import { previewGeometry } from '../texture/previewLevels.ts'
@@ -34,7 +38,7 @@ type PreviewColumns = {
 
 /** The layout a family's word names, or a refusal of a word no layout owns. */
 function layoutOf(entry: number, name: TextureBlockFormat, word: number) {
-  const layout = PREVIEW_LAYOUT_NAMES[word]
+  const layout = PREVIEW_STORED_LAYOUTS[word]
   if (layout === undefined)
     throw new EngineError('INVALID_CACHE', 'A texture preview names an unknown block layout', {
       entry,
@@ -52,6 +56,113 @@ function slices(column: Uint8Array<ArrayBuffer>, at: number, lengths: readonly n
     return view
   })
   return { views, end: at }
+}
+
+type PreviewGeometry = ReturnType<typeof previewGeometry>
+
+/** Refuses level geometry that is not the one the entry's dimensions imply. */
+function checkLevelGeometry(
+  entry: number,
+  { width, height }: { width: number; height: number },
+  declared: { firstLevel: number; levelCount: number; pixelBytes: number },
+  expected: PreviewGeometry,
+) {
+  if (
+    declared.firstLevel !== expected.firstLevel ||
+    declared.levelCount !== expected.levelCount ||
+    declared.pixelBytes !== expected.pixelBytes
+  )
+    throw new EngineError(
+      'INVALID_CACHE',
+      'A texture preview level geometry is not the one its dimensions imply',
+      { entry, width, height, declared, expected },
+    )
+}
+
+/** Refuses a pixel range that does not follow the previous entry's or runs past the column. */
+function checkPixelRange(
+  entry: number,
+  offset: number,
+  consumed: number,
+  pixelBytes: number,
+  column: number,
+) {
+  if (offset !== consumed || offset + pixelBytes > column)
+    throw new EngineError('INVALID_CACHE', 'A texture preview pixel range is not contiguous', {
+      entry,
+      offset,
+      expected: consumed,
+      bytes: pixelBytes,
+      column,
+    })
+}
+
+/** Refuses a block column that ends after the last entry's blocks. */
+function checkBlockColumnsConsumed(
+  blocksAt: Record<TextureBlockFormat, number>,
+  previewBlocks: PreviewColumns['previewBlocks'],
+) {
+  for (const name of PREVIEW_BLOCK_FORMATS)
+    if (blocksAt[name] !== previewBlocks[name].length)
+      throw new EngineError('INVALID_CACHE', 'A texture preview block column is too long', {
+        format: name,
+        column: previewBlocks[name].length,
+        expected: blocksAt[name],
+      })
+}
+
+/** The block layout and block views of each format of the entry at `base`; `blocksAt` moves on past them. */
+function readBlocks(
+  entry: number,
+  previewWords: Uint32Array,
+  base: number,
+  atlas: number,
+  {
+    previewBlocks,
+    blocksAt,
+    expected,
+    texelBytes,
+  }: {
+    previewBlocks: PreviewColumns['previewBlocks']
+    blocksAt: Record<TextureBlockFormat, number>
+    expected: PreviewGeometry
+    texelBytes: number
+  },
+) {
+  const layouts = {} as TexturePreview['layouts'],
+    blocks = {} as TexturePreview['blocks']
+  PREVIEW_BLOCK_FORMATS.forEach((name, family) => {
+    layouts[name] = layoutOf(entry, name, previewWords[base + PREVIEW_LAYOUTS + family])
+    // A half-float chain is held by BC6H or kept in 32-bit floats alone, and those are its alone.
+    if (
+      (atlas === PREVIEW_ATLAS_HDR) !== (layouts[name] === 'hdr' || layouts[name] === 'float32') &&
+      layouts[name] !== 'lossless'
+    )
+      throw new EngineError(
+        'INVALID_CACHE',
+        'A texture preview names a block layout its atlas cannot hold',
+        {
+          entry,
+          format: name,
+        },
+      )
+    if (layouts[name] === 'lossless') {
+      blocks[name] = []
+      return
+    }
+    const column = previewBlocks[name]
+    const lengths = levelLengths(expected, texelBytes, previewLayoutBlockBytes(layouts[name]))
+    if (blocksAt[name] + sum(lengths.blocks) > column.length)
+      throw new EngineError('INVALID_CACHE', 'A texture preview block column is too short', {
+        entry,
+        format: name,
+        column: column.length,
+      })
+    const sliced = slices(column, blocksAt[name], lengths.blocks)
+    blocks[name] = sliced.views
+    blocksAt[name] = sliced.end
+  })
+  return { layouts, blocks }
 }
 
 /**
@@ -78,7 +189,8 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
       height = previewWords[base + PREVIEW_HEIGHT]
     const atlas = previewWords[base + PREVIEW_ATLAS],
       bakedLevels = previewWords[base + PREVIEW_BAKED_LEVELS]
-    const expected = previewGeometry(width, height)
+    const texelBytes = previewTexelBytes(atlas)
+    const expected = previewGeometry(width, height, texelBytes)
     const header = { texture, atlas, width, height, bakedLevels }
     previous = checkEntryHeader(entry, header, previous, expected.firstLevel)
     const firstLevel = previewWords[base + PREVIEW_FIRST_LEVEL]
@@ -88,45 +200,16 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
       pixelBytes: previewWords[base + PREVIEW_PIXEL_BYTES],
     }
     const offset = previewWords[base + PREVIEW_PIXEL_OFFSET]
-    if (
-      declared.firstLevel !== expected.firstLevel ||
-      declared.levelCount !== expected.levelCount ||
-      declared.pixelBytes !== expected.pixelBytes
-    )
-      throw new EngineError(
-        'INVALID_CACHE',
-        'A texture preview level geometry is not the one its dimensions imply',
-        { entry, width, height, declared, expected },
-      )
-    if (offset !== consumed || offset + declared.pixelBytes > previewPixels.length)
-      throw new EngineError('INVALID_CACHE', 'A texture preview pixel range is not contiguous', {
-        entry,
-        offset,
-        expected: consumed,
-        bytes: declared.pixelBytes,
-        column: previewPixels.length,
-      })
-    const lengths = levelLengths(expected)
+    checkLevelGeometry(entry, { width, height }, declared, expected)
+    checkPixelRange(entry, offset, consumed, declared.pixelBytes, previewPixels.length)
+    const lengths = levelLengths(expected, texelBytes)
     const pixels = slices(previewPixels, offset, lengths.rgba)
     consumed = pixels.end
-    const layouts = {} as TexturePreview['layouts'],
-      blocks = {} as TexturePreview['blocks']
-    PREVIEW_BLOCK_FORMATS.forEach((name, family) => {
-      layouts[name] = layoutOf(entry, name, previewWords[base + PREVIEW_LAYOUTS + family])
-      if (layouts[name] === 'lossless') {
-        blocks[name] = []
-        return
-      }
-      const column = previewBlocks[name]
-      if (blocksAt[name] + expected.blockBytes > column.length)
-        throw new EngineError('INVALID_CACHE', 'A texture preview block column is too short', {
-          entry,
-          format: name,
-          column: column.length,
-        })
-      const sliced = slices(column, blocksAt[name], lengths.blocks)
-      blocks[name] = sliced.views
-      blocksAt[name] = sliced.end
+    const { layouts, blocks } = readBlocks(entry, previewWords, base, atlas, {
+      previewBlocks,
+      blocksAt,
+      expected,
+      texelBytes,
     })
     const sourceKind = previewWords[base + PREVIEW_SOURCE_KIND]
     previews[entry] = {
@@ -146,12 +229,6 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
       blocks,
     }
   }
-  for (const name of PREVIEW_BLOCK_FORMATS)
-    if (blocksAt[name] !== previewBlocks[name].length)
-      throw new EngineError('INVALID_CACHE', 'A texture preview block column is too long', {
-        format: name,
-        column: previewBlocks[name].length,
-        expected: blocksAt[name],
-      })
+  checkBlockColumnsConsumed(blocksAt, previewBlocks)
   return previews
 }

@@ -10,7 +10,6 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createFloatAtlas } from './floatAtlas.ts'
 import { writeUv1Tail } from './uv1Tail.ts'
 import { createVertexPool } from '../../geometry/pages/pool/geometryPool.ts'
-import type { HostAttributes } from '../../session/host/resources.ts'
 
 /** The floats of an atlas of `texels` after the device's texel writes, one row. */
 function replay(writes: ReturnType<typeof fakeDevice>['textureWrites'], texels: number) {
@@ -35,11 +34,11 @@ test('vertex k of the tail is at float T − 2(k + 1), the pairs kept whole', ()
 
 /** A triangle with a second UV set. */
 function secondSet() {
-  const attributes = G.triangleAttributes() as HostAttributes & Record<string, unknown>
+  const attributes = G.triangleAttributes() as Geometry['attributes'] & Record<string, unknown>
   const geometry = new Geometry()
   for (const [name, list] of Object.entries(attributes)) geometry.setAttribute(name, list as never)
   geometry.setAttribute('uv1', G.floatAttribute([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 2))
-  return geometry.attributes as HostAttributes
+  return geometry.attributes as Geometry['attributes']
 }
 
 /** The texels of the last atlas the device made. */

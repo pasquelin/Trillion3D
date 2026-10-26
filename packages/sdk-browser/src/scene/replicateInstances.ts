@@ -1,4 +1,3 @@
-import type { HostMesh } from '../session/host/resources.ts'
 import { hostMeshCopy } from './host/scan/graphObjects.ts'
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { boxIsEmpty } from '../../../math/src/geometry/box.ts'
@@ -9,6 +8,8 @@ import { meshes } from './meshes.ts'
 import { resolveHostSubtree } from './host/world/matrices.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { Group, type Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
+import { copyObject } from '../../../sdk-core/src/world/object/objectCopy.ts'
+import type { PageMesh } from '../geometry/pages/pageMesh.ts'
 
 /**
  * Two owned buffers of replication: group pose and placed pose of copy; their products are the
@@ -17,6 +18,22 @@ import { Group, type Object3D } from '../../../sdk-core/src/world/object/object3
  */
 const groupWorld = new Float64Array(16),
   placed = new Float64Array(16)
+
+/** Each copy's world matrix, as the products `out` hold it. */
+function writeWorlds(copies: readonly PageMesh[], out: ArrayLike<number>) {
+  for (let i = 0; i < copies.length; i++) {
+    const world = copies[i].matrixWorld.elements,
+      at = i * MATRIX_VALUES
+    for (let k = 0; k < MATRIX_VALUES; k++) world[k] = out[at + k]
+  }
+}
+
+/** Whether `mesh` is drawn within `source`: it and every node above it, up to `source`, visible. */
+function drawnWithin(mesh: Object3D, source: Object3D) {
+  for (let node: Object3D | null = mesh; node; node = node === source ? null : node.parent)
+    if (!node.visible) return false
+  return true
+}
 
 /** Replicate transforms only. Geometry, materials and textures remain shared. */
 export function replicateInstances(
@@ -38,22 +55,23 @@ export function replicateInstances(
     sizeZ = empty ? 0 : bounds[5] - bounds[2]
   const [columns, rows] = count === 12 ? [4, 3] : [Math.sqrt(count), Math.sqrt(count)],
     group = new Group(),
-    drawn = meshes(source)
+    drawn = meshes(source).filter((mesh) => drawnWithin(mesh, source))
   // Products run IN BATCHES by the module's kernel, the one path: in `lot` when it holds exactly one
   // copy per slot, else in one remade at the copies' count and released once read.
   const n = rows * columns * drawn.length,
     own = n > 0 && !lot?.holds(n) ? madeLot(multiplyLot(n), n) : null,
     products = own ?? (n > 0 ? lot : null)
-  const copies: HostMesh[] = []
+  const copies: PageMesh[] = []
   // Group world pose does not change between copies: copied once.
   copyMatrix4(groupWorld, group.matrixWorld.elements)
   for (let z = 0; z < rows; z++)
     for (let x = 0; x < columns; x++)
       for (const mesh of drawn) {
-        const copy = hostMeshCopy(mesh)
+        // The flags of the mesh — shadows, far field, draw distance — come with its copy; its pose is set below.
+        const copy = copyObject(hostMeshCopy(mesh), mesh, false)
         // This copy belongs to engine: host has never seen it and cannot write it.
         // What traverses graph looking for host write skips it entirely.
-        copy.userData[ENGINE_OWNED] = true
+        ENGINE_OWNED.add(copy)
         copy.matrixAutoUpdate = false
         copyMatrix4(placed, mesh.matrixWorld.elements)
         placed[12] += (x - (columns - 1) / 2) * sizeX
@@ -72,12 +90,7 @@ export function replicateInstances(
       }
   if (!products) return group
   products.run()
-  const out = products.out
-  for (let i = 0; i < copies.length; i++) {
-    const world = copies[i].matrixWorld.elements,
-      at = i * MATRIX_VALUES
-    for (let k = 0; k < MATRIX_VALUES; k++) world[k] = out[at + k]
-  }
+  writeWorlds(copies, products.out)
   own?.release()
   return group
 }

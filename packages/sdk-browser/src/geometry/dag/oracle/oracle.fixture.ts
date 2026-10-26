@@ -16,12 +16,16 @@ import { NO_INDEX } from '../../../../../math/src/constants.ts'
  * `rule`: the cut rule applied, `drawsCluster` by default; the rule's tests pass the kernel's
  * `dagWanted` call site run in Node (`../../cut/cutRule.test.ts`), so the kernel's own text
  * decides, on the residency bits its host uploaded.
+ *
+ * `levels`: the levels the cut dispatches (`levelsDispatched`, `../encode.ts`), all of them by
+ * default: the work the descent deposits past them is never read (`dagOracleDescent`).
  */
 export function evaluateDagSelectionKernel(
   packed: PackedDag,
   uniforms: SelectionUniforms,
   resident?: DagCutResidency,
   rule?: CutRuleAt,
+  levels?: number,
 ): DagOracleResult {
   if (
     resident &&
@@ -37,7 +41,7 @@ export function evaluateDagSelectionKernel(
   // written once: frontier counting rereads them, and neither it nor the oracle can drift alone.
   const frames = dagViewFrames(packed, uniforms)
   // Descent, mirror of `../shader/levelWgsl.ts`, set aside: it returns each node's verdict.
-  const nodeFlags = dagOracleDescent(packed, frames, oracleWorldCovers(packed))
+  const nodeFlags = dagOracleDescent(packed, frames, oracleWorldCovers(packed), levels)
   const { visible, draws } = createDagOraclePredicates({ records, nodeFlags, ...frames, rule })
   /** The camera's requests (`depositLeaf`, `../shader/levelWgsl.ts`): one a kept leaf, seen or not
    *  by the frustum and the cut rule — its first page, its page count, its priority — in page
@@ -47,7 +51,7 @@ export function evaluateDagSelectionKernel(
   const requests = { pages: [] as number[], counts: [] as number[], priorities: [] as number[] },
     pageIds: number[] = []
   let candidates = 0
-  // Totals the GPU holds, replayed where `dagMask` notes them (`../shader/totalsWgsl.ts`).
+  // Totals the GPU holds, replayed where `dagWanted` notes them (`../shader/totalsWgsl.ts`).
   const totals = { drawn: 0, transparent: 0 }
   const note = (i: number) => {
     const tri = trianglesOf(records, i)
@@ -118,7 +122,8 @@ export function evaluateDagSelectionKernel(
     selectedTriangles: totals.drawn,
     transparentTriangles: totals.transparent,
     // What the kernel's queues and lists hold (`../shader/levelWgsl.ts`): past their caps, it drops
-    // work and the cut is not drawn. The live list holds the clusters drawn (`../shader/liveWgsl.ts`).
+    // work and the cut is not drawn. `live` counts the clusters listed visible
+    // (`../visible/layout.ts`).
     work: { ...nodeFlags.work, candidates, live: drawablePageIds.length },
   }
 }

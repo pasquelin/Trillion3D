@@ -16,6 +16,13 @@ export function writeSplitDouble(out: NumberSink, highAt: number, lowAt: number,
   out[lowAt] = value - high
 }
 
+/** A number as a pair of floats, the first the nearest float, the second what it lacks rounded to
+ *  one: `writeSplitDouble` into a `Float32Array`, as a pair. */
+export function splitDouble(x: number) {
+  const high = Math.fround(x)
+  return [high, Math.fround(x - high)] as const
+}
+
 /** Writes `count` of `values` from `from` — all of them by default — as doubles in the shaders'
  *  form (`../wgsl/double.ts`), high word then low word, from word `at`. */
 export function packDoubles(

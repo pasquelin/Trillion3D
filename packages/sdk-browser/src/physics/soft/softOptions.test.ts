@@ -43,7 +43,8 @@ test('a cloth dropped flat on the floor rebounds by its restitution', async () =
     return peak
   }
   const [dead, lively] = [await rebound(0), await rebound(0.8)]
-  assert.ok(dead < 0.1 && lively > 0.5, `rebounds ${lively} m with 0.8, ${dead} m with 0`)
+  // Each meets the floor's default restitution (0.3) by their mean: 0.15 and 0.55.
+  assert.ok(dead < 0.1 && lively > 0.2, `rebounds ${lively} m with 0.8, ${dead} m with 0`)
 })
 
 test('a soft body takes its scale: a rope twice as long hangs twice as low, read in its own frame', async () => {

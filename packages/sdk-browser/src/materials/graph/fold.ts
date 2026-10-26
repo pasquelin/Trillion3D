@@ -1,7 +1,7 @@
 import { widen } from './value.ts'
 
 /** A component of a constant, held to the single precision the shader computes in. */
-const single = Math.fround
+export const single = Math.fround
 
 /** The components of `a` and `b` combined one to one, a scalar repeated to the wider. */
 export function zip(
@@ -25,6 +25,12 @@ export const dotOf = (a: readonly number[], b: readonly number[]) =>
 /** The length of a constant. */
 export const lengthOf = (a: readonly number[]) => single(Math.sqrt(dotOf(a, a)))
 
+/** A constant scaled to length 1, by a plain division: a vector of length zero is not a number. */
+export function normalizedOf(a: readonly number[]) {
+  const scale = single(1 / lengthOf(a))
+  return a.map((x) => single(x * scale))
+}
+
 /** The cross product of two constants of three components. */
 export const crossOf = (a: readonly number[], b: readonly number[]) => [
   single(a[1] * b[2] - a[2] * b[1]),
@@ -32,8 +38,13 @@ export const crossOf = (a: readonly number[], b: readonly number[]) => [
   single(a[0] * b[1] - a[1] * b[0]),
 ]
 
-/** `base` to the power `exponent`, a negative base counting as zero. */
-export const positivePow = (base: number, exponent: number) => Math.pow(Math.max(base, 0), exponent)
+/** The base at and below which a power is zero, not the power of a number too small to take a
+ *  logarithm of in single precision: 2^-25. */
+export const POSITIVE_POW_FLOOR = 2.980233e-8
+
+/** `base` to the power `exponent`, a base at or below `POSITIVE_POW_FLOOR` counting as zero. */
+export const positivePow = (base: number, exponent: number) =>
+  base <= POSITIVE_POW_FLOOR ? 0 : Math.pow(base, exponent)
 
 /** `a` to `b` by `t`, componentwise, a scalar repeated to the widest. */
 export function lerpOf(a: readonly number[], b: readonly number[], t: readonly number[]) {

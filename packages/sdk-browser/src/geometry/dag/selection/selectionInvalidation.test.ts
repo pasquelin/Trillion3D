@@ -4,8 +4,8 @@ import { createGpuDagSelection } from './selection.ts'
 import { dagFixture, wideCamera } from '../../selection/dag.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { dagPageUrls } from '../pack/pack.fixture.ts'
-import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
-import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
+import { drawnPageIds, installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
+import { followNoResidency, gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { pageResidency } from '../readiness.fixture.ts'
 import { hostStretches } from '../hostStretches.fixture.ts'
 
@@ -24,6 +24,7 @@ test("a shared command buffer is the caller's to submit, and abandoning it gives
   }
   const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
+  followNoResidency(dag)
   // The cut's own buffers: its first copy of the poses the previous frame drew is submitted at its
   // making (`../previousPoses.ts`).
   submits = 0
@@ -53,30 +54,25 @@ async function wideSelection(faults?: Parameters<typeof mockDagDevice>[1]) {
   return { fixture, dag, uniforms, gpu, selection }
 }
 
-test('unchanged uniforms skip a second GPU dispatch', async () => {
+test("every dispatch cuts again: the visible clusters are the frame's, whatever the uniforms", async () => {
   const { fixture, uniforms, gpu, selection } = await wideSelection()
   selection.dispatch(uniforms)
   await selection.flush()
   const afterFirst = gpu.uniformWrites()
   selection.dispatch(uniforms)
   await selection.flush()
-  assert.equal(gpu.uniformWrites(), afterFirst)
+  assert.equal(gpu.uniformWrites(), afterFirst + 1)
   selection.dispose()
   fixture.geometry.dispose()
 })
 
-test('the resident mask recomputes for residency changes with an unchanged camera', async () => {
+test('the visible clusters follow the residency with an unchanged camera', async () => {
   const { fixture, dag, uniforms, gpu, selection } = await wideSelection()
-  // The draw mask, a bit a page (`../shader/compactWgsl.ts`).
-  const mask = () => {
-    const words = new Uint32Array(
-      (selection.maskBuffer as unknown as { data: Uint8Array }).data.buffer,
-    ).subarray(selection.maskOffset)
-    return Array.from({ length: dag.pageCount }, (_, id) => id)
-      .filter((id) => (words[id >>> 5] & (1 << (id & 31))) !== 0)
+  // The pages of the visible clusters (`../visible/layout.ts`).
+  const drawn = () =>
+    drawnPageIds(gpu.buffers)
       .map((id) => dag.pageUrlOf(id))
       .sort()
-  }
   selection.updateResidency(
     pageResidency(Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0)))),
   )
@@ -85,7 +81,7 @@ test('the resident mask recomputes for residency changes with an unchanged camer
     (await selection.flush())?.drawablePageIds?.map((id) => dag.pageUrlOf(id)),
     ['root'],
   )
-  assert.deepEqual(mask(), ['root'])
+  assert.deepEqual(drawn(), ['root'])
   selection.updateResidency(pageResidency(new Uint32Array(dag.pageCount).fill(1)))
   // Pages that only arrived leave the cut in hand drawable: everything it draws is still resident.
   assert.deepEqual(
@@ -98,7 +94,7 @@ test('the resident mask recomputes for residency changes with an unchanged camer
     ['leaf0', 'leaf1', 'leaf2', 'leaf3'],
   )
   assert.equal(gpu.uniformWrites(), 2)
-  assert.deepEqual(mask(), ['leaf0', 'leaf1', 'leaf2', 'leaf3'])
+  assert.deepEqual(drawn(), ['leaf0', 'leaf1', 'leaf2', 'leaf3'])
   selection.dispose()
   fixture.geometry.dispose()
 })

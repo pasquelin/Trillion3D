@@ -35,25 +35,18 @@ export function createRenderOriginFrame(): RenderOriginFrame {
 }
 
 /**
- * Rewrites the three matrices from the frame's absolute view and projection. `far` is the
- * far plane the host declares: the engine projection has none — it is infinite —
- * and the relative frustum keeps it exactly as the absolute frustum (`updateCameraFrame`).
- * It is read from the RELATIVE view, the very one whose frustum these planes describe.
+ * Rewrites the three matrices from the frame's absolute view and projection. The relative
+ * frustum has no far plane, like the absolute one (`updateCameraFrame`): the engine projection
+ * is infinite. It is read from the RELATIVE view, the very one whose frustum these planes
+ * describe.
  */
 export function updateRenderOriginFrame(
   frame: RenderOriginFrame,
   view: Float64Array,
   projection: Float64Array,
-  far = Infinity,
 ) {
   viewToRenderOrigin(frame.viewRelative, view)
-  viewFrustum(
-    frame.viewProjectionRelative,
-    frame.planesRelative,
-    projection,
-    frame.viewRelative,
-    far,
-  )
+  viewFrustum(frame.viewProjectionRelative, frame.planesRelative, projection, frame.viewRelative)
   return frame
 }
 

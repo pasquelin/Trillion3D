@@ -5,9 +5,9 @@ import { lineClip } from '../../../../../bench/oracles/browser/cpu-image/line.ts
 import { runShaderText } from './shaderText.fixture.ts'
 import { lineProjection, LINE_VIEWPORT, toPixels } from './lineProjection.fixture.ts'
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts'
-import { VIS_SHADER } from './visWgsl.ts'
+import { VIS_SHADER } from './visShader.fixture.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
-import { binSource } from '../raster/binWgsl.ts'
+import { DAG_VISIBLE_WGSL } from '../../geometry/dag/shader/visibleWgsl.ts'
 import { FLAG_LINE, FLAG_SPRITE, FLAG_VOXEL } from '../types.ts'
 import { BLEND_ITEM_WGSL } from '../../blend/items.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
@@ -109,15 +109,19 @@ test('a segment seen end-on keeps no width', () => {
 test('every page-geometry raster widens a line page, and a triangle page draws as before', () => {
   // A row carries its line flag; its width is its surface's record's (`pageShape`).
   assert.doesNotMatch(wgslSource(PAGE_INFO_STRUCT_WGSL), /lineWidth/)
-  // A line row is the hardware raster's: the split never hands it to the software raster.
-  assert.ok(binSource(4).includes(`(page.flags&${FLAG_LINE | FLAG_SPRITE | FLAG_VOXEL}u)==0u`))
+  // A line cluster is the hardware raster's: the cut never lists it for the software raster.
+  assert.ok(
+    wgslSource(DAG_VISIBLE_WGSL).includes(
+      `const FORCE_HARDWARE:u32=${FLAG_LINE | FLAG_SPRITE | FLAG_VOXEL}u;`,
+    ),
+  )
   const hardware =
     ' out.position=uni.viewProj*world;\n if(shape.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position,shape.lineWidth);}'
   assert.equal(VIS_SHADER.split(hardware).length - 1, 1, 'the one hardware vertex stage')
-  assert.match(SHADE_SHADER, /var c0=uni\.viewProj\*w0;var c1=uni\.viewProj\*w1;/)
+  assert.match(SHADE_SHADER, /var c0=shadeViewProj\(\)\*w0;var c1=shadeViewProj\(\)\*w1;/)
   assert.match(
     SHADE_SHADER,
-    /if\(shape\.lineWidth>0\.0\)\{let vp=uni\.viewProj\*page\.world;let width=shape\.lineWidth;c0=pageLine/,
+    /if\(shape\.lineWidth>0\.0\)\{let vp=shadeViewProj\(\)\*page\.world;let width=shape\.lineWidth;c0=pageLine/,
   )
   assert.doesNotMatch(wgslSource(BLEND_ITEM_WGSL), /lineWidth/)
   assert.match(BLEND_SHADER, /out\.position=uni\.viewProj\*world;out\.view=world\.xyz;/)

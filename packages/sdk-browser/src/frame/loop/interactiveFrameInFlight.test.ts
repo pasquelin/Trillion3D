@@ -25,7 +25,13 @@ function engine() {
     textures = gates()
   Object.assign(rt.gpu, { device: { queue: { onSubmittedWorkDone: work.ask } } })
   Object.assign(rt.run, { gpuSelection: { flush: async () => (await reads.ask(), null) } })
-  Object.assign(rt.vis, { textures: { settled: textures.ask } })
+  // The decode and the bins' stages made: the frame entry asks none again (`askVisibleStages`).
+  Object.assign(rt.vis, {
+    textures: { settled: textures.ask },
+    gpuDecode: {},
+    binStages: { layerSlots: undefined },
+    clusterMeasure: { ask() {} },
+  })
   return { rt, work, reads, textures }
 }
 

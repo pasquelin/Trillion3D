@@ -2,7 +2,7 @@ import { type WgslSource, wgslSource } from '../../../../math/src/wgsl/source.fi
 
 /** An unsigned vector as the shaders build one (`vec2u`, `vec4u`…), flattened: each word converted
  *  as the GPU does, truncated and wrapped to an unsigned 32-bit integer. */
-export const vec = (...parts: Array<number | Record<string, number>>) => {
+const vec = (...parts: Array<number | Record<string, number>>) => {
   const words = parts.flatMap((part) =>
     typeof part === 'number' ? [part >>> 0] : Object.values(part),
   )

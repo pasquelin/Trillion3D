@@ -2,7 +2,7 @@ import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
 import { grantPending } from '../../gpu/core/errorScope.ts'
 import { pipelinesCompiling, pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { litProgramPending } from '../prepare/contractLight.ts'
-import { askFramePipelines } from './framePipelines.ts'
+import { askFramePipelines, askFramePipelinesMoved } from './framePipelines.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { heldTargetGrant } from '../backend/state/gpu.ts'
 
@@ -35,12 +35,14 @@ const refusalOf = (rt: WebgpuPagesRuntime) => gpuDeviceLedgerOf(rt.gpu.device)?.
 /** What the device still answers for the frame — its targets, the lit program it compiles, the
  *  pipelines the next frame binds (`askFramePipelines`, asked here as a frame entry asks them) —,
  *  while it answers: an image drawn meanwhile would be incomplete or unlit, or
- *  compile on the frame, so the loop holds on it and a capture waits for it. Nothing is made while
+ *  compile on the frame, so the loop holds on it and a capture waits for it. `justEntered`: the
+ *  loop asks right after the frame's entry asked, and a frame that moved nothing asks no more. Nothing is made while
  *  nothing is asked. */
-export function deviceAnswer(rt: WebgpuPagesRuntime) {
+export function deviceAnswer(rt: WebgpuPagesRuntime, justEntered = false) {
   const refusal = refusalOf(rt)
   if (refusal) return Promise.reject(refusal)
-  askFramePipelines(rt)
+  if (justEntered) askFramePipelinesMoved(rt)
+  else askFramePipelines(rt)
   // Each answer is asked once; the list is made only when one is in flight, so the frame with
   // none allocates nothing.
   let answers: Promise<unknown>[] | undefined

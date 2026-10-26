@@ -7,6 +7,7 @@ import {
   sameRootParent,
   type PlacementRows,
 } from './rows/rows.ts'
+import { sameDrawDistanceAt } from '../geometry/dag/drawDistance.ts'
 import { settleRoot } from './hidden.ts'
 import { markCasting } from '../visibility/shader/castingMark.ts'
 import type { NodeIndex } from '../frame/render/movedNode.ts'
@@ -44,13 +45,8 @@ function rowRoots<T>(roots: readonly ClusterRoot<T>[], rows: PlacementRows) {
 /** `root` drawn at the distances its row names now (`PlacementRows.drawDistance`): true when that
  *  changed them. */
 function followDrawDistance(root: ClusterRoot<unknown>) {
-  const { rows, index } = root.placement!,
-    held = root.drawDistance
-  if (
-    (rows.drawDistance?.[2 * index] ?? 0) === (held?.min ?? 0) &&
-    (rows.drawDistance?.[2 * index + 1] ?? 0) === (held?.max ?? 0)
-  )
-    return false
+  const { rows, index } = root.placement!
+  if (sameDrawDistanceAt(rows.drawDistance, index, root.drawDistance)) return false
   root.drawDistance = rowDrawDistance(root.placement!)
   return true
 }
@@ -87,9 +83,8 @@ export const forgetRowRoots = (roots: readonly object[]) => {
  * rows pose, with the pose it now has — never forced: a row taken or parked where it stands is
  * shown or hidden, not moved —, and says whether it moved (`MOVE_*`). A root that began or stopped
  * casting is not made a moving caster for it. `follow` names each root that reads a written row:
- * the rows pass derives its rows again, and they stale the shadow pages they left and entered
- * (`rows/rowCastWgsl.ts`). A row of the range left where it stands — a pose written again unchanged, a
- * row between two written ones — moves nothing. A row re-seated on another mesh raises the
+ * its world goes up with the next send (`moveRootRows`). A row of the range left where it stands — a
+ * pose written again unchanged, a row between two written ones — moves nothing. A row re-seated on another mesh raises the
  * revision of `owner`'s index of the roots by node (`../frame/render/movedNode.ts`). Returns whether a drawn root moved, was shown or
  * hidden, turned to cast or not, or changed the distances it is drawn at: a still scene pays
  * nothing downstream.

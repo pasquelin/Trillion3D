@@ -3,8 +3,8 @@ import { pattern } from './remesh.ts'
 
 /** The tessellation table: `offsets`, two words per pattern — where its words start in `data`, and
  *  its vertex and triangle counts packed `vertices << 13 | triangles << 22` —, and `data`, each
- *  pattern's vertices then its triangles, a pattern at the index its factors give
- *  (`patternIndex`). */
+ *  pattern's vertices then its triangles, a pattern at the index its factors give,
+ *  sorted into descending order. */
 type TessellationTable = { offsets: Uint32Array<ArrayBuffer>; data: Uint32Array<ArrayBuffer> }
 
 /** Every ordered triple of factors `x >= y >= z` from 1 to `TABLE_SIZE`, in the table's order. */

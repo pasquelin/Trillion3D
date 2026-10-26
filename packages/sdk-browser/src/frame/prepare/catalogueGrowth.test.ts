@@ -23,7 +23,10 @@ function primitive(at: number): PageRec[] {
         indexBytes: 1200,
         level: 0,
         parentError: null,
-        geometryPage: { url: `g${at}/${k}`, bytes: 400 + 4 * k, indexCount: 300 },
+        geometryPage: {
+          ...{ url: `g${at}/${k}`, bytes: 300 + 4 * k, indexCount: 300 },
+          ...{ residentBytes: 400 + 4 * k, residentOffset: 0 },
+        },
       }) as unknown as PageRec,
   )
 }

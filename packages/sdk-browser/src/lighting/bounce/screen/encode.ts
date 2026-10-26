@@ -98,15 +98,14 @@ function chooseRays(pass: GPUComputePassEncoder, run: CastRun) {
     dispatchOver(pass, kernels.rays.pipelines.genRays, groups.rays, resources.args, PROBES_AT)
 }
 
-/** The trace of the rays — the screen's stage, which lists the rays it left, the field's, the scene's over that list —, then the filter:
- *  the composite into the octahedron, the spatial passes, the conversion to what the pixels read. */
+/** The trace of the rays — the screen's stage, which lists the rays it left, the scene's over that list: the near trace, then the radiance
+ *  cache for the share of a ray it leaves —, then the filter: the composite into the octahedron, the spatial passes, the conversion to what
+ *  the pixels read. */
 function traceAndFilter(pass: GPUComputePassEncoder, run: CastRun) {
   const { groups, kernels, settings, resources } = run
   const { args, sceneRays } = resources
   dispatchOver(pass, kernels.traceScreen.pipelines.traceScreen, groups.traceScreen, args, PROBES_AT)
-  dispatchOver(pass, kernels.traceField.pipelines.traceField, groups.traceField, args, PROBES_AT)
-  if (kernels.traceScene && groups.traceScene)
-    dispatchOver(pass, kernels.traceScene.pipelines.traceScene, groups.traceScene, sceneRays, 0)
+  dispatchOver(pass, kernels.traceScene.pipelines.traceScene, groups.traceScene, sceneRays, 0)
   dispatchOver(pass, kernels.composite.pipelines.composite, groups.composite, args, PROBES_AT)
   for (let k = 0; k < settings.spatialFilterPasses; k++)
     dispatchOver(

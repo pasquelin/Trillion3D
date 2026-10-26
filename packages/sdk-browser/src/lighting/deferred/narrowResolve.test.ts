@@ -9,7 +9,7 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.t
 import { createDeferredLighting } from './deferred.ts'
 import { recorder } from './recorder.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
+import { contractLightingShader, litPassShaders } from '../../gpu/core/shaderTexts.fixture.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
@@ -17,18 +17,24 @@ import {
   AMBIENT_SPECULAR_OCCLUSION_WGSL,
 } from './ambientOcclusionWgsl.ts'
 import { DEFERRED_BINDINGS } from './bindings.ts'
-import { deferredLayoutEntries } from './layoutEntries.ts'
+import { indirectLayoutEntries, unlitLayoutEntries } from './layoutEntries.ts'
 
 test("the narrow resolve bounds its light array, the rest of its program the wide one's", () => {
   for (const bounce of [false, true]) {
-    const narrow = contractLightingShader(bounce, { narrow: true, lobeless: true }),
-      wide = contractLightingShader(bounce)
-    assert.match(narrow, new RegExp(`items:array<DirectLight,${LIGHT_SETTINGS.tileLights}>`))
-    assert.match(wide, /items:array<DirectLight>/)
-    // That both give the same sum, bit for bit, runs on the GPU:
-    // `tests/gpu/lighting/narrow-resolve.gpu.ts`.
-    const outside = (code: string) => code.replace(/items:array<DirectLight(,\d+)?>/, '')
-    assert.equal(outside(narrow), outside(wide))
+    const narrow = litPassShaders(bounce, { narrow: true, lobeless: true }),
+      wide = litPassShaders(bounce)
+    // The passes that walk the lights: the sun's and the local lights'.
+    for (const pass of ['sun', 'local'] as const) {
+      assert.match(
+        narrow[pass],
+        new RegExp(`items:array<DirectLight,${LIGHT_SETTINGS.tileLights}>`),
+      )
+      assert.match(wide[pass], /items:array<DirectLight>/)
+      // That both give the same sum, bit for bit, runs on the GPU:
+      // `tests/gpu/lighting/narrow-resolve.gpu.ts`.
+      const outside = (code: string) => code.replace(/items:array<DirectLight(,\d+)?>/g, '')
+      assert.equal(outside(narrow[pass]), outside(wide[pass]))
+    }
   }
 })
 
@@ -45,17 +51,13 @@ test('a narrow scene is lit by the narrow program, a wide one never is', async (
   // never by the narrow program.
   assert.equal(frame(false), true, 'the wide twin is ready with the narrow program')
   assert.equal(frame(true), true)
-  assert.deepEqual(labels(), [
-    'DIRECT_NARROW_LIGHTING',
-    'DIRECT_LIGHTING',
-    'DIRECT_NARROW_LIGHTING',
-  ])
+  assert.deepEqual(labels(), ['DIRECT_NARROW', 'DIRECT', 'DIRECT_NARROW'])
   lighting.dispose()
 })
 
 test('a scene with no shadow slot is lit with no shadow code, a shadowed one never is (#1249)', async () => {
   const unshadowed = contractLightingShader(false, { unshadowed: true, lobeless: true })
-  assert.doesNotMatch(unshadowed, /shade=shadowFactor\(|shadowTransmission;/, 'no shadow read')
+  assert.doesNotMatch(unshadowed, /shade=shadowFactor\(/, 'no shadow read')
   assert.match(contractLightingShader(false), /let shade=shadowFactor\(/)
   const gpu = fakeDevice(),
     { device } = gpu
@@ -68,20 +70,18 @@ test('a scene with no shadow slot is lit with no shadow code, a shadowed one nev
   frame(true)
   frame(false)
   frame(true)
-  assert.deepEqual(labels(), [
-    'DIRECT_UNSHADOWED_LIGHTING',
-    'DIRECT_LIGHTING',
-    'DIRECT_UNSHADOWED_LIGHTING',
-  ])
+  assert.deepEqual(labels(), ['DIRECT_UNSHADOWED', 'DIRECT', 'DIRECT_UNSHADOWED'])
   lighting.dispose()
 })
 
 test('the opaque resolve binds the ambient occlusion and applies it by the view’s mode, a pixel with none as it was', () => {
   const at = (entries: GPUBindGroupLayoutEntry[]) =>
     entries.find((entry) => entry.binding === DEFERRED_BINDINGS.ambientOcclusion)
-  assert.equal(at(deferredLayoutEntries(true, true))?.texture?.sampleType, 'unfilterable-float')
-  assert.equal(at(deferredLayoutEntries(true)) !== undefined, true, 'the direct program too')
-  assert.equal(at(deferredLayoutEntries(false)), undefined, 'the unlit view binds none')
+  const indirect = (bounce: boolean) =>
+    indirectLayoutEntries({ bounce, skyShadowing: false, lobes: false })
+  assert.equal(at(indirect(true))?.texture?.sampleType, 'unfilterable-float')
+  assert.equal(at(indirect(false)) !== undefined, true, 'the direct program too')
+  assert.equal(at(unlitLayoutEntries()), undefined, 'the unlit view binds none')
   for (const bounce of [false, true]) {
     const code = contractLightingShader(bounce)
     assert.match(

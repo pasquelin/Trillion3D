@@ -1,40 +1,47 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { createGpuPeriodicReadback } from '../../gpu/core/periodicReadback.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
-
-/** Pool words per column of the light grid a view starts with: `tileLights` lights over sixteen of
- *  its slices, a run of a lamp across a doubling of the view depth. */
-const START_WORDS_PER_TILE = LIGHT_SETTINGS.tileLights * 16
-/** Pool words per column the view grows to at most: its memory stays bounded by the view. */
-const MOST_WORDS_PER_TILE = START_WORDS_PER_TILE * 16
+import { log } from '../../diagnostic/log.ts'
 
 /** `TilePool` (`./compactWgsl.ts`): start, capacity, words reserved, overflow. */
 const STATE_BYTES = 16
-/** Growth past what an overflowing frame reserved: a demand risen by less between samples fits. */
-const HEADROOM = 1.25
+/** Takes the state the pool's pass left: the sample, and the overflow said once per rise of its demand. */
+function readPoolState(
+  mapped: ArrayBuffer,
+  sample: { reserved: number; capacity: number; overflowed: boolean },
+  demand: { highWater: number },
+) {
+  const [, capacity, reserved, overflow] = new Uint32Array(mapped, 0, 4)
+  sample.reserved = reserved
+  sample.capacity = capacity
+  sample.overflowed = overflow !== 0
+  if (!sample.overflowed) return
+  if (reserved > demand.highWater) {
+    demand.highWater = reserved
+    log.warn(
+      `The light grid overflowed: ${reserved} light entries asked, ${capacity} held. ` +
+        'Raise lightGridMaxCulledLightsPerCell to keep the lights it dropped.',
+    )
+  }
+}
 
 /**
- * The view's light-index pool, after the cell records in the same buffer: each column
- * of the light grid takes the room of its cells' lists there. Sampled one frame in fifteen, an
- * overflow is named (`tileLightPoolOverflowed`) and grows the pool to `HEADROOM` times what it
- * reserved, within `MOST_WORDS_PER_TILE`; until then, and past it, a column with no room walks
- * every light exactly.
+ * The light grid's light-index pool, after the cell records in the same buffer: each column of the
+ * grid takes the room of its cells' lists there. Sampled one frame in fifteen, an overflow is named
+ * (`tileLightPoolOverflowed`).
+ *
+ * The pool is FIXED: its cells (columns × `gridSlices`) times the setting
+ * `lightGridMaxCulledLightsPerCell`, as the reference's global limit of light links; a column past
+ * it keeps the lights it got, in order, and drops the rest, and the overflow is said once per rise
+ * of its demand.
  */
 export function createTileLightPool(device: GPUDevice) {
   const words = new Uint32Array(4)
   // What the last sampled frame asked of the pool, its fields moved together when it returns.
   const sample = { reserved: 0, capacity: 0, overflowed: false }
-  let asked = 0
+  const demand = { highWater: 0 }
   const reader = createGpuPeriodicReadback(
     device,
     { label: 'Trillion3D light tile pool readback', bytes: STATE_BYTES, eager: true },
-    (mapped) => {
-      const [, capacity, reserved, overflow] = new Uint32Array(mapped, 0, 4)
-      sample.reserved = reserved
-      sample.capacity = capacity
-      sample.overflowed = overflow !== 0
-      if (sample.overflowed) asked = Math.max(asked, Math.ceil(reserved * HEADROOM))
-    },
+    (mapped) => readPoolState(mapped, sample, demand),
   )
   const state = device.createBuffer({
     label: 'Trillion3D light tile pool v1',
@@ -46,16 +53,6 @@ export function createTileLightPool(device: GPUDevice) {
     /** The last sample, or nothing until one has come back. */
     sample() {
       return reader.ready ? sample : undefined
-    },
-    /**
-     * Pool words for `tiles` columns of the light grid over `lights` lights. A column lists each
-     * light at most once in each of its `slices` cells (the view's `gridSlices`) (`./compactWgsl.ts`): `gridSlices ×
-     * lights` words hold its lists whole, so a view starts at that bound when it is below
-     * `START_WORDS_PER_TILE`, and no column of it ever overflows.
-     */
-    words(tiles: number, lights: number, slices: number = LIGHT_SETTINGS.gridSlices) {
-      const start = Math.min(START_WORDS_PER_TILE, slices * Math.max(1, lights))
-      return clamp(asked, tiles * start, tiles * MOST_WORDS_PER_TILE)
     },
     /** Opens the frame's pool at word `start`, `capacity` words: nothing reserved, no overflow. */
     open(start: number, capacity: number) {

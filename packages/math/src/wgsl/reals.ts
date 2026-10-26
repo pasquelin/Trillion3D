@@ -36,10 +36,18 @@ export const unitToSigned3 = wgslFn(
   'fn unitToSigned3(v:vec3f)->vec3f{return v*2.0-1.0;}',
 )
 
-/** A signed value to a unit one, `[-1, 1]` to `[0, 1]`: `v·0.5 + 0.5`, a normal shown as a colour.
- *  On two components it is `ndcToUvUnflipped` (`projection.ts`). */
+/** A signed value to a unit one, `[-1, 1]` to `[0, 1]`: `v·0.5 + 0.5`, a normal shown as a colour. */
 export const signedToUnit3 = wgslFn(
   'signedToUnit3',
   [],
   'fn signedToUnit3(v:vec3f)->vec3f{return v*0.5+0.5;}',
+)
+
+/** An inverse that is zero at zero (and below): the one reciprocal a sum that can be nothing is taken
+ *  by, where the division would give an infinity — a weight no sample added to, a lamp's distance
+ *  at its own centre. */
+export const safeRcp = wgslFn(
+  'safeRcp',
+  [],
+  'fn safeRcp(x:f32)->f32{return select(0.0,1.0/x,x>0.0);}',
 )

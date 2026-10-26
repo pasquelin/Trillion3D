@@ -44,9 +44,10 @@ export function emitInstalledBrowserBundle({
 }: BrowserModesOptions): EmittedBrowserBundle {
   const outputRoot = join(fixture, 'browser-output')
   const packageRoot = join(fixture, 'node_modules', packageName)
-  const workRoot = join(packageRoot, 'dist/sdk-browser/src/page/work')
-  const integrationRoot = join(packageRoot, 'dist/sdk-browser/src/page/integration')
+  const workRoot = join(packageRoot, 'dist/sdk-browser/src/geometry/work')
+  const integrationRoot = join(packageRoot, 'dist/sdk-browser/src/geometry/integration')
   const physicsRoot = join(packageRoot, 'dist/sdk-browser/src/physics')
+  const worldRoot = join(packageRoot, 'dist/sdk-browser/src/session/world')
   const wasmRoot = join(packageRoot, 'dist/sdk-browser/src/wasm')
   const explorer = join(fixture, 'explorer.ts')
   const metafile = join(outputRoot, 'metafile.json')
@@ -63,6 +64,7 @@ export function emitInstalledBrowserBundle({
       join(workRoot, 'pageWorker.js'),
       join(integrationRoot, 'pageIntegrationWorker.js'),
       join(physicsRoot, 'physicsWorker.js'),
+      join(worldRoot, 'benchmarkWorker.js'),
       '--bundle',
       '--format=esm',
       '--platform=browser',
@@ -92,7 +94,13 @@ export function emitInstalledBrowserBundle({
     cpSync(join(fixture, name), join(outputRoot, name), { recursive: true })
   cpSync(join(fixture, 'common-worker.js'), join(outputRoot, 'common-worker.js'))
   const assets = filesAt(outputRoot)
-  const entries = ['explorer.js', 'pageWorker.js', 'pageIntegrationWorker.js', 'physicsWorker.js']
+  const entries = [
+    'explorer.js',
+    'pageWorker.js',
+    'pageIntegrationWorker.js',
+    'physicsWorker.js',
+    'benchmarkWorker.js',
+  ]
   for (const required of entries)
     if (!assets.some(({ path }) => path === required))
       throw new Error(`browser bundle did not emit ${required}`)

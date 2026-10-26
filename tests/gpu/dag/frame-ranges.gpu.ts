@@ -1,8 +1,9 @@
 // A camera cut on a small binding cuts on the GPU as the whole cut does: the shipped kernels and
-// resources, the device the engine opens, and that same device reporting a binding two thirds of
-// the placements' frame words hold (`frameRangesPage.ts`). Once refused — its tables in parts, 12
-// storage bindings past a stage's 10 —, the device is accepted now: every table is a record table,
-// the stage binds the readout and `work` alone.
+// resources, the device the engine opens, and that same device reporting a binding that holds the
+// largest buffer the cut binds and no more (`frameRangesPage.ts`). Once refused — its tables in
+// parts, 12 storage bindings past a stage's 10 —, the device is accepted now: every table is a
+// record table, the stage binds the readout, `work`, the visible clusters and their records and
+// edges.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
@@ -30,7 +31,11 @@ test('a cut past one binding cuts as the whole cut, on the GPU', async () => {
   assert.deepEqual([...errors, ...pageErrors], [])
   assert.equal(refusal, undefined, 'the engine accepts the narrow device')
   assert.ok(whole && split, 'the cut does not mount')
-  assert.equal(storage, 2, 'the stage declares the readout and `work` alone')
+  assert.equal(
+    storage,
+    5,
+    'the stage declares the readout, `work`, the visible clusters, their records and edges',
+  )
   assert.ok(storage <= storageBindings, 'the narrow device binds every storage buffer of the stage')
   for (const [k, cut] of whole.entries()) {
     assert.ok(cut.pageIds.length > 0, `the scene draws at ${cut.pixelError} px`)

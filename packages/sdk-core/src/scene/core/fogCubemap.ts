@@ -16,7 +16,8 @@
  * from its top-left corner, three linear numbers per texel. The smallest level is made of the faces'
  * means (`faceAverages`). The data is not copied: it must not be written after it is set.
  */
-import { colourOf, finite, objectOf, rangedFields, refuse, type FogRange } from './fogChecks.ts'
+import { isFiniteNumber } from '../../../../math/src/scalar/reals.ts'
+import { colourOf, objectOf, rangedFields, refuse, type FogRange } from './fogChecks.ts'
 import type { LinearRgb } from '../../contracts/material.ts'
 
 /** The fog's cubemap (`SceneHeightFog.cubemap`). */
@@ -47,7 +48,7 @@ export interface ResolvedFogCubemap {
 
 /** The defaults of the cubemap's settings, the converted ones of the engines that fixed them:
  *  100 000 and 1 000 centimetres are 1000 and 10 metres. */
-export const CUBEMAP_DEFAULTS = {
+const CUBEMAP_DEFAULTS = {
   tint: [1, 1, 1],
   turn: 0,
   sharpFrom: 1000,
@@ -56,7 +57,7 @@ export const CUBEMAP_DEFAULTS = {
 
 /** The most texels across a face: six faces of that size in half floats, with their levels, are
  *  about 60 MB, which every device holds. */
-export const CUBEMAP_MAX_SIZE = 1024
+const CUBEMAP_MAX_SIZE = 1024
 
 /** The levels of a cubemap of `size` texels a face: down to one texel. */
 export const cubemapMipCount = (size: number) => Math.floor(Math.log2(size)) + 1
@@ -93,7 +94,7 @@ export function validateFogCubemap(cube: unknown, fog: unknown): SceneFogCubemap
   if (!texels || texels.length !== need)
     refuse(`cubemap.texels expects ${need} numbers, six faces of ${c.size}² texels`, fog)
   for (let i = 0; i < need; i++)
-    if (!finite(texels[i]) || texels[i] < 0)
+    if (!isFiniteNumber(texels[i]) || texels[i] < 0)
       refuse('cubemap.texels expects finite numbers ≥ 0', fog)
   const out: SceneFogCubemap = { size: c.size, texels }
   if (c.tint !== undefined) out.tint = colourOf(c.tint, 'cubemap.tint', fog)

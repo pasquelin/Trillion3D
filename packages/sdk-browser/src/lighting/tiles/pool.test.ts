@@ -1,28 +1,28 @@
-// The view's light-index pool of the grid's lists, as the frame metrics carry it. A
-// sampled frame whose pool overflowed is named and grows the pool to 1.25 × what it reserved,
-// within a bound per column of cells.
+// The view's light-index pool of the grid's lists, as the frame metrics carry it: FIXED, its cells
+// times the words a cell holds. A sampled frame whose pool overflowed is named, and the pool stays.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createGpuLightTiles } from './tiles.ts'
-import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
+import { GRID_HEAD_WORDS, TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
 import { shippedColumn, suns } from './gridColumn.fixture.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** 160 × 160 pixels: 3 × 3 columns of cells. */
 const COLUMNS = ceilDiv(160, LIGHT_SETTINGS.tileSize) ** 2
-const START = COLUMNS * LIGHT_SETTINGS.tileLights * 16,
-  MOST = START * 16,
-  /** Where the pool starts: the cell records, each `TILE_STRIDE_WORDS` wide. */
-  RECORDS = COLUMNS * LIGHT_SETTINGS.gridSlices * TILE_STRIDE_WORDS
+/** The words a cell holds: the setting `lightGridMaxCulledLightsPerCell`'s default. */
+const PER_CELL = 32
+const POOL = COLUMNS * LIGHT_SETTINGS.gridSlices * PER_CELL,
+  /** Where the pool starts: the slice map, then the cell records, each `TILE_STRIDE_WORDS` wide. */
+  RECORDS = GRID_HEAD_WORDS + COLUMNS * LIGHT_SETTINGS.gridSlices * TILE_STRIDE_WORDS
 
 /** The scene's light list the grid reads: a storage buffer, as the pass binds it. */
 const lightList = (device: GPUDevice) =>
   device.createBuffer({ label: 'lights', size: 256, usage: GPUBufferUsage.STORAGE })
 
-test('the frame metrics carry the sampled pool and count its growths', async () => {
+test('the frame metrics carry the sampled pool, fixed at its cells times the words a cell holds', async () => {
   const fake = fakeDevice()
   Object.assign(fake.device, { features: new Set() })
   const tiles = await createGpuLightTiles(fake.device)
@@ -33,10 +33,11 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
   const pools = () => fake.writes.filter((write) => write.buffer === (state as never))
   /** One frame of 160 × 160 pixels, the GPU's pool state `words`. */
   const frame = async (at: number, words?: number[]) => {
-    tiles.ensure(160, 160, lights, LIGHT_SETTINGS.tileLights)
+    tiles.ensure(160, 160, lights, PER_CELL)
     tiles.update(new Float64Array(16), [0, 0, 0], 160, 160, {
       depth: undefined,
       words: new Float32Array(8),
+      map: new Float32Array(GRID_HEAD_WORDS),
     })
     tiles.encode(encoder, at)
     if (words) new Uint32Array(readback.getMappedRange()).set(words)
@@ -45,53 +46,43 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
     return tiles.poolMetrics()
   }
   // A view names nothing before a sample returns; the frame opens its pool, nothing reserved.
-  tiles.ensure(160, 160, lights, LIGHT_SETTINGS.tileLights)
+  tiles.ensure(160, 160, lights, PER_CELL)
   const opened = tiles.poolMetrics()
-  assert.deepEqual(opened, { ...opened, tileLightPoolOverflowed: null, tileLightPoolGrowths: 0 })
-  const asked = START + 1000,
-    grown = Math.ceil(asked * 1.25)
-  await frame(0, [RECORDS, START, asked, 1])
-  assert.deepEqual([...pools()[0].data], [RECORDS, START, 0, 0])
-  // Grown to 1.25 × what it reserved: a demand risen by less finds room, and no growth follows.
-  const risen = Object.values(await frame(15, [RECORDS, grown, asked + 500, 0]))
-  assert.deepEqual(risen, [asked + 500, grown, false, 1], 'reserved, capacity, overflowed, growths')
-  await frame(30, [RECORDS, grown, MOST * 3, 1])
-  // Then grown to its bound.
-  assert.equal((await frame(45)).tileLightPoolGrowths, 2)
-  const capacities = pools().map((write) => write.data[1])
-  assert.deepEqual(capacities, [START, grown, grown, MOST])
+  assert.deepEqual(opened, { ...opened, tileLightPoolOverflowed: null })
+  const asked = POOL + 1000
+  const overflowed = Object.values(await frame(0, [RECORDS, POOL, asked, 1]))
+  assert.deepEqual(overflowed, [asked, POOL, true], 'reserved, capacity, overflowed')
+  assert.deepEqual([...pools()[0].data], [RECORDS, POOL, 0, 0])
+  // The demand risen again: the pool stays what it was.
+  await frame(15, [RECORDS, POOL, asked * 2, 1])
+  await frame(30)
+  assert.deepEqual(
+    pools().map((write) => write.data[1]),
+    [POOL, POOL, POOL],
+  )
 })
 
-// S23.1: a column lists each light at most once in each slice, so `gridSlices × lights` words hold
-// its lists whole: a view of fewer lights than START allows starts at that bound, overflow-free.
-/** The pool words a view of `width × height` pixels allocates for `lights` lights. */
-async function poolOf(width: number, height: number, lights: number) {
+// A column lists each light at most once in each slice,
+// and a column that needs more than its share drops the lights past it.
+/** The pool words a view of `width × height` pixels allocates. */
+async function poolOf(width: number, height: number) {
   const fake = fakeDevice()
   const tiles = await createGpuLightTiles(fake.device)
-  tiles.ensure(width, height, lightList(fake.device), lights)
+  tiles.ensure(width, height, lightList(fake.device), PER_CELL)
   const columns = ceilDiv(width, CELL) * ceilDiv(height, CELL)
-  return tiles.buffer!.size / 4 - columns * SLICES * TILE_STRIDE_WORDS
+  return tiles.buffer!.size / 4 - GRID_HEAD_WORDS - columns * SLICES * TILE_STRIDE_WORDS
 }
 const CELL = LIGHT_SETTINGS.tileSize,
   SLICES = LIGHT_SETTINGS.gridSlices
 
-test('the pool starts at its true bound: a slice of words per light and column, START at most', async () => {
-  const per = [0, 1, 2, 3, 4, 64].map((lights) => poolOf(CELL, CELL, lights))
-  assert.deepEqual(await Promise.all(per), [256, 256, 512, 768, 1024, 1024])
-  // One light saves 768 words a column: 1.57, 2.83 and 6.27 MB at 1080p, 1440p and 2160p.
-  const saved = async ([width, height]: number[]) =>
-    ((await poolOf(width, height, 4)) - (await poolOf(width, height, 1))) * 4
-  const sizes = [
-    [1920, 1080],
-    [2560, 1440],
-    [3840, 2160],
-  ]
-  assert.deepEqual(await Promise.all(sizes.map(saved)), [1_566_720, 2_826_240, 6_266_880])
+test('the pool is a fixed number of words a cell, whatever the columns', async () => {
+  assert.equal(await poolOf(CELL, CELL), SLICES * PER_CELL)
+  assert.equal(await poolOf(3 * CELL, 2 * CELL), 6 * SLICES * PER_CELL)
 })
 
-test('a column of lights holding every slice fills that bound exactly; one word less overflows', async () => {
+test('a column of lights holding every slice fits its share; a pool one word short overflows', async () => {
   for (const lights of [1, 2, 3, 4]) {
-    const exact = { start: 0, capacity: await poolOf(CELL, CELL, lights), head: 0, overflow: 0 }
+    const exact = { start: 0, capacity: SLICES * lights, head: 0, overflow: 0 }
     shippedColumn(suns(lights), exact)
     assert.deepEqual([exact.head, exact.overflow], [SLICES * lights, 0], `${lights}`)
     const short = { start: 0, capacity: SLICES * lights - 1, head: 0, overflow: 0 }
@@ -103,7 +94,7 @@ test('a column of lights holding every slice fills that bound exactly; one word 
     const r = lcgRandom(seed),
       lights = 1 + Math.floor(r() * 3),
       columns = 8
-    const capacity = await poolOf(columns * CELL, CELL, lights)
+    const capacity = await poolOf(columns * CELL, CELL)
     const pool = { start: 0, capacity, head: 0, overflow: 0 }
     for (let column = 0; column < columns; column++) {
       const runs = Array.from({ length: lights }, () => {

@@ -27,16 +27,27 @@ export type ViewPose = {
   headed: boolean
 }
 
-/** The reference's tolerance for a radius or an angle taken as zero, 1e-8 centimetres in metres. */
-const NEARLY_ZERO = 1e-10
+/** The reference's tolerance for a radius taken as zero, 1e-8 centimetres in metres: the one
+ *  tolerance the shape's validity and the blocking ratio (`slowStreaming.ts`) share. */
+export const NEARLY_ZERO_RADIUS = 1e-10
+/** The same tolerance on a squared length, in m²: 1e-8 cm² (a squared radius, a squared distance). */
+export const NEARLY_ZERO_SQUARED_LENGTH = 1e-12
+/** Its tolerance for an angle taken as zero, 1e-8 degrees. */
+const NEARLY_ZERO_ANGLE = 1e-8
+/** The axis of a view that gives none. */
+export const NO_AXIS = [0, 0, 0]
 /** The length of a view's axis on the ground under which it has no heading. */
 export const NO_HEADING = 1e-9
 
-/** The direction `axis` heads on the ground, given the camera's `up`: the axis itself, or — one
- *  looking straight down or up, no length of it on the ground — the ground part of `up`, as it
- *  points ahead looking down and behind looking up, into `out`. */
-export function aimOf(axis: ArrayLike<number>, up: ArrayLike<number>, out: number[]) {
-  if (length2(axis[0], axis[2]) > NO_HEADING || !(length2(up[0], up[2]) > NO_HEADING)) return axis
+/** The direction `axis` heads on the ground, given the camera's `up`, written into `out`: the axis
+ *  itself, or — one looking straight down or up, no length of it on the ground — the ground part
+ *  of `up`, as it points ahead looking down and behind looking up. */
+export function aimOf(axis: ArrayLike<number>, up: ArrayLike<number> | undefined, out: number[]) {
+  out[0] = axis[0]
+  out[1] = axis[1]
+  out[2] = axis[2]
+  if (!up || length2(axis[0], axis[2]) > NO_HEADING || !(length2(up[0], up[2]) > NO_HEADING))
+    return out
   const ahead = axis[1] < 0 ? 1 : -1
   out[0] = ahead * up[0]
   out[1] = 0
@@ -151,7 +162,7 @@ export function createSourceShape(streaming: WorldStreaming, loose: boolean, pos
     toward: (x: number, z: number, out: number[]) => toward(pose, x, z, out),
     sectored,
     /** Whether a shape of `radius` is one: neither its radius nor its angle nearly zero. */
-    valid: (radius: number) => radius > NEARLY_ZERO && angleOf() > NEARLY_ZERO,
+    valid: (radius: number) => radius > NEARLY_ZERO_RADIUS && angleOf() > NEARLY_ZERO_ANGLE,
     /** Whether the sector around the heading on the ground, when the shape is one, misses `bounds`
      *  at `at`. A square grid's sector is the whole circle for a view with no heading; a loose
      *  grid's axis without its up part weighs every test as it is, however short. */

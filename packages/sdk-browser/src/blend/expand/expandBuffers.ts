@@ -5,6 +5,7 @@ import { orderFrameWords } from '../frame/frameHead.ts'
 import { VERDICT_WORDS } from '../verdict/verdictLayout.ts'
 import { orderStepCount, sortSize } from '../order/orderSteps.ts'
 import { UNI_WORDS } from './expandUniform.ts'
+import { VIEW_COUNT } from './expansionViews.ts'
 import { uniformSlots } from '../../session/memory/pools.ts'
 import { trackedBuffers } from '../../gpu/core/sizedBuffer.ts'
 
@@ -17,12 +18,12 @@ export type ExpandSizes = {
   scratchWords: number
 }
 
-/** The uniform slots of the order's steps and of the expansion's one pass, the device's
+/** The uniform slots of the order's steps and of the expansion's views (`VIEW_COUNT`), the device's
  *  `uniformStride` apart: the stride the plan's step words are laid at (`BlendState.uniformStride`,
  *  from the same device's limits). */
 export const expandSlots = (device: GPUDevice, entries: number) => ({
   steps: uniformSlots(device.limits, orderStepCount(entries), ORDER_UNI_WORDS),
-  pass: uniformSlots(device.limits, 1, UNI_WORDS),
+  pass: uniformSlots(device.limits, VIEW_COUNT, UNI_WORDS),
 })
 export type ExpandSlots = ReturnType<typeof expandSlots>
 

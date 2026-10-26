@@ -2,17 +2,20 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
 import { EVENT_WORDS, POSE_WORDS } from '../../../../sdk-core/src/physics/layout.ts'
-import { PHYSICS_MATERIALS, PHYSICS_STEP } from '../../../../sdk-core/src/physics/options.ts'
+import {
+  GRAVITY_PRESETS,
+  PHYSICS_MATERIALS,
+  PHYSICS_STEP,
+} from '../../../../sdk-core/src/physics/options.ts'
 import { HUMAN_BODY } from '../../../../sdk-core/src/collision/characterSettings.ts'
 import type { CharacterInput } from '../../../../sdk-core/src/collision/characterDrive.ts'
 import { createCharacterDriver } from './characterDriver.ts'
 import { standCharacter, startModule, type Module } from '../module.fixture.ts'
 import { body } from '../records.fixture.ts'
-import { gripOf } from '../../../../sdk-core/src/collision/grip.ts'
 import { joinedWords } from '../../../../math/src/sequence/joined.ts'
 
-const STILL: CharacterInput = { wishX: 0, wishZ: 0, sprint: false }
-const EAST: CharacterInput = { wishX: 1, wishZ: 0, sprint: false }
+const STILL: CharacterInput = { wishX: 0, wishZ: 0 }
+const EAST: CharacterInput = { wishX: 1, wishZ: 0 }
 
 /** A box body: its slot, motion, centre and half sizes, turned by `quaternion`. */
 const block = (
@@ -81,9 +84,10 @@ test('the module character walks up a slope below its steepest and not up one ab
     return block(1, 0, [4, 0, 0], [3, 0.1, 5], [0, 0, Math.sin(half), Math.cos(half)])
   }
   const gentle = live(await world([ramp(30)]), 2.5, EAST)
-  assert.ok(gentle.y > 0.8, `up the 30° slope: ${gentle.y}`)
+  // The walk (6 m/s) carries the body over the ramp's top in the time given: the height it reached.
+  assert.ok(gentle.top > 0.8, `up the 30° slope: ${gentle.top}`)
   const steep = live(await world([ramp(60)]), 2.5, EAST)
-  assert.ok(steep.y < 0.5, `not up the 60° slope: ${steep.y}`)
+  assert.ok(steep.top < 0.5, `not up the 60° slope: ${steep.top}`)
 })
 
 test('the module character rides a moving platform and jumps to the same apex', async () => {
@@ -102,20 +106,23 @@ test('the module character rides a moving platform and jumps to the same apex', 
     writer.moveKinematic(1, [1 + t + PHYSICS_STEP, 0.1, 0], [0, 0, 0, 1])
     return writer.take()
   })
-  const apex = HUMAN_BODY.jumpSpeed ** 2 / (2 * HUMAN_BODY.gravity)
+  const apex = HUMAN_BODY.jumpSpeed ** 2 / (2 * GRAVITY_PRESETS.earth)
   assert.ok(Math.abs(top - ground - apex) < 0.05, `apex ${top - ground} for ${apex}`)
 })
 
-test('the module character glides to a stop over the friction of the floor it stands on', async () => {
-  const v = HUMAN_BODY.walkSpeed
+test('the module character stops over the movement model whatever the friction of the floor it stands on', async () => {
+  const glides: number[] = []
   for (const { friction } of [PHYSICS_MATERIALS.stone, PHYSICS_MATERIALS.ice]) {
     const scene = await world([], [-45, 0, 0], friction)
-    const from = live(scene, 3, EAST).x,
-      glide = live(scene, 6, STILL).x - from,
-      expected = (v * v) / (2 * gripOf(friction) * HUMAN_BODY.gravity)
-    // One step of the page's input late, and the legs' last centimetre: within 3 cm.
-    assert.ok(Math.abs(glide - expected) < 0.03 + v * PHYSICS_STEP, `${glide} m for ${expected} m`)
+    const from = live(scene, 3, EAST).x
+    glides.push(live(scene, 6, STILL).x - from)
   }
+  // About 0.2 m from 6 m/s, one step of the page's input late; the floor's friction does not enter.
+  assert.ok(
+    glides.every((glide) => glide > 0.1 && glide < 0.45),
+    glides.join(', '),
+  )
+  assert.ok(Math.abs(glides[0] - glides[1]) < 0.02, glides.join(', '))
 })
 
 test('the module character pushes a crate lighter than its strength', async () => {

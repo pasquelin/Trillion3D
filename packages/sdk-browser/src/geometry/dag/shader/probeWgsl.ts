@@ -2,8 +2,7 @@
  * THE ONE PROBE OF AN OPEN-ADDRESSED TABLE ON THE GPU: linear probing from a key's home slot, the
  * next slot masked by the slot count less one, a bounded number of steps — the slot count unless
  * given. Every GPU hash table of the engine walks it, lookups and inserts alike: the open counts
- * placements hold (`../heldOpen.ts`), the kept ranks (`differenceWgsl.ts`), the page→row map
- * (`../../rows/rowMapWgsl.ts`) and the deform index
+ * placements hold (`../heldOpen.ts`) and the deform index
  * (`../../../lighting/rays/deformIndexWgsl.ts`). Each gives its home, its mask, the word slot `s`
  * starts at, and what a step does at word `at`: return on a hit or an empty slot, take the slot,
  * or go on to the next. The text is a function body's: it declares `s`, `k` and `at`; past its

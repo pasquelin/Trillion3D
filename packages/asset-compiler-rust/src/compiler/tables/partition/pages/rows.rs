@@ -62,6 +62,16 @@ fn most_in_window(records: &[Value], parts: &Parts, side: f64) -> BTreeMap<u64, 
     most
 }
 
+/// The row entries (`view_rows`) of the meshes `meshes` no cell places — the fallback meshes the
+/// actors' rows stand on (`source/fallback.rs`): no node and no row at any rung, whatever the view.
+pub(crate) fn unplaced_rows(meshes: &[u64]) -> Vec<String> {
+    let none = "00000000".repeat(RUNGS + 1);
+    meshes
+        .iter()
+        .map(|mesh| format!("{mesh:08x}{none}"))
+        .collect()
+}
+
 /// The widest cell's diagonal, as sixteen hexadecimal digits of its `f64` bits, and per mesh placed,
 /// in rank order, its rank, how many nodes the cells place, then its rows at each rung, eight
 /// hexadecimal digits each: fixed width, whatever the world.

@@ -1,7 +1,6 @@
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../../placement/update.ts'
 import { holdsPose, promoteRank, touchRank, type MobilityState } from './mobilityState.ts'
-import { noteTravel } from './mobilityTravel.ts'
 
 /**
  * Placement `rank` was posed at `world`: it moved unless `world` is the pose it was last seen
@@ -19,9 +18,6 @@ export function moveRank(
 ) {
   if (rank < 0 || rank >= s.moving.length) return MOVE_PROMOTED
   if (!forced && holdsPose(s, rank, world)) return MOVE_NONE
-  // A pose a parent slot held is unknown (`followLead`): no travel measures it, its rows jump.
-  if (Number.isNaN(s.poses[rank * 16])) s.travel.jumped.push(rank)
-  else noteTravel(s.travel.ranks, rank, s.poses, rank * 16, world)
   s.poses.set(world, rank * 16)
   s.lastMoved[rank] = s.frame
   if (s.moving[rank]) return MOVE_MOVING
@@ -37,9 +33,8 @@ export function followLead(s: MobilityState, rank: number, lead: number) {
     s.leads = resized(s.leads, rank + 1, -1)
   }
   s.leads[rank] = lead
-  // Linked or let go, its world is another's: its rows may be anywhere, and the pose it was last
-  // seen at no longer the one they were derived at — its next move weighs none (`moveRank`).
-  s.travel.jumped.push(rank)
+  // Linked or let go, its world is another's: the pose it was last seen at is no longer the one it
+  // holds — its next move weighs none (`moveRank`).
   if (rank < s.moving.length) s.poses[rank * 16] = NaN
   if (lead < 0) return
   if (lead >= s.leadMoved.length) growSlots(s, lead + 1)
@@ -53,20 +48,12 @@ function growSlots(s: MobilityState, size: number) {
 }
 
 /**
- * Parent slot `lead` moved from world `from` to `to`: every placement of `ranks` that follows it
- * moved with it, as one `move` each would weigh it, without a pose per placement — the slot's
- * travel is noted once. Its first move makes its still followers moving, once; a later one only
+ * Parent slot `lead` moved: every placement of `ranks` that follows it
+ * moved with it, as one `move` each would weigh it, without a pose per placement. Its first move makes its still followers moving, once; a later one only
  * stamps the slot's frame, which `settle` reads for each follower. Returns `MOVE_PROMOTED` when a
  * follower left the static slice, else `MOVE_MOVING`.
  */
-export function moveLeadSlot(
-  s: MobilityState,
-  lead: number,
-  ranks: readonly number[],
-  from: ArrayLike<number>,
-  to: ArrayLike<number>,
-) {
-  noteTravel(s.travel.slots, lead, from, 0, to)
+export function moveLeadSlot(s: MobilityState, lead: number, ranks: readonly number[]) {
   if (lead < 0 || lead >= s.leadMoved.length) return MOVE_PROMOTED
   s.leadMoved[lead] = s.frame
   if (s.leadMoving[lead]) return MOVE_MOVING
@@ -82,20 +69,15 @@ export function moveLeadSlot(
 
 /**
  * One scene frame: every moving placement that has not moved for more than `threshold` frames
- * — itself, nor the parent slot it follows (`moveLead`) — turns static and is handed to
- * `turnedStatic`, which has its rows stale their static pages, so the static slice draws it
- * (`../../../placement/rows/rowCastWgsl.ts`). Its rows' words are written anew at the next `writeRows`, its
- * rows alone. Walks the moving placements only. Returns whether one did.
+ * — itself, nor the parent slot it follows (`moveLead`) — turns static. Its word is written anew at
+ * the next `writeRoots`, its own alone; the diff of the instance boxes (`castDiff.ts`) then stales
+ * the pages of its box in the static layer, so the static slice draws it. Walks the moving
+ * placements only.
  */
-export function settleMoving(
-  s: MobilityState,
-  threshold: number,
-  turnedStatic: (rank: number) => void,
-) {
+export function settleMoving(s: MobilityState, threshold: number) {
   s.frame = (s.frame + 1) >>> 0
   const frame = s.frame,
     list = s.movingList
-  let any = false
   for (let k = list.length - 1; k >= 0; k--) {
     const rank = list[k],
       lead = rank < s.leads.length ? s.leads[rank] : -1
@@ -106,9 +88,6 @@ export function settleMoving(
     list[k] = list[list.length - 1]
     list.pop()
     touchRank(s, rank)
-    any = true
     if (lead >= 0) s.leadMoving[lead] = 0
-    turnedStatic(rank)
   }
-  return any
 }

@@ -1,6 +1,7 @@
 import type { SkyQualityValues } from '../../../../../sdk-core/src/modules/sky/quality.ts'
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import type { TaaFrameState } from '../../../post/taa/frameState.ts'
+import { cameraSeen, type CameraImage } from '../../../frame/backend/state/previousCamera.ts'
 import {
   lightShaftWritten,
   writeLightShaftView,
@@ -46,6 +47,9 @@ export interface LightShaftFrame {
   readonly quality: Pick<SkyQualityValues, 'lightShaftFirstPassDistance'>
   readonly projection: ArrayLike<number>
   readonly exposure: number
+  /** The number of this image and the view's camera of the image before (`previousCamera.ts`): a
+   *  chain's history reprojects by it where its last image is that one. */
+  readonly cameras: { readonly frame: number; readonly before: CameraImage }
   readonly temporal?: {
     readonly state: TaaFrameState
     readonly camera: Pick<EngineCamera, 'viewProjection' | 'eye'>
@@ -119,20 +123,24 @@ function drawTemporal(
       state,
       camera,
       history,
+      before: cameraSeen(f.cameras.before, history.seen),
       exposure,
       frameExposure,
     }),
   )
   const b = LIGHT_SHAFT_TEMPORAL_BINDING
   const { temporal } = f.programs
+  const pipeline = temporal.pipeline.get()
+  // Not compiled: nothing drawn, the history is left as it was and the chain goes on with `source`.
+  if (!pipeline) return source
   const group = f.draw.groupOf(slot, temporal.layout, LIGHT_SHAFT_TEMPORAL_VIEW.words * 4, [
     { binding: b.source, resource: source },
     { binding: b.history, resource: history.held },
     { binding: b.sampler, resource: f.programs.sampler },
     { binding: b.depth, resource: f.depth },
   ])
-  f.draw.draw(f.encoder, temporal.pipeline.get(), group, history.next, f.sizes.shaft.view, false)
-  history.commit(f.sizes, exposure)
+  f.draw.draw(f.encoder, pipeline, group, history.next, f.sizes.shaft.view, false)
+  history.commit(f.sizes, exposure, f.cameras.frame)
   return history.held
 }
 

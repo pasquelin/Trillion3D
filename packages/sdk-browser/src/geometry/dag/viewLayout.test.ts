@@ -1,12 +1,26 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VIEW_BLOCK_WORDS, VIEW_UNIFORM_STRUCT, viewWord, type FieldName } from './viewLayout.ts'
-import { DAG_SELECTION_SHADER } from './shader/shader.ts'
+import { DAG_SELECTION_SHADER } from './shader/selectionShader.fixture.ts'
 import { writeDagUniforms } from './uniforms.ts'
-import { CULL_DRAW_DISTANCE_OFF } from './shader/viewsWgsl.ts'
+import { CULL_DRAW_DISTANCE_OFF, CULL_NO_DRAW_DISTANCES } from './shader/viewsWgsl.ts'
 
-test('the block holds the hundred and twenty-four words the host allocates', () => {
-  assert.equal(VIEW_BLOCK_WORDS, 124)
+/** The view a packing names, with nothing but the fields every view carries. */
+const plainView = () => ({
+  planes: new Float32Array(24),
+  view: new Float32Array(16),
+  pixelScale: [1, 1],
+  pixelError: 1,
+  near: 0.1,
+  cameraWorld: [0, 0, 0],
+  viewProj: new Float32Array(16),
+  depthMap: [-1, 0.2],
+  viewSize: [1280, 720],
+  clipPlane: [0, 0, 0, 0],
+})
+
+test('the block holds the hundred and twenty-eight words the host allocates', () => {
+  assert.equal(VIEW_BLOCK_WORDS, 128)
   // The buffer is allocated from the same number the kernels read by: one source, no drift.
 })
 
@@ -33,36 +47,42 @@ test('every field starts where WGSL puts it, by its own alignment', () => {
     // What the occlusion runs and the culls the host turned off (`shader/viewsWgsl.ts`).
     ['occlusion', 87],
     ['cullOff', 88],
-    // The visible lists' cap and the nodes one pass opens (`shader/listsWgsl.ts`).
+    // The visible list's cap and the nodes one pass opens (`shader/listsWgsl.ts`).
     ['visCap', 89],
     ['nodeBudget', 90],
-    // `cameraWorld` is a vec3: three words, but it waits for word 92 rather than starting at 91.
+    // The tree's members drawn whatever the view, in the word `cameraWorld`'s alignment leaves; the
+    // vec3 itself waits for word 92 rather than starting at 91.
+    ['alwaysCount', 91],
     ['cameraWorld', 92],
     ['listCap', 95],
     ['perspective', 96],
     ['queueCap', 97],
-    // The swap's two regions, one word (`shader/swapWgsl.ts`).
-    ['swapRegions', 98],
     // The placement tree's two words, the world's link base. The tree's order and list
     // lie in its own table (`tree/treeTable.ts`), the world DAG's placements among its members drawn
     // whatever the view: no word names them.
-    ['treeTop', 99],
-    ['cellBase', 100],
-    ['worldLinks', 101],
-    // The open counts placements hold (`heldOpen.ts`), the lists' entries, then the host's frame.
-    ['heldBase', 102],
-    ['heldMask', 103],
-    ['candCap', 104],
-    ['frame', 105],
-    // The tree's members drawn whatever the view, then the scale of the draw distances, in the gap:
-    // no word behind them moves.
-    ['alwaysCount', 106],
-    ['viewDistanceScale', 107],
+    ['treeTop', 98],
+    ['cellBase', 99],
+    ['worldLinks', 100],
+    // The open counts placements hold (`heldOpen.ts`) and the lists' entries.
+    ['heldBase', 101],
+    ['heldMask', 102],
+    ['candCap', 103],
+    // The two scales of the draw distances, the instances' and the objects of their own's: no word
+    // behind them moves.
+    ['viewDistanceScale', 104],
+    ['primitiveDistanceScale', 105],
     ['eye', 108],
     // Behind them, the view's clip plane, a vec4 on its own boundary, and where its filter's bits
     // start in `work` (`shader/clipPlaneWgsl.ts`, `shader/viewFilterWgsl.ts`).
     ['clipPlane', 116],
     ['filterBase', 120],
+    // What the cluster cull judges the rasters by (`shader/visibleWgsl.ts`).
+    ['hardwareEdge', 121],
+    ['softwareRaster', 122],
+    ['tessellation', 123],
+    ['depthBuckets', 124],
+    ['bucketMinZ', 125],
+    ['bucketMaxZ', 126],
   ]
   for (const [field, word] of asWritten) assert.equal(viewWord(field), word, field)
 })
@@ -85,11 +105,12 @@ test('the struct the kernels bind is the one the table describes, in order', () 
       'pixelScale:vec2f,pixelError:f32,near:f32,' +
       'depthMap:vec2f,prevDepthMap:vec2f,viewSize:vec2u,prevSize:vec2u,' +
       'clusterCount:u32,nodeCount:u32,worldCount:u32,occlusion:u32,cullOff:u32,' +
-      'visCap:u32,nodeBudget:u32,cameraWorld:vec3f,' +
-      'listCap:u32,perspective:f32,queueCap:u32,swapRegions:u32,' +
+      'visCap:u32,nodeBudget:u32,alwaysCount:u32,cameraWorld:vec3f,' +
+      'listCap:u32,perspective:f32,queueCap:u32,' +
       'treeTop:u32,cellBase:u32,worldLinks:u32,' +
-      'heldBase:u32,heldMask:u32,candCap:u32,frame:u32,alwaysCount:u32,viewDistanceScale:f32,' +
-      'eye:array<vec4u,2>,clipPlane:vec4f,filterBase:u32,}',
+      'heldBase:u32,heldMask:u32,candCap:u32,viewDistanceScale:f32,primitiveDistanceScale:f32,' +
+      'eye:array<vec4u,2>,clipPlane:vec4f,filterBase:u32,' +
+      'hardwareEdge:f32,softwareRaster:u32,tessellation:u32,depthBuckets:u32,bucketMinZ:f32,bucketMaxZ:f32,}',
   )
   // And the shipped shader carries that exact struct, not a copy of it.
   assert.ok(DAG_SELECTION_SHADER.includes(VIEW_UNIFORM_STRUCT))
@@ -124,8 +145,15 @@ test('the host writes each field at the word the kernels read, values unchanged'
   writeDagUniforms(target, packed, named as never, 64)
   // No scale named, the draw distances are taken at their own size.
   assert.equal(target[viewWord('viewDistanceScale')], 1)
-  writeDagUniforms(target, packed, { ...named, viewDistanceScale: 2.5 } as never, 64)
+  assert.equal(target[viewWord('primitiveDistanceScale')], 1)
+  writeDagUniforms(
+    target,
+    packed,
+    { ...named, viewDistanceScale: 2.5, primitiveDistanceScale: 0.75 } as never,
+    64,
+  )
   assert.equal(target[viewWord('viewDistanceScale')], 2.5)
+  assert.equal(target[viewWord('primitiveDistanceScale')], 0.75)
   writeDagUniforms(target, packed, named as never, 64)
 
   assert.equal(target[viewWord('pixelScale')], 2)
@@ -149,47 +177,36 @@ test('the host writes each field at the word the kernels read, values unchanged'
   assert.equal(target[viewWord('view')], 0.25)
 })
 
-test('a packing that names no draw distance turns their cull off, one that names any leaves it on', () => {
+test('a packing that names no draw distance says so, one that names any does not; the host’s switch is its own bit', () => {
   const target = new Float32Array(VIEW_BLOCK_WORDS)
-  const named = {
-    planes: new Float32Array(24),
-    view: new Float32Array(16),
-    pixelScale: [1, 1],
-    pixelError: 1,
-    near: 0.1,
-    cameraWorld: [0, 0, 0],
-    viewProj: new Float32Array(16),
-    depthMap: [-1, 0.2],
-    viewSize: [1280, 720],
-    clipPlane: [0, 0, 0, 0],
-  }
+  const named = plainView()
   const cullOff = () => new Uint32Array(target.buffer)[viewWord('cullOff')]
   writeDagUniforms(target, { worldCount: 2 } as never, named as never, 64)
-  assert.equal(cullOff() & CULL_DRAW_DISTANCE_OFF, CULL_DRAW_DISTANCE_OFF)
+  assert.equal(
+    cullOff(),
+    CULL_NO_DRAW_DISTANCES,
+    'only that bit: the instances’ switch is the host’s',
+  )
   const drawDistance = new Float32Array(4)
   writeDagUniforms(target, { worldCount: 2, drawDistance } as never, named as never, 64)
-  assert.equal(cullOff() & CULL_DRAW_DISTANCE_OFF, 0)
+  assert.equal(cullOff(), 0)
+  writeDagUniforms(
+    target,
+    { worldCount: 2, drawDistance } as never,
+    { ...named, cullOff: CULL_DRAW_DISTANCE_OFF } as never,
+    64,
+  )
+  assert.equal(cullOff(), CULL_DRAW_DISTANCE_OFF)
 })
 
 test('a view’s plane and the region of its filter reach the block, none for a view without them', () => {
   const target = new Float32Array(VIEW_BLOCK_WORDS)
-  const named = {
-    planes: new Float32Array(24),
-    view: new Float32Array(16),
-    pixelScale: [1, 1],
-    pixelError: 1,
-    near: 0.1,
-    cameraWorld: [0, 0, 0],
-    viewProj: new Float32Array(16),
-    depthMap: [-1, 0.2],
-    viewSize: [1280, 720],
-    clipPlane: [0, 0, 0, 0],
-  }
+  const named = plainView()
   const at = { base: 0, mask: 0, filter: 5000 },
     packed = { worldCount: 2 } as never
   const plane = () => Array.from(target.subarray(viewWord('clipPlane'), viewWord('clipPlane') + 4))
   const filter = () => new Uint32Array(target.buffer)[viewWord('filterBase')]
-  writeDagUniforms(target, packed, named as never, 64, undefined, at)
+  writeDagUniforms(target, packed, named as never, 64, at)
   assert.deepEqual(plane(), [0, 0, 0, 0], 'no plane: all zero, which the cut reads as none')
   assert.equal(filter(), 0, 'no filter: no region named')
   const bits = new Uint32Array(1)
@@ -198,7 +215,6 @@ test('a view’s plane and the region of its filter reach the block, none for a 
     packed,
     { ...named, clipPlane: [0, 1, 0, -2.5], filter: bits } as never,
     64,
-    undefined,
     at,
   )
   assert.deepEqual(plane(), [0, 1, 0, -2.5])
@@ -208,7 +224,7 @@ test('a view’s plane and the region of its filter reach the block, none for a 
     'the region the layout allocates, named by the view that has a filter',
   )
   // A cut written again for a view without them clears both: the block is rewritten whole.
-  writeDagUniforms(target, packed, named as never, 64, undefined, at)
+  writeDagUniforms(target, packed, named as never, 64, at)
   assert.deepEqual(plane(), [0, 0, 0, 0])
   assert.equal(filter(), 0)
 })

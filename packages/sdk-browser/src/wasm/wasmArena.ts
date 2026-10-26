@@ -1,4 +1,5 @@
 import { alignUp } from '../../../math/src/scalar/integers.ts'
+import { sum } from '../../../math/src/scalar/quantile.ts'
 import type { SdkWasm } from './sdkWasm.ts'
 
 /**
@@ -6,12 +7,11 @@ import type { SdkWasm } from './sdkWasm.ts'
  * JavaScript lays its typed views. Both sides read and write the same bytes; nothing is copied
  * on the compute path.
  *
- * GROWTH, HELD BY A GENERATION. `WebAssembly.Memory.grow` replaces the `ArrayBuffer` and detaches
+ * GROWTH. `WebAssembly.Memory.grow` replaces the `ArrayBuffer` and detaches
  * every view already built: a stale view reads zero without signalling anything. Any module
  * allocation can trigger it — the run-time cut's encoder or the page decoder as much as a second
  * reservation — so forbidding it elsewhere was not enough. Here `blocks()` compares the module's
- * current buffer to the one that carried the views and REBUILDS them all when it has changed,
- * counting one more generation. The bytes themselves survive: `grow` copies the memory, so a
+ * current buffer to the one that carried the views and REBUILDS them all when it has changed. The bytes themselves survive: `grow` copies the memory, so a
  * block keeps its offset and its contents. We never copy anything ourselves.
  *
  * A caller therefore does not keep a view from one frame to the next: it asks again through
@@ -59,8 +59,6 @@ export interface Arena {
    * call. Empty once the buffer is released: no view still points at memory of ours.
    */
   blocks(): readonly ArenaBlock[]
-  /** Rebuilds undergone since reservation. Zero says memory has never moved. */
-  generation(): number
   readonly bytes: number
   /** First `n` elements of a block: the useful part of a variable-size output. */
   list(index: number, n: number): ArenaView
@@ -81,7 +79,7 @@ export function takeHeld(
   const at = wasm.held_at()
   const length = wasm.held_length()
   try {
-    if (parts.reduce((sum, bytes) => sum + bytes, 0) !== length) throw new Error('WASM_HELD_LAYOUT')
+    if (sum(parts) !== length) throw new Error('WASM_HELD_LAYOUT')
     let from = at
     return parts.map((bytes) => {
       const part = wasm.memory.buffer.slice(from, from + bytes)
@@ -114,20 +112,17 @@ export function reserveArena(wasm: SdkWasm, requests: readonly ArenaRequest[]): 
     }))
   let blocks = build()
   let carrier = wasm.memory.buffer
-  let generation = 0
   let released = false
   /** Up-to-date blocks: one buffer comparison, and a rebuild only if it has changed. */
   const current = () => {
     if (!released && wasm.memory.buffer !== carrier) {
       carrier = wasm.memory.buffer
-      generation++
       blocks = build()
     }
     return blocks
   }
   return {
     blocks: current,
-    generation: () => generation,
     bytes,
     list: (index, n) => current()[index].view.subarray(0, n),
     freed: () => {

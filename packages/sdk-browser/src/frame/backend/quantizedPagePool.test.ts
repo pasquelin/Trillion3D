@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
+import { writtenBytes } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { frontCamera } from '../../session/engine/pagesEngineScenes.fixture.ts'
 import {
   disposePagedQuad,
@@ -15,9 +16,11 @@ import type { EngineDiagnostic } from '../../diagnostic/types.ts'
  *  cache left without one can be told apart. */
 const quad = (both: boolean) => pagedQuad([{ corners: FIRST }, { corners: SECOND, paged: both }])
 
-// The pool holds page WORDS, never a decode of them: what lands in a slot is, byte for byte, the
-// `WGP3` object the compiler wrote, and it lands at the word offset the cache gave that cluster.
-test('an admitted cluster puts its quantized page bytes at its own pool slot', async () => {
+// The page on disk is the `WGP3` object the compiler wrote, byte for byte, and it reaches the install
+// pass whole (`geometry/pages/install/installer.ts`): the pass writes the resident page the shaders
+// read, transcoded from it, into the slot the cache gave that cluster. A slot is as wide as the
+// widest resident page; no two clusters share one.
+test('an admitted cluster stages its quantized page bytes, whole, for a slot of its own', async () => {
   installGpuGlobals()
   const events: EngineDiagnostic[] = []
   const fixture = quad(true)
@@ -30,14 +33,17 @@ test('an admitted cluster puts its quantized page bytes at its own pool slot', a
     assert.ok(pool, 'no geometry page pool')
     const declared = events.find((event) => event.phase === 'geometry-pages')
     const slotBytes = Number(declared?.context.slotBytes)
-    assert.ok(slotBytes >= fixture.encoded[0].data.byteLength)
-    // Which cluster took which slot is the cache's business; that both pages are in the pool
-    // whole, each at a slot of its own, is the engine's.
+    // The slot holds the resident page, which the page on disk transcodes into (smaller or not).
+    for (const page of fixture.encoded) {
+      assert.ok(page.residentBytes > 0, 'the encoder says what the page takes in the pool')
+      assert.ok(slotBytes >= page.residentBytes)
+    }
+    assert.ok(pool.size >= fixture.encoded.length * slotBytes, 'a slot for each page')
     const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex')
-    const held = fixture.encoded.map((page, slot) =>
-      hex(pool.data.subarray(slot * slotBytes, slot * slotBytes + page.data.byteLength)),
-    )
-    assert.deepEqual(held.sort(), fixture.encoded.map((page) => hex(page.data)).sort())
+    const staged = gpu.writes
+      .filter((write) => /page install staging/.test(write.buffer.label ?? ''))
+      .map((write) => hex(writtenBytes(write)))
+    assert.deepEqual(staged.sort(), fixture.encoded.map((page) => hex(page.data)).sort())
   } finally {
     await disposePagedQuad(backend, fixture)
   }

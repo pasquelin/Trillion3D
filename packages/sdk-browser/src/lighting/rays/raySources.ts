@@ -3,12 +3,14 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { RayRecords } from './rayRecords.ts'
 
 /** What a batch of rays reads where it lies: the cut's tables (`../../geometry/dag/cut/cutReaders.ts`), the
- *  records (`rayRecords.ts`), the page table and its visibility rows, the blended entries and their
- *  spans, the geometry pool's words and the float pool. */
+ *  records (`rayRecords.ts`), the decoded clusters of the frame (`pageTable`), the room of their
+ *  table (`rows`) and the list of visible clusters whose header counts the ones it holds, the blended
+ *  entries and their spans, the geometry pool's words and the float pool. */
 export type RaySources = {
   tables: CutTables
   records: RayRecords
   pageTable: GPUBuffer
+  visible: GPUBuffer
   rows: number
   entries: GPUBuffer
   spans: GPUBuffer
@@ -20,7 +22,7 @@ export type RaySources = {
 /** What the session's engine holds for a batch, the queue's records over it: none while it opens,
  *  after a loss or a dispose. */
 export function raySourcesOf(rt: WebgpuPagesRuntime, records: RayRecords): RaySources | undefined {
-  const { run, gpu, vis, layout, blendState } = rt
+  const { run, gpu, vis, blendState } = rt
   const selection = run.gpuSelection,
     tables = selection?.cutTables(),
     pageTable = vis.pageTable,
@@ -39,7 +41,8 @@ export function raySourcesOf(rt: WebgpuPagesRuntime, records: RayRecords): RaySo
     tables,
     records,
     pageTable,
-    rows: layout.rows.packedCount,
+    visible: selection.visible,
+    rows: selection.visibleCap,
     entries,
     spans,
     entryCount,

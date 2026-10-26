@@ -2,6 +2,7 @@ import { environmentExposure } from '../../../../sdk-core/src/scene/core/environ
 import { readGpuImage } from '../../gpu/core/readback.ts'
 import type { VisPage } from '../../visibility/types.ts'
 import { renderWebgpuPages } from '../render/render.ts'
+import { freshDisplay } from './displayRead.ts'
 import { frameTargetsAwaited } from '../prepare/targetGrant.ts'
 import { defaultEngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -26,8 +27,9 @@ export function refreshSceneLights(rt: WebgpuPagesRuntime) {
 }
 
 /**
- * The store of the objects voxelised into the fog's volume has changed. As for the lights, nothing is
- * recomputed here: the next image reads the store, and the cached capture is invalidated.
+ * The store of the objects voxelised into the fog's volume, or the one of the local fog volumes, has
+ * changed. As for the lights, nothing is recomputed here: the next image reads the store, and the
+ * cached capture is invalidated.
  */
 export function refreshFogVolumes(rt: WebgpuPagesRuntime) {
   rt.capture.capturedRevision = -1
@@ -70,6 +72,7 @@ export async function captureImage(rt: WebgpuPagesRuntime) {
   const busy = capture.capturing || frameTargetsAwaited(rt)
   if (!gpuDevice || !gpu.displayTexture || !run.lastCamera || busy)
     throw new Error('CAPTURE_NOT_READY: render before capture')
+  freshDisplay(rt)
   const revision = run.imageRevision
   const pixels = await readGpuImage(gpuDevice, gpu.displayTexture, ...gpu.displaySize, rt.signal)
   if (run.lost) throw new Error('WEBGPU_LOST')
@@ -86,11 +89,12 @@ export async function captureImage(rt: WebgpuPagesRuntime) {
 function drawnOpaquePages(rt: WebgpuPagesRuntime) {
   const pages: VisPage[] = [],
     packed: number[] = []
-  for (let i = 0; i < rt.run.drawn.length; i++) {
-    const rec = rt.run.drawn[i]
+  const { shown, shownPacked } = rt.run
+  for (let i = 0; i < shown.length; i++) {
+    const rec = shown[i]
     if (rec.array && !rec.transparent) {
       pages.push({ ...rec, array: rec.array })
-      packed.push(rt.run.drawnPacked[i])
+      packed.push(shownPacked.ids[i])
     }
   }
   return { pages, packed }

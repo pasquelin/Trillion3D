@@ -1,108 +1,132 @@
-import { constructGpuResources } from '../../gpu/core/errorScope.ts'
 import { ledgerAdmitted } from '../../gpu/core/deviceLedger.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
-import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
+import {
+  countingAllocator,
+  gpuAllocator,
+  type ResourceAllocator,
+} from '../../gpu/core/resourceAllocator.ts'
+import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { AMBIENT_OCCLUSION_PASS } from '../../diagnostic/stage/passLabels.ts'
-import { AO_PARAMS_BYTES } from './layout.ts'
-import { AO_TARGETS, aoPasses, aoTargetExtent, aoTargetsOf, type AoTarget } from './plan.ts'
+
+/** A texture a method's passes draw into and read: its name, its size in texels and its format, and whether a compute pass
+ *  writes it as a storage texture (`storage`) rather than a render pass drawing into it. */
+interface AoTexture {
+  readonly name: string
+  readonly size: readonly [number, number]
+  readonly format: GPUTextureFormat
+  readonly storage?: boolean
+}
 
 /**
- * A VIEW'S OCCLUSION, at the extent its targets are made at — never the size an image is drawn at in them, which a
- * render scale moves without remaking a thing —: the textures of the plan of its resolutions (`aoPasses`), and a
- * uniform for each pass, written at each image, a pass drawn from a buffer of its own. Held on the view's GPU state
- * and counted in its bytes; given back when the image needs it no more.
+ * WHAT A METHOD ASKS OF A VIEW at the extent its targets are made at — never the size an image is drawn at in them, which a
+ * render scale moves without remaking a thing —: the textures of its plan, and a uniform for each pass of it, `paramBytes`
+ * big, written at each image, a pass drawn from a buffer of its own. Made once while the plan and the extent hold: a view
+ * made for a spec is kept while it is that very object.
+ */
+export interface AoViewSpec {
+  readonly textures: readonly AoTexture[]
+  readonly passes: number
+  readonly paramBytes: number
+}
+
+/**
+ * A VIEW'S OCCLUSION, made for a spec (`ensureAoView`): its textures, the uniform of each pass, and the passes' bind
+ * groups — one set for each of the resources the image reads that it has met (`identity`, the engine's one bind-group
+ * cache), made again only where one of them moved. Held on the view's GPU state and counted in its bytes; given back
+ * when the image needs it no more.
  */
 export interface AoView {
-  readonly levels: number
-  readonly extent: readonly [number, number]
+  /** The spec the view was made for, or one the same as it that the plan has made since (`ensureAoView`). */
+  spec: AoViewSpec
   /** The view of each texture of the plan: drawn into and read through. */
-  readonly textures: Readonly<Partial<Record<AoTarget, GPUTextureView>>>
+  readonly textures: Readonly<Record<string, GPUTextureView>>
   /** The uniform of each pass of the plan, in its order. */
   readonly params: readonly GPUBuffer[]
-  /** The passes' bind groups, made for the resources they were made over (`frame.ts`). */
-  groups: { key: readonly unknown[]; made: GPUBindGroup[] } | undefined
+  /** The resources the groups name, and the groups made for them, by the identity's slot (`groupsOf`). */
+  readonly identity: WebgpuBindIdentity
+  readonly groups: GPUBindGroup[][]
   /** Bytes the textures and the uniforms hold. */
   readonly bytes: number
   /** Gives them back, destroyed once the image that names them is submitted (`retire`). */
   dispose(): void
 }
 
-/** The key two views of the same shape agree on. */
-export const aoViewKey = (levels: number, extent: readonly [number, number]) =>
-  `${levels}|${extent[0]}|${extent[1]}`
+/** How many of the resource sets the groups are made for a view keeps: the image's own, and another a view that
+ *  alternates between two inputs comes back to. */
+const KEPT_INPUTS = 2
 
-/** The bytes a view of `levels` resolutions over `extent` holds: its textures and one uniform a pass. */
-export function aoViewBytes(levels: number, extent: readonly [number, number]) {
-  let bytes = aoPasses(levels).length * AO_PARAMS_BYTES
-  for (const target of aoTargetsOf(levels)) {
-    const [width, height] = aoTargetExtent(target, extent)
-    bytes += textureBytesOf({ size: [width, height], format: AO_TARGETS[target].format }) ?? 0
-  }
-  return bytes
+/** The textures and the uniforms of `spec`, asked of `allocator`: the one list, made and counted. */
+function allocate(allocator: ResourceAllocator, spec: AoViewSpec) {
+  const drawn = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
+  const stored = GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
+  const textures: Record<string, GPUTextureView> = {}
+  for (const { name, size, format, storage } of spec.textures)
+    textures[name] = allocator.texture(name, size, format, { usage: storage ? stored : drawn })
+  const params = Array.from({ length: spec.passes }, (_, at) =>
+    allocator.buffer(`pass ${at}`, spec.paramBytes / 4, 'uniform'),
+  )
+  return { textures, params }
 }
 
-/** The view of `levels` resolutions over `extent`: its textures, drawn into and read, and a uniform a pass. */
-function makeView(
-  device: GPUDevice,
-  levels: number,
-  extent: readonly [number, number],
-  bytes: number,
-): AoView {
-  const made: { destroy(): void }[] = []
-  const textures: Partial<Record<AoTarget, GPUTextureView>> = {}
-  for (const target of aoTargetsOf(levels)) {
-    const [width, height] = aoTargetExtent(target, extent)
-    const texture = device.createTexture({
-      label: `${AMBIENT_OCCLUSION_PASS} ${target}`,
-      size: [width, height],
-      format: AO_TARGETS[target].format,
-      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-    })
-    made.push(texture)
-    textures[target] = texture.createView()
-  }
-  const params = aoPasses(levels).map((_, at) => {
-    const buffer = device.createBuffer({
-      label: `${AMBIENT_OCCLUSION_PASS} pass ${at}`,
-      size: AO_PARAMS_BYTES,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    })
-    made.push(buffer)
-    return buffer
+/** The bytes a view of `spec` holds: the allocations themselves, counted. */
+export function aoViewBytes(spec: AoViewSpec) {
+  const counting = countingAllocator()
+  allocate(counting, spec)
+  return counting.bytes()
+}
+
+/** Whether two specs ask for the same textures and uniforms. */
+function sameSpec(a: AoViewSpec, b: AoViewSpec) {
+  if (a.passes !== b.passes || a.paramBytes !== b.paramBytes) return false
+  if (a.textures.length !== b.textures.length) return false
+  return a.textures.every(({ name, size, format, storage }, at) => {
+    const other = b.textures[at]
+    return (
+      other.name === name &&
+      other.format === format &&
+      other.storage === storage &&
+      other.size[0] === size[0] &&
+      other.size[1] === size[1]
+    )
   })
+}
+
+/** The view of `spec`: its textures, drawn into and read, and a uniform a pass. */
+function makeView(device: GPUDevice, spec: AoViewSpec, bytes: number): AoView {
+  const allocator = gpuAllocator(device, AMBIENT_OCCLUSION_PASS)
+  const { textures, params } = allocate(allocator, spec)
   return {
-    levels,
-    extent,
+    spec,
     textures,
     params,
-    groups: undefined,
+    identity: createWebgpuBindIdentity(KEPT_INPUTS),
+    groups: [],
     bytes,
-    dispose: () =>
-      retire(device, { destroy: () => made.forEach((resource) => resource.destroy()) }),
+    dispose: () => retire(device, allocator),
   }
 }
 
 /**
- * The view of `levels` resolutions over `extent`: the one `held` while it is that, else made, the old one given
- * back — made where the device's budget leaves room (`ledgerAdmitted`, the bytes the old one gives back credited);
- * none where it does not: the image is then lit without the occlusion.
+ * The view of `spec`: the one `held` while it asks for the same, else made, the old one given back — made where the device's
+ * budget leaves room (`ledgerAdmitted`, the bytes the old one gives back credited); none where it does not, with the reason
+ * (`why`, for the frame's metrics): the image is then lit without the occlusion. A setting that moves the plan without moving
+ * what it draws into keeps the view.
  */
 export function ensureAoView(
   held: AoView | undefined,
   device: GPUDevice,
-  levels: number,
-  extent: readonly [number, number],
-): AoView | undefined {
-  if (held && aoViewKey(held.levels, held.extent) === aoViewKey(levels, extent)) return held
-  const asked = aoViewBytes(levels, extent)
-  try {
-    return ledgerAdmitted(device, {
-      replaced: held?.bytes ?? 0,
-      asked,
-      what: 'the ambient occlusion',
-      make: () => constructGpuResources(device, () => makeView(device, levels, extent, asked)),
-    }).value
-  } finally {
-    held?.dispose()
+  spec: AoViewSpec,
+): { view?: AoView; why?: string } {
+  if (held && (held.spec === spec || sameSpec(held.spec, spec))) {
+    held.spec = spec
+    return { view: held }
   }
+  const asked = aoViewBytes(spec)
+  const { value, why } = ledgerAdmitted(device, {
+    held,
+    asked,
+    what: 'the ambient occlusion',
+    make: () => makeView(device, spec, asked),
+  })
+  return { view: value, why }
 }

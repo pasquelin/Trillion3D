@@ -7,9 +7,6 @@ import { REFLECTION_REACH_WGSL } from './reach.ts'
 import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
 import { REFLECTION_TILES_WGSL, REFLECTION_TRACE_BINDINGS as B } from './trace/traceBindings.ts'
 
-/** A tracing tile's resolve tiles a side: its texels' blocks, `REFLECTION_SIDE` pixels each. */
-const RESOLVES = 2
-
 /**
  * THE TILES A SURFACE'S REFLECTIONS RUN OVER, classified on the GPU every image (`classifyTiles`)
  * into four lists, so every later kernel runs only where it has work: a workgroup a TRACING tile of
@@ -22,11 +19,12 @@ const RESOLVES = 2
  *   stage runs over these, writing the picked pixels' ray words the classification wrote —, else among
  *   the UNUSED ones (`clearTracingOut`), whose ray words the clear empties (`clearTracing`), so no
  *   stale ray of an earlier image is left: no kernel reads a ray there;
- * - each of its `RESOLVES`² RESOLVE tiles, `REFLECTION_SIDE`² pixels inside the viewport, among the
+ * - each of the RESOLVE tiles it covers, `REFLECTION_SIDE`² pixels inside the viewport — `block` of them a side, its
+ *   texels' blocks being `block` pixels a side: one tile at a block of one pixel, four at two —, among the
  *   resolve tiles (`resolveOut`) where a pixel of it traces — the resolve, the accumulation and the
  *   last pass run over these —, else among the CLEAR ones (`clearOut`), where the last pass's clear
  *   empties the resolved pixels and the history and answers a pixel
- *   that reflects with the probes' field alone.
+ *   that reflects with the probes' field alone. The block divides `REFLECTION_SIDE` (1 or 2: the level's rows).
  *
  * Every kernel after it is dispatched indirectly over one of its lists, a row's last workgroups past
  * the count returning at once, no read back.
@@ -58,8 +56,8 @@ var<workgroup> tileTraces:atomic<u32>;
 /** Whether the reflecting pixel \`coord\` of flags \`flags\` traces: where the lobe it traces — its clear
  *  coat where it carries one, its base elsewhere (\`surfaceTopAt\`) — answers a share of its rays
  *  (\`reflectionTraceShare\`, \`reach.ts\`): its roughness under the roughness a lobe traces to.
- *  The base lobe's narrower width is its round one (αt ≥ α, \`lobesWgsl.ts\`), so its roughness alone
- *  decides it. */
+ *  The pixel's roughness alone decides it: the narrower width an anisotropy gives its base lobe,
+ *  α(1 − s) (\`lobesWgsl.ts\`), is not read here. */
 fn reflectionPixelTraces(coord:vec2i,flags:u32)->bool{
  return reflectionTraceShare(lobeAlpha(surfaceTopAt(coord,flags).w))>0.0;
 }
@@ -72,8 +70,9 @@ fn classifyPicked(g:vec2u)->vec2u{
  *  pixels' order: the rank of the pixel this image picks (\`classifyPicked\`), under the traced bit where
  *  it traces — a picked pixel that does not trace casts no ray, never handing it to a block neighbour. */
 fn classifyTraced(mask:u32,g:vec2u)->u32{
- let o=classifyPicked(g)-g*reflectionBlock();
- let k=o.x+o.y*reflectionBlock();
+ let block=reflectionBlock();
+ let o=classifyPicked(g)-g*block;
+ let k=o.x+o.y*block.x;
  return k|select(0u,REFLECTION_TRACED,((mask>>k)&1u)!=0u);
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
@@ -82,14 +81,17 @@ fn classifyTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id)
  let inside=all(coord<reflectionGridSize());
  let viewport=reflectionViewport();
  var mask=0u;
- for(var k=0u;inside&&k<reflectionBlock()*reflectionBlock();k++){
+ for(var k=0u;inside&&k<reflectionBlock().x*reflectionBlock().y;k++){
   let pixel=reflectionBlockPixel(coord,k);
   if(any(pixel>=viewport)){continue;}
   let flags=surfaceFlagsAt(vec2i(pixel));
   if(surfaceReflects(flags)&&reflectionPixelTraces(vec2i(pixel),flags)){mask|=1u<<k;}
  }
- let resolve=local.xy/${REFLECTION_SIDE / RESOLVES}u;
- if(mask!=0u){atomicOr(&tileTraces,1u<<(resolve.x+${RESOLVES}u*resolve.y));}
+ // The resolve tiles of pixels this tracing tile of texels covers, \`resolves\` across and down: the texels a resolve tile holds, \`texels\` across and down.
+ let resolves=reflectionBlock();
+ let texels=vec2u(${REFLECTION_SIDE}u)/resolves;
+ let resolve=local.xy/texels;
+ if(mask!=0u){atomicOr(&tileTraces,1u<<(resolve.x+resolves.x*resolve.y));}
  workgroupBarrier();
  let traced=atomicLoad(&tileTraces);
  if(traced!=0u&&inside){textureStore(surfaceRays,coord,vec4u(classifyTraced(mask,coord),0u,0u,0u));}
@@ -98,8 +100,8 @@ fn classifyTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id)
   if(traced!=0u){tracingOut.entries[tracingOutAppend(1u,1u)]=entry;}
   else{clearTracingOut.entries[clearTracingOutAppend(1u,1u)]=entry;}
  }
- if(lane<${RESOLVES * RESOLVES}u){
-  let at=tile.xy*${RESOLVES}u+vec2u(lane%${RESOLVES}u,lane/${RESOLVES}u);
+ if(lane<resolves.x*resolves.y){
+  let at=tile.xy*resolves+vec2u(lane%resolves.x,lane/resolves.x);
   if(all(at*${REFLECTION_SIDE}u<viewport)){
    let entry=at.x|(at.y<<16u);
    if(((traced>>lane)&1u)!=0u){resolveOut.entries[resolveOutAppend(1u,1u)]=entry;}
@@ -119,14 +121,13 @@ fn clearTracing(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) group
 )
 
 /** The workgroups of the classification over a view drawn `size` pixels, one a tracing tile of its
- *  grid, a texel a block of `block` pixels a side, written into `into`. */
+ *  grid, a texel a block of `block` pixels across and down, written into `into`. */
 export const classifyGroups = (
   size: readonly [number, number],
-  block: number,
+  block: readonly [number, number],
   into: [number, number],
 ) => {
-  const side = REFLECTION_SIDE * block
-  into[0] = ceilDiv(size[0], side)
-  into[1] = ceilDiv(size[1], side)
+  into[0] = ceilDiv(size[0], REFLECTION_SIDE * block[0])
+  into[1] = ceilDiv(size[1], REFLECTION_SIDE * block[1])
   return into
 }

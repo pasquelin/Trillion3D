@@ -18,6 +18,7 @@ import * as lighting from './lighting.ts'
 import * as matrix from './matrix.ts'
 import * as octahedral from './octahedral.ts'
 import * as projection from './projection.ts'
+import * as quaternion from './quaternion.ts'
 import * as reals from './reals.ts'
 import * as sampling from './sampling.ts'
 
@@ -42,6 +43,7 @@ const MODULES = {
   matrix,
   octahedral,
   projection,
+  quaternion,
   reals,
   sampling,
 }

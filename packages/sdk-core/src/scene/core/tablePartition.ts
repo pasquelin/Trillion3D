@@ -179,18 +179,12 @@ export type TablePartitionRoot = {
     mains?: number
   }
 }
-/** The root, `null` when the scene has none, or a named refusal of another version or shape. */
-export function assertTablePartition(value: unknown): TablePartitionRoot | null {
-  if (value === null || value === undefined) return null
-  const root = versioned(CELL_PAGES, value, 'scene partition') as Partial<TablePartitionRoot>
+/** Whether the HLOD part of a root is shaped: its grids, the coarser ones each grid pulls in, the
+ *  cell count and the count of main grids. */
+function hlodShaped(root: Partial<TablePartitionRoot>) {
   const grids = root.hlod?.grids,
     coarser = root.hlod?.coarser
-  const shaped =
-    hexes(root.meshes, 16 + 8 * RUNGS) &&
-    rankLists(root.parents, FAN_OUT) &&
-    hexes([root.cube], 16) &&
-    (PARTITION_SCHEMES as readonly unknown[]).includes(root.scheme) &&
-    typeof root.flat === 'boolean' &&
+  return (
     hexes(grids, GRID_DIGITS) &&
     // The main grid's at least, which every cell streams on (`partition.rs`).
     grids.length >= 1 &&
@@ -203,6 +197,20 @@ export function assertTablePartition(value: unknown): TablePartitionRoot | null 
       (Number.isInteger(root.hlod.mains) &&
         root.hlod.mains >= 1 &&
         root.hlod.mains <= grids.length))
+  )
+}
+
+/** The root, `null` when the scene has none, or a named refusal of another version or shape. */
+export function assertTablePartition(value: unknown): TablePartitionRoot | null {
+  if (value === null || value === undefined) return null
+  const root = versioned(CELL_PAGES, value, 'scene partition') as Partial<TablePartitionRoot>
+  const shaped =
+    hexes(root.meshes, 16 + 8 * RUNGS) &&
+    rankLists(root.parents, FAN_OUT) &&
+    hexes([root.cube], 16) &&
+    (PARTITION_SCHEMES as readonly unknown[]).includes(root.scheme) &&
+    typeof root.flat === 'boolean' &&
+    hlodShaped(root)
   if (!shaped || !Array.isArray(root.pages) || root.pages.length !== FAN_OUT)
     throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its root', {})
   return root as TablePartitionRoot
@@ -259,6 +267,22 @@ export function tablePartition(root: TablePartitionRoot): TablePartition {
   }
 }
 
+/** Whether a cell of a region page lists its meshes, parents and bounds, and holds integer ranks. */
+function validCell(cell: RawCell) {
+  return (
+    Array.isArray(cell?.meshes) &&
+    Array.isArray(cell.parents) &&
+    Array.isArray(cell.bounds) &&
+    cell.bounds.length === 6 &&
+    (cell.main === undefined || (Number.isSafeInteger(cell.main) && cell.main >= 0)) &&
+    (cell.hlod === null ||
+      (Array.isArray(cell.hlod) &&
+        Number.isSafeInteger(cell.hlod[0]) &&
+        Number.isSafeInteger(cell.hlod[2]) &&
+        Number.isSafeInteger(cell.hlod[3])))
+  )
+}
+
 /** A page of the cell index, from its verified bytes: the slots of the pages it lists, or its
  *  cells, each with the mesh pages its region page names, and the rank of the first
  *  (`first`: the `n`-th is the cook's cell `first + n`, as the world roots number it); or a
@@ -279,18 +303,7 @@ export function readCellPage(bytes: Uint8Array, url: string) {
     throw new EngineError(CELL_PAGES.invalid, `${url} misses the rank of its first cell`, {})
   if (!Array.isArray(meshPages) || !meshPages.every(isSlot))
     throw new EngineError(CELL_PAGES.invalid, 'a region page misses its mesh pages', {})
-  const valid = (cell: RawCell) =>
-    Array.isArray(cell?.meshes) &&
-    Array.isArray(cell.parents) &&
-    Array.isArray(cell.bounds) &&
-    cell.bounds.length === 6 &&
-    (cell.main === undefined || (Number.isSafeInteger(cell.main) && cell.main >= 0)) &&
-    (cell.hlod === null ||
-      (Array.isArray(cell.hlod) &&
-        Number.isSafeInteger(cell.hlod[0]) &&
-        Number.isSafeInteger(cell.hlod[2]) &&
-        Number.isSafeInteger(cell.hlod[3])))
-  if (!Array.isArray(cells) || !cells.every(valid))
+  if (!Array.isArray(cells) || !cells.every(validCell))
     throw new EngineError(CELL_PAGES.invalid, `${url} lists neither pages nor cells`, {})
   return {
     pages: null,

@@ -1,6 +1,6 @@
-import type { HostAttribute } from '../../session/host/resources.ts'
 import { barycentricAt } from '../../../../../bench/oracles/browser/cpu-image/math.ts'
 import { signedArea } from '../../../../../bench/oracles/browser/cpu-image/projection.ts'
+import type { VertexAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 
 /**
  * The oracle's projection and fill rule: one triangle at a time, from three vertex ranks to the
@@ -33,7 +33,7 @@ function apply(out: Float64Array, m: ArrayLike<number>, x: number, y: number, z:
  *  viewport, y downward. */
 function project(
   world: ArrayLike<number>,
-  position: HostAttribute,
+  position: VertexAttribute,
   vi: number,
   viewProj: Float64Array,
   target: RasterTarget,
@@ -50,7 +50,7 @@ function project(
 export function rasterTriangle(
   target: RasterTarget,
   world: ArrayLike<number>,
-  position: HostAttribute,
+  position: VertexAttribute,
   viewProj: Float64Array,
   first: number,
   second: number,

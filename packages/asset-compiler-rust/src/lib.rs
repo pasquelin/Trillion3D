@@ -1,6 +1,6 @@
 //! Native exact-cluster compiler. Rendering, UI and platform IPC do not belong here.
+pub(crate) mod card_representation;
 pub mod coplanar;
-pub mod cutout;
 mod dag;
 pub(crate) mod displace;
 pub(crate) mod distance_field;
@@ -42,7 +42,8 @@ pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const DAG_ERROR_MODEL: &str = "dag-group-qem-v4";
 pub const DAG_CLUSTER_STRATEGY: &str = "dag-groups";
 /// The most bytes of one streaming page — the unit a runtime reads, installs, keeps and drops, one
-/// geometry pool slot (`compiler/pages/bundles.rs`) —, and of one file of the scene index's cells.
+/// geometry pool slot (`compiler/pages/bundles.rs`) —, resident in the pool once installed, and of
+/// one file of the scene index's cells.
 pub const STREAM_BUNDLE_BYTES: usize = 128 * 1024;
 pub const STRUCTURE_VERSION: u32 = 1;
 /// The root of the manifest, of fixed size: its pages lie beside it (`compiler/pages/manifest.rs`).

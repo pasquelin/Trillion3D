@@ -96,6 +96,254 @@ function createRanker(source: StreamingSource) {
 
 export type Ranker = ReturnType<typeof createRanker>
 
+/** What a plan keeps from frame to frame. */
+interface Plan {
+  index: Pick<CellIndex, 'near' | 'cell'>
+  source: StreamingSource
+  pulls: readonly (CoarserPull | null)[]
+  chain: { pulled(cell: number): boolean } | undefined
+  leaves: Map<number, Leaf>
+  pageDistances: Map<IndexPage, number>
+  /** On the main grids that pull: the cells met this frame at each key, and the squares they
+   *  stream by. */
+  mainPulls: ReturnType<typeof createMainPulls>
+  squares: Map<number, ArrayLike<number>>
+  ranker: Ranker
+  out: {
+    leave: number[]
+    pages: IndexPage[]
+    leaves: Map<number, Leaf>
+    alone: Map<number, ArrayLike<number>>
+    main: Map<number, ArrayLike<number>>
+    waiting: LoadingCell[]
+    ranker: Ranker
+    /** The HLOD 0 cells whose visibility alone keeps a placed file (`leaving`). */
+    holds: number[]
+  }
+  toRead: number[]
+  readAt: Map<number, number>
+  /** The frames planned, the grids, and whether the files of a layer stream with their HLOD 0
+   *  cell — the HLOD actors on (`layers`). */
+  frame: number
+  grids: readonly PartitionGrid[]
+  layered: boolean
+  /** Whether a page of the index the frame waits on could list a cell of a leaf: its box holds
+   *  the streaming bounds of every cell it lists (`partition.rs`). */
+  refused: ((url: string) => boolean) | undefined
+  /** The steps of the walk as callbacks of the plan, made once. */
+  steps: {
+    visit: (cell: number, square: ArrayLike<number>, box: ArrayLike<number> | null) => void
+    unread: (page: IndexPage, distance: number) => void
+    pull: (main: number, cell: number) => void
+    nearest: (a: IndexPage, b: IndexPage) => number
+  }
+}
+
+const nearestPage = (p: Plan, a: IndexPage, b: IndexPage) =>
+  p.pageDistances.get(a)! - p.pageDistances.get(b)!
+
+const visit = (
+  p: Plan,
+  cell: number,
+  square: ArrayLike<number>,
+  leafBox: ArrayLike<number> | null,
+) => {
+  const { out, leaves } = p
+  const record = p.index.cell(cell),
+    { main } = record
+  const wished = p.source.meets(square, 0, p.grids[main])
+  if (wished) out.main.set(cell, square)
+  if (p.pulls[main]) {
+    p.mainPulls.meet(main, coarserKey(record.grid[0], record.grid[1], record.grid[2]), cell, wished)
+    p.squares.set(cell, square)
+  }
+  const hlod = record.hlod
+  if (!hlod || !leafBox || !p.layered) {
+    if (wished) out.alone.set(cell, square)
+    return
+  }
+  const [h, , grid, rung] = hlod
+  let met = leaves.get(h)
+  if (!met) leaves.set(h, (met = unmetLeaf(grid, rung)))
+  if (met.frame !== p.frame) {
+    met.frame = p.frame
+    met.cells.length = 0
+    met.grid = grid
+    met.rung = rung
+    met.bounds = leafBox
+    met.wished = p.source.meets(leafBox, 0, p.grids[grid]) || !!p.chain?.pulled(h)
+  }
+  met.cells.push(cell)
+}
+
+/** `cell`, met at coordinates a wished cell of main grid `main` pulls in, wished: its main grid
+ *  cell, and its file of no layer or its HLOD 0 cell on that main grid. */
+const pulledIn = (p: Plan, main: number, cell: number) => {
+  p.out.main.set(cell, p.squares.get(cell)!)
+  const leaf = p.index.cell(cell).hlod
+  if (!leaf || !p.layered) p.out.alone.set(cell, p.squares.get(cell)!)
+  else if (leaf[2] === main) p.leaves.get(leaf[0])!.wished = true
+}
+
+const awaited = (p: Plan, leaf: Leaf) => {
+  for (const page of p.out.pages)
+    if (!p.refused?.(page.slot.url) && boxesOverlap(page.box, 0, leaf.bounds, 0)) return true
+  return false
+}
+
+/** Each HLOD 0 cell met: placed whole or lost, and waiting its turn when wished. */
+const settleLeaves = (
+  p: Plan,
+  placed: ReadonlyMap<number, unknown>,
+  failed?: (url: string) => boolean,
+) => {
+  const { leaves, out, index, ranker, grids } = p
+  for (const [h, leaf] of leaves) {
+    if (leaf.frame !== p.frame) {
+      leaves.delete(h)
+      continue
+    }
+    let whole = true,
+      lost = false
+    for (const cell of leaf.cells) {
+      if (placed.has(cell)) continue
+      whole = false
+      lost ||= !!failed?.(index.cell(cell).url)
+    }
+    leaf.placed = whole && !awaited(p, leaf)
+    leaf.lost = lost
+    // A cell some file of which is refused for good waits for nothing.
+    if (leaf.wished && !whole && !lost)
+      out.waiting.push(ranker.ranked(cellUnit(h), leaf.bounds, 0, grids[leaf.grid], leaf.rung))
+  }
+}
+
+/** A placed file leaves once its HLOD 0 cell is neither wished nor visible, a file of no
+ *  layer once its cell is wished no more; one kept by its cell's visibility alone is listed. */
+const leaving = (p: Plan, placed: ReadonlyMap<number, unknown>, world?: LeafHolds) => {
+  const { out, leaves } = p
+  for (const cell of placed.keys()) {
+    const hlod = p.layered && p.index.cell(cell).hlod
+    if (hlod ? leaves.get(hlod[0])?.wished : out.alone.has(cell)) continue
+    if (hlod && world?.visible(hlod[0])) out.holds.push(hlod[0])
+    else out.leave.push(cell)
+  }
+}
+
+/** The frame from `eye`: the lists emptied, the index walked, and the lists filled. */
+const planFrame = (
+  p: Plan,
+  eye: ArrayLike<number>,
+  partitionGrids: readonly PartitionGrid[],
+  placed: ReadonlyMap<number, unknown>,
+  failed: ((url: string) => boolean) | undefined,
+  world: LeafHolds | undefined,
+  layers: boolean,
+) => {
+  const { out, ranker } = p
+  p.frame++
+  p.refused = failed
+  p.grids = partitionGrids
+  p.layered = layers
+  out.leave.length = out.pages.length = out.waiting.length = out.holds.length = 0
+  ranker.restart()
+  out.alone.clear()
+  out.main.clear()
+  p.pageDistances.clear()
+  p.mainPulls.restart()
+  p.squares.clear()
+  const reach = placedReach(partitionGrids, p.source, p.pulls)
+  p.index.near(eye, reach, keepRadius(reach), placed, p.steps.visit, p.steps.unread)
+  p.mainPulls.pull(p.steps.pull)
+  settleLeaves(p, placed, failed)
+  for (const [cell, square] of out.alone) {
+    const { url, grid, main } = p.index.cell(cell)
+    if (!placed.has(cell) && !failed?.(url))
+      out.waiting.push(ranker.ranked(fileUnit(cell), square, 0, partitionGrids[main], grid[0]))
+  }
+  out.pages.sort(p.steps.nearest)
+  leaving(p, placed, world)
+  return out
+}
+
+/** The cell files to read and place now: those of each unit `slots` loads, not `placed`. */
+const filesToRead = (
+  p: Plan,
+  slots: Pick<LoadSlots, 'loading' | 'priorityOf'>,
+  placed: ReadonlyMap<number, unknown>,
+) => {
+  const { toRead, readAt, out } = p
+  toRead.length = 0
+  readAt.clear()
+  for (const key of slots.loading()) {
+    const priority = slots.priorityOf(key)
+    if (isFileUnit(key)) {
+      const cell = fileOfUnit(key)
+      if (out.alone.has(cell) && !placed.has(cell)) {
+        toRead.push(cell)
+        readAt.set(cell, priority)
+      }
+      continue
+    }
+    const leaf = p.leaves.get(key)
+    if (leaf?.frame !== p.frame) continue
+    for (const cell of leaf.cells) {
+      if (placed.has(cell)) continue
+      toRead.push(cell)
+      readAt.set(cell, priority)
+    }
+  }
+  return toRead
+}
+
+/** The state of a plan: nothing met, the callbacks of the walk made once. */
+function createPlanState(
+  index: Pick<CellIndex, 'near' | 'cell'>,
+  source: StreamingSource,
+  pulls: readonly (CoarserPull | null)[],
+  chain?: { pulled(cell: number): boolean },
+) {
+  const leaves = new Map<number, Leaf>()
+  const ranker = createRanker(source)
+  const p: Plan = {
+    index,
+    source,
+    pulls,
+    chain,
+    leaves,
+    pageDistances: new Map<IndexPage, number>(),
+    mainPulls: createMainPulls(pulls),
+    squares: new Map<number, ArrayLike<number>>(),
+    ranker,
+    out: {
+      leave: [] as number[],
+      pages: [] as IndexPage[],
+      leaves,
+      alone: new Map<number, ArrayLike<number>>(),
+      main: new Map<number, ArrayLike<number>>(),
+      waiting: [] as LoadingCell[],
+      ranker,
+      holds: [] as number[],
+    },
+    toRead: [],
+    readAt: new Map<number, number>(),
+    frame: 0,
+    grids: [],
+    layered: true,
+    refused: undefined,
+    steps: {
+      visit: (cell, square, box) => visit(p, cell, square, box),
+      unread: (page, distance) => {
+        p.out.pages.push(page)
+        p.pageDistances.set(page, distance)
+      },
+      pull: (main, cell) => pulledIn(p, main, cell),
+      nearest: (a, b) => nearestPage(p, a, b),
+    },
+  }
+  return p
+}
+
 /**
  * The plan of the frames of `index` as the view `source` streams it, its lists kept from frame to
  * frame. A frame (`plan`) from `eye`, over the partition's `grids`, the cells `placed` holds,
@@ -106,7 +354,7 @@ export type Ranker = ReturnType<typeof createRanker>
  * the square it streams by (`alone`), the cells whose main grid cell is wished with the square they
  * stream by — their rows draw the source meshes, the others their HLOD 0 actor (`main`) —, and the
  * units wished and not loaded (`waiting`, each on a record of `ranker`, freed at the next frame),
- * and how many placed files stay only while their HLOD 0 cell is visible (`holding`).
+ * and the HLOD 0 cells that keep placed files only while visible (`holds`).
  * The HLOD actors off (`layers` false), every cell file streams on the main grid alone. Once the
  * load slots took the frame's units, `files` gives the cell files to read and place: those of each
  * unit loading, not placed, in the order the units started, each asked by its unit's priority
@@ -124,169 +372,30 @@ export function createCellPlan(
   pulls: readonly (CoarserPull | null)[] = [],
   chain?: { pulled(cell: number): boolean },
 ) {
-  const leaves = new Map<number, Leaf>(),
-    pageDistances = new Map<IndexPage, number>()
-  /** On the main grids that pull: the cells met this frame at each key, and the squares they
-   *  stream by. */
-  const mainPulls = createMainPulls(pulls),
-    squares = new Map<number, ArrayLike<number>>()
-  const ranker = createRanker(source)
-  const out = {
-    leave: [] as number[],
-    pages: [] as IndexPage[],
-    leaves,
-    alone: new Map<number, ArrayLike<number>>(),
-    main: new Map<number, ArrayLike<number>>(),
-    waiting: [] as LoadingCell[],
-    ranker,
-    holding: 0,
-  }
-  const toRead: number[] = [],
-    readAt = new Map<number, number>()
-  /** The frames planned, the grids, and whether the files of a layer stream with their HLOD 0
-   *  cell — the HLOD actors on (`layers`). */
-  let frame = 0,
-    grids: readonly PartitionGrid[] = [],
-    layered = true
-  const nearestPage = (a: IndexPage, b: IndexPage) => pageDistances.get(a)! - pageDistances.get(b)!
-  const visit = (cell: number, square: ArrayLike<number>, leafBox: ArrayLike<number> | null) => {
-    const record = index.cell(cell),
-      { main } = record
-    const wished = source.meets(square, 0, grids[main])
-    if (wished) out.main.set(cell, square)
-    if (pulls[main]) {
-      mainPulls.meet(main, coarserKey(record.grid[0], record.grid[1], record.grid[2]), cell, wished)
-      squares.set(cell, square)
-    }
-    const hlod = record.hlod
-    if (!hlod || !leafBox || !layered) {
-      if (wished) out.alone.set(cell, square)
-      return
-    }
-    const [h, , grid, rung] = hlod
-    let met = leaves.get(h)
-    if (!met) leaves.set(h, (met = unmetLeaf(grid, rung)))
-    if (met.frame !== frame) {
-      met.frame = frame
-      met.cells.length = 0
-      met.grid = grid
-      met.rung = rung
-      met.bounds = leafBox
-      met.wished = source.meets(leafBox, 0, grids[grid]) || !!chain?.pulled(h)
-    }
-    met.cells.push(cell)
-  }
-  /** `cell`, met at coordinates a wished cell of main grid `main` pulls in, wished: its main grid
-   *  cell, and its file of no layer or its HLOD 0 cell on that main grid. */
-  const pulledIn = (main: number, cell: number) => {
-    out.main.set(cell, squares.get(cell)!)
-    const leaf = index.cell(cell).hlod
-    if (!leaf || !layered) out.alone.set(cell, squares.get(cell)!)
-    else if (leaf[2] === main) leaves.get(leaf[0])!.wished = true
-  }
-  const unread = (page: IndexPage, distance: number) => {
-    out.pages.push(page)
-    pageDistances.set(page, distance)
-  }
-  /** Whether a page of the index the frame waits on could list a cell of `leaf`: its box holds
-   *  the streaming bounds of every cell it lists (`partition.rs`). */
-  let refused: ((url: string) => boolean) | undefined
-  const awaited = (leaf: Leaf) => {
-    for (const page of out.pages)
-      if (!refused?.(page.slot.url) && boxesOverlap(page.box, 0, leaf.bounds, 0)) return true
-    return false
-  }
+  const p = createPlanState(index, source, pulls, chain)
+  const { out } = p
   return {
-    plan(
+    plan: (
       eye: ArrayLike<number>,
       partitionGrids: readonly PartitionGrid[],
       placed: ReadonlyMap<number, unknown>,
       failed?: (url: string) => boolean,
       world?: LeafHolds,
       layers = true,
-    ) {
-      frame++
-      refused = failed
-      grids = partitionGrids
-      layered = layers
-      out.leave.length = out.pages.length = out.waiting.length = out.holding = 0
-      ranker.restart()
-      out.alone.clear()
-      out.main.clear()
-      pageDistances.clear()
-      mainPulls.restart()
-      squares.clear()
-      const reach = placedReach(grids, source, pulls)
-      index.near(eye, reach, keepRadius(reach), placed, visit, unread)
-      mainPulls.pull(pulledIn)
-      for (const [h, leaf] of leaves) {
-        if (leaf.frame !== frame) {
-          leaves.delete(h)
-          continue
-        }
-        let whole = true,
-          lost = false
-        for (const cell of leaf.cells) {
-          if (placed.has(cell)) continue
-          whole = false
-          lost ||= !!failed?.(index.cell(cell).url)
-        }
-        leaf.placed = whole && !awaited(leaf)
-        leaf.lost = lost
-        // A cell some file of which is refused for good waits for nothing.
-        if (leaf.wished && !whole && !lost)
-          out.waiting.push(ranker.ranked(cellUnit(h), leaf.bounds, 0, grids[leaf.grid], leaf.rung))
-      }
-      for (const [cell, square] of out.alone) {
-        const { url, grid, main } = index.cell(cell)
-        if (!placed.has(cell) && !failed?.(url))
-          out.waiting.push(ranker.ranked(fileUnit(cell), square, 0, grids[main], grid[0]))
-      }
-      out.pages.sort(nearestPage)
-      // A placed file leaves once its HLOD 0 cell is neither wished nor visible, a file of no
-      // layer once its cell is wished no more; one kept by its cell's visibility alone is counted.
-      for (const cell of placed.keys()) {
-        const hlod = layered && index.cell(cell).hlod
-        if (hlod ? leaves.get(hlod[0])?.wished : out.alone.has(cell)) continue
-        if (hlod && world?.visible(hlod[0])) out.holding++
-        else out.leave.push(cell)
-      }
-      return out
-    },
+    ) => planFrame(p, eye, partitionGrids, placed, failed, world, layers),
     /** The last plan again, for a frame that makes none: its cells leaving and units waiting
-     *  emptied, the rest — what it holds (`holding`) included — as the last frame left it. */
+     *  emptied, the rest — what it holds (`holds`) included — as the last frame left it. */
     replay() {
       out.leave.length = out.waiting.length = 0
-      ranker.restart()
+      p.ranker.restart()
       return out
     },
-    /** The cell files to read and place now: those of each unit `slots` loads, not `placed`, the
-     *  units in the order they started, each file asked by its unit's priority (`priority`). */
-    files(slots: Pick<LoadSlots, 'loading' | 'priorityOf'>, placed: ReadonlyMap<number, unknown>) {
-      toRead.length = 0
-      readAt.clear()
-      for (const key of slots.loading()) {
-        const priority = slots.priorityOf(key)
-        if (isFileUnit(key)) {
-          const cell = fileOfUnit(key)
-          if (out.alone.has(cell) && !placed.has(cell)) {
-            toRead.push(cell)
-            readAt.set(cell, priority)
-          }
-          continue
-        }
-        const leaf = leaves.get(key)
-        if (leaf?.frame !== frame) continue
-        for (const cell of leaf.cells) {
-          if (placed.has(cell)) continue
-          toRead.push(cell)
-          readAt.set(cell, priority)
-        }
-      }
-      return toRead
-    },
-    /** The priority the read of cell file `cell` asks by, as `files` gave it: none for a file no
-     *  unit loading names. */
-    priority: (cell: number): number | undefined => readAt.get(cell),
+    /** The cell files to read and place now: those of each unit `slots` loads, not `placed`. */
+    files: (
+      slots: Pick<LoadSlots, 'loading' | 'priorityOf'>,
+      placed: ReadonlyMap<number, unknown>,
+    ) => filesToRead(p, slots, placed),
+    /** The priority the read of cell file `cell` asks by, as `files` gave it. */
+    priority: (cell: number): number | undefined => p.readAt.get(cell),
   }
 }

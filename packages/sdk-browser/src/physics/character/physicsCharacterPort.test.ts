@@ -19,7 +19,7 @@ test('the held messages reach the worker with no transfer list, the link sending
     createStepClock(1 / 60),
     1 / 60,
   )
-  const port = createCharacterPort(link.send, link.at)
+  const port = createCharacterPort(link.send, link.at, () => 0)
   port.send(message('a'))
   port.send(message('b'))
   port.send(message('c'))

@@ -1,5 +1,28 @@
 import type { ScreenProbeLevel } from '../bounce/screenProbeLevels.ts'
+import type { AmbientOcclusionMethod } from './ambientOcclusionHorizon.ts'
 import type { ReflectionFrameMetrics } from './reflectionMetrics.ts'
+import type { SurfaceCacheFrameMetrics } from './surfaceCacheMetrics.ts'
+
+/**
+ * The screen-space ambient occlusion of the last image (`ShadowFrameMetrics.ambientOcclusion`): the method it ran, whether the
+ * image drew it, the bytes its textures hold, and, where the device's memory budget kept a view from being made, the reason.
+ */
+export interface AmbientOcclusionFrameMetrics {
+  method: AmbientOcclusionMethod
+  drawn: boolean
+  bytes: number
+  why: string | null
+}
+
+/**
+ * The tone table of the last image (`ShadowFrameMetrics.toneTable`): the texels a side of the cube the colour is baked into, the
+ * bytes it holds and, where the device's memory budget kept it from the size the setting asks, the reason.
+ */
+export interface ToneTableFrameMetrics {
+  side: number
+  bytes: number
+  why: string | null
+}
 
 /**
  * The screen probes of the last image (`BounceFrameMetrics.screen`), the CPU's: the level they ran at, the
@@ -42,14 +65,12 @@ export interface ScreenProbeFrameMetrics {
 
 /**
  * The state of the bouncing light's probes, as the frame leaves them (`ShadowFrameMetrics.bounce`):
- * whether they exist, what they hold, and what their updates did. The GPU counts (`census*`, `*Total`
- * names) are read back a few images late and are `null` before the first reading; the others are the
- * CPU's, of the image just drawn.
+ * whether they exist, what they hold, and what their traces did. All of them are the CPU's, of the image just drawn.
  */
 export interface BounceFrameMetrics {
-  /** Whether the probes exist: the proxy was read and the passes built. */
+  /** Whether the probes exist: the scene's placements were read and the passes built. */
   rigged: boolean
-  /** Whether they are on their way: the proxy being read, no refusal yet. */
+  /** Whether they are on their way: being made, no refusal yet. */
   loading: boolean
   /** Why there are no probes, when there are none. */
   unavailable: string | null
@@ -61,59 +82,20 @@ export interface BounceFrameMetrics {
   unfilledProbes: number | null
   /** Marks refused for want of a probe in the pool, since it was made. */
   refusedMarks: number | null
-  /** The marks that came back from the GPU, and the cells the last one named. */
+  /** The pool's statistics that came back from the GPU (a few images late), and the cells the last one's image marked. */
   marksRead: number | null
   cellsMarked: number | null
-  /** Probes queued to be traced by the last image, and the rays that makes. */
+  /** Probes queued to be traced by the last image. */
   probesUpdated: number
-  rays: number
   /** The GPU duration of the bounce pass in the last image timed, in milliseconds: a measure, nothing
    *  steers by it. */
   passMs: number | null
-  /** Whether the series is closed: nothing left to trace, to write or to mark. */
+  /** Whether the series is closed: nothing left to trace or to mark. */
   converged: boolean | null
-  /** Censuses of the field that came back from the GPU. */
-  censusReads: number | null
-  /** The entries of the table that name a probe, as the last census found them. */
-  publishedSlots: number | null
-  /** The probes of the pool that hold light, that hold none, that are buried, as the last census found them. */
-  nonZeroProbes: number | null
-  darkProbes: number | null
-  buriedProbes: number | null
-  /** Totals since the probes were made: probes whose update fired its rays, rays fired (every one
-   *  answers: an exhausted ray as a hit), rays that brought light back; probes written, and written
-   *  buried. */
-  probesFiredTotal: number | null
-  raysFired: number | null
-  raysLit: number | null
-  probesWrittenTotal: number | null
-  probesBuriedTotal: number | null
-  /** The rays that spent their budget, by what spent it: the ray's own work, its triangle tests, its
-   *  walk of the placement tree, a mesh's walk; then the same four for its shadow ray, which has a budget
-   *  of its own (totals). An exhausted walk ends as a hit where it stopped, an exhausted shadow ray as lit,
-   *  blocked only where a mesh's walk ran out of stack in it. */
-  raysExhaustedBy: number[] | null
-  /** Every ray by the work it spent: under 64 units, 128, 256, 512, 1024, 2048, 4096, more (totals). */
-  rayWork: number[] | null
-  /** Rays that answered by meeting no surface, so that the sky answered them; shadow rays of the rays'
-   *  hits that came back lit (no surface found on their segment, those that spent their budget before
-   *  they found one included); those that shaded the point, by a surface found or by a mesh's walk that ran
-   *  out of stack (totals): each shadow ray is one of the two. */
-  raysEscaped: number | null
-  shadowRaysFree: number | null
-  shadowRaysBlocked: number | null
-  /** The work, in units, that the rays of the image the last census counted spent: all of it, and the part
-   *  the placement tree's groups took (a ray that meets a group's box reads every member of it); the rest
-   *  went to the tree's cells and the placements' cuts. One image, not a total. */
-  imageRayWork: number | null
-  imageRayMembers: number | null
   /** The furthest a probe's ray looks for a surface, in metres. */
   rayReach: number | null
-  /** What the proxy the rays meet held at the last sync of the probes with the placements: the
-   *  placements that wear a proxy (a parked placement does not), and the triangles of the meshes they
-   *  wear, one count each. */
-  proxyPlacements: number | null
-  proxyTriangles: number | null
+  /** The placements that held a box at the last sync of the probes with them (a parked placement holds none). */
+  placements: number | null
   /** The screen probes of the last image: the pixels' indirect light (`screenProbeOptions.ts`); none while
    *  none ran. */
   screen?: ScreenProbeFrameMetrics
@@ -141,8 +123,18 @@ export interface ShadowFrameMetrics {
   shadowVsmFreePages?: number | null
   /** The global resolution LOD bias the pool's load sets. */
   shadowVsmLodBias?: number | null
-  /** Projection passes this frame, four lights each. */
+  /** Placement worlds noted moved since the session began, a running total: its change per image is
+   *  the placements a move reached. */
+  shadowVsmRootsNoted?: number | null
+  /** Root boxes the roots pass derived since the session began, a running total: the placements the
+   *  diff of the instances' boxes can see change. */
+  shadowVsmRootsBoxed?: number | null
+  /** Projection passes this frame: the suns' and the local lights'. */
   shadowVsmProjectionPasses?: number | null
+  /** The overflows the shadows saw in the last 10 seconds, one bit a kind: 1 the non-cluster marking's job queue,
+   *  2 the one-pass projection's lights past its mask, 4 the page pool, 8 the casters' list past its room. 0 when
+   *  none, or when `shadowAllowScreenOverflowMessages` is false. */
+  shadowVsmOverflowFlags?: number | null
   /** GPU time of the page invalidation, ms, from the pass timings. */
   shadowVsmInvalidationMs?: number | null
   /** GPU time of the page marking, ms, from the pass timings. */
@@ -153,8 +145,6 @@ export interface ShadowFrameMetrics {
   shadowVsmRenderMs?: number | null
   /** GPU time of the shadow projection, ms, from the pass timings. */
   shadowVsmProjectionMs?: number | null
-  /** GPU time of the translucent casters' transmission atlas (clear, draw, resolve), ms. */
-  shadowVsmTransmissionMs?: number | null
   /** `SceneLight` contract lights that the frame lit. Null on an engine that ignores them. */
   lightsActive?: number | null
   /**
@@ -179,17 +169,22 @@ export interface ShadowFrameMetrics {
   tileLightPoolReserved?: number | null
   /** Words the light-index pool held on that sampled frame; `null` likewise. */
   tileLightPoolCapacity?: number | null
-  /** Whether a tile found no room in the pool on that sampled frame and walked every light. */
+  /** Whether a column found no room left in the pool on that sampled frame and dropped the lights
+   *  past it (`lightGridMaxCulledLightsPerCell`). */
   tileLightPoolOverflowed?: boolean | null
-  /** Times the pool grew to what an overflowing frame asked, since the explorer opened. */
-  tileLightPoolGrowths?: number | null
   /** GPU time of the Shadows stage: every pass of the virtual shadow maps, and no other pass. */
   gpuShadowsMs?: number | null
   /** GPU time of lighting. */
   gpuLightingMs?: number | null
   /** The bouncing light's probes: whether they exist, what they hold, what their updates did. */
   bounce?: BounceFrameMetrics | null
-  /** The reflections' rays of the last image counted: where each ended, how the proxy's walks ended
-   *  and what they spent. `null` while the view makes no reflections. */
+  /** The reflections' rays of the last image counted: where each ended, how their marches through the
+   *  global distance field ended and the steps they took. `null` while the view makes no reflections. */
   reflections?: ReflectionFrameMetrics | null
+  /** The surface cache of the last image: its atlas's fill, the pages it captured, why it is off. `null` while it is not made. */
+  surfaceCache?: SurfaceCacheFrameMetrics | null
+  /** The screen-space ambient occlusion of the last image. `null` while the view holds none. */
+  ambientOcclusion?: AmbientOcclusionFrameMetrics | null
+  /** The cube the colour grading bakes the display's colours into. `null` while the view holds none. */
+  toneTable?: ToneTableFrameMetrics | null
 }

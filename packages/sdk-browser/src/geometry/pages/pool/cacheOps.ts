@@ -80,5 +80,8 @@ export function disposePageCache(context: GpuPageContext) {
   context.abort.abort()
   resident.clear()
   context.eviction.clear()
-  return behind(state, () => context.buffer.destroy())
+  return behind(state, () => {
+    context.install.dispose()
+    context.buffer.destroy()
+  })
 }

@@ -11,7 +11,7 @@ const word = (label: string, hint: string) => ({ label, hint })
 /** The English words by key; a key is a row's (`gpu.<stage>`, `cpu.<stage>` for a stage of `WEBGPU_STAGES`, `shadows.<counter>`,
  *  `memory.screen`, `scene.drawCalls`), a summary figure's (`summary.…`), a tab's (`tab.<id>`) or a GPU
  *  pass's (`pass.<short name>`: the label without its `Trillion3D ` prefix and trailing ` v<digits>`,
- *  `.`, `_` and `-` read as spaces, so `Trillion3D temporal antialiasing` is `temporal antialiasing`
+ *  `.`, `_` and `-` read as spaces, so `Trillion3D temporal update history` is `temporal update history`
  *  and `vsm.projection` is `vsm projection`). */
 const STATS_WORDS: Record<string, { label: string; hint: string }> = {
   'tab.page': word(
@@ -187,10 +187,6 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
     'Textures',
     'Streaming and decoding texture levels; rises while new textures load.',
   ),
-  'gpu.partition': word(
-    'Partition',
-    'Sorting the drawn clusters into draw batches; rises with the clusters drawn.',
-  ),
   'gpu.encode': word(
     'Encode',
     'Building the commands the raster stage reads; rises with the draw batches.',
@@ -210,6 +206,10 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
   'gpu.coplanar': word(
     'Coplanar',
     'Resolving surfaces that lie on the same plane; rises with overlapping decals.',
+  ),
+  'gpu.surfaceCache': word(
+    'Surface cache',
+    'Capturing the cards of the meshes into the atlas the rays read; rises with the pages captured in an image.',
   ),
   'gpu.shadows': word(
     'Shadows',
@@ -312,10 +312,6 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
     'Projection',
     'Projecting shadow maps onto the image; rises with the shadowed lights and the resolution.',
   ),
-  'shadows.transmission': word(
-    'Transmission',
-    "The see-through casters' atlas; rises with translucent casters.",
-  ),
   'shadows.lights': word(
     'Shadowed lights',
     'Lights that cast virtual shadow maps this frame; the scene count in Scene is all active lights.',
@@ -344,6 +340,14 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
   'shadows.lodBias': word(
     'Shadow detail bias',
     'How much coarser than asked the shadow maps are drawn; rises when the pool is full.',
+  ),
+  'shadows.rootsNoted': word(
+    'Placements moved',
+    'Running total of placement worlds noted moved; its rise per image is the placements a move reached.',
+  ),
+  'shadows.rootsBoxed': word(
+    'Root boxes derived',
+    'Running total of root boxes the roots pass derived; the shadow invalidation sees a placement through them.',
   ),
   'shadows.projectionPasses': word(
     'Projection passes',
@@ -438,13 +442,9 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
     'DAG selection',
     'Walks the geometry graph and selects the detail each view needs; rises with the detail in view.',
   ),
-  'pass.DAG mask swap': word(
-    'DAG mask swap',
-    'Swaps the selection masks between images; small and fixed.',
-  ),
-  'pass.partition': word(
-    'partition',
-    'Compacts the selected clusters into the draws of the image; rises with the clusters selected.',
+  'pass.cluster measure': word(
+    'cluster measure',
+    'Measures the longest edge of the clusters whose pages arrived; rises with the pages that arrive.',
   ),
   'pass.HiZ': word(
     'HiZ',
@@ -458,17 +458,13 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
     'visibility secondary',
     "Draws the tested half of the geometry against the occluders' depth; rises with the geometry that passed the test.",
   ),
-  'pass.visibility identifiers': word(
-    'visibility identifiers',
-    'Draws the identifier of the surface under each pixel; rises with the render size and the geometry drawn.',
-  ),
   'pass.raster binning': word(
     'raster binning',
-    'Sorts the small triangles of the software raster into screen tiles; rises with the small triangles in view.',
+    "Decodes the visible clusters, sorts them into the draw batches of the hardware raster and lists the software raster's; rises with the clusters in view.",
   ),
   'pass.raster occluder depth': word(
     'raster occluder depth',
-    "Software raster of the occluders' depth; rises with the small occluding triangles.",
+    "Software raster of the occluders' depth, a group of lanes to a cluster; rises with the small occluding triangles.",
   ),
   'pass.raster tested depth': word(
     'raster tested depth',
@@ -476,23 +472,27 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
   ),
   'pass.raster identifiers': word(
     'raster identifiers',
-    'Software raster of the surface identifiers; rises with the small triangles drawn.',
+    'Software raster of the surface identifiers, on a device without the 64-bit atomic maximum; rises with the small triangles drawn.',
   ),
   'pass.raster occluder hiz': word(
     'raster occluder hiz',
-    "Builds the depth pyramid from the software raster's occluders; rises with the render size.",
+    "Writes the occluders' depth of the visibility buffer into the depth pyramid's first level; rises with the render size.",
   ),
   'pass.raster resolve': word(
     'raster resolve',
-    "Merges the software raster's pixels into the visibility buffer; rises with the render size.",
+    'Writes the surface identifiers of the visibility buffer into the image the materials read; rises with the render size.',
+  ),
+  'pass.raster depth export': word(
+    'raster depth export',
+    "Writes the scene's depth attachment from the depth pyramid's first level; rises with the render size.",
   ),
   'pass.empty surfaces': word(
     'empty surfaces',
     'Clears the surface images when the image draws no material; small and fixed.',
   ),
-  'pass.material cache, bins and shading': word(
-    'material cache, bins and shading',
-    "Composes what the frame shares, sorts pixels by material and shades each material's bin; rises with the materials and pixels in view.",
+  'pass.material bins and shading': word(
+    'material bins and shading',
+    "Sorts pixels by material and shades each material's bin; rises with the materials and pixels in view.",
   ),
   'pass.material surfaces': word(
     'material surfaces',
@@ -513,6 +513,14 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
   'pass.blend companion': word(
     'blend companion',
     'Draws the companion image of the dual blend; rises with the transparent surfaces in view.',
+  ),
+  'pass.translucency modulation': word(
+    'translucency modulation',
+    'Draws the layers that multiply what is behind them; rises with those layers in view.',
+  ),
+  'pass.translucency compose': word(
+    'translucency compose',
+    'Composes the translucent layers onto the image; rises with the render size.',
   ),
   'pass.distortion': word(
     'distortion',
@@ -558,10 +566,6 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
     'bounce',
     'Updates the bounced light: marks the cells in view, writes the table and refreshes the probes; rises with the lit cells in view.',
   ),
-  'pass.bounce light lists': word(
-    'bounce light lists',
-    "Builds the light lists over the bounce's world lattice; rises with the lights near the lit cells.",
-  ),
   'pass.proxy pose': word(
     'proxy pose',
     'Poses the proxies of the deformed placements for the reflections and the bounce; rises with the deformed placements.',
@@ -582,25 +586,69 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
     'reflection denoise',
     'Reuses neighbouring and earlier reflections to clean the image; rises with the render size.',
   ),
-  'pass.reflection radiance': word(
-    'reflection radiance',
-    "Builds the radiance pyramid of the lit image for the next image's reflections; rises with the render size.",
-  ),
   'pass.particles': word(
     'particles',
     "Simulates the particles' step; rises with the particles alive.",
   ),
-  'pass.deferred lighting': word(
-    'deferred lighting',
-    'Lights every pixel from the surfaces, the lights and the shadows; rises with the render size and the lights.',
+  'pass.tile classification': word(
+    'tile classification',
+    'Sorts the screen tiles by the kind of surface they hold, so that each is lit by the program it needs; rises with the render size.',
+  ),
+  'pass.surface colour': word(
+    'surface colour',
+    "Writes every pixel's first colour: the background, the surfaces shown as they are and the emission; rises with the render size.",
+  ),
+  'pass.sun light': word(
+    'sun light',
+    "Adds the sun's and the other directional lights, with their shadows, to the surfaces; rises with the lit pixels and the lights.",
+  ),
+  'pass.local lights': word(
+    'local lights',
+    "Adds the lamps of each pixel's cell of the light grid to the surfaces; rises with the lit pixels and the lights that reach them.",
+  ),
+  'pass.indirect light': word(
+    'indirect light',
+    "Adds the environment's and the sky's light, the bounced light, the reflections and a thin surface's back; rises with the lit pixels.",
+  ),
+  'pass.height fog': word(
+    'height fog',
+    'Lays the fog, the local fog volumes and the haze of the air over the lit image; rises with the render size.',
   ),
   'pass.as is share seed': word(
     'as is share seed',
     'Seeds the share of the image kept as it is by the temporal resolve; rises with the render size.',
   ),
-  'pass.temporal antialiasing': word(
-    'temporal antialiasing',
-    'Blends the image with the earlier ones to smooth the edges; rises with the render size.',
+  'pass.temporal dilate velocity': word(
+    'temporal dilate velocity',
+    "Finds each pixel's closest surface and its motion for the temporal antialiasing; rises with the render size.",
+  ),
+  'pass.temporal decimate history': word(
+    'temporal decimate history',
+    "Reprojects the earlier images' small histories onto this image; rises with the render size.",
+  ),
+  'pass.temporal detect thin geometry': word(
+    'temporal detect thin geometry',
+    'Finds the thin geometry the history must keep; rises with the render size.',
+  ),
+  'pass.temporal reject shading': word(
+    'temporal reject shading',
+    'Measures where the history no longer matches the image and must be dropped; rises with the render size.',
+  ),
+  'pass.temporal spatial anti aliasing': word(
+    'temporal spatial anti-aliasing',
+    'Smooths the edges of the pixels whose history was dropped; rises with the render size.',
+  ),
+  'pass.temporal update history': word(
+    'temporal update history',
+    'Blends the image into the history to smooth the edges; rises with the history size.',
+  ),
+  'pass.temporal resolve history': word(
+    'temporal resolve history',
+    'Brings a history larger than the display down to it; rises with the display size.',
+  ),
+  'pass.temporal resolve display layers': word(
+    'temporal resolve display layers',
+    "Brings the display layers' history down to the display; rises with the display size.",
   ),
   'pass.exposure': word(
     'exposure',

@@ -1,4 +1,5 @@
 import { refusal } from './nameMatch.ts'
+import { resolveHostImage, type HostImage } from './hostImage.ts'
 import { resolveTint, type BloomTint } from './bloomFields.ts'
 import {
   nonNegativeSetting as nonNegative,
@@ -17,12 +18,8 @@ import {
  * image, or an intensity of 0, the glow is left as it is and nothing is drawn.
  */
 
-/** A picture a host gives the dirt mask: an `ImageBitmap`, as `loader.imageBitmap` decodes one; anything
- *  with a width and a height the engine can copy to a texture. */
-export interface BloomDirtImage {
-  readonly width: number
-  readonly height: number
-}
+/** A picture a host gives the dirt mask (`HostImage`). */
+export type BloomDirtImage = HostImage
 
 /** The dirt mask's scalar settings: its strength, 0 or more, 0 the reference's default — no dirt,
  *  and the dirt added to the glow is linear in it. */
@@ -45,16 +42,6 @@ export interface ResolvedBloomDirtMask extends SettingValues<typeof BLOOM_DIRT_R
 /** The colour of the dirt the reference starts with: a grey 0.5. */
 const DEFAULT_TINT = Object.freeze([0.5, 0.5, 0.5] as const)
 
-/** `image` when it is a picture with a width and a height, none when it is absent.
- *  @throws TypeError when it is anything else. */
-function resolveImage(image: BloomDirtImage | null | undefined) {
-  if (image === undefined || image === null) return undefined
-  const { width, height } = image as Partial<BloomDirtImage>
-  if (!Number.isInteger(width) || !Number.isInteger(height) || width! < 1 || height! < 1)
-    return refusal('bloom')('dirtMask.image must be an image with a width and a height')
-  return image
-}
-
 /**
  * The dirt mask an option names: every field it leaves out is the default (`BLOOM_DIRT_RULES`, the
  * tint's grey).
@@ -65,7 +52,7 @@ export function resolveBloomDirtMask(options: BloomDirtMaskOptions = {}): Resolv
   const { image, tint, ...scalars } = options
   return Object.freeze({
     ...resolveSettings(BLOOM_DIRT_RULES, scalars),
-    image: resolveImage(image),
+    image: resolveHostImage(image, refusal('bloom'), 'dirtMask.image'),
     tint: resolveTint(tint, DEFAULT_TINT, 'BLOOM_DIRT_TINT'),
   })
 }

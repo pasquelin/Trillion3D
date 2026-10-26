@@ -1,6 +1,6 @@
-// A spot's map is as wide as its outer cone, clamped in radians and rounded once: at least the
-// inner cone (itself within [0, 88.9°]) plus 0.001 rad, at most 88.9° plus 0.001 rad. Its scale,
-// the map's x and y, is 1 / tan of that f32 angle. Its depth is the shared forward perspective
+// A spot's map is as wide as its outer cone, the one the light is lit by (`spotAnglesOf`: at least
+// the inner cone, itself within [0, 88.9°], plus 0.001 rad, at most 88.9° plus 0.001 rad). Its
+// scale, the map's x and y, is 1 / tan of that angle, rounded once to an f32. Its depth is the shared forward perspective
 // (`forwardPerspectiveProjection`) between the nearest and farthest caster depths. Declared change
 // (the lead's decision, recorded in the pull request), outside class 1 for that spot alone: a spot
 // whose depth range rounds to nothing (near === far) takes the shared builder's finite projection
@@ -15,6 +15,10 @@ import { VSM_TESS_VIEW_WGSL } from './tessellation/shadowViewWgsl.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { PROJECTION, VIEW } from './clipmap.fixture.ts'
 import { addVsmLocalLightShadow, vsmLocalViewData } from './localLight.ts'
+import { projectionLight } from './frame/vsmPlan.ts'
+import { spotConesOf } from '../../../../../sdk-core/src/scene/light/fields.ts'
+import { spotAnglesOf } from '../../../../../sdk-core/src/scene/light/spotAngles.ts'
+import type { SceneLight } from '../../../../../sdk-core/src/scene/light/contracts.ts'
 import { DEG2RAD } from '../../../../../math/src/constants.ts'
 import { forwardPerspectiveProjection } from '../../../../../math/src/projection/forwardZ.ts'
 import {
@@ -26,30 +30,41 @@ const view = vsmLocalViewData(
   { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] },
   { width: 512, height: 384 },
 )
-/** The scale of the map of a spot of cones `inner` and `outer`. */
-function scale(inner: number, outer: number) {
+/** The scale of the map of a spot whose outer cone is `outerCone`. */
+function scale(outerCone: number) {
   const spot = {
     ...{ id: 'spot', kind: 'spot' as const, position: [0, 3, -20], direction: [0, -1, 0] },
-    ...{ range: 6, coneAngle: outer, innerConeAngle: inner },
+    ...{ range: 6, outerCone },
   }
   const setup = addVsmLocalLightShadow(new VsmCacheManager(), spot, [view])
   const m = setup.cacheEntry.mapCaches[0].projectionData.lightViewToClip
   assert.equal(m[0], m[5])
   return m[0]
 }
-const expected = (angle: number) => Math.fround(1 / Math.tan(Math.fround(angle)))
+const expected = (angle: number) => Math.fround(1 / Math.tan(angle))
 const WIDEST = 88.9 * DEG2RAD
 
-test("a spot's map takes its outer cone, rounded once to an f32", () => {
-  for (const outer of [0.1, 0.6, Math.PI / 4, 1.2, 1.5])
-    assert.equal(scale(0, outer), expected(outer), `${outer}`)
+test("a spot's map takes the outer cone it is given, its scale rounded once to an f32", () => {
+  for (const outer of [0.1, 0.3, 0.6, Math.PI / 4, 0.9, 1.2, 1.5])
+    assert.equal(scale(outer), expected(outer), `${outer}`)
 })
 
 test('the outer cone is held above the inner one and below 88.9° by 0.001 rad', () => {
-  assert.equal(scale(0.7, 0.5), expected(0.7 + 0.001))
-  assert.equal(scale(-1, 0), expected(0.001))
-  assert.equal(scale(0, 1.56), expected(WIDEST + 0.001))
-  assert.equal(scale(2, 0.3), expected(WIDEST + 0.001))
+  const held = (inner: number, outer: number) => scale(spotAnglesOf(inner, outer)[1])
+  assert.equal(held(0.7, 0.5), expected(0.7 + 0.001))
+  assert.equal(held(-1, 0), expected(0.001))
+  assert.equal(held(0, 1.56), expected(WIDEST + 0.001))
+  assert.equal(held(2, 0.3), expected(WIDEST + 0.001))
+})
+
+test('the projection takes the outer cone the lighting lights the spot by', () => {
+  const base = { id: 's', kind: 'spot', position: [0, 3, 0], direction: [0, -1, 0], range: 6 }
+  const spot = { ...base, color: [1, 1, 1], intensity: 1, castsShadow: true, outerConeAngle: 0.8 }
+  for (const innerConeAngle of [undefined, 0.4, 0.8]) {
+    const light = { ...spot, innerConeAngle } as SceneLight
+    const projected = projectionLight(light, 8192)
+    assert.equal(projected.type === 'spot' && projected.coneAngle, spotConesOf(light)[1])
+  }
 })
 
 /** The spot's former projection builder, the oracle: scale 1 written over afterwards, depth row
@@ -92,7 +107,7 @@ test('a spot of no depth range (its range rounds to 0.001 m) takes a finite proj
   assert.ok(!oldSpotProjection(1, Math.fround(0.001), Math.fround(0.001)).every(Number.isFinite))
   const spot = {
     ...{ id: 'spot', kind: 'spot' as const, position: [0, 3, -20], direction: [0, -1, 0] },
-    ...{ range: 0.001, coneAngle: 0.6, innerConeAngle: 0 },
+    ...{ range: 0.001, outerCone: 0.601 },
   }
   const setup = addVsmLocalLightShadow(new VsmCacheManager(), spot, [view])
   const m = setup.cacheEntry.mapCaches[0].projectionData.lightViewToClip
@@ -100,13 +115,14 @@ test('a spot of no depth range (its range rounds to 0.001 m) takes a finite proj
   assert.ok(Array.from(m).every(Number.isFinite))
 })
 
-// The patches of a displaced surface are cut and judged by the view of the shadow map page their pair
-// draws (`vsmTessView`, `vsmTessOnPage`, `./tessellation/shadowViewWgsl.ts`), from the map's record.
+// The patches of a displaced surface are cut and judged by the view of the window of shadow map pages
+// their record draws (`vsmTessView`, `vsmTessOnWindow`, `./tessellation/shadowViewWgsl.ts`), from the
+// map's record. (A pair drew one page; a record draws a window of up to four pages a side.)
 const TESS_VIEW = wgslBlock('tessView', [VSM_TESS_VIEW_WGSL], '')
 const tessView = shaderRun<{
   vsmTessView(raw: object, mip: number): Record<string, unknown>
-  vsmTessOnPage(box: object, world: Mat, raw: object, pair: number[]): boolean
-}>(TESS_VIEW, ['vsmTessView', 'vsmTessOnPage'], {
+  vsmTessOnWindow(box: object, world: Mat, raw: object, record: number[]): boolean
+}>(TESS_VIEW, ['vsmTessView', 'vsmTessOnWindow'], {
   ...wgslConstants(TESS_VIEW),
   tu: { edgesPerPixel: 0.5 },
 })
@@ -116,7 +132,7 @@ const dot3 = (a: number[], b: number[]) => a[0]! * b[0]! + a[1]! * b[1]! + a[2]!
 function spotRecord() {
   const spot = {
     ...{ id: 'spot', kind: 'spot' as const, position: [0, 3, -20], direction: [0, -1, 0] },
-    ...{ range: 6, coneAngle: 0.6, innerConeAngle: 0 },
+    ...{ range: 6, outerCone: 0.601 },
   }
   const d = addVsmLocalLightShadow(new VsmCacheManager(), spot, [view]).cacheEntry.mapCaches[0]
     .projectionData
@@ -159,20 +175,32 @@ test('a map’s view measures depth from its light along its axis, from its near
   assert.ok(Math.abs(mip1.edgesPerUnit - wide / 2) < 1e-2 * wide)
 })
 
-test('a patch is on the page its pair draws only where its box reaches that page of the map', () => {
+test('a patch is on the window its record draws only where its box reaches those pages of the map', () => {
   const raw = spotRecord()
   const identity = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
   // Two metres below the light on its axis, 0.1 m across: the map’s centre, pixel 8192 of 16384.
   const box = { lo: [-0.05, 0.95, -20.05], hi: [0.05, 1.05, -19.95] }
-  const pair = (page: number, mip = 0) => [0, mip << 16, page | (page << 8), 0]
-  assert.equal(tessView.vsmTessOnPage(box, identity, raw, pair(64)), true, 'the centre page')
-  assert.equal(tessView.vsmTessOnPage(box, identity, raw, pair(63)), true, 'the one before it')
-  assert.equal(tessView.vsmTessOnPage(box, identity, raw, pair(0)), false, 'a corner of the map')
-  assert.equal(tessView.vsmTessOnPage(box, identity, raw, pair(127)), false, 'the other corner')
+  // A window of one page (`VSM_RENDER_RECORD_WGSL`: first page in z's low half, last in its high).
+  const pair = (page: number, mip = 0, last = page) => [
+    0,
+    mip << 16,
+    (page | (page << 8) | (last << 16) | (last << 24)) >>> 0,
+    1,
+  ]
+  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(64)), true, 'the centre page')
+  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(63)), true, 'the one before it')
+  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(0)), false, 'a corner of the map')
+  assert.equal(
+    tessView.vsmTessOnWindow(box, identity, raw, pair(60, 0, 63)),
+    true,
+    'a window to it',
+  )
+  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(56, 0, 59)), false, 'one before')
+  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(127)), false, 'the other corner')
   // At the next mip the map is half as wide: the same point lies on a page half as far.
-  assert.equal(tessView.vsmTessOnPage(box, identity, raw, pair(32, 1)), true)
-  assert.equal(tessView.vsmTessOnPage(box, identity, raw, pair(64, 1)), false)
+  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(32, 1)), true)
+  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(64, 1)), false)
   // A box beside the cone, past its edge, reaches no page of the map.
   const away = { lo: [40, 0.95, -20.05], hi: [40.1, 1.05, -19.95] }
-  assert.equal(tessView.vsmTessOnPage(away, identity, raw, pair(64)), false)
+  assert.equal(tessView.vsmTessOnWindow(away, identity, raw, pair(64)), false)
 })

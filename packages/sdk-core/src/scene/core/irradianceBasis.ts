@@ -29,46 +29,9 @@ export function irradianceShader(
 }
 
 /**
- * Radiance through a lobe of directions, as a shader expression: the lobe named `lobe` carries its
- * centre `R`, its long axis `T` (unit, across `R`, or zero) and `bands` (`ReflectionLobe`,
- * `reflectionLobeOf`). An order-2 radiance is a polynomial of degree two in the direction, so its
- * mean over the lobe needs the lobe's first two moments alone: E[ω] = bands.x · R, and
- * E[ωωᵀ] = E[z²] RRᵀ + σt² TTᵀ + σb² BBᵀ. Band 0 stays whole, band 1 is the harmonic at `R`
- * times `bands.x`, and band 2 — traceless forms, which a frame's three axes sum to zero over — is
- * the harmonic at `R` times `bands.y` plus the harmonic at `T` times `bands.z`. Not clamped, as
- * above.
- */
-export function lobeRadianceShader(coefficient: (k: number) => string, lobe: string) {
-  const at = (term: (typeof IRRADIANCE_TERMS)[number], axis: string) =>
-    `(${term.polynomial(`${lobe}.${axis}`)})`
-  return IRRADIANCE_TERMS.map((term, k) =>
-    k === 0
-      ? `${coefficient(k)}*${term.basis}`
-      : k < 4
-        ? `${coefficient(k)}*(${at(term, 'R')}*${term.basis}*${lobe}.bands.x)`
-        : `${coefficient(k)}*((${at(term, 'R')}*${lobe}.bands.y+${at(term, 'T')}*${lobe}.bands.z)*${term.basis})`,
-  ).join('+')
-}
-
-/**
- * The statements that add one radiance sample `radiance`, arriving from the unit direction named
- * `direction`, to the nine accumulators `target(k)`: each takes the radiance times its harmonic.
- * The caller scales the sums by the quadrature weight (`4π / samples` for a uniform sphere).
- */
-export function radianceProjectionShader(
-  target: (k: number) => string,
-  radiance: string,
-  direction: string,
-) {
-  return IRRADIANCE_TERMS.map(
-    (term, k) => `${target(k)}+=${radiance}*((${term.polynomial(direction)})*${term.basis});`,
-  ).join('\n')
-}
-
-/**
  * The nine harmonics of the unit direction named `direction`, as a shader expression of an `array<f32,9>`: each
  * term's normalisation times its polynomial. A radiance sample of a direction adds its colour times each factor to
- * the matching coefficient (`radianceProjectionShader` writes the same factors as statements).
+ * the matching coefficient.
  */
 export function harmonicsShader(direction: string) {
   const factors = IRRADIANCE_TERMS.map((term) => `${term.basis}*(${term.polynomial(direction)})`)

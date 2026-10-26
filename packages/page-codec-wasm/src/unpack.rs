@@ -1,19 +1,43 @@
-//! A page's streams unpacked into one block of words — the one decoder, which `decodeGeometryPage` calls through `wasm/decode.rs` —, each
-//! stream walked once by a `BitReader` (STR-01): the same bits as the reference decoder, which
-//! reads every field at random (`unpack/reference.rs`, a test oracle of another algorithm, never
-//! shipped), as the equivalence harness proves.
+//! A page's streams unpacked into one block of words — the one decoder, which `decodeGeometryPage` calls through `wasm/decode.rs` —:
+//! the page on disk read and laid out as the resident page (`resident.rs`), each stream of which is
+//! walked once by a `BitReader` (STR-01): the same bits as the reference decoder, which reads every
+//! field at random (`unpack/reference.rs`, a test oracle of another algorithm, never shipped), as
+//! the equivalence harness proves.
 
 use crate::attributes::UV_FLAGS;
 use crate::bits::{
     color_value, le_words, normal_decode_stream, tangent_decode_stream, uv_value, BitReader,
 };
 use crate::deform::{decode_morphs, decode_skin};
-use crate::{DecodedPage, Header, Layout, PageError};
+use crate::{disk, resident, DecodedPage, Header, Layout, PageError};
 use crate::{FLAG_COLOR, FLAG_MORPH, FLAG_NORMAL, FLAG_SKIN, FLAG_TANGENT};
 
-/// A complete page, its streams unpacked and dequantized: the block `decodeGeometryPage` lays its views on.
+/// A complete page on disk that names no vertex of another cluster, read, laid out as the
+/// resident page, its streams unpacked and dequantized: the block `decodeGeometryPage` lays its
+/// views on.
 pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, PageError> {
-    let header = Header::parse(data, max_decoded_bytes)?;
+    decode_with(data, max_decoded_bytes, &[])
+}
+
+/// `decode` of a page that names vertices of other clusters, found in `referenced` (`disk::read`).
+pub fn decode_with(
+    data: &[u8],
+    max_decoded_bytes: usize,
+    referenced: &[&[u8]],
+) -> Result<DecodedPage, PageError> {
+    let page = disk::read(data, max_decoded_bytes, referenced)?;
+    finish(&resident::write(&page.header, &page.streams), page.header)
+}
+
+/// A complete resident page, its streams unpacked and dequantized: `decode` of the page the
+/// install pass writes.
+#[cfg(test)]
+pub fn decode_resident(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, PageError> {
+    finish(data, Header::parse_resident(data, max_decoded_bytes)?)
+}
+
+/// The resident page `data` of `header` decoded into its block.
+fn finish(data: &[u8], header: Header) -> Result<DecodedPage, PageError> {
     let mut words = vec![0u32; header.decoded_bytes() / 4];
     decode_into(data, &header, &mut words)?;
     Ok(DecodedPage {
@@ -26,12 +50,12 @@ pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, Page
     })
 }
 
-/// `decode` into `out`, exactly `decoded_bytes / 4` words, `header` being what `Header::parse`
-/// accepted for `data` (STR-02): the WebAssembly ABI decodes straight into its result block, with
-/// no second buffer nor copy. The streams are read in place when the page sits on a word
-/// boundary — a `page_alloc` reservation always does — and from a copy otherwise.
+/// `decode_resident` into `out`, exactly `decoded_bytes / 4` words, `header` being what
+/// `Header::parse_resident` accepted for `data` (STR-02): the WebAssembly ABI decodes straight into
+/// its result block, with no second buffer nor copy. The streams are read in place when the page
+/// sits on a word boundary — a `page_alloc` reservation always does — and from a copy otherwise.
 pub(crate) fn decode_into(data: &[u8], header: &Header, out: &mut [u32]) -> Result<(), PageError> {
-    let body = &data[header.bytes()..];
+    let body = &data[header.body_at()..];
     // SAFETY: every bit pattern is a valid `u32`; the byte count is a multiple of four, so an
     // empty head leaves no tail. Only a little-endian host may read the words as they lie.
     let (head, aligned, _) = unsafe { body.align_to::<u32>() };
@@ -104,8 +128,8 @@ fn split(words: &[u32], h: &Header, out: &mut [u32]) -> Result<(), PageError> {
             color_value(range.min[c] + byte)
         });
     }
-    // Each stored tangent turns around its vertex's normal as decoded above (`Header::parse` keeps
-    // a page with tangents and no normals out).
+    // Each stored tangent turns around its vertex's normal as decoded above (`Header::fields_sane`
+    // keeps a page with tangents and no normals out).
     if h.flags & FLAG_TANGENT != 0 {
         let stream = &words[layout.tangent..];
         tangent_decode_stream(stream, h.tangent_precision, normals, take(4));

@@ -35,6 +35,8 @@ export function compilePages(scene: ScenePreparee) {
         url,
         sha256: 'proof',
         bytes: encoded.data.byteLength,
+        residentBytes: encoded.residentBytes,
+        residentOffset: 0,
         vertexCount: encoded.vertexCount,
         indexCount: encoded.indexCount,
         flags: encoded.flags,

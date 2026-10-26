@@ -1,6 +1,6 @@
 /**
  * Host side of the projection shader data: the packer of the record of
- * `VSM_PROJECTION_RECORD_BYTES` (304) read by `VsmProjectionRecord`, and the helpers that fill it.
+ * `VSM_PROJECTION_RECORD_BYTES` (400) read by `VsmProjectionRecord`, and the helpers that fill it.
  * The record holds what some shader reads, nothing else.
  *
  * The layout is the WGSL struct's (`VsmProjectionRecord`, `projectionDataWgsl.ts`); `RECORD_OFFSET`
@@ -8,8 +8,9 @@
  * uploaded by the words that changed (`writeChanged`), and the words between two changed ones
  * go up with them: the words a light keeps while it lives (its kind, emitter, finest mip and level)
  * open the record, those its view and its turn move follow, the origin shift and the clipmap's
- * origin, which move with the eye every frame, lie together, and the corner, the range, the
- * table's origin and a sun's far-shadow distance close it.
+ * origin, which move with the eye every frame, lie together, the corner, the range, the
+ * table's origin and a sun's far-shadow distance follow, and the view the occlusion pyramid last
+ * held the map by closes it.
  *
  * Matrices: 16 floats in the engine's column-major, column-vector convention (`m[column·4 + row]`),
  * as WGSL's mat4x4f reads them. All distances in metres.
@@ -41,7 +42,14 @@ const RECORD_OFFSET = {
   cornerSteps: 272,
   lightRange: 280,
   tableOrigin: 284,
-  farShadowDistance: 288,
+  farShadowEdge: 288,
+  wpoThreshold: 292,
+  prevMapId: 296,
+  prevTableOrigin: 300,
+  prevShiftedToClip: 304,
+  prevClipDepth: 368,
+  prevFinestMip: 384,
+  viewSlot: 388,
 } as const
 
 /** A map's record, its matrices and vectors its own: a writer fills them in place frame after
@@ -76,7 +84,24 @@ export interface VsmProjectionDataValues {
   tableOrigin: number
   /** A sun's far-shadow distance from the eye, in metres, 0 for none: its raster leaves out the
    *  casters past it (`vsmFarShadowSkipped`). A local light's is 0. */
-  farShadowDistance: number
+  farShadowEdge: number
+  /** The square of the distance, in metres, past which an object's offset is left out of this map: a
+   *  clipmap level shows an object's motion only while the distance its offset stops at (the object's
+   *  `worldPositionOffsetDisableDistance`) is not below it (`wpoAllowed`, `../../../../visibility/shader/wpoGraphWgsl.ts`).
+   *  0 for a map that leaves none out: every other map, and a clipmap with the rule off. */
+  wpoThreshold: number
+  /** The view the occlusion pyramid last held the map by (`../occlusion/occlusionView.ts`): its
+   *  previous id, −1 for none (the first cull then tests nothing), where its table lay, its clip
+   *  matrix moved to this frame's shifted space and what the box cull reads of its view-to-clip
+   *  ([2][2], [3][2], [3][3]). */
+  prevMapId: number
+  prevTableOrigin: number
+  prevFinestMip: number
+  prevShiftedToClip: Float64Array
+  prevClipDepth: number[]
+  /** The place of the map's view among the views drawn (`VsmCacheManager.viewSlotOf`): the bit of
+   *  the instances' per-view cache state (`../../casters/instanceStateWgsl.ts`) it reads. */
+  viewSlot: number
 }
 
 /** Default record, every array its own. */
@@ -100,7 +125,14 @@ export function vsmDefaultProjectionData(): VsmProjectionDataValues {
     ditherTexels: 0,
     finestMip: 0,
     tableOrigin: 0,
-    farShadowDistance: 0,
+    farShadowEdge: 0,
+    wpoThreshold: 0,
+    prevMapId: -1,
+    prevTableOrigin: 0,
+    prevFinestMip: 0,
+    prevShiftedToClip: new Float64Array(16),
+    prevClipDepth: [0, 0, 0],
+    viewSlot: 0,
   }
 }
 
@@ -117,6 +149,7 @@ export function writeVsmProjectionData(
     f[base + O.lightViewToClip / 4 + k] = d.lightViewToClip[k]
     f[base + O.shiftedToMapUv / 4 + k] = d.shiftedToMapUv[k]
     f[base + O.planesToMapUv / 4 + k] = d.planesToMapUv[k]
+    f[base + O.prevShiftedToClip / 4 + k] = d.prevShiftedToClip[k]
   }
   for (let a = 0; a < 3; a++) {
     f[base + O.lightDirection / 4 + a] = d.lightDirection[a]
@@ -140,7 +173,13 @@ export function writeVsmProjectionData(
   f[base + O.ditherTexels / 4] = d.ditherTexels
   u[base + O.finestMip / 4] = d.finestMip
   u[base + O.tableOrigin / 4] = d.tableOrigin >>> 0
-  f[base + O.farShadowDistance / 4] = d.farShadowDistance
+  f[base + O.farShadowEdge / 4] = d.farShadowEdge
+  f[base + O.wpoThreshold / 4] = d.wpoThreshold
+  u[base + O.prevMapId / 4] = d.prevMapId >>> 0
+  u[base + O.prevTableOrigin / 4] = d.prevTableOrigin >>> 0
+  u[base + O.prevFinestMip / 4] = d.prevFinestMip
+  u[base + O.viewSlot / 4] = d.viewSlot
+  for (let k = 0; k < 3; k++) f[base + O.prevClipDepth / 4 + k] = d.prevClipDepth[k]
 }
 
 /** Clip space to shadow UV: x·0.5+0.5, y·−0.5+0.5, z kept, column-vector form. */

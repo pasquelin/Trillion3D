@@ -37,7 +37,7 @@ const SNAP_STEP = 2 ** -4
 /** What `vertexFacing` answers besides a mode: the vertex stage drops the triangle. */
 export const FACING_DROP = 3
 /** The mode the fragment applies rides above the item's material rank, in the same flat word
- *  (`VSOut.material`, `vertexWgsl.ts`). */
+ *  (`VSOut.words.z`, `vertexWgsl.ts`). */
 export const FACING_SHIFT = 30
 /** The material rank's bits below the facing in that word. */
 export const FACING_MATERIAL_MASK = (1 << FACING_SHIFT) - 1

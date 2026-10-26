@@ -8,12 +8,13 @@ import { packDagSelection } from '../pack/pack.ts'
 import { createTreeRefit } from './treeRefit.ts'
 import { createTreeTable } from './treeTable.ts'
 import { createRecordTexture } from '../../../gpu/core/recordTexture.ts'
+import { pipelinesSettled } from '../../../lighting/deferred/compileLedger.ts'
 import { FRAME_TABLE } from '../frameTable.ts'
 import { BACKEND } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 
-test('the refit binds the tree’s and the frame words’ record tables, then its own tables', () => {
+test('the refit binds the tree’s and the frame words’ record tables, then its own tables', async () => {
   installGpuGlobals()
   const packed = packDagSelection(placementField(40, 6)),
     tree = packed.placementTree!,
@@ -29,6 +30,7 @@ test('the refit binds the tree’s and the frame words’ record tables, then it
       GPUTextureUsage.TEXTURE_BINDING,
     )
   const refit = createTreeRefit(device, packed, tree, { tree: table.view, frames: frames.view })
+  await pipelinesSettled(device) // the kernel, asked as the refit is made
   const encoder = device.createCommandEncoder()
   refit.run(encoder, [0, 1])
   device.queue.submit([encoder.finish()])

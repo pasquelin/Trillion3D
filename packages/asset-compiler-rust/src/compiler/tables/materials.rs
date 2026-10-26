@@ -9,6 +9,9 @@ use super::*;
 use crate::compiler::materials::{sampled_set, triple, AlphaMode, MaterialFactors};
 use crate::compiler::validate::number_or;
 
+/// The distance, in metres, a `KHR_materials_volume` that names none attenuates over.
+const DEFAULT_ATTENUATION_DISTANCE: f64 = 1.0;
+
 pub(super) fn extension<'a>(owner: &'a Value, name: &str) -> Option<&'a Value> {
     owner.get("extensions").and_then(|e| e.get(name))
 }
@@ -51,8 +54,11 @@ pub(super) fn material_entry(m: &Value, derivative: bool) -> Value {
     let normal_scale = number_or(normal.and_then(|n| n.get("scale")), 1.0);
     let volume = extension(m, "KHR_materials_volume");
     // The host reads no attenuation distance as “no attenuation”, and so does a declared zero,
-    // which its own reader turns into an infinity before the engine sees it.
-    let far = number_or(volume.and_then(|v| v.get("attenuationDistance")), 0.0);
+    // which its own reader turns into an infinity before the engine sees it. A volume that
+    // declares none tints over one metre, the importers' reading; without a volume there is none.
+    let far = volume.map_or(0.0, |v| {
+        number_or(v.get("attenuationDistance"), DEFAULT_ATTENUATION_DISTANCE)
+    });
     let alpha = AlphaMode::of(m);
     let cutoff = match alpha {
         AlphaMode::Mask(cutoff) => cutoff,

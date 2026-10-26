@@ -8,8 +8,12 @@ import {
   uvToNdc,
 } from '../../../../../math/src/wgsl/projection.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
-import { FULLSCREEN_VERTEX } from '../../../lighting/deferred/shaders.ts'
+import { FULLSCREEN_VERTEX } from '../../../gpu/shader/fullscreenTriangle.ts'
+import { AIR_FOG_BINDINGS, airProgram } from '../../../lighting/atmosphere/programs.ts'
+import { fogBlockOf } from '../../../lighting/fog/readWgsl.ts'
+import { preExposedWgsl } from '../../../post/exposure/preWgsl.ts'
 import type { CloudSetup } from './cloudModes.ts'
+import { COMPOSE_AIR_BINDINGS, FOG_ON_CLOUD_WGSL } from './composeWgsl.ts'
 import { BOUNDED_READ_WGSL, BOUNDS_FIELD } from './reconstructLayout.ts'
 import { MIN_MAX_PATH, MODE2_PATH, firstPath, plainPath } from './reconstructPathsWgsl.ts'
 
@@ -17,8 +21,10 @@ import { MIN_MAX_PATH, MODE2_PATH, firstPath, plainPath } from './reconstructPat
  *  texel's pixel of the cycle and the shift of the tracing's rays (`offset`, `xy` and `zw`), the
  *  depth terms, the two distances, the bounds of the traced and the history images' reads
  *  (`writeSafeBounds`, `reconstructLayout.ts`), the scales from the view's to the textures'
- *  coordinates of the two, in `xy` and `zw`, and the ratio of this image's pre-exposure to the
- *  history's (`exposure.x`), which the history's light is multiplied by. */
+ *  coordinates of the two, in `xy` and `zw`, the ratio of this image's pre-exposure to the
+ *  history's (`exposure.x`), which the history's light is multiplied by, and what the fog laid on
+ *  the image is made with (`fog`): this image's pre-exposure (`x`) and the view's pixels a texel of
+ *  the image stands for per axis (`y`). */
 export const RECONSTRUCT_VIEW = fieldLayout('ReconstructView', [
   ['inverseViewProj', 'mat4x4f'],
   ['previousViewProj', 'mat4x4f'],
@@ -30,9 +36,11 @@ export const RECONSTRUCT_VIEW = fieldLayout('ReconstructView', [
   ['history', BOUNDS_FIELD],
   ['uvScales', 'vec4f'],
   ['exposure', 'vec4f'],
+  ['fog', 'vec4f'],
 ] as const)
 
-/** Where the reconstruction binds what it reads, in group 0. The history images (4 to 6) are bound
+/** Where the reconstruction binds what it reads, in its group: 0, or 1 beside the air's where the
+ *  fog is laid on the image (`CloudSetup.lateFogOnTranslucent`). The history images (4 to 6) are bound
  *  by the program of an image that has a history, the secondary ones (2 and 5) by the programs of
  *  two surfaces, the half-size depth (8) by the one that reads the pixel's own depth. */
 export const RECONSTRUCT_BINDING = {
@@ -52,25 +60,29 @@ const B = RECONSTRUCT_BINDING
 /** The depth beyond which a depth is read as the largest a half float holds, kilometres. */
 const FAR_DEPTH_KM = 60000
 
-/** What every program declares: the uniform, the traced images, the outputs and the depth. */
-const common = (minMax: boolean) => `
+/** A structure of the images a program writes, a target to each: the colour, the secondary colour
+ *  (two surfaces), the depth, and the colour with the fog laid on it (`fogged`). */
+const outputs = (name: string, minMax: boolean, fogged: boolean) => {
+  const fields = [
+    'colour',
+    ...(minMax ? ['secondary'] : []),
+    'depth',
+    ...(fogged ? ['fogged'] : []),
+  ]
+  return `struct ${name}{${fields.map((field, at) => `\n @location(${at}) ${field}:vec4f,`).join('')}\n}`
+}
+
+/** What every program declares: the uniform, the traced images, the outputs and the depth, in the
+ *  bind group `group`. */
+const common = (minMax: boolean, group: number) => `
 ${RECONSTRUCT_VIEW.wgsl}
-@group(0) @binding(${B.view}) var<uniform> view:ReconstructView;
-@group(0) @binding(${B.colour}) var tracedColour:texture_2d<f32>;${
-  minMax ? `\n@group(0) @binding(${B.secondary}) var tracedSecondary:texture_2d<f32>;` : ''
+@group(${group}) @binding(${B.view}) var<uniform> view:ReconstructView;
+@group(${group}) @binding(${B.colour}) var tracedColour:texture_2d<f32>;${
+  minMax ? `\n@group(${group}) @binding(${B.secondary}) var tracedSecondary:texture_2d<f32>;` : ''
 }
-@group(0) @binding(${B.depth}) var tracedDepth:texture_2d<f32>;
-@group(0) @binding(${B.sampler}) var linearSampler:sampler;
-struct Reconstructed{
- @location(0) colour:vec4f,${
-   minMax
-     ? `
- @location(1) secondary:vec4f,
- @location(2) depth:vec4f,`
-     : `
- @location(1) depth:vec4f,`
- }
-}
+@group(${group}) @binding(${B.depth}) var tracedDepth:texture_2d<f32>;
+@group(${group}) @binding(${B.sampler}) var linearSampler:sampler;
+${outputs('Reconstructed', minMax, false)}
 struct DepthData{front:f32,scene:f32,range:vec2f}
 fn depthData(v:vec4f)->DepthData{return DepthData(v.x,v.y,v.zw);}
 fn depthVector(d:DepthData)->vec4f{return vec4f(d.front,d.scene,d.range);}
@@ -79,13 +91,13 @@ fn sampleTraced(t:texture_2d<f32>,uv:vec2f)->vec4f{return sampleBounded(t,view.t
 
 /** What a program with a history declares besides: the history images and where this pixel's ray
  *  lands in them (`reproject`). The traced texel the pixel lies in is read once, its depth kept. */
-const history = (setup: CloudSetup) => `
-@group(0) @binding(${B.historyColour}) var historyColour:texture_2d<f32>;${
+const history = (setup: CloudSetup, group: number) => `
+@group(${group}) @binding(${B.historyColour}) var historyColour:texture_2d<f32>;${
   setup.minMaxDepth
-    ? `\n@group(0) @binding(${B.historySecondary}) var historySecondary:texture_2d<f32>;`
+    ? `\n@group(${group}) @binding(${B.historySecondary}) var historySecondary:texture_2d<f32>;`
     : ''
 }
-@group(0) @binding(${B.historyDepth}) var historyDepth:texture_2d<f32>;
+@group(${group}) @binding(${B.historyDepth}) var historyDepth:texture_2d<f32>;
 fn sampleHistory(t:texture_2d<f32>,uv:vec2f)->vec4f{return sampleBounded(t,view.history,uv*view.uvScales.zw);}
 fn sampleHistoryLight(t:texture_2d<f32>,uv:vec2f)->vec4f{
  let held=sampleHistory(t,uv);
@@ -127,8 +139,8 @@ fn reproject(position:vec2f)->Reprojected{
 `
 
 /** The depth of the pixel the reconstruction reads, of the half-size image (the plain path). */
-const HALF_DEPTH = `
-@group(0) @binding(${B.halfDepth}) var halfDepth:texture_2d<f32>;
+const halfDepth = (group: number) => `
+@group(${group}) @binding(${B.halfDepth}) var halfDepth:texture_2d<f32>;
 `
 
 /** Which path a setup reconstructs with, and so which program. */
@@ -144,14 +156,14 @@ export function reconstructKind(setup: CloudSetup, hasHistory: boolean): Reconst
 /** Whether the program of `kind` binds the half-size depth. */
 export const readsHalfDepth = (kind: ReconstructKind) => kind === 'plain'
 
-function pathOf(kind: ReconstructKind, setup: CloudSetup) {
+function pathOf(kind: ReconstructKind, setup: CloudSetup, group: number) {
   switch (kind) {
     case 'first':
       return firstPath(setup.minMaxDepth)
     case 'minMax':
       return MIN_MAX_PATH
     case 'plain':
-      return `${HALF_DEPTH}${plainPath(setup.boxConstraint)}`
+      return `${halfDepth(group)}${plainPath(setup.boxConstraint)}`
     case 'mode2':
       return MODE2_PATH(setup.mode.traceDownsample)
   }
@@ -159,13 +171,31 @@ function pathOf(kind: ReconstructKind, setup: CloudSetup) {
 
 const programs = new Map<string, string>()
 
+/** The fragment entry: the path's pixel, and with the fog laid on the image (`fogged`) that colour
+ *  with the fog laid on it, at the cloud's front depth, as one more output. */
+const entry = (minMax: boolean, fogged: boolean) =>
+  fogged
+    ? `
+${outputs('ReconstructedFogged', minMax, true)}
+@fragment fn reconstructMain(@builtin(position) position:vec4f)->ReconstructedFogged{
+ let r=reconstructPixel(position);
+ return ReconstructedFogged(r.colour,${minMax ? 'r.secondary,' : ''}r.depth,fogOnCloudAt(position.xy*view.fog.y,r.depth.x,r.colour));
+}
+`
+    : `
+@fragment fn reconstructMain(@builtin(position) position:vec4f)->Reconstructed{return reconstructPixel(position);}
+`
+
 /**
  * THE RECONSTRUCTION, per pixel of the reconstructed image, from the traced one and the image it
  * reconstructed before (`history`; the first image after a cut has none, and bilinearly upsamples
  * the traced image alone). It writes the colour, the secondary colour and the depth images with two
- * surfaces, the colour and the depth without. A program is made for each kind of path
- * (`reconstructKind`), the mode's traced block and, for the plain path, whether the reprojected
- * image is held to its new neighbourhood (`CloudSetup.boxConstraint`); each is made once.
+ * surfaces, the colour and the depth without, and where the translucent surfaces read the image with
+ * the fog on it (`CloudSetup.lateFogOnTranslucent`) one more: the colour with the fog laid on it, the
+ * fog along the pixel's ray to the cloud's front depth (`fogOnCloudAt`), which makes the program one
+ * of the air's family, the air's group the first and its own the second. A program is made for each
+ * kind of path (`reconstructKind`), the mode's traced block and, for the plain path, whether the
+ * reprojected image is held to its new neighbourhood (`CloudSetup.boxConstraint`); each is made once.
  *
  * With a history, per pixel:
  * - it takes the traced texel it lies in, and is the pixel traced now when its place among the
@@ -191,15 +221,26 @@ const programs = new Map<string, string>()
  *   the centres of the traced texels.
  * The traced image is read through its bounds, so that no read reaches past the view.
  */
-export function reconstructProgram(setup: CloudSetup, hasHistory: boolean) {
+export function reconstructProgram(setup: CloudSetup, hasHistory: boolean, localFog = true) {
   const kind = reconstructKind(setup, hasHistory)
-  const key = `${kind}${setup.mode.index}${setup.minMaxDepth}${setup.boxConstraint}`
+  const fogged = setup.lateFogOnTranslucent
+  const key = `${kind}${setup.mode.index}${setup.minMaxDepth}${setup.boxConstraint}${fogged}${localFog}`
   let code = programs.get(key)
   if (code === undefined) {
+    // Where the fog is laid on the image, the air's group is the first and the reconstruction's the second.
+    const group = fogged ? 1 : 0
     const uses = [FULLSCREEN_VERTEX, BOUNDED_READ_WGSL]
     if (hasHistory) uses.push(HALF_MAX, isFiniteWord, ndcToUv, uvToNdc, pixelToNdc, unprojectPoint)
-    const own = `${common(setup.minMaxDepth)}${hasHistory ? history(setup) : ''}${pathOf(kind, setup)}`
-    programs.set(key, (code = wgslProgram(own, uses)))
+    const own = `${common(setup.minMaxDepth, group)}${hasHistory ? history(setup, group) : ''}${pathOf(kind, setup, group)}${entry(setup.minMaxDepth, fogged)}`
+    code = fogged
+      ? airProgram(COMPOSE_AIR_BINDINGS, own, [
+          ...uses,
+          fogBlockOf({ ...AIR_FOG_BINDINGS, localFog }),
+          FOG_ON_CLOUD_WGSL,
+          preExposedWgsl('view.fog.x'),
+        ]).code
+      : wgslProgram(own, uses)
+    programs.set(key, code)
   }
   return code
 }

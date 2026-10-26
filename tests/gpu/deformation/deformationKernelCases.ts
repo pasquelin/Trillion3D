@@ -4,6 +4,7 @@
 // (`PAGE_INFO_STRUCT_WGSL`), never by a copied offset; each record is laid out by `recordLayout`.
 import { Waves } from '../../../packages/sdk-core/src/fluids/waves.ts'
 import { encodePage } from '../../../packages/sdk-browser/src/geometry/codec/encodePage.fixture.ts'
+import { residentGeometryPage } from '../../../packages/sdk-browser/src/geometry/codec/geometryPage.ts'
 import { FLAG_SOFT_SOURCE } from '../../../packages/sdk-core/src/page/format.ts'
 import {
   KIND_MORPH,
@@ -13,7 +14,7 @@ import {
   RECORD_HEAD,
   recordLayout,
 } from '../../../packages/sdk-browser/src/deformation/layout.ts'
-import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/outputs.ts'
+import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/vertexWords.ts'
 import {
   FLAG_CLUSTER_PAGE,
   FLAG_DYNAMIC,
@@ -59,8 +60,10 @@ const page = encodePage(
 /** The page's slot in the cache, and its vertices' results in the float pool, past two tag words. */
 const SLOT = 17,
   OUTPUT = 220
-const pool = new Array<number>(SLOT + page.data.length / 4).fill(0)
-pool.splice(SLOT, page.data.length / 4, ...new Uint32Array(page.data.buffer, page.data.byteOffset))
+// The page as the install pass writes it, which the kernel reads.
+const resident = residentGeometryPage(page.data)
+const pool = new Array<number>(SLOT + resident.length / 4).fill(0)
+pool.splice(SLOT, resident.length / 4, ...new Uint32Array(resident.buffer, resident.byteOffset))
 
 /** The skin and morph record: one joint moving +2 along x, one target at full weight. */
 const skinned = recordLayout({ joints: 1, targets: 1, waves: 0 })

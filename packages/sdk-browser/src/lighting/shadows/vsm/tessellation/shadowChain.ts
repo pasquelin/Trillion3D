@@ -13,47 +13,43 @@ import {
   PASS_DISPATCH_WORDS,
 } from '../../../../visibility/tessellation/contract.ts'
 import { TESS_CHAIN_SHADOW } from '../../../../visibility/tessellation/uniform.ts'
-import {
-  tessellationSetting,
-  tessellationWanted,
-} from '../../../../visibility/tessellation/wanted.ts'
+import { readTessellationSetting } from '../../../../../../sdk-core/src/contracts/tessellationOptions.ts'
+import { tessellationWanted } from '../../../../visibility/tessellation/wanted.ts'
 import {
   VSM_RENDER_TESSELLATE_DIRECTIONAL,
   VSM_RENDER_TESSELLATE_LOCAL,
-  VSM_RENDER_TESSELLATE_MASKED,
 } from '../render/renderParamsWgsl.ts'
-import type { VsmRenderContext } from '../render/renderPass.ts'
-import { vsmRenderContext } from '../render/renderPipes.ts'
+import { vsmRenderContext, type VsmRenderContext } from '../render/renderPipes.ts'
 import type { Tessellation } from '../../../../visibility/tessellation/tessellation.ts'
 import { createShadowPrograms, type ShadowPrograms } from './shadowPrograms.ts'
 import { VSM_TESS_PROJECTION_SPECS } from './shadowKernelsWgsl.ts'
 
 /**
- * THE SHADOW MAPS' TESSELLATION OF A FRAME (`VsmShadowTessellation`), as the chunks of casters
- * (`../render/renderChunks.ts`) drive it: a displaced surface's pairs are cut into patches, which
+ * THE SHADOW MAPS' TESSELLATION OF A FRAME (`VsmShadowTessellation`), as the view passes of the
+ * raster (`../render/renderEncode.ts`) drive it: a displaced surface's records are cut into patches, which
  * are diced and drawn in place of its triangles. It exists while the image tessellates
  * (`tessellationWanted`), a kind of light asks it (`tessellationShadowsDirectional`,
  * `tessellationShadowsLocal`) and every pipeline is compiled; otherwise the surface casts as the flat
  * triangles it is made of, the first frames on included.
- * - `kinds`: the kinds of light whose maps take it, and whether a masked surface is cut out in the
- *   patches too (`VSM_RENDER_TESSELLATE_*`);
- * - `begin`, before a chunk's compute pass: the chain's state cleared;
- * - `compute`, in it, once the chunk's pairs are listed: the seeding, the six levels of splitting
- *   and the draw's arguments, over the chunk's lists;
- * - `draw`, in the chunk's raster pass, groups 0 and 1 set: the patches, one indirect draw.
+ * - `kinds`: the kinds of light whose maps take it (`VSM_RENDER_TESSELLATE_*`);
+ * - `begin`, before a view pass's compute pass: the chain's state cleared;
+ * - `compute`, in it, once the pass's records are binned: the seeding, the six levels of splitting
+ *   and the draw's arguments, over the pass's lists;
+ * - `draw`, in the pass's raster pass, groups 0 and 1 set: the patches, one indirect draw.
  */
 export interface VsmShadowTessellation {
   readonly kinds: number
   begin(encoder: GPUCommandEncoder): void
-  compute(pass: GPUComputePassEncoder, lists: ChunkLists, offset: readonly number[]): void
+  compute(pass: GPUComputePassEncoder, lists: PassLists, offset: readonly number[]): void
   draw(pass: GPURenderPassEncoder): void
 }
 
-/** What a chunk's pairs are read from: its parameters' window, its counters and its pairs. */
-export type ChunkLists = {
+/** What a view pass's records are read from: its parameters' window, its counters and its records
+ *  sorted by tier. */
+type PassLists = {
   params: GPUBufferBinding
   counts: GPUBuffer
-  pairs: GPUBuffer
+  sorted: GPUBuffer
 }
 
 /** The groups over a tessellation's buffers, made again with its instance. */
@@ -61,12 +57,17 @@ const groupsOf = new WeakMap<object, ReturnType<typeof createTessellationGroups>
 /** The frame's geometry the groups read, rewritten in place. */
 const geometry = {} as TessInput
 
-/** The geometry and atlas the image's raster reads (`visibilityRasterStages`), or none while one is
- *  missing. */
+/** The geometry and atlas the image's raster reads (`visibilityRasterStages`), its clusters the
+ *  casters', or none while one is missing. */
 function frameGeometry(rt: WebgpuPagesRuntime) {
   const { vis, gpu } = rt
-  const { concatPos, concatUv, concatNrm, pageTable, textures, mapsSampler } = vis
+  const { concatPos, concatUv, concatNrm, textures, mapsSampler } = vis
+  // The decoded clusters of the casters the raster draws (`../../casters/casterFeed.ts`).
+  const pageTable = rt.lights.casters?.pages
+  const material = vis.materialTable.view
   if (
+    !gpu.device ||
+    !material ||
     !gpu.cache ||
     !concatPos ||
     !concatUv ||
@@ -83,31 +84,34 @@ function frameGeometry(rt: WebgpuPagesRuntime) {
   geometry.normals = concatNrm
   geometry.textures = textures
   geometry.sampler = mapsSampler
+  geometry.material = material
+  geometry.frame = vis.graphFrame.bufferOn(gpu.device)
   return geometry
 }
 
 /** The kinds of light whose maps take displaced surfaces tessellated, by the two settings. */
 function kindsOf(rt: WebgpuPagesRuntime) {
   return (
-    (tessellationSetting(rt, 'tessellationShadowsDirectional')
+    (readTessellationSetting(rt, 'tessellationShadowsDirectional')
       ? VSM_RENDER_TESSELLATE_DIRECTIONAL
-      : 0) | (tessellationSetting(rt, 'tessellationShadowsLocal') ? VSM_RENDER_TESSELLATE_LOCAL : 0)
+      : 0) |
+    (readTessellationSetting(rt, 'tessellationShadowsLocal') ? VSM_RENDER_TESSELLATE_LOCAL : 0)
   )
 }
 
-/** The group over the chunk's lists, made again when one of the three buffers moved. */
+/** The group over the pass's lists, made again when one of the three buffers moved. */
 function listsGroups(device: GPUDevice, programs: ShadowPrograms) {
-  const held: { params?: GPUBuffer; counts?: GPUBuffer; pairs?: GPUBuffer; group?: GPUBindGroup } =
+  const held: { params?: GPUBuffer; counts?: GPUBuffer; sorted?: GPUBuffer; group?: GPUBindGroup } =
     {}
-  return ({ params, counts, pairs }: ChunkLists) => {
+  return ({ params, counts, sorted }: PassLists) => {
     if (
       !held.group ||
       held.params !== params.buffer ||
       held.counts !== counts ||
-      held.pairs !== pairs
+      held.sorted !== sorted
     ) {
-      Object.assign(held, { params: params.buffer, counts, pairs })
-      held.group = vsmBufferGroup(device, programs.layouts.lists, [params, counts, pairs])
+      Object.assign(held, { params: params.buffer, counts, sorted })
+      held.group = vsmBufferGroup(device, programs.layouts.lists, [params, counts, sorted])
     }
     return held.group
   }
@@ -138,47 +142,62 @@ type ChainFrame = {
   kinds: number
 }
 
-/** The seeding over the chunk's pairs, the six levels of splitting and the draw's arguments, in
- *  `pass`, over the chunk's lists group `chunk` at the parameters' `offset`. */
+/** The seeding over the pass's records, the six levels of splitting and the draw's arguments, in
+ *  `pass`, over the pass's lists group `lists` at the parameters' `offset`. */
 function encodeChain(
   pass: GPUComputePassEncoder,
   programs: ShadowPrograms,
   { shadow, groups, input, projections }: ChainFrame,
-  chunk: GPUBindGroup,
+  lists: GPUBindGroup,
   offset: readonly number[],
 ) {
   const { dispatch } = shadow.resources
   const at = (word: number) => (TESS_CHAIN_SHADOW * PASS_DISPATCH_WORDS + word) * 4
+  const [seedArgs, seed, plan, split, drawArgs] = [
+    programs.seedArgs,
+    programs.seed,
+    programs.plan,
+    programs.split,
+    programs.drawArgs,
+  ].map((stage) => stage.get())
+  // The chain runs whole or not at all: each step reads what the one before wrote.
+  if (!seedArgs || !seed || !plan || !split || !drawArgs) return
   const planned = groups.of('plan', TESS_CHAIN_SHADOW, input)
-  const launch = (stage: { get(): GPUComputePipeline }) => {
-    pass.setPipeline(stage.get())
+  const launch = (pipeline: GPUComputePipeline) => {
+    pass.setPipeline(pipeline)
     pass.setBindGroup(0, planned)
-    pass.setBindGroup(1, chunk, offset)
+    pass.setBindGroup(1, lists, offset)
     pass.dispatchWorkgroups(1)
   }
-  launch(programs.seedArgs)
-  pass.setPipeline(programs.seed.get())
+  launch(seedArgs)
+  pass.setPipeline(seed)
   pass.setBindGroup(0, groups.of('shadowSeed', TESS_CHAIN_SHADOW, input))
-  pass.setBindGroup(1, chunk, offset)
+  pass.setBindGroup(1, lists, offset)
   pass.dispatchWorkgroupsIndirect(dispatch, at(DISPATCH_SEED))
-  const split = groups.of('shadowSplit', TESS_CHAIN_SHADOW, input)
+  const splitGroup = groups.of('shadowSplit', TESS_CHAIN_SHADOW, input)
   for (let level = 0; level < MAX_SPLIT_LEVELS; level++) {
-    pass.setPipeline(programs.plan.get())
+    pass.setPipeline(plan)
     pass.setBindGroup(0, planned)
     pass.dispatchWorkgroups(1)
-    pass.setPipeline(programs.split.get())
-    pass.setBindGroup(0, split)
-    pass.setBindGroup(1, chunk, offset)
+    pass.setPipeline(split)
+    pass.setBindGroup(0, splitGroup)
+    pass.setBindGroup(1, lists, offset)
     pass.setBindGroup(2, projections)
     pass.dispatchWorkgroupsIndirect(dispatch, at(DISPATCH_SPLIT))
   }
-  launch(programs.drawArgs)
+  launch(drawArgs)
 }
 
 /** The chain of a raster context: its pipelines, made the first time a frame asks, the groups it
  *  binds, kept while what they name stands, and what the frame set (`bind`). */
 function createShadowChain(ctx: VsmRenderContext) {
-  const programs = createShadowPrograms(ctx.device, ctx.layout, ctx.pageLayout, ctx.raster.layout1)
+  const programs = createShadowPrograms(
+    ctx.device,
+    ctx.layout,
+    ctx.pageLayout,
+    ctx.raster.layout1,
+    ctx.held,
+  )
   const listsGroup = listsGroups(ctx.device, programs),
     projectionGroup = projectionGroups(ctx.device, programs)
   let frame: ChainFrame
@@ -204,9 +223,11 @@ function createShadowChain(ctx: VsmRenderContext) {
     begin: (encoder) => frame.shadow.clear(encoder),
     compute: (pass, lists, offset) => encodeChain(pass, programs, frame, listsGroup(lists), offset),
     draw(pass) {
+      const raster = programs.raster.get()
+      if (!raster) return
       const { shadow, groups, input } = frame
       const at = (TESS_CHAIN_SHADOW * PASS_DISPATCH_WORDS + DISPATCH_DRAW) * 4
-      pass.setPipeline(programs.raster.get())
+      pass.setPipeline(raster)
       pass.setBindGroup(2, groups.of(programs.rasterProgram, TESS_CHAIN_SHADOW, input))
       pass.drawIndirect(shadow.resources.dispatch, at)
     },
@@ -233,7 +254,7 @@ export function vsmShadowTessellation(
   const tessellation = rt.vis.gpuRaster?.tessellation
   const input = kinds && tessellation ? frameGeometry(rt) : undefined
   if (!kinds || !tessellation || !input) return undefined
-  const ctx = vsmRenderContext(vsm.res, device, pageLayout)
+  const ctx = vsmRenderContext(vsm.res, device, pageLayout, rt.vis.rasters)
   let chain = chains.get(ctx)
   if (!chain) chains.set(ctx, (chain = createShadowChain(ctx)))
   if (!chain.programs.ask()) {
@@ -244,16 +265,11 @@ export function vsmShadowTessellation(
   shadow.prepare(
     rt.vis.materialTable.displaced,
     {
-      tessellationDicingRate: tessellationSetting(rt, 'tessellationDicingRate'),
-      tessellationMaxPatchesPerGroup: tessellationSetting(rt, 'tessellationMaxPatchesPerGroup'),
+      tessellationDicingRate: readTessellationSetting(rt, 'tessellationDicingRate'),
+      tessellationMaxPatchesPerGroup: readTessellationSetting(rt, 'tessellationMaxPatchesPerGroup'),
     },
     rt.run.selectionUniforms.pixelError,
   )
-  chain.bind(
-    shadow,
-    input,
-    vsm.res,
-    kinds | (chain.programs.masked ? VSM_RENDER_TESSELLATE_MASKED : 0),
-  )
+  chain.bind(shadow, input, vsm.res, kinds)
   return chain
 }

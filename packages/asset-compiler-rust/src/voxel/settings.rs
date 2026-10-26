@@ -25,7 +25,8 @@ pub(crate) struct VoxelSettings {
     /// hit, its record keeping the fit's ratio, or the direction of their mean alone (`voxelNdf`,
     /// `ndf.rs`).
     pub ndf: bool,
-    /// Whether a voxel's record carries its coverage as its opacity (`voxelOpacity`).
+    /// Whether the coverage stays with the voxels it was sampled in, none handed over to the
+    /// neighbours of a voxel dropped (`voxelOpacity`).
     pub opacity: bool,
 }
 

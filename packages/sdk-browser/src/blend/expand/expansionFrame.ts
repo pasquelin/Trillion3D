@@ -5,7 +5,10 @@ import type { WebgpuBlendState } from '../state.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { GpuSelection } from '../../gpu/core/selection.ts'
 import { FRAME_HEAD } from '../frame/frameHead.ts'
+import { planFrameViews } from './expansionViews.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
+
+const PASS: GPUComputePassDescriptor = { label: BLEND_ORDER_PASS }
 
 /**
  * What the GPU verdict reads, sent where it moved: the plan with every key record, or the key
@@ -28,9 +31,7 @@ function sendVerdictInputs(
   if (blendState.planMoved) {
     expand.uploadPlan({
       seeds: blendState.seeds,
-      counts: { entries: blendState.seeds.length, runs: blendState.slotCount, instanceBase: 0 },
       region: blendState.planRegion,
-      scene: blendState,
       stepWords: blendState.orderStepWords,
       keyWords: writeKeyRecords(blendState, slots, states?.instances),
     })
@@ -88,9 +89,23 @@ export function encodeBlendExpansion(rt: WebgpuPagesRuntime, encoder: GPUCommand
   sendVerdictInputs(blendState, expand, cut)
   expand.uploadFrame(blendState.frameWords, blendState.frameLayout.words)
   expand.clearVerdict(encoder)
-  const pass = encoder.beginComputePass({ label: BLEND_ORDER_PASS })
+  // The views the image's draws read: its items' passes, its responsive layers (`expansionViews.ts`).
+  planFrameViews(rt)
+  const counts = { entries: seeds.length, runs: runCount }
+  blendState.frameViews.forEach((view, at) => {
+    if (view.active)
+      expand.uploadView(
+        at,
+        view,
+        blendState.maxPlanEntries,
+        counts,
+        blendState.planRegion,
+        blendState,
+      )
+  })
+  const pass = encoder.beginComputePass(PASS)
   expand.judge(pass, cut?.cellStates?.view)
-  expand.encode(pass, blendState.orderSteps, { entries: seeds.length, runs: runCount })
+  expand.encode(pass, blendState.orderSteps, counts, blendState.frameViews)
   pass.end()
   expand.readCounts(encoder, blendState.verdictEpoch)
 }

@@ -11,7 +11,7 @@ import { createGpuDagSelection } from './selection.ts'
 import { dagFixture, wideCamera } from '../../selection/dag.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
-import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
+import { followNoResidency, gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { moveRoot } from '../pack/pack.fixture.ts'
 import { pageResidency } from '../readiness.fixture.ts'
 import { hostStretches } from '../hostStretches.fixture.ts'
@@ -20,6 +20,7 @@ test('an in-flight snapshot that a world change crosses is never drained as the 
   const { release, fixture, dag, uniforms, device } = gatedDag()
   const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
+  followNoResidency(dag)
   selection.dispatch(uniforms)
   // The primitive moves a thousand units WHILE the snapshot is in flight: what it reports
   // describes the previous pose. It lands marked so: it still names what to stream, but the drain

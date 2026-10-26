@@ -5,9 +5,8 @@ import { createEviction } from '../../geometry/pages/pool/eviction.ts'
 type SlotHeld = { readonly key: number; readonly generation: number }
 
 /**
- * THE VICTIM ORDER OF A GPU POOL KEYED BY NUMBER — a tile pool's places, the row table's pages: the
- * queue the GPU ranked over its slots (`sortWgsl.ts`; `../../materials/virtual/evictSortWgsl.ts`,
- * `../../geometry/rows/rowEvictSortWgsl.ts`), read back and taken by the one victim taker of every GPU
+ * THE VICTIM ORDER OF A GPU POOL KEYED BY NUMBER — a tile pool's places: the queue the GPU
+ * ranked over its slots (`sortWgsl.ts`; `../../materials/virtual/evictSortWgsl.ts`), read back and taken by the one victim taker of every GPU
  * pool (`createEviction`). `generationOf` says what the pool holds at a key: its arrival count, or
  * `undefined` for a key it no longer holds. A key the queue lists that left, or was taken again
  * since the cut, is skipped. No clock and no recency on the CPU: the GPU stamped each slot where it
@@ -55,6 +54,9 @@ export function createSlotOrder(generationOf: (key: number) => number | undefine
     },
     /** How many victims the queue may still give: an upper bound. */
     victims: () => eviction.victims(),
+    /** How many slots the GPU ranked that no arrival has taken since: the victims the queue may
+     *  still give, and those ranked behind its burst, which it does not list. */
+    idle: () => eviction.victims() + Math.max(0, total - order.count),
     /** A key's rank in the queue, the first victim at 0; `undefined` when unlisted — in use. */
     rankOf: (key: number) => eviction.rankOf(key),
     /** Whether the GPU found nothing more to give: an order followed, spent, its victims as many

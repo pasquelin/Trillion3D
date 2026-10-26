@@ -38,11 +38,11 @@ test('a page-built cloth moved is teleported with its flags; rescaled, made agai
     cloth.scale.setScalar(2)
     physics.frame()
     assert.notEqual(physics.handle.error?.code, 'PHYSICS_FAILED', 'no refusal')
-    // Made again first, going on from the old body (`carries`, SOFT's last word before its
-    // vertices), which leaves after it: REMOVE is the buffer's last command.
+    // Made again first, going on from the old body (`carries`, SOFT's word before its filter),
+    // which leaves after it: REMOVE is the buffer's last command.
     const rescaled = worker.words.at(-1)!
     assert.equal(rescaled[0], OP.soft, 'made again at the new scale')
-    assert.equal(rescaled[SOFT_WORDS - 1] & BODY_INDEX, index, 'carrying the old body')
+    assert.equal(rescaled[SOFT_WORDS - 2] & BODY_INDEX, index, 'carrying the old body')
     assert.deepEqual([...rescaled.slice(-2)], [OP.remove, index], 'the old body out after it')
     assert.notEqual(physics.session()!.engineIdOf(cloth), -1)
     physics.dispose()

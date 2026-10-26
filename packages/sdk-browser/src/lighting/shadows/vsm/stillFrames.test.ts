@@ -6,18 +6,23 @@
 import { mulberry32 } from '../../../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { pipelinesSettled } from '../../deferred/compileLedger.ts'
 import { planFrames, randomWorld, type PlanWorld } from './planFrames.fixture.ts'
 
 /** The label of the layout a recorded group was made with. */
 const layoutOf = (group: GPUBindGroupDescriptor) => (group.layout as { label?: string }).label ?? ''
 
 /** The layouts of the groups and the buffers of the writes each of `n` frames of `world` made. */
-function frames(world: PlanWorld, n: number) {
+async function frames(world: PlanWorld, n: number) {
   const run = planFrames()
-  return Array.from({ length: n }, () => {
+  const out = []
+  for (let k = 0; k < n; k++) {
     const { groups, writes } = run.frame(world)
-    return { groups: groups.map(layoutOf), writes: writes.map((w) => w.buffer.label ?? '') }
-  })
+    out.push({ groups: groups.map(layoutOf), writes: writes.map((w) => w.buffer.label ?? '') })
+    // The pipelines a frame asked are compiled before the next (off-thread in production).
+    await pipelinesSettled(run.fake.device)
+  }
+  return out
 }
 const only = (labels: string[], prefixes: string[]) =>
   labels.filter((l) => prefixes.some((p) => l.startsWith(p)))
@@ -25,8 +30,8 @@ const only = (labels: string[], prefixes: string[]) =>
 const SETTLED = 10 + 1
 const still = () => frames({ ...randomWorld(mulberry32(3), [0, 2, 0]), boxes: [] }, SETTLED + 3)
 
-test('a still scene makes no raster or marking group after its second frame', () => {
-  const run = still()
+test('a still scene makes no raster or marking group after its second frame', async () => {
+  const run = await still()
   const passes = ['vsm.render', 'vsm.resetPageTable', 'vsm.initPageRects', 'vsm.markCoarse']
   // The raster's seven; the marking's clears (every map's tables, the suns' receiver cover), rects
   // and coarse pages.
@@ -34,17 +39,20 @@ test('a still scene makes no raster or marking group after its second frame', ()
   for (const f of run.slice(2)) assert.deepEqual(only(f.groups, passes), [])
 })
 
-test('the same moved boxes every frame make their invalidation groups once a frame set', () => {
-  const run = frames(randomWorld(mulberry32(4), [0, 2, 0]), 6)
+test('the same moved boxes every frame make their invalidation groups once a frame set', async () => {
+  const run = await frames(randomWorld(mulberry32(4), [0, 2, 0]), 6)
   const invalidation = ['vsm.invalidateCastPages']
-  // The cache invalidates from the third frame on: its first two make a group 0 each, the third
-  // its own two over the parameters, the maps, the boxes and an empty list of the rows' changes.
-  assert.ok(only(run[2].groups, invalidation).length > 0, 'the third frame invalidates')
-  for (const f of run.slice(4)) assert.deepEqual(only(f.groups, invalidation), [])
+  // The cache invalidates from the third frame on, which asks its pipelines; the fourth, once they
+  // are compiled, makes its group 0 and the fifth the other frame set's, each with its own two over
+  // the parameters, the maps, the boxes and an empty list of the rows' changes.
+  const made = run.map((f) => only(f.groups, invalidation).length)
+  assert.deepEqual(made.slice(0, 3), [0, 0, 0], 'the pipelines are not compiled yet')
+  assert.ok(made[3] > 0 && made[4] > 0, 'the fourth and fifth frames invalidate')
+  for (const f of run.slice(5)) assert.deepEqual(only(f.groups, invalidation), [])
 })
 
-test('a still scene, its lights settled, writes none of the uploads of these passes', () => {
-  const run = still()
+test('a still scene, its lights settled, writes none of the uploads of these passes', async () => {
+  const run = await still()
   const uploads = [
     ...['vsm.nextMaps', 'vsm.perPageIds', 'vsm.marking.params', 'vsm.marking.perPage'],
     // Both frame sets' projection records.

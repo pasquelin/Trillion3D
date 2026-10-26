@@ -19,26 +19,24 @@
     "lossless": [],
     "maxLevels": 7,
     "notes": {},
-    "pixelBytes": 0,
-    "previews": 0,
+    "pixelBytes": 40,
+    "previews": 1,
     "qualityGate": {
       "decoder": "texture2ddecoder",
       "maskFlips": 0,
       "maxDelta": 3,
       "psnrDb": 48.0
     },
-    "skipped": {
-      "image-float-unsupported": 1
-    },
-    "version": 10
+    "skipped": {},
+    "version": 12
   },
-  "rule": "A float texture fails no compilation and is never cut down to eight bits: the progressive previews are RGBA8 sRGB, the texture is counted, no preview is produced, and the reason image-float-unsupported is named in the report.",
+  "rule": "A float texture fails no compilation and is never cut down to eight bits: its chain is kept in floating point and held in the half-float atlas — the tail in the sidecar's pixel column, eight bytes a texel, held by no block family; the levels above the tail, when the image is wider than the tail, as rgba16f files — and no gate or block codec touches it.",
   "scene": {
     "formatVersion": 11,
-    "manifestBinaryVersion": 18,
+    "manifestBinaryVersion": 21,
     "primitives": 1,
     "selectedTriangles": 2,
-    "sidecarSha256": "6ae9877365d872b40341bd0035917030d14758ce7328d8e6a18c8397adf2fe4e",
-    "texturePreviewBytes": 0
+    "sidecarSha256": "ff6b991bf8f81a6e8f59849698fe58090dd046505092e89af94feb3f5c2c4687",
+    "texturePreviewBytes": 40
   }
 }

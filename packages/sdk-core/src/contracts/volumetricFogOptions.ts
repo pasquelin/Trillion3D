@@ -1,3 +1,4 @@
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import {
   ANY_NUMBER,
   choiceSetting as choice,
@@ -28,22 +29,26 @@ import {
  * cell's sample is lifted off the depth buffer. The quality presets write the
  * level (`../runtime/qualityLevels.ts`).
  *
- * Four switches are the fog's as a whole, not the volume's: whether any fog is drawn, whether the
- * atmosphere's light adds to it, whether it is made to match the volume, and whether an orthographic
- * view measures its height from the view's own. The engines that fixed them keep the last three as
- * project settings that choose a program; here they are read at each image, which a program that
- * had been chosen would answer the same. Of the others those engines keep around the volume, none
- * applies here, each for the same reason, a system the engine has not: a function of light that
- * modulates a lamp's scattering by a material, a texture on a rectangle's face, the injection of
- * lights the GPU traces rays for, and the screen-space blur of the fog.
+ * Five switches are the fog's as a whole, not the volume's: whether any fog is drawn, whether the
+ * atmosphere's light adds to it, whether it is made to match the volume, whether an orthographic
+ * view measures its height from the view's own, and whether the sky light's capture lights it. The
+ * engines that fixed them keep the last four as project settings that choose a program; here they
+ * are read at each image, which a program that had been chosen would answer the same. Rectangle lights light the volume by their form factor and
+ * darken it by their shadow map (`volumetricFogLocalShadows`), and the functions of light multiply
+ * the colour of the sun and, where `lightFunctionFog` is set, of each local light
+ * (`./lightFunctionOptions.ts`). Of the systems those engines keep around the volume,
+ * three are the engine's not: a texture on a rectangle's face, the injection of lights the GPU
+ * traces rays for, and the screen-space blur of the fog; no setting stands for any of them. The same
+ * of the local fog volumes' culling: its run on a queue of its own — the pass runs with the frame's
+ * others — and the debug view of each tile's count of volumes; no setting stands for either.
  */
 
 /** The volume's quality levels, `off` first, then coarsest to finest. */
-export const VOLUMETRIC_FOG_LEVELS = ['off', 'low', 'high', 'ultra'] as const
+const VOLUMETRIC_FOG_LEVELS = ['off', 'low', 'high', 'ultra'] as const
 /** A quality level of the volume. */
 export type VolumetricFogLevel = (typeof VOLUMETRIC_FOG_LEVELS)[number]
 /** The level the engine draws at when none is named. */
-export const DEFAULT_VOLUMETRIC_FOG_LEVEL = 'high' satisfies VolumetricFogLevel
+const DEFAULT_VOLUMETRIC_FOG_LEVEL = 'high' satisfies VolumetricFogLevel
 
 /** What a level fixes: the side of a cell in pixels, the cells along the depth, and the lighting
  *  samples a cell takes where its history is missing (1, 4, 8 or 16). */
@@ -54,7 +59,7 @@ export interface VolumetricFogKnobs {
 }
 
 /** The knobs of each level that draws a volume; `off` draws none. */
-export const VOLUMETRIC_FOG_LEVEL_KNOBS = {
+const VOLUMETRIC_FOG_LEVEL_KNOBS = {
   low: { cellSize: 16, sliceCount: 64, rebuildSamples: 4 },
   high: { cellSize: 8, sliceCount: 128, rebuildSamples: 4 },
   ultra: { cellSize: 4, sliceCount: 128, rebuildSamples: 16 },
@@ -97,13 +102,42 @@ export const VOLUMETRIC_FOG_FILTERS = ['trilinear', 'bicubic', 'tricubic'] as co
  *  plane fade over that many cells, so that they flicker less;
  *  `volumetricFogReadJitter`, 0 — a random offset, in cells, of the point a surface reads the
  *  volume at, which hides the cells' pixelisation;
+ *  `volumetricFogLocalShadows`, on — a point, spot or rectangle light whose shadow darkens the fog (its
+ *  `shadowsFog`) reads its shadow map in the volume; off, every local light lights it whole, the sun
+ *  keeping its own;
+ *  `localFogVolumeSupport`, on — the project switch of the local fog volumes (`../scene/localFog/contracts.ts`),
+ *  read once when the session opens (changing it later changes nothing): off, no program holds any of
+ *  their code, and no pass, buffer or block is made for them; the objects can still be declared;
+ *  `localFogVolumes`, on — the local fog volumes of the scene are drawn;
+ *  `localFogVolumeInVolume`, on — where the scene's fog has a volume, the local fog volumes are
+ *  voxelised into it, under its light, and the analytic law draws only what lies past the volume's far
+ *  end; off, they are drawn by the analytic law alone, whole, over the finished fog, the volume's light
+ *  too;
+ *  `localFogVolumeMaxVolumeDensity`, 1 — the most extinction a local fog volume gives a cell of the
+ *  volume, per metre, 0 or more (held to it): the engines that fixed it write 0.01 per centimetre, the
+ *  density of a volume's bottom, where its height law is steepest, making the volume's history leak;
+ *  `localFogVolumeStartDistance`, 10 — the distance from the eye, metres, before which no local fog
+ *  volume shows, whatever its own: 1000 centimetres of the engines that fixed it, held to 0.1 or more;
+ *  `localFogVolumeMaxCount`, 32 — the most local fog volumes a view draws, the nearest and those of the
+ *  highest priority kept, held to 1…256;
+ *  `localFogVolumeTileSize`, 128 — the side, in pixels, of the tiles of the screen the local fog volumes
+ *  are culled by: each tile keeps the list of the volumes over it, and a pixel or a cell walks the list
+ *  of its tile alone; held to 8…512, the lists made for the tile grid the view cuts and only while a
+ *  view draws a volume;
+ *  `localFogVolumeUsesDepthPyramid`, on — a tile's list drops a volume that lies wholly behind the
+ *  surfaces the depth pyramid holds over the volume's footprint; off, or with no pyramid for the image, the
+ *  tile's frustum alone culls;
+ *  `localFogVolumeOnTranslucent`, off — the translucent surfaces are fogged by the local fog volumes too;
  *  `fogEnabled`, on — any fog at all, the analytic one, the volume and the atmosphere's haze over
  *  the surfaces included;
  *  `fogReadsAtmosphere`, on — the atmosphere's sky and its sun on the ground add to the fog's
  *  colour and lobe;
  *  `fogMatchesVolume`, off — the fog's colour, its lobe's phase and its albedo are the volume's;
  *  `fogOrthoHeightAdjustment`, on — an orthographic view measures the fog from the height its own
- *  position gives, not from its eye. */
+ *  position gives, not from its eye;
+ *  `fogReadsSkyLight`, off — the project switch of the sky light lighting the height fog: only with
+ *  it on does the fog's `skyLightScattering` (`../scene/core/fogHeight.ts`) read the sky light's
+ *  cube. */
 export const VOLUMETRIC_FOG_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     choice('volumetricFogQuality', DEFAULT_VOLUMETRIC_FOG_LEVEL, VOLUMETRIC_FOG_LEVELS),
@@ -122,10 +156,21 @@ export const VOLUMETRIC_FOG_RULES = /* @__PURE__ */ (() =>
     integer('volumetricFogVoxelizationShowOnlyPass', -1, [-1, Number.MAX_SAFE_INTEGER]),
     number('volumetricFogEdgeFade', 0, ANY_NUMBER),
     number('volumetricFogReadJitter', 0, ANY_NUMBER),
+    flag('volumetricFogLocalShadows', true),
+    flag('localFogVolumeSupport', true),
+    flag('localFogVolumes', true),
+    flag('localFogVolumeInVolume', true),
+    number('localFogVolumeMaxVolumeDensity', 1, ANY_NUMBER),
+    number('localFogVolumeStartDistance', 10, ANY_NUMBER),
+    count('localFogVolumeMaxCount', 32, 0),
+    count('localFogVolumeTileSize', 128, 0),
+    flag('localFogVolumeUsesDepthPyramid', true),
+    flag('localFogVolumeOnTranslucent', false),
     flag('fogEnabled', true),
     flag('fogReadsAtmosphere', true),
     flag('fogMatchesVolume', false),
     flag('fogOrthoHeightAdjustment', true),
+    flag('fogReadsSkyLight', false),
   ] as const))()
 /** The field of one setting of the volume. */
 export type VolumetricFogField = keyof typeof VOLUMETRIC_FOG_RULES
@@ -135,11 +180,55 @@ export type VolumetricFogOptions = SettingOptions<typeof VOLUMETRIC_FOG_RULES>
 /** The volume's settings with every field set: the defaults for those a host leaves out. */
 export type VolumetricFogValues = SettingValues<typeof VOLUMETRIC_FOG_RULES>
 
+/** The least a local fog volume's global start distance is held to, metres: 10 centimetres. */
+const LOCAL_FOG_LEAST_START_DISTANCE = 0.1
+/** The most local fog volumes a view may draw: a volume's index is kept in a byte. */
+export const LOCAL_FOG_MOST_VOLUMES = 256
+/** The side of a local fog volumes' culling tile, pixels, held between the least and the most. */
+const LOCAL_FOG_TILE_PIXELS = { least: 8, most: 512 } as const
+
+/** The local fog volumes' settings held to their ranges (`localFogLimits`). */
+export interface LocalFogLimits {
+  startDistance: number
+  maxVolumeDensity: number
+  maxCount: number
+  tileSize: number
+}
+
+/** The local fog volumes' settings as the frame holds them to their ranges, which the settings take
+ *  as any number, the way the engines that fixed them clamp what they read: the start distance from
+ *  `LOCAL_FOG_LEAST_START_DISTANCE`, the density cap from 0, the count to 1…`LOCAL_FOG_MOST_VOLUMES`, the
+ *  tile's side to `LOCAL_FOG_TILE_PIXELS`. Written into `out` where one is given (an image allocates
+ *  none), else into a new object. */
+export function localFogLimits<T extends Partial<LocalFogLimits> = object>(
+  values: Pick<
+    VolumetricFogValues,
+    | 'localFogVolumeStartDistance'
+    | 'localFogVolumeMaxVolumeDensity'
+    | 'localFogVolumeMaxCount'
+    | 'localFogVolumeTileSize'
+  >,
+  out: T = {} as T,
+): T & LocalFogLimits {
+  const held = out as T & LocalFogLimits
+  held.startDistance = Math.max(LOCAL_FOG_LEAST_START_DISTANCE, values.localFogVolumeStartDistance)
+  held.maxVolumeDensity = Math.max(0, values.localFogVolumeMaxVolumeDensity)
+  held.maxCount = clamp(values.localFogVolumeMaxCount, 1, LOCAL_FOG_MOST_VOLUMES)
+  held.tileSize = clamp(
+    values.localFogVolumeTileSize,
+    LOCAL_FOG_TILE_PIXELS.least,
+    LOCAL_FOG_TILE_PIXELS.most,
+  )
+  return held
+}
+
 /** What each quality level below the top writes of the quality level: no volume at `smooth` and
  *  `balanced`, the low level at `fine`; `max` writes nothing, the default level
- *  (`runtime/qualityLevels.ts`). */
+ *  (`runtime/qualityLevels.ts`); `cinematic` the finest, whose grid is the fifth row's: cells of 4
+ *  pixels, 128 slices, 16 samples. */
 export const VOLUMETRIC_FOG_PRESET_LEVELS = {
   smooth: { volumetricFogQuality: 'off' },
   balanced: { volumetricFogQuality: 'off' },
   fine: { volumetricFogQuality: 'low' },
+  cinematic: { volumetricFogQuality: 'ultra' },
 } as const satisfies Record<string, { volumetricFogQuality: VolumetricFogLevel }>

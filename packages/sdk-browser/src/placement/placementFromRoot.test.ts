@@ -1,98 +1,55 @@
-// A page record carries no placement values. Every reader takes the world, the row
-// and the winding from the root that places it, so a placement is never copied
-// into each of its pages.
+// A page record carries no placement values. Every reader takes the world and the winding from the
+// root that places it, so a placement is never copied into each of its pages: a cluster the cut
+// lists visible is decoded in the frame it is drawn, its world the one of the root its placement
+// names (`visibility/decode/`).
 // The cut publishes its instances as packed catalogue ranks, and the consumers read
 // a record back through the one accessor, `recordOf`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
-import { ROW_WORDS } from '../visibility/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 import { GROWN_ROWS, placedSession, scaleDown } from './growth/webgpuGrowth.fixture.ts'
-import { rootOf, rootOfPacked } from '../geometry/selection/placements.ts'
-import { CLUSTER_SPHERE_FLOATS } from '../lighting/shadows/sphereContract.ts'
-import { MOBILITY_CORNER_SHIFT, MOBILITY_MOVING } from '../lighting/shadows/mobilityBits.ts'
-import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
-import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
-import { SUN } from '../frame/io/memoryGrowth.fixture.ts'
+import { rootOf } from '../geometry/selection/placements.ts'
+import { visibleClusters } from '../../../../tests/kit/fakeDevice/globals.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 
 type Session = Awaited<ReturnType<typeof placedSession>>
-
-/** Word of a row holding its page's offset in the pool, in words: its address, not its placement. */
-const OFFSET_WORD = PAGE_INFO.at.pageOffset
 
 /** A copy of what a buffer of the mocked device holds: what a pass that binds it reads. */
 const heldBytes = (buffer: GPUBuffer) =>
   (buffer as unknown as { data: Uint8Array }).data.slice().buffer
 
-/** What the image is drawn from: the rows, the draw items and the cut, as the GPU holds them — the
- *  rows pass writes every word a row's world decides (`rows/rowWords.ts`). The pool's
- *  layout is the pool's (`geometry/pages/pool/homes.ts`): `homes` reads the offsets, which the digest leaves
- *  out. */
-function digest({ rt }: Session) {
-  const { rows, drawItemWords } = rt.layout
-  const hash = createHash('sha256')
-  // A row holds no surface value, only its surface's rank (`PAGE_INFO.material`): every word but
-  // the pool's offset is the placement oracle's.
-  const table = new Float32Array(heldBytes(rt.vis.pageTable!))
-  for (let row = 0; row < table.length; row += ROW_WORDS) table[row + OFFSET_WORD] = 0
-  for (const words of [table, rows.packedPageIndex, drawItemWords])
-    hash.update(new Uint8Array(words.buffer, words.byteOffset, words.byteLength))
-  // The instances as packed ranks, rank by rank: a record serves every placement.
-  hash.update(
-    JSON.stringify([
-      rows.packedCount,
-      rt.run.shownPacked.slice(0, rt.run.shown.length),
-      rt.run.desiredPacked.slice(0, rt.run.desired.length),
-    ]),
-  )
-  return hash.digest('hex').slice(0, 16)
-}
-
-/** Each row's page offset, in words, at the rows the cut published. */
-const homes = ({ rt }: Session) => {
-  const { rows } = rt.layout
-  return Array.from(
-    { length: rows.packedCount },
-    (_, row) => rows.pageTableInts![row * ROW_WORDS + OFFSET_WORD],
-  )
-}
-
 /**
- * What the virtual shadow maps' raster reads of each row it takes casters from (the table's
- * `packedCount` rows, `../lighting/shadows/vsm/frame/vsmEncode.ts`): the mobility word the session
- * uploaded for it (`../lighting/shadows/casters/bounds.ts`) and the world sphere the rows pass wrote
- * (`rows/rowWordsPass.ts`), read back from the two buffers
- * the raster binds, beside the box of the record the row draws and the world of its placement.
+ * What the image draws: each cluster the cut lists visible, with what the decode wrote of it in the
+ * decoded clusters (`rt.vis.pageTable`) — its world, as the single-precision words the raster
+ * reads, the offset of its page in the pool, in words — and the world of the root its placement
+ * names.
  */
-function casterRows({ rt }: Session) {
-  const { lights, layout } = rt,
-    { rows, placement, selectionRoots } = layout
-  assert.ok(lights.mobilityRows && lights.spheres, 'the session keeps what the shadow raster binds')
-  const words = new Uint32Array(heldBytes(lights.mobilityRows)),
-    spheres = new Float32Array(heldBytes(lights.spheres.buffer))
-  return Array.from({ length: rows.packedCount }, (_, row) => {
-    const rec = rows.packedRecs[row]!,
-      rank = rootOfPacked(placement, rows.packedPageIndex[row]),
-      at = row * CLUSTER_SPHERE_FLOATS
-    return {
-      url: rec.url,
-      rank,
-      min: [...rec.min],
-      max: [...rec.max],
-      world: Array.from(rootOf(selectionRoots, rank).world.elements),
-      word: words[row],
-      // The centre in split double, its float then the residue; then the radius.
-      centre: [0, 1, 2].map((axis) => spheres[at + axis] + spheres[at + 4 + axis]),
-      radius: spheres[at + 3],
-    }
-  })
+function decoded({ rt }: Session) {
+  const table = heldBytes(rt.vis.pageTable!),
+    ints = new Uint32Array(table),
+    floats = new Float32Array(table),
+    at = PAGE_INFO.at
+  return visibleClusters(rt.run.gpuSelection!.visible as unknown as { data: Uint8Array }).map(
+    ({ index, page, placement }) => {
+      const row = index * PAGE_INFO.words
+      return {
+        page,
+        placement,
+        world: Array.from(floats.subarray(row + at.world, row + at.world + MATRIX_VALUES)),
+        expected: Array.from(
+          Float32Array.from(rootOf(rt.layout.selectionRoots, placement).world.elements),
+        ),
+        offset: ints[row + at.pageOffset],
+        home: rt.layout.clusters.offsetOf(page),
+      }
+    },
+  )
 }
 
 /** The session at open, once its core node moved every placement under it, once grown: what
  *  `look` reads of each. */
-async function steps<T>(look: (session: Session) => T, light?: SceneLight) {
-  const session = await placedSession(GROWN_ROWS, light)
+async function steps<T>(look: (session: Session) => T) {
+  const session = await placedSession(GROWN_ROWS)
   const { core, cells, io, draw } = session
   try {
     const seen = [look(session)]
@@ -103,8 +60,8 @@ async function steps<T>(look: (session: Session) => T, light?: SceneLight) {
     await draw()
     seen.push(look(session))
     await scaleDown(session)
-    await draw()
-    await draw()
+    // The pages of the new placements arrive, the cut over them lists them.
+    for (let frame = 0; frame < 4; frame++) await draw()
     seen.push(look(session))
     return seen
   } finally {
@@ -113,72 +70,38 @@ async function steps<T>(look: (session: Session) => T, light?: SceneLight) {
 }
 const noBudget = { admits: () => true, spend() {} }
 
-test('rows, draw items and cut of repeated and moved placements are those of develop', async () => {
-  // The digests exclude the pool's offsets (`OFFSET_WORD`).
-  assert.deepEqual(await steps(digest), [
-    '7ac41f5064b20155',
-    '6b27769d22bc82c5',
-    // Grown in place on the GPU cut (#1483): the table holds the GPU cut's readout, so every taken
-    // leaf draws — develop's five-row table left the two new placements out. Recorded on #1483's
-    // first run with the grown cut adopted: its seven rows are those the homes test below names.
-    // The tables grow ahead of the rows (`rowsAhead`): the digest holds their spare rows too, so it
-    // was recorded again at their new length — the seven rows alone digest as they did. Recorded
-    // again when a row became its geometry and its surface's rank, 32 words (#1527), and once more
-    // when it became 44 words — the Hi-Z slot out, the cluster's LOD sphere and box in
-    // (`PAGE_INFO`) —, the binding that holds the grown rows now the session's own (`GROWN_ROWS`),
-    // and once more when the cut's planes followed the image's jitter: the session draws one
-    // pixel, so the half pixel the jitter moves is the whole frustum, and the cut at this frame is
-    // the one that jitter phase leaves.
-    '6bf24ee1b4c8644f',
-  ])
+test('each decoded cluster carries the world of the root that places it, whatever the placement moved', async () => {
+  const seen = await steps(decoded)
+  // Ground, then the two leaves' two placements each; grown in place, the two new placements.
+  assert.deepEqual(
+    seen.map((clusters) => clusters.length),
+    [5, 5, 7],
+  )
+  for (const [step, clusters] of seen.entries())
+    for (const { page, placement, world, expected } of clusters)
+      assert.deepEqual(
+        world,
+        expected,
+        `${['at open', 'moved', 'grown'][step]}, page ${page}, root ${placement}`,
+      )
+  // The core node moved every placement under it: the leaves' worlds are not those of the open.
+  const worlds = (step: number) => seen[step].map(({ world }) => world.join())
+  assert.notDeepEqual(
+    worlds(1).toSorted(),
+    worlds(0).toSorted(),
+    'the moved placements are decoded moved',
+  )
 })
 
 // Ground, then the two leaves' two placements each, at the homes of `pageHomes`: each page at its
 // own width, in the catalogue's order — twelve bytes a triangle, three words.
-test('each row names its page at the home the pool gave it, whatever the placement moved', async () => {
-  const [at, moved, grown] = await steps(homes)
+test('each decoded cluster names its page at the home the pool gave it, whatever the placement moved', async () => {
+  const [at, moved, grown] = (await steps(decoded)).map((clusters) => {
+    for (const { page, offset, home } of clusters)
+      assert.equal(offset, home, `page ${page} is decoded at the home the pool holds for it`)
+    return clusters.map(({ offset }) => offset).sort((a, b) => a - b)
+  })
   assert.deepEqual(at, [0, 3, 3, 6, 6])
   // The grown rows' two new placements, one of each leaf, at their leaf's home.
-  assert.deepEqual([moved, grown], [at, [...at, 3, 6]])
-})
-
-test('the shadow raster reads each row at its own placement, moving once that placement moved', async () => {
-  // A light that casts: the shadow rows are derived only then.
-  const seen = await steps(casterRows, SUN)
-  // One record serves every placement of its primitive: the scene draws a record twice.
-  const urls = seen[0].map((row) => row.url)
-  assert.ok(new Set(urls).size < urls.length, `a record two placements draw: ${urls.join(', ')}`)
-  // One triangle a row, which casts and is no cutout.
-  const still = 3 << MOBILITY_CORNER_SHIFT
-  const point = new Float64Array(3)
-  const place = (world: number[], at: (axis: number) => number) =>
-    Array.from(transformAffinePoint(point, world, at(0), at(1), at(2)))
-  // The placements the core node moved: those of the roots before the growth; a row placed after
-  // it, grown in place, never moved (`growth/webgpuGrowth.ts` appends their roots).
-  const before = Math.max(...seen[1].map((row) => row.rank)) + 1
-  for (const [step, rows] of seen.entries())
-    for (const [row, { url, rank, min, max, world, word, centre, radius }] of rows.entries()) {
-      const where = `${['at open', 'moved', 'grown'][step]}, row ${row} (${url})`
-      // The core node moved every placement under it, the ground's aside: those turn moving, the
-      // raster draws them into the dynamic slice from then on.
-      const moving = step > 0 && url !== 'ground' && rank < before
-      assert.equal(word, moving ? still | MOBILITY_MOVING : still, where)
-      // The sphere of the row's own placement: centred on the box it places, holding its eight
-      // corners, and never twice as wide as the farthest.
-      const middle = place(world, (axis) => (min[axis] + max[axis]) / 2)
-      for (let axis = 0; axis < 3; axis++)
-        assert.ok(
-          Math.abs(centre[axis] - middle[axis]) <= 1e-12 * Math.max(1, Math.abs(middle[axis])),
-          `${where}: centre ${centre} for ${middle}`,
-        )
-      let farthest = 0
-      for (let corner = 0; corner < 8; corner++) {
-        const p = place(world, (axis) => ((corner >> axis) & 1 ? max : min)[axis])
-        farthest = Math.max(farthest, Math.hypot(...p.map((v, axis) => v - centre[axis])))
-      }
-      assert.ok(
-        radius >= farthest && radius <= 2 * farthest,
-        `${where}: radius ${radius}, farthest corner ${farthest}`,
-      )
-    }
+  assert.deepEqual([moved, grown], [at, [0, 3, 3, 3, 6, 6, 6]])
 })

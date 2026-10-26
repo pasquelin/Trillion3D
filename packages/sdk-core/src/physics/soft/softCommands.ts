@@ -1,6 +1,6 @@
 import type { CommandWriter } from '../commands.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
-import { OP } from '../layout.ts'
+import { BUILT_IN_FILTER, OP } from '../layout.ts'
 import type { SoftRecord, SoftSettings } from './soft.ts'
 import { SOFT_VERTEX_WORDS } from './softLayout.ts'
 
@@ -24,6 +24,8 @@ export interface SoftBodyRecord {
   restitution: number
   gravityScale: number
   linearDamping: number
+  /** The soft body's filter (`CommandWriter.filter`). @defaultValue the moving physics body's */
+  filter?: number
   /** The engine id of the page's soft body this one replaces at another scale, which it goes on
    *  from (`softLayout.ts` SOFT_WORDS); none by default. */
   carries?: number
@@ -41,7 +43,7 @@ export function writeSoft(writer: CommandWriter, body: SoftBodyRecord) {
       : { vertices: record.vertices, indices: record.indices, cooked: undefined }
   const counts = [
     ...[vertices.length / SOFT_VERTEX_WORDS, indices.length, cooked?.length ?? 0],
-    body.carries ?? NO_INDEX,
+    ...[body.carries ?? NO_INDEX, body.filter ?? BUILT_IN_FILTER.moving],
   ]
   writer.put(
     [OP.soft, body.id],

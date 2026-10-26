@@ -1,5 +1,6 @@
 import { tradeView } from '../view/viewTrade.ts'
 import { disposeBackdrop } from '../../blend/transparent/transmission.ts'
+import { disposeTranslucency } from '../../blend/translucency.ts'
 import { disposeCloudView } from '../../modules/sky/clouds/viewTargets.ts'
 import type { DeviceGrant } from '../../gpu/core/errorScope.ts'
 import type { HizPyramid } from '../../visibility/hiz/gpu/types.ts'
@@ -14,7 +15,7 @@ import { TARGET_GPU_KEYS, VIEW_VIS_KEYS } from '../backend/state/view.ts'
  *  view's (`VIEW_GPU_KEYS`). */
 const SET_GPU_KEYS = [
   ...TARGET_GPU_KEYS,
-  'asIsShare',
+  'responsive',
   'displayFilter',
 ] as const satisfies readonly (keyof WebgpuGpuState)[]
 
@@ -46,18 +47,19 @@ export function releaseSet(gpu: TargetSet['gpu'], vis: TargetSet['vis']) {
   for (const texture of [...textures, vis.visTexture]) texture?.destroy()
   gpu.colorTexture = gpu.depthTexture = gpu.hdrTexture = gpu.feedbackTexture = undefined
   gpu.colorView = gpu.depthView = gpu.hdrView = gpu.feedbackView = undefined
-  gpu.displayTexture = gpu.displayView = undefined
+  gpu.displayTexture = gpu.displayView = gpu.canvasOnly = undefined
   gpu.targetBytes = 0
   disposeCloudView(gpu)
   vis.visTexture = undefined
   vis.visView = undefined
   disposeBackdrop(gpu as WebgpuGpuState)
+  disposeTranslucency(gpu)
   gpu.reflection?.dispose()
   gpu.reflection = undefined
   gpu.surfaces?.dispose()
   gpu.surfaces = undefined
-  gpu.asIsShare?.dispose()
-  gpu.asIsShare = undefined
+  gpu.responsive?.dispose()
+  gpu.responsive = undefined
   gpu.displayFilter?.dispose()
   gpu.displayFilter = undefined
   vis.gpuRaster?.dispose()

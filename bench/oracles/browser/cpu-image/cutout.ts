@@ -6,13 +6,13 @@ import {
 import { mapTexel } from '../../../../packages/sdk-browser/src/visibility/mapTexel.fixture.ts'
 import { perspectiveBary } from './math.ts'
 import { textureRgba, type VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
-import type { HostAttributes } from '../../../../packages/sdk-browser/src/session/host/resources.ts'
 import { lineDash } from './line.ts'
 import type { triangleAt } from './projection.ts'
+import type { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 
 /** Interpolated alpha of the vertex colours; a three-component colour reads an alpha of one. */
 function vertexAlpha(
-  color: HostAttributes[string],
+  color: Geometry['attributes'][string],
   tri: { i0: number; i1: number; i2: number },
   bary: { w0: number; w1: number; w2: number },
 ) {
@@ -31,7 +31,7 @@ export function cutout(
   page: VisPage,
   tri: NonNullable<ReturnType<typeof triangleAt>>,
   mat: PageSurface,
-  color: HostAttributes[string] | undefined,
+  color: Geometry['attributes'][string] | undefined,
   transformed: boolean,
 ) {
   const uv = page.attributes.uv,

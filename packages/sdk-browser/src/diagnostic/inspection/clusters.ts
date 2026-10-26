@@ -36,10 +36,12 @@ function take(rt: WebgpuPagesRuntime, snap: ClusterSnapshot, rec: PageRec, packe
 /** The main view's drawn and missing instances, at most `INSPECTION_CLUSTER_CAP`: copied now, so
  *  the next image's adoption rewrites none of it. */
 export function snapshotClusters(rt: WebgpuPagesRuntime): ClusterSnapshot {
-  const { drawn, drawnPacked, desired, desiredPacked } = rt.run
-  const drawnRanks = new Set(drawnPacked)
+  const { shown: drawn, desired } = rt.run,
+    drawnPacked = rt.run.shownPacked.ids,
+    desiredPacked = rt.run.desiredPacked.ids
+  const drawnRanks = new Set(drawnPacked.subarray(0, drawn.length))
   let missing = 0
-  for (const packed of desiredPacked) if (!drawnRanks.has(packed)) missing++
+  for (let i = 0; i < desired.length; i++) if (!drawnRanks.has(desiredPacked[i])) missing++
   const wanted = drawn.length + missing,
     capacity = Math.min(wanted, INSPECTION_CLUSTER_CAP)
   const snap: ClusterSnapshot = {

@@ -4,7 +4,7 @@
  * (`../../../gpu/sort/sortWgsl.ts`) over the pool's pages, once a frame after the keep rule
  * (`vsmKeepPages`) and before the grant (`vsmGrantPages`).
  *
- * - A page no map holds — never drawn, its map gone, or not wanted for `VSM_PAGE_KEEP_FRAMES` — is
+ * - A page no map holds — never drawn, its map gone, or not wanted for `shadowCacheMaxPageAgeSinceLastRequest` — is
  *   the oldest: taken first.
  * - A page holding a cached map is ranked by the frames since it was last wanted, a doubling a
  *   step, its level the tier: the finer level first within a step.
@@ -26,9 +26,9 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  * old count, read signed, under n) the take adds them back, tells its host (\`<prefix>Short(n)\`) and
  * returns −1: two atomics only when the pool is short, and a take racing it there may find it short
  * too. \`<prefix>At(i)\` reads entry i; \`<prefix>Push(v)\` gives one back. The physical pages'
- * (\`pmPop\`) and the transmission's blocks.
+ * (\`pmPop\`).
  */
-export const freeStackWgsl = (prefix: string, buffer: string, count: string, first: string) =>
+const freeStackWgsl = (prefix: string, buffer: string, count: string, first: string) =>
   wgslBlock(
     `freeStackWgsl(${prefix})`,
     [],

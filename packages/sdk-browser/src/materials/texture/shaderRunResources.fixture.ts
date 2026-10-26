@@ -12,11 +12,20 @@ const swap = (p: Ref, value: number) => {
 export const resources = {
   $ref: (get: Ref['get'], set: Ref['set']): Ref => ({ get, set }),
   $deref: (p: Ref) => p.get(),
+  // The words a runtime-sized array the scope binds holds.
+  arrayLength: (p: Ref) => (p.get() as unknown as ArrayLike<number>).length,
   atomicAdd: (p: Ref, value: number) => swap(p, p.get() + value),
   atomicMax: (p: Ref, value: number) => swap(p, Math.max(p.get(), value)),
   atomicLoad: (p: Ref) => p.get(),
   atomicStore: (p: Ref, value: number) => void p.set(value),
   atomicExchange: swap,
+  // `{old_value, exchanged}`: the word takes `value` only where it held `compare`.
+  atomicCompareExchangeWeak: (p: Ref, compare: number, value: number) => {
+    const old = p.get()
+    const exchanged = old === compare
+    if (exchanged) p.set(value)
+    return { old_value: old, exchanged }
+  },
   atomicOr: (p: Ref, value: number) => swap(p, (p.get() | value) >>> 0),
   atomicAnd: (p: Ref, value: number) => swap(p, (p.get() & value) >>> 0),
   // A texture the scope binds answers its own loads: a record table's words

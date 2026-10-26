@@ -1,19 +1,11 @@
-import { createDeferredLightingLayout, type DeferredPlaceholders } from './setup.ts'
-import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import type { ContractKey } from './contractCuts.ts'
-import { makeFullscreenPipeline } from './fullscreen.ts'
-import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
-import { createCompositions, type CompositionSources } from './compositions.ts'
 import { type FusedBlend } from '../../post/effects/webgpuKinds.ts'
-import { HDR_FORMAT } from '../../scene/targetFormats.ts'
-import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
-import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
-import { bindLight, type ProgramParts, type ProgramState } from './lightGroup.ts'
 import type { FogRead } from '../fog/read.ts'
 import type { SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
 import type { CloudShadowSet } from '../atmosphere/cloudShadowRead.ts'
+import type { ToneLut } from '../toneLut.ts'
+import type { VolumetricLightmapGpu } from '../volumetricLightmap/gpu.ts'
+import type { DeferredPlaceholders } from './setup.ts'
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. With them,
  *  the frame's key: what its program leaves out (`contractCuts.ts`). */
@@ -21,6 +13,13 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** The declared lights, grown with the scene: the one buffer a contract program reads them from. */
   lights?: GPUBuffer
   tiles?: GPUBuffer
+  /** How many directional lights and how many local lights the light buffer holds this image: the
+   *  pass of a kind that has none is not drawn. Absent, both are. */
+  suns?: number
+  locals?: number
+  /** The ranks of the directional lights in the light buffer, after their count: what the sun's pass walks
+   *  (`frame/backend/state/lightBuffer.ts`); absent, the stand-in of no sun. */
+  sunRanks?: GPUBuffer
   /** The virtual shadow maps a blend pass's fragments trace (`vsmTraceFactor`): this frame's page
    *  table, projection data and uniforms, the pool's first slice, and the projection's view and
    *  blue noise. */
@@ -32,21 +31,20 @@ export interface DirectLightResources extends Partial<ContractKey> {
     view: GPUBuffer
     noise: GPUTextureView
   }
-  /** The virtual shadow maps' traced mask array (`vsmEncode.ts`), one 8-bit lane per shadowed
-   *  light: bound on the transmittance's number. */
+  /** The virtual shadow maps' local lights' mask (`vsmEncode.ts`), a texel a pixel, four bits a light
+   *  of the pixel's cell: bound at `DEFERRED_BINDINGS.vsmMask`. */
   vsmMask?: GPUTextureView
-  /** The mask's tile words (`vsmMaskFactor`): the layers its projection stored in each 8×8 tile. */
-  vsmMaskTiles?: GPUTextureView
-  /** The translucent casters' transmission atlas (`../shadows/vsm/transmission/transmissionPass.ts`), or none: what a
-   *  blend pass's rays read. */
-  vsmTransmission?: GPUTextureView
-  /** The mask's transmission (`VsmMask.through`): what the panes let through along each light's
-   *  missed rays, the opaque resolve's; none without translucent casters. */
-  vsmThrough?: GPUTextureView
-  /** Probe grid and coefficients — an atlas of `atlas.ts`: one lifetime, the probes'
-   *  identity. */
+  /** The shadowed lights of each cell of the light grid (`lightGridWgsl.ts`) the local lights' mask holds
+   *  the lanes of: bound at `DEFERRED_BINDINGS.vsmLightGrid`. */
+  vsmLightGrid?: GPUBuffer
+  /** The suns' mask, a layer a sun (`vsmSunFactor`): bound at `DEFERRED_BINDINGS.vsmSunMask`. */
+  vsmSunMask?: GPUTextureView
+  /** The sun's distance-field shadow (`../distanceField/shadow/state.ts`): a byte a lane of the suns
+   *  in a word a pixel, the opaque lit passes'; none where the image drew none. */
+  farShadowMask?: GPUBuffer
+  /** The probes' levels' uniform (`../bounce/uniform.ts`): one lifetime, the probes' identity; its presence says the frame is lit with
+   *  the bounce program, the reflections read the scene's reach in it. */
   bounceGrid?: GPUBuffer
-  probes?: GPUTextureView
   /** What the light functions are read from this image (`../lightFunction/frame.ts`): the atlas and
    *  its table; absent, the stand-in, which answers no light function. */
   lightFunction?: GPUTextureView
@@ -61,6 +59,9 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** What the fog's read is bound to this image (`FogRead`): its cubemap, the volume the image
    *  built and the frame that maps a point to its cell; absent, their stand-ins. */
   fog?: FogRead
+  /** The volume of the haze this image built (`../atmosphere/resources.ts`), a 3D texture the fog pass
+   *  samples (`hazeSampledWgsl`); absent, the stand-in. */
+  haze?: GPUTextureView
   /** The light shafts' occlusion mask the fog's inscattering is multiplied by this image
    *  (`../../modules/sky/lightShafts/frame.ts`); absent, the white stand-in. */
   lightShaft?: GPUTextureView
@@ -70,106 +71,38 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** The screen-space ambient occlusion this image drew (`../ao/frame.ts`): a texture of one byte a pixel the opaque
    *  resolve reads by load, where its view's word says to apply it; absent, the stand-in. */
   ambientOcclusion?: GPUTextureView
+  /** The sky light's distance-field occlusion this image drew (`../distanceField/ao/`): the bent normals and depths packed
+   *  in a buffer, and the uniform that describes them. Present, the indirect pass's program holding the code that applies it lights
+   *  the image (`contractVariants.ts`); absent, the stand-ins and the program without it. */
+  skyShadowing?: { bent: GPUBuffer; params: GPUBuffer }
+  /** The volumetric lightmap on the GPU, where the scene has one and the image reads it
+   *  (`../volumetricLightmap/frame.ts`): what the pass that gathers its light is bound to; absent, no light
+   *  is gathered. */
+  volumetricLightmap?: VolumetricLightmapGpu
+  /** The light that pass left on the pixels this image (`volumetricLightPass.ts`), which the indirect pass
+   *  reads by load; written by the lighting itself (`lightPass`), absent, the stand-in. */
+  volumetricLight?: GPUTextureView
 }
-export interface DeferredSources {
-  /** The lighting program (`contractLightingProgram`). */
-  lighting: WgslDecl
-  compose: CompositionSources
-  label: string
-  direct: boolean
-  bounce?: boolean
-}
-/** What composition reads: a colour and its accumulated share, else the lit image's flags; the
- *  glow the effect chain's last bloom left to it, with the dirt mask and the share of the image's
- *  light it keeps (`FusedBlend`), and the group that finishes the image with it
- *  (`../../post/finish/frame.ts`) — none where the image is shown as it is. */
+/** What composition reads: a colour; the glow the effect chain's last bloom left to it, with the
+ *  dirt mask and the share of the image's light it keeps (`FusedBlend`), and the group that
+ *  finishes the image with it (`../../post/finish/frame.ts`) — none where the image is shown as it
+ *  is. A debug view's as-is pixels are read from the surfaces apart (`shaders.ts`). */
 export type ComposedImage = {
   color: GPUTextureView
-  share?: GPUTextureView
   glow?: FusedBlend
   finish?: GPUBindGroup
 }
-/** What the temporal pass resolves: the colour, its pixels' as-is share, the filtering layers. */
+/** What the temporal pass resolves: the colour, the filtering layers, and,
+ *  where it brought a larger history down to the display's size, the half-size image it wrote beside
+ *  the colour. */
 export type AccumulatedImage = Required<Omit<ComposedImage, 'glow' | 'finish'>> & {
   filter?: readonly [GPUTextureView, GPUTextureView]
+  half?: GPUTextureView
 }
 export interface DeferredBindings {
   uniform: GPUBuffer
   placeholders: DeferredPlaceholders
-}
-
-export type DeferredProgram = Awaited<ReturnType<typeof createDeferredProgram>>
-
-const HDR: GPUColorTargetState[] = [{ format: HDR_FORMAT }]
-
-/** A deferred-pass program: its modules, its pipelines compiled together off the thread,
- *  and the bind groups it keeps while its resources do not change. */
-export async function createDeferredProgram(
-  device: GPUDevice,
-  sources: DeferredSources,
-  bindings: DeferredBindings,
-) {
-  const lighting = await createCheckedShaderModule(
-    device,
-    wgslModule(sources.lighting),
-    `${sources.label}_LIGHTING`,
-  )
-  const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce)
-  const [light, compositions] = await Promise.all([
-    makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', HDR),
-    createCompositions(device, sources.compose, sources.label),
-  ])
-  const parts = { device, sources, bindings, lightingLayout, compositions }
-  const state: ProgramState = {
-    identity: createWebgpuBindIdentity(2),
-    held: [],
-    composed: new WeakMap(),
-  }
-  return {
-    light,
-    get lightGroup() {
-      return state.lightGroup
-    },
-    compositions,
-    /** The group reading the lit image and its surface flags, or `image` and its as-is share,
-     *  and the input its pipelines compose (`compositions`); `undefined` before `bind`. A frame
-     *  that reads no as-is share (`asIs` false) binds the colour alone. */
-    composition: (image?: ComposedImage, asIs = true) => compositionOf(state, parts, image, asIs),
-    bind: (
-      surface: SurfaceBuffer,
-      depth: GPUTextureView,
-      hdr: GPUTextureView,
-      direct: DirectLightResources,
-    ) => bindLight(state, parts, surface, depth, hdr, direct),
-    release() {
-      state.identity = createWebgpuBindIdentity(2)
-      state.held.length = 0
-      state.boundSurface = state.boundHdr = state.boundFlags = state.lightGroup = undefined
-      state.composed = new WeakMap()
-    },
-  }
-}
-
-/** The program's `composition` (`createDeferredProgram`), kept under its colour and share. */
-function compositionOf(
-  state: ProgramState,
-  { device, bindings, compositions }: ProgramParts,
-  image: ComposedImage | undefined,
-  asIs: boolean,
-) {
-  const view = image?.color ?? state.boundHdr,
-    // The flagless group is kept under its colour: no share view is ever a colour one.
-    share = asIs ? (image?.share ?? state.boundFlags) : view
-  if (!view || !share || !state.boundSurface) return undefined
-  let byShare = state.composed.get(view)
-  if (!byShare) state.composed.set(view, (byShare = new WeakMap()))
-  const kept = byShare.get(share)
-  if (kept) return kept
-  // A colour without its own share (the effect chain's, no TAA) reads the lit image's flags.
-  const input = !asIs ? 'flagless' : image?.share ? 'accumulated' : 'still'
-  const entries = sequentialEntries([view, { buffer: bindings.uniform }, ...(asIs ? [share] : [])])
-  const group = device.createBindGroup({ layout: compositions.layouts[input], entries })
-  const composition = { group, input } as const
-  byShare.set(share, composition)
-  return composition
+  /** The tone table the lit compositions read (`../toneLut.ts`); none for a program that has no lit
+   *  composition. */
+  tone?: ToneLut
 }

@@ -124,6 +124,42 @@ pub(super) fn simplified_bytes(
     crate::hlod::flatten::simplified_bytes(triangles(instances, members), side, families)
 }
 
+/// The instances of the cell's layer and the ranks among them of the cell's original objects.
+type MergeSource<'a, 'b> = (&'a [Instance<'b>], &'a [usize]);
+
+/// The actor of cell `cell` of the merged layer `hlod` wearing its own flattened material, its
+/// materials merged: the cut `parts` of the cell's original objects `members`, an atlas sized as
+/// the layer says (`merge::atlas_sides`, `seen` the distance a `drawDistance` sizing reads), each of
+/// the materials baked into its own cell (`merge::merged_flat`).
+fn flat_merge(
+    parts: Vec<merge::Part>,
+    (source, (seen, cell)): (MergeSource<'_, '_>, (f64, usize)),
+    (hlod, builder, spent): (&HlodLayer, &Builder, Spent),
+) -> Result<Job> {
+    let (instances, members) = source;
+    let merging = &hlod.merging;
+    let placed = (members.iter()).map(|&i| (instances[i].cover.lods.bounds, &instances[i].matrix));
+    let (area, radius) = (merge::area(&parts), merge::sphere(placed).1);
+    // Its texels a metre per texel of side, if its coordinates filled the square.
+    let reach = || (1.0 / area.sqrt(), radius, seen);
+    let own = |sizes: &HlodMapSides| Sides::of_baked(sizes, merging.maps);
+    let sizing = (merging.sizing, hlod.texture_size);
+    let (side, sides) = merge::atlas_sides(sizing, reach, (MERGE_FLOORS, own));
+    let flattening = merge::Flattening {
+        side,
+        sides,
+        gutter: merging.gutter,
+        binned: merging.binned,
+        on_mesh: merging.on_mesh,
+        lightmaps: (merging.reuse_lightmap_uvs, merging.uv_method),
+        double_sided: merging.double_sided,
+        maps: merging.maps,
+    };
+    let made = merge::merged_flat(&parts, (builder.library, builder.checkpoint), &flattening)?;
+    drop(parts);
+    flattened_actor((hlod, cell), Ok(made), (builder, spent))
+}
+
 /// Merged layer `hlod`'s actors of cell `cell`, first drawn `seen` metres away
 /// (`flatten::merge`): its cell's original objects `members` — every object under it, never an
 /// actor below —, each at the LOD the layer selects (`lodSelection`, `lodScreenSize`), its
@@ -159,29 +195,13 @@ pub(super) fn merged_actors(
     }
     (builder.checkpoint)()?;
     if hlod.merge_materials {
-        let placed =
-            (members.iter()).map(|&i| (instances[i].cover.lods.bounds, &instances[i].matrix));
-        let (area, radius) = (merge::area(&parts), merge::sphere(placed).1);
-        // Its texels a metre per texel of side, if its coordinates filled the square.
-        let reach = || (1.0 / area.sqrt(), radius, seen);
-        let own = |sizes: &HlodMapSides| Sides::of_baked(sizes, merging.maps);
-        let sizing = (merging.sizing, hlod.texture_size);
-        let (side, sides) = merge::atlas_sides(sizing, reach, (MERGE_FLOORS, own));
-        let flattening = merge::Flattening {
-            side,
-            sides,
-            gutter: merging.gutter,
-            binned: merging.binned,
-            on_mesh: merging.on_mesh,
-            lightmaps: (merging.reuse_lightmap_uvs, merging.uv_method),
-            double_sided: merging.double_sided,
-            maps: merging.maps,
-        };
-        let made = merge::merged_flat(&parts, (builder.library, builder.checkpoint), &flattening)?;
-        drop(parts);
-        return flattened_actor((hlod, cell), Ok(made), (builder, spent));
+        let cell_of = ((instances, members), (seen, cell));
+        return flat_merge(parts, cell_of, (hlod, builder, spent));
     }
     let sections = merge::sections(parts, merging.keep_colours);
+    // The field and the cards of the cell's sections together, on the first actor.
+    let (mut field, mut cards) =
+        fields::sections_fields((cell, hlod), &sections, (builder, &mut spent))?;
     let mut made = Vec::with_capacity(sections.len());
     for (material, geometry) in sections {
         let triangles = geometry.2.len() / 3;
@@ -193,6 +213,8 @@ pub(super) fn merged_actors(
             wears: Wears::Merged(material),
             triangles,
             voxels: Vec::new(),
+            field: field.take(),
+            cards: cards.take(),
         });
     }
     Ok(Job {

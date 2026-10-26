@@ -3,7 +3,7 @@ import type { SelectionUniforms } from '../../gpu/core/selection.ts'
 import { createViewFilter } from '../../geometry/selection/viewFilter.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { appendRootsUnder } from './movedNode.ts'
-import { deriveRootRows } from '../../placement/rows/rowWords.ts'
+import { hiddenFromViews } from './hiddenFromViews.ts'
 import { writeViewClipPlaneAtEye } from './viewClip.ts'
 import { lowestBit } from '../../../../math/src/scalar/bits.ts'
 
@@ -28,7 +28,10 @@ export function writeCutViewSet(
   writeViewClipPlaneAtEye(rt, cam, uniforms.clipPlane, 0)
   const before = uniforms.filter
   let filter = filters.get(uniforms)
-  if (!filtering || (!filter && hidden.length === 0 && showOnly === null)) {
+  // The roots the view does not draw whatever its lists say, the host's switch on lists apart.
+  const forced = hiddenFromViews(rt, rt.views.active === rt.views.main)
+  const listed = filtering && (hidden.length > 0 || showOnly !== null)
+  if (!listed && !forced.length && (!filtering || !filter)) {
     uniforms.filter = undefined
     if (before) staleCasters(rt, before, undefined)
     return
@@ -36,10 +39,11 @@ export function writeCutViewSet(
   if (!filter) filters.set(uniforms, (filter = createViewFilter()))
   const { layout, run } = rt
   uniforms.filter = filter.update(
-    cam.viewSet,
+    filtering ? cam.viewSet : undefined,
     layout.selectionRoots.length,
     (node, out, at) => appendRootsUnder(layout, node, out, at),
     run.gate.revisions.scene,
+    forced,
   )
   if (uniforms.filter !== before) staleCasters(rt, before, uniforms.filter)
 }
@@ -47,8 +51,8 @@ export function writeCutViewSet(
 /**
  * The placements whose bit differs between two filters' bits — one the view has and the other has
  * not, or a filter that came or went — cast otherwise into the view's shadows from now on: their
- * rows are derived again and their shadow pages staled, as for a placement shown or hidden
- * (`../../placement/webgpuPlacements.ts`, `flipWorld`).
+ * mobility is touched, as for a placement shown or hidden (`../../placement/webgpuPlacements.ts`,
+ * `flipWorld`).
  */
 function staleCasters(
   rt: WebgpuPagesRuntime,
@@ -61,7 +65,6 @@ function staleCasters(
     while (differ !== 0) {
       const rank = (k << 5) | lowestBit(differ)
       rt.lights.mobility.touch(rank)
-      deriveRootRows(rt, rank)
       differ &= differ - 1
     }
   }

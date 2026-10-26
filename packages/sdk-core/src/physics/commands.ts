@@ -1,9 +1,35 @@
-import { ADD_WORDS, DAMPING, JOINT_WORDS, OP, PART_WORDS, VIEW_WORDS } from './layout.ts'
+import {
+  ADD_WORDS,
+  ANGULAR_DAMPING,
+  BUILT_IN_FILTER,
+  FILTER_AT,
+  FILTER_BIT,
+  FILTER_WORDS,
+  JOINT_WORDS,
+  LINEAR_DAMPING,
+  MAX_FILTERS,
+  OP,
+  PART_WORDS,
+  VIEW_WORDS,
+} from './layout.ts'
+import {
+  bodyCollision,
+  filterKey,
+  maskWords,
+  resolveCollision,
+  type ResolvedCollision,
+} from './collisionChannels.ts'
+import { EngineError } from '../contracts/cache.ts'
 import type { BodyRecord } from './bodyRecord.ts'
 import type { JointRecord } from './joint/jointRecord.ts'
 import { SpareBuffers } from './spareBuffers.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
+
+/** The floats of a command that has none. */
+const NO_FLOATS: readonly number[] = []
+/** What the character is to the others. */
+const PAWN = resolveCollision({ profile: 'Pawn' }, 'Pawn')
 
 /**
  * A growable command buffer: the page writes a frame's commands, then hands the words over in one
@@ -15,6 +41,20 @@ export class CommandWriter {
   private words = new Uint32Array(1024)
   private floats = new Float32Array(this.words.buffer)
   private spare = new SpareBuffers()
+  /** The filters defined so far, by what they are (`filterKey`): their ids are the module's object layers. */
+  private filters = new Map<string, number>([
+    [filterKey(bodyCollision({ type: 'static' }), true), BUILT_IN_FILTER.static],
+    [filterKey(bodyCollision({ type: 'dynamic' }), false), BUILT_IN_FILTER.moving],
+    [
+      filterKey(bodyCollision({ type: 'dynamic', decorative: true }), false),
+      BUILT_IN_FILTER.decorative,
+    ],
+    [filterKey(PAWN, false), BUILT_IN_FILTER.pawn],
+  ])
+  /** The record a filter is written in. */
+  private readonly filterRecord = new Uint32Array(FILTER_WORDS)
+  /** The filter of each collision, for a body that moves then one that does not, once known: a collision shared by many bodies is keyed once. */
+  private readonly filterIds = new WeakMap<ResolvedCollision, [number?, number?]>()
   /** Words written since the last `take`. */
   length = 0
 
@@ -24,12 +64,16 @@ export class CommandWriter {
     this.words = grown
     this.floats = new Float32Array(grown.buffer)
   }
-  private op(op: number, index: number, values: ArrayLike<number>) {
-    this.put([op, index], values)
+  /** A command of the opcode, one index and floats, written in place. */
+  private op(op: number, index: number, values: ArrayLike<number> = NO_FLOATS) {
+    this.reserve(2 + values.length)
+    this.words[this.length++] = op >>> 0
+    this.words[this.length++] = index >>> 0
+    for (let i = 0; i < values.length; i++) this.floats[this.length++] = values[i]
   }
   /** A command of whole words, then floats (the vehicles', `vehicle/vehicleCommands.ts`), then bytes padded
    *  with zeros to whole words (a cooked shape's or soft body's native binary state). */
-  put(words: ArrayLike<number>, floats: ArrayLike<number>, bytes?: Uint8Array) {
+  put(words: ArrayLike<number>, floats: ArrayLike<number> = NO_FLOATS, bytes?: Uint8Array) {
     const padded = ceilDiv(bytes?.length ?? 0, 4)
     this.reserve(words.length + floats.length + padded)
     for (let i = 0; i < words.length; i++) this.words[this.length++] = words[i] >>> 0
@@ -38,6 +82,40 @@ export class CommandWriter {
     this.words[this.length + padded - 1] = 0
     new Uint8Array(this.words.buffer).set(bytes, this.length * 4)
     this.length += padded
+  }
+  /**
+   * The id of the filter `collision` makes a body, defined in the buffer the first time it is named
+   * (`FILTER_WORDS`): the same collision of a body that moves or one that does not, one filter.
+   */
+  filter(collision: ResolvedCollision, still: boolean): number {
+    let ids = this.filterIds.get(collision)
+    if (!ids) this.filterIds.set(collision, (ids = []))
+    const known = ids[+still]
+    if (known !== undefined) return known
+    const key = filterKey(collision, still)
+    const defined = this.filters.get(key)
+    if (defined !== undefined) return (ids[+still] = defined)
+    if (this.filters.size >= MAX_FILTERS)
+      throw new EngineError(
+        'PHYSICS_FILTERS',
+        `The physics holds ${MAX_FILTERS} kinds of collision at most: ${this.filters.size} are in use.`,
+        { limit: MAX_FILTERS },
+      )
+    const id = (ids[+still] = this.filters.size)
+    this.filters.set(key, id)
+    const bits =
+      (collision.query ? FILTER_BIT.query : 0) |
+      (collision.physics ? FILTER_BIT.physics : 0) |
+      (still ? FILTER_BIT.still : 0)
+    const record = this.filterRecord
+    record[FILTER_AT.op] = OP.filter
+    record[FILTER_AT.id] = id
+    record[FILTER_AT.objectType] = collision.objectType
+    record[FILTER_AT.switches] = bits
+    record.set(maskWords(collision.block), FILTER_AT.block)
+    record.set(maskWords(collision.overlap), FILTER_AT.overlap)
+    this.put(record)
+    return id
   }
   /** Creates a body. */
   add(body: BodyRecord) {
@@ -48,12 +126,12 @@ export class CommandWriter {
     const w = this.words,
       f = this.floats,
       at = this.length
-    w.set([OP.add, body.id, body.motion, body.layer, body.shape, body.flags], at)
+    w.set([OP.add, body.id, body.motion, body.filter, body.shape, body.flags], at)
     f.set(body.position, at + 6)
     f.set(body.quaternion, at + 9)
     f.set(body.size, at + 13)
     f.set([body.mass, body.density, body.friction, body.restitution, body.gravityScale], at + 16)
-    f.set(body.damping ?? [DAMPING, DAMPING], at + 21)
+    f.set(body.damping ?? [LINEAR_DAMPING, ANGULAR_DAMPING], at + 21)
     w[at + 23] = vertexCount
     w[at + 24] = indexCount
     if (body.vertices) f.set(body.vertices, at + ADD_WORDS)
@@ -70,7 +148,7 @@ export class CommandWriter {
   }
   /** Removes a body. */
   remove(index: number) {
-    this.op(OP.remove, index, [])
+    this.op(OP.remove, index)
   }
   /** Moves a body at once, velocity kept (`position.set` on a dynamic body). */
   teleport(index: number, position: ArrayLike<number>, quaternion: ArrayLike<number>) {
@@ -82,7 +160,7 @@ export class CommandWriter {
   }
   /** A command whose arguments are a position (3 numbers) and a quaternion (4). */
   private pose(op: number, index: number, position: ArrayLike<number>, turn: ArrayLike<number>) {
-    this.op(op, index, [])
+    this.op(op, index)
     this.reserve(7)
     this.floats.set(position, this.length)
     this.floats.set(turn, this.length + 3)
@@ -98,19 +176,19 @@ export class CommandWriter {
   }
   /** Wakes a sleeping body. */
   wake(index: number) {
-    this.op(OP.wake, index, [])
+    this.op(OP.wake, index)
   }
   /** Restores a cooked shape's native binary state under `handle`, for the ADDs that follow. */
   restore(handle: number, bytes: Uint8Array) {
-    this.put([OP.restore, handle, bytes.length], [], bytes)
+    this.put([OP.restore, handle, bytes.length], NO_FLOATS, bytes)
   }
   /** Drops a restored shape's handle; the bodies built from it keep the shape. */
   release(handle: number) {
-    this.op(OP.release, handle, [])
+    this.op(OP.release, handle)
   }
   /** Replaces a body's flag bits (`FLAG`). */
   flags(index: number, flags: number) {
-    this.put([OP.flags, index, flags], [])
+    this.put([OP.flags, index, flags])
   }
   /** Scales gravity for one body. */
   gravityScale(index: number, scale: number) {
@@ -138,13 +216,13 @@ export class CommandWriter {
   joint(j: JointRecord) {
     const { mode, target, maxForce, axis } = j.motor
     const values = [0, 0, 0, 0, 0, 0, ...j.frameA, ...j.frameB, ...j.limits, target, maxForce]
-    this.op(OP.joint, j.id, [...values, j.breakForce, ...j.extra])
+    this.op(OP.joint, j.id, [...values, j.breakForce, j.breakTorque, ...j.extra])
     const at = this.length - JOINT_WORDS - j.extra.length
     this.words.set([j.kind, j.a >>> 0, j.b >>> 0, mode, axis, j.extra.length], at + 2)
   }
   /** Takes a joint out; one that broke or was never made is ignored. */
   unjoint(id: number) {
-    this.op(OP.unjoint, id, [])
+    this.op(OP.unjoint, id)
   }
   /** Sets a joint's motor. */
   motor(id: number, { mode, target, maxForce, axis }: JointRecord['motor']) {

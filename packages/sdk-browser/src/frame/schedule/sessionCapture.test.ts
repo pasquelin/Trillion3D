@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { Engine } from '../../session/engine/types.ts'
 import { createEngineCamera } from '../../camera/engineCamera.ts'
-import { readCameraWorld, type HostCamera } from '../../camera/world.ts'
+import { readCameraWorld, type ViewCamera } from '../../camera/world.ts'
 import { hostFramingCamera } from '../../scene/host/scan/graphObjects.ts'
 import { followPageCamera } from '../../session/world/camera.ts'
 import { engineReads } from './sessionReads.ts'
@@ -25,9 +25,9 @@ test('a capture checks the session, then awaits the engine readback', async () =
 test('a capture is drawn aside by the engine at its size, from the session camera', async () => {
   const camera = hostFramingCamera(50, 1, 0.1, 100),
     image = new Uint8Array(64 * 16 * 4),
-    asked: [HostCamera, { width: number; height: number }][] = []
+    asked: [ViewCamera, { width: number; height: number }][] = []
   const engine = {
-    captureColorView: async (at: HostCamera, size: { width: number; height: number }) => (
+    captureColorView: async (at: ViewCamera, size: { width: number; height: number }) => (
       asked.push([at, size]),
       image
     ),
@@ -46,7 +46,7 @@ test('an engine drawing a capture aside reads a fitted box at the capture shape,
     followPageCamera(() => page, { width, height: 400 } as HTMLCanvasElement)(session)
     return session
   }
-  const projection = (camera: HostCamera, aspect?: number) =>
+  const projection = (camera: ViewCamera, aspect?: number) =>
     Array.from(readCameraWorld(createEngineCamera(), camera, aspect).projection)
   // Drawn at 1:1 from a 2:1 canvas, the fitted box is the one a square canvas fits.
   assert.deepEqual(projection(follow(true, 800), 1), projection(follow(true, 400)))

@@ -115,7 +115,10 @@ export function encodeWorldRootsDag(
     r.float(c.lodError, c.parentError ?? NaN, ...c.sphere, ...(c.parentSphere ?? [NaN, 0, 0, 0]))
     r.float(...c.min, ...c.max)
     const p = c.page
-    r.word(p.bytes, p.vertexCount, p.indexCount, p.flags, p.uncompressedBytes)
+    r.word(
+      ...[p.bytes, p.vertexCount, p.indexCount, p.flags, p.uncompressedBytes],
+      ...[p.residentBytes, p.residentOffset],
+    )
   }
   for (const g of groups) {
     r.word(g.level)

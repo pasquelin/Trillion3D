@@ -17,7 +17,7 @@ export function textureBudgetBeside(rt: Pick<WebgpuPagesRuntime, 'vis'>, budgetB
 }
 
 /** Host bytes the session holds for the streamer's reservation: the cut's tables and residency,
- *  plus the proxy's instance words (`proxyHostBytes`). */
+ *  plus the placements' boxes (`placementBoxesBytes`). */
 export function hostTableBytesOf(rt: WebgpuPagesRuntime) {
-  return rt.services.hostTableBytes() + (rt.run.gpuSelection?.proxyHostBytes ?? 0)
+  return rt.services.hostTableBytes() + (rt.run.gpuSelection?.placementBoxesBytes ?? 0)
 }

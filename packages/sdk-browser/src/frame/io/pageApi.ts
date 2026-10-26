@@ -8,10 +8,10 @@ import type { WebgpuPagesCore } from '../backend/runtime.ts'
 
 /** Names to the rank journal every packed instance of `rec`: they all share its pool address. */
 function touchInstances(
-  rows: Pick<WebgpuPagesCore['layout']['rows'], 'instances' | 'touchPage'>,
+  clusters: Pick<WebgpuPagesCore['layout']['clusters'], 'instances' | 'touchPage'>,
   rec: PageRec,
 ) {
-  rows.instances.each(pageAddress(rec), rows.touchPage)
+  clusters.instances.each(pageAddress(rec), clusters.touchPage)
 }
 
 /**
@@ -33,7 +33,7 @@ export function acceptPage(
   affectsImage?: (recs: readonly PageRec[]) => boolean,
 ) {
   const { run, diag } = rt,
-    { rows } = rt.layout,
+    { clusters } = rt.layout,
     { byUrl, sourceBytes, tracking, bootstrapKey } = rt.setup
   run.deferredDrops.delete(url)
   const recs = byUrl.get(url)
@@ -52,8 +52,8 @@ export function acceptPage(
     run.gate.resourcesChanged()
   }
   // Every instance of each record is named: one record serves all its primitive's placements, and
-  // each placement's row and cut readiness follow its own packed rank.
-  for (let i = 0; i < recs.length; i++) touchInstances(rows, recs[i])
+  // each placement's cluster record and cut readiness follow its own packed rank.
+  for (let i = 0; i < recs.length; i++) touchInstances(clusters, recs[i])
   // The sample is a function, not an object: its three sweeps of the cluster list — a packet holds
   // hundreds — run only if "trace" detail is requested. Built ahead, it cost those sweeps on every
   // arrived page, including when nobody was reading them.
@@ -81,7 +81,7 @@ export function acceptPage(
  */
 export function dropPage(rt: WebgpuPagesCore, url: string, again = false) {
   const { run, gpu, diag } = rt,
-    { rows } = rt.layout,
+    { clusters } = rt.layout,
     { byUrl, sourceBytes, tracking, bootstrapKey } = rt.setup
   const recs = byUrl.get(url)
   if (!recs || recs.every((rec) => rec.geometryPage)) return
@@ -123,7 +123,7 @@ export function dropPage(rt: WebgpuPagesCore, url: string, again = false) {
     rec.indexBytes = rec.triangles * 12
     // A cluster's bytes are what make it drawable the same way as its cache slot: the page is named
     // AFTER the drop, so what rereads it does read the page without bytes — every instance of it.
-    touchInstances(rows, rec)
+    touchInstances(clusters, rec)
     const address = pageAddress(rec)
     sourceBytes.delete(address)
     gpu.cache?.unload(address)

@@ -78,9 +78,10 @@ function allBound(bound: Bound, tracks: readonly Track[]) {
 /** `path` = `node.property[.property…]`; an empty node is the mixer's root. */
 function resolve(root: Object3D, path: string) {
   const [node, ...fields] = path.split('.')
-  let owner: Record<string, unknown> = (node ? root.getObjectByName(node) : root) as never
+  const target = node ? root.getObjectByName(node) : root
+  let owner = target as unknown as Record<string, unknown>
   for (const field of fields.slice(0, -1)) owner = owner?.[field] as Record<string, unknown>
-  return owner ? { owner, field: fields[fields.length - 1] } : null
+  return owner && target ? { owner, field: fields[fields.length - 1], target } : null
 }
 
 /** One clip playing on a mixer's root. */
@@ -98,18 +99,37 @@ export class Action {
   /** The clip it plays. */ readonly clip: Clip
   /** Each track's binding, made on the first sample that finds its target. */
   private readonly bindings = new Map<Track, TrackBinding>()
+  /** The node each binding writes into and its track's place in the clip, to tell one that was
+   *  destroyed or taken off the root. */
+  private readonly targets = new Map<Track, { node: Object3D; at: number }>()
   constructor(mixer: Mixer, clip: Clip) {
     this.mixer = mixer
     this.clip = clip
   }
-  /** What `tr` writes, resolved once; null while its target is not under the root. */
-  bindingOf(tr: Track) {
+  /** Drops the bindings, and the slots made of them, whose node was destroyed or taken off
+   *  the root: the next update resolves their tracks again. */
+  unbindStale() {
+    const { root } = this.mixer,
+      bound = boundOf.get(this)
+    for (const [tr, { node, at }] of this.targets) {
+      if (node._alive && (node === root || node.parent)) continue
+      this.targets.delete(tr)
+      this.bindings.delete(tr)
+      if (!bound) continue
+      if (bound.slots[at]?.track === tr) bound.slots[at] = undefined
+      bound.alone = bound.writes = undefined
+    }
+  }
+  /** What `tr`, the clip's track `at`, writes, resolved until its node goes; null while its target is not under the root. */
+  bindingOf(tr: Track, at?: number) {
     let bound = this.bindings.get(tr)
     if (bound) return bound
-    const target = resolve(this.mixer.root, tr.name)
-    if (!target) return null
+    const found = resolve(this.mixer.root, tr.name)
+    if (!found) return null
+    const { target, ...place } = found
     const value = new Float64Array(trackWidth(tr))
-    this.bindings.set(tr, (bound = { ...target, key: 0, value }))
+    this.bindings.set(tr, (bound = { ...place, key: 0, value }))
+    this.targets.set(tr, { node: target, at: at ?? this.clip.tracks.indexOf(tr) })
     bound.reference = Float64Array.from(sample(tr, tr.times[0] ?? 0, bound))
     return bound
   }
@@ -183,8 +203,11 @@ export class Mixer {
     let active = false,
       only: Action | undefined,
       count = 0
-    for (const action of this.actions.values())
-      if (action.playingNow && count++ === 0) only = action
+    for (const action of this.actions.values()) {
+      if (!action.playingNow) continue
+      action.unbindStale()
+      if (count++ === 0) only = action
+    }
     if (count === 1 && only!.weight === 1 && only!.blendMode === 'normal' && this.#alone(only!))
       return this.#updateAlone(only!, seconds)
     const blends = this.#blends
@@ -202,7 +225,7 @@ export class Mixer {
         let slot = slots[t]
         if (slot?.track !== tr) {
           // Bound on the first update that finds the target; a track moved in the clip binds again.
-          const target = action.bindingOf(tr)
+          const target = action.bindingOf(tr, t)
           if (!target) continue
           const blend = blends.of(target, tr.kind === 'quaternion')
           slots[t] = slot = {

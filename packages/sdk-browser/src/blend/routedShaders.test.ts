@@ -6,10 +6,10 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { Mat } from '../materials/texture/shaderRunMatrix.fixture.ts'
 import { close, display, srgb } from './blendModel.fixture.ts'
-import { ACES, ROUTE_FUNCTIONS, routeScope } from './display/displayRun.fixture.ts'
+import { FILMIC, ROUTE_FUNCTIONS, routeScope, toneOf } from './display/displayRun.fixture.ts'
 import { PARTICLE_DRAW_WGSL } from '../particles/gpu/particlesWgsl.ts'
 import { FLAG_UNLIT_VIEW } from '../visibility/types.ts'
-import { FOG_FREE_MODEL_BIT, MODEL_SHIFT } from '../materials/surface/surfaceModel.ts'
+import { FOG_FREE_MODEL_BIT, MODEL_SHIFT } from '../materials/surface/surfaceModelWord.ts'
 import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 
@@ -42,14 +42,19 @@ test('a particle routes its straight colour, where the mask is set', () => {
   const color = [0.6, 0.3, 0.2, 0.5]
   const scope = {
     ...routeScope(1, leftHalf),
-    draw: { drawn: [8, 8], unclip: new Mat([...IDENTITY_MATRIX4]), eye: [0, 0, 5], softness: 1 },
+    draw: {
+      ...{
+        drawn: [8, 8],
+        unclip: new Mat([...IDENTITY_MATRIX4]),
+        forward: [0, 0, -1],
+        softness: 1,
+      },
+      bake: toneOf(),
+    },
     depth: () => 0,
-    Routed: (lit: number[], tint: number[], add: number[], reactive: number[]) => ({
-      ...layers(lit, tint, add),
-      reactive,
-    }),
+    Routed: (lit: number[], tint: number[], add: number[]) => layers(lit, tint, add),
   }
-  type Particle = { fsRouted: (at: object) => Layers & { reactive: number[] } }
+  type Particle = { fsRouted: (at: object) => Layers }
   const { fsRouted } = shaderRun<Particle>(
     PARTICLE_DRAW_WGSL,
     ['fsRouted', 'particle', 'perspectiveDivide', 'preExposed', ...ROUTE_FUNCTIONS],
@@ -57,17 +62,17 @@ test('a particle routes its straight colour, where the mask is set', () => {
   )
   // The uniform is read at each call: one run serves both views.
   for (const unlit of [0, 1]) {
-    Object.assign(scope.draw, { color, exposure: 1, preExposure: 1, curve: ACES, unlit })
+    Object.assign(scope.draw, { exposure: 1, preExposure: 1, curve: FILMIC, unlit })
     for (const at of PIXELS) {
-      // A disc's centre, in full life, one unit from the eye and well in front of the scene.
-      const out = fsRouted({ at, corner: [0, 0], local: [0, 0, 4], life: 1 })
+      // A disc's centre, in full life (the colour its vertex gave it), one unit from the eye and well
+      // in front of the scene.
+      const out = fsRouted({ at, corner: [0, 0], local: [0, 0, 4], color })
       const masked = leftHalf(at),
         rgb = color.slice(0, 3)
       const expected = owed(rgb, 0.5, masked, unlit ? srgb(rgb) : display(rgb))
-      // The lit target takes the premultiplied disc, the reactive value its whole coverage.
+      // The lit target takes the premultiplied disc.
       expected.color = [...rgb.map((v) => v * 0.5), 0.5].map((v) => v * (1 - masked))
       assertLayers(out, expected, `particle at ${at}, unlit ${unlit}`)
-      close(out.reactive, [0, 1, 0, 0.5], 'reactive')
     }
   }
 })
@@ -75,7 +80,7 @@ test('a particle routes its straight colour, where the mask is set', () => {
 test('a blended surface routes through its pipeline, and the unfiltered one never', () => {
   const surface = { rgb: [0.4, 0.5, 0.9], emissive: [0, 0, 0], alpha: 0.7, rough: 0.5, request: 9 }
   const fogFree = FOG_FREE_MODEL_BIT << MODEL_SHIFT
-  type Out = Layers & { request: number; asIs: number[] }
+  type Out = Layers & { request: number }
   type Fragment = (at: object, front: boolean) => Out
   for (const kind of [1, 2] as const) {
     const run = shaderRun<{ fs: Fragment; fsFiltered: Fragment }>(
@@ -104,19 +109,20 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
         diagnosticLevel: () => [0, 0, 0],
         diagnosticHlod: () => [0, 0, 0],
         uni: {
-          ...{ camPos: [0, 0, 5, 1], exposure: 1, preExposure: 1, toneCurve: ACES },
+          ...{
+            camPos: [0, 0, 5, 1],
+            exposure: 1,
+            preExposure: 1,
+            toneCurve: FILMIC,
+            bake: toneOf(),
+          },
           clipPlane: [0, 0, 0, 0],
         },
-        BlendOut: (
-          color: number[],
-          request: number,
-          asIs: number[],
-          tint: number[],
-          add: number[],
-        ) => ({
+        // No as-is share among the outputs: a debug view's as-is pixels are composed from the
+        // surfaces after the temporal pass (it was written at the layer's coverage).
+        BlendOut: (color: number[], request: number, tint: number[], add: number[]) => ({
           ...layers(color, tint, add),
           request,
-          asIs,
         }),
       },
     )
@@ -125,6 +131,7 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
       for (const position of PIXELS) {
         const at = {
           ids: [0, flags, 0],
+          words: [0, 0, 0],
           uv: [0, 0],
           alphaAo: [0, 0, 0, 0],
           view: [0, 0, 0],
@@ -140,10 +147,8 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
             kind === 2
               ? layers([...surface.rgb, surface.alpha], [...shown, 1], [...shown, 1])
               : owed(surface.rgb, surface.alpha, masked, shown)
-          const kept = route.color[3]
           assertLayers(out, route, name)
           assert.equal(out.request, surface.request)
-          close(out.asIs, [0, 1, 0, kept], `${name} as-is`)
         }
       }
     }

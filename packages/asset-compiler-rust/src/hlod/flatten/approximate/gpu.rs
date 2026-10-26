@@ -12,8 +12,13 @@
 //! - `nearest`: the distance from each point to the nearest triangle within a limit, or `MISS` —
 //!   the closing's band (`morphology/field.rs`).
 //!
-//! A scene is uploaded as one storage binding and never split: a scene past the adapter's
-//! `max_storage_buffer_binding_size` fails the build with `GPU_BAKE_FAILED`.
+//! A scene is uploaded in as many parts as the adapter's `max_storage_buffer_binding_size` asks,
+//! each a storage binding of its own, every point read through each part in turn and the values
+//! joined (`Pass::join`): the nearest distance a minimum over triangles; the winding's sum, which
+//! the solids' walk stops at the first instance reaching the shell, taken part after part in the
+//! walk's order and stopped at the first part that stopped — the pass writes beside each value
+//! whether its walk did — so the parts give the sum of one binding. A part that no binding
+//! holds fails the build with `GPU_BAKE_FAILED`.
 //!
 //! Precision. Positions are taken about the scene's centre, so a coordinate's rounding is one unit
 //! in the last place of the scene's half size `R`: about `6·10⁻⁸ R`; a mesh's triangles about its
@@ -42,8 +47,8 @@ use crate::hlod::flatten::gpu::layout::FILLED;
 use crate::hlod::flatten::gpu::pack::local;
 use crate::hlod::flatten::gpu::{device, failed, scoped, Batches, Program, Source};
 use std::sync::atomic::AtomicBool;
-pub(super) mod layout;
-pub(super) mod pack;
+pub(crate) mod layout;
+pub(crate) mod pack;
 
 /// The scene's head: two records of bases and counts. The solid's: the box tree's first node and
 /// node count, the first instance and the instance count; the meshes' first record and whether
@@ -56,6 +61,34 @@ pub(crate) type Head = [u32; layout::HEAD_RECORDS * 4];
 pub(crate) enum Pass {
     Winding = 0,
     Nearest = 1,
+}
+
+impl Pass {
+    /// The result of two parts of a scene at one point, `a` the part read first: the winding's
+    /// sum unless `a` stopped it already, `b`'s stop kept; or the nearer of two distances, a miss
+    /// giving way to any hit.
+    fn join(self, a: Reading, b: Reading) -> Reading {
+        match self {
+            Pass::Winding if a.stopped => a,
+            Pass::Winding => Reading {
+                value: a.value + b.value,
+                stopped: b.stopped,
+            },
+            Pass::Nearest if a.value < 0.0 => b,
+            Pass::Nearest if b.value < 0.0 => a,
+            Pass::Nearest => Reading {
+                value: a.value.min(b.value),
+                stopped: false,
+            },
+        }
+    }
+}
+
+/// What a part answers at a point: the pass's value, and whether the winding's walk stopped early.
+#[derive(Clone, Copy)]
+struct Reading {
+    value: f32,
+    stopped: bool,
 }
 
 /// The shell's program: the prelude and its shaders, its bindings (`layout::bindings`).
@@ -75,61 +108,123 @@ fn source() -> Source {
     }
 }
 
+/// The most bytes one part of a scene may take: the adapter's one storage binding.
+pub(crate) fn part_bytes() -> crate::Result<u64> {
+    Ok(device()?.page_bytes())
+}
+
 /// A scene on the device and the batches its points go through: a point takes 16 bytes of the
-/// batch's items and 4 of its results. Destroyed when it drops.
+/// batch's items and 8 of its results. Destroyed when it drops.
 pub(crate) struct Queries<'a> {
-    batches: Batches<'a>,
-    origin: [f64; 3],
+    pass: Pass,
+    parts: Vec<(Batches<'a>, [f64; 3])>,
 }
 
 impl<'a> Queries<'a> {
-    /// The scene `words`, positions about `origin`, uploaded for `pass`; its waits stop when
-    /// `cancelled` is raised.
+    /// The scene `parts` — each its words, its positions about its origin, within `part_bytes` —
+    /// uploaded for `pass`, each in a binding of its own; its waits stop when `cancelled` is
+    /// raised.
     pub fn new(
         pass: Pass,
-        words: &[u32],
-        origin: [f64; 3],
+        parts: &[(Vec<u32>, [f64; 3])],
         cancelled: &'a AtomicBool,
     ) -> crate::Result<Self> {
         let device = device()?;
         let passes = device.passes(Program::Shell, source)?;
         let pipeline = &passes.pipelines[pass as usize];
-        let bytes: &[u8] = bytemuck::cast_slice(words);
-        if bytes.len() as u64 > device.page_bytes() {
-            return Err(failed(format!(
-                "a shell's scene takes {} MB, past one GPU binding, {} MB",
-                bytes.len() >> 20,
-                device.page_bytes() >> 20
-            )));
+        let mut made = Vec::with_capacity(parts.len());
+        for (words, origin) in parts {
+            let bytes: &[u8] = bytemuck::cast_slice(words);
+            if bytes.len() as u64 > device.page_bytes() {
+                return Err(failed(format!(
+                    "a shell's scene part takes {} MB, past one GPU binding, {} MB",
+                    bytes.len() >> 20,
+                    device.page_bytes() >> 20
+                )));
+            }
+            let scene = scoped(device, || {
+                let scene = device.buffer("shell scene", bytes.len() as u64, FILLED)?;
+                device.queue().write_buffer(&scene, 0, bytes);
+                Ok(scene)
+            })?;
+            let layout = &passes.layout;
+            let bound = scene.clone();
+            let bind =
+                move |params: &wgpu::Buffer, items: &wgpu::Buffer, results: &wgpu::Buffer| {
+                    device.bind("HLOD shell", layout, [params, &bound, items, results])
+                };
+            let batches = Batches::new(device, pipeline, (16, 8), bind, (vec![scene], cancelled))?;
+            made.push((batches, *origin));
         }
-        let scene = scoped(device, || {
-            let scene = device.buffer("shell scene", bytes.len() as u64, FILLED)?;
-            device.queue().write_buffer(&scene, 0, bytes);
-            Ok(scene)
-        })?;
-        let layout = &passes.layout;
-        let bound = scene.clone();
-        let bind = move |params: &wgpu::Buffer, items: &wgpu::Buffer, results: &wgpu::Buffer| {
-            device.bind("HLOD shell", layout, [params, &bound, items, results])
-        };
-        let batches = Batches::new(device, pipeline, (16, 4), bind, (vec![scene], cancelled))?;
-        Ok(Self { batches, origin })
+        Ok(Self { pass, parts: made })
     }
 
     /// The pass's value at each of `points`, in their order, batch after batch, each packed while
-    /// the device runs the one before.
+    /// the device runs the one before; the parts' values joined, last part first — the order the
+    /// walk reads the children of a tree, the right one first —: the least hit for the nearest,
+    /// the walk's sum for the winding.
     pub fn values(&mut self, points: &[[f64; 3]]) -> crate::Result<Vec<f32>> {
-        let origin = self.origin;
-        let mut out = Vec::with_capacity(points.len());
-        let mut next = points.iter();
-        let mut pack = |packed: &mut Vec<[f32; 4]>, count: usize| {
-            packed.extend(next.by_ref().take(count).map(|&p| {
-                let [x, y, z] = local(p, origin);
-                [x, y, z, 0.0]
-            }));
+        let pass = self.pass;
+        let mut parts = self.parts.iter_mut().rev();
+        let Some((batches, origin)) = parts.next() else {
+            return Ok(Vec::new());
         };
-        let mut land = |values: &[f32]| out.extend_from_slice(values);
-        self.batches.run(points.len(), &mut pack, &mut land)?;
-        Ok(out)
+        let mut joined = read_part(batches, *origin, points)?;
+        for (batches, origin) in parts {
+            let out = read_part(batches, *origin, points)?;
+            for (kept, reading) in joined.iter_mut().zip(out) {
+                *kept = pass.join(*kept, reading);
+            }
+        }
+        Ok(joined.into_iter().map(|reading| reading.value).collect())
     }
+}
+
+/// One part's reading at each of `points`, which it reads about its `origin`.
+fn read_part(
+    batches: &mut Batches<'_>,
+    origin: [f64; 3],
+    points: &[[f64; 3]],
+) -> crate::Result<Vec<Reading>> {
+    let mut out = Vec::with_capacity(points.len());
+    let mut next = points.iter();
+    let mut pack = |packed: &mut Vec<[f32; 4]>, count: usize| {
+        packed.extend(next.by_ref().take(count).map(|&p| {
+            let [x, y, z] = local(p, origin);
+            [x, y, z, 0.0]
+        }));
+    };
+    let mut land = |results: &[[u32; 2]]| {
+        out.extend(results.iter().map(|&[value, stopped]| Reading {
+            value: f32::from_bits(value),
+            stopped: stopped != 0,
+        }))
+    };
+    batches.run(points.len(), &mut pack, &mut land)?;
+    Ok(out)
+}
+
+/// `items` handed to `take` in as many runs as none takes more than `limit` bytes by `bytes`:
+/// halved by `halve`, in order, until each run fits. Refused, naming `what`, when one item alone
+/// does not.
+pub(crate) fn split_to_fit<T>(
+    items: Vec<T>,
+    (bytes, limit, what): (&dyn Fn(&[T]) -> u64, u64, &str),
+    halve: &dyn Fn(Vec<T>) -> (Vec<T>, Vec<T>),
+    take: &mut dyn FnMut(Vec<T>) -> crate::Result<()>,
+) -> crate::Result<()> {
+    let size = bytes(&items);
+    if size <= limit {
+        return take(items);
+    }
+    if items.len() < 2 {
+        return Err(failed(format!(
+            "a shell's {what} takes {} MB, past one GPU binding, {} MB",
+            size >> 20,
+            limit >> 20
+        )));
+    }
+    let (first, second) = halve(items);
+    split_to_fit(first, (bytes, limit, what), halve, take)?;
+    split_to_fit(second, (bytes, limit, what), halve, take)
 }

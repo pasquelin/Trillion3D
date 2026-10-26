@@ -4,7 +4,6 @@ import { DAG_READBACK_SLOTS } from './layout.ts'
 import { listWords } from './readoutWords.ts'
 import type { DagRuntimeState } from './runtime/runtimeState.ts'
 import type { DagResources } from './resources.ts'
-import { noteWhole } from './swap/swap.ts'
 import { readDagSlot } from './readbackSlot.ts'
 import { createReadbackRing, unlessRefused } from '../../gpu/core/readbackRing.ts'
 import { behind } from '../../gpu/core/behind.ts'
@@ -34,8 +33,6 @@ export type AsideCopy = {
 /** What a view aside's reads follow (`createAsideSlots`). */
 type AsideState = {
   copied: number
-  inFlight: number
-  whole: number
   last: GpuCut | null
   pending: Promise<unknown>
   disposed: boolean
@@ -48,23 +45,16 @@ export type AsideSlots = ReturnType<typeof createAsideSlots>
  * The readbacks of a view aside (`aside.ts`): a ring of `DAG_READBACK_SLOTS` buffers
  * (`../../gpu/core/readbackRing.ts`), each made again larger when a copy needs it, read one after the
  * other behind the view's reads in flight (`pending`). `copied` is the ranks of each list the next
- * copy takes — the whole list until a readback says more —; `inFlight` the cut whose copy is being
- * read, `whole` the last cut read back whole: a cut in neither is owed a copy.
+ * copy takes — the whole list until a readback says more.
  */
 export function createAsideSlots(resources: DagResources, state: DagRuntimeState, view: number) {
   const scratch = Array.from({ length: DAG_READBACK_SLOTS }, createDagOutputScratch)
   let reads = 0
   const slots: AsideState = {
     copied: Infinity,
-    inFlight: -1,
-    whole: -1,
     last: null,
     pending: Promise.resolve(),
     disposed: false,
-  }
-  /** `copy` read, or dropped: its cut no longer in flight. */
-  const settled = (copy: AsideCopy) => {
-    if (copy.serial === slots.inFlight) slots.inFlight = -1
   }
   const own = { resources, state, view, slots }
   const ring = createReadbackRing<AsideCopy>(
@@ -73,19 +63,15 @@ export function createAsideSlots(resources: DagResources, state: DagRuntimeState
       label: 'Trillion3D DAG aside readback',
       bytes: asideCopyBytes(0),
       count: DAG_READBACK_SLOTS,
-      chain(read, copy) {
+      chain(read) {
         // A mapping cut short by `dispose` or refused: the next copy tries again. Any other error
         // is the engine's: it surfaces.
-        void behind(slots, () =>
-          read()
-            .catch(unlessRefused)
-            .finally(() => settled(copy)),
-        )
+        void behind(slots, () => read().catch(unlessRefused))
       },
     },
     (range, _staging, copy) => readAsideSlot(own, range, copy, scratch[reads++ % scratch.length]),
   )
-  return Object.assign(slots, { ring, settled })
+  return Object.assign(slots, { ring })
 }
 
 /** A copy mapped (the ring's `read`), parsed into `scratch`: the next copy sized by what the cut
@@ -119,15 +105,11 @@ function readAsideSlot(
   if (demand > slots.copied || 4 * demand < slots.copied)
     slots.copied = clamp(2 * demand, ASIDE_LEAST_RANKS, listCap)
   // Lists copied short of the cut are copied again at their size; a page withdrawn since may be
-  // named by them, which the mask no longer draws: the next cut will. A cut past the readout's
-  // list is read by its head (`../cut/adoption/adoption.ts`).
+  // named by them: the next cut will. A cut past the readout's list is read by its head
+  // (`../cut/adoption/adoption.ts`).
   const whole = demand <= ranks || ranks === listCap
-  // Read whole: no copy of this cut is owed any more.
-  if (parsed && whole) slots.whole = read.serial
   if (parsed && whole && read.withdrawn === state.withdrawnRevision) {
     const { uniforms, worldRevision } = read.captured
     slots.last = { uniforms, worldRevision, result: parsed }
-    // Every page its mask draws is in its journal: the swap can bring it back.
-    if (!parsed.truncated) noteWhole(resources.swap, own.view, read.serial)
   }
 }

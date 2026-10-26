@@ -1,4 +1,5 @@
 import { HALF_MAX } from '../../../../../math/src/wgsl/constants.ts'
+import { ndcToPixel } from '../../../../../math/src/wgsl/projection.ts'
 import { HAZE_READ_WGSL } from '../../../lighting/atmosphere/hazeReadWgsl.ts'
 import { SEPARATED_READ_WGSL } from '../../../lighting/atmosphere/separatedWgsl.ts'
 import { airProgram, type AirBindings } from '../../../lighting/atmosphere/programs.ts'
@@ -14,8 +15,8 @@ import { cloudDepthBinding, cloudSceneDepthFn } from './traceDepthWgsl.ts'
 import { CLOUD_TRACE_BINDING as B, CLOUD_TRACE_LAYOUT } from './traceLayout.ts'
 import { AIR_FOG_BINDINGS } from '../../../lighting/atmosphere/programs.ts'
 import { fogBlockOf } from '../../../lighting/fog/readWgsl.ts'
-import { CLOUD_LIGHT_WGSL } from './traceLightWgsl.ts'
-import { CLOUD_GROUND_WGSL } from './traceGroundWgsl.ts'
+import { cloudLightWgsl } from './traceLightWgsl.ts'
+import { cloudGroundWgsl } from './traceGroundWgsl.ts'
 import { CLOUD_MARCH_WGSL, CLOUD_RAY_WGSL, CLOUD_SHELL_WGSL } from './traceMarchWgsl.ts'
 import { cloudTraceExtraWgsl } from './traceExtraWgsl.ts'
 import { preExposedWgsl } from '../../../post/exposure/preWgsl.ts'
@@ -52,31 +53,50 @@ ${cloudDepthBinding(G, B.depthRange, key.depth)}
 @group(${G}) @binding(${B.secondary}) var secondaryOut:texture_storage_2d<${CLOUD_FORMAT},write>;`
     : ''
 }
-@group(${G}) @binding(${B.depth}) var depthOut:texture_storage_2d<${CLOUD_FORMAT},write>;
+@group(${G}) @binding(${B.depth}) var depthOut:texture_storage_2d<${CLOUD_FORMAT},write>;${
+  key.closestDepth
+    ? `
+@group(${G}) @binding(${B.closest}) var closestOut:texture_storage_2d<${CLOUD_FORMAT},write>;`
+    : ''
+}
 struct CloudRay{origin:vec3f,dir:vec3f,tMin:f32,tMax:f32,tTop:vec2f,tBottom:vec2f,}
-struct CloudTraced{colour:vec4f,secondary:vec4f,depth:vec4f,}
+struct CloudTraced{colour:vec4f,secondary:vec4f,depth:vec4f,closest:f32,}
 struct CloudDepth{closestCm:f32,furthestCm:f32,km:vec4f,}`
 
 /** The luminance of a finished colour, written multiplied by the image's pre-exposure
- *  (\`cloudTrace.sky.w\`), none where the clouds are a hole in the alpha; its transmittance as it is. */
-const CLOUD_LIGHT = `fn cloudLight(c:vec4f)->vec4f{return vec4f(preExposed(c.rgb)*select(1.0,0.0,cloudTrace.local.y!=0.0),c.a);}`
+ *  (\`cloudTrace.sky.w\`); its transmittance as it is. */
+const CLOUD_LIGHT = `fn cloudLight(c:vec4f)->vec4f{return vec4f(preExposed(c.rgb),c.a);}`
 
-/** The ray of a traced texel: cut to the shell, the scene's depth and the longest march, marched,
- *  and its colours finished. */
-const traceRay = (key: CloudTraceKey) => `fn cloudRayTrace(p:vec2u)->CloudTraced{
+/** The ray of a traced texel (`cloudViewRay`): cut to the shell, the scene's depth and the longest
+ *  march, marched, and its colours finished. An orthographic view draws to its far plane: a pixel
+ *  whose ray starts inside the layer's outer sphere shows no cloud, and the scene's depth cuts the
+ *  rays that leave the layer before the far plane only (`cloudOrthoFarCm`). */
+const traceRay = (
+  key: CloudTraceKey,
+) => `/** How far the view's far plane stands from the eye along the view's direction \`dir\`, in
+ *  centimetres, at the pixel of \`ndc\`: an orthographic view's. */
+fn cloudOrthoFarCm(ndc:vec2f,dir:vec3f)->f32{
+ return dot(cloudUnproject(ndc,0.0)-frame.eye.xyz,dir)*CLOUD_M_TO_CM;
+}
+fn cloudRayTrace(p:vec2u)->CloudTraced{
  var out:CloudTraced;
  out.colour=vec4f(0.0,0.0,0.0,1.0);
  out.secondary=vec4f(0.0,0.0,0.0,1.0);
  out.depth=vec4f(HALF_MAX);
+ out.closest=HALF_MAX;
  let ndc=cloudNdc(p);
+ let ortho=frame.eye.w==0.0;
+ let seen=cloudViewRay(ndc);
+ if(ortho){cloudMoveOrigin(seen.origin);}
  var r:CloudRay;
- r.origin=frame.camera.xyz;
- r.dir=normalize(cloudUnproject(ndc,0.5)-frame.eye.xyz);
+ r.origin=frame.camera.xyz+(seen.origin-frame.eye.xyz)*CLOUD_M_TO_KM;
+ r.dir=seen.dir;
  if(!cloudShell(&r)){return out;}
+ if(ortho&&cloudTrace.options.z==1u&&length(r.origin)<cloudTopKm()){return out;}
  if(r.tMax<=r.tMin||r.tMin>cloudTrace.reach.x){return out;}
  let depth=cloudSceneDepth(p,ndc);
  out.depth=depth.km;
- if(cloudTrace.options.z==1u){
+ if(cloudTrace.options.z==1u&&(!ortho||r.tMax<cloudOrthoFarCm(ndc,r.dir))){
   if(depth.furthestCm<r.tMin){return out;}
   r.tMax=min(r.tMax,depth.furthestCm);
  }
@@ -85,10 +105,12 @@ const traceRay = (key: CloudTraceKey) => `fn cloudRayTrace(p:vec2u)->CloudTraced
  r.tMax=max(r.tMin,r.tMax);
  let m=cloudMarch(r,${key.minMaxDepth ? 'depth.closestCm' : '-1.0'},p);
  let seenDepth=cloudMeanDepth(m.seen,r.tMax);
- out.colour=cloudLight(cloudFinish(m.seen,seenDepth,r.dir));
+ // The view pixel the texel traces, which the local fog volumes' tile is found by.
+ let pixel=ndcToPixel(ndc,frame.size.xy);
+ out.colour=cloudLight(cloudFinish(m.seen,seenDepth,r.dir,pixel));
 ${
   key.minMaxDepth
-    ? ' out.secondary=cloudLight(cloudFinish(m.nearest,cloudMeanDepth(m.nearest,r.tMax),r.dir));\n'
+    ? ' let nearestDepth=cloudMeanDepth(m.nearest,r.tMax);\n out.secondary=cloudLight(cloudFinish(m.nearest,nearestDepth,r.dir,pixel));\n out.closest=select(nearestDepth,r.tMax,out.secondary.a>0.99)*CLOUD_CM_TO_KM;\n'
     : ''
 } out.depth.x=select(seenDepth,r.tMax,out.colour.a>0.99)*CLOUD_CM_TO_KM;
  return out;
@@ -105,12 +127,13 @@ fn cloudTraceMain(@builtin(global_invocation_id) id:vec3u){
  let traced=cloudRayTrace(id.xy);
  textureStore(colourOut,id.xy,traced.colour);${
    key.minMaxDepth ? '\n textureStore(secondaryOut,id.xy,traced.secondary);' : ''
- }
+ }${key.closestDepth ? '\n textureStore(closestOut,id.xy,vec4f(traced.closest));' : ''}
  textureStore(depthOut,id.xy,traced.depth);}`
 
 /**
  * THE VIEW TRACING: one thread to a texel of the traced image, a ray from the eye through the view
- * pixel the image traces this time, marched through the cloud layer's shell.
+ * pixel the image traces this time (under an orthographic view, from that pixel's own point on the
+ * near plane along the view's direction, `cloudViewRay`), marched through the cloud layer's shell.
  *
  * The ray is cut to the shell, to the scene's depth, to the longest march and the nearest start,
  * and takes as many steps as its length asks (`samples`), the first of each placed by the blue
@@ -156,11 +179,12 @@ export function cloudTraceProgram(key: CloudTraceKey, shape: AirShape = DEFAULT_
       { ...CLOUD_TRACE_AIR, lights: key.localLights },
       traceOwn(key),
       [
-        CLOUD_LIGHT_WGSL,
-        CLOUD_GROUND_WGSL,
+        cloudLightWgsl(key.volumeShadowMap),
+        cloudGroundWgsl(key.volumeShadowMap),
         cloudTraceExtraWgsl(key),
-        fogBlockOf(AIR_FOG_BINDINGS),
+        fogBlockOf({ ...AIR_FOG_BINDINGS, localFog: shape.localFog }),
         HALF_MAX,
+        ndcToPixel,
         DEVICE_DEPTH_FLOOR,
         preExposedWgsl('cloudTrace.sky.w'),
         CLOUD_RAY_WGSL,

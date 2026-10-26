@@ -18,9 +18,7 @@ test("the cut's groups are made again when the records they bind are, and only t
     frames,
     layout: {},
     group: {},
-    ranks: [{}, {}],
     bindGroup: frames.bindGroup(),
-    rankGroups: [],
     recordsBound: recordsIdentity(view as unknown as GPUTextureView),
   } as unknown as DagResources
   const group = resources.bindGroup
@@ -29,7 +27,6 @@ test("the cut's groups are made again when the records they bind are, and only t
   view = { name: 'grown' }
   followRecords(resources)
   assert.notEqual(resources.bindGroup, group, "grown: the cut's group made again")
-  assert.equal(resources.rankGroups.length, 2, 'and each kept list')
   const again = resources.bindGroup
   followRecords(resources)
   assert.equal(resources.bindGroup, again)

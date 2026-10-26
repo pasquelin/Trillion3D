@@ -7,9 +7,11 @@ pub const DISPLACEMENT_MAPS_SETTING: &str = "displacementMaps";
 pub const DISPLACEMENT_UV_CHANNEL_SETTING: &str = "displacementUvChannel";
 pub const DISPLACEMENT_EDGE_SPLIT_SETTING: &str = "displacementEdgeSplit";
 pub const DEFAULT_DISPLACEMENT_UV_CHANNEL: usize = 0;
-pub const MAX_DISPLACEMENT_UV_CHANNEL: i64 = 3;
+pub const MAX_DISPLACEMENT_UV_CHANNEL: i64 = 7;
 /// The keys of a height map, its defaults, and the most texels a side of one holds.
 pub const DISPLACEMENT_MAP_KEYS: [&str; 3] = ["texture", "magnitude", "center"];
+/// The only key of a height map's `texture`: the set it is read at is the settings' alone.
+pub const DISPLACEMENT_TEXTURE_KEYS: [&str; 1] = ["index"];
 pub const DEFAULT_DISPLACEMENT_MAP_MAGNITUDE: f64 = 0.0;
 pub const DEFAULT_DISPLACEMENT_MAP_CENTER: f64 = 0.0;
 pub const MAX_DISPLACEMENT_MAP_SIZE: usize = 8192;

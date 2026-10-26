@@ -1,18 +1,18 @@
 // The image every reflection proof reads (`rig.ts`): the image a still view of a frame holds after a
 // fixed count of images drawn as a frame loop draws them — one image an animation frame —, enough
-// for the history to fill (`REFLECTION_HISTORY`, twice over), its reflection target read back.
+// for the history to fill (`reflectionMaxFramesAccumulated`, twice over), its reflection target read back.
 import { animationFrame } from '../../kit/device/frame.ts'
-import { REFLECTION_COUNTS } from '../../../packages/sdk-browser/src/lighting/reflections/constants.ts'
+import { defaultReflections } from '../../../packages/sdk-core/src/contracts/reflectionOptions.ts'
 import { openRig } from './rig.ts'
 import type { RigFrame } from './rigFrame.ts'
 
 type Rig = Awaited<ReturnType<typeof openRig>>
 
 /** The images a still view draws before it is read: its history full twice over. */
-const STILL_IMAGES = 2 * REFLECTION_COUNTS.REFLECTION_HISTORY
+const STILL_IMAGES = 2 * defaultReflections().historyFrames
 
-/** `images` images of `rig` drawn, one an animation frame; the view's radiance pyramid then holds
- *  an image of it (`settled`). */
+/** `images` images of `rig` drawn, one an animation frame; the view then holds a lit image
+ *  of it (`settled`). */
 async function untilSettled(rig: Rig, images = STILL_IMAGES) {
   for (let image = 0; image < images; image++) {
     rig.image()

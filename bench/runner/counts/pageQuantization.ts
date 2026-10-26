@@ -1,11 +1,10 @@
 /**
- * How far a cache's decoded geometry pages sit from the source attributes the witnesses read.
+ * How far a cache's decoded geometry pages sit from the source attributes.
  *
  * The engine draws what the page decoder hands back — positions on the primitive's quantization
- * grid, normals as octahedral bytes (`docs/FORMAT.md`) — where the witnesses read the float
- * attributes of `source.bin`. Same materials, same lights: this file measures the one input that
- * is not the same, corner by corner, so that an image difference between the two can be
- * attributed instead of guessed.
+ * grid, normals as octahedral bytes (`docs/FORMAT.md`) — where the source holds the float
+ * attributes of `source.bin`. This file measures that gap corner by corner, so that an image
+ * difference against the source can be attributed instead of guessed.
  *
  *     node bench/runner/counts/pageQuantization.ts <cache>/native/full
  *

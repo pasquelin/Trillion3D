@@ -8,8 +8,7 @@ import { retire } from '../../gpu/core/frameRetire.ts'
 import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 import { taaRenderMatrix } from '../../post/taa/frame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-import { builtPrime } from './primeHiz.ts'
-import type { PrimeBuilt } from './primeState.ts'
+import { builtPrime, type PrimeBuilt } from './primeBuilt.ts'
 import { cutPyramid, pyramidSources, standingSource } from './pyramidSources.ts'
 
 /**

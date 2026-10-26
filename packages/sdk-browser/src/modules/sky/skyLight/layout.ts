@@ -1,4 +1,7 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
+import { uniformStride } from '../../../session/memory/pools.ts'
+import { FRAME_LAYOUT } from '../../../lighting/atmosphere/frameLayout.ts'
+import { CLOUD_TRACE_LAYOUT } from '../clouds/traceLayout.ts'
 
 /**
  * THE SKY LIGHT'S CAPTURE, ITS SIZES AND ITS FACES: the cube the sky is captured into, the
@@ -16,12 +19,9 @@ import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 export const CUBE_FACES = 6
 
 /** The format of the captured and the filtered cubes: four half floats, which a storage texture
- *  takes (the 11-11-10 float format is none) and which holds the range the capture clamps to. */
+ *  takes (the 11-11-10 float format is none) and which holds the range the sky is held to
+ *  (`SKY_MAX_RADIANCE`). */
 export const SKY_LIGHT_CUBE_FORMAT: GPUTextureFormat = 'rgba16float'
-
-/** The most radiance the capture writes: the largest value of the 10-bit float, which the radiance
- *  of a real-time capture is held under. */
-export const CAPTURE_MAX_RADIANCE = 64512
 
 /** `GPUTextureUsage`'s flags, written in the clear: this table is also read from Node. */
 const TEXTURE_BINDING = 4,
@@ -51,7 +51,10 @@ export const HARMONICS_SET_VECTORS = HARMONICS_SET_BYTES / 16
 /** The threads of the harmonics' group along each side; one group, one thread to a direction. */
 export const IRRADIANCE_SIDE = 8
 /** The harmonics are summed from the mip of this side: a 16 texel face. */
-export const IRRADIANCE_SOURCE_SIDE = 16
+const IRRADIANCE_SOURCE_SIDE = 16
+/** A captured cube's harmonics are summed over a grid of this many texels along each face, read from
+ *  the mip of that side, or from the top one where the cube is smaller. */
+export const CAPTURED_IRRADIANCE_SIDE = 32
 /** The threads of a filtering group along each side. */
 export const FILTER_GROUP_SIDE = 8
 
@@ -61,13 +64,22 @@ export const FILTER_GROUP_SIDE = 8
 export const ROUGHEST_LEVEL = 1
 export const MIP_ROUGHNESS_SLOPE = 1.2
 
-/** Bytes between the blocks of one uniform buffer read at a dynamic offset. */
-export const BLOCK_STRIDE = 256
+/** Bytes between the blocks of one uniform buffer read at a dynamic offset: the multiple of the
+ *  offset alignment that holds the largest block a slot carries, a face's air frame or its clouds'
+ *  trace block. */
+export const BLOCK_STRIDE =
+  ceilDiv(Math.max(FRAME_LAYOUT.words * 4, CLOUD_TRACE_LAYOUT.words * 4), uniformStride()) *
+  uniformStride()
 
 /** The mip the harmonics are summed from: the one of side 16. The reference computes it as an
  *  unsigned number, so a cube under 16 wraps past every level, which a read clamps to the last. */
 export const irradianceMip = (width: number) =>
   (Math.log2(width) - Math.log2(IRRADIANCE_SOURCE_SIDE)) >>> 0
+
+/** The mip a captured cube's harmonics are summed from, of a cube of `mips` mips: the one of side
+ *  `CAPTURED_IRRADIANCE_SIDE`, the top one where the cube has fewer levels than that side's chain. */
+export const capturedIrradianceMip = (mips: number) =>
+  Math.max(0, mips - (Math.log2(CAPTURED_IRRADIANCE_SIDE) + 1))
 
 /** Groups of `size` threads over `n` texels. */
 export const groupsOver = (n: number, size = FILTER_GROUP_SIDE) => ceilDiv(n, size)

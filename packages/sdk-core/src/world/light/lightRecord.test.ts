@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Light } from './light.ts'
-import { lampCastsShadow, lampRecord, lightFromRecord } from './lightRecord.ts'
+import { lampRecord, lightFromRecord } from './lightRecord.ts'
 import type { SceneLight } from '../../scene/light/contracts.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
@@ -117,7 +117,7 @@ test('a directional lamp’s shadow distance reaches its record unless it is the
   assert.equal(new Light('directional', { shadowDistance: true }).shadowDistance, 400)
   none.shadowDistance = 400
   assert.equal('shadowDistance' in lampRecord(none, 'n', () => 9)!, false, 'back to the default')
-  // A lamp that is not a sun holds none, and records none.
+  // A lamp that is not a sun takes none, and records none.
   for (const kind of ['point', 'spot'] as const) {
     const lamp = new Light(kind, { position: [0, 2, 0], shadowDistance: 50 })
     assert.equal('shadowDistance' in lampRecord(lamp, 'l', () => 9)!, false, kind)
@@ -169,22 +169,27 @@ test('a lamp’s source — radius, soft radius, a tube along its own up — rea
   assert.equal(spot.emitterLength, 1, 'a spot too')
 })
 
-test('a spot’s cone is held open below a right angle, its penumbra in [0, 1]', () => {
-  const spot = new Light('spot', { position: [0, 2, 0], angle: 0.5 })
+test('a spot’s cones are held open below a right angle, its inner cone from 0', () => {
+  const spot = new Light('spot', { position: [0, 2, 0], outerConeAngle: 0.5 })
   const record = lampRecord(spot, 'c', () => 9)!
-  assert.equal(record.coneAngle, 0.5)
-  assert.equal('penumbra' in record, false, 'no penumbra when sharp')
+  assert.equal(record.outerConeAngle, 0.5)
+  assert.equal('innerConeAngle' in record, false, 'no inner cone by default: the whole cone fades')
   near(record.direction, [0, -1, 0], 'at the origin')
-  spot.angle = Math.PI
-  spot.penumbra = 3
-  const wide = lampRecord(spot, 'c', () => 9)!
-  assert.ok(wide.coneAngle! < HALF_PI && wide.coneAngle! > HALF_PI - 1e-8)
-  assert.equal(wide.penumbra, 1)
-  spot.penumbra = 0.25
-  assert.equal(lampRecord(spot, 'c', () => 9)!.penumbra, 0.25)
+  spot.outerConeAngle = Math.PI
+  const wide = lampRecord(Object.assign(spot, { innerConeAngle: 3 }), 'c', () => 9)!
+  assert.ok(wide.outerConeAngle! < HALF_PI && wide.outerConeAngle! > HALF_PI - 1e-8)
+  assert.equal(wide.innerConeAngle, wide.outerConeAngle)
+  for (const [given, held] of [
+    [-1, 0],
+    [0.25, 0.25],
+  ])
+    assert.equal(
+      lampRecord(Object.assign(spot, { innerConeAngle: given }), 'c', () => 9)!.innerConeAngle,
+      held,
+    )
 })
 
-test('a rectangle faces down its −z, its width along its x, and casts no shadow', () => {
+test('a rectangle faces down its −z, its width along its x, and casts a shadow where it asks', () => {
   const panel = new Light('rectArea', {
     width: 2,
     height: 1,
@@ -196,13 +201,14 @@ test('a rectangle faces down its −z, its width along its x, and casts no shado
   panel.rotation.y = HALF_PI
   const record = lampRecord(panel, 'r', () => 9)!
   assert.equal(record.kind, 'rect')
-  assert.equal(record.castsShadow, false)
-  assert.equal(lampCastsShadow(panel), false)
+  assert.equal(record.castsShadow, true)
+  panel.castShadow = false
+  assert.equal(lampRecord(panel, 'r', () => 9)!.castsShadow, false)
   near(record.right, [0, 0, -1], 'unit x, turned')
   near(record.direction, [-1, 0, 0], 'faces −z, turned')
   assert.deepEqual(record.size, [2, 1])
   assert.equal(record.emitterRadius, undefined)
-  assert.equal(lampCastsShadow(new Light('ambient', { castShadow: true })), false)
+  assert.ok(!lampRecord(new Light('ambient', { castShadow: true }), 'a', () => 9), 'no lamp')
 })
 
 test('a stored lamp becomes a light that records back to it', () => {
@@ -226,8 +232,8 @@ test('a stored lamp becomes a light that records back to it', () => {
       position: [0, 4, 0],
       range: 9,
       direction: [0, -1, 0],
-      coneAngle: 0.4,
-      penumbra: 0.5,
+      outerConeAngle: 0.4,
+      innerConeAngle: 0.2,
     },
     {
       id: 'r',
@@ -276,23 +282,4 @@ test('a stored lamp becomes a light that records back to it', () => {
   assert.deepEqual([moon.atmosphereSun, moon.atmosphereSunIndex], [false, 1], 'what lights the air')
   const aimed = lightFromRecord({ ...records[1], direction: [0.6, -0.8, 0] })
   near(aimed.target.position.toArray(), [0.6, 3.2, 0], 'the target one unit along')
-})
-
-test('the fog share and the shadow-on-fog flag reach the record only when they differ from the default', () => {
-  const plain = lampRecord(new Light('point'), 'a', () => 9)!
-  assert.equal(plain.fogScattering, undefined)
-  assert.equal(plain.shadowsFog, undefined)
-  const sun = lampRecord(new Light('directional'), 'a', () => 9)!
-  assert.equal(sun.shadowsFog, undefined, 'a directional light shadows the fog by default')
-  const tuned = new Light('point', { fogScattering: 0.5, shadowsFog: true })
-  const record = lampRecord(tuned, 'a', () => 9)!
-  assert.equal(record.fogScattering, 0.5)
-  assert.equal(record.shadowsFog, true)
-  const back = lightFromRecord(record)
-  assert.equal(back.fogScattering, 0.5)
-  assert.equal(back.shadowsFog, true)
-  const off = new Light('directional', { shadowsFog: false })
-  assert.equal(lampRecord(off, 'a', () => 9)!.shadowsFog, false)
-  off.shadowsFog = true
-  assert.equal(lampRecord(off, 'a', () => 9)!.shadowsFog, undefined, 'back to the default')
 })

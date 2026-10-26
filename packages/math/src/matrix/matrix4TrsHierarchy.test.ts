@@ -3,8 +3,7 @@
 // Each node's world matrix is its parent's times its own composed local matrix; the rules checked
 // on it are stated outright and do not lean on a second implementation: a point goes through the
 // scale, the turn and the shift of every ancestor, the determinant is the product of the scales,
-// the inverse undoes the world matrix, the normal matrix is its inverse transpose. The comparison
-// against the witness library lives in the bench (`bench/perf/browser/support/coreEquivalence.ts`).
+// the inverse undoes the world matrix, the normal matrix is its inverse transpose.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { composeMatrix4 } from './matrix4Compose.ts'

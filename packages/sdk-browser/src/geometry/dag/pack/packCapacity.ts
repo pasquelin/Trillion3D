@@ -1,7 +1,8 @@
 import { grownLength } from '../../../../../math/src/sequence/resized.ts'
 import type { DagRoot } from '../types.ts'
-import { placementTreeShape, treeNodeCount } from '../placement/placementTree.ts'
+import { memberShift, placementTreeShape, treeNodeCount } from '../placement/placementTree.ts'
 import { cullingOf, emptyShared, levelSizesOf, type PackShared } from './packRoots.ts'
+import { newParents } from './packParents.ts'
 
 /** WHAT A PACKING HOLDS BEFORE ANY ROOT IS WRITTEN (`pack.ts`): its room, its live counts, its
  *  placement tree and its levels. */
@@ -14,7 +15,8 @@ export type DagCapacity = {
   nodes: number
   worlds: number
   /** Primitive nodes and records past the live ones, for the primitives a growth brings
-   *  (`appendDagRoots`): none when absent, the live ones alone. */
+   *  (`appendDagRoots`): none when absent, the live ones alone. `records` also bounds the clusters'
+   *  records, a set a page array: the one of a source wearing another surface takes its own. */
   primitiveNodes?: number
   records?: number
   /** A growth's room: past what the roots hold, as many primitive nodes and records again
@@ -34,8 +36,10 @@ const roomAhead = (held: number) => Math.max(grownLength(held, held + 1), held +
 export const roomFor = (held: number, absolute: number | undefined, room?: DagCapacity) =>
   Math.max(held, absolute ?? 0, room?.ahead ? roomAhead(held) : 0)
 
-/** The live counts of `roots` — pages, queue entries (a placement's node each), and nodes, each
- *  primitive's once and none a packing already `holds` —, their levels summed level by level: pass
+/** The live counts of `roots` — pages, queue entries (a placement's node each), nodes, each
+ *  primitive's once and none a packing already `holds`, `parents`, one for each distinct group above
+ *  an instance's root that no node holds yet (`packParents.ts`), and the nodes' total —, their
+ *  levels summed level by level: pass
  *  `L`'s queue only holds entries of level `L`, so this total upper-bounds it, and the pass launches
  *  flat. Placement `w`'s levels lie `shift(w)` below the placement tree's (`../placement/placementTree.ts`). */
 export function countRoots(
@@ -43,6 +47,7 @@ export function countRoots(
   shared: PackShared,
   shift: (w: number) => number = () => 0,
   holds: (nodes: Float64Array) => boolean = () => false,
+  parentNodes: ReadonlyMap<string, number> = new Map(),
 ) {
   let pages = 0,
     entries = 0,
@@ -61,7 +66,8 @@ export function countRoots(
     for (let level = 0; level < sizes.length; level++)
       levels[level + below] = (levels[level + below] ?? 0) + sizes[level]
   })
-  return { pages, entries, nodes, levels }
+  const parents = newParents(roots, parentNodes)
+  return { pages, entries, nodes: nodes + parents, parents, levels }
 }
 
 /** The pages, queue entries (`nodes`) and placements `roots` fill: what a growth's capacity starts
@@ -86,9 +92,13 @@ export function packPlan(roots: readonly DagRoot[], shared: PackShared, capacity
     members = worlds - worldRoots.length
   // The tree's nodes follow the primitives' shared ones: an append adds none of either.
   const first = countRoots(roots, shared)
-  const primitiveNodes = roomFor(first.nodes, room?.primitiveNodes, room)
+  // A growth's room for a packing that names groups above instances' roots also keeps a node for
+  // every placement it takes: the most distinct groups they can name, so that a placement seated
+  // in the room finds its group's node and no cut is made again for the want of one.
+  const parentRoom = room?.ahead && first.parents > 0 ? Math.max(0, worlds - roots.length) : 0
+  const primitiveNodes = roomFor(first.nodes, room?.primitiveNodes, room) + parentRoom
   const tree = placementTreeShape(roots, isWorld, { members, worlds }, primitiveNodes)
-  const shift = tree?.depth ?? 0
+  const shift = memberShift(tree)
   const counted = shift ? countRoots(roots, shared, (w) => (isWorld.has(w) ? 0 : shift)) : first
   tree?.levels.forEach(({ count }, l) => (counted.levels[l] = (counted.levels[l] ?? 0) + count))
   const treeNodes = treeNodeCount(tree),

@@ -2,11 +2,32 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import { blendVertexShift, planRegion } from './plan/planLayout.ts'
 import { orderFrameWords } from './frame/frameHead.ts'
+import { instanceBlocks } from './expand/viewRoom.ts'
 import { orderStepCount } from './order/orderSteps.ts'
 import type { WebgpuBlendState } from './state.ts'
 
-/** Plan entries an item can set at most: the back and the face of a double-sided material. */
+/** Plan entries an item can set at most: the back and the face of a double-sided material that asks two passes. */
 export const MAX_SIDES = 2
+
+/** Whether a surface draws its back and its face as two plan entries (`twoSidedPasses`). */
+export const asksTwoPasses = (surface: { side: string; twoSidedPasses: boolean }) =>
+  surface.side === 'double' && surface.twoSidedPasses
+
+/** Whether the items' passes or responsiveness ask more blocks of the instance list than the buffer holds (`instanceBlocks`): the scene
+ *  buffers are mounted again, as when a surface asks more sides. */
+export const needsMoreBlocks = (
+  blendState: Parameters<typeof instanceBlocks>[0] & { instanceBlocks: number },
+) => instanceBlocks(blendState) > blendState.instanceBlocks
+
+/** Whether an item's surface asks two passes where the statics reserved it one entry: its plan would
+ *  outgrow the room, so the statics are built again (`mountBlendResources`). The other way round
+ *  plans within the room. */
+export const needsMoreSides = (
+  items: readonly { sides?: number; surface: Parameters<typeof asksTwoPasses>[0] }[],
+) =>
+  items.some(
+    (item) => item.sides !== undefined && item.sides < MAX_SIDES && asksTwoPasses(item.surface),
+  )
 
 /**
  * Static tables of the transparent pass: what an instance draws, and where its item is named.
@@ -25,14 +46,18 @@ export function buildBlendStatics(blendState: WebgpuBlendState, uniformStride: n
   blendState.vertexShift = blendVertexShift(paged)
   blendState.maxVertexWords = Math.max(3, paged)
   const draws = new Uint32Array(Math.max(1, items.length) * 4)
-  // The pass expands its instances into the list at the size of the WORST CASE — two plan entries
-  // per item — not that of the current plan: `sidesOf` (`plan/plan.ts`) reads the item's surface
-  // RECORD, written in place by its owner, and a material switched to double-sided between two
-  // frames would overflow the list. Out-of-bounds kernel writes are dropped silently: transparent
-  // geometry would vanish without an error.
-  let room = 0
+  // The pass expands its instances into the list at the size of the entries RESERVED per item: two
+  // for a surface that asks two passes, else one. `sidesOf` (`plan/plan.ts`) reads the item's surface
+  // RECORD, written in place by its owner, and never plans past the reservation: a material
+  // switched to two passes between two frames is seen by the frame (`needsMoreSides`), which
+  // builds these again before the plan. Out-of-bounds kernel writes are dropped silently: transparent geometry would vanish without
+  // an error.
+  let room = 0,
+    entries = 0
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
+    item.sides = asksTwoPasses(item.surface) ? MAX_SIDES : 1
+    entries += item.sides
     const known = table && item.pagedIndex !== undefined
     item.tableBase = known ? table.itemRanges[item.pagedIndex! * 2] : 0
     // An item the table does not hold yet names no entry there, and expands nothing.
@@ -41,12 +66,12 @@ export function buildBlendStatics(blendState: WebgpuBlendState, uniformStride: n
     if (!known) continue
     // Instances a plan entry can expand at most: what the table holds for this item.
     draws[i * 4 + 1] = table.itemRanges[item.pagedIndex! * 2 + 1]
-    room += MAX_SIDES * draws[i * 4 + 1]
+    room += item.sides * draws[i * 4 + 1]
   }
   blendState.instanceCapacity = Math.max(1, room)
   blendState.drawsPacked = draws
-  // Same worst case for the plan tables, its slots and the frame data, and for the same reason.
-  const entries = Math.max(1, items.length) * MAX_SIDES
+  // Same reservation for the plan tables, its slots and the frame data, and for the same reason.
+  entries = Math.max(1, entries)
   blendState.maxPlanEntries = entries
   blendState.planRegion = planRegion(entries)
   blendState.runCount = 0

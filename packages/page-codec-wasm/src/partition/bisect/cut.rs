@@ -1,7 +1,6 @@
 //! A cut and its growth from a seed.
 use super::super::order::Draws;
-use super::passes::passes;
-use super::refine::{balance_cut, random_cut, side_bounds};
+use super::refine::{keep_least, random_cut, side_bounds};
 use super::{Balance, Level, Work, NOT_ON_BOUNDARY, PASSES};
 
 /// A bisection of one level: each vertex's side, its links' weight to its own side (`inside`) and
@@ -185,18 +184,8 @@ pub(super) fn grow(
         if sides[0] == 0 {
             side[random.below(n)] = 0;
         }
-        let mut cut = Cut::of(graph, side);
-        balance_cut(graph, &mut cut, balance, work, random);
-        passes(graph, &mut cut, balance, PASSES, work, random);
-        if best
-            .as_ref()
-            .is_none_or(|(least_cut, _)| cut.cut < *least_cut)
-        {
-            let done = cut.cut == 0;
-            best = Some((cut.cut, cut.side));
-            if done {
-                break;
-            }
+        if keep_least(graph, side, (balance, PASSES), work, random, &mut best) {
+            break;
         }
     }
     best.expect("one try").1

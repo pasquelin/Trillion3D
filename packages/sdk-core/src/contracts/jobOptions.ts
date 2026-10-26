@@ -7,7 +7,7 @@
  * (`jobOptionFields`) or as command-line flags (`jobOptionFlags`), each left out when the job names
  * none. What does not read is refused with a `TypeError`.
  */
-import { materialFlags, materialJobFields, type MaterialJobOptions } from './materialOptions.ts'
+import { materialJob, type MaterialJobOptions } from './materialOptions.ts'
 import { voxelizeJob, type VoxelizeOption } from './voxelizeOptions.ts'
 import { partitionFlags, partitionJobFields, type PartitionJobOptions } from './partitionOptions.ts'
 import { lightmapBakeJob } from './lightmapBakeOptions.ts'
@@ -27,7 +27,7 @@ export type JobOptions = MaterialJobOptions &
 /** The job fields of `job`'s options as the compiler reads them.
  *  @throws TypeError when an option does not read. */
 export const jobOptionFields = (job: JobOptions) => ({
-  ...materialJobFields(job),
+  ...materialJob.fields(job),
   ...voxelizeJob.fields(job),
   ...partitionJobFields(job),
   ...meshBuildJob.fields(job),
@@ -38,7 +38,7 @@ export const jobOptionFields = (job: JobOptions) => ({
 /** The command-line flags of `options`, none for an option left out.
  *  @throws TypeError when an option does not read. */
 export const jobOptionFlags = (options: JobOptions): string[] => [
-  ...materialFlags(options),
+  ...materialJob.flags(options),
   ...voxelizeJob.flags(options),
   ...partitionFlags(options),
   ...meshBuildJob.flags(options),

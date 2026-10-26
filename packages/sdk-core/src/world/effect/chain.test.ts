@@ -8,11 +8,7 @@ import { effect } from './index.ts'
 import { createWorldEffects } from './defaultChain.ts'
 import { Bloom } from './bloom.ts'
 import { MotionBlur } from './motionBlur.ts'
-import {
-  BLOOM_QUALITY_LEVELS,
-  BLOOM_QUALITY_STAGES,
-  BLOOM_RULES,
-} from '../../contracts/bloomRules.ts'
+import { BLOOM_QUALITY_STAGES, BLOOM_RULES } from '../../contracts/bloomRules.ts'
 import { resolveSetting, resolveSettings } from '../../contracts/settingRules.ts'
 
 test('passes run in the order they were added, or at the index given', () => {
@@ -170,7 +166,8 @@ test('the bloom is drawn at the reference’s defaults: all six levels, no cross
     bloomCacheKernel: true,
   })
   // A quality names how many of the six levels draw, the widest first: 3, 3, 4, 5 and 6.
-  assert.deepEqual(BLOOM_QUALITY_LEVELS, ['off', 'lowest', 'low', 'medium', 'high', 'highest'])
+  const levels = BLOOM_RULES.bloomQuality.choices
+  assert.deepEqual(levels, ['off', 'lowest', 'low', 'medium', 'high', 'highest'])
   assert.deepEqual(Object.values(BLOOM_QUALITY_STAGES), [3, 3, 4, 5, 6])
   // Like the anti-aliasing level: true is the default, false is off, a stranger is refused.
   assert.equal(resolveSetting(BLOOM_RULES.bloomQuality, true), 'highest')
@@ -199,11 +196,11 @@ test('a world starts with the default motion blur and bloom in its chain, which 
   assert.deepEqual([chain.size, chain.revision, asked], [0, 1, 1], 'a removal is')
 })
 
-test('motion blur takes the reference defaults and refuses a value outside its range', () => {
+test('motion blur takes its defaults — the reference’s but a lighter amount — and refuses a value outside its range', () => {
   const blur = effect.motionBlur()
   assert.deepEqual(
-    [blur.amount, blur.max, blur.targetFps, blur.cameraMotion, blur.perObjectSize],
-    [0.5, 5, 30, true, 0],
+    [blur.amount, blur.max, blur.targetFps, blur.cameraMotion],
+    [0.2, 5, 30, true],
     'defaults',
   )
   assert.equal(blur.stage, 'after-resolve')
@@ -213,13 +210,14 @@ test('motion blur takes the reference defaults and refuses a value outside its r
   assert.throws(() => effect.motionBlur({ max: -1 }), /max.*from 0 to 100, got -1/)
   assert.throws(() => effect.motionBlur({ targetFps: 24.5 }), /targetFps.*whole number/)
   assert.throws(() => effect.motionBlur({ targetFps: 121 }), /targetFps.*from 0 to 120/)
-  assert.equal(effect.motionBlur({ perObjectSize: 4 }).perObjectSize, 4)
-  assert.throws(() => effect.motionBlur({ perObjectSize: -1 }), /perObjectSize.*at least 0/)
+  // No size test of an object's own motion since every surface is measured as the visibility
+  // buffer's are: the per-object size option is gone.
+  assert.equal('perObjectSize' in blur, false)
   assert.throws(() => (blur.amount = Number.NaN), /amount/)
   assert.throws(() => (blur.cameraMotion = 1 as never), /cameraMotion.*true or false/)
   assert.equal(
     effect.motionBlur({ amount: null, max: undefined }).amount,
-    0.5,
+    0.2,
     'null is the default',
   )
   // How the blur is drawn is the view's (`MOTION_BLUR_RULES`), not the pass's.

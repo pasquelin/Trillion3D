@@ -16,21 +16,8 @@ type CutMakers = {
   ownTexture: TextureMaker
 }
 
-/** Every buffer and record table of the cut, written as the packing laid them, and the group its
- *  kernels bind: two storage buffers — the readout and `work` — whatever the world, every other
- *  table a record table (`cut/cutTables.ts`). */
-export function dagTables(
-  device: GPUDevice,
-  packed: PackedDag,
-  { own, ownTexture }: CutMakers,
-  listCap: number,
-  heldSlots: number,
-  caps: CutListCaps,
-) {
-  const { rows, blockCount, workLayout, shape } = cameraCutBuffers(packed, caps)
-  // The camera's block (`shader/viewsWgsl.ts`, `DAG_UNIFORM_BYTES`).
-  const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4)
-  const frameData = primitiveFrameWords(packed)
+/** The camera's block and the dispatch arguments (`shader/armWgsl.ts`). */
+function uniformBuffers(own: CutMakers['own'], device: GPUDevice) {
   const uniforms = own({
     label: 'Trillion3D DAG uniforms',
     size: DAG_UNIFORM_BYTES,
@@ -44,25 +31,73 @@ export function dagTables(
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(dispatchArgs, 0, DAG_ARGS_INITIAL)
-  const list = createDagList(own, listCap, 0, heldSlots)
-  // The arming kernel reads the list counts here through its own group.
-  const work = makeDagBuffer(own, rows.work)
+  return { uniforms, dispatchArgs }
+}
+
+/** The buffers of the rows the cut keeps: the list counts the arming kernel reads through its own
+ *  group, the clusters the cut draws — written by its cull — and the records of the clusters it
+ *  reads (`visible/layout.ts`, `info/clusterInfoLayout.ts`): the host writes the last as pages
+ *  land. */
+function rowBuffers(own: CutMakers['own'], rows: ReturnType<typeof cameraCutBuffers>['rows']) {
+  return {
+    work: makeDagBuffer(own, rows.work),
+    visible: makeDagBuffer(own, rows.visible),
+    info: makeDagBuffer(own, rows.info),
+    edges: makeDagBuffer(own, rows.edges),
+  }
+}
+
+/** The group the kernels bind. */
+function bindingGroup(t: {
+  uniforms: GPUBuffer
+  list: ReturnType<typeof createDagList>
+  work: GPUBuffer
+  visible: GPUBuffer
+  info: GPUBuffer
+  edges: GPUBuffer
+  cutTables: ReturnType<typeof createCutTables>
+  treeTable: ReturnType<typeof createTreeTable>
+}) {
+  return {
+    cutView: t.uniforms,
+    out: t.list.output,
+    work: t.work,
+    visible: t.visible,
+    info: t.info,
+    edges: t.edges,
+    clusters: t.cutTables.clusters.view,
+    nodes: t.cutTables.nodes.view,
+    cold: t.cutTables.cold.view,
+    flags: t.cutTables.flags.view,
+    tree: t.treeTable.view,
+  }
+}
+
+/** Every buffer and record table of the cut, written as the packing laid them, and the group its
+ *  kernels bind: four storage buffers — the readout, `work`, the visible clusters and the clusters'
+ *  records — whatever the world, every other table a record table (`cut/cutTables.ts`). */
+export function dagTables(
+  device: GPUDevice,
+  packed: PackedDag,
+  { own, ownTexture }: CutMakers,
+  listCap: number,
+  heldSlots: number,
+  caps: CutListCaps,
+) {
+  const { rows, blockCount, workLayout, shape, visibleCap } = cameraCutBuffers(packed, caps)
+  // The camera's block (`shader/viewsWgsl.ts`, `DAG_UNIFORM_BYTES`).
+  const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4)
+  const frameData = primitiveFrameWords(packed)
+  const { uniforms, dispatchArgs } = uniformBuffers(own, device)
+  const list = createDagList(own, listCap, heldSlots)
+  const { work, visible, info, edges } = rowBuffers(own, rows)
   const worldCount = Math.max(1, packed.worldCount)
   const { worlds, worldSources } = packed
   const frames = createCameraFrames(device, frameData, worldCount, worlds, worldSources, ownTexture)
   // The placement tree's record table (`tree/treeTable.ts`): the culling, the refit and the rays read it.
   const treeTable = createTreeTable(device, packed.placementTree, ownTexture)
   const cutTables = createCutTables(device, packed, shape, ownTexture)
-  const group = {
-    views: uniforms,
-    out: list.output,
-    work,
-    clusters: cutTables.clusters.view,
-    nodes: cutTables.nodes.view,
-    cold: cutTables.cold.view,
-    flags: cutTables.flags.view,
-    tree: treeTable.view,
-  }
+  const group = bindingGroup({ uniforms, list, work, visible, info, edges, cutTables, treeTable })
   return {
     workLayout,
     pageCount: packed.pageCount,
@@ -73,13 +108,17 @@ export function dagTables(
     ...list,
     levelSizes: packed.levelSizes,
     uniformData,
-    /** `uniformData` read as words: a single word written alone (`swap/swapEncode.ts`). */
-    uniformWords: new Uint32Array(uniformData.buffer),
     frameData,
     group,
     uniforms,
     dispatchArgs,
     work,
+    visible,
+    info,
+    edges,
+    /** The records `visible` holds room for, followed as the cut's demand moves it
+     *  (`visible/visibleGrowth.ts`). */
+    visibleCap,
     frames,
     treeTable,
     /** The clusters, the nodes, the cold words and the flags (`cut/cutTables.ts`). */

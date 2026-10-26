@@ -1,6 +1,8 @@
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { LOCAL_LOG_WGSL } from '../exposure/localLogWgsl.ts'
-import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
+import { wgslVec3 } from '../../../../math/src/wgsl/number.ts'
+import { applyMatrix3Vector3 } from '../../../../math/src/vector/vector.ts'
+import { HERMITE_WGSL } from '../../gpu/core/smoothstepEdges.ts'
 import { FILM } from '../../lighting/filmCurveConstants.ts'
 import { FINISH, GRID_DEPTH } from './finishLayout.ts'
 
@@ -10,26 +12,37 @@ import { FINISH, GRID_DEPTH } from './finishLayout.ts'
  * row, as the reference writes it, so that blue weighs under 0 and a blue pixel reads as dark;
  * the same three numbers at every image, baked into the shader (`grainWeight`).
  */
-export const GRAIN_LUMA = [0, 1, 2].map((channel) => {
-  const { luma, workingToSrgb } = FILM.numbers
-  return (
-    luma[0] * workingToSrgb[channel] +
-    luma[1] * workingToSrgb[3 + channel] +
-    luma[2] * workingToSrgb[6 + channel]
-  )
-})
+const GRAIN_LUMA = /* @__PURE__ */ (() => {
+  const [x, y, z] = FILM.numbers.luma
+  return applyMatrix3Vector3<number[]>([0, 0, 0], FILM.numbers.workingToSrgb, x, y, z)
+})()
 /** The dither's hash of a position: the fraction of a large multiple of a sine, the position's
  *  second coordinate weighed by the first number, the sine by the second. */
 const HASH_SKEW = 543.31
 const HASH_SCALE = 493013
 
 /**
+ * Where the glow's dirt mask is read for the pixel at `uv` of the image, in the lens' space: the
+ * pixel's place in the image's `[−1, 1]` square — y up —, carried to the lens' (`lens`, the offset
+ * and the scale of its principal point, `lensOf`), its y turned back down, then into the mask's
+ * `[0, 1]` square. A view drawn whole is at `(0, 0, 1, 1)`, where it is `uv` itself.
+ */
+export const DIRT_UV_WGSL = wgslFn(
+  'dirtUv',
+  [],
+  `fn dirtUv(uv:vec2f,lens:vec4f)->vec2f{
+ let screen=vec2f(uv.x*2.0-1.0,1.0-uv.y*2.0);
+ let seen=(lens.xy+screen*lens.zw)*vec2f(1.0,-1.0);
+ return seen*0.5+vec2f(0.5);
+}`,
+)
+
+/**
  * A pixel with the bloom's glow added: what the glow leaves of the pixel, the glow with its dirt, the
  * two summed. The pixel's colour is multiplied by `keep` — what a convolution's glow took from the
  * image — where its fourth word is set, the glow by `1 + mask × dirt`, the dirt a lens shows where
- * light spills over it (the mask's filtered colour times the factor, per channel, the coverage
- * kept), where its fourth word is set; the two summed, light and coverage, the coverage up to 1,
- * so a glow over what the image leaves bare shows over its background. The one step the bloom's own
+ * light spills over it (the mask's filtered colour times the factor, per channel), where its fourth
+ * word is set; the two summed in colour, the pixel's alpha kept as it is. The one step the bloom's own
  * pass and the composition take.
  */
 export const GLOWED_PIXEL_WGSL = wgslFn(
@@ -40,7 +53,7 @@ export const GLOWED_PIXEL_WGSL = wgslFn(
  if(keep.w!=0.0){light=vec4f(light.rgb*keep.xyz,light.a);}
  var added=glow;
  if(dirt.w!=0.0){added=vec4f(glow.rgb*(vec3f(1.0)+mask*dirt.xyz),glow.a);}
- return vec4f(light.rgb+added.rgb,min(light.a+added.a,1.0));
+ return vec4f(light.rgb+added.rgb,light.a);
 }`,
 )
 
@@ -69,20 +82,21 @@ export const GLOWED_PIXEL_WGSL = wgslFn(
  *   strength; or the oval, `(1 − |size⁻¹ · r − centre|²)` to the softness, mixed in by the
  *   strength; mixed from the vignette's colour to 1.
  * - `grainWeight` the grain's strength at a pixel's exposed light: its three shares weighted by
- *   two smoothsteps of the luminance, the dark one falling to 0 at `grainBounds.x`, the bright
- *   one rising from `grainBounds.y` to `grainBounds.z`; `grained` multiplies a light by the
+ *   two smooth steps (`hermite`, for any order of the edges) of the luminance, the dark one
+ *   falling to 0 at `grainBounds.x`, the bright one rising from `grainBounds.y` to
+ *   `grainBounds.z`; `grained` multiplies a light by the
  *   texture's noise, normalised by `grainDecode` to a mean of 1, mixed in by that weight.
- * - `ditherOf` the triangular noise of one display step, 0 where none is drawn: the sine hash of
+ * - `ditherOf` the triangular noise of one display step, always drawn: the sine hash of
  *   the position and the frame's offset, `fract(sin(x + y · 543.31) · 493013)`, taken to [−1, 1]
- *   as `n` and made triangular by `s − s · √(1 − |n|)`, `s` the sign of `n` (`triangular`,
- *   `grain.ts`, is the same law).
+ *   as `n` and made triangular by `s − s · √(1 − |n|)`, `s` the sign of `n`.
  * - `finished` composes a pixel: its light times the local gain, the tint and what the glow left it
- *   (`keep`), the glow added — times the dirt the mask shows (`dirt`) —, the whole times the
+ *   (`keep`), the glow added — times the dirt the mask shows (`dirt`), read in the lens' space
+ *   (`dirtUv`) —, the whole times the
  *   vignette, then the grain. The exposure multiplies the result.
  */
 export const FINISH_WGSL = wgslBlock(
   'FINISH_WGSL',
-  [GLOWED_PIXEL_WGSL, LOCAL_LOG_WGSL],
+  [GLOWED_PIXEL_WGSL, DIRT_UV_WGSL, LOCAL_LOG_WGSL, HERMITE_WGSL],
   `
 ${FINISH.wgsl}
 @group(1) @binding(0) var<uniform> finish:Finish;
@@ -109,7 +123,7 @@ fn localGain(logLight:f32,uv:vec2f)->f32{
 }
 fn localGainOf(source:vec4f,uv:vec2f)->f32{
  if(finish.look.z==0.0){return 1.0;}
- return localGain(lightLog(source.rgb/max(source.a,1e-6)),uv);
+ return localGain(lightLog(source.rgb),uv);
 }
 fn fringeActive()->bool{return finish.fringe.w!=0.0;}
 fn fringeTaps(uv:vec2f)->vec4f{
@@ -131,21 +145,20 @@ fn vignetteMask(uv:vec2f)->vec3f{
  if(finish.screen.w==0.0){return vec3f(weight);}
  return mix(finish.shape.xyz,vec3f(1.0),weight);
 }
-const GRAIN_LUMA=vec3f(${GRAIN_LUMA.map(wgslF32).join(',')});
+const GRAIN_LUMA=${wgslVec3(GRAIN_LUMA)};
 fn grainWeight(light:vec3f)->f32{
  let luma=dot(light,GRAIN_LUMA);
- let shadows=1.0-smoothstep(0.0,finish.grainBounds.x,luma);
- let highlights=smoothstep(finish.grainBounds.y,finish.grainBounds.z,luma);
+ let shadows=1.0-hermite(0.0,finish.grainBounds.x,luma);
+ let highlights=hermite(finish.grainBounds.y,finish.grainBounds.z,luma);
  return finish.grainLevels.x*shadows+finish.grainLevels.y*(1.0-shadows-highlights)+finish.grainLevels.z*highlights;
 }
-fn grained(lit:vec3f,coverage:f32,uv:vec2f)->vec3f{
+fn grained(lit:vec3f,uv:vec2f)->vec3f{
  if(all(finish.grainLevels.xyz==vec3f(0.0))){return lit;}
- let weight=grainWeight(lit*finish.look.y/max(coverage,1e-6));
+ let weight=grainWeight(lit*finish.look.y);
  let raw=textureSampleLevel(grainImage,grainSampler,uv*finish.grainUv.xy+finish.grainUv.zw,0.0).rgb;
  return lit*mix(vec3f(1.0),raw*finish.grainDecode.xyz,weight);
 }
 fn ditherOf(uv:vec2f)->f32{
- if(finish.dither.x==0.0){return 0.0;}
  let noise=fract(sin(uv.x+finish.dither.y+(uv.y+finish.dither.z)*${HASH_SKEW})*${HASH_SCALE}.0)*2.0-1.0;
  let side=sign(noise);
  return (side-side*sqrt(saturate(1.0-abs(noise))))*finish.dither.x;
@@ -157,10 +170,10 @@ fn finished(source:vec4f,uv:vec2f,gain:f32)->vec4f{
  if(finish.look.w!=0.0){
   let glow=textureSampleLevel(glowImage,finishSampler,uv,0.0);
   var mask=vec3f(0.0);
-  if(finish.dirt.w!=0.0){mask=textureSampleLevel(dirtImage,finishSampler,uv,0.0).rgb;}
+  if(finish.dirt.w!=0.0){mask=textureSampleLevel(dirtImage,finishSampler,dirtUv(uv,finish.lens),0.0).rgb;}
   value=glowedPixel(value,finish.keep,glow,mask,finish.dirt);
  }
  if(finish.look.x>0.0){value=vec4f(value.rgb*vignetteMask(uv),value.a);}
- return vec4f(grained(value.rgb,value.a,uv),value.a);
+ return vec4f(grained(value.rgb,uv),value.a);
 }`,
 )

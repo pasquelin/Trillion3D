@@ -1,3 +1,4 @@
+import { splitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import {
   clipmapResolution,
@@ -18,12 +19,6 @@ import type { UpdateBound, Vec3 } from './regionBounds.ts'
  * placements are culled against, and the regions to composite again. The block is written in the
  * clipmap's own translated world, its centre at the origin, the way the passes read it.
  */
-
-/** A number as a pair of floats, the first the nearest float, the second what it lacks. */
-export function splitPosition(x: number) {
-  const high = Math.fround(x)
-  return [high, Math.fround(x - high)] as const
-}
 
 /** The sizes of a clipmap's grids and of its lists in the buffers, for one setting. */
 export function clipmapSizes(settings: GlobalDistanceFieldSettings) {
@@ -58,49 +53,62 @@ export interface BlockInputs {
   readonly parent: boolean
 }
 
-/** Writes `inputs`' block into `words` (floats) and `ints` (the same memory as words) at `at`. */
-export function writeClipmapBlock(
+type BlockField = keyof typeof CLIP_BLOCK.at
+
+/** Writes the three floats of `v` at the field `name` of the block at `at`. */
+const put3 = (words: Float32Array, at: number, name: BlockField, v: ArrayLike<number>) => {
+  for (let k = 0; k < 3; k++) words[at + CLIP_BLOCK.at[name] + k] = v[k]
+}
+
+/** Writes the three integers of `v` at the field `name` of the block at `at`. */
+const putU3 = (ints: Uint32Array, at: number, name: BlockField, v: ArrayLike<number>) => {
+  for (let k = 0; k < 3; k++) ints[at + CLIP_BLOCK.at[name] + k] = v[k]
+}
+
+/** The sizes a clipmap's block is written from. */
+interface BlockGeometry {
+  /** The clipmap's half-extent. */
+  readonly e: number
+  readonly size: number
+  readonly voxel: number
+  readonly half: number
+  readonly sizes: ReturnType<typeof clipmapSizes>
+}
+
+/** Writes the clipmap's place: its translation, voxel, grids, bounds, lists and flags. */
+function writeBlockPlace(
   words: Float32Array,
   ints: Uint32Array,
   at: number,
   inputs: BlockInputs,
+  { voxel, half, sizes }: BlockGeometry,
 ) {
-  const { settings, plan, rank } = inputs
-  const at3 = (name: keyof typeof CLIP_BLOCK.at, v: ArrayLike<number>) => {
-    for (let k = 0; k < 3; k++) words[at + CLIP_BLOCK.at[name] + k] = v[k]
-  }
-  const u3 = (name: keyof typeof CLIP_BLOCK.at, v: ArrayLike<number>) => {
-    for (let k = 0; k < 3; k++) ints[at + CLIP_BLOCK.at[name] + k] = v[k]
-  }
-  const e = plan.extent
-  const resolution = clipmapResolution(settings)
-  const size = 2 * e
-  const voxel = size / resolution
-  const half = 0.5 * voxel
-  const sizes = clipmapSizes(settings)
-  const pageScale = size / sizes.pages
-  const cellScale = size / sizes.cells
+  const { plan, rank } = inputs
   const centre = plan.center.map((c) => -c)
-  const split = centre.map(splitPosition)
+  const split = centre.map(splitDouble)
   const field = CLIP_BLOCK.at
-  at3(
+  put3(
+    words,
+    at,
     'translationHigh',
     split.map((s) => s[0]),
   )
-  at3(
+  put3(
+    words,
+    at,
     'translationLow',
     split.map((s) => s[1]),
   )
   words[at + field.voxelExtent] = half
   words[at + field.influenceRadius] = INFLUENCE_VOXELS * voxel
   words[at + field.influenceRadiusSq] = (INFLUENCE_VOXELS * voxel) ** 2
-  u3('pageGrid', [sizes.pages, sizes.pages, sizes.pages])
+  putU3(ints, at, 'pageGrid', [sizes.pages, sizes.pages, sizes.pages])
   ints[at + field.offsetZ] = plan.index * sizes.pages
-  u3('cullGrid', [sizes.cells, sizes.cells, sizes.cells])
+  putU3(ints, at, 'cullGrid', [sizes.cells, sizes.cells, sizes.cells])
   ints[at + field.updateBounds] = plan.updates.length
   ints[at + field.boundsBase] = inputs.boundsBase
   const tiles = rank * sizes.tiles
-  u3('tiles', [tiles, tiles + sizes.pageGrid, tiles + 2 * sizes.pageGrid])
+  putU3(ints, at, 'tiles', [tiles, tiles + sizes.pageGrid, tiles + 2 * sizes.pageGrid])
   const cull = rank * sizes.cull
   ints[at + field.cullHeader] = cull
   ints[at + field.cullArray] = cull + 2 * sizes.cullGrid
@@ -110,21 +118,55 @@ export function writeClipmapBlock(
   ints[at + field.objectStride] = inputs.objectStride
   ints[at + field.maxPages] = inputs.maxPages
   ints[at + field.flags] = inputs.parent ? CLIP_FLAG_PARENT : 0
-  at3('pageToVoxelScale', [voxel, voxel, voxel])
-  at3('pageToVoxelBias', [half - e, half - e, half - e])
+}
+
+/** Writes the clipmap's scales and biases: from a page, a cell or a voxel to the world. */
+function writeBlockScales(
+  words: Float32Array,
+  at: number,
+  plan: ClipmapPlan,
+  { e, size, voxel, half, sizes }: BlockGeometry,
+) {
+  const pageScale = size / sizes.pages
+  const cellScale = size / sizes.cells
+  const field = CLIP_BLOCK.at
+  put3(words, at, 'pageToVoxelScale', [voxel, voxel, voxel])
+  put3(words, at, 'pageToVoxelBias', [half - e, half - e, half - e])
   words[at + field.pageWorldRadius] = Math.sqrt(3) * PAGE * half
-  at3('pageToPageScale', [pageScale, pageScale, pageScale])
+  put3(words, at, 'pageToPageScale', [pageScale, pageScale, pageScale])
   const pageBias = 0.5 * pageScale - e
-  at3('pageToPageBias', [pageBias, pageBias, pageBias])
+  put3(words, at, 'pageToPageBias', [pageBias, pageBias, pageBias])
   words.set([...plan.scroll.map((s) => s / size + 0.5), 1 / size], at + field.uvAddMul)
-  at3('pageTileExtent', [half * IN_ATLAS, half * IN_ATLAS, half * IN_ATLAS])
-  at3('pageWorldExtent', [half * PAGE, half * PAGE, half * PAGE])
-  at3('composeTileExtent', [half * 4, half * 4, half * 4])
+  put3(words, at, 'pageTileExtent', [half * IN_ATLAS, half * IN_ATLAS, half * IN_ATLAS])
+  put3(words, at, 'pageWorldExtent', [half * PAGE, half * PAGE, half * PAGE])
+  put3(words, at, 'composeTileExtent', [half * 4, half * 4, half * 4])
   const cullExtent = half * IN_ATLAS * CULL_FACTOR
-  at3('cullTileExtent', [cullExtent, cullExtent, cullExtent])
-  at3('cullToCentreScale', [cellScale, cellScale, cellScale])
+  put3(words, at, 'cullTileExtent', [cullExtent, cullExtent, cullExtent])
+  put3(words, at, 'cullToCentreScale', [cellScale, cellScale, cellScale])
   const cellBias = 0.5 * cellScale - e
-  at3('cullToCentreBias', [cellBias, cellBias, cellBias])
+  put3(words, at, 'cullToCentreBias', [cellBias, cellBias, cellBias])
+}
+
+/** Writes `inputs`' block into `words` (floats) and `ints` (the same memory as words) at `at`. */
+export function writeClipmapBlock(
+  words: Float32Array,
+  ints: Uint32Array,
+  at: number,
+  inputs: BlockInputs,
+) {
+  const { settings, plan } = inputs
+  const e = plan.extent
+  const size = 2 * e
+  const voxel = size / clipmapResolution(settings)
+  const geometry: BlockGeometry = {
+    e,
+    size,
+    voxel,
+    half: 0.5 * voxel,
+    sizes: clipmapSizes(settings),
+  }
+  writeBlockPlace(words, ints, at, inputs, geometry)
+  writeBlockScales(words, at, plan, geometry)
 }
 
 /** Writes the culling record of `plan` for a view at `origin`: the clipmap's centre relative to the

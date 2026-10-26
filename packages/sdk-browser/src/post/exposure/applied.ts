@@ -1,31 +1,42 @@
 import { environmentExposure } from '../../../../sdk-core/src/scene/core/environment.ts'
-import { UNIT_EXPOSURE } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
+import { DEPTH_OF_FIELD_VOLUME_RULES } from '../../../../sdk-core/src/contracts/depthOfFieldOptions.ts'
+import {
+  fixedExposure,
+  manualExposure,
+  newHeldExposure,
+  type HeldExposure,
+} from '../../../../sdk-core/src/contracts/exposureManual.ts'
+import type { DepthOfField } from '../../../../sdk-core/src/world/effect/depthOfField.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { exposureCurveOf, exposureMeasured, exposureSettings } from './frame.ts'
 
-/**
- * THE EXPOSURE THE CPU KNOWS: what every reader of the exposure outside the composition uses — the
- * lighting parameters, the temporal pass's weights and history correction, the reflections'
- * ranges and the background a mirror shows, the display layers. A manual exposure is its number,
- * as it is. The automatic one is measured on the GPU, a frame at a time, and reaches the CPU a few
- * images late (`createExposureMeter`): until one has, 1. The composition itself does not read it:
- * it shows the image at the exposure the GPU measured for that very image, copied beside it, so the
- * lag is the readers' alone, which the temporal pass corrects by the ratio of one image's scale
- * to the last's. It is also the exposure every light of the next image is written multiplied by
- * (the pre-exposure, `pre.ts`).
- *
- * A view lit by no declared lamp is shown without exposure (`UNLIT_COMPOSITIONS`): nothing here
- * asks it any.
- */
-export function appliedExposureOf(rt: Pick<WebgpuPagesRuntime, 'lights' | 'gpu'>) {
-  const exposure = environmentExposure(rt.lights.store?.environment)
-  return exposure === 'auto' ? rt.gpu.exposure?.last || UNIT_EXPOSURE : exposure
+/** What the CPU reads of the runtime for the exposure: the scene's lights and their environment,
+ *  the settings, the effect chain. */
+type ExposureReads = Pick<WebgpuPagesRuntime, 'lights' | 'context'>
+
+/** The lens' f-stop: the depth of field's aperture where the view's chain holds one, drawing or
+ *  not, else the aperture it would start with. */
+function lensApertureOf(rt: ExposureReads) {
+  for (const pass of rt.context.effects?.passes ?? [])
+    if (pass.kind === 'depthOfField') return (pass as DepthOfField).values.aperture
+  return DEPTH_OF_FIELD_VOLUME_RULES.aperture.default
 }
 
+/** The exposure the view holds, rewritten at each call: a frame allocates none. */
+const held = newHeldExposure()
+
 /**
- * The mean of the local exposure's gain over the view's histogram, the factor the pre-exposure
- * carries beside the exposure (`pre.ts`): measured on the GPU with the exposure and read back with
- * it, 1 until one has, where the local exposure does not run, and for a manual exposure, which
- * measures nothing.
+ * THE EXPOSURE THE ENGINE HOLDS WITHOUT MEASURING IT: a number the scene names (a fixed exposure,
+ * the number itself), or the manual method's (`manualExposure`: the camera and the bias); none where
+ * the meter measures the view's image. Read once an image, by `beginPreExposure`, which keeps it
+ * for the image (`PreExposure.held`): the meter writes it into its exposure buffer, from which the
+ * composition and the finishing take the scale and the middle grey (`ExposureMeter.hold`).
  */
-export const averageLocalExposureOf = (rt: Pick<WebgpuPagesRuntime, 'gpu'>) =>
-  rt.gpu.exposure?.local ?? 1
+export function heldExposureOf(rt: ExposureReads): HeldExposure | undefined {
+  if (exposureMeasured(rt)) return undefined
+  const exposure = environmentExposure(rt.lights.store?.environment)
+  const settings = exposureSettings(rt)
+  return exposure === 'auto'
+    ? manualExposure(settings, exposureCurveOf(rt), lensApertureOf(rt), held)
+    : fixedExposure(exposure, settings, held)
+}

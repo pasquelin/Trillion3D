@@ -4,7 +4,7 @@ import { addGpuPasses, directLightTimings, gpuPassStageOf } from './mapping.ts'
 import { WEBGPU_STAGES } from './passDeclaration.ts'
 import type { GpuPassTimings } from '../../../../sdk-core/src/contracts/metrics.ts'
 import { referenceDirectLightTimings } from '../../../../../bench/oracles/browser/stage-profile.ts'
-import { DEFERRED_LIGHTING_PASS, LIGHT_TILES_PASS, VSM_PASS_PREFIX } from './passLabels.ts'
+import { SURFACE_COLOUR_PASS, LIGHT_TILES_PASS, VSM_PASS_PREFIX } from './passLabels.ts'
 
 /** A pass of the virtual shadow maps: timed with the Shadows stage by its family's prefix. */
 const VSM_PASS = `${VSM_PASS_PREFIX}pass`
@@ -83,7 +83,7 @@ test('direct lighting keeps its values even when another stage is invalidated', 
     sample([
       { name: VSM_PASS, gpuMs: 2 },
       { name: LIGHT_TILES_PASS, gpuMs: 3 },
-      { name: DEFERRED_LIGHTING_PASS, gpuMs: 4 },
+      { name: SURFACE_COLOUR_PASS, gpuMs: 4 },
       { name: 'Trillion3D visibility primary', gpuMs: null },
       { name: 'Trillion3D empty surfaces', gpuMs: 1 },
     ]),
@@ -100,7 +100,7 @@ test('the bench reference reads the same direct-light durations as the engine', 
     { name: VSM_PASS, gpuMs: 4 },
     { name: `${VSM_PASS_PREFIX}other pass`, gpuMs: 1 },
     { name: LIGHT_TILES_PASS, gpuMs: 2 },
-    { name: DEFERRED_LIGHTING_PASS, gpuMs: 5 },
+    { name: SURFACE_COLOUR_PASS, gpuMs: 5 },
   ])
   assert.deepEqual(referenceDirectLightTimings(s), directLightTimings(s))
   assert.equal(directLightTimings(s).gpuShadowsMs, 5)
@@ -110,7 +110,7 @@ test('the three transparent passes sum onto their stage, never onto geometry', (
   const deposits = collect(
     sample([
       { name: 'Trillion3D transparents', gpuMs: 2 },
-      { name: 'Trillion3D blend companion', gpuMs: 3 },
+      { name: 'Trillion3D blend responsiveness', gpuMs: 3 },
       { name: 'Trillion3D transparent compaction', gpuMs: 1 },
     ]),
   )
@@ -120,7 +120,7 @@ test('the three transparent passes sum onto their stage, never onto geometry', (
 // The Shadows stage spans the virtual shadow maps' passes, by their prefix, and no other pass.
 test('the Shadows stage sums only the virtual shadow map passes', () => {
   const shadows = [VSM_PASS, `${VSM_PASS_PREFIX}other pass`]
-  const others = [LIGHT_TILES_PASS, DEFERRED_LIGHTING_PASS, 'Trillion3D visibility primary']
+  const others = [LIGHT_TILES_PASS, SURFACE_COLOUR_PASS, 'Trillion3D visibility primary']
   const s = sample([
     ...shadows.map((name) => ({ name, gpuMs: 1 })),
     ...others.map((name) => ({ name, gpuMs: 100 })),

@@ -1,11 +1,8 @@
-import { mapRawRanks, markListed, type HeldList } from './heldList.ts'
-import { NO_INDEX } from '../../../../../math/src/constants.ts'
+import { markListed, type HeldList } from './heldList.ts'
 
 /**
  * The difference of a list named by its ids alone: every id through the marks, then every id held
- * before. It is a view drawn aside's — its readbacks carry no rank of the list before, so
- * membership is all it can read — and the first readback's, which no snapshot before it names
- * (`./claimedDifference.ts` reads the ranks the next ones claim).
+ * before. Membership is all it reads.
  *
  * A new epoch marks the next list: an id read back at it is a repeat, one read back at the epoch
  * before was held, one with no mark entered; a held id that did not get the new epoch left, and
@@ -20,20 +17,13 @@ export function applyHashed(held: HeldList, ids: ArrayLike<number>, count: numbe
     epoch = ++held.epoch
   let nextCount = 0,
     enteredCount = 0,
-    exitedCount = 0,
-    raw: Uint32Array | null = null
-  held.rawToHeld = false
+    exitedCount = 0
   for (let i = 0; i < count; i++) {
     const id = ids[i]
     published[i] = id
     const rec = recordOf?.(id)
     const seen = markListed(held, id, rec, epoch)
-    if (seen === epoch) {
-      raw ??= mapRawRanks(held, count, i)
-      raw[i] = NO_INDEX
-      continue
-    }
-    if (raw) raw[i] = nextCount
+    if (seen === epoch) continue
     if (pages) pages[nextCount] = rec!
     next[nextCount++] = id
     if (seen !== previous) entered[enteredCount++] = id

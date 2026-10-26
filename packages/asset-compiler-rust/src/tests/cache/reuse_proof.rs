@@ -1,6 +1,5 @@
 //! Fast path, what the proof refuses: a corrupted product, a bake the
-//! compile could not finish, a missing answer sheet — and what it counts when
-//! several textures share one image.
+//! compile could not finish — and what it counts when several textures share one image.
 use super::reuse::{compile_with_events, textured};
 use super::*;
 use crate::compiler::pages::manifest::{sidecar_file, MANIFEST_PAGES};
@@ -55,24 +54,6 @@ fn an_unfinished_bake_is_not_reused() {
         refused,
         Err(format!("texture {} was not fully baked", "a".repeat(64)))
     );
-    fs::remove_dir_all(root).expect("cleanup");
-}
-
-// Behaviour: the answer sheet is a product of every compilation; a cache that
-// lost it is not whole, and the compile that follows writes it again.
-#[test]
-fn a_missing_answer_sheet_is_not_reused() {
-    let (root, options) = textured();
-    let (first, _) = compile_with_events(&options);
-    let sheet = options.cache.join(cutout::DECISIONS_FILE);
-    fs::remove_file(&sheet).expect("remove sheet");
-    let (second, events) = compile_with_events(&options);
-    assert_eq!(second["key"], first["key"]);
-    assert!(second["reused"].is_null(), "not reused");
-    assert_eq!(events[0]["reason"], "cutout answer sheet is missing");
-    assert!(sheet.is_file(), "the sheet is written again");
-    let (_, events) = compile_with_events(&options);
-    assert_eq!(events[0]["completed"], 1, "whole again: {events:?}");
     fs::remove_dir_all(root).expect("cleanup");
 }
 

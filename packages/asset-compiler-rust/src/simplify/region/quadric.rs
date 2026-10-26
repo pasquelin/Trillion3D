@@ -151,6 +151,23 @@ fn weighed(weights: &[f32], values: &[f32], i: usize) -> f64 {
     f64::from(weights[i] * values[i])
 }
 
+/// The gradient of attribute float `i` in quadric `q` and its offset per unit area once the
+/// quadric is expressed about `point` (`inv_a` the inverse of its area), whose attributes are
+/// `values`; none where the weight of `i` is 0.
+fn about(
+    q: &[f64],
+    i: usize,
+    (point, inv_a): (V3, f64),
+    (values, weights): (&[f32], &[f32]),
+) -> Option<(V3, f64)> {
+    if weights[i] == 0.0 {
+        return None;
+    }
+    let gi = HEAD + 3 * i;
+    let g = [q[gi], q[gi + 1], q[gi + 2]];
+    Some((g, weighed(weights, values, i) - dot(g, point) * inv_a))
+}
+
 /// Expresses quadric `q` about `point`, whose attributes are `values`: its plane and attribute
 /// offsets measured from there. A quadric under 1e-12 of area stays as it is.
 pub(crate) fn rebase(q: &mut [f64], point: V3, values: &[f32], weights: &[f32]) {
@@ -167,12 +184,9 @@ pub(crate) fn rebase(q: &mut [f64], point: V3, values: &[f32], weights: &[f32]) 
     let mut d2 = dist_half * dist2a;
     q[DV] = dist2a;
     for i in 0..m {
-        if weights[i] == 0.0 {
+        let Some((g, qd)) = about(q, i, (point, inv_a), (values, weights)) else {
             continue;
-        }
-        let gi = HEAD + 3 * i;
-        let g = [q[gi], q[gi + 1], q[gi + 2]];
-        let qd = weighed(weights, values, i) - dot(g, point) * inv_a;
+        };
         let d = qd * a;
         q[HEAD + 3 * m + i] = d;
         dn = [dn[0] + qd * g[0], dn[1] + qd * g[1], dn[2] + qd * g[2]];
@@ -203,12 +217,10 @@ pub(crate) fn add_about(into: &mut [f64], q: &[f64], point: V3, values: &[f32], 
     into[D2] += dist_half * dist2a;
     into[DV] += dist2a;
     for i in 0..m {
-        if weights[i] == 0.0 {
+        let Some((g, qd)) = about(q, i, (point, inv_a), (values, weights)) else {
             continue;
-        }
+        };
         let gi = HEAD + 3 * i;
-        let g = [q[gi], q[gi + 1], q[gi + 2]];
-        let qd = weighed(weights, values, i) - dot(g, point) * inv_a;
         let qda = qd * qa;
         for k in 0..3 {
             into[gi + k] += g[k];

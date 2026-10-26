@@ -7,13 +7,21 @@ import { near } from '../../../math/src/float/near.fixture.ts'
 import { halton } from '../../../math/src/sequence/halton.ts'
 import { VOLUMETRIC_FOG_FILTERS } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import { FOG_MATCH_GLOW_SCALE, FOG_VOLUME_FRAME_AT, writeSampleOffsets } from './fog/layout.ts'
-import { sliceParams, volumeUvMax, cellGrid, FIRST_SLICE_MARGIN } from './fog/layout.ts'
-import { FOG_VOLUME_FLAG, newFogVolumeFrame, writeFogVolumeFrame } from './fog/frame.ts'
-import { FOG_OBSERVER_REACH, writeFogViewBlock } from './fog/viewBlock.ts'
+import { sliceParams, volumeUvMax, cellGrid } from './fog/layout.ts'
+import { FOG_VOLUME_FLAG, writeFogVolumeFrame } from './fog/frame.ts'
+import { writeFogViewBlock } from './fog/viewBlock.ts'
 import { FOG_VIEW_FLOATS, FOG_VIEW_SLOT } from './fog/viewSlots.ts'
 import { FOG_PROGRAMS } from './fog/programs.ts'
 import type { ResolvedHeightFog } from '../../../sdk-core/src/scene/core/fogHeight.ts'
-import { camera, depthAtSlice, image, sliceAtDepth } from './fogVolumeRun.fixture.ts'
+import type { ResolvedVolumetricFog } from '../../../sdk-core/src/scene/core/fogVolumetric.ts'
+import {
+  camera,
+  depthAtSlice,
+  image,
+  newFogVolumeFrame,
+  previousOf,
+  sliceAtDepth,
+} from './fogVolumeRun.fixture.ts'
 import {
   reservedNames,
   topLevelNames,
@@ -28,7 +36,7 @@ test('the grid: a cell a side of pixels across the view, the depth spread by its
   assert.deepEqual(cellGrid(8000, 2000, 2, 4, 2048), { x: 2000, y: 500, z: 4, pixelSize: 4 })
   // The first slice starts a little past the near plane, the last ends at the far end.
   const p = sliceParams(0.1, 60, 32, 128)
-  near([depthAtSlice(0, p), depthAtSlice(128, p)], [0.1 + FIRST_SLICE_MARGIN, 60], 'ends', 1e-9)
+  near([depthAtSlice(0, p), depthAtSlice(128, p)], [0.1 + 0.095, 60], 'ends', 1e-9)
   near([sliceAtDepth(depthAtSlice(37.5, p), p)], [37.5], 'round trip', 1e-9)
   // A smaller scale packs the slices nearer the eye: the first is thinner.
   const spread = sliceParams(0.1, 60, 8, 128)
@@ -95,15 +103,19 @@ test('the frame: the grid, the depth numbers of the engine’s projection, the h
   const p = sliceParams(2, 62, 32, 8)
   near(field(at.sliceMap), [p.b, p.o, 32, 1 / 8], 'slice map', 1e-5)
   const flags = field(at.medium)[3]
-  const { glow, skipHidden, usesHistory } = FOG_VOLUME_FLAG
-  assert.equal(flags, glow | skipHidden | usesHistory)
+  const { glow, skipHidden, usesHistory, localShadows } = FOG_VOLUME_FLAG
+  assert.equal(flags, glow | skipHidden | usesHistory | localShadows)
   assert.equal(field(at.medium)[2], 0.25)
   // The hidden cells are skipped only where the image says its pyramid is there.
   const bare = writeFogVolumeFrame(newFogVolumeFrame(), { ...img, skipHidden: false })
-  assert.equal(bare[at.medium + 3], glow | usesHistory)
+  assert.equal(bare[at.medium + 3], glow | usesHistory | localShadows)
+  // The local lights read their shadows unless the setting says otherwise.
+  const unshadowed = { ...img.settings, volumetricFogLocalShadows: false }
+  const whole = writeFogVolumeFrame(newFogVolumeFrame(), { ...img, settings: unshadowed })
+  assert.equal(whole[at.medium + 3], glow | skipHidden | usesHistory)
   // No history, no blend; a previous image with the same grid, the setting's weight; reprojection off, none.
   assert.equal(field(at.blend)[0], 0)
-  const previous = { viewProj: cam.viewProj, width: 160, height: 90 }
+  const previous = previousOf(cam, 160, 90)
   const after = writeFogVolumeFrame(newFogVolumeFrame(), { ...img, previous })
   assert.equal(after[at.blend], Math.fround(0.9))
   // The same view twice: the cells overhang it as before, the ratio is 1; the read may reach
@@ -122,7 +134,7 @@ test('a view drawn smaller than the one before reads it where its cells were: th
   // This one: 120 × 66, 15 × 9 cells, overhanging by 1 and 66/72, in the same textures.
   const smaller = camera([1, 2, 3], 120, 66)
   const now = { ...image(smaller), grid: { ...textures, x: 15, y: 9 }, resource: textures }
-  const previous = { viewProj: cam.viewProj, width: 160, height: 90 }
+  const previous = previousOf(cam, 160, 90)
   const w = writeFogVolumeFrame(newFogVolumeFrame(), { ...now, previous })
   const at = FOG_VOLUME_FRAME_AT
   const words = (f: number) => Array.from(w.subarray(f, f + 4))
@@ -132,7 +144,7 @@ test('a view drawn smaller than the one before reads it where its cells were: th
   // The image before was the smaller one: its cells end short of the textures'.
   const back = writeFogVolumeFrame(newFogVolumeFrame(), {
     ...image(cam),
-    previous: { viewProj: cam.viewProj, width: 120, height: 66 },
+    previous: previousOf(cam, 120, 66),
   })
   near(Array.from(back.subarray(at.history + 2, at.history + 4)), [15 / 20, 9 / 12], 'ends', 1e-6)
 })
@@ -203,8 +215,8 @@ test('the view block’s switches: each lane zero at the defaults, set by the se
   assert.deepEqual(slot(block({ fogEnabled: false }), FOG_VIEW_SLOT.options), [1, 0, 0, 0])
   assert.deepEqual(slot(block({ fogReadsAtmosphere: false }), FOG_VIEW_SLOT.options), [0, 1, 0, 0])
   // Matched to the volume: its glow in the fog's unit, its anisotropy and its particles' colour.
-  const medium = {
-    glow: [3, 2, 1].map((c) => c / 100),
+  const medium: Pick<ResolvedVolumetricFog, 'glow' | 'anisotropy' | 'particleColor'> = {
+    glow: [3 / 100, 2 / 100, 1 / 100],
     anisotropy: 0.4,
     particleColor: [0.5, 0.6, 0.7],
   }
@@ -224,15 +236,10 @@ test('the view block’s switches: each lane zero at the defaults, set by the se
   // a perspective view's does; a view below the ground gets none.
   const ortho = { ...LOOK, perspective: false, eyeHeight: 2000 }
   assert.deepEqual(slot(block({}, ortho), FOG_VIEW_SLOT.options), [0, 0, 0, 1])
-  near(
-    slot(block({}, ortho), FOG_VIEW_SLOT.observer),
-    [2000 - FOG_OBSERVER_REACH, 0, 0, 0],
-    'observer',
-    1e-3,
-  )
+  near(slot(block({}, ortho), FOG_VIEW_SLOT.observer), [2000 - 655.36, 0, 0, 0], 'observer', 1e-3)
   near(
     slot(block({}, { ...ortho, eyeHeight: -5 }), FOG_VIEW_SLOT.observer),
-    [-FOG_OBSERVER_REACH, 0, 0, 0],
+    [-655.36, 0, 0, 0],
     'below',
     1e-3,
   )

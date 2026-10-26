@@ -11,13 +11,14 @@ import {
   emptyLights,
   frameScope,
   image,
+  previousOf,
   table,
   type V3,
 } from './fogVolumeRun.fixture.ts'
 
 /** Settings with no history, no hidden cell skipped, no jitter and the sample left where the cell
  *  puts it: its centre. */
-export const PLAIN = {
+const PLAIN = {
   volumetricFogMovesSamples: false,
   volumetricFogSkipHidden: false,
   volumetricFogUsesHistory: false,
@@ -36,6 +37,16 @@ export const SUN: Light = {
   shape: [0, 0, 0, 0],
   capsule: [0, 0, 0, 0],
 }
+
+/** A white lamp of intensity 50 at `centre`, reaching `range` metres: no cone, no shape. */
+export const lampOf = (centre: readonly number[], range = 40): Light => ({
+  positionRange: [...centre, range],
+  colorIntensity: [1, 1, 1, 50],
+  directionCone: [0, 0, 0, -2],
+  params: [0, -1, 1, -2],
+  shape: [0, 0, 0, 0],
+  capsule: [0, 0, 0, 0],
+})
 
 /** The scatter on the cell `cell`, over the scene `world` describes: its lights, the fog's first
  *  layer's density, what the textures hold. Returns what the program stored at the cell. */
@@ -73,15 +84,15 @@ export function scatter(
     loads?: number[][]
     /** Where the camera of the image before stood, where it is not where this one does. */
     previousEye?: V3
+    /** The local fog volumes' block of the light buffer (`directLights.localFog`), zero where none. */
+    localFog?: number[][]
   } = {},
 ) {
   const { lights = [], density = 0.1, falloff = 0 } = world
   // A view drawn smaller than the targets: its camera of that size, the textures' cells those of CAM.
   const cam = world.camera ?? (world.drawn ? camera(EYE, ...world.drawn) : CAM)
   const before = world.previousEye ? camera(world.previousEye, ...(world.drawn ?? [160, 90])) : cam
-  const previous = world.before
-    ? { viewProj: before.viewProj, width: before.width, height: before.height, preExposure: 1 }
-    : undefined
+  const previous = world.before ? previousOf(before) : undefined
   const img = image(
     cam,
     world.volumetric ?? true,
@@ -92,6 +103,7 @@ export function scatter(
   block.fog[FOG_SLOT.law] = [density, falloff, 0, 1]
   block.fog[FOG_SLOT.second] = [world.second ?? 0, 0, 0, 0]
   if (world.fogColor) block.fog[FOG_SLOT.color] = [...world.fogColor, 0]
+  if (world.localFog) block.localFog = world.localFog
   block.count = lights.length
   block.items = lights
   const out = table()

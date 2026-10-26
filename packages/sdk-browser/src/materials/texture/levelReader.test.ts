@@ -3,7 +3,10 @@ import assert from 'node:assert/strict'
 import { createTextureLevelReader, type TextureLevelRequest } from './levelReader.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 import { tiledLevelFile } from './tileRecords.fixture.ts'
-import { WHITE_TAIL } from './blockFormats.ts'
+import { poolEncoding } from './blockFormats.ts'
+
+/** The white texel of the opaque lane, as the pool's encoding pins it (`PoolEncoding.whiteOf`). */
+const WHITE_TAIL = poolEncoding(undefined).whiteOf('lossless')
 
 const SHA = 'b'.repeat(64)
 const BASE = 'https://host/cache/full/clusters.json'

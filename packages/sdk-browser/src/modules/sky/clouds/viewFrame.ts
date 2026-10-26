@@ -1,48 +1,55 @@
+import { heldColour } from '../../../gpu/core/heldAttachment.ts'
+import { ComputeRun } from '../../../gpu/core/lazyComputePass.ts'
+import { drawFullscreenTriangle } from '../../../gpu/shader/fullscreenTriangle.ts'
 import { cloudHazeInSecondPass } from './traceOptions.ts'
 import { DEPTH_RANGE_VIEW, type DepthRangePass } from './depthRangeWgsl.ts'
 import { depthRangeSizes, writeDepthRangeView } from './depthRange.ts'
-import type { Size } from './reconstructLayout.ts'
-import { cloudHazeDispatch, CLOUD_HAZE_BINDING as H } from './traceHaze.ts'
+import { CLOUD_HAZE_BINDING as H } from './traceHazeProgram.ts'
 import { CLOUD_TRACE_BINDING as B, CLOUD_TRACE_LAYOUT, writeCloudTrace } from './traceLayout.ts'
 import { cloudTraceDispatch } from './trace.ts'
+import { CLOUD_EMPTY_SPACE_DISPATCH } from './emptySpace.ts'
+import { CLOUD_EMPTY_SPACE_BINDING as E } from './emptySpaceWgsl.ts'
 import { hazeAirGroup, traceAirGroup, traceExtraGroup, type CloudViewFrame } from './viewGroups.ts'
 import type { CloudDepthRange, CloudImages } from './viewTargets.ts'
 
 /**
  * THE FIRST HALF OF AN IMAGE OF A VIEW'S CLOUDS, in the order the clouds are drawn: the scene's
- * depth range (`encodeDepthRange`), the tracing into the traced images (`encodeTrace`) and, where
- * the haze is laid per pixel, the haze pass over them (`encodeHaze`). The second half, the
- * reconstruction and the composition, is `viewResolve.ts`.
+ * depth range (`encodeDepthRange`), the tracing into the traced images (`encodeTrace`), preceded
+ * by the empty-space table's pass where the setting asks (`encodeEmptySpace`), and, where the haze
+ * is laid per pixel, the haze pass over them (`encodeHaze`). The second half, the reconstruction
+ * and the composition, is `viewResolve.ts`.
  */
 
 const rangeWords = new Float32Array(new ArrayBuffer(DEPTH_RANGE_VIEW.words * 4))
 const traceWords = new Float32Array(new ArrayBuffer(CLOUD_TRACE_LAYOUT.words * 4))
 
-/** A fullscreen triangle over the first `viewport` pixels of `targets`, `groups` bound in order;
- *  the targets are loaded where `load`, else cleared. */
-export function drawFullscreen(
-  f: Pick<CloudViewFrame, 'encoder'>,
+/** The descriptor of each cloud pass by label, held: its attachments are rewritten in place. */
+const cloudPasses = new Map<
+  string,
+  GPURenderPassDescriptor & { colorAttachments: GPURenderPassColorAttachment[] }
+>()
+
+/** The pass over `targets`, loaded where `load`, else cleared: the one descriptor of its `label`,
+ *  rewritten at each call — a pass reads it when it begins. */
+export function cloudPass(
   label: string,
-  pipeline: GPURenderPipeline,
-  groups: readonly GPUBindGroup[],
   targets: readonly GPUTextureView[],
-  viewport: Size,
   load = false,
-) {
-  const pass = f.encoder.beginRenderPass({
-    label,
-    colorAttachments: targets.map((view) => ({
-      view,
-      loadOp: load ? ('load' as const) : ('clear' as const),
-      storeOp: 'store' as const,
+): GPURenderPassDescriptor {
+  let held = cloudPasses.get(label)
+  if (!held) cloudPasses.set(label, (held = { label, colorAttachments: [] }))
+  const attachments = held.colorAttachments
+  attachments.length = targets.length
+  for (let at = 0; at < targets.length; at++) {
+    const attachment = (attachments[at] ??= heldColour({
+      loadOp: 'clear',
+      storeOp: 'store',
       clearValue: { r: 0, g: 0, b: 0, a: 0 },
-    })),
-  })
-  pass.setPipeline(pipeline)
-  groups.forEach((group, at) => pass.setBindGroup(at, group))
-  pass.setViewport(0, 0, viewport.width, viewport.height, 0, 1)
-  pass.draw(3)
-  pass.end()
+    }))
+    attachment.view = targets[at]
+    attachment.loadOp = load ? 'load' : 'clear'
+  }
+  return held
 }
 
 /** The scene's depth range textures of the image, none where the trace reads the depth itself: the
@@ -66,9 +73,43 @@ export function encodeDepthRange(f: CloudViewFrame): CloudDepthRange | undefined
     ])
     const to = name === 'range' ? range.views.quarter! : range.views.half
     const size = name === 'range' ? sizes.quarter.view : sizes.half.view
-    drawFullscreen(f, 'Trillion3D cloud depth range', drawn.pipeline.get(), [group], [to], size)
+    drawFullscreenTriangle(
+      f.encoder,
+      cloudPass('Trillion3D cloud depth range', [to]),
+      drawn.pipeline.get(),
+      group,
+      size.width,
+      size.height,
+    )
   }
   return range
+}
+
+const EMPTY_SPACE_PASS: GPUComputePassDescriptor = { label: 'Trillion3D cloud empty space' }
+const TRACE_PASS: GPUComputePassDescriptor = { label: 'Trillion3D cloud trace' }
+const HAZE_PASS: GPUComputePassDescriptor = { label: 'Trillion3D cloud haze' }
+/** The image's compute passes, the empty space, the trace and the haze, which follow one another:
+ *  one pass but on a frame timed per pass. Begun and ended by `encodeCloudView`. */
+export const cloudSteps = new ComputeRun()
+
+/** The empty-space table written from the trace's block `block`, which the tracing of the same image
+ *  reads next. */
+function encodeEmptySpace(f: CloudViewFrame, block: GPUBuffer) {
+  const pass = f.programs.emptySpace(f.part.quality.cloudEmptySpaceSkippingCorners)
+  const pipeline = pass.pipeline.get()
+  if (!pipeline) return
+  const table = f.gpu.emptySpaceTable.view
+  const cloud = f.gpu.group('empty space cloud', pass.cloud, [f.material, block, table], () => [
+    ...f.material,
+    { binding: E.block, resource: { buffer: block } },
+    { binding: E.table, resource: table },
+  ])
+  const compute = cloudSteps.pass(EMPTY_SPACE_PASS)
+  compute.setPipeline(pipeline)
+  compute.setBindGroup(0, traceAirGroup(f, pass.air, 'empty space air'))
+  compute.setBindGroup(1, cloud)
+  const { x, y, z } = CLOUD_EMPTY_SPACE_DISPATCH
+  compute.dispatchWorkgroups(x, y, z)
 }
 
 /** The view's tracing of the image into the traced images (`CloudViewGpu.traced`), or, where the
@@ -84,6 +125,7 @@ export function encodeTrace(f: CloudViewFrame, range: CloudDepthRange | undefine
   const block = gpu.block('trace', CLOUD_TRACE_LAYOUT.words)
   writeCloudTrace(traceWords, f.image, plan, f.part)
   device.queue.writeBuffer(block, 0, traceWords)
+  if (f.key.emptySpace) encodeEmptySpace(f, block)
   const depthRange =
     setup.depth === 'scene'
       ? f.sceneDepth
@@ -91,53 +133,59 @@ export function encodeTrace(f: CloudViewFrame, range: CloudDepthRange | undefine
         ? range!.views.quarter!
         : range!.views.half
   const names = [f.material, block, f.noise, depthRange, out.views.colour, out.views.secondary]
-  const cloud = gpu.group('trace cloud', pass.cloud, [...names, traced.views.depth], () => [
-    ...f.material,
-    { binding: B.block, resource: { buffer: block } },
-    { binding: B.blueNoise, resource: f.noise },
-    { binding: B.depthRange, resource: depthRange },
-    { binding: B.colour, resource: out.views.colour },
-    ...(setup.minMaxDepth ? [{ binding: B.secondary, resource: out.views.secondary! }] : []),
-    { binding: B.depth, resource: traced.views.depth },
-  ])
-  const compute = f.encoder.beginComputePass({ label: 'Trillion3D cloud trace' })
-  compute.setPipeline(pass.pipeline.get())
+  const closest = f.key.closestDepth ? raw?.views.depth : undefined
+  const cloud = gpu.group(
+    'trace cloud',
+    pass.cloud,
+    [...names, traced.views.depth, closest],
+    () => [
+      ...f.material,
+      { binding: B.block, resource: { buffer: block } },
+      { binding: B.blueNoise, resource: f.noise },
+      { binding: B.depthRange, resource: depthRange },
+      { binding: B.colour, resource: out.views.colour },
+      ...(setup.minMaxDepth ? [{ binding: B.secondary, resource: out.views.secondary! }] : []),
+      { binding: B.depth, resource: traced.views.depth },
+      ...(closest ? [{ binding: B.closest, resource: closest }] : []),
+    ],
+  )
+  const compute = cloudSteps.pass(TRACE_PASS)
+  const pipeline = pass.pipeline.get()
+  if (!pipeline) return { traced, raw }
+  compute.setPipeline(pipeline)
   compute.setBindGroup(0, traceAirGroup(f, pass.air))
   compute.setBindGroup(1, cloud)
   if (pass.extra) compute.setBindGroup(2, traceExtraGroup(f, pass.extra))
   const { x, y, z } = cloudTraceDispatch(plan.sizes.traced)
   compute.dispatchWorkgroups(x, y, z)
-  compute.end()
   return { traced, raw }
 }
 
-/** The haze pass over the unhazed colour of each surface the trace made (the second with the same
- *  depth), into the traced images. */
+/** The haze pass over the unhazed colour of each surface the trace made, each at its own depth —
+ *  the colour at the traced depth, the second surface at the closest surface's, which the trace
+ *  wrote beside the unhazed images —, into the traced images. */
 export function encodeHaze(f: CloudViewFrame, traced: CloudImages, raw: CloudImages) {
   const { gpu, programs } = f
   const pass = programs.haze
   const block = gpu.block('trace', CLOUD_TRACE_LAYOUT.words)
-  const compute = f.encoder.beginComputePass({ label: 'Trillion3D cloud haze' })
-  compute.setPipeline(pass.pipeline.get())
+  const compute = cloudSteps.pass(HAZE_PASS)
+  const pipeline = pass.pipeline.get()
+  if (!pipeline) return
+  compute.setPipeline(pipeline)
   compute.setBindGroup(0, hazeAirGroup(f, pass.air))
-  const { x, y, z } = cloudHazeDispatch(f.plan.sizes.traced)
+  const { x, y, z } = cloudTraceDispatch(f.plan.sizes.traced)
   for (const surface of ['colour', 'secondary'] as const) {
     const from = raw.views[surface],
       to = traced.views[surface]
-    if (!from || !to) continue
-    const group = gpu.group(
-      `haze ${surface}`,
-      pass.cloud,
-      [block, from, traced.views.depth, to],
-      () => [
-        { binding: H.block, resource: { buffer: block } },
-        { binding: H.colour, resource: from },
-        { binding: H.depth, resource: traced.views.depth },
-        { binding: H.out, resource: to },
-      ],
-    )
+    const depth = surface === 'secondary' ? raw.views.depth : traced.views.depth
+    if (!from || !to || !depth) continue
+    const group = gpu.group(`haze ${surface}`, pass.cloud, [block, from, depth, to], () => [
+      { binding: H.block, resource: { buffer: block } },
+      { binding: H.colour, resource: from },
+      { binding: H.depth, resource: depth },
+      { binding: H.out, resource: to },
+    ])
     compute.setBindGroup(1, group)
     compute.dispatchWorkgroups(x, y, z)
   }
-  compute.end()
 }

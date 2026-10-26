@@ -29,6 +29,12 @@ pub(crate) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<(Value
         offset,
     } = inputs;
     let mut source = g.clone();
+    let remap = |old: usize| {
+        access_map
+            .get(&old)
+            .map(|&mapped| json!(mapped))
+            .ok_or_else(|| invalid("Missing accessor mapping"))
+    };
     let mut output_meshes = Vec::new();
     for id in meshes {
         let mut mesh = item(values(&source, "meshes")?, *id, "mesh")?.clone();
@@ -39,9 +45,7 @@ pub(crate) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<(Value
         {
             if p.get("indices").is_some() {
                 let old = required_index(p.get("indices"), "primitive.indices")?;
-                p["indices"] = json!(*access_map
-                    .get(&old)
-                    .ok_or_else(|| invalid("Missing accessor mapping"))?);
+                p["indices"] = remap(old)?;
             }
             for v in p
                 .get_mut("attributes")
@@ -50,22 +54,25 @@ pub(crate) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<(Value
                 .values_mut()
             {
                 let old = required_index(Some(v), "primitive attribute")?;
-                *v = json!(*access_map
-                    .get(&old)
-                    .ok_or_else(|| invalid("Missing accessor mapping"))?);
+                *v = remap(old)?;
             }
             if let Some(targets) = p.get_mut("targets").and_then(Value::as_array_mut) {
                 for target in targets {
                     if let Some(t_obj) = target.as_object_mut() {
                         for v in t_obj.values_mut() {
                             let old = required_index(Some(v), "primitive target attribute")?;
-                            *v = json!(*access_map
-                                .get(&old)
-                                .ok_or_else(|| invalid("Missing accessor mapping"))?);
+                            *v = remap(old)?;
                         }
                     }
                 }
             }
+        }
+        // A fallback mesh names its source by the published rank (`source/fallback.rs`).
+        if let Some(source) = super::fallback::of(&mesh) {
+            let published = mesh_map
+                .get(&source)
+                .ok_or_else(|| invalid("Missing mesh mapping"))?;
+            mesh["extras"][super::fallback::FALLBACK_OF] = json!(published);
         }
         output_meshes.push(mesh);
     }

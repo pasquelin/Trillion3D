@@ -1,6 +1,6 @@
 import { createViewFingerprint } from './viewFingerprint.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
-import type { HostCamera } from '../../camera/world.ts'
+import type { ViewCamera } from '../../camera/world.ts'
 import { bumpView, createFrameHold, type FrameRevisions } from '../revisions.ts'
 
 /**
@@ -48,7 +48,7 @@ export const createViewHold = (values: number, view: number) => ({
   fingerprint: createViewRevision(),
   hold: createFrameHold(values),
   view,
-  camera: undefined as HostCamera | undefined,
+  camera: undefined as ViewCamera | undefined,
   cameraRevision: 0,
   temporalRevision: 0,
 })

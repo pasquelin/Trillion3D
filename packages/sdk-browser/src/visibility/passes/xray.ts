@@ -5,6 +5,7 @@ import { VIS_XRAY_FRAGMENT, VIS_XRAY_VERTEX, visXrayShader } from '../shader/vis
 import { ADD_ONE } from '../../blend/equations.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { walkSlots } from './slotWalk.ts'
+import { seeThrough } from './binning.ts'
 import type { Clipping } from '../../gpu/core/clipDistances.ts'
 
 /** Each visibility group layout's x-ray pipeline: made with the first see-through image of its
@@ -41,17 +42,11 @@ function xrayPipeline(device: GPUDevice, layout: GPUBindGroupLayout, clipping?: 
   return pipeline.ask()
 }
 
-/** Whether the image is a see-through view's: `wireframe` or `xray`. */
-const seeThrough = (rt: WebgpuPagesRuntime) =>
-  rt.run.diagnostic === 'wireframe' || rt.run.diagnostic === 'xray'
-
 /**
  * A see-through view's background, laid over the lit image before its transparents: the view's
- * clear colour, at an alpha of one. Its resolve paints every surface as background, an alpha of
- * zero, which the composition shows as the clear colour whatever the lit target holds (`composeAt`,
- * `../../lighting/deferred/shaders.ts`): an edge added there would never be seen. Opaque, every
- * edge drawn over it — the transparents', then the cut's (`encodeXray`) — is shown, the raw output
- * of a diagnostic view taking the colour as it is.
+ * clear colour, at an alpha of one, which the sky, the fog and the clouds drawn over its resolve's
+ * paint leave out of sight. Opaque, every edge drawn over it — the transparents', then the cut's
+ * (`encodeXray`) — is shown, the raw output of a diagnostic view taking the colour as it is.
  */
 export function encodeSeeThroughBackground(
   rt: WebgpuPagesRuntime,
@@ -86,13 +81,14 @@ export function encodeXray(rt: WebgpuPagesRuntime, device: GPUDevice, encoder: G
   const { gpu, vis, run } = rt
   if (!seeThrough(rt) || !run.depthDrawn || !gpu.hdrView || !vis.visBindGroupLayout) return
   const pipeline = xrayPipeline(device, vis.visBindGroupLayout, rt.setup.clipping)
-  if (!pipeline.ready) return
+  const program = pipeline.get()
+  if (!program) return
   const pass = encoder.beginRenderPass({
     label: XRAY_PASS,
     colorAttachments: [{ view: gpu.hdrView, loadOp: 'load', storeOp: 'store' }],
   })
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
-  pass.setPipeline(pipeline.get())
+  pass.setPipeline(program)
   for (const rest of HALVES)
     run.gpuDrawCalls += walkSlots(rt, device, pass, rest, undefined, true).draws
   pass.end()

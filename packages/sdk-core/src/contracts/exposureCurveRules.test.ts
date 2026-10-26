@@ -2,19 +2,24 @@
 import test from 'node:test'
 import { EXPOSURE_CURVE_SAMPLES, resolveExposureCurve } from './exposureCurve.ts'
 import { exposureCurveAt } from './exposureCurveEval.ts'
-import { bakeExposureCurve, exposureCurveFactor } from './exposureCurveTable.ts'
+import { exposureCurveFactor, exposureCurveTable } from './exposureCurveTable.ts'
+import { resolveExposureMeterMask } from './exposureMeterMask.ts'
+import { EXPOSURE_RULES, exposureSaturationLuminance } from './exposureOptions.ts'
+import { resolveSettings } from './settingRules.ts'
+import { fromHalf, halfRound, toHalf } from '../../../math/src/float/half.ts'
 import assert from 'node:assert/strict'
 
 test('the exposure compensation curve bakes 64 factors over EV100 -10 to 20', () => {
   assert.equal(resolveExposureCurve(undefined), null)
   assert.equal(resolveExposureCurve(false), null)
   assert.equal(resolveExposureCurve([]), null)
-  assert.ok(bakeExposureCurve(null).every((factor) => factor === 1))
+  assert.ok(exposureCurveTable(undefined).every((factor) => factor === 1))
   // Keys are sorted; the compensation is linear between them and held past the ends.
-  const curve = resolveExposureCurve([
+  const keys = [
     [10, -2],
     [0, 1],
-  ])
+  ] as [number, number][]
+  const curve = resolveExposureCurve(keys)
   assert.deepEqual(
     curve?.keys.map((key) => [key.ev, key.compensation]),
     [
@@ -25,14 +30,18 @@ test('the exposure compensation curve bakes 64 factors over EV100 -10 to 20', ()
   assert.equal(exposureCurveAt(curve, -5), 1)
   assert.equal(exposureCurveAt(curve, 5), -0.5)
   assert.equal(exposureCurveAt(curve, 15), -2)
-  const table = bakeExposureCurve(curve)
+  const table = exposureCurveTable(keys)
   assert.equal(table.length, EXPOSURE_CURVE_SAMPLES)
   assert.equal(table[0], 2) // EV100 -10, held at the first key: 2^1
   assert.equal(table[63], 0.25) // EV100 20, held at the last key: 2^-2
   assert.equal(table[21], 2) // sample 21 is EV100 -10 + 21 · 30 / 63 = 0: the first key
   assert.equal(table[42], 0.25) // sample 42 is EV100 10: the last key
   // Sample 31 is EV100 4.7619...: 2^(1 - 3 · 0.47619) held as a half float.
-  assert.equal(table[31], Math.f16round(2 ** (1 - 3 * (4.761904761904762 / 10))))
+  const exact = 2 ** (1 - 3 * (4.761904761904762 / 10))
+  assert.equal(table[31], halfRound(exact))
+  // Independent of that rounding: a half float (it reads back as itself) within half a unit of its last place.
+  assert.equal(fromHalf(toHalf(table[31])), table[31])
+  assert.ok(Math.abs(table[31] - exact) <= exact * 2 ** -11)
   // The shader's read: samples mixed, the ends held.
   assert.equal(exposureCurveFactor(table, 0), 2)
   assert.equal(exposureCurveFactor(table, -50), 2)
@@ -168,6 +177,62 @@ test('an exposure curve goes on outside its keys by its extrapolation', () => {
     () => resolveExposureCurve({ keys, after: 'spin' as never }),
     /after must be one of/,
   )
+})
+
+test('the exposure methods and the camera start where the reference starts; the lens sets the saturation luminance', () => {
+  const defaults = resolveSettings(EXPOSURE_RULES, {})
+  assert.equal(defaults.exposureMethod, 'histogram')
+  assert.equal(defaults.exposureApplyPhysicalCamera, true)
+  assert.equal(defaults.exposureCameraShutterSpeed, 60)
+  assert.equal(defaults.exposureCameraIso, 100)
+  assert.equal(defaults.exposureLensAttenuation, 0.78)
+  assert.equal(
+    exposureSaturationLuminance(defaults.exposureLensAttenuation),
+    1,
+    'unitless lighting',
+  )
+  assert.equal(exposureSaturationLuminance(0.39), 2)
+  // Each setting takes its range, refused by name.
+  for (const bad of [
+    { exposureMethod: 'spot' },
+    { exposureCameraShutterSpeed: 0 },
+    { exposureCameraShutterSpeed: 9000 },
+    { exposureCameraIso: 0.5 },
+    { exposureLensAttenuation: 0 },
+  ])
+    assert.throws(
+      () => resolveSettings(EXPOSURE_RULES, bad as never),
+      TypeError,
+      JSON.stringify(bad),
+    )
+  assert.equal(
+    resolveSettings(EXPOSURE_RULES, { exposureMethod: 'manual' }).exposureMethod,
+    'manual',
+  )
+  // A new project's contrasts, 0.8 each, over the detail's 1: the local exposure runs by default,
+  // where it was neutral at 1, 1, 1 before the defaults followed a new project.
+  const fresh = resolveSettings(EXPOSURE_RULES, {})
+  assert.deepEqual(
+    [
+      fresh.localExposureHighlightContrast,
+      fresh.localExposureShadowContrast,
+      fresh.localExposureDetailStrength,
+    ],
+    [0.8, 0.8, 1],
+    'the local exposure runs by default',
+  )
+})
+
+test('the metering mask option names a picture with a size, or none, and refuses anything else', () => {
+  const picture = { width: 8, height: 4 }
+  assert.equal(resolveExposureMeterMask(picture), picture)
+  assert.equal(resolveExposureMeterMask(undefined), undefined)
+  assert.equal(resolveExposureMeterMask(null), undefined)
+  for (const bad of [{}, { width: 0, height: 4 }, { width: 8.5, height: 4 }, 'mask', 3])
+    assert.throws(
+      () => resolveExposureMeterMask(bad as never),
+      /exposureMeterMask: the mask must be an image/,
+    )
 })
 
 /** The sun's shadow settings a quality preset resolves to: the shadows group's level over the

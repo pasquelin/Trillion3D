@@ -1,6 +1,6 @@
 import type { BloomKernelImage } from '../../../../../../sdk-core/src/contracts/bloomConvolutionOptions.ts'
 import { retire } from '../../../../gpu/core/frameRetire.ts'
-import { madeTextureBytes } from '../../../../gpu/core/textureBytes.ts'
+import { madeBytesOf } from '../../../../gpu/core/textureBytes.ts'
 import { BLOOM_PASS } from '../../../../diagnostic/stage/passLabels.ts'
 import { RESIZED_FORMAT } from './kernelWgsl.ts'
 
@@ -67,7 +67,7 @@ export function createTransients(device: GPUDevice) {
       uploaded = undefined
     },
     get bytes() {
-      return slots.reduce((sum, { texture }) => sum + madeTextureBytes(texture), 0)
+      return madeBytesOf(slots.map(({ texture }) => texture))
     },
   }
 }

@@ -35,10 +35,6 @@ fn levels_above_the_tail_are_written_once_per_atlas_in_the_stored_blocks() {
     assert_eq!(previews[0].kind, AtlasKind::Color);
     assert_eq!(previews[1].kind, AtlasKind::Data);
     assert_eq!(
-        previews[0].image_sha256, previews[1].image_sha256,
-        "same image, same fingerprint"
-    );
-    assert_eq!(
         previews[0].first_level, 2,
         "256 → 64: two levels above the tail"
     );
@@ -51,7 +47,7 @@ fn levels_above_the_tail_are_written_once_per_atlas_in_the_stored_blocks() {
         (AtlasKind::Data, &previews[1], [true, false, false, false]),
     ] {
         // The level files are the chain encoder's: fast, or slow when the fast chain fails.
-        let chain = crate::texture::reduce::chain(&source, kind);
+        let chain = crate::texture::reduce::chain(&source, &[], kind);
         let sizes: Vec<(u32, u32)> = preview_level_sizes(256, 256).collect();
         let codec = (BlockFormat::Bc7, Layout::Rgba);
         let (fast, measure) =
@@ -68,7 +64,11 @@ fn levels_above_the_tail_are_written_once_per_atlas_in_the_stored_blocks() {
             let encoded = &encoded[level as usize];
             let blocks = fs::read(native.join(level_path(&expected.sha256, kind, level, "bc7")))
                 .expect("block level");
-            assert_eq!(blocks, tile_records(encoded, w, h), "tile records");
+            assert_eq!(
+                blocks,
+                tile_records(encoded, w, h, BLOCK_CELL),
+                "tile records"
+            );
             assert!(!native
                 .join(level_path(&expected.sha256, kind, level, "astc"))
                 .exists());

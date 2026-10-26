@@ -1,3 +1,5 @@
+import { drawFullscreenTriangle } from '../../gpu/shader/fullscreenTriangle.ts'
+
 /**
  * A fullscreen draw over one colour target, as the post chain's passes make it: the one
  * descriptor every pass begins with, rewritten in place — a pass reads it when it begins, so a
@@ -8,21 +10,19 @@
 export function fullscreenDraw(label: string) {
   const attachment = { loadOp: 'clear', storeOp: 'store' } as GPURenderPassColorAttachment
   const descriptor: GPURenderPassDescriptor = { label, colorAttachments: [attachment] }
+  const groups: GPUBindGroup[] = []
   return (
     encoder: GPUCommandEncoder,
     view: GPUTextureView,
-    pipeline: GPURenderPipeline,
+    pipeline: GPURenderPipeline | undefined,
     group: GPUBindGroup,
     second?: GPUBindGroup,
     corner?: readonly number[],
   ) => {
     attachment.view = view
-    const pass = encoder.beginRenderPass(descriptor)
-    pass.setPipeline(pipeline)
-    pass.setBindGroup(0, group)
-    if (second) pass.setBindGroup(1, second)
-    if (corner) pass.setViewport(0, 0, corner[0], corner[1], 0, 1)
-    pass.draw(3)
-    pass.end()
+    groups.length = 0
+    groups.push(group)
+    if (second) groups.push(second)
+    drawFullscreenTriangle(encoder, descriptor, pipeline, groups, corner?.[0], corner?.[1])
   }
 }

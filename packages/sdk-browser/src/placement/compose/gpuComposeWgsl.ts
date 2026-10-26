@@ -4,8 +4,8 @@
  * matrix, each of the sixteen numbers summed over the same four products in the same order as the
  * transform tree's `multiplyMatrix4`, every product and sum rounded once as the CPU rounds it. The
  * worlds pass writes it once a root into the roots' double worlds (`../roots/rootWorlds.ts`), which every
- * other pass reads — the roots pass, the root boxes pass, the tree's leaves, the rows pass
- * (`../rows/rowWordsWgsl.ts`): no pass composes it again. A number reaches single precision as
+ * other pass reads — the roots pass, the root boxes pass, the tree's leaves, the decode of the visible
+ * clusters (`../../visibility/decode/decodeWgsl.ts`): no pass composes it again. A number reaches single precision as
  * `Float32Array` stores a double (`toF32`), so every word the GPU writes is the CPU's, to the bit;
  * a translation is kept exact, as two words a coordinate, for each cut to take its eye off
  * (`../../geometry/dag/shader/worldPoseWgsl.ts`).
@@ -44,7 +44,7 @@ export const COMPOSE_WORLDS_ENTRY = 'composeWorlds'
  * One thread per root a parent composes (`ranks`, the composition's dense list of them): its world,
  * `parent · local`, into the roots' double worlds (`rootWorlds`). The one place a composed world is
  * multiplied: the roots pass, the root boxes pass (`../roots/rootBoxesWgsl.ts`), the tree's leaves and the
- * rows pass read it.
+ * shadow casters' kernel read it.
  */
 export const COMPOSE_WORLDS_WGSL = wgslProgram(
   `@group(0) @binding(1) var<storage,read> locals:array<vec2u>;
@@ -69,8 +69,6 @@ export const COMPOSE_WORLDS_WGSL = wgslProgram(
  * composed world as the worlds pass wrote it, into the root's record of the cut's worlds
  * (`../../geometry/dag/worlds/worldTable.ts`), written whole — its matrix as the host writes it, its exact
  * translation beside it, as the host's is (`worldOrigins.ts`), which each cut reads at its own eye.
- * The motion follows in the image's own command buffer, once the temporal pass has decided it
- * (`composedMotionPass.ts`).
  */
 export const COMPOSE_ROOTS_WGSL = wgslProgram(
   `@group(0) @binding(1) var<storage,read> rootWorlds:array<vec2u>;

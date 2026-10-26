@@ -8,7 +8,7 @@ import { writeDisplacementRecord } from './displacementRecord.ts'
 import { writeGraphRecord } from './graphRecord.ts'
 import type { MaterialEntry, MaterialRecords } from './materialState.ts'
 
-/** Lobe extensions one record's place holds: three of three texels in its ten. */
+/** Lobe extensions one record's place holds: two of five texels in its ten. */
 const LOBES_PER_SLOT = Math.floor(MATERIAL_RECORD_TEXELS / LOBE_RECORD_TEXELS)
 
 /** A record's rank: one the collector freed, else the next, the words grown to hold it — a power
@@ -42,18 +42,17 @@ export function writeEntry(
     p.lobesFreed.push(entry.lobes)
     entry.lobes = -1
   }
+  const graph = writeGraphRecord(p, mat, entry, layers)
   let lobes = 0,
-    changed = false
+    changed = graph.changed
   if (entry.lobes >= 0) {
     const texel = lobeTexel(p, entry.lobes)
-    if (writeLobeRecord(p.ints, texel * 4, mat, layers.dataLayer)) {
+    if (writeLobeRecord(p.ints, texel * 4, mat, layers, graph.word !== 0)) {
       p.written.mark(Math.floor(texel / MATERIAL_RECORD_TEXELS))
       changed = true
     }
     lobes = texel + 1
   }
-  const graph = writeGraphRecord(p, mat, entry, layers)
-  if (graph.changed) changed = true
   if (writeMaterialRecord(p.ints, entry.rank * MATERIAL_RECORD_WORDS, mat, layers, lobes, graph)) {
     p.written.mark(entry.rank)
     changed = true

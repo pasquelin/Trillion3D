@@ -2,6 +2,7 @@ import { QUERY_SET_SIZE } from './querySetSize.ts'
 import { alignUp } from '../../../../math/src/scalar/integers.ts'
 import type { ReadbackRing } from '../core/readbackRing.ts'
 import type { TimingEntry } from './sample.ts'
+import { TIMED_ENCODER } from '../core/timedEncoder.ts'
 
 /** A part's first query: its resolve lands at a 256-byte offset, 32 timestamps. */
 export const PART_ALIGN = 32
@@ -68,6 +69,72 @@ export type TimingImage = {
   tag: TimedRead
 }
 
+/** `descriptor` with the timestamps of the image's next free range written at its begin and end, as
+ *  the part's pass `key` takes them; unchanged, and the image truncated, where none is left. */
+function timedDescriptor<D extends GPURenderPassDescriptor | GPUComputePassDescriptor>(
+  descriptor: D,
+  key: string | symbol,
+  part: TimingPart,
+  image: TimingImage,
+  sets: readonly GPUQuerySet[],
+  queryCount: number,
+): D {
+  const index = image.latest === part ? image.cursor : alignUp(image.cursor, PART_ALIGN)
+  if (index + 2 <= queryCount && !descriptor.timestampWrites) {
+    part.at.push(index)
+    part.names.push(descriptor.label ?? String(key))
+    image.cursor = index + 2
+    image.latest = part
+    const local = index % QUERY_SET_SIZE
+    return {
+      ...descriptor,
+      timestampWrites: {
+        querySet: sets[Math.floor(index / QUERY_SET_SIZE)],
+        beginningOfPassWriteIndex: local,
+        endOfPassWriteIndex: local + 1,
+      },
+    } as D
+  }
+  image.truncated = true
+  return descriptor
+}
+
+/** Timestamps `[begin, end)` resolved and copied into the image's readback, from `target`. A set
+ *  boundary is a multiple of the alignment: each chunk resolves at its own offset. */
+function resolveRun(
+  target: GPUCommandEncoder,
+  image: TimingImage,
+  { sets, resolve }: TimingResources,
+  begin: number,
+  end: number,
+) {
+  for (let at = begin; at < end;) {
+    const set = Math.floor(at / QUERY_SET_SIZE),
+      stop = Math.min(end, (set + 1) * QUERY_SET_SIZE)
+    target.resolveQuerySet(sets[set], at % QUERY_SET_SIZE, stop - at, resolve, at * 8)
+    at = stop
+  }
+  target.copyBufferToBuffer(resolve, begin * 8, image.read, begin * 8, (end - begin) * 8)
+}
+
+/** The part's timestamps resolved, in runs of consecutive ones, as its encoder finishes. */
+function resolveParts(
+  target: GPUCommandEncoder,
+  part: TimingPart,
+  image: TimingImage,
+  resources: TimingResources,
+) {
+  const { at } = part
+  for (let first = 0; first < at.length;) {
+    let last = first
+    while (last + 1 < at.length && at[last + 1] === at[last] + 2) last++
+    resolveRun(target, image, resources, at[first], at[last] + 2)
+    first = last + 1
+  }
+  if (at.length) part.resolved = true
+  part.order = image.finished++
+}
+
 /**
  * Attach timestamp writes to every pass and resolve them when the encoder finishes. The image's
  * parts take their timestamps one after the other from one range of `queryCount`: a pass follows
@@ -84,59 +151,23 @@ export function instrumentTimingEncoder(
   resources: TimingResources,
   queryCount: number,
 ): GPUCommandEncoder {
-  const { sets, resolve } = resources
+  const { sets } = resources
   return new Proxy(encoder, {
     get(target, key) {
-      if (key === 'beginRenderPass' || key === 'beginComputePass')
-        return (descriptor: GPURenderPassDescriptor | GPUComputePassDescriptor = {}) => {
-          let instrumented = descriptor
-          const index = image.latest === part ? image.cursor : alignUp(image.cursor, PART_ALIGN)
-          if (index + 2 <= queryCount && !descriptor.timestampWrites) {
-            part.at.push(index)
-            part.names.push(descriptor.label ?? String(key))
-            image.cursor = index + 2
-            image.latest = part
-            const local = index % QUERY_SET_SIZE
-            instrumented = {
-              ...descriptor,
-              timestampWrites: {
-                querySet: sets[Math.floor(index / QUERY_SET_SIZE)],
-                beginningOfPassWriteIndex: local,
-                endOfPassWriteIndex: local + 1,
-              },
-            }
-          } else image.truncated = true
-          return key === 'beginRenderPass'
-            ? target.beginRenderPass(instrumented as GPURenderPassDescriptor)
-            : target.beginComputePass(instrumented)
-        }
+      if (key === TIMED_ENCODER) return true
+      if (key === 'beginRenderPass')
+        return (descriptor = {} as GPURenderPassDescriptor) =>
+          target.beginRenderPass(timedDescriptor(descriptor, key, part, image, sets, queryCount))
+      if (key === 'beginComputePass')
+        return (descriptor: GPUComputePassDescriptor = {}) =>
+          target.beginComputePass(timedDescriptor(descriptor, key, part, image, sets, queryCount))
       if (key === 'finish')
         return (descriptor?: GPUCommandBufferDescriptor) => {
-          const { at } = part
-          for (let first = 0; first < at.length;) {
-            let last = first
-            while (last + 1 < at.length && at[last + 1] === at[last] + 2) last++
-            resolveRun(target, at[first], at[last] + 2)
-            first = last + 1
-          }
-          if (at.length) part.resolved = true
-          part.order = image.finished++
+          resolveParts(target, part, image, resources)
           return target.finish(descriptor)
         }
       const value = Reflect.get(target, key, target)
       return typeof value === 'function' ? value.bind(target) : value
     },
   })
-
-  /** Timestamps `[begin, end)` resolved and copied into the image's readback, from `target`. A set
-   *  boundary is a multiple of the alignment: each chunk resolves at its own offset. */
-  function resolveRun(target: GPUCommandEncoder, begin: number, end: number) {
-    for (let at = begin; at < end;) {
-      const set = Math.floor(at / QUERY_SET_SIZE),
-        stop = Math.min(end, (set + 1) * QUERY_SET_SIZE)
-      target.resolveQuerySet(sets[set], at % QUERY_SET_SIZE, stop - at, resolve, at * 8)
-      at = stop
-    }
-    target.copyBufferToBuffer(resolve, begin * 8, image.read, begin * 8, (end - begin) * 8)
-  }
 }

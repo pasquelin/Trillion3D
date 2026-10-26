@@ -2,8 +2,16 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
 import { TileSchedule } from './tileSchedule.ts'
-import { placedOf, type Placed } from './tilePlace.ts'
-import { compiledModel, cooked, modelStreamer, place, sharedShapes, tile } from './tiles.fixture.ts'
+import { placedOf, type Model, type Placed } from './tilePlace.ts'
+import {
+  cellsOf,
+  compiledModel,
+  cooked,
+  modelStreamer,
+  place,
+  sharedShapes,
+  tile,
+} from './tiles.fixture.ts'
 import { repeated } from './tileShapes.fixture.ts'
 
 /** The bodies and cooked objects of a session (`sharedShapes`), the calls of their `hold`
@@ -47,7 +55,7 @@ function scheduled(file: ReturnType<typeof cooked>) {
   })
   const want = () => schedule.want(new Map([[model, opening]]), [0, 0, 0], 100)
   want()
-  return { schedule, opening, tiles, calls, want, remove, shapes }
+  return { schedule, opening, tiles, calls, want, remove, shapes, model }
 }
 
 test('an update counts the bytes of the tiles it gives a body alone', () => {
@@ -106,13 +114,13 @@ test('a schedule whose models all left names none of their placements or tiles',
 })
 
 test('a tile never restored that a model still holds names no placement of the model gone', () => {
-  const { schedule, opening, tiles, remove, shapes } = scheduled(repeated(10))
+  const { schedule, opening, tiles, remove, shapes, model } = scheduled(repeated(10))
   const twin = compiledModel()
   twin.position.set(0, 0, 5)
   twin.updateMatrixWorld(true)
   const other = { placed: placedOf(twin, repeated(10) as never, shapes) }
-  const both = new Map<unknown, { placed: Placed[] }>([
-    ['model', opening],
+  const both = new Map<Model, { placed: Placed[] }>([
+    [model, opening],
     [twin, other],
   ])
   schedule.want(both, [0, 0, 0], 100)
@@ -123,4 +131,21 @@ test('a tile never restored that a model still holds names no placement of the m
   schedule.trim()
   assert.ok(shape.holders > 0 && shape.handle < 0, 'held by the twin, never restored')
   assert.deepEqual([shape.waiting.length, shape.waiting.every((p) => p.model === twin)], [10, true])
+})
+
+test('a placement lives with the cells that draw its node: none is wanted while they are not placed', () => {
+  const { schedule, tiles, calls, want, model } = scheduled(repeated(3))
+  // A cell draws node 1; the core draws the others.
+  const cells = cellsOf(model, [1])
+  for (const shape of tiles) shape.handle = 0
+  const built = () => [...new Set(calls.built.map((p) => p.instance.node))].sort()
+  want()
+  schedule.admit(100, 10)
+  schedule.start()
+  assert.deepEqual(built(), [0, 2], 'node 1’s cell is not placed')
+  cells.place(1)
+  want()
+  schedule.admit(100, 10)
+  schedule.start()
+  assert.deepEqual(built(), [0, 1, 2], 'its cell placed, its placement is wanted')
 })

@@ -9,15 +9,21 @@
 //! 3. the probes (`probe.rs`): every brick's 4³ samples, `giSamples × qualityMultiplier` passes
 //!    (and the irradiance cache's, `irradiance.rs`), each pass a path in the two hemispheres
 //!    of a probe (`kernel.rs`, `nee.rs`), its numbers drawn from a scrambled Sobol' sequence
-//!    seeded by the probe's place (`random.rs`) — a bake is the same at every run;
+//!    seeded by the probe's place (`random.rs`) — a bake is the same at every run; the sky's bent
+//!    normal is gathered by the upper half's first bounce (`bent.rs`);
 //! 4. the stitching (`stitch.rs`) and the file's layers (`mod.rs`).
 //!
-//! Missing inputs, bounds of this bake: the sky light — the compile job holds no sky radiance, so
-//! the sky gives no light and the bent normal layer is left out; translucent surfaces, which let
-//! everything through; the alpha of a masked material's texture, which is not read; a light's
-//! `emitterLength`, a point or spot being a sphere.
+//! Missing inputs, bounds of this bake: the sky light — the compile job holds no captured sky, so
+//! the sky is a flat one a job names (`skyLight`, `sky.rs`), and the layer of the sky's bent
+//! normal is left out without one; translucent surfaces, which let everything through; the alpha
+//! of a masked material's texture, which is not read; a light's `emitterLength`, a point or spot
+//! being a sphere.
 pub mod abi;
 mod accumulate;
+mod assemble;
+mod bent;
+mod bounce;
+mod indirection;
 mod irradiance;
 mod kernel;
 mod layout;
@@ -27,12 +33,15 @@ mod probe;
 mod random;
 mod sampling;
 mod settings;
+mod sky;
 mod stitch;
 mod store;
+mod trim;
 mod voxelize;
+mod windowing;
 mod world;
 
-pub use settings::BakeSettings;
+pub use settings::{BakeSettings, SkySettings};
 pub use world::SceneInputs;
 
 use super::VolumetricLightmapLayers;
@@ -99,32 +108,17 @@ fn drawn_triangles(
     out
 }
 
-/// The file's layers of a baked store.
-fn layers_of(layout: &Layout, store: Store) -> VolumetricLightmapLayers {
-    let bytes = |texels: &[[u8; 4]]| texels.iter().flatten().copied().collect::<Vec<u8>>();
-    let high = [0, 1, 2].map(|k| layout.volume_min[k] + layout.volume_size[k]);
-    VolumetricLightmapLayers {
-        bounds: (layout.volume_min.map(|c| c as f32), high.map(|c| c as f32)),
-        brick_size: settings::BRICK_SIZE,
-        indirection_dimensions: layout.indirection_dims,
-        brick_dimensions: store.dims.map(|d| d as u32),
-        indirection: layout.indirection.iter().flatten().copied().collect(),
-        ambient: store.ambient.iter().flat_map(|a| a.to_le_bytes()).collect(),
-        coefficients: std::array::from_fn(|k| bytes(&store.coefficients[k])),
-        sky_bent_normal: Vec::new(),
-        directional_shadowing: store.shadowing,
-    }
-}
-
-/// Traces every brick of `scene`'s layout, batch after batch, then stitches the atlas.
+/// Traces every brick of `scene`'s layout, batch after batch.
 fn trace_volume(
     scene: &probe::Scene<'_>,
     (cancelled, progress): (&AtomicBool, &(impl Fn(Value) + Sync)),
 ) -> Result<Store> {
     let layout = scene.layout;
-    let mut store = Store::new(std::array::from_fn(|a| {
-        (layout.layout_dims[a] * layout::PADDED) as usize
-    }));
+    let mut store = Store::new(
+        std::array::from_fn(|a| (layout.layout_dims[a] * layout::PADDED) as usize),
+        scene.bent,
+    );
+    store.distance = vec![0.0; layout.bricks.len()];
     let mut cache = probe::new_cache(scene.settings);
     let count = layout.bricks.len();
     let passes = scene.settings.total_passes();
@@ -140,7 +134,6 @@ fn trace_volume(
         };
         probe::bake_batch(scene, &mut cache, range, (&mut store, cancelled, &passed))?;
     }
-    stitch::stitch(layout, &mut store);
     Ok(store)
 }
 
@@ -163,7 +156,8 @@ pub fn bake(
     let Some(layout) = Layout::build(settings, &boxes, &triangles) else {
         return Ok(None);
     };
-    let lights = lights::read_lights(inputs.lights);
+    let lights = lights::read_lights(inputs.lights, settings.sky_light.as_ref());
+    let sky_bent_normal = bent::fills_bent_normal(&lights);
     let volume = (
         layout.volume_min,
         std::array::from_fn(|k| layout.volume_min[k] + layout.volume_size[k]),
@@ -175,11 +169,17 @@ pub fn bake(
         world: &world,
         lights: &lights,
         reach: length(std::array::from_fn::<f64, 3, _>(|k| high[k] - low[k])) * 2.0,
+        bent: sky_bent_normal,
     };
     let store = trace_volume(&scene, (inputs.cancelled, progress))?;
+    let (layout, mut store) = trim::trim(layout, store, settings);
+    stitch::stitch(&layout, &mut store);
+    let layers = assemble::layers_of(&layout, &store, settings);
     let report = json!({
         "bricks": layout.bricks.len(), "levels": layout.levels.len(),
-        "indirection": layout.indirection_dims, "passes": settings.total_passes(), "sky": false,
+        "indirection": layout.indirection_dims, "passes": settings.total_passes(),
+        "sky": settings.sky_light.is_some(),
+        "cells": layers.cells.len(), "cellTexels": layers.cell_texels,
     });
-    Ok(Some((layers_of(&layout, store), report)))
+    Ok(Some((layers, report)))
 }

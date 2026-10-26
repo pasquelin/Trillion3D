@@ -46,16 +46,18 @@ export function visitSubtree(
 /**
  * `node`'s world is composed by something else, or no longer (`NODE_WORLD_LAZY`): a leaf under a
  * parent moves between the parent's children and its lazy list, so no walk of the children steps
- * over it, and a read of its world refreshes it. False — nothing changed — for a root or a node
- * with children. A node that is no longer lazy goes back among the children, listed for the next
- * pass to recalculate its world.
+ * over it, and a read of its world refreshes it. False — nothing changed — for a root, or a node
+ * with children that is to become lazy. A lazy node that has got children can always leave lazy: it
+ * goes back among its parent's children, listed for the next pass to recalculate its world and its
+ * subtree's.
  */
 export function setNodeWorldLazy(tree: TransformTree, node: number, lazy: boolean) {
   assertNode(tree, node)
   const parent = tree.parent[node],
     held = (tree.flags[node] & NODE_WORLD_LAZY) !== 0
   if (held === lazy) return true
-  if (parent < 0 || tree.firstChild[node] >= 0 || tree.firstLazy[node] >= 0) return false
+  if (parent < 0 || (lazy && (tree.firstChild[node] >= 0 || tree.firstLazy[node] >= 0)))
+    return false
   takeOffList(tree, node, parent, held)
   putOnList(tree, node, parent, lazy)
   if (lazy) tree.flags[node] |= NODE_WORLD_LAZY

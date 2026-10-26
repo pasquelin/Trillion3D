@@ -32,6 +32,10 @@ pub(crate) fn validate_compile_options(o: &Options) -> Result<()> {
             .or_else(|| o.materials.as_ref().err().cloned())
             .or_else(|| o.voxelize.as_ref().err().cloned())
             .or_else(|| o.partition_grid.as_ref().err().cloned())
+            .or_else(|| match (&o.partition_grid, &o.hlod) {
+                (Ok(grid), Ok(hlod)) => grid.unknown_hlod_layer(hlod),
+                _ => None,
+            })
             .or_else(|| o.mesh_build.as_ref().err().cloned())
             .or_else(|| o.object_settings.as_ref().err().cloned())
             .or_else(|| o.lightmap_bake.as_ref().err().cloned())

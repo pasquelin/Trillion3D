@@ -1,4 +1,4 @@
-// The caches' entries (`cacheEntries.ts`): the lowest tier and least recently touched first, never
+// The caches' entries (`cacheEntries.ts`): the least recently touched first, never
 // a held one, without ever looking at one, the bytes and the held bytes as running totals.
 import test from 'node:test'
 import assert from 'node:assert/strict'

@@ -7,14 +7,14 @@
 //! The engine draws such a surface as a layer over what lies behind it (sdk-browser
 //! `blend/shader.ts`'s `blendFragment`, `blend/transmission/transmitWgsl.ts`'s `thinLayer`): its own
 //! lit layer covers a share of the pixel (`gpu/shade.wgsl`'s `covers`) — its opacity where it draws
-//! blended, times, where it transmits, the larger of the share it does not transmit, its metallic
-//! and its roughness: a metal transmits nothing, a rough surface scatters —, and what lies behind
-//! it shows through the rest. A baked texel is one opaque surface, so each of its channels — base
-//! colour, roughness, metallic — holds that share of the surface's own value and the rest of the
-//! value of what lies behind it; behind a translucent layer the next one composes the same way,
-//! front to back, until an opaque surface, which covers all that is left, or `LAYERS` layers. Where
-//! nothing opaque lies behind, the last layer met stands for it: a pane against the sky keeps its
-//! own colour. The normal is the outermost surface's: the shape the eye meets first.
+//! blended, times, where it transmits, the larger of the share it does not transmit and its
+//! metallic: a metal transmits nothing; roughness blurs what is transmitted and covers nothing —,
+//! and what lies behind it shows through the rest. A baked texel is one opaque surface, so each of
+//! its channels — base colour, roughness, metallic — holds that share of the surface's own value
+//! and the rest of the value of what lies behind it; behind a translucent layer the next one
+//! composes the same way, front to back, until an opaque surface, which covers all that is left, or
+//! `LAYERS` layers. Where nothing opaque lies behind, the last layer met stands for it: a pane
+//! against the sky keeps its own colour. The normal is the outermost surface's: the shape the eye meets first.
 //!
 //! Why this rule: from far, the eye sees the share of the pane's lit layer it covers and, through
 //! the rest, what lies behind it; a texture holding both at the same shares keeps the tint a glass

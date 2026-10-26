@@ -1,24 +1,22 @@
 // The occlusion's search written a second time, apart from the shader, in plain scalars and arrays, step by step:
 // the tests set it against the shipped WGSL run by `shaderRun`, pixel by pixel. Distances are centimetres, as the shader's.
+import { lerp, saturate } from '../../../../math/src/scalar/reals.ts'
+import { dotVector3 as dot } from '../../../../math/src/vector/vector.ts'
+import { unit as unitVector } from '../../../../math/src/vector/vectorTuple.ts'
 import type { AmbientOcclusionSettings } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import { AO_QUALITY_SHAPES, AO_RANDOM_BASIS, AO_SAMPLE_SETS } from './tables.ts'
-import { HEIGHT, WIDTH, type createScene } from './scene.fixture.ts'
+import { cm, FOV_HALF_TAN as TAN_HALF, HEIGHT, WIDTH, type createScene } from './scene.fixture.ts'
+import { depthNormal, viewPos } from './horizon/reference.fixture.ts'
 
 type Scene = ReturnType<typeof createScene>
 type V3 = [number, number, number]
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t
-const saturate = (x: number) => Math.min(Math.max(x, 0), 1)
-const dot = (a: number[], b: number[]) => a.reduce((sum, x, i) => sum + x * b[i], 0)
-const unit = (v: V3): V3 => {
-  const n = Math.hypot(...v)
-  return n > 1e-6 ? (v.map((x) => x / n) as V3) : [0, 0, 1]
+/** A surface's world normal: the scene's own, or `(0, 0, 1)` where it has none — what the engine's G-buffer holds where nothing was drawn. */
+const surfaceNormal = (scene: Scene, x: number, y: number): V3 => {
+  const n = scene.normal(x, y).slice(0, 3) as V3
+  return Math.hypot(...n) > 0 ? n : [0, 0, 1]
 }
-const NEAR = 0.1
 const STORED = 131072
-const TAN_HALF = Math.tan((30 * Math.PI) / 180)
 
-/** A device depth as centimetres ahead. */
-const cm = (z: number) => Math.min(NEAR / Math.max(z, 1e-30), 1e7) * 100
 /** The scene's own depth of a pixel, in centimetres. */
 const depthOf = (scene: Scene, x: number, y: number) => cm(scene.device(x, y))
 /** The camera's view of a world vector: right, up, and ahead (the camera looks down -z). */
@@ -33,6 +31,8 @@ export interface RunSpec {
   last: boolean
   quality: number
   noiseStep: number
+  /** The normals the depth gives rather than the surfaces' own (the compute pass). */
+  depthNormals?: boolean
   /** The setup texture it reads, and the coarser occlusion to blend in with its texture's and rectangle's size. */
   setup?: (x: number, y: number) => number[]
   setupExtent?: [number, number]
@@ -55,7 +55,7 @@ export function setupTexel(
   const reads = taps.map(([dx, dy]) => {
     const px = Math.min(Math.max(Math.floor((x + 0.5) * scale + (dx * scale) / 4), 0), WIDTH - 1)
     const py = Math.min(Math.max(Math.floor((y + 0.5) * scale + (dy * scale) / 4), 0), HEIGHT - 1)
-    return { n: unit(scene.normal(px, py).slice(0, 3) as V3), depth: depthOf(scene, px, py) }
+    return { n: unitVector(surfaceNormal(scene, px, py)), depth: depthOf(scene, px, py) }
   })
   const farthest = Math.max(...reads.map((r) => r.depth))
   let total = [0.0001, 0.0001, 0.0001, 0.0001]
@@ -113,13 +113,13 @@ export function searchOf(
   const shape = AO_QUALITY_SHAPES[run.quality]
   const own = run.fromSetup ? run.setup!(x, y) : undefined
   const depth = own ? own[3] * STORED : depthOf(scene, x, y)
-  const world = own
-    ? [own[0] * 2 - 1, own[1] * 2 - 1, own[2] * 2 - 1]
-    : scene.normal(x, y).slice(0, 3)
-  const view = unit(toView(world))
+  const world = own ? [own[0] * 2 - 1, own[1] * 2 - 1, own[2] * 2 - 1] : surfaceNormal(scene, x, y)
+  const uv = [(x + 0.5) / run.rect[0], (y + 0.5) / run.rect[1]]
+  const view = run.depthNormals
+    ? depthNormal(scene, uv, viewPos(uv, depth))
+    : unitVector(toView(world))
   const ndc = [((x + 0.5) / run.rect[0]) * 2 - 1, 1 - ((y + 0.5) / run.rect[1]) * 2]
-  const fadeRadius = Math.max(1, s.fadeRadiusCm)
-  const fade = saturate(depth / fadeRadius - (s.fadeDistanceCm - fadeRadius) / fadeRadius)
+  const fade = saturate(depth * s.fadeMultiplier + s.fadeAddend)
   let value = 1
   if (run.last ? fade < 1 : true) {
     const lens = [1 / ((WIDTH / HEIGHT) * TAN_HALF), 1 / TAN_HALF, 1]
@@ -223,7 +223,7 @@ const byteOf = (x: number) => Math.trunc(f32(f32(f32(f32(x * 0.5) + 0.5) * 255) 
 /**
  * The sixteen byte pairs of the noise block derived, in single precision, as the notes lay it out: the block's
  * rotation basis in a fixed order over half a turn, each scaled down by a share that varies with its rank, stored one
- * byte a channel. The tables hold them written out (`AO_NOISE_BYTES`); the test sets the two together.
+ * byte a channel. The tables hold them written out, as the basis they read as (`AO_RANDOM_BASIS`); the test sets the two together.
  */
 export const referenceNoiseBytes = () =>
   [0, 11, 7, 3, 10, 4, 15, 12, 6, 8, 1, 14, 13, 2, 9, 5].map((rank) => {
@@ -232,3 +232,15 @@ export const referenceNoiseBytes = () =>
     const length = f32(1 - f32(f32(f32(f32(wobble * 0.5) + 0.5) * 23) * 0.01))
     return [byteOf(f32(f32(Math.cos(angle)) * length)), byteOf(f32(f32(Math.sin(angle)) * length))]
   })
+
+/** The smoothing of the compute pass at pixel `(x, y)`: the mean of the result's texel and the three two texels to the right,
+ *  below and across both, the texels past the rectangle's edge taken as its last. */
+export const smoothOf = (
+  texel: (x: number, y: number) => number,
+  rect: [number, number],
+  [x, y]: [number, number],
+) => {
+  const at = (dx: number, dy: number) =>
+    texel(Math.min(x + dx, rect[0] - 1), Math.min(y + dy, rect[1] - 1))
+  return (at(0, 0) + at(2, 0) + at(0, 2) + at(2, 2)) / 4
+}

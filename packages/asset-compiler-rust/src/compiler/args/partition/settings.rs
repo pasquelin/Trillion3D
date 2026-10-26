@@ -1,7 +1,8 @@
 //! Each scheme's own settings of the main grid (`HASH_SET_GRID_SETTINGS`,
 //! `SPATIAL_HASH_GRID_SETTINGS`), as the job names them and the reference defaults them for a world
 //! it creates: under `hashSet`, the bounds a cell of the finest level streams by, whether the grids
-//! lie flat on the ground, and each HLOD level's grid; under `spatialHash`, whether each level's
+//! lie flat on the ground, each HLOD level's grid and the HLOD layers that have grids on it; under
+//! `spatialHash`, whether each level's
 //! cells nest in the next one's, whether a wished cell pulls in the coarser cells overlapping it,
 //! and whether a small object goes to the finest cell under its centre. A setting of the scheme the
 //! job does not take refuses it.
@@ -26,13 +27,24 @@ impl StreamBounds {
 }
 
 /// The `hashSet` scheme's own settings: the main grid's stream bounds, whether the grids lie flat
-/// on the ground, and per HLOD level from 0 the cell side and loading range its grid names, each
-/// the main grid's times `2 << level` where `None`.
+/// on the ground, per HLOD level from 0 the cell side and loading range its grid names, each the
+/// main grid's times `2 << level` where `None`, and the names of the job's HLOD layers that have
+/// grids on this main grid (`hlod_layers`), every layer's where `None`.
 #[derive(Clone, Debug)]
 pub(crate) struct LooseSettings {
     pub stream_bounds: StreamBounds,
     pub flat: bool,
     pub hlod_grids: Vec<[Option<f64>; 2]>,
+    pub hlod_layers: Option<Vec<String>>,
+}
+
+impl LooseSettings {
+    /// Whether the HLOD layer named `layer` has grids on this main grid: every layer does while
+    /// the job lists none (`hlodLayers`), else those it lists. A layer without grids builds its
+    /// actors all the same, always loaded, nothing built of them.
+    pub(crate) fn lists(&self, layer: &str) -> bool {
+        (self.hlod_layers.as_ref()).is_none_or(|names| names.iter().any(|name| name == layer))
+    }
 }
 
 /// The `spatialHash` scheme's own settings: whether each level's cells nest in the next one's,
@@ -52,6 +64,7 @@ impl Default for LooseSettings {
             stream_bounds: bounds_named(DEFAULT_PARTITION_STREAM_BOUNDS).expect("a default bound"),
             flat: DEFAULT_PARTITION_FLAT,
             hlod_grids: Vec::new(),
+            hlod_layers: None,
         }
     }
 }
@@ -187,12 +200,28 @@ pub(super) fn scheme_settings(
             .map(|(at, level)| hlod_grid(level, (field, at)))
             .collect::<std::result::Result<_, _>>()?;
     }
+    if let Some(v) = present(fields.get("hlodLayers")) {
+        loose.hlod_layers =
+            Some(layer_names(v).ok_or_else(|| refuse("hlodLayers", "an array of layer names", v))?);
+    }
     let square = SquareSettings {
         nested_levels: flag("nestedLevels", DEFAULT_PARTITION_NESTED_LEVELS)?,
         pull_coarser: flag("pullCoarser", DEFAULT_PARTITION_PULL_COARSER)?,
         small_by_centre: flag("smallByCentre", DEFAULT_PARTITION_SMALL_BY_CENTRE)?,
     };
     Ok((loose, square))
+}
+
+/// The HLOD layer names `value` lists: an array of texts, none empty; `None` for any other value.
+fn layer_names(value: &Value) -> Option<Vec<String>> {
+    (value.as_array())?
+        .iter()
+        .map(|name| {
+            name.as_str()
+                .filter(|name| !name.is_empty())
+                .map(str::to_string)
+        })
+        .collect()
 }
 
 /// HLOD level `at`'s grid as `value` names it, read from `field`: its cell side and loading range,

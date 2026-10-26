@@ -6,10 +6,7 @@
  * which reject a box before it is projected.
  */
 import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
-import {
-  FAR_PLANE_SLOT,
-  frustumPlanesFromMatrix,
-} from '../../../../math/src/geometry/frustum/frustum.ts'
+import { frustumPlanesFromMatrix } from '../../../../math/src/geometry/frustum/frustum.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { SelectionUniforms } from './selection.ts'
 
@@ -34,8 +31,8 @@ export function writeSelectionProjection(
 
 /** Writes into `into` the six planes the cut's boxes are rejected by: those of the render matrix
  *  `viewProj` at `cam`'s eye — the image's jittered one, so a box the raster covers in the half
- *  pixel the jitter moves is never rejected before it —, the far one the camera's, which the host
- *  declares and the matrix does not hold. The camera's own matrix: its planes (`planesRelative`). */
+ *  pixel the jitter moves is never rejected before it. The camera's own matrix keeps the planes the
+ *  camera holds (`planesRelative`). */
 export function writeSelectionPlanes(
   into: SelectionUniforms,
   cam: EngineCamera,
@@ -44,8 +41,6 @@ export function writeSelectionPlanes(
   if (viewProj === cam.viewProjection) return void into.planes.set(cam.planesRelative)
   matrixAtRenderOrigin(AT_EYE, viewProj, cam.eye)
   frustumPlanesFromMatrix(into.planes, AT_EYE)
-  const far = FAR_PLANE_SLOT * 4
-  for (let k = 0; k < 4; k++) into.planes[far + k] = cam.planesRelative[far + k]
 }
 
 /** The clip depth of `projection` along its clip weight, written into `into`: `w = -z` under a

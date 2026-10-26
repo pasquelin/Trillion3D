@@ -47,9 +47,13 @@ test('a cell past its range gives its rows back, parked, for the next cell to ta
   const { port, held, updates } = io(bytes)
   ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
   await settled(cells, between, port, noBudget)
+  // The source nodes the placed cells draw: the near cell's two, the far cell's one.
+  const drawn = () => [1, 3, 5000].map(cells.draws.drawn)
+  assert.deepEqual(drawn(), [true, true, true])
   updates.length = 0
   cells.frame([0, 0, 0], port, noBudget)
   assert.equal(cells.stats().held, 1, 'the far cell left')
+  assert.deepEqual(drawn(), [true, true, false], 'the node it drew is drawn no more')
   const live = links[0].placements!.live
   assert.equal(
     live.reduce((sum, flag) => sum + flag, 0),
@@ -240,4 +244,41 @@ test('a core parent or the scene root that moved wishes the cells it brought int
     await settled(cells, [0, 0, 0], port, noBudget, ahead)
     assert.ok(asked.includes(cellUrl('far.json')), `${mover}: moved, the far cell is asked`)
   }
+})
+
+test('a view that only loads parks the rows of a scene with no world DAG, they draw once it activates', async () => {
+  const { cells, links, bytes } = await sizedWhole(world())
+  const { port, held } = io(bytes)
+  ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
+  const live = () => [...links[0].placements!.live.subarray(0, 3)]
+  const asks = (state: 'activated' | 'loaded') =>
+    (port.streaming = resolveWorldStreaming({ worldStreamingTargetState: state }))
+  asks('loaded')
+  await settled(cells, between, port, noBudget)
+  assert.equal(cells.stats().held, 2, 'both cells are placed')
+  assert.deepEqual(live(), [0, 0, 0], 'placed hidden: none draws')
+  asks('activated')
+  cells.frame(between, port, noBudget)
+  assert.deepEqual(live(), [1, 1, 1], 'activated: they draw')
+  asks('loaded')
+  cells.frame(between, port, noBudget)
+  assert.deepEqual(live(), [0, 0, 0], 'loaded again: parked, placed')
+  assert.equal(cells.stats().held, 2)
+})
+
+test('the HLOD actors switched off with the view still stream the files of the layers on the main grid at once', async () => {
+  // The main grid reaches 1 000, the HLOD 0 grid 3 500: from x = 2 000 both cells, 1 997 and 3 000
+  // away, lie in the HLOD 0 grid's range and in no main range.
+  const { cells, bytes } = await sizedWhole(world(0, null, [], [1000, 3500, 7000]))
+  const { port, held } = io(bytes)
+  ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
+  const at = [2000, 0, 0],
+    ahead = [0, 0, -1]
+  await settled(cells, at, port, noBudget, ahead)
+  cells.frame(at, port, noBudget, ahead)
+  cells.frame(at, port, noBudget, ahead)
+  assert.equal(cells.stats().held, 2, 'both are placed for their HLOD 0 cells')
+  port.streaming = resolveWorldStreaming({ hlodEnabled: false })
+  cells.frame(at, port, noBudget, ahead)
+  assert.equal(cells.stats().held, 0, 'the layers off: their files stream on the main grid, out')
 })

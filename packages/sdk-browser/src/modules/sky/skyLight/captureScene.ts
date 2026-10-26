@@ -1,11 +1,13 @@
+import { postSamplers } from '../../../gpu/core/postSamplers.ts'
+import { cross } from '../../../../../math/src/vector/vectorTuple.ts'
 import { Camera } from '../../../../../sdk-core/src/world/camera/camera.ts'
 import type { SkyLightPart } from '../../../../../sdk-core/src/modules/sky/skyLight.ts'
-import type { HostCamera } from '../../../camera/world.ts'
+import type { ViewCamera } from '../../../camera/world.ts'
 import type { HdrViewsJob } from '../../../frame/io/hdrCapture.ts'
 import type { ViewOverrides } from '../../../frame/backend/state/viewOverrides.ts'
-import { COPY_LAYOUT } from './copyWgsl.ts'
-import { writeBlock, type SkyLightInputs } from './captureInputs.ts'
-import { filter, harmonics, mipChain, type FilterStage } from './captureFilter.ts'
+import { copyBlockGroup, copyFacePass, createCopyWords } from './captureCopy.ts'
+import type { SkyLightInputs } from './captureInputs.ts'
+import { finishCapture, type FilterStage } from './captureFilter.ts'
 import type { CubemapPipelines } from './cubemapPipelines.ts'
 import {
   forgetScene,
@@ -13,13 +15,13 @@ import {
   newSceneCaptureState,
   recaptureScene,
 } from './captureSceneSchedule.ts'
-import { BLOCK_STRIDE, CUBE_FACES, FACES, cubeToScene } from './layout.ts'
+import { CUBE_FACES, FACES, cubeToScene } from './layout.ts'
 import type { SkyLightTargets } from './targets.ts'
 
 /**
  * THE CAPTURE OF A SCENE INTO THE SKY LIGHT'S CUBE (`'capturedScene'`): the scene drawn aside
  * from the light's position through six cameras, the faces of a cube, the lit image of each taken
- * into the face of the captured cube, then the same mips, filter and harmonics as any other source
+ * into the face of the captured cube, then the same mips, harmonics and filter as a specified cubemap
  * (`captureFilter.ts`). It runs between two frames, never inside one: the frame's driver looks at
  * the light (`due`), then awaits `run` once the frame is submitted. The cube is read once it is
  * made (`done`) and kept, shown, while the next capture is drawn; a recapture is asked by a change
@@ -32,18 +34,19 @@ export interface SceneCaptureHost {
 }
 
 /** The views of the capture's faces: no sky light, no direct, reflected or probe lighting that is
- *  not the scene's own — the lights, as lit (the emissive-only capture has none) —, every surface
- *  rough and, for an emissive-only capture, black in its diffuse and its specular colour, no
- *  particle, shaft, light function nor effect (`ViewOverrides`). The detail asked is the quality's
- *  scale, 1 when it is not above zero. */
-export function skyLightCaptureOverrides(part: SkyLightPart): ViewOverrides {
+ *  not the scene's own — the lights, as lit (the emissive-only capture has none) —, no traced
+ *  reflection, every surface rough and, for an emissive-only capture, black in its diffuse and
+ *  its specular colour, no particle, shaft, light function nor effect, and a reflection capture,
+ *  which the scene's fog shows in by its own switch (`ViewOverrides`). The detail asked is the
+ *  quality's scale, 1 when it is not above zero. */
+function skyLightCaptureOverrides(part: SkyLightPart): ViewOverrides {
   const { light, quality } = part
   const emissiveOnly = light.captureEmissiveOnly
   const scale = quality.skyLightCaptureLodDistanceScale
   return {
     skyLighting: false,
     lighting: !emissiveOnly,
-    reflections: quality.skyLightCaptureReflections,
+    reflections: false,
     roughness: { min: 1, range: 0 },
     diffuse: emissiveOnly ? [0, 0, 0, 0] : undefined,
     specular: emissiveOnly ? [0, 0, 0, 0] : undefined,
@@ -53,11 +56,9 @@ export function skyLightCaptureOverrides(part: SkyLightPart): ViewOverrides {
     post: false,
     staticSceneOnly: light.mobility === 'static',
     lodScale: scale > 0 ? scale : 1,
+    reflectionCapture: true,
   }
 }
-
-const cross = (a: readonly number[], b: readonly number[]) =>
-  [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]] as const
 
 /**
  * The camera of face `face` standing at `eye` (scene metres): square, a field of 90 degrees, its
@@ -65,7 +66,7 @@ const cross = (a: readonly number[], b: readonly number[]) =>
  * (`cubeToScene`); its right is the one a camera has, the face's reversed — a cube's faces are laid
  * as seen from outside, a camera sees them from inside —, which the copy turns back.
  */
-export function faceHostCamera(face: number, eye: readonly number[], near: number): HostCamera {
+function faceViewCamera(face: number, eye: readonly number[], near: number): ViewCamera {
   const forward = cubeToScene(FACES[face].forward),
     up = cubeToScene(FACES[face].up),
     right = cross(forward, up)
@@ -80,9 +81,9 @@ export function faceHostCamera(face: number, eye: readonly number[], near: numbe
 interface CopyHolds {
   readonly device: GPUDevice
   readonly pipelines: () => CubemapPipelines
-  readonly floats: Float32Array
-  readonly uints: Uint32Array
+  readonly words: ReturnType<typeof createCopyWords>
   sampler?: GPUSampler
+  block?: { for: SkyLightTargets; group: GPUBindGroup }
 }
 
 /** Face `face` of the captured cube written from the lit image `lit`, drawn at `drawn` pixels of
@@ -97,49 +98,23 @@ function copyFace(
   allocated: readonly number[],
   face: number,
 ) {
-  const { at } = COPY_LAYOUT,
-    { light } = part,
-    made = h.pipelines()
-  h.uints.set([face, light.lowerHemisphereIsSolidColor ? 1 : 0, 0, 0], at.face)
-  h.floats.set([0, 0, 1 / t.width, 0], at.rotation)
-  h.floats.set([...light.lowerHemisphereColor, 1], at.lower)
-  h.floats.set([drawn[0] / allocated[0], drawn[1] / allocated[1], 1, 1], at.scale)
-  const offset = face * BLOCK_STRIDE
-  writeBlock(h.device, t.blocks.copy, offset, h.floats)
-  h.sampler ??= h.device.createSampler({
-    label: 'Trillion3D sky light scene',
-    magFilter: 'linear',
-    minFilter: 'linear',
-    addressModeU: 'clamp-to-edge',
-    addressModeV: 'clamp-to-edge',
+  const made = h.pipelines()
+  h.sampler ??= postSamplers(h.device).clamped
+  if (h.block?.for !== t)
+    h.block = { for: t, group: copyBlockGroup(h.device, made.layouts.block, t) }
+  copyFacePass(h.device, h.words, encoder, t, part.light, face, {
+    pipeline: made.pipelines.copyScene.get(),
+    source: h.device.createBindGroup({
+      layout: made.layouts.scene,
+      entries: [
+        { binding: 2, resource: lit },
+        { binding: 3, resource: h.sampler },
+      ],
+    }),
+    block: h.block.group,
+    turn: [0, 0],
+    scale: [drawn[0] / allocated[0], drawn[1] / allocated[1], 1, 1],
   })
-  const source = h.device.createBindGroup({
-    layout: made.layouts.scene,
-    entries: [
-      { binding: 2, resource: lit },
-      { binding: 3, resource: h.sampler },
-    ],
-  })
-  const block = h.device.createBindGroup({
-    layout: made.layouts.block,
-    entries: [{ binding: 0, resource: { buffer: t.blocks.copy, size: COPY_LAYOUT.words * 4 } }],
-  })
-  const pass = encoder.beginRenderPass({
-    label: 'Trillion3D sky light scene copy',
-    colorAttachments: [
-      {
-        view: t.faceTargets[face],
-        loadOp: 'clear',
-        clearValue: { r: 0, g: 0, b: 0, a: 1 },
-        storeOp: 'store',
-      },
-    ],
-  })
-  pass.setPipeline(made.pipelines.copyScene.get())
-  pass.setBindGroup(0, source)
-  pass.setBindGroup(1, block, [offset])
-  pass.draw(3)
-  pass.end()
 }
 
 /** A capture the engine could not start yet: it is asked again at the next look. */
@@ -154,13 +129,11 @@ interface SceneHolds extends CopyHolds {
   readonly state: ReturnType<typeof newSceneCaptureState>
 }
 
-/** The mips, the filter and the harmonics of the captured cube, in one submit. */
+/** The mips, the harmonics summed from them and the filter of the captured cube, in one submit. */
 function finish(h: SceneHolds, t: SkyLightTargets) {
   const encoder = h.device.createCommandEncoder({ label: 'Trillion3D sky light scene' })
   h.stage.slot = 0
-  mipChain(h.stage, encoder, t)
-  filter(h.stage, encoder, t, 0, 0, t.mips - 1, 0, CUBE_FACES)
-  harmonics(h.stage, encoder, t, 0)
+  finishCapture(h.stage, encoder, t, 0)
   h.device.queue.submit([encoder.finish()])
 }
 
@@ -178,7 +151,7 @@ async function drawScene(h: SceneHolds, host: SceneCaptureHost, input: SkyLightI
     await host.captureHdrViews({
       size: t.width * part.quality.skyLightCaptureSupersample,
       cameras: Array.from({ length: CUBE_FACES }, (_, face) =>
-        faceHostCamera(face, input.position, near),
+        faceViewCamera(face, input.position, near),
       ),
       overrides: skyLightCaptureOverrides(part),
       copy: (encoder, lit, drawn, allocated, face) =>
@@ -208,7 +181,6 @@ export function createSceneCapture(
   pipelines: () => CubemapPipelines,
   targets: () => SkyLightTargets | undefined,
 ) {
-  const words = new ArrayBuffer(COPY_LAYOUT.words * 4)
   const h: SceneHolds = {
     device,
     pipelines,
@@ -216,8 +188,7 @@ export function createSceneCapture(
     stage,
     targets,
     state: newSceneCaptureState(),
-    floats: new Float32Array(words),
-    uints: new Uint32Array(words),
+    words: createCopyWords(),
   }
   return {
     /** Looks at this frame's light: whether a capture is due now. */
@@ -230,6 +201,3 @@ export function createSceneCapture(
     },
   }
 }
-
-/** The scene capture (`createSceneCapture`). */
-export type SceneCapture = ReturnType<typeof createSceneCapture>

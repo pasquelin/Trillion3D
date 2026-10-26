@@ -8,7 +8,7 @@ use trillion3d_page_codec::culling::CULLING_STRIDE;
 /// The table's header, bundle, page and HLOD cell strides (`encode_table`).
 const TABLE_STRIDES: [usize; 4] = [64, 56, 24, 124];
 /// The DAG's header, cluster, group and culling-node strides (`encode_dag`).
-const DAG_STRIDES: [usize; 4] = [24, 180, 64, CULLING_STRIDE * 8];
+const DAG_STRIDES: [usize; 4] = [24, 188, 64, CULLING_STRIDE * 8];
 
 /// The byte after `counts` records of `strides` past its header: where the pool begins.
 fn pool_at(strides: &[usize], counts: &[usize]) -> usize {
@@ -143,10 +143,11 @@ pub(crate) fn dag(bytes: &[u8]) -> Value {
                 "material":r.index(),"bundle":r.index(),"offset":r.index(),"hlod":r.word(),
                 "pad":[r.word(), r.word()],"lodError":r.float(),"parentError":r.float(),"sphere":r.floats(4),
                 "parentSphere":r.floats(4),"min":r.floats(3),"max":r.floats(3)});
-            let facts = [(); 5].map(|_| r.word());
+            let facts = [(); 7].map(|_| r.word());
             if facts[0] > 0 {
                 c["page"] = json!({"pageBytes":facts[0],"vertexCount":facts[1],
-                    "indexCount":facts[2],"flags":facts[3],"uncompressedBytes":facts[4]});
+                    "indexCount":facts[2],"flags":facts[3],"uncompressedBytes":facts[4],
+                    "residentBytes":facts[5],"residentOffset":facts[6]});
             }
             c
         })
@@ -177,4 +178,111 @@ pub(crate) fn decoded(cooked: &Cooked) -> Value {
     }
     out["dagPoolWords"] = dag["poolWords"].take();
     out
+}
+
+/// The cluster of `table` (`decoded`) whose page lies at `offset` of bundle `bundle`.
+fn world_cluster(table: &Value, bundle: u64, offset: u64) -> &Value {
+    (table["clusters"].as_array().expect("clusters").iter())
+        .find(|c| c["bundle"] == json!(bundle) && c["offset"] == json!(offset))
+        .expect("a cluster at that place")
+}
+
+/// The bytes of the page of `cluster` in `payload`, its bundle's start and its own offset there.
+fn world_bytes<'a>(table: &Value, payload: &'a [u8], cluster: &Value) -> &'a [u8] {
+    let at = |value: &Value| value.as_u64().expect("a number") as usize;
+    let start = at(&table["bundles"][at(&cluster["bundle"])]["offset"]) + at(&cluster["offset"]);
+    &payload[start..start + at(&cluster["page"]["pageBytes"])]
+}
+
+/// A number of the decoded table.
+fn number(value: &Value) -> usize {
+    value.as_u64().expect("a number") as usize
+}
+
+/// The pages of a cooked world (`table` as `decoded` gives it, the pages in `payload`). A page is
+/// expanded to its resident page ONCE, whoever names it: the vertices a page names are found in the
+/// resident pages of the clusters it names them in, each expanded from its own references the same
+/// way, never decoded again for each reference.
+pub(crate) struct WorldPages<'a> {
+    table: &'a Value,
+    payload: &'a [u8],
+    /// The cluster at each place: its bundle and its offset in the pool there, in bytes.
+    places: std::collections::HashMap<(usize, usize), &'a Value>,
+    /// The resident page of each cluster place, once expanded.
+    residents: std::collections::HashMap<(usize, usize), Vec<u8>>,
+}
+
+impl<'a> WorldPages<'a> {
+    pub(crate) fn new(table: &'a Value, payload: &'a [u8]) -> Self {
+        let places = (table["clusters"].as_array().expect("clusters").iter())
+            .map(|c| {
+                (
+                    (number(&c["bundle"]), number(&c["page"]["residentOffset"])),
+                    c,
+                )
+            })
+            .collect();
+        Self {
+            table,
+            payload,
+            places,
+            residents: Default::default(),
+        }
+    }
+
+    /// The page at `offset` of bundle `bundle` decoded whole: the vertices it names found in the
+    /// pages it names them in.
+    pub(crate) fn page(
+        &mut self,
+        (bundle, offset): (u64, u64),
+    ) -> trillion3d_page_codec::DecodedPage {
+        let (table, payload) = (self.table, self.payload);
+        let cluster = world_cluster(table, bundle, offset);
+        let named = self.named(cluster);
+        let named: Vec<&[u8]> = named.iter().map(Vec::as_slice).collect();
+        let bytes = world_bytes(table, payload, cluster);
+        trillion3d_page_codec::decode_with(bytes, 1 << 24, &named).expect("a WGP3 page")
+    }
+
+    /// The resident page of each cluster the page of `cluster` names a vertex of, in the order of
+    /// its pairs (`tests::base::PrimitivePages`: the rank in the bundle's dependencies, above the
+    /// words to the cluster in its bundle's place in the pool).
+    fn named(&mut self, cluster: &Value) -> Vec<Vec<u8>> {
+        let (table, payload) = (self.table, self.payload);
+        let bytes = world_bytes(table, payload, cluster);
+        let raw = trillion3d_page_codec::disk::read_raw(bytes, usize::MAX).expect("a WGP3 page");
+        let own = number(&cluster["bundle"]);
+        let dependencies = table["bundles"][own]["dependencies"]
+            .as_array()
+            .expect("dependencies");
+        crate::tests::base::named_pages(
+            &raw.refs.pairs,
+            own,
+            |rank| number(&dependencies[rank - 1]),
+            |bundle, place| {
+                let target = (self.places.get(&(bundle, place * 4)).copied())
+                    .expect("the cluster a pair names");
+                self.resident(target)
+            },
+        )
+    }
+
+    /// The resident page of `cluster`, expanded the first time it is asked for.
+    fn resident(&mut self, cluster: &Value) -> Vec<u8> {
+        let key = (
+            number(&cluster["bundle"]),
+            number(&cluster["page"]["residentOffset"]),
+        );
+        if let Some(done) = self.residents.get(&key) {
+            return done.clone();
+        }
+        let (table, payload) = (self.table, self.payload);
+        let named = self.named(cluster);
+        let named: Vec<&[u8]> = named.iter().map(Vec::as_slice).collect();
+        let bytes = world_bytes(table, payload, cluster);
+        let resident = trillion3d_page_codec::resident::expand(bytes, usize::MAX, &named)
+            .expect("a resident page");
+        self.residents.insert(key, resident.clone());
+        resident
+    }
 }

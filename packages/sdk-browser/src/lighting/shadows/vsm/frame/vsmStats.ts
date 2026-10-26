@@ -2,13 +2,14 @@
 // diagnostics a set keeps of its last frame.
 import type { GpuPassTimings } from '../../../../../../sdk-core/src/contracts/metrics.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
+import { VSM_STAGES } from '../../../../diagnostic/metricKeys.ts'
 import { VSM_PASS_PREFIX } from '../../../../diagnostic/stage/passLabels.ts'
 import { gpuTotalsBy } from '../../../../diagnostic/stage/mapping.ts'
 import type { EngineVsm } from './engineVsm.ts'
+import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { heldMaskBytes } from './vsmMask.ts'
 import { vsmProjectionHeldBytes } from '../projection/projectionStore.ts'
 import { vsmRenderContextBytes, type VsmRenderStats } from '../render/renderPass.ts'
-import { vsmTransmissionContextBytes } from '../transmission/transmissionContext.ts'
 
 /** The diagnostics of a set's last frame (`EngineVsm.stats`). */
 export interface VsmEngineStats {
@@ -45,30 +46,20 @@ export const createVsmEngineStats = (): VsmEngineStats => ({
 })
 
 /** Bytes freeing `vsm` gives back (`destroyEngineVsm`): its set, mask, projection views and blue
- *  noise, raster lists and coloured transmission, each as the device ledger counted it. */
+ *  noise and raster lists, each as the device ledger counted it. */
 export const engineVsmBytes = (vsm: EngineVsm) =>
   vsm.res.bytes +
   vsmProjectionHeldBytes(vsm.res) +
   heldMaskBytes(vsm) +
-  vsmRenderContextBytes(vsm.res) +
-  (vsm.transmission ? vsm.transmission.bytes + vsmTransmissionContextBytes(vsm.transmission) : 0)
+  vsmRenderContextBytes(vsm.res)
 
-/** GPU bytes the shadows hold: the virtual shadow maps — their set, mask, raster lists and
- *  coloured atlas (`engineVsmBytes`, what freeing them gives back). The shadows' term of the
+/** GPU bytes the shadows hold: the virtual shadow maps — their set, mask and raster lists
+ *  (`engineVsmBytes`, what freeing them gives back). The shadows' term of the
  *  budget's admission (`fundFrameTargets`) and the stats' shadow memory: one count, disjoint from
  *  the screen images (`gpuFrameTargetBytes`). */
 export const shadowHeldBytes = ({ lights }: WebgpuPagesRuntime) =>
   lights.vsm ? engineVsmBytes(lights.vsm) : 0
 
-/** The shadow maps' stage times, as the stats panel lists them. */
-const VSM_STAGES = [
-  'shadowVsmInvalidationMs',
-  'shadowVsmMarkingMs',
-  'shadowVsmPageManagementMs',
-  'shadowVsmRenderMs',
-  'shadowVsmProjectionMs',
-  'shadowVsmTransmissionMs',
-] as const
 type VsmStage = (typeof VSM_STAGES)[number]
 
 /** VSM stage of a timed pass, by its label; none for a pass of another stage. */
@@ -79,9 +70,21 @@ function vsmStage(name: string): VsmStage | undefined {
   // The marking is one pass (`vsmEncode.ts`), the page address update and the clears in it.
   if (kernel.startsWith('mark')) return 'shadowVsmMarkingMs'
   if (kernel.startsWith('render')) return 'shadowVsmRenderMs'
-  if (kernel.startsWith('transmission')) return 'shadowVsmTransmissionMs'
   if (kernel.startsWith('projection')) return 'shadowVsmProjectionMs'
   return 'shadowVsmPageManagementMs'
+}
+
+/** The stage times of the last sample: made once an image, read by the metrics each time. */
+let timedSample: GpuPassTimings | null | undefined,
+  timedStages: Record<VsmStage, number | null> | undefined
+
+function stageTimes(sample: GpuPassTimings | null | undefined) {
+  if (timedStages && sample === timedSample) return timedStages
+  const totals = gpuTotalsBy(sample, vsmStage),
+    times = {} as Record<VsmStage, number | null>
+  for (const stage of VSM_STAGES) times[stage] = totals.get(stage) ?? null
+  timedSample = sample
+  return (timedStages = times)
 }
 
 /** The frame's VSM counters and stage times, as the stats panel lists them (`shadow…`): each
@@ -89,9 +92,7 @@ function vsmStage(name: string): VsmStage | undefined {
  *  passes the image however the device overlaps them. */
 export function vsmFrameMetrics(rt: WebgpuPagesRuntime, sample: GpuPassTimings | null | undefined) {
   const vsm = rt.lights.vsm,
-    totals = gpuTotalsBy(sample, vsmStage),
-    times = {} as Record<VsmStage, number | null>
-  for (const stage of VSM_STAGES) times[stage] = totals.get(stage) ?? null
+    times = stageTimes(sample)
   const s = vsm?.stats,
     counted = vsm?.countersOn ? s : undefined
   return {
@@ -111,6 +112,16 @@ export function vsmFrameMetrics(rt: WebgpuPagesRuntime, sample: GpuPassTimings |
     shadowVsmFreePages: s?.freePages ?? null,
     shadowVsmLodBias: s?.pressureBiasStat ?? null,
     shadowVsmProjectionPasses: s?.projectionPasses ?? null,
+    // The placement worlds noted moved and the root boxes derived, in all: their difference per image
+    // says whether a moved placement reached the diff of the instances' boxes (`castDiff.ts`).
+    shadowVsmRootsNoted: vsm ? (rt.rootWorlds?.noted ?? 0) : null,
+    shadowVsmRootsBoxed: vsm ? (rt.rootBoxes?.boxed ?? 0) : null,
+    // Reported when the option lets the overflows show (`shadowAllowScreenOverflowMessages`).
+    shadowVsmOverflowFlags: vsm
+      ? readShadowSetting(rt, 'shadowAllowScreenOverflowMessages')
+        ? vsm.overflow.recent(performance.now())
+        : 0
+      : null,
     ...times,
   }
 }

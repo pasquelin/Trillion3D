@@ -1,5 +1,5 @@
 // A tile's level is read once, by Range when the server serves it, and a level of the wrong length
-// is refused where its read resolves.
+// is a failed read where its read resolves, like a network failure: said once, asked again later.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -16,10 +16,11 @@ import { tiledLevelFile } from '../../texture/tileRecords.fixture.ts'
 /** A chain kept in BC7 alone, as the compiler stores it. */
 const BC7_CHAIN: ChainLayouts['layouts'] = { bc7: 'rgba', astc: 'lossless', etc2: 'lossless' }
 
-// Behaviour: a block level whose bytes are not the whole blocks its dimensions imply is refused
-// where its read resolves — one failure, never held, never read again — and no tile of it takes
-// a slot: placed, the tile would stay resident over the texels its slot held before.
-test('a block level of the wrong length fails once, is never held, and takes no slot', async () => {
+// Behaviour: a block level whose bytes are not the whole blocks its dimensions imply is a failed
+// read where its read resolves — said at its first failure, never held, asked again by the next
+// frame that wants its tile — and no tile of it takes a slot: placed, the tile would stay resident
+// over the texels its slot held before.
+test('a block level of the wrong length is a failed read: said once, never held, taking no slot, asked again', async () => {
   const placed: unknown[] = []
   const failures: string[] = []
   const { device, textureWrites } = fakeDevice()
@@ -57,7 +58,11 @@ test('a block level of the wrong length fails once, is never held, and takes no 
   assert.equal(sources.levels?.bytes, 0, 'the short level is not held')
   assert.deepEqual(placed, [])
   assert.deepEqual(textureWrites, [], 'nothing to write')
-  assert.deepEqual(read, ['bc7'], "the level file of the texture's lane, read once")
+  assert.deepEqual(
+    read,
+    ['bc7', 'bc7'],
+    "the texture's lane's level file: the read and its next try",
+  )
 })
 
 // A block tile is one request of its record, by Range, written as the file holds it, through its

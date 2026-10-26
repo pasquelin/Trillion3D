@@ -19,6 +19,7 @@ use crate::*;
 
 mod lay;
 mod order;
+mod relative;
 pub(crate) use lay::{lay_bundles, Bundle, Laying};
 use order::{along_diagonal, diagonals, walk_order, Walked};
 
@@ -40,18 +41,20 @@ pub(crate) fn root_page_count(kib: u32) -> usize {
 
 /// A DAG's pages: each page's DAG slots in the order filled — the order the culling hierarchy is
 /// built over —, whether each is a root page of its cover, how many lead — the pinned cover's root
-/// pages, first —, and the page of every DAG slot.
+/// pages, first —, the page of every DAG slot and the bytes each weighed in its page.
 pub(crate) struct Assignment {
     pub pages: Vec<Vec<usize>>,
     pub root: Vec<bool>,
     pub pinned: usize,
     pub page_of: Vec<usize>,
+    pub size: Vec<usize>,
 }
 
 /// The pages of `dag`, every slot filed once, before any culling order: the covers in
 /// `laying.held`'s order — `None`, the pinned one, first —, each walked and filled on its own
 /// (`cover_pages`). `size` is what the cluster at a DAG slot weighs in its page: its encoded
-/// page's bytes. Laid by `lay_bundles`, the one assignment its pages and the hierarchy share.
+/// page's bytes resident in the pool once installed (`Header::resident_bytes`, not the bytes it
+/// takes on disk). Laid by `lay_bundles`, the one assignment its pages and the hierarchy share.
 pub(crate) fn assign_pages(
     (dag, groups): (&[DagCluster], &[DagGroup]),
     laying: &Laying,
@@ -107,6 +110,7 @@ pub(crate) fn assign_pages(
         root: Vec::new(),
         pinned: 0,
         page_of: vec![usize::MAX; dag.len()],
+        size: vec![0; dag.len()],
     };
     let along = diagonals(dag, laying.positions);
     for (cover, walked) in covers {
@@ -177,6 +181,7 @@ fn cover_pages(
             }
             assigned.pages[page].push(slot);
             assigned.page_of[slot] = page;
+            assigned.size[slot] = cluster_bytes;
             bytes += cluster_bytes;
             if !grouped[slot] {
                 last_root = last_root.max(page);

@@ -70,6 +70,7 @@ pub(crate) fn world(covers: &[SourceCover; 2], tiles: usize) -> Vec<Instance<'_>
                     node: cell * SIDE * SIDE + object,
                     mesh: 0,
                     track: None,
+                    fallback: None,
                 });
             }
         }

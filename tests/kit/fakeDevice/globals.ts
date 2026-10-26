@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict'
-import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
-import { BASE_SLOTS } from '../../../packages/sdk-browser/src/visibility/draw/contract.ts'
+import { BASE_SLOTS } from '../../../packages/sdk-browser/src/visibility/bins/contract.ts'
+import { VISIBLE_RECORD_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/visible/layout.ts'
+import {
+  VIS_HW,
+  VIS_SW,
+  VISIBLE_HEADER_WORDS,
+} from '../../../packages/sdk-browser/src/geometry/dag/visible/layout.fixture.ts'
 import type { FakeDraw } from './fakeRenderPass.ts'
 import { words } from './fakeBuffers.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/geometry/dag/shader/floorWgsl.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
 import { BUFFER, TEXTURE } from './formats.ts'
 
 /** A storage binding's offset alignment every WebGPU device grants (`minStorageBufferOffsetAlignment`). */
@@ -60,53 +64,39 @@ export function bytesOf(data: GPUAllowSharedBufferSource, dataOffset = 0, size?:
   )
 }
 
-/**
- * Replays the compaction the GPU does of draw flags: the count, then the ranks of drawable pages in
- * increasing order, like the kernels of `../../../packages/sdk-browser/src/geometry/dag/shader/compactWgsl.ts`. It extends the sample, behind the
- * wanted pages, in the same buffer.
- */
-export function compactDrawnPages(
-  workBytes: Uint8Array,
-  outBytes: Uint8Array,
-  pageCount: number,
-  listCap: number,
-) {
-  const marks = writtenMask(workBytes, pageCount),
-    out = words(outBytes)
-  // The drawn list lies behind the requests', both of `listCap` ranks; the count goes past the cap
-  // and the ranks stop at it (`dagDrawPrefix`, `dagDrawScatter`).
-  const head = SELECTION_HEADER_WORDS,
-    base = head + listCap
-  let found = 0
-  for (let id = 0; id < pageCount; id++)
-    if (hasBit(marks, id) && found++ < listCap) out[base + head + found - 1] = id
-  out[base] = found
-}
-
-/** The cut's draw mask in its `work` words, a bit a page — the frame's (`drawMask`), the one the
- *  running cut writes (`writtenMask`) — (`compactWgsl.ts`), and page `id`'s bit. */
+/** The cut's mask of blended clusters in its `work` words, a bit a page (`blendMaskWgsl.ts`). */
 export const drawMask = (workBytes: Uint8Array, pageCount: number) =>
   words(workBytes).subarray(dagWorkLayout(ceilDiv(Math.max(1, pageCount), 64)).drawMask)
-export const writtenMask = (workBytes: Uint8Array, pageCount: number) =>
-  words(workBytes).subarray(2 * ceilDiv(Math.max(1, pageCount), 64))
-/** Page `id`'s bit of the draw mask at word `offset` of `words` (`compactWgsl.ts`). */
-export const maskBit = (words: Uint32Array, offset: number, id: number) =>
-  hasBit(words.subarray(offset), id)
 
 /**
- * Pages the CURRENT IMAGE's mask names, read where the GPU posts them: the draw mask's bits in the
- * cut's `work` (`drawMask`). That is the selection the image draws, whichever raster consumes it — hardware by
- * its indirect commands, or the software raster by its binned lists — and not a past image's sample.
+ * The clusters the cut lists visible in `buffer`, its list of visible clusters, read where the GPU
+ * posts them: the records, the software raster's from the start, the hardware raster's from the
+ * end (`geometry/dag/visible/layout.ts`). Each is its index in the list — the index the decode
+ * writes its record at —, its page and its placement.
  */
-export function drawnPageIds(
-  buffers: ReadonlyArray<{ label?: string; data: Uint8Array }>,
-  packed: { pageCount: number },
-) {
-  const { pageCount } = packed
-  const buffer = buffers.find((entry) => entry.label === 'Trillion3D DAG work')
-  if (!buffer) throw new Error('Trillion3D DAG work buffer absent')
-  const marks = drawMask(buffer.data, pageCount)
-  const ids: number[] = []
-  for (let id = 0; id < pageCount; id++) if (hasBit(marks, id)) ids.push(id)
-  return ids
+export function visibleClusters(buffer: { data: Uint8Array }) {
+  const list = words(buffer.data),
+    cap = Math.floor((list.length - VISIBLE_HEADER_WORDS) / VISIBLE_RECORD_WORDS)
+  const at = (index: number) => {
+    const record = VISIBLE_HEADER_WORDS + VISIBLE_RECORD_WORDS * index
+    return { index, page: list[record], placement: list[record + 1] }
+  }
+  const clusters = []
+  for (let k = 0; k < Math.min(list[VIS_SW], cap); k++) clusters.push(at(k))
+  for (let k = 0; k < Math.min(list[VIS_HW], cap); k++) clusters.push(at(cap - 1 - k))
+  return clusters
+}
+
+/**
+ * Pages the CURRENT IMAGE's cut draws, read where the GPU posts them: the list of visible clusters
+ * of the last cut the device made. That is the selection the image draws, whichever raster consumes
+ * it — hardware by its indirect commands, or the software raster by its binned lists — and not a
+ * past image's sample.
+ */
+export function drawnPageIds(buffers: ReadonlyArray<{ label?: string; data: Uint8Array }>) {
+  const buffer = buffers.findLast((entry) => entry.label === 'Trillion3D DAG visible clusters')
+  if (!buffer) throw new Error('Trillion3D DAG visible clusters buffer absent')
+  return visibleClusters(buffer)
+    .map(({ page }) => page)
+    .sort((a, b) => a - b)
 }

@@ -82,7 +82,6 @@ async function mesurer(
     backend: 'createEngine',
     engineId: 'engine-test',
     page: 'lighting/lightingPage.ts',
-    gltfUrl: null,
     pose: { position: [0, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 },
     poses: null,
     width: 8,

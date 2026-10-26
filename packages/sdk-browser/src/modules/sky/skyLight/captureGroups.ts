@@ -3,6 +3,8 @@ import {
   AIR_FOG_BINDINGS,
   airBindEntries,
 } from '../../../lighting/atmosphere/programs.ts'
+import { cloudShadeResources, shadowMapResources } from '../../../lighting/atmosphere/bindings.ts'
+import { cloudShadowStandIn } from '../../../lighting/atmosphere/cloudShadowStandIn.ts'
 import { FRAME_FLOATS } from '../../../lighting/atmosphere/frame.ts'
 import { fogReadBindEntries } from '../../../lighting/fog/read.ts'
 import {
@@ -36,19 +38,23 @@ export interface FaceHolds {
   extraGroup?: GPUBindGroup
 }
 
-/** The groups over the sky's air and the distant fog, made again when their resources change. */
+/** The groups over the sky's air and the distant fog, made again when their resources change; none
+ *  over the stand-in air of a scene with no atmosphere, whose sky is not drawn. The sky's march
+ *  reads the clouds' shade of the image (`input.clouds.cloudShadow`), the stand-in where the scene
+ *  has no clouds. */
 function skyAndFogGroups(
   device: GPUDevice,
   { layouts, shape }: SkyLightPipelines,
   holds: FaceHolds,
   input: SkyLightInputs,
 ) {
-  const { air, fog } = input
-  if (
-    air &&
-    !sameHeld(holds.skyHeld, [air.buffer, air.transmittance, air.multiScatter, air.sampler])
-  ) {
-    holds.skyHeld = [air.buffer, air.transmittance, air.multiScatter, air.sampler]
+  const { fog } = input
+  const air = input.atmosphere ? input.air : undefined
+  const shade = input.clouds?.cloudShadow ?? cloudShadowStandIn(device)
+  const shadeHeld = [shade.block, shade.maps[0], shade.maps[1], shade.ao]
+  const skyKey = air && [air.buffer, air.transmittance, air.multiScatter, air.sampler, ...shadeHeld]
+  if (air && skyKey && !sameHeld(holds.skyHeld, skyKey)) {
+    holds.skyHeld = skyKey
     holds.skyGroup = device.createBindGroup({
       layout: layouts.skyAir,
       entries: airBindEntries(SKY_FACE_AIR, shape, {
@@ -56,12 +62,12 @@ function skyAndFogGroups(
         transmittance: air.transmittance,
         multiScatter: air.multiScatter,
         sampler: air.sampler,
+        ...cloudShadeResources(shade),
       }),
     })
   }
   const maps = input.part.quality.skyLightShadowFromOpaque ? air?.maps : undefined
-  const shadowedKey = air &&
-    maps && [air.buffer, air.transmittance, air.multiScatter, air.sampler, ...Object.values(maps)]
+  const shadowedKey = skyKey && maps && [...skyKey, ...Object.values(maps)]
   if (air && maps && shadowedKey && !sameHeld(holds.shadowedHeld, shadowedKey)) {
     holds.shadowedHeld = shadowedKey
     holds.shadowedGroup = device.createBindGroup({
@@ -71,11 +77,8 @@ function skyAndFogGroups(
         transmittance: air.transmittance,
         multiScatter: air.multiScatter,
         sampler: air.sampler,
-        pageTable: { buffer: maps.pageTable },
-        projectionData: { buffer: maps.projectionData },
-        shadowUniforms: { buffer: maps.uniforms },
-        shadowPool: { buffer: maps.pool },
-        shadowView: { buffer: maps.view },
+        ...cloudShadeResources(shade),
+        ...shadowMapResources(maps),
       }),
     })
   }
@@ -156,7 +159,7 @@ export function groupsFor(
   const traced = capturedClouds(input)
   if (!traced || !input.fog) return
   const { air, clouds, key } = traced
-  const extra = { maps: air.maps, skyLight: clouds.skyLight }
+  const extra = { maps: air.maps, skyLight: clouds.skyLight, cloudShadow: clouds.cloudShadow }
   const traceKey = [
     ...[t, cloudTraceKeyText(key), air.buffer, air.transmittance, air.sampler, air.volumes],
     ...[input.fog, clouds.material, clouds.blueNoise],

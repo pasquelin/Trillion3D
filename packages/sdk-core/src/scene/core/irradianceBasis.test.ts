@@ -2,12 +2,7 @@
 // the evaluation are run on the very shader text the GPU receives, against analytic lighting.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  cosineLobeShader,
-  harmonicsShader,
-  irradianceShader,
-  radianceProjectionShader,
-} from './irradianceBasis.ts'
+import { cosineLobeShader, harmonicsShader, irradianceShader } from './irradianceBasis.ts'
 import { IRRADIANCE_TERMS } from './irradianceTerms.ts'
 import { IRRADIANCE_BAND } from './environment.ts'
 import { unit } from '../../../../math/src/vector/vectorTuple.ts'
@@ -105,11 +100,8 @@ test('a single direction gives the order-2 truncation of its clamped cosine', ()
 
 test('the shader text sums every term once, in band order', () => {
   const evaluation = irradianceShader((k) => `c${k}`, 'n')
-  const projection = radianceProjectionShader((k) => `s${k}`, 'r', 'd').split('\n')
-  assert.equal(projection.length, 9)
   IRRADIANCE_TERMS.forEach((term, k) => {
     assert.ok(evaluation.includes(`c${k}*((${term.polynomial('n')})*${term.band})`))
-    assert.equal(projection[k], `s${k}+=r*((${term.polynomial('d')})*${term.basis});`)
   })
 })
 

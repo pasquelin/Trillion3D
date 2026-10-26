@@ -16,6 +16,8 @@ import { length3 } from '../../../../math/src/vector/vector.ts'
 
 /** The distance of a step, metres, past which the view is taken to have been moved there. */
 const TELEPORT = 100
+/** The weight a step has per second of its `dt`: its share of the average is `dt` times it, at most 1. */
+const AVERAGE_RATE = 100
 /** The seconds of a step past which the view is taken to have been idle. */
 const IDLE = 5
 
@@ -39,7 +41,7 @@ export function createSourceVelocity() {
       last[1] = eye[1]
       last[2] = eye[2]
       if (fresh || length3(mx, my, mz) > TELEPORT || dt > IDLE) return average.fill(0)
-      const weight = clamp(dt * 100, 0, 1)
+      const weight = clamp(dt * AVERAGE_RATE, 0, 1)
       average[0] = average[0] * (1 - weight) + (mx / dt) * weight
       average[1] = average[1] * (1 - weight) + (my / dt) * weight
       average[2] = average[2] * (1 - weight) + (mz / dt) * weight

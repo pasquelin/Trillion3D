@@ -12,15 +12,13 @@ import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_ENTRY, COMPOSE_WORLDS_WGSL } from '.
 import type { ComposeState } from './gpuComposeState.ts'
 import { createComposeGpu, type ComposeGpu } from './gpuComposeGpu.ts'
 import { writeBufferRuns } from '../../geometry/dag/runWrites.ts'
-import { COMPOSE_MOTION_ENTRY, COMPOSE_MOTION_WGSL } from './composedMotionWgsl.ts'
 
-/** The worlds', the roots' and the motion's kernels, once a device, compiled off the thread: asked at a frame's
+/** The worlds' and the roots' kernels, once a device, compiled off the thread: asked at a frame's
  *  entry once a parent holds a link (`askComposedPlacements`), the frames held until they landed,
  *  so the frame that composes binds them compiled. */
 export const composeKernels = {
   roots: autoKernel('Trillion3D compose roots', COMPOSE_ROOTS_WGSL, 'main'),
   worlds: autoKernel('Trillion3D compose worlds', COMPOSE_WORLDS_WGSL, COMPOSE_WORLDS_ENTRY),
-  motion: autoKernel('Trillion3D compose motion', COMPOSE_MOTION_WGSL, COMPOSE_MOTION_ENTRY),
 }
 
 /** Asks the kernels the next frame binds once a parent holds a link
@@ -29,7 +27,6 @@ export function askComposedPlacements(rt: WebgpuPagesRuntime, device: GPUDevice)
   if (!rt.compose?.parentIds.size) return
   composeKernels.roots(device).ask()
   composeKernels.worlds(device).ask()
-  composeKernels.motion(device).ask()
 }
 
 /** Slot `p`'s world packed in doubles. */
@@ -82,13 +79,7 @@ export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
     gpu = (state.gpu ??= createComposeGpu(device, state.roots))
   if (state.frame === rt.run.frame) return gpu
   state.frame = rt.run.frame
-  // The roots pass names the motion buffer it binds, on the frames it runs.
-  state.motionBound = undefined
   const linked = writeLinks(device, gpu, state, fresh)
-  const seeded = state.seeds.size > 0
-  for (const [rank, pose] of state.seeds)
-    device.queue.writeBuffer(gpu.previous, rank * MATRIX_VALUES * 4, pose)
-  state.seeds.clear()
   // Room for the parents to come before it is made again (`sizedBuffer`): what it held is sent
   // again whole.
   const held = gpu.parents
@@ -108,6 +99,6 @@ export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   state.moving = state.movedSince || linked
   state.movedSince = false
   const composing = state.composed.whole || state.composed.ranks.count > 0
-  if (state.moving || linked || seeded || composing) state.composedAt++
+  if (state.moving || linked || composing) state.composedAt++
   return gpu
 }

@@ -5,12 +5,13 @@ export type GpuHiz = {
   height: number
   level0: GPUTexture
   level0View: GPUTextureView
-  /** The build of the drawn pyramid's farthest layer from the depth drawn so far — the cut's main
+  /** The build of the drawn pyramid's culling layer from the depth drawn so far — the cut's main
    *  pass's, or the whole depth's —, as dispatches of the frame's compute pass. */
   encodePyramid(open: OpenPass): void
-  /** The build of its nearest layer — each pixel's plane, each cell's nearest — and of the
-   *  finished depth's farthest layer, once level 0 holds the whole depth, as dispatches of the open compute pass. */
-  encodeNearest(open: OpenPass): void
+  /** The same build with the trace layers in its dispatches — the nearest layer, each pixel's plane
+   *  and each cell's nearest, and the finished depth's farthest —, once level 0 holds the whole
+   *  depth, as dispatches of the open compute pass. */
+  encodeFull(open: OpenPass): void
   /** The build of the drawn pyramid's culling layer with the push `push` of its level 0, for the
    *  primed pyramid (`hizPrime`): false when its kernel is not compiled yet. */
   encodePrimed(open: OpenPass, push: HizPrimedPush): boolean

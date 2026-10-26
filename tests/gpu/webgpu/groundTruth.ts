@@ -1,4 +1,4 @@
-// The ground truth of a grazing material fixture: the view the renderers draw, cast on the
+// The ground truth of a grazing material fixture: the view the engine draws, cast on the
 // CPU from each pixel's centre into the fixture's square and the square behind it. Along the
 // pixel's minified axis — the screen axis spanning more texels, on the tangent its exact
 // derivatives lay, as a sampler reads it — `SAMPLES` bilinear reads of the base level are averaged
@@ -47,7 +47,7 @@ export interface TruthView {
 /** The truth, a bottom-left RGBA8 image, and the pixels a silhouette crosses (1). */
 type Truth = { rgba: Uint8Array; edge: Uint8Array }
 
-/** A renderer's gap to the truth: pixels farther than the level allowed, and the largest gap. */
+/** The engine's gap to the truth: pixels farther than the level allowed, and the largest gap. */
 export type TruthGap = { pixels: number; max: number }
 
 /** A square's plane seen from the screen: the inverse of its projection, a homography built once.
@@ -172,11 +172,4 @@ export function truthGap(image: ArrayLike<number>, truth: Truth): TruthGap {
     if (most > 1) gap.pixels++
   }
   return gap
-}
-
-/** The proof: the engine no farther from the truth than the witness, give or take
- *  CONTRIBUTING's `tolerance` in pixels. Undefined when it holds, else what fails. */
-export function truthVerdict(engine: TruthGap, reference: TruthGap, tolerance: number) {
-  if (engine.pixels > reference.pixels + tolerance)
-    return `engine ${engine.pixels} px from the ground truth, the witness ${reference.pixels} px, tolerance ${tolerance} px`
 }

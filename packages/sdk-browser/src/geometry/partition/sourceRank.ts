@@ -12,11 +12,11 @@ import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { slabCut } from '../../../../math/src/geometry/slab.ts'
 import type { WorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import type { LoadingCell } from './loadOrder.ts'
-import type { createSourceShape, ViewPose } from './sourceShape.ts'
+import { NEARLY_ZERO_SQUARED_LENGTH, type createSourceShape, type ViewPose } from './sourceShape.ts'
+import { CENTIMETRES_PER_METRE } from '../../../../sdk-core/src/page/format.ts'
 
-/** A square under which a division by it gives the largest ratio: 1e-8 square centimetres, in
- *  square metres. */
-const NEARLY_ZERO_SQUARED = 1e-12
+/** The squared length of the axis and the velocity under which it is taken as none. */
+const NEARLY_ZERO_SQUARED_AXIS = 1e-8
 
 const span = new Float64Array(2),
   origin = [0, 0, 0],
@@ -60,16 +60,26 @@ function headingAngle(
 }
 
 /** The ranks of the view `pose` under the settings `streaming` holds as they stand, its circle's
- *  radius for a grid of range `range` `radiusOf`, the axis its loose cells are sorted by `rankAxis`,
- *  its distances those of `shape`. */
+ *  radius for a grid of range `range` `radiusOf`, its distances those of `shape`. */
 export function createSourceRank(
   streaming: WorldStreaming,
   pose: ViewPose,
   { toward, gap, gapTo }: Pick<ReturnType<typeof createSourceShape>, 'toward' | 'gap' | 'gapTo'>,
-  rankAxis: readonly number[],
   radiusOf: (range: number) => number,
 ) {
   const { eye } = pose
+  const rankAxis = [0, 0, 0]
+  /** The axis the loose cells are sorted by, kept for `loose`: the view's unit `axis`, its average
+   *  `velocity` — metres per second, in the cells' frame — added when the settings ask
+   *  (`useVelocity`), in the centimetres per second the reference sums, then made unit again, zero
+   *  when nearly so. */
+  const axisFor = (axis: ArrayLike<number>, velocity: ArrayLike<number>) => {
+    const push = streaming.useVelocity ? CENTIMETRES_PER_METRE : 0
+    let size = 0
+    for (let k = 0; k < 3; k++) size += (rankAxis[k] = axis[k] + velocity[k] * push) ** 2
+    const unit = !push ? 1 : size >= NEARLY_ZERO_SQUARED_AXIS ? 1 / Math.sqrt(size) : 0
+    for (let k = 0; k < 3; k++) rankAxis[k] *= unit
+  }
   /** A loose cell's rank by distance: the squared 3D distance from the eye to its box over the
    *  squared radius, at most 1, times half the cosine of the view's axis with the way from the box
    *  to the eye plus a half — the cosine -1 from within or on it —; and that squared distance. */
@@ -79,7 +89,7 @@ export function createSourceRank(
     const cosine = squared > 0 ? along / Math.sqrt(squared) : -1
     const radius = radiusOf(range)
     const ratio =
-      radius * radius > NEARLY_ZERO_SQUARED ? clamp(squared / (radius * radius), 0, 1) : 1
+      radius * radius > NEARLY_ZERO_SQUARED_LENGTH ? clamp(squared / (radius * radius), 0, 1) : 1
     out.distance = ratio * (cosine * 0.5 + 0.5)
     out.raw = squared
     return out
@@ -101,5 +111,5 @@ export function createSourceRank(
     out.raw = raw
     return out
   }
-  return { loose, square }
+  return { loose, square, axisFor }
 }

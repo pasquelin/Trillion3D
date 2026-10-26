@@ -26,7 +26,8 @@
  */
 import type { LinearRgb } from '../../contracts/material.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
-import { colourOf, finite, refusal } from './fogChecks.ts'
+import { colourOf, refusal } from './fogChecks.ts'
+import { isFiniteNumber } from '../../../../math/src/scalar/reals.ts'
 
 /** The ozone layer: a tent of absorbing gas, `peak` of its density at `altitude`, down to none
  *  `width` below and above it. */
@@ -47,6 +48,11 @@ export interface SceneAtmosphere {
   height?: number
   /** The height, in scene metres, of the planet's ground: its top meets the scene there. */
   groundHeight?: number
+  /** Where on the ground plane the planet's top stands, `[x, z]` in scene metres: the sphere's
+   *  centre lies under it. `[0, 0]` by default, the planet's top at the world's origin. With
+   *  `groundHeight` it places the planet whole, its top at `(x, groundHeight, z)`; a planet that
+   *  is to have its centre at a place is given that place with a `groundHeight` its radius over it. */
+  groundPosition?: readonly [number, number]
   /** The planet's ground colour below the horizon, linear: the share of light it bounces. */
   groundAlbedo?: LinearRgb
   /** Rayleigh scattering at the ground, per kilometre and per colour channel. */
@@ -57,7 +63,7 @@ export interface SceneAtmosphere {
   mieScattering?: LinearRgb
   /** Mie absorption at the ground, per kilometre and per colour channel. */
   mieAbsorption?: LinearRgb
-  /** How much the haze keeps the light forward, in `(−1, 1)`: 0 spreads it evenly. */
+  /** How much the haze keeps the light forward, from 0 to 0.999: 0 spreads it evenly. */
   mieAnisotropy?: number
   /** Height over which the Mie density falls by a factor e, kilometres. */
   mieScaleHeight?: number
@@ -84,6 +90,16 @@ export interface SceneAtmosphere {
    *  1 finer, up to the caps the quality settings give the marches (`atmosphereSamplesMax`,
    *  `skyTableSamplesMax`, `aerialSamplesPerSlice`); 1 by default. */
   sampleCountScale?: number
+  /** Whether the sky, the sun's disk and the haze are drawn in the view the camera sees; true by
+   *  default. False, the air draws nothing there — the sky is black, the fog alone over it, and the
+   *  surfaces and the clouds are not hazed — and the light the air gives (the sun's, tinted by it)
+   *  and what the sky light captures of it are as they are. */
+  inMainView?: boolean
+  /** Whether the sky holds its light out: it draws black and punches a hole in the image's alpha by
+   *  its coverage instead of lighting the image, and the haze on the surfaces and the clouds adds no
+   *  light. It takes effect with the alpha holdout (`primitiveAlphaHoldout`, `propagateAlpha`,
+   *  `../../contracts/filmOptions.ts`); false by default. */
+  holdout?: boolean
 }
 
 /** An atmosphere with every field set. */
@@ -95,6 +111,7 @@ const ATMOSPHERE_DEFAULTS: ResolvedAtmosphere = /* @__PURE__ */ (() =>
     planetRadius: 6360,
     height: 60,
     groundHeight: 0,
+    groundPosition: Object.freeze([0, 0]) as readonly [number, number],
     groundAlbedo: Object.freeze([0.402, 0.402, 0.402]) as LinearRgb,
     rayleighScattering: Object.freeze([0.005802, 0.013558, 0.0331]) as LinearRgb,
     rayleighScaleHeight: 8,
@@ -112,17 +129,24 @@ const ATMOSPHERE_DEFAULTS: ResolvedAtmosphere = /* @__PURE__ */ (() =>
     heightFogContribution: 1,
     minSunElevation: -90,
     sampleCountScale: 1,
+    inMainView: true,
+    holdout: false,
   }))()
 
 /** The least scale of the march's samples. */
-export const LEAST_SAMPLE_SCALE = 0.25
-
-const refuse = refusal('atmosphere')
+const LEAST_SAMPLE_SCALE = 0.25
+const refuse = /* @__PURE__ */ refusal('atmosphere')
 
 /** The numeric fields a limit applies to. */
 type NumberField = Exclude<
   keyof SceneAtmosphere,
-  'ozoneLayer' | 'groundAlbedo' | 'groundHeight' | LinearField
+  | 'ozoneLayer'
+  | 'groundAlbedo'
+  | 'groundHeight'
+  | 'groundPosition'
+  | 'inMainView'
+  | 'holdout'
+  | LinearField
 >
 
 /** A number the field must hold: inside `[min, max]`, or strictly inside `(min, max)` when `open`;
@@ -136,10 +160,14 @@ function number(
 ) {
   const value = atmosphere[field] ?? (ATMOSPHERE_DEFAULTS[field] as number)
   const inside = open ? value > min && value < max : value >= min && value <= max
-  if (!finite(value) || !inside)
+  if (!isFiniteNumber(value) || !inside)
     refuse(`${field} must be in ${open ? `(${min}, ${max})` : `[${min}, ${max}]`}`, atmosphere)
   return value
 }
+
+/** A number the field must hold: above 0. */
+const positive = (atmosphere: SceneAtmosphere, field: NumberField) =>
+  number(atmosphere, field, 0, Infinity, true)
 
 type LinearField =
   | 'rayleighScattering'
@@ -162,34 +190,49 @@ function sampleScale(atmosphere: SceneAtmosphere) {
 /** The ozone layer, its fields set. */
 function ozone(atmosphere: SceneAtmosphere): SceneOzoneLayer {
   const layer = { ...ATMOSPHERE_DEFAULTS.ozoneLayer, ...atmosphere.ozoneLayer }
-  if (!finite(layer.altitude) || layer.altitude < 0)
+  if (!isFiniteNumber(layer.altitude) || layer.altitude < 0)
     refuse('ozoneLayer.altitude must be ≥ 0', atmosphere)
-  if (!finite(layer.width) || layer.width < 0) refuse('ozoneLayer.width must be ≥ 0', atmosphere)
-  if (!finite(layer.peak) || layer.peak < 0) refuse('ozoneLayer.peak must be ≥ 0', atmosphere)
+  if (!isFiniteNumber(layer.width) || layer.width < 0)
+    refuse('ozoneLayer.width must be ≥ 0', atmosphere)
+  if (!isFiniteNumber(layer.peak) || layer.peak < 0)
+    refuse('ozoneLayer.peak must be ≥ 0', atmosphere)
   return layer
 }
 
 /**
- * Checks an atmosphere and returns it with every field set, a copy: the radius and the heights
- * above 0, the scale heights above 0, the anisotropy strictly inside `(−1, 1)`, the colours three
- * finite numbers ≥ 0, the multi-scattering factor in `[0, 100]`. `true` is every default.
+ * Checks an atmosphere and returns it with every field set, a copy: the radius, the height and the
+ * scale heights above 0, the anisotropy strictly inside `(−1, 1)`, the haze's start ≥ 0, the colours
+ * three finite numbers ≥ 0, the multi-scattering factor in `[0, 100]`. `true` is every default.
+ * A height under 0.1 km is read as 0.1 (`atmosphereOptics.ts`). The anisotropy keeps its open bound
+ * because the phase function (`hgPhase`) divides `1 − g²` by `(1 + g² + 2 g cosθ)^1.5`: at `|g| = 1`
+ * both are 0 along the axis, a 0/0 that is no light; every other value, a haze that scatters back
+ * (`g < 0`) among them, is drawn.
  */
 export function validateSceneAtmosphere(value: SceneAtmosphere | true): ResolvedAtmosphere {
   const atmosphere: SceneAtmosphere = value === true ? {} : value
   if (typeof atmosphere !== 'object' || atmosphere === null)
     refuse('expects true or an object of settings', value)
-  if (!finite(atmosphere.groundHeight ?? 0)) refuse('groundHeight must be finite', atmosphere)
+  if (!isFiniteNumber(atmosphere.groundHeight ?? 0))
+    refuse('groundHeight must be finite', atmosphere)
+  if (typeof (atmosphere.inMainView ?? true) !== 'boolean')
+    refuse('inMainView must be true or false', atmosphere)
+  if (typeof (atmosphere.holdout ?? false) !== 'boolean')
+    refuse('holdout must be true or false', atmosphere)
+  const place = atmosphere.groundPosition ?? ATMOSPHERE_DEFAULTS.groundPosition
+  if (!Array.isArray(place) || place.length !== 2 || !place.every(isFiniteNumber))
+    refuse('groundPosition must be two finite numbers, [x, z]', atmosphere)
   return {
-    planetRadius: number(atmosphere, 'planetRadius', 0, Infinity, true),
-    height: number(atmosphere, 'height', 0, Infinity, true),
+    planetRadius: positive(atmosphere, 'planetRadius'),
+    height: positive(atmosphere, 'height'),
     groundHeight: atmosphere.groundHeight ?? ATMOSPHERE_DEFAULTS.groundHeight,
+    groundPosition: [place[0], place[1]],
     groundAlbedo: colour(atmosphere, 'groundAlbedo'),
     rayleighScattering: colour(atmosphere, 'rayleighScattering'),
-    rayleighScaleHeight: number(atmosphere, 'rayleighScaleHeight', 0, Infinity, true),
+    rayleighScaleHeight: positive(atmosphere, 'rayleighScaleHeight'),
     mieScattering: colour(atmosphere, 'mieScattering'),
     mieAbsorption: colour(atmosphere, 'mieAbsorption'),
     mieAnisotropy: number(atmosphere, 'mieAnisotropy', -1, 1, true),
-    mieScaleHeight: number(atmosphere, 'mieScaleHeight', 0, Infinity, true),
+    mieScaleHeight: positive(atmosphere, 'mieScaleHeight'),
     ozoneAbsorption: colour(atmosphere, 'ozoneAbsorption'),
     ozoneLayer: ozone(atmosphere),
     multiScatteringFactor: number(atmosphere, 'multiScatteringFactor', 0, 100),
@@ -203,6 +246,8 @@ export function validateSceneAtmosphere(value: SceneAtmosphere | true): Resolved
     heightFogContribution: number(atmosphere, 'heightFogContribution', 0),
     minSunElevation: number(atmosphere, 'minSunElevation', -90, 90),
     sampleCountScale: sampleScale(atmosphere),
+    inMainView: atmosphere.inMainView ?? ATMOSPHERE_DEFAULTS.inMainView,
+    holdout: atmosphere.holdout ?? ATMOSPHERE_DEFAULTS.holdout,
   }
 }
 
@@ -211,6 +256,7 @@ const valuesOf = (a: ResolvedAtmosphere) => [
   a.planetRadius,
   a.height,
   a.groundHeight,
+  ...a.groundPosition,
   ...a.groundAlbedo,
   ...a.rayleighScattering,
   a.rayleighScaleHeight,
@@ -230,6 +276,8 @@ const valuesOf = (a: ResolvedAtmosphere) => [
   a.heightFogContribution,
   a.minSunElevation,
   a.sampleCountScale,
+  a.inMainView ? 1 : 0,
+  a.holdout ? 1 : 0,
 ]
 
 /** True when two validated atmospheres, or their absence, are the same air. */

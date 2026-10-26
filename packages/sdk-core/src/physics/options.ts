@@ -1,4 +1,5 @@
 import { EngineError } from '../contracts/cache.ts'
+import type { CollisionOptions } from './collisionChannels.ts'
 import type { SoftBodyOptions } from './soft/soft.ts'
 import { MIB } from '../../../math/src/constants.ts'
 
@@ -44,6 +45,17 @@ export interface PhysicsBodyOptions {
   gravityScale?: number
   /** Reports contacts without colliding: a trigger volume. @defaultValue false */
   sensor?: boolean
+  /**
+   * What the body is to the others: its object type, a response to each of 64 channels (`ignore`,
+   * `overlap`, `block`) and whether it takes part in the simulation, in the scene queries or both.
+   * Two bodies collide when each blocks the other's channel, pass through each other and report it
+   * when the lesser answer is `overlap`, and do not meet when either ignores. Left out, a static body
+   * is `BlockAll`, a dynamic one `PhysicsActor`, a kinematic one `BlockAllDynamic`, a sensor
+   * `OverlapAllDynamic`; debris meets the static world alone. Set when the body is made.
+   * @example obj.physics = { type: 'static', collision: { profile: 'Trigger' }, sensor: true }
+   * @example crate.physics = { collision: { objectType: 'gameTrace1', responses: { pawn: 'overlap' } } }
+   */
+  collision?: CollisionOptions
   /** Continuous collision, for fast small bodies that would pass through thin walls. @defaultValue false */
   ccd?: boolean
   /** Debris: meets the static world only, and is simulated only in range and in view. Capped by
@@ -55,7 +67,7 @@ export interface PhysicsBodyOptions {
   restitution?: number
   /** How much of its speed the body loses by itself, per second, as air and rolling do:
    *  `dv/dt = −c·v`, 0 and up, linear and angular apart; 0 keeps every bit. Set when the body is
-   *  made: set `obj.physics` again to change it. @defaultValue { linear: 0.05, angular: 0.05 } */
+   *  made: set `obj.physics` again to change it. @defaultValue { linear: 0.01, angular: 0 } */
   damping?: { linear?: number; angular?: number }
 }
 
@@ -64,7 +76,7 @@ export type PhysicsOption = PhysicsType | PhysicsBodyOptions | SoftBodyOptions
 
 /** Named gravities, in m/s² along −y. */
 export const GRAVITY_PRESETS = {
-  /** The Earth's, the standard 9.80665: the engine's one gravity. */ earth: 9.80665,
+  /** The Earth's, 9.8: the engine's one gravity. */ earth: 9.8,
   /** The Moon's. */ moon: 1.62,
   /** Mars's. */ mars: 3.71,
   /** No gravity. */ none: 0,
@@ -91,8 +103,18 @@ export const PHYSICS_MATERIALS = {
 /** A matter preset's name. */
 export type PhysicsMaterialPreset = keyof typeof PHYSICS_MATERIALS
 
-/** Water's density, friction and restitution: what a material that says nothing is made of. */
-export const DEFAULT_MATTER: PhysicsMatter = { density: 1000, friction: 0.5, restitution: 0 }
+/** Fresh water, kg/m³. */
+export const WATER_DENSITY = 1000
+/** kg/m³ the physics module weighs a shape by when a body declares no mass, and the compiler
+ *  weighs a closed mesh by: printed into `physics-jolt-wasm/src/layout.h` and
+ *  `physics_cook/rules.rs`, which no TypeScript code reads. */
+export const SHAPE_DENSITY = 1000
+/** A shape's density, and a surface's friction and restitution: what a material that says nothing is made of. */
+export const DEFAULT_MATTER: PhysicsMatter = {
+  density: SHAPE_DENSITY,
+  friction: 0.7,
+  restitution: 0.3,
+}
 
 /** The fixed envelopes of a world's physics; never read from the machine. */
 export interface PhysicsBudget {
@@ -176,6 +198,9 @@ export const collisionBytesOf = (budget: Pick<PhysicsBudget, 'memoryBytes'>) =>
 /** A fixed step of 60 Hz: the simulation's clock, whatever the display's rate; the frames owe it
  *  their time in such steps (`sdk-browser/src/physics/step/stepClock.ts`). */
 export const PHYSICS_STEP = 1 / 60
+/** The acceleration below which a contact does not bounce, m/s²: a landing slower than this times
+ *  the step (`PHYSICS_STEP`) rebounds not at all, so a resting body is not set shivering. */
+export const DEFAULT_RESTITUTION_THRESHOLD = 10
 /** Steps one frame may owe; beyond, its time is dropped (slow motion, never a spiral). */
 export const MAX_CATCH_UP_STEPS = 4
 

@@ -1,6 +1,6 @@
 // Lights each covered pixel walks against those that reach it, and the grid pass's work:
 // a clustered light grid (Olsson et al. 2012) — cells of `tileSize` pixels across and `gridSlices` slices of depth,
-// `gridSlicesPerOctave` to a doubling of the view depth —, the lights culled once per image against
+// spread by `gridDepthDistribution` —, the lights culled once per image against
 // each cell's own bounds, each pixel walking its cell's list (`lighting/tiles`, their oracle
 // `gpuLightGridOracle.ts`). `reach` counts, per pixel, the lights whose range holds its point: the
 // floor no grid goes under; `missed`, those reaching it but not listed, is 0 (among the lights

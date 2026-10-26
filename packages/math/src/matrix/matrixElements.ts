@@ -32,13 +32,9 @@ export const sameElements = (
   nowAt = 0,
 ) => sameRange(held, now, 16, heldAt, nowAt)
 
-/** The indices of a column-major matrix's linear part, its upper-left 3×3: what a stretch, a
- *  radius or an inverse without translation reads of it. */
-export const LINEAR_PART = [0, 1, 2, 4, 5, 6, 8, 9, 10] as const
-
-/** True when the linear part of the matrix `now` holds from `nowAt` is the one `held` holds from
- *  `heldAt`, each number at its own index (`LINEAR_PART`): its three columns, `sameRange` each. A
- *  pose that moved without turning or scaling. */
+/** True when the linear part — the upper-left 3×3 of a column-major matrix — of the matrix `now`
+ *  holds from `nowAt` is the one `held` holds from `heldAt`, each number at its own index: its three
+ *  columns, `sameRange` each. A pose that moved without turning or scaling. */
 export const sameLinearPart = (
   held: ArrayLike<number>,
   now: ArrayLike<number>,

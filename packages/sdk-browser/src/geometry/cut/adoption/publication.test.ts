@@ -6,6 +6,7 @@ import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { createWebgpuCutPublication } from './publication.ts'
 import { fixturePages, fixtureTotals, fixtureUniforms } from './adopter.fixture.ts'
 import type { CutDelta } from './delta.ts'
+import { createRankList, type RankList } from './copyRanks.ts'
 import type { WebgpuPagesCore } from '../../../frame/backend/runtime.ts'
 import type { WebgpuResidencySets } from '../../residency/sets.ts'
 import { createGroupClosure } from '../groupClosure.ts'
@@ -47,11 +48,9 @@ function banc(capturing = false) {
   let resourceChanges = 0
   const run = {
     desired: [] as unknown[],
-    desiredPacked: [] as number[],
+    desiredPacked: createRankList(),
     shown: [] as unknown[],
-    shownPacked: [] as number[],
-    drawn: [] as unknown[],
-    drawnPacked: [] as number[],
+    shownPacked: createRankList(),
     selectionUniforms: fixtureUniforms(),
     gpuSelection: undefined,
     asideCut: { peek: () => cut.now },
@@ -89,7 +88,7 @@ function banc(capturing = false) {
         baseOfRoot: Int32Array.from([0]),
         packedCount: packedPages.length,
       },
-      rows: { watchTouched: () => {}, pageIndexOf: () => undefined },
+      clusters: { watchTouched: () => {}, pageIndexOf: () => undefined },
     },
   } as unknown as WebgpuPagesCore
   const publication = createWebgpuCutPublication(
@@ -114,6 +113,8 @@ function banc(capturing = false) {
   }
 }
 
+const ranksOf = (list: RankList) => Array.from(list.ids.subarray(0, list.count))
+
 test('a view ages its lists once per readback, and publishes its cut', () => {
   const { adopt, run } = banc()
   const avant = run.cutEpoch
@@ -124,7 +125,7 @@ test('a view ages its lists once per readback, and publishes its cut', () => {
     run.desired.map((page) => (page as { url: string }).url),
     ['p0', 'p1', 'p2'],
   )
-  assert.deepEqual(run.drawnPacked, [0, 1], 'its drawn pages, rank by rank')
+  assert.deepEqual(ranksOf(run.shownPacked), [0, 1], 'its drawn pages, rank by rank')
 })
 
 test('the camera cut moving stales no shadow page: the maps draw what the light cuts select', () => {
@@ -151,9 +152,9 @@ test('a capture ranks its own wanted cut first: its packed ranks, at their count
   // The delta's buffer is swapped at each difference and longer than its live ranks (#1235).
   const { adopt, publication, run } = banc(true)
   adopt([0, 1, 2], [0])
-  assert.deepEqual(run.desiredPacked, [0, 1, 2])
+  assert.deepEqual(ranksOf(run.desiredPacked), [0, 1, 2])
   adopt([3], [3])
-  assert.deepEqual(run.desiredPacked, [3], 'the new cut, not a stale buffer')
+  assert.deepEqual(ranksOf(run.desiredPacked), [3], 'the new cut, not a stale buffer')
   // The streaming reads the capture's readback apart, first; the main view has adopted none yet.
   const { cuts, first } = publication.viewReadbacks()
   assert.deepEqual([cuts.length, first?.result.pageIds], [0, [3]])

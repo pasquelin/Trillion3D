@@ -5,9 +5,26 @@
 //! and the brick atlas's, `u32` × 3 each; then, for each of the `VOLUMETRIC_LIGHTMAP_LAYERS`
 //! layers in `LayerKind` order, its texel format and its byte length (before padding). The layers
 //! follow, each starting on a four-byte boundary, texels in x, then y, then z order.
+//!
+//! Version 2 adds the finest bricks' streaming cells: after the head, two words (the side of a cell
+//! in finest bricks, the cells' count); the layers then hold the bricks that are always loaded;
+//! after the layers, one record a cell (its three coordinates, its bricks' count, where its bytes
+//! start in the file and their length, then their SHA-256 as eight words); then the cells' bytes.
+//! A cell holds, brick after brick in each part: the three coordinates of every brick in the
+//! indirection volume, then the padded texels of its ambient, its six coefficient layers, its bent
+//! normal (where the file has one) and its sun's shadowing. Version 1, whose bricks are all in the
+//! layers, is read as before.
 
 /// The file's version; a file of another version is refused, never reinterpreted.
-pub const VOLUMETRIC_LIGHTMAP_VERSION: u32 = 1;
+pub const VOLUMETRIC_LIGHTMAP_VERSION: u32 = 2;
+/// The oldest version a reader still reads: all its bricks are always loaded.
+pub const VOLUMETRIC_LIGHTMAP_FIRST_VERSION: u32 = 1;
+/// Words after the head of a file with cells: the side of a cell in finest bricks, the cells' count.
+pub const VOLUMETRIC_LIGHTMAP_CELL_HEADER_WORDS: usize = 2;
+/// Words of a cell's record: three coordinates, its bricks, its offset and length, a SHA-256.
+pub const VOLUMETRIC_LIGHTMAP_CELL_RECORD_WORDS: usize = 14;
+/// Texels of a padded brick, the unit a cell's layers are counted in.
+pub const VOLUMETRIC_LIGHTMAP_CELL_TEXELS: usize = 125;
 /// 'T','3','V','L' read as an unsigned 32-bit integer little-endian.
 pub const VOLUMETRIC_LIGHTMAP_MAGIC: u32 = 0x4c56_3354;
 /// Layers of a file: the indirection volume, the ambient, six of coefficients, the sky's bent

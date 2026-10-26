@@ -9,8 +9,19 @@ import { near } from '../../../math/src/float/near.fixture.ts'
 import { subtract, unit } from '../../../math/src/vector/vectorTuple.ts'
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { FOG_PROGRAMS } from './fog/programs.ts'
-import { CAM, EYE, GRID, frameScope, image, phase, pointOf, table } from './fogVolumeRun.fixture.ts'
+import {
+  CAM,
+  EYE,
+  GRID,
+  frameScope,
+  image,
+  phase,
+  pointOf,
+  table,
+  type V3,
+} from './fogVolumeRun.fixture.ts'
 import { CELL, EXTINCTION, G, SUN, scatter } from './fogScatterRun.fixture.ts'
+import { localSlots, placed, planSettings } from './fogLocalRun.fixture.ts'
 
 test('a cell scatters the sun by the phase function, what its medium scatters, over what it extinguishes', () => {
   const stored = scatter(CELL, { lights: [SUN], sunRank: 0 })!
@@ -209,4 +220,67 @@ test('a view drawn smaller than the textures uses fewer cells and reads its hist
 test('a second layer of fog adds its density to the first’s in the medium', () => {
   near([scatter(CELL, { second: 0.1 })![3]], [2 * EXTINCTION], 'summed', 1e-9)
   near([scatter(CELL, { density: 0, second: 0.1 })![3]], [EXTINCTION], 'alone', 1e-9)
+})
+
+test('a fog made to match the volume has its glow follow the density: the fog’s light per centimetre times the density per centimetre', () => {
+  const glow = [100, 0, 50] as const
+  const world = { volumetric: { glow }, density: 0.2, falloff: 0.05 }
+  const P = pointOf(CELL)
+  // The density of the cell, halved as the volume reads it, in metres.
+  const half = 0.5 * 0.2 * 2 ** (-0.05 * P[1])
+  // Not matched: the glow is uniform, 1 / 100 of its number per metre wherever the cell lies.
+  const plain = scatter(CELL, world)!
+  near(plain.slice(0, 3), [1, 0, 0.5], 'uniform', 1e-6)
+  // Matched, the glow is the fog's colour in the engines' unit — the number itself per centimetre — times
+  // the density per centimetre: the number times the density in metres, whatever its unit.
+  const matched = scatter(CELL, { ...world, settings: { fogMatchesVolume: true } })!
+  near(matched.slice(0, 3), [100 * half, 0, 50 * half], 'follows the density', 1e-5)
+  // Thinner air, less light: the same cell with half the density holds half the glow.
+  const thin = scatter(CELL, {
+    ...world,
+    density: 0.1,
+    settings: { fogMatchesVolume: true },
+  })!
+  near(
+    thin.slice(0, 3),
+    matched.slice(0, 3).map((c) => c / 2),
+    'half the density',
+    1e-5,
+  )
+  // The glow switched off, nothing of it, matched or not.
+  const off = { volumetricFogGlow: false, fogMatchesVolume: true }
+  near(scatter(CELL, { ...world, settings: off })!.slice(0, 3), [0, 0, 0], 'off', 1e-9)
+})
+
+test('the local fog volumes add to the medium of a cell their extinction, their albedo’s scattering and their emissive light, from the cell’s sample and its depth', () => {
+  const P = pointOf(CELL)
+  const rel = subtract(P, EYE)
+  // A volume centred on the cell's sample: the fade is 1 there, the height law at its own height 0.
+  const volume = placed('v', P, { emissive: [2, 1, 0], albedo: [1, 0.5, 0.25] })
+  const slots = localSlots([volume], { settings: planSettings() }).slots
+  const a = Math.exp(-1),
+    b = Math.exp(-1)
+  const extinction = -Math.log(a - a * b + b)
+  const stored = scatter(CELL, { density: 0, localFog: slots })!
+  near(stored, [2 * extinction, extinction, 0, extinction], 'at the centre', 1e-6)
+  // The global fog adds its own, the volume's albedo its share, no light scattered: the glow alone shows.
+  const both = scatter(CELL, { density: 0.1, localFog: slots })!
+  near([both[3]], [EXTINCTION + extinction], 'summed', 1e-6)
+  // A volume that begins past the cell's back: none of it. The run's start distance cuts it the same.
+  const behind = localSlots([{ ...volume, startDistance: Math.hypot(...rel) + 5 }]).slots
+  assert.equal(scatter(CELL, { density: 0, localFog: behind })![3], 0)
+  const view = localSlots([volume], {
+    settings: planSettings({ startDistance: Math.hypot(...rel) + 5 }),
+  }).slots
+  assert.equal(scatter(CELL, { density: 0, localFog: view })![3], 0)
+  // Kept out of the fog's volume by the run, the volume's cells hold none of it.
+  const out = localSlots([volume], { settings: planSettings({ inVolume: false }) }).slots
+  assert.equal(scatter(CELL, { density: 0, localFog: out })![3], 0)
+  // Where the glow is off, the emissive light of the volume is too: the extinction stays.
+  const dark = scatter(CELL, {
+    density: 0,
+    localFog: slots,
+    settings: { volumetricFogGlow: false },
+  })!
+  near(dark, [0, 0, 0, extinction], 'glow off', 1e-6)
 })

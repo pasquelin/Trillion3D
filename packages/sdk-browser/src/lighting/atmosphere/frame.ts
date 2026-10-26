@@ -1,55 +1,46 @@
-import { fieldLayout, putVec4 as put } from '../../gpu/core/fieldLayout.ts'
+import { putVec4 as put } from '../../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
+import { frameAround } from '../../../../math/src/vector/frame.ts'
 import { cameraForward } from '../../camera/forward.ts'
 import type { ResolvedAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
-import { topRadiusOf } from '../../../../sdk-core/src/scene/core/atmosphereOptics.ts'
-import { SKY_CAPTURE } from './layout.ts'
+import { EYE_FLOOR } from './layout.ts'
+import { FRAME_LAYOUT } from './frameLayout.ts'
 
-/**
- * WHAT THE AIR'S PROGRAMS KNOW OF AN IMAGE: where the eye stands on the planet and how it is
- * turned, and the camera's matrices — one uniform, written each image (`writeAirFrame`).
- *
- * The planet's ground is the scene's plane `y = groundHeight`; the planet is a sphere under it,
- * lengths in kilometres. The eye is lifted onto the ground if it dips below, so that the sky is
- * always seen, and held under the top of the air. The sky is drawn from a table around the eye in
- * its own frame, whose up is the planet's at the eye and whose forward is the camera's, turned
- * to be across the up: `forward`, `left` and `up` are the table's three axes in the scene.
- */
-const FRAME_LAYOUT = fieldLayout('AirFrame', [
-  ['inverseViewProj', 'mat4x4f'],
-  ['viewProj', 'mat4x4f'],
-  ['camera', 'vec4f'],
-  ['forward', 'vec4f'],
-  ['left', 'vec4f'],
-  ['up', 'vec4f'],
-  ['eye', 'vec4f'],
-  ['size', 'vec4f'],
-  ['capture', 'vec4f'],
-  ['preExposure', 'vec4f'],
-  ['index', 'vec4u'],
-] as const)
 /** The frame's words. */
 export const FRAME_FLOATS = FRAME_LAYOUT.words
-/** The altitude of the capture's place a frame holds, kilometres. */
-export const captureKmOf = (frame: ArrayLike<number>) => frame[FRAME_LAYOUT.at.capture + 3]
 /** `camera` holds the eye relative to the planet's centre, kilometres, and its distance from it;
- *  `eye` the eye in the scene, metres, and 1 for a perspective view (0: the air is not drawn);
+ *  `eye` the eye in the scene, metres, and 1 for a perspective view (0 for an orthographic one,
+ *  whose pixels' rays start each at its own point: `airRay`, `airRayWgsl.ts`);
+ *  `lift` the raise of those points, scene metres, on the planet's up (the scene's `y`): half the
+ *  view's height under an orthographic view (`orthographicLift`), 0 under a perspective one;
  *  `size` the image's pixels and their inverse; `capture` the place the sky is captured from,
  *  scene metres, and its altitude above the planet's ground, kilometres; `preExposure` the number
  *  the sky's light is multiplied by as it is written (x; 1 for a capture); `index` the image's number
  *  (the noise a marched pixel jitters by). */
 export const FRAME_WGSL = wgslBlock('FRAME_WGSL', [], FRAME_LAYOUT.wgsl)
 
-/** How far above the ground the eye is held, kilometres: the sky is seen from the surface, never
- *  from inside the planet. */
+/** Half the distance between the points at the top and the bottom edges of the view, metres: the
+ *  unprojections of `(0, ±1)` at device depth 1 by the inverse view-projection `inverse`
+ *  (column-major), the same at any depth under an orthographic projection. */
+function orthographicLift(m: ArrayLike<number>) {
+  const top = m[7] + m[11] + m[15],
+    bottom = -m[7] + m[11] + m[15]
+  return (
+    0.5 *
+    length3(
+      (m[4] + m[8] + m[12]) / top - (-m[4] + m[8] + m[12]) / bottom,
+      (m[5] + m[9] + m[13]) / top - (-m[5] + m[9] + m[13]) / bottom,
+      (m[6] + m[10] + m[14]) / top - (-m[6] + m[10] + m[14]) / bottom,
+    )
+  )
+}
+
 /** The unit forward of the camera the frame is written for, rewritten each image. */
 const look = new Float64Array(3)
-const EYE_FLOOR = 0.005
-/** How far under the top of the air the eye is held, kilometres: the tables describe a view from
- *  inside the air. */
-const EYE_CEILING = 0.001
+
+/** The two rows of the frame around the up, when the look runs along it. */
+const rows = new Float64Array(6)
 
 /**
  * The table's axes into `out`, `forward` and `left` at the places `at` names, for the planet's up
@@ -69,15 +60,13 @@ function putAxes(
   let fx: number, fy: number, fz: number, sx: number, sy: number, sz: number
   if (Math.abs(lx * ux + ly * uy + lz * uz) > 0.999) {
     // Looking along the up: the stable construction of a pair around it, with no singular direction.
-    const sign = uz >= 0 ? 1 : -1
-    const a = -1 / (sign + uz),
-      b = ux * uy * a
-    fx = 1 + sign * a * ux * ux
-    fy = sign * b
-    fz = -sign * ux
-    sx = b
-    sy = sign + a * uy * uy
-    sz = -uy
+    frameAround(rows, ux, uy, uz)
+    fx = rows[0]
+    fy = rows[1]
+    fz = rows[2]
+    sx = rows[3]
+    sy = rows[4]
+    sz = rows[5]
   } else {
     // left = look × up, forward = up × left, each made unit.
     sx = ly * uz - lz * uy
@@ -105,6 +94,7 @@ function putAxes(
 export interface AirlessPlanet {
   readonly planetRadius: number
   readonly groundHeight: 0
+  readonly groundPosition: readonly [0, 0]
   readonly airless: true
 }
 
@@ -112,21 +102,20 @@ export interface AirlessPlanet {
 export const airlessPlanet = (planetRadius: number): AirlessPlanet => ({
   planetRadius,
   groundHeight: 0,
+  groundPosition: [0, 0],
   airless: true,
 })
 
-/** The place the sky is captured from: `capture.position`, scene metres, at the altitude it stands
- *  over the planet's ground, no lower than the eye is held; the height `SKY_CAPTURE` names, over
- *  the origin, where no place is given. */
+/** The place the sky is captured from: `capture.position`, scene metres, the origin where no place
+ *  is given; the programs take it into the planet's frame, no lower than the eye is held
+ *  (`sceneToPlanet`). The fourth lane is unused. */
 function writeCapture(
   out: Float32Array,
   at: number,
-  air: Pick<ResolvedAtmosphere, 'groundHeight'>,
   capture: { position: ArrayLike<number> } | undefined,
 ) {
-  if (!capture) return put(out, at, 0, 0, 0, SKY_CAPTURE.altitudeKm)
-  const [x, y, z] = [capture.position[0], capture.position[1], capture.position[2]]
-  put(out, at, x, y, z, Math.max(EYE_FLOOR, (y - air.groundHeight) / 1000))
+  const p = capture?.position
+  put(out, at, p?.[0] ?? 0, p?.[1] ?? 0, p?.[2] ?? 0, 0)
 }
 
 /**
@@ -135,8 +124,8 @@ function writeCapture(
  * allocated. `camera.world` is the camera's world matrix, column-major: it looks down its own −z.
  * The table's axes are the camera's look made to lie across the planet's up at the eye
  * (`forward`, `left` its cross with the up), or, looking straight along the up, any orthonormal
- * pair around it. Over an atmosphere the eye is held between the ground and the top of the air;
- * over the planet of a scene with none (`airlessPlanet`) it is where it stands.
+ * pair around it. Over an atmosphere the eye is held no lower than just above the ground; over the
+ * planet of a scene with none (`airlessPlanet`) it is where it stands.
  */
 export function writeAirFrame(
   out: Float32Array,
@@ -154,14 +143,11 @@ export function writeAirFrame(
 ) {
   const at = FRAME_LAYOUT.at
   const radius = air.planetRadius
-  const px = camera.eye[0] / 1000,
+  const px = (camera.eye[0] - air.groundPosition[0]) / 1000,
     py = (camera.eye[1] - air.groundHeight) / 1000 + radius,
-    pz = camera.eye[2] / 1000
+    pz = (camera.eye[2] - air.groundPosition[1]) / 1000
   const distance = length3(px, py, pz) || 1
-  const held =
-    'airless' in air
-      ? distance
-      : clamp(distance, radius + EYE_FLOOR, topRadiusOf(air) - EYE_CEILING)
+  const held = 'airless' in air ? distance : Math.max(distance, radius + EYE_FLOOR)
   const ux = px / distance,
     uy = py / distance,
     uz = pz / distance
@@ -172,9 +158,11 @@ export function writeAirFrame(
   out.set(viewProj, at.viewProj)
   put(out, at.camera, ux * held, uy * held, uz * held, held)
   put(out, at.up, ux, uy, uz, 0)
-  put(out, at.eye, camera.eye[0], camera.eye[1], camera.eye[2], camera.perspective === 1 ? 1 : 0)
+  const perspective = camera.perspective === 1
+  put(out, at.eye, camera.eye[0], camera.eye[1], camera.eye[2], perspective ? 1 : 0)
+  put(out, at.lift, 0, perspective ? 0 : orthographicLift(inverseViewProj), 0, 0)
   put(out, at.size, width, height, 1 / width, 1 / height)
-  writeCapture(out, at.capture, air, extra.capture)
+  writeCapture(out, at.capture, extra.capture)
   put(out, at.preExposure, extra.preExposure ?? 1, 0, 0, 0)
   new Uint32Array(out.buffer, out.byteOffset + at.index * 4, 1)[0] = extra.frameIndex ?? 0
   return out

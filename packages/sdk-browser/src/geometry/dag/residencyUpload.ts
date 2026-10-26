@@ -66,8 +66,70 @@ type HeldTarget = {
   output: GPUBuffer
   listCap: number
   heldSlots: number
-  swap: { regions: number }
   frames: Pick<CameraFrames, 'writeWord' | 'flushWords'>
+}
+
+/** What the upload holds: the packing, the readiness, the bits both sets extend the cold records
+ *  with, the two bit sets, the words or nodes the last apply changed (`touched`) and the pages it
+ *  changed (`changed`), which grow to the largest change seen. */
+type Upload = {
+  packed: PackedDag
+  cold: RangeTarget
+  readiness: ReturnType<typeof createDagReadiness>
+  sendHeld: () => boolean
+  bits: Uint32Array
+  sets: { values: (page: number) => boolean; base: number }[]
+  touched: Int32Array
+  changed: { pages: Int32Array; count: number }
+}
+
+/** One write per range of the `count` sorted ranks of `touched`, `stride` words each from
+ *  `base` (`writeRanges`): a thousand small writes are not worth the single one they replace. */
+const upload = (u: Upload, data: Float32Array, base: number, stride: number, count: number) =>
+  writeRanges(u.cold, u.touched, count, { data, sourceBase: base, targetBase: base, stride })
+
+/** Whether a page of `changed` was ready, or its children were, and no longer is: it voids the cuts
+ *  that may draw it, read on the bits before they follow; a page that only arrived, or whose
+ *  children did, voids none. */
+function withdrawnIn(u: Upload) {
+  const { bits, readiness, changed } = u
+  for (let i = 0; i < changed.count; i++) {
+    const page = changed.pages[i]
+    if (
+      (hasBit(bits, page, 0) && !readiness.isReady(page)) ||
+      (hasBit(bits, page, u.sets[1].base) && !readiness.isChildReady(page))
+    )
+      return true
+  }
+  return false
+}
+
+function applyResidency(
+  u: Upload,
+  next: PageResidency,
+  changes?: ResidencyChanges,
+  moved?: (page: number) => void,
+) {
+  const { packed, changed } = u
+  const settled = u.readiness.apply(next, changes)
+  const held = u.sendHeld()
+  if (!settled.pages.length) return held && ('gained' as const)
+  if (moved) for (const page of settled.pages) moved(page)
+  const most = settled.pages.length
+  if (changed.pages.length < most) changed.pages = resized(changed.pages, most)
+  if (u.touched.length < most) u.touched = resized(u.touched, most)
+  changed.pages.set(settled.pages)
+  changed.count = settled.pages.length
+  const withdrawn = withdrawnIn(u)
+  for (const { values, base } of u.sets)
+    upload(
+      u,
+      packed.coldWords,
+      base,
+      1,
+      updateResidencyBits(values, packed.pageCount, u.bits, base, changed, u.touched),
+    )
+  return withdrawn ? ('withdrawn' as const) : ('gained' as const)
 }
 
 /**
@@ -83,76 +145,36 @@ export function createDagResidencyUpload(
   const { device, packed, cold } = resources,
     pageCount = packed.pageCount
   const readiness = createDagReadiness(packed, resources.heldSlots)
-  const sendHeld = heldSender(device, resources, packed.heldOpen!)
-  // The bits extend the cold records in their buffer: one view, mirror and write source.
-  const bits = new Uint32Array(
-    packed.coldWords.buffer,
-    packed.coldWords.byteOffset,
-    packed.coldWords.length,
-  )
-  /** Words or nodes the last apply changed, and the ranges that cover them. */
-  let touched = new Int32Array(8)
-  const changed = { pages: new Int32Array(8), count: 0 }
-  const sets = [
-    { values: readiness.isReady, base: 0 },
-    { values: readiness.isChildReady, base: childBase(pageCount) },
-  ]
-  /** One write per range of the `count` sorted ranks of `touched`, `stride` words each from
-   *  `base` (`writeRanges`): a thousand small writes are not worth the single one they replace. */
-  const upload = (data: Float32Array, base: number, stride: number, count: number) =>
-    writeRanges(cold, touched, count, {
-      data,
-      sourceBase: base,
-      targetBase: base,
-      stride,
-    })
+  const { coldWords } = packed
+  const u: Upload = {
+    packed,
+    cold,
+    readiness,
+    sendHeld: heldSender(device, resources, packed.heldOpen!),
+    // The bits extend the cold records in their buffer: one view, mirror and write source.
+    bits: new Uint32Array(coldWords.buffer, coldWords.byteOffset, coldWords.length),
+    sets: [
+      { values: readiness.isReady, base: 0 },
+      { values: readiness.isChildReady, base: childBase(pageCount) },
+    ],
+    touched: new Int32Array(8),
+    changed: { pages: new Int32Array(8), count: 0 },
+  }
   // Nothing is resident yet: both bit sets are written whole, once, from the readiness's state with
   // nothing resident; the node counts are the packing's own, uploaded with the nodes
   // (`packCullingNodes`). From then on only what moves is.
-  writeBlankBits(packed, readiness, bits)
-  const { coldWords } = packed
+  writeBlankBits(packed, readiness, u.bits)
   cold(0, coldWords.buffer as ArrayBuffer, coldWords.byteOffset, 2 * residentWords(pageCount) * 4)
-  const apply = (
-    next: PageResidency,
-    changes?: ResidencyChanges,
-    moved?: (page: number) => void,
-  ) => {
-    const settled = readiness.apply(next, changes)
-    const held = sendHeld()
-    if (!settled.pages.length) return held && ('gained' as const)
-    if (moved) for (const page of settled.pages) moved(page)
-    const most = settled.pages.length
-    if (changed.pages.length < most) changed.pages = resized(changed.pages, most)
-    if (touched.length < most) touched = resized(touched, most)
-    changed.pages.set(settled.pages)
-    changed.count = settled.pages.length
-    // A page that was ready, or whose children were, and no longer is voids the cuts that may
-    // draw it, read on the bits before they follow; a page that only arrived, or whose children
-    // did, voids none.
-    let withdrawn = false
-    for (let i = 0; i < changed.count && !withdrawn; i++) {
-      const page = changed.pages[i]
-      withdrawn =
-        (hasBit(bits, page, 0) && !readiness.isReady(page)) ||
-        (hasBit(bits, page, sets[1].base) && !readiness.isChildReady(page))
-    }
-    for (const { values, base } of sets)
-      upload(
-        packed.coldWords,
-        base,
-        1,
-        updateResidencyBits(values, pageCount, bits, base, changed, touched),
-      )
-    return withdrawn ? ('withdrawn' as const) : ('gained' as const)
-  }
+  const apply = (next: PageResidency, changes?: ResidencyChanges, moved?: (page: number) => void) =>
+    applyResidency(u, next, changes, moved)
   return Object.defineProperties(apply, {
     /** Bytes of the host tables: the readiness and this upload's change lists. */
     hostBytes: {
       get: () =>
         readiness.hostBytes +
         packed.heldOpen!.words.byteLength +
-        touched.byteLength +
-        changed.pages.byteLength,
+        u.touched.byteLength +
+        u.changed.pages.byteLength,
     },
     /** The cut rule's residency of a packed page (`readiness.ts`). */
     isReady: { value: readiness.isReady },

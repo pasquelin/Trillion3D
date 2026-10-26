@@ -148,6 +148,10 @@ impl ShapePreservation {
 pub(crate) struct VoxelSeed {
     pub groups: Vec<SeedGroup>,
     pub errors: Vec<f64>,
+    /// The mesh the groups' triangle ranks index when it is not the glTF's: a primitive whose
+    /// displacement was baked into its triangles (`displace::bake`) has the baked mesh's, the
+    /// triangles its build holds, which the voxels sample (`stage/mesh.rs`).
+    pub traced: Option<crate::displace::Baked>,
 }
 
 impl VoxelSeed {
@@ -187,6 +191,7 @@ impl VoxelSeed {
         Self {
             groups: seeded,
             errors: groups.iter().map(|g| g.error).collect(),
+            traced: None,
         }
     }
 }

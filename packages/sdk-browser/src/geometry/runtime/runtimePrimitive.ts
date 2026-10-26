@@ -7,6 +7,7 @@ import type {
 } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { LINE_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import type { PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
+import { served } from '../streaming/served.ts'
 import { cutPagesOffThread } from '../work/host.ts'
 import { sphereFromBoundsBatch } from '../../../../math/src/batch/culling.ts'
 import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
@@ -14,13 +15,6 @@ import { drawnBounds, type DrawnShape } from '../../../../sdk-core/src/world/geo
 
 /** A runtime primitive, and the addresses its pages are served from until it is released. */
 export type RuntimePrimitive = { primitive: Primitive; urls: string[] }
-
-/** Bytes served at an address of their own, with the digest the page reader checks. */
-function served(bytes: ArrayBuffer, sha256: string, urls: string[]) {
-  const url = URL.createObjectURL(new Blob([bytes]))
-  urls.push(url)
-  return { url, sha256, bytes: bytes.byteLength }
-}
 
 /** A dynamic primitive's held box: six numbers, the least corner then the greatest. */
 export type HeldBox = Float64Array
@@ -81,6 +75,9 @@ export function servePrimitive(cut: PageCutPayload, kind: DrawnShape, boxes?: Fl
         indexCount: page.indexCount,
         flags: page.flags,
         uncompressedBytes: page.uncompressedBytes,
+        // A page served alone is its streaming page's whole place in the pool.
+        residentBytes: page.residentBytes,
+        residentOffset: 0,
       },
     }),
   }))
@@ -111,6 +108,5 @@ export async function cutRuntimePrimitive(
   const cut = await cutPagesOffThread(packed)
   const result = servePrimitive(cut, kind)
   if (deformation) result.primitive.deformation = deformation
-  if (cut.proxy) result.primitive.runtimeProxy = cut.proxy
   return result
 }

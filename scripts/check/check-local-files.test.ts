@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { trackedIgnoredFiles } from './check-local-files.ts'
 import { git } from '../git/git-paths.ts'
 import { repositoryFiles } from '../git/repository-files.ts'
-import { existingChangedFiles } from '../test/check-changed.ts'
+import { existingChangedFiles } from './check-changed.ts'
 import { consumerImports } from '../sdkApi/sdk-api-model.ts'
 
 test('ignored personal content stays outside shared checks and force-addition is rejected', () => {

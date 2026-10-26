@@ -7,18 +7,17 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { depthField, depthLoads, HIZ_DEPTH_READERS, type DepthField } from './depthField.fixture.ts'
 import { reflectionStagesWgsl } from './wgsl.ts'
 import { reflectionLightViewWgsl, REFLECTION_GROUP, REFLECTION_VIEW_AT } from './viewLayout.ts'
-import { screenRelativeThickness, screenSlab } from '../../visibility/hiz/gpu/screenSlab.ts'
+import { screenRelativeThickness, screenSlabInto } from '../../visibility/hiz/gpu/screenSlab.ts'
 import { REFLECTION_CONSTANTS, REFLECTION_COUNTS } from './constants.ts'
 import { defaultReflections } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
-import { rasterize, type Box, type Camera } from './boxes.fixture.ts'
+import type { Camera } from './boxes.fixture.ts'
 import { HIZ_DEPTH_LAYERS } from '../../visibility/hiz/gpu/pyramidTexture.ts'
-import { radianceLevels } from '../../scene/targetFormats.ts'
 import type { Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
 
 type Seen = { color: number[]; confidence: number }
 /** A screen ray as `reflectionRaySpan` returns it: its origin and direction in pixels and depth, how far its march goes,
  *  the clip `w` of its two ends, where it starts along the ray and how long it is. */
-export type Ray = {
+type Ray = {
   o: number[]
   d: number[]
   end: number
@@ -28,18 +27,17 @@ export type Ray = {
   span: number
 }
 /** A pixel's reflection lobe, as the shipped `reflectionLobeOf` returns it. */
-export type Lobe = { R: Vec3; T: Vec3; bands: number[]; tangents: number[] }
-type Cone = { short: number; long: number; level: number }
+type Lobe = { R: Vec3; tangent: number; rough: number }
 /** The reflection's view uniform, its fields the layout's (`REFLECTION_VIEW_AT`): its matrices
- *  as the run reads them, every other field four numbers. */
+ *  as the run reads them, every other field four numbers; the tests write them. */
 type ReflectionView = {
-  [F in keyof typeof REFLECTION_VIEW_AT]: F extends 'viewProj' | 'radianceViewProj'
+  -readonly [F in keyof typeof REFLECTION_VIEW_AT]: F extends 'viewProj' | 'radianceViewProj'
     ? Mat
     : F extends 'thickness'
       ? number
       : number[]
 }
-/** The views of a still view: the reflection's own (`ReflectionView`, its radiance image the
+/** The views of a still view: the reflection's own (`ReflectionView`, its lit image the
  *  depth's own) and the deferred lighting's (the pixel's world point, the eye, the drawn size). */
 type Views = { reflectionView: ReflectionView; view: object }
 export function viewOf(
@@ -49,33 +47,35 @@ export function viewOf(
   size: number[],
 ): Views {
   const trace = defaultReflections()
+  const slab = [0, 0, 0, 0]
+  screenSlabInto(slab, 0, [...m], size[1], eye)
   return {
     reflectionView: {
       viewProj: new Mat([...m]),
       radianceViewProj: new Mat([...m]),
-      radiance: [size[0], size[1], radianceLevels(size[0], size[1]) - 1, 1],
-      slab: screenSlab([...m], size[1], eye),
+      radiance: [size[0], size[1], 0, 1],
+      slab,
       thickness: screenRelativeThickness([...m], trace.relativeThickness),
       traced: [1, 0, 0, 0],
       front: [0, 0, 0, 0],
       temporal: [0, 0, 0, 0],
+      jitter: [0, 0, 0, 0],
       grid: [Math.ceil(size[0] / trace.block), Math.ceil(size[1] / trace.block), trace.block, 0],
       surroundings: [0, 0, 0, 0],
       scene: [
         trace.screenSteps,
-        0,
-        0,
+        trace.distantSteps,
         REFLECTION_COUNTS.REFLECTION_SCREEN_TRACES | REFLECTION_COUNTS.REFLECTION_SCENE_COLOR,
+        0,
       ],
-      detail: [0, 0, trace.distantSteps, trace.ringResolution],
-      reach: [0, 0, 0, trace.distantDistance],
+      reach: [0, trace.distantDistance, REFLECTION_CONSTANTS.REFLECTION_FAR, 0],
       march: [
         trace.relativeThickness,
         trace.distantTolerance,
         trace.distantOffsetBias,
         trace.traceDistance,
       ],
-      // The radiance image reads as the point it is read at (below): no ceiling on its "colours".
+      // The lit image reads as the texel it is read at (below): no ceiling on its "colours".
       light: [
         Number.MAX_VALUE,
         trace.sampleDepthThickness,
@@ -91,6 +91,7 @@ export function viewOf(
       ],
       lobe: [trace.maxRoughness, trace.roughnessFade, trace.samplingBias, 0],
       taps: [trace.reconstructionSamples, trace.bilateralSamples, trace.rayDirections, 0],
+      leak: [...trace.skylightLeak, 0],
     },
     view: {
       inverseViewProjection: new Mat([...inverse]),
@@ -102,7 +103,7 @@ export function viewOf(
 
 /** The shipped functions the runner calls, by name. */
 type ReflectionFunctions = {
-  reflectionLobeOf: (R: Vec3, alpha: number, lobe: number[]) => Lobe
+  reflectionLobeOf: (R: Vec3, alpha: number) => Lobe
   reflectionPixelAt: (P: Vec3) => number
   reflectionSeen: (
     P: Vec3,
@@ -112,8 +113,12 @@ type ReflectionFunctions = {
   ) => { answer: Seen & { distance: number }; left: number }
   reflectionDistant: (P: Vec3, N: Vec3, lobe: Lobe, coord: number[]) => Seen & { distance: number }
   reflectionRayBias: (P: Vec3, N: Vec3) => number
-  reflectionDistantStart: (P: Vec3, R: Vec3) => number
-  reflectionRingSpan: (level: number, O: Vec3, R: Vec3) => number[]
+  gdfClipRayOutside: (
+    origin: Vec3,
+    dir: Vec3,
+    span: number,
+    steps: number,
+  ) => { start: number; length: number }
   reflectionRaySpan: (
     P: Vec3,
     N: Vec3,
@@ -135,47 +140,29 @@ type ReflectionFunctions = {
   ) => { t: number; plane: number[]; pixel: number[]; front: boolean; above: number }
   screenMarchEnd: (o: number[], d: number[], size: number[]) => number
   screenMarchBudget: (d: number[], end: number, levels: number) => number
-  reflectionConeAt: (distance: number, pixel: number, lobe: Lobe) => Cone
   reflectionConeTangent: (alpha: number) => number
   reflectionThickness: () => number
   reflectionClampRay: (c: Vec3) => Vec3
   reflectionHeld: (at: Vec3, N: Vec3) => number[]
-  reflectionFootprint: (
-    Q: number[],
-    hit: Vec3,
-    pixel: number,
-    lobe: Lobe,
-    cone: Cone,
-    toView: number[],
-    surface: { pixel: number[]; plane: number[]; thickness: number },
-  ) => { color: number[]; weight: number }
 }
 
 /** The functions of the program the runner reaches: the interpreter follows the library's alone. */
 const REFLECTION_NAMES = [
   'reflectionLobeOf',
-  'reflectionBands',
   'reflectionSeen',
   'reflectionSeenAnswer',
   'reflectionDistant',
-  'reflectionDistantStart',
+  'gdfClipRayOutside',
   'reflectionLinearTrace',
   'reflectionFarthest',
   'reflectionThickness',
   'reflectionClampRay',
   'reflectionHeld',
   'reflectionDone',
-  'reflectionConeAt',
   'reflectionReach',
-  'reflectionFootprint',
-  'reflectionRadianceAt',
-  'reflectionLevelRead',
-  'reflectionLevelColor',
-  'reflectionDepthWeight',
   'reflectionRaySpan',
   'reflectionRayDistance',
   'reflectionRayBias',
-  'reflectionRingSpan',
   'reflectionPixelAt',
   'screenMarch',
   ...HIZ_DEPTH_READERS,
@@ -184,17 +171,14 @@ const REFLECTION_NAMES = [
   'screenMarchBudget',
   'worldAt',
   'viewToEye',
-  'reflectionLevelTrust',
   'reflectionEdgeFade',
   'reflectionConeTangent',
-  'reflectionReadTangent',
   'reflectionThickness',
 ]
 
 /**
  * The shipped reflection functions over the depth `depth` and the view uniform `reflectionView`:
- * a read of the radiance image gives, as its colour, the point it reads and the level, `[x, y,
- * level, 1]` — the footprint's colour is their weighted mean —; `counter` counts the cells the
+ * a read of the lit image gives, as its colour, the texel it reads, `[x, y, 0, 1]`; `counter` counts the cells the
  * march reads (one load of the nearest layer each: a cell's nearest, or a pixel's slopes) and lists
  * the reads; `overrides` stand in for shipped functions.
  */
@@ -203,9 +187,9 @@ export function reflectionRunner(
   { reflectionView, view }: Views,
   overrides: object = {},
 ) {
-  const counter = { loads: 0, taps: [] as number[][], cells: [] as number[][] }
+  const counter = { loads: 0, cells: [] as number[][] }
   const token = { depth: { layers: HIZ_DEPTH_LAYERS }, pyramid: {}, image: {} }
-  // The lit image reads as the texel it is read at: its colour the point, its coverage one.
+  // The lit image reads as the texel it is read at: its colour the point, its alpha one.
   const load = depthLoads(depth, token, (cell) => {
     counter.loads++
     counter.cells.push(cell)
@@ -220,16 +204,9 @@ export function reflectionRunner(
       hizPyramid: token.pyramid,
       hizLevels: depth.levels,
       reflectionImage: token.image,
-      reflectionSampler: {},
       textureDimensions: () => [reflectionView.radiance[0], reflectionView.radiance[1]],
       textureLoad: (t: object, cell: number[], layer: number) =>
         t === token.image ? [cell[0], cell[1], 0, 1] : load(t, cell, layer),
-      // A tap names its pyramid level: the mip it reads, the lit image's level 0.
-      textureSampleLevel: (_: unknown, __: unknown, uv: number[], lod: number) => {
-        const tap = [uv[0] * reflectionView.radiance[0], uv[1] * reflectionView.radiance[1], lod, 1]
-        counter.taps.push(tap)
-        return tap
-      },
       ...overrides,
     },
   )
@@ -249,10 +226,4 @@ export function sceneFromDepth(view: Camera, depth: ArrayLike<number>) {
     depthField(view.width, view.height, depth),
     viewOf(view.m, view.inverse, [...view.eye, 1], [view.width, view.height]),
   ] as const
-}
-
-/** A still view of `boxes` from `view`: its depth, the box each pixel shows, the shipped reflection. */
-export function sceneOver(view: Camera, boxes: Box[]) {
-  const { depth, shown } = rasterize(view, boxes)
-  return { depth, shown, ...reflectionRunner(...sceneFromDepth(view, depth)) }
 }

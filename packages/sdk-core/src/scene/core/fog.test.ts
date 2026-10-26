@@ -9,7 +9,7 @@ import { createSceneLightStore } from '../light/store.ts'
 import { ENVIRONMENT_COEFFICIENTS, SCENE_ENVIRONMENT_FLOATS } from './environment.ts'
 import { FOG_MODE, FOG_SLOT, FOG_SLOTS, packFog, sameSceneFog, validateSceneFog } from './fog.ts'
 import { cubemapMipCount, faceAverages } from './fogCubemap.ts'
-import { heightFogOf } from './fogHeight.ts'
+import { heightFogOf, type SceneHeightFog } from './fogHeight.ts'
 import { VOLUMETRIC_FOG_DEFAULTS } from './fogVolumetric.ts'
 
 const GREY = [0.5, 0.5, 0.5] as const
@@ -235,6 +235,15 @@ test('the volume is off by default and, on, has the defaults of its numbers', ()
   assert.equal(sameSceneFog({ cubemap: CUBE }, { cubemap: { ...CUBE } }), true)
 })
 
+test('a fog that holds out is another fog, and the switch is checked', () => {
+  assert.equal(sameSceneFog({ holdout: true }, {}), false)
+  assert.equal(sameSceneFog({ holdout: false }, {}), true)
+  assert.throws(() => validateSceneFog({ holdout: 'yes' } as never), {
+    code: 'INVALID_SCENE_ENVIRONMENT',
+  })
+  assert.equal((validateSceneFog({ holdout: true }) as { holdout: boolean }).holdout, true)
+})
+
 test('the new fields are refused by name where out of range', () => {
   const refused = (fog: unknown) =>
     assert.throws(() => validateSceneFog(fog as never), { code: 'INVALID_SCENE_ENVIRONMENT' })
@@ -264,5 +273,5 @@ test('the new fields are refused by name where out of range', () => {
   // A density past the bound is held, not refused; the picture is kept, not copied.
   assert.equal(done.secondLayer.baseDensity, 5)
   assert.equal(done.cubemap.texels, CUBE.texels)
-  assert.equal(validateSceneFog({ volumetric: false }).volumetric, false)
+  assert.equal((validateSceneFog({ volumetric: false }) as SceneHeightFog).volumetric, false)
 })

@@ -64,5 +64,12 @@ export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: G
   if (!held) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED')
   setup.geometryPool = held.pool
   gpu.cache = held.made.cache
+  // The pages of a geometry pool are installed by two compute passes: a device that refuses one
+  // refuses the scene, since no page would ever land.
+  try {
+    await gpu.cache.prepare()
+  } catch {
+    throw new Error('WEBGPU_PAGE_INSTALL_UNAVAILABLE')
+  }
   throwIfStopped(rt)
 }

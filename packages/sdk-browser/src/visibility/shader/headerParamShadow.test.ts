@@ -4,7 +4,7 @@
 // read of that binding by the vertex stage, which the layout hides from it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { VIS_SHADER } from './visWgsl.ts'
+import { VIS_SHADER } from './visShader.fixture.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 

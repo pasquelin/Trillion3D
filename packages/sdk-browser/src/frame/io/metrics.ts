@@ -1,5 +1,4 @@
 import { DEFORMATION_PASS } from '../../deformation/pass.ts'
-import { disposeRowWords } from '../../placement/rows/rowWordsGpu.ts'
 import { disposeRootWorlds } from '../../placement/roots/rootWorlds.ts'
 import { disposeRootBoxes } from '../../placement/roots/rootBoxes.ts'
 import { disposeTreeLeaves } from '../../placement/tree/treeLeaves.ts'
@@ -10,15 +9,22 @@ import { directLightTimings, passOwnMs } from '../../diagnostic/stage/mapping.ts
 import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
 import { markWebgpuLost } from './lost.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { ambientOcclusionMetrics } from '../../lighting/ao/frame.ts'
+import { toneTableMetrics } from '../../lighting/toneLut.ts'
 import { vsmFrameMetrics } from '../../lighting/shadows/vsm/frame/vsmStats.ts'
-import { destroyEngineVsm } from '../../lighting/shadows/vsm/frame/engineVsm.ts'
+import { releaseEngineVsm } from '../../lighting/shadows/vsm/frame/engineVsm.ts'
+import { releaseShadowCasters } from '../../lighting/shadows/casters/release.ts'
 import { releaseWebgpuView, useWebgpuView } from '../backend/state/viewSwitch.ts'
 import { transparentCounts } from '../backend/state/transparentCounts.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { bounceState } from '../backend/state/bounce.ts'
 import { viewTargetBytes } from '../backend/state/gpu.ts'
 import { disposeFogVolume } from '../render/encodeFogVolume.ts'
+import { disposeTranslucencyVolume } from '../../lighting/translucency/frame.ts'
+import { disposeTranslucencyGi } from '../../lighting/translucencyGi/frame.ts'
+import { disposeLocalFog } from '../render/localFogGpu.ts'
 import { disposeDistanceFields } from '../../lighting/distanceField/frame.ts'
+import { disposeSurfaceCache, surfaceCacheMetrics } from '../../lighting/surfaceCache/frame.ts'
 import { disposeVolumetricLightmap } from '../../lighting/volumetricLightmap/frame.ts'
 import { disposeLightShafts } from '../../modules/sky/lightShafts/frame.ts'
 import { disposeCloudView } from '../../modules/sky/clouds/viewTargets.ts'
@@ -62,13 +68,24 @@ function ledgerMetricsOf(gpu: WebgpuPagesRuntime['gpu']) {
   }
 }
 
+/** What the lit image's passes publish of themselves: the reflections', the ambient occlusion's and the tone table's. */
+function imagePassMetricsOf(gpu: WebgpuPagesRuntime['gpu']) {
+  return {
+    reflections: gpu.reflection?.census.metrics() ?? null,
+    ambientOcclusion: ambientOcclusionMetrics(gpu.ambientOcclusion) ?? null,
+    toneTable: toneTableMetrics(gpu.deferred?.toneLut) ?? null,
+  }
+}
+
+const isDeformation = (pass: { name: string }) => pass.name === DEFORMATION_PASS
+
 function frameMetricsOf(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis, timing, services, lights } = rt
   const stats = gpu.cache?.stats()
   const vertexBytes = vertexBytesOf(vis)
   const pending = !run.gpuMetricsReady
   const blend = transparentCounts(rt)
-  const deformation = timing.lastGpuPassMs?.passes.find((pass) => pass.name === DEFORMATION_PASS)
+  const deformation = timing.lastGpuPassMs?.passes.find(isDeformation)
   // The voxel trace's steps: the GPU's last sampled counts; `null` when it counted nothing, never
   // an unmeasured 0.
   const steps = vis.voxelSteps?.stats()
@@ -116,7 +133,8 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
     voxelStepsMax: steps?.max ?? null,
     lightsActive: lights.lightsActive,
     bounce: bounceState(rt.bounce),
-    reflections: gpu.reflection?.census.metrics() ?? null,
+    surfaceCache: surfaceCacheMetrics(rt),
+    ...imagePassMetricsOf(gpu),
     ...directLightTimings(timing.lastGpuPassMs),
     ...lights.tiles?.poolMetrics(),
   }
@@ -150,25 +168,20 @@ function disposeImagePasses(gpu: WebgpuPagesRuntime['gpu']) {
   gpu.atmosphere?.dispose()
   gpu.atmosphere = undefined
   disposeFogVolume(gpu)
+  disposeTranslucencyVolume(gpu)
+  disposeTranslucencyGi(gpu)
+  disposeLocalFog(gpu)
   disposeLightShafts(gpu)
   disposeCloudView(gpu)
 }
 
-/** Releases every GPU resource and the scene; the trace queue is drained before the promise settles. */
-export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
-  const { gpu, capture, timing, blendState, services } = rt,
-    { scene, pagedBlendCopies } = rt.setup,
-    device = gpu.device
-  // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
-  markWebgpuLost(rt)
-  // The main view's resources are released below; a capture under way releases its own view.
-  for (const view of rt.views.persistent.splice(0)) releaseWebgpuView(rt, view)
-  useWebgpuView(rt, rt.views.main)
-  rt.run.gate.release()
-  services.residency.quietPending()
+/** The cut's resources: rays, fields, deformation, the GPU selection, the visibility and the targets. */
+function disposeCut(rt: WebgpuPagesRuntime) {
+  const { timing } = rt
   rt.rays?.dispose()
   rt.rays = undefined
   disposeDistanceFields(rt)
+  disposeSurfaceCache(rt)
   disposeVolumetricLightmap(rt)
   timing.gpuTiming?.dispose()
   rt.vis.pooledDeformation?.table.destroy()
@@ -181,6 +194,12 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.growth = undefined
   disposeVis(rt)
   releaseTargets(rt)
+}
+
+/** The blend state's tables, rows and resources. */
+function disposeBlend(rt: WebgpuPagesRuntime) {
+  const { blendState } = rt,
+    { pagedBlendCopies } = rt.setup
   blendState.compaction?.dispose()
   blendState.compaction = undefined
   blendState.table = undefined
@@ -192,34 +211,46 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   blendState.visibleBlend.length = 0
   disposeBlendResources(blendState)
   blendState.kernels = undefined
-  gpu.zeroUv = undefined
-  capture.surfaceCapture?.dispose()
+}
+
+/** The image passes, the sky, the light tiles and shadows, the bounce, the roots and the light buffer. */
+function disposeLighting(rt: WebgpuPagesRuntime) {
+  const { gpu } = rt
   disposeImagePasses(gpu)
   disposeSkyModule(rt)
   rt.lights.tiles?.dispose()
-  if (rt.lights.vsm) destroyEngineVsm(rt.lights.vsm)
-  rt.lights.vsm = undefined
-  rt.lights.mobilityRows?.destroy()
-  rt.lights.rowLods?.buffer.destroy()
-  rt.lights.mobilityRows = rt.lights.rowLods = undefined
+  releaseEngineVsm(rt.lights)
+  releaseShadowCasters(rt.lights)
   rt.bounce.probes?.dispose()
   rt.bounce.probes = undefined
   rt.bounce.screen?.dispose()
   rt.bounce.screen = undefined
-  rt.lights.spheres?.buffer.destroy()
-  rt.lights.casts?.buffer.destroy()
-  rt.lights.casts = undefined
   rt.compose?.gpu?.dispose()
-  disposeRowWords(rt)
   disposeRootWorlds(rt)
   disposeRootBoxes(rt)
   disposeTreeLeaves(rt)
-  rt.lights.spheres = undefined
   releaseUnlitLights(rt)
   rt.lights.buffer?.destroy()
+}
+
+/** Releases every GPU resource; the trace queue is drained before the promise settles. */
+export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
+  const { gpu, capture, services } = rt,
+    device = gpu.device
+  // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
+  markWebgpuLost(rt)
+  // The main view's resources are released below; a capture under way releases its own view.
+  for (const view of rt.views.persistent.splice(0)) releaseWebgpuView(rt, view)
+  useWebgpuView(rt, rt.views.main)
+  rt.run.gate.release()
+  services.residency.quietPending()
+  disposeCut(rt)
+  disposeBlend(rt)
+  gpu.zeroUv = undefined
+  capture.surfaceCapture?.dispose()
+  disposeLighting(rt)
   const closing = gpu.cache?.dispose()
   gpu.cache = undefined
-  scene.clear()
   // The session submits nothing more: what it retired goes now, as after a frame's submit.
   if (device) destroyRetired(device)
   rt.diag.drainTraceNow()

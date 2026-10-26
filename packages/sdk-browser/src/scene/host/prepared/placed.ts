@@ -20,9 +20,9 @@
  */
 import type { PreparedSceneTables } from '../../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { AnimationBanks } from '../../../../../sdk-core/src/scene/core/animationBanks.ts'
-import type { HostBox, HostMesh } from '../../../session/host/resources.ts'
 import type { Mesh } from '../../../../../sdk-core/src/world/object/mesh.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
+import { appendTo } from '../../../../../math/src/sequence/counts.ts'
 import { createPlacementRows } from '../../../placement/rows/rows.ts'
 import {
   placedMesh,
@@ -30,6 +30,8 @@ import {
   type RowLink,
   type StreamedMeshes,
 } from '../../../geometry/partition/rows.ts'
+import { Box3, boxFromFlat } from '../../../../../sdk-core/src/world/math/box3.ts'
+import type { PageMesh } from '../../../geometry/pages/pageMesh.ts'
 
 type Inputs = {
   tables: Pick<PreparedSceneTables, 'partition' | 'nodes'>
@@ -66,14 +68,13 @@ export function placedMeshes({ tables, scene, ranks, parts, banks, streamed }: I
   const sourcesOf = new Map<number, (readonly Mesh<object>[])[]>()
   for (const [id, drawn] of streamed) {
     const rank = tables.nodes[id].mesh!
-    ;(sourcesOf.get(rank) ?? sourcesOf.set(rank, []).get(rank)!).push(drawn)
+    appendTo(sourcesOf, rank, drawn)
   }
-  const [minX, minY, minZ, maxX, maxY, maxZ] = partition.bounds
-  const box: HostBox = { min: { x: minX, y: minY, z: minZ }, max: { x: maxX, y: maxY, z: maxZ } }
+  const box = boxFromFlat(new Box3(), partition.bounds)
   for (const rank of partition.meshes) {
     const built = parts(rank)
     const nodes = built.map((part) => {
-      const mesh = Object.assign(part.clone() as HostMesh, { boundingBox: box })
+      const mesh = Object.assign(part.clone() as PageMesh, { boundingBox: box })
       // A cell places only shown nodes; the part may be a hidden core node's own mesh.
       mesh.visible = true
       scene.add(mesh)

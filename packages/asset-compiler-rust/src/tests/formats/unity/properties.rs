@@ -155,7 +155,7 @@ fn the_texture_importer_of_a_meta_gives_the_sampler_its_wrap_and_filter() {
         json!(9728),
         "`filterMode: 0` samples nearest"
     );
-    assert_eq!(sampler["minFilter"], json!(9984));
+    assert_eq!(sampler["minFilter"], json!(9728));
 }
 
 /// A white `.mat` whose base colour carries the texture of this GUID.

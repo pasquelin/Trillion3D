@@ -54,6 +54,28 @@ import {
  * - `globalDistanceFieldMinMeshRadius` (20) and `globalDistanceFieldMinMeshRadiusInVoxels` (0.5):
  *   a mesh whose bounding sphere is smaller than the larger of the two is left out of the field.
  *
+ * The rays marched through the field (the reflections' scene stage, `../lighting/globalDistanceField.ts`):
+ * - `globalDistanceFieldTraceResolution` (252) and `globalDistanceFieldTraceClipmapExtent` (2500):
+ *   while a ray is marched through the field, the voxels along a clipmap and the half-extent of the
+ *   first clipmap, each next twice the one before, take these in place of `globalDistanceFieldResolution`,
+ *   `globalDistanceFieldViewDistance` and `globalDistanceFieldClipmapExponent`;
+ * - `globalDistanceFieldTraceViewDistance` (20000): the distance the scene is kept to while rays are
+ *   marched through the field; the clipmaps are `globalDistanceFieldClipmaps` and one more where the
+ *   extent of the clipmap after them reaches it, two more where the extent of the second after them does;
+ * - `globalDistanceFieldCoveredExpandSurfaceScale` (1) and
+ *   `globalDistanceFieldNotCoveredExpandSurfaceScale` (0.6): the scale of the half voxel by which a
+ *   marched ray expands the surface it meets, to close surfaces thinner than the gap between two
+ *   voxels, in the pages the meshes cover and in those only two-sided meshes reach;
+ * - `globalDistanceFieldSimpleCoverageBasedExpand` (false): whether a page only two-sided meshes reach
+ *   counts as wholly not covered; false reads the coverage atlas, a coverage for each voxel, where
+ *   the ray is in such a page;
+ * - `globalDistanceFieldNotCoveredMinStepScale` (4): the scale of the least step of a marched ray in
+ *   the pages only two-sided meshes reach;
+ * - `globalDistanceFieldDitheredTransparencyStepThreshold` (0.5) and
+ *   `globalDistanceFieldDitheredTransparencyTraceThreshold` (0.9): for a ray that is dithered, the
+ *   noise under which a surface of the pages only two-sided meshes reach stops it, at each step and
+ *   along the whole ray.
+ *
  * The meshes' fields, streamed into one brick atlas, the coarsest mip of each always loaded:
  * - `meshDistanceFieldMaxObjectRadius` (100000): a placement whose bounding sphere is larger is left
  *   out of the scene's fields;
@@ -76,7 +98,7 @@ export const GLOBAL_DISTANCE_FIELD_RULES = /* @__PURE__ */ (() =>
     flagSetting('globalDistanceField', true),
     flagSetting('globalDistanceFieldUpdate', true),
     integerSetting('globalDistanceFieldClipmaps', 4, [0, 6]),
-    positiveSetting('globalDistanceFieldViewDistance', 20000, 'a finite number above 0'),
+    positiveSetting('globalDistanceFieldViewDistance', 20000),
     numberSetting('globalDistanceFieldClipmapExponent', 2, atLeast(1)),
     countSetting('globalDistanceFieldResolution', 128, 1),
     integerSetting('globalDistanceFieldMipFactor', 4, [1, 8]),
@@ -95,6 +117,15 @@ export const GLOBAL_DISTANCE_FIELD_RULES = /* @__PURE__ */ (() =>
     nonNegativeSetting('globalDistanceFieldStartDistance', 100),
     nonNegativeSetting('globalDistanceFieldMinMeshRadius', 20),
     nonNegativeSetting('globalDistanceFieldMinMeshRadiusInVoxels', 0.5),
+    countSetting('globalDistanceFieldTraceResolution', 252, 1),
+    positiveSetting('globalDistanceFieldTraceClipmapExtent', 2500),
+    positiveSetting('globalDistanceFieldTraceViewDistance', 20000),
+    nonNegativeSetting('globalDistanceFieldCoveredExpandSurfaceScale', 1),
+    nonNegativeSetting('globalDistanceFieldNotCoveredExpandSurfaceScale', 0.6),
+    flagSetting('globalDistanceFieldSimpleCoverageBasedExpand', false),
+    nonNegativeSetting('globalDistanceFieldNotCoveredMinStepScale', 4),
+    nonNegativeSetting('globalDistanceFieldDitheredTransparencyStepThreshold', 0.5),
+    nonNegativeSetting('globalDistanceFieldDitheredTransparencyTraceThreshold', 0.9),
     nonNegativeSetting('meshDistanceFieldMaxObjectRadius', 100000),
     nonNegativeSetting('meshDistanceFieldSurfaceBiasExpand', 0.25),
     countSetting('meshDistanceFieldBrickAtlasSize', 128, 1),

@@ -4,8 +4,37 @@
 
 /** The compiles in flight on a device — a session's handle, or the device itself —, each with
  *  whether its frames wait for it, and how many they wait for. */
-type Ledger = { compiles: Map<Promise<unknown>, boolean>; held: number }
+type Ledger = {
+  compiles: Map<Promise<unknown>, boolean>
+  held: number
+  /** The frames that entered, which a refused compile's retry is counted in. */
+  frame: number
+  /** The compiles the device refused, not yet said (`takeRefusals`). */
+  refusals: string[]
+}
 const ledgers = new WeakMap<GPUDevice, Ledger>()
+const ledgerOf = (device: GPUDevice) => {
+  let ledger = ledgers.get(device)
+  if (!ledger)
+    ledgers.set(device, (ledger = { compiles: new Map(), held: 0, frame: 0, refusals: [] }))
+  return ledger
+}
+
+/** A frame entered on `device`: the clock a refused compile waits its retry on. */
+export const tickCompiles = (device: GPUDevice) => void ledgerOf(device).frame++
+
+/** The frames that entered on `device` so far. */
+export const framesOf = (device: GPUDevice) => ledgers.get(device)?.frame ?? 0
+
+/** `device` refused a compile, `label` its pipeline: said once, by the next frame's entry. */
+export const refuse = (device: GPUDevice, label: string) =>
+  void ledgerOf(device).refusals.push(label)
+
+/** The refusals not yet said, given up to the caller. */
+export function takeRefusals(device: GPUDevice) {
+  const ledger = ledgers.get(device)
+  return ledger?.refusals.length ? ledger.refusals.splice(0) : undefined
+}
 
 /** `compile`, in flight on `device` until it settles; its frames wait for it once `held` — a program
  *  a frame needs that no ready one stands in for, as a lobed surface's lobe code
@@ -13,9 +42,8 @@ const ledgers = new WeakMap<GPUDevice, Ledger>()
  *  asked again, it adds nothing; none, nothing to track. */
 export function track(device: GPUDevice, compile: Promise<unknown> | undefined, held: boolean) {
   if (!compile) return
-  let ledger = ledgers.get(device)
-  if (!ledger) ledgers.set(device, (ledger = { compiles: new Map(), held: 0 }))
-  const known = ledger.compiles.get(compile)
+  const ledger = ledgerOf(device),
+    known = ledger.compiles.get(compile)
   if (known === undefined) {
     const settled = () => untrack(device, compile)
     compile.then(settled, settled)
@@ -25,7 +53,7 @@ export function track(device: GPUDevice, compile: Promise<unknown> | undefined, 
 }
 
 /** `compile` leaves `device`'s ledger: it settled, or its pipeline was made without it. */
-export function untrack(device: GPUDevice, compile: Promise<unknown>) {
+function untrack(device: GPUDevice, compile: Promise<unknown>) {
   const ledger = ledgers.get(device),
     held = ledger?.compiles.get(compile)
   if (!ledger || held === undefined) return

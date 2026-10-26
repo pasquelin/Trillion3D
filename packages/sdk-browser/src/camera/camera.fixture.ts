@@ -1,5 +1,5 @@
 import { createEngineCamera, type EngineCamera } from './engineCamera.ts'
-import { readCameraWorld, type HostCamera } from './world.ts'
+import { readCameraWorld, type ViewCamera } from './world.ts'
 
 /**
  * Engine camera of a test host camera: what frame entry does every frame, in one call.
@@ -7,6 +7,6 @@ import { readCameraWorld, type HostCamera } from './world.ts'
  * knowing what it holds. It allocates: the per-frame path rewrites the camera the engine
  * already owns (`run.cam`).
  */
-export function engineCamera(source: HostCamera | EngineCamera): EngineCamera {
+export function engineCamera(source: ViewCamera | EngineCamera): EngineCamera {
   return 'viewProjection' in source ? source : readCameraWorld(createEngineCamera(), source)
 }

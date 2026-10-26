@@ -58,12 +58,10 @@ export const ORBIT_DEFAULTS = {
   autoRotate: 0,
 }
 
-export function createOrbitCameraControls(
-  camera: ControlCamera,
-  surface: HTMLElement,
-): OrbitCameraControls {
-  const core = createPivotControls(camera, surface)
-  const { base, pose, position, center, offset, orientation } = core
+/** The pivot's eye in spherical terms about its centre: read off the pose when something else
+ *  moved it (`sample`), clamped to the orbit's limits and written back (`apply`). */
+function createOrbitSpherical(core: ReturnType<typeof createPivotControls>) {
+  const { position, center, offset, orientation } = core
   const spherical = new Float64Array(3),
     /** Eye, pivot and orientation as last written, and as read back. */
     written = new Float64Array(10),
@@ -77,6 +75,7 @@ export function createOrbitCameraControls(
     if (!posed || !sameValues(seen, written)) toSpherical(spherical, offset)
   }
   const apply = () => {
+    const api = core.api as OrbitCameraControls
     spherical[0] = keptDistance(api, spherical[0])
     spherical[1] = clampAzimuth(spherical[1], api.minAzimuthAngle, api.maxAzimuthAngle)
     spherical[2] = clampCompare(
@@ -93,6 +92,16 @@ export function createOrbitCameraControls(
     posed = true
     return changed
   }
+  return { spherical, sample, apply }
+}
+
+export function createOrbitCameraControls(
+  camera: ControlCamera,
+  surface: HTMLElement,
+): OrbitCameraControls {
+  const core = createPivotControls(camera, surface)
+  const { base, pose, center, orientation } = core
+  const { spherical, sample, apply } = createOrbitSpherical(core)
   const rotate = (dx: number, dy: number) => {
     sample()
     spherical[1] -= (TAU * dx * api.rotateSpeed) / core.height()

@@ -1,5 +1,5 @@
 import type { Engine } from '../session/engine/types.ts'
-import { runtimeMaterials } from './runtimeMaterials.ts'
+import { runtimeMaterials, unknownMaterial } from './runtimeMaterials.ts'
 import type { PageSurface } from '../geometry/pages/surface.ts'
 import type { Texture } from '../../../sdk-core/src/world/texture/texture.ts'
 import { alphaModeFields, tableRankOf } from '../scene/host/prepared/materials.ts'
@@ -144,7 +144,7 @@ function setMaterial(
 function assignMaterial(writes: Writes, primitive: string, id: string) {
   const { engine, scene, created } = writes
   const made = created.get(id)
-  if (!made) throw new EngineError('UNKNOWN_MATERIAL', `the page created no material ${id}`, { id })
+  if (!made) return unknownMaterial(id)
   // The table's wearers are indexed as imported, before a mesh wears another.
   const drawn = scene().drawables.get(primitive)
   if (!drawn)

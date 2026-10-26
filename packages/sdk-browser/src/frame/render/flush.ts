@@ -6,6 +6,7 @@ import { outputColorDiagnostic } from '../../diagnostic/presentationDiagnostic.t
 import { directLightingState } from './encodeLights.ts'
 import { bounceState } from '../backend/state/bounce.ts'
 import { renderWebgpuPages } from './render.ts'
+import { freshDisplay } from '../io/displayRead.ts'
 import { settlePose } from '../../materials/virtual/converge.ts'
 import { deviceAnswer } from '../loop/deviceAnswer.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -27,7 +28,7 @@ function reportProgress(rt: WebgpuPagesRuntime) {
     directLighting: { version: 1, ...directLightingState(rt) },
     bounce: { version: 1, ...bounceState(rt.bounce) },
     selectedPages: run.shown.length,
-    residentPages: run.drawn.length,
+    residentPages: run.shown.length,
     selectedTriangles: run.selectedTriangles,
     submittedTriangles: run.submittedTriangles,
     transparent: {
@@ -50,6 +51,7 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { run, gpu, capture, diag, context } = rt,
     { clearColor } = run
   if (!capture.capturePending) {
+    freshDisplay(rt)
     const revision = run.imageRevision,
       [width, height] = gpu.displaySize,
       texture = gpu.displayTexture!

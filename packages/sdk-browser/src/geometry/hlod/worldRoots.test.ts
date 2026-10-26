@@ -34,22 +34,18 @@ test('nothing is held at open; a held HLOD 0 cell holds the bundles of its HLOD 
   assert.deepEqual(heldBy(roots), [], 'nothing left')
 })
 
-test('a bundle whose bytes are not those its table names waits its turn, its hold on its way, wanted till released', async (t) => {
+test('a bundle whose bytes are not those its table names is asked again at once, its tries, then given up: its hold fails, the cell’s other bundles stay', async (t) => {
   const { bin } = worldRootsFixture()
   bin[bin.byteLength - 12] ^= 1 // the last bundle, a cell's
   const { manifest } = served(t, { bin })
   const { roots, queue } = await opened(t, manifest)
-  const leaving = new AbortController()
-  const held = roots.hold(0, { signal: leaving.signal })
-  await eventually(() => queue.stats().failed === 1)
-  assert.deepEqual([heldBy(roots), queue.stats().failed], [[1, 3], 1], 'it may pass: it waits')
-  leaving.abort()
-  await assert.rejects(held, { name: 'AbortError' })
+  await assert.rejects(roots.hold(0), /PAGE_STREAM_FAILED.*after 4 attempts/)
+  assert.deepEqual([heldBy(roots), queue.stats().failed], [[1, 3], 1], 'given up, its cell placed')
   roots.release(0)
   assert.deepEqual(heldBy(roots), [], 'released, it holds nothing')
 })
 
-test('a bundle a cell holds whose bytes differ is refused, naming it', async (t) => {
+test('a bundle a cell holds whose bytes differ is refused once its tries are spent, naming it', async (t) => {
   const { bin } = worldRootsFixture()
   const world = served(t, { bin }),
     at = (bundle: number) => world.table.bundles[bundle].offset
@@ -58,7 +54,7 @@ test('a bundle a cell holds whose bytes differ is refused, naming it', async (t)
   const queue = createPageStreamer([], 'http://world/', {
     cache: createPageCache(),
     onDiagnostic: ({ phase, context }) =>
-      phase === 'page-retry' && refusals.push(String((context as { error: string }).error)),
+      phase === 'page-error' && refusals.push(String((context as { error: string }).error)),
   })
   t.after(() => queue.dispose())
   const roots = (await openWorldRoots(world.manifest, 'http://world/', queue))!

@@ -1,7 +1,8 @@
-import { DEG2RAD } from '../../../../math/src/constants.ts'
+import { DEG2RAD, HALF_MAX } from '../../../../math/src/constants.ts'
 import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { fieldsOf, refusal } from '../../contracts/nameMatch.ts'
+import { LIGHT_MOBILITY } from '../../scene/light/contracts.ts'
 import {
   ANY_NUMBER as ANY,
   atLeast,
@@ -12,28 +13,31 @@ import {
   numberSetting as number,
   resolveSettings,
   rulesOf,
-  type SettingOptions,
   type SettingValues,
   vectorSetting as vector,
 } from '../../contracts/settingRules.ts'
-import { SKY_QUALITY_RULES, type SkyQualityValues } from './quality.ts'
+import type { SkyQualityValues } from './quality.ts'
+import {
+  resolveSkyLightCubemap,
+  resolveSkyLightCubemapBlend,
+  SKY_LIGHT_CUBEMAP_FIELDS,
+  type SkyLightCubemap,
+  type SkyLightCubemapBlend,
+} from './skyLightCubemap.ts'
 
 /**
  * The sky light part of the sky module: a light that captures the sky into a cube, filters the cube
  * by roughness for the reflections, and sums it into nine harmonics for the diffuse light. Run-time
  * settings, as `../../contracts/settingRules.ts` says. Every field has the component's default,
- * but `realTimeCapture` and `mobility`, which are those of the sky module's sky light (a real-time
- * capture, movable): the part's defaults.
+ * but `realTimeCapture`, `mobility` and `lowerHemisphereIsSolidColor`, which are those of the sky
+ * module's sky light (a real-time capture, movable, the lower hemisphere the sky's own): the part's
+ * defaults, those of a new level's sky light.
  *
  * A field a capture does not read says so below: it belongs to the light's other consumers (the
  * distance-field occlusion, the cloud occlusion, the ray-traced effects, the volumetric fog, the
  * cubemap of a source that is no capture) and is held here so that they read it from one place.
  */
 
-/** From `low` up, a finite number. */
-const from = (low: number): readonly [number, number] => [low, ANY[1]]
-
-const MOBILITIES = ['static', 'stationary', 'movable'] as const
 const SOURCE_TYPES = ['capturedScene', 'specifiedCubemap'] as const
 const OCCLUSION_COMBINES = ['minimum', 'multiply'] as const
 
@@ -43,38 +47,52 @@ const OCCLUSION_COMBINES = ['minimum', 'multiply'] as const
  *   component's is `'stationary'`): the sky is captured by the real-time capture when the flag is
  *   on and the light is movable or stationary (`isSkyLightCapturing`);
  * - `intensity` (1) and `color` (white, linear): the light's colour is their product;
- * - `indirectLightingIntensity` (1), `volumetricScatteringIntensity` (1): read by the global
- *   illumination and the volumetric fog, not by the capture;
+ * - `volumetricScatteringIntensity` (1): read by the volumetric fog, not by the capture;
  * - `cubemapResolution` (128): the cube's side, made a power of two between 8 and the limits
  *   (`skyLightCubeWidth`);
- * - `lowerHemisphereIsSolidColor` (true; the component calls it `bLowerHemisphereIsBlack`) and
- *   `lowerHemisphereColor` (black, linear): every direction below the horizon is that colour;
+ * - `lowerHemisphereIsSolidColor` (false; the component's is true),
+ *   `lowerHemisphereColor` (black, linear) and `lowerHemisphereCoverage` (1, from 0 to 1, the
+ *   colour's alpha): where the flag is on, every direction below the horizon is that colour, by
+ *   that share, the sky and the clouds there showing through what is left; off, they are the sky's;
  * - `sourceType` (`'capturedScene'`), `sourceCubemapAngle` (0, degrees), `skyDistanceThreshold`
  *   (150000 cm), `captureEmissiveOnly` (false): the static sources', which the real-time capture
  *   replaces (`skyLightSource`). A specified cubemap reads the angle (`skyLightCubemapRotation`);
  *   the captured scene reads the distance (the near plane of its faces, in centimetres) and the
  *   emissive flag (only what the surfaces emit is captured); it is drawn for a light that is not
  *   static and affects the world (`skyLightSource`);
+ * - `cubemap` and `cubemapBlend`, the fields that are no setting: the picture of a specified cubemap
+ *   and the one it blends to, as data (`./skyLightCubemap.ts`), read only where the source is the
+ *   specified cubemap;
  * - `occlusionMaxDistance` (1000), `contrast` (0), `occlusionExponent` (1), `minOcclusion` (0),
  *   `occlusionTint` (black), `occlusionCombineMode` (`'minimum'`): the distance-field occlusion's;
  * - `cloudAmbientOcclusion` (false), `cloudAmbientOcclusionStrength` (1, from 0),
  *   `cloudAmbientOcclusionExtentKm` (150, from 1), `cloudAmbientOcclusionMapResolutionScale` (1, from
  *   0.25), `cloudAmbientOcclusionApertureScale` (0.05, 0 to 1): the clouds' occlusion of the sky
- *   light's, with the ranges the component clamps them to (`./cloudSkyOcclusion.ts` reads them);
- * - `affectsWorld`, `castShadows`, `castVolumetricShadow`, `affectReflection`,
- *   `affectGlobalIllumination` (all true), `samplesPerPixel` (4): the light's switches.
+ *   within the atmosphere, which progressively fades the multiple scattering of the air's first
+ *   light out under the clouds (not the sky light's own diffuse and specular light: the capture,
+ *   the cube and its harmonics do not read it), with the ranges the component clamps them to. When
+ *   the flag is on a map is built, `extentKm` its radius round the camera, `mapResolutionScale`
+ *   the factor on its 512 texels a side, `strength` how much light it blocks, `apertureScale` the
+ *   cone, from the vertical, its hemisphere filter takes in (0 one direction, sharp, 1 the whole
+ *   hemisphere, blurry) (`./cloudSkyOcclusion.ts` reads them);
+ * - `affectsWorld`, `castShadows`, `castVolumetricShadow` (all true): the light's switches.
+ *
+ * Three of the component's settings are not here because nothing of this engine reads them: the
+ * indirect lighting intensity and the samples per pixel are read by ray-traced and path-traced
+ * lighting alone, the switches of whether the light affects the reflections and the global
+ * illumination by the ray-traced reflections alone (and the second by nothing at all).
  */
 export const SKY_LIGHT_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('realTimeCapture', true),
-    choice('mobility', 'movable', MOBILITIES),
+    choice('mobility', 'movable', LIGHT_MOBILITY),
     number('intensity', 1, ANY),
     vector('color', [1, 1, 1]),
-    number('indirectLightingIntensity', 1, ANY),
     number('volumetricScatteringIntensity', 1, ANY),
-    integer('cubemapResolution', 128, from(1)),
-    flag('lowerHemisphereIsSolidColor', true),
+    integer('cubemapResolution', 128, atLeast(1)),
+    flag('lowerHemisphereIsSolidColor', false),
     vector('lowerHemisphereColor', [0, 0, 0]),
+    number('lowerHemisphereCoverage', 1, [0, 1]),
     choice('sourceType', 'capturedScene', SOURCE_TYPES),
     number('sourceCubemapAngle', 0, ANY),
     number('skyDistanceThreshold', 150000, ANY),
@@ -93,41 +111,55 @@ export const SKY_LIGHT_RULES = /* @__PURE__ */ (() =>
     flag('affectsWorld', true),
     flag('castShadows', true),
     flag('castVolumetricShadow', true),
-    flag('affectReflection', true),
-    flag('affectGlobalIllumination', true),
-    integer('samplesPerPixel', 4, from(1)),
   ] as const))()
-
-/** What a host writes for the part: any of the light's fields. */
-export type SkyLightOptions = SettingOptions<typeof SKY_LIGHT_RULES>
 
 /** The light's settings as resolved. */
 export type SkyLightSettings = SettingValues<typeof SKY_LIGHT_RULES>
 
 /** The part as the capture reads it: the light's settings, and the sky's quality settings
- *  (`./quality.ts`) that hold the reference's console variables of the capture. */
+ *  (`./quality.ts`) that hold the capture's settings; the specified cubemap and the blend, where
+ *  the fields give them. */
 export interface SkyLightPart {
   readonly light: SkyLightSettings
   readonly quality: SkyQualityValues
+  readonly cubemap?: SkyLightCubemap
+  readonly cubemapBlend?: SkyLightCubemapBlend
 }
 
 /**
  * The one reading of the part's merged fields: the light's settings, each its default when the
- * fields hold none, with the sky's `quality` settings, their defaults when none is given.
+ * fields hold none, with the sky's `quality` settings.
  * @throws TypeError naming a field the part does not have, or a value a field does not take.
  */
 export function resolveSkyLight(
   fields: Readonly<Record<string, unknown>>,
-  quality: SkyQualityValues = resolveSettings(SKY_QUALITY_RULES, {}),
+  quality: SkyQualityValues,
 ): SkyLightPart {
+  const refuse = refusal('skyLight')
   const held = fieldsOf(
     fields,
-    Object.keys(SKY_LIGHT_RULES),
+    [...Object.keys(SKY_LIGHT_RULES), ...SKY_LIGHT_CUBEMAP_FIELDS],
     'the sky light part',
-    refusal('skyLight'),
+    refuse,
   )
-  return { light: resolveSettings(SKY_LIGHT_RULES, held), quality }
+  return {
+    light: resolveSettings(SKY_LIGHT_RULES, held),
+    quality,
+    ...(held.cubemap !== undefined && {
+      cubemap: resolveSkyLightCubemap(held.cubemap, 'cubemap', refuse),
+    }),
+    ...(held.cubemapBlend !== undefined && {
+      cubemapBlend: resolveSkyLightCubemapBlend(held.cubemapBlend, refuse),
+    }),
+  }
 }
+
+/** The part under other quality settings: the same light, cubemap and blend (what the frame does
+ *  where a quality setting moves). */
+export const skyLightPartAt = (part: SkyLightPart, quality: SkyQualityValues): SkyLightPart => ({
+  ...part,
+  quality,
+})
 
 /**
  * What the distance-field occlusion reads of the light, held to the ranges the reference holds
@@ -155,9 +187,16 @@ export function skyLightContrastCurve(contrast: number) {
   return { mul: 1 / (high - low), add: -low / (high - low) }
 }
 
+/** The lower hemisphere's colour with its coverage as the fourth lane, what the capture's copy and
+ *  composition mix the directions under the horizon with. */
+export const lowerHemisphereOf = (light: SkyLightSettings) => [
+  ...light.lowerHemisphereColor,
+  light.lowerHemisphereCoverage,
+]
+
 /** Whether the sky light captures the sky in real time: the flag on, the light movable or
  *  stationary, and the platform allowing it. */
-export const isSkyLightCapturing = (part: SkyLightPart) =>
+const isSkyLightCapturing = (part: SkyLightPart) =>
   part.light.realTimeCapture &&
   (part.light.mobility === 'movable' || part.light.mobility === 'stationary') &&
   part.quality.skyLightRealTimeCapture
@@ -174,9 +213,6 @@ export const skyLightSource = (part: SkyLightPart) =>
 export const skyLightCubemapRotation = (part: SkyLightPart) =>
   part.light.sourceCubemapAngle * DEG2RAD
 
-/** The largest finite half float: what a 16-bit cube holds. */
-export const HALF_FLOAT_MAX = 65504
-
 /**
  * The scales of a 32-bit float cubemap whose brightest channel is `peak`: past the half float's
  * range the cube is written times `cube` (the range over the peak) so that it fits, and the light's
@@ -184,9 +220,10 @@ export const HALF_FLOAT_MAX = 65504
  * Within the range both are 1.
  */
 export const skyLightCubemapScales = (peak: number) =>
-  peak > HALF_FLOAT_MAX
-    ? { cube: HALF_FLOAT_MAX / peak, light: peak / HALF_FLOAT_MAX }
-    : { cube: 1, light: 1 }
+  peak > HALF_MAX ? { cube: HALF_MAX / peak, light: peak / HALF_MAX } : { cube: 1, light: 1 }
+
+/** The scales of a cubemap, or of a pair of them (`skyLightCubemapScales`). */
+export type SkyLightCubemapFit = ReturnType<typeof skyLightCubemapScales>
 
 /** The smallest side of the cube the light sanitises to. */
 const LEAST_CUBE_WIDTH = 8
@@ -196,14 +233,15 @@ const LEAST_OVERRIDE = 16
 /**
  * The side of the captured cube. The light's `cubemapResolution` is made a power of two, at least
  * 8 and at most the device's largest cube side `deviceCubeMax` — or, when the quality's
- * `skyLightCubemapMaxResolution` is above 0, that value held between 8 and the device's. A
- * `skyLightResolutionOverride` of 16 or more replaces the light's side as it is, not made a power of
- * two, held to the device's largest side alone.
+ * `skyLightCubemapMaxResolution` is above 0, that value held between 8 and the device's. Where the
+ * light captures its sky in real time (`skyLightSource`), a `skyLightResolutionOverride` of 16 or
+ * more replaces the light's side as it is, not made a power of two, held to the device's largest
+ * side alone; a captured scene and a specified cubemap keep the light's own side.
  */
 export function skyLightCubeWidth(part: SkyLightPart, deviceCubeMax: number) {
   const { skyLightCubemapMaxResolution: cubemapMaxResolution, skyLightResolutionOverride } =
     part.quality
-  if (skyLightResolutionOverride >= LEAST_OVERRIDE)
+  if (skyLightSource(part) === 'realTime' && skyLightResolutionOverride >= LEAST_OVERRIDE)
     return Math.min(Math.trunc(skyLightResolutionOverride), deviceCubeMax)
   const most =
     cubemapMaxResolution > 0
@@ -221,17 +259,23 @@ export const skyLightCloudWidth = (width: number, part: SkyLightPart) =>
 
 /**
  * The colour the sky light gives what it lights: the light's colour times its intensity, times
- * the quality's `skyLightIntensityScale`. The capture is written at a pre-exposure of 1, as every
- * view that runs no post is, so the colour is applied as it is. Black when the sky
- * lighting is off (`skyLighting`). `cubemapScale` is the rescale of a 32-bit float cubemap
- * (`skyLightCubemapScales(...).light`), 1 for every other source.
+ * the quality's `skyLightIntensityScale`. A real-time capture is written multiplied by
+ * `capturePreExposure` (`cachedPreExposure`, the exposure options' `cachedLightingPreExposure`),
+ * so the colour is multiplied by its inverse there, once, for every reader of the cube and the
+ * harmonics; any other source is written at a pre-exposure of 1 and the colour applies as it is.
+ * Black when the sky lighting is off (`skyLighting`). `cubemapScale` is the rescale of a cubemap
+ * written to fit the half float (`skyLightCubemapScales(...).light`), 1 for every other source.
  */
 export function skyLightColor(
   part: SkyLightPart,
   skyLighting: boolean,
   cubemapScale = 1,
+  capturePreExposure = 1,
 ): [number, number, number] {
   const { color, intensity } = part.light
-  const scale = skyLighting ? intensity * part.quality.skyLightIntensityScale * cubemapScale : 0
+  const written = skyLightSource(part) === 'realTime' ? capturePreExposure : 1
+  const scale = skyLighting
+    ? (intensity * part.quality.skyLightIntensityScale * cubemapScale) / written
+    : 0
   return [color[0] * scale, color[1] * scale, color[2] * scale]
 }

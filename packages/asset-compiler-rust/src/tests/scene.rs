@@ -1,9 +1,13 @@
 use super::*;
 pub(in crate::tests) mod cuts;
 pub(in crate::tests) mod extension_tables;
+mod fallback_meshes;
+pub(in crate::tests) mod hlod_fields;
 pub(in crate::tests) mod mesh_pages;
 pub(in crate::tests) mod motion_tables;
+pub(in crate::tests) mod object_flags;
 pub(in crate::tests) mod partition;
+pub(in crate::tests) mod partition_bodies;
 pub(in crate::tests) mod partition_pages;
 pub(in crate::tests) mod partition_rows;
 pub(in crate::tests) mod scene_tables;

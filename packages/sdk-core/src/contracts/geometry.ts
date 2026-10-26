@@ -1,6 +1,5 @@
 import type { DagReport, PrimitiveDagStall } from './dag.ts'
 import type { AssetScope } from './base.ts'
-import type { RuntimeCutProxy, SceneProxyDescriptor } from './proxy.ts'
 import type { GeometryPageDescriptor, GeometryPageFormat } from '../page/contracts.ts'
 import type { TexturePreview } from '../texture/previewContracts.ts'
 import type { SoftBodyType } from '../physics/soft/soft.ts'
@@ -123,9 +122,6 @@ export interface StreamCatalogue {
   /** Its culling tree. */ culling?: CullingHierarchy | null
   /** Its group links. */ structure?: ClusterStructure | null
   /** Its stream bundles. */ streams?: StreamCatalogue | null
-  /** The proxy of a cut the world made at run time (`geometry/runtime/runtimeProxy.ts`): in memory only,
-   *  what the run-time proxy's instances of it trace. */
-  runtimeProxy?: RuntimeCutProxy
   /** A world's dynamic geometry: index pages alone, their vertices read as floats from the
    *  host geometry the engine rewrites in place. */
   dynamic?: boolean
@@ -168,14 +164,10 @@ export interface ClusterManifest {
   texturePreviews?: TexturePreview[]
   /** Template for baked levels, relative to manifest: {sha} the chain's fingerprint — its source
    *  image digest and the channels and cuts that decide its bytes —,
-   *  {kind} the atlas name (PREVIEW_ATLAS_NAMES; `srgb-coverage-<C>` for a coverage chain cut at
-   *  byte C), {level} the level rank. Absent from a
+   *  {kind} the atlas name (PREVIEW_ATLAS_NAMES), {level} the level rank. Absent from a
    *  cache compiled before baked levels, which this reader rejects via sidecar version. `version`
    *  is the levels' (`TEXTURE_PREVIEW_VERSION`): a reader reads no level of another. */
   textures?: { url: string; version?: number }
-  /** Where to read the resident scene proxy and its BVH: geometry hit by rays.
-   *  Absent from a cache compiled before bounce, which remains readable as is. */
-  proxy?: SceneProxyDescriptor
   /** Where to read the scene's animation banks: the clips its instanced skinned objects play on
    *  the GPU (`../scene/core/animationBanks.ts`). Absent from a scene with none. */
   animationBanks?: AnimationBanksDescriptor

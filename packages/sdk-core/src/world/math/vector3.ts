@@ -11,6 +11,7 @@ import {
   normalizeVector3,
   scaleVector3,
   subVector3,
+  transformAffinePoint,
   transformDirectionVector3,
   transformHomogeneousPoint,
 } from '../../../../math/src/vector/vector.ts'
@@ -22,11 +23,13 @@ import type { Matrix4 } from './matrix4.ts'
 import type { Matrix3 } from './matrix3.ts'
 import { loadXyz, loadXyzw, type XYZLike, type XYZWLike } from './likes.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
+import { isAffineMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 
 const a = new Float64Array(3),
   b = new Float64Array(3),
   h = new Float64Array(4),
-  q = new Float64Array(4)
+  q = new Float64Array(4),
+  spherical = new Float64Array(3)
 
 /**
  * A point or a direction in three dimensions, chainable. The numbers live in `elements`, which
@@ -141,7 +144,14 @@ export class Vector3 extends ObservedComponents {
   }
   /** Point transform, divided by the projective row. */
   applyMatrix4(m: Matrix4) {
-    transformHomogeneousPoint(h, m.elements, this.x, this.y, this.z)
+    const e = m.elements
+    // An affine matrix: the fourth row is 0·x + 0·y + 0·z + 1, which is 1 (or NaN, read as 1), so
+    // the divide is by 1.
+    if (isAffineMatrix4(e)) {
+      transformAffinePoint(h, e, this.x, this.y, this.z)
+      return this.set(h[0], h[1], h[2])
+    }
+    transformHomogeneousPoint(h, e, this.x, this.y, this.z)
     const w = 1 / (h[3] || 1)
     return this.set(h[0] * w, h[1] * w, h[2] * w)
   }
@@ -156,11 +166,15 @@ export class Vector3 extends ObservedComponents {
     return this.written(rotateByQuaternion(a, loadXyzw(q, r), this.x, this.y, this.z))
   }
   /** Takes the move part of a matrix. */ setFromMatrixPosition(m: Matrix4) {
-    return this.written(m.elements.subarray(12, 15))
+    const e = m.elements
+    return this.set(e[12], e[13], e[14])
   }
   /** The point at a distance and two angles. */
   setFromSpherical(s: { radius: number; phi: number; theta: number }) {
-    return this.written(fromSpherical(a, [s.radius, s.theta, s.phi]))
+    spherical[0] = s.radius
+    spherical[1] = s.theta
+    spherical[2] = s.phi
+    return this.written(fromSpherical(a, spherical))
   }
   /** Reads x, y and z from a list. */ fromArray(array: ArrayLike<number>, offset = 0) {
     return this.set(array[offset], array[offset + 1], array[offset + 2])

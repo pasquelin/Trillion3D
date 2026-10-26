@@ -2,16 +2,17 @@
 //!   packages/sdk-core/src/contracts/lightmapBakeAbi.ts
 //! Edit the source, then run `pnpm run generate:shared-rules`.
 
-/// The job field naming the bake, the command line's flag holding it as JSON, the key of the
-/// boxes the volume covers and the product holding the baked lightmap.
+/// The job field naming the bake, the command line's flag holding it as JSON, the keys of the
+/// boxes the volume covers and of the sky light, and the product holding the baked lightmap.
 pub const LIGHTMAP_BAKE_FIELD: &str = "lightmapBake";
 pub const LIGHTMAP_BAKE_OPTION: &str = "--lightmap-bake=";
 pub const LIGHTMAP_BAKE_VOLUMES: &str = "volumes";
+pub const LIGHTMAP_BAKE_SKY: &str = "skyLight";
 pub const LIGHTMAP_BAKE_FILE: &str = "volumetric-lightmap.bin";
 /// The reference's length unit per metre.
 pub const LIGHTMAP_BAKE_UNITS_PER_METRE: f64 = 100.0;
 /// The settings' names, defaults and ranges, the reference's.
-pub const LIGHTMAP_BAKE_SETTINGS: [&str; 10] = [
+pub const LIGHTMAP_BAKE_SETTINGS: [&str; 14] = [
     "detailCellSize",
     "qualityMultiplier",
     "giSamples",
@@ -22,6 +23,10 @@ pub const LIGHTMAP_BAKE_SETTINGS: [&str; 10] = [
     "irradianceCacheCornerRejection",
     "automaticVolumeExpand",
     "automaticVolumeLimit",
+    "maximumBrickMemory",
+    "sphericalHarmonicSmoothing",
+    "loadingCellSize",
+    "minBrickError",
 ];
 pub const DETAIL_CELL_SIZE_SETTING: &str = "detailCellSize";
 pub const DEFAULT_DETAIL_CELL_SIZE: f64 = 2.0;
@@ -52,3 +57,27 @@ pub const AUTOMATIC_VOLUME_EXPAND_RANGE: (f64, f64) = (0.0, f64::MAX);
 pub const AUTOMATIC_VOLUME_LIMIT_SETTING: &str = "automaticVolumeLimit";
 pub const DEFAULT_AUTOMATIC_VOLUME_LIMIT: f64 = 100.0;
 pub const AUTOMATIC_VOLUME_LIMIT_RANGE: (f64, f64) = (0.0, f64::MAX);
+pub const MAXIMUM_BRICK_MEMORY_SETTING: &str = "maximumBrickMemory";
+pub const DEFAULT_MAXIMUM_BRICK_MEMORY: f64 = 30.0;
+pub const MAXIMUM_BRICK_MEMORY_RANGE: (f64, f64) = (1.0, 65536.0);
+pub const SPHERICAL_HARMONIC_SMOOTHING_SETTING: &str = "sphericalHarmonicSmoothing";
+pub const DEFAULT_SPHERICAL_HARMONIC_SMOOTHING: f64 = 0.02;
+pub const SPHERICAL_HARMONIC_SMOOTHING_RANGE: (f64, f64) = (0.0, 1000.0);
+pub const LOADING_CELL_SIZE_SETTING: &str = "loadingCellSize";
+pub const DEFAULT_LOADING_CELL_SIZE: f64 = 32.0;
+pub const LOADING_CELL_SIZE_RANGE: (f64, f64) = (0.0, 100000.0);
+pub const MIN_BRICK_ERROR_SETTING: &str = "minBrickError";
+pub const DEFAULT_MIN_BRICK_ERROR: f64 = 0.01;
+pub const MIN_BRICK_ERROR_RANGE: (f64, f64) = (0.0, 1000.0);
+/// The sky light the bake shines (`skyLight`): its settings' names and defaults, the sky light part's own.
+pub const LIGHTMAP_BAKE_SKY_SETTINGS: [&str; 4] =
+    ["intensity", "color", "lowerHemisphereColor", "castShadows"];
+pub const SKY_LIGHT_INTENSITY_SETTING: &str = "intensity";
+pub const DEFAULT_SKY_LIGHT_INTENSITY: f64 = 1.0;
+pub const SKY_LIGHT_INTENSITY_RANGE: (f64, f64) = (f64::MIN, f64::MAX);
+pub const SKY_LIGHT_COLOR_SETTING: &str = "color";
+pub const DEFAULT_SKY_LIGHT_COLOR: [f64; 3] = [1.0, 1.0, 1.0];
+pub const SKY_LIGHT_LOWER_HEMISPHERE_COLOR_SETTING: &str = "lowerHemisphereColor";
+pub const DEFAULT_SKY_LIGHT_LOWER_HEMISPHERE_COLOR: [f64; 3] = [0.0, 0.0, 0.0];
+pub const SKY_LIGHT_CAST_SHADOWS_SETTING: &str = "castShadows";
+pub const DEFAULT_SKY_LIGHT_CAST_SHADOWS: bool = true;

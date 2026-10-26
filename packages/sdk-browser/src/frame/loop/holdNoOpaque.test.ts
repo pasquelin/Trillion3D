@@ -1,25 +1,26 @@
 // The occluder history is established by an image that draws opaque rows alone: the pyramid it
 // leaves is what the next image's cut occlusion reads. A view with none — blend clusters alone, the
-// sky — must neither clear the bit nor hold its frame on it. It does not count there, and counts as soon as a row is packed. The row
-// change flag is consumed by every submitted image, not by the opaque path alone.
+// sky — must neither clear the bit nor hold its frame on it. It does not count there, and counts as
+// soon as an opaque page is packed.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { unsettledMask, unsettledReasons } from './unsettled.ts'
 import { settledRt } from './hold.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { camera, flushedGpuScene, quadScene } from '../backend/testScenes.fixture.ts'
+import { material } from '../../../../sdk-core/src/world/material/index.ts'
 
-test('a view without a packed row owes no occluder history', () => {
+test('a view without a packed opaque page owes no occluder history', () => {
   const rt = settledRt()
   rt.run.noOccluderHistory = true
   assert.deepEqual(unsettledReasons(unsettledMask(rt)), ['noOccluderHistory'])
-  rt.layout.rows.packedCount = 0
-  assert.equal(unsettledMask(rt), 0, 'no opaque row: the frame may be held')
-  rt.layout.rows.packedCount = 1
+  rt.layout.packedPages.length = 0
+  assert.equal(unsettledMask(rt), 0, 'no opaque page: the frame may be held')
+  rt.layout.packedPages.push({})
   assert.deepEqual(
     unsettledReasons(unsettledMask(rt)),
     ['noOccluderHistory'],
-    'the missing history still waits for the first packed row',
+    'the missing history still waits for the first packed page',
   )
 })
 
@@ -48,6 +49,28 @@ test('a still view of blend clusters alone holds its frame, and a moved one redr
     scene.source.updateMatrixWorld(true)
     backend.render(camera())
     assert.equal(backend.metrics().frameHeld, false, 'a moved blend surface is drawn again')
+  } finally {
+    backend.dispose()
+    scene.geometry.dispose()
+    scene.material.dispose()
+  }
+})
+
+test('a still view of a translucent surface whose graph reads the time is drawn every image, not held', async () => {
+  installGpuGlobals()
+  const scene = quadScene()
+  scene.metadata.primitives[0].pass = 'clustered-blend'
+  const graph = material.graph('surface')
+  graph.output('emissive', graph.constant(1, 0, 0))
+  graph.output('opacity', graph.multiply(graph.sine(graph.time(), 2), 0.5))
+  Object.assign(scene.material, { transparent: true, opacity: 0.5, graph })
+  const { backend } = await flushedGpuScene(scene, { temporalAntialiasing: false })
+  try {
+    for (let frame = 0; frame < 8; frame++) {
+      backend.render(camera())
+      await backend.flush()
+      assert.equal(backend.metrics().frameHeld, false, `image ${frame} is drawn`)
+    }
   } finally {
     backend.dispose()
     scene.geometry.dispose()

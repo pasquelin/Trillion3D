@@ -3,14 +3,18 @@
 //! is voxelized, the first that names it:
 //! 1. by the `voxelize` match — the meshes of every object it matches;
 //! 2. by the HLOD: the meshes of every object whose layer's chain voxelizes its cells (a `voxel`
-//!    layer, its own or one above it — the simple form's `foliage` group);
+//!    layer, its own or one above it);
 //! 3. by its own `extras`' `shapePreservation: "voxelize"` (`VOXELIZE_EXTRA`).
+//!
+//! A mesh drawn as a part of an assembly (`source/assembly/parts.rs`) is voxelized where its
+//! assembly is, whatever names it.
 //!
 //! A job naming no `voxelize` compiles as before, its cache key unchanged. Read and checked here
 //! once; what does not read is the job's refusal (`INVALID_OPTIONS`, `validate_compile_options`),
 //! never the batch's.
 use super::name_match::{present, NameMatch, NodeNames};
 use super::*;
+use crate::compiler::source::assembly::parts::inherit_voxelized;
 use crate::hlod::options::Assigned;
 use crate::voxel::ShapePreservation;
 
@@ -67,6 +71,7 @@ impl VoxelizeOptions {
                 out.insert(rank);
             }
         }
+        inherit_voxelized(meshes.map_or(&[][..], Vec::as_slice), &mut out);
         Ok(out)
     }
 }

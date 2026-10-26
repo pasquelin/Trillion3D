@@ -1,3 +1,4 @@
+import { displacementProgramOf } from '../../materials/graph/displacementProgram.ts'
 import type { SurfaceDisplacement, VisMaterial } from '../materialType.ts'
 
 /**
@@ -40,11 +41,11 @@ export function fadeOutPixels({ fade }: Pick<SurfaceDisplacement, 'fade'>) {
  * whether the cut draws it.
  */
 export function pagesDisplacementReach(
-  pages: readonly { material?: Pick<VisMaterial, 'displacement' | 'displacementMap'> }[],
+  pages: readonly { material?: Pick<VisMaterial, 'displacement' | 'displacementMap' | 'graph'> }[],
 ) {
   let reach = 0
   for (const { material } of pages)
-    if (material?.displacement && material.displacementMap)
+    if (material?.displacement && (material.displacementMap || displacementProgramOf(material)))
       reach = Math.max(reach, displacementReach(displacementRange(material.displacement)))
   return reach
 }

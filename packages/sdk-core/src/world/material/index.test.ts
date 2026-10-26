@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { material } from './index.ts'
+import { isThinTranslucentGraph, outputActive } from './graph/outputs.ts'
 
 test('material families preserve kind, supplied channels and independent clone edits', () => {
   for (const factory of [
@@ -85,5 +86,14 @@ test('point and line defaults remain present when only their color is customized
   assert.deepEqual(
     [configured.dashSize, configured.gapSize, configured.linewidth, configured.scale],
     [7, 2, 3, 0.5],
+  )
+})
+
+test('a graph that wires a thin translucent output is thin translucent, which reads them and its opacity', () => {
+  const read = (name: 'transmittanceColor' | 'surfaceCoverage' | 'opacity', thin: boolean) =>
+    outputActive('surface', name, { blend: 'opaque', thin })
+  assert.ok(isThinTranslucentGraph({ surfaceCoverage: 1 }) && !isThinTranslucentGraph({}))
+  assert.ok(
+    read('transmittanceColor', true) && read('opacity', true) && !read('surfaceCoverage', false),
   )
 })

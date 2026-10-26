@@ -23,13 +23,27 @@ function codec() {
 
 /** The TypeScript names the readers know two of the page's constants by. */
 const RENAMED: Record<string, string> = {
+  MAGIC: 'GEOMETRY_PAGE_MAGIC',
   VERSION: 'GEOMETRY_PAGE_FORMAT_VERSION',
+  RESIDENT_VERSION: 'GEOMETRY_PAGE_RESIDENT_VERSION',
   HEADER_WORDS: 'CLUSTER_HEADER_WORDS',
 }
 
 /** The decoded name of each optional attribute, in the order `OPTIONAL` (`attributes.rs`) lists
  *  them: the names are the readers', the flags and widths the codec's. */
-const OPTIONAL_NAMES = ['normal', 'uv', 'uv1', 'uv2', 'uv3', 'color', 'tangent']
+const OPTIONAL_NAMES = [
+  'normal',
+  'uv',
+  'uv1',
+  'uv2',
+  'uv3',
+  'uv4',
+  'uv5',
+  'uv6',
+  'uv7',
+  'color',
+  'tangent',
+]
 
 const exported = (constants: readonly RustConstant[], names: readonly string[]) =>
   names.map((name) => {
@@ -38,8 +52,12 @@ const exported = (constants: readonly RustConstant[], names: readonly string[]) 
     return found
   })
 
+/** The flags no reader names but through the attribute table the printed module builds (`OPTIONAL`):
+ *  printed unexported, since an export no reader takes is dead code (`check:unused`). */
+const TABLE_ONLY = new Set(['FLAG_UV4', 'FLAG_UV5', 'FLAG_UV6', 'FLAG_UV7'])
+
 const declaration = ({ name, value, doc }: RustConstant) =>
-  `${doc.length ? `/**\n${comment(doc, ' * ')}\n */\n` : ''}export const ${RENAMED[name] ?? name} = ${value}`
+  `${doc.length ? `/**\n${comment(doc, ' * ')}\n */\n` : ''}${TABLE_ONLY.has(name) ? '' : 'export '}const ${RENAMED[name] ?? name} = ${value}`
 
 /** The page format's constants, printed for the TypeScript readers. */
 export function pageFormatTs() {
@@ -54,14 +72,35 @@ export function pageFormatTs() {
       'FLAG_TANGENT',
       'FLAG_UV2',
       'FLAG_UV3',
+      'FLAG_UV4',
+      'FLAG_UV5',
+      'FLAG_UV6',
+      'FLAG_UV7',
+      'FLAG_UV_EXTENDED',
     ]),
     ...exported(deform, ['FLAG_SKIN', 'FLAG_MORPH']),
   ]
   const items = [
-    ...exported(page, ['VERSION', 'HEADER_WORDS']),
+    ...exported(page, [
+      'MAGIC',
+      'VERSION',
+      'RESIDENT_VERSION',
+      'HEADER_WORDS',
+      'DISK_HEADER_WORDS',
+      'RESIDENT_TABLE_WORDS',
+    ]),
     ...flags,
     ...exported(page, [
+      'MAX_PAGE_TRIANGLES',
+      'MAX_PAGE_VERTICES',
+      'MAX_PAGE_CORNERS',
+      'STRIP_REF_BITS',
+      'REF_PLACE_BITS',
+      'SELF_PLACE',
+      'NO_UNIT',
       'MAX_UV_SETS',
+      'HEADER_UV_SETS',
+      'UV_EXTENSION_WORDS',
       'CENTIMETRES_PER_METRE',
       'MIN_POSITION_PRECISION',
       'MAX_POSITION_PRECISION',
@@ -122,7 +161,7 @@ ${tables.map(([scope, name, doc]) => `/** ${doc} */\n${object(scope, name)}`).jo
 export function pageEncoderAbiTs() {
   return wasmAbiTs(
     `${CODEC}/wasm/encode.rs`,
-    ['REQUEST_WORDS', 'META_WORDS'],
+    ['REQUEST_WORDS', 'META_WORDS', 'POOL_WORDS'],
     [
       ['request', 'REQUEST', "The request's words, by what each holds."],
       ['meta', 'META', "The answer's words on success."],

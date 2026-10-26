@@ -58,6 +58,9 @@ void linkGear(JPH::Constraint *constraint, uint32_t kind, const JPH::Constraint 
 /// The impulse a joint gave its bodies in the last step: linear (N·s), angular for a gear or a
 /// rack (N·m·s), the pull its break force is measured against.
 float jointPull(JPH::Constraint *constraint, uint32_t kind);
+/// The angular impulse the joint last step held against a turn, N·m·s: what its break torque bounds
+/// (`jointPull`'s counterpart for rotation); 0 for a joint with no rotation to hold.
+float jointTwist(JPH::Constraint *constraint, uint32_t kind);
 /// The path joint the world holds for Jolt's `made` path (`keptPath.cpp`): its bend does no work.
 JPH::Ref<JPH::TwoBodyConstraint> keptPath(JPH::TwoBodyConstraint *made, const JPH::TwoBodyConstraintSettings &settings);
 /// Jolt's path joint a `keptPath` solves by, for its motor and its pull.

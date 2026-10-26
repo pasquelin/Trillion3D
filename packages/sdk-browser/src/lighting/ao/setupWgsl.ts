@@ -1,6 +1,6 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
-import { FULLSCREEN_VERTEX } from '../deferred/shaders.ts'
+import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
 import { AO_COMMON_WGSL } from './commonWgsl.ts'
 
 /**

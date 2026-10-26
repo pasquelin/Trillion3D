@@ -127,6 +127,10 @@ export class Vector4 {
   }
 }
 
+/** The point read and the `[radius, theta, phi]` written by `setFromVector3`. */
+const offset = new Float64Array(3),
+  angles = new Float64Array(3)
+
 /** A direction and a distance, in the convention of `spherical.ts`. */
 export class Spherical {
   /** The distance from the centre. */
@@ -149,11 +153,13 @@ export class Spherical {
   }
   /** The distance and angles of a 3D point. */
   setFromVector3(v: { x: number; y: number; z: number }) {
-    const [radius, theta, phi] = toSpherical(new Float64Array([0, this.theta, this.phi]), [
-      v.x,
-      v.y,
-      v.z,
-    ])
+    offset[0] = v.x
+    offset[1] = v.y
+    offset[2] = v.z
+    angles[0] = 0
+    angles[1] = this.theta
+    angles[2] = this.phi
+    const [radius, theta, phi] = toSpherical(angles, offset)
     return this.set(radius, radius === 0 ? 0 : phi, radius === 0 ? 0 : theta)
   }
   /** A new direction with the same numbers. */

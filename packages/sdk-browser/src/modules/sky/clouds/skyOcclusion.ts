@@ -14,14 +14,14 @@ import {
 
 /**
  * THE CLOUDS' SKY OCCLUSION MAP, DECLARED: its hemisphere filter, its layout and pipeline; its
- * dispatches are the shadow map's (`cloudShadowDispatch` of `./shadow.ts`). The trace is the cloud shadow map's own program and layouts
- * (`createCloudShadowPasses` of `./shadow.ts`), not made again here. Nothing is wired into a
- * frame; the pass's owner makes two textures of `side` texels a side (format
- * `CLOUD_SHADOW_FORMAT`, usage `TRACED_USAGE` of `reconstructLayout.ts`, the second also sampled),
- * writes the blocks (`writeSkyOcclusionTrace`, `writeSkyOcclusionFilter`) with the frame of
- * `cloudSkyOcclusionFrame`, and dispatches the shadow trace into the first texture, then, when
- * `cloudSkyAOFiltering` is on, the filter from the first into the second. The map the air
- * reads is the second, else the first. It is made only where `cloudSkyOcclusionWanted`.
+ * dispatches are the shadow map's (`cloudShadowDispatch` of `./shadow.ts`). The trace is the cloud
+ * shadow map's own program and layouts (`createCloudShadowPasses` of `./shadow.ts`), not made again
+ * here. The map's run (`./skyOcclusionRun.ts`) makes two textures of `side` texels a side (format
+ * `CLOUD_SHADOW_FORMAT`, written by a compute pass and sampled), writes the blocks
+ * (`writeSkyOcclusionTrace`, `writeSkyOcclusionFilter`) with the frame of `cloudSkyOcclusionFrame`,
+ * and dispatches the shadow trace into the first texture, then, when `cloudSkyAOFiltering` is on,
+ * the filter from the first into the second. The map the air reads is the second, else the first.
+ * It is made only where `cloudSkyOcclusionWanted`.
  */
 
 /** The filter's group: the map it reads and the sampler that reads it bilinearly, its block, the

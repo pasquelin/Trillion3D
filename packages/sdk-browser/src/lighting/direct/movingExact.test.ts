@@ -2,7 +2,7 @@
 // rank, draws no subset, and its one call site of the light loop is the full sum.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { directLightingWgsl } from './lightingWgsl.ts'
+import { directLightingWgsl } from './lightLoop.fixture.ts'
 import { shaderFunctions, wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import {
   BOUNCE_LIGHTING_SHADER,

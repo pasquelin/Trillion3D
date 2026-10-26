@@ -6,14 +6,11 @@ import { shadeResources } from '../../gpu/bind/shadeBindings.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { computeTextureEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
-import { rowsMoved, rowsUnread } from '../../geometry/rows/dirty.ts'
+import { presentClassKeys } from '../../gpu/core/presentClasses.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { shadeLayoutEntries } from '../passes/shadeLayout.ts'
 import { SHADE_UNIFORM } from '../shader/uniformLayout.ts'
-import { PAGE_INFO } from '../pageInfo.ts'
-import { FLAG_DISPLACED, ROW_WORDS } from '../types.ts'
 import { DISPLACED_SHADE_BINDINGS, PRISM_UNIFORM } from './prismWgsl.ts'
-import { UNTESSELLATED } from './rowWgsl.ts'
 import { tessellationWanted } from './wanted.ts'
 
 /**
@@ -37,11 +34,9 @@ export const displacedShadeLayout = oncePerDevice((device) =>
   }),
 )
 
-/** What a runtime holds of the displaced pixels: the keys of its rows, the rows they were read
- *  from, the buffer of the view's numbers and the group, each made when first needed. */
+/** What a runtime holds of the displaced pixels: the buffer of the view's numbers and the group,
+ *  each made when first needed. */
 type Held = {
-  keys: number[]
-  read: ReturnType<typeof rowsUnread>
   uniform?: GPUBuffer
   identity: ReturnType<typeof createWebgpuBindIdentity>
   group?: GPUBindGroup
@@ -49,33 +44,18 @@ type Held = {
 const held = new WeakMap<object, Held>()
 const heldOf = (rt: WebgpuPagesRuntime) => {
   let h = held.get(rt.vis)
-  if (!h)
-    held.set(rt.vis, (h = { keys: [], read: rowsUnread(), identity: createWebgpuBindIdentity() }))
+  if (!h) held.set(rt.vis, (h = { identity: createWebgpuBindIdentity() }))
   return h
 }
 
 /**
- * The class keys of the rows the image tessellates — displaced, and none of the rows the
- * tessellation leaves as they are (`UNTESSELLATED`) —, empty while the image
- * tessellates nothing: those classes shade through the displaced pipelines. The rows are walked
- * again only when one was written since (`rowsMoved`).
+ * The class keys of the clusters the image tessellates — displaced, and none of those the
+ * tessellation leaves as they are (`UNTESSELLATED`) —, empty while the image tessellates nothing:
+ * those classes shade through the displaced pipelines. Kept as the cluster records are written
+ * (`WebgpuVisState.displacedClasses`).
  */
 export function displacedKeys(rt: WebgpuPagesRuntime): readonly number[] {
-  const h = heldOf(rt),
-    { rows } = rt.layout
-  if (!tessellationWanted(rt) || !rows.pageTableInts) return NONE
-  if (!rowsMoved(h.read, rows.pageTableInts, rows.packedCount, rows.rowWrites)) return h.keys
-  h.keys.length = 0
-  const at = PAGE_INFO.at
-  for (let row = 0; row < rows.packedCount; row++) {
-    const base = row * ROW_WORDS,
-      flags = rows.pageTableInts[base + at.flags]!
-    // The same test as the shader's (`tessellatedFlags`).
-    if (!(flags & FLAG_DISPLACED) || flags & UNTESSELLATED) continue
-    const key = rows.pageTableInts[base + at.materialClass]!
-    if (!h.keys.includes(key)) h.keys.push(key)
-  }
-  return h.keys
+  return tessellationWanted(rt) ? presentClassKeys(rt.vis.displacedClasses) : NONE
 }
 const NONE: readonly number[] = []
 

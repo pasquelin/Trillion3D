@@ -7,10 +7,12 @@ import {
   writeBlendItemRecord,
 } from './items.ts'
 import { refreshBlendPlan } from './plan/plan.ts'
+import { itemFilterWord } from './expand/expansionViews.ts'
+import { forgetViews } from './expand/viewRoom.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { sameMatrixFloat32 } from '../../../math/src/matrix/matrixElements.ts'
 import { frontStageOf } from './frontStage.ts'
-import { blendShareTargets } from '../frame/prepare/asIsShareTarget.ts'
+import { wantsResponsive } from '../frame/prepare/responsiveTarget.ts'
 
 /**
  * Records and the encode plan, rebuilt after a scene change.
@@ -29,9 +31,10 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
     buffer = blendState.itemBuffer
   if (!buffer || !blendState.blendGpu.length) {
     // No item left: no lobe either, so the lobes target and the lobed programs are dropped too,
-    // and no history given up.
+    // and no responsiveness.
     blendState.lobed = false
-    blendState.givesUp = false
+    blendState.responsive = false
+    blendState.translucencyPasses = 0
     blendState.frontOutputs = 0
     return
   }
@@ -39,32 +42,41 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
   else writeBlendRecords(rt, device.queue, buffer)
   refreshBlendPlan(blendState)
   if (posesOnly) return
-  // A blending or a history share written on a surface starts its compile here, off the frame
+  // A blending or a responsiveness written on a surface starts its compile here, off the frame
   // (`reach.ts`).
   vis.blendPipelines?.reach({
-    modes: blendState.planModes,
-    share: blendShareTargets(rt),
+    variants: blendState.planVariants,
+    responsive: wantsResponsive(rt),
+    chromatic: blendState.chromatic,
     filtered: blendState.filtersDisplay,
   })
 }
 
-/** Every record written whole, the lobe and given-up switches derived from them, and what the
+/** Every record written whole, the lobe and responsive switches derived from them, and what the
  *  front pass writes. */
 function writeBlendRecords(rt: WebgpuPagesRuntime, queue: GPUQueue, buffer: GPUBuffer) {
   const { blendState, vis } = rt,
     items = blendState.blendGpu,
     packed = blendState.itemPacked
   let lobed = false,
-    givesUp = false
+    responsive = false,
+    passes = 0
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
     const needs = writeBlendItemRecord(packed, blendState.itemInts, i, item, vis)
     item.lobed = (needs & ITEM_NEEDS.lobed) !== 0
     lobed ||= item.lobed
-    givesUp ||= (needs & ITEM_NEEDS.givesUp) !== 0
+    responsive ||= (needs & ITEM_NEEDS.responsive) !== 0
+    const pass = needs >> ITEM_NEEDS.passShift
+    passes |= 1 << pass
+    // The words the expansion's views filter the item by: its pass and its responsiveness (`expansionViews.ts`).
+    blendState.drawsPacked[i * 4 + 3] = itemFilterWord(pass, (needs & ITEM_NEEDS.responsive) !== 0)
   }
+  blendState.expand?.uploadDraws(blendState.drawsPacked)
+  forgetViews(blendState)
   blendState.lobed = lobed
-  blendState.givesUp = givesUp
+  blendState.responsive = responsive
+  blendState.translucencyPasses = passes
   blendState.frontOutputs = frontStageOf(items)
   queue.writeBuffer(buffer, 0, packed.buffer, 0, packed.byteLength)
 }

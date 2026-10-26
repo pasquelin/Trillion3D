@@ -9,18 +9,30 @@ import {
 } from '../../../../sdk-core/src/scene/core/fogVolumetric.ts'
 import { putVec4 as put } from '../../gpu/core/fieldLayout.ts'
 import { FOG_VOLUME_FRAME_AT } from './layout.ts'
-import { FOG_VIEW_FLOATS, FOG_VIEW_SLOT } from './viewSlots.ts'
+import { FOG_OBSERVER_REACH, FOG_VIEW_FLOATS, FOG_VIEW_SLOT } from './viewSlots.ts'
 
-/** How far above the base of a layer with a density the held observer's height may lie, metres, for
- *  a view that looks out from its eye: 65 536 centimetres. */
-export const FOG_OBSERVER_REACH = 655.36
+/** The sky light as the fog reads it in a view (`FOG_VIEW_SLOT.heightFog`): the strength it mixes
+ *  into the fog's colour with, the roughness and the count of mips of the cube it is read at, and
+ *  the light's colour. */
+export interface SkyLightFogUse {
+  strength: number
+  roughness: number
+  mips: number
+  colour: readonly [number, number, number]
+}
 
 /** What the view block takes of the camera and the fog beside the frame: whether the projection is a
- *  perspective, the eye's height, and the fog the scene shows, none for a scene that has only air. */
+ *  perspective, the eye's height, and the fog the scene shows, none for a scene that has only air;
+ *  whether the view does not show that fog (`hidden`, shown where absent) and the sky light that
+ *  lights it (`skyLight`, none where absent). */
 export interface FogViewLook {
   perspective: boolean
   eyeHeight: number
   fog: ResolvedHeightFog | undefined
+  hidden?: boolean
+  skyLight?: SkyLightFogUse
+  /** Whether the height fog holds its light out in this view (`FOG_VIEW_SLOT.holdout`). */
+  holdout?: boolean
 }
 
 /** The filtering of the volume's read, by the number the shader branches on: its place in the list. */
@@ -42,11 +54,22 @@ function copyWords(
   for (let i = 0; i < count; i++) out[slot * 4 + i] = frame[from + i]
 }
 
+/** The height fog's lanes (`FOG_VIEW_SLOT.heightFog`, `skyLightColour`): whether the view hides it, and
+ *  the sky light that lights it, all zero for none. */
+function writeHeightFog(out: Float32Array, look: FogViewLook) {
+  const at = FOG_VIEW_SLOT
+  const sky = look.skyLight
+  put(out, at.heightFog * 4, look.hidden ? 1 : 0, sky?.strength, sky?.roughness, sky?.mips)
+  put(out, at.holdout * 4, look.holdout ? 1 : 0)
+  if (sky) put(out, at.skyLightColour * 4, sky.colour[0], sky.colour[1], sky.colour[2])
+}
+
 /** The fog's switches (`FOG_VIEW_SLOT.options`, `observer`, `match`, `albedo`) as this view and the
  *  settings give them: each lane zero where it is the default. An orthographic view that measures
  *  the fog from its own position holds the observer at its height above the ground, which a view
  *  with no target of its own (the engines' default) takes as the distance it may rise; a fog made
- *  to match the volume takes the volume's glow in their unit, its scatter and its particles. */
+ *  to match the volume takes the volume's glow in their unit, its scatter and its particles. The
+ *  height fog's lanes follow (`writeHeightFog`). */
 function writeOptions(out: Float32Array, settings: VolumetricFogValues, look: FogViewLook) {
   const at = FOG_VIEW_SLOT
   const ortho = !look.perspective && settings.fogOrthoHeightAdjustment
@@ -59,6 +82,7 @@ function writeOptions(out: Float32Array, settings: VolumetricFogValues, look: Fo
     ortho ? 1 : 0,
   )
   if (ortho) out[at.observer * 4] = Math.max(look.eyeHeight, 0) - FOG_OBSERVER_REACH
+  writeHeightFog(out, look)
   if (!settings.fogMatchesVolume) return
   const volume = look.fog?.volumetric
   const d = VOLUMETRIC_FOG_DEFAULTS

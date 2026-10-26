@@ -4,7 +4,6 @@ import { PHYSICAL_LOBES_TARGET } from './physicalLobes.ts'
 import { pyramidHeldBytes } from '../../visibility/hiz/gpu/pyramid.ts'
 import { EMISSIVE_AO_BYTES } from './surfaceEmission.ts'
 import { textureLimits } from '../../gpu/core/textureLimits.ts'
-import { RECEIVER_TARGET_BYTES } from '../../visibility/shader/receiverTargetWgsl.ts'
 import { texelBytesOf, wantedTargetBytes } from '../../gpu/core/textureBytes.ts'
 import {
   DEPTH_FORMAT,
@@ -24,9 +23,8 @@ const texelSum = (...formats: GPUTextureFormat[]) =>
  * every one, in a 32-bit word, the narrowest a compute stage stores. The four surfaces' formats, in
  * the order of their views (`SURFACE_OUTPUTS`). */
 export const SURFACE_FORMATS: GPUTextureFormat[] = SURFACE_OUTPUTS.map(({ format }) => format)
-/** Bytes of the four surfaces per pixel, and the shadow receiver's the resolve writes for the
- *  virtual shadow maps' projection (`../../visibility/shader/receiverTargetWgsl.ts`). */
-export const SURFACE_BYTES_PER_PIXEL = texelSum(...SURFACE_FORMATS) + RECEIVER_TARGET_BYTES
+/** Bytes of the four surfaces per pixel. */
+export const SURFACE_BYTES_PER_PIXEL = texelSum(...SURFACE_FORMATS)
 /** Bytes per pixel of the feedback target, made only while the pipelines write it
  *  (`../../frame/prepare/feedbackVariant.ts`). */
 export const FEEDBACK_BYTES = texelSum(FEEDBACK_FORMAT)
@@ -58,10 +56,8 @@ export function frameTargetBytes(width: number, height: number, withHiz: boolean
  *   2 reads, 3 shown as-is: a diagnostic, a normal or depth view; 4 and 5 the diffuse and toon
  *   models (`./surfaceModel.ts`); above them, marks: 16 an emission-and-occlusion texel other than
  *   (0, 0, 0, 1) (`./surfaceEmission.ts`), 32 a thin transmission, 64 an anisotropic or clear-coat
- *   lobe (`./physicalLobes.ts`), 128 no fog —, then the shadow receiver's two words
- *   (`../../visibility/shader/receiverTargetWgsl.ts`).
- * Its readers bind views, each one layer — or the receiver's two —, the same formats whatever holds
- * them.
+ *   lobe (`./physicalLobes.ts`), 128 no fog.
+ * Its readers bind views, each one layer, the same formats whatever holds them.
  */
 export interface SurfaceBuffer {
   /** Format version. */
@@ -82,8 +78,6 @@ export interface SurfaceBuffer {
   readonly layers: number
   /** View of the thin-surface transmission colour; a 1×1 zero texture's when disabled. */
   readonly subsurfaceView: GPUTextureView
-  /** The view of the receiver's two word layers the lighting reads. */
-  readonly receiverView: GPUTextureView
   /** The anisotropic and clear-coat lobes of each pixel (`./physicalLobes.ts`); a 1×1 texture
    *  when no surface carries one. */
   readonly lobes: GPUTexture

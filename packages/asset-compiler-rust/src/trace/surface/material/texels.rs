@@ -17,21 +17,15 @@ pub(crate) struct Texels {
     srgb: bool,
 }
 impl Texels {
-    /// The finest carried level of `texture`'s chain in `atlas`, when the stage baked one. A
-    /// texture read by several materials has one chain each kind: with `coverage`, a coverage
-    /// chain comes first, since its reduced levels keep level 0's coverage and a plain one's
-    /// do not.
+    /// The finest carried level of `texture`'s chain in `atlas`, when the stage baked one.
     pub(super) fn of(
         previews: &[TexturePreview],
         texture: Option<u64>,
         atlas: AtlasKind,
-        coverage: bool,
     ) -> Option<Self> {
-        let chains = previews
+        let preview = previews
             .iter()
-            .filter(|p| Some(u64::from(p.texture)) == texture && p.kind.atlas() == atlas);
-        let preview =
-            chains.min_by_key(|p| !(coverage && matches!(p.kind, AtlasKind::Coverage(_))))?;
+            .find(|p| Some(u64::from(p.texture)) == texture && p.kind == atlas)?;
         let last = preview_last_level(preview.width, preview.height);
         let mut from = 0;
         let levels: Vec<(usize, usize, Vec<u8>)> = (preview.first_level..=last)

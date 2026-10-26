@@ -1,5 +1,4 @@
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
-import { rankGroups } from './lists/listCap.ts'
 import type { DagResources } from './resources.ts'
 
 /** The identity of the placements' records a cut's groups bind (`worlds/worldTable.ts`): their view, held
@@ -11,13 +10,15 @@ export function recordsIdentity(view: GPUTextureView) {
   return identity
 }
 
-/** The cut's groups made again — its own and each kept list's (`rankGroups`) — when the
- *  placements' records they bind were remade (`RecordTexture.hold`): followed by the view's
+/** The cut's bind group made again over its group's members as they stand: after one was swapped. */
+export function rebindCut(resources: DagResources) {
+  resources.bindGroup = resources.frames.bindGroup(resources.layout, resources.group)
+}
+
+/** The cut's group made again when the placements' records it binds were remade (`RecordTexture.hold`): followed by the view's
  *  identity, nothing made while it stands. */
 export function followRecords(resources: DagResources) {
   const { recordsBound } = resources
   recordsBound.next[0] = resources.frames.worlds.view
-  if (!recordsBound.moved()) return
-  resources.bindGroup = resources.frames.bindGroup(resources.layout, resources.group)
-  resources.rankGroups = rankGroups(resources)
+  if (recordsBound.moved()) rebindCut(resources)
 }

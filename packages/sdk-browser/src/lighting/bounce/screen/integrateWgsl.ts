@@ -1,20 +1,33 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { bilinear3 } from '../../../../../math/src/wgsl/sampling.ts'
+import { frameAround, intoFrame, outOfFrame } from '../../../../../math/src/wgsl/basis.ts'
+import { luminance } from '../../../../../math/src/wgsl/color.ts'
+import { directionVisibility } from '../../../../../math/src/wgsl/lighting.ts'
+import { INVERSE_PI } from '../../../../../math/src/wgsl/constants.ts'
+import { equalAreaEncode, octWrapBorder } from '../../../../../math/src/wgsl/octahedral.ts'
+import {
+  bilinear3,
+  hammersley16,
+  rand3dPcg16,
+  visibleGgxHalf,
+} from '../../../../../math/src/wgsl/sampling.ts'
 import { irradianceShader } from '../../../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import {
   IRRADIANCE_PROBE_SIDE,
   SCREEN_PROBE_CONSTANTS,
 } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
+import { SUBSURFACE_FLAG } from '../../../materials/surface/subsurface.ts'
+import { PHYSICAL_SURFACE_FLAG } from '../../../materials/surface/physicalLobes.ts'
 import { spWeights } from './probesWgsl.ts'
 
 /** Where the integration finds what it reads: the probes' pixels, each tile's adaptive probes (their count, their list), the
- *  probes' share of rays that move and their irradiance. */
+ *  probes' share of rays that move, their irradiance and their filtered radiance. */
 export interface IntegrateBindings {
   pixels: number
   header: number
   indices: number
   moving: number
   irradiance: number
+  gather: number
 }
 
 /** The probes a pixel reads: their atlas places, their weights (normalised) and whether any weighs. */
@@ -107,6 +120,109 @@ fn spPickedIrradiance(picked:SpPicked,N:vec3f)->vec3f{
 }`,
 )
 
+/** The `samples` of a pixel's rough specular: four, the reference's count. */
+const ROUGH_SAMPLES = 4
+
+/**
+ * THE ROUGH SPECULAR of a pixel (`spRoughSpecular`): the light of its specular lobe, read from the probes' radiance instead of a
+ * traced ray, for the pixels whose reflection the traced rays do not give whole. How much of it a pixel takes: it is blended to its
+ * diffuse light over pi (the mean radiance of its hemisphere) by `spRoughLerp` — none for a pixel whose reflection is traced whole
+ * (`reflectionView.lobe`: the roughness past which no ray is cast and the band under it) and carries no physical lobes (`spLobed`):
+ * the base lobe under a clear coat casts no ray, so a coated pixel always takes its rough specular, of the base normal and roughness
+ * (the G-buffer's own: the coat's is in the lobes target) —, and,
+ * past that, from the band under the roughness `sp.trace.z` (`sp.trace.w` for a thin double-sided sheet) to the full width of 0.2 above it. Else `ROUGH_SAMPLES` points of
+ * the lobe are drawn (`visibleGgxHalf`, the visible normals of a GGX distribution of the roughness held to 0.2 at least, so that no
+ * lobe is narrower than two texels of a sixteen-wide probe), each by a Hammersley point scrambled by a hash of the pixel and the
+ * image's rank modulo eight (the second dimension pulled a tenth toward the middle, away from the grazing normals), turned to the
+ * direction a ray leaves the view by (`2 (V·H) H − V`), and read from the probes the pixel interpolates (`spProbeLight`: each probe's filtered radiance at
+ * that direction, bilinear in its octahedron, the border wrapped as an octahedron's, weighed as the diffuse's are). The samples are
+ * multiplied by the share of its direction the pixel's open sky leaves (`directionVisibility`: the occlusion's bent normal and amount
+ * against the hemisphere), averaged tonemapped (`light / (1 + luminance)`), so that one bright texel does not flicker the pixel, and the mean
+ * mapped back.
+ */
+const SP_ROUGH_SPECULAR = wgslBlock(
+  'SP_ROUGH_SPECULAR',
+  [
+    SP_PICKED,
+    bilinear3,
+    equalAreaEncode,
+    octWrapBorder,
+    frameAround,
+    intoFrame,
+    outOfFrame,
+    hammersley16,
+    rand3dPcg16,
+    luminance,
+    INVERSE_PI,
+    visibleGgxHalf,
+    directionVisibility,
+  ],
+  `const SP_ROUGH_SAMPLES:u32=${ROUGH_SAMPLES}u;
+const SP_ROUGH_MIN:f32=0.2;
+const SP_ROUGH_BAND:f32=0.2;
+const SP_ROUGH_BIAS:f32=0.9;
+/** The radiance of the probe at \`atlas\` along the point of its octahedron whose four texels round it start at \`base\` (the border's one past), \`f\` its fraction: bilinear. */
+fn spProbeRadiance(atlas:vec2u,base:vec2i,f:vec2f)->vec3f{
+ let res=sp.counts.w;
+ var taps=array<vec3f,4>();
+ for(var i=0u;i<4u;i++){
+  let texel=vec2u(base+vec2i(i32(i&1u),i32(i>>1u))+vec2i(1));
+  taps[i]=textureLoad(probeGather,vec2i(atlas*res+octWrapBorder(texel,res+2u,1u)),0).rgb;
+ }
+ return bilinear3(taps[0],taps[1],taps[2],taps[3],f);
+}
+/** The light the probes \`picked\` give along the direction \`d\`: each one's radiance there, weighed; the point of the octahedron and its texels are the same for every probe. */
+fn spProbeLight(picked:SpPicked,d:vec3f)->vec3f{
+ let q=equalAreaEncode(d)*f32(sp.counts.w)-vec2f(0.5);
+ let base=vec2i(floor(q));
+ let f=q-floor(q);
+ var places=picked.atlas;
+ var sum=vec3f(0.0);
+ for(var corner=0u;corner<4u;corner++){
+  if(picked.weights[corner]>0.0){sum+=spProbeRadiance(places[corner],base,f)*picked.weights[corner];}
+ }
+ return sum;
+}
+fn spTonemap(c:vec3f)->vec3f{return c/(1.0+luminance(c));}
+fn spUntonemap(c:vec3f)->vec3f{return c/max(1.0-luminance(c),1e-4);}
+/** Whether a pixel of flags \`flags\` carries physical lobes — a clear coat, whose base lobe no ray traces, or an anisotropy, which the
+ *  flag does not tell from it: the flag is the one thing of the lobes the stage can read. */
+fn spLobed(flags:u32)->bool{return (flags&${PHYSICAL_SURFACE_FLAG}u)!=0u;}
+/** The share of a pixel's rough specular that is its diffuse light: one where the traced rays give its reflection whole and no
+ *  clear coat (\`lobed\`) leaves the base lobe untraced. */
+fn spRoughLerp(roughness:f32,foliage:bool,lobed:bool)->f32{
+ if(!lobed&&saturate((reflectionView.lobe.x-roughness)/max(reflectionView.lobe.y,1e-6))>=1.0){return 1.0;}
+ let most=select(sp.trace.z,sp.trace.w,foliage);
+ return saturate((roughness-most+SP_ROUGH_BAND)/SP_ROUGH_BAND);
+}
+/** The rough specular of the lit pixel \`pixel\` (surface \`s\`) that reads the probes \`picked\`, whose irradiance at its normal is \`irradiance\`;
+ *  \`sky\` the open sky it has (the unit direction in \`xyz\`, the amount in \`w\`), which weighs each sample by the share of its direction the sky leaves. */
+fn spRoughSpecular(pixel:vec2u,s:SpSurface,picked:SpPicked,irradiance:vec3f,sky:vec4f)->vec3f{
+ let at=vec2i(pixel);
+ let roughness=textureLoad(sceneNormals,at,0).w;
+ let flags=textureLoad(sceneFlags,at,0).r;
+ let foliage=(flags&${SUBSURFACE_FLAG}u)!=0u;
+ let blend=spRoughLerp(roughness,foliage,spLobed(flags));
+ let diffuse=irradiance*INVERSE_PI;
+ if(blend>=1.0){return diffuse;}
+ let alpha=max(roughness,SP_ROUGH_MIN)*max(roughness,SP_ROUGH_MIN);
+ let V=viewToEye(s.P);
+ let frame=frameAround(s.N);
+ let v=intoFrame(frame,V);
+ let rank=i32(sp.size.w%8u);
+ let seed=rand3dPcg16(vec3i(vec2i(pixel),rank)).xy;
+ var sum=vec3f(0.0);
+ for(var i=0u;i<SP_ROUGH_SAMPLES;i++){
+  var e=hammersley16(i,SP_ROUGH_SAMPLES,seed);
+  e.y=(e.y-0.5)*SP_ROUGH_BIAS+0.5;
+  let H=outOfFrame(visibleGgxHalf(e,vec2f(alpha),v),frame);
+  let L=2.0*dot(V,H)*H-V;
+  sum+=spTonemap(spProbeLight(picked,L)*directionVisibility(s.N,sky.xyz,sky.w,L));
+ }
+ return mix(spUntonemap(sum/f32(SP_ROUGH_SAMPLES)),diffuse,blend);
+}`,
+)
+
 /**
  * THE INTEGRATION: each pixel reads its irradiance from the probes round it (`spIntegrate`, the temporal pass calls it for the
  * pixel it blends). The probes it reads are the four uniform ones of the tile round it (`spInterpolation`, bilinear in the tile,
@@ -118,17 +234,20 @@ fn spPickedIrradiance(picked:SpPicked,N:vec3f)->vec3f{
  * alpha is zero: the temporal pass leans on its history). With the stochastic interpolation one probe of the four is drawn by
  * the pixel's blue noise, weighed whole. The alpha of a pixel that reads probes is the share of the light that moves (`probeMoving` of
  * the probes it reads, by their weights), a four-thousandth at least. The probe's light is its nine coefficients, interpolated
- * and evaluated once at the pixel's normal (`irradianceShader`), or its octahedral irradiance map, read bilinearly at it.
+ * and evaluated once at the pixel's normal (`irradianceShader`), or its octahedral irradiance map, read bilinearly at it. The same
+ * probes give, where asked, the pixel's rough specular (`spRoughSpecular`, under the open sky `sky` the pixel has) and the irradiance at its back, \`-N\`, of a thin sheet
+ * that transmits light.
  */
 export const spIntegrate = (at: IntegrateBindings) =>
   wgslBlock(
-    `spIntegrate(${at.pixels}, ${at.header}, ${at.indices}, ${at.moving}, ${at.irradiance})`,
-    [SP_PICKED_IRRADIANCE],
+    `spIntegrate(${at.pixels}, ${at.header}, ${at.indices}, ${at.moving}, ${at.irradiance}, ${at.gather})`,
+    [SP_PICKED_IRRADIANCE, SP_ROUGH_SPECULAR],
     `@group(0) @binding(${at.pixels}) var<storage,read> probePixels:array<u32>;
 @group(0) @binding(${at.header}) var<storage,read> header:array<u32>;
 @group(0) @binding(${at.indices}) var<storage,read> indices:array<u32>;
 @group(0) @binding(${at.moving}) var<storage,read> probeMoving:array<f32>;
 @group(0) @binding(${at.irradiance}) var probeIrradiance:texture_2d<f32>;
+@group(0) @binding(${at.gather}) var probeGather:texture_2d<f32>;
 const SP_JITTER_PLANE_SCALE:f32=${SCREEN_PROBE_CONSTANTS.jitterPlaneWeightScale};
 /** The offset the pixel reads its probes from: the noise's jitter, kept where the jittered pixel is on the pixel's own plane. */
 fn spJitterOffset(pixel:vec2u,s:SpSurface,depth:f32)->vec2f{
@@ -140,14 +259,19 @@ fn spJitterOffset(pixel:vec2u,s:SpSurface,depth:f32)->vec2f{
  let away=abs(dot(other.P,s.N)-dot(s.P,s.N))/depth;
  return select(vec2f(0.0),jitter,exp2(SP_JITTER_PLANE_SCALE*away*away)>SP_MIN_WEIGHT);
 }
-/** The irradiance of the lit pixel \`pixel\` (surface \`s\`) in \`rgb\` and the share of its light that moves in \`a\`, zero where no probe weighs. */
-fn spIntegrate(pixel:vec2u,s:SpSurface)->vec4f{
+/** What the probes give a lit pixel: its irradiance in \`light.rgb\` and the share of its light that moves in \`light.a\` (zero where no probe weighs), its rough specular and its back. */
+struct SpIntegrated{light:vec4f,rough:vec3f,back:vec3f,}
+fn spIntegrate(pixel:vec2u,s:SpSurface,withRough:bool,withBack:bool,sky:vec4f)->SpIntegrated{
  let depth=spDepthOf(s.P);
  let picked=spPickProbes(pixel,spJitterOffset(pixel,s,depth),s,depth);
- if(!picked.valid){return vec4f(0.0);}
+ if(!picked.valid){return SpIntegrated(vec4f(0.0),vec3f(0.0),vec3f(0.0));}
  var places=picked.atlas;
  var moving=0.0;
  for(var corner=0u;corner<4u;corner++){moving+=probeMoving[spIndexOf(places[corner])]*picked.weights[corner];}
- return vec4f(spPickedIrradiance(picked,s.N),max(moving,0.004));
+ let irradiance=spPickedIrradiance(picked,s.N);
+ var out=SpIntegrated(vec4f(irradiance,max(moving,0.004)),vec3f(0.0),vec3f(0.0));
+ if(withRough){out.rough=spRoughSpecular(pixel,s,picked,irradiance,sky);}
+ if(withBack){out.back=spPickedIrradiance(picked,-s.N);}
+ return out;
 }`,
   )

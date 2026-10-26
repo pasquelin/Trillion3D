@@ -84,8 +84,14 @@ test('the allocated rect, the radius and the detail geometry keep their golden b
   const names = ['vsmMappedRectPages', 'vsmClipRadius', 'vsmIsFineCaster']
   const is = run(INVALIDATION, names),
     render = run(RENDER, ['vsmIsFineCaster'])
-  // Both read the shared fine-caster test with no cluster caster, as the render cull did.
-  assert.ok(RENDER.includes('vsmIsFineCaster(staticLayer,pixelRadius)'))
+  // Both read the one fine-caster test, the object's whole footprint handed to it: the invalidation
+  // the box's, the render cull the object's ball (never a cluster's).
+  assert.ok(INVALIDATION.includes('vsmIsFineCaster(staleStatic,pixelRadius)'))
+  assert.ok(
+    RENDER.includes(
+      'vsmIsFineCaster(staticLayer,vsmClipRadius(isOrtho,cand.inst.w,objectCentre,viewToClip)',
+    ),
+  )
   const digest = bitsDigest()
   for (let k = 0; k < CASES; k++) {
     const { d, t } = at(2 * 10 ** 5 + k)

@@ -30,6 +30,21 @@ type PoolState = DrawState & {
 /** Bytes of `pool`'s state: the window the draw reads its arguments from, then its slots. */
 const stateBytes = (pool: ParticlePool) => PARTICLE_STATE_HEAD + pool.capacity * PARTICLE_FLOATS * 4
 
+/** Whether the device binds `pool`'s state, `most` bytes at the most; a pool it does not is told
+ *  once, by name. */
+function bindsState(
+  pool: ParticlePool,
+  most: number,
+  told: WeakSet<ParticlePool>,
+  fail: (error: unknown) => void,
+) {
+  if (stateBytes(pool) <= most) return true
+  if (!told.has(pool))
+    fail(new Error(`PARTICLE_CAPACITY: ${pool.capacity} particles, past the device's binding`))
+  told.add(pool)
+  return false
+}
+
 /**
  * The WebGPU particle step: one compute pass, timed under `PARTICLES_PASS`, per pool that has
  * records or time to take the step of its live window — its workgroups the dispatch its last
@@ -59,14 +74,7 @@ export function createWebgpuParticles(
     .catch((error) => ((pipeline = null), fail(error)))
   const most = storageBufferCap(device.limits),
     told = new WeakSet<ParticlePool>()
-  /** Whether the device binds `pool`'s state; a pool it does not is told once, by name. */
-  const holds = (pool: ParticlePool) => {
-    if (stateBytes(pool) <= most) return true
-    if (!told.has(pool))
-      fail(new Error(`PARTICLE_CAPACITY: ${pool.capacity} particles, past the device's binding`))
-    told.add(pool)
-    return false
-  }
+  const holds = (pool: ParticlePool) => bindsState(pool, most, told, fail)
   const words = createStepWords()
   const pass = new LazyComputePass(PARTICLES_PASS)
   const made = createPoolStates<PoolState>(
@@ -106,6 +114,7 @@ export function createWebgpuParticles(
     },
     draw: drawn.draw,
     askRouted: drawn.askRouted,
+    askHoldout: drawn.askHoldout,
     dispose: made.dispose,
   }
 }

@@ -51,6 +51,8 @@ export type WebgpuTilePool = {
   /** Occupied tiles, and their bytes. */
   readonly resident: number
   readonly residentBytes: number
+  /** Occupied tiles that are pinned: the tails. */
+  readonly pinned: number
   /** Tiles that ever arrived: the cut of a queue, a tile arrived since never its victim. */
   readonly arrivals: number
   /** Places occupied or freed since their use words were last written (`../slotUse.ts`). */
@@ -66,18 +68,23 @@ export type WebgpuTilePool = {
   /** Whether `index` is free. */
   freeAt(index: number): boolean
   /** The place the GPU's queue gives up next (`../../../gpu/sort/slotOrder.ts`): unpinned, and read
-   *  by no pixel in
-   *  the frame its queue was cut nor the one before. A tile looked at on the previous image is very
-   *  likely looked at on this one: giving it up for another is asking for it again on the next — a
-   *  full pool would spin on itself every image. It refuses instead, and the coarse level holds. */
+   *  by no pixel in the clocks a use protects (`TILE_PROTECTED`, `../evictSortWgsl.ts`) before its
+   *  queue was cut, the least recently read first. A tile looked at lately is very likely looked
+   *  at on this image: giving it up for another is asking for it again on the next — a full pool
+   *  would spin on itself every image. It refuses instead, and the coarse level holds. */
   victim(): number | undefined
   /** How many victims the queue may still give: an upper bound. */
   victims(): number
+  /** How many places no pixel read within the protected clocks, the queue's burst or not: the
+   *  places the last queue ranked, less the arrivals' victims taken since. */
+  idle(): number
   /** How many arrivals it may still take: its free places and its victims. */
   room(): number
   /** A place's rank in the queue, the first victim at 0; `undefined` unlisted. */
   rankOf(index: number): number | undefined
-  /** Takes the queue a readback brought: its count then its places, cut at `arrivals`. */
+  /** A place's rank, past every listed one for a place the queue does not list. */
+  rankOrLast(index: number): number
+  /** Takes the queue a readback brought: the places ranked, then the places listed, cut at `arrivals`. */
   follow(queue: Uint32Array, arrivals: number): void
   /** Every occupied place, pinned included, in pool order. */
   occupied(): number[]
@@ -146,6 +153,9 @@ export function createWebgpuTilePool(
     get residentBytes() {
       return places.count * perTile
     },
+    get pinned() {
+      return places.pinned
+    },
     get arrivals() {
       return places.arrivals
     },
@@ -158,11 +168,13 @@ export function createWebgpuTilePool(
     freeAt: (index) => freeAt(places, index),
     victim: order.victim,
     victims: order.victims,
+    idle: order.idle,
     room: () => tiles - places.count + order.victims(),
     rankOf: order.rankOf,
-    // The queue's count, then its places.
+    rankOrLast: (index) => order.rankOf(index) ?? Number.MAX_SAFE_INTEGER,
+    // The queue's count, every place ranked, then its places, at most a burst of them.
     follow: (queue, arrivals) =>
-      order.follow(queue.subarray(1, 1 + Math.min(queue[0], queue.length - 1)), arrivals),
+      order.follow(queue.subarray(1, 1 + Math.min(queue[0], queue.length - 1)), arrivals, queue[0]),
     occupied: () => occupied(places),
     placeOf,
     destroy() {

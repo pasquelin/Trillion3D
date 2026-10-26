@@ -8,10 +8,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { treeLeaves } from './treeLeaves.ts'
+import { leafKernel, treeLeaves } from './treeLeaves.ts'
+import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 
-test('a root taken in place has its leaf written on the frame the cut takes it', () => {
+test('a root taken in place has its leaf written on the frame the cut takes it', async () => {
   const { device } = fakeDevice()
   const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   const buffer = (label: string, size: number) => device.createBuffer({ label, size, usage })
@@ -31,8 +32,18 @@ test('a root taken in place has its leaf written on the frame the cut takes it',
     },
   } as unknown as WebgpuPagesRuntime
   const leaves = treeLeaves(rt)
-  assert.ok(leaves.ready(), 'the worlds it reads are on the GPU')
-  const tables = { members: buffer('leaves', 3 * 48), nodes: view(), frames: view() }
+  assert.equal(leaves.ready(false), false, 'its kernel is asked, not yet compiled')
+  await pipelinesSettled(device, true)
+  assert.ok(leaves.ready(false), 'the worlds it reads are on the GPU')
+  const tables = {
+    members: buffer('leaves', 3 * 48),
+    nodes: view(),
+    frames: view(),
+    parented: false,
+  }
+  // The leaves kernel, compiled off the frame before the frame encodes.
+  leafKernel(false)(device).ask()
+  await pipelinesSettled(device)
   // The appended root, rank 2, named by the append's touch.
   leaves.encode(device.createCommandEncoder(), tables, {
     ranks: Int32Array.of(2),

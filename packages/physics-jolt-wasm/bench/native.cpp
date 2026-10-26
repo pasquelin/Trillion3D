@@ -13,7 +13,7 @@
 
 extern "C" {
 uint32_t jolt_init(uint32_t maxBodies, uint32_t bodyPairs, uint32_t contactConstraints,
-                   uint32_t tempBytes, uint32_t threads, float step);
+                   uint32_t tempBytes, uint32_t threads, float step, float restitutionThreshold);
 uint32_t *jolt_buffer(uint32_t which, uint32_t words);
 uint32_t jolt_step(uint32_t commandWords, float dt);
 uint32_t jolt_active_count();
@@ -48,8 +48,8 @@ int main(int argc, char **argv) {
   uint32_t maxBodies = std::atoi(argv[2]), pairs = std::atoi(argv[3]),
            constraints = std::atoi(argv[4]), threads = std::atoi(argv[5]), steps = std::atoi(argv[6]);
   // The same scratch and buffers as the web loader (`joltModule.ts`).
-  constexpr float step = 1.0f / 60.0f;
-  if (jolt_init(maxBodies, pairs, constraints, 16 * 1024 * 1024, threads, step) != 0) return 1;
+  constexpr float step = 1.0f / 60.0f, restitutionThreshold = 10.0f;
+  if (jolt_init(maxBodies, pairs, constraints, 16 * 1024 * 1024, threads, step, restitutionThreshold) != 0) return 1;
   jolt_buffer(1, maxBodies * 14);
   jolt_buffer(2, 4096 * 7);
   std::memcpy(jolt_buffer(0, uint32_t(words.size())), words.data(), words.size() * 4);

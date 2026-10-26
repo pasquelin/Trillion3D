@@ -3,8 +3,6 @@ import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { alignUp } from '../../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
-import { clamp } from '../../../../../math/src/scalar/reals.ts'
-import { focalScale } from '../../../../../math/src/projection/camera.ts'
 
 /**
  * Virtual shadow map constants: layout, page and kernel sizes, and the defaults of the tunables.
@@ -31,20 +29,23 @@ export const VSM_UNIT_PER_CM = 1 / VSM_CM_PER_UNIT
 export const VSM_LOG2_PAGE = 7
 export const VSM_PAGE_TEXELS = 1 << VSM_LOG2_PAGE // 128
 const VSM_PAGE_TEXEL_MASK = VSM_PAGE_TEXELS - 1
-/** A physical page's depth tiles (`tileDepths`): 8×8 texels each, 16×16 a page. Each
- *  tile holds the closest depth of its texels, which the rays test before reading the pool. */
-const VSM_LOG2_TILE_DEPTH_TEXELS = 3
-export const VSM_TILE_DEPTHS_PER_PAGE = (VSM_PAGE_TEXELS >> VSM_LOG2_TILE_DEPTH_TEXELS) ** 2 // 256
 /** Declared: level 0 of a map is 128 pages a side. Derived from it: the mips down to one page
  *  (log2 128 + 1 = 8) and the map's width in texels (128 pages of 128 texels = 16384). */
 const VSM_LOG2_LEVEL0_PAGES = 7
 export const VSM_LEVEL0_PAGES = 1 << VSM_LOG2_LEVEL0_PAGES // 128
 export const VSM_MIPS = VSM_LOG2_LEVEL0_PAGES + 1 // 8
 export const VSM_LEVEL0_TEXELS = VSM_LEVEL0_PAGES * VSM_PAGE_TEXELS // 16384
-/** The raster marks: a word per physical page in each of four slices, the four bits the raster
- *  marks a page with (`vsmRasterMarkBits`): dynamic drawn, static drawn, dynamic
- *  invalidated, static invalidated; folded into the page's metadata after the raster. */
-export const VSM_DIRTY_SLICES = 4
+/** The raster marks: a word per physical page in each of six slices, the bits the raster marks a
+ *  page with (`vsmRasterMarkBits`): dynamic drawn, static drawn, dynamic invalidated, static
+ *  invalidated, an offset allowed, a level of detail behind; folded into the page's metadata after the
+ *  raster. One word follows the slices: the frame's count of deferred invalidations carried out. */
+export const VSM_DIRTY_SLICES = 6
+/** The occlusion pyramid's levels (`occlusion/`): a page's halvings from half its side to one
+ *  texel, 64 to 1 texels a page — log2 of the page side. */
+export const VSM_PYRAMID_MIPS = Math.log2(VSM_PAGE_TEXELS)
+/** Texels a row of the kept stale rects (`occlusion/occlusionResources.ts`, rgba32uint): 4096
+ *  bytes, a whole number of the 256-byte rows a buffer-to-texture copy takes. */
+export const VSM_KEPT_RECTS_WIDTH = 256
 const VSM_LOG2_COVER_CELLS = 3
 const VSM_COVER_CELL_MASK = 3
 /** One full map's page table block: `VSM_LEVEL0_PAGES` wide, 128 + 64 tall (mip tail below level 0). */
@@ -59,6 +60,9 @@ export const VSM_MAP_COVERAGE = 1 << 3
  *  nor a mover's box redraws it (`invalidationWgsl.ts`, `physicalPagesWgsl.ts`); a static change,
  *  which stales both layers, alone draws them again. */
 export const VSM_MAP_COARSE_KEEPS_DYNAMIC = 1 << 4
+/** A map of a sun's first-person clipmap: only the objects that stand for a first-person one are drawn
+ *  into it, and the regular maps leave them out. */
+export const VSM_MAP_FIRST_PERSON = 1 << 5
 
 // The page counters the engine reads back (`engineVsm.ts` readVsmStats), one word each, in a row.
 export const VSM_COUNT_WANTED = 0
@@ -67,36 +71,50 @@ export const VSM_COUNT_DYNAMIC_KEPT = 2
 export const VSM_COUNT_CLEARED = 3
 export const VSM_COUNT_GRANTED = 4
 export const VSM_COUNTERS = 5
+/** The word after the counters that holds the frame's overflow flags (`VSM_OVERFLOW_*`): written
+ *  whatever the counters say, and read back every frame. */
+export const VSM_OVERFLOW_FLAGS = 5
+/** Words of the stats buffer: the counters and the overflow flags. */
+export const VSM_STATS_WORDS = VSM_OVERFLOW_FLAGS + 1
+/** The overflow flags, one bit each: the non-cluster marking's job queue, the one-pass projection's
+ *  lights past its mask, the page pool, the casters' list past its room and the raster's records list past its room. */
+export const VSM_OVERFLOW_MARKING_JOB_QUEUE = 1 << 0
+export const VSM_OVERFLOW_ONE_PASS_MAX_LIGHTS = 1 << 1
+export const VSM_OVERFLOW_PAGE_POOL = 1 << 2
+export const VSM_OVERFLOW_VISIBLE_INSTANCES = 1 << 3
+export const VSM_OVERFLOW_RECORDS = 1 << 4
+/** Set by the host's plan, not a pass: lights refused for want of map slots. */
+export const VSM_OVERFLOW_MAP_SLOTS = 1 << 5
+/** The overflow kinds in the order of their bits. */
+export const VSM_OVERFLOW_KINDS = 6
+/** Bits of a map's id in the records the cull emits, so the map slots a set holds: at most `1 << VSM_RECORD_MAP_ID_BITS`. */
+export const VSM_RECORD_MAP_ID_BITS = 16
 export const VSM_FEEDBACK_POOL = 0
 
 /**
- * Bytes of a map's projection record (`projection/projectionData.ts`, `VsmProjectionRecord`): its three 4×4
- * float matrices, four rows of a 3-vector and a word, and nine words (four scalars, the two-word
- * corner, the range, the table's origin, a sun's far-shadow distance), at the 16-byte alignment its
- * matrices give the struct.
+ * Bytes of a map's projection record (`projection/projectionData.ts`, `VsmProjectionRecord`): its four 4×4
+ * float matrices (the fourth the occlusion's previous clip matrix), five rows of 16 bytes (four of a
+ * 3-vector and a word, the previous view's depth terms) and thirteen words (four scalars, the
+ * two-word corner, the range, the table's origin, a sun's far-shadow distance, the threshold its
+ * offsets are left out past, the previous id, table origin and finest mip), at the 16-byte
+ * alignment its matrices give the struct.
  */
-export const VSM_PROJECTION_RECORD_BYTES = 3 * 64 + 4 * 16 + alignUp(9 * 4, 16) // 304
+export const VSM_PROJECTION_RECORD_BYTES = 4 * 64 + 5 * 16 + alignUp(13 * 4, 16) // 400
 /** Byte size of `VsmUniforms` (`uniforms.ts`, uniform address space). */
-export const VSM_UNIFORMS_BYTES = 144
+export const VSM_UNIFORMS_BYTES = 224
 
-/** The tile word of the projection's mask (`vsmProjection`): bit L where the tile stored layer L,
- *  bit this + L where it stored layer L's colour through the panes (16 layers at most). */
-export const VSM_MASK_THROUGH_SHIFT = 16
-
-/** Bytes of one candidate of the raster's cull (`VsmRenderCandidate`, `render/renderCullWgsl.ts`), one
- *  command and one pair (vec4u). */
-export const VSM_RENDER_CANDIDATE_BYTES = 48
-export const VSM_RENDER_CMD_BYTES = 16
+/** Bytes of one candidate of the raster's cull (`VsmRenderCandidate`, `render/renderParamsWgsl.ts`)
+ *  and of one record it emits (vec4u, `render/renderCullWgsl.ts`). */
+export const VSM_RENDER_CANDIDATE_BYTES = 144
+export const VSM_RENDER_RECORD_BYTES = 16
 /** Bytes of a light of the frame in the raster's table (`vsmWriteLights`): its first map's id and its map count, padded to
  *  a `vec4u`. */
 export const VSM_RENDER_LIGHT_BYTES = 16
-/** Bytes of one command's place in the tiers' order (`vsmRenderBin`). */
-export const VSM_RENDER_ORDER_BYTES = 4
-export const VSM_RENDER_PAIR_BYTES = 16
-/** Pairs a chunk of the raster holds by default (`render/renderPass.ts`), the most its pair and command
- *  lists then grow to (16 B each): the memory budget's shadow share counts both at it
- *  (`session/memory/shadowBudgetBytes.ts`). */
-export const VSM_RENDER_PAIR_CAPACITY = 1 << 21
+/** The records one list of the raster holds: the cut's cap of visible clusters times the raster's
+ *  indirection multiplier, never under 1 (`shadowRasterIndirectionMultiplier`, 1.5) - the
+ *  reference's rule for its cluster indirections. */
+export const vsmRecordCapacity = (visibleCap: number, indirectionMultiplier: number) =>
+  Math.floor(visibleCap * Math.max(1, indirectionMultiplier))
 
 // Flags of the next-frame data of a map.
 export const VSM_NEXT_KEEPS_PAGES = 1 << 0
@@ -121,8 +139,11 @@ const VSM_META_DYNAMIC_STALE = 1 << (VSM_PAGE_MARK_BITS + 4)
 const VSM_META_STATIC_STALE = 1 << (VSM_PAGE_MARK_BITS + 5)
 const VSM_META_VIEW_UNCACHED = 1 << (VSM_PAGE_MARK_BITS + 6)
 const VSM_META_UNSEEN = 1 << (VSM_PAGE_MARK_BITS + 7)
+/** A page an offset is allowed on, considered by the raster's cull though cached whole (the next frame
+ *  only), and a page whose invalidation waits for its budget. */
+const VSM_META_FORCE_CACHED = 1 << (VSM_PAGE_MARK_BITS + 8)
+const VSM_META_DEFERRED = 1 << (VSM_PAGE_MARK_BITS + 9)
 const VSM_META_ANY_CLEARED = VSM_META_DYNAMIC_CLEARED | VSM_META_STATIC_CLEARED
-const VSM_META_ANY_DRAWN = VSM_META_DYNAMIC_DRAWN | VSM_META_STATIC_DRAWN
 const VSM_META_ANY_STALE = VSM_META_DYNAMIC_STALE | VSM_META_STATIC_STALE
 
 // Page table entry bits ([0:9] phys X, [10:19] phys Y, [20:25] coarser levels).
@@ -134,11 +155,8 @@ export const VSM_ENTRY_COARSER_SHIFT = 20,
 
 /** Kernel group sizes. */
 export const VSM_GROUP_WIDTH = 256
-/** Pixels a side of a projection group, a tile of the mask's tile words: 8, a power of two. */
-export const VSM_PROJECTION_GROUP_SHIFT = 3
-export const VSM_PROJECTION_GROUP_SIZE = 1 << VSM_PROJECTION_GROUP_SHIFT
-/** Lights per layer of the projection's mask: four 8-bit lanes of an r32uint texel. */
-export const VSM_PROJECTION_MAX_LIGHTS = 4
+/** Pixels a side of a projection group: 8, a power of two. */
+export const VSM_PROJECTION_GROUP_SIZE = 8
 
 /** Pool array slices: 0 dynamic, 1 static (with caching). */
 export const VSM_POOL_SLICES = 2
@@ -192,7 +210,7 @@ export function vsmWriteDepthFromDeviceZ(
 /**
  * The greatest f32 below 1: 1 − 2^-24, an f32 significand having 24 bits, written as the decimal a
  * shader reads back to it exactly. A sun level's caster in front of its near plane is flattened onto
- * that depth (`render/renderRasterWgsl.ts`, read by `transmission/transmissionRecordWgsl.ts`); the square-to-disk map centres the
+ * that depth (`render/renderRasterWgsl.ts`); the square-to-disk map centres the
  * unit square on it (`trace/traceCommonWgsl.ts`).
  */
 export const VSM_F32_BELOW_ONE = 0.99999994
@@ -211,66 +229,25 @@ export function vsmLocalMipLevel(
 }
 
 // ---- Defaults of the tunables ----------------------------------------------------------------
-/** Declared: the pool's physical pages, 2048 of 64 KiB per slice. The global shadow memory budget
- *  derives from it (`SHADOW_POOL_BYTES`), not the reverse: more pages, more memory and fewer
+/** Declared: the pool's physical pages by default, 4096 of 64 KiB per slice (the default quality
+ *  level's): the pool the setting's default asks. The global shadow memory
+ *  budget derives from it (`SHADOW_POOL_BYTES`), not the reverse: more pages, more memory and fewer
  *  coarser fallbacks under load; fewer, the global resolution bias rises sooner. */
-export const VSM_POOL_PAGES = 2048
-/** Declared: how far past its page a marked point also marks the neighbouring page, every map, a
- *  fraction of a page (0.05 = 6.4 texels): a filter or a ray reaching across the page edge finds the
- *  page mapped. Larger marks more pages; 0 marks the point's page alone. */
-const VSM_PAGE_MARGIN = 0.05
-/** Declared: a caster whose radius covers fewer of the map's pixels than this is fine: it draws into
- *  the pages marked from pixels and not into coarse ones; dynamic / static casters. Larger keeps
- *  more small casters out of coarse pages (fewer redraws, their far shadow gone), smaller draws
- *  them there. */
-export const VSM_DETAIL_PIXELS_DYNAMIC = 16
-export const VSM_DETAIL_PIXELS_STATIC = 1
-/** Declared: the marking reads one pixel of each 2 × 2 (X / Y). 1 reads every pixel, four times the
- *  marking's reads; more may miss a page that only a few pixels see (the page margins catch most). */
-export const VSM_MARK_STRIDE_X = 2
-export const VSM_MARK_STRIDE_Y = 2
-
-// The traces. Declared, every one: they shape the contact and the penumbra and set its noise against
-// its cost. Moving any of them changes the image.
-/** The screen-space ray a pixel casts toward the light before the map's, as a share of the view's
- *  height at the pixel's depth: it catches contact shadows finer than a texel. Longer catches more;
- *  the first sample behind the depth ends it (`vsmScreenRayFrom`). */
-export const VSM_SCREEN_RAY_SHARE = 0.015
+export const VSM_POOL_PAGES = 4096
+// The traces. The reference's settings are the view's (`shadowMapOptions.ts`); these are its literals.
 /** The depth samples the screen ray takes (`vsmScreenRayFrom`): more catch thinner occluders on
  *  screen, each a texel read a light and pixel; four are one batch of independent reads. */
 export const VSM_SCREEN_RAY_SAMPLES = 4
-/** A receiver moves along its normal by 0.5 thousandths of its distance to the eye (over the view's
- *  half-field tangent) before it reads the maps: a texel grows with distance, so does the offset.
- *  More lifts self-shadowing; it also detaches the contact shadows. */
-export const VSM_NORMAL_BIAS = 0.5 / 1000
-/** The least of that offset, 0.02 cm, near the eye. */
+/** The least normal offset of a receiver, 0.02 cm, near the eye. */
 const VSM_NORMAL_OFFSET_FLOOR = 0.02 * VSM_UNIT_PER_CM
-/** The rays after which a group whose lanes all hit (an umbra) stops. */
-const VSM_TRACE_VOTE_AFTER = 1
-/** The most rays a light's trace takes (`shadowRayCountDirectional`, `shadowRayCountLocal`): a
- *  pixel's mask lane holds their count in a nibble (`vsmMaskCode`). The rays a pixel traces and the
- *  steps each takes are the view's settings, read from its view uniform (`VsmProjectionView.traceRays`);
- *  more rays smooth the penumbra (its noise falls as one over their root), more steps catch thinner
- *  occluders; each costs in proportion. */
-export const VSM_TRACE_RAYS_MAX = 15
-/** The angle (radians) a local ray leans off its light at which its reach toward the light starts
- *  to shorten (`vsmLocalRayReach`); shaders get 1/tan of it. Smaller shortens off-axis rays sooner. */
-const VSM_TRACE_CONE_LIMIT = 0.03
-/** The steepest slope the march extends an occluder's surface with behind a sample, by the map's
- *  depth: a perspective map's (a share of the ray's own depth step) / a clipmap level's (a depth per
- *  unit of ray time in the level's centimetre arithmetic, converted by `vsmRayLine`). The two
- *  maps' depths are not one quantity: an orthographic depth is linear in the distance, a perspective
- *  one is not. Steeper reaches further behind thin occluders, and over gaps. */
-const VSM_TRACE_SLOPE_CAP_LOCAL = 0.05
-const VSM_TRACE_SLOPE_CAP_SUN = 5
-/** The rays' start dither, in the receiver's texels, every map: it hides the texel grid in the
- *  penumbra. More blurs it, 0 shows the texels. */
-const VSM_TRACE_DITHER = 2
-/** The largest receiver-plane bias of a ray, in the receiver's texels: it keeps a grazing receiver
- *  off its own texels. */
-const VSM_TRACE_PLANE_BIAS_CAP = 50
-/** A sun ray's length, in units of the receiver's distance to the eye. */
-const VSM_TRACE_REACH_SUN = 1.5
+/** The steepest slope of the receiver's plane (map depth over map UV, a sun level's depth range
+ *  being what it is) that a sun ray's start dither follows: past it a grazing receiver would lift
+ *  its rays off the surface. */
+const VSM_TRACE_PLANE_SLOPE_SUN = 0.05
+/** The largest receiver-plane bias of a one-tap read (a light with no rays), in the depth of that
+ *  many centimetres of a sun level (an orthographic depth is linear in the distance), and that
+ *  many times a local map's depth scale (`lightViewToClip[2][2]`). */
+const VSM_TRACE_ONE_TAP_BIAS_CAP = 100
 
 // Clipmap (levels are log2 centimetres): the levels, their depth range, the coarse pages and the
 // resolution biases are the view's shadow settings (`shadowMapOptions.ts`, `mapSettings.ts`).
@@ -282,22 +259,15 @@ export const VSM_SUN_DEPTH_KEEP = 0.9
 /** Point/spot face near plane: a reversed-Z perspective of half field π/4, width and height 1, near 1 cm, far the light's radius. */
 export const VSM_LOCAL_NEAR_PLANE = 1 * VSM_UNIT_PER_CM
 
-// Cache and budget. Declared, as a cache policy: a page unrequested for 1000 frames is freed, a
-// light unseen for 10 frames loses its maps, a placement still for 100 frames turns static; the
-// global resolution bias rises (coarser) fast past 85 % of the pool (half the gap a frame) and
-// falls slowly (a tenth) after 10 calm frames, by at most 2 levels. It holds within a sixteenth of
-// a level of its target, but for an overflowing pool or a target of 0: a still view's demand
-// wanders under the antialiasing jitter, and a bias following it would redraw shadow pages.
-export const VSM_PAGE_KEEP_FRAMES = 1000
-export const VSM_LIGHT_KEEP_FRAMES = 10
-export const VSM_STILL_FRAMES = 100
-export const VSM_PRESSURE_BIAS_MAX = 2
-export const VSM_PRESSURE_LOAD = 0.85
+// Cache and budget. The ages and the dynamic resolution's limits are the view's shadow settings
+// (`shadowMapOptions.ts`); the global resolution bias, past the pool's load, rises (coarser) by half
+// the gap to its target a frame and falls by a tenth of it after 10 calm frames.
+/** The views whose instance cache state a map reads: a word holds a bit each, the cached-as-dynamic
+ *  ones then the transitioned ones (`casters/instanceStateWgsl.ts`). */
+export const VSM_VIEW_SLOTS = 16
 export const VSM_PRESSURE_RISE = 0.5
 export const VSM_PRESSURE_FALL = 0.1
 export const VSM_PRESSURE_CALM_FRAMES = 10
-/** The falling bias holds within this share of a level of a target above 0 (`readPoolFeedback`). */
-export const VSM_PRESSURE_HOLD = 1 / 16
 
 /** WGSL mirror of the constants every VSM shader needs. */
 export const VSM_CONSTANTS_WGSL = wgslBlock(
@@ -308,7 +278,6 @@ ${wgslConsts({
   VSM_LOG2_PAGE,
   VSM_PAGE_TEXELS,
   VSM_PAGE_TEXEL_MASK,
-  VSM_LOG2_TILE_DEPTH_TEXELS,
   VSM_LOG2_LEVEL0_PAGES,
   VSM_LEVEL0_PAGES,
   VSM_MIPS,
@@ -322,6 +291,7 @@ ${wgslConsts({
   VSM_MAP_COARSE,
   VSM_MAP_COVERAGE,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
+  VSM_MAP_FIRST_PERSON,
   VSM_NEXT_KEEPS_PAGES,
   VSM_PAGE_WANTED,
   VSM_PAGE_DYNAMIC_STALE,
@@ -338,8 +308,9 @@ ${wgslConsts({
   VSM_META_STATIC_STALE,
   VSM_META_VIEW_UNCACHED,
   VSM_META_UNSEEN,
+  VSM_META_FORCE_CACHED,
+  VSM_META_DEFERRED,
   VSM_META_ANY_CLEARED,
-  VSM_META_ANY_DRAWN,
   VSM_META_ANY_STALE,
   VSM_ENTRY_DRAWABLE_BIT,
   VSM_ENTRY_MAPPED_BIT,
@@ -353,15 +324,8 @@ ${wgslConsts({
 })}
 const VSM_CM_PER_UNIT:f32=${wgslF32(VSM_CM_PER_UNIT)};
 const VSM_NORMAL_OFFSET_FLOOR:f32=${wgslF32(VSM_NORMAL_OFFSET_FLOOR)};
-const VSM_TRACE_VOTE_AFTER:i32=${VSM_TRACE_VOTE_AFTER};
-const VSM_TRACE_CONE_COT:f32=${wgslF32(focalScale(VSM_TRACE_CONE_LIMIT))};
-const VSM_TRACE_SLOPE_CAP_SUN:f32=${wgslF32(VSM_TRACE_SLOPE_CAP_SUN)};
-const VSM_TRACE_SLOPE_CAP_LOCAL:f32=${wgslF32(VSM_TRACE_SLOPE_CAP_LOCAL)};
-const VSM_TRACE_DITHER:f32=${wgslF32(VSM_TRACE_DITHER)};
-const VSM_TRACE_PLANE_BIAS_CAP:f32=${wgslF32(VSM_TRACE_PLANE_BIAS_CAP)};
-const VSM_TRACE_REACH_SUN:f32=${wgslF32(VSM_TRACE_REACH_SUN)};
-const VSM_MARK_MARGIN:f32=${wgslF32(VSM_PAGE_MARGIN)};
-const VSM_MARK_STRIDE:vec2u=vec2u(${clamp(VSM_MARK_STRIDE_X, 1, 128)}u,${clamp(VSM_MARK_STRIDE_Y, 1, 128)}u);
+const VSM_TRACE_PLANE_SLOPE_SUN:f32=${wgslF32(VSM_TRACE_PLANE_SLOPE_SUN)};
+const VSM_TRACE_ONE_TAP_BIAS_CAP:f32=${wgslF32(VSM_TRACE_ONE_TAP_BIAS_CAP)};
 /** The normal bias length of a receiver \`distance\` from the eye (along the view axis under an
  *  orthographic camera): \`normalBias\` times the distance over the inverse tangent of the half
  *  field of view (1 under an orthographic camera), held to the floor (0.02 cm). The one rule of the

@@ -21,7 +21,7 @@ type Progress = (phase: string, completed: number, total: number, message: strin
 
 /** Hears a page read of the session that failed, at its first failure and when it is given up: its
  *  detail and how many reads fail now (`streamFailed`). */
-type Stalled = (detail: string, failedPages: number) => void
+type Stalled = (detail: string, failedPages: number, givenUp: boolean) => void
 
 /** The index pages a session preloads whole (`preload: 'all'`), by url: read by its queue's batch
  *  request (`streamer`), through the page cache, each as it lands; none otherwise. */
@@ -50,7 +50,7 @@ async function preloaded(
 /** The session's page sources: its queue at once (`streamer`), which its scene loads through, and
  *  the rest once the pages it preloads have landed (`sources`), among them the page cache the queue
  *  reads through (`pageCache`) and the index pages preloaded (`indices`). A read that fails is told
- *  to `stalled` at its first failure and when it is given up. */
+ *  to `stalled` at its first failure and when it is given up (`givenUp`). */
 export function openExplorerPageSources(
   metadata: ClusterManifest,
   options: MeasuredWorldOptions,
@@ -71,9 +71,8 @@ export function openExplorerPageSources(
   configurePageWorkers(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
   // The one cache every reader of the session shares — its world's, kept across a device loss, or
   // the session's own —: the texture levels are held among its pages, their files read through
-  // it (`createTextureLevelReader`), and the scene's proxy is kept whole there
-  // (`createSceneProxyReader`). The session's own cache ends with it: emptied, its kept read
-  // cancelled, as the session closes.
+  // it (`createTextureLevelReader`). The session's own cache ends with it: emptied, as the
+  // session closes.
   const pageCache = options.pageCache ?? createPageCache()
   if (!options.pageCache) signal?.addEventListener('abort', () => pageCache.clear(), { once: true })
   const streamer = createPageStreamer([...pages, ...geometryPages, ...bundles], base, {
@@ -86,7 +85,8 @@ export function openExplorerPageSources(
       diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
         ? diagnosticChannel.emit
         : undefined,
-    onStalled: ({ key, cause }) => stalled(`${key}: ${String(cause)}`, streamer.stats().failed),
+    onStalled: ({ key, cause, givenUp }) =>
+      stalled(`${key}: ${String(cause)}`, streamer.stats().failed, givenUp),
     numRetries,
     objectOf: indexManifestObjects(metadata),
   })

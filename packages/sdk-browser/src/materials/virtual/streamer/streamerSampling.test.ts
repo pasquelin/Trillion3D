@@ -18,11 +18,12 @@ import * as G from '../../../scene/host/graph/graph.fixture.ts'
 
 installGpuGlobals()
 
-/** A host texture at the default sampling. */
+/** A host texture at the default read — its filter word zero: linear, mipped, one tap. */
 const host = () => {
   const texture = G.dataTexture(new Uint8Array(4), 1, 1)
   texture.magFilter = 'linear'
   texture.minFilter = 'linearMipLinear'
+  texture.anisotropy = 1
   return texture
 }
 
@@ -35,10 +36,11 @@ function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
   const whole = (texture?: Texture) => ({
     layout: tileLayout(1, 1),
     lane: 'lossless' as const,
+    tap: 0,
     source: { kind: 'bytes' as const, tail: { levels: [new Uint8Array(4)], blocks } },
     texture,
   })
-  const lossless = { lossless: 2, rgba: 0, 'two-channel': 0 }
+  const lossless = { lossless: 2, rgba: 0, 'two-channel': 0, hdr: 0 }
   const textures = createWebgpuTileStreamer({
     device,
     color: [whole(), ...colours.map(whole)],
@@ -91,7 +93,7 @@ test('the headers follow their hosts at each render, only what moved written', a
   assert.deepEqual(signalled, [[1], []], 'signalled, no shadow reads a data map')
   assert.equal(writes(), opened + 2, 'one send per atlas that moved')
   // An addressing rides in the header too: written, and the cutout shadows told, as a filter.
-  colour.wrapS = 'repeat'
+  colour.wrapS = 'clamp'
   await follow(textures)
   assert.deepEqual(signalled, [[1], [], [1]], 'the colour slot, for its cutout shadows')
   assert.equal(writes(), opened + 3)
@@ -113,7 +115,7 @@ test('two engines over the same texture both write the change', async () => {
   assert.deepEqual([first.signalled, second.signalled], [[[1]], [[1]]])
   colour.magFilter = 'linear'
   assert.equal(await follow(first.textures), true, 'switched off: the pages change class')
-  colour.wrapS = 'repeat'
+  colour.wrapS = 'clamp'
   assert.equal(await follow(first.textures), false, 'an addressing switches no filter rule')
   first.textures.destroy()
   second.textures.destroy()

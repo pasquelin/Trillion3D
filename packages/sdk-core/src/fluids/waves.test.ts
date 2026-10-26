@@ -10,9 +10,14 @@ import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { hypot2 } from '../../../math/src/float/hypot.ts'
 
 test('steepness is normalised so that Σ Qᵢ·Aᵢ·kᵢ stays at most 1', () => {
-  assert.ok(Math.abs(new Waves(OCEAN).steepness - 1) < 1e-12, 'eight waves at 0.9 scaled to 1')
+  const steepness = (waves: Waves) => {
+    let sum = 0
+    for (let i = 0; i < waves.count; i++) sum += waves.lateral[i] * waves.k[i]
+    return sum
+  }
+  assert.ok(Math.abs(steepness(new Waves(OCEAN)) - 1) < 1e-12, 'eight waves at 0.9 scaled to 1')
   const gentle = new Waves([{ direction: [1, 0], wavelength: 10, amplitude: 0.5, steepness: 0.4 }])
-  assert.ok(Math.abs(gentle.steepness - 0.4) < 1e-12, 'a sum below 1 is kept')
+  assert.ok(Math.abs(steepness(gentle) - 0.4) < 1e-12, 'a sum below 1 is kept')
   assert.throws(() => new Waves([{ direction: [0, 0], wavelength: 1, amplitude: 1, steepness: 0 }]))
   assert.throws(() => new Waves([{ direction: [1, 0], wavelength: 1, amplitude: 1, steepness: 2 }]))
 })

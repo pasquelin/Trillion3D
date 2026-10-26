@@ -10,7 +10,7 @@ import { subtract, unit } from '../../../math/src/vector/vectorTuple.ts'
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { sliceParams } from './fog/layout.ts'
 import { FOG_PROGRAMS } from './fog/programs.ts'
-import { fogResourcesWgsl } from './fog/readWgsl.ts'
+import { fogBlockOf } from './fog/readWgsl.ts'
 import {
   EYE,
   GRID,
@@ -19,12 +19,13 @@ import {
   image,
   orthoCamera,
   phase,
+  previousOf,
   sliceAtDepth,
   table,
   viewBlockOf,
   type V3,
 } from './fogVolumeRun.fixture.ts'
-import { CELL, EXTINCTION, G, SUN, scatter, type Light } from './fogScatterRun.fixture.ts'
+import { CELL, EXTINCTION, G, SUN, lampOf, scatter } from './fogScatterRun.fixture.ts'
 import { fogRun } from './fogShaderRun.fixture.ts'
 
 const CAMERA = orthoCamera(EYE)
@@ -42,14 +43,7 @@ function pointOf(cell: V3, offset: V3 = [0.5, 0.5, 0.5]): V3 {
 test('a cell lies where its pixel’s ray reaches its depth, and its light comes from the view’s own direction', () => {
   const P = pointOf(CELL)
   const centre = [P[0] + 1, P[1] + 2, P[2] + 2]
-  const lamp: Light = {
-    positionRange: [...centre, 40],
-    colorIntensity: [1, 1, 1, 50],
-    directionCone: [0, 0, 0, -2],
-    params: [0, -1, 1, -2],
-    shape: [0, 0, 0, 0],
-    capsule: [0, 0, 0, 0],
-  }
+  const lamp = lampOf(centre)
   const toLamp = subtract(centre, P)
   const d = Math.hypot(...toLamp)
   const window = Math.max(1 - (d / 40) ** 4, 0) ** 2
@@ -82,7 +76,7 @@ test('the depth buffer of an orthographic view is linear: a cell’s depth reads
 })
 
 test('the history of a cell is the cell itself where the view has not moved: its place in the view and its slice', () => {
-  const frame = frameScope(image(CAMERA, true, {}, { previous: CAMERA }))
+  const frame = frameScope(image(CAMERA, true, {}, { previous: previousOf(CAMERA) }))
   const run = shaderRun<{
     fogHistoryUV: (P: number[]) => number[]
     fogCellPoint: (cell: number[], offset: number[]) => number[]
@@ -104,7 +98,7 @@ test('a surface reads the volume at its pixel and its depth along the view’s f
   const fog = { baseDensity: 0.01, falloff: 0, volumetric: { reach: 20, startAt: 4 } }
   const view = viewBlockOf(image(CAMERA, fog.volumetric))
   const resources = {
-    decl: fogResourcesWgsl({ group: 0, volume: 1, sampler: 2 }),
+    block: fogBlockOf({ group: 0, volume: 1, sampler: 2 }),
     scope: {
       fogVolume: {},
       fogSampler: {},

@@ -1,16 +1,17 @@
 // The page record a pixel's identifier names is indexed once, by `pageOf`: the dynamic test comes
-// from that one read (`pageIdWgsl.ts`).
+// from that one read (`pageIdWgsl.ts`), the velocity stage's, which writes the pixel's flags with its
+// vector; the nearest velocity reads none.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { functionsOf } from '../../materials/texture/shaderRule.fixture.ts'
-import { FLAG_DYNAMIC } from '../../visibility/types.ts'
+import { FLAG_DYNAMIC, RESPONSIVE_SHIFT, responsiveCode } from '../../visibility/types.ts'
 import { PAGE_OF_WGSL } from './pageIdWgsl.ts'
 import { velocityShader } from './nearestVelocityWgsl.ts'
 import { taaBuiltins } from './taaBuiltins.fixture.ts'
 
 type Page = { placement: number; flags: number; deformOutput: number }
-type PageOf = (id: number) => { animated: number }
+type PageOf = (id: number) => { animated: number; responsive: number }
 
 /** `pageOf` over `records`, and the table indexes it made. */
 function run(records: Page[]) {
@@ -49,6 +50,17 @@ test('a pixel is animated where its geometry changes with no tracked deformation
   )
 })
 
+test('a pixel carries the responsiveness code of its row, and the background none', () => {
+  const rows = (['off', 'medium', 'full'] as const).map((level) =>
+    page(0, responsiveCode(level) << RESPONSIVE_SHIFT),
+  )
+  const { pageOf } = run(rows)
+  assert.deepEqual(
+    [0, 1, 2, 3].map((row) => pageOf(row ? row << 8 : 0).responsive),
+    [0, 0, 1, 3],
+  )
+})
+
 test('the record is indexed once for the dynamic test', () => {
   const { pageOf, indexed } = run([page(4, FLAG_DYNAMIC), page(9, FLAG_DYNAMIC, 3)])
   for (const id of [1 << 8, (2 << 8) | 5]) {
@@ -58,18 +70,14 @@ test('the record is indexed once for the dynamic test', () => {
   }
 })
 
-test('the nearest velocity reads the record once, and its entry indexes the table no other way', () => {
-  for (const [name, shader, main] of [
-    ['nearest velocity, compute', velocityShader(), 'nearestVelocity'],
-  ] as const) {
-    const calls = (text: string, call: string) => text.split(call).length - 1
-    assert.equal(calls(functionsOf(shader, ['pageOf']), 'pages['), 1, `${name}: pageOf`)
-    const body = functionsOf(shader, [main])
-    assert.equal(calls(body, 'pageOf('), 1, `${name}: ${main} asks the page once`)
-    for (const gone of ['pages[', 'placementOf(', 'dynamicPixel(', 'geometryIdentity(']) {
-      assert.equal(calls(body, gone), 0, `${name}: ${main} has no ${gone}`)
-    }
-    assert.equal(calls(shader, 'fn dynamicPixel('), 0)
-    assert.equal(calls(shader, 'fn geometryIdentity('), 0)
+test('the nearest velocity reads no page record: a pixel’s flags come with its vector', () => {
+  const shader = velocityShader()
+  const calls = (text: string, call: string) => text.split(call).length - 1
+  const body = functionsOf(shader, ['nearestVelocity'])
+  for (const gone of ['pages[', 'pageOf(', 'placementOf(', 'dynamicPixel(', 'geometryIdentity(']) {
+    assert.equal(calls(body, gone), 0, `nearestVelocity has no ${gone}`)
   }
+  assert.equal(calls(shader, 'fn pageOf('), 0)
+  assert.equal(calls(shader, 'fn dynamicPixel('), 0)
+  assert.equal(calls(shader, 'fn geometryIdentity('), 0)
 })

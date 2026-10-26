@@ -1,21 +1,25 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
-import { DRAW_MASK_WGSL } from '../../geometry/dag/shader/drawMaskWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL } from '../shader/pageWgsl.ts'
 import { PAGE_POINTS_WGSL } from '../shader/pageGeometryWgsl.ts'
 import { visTriangle } from '../visWords.ts'
+import { NO_WPO, type WpoSet } from '../../materials/graph/wpoProgram.ts'
+import { materialTableWgsl } from '../../materials/table/materialWgsl.ts'
+import { wpoGraphWgsl } from '../shader/wpoGraphWgsl.ts'
 import { TESS_DECLARATIONS as D } from './bindings.ts'
 import { ARG_OCCLUDED, BARYCENTRIC_ONE, SEED_SPLIT_LIMIT } from './contract.ts'
 import { CHILDREN_WGSL, QUEUE_WGSL } from './queueWgsl.ts'
 import { edgeFactors, quarterRateDepth, coarseFactors } from './patchWgsl.ts'
-import { TESSELLATED_ROW_WGSL } from './rowWgsl.ts'
+import { TESSELLATED_FLAGS_WGSL } from './rowWgsl.ts'
+import { LIST_TESS_AT, LIST_TESS_COUNT } from '../raster/contract.ts'
 
 /**
- * THE SEEDING of the patches, one workgroup a row of the page table, in the compute pass of the
- * pass's binning, after the split of the rasters has left the tessellated rows to it
- * (`../raster/binWgsl.ts`, `tessellatedRow`). Each triangle of a row the cut draws and the frame
- * tessellates is measured — the factors of its three edges (`edgeFactors`), from the world
+ * THE SEEDING of the patches, one workgroup a cluster of the pass's list of tessellated clusters
+ * (`LIST_TESS_COUNT`, `../raster/contract.ts`), in the compute pass of the pass's binning: the cut
+ * left the clusters whose surface the frame tessellates to it (`VIS_TAG_TESSELLATED`,
+ * `../../geometry/dag/shader/visibleWgsl.ts`), which the bins listed. Each triangle of a cluster is
+ * measured — the factors of its three edges (`edgeFactors`), from the world
  * positions of its corners, the depth of the nearer end and the view's scale — and handed to the
  * splitting queue: whole where no edge asks for more than `SEED_SPLIT_LIMIT` pieces, else already
  * cut once, by the pattern of its factors over `TABLE_SIZE` held to that limit (`queueChildren`),
@@ -26,15 +30,14 @@ ${D.positions}
 ${D.pages}
 ${D.uniform}
 ${D.tessUniform}
-${D.mask}
+${D.lists}
 ${D.tess}
 ${D.occludedRead}
 @compute @workgroup_size(WORKGROUP_THREADS) fn tessSeed(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
- let row=flatIndex(group,n,1u);
- if(row>=uni.pageCount){return;}
- let page=pages[row];
- if(!(uni.selectionEnabled==0u||maskSelects(page.selectionIndex))){return;}
- if(!tessellatedRow(page)){return;}
+ let at=flatIndex(group,n,1u);
+ if(at>=lists[tu.list+${LIST_TESS_COUNT}u]){return;}
+ let page=pages[lists[lists[tu.list+${LIST_TESS_AT}u]+at]];
+ if(!tessellatedFlags(page)){return;}
  let h=pageHeaderFor(page,false);
  let rec=displacementOf(page);
  let axes=worldMatrix3(page.world);
@@ -67,16 +70,16 @@ const RESUME = `@compute @workgroup_size(WORKGROUP_THREADS) fn tessResume(@built
  queuePatch(vec4u(occluded[at],occluded[at+1u],occluded[at+2u],occluded[at+3u]));
 }`
 
-/** The seeding's program: its entry points `tessSeed` and `tessResume`. */
-export const seedSource = () =>
-  wgslProgram(`${SEED}\n${RESUME}`, [
+/** The seeding's program: its entry points `tessSeed` and `tessResume`. With `wpo`, a triangle is
+ *  measured where its surface's offset puts its corners. */
+export const seedSource = (wpo: WpoSet = NO_WPO) =>
+  wgslProgram(`${SEED}\n${RESUME}\n${wpo.programs.length ? D.uvs : ''}`, [
     PAGE_INFO_STRUCT_WGSL,
     VIS_UNIFORMS_WGSL,
     PAGE_POINTS_WGSL,
     QUEUE_WGSL,
     CHILDREN_WGSL,
-    TESSELLATED_ROW_WGSL,
-    DRAW_MASK_WGSL,
+    TESSELLATED_FLAGS_WGSL,
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,
     worldMatrix3,
@@ -84,4 +87,5 @@ export const seedSource = () =>
     edgeFactors,
     quarterRateDepth,
     coarseFactors,
+    ...(wpo.programs.length ? [materialTableWgsl(wpo.table), wpoGraphWgsl(wpo)] : []),
   ])

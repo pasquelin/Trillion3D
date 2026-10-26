@@ -2,40 +2,15 @@ import type { MeasuredWorld } from '../explorer.ts'
 import {
   resolveSetting,
   type SettingOptions,
-  type SettingRule,
 } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import {
+  setterOf,
+  SETTING_FAMILIES,
+  type FamilyRules as Rules,
+  type FamilyTable,
+} from '../../../../sdk-core/src/runtime/settingFamilies.ts'
 import type { WorldSettings } from './settings.ts'
-import { WORLD_STREAMING_RULES } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
-import { STREAMING_RULES } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
-import { RASTER_RULES } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
-import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
-import { DYNAMIC_RESOLUTION_RULES } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
-import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOptions.ts'
-import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
-import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
-import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
-import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
-import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
-import { VOLUMETRIC_LIGHTMAP_RULES } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
-import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
-import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
-import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
-import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
-import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
-import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
-import { TESSELLATION_RULES } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
-import { MOTION_BLUR_RULES } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
-import { DEPTH_OF_FIELD_RULES } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
-import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
-import { SKY_QUALITY_RULES } from '../../../../sdk-core/src/modules/sky/quality.ts'
-import { BLOOM_RULES } from '../../../../sdk-core/src/contracts/bloomRules.ts'
-import { GAUSSIAN_BLUR_RULES } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
-import { FILM_RULES } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 
-/** The rules the world's registry holds: every kind but a vector, which no registry entry types. */
-export type RegistryRule = Exclude<SettingRule, { readonly kind: 'vector' }>
-/** A family's rules, by field. */
-type Rules = Readonly<Record<string, RegistryRule>>
 /** The values of the family of rules `R`, by field. */
 type Values<R extends Rules> = { -readonly [F in keyof R]: R[F]['default'] }
 /** A field of the family of rules `R`. */
@@ -103,90 +78,59 @@ function ruledSwitches<R extends Rules>(
   }
 }
 
-/** The world's families by rule over its registry `settings`, each read by its rules' one
- *  resolver and written into a session by its own setter: the cluster raster's split, the geometry
- *  streaming, the partition's streaming and the HLOD warm-up, the cut, the animation, the
- *  shading, the automatic exposure, the temporal pass, the depth pyramid, the sun's shadows, the
- *  motion blur, the film effects, the reflections' trace, the screen-space ambient occlusion. */
-export const worldFamilies = (settings: WorldSettings) => ({
-  raster: ruledSwitches(settings, RASTER_RULES, (session, field, value) =>
-    field === 'softwareRaster'
-      ? session.setSoftwareRaster(value as boolean)
-      : session.setHardwareRasterEdgePixels(value as number),
-  ),
-  streaming: ruledSwitches(settings, STREAMING_RULES, (session, field, value) =>
-    session.setStreaming(field, value),
-  ),
-  worldStreaming: ruledSwitches(settings, WORLD_STREAMING_RULES, (session, field, value) =>
-    session.setWorldStreaming(field, value),
-  ),
-  cut: ruledSwitches(settings, CUT_RULES, (session, field, value) => session.setCut(field, value)),
-  dynamicResolution: ruledSwitches(settings, DYNAMIC_RESOLUTION_RULES, (session, field, value) =>
-    session.setDynamicResolution(field, value),
-  ),
-  animation: ruledSwitches(settings, ANIMATION_RULES, (session, field, value) =>
-    session.setAnimation(field, value),
-  ),
-  shading: ruledSwitches(settings, SHADING_RULES, (session, field, value) =>
-    session.setShading(field, value),
-  ),
-  exposure: ruledSwitches(settings, EXPOSURE_RULES, (session, field, value) =>
-    session.setExposure(field, value),
-  ),
-  temporal: ruledSwitches(settings, TEMPORAL_RULES, (session, field, value) =>
-    session.setTemporal(field, value),
-  ),
-  hiz: ruledSwitches(settings, HIZ_RULES, (session, field, value) => session.setHiz(field, value)),
-  lightFunction: ruledSwitches(settings, LIGHT_FUNCTION_RULES, (session, field, value) =>
-    session.setLightFunction(field, value),
-  ),
-  volumetricLightmap: ruledSwitches(settings, VOLUMETRIC_LIGHTMAP_RULES, (session, field, value) =>
-    session.setVolumetricLightmap(field, value),
-  ),
-  globalDistanceField: ruledSwitches(
-    settings,
-    GLOBAL_DISTANCE_FIELD_RULES,
-    (session, field, value) => session.setGlobalDistanceField(field, value),
-  ),
-  distanceFieldOcclusion: ruledSwitches(
-    settings,
-    DISTANCE_FIELD_OCCLUSION_RULES,
-    (session, field, value) => session.setDistanceFieldOcclusion(field, value),
-  ),
-  shadows: ruledSwitches(settings, SHADOW_RULES, (session, field, value) =>
-    session.setShadows(field, value),
-  ),
-  indirectLight: ruledSwitches(settings, SCREEN_PROBE_RULES, (session, field, value) =>
-    session.setIndirectLight(field, value),
-  ),
-  reflections: ruledSwitches(settings, REFLECTION_RULES, (session, field, value) =>
-    session.setReflections(field, value),
-  ),
-  volumetricFog: ruledSwitches(settings, VOLUMETRIC_FOG_RULES, (session, field, value) =>
-    session.setVolumetricFog(field, value),
-  ),
-  tessellation: ruledSwitches(settings, TESSELLATION_RULES, (session, field, value) =>
-    session.setTessellation(field, value),
-  ),
-  motionBlur: ruledSwitches(settings, MOTION_BLUR_RULES, (session, field, value) =>
-    session.setMotionBlur(field, value),
-  ),
-  depthOfField: ruledSwitches(settings, DEPTH_OF_FIELD_RULES, (session, field, value) =>
-    session.setDepthOfField(field, value),
-  ),
-  bloom: ruledSwitches(settings, BLOOM_RULES, (session, field, value) =>
-    session.setBloom(field, value),
-  ),
-  gaussianBlur: ruledSwitches(settings, GAUSSIAN_BLUR_RULES, (session, field, value) =>
-    session.setGaussianBlur(field, value),
-  ),
-  film: ruledSwitches(settings, FILM_RULES, (session, field, value) =>
-    session.setFilm(field, value),
-  ),
-  ambientOcclusion: ruledSwitches(settings, AMBIENT_OCCLUSION_RULES, (session, field, value) =>
-    session.setAmbientOcclusion(field, value),
-  ),
-  skyQuality: ruledSwitches(settings, SKY_QUALITY_RULES, (session, field, value) =>
-    session.setSkyQuality(field, value),
-  ),
-})
+/** The session's writer of one setting of a family: `session.setCut(field, value)` for the cut. */
+type Write = (session: MeasuredWorld, field: string, value: never) => void
+
+/** The families whose session writer is not the method `setterOf` names, which takes `(field, value)`:
+ *  the cluster raster has one method for each of its settings (`setSoftwareRaster`,
+ *  `setHardwareRasterEdgePixels`, `setDepthBucketing`, `setDepthBucketsMinZ`,
+ *  `setDepthBucketsMaxZ`), told apart by the field. Every other family is written by
+ *  `writerOf`. */
+const WRITERS: Readonly<Record<string, Write>> = {
+  raster: (session, field, value) => {
+    switch (field) {
+      case 'softwareRaster':
+        return session.setSoftwareRaster(value as boolean)
+      case 'hardwareRasterEdgePixels':
+        return session.setHardwareRasterEdgePixels(value as number)
+      case 'depthBucketing':
+        return session.setDepthBucketing(value as boolean)
+      case 'depthBucketsMinZ':
+        return session.setDepthBucketsMinZ(value as number)
+      default:
+        return session.setDepthBucketsMaxZ(value as number)
+    }
+  },
+}
+
+/** The writer of the family `name`: its override, else the session's method `setterOf(name)`. */
+const writerOf = (name: string): Write =>
+  WRITERS[name] ??
+  ((session, field, value) =>
+    (session as unknown as Record<string, (field: string, value: unknown) => void>)[setterOf(name)](
+      field,
+      value,
+    ))
+
+/** The family `name`'s rules read and written over the registry. */
+type Ruled<R extends Rules> = ReturnType<typeof ruledSwitches<R>>
+
+/** The world's families by rule over its registry `settings` (`SETTING_FAMILIES`, in its order), each
+ *  read by its rules' one resolver and written into a session by its own setter. */
+export type WorldFamilies = {
+  [N in keyof typeof SETTING_FAMILIES]: Ruled<(typeof SETTING_FAMILIES)[N]['rules']>
+}
+
+/** The world's families by rule over its registry `settings`: every row of `table`
+ *  (`SETTING_FAMILIES`) made one `ruledSwitches`, read by its rules' one resolver and written into a
+ *  session by `writerOf` its name. */
+export const worldFamilies = (
+  settings: WorldSettings,
+  table: FamilyTable = SETTING_FAMILIES,
+): WorldFamilies =>
+  Object.fromEntries(
+    Object.entries(table).map(([name, family]) => [
+      name,
+      ruledSwitches(settings, family.rules, writerOf(name)),
+    ]),
+  ) as unknown as WorldFamilies

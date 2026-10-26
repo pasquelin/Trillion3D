@@ -1,5 +1,5 @@
 //! Two meshes of one content compile to what one mesh placed twice compiles to:
-//! the same single primitive, the same pages, collision, proxy and depth layers, both nodes on it;
+//! the same single primitive, the same pages, collision and depth layers, both nodes on it;
 //! one bit apart, they stay two primitives.
 use super::*;
 use crate::plugins::scene::convert::{f32_bytes, Bin};
@@ -56,10 +56,10 @@ fn compiled(tag: &str, copies: &[(Vec<u8>, Vec<u8>)], nodes: &[usize]) -> (Value
     (result, source)
 }
 
-/// What the cook of a scene is, without what names its source: primitives, collision, proxy and
+/// What the cook of a scene is, without what names its source: primitives, collision and
 /// depth layers.
 fn cooked(result: &Value) -> Value {
-    let fields = ["primitives", "proxy", "coplanar", "physics"];
+    let fields = ["primitives", "coplanar", "physics"];
     json!(fields.map(|field| &result[field]))
 }
 

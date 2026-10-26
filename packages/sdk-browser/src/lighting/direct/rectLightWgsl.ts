@@ -1,10 +1,11 @@
 import { LIGHT_KIND } from '../../../../sdk-core/src/scene/light/contracts.ts'
-import { MODEL_FLAG, SURFACE_MODEL_LIGHT_WGSL } from '../../materials/surface/surfaceModel.ts'
+import { MODEL_FLAG } from '../../materials/surface/surfaceModelWord.ts'
+import { SURFACE_MODEL_LIGHT_WGSL } from '../../materials/surface/surfaceModel.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
-import { INVERSE_TWO_PI, PI } from '../../../../math/src/wgsl/constants.ts'
+import { INVERSE_PI, INVERSE_TWO_PI, PI } from '../../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { ndotvClamped, splitSumTerm } from '../../../../math/src/wgsl/lighting.ts'
+import { horizonWrap, ndotvClamped, splitSumTerm } from '../../../../math/src/wgsl/lighting.ts'
 import { tangentSide } from '../../../../math/src/wgsl/basis.ts'
 import { faceNormal, vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 import { bilinear4 } from '../../../../math/src/wgsl/sampling.ts'
@@ -13,7 +14,10 @@ import { isKind, rangeWindow } from './lightReachWgsl.ts'
 /**
  * A RECTANGULAR LIGHT, one-sided: a Lambertian rectangle of uniform radiance L, centred on
  * `positionRange.xyz`, emitting along `directionCone.xyz`, with `shape.xyz` its half-width axis
- * and `shape.w` its half height (`packages/sdk-core/src/scene/light/fields.ts`). No cast shadow.
+ * and `shape.w` its half height, its shares of diffuse and specular light in `capsule.zw`
+ * (`packages/sdk-core/src/scene/light/fields.ts`). Where it casts a
+ * shadow (`lightLoopWgsl.ts`), its share of the light is the shadow of its point-light cube, its
+ * source radius half its width.
  *
  * Both lobes are integrated over the rectangle in closed form with linearly transformed cosines
  * (a cosine bent by a 3x3 matrix still integrates in closed form over a polygon). The integral of a clamped cosine over a polygon is its vector form
@@ -25,7 +29,10 @@ import { isKind, rangeWindow } from './lightReachWgsl.ts'
  * horizon is clipped to it, exactly: each edge cut where it crosses,
  * the outline closed by the horizon's arc from where it leaves to where it comes back, an arc whose
  * plane is the horizon's own. Whole above, the form factor is F·z; whole below, zero.
- * - Diffuse: the cosine itself — the rectangle as it is, around the normal: exact.
+ * - Diffuse: the whole rectangle's vector form factor, its length half the irradiance of a face turned
+ *   to it and its direction the mean direction of the light, under the cosine of the normal with that
+ *   direction wrapped about the horizon of a sphere of the same solid angle (`horizonWrap`): a
+ *   rectangle under the horizon still lights, fading to nothing a sphere's radius under it.
  * - Specular: the engine's GGX lobe, Fresnel apart, is the cosine seen through the matrix M
  *   fitted for its roughness and view angle (`scripts/dev/ltc-fit.ts`, `ltcTable.ts`); the rectangle, in the
  *   frame of the normal and the view, is moved by M⁻¹ and integrated the same way, then weighed
@@ -36,7 +43,7 @@ import { isKind, rangeWindow } from './lightReachWgsl.ts'
  */
 export const RECT_LIGHT_WGSL = wgslBlock(
   'RECT_LIGHT_WGSL',
-  [INVERSE_TWO_PI, PI, faceNormal, rangeWindow, isKind],
+  [INVERSE_PI, INVERSE_TWO_PI, faceNormal, horizonWrap, rangeWindow, isKind],
   `
 const KIND_RECT:f32=${LIGHT_KIND.rect}.0;
 fn isRect(light:DirectLight)->bool{return isKind(light.params.x,KIND_RECT);}
@@ -90,33 +97,43 @@ fn rectView(light:DirectLight,P:vec3f)->RectView{
  return RectView(o-U-W,o+U-W,o+U+W,o-U+W,window);
 }
 /** Direction of the vector form factor and the rectangle's irradiance per unit radiance at P
- *  for the normal N: π times its clipped form factor, range windowed. */
+ *  for the normal N: half the length of its whole vector form factor, times the cosine of N with
+ *  its direction wrapped about the horizon of the sphere of that irradiance (sin² α = it over π),
+ *  range windowed. */
 fn rectIrradiance(light:DirectLight,P:vec3f,N:vec3f)->vec4f{return rectIrradianceOf(rectView(light,P),N);}
 /** The same, of the rectangle's view \`r\` at P: what a caller that holds it reads again. */
 fn rectIrradianceOf(r:RectView,N:vec3f)->vec4f{
  if(r.window<=0.0){return vec4f(0.0);}
- let f=polygonFormFactor(r.a,r.b,r.c,r.d,N);
- return vec4f(f.xyz,PI*f.w*r.window);
+ let form=rectVectorForm(r);
+ let size=length(form);
+ if(!(size>0.0)){return vec4f(0.0);}
+ // The polygon's form factor faces it wound one way and away from it wound the other.
+ let toward=form*(select(1.0,-1.0,dot(form,r.a+r.c)<0.0)/size);
+ let irradiance=0.5*size;
+ return vec4f(toward,irradiance*max(horizonWrap(dot(N,toward),irradiance*INVERSE_PI),0.0)*r.window);
+}
+/** The vector form factor of the rectangle's view \`r\` at P, whole: each edge's term by the angle it
+ *  subtends (\`rectEdge\`). */
+fn rectVectorForm(r:RectView)->vec3f{
+ return rectEdge(r.a,r.b-r.a,1.0,dot(r.a,r.b))+rectEdge(r.b,r.c-r.b,1.0,dot(r.b,r.c))+rectEdge(r.c,r.d-r.c,1.0,dot(r.c,r.d))+rectEdge(r.d,r.a-r.d,1.0,dot(r.d,r.a));
 }
 /** The rectangle's integral with no normal, of its view \`r\` at P: half the length of its vector
- *  form factor, each edge's term by the angle it subtends (\`rectEdge\`), before its range window
+ *  form factor (\`rectVectorForm\`), before its range window
  *  (\`r.window\`, the caller's). It is the irradiance on a face turned to the rectangle, whole above its
  *  horizon: what a point of a medium, which has no surface, reads of it — a facing patch's solid
  *  angle, \`area / distance²\` far away. */
-fn rectFormOf(r:RectView)->f32{
- let form=rectEdge(r.a,r.b-r.a,1.0,dot(r.a,r.b))+rectEdge(r.b,r.c-r.b,1.0,dot(r.b,r.c))+rectEdge(r.c,r.d-r.c,1.0,dot(r.c,r.d))+rectEdge(r.d,r.a-r.d,1.0,dot(r.d,r.a));
- return 0.5*length(form);
-}`,
+fn rectFormOf(r:RectView)->f32{return 0.5*length(rectVectorForm(r));}
+/** The same, times the range window of the view \`r\`: the energy a point reads of the rectangle where
+ *  it has no surface — the volume's, the clouds' — and a shadow catcher's. */
+fn rectWindowed(r:RectView)->f32{return rectFormOf(r)*r.window;}`,
 )
 
 /** The rectangle's fitted lobe at (roughness, cos θ_v): bilinear over the table's cells, texel
- *  \`k\` 0 for M⁻¹'s entries, 1 for the lobe's magnitude and Fresnel share (\`ltcTable.ts\`).
- *  \`ltcSplitSum\` is the engine's split-sum term of the GGX lobe at its roughness and N·V, on its
- *  reflectance \`f0\`: the weight of a rectangle's specular lobe and of every reflected radiance
- *  (\`../../reflections/weight.ts\`) — one function, one table. */
-export const LTC_WGSL = wgslBlock(
+ *  \`k\` 0 for M⁻¹'s entries, 1 for the lobe's magnitude and Fresnel share (\`ltcTable.ts\`): the weight of a
+ *  rectangle's specular lobe (\`splitSumTerm\`, \`rectLtc\`). */
+const LTC_WGSL = wgslBlock(
   'LTC_WGSL',
-  [bilinear4, splitSumTerm],
+  [bilinear4],
   `
 const LTC_SIZE:u32=${LTC_SIZE}u;
 fn ltcTexel(x:u32,y:u32,k:u32)->vec4f{return directLights.ltc[(y*LTC_SIZE+x)*2u+k];}
@@ -124,8 +141,7 @@ fn ltcLookup(rough:f32,NdotV:f32,k:u32)->vec4f{
  let at=vec2f(clamp(rough,0.0,1.0),sqrt(clamp(1.0-NdotV,0.0,1.0)))*f32(LTC_SIZE-1u);
  let i=min(vec2u(at),vec2u(LTC_SIZE-2u));let f=at-vec2f(i);
  return bilinear4(ltcTexel(i.x,i.y,k),ltcTexel(i.x+1u,i.y,k),ltcTexel(i.x,i.y+1u,k),ltcTexel(i.x+1u,i.y+1u,k),f);
-}
-fn ltcSplitSum(f0:vec3f,rough:f32,NdotV:f32)->vec3f{return splitSumTerm(f0,ltcLookup(rough,NdotV,1u));}`,
+}`,
 )
 
 /** What a rectangle's shading reads: its fitted lobe (\`rectLtc\`) and the corners' move into it. The
@@ -134,7 +150,7 @@ fn ltcSplitSum(f0:vec3f,rough:f32,NdotV:f32)->vec3f{return splitSumTerm(f0,ltcLo
  *  rectangle that lights it (\`pixelRectFrame\`), and read by every other. */
 const RECT_SHADING_WGSL = wgslBlock(
   'RECT_SHADING_WGSL',
-  [RECT_LIGHT_WGSL, PI, ndotvClamped, tangentSide, vectorRejection, LTC_WGSL],
+  [RECT_LIGHT_WGSL, PI, ndotvClamped, tangentSide, vectorRejection, LTC_WGSL, splitSumTerm],
   `
 /** A corner in the frame (T1, T2, N) moved by M⁻¹ = [[m.x, 0, m.y], [0, 1, 0], [m.z, 0, m.w]]. */
 fn ltcCorner(q:vec3f,T1:vec3f,T2:vec3f,N:vec3f,m:vec4f)->vec3f{
@@ -170,16 +186,16 @@ fn rectLtc(r:RectView,f:RectFrame,f0:vec3f)->vec3f{
 /** The shading of a rectangle at a surface point \`s\` (\`lobeSurface\`), colour and intensity
  *  included, its view \`r\` from the point (\`rectView\`): on a diffuse or toon model, the model's
  *  light of its exact irradiance, no lobe read; else the diffuse of that irradiance and the specular of
- *  its fitted lobe (\`rectBase\`, stretched where the pixel's lobes skew it), under what a coat lets
- *  through, plus the coat's fitted lobe (\`rectCoat\`). The hooks are declared by the hook block that
+ *  its fitted lobe (\`rectBase\`, stretched where the pixel's lobes skew it, mixed with a cloth's fuzz
+ *  lobe, \`rectCloth\`); under a coat, the coat model's (\`coatedRect\`). The hooks are declared by the hook block that
  *  lists this one (\`lobesWgsl.ts\`: the lobed one, or the lobeless one's plain lobe, one and zero). */
 export const RECT_SURFACE_LIGHT_WGSL = wgslBlock(
   'RECT_SURFACE_LIGHT_WGSL',
   [RECT_SHADING_WGSL, STANDARD_LIGHTING_WGSL, SURFACE_MODEL_LIGHT_WGSL],
   `
 /** Its diffuse share (column 0) and the rest (column 1: the specular lobe, the coat), one
- *  evaluation for the whole term and the split one (\`declaredLightSplit\`, a translucent
- *  layer's diffuse under its coverage, its specular over it). */
+ *  evaluation for the whole term, which weighs them by the light's shares, and the split one
+ *  (\`declaredLightSplit\`, a translucent layer's diffuse under its coverage, its specular over it). */
 fn rectLightSplit(light:DirectLight,r:RectView,s:LobeSurface,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,ao:f32)->mat2x3f{
  let tint=light.colorIntensity.rgb;
  let incident=rectIrradianceOf(r,N);
@@ -193,15 +209,15 @@ fn rectLightSplit(light:DirectLight,r:RectView,s:LobeSurface,rgb:vec3f,metal:f32
   let facing=light.colorIntensity.w*PI*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window;
   return mat2x3f(modelLight(rgb,metal,N,incident.xyz,facing,ao)*tint,vec3f(0.0));
  }
- // The coat lights from its own normal, whatever the base's face: zero without lobes (\`rectCoat\`).
- let coat=rectCoat(r,V,light.colorIntensity.w)*tint;
- if(incident.w<=0.0){return mat2x3f(vec3f(0.0),coat);}
- let specular=rectBase(r,N,V,s.f0,rough)*light.colorIntensity.w*r.window;
- let through=tint*lobeThrough();
- return mat2x3f(s.diffuse*E*through,specular*through+coat);
+ // A pixel under a clear coat is lit by the coat model whole (\`coatedRect\`): the coat lights from its own normal,
+ // whatever the base's face.
+ if(hasCoat()){
+  let coated=coatedRect(light,r,incident,s,N,V,rough);
+  return mat2x3f(coated[0]*tint,coated[1]*tint);
+ }
+ if(incident.w<=0.0){return mat2x3f(vec3f(0.0),vec3f(0.0));}
+ let specular=rectCloth(rectBase(r,N,V,s.f0,rough)*light.colorIntensity.w*r.window,r,incident,N,V,s,light.colorIntensity.w);
+ return mat2x3f(s.diffuse*E*tint,specular*tint);
 }
-fn rectLight(light:DirectLight,r:RectView,s:LobeSurface,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,ao:f32)->vec3f{
- let t=rectLightSplit(light,r,s,rgb,metal,rough,N,V,ao);
- return t[0]+t[1];
-}`,
+`,
 )

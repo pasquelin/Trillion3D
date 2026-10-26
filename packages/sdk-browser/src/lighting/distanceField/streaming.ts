@@ -1,3 +1,5 @@
+import { retire } from '../../gpu/core/frameRetire.ts'
+import { splitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 import { clipmapExtent } from '../../../../sdk-core/src/lighting/globalDistanceField.ts'
@@ -8,7 +10,8 @@ import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
 import { MAX_STREAMING_REQUESTS } from './atlasRequests.ts'
 import { STREAM_BLOCK, STREAM_ENTRIES, STREAMING_SHADER } from './streamingWgsl.ts'
-import { splitPosition } from './clipmapUniforms.ts'
+
+const PASS: GPUComputePassDescriptor = { label: 'Trillion3D mesh distance field streaming' }
 
 /**
  * THE GPU'S ASKS OF THE ATLAS, and their return: each frame, when no answer is waiting for more
@@ -30,8 +33,8 @@ export interface StreamingInputs {
   readonly objects: number
 }
 
-/** The streaming passes' pipelines, buffers and ring. */
-export function createStreaming(device: GPUDevice, sceneLayout: GPUBindGroupLayout) {
+/** The layouts of the streaming passes over the scene group, and their pipelines. */
+function createStreamingStages(device: GPUDevice, sceneLayout: GPUBindGroupLayout) {
   const layouts = [
     sceneLayout,
     device.createBindGroupLayout({
@@ -52,16 +55,90 @@ export function createStreaming(device: GPUDevice, sceneLayout: GPUBindGroupLayo
     }),
     Object.values(STREAM_ENTRIES),
   )
-  const params = device.createBuffer({
-    label: 'Trillion3D mesh distance field streaming block',
-    size: STREAM_BLOCK.words * 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  return { layouts, stages }
+}
+
+/** The block written for a frame into `words`: the view and the boxes that decide a mesh's mips. */
+function fillBlock(
+  words: Float32Array,
+  ints: Uint32Array,
+  { origin, settings, assets }: StreamingInputs,
+  capacity: number,
+) {
+  const at = STREAM_BLOCK.at
+  const clipmaps = settings.globalDistanceFieldClipmaps
+  ints[at.forceMips] = settings.meshDistanceFieldForceMips
+  ints[at.maxRequests] = MAX_STREAMING_REQUESTS
+  ints[at.assets] = assets
+  ints[at.capacity] = capacity
+  const outer = clipmapExtent(settings, clipmaps - 1)
+  const inner = clipmapExtent(settings, Math.max(Math.floor(clipmaps / 2) - 1, 0))
+  for (let k = 0; k < 3; k++) {
+    const [high, low] = splitDouble(-origin[k])
+    words[at.mip1Extent + k] = outer
+    words[at.mip2Extent + k] = inner
+    words[at.translationHigh + k] = high
+    words[at.translationLow + k] = low
+  }
+}
+
+type StreamingStages = ReturnType<typeof createStreamingStages>['stages']
+
+/** The passes over the placements, the meshes and their assets, in `pass`. */
+function dispatchStreaming(
+  pass: GPUComputePassEncoder,
+  stages: StreamingStages,
+  inputs: StreamingInputs,
+  capacity: number,
+) {
+  const run = (entry: (typeof STREAM_ENTRIES)[keyof typeof STREAM_ENTRIES], threads: number) => {
+    pass.setPipeline(stages.pipelineOf(entry))
+    dispatchRows(pass, ceilDiv(threads, WORKGROUP_THREADS))
+  }
+  run(STREAM_ENTRIES.clear, capacity)
+  run(STREAM_ENTRIES.wanted, inputs.objects)
+  run(STREAM_ENTRIES.requests, inputs.assets)
+}
+
+/** The block the passes read and the list of requests they write. */
+function createStreamingBuffers(device: GPUDevice) {
+  return {
+    params: device.createBuffer({
+      label: 'Trillion3D mesh distance field streaming block',
+      size: STREAM_BLOCK.words * 4,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    }),
+    requests: device.createBuffer({
+      label: 'Trillion3D mesh distance field requests',
+      size: REQUEST_BYTES,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    }),
+  }
+}
+
+/** The wanted mips of `capacity` assets. */
+const createWanted = (device: GPUDevice, capacity: number) =>
+  device.createBuffer({
+    label: 'Trillion3D mesh distance field wanted mips',
+    size: capacity * 4,
+    usage: GPUBufferUsage.STORAGE,
   })
-  const requests = device.createBuffer({
-    label: 'Trillion3D mesh distance field requests',
-    size: REQUEST_BYTES,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+
+/** The group 1 of the passes over `buffers`. */
+const createStreamingGroup = (
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  buffers: GPUBuffer[],
+) =>
+  device.createBindGroup({
+    layout,
+    entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
   })
+
+/** The streaming passes' pipelines, buffers and ring. */
+export function createStreaming(device: GPUDevice, sceneLayout: GPUBindGroupLayout) {
+  const { layouts, stages } = createStreamingStages(device, sceneLayout)
+  const { params, requests } = createStreamingBuffers(device)
   let wanted: GPUBuffer | undefined
   let group: GPUBindGroup | undefined
   let answer: Uint32Array | undefined
@@ -75,26 +152,6 @@ export function createStreaming(device: GPUDevice, sceneLayout: GPUBindGroupLayo
   const words = new Float32Array(STREAM_BLOCK.words)
   const ints = new Uint32Array(words.buffer)
 
-  /** The block written for a frame: the view and the boxes that decide a mesh's mips. */
-  function writeBlock({ origin, settings, assets }: StreamingInputs, capacity: number) {
-    const at = STREAM_BLOCK.at
-    const clipmaps = settings.globalDistanceFieldClipmaps
-    ints[at.forceMips] = settings.meshDistanceFieldForceMips
-    ints[at.maxRequests] = MAX_STREAMING_REQUESTS
-    ints[at.assets] = assets
-    ints[at.capacity] = capacity
-    const outer = clipmapExtent(settings, clipmaps - 1)
-    const inner = clipmapExtent(settings, Math.max(Math.floor(clipmaps / 2) - 1, 0))
-    for (let k = 0; k < 3; k++) {
-      const [high, low] = splitPosition(-origin[k])
-      words[at.mip1Extent + k] = outer
-      words[at.mip2Extent + k] = inner
-      words[at.translationHigh + k] = high
-      words[at.translationLow + k] = low
-    }
-    device.queue.writeBuffer(params, 0, words)
-  }
-
   return {
     get ready() {
       return stages.ready
@@ -104,36 +161,18 @@ export function createStreaming(device: GPUDevice, sceneLayout: GPUBindGroupLayo
       if (!stages.ready || inputs.objects === 0 || !ring.available()) return
       const capacity = nextPow2(Math.max(1, inputs.assets))
       if (!wanted || wanted.size < capacity * 4) {
-        wanted?.destroy()
-        wanted = device.createBuffer({
-          label: 'Trillion3D mesh distance field wanted mips',
-          size: capacity * 4,
-          usage: GPUBufferUsage.STORAGE,
-        })
-        group = device.createBindGroup({
-          layout: layouts[1],
-          entries: [params, wanted, requests].map((buffer, binding) => ({
-            binding,
-            resource: { buffer },
-          })),
-        })
+        if (wanted) retire(device, wanted)
+        wanted = createWanted(device, capacity)
+        group = createStreamingGroup(device, layouts[1], [params, wanted, requests])
       }
-      writeBlock(inputs, capacity)
+      fillBlock(words, ints, inputs, capacity)
+      device.queue.writeBuffer(params, 0, words)
       const staging = ring.take()
       if (!staging) return
-      const pass = encoder.beginComputePass({ label: 'Trillion3D mesh distance field streaming' })
+      const pass = encoder.beginComputePass(PASS)
       pass.setBindGroup(0, scene)
       pass.setBindGroup(1, group)
-      const run = (
-        entry: (typeof STREAM_ENTRIES)[keyof typeof STREAM_ENTRIES],
-        threads: number,
-      ) => {
-        pass.setPipeline(stages.pipelineOf(entry))
-        dispatchRows(pass, ceilDiv(threads, WORKGROUP_THREADS))
-      }
-      run(STREAM_ENTRIES.clear, capacity)
-      run(STREAM_ENTRIES.wanted, inputs.objects)
-      run(STREAM_ENTRIES.requests, inputs.assets)
+      dispatchStreaming(pass, stages, inputs, capacity)
       pass.end()
       encoder.copyBufferToBuffer(requests, 0, staging, 0, REQUEST_BYTES)
     },
@@ -153,5 +192,3 @@ export function createStreaming(device: GPUDevice, sceneLayout: GPUBindGroupLayo
     },
   }
 }
-
-export type Streaming = ReturnType<typeof createStreaming>

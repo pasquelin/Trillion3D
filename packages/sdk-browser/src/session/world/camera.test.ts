@@ -22,8 +22,14 @@ test('an orthographic camera fitted to the aspect keeps its height and centre at
   assert.equal(camera.clone().fitAspect, true, 'a clone keeps the fit')
 })
 
-test('an orthographic camera draws its declared box unless it asks for the fit', () => {
-  assert.deepEqual(drawn(new Camera('orthographic', box), 800, 400), box)
+test('an orthographic camera fits its box to the picture unless it opts out', () => {
+  assert.deepEqual(drawn(new Camera('orthographic', box), 800, 400), {
+    left: -3,
+    right: 5,
+    top: 3,
+    bottom: -1,
+  })
+  assert.deepEqual(drawn(new Camera('orthographic', { ...box, fitAspect: false }), 800, 400), box)
 })
 
 test('a fitted orthographic camera aims a canvas point where its fitted box draws it', () => {

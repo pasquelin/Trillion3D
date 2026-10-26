@@ -6,12 +6,13 @@ import { createWebgpuCutPublication } from '../../geometry/cut/adoption/publicat
 import { createPageSource } from './readPage.ts'
 import { awaitsPageBytes, pageAddress } from '../../geometry/rows/page/pageSlots.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
-import { createBootstrapFor, createResidencyFor, createRowSyncFor } from './serviceParts.ts'
+import { createBootstrapFor, createClusterSyncFor, createResidencyFor } from './serviceParts.ts'
 import { coverHeldRoots } from '../prepare/worldRoot.ts'
+import { vsmShadowRequestCuts } from '../../lighting/shadows/vsm/traversal/requests.ts'
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>
 
-/** The residency machinery: the row table sync, the bootstrap cover, the pin updater, the
+/** The residency machinery: the clusters' sync, the bootstrap cover, the pin updater, the
  *  streaming of the geometry pool and the GPU cut adopter. Each reads the runtime lazily, so none
  *  holds a stale frame. */
 export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
@@ -20,7 +21,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     { tracking, bootstrapKey, sourceBytes } = rt.setup
   /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
   const closure = createGroupClosure(rt.layout.selectionRoots, placement, packedPages)
-  const rowSync = createRowSyncFor(rt)
+  const clusterSync = createClusterSyncFor(rt)
   const pageSource = createPageSource(rt)
   // A cluster drawn from its quantized page needs no index page: its slot is filled from the page
   // reader above. Only a cluster that still draws from an index buffer waits for one.
@@ -51,18 +52,16 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   coverHeldRoots(rt, residencySets)
   const residency = createResidencyFor(rt, { residencySets, closure, hasBytes, streamingSlots })
   const publication = createWebgpuCutPublication(rt, residencySets, closure)
-  const { syncRows, followCut, rowsOwed, blendCasters, rowWords, followRowOrder } = rowSync
   return {
-    syncRows,
-    followCut,
-    rowsOwed,
-    blendCasters,
-    /** The rows' use words the GPU stamps (`../../geometry/rows/rowWords.ts`), and the queues of their victims
-     *  the readbacks bring (`../../geometry/rows/rowOrder.ts`). */
-    rowWords,
-    followRowOrder,
-    /** The frame's streaming update over the views' readbacks (`../../geometry/residency/queue.ts`). */
-    queueCutResidency: () => residency.queueCuts(publication.viewReadbacks()),
+    /** The clusters' records brought level with the pool's pages (`../../geometry/clusters/clusterResidency.ts`);
+     *  whether it did anything. */
+    syncClusters: clusterSync.sync,
+    /** Whether the pass is owed: the cache moved a page, or the surfaces did. */
+    clustersOwed: () => clusterSync.owed,
+    /** The frame's streaming update over the views' readbacks (`../../geometry/residency/queue.ts`),
+     *  the shadow views' requests among them. */
+    queueCutResidency: () =>
+      residency.queueCuts(vsmShadowRequestCuts(rt, publication.viewReadbacks())),
     pageSource,
     hasBytes,
     poolHolds,
@@ -72,7 +71,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     affectsImage,
     ...publication,
     // The publication's tables (the residency sets and the pages streamed among them), the
-    // streaming's requests, then the rows'.
-    hostTableBytes: () => publication.hostTableBytes() + residency.hostBytes + rowSync.cacheBytes,
+    // streaming's requests, then the clusters'.
+    hostTableBytes: () => publication.hostTableBytes() + residency.hostBytes + clusterSync.bytes,
   }
 }

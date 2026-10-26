@@ -4,7 +4,7 @@ import type { BlendGpuItem } from './state.ts'
 
 /** The local box an item's triangles lie in, six bounds into `out` from `at`: its pages' box
  *  (`pageBox`) when known, else its geometry's; false, `out` untouched, when it knows neither. */
-function readItemBox(
+export function readItemBox(
   item: Pick<BlendGpuItem, 'pageBox' | 'sourceGeometry'>,
   out: Float64Array,
   at: number,

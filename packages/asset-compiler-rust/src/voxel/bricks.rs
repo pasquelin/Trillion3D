@@ -9,7 +9,7 @@
 //! | bytes | content |
 //! |---|---|
 //! | 0–3 | base colour, sRGB; zero |
-//! | 4–7 | occlusion, roughness, metallic; the voxel's coverage as its opacity when the build keeps it (`voxelOpacity`: no pass of the engine reads it), else zero |
+//! | 4–7 | occlusion, roughness, metallic; zero |
 //! | 8–9 | normal, octahedral (`oct_encode`): the axis of the fitted normal distribution (`voxelNdf`, `ndf.rs`), else the direction of the mean normal |
 //! | 10 | the ratio of the fitted distribution's two widths (`voxelNdf`), from which the resolve draws each pixel's shading normal, else zero |
 //! | 11 | zero |
@@ -90,7 +90,7 @@ pub(super) fn brick_record(brick: &Brick, first: Cell) -> [u8; BRICK_BYTES] {
 }
 
 /// The bytes of a voxel sampled as `settings` say: its normals' distribution fitted or dropped to
-/// the direction of their mean, its coverage carried as its opacity or not.
+/// the direction of their mean.
 pub(super) fn voxel_record(voxel: &Voxel, settings: &VoxelSettings) -> [u8; VOXEL_BYTES] {
     let m = &voxel.shown;
     let colour = m.colour.map(|c| linear_to_srgb((c / m.covered) as f32));
@@ -104,9 +104,6 @@ pub(super) fn voxel_record(voxel: &Voxel, settings: &VoxelSettings) -> [u8; VOXE
     let mut out = [0; VOXEL_BYTES];
     out[..3].copy_from_slice(&colour);
     out[4..7].copy_from_slice(&orm);
-    if settings.opacity {
-        out[7] = unit_to_byte(voxel.coverage);
-    }
     out[8..10].copy_from_slice(&oct(normal));
     out[10] = unit_to_byte(ratio);
     out

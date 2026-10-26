@@ -44,7 +44,7 @@ export function createSessionHost(
       writer.wake(body._index)
       invalidate()
     },
-    listened(body) {
+    flagged(body) {
       const mesh = meshes()[body._index]
       if (mesh) writer.flags(body._index, flagsOf(mesh))
       invalidate()

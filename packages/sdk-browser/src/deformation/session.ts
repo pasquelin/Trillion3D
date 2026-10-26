@@ -48,6 +48,36 @@ export function deformsAny(roots: readonly ClusterRoot<PageRec>[]) {
   )
 }
 
+/** What a session's deformation keeps by rank (`createSessionDeformation`). */
+type Held = {
+  capacities: Capacities
+  frame: ReturnType<typeof createDeformationFrame>
+  tracks: ReturnType<typeof createBankTracks>
+  /** The record of each root by its rank. */
+  rankEntry: number[]
+  /** Each root's rank by the world it reads: what a transparent item knows it by. */
+  byWorld: Map<object, number>
+}
+
+/** The placements `added` join the records, behind the tracks of the banks they name. */
+function appendRoots(held: Held, added: readonly ClusterRoot<PageRec>[]) {
+  const { capacities, frame, tracks, rankEntry, byWorld } = held
+  const playable = createRootTracks(),
+    rowsAnimate = createRowsAnimate()
+  const plays = added.map(playable)
+  for (const named of plays) for (const track of named) tracks.join(track.banks)
+  const own = (root: ClusterRoot<PageRec>, k: number) =>
+    plays[k].length && !rowsAnimate(root.placement?.rows) ? null : recordOf(root, capacities)
+  const first = frame.append(added.map(own))
+  added.forEach((root, k) => {
+    const rank = rankEntry.length
+    rankEntry.push(first + k)
+    byWorld.set(root.world, rank)
+    const moved = plays[k].length ? movedBy(root, capacities) : undefined
+    if (moved) tracks.add(rank, root, moved.mesh, first + k)
+  })
+}
+
 /**
  * A session's GPU deformation: one record per deformed root of its cut (`frame.ts`) and one per
  * track of the animation banks its roots name (`bankTracks.ts`), the block of records placed in
@@ -60,31 +90,14 @@ export function deformsAny(roots: readonly ClusterRoot<PageRec>[]) {
  * alone — no source of its rows moving it (`createRowsAnimate`) — takes no record of its own.
  */
 export function createSessionDeformation(roots: readonly ClusterRoot<PageRec>[] = []) {
-  const capacities: Capacities = new Map()
   let base = 0
   const frame = createDeformationFrame()
-  const tracks = createBankTracks(frame)
-  /** The record of each root by its rank. */
-  const rankEntry: number[] = []
-  /** Each root's rank by the world it reads: what a transparent item knows it by. */
-  const byWorld = new Map<object, number>()
-  /** The placements `added` join the records, behind the tracks of the banks they name. */
-  const append = (added: readonly ClusterRoot<PageRec>[]) => {
-    const playable = createRootTracks(),
-      rowsAnimate = createRowsAnimate()
-    const plays = added.map(playable)
-    for (const named of plays) for (const track of named) tracks.join(track.banks)
-    const own = (root: ClusterRoot<PageRec>, k: number) =>
-      plays[k].length && !rowsAnimate(root.placement?.rows) ? null : recordOf(root, capacities)
-    const first = frame.append(added.map(own))
-    added.forEach((root, k) => {
-      const rank = rankEntry.length
-      rankEntry.push(first + k)
-      byWorld.set(root.world, rank)
-      const moved = plays[k].length ? movedBy(root, capacities) : undefined
-      if (moved) tracks.add(rank, root, moved.mesh, first + k)
-    })
+  const held: Held = {
+    ...{ capacities: new Map(), frame, tracks: createBankTracks(frame) },
+    ...{ rankEntry: [], byWorld: new Map() },
   }
+  const { tracks, rankEntry, byWorld } = held
+  const append = (added: readonly ClusterRoot<PageRec>[]) => appendRoots(held, added)
   append(roots)
   /** What the rows of root `rank` carry (`rowWord`). */
   const wordOf = (rank: number) => {

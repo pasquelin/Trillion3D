@@ -1,5 +1,6 @@
 import type { EngineCamera } from '../../camera/engineCamera.ts'
-import { CPU_STEP } from './cpuStepTable.ts'
+import { CPU_STEP } from '../../diagnostic/stage/cpuStepTable.ts'
+import { cpuProfiled } from './cpuSteps.ts'
 import { frameTraceSnapshot } from './trace.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
@@ -27,8 +28,8 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   steps[CPU_STEP.transparentEncodeMs] = transparentMs
   steps[CPU_STEP.admissionMs] = m.admissionEnd - m.adoptEnd
   steps[CPU_STEP.residencyQueueMs] = m.queueEnd - m.admissionEnd
-  steps[CPU_STEP.syncRowsMs] = m.rowsEnd - m.queueEnd
-  steps[CPU_STEP.residencyUploadMs] = m.residencyUploadEnd - m.rowsEnd
+  steps[CPU_STEP.syncClustersMs] = m.clustersEnd - m.queueEnd
+  steps[CPU_STEP.residencyUploadMs] = m.residencyUploadEnd - m.clustersEnd
   steps[CPU_STEP.selectionDispatchMs] = m.selectionEnd - m.tilesEnd
   // Remaining encode excludes submit itself: the two steps never overlap.
   steps[CPU_STEP.encodeRestMs] = Math.max(0, submitMs - transparentMs - timing.lastQueueSubmitMs)
@@ -38,6 +39,11 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   // opens the part previous lots timed.
   steps[CPU_STEP.totalMs] = m.cpuEnd - m.preStart
   timing.rowFilled = true
+  // The sample is read by the profile's publication and by the frame trace alone.
+  if (!cpuProfiled(rt) && !rt.diag.traceEnabled) {
+    timing.cpuSample = undefined
+    return
+  }
   timing.cpuSample = {
     version: 1,
     frame: run.frame,
@@ -72,7 +78,7 @@ export function traceGpuCutWaiting(rt: WebgpuPagesRuntime) {
 /** The per-frame trace records of a GPU-cut image; both are built lazily and only when tracing. */
 export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { run, diag } = rt,
-    { rows } = rt.layout,
+    { clusters } = rt.layout,
     { tracking, slots } = rt.setup
   if (!diag.traceEnabled) return
   diag.traceDiagnostic('gpu-selection-current-frame', 'GPU selection consumed by the draw', () => ({
@@ -80,7 +86,7 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     submission: run.imageRevision,
     source: 'gpu',
     decision: 'current-frame-mask',
-    residentCandidates: rows.candidateCount,
+    residentCandidates: clusters.candidateCount,
     readbackPurpose: 'streaming-and-metrics',
     metricsReady: run.gpuMetricsReady,
     /** What the adopted cut's two-pass occlusion held for its post pass, and hid for good. */
@@ -95,7 +101,7 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
       {
         coverage: {
           // Three bounded samples: trace mode no longer copies the whole cut per image.
-          loaded: tracking.traceRecs('frame.loaded', rows.packedRecs, rows.packedCount),
+          loaded: loadedRecords(rt),
           wanted: tracking.traceRecs('frame.wanted', run.desired),
           shown: run.gpuMetricsReady ? tracking.traceRecs('frame.shown', run.shown) : null,
           ready: rt.services.bootstrapState.ready,
@@ -107,4 +113,12 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
       },
     ),
   )
+}
+
+/** A bounded sample of the records of the resident clusters, for the trace. */
+function loadedRecords(rt: WebgpuPagesRuntime) {
+  const { clusters, recordOf } = rt.layout,
+    { pages, count } = clusters.residentPages()
+  const records = Array.from(pages.subarray(0, count), (page) => recordOf(page))
+  return rt.setup.tracking.traceRecs('frame.loaded', records, count)
 }

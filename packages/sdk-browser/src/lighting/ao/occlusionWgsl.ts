@@ -1,30 +1,39 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { DIVISOR_FLOOR } from '../../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { FULLSCREEN_VERTEX } from '../deferred/shaders.ts'
+import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
 import { AO_COMMON_WGSL, vec2Table } from './commonWgsl.ts'
 import { AO_QUALITY_SHAPES, AO_SAMPLE_SETS, type AoQualityShape } from './tables.ts'
 
 /** What a program of the search is compiled for: the shader quality (the samples, their steps, the quad blur), the kind
  *  of pass — a step reads the setup texture in place of the surfaces and takes the six-point set whatever the quality, the
- *  last pass reads the surfaces and fades, raises and weighs the occlusion by the settings — and whether it blends a
- *  coarser result in. */
+ *  last pass reads the surfaces and fades, raises and weighs the occlusion by the settings —, whether it blends a
+ *  coarser result in, and whether the normals are the depth's (the compute pass: those and no blur among a quad). */
 export interface AoShape {
   quality: number
   kind: 'step' | 'final'
   upsample: boolean
+  depthNormals: boolean
+  /** What names the program the shape compiles (`aoShapeKey`), made with the shape: a frame builds no string for it. */
+  readonly key: string
 }
 
-/** The shape of the pass `kind` at `quality`, with or without a coarser result to blend in. */
-export const aoShapeOf = (kind: AoShape['kind'], quality: number, upsample: boolean): AoShape => ({
+/** The shape of the pass `kind` at `quality`, with or without a coarser result to blend in, with the surfaces' normals or the depth's. */
+export const aoShapeOf = (
+  kind: AoShape['kind'],
+  quality: number,
+  upsample: boolean,
+  depthNormals = false,
+): AoShape => ({
   quality,
   kind,
   upsample,
+  depthNormals,
+  key: `${quality}${kind === 'step' ? 's' : 'f'}${upsample ? 'u' : 'n'}${depthNormals ? 'd' : ''}`,
 })
 
-/** The key two shapes agree on when they compile the same program. */
-export const aoShapeKey = (s: AoShape) =>
-  `${s.quality}${s.kind === 'step' ? 's' : 'f'}${s.upsample ? 'u' : 'n'}`
+/** The key two shapes agree on when they compile the same program: made once, with the shape. */
+export const aoShapeKey = (s: AoShape) => s.key
 
 /** The taps of the upsample: nine neighbours of the coarser texture for a step, four for the last pass. */
 const tapsOf = (kind: AoShape['kind']): readonly (readonly [number, number])[] =>
@@ -38,23 +47,25 @@ const tapsOf = (kind: AoShape['kind']): readonly (readonly [number, number])[] =
       ]
 
 /**
- * The samples of a pixel's search. `aoWedge`: the two points one sample takes either side of the centre, the depth
- * each reads (`aoPyramidDepth`, one texel) and its cosine of the angle from the surface's normal, never under 0 nor over 1.
+ * The samples of a pixel's search. `aoSidePair`: the two points one sample takes either side of the centre, the depth
+ * each reads (`aoPyramidDepth`, one cell) and its cosine of the angle from the surface's normal, never under 0 nor over 1.
  * `aoSample`: one sample of the set, `steps` steps outward along its direction, a step keeping, as the horizon rises,
- * the larger cosine of either side; the squared share of the sky each side leaves, and the weight, 2.
+ * the larger cosine of either side; the squared share of the sky each side leaves, and the weight, 2. The level a step reads is
+ * the logarithm of the climb times the step's place; with a climb of 0 — a setting's own value, "the finest level only" — the
+ * argument is 0, which a shader's logarithm is not defined at: it is held off it, and the level is 0 either way.
  */
-const WEDGE_WGSL = wgslBlock(
-  'AO_WEDGE_WGSL',
+const SIDE_PAIR_WGSL = wgslBlock(
+  'AO_SIDE_PAIR_WGSL',
   [AO_COMMON_WGSL, DIVISOR_FLOOR],
   `
-fn aoWedge(centre:vec2f,offset:vec2f,position:vec3f,scaled:vec3f,invFov:vec3f,lod:f32)->vec2f{
+fn aoSidePair(centre:vec2f,offset:vec2f,position:vec3f,scaled:vec3f,invFov:vec3f,lod:f32)->vec2f{
  let sideL=centre+offset;
  let sideR=centre-offset;
  let zL=aoPyramidDepth(sideL,lod);
  let zR=aoPyramidDepth(sideR,lod);
  let deltaL=(vec3f(sideL*zL,zL)-position)*invFov;
  let deltaR=(vec3f(sideR*zR,zR)-position)*invFov;
- return vec2f(saturate(dot(deltaL,scaled)/max(dot(deltaL,deltaL),DIVISOR_FLOOR)),saturate(dot(deltaR,scaled)/max(dot(deltaR,deltaR),DIVISOR_FLOOR)));
+ return vec2f(saturate(dot(deltaL,scaled)/dot(deltaL,deltaL)),saturate(dot(deltaR,scaled)/dot(deltaR,deltaR)));
 }
 fn aoSample(i:u32,count:u32,steps:u32,centre:vec2f,base:vec4f,position:vec3f,scaled:vec3f,invFov:vec3f,offset:vec2f)->vec2f{
  let along=offset.x*base.xy+offset.y*base.zw;
@@ -62,7 +73,7 @@ fn aoSample(i:u32,count:u32,steps:u32,centre:vec2f,base:vec4f,position:vec3f,sca
  for(var k=0u;k<steps;k++){
   let fraction=f32(k+1u)/f32(steps);
   let lod=log2(max(view.reach.w*fraction*(f32(i)+0.5)/f32(count),DIVISOR_FLOOR));
-  horizon=max(horizon,aoWedge(centre,fraction*along,position,scaled,invFov,lod));
+  horizon=max(horizon,aoSidePair(centre,fraction*along,position,scaled,invFov,lod));
  }
  let open=vec2f(1.0)-horizon;
  return vec2f(dot(open,open),2.0);
@@ -103,13 +114,21 @@ const SAMPLE_WGSL = wgslBlock(
   'struct AoSample{value:f32,depth:f32,normal:vec2f,}',
 )
 
-/** What the search reads of its pixel: its depth and its world normal, from the setup texture (a step) or the surfaces. */
+/** What the search reads of its pixel: its depth and its normals — the world's, which the coarser result is weighed by, and the
+ *  view's, which the search lifts the point along —, from the setup texture (a step), the surfaces, or the depth alone (the
+ *  compute pass, with no coarser result: its world normal is never read). */
 const READS = {
   step: `let packed=textureLoad(setupTex,p,0);
  let depth=packed.a*AO_DEPTH_SCALE;
- let worldNormal=packed.xyz*2.0-vec3f(1.0);`,
+ let worldNormal=packed.xyz*2.0-vec3f(1.0);
+ let viewNormal=aoToView(worldNormal);`,
   final: `let depth=aoSceneDepth(p);
- let worldNormal=aoSurfaceNormal(p);`,
+ let worldNormal=aoSurfaceNormal(p);
+ let viewNormal=aoToView(worldNormal);`,
+  depth: `let depth=aoSceneDepth(p);
+ let at=(vec2f(p)+vec2f(0.5))/view.rects.xy;
+ let viewNormal=aoDepthNormal(at,aoViewPos(at,depth));
+ let worldNormal=vec3f(0.0);`,
 } as const
 
 /** The last pass's tail: the occlusion faded with the distance, raised to the power and weighed by the intensity. */
@@ -131,7 +150,7 @@ const searchBlock = (shape: AoShape, quality: AoQualityShape) => {
   const searched = 'aoSearched(p,depth,worldNormal,viewNormal)'
   return wgslBlock(
     `aoSearch(${aoShapeKey(shape)})`,
-    [WEDGE_WGSL, SAMPLE_WGSL, ...(shape.upsample ? [upsampleBlock(shape.kind)] : [])],
+    [SIDE_PAIR_WGSL, SAMPLE_WGSL, ...(shape.upsample ? [upsampleBlock(shape.kind)] : [])],
     `
 ${vec2Table('aoSampleOffset', samples)}
 fn aoSearched(p:vec2i,depth:f32,worldNormal:vec3f,viewNormal:vec3f)->f32{
@@ -155,8 +174,7 @@ ${upsample}${shape.kind === 'final' ? TAIL : ''}
  return value;
 }
 fn aoSearch(p:vec2i)->AoSample{
- ${READS[shape.kind]}
- let viewNormal=aoSafeNormalize(vec3f(dot(worldNormal,view.right.xyz),dot(worldNormal,view.up.xyz),dot(worldNormal,view.forward.xyz)),vec3f(0.0,0.0,1.0));
+ ${READS[shape.depthNormals ? 'depth' : shape.kind]}
  var value=1.0;
  ${shape.kind === 'final' ? `if(depth*view.fade.x+view.fade.y<1.0){value=${searched};}` : `value=${searched};`}
  return AoSample(value,depth,viewNormal.xy);
@@ -187,17 +205,18 @@ fn aoQuadBlur(s:AoSample,p:vec2i)->f32{
 
 /**
  * A pass of the search, as a fragment program (`aoOcclusion`): the occlusion of the pixel it draws in the red channel,
- * blurred among its quad where the quality asks. Compiled for `shape`.
+ * blurred among its quad where the quality asks — the compute pass, whose normals are the depth's, blurs none. Compiled for `shape`.
  */
 export function aoOcclusionShader(shape: AoShape) {
   const quality = AO_QUALITY_SHAPES[shape.quality]
+  const blur = quality.quadBlur && !shape.depthNormals
   return wgslProgram(
     `
 @fragment fn aoOcclusion(@builtin(position) at:vec4f)->@location(0) vec4f{
  let p=vec2i(floor(at.xy));
  let s=aoSearch(p);
- return vec4f(${quality.quadBlur ? 'aoQuadBlur(s,p)' : 's.value'},0.0,0.0,1.0);
+ return vec4f(${blur ? 'aoQuadBlur(s,p)' : 's.value'},0.0,0.0,1.0);
 }`,
-    [searchBlock(shape, quality), ...(quality.quadBlur ? [QUAD_BLUR_WGSL] : []), FULLSCREEN_VERTEX],
+    [searchBlock(shape, quality), ...(blur ? [QUAD_BLUR_WGSL] : []), FULLSCREEN_VERTEX],
   )
 }

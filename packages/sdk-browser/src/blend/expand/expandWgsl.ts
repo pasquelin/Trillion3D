@@ -70,12 +70,14 @@ export const BLEND_EXPAND_SHADER = wgslProgram(
 fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
 fn kept(item:u32)->bool{return bitIsSet(keep[bitWord(item)],item);}
 /** What a plan entry expands: the clusters compaction kept for it, nothing at all if the frustum
- *  rejected its item or the table holds none of it yet. */
+ *  rejected its item, the table holds none of it yet or the view leaves it out. */
 fn instancesOf(i:u32)->u32{
  let item=itemOf(i);
  if(!kept(item)){return 0u;}
  let d=draws[item];
  if(d.x==${NO_INDEX}u){return 0u;}
+ // The view's items alone (\`expansionViews.ts\`): the word holds the item's pass and flags.
+ if((d.w&uni.exclude)!=0u||(d.w&uni.required)!=uni.required){return 0u;}
  return counts[d.x*4u+1u];
 }
 /** One thread group per entry packet: each counts ITS entry once, and the packet takes from that

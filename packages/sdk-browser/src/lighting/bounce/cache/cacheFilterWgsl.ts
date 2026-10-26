@@ -16,7 +16,7 @@ import { CACHE_WORDS_WGSL, cacheTagsWgsl } from './cacheWordsWgsl.ts'
 const NEIGHBOURS = 6
 
 /**
- * THE FILTER OF THE MAPS: the radiance of every texel of a probe's map traced this frame (`cacheEntries`), averaged with the same
+ * THE FILTER OF THE MAPS: the radiance of every texel of a probe's map the frame queued, averaged with the same
  * texel of its six neighbours' (the cells beside its own on each axis, one level), as a workgroup a probe. A neighbour's texel
  * weighs `1 − angle / filterAngle`, the angle the neighbour's ray in that direction, taken from the neighbour, makes with the probe's
  * own ray as it is seen from the probe — the neighbour's distance held to the probe's where it met a surface, so that a contact
@@ -30,7 +30,6 @@ export const CACHE_FILTER_PROGRAM = wgslProgram(
   `${RADIANCE_CACHE_PARAMS.wgsl}
 @group(0) @binding(${B.queue}) var<storage,read> probeQueue:array<u32>;
 @group(0) @binding(${B.params}) var<uniform> cache:RadianceCacheParams;
-@group(0) @binding(${B.entries}) var<storage,read> cacheEntries:array<u32>;
 @group(0) @binding(${B.raw}) var cacheRaw:texture_2d<u32>;
 @group(0) @binding(${B.final}) var finalOut:texture_storage_2d<${F.final},write>;
 @group(0) @binding(${B.sky}) var skyOut:texture_storage_2d<${F.sky},write>;
@@ -79,7 +78,7 @@ fn cacheNeighbourWeight(n:u32,own:vec2u,centre:vec3f,texel:vec2u,res:u32,ownBase
 @compute @workgroup_size(CACHE_TILE_SIDE,CACHE_TILE_SIDE)
 fn filterMaps(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
  let entry=group.x;
- if(entry>=bounce.frame.y||bounce.counts.w==0u||cacheEntries[entry]==0u){return;}
+ if(entry>=bounce.frame.y||bounce.counts.w==0u){return;}
  let queued=queuedProbe(entry);
  if(!queued.valid){return;}
  let spacing=bounce.levels[queued.level].spacing;
@@ -119,7 +118,7 @@ fn filterMaps(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index
  }
 }`,
   [
-    bounceBindingsWgsl(0, B.grid, B.probes),
+    bounceBindingsWgsl(0, B.grid, B.table),
     QUEUED_PROBE_WGSL,
     CACHE_WORDS_WGSL,
     cacheTagsWgsl(B.tags, true),

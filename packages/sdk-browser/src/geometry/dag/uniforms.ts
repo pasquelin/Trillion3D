@@ -14,21 +14,28 @@ import {
   PEAK_NODES,
   PEAK_VISIBLE,
   SELECTION_HEADER_WORDS,
-  readCountedList,
+  readSortedList,
 } from './readoutWords.ts'
 import type { SelectionResult, SelectionUniforms } from '../../gpu/core/selection.ts'
 import { twoPassOf } from './shader/occlusionWgsl.ts'
-import { CULL_DRAW_DISTANCE_OFF } from './shader/viewsWgsl.ts'
+import { CULL_NO_DRAW_DISTANCES } from './shader/viewsWgsl.ts'
 import { viewWord } from './viewLayout.ts'
-import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { dagFlagShape, type FlagShape } from './flagSections.ts'
 import type { ListPeaks } from './lists/listFeedback.ts'
+import { INITIAL_VISIBLE } from './visible/layout.ts'
 
 /** Where a cut's tables lie for its kernels: the open counts placements hold in `out` — the first
  *  word in `out.pages`, the slots less one (`heldOpen.ts`) —, then the shape its `flags` is laid
- *  out for (`flagSections.ts`), the packing's at the lists' default caps when absent. */
-export type CutTablesAt = { base: number; mask: number; shape?: FlagShape; filter?: number }
+ *  out for (`flagSections.ts`), the packing's at the lists' default caps when absent, and the
+ *  records its list of visible clusters holds (`visible/layout.ts`). */
+export type CutTablesAt = {
+  base: number
+  mask: number
+  shape?: FlagShape
+  filter?: number
+  visibleCap?: number
+}
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -62,8 +69,7 @@ const wordsOf = new WeakMap<Float32Array, Uint32Array>()
  * One view's block of the uniform array (`shader/viewsWgsl.ts`). Every word is written through
  * `viewWord`, the name the kernels read it by, so a field added to `viewLayout.ts` moves the host
  * and the shader together. The camera runs one view on buffers sized for one, whose queues hold
- * every node. `listCap` is the ranks its readout holds (`lists/listCap.ts`), `saveRegion` the region its
- * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none. `at`, where the
+ * every node. `listCap` is the ranks its readout holds (`lists/listCap.ts`). `at`, where the
  * open counts placements hold lie in `out` (`lists/listCap.ts`, `heldOpenAt`) — none by default —,
  * and the shape the cut's `flags` is laid out for (`queueGrowth.ts`, `cutTablesAt`), the
  * packing's at the lists' default caps by default, and the word of `work` the filter's bits lie at
@@ -74,7 +80,6 @@ export function writeDagUniforms(
   packed: PackedDag,
   uniforms: SelectionUniforms,
   listCap: number,
-  saveRegion = REGION_NONE,
   at: CutTablesAt = { base: 0, mask: 0 },
 ) {
   const W = viewWord
@@ -85,49 +90,71 @@ export function writeDagUniforms(
   target[W('pixelScale') + 1] = uniforms.pixelScale[1]
   target[W('pixelError')] = uniforms.pixelError
   target[W('near')] = uniforms.near
-  let ints = wordsOf.get(target)
-  if (!ints) {
-    ints = new Uint32Array(target.buffer, target.byteOffset, target.length)
-    wordsOf.set(target, ints)
-  }
+  const ints = wordsView(target)
   ints[W('clusterCount')] = packed.pageCount
   ints[W('nodeCount')] = packed.nodeCount
   ints[W('worldCount')] = packed.worldCount
-  const cw = uniforms.cameraWorld
-  if (cw) {
-    target[W('cameraWorld')] = cw[0]
-    target[W('cameraWorld') + 1] = cw[1]
-    target[W('cameraWorld') + 2] = cw[2]
-    // The eye exact, which every translation the cut reads is taken off (`worldPoseWgsl.ts`).
-    packDoubles(ints, W('eye'), cw, 0, 3)
-  }
+  if (uniforms.cameraWorld) writeEye(target, ints, uniforms.cameraWorld)
   writeOcclusion(target, ints, uniforms)
   // The view's clip plane in the render frame (`shader/clipPlaneWgsl.ts`), all zero for none, and
   // its filter's bits (`shader/viewFilterWgsl.ts`), 0 unless the view has them.
   target.set(uniforms.clipPlane, W('clipPlane'))
   ints[W('filterBase')] = uniforms.filter ? (at.filter ?? 0) : 0
-  // A packing no placement of which names a distance tests none: the cull stays off, and the cut
-  // reads no distance word (`shader/drawDistanceWgsl.ts`).
-  if (!packed.drawDistance) ints[W('cullOff')] |= CULL_DRAW_DISTANCE_OFF
+  // A packing no placement of which names a distance tests none: the cut reads no distance word
+  // (`shader/drawDistanceWgsl.ts`).
+  if (!packed.drawDistance) ints[W('cullOff')] |= CULL_NO_DRAW_DISTANCES
   // Sample cap the kernel reads to bound its two halves and to say, when it happens, that it
   // truncated (`lists/listCap.ts`).
   ints[W('listCap')] = listCap
   // The projection's clip-w weight: 1 perspective, 0 orthographic (`screenErrorBound.ts`).
   target[W('perspective')] = uniforms.perspective ?? 1
+  writeListShape(ints, packed, at)
+  writeRasterJudgement(target, ints, uniforms.raster)
+  writePlacementWords(ints, packed)
+}
+
+/** The unsigned word view of `target`, made once. */
+function wordsView(target: Float32Array) {
+  let ints = wordsOf.get(target)
+  if (!ints) {
+    ints = new Uint32Array(target.buffer, target.byteOffset, target.length)
+    wordsOf.set(target, ints)
+  }
+  return ints
+}
+
+/** The camera's world position, and the eye exact. */
+function writeEye(
+  target: Float32Array,
+  ints: Uint32Array,
+  cw: NonNullable<SelectionUniforms['cameraWorld']>,
+) {
+  const W = viewWord
+  target[W('cameraWorld')] = cw[0]
+  target[W('cameraWorld') + 1] = cw[1]
+  target[W('cameraWorld') + 2] = cw[2]
+  // The eye exact, which every translation the cut reads is taken off (`worldPoseWgsl.ts`).
+  packDoubles(ints, W('eye'), cw, 0, 3)
+}
+
+/** The lists as the flags lay them out, the visible cap and where the open counts lie. */
+function writeListShape(ints: Uint32Array, packed: PackedDag, at: CutTablesAt) {
+  const W = viewWord
   // The lists as the flags lay them out, and the nodes a pass opens at most (`flagSections.ts`):
   // the descent array two words an entry, the node then its placement (`shader/listsWgsl.ts`).
   const shape = at.shape ?? dagFlagShape(packed)
   ints[W('queueCap')] = shape.queueWords
   ints[W('candCap')] = shape.candCap
-  ints[W('visCap')] = shape.visCap
+  ints[W('visCap')] = at.visibleCap ?? Math.min(packed.pageCount, INITIAL_VISIBLE)
   ints[W('nodeBudget')] = shape.nodeBudget
   // The open counts placements hold of their own (`heldOpen.ts`): where in `out.pages`, how many.
   ints[W('heldBase')] = at.base
   ints[W('heldMask')] = at.mask
-  // The host's frame: every view's cut of one frame stamps the rows it uses with the same clock
-  // (`../rows/rowClosureWgsl.ts`).
-  ints[W('frame')] = uniforms.frame ?? 0
-  ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)
+}
+
+/** The placement tree's words, and the placements' links to the world's cells. */
+function writePlacementWords(ints: Uint32Array, packed: PackedDag) {
+  const W = viewWord
   // The placement tree (`placement/placementTree.ts`): its top level's nodes, which open the descent, the
   // queue entry of its first node and the members drawn whatever the view — the world DAG's
   // placements among them (`tree/treeTable.ts`); no top node, no tree.
@@ -138,6 +165,22 @@ export function writeDagUniforms(
   ints[W('alwaysCount')] = tree?.always.set.count ?? 0
   // The placements' links to the world's cells (`worlds/worldLinks.ts`): none, no gate.
   ints[W('worldLinks')] = world?.linkBase ?? 0
+}
+
+/** What the cluster cull judges the rasters by (`shader/visibleWgsl.ts`), written into the block;
+ *  without it the software raster is off, nothing is tessellated and no depth bucket is made. */
+function writeRasterJudgement(
+  target: Float32Array,
+  ints: Uint32Array,
+  raster: SelectionUniforms['raster'],
+) {
+  const W = viewWord
+  ints[W('softwareRaster')] = raster?.software ? 1 : 0
+  target[W('hardwareEdge')] = raster?.hardwareEdge ?? 0
+  ints[W('tessellation')] = raster?.tessellation ? 1 : 0
+  ints[W('depthBuckets')] = raster?.buckets ? 1 : 0
+  target[W('bucketMinZ')] = raster?.buckets?.minZ ?? 1
+  target[W('bucketMaxZ')] = raster?.buckets?.maxZ ?? 1
 }
 
 /** The projection's words of the block (`shader/occlusionWgsl.ts`): the render matrix, its depth
@@ -153,6 +196,7 @@ function writeOcclusion(target: Float32Array, ints: Uint32Array, uniforms: Selec
   ints.set(uniforms.viewSize, W('viewSize'))
   ints[W('cullOff')] = uniforms.cullOff ?? 0
   target[W('viewDistanceScale')] = uniforms.viewDistanceScale ?? 1
+  target[W('primitiveDistanceScale')] = uniforms.primitiveDistanceScale ?? 1
   ints[W('occlusion')] = occlusion
   if (!twoPassOf(uniforms)) return
   target.set(uniforms.prevViewProj!, W('prevViewProj'))
@@ -231,10 +275,10 @@ export function parseDagOutput(
   result.drawablePageIds = undefined
   result.peaks = undefined
   if (!at.drawn) return result
-  // The drawable list arrives already compacted, in increasing order: the CPU no longer walks
-  // one flag per DAG page, only the ranks the GPU kept.
-  result.drawablePageIds = readCountedList(ints, at.drawn, drawable, held)
-  // What the cut asked of its lists, in the drawn list's header (`shader/commitWgsl.ts`): what
+  // The drawable list arrives in the order the GPU's threads wrote it: the CPU sorts the ranks the
+  // GPU kept, never a flag a DAG page.
+  result.drawablePageIds = readSortedList(ints, at.drawn, drawable, held)
+  // What the cut asked of its lists, in the drawn list's header (`shader/finishWgsl.ts`): what
   // passed a cap was dropped, and the rest drawn.
   peaks.nodes = ints[at.drawn + PEAK_NODES] ?? 0
   peaks.candidates = ints[at.drawn + PEAK_CANDIDATES] ?? 0

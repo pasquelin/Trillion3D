@@ -1,4 +1,4 @@
-import type { HostCamera } from '../../camera/world.ts'
+import type { ViewCamera } from '../../camera/world.ts'
 import type { Engine } from './types.ts'
 
 type PageEngine = Pick<Engine, 'render' | 'pendingUrls' | 'flush'>
@@ -8,7 +8,7 @@ type PageEngine = Pick<Engine, 'render' | 'pendingUrls' | 'flush'>
  *  it lacks — none, when the frames drawn before the wait read them all —, before the pins move. */
 export async function awaitEnginePages(
   backend: PageEngine,
-  camera: HostCamera,
+  camera: ViewCamera,
   load: (missing: string[]) => Promise<void>,
   options: { image?: boolean } = {},
 ) {

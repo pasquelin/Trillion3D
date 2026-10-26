@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { webgpuPagesEngine } from '../backend/pages.ts'
 import { createArrivalQueue } from '../../geometry/integration/arrivalQueue.ts'
 import { createFrameBudget } from '../../geometry/integration/frameBudget.ts'
@@ -14,6 +13,7 @@ import { quadScene, camera } from '../backend/testScenes.fixture.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 test('paged transparent commands disappear outside the view and return with both faces on CPU and GPU cuts', async () => {
   installGpuGlobals()
@@ -21,8 +21,9 @@ test('paged transparent commands disappear outside the view and return with both
     const fixture = quadScene()
     fixture.material.transparent = true
     G.sided(fixture.material, G.DOUBLE_SIDE)
+    fixture.material.twoSidedPasses = true
     fixture.metadata.primitives[0].pass = 'clustered-blend'
-    const twin = fixture.source.children[0].clone() as HostMesh
+    const twin = fixture.source.children[0].clone() as PageMesh
     fixture.source.add(twin)
     fixture.associations.set(twin, { meshes: 0, primitives: 0 })
     const roots = collectClusterPages(

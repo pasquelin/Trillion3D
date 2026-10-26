@@ -1,7 +1,7 @@
-// The open counts placements hold follow the row cache (`heldOpen.ts`, `queueGrowth.ts`): sized from
-// the rows it holds, grown on the readout's growth path once it grows, every entry placed again. A
-// table too small refuses nothing — no row, no residency —: an entry it cannot place leaves its
-// node's count, and the cut is the same.
+// The open counts placements hold follow the visible list's room (`heldOpen.ts`, `queueGrowth.ts`):
+// sized from the clusters it holds room for, grown on the readout's growth path once it grows, every
+// entry placed again. A table too small refuses nothing — no cluster, no residency —: an entry it
+// cannot place leaves its node's count, and the cut is the same.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
@@ -35,26 +35,33 @@ function allEntries(dag: ReturnType<typeof scene>['dag'], resident: Uint32Array)
   return packed.heldOpen!.entries
 }
 
-test('the open counts follow the row cache: a small table refuses nothing, a grown one holds every count', async () => {
+/** A cut over `scene()` whose open counts are sized for a visible list of `rows` records: the
+ *  counts' table and the clusters it draws. */
+async function cutWith(rows: number) {
   installGpuGlobals()
   const { dag, resident, uniforms } = scene()
-  const every = allEntries(dag, resident)
   const selection = (await createGpuDagSelection(mockDagDevice(dag).device, dag, {
     roots: hostStretches(dag),
-    rows: 4,
+    rows,
   }))!
   assert.ok(selection.updateResidency(pageResidency(resident)), 'the residency is taken whole')
-  const held = dag.heldOpen!
-  assert.ok(held.slots < 2 * every && held.dropped > 0, 'four rows: a table short of the counts')
   selection.dispatch(uniforms)
-  const small = (await selection.flush())?.drawablePageIds?.toSorted((a, b) => a - b)
-  assert.ok(small && small.length > 0, 'a cut that draws nothing proves nothing')
-  // The row cache grows: the table follows it before the next cut, every count placed again.
-  selection.followRows!(4 * every)
-  selection.dispatch({ ...uniforms, pixelError: uniforms.pixelError })
-  const grown = (await selection.flush())?.drawablePageIds?.toSorted((a, b) => a - b)
-  assert.ok(held.slots >= 2 * every, `${held.slots} slots for ${every} counts`)
-  assert.equal(held.entries, every, 'every count held')
-  assert.deepEqual(grown, small, 'the same cut: the table only spares work')
+  const drawn = (await selection.flush())?.drawablePageIds?.toSorted((a, b) => a - b)
   selection.dispose()
+  return { held: dag.heldOpen!, drawn }
+}
+
+test('the open counts follow the visible list’s room: a small table refuses nothing, one sized for the room holds every count', async () => {
+  const { dag, resident } = scene()
+  const every = allEntries(dag, resident)
+  const small = await cutWith(4)
+  assert.ok(
+    small.held.slots < 2 * every && small.held.dropped > 0,
+    'four clusters: a table short of the counts',
+  )
+  assert.ok(small.drawn && small.drawn.length > 0, 'a cut that draws nothing proves nothing')
+  const grown = await cutWith(4 * every)
+  assert.ok(grown.held.slots >= 2 * every, `${grown.held.slots} slots for ${every} counts`)
+  assert.equal(grown.held.entries, every, 'every count held')
+  assert.deepEqual(grown.drawn, small.drawn, 'the same cut: the table only spares work')
 })

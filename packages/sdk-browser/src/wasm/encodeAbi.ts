@@ -4,12 +4,19 @@
 /**
  * Words of a request block. Offsets are bytes in linear memory, 0 for an absent array.
  */
-export const REQUEST_WORDS = 17
+export const REQUEST_WORDS = 21
 
 /**
  * Words of the block `encode_page` and the decoder's `page_check` (`decode.rs`) answer in.
  */
 export const META_WORDS = 16
+
+/**
+ * Words of the block that tells the decoder where the pool lies: the byte offset and length of the
+ * pool's bytes, then the byte offset and count of the words that start the streaming pages a page
+ * names the clusters of (`decode.rs`).
+ */
+export const POOL_WORDS = 4
 
 /** The request's words, by what each holds. */
 export const REQUEST = {
@@ -30,6 +37,10 @@ export const REQUEST = {
   INFLUENCES: 14,
   TARGET_COUNT: 15,
   TARGETS: 16,
+  UV4: 17,
+  UV5: 18,
+  UV6: 19,
+  UV7: 20,
 } as const
 
 /** The answer's words on success. */
@@ -42,4 +53,5 @@ export const META = {
   SKIN_INFLUENCES: 5,
   LOW_X: 6,
   HIGH_Z: 11,
+  RESIDENT_BYTES: 12,
 } as const

@@ -3,8 +3,7 @@ import type { CutDelta, createCutDelta } from './delta.ts'
 import type { createCutPending } from './pending.ts'
 import type { createWebgpuCutAdopter } from './adoption.ts'
 import type { GroupClosure } from '../groupClosure.ts'
-import { copyDrawnFromShown, markDrawnMirrored } from '../../../frame/backend/helpers.ts'
-import { copyRanks } from './copyRanks.ts'
+import { copyRankList } from './copyRanks.ts'
 import type { GpuCut } from '../../../gpu/core/selection.ts'
 import type { WebgpuResidencySets } from '../../residency/sets.ts'
 import type { WebgpuPagesCore } from '../../../frame/backend/runtime.ts'
@@ -77,13 +76,13 @@ export function adoptGpuCut(
   { run, views }: WebgpuPagesCore,
   cutAdopter: ReturnType<typeof createWebgpuCutAdopter>,
 ) {
-  const adopted = cutAdopter.adopt(),
-    metrics = cutAdopter.metrics
+  cutAdopter.adopt()
+  const metrics = cutAdopter.metrics
   run.cutHeld = metrics.cutHeld
   views.main.cut!.adopted = cutAdopter.adopted
   // An adoption that rewrites the lists ages them, at render as in the drain.
   if (metrics.listsRewritten) run.cutEpoch++
-  if (adopted) applyTotals(run, metrics, metrics.visible, metrics.ready)
+  if (metrics.counted) applyTotals(run, metrics, metrics.visible, metrics.ready)
   return metrics.listsRewritten
 }
 
@@ -99,10 +98,8 @@ export function adoptAsideCut(p: Publication, cut: ViewCut) {
   cut.adopted = next
   const { pageIds, drawablePageIds = NO_IDS } = next.result
   adoptView(p, cut, pageIds, drawablePageIds)
-  copyRanks(run.desiredPacked, cut.asked.ids, cut.asked.count)
-  copyRanks(run.shownPacked, cut.drawn.ids, cut.drawn.count)
-  copyDrawnFromShown(run)
-  markDrawnMirrored(run)
+  copyRankList(run.desiredPacked, cut.asked.ids, cut.asked.count)
+  copyRankList(run.shownPacked, cut.drawn.ids, cut.drawn.count)
   run.cutEpoch++
   run.pagesEntered = cut.asked.enteredCount
   run.pagesExited = cut.asked.exitedCount

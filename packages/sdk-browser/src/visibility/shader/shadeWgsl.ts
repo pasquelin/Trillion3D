@@ -4,7 +4,6 @@ import { SHADE_DECL_WGSL, shadeDeclWgsl } from './shadeDeclWgsl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
-import { SHADOW_RECEIVER_OF_TRIANGLE_WGSL } from './receiverOffsetWgsl.ts'
 import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 import { cofactor3, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { VOXEL_HIT_WGSL } from './voxelHitWgsl.ts'
@@ -17,39 +16,53 @@ import { coordonnee, lecture, lectureDonnee, siCarte } from './maps.ts'
 import { SUBSURFACE_MAP_BIT } from '../materialType.ts'
 import {
   AS_IS_FLAG,
-  FOG_FREE_SURFACE_FLAG,
   MODEL_SHIFT,
-  NORMAL_VIEW_COLOR_WGSL,
   SURFACE_MODEL,
+  UNLIT_FLAG,
   modelFlag,
+  subsurfaceOpacityOfModel,
+  subsurfaceProfileOfModel,
+  normalCurvatureOfModel,
+} from '../../materials/surface/surfaceModelWord.ts'
+import {
+  shadingModelOfModel,
+  shadingUnlitOfModel,
+} from '../../materials/surface/shadingModelCode.ts'
+import {
+  FIRST_PERSON_SURFACE_FLAG,
+  FOG_FREE_SURFACE_FLAG,
+  HOLDOUT_SURFACE_FLAG,
+  NORMAL_VIEW_COLOR_WGSL,
 } from '../../materials/surface/surfaceModel.ts'
 import { SUBSURFACE_FLAG } from '../../materials/surface/subsurface.ts'
-import { EMISSIVE_AO_FLAG_WGSL } from '../../materials/surface/surfaceEmission.ts'
 import {
-  FLAG_BACK,
-  FLAG_DISTANCE_FIELD,
-  FLAG_FOG_FREE,
-  FLAG_LINE,
-  FLAG_LIT,
-  FLAG_SPRITE,
-} from '../types.ts'
+  PIXEL_MODEL,
+  pixelModelFlag,
+  quantise8,
+  quantise8x2,
+} from '../../materials/surface/pixelModel.ts'
+import { specularFlag } from '../../materials/surface/surfaceSpecular.ts'
+import { materialModelStatements } from './materialModelWgsl.ts'
+import { octDecode, octEncode } from '../../../../math/src/wgsl/octahedral.ts'
+import { EMISSIVE_AO_FLAG_WGSL } from '../../materials/surface/surfaceEmission.ts'
+import { FLAG_BACK, FLAG_DISTANCE_FIELD, FLAG_FOG_FREE, FLAG_HOLDOUT, FLAG_LIT } from '../types.ts'
 import { DISTANCE_FIELD_REPRESENTATION_FLAG } from '../../lighting/distanceField/representationWgsl.ts'
 import { PHYSICAL_LOBES_CALL, physicalUvRead } from './physicalWgsl.ts'
 import { SHADE_ENTRY_WGSL } from './shadeEntryWgsl.ts'
 import { visPageIndex, visTriangle } from '../visWords.ts'
 import { DISPLACED_PIXEL_WGSL } from '../tessellation/prismWgsl.ts'
 import type { CompiledGraph } from '../../materials/graph/compile.ts'
+import { NO_WPO, type WpoSet } from '../../materials/graph/wpoProgram.ts'
+import { wpoGraphWgsl } from './wpoGraphWgsl.ts'
 import { shadeGraph, type ShadeGraph } from './shadeGraphWgsl.ts'
 import {
   DISPLACED_GRADIENTS,
   DISPLACED_PIXEL,
-  DISPLACED_STEPS,
-  PLAIN_RECEIVER,
+  NEIGHBOUR_WEIGHTS,
   STORED_TANGENT_FRAME_WGSL,
   VOXEL_DIAGNOSTIC,
   VOXEL_NORMAL,
   VOXEL_PIXEL,
-  VOXEL_RECEIVER,
   VOXEL_SURFACE,
 } from './shadeVariantsWgsl.ts'
 
@@ -64,18 +77,21 @@ const SURFACE_HEAD = (
  *  its entry (\`shadeEntryWgsl.ts\`); its surface's factors and maps its record's (\`materialAt\`). */
 fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  let pageIndex=visPageIndex(id);
+ shadeSelectRow(pageIndex);
  let tri=visTriangle(id);
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount){return emptySurface();}
+ if(SHADE_STAGE==2u){let k=pageTriangle(page,pageHeader(page),tri);shadeProbe=k.x^k.y^k.z;return emptySurface();}
  let m=materialAt(page.material);
- // The triangle, as the triangles pass stored it or decoded here (\`pixelTriangle\`).
- let t=pixelTriangle(pageIndex,page,tri);
+ // The triangle, decoded and transformed by the pixel (\`pixelTriangle\`).
+ let t=pixelTriangle(page,tri);
  let w0=t.w0;let w1=t.w1;let w2=t.w2;
  // A corner's pixel in x and y, its clip depth and w: the parts of \`framebuffer(c)\` and of \`c\`
  // the resolve reads (\`decodeTriangle\`).
  let s0=t.p0.xyz;let s1=t.p1.xyz;let s2=t.p2.xyz;let c0=t.p0;let c1=t.p1;let c2=t.p2;
  let p=vec2f(pos.x,pos.y);
  let area=edgeFunction(s1.xy,s2.xy,s0.xy);
+ if(SHADE_STAGE==3u){shadeProbe=bitcast<u32>(dot(t.p0+t.p1+t.p2+t.w0+t.w1+t.w2,vec4f(1.0))+dot(t.n0+t.n1+t.n2,vec3f(1.0))+select(0.0,dot(t.uva+t.uvb+t.uvc,vec2f(1.0)),HAS_UV)+dot(t.iw,vec3f(1.0)));return emptySurface();}
  var rgb=m.baseColor;
  ${o.displaced ? 'var' : 'let'} bary=perspectiveBarycentric(s0,s1,s2,t.iw,p,area);
 ${o.displaced ? DISPLACED_PIXEL : ''}${o.voxel ? VOXEL_PIXEL : ''} var uv=vec2f(0.0);
@@ -88,10 +104,13 @@ ${o.displaced ? DISPLACED_GRADIENTS : ''} }
 `
 
 /** The pixel's other texture sets, its tile request and the reads of its maps (a graph's context first). */
-const SURFACE_READS = (o: ShadeOptions) => ` let model=(page.flags>>${MODEL_SHIFT}u)&7u;
+const SURFACE_READS = (
+  o: ShadeOptions,
+) => ` if(SHADE_STAGE==4u){shadeProbe=bitcast<u32>(dot(bary,vec3f(1.0))+select(0.0,dot(uv+ddx+ddy,vec2f(1.0)),HAS_UV)+dot(rgb,vec3f(1.0))+area);return emptySurface();}
+ let model=(page.flags>>${MODEL_SHIFT}u)&7u;
  // A matcap material reads its image by the view-space normal: the base map at that coordinate,
  // from the triangle's world normals the decode turned to the row's side (\`decodeTriangle\`).
- if(model==${SURFACE_MODEL.matcap}u){
+ if(MATCAP&&model==${SURFACE_MODEL.matcap}u){
   uv=matcapUv(unitOrZero(t.n0*bary.x+t.n1*bary.y+t.n2*bary.z));
   ddx=vec2f(0.0);ddy=vec2f(0.0);
  }
@@ -120,7 +139,8 @@ ${o.graph?.prologue ?? ''} let request=shadeRequest(m,pos.xy);
    `rgb=rgb*${lecture('colorSample', 'base')}.xyz;`,
  )}
  // The vertex colour, perspective-correct like the texture coordinate, as the forward path reads it.
- if(HAS_VERTEX_COLOR){let h=pageHeader(page);let k=pageTriangle(page,h,tri);rgb*=(pageColor(page,h,k.x)*bary.x+pageColor(page,h,k.y)*bary.y+pageColor(page,h,k.z)*bary.z).xyz;}
+ if(HAS_VERTEX_COLOR){rgb*=(pageColor(page,t.h,t.k.x)*bary.x+pageColor(page,t.h,t.k.y)*bary.y+pageColor(page,t.h,t.k.z)*bary.z).xyz;}
+ if(SHADE_STAGE==6u){shadeProbe=bitcast<u32>(dot(rgb+emissive,vec3f(1.0))+ao+roughSample.y+metalSample.z+f32(request)+dot(m.emissive,vec3f(1.0)));return emptySurface();}
 `
 
 /** The wireframe's and the diagnostic views' exits, before the lighting values. */
@@ -145,7 +165,7 @@ ${o.graph?.diagnostic ?? ''}${o.voxel ? VOXEL_DIAGNOSTIC : ''}  let depth=dot(ba
  }
 `
 
-/** The normal and the receiver of the pixel, then a graph's outputs where the module has one. */
+/** The normal of the pixel, then a graph's outputs where the module has one. */
 const SURFACE_NORMALS = (
   o: ShadeOptions,
 ) => ` var metal=ormMetalness(m.metalness,metalSample.z);var rough=ormRoughness(m.roughness,roughSample.y);
@@ -155,42 +175,38 @@ ${o.voxel ? VOXEL_SURFACE : ''} // Original vertices may straddle the near plane
   // Face winding of a singular pose does NOT come from its zero determinant: on a flattened
   // face, the adjugate already put the normal on the side of the transformed-edge cross product,
   // and only the side the screen sees it from remains. The determinant test of the row's frame
-  // (\`composeRowFrame\`) yields exactly that at a zero determinant — face y is screenFace — like
+  // (\`worldWindingKept\`) yields exactly that at a zero determinant — face y is screenFace — like
   // matrixWindingCw on the CPU.
-  let face=screenFace*select(-1.0,1.0,rowFrame(pageIndex,page.world).positive);
+  let face=screenFace*select(-1.0,1.0,worldWindingKept(page));
   let side=select(1.0,-1.0,(page.flags&${FLAG_BACK}u)!=0u);
-  // The three vertex normals, turned to \`side\` (\`decodeTriangle\`), the receiver offset reads too.
+  // The three vertex normals, turned to \`side\` (\`decodeTriangle\`).
   let n0=t.n0;let n1=t.n1;let n2=t.n2;
-  // The shadow receiver, once, from this decode (\`receiverTargetWgsl.ts\`), which every shadow
-  // read takes (\`receiverOffsetWgsl.ts\`).
-  if(HAS_VERTEX_NORMAL&&(page.flags&${FLAG_SPRITE | FLAG_LINE}u)==0u){
-   let receiver=shadowReceiverOfTriangle(bary,w0,w1,w2,n0,n1,n2,select(1.0,face,DOUBLE_SIDED));
-${o.voxel ? VOXEL_RECEIVER : PLAIN_RECEIVER}  }
   var N=unitOrZero(faceNormal(w0.xyz,w1.xyz,w2.xyz))*screenFace;
-  // The shading normal one pixel right (\`Nx\`) and one down (\`Ny\`), the same plane's: its change
-  // across the pixel, which widens the roughness (\`normalFootprintVariance\`); a flat face's none.
-  var Nx=N;var Ny=N;
+  // The curvature of the interpolated vertex normal: its change across the pixel (\`dNx\` right, \`dNy\` down), taken before
+  // any map bends it, as the roughness a material that asks for it takes (\`normalCurvatureRoughness\`); only that scalar
+  // stays live. A pixel without a vertex normal is flat.
+  var curvature=0.0;
   if(HAS_VERTEX_NORMAL){
    N=unitOrZero(n0*bary.x+n1*bary.y+n2*bary.z);
-   ${o.displaced ? 'var' : 'let'} bx=perspectiveBarycentric(s0,s1,s2,t.iw,p+vec2f(1.0,0.0),area);
-   ${o.displaced ? 'var' : 'let'} by=perspectiveBarycentric(s0,s1,s2,t.iw,p+vec2f(0.0,1.0),area);
-${o.displaced ? DISPLACED_STEPS : ''}   Nx=unitOrZero(n0*bx.x+n1*bx.y+n2*bx.z);
-   Ny=unitOrZero(n0*by.x+n1*by.y+n2*by.z);
-   if(DOUBLE_SIDED){N*=face;Nx*=face;Ny*=face;}
-  }
+   if(DOUBLE_SIDED){N*=face;}
+   if(${normalCurvatureOfModel('m.model')}){
+${o.graph ? '' : NEIGHBOUR_WEIGHTS(o.displaced, '    ')}
+    let faceSide=select(1.0,face,DOUBLE_SIDED);
+    let dNx=unitOrZero(n0*bx.x+n1*bx.y+n2*bx.z)*faceSide-N;
+    let dNy=unitOrZero(n0*by.x+n1*by.y+n2*by.z)*faceSide-N;
+    curvature=normalCurvatureRoughness(dNx,dNy,uni.normalCurvature);
+   }
+  }else if(${normalCurvatureOfModel('m.model')}){curvature=normalCurvatureFlat(uni.normalCurvature);}
+ if(SHADE_STAGE==7u){shadeProbe=bitcast<u32>(dot(N,vec3f(1.0))+curvature+metal+rough+dot(rgb,vec3f(1.0)));return emptySurface();}
 ${o.voxel ? VOXEL_NORMAL : ''}  // The clear coat bends its own normal map from the normal before the base one (\`physicalWgsl.ts\`).
-  let coatBase=N;
+  var coatBase=N;
   // The tangents the page stores, their frame at the pixel: the one frame the normal map and the
   // lobes bend in (\`physicalValues\`), decoded once.
   var tangents:CotangentFrame;
-  if(HAS_TANGENT&&(HAS_NORMAL_MAP||(HAS_PHYSICAL&&physicalOn)${o.graph?.normal ? '||true' : ''})){tangents=storedTangentFrame(page,tri,bary,n0,n1,n2,world3,side);}
+  if(HAS_TANGENT&&(${o.graph?.normal ? 'true' : `HAS_NORMAL_MAP||(HAS_PHYSICAL&&physicalOn)||(HAS_SHADING_MODEL&&shadingModelOfModel(m.model)==${PIXEL_MODEL.hair}u)`})){tangents=storedTangentFrame(page,t.h,t.k,bary,n0,n1,n2,world3,side);}
   if(HAS_NORMAL_MAP){
    let scale=vec3f(m.normalScale,select(m.normalScaleY,m.tangentNormalScaleY,HAS_TANGENT),1.0);
    let mapN=unitToSigned3(nrmSample.xyz)*scale;
-   // The map one pixel right and one down, at the same level: its own change across the pixel.
-   let nc=${coordonnee('normal')};
-   let mapNx=unitToSigned3(dataSample(m.normalIndex,nc.uv+nc.ddx,nc.ddx,nc.ddy,HAS_SAMPLING).xyz)*scale;
-   let mapNy=unitToSigned3(dataSample(m.normalIndex,nc.uv+nc.ddy,nc.ddx,nc.ddy,HAS_SAMPLING).xyz)*scale;
    var T=tangents.T;var B=tangents.B;
    if(!HAS_TANGENT){
     let c=${coordonnee('normal')};
@@ -199,8 +215,6 @@ ${o.voxel ? VOXEL_NORMAL : ''}  // The clear coat bends its own normal map from 
    }
    let flip=select(1.0,face,DOUBLE_SIDED&&HAS_VERTEX_NORMAL);
    N=bendNormal(N,T,B,flip,mapN);
-   Nx=bendNormal(Nx,T,B,flip,mapNx);
-   Ny=bendNormal(Ny,T,B,flip,mapNy);
   }
 ${o.graph?.late ?? ''}`
 
@@ -210,19 +224,23 @@ const SURFACE_TAIL = (
 ) => ` // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`):
  // a matcap as an unlit material, seen through the fog; a normal or depth view as-is, never fogged
  // nor tone mapped.
+ // A held-out primitive, where the alpha holdout is in effect: black, lit by nothing, no light of its own,
+ // marked for the colour pass, which gives it an alpha of 1.
+ if((page.flags&${FLAG_HOLDOUT}u)!=0u&&uni.holdout!=0u){return SurfaceOut(vec4f(0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),${UNLIT_FLAG}u|${HOLDOUT_SURFACE_FLAG}u,request);}
  if(model==${SURFACE_MODEL.normal}u){rgb=normalViewColor(viewNormal(N));}
  if(model==${SURFACE_MODEL.depth}u){let w=dot(bary,vec3f(c0.w,c1.w,c2.w));let r=uni.depthRamp;rgb=vec3f(clamp(r.x*w+r.y+r.z*dot(bary,vec3f(c0.z,c1.z,c2.z))/w,0.0,1.0));}
- if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(${AS_IS_FLAG}u,1u|select(0u,${FOG_FREE_SURFACE_FLAG}u,(page.flags&${FLAG_FOG_FREE}u)!=0u),model==${SURFACE_MODEL.matcap}u),request);}
- var flag=select(1u,modelFlag(page.flags),(page.flags&${FLAG_LIT}u)!=0u);
+ if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(${AS_IS_FLAG}u,${UNLIT_FLAG}u|select(0u,${FOG_FREE_SURFACE_FLAG}u,(page.flags&${FLAG_FOG_FREE}u)!=0u),model==${SURFACE_MODEL.matcap}u),request);}
+ var flag=select(${UNLIT_FLAG}u,modelFlag(page.flags),(page.flags&${FLAG_LIT}u)!=0u);
  if((page.flags&${FLAG_FOG_FREE}u)!=0u){flag|=${FOG_FREE_SURFACE_FLAG}u;}
  if((page.flags&${FLAG_DISTANCE_FIELD}u)!=0u){flag|=${DISTANCE_FIELD_REPRESENTATION_FLAG}u;}
- if(DOUBLE_SIDED&&(page.flags&${FLAG_LIT}u)!=0u){
+${o.graph?.model ?? ''}${materialModelStatements(!!o.graph?.model)} if(page.firstPerson!=0u){flag|=${FIRST_PERSON_SURFACE_FLAG}u;}
+${o.graph?.specular ?? ''} if(DOUBLE_SIDED&&mmModel==0u&&(page.flags&${FLAG_LIT}u)!=0u){
   var thin=clamp(m.subsurface,vec3f(0.0),vec3f(1.0));
   if(HAS_UV&&m.subsurfaceMap!=0u){let c=mapCoord(m,${SUBSURFACE_MAP_BIT}u);thin*=colorSample(m.subsurfaceMap,c.uv,c.ddx,c.ddy,HAS_SAMPLING).rgb;}
-${o.graph?.thin ?? ''}  if(any(thin>vec3f(0.0))){thinOut=thin;flag|=${SUBSURFACE_FLAG}u;}
+${o.graph?.thin ?? ''}  if(any(thin>vec3f(0.0))){thinOut=thin;thinOpacity=subsurfaceOpacityOfModel(m.model);flag|=${SUBSURFACE_FLAG}u;}
  }
- rough=ormRoughness(1.0,roughnessWidened(rough,normalFootprintVariance(Nx-N,Ny-N)));
- ${PHYSICAL_LOBES_CALL}
+ rough=max(rough,curvature);
+ ${o.graph?.lobes ?? ''}${PHYSICAL_LOBES_CALL}
  // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`, #1369).
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag|emissiveAoFlag(emissive,ao),request);
 }
@@ -239,11 +257,13 @@ export const shadeShader = ({
   voxel = false,
   displaced = false,
   graph,
+  wpo = NO_WPO,
 }: {
   diagnostic?: WgslDecl
   voxel?: boolean
   displaced?: boolean
   graph?: CompiledGraph
+  wpo?: WpoSet
 } = {}) => {
   const o: ShadeOptions = { voxel, displaced, graph: graph && shadeGraph(graph, displaced) }
   const parts = [SURFACE_HEAD, SURFACE_READS, SURFACE_VIEWS, SURFACE_NORMALS, SURFACE_TAIL]
@@ -251,6 +271,16 @@ export const shadeShader = ({
     SHADE_ENTRY_WGSL,
     NORMAL_VIEW_COLOR_WGSL,
     modelFlag,
+    pixelModelFlag,
+    quantise8x2,
+    quantise8,
+    octEncode,
+    octDecode,
+    subsurfaceOpacityOfModel,
+    subsurfaceProfileOfModel,
+    shadingModelOfModel,
+    shadingUnlitOfModel,
+    specularFlag,
     EMISSIVE_AO_FLAG_WGSL,
     o.graph ? shadeDeclWgsl(o.graph.request) : SHADE_DECL_WGSL,
     ...(o.graph ? [o.graph.decl] : []),
@@ -264,11 +294,11 @@ export const shadeShader = ({
     edgeFunction,
     perspectiveBarycentric,
     faceNormal,
-    SHADOW_RECEIVER_OF_TRIANGLE_WGSL,
     unitToSigned3,
     visPageIndex,
     visTriangle,
     ...(diagnostic ? [diagnostic] : []),
+    ...(wpo.programs.length ? [wpoGraphWgsl(wpo)] : []),
   ])
 }
 

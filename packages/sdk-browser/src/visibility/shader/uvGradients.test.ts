@@ -9,9 +9,12 @@ import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { Mat, Mat3 } from '../../materials/texture/shaderRunMatrix.fixture.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
-import * as W from '../tessellation/prismWgsl.ts'
+import * as W from '../tessellation/prismSolveWgsl.ts'
+import { inverse3 } from '../../../../math/src/wgsl/matrix.ts'
 import { SURFACE_VELOCITY_WGSL } from '../../post/taa/surfaceVelocityWgsl.ts'
 import { FLAG_DISPLACED } from '../types.ts'
+import { recordTable } from '../../gpu/core/recordTexture.fixture.ts'
+import { WORLD_TABLE } from '../../geometry/dag/worlds/worldTable.ts'
 
 test('the resolve reads the one gradient formula and keeps no copy', () => {
   assert.equal(SHADE_SHADER.split(UV_GRADIENTS_WGSL.text).length - 1, 1)
@@ -53,13 +56,13 @@ test('its CPU mirror matches central differences of perspective-correct interpol
 })
 
 // A displaced row's pixel holds the source triangle, not the point of it the pixel shows: the resolve
-// solves the displaced prism for the weights (`solveDisplaced`, `../tessellation/prismWgsl.ts`).
+// solves the displaced prism for the weights (`solveDisplaced`, `../tessellation/prismWgsl.ts`, `prismSolveWgsl.ts`).
 const prism = shaderRun<{
-  prismWeights(...args: unknown[]): { value: number[]; dx: number[]; dy: number[]; ok: boolean }
+  prismWeights(...args: unknown[]): { value: number[]; dx: number[]; dy: number[] }
   inverse3(m: Mat3): Mat3
   prismPixel(...args: unknown[]): { at: number[]; atX: number[]; atY: number[]; eye: number[] }
 }>(
-  wgslBlock('prismTest', [W.prismWeights, W.inverse3, W.prismPixel], ''),
+  wgslBlock('prismTest', [W.prismWeights, inverse3, W.prismPixel], ''),
   ['prismWeights', 'inverse3', 'prismPixel'],
   {},
 )
@@ -89,17 +92,17 @@ test('the prism solve recovers the weights of a point on the displaced triangle,
     new Mat3(corners),
     new Mat3(normals),
   )
-  assert.ok(solve.ok)
   solve.value.forEach((w, i) => assert.ok(Math.abs(w - weights[i]!) < 1e-5, `${solve.value}`))
   // The flat triangle's weights of the same pixel, by the ray through it: a parallax away.
   const flat = rayWeights(camera, add(pixel, camera, -1), corners)
   assert.ok(Math.abs(flat[0]! - weights[0]!) > 100 * Math.abs(solve.value[0]! - weights[0]!))
   // The steps to the neighbours are those of the rays through them on the displaced triangle.
-  for (const [step, shift] of [
+  const neighbours: [number[], number[]][] = [
     [solve.dx, [0.02, 0, 0]],
     [solve.dy, [0, 0.02, 0]],
-  ] as const) {
-    const hit = rayWeights(camera, add(pixel, shift as number[], 1), displaced)
+  ]
+  for (const [step, shift] of neighbours) {
+    const hit = rayWeights(camera, add(pixel, shift, 1), displaced)
     step.forEach((s, i) => assert.ok(Math.abs(s - (hit[i]! - weights[i]!)) < 1e-3))
   }
 })
@@ -228,32 +231,45 @@ test('a pixel is placed in the object’s space from its depth, the eye with it,
 
 // The velocity stage carries a displaced texel back by the flat point under it, then adds the
 // displacement of this frame whole (`pointBefore`, `../../post/taa/deformWgsl.ts`).
-const turnedAboutX = new Mat([1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1])
-const placed = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+const TURNED_ABOUT_X = [1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1]
+const PLACED = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+const placed = new Mat(PLACED)
+/** The one placement's record table (`WORLD_TABLE`) holding `matrix`, no translation beside it. */
+function poseTable(matrix: number[]) {
+  const table = recordTable(WORLD_TABLE, 1)
+  table.set('Matrix', 0, new Uint32Array(new Float32Array(matrix).buffer))
+  return table
+}
 /** `pointBefore` of `here`, over the triangle (0,0,0) (1,0,0) (0,1,0) whose corners carry the normal
- *  `normal`, the placement turned a quarter about x since the last frame. */
+ *  `normal`, the placement turned a quarter about x since the last frame, by the pipeline of an image
+ *  that draws displaced surfaces (`DISPLACED`) or not. */
 function pointBefore(
   here: number[],
-  { flags = FLAG_DISPLACED, tessellation = 1, normal = [0, 0, 1] } = {},
+  { flags = FLAG_DISPLACED, displaced = true, normal = [0, 0, 1] } = {},
 ) {
   const texels = [0, 1, 2].flatMap(() => [...normal, 0, 0, 0, 0])
   const run = shaderRun<{ pointBefore(h: number[], id: number): number[] }>(
     SURFACE_VELOCITY_WGSL,
     ['pointBefore'],
     {
-      view: { tessellation: [tessellation, 0, 0, 0], eye: [0, 0, 0, 0], params: [0, 0, 1, 0] },
+      DISPLACED: displaced,
+      view: {
+        eye: [0, 0, 0, 0],
+        params: [0, 0, 1, 0],
+        exactEye: [
+          [0, 0, 0, 0],
+          [0, 0, 0, 0],
+        ],
+      },
       pages: [
         { world: placed, flags, placement: 0, pageOffset: 0, vertexBase: 0, deformOutput: 0 },
       ],
-      motion: [turnedAboutX],
+      worlds: poseTable(PLACED),
+      previous: poseTable(TURNED_ABOUT_X),
       indices: [0, 1, 2],
       positions: [0, 0, 0, 1, 0, 0, 0, 1, 0],
       normals: { load: ([x]: number[]) => [texels[x]!] },
       textureDimensions: () => [1000, 1],
-      determinant: ({ columns: [a, b, c] }: Mat3) =>
-        a[0]! * (b[1]! * c[2]! - b[2]! * c[1]!) -
-        a[1]! * (b[0]! * c[2]! - b[2]! * c[0]!) +
-        a[2]! * (b[0]! * c[1]! - b[1]! * c[0]!),
     },
   )
   return run.pointBefore([...here, 1], 1 << 8)
@@ -268,9 +284,9 @@ test('a displaced texel goes back by its flat point turned, and the displacement
   assert.equal(back[3], 1)
 })
 
-test('a texel the frame draws flat, or a row that names no displacement, goes back whole', () => {
+test('a texel of the pipeline that draws flat, or a row that names no displacement, goes back whole', () => {
   const whole = [0.35, -0.2, 0.25]
-  for (const options of [{ tessellation: 0 }, { flags: 0 }]) {
+  for (const options of [{ displaced: false }, { flags: 0 }]) {
     const back = pointBefore([0.35, 0.25, 0.2], options)
     whole.forEach((x, i) => assert.ok(Math.abs(back[i]! - x) < 1e-6, `${JSON.stringify(options)}`))
   }

@@ -43,7 +43,7 @@ export const WORD_RANGE = 4294967296
 export const NO_INDEX = 4294967295
 /** One mebibyte, `1024 * 1024` bytes. */
 export const MIB = 1048576
-/** The golden ratio's fraction in 32 bits, `⌊GOLDEN_FRACTION · 2³²⌋` = 0x9e3779b9: an odd salt with
+/** The golden ratio's fraction in 32 bits, `⌊(√5 − 1) / 2 · 2³²⌋` = 0x9e3779b9: an odd salt with
  *  well-spread bits, the seed a generator takes for zero; `GOLDEN_32` of the Rust crate. */
 export const GOLDEN_U32 = 0x9e3779b9
 /** The step of an octahedral byte, `Math.fround(2 / 255)`: a byte `q` of an octahedral code back to
@@ -51,6 +51,10 @@ export const GOLDEN_U32 = 0x9e3779b9
 export const OCT_BYTE_STEP = 0.007843137718737125
 /** The greatest finite half float, `(2 - 2 ** -10) * 2 ** 15`: a half-float target's bound. */
 export const HALF_MAX = 65504
+/** The greatest finite value of an unsigned 10-bit float (5 exponent bits, a 5 bit mantissa),
+ *  `(2 - 2 ** -5) * 2 ** 15`: the bound of the blue channel of an 11-11-10 target, and the base
+ *  the light a pass writes is capped from. */
+export const MAX_10_BIT_FLOAT = 64512
 /** The least positive normal float32, `2 ** -126`. */
 export const FLOAT32_MIN_NORMAL = 1.1754943508222875e-38
 /** `1e30`, a distance or a bound past any scene's: an empty range's start, a ray's exit along an

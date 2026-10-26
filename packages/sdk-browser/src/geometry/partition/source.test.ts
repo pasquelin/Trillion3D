@@ -8,11 +8,21 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolveWorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
-import { createStreamingSource, SOURCE_SHAPE } from './source.ts'
+import { createStreamingSource } from './source.ts'
+import { SOURCE_SHAPE } from './sourceSettings.ts'
 import { createSourceVelocity } from './sourceVelocity.ts'
 import { aimOf } from './sourceShape.ts'
-import { createStreamingUpdate, type StreamingUpdate } from './streamingUpdate.ts'
+import { createStreamingUpdate } from './streamingUpdate.ts'
 import type { LoadingCell } from './loadOrder.ts'
+
+/** The source of the settings `options` over a flat grid of the hash set, the eye at the origin
+ *  looking along `-z`. */
+function flatSource(options: Parameters<typeof resolveWorldStreaming>[0]) {
+  const flat = { scheme: 'hashSet', hlod: { grids: [{ flat: true }] } } as const
+  const source = createStreamingSource(resolveWorldStreaming(options), flat)
+  source.set([0, 0, 0], [0, 0, -1])
+  return source
+}
 
 test('a square cell straight ahead of the heading is ranked by a number, its angle zero', () => {
   const source = createStreamingSource(resolveWorldStreaming({}), {
@@ -48,27 +58,23 @@ test('a view forced to the ground wishes a cell of a grid that streams in 3D by 
 })
 
 test('an extra radius lengthens the circle, an extra angle widens the sector', () => {
-  const flat = { scheme: 'hashSet', hlod: { grids: [{ flat: true }] } } as const
   const grid = { range: 100, flat: true }
-  const at = (options: Parameters<typeof resolveWorldStreaming>[0]) => {
-    const source = createStreamingSource(resolveWorldStreaming(options), flat)
-    source.set([0, 0, 0], [0, 0, -1])
-    return source
-  }
   // 120 m from the eye on the ground, a range of 100 m: out, then in with 30 m more.
   const far = [120, 0, 0, 130, 1, 10]
-  assert.equal(at({}).meets(far, 0, grid), false)
-  const longer = at({ worldStreamingExtraRadius: 30 })
+  assert.equal(flatSource({}).meets(far, 0, grid), false)
+  const longer = flatSource({ worldStreamingExtraRadius: 30 })
   assert.equal(longer.radius(100), 130)
   assert.equal(longer.meets(far, 0, grid), true)
   // 80 degrees off the heading, beside a sector of 90: in a sector of 180, out of one of 90.
   const aside = [48, 0, -10, 52, 1, -6]
   const sector = { worldStreamingSector: true, worldStreamingSectorAngle: 90 }
-  assert.equal(at(sector).meets(aside, 0, grid), false)
-  assert.equal(at({ ...sector, worldStreamingExtraAngle: 90 }).meets(aside, 0, grid), true)
+  assert.equal(flatSource(sector).meets(aside, 0, grid), false)
+  assert.equal(flatSource({ ...sector, worldStreamingExtraAngle: 90 }).meets(aside, 0, grid), true)
   // Without a sector no angle is added.
-  assert.equal(at({ worldStreamingExtraAngle: 90 }).meets(aside, 0, grid), true)
+  assert.equal(flatSource({ worldStreamingExtraAngle: 90 }).meets(aside, 0, grid), true)
 })
+
+type StreamingUpdate = ReturnType<typeof createStreamingUpdate>
 
 /** The update's gate over the settings `options`, for a partition of the hash set. */
 function gate(options: Parameters<typeof resolveWorldStreaming>[0] = {}) {
@@ -76,24 +82,15 @@ function gate(options: Parameters<typeof resolveWorldStreaming>[0] = {}) {
   return { update: createStreamingUpdate(streaming, 'hashSet'), streaming }
 }
 
-/** A scene root standing at the origin. */
-const ROOT = Array.from({ length: 16 }, (_, at) => (at % 5 === 0 ? 1 : 0))
-
-/** One frame of `update` at `eye` looking along `axis`: whether the update ran; the frame left work
- *  when `busy`. */
+/** One frame of `update` at `eye` looking along `axis`, its frame having `moves`: whether the update
+ *  ran; the frame left work when `busy`. */
 function step(
   update: StreamingUpdate,
   eye: number[],
   axis = [0, 0, -1],
-  {
-    blocked = false,
-    busy = false,
-    frames = new Map<number, unknown>(),
-    world = ROOT,
-    aim = axis,
-  } = {},
+  { blocked = false, busy = false, moves = 0, aim = axis } = {},
 ) {
-  const again = update.due(eye, axis, aim, world, blocked, frames)
+  const again = update.due(eye, axis, aim, moves, blocked)
   update.end(busy)
   return again
 }
@@ -198,55 +195,52 @@ test('a frame forced every few frames runs the update, and the next one with it'
   assert.deepEqual(ran, [true, true, false, true, true, false, false, true, true])
 })
 
-test('a core parent or the scene root that moved runs the update, the view standing', () => {
+test("a move of the view's frame — its scene root or a core parent — runs the update", () => {
   const { update } = gate()
   const at = [100, 2, 100]
-  const frames = new Map<number, unknown>([[0, [1, 1]]])
-  step(update, at, undefined, { frames })
-  step(update, at, undefined, { frames })
-  assert.equal(step(update, at, undefined, { frames }), false)
-  frames.set(0, [1, 1])
-  assert.equal(step(update, at, undefined, { frames }), true, 'its frame made anew')
-  // A parent no longer listed is forgotten, and that is a move; one listed again is new.
-  frames.delete(0)
-  assert.equal(step(update, at, undefined, { frames }), true, 'a parent left')
-  frames.set(0, [1, 1])
-  assert.equal(step(update, at, undefined, { frames }), true, 'a parent came back')
-  const moved = [...ROOT.slice(0, 12), 5, 0, 0, 1]
-  assert.equal(step(update, at, undefined, { frames, world: moved }), true, 'the root moved')
-  assert.equal(step(update, at, undefined, { frames, world: moved }), false)
+  opened(update, at)
+  assert.equal(step(update, at), false, 'the view stands')
+  assert.equal(step(update, at, undefined, { moves: 1 }), true, 'its frame moved')
+  assert.equal(step(update, at, undefined, { moves: 1 }), false, 'and stands')
 })
 
 test('a shape whose radius or angle is nearly zero is none: it meets nothing, a cell ranks last', () => {
-  const flat = { scheme: 'hashSet', hlod: { grids: [{ flat: true }] } } as const
   const grid = { range: 100, flat: true }
-  const at = (options: Parameters<typeof resolveWorldStreaming>[0]) => {
-    const source = createStreamingSource(resolveWorldStreaming(options), flat)
-    source.set([0, 0, 0], [0, 0, -1])
-    return source
-  }
   // The eye inside the box: a radius of 0 would meet it, a sector of 0° straddles it.
   const around = [-5, -1, -5, 5, 1, 5]
-  assert.equal(at({}).meets(around, 0, grid), true)
-  assert.equal(at({ worldStreamingRangeScale: 0 }).meets(around, 0, grid), false, 'no radius')
+  assert.equal(flatSource({}).meets(around, 0, grid), true)
+  assert.equal(
+    flatSource({ worldStreamingRangeScale: 0 }).meets(around, 0, grid),
+    false,
+    'no radius',
+  )
   const fixed = { worldStreamingRadius: 0, worldStreamingUseGridRange: false }
-  assert.equal(at(fixed).meets(around, 0, grid), false, 'no fixed radius')
+  assert.equal(flatSource(fixed).meets(around, 0, grid), false, 'no fixed radius')
   const none = { worldStreamingSector: true, worldStreamingSectorAngle: 0 }
-  assert.equal(at(none).meets(around, 0, grid), false, 'no angle')
+  assert.equal(flatSource(none).meets(around, 0, grid), false, 'no angle')
+  // The angle is in degrees, its tolerance 1e-8 of them: 5e-9 is none, 1e-7 a shape.
+  const tiny = (degrees: number) => ({ ...none, worldStreamingSectorAngle: degrees })
+  assert.equal(flatSource(tiny(5e-9)).meets(around, 0, grid), false, 'under the tolerance')
+  assert.equal(flatSource(tiny(1e-7)).meets(around, 0, grid), true, 'past it')
   // Behind the view, 50 m off: at radius 0 the ratio is the largest, 1, not 0.
   const behind = [-5, -1, 50, 5, 1, 60]
   const out: LoadingCell = { key: 0, extent: 0, level: 0, priority: 0, distance: 0, raw: 0 }
-  at({ worldStreamingRangeScale: 0 }).ranked(behind, 0, 100, out)
+  flatSource({ worldStreamingRangeScale: 0 }).ranked(behind, 0, 100, out)
   assert.equal(out.distance, 1)
 })
 
 test('a view looking straight down heads where its up vector points, up it heads the other way', () => {
   const out = [0, 0, 0]
   const up = [0, 0, -1]
-  const aim = (axis: number[]) => Array.from(aimOf(axis, up, out), (value) => value + 0)
+  const aim = (axis: number[], upward = true) =>
+    Array.from(aimOf(axis, upward ? up : undefined, out), (value) => value + 0)
   assert.deepEqual(aim([0, -1, 0]), [0, 0, -1], 'down: ahead')
   assert.deepEqual(aim([0, 1, 0]), [0, 0, 1], 'up: behind')
-  assert.deepEqual(aimOf([0.6, -0.8, 0], up, out), [0.6, -0.8, 0], 'any other heads along its axis')
+  // Any other heads along its axis, a copy of it written into `out`, and so does one with no up.
+  const slanted = [0.6, -0.8, 0]
+  assert.deepEqual(aim(slanted), slanted)
+  assert.notEqual(aimOf(slanted, up, out), slanted)
+  assert.deepEqual(aim([0, -1, 0], false), [0, -1, 0])
   // A square grid sorts by the angle to the heading: the cell ahead of a down-looking view loads
   // before the one behind it, as they do when it looks a hair off the vertical.
   const rank = (bounds: number[], aim?: number[]) => {

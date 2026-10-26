@@ -5,18 +5,25 @@ import {
   DEPTH_FORMAT,
   DISPLAY_FORMAT,
   FEEDBACK_FORMAT,
-  hdrAttachmentView,
   hdrTargetDescriptor,
 } from '../../scene/targetFormats.ts'
 import { createSurfaceBuffer } from '../../materials/surface/surfaceAllocation.ts'
 import { createBackdrop, holdsRefraction } from '../../blend/transparent/transmission.ts'
+import { createTranslucency } from '../../blend/translucency.ts'
+import { askComposePipelines, askLatePipeline } from '../../blend/translucencyCompose.ts'
 import { createScreenReflection } from '../../lighting/reflections/gpu.ts'
 import { dropAside, releaseSet } from './targetsSet.ts'
 import { ensureTaaTargets } from '../../post/taa/prepare.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { displayApart, type FrameSize } from '../backend/state/renderScale.ts'
-import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts'
-import { makesDisplayColor, sceneBlends } from './targetAllocation.ts'
+import { makeResponsive, wantsResponsive } from './responsiveTarget.ts'
+import {
+  drawsLateTranslucency,
+  drawsTranslucency,
+  lateImageSize,
+  makesDisplayColor,
+  sceneBlends,
+} from './targetAllocation.ts'
 import { BUDGET_EXCEEDED, GpuBudgetExceeded } from '../../gpu/core/ledgerBooks.ts'
 
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
@@ -27,6 +34,10 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     !!gpu.colorTexture === makesDisplayColor(rt, size) &&
     // The distortion's targets are full-size while the session holds a refracting surface.
     !!gpu.backdrop?.active === holdsRefraction(rt) &&
+    // The translucency targets are full-size once the session holds a blend or a pool (`drawsTranslucency`).
+    !!gpu.translucency?.active === drawsTranslucency(rt) &&
+    // The late set of them is made once the session holds a layer drawn after the motion blur.
+    !!gpu.translucency?.late === drawsLateTranslucency(rt) &&
     gpu.allocatedSize[0] === size.renderWidth &&
     gpu.allocatedSize[1] === size.renderHeight &&
     gpu.displaySize[0] === size.width &&
@@ -112,6 +123,98 @@ export const targetAllocationOf = (rt: WebgpuPagesRuntime) => ({
   surfaceVersion: 1,
 })
 
+/** The maker of a texture of the render size under a label, or of another extent and usage. */
+const targetMaker =
+  (device: GPUDevice, width: number, height: number, usage: GPUTextureUsageFlags) =>
+  (
+    label: string,
+    format: GPUTextureFormat,
+    targetUsage = usage,
+    extent: GPUExtent3DDict = { width, height },
+  ) =>
+    device.createTexture({ label, size: extent, format, usage: targetUsage })
+
+type TargetMaker = ReturnType<typeof targetMaker>
+
+/** The display colour, the depth, the HDR target, the feedback, the surface buffer and the
+ *  responsive targets, at the render size. */
+function makeRenderTargets(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  size: FrameSize,
+  target: TargetMaker,
+  usage: GPUTextureUsageFlags,
+) {
+  const { gpu, vis } = rt,
+    { renderWidth: width, renderHeight: height } = size
+  gpu.colorTexture = makesDisplayColor(rt, size)
+    ? target('Trillion3D display color', DISPLAY_FORMAT)
+    : undefined
+  gpu.depthTexture = target(
+    'Trillion3D opaque depth',
+    DEPTH_FORMAT,
+    usage | GPUTextureUsage.COPY_DST,
+  )
+  // One of the two HDR targets that take turns, the other the reflection's (`createLitImage`).
+  gpu.hdrTexture = device.createTexture(hdrTargetDescriptor(width, height))
+  if (vis.writesFeedback) makeFeedbackTarget(rt, device, width, height)
+  gpu.surfaces = createSurfaceBuffer(device, width, height, {
+    subsurface: wantsSubsurface(rt),
+    emissiveAo: vis.writesEmissiveAo,
+    lobes: wantsPhysicalLobes(rt),
+  })
+  if (wantsResponsive(rt)) makeResponsive(rt, device, width, height)
+}
+
+/** The display's texture and the views of the display, depth and HDR targets. */
+function makeDisplayTargets(
+  rt: WebgpuPagesRuntime,
+  size: FrameSize,
+  target: TargetMaker,
+  usage: GPUTextureUsageFlags,
+) {
+  const { gpu } = rt
+  gpu.displayTexture = size.apart
+    ? target('Trillion3D display', DISPLAY_FORMAT, usage, {
+        width: size.width,
+        height: size.height,
+      })
+    : gpu.colorTexture!
+  gpu.displayView = gpu.displayTexture.createView()
+  // The display colour's view, the display's own: apart, none is made (`makesDisplayColor`).
+  gpu.colorView = gpu.colorTexture
+    ? size.apart
+      ? gpu.colorTexture.createView()
+      : gpu.displayView
+    : undefined
+  gpu.depthView = gpu.depthTexture!.createView()
+  gpu.hdrView = gpu.hdrTexture!.createView()
+}
+
+/** The backdrop, the translucency targets and the screen reflection, at the render size. */
+function makeBlendTargets(rt: WebgpuPagesRuntime, device: GPUDevice, size: FrameSize) {
+  const { gpu } = rt,
+    { renderWidth: width, renderHeight: height } = size
+  gpu.backdrop = createBackdrop(device, width, height, holdsRefraction(rt))
+  const late = drawsLateTranslucency(rt)
+  gpu.translucency = createTranslucency(
+    device,
+    width,
+    height,
+    drawsTranslucency(rt),
+    late ? lateImageSize(size) : undefined,
+  )
+  if (gpu.translucency.active) askComposePipelines(device)
+  if (late) askLatePipeline(device)
+  gpu.reflection = createScreenReflection(
+    device,
+    width,
+    height,
+    sceneBlends(rt),
+    rt.setup.reflectionStatistics,
+  )
+}
+
 /**
  * Makes the frame targets of `size` in the runtime's groups, which hold none: every pass up to the
  * temporal resolve draws at the render size, the targets' or below it; the history and the display
@@ -130,47 +233,10 @@ export function buildTargets(
     { renderWidth: width, renderHeight: height } = size
   const sampled = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     usage = sampled | GPUTextureUsage.COPY_SRC
-  const target = (
-    label: string,
-    format: GPUTextureFormat,
-    targetUsage = usage,
-    extent: GPUExtent3DDict = { width, height },
-  ) => device.createTexture({ label, size: extent, format, usage: targetUsage })
-  gpu.colorTexture = makesDisplayColor(rt, size)
-    ? target('Trillion3D display color', DISPLAY_FORMAT)
-    : undefined
-  gpu.depthTexture = target(
-    'Trillion3D opaque depth',
-    DEPTH_FORMAT,
-    usage | GPUTextureUsage.COPY_DST,
-  )
-  // One of the two HDR targets that take turns, the other the reflection's (`createRadiancePyramid`):
-  // the radiance pyramid's levels in its mips (`hdrTargetDescriptor`).
-  gpu.hdrTexture = device.createTexture(hdrTargetDescriptor(width, height))
-  if (vis.writesFeedback) makeFeedbackTarget(rt, device, width, height)
-  gpu.surfaces = createSurfaceBuffer(device, width, height, {
-    subsurface: wantsSubsurface(rt),
-    emissiveAo: vis.writesEmissiveAo,
-    lobes: wantsPhysicalLobes(rt),
-  })
-  if (wantsAsIsShare(rt)) makeAsIsShare(rt, device, width, height)
-  gpu.displayTexture = size.apart
-    ? target('Trillion3D display', DISPLAY_FORMAT, usage, {
-        width: size.width,
-        height: size.height,
-      })
-    : gpu.colorTexture!
-  gpu.displayView = gpu.displayTexture.createView()
-  // The display colour's view, the display's own: apart, none is made (`makesDisplayColor`).
-  gpu.colorView = gpu.colorTexture
-    ? size.apart
-      ? gpu.colorTexture.createView()
-      : gpu.displayView
-    : undefined
-  gpu.depthView = gpu.depthTexture.createView()
-  gpu.hdrView = hdrAttachmentView(gpu.hdrTexture)
-  gpu.backdrop = createBackdrop(device, width, height, holdsRefraction(rt))
-  gpu.reflection = createScreenReflection(device, width, height, sceneBlends(rt))
+  const target = targetMaker(device, width, height, usage)
+  makeRenderTargets(rt, device, size, target, usage)
+  makeDisplayTargets(rt, size, target, usage)
+  makeBlendTargets(rt, device, size)
   // Temporal history follows the display size, its render-resolution targets the render size.
   const allocationBytes = targetBytes + ensureTaaTargets(rt, size, aside)
   gpu.targetBytes = allocationBytes
@@ -178,7 +244,13 @@ export function buildTargets(
   // Drawn at the targets' whole size until an image's entry says its scale (`drawFrameAt`).
   gpu.targetSize = [width, height]
   gpu.displaySize = [size.width, size.height]
-  // Visibility targets too: one the device cannot make refuses the set, the mode kept.
-  vis.visTexture = target('Trillion3D visibility', 'r32uint', sampled | GPUTextureUsage.COPY_SRC)
+  // Visibility targets too: one the device cannot make refuses the set, the mode kept. The
+  // identifiers are written by the export of the visibility buffer, a compute pass
+  // (`../../visibility/raster/export.ts`).
+  vis.visTexture = target(
+    'Trillion3D visibility',
+    'r32uint',
+    sampled | GPUTextureUsage.COPY_SRC | GPUTextureUsage.STORAGE_BINDING,
+  )
   vis.visView = vis.visTexture.createView()
 }

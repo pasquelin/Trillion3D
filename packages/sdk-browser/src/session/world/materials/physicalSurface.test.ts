@@ -30,3 +30,34 @@ test('an undeclared anisotropy keeps its neutral defaults', () => {
   repaintHostSurface(surface, paint, 'faces')
   assert.deepEqual([surface.anisotropy, surface.anisotropyRotation], [0, 0])
 })
+
+test('a sheen above zero declares the cloth, a coat or a transmission takes the surface first', () => {
+  const paint = material.meshPhysical({ sheen: 1, sheenColor: 0xff0000, sheenRoughness: 0.4 }),
+    surface = hostSurface(paint)
+  assert.deepEqual([surface.sheen, surface.sheenRoughness, surface.sheenColor], [1, 0.4, [1, 0, 0]])
+  paint.clearcoat = 0.5
+  repaintHostSurface(surface, paint, 'faces')
+  assert.deepEqual([surface.sheen, surface.sheenRoughness, surface.sheenColor], [0, 0, [0, 0, 0]])
+  paint.clearcoat = 0
+  paint.transmission = 0.5
+  repaintHostSurface(surface, paint, 'faces')
+  assert.equal(surface.sheen, 0)
+  paint.transmission = 0
+  repaintHostSurface(surface, paint, 'faces')
+  assert.equal(surface.sheen, 1)
+})
+
+test('a sheen roughness alone declares no cloth', () => {
+  const surface = hostSurface(material.meshPhysical({ sheenRoughness: 0.4 }))
+  assert.deepEqual([surface.sheen, surface.sheenRoughness], [0, 0])
+})
+
+test('a declared specular, a zero too, makes the surface physical and reaches it; undeclared, none', () => {
+  const paint = material.meshPhysical({ specularIntensity: 0 }),
+    surface = hostSurface(paint)
+  assert.deepEqual([surface.family, surface.specularIntensity], ['physical', 0])
+  paint.specularIntensity = 0.75
+  repaintHostSurface(surface, paint, 'faces')
+  assert.equal(surface.specularIntensity, 0.75)
+  assert.equal(hostSurface(material.meshPhysical()).specularIntensity, undefined)
+})

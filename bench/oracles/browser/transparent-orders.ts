@@ -27,18 +27,18 @@ const PIPELINE_NONE = 0,
   PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2
 
-/** `packages/sdk-browser/src/blend/plan/plan.ts` from before: the two entries of a double-sided item, back then front.
+/** `packages/sdk-browser/src/blend/plan/plan.ts` from before: the two entries of a double-sided item that asks two passes, back then front.
  *  The item carries the engine's surface record where it carried a host material; the three
  *  host face constants this copy tested are that record's side, one for one —
  *  `DoubleSide` is `'double'`, `BackSide` is `'back'`, `FrontSide` is `'front'`. Nothing else
- *  of the copy moved: a double-sided item drawn in ONE pass falls through all three tests and
- *  plans `PIPELINE_NONE`, as it did. */
+ *  of the copy moved: a double-sided item drawn in ONE pass (`twoSidedPasses` false) falls through
+ *  all three tests and plans `PIPELINE_NONE`, as it did. */
 function sidesOf(item: BlendGpuItem) {
   const surface = item.surface
   const renverse = matrixWindingCw(item.matrix.elements)
   const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
     back = renverse ? PIPELINE_BACK : PIPELINE_FRONT
-  if (surface.side === 'double' && !surface.forceSinglePass) return [back, front]
+  if (surface.side === 'double' && surface.twoSidedPasses) return [back, front]
   if (surface.side === 'front') return [front]
   if (surface.side === 'back') return [back]
   return [PIPELINE_NONE]

@@ -1,5 +1,4 @@
 import type { CookedInstance } from '../../../../sdk-core/src/physics/cooked.ts'
-import { fits } from '../soft/softBodies.ts'
 import { tilePose, type Model } from '../tiles/tilePlace.ts'
 
 /** Where a body's node now puts it: its world place, turn and scale. */
@@ -17,6 +16,13 @@ export type Following<M> = {
   remake(one: M, scale: number[]): M | null
   place(one: M, pose: Pose): void
 }
+
+/** How far, relatively, a body's world scale may stray from the one it was made at. */
+const SCALE_TOLERANCE = 1e-4
+const near = (s: number, at: number) => Math.abs(s - at) <= SCALE_TOLERANCE * Math.abs(at)
+/** Whether `scale`, a body's world scale, is `at`, the one it was made (or cooked) at. */
+export const fits = (scale: { x: number; y: number; z: number }, at: ArrayLike<number>) =>
+  near(scale.x, at[0]) && near(scale.y, at[1]) && near(scale.z, at[2])
 
 /**
  * THE ONE RESCALE RULE, every body's — a page's, a compiled model's, rigid or soft —: a body

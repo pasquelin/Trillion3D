@@ -9,7 +9,7 @@ import assert from 'node:assert/strict'
 import { createDeferredLighting } from './deferred.ts'
 import { recorder } from './recorder.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
+import { litPassShaders } from '../../gpu/core/shaderTexts.fixture.ts'
 import { functionsOf, reachedFunctions } from '../../materials/texture/shaderRule.fixture.ts'
 
 /** The rectangle branch of the light loop: its term, the one the loop reads (every pixel sums its
@@ -22,15 +22,16 @@ test('the rectless program runs the full one less its rectangle branch', () => {
     [true, true, true],
     [false, false, false],
   ] as const) {
-    const full = contractLightingShader(bounce, { narrow, unshadowed: !shadowed, lobeless: true })
-    const rectless = contractLightingShader(bounce, {
+    // The local lights' pass, the one that holds the rectangles (the sun's holds none).
+    const full = litPassShaders(bounce, { narrow, unshadowed: !shadowed, lobeless: true }).local
+    const rectless = litPassShaders(bounce, {
       narrow,
       unshadowed: !shadowed,
       rectless: true,
       lobeless: true,
-    })
+    }).local
     assert.match(full, RECT_TERM)
-    const ran = (code: string) => reachedFunctions(code, ['lightSurface'], {})
+    const ran = (code: string) => reachedFunctions(code, ['localMain'], {})
     assert.equal(ran(full.replace(RECT_TERM, '')), ran(rectless))
     // No other call reaches the rectangle's shading from the loop, nor is it declared.
     assert.doesNotMatch(functionsOf(rectless, ['declaredLight']), /rectLight\(|rectIrradiance\(/)
@@ -53,10 +54,6 @@ test('a scene with no rectangle is lit by the rectless program, one with a recta
   frame(true)
   frame(false)
   frame(true)
-  assert.deepEqual(labels(), [
-    'DIRECT_RECTLESS_LIGHTING',
-    'DIRECT_LIGHTING',
-    'DIRECT_RECTLESS_LIGHTING',
-  ])
+  assert.deepEqual(labels(), ['DIRECT_RECTLESS', 'DIRECT', 'DIRECT_RECTLESS'])
   lighting.dispose()
 })

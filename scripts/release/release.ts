@@ -12,7 +12,7 @@ import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Run } from './installed-package/contracts.ts'
 import { packRelease, publishRelease } from './release-packages.ts'
-import { runChecked } from '../test/run.ts'
+import { runChecked } from '../check/run.ts'
 import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 
 const [step, folder] = process.argv.slice(2)

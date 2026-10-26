@@ -1,7 +1,6 @@
 import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 import type { BlendCopy } from '../geometry/cluster/blendCopyContract.ts'
-import type { BlendHostScene } from '../geometry/cluster/blendSceneRecord.ts'
 import { refreshBlendBounds } from './worlds.ts'
 import { FLAG_TRANSMISSIVE } from '../visibility/types.ts'
 import { emptyGeometryBlock } from '../geometry/rows/page/pageRowMaterial.ts'
@@ -20,7 +19,6 @@ import {
 export function prepareWebgpuBlend(
   blendCopies: readonly BlendCopy[],
   blendState: WebgpuBlendState,
-  scene: BlendHostScene,
 ) {
   let transmissive = blendState.transmissive
   for (const copy of blendCopies) {
@@ -29,7 +27,6 @@ export function prepareWebgpuBlend(
     refreshBlendBounds(item)
     blendState.blendGpu.push(item)
     if (copy.placement) copy.placement.rows.blended = true
-    scene.remove(copy)
   }
   return transmissive
 }
@@ -45,13 +42,14 @@ function blendItemOf(copy: BlendCopy) {
   const transmits = mat.transmission > 0
   return {
     transmissive: transmits,
+    water: mat.water === true,
     surface: mat,
     priority: sortPriority(copy.renderOrder),
     matrix: copy.matrix,
     placement: copy.placement,
-    drawSource: copy.userData.drawSource,
+    drawSource: copy.drawSource,
     sourceGeometry: copy.geometry,
-    pageBox: copy.userData.localBox,
+    pageBox: copy.localBox,
     worldBox: blendWorldBox(copy),
     bounds: undefined as Float64Array | undefined,
     geometry: blendGeometry(copy),
@@ -67,7 +65,7 @@ const sortPriority = (order: number) => clamp(Math.trunc(order), -0x8000, 0x7fff
  *  quantized pages carry (`pageFlags`), else its source geometry's. A page that stores no tangent
  *  (`FLAG_TANGENT`) leaves the fragment stage to rebuild the frame, as the opaque resolve does. */
 const blendGeometry = (copy: BlendCopy) => {
-  const flags = copy.userData.pageFlags
+  const flags = copy.pageFlags
   if (flags !== undefined)
     return {
       ...emptyGeometryBlock(),
@@ -95,8 +93,8 @@ const blendGeometry = (copy: BlendCopy) => {
  * decomposition. A surface never culled (`neverCulled`) takes none either.
  */
 function blendWorldBox(copy: BlendCopy) {
-  if (!copy.frustumCulled || neverCulled(copy.surface)) return undefined
-  if (copy.userData.localBox) return new Float64Array(BOX_VALUES)
+  if (neverCulled(copy.surface)) return undefined
+  if (copy.localBox) return new Float64Array(BOX_VALUES)
   if (!copy.geometry.boundingBox) copy.geometry.computeBoundingBox()
   return copy.geometry.boundingBox ? new Float64Array(BOX_VALUES) : undefined
 }

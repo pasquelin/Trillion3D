@@ -6,6 +6,9 @@ import {
   PAGE_HEADER_WORDS,
   PAGE_SLOT_WORDS,
   PAGE_TRANSFORM_WORD,
+  SLOT_BIAS_SHIFT,
+  SLOT_BIAS_STEPS,
+  slotHeader,
 } from './pageTable.ts'
 import { SAMPLE_MAG_NEAREST, SAMPLE_TRANSFORMED } from '../../texture/sampling.ts'
 import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
@@ -187,4 +190,21 @@ test("a texture's sampling rides in its header, and only the words that moved ar
   table.setSampling(2, map)
   table.flush(device)
   assert.deepEqual(words(writes), [[transform + 4, 1]], 'an offset alone sends its word')
+})
+
+test('the residency bias of a texture is in sixteenths of a level above its first tail level, written once and sent with the next flush', () => {
+  const { device, writes } = fakeDevice()
+  const table = createWebgpuTilePageTable(device, layouts(), { kind: 'color', feedbackOffset: 0 })
+  table.flush(device)
+  writes.length = 0
+  const word = slotHeader(1) + 1,
+    tail = table.words[word]
+  table.setSlotBias(1, 1.5)
+  table.setSlotBias(1, 1.5)
+  table.flush(device)
+  assert.equal(table.words[word], tail | ((1.5 * SLOT_BIAS_STEPS) << SLOT_BIAS_SHIFT))
+  assert.equal(writes.length, 1, 'one write: the same bias twice moves nothing')
+  assert.equal(words(writes)[0][0], word)
+  table.flush(device)
+  assert.equal(writes.length, 1, 'nothing moved since')
 })

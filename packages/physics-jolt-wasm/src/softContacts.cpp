@@ -28,6 +28,9 @@ struct Touch {
 
 SoftBodyValidateResult Listener::OnSoftBodyContactValidate(const Body &soft, const Body &other,
                                                            SoftBodyContactSettings &settings) {
+  // Bodies that overlap by their filters pass through each other: a sensor's contact.
+  if (takenLayers(soft.GetObjectLayer(), other.GetObjectLayer()) == Meeting::Overlap)
+    settings.mIsSensor = true;
   // A sensor meets a soft body for its events alone: none wanted, it is passed by, as with no
   // listener. The static body its pins hang inside is passed through: it would push the cloth
   // near them out against them at every step (`hangsOn`). Any other body collides as Jolt makes it.
@@ -78,8 +81,9 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
     // Estimated before the solver, as a rigid pair's: the soft body's mean velocity (its last
     // step's) against the other's at the point, which no soft body pushed yet, along the vertices'
     // mean normal, over the inverse mass the touch feels there: the vertices' as one lump, the
-    // other body's turned about its centre of mass (a vertex against a body), bounced back past the soft restitution speed `2 g dt`
-    // a substep.
+    // other body's turned about its centre of mass (a vertex against a body), bounced back past
+    // the page's restitution speed. The soft solver keeps its own bounce speed: this estimate is
+    // the page's, not what the solver applies.
     float impulse = 0;
     BodyLockRead other(locks, t.id);
     if (other.Succeeded() && t.count > 0) {
@@ -87,13 +91,10 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
       Vec3 normal = com.Multiply3x3(t.normal).NormalizedOr(Vec3::sZero());
       Vec3 relative = soft.GetLinearVelocity() - b.GetPointVelocity(RVec3(point));
       Vec3 arm = Vec3(RVec3(point) - b.GetCenterOfMassPosition()).Cross(normal);
-      // Jolt's soft solver bounces past `2 g` times its substep (`SoftBodyMotionProperties`), as
-      // the rigid one past its own restitution speed.
-      const float k[MANIFOLD_POINTS][MANIFOLD_POINTS] = {{1.0f / t.mass + inverseMassAlong(b, arm)}};
+      // One point: the impulse that stops the (bounced) approach is `max(0, v) / k`.
+      float k = 1.0f / t.mass + inverseMassAlong(b, arm);
       float restitution = world().system->GetCombineRestitution()(soft, SubShapeID(), b, SubShapeID());
-      float substep = world().fixedStep / float(static_cast<const SoftBodyMotionProperties *>(soft.GetMotionProperties())->GetNumIterations());
-      const float speed[MANIFOLD_POINTS] = {bounced(relative.Dot(normal), restitution, 2 * world().system->GetGravity().Length() * substep)};
-      impulse = normalImpulse(1, speed, k);
+      impulse = std::max(0.0f, bounced(relative.Dot(normal), restitution, world().restitutionSpeed)) / k;
     }
     Float3 at;
     point.StoreFloat3(&at);

@@ -9,27 +9,18 @@ import {
   reply,
   staticServer,
   type Mount,
-} from '../../../scripts/test/static-server.ts'
+} from '../../../scripts/check/static-server.ts'
 
 const TYPESCRIPT = /\.m?ts$/
 
 /** One RGBA capture the page posted, or `null` when its byte count did not match `w × h × 4`. */
 export type Capture = { body: Buffer; w: number; h: number } | null
 
-/** The bare specifiers every harness page resolves. `three` and `three/webgpu` are one build, the
- *  library's WebGPU one, so that its loaders and its renderer share one copy of the library. */
-const LIBRARIES = {
-  three: '/vendor/three/build/three.webgpu.js',
-  'three/webgpu': '/vendor/three/build/three.webgpu.js',
-  'three/addons/': '/vendor/three/examples/jsm/',
-  meshoptimizer: '/vendor/meshoptimizer/index.module.js',
-}
-
-/** The harness page: an import map — the libraries, then `imports` — and nothing else. Everything
+/** The harness page: an import map of `imports` and nothing else. Everything
  *  else comes from `evaluate`. */
 const page = (imports: Record<string, string>) =>
   `<!doctype html><meta charset="utf-8"><title>Trillion3D measurement bench</title>
-<script type="importmap">${JSON.stringify({ imports: { ...LIBRARIES, ...imports } })}</script>
+<script type="importmap">${JSON.stringify({ imports })}</script>
 <style>html,body{margin:0;background:#2a303c}</style>
 `
 

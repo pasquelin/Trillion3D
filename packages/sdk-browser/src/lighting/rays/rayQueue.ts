@@ -71,6 +71,112 @@ function intersectionOf(rt: WebgpuPagesRuntime, ask: Ask, hit: ReturnType<typeof
   } satisfies Intersection
 }
 
+/** Every ask of `batch` settles to the intersection its hit names, or to none without `hits`. */
+function settleAll(rt: WebgpuPagesRuntime, batch: readonly Ask[], hits?: ArrayBuffer) {
+  const words = hits && new Uint32Array(hits),
+    floats = hits && new Float32Array(hits)
+  batch.forEach((ask, k) =>
+    ask.settle(words ? intersectionOf(rt, ask, readHit(words, floats!, k * RAY_HIT.words)) : null),
+  )
+}
+
+/** The ring of staging buffers the hits come back through. */
+function createBatchRing(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  flying: Set<Batch>,
+  schedule: () => void,
+): ReadbackRing<Batch> {
+  return createReadbackRing<Batch>(
+    device,
+    {
+      label: 'Trillion3D ray hits',
+      bytes: BATCH_RAYS * RAY_HIT.words * 4,
+      count: RING_BUFFERS,
+      // Each batch's mapping, awaited behind the device's verdict on it: a refused one answers no hit.
+      chain: (read, batch) =>
+        void batch.judged
+          .then(read)
+          .catch(() => settleAll(rt, batch.asks))
+          .finally(() => (flying.delete(batch), schedule())),
+    },
+    // A refused command buffer copied nothing: its staging buffer's words are another batch's.
+    (mapped, _staging, batch) => settleAll(rt, batch.asks, batch.refused ? undefined : mapped),
+  )
+}
+
+/** What the queue holds between ticks. */
+interface QueueState {
+  readonly rt: WebgpuPagesRuntime
+  readonly device: GPUDevice
+  readonly asks: Ask[]
+  readonly flying: Set<Batch>
+  readonly query: RayQuery
+  readonly records: ReturnType<typeof createRayRecords>
+  readonly ring: ReadbackRing<Batch>
+  readonly schedule: () => void
+  readonly refused: (error: unknown) => void
+}
+
+/** The kernels refused: every ray waiting answers none, and the device's reason is said. */
+function kernelsRefused(q: QueueState, error: unknown) {
+  log.error(`${RAY_QUERY_PASS} kernels refused:`, error)
+  settleAll(q.rt, q.asks.splice(0))
+}
+
+/** The device's verdict on a batch's command buffer, once its validation scope closed. */
+function judgeBatch(
+  q: QueueState,
+  batch: Batch,
+  staging: GPUBuffer,
+  sources: NonNullable<ReturnType<typeof raySourcesOf>>,
+  judge: () => void,
+) {
+  const { rt, device, query, ring, flying, schedule } = q
+  // In a validation scope: a batch the device refuses says why and answers no hit.
+  void validationScope(device, () => {
+    const encoder = device.createCommandEncoder({ label: RAY_QUERY_PASS })
+    const hits = query.encode(encoder, sources, packBatch(batch.asks))
+    encoder.copyBufferToBuffer(hits.buffer, hits.offset, staging, 0, hits.bytes)
+    device.queue.submit([encoder.finish()])
+    flying.add(batch)
+    ring.submitted(staging)
+    schedule()
+  })
+    .then(
+      ({ error }) => {
+        batch.refused = error !== null
+        if (error) log.error(`${RAY_QUERY_PASS} refused: ${error.message}`)
+      },
+      // A device that refuses the batch — lost under it — answers none of its rays.
+      () => {
+        batch.refused = true
+        ring.dropped(staging)
+        settleAll(rt, batch.asks)
+      },
+    )
+    .finally(judge)
+}
+
+/** Traces the rays waiting, up to a batch of them, in one dispatch. */
+function flushQueue(q: QueueState) {
+  const { rt, asks, query, records, ring } = q
+  if (!asks.length) return
+  const sources = raySourcesOf(rt, records)
+  if (!sources) return settleAll(rt, asks.splice(0))
+  if (!query.compiled(q.schedule, q.refused)) return
+  const { promise: judged, resolve: judge } = createDeferred<void>()
+  const batch: Batch = {
+    asks: asks.splice(0, BATCH_RAYS),
+    judged,
+    refused: false,
+  }
+  const staging = ring.take(batch, batch.asks.length * RAY_HIT.words * 4)
+  // Every staging buffer in flight: the batch waits, and a landing calls the queue again.
+  if (!staging) return void asks.unshift(...batch.asks)
+  judgeBatch(q, batch, staging, sources, judge)
+}
+
 /**
  * THE RAYS CAST AT ONE SESSION'S ENGINE (`Engine.castRay`): each ray is queued with its promise, and
  * the queue is traced at the next tick, every ray of it in one dispatch of a command buffer of its
@@ -83,79 +189,20 @@ function intersectionOf(rt: WebgpuPagesRuntime, ask: Ask, hit: ReturnType<typeof
 export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const asks: Ask[] = [],
     flying = new Set<Batch>()
-  const query: RayQuery = createRayQuery(device),
-    records = createRayRecords(rt)
-  const settleAll = (batch: readonly Ask[], hits?: ArrayBuffer) => {
-    const words = hits && new Uint32Array(hits),
-      floats = hits && new Float32Array(hits)
-    batch.forEach((ask, k) =>
-      ask.settle(
-        words ? intersectionOf(rt, ask, readHit(words, floats!, k * RAY_HIT.words)) : null,
-      ),
-    )
-  }
-  const turn = microtaskOnce(flush)
+  const turn = microtaskOnce(() => flushQueue(q))
   const schedule = () => {
     if (asks.length) turn.schedule()
   }
-  const ring: ReadbackRing<Batch> = createReadbackRing<Batch>(
+  const q: QueueState = {
+    rt,
     device,
-    {
-      label: 'Trillion3D ray hits',
-      bytes: BATCH_RAYS * RAY_HIT.words * 4,
-      count: RING_BUFFERS,
-      // Each batch's mapping, awaited behind the device's verdict on it: a refused one answers no hit.
-      chain: (read, batch) =>
-        void batch.judged
-          .then(read)
-          .catch(() => settleAll(batch.asks))
-          .finally(() => (flying.delete(batch), schedule())),
-    },
-    // A refused command buffer copied nothing: its staging buffer's words are another batch's.
-    (mapped, _staging, batch) => settleAll(batch.asks, batch.refused ? undefined : mapped),
-  )
-  function flush() {
-    if (!asks.length) return
-    const sources = raySourcesOf(rt, records)
-    if (!sources) return settleAll(asks.splice(0))
-    if (!query.compiled(schedule, refused)) return
-    const { promise: judged, resolve: judge } = createDeferred<void>()
-    const batch: Batch = {
-      asks: asks.splice(0, BATCH_RAYS),
-      judged,
-      refused: false,
-    }
-    const staging = ring.take(batch, batch.asks.length * RAY_HIT.words * 4)
-    // Every staging buffer in flight: the batch waits, and a landing calls the queue again.
-    if (!staging) return void asks.unshift(...batch.asks)
-    // In a validation scope: a batch the device refuses says why and answers no hit.
-    void validationScope(device, () => {
-      const encoder = device.createCommandEncoder({ label: RAY_QUERY_PASS })
-      const hits = query.encode(encoder, sources, packBatch(batch.asks))
-      encoder.copyBufferToBuffer(hits.buffer, hits.offset, staging, 0, hits.bytes)
-      device.queue.submit([encoder.finish()])
-      flying.add(batch)
-      ring.submitted(staging)
-      schedule()
-    })
-      .then(
-        ({ error }) => {
-          batch.refused = error !== null
-          if (error) log.error(`${RAY_QUERY_PASS} refused: ${error.message}`)
-        },
-        // A device that refuses the batch — lost under it — answers none of its rays.
-        () => {
-          batch.refused = true
-          ring.dropped(staging)
-          settleAll(batch.asks)
-        },
-      )
-      .finally(judge)
-  }
-  /** The kernels refused: every ray waiting answers none, and the device's reason is said. */
-  function refused(error: unknown) {
-    log.error(`${RAY_QUERY_PASS} kernels refused:`, error)
-    settleAll(asks.splice(0))
+    asks,
+    flying,
+    query: createRayQuery(device),
+    records: createRayRecords(rt),
+    ring: createBatchRing(rt, device, flying, schedule),
+    schedule,
+    refused: (error) => kernelsRefused(q, error),
   }
   return {
     /** The nearest drawn triangle `ray` meets within `reach` — or line it passes within
@@ -184,14 +231,14 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
     },
     /** Packed page `page`, its primitive page's least rank, took a slot, moved or left the pool:
      *  its record reads it again on the cache (`rayRecords.ts`). */
-    moved: records.moved,
+    moved: q.records.moved,
     /** Every ray cast answers none, and the queue's buffers are given back. */
     dispose() {
-      settleAll(asks.splice(0))
-      for (const batch of flying) settleAll(batch.asks)
+      settleAll(rt, asks.splice(0))
+      for (const batch of flying) settleAll(rt, batch.asks)
       flying.clear()
-      ring.destroy()
-      query.dispose()
+      q.ring.destroy()
+      q.query.dispose()
     },
   }
 }

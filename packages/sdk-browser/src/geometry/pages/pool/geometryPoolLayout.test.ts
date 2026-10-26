@@ -26,7 +26,6 @@ const FLOAT_ATLAS_ROWS = GUARANTEED_SIDE,
 const floatAtlasExtent = (floats: number) =>
   createFloatAtlas(fakeDevice().device, 'extent', floats).extent
 import { uvBufferFloats } from '../../../gpu/core/vertexColors.ts'
-import type { HostAttributes } from '../../../session/host/resources.ts'
 
 /** A triangle whose every normal and tangent component differs. */
 function triangle() {
@@ -37,7 +36,7 @@ function triangle() {
     G.floatAttribute([0.1, 0.2, 0.9, 0.3, 0.4, 0.8, 0.5, 0.6, 0.7], 3),
   )
   geometry.setAttribute('tangent', G.floatAttribute([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], 4))
-  return geometry.attributes as unknown as HostAttributes
+  return geometry.attributes as unknown as Geometry['attributes']
 }
 type Vertex = {
   vertN: (base: number, idx: number) => Vec

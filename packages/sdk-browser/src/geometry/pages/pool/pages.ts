@@ -10,6 +10,7 @@ import { createEviction } from './eviction.ts'
 import { createPlacement, NO_ROOT_SLOTS, type RootSlots } from './placement.ts'
 import { createResidencyLog } from './residencyLog.ts'
 import type { ResidentPage, GpuPageContext } from './types.ts'
+import { lazyInstaller } from '../install/installer.ts'
 /** How a GPU page cache is sized and where it reports (`createGpuPageCache`). */
 export type GpuPageCacheOptions = {
   /** The bytes of one slot, the widest streaming page's: a multiple of four. */
@@ -54,10 +55,12 @@ export function createGpuPageCache(
   const load = createGpuPageLoader(context, pinning.pin)
   const { resident, state } = context
   return {
-    /** The pool buffer: a new identity after `resize`, to be rebound. */
+    /** The pool buffer: a new identity after `resize`. */
     get buffer() {
       return context.buffer
     },
+    /** Settles once the install passes are compiled; rejects when the device refuses one. */
+    prepare: () => context.install.prepare(),
     load,
     /**
      * Changes the pool size while keeping its pages, behind in-flight loads: nothing is written
@@ -100,6 +103,22 @@ export function createGpuPageCache(
   }
 }
 
+/** The cache is still open, else the refusal said and thrown; `signal` not aborted. */
+function checkOpen(
+  state: { disposed: boolean },
+  reader: ReturnType<typeof createGpuPageReader>,
+  signal?: AbortSignal,
+) {
+  if (state.disposed) {
+    reader.emit?.('gpu-page-error', 'Operation refused after dispose', () => ({
+      version: 1,
+      error: 'PAGE_CACHE_DISPOSED',
+    }))
+    throw new Error('PAGE_CACHE_DISPOSED')
+  }
+  signal?.throwIfAborted()
+}
+
 /** The pool's buffer, its bookkeeping and its reader, the catalogue announced. */
 function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCacheOptions) {
   const { pageBytes, slots, homes, units } = options
@@ -118,8 +137,7 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     evictions: 0,
   }
   const reader = createGpuPageReader(source, pageBytes, options.onDiagnostic)
-  const { emit } = reader
-  emit?.('gpu-page-catalogue', 'GPU cache configured', () => ({
+  reader.emit?.('gpu-page-catalogue', 'GPU cache configured', () => ({
     version: 1,
     pageBytes,
     slots,
@@ -129,16 +147,6 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     source: 'host-page-source',
     drawDetached: false,
   }))
-  const check = (signal?: AbortSignal) => {
-    if (state.disposed) {
-      emit?.('gpu-page-error', 'Operation refused after dispose', () => ({
-        version: 1,
-        error: 'PAGE_CACHE_DISPOSED',
-      }))
-      throw new Error('PAGE_CACHE_DISPOSED')
-    }
-    signal?.throwIfAborted()
-  }
   const resident = new Map<string, ResidentPage>()
   const eviction = createEviction(resident)
   const placement = createPlacement({
@@ -154,6 +162,7 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     homes,
     units,
     buffer,
+    install: lazyInstaller(device, () => context.buffer),
     resident,
     cover,
     rootUrls,
@@ -163,7 +172,7 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     placement,
     changes: createResidencyLog(),
     reader,
-    check,
+    check: (signal) => checkOpen(state, reader, signal),
   }
   return context
 }

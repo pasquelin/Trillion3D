@@ -2,9 +2,21 @@ import type { GraphNode } from '../../../../sdk-core/src/world/material/graph/gr
 import type { NodeKind } from '../../../../sdk-core/src/world/material/graph/nodeSpecs.ts'
 import { missingInput } from '../../../../sdk-core/src/world/material/graph/validate.ts'
 import { graphError } from '../../../../sdk-core/src/world/material/graph/valueType.ts'
-import { arithmetic, clamp, extreme, lerp, power, saturate, type Operator } from './arith.ts'
+import {
+  arctangent2,
+  arithmetic,
+  clamp,
+  extreme,
+  lerp,
+  power,
+  remainder,
+  saturate,
+  type Operator,
+} from './arith.ts'
 import { ifValue } from './choose.ts'
-import { constantOf, type Value } from './value.ts'
+import { cameraVector, pixelNormal } from './nodesInput.ts'
+import { single } from './fold.ts'
+import { coerce, constantOf, type Value } from './value.ts'
 import type { State } from './state.ts'
 import {
   append,
@@ -36,10 +48,10 @@ const pick =
   (s, n) =>
     extreme(s.e, which, s.inputOr(n, 'a', 'constA'), s.inputOr(n, 'b', 'constB'))
 const each =
-  (fn: ComponentFunction): Handler =>
+  (fn: ComponentFunction, input = 'input'): Handler =>
   (s, n) =>
-    componentwise(s.e, fn, need(s, n, 'input'))
-const twoPi = (period: number) => Math.fround((2 * Math.fround(Math.PI)) / period)
+    componentwise(s.e, fn, need(s, n, input))
+const twoPi = (period: number) => single((2 * single(Math.PI)) / period)
 
 /** A sine or cosine: the input is in turns of the period when it is above 0, radians otherwise. */
 const wave =
@@ -72,6 +84,50 @@ function ifNode(s: State, n: GraphNode) {
   })
 }
 
+/** The least base a fresnel's power takes: the facing of a normal longer than 1 passes 1 and the
+ *  base goes negative, which its absolute value brings back; this keeps it off zero. */
+const FRESNEL_FLOOR = 1e-4
+
+/** How much of the reflectance a surface seen edge on keeps: the facing of the normal to the camera,
+ *  brought to the power `exponent`, scaled into the range from `baseReflectFraction` to 1. */
+function fresnel(s: State, n: GraphNode) {
+  const e = s.e
+  const normal = s.input(n, 'normal') ?? pixelNormal(s, n)
+  const facing = extreme(e, 'max', constantOf('flex', [0]), dot(e, normal, cameraVector(s, n)))
+  const edge = arithmetic(e, '-', constantOf('flex', [1]), facing)
+  const base = extreme(
+    e,
+    'max',
+    componentwise(e, COMPONENT_FUNCTIONS.abs, edge),
+    constantOf('flex', [FRESNEL_FLOOR]),
+  )
+  const reflect = s.inputOr(n, 'baseReflectFraction', 'constBaseReflectFraction')
+  const scale = arithmetic(e, '-', constantOf('flex', [1]), reflect)
+  const lit = power(e, base, s.inputOr(n, 'exponent', 'constExponent'))
+  return arithmetic(e, '+', arithmetic(e, '*', lit, scale), reflect)
+}
+
+/** A colour towards the grey of its luminance by the fraction, or the grey alone (a scalar) where
+ *  no fraction is wired. */
+function desaturation(s: State, n: GraphNode) {
+  const colour = coerce(need(s, n, 'input'), 'f3')
+  const grey = dot(s.e, colour, constantOf('f3', n.props.luminance as number[]))
+  const fraction = s.input(n, 'fraction')
+  return fraction ? lerp(s.e, colour, grey, fraction) : grey
+}
+
+/** `input` spread from the pivot by the amount. */
+function contrast(s: State, n: GraphNode) {
+  const pivot = s.inputOr(n, 'pivot', 'constPivot')
+  const spread = arithmetic(
+    s.e,
+    '*',
+    arithmetic(s.e, '-', need(s, n, 'input'), pivot),
+    s.inputOr(n, 'amount', 'constAmount'),
+  )
+  return arithmetic(s.e, '+', spread, pivot)
+}
+
 const pinPair =
   (fn: (s: State, a: Value, b: Value) => Value): Handler =>
   (s, n) =>
@@ -92,6 +148,17 @@ export const MATH_HANDLERS: Partial<Record<NodeKind, Handler>> = {
   frac: each(COMPONENT_FUNCTIONS.frac),
   sine: wave(COMPONENT_FUNCTIONS.sine),
   cosine: wave(COMPONENT_FUNCTIONS.cosine),
+  tangent: wave(COMPONENT_FUNCTIONS.tangent),
+  arctangent2: (s, n) => arctangent2(s.e, need(s, n, 'y'), need(s, n, 'x')),
+  fmod: pinPair((s, a, b) => remainder(s.e, a, b)),
+  sqrt: each(COMPONENT_FUNCTIONS.sqrt),
+  exp: each(COMPONENT_FUNCTIONS.exp),
+  exp2: each(COMPONENT_FUNCTIONS.exp2),
+  log: each(COMPONENT_FUNCTIONS.log),
+  log2: each(COMPONENT_FUNCTIONS.log2, 'x'),
+  log10: each(COMPONENT_FUNCTIONS.log10, 'x'),
+  sign: each(COMPONENT_FUNCTIONS.sign),
+  round: each(COMPONENT_FUNCTIONS.round),
   saturate: (s, n) => saturate(s.e, need(s, n, 'input')),
   oneMinus: (s, n) => arithmetic(s.e, '-', constantOf('flex', [1]), need(s, n, 'input')),
   clamp: clampNode,
@@ -112,4 +179,7 @@ export const MATH_HANDLERS: Partial<Record<NodeKind, Handler>> = {
     return mask(s.e, need(s, n, 'input'), letters)
   },
   if: ifNode,
+  fresnel,
+  desaturation,
+  contrast,
 }

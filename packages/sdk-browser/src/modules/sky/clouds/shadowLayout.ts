@@ -77,16 +77,24 @@ export function cloudShadowSizes(
 export interface CloudShadowImage {
   readonly frame: CloudShadowFrame
   readonly side: number
-  readonly temporal: CloudShadowTemporal
+  /** The traced side and the scale and offset of its pixels: all a trace reads of the filter's plan. */
+  readonly temporal: Pick<CloudShadowTemporal, 'tracedSide' | 'pixel'>
   readonly time: number
   readonly planetRadiusKm: number
 }
+
+/** What a trace reads of the light whose map it is: the weight on the map's extinction and optical
+ *  depth, and the bias added to the front depth (the sky occlusion map's has none). */
+type CloudShadowTraceLight = Pick<
+  CloudShadowLight,
+  'cloudShadowStrength' | 'cloudShadowDepthBiasKm'
+>
 
 /** The block of a light's trace into `out` (`CLOUD_SHADOW_LAYOUT.words` floats). */
 export function writeCloudShadowTrace(
   out: Float32Array,
   image: CloudShadowImage,
-  light: CloudShadowLight,
+  light: CloudShadowTraceLight,
   part: CloudPart,
 ) {
   const { at } = CLOUD_SHADOW_LAYOUT

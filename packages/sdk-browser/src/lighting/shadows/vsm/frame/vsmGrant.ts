@@ -14,12 +14,20 @@ import {
   type Refusal,
 } from '../../../../gpu/core/refusal.ts'
 import { noteShadowPressure } from '../../casters/memoryGrant.ts'
-import { createEngineVsm, destroyEngineVsm, type EngineVsm } from './engineVsm.ts'
-import { engineVsmOptions, fullMapsFor, sunMapsFor, vsmPoolAsked } from './vsmLightMaps.ts'
+import { createEngineVsm, destroyEngineVsm, releaseEngineVsm, type EngineVsm } from './engineVsm.ts'
+import {
+  engineVsmOptions,
+  fullMapsFor,
+  mapSlotsPastOf,
+  sunMapsFor,
+  vsmDynamicHzbAsked,
+  vsmOcclusionAsked,
+  vsmPoolAsked,
+} from './vsmLightMaps.ts'
 import { vsmLayout, type VsmResourceOptions } from '../layout.ts'
 import { vsmResourceBytes } from '../layoutBytes.ts'
 import { vsmPoolDraw, vsmPoolFloor, vsmPoolWithin } from '../poolDraw.ts'
-import { bytesBeside, heldBeside } from './vsmBeside.ts'
+import { bytesBeside, heldListBytes } from './vsmBeside.ts'
 
 /** What every reason this module gives the lights for reading no shadow starts with. */
 const UNAVAILABLE = 'virtual shadow maps'
@@ -46,7 +54,8 @@ export type VsmRefusal = Refusal & {
  * asked; its fill then raises the resolution bias as the asked pool's does
  * (`VsmCacheManager.readPoolFeedback`). When none fits, the lights read no shadow, by name
  * (`pool-refused`), until the room holds the smallest pool or the lights change; when the device
- * refuses even the eighth, until its refusal's wait ends or the lights change.
+ * refuses even the eighth, until its refusal's wait ends or the lights change. `mapSlotsAsked`
+ * the map slots the lights' demand needs in all, when it passes the replaced set's.
  */
 export function grantEngineVsm(
   rt: WebgpuPagesRuntime,
@@ -55,37 +64,39 @@ export function grantEngineVsm(
   fullMapCapacity: number,
   pagesAsked?: number,
   grownFrom = 0,
+  mapSlotsAsked = 0,
 ) {
-  const { lights, diag } = rt
+  const { lights } = rt
   const poolAsked = vsmPoolAsked(rt)
   pagesAsked ??= poolAsked
-  const held = heldBeside(lights.vsm)
-  if (lights.vsm) destroyEngineVsm(lights.vsm)
-  lights.vsm = undefined
+  const heldLists = heldListBytes(lights.vsm)
+  // The map slots the lights asked of the set it replaces stay asked.
+  const heldSlotsPast = lights.vsm ? mapSlotsPastOf(lights.vsm.res.layout) : 0
+  releaseEngineVsm(lights)
   const wanted = fullMapsFor(list),
     sunMaps = sunMapsFor(list)
   const refused = lights.vsmRefusal
   const same = refused?.wanted === wanted && refused.sunMaps === sunMaps
   // The same lights refused an overflow regrow: asked again as it was.
   if (same) fullMapCapacity = Math.max(fullMapCapacity, refused.fullMapCapacity)
+  const mapSlotsPast = Math.max(heldSlotsPast, mapSlotsAsked - fullMapCapacity)
   const poolPages = same ? Math.min(pagesAsked, refused.poolPages) : pagesAsked
-  const options = engineVsmOptions(fullMapCapacity, sunMaps, poolPages)
+  const options = engineVsmOptions(
+    fullMapCapacity,
+    sunMaps,
+    poolPages,
+    vsmOcclusionAsked(rt),
+    vsmDynamicHzbAsked(rt),
+    mapSlotsPast,
+  )
   const { frame } = rt.run
   const refusal = (record: Refusal) => refuseSet(rt, list, fullMapCapacity, poolPages, record)
   const asked = vsmLayout(options)
-  const room = ledgerRoom(device) - bytesBeside(rt, device, list, asked, held)
+  const room = ledgerRoom(device) - bytesBeside(rt, device, list, heldLists)
   if (same && !retryDue(refused, room, frame)) return undefined
   const first = vsmPoolWithin(room, options)
   if (!first) {
-    const smallest = { ...options, poolPages: vsmPoolFloor(options) }
-    refusal(budgetRefusal(vsmResourceBytes(vsmLayout(smallest)), frame))
-    lights.shadowReason = `${UNAVAILABLE} refused: no page pool fits the GPU budget`
-    noteShadowPressure(lights.memory, 'pool-refused')
-    diag.engineDiagnostic(
-      'gpu-out-of-memory',
-      'The GPU budget holds no shadow page pool: the lights cast no shadow',
-      outOfMemoryContext('shadow', vsmResourceBytes(asked)),
-    )
+    refuseNoPool(rt, refusal, options, asked)
     return undefined
   }
   let error: unknown
@@ -99,11 +110,9 @@ export function grantEngineVsm(
       continue
     }
     vsm.regrowFrame = frame + VSM_PRESSURE_CALM_FRAMES
-    if (grownFrom) sayPoolGrown(rt, pages, grownFrom, poolAsked)
-    else
-      sayPoolMade(rt, pages, poolAsked, () =>
-        outOfMemoryContext('shadow', vsmResourceBytes(asked), pool),
-      )
+    sayGranted(rt, pages, grownFrom, poolAsked, () =>
+      outOfMemoryContext('shadow', vsmResourceBytes(asked), pool),
+    )
     lights.vsmRefusal = undefined
     if (lights.shadowReason?.startsWith(UNAVAILABLE)) lights.shadowReason = null
     return (lights.vsm = vsm)
@@ -113,6 +122,38 @@ export function grantEngineVsm(
   refusal(deviceRefusal(frame, same ? refused : undefined))
   lights.shadowReason = `${UNAVAILABLE} unavailable: ${String(error)}`
   return undefined
+}
+
+/** A granted pool said: its growth over the smaller one it replaces (`grownFrom`), else its making;
+ *  `context` is read only when the making says it. */
+function sayGranted(
+  rt: WebgpuPagesRuntime,
+  pages: number,
+  grownFrom: number,
+  poolAsked: number,
+  context: Parameters<typeof sayPoolMade>[3],
+) {
+  if (grownFrom) sayPoolGrown(rt, pages, grownFrom, poolAsked)
+  else sayPoolMade(rt, pages, poolAsked, context)
+}
+
+/** The budget holds no page pool for `options`, not even the smallest: the lights read no shadow, by
+ *  name, until the room holds it or the lights change; `refusal` records it. */
+function refuseNoPool(
+  rt: WebgpuPagesRuntime,
+  refusal: (record: Refusal) => void,
+  options: VsmResourceOptions,
+  asked: ReturnType<typeof vsmLayout>,
+) {
+  const smallest = { ...options, poolPages: vsmPoolFloor(options) }
+  refusal(budgetRefusal(vsmResourceBytes(vsmLayout(smallest)), rt.run.frame))
+  rt.lights.shadowReason = `${UNAVAILABLE} refused: no page pool fits the GPU budget`
+  noteShadowPressure(rt.lights.memory, 'pool-refused')
+  rt.diag.engineDiagnostic(
+    'gpu-out-of-memory',
+    'The GPU budget holds no shadow page pool: the lights cast no shadow',
+    outOfMemoryContext('shadow', vsmResourceBytes(asked)),
+  )
 }
 
 /** Records `record` as the refusal of the set of `fullMapCapacity` full maps at `poolPages` for
@@ -144,7 +185,7 @@ export function madeSet(
   asked = vsmPoolAsked(rt),
 ) {
   const pages = options.poolPages ?? asked
-  return deviceMadeNow(
+  const made = deviceMadeNow(
     device,
     () => createEngineVsm(device, options),
     (vsm) => {
@@ -162,6 +203,8 @@ export function madeSet(
       lights.shadowReason = `${UNAVAILABLE} unavailable: the device refused the smallest page pool`
     },
   )
+  made.poolAsked = asked
+  return made
 }
 
 /** The shadows' resolution bias of a pool of `pages`: its halvings from the pool `asked`. */

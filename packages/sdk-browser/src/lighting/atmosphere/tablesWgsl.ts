@@ -1,4 +1,6 @@
+import { greyMean } from '../../../../math/src/wgsl/color.ts'
 import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
+import { PLANET_TO_SCENE } from './hazeWgsl.ts'
 import { airProgram } from './programs.ts'
 import { SPHERE_DIRECTIONS_WGSL } from './sphereSamples.ts'
 import type { AirShape } from './shape.ts'
@@ -66,14 +68,14 @@ fn sphereScatter(start:vec3f,toSun:vec3f)->array<vec3f,2>{
   var illuminance=vec3f(0.0);
   var multiAs1=vec3f(0.0);
   for(var s=0u;s<${MULTI_SCATTER_DIRECTIONS}u;s++){
-   let r=integrateAir(start,SPHERE_DIRECTION[s],true,march,false,sun,1.0,9000000.0);
+   let r=integrateAir(start,SPHERE_DIRECTION[s],true,march,false,sun,1.0,AIR_REACH_KM);
    illuminance+=r.radiance;
    multiAs1+=r.multiAs1;
   }
   return array<vec3f,2>(illuminance*(sphere/${MULTI_SCATTER_DIRECTIONS}.0),multiAs1/${MULTI_SCATTER_DIRECTIONS}.0);
  }
- let up=integrateAir(start,vec3f(0.0,0.0,1.0),true,march,false,sun,1.0,9000000.0);
- let down=integrateAir(start,vec3f(0.0,0.0,-1.0),true,march,false,sun,1.0,9000000.0);
+ let up=integrateAir(start,vec3f(0.0,0.0,1.0),true,march,false,sun,1.0,AIR_REACH_KM);
+ let down=integrateAir(start,vec3f(0.0,0.0,-1.0),true,march,false,sun,1.0,AIR_REACH_KM);
  // The two rays stand for the sphere: the illuminance they bring, half the sphere each.
  return array<vec3f,2>((sphere*0.5)*(up.radiance+down.radiance),0.5*(up.multiAs1+down.multiAs1));
 }
@@ -138,11 +140,10 @@ fn skyViewUv(hitsGround:bool,dirTable:vec3f,height:f32)->vec2f{
 `
 
 /** The scene's metres of a point of the sky table's frame (up the table's z): the table's axes put
- *  the point back in the planet's, and the planet's ground is the scene's plane. */
-const SKY_VIEW_TO_SCENE = `
+ *  the point back in the planet's (`planetToScene`). */
+const SKY_VIEW_TO_SCENE = `${PLANET_TO_SCENE}
 fn airToScene(p:vec3f)->vec3f{
- let planet=frame.forward.xyz*p.x+frame.left.xyz*p.y+frame.up.xyz*p.z;
- return vec3f(planet.x*1000.0,(planet.y-bottomRadius())*1000.0+atmo(${ATMOSPHERE_SLOT.planet}u).w,planet.z*1000.0);
+ return planetToScene(frame.forward.xyz*p.x+frame.left.xyz*p.y+frame.up.xyz*p.z);
 }`
 
 /** The sky table's builder: one thread a texel, every image. */
@@ -168,14 +169,9 @@ fn skyViewMain(@builtin(global_invocation_id) id:vec3u){
  for(var k=0u;k<suns.count;k++){suns.list[k].toward=eyeToTable(suns.list[k].toward);}
  let top=moveToTopAtmosphere(vec3f(0.0,0.0,height),dir);
  if(top.w==0.0){textureStore(table,id.xy,vec4f(0.0));return;}
- var march=newMarch();
- march.variable=true;
- march.minSamples=SKY_VIEW_SAMPLES_MIN;
- march.maxSamples=samplesMaxOf(SKY_VIEW_SAMPLES_MAX,SKY_VIEW_SAMPLES_MIN);
- march.distanceInv=1.0/SKY_VIEW_DISTANCE_KM;
- let r=integrateAir(top.xyz,dir,false,march,true,suns,1.0,9000000.0);
- textureStore(table,id.xy,vec4f(r.radiance,dot(r.transmittance,vec3f(1.0/3.0))));
+ let r=integrateAir(top.xyz,dir,false,skyViewMarch(),true,suns,1.0,AIR_REACH_KM);
+ textureStore(table,id.xy,vec4f(r.radiance,greyMean(r.transmittance)));
 }`,
-    [],
+    [greyMean],
     shape,
   )

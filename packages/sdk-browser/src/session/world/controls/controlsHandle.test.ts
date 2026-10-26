@@ -169,6 +169,31 @@ test('`world.controls` as a character stands where it was put until the physics 
   controls.dispose()
 })
 
+test('`world.controls.enableZoom` turned off under a flight stays off for the orbit that follows', () => {
+  // The gesture switches are kept settings of the handle, not of one controller: set while
+  // flying, where nothing reads them, they reach the orbit made after.
+  const camera = new Camera('perspective')
+  camera.position.set(0, 0, 10)
+  const surface = fixtureSurface(400)
+  const controls = worldControlsHandle(
+    'fly',
+    () => camera,
+    surface.element,
+    () => {},
+  )
+  assert.deepEqual([controls.enableZoom, controls.enablePan], [true, true])
+  controls.enableZoom = false
+  controls.kind = 'orbit'
+  assert.equal(controls.enableZoom, false)
+  const before = camera.position.length()
+  surface.fire('wheel', { deltaY: 100, deltaMode: 0 })
+  assert.equal(camera.position.length(), before, 'the wheel does not zoom')
+  controls.enableZoom = true
+  surface.fire('wheel', { deltaY: 100, deltaMode: 0 })
+  assert.ok(camera.position.length() > before, 'turned on again, it does')
+  controls.dispose()
+})
+
 test('every kept control setting has its documented accessor, and every accessor its setting', () => {
   type Documented = keyof ReturnType<typeof controlSettingAccessors>
   const same: [ControlSetting] extends [Documented]

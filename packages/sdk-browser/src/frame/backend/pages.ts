@@ -25,7 +25,6 @@ export const webgpuPagesEngine = ((context) => {
     id: WEBGPU_ENGINE_ID,
     capabilities: rt.capabilities,
     signal: rt.signal,
-    scene: setup.scene,
     get presentedSurface() {
       // The host canvas needs no composition: the engine already presented into it. A lost or
       // disposed device has no presenter left: nothing stale is published (`markWebgpuLost`).
@@ -50,7 +49,7 @@ export const webgpuPagesEngine = ((context) => {
       refreshFogVolumes(rt)
     },
     // The engine draws the scene aside for a captured sky light (`captureHdrViews`).
-    applySky: (sky, host) => applySkyToRuntime(rt, sky, host, backend),
+    applySky: (sky) => applySkyToRuntime(rt, sky, backend),
     /** The only engine that carries the contract's shadow atlas: everything else is read in its methods. */
     lighting: { shadows: true },
     ...backendSetters(rt),

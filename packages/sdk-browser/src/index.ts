@@ -38,7 +38,15 @@ export * from './guides/transform/index.ts'
 export * from './geometry/runtime/index.ts'
 export * from './api/budgetFamily.ts'
 export * from '../../sdk-core/src/physics/index.ts'
+export type { ParticleHandle } from './particles/emitterSet.ts'
+export type {
+  ParticleEmitterSpec,
+  ParticleSpawn,
+  ParticleRange,
+} from '../../sdk-core/src/fluids/emitter.ts'
+export type { ParticleBlend } from '../../sdk-core/src/fluids/particles.ts'
 export type { WorldPhysics } from './physics/worldPhysics.ts'
+export type { OverlapHit, OverlapOptions, OverlapResult, OverlapShape } from './physics/overlap.ts'
 export type { WorldPhysicsOptions, GravityInput } from './physics/worldPhysicsOptions.ts'
 export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts'
 export type { WaveSpec, Waves } from '../../sdk-core/src/fluids/waves.ts'
@@ -68,21 +76,8 @@ export type { DrawAssociations, DrawRanks, DrawSource } from './geometry/selecti
 export type { CellRows } from './geometry/partition/cellDecode.ts'
 export type { CellBudget, CellFrameIo, CellPrimeIo } from './geometry/partition/cellsPrime.ts'
 export type { PlacementGrowth } from './placement/engineSceneUpdates.ts'
-/** Host resources the engine reads and never builds (`session/host/resources.ts`): a host declares them
- *  with whatever library it draws with, the contract names only their shape. */
-export type {
-  HostAttribute,
-  HostAttributes,
-  HostBox,
-  HostColour,
-  HostDisposable,
-  HostMaterials,
-  HostMesh,
-  HostPoint,
-  HostScene,
-} from './session/host/resources.ts'
-/** The shapes a host node's pose and rotation are read through (`scene/host/scan/graphNodes.ts`). */
-export type { HostRotation, HostVector } from './scene/host/scan/graphNodes.ts'
+/** The meshes a page draws, wearing the engine's surface records (`geometry/pages/pageMesh.ts`). */
+export type { PageMaterials, PageMesh } from './geometry/pages/pageMesh.ts'
 /** The surface record a mesh of the engine's graph wears (`geometry/pages/surface.ts`), holding the core's
  *  texture records; its nodes are the core's. Its three parts are named: the shaded fields
  *  (`VisMaterial`), the raster facts (`SurfaceFacts`) and its release (`Releasable`). */
@@ -90,8 +85,8 @@ export type { PageSurface, SurfaceFacts, SurfaceFamily } from './geometry/pages/
 export type { VisMaterial } from './visibility/materialType.ts'
 export type { Releasable } from '../../sdk-core/src/runtime/releasable.ts'
 export { declareSurface } from './geometry/pages/surfaceRecord.ts'
-export type { SurfaceDeclaration } from './geometry/pages/surfaceDeclaration.ts'
-export type { HostNodeMatrix, MatrixElements } from './session/host/matrixElements.ts'
+export type { SurfaceColour, SurfaceDeclaration } from './geometry/pages/surfaceDeclaration.ts'
+export type { MatrixElements } from './session/host/matrixElements.ts'
 export { gpuPassBlockOf, gpuPassStageOf } from './diagnostic/stage/mapping.ts'
 export { gpuPassBlockTotals } from './gpu/core/passBlocks.ts'
 export type { GpuPassBlockTotals } from './gpu/core/passBlocks.ts'
@@ -108,7 +103,6 @@ export type {
   MemoryBudgets,
   MemoryBudgetsReport,
   PoolClamp,
-  TableGrowthReport,
 } from './session/memory/pools.ts'
 export type { TexturePool } from './geometry/residency/memoryBudgets.ts'
 export type { BudgetCanvas } from './session/memory/memoryBudget.ts'
@@ -171,14 +165,16 @@ export type {
   SettingRange,
   SettingValues,
 } from '../../sdk-core/src/contracts/settingRules.ts'
-// The sun's shadow settings (`world.shadows`, `WorldOptions`): their rules, the shadow distance a
-// light names (`LightParameters.shadowDistance`) and its default.
+// The sun's shadow settings (`world.shadows`, `WorldOptions`): their rules; and those of a light's own
+// shadows (`LightParameters`): the shadow distance it names and its default, the rules and the
+// options of the rest.
+export { SHADOW_RULES, type ShadowOptions } from '../../sdk-core/src/contracts/shadowOptions.ts'
 export {
+  LIGHT_SHADOW_RULES,
   SHADOW_DISTANCE_DEFAULT,
-  SHADOW_RULES,
+  type LightShadowOptions,
   type ShadowDistanceOption,
-  type ShadowOptions,
-} from '../../sdk-core/src/contracts/shadowOptions.ts'
+} from '../../sdk-core/src/contracts/lightShadowOptions.ts'
 export { createPageStreamer } from './geometry/streaming/pageStreamer.ts'
 // The page cache a streamer reads through, its owner's (`PageStreamerOptions.cache`).
 export {
@@ -197,7 +193,7 @@ export { detectCapabilities, type GpuCapabilities } from './api/capability/capab
 export type { PathRun } from './camera/path.ts'
 // The camera controllers a session hands out: their contract is public because
 // `explorer.controls()` and its four siblings return it (`docs/SDK.md`, "Camera controllers").
-export type { ChangeListener, ControlVector, PivotCameraControls } from './camera/controls/types.ts'
+export type { ChangeListener, PivotCameraControls } from './camera/controls/types.ts'
 export type { OrbitCameraControls } from './camera/controls/orbitControls.ts'
 export type { FlyCameraControls } from './camera/controls/flyControls.ts'
 export type { FirstPersonCameraControls } from './camera/controls/firstPersonControls.ts'
@@ -205,3 +201,29 @@ export type { HeadSettings, PersonHead } from './camera/controls/look.ts'
 export type { CharacterCameraControls } from './camera/controls/characterControls.ts'
 export type { TrackballCameraControls } from './camera/controls/trackballControls.ts'
 export type { PanZoomCameraControls } from './camera/controls/panZoomControls.ts'
+
+/** Named by signatures of the public API (the profiler, the world's settings, the proxies a scene lends,
+ *  a surface's displacement): exported so a caller can name what it is handed. */
+export type { CpuStepReader } from './diagnostic/stage/profiler.ts'
+export type { ModuleName } from './session/world/worldModules.ts'
+export type { SurfaceDisplacement } from './visibility/materialType.ts'
+export type { WorldImageSettings } from './session/world/worldImageTypes.ts'
+export type { WorldSceneSettings } from './session/world/worldSceneTypes.ts'
+export type { ViewSet } from '../../sdk-core/src/world/camera/viewSet.ts'
+/** The graph a material is wired from: its nodes, pins and options. */
+export type {
+  GraphData,
+  GraphNode,
+  ParameterValue,
+  Pin,
+} from '../../sdk-core/src/world/material/graph/graph.ts'
+export type { NodeKind, NodeProp } from '../../sdk-core/src/world/material/graph/nodeSpecs.ts'
+export type {
+  MipMode,
+  NoiseOptions,
+  PannerOptions,
+  RotatorOptions,
+  TextureSampleOptions,
+} from '../../sdk-core/src/world/material/graph/inputs.ts'
+export type { Wire } from '../../sdk-core/src/world/material/graph/wired.ts'
+export type { TexelKind } from './materials/texture/floatTexels.ts'

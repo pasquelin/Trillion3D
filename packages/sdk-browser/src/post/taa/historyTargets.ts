@@ -1,62 +1,110 @@
-import { HISTORY_FORMATS, resolveTargetUsage } from './resolve.ts'
-import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
+import { storedTargetUsage } from './resolve.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
-import type { AccumulatedImage } from '../../lighting/deferred/program.ts'
-import { ANALYSIS_BYTES_PER_PIXEL } from './analysisTargets.ts'
+import { keptTexture } from './keptTexture.ts'
+import { slotsOf } from './historyFrames.ts'
+import {
+  halfImageBytes,
+  historyBytesPerPixel,
+  isUpscaled,
+  type HistoryShape,
+} from './historyShape.ts'
+import { analysisBytesPerPixel } from './analysisTargets.ts'
+import { outputBytes } from './historyResolve.ts'
+import { halfSize } from '../filters/levelSizes.ts'
 
-/** Both ping-pong histories: colour, and the share target (as-is share, validity). */
-const HISTORY_BYTES_PER_PIXEL = HISTORY_FORMATS.reduce(
-  (bytes, format) => bytes + 2 * texelBytesOf(format),
-  0,
-)
+/** One frame of the history: its colour, and its validity (`HistoryFormats.validity`). */
+export interface HistoryFrame {
+  color: GPUTextureView
+  validity: GPUTextureView
+}
 
-/** The temporal pass's target bytes for a frame of `size`: both histories at its display size,
- *  the analysis's targets and render-resolution histories at its render size — the render targets'
- *  own, the largest a frame is drawn at, so no scale under it remakes them (`analysis.ts`). */
-export const taaTargetBytes = (size: {
-  width: number
-  height: number
-  renderWidth: number
-  renderHeight: number
-}) =>
-  size.width * size.height * HISTORY_BYTES_PER_PIXEL +
-  size.renderWidth * size.renderHeight * ANALYSIS_BYTES_PER_PIXEL
+/** The temporal pass's target bytes for a frame of `size` with the history `shape`: the history's
+ *  frames at its size, the half-size image beside the display's colour, the resolve's output where
+ *  the history is larger than the display, the analysis's targets and render-resolution histories at
+ *  its render size — the render targets' own, the largest a frame is drawn at, so no scale under it
+ *  remakes them (`analysis.ts`) — and the guide of each frame beyond the first. */
+export const taaTargetBytes = (
+  size: { width: number; height: number; renderWidth: number; renderHeight: number },
+  shape: HistoryShape,
+) =>
+  shape.width * shape.height * historyBytesPerPixel(shape) +
+  halfImageBytes(shape.displayWidth, shape.displayHeight, shape.formats.color) +
+  (isUpscaled(shape) ? outputBytes(size.width, size.height, shape.formats.color) : 0) +
+  size.renderWidth *
+    size.renderHeight *
+    analysisBytesPerPixel(shape.sequence, shape.field, shape.antiAlias, shape.formats)
 
-/** The temporal pass's two histories at the display's size, each a colour and its share target
- *  (`HISTORY_BYTES_PER_PIXEL`): none until `allocate`. */
+/** The frames of a history of `shape` and the half-size image of the display's, their textures kept
+ *  in `textures`. */
+function makeHistoryFrames(device: GPUDevice, textures: GPUTexture[], shape: HistoryShape) {
+  const usage = storedTargetUsage()
+  const target = (label: string, format: GPUTextureFormat, width: number, height: number) => {
+    return keptTexture(device, textures, {
+      label,
+      size: { width, height },
+      format,
+      usage,
+    }).createView()
+  }
+  const frames: HistoryFrame[] = []
+  for (let i = 0; i < slotsOf(shape.sequence); i++)
+    frames.push({
+      color: target(`Trillion3D TAA history ${i}`, shape.formats.color, shape.width, shape.height),
+      validity: target(
+        `Trillion3D TAA validity ${i}`,
+        shape.formats.validity,
+        shape.width,
+        shape.height,
+      ),
+    })
+  const [halfWidth, halfHeight] = halfSize(shape.displayWidth, shape.displayHeight)
+  const half = target('Trillion3D TAA output half', shape.formats.color, halfWidth, halfHeight)
+  return { frames, half }
+}
+
+/** The temporal pass's history frames (`historyFrames.ts`) at the history's size, each a colour and
+ *  its validity, and the half-size image of the display's the update or the resolve writes beside
+ *  the colour: none until `allocate`. */
 export function createTaaHistoryTargets(device: GPUDevice) {
   const textures: GPUTexture[] = []
   const targets = {
-    width: 0,
-    height: 0,
-    images: [] as AccumulatedImage[],
+    /** What the frames were made as, none before `allocate`. */
+    shape: undefined as HistoryShape | undefined,
+    /** The frames, by slot. */
+    frames: [] as HistoryFrame[],
+    /** The half-size image of the display's, written by the pass beside its colour: the scene's chain
+     *  reads it; none before `allocate`. */
+    half: undefined as GPUTextureView | undefined,
+    /** The history's size, 0 × 0 before `allocate`. */
+    get width() {
+      return targets.shape?.width ?? 0
+    },
+    get height() {
+      return targets.shape?.height ?? 0
+    },
     /** Bytes of the targets as allocated. */
     get bytes() {
-      return textures.length ? targets.width * targets.height * HISTORY_BYTES_PER_PIXEL : 0
+      const { shape } = targets
+      return shape && textures.length
+        ? shape.width * shape.height * historyBytesPerPixel(shape) +
+            halfImageBytes(shape.displayWidth, shape.displayHeight, shape.formats.color)
+        : 0
     },
     drop() {
       // This image's commands may still name them: retired, destroyed after the frame's submit.
       for (const texture of textures) retire(device, texture)
       textures.length = 0
-      targets.images.length = 0
+      targets.frames.length = 0
+      targets.half = undefined
+      targets.shape = undefined
     },
-    /** Makes both histories at `width × height`, the former ones dropped (`drop`). */
-    allocate(width: number, height: number) {
-      targets.width = width
-      targets.height = height
-      const usage = resolveTargetUsage(),
-        size = { width, height }
-      const target = (label: string, format: GPUTextureFormat) => {
-        const texture = device.createTexture({ label, size, format, usage })
-        textures.push(texture)
-        return texture.createView()
-      }
-      for (let i = 0; i < 2; i++) {
-        const [color, share] = HISTORY_FORMATS.map((format, k) =>
-          target(`Trillion3D TAA ${k ? 'share' : 'history'} ${i}`, format),
-        )
-        targets.images.push({ color, share })
-      }
+    /** Makes the frames of `shape`, the former ones dropped (`drop`). */
+    allocate(shape: HistoryShape) {
+      targets.drop()
+      targets.shape = shape
+      const { frames, half } = makeHistoryFrames(device, textures, shape)
+      targets.frames.push(...frames)
+      targets.half = half
     },
   }
   return targets

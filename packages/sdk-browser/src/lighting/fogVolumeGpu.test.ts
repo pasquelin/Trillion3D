@@ -1,3 +1,4 @@
+import { ComputeRun } from '../gpu/core/lazyComputePass.ts'
 import { skyLightStandIn } from '../modules/sky/skyLight/standIn.ts'
 // The fog volume's work on the kit's device (`./fog/gpu.ts`): its passes dispatched, its history
 // kept and refused, and the cubemap's texture, its levels written (`./fog/cubemapGpu.ts`).
@@ -45,6 +46,7 @@ function volumeInput(
       .createView(),
     lights: buffer(),
     tiles: buffer(),
+    localTiles: buffer(),
     cloudShadow: cloudShadowStandIn(gpu.device),
     sky: skyLightStandIn(gpu.device),
     lightFunction: createLightFunctionStandIns(gpu.device).read,
@@ -59,7 +61,7 @@ function volumeInput(
 }
 
 /** A volume on the kit's device whose pipelines are compiled. */
-async function started(gpu = fakeDevice()) {
+async function started(gpu = fakeDevice({ timed: true })) {
   const failed: unknown[] = []
   const volume = createFogVolumeGpu(
     gpu.device,
@@ -73,8 +75,8 @@ async function started(gpu = fakeDevice()) {
 
 test('the volume’s passes, dispatched on the device of the tests: three, two without the furthest depth, none off', async () => {
   const { gpu, volume } = await started()
-  const encoder = gpu.device.createCommandEncoder()
-  const view = volume.encode(encoder, volumeInput(gpu))
+  const steps = new ComputeRun().begin(gpu.device.createCommandEncoder())
+  const view = volume.encode(steps, volumeInput(gpu))
   assert.ok(view, 'the integrated volume')
   assert.deepEqual(
     gpu.dispatches.map((d) => d.entryPoint),
@@ -97,7 +99,7 @@ test('the volume’s passes, dispatched on the device of the tests: three, two w
     volumeInput(gpu, { volumetricFogSkipHidden: false }),
   ]) {
     gpu.dispatches.length = 0
-    volume.encode(encoder, input)
+    volume.encode(steps, input)
     assert.deepEqual(
       gpu.dispatches.map((d) => d.entryPoint),
       ['scatterMain', 'integrateMain'],
@@ -106,11 +108,11 @@ test('the volume’s passes, dispatched on the device of the tests: three, two w
   // Off, nothing is built; seen through an orthographic camera, the same three passes are, and the
   // frame says the view is one (`depthMap.z`).
   gpu.dispatches.length = 0
-  assert.equal(volume.encode(encoder, volumeInput(gpu, { volumetricFogQuality: 'off' })), undefined)
+  assert.equal(volume.encode(steps, volumeInput(gpu, { volumetricFogQuality: 'off' })), undefined)
   assert.equal(gpu.dispatches.length, 0)
   const ortho = volumeInput(gpu)
   ortho.camera = { ...ortho.camera, perspective: false }
-  assert.ok(volume.encode(encoder, ortho))
+  assert.ok(volume.encode(steps, ortho))
   assert.deepEqual(
     gpu.dispatches.map((d) => d.entryPoint),
     ['furthestMain', 'scatterMain', 'integrateMain'],
@@ -122,7 +124,7 @@ test('the volume’s passes, dispatched on the device of the tests: three, two w
 test('every resource a pass’s group names exists: a real device refuses a group with an undefined one', async () => {
   const { gpu, volume } = await started()
   const before = gpu.bindGroups.length
-  volume.encode(gpu.device.createCommandEncoder(), volumeInput(gpu))
+  volume.encode(new ComputeRun().begin(gpu.device.createCommandEncoder()), volumeInput(gpu))
   const made = gpu.bindGroups.slice(before)
   assert.equal(made.length, 3, 'one group a program')
   for (const group of made)
@@ -137,34 +139,34 @@ test('every resource a pass’s group names exists: a real device refuses a grou
 
 test('the frame is sent by what changed: an image whose frame is the last one’s sends nothing', async () => {
   const { gpu, volume } = await started()
-  const encoder = gpu.device.createCommandEncoder()
+  const steps = new ComputeRun().begin(gpu.device.createCommandEncoder())
   const sent = () =>
     gpu.writes.filter((w) => (w.buffer as { label?: string }).label === 'Trillion3D fog frame')
       .length
-  volume.encode(encoder, volumeInput(gpu))
-  volume.encode(encoder, volumeInput(gpu))
+  volume.encode(steps, volumeInput(gpu))
+  volume.encode(steps, volumeInput(gpu))
   const before = sent()
   assert.ok(before > 0, 'the first images are sent')
-  volume.encode(encoder, volumeInput(gpu))
+  volume.encode(steps, volumeInput(gpu))
   assert.equal(sent(), before, 'the third is the second, word for word')
-  volume.encode(encoder, { ...volumeInput(gpu), frameIndex: 9 })
+  volume.encode(steps, { ...volumeInput(gpu), frameIndex: 9 })
   assert.equal(sent(), before + 1, 'a new image number is sent')
   volume.dispose()
 })
 
 test('the history: kept from an image to the next, refused after a cut or a change of what is held hidden', async () => {
   const { gpu, volume } = await started()
-  const encoder = gpu.device.createCommandEncoder()
+  const steps = new ComputeRun().begin(gpu.device.createCommandEncoder())
   const weight = () => volume.frame[FOG_VOLUME_FRAME_AT.blend]
-  volume.encode(encoder, volumeInput(gpu))
+  volume.encode(steps, volumeInput(gpu))
   assert.equal(weight(), 0, 'the first image has none')
-  volume.encode(encoder, volumeInput(gpu))
+  volume.encode(steps, volumeInput(gpu))
   assert.equal(weight(), Math.fround(0.9), 'the second reads the first')
-  volume.encode(encoder, { ...volumeInput(gpu), cut: true })
+  volume.encode(steps, { ...volumeInput(gpu), cut: true })
   assert.equal(weight(), 0, 'a camera cut')
-  volume.encode(encoder, volumeInput(gpu, {}, false))
+  volume.encode(steps, volumeInput(gpu, {}, false))
   assert.equal(weight(), 0, 'cells held hidden before, not now')
-  volume.encode(encoder, volumeInput(gpu, {}, false))
+  volume.encode(steps, volumeInput(gpu, {}, false))
   assert.equal(weight(), Math.fround(0.9), 'as before, kept again')
   // A view drawn smaller than the targets — a dynamic resolution — keeps the textures and the history,
   // its cells fewer and the dispatches with them; the frame holds both grids.
@@ -172,7 +174,7 @@ test('the history: kept from an image to the next, refused after a cut or a chan
   smaller.camera = { ...smaller.camera, width: 120, height: 66 }
   const textures = gpu.textures.length
   gpu.dispatches.length = 0
-  volume.encode(encoder, smaller)
+  volume.encode(steps, smaller)
   assert.equal(weight(), Math.fround(0.9), 'the history kept')
   assert.equal(gpu.textures.length, textures, 'no texture made')
   const at = FOG_VOLUME_FRAME_AT
@@ -190,7 +192,7 @@ test('the history: kept from an image to the next, refused after a cut or a chan
   // Targets made for another size make the textures again, and the history starts over.
   const wide = volumeInput(gpu, {}, false)
   wide.allocated = [320, 90]
-  volume.encode(encoder, wide)
+  volume.encode(steps, wide)
   assert.equal(weight(), 0, 'another textures')
   volume.dispose()
 })
@@ -200,14 +202,14 @@ test('the volume’s memory is the ledger’s to admit: no room, no volume and n
   const box = { limit: 100_000 }
   const ledger = installGpuDeviceLedger(gpu.device, { limit: () => box.limit })
   const { volume } = await started(gpu)
-  const encoder = gpu.device.createCommandEncoder()
+  const steps = new ComputeRun().begin(gpu.device.createCommandEncoder())
   // Three volumes of 20 × 12 × 128 half-float cells are some 740 kB: the analytic fog stays.
-  assert.equal(volume.encode(encoder, volumeInput(gpu)), undefined)
+  assert.equal(volume.encode(steps, volumeInput(gpu)), undefined)
   assert.equal(gpu.dispatches.length, 0)
   assert.equal(ledger.refusal, undefined, 'the volume is an optional allocation')
   assert.equal(volume.bytes, 0)
   box.limit = 1e9
-  assert.ok(volume.encode(encoder, volumeInput(gpu)), 'built once the room is there')
+  assert.ok(volume.encode(steps, volumeInput(gpu)), 'built once the room is there')
   assert.ok(volume.bytes > 700_000)
   volume.dispose()
 })
@@ -231,12 +233,15 @@ test('the cubemap’s texture: its sharpest level and its smallest written, the 
   )
   const level = (mip: number) =>
     gpu.textureWrites.filter((w) => w.destination.mipLevel === mip).sort((a, b) => a.seq - b.seq)
+  /** The face a write lands in: the cubemap names its origin by the dictionary form. */
+  const faceOf = ({ destination }: { destination: GPUTexelCopyTextureInfo }) =>
+    (destination.origin as GPUOrigin3DDict).z
   const [sharp, smallest] = [level(0), level(1)]
   assert.equal(sharp.length, 6)
   assert.equal(smallest.length, 6)
   const rgba = (r: number, g: number, b: number) => [toHalf(r), toHalf(g), toHalf(b), toHalf(1)]
   sharp.forEach((write, face) => {
-    assert.equal(write.destination.origin.z, face)
+    assert.equal(faceOf(write), face)
     assert.deepEqual(
       halves(write.data),
       Array.from({ length: 4 }, (_, k) => rgba(face + k / 10, 0.5, 2)).flat(),
@@ -244,7 +249,7 @@ test('the cubemap’s texture: its sharpest level and its smallest written, the 
   })
   // The smallest level: the mean of the four texels of a face, face + 0.15, one texel a face.
   smallest.forEach((write, face) => {
-    assert.equal(write.destination.origin.z, face)
+    assert.equal(faceOf(write), face)
     assert.deepEqual(halves(write.data), rgba(face + 0.15, 0.5, 2))
   })
   made.destroy()

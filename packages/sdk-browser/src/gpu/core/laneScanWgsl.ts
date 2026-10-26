@@ -14,13 +14,12 @@ import { WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
  * `laneRun` splits `len` items into `WORKGROUP_THREADS` contiguous runs, one per lane:
  * `[first, last)`.
  *
- * `laneRunSum`, `laneRunWalk` and `laneRunOffsets` write, as WGSL text (a function cannot take its
+ * `laneRunSum` and `laneRunOffsets` write, as WGSL text (a function cannot take its
  * array), the loops every user of `laneRun` repeats: a lane totals its run, the scan gives the run
  * its offset, the lane walks the run handing each item its cursor.
  *
- * Shared by the draw prefix (`../../visibility/draw/shader.ts`), the drawable-page prefix
- * (`../../geometry/dag/shader/compactWgsl.ts`),
- * the blend expansion (`../../blend/expand/expandWgsl.ts`), the light grid's room in its pool
+ * Shared by the sorts (`../sort/sortWgsl.ts`, `../sort/sortStableWgsl.ts`), the blend expansion
+ * (`../../blend/expand/expandWgsl.ts`) and the light grid's room in its pool
  * (`../../lighting/tiles/compactWgsl.ts`).
  */
 export const LANE_SCAN_WGSL = wgslBlock(
@@ -56,7 +55,7 @@ export const laneRunSum = (g: string, span: string, size: string) =>
 
 /** The lane walks its run, `put` (an expression of `g` and `cursor`) writing each item's place and
  *  `cursor` moving on by its `size`, read before `put` writes. */
-export const laneRunWalk = (g: string, span: string, cursor: string, size: string, put: string) =>
+const laneRunWalk = (g: string, span: string, cursor: string, size: string, put: string) =>
   `for(var ${g}=${span}.x;${g}<${span}.y;${g}++){
   let taken=${size};
   ${put};

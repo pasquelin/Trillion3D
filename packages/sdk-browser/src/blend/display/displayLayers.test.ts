@@ -9,7 +9,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { blend, close, display, written, type Rgba } from '../blendModel.fixture.ts'
 import { ADD_EQUATIONS, TINT_EQUATIONS } from '../equations.ts'
-import { ACES, displayRoute } from './displayRun.fixture.ts'
+import { FILMIC, displayRoute } from './displayRun.fixture.ts'
 import { BLENDS } from '../../particles/drawWords.ts'
 import { overTargets } from '../blendTargets.ts'
 import { blendTargets } from '../blendTargets.ts'
@@ -52,7 +52,7 @@ function layer(
       ),
     develop: (value) => blend(develop, out, value),
     routed: (pixel, masked) => {
-      const r = displayRoute[kind](rgb(colour), 1, ACES, false, colour[3], masked)
+      const r = displayRoute[kind](rgb(colour), 1, FILMIC, false, colour[3], masked)
       const kept = rgba(premultiplied ? scale(rgb(out), r.keep) : rgb(out), out[3] * r.keep)
       return {
         lit: written(targets[0], kept, pixel.lit),
@@ -66,9 +66,10 @@ function layer(
 /** The blend pass's layer of `mode`: lit target, tint and added value of its filtered pipeline. */
 const blendLayer = (mode: 'normal' | 'additive' | 'multiply', colour: Rgba) => {
   const targets = blendTargets(mode, 0xf, true, true)
+  // The display layers follow the request since the as-is share's slot is gone.
   return layer(
     colour,
-    [targets[0]!, ...targets.slice(3, 5).map((target) => target!)],
+    [targets[0]!, ...targets.slice(2, 4).map((target) => target!)],
     blendTargets(mode, 0xf, true)[0]!.blend!,
     mode === 'multiply' ? 2 : 1,
   )
@@ -139,7 +140,7 @@ test('particles and water over a multiply surface show the witness', () => {
     filter,
     layer(
       water,
-      overTargets(false, true, 0).filter((t): t is GPUColorTargetState => !!t),
+      overTargets(false, true).filter((t): t is GPUColorTargetState => !!t),
       BLENDS.premultiplied,
       1,
       true,

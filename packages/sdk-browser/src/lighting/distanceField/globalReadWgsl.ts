@@ -1,11 +1,12 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import {
   GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS,
   GLOBAL_DISTANCE_FIELD_MAX_CLIPMAPS,
   GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION,
 } from '../../../../sdk-core/src/lighting/globalDistanceField.ts'
 import { fieldLayout, vec4Array } from '../../gpu/core/fieldLayout.ts'
-import { ATLAS_FETCH_WGSL } from './atlasFetchWgsl.ts'
+import { ATLAS_BUFFER_WGSL, ATLAS_TEXTURE_WGSL, COVERAGE_FETCH_WGSL } from './atlasFetchWgsl.ts'
 
 /**
  * THE GLOBAL DISTANCE FIELD'S READS: the distance to the nearest surface around a position, from
@@ -14,7 +15,9 @@ import { ATLAS_FETCH_WGSL } from './atlasFetchWgsl.ts'
  *
  * A position finds the page that holds it in the page table (a `u32` per page: the page's index in
  * the atlas, the top bit set where it carries coverage, all ones where none is allocated), the
- * page's voxels in the atlas a byte each (`atlasFetchWgsl.ts`), filtered trilinearly, the distance
+ * page's voxels in the atlas a byte each (`atlasFetchWgsl.ts`: a texture the hardware filters, or a
+ * buffer filtered by hand where the device has no such texture, the view block's flag saying which),
+ * filtered trilinearly, the distance
  * mapped from [0, 1] to [-range, range], range being the clipmap's influence range (four voxels
  * either side); a value of 1 is a position no surface reaches. A clipmap wraps: a position outside
  * it reads the page it wraps to, so a read is taken only inside the clipmap whose box holds it.
@@ -27,9 +30,11 @@ import { ATLAS_FETCH_WGSL } from './atlasFetchWgsl.ts'
  * the distance in units of the mip's range, clamped to the clipmap's layer.
  *
  * The bindings are consecutive from `first` in the bind group `group`: the view block (`GdfView`),
- * the page table (`texture_3d<u32>`, read by load), the page atlas (a read-only storage buffer of
- * words) and the coarse mip (`texture_3d<f32>`, a 32-bit float read by load). A view whose
- * `clipmaps` is 0 answers as a scene with no distance field does: nothing occludes.
+ * the page table (`texture_3d<u32>`, read by load), the page atlas as a buffer (a read-only storage
+ * buffer of words, the coverage atlas past its pages), the coarse mip (`texture_3d<f32>`, a 32-bit float read by load), the page atlas
+ * as a texture (`texture_3d<f32>`, an 8-bit `r8unorm`) and its sampler; the one of the two atlases the
+ * field does not keep is a stand-in of one texel, and the buffer holds the coverage atlas too. A view
+ * whose `clipmaps` is 0 answers as a scene with no distance field does: nothing occludes.
  */
 
 const MAX = GLOBAL_DISTANCE_FIELD_MAX_CLIPMAPS
@@ -41,7 +46,11 @@ const INFLUENCE = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS
  *  mip's first and last usable layer in their `w`); then the clipmaps held, the pages along a
  *  clipmap, the texel of the volume (one over its voxels), the farthest a cone is traced, the mip
  *  divider and the distance at which the pages take over from the mip, the sky light's occlusion
- *  distance for the global field and the translation from the world. */
+ *  distance for the global field, the most steps of a ray in a clipmap (`GLOBAL_DISTANCE_FIELD_TRACE_MAX_STEPS`)
+ *  and the options of a ray marched through it (`globalTraceWgsl.ts`: the expand scales of the pages the
+ *  meshes cover and of those only two-sided meshes reach, the scale of the least step in the latter, the
+ *  two thresholds of the dithered transparency), the word of the page atlas's buffer the coverage atlas begins at, the translation
+ *  from the world and the flags (`GDF_VIEW_FLAG`). */
 export const GDF_VIEW = fieldLayout('GdfView', [
   ['centerExtent', vec4Array(MAX)],
   ['uvAddMul', vec4Array(MAX)],
@@ -54,21 +63,33 @@ export const GDF_VIEW = fieldLayout('GdfView', [
   ['mipFactor', 'f32'],
   ['mipTransition', 'f32'],
   ['occlusionDistance', 'f32'],
-  ['padA', 'f32'],
+  ['traceSteps', 'u32'],
+  ['expandCovered', 'f32'],
+  ['expandNotCovered', 'f32'],
+  ['minStepNotCovered', 'f32'],
+  ['ditherStep', 'f32'],
+  ['ditherTrace', 'f32'],
+  ['coverageBase', 'u32'],
   ['translation', 'vec3f'],
-  ['padB', 'f32'],
+  ['flags', 'u32'],
 ] as const)
 
-export const GDF_VIEW_STRUCT_WGSL = wgslBlock('GDF_VIEW_STRUCT_WGSL', [], `\n${GDF_VIEW.wgsl}`)
+/** The bits of the view block's `flags`: the page atlas is a texture, not a buffer; a page only two-sided
+ *  meshes reach counts as wholly not covered, the coverage atlas left unread. */
+export const GDF_VIEW_FLAG = { atlasTexture: 1, simpleCoverage: 2 } as const
+
+const GDF_VIEW_STRUCT_WGSL = wgslBlock('GDF_VIEW_STRUCT_WGSL', [], `\n${GDF_VIEW.wgsl}`)
 
 /** The page and mip functions over the bindings. */
 const GDF_PAGES_WGSL = wgslBlock(
   'GDF_PAGES_WGSL',
-  [ATLAS_FETCH_WGSL],
+  [ATLAS_BUFFER_WGSL, ATLAS_TEXTURE_WGSL, COVERAGE_FETCH_WGSL],
   `
+${wgslConsts({ GDF_FLAG_ATLAS_TEXTURE: GDF_VIEW_FLAG.atlasTexture, GDF_FLAG_SIMPLE_COVERAGE: GDF_VIEW_FLAG.simpleCoverage })}
 const GDF_INVALID_PAGE=0xFFFFFFFFu;
+const GDF_COVERAGE_BIT=0x80000000u;
 const GDF_CONE_STEPS=10u;
-struct GdfPageAt{valid:bool,page:u32,local:vec3f}
+struct GdfPageAt{valid:bool,coverage:bool,page:u32,local:vec3f}
 fn gdfTranslated(world:vec3f)->vec3f{return world+gdfView.translation;}
 fn gdfBoxDistanceInside(center:vec3f,extent:f32,p:vec3f)->f32{
  let toMin=max(p-center+vec3f(extent),vec3f(0.0));
@@ -87,7 +108,11 @@ fn gdfPageAt(volumeUv:vec3f,clipmap:u32)->GdfPageAt{
  let along=f32(gdfView.pagesAlong);
  let coord=vec3i(saturate(volumeUv)*along)+vec3i(0,0,i32(clipmap*gdfView.pagesAlong));
  let packed=textureLoad(gdfPageTable,coord,0).x;
- return GdfPageAt(packed!=GDF_INVALID_PAGE,packed&0x00FFFFFFu,fract(volumeUv*along)*${PAGE}.0);
+ return GdfPageAt(packed!=GDF_INVALID_PAGE,(packed&GDF_COVERAGE_BIT)!=0u,packed&0x00FFFFFFu,fract(volumeUv*along)*${PAGE}.0);
+}
+fn gdfAtlasSample(page:u32,local:vec3f)->f32{
+ if((gdfView.flags&GDF_FLAG_ATLAS_TEXTURE)!=0u){return gdfAtlasSampleTexture(page,local);}
+ return gdfAtlasSampleBuffer(page,local);
 }
 fn gdfDecode(encoded:f32,range:f32)->f32{return (encoded*2.0-1.0)*range;}
 fn gdfPageValue(volumeUv:vec3f,clipmap:u32)->f32{
@@ -182,9 +207,8 @@ export function globalDistanceFieldReadWgsl(group: number, first: number) {
 @group(${group}) @binding(${first}) var<uniform> gdfView:GdfView;
 @group(${group}) @binding(${first + 1}) var gdfPageTable:texture_3d<u32>;
 @group(${group}) @binding(${first + 2}) var<storage,read> gdfPageAtlas:array<u32>;
-@group(${group}) @binding(${first + 3}) var gdfMip:texture_3d<f32>;`,
+@group(${group}) @binding(${first + 3}) var gdfMip:texture_3d<f32>;
+@group(${group}) @binding(${first + 4}) var gdfAtlasTexture:texture_3d<f32>;
+@group(${group}) @binding(${first + 5}) var gdfAtlasSampler:sampler;`,
   )
 }
-
-/** The bindings the reads take. */
-export const GLOBAL_DISTANCE_FIELD_READ_BINDINGS = 4

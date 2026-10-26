@@ -23,13 +23,13 @@ const page = 'scene/native/full/<sha>/manifest-page-<sha>.json'
 test('a changed family is allowed with its version changed, and fails without', () => {
   const base = record(
     'develop',
-    { [table]: 'a', [page]: 'p', 'scene/proxy.bin': 'x' },
-    { worldRoots: '3', proxy: '5' },
+    { [table]: 'a', [page]: 'p', 'scene/lights.json': 'x' },
+    { worldRoots: '3', lights: '5' },
   )
   const bumped = record(
     'branch',
-    { [table]: 'b', [page]: 'q', 'scene/proxy.bin': 'x' },
-    { worldRoots: '5', proxy: '5' },
+    { [table]: 'b', [page]: 'q', 'scene/lights.json': 'x' },
+    { worldRoots: '5', lights: '5' },
   )
   const { allowed, failures } = classify(base, bumped, differences(base, bumped))
   assert.deepEqual(failures, [])
@@ -37,21 +37,21 @@ test('a changed family is allowed with its version changed, and fails without', 
   assert.deepEqual(allowed.get('worldRoots v3 → v5'), [page, table].sort())
   const silent = record(
     'branch',
-    { [table]: 'b', [page]: 'p', 'scene/proxy.bin': 'y' },
-    { worldRoots: '3', proxy: '5' },
+    { [table]: 'b', [page]: 'p', 'scene/lights.json': 'y' },
+    { worldRoots: '3', lights: '5' },
   )
   assert.deepEqual(
     classify(base, silent, differences(base, silent)).failures,
     [
-      { file: 'scene/proxy.bin', bump: ['proxy'] },
+      { file: 'scene/lights.json', bump: ['lights'] },
       { file: table, bump: ['worldRoots'] },
     ].sort((a, b) => a.file.localeCompare(b.file)),
   )
   // another family's bump does not excuse this one
   const other = record(
     'branch',
-    { [table]: 'b', [page]: 'p', 'scene/proxy.bin': 'x' },
-    { worldRoots: '3', proxy: '6' },
+    { [table]: 'b', [page]: 'p', 'scene/lights.json': 'x' },
+    { worldRoots: '3', lights: '6' },
   )
   assert.equal(classify(base, other, differences(base, other)).failures.length, 1)
 })

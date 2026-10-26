@@ -1,25 +1,8 @@
-import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
-import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-
-/** The GPU page table of `bytes` bytes: the rows every pass binds whole. */
+/** The GPU table of decoded clusters of `bytes` bytes: the records every pass binds whole
+ *  (`WebgpuVisState.pageTable`, `./visibleTables.ts`). */
 export const pageTableBuffer = (device: GPUDevice, bytes: number) =>
   device.createBuffer({
-    label: 'Trillion3D page table',
+    label: 'Trillion3D decoded clusters',
     size: bytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
-
-/** The row table spans every row a page can claim — the visibility rows, then the blended
- *  casters' (`../../geometry/rows/blendCasters.ts`) —, so it is allocated once, and replaced only when the
- *  table grows (`../prepare/growTables.ts`); the layout bounds those rows to one binding of the
- *  device (`../../geometry/rows/tableRows.ts`). */
-export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { vis } = rt,
-    { rows } = rt.layout
-  if (rows.pageTableFloats) return
-  const bytes = Math.max(PAGE_INFO_STRIDE, rows.casterSlots * PAGE_INFO_STRIDE)
-  rows.pageTableFloats = new Float32Array(bytes / 4)
-  rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer)
-  vis.pageTable?.destroy()
-  vis.pageTable = pageTableBuffer(device, bytes)
-}

@@ -24,8 +24,9 @@ export const GRID_EMPTY = 0.001 / 64
  * - `weights`: the weights of a pixel's colour channels in its luminance, the lowest luminance;
  * - `histogram`: the scale and bias taking a log2 luminance over the grid's depth, the share of
  *   the blurred luminance in the base layer, the weight under which a grid cell is empty;
- * - `base`: log2 of the middle grey the base layer is pulled toward, the highlights' and the
- *   shadows' contrast scale, the detail's strength;
+ * - `base`: log2 of the middle grey the base layer is pulled toward — copied on the GPU from the
+ *   exposure buffer, which holds the update's or the held exposure's —, the
+ *   highlights' and the shadows' contrast scale, the detail's strength;
  * - `grid`: the grid's coordinates per image coordinate, the highlight and shadow thresholds;
  * - `reach`: how far past each threshold the contrast scale takes over, highlights then shadows;
  * - `tint`: the scene colour's tint, 1 in its fourth word where it is not 1 (else not applied);
@@ -40,11 +41,14 @@ export const GRID_EMPTY = 0.001 / 64
  *   and from which it is wholly so;
  * - `grainDecode`: what each channel of the grain's texture is multiplied by to have a mean of 1;
  * - `grainUv`: the grain's texture coordinates per image coordinate, and their offset;
- * - `dither`: the dither's step, 0 where none is drawn, and the offset of its pattern;
+ * - `dither`: the dither's step and the offset of its pattern;
  * - `keep`: what the image's colour is multiplied by where the glow took some of its light (the
  *   bloom's convolution moves light, it does not add it), its fourth word 1 where it applies;
  * - `dirt`: what the glow's dirt mask multiplies it by, `1 + mask × dirt`, per channel — the mask's
- *   tint times its intensity over the bloom's —, its fourth word 1 where a mask is drawn.
+ *   tint times its intensity over the bloom's —, its fourth word 1 where a mask is drawn;
+ * - `lens`: the lens' principal point, the offset of its centre and the scale of its space from
+ *   the image's, on each axis (0, 0, 1, 1 for a view drawn whole): the dirt mask is read in the
+ *   lens' space (`dirtUv`).
  * `screen`'s third word is the vignette's shape, 0 the cosine-fourth law, 1 the oval, its fourth
  * 1 where the vignette's colour is not black. A film effect that is off is a 0 or a 1 the shader
  * tests once, a uniform branch: the pixel does none of its work.
@@ -68,6 +72,7 @@ export const FINISH = fieldLayout('Finish', [
   ['dither', 'vec4f'],
   ['keep', 'vec4f'],
   ['dirt', 'vec4f'],
+  ['lens', 'vec4f'],
 ] as const)
 /** Bytes of the finishing's uniform. */
 export const FINISH_BYTES = FINISH.words * 4

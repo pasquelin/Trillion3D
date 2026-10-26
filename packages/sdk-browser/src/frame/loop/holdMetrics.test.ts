@@ -3,7 +3,7 @@
 // present alone, and leaves intact the metrics of the cut it redisplays.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { CPU_STEP, CPU_STEP_NAMES } from '../render/cpuStepTable.ts'
+import { CPU_STEP, CPU_STEP_NAMES } from '../../diagnostic/stage/cpuStepTable.ts'
 import { holdWebgpuFrame } from './hold.ts'
 import { metricsOf } from '../io/metrics.ts'
 import { heldFrame } from './holdMetrics.fixture.ts'

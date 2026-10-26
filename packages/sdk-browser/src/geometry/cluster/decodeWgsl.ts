@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { TWO_PI } from '../../../../math/src/wgsl/constants.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
+import { octCellsDecode } from '../../../../math/src/wgsl/octahedral.ts'
 import {
   bitLength,
   bitWord,
@@ -15,44 +16,38 @@ import {
   COLOR_LEVELS,
   FLAG_COLOR,
   FLAG_NORMAL,
+  FLAG_SKIN,
   FLAG_TANGENT,
   FLAG_UV,
-  FLAG_UV1,
   FLAG_UV2,
-  FLAG_UV3,
+  FLAG_UV_EXTENDED,
+  HEADER_UV_SETS,
   MAX_MORPH_TARGETS,
   MAX_UV_SETS,
   MORPH_WORDS,
+  RESIDENT_TABLE_WORDS,
   TRIANGLE_BLOCK,
   UV_EXPONENT_BITS,
+  UV_EXTENSION_WORDS,
   UV_MANTISSA_BITS,
   WIDTH_BITS,
 } from '../../../../sdk-core/src/page/format.ts'
 import { CLUSTER_HEADER_WGSL } from './headerWgsl.ts'
 
+/** The table's words (\`Layout::table\`) the streams are read at: the block table, the three
+ *  positions with the links and the normals fill words 0 to 3, then a word each texture set,
+ *  two words the colours, the tangents and the skin last. */
+const TABLE_UV = 4
+const TABLE_COLOR = TABLE_UV + MAX_UV_SETS
+const TABLE_TAIL = TABLE_COLOR + 2
+
 /** The bits of a texture code's exponent and mantissa, below its sign: its mask. */
 const UV_MAGNITUDE_BITS = UV_EXPONENT_BITS + UV_MANTISSA_BITS
 
-/**
- * WGSL decode of a `WGP3` quantized cluster page read in place from a storage buffer of words
- * (`docs/FORMAT.md`): the header once per cluster, then any vertex or corner by rank, in O(1)
- * — a field never spans more than two words, and a triangle is its block's record, read once, and
- * three fields. The arithmetic is the format's, operation for operation — a position is its cell,
- * converted to a float, times the grid's unit, a colour its byte times 1/255, a texture
- * coordinate its float code's exponent and mantissa set in a float's bits —, so a decoded value is
- * the 32-bit float the shared Rust codec and `../codec/geometryPage.ts` decode (the cell's
- * conversion exact up to 2^24 cells, and rounded by the device past them); a normal, which goes
- * through `normalize`, agrees to the ULP tolerance WGSL grants that builtin, and a stored tangent,
- * through `cos`, `sin` and `normalize`, to theirs.
- *
- * The host declares the buffer and names it: `clusterDecodeWgsl('pageWords')` binds every routine
- * to `pageWords:array<u32>`.
- */
-export function clusterDecodeWgsl(buffer: string) {
-  return wgslBlock(
-    `clusterDecodeWgsl(${buffer})`,
-    [TWO_PI, CLUSTER_HEADER_WGSL, bitLength, ceilDivWgsl, pow2FromExponent, lowBits, bitWord],
-    `// The \`bits\`-bit field at bit \`at\` of the page at word \`base\`.
+/** The bit field, the position record, the unit, the texture-set flags and the streams. */
+const fieldsWgsl = (
+  buffer: string,
+) => `// The \`bits\`-bit field at bit \`at\` of the page at word \`base\`.
 fn clusterField(base:u32,at:u32,bits:u32)->u32{
  if(bits==0u){return 0u;}
  let shift=at&31u;let index=base+bitWord(at);
@@ -65,49 +60,48 @@ fn clusterWidths(word:u32)->vec3u{return vec3u(word&63u,(word>>6u)&63u,(word>>12
 // The metres of a cell on that grid: 2^-precision centimetre, a hundredth of it in the one rounding
 // of the unit, the power of two exact.
 fn clusterUnit(word:u32)->f32{return pow2FromExponent(-(i32(word)>>24u))*${wgslF32(1 / CENTIMETRES_PER_METRE)};}
+// The texture sets a page of flags \`flags\` carries, one bit a set by rank: the flags of sets 0 and 1
+// are bits 1 and 2, those of sets 2 to 7 bits 9 to 14.
+fn clusterUvSets(flags:u32)->u32{return ((flags>>${Math.log2(FLAG_UV)}u)&3u)|(((flags>>${Math.log2(FLAG_UV2)}u)&63u)<<2u);}
 // Whether a page of flags \`flags\` carries texture set \`uvSet\`.
-fn clusterHasUv(flags:u32,uvSet:u32)->bool{
- let present=vec4u(${FLAG_UV}u,${FLAG_UV1}u,${FLAG_UV2}u,${FLAG_UV3}u);
- return (flags&present[uvSet])!=0u;
-}
-// The word a stream of \`count\` fields of \`bits\` bits starts at; \`at\` moves past it when present.
-fn clusterStream(present:bool,count:u32,bits:u32,at:ptr<function,u32>)->u32{
- let start=*at;
- if(present){*at+=ceilDiv(count*bits,32u);}
- return start;
-}
+fn clusterHasUv(flags:u32,uvSet:u32)->bool{return ((clusterUvSets(flags)>>uvSet)&1u)!=0u;}
+`
+
+/** The header's corners and positions: what a raster reads of a row that draws no surface attribute. */
+const pointHeaderWgsl = (
+  buffer: string,
+) => `// The offsets of a resident page's streams, two to a word: word \`k\` of its table, which closes
+// the header, the morph records and the extension (\`RESIDENT_TABLE_WORDS\`, \`Layout::table\`).
+fn clusterOffsets(base:u32,table:u32,k:u32)->vec2u{let w=${buffer}[base+table+k];return vec2u(w&0xffffu,w>>16u);}
 // The header's corners and positions: what a raster reads of a row that draws no surface
-// attribute, nine of the twenty-three words a whole header reads and five of its twenty-one streams.
+// attribute, ten of the twenty-three words a whole header reads and three words of the table.
 // \`links\` is where the link stream starts, present or not; \`clusterSurfaceHeader\` does the rest.
 fn clusterPointHeader(base:u32)->ClusterHeader{
  var h:ClusterHeader;
- h.vertexCount=${buffer}[base+2u];h.indexCount=${buffer}[base+3u];
+ h.vertexCount=${buffer}[base+2u];h.indexCount=${buffer}[base+3u];h.flags=${buffer}[base+4u];
  let p=${buffer}[base+5u];h.posBits=clusterWidths(p);h.posUnit=clusterUnit(p);
  h.posStart=vec3i(i32(${buffer}[base+6u]),i32(${buffer}[base+7u]),i32(${buffer}[base+8u]));
  h.indexBits=bitLength(h.vertexCount-1u);
- let cornerBits=${buffer}[base+19u];
- h.prefixBits=bitLength(cornerBits/${BLOCK_CORNERS}u);
+ h.prefixBits=bitLength(${buffer}[base+19u]/${BLOCK_CORNERS}u);
  h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
  h.positionCount=${buffer}[base+20u];h.linkBits=bitLength(h.positionCount-1u);
  // Word 21: the joint width in bits 0 to 5, the target count in 6 to 13, the smallest joint above.
  let dw=${buffer}[base+21u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&${MAX_MORPH_TARGETS}u;h.skinBase=(dw>>14u)&0xffffu;
- let stored=h.positionCount;var at=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;h.streams=at;
- h.blocks=clusterStream(true,ceilDiv(h.indexCount/3u,${TRIANGLE_BLOCK}u),h.recordBits,&at);
- h.corners=clusterStream(true,cornerBits,1u,&at);
- h.pos.x=clusterStream(true,stored,h.posBits.x,&at);h.pos.y=clusterStream(true,stored,h.posBits.y,&at);h.pos.z=clusterStream(true,stored,h.posBits.z,&at);
- h.links=at;
+ h.table=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount+${UV_EXTENSION_WORDS}u*countOneBits(h.flags&${FLAG_UV_EXTENDED}u);
+ h.streams=h.table+${RESIDENT_TABLE_WORDS}u;
+ let blocks=clusterOffsets(base,h.table,0u);let x=clusterOffsets(base,h.table,1u);let z=clusterOffsets(base,h.table,2u);
+ h.blocks=blocks.x;h.corners=blocks.y;h.pos=vec3u(x.x,x.y,z.x);h.links=z.y;
  return h;
 }
-// The rest of the header after \`clusterPointHeader\`: flags, attribute grids and the streams after
-// the links, the same words and the same arithmetic as one decode of the whole.
+`
+
+/** The rest of the header, and the whole header once per cluster. */
+const surfaceHeaderWgsl = (
+  buffer: string,
+) => `// The rest of the header after \`clusterPointHeader\`: flags, attribute grids and the streams after
+// the links, each stream's offset loaded from the table, only for the attributes the page stores.
 fn clusterSurfaceHeader(point:ClusterHeader,base:u32)->ClusterHeader{
  var h=point;
- h.flags=${buffer}[base+4u];
- // Words 9 to 16: each texture set's two ranges, the least code above five bits of width.
- for(var s=0u;s<${MAX_UV_SETS}u;s++){
-  let u=${buffer}[base+9u+2u*s];let v=${buffer}[base+10u+2u*s];
-  h.uvBitsX[s]=u&31u;h.uvMinX[s]=u>>5u;h.uvBitsY[s]=v&31u;h.uvMinY[s]=v>>5u;
- }
  // Word 17: the four least colour bytes, red lowest; word 18: their four widths of four bits, then
  // the precision of the normals and of the tangents in four bits each.
  let cm=${buffer}[base+17u];let cb=${buffer}[base+18u];
@@ -115,7 +109,73 @@ fn clusterSurfaceHeader(point:ClusterHeader,base:u32)->ClusterHeader{
  h.colorBits=vec4u(cb&15u,(cb>>4u)&15u,(cb>>8u)&15u,(cb>>12u)&15u);
  h.normalBits=(cb>>16u)&15u;h.tangentBits=(cb>>20u)&15u;
  h.influences=${buffer}[base+22u];
- let n=h.vertexCount;var at=h.links;
+ if((h.flags&${FLAG_NORMAL}u)!=0u){h.normal=clusterOffsets(base,h.table,3u);}
+ // The sets the page stores, by rank: each one's two ranges, the least code above five bits of
+ // width — words 9 to 16 for the first four sets, then, after the morph records, a pair for each set
+ // past them the page carries — and its two streams. A set it does not store is left zero.
+ var extension=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;
+ for(var m=clusterUvSets(h.flags);m!=0u;m&=m-1u){
+  let s=firstTrailingBit(m);
+  var u=0u;var v=0u;
+  if(s<${HEADER_UV_SETS}u){u=${buffer}[base+9u+2u*s];v=${buffer}[base+10u+2u*s];}
+  else{u=${buffer}[base+extension];v=${buffer}[base+extension+1u];extension+=${UV_EXTENSION_WORDS}u;}
+  h.uvBitsX[s]=u&31u;h.uvMinX[s]=u>>5u;h.uvBitsY[s]=v&31u;h.uvMinY[s]=v>>5u;
+  let at=clusterOffsets(base,h.table,${TABLE_UV}u+s);h.uvX[s]=at.x;h.uvY[s]=at.y;
+ }
+ if((h.flags&${FLAG_COLOR}u)!=0u){
+  let rg=clusterOffsets(base,h.table,${TABLE_COLOR}u);let ba=clusterOffsets(base,h.table,${TABLE_COLOR + 1}u);
+  h.color=vec4u(rg.x,rg.y,ba.x,ba.y);
+ }
+ if((h.flags&${FLAG_TANGENT | FLAG_SKIN}u)!=0u){let tail=clusterOffsets(base,h.table,${TABLE_TAIL}u);h.tangent=tail.x;h.skin=tail.y;}
+ return h;
+}
+// The whole header, once per cluster.
+fn clusterHeader(base:u32)->ClusterHeader{return clusterSurfaceHeader(clusterPointHeader(base),base);}
+`
+
+/** The header of a page on disk, whose offsets follow from its counts and widths: what the install
+ *  pass reads to lay the resident page out and to write its table (\`clusterTableWord\`). */
+const diskHeaderWgsl = (
+  buffer: string,
+) => `// The word a stream of \`count\` fields of \`bits\` bits starts at; \`at\` moves past it when present.
+fn clusterStream(present:bool,count:u32,bits:u32,at:ptr<function,u32>)->u32{
+ let start=*at;
+ if(present){*at+=ceilDiv(count*bits,32u);}
+ return start;
+}
+// The header of a page on disk, every stream's offset the chain of the counts and widths in the
+// format's order — a stream the page does not carry starts where the next one would —, the same
+// words and the same arithmetic as \`Layout::of\`.
+fn clusterDiskHeader(base:u32)->ClusterHeader{
+ var h:ClusterHeader;
+ h.vertexCount=${buffer}[base+2u];h.indexCount=${buffer}[base+3u];h.flags=${buffer}[base+4u];
+ let p=${buffer}[base+5u];h.posBits=clusterWidths(p);h.posUnit=clusterUnit(p);
+ h.posStart=vec3i(i32(${buffer}[base+6u]),i32(${buffer}[base+7u]),i32(${buffer}[base+8u]));
+ h.indexBits=bitLength(h.vertexCount-1u);
+ let cornerBits=${buffer}[base+19u];
+ h.prefixBits=bitLength(cornerBits/${BLOCK_CORNERS}u);
+ h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
+ h.positionCount=${buffer}[base+20u];h.linkBits=bitLength(h.positionCount-1u);
+ let dw=${buffer}[base+21u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&${MAX_MORPH_TARGETS}u;h.skinBase=(dw>>14u)&0xffffu;
+ let cm=${buffer}[base+17u];let cb=${buffer}[base+18u];
+ h.colorMin=vec4u(cm&255u,(cm>>8u)&255u,(cm>>16u)&255u,cm>>24u);
+ h.colorBits=vec4u(cb&15u,(cb>>4u)&15u,(cb>>8u)&15u,(cb>>12u)&15u);
+ h.normalBits=(cb>>16u)&15u;h.tangentBits=(cb>>20u)&15u;
+ h.influences=${buffer}[base+22u];
+ var extension=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;
+ for(var s=0u;s<${MAX_UV_SETS}u;s++){
+  var u=0u;var v=0u;
+  if(s<${HEADER_UV_SETS}u){u=${buffer}[base+9u+2u*s];v=${buffer}[base+10u+2u*s];}
+  else if(clusterHasUv(h.flags,s)){u=${buffer}[base+extension];v=${buffer}[base+extension+1u];extension+=${UV_EXTENSION_WORDS}u;}
+  h.uvBitsX[s]=u&31u;h.uvMinX[s]=u>>5u;h.uvBitsY[s]=v&31u;h.uvMinY[s]=v>>5u;
+ }
+ let stored=h.positionCount;
+ var at=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount+${UV_EXTENSION_WORDS}u*countOneBits(h.flags&${FLAG_UV_EXTENDED}u);h.streams=at;
+ h.blocks=clusterStream(true,ceilDiv(h.indexCount/3u,${TRIANGLE_BLOCK}u),h.recordBits,&at);
+ h.corners=clusterStream(true,cornerBits,1u,&at);
+ h.pos.x=clusterStream(true,stored,h.posBits.x,&at);h.pos.y=clusterStream(true,stored,h.posBits.y,&at);h.pos.z=clusterStream(true,stored,h.posBits.z,&at);
+ h.links=at;
+ let n=h.vertexCount;
  clusterStream(h.positionCount<n,n,h.linkBits,&at);
  let hasNormal=(h.flags&${FLAG_NORMAL}u)!=0u;
  h.normal.x=clusterStream(hasNormal,n,h.normalBits,&at);h.normal.y=clusterStream(hasNormal,n,h.normalBits,&at);
@@ -129,9 +189,28 @@ fn clusterSurfaceHeader(point:ClusterHeader,base:u32)->ClusterHeader{
  h.skin=at;
  return h;
 }
-// The whole header, once per cluster.
-fn clusterHeader(base:u32)->ClusterHeader{return clusterSurfaceHeader(clusterPointHeader(base),base);}
-// Bits \`at\` to \`at+bits\` of the two words \`lo\`, \`hi\` read as one 64-bit window, \`bits\` at most 24.
+// Offset \`k\` of the table (the order of \`Layout::table\`) of a page whose disk header is \`h\`, in the
+// resident page: the table sits behind the header, so every stream moves by its words. A page of the format's
+// bounds never passes the 16 bits it is held in (\`MAX_TABLE_OFFSET\`); the install pass refuses one that would.
+fn clusterTableOffset(h:ClusterHeader,k:u32)->u32{
+ var at:u32;
+ if(k<2u){at=select(h.blocks,h.corners,k==1u);}
+ else if(k<5u){at=h.pos[k-2u];}
+ else if(k==5u){at=h.links;}
+ else if(k<8u){at=h.normal[k-6u];}
+ else if(k<${TABLE_COLOR * 2}u){let s=(k-8u)>>1u;at=select(h.uvX[s],h.uvY[s],((k-8u)&1u)!=0u);}
+ else if(k<${TABLE_TAIL * 2}u){at=h.color[k-${TABLE_COLOR * 2}u];}
+ else{at=select(h.tangent,h.skin,k==${TABLE_TAIL * 2 + 1}u);}
+ return at+${RESIDENT_TABLE_WORDS}u;
+}
+// Word \`i\` of the resident page's table, written by the install pass: offsets \`2i\` and \`2i+1\`.
+fn clusterTableWord(h:ClusterHeader,i:u32)->u32{return clusterTableOffset(h,2u*i)|(clusterTableOffset(h,2u*i+1u)<<16u);}
+`
+
+/** The window of two words, the block of a triangle, its corners and its indices. */
+const triangleWgsl = (
+  buffer: string,
+) => `// Bits \`at\` to \`at+bits\` of the two words \`lo\`, \`hi\` read as one 64-bit window, \`bits\` at most 24.
 fn clusterWindow(lo:u32,hi:u32,at:u32,bits:u32)->u32{
  if(bits==0u){return 0u;}
  var value=hi>>(at&31u);
@@ -160,7 +239,11 @@ fn clusterIndex(h:ClusterHeader,base:u32,corner:u32)->u32{
  let b=clusterBlock(h,base,corner/3u);
  return b.x+clusterField(base+h.corners,b.z+(corner%${BLOCK_CORNERS}u)*b.y,b.y);
 }
-// A vertex's position: its own, or the one its link names when the page stores each once. Each cell
+`
+
+/** A vertex's position, texture coordinates and normal. */
+const attributesWgsl =
+  () => `// A vertex's position: its own, or the one its link names when the page stores each once. Each cell
 // is the page's start plus the stored offset, converted to a float and multiplied by the unit.
 fn clusterPosition(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
  var at=vertex;
@@ -187,20 +270,16 @@ fn clusterUv(h:ClusterHeader,base:u32,vertex:u32,uvSet:u32)->vec2f{
  return vec2f(clusterUvValue(h.uvMinX[uvSet]+clusterField(base+h.uvX[uvSet],vertex*bx,bx)),
   clusterUvValue(h.uvMinY[uvSet]+clusterField(base+h.uvY[uvSet],vertex*by,by)));
 }
-// The unit normal two cells of the octahedron of \`bits\` bits an axis stand for: each cell times
-// the grid's step less one, z one less their magnitudes, the lower half unfolded by what z lacks
-// of zero, the vector made unit.
-fn clusterOctahedron(cells:vec2u,bits:u32)->vec3f{
- let e=vec2f(cells)*(2.0/f32((1u<<bits)-1u))-1.0;
- let z=1.0-abs(e.x)-abs(e.y);
- let lack=select(0.0,min(-z,1.0),z<0.0);
- return normalize(vec3f(select(e+lack,e-lack,e>=vec2f(0.0)),z));
-}
 fn clusterNormal(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
  let b=h.normalBits;
- return clusterOctahedron(vec2u(clusterField(base+h.normal.x,vertex*b,b),clusterField(base+h.normal.y,vertex*b,b)),b);
+ return octCellsDecode(vec2u(clusterField(base+h.normal.x,vertex*b,b),clusterField(base+h.normal.y,vertex*b,b)),b);
 }
-// The stored tangent of a page that carries it (\`FLAG_TANGENT\`): its angle around the vertex's
+`
+
+/** The stored tangent, the skin, the morph targets and the colour. */
+const skinMorphColorWgsl = (
+  buffer: string,
+) => `// The stored tangent of a page that carries it (\`FLAG_TANGENT\`): its angle around the vertex's
 // decoded normal, a turn in 2^\`tangentBits\` steps, in a plane whose axes the normal fixes — x and z
 // traded when |z| > |x|, the axis (−y, x, 0) and the normal crossed with it, both left of their
 // length, which scales the cosine and the sine instead —, and its bitangent's sign on the bit above.
@@ -240,6 +319,56 @@ fn clusterColor(h:ClusterHeader,base:u32,vertex:u32)->vec4f{
   h.colorMin.z+clusterField(base+h.color.z,vertex*b.z,b.z),
   h.colorMin.w+clusterField(base+h.color.w,vertex*b.w,b.w));
  return vec4f(bytes)*${wgslF32(1 / COLOR_LEVELS)};
-}`,
+}`
+
+/**
+ * WGSL decode of a `WGP3` quantized cluster page read in place from a storage buffer of words
+ * (`docs/FORMAT.md`): the header once per cluster, then any vertex or corner by rank, in O(1)
+ * — a field never spans more than two words, and a triangle is its block's record, read once, and
+ * three fields. The arithmetic is the format's, operation for operation — a position is its cell,
+ * converted to a float, times the grid's unit, a colour its byte times 1/255, a texture
+ * coordinate its float code's exponent and mantissa set in a float's bits —, so a decoded value is
+ * the 32-bit float the shared Rust codec and `../codec/geometryPage.ts` decode (the cell's
+ * conversion exact up to 2^24 cells, and rounded by the device past them); a normal, which goes
+ * through `normalize`, agrees to the ULP tolerance WGSL grants that builtin, and a stored tangent,
+ * through `cos`, `sin` and `normalize`, to theirs.
+ *
+ * The host declares the buffer and names it: `clusterDecodeWgsl('pageWords')` binds every routine
+ * to `pageWords:array<u32>`.
+ */
+export function clusterDecodeWgsl(buffer: string) {
+  return wgslBlock(
+    `clusterDecodeWgsl(${buffer})`,
+    [
+      TWO_PI,
+      octCellsDecode,
+      CLUSTER_HEADER_WGSL,
+      bitLength,
+      ceilDivWgsl,
+      pow2FromExponent,
+      lowBits,
+      bitWord,
+    ],
+    [
+      fieldsWgsl,
+      pointHeaderWgsl,
+      surfaceHeaderWgsl,
+      triangleWgsl,
+      attributesWgsl,
+      skinMorphColorWgsl,
+    ]
+      .map((part) => part(buffer))
+      .join(''),
+  )
+}
+
+/** The header of a page on disk and the table of the resident page's offsets that follows from it
+ *  (`clusterDiskHeader`, `clusterTableWord`), beside the decode of the same buffer: only the install
+ *  pass that transcodes a page reads a page on disk, so no other shader carries them. */
+export function clusterDiskDecodeWgsl(buffer: string) {
+  return wgslBlock(
+    `clusterDiskDecodeWgsl(${buffer})`,
+    [clusterDecodeWgsl(buffer), bitLength, ceilDivWgsl],
+    diskHeaderWgsl(buffer),
   )
 }

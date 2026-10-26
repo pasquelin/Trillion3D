@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { pendingAll, pendingBuffers } from './tableGrowth.ts'
+import { pendingBuffers } from './tableGrowth.ts'
 import { destroyRetired } from './frameRetire.ts'
 
 const storage = (device: GPUDevice, size: number) =>
@@ -31,15 +31,11 @@ test('a committed growth retires what it replaces until the frame is submitted',
 test('a refused growth frees what it made at once and keeps the table', () => {
   const { device, destroyed } = fakeDevice()
   const table = storage(device, 16),
-    made = [storage(device, 32), storage(device, 64)]
-  const growth = pendingAll([
-    pendingBuffers(device, [made[0]], () => [table]),
-    undefined,
-    pendingBuffers(device, [made[1]], () => []),
-  ])
-  assert.equal(growth.bytes, 96)
+    made = storage(device, 32)
+  const growth = pendingBuffers(device, [made], () => [table])
+  assert.equal(growth.bytes, 32)
   growth.destroy()
-  assert.deepEqual(destroyed, made, 'never named by a command: destroyed at once')
+  assert.deepEqual(destroyed, [made], 'never named by a command: destroyed at once')
   destroyRetired(device)
   assert.ok(!destroyed.includes(table), 'the table it would have replaced is kept')
 })

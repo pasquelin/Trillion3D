@@ -1,4 +1,9 @@
-import { BODY_INDEX, LAYER, MOTION, SHAPE } from '../../../../sdk-core/src/physics/layout.ts'
+import {
+  BODY_INDEX,
+  BUILT_IN_FILTER,
+  MOTION,
+  SHAPE,
+} from '../../../../sdk-core/src/physics/layout.ts'
 import { physicsMatterOf } from '../../../../sdk-core/src/physics/matter.ts'
 import type { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
 import type { createPhysicsBodies } from '../bodies/bodies.ts'
@@ -32,7 +37,7 @@ export function createResidentTiles(
       // The matter the node's collider declares, over the engine's default, as for every body.
       const matter = physicsMatterOf(p.instance)
       writer.add({
-        ...{ id: p.id, motion: MOTION.static, layer: LAYER.static, shape: SHAPE.cooked },
+        ...{ id: p.id, motion: MOTION.static, filter: BUILT_IN_FILTER.static, shape: SHAPE.cooked },
         ...{ flags: 0, position, quaternion, size: [scale.x, scale.y, scale.z] },
         ...{ mass: 0, density: 0, friction: matter.friction, restitution: matter.restitution },
         ...{ gravityScale: 1, indices: [p.shape.handle] },

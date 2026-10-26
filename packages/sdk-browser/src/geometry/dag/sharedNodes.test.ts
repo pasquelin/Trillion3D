@@ -15,8 +15,7 @@ import { packedWorldsToRenderOrigin } from './pack/pack.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { residentFlags } from './layout.fixture.ts'
 import { childBase, coldBase } from './layout.ts'
-import { dagFlagShape, flagShapeWords } from './flagSections.ts'
-import { CAND_WORDS, POST_WORDS, VISIBLE_WORDS } from './shader/listsWgsl.ts'
+import { CAND_WORDS, POST_WORDS, dagFlagShape, flagShapeWords } from './flagSections.ts'
 import { cutListCaps } from './lists/cutListCaps.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { treeNodeCount } from './placement/placementTree.ts'
@@ -171,16 +170,13 @@ test('the cold table holds no word per page: residency bits, then what each reco
 
 test('a cut’s flags hold its lists’ caps at most, and a root slot a placement beside the nodes', () => {
   // The descent array's entries and as many held items — the nodes' cap, each placement's slot and
-  // the placement tree's nodes, once as queue 0's top and once as a cell —, the candidates, the
-  // visible lists.
+  // the placement tree's nodes, once as queue 0's top and once as a cell —, the candidates: the
+  // visible clusters are a buffer of their own (`visible/layout.ts`).
   const caps = cutListCaps()
   for (const count of [100, 10_000]) {
     const packed = packDagSelection(field(count)),
       slots = count + 2 * treeNodeCount(packed.placementTree),
-      bound =
-        (2 + POST_WORDS) * (caps.nodes + slots) +
-        CAND_WORDS * caps.candidates +
-        VISIBLE_WORDS * caps.visible
+      bound = (2 + POST_WORDS) * (caps.nodes + slots) + CAND_WORDS * caps.candidates
     assert.ok(flagShapeWords(dagFlagShape(packed)) <= bound, `${count} placements: within the caps`)
   }
 })

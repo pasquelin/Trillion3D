@@ -24,7 +24,8 @@ export const DIAGNOSTIC_GPU_VARIANTS = [
    *  selection, waits between dispatches included, that no pass envelope reports. */
   'selection-doubled',
   /** The head of the cut — prepare, nodes, wanted clusters — encoded twice, also
-   *  idempotent. By subtraction with the previous, the tail: mask, compaction. */
+   *  idempotent. By subtraction with the previous, the tail: the finish, its peaks and its list
+   *  of drawn pages. */
   'selection-head-doubled',
   /** Visibility raster no longer applies the opacity mask: no atlas read, no discard. */
   'geometry-flat',

@@ -1,6 +1,7 @@
 import { CULLING_RECORD_FLOATS } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
 import { cullingOfParts } from './cullingBuilder.ts'
+import { parentErrorOf } from '../selection/helpers.ts'
 
 /** One cluster as the hierarchy builder takes it, a group part of its own: its box, its own ball
  *  and error, and for a cluster something replaces, its level and the band of that replacement; a
@@ -25,7 +26,7 @@ export const buildCullingHierarchy = (module: SdkWasm, clusters: readonly Cullin
   cullingOfParts(module, clusters.length, (view) =>
     clusters.forEach((cluster, k) => {
       const at = k * CULLING_RECORD_FLOATS,
-        root = cluster.parentError === null || cluster.parentError === undefined,
+        root = parentErrorOf(cluster) === null,
         ball = (root ? cluster.sphere : cluster.parentSphere) ?? cluster.sphere
       view.set(cluster.min as ArrayLike<number>, at)
       view.set(cluster.max as ArrayLike<number>, at + 3)

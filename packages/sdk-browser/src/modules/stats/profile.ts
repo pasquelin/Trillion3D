@@ -2,7 +2,7 @@ import { spread } from '../../../../math/src/scalar/quantile.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import type { StatsProfileLine } from '../../../../sdk-core/src/modules/stats/report.ts'
 import type { CpuStepSummary } from '../../diagnostic/stage/profiler.ts'
-import { CPU_STEP_NAMES, CPU_STEP_STAGES } from '../../frame/render/cpuStepTable.ts'
+import { CPU_STEP_NAMES, CPU_STEP_STAGES } from '../../diagnostic/stage/cpuStepTable.ts'
 import { profileAsked } from '../../session/host/debugMode.ts'
 import { trim, WINDOW_MS, type Cursor } from './frameSeries.ts'
 

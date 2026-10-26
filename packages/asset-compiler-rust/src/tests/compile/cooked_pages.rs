@@ -116,13 +116,12 @@ impl<'a> Source<'a> {
     }
 }
 
-/// `bytes`, one geometry page, decoded and matched to `source`.
+/// `bytes`, one geometry page, and what it `decoded` to — the vertices it names found, if it names
+/// any (`decoded_page`) —, matched to `source`.
 pub(in crate::tests) fn page_corners(
-    bytes: &[u8],
+    (bytes, decoded): (&[u8], &trillion3d_page_codec::DecodedPage),
     source: &Source,
 ) -> std::result::Result<PageCorners, String> {
-    let decoded =
-        trillion3d_page_codec::decode(bytes, usize::MAX).map_err(|e| format!("decode: {e:?}"))?;
     let header = trillion3d_page_codec::Header::parse(bytes, usize::MAX)
         .map_err(|e| format!("header: {e:?}"))?;
     let position = decoded.attribute(0).expect("position");
@@ -225,13 +224,13 @@ pub(in crate::tests) fn cooked_pages(
         .and_then(Path::parent)
         .expect("the cache");
     let pages = primitive["pages"].as_array().expect("pages");
+    let mut pages_read = PrimitivePages::new(cache, &scene.result, primitive);
     let mut read: Vec<_> = pages
         .iter()
         .map(|page| {
-            page_corners(
-                &geometry_page(cache, &scene.result, primitive, page),
-                &source,
-            )
+            let bytes = pages_read.bytes(page);
+            let decoded = pages_read.decoded(page);
+            page_corners((&bytes, &decoded), &source)
         })
         .collect();
     rematch(primitive, &mut read);

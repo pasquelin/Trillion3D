@@ -8,8 +8,13 @@ import { effectsShown, stagePlan, type PlanStage } from '../../post/effects/stag
 import { velocitySettling } from '../../post/taa/velocityFrame.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { viewProj } from '../backend/helpers.ts'
-import { beautyImage } from '../backend/state/renderScale.ts'
+import { beautyImage } from '../prepare/lit.ts'
 import { readResolveFrame, resolveFrame, webgpuEffects } from './effectsFrame.ts'
+import { markFused, settle } from '../../blend/translucency.ts'
+import { composeLateImage } from '../../blend/translucencyCompose.ts'
+import { applyPendingHoldout } from '../../blend/draw.ts'
+import { splitsTranslucency } from '../../blend/translucencyPhase.ts'
+import { measureBeforeTranslucency } from '../../post/taa/frame.ts'
 
 /** The passes of a stage that draw, rewritten by each image: an image allocates none. */
 const drawing: EffectPass[] = []
@@ -20,12 +25,10 @@ const composed: ComposedImage = {
 }
 export function composedImage(
   color: GPUTextureView,
-  share?: GPUTextureView,
   glow?: ComposedImage['glow'],
   finish?: ComposedImage['finish'],
 ) {
   composed.color = color
-  composed.share = share
   composed.glow = glow
   composed.finish = finish
   return composed
@@ -36,9 +39,14 @@ const COMPILING = -1
 
 /** The passes of a stage the chain holds none of. */
 const NO_PASSES: readonly EffectPass[] = []
-/** The image the passes on the resolved image leave: its colour, the share and the layers of the
- *  image they were handed. */
-const resolvedImage = {} as ComposedImage
+/** The image the passes on the resolved image leave, or the temporal pass's: its colour, and the
+ *  half-size image written beside the colour where a pass wrote one (`WebgpuResolveKind.half`,
+ *  `AccumulatedImage.half`), which the scene's chain reads in place of the pass that draws it
+ *  (`../../post/filters/sceneChain.ts`). */
+export type ResolvedImage = ComposedImage & { half?: GPUTextureView }
+const resolvedImage = {} as ResolvedImage
+/** The image the late layers are composed into, as the passes after read it. */
+const lateImage = {} as ResolvedImage
 
 /**
  * The passes of `stage` on `input`, from the motion the velocity stage measured for this image
@@ -85,7 +93,15 @@ export function encodeLitEffects(
 ) {
   const { gpu } = rt
   if (!gpu.hdrView || !gpu.depthView || !effectsShown(rt)) return undefined
-  return drawStage(rt, device, encoder, cam, 'before-resolve', gpu.hdrView, false)
+  // The depth of field composes the layers drawn after it: the temporal pass measures the lit image
+  // before they lie on it (`measureBeforeTranslucency`).
+  if (splitsTranslucency(rt)) measureBeforeTranslucency(rt, encoder, gpu.hdrView)
+  resolveFrame.layersComposed = false
+  const color = drawStage(rt, device, encoder, cam, 'before-resolve', gpu.hdrView, false)
+  if (resolveFrame.layersComposed && gpu.translucency) markFused(gpu.translucency)
+  // The alpha holdout the setting lays after the depth of field.
+  applyPendingHoldout(rt, device, encoder, color ?? gpu.hdrView)
+  return color
 }
 
 /**
@@ -95,8 +111,10 @@ export function encodeLitEffects(
  * else on `lit`, the lit image or what the passes before the temporal pass made of it; returns the image
  * the rest of the image reads — `accumulated` itself when none draws, or a view that shows raw values or is
  * not finished, which has no motion to blur; `undefined` when the temporal pass did not run. The
- * image keeps the as-is share of the one it was handed; the history the temporal pass keeps is the
- * unblurred one.
+ * history the temporal pass keeps is the unblurred one. Its half-size image is the blur's own, written as it stores the image, where the
+ * blur drew; the temporal pass's where nothing did. The layers drawn after the motion blur are
+ * composed over what it leaves, into an image of their own (`composeLateImage`), whose half-size
+ * image the chain makes itself.
  */
 export function encodeResolvedEffects(
   rt: WebgpuPagesRuntime,
@@ -105,13 +123,36 @@ export function encodeResolvedEffects(
   accumulated: AccumulatedImage | undefined,
   cam: EngineCamera,
   lit = rt.gpu.hdrView,
-): ComposedImage | undefined {
+): ResolvedImage | undefined {
+  resolveFrame.lateComposed = false
+  const resolved = drawResolved(rt, device, encoder, accumulated, cam, lit)
+  // The last motion blur laid the layers drawn after it over its image as it wrote it.
+  if (resolveFrame.lateComposed && rt.gpu.translucency?.late) settle(rt.gpu.translucency.late)
+  const scene = resolved?.color ?? lit
+  if (!scene || !effectsShown(rt)) return resolved
+  const size = accumulated ? rt.gpu.displaySize : rt.gpu.targetSize
+  const color = composeLateImage(rt, device, encoder, scene, size)
+  if (!color) return resolved
+  lateImage.color = color
+  lateImage.half = undefined
+  return lateImage
+}
+
+/** The passes on the resolved image: `accumulated` itself where none draws. */
+function drawResolved(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  accumulated: AccumulatedImage | undefined,
+  cam: EngineCamera,
+  lit: GPUTextureView | undefined,
+): ResolvedImage | undefined {
   const input = accumulated?.color ?? lit
   if (!input || !rt.gpu.depthView || !effectsShown(rt)) return accumulated
   const color = drawStage(rt, device, encoder, cam, 'after-resolve', input, !!accumulated)
   if (!color) return accumulated
   resolvedImage.color = color
-  resolvedImage.share = accumulated?.share
+  resolvedImage.half = rt.gpu.effects?.stage('after-resolve').half
   return resolvedImage
 }
 
@@ -120,8 +161,7 @@ export function encodeResolvedEffects(
  * run before tone mapping, over the resolved linear image — `accumulated`, or the lit image when
  * there is none — of `drawn` pixels: the display's after the temporal resolve, else the lit
  * image's, which the composition upscales (`composeSource`). Returns what composition reads,
- * `accumulated` itself when the chain draws nothing, and the last bloom's glow when the composition takes it over. The chain's
- * output keeps the as-is share of the image it read. `post` is what the display finishing shares
+ * `accumulated` itself when the chain draws nothing, and the last bloom's glow when the composition takes it over. `post` is what the display finishing shares
  * with it (`../../post/finish/frame.ts`); none for a view the finishing leaves as it is — the
  * chain draws nothing there, a view lit by no declared lamp showing its albedo, a diagnostic view
  * and a surface capture the engine's image as it is. The revision drawn is kept, so a change of
@@ -165,7 +205,7 @@ export function encodeEffects(
   run.gpuDrawCalls += effects.draws
   const { blend } = effects
   if (output === input && !blend) return accumulated
-  return composedImage(output, accumulated?.share, blend)
+  return composedImage(output, blend)
 }
 
 /** What the overlays read of the frame, kept from frame to frame: an image allocates none. */

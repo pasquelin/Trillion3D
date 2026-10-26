@@ -1,5 +1,5 @@
 // A sprite casts no shadow. Its root carries `SPRITE_ROOT`, so the shadow raster leaves its
-// rows out (`../../lighting/shadows/casters/bounds.ts`, `MOBILITY_SHADOWLESS`). Every other surface casts.
+// clusters out (`../../lighting/shadows/casters/castFlags.ts`, `MOBILITY_SHADOWLESS`). Every other surface casts.
 // A mesh set `castShadow = false` is left out the same way.
 import test from 'node:test'
 import assert from 'node:assert/strict'

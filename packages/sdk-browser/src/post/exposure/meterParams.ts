@@ -1,14 +1,12 @@
 import {
   EXPOSURE_LUMINANCE_WEIGHTS,
   EXPOSURE_MIDDLE_GREY,
-  type EXPOSURE_RULES,
+  exposureSaturationLuminance,
+  type ExposureValues,
 } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
-import type { SettingValues } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { putVec4 } from '../../gpu/core/fieldLayout.ts'
 import { halfOf } from '../filters/levelSizes.ts'
 import { METER_PARAMS } from './meterLayout.ts'
-
-/** The automatic exposure's settings, resolved (`resolveSettingsInto`). */
-export type ExposureSettings = SettingValues<typeof EXPOSURE_RULES>
 
 /** Seconds of the frame the exponential's multiplier is matched to the linear run at: the
  *  multiplier makes both move as fast where they meet. */
@@ -25,7 +23,7 @@ const moved = (value: number) => Math.abs(value - 1) > NEARLY
 
 /** Whether the settings ask the local exposure to run: a contrast, or the detail, not 1. At 1 for
  *  all three the layers put every pixel back where it was. */
-export const localExposureOn = (settings: ExposureSettings) =>
+export const localExposureOn = (settings: ExposureValues) =>
   moved(settings.localExposureHighlightContrast) ||
   moved(settings.localExposureShadowContrast) ||
   moved(settings.localExposureDetailStrength)
@@ -57,12 +55,15 @@ const reading = {
  * How the exposure reads a pixel's luminance and places it in its histogram, from the settings:
  * the weights of the colour channels, the lowest luminance counted, and the scale and bias taking
  * a log2 luminance into [0, 1] over the histogram, whose lowest stop is read at least one under
- * its highest. The meter (`writeMeterParams`) and the local exposure, which reads the same
- * luminance, take them from here; the object is the same at each call, read before the next.
+ * its highest. The histogram's stops are EV100s: they are moved by the saturation luminance's
+ * logarithm (`exposureSaturationLuminance`). The meter (`writeMeterParams`) and the local
+ * exposure, which reads the same luminance, take them from here; the object is the same at each
+ * call, read before the next.
  */
-export function luminanceReading(settings: ExposureSettings) {
-  const logMax = settings.exposureHistogramLogMax
-  const logMin = Math.min(settings.exposureHistogramLogMin, logMax - 1)
+export function luminanceReading(settings: ExposureValues) {
+  const shift = Math.log2(exposureSaturationLuminance(settings.exposureLensAttenuation))
+  const logMax = settings.exposureHistogramLogMax + shift
+  const logMin = Math.min(settings.exposureHistogramLogMin + shift, logMax - 1)
   reading.weights = EXPOSURE_LUMINANCE_WEIGHTS[settings.exposureLuminanceMethod]
   reading.lowest = 2 ** logMin
   reading.scale = 1 / (logMax - logMin)
@@ -70,28 +71,36 @@ export function luminanceReading(settings: ExposureSettings) {
   return reading
 }
 
+/** What the meter's uniform is written from, for one image: the settings, the `size` of the image
+ *  measured in pixels, `seconds` of the world's time since the last update, whether the exposure
+ *  `jumps` to what the mean asks — a first update or a view cut —, the `preExposure` the image holds
+ *  its light multiplied by, which the measure divides out, and whether a metering mask weighs the
+ *  pixels (`masked`). */
+export type MeterUniform = {
+  settings: ExposureValues
+  size: readonly number[]
+  seconds: number
+  jumps: boolean
+  preExposure: number
+  masked: boolean
+}
+
 /**
- * Writes the meter's uniform (`METER_PARAMS`) into `words`, `ints` its view as unsigned words: the
- * `size` pixels measured, the settings' derived terms, `seconds` since the last update, and
- * whether the exposure `jumps` to what the mean asks — a first update, a view cut, or a range
- * that is no range. The mean's range is held in luminance (`2^EV100`, the luminance of EV100 0
- * being 1), the histogram's logarithms in stops, the lowest at least one under the highest. The image
- * holds its light multiplied by `preExposure`, which the measure divides out.
+ * Writes the meter's uniform (`METER_PARAMS`) into `words`, `ints` its view as unsigned words,
+ * from `uniform`: the pixels measured, the settings' derived terms, the seconds since the last
+ * update, and the jump — also taken where the range is no range. The mean's range is held in
+ * luminance (the saturation luminance times `2^EV100`), the histogram's logarithms in stops, the
+ * lowest at least one under the highest.
  */
-export function writeMeterParams(
-  words: Float32Array,
-  ints: Uint32Array,
-  settings: ExposureSettings,
-  size: readonly number[],
-  seconds: number,
-  jumps: boolean,
-  preExposure: number,
-) {
+export function writeMeterParams(words: Float32Array, ints: Uint32Array, uniform: MeterUniform) {
+  const { settings, size, seconds, jumps, preExposure, masked } = uniform
   const reading = luminanceReading(settings)
+  const saturation = exposureSaturationLuminance(settings.exposureLensAttenuation)
   const high = settings.exposureHighPercent / 100
   const low = Math.min(settings.exposureLowPercent / 100, high)
-  const lowest = 2 ** Math.min(settings.exposureMinBrightness, settings.exposureMaxBrightness)
-  const highest = 2 ** settings.exposureMaxBrightness
+  const lowest =
+    saturation * 2 ** Math.min(settings.exposureMinBrightness, settings.exposureMaxBrightness)
+  const highest = saturation * 2 ** settings.exposureMaxBrightness
   const validRange = settings.exposureMinBrightness < settings.exposureMaxBrightness
   const distance = settings.exposureTransitionDistance
   ints[AT.size] = size[0]
@@ -115,7 +124,14 @@ export function writeMeterParams(
   words[AT.response + 1] = exponentialMultiplier(settings.exposureSpeedDown, distance)
   words[AT.response + 2] = 2 ** settings.exposureBias
   words[AT.response + 3] = jumps || !validRange ? 1 : 0
-  words[AT.image] = 1 / preExposure
+  putVec4(
+    words,
+    AT.image,
+    1 / preExposure,
+    saturation,
+    settings.exposureMethod === 'basic' ? 1 : 0,
+    masked ? 1 : 0,
+  )
   words[AT.local] = Math.log2(EXPOSURE_MIDDLE_GREY) + settings.localExposureMiddleGreyBias
   words[AT.local + 1] = settings.localExposureHighlightContrast
   words[AT.local + 2] = settings.localExposureShadowContrast

@@ -40,8 +40,7 @@ function moveGroups(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
 }
 
 /** The parent's world at `slot`, held, the slot's version drawn anew when it or a link moved; its
- *  move told to the shadow mobility — the rows pass stales the pages its roots' rows left and
- *  entered (`../rows/rowCastWgsl.ts`) — and the temporal pyramid. The one decision of whether a parent
+ *  move told to the shadow mobility and the temporal pyramid. The one decision of whether a parent
  *  moved, whoever sends its world: true when it did. */
 export function settleSlot(
   rt: WebgpuPagesRuntime,
@@ -60,13 +59,13 @@ export function settleSlot(
 ) {
   // Whether the parent moved: one linked now, or sent at the world it held, did not.
   const moved = p !== undefined && !sameElements(state.worlds, world, slot * MATRIX_VALUES)
-  // A parent's move moves its roots: its first makes them moving casters, each how far it went
-  // (`mobility.moveLead`), from the world it held; a turn of its winding, their bins.
+  // A parent's move moves its roots: its first makes them moving casters (`mobility.moveLead`); a
+  // turn of its winding, their bins.
   let turned = false
   if (moved) {
     state.movedSince = true
     const held = state.worlds.subarray(slot * MATRIX_VALUES, slot * MATRIX_VALUES + MATRIX_VALUES)
-    rt.lights.mobility.moveLead(slot, state.ranksOf[slot], held, world)
+    rt.lights.mobility.moveLead(slot, state.ranksOf[slot])
     turned = matrixWindingCw(held) !== matrixWindingCw(world)
   }
   if (moved || p === undefined) state.parentsMoved.mark(slot)

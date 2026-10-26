@@ -140,6 +140,32 @@ export function compiledModel(declared: readonly CookedBody[] = []) {
   return model
 }
 
+/** `model` as a partitioned model (`LoadedModel._cells`) whose cells draw the source nodes
+ *  `streamed`: it holds each only while a cell is placed for it (`place`, until `leave`), and every
+ *  other node, which the core draws, always. */
+export function cellsOf(model: object, streamed: readonly number[]) {
+  const drawn = new Set<number>()
+  let changes = 0
+  Object.assign(model, {
+    _cells: () => ({
+      get changes() {
+        return changes
+      },
+      holds: (node: number) => !streamed.includes(node) || drawn.has(node),
+    }),
+  })
+  return {
+    place(...nodes: number[]) {
+      nodes.forEach((node) => drawn.add(node))
+      changes++
+    },
+    leave(...nodes: number[]) {
+      nodes.forEach((node) => drawn.delete(node))
+      changes++
+    },
+  }
+}
+
 /**
  * A tile streamer within `budget` (8 bodies) over a scene holding one compiled model at the
  * origin, scaled by `scale`, numbering the nodes of the bodies it `declared` (`compiledModel`), not

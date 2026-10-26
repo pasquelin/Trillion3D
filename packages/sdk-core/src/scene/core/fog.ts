@@ -16,13 +16,14 @@
  * (Beer-Lambert, `T = exp(−density · d)` where nothing falls off), divided by e every
  * `1 / heightFalloff` metres up: a spelling of the height law, mapped to it exactly.
  * The height fog also takes a second layer, an end distance, a cubemap and a volume
- * (`fogHeight.ts`), each off by default.
+ * (`fogHeight.ts`), each off by default, the views it shows in, and the sky light's capture as a
+ * light of its in-scattering.
  */
 import type { LinearRgb } from '../../contracts/material.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import { DEG2RAD } from '../../../../math/src/constants.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
-import { colourOf, finite, objectOf, rangedFields, refuse, type FogRange } from './fogChecks.ts'
+import { clamp, isFiniteNumber } from '../../../../math/src/scalar/reals.ts'
+import { booleanOf, colourOf, objectOf, rangedFields, refuse, type FogRange } from './fogChecks.ts'
 import { cubemapMipCount, validateFogCubemap } from './fogCubemap.ts'
 import {
   heightFogOf,
@@ -30,11 +31,11 @@ import {
   type ResolvedHeightFog,
   type SceneFogDirectional,
   type SceneHeightFog,
+  type SceneSkyLightScattering,
 } from './fogHeight.ts'
 import { validateSecondLayer } from './fogSecond.ts'
 import { validateVolumetricFog } from './fogVolumetric.ts'
 
-export { finite }
 export type { SceneFogDirectional, SceneHeightFog } from './fogHeight.ts'
 
 /** Fog that starts at `near` and hides everything from `far` on, distances from the eye. */
@@ -115,8 +116,26 @@ const HEIGHT_RANGES = {
   horizontalLimit: [0, Infinity],
 } as const satisfies Record<string, FogRange>
 
+/** The switches of a height fog: the views it shows in, and whether it holds its light out. */
+const VIEW_SWITCHES = ['inMainView', 'inSkyCapture', 'inReflectionCaptures', 'holdout'] as const
+
+/** The numbers of the sky light's scattering, each with the range it must lie in. */
+const SKY_LIGHT_RANGES = {
+  strength: [0, Infinity],
+  roughness: [0, 1],
+} as const satisfies Record<string, FogRange>
+
+/** The sky light's scattering checked, a copy: its strength ≥ 0, its roughness in [0, 1]. */
+function validateSkyLightScattering(value: unknown, fog: unknown): SceneSkyLightScattering {
+  const scattering = objectOf<SceneSkyLightScattering>(value, 'skyLightScattering', fog)
+  const kept: SceneSkyLightScattering = {}
+  rangedFields(scattering, kept, SKY_LIGHT_RANGES, fog, 'skyLightScattering.')
+  return kept
+}
+
 /** A height fog checked, a copy of what it declares: its colours of three numbers ≥ 0, `baseHeight`
- *  finite, the other numbers ≥ 0, `maxOpacity` in [0, 1], the lobe's exponent above 0. */
+ *  finite, the other numbers ≥ 0, `maxOpacity` in [0, 1], the lobe's exponent above 0, the views it
+ *  shows in true or false, the sky light's scattering strength ≥ 0 and roughness in [0, 1]. */
 function validateHeightFog(fog: SceneHeightFog): SceneHeightFog {
   const out: SceneHeightFog = {}
   if (fog.color !== undefined) out.color = colourOf(fog.color, 'color', fog)
@@ -127,7 +146,7 @@ function validateHeightFog(fog: SceneHeightFog): SceneHeightFog {
     const lobe = objectOf<SceneFogDirectional>(fog.directional, 'directional', fog)
     const kept: SceneFogDirectional = {}
     if (lobe.exponent !== undefined) {
-      if (!finite(lobe.exponent) || lobe.exponent <= 0)
+      if (!isFiniteNumber(lobe.exponent) || lobe.exponent <= 0)
         refuse('directional.exponent must be > 0', fog)
       kept.exponent = lobe.exponent
     }
@@ -138,6 +157,10 @@ function validateHeightFog(fog: SceneHeightFog): SceneHeightFog {
   if (fog.secondLayer !== undefined) out.secondLayer = validateSecondLayer(fog.secondLayer, fog)
   if (fog.cubemap !== undefined) out.cubemap = validateFogCubemap(fog.cubemap, fog)
   if (fog.volumetric !== undefined) out.volumetric = validateVolumetricFog(fog.volumetric, fog)
+  for (const name of VIEW_SWITCHES)
+    if (fog[name] !== undefined) out[name] = booleanOf(fog[name], name, fog)
+  if (fog.skyLightScattering !== undefined)
+    out.skyLightScattering = validateSkyLightScattering(fog.skyLightScattering, fog)
   return out
 }
 
@@ -146,13 +169,13 @@ const isLinear = (fog: SceneFog): fog is SceneLinearFog => 'near' in fog || 'far
 
 /** The height fog a scene's fog is, every field set: none for no fog or a distance fog, which has
  *  neither a volume nor a cubemap. */
-export const sceneHeightFog = (fog: SceneFog | undefined) =>
+const sceneHeightFog = (fog: SceneFog | undefined) =>
   fog && !isLinear(fog) ? heightFogOf(fog) : undefined
 
 /** Whether a height fog shows: its densities, the two layers' summed, above the thinnest, and its
  *  opacity above the lowest. The one predicate the block is written by and the volume is built by:
  *  a fog that shows nothing has no block and no volume. */
-export const fogShows = (h: ResolvedHeightFog) =>
+const fogShows = (h: ResolvedHeightFog) =>
   h.baseDensity + h.second.baseDensity > MIN_DENSITY && h.maxOpacity > MIN_OPACITY
 
 /** The height fog a scene's fog is where it shows (`fogShows`), none otherwise. */
@@ -171,13 +194,14 @@ export function validateSceneFog(fog: SceneFog): SceneFog {
   const rgb = colourOf(fog.color, 'color', fog)
   if (isExtinctionFog(fog)) {
     const { density, heightFalloff = 0, baseHeight = 0 } = fog
-    if (!finite(density) || density < 0) refuse('density must be ≥ 0', fog)
-    if (!finite(heightFalloff) || heightFalloff < 0) refuse('heightFalloff must be ≥ 0', fog)
-    if (!finite(baseHeight)) refuse('baseHeight must be finite', fog)
+    if (!isFiniteNumber(density) || density < 0) refuse('density must be ≥ 0', fog)
+    if (!isFiniteNumber(heightFalloff) || heightFalloff < 0)
+      refuse('heightFalloff must be ≥ 0', fog)
+    if (!isFiniteNumber(baseHeight)) refuse('baseHeight must be finite', fog)
     return { color: rgb, density, heightFalloff, baseHeight }
   }
   const { near, far } = fog as SceneLinearFog
-  if (!finite(near) || !finite(far) || near < 0 || far <= near)
+  if (!isFiniteNumber(near) || !isFiniteNumber(far) || near < 0 || far <= near)
     refuse('expects 0 ≤ near < far', fog)
   return { color: rgb, near, far }
 }
@@ -262,9 +286,25 @@ export function packFog(fog: SceneFog | undefined, out: Float32Array, offset: nu
   return out
 }
 
+/** What a fog carries that the block does not: the views it shows in and the sky light's scattering,
+ *  which the frame reads; empty where there is no height fog. Two fogs that differ in it are drawn
+ *  in other views and lit otherwise. */
+const viewNumbers = (h: ResolvedHeightFog | undefined): number[] =>
+  h
+    ? [
+        h.inMainView ? 1 : 0,
+        h.inSkyCapture ? 1 : 0,
+        h.inReflectionCaptures ? 1 : 0,
+        h.holdout ? 1 : 0,
+        h.skyLightScattering.strength,
+        h.skyLightScattering.roughness,
+      ]
+    : []
+
 /** True when two validated fogs, or their absence, read the same: in the GPU block, in the volume's
- *  numbers, and in the cubemap's picture (the array itself, so that a picture set again, though it
- *  be the same size, is a change). Each is resolved once. */
+ *  numbers, in the views they show in and the sky light's scattering, and in the cubemap's picture
+ *  (the array itself, so that a picture set again, though it be the same size, is a change). Each
+ *  is resolved once. */
 export function sameSceneFog(a: SceneFog | undefined, b: SceneFog | undefined) {
   if (a === b) return true
   const ha = sceneHeightFog(a),
@@ -272,6 +312,7 @@ export function sameSceneFog(a: SceneFog | undefined, b: SceneFog | undefined) {
   return (
     sameValues(numbersOf(a, ha), numbersOf(b, hb)) &&
     sameValues(volumeNumbers(ha?.volumetric), volumeNumbers(hb?.volumetric)) &&
+    sameValues(viewNumbers(ha), viewNumbers(hb)) &&
     ha?.cubemap?.texels === hb?.cubemap?.texels
   )
 }

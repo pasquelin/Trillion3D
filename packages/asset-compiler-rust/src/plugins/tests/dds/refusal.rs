@@ -139,14 +139,23 @@ fn a_dds_outside_the_list_or_truncated_comes_out_as_a_report_reason_never_as_a_p
     );
 }
 
-// Driver contract on a real file, written by a third-party encoder: the header is read, only
-// level 0 comes out, and the announced mip chain is counted — one byte less and the file is no
-// longer readable.
+// Driver contract on a real file, written by a third-party encoder: the header is read, level 0
+// comes out with the eight levels the file stores below it, each at its own size, and the
+// announced mip chain is counted — one byte less and the file is no longer readable.
 #[test]
-fn the_nine_level_bc1_yields_its_level_zero_and_counts_its_chain() {
+fn the_nine_level_bc1_yields_its_stored_levels_and_counts_its_chain() {
     let file = fixture("dds", "bc1-mips.dds");
     assert_eq!(registry::by_head(&file).map(|d| d.name()), Some("dds"));
-    let image = super::super::rgba8(registry::decode(&file, MAX_ALLOC).expect("decoded"));
+    let decoded = registry::decode(&file, MAX_ALLOC).expect("decoded");
+    let sizes: Vec<usize> = decoded.mips.iter().map(Vec::len).collect();
+    assert_eq!(
+        sizes,
+        (1..9)
+            .map(|level| 4 * (256usize >> level).pow(2))
+            .collect::<Vec<_>>(),
+        "levels 1 to 8, RGBA8"
+    );
+    let image = super::super::rgba8(decoded);
     assert_eq!((image.width(), image.height()), (256, 256));
     // The corpus encoder writes constant blocks: each 4 × 4 square comes out of a single
     // colour. A level mixed with another, or a one-line shift, would show here.

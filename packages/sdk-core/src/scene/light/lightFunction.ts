@@ -1,5 +1,5 @@
 import { EngineError } from '../../contracts/cache.ts'
-import { finite } from '../core/fog.ts'
+import { isFiniteNumber } from '../../../../math/src/scalar/reals.ts'
 import { DEG2RAD } from '../../../../math/src/constants.ts'
 import type { SceneLight } from './contracts.ts'
 
@@ -44,6 +44,33 @@ export const lightFunctionConeTangentOf = (light: SceneLight) => {
 const bad = (id: string, what: string, value: unknown) =>
   new EngineError('INVALID_SCENE_LIGHT', `${id}: ${what}`, { value })
 
+/** The scale, fade distance and disabled brightness of a light function, validated into `validated`
+ *  where the light sets them. */
+function validateLightFunctionNumbers(light: SceneLight, validated: SceneLight) {
+  const { id } = light
+  const { lightFunctionScale: scale, lightFunctionFadeDistance: fade } = light
+  if (scale !== undefined) {
+    if (
+      !Array.isArray(scale) ||
+      scale.length !== 3 ||
+      !scale.every((s) => isFiniteNumber(s) && s > 0)
+    )
+      throw bad(id, 'lightFunctionScale expects three numbers above 0', scale)
+    validated.lightFunctionScale = [scale[0], scale[1], scale[2]]
+  }
+  if (fade !== undefined) {
+    if (!isFiniteNumber(fade) || fade <= 0)
+      throw bad(id, 'lightFunctionFadeDistance must be > 0', fade)
+    validated.lightFunctionFadeDistance = fade
+  }
+  const dark = light.lightFunctionDisabledBrightness
+  if (dark !== undefined) {
+    if (!isFiniteNumber(dark) || dark < 0)
+      throw bad(id, 'lightFunctionDisabledBrightness must be >= 0', dark)
+    validated.lightFunctionDisabledBrightness = dark
+  }
+}
+
 /** The light function fields of a light, validated into `validated`: a material's id, and, only
  *  beside it, a scale of three numbers above 0, a fade distance above 0, a disabled brightness of at
  *  least 0 and, for a rectangle, a cone angle of at least 0 degrees. A field a light cannot use is
@@ -59,25 +86,10 @@ export function validateLightFunction(light: SceneLight, validated: SceneLight) 
   if (typeof light.lightFunction !== 'string' || !light.lightFunction)
     throw bad(id, 'lightFunction expects a material id', light.lightFunction)
   validated.lightFunction = light.lightFunction
-  const { lightFunctionScale: scale, lightFunctionFadeDistance: fade } = light
-  if (scale !== undefined) {
-    if (!Array.isArray(scale) || scale.length !== 3 || !scale.every((s) => finite(s) && s > 0))
-      throw bad(id, 'lightFunctionScale expects three numbers above 0', scale)
-    validated.lightFunctionScale = [scale[0], scale[1], scale[2]]
-  }
-  if (fade !== undefined) {
-    if (!finite(fade) || fade <= 0) throw bad(id, 'lightFunctionFadeDistance must be > 0', fade)
-    validated.lightFunctionFadeDistance = fade
-  }
-  const dark = light.lightFunctionDisabledBrightness
-  if (dark !== undefined) {
-    if (!finite(dark) || dark < 0)
-      throw bad(id, 'lightFunctionDisabledBrightness must be >= 0', dark)
-    validated.lightFunctionDisabledBrightness = dark
-  }
+  validateLightFunctionNumbers(light, validated)
   const cone = light.lightFunctionConeAngle
   if (cone === undefined) return
   if (light.kind !== 'rect') throw bad(id, 'lightFunctionConeAngle exists only for a rect', cone)
-  if (!finite(cone) || cone < 0) throw bad(id, 'lightFunctionConeAngle must be >= 0', cone)
+  if (!isFiniteNumber(cone) || cone < 0) throw bad(id, 'lightFunctionConeAngle must be >= 0', cone)
   validated.lightFunctionConeAngle = cone
 }

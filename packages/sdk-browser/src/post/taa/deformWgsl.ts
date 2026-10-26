@@ -7,10 +7,11 @@ import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 import { visPageIndex, visTriangle } from '../../visibility/visWords.ts'
 import { displacedFlat } from '../../visibility/tessellation/prismWgsl.ts'
 import { TESSELLATED_FLAGS_WGSL } from '../../visibility/tessellation/rowWgsl.ts'
+import { WPO_ROW_VELOCITY } from '../../visibility/types.ts'
 
 /**
- * Per-vertex motion of a deformed surface: where the last frame drew the surface point a
- * pixel shows. The pixel's point, relative to the eye, lies on the triangle its identifier names;
+ * Per-vertex motion of a deformed surface, or one whose offset is a motion (`WPO_ROW_VELOCITY`):
+ * where the last frame drew the surface point a pixel shows. The pixel's point, relative to the eye, lies on the triangle its identifier names;
  * its barycentric weights on that triangle, as this frame deforms it, carry the same weights of
  * the triangle as the last frame deformed it (`pagePreviousPosition`). The difference, taken into
  * the world by the placement's linear part, moves the point back before the placement's own
@@ -32,15 +33,18 @@ const TAA_DEFORM_WGSL = wgslBlock(
 fn deformedPrevious(id:u32,position:vec4f)->vec4f{
  if(${NO_PAGE_ID}){return position;}
  let page=pages[visPageIndex(id)];
- if(page.deformOutput==0u){return position;}
+ if(page.deformOutput==0u&&(page.wpo&${WPO_ROW_VELOCITY}u)==0u){return position;}
  let h=pageHeaderFor(page,false);let corners=pageTriangle(page,h,visTriangle(id));
  let m=worldMatrix3(page.world);
  let t=page.world[3].xyz-view.eye.xyz;
  let c0=pagePosition(page,h,corners.x);let c1=pagePosition(page,h,corners.y);let c2=pagePosition(page,h,corners.z);
  let q=perspectiveDivide(position);
  let b=planeBarycentric(q,m*c0+t,m*c1+t,m*c2+t);
- let d0=pagePreviousPosition(page,h,corners.x)-c0;let d1=pagePreviousPosition(page,h,corners.y)-c1;
- let d2=pagePreviousPosition(page,h,corners.z)-c2;
+ // The placement's motion places the object where it was for an offset graph that reads it.
+ var before=WPO_STILL;
+ if(view.params.z!=0.0&&placementMoved(page.placement)){before=placementMotion(page.placement);}
+ let d0=pagePreviousPosition(page,h,corners.x,before)-c0;let d1=pagePreviousPosition(page,h,corners.y,before)-c1;
+ let d2=pagePreviousPosition(page,h,corners.z,before)-c2;
  return vec4f(q+m*(b.x*d0+b.y*d1+b.z*d2),1.0);
 }`,
 )
@@ -48,7 +52,8 @@ fn deformedPrevious(id:u32,position:vec4f)->vec4f{
 /**
  * Where the surface point `here` a render texel shows stood in the last frame, relative to this
  * frame's eye (`pointBefore`): a geometry texel's point through its own motion matrix —
- * `previous·current⁻¹`, identity for those that have not moved — after its deformation moved it
+ * `previous·current⁻¹` of its poses (`placementMotion`), none for those whose pose has not moved
+ * (`placementMoved`) — after its deformation moved it
  * back; the background, at zero depth (reversed, infinite far plane), is a direction and goes back
  * as it is, which keeps the silhouette stable when the camera turns. `id` is the identifier of the
  * texel, read once for its identity, its motion and its deformation. The nearest velocity pass
@@ -69,13 +74,21 @@ fn movedBack(here:vec4f,id:u32)->vec4f{
  var position=here;
  // A deformed surface was elsewhere in the last frame: its point moves back first.
  if(view.eye.w!=0.0){position=deformedPrevious(id,position);}
- if(view.params.z!=0.0&&!(${NO_PAGE_ID})){position=motion[placementOf(id)]*position;}
+ if(view.params.z!=0.0&&!(${NO_PAGE_ID})){
+  let w=placementOf(id);
+  if(placementMoved(w)){position=placementMotion(w)*position;}
+ }
  return position;
 }
+/** The pipeline serves an image that draws surfaces tessellated (\`tessellationWanted\`): false,
+ *  folded at pipeline creation, no texel has a flat point and none of the prism's solve is reached
+ *  — one module serves the pipeline of a scene with no displaced surface and the one of a scene
+ *  with some. */
+override DISPLACED:bool=false;
 /** The point of the flat triangle under the displaced texel of identifier \`id\` at \`here\`; zero
  *  \`w\` where the frame draws that surface flat or the solve does not hold. */
 fn flatPoint(id:u32,here:vec4f)->vec4f{
- if(view.tessellation.x==0.0||${NO_PAGE_ID}){return vec4f(0.0);}
+ if(!DISPLACED||${NO_PAGE_ID}){return vec4f(0.0);}
  let page=pages[visPageIndex(id)];
  if(!tessellatedFlags(page)){return vec4f(0.0);}
  return displacedFlat(page,visTriangle(id),perspectiveDivide(here),page.world[3].xyz-view.eye.xyz);

@@ -2,10 +2,10 @@ import type { ComposeState } from '../../placement/compose/gpuComposeState.ts'
 import type { RootWorlds } from '../../placement/roots/rootWorlds.ts'
 import type { RootBoxesGpu } from '../../placement/roots/rootBoxes.ts'
 import type { TreeLeavesGpu } from '../../placement/tree/treeLeaves.ts'
-import type { RowWords } from '../../placement/rows/rowWords.ts'
 import type { GrowthInFlight } from '../../placement/growth/webgpuGrowth.ts'
 import type { RayQueue } from '../../lighting/rays/rayQueue.ts'
 import type { DistanceFieldFrameState } from '../../lighting/distanceField/frame.ts'
+import type { SurfaceCacheFrameState } from '../../lighting/surfaceCache/frame.ts'
 import type { VolumetricLightmapFrameState } from '../../lighting/volumetricLightmap/frame.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { TAA_CAPABILITIES } from '../../post/taa/capability.ts'
@@ -48,7 +48,7 @@ export type RasterView = {
 export type WebgpuPagesCore = Omit<WebgpuPagesRuntime, 'services'>
 
 /** The shared state of one WebGPU page-raster backend, handed to every module that implements a
- *  part of it. `setup` and `layout` change only as the tables grow (`../prepare/growTables.ts`); the
+ *  part of it. `setup` and `layout` change only as the session grows (`../io/memory.ts`, `../prepare/catalogueGrowth.ts`); the
  *  other groups do as they draw. */
 export interface WebgpuPagesRuntime {
   context: EngineContext
@@ -90,8 +90,6 @@ export interface WebgpuPagesRuntime {
    *  `../../placement/tree/treeLeaves.ts`). */
   rootBoxes?: RootBoxesGpu
   treeLeaves?: TreeLeavesGpu
-  /** The rows pass's inputs and the rows it derives next (`../../placement/rows/rowWords.ts`). */
-  rowWords?: RowWords
   /** The rows grown in place and the roots waiting to join the cut, until a cut holds them
    *  (`../../placement/growth/webgpuGrowth.ts`). */
   growth?: GrowthInFlight
@@ -100,10 +98,28 @@ export interface WebgpuPagesRuntime {
   /** The meshes' distance fields and the global field composited from them, made at the first image
    *  of a session whose cache carries any (`../../lighting/distanceField/frame.ts`). */
   distanceFields?: DistanceFieldFrameState
+  /** The surface cache of the meshes' cards — its atlas, its tables, its capture —, made at the first image that
+   *  asks for it, of a session whose cache carries cards (`../../lighting/surfaceCache/frame.ts`). */
+  surfaceCache?: SurfaceCacheFrameState
   /** The scene's volumetric lightmap on the GPU, made once at the first image that reads it
    *  (`../../lighting/volumetricLightmap/frame.ts`). */
   volumetricLightmap?: VolumetricLightmapFrameState
 }
+
+/** What is withheld until served: a capability leaves the list as it is granted (`grantCapability`). */
+const initialCapabilities = (): EngineCapabilities => ({
+  unsupported: [
+    'material extensions',
+    'per-texture transforms, UV channels and sampler modes',
+    'environment maps and light probes',
+    'contract scene lights with shadow atlas',
+    'physical VRAM instrumentation',
+    BOUNCE_CAPABILITY,
+    ...TAA_CAPABILITIES,
+    'sun shadows beyond the last clipmap level',
+    'direct WebGPU present',
+  ],
+})
 
 export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRuntime {
   const traceEnabled = !!context.onDiagnostic && context.diagnosticDetail !== 'summary'
@@ -115,37 +131,13 @@ export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRun
   }
   const setup = createWebgpuPagesSetup(context, diag)
   const gpu = createWebgpuGpuState(setup.viewport)
-  // A page's slot is read on the cache, the truth, never mirrored (`../../geometry/rows/page/pageState.ts`).
-  const layout = createWebgpuPagesLayout(
-    setup,
-    context.gpuDevice?.limits,
-    (address) => gpu.cache?.slotWords(address) ?? -1,
-  )
-  // A page table past one binding holds what the binding does, said: a page left without a row
-  // draws through its nearest resident ancestor (`../../geometry/rows/tableRows.ts`).
-  if (layout.pageTableBound)
-    diag.engineDiagnostic('page-table-bounded', 'The device bounds the page table', {
-      kind: 'warning',
-      ...layout.pageTableBound,
-    })
+  // A page's slot is read on the cache, the truth, never mirrored (`../../geometry/clusters/pageState.ts`).
+  const layout = createWebgpuPagesLayout(setup, (address) => gpu.cache?.slotWords(address) ?? -1)
   const vis = createWebgpuVisState()
   const run = createWebgpuRunState(context.clearColor)
-  const blendState = createWebgpuBlendState()
+  const blendState = createWebgpuBlendState(context)
   const lights = createWebgpuLightState(context.sceneLights)
-  // What is withheld until served: a capability leaves the list as it is granted (`grantCapability`).
-  const capabilities: EngineCapabilities = {
-    unsupported: [
-      'material extensions',
-      'per-texture transforms, UV channels and sampler modes',
-      'environment maps and light probes',
-      'contract scene lights with shadow atlas',
-      'physical VRAM instrumentation',
-      BOUNCE_CAPABILITY,
-      ...TAA_CAPABILITIES,
-      'sun shadows beyond the last clipmap level',
-      'direct WebGPU present',
-    ],
-  }
+  const capabilities = initialCapabilities()
   const timing = createWebgpuTimingState(
       explorerSwitch(context, 'stageProfile') ? WEBGPU_STAGES : undefined,
       () => layout.selectionRoots.length,

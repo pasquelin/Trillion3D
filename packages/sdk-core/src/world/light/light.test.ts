@@ -62,9 +62,9 @@ test('light factories preserve their kinds and explicit zero-valued parameters',
   for (const [kind, create] of Object.entries(light)) {
     assert.equal(create().kind, kind)
     assert.equal(create({ castShadow: true }).castShadow, true)
-    const zero = create({ position: [0, 0, 0], decay: 0, angle: 0, intensity: 0 })
+    const zero = create({ position: [0, 0, 0], decay: 0, outerConeAngle: 0, intensity: 0 })
     assert.equal(zero.decay, 0)
-    assert.equal(zero.angle, 0)
+    assert.equal(zero.outerConeAngle, 0)
     assert.equal(zero.intensity, 0)
     assert.deepEqual(zero.position.toArray(), [0, 0, 0])
   }
@@ -76,7 +76,7 @@ test('a directional light’s shadow distance is a number of metres, true the de
   assert.equal(light.directional({ shadowDistance: false }).shadowDistance, 0)
   assert.equal(light.directional({ shadowDistance: 0 }).shadowDistance, 0)
   assert.equal(light.directional({ shadowDistance: 1250.5 }).shadowDistance, 1250.5)
-  assert.equal(light.point().shadowDistance, 0, 'a lamp that is not a sun holds none')
+  assert.equal(light.point({ shadowDistance: 50 }).shadowDistance, 400, 'a lamp takes none')
   for (const bad of [-1, Infinity, NaN, '400' as unknown as number])
     assert.throws(
       () => light.directional({ shadowDistance: bad }),
@@ -93,6 +93,7 @@ test('a directional light’s shadow distance is a number of metres, true the de
   assert.equal(sun.shadowDistance, 300)
   assert.equal(heard.length, before + 1, 'a write reaches the world at once')
   assert.equal(sun.clone().shadowDistance, 300)
+  assert.throws(() => (sun.shadowDistance = -1), /shadowDistance: must be/, 'a write is checked')
 })
 
 test('cloning a light preserves values but owns independently editable coefficients and numbers', () => {
@@ -105,8 +106,8 @@ test('cloning a light preserves values but owns independently editable coefficie
     decay: 1.5,
     intensity: 7,
     distance: 8,
-    angle: 0.3,
-    penumbra: 0.4,
+    outerConeAngle: 0.3,
+    innerConeAngle: 0.1,
     width: 2,
     height: 3,
     radius: 0.2,
@@ -127,13 +128,13 @@ test('cloning a light preserves values but owns independently editable coefficie
       clone.decay,
       clone.intensity,
       clone.distance,
-      clone.angle,
-      clone.penumbra,
+      clone.outerConeAngle,
+      clone.innerConeAngle,
       clone.width,
       clone.height,
       clone.radius,
     ],
-    [1.5, 7, 8, 0.3, 0.4, 2, 3, 0.2],
+    [1.5, 7, 8, 0.3, 0.1, 2, 3, 0.2],
   )
   clone.intensity = 20
   clone.sh![1] = 30
@@ -208,6 +209,23 @@ test('copying a light includes independently owned children unless recursion is 
   assert.equal(new Light('point').copy(source, false).children.length, 0)
 })
 
+test('a directional light’s priority for the forward light is its own number: recorded when not 0, built again, copied', () => {
+  const sun = new Light('directional')
+  const record = () => lampRecord(sun, 'sun', () => 9)!
+  assert.equal(sun.forwardShadingPriority, 0, 'the default')
+  assert.equal('forwardShadingPriority' in record(), false, 'out of a default record')
+  const scene = new Group(),
+    { link, heard } = countingLink()
+  scene._link = link
+  scene.add(sun)
+  sun.forwardShadingPriority = 2
+  assert.equal(heard.filter((node) => node === sun).length, 1, 'a write reaches the world')
+  assert.equal(record().forwardShadingPriority, 2)
+  assert.equal(lightFromRecord(record()).forwardShadingPriority, 2, 'a record builds it again')
+  assert.equal((new Light('directional').copy(sun) as Light).forwardShadingPriority, 2)
+  assert.equal(new Light('directional', { forwardShadingPriority: 4 }).forwardShadingPriority, 4)
+})
+
 test('a light’s temperature, a sun’s disk tint and its air switches are its own, recorded only when set', () => {
   const sun = new Light('directional')
   const record = () => lampRecord(sun, 'sun', () => 9)!
@@ -260,4 +278,19 @@ test('a light’s temperature, a sun’s disk tint and its air switches are its 
     false,
     'the air’s switches are a sun’s',
   )
+})
+
+test('a local lamp’s shadow resolution scale reaches its record unless it is 1, and comes back', () => {
+  const spot = new Light('spot', { position: [0, 2, 0], outerConeAngle: 0.5, castShadow: true })
+  assert.equal(
+    'shadowResolutionScale' in lampRecord(spot, 'c', () => 9)!,
+    false,
+    'the default stays out',
+  )
+  spot.shadowResolutionScale = 0.25
+  const record = lampRecord(spot, 'c', () => 9)!
+  assert.equal(record.shadowResolutionScale, 0.25)
+  assert.equal(lightFromRecord(record).shadowResolutionScale, 0.25)
+  const sun = new Light('directional', { shadowResolutionScale: 2, castShadow: true })
+  assert.equal('shadowResolutionScale' in lampRecord(sun, 's', () => 9)!, false, 'a sun has none')
 })

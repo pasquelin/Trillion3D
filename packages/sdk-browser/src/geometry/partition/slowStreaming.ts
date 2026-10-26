@@ -13,10 +13,10 @@
  * nearly zero gives the largest ratio: such a cell never blocks. A ratio at most 0 — the eye at it
  * — or below `worldStreamingBlockOnSlowStreamingRatio` blocks. The files
  * that block are the load's (`waits`): the images are withheld till each is shown
- * (`Engine.streamingBlocks`, `../../frame/loop/firstImage.ts`); meanwhile they load, as many at
- * once as block, a unit already loading goes on and no other starts, and the cut turns no HLOD
- * cell visible, shows no other file and asks no warm-up (`WorldCells.blockingLoad`). The HLOD
- * grids never block.
+ * (`Engine.streamingBlocks`, `../../frame/loop/firstImage.ts`); meanwhile every cell wished
+ * loads at once, the cap on cells loading at once (`worldStreamingMaxLoadingCells`) lifted as in
+ * the initial load, and the cut turns no HLOD cell visible, shows no other file and asks no
+ * warm-up (`WorldCells.blockingLoad`). The HLOD grids never block.
  *
  * Cost: O(1) per cell file wished on a main grid, each frame.
  */
@@ -26,6 +26,7 @@ import type { PartitionGrid } from '../../../../sdk-core/src/scene/core/tablePar
 import type { PartitionScheme } from '../../../../sdk-core/src/contracts/partitionOptions.ts'
 import type { WorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import type { StreamingSource } from './source.ts'
+import { NEARLY_ZERO_RADIUS } from './sourceShape.ts'
 
 /** What the weighing reads of a cell file: whether it shows — or is refused for good — and the
  *  rank of the main grid its cell lies on. */
@@ -33,10 +34,6 @@ export type SlowStreamingFiles = {
   shown(cell: number): boolean
   mainOf(cell: number): number
 }
-
-/** The radius under which a ratio is the largest one, as the reference's safe division
- *  (`FMath::SafeDivide`, `IsNearlyZero`). */
-const NEARLY_ZERO = 1e-8
 
 /** The weighing of a partition of `scheme` whose grids are `grids`, under the settings
  *  `streaming` holds as they stand, seen by the view `source`, its cell files read through
@@ -53,11 +50,11 @@ export function createSlowStreaming(
   /** The cell files the load waits for: refilled each frame, the same set. */
   const waits = new Set<number>()
   /** The ratio of a cell file of `grid` streaming by `bounds`, from `eye`: its distance over the
-   *  view's radius for the grid, as the reference weighs it (`UWorldPartitionRuntimeCellData`,
-   *  `UWorldPartitionRuntimeCellDataSpatialHash::AppendStreamingSourceInfo`). */
+   *  view's radius for the grid: from the eye to the bounds on a loose grid, to the centre of the
+   *  square on a square one. */
   const ratio = (grid: PartitionGrid, eye: ArrayLike<number>, bounds: ArrayLike<number>) => {
     const radius = source.radius(grid.range)
-    if (Math.abs(radius) <= NEARLY_ZERO) return Infinity
+    if (Math.abs(radius) <= NEARLY_ZERO_RADIUS) return Infinity
     if (loose) return boxPointDistance(bounds, 0, eye[0], eye[1], eye[2]) / radius
     // The up axis dropped: the cell's square's centre, as the cell records its position.
     const x = (bounds[0] + bounds[3]) / 2,

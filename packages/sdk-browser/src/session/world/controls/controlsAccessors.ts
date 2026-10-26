@@ -50,6 +50,10 @@ export interface ControlSettings {
   rotateSpeed: Settings['rotateSpeed']
   /** Pivot controllers: how fast the wheel and the pinch zoom; 1 by default. */
   zoomSpeed: Settings['zoomSpeed']
+  /** Pivot controllers: whether the wheel zooms; true by default. */
+  enableZoom: Settings['enableZoom']
+  /** Pivot controllers: whether dragging slides the view; true by default. */
+  enablePan: Settings['enablePan']
   /** Flight only: flies forward at `movementSpeed` with no key, W faster, S to a halt. */
   autoForward: Settings['autoForward']
 }

@@ -3,7 +3,7 @@ import { retire } from '../../gpu/core/frameRetire.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { alignUp } from '../../../../math/src/scalar/integers.ts'
 import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
-import { tileKeyOf } from './ids.ts'
+import { tileLevelOf } from './ids.ts'
 import type { WebgpuTilePool } from './pool/pool.ts'
 
 /** Words before the places: each lane's first place, `PREVIEW_LAYOUT_NAMES` order, padded to
@@ -17,8 +17,8 @@ const PLACE_USE_WORDS = 2
 const tilePlaceWordAt = (base: number, index: number) =>
   TILE_USE_HEADER + PLACE_USE_WORDS * (base + index)
 
-/** \`tilePlaceWord(base, index)\`: the first word of place \`index\` of the lane whose places start
- *  at \`base\` — its clock, its tier the next —, as every kernel reading the words finds it. */
+/** `tilePlaceWord(base, index)`: the first word of place `index` of the lane whose places start
+ *  at `base` — its clock, its tier the next —, as every kernel reading the words finds it. */
 export const TILE_PLACE_WORD_WGSL = wgslFn(
   'tilePlaceWord',
   [],
@@ -33,6 +33,42 @@ export const tileUseBuffer = (kind: 'color' | 'data', places: number) => ({
   usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
 })
 
+/** What an atlas's place-use words hold on the host: their buffer, the lanes' pools, and the
+ *  scratch the writes are staged in. */
+type SlotUseState = {
+  buffer: GPUBuffer | undefined
+  pools: readonly (WebgpuTilePool | undefined)[]
+  scratch: Uint32Array<ArrayBuffer>
+}
+
+/** Writes places `first` to `last` of `pool`, lane base `base`, at `clock`. */
+function writePlaces(
+  device: GPUDevice,
+  st: SlotUseState,
+  pool: WebgpuTilePool,
+  base: number,
+  first: number,
+  last: number,
+  clock: number,
+) {
+  const count = last - first + 1
+  st.scratch = resized(st.scratch, PLACE_USE_WORDS * count)
+  const { scratch } = st
+  for (let i = 0; i < count; i++) {
+    const index = first + i,
+      held = !pool.freeAt(index) && !pool.pinnedOf(index)
+    scratch[PLACE_USE_WORDS * i] = held ? clock : 0
+    scratch[PLACE_USE_WORDS * i + 1] = held ? tileLevelOf(pool.keyOf(index)) : TILE_UNRANKED
+  }
+  device.queue.writeBuffer(
+    st.buffer!,
+    tilePlaceWordAt(base, first) * 4,
+    scratch,
+    0,
+    PLACE_USE_WORDS * count,
+  )
+}
+
 /**
  * The GPU words of an atlas's places (#1527): per place of each lane's pool, the last clock a pixel
  * read it — `atomicMax` by the feedback reduction, on the place the page-table entry a pixel asked
@@ -46,57 +82,31 @@ export const tileUseBuffer = (kind: 'color' | 'data', places: number) => ({
  * the buffer is made again, every occupied place written as an arrival, every free one unranked.
  */
 export function createTileSlotUse(device: GPUDevice, kind: 'color' | 'data') {
-  let buffer: GPUBuffer | undefined
-  let pools: readonly (WebgpuTilePool | undefined)[] = []
+  const st: SlotUseState = { buffer: undefined, pools: [], scratch: new Uint32Array(0) }
   const bases = new Uint32Array(TILE_USE_HEADER)
-  let scratch = new Uint32Array(0)
-  /** Writes places `first` to `last` of `pool`, lane base `base`, at `clock`. */
-  const write = (
-    pool: WebgpuTilePool,
-    base: number,
-    first: number,
-    last: number,
-    clock: number,
-  ) => {
-    const count = last - first + 1
-    scratch = resized(scratch, PLACE_USE_WORDS * count)
-    for (let i = 0; i < count; i++) {
-      const index = first + i,
-        held = !pool.freeAt(index) && !pool.pinnedOf(index)
-      scratch[PLACE_USE_WORDS * i] = held ? clock : 0
-      scratch[PLACE_USE_WORDS * i + 1] = held ? tileKeyOf(pool.keyOf(index)).level : TILE_UNRANKED
-    }
-    device.queue.writeBuffer(
-      buffer!,
-      tilePlaceWordAt(base, first) * 4,
-      scratch,
-      0,
-      PLACE_USE_WORDS * count,
-    )
-  }
   return {
     /** The words the reduction stamps and the sort ranks. */
     get buffer() {
-      return buffer!
+      return st.buffer!
     },
     /** Each lane's pool, `PREVIEW_LAYOUT_NAMES` order, none where a lane has no pool. */
     get pools() {
-      return pools
+      return st.pools
     },
     /** First place of lane `lane` in the words. */
     base: (lane: number) => bases[lane],
     /** The lanes' pools, `PREVIEW_LAYOUT_NAMES` order, none where a lane has no pool: a new
      *  buffer at their places, the old one retired, every place marked for `flush`. */
     layout(next: readonly (WebgpuTilePool | undefined)[]) {
-      pools = next
+      st.pools = next
       let places = 0
       PREVIEW_LAYOUT_NAMES.forEach((_, lane) => {
         bases[lane] = places
         places += next[lane]?.tiles ?? 0
       })
-      if (buffer) retire(device, buffer)
-      buffer = device.createBuffer(tileUseBuffer(kind, places))
-      device.queue.writeBuffer(buffer, 0, bases)
+      if (st.buffer) retire(device, st.buffer)
+      st.buffer = device.createBuffer(tileUseBuffer(kind, places))
+      device.queue.writeBuffer(st.buffer, 0, bases)
       // Every place, free ones included: a zero word reads as the oldest clock at tier 0, the
       // first victim the sort would rank (`evictSortWgsl.ts`); a free place is `TILE_UNRANKED`.
       for (const pool of next)
@@ -104,16 +114,16 @@ export function createTileSlotUse(device: GPUDevice, kind: 'color' | 'data') {
     },
     /** Sends the places each pool changed, arrivals used at `clock`. */
     flush(clock: number) {
-      pools.forEach((pool, lane) => {
+      st.pools.forEach((pool, lane) => {
         if (!pool?.changed.count) return
         const { count, pairs } = pool.changed.runs()
         for (let r = 0; r < count; r++)
-          write(pool, bases[lane], pairs[2 * r], pairs[2 * r + 1], clock)
+          writePlaces(device, st, pool, bases[lane], pairs[2 * r], pairs[2 * r + 1], clock)
         pool.changed.clear()
       })
     },
     destroy() {
-      buffer?.destroy()
+      st.buffer?.destroy()
     },
   }
 }

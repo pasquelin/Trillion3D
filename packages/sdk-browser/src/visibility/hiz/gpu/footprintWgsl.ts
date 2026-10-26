@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { HIZ_MIP_WGSL } from './rectWgsl.ts'
+import { HIZ_CLIP_RECT_WGSL, HIZ_MIP_WGSL } from './rectWgsl.ts'
 import { HIZ_LEVELS_STRUCT_WGSL, HIZ_READ_WGSL } from './pyramidTexture.ts'
 
 /**
@@ -55,9 +55,9 @@ fn pyramidShows(r:vec4i,nearest:f32)->bool{return nearest>=pyramidFarthest(r);}`
  */
 export const HIZ_REFERENCE_HIDDEN_WGSL = wgslBlock(
   'HIZ_REFERENCE_HIDDEN_WGSL',
-  [HIZ_FOOTPRINT_WGSL],
+  [HIZ_FOOTPRINT_WGSL, HIZ_CLIP_RECT_WGSL],
   `fn hiddenByReferencePyramid(rect:vec4i,nearest:f32)->bool{
- let r=vec4i(max(rect.x,0),max(rect.y,0),min(rect.z,i32(uni.width)-1),min(rect.w,i32(uni.height)-1));
+ let r=hizClipRect(rect);
  if(r.z<r.x||r.w<r.y){return false;}
  return !pyramidShows(r,nearest);
 }`,

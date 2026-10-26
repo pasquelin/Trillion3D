@@ -14,6 +14,5 @@ pub(crate) mod held;
 #[cfg(target_arch = "wasm32")]
 pub(crate) mod math;
 #[cfg(target_arch = "wasm32")]
-pub(crate) mod proxy;
 #[cfg(target_arch = "wasm32")]
 pub(crate) mod reach;

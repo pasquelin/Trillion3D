@@ -38,6 +38,8 @@ export const families = {
   diagnostics: family('diagnostics', () => import('../../diagnostic/viewCode.ts')),
   /** The measurement's build provenance table and frame report. */
   measurement: family('measurement', () => import('../../measurement/measurementCode.ts')),
+  /** The hardware benchmark's run, which a page asks (`world.quality.benchmark()`). */
+  benchmark: family('hardware benchmark', () => import('../../session/world/hardwareBenchmark.ts')),
   /** The world pages' server, under their detached source (`../../geometry/hlod/worldRoots.ts`, `stream`). */
   worldStream: family('world stream', () => import('../../geometry/hlod/worldRootPages.ts')),
   /** The CPU geometry-page decoder behind the public `page.decode`, and the format's gate

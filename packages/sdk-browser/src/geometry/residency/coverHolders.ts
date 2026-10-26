@@ -42,15 +42,68 @@ export function byRank(pages: PageRec[], rank: (page: PageRec) => number) {
   return pages
 }
 
-/**
- * THE ROOT COVER, COUNTED BY ITS HOLDERS. `holders` says per key how many hold it: the session its
- * roots from open, and each held cell the roots it alone needs. A page joins the cover with its
- * first holder — kept, out of what the cut asks the budget for (`requested.cover`), its streaming
- * page counted in `covered` — and leaves it with its last. The session's pages are loaded at open
- * (`../../frame/loop/bootstrap.ts`); a page a later holder brings is `missing` until the pool holds it,
- * and each update loads it before any page it streams (`queue.ts`).
- */
-export function createCoverHolders(options: {
+/** What the cover keeps: the keys covered per streaming page, and the pages lacking. */
+interface Cover {
+  options: CoverOptions
+  /** Keys with a holder in each streaming page, and the streaming pages holding one: the pool
+   *  slots the cover takes. */
+  coveredKeys: ReturnType<typeof createSparseInts>
+  covered: number
+  missingPages: PageRec[]
+  lacking: ReturnType<typeof createDenseKeySet>
+}
+
+const countKey = (c: Cover, key: number, by: number) => {
+  const held = c.coveredKeys.add(c.options.unitOf(key), by)
+  if (held === (by > 0 ? 1 : 0)) c.covered += by
+}
+
+/** `page` gains a holder: with its first, it joins the cover — kept, out of what the budget
+ *  weighs, missing until the pool holds it. */
+const joinCover = (c: Cover, page: PageRec) => {
+  const { options } = c
+  const key = options.keyOf(page)
+  if (options.holders[key]++ > 0) return false
+  countKey(c, key, 1)
+  options.keep.retain(key, page)
+  options.requested.cover(key, true, page)
+  c.lacking.add(key, page)
+  options.joined(key)
+  return true
+}
+
+/** `page` loses a holder: with its last, it leaves the cover. */
+const leaveCover = (c: Cover, page: PageRec) => {
+  const { options, lacking } = c
+  const key = options.keyOf(page)
+  if (!options.holders[key] || --options.holders[key] > 0) return false
+  countKey(c, key, -1)
+  options.requested.cover(key, false, page)
+  options.keep.release(key)
+  lacking.remove(key)
+  options.left(key)
+  return true
+}
+
+/** What `missing` hands out when the pool lacks nothing: no list made a frame. */
+const none: readonly PageRec[] = []
+
+/** The pages the pool lacks, as `holds` says: those it holds leave the list. */
+const missingOf = (
+  c: Cover,
+  holds: (page: PageRec) => boolean,
+  rank?: (page: PageRec) => number,
+): readonly PageRec[] => {
+  const { lacking, missingPages } = c
+  if (lacking.count === 0) return none
+  const out: PageRec[] = []
+  for (let i = lacking.count - 1; i >= 0; i--)
+    if (holds(missingPages[i])) lacking.remove(lacking.list[i])
+    else out.push(missingPages[i])
+  return rank ? byRank(out, rank) : out
+}
+
+type CoverOptions = {
   holders: Uint8Array
   keyOf: (page: PageRec) => number
   /** The streaming page of a key (`pageUnits.ts`): the unit a pool slot holds. */
@@ -60,71 +113,45 @@ export function createCoverHolders(options: {
   /** A key joined the cover, or left it: the pins follow (`pinUpdater.ts`). */
   joined: (key: number) => void
   left: (key: number) => void
-}) {
-  const { holders, keyOf, unitOf, requested, keep } = options
-  /** Keys with a holder in each streaming page, and the streaming pages holding one: the pool
-   *  slots the cover takes. */
-  const coveredKeys = createSparseInts()
-  let covered = 0
-  const count = (key: number, by: number) => {
-    const held = coveredKeys.add(unitOf(key), by)
-    if (held === (by > 0 ? 1 : 0)) covered += by
-  }
-  for (let key = 0; key < holders.length; key++) if (holders[key]) count(key, 1)
+}
+
+/**
+ * THE ROOT COVER, COUNTED BY ITS HOLDERS. `holders` says per key how many hold it: the session its
+ * roots from open, and each held cell the roots it alone needs. A page joins the cover with its
+ * first holder — kept, out of what the cut asks the budget for (`requested.cover`), its streaming
+ * page counted in `covered` — and leaves it with its last. The session's pages are loaded at open
+ * (`../../frame/loop/bootstrap.ts`); a page a later holder brings is `missing` until the pool holds it,
+ * and each update loads it before any page it streams (`queue.ts`).
+ */
+export function createCoverHolders(options: CoverOptions) {
+  const { holders } = options
   const missingPages: PageRec[] = []
-  const lacking = createDenseKeySet(missingPages)
-  /** `page` gains a holder: with its first, it joins the cover — kept, out of what the budget
-   *  weighs, missing until the pool holds it. */
-  const join = (page: PageRec) => {
-    const key = keyOf(page)
-    if (holders[key]++ > 0) return false
-    count(key, 1)
-    keep.retain(key, page)
-    requested.cover(key, true, page)
-    lacking.add(key, page)
-    options.joined(key)
-    return true
+  const c: Cover = {
+    options,
+    coveredKeys: createSparseInts(),
+    covered: 0,
+    missingPages,
+    lacking: createDenseKeySet(missingPages),
   }
-  /** `page` loses a holder: with its last, it leaves the cover. */
-  const leave = (page: PageRec) => {
-    const key = keyOf(page)
-    if (!holders[key] || --holders[key] > 0) return false
-    count(key, -1)
-    requested.cover(key, false, page)
-    keep.release(key)
-    lacking.remove(key)
-    options.left(key)
-    return true
-  }
-  /** What `missing` hands out when the pool lacks nothing: no list made a frame. */
-  const none: readonly PageRec[] = []
+  for (let key = 0; key < holders.length; key++) if (holders[key]) countKey(c, key, 1)
   return {
     /** `pages` gain a holder, `held`, or lose one; true when one joined or left the cover. */
     hold(pages: readonly PageRec[], held: boolean) {
       let moved = false
-      for (const page of pages) moved = (held ? join(page) : leave(page)) || moved
+      for (const page of pages) moved = (held ? joinCover(c, page) : leaveCover(c, page)) || moved
       return moved
     },
     /** The pages a later holder brought into the cover that the pool lacks, as `holds` says, by
      *  `rank` when given (the lowest first): those it holds leave the list. A list of its own,
      *  read across the loads it starts. */
-    missing(
-      holds: (page: PageRec) => boolean,
-      rank?: (page: PageRec) => number,
-    ): readonly PageRec[] {
-      if (lacking.count === 0) return none
-      const out: PageRec[] = []
-      for (let i = lacking.count - 1; i >= 0; i--)
-        if (holds(missingPages[i])) lacking.remove(lacking.list[i])
-        else out.push(missingPages[i])
-      return rank ? byRank(out, rank) : out
-    },
+    missing: (holds: (page: PageRec) => boolean, rank?: (page: PageRec) => number) =>
+      missingOf(c, holds, rank),
     /** The pool slots the cover takes now: its streaming pages. */
     get covered() {
-      return covered
+      return c.covered
     },
     get byteLength() {
-      return lacking.byteLength + coveredKeys.byteLength
+      return c.lacking.byteLength + c.coveredKeys.byteLength
     },
   }
 }

@@ -64,6 +64,12 @@ const partitionGridSettings: Record<string, JsonSchemaProperty> = /* @__PURE__ *
       },
     },
   },
+  hlodLayers: {
+    type: 'array',
+    items: { type: 'string', description: "A layer's name in the job's hlod.layers." },
+    description:
+      "hashSet alone: the HLOD layers that have grids on this main grid (default every layer of the job's HLOD); the actors of another layer are built all the same, always loaded, as those of a layer not spatially loaded.",
+  },
   nestedLevels: flag(
     `spatialHash alone: whether each level's cells nest in the next one's; false, each level below the top holds one cell more per side, its edges between those of the levels around it (default ${DEFAULT_PARTITION_NESTED_LEVELS}).`,
   ),

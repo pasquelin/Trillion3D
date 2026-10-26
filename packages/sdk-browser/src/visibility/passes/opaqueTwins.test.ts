@@ -3,14 +3,13 @@
 // preparation; none under a diagnostic variant of the raster stage. `drawVis` draws each half's
 // opaque slots with the twin, then its cutout slots with the pipeline that cuts — both halves and
 // every coplanar layer with the same pipelines —, and its voxel slots only on a frame whose table
-// holds a voxel row. Their modules cut at a view's clip plane only where the project switch is on.
+// holds a voxel cluster. Their modules cut at a view's clip plane only where the project switch is on.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import * as G from '../../scene/host/graph/graph.fixture.ts'
-import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
-import { surfaceOf } from '../../geometry/pages/surface.ts'
-import { BASE_SLOTS, BIN_KIND, CULL_BINS, HALF_SLOTS } from '../draw/contract.ts'
+import { createPresentClasses } from '../../gpu/core/presentClasses.ts'
+import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts'
+import { BASE_SLOTS, BIN_KIND, CULL_BINS, HALF_SLOTS } from '../bins/contract.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { askVoxelTwin, createWebgpuVisibilityRasterPipelines, twinOf } from './pipelines.ts'
 import { createWebgpuVisibilityShaders } from './shaders.ts'
@@ -18,30 +17,56 @@ import { drawVis } from './drawVis.ts'
 import { encodeXray } from './xray.ts'
 import { createWebgpuVisState } from '../../frame/backend/state/vis.ts'
 import { replayBundles } from '../../../../../tests/kit/fakeDevice/fakeBundles.ts'
+import { material } from '../../../../sdk-core/src/world/material/index.ts'
+import { graphRastersOf } from '../../materials/graph/graphRasters.ts'
+import { voxelWpo } from '../shader/wpoSets.ts'
+import { WIDE_ATOMIC_FEATURE } from '../../gpu/core/wideAtomics.ts'
 
 type Made = GPURenderPipelineDescriptor & GPURenderPipeline
-const build = async (variant?: 'geometry-flat') => {
-  const { device } = fakeDevice()
+const build = async (variant?: 'geometry-flat', wide = false) => {
+  const { device } = fakeDevice({ features: wide ? [WIDE_ATOMIC_FEATURE] : [] })
   const [module, layout] = [{} as GPUShaderModule, {} as GPUBindGroupLayout]
   const raster = await createWebgpuVisibilityRasterPipelines(device, module, layout, variant)
   return { device, raster, all: Object.values(raster) as Made[] }
 }
 
 test("an occluder's twin is itself but for the opaque fragment stage", async () => {
-  const { all } = await build()
-  for (const pipeline of all) {
-    const twin = twinOf(pipeline, BIN_KIND.OPAQUE, false) as Made
-    assert.deepEqual(twin.fragment, {
-      ...pipeline.fragment!,
-      constants: { MASKED: 0, ID_PHASE: 0 },
-    })
-    assert.deepEqual({ ...twin, fragment: pipeline.fragment }, pipeline)
+  for (const wide of [false, true]) {
+    const { all } = await build(undefined, wide)
+    for (const pipeline of all) {
+      const twin = twinOf(pipeline, BIN_KIND.OPAQUE) as Made
+      assert.deepEqual(twin.fragment, { ...pipeline.fragment!, constants: { MASKED: 0 } })
+      assert.deepEqual({ ...twin, fragment: pipeline.fragment }, pipeline)
+    }
+  }
+})
+
+test('the hardware raster draws once: into the depth test and the identifiers without the 64-bit word, into its word with it', async () => {
+  const [split, wide] = [await build(), await build(undefined, true)]
+  for (const pipeline of split.all) {
+    assert.deepEqual(pipeline.fragment?.targets, [{ format: 'r32uint' }])
+    assert.deepEqual(
+      [pipeline.depthStencil?.depthWriteEnabled, pipeline.depthStencil?.depthCompare],
+      [true, DEPTH_COMPARE_OR_EQUAL],
+    )
+    assert.equal(
+      (pipeline.layout as unknown as { bindGroupLayouts: unknown[] }).bindGroupLayouts.length,
+      1,
+    )
+  }
+  for (const pipeline of wide.all) {
+    assert.deepEqual([...(pipeline.fragment?.targets ?? [])], [])
+    assert.equal(pipeline.depthStencil?.depthWriteEnabled, false)
+    assert.equal(
+      (pipeline.layout as unknown as { bindGroupLayouts: unknown[] }).bindGroupLayouts.length,
+      2,
+    )
   }
 })
 
 test('a diagnostic raster stage imposes itself: no twin', async () => {
   const { all } = await build('geometry-flat')
-  assert.ok(all.every((pipeline) => !pipeline || !twinOf(pipeline, BIN_KIND.OPAQUE, false)))
+  assert.ok(all.every((pipeline) => !pipeline || !twinOf(pipeline, BIN_KIND.OPAQUE)))
 })
 
 /** The pipelines `drawVis` sets and the indirect offsets it draws. */
@@ -56,7 +81,6 @@ async function drawn(rest: boolean) {
     drawIndirect: (_: unknown, offset: number) => offsets.push(offset),
     executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(pass, bundles),
   } as unknown as GPURenderPassEncoder
-  const material = surfaceOf(G.basicSurface())
   const rt = {
     vis: {
       ...raster,
@@ -64,28 +88,15 @@ async function drawn(rest: boolean) {
       visBindGroupLayout: {},
       zeroRows: {},
       visSlotGroups: new Array(2 * BASE_SLOTS).fill({}),
-      gpuDraw: { indirectBuffer: {} },
-      gpuRaster: { hardwareGroup: {} },
+      gpuBins: { indirectBuffer: {} },
+      // No voxel cluster: the voxel slots are not walked.
+      presentClasses: createPresentClasses(),
+      gpuRaster: { wide: false },
       visBundles: createWebgpuVisState().visBundles,
     },
     run: { gpuDrawCalls: 0 },
-    layout: {
-      rows: {
-        packedCount: 4,
-        packedRecs: Array.from({ length: 4 }, () => ({
-          material,
-          depthLayer: 0,
-          array: [0, 0, 0],
-        })),
-        packedPageIndex: [0, 1, 2, 3],
-      },
-      placement: { baseOfRoot: Int32Array.of(0), packedCount: 4 },
-      selectionRoots: [{ world: new Matrix4() }],
-      // No voxel row: the voxel slots are not walked.
-      itemWordsHold: { voxelRows: 0 },
-    },
   } as unknown as WebgpuPagesRuntime
-  drawVis(rt, device, pass, rest, false)
+  drawVis(rt, device, pass, rest)
   const stage = ({ fragment }: GPURenderPipelineDescriptor) =>
     fragment!.constants?.MASKED === 0 ? 'unmasked' : fragment!.entryPoint
   return { set: set.map(stage), offsets }
@@ -119,7 +130,7 @@ test('the project switch picks the raster’s modules once: the voxel twins’ t
       codes: string[] = []
     const make = kit.device.createShaderModule.bind(kit.device)
     kit.device.createShaderModule = (d) => (codes.push(d.code), make(d))
-    const shaders = await createWebgpuVisibilityShaders(kit.device, 8, 7, undefined, clipping)
+    const shaders = await createWebgpuVisibilityShaders(kit.device, 7, undefined, clipping)
     const raster = await createWebgpuVisibilityRasterPipelines(
       kit.device,
       shaders.visModule,
@@ -170,4 +181,32 @@ test('the x-ray view’s module follows the project switch the way the raster’
   assert.ok(!off[0].includes('uni.clipPlane') && !off[0].includes('clip_distances'))
   assert.ok(pixel[0].includes('if(in.clip<0.0){discard;}') && !pixel[0].includes('clip_distances'))
   assert.ok(distance[0].includes('enable clip_distances;'))
+})
+
+test('the voxel twins’ module holds the offsets of the session’s surfaces, and a session with none the plain module', async () => {
+  const g = material.graph('surface')
+  g.output('baseColor', g.constant(1, 0, 0))
+  g.output('worldPositionOffset', g.multiply(g.time(), g.constant(1, 0, 0)))
+  const voxelModule = async (wpo?: ReturnType<typeof voxelWpo>) => {
+    const kit = fakeDevice(),
+      codes: string[] = []
+    const make = kit.device.createShaderModule.bind(kit.device)
+    kit.device.createShaderModule = (d) => (codes.push(d.code), make(d))
+    const raster = await createWebgpuVisibilityRasterPipelines(
+      kit.device,
+      {} as GPUShaderModule,
+      {} as GPUBindGroupLayout,
+      undefined,
+      undefined,
+      wpo,
+    )
+    askVoxelTwin(raster.visPipelineFront)
+    await new Promise((resolve) => setImmediate(resolve))
+    return codes.find((code) => code.includes('VisVoxelIn'))!
+  }
+  const moved = await voxelModule(voxelWpo(graphRastersOf([{ graph: g }])))
+  assert.match(moved, /let word=materialGraphWord\(page\.material\);/)
+  assert.match(moved, /@binding\(\d+\) var<storage, read> uvs/)
+  const plain = await voxelModule()
+  assert.ok(!plain.includes('materialGraphWord(page.material)') && !plain.includes('graphFrame'))
 })

@@ -86,8 +86,10 @@ export function writePage(columns: ReturnType<typeof pageColumns>, page: number,
       geometry.indexCount,
       geometry.flags,
       geometry.uncompressedBytes,
+      geometry.residentBytes,
+      geometry.residentOffset,
     ],
-    page * 5,
+    page * format.COLUMN_STRIDE.geometryU32,
   )
   words[page] = flags
   if (item.depthLayer !== undefined) pageDepthLayer[page] = checkedDepthLayer(item.depthLayer)

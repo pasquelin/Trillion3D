@@ -1,6 +1,5 @@
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { MANIFEST_IDENTITY, dagRoots } from '../../session/engine/pagesEngine.fixture.ts'
@@ -36,6 +35,7 @@ import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometr
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 /** A ground triangle, and the two primitives of the mesh the partition places (`cells.fixture`),
  *  each a triangle of one root cluster, on the rows of `links`. */
@@ -61,7 +61,7 @@ function placedScene(links: readonly RowLink[]) {
   const indices = new Map(
     ['ground', 'leaf-0', 'leaf-1'].map((url) => [url, new Uint32Array([0, 1, 2])]),
   )
-  const associations = new Map<HostMesh, RowLink>([
+  const associations = new Map<PageMesh, RowLink>([
     [ground, { meshes: 0, primitives: 0 }],
     [leaves[0], links[0]],
     [leaves[1], links[1]],

@@ -65,6 +65,10 @@ const WORLD_STREAMING_SETTINGS = /* @__PURE__ */ (() =>
   }) as const)()
 /** How the view streams a partitioned scene's cells, every setting named. */
 export type WorldStreaming = SettingValues<typeof WORLD_STREAMING_SETTINGS>
+/** Whether the view activates the cells it loads (`worldStreamingTargetState` `'activated'`), else
+ *  they are loaded and drawn by nothing: the one question four places ask. */
+export const activatesCells = (streaming: Pick<WorldStreaming, 'targetState'>) =>
+  streaming.targetState === 'activated'
 /** The view's streaming settings as a host writes them, by their fields. */
 export type WorldStreamingOptions = SettingOptions<RulesByField<typeof WORLD_STREAMING_SETTINGS>>
 

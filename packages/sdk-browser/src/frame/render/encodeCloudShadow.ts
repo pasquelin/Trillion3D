@@ -1,5 +1,9 @@
 import type { CloudPart } from '../../../../sdk-core/src/modules/sky/clouds.ts'
 import { cloudShadowWanted } from '../../../../sdk-core/src/modules/sky/cloudShadow.ts'
+import {
+  cloudSkyOcclusionWanted,
+  type CloudSkyOcclusionLight,
+} from '../../../../sdk-core/src/modules/sky/cloudSkyOcclusion.ts'
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { cloudShadowOfLight } from '../../../../sdk-core/src/scene/light/lightCloudShadow.ts'
 import type { CloudShadowSet } from '../../lighting/atmosphere/cloudShadowRead.ts'
@@ -20,7 +24,9 @@ import { atmosphereDeclared } from './airState.ts'
  * sampler and the block of matrices and strengths (`CloudShadowSet`), or none while no map is built.
  * The maps are built for the main view, which keeps their history (`keepsState`). Each of the air's
  * two lights has its own, from the cloud shadow settings of the light the store holds for its index
- * (`cloudShadowLightsOf`); no map is made, and no pass run, while neither light asks for one.
+ * (`cloudShadowLightsOf`). The clouds' sky occlusion map is built with them where the sky light asks
+ * for it (`CloudShadowSource.skyLight`); no map is made, and no pass run, while neither light nor
+ * the sky light asks for one.
  */
 export interface CloudShadowSource {
   readonly part: CloudPart
@@ -28,6 +34,9 @@ export interface CloudShadowSource {
   readonly material: readonly GPUBindGroupEntry[]
   /** The time, seconds. */
   readonly time: () => number
+  /** The sky light's settings the sky occlusion map reads: the sky light of the scene, where it
+   *  affects the world; none otherwise. */
+  readonly skyLight?: CloudSkyOcclusionLight
 }
 
 interface CloudShadowState {
@@ -91,6 +100,7 @@ function overWhat(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera, 
     return {
       radiusKm: part.settings.planetRadiusKm,
       groundHeight: 0,
+      groundPosition: [0, 0],
       frame: writeAirlessFrame(rt, device, cam, part.settings.planetRadiusKm).frame,
     }
   const air = lights.store.environment?.atmosphere
@@ -98,6 +108,7 @@ function overWhat(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera, 
   return {
     radiusKm: air.planetRadius,
     groundHeight: air.groundHeight,
+    groundPosition: air.groundPosition,
     frame: gpu.atmosphere.frameBuffer,
   }
 }
@@ -115,15 +126,18 @@ export function encodeCloudShadow(
     { lights } = rt
   state.set = undefined
   if (!source || !lights.buffer) return
-  const over = overWhat(rt, device, cam, source.part)
-  if (!over) return
   const asked = cloudShadowLightsOf(lights.store)
-  // No light asks for a map: none is made, and what an earlier image made is released.
-  if (!asked.some((input) => cloudShadowWanted(source.part.quality, input?.light))) {
+  // No light and no sky light asks for a map: none is made, and what an earlier image made is released.
+  if (
+    !cloudSkyOcclusionWanted(source.part.quality, source.skyLight) &&
+    !asked.some((input) => cloudShadowWanted(source.part.quality, input?.light))
+  ) {
     state.run?.dispose()
     state.run = undefined
     return
   }
+  const over = overWhat(rt, device, cam, source.part)
+  if (!over) return
   state.run ??= createCloudShadowRun(device, (error) =>
     rt.diag.diagnosticFailure('cloud-shadow-program-failed', error),
   )
@@ -134,9 +148,9 @@ export function encodeCloudShadow(
     lights: asked,
     eye,
     eyeFromPlanetKm: [
-      eye[0] / 1000,
+      (eye[0] - over.groundPosition[0]) / 1000,
       (eye[1] - over.groundHeight) / 1000 + over.radiusKm,
-      eye[2] / 1000,
+      (eye[2] - over.groundPosition[1]) / 1000,
     ],
     planetRadiusKm: over.radiusKm,
     time: source.time(),
@@ -144,5 +158,6 @@ export function encodeCloudShadow(
     material: source.material,
     air: { buffer: lights.buffer, frame: over.frame },
     keepsState: rt.views.active === rt.views.main,
+    skyLight: source.skyLight,
   })
 }

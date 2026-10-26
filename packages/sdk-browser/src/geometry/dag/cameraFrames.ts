@@ -30,25 +30,7 @@ export function createCameraFrames(
   sources: PackedDag['worldSources'],
   make?: TextureMaker,
 ) {
-  // Worlds: written by the host and by the composition of the poses
-  // (`../../placement/compose/gpuComposeWgsl.ts`). Frame words: their rows written by the host, their stretch by the root
-  // boxes pass alone (`../../placement/roots/rootBoxesWgsl.ts`).
-  const read = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-    written = read | GPUTextureUsage.STORAGE_BINDING
-  const f: Frames = {
-    frameData,
-    worldCount,
-    rows: createRecordTexture(device, FRAME_TABLE, worldCount, written, make),
-    worlds: createRecordTexture(
-      device,
-      WORLD_TABLE,
-      worldCount,
-      written | GPUTextureUsage.COPY_SRC,
-      make,
-    ),
-    frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
-    pending: createChangedRuns(),
-  }
+  const f = framesOf(device, frameData, worldCount, make)
   const origins = createWorldOrigins(worldCount, f.worlds.target('Origin'), sources)
   // The worlds and their exact translations first: the poses the previous image drew start as them.
   writeSpan(f, f.worlds, 'Matrix', worlds, 16, 0, Infinity)
@@ -74,15 +56,7 @@ export function createCameraFrames(
     /** The cut's group: `group`, with the frame words, the worlds and the previous poses as they
      *  stand. */
     bindGroup: (layout: GPUBindGroupLayout, group: DagGroup) =>
-      device.createBindGroup({
-        layout,
-        entries: dagGroupEntries({
-          ...group,
-          frames: f.rows.view,
-          worlds: f.worlds.view,
-          previous: previous.table.view,
-        }),
-      }),
+      bindFrames(device, f, previous, layout, group),
     /** The host rows of placements `[from, to)` — every one by default — to their records. */
     writeRows: (from = 0, to = Infinity) =>
       writeSpan(f, f.rows, 'Row', f.frameData, FRAME_ROW_WORDS, from, to),
@@ -104,6 +78,53 @@ export function createCameraFrames(
   }
   table.writeRows()
   return table
+}
+
+/** The frame words and the worlds of a cut, one record table each, written by the host and by the
+ *  composition of the poses (`../../placement/compose/gpuComposeWgsl.ts`); the frame words' rows by
+ *  the host, their stretch by the root boxes pass alone (`../../placement/roots/rootBoxesWgsl.ts`). */
+function framesOf(
+  device: GPUDevice,
+  frameData: Float32Array<ArrayBuffer>,
+  worldCount: number,
+  make?: TextureMaker,
+): Frames {
+  const read = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    written = read | GPUTextureUsage.STORAGE_BINDING
+  return {
+    frameData,
+    worldCount,
+    rows: createRecordTexture(device, FRAME_TABLE, worldCount, written, make),
+    worlds: createRecordTexture(
+      device,
+      WORLD_TABLE,
+      worldCount,
+      written | GPUTextureUsage.COPY_SRC,
+      make,
+    ),
+    frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
+    pending: createChangedRuns(),
+  }
+}
+
+/** The group over `layout`: `group`, with the frame words, the worlds and the previous poses as they
+ *  stand. */
+function bindFrames(
+  device: GPUDevice,
+  f: Frames,
+  previous: ReturnType<typeof createPreviousPoses>,
+  layout: GPUBindGroupLayout,
+  group: DagGroup,
+) {
+  return device.createBindGroup({
+    layout,
+    entries: dagGroupEntries({
+      ...group,
+      frames: f.rows.view,
+      worlds: f.worlds.view,
+      previous: previous.table.view,
+    }),
+  })
 }
 
 type Frames = {

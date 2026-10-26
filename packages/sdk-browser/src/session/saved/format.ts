@@ -1,3 +1,4 @@
+import type { SavedOffsets } from './offsets.ts'
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts'
 import type { ResolvedAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
 import type { ModuleOption } from '../../../../sdk-core/src/modules/descriptor.ts'
@@ -5,15 +6,22 @@ import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { PhysicsOption } from '../../../../sdk-core/src/physics/options.ts'
 import type { LightShaftParameters } from '../../../../sdk-core/src/world/light/lightShaftSettings.ts'
 import type { LightCloudShadowParameters } from '../../../../sdk-core/src/world/light/lightCloudShadowSettings.ts'
+import type { LightUnits } from '../../../../sdk-core/src/scene/light/lightUnits.ts'
 
 /** The name a saved scene carries, and the version of its layout this runtime writes. Version 1
  *  wrote a mesh's `castShadow` as `false` by default, which the engine never read: it is refused.
  *  Version 2 wrote the air and the fog as `atmosphere` and `fog`, and the sky light as a light
- *  node: it is read, and moved into the sky module once (`read.ts`). */
+ *  node: it is read, and moved into the sky module once (`read.ts`). Versions 2 and 3 wrote a
+ *  rectangle light's intensity as its radiance, before a lamp's intensity had a unit: it is read as
+ *  half that many nits, the same light (`read.ts`). Versions before 5 wrote a spot's cone as an
+ *  `angle` and a `penumbra` share, and a lamp that named no unit was in candelas: they are read as
+ *  an outer cone, an inner cone of the angle less that share, and the unit named. Versions before
+ *  6 wrote a node's `receiveShadow`, which no pass read and the engine no longer holds: it is
+ *  left unread. */
 export const SCENE_FORMAT = 'trillion3d-scene'
-export const SCENE_FORMAT_VERSION = 3
+export const SCENE_FORMAT_VERSION = 6
 /** The versions this runtime reads. */
-const READ_VERSIONS: readonly number[] = [2, SCENE_FORMAT_VERSION]
+const READ_VERSIONS: readonly number[] = [2, 3, 4, 5, SCENE_FORMAT_VERSION]
 
 /** A geometry: the family call that built it, or its vertices when no call can build it again. */
 export interface SavedGeometry {
@@ -42,7 +50,7 @@ export interface SavedMaterial {
 }
 
 /** A node: its pose and what it is — a group, a mesh, a light or a loaded model — and below it. */
-export interface SavedNode {
+export interface SavedNode extends SavedOffsets {
   /** What the node is. */
   kind: 'object' | 'group' | 'mesh' | 'light' | 'model'
   /** Its name. */
@@ -64,8 +72,6 @@ export interface SavedNode {
   /** Whether a directional light's far-shadow test reaches it or never does; absent, the view's
    *  rule decides. */
   farShadowTest?: boolean
-  /** Whether shadows fall on it. */
-  receiveShadow: boolean
   /** Its drawing order among see-through things. */
   renderOrder: number
   /** The page's own data, as JSON. */
@@ -94,8 +100,19 @@ export interface SavedNode {
     /** A light whose shadow-on-fog setting is against its kind's default (`Light.shadowsFog`);
      *  absent, the default. */
     shadowsFog?: boolean
+    /** A light whose mobility is not the default (`Light.mobility`); absent, `stationary`. */
+    mobility?: 'static' | 'movable'
+    /** A point or spot light taken off the inverse square (`Light.inverseSquared`); absent, it falls
+     *  off as the inverse square. */
+    inverseSquared?: false
+    /** The unit a point, spot or rectangle light's intensity is written in (`Light.intensityUnits`)
+     *  when it is not the default; absent, the default (`DEFAULT_LIGHT_UNITS`). */
+    intensityUnits?: LightUnits
     /** A light whose colour follows its temperature (`Light.useTemperature`); absent, it does not. */
     useTemperature?: true
+    /** A light that shines through the subsurface-profile surfaces it shadows (`Light.transmission`);
+     *  absent, it does not. */
+    transmission?: true
     /** A directional light whose shadow shades the air (`Light.shadowsAir`); absent, it does not. */
     shadowsAir?: true
     /** A directional light whose air transmittance is read per surface point

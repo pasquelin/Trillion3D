@@ -76,14 +76,6 @@ fn vsmPageInRange(pageAddress:vec2i,level:u32)->bool{
 /** Physical page index <-> pool page address (row = 128 pages). */
 fn vsmPoolIndexOf(a:vec2u)->u32{return (a.y<<vsm.poolRowShift)+a.x;}
 fn vsmPoolPageOf(i:u32)->vec2u{return vec2u(i&vsm.poolRowMask,i>>vsm.poolRowShift);}
-/** The word of pool texel t's tile in \`tileDepths\`: its page's tiles of
- *  2^VSM_LOG2_TILE_DEPTH_TEXELS texels a side, row by row, after the pages before it. */
-fn vsmTileDepthIndex(t:vec2u)->u32{
- let tiles=VSM_LOG2_PAGE-VSM_LOG2_TILE_DEPTH_TEXELS;
- let page=vsmPoolIndexOf(t>>vec2u(VSM_LOG2_PAGE));
- let tile=(t&vec2u(VSM_PAGE_TEXEL_MASK))>>vec2u(VSM_LOG2_TILE_DEPTH_TEXELS);
- return (page<<(2u*tiles))|(tile.y<<tiles)|tile.x;
-}
 
 /** A page table entry: [0:9] phys X, [10:19] phys Y, [20:25] coarser levels, b30 drawable, b31 mapped at some level. */
 struct VsmTableEntry{

@@ -6,12 +6,20 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { near } from '../../../../math/src/float/near.fixture.ts'
 import { createSceneLightStore } from '../light/store.ts'
-import { validateSceneAtmosphere } from './atmosphere.ts'
-import { ATMOSPHERE_SLOT } from './atmospherePack.ts'
+import { sameSceneAtmosphere, validateSceneAtmosphere } from './atmosphere.ts'
+import { coefficientsOf } from './atmosphereOptics.ts'
+import { ATMOSPHERE_FLOATS, ATMOSPHERE_SLOT, packAtmosphere } from './atmospherePack.ts'
 import { ENVIRONMENT_COEFFICIENTS } from './environment.ts'
-import { FOG_SLOT } from './fog.ts'
-import { mergeModuleParts, resolveModuleOption } from '../../modules/descriptor.ts'
+import { FOG_SLOT, type SceneFog } from './fog.ts'
+import { HEIGHT_FOG_DEFAULTS, heightFogOf, type SceneHeightFog } from './fogHeight.ts'
+import {
+  mergeModuleParts,
+  resolveModuleOption,
+  type ModuleOption,
+  type ModulePartFields,
+} from '../../modules/descriptor.ts'
 import { checkSkyOption, resolveSky, SKY_MODULE } from '../../modules/sky/descriptor.ts'
+import { DEFAULT_SKY_QUALITY } from '../../modules/sky/quality.ts'
 
 const GREY = [0.5, 0.5, 0.5] as const
 
@@ -145,11 +153,11 @@ test('a change of fog alone leaves light transport, and the bounce probes, as th
 })
 
 /** The merged parts of a sky option written by one source. */
-const skyParts = (option: boolean | Record<string, boolean | object>) =>
+const skyParts = (option: ModuleOption) =>
   mergeModuleParts(SKY_MODULE, [resolveModuleOption(SKY_MODULE, option) as never])
 
 test('the sky module on holds its five parts at the level values; a part switched off is gone', () => {
-  const sky = resolveSky(skyParts(true))
+  const sky = resolveSky(skyParts(true), DEFAULT_SKY_QUALITY)
   const { light, shafts, cloudShadow, direction } = sky.sun!
   assert.deepEqual(
     [light.intensity, light.useTemperature, light.temperatureKelvin, light.angle],
@@ -167,14 +175,44 @@ test('the sky module on holds its five parts at the level values; a part switche
     [true, 'movable'],
   )
   const { reflectionSamplesScale, reflectionShadowSamplesScale } = sky.clouds!.settings
-  assert.deepEqual([reflectionSamplesScale, reflectionShadowSamplesScale], [0.1041667, 0.3])
+  assert.deepEqual([reflectionSamplesScale, reflectionShadowSamplesScale], [1, 1])
   assert.equal(sky.atmosphere!.planetRadius, validateSceneAtmosphere(true).planetRadius)
-  const some = resolveSky(skyParts({ clouds: false, heightFog: false, sun: { intensity: 8 } }))
+  const some = resolveSky(
+    skyParts({ clouds: false, heightFog: false, sun: { intensity: 8 } }),
+    DEFAULT_SKY_QUALITY,
+  )
   assert.deepEqual([some.clouds, some.fog, some.sun!.light.intensity], [undefined, undefined, 8])
 })
 
+test('one default per object: `{}` of the module’s height fog is the level’s fog, `{}` of a scene’s own is the component’s', () => {
+  const part = (option: boolean | ModulePartFields) =>
+    resolveSky(skyParts({ heightFog: option }), DEFAULT_SKY_QUALITY).fog as SceneFog
+  // A resolved fog without the keys of the cubemap and the volume that a fog without them leaves undefined.
+  const resolved = (fog: SceneFog) => ({ ...heightFogOf(fog as SceneHeightFog) })
+  const bare = (fog: SceneHeightFog) => JSON.parse(JSON.stringify(heightFogOf(fog)))
+  // The module's part: nothing named, `true` and `{}`, is the fog the level places, 0.0436 of the
+  // reference's centimetre numbers at 68.5 m below the origin.
+  assert.deepEqual(part({}), part(true))
+  assert.deepEqual(part(true), { baseDensity: 0.00436, baseHeight: -68.5 })
+  // Naming the level's own numbers changes nothing; naming a density keeps the level's place.
+  assert.deepEqual(resolved(part({ baseDensity: 0.00436, baseHeight: -68.5 })), resolved(part({})))
+  assert.deepEqual(part({ baseDensity: 0.002 }), { baseDensity: 0.002, baseHeight: -68.5 })
+  // A scene's own fog: nothing named is the component's defaults, which naming them changes none of.
+  assert.deepEqual(bare({}), HEIGHT_FOG_DEFAULTS)
+  assert.deepEqual(bare({ baseDensity: 0.002, falloff: 0.02, baseHeight: 0 }), HEIGHT_FOG_DEFAULTS)
+  // The two objects differ by the two numbers the level places, no other.
+  const level = JSON.parse(JSON.stringify(resolved(part(true))))
+  assert.deepEqual(
+    { ...level, baseDensity: HEIGHT_FOG_DEFAULTS.baseDensity, baseHeight: 0 },
+    HEIGHT_FOG_DEFAULTS,
+  )
+})
+
 test('a height fog naming another law takes none of the level numbers, and a refused word changes nothing', () => {
-  const sky = resolveSky(skyParts({ heightFog: { color: GREY, density: 0.02 } }))
+  const sky = resolveSky(
+    skyParts({ heightFog: { color: GREY, density: 0.02 } }),
+    DEFAULT_SKY_QUALITY,
+  )
   assert.deepEqual(sky.fog, { color: GREY, density: 0.02, heightFalloff: 0, baseHeight: 0 })
   assert.throws(() => checkSkyOption({ sun: { nope: 1 } }), /sun/)
   assert.throws(() => checkSkyOption({ heightFog: { maxOpacity: 2 } }), {
@@ -182,4 +220,68 @@ test('a height fog naming another law takes none of the level numbers, and a ref
   })
   assert.throws(() => checkSkyOption({ unknownPart: true }), { code: 'INVALID_MODULE_OPTION' })
   assert.doesNotThrow(() => checkSkyOption(undefined))
+})
+
+test('the atmosphere takes every value its settings can hold: a scene that carried a backward-scattering haze or a 12000 km planet loads and is packed', () => {
+  const ok = (fields: object) => validateSceneAtmosphere(fields)
+  const refused = (fields: object) =>
+    assert.throws(() => validateSceneAtmosphere(fields), /atmosphere/)
+  // The planet's radius, the air's height and the scale heights above 0; the haze's start from 0.
+  for (const planetRadius of [0.05, 12000, 100000]) ok({ planetRadius })
+  for (const field of ['planetRadius', 'height', 'rayleighScaleHeight', 'mieScaleHeight'])
+    for (const value of [0, -1, NaN]) refused({ [field]: value })
+  ok({ height: 0.01, aerialPerspectiveStartDepth: 0 })
+  refused({ aerialPerspectiveStartDepth: -0.1 })
+  // The haze's anisotropy strictly inside (-1, 1): at |g| = 1 the phase function is 0/0 on the axis.
+  for (const mieAnisotropy of [-0.999, -0.3, 0, 0.999]) ok({ mieAnisotropy })
+  for (const mieAnisotropy of [-1, 1, 1.5]) refused({ mieAnisotropy })
+  // A saved scene carrying both is read again, drawn by the packed block and the sky's parts.
+  const saved = { mieAnisotropy: -0.3, planetRadius: 12000 }
+  const sky = resolveSky(skyParts({ atmosphere: saved }), DEFAULT_SKY_QUALITY)
+  assert.deepEqual([sky.atmosphere!.mieAnisotropy, sky.atmosphere!.planetRadius], [-0.3, 12000])
+  const block = packAtmosphere(
+    validateSceneAtmosphere(saved),
+    [],
+    new Float32Array(ATMOSPHERE_FLOATS),
+  )
+  const planet = ATMOSPHERE_SLOT.planet * 4
+  assert.deepEqual(Array.from(block.slice(planet, planet + 3)), [1, 12000, 12060])
+  // The air's height under 0.1 km is read as 0.1 km, as the top of the air is made.
+  assert.equal(coefficientsOf(validateSceneAtmosphere({ height: 0.01 })).topRadius, 6360.1)
+})
+
+test('the planet’s top stands at `groundPosition` on the ground plane: [0, 0] by default, written in its own slot', () => {
+  assert.deepEqual(validateSceneAtmosphere(true).groundPosition, [0, 0])
+  const placed = validateSceneAtmosphere({ groundPosition: [1500, -2500], groundHeight: 40 })
+  assert.deepEqual(placed.groundPosition, [1500, -2500])
+  for (const groundPosition of [[1], [1, 2, 3], [0, Infinity], [NaN, 0], 'x'])
+    assert.throws(() => validateSceneAtmosphere({ groundPosition } as never), /groundPosition/)
+  const block = packAtmosphere(placed, [], new Float32Array(ATMOSPHERE_FLOATS))
+  const at = ATMOSPHERE_SLOT.planetPlace * 4
+  assert.deepEqual(Array.from(block.slice(at, at + 4)), [1500, -2500, 0, 0])
+  assert.equal(
+    block[ATMOSPHERE_SLOT.planet * 4 + 3],
+    40,
+    'the ground’s height is the planet slot’s',
+  )
+  assert.equal(sameSceneAtmosphere(placed, validateSceneAtmosphere({ groundHeight: 40 })), false)
+  assert.equal(
+    sameSceneAtmosphere(
+      placed,
+      validateSceneAtmosphere({ groundPosition: [1500, -2500], groundHeight: 40 }),
+    ),
+    true,
+  )
+})
+
+test('an atmosphere holds its light out only if it says so, and is then another air', () => {
+  assert.equal(validateSceneAtmosphere(true).holdout, false)
+  assert.equal(validateSceneAtmosphere({ holdout: true }).holdout, true)
+  assert.throws(() => validateSceneAtmosphere({ holdout: 1 } as never), {
+    code: 'INVALID_SCENE_ENVIRONMENT',
+  })
+  assert.equal(
+    sameSceneAtmosphere(validateSceneAtmosphere(true), validateSceneAtmosphere({ holdout: true })),
+    false,
+  )
 })

@@ -3,7 +3,6 @@
 // primitives, thousands of pages, and the exact coverage the collector checks.
 import * as G from '../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Group } from '../../../../packages/sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../../../packages/sdk-browser/src/session/host/resources.ts'
 import { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { BufferAttribute } from '../../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
@@ -12,6 +11,7 @@ import type { PageRec } from '../../../../packages/sdk-browser/src/geometry/sele
 import { DEFAULT_SCOPE } from '../../../../packages/sdk-core/src/contracts/base.ts'
 import type { ClusterManifest } from '../../../../packages/sdk-core/src/contracts/geometry.ts'
 import { CULLING_STRIDE } from '../../../../packages/sdk-core/src/contracts/writtenFormats.ts'
+import type { PageMesh } from '../../../../packages/sdk-browser/src/geometry/pages/pageMesh.ts'
 
 /** A page as `manifesteEtScene` builds it: bounds, cluster error, sphere, index triplet it covers,
  *  plus `sha256`, which `ClusterManifest['primitives'][number]['pages']` requires but nothing in
@@ -94,7 +94,7 @@ export function manifesteEtScene({
 }: { primitives?: number; pages?: number; triangles?: number; seed?: number } = {}) {
   const alea = xorshiftRandom(seed)
   const source = new Group()
-  const associations = new Map<HostMesh, { meshes: number; primitives: number }>()
+  const associations = new Map<PageMesh, { meshes: number; primitives: number }>()
   const indices = new Map<string, Uint32Array>()
   const list: LoadedPrimitive[] = []
   let idPage = 0

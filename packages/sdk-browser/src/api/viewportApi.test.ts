@@ -4,7 +4,7 @@ import * as G from '../scene/host/graph/graph.fixture.ts'
 import { createExplorerViewportApi } from './viewportApi.ts'
 import type { MeasuredWorldOptions } from '../session/options.ts'
 import type { Engine } from '../session/engine/types.ts'
-import type { HostCamera } from '../camera/world.ts'
+import type { ViewCamera } from '../camera/world.ts'
 
 test('public resize sizes the page canvas the engine presents into', () => {
   const canvas = { width: 0, height: 0 } as HTMLCanvasElement
@@ -36,7 +36,7 @@ test('captureSurfaceView hands the backend a finite view aimed at the pose targe
   const camera = G.perspectiveCamera(50, 1.5, 0.1, 100)
   camera.position.set(1, 2, 3)
   camera.updateMatrixWorld()
-  let view: HostCamera | undefined
+  let view: ViewCamera | undefined
   const backend = { id: 'webgpu-page-raster' } as Engine
   // What a real backend gives back needs a device; the view it was handed does not, so the
   // capture records it and stops there, and the boundary lowers its flag in its `finally`.

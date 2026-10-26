@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
 import { settledRt } from './hold.fixture.ts'
 import { askFramePipelines } from './framePipelines.ts'
+import { ensureGpuRaster } from '../render/encodeVisSetup.ts'
 import { deviceAnswer } from './deviceAnswer.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { gatedDevice } from '../../lighting/deferred/gatedDevice.fixture.ts'
@@ -14,8 +15,10 @@ import { createWebgpuShadePipelines } from '../../visibility/passes/shadePipelin
 import type { ShadeCensus } from '../../visibility/passes/shadeCensus.ts'
 import { createGuideSet } from '../../guides/guideSet.ts'
 import { families } from '../../session/host/families.ts'
-import { PAGE_INFO } from '../../visibility/pageInfo.ts'
-import { FLAG_DISPLACED, FLAG_LINE, FLAG_MASK, ROW_WORDS } from '../../visibility/types.ts'
+import { noteClass } from '../../gpu/core/presentClasses.ts'
+import { NO_RASTERS, graphRastersOf } from '../../materials/graph/graphRasters.ts'
+import type { GraphSurface } from '../../materials/graph/surfaceProgram.ts'
+import { material } from '../../../../sdk-core/src/world/material/index.ts'
 
 await families.guides.load()
 
@@ -24,6 +27,8 @@ function armed() {
   const gpu = gatedDevice(),
     rt = settledRt()
   Object.assign(rt.gpu, { device: gpu.device })
+  // The coplanar layers the session draws (`WebgpuVisState.drawLayerSlots`).
+  Object.assign(rt.vis, { drawLayerSlots: 1 })
   for (let i = 0; i < 2; i++) {
     rt.run.frame++
     keepWebgpuFrame(rt)
@@ -37,6 +42,7 @@ function census(keys: number[], emits = false) {
   return {
     keys,
     emits,
+    surfaces: [] as GraphSurface[],
     moved: () => void (stale = true),
     retake: () => (stale ? !(stale = false) : false),
   } satisfies ShadeCensus
@@ -102,6 +108,48 @@ test('a class a material changed into compiles off the frame before the image th
   assert.equal(compiled.sync, 0, 'no frame compiled a class')
 })
 
+test('a graph whose mask or offset joined the session joins the set the modules hold, which are made again while the frame is held', async () => {
+  const armedRt = armed(),
+    { rt, device } = armedRt
+  const told: string[] = []
+  Object.assign(rt.diag, { engineDiagnostic: (code: string) => told.push(code) })
+  const modules: string[] = []
+  const make = device.createShaderModule.bind(device)
+  device.createShaderModule = (d) => (modules.push(d.code), make(d))
+  const scene = census([5])
+  const shadeClasses = await classes(armedRt, [5])
+  const masked = material.graph('surface')
+  masked.output('baseColor', masked.constant(1, 0, 0))
+  masked.output('opacityMask', masked.componentMask(masked.texCoord(0), 'r'))
+  const swaying = material.graph('surface')
+  swaying.output('worldPositionOffset', swaying.multiply(swaying.time(), swaying.constant(1, 0, 0)))
+  Object.assign(rt.vis, {
+    shadeCensus: scene,
+    shadeClasses,
+    rasters: NO_RASTERS,
+    visBindGroupLayout: {},
+  })
+  scene.surfaces.push({ graph: masked }, { graph: swaying })
+  scene.moved()
+  askFramePipelines(rt)
+  // The set holds both at once; the session is not opened again, the frame waits for the modules.
+  const joined = graphRastersOf([{ graph: masked }, { graph: swaying }])
+  assert.deepEqual(rt.vis.rasters.pixelPrograms, joined.pixelPrograms)
+  assert.deepEqual(rt.vis.rasters.offsets, joined.offsets)
+  assert.deepEqual([joined.pixelPrograms.length, joined.offsets.length], [1, 1])
+  assert.deepEqual(told, ['material-graph-rasters-late'])
+  assert.equal(holdWebgpuFrame(rt, device), true, 'held while the modules are made again')
+  // Each compile it asks lands when the test says: the rebuild asks them one after the other.
+  for (let round = 0; round < 20 && rt.vis.rasterRebuild; round++) await armedRt.land()
+  assert.equal(rt.vis.rasterRebuild, undefined)
+  const visModule = modules.find((code) => code.includes('fn vis_vs('))!
+  assert.match(visModule, /fn mgOpacityMask\w*\(/, 'the visibility raster cuts by the graph')
+  assert.match(visModule, /fn mgWorldPositionOffset\w*\(/, 'and moves its vertices')
+  scene.moved()
+  askFramePipelines(rt)
+  assert.equal(told.length, 1, 'joined once')
+})
+
 test('a surface that came to emit switches the classes once those writing the layer compiled', async () => {
   const armedRt = armed(),
     { rt, device, compiled } = armedRt
@@ -151,13 +199,13 @@ test('the guide pass is made by the frame entry that first shows a guide, its pi
 test('the passes beside the cut are asked once it is adopted, never queued ahead of its compiles', async () => {
   const armedRt = armed(),
     { rt, compiled } = armedRt
-  // A table that holds rows, its cut still being made.
-  Object.assign(rt.layout.rows, { casterSlots: 4 })
   askFramePipelines(rt)
   const before = compiled.async
+  assert.equal(rt.vis.gpuDecode, undefined, 'no cut yet: no decode')
   Object.assign(rt.run, { gpuSelection: {} })
   askFramePipelines(rt)
-  assert.equal(compiled.async, before + 1, 'asked once the cut is adopted, not before')
+  assert.ok(rt.vis.gpuDecode && rt.vis.binStages, 'the decode and the bins of its clusters')
+  assert.ok(compiled.async > before, 'asked once the cut is adopted, not before')
   await armedRt.land()
   assert.equal(compiled.sync, 0)
 })
@@ -166,21 +214,9 @@ test('a class that draws displaced pixels has its displaced pipeline asked at th
   const armedRt = armed(),
     { rt, device, compiled } = armedRt
   const shade = await classes(armedRt, [3, 5, 7, 8, 9])
-  // Rows, each of its class: 5 displaced, the image tessellates it; 7 displaced and skinned, 8
-  // displaced and masked — both tessellated too; 3 displaced but a line, which is left as it is;
-  // 9 not displaced.
-  const ints = new Uint32Array(ROW_WORDS * 5)
-  const row = (at: number, key: number, flags: number, deformOutput = 0) => {
-    ints[at * ROW_WORDS + PAGE_INFO.at.materialClass] = key
-    ints[at * ROW_WORDS + PAGE_INFO.at.flags] = flags
-    ints[at * ROW_WORDS + PAGE_INFO.at.deformOutput] = deformOutput
-  }
-  row(0, 5, FLAG_DISPLACED)
-  row(1, 9, 0)
-  row(2, 7, FLAG_DISPLACED, 5)
-  row(3, 8, FLAG_DISPLACED | FLAG_MASK)
-  row(4, 3, FLAG_DISPLACED | FLAG_LINE)
-  Object.assign(rt.layout.rows, { pageTableInts: ints, packedCount: 5, rowWrites: 1 })
+  // The classes the resident clusters wear that the image tessellates (`displacedClasses`): 5 displaced,
+  // 7 displaced and skinned, 8 displaced and masked; 3, displaced but a line, and 9 are left as they are.
+  for (const key of [5, 7, 8]) noteClass(rt.vis.displacedClasses, key, 1)
   Object.assign(rt.vis, { shadeClasses: shade, materialTable: { displaced: { count: 1 } } })
   const before = compiled.async
   askFramePipelines(rt)
@@ -192,10 +228,25 @@ test('a class that draws displaced pixels has its displaced pipeline asked at th
   assert.equal(compiled.sync, 0, 'no frame compiled it')
   // The setting off, or no displaced surface: none is asked.
   const off = armed()
-  Object.assign(off.rt.layout.rows, { pageTableInts: ints, packedCount: 5, rowWrites: 1 })
+  for (const key of [5, 7, 8]) noteClass(off.rt.vis.displacedClasses, key, 1)
   Object.assign(off.rt.vis, { shadeClasses: await classes(off, [3, 5, 7, 8, 9]) })
   Object.assign(off.rt.vis, { materialTable: { displaced: { count: 0 } } })
   const asked = off.compiled.async
   askFramePipelines(off.rt)
   assert.equal(off.compiled.async, asked, 'no displaced surface: nothing asked')
+})
+
+test('the software raster is kept while the set it was made over stands, and made again when a graph joins', () => {
+  const { rt, device } = armed()
+  Object.assign(rt.gpu, { allocatedSize: [8, 8] })
+  Object.assign(rt.layout, { rasterCapacity: 64 })
+  Object.assign(rt, { setup: {} })
+  ensureGpuRaster(rt, device)
+  const first = rt.vis.gpuRaster!
+  ensureGpuRaster(rt, device)
+  assert.equal(rt.vis.gpuRaster, first, 'the same set')
+  rt.vis.rasters = { ...NO_RASTERS }
+  ensureGpuRaster(rt, device)
+  assert.notEqual(rt.vis.gpuRaster, first, 'another set')
+  assert.equal(rt.vis.gpuRaster!.rasters, rt.vis.rasters)
 })

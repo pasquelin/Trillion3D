@@ -8,10 +8,13 @@ export type Scene = {
   width: number
   height: number
   maxLevels: number
-  /** The nearest layer's build (`HIZ_NEAREST_BUILD`): the maximum, level 0 not copied. */
-  nearest?: boolean
-  /** The nearest build keeps the planes (`HIZ_UNI.at.planes`), and writes the finished depth's
-   *  farthest layer beside it: the default; else it writes the nearest layer alone. */
+  /** The full build (`HIZ_WITH_TRACE`): the trace layers beside the culling layer. */
+  trace?: boolean
+  /** The depth the trace layers reduce — the texture with a transparent surface folded in; the
+   *  texture itself where absent. */
+  folded?: Float32Array
+  /** The full build keeps the planes (`HIZ_UNI.at.planes`), and writes the finished depth's
+   *  farthest layer beside the nearest: the default; else it writes the nearest layer alone. */
   planes?: boolean
 }
 
@@ -23,4 +26,9 @@ export function layout(scene: Scene) {
   return { sizes, offsets, routed, first, upper, words }
 }
 
+/** The pixel's opaque depth: what the culling layer reduces. */
 export const texel = (scene: Scene, x: number, y: number) => scene.texture[y * scene.width + x]
+
+/** The pixel's depth for the trace layers (`hizFrontAt`). */
+export const traceTexel = (scene: Scene, x: number, y: number) =>
+  (scene.folded ?? scene.texture)[y * scene.width + x]

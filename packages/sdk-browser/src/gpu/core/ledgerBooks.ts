@@ -43,7 +43,8 @@ export type LedgerDevice = Pick<GPUDevice, 'createTexture' | 'createBuffer'>
 export type LedgerBooks = {
   counts?: (label: string | undefined) => boolean
   base?: { readonly bytes: number; snapshot(): GpuDeviceLedgerSnapshot }
-  limit?: () => number
+  /** The ceiling on live bytes, read at each allocation; `undefined` when the owner set none. */
+  limit?: () => number | undefined
   live: Map<object, { label: string; bytes: number }>
   unknownFormats: number
   liveBytes: number
@@ -70,7 +71,7 @@ export function checkAllocation(books: LedgerBooks, bytes: number, label: string
   const ceiling = books.limit?.()
   if (ceiling !== undefined && (!Number.isFinite(ceiling) || total > ceiling)) {
     const error = new GpuBudgetExceeded(
-      `${BUDGET_EXCEEDED}: requested=${bytes}, label=${label}, held=${total - bytes}, limit=${ceiling}`,
+      `${BUDGET_EXCEEDED}: requested=${bytes}, label=${label}, held=${total - bytes}, limit=${ceiling}; heaviest: ${heaviest(books)}`,
       Number.isFinite(ceiling) ? total - ceiling : Infinity,
       bytes,
     )
@@ -84,6 +85,15 @@ export function checkAllocation(books: LedgerBooks, bytes: number, label: string
     throw error
   }
 }
+
+/** The labels that hold the most, heaviest first: what a refusal names, so the page that reads it
+ *  sees where the budget went. */
+const HEAVIEST_NAMED = 8
+const heaviest = (books: LedgerBooks) =>
+  Object.entries(ledgerSnapshot(books).byLabel)
+    .slice(0, HEAVIEST_NAMED)
+    .map(([label, bytes]) => `${label}=${bytes}`)
+    .join(', ')
 
 /** Counts `resource` until its `destroy`, in every transaction open. */
 function track<T extends { destroy(): void }>(

@@ -15,6 +15,120 @@ import { isModel, locate, placedOf, tilePose, type Model, type Placed } from './
  *  go of its file's read by — one back while it was on its way lands once, the later. */
 type TileOpening = { placed: Placed[]; abort: AbortController }
 
+/** The parts the tiles are streamed with: the shared shapes, the bodies the nodes declare, the
+ *  resident tiles and their schedule. */
+function createTileParts(
+  writer: CommandWriter,
+  bodies: ReturnType<typeof createPhysicsBodies>,
+  invalidate: () => void,
+  failed: (error: EngineError) => void,
+) {
+  const shapes = new SharedShapes({ writer, ledger: bodies.ledger, failed })
+  const declared = createModelBodies({ writer, bodies, shapes, invalidate, failed })
+  const resident = createResidentTiles(writer, bodies, shapes)
+  const schedule = new TileSchedule({ bodies, declared, shapes, resident, invalidate, failed })
+  // A body no tile holds takes the farthest tiles' slots and bytes when none are left for it.
+  bodies.ledger.onFull({
+    get bodies() {
+      return resident.held.bodies
+    },
+    get bytes() {
+      return shapes.bytes
+    },
+    evictFarthest: () => schedule.evictFarthest(),
+    letGoFarthest: (bytes) => schedule.letGoFarthest(bytes),
+  })
+  return { shapes, declared, resident, schedule }
+}
+type TileParts = ReturnType<typeof createTileParts>
+
+/** Opens a model: its cooked file read, its tiles placed and its bodies declared once it lands. */
+function openModel(
+  parts: TileParts,
+  model: Model,
+  invalidate: () => void,
+  failed: (error: EngineError) => void,
+) {
+  const opening: TileOpening = { placed: [], abort: new AbortController() }
+  const { signal } = opening.abort
+  cookedPhysics(model, signal)
+    .then((cooked) => {
+      // A model compiled before the cook collides nowhere.
+      if (!cooked || signal.aborted) return
+      opening.placed = placedOf(model, cooked, parts.shapes)
+      parts.declared.open(model, cooked, signal)
+      invalidate()
+    })
+    // A read its model let go of by leaving is no failure.
+    .catch((error) => signal.aborted || failed(error as EngineError))
+  return opening
+}
+
+/** Finds the compiled models under `root`, opening the new ones (`open`) and forgetting the gone
+ *  (`drop`). */
+function scanModels(
+  parts: TileParts,
+  models: Map<Model, TileOpening>,
+  root: Object3D,
+  edit: { open: (model: Model) => void; drop: (model: Model, opening: TileOpening) => void },
+) {
+  const seen = new Set<Model>()
+  root.traverse((node) => {
+    if (!isModel(node)) return
+    seen.add(node)
+    if (!models.has(node)) edit.open(node)
+  })
+  const opened = models.size
+  for (const [model, opening] of models)
+    if (!seen.has(model)) {
+      edit.drop(model, opening)
+      models.delete(model)
+    }
+  // A model gone: no list names its placements any more.
+  if (models.size < opened) parts.schedule.trim()
+  parts.shapes.settle()
+}
+
+/** Makes the bodies of the nodes the cells placed draw, and lets go of those whose cells left;
+ *  carries the bodies a dynamic one holds (`../bodies/carriedBodies.ts`), then brings the
+ *  resident tiles in line with what is wanted (`tileSchedule.ts`) — those of the nodes the
+ *  placed cells draw alone — within what the static meshes and the other bodies leave them. */
+function updateTiles(
+  held: {
+    parts: TileParts
+    models: Map<Model, TileOpening>
+    bodies: ReturnType<typeof createPhysicsBodies>
+    budget: PhysicsBudget
+    share: number
+  },
+  eye: ArrayLike<number>,
+  range: number,
+) {
+  const { parts, models, bodies, budget, share } = held
+  const { shapes, declared, resident, schedule } = parts
+  // The bodies of the nodes a cell draws live with it (`ModelBodies.stream`).
+  for (const model of models.keys()) declared.stream(model)
+  declared.carry()
+  schedule.want(models, eye, range)
+  const count = bodies.count,
+    bodiesHeld = resident.held.bodies
+  schedule.admit(
+    share - count.collisionBytes + shapes.bytes,
+    budget.bodies - count.bodies + bodiesHeld,
+  )
+  schedule.start()
+}
+
+/** The resident bodies of `placed` teleported where their model puts them now. */
+function teleportPlaced(writer: CommandWriter, placed: readonly Placed[]) {
+  for (const p of placed) {
+    locate(p)
+    if (p.id < 0) continue
+    const { position, quaternion } = tilePose(p)
+    writer.teleport(p.id & BODY_INDEX, position, quaternion)
+  }
+}
+
 /**
  * The cooked collision of the compiled models in a scene (`physics.json`), streamed into the
  * simulation within the static collision's share of `budget.memoryBytes` (`collisionBytesOf`) and
@@ -23,7 +137,9 @@ type TileOpening = { placed: Placed[]; abort: AbortController }
  * camera's draw distance, the scene's own —, nearest first, and leave once no longer wanted. A
  * scene is never refused for its size: a tile that does not fit waits, the farther ones leaving
  * for it. A tile is restored from the module's binary state, never rebuilt; so are the bodies its
- * nodes declare (`../cooked/cookedBodies.ts`), made as it opens.
+ * nodes declare (`../cooked/cookedBodies.ts`), made as it opens. A node a cell draws has its
+ * tiles and its bodies with that cell alone: they come into being as it is placed and go as it
+ * leaves; those of a node the core draws, as before.
  *
  * A tile is one shape for the session (`../sharedShapes.ts`), however many placements and models
  * place it. With U tiles of b bytes wanted by P placements (P ≫ U for a prop repeated over a
@@ -42,36 +158,10 @@ export function createTileStreamer(
   const models = new Map<Model, TileOpening>()
   // The static collision's shares: of the memory, and of the bodies, the others keeping the rest.
   const share = collisionBytesOf(budget)
-  const shapes = new SharedShapes({ writer, ledger: bodies.ledger, failed })
-  const declared = createModelBodies({ writer, bodies, shapes, invalidate, failed })
-  const resident = createResidentTiles(writer, bodies, shapes)
-  const schedule = new TileSchedule({ bodies, declared, shapes, resident, invalidate, failed })
-  // A body no tile holds takes the farthest tiles' slots and bytes when none are left for it.
-  bodies.ledger.onFull({
-    get bodies() {
-      return resident.held.bodies
-    },
-    get bytes() {
-      return shapes.bytes
-    },
-    evictFarthest: () => schedule.evictFarthest(),
-    letGoFarthest: (bytes) => schedule.letGoFarthest(bytes),
-  })
-  function open(model: Model) {
-    const opening: TileOpening = { placed: [], abort: new AbortController() }
-    const { signal } = opening.abort
-    models.set(model, opening)
-    cookedPhysics(model, signal)
-      .then((cooked) => {
-        // A model compiled before the cook collides nowhere.
-        if (!cooked || signal.aborted) return
-        opening.placed = placedOf(model, cooked, shapes)
-        declared.open(model, cooked, signal)
-        invalidate()
-      })
-      // A read its model let go of by leaving is no failure.
-      .catch((error) => signal.aborted || failed(error as EngineError))
-  }
+  const parts = createTileParts(writer, bodies, invalidate, failed)
+  const { shapes, declared, resident, schedule } = parts
+  const held = { parts, models, bodies, budget, share }
+  const open = (model: Model) => models.set(model, openModel(parts, model, invalidate, failed))
   /** Everything `model` holds out: its tiles, their shapes let go of, and its declared bodies. */
   const drop = (model: Model, { placed, abort }: TileOpening) => {
     abort.abort()
@@ -80,37 +170,9 @@ export function createTileStreamer(
   }
   return {
     /** Finds the compiled models under `root`, opening the new ones and forgetting the gone. */
-    scan(root: Object3D) {
-      const seen = new Set<Model>()
-      root.traverse((node) => {
-        if (!isModel(node)) return
-        seen.add(node)
-        if (!models.has(node)) open(node)
-      })
-      const opened = models.size
-      for (const [model, opening] of models)
-        if (!seen.has(model)) {
-          drop(model, opening)
-          models.delete(model)
-        }
-      // A model gone: no list names its placements any more.
-      if (models.size < opened) schedule.trim()
-      shapes.settle()
-    },
-    /** Carries the bodies a dynamic one holds (`../bodies/carriedBodies.ts`), then brings the resident
-     *  tiles in line with what is wanted (`tileSchedule.ts`) within what the static meshes and
-     *  the other bodies leave them. */
+    scan: (root: Object3D) => scanModels(parts, models, root, { open, drop }),
     update(eye: ArrayLike<number>, range: number) {
-      if (!models.size) return
-      declared.carry()
-      schedule.want(models, eye, range)
-      const count = bodies.count,
-        held = resident.held.bodies
-      schedule.admit(
-        share - count.collisionBytes + shapes.bytes,
-        budget.bodies - count.bodies + held,
-      )
-      schedule.start()
+      if (models.size) updateTiles(held, eye, range)
     },
     /** The model a tile body's or a cooked body's engine id belongs to, or `null`. */
     modelOf: bodies.slots.modelOf,
@@ -131,12 +193,7 @@ export function createTileStreamer(
     moved(node: Object3D) {
       if (!isModel(node)) return
       declared.moved(node)
-      for (const p of models.get(node)?.placed ?? []) {
-        locate(p)
-        if (p.id < 0) continue
-        const { position, quaternion } = tilePose(p)
-        writer.teleport(p.id & BODY_INDEX, position, quaternion)
-      }
+      teleportPlaced(writer, models.get(node)?.placed ?? [])
     },
     /** Every tile and cooked body out (physics turned off). */
     clear() {

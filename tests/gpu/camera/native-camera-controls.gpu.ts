@@ -1,8 +1,7 @@
 // The native camera controllers on Dawn: every gesture is a pointer, wheel or key event on the
-// page's canvas, and a gesture undone brings the pose back, then the image to the byte. The
-// controllers import nothing of the host library (`tests/integration/engine-without-three.test.ts`
-// forbids it), so no addon can be loaded. The page has no pointer lock: the first-person head
-// turns through drags, the way it turns while the lock is refused.
+// page's canvas, and a gesture undone brings the pose back, then the image to the byte. The page
+// has no pointer lock: the first-person head turns through drags, the way it turns while the lock
+// is refused.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { measureOutput } from '../../../bench/core/paths.ts'

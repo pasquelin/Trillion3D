@@ -4,11 +4,13 @@ import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { ScreenProbeFrameMetrics } from '../../../../../sdk-core/src/contracts/shadowMetrics.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
-import { hizSetting } from '../../../visibility/hiz/setting.ts'
+import { readHizSetting } from '../../../../../sdk-core/src/contracts/hizOptions.ts'
 import { screenRelativeThickness } from '../../../visibility/hiz/gpu/screenSlab.ts'
-import { lightFunctionResources } from '../../lightFunction/frame.ts'
 import { blueNoiseNow, blueNoiseRefused } from '../../../gpu/noise/blueNoiseTextures.ts'
-import { reflectionGroup, reflectionLightView, reflectionProxy } from '../../reflections/group.ts'
+import { reflectionGroup, reflectionLightView } from '../../reflections/group.ts'
+import { demandSurfaceCache, surfaceHitReads } from '../../surfaceCache/frame.ts'
+import type { MarkProbes } from '../pool/pool.ts'
+import { stochasticPhase } from '../../../post/taa/frameState.ts'
 import { screenProbesCast } from './cast.ts'
 import { encodeScreenProbes as encodePass } from './encode.ts'
 import { createScreenProbeGroups } from './groups.ts'
@@ -43,8 +45,7 @@ function metricsOf(
     history: !!read.history,
     screenTraces: settings.casts && !!read.screen && settings.values.screenProbeScreenTraces,
     sceneTraces: !!g && settings.casts && settings.values.screenProbeSceneTraces,
-    meshTraces:
-      !!g && settings.casts && settings.values.screenProbeSceneTraces && settings.meshTraces,
+    meshTraces: false,
     velocity: !!read.velocity,
     bytes: read.bytes ?? 0,
     radianceCache: !!read.cacheBytes && settings.radianceCache,
@@ -99,8 +100,8 @@ const noiseWhy = (device: GPUDevice | undefined) =>
 /** The frame's resources the probes read, handed to `castProbes`. */
 type Needed = NonNullable<ReturnType<typeof neededOf>>
 
-/** What the groups name of the frame: its normals and flags, the lights and their lists, the cascades (or the
- *  lighting's stand-ins), the proxy the rays walk, the light functions' atlas, the vectors of the image (or the stand-in of
+/** What the groups name of the frame: its normals and flags, the lights, the cascades (or the lighting's stand-ins), the global
+ *  distance field the rays are marched through and the surface cache their hits read, the vectors of the image (or the stand-in of
  *  none) and the blue noise (made: the image asked for it before it cast). */
 function inputsOf(
   rt: WebgpuPagesRuntime,
@@ -115,12 +116,9 @@ function inputsOf(
     normals: frames[1],
     flags: frames[3],
     lights,
-    lightLists: rt.lights.tiles?.buffer ?? deferred.placeholders.tiles,
     bounceGrid: probes?.uniform ?? deferred.placeholders.bounceGrid,
-    probes: probes?.probes ?? deferred.placeholders.probes,
-    proxy: reflectionProxy(rt)!,
-    lightFunction:
-      lightFunctionResources(rt, 'lightFunctionBounce') ?? deferred.placeholders.lightFunction,
+    probes: probes?.table ?? deferred.placeholders.probes,
+    ...surfaceHitReads(rt, device),
     vectors: vectors ?? store.noVectors(device),
     blue: noise.view,
     cacheFinal: cache.final,
@@ -154,6 +152,27 @@ function groupsOf(
   return view.groups!
 }
 
+/** The result handed to the lighting, and the view moved on to its next image. */
+function handOver(
+  needed: Needed,
+  state: ScreenProbeView,
+  settings: ScreenProbeSettings,
+  reflection: Needed['reflection'],
+) {
+  const { values } = settings
+  needed.deferred.setScreenProbes(
+    +values.screenProbeMaterialAO,
+    values.screenProbeOcclusionMaxAlbedo,
+    values.screenProbeOcclusionIntensity,
+    (settings.casts ? 0 : 1) + (settings.backfaceDiffuse ? 0 : 2),
+  )
+  state.indirect = state.resources.history[state.turn]
+  state.viewProjection.set(reflection.frame.viewProjection)
+  state.history = true
+  state.turn = (1 - state.turn) as 0 | 1
+  state.frame++
+}
+
 /**
  * One image of probes, over the frame's resources: the inputs the groups name, the history read only where the
  * last image of the view left one drawn with the view-projection the last lit image holds, at the same size,
@@ -170,9 +189,11 @@ function castProbes(
   settings: ScreenProbeSettings,
 ) {
   const { device, reflection, depth, lightView } = needed
+  // The rays marched through the field read the surface cache at their hits: it is made for the images to come.
+  if (settings.values.screenProbeSceneTraces) demandSurfaceCache(rt)
   const vectors = screenProbeVectors(rt)
   const groups = groupsOf(state, device, kernels, settings)
-  const { held } = reflection.radiance
+  const { held } = reflection.lit
   const geometry = imageGeometry(state, rt.gpu.targetSize, settings)
   const history =
     state.history &&
@@ -183,9 +204,12 @@ function castProbes(
   const screen = reflection.frame.depthDrawn && held.valid
   const velocity = history && !!vectors
   const cacheViews = rt.bounce.probes?.cache.views
+  const taa = rt.gpu.temporal?.frame,
+    phase = stochasticPhase(taa)
   invertMatrix4(state.previousInverse, held.viewProjection)
   state.write(geometry, settings, {
-    frame: state.frame,
+    frame: phase,
+    previousFrame: taa?.active ? Math.max(phase - 1, 0) : phase,
     history,
     screen,
     cache: !!cacheViews && settings.radianceCache,
@@ -195,7 +219,7 @@ function castProbes(
       reflection.frame.viewProjection,
       settings.values.screenProbeRelativeDepthThickness,
     ),
-    fullResDepth: hizSetting(rt, 'hizFullResDepth'),
+    fullResDepth: readHizSetting(rt, 'hizFullResDepth'),
   })
   encodePass(encoder, {
     kernels,
@@ -205,18 +229,7 @@ function castProbes(
     settings,
     cache: rt.bounce.probes?.cache,
   })
-  const { values } = settings
-  needed.deferred.setScreenProbes(
-    +values.screenProbeMaterialAO,
-    values.screenProbeOcclusionMaxAlbedo,
-    values.screenProbeOcclusionIntensity,
-    settings.casts ? 0 : 1,
-  )
-  state.indirect = state.resources.history[state.turn]
-  state.viewProjection.set(reflection.frame.viewProjection)
-  state.history = true
-  state.turn = (1 - state.turn) as 0 | 1
-  state.frame++
+  handOver(needed, state, settings, reflection)
   const cacheBytes = rt.bounce.probes?.cache.bytes
   return metricsOf(
     settings,
@@ -236,7 +249,7 @@ function release(rt: WebgpuPagesRuntime) {
  * THE SCREEN PROBES OF THE IMAGE (`encodeScreenProbes`), after the depth pyramid and the reflections — which made the view's
  * uniform and hold the last lit image — and before the lighting, which reads what they leave (`ScreenProbeView.indirect`, named
  * by `directLightResources`). An image that cannot cast them — no lit surface, kernels still compiling, a device that refused
- * them, a budget with no room — leaves the lighting none: its pixels then read the world's probes, as they did before the screen
+ * them, a budget with no room — leaves the lighting none: its pixels then take the sky light's irradiance, as they did before the screen
  * probes. A level `'off'`, or no bounce, gives the view's probes back altogether.
  */
 export function encodeScreenProbes(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
@@ -273,6 +286,24 @@ export function encodeScreenProbes(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
   gpu.screenProbes = view
   if (!view) return skip(why!)
   store.metrics = castProbes(rt, encoder, needed, store, view, kernels, settings)
+}
+
+/** The probes the view's last image cast, for the pool to mark the cells they stand in from (`../pool/pool.ts`): their records, the
+ *  count of the adaptive ones placed and the shape of the atlas they lie in; none where the last image cast none. The records are
+ *  those of the turn the last image took, the one this image's cast then takes in its turn. */
+export function lastCastProbes(view: ScreenProbeView | undefined): MarkProbes | undefined {
+  const geometry = view?.image
+  if (!view?.history || !geometry) return undefined
+  const { resources } = view
+  return {
+    info: resources.info[1 - view.turn],
+    normal: resources.normal,
+    counts: resources.counts,
+    uniform: geometry.uniform,
+    maxAdaptive: geometry.maxAdaptive,
+    tilesX: geometry.tilesX,
+    rows: geometry.rows,
+  }
 }
 
 /** Asks the screen probes' kernels of the device at a frame's entry, off the frame, once the image is lit by the probes' level

@@ -42,7 +42,7 @@ test('wheels, soft bodies and the character are drawn at the bodies’ time, bet
   try {
     const { body, wheels, car, cloth } = carAndCloth(world)
     const feet = physics.character.body()!({ ...HUMAN_BODY })
-    const keys = { wishX: 0, wishZ: 0, sprint: false }
+    const keys = { wishX: 0, wishZ: 0 }
     // A step and a half, then a step: the next frame draws half a step past step 1.
     for (const seconds of [1.5 * PHYSICS_STEP, PHYSICS_STEP]) {
       physics.time(seconds)

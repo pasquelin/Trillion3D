@@ -2,6 +2,7 @@
 // (its joints and vehicles first), teleport, kinematic moves, velocity, impulses, wake/freeze,
 // gravity; joints are `joints.cpp`'s, vehicles `vehicles.cpp`'s. Word layouts: `packages/sdk-core/src/physics/layout.ts`.
 #include "binding.h"
+#include "filters.h"
 #include "restore.h"
 #include "words.h"
 
@@ -17,14 +18,13 @@ namespace {
 constexpr uint32_t SIZES[] = {0, 0, 2, 9, 9, 5, 5, 2, 4, 3, 9, 3, 4};
 /** Adds in one batch past which the broad phase is rebuilt after it. */
 constexpr uint32_t BULK_ADDS = 256;
-/// Density every shape is built with; a body's mass is set from the engine's density or mass.
-constexpr float SHAPE_DENSITY = 1000.0f;
 
 bool add(const uint32_t *w) {
   World &world = trillion::world();
   uint32_t engine = w[1], index = engine & INDEX_MASK, motion = w[2], layer = w[3], flags = w[5];
-  if (index >= world.slots.size() || world.slots[index].used || world.slots[index].refused)
+  if (index >= world.slots.size() || world.slots[index].used || world.slots[index].refused || !filterOf(layer).defined)
     return (world.error = BAD_COMMAND, false);
+  const Filter &filter = filterOf(layer);
   RefConst<Shape> shape = shapeOf(w);
   // A refused shape fails its body alone: the page hears its id and removes it.
   if (!shape) {
@@ -36,13 +36,18 @@ bool add(const uint32_t *w) {
   EMotionType type = motion == 0 ? EMotionType::Static : motion == 1 ? EMotionType::Kinematic : EMotionType::Dynamic;
   BodyCreationSettings settings(shape, RVec3(vec3(w + 6)), quat(w + 9), type, ObjectLayer(layer));
   settings.mUserData = engine;
-  settings.mIsSensor = (flags & SENSOR) != 0;
+  // A body that takes no part in the simulation is a sensor: it reports what it overlaps and
+  // moves nothing; a moving one senses the bodies that do not move too.
+  settings.mIsSensor = (flags & SENSOR) != 0 || !filter.physics;
+  settings.mCollideKinematicVsNonDynamic = settings.mIsSensor && type == EMotionType::Kinematic;
   settings.mMotionQuality = (flags & CCD) ? EMotionQuality::LinearCast : EMotionQuality::Discrete;
   settings.mFriction = f32(w + 18);
   settings.mRestitution = f32(w + 19);
   settings.mGravityFactor = f32(w + 20);
   settings.mLinearDamping = f32(w + 21);
   settings.mAngularDamping = f32(w + 22);
+  // Ten turns a second at most.
+  settings.mMaxAngularVelocity = 20.0f * JPH_PI;
   if (type == EMotionType::Dynamic) {
     float mass = f32(w + 16);
     if (mass <= 0) mass = f32(w + 17) * shape->GetMassProperties().mMass / SHAPE_DENSITY;
@@ -84,6 +89,11 @@ bool runCommands(const uint32_t *w, uint32_t count) {
       if (!add(w)) return false;
       w += ADD_WORDS + w[23] * 3 + w[24];
       ++added;
+      continue;
+    }
+    if (op == FILTER) {
+      if (!defineFilter(w)) return (world.error = BAD_COMMAND, false);
+      w += FILTER_WORDS;
       continue;
     }
     if (op == SOFT) {
@@ -171,9 +181,14 @@ bool runCommands(const uint32_t *w, uint32_t count) {
         bodies.SetGravityFactor(slot.id, f32(w + 2));
         if (slot.soft) holdSoft(slot);
         break;
-      case FLAGS:
+      case FLAGS: {
+        // The continuous-collision bit moves a moving rigid body's motion quality at once.
+        bool ccd = ((slot.flags ^ w[2]) & CCD) != 0;
         slot.flags = w[2];
+        if (ccd && !slot.soft && bodies.GetMotionType(slot.id) != EMotionType::Static)
+          bodies.SetMotionQuality(slot.id, (slot.flags & CCD) ? EMotionQuality::LinearCast : EMotionQuality::Discrete);
         break;
+      }
       default:  // MATERIAL
         bodies.SetFriction(slot.id, f32(w + 2));
         bodies.SetRestitution(slot.id, f32(w + 3));

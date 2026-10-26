@@ -43,6 +43,7 @@ import {
 } from '../types.ts'
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import { chainChildren } from '../../../../../sdk-core/src/manifest/worldRoots.ts'
+import { MARK_BITS } from '../../../visibility/shader/castingMark.ts'
 
 /** The children of each cell of a chain, by its parents' table: made once for the follower of the
  *  cut (`worldFollow.ts`) and the partition's HLOD cells (`../../hlod/hlodCells.ts`), which read
@@ -60,7 +61,7 @@ export function cellChildren(parent: Int32Array) {
 /** The root mark's bit on each placement of the world DAG (`ClusterRoot.mark`): a ray meets none
  *  of it, and the placement tree opens it from queue 0 (`../placement/placementTreePack.ts`), never through a
  *  group. */
-export const WORLD_ROOT_MARK = 16
+export const WORLD_ROOT_MARK = MARK_BITS.worldRoot
 
 /** What an HLOD cell's word draws, bit by bit (`worldFollow.ts`): a visible HLOD 0 cell's
  *  placements, and the cell's own actor of the next layer. Zero: nothing of its own. A cell file's

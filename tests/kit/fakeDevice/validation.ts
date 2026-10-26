@@ -146,12 +146,14 @@ export function validating<T extends object>(device: T): T {
     },
   )
   guard(owner, 'createBindGroupLayout', (d: GPUBindGroupLayoutDescriptor) =>
-    checkLayout(d, limits()),
+    checkLayout(d, limits(), features),
   )
   guard(owner, 'createPipelineLayout', (d: GPUPipelineLayoutDescriptor) =>
     checkPipelineLayout(d, limits()),
   )
-  guard(owner, 'createBindGroup', (d: GPUBindGroupDescriptor) => checkGroup(d, resolve, limits()))
+  guard(owner, 'createBindGroup', (d: GPUBindGroupDescriptor) =>
+    checkGroup(d, resolve, limits(), features),
+  )
   guard(
     owner,
     'createCommandEncoder',

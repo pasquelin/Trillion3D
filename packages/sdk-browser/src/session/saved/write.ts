@@ -1,3 +1,6 @@
+import { savedOffsets } from './offsets.ts'
+import { jsonCopy } from '../../../../sdk-core/src/runtime/jsonCopy.ts'
+import { DEFAULT_LIGHT_UNITS } from '../../../../sdk-core/src/scene/light/lightUnits.ts'
 import type { ModuleOption } from '../../../../sdk-core/src/modules/descriptor.ts'
 import { MATERIAL_BOOKKEEPING } from '../../../../sdk-core/src/world/material/material.ts'
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
@@ -36,12 +39,20 @@ type Triple = [number, number, number]
 const rgb = (c: Color): Triple => [c.r, c.g, c.b]
 /** A plain copy of JSON-shaped data: what the page stored in `userData` or a parameter; a
  *  `null` stays `null` (a cleared parameter), `undefined` stays unset. */
-const plain = (value: unknown) =>
-  value === undefined ? undefined : JSON.parse(JSON.stringify(value))
+const plain = <T>(value: T): T => (value === undefined ? value : jsonCopy(value))
+
+/** The sky word as plain data: the numbers of a typed array (a cubemap's texels, the fog's or the
+ *  sky light's) are saved as an array of them, which reads back as the picture they are. */
+const plainSky = (sky: unknown) =>
+  JSON.parse(
+    JSON.stringify(sky, (_key, value) =>
+      ArrayBuffer.isView(value) ? Array.from(value as unknown as ArrayLike<number>) : value,
+    ),
+  )
 
 /** The shape: its family call while it still holds, its vertices otherwise. */
 function saveGeometry(g: Geometry): SavedGeometry {
-  if (g.recipe) return { recipe: plain(g.recipe) }
+  if (g.recipe) return { recipe: plain(g.recipe) as SavedGeometry['recipe'] }
   const attributes: SavedGeometry['attributes'] = {}
   for (const [name, attribute] of Object.entries(g.attributes)) {
     // A view of an interleaved buffer is stored as its own numbers, not the whole pack.
@@ -97,7 +108,7 @@ export function saveScene(scene: SceneLike, camera?: Camera): SavedScene {
     format: SCENE_FORMAT,
     formatVersion: SCENE_FORMAT_VERSION,
     background: background && rgb(background),
-    ...(scene.sky != null && { sky: plain(scene.sky) as ModuleOption }),
+    ...(scene.sky != null && { sky: plainSky(scene.sky) as ModuleOption }),
     camera: camera ? saveCamera(camera) : null,
     geometries: [...tables.geometries.keys()].map(saveGeometry),
     materials: [...tables.materials.keys()].map(saveMaterial),
@@ -129,7 +140,7 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
     ...(o.castFarShadow ? { castFarShadow: true as const } : {}),
     ...(o.farField ? { farField: true as const } : {}),
     ...(o.farShadowTest === null ? {} : { farShadowTest: o.farShadowTest }),
-    receiveShadow: o.receiveShadow,
+    ...savedOffsets(o),
     renderOrder: o.renderOrder,
     userData: plain(o.userData),
     // What a model's file carried comes back with the model; what the page placed under it
@@ -140,29 +151,36 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
   }
   if ((o as { isGroup?: boolean }).isGroup) saved.kind = 'group'
   if (mesh.isMesh) saveMesh(saved, mesh, tables)
-  if (lamp.isLight) {
-    const shafts = settingsSet(lamp)
-    const cloudShadows = cloudShadowSettingsSet(lamp)
-    saved.light = {
-      kind: lamp.kind,
-      color: rgb(lamp.color),
-      groundColor: rgb(lamp.groundColor),
-      values: { ...lamp._values },
-      target: lamp.target.position.toArray() as Triple,
-      sh: lamp.sh ? [...lamp.sh] : null,
-      ...(lamp.atmosphereSun ? {} : { atmosphereSun: false as const }),
-      ...(lamp.atmosphereSunIndex ? { atmosphereSunIndex: lamp.atmosphereSunIndex } : {}),
-      ...(lamp.shadowsFog === (lamp.kind === 'directional') ? {} : { shadowsFog: lamp.shadowsFog }),
-      ...(lamp.useTemperature ? { useTemperature: true as const } : {}),
-      ...(lamp.shadowsAir ? { shadowsAir: true as const } : {}),
-      ...(lamp.transmittancePerPixel ? { transmittancePerPixel: true as const } : {}),
-      ...(tintSet(lamp) ? { sunDiskTint: rgb(tintSet(lamp)!) } : {}),
-      ...(Object.keys(shafts).length ? { shafts } : {}),
-      ...(Object.keys(cloudShadows).length ? { cloudShadows } : {}),
-    }
-  }
+  if (lamp.isLight) saved.light = saveLight(lamp)
   if (model.isLoadedModel) saved.model = { url: model.record.manifestUrl }
   return saved
+}
+
+/** A light's kind, colours, numbers and aim, and each setting it holds against its default. */
+function saveLight(lamp: Light): NonNullable<SavedNode['light']> {
+  const shafts = settingsSet(lamp)
+  const cloudShadows = cloudShadowSettingsSet(lamp)
+  return {
+    kind: lamp.kind,
+    color: rgb(lamp.color),
+    groundColor: rgb(lamp.groundColor),
+    values: { ...lamp._values },
+    target: lamp.target.position.toArray() as Triple,
+    sh: lamp.sh ? [...lamp.sh] : null,
+    ...(lamp.atmosphereSun ? {} : { atmosphereSun: false as const }),
+    ...(lamp.atmosphereSunIndex ? { atmosphereSunIndex: lamp.atmosphereSunIndex } : {}),
+    ...(lamp.shadowsFog === (lamp.kind === 'directional') ? {} : { shadowsFog: lamp.shadowsFog }),
+    ...(lamp.mobility === 'stationary' ? {} : { mobility: lamp.mobility }),
+    ...(lamp.inverseSquared ? {} : { inverseSquared: false as const }),
+    ...(lamp.intensityUnits === DEFAULT_LIGHT_UNITS ? {} : { intensityUnits: lamp.intensityUnits }),
+    ...(lamp.useTemperature ? { useTemperature: true as const } : {}),
+    ...(lamp.transmission ? { transmission: true as const } : {}),
+    ...(lamp.shadowsAir ? { shadowsAir: true as const } : {}),
+    ...(lamp.transmittancePerPixel ? { transmittancePerPixel: true as const } : {}),
+    ...(tintSet(lamp) ? { sunDiskTint: rgb(tintSet(lamp)!) } : {}),
+    ...(Object.keys(shafts).length ? { shafts } : {}),
+    ...(Object.keys(cloudShadows).length ? { cloudShadows } : {}),
+  }
 }
 
 /** A mesh's shape and materials by their ranks, its sprite centre and its physics. */

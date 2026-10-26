@@ -6,28 +6,24 @@
  * pass writes, for every linked root, `parent · local` in exact double arithmetic
  * (`gpuComposeWgsl.ts`) into the roots' double worlds (`../roots/rootWorlds.ts`); the roots pass carries it
  * into the cut's worlds — the exact translation behind them, which each cut reads at its own eye
- * (`geometry/dag/shader/worldPoseWgsl.ts`) —, and the motion pass into the temporal motion; the rows
- * pass derives every word of the root's page-table rows from it (`../rows/rowWordsPass.ts`): the very
- * single-precision words the CPU formulas give. The frame hears a pose move as from any engine
+ * (`geometry/dag/shader/worldPoseWgsl.ts`) —; the decode
+ * of the visible clusters (`../../visibility/decode/decodeWgsl.ts`) writes the world of each from
+ * it: the very single-precision words the CPU formulas give. The frame hears a pose move as from any engine
  * write (`engineMovedInPlace`): every reader of the scene revision follows; the GPU cut, which
  * compares the CPU worlds it is sent, hears it from the roots pass (`worldsMovedOnGpu`) and cuts
  * again under the composed worlds.
  *
- * The temporal motion of a linked root is the CPU's to the word (`../../post/taa/motion.ts`): the motion
- * pass computes it from the root's composed single-precision world and the one the GPU holds for it
- * at the last accumulated image, as the temporal pass decides this image (`composedMotionPass.ts`). That
- * decision is a uniform written before the motion pass is encoded into the image's command buffer
- * (`composedMotionPass.ts`), as the CPU motion's own write is: every reader of the motion sees it.
+ * The temporal motion of a linked root is any placement's: the roots pass names the poses it moved
+ * to the poses the next drawn frame keeps (`worldsMovedOnGpu`, `geometry/dag/previousPoses.ts`), and
+ * the velocity measures `previous · current⁻¹` of the two (`../../post/taa/nearestSurfaceWgsl.ts`).
  *
- * The shadows follow a parent's move as they follow a moved node's: the rows pass, deriving the
- * linked roots' rows from the worlds the parent's move composed, stales the pages each row left and
- * entered (`../rows/rowCastWgsl.ts`); the CPU declares no box. Its first move makes its roots moving
- * casters, once (`mobility.moveLead`); a later move stales the moving casters alone.
+ * The shadows follow a parent's move as they follow a moved node's: the CPU declares no box. Its
+ * first move makes its roots moving casters, once (`mobility.moveLead`).
  *
  * Everything a composed world gives is derived on the GPU, the CPU's to the word, as a host's world
  * is: the root boxes pass writes its world box and the primitive stretch every cut projects its
- * errors through (`../roots/rootBoxes.ts`); the rows pass each row's sphere and world-dependent
- * levels of detail (`gpuComposeDerivedWgsl.ts`); the tree's leaves pass the leaf
+ * errors through (`../roots/rootBoxes.ts`); the decode of the visible clusters each cluster's world
+ * (`../../visibility/decode/decodeWgsl.ts`); the tree's leaves pass the leaf
  * boxes the placement tree is refitted over (`../tree/treeLeaves.ts`). The CPU readers — transparent depth,
  * the winding — read the lazy world of the root once a frame, as waves, a soft body and a skeleton
  * do. A link is never refused for what reads its row: the rows no root reads — a blended surface's,
@@ -47,10 +43,34 @@ import {
 } from './composeReaders.ts'
 import { composeState, linkedRanks, linkRanks, takeSlot, unlinkHeld } from './gpuComposeLinks.ts'
 import { settleSlot } from './gpuComposeSlot.ts'
+import type { ComposeState } from './gpuComposeState.ts'
 import { installComposedWorld } from './gpuComposeWorld.ts'
 
 /** A row linked to a parent: its rows, its rank there, its mesh's local matrix. */
 export type PlacementLink = { rows: PlacementRows; index: number; local: ArrayLike<number> }
+
+/** A parent's world alone moves its slot: the frame hears it as any engine pose write. */
+function settleAlone(
+  rt: WebgpuPagesRuntime,
+  state: ComposeState,
+  slot: number,
+  world: ArrayLike<number>,
+) {
+  if (settleSlot(rt, state, { slot, p: slot, world, relinked: false }))
+    rt.run.gate.engineMovedInPlace()
+}
+
+/** A reader's new local moves the slot's version too: its views read that version alone. Whether
+ *  the readers it holds changed. */
+function holdSlotReaders(
+  state: ComposeState,
+  held: { slot: number; parent: object; readers: readonly PlacementLink[]; whole: boolean },
+  viewsOf: () => ReaderViews,
+) {
+  const { slot, parent, readers, whole } = held
+  if (!readers.length && !(whole && state.readers.has(slot))) return false
+  return holdReaders(state.readers, slot, parent, readers, whole ? viewsOf() : undefined)
+}
 
 /**
  * Takes `world` as `parent`'s world and links `links` to it. `whole`: they are every row that
@@ -72,8 +92,7 @@ export function composeWebgpuPlacements(
   if (p === undefined && !links.length) return
   // A world alone — every slot, every frame (`geometry/partition/follow.ts`) —: no link read, nothing made.
   if (p !== undefined && !links.length && !whole) {
-    if (settleSlot(rt, state, { slot: p, p, world, relinked: false }))
-      rt.run.gate.engineMovedInPlace()
+    settleAlone(rt, state, p, world)
     return
   }
   const { ranks, rooted, readers } = linkedRanks(rt, links)
@@ -82,9 +101,7 @@ export function composeWebgpuPlacements(
   const viewsOf = () => (views ??= readerViews(rt.blendState.blendGpu))
   let relinked = whole && unlinkHeld(rt, state, slot, ranks)
   // A reader's new local moves the slot's version too: its views read that version alone.
-  if (readers.length || (whole && state.readers.has(slot)))
-    relinked =
-      holdReaders(state.readers, slot, parent, readers, whole ? viewsOf() : undefined) || relinked
+  relinked = holdSlotReaders(state, { slot, parent, readers, whole }, viewsOf) || relinked
   if (!ranks.length && !readers.length && whole) {
     state.parentIds.delete(parent)
     state.freeSlots.push(slot)

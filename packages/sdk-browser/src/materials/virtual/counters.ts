@@ -43,7 +43,7 @@ export function createTileCounters() {
         atlases.reduce((total, atlas) => total + of(atlas), 0)
       const pools = (of: (pool: WebgpuTilePool) => number) =>
         sum((atlas) => atlas.pools.reduce((total, pool) => total + of(pool), 0))
-      const metrics: TextureFrameMetrics = {
+      return {
         texturePoolBytes: pools((pool) => pool.bytes),
         texturePoolFormat: family,
         texturePoolLayers: pools((pool) => pool.layers),
@@ -65,8 +65,7 @@ export function createTileCounters() {
         textureLevelCacheBytes: levels ? levels.bytes : null,
         textureScratchBuilds: this.scratches,
         textureLiveBytes: liveBytes,
-      }
-      return metrics
+      } satisfies TextureFrameMetrics
     },
   }
 }

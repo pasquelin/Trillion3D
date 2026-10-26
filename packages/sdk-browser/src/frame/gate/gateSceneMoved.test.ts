@@ -6,8 +6,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { createFrameGateCore } from './gateCore.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 /** A source graph and the entry list that names the node the engine draws. */
 function scene() {
@@ -68,7 +68,7 @@ test('both announce the scene: a held frame is refused after either of them', ()
 
 test('a host write of its own is still taken after a move: the watch keeps listening', () => {
   const { source, drawn } = scene()
-  const mesh = (drawn[0] as { drawSource: { node: HostMesh } }).drawSource.node
+  const mesh = (drawn[0] as { drawSource: { node: PageMesh } }).drawSource.node
   const gate = createFrameGateCore(1)
   gate.readScene(source, drawn)
   gate.movedInPlace()
@@ -82,7 +82,7 @@ test('a host write of its own is still taken after a move: the watch keeps liste
 
 test('a move announced before the first image still has the watched set built', () => {
   const { source, drawn } = scene()
-  const mesh = (drawn[0] as { drawSource: { node: HostMesh } }).drawSource.node
+  const mesh = (drawn[0] as { drawSource: { node: PageMesh } }).drawSource.node
   const gate = createFrameGateCore(1)
   gate.movedInPlace()
   gate.readScene(source, drawn)
@@ -110,7 +110,7 @@ test('a reshape then a move before the same image: the node the reshape brought 
 
 test('a node the host reparented has the roots under it read, not every root; a destroyed one every root', () => {
   const { source, drawn } = scene()
-  const mesh = (drawn[0] as { drawSource: { node: HostMesh } }).drawSource.node
+  const mesh = (drawn[0] as { drawSource: { node: PageMesh } }).drawSource.node
   const world = { refresh() {} } as Parameters<
     ReturnType<typeof createFrameGateCore>['updateWorlds']
   >[0]

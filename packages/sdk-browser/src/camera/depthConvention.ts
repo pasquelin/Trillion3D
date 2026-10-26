@@ -21,8 +21,9 @@
  * depends on nothing here.
  */
 
-/** The comparison of a resolve that redraws on its own depth, equality included: every other
- *  pipeline's is `'greater'`, the greater winning in reversed depth. */
+/** The comparison of a resolve that redraws on its own depth, and of the hardware visibility raster
+ *  on a device without the 64-bit word, equality included: every other pipeline's is `'greater'`,
+ *  the greater winning in reversed depth. */
 export const DEPTH_COMPARE_OR_EQUAL: GPUCompareFunction = 'greater-equal'
 
 /** Near-plane depth. Nothing can be nearer. */

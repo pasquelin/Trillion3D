@@ -5,6 +5,7 @@ import { workgroupSumLoop } from '../../../gpu/core/workgroupSumWgsl.ts'
 import { rand3dPcg16 } from '../../../../../math/src/wgsl/sampling.ts'
 import { GROUP } from './dofLayout.ts'
 import { RECOMBINE_PAIRS, RECOMBINE_SLIGHT_WGSL } from './dofRecombineWgsl.ts'
+import { layersOver } from '../../../blend/translucencyComposeWgsl.ts'
 
 /**
  * The slight out of focus of a pixel at the full size, from the gathered radius of its tile's
@@ -92,7 +93,10 @@ fn recombineLayers(dofUV:vec2f,centre:FullSample,bgOpacity0:f32,gathered:vec4f,f
  *   gather's, if it ran; the background's circle opacity where the quality has no gather);
  * - the foreground then lies over all: the image's colour times the foreground's translucency, plus its
  *   premultiplied colour — held, where there is no hole filling, under what its circle allows —; the
- *   alpha, kept in the image's own coverage, is snapped to 0 or 1 within half a percent.
+ *   alpha, kept in the image's own coverage, is snapped to 0 or 1 within half a percent;
+ * - the translucency of the layers drawn after the depth of field then lies over the image
+ *   (`layersOver`), a texel of white and nothing where the image has none: the image is composed here,
+ *   not by a pass of its own.
  */
 export const dofRecombineShader = () =>
   wgslProgram(
@@ -141,7 +145,10 @@ fn recombine(@builtin(global_invocation_id) gid:vec3u,@builtin(local_invocation_
  }
  var shown=recombineLayers(dofUV,centre,bgOpacity,gathered,fg,fgTranslucency);
  shown.a=select(select(shown.a,1.0,shown.a>0.995),0.0,shown.a<0.005);
- textureStore(sceneOut,vec2i(id),shown);
+ let at=vec2i(id);
+ let layer=textureLoad(layers,min(at,vec2i(textureDimensions(layers))-vec2i(1)),0);
+ let m=textureLoad(modulation,min(at,vec2i(textureDimensions(modulation))-vec2i(1)),0);
+ textureStore(sceneOut,at,layersOver(shown,layer,m));
 }`,
-    [LAYERS_WGSL, SLIGHT_RESOLVE_WGSL, PI, rand3dPcg16],
+    [LAYERS_WGSL, SLIGHT_RESOLVE_WGSL, PI, rand3dPcg16, layersOver],
   )

@@ -15,6 +15,7 @@ import { dofGatherShader } from './dofGatherWgsl.ts'
 import { dofPostfilterShader } from './dofPostfilterWgsl.ts'
 import { packShader, spriteShader } from './dofScatterWgsl.ts'
 import { dofRecombineShader } from './dofRecombineMainWgsl.ts'
+import { layersLayout } from '../../../blend/translucencyLayers.ts'
 
 /** What decides a pipeline of each pass: its pipeline constants, which name the layer, the rings,
  *  the quality, the bokeh, the tiles' dilation, the reduction's outputs. */
@@ -86,7 +87,11 @@ function computePipelines(device: GPUDevice, layouts: Layouts, modules: Modules)
       const [layout, entry] = ENTRIES[pass]
       return preparedComputeStage(
         device,
-        device.createPipelineLayout({ bindGroupLayouts: [layouts[layout]] }),
+        // The recombine composes the translucency of the image, the second group.
+        device.createPipelineLayout({
+          bindGroupLayouts:
+            pass === 'recombine' ? [layouts[layout], layersLayout(device)] : [layouts[layout]],
+        }),
         modules[pass],
         entry,
         constants,

@@ -21,54 +21,52 @@ Test paths below are relative to `packages/asset-compiler-rust/`.
   [`THIRD_PARTY_NOTICES.md`](../../../THIRD_PARTY_NOTICES.md#image-and-texture-readers-of-the-native-compiler).
   A folder without `LICENSE.txt` takes its licence from this table.
 
-| folder | files | licence | source |
-| --- | --- | --- | --- |
-| `alembic/procedural-static` | `scene.abc` | CC0-1.0, `LICENSE.txt` | corpus `alembic/procedural-static`, by `tests/assets/tools/model_formats_blender.py` (Blender 5.2.1 LTS, Alembic 1.8.3) |
-| `alembic/limits` | `hdf5.abc`, `truncated.abc`, `cases.abc` | CC0-1.0, `LICENSE.txt` | written here from the Alembic specification |
-| `blend/procedural-materials` | `scene.blend` | CC0-1.0, `LICENSE.txt` | corpus `blend/procedural-materials` (Blender 5.2.1 LTS) |
-| `blend/limits` | `truncated.blend` | CC0-1.0, `LICENSE.txt` | the first 4,096 bytes of the unwrapped `procedural-materials` scene |
-| `blend/layouts` | `blender-3.3.blend`, `blender-4.4.blend`, `blender-5.2.blend` | CC0-1.0, `LICENSE.txt` | [`layouts.py`](blend/layouts/layouts.py), run by Blender 3.3.21, 4.4.3 and 5.2.1 LTS |
-| `bmp` | the readable and header-refused `.bmp` | CC0-1.0, [`LICENSE.txt`](bmp/LICENSE.txt) | written here from Microsoft's "Bitmap Header Types" |
-| `bmp` | `truncated.bmp` | CC0-1.0, same notice | corpus `limites/truncated-bmp/truncated.bmp` |
-| `bmp`, `gif`, `psd` | `scene.gltf`, `scene.bin` | CC0-1.0 | the [`hdr`](#hdr) quad, only its image changed |
-| `coplanar` | five `<name>/<name>.gltf`, `.bin`, `expected.json` | repository | written here |
-| `dds` | `bc1-mips.dds`, `truncated.dds` | CC0-1.0 | corpus `textures/dds-matrix/bc1-mips.dds`, `limites/truncated-dds/truncated.dds`, by `tests/assets/tools/texture_assets.py` |
-| `exr` | the `.exr`, `scene.gltf`, `scene.bin` | CC0-1.0 | written here from ASF "OpenEXR File Layout" and "Technical Introduction to OpenEXR" |
-| `gif` | the readable `.gif`, `animated.gif` | CC0-1.0, [`LICENSE.txt`](gif/LICENSE.txt) | written here from CompuServe "Graphics Interchange Format, Version 89a" |
-| `gif` | `truncated.gif` | CC0-1.0, same notice | corpus `limites/truncated-gif/truncated.gif` |
-| `gltf/compressed-box` | `Box.gltf`, `Box.bin` | **CC-BY-4.0**, [`LICENSE.txt`](gltf/compressed-box/LICENSE.txt) | unmodified, Khronos glTF Sample Assets [`Models/Box/glTF-Draco`](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Box/glTF-Draco), © 2017 Cesium |
-| `gltf-world` | `world.gltf`, `world.bin` | CC0-1.0 | written here |
-| `hdr` | the `.hdr`, `scene.gltf`, `scene.bin` | CC0-1.0 | written here from the Radiance RGBE format |
-| `import-fbx` | `river.fbx`, `bend.fbx` | repository | ASCII FBX 7400 written here |
-| `ktx2` | `basis.ktx2` | CC0-1.0, [`LICENSE.txt`](ktx2/LICENSE.txt) | corpus `textures/ktx2-matrix/basis.ktx2`, by `ktx create` / libktx 4.4.2 |
-| `ktx2` | `uastc.ktx2` | CC0-1.0, same notice | cut from corpus `textures/ktx2-matrix/uastc.ktx2`, no re-encoding |
-| `ktx2` | `base.ktx2`, `base-zstd.ktx2`, `truncated.ktx2`, `scene.*`, `expected.json` | CC0-1.0, same notice | written here from Khronos "KTX File Format Specification, version 2.0"; `truncated.ktx2` is forty bytes of `basis.ktx2` |
-| `ma` | `tiny/scene.ma` | CC0-1.0, [`LICENSE.txt`](ma/LICENSE.txt) | written here from Autodesk's public MEL command documentation |
-| `ma` | `tiny/textures/checker.png` | CC0-1.0, same notice | corpus, as `usd/tiny/textures/checker.png` |
-| `material-classes` | `emitter-sphere.gltf` + `.bin` | repository | written here |
-| `obj` | `tiny/scene.obj`, `scene.mtl`, `textures/*.png` | CC0-1.0, [`LICENSE.txt`](obj/LICENSE.txt) | written here from the OBJ and MTL specification; PNGs by a minimal PNG encoder |
-| `png` | the `.png` | CC0-1.0 | written here from W3C "PNG Specification (Second Edition)" (ISO/IEC 15948:2004), W3C "APNG Specification" and "ICC.1:2001-04" |
-| `previews` | `colour-atlas/` | repository | generated here by `src/tests/textures/previews_source.rs` |
-| `previews` | `coverage-alpha.json`, `coverage-filtered.json` | repository | written here |
-| `psd` | the `.psd`, `.psb` | CC0-1.0, [`LICENSE.txt`](psd/LICENSE.txt) | written here from Adobe's "Photoshop File Formats Specification" |
-| `tga` | the readable `.tga` | CC0-1.0 | written here from "Truevision TGA File Format Specification, Version 2.0" |
-| `tga` | `truncated.tga` | CC0-1.0 | corpus `limites/truncated-tga/truncated.tga` |
-| `tiff` | `rgb8-raw-ii`, `rgb8-raw-mm`, `rgb8-planar`, `rgba8-associated-alpha` | CC0-1.0, [`LICENSE.txt`](tiff/LICENSE.txt) | written here from "TIFF Revision 6.0" |
-| `tiff` | `rgb8-lzw`, `rgb8-deflate`, `rgb8-packbits`, `rgb8-jpeg`, `rgba8-raw`, `grey8-raw`, `palette8`, `grey16`, `two-pages`, `ccitt-g4` | CC0-1.0, same notice | Pillow 12.2.0, an encoder outside the crate the driver reads with |
-| `tiff` | `truncated.tif` | CC0-1.0, same notice | corpus `limites/truncated-tif/truncated.tif` |
-| `unity/cc0-import-project` | Unity project | CC0-1.0, `LICENSE.txt` | corpus `unity/cc0-import-project` (`tests/assets/tools/unity_assets.py`), plus objects written here |
-| `unity/limits` | `truncated.unity` | CC0-1.0, `LICENSE.txt` | corpus `limites/truncated-unity` |
-| `unitypackage` | `test.unitypackage`, `outside-package/` | CC0-1.0, [`LICENSE.txt`](unitypackage/LICENSE.txt) | corpus `unity/cc0-unitypackage` (`tests/assets/tools/unity_assets.py`) |
-| `unitypackage` | `truncated.unitypackage` | CC0-1.0, same notice | corpus `limites/truncated-unitypackage` |
-| `unitypackage` | `folder-escape.unitypackage`, `empty.unitypackage` | CC0-1.0, same notice | traps, [`traps.sh`](unitypackage/traps.sh) (Python `tarfile`) |
-| `usd` | `corpus/usda`, `corpus/usdc` | CC0-1.0, [`LICENSE.txt`](usd/LICENSE.txt) | corpus `usd/procedural-usda`, `usd/procedural-usdc` (`model_formats_blender.py`, `model_formats_text.py`) |
-| `usd` | `tiny/scene.usda`, `tiny/textures/checker.png` | CC0-1.0, same notice | scene written here from the AOUSD specification; texture from the corpus |
-| `usdz` | `scene.usdz` | CC0-1.0, [`LICENSE.txt`](usdz/LICENSE.txt) | corpus `usd/procedural-usdz` (`model_formats_blender.py`) |
-| `usdz` | `compressed.usdz`, `no-scene.usdz`, `two-scenes.usdz` | CC0-1.0, same notice | traps, [`traps.py`](usdz/traps.py) (Python `zipfile`) |
-| `webp` | `lossless.webp`, `lossy.webp` | CC0-1.0, [`LICENSE.txt`](webp/LICENSE.txt) | corpus `textures/legacy-web-matrix/lossless.webp`, `lossy.webp` (`texture_assets.py`) |
-| `webp` | `extended-lossless.webp`, `animated.webp`, `truncated.webp` | CC0-1.0, same notice | `lossless.webp`'s RIFF chunks reassembled per the "WebP Container Specification", no pixel rewritten |
-| `zip` | `scene.zip`, `truncated.zip`, `outside-archive/` | CC0-1.0, [`LICENSE.txt`](zip/LICENSE.txt) | corpus `archives/gltf-nested-zip`, `limites/truncated-zip` |
-| `zip` | `folder-escape.zip`, `empty.zip` | CC0-1.0, same notice | traps, [`traps.sh`](zip/traps.sh) (Python `zipfile`) |
+| folder                       | files                                                                                                                             | licence                                                         | source                                                                                                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `alembic/procedural-static`  | `scene.abc`                                                                                                                       | CC0-1.0, `LICENSE.txt`                                          | corpus `alembic/procedural-static`, by `tests/assets/tools/model_formats_blender.py` (Blender 5.2.1 LTS, Alembic 1.8.3)                                             |
+| `alembic/limits`             | `hdf5.abc`, `truncated.abc`, `cases.abc`                                                                                          | CC0-1.0, `LICENSE.txt`                                          | written here from the Alembic specification                                                                                                                         |
+| `blend/procedural-materials` | `scene.blend`                                                                                                                     | CC0-1.0, `LICENSE.txt`                                          | corpus `blend/procedural-materials` (Blender 5.2.1 LTS)                                                                                                             |
+| `blend/limits`               | `truncated.blend`                                                                                                                 | CC0-1.0, `LICENSE.txt`                                          | the first 4,096 bytes of the unwrapped `procedural-materials` scene                                                                                                 |
+| `blend/layouts`              | `blender-3.3.blend`, `blender-4.4.blend`, `blender-5.2.blend`                                                                     | CC0-1.0, `LICENSE.txt`                                          | [`layouts.py`](blend/layouts/layouts.py), run by Blender 3.3.21, 4.4.3 and 5.2.1 LTS                                                                                |
+| `bmp`                        | the readable and header-refused `.bmp`                                                                                            | CC0-1.0, [`LICENSE.txt`](bmp/LICENSE.txt)                       | written here from Microsoft's "Bitmap Header Types"                                                                                                                 |
+| `bmp`                        | `truncated.bmp`                                                                                                                   | CC0-1.0, same notice                                            | corpus `limites/truncated-bmp/truncated.bmp`                                                                                                                        |
+| `bmp`, `gif`, `psd`          | `scene.gltf`, `scene.bin`                                                                                                         | CC0-1.0                                                         | the [`hdr`](#hdr) quad, only its image changed                                                                                                                      |
+| `coplanar`                   | five `<name>/<name>.gltf`, `.bin`, `expected.json`                                                                                | repository                                                      | written here                                                                                                                                                        |
+| `dds`                        | `bc1-mips.dds`, `truncated.dds`                                                                                                   | CC0-1.0                                                         | corpus `textures/dds-matrix/bc1-mips.dds`, `limites/truncated-dds/truncated.dds`, by `tests/assets/tools/texture_assets.py`                                         |
+| `exr`                        | the `.exr`, `scene.gltf`, `scene.bin`                                                                                             | CC0-1.0                                                         | written here from ASF "OpenEXR File Layout" and "Technical Introduction to OpenEXR"                                                                                 |
+| `gif`                        | the readable `.gif`, `animated.gif`                                                                                               | CC0-1.0, [`LICENSE.txt`](gif/LICENSE.txt)                       | written here from CompuServe "Graphics Interchange Format, Version 89a"                                                                                             |
+| `gif`                        | `truncated.gif`                                                                                                                   | CC0-1.0, same notice                                            | corpus `limites/truncated-gif/truncated.gif`                                                                                                                        |
+| `gltf/compressed-box`        | `Box.gltf`, `Box.bin`                                                                                                             | **CC-BY-4.0**, [`LICENSE.txt`](gltf/compressed-box/LICENSE.txt) | unmodified, Khronos glTF Sample Assets [`Models/Box/glTF-Draco`](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Box/glTF-Draco), © 2017 Cesium |
+| `gltf-world`                 | `world.gltf`, `world.bin`                                                                                                         | CC0-1.0                                                         | written here                                                                                                                                                        |
+| `hdr`                        | the `.hdr`, `scene.gltf`, `scene.bin`                                                                                             | CC0-1.0                                                         | written here from the Radiance RGBE format                                                                                                                          |
+| `import-fbx`                 | `river.fbx`, `bend.fbx`                                                                                                           | repository                                                      | ASCII FBX 7400 written here                                                                                                                                         |
+| `ktx2`                       | `basis.ktx2`                                                                                                                      | CC0-1.0, [`LICENSE.txt`](ktx2/LICENSE.txt)                      | corpus `textures/ktx2-matrix/basis.ktx2`, by `ktx create` / libktx 4.4.2                                                                                            |
+| `ktx2`                       | `uastc.ktx2`                                                                                                                      | CC0-1.0, same notice                                            | cut from corpus `textures/ktx2-matrix/uastc.ktx2`, no re-encoding                                                                                                   |
+| `ktx2`                       | `base.ktx2`, `base-zstd.ktx2`, `truncated.ktx2`, `scene.*`, `expected.json`                                                       | CC0-1.0, same notice                                            | written here from Khronos "KTX File Format Specification, version 2.0"; `truncated.ktx2` is forty bytes of `basis.ktx2`                                             |
+| `ma`                         | `tiny/scene.ma`                                                                                                                   | CC0-1.0, [`LICENSE.txt`](ma/LICENSE.txt)                        | written here from Autodesk's public MEL command documentation                                                                                                       |
+| `ma`                         | `tiny/textures/checker.png`                                                                                                       | CC0-1.0, same notice                                            | corpus, as `usd/tiny/textures/checker.png`                                                                                                                          |
+| `obj`                        | `tiny/scene.obj`, `scene.mtl`, `textures/*.png`                                                                                   | CC0-1.0, [`LICENSE.txt`](obj/LICENSE.txt)                       | written here from the OBJ and MTL specification; PNGs by a minimal PNG encoder                                                                                      |
+| `png`                        | the `.png`                                                                                                                        | CC0-1.0                                                         | written here from W3C "PNG Specification (Second Edition)" (ISO/IEC 15948:2004), W3C "APNG Specification" and "ICC.1:2001-04"                                       |
+| `previews`                   | `colour-atlas/`                                                                                                                   | repository                                                      | generated here by `src/tests/textures/previews_source.rs`                                                                                                           |
+| `psd`                        | the `.psd`, `.psb`                                                                                                                | CC0-1.0, [`LICENSE.txt`](psd/LICENSE.txt)                       | written here from Adobe's "Photoshop File Formats Specification"                                                                                                    |
+| `tga`                        | the readable `.tga`                                                                                                               | CC0-1.0                                                         | written here from "Truevision TGA File Format Specification, Version 2.0"                                                                                           |
+| `tga`                        | `truncated.tga`                                                                                                                   | CC0-1.0                                                         | corpus `limites/truncated-tga/truncated.tga`                                                                                                                        |
+| `tiff`                       | `rgb8-raw-ii`, `rgb8-raw-mm`, `rgb8-planar`, `rgba8-associated-alpha`                                                             | CC0-1.0, [`LICENSE.txt`](tiff/LICENSE.txt)                      | written here from "TIFF Revision 6.0"                                                                                                                               |
+| `tiff`                       | `rgb8-lzw`, `rgb8-deflate`, `rgb8-packbits`, `rgb8-jpeg`, `rgba8-raw`, `grey8-raw`, `palette8`, `grey16`, `two-pages`, `ccitt-g4` | CC0-1.0, same notice                                            | Pillow 12.2.0, an encoder outside the crate the driver reads with                                                                                                   |
+| `tiff`                       | `truncated.tif`                                                                                                                   | CC0-1.0, same notice                                            | corpus `limites/truncated-tif/truncated.tif`                                                                                                                        |
+| `unity/cc0-import-project`   | Unity project                                                                                                                     | CC0-1.0, `LICENSE.txt`                                          | corpus `unity/cc0-import-project` (`tests/assets/tools/unity_assets.py`), plus objects written here                                                                 |
+| `unity/limits`               | `truncated.unity`                                                                                                                 | CC0-1.0, `LICENSE.txt`                                          | corpus `limites/truncated-unity`                                                                                                                                    |
+| `unitypackage`               | `test.unitypackage`, `outside-package/`                                                                                           | CC0-1.0, [`LICENSE.txt`](unitypackage/LICENSE.txt)              | corpus `unity/cc0-unitypackage` (`tests/assets/tools/unity_assets.py`)                                                                                              |
+| `unitypackage`               | `truncated.unitypackage`                                                                                                          | CC0-1.0, same notice                                            | corpus `limites/truncated-unitypackage`                                                                                                                             |
+| `unitypackage`               | `folder-escape.unitypackage`, `empty.unitypackage`                                                                                | CC0-1.0, same notice                                            | traps, [`traps.sh`](unitypackage/traps.sh) (Python `tarfile`)                                                                                                       |
+| `usd`                        | `corpus/usda`, `corpus/usdc`                                                                                                      | CC0-1.0, [`LICENSE.txt`](usd/LICENSE.txt)                       | corpus `usd/procedural-usda`, `usd/procedural-usdc` (`model_formats_blender.py`, `model_formats_text.py`)                                                           |
+| `usd`                        | `tiny/scene.usda`, `tiny/textures/checker.png`                                                                                    | CC0-1.0, same notice                                            | scene written here from the AOUSD specification; texture from the corpus                                                                                            |
+| `usdz`                       | `scene.usdz`                                                                                                                      | CC0-1.0, [`LICENSE.txt`](usdz/LICENSE.txt)                      | corpus `usd/procedural-usdz` (`model_formats_blender.py`)                                                                                                           |
+| `usdz`                       | `compressed.usdz`, `no-scene.usdz`, `two-scenes.usdz`                                                                             | CC0-1.0, same notice                                            | traps, [`traps.py`](usdz/traps.py) (Python `zipfile`)                                                                                                               |
+| `webp`                       | `lossless.webp`, `lossy.webp`                                                                                                     | CC0-1.0, [`LICENSE.txt`](webp/LICENSE.txt)                      | corpus `textures/legacy-web-matrix/lossless.webp`, `lossy.webp` (`texture_assets.py`)                                                                               |
+| `webp`                       | `extended-lossless.webp`, `animated.webp`, `truncated.webp`                                                                       | CC0-1.0, same notice                                            | `lossless.webp`'s RIFF chunks reassembled per the "WebP Container Specification", no pixel rewritten                                                                |
+| `zip`                        | `scene.zip`, `truncated.zip`, `outside-archive/`                                                                                  | CC0-1.0, [`LICENSE.txt`](zip/LICENSE.txt)                       | corpus `archives/gltf-nested-zip`, `limites/truncated-zip`                                                                                                          |
+| `zip`                        | `folder-escape.zip`, `empty.zip`                                                                                                  | CC0-1.0, same notice                                            | traps, [`traps.sh`](zip/traps.sh) (Python `zipfile`)                                                                                                                |
 
 Corpus paths are relative to `tests/assets/`.
 
@@ -128,8 +126,8 @@ Three readable files with one image (global palette, local palette, transparent 
 
 `compressed-box/`: Khronos's Draco `Box` (`KHR_draco_mesh_compression`), unmodified; read by
 `load/compressed/tests.rs`, `compressed/tests/container.rs` and
-`src/tests/formats/compressed_gltf/sources.rs`. Attribution: *Box, copyright 2017 Cesium, licensed
-under Creative Commons Attribution 4.0 International*, from the Khronos glTF Sample Assets
+`src/tests/formats/compressed_gltf/sources.rs`. Attribution: _Box, copyright 2017 Cesium, licensed
+under Creative Commons Attribution 4.0 International_, from the Khronos glTF Sample Assets
 repository.
 
 ## gltf-world
@@ -167,11 +165,6 @@ instance by `parent -add`, a `lambert` and a `standardSurface` textured by
 `tiny/textures/checker.png`, a camera and a `python` command that must never run. Golden
 `src/tests/formats/ma/golden.rs`; driver internals in `src/plugins/scene/ma/tests.rs`.
 
-## material-classes
-
-`emitter-sphere`: a point lamp inside an emissive envelope, with one occluder inside its radius and
-one outside, no texture; read by `src/tests/lights/lamp_emitter.rs`.
-
 ## obj
 
 `tiny/scene.obj`: a quad and a pentagon under two `usemtl`. `tiny/scene.mtl` declares
@@ -191,12 +184,6 @@ frames) and `png/icc-other.png`, `icc-srgb.png` (`rgb8.png` with an `iCCP` chunk
 - `colour-atlas/`: four quads (opaque, `MASK`, `BLEND`, emissive) over three textures — a PNG by
   `uri`, one embedded by `bufferView`, a JPEG shared by two materials — with `expected.json`, all
   generated by `src/tests/textures/previews_source.rs`.
-- `coverage-alpha.json`: coverage-preserving alpha cases ([`docs/FORMAT.md`,
-  "Textures"](../../../docs/FORMAT.md#textures)), read by
-  `src/texture/tests/coverage_alpha.rs` and
-  `packages/sdk-browser/src/materials/texture/coverageRule.test.ts`.
-- `coverage-filtered.json`: coverage of a bilinearly filtered cut per level, read by
-  `src/texture/tests/coverage_filtered.rs`.
 
 ## psd
 

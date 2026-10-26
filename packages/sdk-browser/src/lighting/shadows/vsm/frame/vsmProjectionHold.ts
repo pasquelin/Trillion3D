@@ -9,18 +9,26 @@ import {
   VSM_PROJECTION_MAX_PASS_LIGHTS,
   type VsmTraceCounts,
 } from '../projection/projectionView.ts'
+import { SHADOW_RAY_COUNT_MAX } from '../../../../../../sdk-core/src/contracts/shadowMapOptions.ts'
 
 /** The words of a key, in `write`'s order: the view and the projection, the three revisions, the
- *  two epochs, the phase, the trace key, the two sizes, the light count and the lights' first ids. */
-const KEY_WORDS = 16 + 16 + 10 + VSM_PROJECTION_MAX_PASS_LIGHTS
+ *  two epochs, the phase, the trace key, the two sizes, the light count, the light grid's two sizes
+ *  and whether the depth pyramid cut it, the back-face cull and the lights' first ids. */
+const KEY_WORDS = 16 + 16 + 15 + VSM_PROJECTION_MAX_PASS_LIGHTS
+
+/** The radix of a light's first id in its key word, over any map id. */
+const MAP_RADIX = 2 ** 24
+
+/** The values a ray count takes: 0 to `SHADOW_RAY_COUNT_MAX`. */
+const RAY_DIGITS = SHADOW_RAY_COUNT_MAX + 1
 
 /** The rays and steps of a view's traces as one number, each count a digit of its own (rays 0 to
- *  15, steps 0 to 64): a mask differs where they do. */
+ *  `SHADOW_RAY_COUNT_MAX`, steps 0 to 64): a mask differs where they do. */
 export const vsmTraceKey = (counts: VsmTraceCounts) =>
   counts.shadowRayCountDirectional +
-  16 *
+  RAY_DIGITS *
     (counts.shadowRayCountLocal +
-      16 * (counts.shadowSamplesPerRayDirectional + 65 * counts.shadowSamplesPerRayLocal))
+      RAY_DIGITS * (counts.shadowSamplesPerRayDirectional + 65 * counts.shadowSamplesPerRayLocal))
 
 /** What a projection was drawn from. */
 export interface VsmProjectionInputs {
@@ -37,8 +45,19 @@ export interface VsmProjectionInputs {
   trace: number
   /** The targets' allocated size. */
   size: readonly [number, number]
+  /** The most local lights a pixel's mask keeps (`shadowOnePassProjectionMaxLightsPerPixel`). */
+  maxLights: number
   /** The lights the pass reads, in channel order, each with its first map id. */
-  lights: ArrayLike<{ mapId: number }>
+  lights: ArrayLike<{ mapId: number; firstPersonMapId?: number }>
+  /** The light grid's view cells and the words of its view part (`VsmProjectionSource`): the shadowed
+   *  lights' grid is laid out over them. */
+  gridCells: number
+  gridWords: number
+  /** Whether the depth pyramid cut the light grid's lists this image (`lightGridCulled`): the mask's
+   *  lanes follow the lists, and the marking prunes the grid again every image. */
+  gridCulled: boolean
+  /** Whether the pixels facing away from a light are culled (`shadowCullBackfacingPixels`). */
+  cullBackfacing: boolean
 }
 
 /** The projection's last inputs: `held` answers whether the frame's `inputs` (rewritten in place
@@ -55,22 +74,39 @@ export function createVsmProjectionHold() {
       phase: 0,
       trace: 0,
       size: [0, 0],
+      maxLights: 0,
       lights: [],
+      gridCells: 0,
+      gridWords: 0,
+      gridCulled: false,
+      cullBackfacing: true,
     }
-  let mask: object | undefined
+  // What the pass writes and reads its layout from: the last asked (`next`) and the kept ones.
+  const asked: (object | undefined)[] = [undefined, undefined, undefined, undefined],
+    masks: (object | undefined)[] = [undefined, undefined, undefined, undefined]
   return {
     inputs,
-    /** Whether `inputs`, read into the mask `target`, are what the last projection ran from. */
-    held(target: object) {
+    /** Whether `inputs`, read into the masks `suns` and `locals` and the shadowed lights' grid `grid`
+     *  over the light grid `tiles`, are what the last projection ran from. */
+    held(suns: object, locals?: object, tiles?: object, grid?: object) {
       write(next, inputs)
-      return mask === target && sameValues(next, kept)
+      asked[0] = suns
+      asked[1] = locals
+      asked[2] = tiles
+      asked[3] = grid
+      return sameMasks(masks, asked) && sameValues(next, kept)
     },
-    /** The projection ran from the inputs of the last `held` question, into `target`. */
-    keep(target: object) {
+    /** The projection ran from the inputs and into the targets of the last `held` question. */
+    keep() {
       kept.set(next)
-      mask = target
+      for (let k = 0; k < asked.length; k++) masks[k] = asked[k]
     },
   }
+}
+
+function sameMasks(a: readonly (object | undefined)[], b: readonly (object | undefined)[]) {
+  for (let k = 0; k < a.length; k++) if (a[k] !== b[k]) return false
+  return true
 }
 
 function write(key: Float64Array, inputs: VsmProjectionInputs) {
@@ -88,6 +124,13 @@ function write(key: Float64Array, inputs: VsmProjectionInputs) {
   key[at++] = inputs.trace
   key[at++] = size[0]
   key[at++] = size[1]
+  key[at++] = inputs.maxLights
   key[at++] = lights.length
-  for (let k = 0; k < lights.length; k++) key[at++] = lights[k].mapId
+  key[at++] = inputs.gridCells
+  key[at++] = inputs.gridWords
+  key[at++] = inputs.gridCulled ? 1 : 0
+  key[at++] = inputs.cullBackfacing ? 1 : 0
+  // A sun's first-person clipmap changes its mask as its own maps do: its first id is a digit of the light's.
+  for (let k = 0; k < lights.length; k++)
+    key[at++] = lights[k].mapId + MAP_RADIX * ((lights[k].firstPersonMapId ?? -1) + 1)
 }

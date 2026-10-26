@@ -9,11 +9,26 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { banc } from './resume.fixture.ts'
-import { CULL_CLIP_PLANE_OFF, CULL_DRAW_DISTANCE_OFF } from '../../dag/shader/viewsWgsl.ts'
+import {
+  CULL_CLIP_PLANE_OFF,
+  CULL_DRAW_DISTANCE_OFF,
+  CULL_SPHERE_EDGE_OFF,
+} from '../../dag/shader/viewsWgsl.ts'
 import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
-import { NO_CLIP_PLANE } from '../../../../../sdk-core/src/contracts/viewOptions.ts'
+import {
+  NO_CLIP_PLANE,
+  type ClipPlaneValues,
+} from '../../../../../sdk-core/src/contracts/viewOptions.ts'
+import type { ViewSet } from '../../../../../sdk-core/src/world/camera/viewSet.ts'
 import { renderGpuCut } from '../../../frame/render/gpuCut.ts'
 import { createScaleControl } from '../../../frame/scale/scaleControl.ts'
+
+/** A view's set as the camera makes it (`Camera.write`): the temporal jitter is off where a plane clips. */
+const viewSetOf = (
+  clipPlane: ClipPlaneValues,
+  hidden: readonly Object3D[] = [],
+  showOnly: readonly Object3D[] | null = null,
+): ViewSet => Object.freeze({ clipPlane, hidden, showOnly })
 
 test('a pending image requests, syncs and dispatches: resume has what it needs to happen', () => {
   const b = banc()
@@ -60,20 +75,23 @@ test('a wait whose dispatch fails is said once and skips the image, the device k
   assert.deepEqual(b.shown, [], 'nothing is drawn before the root cover')
 })
 
-test('each image tells the rays’ scene the main eye and the scale of the draw distances, none when the cull is off', () => {
+test('each image writes the scales of the draw distances into the cut, the instances’ cull following its switch', () => {
   const b = banc()
   b.image()
-  assert.deepEqual(b.proxied, [[Array.from(b.camera.eye), 1]])
   Object.assign(b.rt.context, { cutViewDistanceScale: 0.5 })
   b.image()
-  assert.equal(b.proxied[1][1], 0.5)
   const { selectionUniforms: view } = b.rt.run
   assert.equal(view.viewDistanceScale, 0.5, 'and the cut itself')
-  assert.equal(view.cullOff & CULL_DRAW_DISTANCE_OFF, 0)
+  assert.equal(view.primitiveDistanceScale, 0.5, 'for an object of its own as well')
+  assert.equal((view.cullOff ?? 0) & CULL_DRAW_DISTANCE_OFF, 0)
+  assert.equal((view.cullOff ?? 0) & CULL_SPHERE_EDGE_OFF, 0, 'the sphere’s edge by default')
+  Object.assign(b.rt.context, { cutDistanceCullToSphereEdge: false })
+  b.image()
+  assert.equal((view.cullOff ?? 0) & CULL_SPHERE_EDGE_OFF, CULL_SPHERE_EDGE_OFF, 'and the cut')
   Object.assign(b.rt.context, { cutDrawDistanceCulling: false })
   b.image()
-  assert.equal(b.proxied[2][1], undefined)
-  assert.equal(view.cullOff & CULL_DRAW_DISTANCE_OFF, CULL_DRAW_DISTANCE_OFF)
+  assert.equal((view.cullOff ?? 0) & CULL_DRAW_DISTANCE_OFF, CULL_DRAW_DISTANCE_OFF)
+  assert.equal(view.primitiveDistanceScale, 0.5)
 })
 
 test('the scale of the draw distances is times the secondary scale only where the host turned that on', () => {
@@ -85,7 +103,32 @@ test('the scale of the draw distances is times the secondary scale only where th
   Object.assign(b.rt.context, { cutViewDistanceApplySecondaryScale: true })
   b.image()
   assert.equal(view.viewDistanceScale, 0.25, 'on: the two scales multiply')
-  assert.equal(b.proxied[1][1], 0.25, 'and the rays’ scene is told the same')
+})
+
+test('an object of its own takes the scale of the view’s horizontal field of view beside the view distance scale, an instance does not', () => {
+  const b = banc(),
+    { selectionUniforms: view } = b.rt.run
+  // A vertical field of 55 degrees at an aspect of 2: the horizontal field is 2·atan(2·tan(27.5°)).
+  b.camera.aspect = 2
+  const horizontal = 2 * Math.atan(2 * Math.tan((27.5 * Math.PI) / 180)) * (180 / Math.PI)
+  Object.assign(b.rt.context, {
+    cutViewDistanceScale: 0.5,
+    cutViewDistanceFovMinAngle: 0,
+    cutViewDistanceFovMinAngleScale: 1,
+    cutViewDistanceFovMaxAngle: 180,
+    cutViewDistanceFovMaxAngleScale: 0.25,
+  })
+  b.image()
+  const blend = 1 - 0.75 * (horizontal / 180)
+  assert.ok(
+    Math.abs((view.primitiveDistanceScale ?? 1) - 0.5 * blend) < 1e-6,
+    'the blend at that angle',
+  )
+  assert.equal(view.viewDistanceScale, 0.5, 'an instance’s scale has no field of view')
+  // An orthographic view counts as a field of 0 degrees, the minimum angle’s scale.
+  b.camera.perspective = 0
+  b.image()
+  assert.equal(view.primitiveDistanceScale, 0.5)
 })
 
 test('a view’s clip plane reaches its cut in the render frame where the project switch is on, its cull on unless turned off', () => {
@@ -93,7 +136,7 @@ test('a view’s clip plane reaches its cut in the render frame where the projec
     { selectionUniforms: view } = b.rt.run
   // The camera stands at z = 5; the world plane z = 2 keeps what lies above it.
   const plane = [0, 0, 1, 2] as const
-  b.camera.viewSet = Object.freeze({ clipPlane: plane, hidden: [], showOnly: null })
+  b.camera.viewSet = viewSetOf(plane)
   b.image()
   assert.deepEqual(
     view.clipPlane,
@@ -104,11 +147,11 @@ test('a view’s clip plane reaches its cut in the render frame where the projec
   b.image()
   // `dot(xyz, p) + w` at least 0 is drawn: the world point z = 2 is at -3 from the eye.
   assert.deepEqual(view.clipPlane, [0, 0, 1, 3])
-  assert.equal(view.cullOff & CULL_CLIP_PLANE_OFF, 0)
+  assert.equal((view.cullOff ?? 0) & CULL_CLIP_PLANE_OFF, 0)
   Object.assign(b.rt.context, { cutClipPlaneCulling: false })
   b.image()
-  assert.equal(view.cullOff & CULL_CLIP_PLANE_OFF, CULL_CLIP_PLANE_OFF)
-  b.camera.viewSet = Object.freeze({ clipPlane: NO_CLIP_PLANE, hidden: [], showOnly: null })
+  assert.equal((view.cullOff ?? 0) & CULL_CLIP_PLANE_OFF, CULL_CLIP_PLANE_OFF)
+  b.camera.viewSet = viewSetOf(NO_CLIP_PLANE)
   b.image()
   assert.deepEqual(view.clipPlane, [0, 0, 0, 0], 'a view without a plane holds zeros')
 })
@@ -127,7 +170,7 @@ test('a view’s lists reach its cut as the bits of the roots they name, none fo
   const touched: number[] = []
   Object.assign(b.rt.lights, { mobility: { touch: (rank: number) => touched.push(rank) } })
   const lists = (hidden: Object3D[], showOnly: Object3D[] | null) =>
-    (b.camera.viewSet = Object.freeze({ clipPlane: NO_CLIP_PLANE, hidden, showOnly }))
+    (b.camera.viewSet = viewSetOf(NO_CLIP_PLANE, hidden, showOnly))
   b.image()
   assert.equal(view.filter, undefined, 'no list, no bits, nothing allocated')
   lists([group], null)

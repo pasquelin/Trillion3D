@@ -8,16 +8,12 @@ import { LOBE_AXIS_WGSL } from './lobeAxisWgsl.ts'
  * has no map), the metalness held to [0, 1] and the roughness to the lobe's floor (`lobeRoughness`),
  * the occlusion mixed from one by its strength.
  *
- * And the one law that widens a surface's roughness by the spread of its normals under a pixel, so
- * a highlight narrower than the pixel's normals is spread over them instead of flickering from one
- * image to the next (specular antialiasing): the spread is a variance of the normals' slopes, added
- * to the lobe's `α²` (`roughnessWidened`, `α` the square of the perceptual roughness), which every
- * reader of the roughness — the direct lights and the reflections alike — then reads. It is the
- * normal's change across one pixel, `dN/dx` and `dN/dy`, through a pixel filter of variance ¼,
- * doubled, bounded by 0.18 (`normalFootprintVariance`; Kaplanyan & Hoffman 2016, Tokuyoshi &
- * Kaplanyan 2019): a curved or ribbed surface far away — corrugated sheet, a normal map's ribs —
- * turns its normal by a pixel's worth and reads rougher, a flat one is unchanged; the bound keeps a
- * normal that jumps across a pixel (a crease, a sub-pixel facet) from turning a mirror diffuse.
+ * And the roughness a material that asks for it takes from the screen-space change of its vertex normal
+ * (`normalCurvatureRoughness`, the material's `normalCurvatureToRoughness`, off by default): the larger of
+ * the squared changes across one pixel, `dN/dx` and `dN/dy` (of the interpolated vertex normal, before any map bends it),
+ * raised to the curve's exponent, scaled, biased and held to [0, 1] (`curve`: scale, bias, exponent, the shading
+ * settings `normalCurvatureScale`, `normalCurvatureBias`, `normalCurvatureExponent`); the surface's roughness is
+ * then the larger of the two (`normalCurvatureApply`, which also returns the curvature the clear coat takes).
  */
 export const ORM_LAW_WGSL = wgslBlock(
   'ORM_LAW_WGSL',
@@ -25,6 +21,9 @@ export const ORM_LAW_WGSL = wgslBlock(
   `fn ormMetalness(factor:f32,texel:f32)->f32{return clamp(factor*texel,0.0,1.0);}
 fn ormRoughness(factor:f32,texel:f32)->f32{return lobeRoughness(factor*texel);}
 fn ormOcclusion(strength:f32,texel:f32)->f32{return 1.0+strength*(texel-1.0);}
-fn roughnessWidened(rough:f32,variance:f32)->f32{let a=rough*rough;return min(sqrt(sqrt(a*a+variance)),1.0);}
-fn normalFootprintVariance(dNdx:vec3f,dNdy:vec3f)->f32{return min(2.0*0.25*(dot(dNdx,dNdx)+dot(dNdy,dNdy)),0.18);}`,
+fn normalCurvatureRoughness(dNdx:vec3f,dNdy:vec3f,curve:vec3f)->f32{return saturate(pow(max(dot(dNdx,dNdx),dot(dNdy,dNdy)),curve.z)*curve.x+curve.y);}
+/** The curvature of a flat pixel: no change of the normal across it, the curve's bias.*/
+fn normalCurvatureFlat(curve:vec3f)->f32{return saturate(curve.y);}
+/** (roughness raised to the curvature's, the curvature). */
+fn normalCurvatureApply(rough:f32,dNdx:vec3f,dNdy:vec3f,curve:vec3f)->vec2f{let c=normalCurvatureRoughness(dNdx,dNdy,curve);return vec2f(max(rough,c),c);}`,
 )

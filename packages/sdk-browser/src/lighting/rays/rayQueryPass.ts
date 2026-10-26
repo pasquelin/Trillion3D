@@ -10,6 +10,7 @@ import { DEFORM_INDEX_SHADER, RAY_PARAMS } from './deformIndexWgsl.ts'
 
 /** The ray query's label: its buffers, its kernels and its pass. */
 export const RAY_QUERY_PASS = 'Trillion3D ray query'
+const PASS: GPUComputePassDescriptor = { label: RAY_QUERY_PASS }
 
 /** A batch: its rays' records then their filter lists, as words (`rayRecord.ts`), and its rays. */
 export type RayBatch = { words: Uint32Array<ArrayBuffer>; rays: number; filterWord: number }
@@ -36,6 +37,7 @@ type RayBound = {
   params: GPUBuffer
   query: GPUBuffer
   pageTable: GPUBuffer
+  visible: GPUBuffer
   entries: GPUBuffer
   spans: GPUBuffer
   geometry: GPUBuffer
@@ -65,6 +67,7 @@ export function createRayGroups() {
     at(2, 'pageTable'),
     at(3, 'entries'),
     at(4, 'spans'),
+    at(5, 'visible'),
   ]
   tables.identity.entries[0] = dagReadEntries(() => bound.views)
   trace.identity.entries[0] = [params, at(1, 'query'), at(2, 'geometry'), at(3, 'positions')]
@@ -72,7 +75,8 @@ export function createRayGroups() {
 }
 type RayGroups = ReturnType<typeof createRayGroups>
 
-/** The index, then the trace, in one compute pass. */
+/** The index, then the trace, in one compute pass: the queue encodes a batch only once both kernels are
+ *  compiled (`rayKernelsCompiled`). */
 export function encodeRayPass(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
@@ -87,12 +91,14 @@ export function encodeRayPass(
   bound.params = q.params
   bound.query = q.buffer
   bound.pageTable = sources.pageTable
+  bound.visible = sources.visible
   bound.entries = sources.entries
   bound.spans = sources.spans
   bound.geometry = sources.geometry
   bound.positions = sources.positions
   bound.views = sources.tables.views
-  const pass = encoder.beginComputePass({ label: RAY_QUERY_PASS })
+  if (!trace || !index) return
+  const pass = encoder.beginComputePass(PASS)
   const indexed = sources.rows + sources.entryCount
   // Nothing to index: a dispatch of no workgroup is refused, and every lookup finds none.
   if (indexed > 0) {

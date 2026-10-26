@@ -14,7 +14,8 @@
 //! Refused and named: `32-bit_rle_xyze`, which is another colour space, and any orientation
 //! other than top-to-bottom left-to-right, which would require flipping the image.
 use super::{
-    budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin, Transfer, FLOAT_PIXEL_BYTES,
+    budget, wide_chain_bytes, DecodedImage, ImageDecoded, ImageDecoder, Plugin, Transfer,
+    FLOAT_PIXEL_BYTES,
 };
 
 mod scanlines;
@@ -70,6 +71,9 @@ impl ImageDecoder for Hdr {
     fn dimensions(&self, bytes: &[u8]) -> std::result::Result<(u32, u32), &'static str> {
         let (width, height, _) = header(bytes)?;
         Ok((width, height))
+    }
+    fn chain_bytes(&self, _bytes: &[u8], pixels: usize) -> usize {
+        wide_chain_bytes(pixels)
     }
     /// The header first — it gives the size, so the ceiling applies before any allocation —,
     /// then the pixel lines, each in one of the format's three writings.

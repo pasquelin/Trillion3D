@@ -61,6 +61,7 @@ function wakingWorld(world: WorldCells, wake: () => void) {
     waking = {
       show: (instance, cell, word) => world.show(instance, cell, word) && (wake(), true),
       visible: world.visible,
+      draws: world.draws,
       fileShown: world.fileShown,
       fileSlot: world.fileSlot,
       get slotRevision() {
@@ -208,7 +209,7 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     retainedRanks() {
       return retainedRanks(rt)
     },
-    pageSpecs: createArrivalSpecs(rt.setup.byUrl, rt.layout.rows.pageIndexOf),
+    pageSpecs: createArrivalSpecs(rt.setup.byUrl, rt.layout.clusters.pageIndexOf),
     acceptPage(url, array, plan) {
       acceptPage(rt, url, array, plan, rt.services.affectsImage)
     },

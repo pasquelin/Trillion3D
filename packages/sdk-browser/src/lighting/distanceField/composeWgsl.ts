@@ -1,11 +1,15 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
-import { GLOBAL_DISTANCE_FIELD_CULL_GRID_FACTOR } from '../../../../sdk-core/src/lighting/globalDistanceField.ts'
 import { squaredDistanceBetweenBoxes } from './aabbWgsl.ts'
-import { CLIP_FLAG_PARENT } from './clipmapBlock.ts'
-import { clipmapCommonWgsl } from './clipmapCommonWgsl.ts'
+import {
+  clipmapCommonWgsl,
+  objectTileWalk,
+  OBJECT_TILE_DECLS_WGSL,
+  PARENT_DISTANCE_BUFFER_WGSL,
+  PARENT_DISTANCE_TEXTURE_WGSL,
+} from './clipmapCommonWgsl.ts'
 import { meshFieldWgsl } from './meshFieldWgsl.ts'
-import { unorm8, unorm8Byte } from '../../../../math/src/wgsl/color.ts'
+import { unorm8Byte } from '../../../../math/src/wgsl/color.ts'
+import { TEXTURE_FORMATS_TIER1_WGSL } from '../../gpu/core/textureFormatsTier.ts'
 
 /**
  * THE COMPOSITION OF THE MESHES' FIELDS INTO THE PAGES. A group of 4 × 4 × 4 threads takes a quarter
@@ -15,36 +19,48 @@ import { unorm8, unorm8Byte } from '../../../../math/src/wgsl/color.ts'
  * surface of the voxel's centre among them, within the range, each placement asked no farther than
  * what is nearest so far. With a static clipmap under it, the nearer of the voxel's distance and the
  * static page's.
- * The distance is stored as a byte, 0 to 255 over twice the range, the four voxels of a row in one
- * word of the atlas.
+ * The distance is stored as a byte, 0 to 255 over twice the range: a voxel to a thread, written to the
+ * atlas as a texture (`textured`, the texture read and written in place, the static page's voxel
+ * loaded from it), or the four voxels of a row gathered into one word of the atlas as a buffer.
  */
-
-const CONSTANTS = wgslConsts({
-  CULL_FACTOR: GLOBAL_DISTANCE_FIELD_CULL_GRID_FACTOR,
-  FLAG_PARENT: CLIP_FLAG_PARENT,
-})
 
 /** The entry. */
 export const COMPOSE_ENTRY = 'compositeObjectsIntoPages'
 
-/** `compositeObjectsIntoPages`: the scene in group 0, the pass's own bindings in group 1. */
-export const COMPOSE_SHADER = wgslProgram(
-  `${CONSTANTS}
-@group(1) @binding(1) var<storage,read> tiles:array<u32>;
+/** What the two ways of keeping the atlas differ in: its binding, the voxel's store, the static page's distance. */
+const ATLAS_BUFFER = {
+  binding: '@group(1) @binding(3) var<storage,read_write> gdfPageAtlas:array<u32>;',
+  shared: 'var<workgroup> distances:array<u32,64>;',
+  store: ` distances[thread]=unorm8Byte(saturate(nearest/(2.0*clip.influenceRadius)+0.5));
+ workgroupBarrier();
+ if(local.x==0u&&page.valid){
+  let row=thread;
+  let word=distances[row]|(distances[row+1u]<<8u)|(distances[row+2u]<<16u)|(distances[row+3u]<<24u);
+  gdfPageAtlas[page.index*128u+(texel.z*8u+texel.y)*2u+offset.x]=word;
+ }`,
+  deps: [PARENT_DISTANCE_BUFFER_WGSL, unorm8Byte],
+}
+const ATLAS_TEXTURE = {
+  binding: '@group(1) @binding(3) var gdfAtlas:texture_storage_3d<r8unorm,read_write>;',
+  shared: '',
+  store: ` if(page.valid){
+  let at=gdfAtlasOffset(page.index)*GDF_PAGE_IN_ATLAS+texel;
+  textureStore(gdfAtlas,vec3i(at),vec4f(saturate(nearest/(2.0*clip.influenceRadius)+0.5),0.0,0.0,1.0));
+ }`,
+  deps: [TEXTURE_FORMATS_TIER1_WGSL, PARENT_DISTANCE_TEXTURE_WGSL],
+}
+
+/** `compositeObjectsIntoPages`: the scene in group 0, the pass's own bindings in group 1; the atlas a
+ *  storage texture where `textured`, else a buffer. */
+export function composeShader(textured: boolean) {
+  const atlas = textured ? ATLAS_TEXTURE : ATLAS_BUFFER
+  return wgslProgram(
+    `@group(1) @binding(1) var<storage,read> tiles:array<u32>;
 @group(1) @binding(2) var<storage,read> cullGrid:array<u32>;
-@group(1) @binding(3) var<storage,read_write> gdfPageAtlas:array<u32>;
+${atlas.binding}
 @group(1) @binding(4) var combinedTable:texture_3d<u32>;
 @group(1) @binding(5) var parentTable:texture_3d<u32>;
-const TILE_OBJECTS:u32=511u;
-var<workgroup> tileObjects:array<u32,511>;
-var<workgroup> tileCount:atomic<u32>;
-var<workgroup> cellObjects:u32;
-var<workgroup> distances:array<u32,64>;
-fn parentDistance(parent:GdfPage,texel:vec3u)->f32{
- let at=parent.index*512u+(texel.z*8u+texel.y)*8u+texel.x;
- let unit=unorm8(gdfPageAtlas[at>>2u],at&3u);
- return (unit*2.0-1.0)*clip.influenceRadius;
-}
+${atlas.shared}
 @compute @workgroup_size(4,4,4) fn ${COMPOSE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) local:vec3u,@builtin(num_workgroups) n:vec3u){
  let thread=(local.z*4u+local.y)*4u+local.x;
  let flat=group.x+group.y*n.x;
@@ -59,42 +75,24 @@ fn parentDistance(parent:GdfPage,texel:vec3u)->f32{
  let tileCentre=tileCoord*clip.pageToVoxelScale+clip.pageToVoxelBias;
  let tableCoord=pageTableCoord(pageGrid);
  let page=unpackGdfPage(textureLoad(combinedTable,tableCoord,0).x);
- let cell=pageGrid/vec3u(CULL_FACTOR);
- let header=clip.cullHeader+((cell.z*clip.cullGrid.y+cell.y)*clip.cullGrid.x+cell.x)*2u;
- if(thread==0u){cellObjects=cullGrid[header];}
- let objects=workgroupUniformLoad(&cellObjects);
- let start=cullGrid[header+1u];
  var nearest=clip.influenceRadius;
- for(var first=0u;first<objects;first+=TILE_OBJECTS){
-  let last=first+min(objects-first,TILE_OBJECTS);
-  if(thread==0u){atomicStore(&tileCount,0u);}
-  workgroupBarrier();
-  for(var k=first+thread;k<last;k+=64u){
-   let object=cullGrid[clip.cullArray+start+k];
-   let bounds=loadDfObjectBounds(object);
-   let centre=dfToTranslated(bounds.center,translation);
-   if(squaredDistanceBetweenBoxes(tileCentre,clip.composeTileExtent,centre,bounds.boxExtent)<clip.influenceRadiusSq){
-    tileObjects[atomicAdd(&tileCount,1u)]=object;
-   }
-  }
-  workgroupBarrier();
-  let listed=atomicLoad(&tileCount);
-  for(var k=0u;k<listed;k++){
-   let reach=min(clip.influenceRadius,max(nearest,0.0));
-   nearest=min(nearest,distanceToNearestSurfaceForObject(loadDfObjectData(tileObjects[k]),voxelWorld,reach));
-  }
- }
+${objectTileWalk({
+  keep: 'squaredDistanceBetweenBoxes(tileCentre,clip.composeTileExtent,dfToTranslated(bounds.center,translation),bounds.boxExtent)<clip.influenceRadiusSq',
+  each: `   let reach=min(clip.influenceRadius,max(nearest,0.0));
+   nearest=min(nearest,distanceToNearestSurfaceForObject(loadDfObjectData(object),voxelWorld,reach));`,
+})}
  if((clip.flags&FLAG_PARENT)!=0u){
   let parent=unpackGdfPage(textureLoad(parentTable,tableCoord,0).x);
   if(parent.valid){nearest=min(nearest,parentDistance(parent,texel));}
  }
- distances[thread]=unorm8Byte(saturate(nearest/(2.0*clip.influenceRadius)+0.5));
- workgroupBarrier();
- if(local.x==0u&&page.valid){
-  let row=thread;
-  let word=distances[row]|(distances[row+1u]<<8u)|(distances[row+2u]<<16u)|(distances[row+3u]<<24u);
-  gdfPageAtlas[page.index*128u+(texel.z*8u+texel.y)*2u+offset.x]=word;
- }
+${atlas.store}
 }`,
-  [meshFieldWgsl(0), clipmapCommonWgsl(1, 0), squaredDistanceBetweenBoxes, unorm8, unorm8Byte],
-)
+    [
+      meshFieldWgsl(0),
+      clipmapCommonWgsl(1, 0),
+      squaredDistanceBetweenBoxes,
+      OBJECT_TILE_DECLS_WGSL,
+      ...atlas.deps,
+    ],
+  )
+}

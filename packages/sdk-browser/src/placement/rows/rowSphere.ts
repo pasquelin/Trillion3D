@@ -1,8 +1,7 @@
 /**
- * THE WORLD SPHERE OF A ROW, one formula for the GPU that writes it (`rowWordsWgsl.ts`,
- * `composeSphere`) and the CPU that reads it where a shadow's change box is declared
- * (`../../lighting/shadows/casters/spheres.ts`). A row's local box has a centre `c` and half extents `h` (the
- * reach in). Its world image is a parallelepiped about `W·c + t`; its farthest corner lies at
+ * THE WORLD SPHERE OF A ROW, the CPU formula the shadow's change box is declared from
+ * (`../../lighting/shadows/casters/spheres.ts`). A row's local box has a centre `c` and half
+ * extents `h` (the reach in). Its world image is a parallelepiped about `W·c + t`; its farthest corner lies at
  * `max |W·(s∘h)|` over the signs `s`, the columns of `W` scaled by `h` summed with signs. A sphere
  * of that radius holds every point of the box, so every vertex of the page: it is a bound by
  * construction, the tightest sphere about that centre, and never wider than the sphere about the
@@ -15,9 +14,9 @@
  * sum split into two singles, errs by less than `2⁻⁴⁸` of the magnitudes of its terms, below the
  * `2⁻⁴⁴` of them that is added. The order of the single-precision operations is the shader's.
  */
-export const SPHERE_GROWTH = 1 + 2 ** -21
-export const SPHERE_MARGIN = 2 ** -20
-export const CENTRE_ERROR = 2 ** -44
+const SPHERE_GROWTH = 1 + 2 ** -21
+const SPHERE_MARGIN = 2 ** -20
+const CENTRE_ERROR = 2 ** -44
 
 const f = Math.fround
 const m = new Float32Array(9)

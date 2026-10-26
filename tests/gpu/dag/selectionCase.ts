@@ -18,7 +18,10 @@ import { dagGroupEntries } from '../../../packages/sdk-browser/src/geometry/dag/
 import { createDagResidencyUpload } from '../../../packages/sdk-browser/src/geometry/dag/residencyUpload.ts'
 import { heldOpenSlots } from '../../../packages/sdk-browser/src/geometry/dag/heldOpen.ts'
 import { heldOpenAt } from '../../../packages/sdk-browser/src/geometry/dag/lists/listCap.ts'
-import { readoutRow } from '../../../packages/sdk-browser/src/geometry/dag/bufferTable.ts'
+import {
+  cameraCutBuffers,
+  readoutRow,
+} from '../../../packages/sdk-browser/src/geometry/dag/bufferTable.ts'
 import { dagFlagShape } from '../../../packages/sdk-browser/src/geometry/dag/flagSections.ts'
 import { createCutTables } from '../../../packages/sdk-browser/src/geometry/dag/cut/cutTables.ts'
 import { worldTableOn } from '../../../packages/sdk-browser/src/geometry/dag/worlds/worldTable.fixture.ts'
@@ -26,8 +29,8 @@ import { createTreeTable } from '../../../packages/sdk-browser/src/geometry/dag/
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
 import { FRAME_TABLE } from '../../../packages/sdk-browser/src/geometry/dag/frameTable.ts'
 import {
-  savedJournalWord,
   selectionListCap,
+  stagedOutputBytes,
 } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { DEFAULT_STREAMING_MIN_REQUESTS } from '../../../packages/sdk-core/src/contracts/streamingOptions.ts'
@@ -88,9 +91,11 @@ function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: Sel
   const cold = withResidency(packed, resident ?? all, heldSlots)
   const listCap = selectionListCap(packed.pageCount, DEFAULT_STREAMING_MIN_REQUESTS)
   const views = new Float32Array(DAG_UNIFORM_BYTES / 4)
-  // The open counts behind the readout's lists, as the engine lays them (`listCap.ts`).
-  const held = { listCap, heldSlots, swap: { regions: 0 } }
-  writeDagUniforms(views, packed, uniforms, listCap, undefined, heldOpenAt(held))
+  // The open counts behind the readout's lists, as the engine lays them (`listCap.ts`), and the
+  // room the list of visible clusters starts with (`bufferTable.ts`).
+  const held = { listCap, heldSlots }
+  const { visibleCap, rows } = cameraCutBuffers(packed)
+  writeDagUniforms(views, packed, uniforms, listCap, { ...heldOpenAt(held), visibleCap })
   const blockCount = ceilDiv(Math.max(1, packed.pageCount), WORKGROUP_THREADS),
     worldCount = Math.max(1, packed.worldCount)
   return {
@@ -98,11 +103,17 @@ function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: Sel
     flagShape: dagFlagShape(packed),
     /** `out` as the engine sizes it for a list of `listCap` ranks, then the open counts the
      *  placements hold. */
-    outBytes: readoutRow(listCap, 0, heldSlots).size,
+    outBytes: readoutRow(listCap, heldSlots).size,
     /** Where those counts lie in `out`, in bytes, and their words. */
-    heldAt: savedJournalWord(listCap, 0) * 4,
+    heldAt: stagedOutputBytes(listCap),
     heldWords: packed.heldOpen!.words,
     listCap,
+    /** The list of visible clusters and the clusters' records and edges, which the cut writes and
+     *  reads (`geometry/dag/info/clusterInfoLayout.ts`): none of a record is written here, so every
+     *  cluster is one the cut draws with the hardware raster, unblended. */
+    visible: rows.visible.size,
+    info: rows.info.size,
+    edges: rows.edges.size,
     worldCount,
     clusters: packed.clusters,
     nodes: packed.nodes,
@@ -132,6 +143,9 @@ export function bindCase(device: GPUDevice, layout: GPUBindGroupLayout, selectio
     views: buffer(256, at.views, uniform),
     out: buffer(at.outBytes, out),
     work: buffer(at.work.words * 4),
+    visible: buffer(at.visible),
+    info: buffer(at.info),
+    edges: buffer(at.edges),
   }
   // The clusters, the nodes, the cold words and the flags, as the engine makes them
   // (`cutTables.ts`).
@@ -170,9 +184,12 @@ export function bindCase(device: GPUDevice, layout: GPUBindGroupLayout, selectio
   const group = device.createBindGroup({
     layout,
     entries: dagGroupEntries({
-      views: buffers.views.buffer,
+      cutView: buffers.views.buffer,
       out: buffers.out.buffer,
       work: buffers.work.buffer,
+      visible: buffers.visible.buffer,
+      info: buffers.info.buffer,
+      edges: buffers.edges.buffer,
       ...views,
     }),
   })

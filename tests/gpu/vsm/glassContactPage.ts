@@ -1,5 +1,5 @@
 // A glass pane over a floor, lit, on the machine's device: the contact-shadow ray the lights cast
-// (`vsmScreenRayCast`, four samples of the opaque depth) passes the pane in the depth pyramid's
+// (`vsmScreenRayFrom`, four samples of the opaque depth) passes the pane in the depth pyramid's
 // level 0 and does not darken the floor behind it — a pane's shadow is the maps' transmission
 // (`glass-contact.gpu.ts`). The depth is generated: a floor, then once an opaque wall and once a
 // transparent pane in the same place; the view is orthographic, its world its NDC.
@@ -10,19 +10,16 @@ import {
   HIZ_FRONT_LAYER,
   hizDepthBindEntries,
   hizDepthEntries,
-  hizDepthWgsl,
 } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/pyramidTexture.ts'
 import { SCREEN_MARCH_WGSL } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/screenMarch.ts'
-import { screenSlab } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/screenSlab.ts'
+import { screenSlabInto } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/screenSlab.ts'
 import {
   VSM_PROJECTION_LIGHT_STRUCT,
   VSM_PROJECTION_VIEW_BYTES,
   VSM_PROJECTION_VIEW_STRUCT,
   VSM_PROJECTION_VIEW_WORD,
 } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/projection/projectionView.ts'
-import { vsmLayout } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/layout.ts'
-import { vsmProjectionWgsl } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/projection/projectionWgsl.ts'
-import { functionsOf } from '../../../packages/sdk-browser/src/materials/texture/shaderRule.fixture.ts'
+import { vsmScreenSegmentWgsl } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/trace/traceScreenWgsl.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { REFLECTION_RULES } from '../../../packages/sdk-core/src/contracts/reflectionOptions.ts'
 import { wgslF32 } from '../../../packages/math/src/wgsl/number.ts'
@@ -51,14 +48,9 @@ export type GlassContact = {
   paneSeen: { stopped: boolean; front: boolean }
 }
 
-/** The contact ray's cast as the projection pass ships it, cut out of its module. */
-const castText = () => {
-  const module = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }))
-  return functionsOf(module, ['vsmScreenRayCast'])
-}
-
 /** The geometry of a surface's thickness the reflection's march takes, in this view. */
-const SLAB = screenSlab([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], HEIGHT, [0, 0, 0])
+const SLAB = [0, 0, 0, 0]
+screenSlabInto(SLAB, 0, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], HEIGHT, [0, 0, 0])
 
 const SHADER = (group: number) =>
   wgslProgram(
@@ -67,14 +59,13 @@ ${VSM_PROJECTION_LIGHT_STRUCT}
 ${VSM_PROJECTION_VIEW_STRUCT}
 @group(${group}) @binding(4) var<storage,read_write> out:array<f32,8>;
 @group(${group}) @binding(5) var<uniform> vsmView:VsmProjectionView;
-${castText()}
 @compute @workgroup_size(1) fn main(){
  let origin=vec3f(-0.9,0.0,${FLOOR});
  let towardLight=vec3f(1.0,0.0,0.5);
  let rayLength=1.4;
  let pixels=6.0;
  let relative=${wgslF32(REFLECTION_RULES.reflectionRelativeDepthThickness.default)};
- out[0]=vsmScreenRayCast(origin,towardLight,rayLength,0.5);
+ out[0]=vsmScreenRayFrom(vsmScreenRayStart(origin),origin,towardLight,rayLength,0.5);
  let size=vsmView.viewPixels.xy;
  let start=clipToFramebuffer(vsmView.shiftedToClip*vec4f(origin,1.0),size);
  let stop=clipToFramebuffer(vsmView.shiftedToClip*vec4f(origin+towardLight*rayLength,1.0),size);
@@ -84,7 +75,7 @@ ${castText()}
  out[1]=select(0.0,1.0,hit.t>=0.0);
  out[2]=select(0.0,1.0,hit.front);
 }`,
-    [hizDepthWgsl(group, 0), SCREEN_MARCH_WGSL(group, 0), clipToFramebuffer],
+    [vsmScreenSegmentWgsl([group, 0]), SCREEN_MARCH_WGSL(group, 0), clipToFramebuffer],
   )
 
 export async function testGlassContact(): Promise<GlassContact> {
@@ -158,7 +149,7 @@ export async function testGlassContact(): Promise<GlassContact> {
     )
     const encoder = device.createCommandEncoder()
     const build = encoder.beginComputePass()
-    hiz!.encodeNearest({ pass: build })
+    hiz!.encodeFull({ pass: build })
     build.end()
     const run = encoder.beginComputePass()
     run.setPipeline(pipeline)

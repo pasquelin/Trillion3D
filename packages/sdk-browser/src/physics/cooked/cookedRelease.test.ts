@@ -1,6 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/options.ts'
+import {
+  DEFAULT_PHYSICS_BUDGET,
+  DEFAULT_RESTITUTION_THRESHOLD,
+  GRAVITY_PRESETS,
+  PHYSICS_STEP,
+} from '../../../../sdk-core/src/physics/options.ts'
 import { GENERATION_SHIFT } from '../../../../sdk-core/src/physics/layout.ts'
 import type { CookedSoftBody } from '../../../../sdk-core/src/physics/cooked.ts'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
@@ -92,6 +97,8 @@ test('a cooked soft body and a tile the worker refuses give their slots and budg
       () => {},
       () => {},
       wanted,
+      { y: -GRAVITY_PRESETS.earth },
+      { step: PHYSICS_STEP, restitutionThreshold: DEFAULT_RESTITUTION_THRESHOLD },
     )
     const [worker] = workers
     worker.onmessage({ data: { type: 'ready' } })

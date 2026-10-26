@@ -1,4 +1,4 @@
-import { standInTexture } from '../../../gpu/core/standInTexture.ts'
+import { standInBuffer, standInTexture } from '../../../gpu/core/standIns.ts'
 import { VECTOR_FORMAT } from '../../../post/taa/velocityWgsl.ts'
 
 /** The stand-ins of the radiance cache's maps (`createStandIns`). */
@@ -35,11 +35,12 @@ export function createStandIns() {
         const texture = (name: string, format: GPUTextureFormat) =>
           standInTexture(device, `Trillion3D empty radiance cache ${name}`, format)
         const buffer = (name: string) =>
-          device.createBuffer({
-            label: `Trillion3D empty radiance cache ${name}`,
-            size: 16,
-            usage: GPUBufferUsage.STORAGE,
-          })
+          standInBuffer(
+            device,
+            `Trillion3D empty radiance cache ${name}`,
+            16,
+            GPUBufferUsage.STORAGE,
+          )
         const [final, raw, sky] = [
           texture('final', 'r32uint'),
           texture('raw', 'rg32uint'),

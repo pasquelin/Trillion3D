@@ -11,7 +11,7 @@ import { D_INFINITY, D_NEG_INFINITY } from './doubleConstants.ts'
 
 /** One row of an affine product, its three factors `a`, `b`, `c` and its translation `t`:
  *  `a·x + b·y + c·z + t`, summed left to right. */
-export const affineRow = wgslFn(
+const affineRow = wgslFn(
   'affineRow',
   [dAdd, dDot3],
   `fn affineRow(a:vec2u,b:vec2u,c:vec2u,t:vec2u,x:vec2u,y:vec2u,z:vec2u)->vec2u{

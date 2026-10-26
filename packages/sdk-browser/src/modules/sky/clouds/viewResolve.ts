@@ -8,8 +8,11 @@ import {
   reconstructKind,
 } from './reconstructWgsl.ts'
 import { composeAirGroup, type CloudViewFrame } from './viewGroups.ts'
-import { drawFullscreen, encodeDepthRange, encodeHaze, encodeTrace } from './viewFrame.ts'
+import type { HeldClouds } from './composeWgsl.ts'
+import { drawFullscreenTriangle } from '../../../gpu/shader/fullscreenTriangle.ts'
+import { cloudPass, cloudSteps, encodeDepthRange, encodeHaze, encodeTrace } from './viewFrame.ts'
 import type { CloudDepthRange, CloudImages } from './viewTargets.ts'
+import { cloudShownOf } from './cloudShown.ts'
 
 /**
  * THE SECOND HALF OF AN IMAGE OF A VIEW'S CLOUDS, and the whole of it (`encodeCloudView`): the
@@ -24,15 +27,43 @@ const composeWords = new Float32Array(new ArrayBuffer(COMPOSE_VIEW.words * 4))
 /** The slot of the reconstructed image that is not `plan`'s destination: the last image's. */
 const pastSlot = (plan: CloudFramePlan) => (plan.destination === 0 ? 1 : 0)
 
-/** The reconstructed image of this image, written from the traced images and the last one; the
+/** The bindings of the reconstruction's group: its uniform, the traced images, the last one's
+ *  where there is one, the half-resolution depth and the sampler. */
+function reconstructEntries(
+  held: {
+    block: GPUBuffer
+    traced: CloudImages
+    past: CloudImages | undefined
+    half: GPUTextureView | undefined
+    secondary: boolean
+  },
+  sampler: GPUSampler,
+) {
+  const { block, traced, past, half, secondary } = held
+  const images = (set: CloudImages, c: number, s: number, d: number) => [
+    { binding: c, resource: set.views.colour },
+    ...(secondary ? [{ binding: s, resource: set.views.secondary! }] : []),
+    { binding: d, resource: set.views.depth },
+  ]
+  return [
+    { binding: R.view, resource: { buffer: block } },
+    ...images(traced, R.colour, R.secondary, R.depth),
+    ...(past ? images(past, R.historyColour, R.historySecondary, R.historyDepth) : []),
+    ...(half ? [{ binding: R.halfDepth, resource: half }] : []),
+    { binding: R.sampler, resource: sampler },
+  ]
+}
+
+/** The reconstructed image of this image, written from the traced images and the last one, and with
+ *  the fog laid on its colour where the translucent surfaces read it (`lateFogOnTranslucent`); the
  *  traced images themselves in a mode that does not reconstruct. */
 function encodeReconstruct(
   f: CloudViewFrame,
   traced: CloudImages,
   range: CloudDepthRange | undefined,
-): CloudImages {
+): { image: CloudImages; fogged?: GPUTextureView } {
   const { plan, setup, gpu, programs } = f
-  if (!setup.mode.reconstructs) return traced
+  if (!setup.mode.reconstructs) return { image: traced }
   const past = plan.history ? gpu.reconstructedAt(pastSlot(plan)) : undefined
   const history = !!past
   const secondary = setup.minMaxDepth
@@ -41,88 +72,118 @@ function encodeReconstruct(
   const block = gpu.block('reconstruct', RECONSTRUCT_VIEW.words)
   writeReconstructView(
     reconstructWords,
-    { ...f.camera, plan, state: gpu.state, preExposureRatio: f.preExposureRatio },
+    {
+      ...f.camera,
+      plan,
+      state: gpu.state,
+      preExposureRatio: f.preExposureRatio,
+      preExposure: f.image.preExposure,
+    },
     f.part,
   )
   f.device.queue.writeBuffer(block, 0, reconstructWords)
   const half = readsHalfDepth(reconstructKind(setup, history)) ? range?.views.half : undefined
   const names = [block, traced.views.colour, traced.views.secondary, traced.views.depth]
   const pastNames = [past?.views.colour, past?.views.secondary, past?.views.depth, half]
-  const group = gpu.group('reconstruct', pass.layout, [...names, ...pastNames], () => {
-    const images = (set: CloudImages, c: number, s: number, d: number) => [
-      { binding: c, resource: set.views.colour },
-      ...(secondary ? [{ binding: s, resource: set.views.secondary! }] : []),
-      { binding: d, resource: set.views.depth },
-    ]
-    return [
-      { binding: R.view, resource: { buffer: block } },
-      ...images(traced, R.colour, R.secondary, R.depth),
-      ...(past ? images(past, R.historyColour, R.historySecondary, R.historyDepth) : []),
-      ...(half ? [{ binding: R.halfDepth, resource: half }] : []),
-      { binding: R.sampler, resource: programs.sampler },
-    ]
-  })
+  const group = gpu.group('reconstruct', pass.layout, [...names, ...pastNames], () =>
+    reconstructEntries({ block, traced, past, half, secondary }, programs.sampler),
+  )
+  const fogged = setup.lateFogOnTranslucent
+    ? gpu.fogged(plan.sizes.reconstructed.texture).views.colour
+    : undefined
   const targets = [
     dest.views.colour,
     ...(secondary ? [dest.views.secondary!] : []),
     dest.views.depth,
+    ...(fogged ? [fogged] : []),
   ]
-  drawFullscreen(
-    f,
-    'Trillion3D cloud reconstruction',
+  const size = plan.sizes.reconstructed.view
+  drawFullscreenTriangle(
+    f.encoder,
+    cloudPass('Trillion3D cloud reconstruction', targets),
     pass.pipeline.get(),
-    [group],
-    targets,
-    plan.sizes.reconstructed.view,
+    pass.air ? [composeAirGroup(f, pass.air, 'reconstruct air'), group] : group,
+    size.width,
+    size.height,
   )
-  return dest
+  return { image: dest, fogged }
 }
 
-/** The image `shown` laid over the lit image: its luminance added to the lit image multiplied by
- *  its transmittance. */
-function encodeCompose(f: CloudViewFrame, shown: CloudImages) {
-  const { gpu, programs, setup, plan } = f
-  const pass = programs.compose(setup)
-  const block = gpu.block('compose', COMPOSE_VIEW.words)
+/** The composition's uniform (`COMPOSE_VIEW`) for this image. */
+function composeBlock(f: CloudViewFrame) {
+  const block = f.gpu.block('compose', COMPOSE_VIEW.words)
   const input = {
-    image: composedImage(plan),
-    setup,
+    image: composedImage(f.plan),
+    setup: f.setup,
     frameIndex: f.image.frameIndex,
     preExposure: f.image.preExposure,
   }
   writeComposeView(composeWords, input, f.part)
   f.device.queue.writeBuffer(block, 0, composeWords)
+  return block
+}
+
+/** Group 1 of the composition: the uniform, the image `shown`, the scene's depth and the sampler. */
+function imagesGroup(
+  f: CloudViewFrame,
+  layout: GPUBindGroupLayout,
+  block: GPUBuffer,
+  shown: CloudImages,
+) {
   const names = [block, shown.views.colour, shown.views.secondary, shown.views.depth, f.sceneDepth]
-  const group = gpu.group('compose cloud', pass.layout, names, () => [
+  return f.gpu.group('compose cloud', layout, names, () => [
     { binding: C.view, resource: { buffer: block } },
     { binding: C.colour, resource: shown.views.colour },
-    ...(setup.minMaxDepth ? [{ binding: C.secondary, resource: shown.views.secondary! }] : []),
+    ...(f.setup.minMaxDepth ? [{ binding: C.secondary, resource: shown.views.secondary! }] : []),
     { binding: C.depth, resource: shown.views.depth },
     { binding: C.sceneDepth, resource: f.sceneDepth },
-    { binding: C.sampler, resource: programs.sampler },
+    { binding: C.sampler, resource: f.programs.sampler },
   ])
-  const targets = [f.hdr]
-  drawFullscreen(
-    f,
-    'Trillion3D cloud composition',
+}
+
+/** The image `shown` laid over the lit image: its luminance added to the lit image multiplied by
+ *  its transmittance. */
+function encodeCompose(f: CloudViewFrame, block: GPUBuffer, shown: CloudImages) {
+  const pass = f.programs.compose(f.setup)
+  const group = imagesGroup(f, pass.layout, block, shown)
+  const air = composeAirGroup(f, pass.air, 'compose air')
+  drawFullscreenTriangle(
+    f.encoder,
+    cloudPass('Trillion3D cloud composition', [f.hdr], true),
     pass.pipeline.get(),
-    [composeAirGroup(f, pass.air), group],
-    targets,
-    f.view,
-    true,
+    [air, group],
+    f.view.width,
+    f.view.height,
+  )
+  // The alpha holdout: what the clouds, the haze and the fog in front of them hold out, added to the alpha
+  // the first draw multiplied by the clouds' transmittance.
+  if (!f.held) return
+  const held = f.programs.compose(f.setup, f.held)
+  drawFullscreenTriangle(
+    f.encoder,
+    cloudPass('Trillion3D cloud holdout', [f.hdr], true),
+    held.pipeline.get(),
+    [composeAirGroup(f, held.air, 'compose air held'), imagesGroup(f, held.layout, block, shown)],
+    f.view.width,
+    f.view.height,
   )
 }
 
 /** Whether every program an image of `setup` needs is compiled, asked of the device where it is not;
- *  `hazed` says that the haze is laid by a pass of its own. */
+ *  `hazed` says that the haze is laid by a pass of its own, `corners` that the empty-space table
+ *  (the key's) reads the corners of its cells, `held` what the clouds hold out of the alpha. */
 export function cloudProgramsReady(
   programs: CloudViewFrame['programs'],
   setup: CloudViewFrame['setup'],
   key: CloudViewFrame['key'],
   hazed: boolean,
+  corners: boolean,
+  held?: HeldClouds,
 ) {
   const ask = (pass: { pipeline: { ask(): { ready: boolean } } }) => pass.pipeline.ask().ready
   const ready = [ask(programs.trace(key)), ask(programs.compose(setup))]
+  if (held) ready.push(ask(programs.compose(setup, held)))
+  if (key.emptySpace) ready.push(ask(programs.emptySpace(corners)))
   if (setup.depth === 'range')
     ready.push(ask(programs.depthRange('depth')), ask(programs.depthRange('range')))
   if (setup.depth === 'checkerboard') ready.push(ask(programs.depthRange('checkerboard')))
@@ -139,9 +200,14 @@ export function cloudProgramsReady(
  */
 export function encodeCloudView(f: CloudViewFrame) {
   const range = encodeDepthRange(f)
+  cloudSteps.begin(f.encoder)
   const { traced, raw } = encodeTrace(f, range)
   if (raw) encodeHaze(f, traced, raw)
-  const shown = encodeReconstruct(f, traced, range)
-  encodeCompose(f, shown)
+  cloudSteps.end()
+  const { image: shown, fogged } = encodeReconstruct(f, traced, range)
+  encodeCompose(f, composeBlock(f), shown)
+  // The translucent surfaces read the image that was rebuilt or traced: with the fog laid on it
+  // where the setup asks. A direct trace has no image to read.
+  f.gpu.shown = f.setup.direct ? undefined : cloudShownOf(f, shown, fogged ?? shown.views.colour)
   commitCloudView(f.gpu.state, f.camera.viewProjection)
 }

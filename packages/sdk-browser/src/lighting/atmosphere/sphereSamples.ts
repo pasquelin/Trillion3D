@@ -15,7 +15,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 const SEED = 0xde4dc0de
 
 /** The directions of the `side × side` cells, three floats each: x, y, and z the height. */
-export function stratifiedSphere(side: number) {
+function stratifiedSphere(side: number) {
   const out = new Float32Array(side * side * 3)
   const inverse = Math.fround(1 / side)
   let seed = SEED >>> 0
@@ -36,9 +36,9 @@ export function stratifiedSphere(side: number) {
 }
 
 /** The directions per side of the grid the air sums: 8 × 8, one per thread of a group. */
-export const SPHERE_SIDE = 8
+const SPHERE_SIDE = 8
 /** The directions the air sums. */
-export const SPHERE_DIRECTIONS = SPHERE_SIDE * SPHERE_SIDE
+const SPHERE_DIRECTIONS = SPHERE_SIDE * SPHERE_SIDE
 
 /** A number as a WGSL float literal. */
 const literal = (value: number) => {

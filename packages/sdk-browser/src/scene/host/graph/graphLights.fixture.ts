@@ -21,11 +21,11 @@ export const spotLight = (
   angle = Math.PI / 3,
   penumbra = 0,
   decay = 2,
-) => new Light('spot', { color, intensity, distance, angle, penumbra, decay })
-
-/** A light that lights every face alike. */
-export const ambientLight = (color: ColorInput = 0xffffff, intensity = 1) =>
-  new Light('ambient', { color, intensity })
+) =>
+  new Light('spot', {
+    ...{ color, intensity, distance, decay, outerConeAngle: angle },
+    ...{ innerConeAngle: angle * (1 - penumbra) },
+  })
 
 /** An environment's irradiance as nine coefficients: what a sky over a ground becomes in the
  *  engine (`addLightIrradiance`, `sdk-core/src/world/light/lightRecord.ts`). */

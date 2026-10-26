@@ -2,7 +2,7 @@ import type { RecordLayout } from '../../gpu/core/recordLayout.ts'
 import { recordTextureWgsl, type RecordBinding } from '../../gpu/core/recordTextureWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { FRAME_ROW_WORDS } from './types.ts'
-import type { RootParent } from '../selection/types.ts'
+import { MARK_BITS } from '../../visibility/shader/castingMark.ts'
 
 /**
  * THE PLACEMENTS' FRAME WORDS, one home whatever the world's size: a record table
@@ -15,7 +15,7 @@ import type { RootParent } from '../selection/types.ts'
  * (`../../placement/roots/rootWorlds.ts`). The host never writes it. Every reader reads it in place — the
  * cut's kernels (`shader/levelWgsl.ts`) —; copied by none.
  *
- * A record is fifteen words: a row holds 512 placements, 7680 words, within the widest a guaranteed
+ * A record is eleven words: a row holds 512 placements, 5632 words, within the widest a guaranteed
  * device addresses; a layer 8192 rows, 2²² placements; 256 layers 2³⁰.
  */
 export const FRAME_TABLE: RecordLayout = {
@@ -29,42 +29,43 @@ export const FRAME_TABLE: RecordLayout = {
 /** The words of a placement's `Row`, as `primitiveFrameWords` lays them: the root the descent starts
  *  from, the record shift that leads its pages to their shared records, the never-culled mark, its
  *  first page — what its shared nodes' pages are counted from —, the open counts it holds of its
- *  own (`heldOpen.ts`), its page count and its group structure's base (`structureTable.ts`), then
+ *  own (`heldOpen.ts`), its page count and the shift that leads its pages to their cluster records
+ *  (`info/clusterInfoLayout.ts`), then
  *  the distances it is drawn at (`DagRoot.drawDistance`): the bits of two floats, the nearest and
- *  the farthest, the farthest 0 for none; then the five floats of its parent when it is an
- *  instance of an assembly (`DagRoot.rootParent`): the error, then the centre and the radius of the
- *  ball of the group that replaces its root, in the space of its primitive. */
+ *  the farthest, both 0 for none; then, when it is an instance of an assembly
+ *  (`DagRoot.rootParent`), the node of the node table that holds the error and the ball of the
+ *  group that replaces its root, in the space of its primitive (`NODE_PARENT`), else `NO_INDEX`. */
 export const ROOT_WORD = 0,
   RECORD_SHIFT_WORD = 1,
   MARK_WORD = 2,
   PAGE_BASE_WORD = 3,
   HELD_BY_WORD = 4,
   PAGE_COUNT_WORD = 5,
-  STRUCTURE_WORD = 6,
+  INFO_SHIFT_WORD = 6,
   DRAW_NEAR_WORD = 7,
   DRAW_FAR_WORD = 8,
-  ROOT_PARENT_WORD = 9
+  PARENT_WORD = 9
 
-/** The words of a placement's parent, from `ROOT_PARENT_WORD`. */
-export const ROOT_PARENT_WORDS = 5
+/** The mark word's bit on a placement that names a draw distance, set where the packing places it
+ *  (`pack/packRoots.ts`) and when a row's distances change (`runtime/runtimeOps.ts`): the cut reads
+ *  the two distance words only where it is set (`shader/drawDistanceWgsl.ts`). */
+export const DRAW_DISTANCE_MARK = MARK_BITS.drawDistance
 
-/** Placement `w`'s parent written into `column`, `ROOT_PARENT_WORDS` floats a placement — the error,
- *  then the ball —, zeros for none. */
-export function writeRootParent(column: Float32Array, w: number, parent: RootParent | undefined) {
-  const at = ROOT_PARENT_WORDS * w
-  column[at] = parent?.error ?? 0
-  for (let k = 0; k < 4; k++) column[at + 1 + k] = parent?.sphere[k] ?? 0
-}
+/** The mark word's bit beside it on a placement that is one instance of an instanced mesh: its
+ *  distances are tested at the centre of its bounds, not at the sphere's edge. */
+export const DRAW_INSTANCE_MARK = MARK_BITS.drawInstance
 
-/** The mark word's bit on a placement that names a farthest draw distance, set where the packing
- *  places it (`pack/packRoots.ts`) and when a row's distances change (`runtime/runtimeOps.ts`): the
- *  cut reads the two distance words only where it is set (`shader/drawDistanceWgsl.ts`). */
-export const DRAW_DISTANCE_MARK = 8
+/** The mark bits the draw distance owns: every writer of a placement's mark keeps them. */
+export const DRAW_MARKS = DRAW_DISTANCE_MARK | DRAW_INSTANCE_MARK
+
+/** The mark bits a placement drawn at `distance` carries, none for every distance. */
+export const drawDistanceMarks = (distance: { perInstance: boolean } | undefined) =>
+  distance ? DRAW_DISTANCE_MARK | (distance.perInstance ? DRAW_INSTANCE_MARK : 0) : 0
 
 /** The mark word's bit on a placement that is an instance of an assembly, set where the packing
  *  places it (`pack/packRoots.ts`) and when a row's parent changes (`runtime/runtimeOps.ts`): the
- *  cut reads the five parent words only where it is set (`shader/rootParentWgsl.ts`). */
-export const ROOT_PARENT_MARK = 256
+ *  cut reads the parent's node only where it is set (`shader/rootParentWgsl.ts`). */
+export const ROOT_PARENT_MARK = MARK_BITS.rootParent
 
 /** The frame words as a program binds them, named `name`: `<name>Word(w,k)`, word `k` of
  *  placement `w`'s row, and `<name>StretchBits(w)`, its stretch, where it reads them;

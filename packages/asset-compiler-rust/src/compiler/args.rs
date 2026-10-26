@@ -67,27 +67,33 @@ pub struct JobDefaults {
 /// Batch file field naming a job, read by `parse_batch`.
 pub const ID_FIELD: &str = "id";
 
-/// The fields a job names as JSON, beside `JOB_FIELDS`: the HLOD, the scene's temporal
-/// anti-aliasing, the responsive objects, the settings by material name, the voxelized objects,
-/// the partition's scheme and main grid or its several grids, the mesh build settings, each
-/// object's settings and the volumetric lightmap's bake.
-const JSON_FIELDS: [&str; 11] = [
-    HLOD_FIELD,
-    TEMPORAL_AA_FIELD,
-    RESPONSIVE_FIELD,
-    MATERIALS_FIELD,
-    VOXELIZE_FIELD,
-    PARTITION_SCHEME_FIELD,
-    PARTITION_GRID_FIELD,
-    PARTITION_GRIDS_FIELD,
-    MESH_BUILD_FIELD,
-    OBJECT_SETTINGS_FIELD,
-    LIGHTMAP_BAKE_FIELD,
+/// The fields a job names as JSON, beside `JOB_FIELDS`, each with the flag holding it on the
+/// command line: the HLOD, the scene's temporal anti-aliasing, the responsive objects, the
+/// settings by material name, the voxelized objects, the partition's scheme and main grid or its
+/// several grids, the mesh build settings, each object's settings and the volumetric lightmap's
+/// bake.
+const JSON_OPTIONS: [(&str, &str); 11] = [
+    (HLOD_OPTION, HLOD_FIELD),
+    (TEMPORAL_AA_OPTION, TEMPORAL_AA_FIELD),
+    (RESPONSIVE_OPTION, RESPONSIVE_FIELD),
+    (MATERIALS_OPTION, MATERIALS_FIELD),
+    (VOXELIZE_OPTION, VOXELIZE_FIELD),
+    (PARTITION_SCHEME_OPTION, PARTITION_SCHEME_FIELD),
+    (PARTITION_GRID_OPTION, PARTITION_GRID_FIELD),
+    (PARTITION_GRIDS_OPTION, PARTITION_GRIDS_FIELD),
+    (MESH_BUILD_OPTION, MESH_BUILD_FIELD),
+    (OBJECT_SETTINGS_OPTION, OBJECT_SETTINGS_FIELD),
+    (LIGHTMAP_BAKE_OPTION, LIGHTMAP_BAKE_FIELD),
 ];
+
+/// Whether `key` is a field a job names as JSON.
+fn is_json_field(key: &str) -> bool {
+    JSON_OPTIONS.iter().any(|(_, field)| *field == key)
+}
 
 /// The one reading of a compile job, whichever form named it: a batch file's job object, or the
 /// command line's values keyed by `JOB_FIELDS`. A key outside `JOB_FIELDS`, `id`,
-/// `texturesFormat` and `JSON_FIELDS`, or a text field holding another type, is refused by name: a
+/// `texturesFormat` and `JSON_OPTIONS`, or a text field holding another type, is refused by name: a
 /// misspelt or mistyped field never cooks at its default unannounced. The values are checked by
 /// `compile`; the HLOD's, the material settings' and the voxelized objects' names and patterns
 /// are read here (`Hlod::read`, `MaterialOptions::read`, `VoxelizeOptions::read`), what does not
@@ -100,10 +106,10 @@ pub fn job_options(
     for (key, value) in job {
         let key = key.as_str();
         let named = JOB_FIELDS.contains(&key) || [ID_FIELD, TEXTURES_FORMAT_FIELD].contains(&key);
-        if !named && !JSON_FIELDS.contains(&key) {
+        if !named && !is_json_field(key) {
             return Err(format!("unknown job field {key}"));
         }
-        let typed = NUMBER_FIELDS.contains(&key) || JSON_FIELDS.contains(&key);
+        let typed = NUMBER_FIELDS.contains(&key) || is_json_field(key);
         if !typed && !value.is_string() && !value.is_null() {
             return Err(format!("{key} must be a string"));
         }
@@ -159,20 +165,11 @@ pub fn parse_compiler_args(
 ) -> std::result::Result<Options, String> {
     // The flags holding a job field's value, the last one of each kept: JSON, a bare word too for
     // `BARE_FIELDS`.
-    let json_flags = [
-        (HLOD_OPTION, HLOD_FIELD),
-        (TEMPORAL_AA_OPTION, TEMPORAL_AA_FIELD),
-        (RESPONSIVE_OPTION, RESPONSIVE_FIELD),
-        (MATERIALS_OPTION, MATERIALS_FIELD),
-        (VOXELIZE_OPTION, VOXELIZE_FIELD),
-        (PARTITION_SCHEME_OPTION, PARTITION_SCHEME_FIELD),
-        (PARTITION_GRID_OPTION, PARTITION_GRID_FIELD),
-        (PARTITION_GRIDS_OPTION, PARTITION_GRIDS_FIELD),
-        (MESH_BUILD_OPTION, MESH_BUILD_FIELD),
-        (OBJECT_SETTINGS_OPTION, OBJECT_SETTINGS_FIELD),
-        (LIGHTMAP_BAKE_OPTION, LIGHTMAP_BAKE_FIELD),
-    ];
-    let is_json = |arg: &String| json_flags.iter().any(|(option, _)| arg.starts_with(option));
+    let is_json = |arg: &String| {
+        JSON_OPTIONS
+            .iter()
+            .any(|(option, _)| arg.starts_with(option))
+    };
     let (flags, args): (Vec<String>, Vec<String>) = args
         .iter()
         .cloned()
@@ -201,7 +198,7 @@ pub fn parse_compiler_args(
             Value::from(&flag[TEXTURE_FORMAT_OPTION.len()..]),
         );
     }
-    for (option, field) in json_flags {
+    for (option, field) in JSON_OPTIONS {
         if let Some(flag) = named.iter().rfind(|arg| arg.starts_with(option)) {
             let raw = &flag[option.len()..];
             let value = match serde_json::from_str(raw) {

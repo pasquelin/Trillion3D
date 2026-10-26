@@ -3,6 +3,7 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { rootSource } from '../../placement/hidden.ts'
 import { rowFarField, rowFarFieldMoves } from '../../placement/rows/rows.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { sameWords } from '../../gpu/core/sameWords.ts'
 
 /** The far-field objects of a runtime's cut as its filter holds them (`farFieldOf`). */
 export type FarField = {
@@ -61,4 +62,4 @@ export function farFieldOf(rt: WebgpuPagesRuntime): FarField {
 }
 
 const sameBits = (a: Uint32Array | undefined, b: Uint32Array | undefined) =>
-  a === b || (!!a && !!b && a.length === b.length && a.every((word, i) => word === b[i]))
+  a === b || (!!a && !!b && sameWords(a, b))

@@ -1,4 +1,4 @@
-// The opaque resolve's program with the anisotropic and clear-coat lobes (`lobesWgsl.ts`) on a real
+// The lit passes' light terms with the anisotropic and clear-coat lobes (`lobesWgsl.ts`) on a real
 // GPU, through the shipped `directLightingWgsl` (`resolveHarness.ts`): on a pixel without lobes it
 // sums what the program without lobe code sums, bit for bit — the program an image with a lobed
 // surface takes changes no other pixel —, and so does a pixel whose lobes are on with neither a

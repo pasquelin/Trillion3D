@@ -16,6 +16,7 @@ import type { LoadingCell } from '../partition/loadOrder.ts'
 import type { LoadSlots } from '../partition/loadSlots.ts'
 import { topUnit } from '../partition/unitKeys.ts'
 import { CHAIN_ACTOR } from '../../../../sdk-core/src/manifest/worldRoots.ts'
+import { entryOf } from '../../../../math/src/sequence/counts.ts'
 
 /** What ranks a unit of the actors always loaded in the load order: nothing but `always`. */
 const ALWAYS = { extent: 0, level: 0, priority: 0, distance: 0, raw: 0, always: true }
@@ -36,14 +37,15 @@ export function createTops(
    *  turn has come. */
   const levels = new Map<number, Level>(),
     started = new Set<number>()
+  const newTop = (level: number): Level => ({
+    cells: [],
+    unlanded: 0,
+    rank: { key: topUnit(count, level), ...ALWAYS },
+  })
   for (let cell = 0; cell < count; cell++) {
     if (chain!.parent[cell] >= 0 || !(chain!.actor[cell] & CHAIN_ACTOR.built)) continue
     const level = chain!.actorLevel[cell]
-    let top = levels.get(level)
-    if (!top) {
-      const rank = { key: topUnit(count, level), ...ALWAYS }
-      levels.set(level, (top = { cells: [], unlanded: 0, rank }))
-    }
+    const top = entryOf(levels, level, newTop)
     top.cells.push(cell)
     top.unlanded++
   }

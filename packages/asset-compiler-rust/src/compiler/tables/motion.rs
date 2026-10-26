@@ -10,6 +10,7 @@ use super::*;
 
 pub(crate) mod bank;
 mod frame;
+mod rate;
 mod sample;
 
 /// The paths an animation channel may drive, as glTF names them: the first `POSE_PATHS` a node's

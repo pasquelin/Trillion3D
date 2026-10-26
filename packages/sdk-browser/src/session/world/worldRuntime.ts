@@ -71,6 +71,7 @@ export function worldRuntimeOf(parts: RuntimeNeeds) {
         ...sessionPools(pools),
         // The session's own loop runs the world's frame: its prologue and epilogue, as `render`.
         beforeFrame: () => runtime.beforeFrame(parts.step),
+        worldClock: frames.clock,
         drawViews: views.draw,
         onFrame: (metrics) => runtime.afterDraw(metrics),
       }),

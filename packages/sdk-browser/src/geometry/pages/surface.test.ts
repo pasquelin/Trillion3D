@@ -5,10 +5,10 @@ import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { surfaceOf } from './surface.ts'
 import { declareSurface, redeclareSurface } from './surfaceRecord.ts'
 import { surfaceJournals, surfaceWritten } from './surfaceWrites.ts'
-import { visBin } from '../../frame/prepare/pipelineFor.ts'
-import { BIN_BACK, BIN_NONE } from '../../visibility/draw/contract.ts'
-import type { PageRec } from '../selection/types.ts'
-import { identityRoots } from '../selection/placements.fixture.ts'
+import { surfaceRow } from '../rows/surfaceRow.ts'
+import { FLAG_BACK, FLAG_DOUBLE } from '../../visibility/types.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
+import { material } from '../../../../sdk-core/src/world/material/index.ts'
 
 test('a mesh wears its surface record itself: every reader holds the one record', () => {
   const material = G.standardSurface({ color: 0x336699, metalness: 0.25 })
@@ -70,16 +70,43 @@ test('a declared map its model never reads is refused by name', () => {
   assert.throws(() => G.familySurface('normal', { normalMap: ramp }), /normalMap/)
 })
 
-test('the face bin of a draw follows a side switched in place, so no face is culled for nothing', () => {
+test('the face flags of a draw follow a side switched in place, so no face is culled for nothing', () => {
+  // The bins pick a face mode from these two bits of the surface's row (`binsWgsl.ts`).
   const material = G.basicSurface({ side: G.FRONT_SIDE })
-  const rec = { material: surfaceOf(material) } as unknown as PageRec,
-    roots = identityRoots()
-  assert.equal(visBin(rec, 0, roots), BIN_BACK, 'front-only: the back faces are culled')
+  const layers = { mapLayer: new Map<Texture, number>(), dataLayer: new Map<Texture, number>() }
+  const faces = () => surfaceRow(surfaceOf(material), layers).bits & (FLAG_DOUBLE | FLAG_BACK)
+  assert.equal(faces(), 0, 'front-only: the back faces are culled')
   G.sided(material, G.DOUBLE_SIDE)
-  assert.equal(
-    visBin(rec, 0, roots),
-    BIN_NONE,
-    'double-sided: nothing is culled, both faces reach the image',
-  )
+  assert.equal(faces(), FLAG_DOUBLE, 'double-sided: nothing is culled, both faces reach the image')
+  G.sided(material, G.BACK_SIDE)
+  assert.equal(faces(), FLAG_BACK, 'back-only: the front faces are culled')
   material.dispose()
+})
+
+test('a physical surface refracts where it declares its ior, or where its graph wires a refraction', () => {
+  const graph = material.graph('surface')
+  graph.output('refraction', graph.constant(1.33))
+  const refracts = (d: Parameters<typeof declareSurface>[0]) => declareSurface(d).refracts
+  assert.equal(refracts({ family: 'physical' }), false, 'the default ior is for Fresnel alone')
+  assert.equal(refracts({ family: 'physical', ior: 1.5 }), true)
+  assert.equal(refracts({ family: 'physical', graph }), true)
+  assert.equal(
+    refracts({ family: 'standard', graph }),
+    false,
+    'a surface that does not transmit bends nothing',
+  )
+})
+
+test('a lit surface whose graph wires a thin translucent output transmits, whatever its transmission', () => {
+  const thin = material.graph('surface')
+  thin.output('transmittanceColor', thin.constant(0.2, 0.5, 0.9))
+  const transmission = (d: Parameters<typeof declareSurface>[0]) => declareSurface(d).transmission
+  assert.equal(transmission({ family: 'standard', graph: thin }), 1)
+  assert.equal(transmission({ family: 'physical', transmission: 0.3, graph: thin }), 1)
+  assert.equal(
+    transmission({ family: 'basic', graph: thin }),
+    0,
+    'an unlit surface is not thin translucent',
+  )
+  assert.equal(transmission({ family: 'physical', transmission: 0.3 }), 0.3)
 })

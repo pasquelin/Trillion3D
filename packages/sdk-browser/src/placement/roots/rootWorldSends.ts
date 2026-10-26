@@ -10,9 +10,11 @@ import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { composedRoot } from '../compose/gpuComposeState.ts'
 
-/** Doubles of a root's world box, six, then the stretch of its world; of its local box, six, then
- *  whether it has one (`rootBoxesWgsl.ts`). */
-export const ROOT_BOX_DOUBLES = 7,
+/** Doubles of a root's world box, six, then the stretch of its world, then its ball (the centre,
+ *  three, and the radius), then its oriented box's three half axes (nine singles in five doubles);
+ *  of its local box, six, then whether it has one (`rootBoxesWgsl.ts`). */
+export const ROOT_BOX_DOUBLES = 16,
+  ROOT_BOX_AXES = 11,
   ROOT_LOCAL_DOUBLES = 7
 /** Words of a root's world, sixteen doubles; of its world box; of its local box. */
 export const ROOT_WORLD_WORDS = 32,

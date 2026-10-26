@@ -1,36 +1,35 @@
-// A frame asks whether a surface of its rows carries something (the lobes target's size): the
-// answer is taken over the rows' surfaces once, and read where it was held while the rows and the
-// table's age hold — a written row or an aged table takes it again.
+// A frame asks whether a surface its clusters wear carries something (the lobes target's size): the
+// answer is taken over the resident clusters' surfaces once, and read where it was held while their
+// list and the records' age hold — a surface that came or went, or an aged table, takes it again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { someRowSurface } from './rowSurfaces.ts'
 import type { PageSurface } from './surface.ts'
+import { createResidentSurfaces } from '../clusters/surfaces.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 
-test('a question over still rows is asked of their surfaces once, again once they move', () => {
+test('a question over still clusters is asked of their surfaces once, again once they move', () => {
   const plain = { clearcoat: 0 } as PageSurface,
     coated = { clearcoat: 0 } as PageSurface
-  const rows = {
-    packedRecs: [{ material: plain }, { material: plain }, { material: coated }],
-    packedCount: 3,
-    rowWrites: 0,
-    tableEpoch: 0,
-  } as unknown as WebgpuPagesRuntime['layout']['rows']
+  const surfaces = createResidentSurfaces()
+  surfaces.set(0, plain)
+  surfaces.set(1, plain)
+  surfaces.set(2, coated)
+  const clusters = { surfaces, infoEpoch: 1 } as unknown as WebgpuPagesRuntime['layout']['clusters']
   let asked = 0
-  const coatedRows = someRowSurface(
+  const coatedClusters = someRowSurface(
     (surface: PageSurface) => (asked++, (surface.clearcoat ?? 0) > 0),
   )
-  assert.equal(coatedRows(rows), false)
+  assert.equal(coatedClusters(clusters), false)
   assert.equal(asked, 2, 'each distinct surface once')
-  for (let frame = 0; frame < 5; frame++) coatedRows(rows)
-  assert.equal(asked, 2, 'still rows: the held answer')
-  // A material's new values age the table (`materialTable.follow`): the answer is taken again.
+  for (let frame = 0; frame < 5; frame++) coatedClusters(clusters)
+  assert.equal(asked, 2, 'still clusters: the held answer')
+  // A material's new values age the records (`materialTable.follow`): the answer is taken again.
   coated.clearcoat = 1
-  rows.tableEpoch++
-  assert.equal(coatedRows(rows), true)
+  clusters.infoEpoch++
+  assert.equal(coatedClusters(clusters), true)
   assert.equal(asked, 4)
-  // A written row takes it again too.
-  rows.packedCount = 2
-  ;(rows as { rowWrites: number }).rowWrites++
-  assert.equal(coatedRows(rows), false)
+  // A surface that goes takes it again too.
+  surfaces.drop(2)
+  assert.equal(coatedClusters(clusters), false)
 })

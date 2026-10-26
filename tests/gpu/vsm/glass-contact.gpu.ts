@@ -1,5 +1,5 @@
 // A glass pane over a floor in light casts no contact-shadow darkening beyond the maps' transmission:
-// the contact ray (`vsmScreenRayCast`) crosses an opaque wall of the depth and stops there, crosses a
+// the contact ray (`vsmScreenRayFrom`) crosses an opaque wall of the depth and stops there, crosses a
 // transparent pane of the same depth and place and goes on to its whole length, as over the bare
 // floor — while the engine's one screen march does meet the pane, flagged in front (the reflection
 // keeps it). The scene is generated (`glassContactPage.ts`).

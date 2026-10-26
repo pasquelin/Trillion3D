@@ -1,7 +1,8 @@
+import { drawFullscreenTriangle } from '../../../gpu/shader/fullscreenTriangle.ts'
 import type { Size } from '../clouds/reconstructLayout.ts'
 
 /** The slot of a draw's uniform in the buffer the targets hold (`LightShaftTargets.slot`). */
-export interface LightShaftSlot {
+interface LightShaftSlot {
   readonly slot: number
   readonly buffer: GPUBuffer
   readonly offset: number
@@ -13,23 +14,8 @@ export interface LightShaftBinding {
   readonly resource: GPUBindingResource
 }
 
-/**
- * The draws of the light shafts: a full-screen triangle over the first `written` pixels of one
- * colour target, its one group bound at 0, the target cleared to white or loaded. The descriptor
- * every pass begins with is rewritten in place, and the group of a slot is kept while the layout,
- * the buffer and the resources it names are the same ones (the chains of a still scene bind the
- * same images every image), so that an image allocates no group it did not allocate before.
- */
-export function createLightShaftDraw(device: GPUDevice) {
-  const attachment = {
-    loadOp: 'clear',
-    storeOp: 'store',
-    clearValue: { r: 1, g: 1, b: 1, a: 1 },
-  } as GPURenderPassColorAttachment
-  const descriptor: GPURenderPassDescriptor = {
-    label: 'Trillion3D light shafts',
-    colorAttachments: [attachment],
-  }
+/** The bind groups of the draws, kept by slot while the layout, the uniform and the resources they name stand. */
+function createGroupCache(device: GPUDevice) {
   const held: {
     layout: GPUBindGroupLayout
     buffer: GPUBuffer
@@ -37,7 +23,7 @@ export function createLightShaftDraw(device: GPUDevice) {
     group: GPUBindGroup
   }[] = []
   /** The group of `slot` for `layout`, naming the uniform of `bytes` bytes and `bindings`. */
-  const groupOf = (
+  return (
     slot: LightShaftSlot,
     layout: GPUBindGroupLayout,
     bytes: number,
@@ -62,12 +48,32 @@ export function createLightShaftDraw(device: GPUDevice) {
     held[slot.slot] = { layout, buffer: slot.buffer, names: bindings.map((b) => b.resource), group }
     return group
   }
+}
+
+/**
+ * The draws of the light shafts: a full-screen triangle over the first `written` pixels of one
+ * colour target, its one group bound at 0, the target cleared to white or loaded. The descriptor
+ * every pass begins with is rewritten in place, and the group of a slot is kept while the layout,
+ * the buffer and the resources it names are the same ones (the chains of a still scene bind the
+ * same images every image), so that an image allocates no group it did not allocate before.
+ */
+export function createLightShaftDraw(device: GPUDevice) {
+  const attachment = {
+    loadOp: 'clear',
+    storeOp: 'store',
+    clearValue: { r: 1, g: 1, b: 1, a: 1 },
+  } as GPURenderPassColorAttachment
+  const descriptor: GPURenderPassDescriptor = {
+    label: 'Trillion3D light shafts',
+    colorAttachments: [attachment],
+  }
+  const groupOf = createGroupCache(device)
   return {
     groupOf,
     /** Draws `pipeline` with `group` over the first `written` pixels of `target`. */
     draw(
       encoder: GPUCommandEncoder,
-      pipeline: GPURenderPipeline,
+      pipeline: GPURenderPipeline | undefined,
       group: GPUBindGroup,
       target: GPUTextureView,
       written: Size,
@@ -75,12 +81,7 @@ export function createLightShaftDraw(device: GPUDevice) {
     ) {
       attachment.view = target
       attachment.loadOp = load ? 'load' : 'clear'
-      const pass = encoder.beginRenderPass(descriptor)
-      pass.setPipeline(pipeline)
-      pass.setBindGroup(0, group)
-      pass.setViewport(0, 0, written.width, written.height, 0, 1)
-      pass.draw(3)
-      pass.end()
+      drawFullscreenTriangle(encoder, descriptor, pipeline, group, written.width, written.height)
     },
   }
 }

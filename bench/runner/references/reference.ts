@@ -8,7 +8,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { Page } from 'playwright'
-import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
+import { encodePng } from '../../../packages/sdk-node/src/image/png.mts'
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts'
 import { onFreshPage } from '../harness/chrome.ts'

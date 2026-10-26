@@ -1,6 +1,6 @@
 //! The colours the transfer works in, as the method's flattened materials convert them: a texel's
 //! sRGB channel to linear through a table of the curve evaluated in double precision and rounded
-//! once to single — `v / 12.92` up to 0.04045, `(v / 1.055 + 0.0521327)^2.4` above —, its alpha
+//! once to single — `v * (1 / 12.92)` up to 0.04045, `(v * (1 / 1.055) + 0.0521327)^2.4` above —, its alpha
 //! over 255 (`linear`); a linear colour's luminance by the weights of sRGB's primaries under its
 //! D65 white (`luminance`); and back to bytes: sRGB by Giesen's table, alpha held in [0, 1], times
 //! 255 plus a half, truncated (`srgb`), or every channel the latter (`quantized`).

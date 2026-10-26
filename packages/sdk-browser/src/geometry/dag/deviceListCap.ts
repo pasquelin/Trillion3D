@@ -1,14 +1,12 @@
 import { storageBufferCap } from '../../session/memory/pools.ts'
 import { listCapHeld } from './layout.ts'
 import { OPEN_SLOT_WORDS } from './heldOpen.ts'
-import { keptRankCapHeld } from './keptRanks.ts'
 
 export type Limits = Parameters<typeof storageBufferCap>[0]
 
 /** The most ranks one `out` binding holds on this device, beside the `heldSlots` slots of the
- *  open counts placements hold (`heldOpen.ts`), which lie behind its lists, and whose kept lists'
- *  tables of ranks one binding holds each (`keptRanks.ts`). */
+ *  open counts placements hold (`heldOpen.ts`), which lie behind its lists. */
 export function deviceListCap(limits: Limits, heldSlots = 0) {
   const binding = storageBufferCap(limits)
-  return Math.min(listCapHeld(binding - heldSlots * OPEN_SLOT_WORDS * 4), keptRankCapHeld(binding))
+  return listCapHeld(binding - heldSlots * OPEN_SLOT_WORDS * 4)
 }

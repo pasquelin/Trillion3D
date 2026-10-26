@@ -73,27 +73,10 @@ export function packClusterFlags(never: boolean, level: number, transparent = fa
  * lists more clusters than it has.
  */
 export const selectionListCap = (pageCount: number, size: number) => clamp(pageCount, 0, size)
-/** Bytes a resident cut's frame copies: every list up to the requests' priorities. */
-export const residentReadbackBytes = (listCap: number) => copiedWords(listCap) * 4
-/** Word of `out` where the snapshot the next difference is taken against waits, behind the
- *  requests' priorities and outside what the frame copies (`keptAt` of
- *  `shader/differenceWgsl.ts`): its two lengths (`KEPT_HEADER_WORDS`), then the requests' pages and
- *  the drawn pages, a list each. */
-export const keptSnapshotWord = (listCap: number) => copiedWords(listCap)
-/** Words ahead of the kept lists: the length of each of the two. */
-export const KEPT_HEADER_WORDS = 2
-/** Word of `out` where region `v`'s saved drawn journal lies, behind the kept snapshot: its
- *  length, then `listCap` pages (`shader/swapWgsl.ts`); region 0 the main view's, one more a view
- *  drawn aside (`swap/swap.ts`). Region `regions` is the word behind all of them, where the open counts
- *  placements hold of their own lie (`heldOpen.ts`): written by the host alone, outside what the
- *  frame copies. */
-export const savedJournalWord = (listCap: number, v: number) =>
-  keptSnapshotWord(listCap) + KEPT_HEADER_WORDS + 2 * listCap + v * (1 + listCap)
-/** Bytes of `out` with the kept snapshot and `regions` saved journals behind what the frame
- *  copies — none until a view is drawn aside: what the kernels write, more than the frame
- *  copies. */
-export const stagedOutputBytes = (listCap: number, regions = 0) =>
-  savedJournalWord(listCap, regions) * 4
+/** Bytes of `out`: what a resident cut's frame copies — every list up to the requests' page
+ *  counts —, which the kernels write in place. The open counts placements hold of their own follow
+ *  it (`heldOpen.ts`), written by the host alone. */
+export const stagedOutputBytes = (listCap: number) => copiedWords(listCap) * 4
 /** The most ranks an `out` of `bytes` holds: `stagedOutputBytes` read backwards. It grows with
  *  every rank, so the largest cap that fits is found by halving, without a closed form to keep in
  *  step with each region the readout gains. */

@@ -5,7 +5,7 @@ import { DEFAULT_SCOPE } from '../../sdk-core/src/contracts/base.ts'
 import { getSdkProvenance } from './compiler/provenance.mts'
 import { resolveCompilerExecutable } from './compiler/executable.mts'
 import type { BatchJob } from './compiler/contracts.ts'
-import type { JobField, MATERIAL_SETTINGS } from '../../sdk-core/src/contracts/compilerAbi.ts'
+import type { JobField } from '../../sdk-core/src/contracts/compilerAbi.ts'
 
 /** One hashed file of `getSdkProvenance()`'s snapshot, as this test reads it: hashes only, no
  *  embedded source text, whatever the caller might otherwise expect from the field name. */
@@ -30,6 +30,8 @@ test('a batch job names the fields of one compile job, as the single job names t
   // partition's grid, the mesh build, the objects' settings, the lightmap's bake — is no command-line field.
   type ConfigField =
     | 'hlod'
+    | 'temporalAntialiasing'
+    | 'responsive'
     | 'materials'
     | 'voxelize'
     | 'partitionScheme'
@@ -38,7 +40,6 @@ test('a batch job names the fields of one compile job, as the single job names t
     | 'meshBuild'
     | 'objectSettings'
     | 'lightmapBake'
-    | (typeof MATERIAL_SETTINGS)[number]
   type SameKeys<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
   const same: SameKeys<Exclude<keyof BatchJob, 'id' | ConfigField>, JobField> = true
   assert.equal(same, true)

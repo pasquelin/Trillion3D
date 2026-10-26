@@ -1,6 +1,7 @@
 import { sameElements } from '../../../../../math/src/matrix/matrixElements.ts'
 import { copyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { unnoted } from '../../../../../sdk-core/src/scene/core/nodeEdits.ts'
+import { offsetSwitchesOf } from '../../../../../sdk-core/src/world/object/offsetSwitches.ts'
 import { nodeCasting } from '../../../visibility/shader/castingMark.ts'
 import { isLightNode } from '../graph/kinds.ts'
 import type { Light } from '../../../../../sdk-core/src/world/light/light.ts'
@@ -38,6 +39,9 @@ export interface NodeState {
   visible: boolean
   /** How the node casts (`nodeCasting`): its `castShadow`, `castFarShadow` and `farShadowTest`. */
   casting: number
+  /** How many times its offset switches were written (`OffsetSwitches.revision`): the engine reads
+   *  them from the node itself (`../../../frame/render/offsetReach.ts`), the watch tells it moved. */
+  offsets: number
   parent: Object3D | null
   auto: boolean
   matrix: Float64Array | null
@@ -55,8 +59,8 @@ function lightValues(light: Light, into: Float64Array) {
   into[3] = light.intensity
   into[4] = finite(light.distance)
   into[5] = finite(light.decay)
-  into[6] = finite(light.angle)
-  into[7] = finite(light.penumbra)
+  into[6] = finite(light.outerConeAngle)
+  into[7] = finite(light.innerConeAngle)
   into[8] = light.groundColor.r
   into[9] = light.groundColor.g
   into[10] = light.groundColor.b
@@ -76,6 +80,7 @@ export function snapshot(node: Object3D): NodeState {
     node,
     visible: node.visible,
     casting: nodeCasting(node),
+    offsets: offsetSwitchesOf(node).revision,
     parent: node.parent,
     auto: node.matrixAutoUpdate,
     matrix: node.matrixAutoUpdate ? null : Float64Array.from(node._matrixElements),
@@ -121,6 +126,11 @@ export function scan(state: NodeState): number {
   if (visible !== state.visible || casting !== state.casting) found |= SCAN_FLIPPED
   state.visible = visible
   state.casting = casting
+  const offsets = offsetSwitchesOf(node).revision
+  if (offsets !== state.offsets) {
+    state.offsets = offsets
+    found |= SCAN_MOVED
+  }
   if (auto !== state.auto) {
     // Frozen from now on: the matrix it holds is the pose, whatever wrote it.
     state.auto = auto

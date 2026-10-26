@@ -1,17 +1,19 @@
-import { floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import type { MeshDistanceField } from '../../../../sdk-core/src/lighting/distanceFieldFile.ts'
 import type { GlobalDistanceFieldSettings } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import { createAtlasGpu, type AtlasGpu } from './atlasGpu.ts'
 import { stepAtlas } from './atlasRequests.ts'
-import { createAtlasState, type AtlasBudget } from './atlasState.ts'
+import { createAtlasState } from './atlasState.ts'
+import { createHlodObjects, movingOf, type HlodDraws } from './hlodObjects.ts'
 import { createObjectBuffers } from './objectBuffers.ts'
 import { createObjectTracker, type ModifiedBoxes, type TrackedRoot } from './objectTracker.ts'
-import { sceneBindEntries, sceneBindGroup } from './sceneBindings.ts'
+import { sceneBindEntries } from './sceneBindings.ts'
+import { createBudget, createSceneGroup } from './sceneParts.ts'
 import { createStreaming } from './streaming.ts'
 import type { Vec3 } from './regionBounds.ts'
 
 /**
- * THE MESHES' DISTANCE FIELDS IN THE SCENE: the placements that have one (`ObjectTracker`) with
+ * THE MESHES' DISTANCE FIELDS IN THE SCENE: the placements that have one (`createObjectTracker`) — a
+ * compiled mesh's, or, in the world DAG, an HLOD cell's actors' (`hlodObjects.ts`) — with
  * their records on the GPU (`ObjectBuffers`), the brick atlas the meshes' mips are streamed into
  * (`AtlasState`, `AtlasGpu`) and the asks the GPU makes of it (`Streaming`). A frame brings them level with the cut's
  * roots — placements added, moved or gone, then the mips the GPU asked for a few frames ago —,
@@ -23,6 +25,9 @@ import type { Vec3 } from './regionBounds.ts'
 /** What a frame brings level. */
 export interface MeshFieldFrame {
   readonly roots: readonly TrackedRoot[]
+  /** The cut's world cells, which say whether an HLOD cell's actors draw; none for a cut without a
+   *  world DAG. */
+  readonly world?: HlodDraws
   /** Whether the placement of root `rank` is often moving. */
   readonly moving: (rank: number) => boolean
   /** A number that changes when the scene changed shape. */
@@ -41,7 +46,59 @@ export interface MeshFieldState {
   readonly remade: boolean
 }
 
-const floorPow2 = (n: number) => 1 << floorLog2(Math.max(1, Math.floor(n)))
+/** What a scene is made of: the placements and their atlas, the records and the GPU's asks. */
+type SceneParts = {
+  atlas: ReturnType<typeof createAtlasState>
+  tracker: ReturnType<typeof createObjectTracker>
+  hlod: ReturnType<typeof createHlodObjects>
+  objects: ReturnType<typeof createObjectBuffers>
+  streaming: ReturnType<typeof createStreaming>
+  budget: ReturnType<typeof createBudget>
+  group: ReturnType<typeof createSceneGroup>
+  /** The atlas on the GPU, made at the first frame. */
+  gpu?: AtlasGpu
+  /** The roots the last frame placed: the cut's, then the stand-ins of the HLOD cells' actors. */
+  roots?: readonly TrackedRoot[]
+}
+
+/** Brings the scene `scene` of `device` level with `frame` and encodes the GPU's asks on `encoder`. */
+function updateScene(
+  device: GPUDevice,
+  scene: SceneParts,
+  encoder: GPUCommandEncoder,
+  frame: MeshFieldFrame,
+  settings: GlobalDistanceFieldSettings,
+): MeshFieldState {
+  const { atlas, tracker, objects, streaming } = scene
+  const maxRadius = settings.meshDistanceFieldMaxObjectRadius
+  // The cut's roots, and after them the stand-ins of the world DAG's HLOD cells.
+  const roots = (scene.roots = scene.hlod.join(frame.roots, frame.world))
+  tracker.sync(roots, movingOf(frame.roots, roots, frame.moving), frame.epoch, maxRadius)
+  const budget = scene.budget(settings)
+  const gpu = (scene.gpu ??= createAtlasGpu(device, budget.sizeXY))
+  const step = stepAtlas(atlas, budget, streaming.takeAnswer())
+  const count = tracker.objects.length
+  gpu.apply(atlas, step, budget, count)
+  objects.ensure(count)
+  const indices = tracker.takeUpload()
+  const written = objects.write(
+    indices,
+    tracker.sourceOf,
+    settings.meshDistanceFieldSurfaceBiasExpand,
+  )
+  tracker.requeue(indices.slice(written))
+  const remade = scene.group.over(gpu)
+  const { current: group } = scene.group
+  const assets = atlas.assets.length
+  streaming.encode(encoder, group, { origin: frame.origin, settings, assets, objects: count })
+  return {
+    group,
+    objects: count,
+    modified: tracker.takeModified(),
+    pendingStreaming: atlas.requests.length > 0 || atlas.added.size > 0,
+    remade,
+  }
+}
 
 /** The scene of the meshes' fields, for the meshes of `fields`, read by passes laid out by `sceneLayout`. */
 export function createMeshFieldScene(
@@ -50,102 +107,52 @@ export function createMeshFieldScene(
   sceneLayout: GPUBindGroupLayout,
 ) {
   const atlas = createAtlasState()
-  const tracker = createObjectTracker(new Map(fields.map((field) => [field.mesh, field])), atlas)
+  const meshes = fields.filter((field) => !field.hlodCell)
   const objects = createObjectBuffers(device)
-  const streaming = createStreaming(device, sceneLayout)
-  let gpu: AtlasGpu | undefined
-  let fixed: Pick<AtlasBudget, 'sizeXY' | 'blockBricks'> | undefined
-  let group: GPUBindGroup | undefined
-  let held: unknown[] = []
-  let generation = 0
-
-  /** The budget the settings give; the atlas's shape the first ones. */
-  function budgetOf(settings: GlobalDistanceFieldSettings): AtlasBudget {
-    fixed ??= {
-      sizeXY: floorPow2(settings.meshDistanceFieldBrickAtlasSize),
-      blockBricks: settings.meshDistanceFieldBlockBricks,
-    }
-    return {
-      ...fixed,
-      maxDepth: settings.meshDistanceFieldBrickAtlasDepth,
-      uploadBytes: settings.meshDistanceFieldUploadKiB * 1024,
-      reverseOrder: settings.meshDistanceFieldReverseAllocation,
-    }
+  const scene: SceneParts = {
+    atlas,
+    tracker: createObjectTracker(new Map(meshes.map((field) => [field.mesh, field])), atlas),
+    hlod: createHlodObjects(fields),
+    objects,
+    streaming: createStreaming(device, sceneLayout),
+    budget: createBudget(),
+    group: createSceneGroup(device, sceneLayout, objects),
   }
-
-  /** The bind group over the resources as they are; whether it is a new one. */
-  function groupOver(resources: AtlasGpu) {
-    const now = [
-      resources.sceneBuffer,
-      resources.records.assets,
-      resources.records.table,
-      resources.brickTexture,
-      objects.bounds,
-      objects.data,
-    ]
-    const same = group && now.every((resource, k) => resource === held[k])
-    if (!same) {
-      generation++
-      held = now
-      group = sceneBindGroup(device, sceneLayout, resources, objects)
-    }
-    return !same
-  }
-
+  const { tracker, streaming } = scene
   return {
     atlas,
     streaming,
     get count() {
       return tracker.objects.length
     },
+    /** The roots the last frame placed — the cut's, and after them the stand-ins of the HLOD cells' actors
+     *  the cut draws —, none before the first: what the surface cache's placements follow too. */
+    get roots() {
+      return scene.roots
+    },
+    /** The placements a sun's distance-field cascade shadows whatever the view says
+     *  (the tracker's `farShadowObjects`). */
+    get farShadowObjects() {
+      return tracker.farShadowObjects
+    },
     /** How many times the resources the bindings name were made anew; 0 before the first image of the field. */
     get generation() {
-      return generation
+      return scene.group.generation
     },
-    /** The bind group entries of the scene's bindings (`MESH_FIELD_BINDINGS`) from `first`, over the resources now:
+    /** The bind group entries of the scene's seven bindings from `first`, over the resources now:
      *  a pass with bindings of its own binds them beside its own, and makes its group again when `generation` moves. */
-    bindEntries: (first: number) => sceneBindEntries(first, gpu!, objects),
+    bindEntries: (first: number) => sceneBindEntries(first, scene.gpu!, objects),
     /** Brings the scene level with `frame` and encodes the GPU's asks on `encoder`. */
-    update(
+    update: (
       encoder: GPUCommandEncoder,
       frame: MeshFieldFrame,
       settings: GlobalDistanceFieldSettings,
-    ): MeshFieldState {
-      const maxRadius = settings.meshDistanceFieldMaxObjectRadius
-      tracker.sync(frame.roots, frame.moving, frame.epoch, maxRadius)
-      const budget = budgetOf(settings)
-      gpu ??= createAtlasGpu(device, budget.sizeXY)
-      const step = stepAtlas(atlas, budget, streaming.takeAnswer())
-      const count = tracker.objects.length
-      gpu.apply(atlas, step, budget, count)
-      objects.ensure(count)
-      const indices = tracker.takeUpload()
-      const written = objects.write(
-        indices,
-        tracker.sourceOf,
-        settings.meshDistanceFieldSurfaceBiasExpand,
-      )
-      tracker.requeue(indices.slice(written))
-      const remade = groupOver(gpu)
-      streaming.encode(encoder, group!, {
-        origin: frame.origin,
-        settings,
-        assets: atlas.assets.length,
-        objects: count,
-      })
-      return {
-        group: group!,
-        objects: count,
-        modified: tracker.takeModified(),
-        pendingStreaming: atlas.requests.length > 0,
-        remade,
-      }
-    },
+    ) => updateScene(device, scene, encoder, frame, settings),
     submitted: () => streaming.submitted(),
     dispose() {
       streaming.dispose()
       objects.dispose()
-      gpu?.dispose()
+      scene.gpu?.dispose()
     },
   }
 }

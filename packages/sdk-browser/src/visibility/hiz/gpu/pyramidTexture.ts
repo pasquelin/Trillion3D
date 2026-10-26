@@ -11,50 +11,51 @@ import { texelBytesOf } from '../../../gpu/core/textureBytes.ts'
 import type { HizDepth } from './types.ts'
 
 /**
- * WHERE THE PYRAMID LIES: one `r32uint` texture of three layers, each `max(N, 3M)` words laid row
+ * WHERE THE PYRAMID LIES: one `r32uint` texture of two slices, each `max(N, 3M)` words laid row
  * after row — the word of linear index `j` at `(j mod HIZ_ROW, j / HIZ_ROW)` (`hizTexel`) —, for a
  * pyramid whose level 0 holds `N` texels and its coarser levels `M` in all (`pyramidBytes`: `M` is a
  * third of `N`). Three bounds of a cell are kept, of three different depths:
  *  - `HIZ_CULL_FARTHEST`, the farthest of the OCCLUDERS' depth, built mid-frame, before the rest
  *    of the scene is drawn: what the culling (the transparent clusters', the cut's occlusion)
- *    trusts, because the depth only comes nearer after it. Its level 0 is a copy
- *    of level 0.
+ *    trusts, because the depth only comes nearer after it. It starts at level 1, reduced from the
+ *    depth texture: the pyramid has no copy of the depth.
  *  - `HIZ_WHOLE_FARTHEST`, the farthest of the FINISHED depth, built once every opaque pixel is
  *    drawn: what a ray march of the whole depth needs to know a cell is entirely in front of the
  *    ray (the occluder-only bound is farther, hence too loose to say it). It has no level 0: that
  *    is the depth texture itself.
  *  - `HIZ_NEAREST` holds the nearest of the planes each cell covers, its level 0 each pixel's plane
- *    slopes (`shader.ts`).
- * The layers of level 0 are the texture's first two, `N` words each; the coarser levels of all
- * three bounds lie in its third, one after the other (`hizRoute`): `3M` words, so that no word of
- * the texture goes unused, where three whole pyramids would keep `N` of them for a level 0 nobody
- * reads — `4N` words against `3N`, a quarter of the pyramid. A word holds a depth's `f32` bits, or
+ *    slopes (`shader.ts`), written only while the planes are kept.
+ * The only level 0 the texture holds is the nearest layer's slopes, in its first slice, `N` words;
+ * the coarser levels of all three bounds lie in its second, one after the other (`hizRoute`): `3M`
+ * words. A word holds a depth's `f32` bits, or
  * two half slopes: a texture, so that a fragment stage reads it as a compute stage does, and
  * integer, so that no bit pattern is a float the hardware may rewrite.
  */
 export const HIZ_FORMAT: GPUTextureFormat = 'r32uint'
+
 /** Texels of one row of the pyramid texture, a power of two: the index splits by mask and shift. */
 const HIZ_ROW_SHIFT = 13
 const HIZ_ROW = 1 << HIZ_ROW_SHIFT
-/** The layers of the pyramid texture, and their count. */
+/** The bounds the pyramid keeps, and the slices of the texture (`hizSlice`): level 0, then the coarser levels. */
 export const HIZ_CULL_FARTHEST = 0
 export const HIZ_NEAREST = 1
 export const HIZ_WHOLE_FARTHEST = 2
-const HIZ_LAYERS = 3
-/** The flag of an index into the coarser levels, which lie in the last layer (`hizRoute`); the
+const HIZ_BOUNDS = 3
+const HIZ_SLICES = 2
+/** The flag of an index into the coarser levels, which lie in the last slice (`hizRoute`); the
  *  bits under it are the word's linear index. */
 const HIZ_UPPER = 2 ** 28
 
-/** The words a layer of the pyramid texture holds for a pyramid of `first` texels at level 0 and
- *  `upper` in its coarser levels: the first layers hold level 0, the last the coarser levels of the
+/** The words a slice of the pyramid texture holds for a pyramid of `first` texels at level 0 and
+ *  `upper` in its coarser levels: the first slice holds level 0, the last the coarser levels of the
  *  three bounds. */
 const hizLayerWords = ({ first, upper }: { first: number; upper: number }) =>
-  Math.max(1, first, HIZ_LAYERS * upper)
+  Math.max(1, first, HIZ_BOUNDS * upper)
 
 /**
  * The index of the cell at natural packed index `offset` (`pyramidBytes`, level 0 first) in the
- * layer `layer`'s bound: level 0 keeps its own index, in its own layer; a coarser level lies in the
- * last layer, after the `layer` bounds before it, flagged `HIZ_UPPER`.
+ * layer `layer`'s bound: level 0 keeps its own index, in the first slice; a coarser level lies in the
+ * last slice, after the `layer` bounds before it, flagged `HIZ_UPPER`.
  */
 export const hizRoute = (
   offset: number,
@@ -70,24 +71,24 @@ export function hizTextureSize(layout: { first: number; upper: number }) {
   return {
     width: Math.min(HIZ_ROW, count),
     height: ceilDiv(count, HIZ_ROW),
-    depthOrArrayLayers: HIZ_LAYERS,
+    depthOrArrayLayers: HIZ_SLICES,
   }
 }
 
 /** Bytes of the pyramid texture over a pyramid of `layout`. */
 export const hizTextureBytes = (layout: { first: number; upper: number }) => {
   const { width, height } = hizTextureSize(layout)
-  return width * height * HIZ_LAYERS * texelBytesOf(HIZ_FORMAT)
+  return width * height * HIZ_SLICES * texelBytesOf(HIZ_FORMAT)
 }
 
-/** The texel of index `i` (`hizRoute`), and its layer: `layer` for a level 0, the last for a coarser
+/** The texel of index `i` (`hizRoute`), and its slice: the first for a level 0, the last for a coarser
  *  level. */
 export const HIZ_TEXEL_WGSL = wgslBlock(
   'HIZ_TEXEL_WGSL',
   [],
   `const HIZ_UPPER:u32=${HIZ_UPPER}u;
 fn hizTexel(i:u32)->vec2u{let j=i&(HIZ_UPPER-1u);return vec2u(j&${HIZ_ROW - 1}u,j>>${HIZ_ROW_SHIFT}u);}
-fn hizSlice(i:u32,layer:u32)->u32{return select(layer,${HIZ_LAYERS - 1}u,(i&HIZ_UPPER)!=0u);}`,
+fn hizSlice(i:u32)->u32{return select(0u,${HIZ_SLICES - 1}u,(i&HIZ_UPPER)!=0u);}`,
 )
 
 /** The three bounds at index `i` of the sampled pyramid `hizPyramid` the host declares
@@ -96,9 +97,9 @@ fn hizSlice(i:u32,layer:u32)->u32{return select(layer,${HIZ_LAYERS - 1}u,(i&HIZ_
 export const HIZ_READ_WGSL = wgslBlock(
   'HIZ_READ_WGSL',
   [HIZ_TEXEL_WGSL],
-  `fn hizCullFarthest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),hizSlice(i,${HIZ_CULL_FARTHEST}u),0).r);}
-fn hizNearest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),hizSlice(i,${HIZ_NEAREST}u),0).r);}
-fn hizWholeFarthest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),hizSlice(i,${HIZ_WHOLE_FARTHEST}u),0).r);}`,
+  `fn hizCullFarthest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),hizSlice(i),0).r);}
+fn hizNearest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),hizSlice(i),0).r);}
+fn hizWholeFarthest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),hizSlice(i),0).r);}`,
 )
 
 /** The layout entries of a depth reader (`hizDepthWgsl`) from `binding`, read by `visibility`. */
@@ -112,6 +113,20 @@ export const hizDepthEntries = (binding: number, visibility: number): GPUBindGro
  *  `hizDepthEntries` in their order: the one place they are written. */
 export const hizDepthBindEntries = (binding: number, depth: HizDepth): GPUBindGroupEntry[] =>
   sequentialEntries(depth.resources, binding)
+
+/** The layout entries of a reader that loads level 0 alone (`hizOpaqueDepth`, `hizFrontDepth`): the depth
+ *  texture and the levels uniform, at the bindings `hizDepthEntries` gives them, not the pyramid (`hizDepthWgsl`
+ *  declares the three, a program's layout holds those its entry points use). */
+export const hizLevelZeroEntries = (binding: number, visibility: number) => {
+  const [depth, , levels] = hizDepthEntries(binding, visibility)
+  return [depth, levels]
+}
+
+/** The bind-group entries of `hizLevelZeroEntries`. */
+export const hizLevelZeroBindEntries = (binding: number, depth: HizDepth) => {
+  const [level, , levels] = hizDepthBindEntries(binding, depth)
+  return [level, levels]
+}
 
 /** The layers of the level-0 texture: the opaque depth and — only for a scene whose transparents
  *  ever drew a front pass (blends, water, transmission) — the nearest
@@ -189,7 +204,7 @@ fn hizPlane(cell:vec2i)->vec3f{
  let size=hizLevels.level[0].yz;
  let p=hizPixel(cell);
  let z=hizFrontDepth(cell);
- let slopes=unpack2x16float(textureLoad(hizPyramid,hizTexel(p.y*size.x+p.x),${HIZ_NEAREST},0).r);
+ let slopes=unpack2x16float(textureLoad(hizPyramid,hizTexel(p.y*size.x+p.x),0,0).r);
  return vec3f(z,slopes*z);
 }
 fn hizCellStep(cell:vec2i,level:i32)->u32{

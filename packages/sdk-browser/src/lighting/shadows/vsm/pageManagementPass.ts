@@ -70,7 +70,7 @@ export interface VsmPageManagementContext {
   pipes: Record<KernelName, Pipe>
   /** The pool sort's stage pipelines among `pipes`, read where bound — compiled by then
    *  (`VsmComputePipe`) —, its stages' group 0 bound as `poolCount`'s. */
-  poolSort: (stage: PoolSortStage) => GPUComputePipeline
+  poolSort: (stage: PoolSortStage) => GPUComputePipeline | undefined
   params: GPUBuffer
   /** The slots of `params`: their stride, offsets and words. */
   slots: UniformSlots
@@ -120,7 +120,7 @@ export function vsmPageManagementPipes(device: GPUDevice, layout: VsmLayout, sta
   for (const name of Object.keys(kernels) as KernelName[]) {
     const kernel = kernels[name]
     const groups: GPUBindGroupLayoutEntry[][] = []
-    groups[VSM_PM_GROUP_RESOURCES] = vsmBindGroupLayoutEntries(kernel.specs, layout, COMPUTE)
+    groups[VSM_PM_GROUP_RESOURCES] = vsmBindGroupLayoutEntries(kernel.specs, COMPUTE)
     groups[VSM_PM_GROUP_PARAMS] = paramsEntries()
     if (kernel.perPage) groups[VSM_PM_GROUP_PER_PAGE] = vsmPerPageDispatchEntries()
     const label = `vsm.pm.${kernel.label}`
@@ -158,7 +158,7 @@ export function vsmPageManagementContext(
     layout: paramsLayout,
     entries: sequentialEntries([{ buffer: params, offset: 0, size: VSM_PM_PARAMS_BYTES }]),
   })
-  // Cleared indirect args: the clears and the tile depths (16, 0, 1, 0).
+  // Cleared indirect args: the clears' (16, 0, 1, 0).
   const argsInit = device.createBuffer({
     label: 'vsm.pm.argsInit',
     size: ARGS_INIT_BYTES,

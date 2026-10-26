@@ -1,6 +1,6 @@
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import { createChangedRuns, type ChangedRuns } from '../../../geometry/residency/ranges.ts'
-import { tailSlotOf } from '../ids.ts'
+import { isTailId } from '../ids.ts'
 
 // The places of a tile pool (`pool.ts`): which key each holds, the free ones, the changed ones.
 
@@ -14,6 +14,8 @@ type Places = {
   arrived: Uint32Array
   arrivals: number
   count: number
+  /** How many of the held places are pinned. */
+  pinned: number
   /** Free places, the lowest on top of the stack: a half-empty pool stays compact. The stack is
    *  rebuilt in one pass when an adopt has stale-dated it, at the next take. */
   free: number[]
@@ -27,6 +29,7 @@ export const placesOf = (tiles: number): Places => ({
   arrived: new Uint32Array(tiles),
   arrivals: 0,
   count: 0,
+  pinned: 0,
   free: [],
   freeStale: true,
   changed: createChangedRuns(),
@@ -52,12 +55,13 @@ export function taken(places: Places, index: number) {
 
 /** Whether `index` is pinned: a tail's place, its key's high bit set (`../ids.ts`), held for good. */
 export const pinnedAt = (places: Places, index: number) =>
-  tailSlotOf(places.owner[taken(places, index)]) !== undefined
+  isTailId(places.owner[taken(places, index)])
 
 function occupy(places: Places, index: number, key: number) {
   places.owner[index] = key
   places.arrived[index] = ++places.arrivals
   places.count++
+  if (isTailId(key)) places.pinned++
   places.changed.mark(index)
 }
 
@@ -76,7 +80,7 @@ export function adopt(places: Places, index: number, key: number) {
 }
 
 export function release(places: Places, index: number) {
-  taken(places, index)
+  if (pinnedAt(places, index)) places.pinned--
   places.owner[index] = NO_INDEX
   places.count--
   places.changed.mark(index)

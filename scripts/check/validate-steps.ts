@@ -1,0 +1,95 @@
+// The gates of `pnpm run validate`, in four groups. The CI runs one job per group, in parallel (the
+// unit group once per shard of the suite), and reports their outcome under a single `validate`
+// check (`.github/workflows/quality.yml`); `pnpm run validate` runs the same gates in order, so the
+// local gate and the CI cannot drift.
+//
+// The groups follow what each gate needs, not what it looks at:
+//   quick      the sources alone — it answers in well under a minute, which is when a formatting
+//              or a lint mistake should be reported, not after the Rust suite; a
+//              documentation-only pull request, whose code jobs are skipped, still runs it;
+//              `check:cohesion` is deliberately NOT one of them: it reads the modules a branch
+//              touches and is a step of `check:changed`. Run against the whole tree it reports the
+//              417 functions that predate it — that is the queue it works through, not a failure,
+//              and a gate that cannot go green is not a gate;
+//   typescript the `tsc` build and the gates that read its products, the CDN core's gzip budget among them. `check:types:browser` belongs here:
+//              `check:structure` reads `tsconfig.core.json`, which covers `sdk-core` alone, so the
+//              browser SDK — the largest package — was compiled by no gate at all;
+//   native     Clippy and the Rust tests, which read the scene caches the compiled compiler cooks
+//              (`committed_colliders_hold_their_published_tolerance`), and the rules printed from
+//              TypeScript into the other languages (`check:shared-rules`), whose Rust it formats
+//              with the toolchain's `rustfmt`;
+//   unit       the unit suite, which needs both the compiled compiler
+//              (`tests/integration/shared-cache-format.test.ts` skips part of itself without it)
+//              and `dist/` (`tests/integration/extensions-dts.test.ts`). `build` is seven seconds and is
+//              repeated here rather than making the job wait on another one; `test` cooks the
+//              scene caches itself (`scripts/check/unit.ts`). The CI splits the suite by
+//              `TRILLION3D_TEST_SHARD` (`scripts/check/unit-tests.ts`).
+//
+// The CI skips the `*:native` gates when it has restored the binaries built from these exact
+// sources by an earlier green run — a decision Cargo cannot make on a fresh clone, where every
+// source file is newer than any cached artefact. `build` and `test` stay: the binary is there,
+// restored, and the suite that drives it must run.
+/** The fast gates that read the whole tree, which `check:changed` runs too: each `check:x` is
+ *  `node scripts/check-x.ts`. The two maths gates are among them: a helper copied from
+ *  `packages/math` (`check:helpers`) and a WGSL library declaration written again
+ *  (`check:wgsl-library`); the lint refuses the maths' inline forms (`scripts/lint/lint-maths.ts`). */
+export const TREE_GATES = ['check:english', 'check:helpers', 'check:wgsl-library'] as const
+
+export const VALIDATE_GROUPS = {
+  quick: [
+    'check:local',
+    'format:check',
+    'check:lines',
+    'check:cycles',
+    'check:duplicates',
+    'lint:js',
+    'check:unused',
+    'check:no-js',
+    'check:webgpu-only',
+    'check:sdk-facade',
+    ...TREE_GATES,
+  ],
+  typescript: [
+    'check:types:browser',
+    'build',
+    'check:bundle-size',
+    'check:dts',
+    'check:structure',
+    'check:tools-types',
+  ],
+  native: ['lint:native', 'check:shared-rules', 'build:native', 'compile:caches', 'test:native'],
+  unit: ['build:native', 'build', 'test'],
+} as const satisfies Record<string, readonly string[]>
+
+type ValidateGroup = keyof typeof VALIDATE_GROUPS
+
+/** Whether `name` is one of the groups, and not a caller's typo. */
+function isValidateGroup(name: string): name is ValidateGroup {
+  return Object.hasOwn(VALIDATE_GROUPS, name)
+}
+
+/** The ordered gates of a full `validate`: every group's, each one run once. */
+export const VALIDATE_STEPS: readonly string[] = [...new Set(Object.values(VALIDATE_GROUPS).flat())]
+
+/** The steps that compile the Rust crates: named `*:native` in `package.json`. */
+export const NATIVE_STEPS: readonly string[] = VALIDATE_STEPS.filter((step) =>
+  step.endsWith(':native'),
+)
+
+/** Whether `env` asks `validate` to skip the native steps. */
+export function skipsNative(env: NodeJS.ProcessEnv): boolean {
+  return env.TRILLION3D_SKIP_NATIVE === '1'
+}
+
+/**
+ * The steps `validate` runs under `env`: the named group, or every group, minus the Rust ones when
+ * they are skipped. An unknown group name is a caller mistake, and stops the run.
+ */
+export function stepsToRun(env: NodeJS.ProcessEnv, group?: string): readonly string[] {
+  if (group !== undefined && !isValidateGroup(group))
+    throw new Error(
+      `Unknown validate group '${group}': expected one of ${Object.keys(VALIDATE_GROUPS).join(', ')}.`,
+    )
+  const steps: readonly string[] = group === undefined ? VALIDATE_STEPS : VALIDATE_GROUPS[group]
+  return skipsNative(env) ? steps.filter((step) => !NATIVE_STEPS.includes(step)) : steps
+}

@@ -78,6 +78,8 @@ export class Translator {
     }
     if (token === 'switch') return this.switchText()
     if (token === 'while') return (this.next(), `while(${this.expression()})${this.block()}`)
+    // `loop {…}`: left by a `break` or a `return`.
+    if (token === 'loop') return (this.next(), `while(true)${this.block()}`)
     if (token === 'for') {
       this.next()
       this.eat('(')

@@ -21,8 +21,11 @@
  *   and the temporal pass are run, off the lit image is the view's output (`readLit`);
  * - `staticSceneOnly`: only what has static lighting is drawn (no surface of this engine has);
  * - `lodScale`: the factor the cut's screen-space tolerance is divided by, to ask more detail;
+ * - `reflectionCapture`: the view is a capture of the scene that lights it (the sky light's captured
+ *   scene), not a view of the page; the height fog then shows by its `inReflectionCaptures` and not by
+ *   its `inMainView` (`../../render/fogView.ts`);
  * - `readLit`: handed the encoder and the lit image (linear HDR, before exposure and any effect)
- *   of every image the view draws, ahead of the radiance turn (`adoptRadianceImage`).
+ *   of every image the view draws, ahead of the lit image's turn (`adoptLitImage`).
  */
 export interface ViewOverrides {
   readonly skyLighting: boolean
@@ -37,6 +40,7 @@ export interface ViewOverrides {
   readonly post: boolean
   readonly staticSceneOnly: boolean
   readonly lodScale: number
+  readonly reflectionCapture: boolean
   readonly readLit?: LitReader
 }
 
@@ -60,6 +64,7 @@ export const NO_OVERRIDES: ViewOverrides = Object.freeze({
   post: true,
   staticSceneOnly: false,
   lodScale: 1,
+  reflectionCapture: false,
 })
 
 /** Whether the view rewrites its surfaces' roughness or diffuse colour (`encodeSurfaceRewrite`). */

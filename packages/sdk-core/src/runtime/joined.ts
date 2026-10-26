@@ -1,3 +1,10 @@
+/** The members of every type of the union `U`, all at once. */
+export type UnionToIntersection<U> = (U extends unknown ? (u: U) => void : never) extends (
+  i: infer I,
+) => void
+  ? I
+  : never
+
 /** The members of every part of `P`, each with its type. */
 type Joined<P extends readonly object[]> = P extends readonly [infer F, ...infer R extends object[]]
   ? F & Joined<R>

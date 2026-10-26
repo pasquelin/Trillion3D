@@ -20,14 +20,10 @@ const NO_RECT: Rect = Rect {
     h: u32::MAX,
 };
 
-/// Where each raster seen found a place, by its rows' segments flattened — a row's count, then its
-/// starts and lengths — (`Footprint::key`), so a chart laid like one before it starts its search
-/// there; and the buffer the key is built in.
+/// Where each raster seen found a place, by its digest (`Footprint::digest`: sixteen bytes a
+/// raster, whatever its size), so a chart laid like one before it starts its search there.
 #[derive(Default)]
-pub(crate) struct Starts {
-    seen: WordMap<Vec<u32>, (u32, u32)>,
-    key: Vec<u32>,
-}
+pub(crate) struct Starts(WordMap<u128, (u32, u32)>);
 
 /// How much of the square's width and height a rectangle puts out of reach: its far corner's
 /// coordinates summed.
@@ -73,20 +69,14 @@ pub(crate) fn best_placement(
             // Nothing rasterized: it takes no place.
             true
         } else {
-            raster.used.key(&mut starts.key);
-            if let Some(&(x, y)) = starts.seen.get(starts.key.as_slice()) {
+            let digest = raster.used.digest();
+            if let Some(&(x, y)) = starts.0.get(&digest) {
                 placed.x = x;
                 placed.y = y;
             }
             let found = layout.find(&mut placed, &raster.used, &beats);
             if found {
-                let at = (placed.x, placed.y);
-                match starts.seen.get_mut(starts.key.as_slice()) {
-                    Some(slot) => *slot = at,
-                    None => {
-                        starts.seen.insert(starts.key.clone(), at);
-                    }
-                }
+                starts.0.insert(digest, (placed.x, placed.y));
                 rect.x = placed.x;
                 rect.y = placed.y;
             }

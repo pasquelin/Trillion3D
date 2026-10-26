@@ -15,7 +15,7 @@ import { createHeightProfile } from './profile.ts'
 
 /** The most samples along the footprint's long side a texture read takes: 4, the default of the
  *  texture group's filter (an anisotropic filter of the world group). */
-export const CLOUD_MAX_ANISOTROPY = 4
+const CLOUD_MAX_ANISOTROPY = 4
 
 /** The one sampler the material reads every cloud texture through: repeating on u, v and w, the
  *  world group's anisotropic filter (a linear filter, the level between two levels blended), its

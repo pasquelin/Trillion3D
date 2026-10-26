@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import {
   DEFAULT_PHYSICS_BUDGET,
+  DEFAULT_RESTITUTION_THRESHOLD,
   PHYSICS_STEP,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/options.ts'
@@ -111,6 +112,7 @@ export async function launchedWorker(
     budget,
     threads,
     step,
+    restitutionThreshold: DEFAULT_RESTITUTION_THRESHOLD,
     buffers,
   })
   return { sent, receive, budget, ready }

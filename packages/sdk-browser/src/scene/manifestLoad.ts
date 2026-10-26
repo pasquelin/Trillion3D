@@ -7,12 +7,13 @@ import {
   EngineError,
 } from '../../../sdk-core/src/contracts/cache.ts'
 import { DEFAULT_SCOPE, type AssetScope } from '../../../sdk-core/src/contracts/base.ts'
+import { isRecord } from '../../../sdk-core/src/contracts/nameMatch.ts'
 import { readPagedManifest } from '../../../sdk-core/src/manifest/paged.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { fetchVerified } from '../geometry/cluster/pages.ts'
 import { checked } from '../geometry/cluster/checked.ts'
 import { unmetered, type ByteMeter } from '../geometry/cluster/byteMeter.ts'
-import { readVoxelLevels, type VoxelLevels } from '../geometry/hlod/voxelLevels.ts'
+import { readVoxelLevels, type VoxelLevels } from '../geometry/cluster/voxelLevels.ts'
 
 async function jsonResource(
   url: string,
@@ -45,7 +46,7 @@ async function jsonResource(
       details,
     )
   }
-  if (!value || typeof value !== 'object' || Array.isArray(value))
+  if (!isRecord(value))
     throw new EngineError(
       'INVALID_JSON_RESPONSE',
       `${url}: expected JSON object, HTTP ${response.status}, type ${contentType}`,

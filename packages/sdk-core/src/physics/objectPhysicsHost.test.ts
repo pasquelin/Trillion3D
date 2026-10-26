@@ -7,7 +7,7 @@ import { ObjectPhysics, type ContactEvent, type PhysicsHost } from './objectPhys
 function host() {
   const calls: unknown[][] = []
   const value = Object.fromEntries(
-    ['rebuild', 'tune', 'velocity', 'impulse', 'wake', 'listened'].map((name) => [
+    ['rebuild', 'tune', 'velocity', 'impulse', 'wake', 'flagged'].map((name) => [
       name,
       (...args: unknown[]) => calls.push([name, ...args]),
     ]),
@@ -113,7 +113,7 @@ test('contact handlers hear their own event; the host hears the first and the la
   assert.equal(body.listens, false)
   body._emit('leave', touch)
   const offContact = body.on('contact', (event) => seen.push(['contact', event]))
-  assert.deepEqual(calls, [['listened', body]])
+  assert.deepEqual(calls, [['flagged', body]])
   const offEnter = body.on('enter', (event) => seen.push(['enter', event]))
   const offAgain = body.on('enter', (event) => seen.push(['again', event]))
   assert.equal(body.listens, true)
@@ -135,8 +135,8 @@ test('contact handlers hear their own event; the host hears the first and the la
   offEnter()
   assert.equal(body.listens, false)
   assert.deepEqual(calls, [
-    ['listened', body],
-    ['listened', body],
+    ['flagged', body],
+    ['flagged', body],
   ])
   const detached = new ObjectPhysics('dynamic')
   detached.on('contact', () => undefined)()

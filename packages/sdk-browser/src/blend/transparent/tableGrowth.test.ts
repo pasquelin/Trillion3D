@@ -1,14 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { HostMesh } from '../../session/host/resources.ts'
+
 import type { PageRec, ClusterRoot } from '../../geometry/selection/types.ts'
 
 import type { BlendGpuItem } from '../state.ts'
 import { createTransparentTable, TRANSPARENT_GROUP } from './table.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
-const mesh = (name: string) => ({ name }) as unknown as HostMesh
+const mesh = (name: string) => ({ name }) as unknown as PageMesh
 // A placement is named by the world its root and its item read: here, one per mesh.
-const rec = (node: HostMesh, id: number, sourceOrder: number) =>
+const rec = (node: PageMesh, id: number, sourceOrder: number) =>
   ({
     id,
     sourceOrder,
@@ -18,8 +19,13 @@ const rec = (node: HostMesh, id: number, sourceOrder: number) =>
   }) as unknown as PageRec
 const root = (pages: PageRec[]) =>
   ({ pages, world: pages[0]?.drawSource?.node }) as unknown as ClusterRoot<PageRec>
-const item = (node: HostMesh) =>
-  ({ drawSource: { node }, matrix: node, paged: true }) as unknown as BlendGpuItem
+const item = (node: PageMesh) =>
+  ({
+    drawSource: { node },
+    matrix: node,
+    paged: true,
+    surface: { lit: true },
+  }) as unknown as BlendGpuItem
 
 test('a table appended to is the table an open of all its items makes, by exactly the rows added', () => {
   const [a, b, c] = [mesh('a'), mesh('b'), mesh('c')]

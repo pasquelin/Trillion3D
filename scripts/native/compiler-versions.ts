@@ -50,9 +50,6 @@ export function cacheVersions(cache: string): Record<string, string> {
     physicsStage: field(physics, 'stage', 'version'),
     jolt: field(physics, 'jolt'),
     lights: field(jsonIn(join(folder, 'lights.json')), 'sceneLightVersion'),
-    proxy: existsSync(join(folder, 'proxy.bin'))
-      ? String(headerVersion(join(folder, 'proxy.bin')))
-      : undefined,
     sceneTables: field(tables, 'version'),
     nodeTable: field(tables, 'nodeTableVersion'),
     materialTable: field(tables, 'materialTableVersion'),
@@ -72,7 +69,6 @@ const FAMILIES: { file: RegExp; versions: string[] | null }[] = [
   { file: /\/world-roots\.(bin|dag|table)$/, versions: ['worldRoots'] },
   { file: /\/manifest-page-<sha>\.bin$/, versions: ['manifestBinary', 'cacheFormat'] },
   { file: /\/lights\.json$/, versions: ['lights'] },
-  { file: /\/proxy\.bin$/, versions: ['proxy'] },
   {
     file: /\/scene-tables\.json$/,
     versions: ['sceneTables', 'nodeTable', 'materialTable', 'geometryTable', 'geometryPages'],

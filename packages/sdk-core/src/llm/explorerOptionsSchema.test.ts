@@ -1,3 +1,4 @@
+import { SHADING_RULES } from '../contracts/shadingOptions.ts'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Ajv } from 'ajv'
@@ -26,9 +27,15 @@ import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { BLOOM_RULES } from '../contracts/bloomRules.ts'
 import { GAUSSIAN_BLUR_RULES } from '../contracts/gaussianBlurRules.ts'
 import { FILM_RULES } from '../contracts/filmOptions.ts'
+import { COLOR_GRADING_RULES } from '../contracts/colorGradingOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
+import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.ts'
+import { SUBSURFACE_SCATTERING_RULES } from '../contracts/subsurfaceScatteringOptions.ts'
+import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
+import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
 import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
+import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
@@ -131,14 +138,21 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...BLOOM_RULES,
     ...GAUSSIAN_BLUR_RULES,
     ...FILM_RULES,
+    ...COLOR_GRADING_RULES,
     ...VOLUMETRIC_FOG_RULES,
+    ...TRANSLUCENCY_VOLUME_RULES,
+    ...TRANSLUCENCY_GI_RULES,
+    ...SUBSURFACE_SCATTERING_RULES,
+    ...SINGLE_LAYER_WATER_RULES,
     ...SCREEN_PROBE_RULES,
     ...REFLECTION_RULES,
+    ...SURFACE_CACHE_RULES,
     ...AMBIENT_OCCLUSION_RULES,
     ...TESSELLATION_RULES,
     ...DEPTH_OF_FIELD_RULES,
     ...EXPOSURE_RULES,
     ...SKY_QUALITY_RULES,
+    ...SHADING_RULES,
   }
   const advertised = Object.entries(EXPLORER_OPTIONS_SCHEMA.properties).filter(
     ([, property]) => property.type === 'boolean' && property.default !== undefined,

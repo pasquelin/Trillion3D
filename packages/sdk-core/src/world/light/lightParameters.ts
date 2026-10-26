@@ -1,37 +1,50 @@
-import type { AtmosphereSunIndex } from '../../scene/light/contracts.ts'
-import type { ShadowDistanceOption } from '../../contracts/shadowOptions.ts'
+import type { AtmosphereSunIndex, LightMobility } from '../../scene/light/contracts.ts'
+import type { LightUnits } from '../../scene/light/lightUnits.ts'
 import type { ColorInput } from '../math/color.ts'
 import type { Vec3Input } from '../math/vector3.ts'
 import type { LightFunctionParameters } from './lightFunctionSettings.ts'
 import type { LightShaftParameters } from './lightShaftSettings.ts'
 import type { LightCloudShadowParameters } from './lightCloudShadowSettings.ts'
+import type { LightShadowParameters } from './lightShadowSettings.ts'
 
 /** What a page may pass to a light member. */
 export interface LightParameters
-  extends LightFunctionParameters, LightShaftParameters, LightCloudShadowParameters {
+  extends
+    LightFunctionParameters,
+    LightShaftParameters,
+    LightCloudShadowParameters,
+    LightShadowParameters {
   /** The light's colour. */
   color?: ColorInput
-  /** How strong the light is. */
+  /** How strong the light is: lux for a directional light, a number in `intensityUnits` for a
+   *  point, spot or rectangle light; absent, 10 lux for a directional light, 5000 unitless
+   *  for a lamp, the light of 8 candelas written in its unit (an EV of 3, 8 candelas over its area
+   *  in nits), 1 for the others. */
   intensity?: number
+  /** The unit a point, spot or rectangle light's `intensity` is written in: `'unitless'` (the
+   *  default), `'candelas'`, `'lumens'`, `'nits'` or `'ev'` (`LIGHT_UNITS`). */
+  intensityUnits?: LightUnits
   /** Where the light stands. */
   position?: Vec3Input
   /** The point a directional or spot light shines at. */
   target?: Vec3Input
-  /** Whether objects in this light cast shadows. */
+  /** Whether objects in this light cast shadows; on by default. */
   castShadow?: boolean
   /** How far a point or spot light reaches; 0 means no limit. */
   distance?: number
   /** How fast the light fades with distance; 2 is how real light fades. */
   decay?: number
-  /** Half the opening of a spot light's cone, in radians. */
-  angle?: number
-  /** How soft a spot light's edge is, from 0 (sharp) to 1. */
-  penumbra?: number
+  /** Half the opening of a spot light's inner cone, in radians: the light is whole inside it; 0 by
+   *  default, full on the axis only. */
+  innerConeAngle?: number
+  /** Half the opening of a spot light's outer cone, in radians: the light fades to nothing at it,
+   *  by the square of a ramp in the cosine from the inner cone; 44° by default. */
+  outerConeAngle?: number
   /** The colour a hemisphere light gives from below. */
   groundColor?: ColorInput
-  /** Width of a rectangle light. */
+  /** Width of a rectangle light, in metres; 0.64 by default. */
   width?: number
-  /** Height of a rectangle light. */
+  /** Height of a rectangle light, in metres; 0.64 by default. */
   height?: number
   /** Radius of the emitting sphere of a point or spot light: its soft shadow's size, and how the
    *  lamp lights a surface — the horizon wraps a sphere, a highlight spreads. */
@@ -42,26 +55,38 @@ export interface LightParameters
   /** Soft radius of a point or spot light, in metres: it widens the highlight the lamp leaves
    *  without lighting more of the surface; 0 by default. */
   softRadius?: number
+  /** Whether a point or spot light falls off as the inverse square of the distance, windowed by
+   *  `distance`; `true` by default. Off, it falls off by `distance` alone, as `radialExponent`. */
+  inverseSquared?: boolean
+  /** The exponent of a point or spot light's fall-off where `inverseSquared` is off: the light is
+   *  one less the squared distance over the squared `distance`, to this power; 8 by default. */
+  radialExponent?: number
+  /** The share of its diffuse light the light gives, from 0 to 1; 1 by default. */
+  diffuseShare?: number
+  /** The share of its specular light the light gives, from 0 to 1; 1 by default. */
+  specularShare?: number
   /** Directional source angular radius, in radians. */
   angularRadius?: number
-  /** How far from the eye, in metres, a directional light's shadows are asked to reach, scaled by
-   *  the view's `shadowDistanceScale`: `true` or nothing 400, `false` none. The far-shadow test's
-   *  edge lies a little past it (427.0 at the defaults, the last near level's overlap into the next):
-   *  a caster whose depth along the view, less its radius, is past the edge, and whose object does
-   *  not set `castFarShadow`, is left out of the light's shadows. By default the test reaches the
-   *  world's merged far-field shells alone; the view's `farShadowCullsAllMeshes` makes it reach
-   *  every caster. */
-  shadowDistance?: ShadowDistanceOption
   /** Whether a directional light may be the sun of the sky module's atmosphere (`scene.sky`):
    *  of the lights that may, the brightest is; `true` by default. */
   atmosphereSun?: boolean
   /** Which of the atmosphere's two lights a directional light may be, 0 or 1 (a sun and a moon, or
    *  two suns): the brightest of those that may be is held for each; 0 by default. */
   atmosphereSunIndex?: AtmosphereSunIndex
+  /** Directional only: the light's priority for the one directional light the forward readers take
+   *  (the translucent surfaces' cloud shade, the volumetric fog): a whole number of at least 0, the
+   *  highest chosen, equals going to the brightest; 0 by default. */
+  forwardShadingPriority?: number
   /** How much of the light the volumetric fog and the clouds scatter: 0 leaves it out of both; 1. */
   fogScattering?: number
   /** Whether the light's shadow also shadows the volumetric fog; a directional light's does. */
   shadowsFog?: boolean
+  /** How the light is meant to move and be lit: `'static'`, `'stationary'` or `'movable'`;
+   *  `'stationary'` by default. */
+  mobility?: LightMobility
+  /** The factor on the resolution a point, spot or rectangle light's shadow is given, 0 or more; 1
+   *  by default. It acts on whether the light takes a shadow and how it fades: 0 takes it away. */
+  shadowResolutionScale?: number
   /** Whether the light's colour is multiplied by the colour of a black body at `temperatureKelvin`;
    *  off by default. */
   useTemperature?: boolean
@@ -73,6 +98,9 @@ export interface LightParameters
   /** Directional only: whether the air's transmittance toward the light is read for each surface
    *  point and not once at the ground; off by default. */
   transmittancePerPixel?: boolean
+  /** Whether the light shines through the subsurface-profile surfaces it shadows; off by default,
+   *  and acting on a movable light that casts a shadow alone. */
+  transmission?: boolean
   /** Directional only: the colour the sun's disk in the sky is multiplied by, linear; white by
    *  default. */
   sunDiskTint?: ColorInput

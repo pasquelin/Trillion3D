@@ -6,18 +6,18 @@ import {
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { families } from '../session/host/families.ts'
 import { assignDeformationOutputs, followPooledBlocks } from './outputs.ts'
-import { refreshBlendScene } from '../blend/sceneRefresh.ts'
+import { followBlendScene } from '../blend/resources.ts'
 
 /**
  * A growth of the float pool (`prepareWebgpuGeometry`'s `grown`): its wider buffers and the
  * blocks' table re-placed after them replace the runtime's; the rows and spans that read the
  * moved deformation block are pointed at it again (`followPooledBlocks`), and so are the
- * transparent records, which name a placement's record (`refreshBlendScene`).
+ * transparent records, which name a placement's record (`followBlendScene`).
  */
 function followPoolGrowth(rt: WebgpuPagesRuntime, device: GPUDevice, growth: VertexPoolGrowth) {
   Object.assign(rt.vis, growth)
   followPooledBlocks(rt)
-  refreshBlendScene(rt, device)
+  followBlendScene(rt, device)
   rt.run.gate.resourcesChanged()
 }
 
@@ -70,4 +70,6 @@ export async function prepareDeformationGeometry(rt: WebgpuPagesRuntime, device:
       setup.deformationBlocks,
     ),
   )
+  // The placements' records name the deformation's record and their pages' results, now placed.
+  layout.clusters.placementInfo.layOut(layout.selectionRoots.length)
 }

@@ -9,6 +9,7 @@ pub enum PageError {
     Version = 2,
     Bounds = 3,
     Index = 4,
+    Refs = 5,
 }
 
 impl PageError {
@@ -19,6 +20,7 @@ impl PageError {
             PageError::Version => "GEOMETRY_PAGE_VERSION",
             PageError::Bounds => "GEOMETRY_PAGE_BOUNDS",
             PageError::Index => "GEOMETRY_PAGE_INDEX",
+            PageError::Refs => "GEOMETRY_PAGE_REFS",
         }
     }
 }

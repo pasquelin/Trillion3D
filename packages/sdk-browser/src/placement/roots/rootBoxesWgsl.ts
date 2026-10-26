@@ -13,8 +13,8 @@
  *                              thread `j` is root `j`)
  *   rootWorlds  array<vec2u>   sixteen doubles a root
  *   rootInputs  array<vec2u>   seven doubles a root: its local box, then whether it has one
- *   rootBoxes   array<vec2u>   seven doubles a root: its world box, zero when it has no box, then
- *                              its stretch
+ *   rootBoxes   array<vec2u>   `ROOT_BOX_DOUBLES` a root: its world box, zero when it has no box, then
+ *                              its stretch, then its ball (the local box's centre carried, its radius), then its three half axes
  *   ranks       array<u32>     the roots listed
  *   frames      r32uint        the cut's frame words, written alone (`../../geometry/dag/frameTable.ts`):
  *                              a root's stretch, its own field

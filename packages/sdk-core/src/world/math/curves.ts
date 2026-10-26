@@ -6,6 +6,9 @@ import { TAU } from '../../../../math/src/constants.ts'
 import { hypot2 } from '../../../../math/src/float/hypot.ts'
 import { circlePoint } from '../../../../math/src/vector/vector.ts'
 
+/** The running arc length at each corner of the path `getPoint` is walking; grown when needed. */
+let lengths = new Float64Array(16)
+
 /**
  * Whether an outline's last point `b` repeats its first `a`: their distance under 1e-12, measured
  * by `hypot2`, the verdict every outline has been triangulated by. The length rule's root differs
@@ -120,10 +123,10 @@ export class Path extends Curve {
   getPoint(t: number, out = new Vector3()) {
     const pts = this.points
     if (pts.length < 2) return out.copy(pts[0] ?? new Vector3())
-    const lengths = [0]
-    for (let i = 1; i < pts.length; i++)
-      lengths.push(lengths[i - 1] + pts[i].distanceTo(pts[i - 1]))
-    const target = saturate(t) * lengths[lengths.length - 1]
+    if (pts.length > lengths.length) lengths = new Float64Array(pts.length)
+    lengths[0] = 0
+    for (let i = 1; i < pts.length; i++) lengths[i] = lengths[i - 1] + pts[i].distanceTo(pts[i - 1])
+    const target = saturate(t) * lengths[pts.length - 1]
     let i = 1
     // Stryker disable next-line all: a corner is on both pieces; t is clamped to the last
     while (i < pts.length - 1 && lengths[i] < target) i++

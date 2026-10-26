@@ -1,3 +1,5 @@
+import { oncePerDevice } from '../core/oncePerDevice.ts'
+import { standInTexture } from '../core/standIns.ts'
 import {
   BLUE_NOISE_PIXELS,
   BLUE_NOISE_VOLUME,
@@ -11,7 +13,7 @@ import {
 export const BLUE_NOISE_FORMAT: GPUTextureFormat = 'rgba8unorm'
 
 /** Bytes of the texture: four a texel. */
-export const BLUE_NOISE_TEXTURE_BYTES = BLUE_NOISE_PIXELS * 4
+const BLUE_NOISE_TEXTURE_BYTES = BLUE_NOISE_PIXELS * 4
 
 /** The blue noise on a device: its texture, `width × (depth · height)` texels read by `textureLoad` (`blueNoiseWgsl.ts`), and its view. */
 export interface BlueNoiseTextures {
@@ -32,7 +34,7 @@ function texelsOf(bytes: Uint8Array) {
 }
 
 /** The blue noise made on `device` from the file's bytes. */
-export function createBlueNoiseTextures(device: GPUDevice, bytes: Uint8Array): BlueNoiseTextures {
+function createBlueNoiseTextures(device: GPUDevice, bytes: Uint8Array): BlueNoiseTextures {
   const { width, height, depth } = BLUE_NOISE_VOLUME
   const size = [width, height * depth] as const
   const texture = device.createTexture({
@@ -105,3 +107,17 @@ export function blueNoiseNow(device: GPUDevice) {
   blueNoiseTextures(device).catch(() => undefined)
   return noises.get(device)?.textures
 }
+
+/** The blue noise of `device` if it is made, else none: asks nothing of the file (`blueNoiseNow` does). */
+export const blueNoiseMade = (device: GPUDevice) => noises.get(device)?.textures
+
+/** The one texel a pass that has no blue noise yet binds in its place (`noiseViewOn`): a single texel the
+ *  passes do not read, the graph frame saying whether the noise is there (`frame/render/graphFrame.ts`). */
+const neutral = oncePerDevice((device: GPUDevice) =>
+  standInTexture(device, 'Trillion3D neutral noise', BLUE_NOISE_FORMAT, {
+    storage: true,
+  }).createView(),
+)
+
+/** The blue noise view a pass binds on `device`: the engine's where it is made, else the stand-in. */
+export const noiseViewOn = (device: GPUDevice) => blueNoiseMade(device)?.view ?? neutral(device)

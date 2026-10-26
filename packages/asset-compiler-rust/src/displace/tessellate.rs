@@ -13,12 +13,12 @@
 use super::mesh::Soup;
 use super::policy::Displacer;
 use rayon::prelude::*;
-use std::collections::HashMap;
 use trillion3d_math::vector::vecn::{add, scale};
+use trillion3d_page_codec::hash::WordMap;
 
 /// The most triangles a tessellation makes: past it no triangle is split and, a mesh that begins
 /// at it, none is displaced.
-pub(super) const MAX_TRIANGLES: usize = 10_000_000;
+pub(crate) const MAX_TRIANGLES: usize = 10_000_000;
 
 /// The least cosine of the angle between the normals of two triangles whose shared edge may be
 /// flipped.
@@ -60,19 +60,22 @@ pub(super) struct Tessellation<'a> {
     pub records: Vec<Record>,
     /// The triangles to look at again.
     pub find: Vec<u32>,
-    /// The queue of requests, the first `split_count` of it valid while they are being made.
+    /// The queue of requests, the triangles to split.
     pub splits: Vec<u32>,
-    pub split_count: usize,
     /// The triangles the requests made so far add, which the cap counts.
     pub new_triangles: usize,
+    /// The most triangles the mesh may come to (`MAX_TRIANGLES`).
+    pub cap: usize,
 }
 
 /// Refines `mesh` as `policy` displaces it, to the squared error `target_error` and the sample
-/// rate (a length) `sample_rate`, and moves its vertices by their displacements.
+/// rate (a length) `sample_rate`, to at most `cap` triangles — `MAX_TRIANGLES` —, and moves its
+/// vertices by their displacements.
 pub(super) fn tessellate<'a>(
     mesh: Soup,
     policy: &'a Displacer<'a>,
     (target_error, sample_rate): (f32, f32),
+    cap: usize,
 ) -> Soup {
     let triangles = mesh.triangle_count();
     let mut work = Tessellation {
@@ -83,18 +86,17 @@ pub(super) fn tessellate<'a>(
         displacements: Vec::new(),
         records: vec![Record::default(); triangles],
         find: Vec::new(),
-        splits: vec![0; triangles],
-        split_count: 0,
+        splits: Vec::new(),
         new_triangles: 0,
+        cap,
     };
     work.displace_corners();
-    if triangles >= MAX_TRIANGLES {
+    if triangles >= cap {
         return work.mesh;
     }
     let all: Vec<u32> = (0..triangles as u32).collect();
     work.look(&all);
-    while work.split_count > 0 {
-        work.splits.truncate(work.split_count);
+    while !work.splits.is_empty() {
         work.splits.sort_unstable();
         for (at, &triangle) in work.splits.iter().enumerate() {
             work.records[triangle as usize].request = at as i32;
@@ -102,11 +104,9 @@ pub(super) fn tessellate<'a>(
         while let Some(triangle) = work.splits.pop() {
             work.split_triangle(triangle as usize);
         }
-        if work.mesh.triangle_count() >= MAX_TRIANGLES {
+        if work.mesh.triangle_count() >= cap {
             break;
         }
-        work.splits.resize(work.records.len(), 0);
-        work.split_count = 0;
         work.new_triangles = 0;
         let again = std::mem::take(&mut work.find);
         work.look(&again);
@@ -138,7 +138,9 @@ impl Tessellation<'_> {
         let this = &*self;
         let found: Vec<Option<[f32; 3]>> = triangles
             .par_iter()
-            .map(|&triangle| this.find_split(triangle as usize))
+            .map_init(Vec::new, |heap, &triangle| {
+                this.find_split(triangle as usize, heap)
+            })
             .collect();
         for (&triangle, split) in triangles.iter().zip(found) {
             if let Some(bary) = split {
@@ -153,41 +155,38 @@ impl Tessellation<'_> {
         let added = if bary.contains(&0.0) { 2 } else { 3 };
         let before = self.new_triangles;
         self.new_triangles += added;
-        if before < MAX_TRIANGLES.saturating_sub(self.mesh.triangle_count()) {
+        if before < self.cap.saturating_sub(self.mesh.triangle_count()) {
             self.records[triangle] = Record {
                 split: bary,
-                request: self.split_count as i32,
+                request: self.splits.len() as i32,
             };
-            self.splits[self.split_count] = triangle as u32;
-            self.split_count += 1;
+            self.splits.push(triangle as u32);
         }
     }
 
     /// Where the refinement ends: the vertices at one position take the mean of their
-    /// displacements, then every vertex moves by its own.
+    /// displacements, summed in vertex order, then every vertex moves by its own.
     fn finish(mut self) -> Soup {
         let vertices = self.mesh.vertex_count();
-        let at = |mesh: &Soup, vertex: usize| {
-            mesh.position(vertex as u32)
-                .map(|x| if x == 0.0 { 0 } else { x.to_bits() })
-        };
-        let mut together: HashMap<[u32; 3], Vec<usize>> = HashMap::new();
-        for vertex in 0..vertices {
-            together
-                .entry(at(&self.mesh, vertex))
-                .or_default()
-                .push(vertex);
-        }
         let mut old = std::mem::take(&mut self.displacements);
         old.resize(vertices, [f32::NAN; 3]);
-        for vertex in 0..vertices {
-            let same = &together[&at(&self.mesh, vertex)];
-            let sum = same
-                .iter()
-                .fold([0.0; 3], |sum, &other| add(sum, old[other]));
-            self.displacements.push(scale(sum, 1.0 / same.len() as f32));
+        // Per position, the sum of its vertices' displacements and their number.
+        let mut sums: Vec<([f32; 3], u32)> = Vec::new();
+        let mut slots: WordMap<[u32; 3], usize> = WordMap::default();
+        let mut slot_of = Vec::with_capacity(vertices);
+        for (vertex, &d) in old.iter().enumerate() {
+            let key = self.mesh.position_key(vertex as u32);
+            let slot = *slots.entry(key).or_insert_with(|| {
+                sums.push(([0.0; 3], 0));
+                sums.len() - 1
+            });
+            sums[slot] = (add(sums[slot].0, d), sums[slot].1 + 1);
+            slot_of.push(slot);
         }
-        for (vertex, &d) in self.displacements.iter().enumerate() {
+        for (vertex, slot) in slot_of.into_iter().enumerate() {
+            let (sum, count) = sums[slot];
+            let d = scale(sum, 1.0 / count as f32);
+            self.displacements.push(d);
             if finite(d) {
                 let moved = add(self.mesh.position(vertex as u32), d);
                 self.mesh.set_position(vertex, moved);

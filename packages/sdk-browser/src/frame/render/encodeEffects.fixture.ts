@@ -6,12 +6,12 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { AccumulatedImage } from '../../lighting/deferred/program.ts'
 import { families } from '../../session/host/families.ts'
 import { exposureSettings } from '../../post/exposure/frame.ts'
-import { encodeFinish } from '../../post/finish/frame.ts'
+import { beginFinishScene, encodeFinish } from '../../post/finish/frame.ts'
 
 // The effects' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
 await families.effects.load()
 
-export const input = { color: {}, share: {} } as AccumulatedImage
+export const input = { color: {} } as AccumulatedImage
 /** The kit's encoder the chains draw into, and the passes they begin there. */
 const { device: encoding, passes, computePasses } = fakeDevice()
 export { passes, computePasses }
@@ -50,4 +50,11 @@ export const framed = (
   device: GPUDevice,
   color: GPUTextureView = input.color,
   size: readonly number[] = [8, 4],
-) => encodeFinish(rt, device, encoder, color, size, false, exposureSettings(rt))
+) =>
+  encodeFinish(
+    rt,
+    device,
+    encoder,
+    beginFinishScene(rt, device, encoder, color, size, false),
+    exposureSettings(rt),
+  )

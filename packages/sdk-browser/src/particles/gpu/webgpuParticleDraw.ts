@@ -1,8 +1,13 @@
 import { PARTICLE_BLENDS, type ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 import { checkShaderModule } from '../../gpu/core/shaderModule.ts'
-import { buildRenderPipeline, preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import {
+  buildRenderPipeline,
+  preparedPipeline,
+  type PreparedPipeline,
+} from '../../lighting/deferred/fullscreen.ts'
+import { HOLDOUT_TARGET } from '../../blend/holdout.ts'
 import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
-import { DRAW_FLOATS, drawOrder, writeDrawWords } from '../drawWords.ts'
+import { DRAW, DRAW_FLOATS, drawOrder, writeDrawWords, writeViewAxes } from '../drawWords.ts'
 import { displayMaskLayout, type DisplayFilter } from '../../blend/display/displayFilter.ts'
 import { DISC_TOPOLOGY, PARTICLE_DRAW_WGSL, particleDrawShader } from './particlesWgsl.ts'
 import type { Clipping } from '../../gpu/core/clipDistances.ts'
@@ -72,7 +77,17 @@ function buildPipelines(
       },
     }),
   )
-  const made = { plain, routed, failed: false }
+  // The alpha holdout's accumulation, made at the first image that draws it.
+  let holdoutPipeline: PreparedPipeline<GPURenderPipeline> | undefined
+  const holdout = () =>
+    (holdoutPipeline ??= preparedPipeline(device, {
+      label: `${PARTICLE_DRAW_PASS} alpha holdout`,
+      layout: plainLayout,
+      vertex: { module, entryPoint: 'vs' },
+      primitive: { topology: DISC_TOPOLOGY },
+      fragment: { module, entryPoint: 'fsHoldout', targets: [HOLDOUT_TARGET] },
+    }))
+  const made = { plain, routed, holdout, failed: false }
   checkShaderModule(module, 'PARTICLE_DRAW')
     .then(() =>
       Promise.all(
@@ -91,25 +106,26 @@ function buildPipelines(
   return made
 }
 
-/** The draw's pass over `target`, the display layers' targets when `filter` routes, and
- *  `reactive`, all loaded; its viewport the `width × height` the image draws in, set once for
- *  every pool. */
+const drawTarget = { loadOp: 'load', storeOp: 'store' } as GPURenderPassColorAttachment
+const drawTargets: GPURenderPassColorAttachment[] = [drawTarget]
+const DRAW_PASS: GPURenderPassDescriptor = {
+  label: PARTICLE_DRAW_PASS,
+  colorAttachments: drawTargets,
+}
+
+/** The draw's pass over `target` and the display layers' targets when `filter` routes, all loaded; its viewport the
+ *  `width × height` the image draws in, set once for every pool. */
 function beginDraw(
   encoder: GPUCommandEncoder,
   target: GPUTextureView,
-  reactive: GPUTextureView,
   filter: DisplayFilter | undefined,
   width: number,
   height: number,
 ) {
-  const pass = encoder.beginRenderPass({
-    label: PARTICLE_DRAW_PASS,
-    colorAttachments: [
-      { view: target, loadOp: 'load', storeOp: 'store' },
-      ...(filter ? filter.attachments() : []),
-      { view: reactive, loadOp: 'load', storeOp: 'store' },
-    ],
-  })
+  drawTarget.view = target
+  drawTargets.length = 1
+  if (filter) drawTargets.push(...filter.attachments())
+  const pass = encoder.beginRenderPass(DRAW_PASS)
   pass.setViewport(0, 0, width, height, 0, 1)
   return pass
 }
@@ -131,44 +147,56 @@ function drawGroup(
 }
 
 /** How the image shows a pool, after its own words: `tone`'s scale and curve (1 and 0 without
- *  one) and pre-exposure (1), whether it is `unlit`, and the `width × height` the image draws in. */
+ *  one) and pre-exposure (1), the tone table's baking words `bake`, whether it is `unlit`, and the
+ *  `width × height` the image draws in. */
 function writeShowWords(
   words: Float32Array,
   tone: ArrayLike<number> | undefined,
+  bake: ArrayLike<number> | undefined,
   unlit: boolean,
   width: number,
   height: number,
 ) {
-  words[41] = tone?.[DIRECT_AT.shown] ?? 1
-  words[42] = tone?.[4] ?? 0
-  words[43] = unlit ? 1 : 0
-  words[44] = width
-  words[45] = height
-  words[46] = tone?.[DIRECT_AT.preExposure] ?? 1
+  words[DRAW.at.exposure] = tone?.[DIRECT_AT.shown] ?? 1
+  words[DRAW.at.curve] = tone?.[4] ?? 0
+  words[DRAW.at.unlit] = unlit ? 1 : 0
+  words[DRAW.at.drawn] = width
+  words[DRAW.at.drawn + 1] = height
+  words[DRAW.at.preExposure] = tone?.[DIRECT_AT.preExposure] ?? 1
+  if (bake) words.set(bake, DRAW.at.bake)
 }
 
-/** What an image draws the pools with: `encoder`, the lit image `target` of `size` — the size the
- *  image draws in (`renderScale.ts`) —, `reactive` whose green takes their coverage
- *  (`asIsShare.ts`), the opaque `depth` that softens their edge, `viewProj` and `eye`, `filter`
- *  routing a pool through the display layers where its mask is set, and `tone` (exposure, curve),
- *  or raw when `unlit`. */
+/** What an image draws the pools with: `encoder`, the translucency `target` of `size` — the size the
+ *  image draws in (`renderScale.ts`) —, the opaque `depth` that softens their edge, `viewProj` and the camera's
+ *  `world`, which gives the discs their axes, and `eye`, which orders the pools, `filter`
+ *  routing a pool through the display layers where its mask is set, `tone` (exposure, curve) and
+ *  `bake` (the colours the table gives), or raw when `unlit`. */
 export type ParticleView = {
   encoder: GPUCommandEncoder
   target: GPUTextureView
-  reactive: GPUTextureView
   depth: GPUTextureView
   size: readonly number[]
   viewProj: ArrayLike<number>
+  world: ArrayLike<number>
   eye: ArrayLike<number>
   filter?: DisplayFilter
   tone?: ArrayLike<number>
+  /** The pools of a set of passes of the image alone (`ParticlePool.translucencyPass`, the bits of
+   *  `translucencyPassBit`); every pool without it. */
+  passes?: number
+  /** The tone table's baking words (`../../lighting/toneLut.ts`), which a disc routed through the
+   *  display layers (`filter`) shows its colour through; none else reads them. */
+  bake?: ArrayLike<number>
   unlit?: boolean
   /** The view's clip plane in the world, `dot(xyz, p) + w` at least 0 drawn, all zero for a view
    *  that clips nothing (`../../frame/render/viewClip.ts`); none when absent. */
   clipPlane?: ArrayLike<number>
+  /** The alpha holdout's target (`../../blend/holdout.ts`): the premultiplied pools then lay what they let
+   *  through there, `target` unused, the others nothing. */
+  holdout?: GPUTextureView
 }
 
-/** The WebGPU particle draw: one pass over the lit image, one indirect instanced draw per live
+/** The WebGPU particle draw: one pass over the translucency target, one indirect instanced draw per live
  *  pool — its instances the window of live slots its step wrote —, the opaque depth read for the
  *  soft edge. Its pipelines compile in the background, a pool drawn once its blend's has arrived;
  *  those routed through the display layers are asked by the frame entry that draws such an image
@@ -191,18 +219,30 @@ export function createWebgpuParticleDraw(
       if (made.failed) return 0
       const { encoder, filter, eye } = view,
         [width, height] = view.size
-      // The same for every pool, beside the words each pool writes (`writeDrawWords`, 0–40).
-      writeShowWords(words, view.tone, view.unlit ?? false, width, height)
+      // The same for every pool, beside the words each pool writes (`writeDrawWords`).
+      writeShowWords(words, view.tone, filter && view.bake, view.unlit ?? false, width, height)
+      writeViewAxes(words, view.world)
       let pass: GPURenderPassEncoder | undefined,
         draws = 0
-      for (const pool of drawOrder(pools, eye, order)) {
-        const pipeline = filter ? made.routed.of(pool.blend).get() : made.plain[pool.blend],
+      for (const pool of drawOrder(pools, eye, order, view.passes)) {
+        if (view.holdout && pool.blend !== 'premultiplied') continue
+        const pipeline = view.holdout
+            ? made.holdout().get()
+            : filter
+              ? made.routed.of(pool.blend).get()
+              : made.plain[pool.blend],
           kept = stateOf(pool)
         if (!pipeline || !kept) continue
-        writeDrawWords(words, pool, view.viewProj, eye, view.clipPlane)
+        writeDrawWords(words, pool, view.viewProj, view.clipPlane)
         device.queue.writeBuffer(kept.draw, 0, words)
-        pass ??= beginDraw(encoder, view.target, view.reactive, filter, width, height)
-        if (filter) pass.setBindGroup(1, filter.maskGroup)
+        pass ??= beginDraw(
+          encoder,
+          view.holdout ?? view.target,
+          view.holdout ? undefined : filter,
+          width,
+          height,
+        )
+        if (filter && !view.holdout) pass.setBindGroup(1, filter.maskGroup)
         pass.setPipeline(pipeline)
         pass.setBindGroup(0, drawGroup(device, layout, kept, view.depth))
         // The live slots' span the step wrote (`particlesWgsl`): no slot past it is drawn.
@@ -217,6 +257,10 @@ export function createWebgpuParticleDraw(
      *  through the display layers. */
     askRouted() {
       for (const blend of PARTICLE_BLENDS) made.routed.of(blend).ask()
+    },
+    /** Asks the alpha holdout's accumulation off the frame, as `askRouted` does. */
+    askHoldout() {
+      made.holdout().ask()
     },
   }
 }

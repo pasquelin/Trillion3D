@@ -7,13 +7,13 @@ import type {
 import type { TableDocument } from '../../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { BufferAttribute } from '../../../../../sdk-core/src/world/buffer/attribute.ts'
 import { Mesh } from '../../../../../sdk-core/src/world/object/mesh.ts'
-import type { HostMesh } from '../../../session/host/resources.ts'
 import { standardSurface } from '../graph/graph.fixture.ts'
 import { preparedGraph } from './graph.ts'
 import { rootedUnder } from '../world/rooted.ts'
 import { Geometry } from '../../../../../sdk-core/src/world/geometry/geometry.ts'
 import { surfaceOf } from '../../../geometry/pages/surface.ts'
 import { drawSourceOf } from '../../../geometry/selection/drawSource.ts'
+import type { PageMesh } from '../../../geometry/pages/pageMesh.ts'
 
 /** A scene of one node drawing one mesh of two primitives, with the morph weights it declares. */
 function oneNode(name: string, weights: number[] | null, visible = true) {
@@ -52,7 +52,7 @@ test('weights a node declares reach every primitive of its mesh, the group holdi
   }
   const materialOf = () => Promise.resolve(standardSurface())
   const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
-  const parts: HostMesh[] = []
+  const parts: PageMesh[] = []
   scene.traverse((part) => part instanceof Mesh && parts.push(part))
   assert.equal(parts.length, 2)
   for (const part of parts) assert.deepEqual(part.morphTargetInfluences, [0.5])
@@ -65,17 +65,77 @@ test('the distances a node names are those every primitive of its mesh is drawn 
     return geometry
   }
   const materialOf = () => Promise.resolve(standardSurface())
-  const distances = [undefined, { min: 2, max: 80 }]
+  const distances = [undefined, { min: 2, max: 80, perInstance: false }]
   for (const drawDistance of distances) {
     const { tables, meshes } = oneNode('far', null)
     tables.nodes[0].drawDistance = drawDistance
     const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
     const read: unknown[] = []
     scene.traverse(
-      (part) => part instanceof Mesh && read.push(drawSourceOf(part as HostMesh).drawDistance),
+      (part) => part instanceof Mesh && read.push(drawSourceOf(part as PageMesh).drawDistance),
     )
     assert.deepEqual(read, [drawDistance, drawDistance])
   }
+})
+
+test('a node that casts far shadows makes every primitive of its mesh cast them', async () => {
+  const geometryOf = () => {
+    const geometry = new Geometry()
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
+    return geometry
+  }
+  const materialOf = () => Promise.resolve(standardSurface())
+  for (const castFarShadow of [undefined, true] as const) {
+    const { tables, meshes } = oneNode('far shadows', null)
+    tables.nodes[0].castFarShadow = castFarShadow
+    const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
+    const read: boolean[] = []
+    scene.traverse((part) => part instanceof Mesh && read.push(part.castFarShadow))
+    assert.deepEqual(read, [!!castFarShadow, !!castFarShadow])
+  }
+})
+
+test('a node that names a far-shadow test makes every primitive of its mesh reached by it, or never', async () => {
+  const geometryOf = () => {
+    const geometry = new Geometry()
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
+    return geometry
+  }
+  const materialOf = () => Promise.resolve(standardSurface())
+  for (const farShadowTest of [undefined, true, false] as const) {
+    const { tables, meshes } = oneNode('far test', null)
+    tables.nodes[0].farShadowTest = farShadowTest
+    const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
+    const read: (boolean | null)[] = []
+    scene.traverse((part) => part instanceof Mesh && read.push(part.farShadowTest))
+    const expected = farShadowTest ?? null
+    assert.deepEqual(read, [expected, expected])
+  }
+})
+
+test('the host nodes are listed by the source rank they name, those a cell draws among them', async () => {
+  const geometryOf = () => {
+    const geometry = new Geometry()
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
+    return geometry
+  }
+  const materialOf = () => Promise.resolve(standardSurface())
+  for (const streamed of [undefined, true] as const) {
+    const { tables, meshes } = oneNode('cloth', null)
+    tables.nodes[0].sourceNode = '00000007'
+    tables.nodes[0].streamed = streamed
+    const inputs = { tables, meshes, geometryOf, materialOf }
+    const { nodes, sourced, streams } = await preparedGraph(inputs)
+    assert.deepEqual([7 in sourced, 0 in sourced, sourced[7] === nodes[0]], [true, false, true])
+    assert.deepEqual([...streams], streamed ? [7] : [], 'by its source rank, not its table rank')
+  }
+  // The frame of a static object whose mesh a cell draws is a node a cell draws too: its collider
+  // streams with that cell.
+  const { tables, meshes } = oneNode('frame', null)
+  tables.nodes[0].sourceNode = '00000003'
+  tables.nodes[0].meshStreams = true
+  const { streams } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
+  assert.deepEqual([...streams], [3], 'the frame streams with its cell')
 })
 
 test('the group above each primitive’s root an instance of an assembly names is read by the primitive’s rank', async () => {
@@ -91,8 +151,7 @@ test('the group above each primitive’s root an instance of an assembly names i
   const read: unknown[] = []
   scene.traverse((part) => {
     if (!(part instanceof Mesh)) return
-    const source = drawSourceOf(part as HostMesh)
-    source.ranks = { meshes: 0, primitives: read.length }
+    const source = drawSourceOf(part as PageMesh, { meshes: 0, primitives: read.length })
     read.push(source.rootParent)
   })
   assert.deepEqual(read, [{ error: 6.5, sphere: [1.25, -2, 3, 40] }, undefined])
@@ -135,7 +194,7 @@ test('a node the table says hidden is built hidden, every primitive it draws wit
   for (const visible of [true, false]) {
     const { tables, meshes } = oneNode('piece', null, visible)
     const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
-    const parts: HostMesh[] = []
+    const parts: PageMesh[] = []
     scene.traverse((part) => part instanceof Mesh && parts.push(part))
     assert.equal(parts.length, 2)
     for (const part of parts)
@@ -176,7 +235,12 @@ test('a mesh a hidden core node names is placed visible by the cells', async () 
   }
   const materialOf = () => Promise.resolve(standardSurface())
   const { scene } = await preparedGraph({
-    tables: { ...tables, partition } as PreparedSceneTables,
+    // A node of a partitioned table names its source rank: its table rank would name another node.
+    tables: {
+      ...tables,
+      nodes: tables.nodes.map((node) => ({ ...node, sourceNode: '00000000' })),
+      partition,
+    } as PreparedSceneTables,
     meshes: single,
     geometryOf,
     materialOf,

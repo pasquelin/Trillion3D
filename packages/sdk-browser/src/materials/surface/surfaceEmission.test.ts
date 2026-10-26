@@ -8,19 +8,15 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { f16 } from '../../post/effects/bloom/bloom.fixture.ts'
 import { SHADE_SHADER } from '../../visibility/shader/shadeWgsl.ts'
-import { contractSurfaceBody } from '../../lighting/deferred/surfaceWgsl.ts'
 import {
   EMISSIVE_AO_FLAG_WGSL,
   SURFACE_EMISSIVE_AO_WGSL,
   surfaceEmitsOrOccludes,
 } from './surfaceEmission.ts'
-import {
-  EMISSIVE_AO_SURFACE_FLAG,
-  FOG_FREE_SURFACE_FLAG,
-  SURFACE_MODEL_MASK,
-} from './surfaceModel.ts'
+import { SURFACE_MODEL_MASK } from './surfaceModelWord.ts'
+import { EMISSIVE_AO_SURFACE_FLAG, FOG_FREE_SURFACE_FLAG } from './surfaceModel.ts'
 import { SUBSURFACE_FLAG } from './subsurface.ts'
-import { UNLIT_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { litPassShaders, UNLIT_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 
 type Texel = number[]
 const EDGES = [0, -0, 1e-9, 2 ** -24, 6e-5, 0.5, 1, 1 + 2 ** -12, 65504, 7e4, Infinity, -1, NaN]
@@ -85,7 +81,8 @@ test('the material pass writes the bit; the resolve and the unlit view fetch thr
     /return SurfaceOut\(vec4f\(rgb,metal\),vec4f\(N,rough\),vec4f\(emissive,ao\),flag\|emissiveAoFlag\(emissive,ao\),request\);/
   assert.match(SHADE_SHADER, lit)
   assert.match(SHADE_SHADER, /fn emissiveAoFlag\(/)
-  for (const reader of [contractSurfaceBody(false).text, UNLIT_LIGHTING_SHADER]) {
+  const passes = litPassShaders(false)
+  for (const reader of [passes.colour, passes.sun, UNLIT_LIGHTING_SHADER]) {
     assert.doesNotMatch(
       reader.replace(SURFACE_EMISSIVE_AO_WGSL.text, ''),
       /textureLoad\(emissiveAo/,

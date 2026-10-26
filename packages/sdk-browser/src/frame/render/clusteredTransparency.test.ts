@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { webgpuPagesEngine } from '../backend/pages.ts'
 import { installGpuGlobals, transparentDraws } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND, writtenBytes } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
@@ -13,6 +12,7 @@ import type { Engine } from '../../session/engine/types.ts'
 import { settledImage } from '../backend/settledImage.fixture.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 test('clustered transparency submits only visible pages in one two-sided mesh draw', async () => {
   installGpuGlobals()
@@ -20,6 +20,7 @@ test('clustered transparency submits only visible pages in one two-sided mesh dr
     { device, draws, writes } = fakeDevice(BACKEND)
   fixture.material.transparent = true
   G.sided(fixture.material, G.DOUBLE_SIDE)
+  fixture.material.twoSidedPasses = true
   fixture.geometry.setAttribute(
     'position',
     G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0, 99, -1, 0, 101, -1, 0, 100, 1, 0], 3),
@@ -110,6 +111,7 @@ test('clustered transparency switches LOD with resident coverage and retains bot
     { device } = fakeDevice(BACKEND)
   fixture.material.transparent = true
   G.sided(fixture.material, G.DOUBLE_SIDE)
+  fixture.material.twoSidedPasses = true
   fixture.metadata.primitives[0].pass = 'clustered-blend'
   fixture.metadata.primitives[0].pages[2].count = 3
   fixture.metadata.primitives[0].pages[2].bytes = 12
@@ -168,7 +170,7 @@ test('a transparent switched to double-sided still expands all its instances', a
   // Single-sided at prepare: one plan entry, and half the room.
   G.sided(fixture.material, G.FRONT_SIDE)
   fixture.metadata.primitives[0].pass = 'clustered-blend'
-  const mesh = fixture.source.children[0] as HostMesh
+  const mesh = fixture.source.children[0] as PageMesh
   const backend = webgpuPagesEngine({
     textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
@@ -181,6 +183,7 @@ test('a transparent switched to double-sided still expands all its instances', a
     backend.render(camera())
     await backend.flush()
     G.sided(fixture.material, G.DOUBLE_SIDE)
+    fixture.material.twoSidedPasses = true
     // A move, and the scene rebuilds its plan: that is where the item gains its second entry.
     mesh.position.x = 0.1
     mesh.updateMatrixWorld(true)

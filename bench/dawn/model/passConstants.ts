@@ -1,17 +1,8 @@
 // What the cost model's passes (`passes.ts`) are written in: the frame they count, a pass's shape,
 // and their constants, each the shipped code's, the source that holds it cited beside the pass
 // that counts it.
-import { RECEIVER_TARGET_BYTES } from '../../../packages/sdk-browser/src/visibility/shader/receiverTargetWgsl.ts'
-import { countTaaFetches } from '../../runner/counts/taaFetchCount.ts'
-import {
-  hizCullAccesses,
-  hizLevelTexels,
-  hizNearestAccesses,
-} from '../../runner/counts/frameBudgetRates.ts'
-import {
-  REFLECTION_CONSTANTS,
-  REFLECTION_SIDE,
-} from '../../../packages/sdk-browser/src/lighting/reflections/constants.ts'
+import { countTaaFetches, type TaaPass } from '../../runner/counts/taaFetchCount.ts'
+import { hizCullAccesses, hizNearestAccesses } from '../../runner/counts/frameBudgetRates.ts'
 import {
   DEFAULT_REFLECTION_LEVEL,
   REFLECTION_LEVEL_KNOBS,
@@ -56,53 +47,58 @@ export const core = (path: string, symbol: string): Source => ({
   symbol,
 })
 
-/** Bytes of a covered pixel's material surfaces: three rgba16float, the r32uint flags, the shadow
- *  receiver (`RECEIVER_TARGET_BYTES`). */
-export const SURFACE_BYTES = 3 * 8 + 4 + RECEIVER_TARGET_BYTES
-/** Bytes a pixel the material pass's clear writes: the three rgba16float surfaces and the flags. */
-export const SURFACE_CLEAR_BYTES = 3 * 8 + 4
+/** Bytes of a covered pixel's material surfaces, and of a pixel the material pass's clear writes:
+ *  three rgba16float, the r32uint flags. */
+export const SURFACE_BYTES = 3 * 8 + 4
 /** The material surfaces' fetches a covered pixel: its identifier, its triangle's three indices,
  *  three attributes of each of its three vertices. */
 export const SURFACE_FETCHES = 1 + 3 + 3 * 3
-/** The deferred resolve's reads of a covered pixel: the r32uint flags, base, depth, normal,
- *  emission and occlusion (`LIGHT_SURFACE_ENTRY`), the receiver and the mask word and tile
- *  (`directShadowWgsl`); its fetches, one a texture; its writes: the HDR and the unfogged source. */
-export const LIGHTING_READ = 4 + 8 + 4 + 8 + 8 + 8 + 4 + 4,
-  LIGHTING_FETCHES = 7,
-  LIGHTING_WRITE = 8 + 8
-/** The shadow setup's footprint: eight neighbour depths a covered pixel (ENGINE.md, "Direct
- *  lighting"), the screen ray's depth reads (`vsmScreenRayCast`): the start and its four samples
- *  (`VSM_SCREEN_RAY_SAMPLES`); the bytes a covered pixel's projection reads and writes. */
-export const FOOTPRINT = 8,
-  SCREEN_RAY = 1 + 4,
+/** What the lighting's passes read of a covered pixel, in bytes: the r32uint flags (4), the base colour
+ *  and metalness (8), the normal and roughness (8), the emission and occlusion (8), the depth (4); the
+ *  surface colour pass reads no normal nor depth, the fog pass the flags and the depth alone. */
+export const PIXEL_FLAGS = 4,
+  PIXEL_BASE = 8,
+  PIXEL_NORMAL = 8,
+  PIXEL_EMISSION = 8,
+  PIXEL_DEPTH = 4
+/** The lit image's texel, rgba16float: a pass that adds to it reads it and writes it again. */
+export const HDR_TEXEL = 8
+/** A covered pixel's shadow mask: the tile word and the layer's word (`vsmMaskWgsl`), and the reflection
+ *  target's texel and the ambient occlusion's byte the indirect pass reads. */
+export const MASK_BYTES = 4 + 4,
+  REFLECTION_BYTES = 8,
+  OCCLUSION_BYTES = 1
+/** The shadow ray's depth reads: the start and its four samples (`vsmScreenRayCast`); the bytes a covered
+ *  pixel's projection reads and writes. */
+export const SCREEN_RAY = 1 + 4,
   PROJECTION_BYTES = 21
 /** A shadow ray's sample: a page-table word, then the depth texel it names. */
 export const SAMPLE_FETCHES = 2
-/** Lights a mask layer holds, a 4-byte word a pixel each. */
-export const LIGHTS_A_LAYER = 4
-/** TAA: its four targets, rgba16float, rgba8unorm, rg32uint, r32uint (`resolveTargetUsage`),
- *  written and read back as history; its render inputs read once: colour, depth, identifier,
- *  the r32uint flags, and the history the blends give up (r8, `GIVEN_UP_FORMAT`) — bound only where a blend
- *  gives some up, counted always: the model's frame does not say. Its fetches a display pixel are its shipped passes' (`countTaaFetches`), at the finest
- *  level: half the display per axis below it, else the display's. */
-export const TAA_TARGET_BYTES = 8 + 4 + 8 + 4,
-  TAA_INPUT_BYTES = 8 + 4 + 4 + 4 + 1
-export const taaFetches = (f: Pick<Frame, 'P' | 'D'>) =>
-  countTaaFetches(f.P < 0.9 * f.D ? 0.5 : 1).perDisplayPixel
+/** The fetches a display pixel of pass `pass`: an analysis pass's a render texel times the render
+ *  texels a display pixel holds (half the display per axis below it, else the display's), the
+ *  update's and the resolves' their own. */
+export const taaPassFetches = (f: Pick<Frame, 'P' | 'D'>, pass: TaaPass) => {
+  const scale = f.P < 0.9 * f.D ? 0.5 : 1
+  const fetches = countTaaFetches(scale).passes[pass]
+  const display = pass === 'updateHistory' || pass.startsWith('resolve')
+  return display ? fetches : fetches * scale * scale
+}
 /** The cut's dependent dispatches per frame (`encodeDagKernels`), a cut in one pass, counted on its
- *  encoder by the model's test: ten whatever the levels — the first arming, clear, prepare, the
- *  wanted, the mask and the scatter each behind its arming, prefix, commit; pass 0 runs flat,
- *  unarmed, one less —, and two a level — its kernel and its arming —; the levels the model
- *  counts. */
-export const DAG_FIXED_DISPATCHES = 10,
+ *  encoder by the model's test: five whatever the levels — prepare, the wanted behind its arming,
+ *  the finish, the drawn list behind its arming; pass 0 runs flat, unarmed, one less —, and two a
+ *  level — its kernel and its arming —; the levels the model counts. */
+export const DAG_FIXED_DISPATCHES = 5,
   DAG_LEVEL_DISPATCHES = 2,
   DAG_LEVELS = 8
-/** The partition's bytes a cluster: its row, then its counts (`encodeVis`). */
-export const PARTITION_ROW = 64,
-  PARTITION_COUNTS = 16
+/** The binning's dependent dispatches a raster pass (`createGpuDecode`, `createGpuBins`): the plan,
+ *  the decode, the deformation's plan, the count, the reservation, the scatter and the finalizing. */
+export const BINNING_DISPATCHES = 7
 /** The visibility work buffer's bytes a pixel: the depth key and the identifier, two u32 words
  *  each phase of the hardware and software rasters writes by atomic maximum. */
 export const VISIBILITY_BYTES = 4 + 4
+/** The export's shading mask a pixel (`visibility/raster/exportWgsl.ts`): one r32uint word, the pixel's
+ *  bin, which the bins' kernels read in place of the identifier. */
+export const SHADING_MASK_BYTES = 4
 /** The shading bins' words: a pixel's 4-byte identifier, read by the count and by the scatter, and
  *  a covered pixel's 4-byte word, written by the scatter and read by its class. */
 export const BIN_WORD_BYTES = 4
@@ -119,11 +115,10 @@ export const MARCH_ITERATIONS = 16,
   MARCH_FETCHES = 3
 /** What a reflecting pixel's screen stage reads besides its march (`traceScreen`): its flags, depth,
  *  normal and lobes; at the hit, two texels for whether the surface is a transparent one
- *  (`hizFrontOver`) and two for the footprint's depth weight (`reflectionDepthWeight`), then the
- *  radiance pyramid's taps of its footprint (`REFLECTION_TAPS` at most, `reflectionFootprint`); it
+ *  (`hizFrontOver`) and the one texel of the last lit image it lands in (`reflectionSeenAnswer`); it
  *  writes its 16-byte fresh texel and its 4-byte direction. A ray the screen left reads, in the scene
  *  stage (`traceScene`), its 16-byte entry, its partial texel, its pixel's flags, depth, normal and
- *  lobes, and writes its fresh texel; its walk of the proxy is the scene's, unmodelled here. The
+ *  lobes, and writes its fresh texel; its march of the field and its read of the cache are the scene's, unmodelled here. The
  *  spatial reuse reads the fresh texel and the pixel's depth and normal, and each neighbour's texel,
  *  depth, normal and direction (the default level's `reconstructionSamples`, `REFLECTION_LEVEL_KNOBS`;
  *  the widening reads `reflectionBilateralSamples`); the temporal accumulation the scratch
@@ -132,8 +127,7 @@ export const MARCH_ITERATIONS = 16,
  *  each writes 16 bytes, the last 8 (`HDR_FORMAT`). */
 export const TRACE_SHARE = REFLECTION_LEVEL_KNOBS[DEFAULT_REFLECTION_LEVEL].downsample ** 2,
   TRACE_LOADS = 4,
-  HIT_LOADS = 2 + 2,
-  HIT_TAPS = REFLECTION_CONSTANTS.REFLECTION_TAPS,
+  HIT_LOADS = 2 + 1,
   SCENE_LOADS = 2 + 4,
   GRID_BYTES = 16,
   RAY_BYTES = 4,
@@ -141,14 +135,6 @@ export const TRACE_SHARE = REFLECTION_LEVEL_KNOBS[DEFAULT_REFLECTION_LEVEL].down
   TEMPORAL_LOADS = 3 + 4 + 21,
   BILATERAL_LOADS = 5 + REFLECTION_RULES.reflectionBilateralSamples.default,
   TARGET_BYTES = 8
-/** The radiance pyramid (`RADIANCE_SHADER`): the lit image's 8 bytes a pixel read once and written
- *  as level 0, the coarser levels written beside; the odd levels filled by four bilinear taps a
- *  texel over a tile with a texel of halo each side (`radianceFill`), the even ones summed in
- *  workgroup memory. */
-export const RADIANCE_BYTES = 8,
-  RADIANCE_TAPS = 4,
-  RADIANCE_HALO = ((2 * REFLECTION_SIDE + 2) / (2 * REFLECTION_SIDE)) ** 2
-
 /** The size of a P-pixel 16:9 image. */
 const sizeOf = (P: number) => {
   const w = Math.round(Math.sqrt(P * (16 / 9)))
@@ -159,10 +145,6 @@ const sizeOf = (P: number) => {
  *  (`hizNearestAccesses`). */
 export const hizCullTexels = (P: number) => hizCullAccesses(...sizeOf(P))
 export const hizNearestTexels = (P: number) => hizNearestAccesses(...sizeOf(P))
-/** Texels of the coarser levels of a P-pixel image's pyramid, and of the radiance pyramid's odd
- *  levels (a quarter of the image, and a sixteenth of that again, and so on). */
-export const coarserTexels = (P: number) => hizLevelTexels(...sizeOf(P)).upper
-export const oddLevelTexels = (P: number) => (P / 4) * (16 / 15)
 
 /** The composition: the HDR read, the capture and the canvas written. */
 export const COMPOSE_READ = 8,

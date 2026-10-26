@@ -1,7 +1,7 @@
 import type { GpuPassTimings } from '../../../../../sdk-core/src/contracts/metrics.ts'
 import type { createGpuTiming } from '../../../gpu/timing/timing.ts'
 import type { SelectionSubmission } from '../../../gpu/core/selection.ts'
-import { CPU_STEP_NAMES, CPU_STEP_STAGES } from '../../render/cpuStepTable.ts'
+import { CPU_STEP_NAMES, CPU_STEP_STAGES } from '../../../diagnostic/stage/cpuStepTable.ts'
 import {
   createStageProfiler,
   type CpuStepWindow,
@@ -21,7 +21,7 @@ type GpuCutMarks = Record<
   | 'adoptEnd'
   | 'admissionEnd'
   | 'queueEnd'
-  | 'rowsEnd'
+  | 'clustersEnd'
   | 'residencyUploadEnd'
   | 'selectionEnd'
   | 'encodeStart'
@@ -140,7 +140,7 @@ export function createWebgpuTimingState(
       adoptEnd: 0,
       admissionEnd: 0,
       queueEnd: 0,
-      rowsEnd: 0,
+      clustersEnd: 0,
       residencyUploadEnd: 0,
       selectionEnd: 0,
       encodeStart: 0,

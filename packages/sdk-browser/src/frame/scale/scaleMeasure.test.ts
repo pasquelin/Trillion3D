@@ -3,8 +3,7 @@
 // half the refresh from its stretched intervals. The loop's first frames measure whatever came first.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createScaleControl } from './scaleControl.ts'
-import { fitting, HZ120, simulate } from './scaleFit.fixture.ts'
+import { fitting, HZ120, refreshControl, simulate } from './scaleFit.fixture.ts'
 
 /** The non-GPU share of every frame, ms. */
 const OTHER = 0.6
@@ -12,7 +11,7 @@ const OTHER = 0.6
 const tail = <T>(list: T[], n: number) => list.slice(list.length - n)
 
 test('explicit renders before the loop, every other refresh: the loop still finds 120 Hz', () => {
-  const control = createScaleControl('auto'),
+  const control = refreshControl('auto'),
     clock = { now: 0, frame: 0 },
     page = { gpu: (s: number) => 16 * s * s, other: () => OTHER }
   for (let i = 0; i < 12; i++) {

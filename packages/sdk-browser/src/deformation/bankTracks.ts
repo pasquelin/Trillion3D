@@ -16,9 +16,9 @@
  *   frame (`play`): while its row — or its node — plays a track and it animates by the screen size
  *   rule, the track's record and the result blocks every root playing it shares (`shared`, made by
  *   `assignDeformationOutputs`, `DeformationOutput.shared`); while it plays one under its screen
- *   size, nothing: its rest pages, drawn at its world — its skin's frame, the space the bake's
- *   palette is in; while it plays none, its own record and results, those of its rows' moving
- *   sources, or nothing.
+ *   size, its rest pages, drawn at its world — its skin's frame, the space the bake's palette is
+ *   in: it is skinned in no view where it does not animate; while it plays none, its own record and
+ *   results, those of its rows' moving sources, or nothing.
  *
  * The screen size rule is `bankScreen.ts`'s, the tracks a root can play `rootTracks.ts`'s.
  */
@@ -37,8 +37,9 @@ import { RECORD_HEAD } from './layout.ts'
 /** Words of a track's row in the table the bank pass reads (`bankWgsl.ts`), in this order: its
  *  record's palette — its first float in the deformation block, which the pass's record places in
  *  the float pool —, its bake's joints and frames, where the bake's inverse binds and keys start
- *  among the banks' floats (`pool`): the words its join writes; then the second it draws this frame
- *  and the one it drew the frame before (two floats, `write`), and a word of padding. */
+ *  among the banks' floats (`pool`), and its rate in frames a second (a float): the words its join
+ *  writes; then the second it draws this frame and the one it drew the frame before (two floats,
+ *  `write`), then whether the pass poses it this frame (`play`: a root reads its palettes). */
 const BANK_TRACK = {
   palette: 0,
   joints: 1,
@@ -47,7 +48,9 @@ const BANK_TRACK = {
   keys: 4,
   time: 5,
   previous: 6,
-  words: 8,
+  rate: 7,
+  used: 8,
+  words: 9,
 } as const
 
 /** The result blocks the roots playing one track share, by the roots' page list then by track:
@@ -95,75 +98,119 @@ const trackRecord = (banks: AnimationBanks, item: number): Deformed => ({
   track: true,
 })
 
-/** The tracks of a session whose records are `frame`'s (the header). */
-export function createBankTracks(frame: DeformationFrame) {
-  /** Each track: its banks, its item, and its record's rank in the frame. */
-  const tracks: { banks: AnimationBanks; item: number; entry: number }[] = []
-  /** The banks joined, in order, where each one's floats start among all of them, and each one's
-   *  first track. */
-  const joined: AnimationBanks[] = [],
-    starts: number[] = [],
-    firsts = new Map<AnimationBanks, number>()
-  const shared: SharedOutputs = new WeakMap()
+/** What the tracks hold: each one's banks, item and record's rank in the frame; the banks joined,
+ *  where each one's floats start among all of them, and each item's track; the table the bank
+ *  pass reads. */
+type TrackTable = {
+  tracks: { banks: AnimationBanks; item: number; entry: number }[]
+  joined: AnimationBanks[]
+  starts: number[]
+  firsts: Map<AnimationBanks, number[]>
+  floats: number
+  revision: number
+  interpolate: boolean
+  table: Uint32Array<ArrayBuffer>
+  tableFloats: Float32Array<ArrayBuffer>
+}
+
+/** The rank of `track` among the tracks, -1 for one of banks no record holds. */
+const rankOf = (t: TrackTable, track: BankTrack) => t.firsts.get(track.banks)?.[track.item] ?? -1
+
+/** `banks` gets a record for each of its items, behind the records held, and the static words
+ *  of their rows; a banks held already gets none. */
+function joinBanks(t: TrackTable, frame: DeformationFrame, banks: AnimationBanks) {
+  const { tracks, firsts } = t
+  if (firsts.has(banks)) return
+  const ranks: number[] = []
+  firsts.set(banks, ranks)
+  const first = frame.append(banks.items.map((_, item) => trackRecord(banks, item)))
+  const grown = new Uint32Array((tracks.length + banks.items.length) * BANK_TRACK.words)
+  grown.set(t.table)
+  const table = (t.table = grown)
+  const tableFloats = (t.tableFloats = new Float32Array(table.buffer))
+  for (let item = 0; item < banks.items.length; item++) {
+    const { joints, frames, inverseAt, keysAt, rate } = banks.bakes[banks.items[item].bake],
+      row = tracks.length * BANK_TRACK.words
+    // A record keeps its place in the block: the block alone moves in the pool.
+    table[row + BANK_TRACK.palette] = frame.bases[first + item] - 1 + RECORD_HEAD
+    table[row + BANK_TRACK.joints] = joints
+    table[row + BANK_TRACK.frames] = frames
+    table[row + BANK_TRACK.inverse] = t.floats + inverseAt
+    table[row + BANK_TRACK.keys] = t.floats + keysAt
+    tableFloats[row + BANK_TRACK.rate] = rate
+    ranks[item] = tracks.length
+    tracks.push({ banks, item, entry: first + item })
+  }
+  t.joined.push(banks)
+  t.starts.push(t.floats)
+  t.floats += banks.pool.length
+  t.revision++
+}
+
+/** The table's words of this frame: no track used yet (`playRoot` marks those a root reads), the seconds each track's clock draws now and drew before;
+ *  every clock advances by the world's seconds times `timeScale` from its next step on
+ *  (`animationBankTimeScale`), and a track blends its keys when `blend` says so
+ *  (`animationBankInterpolation`). */
+function writeTrackTable(t: TrackTable, timeScale: number, blend: boolean) {
+  const { tracks, joined, tableFloats } = t
+  t.interpolate = blend
+  for (let k = 0; k < joined.length; k++) joined[k].clock.timeScale = timeScale
+  for (let i = 0, row = 0; i < tracks.length; i++, row += BANK_TRACK.words) {
+    const { banks, item } = tracks[i]
+    t.table[row + BANK_TRACK.used] = 0
+    tableFloats[row + BANK_TRACK.time] = banks.clock.time[item]
+    tableFloats[row + BANK_TRACK.previous] = banks.clock.previous[item]
+  }
+}
+
+/** What one banked root reads this frame, seen by `cam` (`createBankTracks`.`play`). */
+function playRoot(
+  banked: BankedRoot,
+  t: TrackTable,
+  frame: DeformationFrame,
+  shared: SharedOutputs,
+  cam: EngineCamera,
+  multiple: number,
+  minScreenSize: number,
+) {
+  const { root } = banked,
+    track = banked.mesh.bank,
+    at = track ? rankOf(t, track) : -1
+  let reads = banked.idle,
+    outputs = reads === OWN ? banked.own : undefined
+  if (track && at >= 0) {
+    outputs = shared.get(root.pages)?.get(track)
+    reads = REST
+    if (outputs && animates(root, track, multiple * multiple, cam.eye, minScreenSize)) reads = at
+  }
+  if (reads >= 0) {
+    t.table[reads * BANK_TRACK.words + BANK_TRACK.used] = 1
+    const { banks, item } = t.tracks[reads]
+    banked.reach = boundsReach(banks.items[item].bounds, root.localBox)
+    banked.moved = banks.clock.time[item] !== banks.clock.previous[item]
+  } else if (reads === OWN) {
+    banked.reach = frame.reach[banked.entry]
+    banked.moved = frame.dirty[banked.entry] === 1
+  } else {
+    banked.reach = 0
+    banked.moved = false
+    outputs = undefined
+  }
+  banked.flipped = reads !== banked.reads
+  if (!banked.flipped) return
+  // What it draws is another pose: its shadows are drawn again.
+  banked.moved = true
+  banked.reads = reads
+  root.deformationOutputs = outputs
+}
+
+/** The banked roots, in the order they joined, and by rank: how one is added, whether it plays
+ *  a track and the record its rows name. */
+function createBankedRoots(frame: DeformationFrame, t: TrackTable) {
   const roots: BankedRoot[] = [],
     byRank: (BankedRoot | undefined)[] = []
-  let floats = 0,
-    revision = 0,
-    interpolate = true,
-    table = new Uint32Array(0),
-    tableFloats = new Float32Array(0)
-  /** The rank of `track` among the tracks, -1 for one of banks no record holds. */
-  const rankOf = (track: BankTrack) => {
-    const first = firsts.get(track.banks)
-    return first === undefined || track.item >= track.banks.items.length ? -1 : first + track.item
-  }
   return {
-    /** The result blocks the roots playing each track share (`assignDeformationOutputs`). */
-    shared,
-    /** The banked roots, in the order they joined. */
-    roots: roots as readonly BankedRoot[],
-    /** The tracks held: the rows of the table. */
-    get count() {
-      return tracks.length
-    },
-    /** Moves each time a banks joins: the floats to send again (`pool`). */
-    get revision() {
-      return revision
-    },
-    /** The table the bank pass reads, `BANK_TRACK.words` words a track. */
-    get table() {
-      return table
-    },
-    /** Whether a track blends its two nearest keys this frame (`animationBankInterpolation`). */
-    get interpolate() {
-      return interpolate
-    },
-    /** `banks` gets a record for each of its items, behind the records held, and the static words
-     *  of their rows; a banks held already gets none. */
-    join(banks: AnimationBanks) {
-      if (firsts.has(banks)) return
-      firsts.set(banks, tracks.length)
-      const first = frame.append(banks.items.map((_, item) => trackRecord(banks, item)))
-      const grown = new Uint32Array((tracks.length + banks.items.length) * BANK_TRACK.words)
-      grown.set(table)
-      table = grown
-      tableFloats = new Float32Array(table.buffer)
-      banks.items.forEach(({ bake }, item) => {
-        const { joints, frames, inverseAt, keysAt } = banks.bakes[bake],
-          row = tracks.length * BANK_TRACK.words
-        // A record keeps its place in the block: the block alone moves in the pool.
-        table[row + BANK_TRACK.palette] = frame.bases[first + item] - 1 + RECORD_HEAD
-        table[row + BANK_TRACK.joints] = joints
-        table[row + BANK_TRACK.frames] = frames
-        table[row + BANK_TRACK.inverse] = floats + inverseAt
-        table[row + BANK_TRACK.keys] = floats + keysAt
-        tracks.push({ banks, item, entry: first + item })
-      })
-      joined.push(banks)
-      starts.push(floats)
-      floats += banks.pool.length
-      revision++
-    },
+    roots,
     /** Root `rank` can play a track, `mesh` naming the one it plays (`DeformedMesh.bank`), its own
      *  record at `entry` of the frame and its own results those it holds now. */
     add(rank: number, root: ClusterRoot<PageRec>, mesh: DeformedMesh, entry: number) {
@@ -191,29 +238,52 @@ export function createBankTracks(frame: DeformationFrame) {
     named(rank: number) {
       const banked = byRank[rank]
       if (!banked) return undefined
-      if (banked.reads >= 0) return tracks[banked.reads].entry
+      if (banked.reads >= 0) return t.tracks[banked.reads].entry
       return banked.reads === OWN ? banked.entry : -1
     },
+  }
+}
+
+/** The tracks of a session whose records are `frame`'s (the header). */
+export function createBankTracks(frame: DeformationFrame) {
+  const t: TrackTable = {
+    ...{ tracks: [], joined: [], starts: [], firsts: new Map() },
+    ...{ floats: 0, revision: 0, interpolate: true },
+    ...{ table: new Uint32Array(0), tableFloats: new Float32Array(0) },
+  }
+  const shared: SharedOutputs = new WeakMap()
+  const { roots, add, plays, named } = createBankedRoots(frame, t)
+  return {
+    /** The result blocks the roots playing each track share (`assignDeformationOutputs`). */
+    shared,
+    /** The banked roots, in the order they joined. */
+    roots: roots as readonly BankedRoot[],
+    /** The tracks held: the rows of the table. */
+    get count() {
+      return t.tracks.length
+    },
+    /** Moves each time a banks joins: the floats to send again (`pool`). */
+    get revision() {
+      return t.revision
+    },
+    /** The table the bank pass reads, `BANK_TRACK.words` words a track. */
+    get table() {
+      return t.table
+    },
+    /** Whether a track blends its two nearest keys this frame (`animationBankInterpolation`). */
+    get interpolate() {
+      return t.interpolate
+    },
+    join: (banks: AnimationBanks) => joinBanks(t, frame, banks),
+    ...{ add, plays, named },
     /** Every banks' floats end to end, each from where its tracks' rows say: what the bank pass
      *  reads, made again when one joins (`revision`). */
     pool() {
-      const all = new Float32Array(floats)
-      joined.forEach((banks, k) => all.set(banks.pool, starts[k]))
+      const all = new Float32Array(t.floats)
+      t.joined.forEach((banks, k) => all.set(banks.pool, t.starts[k]))
       return all
     },
-    /** The table's words of this frame: the seconds each track's clock draws now and drew before;
-     *  every clock advances by the world's seconds times `timeScale` from its next step on
-     *  (`animationBankTimeScale`), and a track blends its keys when `blend` says so
-     *  (`animationBankInterpolation`). */
-    write(timeScale: number, blend: boolean) {
-      interpolate = blend
-      for (let k = 0; k < joined.length; k++) joined[k].clock.timeScale = timeScale
-      for (let t = 0, row = 0; t < tracks.length; t++, row += BANK_TRACK.words) {
-        const { banks, item } = tracks[t]
-        tableFloats[row + BANK_TRACK.time] = banks.clock.time[item]
-        tableFloats[row + BANK_TRACK.previous] = banks.clock.previous[item]
-      }
-    },
+    write: (timeScale: number, blend: boolean) => writeTrackTable(t, timeScale, blend),
     /**
      * What each banked root reads this frame, seen by `cam` under the run-time setting
      * `minScreenSize` (the header's rule): its `reads`, its `reach` and whether that moved; a root
@@ -223,38 +293,8 @@ export function createBankTracks(frame: DeformationFrame) {
     play(cam: EngineCamera, minScreenSize: number) {
       const p = cam.projection,
         multiple = Math.max(p[0], p[5])
-      for (let k = 0; k < roots.length; k++) {
-        const banked = roots[k],
-          { root } = banked,
-          track = banked.mesh.bank,
-          at = track ? rankOf(track) : -1
-        let reads = banked.idle,
-          outputs = reads === OWN ? banked.own : undefined
-        if (track && at >= 0) {
-          outputs = shared.get(root.pages)?.get(track)
-          const shown =
-            !!outputs && animates(root, track, multiple * multiple, cam.eye, minScreenSize)
-          reads = shown ? at : REST
-        }
-        if (reads >= 0) {
-          const { banks, item } = tracks[reads]
-          banked.reach = boundsReach(banks.items[item].bounds, root.localBox)
-          banked.moved = banks.clock.time[item] !== banks.clock.previous[item]
-        } else if (reads === OWN) {
-          banked.reach = frame.reach[banked.entry]
-          banked.moved = frame.dirty[banked.entry] === 1
-        } else {
-          banked.reach = 0
-          banked.moved = false
-          outputs = undefined
-        }
-        banked.flipped = reads !== banked.reads
-        if (!banked.flipped) continue
-        // What it draws is another pose: its shadows are drawn again.
-        banked.moved = true
-        banked.reads = reads
-        root.deformationOutputs = outputs
-      }
+      for (let k = 0; k < roots.length; k++)
+        playRoot(roots[k], t, frame, shared, cam, multiple, minScreenSize)
     },
   }
 }

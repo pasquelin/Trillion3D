@@ -2,6 +2,8 @@
 // (`planVirtualShadowFrame`), the invalidation, the marking and the raster — on a recording
 // device, in the engine's order (`vsmPlan.ts`, `vsmEncode.ts`), under seeded random suns, spots and
 // point lights: what each frame left in the buffers it wrote, and what it asked of the device.
+import { ComputeRun } from '../../../gpu/core/lazyComputePass.ts'
+import { descentScene } from './recordingRaster.fixture.ts'
 import { createHash } from 'node:crypto'
 import type { SceneLight } from '../../../../../sdk-core/src/scene/light/contracts.ts'
 import { perspectiveProjection } from '../../../../../math/src/projection/camera.ts'
@@ -11,11 +13,14 @@ import { createVsmResources } from './resources.ts'
 import { createVsmFrameState } from './frameState.ts'
 import { finishVirtualShadowFrame, planVirtualShadowFrame } from './frameSetup.ts'
 import { createVsmMarking, vsmCachePerPageBins, vsmPerPageFrame } from './markingPass.ts'
-import { encodeCastInvalidation, vsmCastMaps } from './invalidation/castInvalidation.ts'
+import {
+  encodeCastInvalidation,
+  endCastInvalidation,
+  vsmCastMaps,
+} from './invalidation/castInvalidation.ts'
 import { vsmCastBoxes } from './invalidation/castBoxes.ts'
 import { createCastChanges } from '../casters/castChanges.ts'
 import { encodeVsmRender } from './render/renderPass.ts'
-import { emptyRowSpheres } from './rows/rowPageBound.fixture.ts'
 
 /** One frame's world: its lights, the eye (looking down −Z) and the boxes that moved. */
 export interface PlanWorld {
@@ -32,7 +37,10 @@ export function randomWorld(random: () => number, eye: [number, number, number])
     const n = Math.hypot(v[0], v[1], v[2])
     return [v[0] / n, v[1] / n, v[2] / n]
   }
-  const base = { color: [1, 1, 1] as [number, number, number], intensity: 1, castsShadow: true }
+  const base = {
+    ...{ color: [1, 1, 1] as [number, number, number], intensity: 1, castsShadow: true },
+    mobility: 'movable' as const,
+  }
   const lights: SceneLight[] = []
   for (let k = 0; k < 2; k++)
     lights.push({ ...base, id: `sun${k}`, kind: 'directional', direction: unit() })
@@ -44,8 +52,8 @@ export function randomWorld(random: () => number, eye: [number, number, number])
       position: [around(0), around(1), around(2)],
       direction: unit(),
       range: 3 + random() * 17,
-      coneAngle: 0.3 + random() * 0.5,
-      penumbra: random(),
+      outerConeAngle: 0.3 + random() * 0.5,
+      innerConeAngle: random() * 0.3,
       emitterRadius: random() < 0.5 ? 0.1 : undefined,
     })
   const boxes = Array.from({ length: 2 }, () => {
@@ -71,8 +79,12 @@ export function planFrames() {
   const marking = createVsmMarking(device, res)
   // The engine's per-page entries, built as `vsmEncode.ts` builds them.
   const perPage = vsmPerPageFrame()
-  const rows = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
-  // The list the CPU's boxes join (`vsmEncode.ts`), no rows pass appending to it.
+  const rows = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
+  const table = {} as GPUTextureView
+  // The list the CPU's boxes join (`vsmEncode.ts`), no diff appending to it.
   const casts = createCastChanges(device)
   // The shadow page group the engine keeps (`shadowPageGroup`): the same every frame.
   const pageLayout = {} as GPUBindGroupLayout,
@@ -105,14 +117,17 @@ export function planFrames() {
       1,
     ])
     const boxes = world.boxes
-    const changed = vsmCastBoxes(state.cache, { count: boxes.length, read: (b) => boxes[b] })
+    const changed = vsmCastBoxes(state.cache, { count: () => boxes.length, read: (b) => boxes[b] })
     const maps = vsmCastMaps(state.cache, changed, casts)
     const prevSlots = state.cache.prevFrame?.mapCount ?? 0
     const camera = { view, projection, eye, perspective: true }
     const lights = world.lights.map((light) => ({ light }))
     const plan = planVirtualShadowFrame(state, lights, camera, { width: 800, height: 600 })
     if (plan.overflow) throw new Error('planFrames: the tables overflowed')
-    encodeCastInvalidation(encoder, res, device, prevSlots, maps, changed, casts)
+    const steps = new ComputeRun().begin(encoder)
+    encodeCastInvalidation(steps, res, device, prevSlots, maps, changed, casts, false)
+    steps.end()
+    endCastInvalidation(encoder, casts)
     marking.encode(encoder.beginComputePass(), {
       mapCount: plan.projectionCount,
       perspective: true,
@@ -124,15 +139,16 @@ export function planFrames() {
       { device, lights: plan.lights },
       {
         rowCount: 5000,
-        pageTable: rows,
-        spheres: rows,
-        mobility: rows,
-        rowLods: rows,
+        recordCapacity: 65536,
+        ...{ packedPages: 5000, pageCount: 5000 },
+        descent: descentScene(table),
+        ...{ info: rows, rootWords: rows, rootBoxes: rows, casters: rows },
+        decode: () => {},
+        world: { cold: table, frames: table, clusters: table, worlds: table },
         pageLayout,
         pageGroup,
-        rowSpheres: emptyRowSpheres(),
         multipassViews: true,
-        camera: { eye, view, focalPixels: 600, near: 0.1, perspective: true, threshold: 1 },
+        camera: { eye, view, threshold: 1 },
       },
     )
     finishVirtualShadowFrame(state, plan)

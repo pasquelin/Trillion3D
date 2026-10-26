@@ -1,4 +1,4 @@
-// Triangle totals are held by the GPU alone, in `dagMask` (`shader/totalsWgsl.ts`): the CPU sums
+// Triangle totals are held by the GPU alone, in `dagWanted` (`shader/totalsWgsl.ts`): the CPU sums
 // none. This test holds the contract:
 // ① the invariant `selected − drawn − uncovered = 0` on a frame where residency REALLY digs a
 //    hole, without which it would hold on zeros;

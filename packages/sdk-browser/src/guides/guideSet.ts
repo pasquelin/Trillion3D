@@ -76,13 +76,50 @@ export interface Guides {
 
 const hexOf = (color: ColorInput | undefined) => new Color(color ?? 0xffffff).getHex()
 
-/**
- * The guides of one world: lines and points a page draws ABOUT its scene — an axis, a grid, a
- * box, a measured segment — outside the scene's clusters. Held by the world, read by whichever
- * session draws it; `onChange` asks the world for a frame. Nothing is packed, uploaded or drawn
- * while the set is empty: `revision` and `visibleInstances` are what a pass reads first.
- */
-export function createGuideSet(onChange: () => void = () => {}) {
+/** Refused: `count` more vertices past the `held` ones go above the ceiling. */
+function assertRoom(held: number, count: number) {
+  if (held + count > GUIDE_VERTEX_CEILING)
+    throw new EngineError(
+      'GUIDE_CEILING',
+      `Guides would hold ${held + count} vertices, above the ceiling of ${GUIDE_VERTEX_CEILING}`,
+      { held, asked: count, ceiling: GUIDE_VERTEX_CEILING },
+    )
+}
+
+/** The handle of `entry`, held in `entries`: `changed` asks for a frame, `left` gives its
+ *  vertices back. */
+function guideHandle(
+  entry: FollowedEntry,
+  entries: Set<FollowedEntry>,
+  on: { changed: () => void; left: (entry: FollowedEntry) => void },
+): GuideHandle {
+  const handle: GuideHandle = {
+    get visible() {
+      return entry.visible
+    },
+    setVisible(visible) {
+      if (entry.visible === visible || !entries.has(entry)) return handle
+      entry.visible = visible
+      on.changed()
+      return handle
+    },
+    setTransform(matrix) {
+      entry.node = undefined
+      const next = 'elements' in matrix ? matrix.elements : matrix
+      if (placeGuide(entry, next) && entries.has(entry)) on.changed()
+      return handle
+    },
+    remove() {
+      if (!entries.delete(entry)) return
+      on.left(entry)
+      on.changed()
+    },
+  }
+  return handle
+}
+
+/** The entries a set holds, the vertices they count, its revision and its packing. */
+function createGuideStore(onChange: () => void) {
   const entries = new Set<FollowedEntry>()
   let vertices = 0,
     revision = 0,
@@ -92,57 +129,30 @@ export function createGuideSet(onChange: () => void = () => {}) {
     revision++
     onChange()
   }
-  const open = (pieces: GuidePiece[], node?: Object3D): GuideHandle => {
-    const count = pieces.reduce((sum, piece) => sum + piece.vertices, 0)
-    if (vertices + count > GUIDE_VERTEX_CEILING)
-      throw new EngineError(
-        'GUIDE_CEILING',
-        `Guides would hold ${vertices + count} vertices, above the ceiling of ${GUIDE_VERTEX_CEILING}`,
-        { held: vertices, asked: count, ceiling: GUIDE_VERTEX_CEILING },
-      )
-    const entry: FollowedEntry = {
-      pieces,
-      vertices: count,
-      matrix: Float64Array.from(IDENTITY_MATRIX4),
-      visible: true,
-      node,
-    }
-    entries.add(entry)
-    vertices += count
-    followNode(entry)
-    changed()
-    const handle: GuideHandle = {
-      get visible() {
-        return entry.visible
-      },
-      setVisible(on) {
-        if (entry.visible === on || !entries.has(entry)) return handle
-        entry.visible = on
-        changed()
-        return handle
-      },
-      setTransform(matrix) {
-        entry.node = undefined
-        const next = 'elements' in matrix ? matrix.elements : matrix
-        if (placeGuide(entry, next) && entries.has(entry)) changed()
-        return handle
-      },
-      remove() {
-        if (!entries.delete(entry)) return
-        vertices -= entry.vertices
-        changed()
-      },
-    }
-    return handle
+  const on = {
+    changed,
+    left(entry: FollowedEntry) {
+      vertices -= entry.vertices
+    },
   }
   return {
-    ceiling: GUIDE_VERTEX_CEILING,
-    get vertexCount() {
-      return vertices
-    },
-    /** Moves at every change, a followed node's move included: what a held frame compares. */
-    get revision() {
-      return revision
+    vertices: () => vertices,
+    revision: () => revision,
+    open(pieces: GuidePiece[], node?: Object3D): GuideHandle {
+      const count = pieces.reduce((sum, piece) => sum + piece.vertices, 0)
+      assertRoom(vertices, count)
+      const entry: FollowedEntry = {
+        pieces,
+        vertices: count,
+        matrix: Float64Array.from(IDENTITY_MATRIX4),
+        visible: true,
+        node,
+      }
+      entries.add(entry)
+      vertices += count
+      followNode(entry)
+      changed()
+      return guideHandle(entry, entries, on)
     },
     /**
      * Moves each shown guide that follows a node to where the node stands now: called once per
@@ -153,6 +163,40 @@ export function createGuideSet(onChange: () => void = () => {}) {
     follow() {
       for (const entry of entries) if (entry.visible && followNode(entry)) revision++
     },
+    clear() {
+      if (!entries.size) return
+      entries.clear()
+      vertices = 0
+      changed()
+    },
+    /** The visible guides as instances (`packGuides`), packed again only when `revision` moved. */
+    pack() {
+      if (packedAt === revision) return packed
+      packedAt = revision
+      return (packed = packGuides(entries))
+    },
+  }
+}
+
+/**
+ * The guides of one world: lines and points a page draws ABOUT its scene — an axis, a grid, a
+ * box, a measured segment — outside the scene's clusters. Held by the world, read by whichever
+ * session draws it; `onChange` asks the world for a frame. Nothing is packed, uploaded or drawn
+ * while the set is empty: `revision` and `visibleInstances` are what a pass reads first.
+ */
+export function createGuideSet(onChange: () => void = () => {}) {
+  const store = createGuideStore(onChange)
+  const { open } = store
+  return {
+    ceiling: GUIDE_VERTEX_CEILING,
+    get vertexCount() {
+      return store.vertices()
+    },
+    /** Moves at every change, a followed node's move included: what a held frame compares. */
+    get revision() {
+      return store.revision()
+    },
+    follow: store.follow,
     lines({ positions, color, width = 1 }: GuideLines) {
       const ends = Float64Array.from(positions).subarray(
         0,
@@ -172,22 +216,12 @@ export function createGuideSet(onChange: () => void = () => {}) {
       const pieces = objectPieces(object, options.width ?? 1, options.size ?? 4)
       return open(pieces, poseSourceOf(object))
     },
-    clear() {
-      if (!entries.size) return
-      entries.clear()
-      vertices = 0
-      changed()
-    },
+    clear: store.clear,
     /** Instances drawn now: zero when nothing is shown, and then no pass runs. */
     visibleInstances() {
       return this.pack().count
     },
-    /** The visible guides as instances (`packGuides`), packed again only when `revision` moved. */
-    pack() {
-      if (packedAt === revision) return packed
-      packedAt = revision
-      return (packed = packGuides(entries))
-    },
+    pack: store.pack,
   }
 }
 

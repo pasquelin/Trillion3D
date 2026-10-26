@@ -10,7 +10,6 @@ import {
   rayInverseDirection,
   raySegmentDistance,
   rayTriangleDistance,
-  sinFromCos,
   sinFromCosUnclamped,
   sphereBehindPlane,
   vectorRejection,
@@ -24,7 +23,6 @@ export const run = shaderRun<Record<string, (...args: never[]) => never>>(
   wgslModule(
     faceNormal,
     vectorRejection,
-    sinFromCos,
     sinFromCosUnclamped,
     boxBehindPlane,
     sphereBehindPlane,
@@ -36,7 +34,6 @@ export const run = shaderRun<Record<string, (...args: never[]) => never>>(
   [
     'faceNormal',
     'vectorRejection',
-    'sinFromCos',
     'sinFromCosUnclamped',
     'planeDistance',
     'boxPositiveVertex',

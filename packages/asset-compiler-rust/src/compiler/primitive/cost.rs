@@ -11,6 +11,7 @@
 use super::*;
 use crate::coplanar::ClusterPlane;
 use crate::dag::{DagCluster, DAG_CLUSTER_TRIANGLES};
+use crate::displace::{baked_bytes, hashed, most_after, soup_bytes, MAX_TRIANGLES};
 use crate::physics_cook::TILE_TRIANGLES;
 use std::mem::size_of;
 use trillion3d_page_codec::culling::CULLING_STRIDE;
@@ -20,8 +21,8 @@ use trillion3d_page_codec::encode::cells::Cell;
 mod tests;
 
 /// Entries of one page record, nested objects included: 16 top-level fields, its bundle and place
-/// there among them, and the 5 of its geometry object.
-const PAGE_ENTRIES: usize = 21;
+/// there among them, and the 7 of its geometry object, its place in the pool among them.
+const PAGE_ENTRIES: usize = 23;
 /// Numbers held in the record's arrays: `min` and `max` (3 each), `sphere` and `parentSphere` (4
 /// each).
 const PAGE_ARRAY_VALUES: usize = 14;
@@ -49,20 +50,18 @@ const PLACED_VERTEX_BYTES: usize = size_of::<[f32; 3]>()
     + size_of::<u32>()
     + 3 * size_of::<u32>();
 
-/// A hash-map entry costs at most 16/7 of its pair: 7/16 is hashbrown's lowest load after growth.
-const fn hashed(pair: usize) -> usize {
-    pair * 16 / 7
-}
 /// Per source triangle, one Hausdorff grid (`physics_cook/hausdorff.rs`). The grid puts about one
 /// triangle per cell, so a triangle spans at most two cells along each axis: 8 links, each a `u32`
 /// in a vector holding up to twice its length; and about one cell per triangle, counted twice.
 const GRID_TRIANGLE_BYTES: usize =
     8 * 2 * size_of::<u32>() + 2 * hashed(size_of::<([i64; 3], Vec<u32>)>());
 /// Per source triangle, the collider's search (`physics_cook/cut.rs`): the grid of level 0 and the
-/// grid of the cut being measured, and three cuts of at most level 0's indices: the best one
-/// held, the one tried and its concatenation. A height field (`height.rs`) holds a few words per
+/// grid of the cut being measured, level 0's samples kept for every cut (a vertex, an edge
+/// midpoint and a centroid, about three a triangle of a closed mesh), and three cuts of at most level 0's indices: the
+/// best one held, the one tried and its concatenation. A height field (`height.rs`) holds a few words per
 /// vertex and its square of samples, under that charge for any grid not far from square.
-const COLLIDER_TRIANGLE_BYTES: usize = 2 * GRID_TRIANGLE_BYTES + 3 * 3 * size_of::<u32>();
+const COLLIDER_TRIANGLE_BYTES: usize =
+    2 * GRID_TRIANGLE_BYTES + 3 * size_of::<[f64; 3]>() + 3 * 3 * size_of::<u32>();
 /// A geometry page's bytes, about four bytes a corner: cooked caches measure 1.5 KB at the median
 /// for a full cluster.
 const ENCODED_PAGE_BYTES: usize = 3 * DAG_CLUSTER_TRIANGLES * size_of::<u32>();
@@ -129,13 +128,18 @@ fn page_bytes() -> usize {
     record + text + links
 }
 
+/// The most clusters the whole DAG over `triangles` triangles holds: twice level zero's.
+fn dag_clusters(triangles: usize) -> Option<usize> {
+    triangles.div_ceil(DAG_CLUSTER_TRIANGLES).checked_mul(2)
+}
+
 /// What the DAG's build of `triangles` triangles over `vertices` vertices holds beside the mesh it
 /// reads, whoever builds it (a primitive's, an HLOD actor's): the index lists of every level, the
 /// vertices' copies and the vertices the solves place, the clusters. Level zero cuts
 /// `DAG_CLUSTER_TRIANGLES` per cluster and each coarser level at most halves the one below, so
 /// the whole DAG holds at most twice level zero's clusters and index lists.
 pub(crate) fn dag_bytes(triangles: usize, vertices: usize) -> Option<usize> {
-    let clusters = triangles.div_ceil(DAG_CLUSTER_TRIANGLES).checked_mul(2)?;
+    let clusters = dag_clusters(triangles)?;
     triangles
         .checked_mul(3 * size_of::<u32>())?
         .checked_mul(2)?
@@ -146,7 +150,7 @@ pub(crate) fn dag_bytes(triangles: usize, vertices: usize) -> Option<usize> {
 /// Cost of `triangles` triangles over `vertices` vertices: the DAG's build (`dag_bytes`), the
 /// collider and the pages' packing beside it.
 pub(crate) fn of_counts(triangles: usize, vertices: usize) -> Option<PrimitiveCost> {
-    let clusters = triangles.div_ceil(DAG_CLUSTER_TRIANGLES).checked_mul(2)?;
+    let clusters = dag_clusters(triangles)?;
     let indices = triangles.checked_mul(3 * size_of::<u32>())?;
     let working = dag_bytes(triangles, vertices)?
         .checked_add(triangles.checked_mul(COLLIDER_TRIANGLE_BYTES)?)?
@@ -157,6 +161,95 @@ pub(crate) fn of_counts(triangles: usize, vertices: usize) -> Option<PrimitiveCo
         working,
         retained,
     })
+}
+
+/// What the climb of a carrier holds beside its own triangles' cost: the DAG's build over the roots
+/// of its instances' parts, `covers` the triangles and the vertices of each instance's roots, laid
+/// once for every instance (`dag::assembly`). Known once the parts are compiled.
+pub(crate) fn climb_working(covers: impl IntoIterator<Item = (usize, usize)>) -> usize {
+    let (triangles, vertices) = (covers.into_iter()).fold((0usize, 0usize), |(t, v), (ct, cv)| {
+        (t.saturating_add(ct), v.saturating_add(cv))
+    });
+    of_counts(triangles, vertices).map_or(usize::MAX, |cost| cost.working)
+}
+
+/// Per texel of a height map once read, held for the job (`displace/map.rs`): its float height,
+/// and in its chain of the least and the most height two floats a cell, a third as many cells as
+/// texels.
+const MAP_TEXEL_BYTES: usize = size_of::<f32>() + (2 * size_of::<f32>()).div_ceil(3);
+/// Per texel of a height map being decoded: four floats, the most a decode holds before its first
+/// channel is taken (`displace/load.rs`).
+const MAP_DECODE_BYTES: usize = size_of::<[f32; 4]>();
+
+/// Bytes the height maps of a scene hold once read, `texels` the texels of each distinct image:
+/// committed for the job, however many meshes name them (`Bakes`).
+pub(crate) fn maps_bytes(texels: impl IntoIterator<Item = usize>) -> Option<usize> {
+    texels.into_iter().try_fold(0usize, |sum, texels| {
+        sum.checked_add(texels.checked_mul(MAP_TEXEL_BYTES)?)
+    })
+}
+
+/// Cost of a primitive of a mesh of `triangles` triangles over `vertices` vertices whose
+/// displacement is baked into them (`displace::bake_mesh`), `decoded` the texels of the largest map
+/// it reads, the tessellation making at most `cap` triangles. The cap bounds the work whatever the
+/// maps hold (`displace::most_after`): while it runs the primitive holds its mesh's soup and the
+/// decode of a map; once it ends, the baked arrays beside the DAG, the collider and the pages of the
+/// baked mesh, charged at its counts. The primitive of a mesh of several is charged for the whole
+/// mesh, an upper bound of its share. `retained` holds the baked arrays a voxelized mesh keeps until
+/// the voxel stage (`VoxelSeed::traced`), charged to every primitive that bakes. The source's
+/// indices are the plain primitive's: `indices` here is the mesh's.
+pub(crate) fn of_baked_counts(
+    triangles: usize,
+    vertices: usize,
+    decoded: usize,
+    cap: usize,
+) -> Option<PrimitiveCost> {
+    let (most, grown) = most_after(triangles, vertices, cap)?;
+    let built = of_counts(most, grown)?;
+    let floats = ATTRIBUTE_FLOATS;
+    let baked = baked_bytes(most, grown, floats)?;
+    let tessellating =
+        (soup_bytes(most, grown, floats)?).checked_add(decoded.checked_mul(MAP_DECODE_BYTES)?)?;
+    Some(PrimitiveCost {
+        indices: of_counts(triangles, vertices)?.indices,
+        working: tessellating.max(built.working.checked_add(baked)?),
+        retained: built.retained.checked_add(baked)?,
+    })
+}
+
+/// The triangles and the vertices of the triangle primitives of source mesh `mesh`, which bake as
+/// one soup.
+pub(crate) fn mesh_counts(g: &Value, mesh: usize) -> Result<(usize, usize)> {
+    let mut counts = (0usize, 0usize);
+    for (_, p) in triangles::mesh_primitives(g, mesh)? {
+        let vertices = required_index(position_accessor(g, p)?.get("count"), "accessor.count")?;
+        counts.0 = counts.0.saturating_add(primitive_triangles(g, p)?);
+        counts.1 = counts.1.saturating_add(vertices);
+    }
+    Ok(counts)
+}
+
+/// The most triangles the tessellation of a mesh that bakes may make, so that what it is charged
+/// (`of_baked_counts` at that cap) keeps one primitive's working set within `share` bytes and the
+/// retained sets of the `jobs` primitives that bake within `share` together: the bake stops where
+/// the room stops, and its charge is true by construction. At most `displace::MAX_TRIANGLES`; a
+/// mesh that begins past it is not tessellated. The charge is taken for a mesh whose vertices are
+/// as many as its triangles.
+pub(crate) fn bake_cap(share: usize, jobs: usize) -> usize {
+    let fits = |cap: usize| {
+        of_baked_counts(cap, cap, 0, cap).is_some_and(|cost| {
+            cost.working <= share && cost.retained.saturating_mul(jobs.max(1)) <= share
+        })
+    };
+    let (mut low, mut high) = (0, MAX_TRIANGLES);
+    while low < high {
+        let mid = low + (high - low).div_ceil(2);
+        match fits(mid) {
+            true => low = mid,
+            false => high = mid - 1,
+        }
+    }
+    low
 }
 
 /// Cost of the glTF primitive `p`.

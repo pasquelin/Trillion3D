@@ -1,3 +1,4 @@
+import { wearOffsets } from './offsets.ts'
 import type { ModuleOption } from '../../../../sdk-core/src/modules/descriptor.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
@@ -7,6 +8,7 @@ import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.
 import { Mesh, type Primitive } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts'
 import { Light } from '../../../../sdk-core/src/world/light/light.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { isHelper } from '../world/helperMark.ts'
@@ -56,13 +58,46 @@ function readGeometry(saved: SavedGeometry): Geometry {
   return g
 }
 
-/** A light built again from what was saved of it. */
-function readLight(saved: NonNullable<SavedNode['light']>) {
-  const { kind, color, groundColor, values, target, sh } = saved
-  const { atmosphereSun, atmosphereSunIndex, shadowsFog } = saved
-  const { useTemperature, shadowsAir, transmittancePerPixel, sunDiskTint } = saved
+/** The kinds of a light that write their intensity in a unit. */
+const LAMP_KINDS = ['point', 'spot', 'rectArea']
+
+/** The numbers of a light saved at `version`: before 5, a spot's cone was an `angle` and a
+ *  `penumbra` share, the inner cone the angle less that share. */
+function savedValues({ values }: NonNullable<SavedNode['light']>, version: number) {
+  if (version >= 5) return values
+  const { angle, penumbra, ...rest } = values
+  if (!Number.isFinite(angle) || !Number.isFinite(penumbra)) return rest
+  return { ...rest, outerConeAngle: angle, innerConeAngle: angle * (1 - penumbra) }
+}
+
+/** The intensity and unit of a light saved at `version`: before 4, a rectangle's intensity was its
+ *  radiance `L`, which is `L / 2` nits (`SceneLight`, version 3); one with no such number is not a
+ *  scene of that version, and is refused by name. Before 5, a lamp that named no unit was in
+ *  candelas. */
+function savedIntensity(saved: NonNullable<SavedNode['light']>, version: number) {
+  if (version >= 5 || !LAMP_KINDS.includes(saved.kind))
+    return { intensityUnits: saved.intensityUnits }
+  if (version >= 4 || saved.kind !== 'rectArea')
+    return { intensityUnits: saved.intensityUnits ?? ('candelas' as const) }
+  const radiance = saved.values.intensity
+  if (!Number.isFinite(radiance))
+    throw new EngineError(
+      'UNSUPPORTED_SCENE_FORMAT',
+      `A version-${version} rectangle light without its radiance`,
+      { intensity: radiance },
+    )
+  return { intensity: radiance / 2, intensityUnits: 'nits' as const }
+}
+
+/** A light built again from what was saved of it, in a scene of `version`. */
+function readLight(saved: NonNullable<SavedNode['light']>, version: number) {
+  const { kind, color, groundColor, target, sh } = saved
+  const { atmosphereSun, atmosphereSunIndex, shadowsFog, mobility } = saved
+  const { useTemperature, shadowsAir, transmittancePerPixel, sunDiskTint, inverseSquared } = saved
+  const { transmission } = saved
   return new Light(kind, {
-    ...values,
+    ...savedValues(saved, version),
+    ...savedIntensity(saved, version),
     color,
     groundColor,
     target,
@@ -70,7 +105,10 @@ function readLight(saved: NonNullable<SavedNode['light']>) {
     atmosphereSun,
     atmosphereSunIndex,
     shadowsFog,
+    mobility,
+    inverseSquared,
     useTemperature,
+    transmission,
     shadowsAir,
     transmittancePerPixel,
     sunDiskTint,
@@ -91,7 +129,7 @@ function wear(o: Object3D, saved: SavedNode) {
   o.castFarShadow = saved.castFarShadow ?? false
   o.farField = saved.farField ?? false
   o.farShadowTest = saved.farShadowTest ?? null
-  o.receiveShadow = saved.receiveShadow
+  wearOffsets(o, saved)
   o.renderOrder = saved.renderOrder
   o.userData = saved.userData
 }
@@ -103,6 +141,38 @@ function readCamera(saved: SavedCamera, camera: Camera) {
   if (saved.projection !== camera.projection) return
   Object.assign(camera, saved.optics)
   camera.fitAspect = saved.fitAspect === true
+}
+
+/** The mesh or sprite a saved node held, over the geometries and materials read. */
+function readMesh(
+  saved: NonNullable<SavedNode['mesh']>,
+  physics: SavedNode['physics'],
+  geometries: Geometry[],
+  materials: Material[],
+) {
+  const worn = saved.material
+  const matter = Array.isArray(worn) ? worn.map((i) => materials[i]) : materials[worn]
+  const { geometry, primitive, center } = saved
+  let o: Object3D
+  if (primitive === 'sprite') {
+    const sprite = new Sprite(matter as Material)
+    sprite.geometry = geometries[geometry]
+    if (center) sprite.center.set(center[0], center[1])
+    o = sprite
+  } else o = new Mesh(geometries[geometry], matter, primitive as Primitive)
+  if (physics) (o as Mesh).physics = physics
+  return o
+}
+
+/** A model that could not be read leaves the scene as it was: every load still running is waited
+ *  for — one may start another under it — and every model that arrived goes again. */
+async function dropLoads(loads: Promise<Object3D>[]) {
+  for (let settled = -1; settled !== loads.length;) {
+    settled = loads.length
+    await Promise.allSettled(loads)
+  }
+  for (const load of await Promise.allSettled(loads))
+    if (load.status === 'fulfilled') load.value.removeFromParent()
 }
 
 /**
@@ -123,21 +193,12 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
   const node = async (saved: SavedNode): Promise<Object3D> => {
     let o: Object3D
     if (saved.mesh) {
-      const worn = saved.mesh.material
-      const matter = Array.isArray(worn) ? worn.map((i) => materials[i]) : materials[worn]
-      const { geometry, primitive, center } = saved.mesh
-      if (primitive === 'sprite') {
-        const sprite = new Sprite(matter as Material)
-        sprite.geometry = geometries[geometry]
-        if (center) sprite.center.set(center[0], center[1])
-        o = sprite
-      } else o = new Mesh(geometries[geometry], matter, primitive as Primitive)
-      if (saved.physics) (o as Mesh).physics = saved.physics
+      o = readMesh(saved.mesh, saved.physics, geometries, materials)
     } else if (saved.light?.kind === 'sky') {
       if (saved.visible) skyLight = saved.light
       o = new Object3D() // its place and children stay; its light is the sky module's part
     } else if (saved.light) {
-      o = readLight(saved.light)
+      o = readLight(saved.light, json.formatVersion)
     } else if (saved.model) {
       const load = scene.load(saved.model.url)
       loads.push(load)
@@ -154,14 +215,7 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
   try {
     children = await Promise.all(json.children.map(node))
   } catch (error) {
-    // A model that could not be read leaves the scene as it was: every load still running is
-    // waited for — one may start another under it — and every model that arrived goes again.
-    for (let settled = -1; settled !== loads.length;) {
-      settled = loads.length
-      await Promise.allSettled(loads)
-    }
-    for (const load of await Promise.allSettled(loads))
-      if (load.status === 'fulfilled') load.value.removeFromParent()
+    await dropLoads(loads)
     throw error
   }
   if (before.length) scene.remove(...before)

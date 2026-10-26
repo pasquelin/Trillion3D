@@ -6,6 +6,7 @@
 //! first key and after the last, the clip holds them. A node's pose at that time is its rest
 //! translation, rotation and scale, each part a channel drives replaced by the sampled one,
 //! composed as glTF composes a node.
+use super::rate::bake_rate;
 use super::*;
 use crate::compiler::source::node_transform::{declared_trs, local_matrix, Mat4};
 use trillion3d_math::matrix::{compose_trs, linear::decompose_trs};
@@ -21,12 +22,14 @@ pub(super) type Trs = ([f64; 3], [f64; 4], [f64; 3]);
 pub(super) type Posed<'c> = [Option<&'c Channel>; POSE_PATHS];
 
 /// A clip read for sampling: its channels, each read once from its sampler's accessors, the
-/// channels posing each node it moves (by rank among `channels`), and its duration — its last key
-/// over every channel, as the runtime measures a clip.
+/// channels posing each node it moves (by rank among `channels`), its duration — its last key
+/// over every channel, as the runtime measures a clip — and the rate its bank samples it at
+/// (`bake_rate`).
 pub(super) struct Clip {
     channels: Vec<Channel>,
     posing: BTreeMap<usize, [Option<usize>; POSE_PATHS]>,
     pub duration: f64,
+    pub rate: f64,
 }
 
 impl Clip {
@@ -57,13 +60,14 @@ impl Clip {
             channels,
             posing,
             duration,
+            rate: bake_rate(duration),
         })
     }
 
-    /// The frames a bank samples it at: `ANIMATION_BANK_SAMPLE_RATE` a second over its duration,
-    /// rounded, at least one; frame `f` at `f / ANIMATION_BANK_SAMPLE_RATE` seconds.
+    /// The frames a bank samples it at: its `rate` a second over its duration, rounded, at least
+    /// one; frame `f` at `f / rate` seconds.
     pub(super) fn frames(&self) -> usize {
-        ((self.duration * ANIMATION_BANK_SAMPLE_RATE).round() as usize).max(1)
+        ((self.duration * self.rate).round() as usize).max(1)
     }
 
     /// What it drives on `node`, none when it moves nothing of its pose.

@@ -6,7 +6,7 @@ import { PHYSICAL_SURFACE_FLAG } from '../../../packages/sdk-browser/src/materia
 import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { MIRROR, mirrorScene } from './mirrorScene.ts'
 import { settledImage } from './rigImage.ts'
-import { MODEL_FLAG } from '../../../packages/sdk-browser/src/materials/surface/surfaceModel.ts'
+import { MODEL_FLAG } from '../../../packages/sdk-browser/src/materials/surface/surfaceModelWord.ts'
 
 /** What the proof reads: per reflective family, the reflection target once the view drew its fixed
  *  count of images, as raw half-float words. */

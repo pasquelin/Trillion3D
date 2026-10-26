@@ -36,14 +36,6 @@ export const bitLength = wgslFn(
   'fn bitLength(x:u32)->u32{return 32u-countLeadingZeros(x);}',
 )
 
-/** Slots of an open-addressed table that holds `entries` at a load of one half at most: a power
- *  of two, two at least (`halfLoadSlots`, `../scalar/integers.ts`), for up to 2³¹ entries. */
-export const halfLoadSlots = wgslFn(
-  'halfLoadSlots',
-  [bitLength],
-  'fn halfLoadSlots(entries:u32)->u32{return 1u<<bitLength(2u*max(entries,1u)-1u);}',
-)
-
 /** The exponent of the greatest power of two not over `x` (`floorLog2`); 0 gives 0xffffffff, the
  *  word of the processor's −1 and of `firstLeadingBit(0u)`. */
 export const floorLog2 = wgslFn(
@@ -91,17 +83,6 @@ export const zOrderDecode = wgslFn(
   'fn zOrderDecode(i:u32)->vec2u{return vec2u(evenBits(i),evenBits(i>>1u));}',
 )
 
-/** The cell `i` of a rectangle `size` wide that starts at `rect.xy`, in row-major order: the row is
- *  read from `(i + 0.5) / size.x` in `f32`. */
-export const rectCell = wgslFn(
-  'rectCell',
-  [],
-  `fn rectCell(rect:vec4u,size:vec2u,i:u32)->vec2u{
- let y=u32(floor((f32(i)+0.5)/f32(size.x)));
- return rect.xy+vec2u(i-size.x*y,y);
-}`,
-)
-
 /** Bit `i` of `word` (`i` taken modulo 32), 0 or 1. */
 export const bitAt = wgslFn(
   'bitAt',
@@ -121,13 +102,6 @@ export const byteOf = wgslFn(
   'byteOf',
   [],
   'fn byteOf(word:u32,k:u32)->u32{return (word>>(8u*k))&255u;}',
-)
-
-/** Whether the `f32` of bits `word` is a NaN: its magnitude bits past the infinity's. */
-export const isNanWord = wgslFn(
-  'isNanWord',
-  [],
-  'fn isNanWord(word:u32)->bool{return (word&0x7fffffffu)>0x7f800000u;}',
 )
 
 /** Whether the `f32` of bits `word` is finite: its exponent bits not all set. A compiler may assume

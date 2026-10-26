@@ -1,5 +1,9 @@
 import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
-import type { AirShadowMaps } from '../../../lighting/atmosphere/bindings.ts'
+import {
+  cloudShadeResources,
+  shadowMapResources,
+  type AirShadowMaps,
+} from '../../../lighting/atmosphere/bindings.ts'
 import type { CloudShadowSet } from '../../../lighting/atmosphere/cloudShadowRead.ts'
 import {
   AIR_FOG_BINDINGS,
@@ -9,10 +13,10 @@ import {
 import type { AirShape } from '../../../lighting/atmosphere/shape.ts'
 import { fogReadBindEntries, type FogRead } from '../../../lighting/fog/read.ts'
 import type { CloudSetup } from './cloudModes.ts'
-import { COMPOSE_AIR_BINDINGS } from './composeWgsl.ts'
+import { COMPOSE_AIR_BINDINGS, type HeldClouds } from './composeWgsl.ts'
 import type { CloudFramePlan } from './reconstruct.ts'
 import type { Size } from './reconstructLayout.ts'
-import { cloudHazeAir } from './traceHaze.ts'
+import { cloudHazeAir } from './traceHazeProgram.ts'
 import type { CloudTraceImage } from './traceLayout.ts'
 import { CLOUD_TRACE_AIR } from './traceWgsl.ts'
 import {
@@ -37,7 +41,7 @@ export interface CloudAir {
 }
 
 /** The shadow maps with the blue noise their consumers jitter by (`vsmOrStandIns`). */
-export type CloudShadowMaps = AirShadowMaps & { readonly noise: GPUTextureView }
+type CloudShadowMaps = AirShadowMaps & { readonly noise: GPUTextureView }
 
 /** Everything an image of a view's clouds is made from (`encodeCloudView`). */
 export interface CloudViewFrame {
@@ -67,6 +71,9 @@ export interface CloudViewFrame {
   readonly material: readonly GPUBindGroupEntry[]
   readonly noise: GPUTextureView
   readonly extra: CloudTraceInputs
+  /** What the clouds hold out of the image's alpha, where the alpha holdout is in effect and the clouds are
+   *  traced one pixel to a pixel, as the reference supports it (`HeldClouds`); none else. */
+  readonly held?: HeldClouds
   /** The shadow maps and the clouds' shade the haze pass marches the air with. */
   readonly hazeMaps: { readonly maps: CloudShadowMaps; readonly cloudShadow: CloudShadowSet }
 }
@@ -90,11 +97,12 @@ function airEntries(
   ]
 }
 
-/** Group 0 of the tracing: the air, the fog and the volumes. */
-export function traceAirGroup(f: CloudViewFrame, layout: GPUBindGroupLayout) {
+/** Group 0 of the tracing, or of the pass that builds its empty-space table (named `slot`): the
+ *  air, the fog and the volumes. */
+export function traceAirGroup(f: CloudViewFrame, layout: GPUBindGroupLayout, slot = 'trace air') {
   const { air } = f
   return f.gpu.group(
-    'trace air',
+    slot,
     layout,
     [air.lights, air.frame, air.transmittance, air.sampler, air.volumes, air.fog],
     () => airEntries(CLOUD_TRACE_AIR, f.programs.shape, air, { volumes: { buffer: air.volumes } }),
@@ -120,7 +128,7 @@ export function hazeAirGroup(f: CloudViewFrame, layout: GPUBindGroupLayout) {
     [
       ...[air.lights, air.frame, air.transmittance, air.multiScatter, air.sampler],
       ...[maps.pageTable, maps.projectionData, maps.uniforms, maps.pool, maps.view, maps.noise],
-      ...[cloudShadow.block, cloudShadow.maps[0], cloudShadow.maps[1]],
+      ...[cloudShadow.block, cloudShadow.maps[0], cloudShadow.maps[1], cloudShadow.ao],
     ],
     () =>
       airBindEntries(cloudHazeAir(f.programs.shape), f.programs.shape, {
@@ -130,22 +138,17 @@ export function hazeAirGroup(f: CloudViewFrame, layout: GPUBindGroupLayout) {
         sampler: air.sampler,
         frame: { buffer: air.frame },
         noise: maps.noise,
-        pageTable: { buffer: maps.pageTable },
-        projectionData: { buffer: maps.projectionData },
-        shadowUniforms: { buffer: maps.uniforms },
-        shadowPool: { buffer: maps.pool },
-        shadowView: { buffer: maps.view },
-        cloudShadow: { buffer: cloudShadow.block },
-        cloudShadowMap0: cloudShadow.maps[0],
-        cloudShadowMap1: cloudShadow.maps[1],
+        ...shadowMapResources(maps),
+        ...cloudShadeResources(cloudShadow),
       }),
   )
 }
 
-/** Group 0 of the composition: the light buffer, the frame and the fog. */
-export function composeAirGroup(f: CloudViewFrame, layout: GPUBindGroupLayout) {
+/** Group 0 of the composition, or of the reconstruction that lays the fog on its image (named
+ *  `slot`): the light buffer, the frame and the fog. */
+export function composeAirGroup(f: CloudViewFrame, layout: GPUBindGroupLayout, slot: string) {
   const { air } = f
-  return f.gpu.group('compose air', layout, [air.lights, air.frame, air.fog], () =>
+  return f.gpu.group(slot, layout, [air.lights, air.frame, air.fog], () =>
     airEntries(COMPOSE_AIR_BINDINGS, f.programs.shape, air, {}),
   )
 }

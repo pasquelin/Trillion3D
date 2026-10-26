@@ -1,25 +1,22 @@
 /**
- * A LOCAL LIGHT'S MAP VIEWS (`localLight.ts`): the cone a spot's one perspective map takes, and the
- * six rotations of a point light's cube faces.
+ * A LOCAL LIGHT'S MAP VIEWS (`localLight.ts`): the cone a spot's one perspective map takes and its
+ * projection, the six rotations of a point light's cube faces — a rectangle's too — and their
+ * projection, and the world-to-light rotation each kind keys its cache entry by.
  */
-import { DEG2RAD } from '../../../../../math/src/constants.ts'
-import { clamp } from '../../../../../math/src/scalar/reals.ts'
-import { normalizeVector3OrZero } from '../../../../../math/src/vector/vector.ts'
+import { QUARTER_PI } from '../../../../../math/src/constants.ts'
+import { focalScale } from '../../../../../math/src/projection/camera.ts'
+import { forwardPerspectiveProjection } from '../../../../../math/src/projection/forwardZ.ts'
+import { multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
+import {
+  normalizeVector3OrZero,
+  transformAffinePoint,
+} from '../../../../../math/src/vector/vector.ts'
 import { cross } from '../../../../../math/src/vector/vectorTuple.ts'
-import { VSM_MIN_DIRECTION_SQ } from './clipmap.ts'
+import { VSM_FACE_MATRIX, VSM_MIN_DIRECTION_SQ, vsmWorldToLightRotation } from './clipmap.ts'
+import { VSM_LOCAL_NEAR_PLANE, VSM_UNIT_PER_CM } from './constants.ts'
 
-/** Declared: the widest half angle a spot's one perspective map takes, 88.9°: its 1 / tan, the
- *  map's scale, is 0.019 there and falls to 0 at 90°, where the map's texels stretch without bound. */
-const MAX_SPOT_HALF_ANGLE = 88.9 * DEG2RAD
-/** Declared: the least gap of the outer cone over the inner one, 0.001 rad. */
-const SPOT_CONE_GAP = 0.001
-
-/** The outer half angle of a spot's map, radians: at least the inner one (itself within [0, the
- *  widest]) plus the gap, at most the widest plus the gap; rounded once, to an f32. */
-export function clampedOuterConeAngle(innerRad: number, outerRad: number) {
-  const inner = clamp(innerRad, 0, MAX_SPOT_HALF_ANGLE)
-  return Math.fround(clamp(outerRad, inner + SPOT_CONE_GAP, MAX_SPOT_HALF_ANGLE + SPOT_CONE_GAP))
-}
+/** The nearest depth a local light's casters take: 0.1 cm. */
+const VSM_LOCAL_MIN_LIGHT_W = 0.1 * VSM_UNIT_PER_CM
 
 /** The cube face directions and up vectors. */
 const CUBE_DIRECTIONS: [number, number, number][] = [
@@ -59,3 +56,113 @@ function pointFaceView(face: number) {
   return m
 }
 export const POINT_FACE_VIEWS = Array.from({ length: 6 }, (_, face) => pointFaceView(face))
+
+/**
+ * A rectangle's world-to-light rotation, column-major, written into `out`: its width axis, the axis
+ * across it and its face normal as rows (the two given, unit and perpendicular). Its six faces are
+ * a point light's, aligned to the world, so no map reads it: it keys the light's cache entry, which
+ * a rotated rectangle starts again.
+ */
+function rectWorldToLight(out: Float64Array, normal: ArrayLike<number>, right: ArrayLike<number>) {
+  const nx = normal[0],
+    ny = normal[1],
+    nz = normal[2],
+    rx = right[0],
+    ry = right[1],
+    rz = right[2]
+  out.fill(0)
+  out[0] = rx
+  out[4] = ry
+  out[8] = rz
+  out[1] = ny * rz - nz * ry
+  out[5] = nz * rx - nx * rz
+  out[9] = nx * ry - ny * rx
+  out[2] = nx
+  out[6] = ny
+  out[10] = nz
+  out[15] = 1
+  return out
+}
+
+const spotCentre = new Float64Array(3)
+
+/** What a local light's rotation reads of it: a spot's direction, a rectangle's face normal
+ *  (`direction`) and width axis (`right`). */
+export type LocalAxes =
+  | { kind: 'point' }
+  | { kind: 'spot'; direction: ArrayLike<number> }
+  | { kind: 'rect'; direction: ArrayLike<number>; right: ArrayLike<number> }
+
+/**
+ * The world-to-light rotation of a local light into `out`, and its unit axis into `axis`: a spot's
+ * X axis is its direction; a point light's faces are world-aligned, its rotation the identity; a
+ * rectangle's faces are a point light's, its own rotation (`rectWorldToLight`, its normal and its
+ * width axis) only keying its cache entry.
+ */
+export function localWorldToLight(
+  out: Float64Array,
+  axis: [number, number, number],
+  light: LocalAxes,
+) {
+  if (light.kind === 'spot') normalizeVector3OrZero(axis, light.direction, VSM_MIN_DIRECTION_SQ)
+  else {
+    axis[0] = 1
+    axis[1] = axis[2] = 0
+  }
+  return light.kind === 'rect'
+    ? rectWorldToLight(out, light.direction, light.right)
+    : vsmWorldToLightRotation(out, axis)
+}
+
+/** The projection of the six faces of a point light's or a rectangle's cube, a quarter turn wide
+ *  and as deep as its `range`, into `viewToClip`. */
+export function cubeFaceProjection(viewToClip: Float64Array, range: number) {
+  forwardPerspectiveProjection(
+    viewToClip,
+    focalScale(Math.fround(QUARTER_PI)),
+    VSM_LOCAL_NEAR_PLANE,
+    range,
+  )
+}
+
+/**
+ * A spot's one map: its view into `spotView` (the face matrix over the world-to-light rotation
+ * `worldToLight`) and its projection into `viewToClip`, as wide as the outer cone `outerCone` and
+ * between the nearest and farthest depths the cone's bounding sphere holds, never past `range`
+ * (the outer scale: no border at 16384²). `axis` is the spot's unit direction.
+ */
+export function spotMapProjection(
+  spotView: Float64Array,
+  viewToClip: Float64Array,
+  worldToLight: Float64Array,
+  axis: readonly number[],
+  range: number,
+  outerCone: number,
+) {
+  const cosOuter = Math.fround(Math.cos(outerCone)),
+    sinOuter = Math.fround(Math.sin(outerCone)),
+    invTanOuter = Math.fround(focalScale(outerCone))
+  // The bounding sphere of the cone, relative to the light: past a half angle of 45° (cos² = 1/2)
+  // the sphere through the cap's rim, its centre on the axis at the rim's foot; below, the
+  // sphere through the light and the rim.
+  let sphereOffset: number, sphereRadius: number
+  if (cosOuter < Math.fround(Math.SQRT1_2)) {
+    sphereOffset = range * cosOuter
+    sphereRadius = range * sinOuter
+  } else {
+    sphereRadius = range / (2 * cosOuter)
+    sphereOffset = sphereRadius
+  }
+  multiplyMatrix4(spotView, VSM_FACE_MATRIX, worldToLight)
+  const c = transformAffinePoint(
+    spotCentre,
+    spotView,
+    axis[0] * sphereOffset,
+    axis[1] * sphereOffset,
+    axis[2] * sphereOffset,
+  )
+  let depthFar = Math.fround(c[2] + sphereRadius)
+  const depthNear = Math.fround(Math.max(depthFar - sphereRadius * 2, VSM_LOCAL_MIN_LIGHT_W))
+  depthFar = Math.fround(Math.min(depthFar, range))
+  forwardPerspectiveProjection(viewToClip, invTanOuter, depthNear, depthFar)
+}

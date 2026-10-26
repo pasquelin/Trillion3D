@@ -1,24 +1,25 @@
-import type { SceneLight } from '../../scene/light/contracts.ts'
+import { DEFAULT_LIGHT_MOBILITY, type SceneLight } from '../../scene/light/contracts.ts'
 import {
   addHemisphereIrradiance,
   addIrradianceCoefficients,
   addUniformIrradiance,
   type IrradianceSum,
 } from '../../scene/core/environment.ts'
-import { SHADOW_DISTANCE_DEFAULT } from '../../contracts/shadowOptions.ts'
+import { DEFAULT_INNER_CONE_ANGLE, readsUnits } from '../../scene/light/fields.ts'
 import { Vector3 } from '../math/vector3.ts'
 import { Light } from './light.ts'
 import * as lightFunction from './lightFunctionSettings.ts'
 import * as lightShaft from './lightShaftSettings.ts'
 import * as lightCloudShadow from './lightCloudShadowSettings.ts'
+import * as lightShadow from './lightShadowSettings.ts'
 import { recordColourAndAir } from './lightAirSettings.ts'
+import { recordFalloff, recordShares, recordUnits } from './lightLampSettings.ts'
+import { storeKindOf } from './lightNumbers.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 /** The kinds that are lamps — a position or a direction the engine's light store holds. */
 const LAMPS = new Set(['point', 'spot', 'directional', 'rectArea'])
-/** A lamp that asks to cast and whose kind the store lets cast: a rectangle casts none. */
-export const lampCastsShadow = (light: Light) =>
-  light.castShadow && LAMPS.has(light.kind) && light.kind !== 'rectArea'
 /** The store's spot cone is open on `(0, π/2)`: the widest half-angle it holds, the half-space
  *  less the one float the bound excludes. */
 const WIDEST_CONE = HALF_PI - 1e-9
@@ -34,6 +35,14 @@ const scaled = (colour: { r: number; g: number; b: number }, scale: number) => [
   colour.b * scale,
 ]
 
+/** Whether a lamp gives light: its intensity above 0, or any finite one in EV where its unit is
+ *  read (`2^ev` candelas; `readsUnits`: a rectangle, or a point or spot under the inverse square). */
+const givesLight = (light: Light) =>
+  light.intensityUnits === 'ev' &&
+  readsUnits({ kind: storeKindOf(light.kind)!, inverseSquared: light.inverseSquared })
+    ? Number.isFinite(light.intensity)
+    : light.intensity > 0
+
 /**
  * A lamp as the engine's store holds it (`scene/light/contracts.ts`), placed by its world matrix,
  * or null for a kind the store does not hold or a light giving nothing. Whether it is shown — it
@@ -41,15 +50,15 @@ const scaled = (colour: { r: number; g: number; b: number }, scale: number) => [
  * page's `distance`, or `reach` — what the world derives from its own extent seen from the lamp's
  * world position, asked only of a lamp the page left unbounded.
  *
- * A rectangle (`rectArea`) is the store's `rect`: its radiance `intensity`, its face looking down
- * the light's `-z`, its width along the light's `x`, and no cast shadow — the store refuses one.
+ * A rectangle (`rectArea`) is the store's `rect`: its `intensity` in its `intensityUnits`, its face
+ * looking down the light's `-z`, its width along the light's `x`; it casts a shadow where its `castShadow` is set.
  */
 export function lampRecord(
   light: Light,
   id: string,
   reach: (at: Vector3) => number,
 ): SceneLight | null {
-  if (!LAMPS.has(light.kind) || !(light.intensity > 0)) return null
+  if (!LAMPS.has(light.kind) || !givesLight(light)) return null
   const rectangle = light.kind === 'rectArea'
   const kind = rectangle ? 'rect' : (light.kind as SceneLight['kind'])
   light.getWorldPosition(eye)
@@ -58,14 +67,43 @@ export function lampRecord(
     kind,
     color: light.color.toArray(),
     intensity: light.intensity,
-    castsShadow: lampCastsShadow(light),
+    castsShadow: light.castShadow,
   }
   if (light.fogScattering !== 1) record.fogScattering = light.fogScattering
+  if (kind !== 'directional' && light.shadowResolutionScale !== 1)
+    record.shadowResolutionScale = light.shadowResolutionScale
+  recordShares(light, record)
+  recordUnits(light, record)
   recordColourAndAir(light, record)
   if (light.shadowsFog !== (kind === 'directional')) record.shadowsFog = light.shadowsFog
+  if (light.mobility !== DEFAULT_LIGHT_MOBILITY) record.mobility = light.mobility
   lightFunction.record(light, record)
-  lightShaft.record(light, record)
-  lightCloudShadow.record(light, record)
+  Object.assign(
+    record,
+    lightShaft.settingsSet(light),
+    lightCloudShadow.settingsSet(light),
+    lightShadow.settingsSet(light),
+  )
+  recordFacing(light, record, kind, rectangle)
+  if (kind === 'directional') {
+    recordSun(light, record)
+    return record
+  }
+  record.position = eye.toArray()
+  record.range = light.distance > 0 ? light.distance : reach(eye)
+  if (kind === 'spot') recordCone(light, record)
+  if (!rectangle) writeLamp(record, light, record.range)
+  return record
+}
+
+/** A rectangle's right axis and size, and the direction of every kind but a point: toward its
+ *  target, or its own `-z` for a rectangle, straight down when they coincide. */
+function recordFacing(
+  light: Light,
+  record: SceneLight,
+  kind: SceneLight['kind'],
+  rectangle: boolean,
+) {
   if (rectangle) {
     light.getWorldDirection(aim)
     const m = light.matrixWorld.elements
@@ -76,29 +114,29 @@ export function lampRecord(
     if (!rectangle) light.target.getWorldPosition(aim).sub(eye)
     record.direction = (aim.lengthSq() > 0 ? aim.normalize() : aim.set(0, -1, 0)).toArray()
   }
-  if (kind === 'directional') {
-    if (light.angularRadius > 0) record.angularRadius = light.angularRadius
-    if (!light.atmosphereSun) record.atmosphereSun = false
-    if (light.atmosphereSunIndex !== 0) record.atmosphereSunIndex = light.atmosphereSunIndex
-    // The default distance stays out of the record, as the default disk does: a light that names
-    // none keeps the record it had.
-    if (light.shadowDistance !== SHADOW_DISTANCE_DEFAULT)
-      record.shadowDistance = light.shadowDistance
-    return record
-  }
-  record.position = eye.toArray()
-  record.range = light.distance > 0 ? light.distance : reach(eye)
-  if (kind === 'spot') {
-    record.coneAngle = Math.min(light.angle, WIDEST_CONE)
-    if (light.penumbra > 0) record.penumbra = Math.min(1, light.penumbra)
-  }
-  if (!rectangle) writeSource(record, light, record.range)
-  return record
 }
 
-/** A point or spot's source: its radius and soft radius, each only below the range as the record
- *  holds them, and its tube along the light's own up in the world (the node's local y). */
-function writeSource(record: SceneLight, light: Light, range: number) {
+/** What only a directional light records: its angular radius, its atmosphere sun and its priority. */
+function recordSun(light: Light, record: SceneLight) {
+  if (light.angularRadius > 0) record.angularRadius = light.angularRadius
+  if (!light.atmosphereSun) record.atmosphereSun = false
+  if (light.atmosphereSunIndex !== 0) record.atmosphereSunIndex = light.atmosphereSunIndex
+  if (light.forwardShadingPriority !== 0)
+    record.forwardShadingPriority = light.forwardShadingPriority
+}
+
+/** A spot's outer cone, and its inner one where it is not the default. */
+function recordCone(light: Light, record: SceneLight) {
+  record.outerConeAngle = Math.min(light.outerConeAngle, WIDEST_CONE)
+  if (light.innerConeAngle !== DEFAULT_INNER_CONE_ANGLE)
+    record.innerConeAngle = clamp(light.innerConeAngle, 0, WIDEST_CONE)
+}
+
+/** A point or spot's source and fall-off: its radius and soft radius, each only below the range as
+ *  the record holds them, its tube along the light's own up in the world (the node's local y), the
+ *  way its light falls off. */
+function writeLamp(record: SceneLight, light: Light, range: number) {
+  recordFalloff(light, record)
   if (light.radius > 0 && light.radius < range) record.emitterRadius = light.radius
   if (light.softRadius > 0 && light.softRadius < range) record.emitterSoftRadius = light.softRadius
   if (!(light.tubeLength > 0)) return
@@ -147,28 +185,37 @@ export function lightFromRecord(record: SceneLight): Light {
     height: record.size?.[1],
     color: record.color,
     intensity: record.intensity,
+    intensityUnits: record.intensityUnits,
     castShadow: record.castsShadow,
     position: at,
     target: [at[0] + along[0], at[1] + along[1], at[2] + along[2]],
     distance: record.range,
-    angle: record.coneAngle,
-    penumbra: record.penumbra,
+    innerConeAngle: record.innerConeAngle,
+    outerConeAngle: record.outerConeAngle,
     radius: record.emitterRadius,
     angularRadius: record.angularRadius,
-    shadowDistance: record.shadowDistance,
     atmosphereSun: record.atmosphereSun,
     atmosphereSunIndex: record.atmosphereSunIndex,
+    forwardShadingPriority: record.forwardShadingPriority,
     useTemperature: record.useTemperature,
     temperatureKelvin: record.temperatureKelvin,
     shadowsAir: record.shadowsAir,
     transmittancePerPixel: record.transmittancePerPixel,
+    transmission: record.transmission,
     sunDiskTint: record.sunDiskTint,
     fogScattering: record.fogScattering,
+    shadowResolutionScale: record.shadowResolutionScale,
     shadowsFog: record.shadowsFog,
+    mobility: record.mobility,
     softRadius: record.emitterSoftRadius,
     tubeLength: record.emitterLength,
+    inverseSquared: record.inverseSquared,
+    radialExponent: record.radialExponent,
+    diffuseShare: record.diffuseShare,
+    specularShare: record.specularShare,
     ...lightShaft.fromRecord(record),
     ...lightCloudShadow.fromRecord(record),
+    ...lightShadow.fromRecord(record),
   })
   node.name = record.id
   // A tube lies along the node's own up: turned there from the scene's.

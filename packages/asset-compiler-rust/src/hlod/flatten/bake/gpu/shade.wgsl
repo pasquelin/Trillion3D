@@ -138,11 +138,11 @@ struct Shade {
 }
 
 // The share of a texel surface `s` covers with its own layer, the rest showing what lies behind
-// it, `alpha` the base colour's alpha there (factor, texture and vertex colour) and `rough_metal`
-// its own (`../seen.rs`'s `covers`): all of it for a surface neither blended nor transmitting;
-// else its opacity where it draws blended, times, where it transmits, the larger of the share it
-// does not transmit, its metallic and its roughness.
-fn covers(s: u32, alpha: f32, rough_metal: vec2f) -> f32 {
+// it, `alpha` the base colour's alpha there (factor, texture and vertex colour) and `metal` its
+// metallic there (`../seen.rs`'s `covers`): all of it for a surface neither blended nor
+// transmitting; else its opacity where it draws blended, times, where it transmits, the larger of
+// the share it does not transmit and its metallic.
+fn covers(s: u32, alpha: f32, metal: f32) -> f32 {
     let misc = bitcast<vec4f>(materials[s + 1u]);
     let cut = bitcast<vec4f>(materials[s + 2u]);
     var opacity = 1.0;
@@ -152,7 +152,7 @@ fn covers(s: u32, alpha: f32, rough_metal: vec2f) -> f32 {
     if misc.w <= 0.0 {
         return opacity;
     }
-    let lit = max(max(1.0 - misc.w, rough_metal.y), rough_metal.x);
+    let lit = max(1.0 - misc.w, metal);
     return opacity * clamp(lit, 0.0, 1.0);
 }
 
@@ -220,7 +220,7 @@ fn shade(t: u32, at: vec2f, steps: Footprint) -> Shade {
         let r = read_uv(t, at, s, 4u, steps);
         specular = specular * filtered(more.y, wraps(s, 4u), r.uv, r.across).w;
     }
-    let cover = covers(s, base.w, rough_metal);
+    let cover = covers(s, base.w, rough_metal.y);
     return Shade(colour, normal, rough_metal, cover, emission, specular, base.w);
 }
 

@@ -15,7 +15,7 @@ const CATEGORY_RULES: [string, RegExp][] = [
     'math',
     /^packages\/math\/src\/|\/src\/(?:visibility\/hiz|world\/(?:math|transform)|runtime\/path)\/|\/world\/observed\.ts$|\/scene\/core\/nodeEdits\.ts$/,
   ],
-  ['lighting', /\/src\/(?:lighting|bounce|proxy|scene\/light)\/|\/contracts\/proxy\.ts$/],
+  ['lighting', /\/src\/(?:lighting|bounce|scene\/light)\//],
   [
     'streaming',
     /\/src\/(?:manifest\/|page\/(?!contracts\.ts)|texture\/)|\/contracts\/(?:geometry|cache)\.ts$/,
@@ -65,7 +65,7 @@ const browserOnly = rows.filter(
   (row) => row.entries.includes('browser') && !row.entries.includes('core'),
 )
 // The browser facade is split like the common one, by area — the session's page words, the
-// diagnostics and the geometry's apart from the engine's other browser exports — so no generated
+// diagnostics, the geometry's and the world's classes apart from the engine's other browser exports — so no generated
 // file outgrows the line limit. A page word that shadows a common contract of the same name is
 // named explicitly in `installed-package/browser.ts`: two star exports of one name would cancel
 // each other, an explicit one wins.
@@ -73,6 +73,7 @@ const AREAS: readonly (readonly [string, RegExp])[] = [
   ['session', /\/sdk-browser\/src\/session\//],
   ['diagnostic', /\/diagnostic\//],
   ['geometry', /\/sdk-browser\/src\/geometry\//],
+  ['world', /\/sdk-core\/src\/world\//],
 ]
 const browserArea = (row: ExportRow) =>
   AREAS.find(([, pattern]) => pattern.test(row.module))?.[0] ?? 'engine'

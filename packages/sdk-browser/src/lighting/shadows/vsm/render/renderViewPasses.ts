@@ -2,10 +2,10 @@
  * THE RASTER'S VIEW PASSES (`renderPass.ts`): the frame's lights, in the order of their map ids,
  * grouped into the passes that each list and cull their own views over the caster rows. A view of
  * the raster is a map — its mips are looped inside the cull —, and the cull runs a thread row per
- * listed light on the y axis of one dispatch (`vsmRenderViews`, `vsmRenderCull`): a pass lists at
+ * listed light on the z axis of one dispatch (`vsmRenderViews`, `vsmRenderCull`): a pass lists at
  * most as many lights as a dispatch has rows, `maxComputeWorkgroupsPerDimension` (65 535 on any
- * device), and so at most that many maps — a light holds one at least —; the ids the commands and
- * the pairs pack are `VSM_MAP_ID_BITS` wide, which no frame passes (`layout.mapSlots`). The limit
+ * device), and so at most that many maps — a light holds one at least —; the ids the records pack
+ * are `VSM_RECORD_MAP_ID_BITS` wide, which no frame passes (`layout.mapSlots`). The limit
  * counts maps, which bound the lights from above and are what the ids number. A light is
  * never split: when the next one would take the pass past what a dispatch carries, the pass closes
  * and a new one opens (`vsmViewPasses`). A frame whose lights fit has one pass, which is what the
@@ -14,23 +14,19 @@
  */
 import { ceilDiv } from '../../../../../../math/src/scalar/integers.ts'
 import { groupWidth } from '../../../../gpu/dispatch/grid.ts'
+import { VSM_RECORD_MAP_ID_BITS } from '../constants.ts'
 import { vsmLightMaps, vsmLightMips, type VsmViewLight } from '../mapViews.ts'
 
-/** Bits of a map's id in the words the cull and the expand pack: `vsmRenderCull` writes it under
- *  the mip (`view.x | mip << 16`), `vsmRenderExpand`, the raster and the transmission read it
- *  back with `& 0xFFFF`. */
-export const VSM_MAP_ID_BITS = 16
-
-/** The most passes a frame takes on any device: every map id a frame holds (`1 << VSM_MAP_ID_BITS`)
+/** The most passes a frame takes on any device: every map id a frame holds (`1 << VSM_RECORD_MAP_ID_BITS`)
  *  in passes of the dispatch limit every device guarantees (`groupWidth` without limits). The
  *  timed passes are sized for it (`gpu/timing/vsmPasses.ts`). */
-export const VSM_MAX_VIEW_PASSES = ceilDiv(1 << VSM_MAP_ID_BITS, groupWidth())
+export const VSM_MAX_VIEW_PASSES = ceilDiv(1 << VSM_RECORD_MAP_ID_BITS, groupWidth())
 
 /** The maps a view pass takes at most on a device of `limits`: the rows of its dispatch — its
  *  lights are at most its maps —, none past the ids a map takes; unbounded when `multipass` is
  *  off. */
 export const vsmViewsPerPass = (limits: Parameters<typeof groupWidth>[0], multipass: boolean) =>
-  multipass ? Math.min(groupWidth(limits), 1 << VSM_MAP_ID_BITS) : Infinity
+  multipass ? Math.min(groupWidth(limits), 1 << VSM_RECORD_MAP_ID_BITS) : Infinity
 
 /** One view pass: its maps are the ids `first` to `first + maps`, and `mips` the mip views the raster
  *  draws of them (what its lists are sized for). */

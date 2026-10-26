@@ -13,7 +13,6 @@ export function page(metrics: Record<string, unknown>): Page {
   return {
     evaluate: async () => ({
       importedLights: null,
-      witnessLights: null,
       movingNode: null,
       selection: { source: null, ids: [] },
       metrics,

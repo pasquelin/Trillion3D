@@ -13,9 +13,11 @@ async function shot(device: GPUDevice, events: unknown[], receiver: Receiver, op
   const prepared = penumbraScene(receiver, { open })
   const sceneLights = createSceneLightStore()
   sceneLights.add(WIDE_SUN)
+  // The blended receiver is traced as the opaque one (the project switch `shadowTranslucentQuality`).
   const { backend, canvas } = engine(prepared, device, (e) => events.push(e), {
     sceneLights,
     pixelError: 1,
+    shadowTranslucentQuality: 1,
   })
   try {
     await backend.prepare()

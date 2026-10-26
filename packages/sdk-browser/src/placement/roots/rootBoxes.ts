@@ -2,7 +2,7 @@
  * THE ROOT BOXES PASS ON THE GPU (`rootBoxesWgsl.ts`): each root whose world moved has its world box
  * and its stretch derived from the world the GPU holds — the roots a send moved (`takeMoved`),
  * every root after a whole send, and the roots the compose worlds pass composed anew this frame. It runs in the roots' one compute pass before every cut (`rootPasses.ts`),
- * after the composition's dispatches: the cut reads the stretches, the rows pass the boxes. A move costs the
+ * after the composition's dispatches: the cut reads the stretches, the shadow casters' kernel the boxes. A move costs the
  * CPU no box and no stretch, and the list of the roots it moved alone.
  */
 import { autoKernel } from '../../gpu/core/computeStages.ts'
@@ -41,7 +41,10 @@ function createRootBoxesGpu(rt: WebgpuPagesRuntime, device: GPUDevice) {
     ),
     resourceEntry(ROOT_BOXES_FRAMES_BINDING, () => frame.frames),
   ])
-  return { pass, frame }
+  /** How many times the pass wrote boxes: what the shadows' diff of the instances' boxes follows, so a
+   *  box written after it ran in a frame is named by the next one (`castDiff.ts`); `boxed`, how many
+   *  roots' boxes it derived in all: the diagnostic `shadowVsmRootsBoxed`. */
+  return { pass, frame, written: 0, boxed: 0 }
 }
 export type RootBoxesGpu = ReturnType<typeof createRootBoxesGpu>
 
@@ -68,6 +71,8 @@ export function encodeRootBoxes(
 ) {
   const held = rt.rootWorlds
   if (!held?.worlds || !frames) return
+  const pipeline = rootBoxesKernel(device).get()
+  if (!pipeline) return
   const listedComposed = composed ? (rt.compose?.frameCount ?? 0) : 0
   if (!held.roots.whole && !held.roots.ranks.count && !listedComposed) return
   const named = takeMoved(held.roots),
@@ -76,8 +81,9 @@ export function encodeRootBoxes(
   if (!listed && !composedToo) return
   const gpu = (rt.rootBoxes ??= createRootBoxesGpu(rt, device)),
     roots = held.held,
-    pass = open.pass,
-    pipeline = rootBoxesKernel(device).get()
+    pass = open.pass
+  gpu.written++
+  gpu.boxed += listed + (composedToo ? listedComposed : 0)
   if (named?.length) sendRootList(device, gpu.pass, named, named.length)
   gpu.frame.frames = frames
   pass.setPipeline(pipeline)

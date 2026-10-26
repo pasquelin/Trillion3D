@@ -21,41 +21,9 @@ import type { SurfaceDeclaration } from '../../geometry/pages/surfaceDeclaration
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { lambertAlbedoMul } from '../../../../math/src/wgsl/lighting.ts'
 import { signedToUnit3 } from '../../../../math/src/wgsl/reals.ts'
+import { PIXEL_MODEL, pixelModelOf } from './pixelModel.ts'
+import { MODEL_FLAG, SURFACE_MODEL, SURFACE_MODEL_MASK } from './surfaceModelWord.ts'
 
-export const SURFACE_MODEL = {
-  standard: 0,
-  diffuse: 1,
-  toon: 2,
-  normal: 3,
-  matcap: 4,
-  depth: 5,
-  shadow: 6,
-} as const
-/** Bits of the page row's flags word that carry the model; below them, the material flags. */
-export const MODEL_SHIFT = 17
-/** Surface-buffer flags of the lit models: the physical one, the only one with a specular lobe (a
- *  reflection is traced for it alone), the two the resolve shades apart, and the shadow catcher,
- *  which only a blend fragment reads: it is always blended (`../../geometry/pages/surfaceRecord.ts`). */
-export const MODEL_FLAG = { physical: 2, diffuse: 4, toon: 5, shadow: 6 } as const
-/** Surface-buffer flag of a debug view, a normal or depth surface: shown as-is, never fogged,
- *  and composed with neither exposure nor the display curve (`shownAsIs`). */
-export const AS_IS_FLAG = 3
-/** Low three G-buffer bits identify the surface model; higher bits are independent marks. */
-export const SURFACE_MODEL_MASK = 7
-/** The surface-buffer flag of a lit surface whose row or item flags `flags` carry its model lane
- *  (`MODEL_SHIFT`): the physical one, the diffuse, the toon or the shadow catcher's, as the lane
- *  says. The one mapping of the opaque shade, the blend fragment and the front stage. */
-export const modelFlag = wgslFn(
-  'modelFlag',
-  [],
-  `fn modelFlag(flags:u32)->u32{
- let model=(flags>>${MODEL_SHIFT}u)&7u;
- if(model==${SURFACE_MODEL.diffuse}u){return ${MODEL_FLAG.diffuse}u;}
- if(model==${SURFACE_MODEL.toon}u){return ${MODEL_FLAG.toon}u;}
- if(model==${SURFACE_MODEL.shadow}u){return ${MODEL_FLAG.shadow}u;}
- return ${MODEL_FLAG.physical}u;
-}`,
-)
 /**
  * A shadow catcher's alpha (three.js's `ShadowMaterial`): its `opacity` times the share of its
  * shadowed lights' light the shadows take away at the point — `lights`, the catcher's sum of the
@@ -68,21 +36,32 @@ export const catcherAlpha = wgslFn(
   `fn catcherAlpha(opacity:f32,lights:vec3f)->f32{return select(0.0,opacity*saturate(1.0-lights.x/lights.y),lights.y>0.0);}`,
 )
 /** Whether a surface of surface-buffer flags `flags` reflects: the physical model alone has a
- *  specular lobe, the one rule of the opaque trace (the flags it reads) and the forward programs
- *  (their `surfaceModel`, the flag itself). */
+ *  specular lobe — a hair has none, whatever model bits it carries (`pixelModelOf`) —, the one rule of
+ *  the opaque trace (the flags it reads) and the forward programs (their `surfaceModel`, the flag itself). */
 export const surfaceReflects = wgslFn(
   'surfaceReflects',
-  [],
-  `fn surfaceReflects(flags:u32)->bool{return (flags&${SURFACE_MODEL_MASK}u)==${MODEL_FLAG.physical}u;}`,
+  [pixelModelOf],
+  `fn surfaceReflects(flags:u32)->bool{return (flags&${SURFACE_MODEL_MASK}u)==${MODEL_FLAG.physical}u&&pixelModelOf(flags)!=${PIXEL_MODEL.hair}u;}`,
 )
 /** The surface flags' eighth bit carries a material's fog opt-out. */
 export const FOG_FREE_SURFACE_FLAG = 128
 /** The surface target's mark of an emission-and-occlusion texel other than `(0, 0, 0, 1)`
  *  (`surfaceEmission.ts`); 32 is the thin subsurface's (`subsurface.ts`). */
 export const EMISSIVE_AO_SURFACE_FLAG = 16
-/** The forward item's model lane has one free bit after the three model bits. */
-export const FOG_FREE_MODEL_BIT = 8
-
+/** The surface flags' twenty-fifth bit marks a first-person primitive: the pixels of an object the camera's
+ *  owner holds (`PLACEMENT_FIRST_PERSON`, `PageInfo.firstPerson`), which the lighting treats apart — the
+ *  shadows read it. Written by the opaque resolve beside the model, read through `isFirstPerson`. */
+export const FIRST_PERSON_SURFACE_FLAG = 1 << 24
+/** The surface flags' thirtieth bit marks a pixel of a held-out primitive (`PLACEMENT_HOLDOUT`,
+ *  `FLAG_HOLDOUT`) the resolve drew black, lit by nothing, where the alpha holdout is in effect: the colour pass gives
+ *  it an alpha of 1, a hole in the image's. Beside the unlit model, above the pixel model's four bits. */
+export const HOLDOUT_SURFACE_FLAG = 1 << 29
+/** Whether a surface of surface-buffer flags `flags` is a first-person primitive's. */
+export const isFirstPerson = wgslFn(
+  'isFirstPerson',
+  [],
+  `fn isFirstPerson(flags:u32)->bool{return (flags&${FIRST_PERSON_SURFACE_FLAG}u)!=0u;}`,
+)
 /** The one rule for debug views: a normal or depth surface is output untouched —
  *  no exposure, no tone mapping —: a debug view shows the raw value, never a tone-mapped one. */
 export const shownAsIs = (model: number | undefined) =>

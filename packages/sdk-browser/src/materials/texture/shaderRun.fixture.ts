@@ -8,7 +8,8 @@ import { Translator } from './shaderRunTranslator.fixture.ts'
 import { tokens } from './shaderRunTokens.fixture.ts'
 import { type WgslSource, wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
-const NAMED = /^(?:const|override(?= \w+:\w+=(?:true|false|\d+u?);)) (\w+)(?::[\w<>]+)?=([^;]+);/gm
+const NAMED =
+  /^(const|var<private>|override(?= \w+:\w+=(?:true|false|\d+u?);)) (\w+)(?::[\w<>]+)?=([^;]+);/gm
 
 /** Each program's compiled run, by its text, the functions asked and the scope's names: a test that
  *  runs a program again — a fake device's every dispatch — calls it with its new scope values. */
@@ -20,7 +21,7 @@ const compiled = new Map<
 /** The functions `names` of a shipped WGSL text, run in JavaScript: vectors as arrays, matrices
  *  as `Mat`, arithmetic by component, scalars broadcast, built-ins by `shaderRunBuiltins.fixture`,
  *  a structure's constructor by its declaration, bindings by `scope`, constants by it or the text
- *  — an override at its literal default. */
+ *  — an override at its literal default, a private variable at its initial value. */
 export function shaderRun<T>(input: WgslSource, names: string[], scope: object): T {
   const source = wgslSource(input)
   const key = `${names.join(',')}\n${Object.keys(scope).join(',')}\n${source}`
@@ -35,9 +36,28 @@ export function shaderRun<T>(input: WgslSource, names: string[], scope: object):
         new Translator(tokens(text.slice(header.index, all[i + 1]?.index))).functionText(),
       )
       .join('\n')
-    const constants = [...source.matchAll(NAMED)]
-      .filter(([, name]) => !(name in all) && new RegExp(`\\b${name}\\b`).test(text))
-      .map(([, name, value]) => `const ${name}=${new Translator(tokens(value)).expression()};`)
+    // A private variable with an initial value is a variable the functions may write, its own. A
+    // constant is taken where the functions name it or a constant taken names it, in the text's
+    // order (`const TV_L0 = PI`).
+    const declared = [...source.matchAll(NAMED)].filter(([, , name]) => !(name in all))
+    const named = (name: string, by: string) => new RegExp(`\\b${name}\\b`).test(by)
+    const taken = new Set<string>()
+    const wanted = (name: string) =>
+      named(name, text) || declared.some(([, , other, by]) => taken.has(other) && named(name, by))
+    for (let grew = true; grew;) {
+      grew = false
+      for (const [, , name] of declared)
+        if (!taken.has(name) && wanted(name)) {
+          taken.add(name)
+          grew = true
+        }
+    }
+    const constants = declared
+      .filter(([, , name]) => taken.has(name))
+      .map(
+        ([, kind, name, value]) =>
+          `${kind === 'var<private>' ? 'let' : 'const'} ${name}=${new Translator(tokens(value)).expression()};`,
+      )
     const body = `${constants.join('')}${js};return {${names}};`
     held = {
       run: new Function(...Object.keys(all), body) as (...values: unknown[]) => unknown,

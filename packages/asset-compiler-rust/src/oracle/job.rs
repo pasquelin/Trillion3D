@@ -3,6 +3,7 @@ use super::{
     OracleCamera, OracleJob, OracleLight, KIND_POINT, KIND_SPOT, KIND_SUN, ORACLE_VERSION,
 };
 use crate::compiler::validate::Fields;
+use crate::shared_math::{spot_cosines, DEFAULT_INNER_CONE_ANGLE};
 use crate::Result;
 use serde_json::Value;
 use std::path::PathBuf;
@@ -34,6 +35,16 @@ fn light_of(value: &Value) -> Result<OracleLight> {
         normalize_where(raw, |norm| norm > 0.0 || norm.is_nan())
             .ok_or_else(|| JOB.bad("light.direction has no length"))?
     };
+    let (cos_cone, cos_inner) = if kind == KIND_SPOT {
+        let outer = JOB.number(value.get("outerConeAngle"), "light.outerConeAngle")?;
+        let inner = match value.get("innerConeAngle") {
+            Some(given) => JOB.number(Some(given), "light.innerConeAngle")?,
+            None => DEFAULT_INNER_CONE_ANGLE,
+        };
+        spot_cosines(inner, outer)
+    } else {
+        (-2.0, -2.0)
+    };
     Ok(OracleLight {
         kind,
         position: if kind == KIND_SUN {
@@ -49,11 +60,8 @@ fn light_of(value: &Value) -> Result<OracleLight> {
         } else {
             JOB.number(value.get("range"), "light.range")?
         },
-        cos_cone: if kind == KIND_SPOT {
-            JOB.number(value.get("coneAngle"), "light.coneAngle")?.cos()
-        } else {
-            -2.0
-        },
+        cos_cone,
+        cos_inner,
         casts_shadow: value
             .get("castsShadow")
             .and_then(Value::as_bool)

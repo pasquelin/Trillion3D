@@ -2,11 +2,8 @@ import { skyLightSource, type SkyLightPart } from '../../../../sdk-core/src/modu
 import type { FogRead } from '../../lighting/fog/read.ts'
 import type { SkyLightCapture, SkyLightInputs } from '../../modules/sky/skyLight/capture.ts'
 import type { SceneCaptureHost } from '../../modules/sky/skyLight/captureScene.ts'
-import {
-  createSkyLightSampler,
-  SKY_LIGHT_READ_WORDS,
-  type SkyLightReadSet,
-} from '../../modules/sky/skyLight/read.ts'
+import { SKY_LIGHT_READ_WORDS, type SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
+import { postSamplers } from '../../gpu/core/postSamplers.ts'
 import { skyLightStandIn } from '../../modules/sky/skyLight/standIn.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { holdSkyLight } from './skyLightHeld.ts'
@@ -23,9 +20,11 @@ export interface SkyLightSource {
   readonly part: SkyLightPart
   /** Where the light stands in the scene, metres. */
   readonly position: readonly [number, number, number]
-  /** The host's cube, for a light whose source is a specified cubemap. */
+  /** The cube of a light whose source is a specified cubemap, and its light scale
+   *  (`SkyLightInputs.cubemap`, `cubemapScale`). */
   readonly cubemap?: GPUTexture
-  /** The cube the host's cube blends to and the share of it (`SkyLightInputs.blend`, `SetCubemapBlend`). */
+  readonly cubemapScale?: number
+  /** The cube it blends to and the share of it (`SkyLightInputs.blend`, `SetCubemapBlend`). */
   readonly blend?: SkyLightInputs['blend']
   /** The clouds the capture draws, where the scene has them (`SkyLightInputs.clouds`). */
   readonly clouds?: SkyLightInputs['clouds']
@@ -79,6 +78,12 @@ export function skyLightPending(rt: WebgpuPagesRuntime) {
   return !!source && skyLightSource(source.part) === 'realTime' && !capture?.read()
 }
 
+/** What the capture has ready to read: its cube and harmonics, none while the light has no source or no
+ *  cube is drawn. The view's uniform is not part of it: only a program that reads it asks for it
+ *  (`skyLightReadOf`). */
+export const skyLightReady = (state: SkyLightState) =>
+  state.source ? state.capture?.read() : undefined
+
 /**
  * What a program reads the sky light with this image (`SkyLightReadSet`): the capture's filtered
  * cubes, the trilinear sampler, the harmonics and the view's uniform, or the stand-in that gives no
@@ -87,13 +92,13 @@ export function skyLightPending(rt: WebgpuPagesRuntime) {
 export function skyLightReadOf(rt: WebgpuPagesRuntime): SkyLightReadSet {
   const device = rt.gpu.device!,
     state = skyLightStateOf(rt),
-    ready = state.source && state.params ? state.capture?.read() : undefined
+    ready = state.params ? skyLightReady(state) : undefined
   if (!ready) return skyLightStandIn(device)
   const held = state.read
   if (held?.cube === ready.cube && held.harmonics === ready.harmonics) return held
   return (state.read = {
     cube: ready.cube,
-    sampler: held?.sampler ?? createSkyLightSampler(device),
+    sampler: held?.sampler ?? postSamplers(device).mipped,
     harmonics: ready.harmonics,
     params: state.params!,
   })

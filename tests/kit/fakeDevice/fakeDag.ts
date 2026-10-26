@@ -2,10 +2,12 @@ import type { PackedDag } from '../../../packages/sdk-browser/src/geometry/dag/t
 import { dagBindingOf } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.fixture.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/geometry/dag/viewLayout.ts'
 import { CLUSTER_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
+import { CLUSTER_INFO_BYTES } from '../../../packages/sdk-browser/src/geometry/dag/info/clusterInfoLayout.ts'
 import { floats, words } from './fakeBuffers.ts'
 import { recordWord, viewTexture, worldsAtEye } from './fakeWorldPose.ts'
 import {
   FRAME_TABLE,
+  INFO_SHIFT_WORD,
   MARK_WORD,
   PAGE_BASE_WORD,
   PAGE_COUNT_WORD,
@@ -34,25 +36,33 @@ export function readDagUniforms(data: Uint8Array) {
     u32 = words(data)
   const at = viewWord,
     camera = at('cameraWorld'),
-    scale = at('pixelScale')
+    scale = at('pixelScale'),
+    plane = at('clipPlane')
   return {
     uniforms: {
       planes: f32.slice(at('planes'), at('planes') + 24),
       view: f32.slice(at('view'), at('view') + 16),
       pixelScale: [f32[scale], f32[scale + 1]] as [number, number],
       pixelError: f32[at('pixelError')],
+      perspective: f32[at('perspective')],
       near: f32[at('near')],
       cameraWorld: [f32[camera], f32[camera + 1], f32[camera + 2]] as [number, number, number],
       viewProj: f32.slice(at('viewProj'), at('viewProj') + 16),
       depthMap: [f32[at('depthMap')], f32[at('depthMap') + 1]] as [number, number],
       viewSize: [u32[at('viewSize')], u32[at('viewSize') + 1]] as [number, number],
+      clipPlane: [f32[plane], f32[plane + 1], f32[plane + 2], f32[plane + 3]] as [
+        number,
+        number,
+        number,
+        number,
+      ],
     },
   }
 }
 
 /** The list cap the kernels read, from the camera's uniform block (`listCap.ts`). */
 export const boundListCap = (byBinding: Bound) =>
-  words(byBinding.get(DAG_SLOT.views)!.data)[viewWord('listCap')]
+  words(byBinding.get(DAG_SLOT.cutView)!.data)[viewWord('listCap')]
 
 /**
  * The DAG a cut's bound buffers hold, for a device no test handed one (`fakeDevice({ packed })`):
@@ -66,7 +76,7 @@ export function packedFromBindings(
   worlds: View,
   frames: View,
 ): PackedDag & { frameStretch: Float32Array } {
-  const views = words(byBinding.get(DAG_SLOT.views)!.data)
+  const views = words(byBinding.get(DAG_SLOT.cutView)!.data)
   const pageCount = views[viewWord('clusterCount')],
     nodeCount = views[viewWord('nodeCount')],
     worldCount = views[viewWord('worldCount')]
@@ -88,7 +98,11 @@ export function packedFromBindings(
     clusters,
     nodes: floats(byBinding.get(DAG_SLOT.nodes)!.data),
     coldWords: floats(byBinding.get(DAG_SLOT.cold)!.data),
-    worlds: worldsAtEye(viewTexture(worlds), byBinding.get(DAG_SLOT.views)!.data, worldCount * 16),
+    worlds: worldsAtEye(
+      viewTexture(worlds),
+      byBinding.get(DAG_SLOT.cutView)!.data,
+      worldCount * 16,
+    ),
     // The stretch the cut reads, its own field (`frameTable.ts`).
     frameStretch: new Float32Array(
       Uint32Array.from({ length: worldCount }, (_, w) =>
@@ -98,6 +112,7 @@ export function packedFromBindings(
     rootNodes,
     rootBases: rootNodes.slice(),
     recordShift: intsAt(RECORD_SHIFT_WORD),
+    infoShift: intsAt(INFO_SHIFT_WORD),
     mark: intsAt(MARK_WORD),
     levelSizes: new Uint32Array(0),
     nodeCount,
@@ -108,10 +123,14 @@ export function packedFromBindings(
     pageCount,
     // The records the hot table holds room for (`layout.ts`): the uniform block names none.
     recordCount: Math.floor(clusters.length / CLUSTER_WORDS),
+    // The cluster records the info table holds room for.
+    infoCount: Math.floor(byBinding.get(DAG_SLOT.info)!.data.byteLength / CLUSTER_INFO_BYTES),
     pageIndex,
     rootCount: worldCount,
     pageUrlOf: () => undefined,
     cutLinks: [],
+    // The bindings name no group above a root: the double places none.
+    parentNodes: new Map(),
     // The bindings hold the worlds, not the host's placements.
     worldSources: [],
   }

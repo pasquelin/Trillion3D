@@ -155,9 +155,6 @@ pub(crate) fn simplified(
     drop(taken);
     drop(parts);
     let mut baking = millis(started);
-    if !sources.has_volume() {
-        return Ok(Err(("the sources' bounds hold no volume", stages)));
-    }
     let voxel = resolution::voxel(pixels, sources.major_axis(), settings.voxel);
     let shaped = match shape::shaped(&sources, (voxel, pixels), settings, cancelled)? {
         Ok(shaped) => shaped,

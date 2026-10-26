@@ -69,7 +69,12 @@ test('a pool slot has a unique rank, and the table entry keeps place and level',
   assert.equal(placeIndex({ x: 0, y: 0, layer: 1 }), TILES_PER_LAYER)
 })
 
-const lanes = (lossless: number, rgba: number, two = 0) => ({ lossless, rgba, 'two-channel': two })
+const lanes = (lossless: number, rgba: number, two = 0) => ({
+  lossless,
+  rgba,
+  'two-channel': two,
+  hdr: 0,
+})
 const rgba8 = () => 4
 const blocks = (lane: string) => (lane === 'lossless' ? 4 : 1)
 
@@ -113,6 +118,25 @@ test('the pool budget yields whole layers per lane, and never refuses: it raises
   )
   assert.deepEqual(small.layers, { color: lanes(1, 0), data: lanes(0, 2) })
   assert.equal(small.clamp, 'scene')
+})
+
+// Behaviour: the budget is room to grow into. Given the layers each lane holds, the pool is drawn
+// no further than they reach — a lane that holds none, at its floor —, within the budget's share,
+// whose reasons it keeps; given none, it is the whole share.
+test('a pool drawn on the layers its lanes hold stops there, within the share of the budget', () => {
+  const demand = { color: lanes(5000, 0), data: lanes(5000, 0) }
+  const held = (color: number, data: number) => ({ color: lanes(color, 0), data: lanes(data, 0) })
+  const drawn = (layers?: ReturnType<typeof held>) =>
+    texturePoolFor(512 * MIB, undefined, demand, rgba8, noTails, layers)
+  const share = drawn()
+  assert.deepEqual(share.layers, held(4, 4))
+  const floors = drawn(held(0, 0))
+  assert.deepEqual(floors.layers, held(1, 1))
+  assert.equal(floors.allocatedBytes, 2 * 67_108_864)
+  assert.deepEqual(drawn(held(2, 0)).layers, held(2, 1))
+  assert.deepEqual(drawn(held(9, 3)).layers, held(4, 3), 'never past the share')
+  assert.equal(floors.budgetBytes, share.budgetBytes)
+  assert.equal(floors.clamp, share.clamp)
 })
 
 // Behaviour: the floor holds every tail of a lane, as the geometry pool holds its root

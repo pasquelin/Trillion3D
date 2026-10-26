@@ -1,5 +1,5 @@
 use super::*;
-use crate::texture::Layout;
+use crate::texture::{AtlasKind, Layout};
 
 /// Progressive levels section: one fixed-length entry per decoded color texture, and
 /// its own byte range in pixel column.
@@ -7,8 +7,7 @@ use crate::texture::Layout;
 /// Entry names texture and `source.gltf` image it covers, source
 /// dimensions, origin kind — 0 for `uri`, 1 for buffer view whose index follows —
 /// then rank of first carried level, count, pixel start and length, chain it
-/// holds — 0 color, 1 data, 2 color weighted by coverage, whose cutoff byte fills
-/// bits 8–15 (`AtlasKind::word`) — and
+/// holds — 0 color, 1 data, 2 half-float (`AtlasKind::word`) — and
 /// count of levels baked into files under `textures/<sha>/`, from 0 to `baked - 1`.
 /// `uri` itself not copied: read from `images[image]` named by entry,and
 /// duplicating it would create two truths. Levels not described one by one: their
@@ -22,9 +21,7 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
     let mut previous: Option<(u32, u32)> = None;
     let mut offset: u32 = 0;
     for preview in previews {
-        // Keyed by the atlas that samples the chain: a texture has one colour-atlas
-        // entry, plain or coverage, never both.
-        let key = (preview.texture, preview.kind.atlas().word());
+        let key = (preview.texture, preview.kind.word());
         if previous.is_some_and(|last| last >= key) {
             return Err(MANIFEST.bad(format!(
                 "Texture preview {} does not follow the previous (texture, atlas) pair",
@@ -32,6 +29,19 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
             )));
         }
         previous = Some(key);
+        // A half-float chain is held by BC6H or kept in 32-bit floats alone, when its texture asks.
+        if preview.kind == AtlasKind::Hdr
+            && preview
+                .layouts
+                .iter()
+                .flatten()
+                .any(|&layout| !matches!(layout, Layout::Hdr | Layout::Float32))
+        {
+            return Err(MANIFEST.bad(format!(
+                "Texture preview {} is half-float and names a block layout other than BC6H or 32-bit floats",
+                preview.texture
+            )));
+        }
         if preview.width == 0 || preview.height == 0 {
             return Err(MANIFEST.bad(format!(
                 "Texture preview {} declares an empty source image",
@@ -45,7 +55,7 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
                 preview.texture, preview.first_level
             )));
         }
-        let bytes = preview_pixel_bytes(preview.width, preview.height);
+        let bytes = preview_pixel_bytes(preview.width, preview.height, preview.kind);
         if preview.pixels.len() != bytes {
             return Err(MANIFEST.bad(format!(
                 "Texture preview {} carries {} pixel bytes, expected {bytes}",
@@ -87,7 +97,7 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
             .zip(preview.layouts)
         {
             let block_bytes = match layout {
-                Some(_) => preview_block_bytes(preview.width, preview.height),
+                Some(layout) => preview_layout_bytes(preview.width, preview.height, layout),
                 None => 0,
             };
             if blocks.len() != block_bytes {

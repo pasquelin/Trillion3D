@@ -1,7 +1,6 @@
 /**
  * THE ROOTS A WORLD SEND MOVED, AS EACH PASS THAT DERIVES FROM THEM TAKES THEM (`rootWorlds.ts`):
- * the rows pass (`../rows/rowWords.ts`) and the root boxes pass (`rootBoxes.ts`) each hold their own list,
- * the engine's one changed list (`createChangedRuns`: a root named twice is listed once), filled by
+ * the root boxes pass (`rootBoxes.ts`) holds its own list, the engine's one changed list (`createChangedRuns`: a root named twice is listed once), filled by
  * every send and taken when the pass runs (`takeMoved`) — every root after a whole send, or a cut
  * adopted (`deriveEveryRoot`).
  */

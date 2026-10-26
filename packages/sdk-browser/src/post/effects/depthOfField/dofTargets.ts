@@ -132,14 +132,15 @@ export function createDofTargets(device: GPUDevice) {
 export type DofTargets = ReturnType<typeof createDofTargets>
 
 /** The output images, two at most, which the depths of field of a chain share and take turns in: a pass
- *  reads the image the one before wrote, each made at the images' extent. */
+ *  reads the image the one before wrote, each made at the images' extent. The translucency is
+ *  composed onto the last one, drawn over it (`../../../blend/translucency.ts`). */
 export function createDofOutputs(device: GPUDevice) {
   const outputs = [0, 1].map((at) =>
     sizedImage(
       device,
       `${DEPTH_OF_FIELD_PASS} image ${at}`,
       COLOR_FORMAT,
-      GPUTextureUsage.STORAGE_BINDING,
+      GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
     ),
   )
   return {

@@ -39,7 +39,7 @@ export interface Texture {
   readonly placement: number
   /** The decoded image. Its container stays `unknown`: only the boundary that uploads it knows. */
   readonly image: unknown
-  /** UV set the sampler reads, `KHR_texture_transform`'s `texCoord`; the engine samples 0 to 3, the sets a page carries (`MAX_UV_SETS`). */
+  /** UV set the sampler reads, `KHR_texture_transform`'s `texCoord`; the engine samples 0 to 7, the sets a page carries (`MAX_UV_SETS`). */
   readonly channel: number
   /** Repeat across. */
   readonly wrapS: WrapMode
@@ -69,11 +69,13 @@ export interface Texture {
 /** Entries of `Texture.transform` (three columns of three) its affine 2 × 3 part is made of: the
  *  part every reader of the transform applies. */
 export const AFFINE = [0, 1, 3, 4, 6, 7] as const
+/** The values of `AFFINE`'s entries in the transform that moves nothing. */
+const IDENTITY_AFFINE = [1, 0, 0, 1, 0, 0] as const
 
 /** True when a UV transform (`Texture.transform`) moves the coordinate: the only case it is
  *  applied, on the CPU twins and on the GPU. */
 export function uvTransformed(m: ArrayLike<number>) {
-  return m[0] !== 1 || m[1] !== 0 || m[3] !== 0 || m[4] !== 1 || m[6] !== 0 || m[7] !== 0
+  return AFFINE.some((entry, k) => m[entry] !== IDENTITY_AFFINE[k])
 }
 
 /**

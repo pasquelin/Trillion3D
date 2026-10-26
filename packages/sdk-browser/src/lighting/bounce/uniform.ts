@@ -1,6 +1,5 @@
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import type { BounceCascades } from '../../../../sdk-core/src/bounce/cascades.ts'
-import { TILE_NO_SLICE } from '../tiles/noSlice.ts'
 import { arrayOf, fieldLayout } from '../../gpu/core/fieldLayout.ts'
 
 /** A level of probes, one vector: its lowest cell (`base`) and its cell's side (`spacing`). */
@@ -11,20 +10,16 @@ export const BOUNCE_LEVEL = fieldLayout('BounceLevel', [
 
 /**
  * `BounceGrid`, one table the writer's words and the shaders' struct are both drawn from
- * (`fieldLayout`): the range and the diagnostic view (`reach.xy`), the sizes of the levels
+ * (`fieldLayout`): the range (`reach.x`), the sizes of the levels
  * (`counts`: cells along a side, levels, cells a level, probes in the pool), the frame state
- * (`frame`: light revision, probes dispatched, frame counter), the
- * world light grid (`lists`: its records' first word in the light grid's buffer, `TILE_NO_SLICE` for
- * none, and its cells along a side; `lattice`: its lowest corner and the side of its cell,
- * `bounceLightSlice`), the eye (`eye`, the light functions' fade is measured from), then every level the
- * declared count holds.
+ * (`frame`: a spare word, the probes dispatched — written by the GPU: the pool's last pass puts the count of the probes it queued there
+ * (`pool/poolWgsl.ts`) —, the frame counter), the eye (`eye`, the light functions' fade is measured
+ * from), then every level the declared count holds.
  */
 export const BOUNCE_GRID = fieldLayout('BounceGrid', [
   ['reach', 'vec4f'],
   ['counts', 'vec4u'],
   ['frame', 'vec4u'],
-  ['lists', 'vec4u'],
-  ['lattice', 'vec4f'],
   ['eye', 'vec4f'],
   ['levels', arrayOf(BOUNCE_LEVEL, BOUNCE_SETTINGS.cascadeLevels)],
 ] as const)
@@ -41,11 +36,9 @@ export const BOUNCE_GRID_BYTES = BOUNCE_GRID.words * 4
 const G = BOUNCE_GRID.at,
   L = BOUNCE_LEVEL.at
 
-/** The lattice and the levels of `cascades` written word by word into `floats`: every encoded frame
- *  does it, so it allocates nothing. */
+/** The levels of `cascades` written word by word into `floats`: every encoded frame does it, so it
+ *  allocates nothing. */
 function writeGridLevels(floats: Float32Array, cascades: BounceCascades) {
-  floats.set(cascades.lattice.corner, G.lattice)
-  floats[G.lattice + 3] = cascades.lattice.spacing
   for (let index = 0; index < cascades.levels.length; index++) {
     const { base, spacing } = cascades.levels[index],
       at = G.levels + index * BOUNCE_LEVEL.words
@@ -70,42 +63,23 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
   const buffer = device.createBuffer({
     label: 'Trillion3D bounce cascades v1',
     size: packed.byteLength,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    // The pool's last pass writes the count of the probes it queued into it, as storage.
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   floats[G.reach] = cascades.reach
   integers.set([cascades.size, cascades.levels.length, cascades.cells, cascades.probes], G.counts)
-  integers.set([TILE_NO_SLICE, BOUNCE_SETTINGS.lightGridSide], G.lists) // no lists yet: every light
   const upload = () => device.queue.writeBuffer(buffer, 0, packed)
   const writeLevels = () => writeGridLevels(floats, cascades)
   writeLevels()
   upload()
-  let view = false
   return {
     buffer,
-    /** Irradiance diagnostic view: it travels in the same uniform as the cascades. */
-    setIrradianceView(on: boolean) {
-      if (view === on) return
-      view = on
-      floats[G.reach + 1] = on ? 1 : 0
-      upload()
-    },
-    /** Encoded-frame state: light revision, dispatched probes, frame counter, the eye, then the levels. */
-    write(generation: number, groups: number, frame: number, eye: ArrayLike<number>) {
+    /** Encoded-frame state: frame counter, the eye, then the levels; the count of the probes queued is the GPU's to write. */
+    write(frame: number, eye: ArrayLike<number>) {
       floats[G.reach] = cascades.reach
-      integers[G.frame] = generation
-      integers[G.frame + 1] = groups
+      integers[G.frame + 1] = 0
       integers[G.frame + 2] = frame
       for (let axis = 0; axis < 3; axis++) floats[G.eye + axis] = eye[axis]
-      writeLevels()
-      upload()
-    },
-    /** The world light grid's records' first word in the light grid's buffer, or `undefined`:
-     *  none, every point walking every light (`bounceLightSlice`). */
-    setLightLists(start: number | undefined) {
-      const word = start ?? TILE_NO_SLICE
-      if (integers[G.lists] === word) return
-      integers[G.lists] = word
-      // The levels with it: the lattice the lists were listed on, even in a frame no update writes.
       writeLevels()
       upload()
     },

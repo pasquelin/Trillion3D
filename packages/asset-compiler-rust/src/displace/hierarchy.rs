@@ -76,7 +76,38 @@ pub(super) fn distance_to_edge(weight: f32, length: f32, area: f32) -> f32 {
     2.0 * weight * area / length
 }
 
-/// The index of the least of three, the first of equals.
+/// The point `split` of a sequence, moved onto the nearest edge when it lies less than `near` from
+/// one that cannot be flipped — and dropped when the point it moves to is still that close to
+/// another such edge, or when it lies that close to an edge that can. `lengths` are the triangle's
+/// edges, `area` its area and `can_flip` whether each edge may be flipped, edge `e` the one
+/// opposite weight `(e + 2) % 3` of `split`.
+pub(super) fn snapped(
+    mut split: [f32; 3],
+    (lengths, area, can_flip): (&[f32; 3], f32, &[bool; 3]),
+    near: f32,
+) -> Option<[f32; 3]> {
+    let distances = [
+        distance_to_edge(split[2], lengths[0], area),
+        distance_to_edge(split[0], lengths[1], area),
+        distance_to_edge(split[1], lengths[2], area),
+    ];
+    let e0 = least_of(distances);
+    let e1 = (1 << e0) & 3;
+    let e2 = (1 << e1) & 3;
+    let mut too_close = distances[e0] < near;
+    if too_close && !can_flip[e0] {
+        split[e0] /= split[e0] + split[e1];
+        split[e1] = 1.0 - split[e0];
+        split[e2] = 0.0;
+        let close1 = !can_flip[e1] && distance_to_edge(split[e0], lengths[e1], area) < near;
+        let close2 = !can_flip[e2] && distance_to_edge(split[e1], lengths[e2], area) < near;
+        too_close = close1 || close2;
+    }
+    (!too_close).then_some(split)
+}
+
+/// The index of the least of three, the last of equals (a strict comparison keeps the earlier
+/// one only where it is less).
 pub(super) fn least_of(d: [f32; 3]) -> usize {
     if d[0] < d[1] {
         if d[0] < d[2] {

@@ -30,15 +30,21 @@ impl Soup {
         let (first, rest) = from
             .split_first()
             .expect("a vertex is made of at least one");
-        let mut row: Vec<f32> = self.row(first.0).iter().map(|x| x * first.1).collect();
+        let stride = self.stride;
+        let at = self.rows.len();
+        let start = first.0 as usize * stride;
+        self.rows.extend_from_within(start..start + stride);
+        for x in &mut self.rows[at..] {
+            *x *= first.1;
+        }
         for &(vertex, weight) in rest {
-            for (sum, x) in row.iter_mut().zip(self.row(vertex)) {
-                *sum += x * weight;
+            let start = vertex as usize * stride;
+            for k in 0..stride {
+                let x = self.rows[start + k];
+                self.rows[at + k] += x * weight;
             }
         }
-        let added = self.vertex_count();
-        self.rows.extend_from_slice(&row);
-        added
+        at / stride
     }
 
     /// Pairs half edge `half` with `other`, a negative one a border.

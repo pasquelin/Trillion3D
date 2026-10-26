@@ -1,11 +1,12 @@
-// How long a failure is kept: while the wait its server asked runs, past its page; a refusal for
-// good leaves with its page; a failure is remembered, its tries counting on, till its key passes or
-// its owner lets it go.
+// How long a failure is kept: while the wait its server asked runs, past its page; a key given up
+// leaves with its page; a failure is remembered, its tries counting on, till its key passes or its
+// owner lets it go.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPageStreamer } from './pageStreamer.ts'
 import { createPageCache } from './pageCache.ts'
 import { createReadFailures } from './failures.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { eventually } from './eventually.fixture.ts'
 import { idle, refusing } from './failures.fixture.ts'
 
@@ -28,8 +29,8 @@ test('a failure outlives its page while the wait its server asked runs, then lea
   assert.equal(clock.now, 1_000)
 })
 
-test('a refusal for good leaves with its page: nothing asks it any more', async (t) => {
-  const { streamer } = refusing(t, 404)
+test('a key given up leaves with its page: nothing asks it any more', async (t) => {
+  const { streamer } = refusing(t, 404, ['a.bin'], undefined, 0)
   await streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
   assert.deepEqual([streamer.failed('a.bin'), streamer.stats().failed], [true, 1])
   streamer.forget(['a.bin'])
@@ -69,22 +70,42 @@ test('a failure is remembered, its tries counting on, till its key passes or its
   t.mock.method(performance, 'now', () => clock.now)
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const ended: string[] = []
-  const failures = createReadFailures({ retriable: () => true, ended: (key) => ended.push(key) })
+  const failures = createReadFailures({ retries: () => -1, ended: (key) => ended.push(key) })
   t.after(() => failures.clear())
   const step = (ms: number) => {
     clock.now += ms
     t.mock.timers.tick(ms)
   }
+  const asked = new EngineError('RESOURCE_HTTP_ERROR', 'busy', {
+    ...{ url: 'a', status: 503, retryAfter: 500 },
+  })
   assert.match(failures.record('a', 'busy').error.message, /after one attempt/)
-  assert.ok(failures.blocked('a'), 'held back until the next turn of the loop')
-  step(1)
+  assert.deepEqual(
+    [failures.blocked('a'), failures.count(), ended],
+    [undefined, 0, []],
+    'none held back',
+  )
+  const waits = failures.record('a', asked)
+  assert.deepEqual([waits.again, waits.waits, waits.first], [true, true, false])
+  assert.ok(failures.blocked('a'), 'held back until the wait its server asked ends')
+  step(500)
   assert.deepEqual([ended, failures.blocked('a'), failures.count()], [['a'], undefined, 0])
   step(60_000) // asked again, long after: its tries are still counted
-  assert.match(failures.record('a', 'busy').error.message, /after 2 attempts/)
-  step(1)
+  assert.match(failures.record('a', 'busy').error.message, /after 3 attempts/)
   failures.passed('a')
   assert.match(failures.record('a', 'busy').error.message, /after one attempt/, 'passed: over')
-  step(1)
   failures.leaves('a') // its owner lets it go
   assert.match(failures.record('a', 'busy').error.message, /after one attempt/, 'let go: over')
+})
+
+test('a key is given up past its tries, and its object with it, whatever the failure', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const failures = createReadFailures({ retries: () => 1, objectOf: () => 7 })
+  t.after(() => failures.clear())
+  assert.deepEqual(
+    [failures.record('a', 'busy').again, failures.record('a', 'busy').again],
+    [true, false],
+  )
+  assert.equal(failures.blocked('b')?.state, 'refused', 'another key of its object is refused too')
+  assert.equal(createReadFailures({}).record('a', 'busy').again, true, 'no count: the default')
 })

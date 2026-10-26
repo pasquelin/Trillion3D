@@ -50,7 +50,7 @@ function bench() {
       recordOf: (packed: number) => scene.packed[packed],
       gpuWanted: [],
       selectionRoots: [],
-      rows: { watchTouched: () => {} },
+      clusters: { watchTouched: () => {} },
     },
   } as unknown as WebgpuPagesRuntime
   // The main view reads its readback off the GPU cut, which claims no rank: a hashed difference.

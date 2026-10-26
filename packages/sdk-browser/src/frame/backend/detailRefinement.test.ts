@@ -59,9 +59,12 @@ test('detail replaces the complete GPU fallback only after every replacement is 
   }
 })
 
-// A page cap of two streaming slots beside the root cover: the coarse page stands in for the
-// leaves, never the root the view refuses.
-test('a refinement exceeding the GPU budget keeps the coarse page, not the refused root, and reports the limit', async () => {
+// A page cap of two streaming slots beside the root cover: the pool of the root region and the
+// streaming slots holds both leaves, the finest level — the coarse page that stepped in is let
+// go —, so the view draws the leaves and the budget has limited none of its detail. (The cut still
+// asks for the coarse page the closure holds above them: more pages than the pool has, which is not
+// a loss of detail while no cluster is drawn above the finest level.)
+test('a refinement the GPU budget holds to the two leaves draws the finest level and reports no limit', async () => {
   installGpuGlobals()
   const fixture = deepQuadScene(),
     { device } = fakeDevice(BACKEND),
@@ -82,9 +85,13 @@ test('a refinement exceeding the GPU budget keeps the coarse page, not the refus
     await settledImage(backend)
     for (let i = 0; i < 4; i++) {
       await flushedImage(backend)
-      assert.deepEqual(backend.selectedPageIds(), ['2'], 'the root the view refuses is replaced')
+      assert.deepEqual(
+        backend.selectedPageIds().sort(),
+        ['0', '1'],
+        'the leaves replace the root the view refuses',
+      )
       assert.equal(backend.metrics().submittedTriangles, 2)
-      assert.equal(backend.metrics().coverageBudgetLimited, true)
+      assert.equal(backend.metrics().coverageBudgetLimited, false, 'the finest level is drawn')
       assert.deepEqual(backend.pendingUrls!(), [])
     }
   } finally {

@@ -9,8 +9,6 @@ import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.t
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
-import { CoverageReaders } from '../texture/coverage.ts'
-import * as G from '../../scene/host/graph/graph.fixture.ts'
 
 type Copy = {
   source: { source: unknown; flipY?: boolean }
@@ -100,30 +98,6 @@ test('a premultiplyAlpha canvas is copied premultiplied; one that does not say s
     upload(texture.canvas(canvas), [1, 1]).copies[0].destination.premultipliedAlpha,
     false,
   )
-})
-
-// #42: the working texture's mips weigh their colours by alpha only for a texture every reader
-// takes for coverage, and not when the upload already premultiplied them — weighing twice would
-// darken the borders again. A colour texture an opaque or emissive reader draws stays plain.
-test('a coverage working texture reduces weighted by alpha unless uploaded premultiplied', () => {
-  installGpuGlobals()
-  // One device per case: the one reduction pipeline it builds says the rule the texture took.
-  const rule = (coverage: boolean, premultiplyAlpha: boolean) => {
-    const { device, computePipelines } = fakeDevice(BACKEND)
-    const host = new Texture({ data: new Uint8Array(8), width: 1, height: 2 })
-    host.premultiplyAlpha = premultiplyAlpha
-    const map = host
-    const readers = new CoverageReaders()
-    readers.read(G.standardSurface({ map, alphaTest: coverage ? 0.5 : 0 }))
-    const size = { width: 1, height: 2, format: 'rgba8unorm' } as const
-    createTileScratch(device, { map, ...size, errorCode: 'NONE', coverage: readers }).reduce()
-    return computePipelines
-      .filter(({ compute }) => compute.entryPoint === 'reduceLevel')
-      .map(({ compute }) => compute.constants?.weighted)
-  }
-  assert.deepEqual(rule(true, false), [1], 'straight alpha read as coverage: weighted')
-  assert.deepEqual(rule(true, true), [0], 'uploaded premultiplied: plain')
-  assert.deepEqual(rule(false, false), [0], 'not read as coverage: plain')
 })
 
 // A colour working texture's levels are written by a compute pass, and an sRGB format takes no

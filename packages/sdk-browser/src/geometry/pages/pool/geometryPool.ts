@@ -1,4 +1,3 @@
-import type { HostAttributes } from '../../../session/host/resources.ts'
 import type { GeometryBlock } from '../../rows/page/pageRowMaterial.ts'
 import {
   BUFFERS,
@@ -15,7 +14,8 @@ import { fillScratch, releaseScratch, scratchFloats } from './geometryPoolScratc
 import { writeFloatAtlas } from '../../../gpu/core/floatAtlas.ts'
 import { claim, placeBlock, poolBytesOf, reserveTail, writeBlock } from './geometryPoolOps.ts'
 import { holds, put, type Pool } from './geometryPoolWrite.ts'
-type GeometryBlocks = Map<HostAttributes, GeometryBlock>
+import type { Geometry } from '../../../../../sdk-core/src/world/geometry/geometry.ts'
+type GeometryBlocks = Map<Geometry['attributes'], GeometryBlock>
 /**
  * THE FLOAT VERTEX POOL of the WebGPU passes: the geometry they read as floats — the clusters no
  * quantized page covers, a cache that carries none, a world's dynamic geometry (#573). Its stores
@@ -71,31 +71,28 @@ export function createVertexPool(
     get size() {
       return p.size
     },
-    /** Room for a tail of `tail` floats after the positions, the buffers made over when it is
-     *  short (`reserveTail`); false when the device refuses. */
+    /** Room for a tail of `tail` floats after the positions (`reserveTail`); false if refused. */
     reserve: (tail: number) => reserveTail(p, tail),
     /** Frees the pool's stores: the pool is dropped. */
     destroy: () => poolResources(p.stores).forEach((resource) => resource.destroy()),
-    /** Places each geometry of `sourced`, dynamic or not, and uploads the buffers whole: the
-     *  open's one packing. */
-    pack: (sourced: ReadonlyMap<HostAttributes, boolean>) => packPool(p, sourced),
-    /** The block of `attributes`, placed in the room the open left when it has none — a record
-     *  mounted since —; a mount past that room grows it in place (#1293). `dynamic` marks its
-     *  rows. */
-    place: (attributes: HostAttributes, dynamic = false) => placeBlock(p, attributes, dynamic),
-    /** The bytes `place` then `write` send for `ranges` of `attributes`: each list whole first
-     *  when its block is still to place. */
-    bytesOf: (attributes: HostAttributes, ranges: readonly { name: PoolList; count: number }[]) =>
-      poolBytesOf(p, attributes, ranges),
-    /** Writes vertices `from` to `from + count - 1` of list `name` of placed `attributes` — a
-     *  normal with its tangent — in place, no buffer allocated; returns the bytes written. */
-    write: (attributes: HostAttributes, name: PoolList, from: number, count: number) =>
+    /** Places each geometry of `sourced` and uploads the buffers whole: the open's packing. */
+    pack: (sourced: ReadonlyMap<Geometry['attributes'], boolean>) => packPool(p, sourced),
+    /** The block of `attributes`, placed in the room the open left when it has none (#1293). */
+    place: (attributes: Geometry['attributes'], dynamic = false) =>
+      placeBlock(p, attributes, dynamic),
+    /** The bytes `place` then `write` send for `ranges` of `attributes`. */
+    bytesOf: (
+      attributes: Geometry['attributes'],
+      ranges: readonly { name: PoolList; count: number }[],
+    ) => poolBytesOf(p, attributes, ranges),
+    /** Writes `count` vertices from `from` of list `name` of placed `attributes` in place. */
+    write: (attributes: Geometry['attributes'], name: PoolList, from: number, count: number) =>
       writeBlock(p, attributes, name, from, count),
   }
 }
 
 /** Places each geometry of `sourced`, dynamic or not, and uploads the buffers whole. */
-function packPool(p: Pool, sourced: ReadonlyMap<HostAttributes, boolean>) {
+function packPool(p: Pool, sourced: ReadonlyMap<Geometry['attributes'], boolean>) {
   const { device, floats } = p
   const arrays = Object.fromEntries(
     (Object.keys(floats) as (keyof typeof floats)[]).map((key) => [

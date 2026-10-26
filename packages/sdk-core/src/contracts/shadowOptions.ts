@@ -1,7 +1,7 @@
-import { isFiniteNumber } from '../../../math/src/scalar/reals.ts'
-import { refusal } from './nameMatch.ts'
-import { SHADOW_MAP_RULES } from './shadowMapOptions.ts'
+import { SHADOW_MAP_PRESET_LEVELS, SHADOW_MAP_RULES } from './shadowMapOptions.ts'
+import { SUN_SHADOW_RULES } from './sunShadowOptions.ts'
 import {
+  contextReader,
   flagSetting as flag,
   integerSetting as integer,
   numberSetting as number,
@@ -11,68 +11,50 @@ import {
 } from './settingRules.ts'
 
 /**
- * THE SHADOWS' SETTINGS: THE SUN'S SHADOW DISTANCE AND THE FAR-SHADOW CULLING OF ITS CASTERS
- * (`packages/sdk-browser/src/lighting/shadows/vsm/render/renderCandidatesWgsl.ts`): a sun's shadow
- * maps are cut from the eye's view, and a caster far past the distance the sun's shadows are asked
- * to reach is left out of them unless its object says it still casts there (`castFarShadow`). The
- * distance is the sun's own (`shadowDistance`, in metres, per light), scaled by one setting of the
- * view (`shadowDistanceScale`); the culling has its own switch (`farShadowCulling`) and a second
- * one for which casters it tests (`farShadowCullsAllMeshes`), and the edge it tests against lies a
- * little past the distance, by the sun's near levels and their overlap (`shadowNearLevels`,
- * `shadowOverlapScale`, `shadowFarField`), which the quality levels write with the scale
- * (`../runtime/qualityLevels.ts`). The raster draws every light's maps together, in as many view
- * passes as the maps its views' dispatch can list ask (`shadowMultipassViews`; one on any device
- * for the maps a frame holds). Run-time settings, as `./settingRules.ts` says: no compiler job
- * names them, no cache key holds them, and none moves a page: they restage nothing.
+ * THE VIEW'S SHADOW SETTINGS: how a directional light's shadows are cut by distance and how its far
+ * casters are left out (`packages/sdk-browser/src/lighting/shadows/vsm/render/renderCandidatesWgsl.ts`),
+ * and the shadow maps' own. A sun's shadow maps are cut from the eye's view, and a caster far past
+ * the distance the sun's shadows are asked to reach is left out of them unless its object says it
+ * still casts there (`castFarShadow`). The distance is the sun's own (`shadowDistance`, metres, per
+ * light, `lightShadowOptions.ts`), scaled by the view's `shadowDistanceScale`; the edge the test
+ * reaches lies a little past it, by the sun's near levels, their overlap and the cascades after
+ * them (`sunCascades.ts`), which the quality levels write the rows of with the scale. The cascade
+ * of the distance fields that follows the near levels, and the far levels, are shaped by the view's
+ * settings listed in `sunShadowOptions.ts`. The raster draws every light's maps together, in as many
+ * view passes as the maps its views' dispatch can list ask (`shadowMultipassViews`; one on any
+ * device for the maps a frame holds). Run-time settings, as `./settingRules.ts` says: no compiler
+ * job names them, no cache key holds them, and none moves a page: they restage nothing.
  */
-
-/** A directional light's shadow distance when it names none: 400 metres, the reference's own. */
-export const SHADOW_DISTANCE_DEFAULT = 400
-
-/** A shadow distance as a host writes it: metres, `true` the default (400), `false` none — the
- *  light's casters are never left out for being far —, nothing the default. */
-export type ShadowDistanceOption = number | boolean | null | undefined
-
-/** Whether `value` is a shadow distance in metres: a finite number of at least zero. */
-export const isShadowDistance = (value: unknown): value is number =>
-  isFiniteNumber(value) && value >= 0
-
-/**
- * The shadow distance, in metres, `option` names: a finite number of at least zero as itself,
- * `true`, `undefined` or `null` the default, `false` zero (none).
- * @throws TypeError naming the field and the values it takes when it is none of them.
- */
-export function shadowDistanceOf(option?: ShadowDistanceOption): number {
-  if (option === undefined || option === null || option === true) return SHADOW_DISTANCE_DEFAULT
-  if (option === false) return 0
-  if (!isShadowDistance(option))
-    refusal('shadowDistance')(
-      `must be a finite number of metres of at least 0, true or false, got ${String(option)}`,
-    )
-  return option
-}
-
-/** The cascades a sun's shadows are cut into at most: the light's own count, the reference's
- *  default. `shadowNearLevels` takes the nearest of them it lists. */
-const LIGHT_CASCADES = 4
 
 /** The settings of the shadows by field, each with the reference's default:
  *  `shadowDistanceScale`, 1, from 0 to 2 — the factor on every sun's shadow distance; 0 gives the
  *  culling nothing to test against, so it culls nothing —, `farShadowCulling`, on — whether a sun's
- *  shadow maps leave out the casters that lie past its shadow distance —,
+ *  shadow maps leave out the casters that lie past the edge of its shadow distance —,
  *  `farShadowCullsAllMeshes`, off — whether that test reaches every caster, or the merged far-field
  *  shells of the world's coarser levels and every caster that is none of them is kept: the objects
  *  drawn as themselves, at the finest level and as the instanced actors of the first, keep casting
- *  at any distance —, and the three that shape the edge of the test (`farShadowDistance`):
+ *  at any distance —, and the three that shape the edge of the test (`sunCascades`):
  *  `shadowNearLevels`, 10, from 0 to 10 — how many near levels the sun's shadows have, no more than
- *  the light's own four —, `shadowOverlapScale`, 1, from 0 to 2 — the factor on the share of its
- *  span the last near level overlaps into the next — and `shadowFarField`, on — whether a far-field
- *  shadow follows the near levels —, and the one of the raster's view passes: `shadowMultipassViews`,
- *  on — whether the lights whose maps would pass the maps one pass takes (the rows of the cull's
- *  dispatch, a light a row, 65 535 on any device, `vsmViewsPerPass` in
+ *  the light's own `shadowCascades` —, `shadowOverlapScale`, 1, from 0 to 2 — the factor on the
+ *  share of its span a level overlaps into the next — and `shadowFarField`, on — whether the
+ *  distance-field cascade follows the near levels, where the scene has distance fields —, the one
+ *  of the raster's view passes: `shadowMultipassViews`, on — whether the lights whose maps would
+ *  pass the maps one pass takes (the rows of the cull's dispatch, a light a row, 65 535 on any
+ *  device, `vsmViewsPerPass` in
  *  `packages/sdk-browser/src/lighting/shadows/vsm/render/renderViewPasses.ts`) are drawn in several
  *  passes, each light whole in one, or, off, every light in one pass: the pages are the same either
- *  way. */
+ *  way —, the level of detail the shadow maps take of the clusters: `shadowGeometryLodBias`, 1 —
+ *  each map's view selects its own clusters, at the error the cut allows times two to this bias, in
+ *  the map's pixels: 0 the cut's own error, higher coarser —, the occlusion culling of the shadow
+ *  maps' casters: `shadowOcclusionCulling`, on — whether the raster culls the casters hidden in a
+ *  map behind what its pages already hold, in two passes against the maps' depth pyramid (the
+ *  previous frame's, then this frame's) —, `shadowDynamicHzb`, off — whether the pyramid holds a
+ *  second layer for the pages' dynamic casters, the static layer's depths merged with the dynamic
+ *  slice's, where the first holds the static layer's alone (a cached scene with much dynamic
+ *  overdraw; it doubles the pyramid's memory) —, and `shadowOcclusionFullUpdate`, off — whether that
+ *  pyramid is built again over every page each frame rather than over the pages drawn —, then the
+ *  far levels' and the distance-field cascade's (`SUN_SHADOW_RULES`) and the shadow maps' own
+ *  (`SHADOW_MAP_RULES`). */
 export const SHADOW_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     number('shadowDistanceScale', 1, [0, 2]),
@@ -82,8 +64,56 @@ export const SHADOW_RULES = /* @__PURE__ */ (() =>
     number('shadowOverlapScale', 1, [0, 2]),
     flag('shadowFarField', true),
     flag('shadowMultipassViews', true),
+    // No bound but the one the shaders need: 2 to the bias, a factor of the threshold they read as
+    // an f32, finite and normal.
+    number('shadowGeometryLodBias', 1, [-126, 127]),
+    flag('shadowOcclusionCulling', true),
+    flag('shadowDynamicHzb', false),
+    flag('shadowOcclusionFullUpdate', false),
+    ...SUN_SHADOW_RULES,
     ...SHADOW_MAP_RULES,
   ] as const))()
+/** What the quality levels below the top write of the shadow settings: the sun's four rows — the
+ *  scale on every sun's shadow distance, how many near levels it has, the scale on their overlap and
+ *  whether the distance-field cascade follows them, which shape the edge of the far-shadow test
+ *  (`sunCascades`) — and the maps' rows (`SHADOW_MAP_PRESET_LEVELS`). `max` writes nothing: the
+ *  rules' defaults (`runtime/qualityLevels.ts`); `cinematic` writes the fifth row: all ten near
+ *  levels, the full overlap and the distance-field cascade. */
+export const SHADOW_PRESET_LEVELS = /* @__PURE__ */ (() =>
+  ({
+    smooth: {
+      shadowDistanceScale: 0.6,
+      shadowNearLevels: 1,
+      shadowOverlapScale: 0,
+      shadowFarField: false,
+      ...SHADOW_MAP_PRESET_LEVELS.smooth,
+    },
+    balanced: {
+      shadowDistanceScale: 0.7,
+      shadowNearLevels: 1,
+      shadowOverlapScale: 0.25,
+      shadowFarField: false,
+      ...SHADOW_MAP_PRESET_LEVELS.balanced,
+    },
+    fine: {
+      shadowDistanceScale: 0.85,
+      shadowNearLevels: 4,
+      shadowOverlapScale: 0.8,
+      shadowFarField: true,
+      ...SHADOW_MAP_PRESET_LEVELS.fine,
+    },
+    cinematic: {
+      shadowDistanceScale: 1,
+      shadowNearLevels: 10,
+      shadowOverlapScale: 1,
+      shadowFarField: true,
+      ...SHADOW_MAP_PRESET_LEVELS.cinematic,
+    },
+  }) as const)()
+
+/** The shadow setting `field` of a runtime's context (`contextReader`): its default where the
+ *  context holds none. */
+export const readShadowSetting = /* @__PURE__ */ contextReader(SHADOW_RULES)
 /** The field of one setting of the shadows. */
 export type ShadowField = keyof typeof SHADOW_RULES
 /** The shadow settings as a host writes them, by their fields: each its value, or nothing for its
@@ -91,35 +121,3 @@ export type ShadowField = keyof typeof SHADOW_RULES
 export type ShadowOptions = SettingOptions<typeof SHADOW_RULES>
 /** The shadow settings, resolved. */
 export type ShadowValues = SettingValues<typeof SHADOW_RULES>
-
-/** The exponent of the near levels' growth: each is this many times the span of the one before. */
-const LEVEL_EXPONENT = 3
-/** The share of a level's span that it overlaps into the next (the scale on it is
- *  `shadowOverlapScale`). */
-const LEVEL_OVERLAP = 0.1
-/** The distance, in metres, the far-field shadows of a sun reach: past a shadow distance shorter
- *  than it, one more level follows the near ones (`shadowFarField`). */
-const FAR_FIELD_REACH = 512
-
-/**
- * How far from the eye, in metres, a sun's shadow maps still take every caster: the far edge of
- * its last near level — a shadow distance of `distance` metres times `shadowDistanceScale`, cut
- * into at most `LIGHT_CASCADES` levels (`shadowNearLevels`) from the view's `near` plane, each
- * `LEVEL_EXPONENT` times the span of the one before — with the overlap that level has into the next
- * when another follows (`shadowFarField`, and a shadow distance under `FAR_FIELD_REACH`):
- * 427.0 metres at the defaults (400 metres, near 0.05), the distance itself past 512. 0 — no
- * caster is left out — when the culling is off, the shadow distance is zero or no near level
- * is. A caster whose depth along the view, less its bounding radius, is past it is left out unless
- * it casts far shadows.
- */
-export function farShadowDistance(distance: number, near: number, shadows: ShadowValues) {
-  const levels = Math.min(LIGHT_CASCADES, shadows.shadowNearLevels),
-    reach = distance * shadows.shadowDistanceScale
-  if (!shadows.farShadowCulling || !(reach > 0) || levels <= 0) return 0
-  // The last near level starts after the span of the ones before it: a share (3^(N-1) - 1) / (3^N
-  // - 1) of the whole.
-  const last = LEVEL_EXPONENT ** (levels - 1),
-    start = near + ((last - 1) / (last * LEVEL_EXPONENT - 1)) * (reach - near),
-    follows = shadows.shadowFarField && FAR_FIELD_REACH > reach
-  return reach + (follows ? (reach - start) * LEVEL_OVERLAP * shadows.shadowOverlapScale : 0)
-}

@@ -10,7 +10,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
-import { VSM_CONSTANTS_WGSL, VSM_NORMAL_BIAS } from './constants.ts'
+import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { wgslConstants } from '../../../materials/texture/shaderRule.fixture.ts'
 import { halton } from '../../../../../math/src/sequence/halton.ts'
 import { singleUlp } from '../../../../../math/src/float/ulp.fixture.ts'
@@ -20,6 +20,9 @@ const { vsmNormalOffsetLength } = shaderRun<{
   vsmNormalOffsetLength: (bias: number, distance: number, inverseTangent: number) => number
 }>(source, ['vsmNormalOffsetLength'], {})
 const floor = wgslConstants(VSM_CONSTANTS_WGSL).VSM_NORMAL_OFFSET_FLOOR
+
+/** The option's default, `shadowNormalBias`, in thousandths of the distance. */
+const VSM_NORMAL_BIAS = 0.5 / 1000
 
 test('class 1 of the one rule: the projection’s length is its former expression, operation for operation', () => {
   for (let i = 1; i <= 2000; i++) {

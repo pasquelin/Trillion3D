@@ -1,5 +1,5 @@
 import {
-  axisWeights,
+  energyWeights,
   volumeAddress,
   type AxisWeights,
   type NoiseVolume,
@@ -46,9 +46,7 @@ export function createField(volume: NoiseVolume, sigma: number): EnergyField {
     onCount: 0,
     chunkShift,
     touched: { list: new Int32Array(chunks), count: 0, stamp: new Int32Array(chunks), epoch: 1 },
-    x: axisWeights(volume.width, sigma, false),
-    y: axisWeights(volume.height, sigma, false),
-    z: axisWeights(volume.depth, sigma, false),
+    ...energyWeights(volume, sigma),
   }
 }
 

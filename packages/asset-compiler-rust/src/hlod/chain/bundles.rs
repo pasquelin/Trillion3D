@@ -57,7 +57,7 @@ pub(super) fn pack_world(
         .map(|page| page.bytes.as_slice())
         .collect();
     let mut laid = with_world_laying(world, (tree, options), |laying| {
-        lay_bundles((dag, groups), pages, (assigned, laying))
+        lay_bundles((dag, groups), &pages, (assigned, laying))
     })?;
     // Each page in the binary's order, by its streaming page and its offset there.
     let mut written: Vec<(usize, (usize, usize))> = laid.at.iter().copied().enumerate().collect();
@@ -67,7 +67,7 @@ pub(super) fn pack_world(
             bundle,
             offset,
             level: dag[slot].level,
-            bytes: world.pages[slot].bytes.len(),
+            bytes: laid.lengths[slot],
             lod_error: dag[slot].lod_error,
         })
         .collect();
@@ -80,7 +80,7 @@ pub(super) fn pack_world(
     }
     // And its actor's rows, one bundle after the pages: they stream with the actor.
     let rows = super::builds::lay_rows(rows, (&mut laid.payload, &mut laid.bundles), &mut hlod)?;
-    let dag_bytes = encode_dag(world, &laid.at)?;
+    let dag_bytes = encode_dag(world, (&laid.at, &laid.resident, &laid.lengths))?;
     let table = encode_table((&laid.bundles, &pages, (&hlod, tree, &rows)), &laid.payload)?;
     let roots = dag.iter().filter(|c| c.is_root()).count();
     let report = json!({"version":WORLD_ROOTS_VERSION,"file":WORLD_ROOTS_FILE,

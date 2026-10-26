@@ -16,6 +16,7 @@ import { surfaceOf } from '../../geometry/pages/surface.ts'
 import { identityRoots } from '../../geometry/selection/placements.fixture.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { packVisibilityId } from '../../../../../bench/oracles/browser/cpu-image/ids.ts'
+import { hizSquareStart } from '../../../../sdk-core/src/hiz/oracles.fixture.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 test('no page and a zero viewport both stay pure background', () => {
@@ -146,8 +147,9 @@ test('every pyramid texel is the farthest (the minimum) of the block it covers, 
           let expected = Infinity
           for (let dy = 0; dy < 2; dy++)
             for (let dx = 0; dx < 2; dx++) {
-              const sx = 2 * x + dx,
-                sy = 2 * y + dy
+              // Level 1 gathers from the depth: its last odd column or row takes the last two texels.
+              const sx = hizSquareStart(x, pyramid.widths[level - 1], level === 1) + dx,
+                sy = hizSquareStart(y, pyramid.heights[level - 1], level === 1) + dy
               if (sx < pyramid.widths[level - 1] && sy < pyramid.heights[level - 1])
                 expected = Math.min(
                   expected,

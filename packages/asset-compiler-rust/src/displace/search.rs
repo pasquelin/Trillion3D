@@ -7,9 +7,9 @@
 //! — at most 64 points of a Hammersley sequence, none too close to an edge that cannot be flipped
 //! —, and the point of greatest error taken. The hierarchy goes down 12 levels.
 use super::hierarchy::{
-    child_of, distance_to_edge, hammersley, heap_pop, heap_push, least_of, stray, sub_area,
-    sub_barycentrics, Node,
+    child_of, hammersley, heap_pop, heap_push, snapped, stray, sub_area, sub_barycentrics, Node,
 };
+use super::policy::Shape;
 use super::tessellate::{Tessellation, COSINE_THRESHOLD};
 use trillion3d_math::vector::vec3::cross;
 use trillion3d_math::vector::vecn::{dot, length, sub};
@@ -24,11 +24,11 @@ const UNDIVIDED_SAMPLES: i32 = 16;
 /// the fourth.
 const EQUILATERAL: f32 = 0.433_012_7;
 
-/// The search of one triangle: what it holds of the triangle, and the point of greatest error
-/// found so far.
+/// The search of one triangle: what it holds of the triangle — its displacement's reads of its
+/// corners among it —, and the point of greatest error found so far.
 struct Search<'s, 'a> {
     work: &'s Tessellation<'a>,
-    triangle: usize,
+    shape: Shape<'a>,
     displacements: [[f32; 3]; 3],
     can_flip: [bool; 3],
     lengths: [f32; 3],
@@ -41,9 +41,7 @@ impl Search<'_, '_> {
     /// The least and the most error the displacement may carry over the sub-triangle of weights
     /// `bary`.
     fn bounds(&self, bary: &[[f32; 3]; 3]) -> [f32; 2] {
-        let work = self.work;
-        let policy = work.policy;
-        policy.error_bounds(&work.mesh, self.triangle, bary, &self.displacements)
+        self.shape.error_bounds(bary, &self.displacements)
     }
 
     /// The error a sub-triangle's bound must exceed to be worth searching: the best found, a
@@ -52,8 +50,9 @@ impl Search<'_, '_> {
         self.best_error * 1.25 + self.work.target_error
     }
 
-    /// Searches the hierarchy, the node of the greatest bound first.
-    fn run(&mut self) {
+    /// Searches the hierarchy, the node of the greatest bound first, `heap` holding the nodes to
+    /// divide: emptied here, so one serves every triangle a thread searches.
+    fn run(&mut self, heap: &mut Vec<Node>) {
         let whole = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
         let [error_min, error_max] = self.bounds(&whole);
         let mut node = Node {
@@ -65,16 +64,16 @@ impl Search<'_, '_> {
             level: 0,
         };
         let mut error_minimum = self.work.target_error;
-        let mut heap: Vec<Node> = Vec::new();
+        heap.clear();
         while node.error_max >= error_minimum && node.error_max > self.threshold() {
             for index in 0..4 {
                 let child = child_of(&node, index);
-                self.visit(&node, child, (&mut error_minimum, &mut heap));
+                self.visit(&node, child, (&mut error_minimum, &mut *heap));
             }
             if heap.is_empty() {
                 break;
             }
-            node = heap_pop(&mut heap);
+            node = heap_pop(heap);
         }
     }
 
@@ -113,8 +112,7 @@ impl Search<'_, '_> {
             stop = area < sample_area * 16.0;
         }
         if !stop {
-            let work = self.work;
-            samples = samples.min(work.policy.samples(&work.mesh, self.triangle, &bary));
+            samples = samples.min(self.shape.samples(&bary));
             stop = samples <= UNDIVIDED_SAMPLES;
         }
         if stop {
@@ -126,12 +124,11 @@ impl Search<'_, '_> {
 
     /// Samples `samples` points of the Hammersley sequence, and keeps the one of greatest error.
     fn sample_points(&mut self, samples: i32) {
-        let work = self.work;
         for i in 0..samples {
             let Some(split) = self.sample(hammersley(i, samples)) else {
                 continue;
             };
-            let at = work.policy.in_triangle(&work.mesh, self.triangle, split);
+            let at = self.shape.at(split);
             let error = stray(&at, &split, &self.displacements);
             if self.best_error < error {
                 self.best = split;
@@ -140,30 +137,11 @@ impl Search<'_, '_> {
         }
     }
 
-    /// The point `split` of a sequence, moved onto the nearest edge when it is too close to one
-    /// that cannot be flipped — and dropped when the point it moves to is still too close to
-    /// another such edge.
-    fn sample(&self, mut split: [f32; 3]) -> Option<[f32; 3]> {
-        let (lengths, area, can_flip) = (&self.lengths, self.area, &self.can_flip);
+    /// The point `split` of a sequence, kept, moved onto an edge or dropped by where it lies
+    /// (`snapped`), a sample rate's half the nearness that counts.
+    fn sample(&self, split: [f32; 3]) -> Option<[f32; 3]> {
         let near = 0.5 * self.work.sample_rate;
-        let distances = [
-            distance_to_edge(split[2], lengths[0], area),
-            distance_to_edge(split[0], lengths[1], area),
-            distance_to_edge(split[1], lengths[2], area),
-        ];
-        let e0 = least_of(distances);
-        let e1 = (1 << e0) & 3;
-        let e2 = (1 << e1) & 3;
-        let mut too_close = distances[e0] < near;
-        if too_close && !can_flip[e0] {
-            split[e0] /= split[e0] + split[e1];
-            split[e1] = 1.0 - split[e0];
-            split[e2] = 0.0;
-            let close1 = !can_flip[e1] && distance_to_edge(split[e0], lengths[e1], area) < near;
-            let close2 = !can_flip[e2] && distance_to_edge(split[e1], lengths[e2], area) < near;
-            too_close = close1 || close2;
-        }
-        (!too_close).then_some(split)
+        snapped(split, (&self.lengths, self.area, &self.can_flip), near)
     }
 }
 
@@ -186,8 +164,9 @@ impl Tessellation<'_> {
     }
 
     /// The weights of the point to split `triangle` at, none where it does not stray by more than
-    /// the target anywhere that a split may be made.
-    pub(super) fn find_split(&self, triangle: usize) -> Option<[f32; 3]> {
+    /// the target anywhere that a split may be made; `heap` the nodes its search divides, whatever
+    /// it holds.
+    pub(super) fn find_split(&self, triangle: usize, heap: &mut Vec<Node>) -> Option<[f32; 3]> {
         let [p0, p1, p2] = self.mesh.corners(triangle);
         let (edge01, edge12, edge20) = (sub(p1, p0), sub(p2, p1), sub(p0, p2));
         let lengths = [length(edge01), length(edge12), length(edge20)];
@@ -196,7 +175,11 @@ impl Tessellation<'_> {
         }
         let mut search = Search {
             work: self,
-            triangle,
+            shape: self.policy.shape(
+                &self.mesh,
+                self.mesh.triangle(triangle),
+                self.mesh.material(triangle),
+            ),
             displacements: self
                 .mesh
                 .triangle(triangle)
@@ -207,7 +190,7 @@ impl Tessellation<'_> {
             best: [0.0; 3],
             best_error: -1.0,
         };
-        search.run();
+        search.run(heap);
         (search.best_error > self.target_error).then_some(search.best)
     }
 }

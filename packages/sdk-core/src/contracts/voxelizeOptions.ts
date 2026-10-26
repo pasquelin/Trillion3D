@@ -5,14 +5,14 @@
  * card's cut-out kept —, the first source naming it winning:
  * 1. `voxelize` — a match on the objects, as `responsive` names them: the meshes of every object
  *    it matches;
- * 2. the HLOD: the meshes of every object whose layer's chain has a `voxel` layer — the simple
- *    form's `foliage` group (`hlodOptions.ts`);
+ * 2. the HLOD: the meshes of every object whose layer's chain has a `voxel` layer (the expert
+ *    form's layers, `hlodOptions.ts`);
  * 3. the mesh's own `extras.shapePreservation: "voxelize"` in the glTF (`VOXELIZE_EXTRA`).
  * A job naming none of them compiles as before. A value left out or `null` names nothing, as the
  * compiler reads it.
  */
-import { VOXELIZE_FIELD, VOXELIZE_OPTION, type HlodWireMatch } from './compilerAbi.ts'
-import { jsonJobOption, refusal, wireMatch, type NameMatch, type NamePattern } from './nameMatch.ts'
+import { VOXELIZE_FIELD, VOXELIZE_OPTION } from './compilerAbi.ts'
+import { jsonJobOption, matchResolver, type NameMatch, type NamePattern } from './nameMatch.ts'
 
 /** The objects whose meshes are voxelized far away: a node's name (a string, exact), a regular
  *  expression on it, or a match on what the glTF carries (`NameMatch`). */
@@ -24,10 +24,7 @@ export type VoxelizeOption = NamePattern | NameMatch
  * @returns The compiler's form (`HlodWireMatch`), `undefined` for none.
  * @throws TypeError naming what the host wrote wrong.
  */
-export function resolveVoxelize(option?: VoxelizeOption | null): HlodWireMatch | undefined {
-  if (option === undefined || option === null) return undefined
-  return wireMatch(option, 'voxelize', refusal('voxelize'))
-}
+export const resolveVoxelize = matchResolver<VoxelizeOption>('voxelize')
 
 /** A job's `voxelize` as the job field and the command line's flag the compiler reads
  *  (`jsonJobOption`): `fields` left out, `flags` none, when the job names none. */

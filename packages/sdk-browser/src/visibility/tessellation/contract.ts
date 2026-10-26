@@ -62,10 +62,3 @@ const TABLE_PATTERNS = TABLE_STRIDE ** 3
 export const TABLE_DATA_WORD = 2 * TABLE_PATTERNS
 /** The bit of a pattern that says the winding is flipped by the sort of its factors. */
 export const PATTERN_FLIP = 0x1000
-
-/** A pattern's index in its table from its three factors, each in `1..TABLE_SIZE`, in any order:
- *  sorted into descending order, `x + y * 16 + z * 256` less the factors' own 1 each. */
-export function patternIndex(a: number, b: number, c: number) {
-  const [x, y, z] = [a, b, c].sort((p, q) => q - p)
-  return x - 1 + (y - 1) * TABLE_STRIDE + (z - 1) * TABLE_STRIDE * TABLE_STRIDE
-}

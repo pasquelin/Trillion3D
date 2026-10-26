@@ -9,6 +9,7 @@ import {
   flushedGpuScene,
 } from '../backend/testScenes.fixture.ts'
 import { dispatchedEntries } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { rasterOf } from '../../visibility/raster/rasterFrame.fixture.ts'
 import { TESS_BINDINGS } from '../../visibility/tessellation/bindings.ts'
 import { TESS_UNIFORM } from '../../visibility/tessellation/uniform.ts'
@@ -18,48 +19,51 @@ import {
   OCCLUSION_POST,
 } from '../../visibility/tessellation/contract.ts'
 
-// Every image splits its clusters between the two rasters and writes one visibility buffer: the
-// main pass's binning first, then its depth — hardware slots, software lists —, the post pass's
-// when the cut runs one, then the identifiers, the hardware slots drawn again for them; the
-// pyramid's level zero after each pass's depth and the closed image are full-screen resolves of
-// the buffer (`resolve.ts`).
+// Every image bins its clusters for the two rasters and writes one visibility buffer: the main
+// pass's decode and bins first, then its depth — hardware slots, software clusters —, the post pass's
+// when the cut runs one, then, on a device without the 64-bit atomic maximum, the software
+// identifiers; the pyramid's level zero after each pass's depth and the closed image are exports of
+// the buffer (`export.ts`), the scene's depth a full-screen draw from the level zero.
 test('every image bins its clusters, writes each pass’s depth, then the identifiers', async () => {
   installGpuGlobals()
   const fixture = quadScene()
-  const { draws, dispatches, buffers, packed, backend } = await flushedGpuScene(fixture)
+  const { draws, dispatches, buffers, backend } = await flushedGpuScene(fixture)
   draws.length = 0
   dispatches.length = 0
   backend.render(camera())
-  assert.deepEqual(drawnPageIds(buffers, packed), [0, 1])
+  assert.deepEqual(drawnPageIds(buffers), [0, 1])
   const at = (entry: string) => dispatchedEntries(dispatches).indexOf(entry)
-  const bin = at('bin'),
-    depth = at(rasterEntry('fine', MODE_DEPTH)),
-    ids = at(rasterEntry('fine', MODE_ID))
-  assert.ok(bin >= 0 && depth > bin && ids > depth)
+  const bins = at('binFinalize'),
+    depth = at(rasterEntry(MODE_DEPTH)),
+    ids = at(rasterEntry(MODE_ID))
+  assert.ok(bins >= 0 && depth > bins && ids > depth)
   assert.ok(draws.some((draw) => draw.indirect))
-  const resolves = draws
+  // Level zero is exported once a pass, the image closed once; the scene's depth is the one
+  // full-screen draw.
+  const exports = dispatchedEntries(dispatches).filter(
+    (entry) => entry === 'exportDepth' || entry === 'exportIds',
+  )
+  assert.equal(exports.at(-1), 'exportIds')
+  assert.ok(exports.length >= 2 && exports.slice(0, -1).every((entry) => entry === 'exportDepth'))
+  const sceneDepth = draws
     .filter((draw) => draw.entryPoint === 'fullscreen')
     .map((draw) => draw.pipeline.fragment?.entryPoint)
-    .filter((entry) => entry === 'depthLevel' || entry === 'resolved')
-  // Level zero once a pass, the image closed once.
-  assert.equal(resolves.at(-1), 'resolved')
-  assert.ok(resolves.length >= 2 && resolves.slice(0, -1).every((entry) => entry === 'depthLevel'))
+    .filter((entry) => entry === 'exportSceneDepth')
+  assert.deepEqual(sceneDepth, ['exportSceneDepth'])
   disposeQuadRun(backend, fixture)
 })
 
-test('a frame that tessellates nothing allocates, compiles and dispatches nothing for it', () => {
-  const { f, raster, frame } = rasterOf(false)
-  raster.followTessellation(f.device as unknown as GPUDevice, undefined)
+test('a frame that tessellates nothing allocates, compiles and dispatches nothing for it', async () => {
+  const { f, device, raster, frame } = rasterOf(false)
+  raster.followTessellation(device, undefined)
+  // A first frame asks the pipelines it skips; the next one binds them.
+  frame()
+  await pipelinesSettled(device)
+  f.dispatches.length = 0
   const kernels = frame()
   assert.ok(kernels.length && kernels.every((name) => !name.startsWith('tess')), kernels.join())
   assert.ok(f.buffers.every((b) => !/tessellation|displacement/i.test(b.label ?? '')))
-  assert.ok(f.computePipelines.every((p) => !p.compute.entryPoint.startsWith('tess')))
-  // Its binning is the plain one: no module of it names the tessellated rows.
-  assert.ok(
-    f.computePipelines.every(
-      (p) => !(p.compute.module as { code?: string }).code?.includes('tessellatedRow'),
-    ),
-  )
+  assert.ok(f.computePipelines.every((p) => !p.compute.entryPoint?.startsWith('tess')))
 })
 
 test('a frame that tessellates seeds, splits six levels and dices in both modes of both passes', async () => {
@@ -69,17 +73,18 @@ test('a frame that tessellates seeds, splits six levels and dices in both modes 
   await new Promise((done) => setTimeout(done, 0))
   const kernels = frame()
   const levels = Array(6).fill(['tessPlan', 'tessSplit']).flat()
-  const seeding = ['bin', 'plan', 'tessSeed', ...levels, 'tessVisibleArgs']
-  const classes = (mode: number) => ['fine', 'coarse', 'large'].map((klass) => `${klass}${mode}`)
+  const seeding = ['tessSeed', ...levels, 'tessVisibleArgs']
   assert.deepEqual(kernels, [
     ...seeding,
-    ...classes(0),
+    rasterEntry(MODE_DEPTH),
     'tessDice0',
+    'exportDepth',
     ...seeding,
-    ...classes(1),
-    ...classes(1),
+    rasterEntry(MODE_ID),
+    rasterEntry(MODE_ID),
     'tessDice1',
     'tessDice1',
+    'exportIds',
   ])
   // The levels and the dicing launch from the dispatch buffer at the pass's own words.
   const launched = f.dispatches.filter(
@@ -95,16 +100,10 @@ test('a frame that tessellates seeds, splits six levels and dices in both modes 
       ['tessDice1', 76],
     ],
   )
-  // The pass's state is cleared before its binning, and nothing else of the buffer.
+  // The pass's state is cleared before its seeding, and nothing else of the buffer.
   const states = f.clears.filter((c) => c.buffer.label === 'Trillion3D tessellation')
   assert.equal(states.length, 2)
   assert.ok(states.every((c) => c.size === 32))
-  // Its binning is the one that leaves the displaced rows to it.
-  const bins = f.computePipelines.filter((p) => p.compute.entryPoint === 'bin')
-  assert.deepEqual(
-    bins.map((p) => !!(p.compute.module as { code?: string }).code?.includes('tessellatedRow')),
-    [false, false, true, true],
-  )
 })
 
 test('the held tessellation is kept while its capacity stands, made again when it moves, given back with none', () => {

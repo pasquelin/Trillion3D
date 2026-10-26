@@ -17,10 +17,11 @@ export function encodeTransparentInstances(rt: WebgpuPagesRuntime, encoder: GPUC
   if (!selection || !compaction?.encode) return
   // The occlusion verdict is written just before the compaction, in the same submission and on
   // this frame's pyramid: the compaction never reads another frame's verdict.
-  refreshTransparentCorners(rt, encoder)
+  const cornered = refreshTransparentCorners(rt, encoder)
   // The image's cull, taken at its head (`beginTransparentOcclusion`), says whether it tests or
-  // draws a frozen cut's kept verdicts again (`../../frame/render/cutFreeze.ts`).
-  if (blendState.occlusion) blendState.occlusion.encode(encoder, run.hizPyramidFresh)
+  // draws a frozen cut's kept verdicts again (`../../frame/render/cutFreeze.ts`). Without current
+  // corners (their kernel compiling) nothing is tested: no entry is stripped.
+  if (blendState.occlusion && cornered) blendState.occlusion.encode(encoder, run.hizPyramidFresh)
   else encoder.clearBuffer(compaction.occludedBuffer)
   compaction.encode(encoder, selection.maskBuffer, selection.maskOffset)
 }

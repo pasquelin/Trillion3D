@@ -4,12 +4,9 @@ import { readPagedManifest } from '../../../sdk-core/src/manifest/paged.ts'
 
 /**
  * The compiled manifest whose root file is `path`, read through its pages (`readPagedManifest`),
- * each page beside the root; `headOnly` reads the head page's columns alone, no mesh page. The one
- * reader of a compiled manifest on disk: a finished compile's and the cutout thumbnails'.
+ * each page beside the root. The one reader of a compiled manifest on disk.
  */
-export async function readCompiledManifest(path: string, headOnly = false) {
+export async function readCompiledManifest(path: string) {
   const root = JSON.parse(await readFile(path, 'utf8')) as Record<string, unknown>
-  return readPagedManifest(headOnly ? { ...root, pages: [] } : root, (page) =>
-    readFile(join(dirname(path), page.url)),
-  )
+  return readPagedManifest(root, (page) => readFile(join(dirname(path), page.url)))
 }

@@ -28,25 +28,28 @@ const dag = (big?: 'clusters' | 'nodes' | 'worlds' | 'coldWords') =>
     ),
   }) as unknown as PackedDag
 
-test('every table past one binding is a record table: two storage buffers, whatever the world', () => {
+test('every table past one binding is a record table: five storage buffers, whatever the world', () => {
   const limits = { maxStorageBufferBindingSize: LIMIT, maxComputeWorkgroupsPerDimension: 65535 }
   assert.equal(dagDeviceRefusal(limits, dag()), undefined, 'under every limit: the cut of before')
   for (const name of ['clusters', 'nodes', 'worlds', 'coldWords'] as const)
     assert.equal(dagDeviceRefusal(limits, dag(name)), undefined, `${name}: a record table`)
-  // The readout and `work` alone are storage buffers: a stage of two holds the cut.
+  // The readout, `work`, the list of visible clusters and the clusters' records and edges alone are
+  // storage buffers: a stage of five holds the cut.
   assert.equal(
-    dagDeviceRefusal({ ...limits, maxStorageBuffersPerShaderStage: 2 }, dag()),
+    dagDeviceRefusal({ ...limits, maxStorageBuffersPerShaderStage: 5 }, dag()),
     undefined,
   )
   assert.equal(
-    dagDeviceRefusal({ ...limits, maxStorageBuffersPerShaderStage: 1 }, dag())?.buffer,
+    dagDeviceRefusal({ ...limits, maxStorageBuffersPerShaderStage: 4 }, dag())?.buffer,
     'storage bindings',
   )
   // The flags too: every section at its cap, past one binding if it must, in its record table.
-  // The binding holds `work` — 676 bytes, a thousand pages' blocks and counters, the placements' filter bits — and no more; two
-  // thousand roots' descent array, their root slots beside as many nodes, is 32,000 bytes.
-  const roots = { ...dag(), worldCount: 2000, nodeCount: 2000 }
-  const section = { maxStorageBufferBindingSize: cameraCutBuffers(roots).rows.work.size }
+  // The binding holds the largest storage buffer — the clusters' records, 44 bytes a page — and no
+  // more; twenty thousand roots' descent array, their root slots beside as many nodes, is 320,000
+  // bytes.
+  const roots = { ...dag(), worldCount: 20000, nodeCount: 20000 }
+  const rowSizes = Object.values(cameraCutBuffers(roots).rows).map((row) => row.size)
+  const section = { maxStorageBufferBindingSize: Math.max(...rowSizes) }
   const { shape } = cameraCutBuffers(roots)
   assert.ok(
     shape.queueWords * 4 > section.maxStorageBufferBindingSize,
@@ -55,25 +58,24 @@ test('every table past one binding is a record table: two storage buffers, whate
   assert.equal(dagDeviceRefusal(section, roots), undefined, 'the roots past one binding held')
 })
 
-test('`work` holds no word per page: a binding past one list section holds the cut', () => {
-  // 8,000 bytes the live list of `flags`, past `work`'s 676 (the first test); the kept lists'
-  // ranks follow the readout's list (`keptRanks.ts`), never the pages.
-  const pages = dag(),
-    limits = { maxStorageBufferBindingSize: 8000 }
-  assert.equal(dagDeviceRefusal(limits, pages), undefined, 'each list its own ranks')
+test('`work` holds no word per page: the binding holds the list of visible clusters and the records', () => {
+  // The list of visible clusters and the clusters' records are storage buffers a binding must hold;
+  // the lists of `flags` are in a record table, past it if they must.
+  const pages = dag()
   const rows = cameraCutBuffers(pages).rows
-  // 676 bytes: sixteen blocks of eight words, twenty-eight frame counters and twelve group counts,
-  // then the word of the filter's bits that the one placement takes (a bit a placement).
-  assert.equal(rows.work.size, 676, `\`work\` is ${rows.work.size} bytes for a thousand pages`)
-  assert.deepEqual(
-    Object.keys(rows).filter((name) => name.startsWith('ranks')),
-    [],
-    'no ranks',
+  // 376 bytes: the two masks of the blended clusters, sixteen blocks of two words each, the twenty-
+  // nine frame counters — the lists' group counts among them —, then the word of the filter's bits
+  // that the one placement takes (a bit a placement).
+  assert.equal(rows.work.size, 376, `\`work\` is ${rows.work.size} bytes for a thousand pages`)
+  const largest = Math.max(...Object.values(rows).map((row) => row.size))
+  assert.equal(dagDeviceRefusal({ maxStorageBufferBindingSize: largest }, pages), undefined)
+  assert.equal(
+    (dagDeviceRefusal({ maxStorageBufferBindingSize: largest - 1 }, pages) as { bytes?: number })
+      ?.bytes,
+    largest,
+    'one byte under the largest: refused by it',
   )
-  // One live word past the binding: the lists still hold every page, in their record table.
-  const narrow = { ...limits, maxStorageBufferBindingSize: 7996 }
-  assert.equal(dagDeviceRefusal(narrow, pages), undefined, 'the lists past the binding held')
-  assert.equal(cameraCutBuffers(pages).shape.visCap, 1000)
+  assert.equal(cameraCutBuffers(pages).visibleCap, 1000)
 })
 
 test('a dispatch past the workgroups of one dimension is not refused: it runs in rows', () => {

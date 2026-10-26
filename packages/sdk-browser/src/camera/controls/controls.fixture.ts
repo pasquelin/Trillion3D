@@ -1,36 +1,13 @@
 import { createOrbitCameraControls } from './orbitControls.ts'
-import type { ControlCamera, ControlVector } from './types.ts'
+import type { ControlCamera } from './types.ts'
+import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 
 /**
  * A camera and a surface with no DOM behind them, so the five controllers are proved on a
  * plain Node runtime: the fixture counts the listeners installed and removed, and replays
  * pointer, wheel and key events by hand. It is the fixture of `cameraControls*.test.ts`.
  */
-function fixtureVector(x = 0, y = 0, z = 0): ControlVector {
-  const v: ControlVector = {
-    x,
-    y,
-    z,
-    set(nx, ny, nz) {
-      ;[v.x, v.y, v.z] = [nx, ny, nz]
-      return v
-    },
-    copy: (other) => v.set(other.x, other.y, other.z),
-    clone: () => fixtureVector(v.x, v.y, v.z),
-    add: (other) => v.set(v.x + other.x, v.y + other.y, v.z + other.z),
-    sub: (other) => v.set(v.x - other.x, v.y - other.y, v.z - other.z),
-    length: () => Math.hypot(v.x, v.y, v.z),
-    setLength(length) {
-      const scale = length / (v.length() || 1)
-      return v.set(v.x * scale, v.y * scale, v.z * scale)
-    },
-    distanceTo: (other) => Math.hypot(v.x - other.x, v.y - other.y, v.z - other.z),
-    fromArray: (array, offset = 0) =>
-      v.set(Number(array[offset]), Number(array[offset + 1]), Number(array[offset + 2])),
-  }
-  return v
-}
-
 /** A pointer position in client pixels. */
 type Point = { x: number; y: number }
 
@@ -40,19 +17,9 @@ export interface FixtureCamera extends ControlCamera {
 }
 
 export function fixtureCamera(x = 0, y = 0, z = 10): FixtureCamera {
-  const quaternion = {
-    x: 0,
-    y: 0,
-    z: 0,
-    w: 1,
-    set(qx: number, qy: number, qz: number, qw: number) {
-      Object.assign(quaternion, { x: qx, y: qy, z: qz, w: qw })
-      return quaternion
-    },
-  }
   return {
-    position: fixtureVector(x, y, z),
-    quaternion,
+    position: new Vector3(x, y, z),
+    quaternion: new Quaternion(),
     fov: 50,
     updates: 0,
     updateMatrixWorld(this: FixtureCamera) {

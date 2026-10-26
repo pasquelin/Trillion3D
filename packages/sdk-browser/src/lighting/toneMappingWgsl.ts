@@ -1,85 +1,36 @@
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
-import { wgslF32 } from '../../../math/src/wgsl/number.ts'
-import { ACES, AGX, CINEON, GAMMA, NEUTRAL } from './toneCurveConstants.ts'
 import { FILMIC_WGSL } from './filmCurveWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { linearToSrgb } from '../../../math/src/wgsl/color.ts'
-import { maxChannel, minChannel } from '../../../math/src/wgsl/sampling.ts'
-
-/** The ACES curve, its 0.6 exposure scale folded in. */
-const ACES_WGSL = wgslBlock(
-  'ACES_WGSL',
-  [],
-  `
-fn aces(color:vec3f)->vec3f{
- var c=color/${ACES.exposure};
- c=${ACES.input}*c;
- let a=${ACES.numerator};let b=${ACES.denominator};c=a/b;
- c=${ACES.output}*c;
- return clamp(c,vec3f(0.0),vec3f(1.0));
-}`,
-)
+import { FINITE_VALUE_WGSL } from './storableWgsl.ts'
 
 const R = TONE_MAPPING_RANK
 
 /**
  * Every display curve a scene may choose (`SceneEnvironment.toneMapping`), picked by its rank:
  * a uniform branch, the same for every pixel of the pass. Each is as follows:
- * - `linear` clips, `reinhard` is `c / (1 + c)`;
- * - `cineon` is a filmic rational fit, which carries a display gamma of its own
- *   that the power 2.2 takes back to linear before the sRGB transfer;
- * - `agx` is a filmic image formation: to the BT.2020 primaries, the inset, a log2 encoding
- *   over [-12.47, 4.03] EV, the sixth-degree contrast fit, the outset, back to linear sRGB;
- * - `neutral` is a neutral operator, which keeps base colours below 0.76 as they are;
- * - `filmic`, the default, is a film's response in a wide gamut (`filmCurveWgsl.ts`).
+ * - `none` carries the light as it is;
+ * - `filmic`, the default, is a film's response in a wide gamut (`filmCurveWgsl.ts`); its method
+ *   — the film curve or the standard output transform of the film industry's colour system —
+ *   is the colour grading's (`tonemappingMethod`, `./aces/`).
  */
 const TONE_MAPPING_WGSL = wgslBlock(
   'TONE_MAPPING_WGSL',
-  [ACES_WGSL, FILMIC_WGSL, maxChannel, minChannel],
-  `fn cineonCurve(color:vec3f)->vec3f{
- let x=max(vec3f(0.0),color-${CINEON.offset});
- return pow(${CINEON.curve},vec3f(${GAMMA}));
-}
-fn agxCurve(color:vec3f)->vec3f{
- let toWide=${AGX.toWide};
- let toNarrow=${AGX.toNarrow};
- let inset=${AGX.inset};
- let outset=${AGX.outset};
- let low=${wgslF32(AGX.low)};let high=${wgslF32(AGX.high)};
- var c=inset*(toWide*color);
- c=clamp((log2(max(c,vec3f(1e-10)))-low)/(high-low),vec3f(0.0),vec3f(1.0));
- let c2=c*c;let c4=c2*c2;
- c=${AGX.contrast};
- c=pow(max(vec3f(0.0),outset*c),vec3f(${GAMMA}));
- return clamp(toNarrow*c,vec3f(0.0),vec3f(1.0));
-}
-fn neutralCurve(color:vec3f)->vec3f{
- let low=minChannel(color);
- var c=color-select(${NEUTRAL.offset},${NEUTRAL.toeOffset},${NEUTRAL.toe});
- let peak=maxChannel(c);
- if(peak<${NEUTRAL.knee}){return c;}
- let top=${NEUTRAL.top};
- c*=top/peak;
- return mix(c,vec3f(top),${NEUTRAL.blend});
-}
-fn toneMap(color:vec3f,curve:u32)->vec3f{
+  [FILMIC_WGSL],
+  `fn toneMap(color:vec3f,curve:u32)->vec3f{
  switch curve{
   case ${R.none}u:{return color;}
-  case ${R.linear}u:{return clamp(color,vec3f(0.0),vec3f(1.0));}
-  case ${R.reinhard}u:{return clamp(color/(vec3f(1.0)+color),vec3f(0.0),vec3f(1.0));}
-  case ${R.cineon}u:{return cineonCurve(color);}
-  case ${R.agx}u:{return agxCurve(color);}
-  case ${R.neutral}u:{return neutralCurve(color);}
-  case ${R.aces}u:{return aces(color);}
   default:{return filmicCurve(color);}
  }
 }`,
 )
 
 /** The display value of linear radiance `exposed` (its exposure applied by the caller): the scene's
- *  curve, then the sRGB transfer. The one chain of every composition and of the display layers. */
+ *  curve, then the sRGB transfer, a value that is not a number written 0 as the table writes it
+ *  (`finiteValue`): a light the curve does not define — a black one — shows black, never undefined. The
+ *  chain of the compositions that read no table. */
 export const DISPLAY_VALUE_WGSL = wgslBlock(
   'DISPLAY_VALUE_WGSL',
-  [TONE_MAPPING_WGSL, linearToSrgb],
-  'fn displayValue(exposed:vec3f,curve:u32)->vec3f{return linearToSrgb(toneMap(exposed,curve));}',
+  [TONE_MAPPING_WGSL, linearToSrgb, FINITE_VALUE_WGSL],
+  'fn displayValue(exposed:vec3f,curve:u32)->vec3f{return finiteValue(linearToSrgb(toneMap(exposed,curve)));}',
 )

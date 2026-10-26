@@ -113,9 +113,6 @@ export interface Row {
   geometryPool: GeometryPool
   lights: LightsSummary | null
   importedLights: { count: number; ids: string[] } | null
-  /** The lights a Three witness placed (`witness/threeMeasurePage.ts`); null on the engine's side,
-   *  which draws its own light store. */
-  witnessLights: unknown
   movingNode: MovingNode
   png: string | null
   captureStatus: number

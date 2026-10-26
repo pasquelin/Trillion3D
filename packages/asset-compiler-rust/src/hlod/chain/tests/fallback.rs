@@ -1,7 +1,7 @@
 //! The `lowest` LOD a merged layer takes of a source: its fallback mesh
 //! (`hlod::flatten::merge::fallback`, by its `RELATIVE_ERROR`, `AT_LEAST`, `OVERSHOOT` and
 //! `LIMIT`). On generated plates.
-use super::attributes::vertex_normals;
+use super::attributes::plate_attributes;
 use super::plate;
 use crate::dag::{build_dag, DagAttributes, DagStrategy, Grown};
 use crate::hlod::chain::{Instance, SourceCover};
@@ -40,6 +40,7 @@ fn lowest(cover: &SourceCover) -> crate::hlod::flatten::merge::Geometry {
         node: 0,
         mesh: 0,
         track: None,
+        fallback: None,
     };
     let cut = (HlodLodSelection::Lowest, 0.25);
     let parts = merged(&[instance], &[0], (cut, None));
@@ -74,19 +75,7 @@ fn the_fallback_of_a_dense_source_is_simplified() {
 fn a_fallback_carries_every_attribute_of_its_source_on_each_vertex() {
     let size = 12.0;
     let (positions, indices) = plate(40, size, false);
-    let uv = (positions.as_chunks::<3>().0.iter()).flat_map(|p| [p[0] / size, p[2] / size]);
-    let carried = [
-        Attribute {
-            flag: FLAG_NORMAL,
-            width: 3,
-            values: vertex_normals(&positions, &indices),
-        },
-        Attribute {
-            flag: FLAG_UV,
-            width: 2,
-            values: uv.collect(),
-        },
-    ];
+    let carried = plate_attributes(&positions, &indices, size);
     let (placed, attributes, taken) = lowest(&cover(&positions, &indices, &carried));
     assert!(taken.len() < indices.len());
     for flag in [FLAG_NORMAL, FLAG_UV] {

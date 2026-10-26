@@ -7,7 +7,7 @@ import { createWebgpuBudgetState } from '../../geometry/residency/budgetState.ts
 /** A runtime reduced to what admission reads: the pool, a readback in hand, the host's threshold
  *  (the frame's uniforms, which the readback was cut under), the counts. */
 function mount(slots: number) {
-  const state = { requested: 0, kept: 0 }
+  const state = { requested: 0, kept: 0, coarse: 1 }
   const selectionUniforms = { pixelError: 0 }
   const run = {
     ...createWebgpuBudgetState(),
@@ -26,14 +26,19 @@ function mount(slots: number) {
         get keepCount() {
           return state.kept
         },
+        get drawnCoarse() {
+          return state.coarse
+        },
       },
     },
   } as unknown as WebgpuPagesRuntime
-  /** One frame: the sample cut at `sampled` asked for `requested` pages, and holds `kept`. */
-  const frame = (sampled: number, requested: number, kept = requested) => {
+  /** One frame: the sample cut at `sampled` asked for `requested` pages, and holds `kept`, `coarse`
+   *  of the clusters it draws above the finest level. */
+  const frame = (sampled: number, requested: number, kept = requested, coarse = 1) => {
     selectionUniforms.pixelError = sampled
     state.requested = requested
     state.kept = kept
+    state.coarse = coarse
     admitGpuCut(rt)
   }
   return { run, frame }
@@ -62,4 +67,14 @@ test('pages still drawn count against the slots as the requested ones do', () =>
   frame(0, 60, 60)
   assert.equal(run.coverageBudgetLimited, false)
   assert.equal(run.coverageBudgetEvent?.limited, false)
+})
+
+test('an image that draws the finest level only is not limited by a pool the cut asks too much of', () => {
+  const { run, frame } = mount(100)
+  frame(0, 250, 250, 0)
+  assert.equal(run.coverageBudgetLimited, false, 'no cluster is drawn above the finest level')
+  frame(0, 250, 250, 3)
+  assert.equal(run.coverageBudgetLimited, true, 'three are, and the pool is past its slots')
+  frame(0, 60, 60, 3)
+  assert.equal(run.coverageBudgetLimited, false, 'the pool holds what the cut asks')
 })

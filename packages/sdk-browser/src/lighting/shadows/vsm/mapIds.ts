@@ -3,7 +3,8 @@
  * then local, then the unreferenced cache entries —, and the next-map data each map leaves under its
  * previous id. Where each map's table lies is the table packing's (`tableBlocks.ts`).
  */
-import type { VsmIdAllocator, VsmNextMap } from './cacheManager.ts'
+import type { VsmIdAllocator } from './cacheManager.ts'
+import type { VsmNextMap } from './lightCache.ts'
 
 /** Next-map data stride on the GPU (`VsmNextMap`). */
 export const VSM_NEXT_MAP_BYTES = 16
@@ -23,12 +24,16 @@ export class VsmMapIds implements VsmIdAllocator {
   /** Each previous id's record, kept across frames (`reset`), this frame's those listed. */
   readonly nextMaps: VsmNextMap[] = []
 
+  /** The maps refused this frame for want of slots (`refuse`). */
+  refusedMaps = 0
+
   /** The maps a frame may hold: the set's map slots (`VsmLayout.mapSlots`). */
   capacity = 0
 
   /** Empties the allocator for a new frame of `capacity` map slots, keeping its storage. */
   reset(capacity: number) {
     this.capacity = capacity
+    this.refusedMaps = 0
     this.mapCount = 0
     this.localMaps = 0
     this.unseenMaps = 0
@@ -40,6 +45,10 @@ export class VsmMapIds implements VsmIdAllocator {
   /** Whether `count` more maps fit the frame's slots. */
   fits(count: number) {
     return this.mapCount + count <= this.capacity
+  }
+  /** Counts `count` maps a light wanted that the frame's slots did not hold. */
+  refuse(count: number) {
+    this.refusedMaps += count
   }
   /** Allocates `count` slots of the shadow map array. */
   private allocateMapSlots(count: number) {

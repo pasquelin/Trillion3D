@@ -46,14 +46,11 @@ test('the words a source writes to join follow its placements, on a world of 1k 
       `${count} placements cost ${small.steady[at]} bytes on 1k and ${large.steady[at]} on 250k`,
     )
   })
-  // The first growth is the O(N) the world pays once: it makes the cut over every root.
-  assert.ok(large.first > 50 * small.first, 'the first growth packs the world again')
-})
-
-test('ten thousand placements cost a hundred times what a hundred do, on the largest world', async () => {
-  const { steady } = await costs(250_000, [100, 10_000])
-  const [few, many] = steady
-  assert.ok(many > 30 * few && many < 200 * few, `${few} bytes for 100, ${many} for 10000`)
+  // The first growth's whole write and the words a placement of a join cost were the placement
+  // motion buffer's, the one buffer a join wrote a word a placement into: gone since the velocity
+  // reads the kept poses (`../../geometry/dag/previousPoses.ts`), a join writes no buffer word a
+  // placement, so neither ratio has a subject (the cut's records are texels, not counted here).
+  assert.ok(large.first <= 64 * 1024 && small.first <= 64 * 1024, 'no buffer the size of the world')
 })
 
 test('a primitive the session does not hold joins in the room the cut kept, whatever the world', async () => {

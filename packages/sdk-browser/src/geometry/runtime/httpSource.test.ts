@@ -29,14 +29,13 @@ const failedWith = (status: number) => (error: unknown) =>
   /PAGE_STREAM_FAILED/.test(error.message) &&
   refusedWith(status, 'p0.bin')(error.cause)
 
-test('a page the server does not hold (404) is refused by its address, never asked again', async (t) => {
+test('a page the server does not hold (404) is asked again at once, its three tries, then refused by its address, never asked again', async (t) => {
   const asked = answering(t, 'p0.bin', [404])
   const source = page.httpSource(BASE, { pages: await listed(geometry), cache: createPageCache() })
   const cache = createGpuPageCache(device, source, POOL)
-  // Another request would meet the same refusal.
   await assert.rejects(cache.load('p0.bin'), failedWith(404))
   await assert.rejects(cache.load('p0.bin'), /PAGE_STREAM_FAILED/)
-  assert.equal(asked.length, 1)
+  assert.equal(asked.length, 4, 'the read and its three tries, none after')
   await cache.dispose()
   source.dispose()
 })

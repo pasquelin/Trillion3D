@@ -15,7 +15,7 @@ import { createSoftVertices } from '../soft/softVertices.ts'
 import { createTileStreamer } from '../tiles/tiles.ts'
 import { createPhysicsView } from '../view.ts'
 import { createCharacterPort, createPhysicsCharacter } from '../character/physicsCharacter.ts'
-import { createStepClock, physicsStep } from '../step/stepClock.ts'
+import { createStepClock } from '../step/stepClock.ts'
 import { createDeferred } from '../../../../sdk-core/src/runtime/deferred.ts'
 
 /**
@@ -33,9 +33,13 @@ export function createPhysicsSession(
   failed: (error: EngineError, fatal?: boolean) => void,
   /** The joints and vehicles `world.physics.add` holds: made once their bodies are simulated. */
   wanted: WantedPhysics,
+  /** The world's gravity, live (`world.physics.gravity`): the character falls under it. */
+  gravity: { readonly y: number },
+  /** The fixed step and the restitution threshold (`WorldPhysicsOptions`). */
+  timing: { readonly step: number; readonly restitutionThreshold: number },
 ) {
   const writer = new CommandWriter()
-  const step = physicsStep()
+  const { step } = timing
   const clock = createStepClock(step)
   const stale = new Set<Object3D>()
   const s = createSessionState()
@@ -43,7 +47,7 @@ export function createPhysicsSession(
     { writer, budget, root, step, stale, s, invalidate },
     wanted,
   )
-  const worker = startPhysicsWorker(budget, step)
+  const worker = startPhysicsWorker(budget, timing)
   const link = createWorkerLink(s, worker, writer, clock, step)
   const ready = createDeferred<void>()
   const parts: SessionParts = {
@@ -52,23 +56,14 @@ export function createPhysicsSession(
     invalidate,
     failed,
     wanted,
-    s,
-    link,
-    writer,
-    clock,
-    stale,
-    poses,
-    bodies,
-    joints,
+    ...{ s, link, writer, clock, stale, poses, bodies, joints },
     vehicles: createPhysicsVehicles(writer, bodies, invalidate),
     soft: createSoftVertices(bodies, budget.bodies),
-    view: createPhysicsView(),
-    stats: emptyPhysicsStats(),
-    touched: { id: budget.bodies, eye: null },
+    ...{ view: createPhysicsView(), stats: emptyPhysicsStats() },
+    ...{ touched: { id: budget.bodies, eye: null }, casts: new Map() },
     worker,
     tiles: createTileStreamer(writer, budget, bodies, invalidate, (error) => failed(error)),
-    casts: new Map(),
-    character: createCharacterPort(link.send, link.at),
+    character: createCharacterPort(link.send, link.at, () => gravity.y),
     retire,
     started: ready.promise,
     onReady: () => ready.resolve(),

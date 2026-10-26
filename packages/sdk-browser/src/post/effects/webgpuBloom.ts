@@ -1,5 +1,4 @@
 import type { Bloom } from '../../../../sdk-core/src/world/effect/bloom.ts'
-import type { ResolvedBloomDirtMask } from '../../../../sdk-core/src/contracts/bloomDirtOptions.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { putVec4 } from '../../gpu/core/fieldLayout.ts'
@@ -11,15 +10,11 @@ import { convolutionArriving } from './bloom/convolution/convolutionPrograms.ts'
 import { createBloomSet, type BloomSet } from './bloom/bloomSet.ts'
 import { createBloomTargets, type BloomTargets } from './bloom/bloomTargets.ts'
 import { BLOOM_LOOK, BLOOM_LOOK_BYTES } from './bloom/bloomWgsl.ts'
-import { dirtLevel } from './bloom/dirtMask.ts'
+import { dirtLevel, dirtShows } from './bloom/dirtMask.ts'
 import type { ValuesOf } from './kindRules.ts'
 import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
 
 type BloomPrograms = Awaited<ReturnType<typeof createBloomPrograms>>
-
-/** Whether the dirt mask is drawn: a picture, an intensity, and a glow that has one. */
-const dirtShows = (dirt: ResolvedBloomDirtMask, intensity: number) =>
-  dirt.image !== undefined && dirt.intensity > 0 && intensity > 0
 
 /** Writes a `vec4f` of the composite's uniform: the three numbers `rgb` and a 1 where `on`, else 0s. */
 function putLook(words: Float32Array, at: number, on: boolean, rgb: readonly number[]) {
@@ -27,8 +22,9 @@ function putLook(words: Float32Array, at: number, on: boolean, rgb: readonly num
 }
 
 /** The composite of a glow into the image the next pass reads: the glow times the dirt the mask
- *  shows and the image times what the glow left it, as `blend` says, summed. Its groups over the
- *  image, the glow and the mask, the images the input alternates between each keeping theirs. */
+ *  shows — read in the lens' space `lens` (`lensOf`) — and the image times what the glow left it, as
+ *  `blend` says, summed. Its groups over the image, the glow and the mask, the images the input
+ *  alternates between each keeping theirs. */
 function createComposite(device: GPUDevice, programs: BloomPrograms) {
   const draw = fullscreenDraw(BLOOM_PASS)
   const look = uniformBlock(device, BLOOM_PASS, BLOOM_LOOK_BYTES)
@@ -39,6 +35,7 @@ function createComposite(device: GPUDevice, programs: BloomPrograms) {
     input: GPUTextureView,
     blend: FusedBlend,
     output: GPUTextureView,
+    lens: readonly number[],
   ) => {
     const mask = blend.mask ?? programs.filters.empty
     inputs.next[0] = input
@@ -57,6 +54,7 @@ function createComposite(device: GPUDevice, programs: BloomPrograms) {
       })
     putLook(look.words.f, BLOOM_LOOK.at.keep, blend.keeps, blend.keep)
     putLook(look.words.f, BLOOM_LOOK.at.dirt, blend.mask !== undefined, blend.factor)
+    putVec4(look.words.f, BLOOM_LOOK.at.lens, lens[0], lens[1], lens[2], lens[3])
     look.send()
     draw(encoder, output, programs.composite, groups[inputs.slot])
   }
@@ -190,7 +188,7 @@ export async function createWebgpuBloom(
         blend = made
         return drawn
       }
-      composite(encoder, input, made, output)
+      composite(encoder, input, made, output, post.lens)
       return drawn + 1
     },
     dispose: release,

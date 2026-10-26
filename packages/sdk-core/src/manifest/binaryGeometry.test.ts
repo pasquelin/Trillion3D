@@ -38,8 +38,9 @@ test('a bundle in a geometry file the manifest does not name is refused', () => 
 })
 
 test('a sidecar written before the geometry bundles is refused before it is read', () => {
-  assert.equal(MANIFEST_BINARY_VERSION, 18)
-  // Each older version, those before the geometry bundles included, is refused, none read.
+  // Each older version, those before the geometry bundles included, is refused, none read (the
+  // current version is the format's own number, written once in `contracts/writtenFormats.ts`,
+  // which this test follows).
   for (const version of Array.from({ length: MANIFEST_BINARY_VERSION - 7 }, (_, at) => 7 + at)) {
     const { slim, buffer } = encoded()
     new Uint32Array(buffer, 4, 1)[0] = version

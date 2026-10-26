@@ -36,7 +36,7 @@ pub(super) fn reduce_group(
 ) -> Result<GroupReduction> {
     let mut spheres = Vec::with_capacity(children.len());
     let mut child_error = 0.0_f64;
-    let mut source_rank = u32::MAX;
+    let mut source_rank = NO_SOURCE_RANK;
     let mut child_triangles = 0usize;
     for child in children {
         spheres.push(child.sphere);

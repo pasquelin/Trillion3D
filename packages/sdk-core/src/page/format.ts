@@ -9,26 +9,62 @@
 /** The `WGP3` quantized cluster page as every reader must know it (`docs/FORMAT.md`). */
 
 /**
- * The geometry-page format a version-11 sidecar names, as the manifest's `geometryPages` declares
- * it once and every page header opens with. Format 8 adds the stored tangent (`FLAG_TANGENT`);
- * format 9 holds every attribute at the values a mesh build quantizes it to: positions on a grid of
- * centimetres, normals and tangents at their precisions, floating texture codes, byte colours,
- * four texture sets.
+ * `WGP3` read as a little-endian `u32`: the first word of a page, on disk and resident.
  */
-export const GEOMETRY_PAGE_FORMAT_VERSION = 9
+export const GEOMETRY_PAGE_MAGIC = 860899159
+
+/**
+ * The geometry-page format a sidecar names, as the manifest's `geometryPages` declares it once and
+ * every page on disk opens with. Format 8 adds the stored tangent (`FLAG_TANGENT`); format 9 holds
+ * every attribute at the values a mesh build quantizes it to: positions on a grid of centimetres,
+ * normals and tangents at their precisions, floating texture codes, byte colours, four texture
+ * sets; format 10 writes the page on disk as the streams of its fields' shortest-wrapped zig-zag
+ * deltas in byte planes, with the widths and ranges of every field in its header; format 11 writes
+ * its triangles as strips and the vertices it shares with other clusters as references to them,
+ * which the install pass transcodes into the resident layout of format 9; format 12 carries up to
+ * eight texture sets, the ranges of the fifth to the eighth in the header's extension
+ * (`Header::extension_words`), which only a page that stores one pays for.
+ */
+export const GEOMETRY_PAGE_FORMAT_VERSION = 12
+
+/**
+ * The version word of the resident page, the layout the shaders read in place and the install
+ * pass writes: format 10's streams behind a table of their offsets (`RESIDENT_TABLE_WORDS`).
+ */
+export const GEOMETRY_PAGE_RESIDENT_VERSION = 11
 
 /**
  * Twenty-three little-endian words open a page: counts, flags, the grid of its positions, the
- * ranges of its four texture sets and of its colour, the precisions of its normals and tangents,
- * the bits of the corner stream, the count of distinct positions, and the deformation word: the
- * skin record and the morph target count (`deform.rs`), zero on a page that carries neither.
+ * ranges of its first four texture sets and of its colour, the precisions of its normals and
+ * tangents, the bits of the corner stream, the count of distinct positions, and the deformation
+ * word: the skin record and the morph target count (`deform.rs`), zero on a page that carries
+ * neither. The morph targets' records follow, then the ranges of the texture sets past the fourth
+ * the page carries (`UV_EXTENSION_WORDS` words each, in set order).
  */
 export const CLUSTER_HEADER_WORDS = 23
 
 /**
+ * Words that follow a disk page's header and morph records: the vertices it names and the pairs
+ * of clusters it names them in, the vertices its strips named and laid before each word of 32
+ * triangles, then the byte each section starts at (`disk.rs`, `DiskLayout::words`).
+ */
+export const DISK_HEADER_WORDS = 12
+
+/**
+ * Words of the table that closes a resident page's header, its morph records and its extension:
+ * the word offset, from the page's first word, of every stream a shader reads — block table,
+ * corners, the three positions, links, the two normals, the two streams of each of the eight
+ * texture sets, the four colours, the tangents, the skin —, two to a word, 16 bits each, the
+ * first in the low half (`Layout::table`). The shaders load the offsets they need, never
+ * recompute them from the counts and widths.
+ */
+export const RESIDENT_TABLE_WORDS = 15
+
+/**
  * Attribute presence bits: normal, first and second texture coordinate, colour; then the skin
- * and the morph targets (`deform.rs`), the stored tangent (`FLAG_TANGENT`) and the third and
- * fourth texture coordinates (`FLAG_UV2`, `FLAG_UV3`).
+ * and the morph targets (`deform.rs`), the stored tangent (`FLAG_TANGENT`), the third and
+ * fourth texture coordinates (`FLAG_UV2`, `FLAG_UV3`) and the fifth to the eighth (`FLAG_UV4` to
+ * `FLAG_UV7`).
  */
 export const FLAG_NORMAL = 1
 
@@ -60,6 +96,23 @@ export const FLAG_UV2 = 512
 export const FLAG_UV3 = 1024
 
 /**
+ * The presence bits of the fifth to the eighth texture sets.
+ */
+const FLAG_UV4 = 2048
+
+const FLAG_UV5 = 4096
+
+const FLAG_UV6 = 8192
+
+const FLAG_UV7 = 16384
+
+/**
+ * The presence bits of the fifth to the eighth texture sets together: the sets whose ranges the
+ * header's extension holds, `UV_EXTENSION_WORDS` words each.
+ */
+export const FLAG_UV_EXTENDED = 30720
+
+/**
  * Presence bits of the skin and of the morph targets, beside those of `lib.rs`.
  */
 export const FLAG_SKIN = 16
@@ -67,9 +120,53 @@ export const FLAG_SKIN = 16
 export const FLAG_MORPH = 32
 
 /**
+ * The most triangles and vertices a page holds, and the corners of its triangles: a cluster's,
+ * which the install pass (one workgroup a page) transcodes in shared memory.
+ */
+export const MAX_PAGE_TRIANGLES = 128
+
+export const MAX_PAGE_VERTICES = 256
+
+export const MAX_PAGE_CORNERS = 384
+
+/**
+ * Bits of the distance a strip names a vertex it reuses by: the window's.
+ */
+export const STRIP_REF_BITS = 5
+
+/**
+ * Bits of the place a pair names a cluster by: the words from the start of its streaming page's
+ * place in the pool to the cluster's resident page, below the rank of that streaming page in the
+ * page's list of dependencies (0 for its own).
+ */
+export const REF_PLACE_BITS = 24
+
+/**
+ * The pair that names the page itself: its own earlier vertices, a vertex a strip laid twice.
+ */
+export const SELF_PLACE = 16777215
+
+/**
+ * The start, in words of the pool, of a streaming page that is not resident: no cluster of it is
+ * named.
+ */
+export const NO_UNIT = 4294967295
+
+/**
  * Texture sets a page carries at most.
  */
-export const MAX_UV_SETS = 4
+export const MAX_UV_SETS = 8
+
+/**
+ * The texture sets whose ranges the fixed header holds, words 9 to 16: the sets past them have
+ * theirs in the extension, a page that has none pays nothing for them.
+ */
+export const HEADER_UV_SETS = 4
+
+/**
+ * Words of the header's extension a texture set past the fourth takes: its two ranges.
+ */
+export const UV_EXTENSION_WORDS = 2
 
 /**
  * Positions are quantized in centimetres of the mesh's own space, which a metre holds this many of.
@@ -149,6 +246,10 @@ export const OPTIONAL = [
   ['uv1', 2, FLAG_UV1],
   ['uv2', 2, FLAG_UV2],
   ['uv3', 2, FLAG_UV3],
+  ['uv4', 2, FLAG_UV4],
+  ['uv5', 2, FLAG_UV5],
+  ['uv6', 2, FLAG_UV6],
+  ['uv7', 2, FLAG_UV7],
   ['color', 4, FLAG_COLOR],
   ['tangent', 4, FLAG_TANGENT],
 ] as const

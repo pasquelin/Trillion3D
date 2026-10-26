@@ -44,3 +44,27 @@ fn unit_and_the_oracle_unit_keep_their_own_guards() {
     assert_eq!(unit([f64::INFINITY, 0.0, 0.0]), None);
     assert!(unit_or_itself([f64::INFINITY, 0.0, 0.0])[0].is_nan());
 }
+
+#[test]
+fn a_spot_fades_across_its_whole_cone_unless_an_inner_cone_says_otherwise() {
+    // No inner cone: its cosine is one, the outer one the declared angle's.
+    assert_eq!(
+        spot_cosines(DEFAULT_INNER_CONE_ANGLE, 0.8),
+        (0.8_f64.cos(), 1.0_f64)
+    );
+    // An inner cone of half the angle.
+    assert_eq!(spot_cosines(0.4, 0.8), (0.8_f64.cos(), 0.4_f64.cos()));
+    // A sharp spot fades across a gap: the outer cone a gap past the inner one (the contract's).
+    assert_eq!(
+        spot_cosines(0.8, 0.8),
+        ((0.8_f64 + SPOT_CONE_GAP).cos(), 0.8_f64.cos())
+    );
+    // Held at the widest cone, the outer cone a gap past it.
+    assert_eq!(
+        spot_cosines(3.0, 3.0),
+        (
+            (SPOT_CONE_LIMIT + SPOT_CONE_GAP).cos(),
+            SPOT_CONE_LIMIT.cos()
+        )
+    );
+}

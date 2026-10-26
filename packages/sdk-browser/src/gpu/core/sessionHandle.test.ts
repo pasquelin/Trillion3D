@@ -102,9 +102,7 @@ test('the ledger, on the handle, counts by the label as the engine wrote it, the
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
   })
   // What the device keeps for every session is created on it, untagged, and counted by its ledger.
-  generateMaterialMips(handle, [
-    { texture, format: 'rgba8unorm', width: 4, height: 4, weighted: false },
-  ])
+  generateMaterialMips(handle, [{ texture, format: 'rgba8unorm', width: 4, height: 4 }])
   assert.ok(gpu.labels.includes('Trillion3D texture mips uniforms'))
   const { byLabel } = ledger.snapshot()
   assert.equal(byLabel['page table'], 8)
@@ -114,9 +112,6 @@ test('the ledger, on the handle, counts by the label as the engine wrote it, the
     768,
     'one aligned uniform per level',
   )
-  // Largest first (`ledgerSnapshot`): one level's bins (`LEVEL_BIN_BYTES`) above the uniforms.
-  assert.deepEqual(Object.keys(caches.snapshot().byLabel), [
-    'Trillion3D coverage bins',
-    'Trillion3D texture mips uniforms',
-  ])
+  // The reduction keeps nothing but its uniforms: no coverage bins.
+  assert.deepEqual(Object.keys(caches.snapshot().byLabel), ['Trillion3D texture mips uniforms'])
 })

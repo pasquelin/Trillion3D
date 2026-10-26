@@ -5,7 +5,7 @@ import {
   widthOf,
 } from '../../../../sdk-core/src/world/material/graph/valueType.ts'
 import type { Emitter } from './emitter.ts'
-import { forceCast, splat, type Value } from './value.ts'
+import { forceCast, sameValue, splat, type Value } from './value.ts'
 
 /** The arguments of a choice between three results by the comparison of `a` with `b`. */
 export interface Choice {
@@ -16,8 +16,6 @@ export interface Choice {
   readonly less: Value
   readonly threshold: Value
 }
-
-const sameValue = (x: Value, y: Value) => x.type === y.type && x.code === y.code
 
 /**
  * The result of comparing `a` with `b`: `greater` where `a` is at least `b`, `less` where below it,

@@ -4,15 +4,13 @@ import { generateMaterialMips } from '../texture/mipBatch.ts'
 import type { MipChain } from '../texture/mipGroups.ts'
 import { materialMipTexture, turnFlags } from '../texture/mips.ts'
 import { mipLevelCountFor } from '../texture/tiles.ts'
-import type { CoverageReaders } from '../texture/coverage.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
-import { writeRgba } from './write.ts'
+import { writeTexels } from './write.ts'
 
 /**
  * Working texture of a host texture: the whole source, transferred once, and its mip chain built
- * by the GPU with the materials rule (mean in colour, weighted by alpha where every reader takes
- * alpha for coverage, median in alpha, scaled at the readers' cutoff), one compute pass
- * (`generateMaterialMips`). Tiles are then copied into the pool, level by level: the levels are
+ * by the GPU with the materials rule (the mean of the four texels, colours in linear light), one
+ * compute pass (`generateMaterialMips`). Tiles are then copied into the pool, level by level: the levels are
  * stored as `materialMipTexture` says — `rgba8unorm`, viewed in the pool's sRGB format for a
  * colour texture —, a format the pool's copies take (they differ in `-srgb` alone). A picture
  * copy into `rgba8unorm` stores the picture's bytes, as into its sRGB twin.
@@ -32,9 +30,9 @@ export type TileScratch = {
   /** Writes the source's current picture again, mips included: what a live texture keeps. Its
    *  turn and its mips in `encoder` when given, submitted by its owner at once (`reduce`). */
   fill(encoder?: GPUCommandEncoder): void
-  /** Builds its mips again from the picture it holds, under its readers' rule now (#42): in
-   *  `encoder` when given, which its owner submits before any other batch writes the mips'
-   *  uniforms (`generateMaterialMips`), else in a submit of its own. */
+  /** Builds its mips again from the picture it holds: in `encoder` when given, which its owner
+   *  submits before any other batch writes the mips' uniforms (`generateMaterialMips`), else in a
+   *  submit of its own. */
   reduce(encoder?: GPUCommandEncoder): void
   /** Its mips not built since its first picture: `reduce`, or a batch taking its `chain`. */
   readonly stale: boolean
@@ -55,8 +53,6 @@ type ScratchOptions = {
   height: number
   format: GPUTextureFormat
   errorCode: string
-  /** The colour census's readers, whose rule each reduction asks; none for a data texture. */
-  coverage?: CoverageReaders
 }
 
 /** The working texture's descriptor: stored as `materialMipTexture` says, its whole chain. */
@@ -99,14 +95,14 @@ function uploadPicture(
     if (refusal) throw new Error(refusal)
     if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE')
     const flags = turnFlags(map)
-    if (!flags) return writeRgba(device.queue, texture, [0, 0, 0], rgba.data, width, height)
+    if (!flags) return writeTexels(device.queue, texture, [0, 0, 0], rgba.data, width, height)
     raw.texture ??= device.createTexture({
       label: 'Trillion3D texture raw texels',
       size: { width, height },
       format: 'rgba8unorm',
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     })
-    writeRgba(device.queue, raw.texture, [0, 0, 0], rgba.data, width, height)
+    writeTexels(device.queue, raw.texture, [0, 0, 0], rgba.data, width, height)
     raw.turn = { raw: raw.texture, flags }
   } else {
     const image = map.image as GPUCopyExternalImageSource | undefined
@@ -130,10 +126,9 @@ export function createTileScratch(device: GPUDevice, options: ScratchOptions): T
   /** The next reduction's chain, the turn of the picture it waits for taken with it. */
   const chain = (): MipChain => {
     stale = false
-    const cutoff = options.coverage?.cutoff(options.map),
-      { turn } = raw
+    const { turn } = raw
     raw.turn = undefined
-    return { texture, format, width, height, weighted: cutoff !== undefined, cutoff, turn }
+    return { texture, format, width, height, turn }
   }
   const reduce = (encoder?: GPUCommandEncoder) => generateMaterialMips(device, [chain()], encoder)
   /** A static picture turned and submitted: its raw texels are let go. */

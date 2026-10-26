@@ -124,11 +124,10 @@ Every model file read over HTTP — manifest, tables, binary, images, lights, pa
 the WebAssembly modules — goes through one loader. A failure that may pass (the network, 408, 429,
 5xx) is asked again once after its `Retry-After` wait (ten seconds at most), or by the reader's own
 retry (a physics tile's next update). The page streamer and the HTTP page source ask a page again
-`streamingNumRetries` times (3 by default, a negative value without end), the baked texture levels
-for as long as the failure may pass, one request per step, after a wait of 0.5 s · 2^k (8 s at most,
-never less than the server's `Retry-After`), never before; a 4xx refusal fails for good, and so does
-a page past its last try, its object invalid: no page of it is asked for again. What
-still fails is `RESOURCE_HTTP_ERROR` (`details.url`, `details.status`, `null`
+`streamingNumRetries` times (3 by default, a negative value without end), at once, whatever the
+failure, with no wait but the server's `Retry-After`; a page past its last try fails for good, its
+object invalid: no page of it is asked for again. The baked texture levels follow the same count: asked again by each
+frame that wants them, `streamingNumRetries` times, then given up. What still fails is `RESOURCE_HTTP_ERROR` (`details.url`, `details.status`, `null`
 for the network). `lights.json` and `physics.json` are absent, not failed, on a 404 or a hiding
 store's 403. An unreadable `kernels.wasm` leaves the batch kernels to their JavaScript twins.
 
@@ -208,7 +207,7 @@ Thirteen families describe the scene:
 | `geometry`          | the shape alone, with no matter                                                                 | `geometry.sphere(1, 64, 32)`, `geometry.tube(math.path(points), 64, 0.2)`                                            |
 | `material`          | the matter alone, with no shape                                                                 | `material.meshStandard({ color: 0x8899aa, metalness: 0.9 })`, `material.meshPhysical({ transmission: 1, ior: 1.5 })` |
 | `object`            | shape and matter, placed in the scene                                                           | `object.mesh(geometry.sphere(1), steel)`, `object.group()`                                                           |
-| `light`             | lights                                                                                          | `light.ambient({ intensity: 0.2 })`, `light.spot({ angle: 0.4, penumbra: 0.3, distance: 30 })`                       |
+| `light`             | lights                                                                                          | `light.ambient({ intensity: 0.2 })`, `light.spot({ outerConeAngle: 0.4, innerConeAngle: 0.1, distance: 30 })`        |
 | `camera`            | cameras                                                                                         | `world.camera = camera.perspective({ fov: 55, near: 0.1, far: 500 })`                                                |
 | `math`              | vectors, quaternions, boxes, paths                                                              | `math.vector3(0, 1, 0)`, `math.box3().setFromObject(set)`                                                            |
 | `texture`, `loader` | pictures                                                                                        | `const albedo = await loader.texture('wood.jpg')`, `albedo.wrap = wrap.repeat`                                       |
@@ -217,7 +216,7 @@ Thirteen families describe the scene:
 | `animation`         | clips and mixers                                                                                | `animation.createMixer(set)`, `animation.clip('bob', 2, [track])`, `mixer.play(bob)`                                 |
 | `buffer`            | a geometry built by hand                                                                        | `geometry.createBuffer({ position: buffer.float32(vertices, 3), index: buffer.uint32(indices) })`                    |
 | `effect`            | post-processing                                                                                 | [Canvas, camera and teardown](#canvas-camera-and-teardown)                                                           |
-| constants           | `blending`, `side`, `wrap`, `filter`, `colorSpace`, `toneMapping`, one named value per constant | `steel.side = side.double`, `world.toneMapping = toneMapping.aces`                                                   |
+| constants           | `blending`, `side`, `wrap`, `filter`, `colorSpace`, `toneMapping`, one named value per constant | `steel.side = side.double`, `world.toneMapping = toneMapping.none`                                                   |
 
 Eight more exist because geometry is **cut into pages** the engine moves in and out of memory
 according to what the frame reads:
@@ -241,10 +240,9 @@ The world is not a family: it carries `scene`, `camera`, `budget`, `diagnostic`,
 `onFrame`, `render`, `invalidate` and `dispose`. There is no level-of-detail object and no
 instanced or batched mesh type: the DAG cut, instancing and draw grouping are native.
 
-In a compiled scene, moving a node or its parent updates its resident lighting proxy (the one
-distant sun shadows use while bounce is off included) and restarts bounce probe convergence, with no
-invalidation call. This needs a version-3 proxy cache; motion keeps proxy surfaces but cannot
-restore geometry discarded while cooking ([FORMAT.md](FORMAT.md#resident-lighting-proxy)).
+In a compiled scene, moving a node or its parent moves the reach of the bounce's rays and restarts bounce
+probe convergence, with no invalidation call: the rays march the global distance field, which the
+cut's own placements keep current.
 
 ## Loop
 
@@ -323,25 +321,108 @@ capture needs. A write applies next frame, no session reopened; a read says what
 `world.temporal` holds the pass's settings beside its level, each an option of `createWorld` too:
 `temporalThinGeometry` (`false`) looks for geometry thinner than a pixel — a wire, a rail, which the
 pixels it crosses see on some images and not on others — and relaxes the history there, at any level
-but `'off'`, for the cost of the finding in every image. A write names the settings it changes,
-`null` one's default; a value of another kind is refused by name.
+but `'off'`, for the cost of the finding in every image. Three settings ride on the level (table below):
+`temporalResurrection` keeps older frames to bring a disoccluded pixel's detail back,
+`temporalReprojectionField` reprojects the history by a field rather than by the dilated vector alone,
+and `temporalShadingRejectionFlickering` widens the shading rejection by the flicker measure; each is
+`'level'` (the default: the level's own choice), `'on'` or `'off'` whatever the level, at any level but
+`'off'`. Three settings shape the history where it resurrects and reprojects by a field:
+`temporalResurrectionFrames` (`2`, a
+whole number of at least 1, rounded up to an even count) is the number of frames the history keeps
+for good beside the last two, each costing a history's bytes; `temporalResurrectionInterval` (`31`,
+a whole number of at least 1, made odd) is the number of images between two stored for good;
+`temporalReprojectionFieldSpeed` (`0.125`, 0 or more) is the speed, in display pixels an image, from
+which the field anti-aliases the edge of a moving surface. Three settings choose how its programs run,
+the image the same: `temporalWaveOps` (`true`) gathers the half-size image the scene's chain reads
+through the lanes of a subgroup, where the device grants `subgroups` at 16, 32 or 64 lanes (else through
+workgroup memory); `temporalWaveSize` (`0`, the device's smallest size from 16; or 16, 32, 64 where the
+device runs it) names the size; `temporalHalfPrecision` (`true`) runs the spatial anti-aliaser in 16-bit
+floats where the device grants `shader-f16`. `temporalHistoryPacked` (`true`) keeps the history's colour in the 11-11-10 format where the device stores to it, four bytes a pixel; `false` keeps half floats, eight bytes, a finer blue and shadows (the `cinematic` preset writes it); the pass is made again when it changes. A write names the settings it changes, `null` one's default;
+a value of another kind is refused by name.
+
+Sixteen more settings are the reference's own knobs of the pass, each at its default. The history's
+laws take four: `temporalHistorySampleCount` (`16`, 8 to 32) is the most samples a display pixel's
+history holds, more steadying the highlights of a still image and ghosting more on fireflies;
+`temporalShadingRejectionSampleCount` (`2`, 0 or more) is what it keeps after a total shading
+rejection, lower clearer after one and less steady; `temporalVelocityWeightClampingSampleCount`
+(`4`, 0 or more, in samples of a history pixel) is what it keeps once its pixel moves at
+`temporalVelocityWeightClampingPixelSpeed` (`1`, above 0, in half display pixels an image), higher steadier
+on a movement and blurrier. The flicker measure, where the shading rejection widens by it (`temporalShadingRejectionFlickering`),
+takes four: `temporalFlickeringPeriod` (`2`, 0 or more, in images; `0` runs no measure) is the period at
+which a luma oscillation, or a faster one, is a flicker the pass lets ghost;
+`temporalFlickeringAdjustToFrameRate` (`true`) shortens it in proportion where the frame rate falls below
+`temporalFlickeringFrameRateCap` (`60`, hertz above 0), so an effect animated in time is not taken for a
+flicker; `temporalFlickeringMaxParallaxVelocity` (`10`, above 0) is the parallax speed, in pixels of a
+1080p image at that frame rate, past which a texel is moving, not flickering.
+`temporalShadingExposureOffset` (`0`, -20 to 20) adds stops to the exposure the rejection measures the
+colours at, lifting the shadows it sees. Seven settings tune the thin geometry detection where
+`temporalThinGeometry` runs it: `temporalThinGeometryErrorMultiplier` (`200`, 0 or more; a twentieth of
+it, ten at the default, is the depth step in pixel depth errors past which a texel is a thin line),
+`temporalThinGeometryMinKeepLineContrast` (`0.3`, 0 to 1; the luma contrast of a thin line of light),
+`temporalThinGeometryLineFadeRate` (`0.1`, 0 to 1) and `temporalThinGeometryLineFadeRateInsideRegion`
+(`0.03`; how often a high contrast line not seen again fades, outside and inside a cluster hole
+region), `temporalThinGeometryLineWeight` (`0.6`; the relaxation weight near a high contrast line),
+`temporalThinGeometryMaxRelaxationWeight` (`0.037`, 0 to 1; the greatest weight by which a cluster hole region
+relaxes the history, before a 3×3 average spreads it) and `temporalThinGeometryRejectTranslucency` (`0.6`; the share of a texel's luma that the translucent layers
+make, past which its thin geometry is rejected, `0` never) and `temporalThinGeometryShadingRange` (`'foliage'`, `'foliageAndHair'`, `'all'` or `'varying'`, `'varying'` by default; the shading models counted as thin geometry: `'varying'` counts every lit surface and relaxes the two-sided foliage with the dilation, the others by their edge alone, and needs the flicker measure running (`temporalFlickeringPeriod` above `0` and `temporalShadingRejectionFlickering` on) or `temporalThinGeometryMinKeepLineContrast` above `0`, else only the foliage counts). `temporalDownsampleQuality` (`'low'` or `'high'`, `'low'` by default)
+says how the half-size image the exposure and the bloom read is made: `'low'` has the temporal pass
+and the motion blur write it beside their own image, one filtered sample of four pixels, and the
+chain's own pass only where neither draws; `'high'` has the chain draw it alone, four filtered
+samples of the 4 × 4 pixels around a texel, steadier on a bright pixel in motion, for the cost of
+that pass.
+
+| Level (`temporalAntialiasing`) | History | Resurrection | Reprojection field | Flicker rejection | Spatial anti-aliaser samples a side |
+| ------------------------------ | ------- | ------------ | ------------------ | ----------------- | ----------------------------------- |
+| `'low'`                        | 100 %   | no           | no                 | no                | 0                                   |
+| `'medium'`                     | 100 %   | yes          | no                 | no                | 3                                   |
+| `'high'`                       | 100 %   | yes          | yes                | yes               | 3                                   |
+| `'max'`                        | 200 %   | yes          | yes                | yes               | 8                                   |
+
+The resurrection, the reprojection field and the flicker rejection columns are the defaults of the
+three settings above: a setting that says `'on'` or `'off'` overrides its column at any level.
+
+The history is kept at the percent of the display's size the level names, resolved down to the
+display's before composition; a device that cannot make it that large (a side past its largest
+texture) keeps it at 100 %. Its colour is stored in the
+11-11-10 format and its validity in one 8-bit channel where the device stores to them (feature
+`texture-formats-tier1`), else in half floats and four 8-bit channels. At 1920 × 1080 the `'max'`
+history is 3840 × 2160 and four frames of 5 bytes a pixel, 166 MB (398 MB in half floats); at
+5120 × 3280 it is 10240 × 6560, 1.34 GB (3.22 GB), and a device whose largest texture is 8192 keeps
+it at 100 %, 336 MB (806 MB).
 
 ```js
 const world = createWorld('viewer', { temporalThinGeometry: true })
 world.temporal = { temporalThinGeometry: false } // back to the default, from the next frame
+world.temporal = { temporalResurrection: 'off', temporalShadingRejectionFlickering: 'on' } // whatever the level says
+world.temporal = { temporalResurrectionFrames: 4, temporalResurrectionInterval: 15 } // more, nearer frames to bring a disoccluded pixel back from
+world.temporal = { temporalReprojectionFieldSpeed: null } // 0.125 again
+world.temporal = { temporalWaveOps: false, temporalHalfPrecision: false } // the plain, 32-bit programs
+world.temporal = { temporalHistoryPacked: false } // half-float history, as the cinematic preset
+world.temporal = { temporalHistorySampleCount: 24 } // steadier highlights, more ghosting on fireflies
+world.temporal = { temporalFlickeringPeriod: 3, temporalFlickeringFrameRateCap: 30 } // a longer period, followed below 30 Hz
+world.temporal = { temporalThinGeometry: true, temporalThinGeometryMinKeepLineContrast: 0.2 } // finer lines of light
+world.temporal = { temporalDownsampleQuality: 'high' } // the chain draws the half-size image, the wide filter
 ```
 
 `world.softwareRaster` (option of `createWorld` too, `true` by default) rasters in compute each
 cluster whose longest edge projects under `world.hardwareRasterEdgePixels` (option of `createWorld`
 too, `32` by default, a finite number of pixels above zero) and whose box crosses neither clip
-plane; every other cluster goes to the hardware rasterizer, and `false` hands it every one. Both are
-render settings: the page's value holds over the quality preset, a write applies next frame, and a
-value of another kind is refused by name.
+plane; every other cluster goes to the hardware rasterizer, and `false` hands it every one.
+`world.depthBucketing` (option of `createWorld` too, `true` by default, the reference's) rasters
+the software raster's cutout clusters nearest first, so that a
+hidden cutout pixel leaves before its texture is read: each cluster is put in one of 256 buckets
+spread by the logarithm of the view depth of its box between `world.depthBucketsMinZ` (`10`) and
+`world.depthBucketsMaxZ` (`1000`), in metres, finite numbers above zero (the reference's
+centimetres, `1000` and `100000`). As in the reference, the order is made only where the scene holds
+voxels; it never changes a pixel. All five are render settings: the page's value holds over the
+quality preset, a write applies next frame, and a value of another kind is refused by name.
 
 ```js
 const world = createWorld('viewer', { softwareRaster: true, hardwareRasterEdgePixels: 32 })
 world.softwareRaster = false // every cluster on the hardware rasterizer, from the next frame
 world.hardwareRasterEdgePixels = 16 // fewer clusters on the software raster
+world.depthBucketing = false // the cutout clusters unordered
+world.depthBucketsMaxZ = 500 // the buckets end at 500 m
 ```
 
 `world.cut` holds the cut's settings, each an option of `createWorld` too: `cutTwoPassOcclusion`
@@ -349,10 +430,21 @@ world.hardwareRasterEdgePixels = 16 // fewer clusters on the software raster
 against the depth it just drew), `cutOcclusionCulling`, `cutFrustumCulling` and `cutMinLodCulling`
 (`true`: each test on), `cutDrawDistanceCulling` (`true`: an object that names a draw distance —
 `drawDistance`, [COMPILER.md](COMPILER.md#object-settings) — is culled outside it, in the cut, in
-the sun's shadows and in the rays' scene; `false`, every object is drawn at every distance),
-`cutViewDistanceScale` (`1`, a finite number of at least 0: the scale every draw distance is
-multiplied by; the quality levels write it, 0.4 at `smooth`, 0.6 at `balanced`, 0.8 at `fine`, 1 at
-`max`), `cutLodBiasFollowsUpscale` (`true`: an upscaled image's screen error follows
+the sun's shadows and in the rays' scene; `false`, every instance of an instanced mesh is drawn at
+every distance, while an object of its own is always culled by its distances),
+`cutDistanceCullToSphereEdge` (`true`: an object's draw distance is measured to the edge of the
+sphere of its bounds; `false`, to its centre), `cutViewDistanceScale` (`1`, a finite number of at
+least 0: the scale every draw distance is multiplied by; the quality levels write it, 0.4 at
+`smooth`, 0.6 at `balanced`, 0.8 at `fine`, 1 at `max`, 10 at `cinematic`), `cutViewDistanceApplySecondaryScale`
+(`false`) and `cutViewDistanceSecondaryScale` (`1`): a second scale of the draw distances, applied
+beside the first once the switch is on, `cutViewDistanceFovMinAngle` (`45`) and
+`cutViewDistanceFovMaxAngle` (`90`), two horizontal fields of view in degrees from 0 to 360, with
+`cutViewDistanceFovMinAngleScale` and `cutViewDistanceFovMaxAngleScale` (`1` both, 0 or more): the
+scale the draw distances of an object of its own take at the first angle and under, at the second
+and over, and linearly between (an orthographic view counts as 0 degrees; at 1 and 1 nothing
+changes), `cutEdgeScaleBudgetMs` (`0`, none) and `cutEdgeScaleMinPercent` (`30`): a GPU time budget
+for the main view's cut and its raster that coarsens its threshold, no further than that share of
+its scale, while the render scale is `'auto'`, `cutLodBiasFollowsUpscale` (`true`: an upscaled image's screen error follows
 the display over the render width), `cutLodBiasOffset` (`0`) and `cutLodBiasMin` (`-2`), that bias's
 offset and floor in powers of two, and the caps of its lists, `cutMaxNodes` (`2097152`),
 `cutMaxCandidateClusters` (`16777216`) and `cutMaxVisibleClusters` (`4194304`): past one, the cut
@@ -364,6 +456,8 @@ default; a value of another kind is refused by name ([ENGINE.md](ENGINE.md#webgp
 const world = createWorld('viewer', { cutTwoPassOcclusion: true })
 world.cut = { cutLodBiasFollowsUpscale: false } // the screen error ignores the upscale, next frame
 world.cut = { cutViewDistanceScale: 0.5 } // every object's draw distance halved
+world.cut = { cutViewDistanceFovMaxAngleScale: 0.5 } // an object of its own: halved at 90 degrees and over
+world.cut = { cutEdgeScaleBudgetMs: 6 } // with renderScale 'auto': the cut coarsens above 6 ms
 ```
 
 `world.hiz` holds the depth pyramid's settings, each an option of `createWorld` too: `hizTrace`
@@ -377,7 +471,9 @@ that holds it; the image is the same, `'finer'` rejects more clusters), `hizFull
 the full-resolution depth; `false` stops at the half-resolution level, a little less exact and
 cheaper; the reflections' walk always goes down) and `lightGridHizCull` (`true`: the light grid
 leaves empty the cells behind the farthest depth of their column of the image, read from the pyramid
-the image built; `false` lists every cell the lights reach). The cut's occlusion reads
+the image built; `false` lists every cell the lights reach) and `lightGridMaxCulledLightsPerCell`
+(`32`: the light entries the view's light grid holds per cell, from 1 to 1024; a column that needs
+more keeps the lights it got, in order, and drops the rest, with one console warning). The cut's occlusion reads
 the culling layer, which no setting changes. A write names the settings it changes, `null` one's
 default; a value of another kind is refused by name.
 
@@ -405,11 +501,60 @@ world.hiz = { hizPrime: 'always', hizPrimeDepthBias: 3 } // every image, pushed 
 world.hiz = { hizPrime: null } // back to the default, 'off'
 ```
 
+`world.tessellation` holds the settings of the run-time tessellation, each an option of
+`createWorld` too. A write names the settings it changes, `null` one's default; a value of another
+kind is refused by name. They are render settings: the page's value holds over the quality preset (no
+preset level writes them), and a write applies next frame.
+
+| Setting                           | Takes                                                                                                                                  | Default   |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `tessellation`                    | `true` / `false`: displaced materials are tessellated and displaced; `false` draws every one flat and runs nothing of the tessellation | `true`    |
+| `tessellationDicingRate`          | A finite number of pixels above 0: the size a micro-triangle is diced to; smaller cuts finer and costs more                            | `2`       |
+| `tessellationMaxPatchesPerGroup`  | A whole number of at least 1: the patches one group of the dicing takes (held to 21)                                                   | `5`       |
+| `tessellationMaxCandidatePatches` | A whole number from 1 to 134217727: the patches the splitting queue holds, 16 bytes each                                               | `2097152` |
+| `tessellationMaxVisiblePatches`   | A whole number from 1 to 134217727: the patches a pass's visible list holds, 16 bytes each                                             | `2097152` |
+| `tessellationShadowsDirectional`  | `true` / `false`: the shadow maps of the suns take a displaced surface's displaced shape                                               | `true`    |
+| `tessellationShadowsLocal`        | `true` / `false`: the shadow maps of the local lights (points and spots) take it                                                       | `true`    |
+
+A patch past either capacity is lost for the image. The buffers hold what the device lets one
+storage buffer bind: capacities that would not fit are brought down in proportion. Neither shadow
+setting does anything while `tessellation` is off or the scene holds no displaced material.
+
+```js
+const world = createWorld('viewer', { tessellationDicingRate: 2 })
+world.tessellation = { tessellationDicingRate: 4 } // coarser micro-triangles, from the next frame
+world.tessellation = { tessellationShadowsLocal: false } // lamps cast the flat surface
+world.tessellation = { tessellation: false } // every displaced material drawn flat
+world.tessellation = { tessellation: null, tessellationDicingRate: null } // back to the defaults
+```
+
+The explorer's tool `trillion3d_set_tessellation` writes one setting at a time (`field`, `value`).
+Nothing of the tessellation is allocated while the setting is off or no displaced material is in the
+scene; turning it off gives the buffers back.
+
+What tessellation does not do:
+
+- A displaced surface is drawn flat by the passes that do not read the visibility buffer's pixels:
+  the rays' scene and the reflections' traced scene see the surface its triangles describe. Its
+  motion vector is the flat surface's point moved as the surface moves, plus this image's
+  displacement, whole ([ENGINE.md](ENGINE.md#motion-of-a-displaced-pixel)): the displacement itself is not tracked from image to image, so a
+  height map that changes in time gets no velocity from its change.
+- A masked displaced surface casts a tessellated shadow, cut out at the vertices of its patches on a
+  device that grants nine storage buffers to a vertex stage and per pixel on a device that grants
+  eight, which every WebGPU device does ([ENGINE.md](ENGINE.md#masked-casters-in-the-shadow-maps)). A shadow patch is judged by the frustum of
+  the map and the page it casts into, not by the depth the page has already seen.
+- A per-job override of a material's displacement fields is not read. The displacement baked into a
+  mesh ([COMPILER.md](COMPILER.md#baked-displacement)) is read for the rigid triangle primitives of
+  a mesh, tessellated together; a primitive that deforms, or stands for a part of an assembly, bakes
+  none.
+- A scene compiled before the texture-coordinate density existed reads a density of 1 for every set;
+  recompile it to measure it.
+
 `world.volumetricLightmap` holds the setting of the precomputed indirect light a baked scene carries
 (a `volumetric-lightmap.bin`, [FORMAT.md](FORMAT.md#volumetric-lightmapbin)), an option of
 `createWorld` too: `volumetricLightmap` (`true`: the lightmap is read by the fog's static term and by
 the lighting of movable objects; `false`: every read of it answers black, as in a scene without one;
-it does nothing where the scene has no lightmap). The fog's static term is scaled by
+it does nothing where the scene has no lightmap), `volumetricLightmapLoadingRange` (64: the metres around the view within which the cells of the finest bricks are loaded) and `volumetricLightmapBrickMemory` (30: the megabytes of finest bricks that stay resident, the cells nearest the view winning them). The fog's static term is scaled by
 the `heightFog` part's `volumetric.staticLightingScatteringIntensity` (`1`, never below `0`; `0` leaves the term
 out). The fog's sky light follows the
 sky light part's `mobility`: a `'static'` one lights the fog by none of its own harmonics (its light is the
@@ -419,6 +564,11 @@ by name.
 
 ```js
 const world = createWorld('viewer', { volumetricLightmap: false }) // the precomputed light off
+// finest bricks streamed within 100 m of the view, 60 MB of them resident at most
+world.volumetricLightmap = {
+  volumetricLightmapLoadingRange: 100,
+  volumetricLightmapBrickMemory: 60,
+}
 world.volumetricLightmap = { volumetricLightmap: null } // back to the default, on
 ```
 
@@ -437,7 +587,21 @@ most 6), `globalDistanceFieldViewDistance` (`20000`), `globalDistanceFieldClipma
 `globalDistanceFieldCameraVelocityDecay` (`0.7`), `globalDistanceFieldAverageCulledObjectsPerCell` (`512`),
 `globalDistanceFieldRecacheOnStreaming` (`true`), `globalDistanceFieldForceRecacheOnStreaming` (`false`),
 `globalDistanceFieldStartDistance` (`100`), `globalDistanceFieldMinMeshRadius` (`20`),
-`globalDistanceFieldMinMeshRadiusInVoxels` (`0.5`), and the atlas's `meshDistanceFieldMaxObjectRadius`
+`globalDistanceFieldMinMeshRadiusInVoxels` (`0.5`), the ones of the rays the reflections march through the field —
+`globalDistanceFieldTraceResolution` (`252`) and `globalDistanceFieldTraceClipmapExtent` (`2500`), the voxels along a
+clipmap and the first clipmap's half-extent while rays are marched, each next clipmap twice the one before,
+`globalDistanceFieldTraceViewDistance` (`20000`), the distance the scene is kept to then: the field makes one clipmap
+more than `globalDistanceFieldClipmaps` where the extent of the next reaches it, two more where the one after does (the
+default four clipmaps of 2500 become five at `40000` and six at `80000`); while rays are marched, which the reflections
+do by default, `globalDistanceFieldViewDistance`, `globalDistanceFieldClipmapExponent` and `globalDistanceFieldResolution`
+have no effect, the three above size the clipmaps in their place,
+`globalDistanceFieldCoveredExpandSurfaceScale` (`1`) and `globalDistanceFieldNotCoveredExpandSurfaceScale` (`0.6`), the
+scale of the half voxel by which a ray expands the surface it meets in the pages the meshes cover and in those only
+two-sided meshes (foliage) reach, `globalDistanceFieldSimpleCoverageBasedExpand` (`false`), which reads the coverage
+atlas, the coverage of each voxel of such a page, and where `true` counts the whole page as not covered and leaves the
+atlas unread, `globalDistanceFieldNotCoveredMinStepScale` (`4`), the scale of its least step there,
+`globalDistanceFieldDitheredTransparencyStepThreshold` (`0.5`) and `globalDistanceFieldDitheredTransparencyTraceThreshold`
+(`0.9`), the noise under which a dithered ray is stopped there — and the atlas's `meshDistanceFieldMaxObjectRadius`
 (`100000`), `meshDistanceFieldSurfaceBiasExpand` (`0.25`), `meshDistanceFieldBrickAtlasSize` (`128`, a power
 of two, read when the atlas is made), `meshDistanceFieldBrickAtlasDepth` (`32`), `meshDistanceFieldUploadKiB`
 (`8192`), `meshDistanceFieldBlockBricks` (`16`, read when the atlas is made), `meshDistanceFieldForceMips`
@@ -453,13 +617,24 @@ world.globalDistanceField = {
 }
 world.globalDistanceField = { globalDistanceFieldFastCameraMode: true } // follow a fast camera, lower quality
 world.globalDistanceField = { globalDistanceFieldFastCameraMode: null } // back to the default, off
+// A cheaper march for the reflections: coarser clipmaps while rays are marched
+world.globalDistanceField = { globalDistanceFieldTraceResolution: 140 }
+// A scene kept to 800 m while rays are marched: the field grows from four clipmaps to six
+world.globalDistanceField = { globalDistanceFieldTraceViewDistance: 80000 }
+// Cheaper still, a page foliage reaches counted as not covered whole, the coverage atlas unread
+world.globalDistanceField = { globalDistanceFieldSimpleCoverageBasedExpand: true }
 ```
 
 `world.distanceFieldOcclusion` holds the settings of the sky light's occlusion by the distance fields, an option of
 `createWorld` too: how much of the sky each pixel sees, from cones traced against the global field and the meshes' own
-fields ([ENGINE.md](ENGINE.md#distance-fields)), drawn when the sky light is movable and casts shadows, no screen
-probes light the pixels and a mesh built a distance field. Each setting is the reference's console variable of that
-name with its default; lengths are in centimetres: `distanceFieldOcclusion` (`true`), `distanceFieldOcclusionQuality`
+fields ([ENGINE.md](ENGINE.md#distance-fields)), drawn when the sky light is movable and casts shadows, the bounce is
+off (with it on, its probes carry the sky and the screen probes its visibility) and a mesh built a distance field. The
+sky light then lights each pixel along the way its sky is most open and by the share of it the pixel sees: the sky's
+diffuse light is read along a normal turned toward that direction and scaled by the visibility, and the sky's reflection
+off a rough surface is occluded by the cone the sky leaves open (`distanceFieldOcclusionSpecularMode`: 0 by the share of
+sky seen, 1 by the intersection of the reflection's cone with the open one, `skyLightSpecularOcclusionStrength` its
+strength). The light's own settings shape it: `occlusionMaxDistance`, `contrast`, `occlusionExponent`, `minOcclusion`,
+`occlusionTint` and `occlusionCombineMode`. The settings below, each with its default; lengths are in centimetres: `distanceFieldOcclusion` (`true`), `distanceFieldOcclusionQuality`
 (`2`: 0 off, 1 the global field alone, 2 the meshes' fields too), `distanceFieldOcclusionObjects` (`true`),
 `distanceFieldOcclusionStepExponentScale` (`0.5`), `distanceFieldOcclusionMaxViewDistance` (`20000`, held to 65000),
 `distanceFieldOcclusionViewFadeDistanceScale` (`0.7`), `distanceFieldOcclusionSampleSet` (`1`),
@@ -478,15 +653,187 @@ world.distanceFieldOcclusion = { distanceFieldOcclusionUseHistory: false } // no
 world.distanceFieldOcclusion = { distanceFieldOcclusionQuality: null } // back to the default, 2
 ```
 
+`world.surfaceCache` holds the settings of the surface cache, an option of `createWorld` too: the atlas that keeps the
+captured surface of the meshes' cards (flat boxes along a mesh's faces, built by the compiler), which the rays that
+leave the screen will read where they hit a mesh. Each setting is the reference's of that meaning, with its default, the
+row of the screen probes' level `ultra` (the default; `cinematic` holds the same); the levels `high` and `low` hold another
+row of the atlas's side, the cards' density and resolutions, the lights a tile, the lighting's update factors and the radiosity's
+probes (`SURFACE_CACHE_LEVEL_ROWS`), which a setting you name overrides; lengths are in centimetres. The atlas: `surfaceCacheAtlasSize` (`4096`, texels a side, cut into pages of 128) and
+`surfaceCacheResolution` (`1`, from 0.5: a factor on the pages along a side, held between 1 and 64, and on the cards'
+resolutions). Which resolution a card is kept at, from its larger half side over the eye's distance, a metre at least:
+`surfaceCacheCardTexelDensityScale` (`100`), `surfaceCacheCardMaxTexelDensity` (`0.2`), `surfaceCacheCardMaxResolution`
+(`512`, up to 2048), `surfaceCacheCardMinResolution` (`2`), `surfaceCacheOrthographicCardMinResolution` (`1`: an
+orthographic view's own least, `0` takes the plain one), `surfaceCacheSceneDetail` (`1`, from 0.125 to 8: it divides the
+least resolution) and `surfaceCacheCardCaptureMargin` (`0`, added to the distance of the global distance field's
+outermost clipmap, past which a card is not kept). Which meshes get cards: `surfaceCacheMeshCardsMinSize` (`10`: the area
+a mesh's largest face must exceed is its square, a fifth of that for an emissive mesh) and `surfaceCacheMeshCardsCullFaces`
+(`true`: a card whose face is under that area is left out). What an image does: `surfaceCacheCardCapturesPerFrame` (`300`
+cards captured, the nearest first; the cards of twice as many meshes are added; `0` stops every capture),
+`surfaceCacheRemovesPerFrame` (`512`), `surfaceCacheCardCaptureFactor` (`64`: the atlas's texels over those of the atlas
+the captured pages are drawn in), `surfaceCacheCardCaptureRefreshFraction` (`0.125`: the share spent capturing pages again,
+the oldest first, to follow the materials), `surfaceCacheCardCaptureEnableInvalidation` (`true`),
+`surfaceCacheNumFramesToKeepUnusedPages` (`256`), `surfaceCacheCompress` (`1`: `2` keeps the atlas's albedo, normal and emission in
+block-compressed textures, BC7, BC5 and BC6H, a quarter of those layers' memory, where the device has `texture-compression-bc`;
+`1` is compression by writing through a view of another format, which WebGPU cannot do, so it compresses nothing; `0` never),
+`surfaceCacheAllowCardSharing` (`true`: cards of one mesh with the same
+materials, face and proportions copy one capture), `surfaceCacheAllowCardDownsampleFromSelf` (`true`),
+`surfaceCacheResampleLighting` (`true`), `surfaceCacheDilationMode` (`0`: 1 the
+two-sided meshes, 2 all), `surfaceCacheDiffuseColorBoost` (`1`, up to `4`: the luminance of the albedo a read returns,
+raised to the power of its inverse) and `surfaceCacheFastCameraMode` (`false`: lower density, half the greatest resolution, twice the
+captures). The feedback that asks for finer pages: `surfaceCacheFeedback` (`true`), `surfaceCacheFeedbackTileSize` (`16`,
+raised to a power of two), `surfaceCacheFeedbackMinPageHits` (`16`),
+`surfaceCacheFeedbackUniqueElements` (`1024`) and `surfaceCacheFeedbackResLevelBias` (`-0.5`: levels added to the one a ray's cone calls for). The lighting of the cards' texels: `surfaceCacheDirectLightingUpdateFactor` (`32`) and
+`surfaceCacheRadiosityUpdateFactor` (`64`: the atlas's texels over the texels lit directly, and given indirect light, in an
+image, the pages left longest unlit first), `surfaceCacheLightingUpdateSpeed` (`1`, from 0.5 to 16: it divides both),
+`surfaceCacheLightingQuality` (`1`, from 0.5 to 6: it multiplies the radiosity probes' hemisphere by its square root and, from 6, halves their
+spacing), `surfaceCacheLightingForceFullUpdate` (`false`), `surfaceCacheLightingMaxDistanceFromFrustumToPrioritize` (`500`, `-1`
+never: the pages near the frustum are lit twice as soon), `surfaceCacheDirectLighting` (`true`),
+`surfaceCacheDirectLightingMaxLightsPerTile` (`8`, up to 32, a power of two), `surfaceCacheDirectLightingGlobalSdfShadowRayBias` (`1`:
+voxels the shadow ray starts off the surface, three where it grazes the light) and `surfaceCacheDirectLightingCloudTransmittance`
+(`true`); the radiosity, `surfaceCacheRadiosity` (`true`), `surfaceCacheRadiosityProbeSpacing` (`4`, texels, a power of two up to 8),
+`surfaceCacheRadiosityHemisphereProbeResolution` (`4`, up to 16), `surfaceCacheRadiositySpatialFilterProbes` (`true`) with its
+`…KernelSize` (`1`: 0 none, 1 four neighbours, 2 thirteen), `surfaceCacheRadiosityProbePlaneWeighting` (`true`) with its
+`…DepthScale` (`-100`), `surfaceCacheRadiosityMaxRayIntensity` (`40`, times the exposure),
+`surfaceCacheRadiosityDistanceFieldSurfaceBias` (`10` cm along a ray before it can hit) and `…SurfaceSlopeBias` (`5` cm off the
+texel), `surfaceCacheRadiosityTemporal` (`true`) with its `…MaxFramesAccumulated` (`4`) and `…FixedJitterIndex` (`-1`: the probes'
+jitter moves). A read of the cards finds each texel's final light, its albedo over π times its direct and indirect light plus its
+emission; the lighting settles over some hundred images after a change, and the frame is not held while it does. The capture's
+raster is not plugged in yet, so on an image today the cards hold no surface to light. A write names the settings it changes, `null` one's default; a value of
+another kind is refused by name. A change that alters the atlas's pages, the compression, the sharing or the downsampling
+empties the atlas. A scene whose meshes carry no cards is not touched.
+
+```js
+const world = createWorld('viewer', { surfaceCacheAtlasSize: 2048 }) // a smaller atlas, in less memory
+world.surfaceCache = { surfaceCacheCardCapturesPerFrame: 150 } // half the captures of an image
+world.surfaceCache = { surfaceCacheFeedback: false } // only the coarsest level of each card is kept
+world.surfaceCache = { surfaceCacheCompress: 2 } // the colour layers in blocks: a quarter of their memory
+world.surfaceCache = { surfaceCacheAtlasSize: null, surfaceCacheCardCapturesPerFrame: null } // back to the defaults
+```
+
+**Ambient occlusion.** A crease, a corner or the foot of a wall receives less of the light that comes from all round than
+an open surface does. The engine finds that loss in the depth the image drew, by one of two methods, and leaves one byte a
+pixel, which the lighting multiplies in where it belongs: the emission of a surface (the light the base pass left in the
+picture) and the sky light's diffuse (by the smaller of the material's occlusion and this one), never a declared light,
+whose shadows are its own.
+
+It draws **where no global illumination is on**, that is, with the bounce off (`bounce: false`, which a page writes: the
+`smooth` quality level writes it too, but also `ambientOcclusionLevels: 0`, so that nothing is searched there). With the
+bounce on — at any level of the screen probes, `'off'` included, where the world's probes light the pixels — the probes
+carry their own short-range occlusion (`screenProbeShortRangeOcclusion`), the same contact shadow found another way, and
+the two never meet: a view draws no ambient occlusion, holds no texture for it and runs no pass.
+`ambientOcclusionWithScreenProbes` (off) draws it over the probes' light too, but only while their own short-range
+occlusion is off (`screenProbeShortRangeOcclusion: false`), and then it occludes their light alone, at the strength
+`screenProbeOcclusionIntensity` names.
+
+**The disc search** (`ambientOcclusionMethod: 'disc'`, the default). Each pixel searches the depth round it, along a few
+directions turned by a small noise and at a few distances, for what rises above its surface, and keeps the share of the
+sky it still sees. The search runs at the image's size and at its half and its quarter, each coarser result blended into
+the finer one. With `ambientOcclusionCompute` from 1 up the search is made in one resolution from the normals the depth
+gives, without the blur among the four pixels of a quad, and, where the image does not accumulate in time, smoothed
+(`ambientOcclusionComputeSmooth`).
+
+**The horizon search** (`ambientOcclusionMethod: 'horizon'`). Each pixel looks, along a few directions in the image
+(`ambientOcclusionHorizonAngles`), for the highest horizon each side of it finds in the depth, and integrates the sky that
+is left against the surface's normal. The result is blurred in space (a square filter that weighs each neighbour by how
+near it lies to the pixel's plane, which also applies the power and the intensity), blended in time into the last image's
+(clamped to the neighbourhood of this one, the last image found again through the motion of the camera, or of the surface
+where it moves by itself; the history is white where it does not reach) and upsampled to the image's size. The history
+belongs to the view: dragging the intensity, the power or the radius keeps it, only a cut or a change that remakes the
+textures (the filters, the half-size search, a resize) starts it again, and so does an image it skipped. A view at rest is
+drawn again until the history has the images it needs to come within a tenth of what it converges to (22 at the default
+blend of 0.1: `ceil(ln 0.1 / ln(1 − blend))`), whatever the temporal anti-aliasing does, then held. It has its own radius,
+`ambientOcclusionHorizonRadius`; the distance fade, the quality's shape, the power and the intensity are the occlusion's.
+With the spatial filter off, the last pass of the method applies the power and the intensity itself, so that the setting
+changes the softness and nothing else.
+
+Every setting has the reference's default. Lengths are in metres (the reference's centimetres over a hundred):
+
+| Setting                                                                                | Default              | Meaning                                                                                                                                                                                                |
+| -------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ambientOcclusion`                                                                     | `true`               | The master switch; `false` draws none.                                                                                                                                                                 |
+| `ambientOcclusionMethod`                                                               | `'disc'`             | `'disc'` or `'horizon'`.                                                                                                                                                                               |
+| `ambientOcclusionIntensity`                                                            | `0.5`                | How much of the occlusion shows, 0 to 1; 0 is off.                                                                                                                                                     |
+| `ambientOcclusionStaticFraction`                                                       | `1`                  | The share of a surface's emission the occlusion darkens, 0 to 1.                                                                                                                                       |
+| `ambientOcclusionRadius`                                                               | `2`                  | How far from a point a surface may lie and occlude it, in metres (the disc search). In the default view-space mode it is the radius at 4 m from the eye and grows with the distance.                   |
+| `ambientOcclusionRadiusInWorldSpace`                                                   | `false`              | The radius is the world's, at any distance.                                                                                                                                                            |
+| `ambientOcclusionFadeDistance`, `ambientOcclusionFadeRadius`                           | `80`, `50`           | The occlusion has faded to nothing at 80 m, fading over the last 50 (both methods).                                                                                                                    |
+| `ambientOcclusionPower`                                                                | `2`                  | The exponent of the occlusion, from 0.1.                                                                                                                                                               |
+| `ambientOcclusionBias`                                                                 | `3`                  | How far a point is lifted off its surface along its normal, in thousandths of its depth (the disc search).                                                                                             |
+| `ambientOcclusionQuality`                                                              | `50`                 | 0 to 100: the resolutions of the disc search (one below 35, two below 70, three above) and the samples a pixel takes (five shapes: 5, 25, 55 and 75 are the steps), the steps of the horizon search.   |
+| `ambientOcclusionLevels`                                                               | `-1`                 | The resolutions, 1 to 3, 0 none (the horizon search too); -1 follows the quality.                                                                                                                      |
+| `ambientOcclusionMaxQuality`                                                           | `100`                | A ceiling on the quality; a negative value forces the quality its absolute value names.                                                                                                                |
+| `ambientOcclusionMipBlend`, `ambientOcclusionMipScale`, `ambientOcclusionMipThreshold` | `0.6`, `1.7`, `0.01` | The share of the coarser result blended in, the radius's growth at each coarser resolution, and the depth step under which neighbours count as one surface when a resolution is made.                  |
+| `ambientOcclusionMipLevelFactor`                                                       | `0.4`                | How fast the samples climb the depth pyramid's coarser levels along the search; at 1 or less they stay on the finest.                                                                                  |
+| `ambientOcclusionRadiusScale`                                                          | `1`                  | A scale on the radius, 0.1 to 15.                                                                                                                                                                      |
+| `ambientOcclusionWithScreenProbes`                                                     | `false`              | Draw it over the probes' light, while the screen probes' own short-range occlusion is off.                                                                                                             |
+| `ambientOcclusionCompute`                                                              | `0`                  | 0 the pixel passes; 1 to 3 the single compute-style pass (one resolution, the depth's normals, no quad blur). 2 and 3 name an asynchronous queue a browser device lacks: all three make the same pass. |
+| `ambientOcclusionComputeSmooth`                                                        | `true`               | The compute pass is smoothed (a box of four taps two texels apart) where the image does not accumulate in time.                                                                                        |
+| `ambientOcclusionHorizonNormals`                                                       | `false`              | The horizon search reads the surfaces' own normals rather than the depth's.                                                                                                                            |
+| `ambientOcclusionHorizonFilterWidth`                                                   | `5`                  | The side of the spatial filter in pixels: 3 and 4 as they are, any other number the five-wide filter.                                                                                                  |
+| `ambientOcclusionHorizonThickness`                                                     | `0.5`                | How thick a surface is taken to be (any number, it is squared): more lowers the occlusion a thin surface casts.                                                                                        |
+| `ambientOcclusionHorizonRadius`                                                        | `2`                  | The distance in metres, from 0, at which an occluder stops counting for the horizon search.                                                                                                            |
+| `ambientOcclusionHorizonAngles`                                                        | `2`                  | The directions a pixel searches, 1 to 16, spread over half a turn.                                                                                                                                     |
+| `ambientOcclusionHorizonPauseJitter`                                                   | `false`              | The directions stop turning from image to image.                                                                                                                                                       |
+| `ambientOcclusionHorizonDownsample`                                                    | `false`              | The horizon search runs at half the image's size and is upsampled at the end (the spatial filter then reads the depth at the right place; see below).                                                  |
+| `ambientOcclusionHorizonTemporal`, `ambientOcclusionHorizonSpatial`                    | `true`, `true`       | The temporal filter and the spatial filter (a compute pass). With the spatial filter off the power and the intensity apply in the method's last pass.                                                  |
+| `ambientOcclusionHorizonBlend`                                                         | `0.1`                | The share of this image the temporal filter takes, from 0; the rest is the history's.                                                                                                                  |
+
+The quality levels (`world.quality`, group `imageEffects`) write the reference's five post-process levels of the
+resolutions, the ceiling, the climb and the radius scale: `smooth` — `ambientOcclusionLevels` 0 (none: no occlusion is
+drawn at this level), ceiling 0, climb 1, scale 1.2; `balanced` — follows the quality, ceiling 60, climb 1, scale 1.5;
+`fine` — ceiling 100, climb 0.6, scale 1.5; `max` writes nothing: the defaults are the reference's own default level
+(ceiling 100, climb 0.4, scale 1); `cinematic` — the same as `max`, and the horizon search's number of angles
+(`ambientOcclusionHorizonAngles`) at 4, the one value the reference's fifth level writes of it. A value the page writes
+holds over the level. Two settings of the reference are not offered because they do nothing there (a falloff ratio and an upsample switch
+that no shader reads); its dead deprecated distance, its depth-bounds test and its framebuffer compression have no form in
+a browser.
+
+Two faults of the reference, fixed. With the horizon search at half size the reference's spatial filter reads the depth at
+the wrong place (it is told a reduction of one), so its weights come from the top-left quarter of the picture; here the
+depth is read where the texel is. And with its spatial filter off the reference leaves the integral as the search writes
+it — two over π, 0.637, on every open surface — and never applies the power or the intensity: the whole picture 36 %
+darker and two settings inert; here the method's last pass takes the integral back to one and applies both, as the filter
+does.
+
+The occlusion publishes `ambientOcclusion: { method, drawn, bytes, why }` among the frame's metrics: which method ran,
+whether the image drew it, the bytes its textures hold and, where the device's memory budget kept the view from being made,
+the reason (the view is then asked again only once the budget's room holds it). An agent sets the settings through
+`trillion3d_set_ambient_occlusion`.
+
+```js
+const world = createWorld({
+  canvas,
+  ambientOcclusionIntensity: 0.7, // a stronger darkening than the default 0.5
+  bounce: false, // the occlusion draws where no global illumination is on
+})
+world.ambientOcclusion = { ambientOcclusionRadius: 3 } // a wider reach, from the next frame
+world.ambientOcclusion = { ambientOcclusionMethod: 'horizon', ambientOcclusionHorizonAngles: 4 } // the horizon search, four directions
+world.ambientOcclusion = { ambientOcclusionMethod: 'disc', ambientOcclusionCompute: 1 } // the disc search in one resolution, smoothed
+world.ambientOcclusion = { ambientOcclusionRadius: null } // null gives a setting back to the preset
+world.quality.preset = 'balanced' // writes the resolutions' ceiling, the climb and the radius scale
+world.ambientOcclusion = { ambientOcclusion: false } // off: no pass, no texture, no byte
+```
+
+The explorer takes the same by field (`explorer.setAmbientOcclusion('ambientOcclusionPower', 3)`).
+
 `world.shading` holds the material pass's settings, each an option of `createWorld` too:
+`gpuTimingDetail` (`false`, the default: the material pass is one timed pass; `true`: a frame sampled for the GPU timing times its shading bins and each material class's shading as passes of their own, `Trillion3D material bins` and `Trillion3D material shading <class key>` in `gpuPassMs.passes`, the image the same),
+`gpuShadeStage` (`0`, the default: the whole shading kernel; `1` to `5`: a diagnostic that stops each class's shading after its binned pixel, its triangle's header and indices, its vertex fetch and transform, its interpolation and derivatives, its material and surface, writing no surface — the image is not the scene's —, each class compiled again; with `gpuTimingDetail`, the difference of two stages' `Trillion3D material shading <class key>` times is the stage's cost),
 `shadeBinningMode` (`'auto'`: each material's pixels binned as its shading asks — one by one for
-every material of the engine —, `'pixel'` one by one, `'quad'` by 2 × 2 quad). The image is the same
-in each mode. A write names the settings it changes, `null` one's default; a value of another kind
-is refused by name ([ENGINE.md](ENGINE.md#material-surfaces)).
+every material of the engine —, `'pixel'` one by one, `'quad'` by 2 × 2 quad), the image the same in
+each mode, `irisNormal` (`false`, the default: an eye's iris is lit by the direction its `tangent` output gives; `true`: by an iris normal of its own, `clearCoatBottomNormal`) and `clearCoatNormal` (`false`, the default: a clear coat and its base share one normal; `true`: the base keeps the normal of a graph's `clearCoatBottomNormal` output or of a material's normal map, and the coat the `normal` output's or its own normal map's, their difference kept as the reference keeps it, in 8 bits, and the coat's highlight found without the Newton step). A write
+names the settings it changes, `null` one's default; a value of another kind is refused by name
+([ENGINE.md](ENGINE.md#material-surfaces)); changing `irisNormal` or `clearCoatNormal` redraws a still view
+from the next frame.
 
 ```js
 const world = createWorld('viewer', { shadeBinningMode: 'pixel' })
 world.shading = { shadeBinningMode: 'quad' } // every material binned by quad, next frame
+world.shading = { irisNormal: null } // back to the default, false
+world.shading = { irisNormal: true } // an eye's iris has the normal of the clearCoatBottomNormal output
+world.shading = { gpuTimingDetail: true } // the material pass's bins and each class timed apart, next sampled frame
+world.shading = { gpuShadeStage: 3 } // each class's shading stops after its vertex fetch and transform, next frames
+world.shading = { clearCoatNormal: true } // a clear coat keeps the clearCoatBottomNormal output as its base's normal
 ```
 
 `world.exposureSettings` holds the automatic exposure's settings, each an option of `createWorld`
@@ -498,14 +845,26 @@ EV100 (the same value for both fixes the exposure), `exposureHistogramLogMin` (`
 out of the mean, `exposureSpeedUp` (`3`) and `exposureSpeedDown` (`1`) in stops a second (0 holds),
 `exposureTransitionDistance` (`1.5` stops, past which the exposure moves linearly),
 `exposureBlackBucketWeight` (`0`, from 0 to 1: how much the pixels of no light count) and
-`exposureLuminanceMethod` (`'uniform'`, the mean of the channels; `'ntsc'`; `'workingSpace'`). They
-apply where `world.exposure` is `'auto'`, from the next frame. The same object holds the
-pre-exposure's two settings, which apply to a lit view whatever its exposure: `preExposure` (`true`:
+`exposureLuminanceMethod` (`'uniform'`, the mean of the channels; `'ntsc'`; `'workingSpace'`),
+`exposureMethod` (`'histogram'`, the default; `'basic'`, the weighted mean of the log luminance of the image's cells, a
+cheaper measure; `'manual'`, no measure: the camera's exposure), `exposureApplyPhysicalCamera` (`true`: where the method
+is manual, the aperture — the depth of field's, f/4 by default —, `exposureCameraShutterSpeed` (`60`, in 1/s, from 0.01 to 8000) and `exposureCameraIso` (`100`, from 1) set the exposure, EV100 = `log2(aperture² · shutter speed · 100 / ISO)`;
+`false` reads the camera as EV100 0 and the bias alone sets it) and `exposureLensAttenuation` (`0.78`, from 0.01: 0.78
+makes lighting unitless, a luminance of 1 being EV100 0; a lower one raises the luminance every EV100 is read from).
+They apply where `world.exposure` is `'auto'`, from the next frame; the exposure adapts on the world's time, so a world
+that holds still does not move it. The metering mask, `exposureMeterMask` (an `ImageBitmap`, read at the opening;
+`explorer.setExposureMeterMask(image)` changes it, `null` gives it back), weighs where the image is measured by its red
+channel. A manual exposure that does not change costs the GPU nothing. The same object holds the
+pre-exposure's three settings, which apply to a lit view whatever its exposure: `preExposure` (`true`:
 every light is written to the image already multiplied by the exposure of the image before, and the
 composition multiplies the image by the exposure over that number, so the picture is the same and
 the half floats keep their range at any exposure; `false` writes every light as it is) and
 `preExposureOverride` (`0`: above 0, the number every light is multiplied by, in place of the
-exposure of the image before). It also holds the local exposure's settings, `localExposure…`, which
+exposure of the image before) and `cachedLightingPreExposure` (`4`, from −16 to 16: the stops the
+sky light's real-time capture is pre-exposed by, whatever the exposure — it is written multiplied by
+2 to the minus that number and read back multiplied by its inverse, so its half floats keep their
+range from about −8 to +12 stops of exposure at 4, −4 to +16 at 8; read with `preExposure` on or
+off). It also holds the local exposure's settings, `localExposure…`, which
 apply to a lit view whatever its exposure (the effect chain, below). A write names the settings it changes, `null` one's default; a value a setting does
 not take is refused by name.
 
@@ -543,16 +902,58 @@ const world = createWorld('viewer', { exposureBias: 0.5 })
 world.exposure = 'auto' // the default: measured each frame
 world.exposureSettings = { exposureSpeedUp: 8, exposureSpeedDown: 4 } // adapts faster, next frame
 world.exposureSettings = { preExposure: false } // every light written as it is, the same picture
-world.exposure = 1.5 // the manual multiplier, whatever the image holds
+world.exposure = 1.5 // a fixed exposure, whatever the image holds
+```
+
+```js
+const world = createWorld('viewer', {
+  exposureMeterMask: await loader.imageBitmap('centre-weighted.png'),
+})
+world.exposureSettings = { exposureMethod: 'basic' } // the cheaper measure, weighed by the mask
+explorer.setExposureMeterMask(null) // every pixel counts the same again
+// The camera's exposure: no measure — f/2.8, 1/125 s, ISO 400, no bias.
+world.effects.add(effect.depthOfField({ aperture: 2.8 }))
+world.exposureSettings = {
+  exposureMethod: 'manual',
+  exposureCameraShutterSpeed: 125,
+  exposureCameraIso: 400,
+  exposureBias: 0,
+}
+world.exposure = 0.25 // a fixed exposure: the radiance multiplied by it, the bias and the camera ignored
 ```
 
 `world.renderScale` (option of `createWorld` too, `'auto'` by default) is the per-axis fraction of
 the display drawn before temporal antialiasing rebuilds the image: `'auto'` is a dynamic
-resolution, choosing between 0.5 and 1 from the GPU frame time against the frame time budget (the
-display's refresh interval, or the frame cap's); without GPU timestamps it stays at 1. `{ min, max }`
-bounds it, a number fixes it. A read is the last image's scale. Without temporal antialiasing the
-scale is chosen the same way and the image upscaled to the display, each display pixel blending its
-four nearest drawn pixels.
+resolution, choosing between 0.5 and 1 from the GPU frame time against the frame time budget
+(`dynamicResolutionFrameTimeBudgetMs`, 33.3 ms by default, the frame cap's interval where it is 0);
+without GPU timestamps it stays at 1. `{ min, max }` bounds it, a number fixes it. A read is the
+last image's scale. Without temporal antialiasing the scale is chosen the same way and the image
+upscaled to the display by a Catmull-Rom cubic over the drawn pixels. The same
+history also fits the cut's GPU time budget (`cutEdgeScaleBudgetMs`), when the host gives one.
+
+`world.dynamicResolution` holds the eleven settings that tune that fit, each an option of
+`createWorld` too, `explorer.setDynamicResolution(field, value)` and the tool
+`trillion3d_set_dynamic_resolution` writing them from the next GPU time: the frame time budget
+(`dynamicResolutionFrameTimeBudgetMs`, `33.3`), the most the scale may be
+(`dynamicResolutionThrottlingMaxPercent`, `0`, none), the headrooms
+(`dynamicResolutionHeadroomPercent`, `10`, and `dynamicResolutionOverBudgetHeadroomPercent`, `0`),
+the history (`dynamicResolutionHistorySize`, `16`, a whole number from 1 to 4096, and
+`dynamicResolutionFrameWeightExponent`, `0.9`), the change period (`dynamicResolutionChangePeriod`,
+`8`), how far a rise goes (`dynamicResolutionIncreaseAmortization`, `0.9`), the change under which
+the scale does not move (`dynamicResolutionChangePercentThreshold`, `2`), the frames in a row over
+the budget that count (`dynamicResolutionMaxOverBudgetFrames`, `2`) and whether a frame the CPU
+took too long is not over budget by its GPU time (`dynamicResolutionUseCpuTimeLogic`, `false`).
+None is written by a quality level; where the render scale is a number, none does anything
+([ENGINE.md](ENGINE.md#dynamic-resolution)).
+
+```js
+const world = createWorld('viewer', { renderScale: 'auto', maxFrameRate: 60 })
+world.dynamicResolution = {
+  dynamicResolutionFrameTimeBudgetMs: 12,
+  dynamicResolutionHeadroomPercent: 20,
+}
+world.dynamicResolution = { dynamicResolutionHeadroomPercent: null } // back to the default 10
+```
 
 `world.maxFrameRate` (option of `createWorld` too, `Infinity` by default) caps the frames a second
 the world draws, even while its scene moves: the loop draws on a whole number of
@@ -575,13 +976,124 @@ lit image toward its corners, and the local exposure — `localExposureHighlight
 `localExposureShadowContrast` (`0.8`), `localExposureDetailStrength` (`1`), `localExposureBlurBlend`
 (`0.6`), `localExposureBlurSize` (`50`), `localExposureMiddleGreyBias` (`0`), the two thresholds
 (`0`) and their strengths (`1`), in `world.exposureSettings` — brings each pixel's light nearer to
-middle grey by how far the light around it is from it; contrasts and detail at `1` turn it off.
+middle grey by how far the light around it is from it. It is on by default, as in a new project; `1` for both contrasts with a detail of `1` turns it off.
 
 ```js
 const [bloom] = world.effects.passes // the bloom the world started with
 bloom.intensity = 0.3 // a fainter glow; 0 turns it off, `world.effects.clear()` removes it
 world.vignette = 0.2 // a lighter vignette; 0 none
-world.exposureSettings = { localExposureHighlightContrast: 1, localExposureShadowContrast: 1 } // no local exposure
+world.exposureSettings = { localExposureHighlightContrast: 1, localExposureShadowContrast: 1 } // local exposure off
+```
+
+**Film effects.** The lit image of a view is finished with the effects of a lens and a film, after the exposure and before
+the curve. `world.vignette` (`0.4`) is the strength of the vignette; the rest of its look, and the other effects, are the
+run-time settings `world.film` — also options of `createWorld`, and `explorer.setFilm(field, value)` on a session; an
+agent sets them through `trillion3d_set_film`. Each has the reference's default, so with nothing written the vignette and
+the dither are on and the grain, the colour fringe and the tint are off. A write applies from the next frame; `null` gives
+a setting back to its default or to the quality level's. The effects draw in the lit image only: a view that shows the
+albedo, a diagnostic view and a capture show the image as it is.
+
+| Setting                                                                                   | Default             | Meaning                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `filmGrainIntensity`                                                                      | `0`                 | The film grain's strength; 0 draws none. The grain multiplies the exposed light by a noise of mean 1, so the image keeps its average brightness.                                                                                                                                                                                           |
+| `filmGrainIntensityShadows`, `filmGrainIntensityMidtones`, `filmGrainIntensityHighlights` | `1` each            | The share of the grain in the dark, middle and bright pixels; all three at 0 draw none.                                                                                                                                                                                                                                                    |
+| `filmGrainShadowsMax`                                                                     | `0.09`              | The luminance up to which a pixel is dark: the dark share fades out to nothing there.                                                                                                                                                                                                                                                      |
+| `filmGrainHighlightsMin`, `filmGrainHighlightsMax`                                        | `0.5`, `1`          | The luminances from which a pixel starts to be bright and from which it is wholly so.                                                                                                                                                                                                                                                      |
+| `filmGrainScaleX`, `filmGrainScaleY`                                                      | `1`                 | The size of a grain along each axis: 1 is a texel of one pixel on an image 1920 wide, and the grain grows with the image.                                                                                                                                                                                                                  |
+| `filmGrainSequenceLength`                                                                 | `97`                | The images after which the grain's pattern repeats.                                                                                                                                                                                                                                                                                        |
+| `chromaticAberration`                                                                     | `0`                 | The colour fringe's intensity, in percent of the distance to the centre. The red and the green of a pixel are read nearer the centre than its blue, by their wavelengths. 0.01 or less draws nothing.                                                                                                                                      |
+| `chromaticAberrationStartOffset`                                                          | `0`                 | The distance from the centre, 0 to 1, where the fringe starts; 1 draws nothing.                                                                                                                                                                                                                                                            |
+| `chromaticAberrationQuality`                                                              | `'high'`            | `'off'` draws no fringe whatever its intensity.                                                                                                                                                                                                                                                                                            |
+| `chromaticAberrationMax`                                                                  | `-1`                | −1 leaves the intensity as it is, 0 or more caps it there, −2 forces an extreme one (5).                                                                                                                                                                                                                                                   |
+| `vignetteType`                                                                            | `'cosineFourthLaw'` | The shape: the cosine-fourth law of a lens, or `'oval'`.                                                                                                                                                                                                                                                                                   |
+| `vignetteColorRed`, `vignetteColorGreen`, `vignetteColorBlue`                             | `0`                 | The colour the image darkens toward (black).                                                                                                                                                                                                                                                                                               |
+| `vignetteCenterX`, `vignetteCenterY`                                                      | `0.5`               | Where it is brightest; 0.5 is the middle.                                                                                                                                                                                                                                                                                                  |
+| `vignetteSizeX`, `vignetteSizeY`, `vignetteSoftness`                                      | `1`, `1`, `5`       | The oval's extent and how fast it falls to the colour.                                                                                                                                                                                                                                                                                     |
+| `tonemapperQuality`                                                                       | `5`                 | 0 to 5: under 2 the vignette is off, under 4 the grain is. The quality levels write 0 at `'smooth'`, 2 at `'balanced'` and 5 at `'fine'` and `'cinematic'`.                                                                                                                                                                                |
+| `tonemapperSharpen`                                                                       | `-1`                | Below 0 the scene's `sharpness`; 0 or more replaces it. Both are read from 0 to 10.                                                                                                                                                                                                                                                        |
+| `sceneColorTintRed`, `sceneColorTintGreen`, `sceneColorTintBlue`                          | `1`                 | The tint the scene's colour is multiplied by; the bloom's glow is not tinted.                                                                                                                                                                                                                                                              |
+| `quantizationDitheringBits`                                                               | `0`                 | The dither that hides the display's steps: a triangular noise of one level of the display's channel added to the colour shown, always drawn, with a new pattern at each image drawn. 0 or less takes the step from the target (1/255 for an 8-bit one); a number of bits, any whole number, makes it 1/(2^bits − 1), 32 too small to show. |
+| `propagateAlpha`                                                                          | `false`             | Whether the image carries an alpha channel. Off, the colour is shown opaque and the alpha is read by nothing. On, the alpha is the share of the background the image leaves visible, an inverse opacity: 1 where nothing is drawn, 0 on a surface, multiplied by the transmittance of the sky, the fog, the clouds and the translucent layers; the post stages read the colour as it is and carry the alpha beside it, and a capture holds it.|
+| `primitiveAlphaHoldout`                                                                   | `false`             | Whether the engine supports the alpha holdout. It takes effect only with `propagateAlpha` on: the translucent layers are then drawn once more, far to near, to accumulate the share of the background they leave visible, which replaces the image's alpha, so a layer of blending `'alphaHoldout'`, or a sky, clouds or height fog that holds out (`holdout`), punches a hole in it.                                                         |
+| `translucencyHoldoutLocation`                                                             | `'beforeDepthOfField'`| Where the accumulated alpha is laid over the image: `'beforeDepthOfField'`, with the translucent layers, or `'afterDepthOfField'`, only where a layer left something, once the depth of field has drawn.                                                                                                                                                                                                                                      |
+
+```js
+world.film = { filmGrainIntensity: 0.3, filmGrainScaleX: 1.5, filmGrainScaleY: 1.5 } // a coarser grain
+world.film = { chromaticAberration: 2, chromaticAberrationStartOffset: 0.3 } // a fringe from a third of the way out
+world.film = {
+  vignetteType: 'oval',
+  vignetteSizeX: 1.4,
+  vignetteSoftness: 3,
+  vignetteColorBlue: 0.04,
+}
+world.film = { tonemapperSharpen: 1 } // sharpen whatever the scene says; `null` gives the scene's back
+world.film = { quantizationDitheringBits: 32 } // no visible dither: bit-exact captures
+world.film = { propagateAlpha: true } // a capture carries the share of the background left visible (1 − opacity) in its alpha, for compositing
+world.film = { propagateAlpha: true, primitiveAlphaHoldout: true } // holes in the alpha where a layer, the sky, the clouds or the fog hold out
+const world = await createWorld(canvas, { filmGrainIntensity: 0.3 }) // as an option
+```
+
+The scene's own `sharpness` (the `environment` of the scene) is read from 0, none, to 10; 1 is a unit-gain sharpening and
+0, the default, draws none. The dither is on by default: at one level of an 8-bit display, 1/255, its noise changes no
+pixel by more than one level. The grain's pattern changes with each image: a view whose grain is drawn is drawn again at
+every image, at rest too. The dither's pattern changes with each image that is drawn; a view at rest, which is not drawn
+again, keeps the pattern of its last image — the held image is 8 bits, and a new noise added to it averages, over the
+images, to the held image and not to the light; to draw every image at rest, as the reference does, open the session with
+`drawConverged: true`.
+
+**Colour grading.** The display turns the exposed light into the colour it shows through one table, baked from the scene's
+display curve and these settings, `world.colorGrading` — also options of `createWorld`,
+`explorer.setColorGrading(field, value)`, and the tool `trillion3d_set_color_grading`. A write applies from the next frame
+and bakes the table again; `null` gives the default back. With nothing written the colour is the film curve's own: no white
+balance, no grade. The film curve's own settings, its expansion of a bright colour's gamut, its blue correction and its
+amount shape the curve the scene gets by default (`toneMapping: 'filmic'`); the white balance, the grade, the correction,
+the display's gamma and the table apply to every curve but `'none'`. The translucent layers and the particles drawn over a
+display filter show their colours through the same chain, so a grade, a white balance or a transfer moves them with the
+scene under them. The scene's `toneMapping: 'filmic'` has two methods, `tonemappingMethod`: the film curve, and the
+standard output transform of the film industry's colour system, in two versions (`acesVersion`). The scene's curve is
+`'filmic'` or `'none'`, and no other.
+
+| Setting                                                                                     | Default                             | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tonemappingMethod`                                                                         | `'filmic'`                          | How the scene's `'filmic'` display curve turns the light into colour: `'filmic'`, the film curve; `'standardAces'`, the standard output transform of the film industry's colour system. The film curve's settings below, the blue correction, the correction's polynomial and the display gamma's ratio do not shape it; the expansion of the gamut, the white balance and the grade do.                                                                                                                                                                                                                                                                                                                                                                            |
+| `acesVersion`                                                                               | `2`                                 | 1 or 2: the version of the standard output transform. 2 is a model of the colour's lightness, colourfulness and hue, whose tone scale is fitted to a 100-nit display, whose colourfulness is compressed with the lightness and whose colours outside the display's gamut are pulled in along lines of constant hue; 1 is the earlier one, which works on the three channels — a glow on dark saturated colours, a pull of the reds by hue, a desaturation and a tone scale of a display of 1000 nits, of which the 100 an sRGB display shows are kept: **its picture is much brighter** (a neutral light of 0.18 is shown 0.26 in linear display light against version 2's 0.16). Only `'standardAces'` reads it, and `applyColorGrading: false` does not reset it. |
+| `acesGamutCompression`                                                                      | `0`                                 | From 0 to 1: the share of a compression of the colours past the gamut's edge that version 1 applies first; 0 applies none. Version 2 does not read it, and `applyColorGrading: false` does not reset it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `acesSceneColorMultiplier`                                                                  | `1.5`                               | From 0: the factor the light is multiplied by before the standard output transform; only `'standardAces'` reads it, and `applyColorGrading: false` does not reset it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `filmSlope`, `filmToe`, `filmShoulder`, `filmBlackClip`, `filmWhiteClip`                    | `0.88`, `0.55`, `0.26`, `0`, `0.04` | The film curve: the straight run's slope in log luminance (any number but 0, which divides by it), how much of the range the toe (dark end) and the shoulder (bright end) bend over, and how far the black and the white are lifted. A toe above 0.8 puts middle grey on the straight run.                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `blueCorrection`                                                                            | `0.6`                               | 0 to 1: how far saturated blues are pulled toward the centre of the working gamut before the curve and given back after it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `expandGamut`                                                                               | `1`                                 | From 0: how far a bright, saturated colour is carried toward a wider gamut before the curve; 0 expands none.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `toneCurveAmount`                                                                           | `1`                                 | From 0: how much of the curve is mixed into the colour; 0, with `expandGamut` 0, takes the curve away.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `temperatureType`                                                                           | `'whiteBalance'`                    | How the next two are read: `'whiteBalance'`, the white the scene was lit by, which is taken to white; `'colorTemperature'`, the colour of the light the image is turned toward.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `whiteTemperature`, `whiteTint`                                                             | `6500`, `0`                         | The white balance's temperature in kelvins and tint, −1 green to 1 magenta; 6500 and 0 leave the light as it is. Any number: the chain stays finite for every temperature.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `colorSaturation…`, `colorContrast…`, `colorGamma…`, `colorGain…`, `colorOffset…`           | `1` (offset `0`)                    | The grade: five operations, each four numbers — `Red`, `Green`, `Blue` and `Master`, the one the three share — for all the light (`colorGainRed`), for its dark part (`colorGainShadowsRed`), its middle (`colorGainMidtonesRed`) and its bright part (`colorGainHighlightsRed`), which apply over the whole light's: 80 settings. A saturation of 1 leaves the colour, 0 takes it to its luminance; a contrast is the power about middle grey (0.18); a gamma the power 1 over it; a gain multiplies; an offset adds after the gain.                                                                                                                                                                                                                               |
+| `colorCorrectionShadowsMax`, `colorCorrectionHighlightsMin`, `colorCorrectionHighlightsMax` | `0.09`, `0.5`, `1`                  | Where the dark part ends, and where the bright part starts and is whole; the middle is what is left of both.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `colorMin`, `colorMid`, `colorMax`                                                          | `0`, `0.5`, `1`                     | The correction of the colour the film curve gives, each from −10 to 10: the polynomial through 0 → min, 0.5 → mid, 1 → max, in linear light. The defaults are the identity.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `applyColorGrading`                                                                         | `true`                              | `false` reads the white balance, the grade, the film curve's settings, the method and the bounds of the parts at their defaults, whatever was written; the correction, the display's gamma and transfer, the multiplier, version and gamut compression of the standard output transform and the table keep their values.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `displayGamma`                                                                              | `2.2`                               | The gamma the display is taken to have; its ratio to 2.2 is a power on the film curve's colour. 2.2 changes nothing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `tonemapperGamma`                                                                           | `0`                                 | 0 keeps the transfer; a number above 1 shows the colour through that gamma in place of the transfer (2.2 is the pure gamma some displays take); a number under 1 is read as 1: no transfer at all, the linear light as the display value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `sdrInverseEotf`                                                                            | `'default'`                         | The transfer to the display value: `'default'`, the method's own — the sRGB curve for the film curve, the power 2.4 for `'standardAces'` —, `'srgb'`, or `'bt1886'`, the power 2.4 of a studio display.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `lutSize`                                                                                   | `32`                                | The texels a side of the cube the colour is baked into, from 2, with no other limit than the largest 3D texture the device makes (the cube is baked at that side) and the device's memory budget, which admits the cube (4 bytes a texel, 8 where the device has no storage textures of a 10-bit format: 128 KiB at 32, 1 MiB at 64, 64 MiB at 256, twice that without): where the budget's room holds fewer texels the cube is the largest side it holds, never a refusal, and the frame's metrics say so (`toneTable: { side, bytes, why }`). A larger cube follows the curve more closely (at 32 its mean difference from the exact curve is a fifth of one display level, at 64 a twentieth) and costs more to bake.                                            |
+| `lutShaper`                                                                                 | `'log'`                             | How a light addresses the cube: by its logarithm over 14 stops, or `'pq'`, the perceptual quantizer of a high-range display (100 times the light, in nits).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+
+```js
+world.colorGrading = { whiteTemperature: 4800, whiteTint: 0.1 } // warm the cold light of a scene
+world.colorGrading = { colorSaturationMaster: 1.2, colorContrastMaster: 1.1 } // a richer image
+world.colorGrading = { colorGainShadowsBlue: 1.15, colorGainHighlightsRed: 1.05 } // blue shadows, warm highlights
+world.colorGrading = { filmSlope: 0.91, filmToe: 0.53, filmShoulder: 0.23, filmWhiteClip: 0.035 } // another film
+world.colorGrading = { applyColorGrading: false } // the defaults of the whole grade, keeping the table
+world.colorGrading = { tonemappingMethod: 'standardAces' } // the standard output transform, shown through the power 2.4
+world.colorGrading = {
+  tonemappingMethod: 'standardAces',
+  sdrInverseEotf: 'srgb',
+  acesSceneColorMultiplier: 1.2,
+}
+world.colorGrading = {
+  tonemappingMethod: 'standardAces',
+  acesVersion: 1,
+  acesGamutCompression: 0.5,
+} // the earlier version, half compressed
+world.colorGrading = { colorSaturationMaster: 0 } // a monochrome scene: its tinted glass and its sparks are monochrome too
+const world = await createWorld(canvas, { lutSize: 64, colorMin: 0.01 }) // as options
 ```
 
 `effect.outline({ objects, color, thickness })` lines the visible silhouette of `objects`, each
@@ -639,7 +1151,7 @@ character's head without a body.
 | `'orbit'`             | orbit around `target`, world up kept           | drag turns, secondary drag or two fingers pan, wheel and pinch zoom |
 | `'fly'`               | six degrees of freedom                         | `W`/`S`, `A`/`D`, `R`/`F`, arrows, `Q`/`E` roll, drag to look       |
 | `'firstPerson'`       | pointer-locked walk, horizon level             | pointer turns the head, `W`/`S`/`A`/`D`, `Space`/`Shift`            |
-| `'character'`         | a body that walks, runs, jumps and falls       | pointer turns the head, `W`/`S`/`A`/`D`, `Shift` sprints, `Space`   |
+| `'character'`         | a body that walks, runs, jumps and falls       | pointer turns the head, `W`/`S`/`A`/`D`, `Space` jumps              |
 | `'vehicle'`           | none: drives `world.controls.vehicle`          | `W` throttle, `S` brake, `A`/`D` steer, `Space` handbrake           |
 | `'trackball'`         | free spin about the screen axes, roll included | drag spins, secondary drag pans, wheel zooms                        |
 | `'panZoom'`           | planar view, no rotation                       | drag slides, wheel and pinch zoom, arrow keys pan                   |
@@ -648,20 +1160,50 @@ character's head without a body.
 All publish `object.position`, `addEventListener('change')`, `removeEventListener` and `dispose()`;
 the three with a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`, `enablePan` and
 `update()`, which clamps a pose the host wrote. `change` fires only when the pose moved.
+`enableZoom` and `enablePan` (`true`) are also settings of `world.controls`, kept across `kind`
+like its limits and speeds: readable under every kind, read only by a controller with a pivot, so
+one turned off under `'fly'` is off in the `'orbit'` that follows.
 
 **The character's body.** `'character'` moves an upright capsule with an adult's values
-(`HUMAN_BODY`: 1.75 m, a 3.5 m/s jog, a 0.5 m jump, 45° slopes, 0.5 m steps, 80 kg, a 250 N push),
+(`HUMAN_BODY`, the engine's own character: a 0.34 m radius and 1.76 m capsule, a 6 m/s walk, a 4.2 m/s jump, 44.765° slopes, 0.45 m steps, 100 kg, a 250 N push),
 each a setting of `world.controls`. Its body is the physics' virtual character in its worker
 ([PHYSICS.md](PHYSICS.md)), so the world needs `physics: true`: it climbs steps and slopes, rides
 a moving platform, pushes dynamic bodies with at most `pushStrength` newtons and is pushed back,
 and the level is whatever carries `mesh.physics = 'static'`. The feet are drawn at the bodies' time.
 Until the physics runs the character stands where it was put and hears no key.
 
-The body reads one drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over
-`stopTime`, jumps with a coyote time and a jump buffer, and no ground speed changing faster than a
-rubber sole's grip allows, `μ g` (the geometric mean of the sole's and the ground's frictions). The
+The body reads one drive (`characterDrive.ts`), the engine's movement model: on a floor the velocity
+turns toward the wish by `groundFriction` (8 per second), gathers `maxAcceleration` up to `walkSpeed`
+(6 m/s) and, with no key, is braked by the friction and `brakingDecelerationWalking` (20.48 m/s²); in
+the air the sideways velocity is kept (`fallingLateralFriction` 0, `brakingDecelerationFalling` 0), the
+keys pushing with `airControl` (0.05, doubled under `airControlBoostVelocityThreshold` 0.25 m/s) of the
+force, and the fall is held to `terminalVelocity` (40 m/s). A press jumps once, from a floor, before the next landing (`jumpMaxCount` 1, `jumpMaxHoldTime` 0): a press in the air, or one the body is not allowed, is lost, and a body that walked off an edge has no jump. The
 physics takes at most four steps a frame (`MAX_CATCH_UP_STEPS`): a slower page shows slow motion,
 never a jump.
+
+**The character's modes.** The body walks, falls, swims where `world.physics.water` carries it and
+flies while `flying` is set (`controls.mode`). `canCrouch` (false by default) lets C crouch it to
+`crouchedHeight` (0.8 m) at `crouchedSpeed`; `canSwim` (true), `swimSpeed` (3 m/s), `flySpeed` (6 m/s),
+`buoyancy` (1), `fluidFriction` (0.3) and `maxAcceleration` (20.48 m/s²) shape a body in a fluid, which
+goes where the head looks, Space rising and C sinking ([PHYSICS.md](PHYSICS.md#movement-modes)).
+
+```ts
+world.controls = 'character'
+world.controls.canCrouch = true
+world.controls.flying = true // the body flies; false lets it fall
+```
+
+**The character's gravity.** The body is pulled by the world's gravity, `world.physics.gravity`,
+times `world.controls.gravityScale` (1 by default; 0 floats the body, and no sole then pushes on the
+floor): the rise after a jump, the apex of a given `jumpSpeed`, and the fall follow
+the world, live, so a Moon world lifts the body higher and longer, and lets it fall as slowly. The
+rise and the fall are under the one gravity, and only its vertical component counts: a body stands
+upright on its world's up, so a gravity vector with a sideways part pulls it down by its `y` alone.
+
+```js
+world.physics.gravity = 'moon' // the body rises and falls under 1.62 m/s²
+world.controls.gravityScale = 0.5 // and feels half of it
+```
 
 **Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` (`throttle`, `brake`, `steer`,
 `handbrake`) and hands it to `world.controls.vehicle.drive(input)` on each change. Any object with
@@ -704,13 +1246,16 @@ press asks, the next one grabs. A drag writes the local pose through the parents
 scales uniformly, by e per handle length up the screen. `attach` or `detach` mid-drag ends it with its `dragEnd`.
 
 `scene.toJSON(camera)` writes plain, versioned JSON (`format: 'trillion3d-scene'`, `formatVersion:
-3`): hierarchy, poses, each shape by the call that built it (`geometry.box(2, 1, 1)`; one changed
+5`): hierarchy, poses, each shape by the call that built it (`geometry.box(2, 1, 1)`; one changed
 after, or hand-written, by its vertices), materials by parameters, bodies as `physics` declared them
 (at rest), lights, background, the sky module's word (`sky`), the camera's pose; shared shapes and materials once, a loaded
 model by its manifest address, `helper` marks left out. A texture, a picture environment, a shader
 material or a number JSON cannot hold is refused (`SCENE_NOT_SAVABLE`). `await scene.fromJSON(json,
 camera)` replaces the content (`helper` marks kept) and reloads the models; another format or
-version (2 and 3 are read; 2's air, fog and sky light move into the sky module) is refused (`UNSUPPORTED_SCENE_FORMAT`) before anything is removed. Calls during a read run
+version (2, 3, 4 and 5 are read; 2's air, fog and sky light move into the sky module, a rectangle
+light's intensity saved by 2 or 3, its radiance, is read as half that many nits, and a spot saved
+before 5 with an `angle` and a `penumbra` is read as an outer cone and an inner cone of the angle
+less that share, a lamp that named no unit in candelas) is refused (`UNSUPPORTED_SCENE_FORMAT`) before anything is removed. Calls during a read run
 in order, each replacing the last. A scene editor needs these three doors and nothing else.
 
 ### Live material values
@@ -729,24 +1274,76 @@ an option changed (`session-reopen`, `cause`).
 strength), `clearcoatMap` (R), `clearcoatRoughnessMap` (G) and `clearcoatNormalMap`
 (`clearcoatNormalScale`), each map at its native size with its own filters, wrap, transform and UV
 channel, read as linear data. A map reads the UV channel its `texCoord` names, `TEXCOORD_0` to
-`TEXCOORD_3`, from the compiled geometry page (four sets) or from the source geometry (two); a
+`TEXCOORD_7`, from the compiled geometry page (eight sets) or from the source geometry (two); a
 geometry without that set reads the first. A transparent surface carries the first set and one
-more, the first past it that one of its maps reads. The coat lies
-over every light, the environment and bounced light, on an opaque surface as on a
-blended or a transmissive one — whose transmitted light passes under it; a rectangle light
-stretches its specular lobe along the anisotropy.
+more, the first past it that one of its maps reads. A rectangle light stretches its specular lobe
+along the anisotropy.
+
+A cloth — velvet, woven fabric — is a `material.meshPhysical` with `sheen` above 0 (the switch of the
+cloth shading model), `sheenColor` (the fuzz colour, black unless set) and `sheenRoughness` (the
+cloth amount, 0 to 1, 0 unless set), drawn with `sheenColorMap` (sRGB) and `sheenRoughnessMap` (its
+alpha channel), each multiplying its factor. The specular of every light is then the standard lobe
+mixed with an inverse-GGX fuzz lobe of the fuzz colour by the cloth amount, the diffuse stays
+Lambert's, and the fuzz times the cloth amount joins the diffuse colour of the indirect light (the
+environment's, the sky light's, the probes' and the volumetric lightmap's). The cloth model has
+neither coat nor anisotropy, and a surface has one model: a `transmission` above 0, then a
+`clearcoat` above 0, win over the sheen, which is then left out; a glTF material that declares
+`KHR_materials_transmission` or `KHR_materials_clearcoat` beside `KHR_materials_sheen` is read so
+whatever the factors (`gltf-sheen-dropped`). A glTF material's `specularColorFactor` and
+`specularColorTexture`, and its iridescence, are kept in the compiled table and not drawn
+(`gltf-specular-color-not-drawn`, `gltf-iridescence-not-drawn`).
+
+`specularIntensity` (0 to 1) is the specular input of a dielectric: its reflectance at normal
+incidence is 0.08 of it, so a surface that declares none keeps 0.5 (4%), 1 gives 8% and 0 no
+highlight; a metal takes its base colour and ignores it. `specularIntensityMap` multiplies it by the
+alpha channel of an image. A glTF material's `KHR_materials_specular` writes both as it declares
+them (`specularFactor`, `specularTexture`, factor 1 when the extension names none); any surface that
+declares one is read as a physical surface, a zero included. A surface that wears a graph takes its
+specular from the graph's `specular` output instead.
+
+```ts
+const dull = material.meshPhysical({ color: 0x8090a0, roughness: 0.4, specularIntensity: 0.2 })
+```
+
+```ts
+const velvet = material.meshPhysical({
+  color: 0x401020,
+  roughness: 0.8,
+  sheen: 1,
+  sheenColor: 0xff80a0,
+  sheenRoughness: 0.6,
+})
+```
+
+With a volumetric lightmap in the scene (`volumetricLightmap`, on by default), a pass of its own reads
+its third-order harmonics at every lit opaque pixel and the indirect pass lights the pixel's diffuse
+colour with their irradiance along its normal, as it does the environment's; a blended surface reads
+none.
+
+A clear coat (`clearcoat` above zero, a material's or a graph's) lies over the base as the reference's clear coat shading
+model has it, in every light, on an opaque surface as on a blended one: the coat is a dielectric GGX lobe of
+reflectance 0.04 at its own roughness (`clearcoatRoughness`, held at 0.02 at least), weighted by `c`; the base is lit through it —
+its diffuse and its specular under the coat's two crossings, `(1 − F)²`, F the coat's Fresnel at the half vector, a metal base
+absorbing along the refracted path of the light and the eye, the light's angle refracted by the coat's index of 1.5.
+The environment, the bounce and the reflections see the base through the coat too: its colour is attenuated by the
+coat's Fresnel along the view (a metal's replaced by its absorbed colour), the base's reflection is weighed by what the coat lets
+through and the coat's own reflection is added. The coat shares the base's normal — the coat normal map a material carries is
+read only with `world.shading = { clearCoatNormal: true }`. A coat costs a lobes target the size of the image and a
+lobed lighting program wherever a surface carries one.
 
 Lit materials can declare `subsurfaceColor` (black, off, by default) and an optional `subsurfaceMap`
 for thin **double-sided** surfaces such as foliage: light arriving through the back, tinted.
+Each light gives the eye its energy times `subsurfaceColor` times a wrapped cosine, `(½ − N·L) / (3/2)²`
+held to 0..1 (the front takes light too, up to a cosine of one half), times a broad lobe that peaks
+where the eye looks into the light; it has no 1/π and no cosine of its own.
 Diffuse thin-surface transmission, not a volume: a glass volume uses physical `transmission`,
 `thickness`, `attenuationColor` and `attenuationDistance`. The thickness is in the mesh's own units,
-as glTF's: a placement scaled twice crosses, refracts and shadows through twice the path.
+as glTF's: a placement scaled twice crosses, refracts and shadows through twice the path. A glTF
+`KHR_materials_volume` that names no `attenuationDistance` attenuates over one metre.
 
-With `transparentShadow: true`, blended glass tints the shadow transmission atlas by its base color
-and texture; a nonzero volume thickness applies Beer attenuation once at the entrance of a closed
-mesh (a declared-thickness approximation, not ray tracing); alpha-only blended shadows are
-coverage. A shadow-casting light with a source size — a point or spot `radius`, a sun's
-`angularRadius` — casts penumbrae that harden at contact, traced through the shadow maps on opaque
+A blended or transmissive surface casts no shadow: the shadow maps hold the opaque surfaces and the
+cutouts, and glass, smoke and a light beam let the light of the sun and the lamps through. A shadow-casting light with a source size — a point or spot `radius`, a rectangle's `size` (its
+shadow's source radius is half its width), a sun's `angularRadius` — casts penumbrae that harden at contact, traced through the shadow maps on opaque
 and blended surfaces alike; a size of zero casts hard shadows.
 
 ### Geometry rewritten every frame
@@ -775,6 +1372,40 @@ world.onFrame(({ metrics }) => {
   console.log(metrics.dynamicUploadBytes)
 })
 ```
+
+### Particles: emitters spawning with the world's frames
+
+`world.particles.add(spec)` makes an emitter over a fixed pool of particles, stepped on the GPU
+and drawn with the translucent layers. Like an effect's emitter, it spawns `rate` particles a
+second and any `burst` the page asks, each born with a lifetime, a speed and a direction drawn from
+the ranges given, the direction inside a cone; the pool (`capacity`, `origin`, `blend`, `color`,
+`size`, `fade`, `softness`, `acceleration`, `translucencyPass`) is fixed for its life, the spawn can
+change at any time.
+
+```js
+const fire = world.particles.add({
+  capacity: 2000, // particles alive at most; a newer one replaces the oldest
+  origin: [0, 0.2, 0], // the emitter's place in the world, metres
+  rate: 120, // particles a second
+  lifetime: [0.6, 1.2], // seconds, a number or [min, max]
+  speed: [1, 2.5], // metres a second at birth
+  direction: [0, 1, 0], // the cone's axis
+  spread: 0.35, // the cone's half angle, radians (0 to π)
+  acceleration: [0, 1.5, 0], // metres per second squared on every live particle
+  blend: 'additive', // 'premultiplied' for smoke
+  size: 0.15,
+  color: [1, 0.55, 0.15, 1],
+  seed: 3, // one seed and one clock give one effect
+})
+fire.update({ rate: 20, spread: 0.1 }) // from the next particle on
+fire.burst(200) // now, whatever the rate says
+fire.update({ active: false }) // stops the rate; a burst still spawns
+fire.dispose() // its particles go with it
+```
+
+A `capacity` below `rate * lifetime` makes the pool overwrite its oldest particles. A rate or a
+spawn the contract refuses throws `PARTICLE_RATE`, `PARTICLE_SPAWN`, `PARTICLE_DIRECTION` or
+`PARTICLE_SPREAD`; a pool the device cannot hold throws `PARTICLE_CAPACITY`.
 
 ### Guides: lines, points and helpers over the image
 
@@ -829,8 +1460,7 @@ selects the common declarations, which lack `createWorld`.
 ```
 
 A browser host installs `trillion3d` and, for its types, `@webgpu/types`; nothing else: the
-package ships no rendering library (`tests/integration/installed-package.test.ts`); the bench's
-witness library is a development dependency of this repository alone (`bench/witnesses/`).
+package ships no rendering library (`tests/integration/installed-package.test.ts`).
 
 A Node TypeScript host uses `"module": "NodeNext"`, `"moduleResolution": "NodeNext"` and
 `"types": ["node"]`; NodeNext then selects the Node declarations from the same specifier.
@@ -970,42 +1600,283 @@ A material wears a graph of its own domain (`material.lightFunction({ graph })`,
 
 **Outputs by domain.** An output is cast to its type (a scalar is repeated, a longer vector is cut, a shorter one is filled with zeros) and takes its default where nothing is wired.
 
-| Output             | Type   | Default | `surface`                        | `lightFunction` | `volume`            |
-| ------------------ | ------ | ------- | -------------------------------- | --------------- | ------------------- |
-| `baseColor`        | float3 | 0, 0, 0 | read                             |                 | the albedo          |
-| `metallic`         | float  | 0       | read                             |                 |                     |
-| `specular`         | float  | 0.5     | read                             |                 |                     |
-| `roughness`        | float  | 0.5     | read                             |                 |                     |
-| `emissive`         | float3 | 0, 0, 0 | read                             | the colour      | the light given off |
-| `opacity`          | float  | 1       | read when `transparent`          |                 |                     |
-| `opacityMask`      | float  | 1       | read when `alphaTest` is above 0 |                 |                     |
-| `normal`           | float3 | 0, 0, 1 | read (tangent space)             |                 |                     |
-| `ambientOcclusion` | float  | 1       | read                             |                 | read                |
-| `subsurfaceColor`  | float3 | 1, 1, 1 | read                             |                 | the extinction      |
+| Output                   | Type   | Default       | `surface`                                                                                                                                                                                                                                                                                                         | `lightFunction` | `volume`            |
+| ------------------------ | ------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------- |
+| `baseColor`              | float3 | 0, 0, 0       | read (a lit surface)                                                                                                                                                                                                                                                                                              |                 | the albedo          |
+| `metallic`               | float  | 0             | read (a lit surface)                                                                                                                                                                                                                                                                                              |                 |                     |
+| `specular`               | float  | 0.5           | read (a lit surface): a dielectric reflects 0.08 × it at normal incidence                                                                                                                                                                                                                                         |                 |                     |
+| `roughness`              | float  | 0.5           | read (a lit surface)                                                                                                                                                                                                                                                                                              |                 |                     |
+| `emissive`               | float3 | 0, 0, 0       | read; an unlit surface shows it as its colour                                                                                                                                                                                                                                                                     | the colour      | the light given off |
+| `opacity`                | float  | 1             | read when `transparent`                                                                                                                                                                                                                                                                                           |                 |                     |
+| `opacityMask`            | float  | 1             | read: wired, it makes the surface a masked one, cut where the output is below the clip value (`opacityMaskClipValue`, 0.3333)                                                                                                                                                                                     |                 |                     |
+| `normal`                 | float3 | 0, 0, 1       | read (a lit surface, tangent space)                                                                                                                                                                                                                                                                               |                 |                     |
+| `ambientOcclusion`       | float  | 1             | read (a lit surface)                                                                                                                                                                                                                                                                                              |                 |                     |
+| `subsurfaceColor`        | float3 | 1, 1, 1       | read (a lit, two-sided surface: its thin transmission)                                                                                                                                                                                                                                                            |                 | the extinction      |
+| `anisotropy`             | float  | 0             | read (a lit surface): the stretch of the highlight, from -1 to 1; a negative one stretches it along the bitangent                                                                                                                                                                                                 |                 |                     |
+| `tangent`                | float3 | 1, 0, 0       | read with `anisotropy`: the direction of the stretch, in tangent space                                                                                                                                                                                                                                            |                 |                     |
+| `clearCoat`              | float  | 1             | read (a lit surface): the strength of a clear coat over the base; off where unwired (the surface has no coat)                                                                                                                                                                                                     |                 |                     |
+| `clearCoatRoughness`     | float  | 0.1           | read with `clearCoat`                                                                                                                                                                                                                                                                                             |                 |                     |
+| `refraction`             | float  | 1             | read (a translucent surface that transmits): its index of refraction, 1 bending nothing, 0 saying none (the material's own applies)                                                                                                                                                                               |                 |                     |
+| `worldPositionOffset`    | float3 | 0, 0, 0       | read: moves the vertices of the surface (world space), see "World position offset"                                                                                                                                                                                                                                |                 |                     |
+| `shadingModel`           | float  | 1             | read where the material says `shadingModel: 'fromMaterialExpression'` (a lit opaque or masked surface): the shading model of the pixel, by the reference's numbers (0 unlit, 1 default lit, 2 subsurface, 4 clear coat, 6 two-sided foliage, 8 cloth), see "Shading model per pixel"; unwired, the material's own |                 |                     |
+| `cloth`                  | float  | 0             | read with `subsurfaceColor` (a lit opaque or masked surface): the amount of the cloth model, from 0 to 1, the fuzz colour being `subsurfaceColor`; see "Shading model per pixel"                                                                                                                                  |                 |                     |
+| `pixelDepthOffset`       | float  | 0             | read: the distance, in metres along the camera vector, the pixel is pushed away from the camera in the depth the visibility raster writes (an opaque or masked surface) or in the depth its responsiveness mark is tested at (a translucent one), see "Pixel depth offset"                                        |                 |                     |
+| `displacement`           | float  | 0.5           | read (an opaque or masked surface): the normalized height the tessellation pushes the surface's points by, see "Displacement"                                                                                                                                                                                     |                 |                     |
+| `scatteringCoefficients` | float3 | 0, 0, 0       | read (a lit surface that is water): the scattering of the water's volume, per centimetre; wiring any of the four water outputs makes the surface single-layer water, see "Single-layer water"                                                                                                                     |                 |                     |
+| `absorptionCoefficients` | float3 | 0, 0, 0       | read (water): the absorption of the water's volume, per centimetre                                                                                                                                                                                                                                                |                 |                     |
+| `phaseG`                 | float  | 0             | read (water): the anisotropy of the scattering, from -1 (back) to 1 (forward)                                                                                                                                                                                                                                     |                 |                     |
+| `colorScaleBehindWater`  | float3 | 1, 1, 1       | read (water): a colour multiplied into what is seen through the water, faded out over the first 50 cm of depth; caustics, for one                                                                                                                                                                                 |                 |                     |
+| `transmittanceColor`     | float3 | 0.5, 0.5, 0.5 | read (a lit translucent surface that is thin translucent): the colour the background is multiplied by for a view perpendicular to the surface, from 0 to 1; wiring it or `surfaceCoverage` makes the surface thin translucent, see "Thin translucent"                                                             |
+| `surfaceCoverage`        | float  | 1             | read (thin translucent): the coverage of the whole surface, the thin part and the material over it, from 0 to 1                                                                                                                                                                                                   |
 
-An output the domain does not read is refused when it is wired (`INVALID_MATERIAL`). A light function has no world position, camera, normal or depth: it is drawn once into an atlas slot for every light and view, so `worldPosition`, `cameraPosition`, `vertexNormal` and `pixelNormal` are refused there (`INVALID_MATERIAL`, naming the node), and `objectPosition` is zero. The volume domain has no normal. `pixelNormal` cannot feed `normal`.
+An output the domain does not read is refused when it is wired (`INVALID_MATERIAL`). A light function has no world position, camera, normal or depth: it is drawn once into an atlas slot for every light and view, so `worldPosition`, `cameraPosition`, `cameraVector`, `vertexNormal`, `pixelNormal` and `vertexColor` are refused there (`INVALID_MATERIAL`, naming the node), and `objectPosition` is zero. The volume domain has no normal. `pixelNormal` cannot feed `normal`.
 
-**Types.** A value is a float of one to four components (a texture object is a fifth kind, which only a sample reads). A scalar written as a constant fits any width. An operation between a scalar and a vector repeats the scalar; between two vectors of different widths it is an error ("arithmetic between float2 and float3 is undefined"). `min`, `max` and `clamp` make their other inputs the type of the first. Constants fold: the sum, product or sine of constants is a constant, a product by 0 or 1 and a quotient by 1 write no code, a `lerp` of equal values or at 0 or 1 is one of them, a quotient by a constant 0 stays a quotient.
+A lobe is on where its output is wired (`anisotropy`, `clearCoat`); an unwired one is off, and the defaults above apply to the other output of its pair. A surface that wears a graph takes its lobes from the graph alone: the material's `anisotropy` and `clearcoat` are not read.
+
+**Types.** A value is a float of one to four components (a texture object is a fifth kind, which only a sample reads). A scalar written as a constant fits any width. An operation between a scalar and a vector repeats the scalar; between two vectors of different widths it is an error ("arithmetic between float2 and float3 is undefined"). `min`, `max` and `clamp` make their other inputs the type of the first. Constants fold: the sum, product or sine of constants is a constant, a product by 0 or 1 and a quotient by 1 write no code, a `lerp` of equal values or at 0 or 1 is one of them, a quotient of constants is a constant. A value the pixels share — a constant, a parameter, anything computed from these alone — is known when the program is compiled, and some nodes treat it so: a divisor of that kind (`divide`, `fmod`) is held to at least 1e-5 in magnitude, its sign kept and a zero read as positive, so that `x / parameter` is `1e5 × x` where the parameter is 0 and a quotient of constants by 0 is a constant (a varying divisor is not held: a quotient by it is the hardware's); `normalize` of such a value leaves a zero vector at zero; `round` of it goes up at a half, where a varying value goes to the even whole number. `normalize` of a varying scalar is 1.
 
 **Nodes.** Where an input is not wired, a node uses its own constant (its default is in brackets).
 
-| Group       | Calls                                                                                                                                                                                                                                                           |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Constants   | `constant(x)` to `constant(x, y, z, w)`; `channel(wire, 'rgb' \| 'r' \| 'a'…)` picks an output of a node (a sample's rgb, r, g, b, a, rgba)                                                                                                                     |
-| Parameters  | `scalarParameter(name, 0)`, `vectorParameter(name, [0, 0, 0, 1])`, `textureParameter(name, texture)`; `g.set(name, value)` gives them values                                                                                                                    |
-| Textures    | `textureSample(texture, { uv, texture, mip, mipMode: 'none' \| 'level' \| 'bias', constCoordinate: 0, name })`, `textureObject(texture)`                                                                                                                        |
-| Coordinates | `texCoord(index = 0, uTiling = 1, vTiling = 1)`, `time(period?)` (0 holds it still), `panner({ speed: [u, v], coordinate, time, fractionalPart })`, `rotator({ centerX: 0.5, centerY: 0.5, speed: 0.25, coordinate, time })`                                    |
-| World       | `worldPosition(cameraRelative)`, `cameraPosition()`, `objectPosition()`, `vertexNormal()`, `pixelNormal()`, where the domain has them                                                                                                                           |
-| Arithmetic  | `add(a, b)` (0, 1), `subtract` (1, 1), `multiply` (0, 1), `divide` (1, 2), `power(base, exponent = 2)`, `abs`, `min` (0, 1), `max` (0, 1), `clamp(x, min = 0, max = 1, mode)`, `saturate`, `lerp(a, b, alpha)` (0, 1, 0.5), `oneMinus`, `frac`, `floor`, `ceil` |
-| Waves       | `sine(x, period = 1)`, `cosine(x, period = 1)`: `x` is in turns of `period` when it is above 0, in radians otherwise                                                                                                                                            |
-| Vectors     | `dot`, `cross` (float3), `normalize`, `length`, `appendVector(a, b)` (four components at most), `componentMask(x, 'rg')`                                                                                                                                        |
-| Choice      | `if(a, b, greater, equal, less, threshold = 0.00001)`: `greater` where `a >= b`, `less` below, `equal` within the threshold when wired                                                                                                                          |
+| Group       | Calls                                                                                                                                                                                                                                                                                                                                               |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Constants   | `constant(x)` to `constant(x, y, z, w)`; `channel(wire, 'rgb' \| 'r' \| 'a'…)` picks an output of a node (a sample's rgb, r, g, b, a, rgba)                                                                                                                                                                                                         |
+| Parameters  | `scalarParameter(name, 0)`, `vectorParameter(name, [0, 0, 0, 1])`, `textureParameter(name, texture)`; `g.set(name, value)` gives them values                                                                                                                                                                                                        |
+| Textures    | `textureSample(texture, { uv, texture, mip, mipMode: 'none' \| 'level' \| 'bias', constCoordinate: 0, name })`, `textureObject(texture)`                                                                                                                                                                                                            |
+| Coordinates | `texCoord(index = 0, uTiling = 1, vTiling = 1)`, `time(period?, ignorePause = false)` (`period` 0 holds it still), `panner({ speed: [u, v], coordinate, time, fractionalPart })`, `rotator({ centerX: 0.5, centerY: 0.5, speed: 0.25, coordinate, time })`                                                                                          |
+| World       | `worldPosition(cameraRelative)`, `cameraPosition()`, `objectPosition()`, `vertexNormal()`, `pixelNormal()`, `cameraVector()` (the unit vector from the point to the camera), `vertexColor()` (rgb, r, g, b, a; refused until a pass carries the vertex colour), where the domain has them                                                           |
+| Arithmetic  | `add(a, b)` (0, 1), `subtract` (1, 1), `multiply` (0, 1), `divide` (1, 2), `power(base, exponent = 2)`, `abs`, `min` (0, 1), `max` (0, 1), `clamp(x, min = 0, max = 1, mode)`, `saturate`, `lerp(a, b, alpha)` (0, 1, 0.5), `oneMinus`, `frac`, `floor`, `ceil`, `round`, `sign`, `fmod(a, b)`, `sqrt`, `exp`, `exp2`, `log`, `log2(x)`, `log10(x)` |
+| Waves       | `sine(x, period = 1)`, `cosine(x, period = 1)`, `tangent(x, period = 1)`: `x` is in turns of `period` when it is above 0, in radians otherwise; `arctangent2(y, x)`                                                                                                                                                                                 |
+| Vectors     | `dot`, `cross` (float3), `normalize`, `length`, `appendVector(a, b)` (four components at most), `componentMask(x, 'rg')`                                                                                                                                                                                                                            |
+| Choice      | `if(a, b, greater, equal, less, threshold = 0.00001)`: `greater` where `a >= b`, `less` below, `equal` within the threshold when wired                                                                                                                                                                                                              |
+| Colour      | `fresnel({ exponent = 5, baseReflectFraction = 0.04, normal })`, `desaturation(x, fraction?, luminance?)`, `contrast(x, amount = 1, pivot = 0.5)`                                                                                                                                                                                                   |
+| Noise       | `noise({ position, filterWidth = 0, noiseFunction = 'simplex', scale = 1, quality = 1, turbulence = true, levels = 6, outputMin = -1, outputMax = 1, levelScale = 2, tiling = false, repeatSize = 512, relativeToCamera = false })`                                                                                                                 |
 
 A number passed where a wire goes is that node's own constant: `g.multiply(tex, 2)` and `g.lerp(a, b, 0.25)` need no constant node. A texture reads through the materials' colour atlas, with its own wrap, filters, repeat, offset and rotation; `mipMode` `'level'` reads the level in `mip` (0 is the full picture), `'bias'` adds `mip` to the level the footprint asks. A sample waits, like a map, until its texture has joined the atlas.
 
-A graph worn by a light function is read now; one worn by a surface or a volume material compiles and is kept with it, and drives the image once the surface and the fog read it.
+**A surface that wears a graph is the graph.** The opaque resolve and the transparent pass read the outputs of the graph in place of the material's colour, `metalness`, `roughness`, `emissive`, normal map, occlusion map, lobes and thin transmission, and of its other maps; an output that is not wired takes its default (the table above), never the material's value. What the material still decides is how the surface is drawn: `side`, `transparent`, `blending`, `alphaTest`, `depthWrite`, its family (`meshStandard`, `meshPhysical`, `meshBasic`…) and its lit or unlit model. The outputs are held to their range as a shader holds them: `baseColor`, `metallic`, `roughness`, `ambientOcclusion`, `specular` and `opacity` from 0 to 1, `emissive` not below 0 (see `allowNegativeEmissive`), the thin transmission `subsurfaceColor` from 0 to 1. `normal` is in tangent space and bends the vertex normal in the frame the normal maps use; a surface has no `normal` map of its own while it wears a graph. The material's record holds neutral factors for such a surface, so its `opacity`, `subsurfaceColor` and maps leak into nothing.
 
-A graph that does not compile (a missing required input, a type error, a node the domain has no value for) raises `INVALID_MATERIAL` naming the node. A light function whose graph is refused is drawn from its parameters, as one with no graph is, and the engine names the refusal once (`light-function-graph-refused`). A light function that reads `time` is drawn again at each image; the time is the seconds since its atlas was made.
+**An unlit surface draws through `emissive`.** A material of an unlit family (`meshBasic`…) reads the `emissive` output as its colour, its `opacity`, its mask and its `worldPositionOffset`: its other outputs are not read and take their defaults, whatever is wired to them.
+
+```js
+import { material, Texture } from 'trillion3d'
+
+// A glass that ripples: translucent, its colour and opacity from a panned map, its roughness from the time.
+const g = material.graph('surface')
+const waves = g.textureSample(new Texture(waveImage), {
+  uv: g.panner({ speed: [0.03, 0.01], coordinate: g.texCoord(0, 4, 4) }),
+})
+g.output(
+  'baseColor',
+  g.multiply(g.channel(waves, 'rgb'), g.vectorParameter('tint', [0.6, 0.8, 1, 1])),
+)
+g.output('opacity', g.multiply(g.channel(waves, 'a'), 0.7))
+g.output('roughness', g.add(0.1, g.multiply(g.sine(g.time(), 4), 0.05)))
+g.output('specular', g.constant(0.9)) // a brighter highlight than the default 0.5 gives
+mesh.material = material.meshStandard({ transparent: true, graph: g })
+g.set('tint', [1, 0.7, 0.5]) // the next image: only a value is written, nothing compiles again
+```
+
+- **`allowNegativeEmissive`.** A material option, `false` by default: the `emissive` output may take light away only where it is `true`, as in `material.meshStandard({ allowNegativeEmissive: true, graph })`. It is saved with the world and is part of what decides the surface's program.
+- **Specular.** A dielectric reflects `0.08 × specular` at normal incidence, `0.04` at the default 0.5, the value of every surface that gives none; a metal reflects its colour. The opaque resolve leaves the specular of a pixel in its surface flags (a step of 1/254), the lights, the reflections' weight and the transparent pass read it; a clear coat keeps its own 0.04 (`'layered'`), or adds `0.04 × its weight` to the reflectance (`'single'`).
+- **Anisotropy.** The graph's `anisotropy` `a`, from -1 to 1 (`tangent` the direction of the stretch, in tangent space, carried whole to the world and kept orthogonal to the final normal), makes the highlight `α(1 + a)` wide along the tangent and `α(1 − a)` across it, `α` the square of the roughness; where `a` is negative the long axis is the bitangent. A material's own `anisotropy` gives the same widths. Under a clear coat the base keeps its anisotropy, in the coat's context.
+- **Refraction.** The `refraction` output of a translucent surface that transmits (`meshPhysical({ transmission: 1, transparent: true })`) is the index of refraction its fragments bend what lies behind by; 1, the default, bends nothing, and 0 says none: the material's own applies. A graph that wires it wins over the `ior` the material declares. Of the reference's three refraction modes only the index of refraction is read; the pixel-normal strength, the two-dimensional offset and the refraction depth bias are not offered.
+- **Texture coordinates.** The first set is `texCoord(0)`. A set past the first (`texCoord(1)` to `texCoord(3)`) is read where the geometry carries it; on a translucent surface, the program that carries one set past the first (the lobed one) reads one: the lowest the graph names; the sets past it read the first. Sets 4 to 7 read the first set.
+- **Footprints.** A texture read takes its footprint from the coordinate evaluated at the pixel beside and the pixel below, so a tiled or panned coordinate reads the level its own pixels ask. A read whose coordinate holds another read takes the other's footprint at the pixel itself: three reads a level. The tiles a texture needs are asked of the streamer as a map's are.
+- **Time.** A graph that reads `time` keeps the image drawing, in the opaque resolve and in the transparent pass: a view that shows one is not held on its last image. The time is the page's clock in seconds, read once an image, the same for the surface, the translucent surface, the fog and the rasters.
+- **Noise.** `noise` adds `levels` (1 to 10) noises of `position` — the world position, repeated every 65536 metres, where nothing is wired —, each `levelScale` times finer and `levelScale` times weaker than the one before, and brings the sum to `outputMin`..`outputMax`: with `turbulence` the levels add the absolute value of the noise, without it the sum of -1..1 noises is brought to 0..1. `filterWidth` fades the levels finer than it away (a level's weight is multiplied by `saturate(1 - width)`, the width growing with the frequency). The functions are `'simplex'` (gradient noise on the tetrahedra of a skewed lattice), `'gradient'` (a cubic lattice repeating every `repeatSize` cells, and every 128 whatever the size), `'fastGradient'` (repeating every 15 cells), `'gradientAlu'`, `'valueAlu'` (cubic lattices of hashed values, each repeating every `repeatSize` cells where `tiling` is true) and `'voronoi'` (the distance to the nearest of the points jittered in each cell, `quality` 1 to 4 searching 8, 16, 27 and 32 cells, repeating with `tiling`); each runs in the shader, from the lattice's coordinates alone. A position is read in the graph's units, metres: `noise({ scale: 0.01 })` is a noise whose features are 100 metres across.
+- **Fresnel.** `fresnel` is `pow(1 - max(0, n · v), exponent) × (1 - base) + base`, `n` the pixel's normal (or the wire `normal`), `v` the unit vector to the camera (`cameraVector`); the power's base is held to at least 0.0001. `desaturation` takes a colour (or a scalar, repeated) towards `dot(colour, luminance)`, the luminance weights of the sRGB working space (0.2126, 0.7152, 0.0722) unless named: by `fraction`, or, with none wired, to the grey itself (a scalar).
+- **Not read.** The outputs that move a pixel or change a shading model — a displacement, a pixel depth offset, a shading model, a front material, a surface thickness, the customized texture coordinates `0` to `7` and the packed material attributes — are not offered: they need the programmable raster this engine does not have yet. On a translucent surface the position of the object (`objectPosition`) reads zero and the pixel normal is the vertex normal.
+- **A graph the pass refuses** (a node or output it cannot compile) is named once (`material-graph-refused`) and the surface is drawn from the material's parameters. A scene wears at most 256 programs of the opaque resolve at once, each over its geometry's attributes (a program no surface wears gives its place back): past them a surface is drawn from its parameters and the engine says so.
+- **A pipeline the device refuses to compile** is named once for each refusal (`pipeline-refused`, with the pipelines it names): the pass that needs it is left out of the image, which stays as drawn without it, and the engine asks the device again every 240 frames.
+- **A graph that joins a running world** (a material assigned, a node, an output or a texture written into a graph a material wears) makes its surfaces wear another program. The engine compiles it while the frame waits, showing the previous image, and does not open the session again; the cutouts and offsets the rasters evaluate join the modules that hold them the same way, and the engine says so once (`material-graph-rasters-late`). A value written with `g.set` writes the values alone: nothing compiles. When an offset joins, the temporal anti-aliasing starts its history again.
+
+**Opacity mask (the cutout).** A graph that wires `opacityMask` makes a masked surface: a pixel is kept where `opacityMask` is not below the clip value, cut otherwise, in every pass that decides what a surface covers — the visibility rasters, the dicing of a displaced surface and the shadow maps (a leaf casts the shadow of its shape). The clip value is the material's `opacityMaskClipValue` (any number: the output is compared with it as it comes, 0 keeps every pixel whose output is not below 0, and the output of a graph is not held to a range), else its `alphaTest` where above 0 (a glTF material keeps its `alphaCutoff`), else 0.3333. The mask is the opaque class's: a translucent surface (`transparent: true`) reads `opacity`, never `opacityMask`.
+
+**What a mask can read.** A cutout is decided where only a texture coordinate exists: `texCoord(0)` (or the one set a mask names; a mask that names two is refused), a texture read at it, the parameters, `time` and `realTime`, with the footprint of the render pixel. A mask that reads the world position, the camera or its vector, the normal or the vertex colour is refused: the engine names it once (`material-graph-refused`) and the surface is drawn whole. A mask that reads `time` animates in the images and in the shadows of the surfaces that move; the shadow of a static surface whose mask animates is not drawn again (it keeps the shape it was cached with).
+
+```js
+import { material, Texture } from 'trillion3d'
+
+// A leaf that dissolves: the alpha of its map, eaten by a noise that drifts with the time.
+const g = material.graph('surface')
+const leaf = g.textureSample(new Texture(leafImage), { uv: g.texCoord(0) })
+const eaten = g.textureSample(new Texture(noiseImage), {
+  uv: g.panner({ speed: [0.05, 0], coordinate: g.texCoord(0, 3, 3) }),
+})
+g.output('baseColor', g.channel(leaf, 'rgb'))
+g.output('opacityMask', g.multiply(g.channel(leaf, 'a'), g.add(g.channel(eaten, 'r'), 0.2)))
+const wear = material.meshStandard({ graph: g, side: 'double', opacityMaskClipValue: 0.5 })
+```
+
+Two material options (saved with the world, written in place):
+
+- **`opacityMaskClipValue`** (a number, absent by default): the value `opacityMask` is cut against. Absent: the material's `alphaTest` where above 0, else 0.3333. A material with a graph that wires no `opacityMask` ignores it.
+- **`ditherOpacityMask`** (boolean, `false` by default): the cut is dithered. Each pixel adds `0.83 × noise − 0.5` to the mask (less the clip value) before the test, the noise the engine's blue noise read at the pixel and at the image's frame (the wall clock at sixty a second), so that the temporal anti-aliasing averages the edge into a soft translucency instead of a hard staircase. It applies in every raster that cuts pixels — the hardware raster, the compute raster and the shadow maps' raster, as the camera's — to any masked material, a graph's mask or a plain `alphaTest`; the dicing of a displaced surface cuts at its vertices, never at a pixel, and keeps the hard test. Until the engine has loaded its blue noise the cut is hard. A still image keeps the dither it was drawn with.
+- **`normalCurvatureToRoughness`** (boolean, `false` by default): the material's roughness is raised to at least the one given by the change of its vertex normal across one pixel: `saturate(max(dN/dx·dN/dx, dN/dy·dN/dy)^0.333)`, so a curved surface far away reads rougher and its highlight does not flicker. It reads the interpolated vertex normal, never the normal map, and costs no extra texture read; a flat face is unchanged. A clear coat's roughness is raised the same way. The curve is set by the `world.shading` fields `normalCurvatureScale` (`1`, any number, held to [0, 2] where read), `normalCurvatureBias` (`0`, any number, held to [-1, 1] where read) and `normalCurvatureExponent` (`0.333`, any number, held to [0.05, 20] where read), each an option of `createWorld` too: `world.shading = { normalCurvatureExponent: 0.5 }`. Example: `new Material('meshStandard', { roughness: 0.2, normalCurvatureToRoughness: true })`.
+
+**World position offset.** `g.output('worldPositionOffset', offset)` moves every vertex of the surface by `offset`, a float3 in the world's axes and metres, evaluated for each vertex in every pass that places it: the visibility buffer's two rasters, the shading of a pixel, the shadow maps (a swaying tree casts the shadow of the shape it has), the translucent pass and the temporal anti-aliasing (which reprojects a pixel by where its vertex was, so a moving surface leaves no trail). The offset sees what a vertex has: `worldPosition()` (the vertex before the offset), `objectPosition()`, `cameraPosition()`, `vertexNormal()`, `time()`, the parameters, **one** texture coordinate set (`texCoord(0)` is the geometry's first set; a vertex weight painted in the second coordinate of the UVs is a common use) and the textures it reads. It reads no `pixelNormal()` and no second texture set: a graph that wires such an offset is refused (named once, `material-graph-refused`) and its surface is drawn from the material's parameters, as any graph the engine does not compile. An offset that is not a finite number is not corrected: the vertex goes where the number says.
+
+What moves: the triangles of a surface; the corners of the flat triangles of a surface displaced by a height map (`displacementMap`), which are moved before the patch is cut and diced, so the patch is diced and displaced on the moved triangle; the bricks of voxels the far levels of a mesh are drawn as (`voxelize`), each brick rigidly, by the offset at the centre of its box, its box and its voxels alike — a swaying crown does not stop where the cut switches to voxels. A sprite and a line are built on the screen and are not moved.
+
+A texture read in the offset is read at the finest level (a vertex has no footprint) and asks no tile: a tile that is not resident reads its fallback level. A device lets its vertex stages read the colour atlas when it grants ten storage buffers a stage (`maxStorageBuffersPerShaderStage`, and `maxStorageBuffersInVertexStage` where it reports one); the engine asks the adapter for all it offers. On a device that grants fewer, a graph whose offset reads a texture is refused once (`material-graph-refused`) and its surface is not moved. The shadow maps' splitting of a displaced surface's patches judges them by the offsets that read no texture alone; the vertices drawn are moved by all.
+
+```js
+import { material, Mesh } from 'trillion3d'
+
+// A leaf that bends in the wind: the farther up its UVs, the more it sways, along a direction that turns with the position.
+const g = material.graph('surface')
+g.output('baseColor', g.constant(0.2, 0.6, 0.2))
+const height = g.componentMask(g.texCoord(0), 'g')
+const phase = g.add(g.time(), g.componentMask(g.worldPosition(), 'r'))
+const sway = g.multiply(g.multiply(g.sine(phase, 2), height), g.scalarParameter('amplitude', 0.15))
+g.output('worldPositionOffset', g.multiply(sway, g.constant(1, 0, 0.4)))
+const leaf = material.meshStandard({ graph: g, maxWorldPositionOffset: 0.2 })
+const tree = new Mesh(geometry, leaf)
+tree.worldPositionOffsetDisableDistance = 80 // past 80 m from the camera the leaves stop swaying
+tree.shadowCacheInvalidation = 'rigid' // its shadows are not drawn again for the sway, only when it moves
+scene.add(tree)
+```
+
+The object decides whether and how far its surfaces' offsets are evaluated (properties of the node, saved with the world, written in place; the defaults are the reference's):
+
+- **`evaluateWorldPositionOffset`** (boolean, `true`): `false` leaves the object's vertices where the geometry puts them.
+- **`worldPositionOffsetDisableDistance`** (metres, `0`): past this distance from the camera to the centre of the object's bounds the offset stops (0 never stops it). In the shadow maps of a directional light the distance is the clipmap level's: an object that names one is moved in the levels whose threshold distance — the distance past which the level no longer shows the motion, which doubles for each level coarser — is not past its own, and left at rest in the coarser ones; a local light's maps move it whatever the distance. Two settings of the shadow maps name the rule: `shadowClipmapWpoDisableDistance` (`true`; `false` moves the object in every level) and `shadowClipmapWpoDisableDistanceLodBias` (3, from 0 to 30: the levels the rule is held back by).
+- **`worldPositionOffsetWritesVelocity`** (boolean, `true`): whether the temporal anti-aliasing reprojects a pixel of the object by where its vertex was. `false` costs less where the offset does not change; with an offset that moves, it leaves a trail. The previous place is the offset of the image before — its clocks and camera — on the object where its previous world matrix put it.
+- **`shadowCacheInvalidation`** (`'auto'`, `'always'`, `'rigid'` or `'static'`, `'auto'` by default): how the object's shadow pages are kept. `auto` draws them again while its offset is evaluated (not past its distance) or while it moves; `always` every image, for an animation the engine cannot know; `rigid` not for its offset, only when it moves; `static` not for its offset nor for its moves: a pose it takes later is not seen by its cached shadows, and the pages are drawn again when it joins or leaves the scene.
+
+Four more switches of the object say what it is to a view: **`firstPerson`** (boolean, `false`) marks an object drawn as a
+first-person one — the hands and the weapon of a player, close to the camera: its pixels wear the first-person mark the shadows treat
+apart (`shadowFirstPersonPixelRequestBias`, `shadowFirstPersonRequestMinLevelClamp`), and it casts no dynamic shadow of its own —,
+**`firstPersonWorldSpaceRepresentation`** (boolean, `false`) marks the object that stands for it in the world, the body of the player:
+the view that owns it, the main camera's, does not draw it (the reference forces `bOwnerNoSee` on it), and it casts into a second
+clipmap of each sun (`shadowFirstPersonClipmap`, `docs/SHADOWS.md`) and into no regular shadow map; and **`castHiddenShadow`**
+(boolean, `false`) lets an object that is hidden (`visible = false`, or under a hidden node) go on casting its shadow while no view
+draws it (it is read for an object that casts and is no world-space representation); and **`holdout`** (boolean, `false`) cuts the object out of the picture: with `film.propagateAlpha` and `film.primitiveAlphaHoldout` on, its pixels are black with an alpha of 1 (nothing of the scene shows there, the image keeps the hole), and they leave no surface to the lighting, the reflections or the fog. With either film setting off, the flag is ignored. A node is a first-person object or its
+world-space representation, never both: setting one while the other is on is refused (`RangeError`). All four are saved with the world.
+
+```js
+const arms = mesh(geometry, material)
+arms.firstPerson = true
+const body = mesh(geometry, material)
+body.firstPersonWorldSpaceRepresentation = true // not drawn by the main camera, casts
+const ghost = mesh(geometry, material)
+ghost.castHiddenShadow = true
+ghost.visible = false // casts, drawn by no view
+const cutout = mesh(geometry, material)
+cutout.holdout = true // a hole in the picture (film: propagateAlpha + primitiveAlphaHoldout)
+```
+
+Two options of the material bound the offset: **`maxWorldPositionOffset`** (metres, `0`), the greatest distance the offset may move a vertex along an axis — the offset is held to it, and the bounds of the surface's clusters grow by it where the view and the shadows decide what is seen; `0` holds nothing and grows nothing, so an offset that moves a surface out of its bounds can be cut away at the edge of the view or of a shadow map before the surface reaches it: name the greatest offset when it is large —, and **`alwaysEvaluateWorldPositionOffset`** (boolean, `false`), which evaluates the offset whatever `evaluateWorldPositionOffset` and `worldPositionOffsetDisableDistance` say. The rays that light the scene's reflections and indirect light, and the distance fields, see the surface at rest.
+
+**Shading model per pixel.** Where the material says `shadingModel: 'fromMaterialExpression'` (any other name, `defaultLit` by default, is the material's own and the graph's output is ignored), `g.output('shadingModel', model)` picks the shading model of each pixel of a lit surface the opaque or masked pass shades (a translucent surface shades by the material's). The value is the rounded number of the reference's own enumeration (`GRAPH_SHADING_MODELS`: `unlit` 0, `defaultLit` 1, `subsurface` 2, `preintegratedSkin` 3, `clearCoat` 4, `subsurfaceProfile` 5, `twoSidedFoliage` 6, `hair` 7, `cloth` 8, `eye` 9, `singleLayerWater` 10, `thinTranslucent` 11). The lighting has the physical model, the unlit one, the thin subsurface, the clear coat, the cloth, the preintegrated skin, the hair and the eye: a pixel of `unlit` shows its emission alone, as an unlit material does; a pixel of `twoSidedFoliage` reads `subsurfaceColor` as its thin transmission (a two-sided surface); one of `subsurface` is lit as `defaultLit` and, beside it, gets from every light a term of its own on any side: an in-scattering lobe against the eye, a wrapped back scattering weighed by the `opacity` output (read once a `shadingModel` is wired) and the material's occlusion, times the `subsurfaceColor` output (or its transmitted colour, hue-shifted, where the light is shadowed), which also adds to its indirect diffuse colour; one of `clearCoat` has the coat `clearCoat` and `clearCoatRoughness` give; one of `cloth` has the cloth lobe, its fuzz colour the `subsurfaceColor` output and its amount the `cloth` output (the cloth takes the place of the coat and the anisotropy); one of `preintegratedSkin` is lit as `defaultLit` and, beside it, lets light through its thickness: the light's cosine mapped to [0, 1] and one minus the `opacity` output (read for an opaque surface once a `shadingModel` is wired) address a table the reference ships (the `PreintegratedSkinBRDF` image, read from a file beside the module), times the `subsurfaceColor` output, which also adds to its indirect diffuse colour; one of `hair` has neither diffuse nor specular lobe but the hair's own scattering (reflection, transmission, internal reflection and a multiple scattering approximation): the `normal` output is the fibre's direction (toward its root), `roughness` and `specular` shape the lobes and `metallic` is the scatter amount; a hair reflects nothing and its indirect diffuse colour is its response to the environment; one of `eye` has the specular lobe of a dielectric and, in place of the diffuse lobe, a term that lights the sclera by the light's cosine and the iris by the cosine of its normal with a caustic, mixed by the iris mask: the mask and the distance of the iris are the `clearCoat` and `clearCoatRoughness` outputs, the iris direction the `tangent` output as a direction in the world's axes (where it is not wired the iris looks along `(0, 0, -1)`, the reference's own decoded default), and the metalness is not read. With `world.shading = { irisNormal: true }` (default `false`, the reference's `r.IrisNormal`) the iris has a normal of its own: the `clearCoatBottomNormal` output (a float3 in tangent space like `normal`, the iris plane normal — the `tangent` output, or the surface's normal where it is not wired — where it is not wired) is the iris normal, the caustic normal is the plane normal bent toward the opposite of the normal by the iris mask times the `clearCoatRoughness` output, and the eye's specular is held at 0.25. A pixel of `subsurfaceProfile` is lit as `defaultLit` with the Burley diffuse and two specular lobes, then scattered (see "The scattering of the light under a surface"); its `opacity` output (at 0.1 or under, the pixel is plain) is the share of the profile's radius it scatters over. A pixel of any other model is lit as `defaultLit`. A graph that wires no `shadingModel` keeps the behaviour of its wired outputs (a coat where `clearCoat` is wired, a cloth where `cloth` is wired and no model is, a thin transmission where only `subsurfaceColor` is).
+
+```js
+// A skin: opaque, lit by the preintegrated skin model, a little translucent (opacity 0.6) and tinted red where light goes through.
+const g = material.graph('surface')
+g.output('baseColor', g.constant(0.8, 0.6, 0.5))
+g.output('roughness', g.constant(0.45))
+material.shadingModel = 'fromMaterialExpression' // the graph's output decides
+g.output('shadingModel', g.constant(3)) // preintegratedSkin; hair is 7, eye is 9
+g.output('subsurfaceColor', g.constant(0.9, 0.3, 0.2))
+g.output('opacity', g.constant(0.6))
+```
+
+```js
+import { material } from 'trillion3d'
+
+// A fabric with a worn patch: the cloth model where the mask is low, the plain lit one elsewhere.
+const g = material.graph('surface')
+const wear = g.channel(g.textureSample(wearMap), 'r') // wearMap: a Texture
+g.output('baseColor', g.constant(0.4, 0.1, 0.1))
+g.output(
+  'shadingModel',
+  g.if({ a: wear, constB: 0.5, aGreaterThanB: g.constant(1), aLessThanB: g.constant(8) }),
+)
+g.output('subsurfaceColor', g.constant(0.9, 0.6, 0.6)) // the fuzz colour of the cloth pixels
+g.output('cloth', g.constant(0.8))
+```
+
+**Pixel depth offset.** `g.output('pixelDepthOffset', offset)` pushes each pixel of the surface away from the camera, by `offset` in metres along the camera vector, in the depth the visibility raster writes: the offset times the cosine of the pixel's ray with the view axis is added to the view depth, and a pixel is never brought nearer (a negative offset leaves it). It is how a decal-like layer sinks into a wall, or a plane of foliage is given thickness. It is evaluated by the software raster's pixels and the hardware raster's fragments of the rows that wire it, in the context a cutout has — its first texture coordinate set, its footprint and the clocks; a graph that reads a world position, the camera, a normal, a vertex colour or two texture sets there, or names another set than the `opacityMask`'s or the `worldPositionOffset`'s, is refused (named once, `material-graph-refused`) and the surface is written at the depth of its triangles. The shadow maps and the tessellated surfaces write the depth of their triangles whatever the output says, as the reference does. A translucent surface is drawn at the depth of its triangles whatever the output says; the output moves it only in the mark the layer leaves in the temporal pass's responsiveness (see "Thin translucent").
+
+```js
+const g = material.graph('surface')
+g.output('baseColor', g.constant(0.5, 0.5, 0.5))
+// A bump of 5 cm at the middle of each tile of the texture coordinate, seen as depth.
+g.output(
+  'pixelDepthOffset',
+  g.multiply(g.channel(g.textureSample(heightMap), 'r'), g.constant(0.05)),
+)
+```
+
+**Thin translucent.** A lit translucent surface whose graph wires `transmittanceColor` or `surfaceCoverage` is a thin translucent surface, the reference's thin translucent shading model (number 11 of `GRAPH_SHADING_MODELS`): an infinitely thin sheet that absorbs the background behind it, under a lit layer. The `opacity` output is the coverage of the lit layer (base colour and emission) over the sheet, `surfaceCoverage` the coverage of the whole, and `transmittanceColor` the colour the background keeps for a view perpendicular to the surface; the colour is taken to the power one over the cosine of the view with the normal, which makes the sheet thicker at a slant. The light entering and leaving the sheet is reduced by Fresnel (on the surface's specular colour, which follows `baseColor`, `metallic` and `specular`), and the specular of the lights and of the reflections is added over it. Both outputs are read in [0, 1]. Where the device is granted `dual-source-blending` the layer adds its light and multiplies the background by its transmittance in one pass; without it, the layer is blended by the grey coverage of that multiplier (its premultiplied colour, one minus the average of the multiplier as alpha). Like the reference's, the surface is lit per pixel, has the physical lighting only (a pixel naming model 11 in an opaque surface is lit as `defaultLit`), and marks the temporal pass's responsiveness as if its opacity were one. A glTF material with `KHR_materials_transmission` is such a surface, as the reference imports it: the transmittance colour is the base colour times the transmission, the lit layer covers by the largest of one minus the transmission, the metalness and the roughness, and the coverage is one; a material whose alpha mode is `mask` is clear (covers nothing, transmits all, has no specular) where its base map's alpha reaches 0.333 and glass elsewhere (it is not cut by its cutoff).
+
+```js
+import { material } from 'trillion3d'
+
+// A tinted pane: the background keeps 20% of its red, 50% of its green and 90% of its blue seen straight on,
+// the pane itself, a faint white, covers a tenth.
+const g = material.graph('surface')
+g.output('baseColor', g.constant(1, 1, 1))
+g.output('roughness', g.constant(0.05))
+g.output('opacity', g.constant(0.1))
+g.output('transmittanceColor', g.constant(0.2, 0.5, 0.9))
+g.output('surfaceCoverage', g.constant(1))
+const pane = material.meshPhysical({ graph: g, transparent: true })
+```
+
+A graph that also wires `pixelDepthOffset` on a translucent surface moves the depth its responsiveness mark is tested at: the temporal pass's responsiveness is written by a pass of its own, on every device, which draws the translucent layers again into the responsive target, tested against the opaque depth at the depth the offset moves each pixel to, so a layer pushed behind the opaque surface leaves no mark. The colour passes write no mark.
+
+**Displacement.** `g.output('displacement', height)` gives the normalized height, from 0 to 1, the tessellation pushes the points of the surface by along their normals, where a displaced glTF material reads its height map: a point moves by `(height - displacementCenter) * displacementMagnitude` metres, faded with distance. The material names the numbers, as the reference's material does: **`displacementMagnitude`** (metres, `4`), **`displacementCenter`** (`0.5`, the height that stays on the surface), and **`displacementFadeStart`** and **`displacementFadeEnd`** (the on-screen size in pixels of the largest displacement at which it starts to fade and is gone, the first the larger; both left out, it never fades). The output is read at the context of a cutout, one texture coordinate set (the texture coordinate density of the surface being measured for the glTF materials of a prepared scene, one unit of the set is a metre here), by the dicing of the image and of the shadow maps alike, so the shadow is that of the displaced surface. It follows the project's `tessellation` settings. A graph that reads more than that is refused as the pixel depth offset is, and the surface is drawn flat. The reference's `TessellationMultiplier` output is deprecated there and read by no shader, and is not an output here.
+
+```js
+const rock = material.graph('surface')
+rock.output('baseColor', rock.constant(0.35, 0.33, 0.3))
+rock.output('displacement', rock.channel(rock.textureSample(rockHeight), 'r'))
+const stone = material.meshStandard({
+  graph: rock,
+  displacementMagnitude: 0.3,
+  displacementCenter: 0.5,
+})
+```
+
+**A graph in the volume domain.** An object of the fog's volume (a mesh that wears `material.volume({ graph })`, or `addFogVolume({ id, graph })`) takes its albedo from `baseColor` (from 0 to 1), its extinction from the red channel of `subsurfaceColor` (from 0 to 65 000 per metre) and its emissive light from `emissive`, evaluated at the centre of each cell it covers, in place of its `albedo`, `extinction` and `emissive`. Its context is the world position of the cell, the camera, the object's position and the time; there is no texture coordinate and no normal. The volume domain has no `ambientOcclusion` output: wiring it is refused. An unwired `subsurfaceColor` is 1: wire it, or the object adds one per metre.
+
+```js
+import { material, Texture } from 'trillion3d'
+
+// Smoke that thins with height and drifts: a density from a noise map read at the world position.
+const g = material.graph('volume')
+const noise = g.textureSample(new Texture(noiseImage), {
+  uv: g.panner({ speed: [0.02, 0], coordinate: g.componentMask(g.worldPosition(), 'rg') }),
+})
+const density = g.multiply(g.channel(noise, 'r'), g.scalarParameter('density', 0.8))
+g.output('baseColor', g.constant(0.7, 0.7, 0.75))
+g.output('subsurfaceColor', g.appendVector(density, g.constant(0, 0)))
+g.output('emissive', g.constant(0, 0, 0))
+scene.add(new Mesh(box, material.volume({ graph: g })))
+```
+
+A texture a volume graph reads is taken into the colour atlas and asked at its full detail: keep them small (a noise of 128 to 512 texels). A graph that does not compile adds what its material gives.
+
+**A light function material on a mesh.** `material.lightFunction()` draws into the light function atlas alone. A mesh that wears one is drawn with the default material (white, unlit): it raises no error.
+
+A graph that does not compile (a missing required input, a type error, a node the domain has no value for) raises `INVALID_MATERIAL` naming the node. A light function whose graph is refused is drawn from its parameters, as one with no graph is, and the engine names the refusal once (`light-function-graph-refused`). A graph that reads `time` is drawn again at each image, in every domain (a surface, the transparent pass, a volume of the fog, a light function). The `time` node, and the panner and the rotator when no time is wired, read the world's time: the clock the world's clips and controllers run on, the one the automatic exposure adapts on, a pause of the loop counted as one bounded interval, so that a paused world holds every graph still. With `ignorePause` the node reads the wall clock instead, which runs on through a pause: for an effect that must keep moving. The clock is read once for each image, so the surface, the transparent pass, the fog and a light function of one image read the same seconds. An engine with no world (a bench) reads the wall clock for both.
+
+```js
+const g = material.graph('surface')
+g.output('emissive', g.sine(g.time(), 2)) // the world's time: holds while the world is paused
+g.output('baseColor', g.sine(g.time(undefined, true), 0.25)) // ignorePause: the wall clock, runs through a pause
+g.output('opacity', g.sine(g.time(4), 1)) // a period of 4 s on the world's time
+```
+
+`power(base, exponent = 2)` raises each component of `base` to the exponent and gives zero for a base of at most 2.98e-8 (2^-25): a negative base, or one too small to take a logarithm of in single precision, gives 0, never a NaN (a large result still overflows, as a single-precision power does). The exponent is read as the base is: a scalar is repeated for every component, a vector of the base's width works on each component of the base (a float3 base by a float3 exponent takes each channel to its own power), and over a scalar base a vector exponent gives its first component. A vector exponent of another width than a vector base is refused with `INVALID_MATERIAL`: "arithmetic between float3 and float2 is undefined". An exponent of 1, an exponent of 0 and a base of 0 are written as no code.
+
+```js
+const albedo = g.channel(g.vectorParameter('albedo', [0.8, 0.5, 0.2, 1]), 'rgb')
+g.output('baseColor', g.power(albedo, 2.2)) // one exponent for the three channels
+g.output('emissive', g.power(albedo, g.constant(2.2, 1, 0.5))) // red, green and blue each by their own
+g.power(albedo, g.constant(2, 3)) // refused: float3 against float2
+```
 
 ## Lights
 
@@ -1032,7 +1903,9 @@ The sky is one module: the air, the sun, the sky light, the height fog and the c
 world's level, each a part. It is off by default and then costs nothing: no part is resolved, no
 light is held, nothing is allocated and no pass is drawn. One word switches it on, `scene.sky` for a
 scene (it is saved with it) or `world.modules` for a page; both take `true` (every part at its
-default), `false`, or an object naming the parts, each `true`, `false` or its settings:
+default), `false`, or an object naming the parts, each `true`, `false` or its settings — a part the
+object does not name stays on, at its default (`mergeModuleParts`): an object switches off only the
+parts it sets to `false`:
 
 ```js
 world.scene.sky = true // the whole level: air, sun, sky light, height fog, clouds
@@ -1054,17 +1927,18 @@ module does not have, or a value out of range, is refused (`INVALID_MODULE_OPTIO
 (`world.modules.set('stats', true)`, its panel in the canvas's parent; its tabs and the panel are
 its parts).
 
-| Part         | What it is                                                                                                  | Defaults, the level's                                                                                                                                                                                                                                                                                                                      |
-| ------------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `atmosphere` | The planet's air: the sky, the haze, the sun's light tinted by it ([Atmosphere part](#atmosphere-part)).    | The component's: Earth-like.                                                                                                                                                                                                                                                                                                               |
-| `sun`        | One directional light, the air's first light, with its shadows, light shafts and cloud shadow map.          | `intensity` 6 lux, `useTemperature` on at `temperatureKelvin` 6500, `angle` 0.7357° (the disk's diameter), `rotation` `[-16.2856, 43.7319, 112.3607]` (pitch, yaw, roll in degrees; the yaw turns about +y, a negative pitch shines down), `shadowDistance` 200 m, `castShadow`, `shadowsAir` and `shadowsClouds` on, `shaftOcclusion` on. |
-| `skyLight`   | The sky's light on the scene, captured from the air and the clouds.                                         | `realTimeCapture` on, `mobility: 'movable'`; the other fields the component's.                                                                                                                                                                                                                                                             |
-| `heightFog`  | Fog thinning out with height ([Height fog part](#height-fog-part)); its volume is its `volumetric` setting. | `baseDensity` 0.00436 per metre (0.0436 in the reference's centimetre numbers) at `baseHeight` −68.5 m; the other fields as below.                                                                                                                                                                                                         |
-| `clouds`     | One layer of clouds, ray marched from the eye.                                                              | The layer's and the material's defaults; `reflectionSamplesScale` 0.1041667 and `reflectionShadowSamplesScale` 0.3.                                                                                                                                                                                                                        |
+| Part         | What it is                                                                                                  | Defaults, the level's                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------ | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `atmosphere` | The planet's air: the sky, the haze, the sun's light tinted by it ([Atmosphere part](#atmosphere-part)).    | The component's: Earth-like.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `sun`        | One directional light, the air's first light, with its shadows, light shafts and cloud shadow map.          | `intensity` 6 lux, `useTemperature` on at `temperatureKelvin` 6500, `angle` 0.7357° (the disk's diameter), `rotation` `[-16.2856, 43.7319, 112.3607]` (pitch, yaw, roll in degrees; the yaw turns about +y, a negative pitch shines down), `shadowDistance` 200 m, `castShadow`, `shadowsAir` and `shadowsClouds` on, `shaftOcclusion` on. These are the values of the sun the level's template places, not the directional light's own defaults (10 lux, a disk of 0.5357°, shadows to 400 m, no temperature, no shadow on the air or the clouds); a field the template leaves alone has the light's default. A directional light you add yourself (`light.directional(...)`) has the light's own defaults, so its disk is 0.5357° wide, the sun part's 0.7357°. |
+| `skyLight`   | The sky's light on the scene, captured from the air and the clouds.                                         | `realTimeCapture` on, `mobility: 'movable'`, `lowerHemisphereIsSolidColor` off; the other fields the component's.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `heightFog`  | Fog thinning out with height ([Height fog part](#height-fog-part)); its volume is its `volumetric` setting. | `baseDensity` 0.00436 per metre (0.0436 in the reference's centimetre numbers) at `baseHeight` −68.5 m; the other fields as below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `clouds`     | One layer of clouds, ray marched from the eye ([Clouds part](#clouds-part)).                                | The layer's and the material's defaults. The four sample scales are 1 (`viewSamplesScale`, `reflectionSamplesScale`, `shadowSamplesScale`, `reflectionShadowSamplesScale`): at a scale of 1 a view ray takes 96 samples and a shadow ray 10, held to the sky quality's most (`cloudViewSamplesMax` 768, `cloudReflectionSamplesMax` 80, `cloudShadowSamplesMax` 80, `cloudReflectionShadowSamplesMax` 24).                                                                                                                                                                                                                                                                                                                                                        |
 
 The sun's own fields are a light's (`intensity`, `color`, `useTemperature`, `temperatureKelvin`,
-`angle`, `rotation`, `shadowDistance`, `castShadow`, `shadowsAir`, `shadowsFog`, `fogScattering`,
-`atmosphereSunIndex`, `transmittancePerPixel`, `sunDiskTint`), its light shafts' (`shaftOcclusion`,
+`angle`, `rotation`, `shadowDistance`, `castShadow`, `distanceFieldShadows` (off, as the level's sun has
+it, the light's own is on) at `distanceFieldShadowDistance` 300 m (the light's own is 512), `shadowsAir`, `shadowsFog`, `fogScattering`,
+`atmosphereSunIndex`, `forwardShadingPriority`, `transmittancePerPixel`, `sunDiskTint`), its light shafts' (`shaftOcclusion`,
 `shaftOcclusionDarkness`, `shaftOcclusionDepthRange`, `shaftOverrideDirection`, `shaftBloom`,
 `shaftBloomScale`, `shaftBloomThreshold`, `shaftBloomMaxBrightness`, `shaftBloomTint`) and its cloud
 shadow map's (`shadowsClouds`: the cloud march reads the sun's opaque shadow map, only for the air's
@@ -1074,6 +1948,22 @@ first light; `castCloudShadows`, `cloudShadowStrength`, `cloudShadowOnAtmosphere
 module's lights hang from no scene and are never saved: a directional light of the scene competes
 with the sun by the air's rule (the brightest of each index is held). There is one sky light, the
 part's: where a scene is made to hold more, the last shown lights it, the others give nothing.
+
+**Cloud ambient occlusion.** Under thick clouds the sky's multiple scattering (the light the air scatters more than once, which lights the sky and the haze from every side) fades out. The sky light part asks for it with five fields: `cloudAmbientOcclusion` (default `false`: nothing is built), `cloudAmbientOcclusionStrength` (default 1, at least 0: how much light the clouds block), `cloudAmbientOcclusionExtentKm` (default 150, at least 1: the radius round the camera the map covers), `cloudAmbientOcclusionMapResolutionScale` (default 1, at least 0.25: the factor on a map of 512 texels a side) and `cloudAmbientOcclusionApertureScale` (default 0.05, from 0 to 1: the cone round the vertical over which the occlusion is integrated, 0 one direction and a sharp occlusion, 1 the whole hemisphere and a blurry one). A map is built from above along the planet's vertical, round the point under the camera, and the air reads it wherever it marches the sky: the sky, the haze over the distance, the haze marched on the opaque surfaces and on the clouds, and the sky light's own capture; it dims the multiple scattering of the air's first light there (the second light's is not dimmed). It does not dim the sky light's own diffuse and specular light on the surfaces: the capture is of the sky as the air makes it, the occlusion is in the air.
+
+The sky quality settings that shape the map are `cloudSkyAO` (default on: the switch of the pass), `cloudSkyAOResolutionMax` (2048: the largest side), `cloudSkyAOTraceSamples` (10: the samples a ray of the map takes through the layer), `cloudSkyAOFiltering` (on: the map is dilated and smoothed, integrated over the hemisphere above each texel) and `cloudSkyAOSnapKm` (20: the length, in kilometres, its position is snapped to, so that it does not flicker; 0 or less is read as 0.1 m, the map then following every step of the camera). No quality level writes any of them. The map is made only while a clouds part is followed and the sky light asks; a scene with no clouds, or whose sky light leaves the flag off, pays nothing.
+
+```js
+world.scene.sky = {
+  atmosphere: true,
+  sun: { castCloudShadows: true },
+  skyLight: { cloudAmbientOcclusion: true, cloudAmbientOcclusionStrength: 0.8 },
+  clouds: true,
+}
+world.skyQuality = { cloudSkyAOResolutionMax: 1024, cloudSkyAOFiltering: false } // a smaller, unfiltered map
+world.skyQuality = { cloudSkyAO: false } // the pass off, whatever the sky light asks
+world.skyQuality = { cloudSkyAOSnapKm: 5 } // the map's place snapped to 5 km
+```
 
 The sun's light shafts are the light's own: `shaftOcclusion` is on for the sun and off for any other
 light, and the same nine fields are a light's below. For the sun they are written the same way:
@@ -1089,6 +1979,78 @@ world.modules.set('sky', {
 })
 ```
 
+**The presets.** `world.quality.preset` is one of `smooth`, `balanced`, `fine`, `max` and `cinematic`, or
+`auto`, and a group is set to a level of the same names (`world.quality.set(group, level)`). `auto` is
+the default: the hardware benchmark picks each group's level for the machine, and a preset or a group the
+page names wins. `max`, the top level, writes nothing: the settings' defaults are the reference's fourth level. `cinematic` is the fifth,
+above it: each group writes the reference's fifth-row values for the settings the engine has. A value the
+page sets holds over any preset.
+
+**The hardware benchmark.** `world.quality.benchmark(options)`
+runs the benchmark, keeps its result in the origin's local storage (when the page grants it) for this GPU
+adapter, and draws it: the preset becomes `auto`. A world under `auto` (the default, or `quality: { preset: 'auto' }`, or set
+to it later) draws the result kept for its adapter when there is one; where none is kept it draws `max`,
+runs the benchmark once when the page is idle (never inside a frame), keeps the result for the adapter and
+draws it. A page that names a preset runs nothing. A
+result kept for another adapter, or by an older engine, is not read. The run first waits for the world's
+device to finish its work; the processor tests run in a worker (where the page refuses it they are left out
+and `cpuIndex` is `null`, which no level reads), the graphics tests on a WebGPU device of their own; a frame
+the world draws meanwhile shares the GPU with them, so a page asks it while the view is still. Disposing the
+world stops a run. It measures two processor tests (segments against a triangle, a fractal) and seven
+graphics tests (arithmetic, texture reads, dependent reads, fill, bandwidth, two vertex tests) timed by the
+GPU timestamps, each against the time of the machine whose index is 100, into a processor index and a
+graphics index. A browser that rounds its timestamps (to 100 µs without a developer switch) is found by the
+step of its stamps, and the graphics work is multiplied by that step in microseconds (at most 1000), so a
+step weighs on each pass as the reference's microsecond does. A group reads the graphics index against
+three thresholds; the groups marked `min` read the lower of the processor and graphics indices
+(a run with no processor index reads the graphics one):
+
+| Group           | Index    | Thresholds of levels 1, 2 and 3 |
+| --------------- | -------- | ------------------------------- |
+| `viewDistance`  | min      | 18, 42, 105                     |
+| `shadows`       | min      | 18, 42, 105                     |
+| `effects`       | min      | 18, 42, 105                     |
+| `edgeSmoothing` | graphics | 18, 42, 115                     |
+| `indirectLight` | graphics | 18, 42, 115                     |
+| `imageEffects`  | graphics | 18, 42, 115                     |
+| `textures`      | graphics | 18, 42, 115                     |
+
+Levels 0 to 3 are `smooth` to `max`: the benchmark never chooses `cinematic`. The benchmark gives levels only: the resolution stays the page's
+`renderScale` or `quality.resolution`, else the display-based default. A device
+without GPU timestamps, or a test left unmeasured, gives no graphics index: every group stays at `max`. A
+preset or a group the page names after wins over the benchmark's levels.
+
+`world.quality.hardware` reads the result (`null` before one): `cpuIndex`, `gpuIndex`, each test's own
+index (`cpuSteps`, `gpuSteps`), `workScale`, `gpuWorkScale` (the work the graphics tests ran at),
+`gpuMultiplier`, and what they give, `groups`. The `options` of `benchmark` are `workScale`,
+a whole number from 1 to 1000 (10: ten runs of each processor test, the graphics passes at ten times their
+base work, a few seconds of the device's work), `cpuMultiplier` and `gpuMultiplier` (1: factors of the two
+indices).
+
+```js
+const world = createWorld('viewer') // auto: the result kept, else one run at idle, max until then
+const found = await world.quality.benchmark() // measured now, kept for this adapter, drawn
+console.log(found.groups) // { viewDistance: 'fine', edgeSmoothing: 'max', … }
+world.quality.preset = 'max' // the page's preset wins
+```
+
+- `viewDistance`: `cutViewDistanceScale` 10.
+- `edgeSmoothing`: `antialiasing: 'max'`.
+- `shadows`: `shadowDistanceScale` 1, `shadowNearLevels` 10, `shadowOverlapScale` 1, `shadowFarField` on,
+  `shadowMaxResolution` 4096, `shadowRadiusThreshold` 0, `shadowResolutionLodBiasLocalMoving` 0,
+  `shadowRayCountDirectional` and `shadowRayCountLocal` 16 (the most a lane holds),
+  `shadowSamplesPerRayDirectional` and `shadowSamplesPerRayLocal` 8, `shadowMaxPhysicalPages` 8192 (a pool
+  of 8192 pages needs a device whose binding holds 512 MiB; a device that holds less draws the largest pool that fits), `volumetricFogQuality` `'ultra'`.
+- `imageEffects`: `motionBlurQuality` `'veryHigh'` with the full-size gather, `bloomQuality` `'highest'` and
+  `bloomScreenPercentage` 100, `gaussianFastBlurThreshold` 100, the depth of field's gather at the full size
+  with 5 rings and the diaphragm's shape, `depthOfFieldScatterMaxRatio` 0.25, `depthOfFieldRecombine`
+  `'high'` with `depthOfFieldRecombineBokeh`, `ambientOcclusionHorizonAngles` 4, `lutSize` 64, `lutShaper`
+  `'pq'`, `lightShafts` on.
+- `indirectLight`: `screenProbes` `'cinematic'`, `reflectionQuality` `'cinematic'`, `skyLightIntensityScale` 1.
+- `effects`: the atmosphere's eleven settings, the sky and the haze on the surfaces marched (the table of
+  the air's settings below).
+- `textures`: nothing, as at every level: the group has no wired setting.
+
 The quality presets and the sky's quality settings reach the module through the effects and shadows
 groups, as they reach the rest of the image:
 
@@ -1098,10 +2060,28 @@ world.skyQuality = { cloudShadowMap: false, lightShafts: false } // switch two p
 world.skyQuality = { cloudShadowMap: null } // given back to the preset
 ```
 
+The settings are read again at each image: a change reaches the sky light's capture, the clouds and their shadow maps in the image that follows, and rebuilds only what it needs (a program, a target's size). `cloudsOn: false` takes the clouds out of the view, of the sky light's capture and of their shadow maps; `cloudShadowMap: false` stops the shadow map passes; a preset writes the settings its level names and leaves the others as the page wrote them. The sky settings the levels write, besides the atmosphere's eleven (`SKY_PRESET_LEVELS.effects`):
+
+| Preset      | `lightShafts`    | `skyLightIntensityScale` |
+| ----------- | ---------------- | ------------------------ |
+| `smooth`    | off              | 0.8                      |
+| `balanced`  | off              | 1                        |
+| `fine`      | on               | 1                        |
+| `max`       | the default (on) | 1                        |
+| `cinematic` | on               | 1                        |
+
+No quality level writes a cloud setting.
+
+```js
+world.skyQuality = { cloudsOn: false } // no clouds in the view, the capture or the shadow maps
+world.skyQuality = { cloudsOn: null } // given back to the preset
+world.skyQuality = { skyLightIntensityScale: 0.5 } // a dimmer sky light, at once
+```
+
 A scene saved before the module (`formatVersion` 2) moves its `atmosphere`, its `fog` and its sky
 light node into the module's parts once, when it is read; each part keeps the fields it had, the
 fog the numbers it had by default and not the level's, and the sun and the clouds, which that scene
-never had, are off. A scene is saved with its `sky` word (`formatVersion` 3).
+never had, are off. A scene is saved with its `sky` word (`formatVersion` 3 and after).
 
 ### Height fog part
 
@@ -1117,25 +2097,63 @@ world.scene.sky = { heightFog: { color, density: 0.02 } } // Exponential: unifor
 world.scene.sky = { heightFog: { color, density: 0.02, heightFalloff: 0.15, baseHeight: 0 } } // Extinction form.
 world.scene.sky = { heightFog: true } // Height fog at the level's numbers.
 world.scene.sky = { heightFog: { baseDensity: 0.004, falloff: 0.03, maxOpacity: 0.8 } } // Height fog.
-world.scene.sky = { heightFog: false } // No fog.
+world.scene.sky = { heightFog: false } // Every part but the height fog: no fog.
 ```
 
-The height fog's own fields are the reference's numbers in metres, each with its default (those of
-the table, but `baseDensity` and `baseHeight`, which the level sets as above); the law
+The height fog's own fields are the reference's numbers in metres, each with its default, those of the
+table: the defaults of a fog a scene declares itself (`SceneEnvironment.fog`), where `{}` is that fog.
+Inside the sky word, `heightFog: true` and `{}` are another object, the fog the level places: a
+`baseDensity` of 0.00436 per metre (0.0436 in the reference's centimetre numbers) at a `baseHeight` of
+−68.5 m, over the table's defaults for every other field. A part that names a field keeps the level's
+others, as the fog placed keeps its place when its density is edited: `{ baseDensity: 0.002 }` is the
+table's density at the level's base height, not the fog `{}` of a scene's own declaration. The law
 is [ENGINE.md](ENGINE.md#fog). A reference number in centimetres converts exactly: a density or
 falloff is divided by 10 (they are per 1000 centimetres), a distance by 100.
 
-| Field             | Default                                                 | Meaning (the reference's number → ours)                                                                                                                                |
-| ----------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `color`           | black                                                   | The light the fog scatters by itself, linear RGB. With an atmosphere the sky's light is added to it.                                                                   |
-| `baseDensity`     | `0.002`                                                 | Density at `baseHeight`, per metre, ≥ 0 (its `0.02` ÷ 10).                                                                                                             |
-| `falloff`         | `0.02`                                                  | Per metre, ≥ 0: the density halves every `1 / falloff` metres up, 50 m (its `0.2` ÷ 10).                                                                               |
-| `baseHeight`      | `0`                                                     | The height the density is `baseDensity` at, metres.                                                                                                                    |
-| `maxOpacity`      | `1`                                                     | The most of a surface's light the fog may hide, in [0, 1].                                                                                                             |
-| `startDistance`   | `0`                                                     | Metres from the eye where the fog starts, ≥ 0.                                                                                                                         |
-| `cutoffDistance`  | `0`                                                     | Metres from the eye past which there is no fog, ≥ 0; 0 none.                                                                                                           |
-| `directional`     | `{ exponent: 4, startDistance: 100, color: [0, 0, 0] }` | The sun's lobe: sharpness `exponent` > 0, metres before the sun's light is scattered (its `10 000` ÷ 100), the luminance scattered toward the sun times the sun's own. |
-| `skyContribution` | `[1, 1, 1]`                                             | The factor of the atmosphere's sky radiance the fog takes on, per channel, ≥ 0.                                                                                        |
+| Field                  | Default                                                 | Meaning (the reference's number → ours)                                                                                                                                |
+| ---------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `color`                | black                                                   | The light the fog scatters by itself, linear RGB. With an atmosphere the sky's light is added to it.                                                                   |
+| `baseDensity`          | `0.002`                                                 | Density at `baseHeight`, per metre, ≥ 0 (its `0.02` ÷ 10).                                                                                                             |
+| `falloff`              | `0.02`                                                  | Per metre, ≥ 0: the density halves every `1 / falloff` metres up, 50 m (its `0.2` ÷ 10).                                                                               |
+| `baseHeight`           | `0`                                                     | The height the density is `baseDensity` at, metres.                                                                                                                    |
+| `maxOpacity`           | `1`                                                     | The most of a surface's light the fog may hide, in [0, 1].                                                                                                             |
+| `startDistance`        | `0`                                                     | Metres from the eye where the fog starts, ≥ 0.                                                                                                                         |
+| `cutoffDistance`       | `0`                                                     | Metres from the eye past which there is no fog, ≥ 0; 0 none.                                                                                                           |
+| `directional`          | `{ exponent: 4, startDistance: 100, color: [0, 0, 0] }` | The sun's lobe: sharpness `exponent` > 0, metres before the sun's light is scattered (its `10 000` ÷ 100), the luminance scattered toward the sun times the sun's own. |
+| `skyContribution`      | `[1, 1, 1]`                                             | The factor of the atmosphere's sky radiance the fog takes on, per channel, ≥ 0.                                                                                        |
+| `inMainView`           | `true`                                                  | Whether the views the page draws show the fog.                                                                                                                         |
+| `inSkyCapture`         | `true`                                                  | Whether the distant fog is laid over the sky of the sky light's real-time capture, and so lights the scene through it.                                                 |
+| `inReflectionCaptures` | `true`                                                  | Whether the scene the sky light captures from its own place (its `capturedScene` source) shows the fog.                                                                |
+| `holdout`              | `false`                                                 | Whether the fog holds its light out: it draws black and punches a hole in the image's alpha by its coverage. Takes effect with the alpha holdout (`primitiveAlphaHoldout`, `propagateAlpha`).|
+| `skyLightScattering`   | `{ strength: 0, roughness: 0.15 }`                      | The sky light's capture as a light of the fog's in-scattering: `strength` from 0, `roughness` in [0, 1]. Read only where the run's `fogReadsSkyLight` is on.           |
+
+Three switches say where the fog is drawn, each on by default: `inMainView` the views the page draws (the camera's
+and the extra views of the page), `inSkyCapture` the sky light's real-time capture, `inReflectionCaptures` the scene
+the sky light captures from its own place. A view that does not show the fog draws none of it — the analytic fog, its
+volume and the reflections' rays are all unfogged — while the atmosphere's haze and the local fog volumes, other
+components, stay (the atmosphere has its own `inMainView`). A fog that holds out (`holdout`) adds no light and lays its
+coverage on the image's alpha instead (the film settings `primitiveAlphaHoldout` and `propagateAlpha`).
+
+```js
+world.scene.sky = { heightFog: { inMainView: false } } // the fog lights the scene through the sky light's capture, but is not seen
+world.scene.sky = { heightFog: { inSkyCapture: false } } // the distant fog does not reach the sky light
+world.scene.sky = { heightFog: { holdout: true } } // with the alpha holdout on: the fog is a hole in the alpha
+```
+
+`skyLightScattering` lets the sky light's capture light the fog: the fog's in-scattering colour is mixed toward the
+filtered cube read along the ray, at the mip the `roughness` names, times the light's colour, by the `strength`; the
+sun's lobe fades by the same share, and the fog's own cubemap is not read while the strength is above 0. It applies in
+a view with sky lighting and a ready cube, never in the capture itself (it would read what it writes), and only where
+the project switch `fogReadsSkyLight` (off by default, a setting of the volumetric fog, `world.volumetricFog…`) is on; with the
+strength at 0 nothing is read. The local fog volumes and the fog's volume are not lit this way.
+
+```js
+world.fogReadsSkyLight = true // the project switch, off by default
+world.scene.sky = {
+  skyLight: true,
+  heightFog: { skyLightScattering: { strength: 0.5, roughness: 0.15 } },
+}
+```
 
 With the atmosphere part on, the default fog is coloured by the sky and scatters the sun's light: a
 `heightFog` over the `atmosphere` part and a sun is the reference's default fog. A
@@ -1216,28 +2234,151 @@ world.volumetricFogVoxelizationShowOnlyPass = 1 // only the second pass of each 
 world.volumetricFogVoxelizationShowOnlyPass = -1 // back to all of them
 ```
 
+#### Local fog volumes
+
+A local fog volume is a sphere of fog placed in the scene, the way a light is: the fog an author puts
+in a doorway, a valley or a room. It is not the object of the section above (`addFogVolume`, a box or
+a sphere voxelised into the fog's volume with a material of its own): a local fog volume is a medium
+with its own law, drawn over the scene's fog whether the scene has a fog or not, and, where the scene's
+fog has a volume, voxelised into it too.
+
+Its medium thins out two ways at once: radially, densest at the sphere's centre and nothing at its
+surface, and with height along the sphere's own up. What a ray crosses of it is the two laws'
+coverages multiplied (one minus the transmittance of each), so that the soft edge of the sphere and
+the layering of the height show together; a volume with either extinction at 0 shows nothing. It is
+lit by the sun (the directional light the forward readers take) and by the sky light, scatters by its
+albedo, and gives off its own emissive light.
+
+```js
+session.addLocalFogVolume({
+  id: 'valley',
+  // Its place: sixteen numbers, column-major, metres. The origin is the sphere's centre, the second
+  // column its up, the largest column's length its scale (a radius of 5 m times it).
+  matrix: [3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 0, 40, 1, -25, 1],
+  radialDensity: 0.6,
+  heightDensity: 1.2,
+  heightFalloff: 300,
+  albedo: [0.9, 0.95, 1],
+  emissive: [0.02, 0.03, 0.05],
+  startDistance: 20,
+  sortPriority: 1,
+})
+session.setLocalFogVolume('valley', { radialDensity: 0.9 }) // the fields named replace the volume's own
+session.localFogVolumes() // detached copies, in the order they were added
+session.removeLocalFogVolume('valley')
+```
+
+| Field                    | Default  | Meaning                                                                                                                                                                                                                                                            |
+| ------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                     | —        | Its name, unique among the local fog volumes.                                                                                                                                                                                                                      |
+| `matrix`                 | identity | Sixteen numbers, column-major, its own space to the world's, metres. The sphere's radius is 5 m times the largest of the columns' lengths; its second column is the up the height law is measured along (the world's up is +y); shear and reflection are left out. |
+| `radialDensity`          | `1`      | The extinction of the radial fog at the sphere's centre, per metre, ≥ 0 (held to it).                                                                                                                                                                              |
+| `heightDensity`          | `1`      | The extinction of the height fog at the sphere's height 0, per metre, ≥ 0 (held to it).                                                                                                                                                                            |
+| `heightFalloff`          | `1000`   | How fast the height fog thins out, ≥ 1 (held to it): the density is `heightDensity · e^(−falloff / 100 · h)`, `h` the height in the sphere's radii.                                                                                                                |
+| `heightOffset`           | `0`      | The height, in radii, the height fog's density is `heightDensity` at.                                                                                                                                                                                              |
+| `scatteringDistribution` | `0.2`    | The phase function's `g`, in [0, 0.999] (held to it): 0 scatters equally every way, nearer 1 toward where the light goes.                                                                                                                                          |
+| `albedo`                 | white    | The share of the light each channel scatters, in [0, 1] (held to it).                                                                                                                                                                                              |
+| `emissive`               | black    | The light the medium gives off, a luminance, ≥ 0 per channel (held to it); it follows the medium's coverage.                                                                                                                                                       |
+| `startDistance`          | `0`      | Metres from the eye before which the volume does not show, ≥ 0 (held to it); the run's `localFogVolumeStartDistance` holds it above that.                                                                                                                          |
+| `sortPriority`           | `0`      | A whole number in [-127, 127] (held to it): a volume of a lower priority is drawn behind one of a higher, whatever their distance; equal priorities go farthest first.                                                                                             |
+
+The numbers are the reference's, in this engine's units: the reference writes distances in
+centimetres and densities per centimetre, here a start distance, the radius (5 m times the scale), the
+density cap and every extinction are metres and per metre, and the height axis is the matrix's second
+column in a world whose up is +y. A name already held is refused (`DUPLICATE_SCENE_LOCAL_FOG_VOLUME`),
+an unknown one (`UNKNOWN_SCENE_LOCAL_FOG_VOLUME`), a field that is `null` or not a finite number, a
+colour of three or a matrix of sixteen whose columns have a length (`INVALID_SCENE_LOCAL_FOG_VOLUME`).
+Like the lights and the objects of the volume, local fog volumes are declared at run time and are not
+part of a saved world; they can be declared whatever the settings below say, even with the project
+switch off, and then are never drawn.
+
+Nine settings, those of the volumetric fog (`world.volumetricFog…`, `setVolumetricFog`), say how they are
+drawn; the first is the project's, read once when the session opens:
+
+| Setting                          | Default | Meaning                                                                                                                                                                                                                                                                                           |
+| -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `localFogVolumeSupport`          | `true`  | The project switch of the local fog volumes, read once when the session opens (changing it later changes nothing). Off, no program holds any of their code, not the sky light's capture's either, and no pass, buffer or block is made for them; they can still be declared, and are never drawn. |
+| `localFogVolumes`                | `true`  | Whether the local fog volumes are drawn.                                                                                                                                                                                                                                                          |
+| `localFogVolumeInVolume`         | `true`  | Whether they are voxelised into the fog's volume where the scene's fog has one — the analytic law then draws only what lies past the volume's far end, and they lie under the volume's light. Off, the analytic law draws them whole, over the finished fog, the volume's light too.              |
+| `localFogVolumeMaxVolumeDensity` | `1`     | The most extinction, per metre, a volume gives a cell of the fog's volume: its height law grows steepest at its bottom, and a dense cell makes the volume's history leak. 0 or more (held to it).                                                                                                 |
+| `localFogVolumeStartDistance`    | `10`    | Metres from the eye before which no local fog volume shows, whatever its own start distance; held to at least 0.1.                                                                                                                                                                                |
+| `localFogVolumeMaxCount`         | `32`    | The most volumes a view draws, the farthest and the lowest in priority dropped; held to 1…256.                                                                                                                                                                                                    |
+| `localFogVolumeTileSize`         | `128`   | The side, in pixels, of the tiles of the screen the volumes are culled by: each tile keeps the list of the volumes over it, and a pixel or a cell of the fog's volume walks its tile's list alone. Held to 8…512; the lists are made for the tile grid the view cuts, whatever its size.          |
+| `localFogVolumeUsesDepthPyramid` | `true`  | Whether a tile's list drops a volume that lies wholly behind the surfaces the depth pyramid holds over it, so that no pixel walks a volume it cannot show. Off, or where the image has no pyramid, the tile's frustum alone culls.                                                                |
+| `localFogVolumeOnTranslucent`    | `false` | Whether translucent surfaces are fogged by them too; off, they are fogged by the scene's fog alone.                                                                                                                                                                                               |
+
+```js
+world.localFogVolumes = false // draw none of them, whatever the scene declares
+world.localFogVolumeInVolume = false // keep them out of the fog's volume: drawn whole, over its light
+world.localFogVolumeMaxVolumeDensity = 0.5 // no cell of the fog's volume takes more than 0.5 per metre of them
+world.localFogVolumeStartDistance = 5 // the volumes show from five metres
+world.localFogVolumeMaxCount = 64 // a view draws up to 64, the nearest and the highest in priority
+world.localFogVolumeOnTranslucent = true // glass in the valley's fog is fogged by it too
+world.localFogVolumeTileSize = 64 // smaller tiles: shorter lists, more tiles to cull (never fewer than 8 pixels)
+world.localFogVolumeUsesDepthPyramid = false // cull by the tile's frustum alone
+```
+
+```js
+// The project switch is the session's, read once when it opens: off, no program holds any of the
+// local fog volumes' code. A session that draws none of them is made so.
+const world = createWorld('viewer', { localFogVolumeSupport: false }) // the project switch, at the session's opening
+```
+
+The tiles and their lists are the engine's: the view is cut into square tiles, and before the fog is
+laid one pass writes, for each, the volumes that can show over it (the sphere not wholly outside the
+tile's frustum, and, with `localFogVolumeUsesDepthPyramid`, not wholly behind the surfaces of the depth
+pyramid over its footprint). The image is the same as without the lists; the cost is per volume over a
+pixel's tile, not per volume the view draws. The lists live in a buffer made for the tile grid, only
+while a view draws a volume, and it counts in the bytes of that view's targets (`metrics.views`). The
+culling runs with the frame's other passes — it has no queue of its own to set — and no view of each
+tile's count of volumes is offered. The tile side asked for is never changed. Three diagnostics tell
+what the engine could not do, none of them stops the volumes being drawn:
+
+| Diagnostic                  | Meaning and what to do                                                                                                                                                                                   |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fog-local-tiles-too-large` | The lists for the tile grid would not fit a storage buffer of the device, so the view is not tiled and every pixel walks every volume of the view. Raise `localFogVolumeTileSize`; said once for a size. |
+| `fog-local-cull-failed`     | The culling pass did not compile: the same, untiled, until it does.                                                                                                                                      |
+| `fog-local-sky-failed`      | The pass that gives the volumes the sky light's term did not compile: the term stays black, the sun and the volume's own light are drawn.                                                                |
+
 ### Atmosphere part
 
 The `atmosphere` part fills the sky, hazes the distance and tints the sun's light through the
 air of a planet whose ground is the scene's plane `y = 0`. `true` is an Earth-like atmosphere, an
 object sets any field over those defaults — planet radius and air thickness in kilometres,
-scattering and absorption coefficients per kilometre, the ground's height in scene metres:
+scattering and absorption coefficients per kilometre, the ground's height in scene metres
+(`groundHeight`) and where its top stands on that plane (`groundPosition`, `[x, z]` in metres, `[0, 0]`
+by default):
 
 ```js
-world.scene.sky = { atmosphere: true } // the air alone: no sun, no clouds
+world.scene.sky = { atmosphere: true } // the whole level: a part not named stays on
+world.scene.sky = { sun: false, skyLight: false, heightFog: false, clouds: false } // the air alone
 world.scene.sky = {
   atmosphere: { planetRadius: 6360, height: 60, mieAnisotropy: 0.8, groundHeight: 0 },
 }
-world.scene.sky = { atmosphere: true, sun: { intensity: 10 }, skyLight: true } // the air, a sun, the sky's light
-world.scene.sky = { atmosphere: false } // no atmosphere
+// A city 50 km from the world's origin: the planet's top under it, so the horizon curves from there
+world.scene.sky = {
+  atmosphere: { groundHeight: 120, groundPosition: [50_000, -12_000] },
+}
+world.scene.sky = { sun: { intensity: 10 }, heightFog: false, clouds: false } // the air, a sun, the sky's light
+world.scene.sky = { atmosphere: false } // every part but the air
+world.scene.sky = { atmosphere: { inMainView: false } } // the air lights the world but is not drawn in the view
+world.scene.sky = { atmosphere: { holdout: true } } // with the alpha holdout on: the sky and its haze draw black and are a hole in the alpha
 ```
+
+`inMainView` (on) says whether the sky, the sun's disk and the haze on the surfaces and the clouds are
+drawn in the view the camera sees. Off, none is: the sky is black, the fog alone over it, and nothing is
+hazed, while the sun's light tinted by the air and what the sky light captures of the air are as they
+are.
+`holdout` (off) makes the air hold its light out where the alpha holdout is in effect (the film settings
+`primitiveAlphaHoldout` and `propagateAlpha`): the sky draws black with the coverage of its air, which is laid on
+the image's alpha as a hole, and the haze on the surfaces and the clouds adds no light, dimming what lies behind it all the same.
 
 The sun is the brightest directional light of index 0 (the second light is below), its colour times
 its intensity weighed by the eye's sensitivity to each channel, held as lights are added and removed (with an atmosphere or none): a
 light added replaces it only if brighter, and the sun removed gives its place to the brightest of
 the others, the first added of equals; `atmosphereSun: false` leaves one out. Where it is on,
 `background` is not shown, and the `skyLight` part lights the scene from the sky (without an
-atmosphere, from the background colour; `lowerHemisphereColor`, black, from below). The bounce is on by default
+atmosphere, from the background colour; below the horizon the sky itself, unless `lowerHemisphereIsSolidColor` is `true` (off by default, as in a new level's sky light): then `lowerHemisphereColor`, black, replaces it, `lowerHemisphereCoverage`, 1 by default, from 0 to 1, being the colour's alpha: how much of the colour replaces the sky and the clouds below the horizon, the rest of them showing through). The bounce is on by default
 (`world.bounce`, `false` turns it off): the sky light then reaches a surface only where the scene
 lets it — the street lit from above, the arcade dark — and a reflection that leaves the scene
 shows the sky; with the bounce off, the sky light lights every surface with the sky nothing hides.
@@ -1257,9 +2398,59 @@ world.scene.sky = {
 ```
 
 Its quality settings: `skyLightCaptureSupersample` (1, from 1 to 8) draws the faces larger and
-averages them down, `skyLightCaptureLodDistanceScale` (1) asks more detail of the scene in the faces,
-`skyLightCaptureReflections` (on) traces the scene's reflections in them. The model:
+averages them down, `skyLightCaptureLodDistanceScale` (1) asks more detail of the scene in the faces.
+The faces trace no reflection of the scene. The model:
 [sky light, captured scene](ENGINE.md#atmosphere-and-sky-light).
+
+```js
+world.scene.sky = {
+  skyLight: {
+    lowerHemisphereIsSolidColor: true,
+    lowerHemisphereColor: [0.05, 0.04, 0.03],
+    lowerHemisphereCoverage: 0.6,
+  }, // a ground that lets 40% of the sky's light through
+}
+```
+
+A sky light whose source is a specified cubemap (`realTimeCapture: false`, `sourceType: 'specifiedCubemap'`)
+lights the scene with a picture the part holds as data: `cubemap`, `{ size, texels }` — `size` texels
+across one face, from 1 to 1024, and `texels` the six faces in the order +x, −x, +y, −y, +z, −z of a cube
+texture looked up by the scene's own direction (+y up), each row by row from its top-left corner, three
+linear numbers ≥ 0 a texel (`6 · size² · 3` numbers; a typed array or an array). The data is not copied:
+it must not be written after it is set. A host that moves between two pictures (two times of the day)
+adds `cubemapBlend`, `{ destination: { size, texels }, fraction }`: the light reads the source mixed with
+the destination by `fraction`, 0 the source alone, 1 the destination alone, a value beyond held to them;
+write the part again to move the fraction. Saved worlds keep both (a typed array is saved as an array of
+its numbers). A malformed field is refused with `TypeError` naming it (`skyLight: cubemap.texels expects
+72 numbers, six faces of 2² texels`).
+
+```js
+const sky = new Float32Array(6 * 2 * 2 * 3).fill(0.4) // a 2×2 cube of one grey: the sky's radiance
+world.scene.sky = {
+  skyLight: {
+    realTimeCapture: false,
+    sourceType: 'specifiedCubemap',
+    sourceCubemapAngle: 90, // degrees about the vertical
+    cubemap: { size: 2, texels: sky },
+  },
+}
+// later, toward the evening cube
+world.scene.sky = {
+  skyLight: {
+    realTimeCapture: false,
+    sourceType: 'specifiedCubemap',
+    cubemap: { size: 2, texels: sky },
+    cubemapBlend: { destination: { size: 2, texels: evening }, fraction: 0.25 },
+  },
+}
+```
+
+Nothing is clamped: where the brightest texel of a picture passes what a half float holds (65504), the
+engine writes the whole picture times the scale that brings that texel to 65504 and gives the light the
+inverse, so a sun texel of 1e6 lights the scene as 1e6, on any device; the two cubes of a blend share one
+scale, the brighter one's, so that the mix is of two lights in one unit. A cube of a large side is written
+face by face over several images from one buffer, and is the light's once its six faces are written. The
+part's data is the one source of the cube: the engine has no second entry for a texture the host makes.
 
 The air holds two lights, a sun and a second one: a moon, or a second sun. Every directional light
 has an `atmosphereSunIndex`, `0` by default (`1` for the second light); of the lights that may light
@@ -1339,12 +2530,13 @@ sizes of the tables (`transmittanceWidth`, `transmittanceHeight`, `multiScatterW
 `multiScatterHeight`, `skyTableWidth`, `skyTableHeight`) and of the haze volume (`aerialWidth`,
 `aerialDepthSlices`, `aerialDepthKm`), the samples that build the transmittance and the
 multiple-scattering tables (`transmittanceSamples`, `multiScatterSamples`), and the switches
-`skyTableFast` (the sky read from its table, else every sky pixel marched), `aerialDepthTest`,
+`skyTableFast` (the sky read from its table, else every sky pixel marched), `aerialFastOnOpaque` (on; off, a pass over the lit image marches the haze of each opaque pixel from the eye to its depth, jittered by the blue noise and shaded by the shadow maps and the clouds, the translucent surfaces reading the volume either way), `aerialDepthTest`,
 `transmittanceTable`, `transmittanceSmallFormat` (the table in four 8-bit channels),
 `distantSkyLightTable` and `distantSkyLightAltitudeKm` (the fog's sky, made every image),
 `multiScatterHighQuality` (8 directions over the sphere), `skyTablesFullPrecision` (the haze
 volume in 32-bit floats) and `atmosphereSampleLightShadowMap` —, whose defaults are the reference's
-top level and which the `smooth`, `balanced` and `fine` presets set to its lower three:
+fourth level (`max`) and which the `smooth`, `balanced` and `fine` presets set to its lower three and the
+`cinematic` preset to its fifth:
 
 ```js
 world.quality.preset = 'fine' // the effects' level 2: 2 samples a slice, 64 samples at most
@@ -1353,19 +2545,233 @@ world.scene.sky = { atmosphere: { sampleCountScale: 2 } } // twice the samples, 
 world.skyQuality = { skyTableFast: null } // given back to the preset
 ```
 
+The `cinematic` preset is the fifth level of the effects group (`smooth`, `balanced`, `fine` and `max` are
+its levels 0 to 3): it marches every sky pixel and the haze on the opaque surfaces instead of reading their
+tables, and writes these values (`SKY_PRESET_LEVELS.effects.cinematic`):
+
+```js
+world.quality.preset = 'cinematic' // the same values, written by the level
+world.skyQuality = {
+  aerialSamplesPerSlice: 8,
+  aerialDepthSlices: 32,
+  skyTableFast: false, // every sky pixel is marched
+  aerialFastOnOpaque: false,
+  skyTableSamplesMin: 4,
+  skyTableSamplesMax: 256,
+  atmosphereSamplesMin: 8,
+  atmosphereSamplesMax: 256,
+  transmittanceSmallFormat: false,
+  transmittanceSamples: 30,
+  multiScatterSamples: 20,
+}
+```
+
+**Ranges.** `planetRadius`, `height`, `rayleighScaleHeight` and `mieScaleHeight` are above 0 (a `height`
+under 0.1 km is read as 0.1 km, the thinnest air), `mieAnisotropy` is between −1 and 1 (the bounds
+themselves are refused: at ±1 the phase function's denominator is 0 straight along the ray, so the open
+range is kept), `aerialPerspectiveStartDepth` is 0 or more, `multiScatteringFactor` is from 0 to 100 and
+`minSunElevation` from −90° to 90°. A value outside refuses with the range in its message; a world saved
+with an anisotropy of −0.3 or a radius of 12000 km loads and draws.
+
+**The planet's place.** The planet is a sphere under the plane `y = groundHeight`, its top at
+`groundPosition`; a planet that is to have its _centre_ at a place is given that place with a
+`groundHeight` its radius (in metres) over it. The three ways to place a planet (its top at the world's
+origin, its top at a place, its centre at a place) are this one setting.
+
+**The view from above the air.** An eye above the air (higher than `planetRadius + height`) is not
+brought down into it: the air is seen from outside, the planet's limb with its blue edge, the sun's disk
+through the air at the limb, the haze and the clouds along a ray from where it enters the air; a ray that
+never enters it sees black. An eye under the ground is held five metres over it. Under an orthographic
+camera the sky, the haze and the clouds are drawn as well, each pixel's ray starting at the pixel's own
+point ([the air under an orthographic camera](ENGINE.md#atmosphere-and-sky-light)).
+
 A field out of range is refused
 (`INVALID_SCENE_ENVIRONMENT`); to change a field, write `scene.sky` again.
 `SceneEnvironment.atmosphere` carries the same fields. The model:
 [atmosphere and sky light](ENGINE.md#atmosphere-and-sky-light).
 
+### Clouds part
+
+The `clouds` part is one layer of clouds ray marched from the eye: in the view, in its shadow maps and in
+the sky light's capture, whether or not the scene has an atmosphere. `true` is the level's layer; an
+object sets fields of the layer and of its material over the defaults of the [parts table](#sky-module).
+It is drawn while the sky quality's `cloudsOn` is on (the default), read again at each image. The wind
+drifts the clouds by the world's time, the clock the material graphs read: a paused world holds them
+still. Under an orthographic camera the layer is traced directly, a ray for each pixel.
+
+**Clouds with no atmosphere.** With none they stand on a planet of `planetRadiusKm` (6360 by default)
+under the plane `y = 0`: the sun and the second light's own illuminance reaches them (a transmittance of
+one), there is no haze on them and `sunTintPerSample` has no effect, and the distant sky light that lights
+them (`cloudDistantSkyLight`) is the sky light's own diffuse light, not read from an air. The lights of the
+air are packed for the clouds only while a clouds part is followed.
+
+```js
+world.scene.sky = { atmosphere: false, clouds: true, sun: true } // clouds over a planet with no air
+```
+
+**How the lights shade the cloud.** `rayMarchVolumeShadow` (default `true`) says how the cloud is shaded
+by the air's lights, in the view and in the sky light's capture. On, a ray is marched through the material
+from each sample toward each light (`shadowSamplesScale`, `shadowRayLengthKm`): the exact shade, dearer.
+Off, no ray is marched: each sample reads the clouds' shadow map of the light (the sky quality's
+`cloudShadowMap`, the light's `castCloudShadows` and `cloudShadowStrength`), its optical depth `d` letting
+`exp(-d)` of the light through for the first order of scattering and `exp(-d · e^n)` for the order `n`,
+`e` being `multiScatterOcclusion`. A light with no map (the setting off, the light not casting cloud
+shadows) then shades nothing. The programs are made for the choice, so changing it compiles them again
+once. What the shadow map serves besides, in both settings: the air's march (the sky, the haze, the
+distant sky light), the surfaces' direct light, the fog's light and the translucent surfaces; with the
+switch on, the cloud's own shade is marched and the map is not read by the cloud.
+
+```js
+// Cheaper clouds: read the shadow map instead of marching toward the sun.
+world.modules.set('sky', { clouds: { rayMarchVolumeShadow: false } })
+// The shadow map is then what shades the clouds, so keep it on and give the sun a map:
+world.skyQuality = { cloudShadowMap: true }
+```
+
+**The sky light on the underside.** `undersideSkyLoss` (0.5, from 0 to 1) is how much of the distant
+sky light the underside of a cloud loses where the cloud's material gives no occlusion of its own. The
+built-in material always gives one (`ambientOcclusion`, 0.5), so no cloud of it reads the setting.
+
+**The sun's shadow in the opaque scene.** `skyLightShadowFromOpaque` (off) acts on the clouds of the sky
+light's capture as well as on its sky: the clouds read the sun's shadow map where
+`cloudSampleLightShadowMap` is on and the first light of the air casts a shadow that is projected this
+image.
+
+**The settings.** `cloudShadowMapSpatialFiltering` (1, read from 0 to 4), `cloudShadowMapNewFrameWeight`
+(1, read from 0 to 1), `cloudLocalLightShadowSamples` (12, read from 0 to 128), `cloudRenderTargetScale`
+(1, read from 0.1 to 1) and `cloudEmptySpaceSkippingDepthKm` (40, read from 1) take any number and are
+read held to the range, as the console variables they come from are: 8 filter passes is 4, a weight of 2
+is 1. The sky occlusion map's settings (`cloudSkyAO`, `cloudSkyAOResolutionMax`, `cloudSkyAOTraceSamples`,
+`cloudSkyAOFiltering`, `cloudSkyAOSnapKm`) are in [the sky module](#sky-module). Removed, because nothing in
+the engine could read them: `lightShaftAfterDof` (the shafts are added to the lit image; the other image
+the switch could send them to, a translucency drawn apart, does not exist here), `skyLightDepthBuffer` (the
+capture draws no mesh, so its depth is the far everywhere and the switch changed no pixel), and the sky
+light's `indirectLightingIntensity`, `samplesPerPixel`, `affectReflection` and
+`affectGlobalIllumination` (the reference reads them in its ray-traced and path-traced lighting only). A
+scene or a call naming one is refused with the field's name.
+
+**The empty-space table.** `cloudEmptySpaceSkipping` (off) builds, before each view's tracing, a table of
+where the clouds start (32 × 32 texels over the view, `cloudEmptySpaceSkippingDepthKm` deep in 64 slices),
+and the march of a ray begins there; never in a reflection. `cloudEmptySpaceSkippingSliceBias` (0) moves
+the start by that many slices, −1 one slice toward the eye, and `cloudEmptySpaceSkippingCorners` (on)
+reads the corners of each cell as well as its centre. The built-in material leaves the table's input
+unconnected, and an unconnected input says matter is everywhere, so its table holds only the first
+slice's start moved by the bias (0 by default): the image is the one without the table, for the cost of
+the pass.
+
+```js
+world.skyQuality = { cloudEmptySpaceSkipping: true } // the table is built each image
+world.skyQuality = { cloudEmptySpaceSkippingSliceBias: 2, cloudEmptySpaceSkippingCorners: false }
+world.skyQuality = { cloudEmptySpaceSkipping: null } // given back to the preset
+```
+
+**On the translucent surfaces.** The clouds are composed over the lit image before the transparents are
+drawn, so a translucent surface behind a cloud would be drawn over it. Two things lay them right, both
+read per vertex:
+
+- `cloudShadowOnTranslucent` (a project switch, `false` by default, read once when the session opens):
+  the clouds' shadow maps also shade the translucent surfaces. The shade of the forward directional light
+  (below) is read from its clouds' shadow map at each vertex of a translucent surface and interpolated
+  over the triangle, so it costs a vertex a map read and a pixel nothing. It applies where the forward
+  light is one of the air's two lights that has a map this image: the sky quality's `cloudShadowMap` on
+  (the default), the light's `castCloudShadows` on (off by default) and its `cloudShadowOnSurfaceStrength`
+  above 0 (1 by default, the factor on how much of the shade the surfaces take). Like every run-time
+  setting it is advertised to the tools by `runtimeToolsSchema` (field `cloudShadowOnTranslucent`, the
+  "effects" quality group, no preset writes it) and held in the sky quality rules.
+- `cloudFog` (a material option, `false` by default): a see-through (`transparent`) surface that is
+  fogged (`fog` not `false`) receives the clouds in front of it as part of its fog — the cloud image is
+  laid over the fog of each vertex of the surface, faded in over `cloudSoftBlendingDistanceOnTranslucent`
+  kilometres from the cloud's front, so a surface behind a cloud is seen through it, not over it. A rough
+  approximation that helps where a translucent surface lies behind a cloud (a window seen through a cloud
+  bank, a particle sprite beyond a cloud); the surface needs the vertices to carry it, so a very large
+  triangle shows the cloud at its corners only. Setting it on a material of a scene changes its blended
+  programs, like `allowNegativeEmissive` changes the graph's.
+
+`cloudFogLateOnTranslucent` (off), with `cloudFogLate` on and a trace size that rebuilds the image
+(`'quarterToHalf'`, `'quarterToFull'`): the surfaces whose material has `cloudFog` read the cloud image
+with the fog already laid on it, which the rebuild writes as one more image of the rebuilt size; off,
+they read the image without the fog (the fog is laid on the clouds only when they are composed over the
+lit image), so a translucent surface behind a cloud can show with another fog than the cloud's.
+`cloudSoftBlendingDistanceOnTranslucent` (0.5), read from 0.0001, is the kilometres, from the cloud's
+front, over which the cloud fades in over a translucent surface behind it. Off, the programs that draw a
+translucent surface hold none of this code; with either on, they read both per vertex, the one that is
+off giving its neutral value.
+
+```js
+const world = createWorld('viewer', { cloudShadowOnTranslucent: true }) // the shade: a project switch
+// The sun has a cloud shadow map, and lets the surfaces take all of its shade:
+world.scene.sky = { clouds: true, sun: { castCloudShadows: true, cloudShadowOnSurfaceStrength: 1 } }
+// A glass pane in the scene now darkens under a cloud's shadow; at 0.5 it would take half of it:
+world.scene.sky = {
+  clouds: true,
+  sun: { castCloudShadows: true, cloudShadowOnSurfaceStrength: 0.5 },
+}
+
+const glass = material.meshStandard({
+  transparent: true,
+  opacity: 0.4,
+  cloudFog: true, // the clouds in front of the glass are laid over its fog
+})
+world.skyQuality = {
+  cloudFogLateOnTranslucent: true, // the image the translucent surfaces read has the fog on it
+  cloudSoftBlendingDistanceOnTranslucent: 1, // 1 km to fade a cloud in over a surface behind it
+}
+world.skyQuality = { cloudFogLateOnTranslucent: null } // given back to the preset
+```
+
+The model: [the clouds in the air and the sky light](ENGINE.md#atmosphere-and-sky-light) and
+[the transparent surfaces](ENGINE.md#transparent-surfaces).
+
 ### Declared lights
 
-Lights are added, changed and removed like any object. Each is a `SceneLight` (version 2): `point`
-and `spot` carry `position` and `range` in metres, `spot` also `direction` and a `coneAngle`
-half-angle; `directional` only `direction` (of propagation), refused with a `position`, `range` or
-`coneAngle`. All carry linear `color`, a positive radiometric `intensity` and `castsShadow`. A `directional` may
+Lights are added, changed and removed like any object. Each is a `SceneLight` (version 4): `point`
+and `spot` carry `position` and `range` in metres, `spot` also `direction`, an `outerConeAngle` and an
+`innerConeAngle`, half-angles in radians; `rect` carries `position`, `range`, the `direction` of its face's normal, its width axis
+`right` and its `size` (width, height; a side under 1 cm lights and casts as one of 1 cm, the light
+keeping what you declared); `directional` only `direction` (of propagation), refused with a
+`position`, `range` or a cone angle. All carry linear `color`, an `intensity` and
+`castsShadow`, a rectangle too. A `directional` may
 also carry `shadowDistance` ([A sun's shadow distance](#a-suns-shadow-distance-and-its-far-casters))
-and `atmosphereSunIndex` ([Atmosphere part](#atmosphere-part)), refused on any other kind.
+`atmosphereSunIndex` ([Atmosphere part](#atmosphere-part)) and `forwardShadingPriority` (below), refused
+on any other kind.
+
+**Intensity and its unit.** A `directional` light's `intensity` is in lux, `10` when it names none.
+A `point`, a `spot` and a `rect` write theirs in `intensityUnits` (the node form's `intensityUnits`,
+refused on a `directional`), one of five, `'unitless'` by default:
+
+| `intensityUnits` | What the number is                               | The light it gives                                                                                                                                                     |
+| ---------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `'candelas'`     | A luminous intensity.                            | The number, in candelas.                                                                                                                                               |
+| `'lumens'`       | A luminous flux.                                 | Spread over the solid angle it fills: a point's sphere (4π), a spot's cone (2π (1 − cos of its outer cone)), a rect's cosine lobe (π).                                 |
+| `'nits'`         | A luminance.                                     | Times the source's area: a point or spot's sphere or capsule, 4π r (r + length / 2) of its `emitterRadius` and `emitterLength` (none without a radius); a rect's face. |
+| `'ev'`           | An exposure value at ISO 100, any finite number. | 2 to that power, in candelas (a luminance over an implicit square metre).                                                                                              |
+| `'unitless'`     | The default scale.                               | 16 candelas for every 10 000.                                                                                                                                          |
+
+A lamp that names no `intensity` is the light a new one is placed with, `5000` unitless, written in
+its unit: 8 candelas, 8 × 4π ≈ 100.5 lumens for a point (8 × π ≈ 25.1 for a rect), an EV of
+`3` (log2 8) and 8 candelas over the source's area in nits. A `rect` lights by the radiance of its
+candelas over half its face's area; the node form's rectangle is 64 cm a side by default. A point or
+a spot taken off the inverse square (`inverseSquared: false`) takes its `intensity` as it is, a
+brightness in no unit: there it is at least 0 in any unit, and a default in EV or nits is `8`.
+Elsewhere the intensity is at least 0, but any number in EV. A point or spot in nits under the inverse
+square needs an `emitterRadius`: with no source it would give no light, and is refused
+(`INVALID_SCENE_LIGHT`). The node form (`light.point(…)`, `light.spot(…)`, `light.rectArea(…)`,
+`light.directional(…)`) has the same defaults; an ambient, hemisphere or probe light's `intensity`
+is `1`. A version-2 rect's intensity was its radiance: a radiance `L` is `L / 2` nits, which a saved
+scene of before version 4 is read as (one with no radiance is refused, `UNSUPPORTED_SCENE_FORMAT`).
+A lamp saved before version 5 that named no unit was in candelas, and is read as such.
+
+```js
+light.point({ position: [0, 3, 0] }) // 5000 unitless, 8 candelas
+light.spot({ intensity: 800, intensityUnits: 'lumens', position: [0, 3, 0] }) // 800 lumens through its cone
+world.addLight({
+  id: 'sun',
+  kind: 'directional',
+  color: [1, 1, 1],
+  direction: [0, -1, 0],
+  castsShadow: true,
+}) // 10 lux
+```
 
 Two options of every light say how the volumetric fog and the clouds take it, over the light on
 surfaces, which they never change: `fogScattering` (default `1`, `0` or more) is the factor on its
@@ -1384,7 +2790,120 @@ world.scene.sky = { skyLight: { volumetricScatteringIntensity: 0 } } // the fog 
 
 The same in the declared form: `world.addLight({ id: 'lamp', kind: 'point', ..., fogScattering: 0.5,
 shadowsFog: true })`; a negative `fogScattering` or a `shadowsFog` that is not a boolean is refused
-(`INVALID_SCENE_LIGHT`), and so is `shadowsFog: true` on a `rect`, which casts no shadow.
+(`INVALID_SCENE_LIGHT`). A `rect` takes `shadowsFog` as a point does, and refuses `emitterRadius`,
+`emitterLength`, `emitterSoftRadius` and `emitterAxis` (`INVALID_SCENE_LIGHT`): they describe the source
+of a point or a spot, a rectangle's source is its `size`.
+
+`transmission` (default `false`) makes a light shine through the subsurface-profile surfaces it shadows (their
+transmission: the light that crosses the thickness behind the lit side, ears, fingers, wax). It acts on a light
+that is `movable` and casts a shadow, and on no other: a stationary or static light has its shadow baked or held
+still, without the thickness the transmission needs. A saved world keeps a `transmission` that is on.
+
+```js
+const lamp = light.point({
+  intensity: 20,
+  position: [0, 3, 0],
+  distance: 12,
+  castShadow: true,
+  mobility: 'movable',
+})
+lamp.transmission = true // the profile surfaces it shadows glow where its light goes through them
+```
+
+The same in the declared form: `world.addLight({ id: 'lamp', kind: 'point', ..., mobility: 'movable', castsShadow: true, transmission: true })`;
+a `transmission` that is not a boolean is refused (`INVALID_SCENE_LIGHT`).
+
+Every light has a `mobility`: `'static'` (meant to be baked into the lightmaps: it neither moves nor changes
+and casts no dynamic shadow), `'stationary'` (it does not move, its colour and intensity may change; **the
+default of every light kind**) or `'movable'` (fully dynamic). Any other value is refused
+(`INVALID_SCENE_LIGHT`); a saved world keeps a mobility other than the default. The volumetric lightmap
+reads it to know which directional light's shadowing it holds (`mobilityOf(light)`, `scene/light/fields.ts`).
+
+```js
+const lamp = light.point({ intensity: 20, position: [0, 3, 0], distance: 12 })
+lamp.mobility = 'movable' // 'static' | 'stationary' (the default) | 'movable'
+world.addLight({
+  id: 'lamp2',
+  kind: 'point',
+  color: [1, 1, 1],
+  intensity: 20,
+  castsShadow: false,
+  position: [0, 3, 0],
+  range: 12,
+  mobility: 'static',
+})
+```
+
+A rectangle light casts a shadow like a point light: one cube of six faces centred on it, as far as
+its `range`. A surface behind the rectangle's plane is outside its shadow region (a surface exactly
+in the plane is in front: the rectangle lights it), and a surface turned away from it is not
+shadowed by it. Its penumbra is traced toward its centre through a cone whose radius is half its
+width; `shadowRayCountLocal` and `shadowSamplesPerRayLocal` set its rays and steps, as for any local
+light. The two forms of a light below are the same panel, 2 m by 1 m, three metres up, facing down, its
+shadow as deep as 12 metres (the node form's `distance` is the `range` of the declared one):
+
+```js
+const panel = light.rectArea({
+  width: 2,
+  height: 1,
+  intensity: 30,
+  position: [0, 3, 0],
+  distance: 12,
+  castShadow: true,
+})
+panel.rotation.x = -Math.PI / 2 // a node's face looks down its −z: turned to look down −y
+panel.shadowsFog = true // its shadow map also shadows the fog volume
+world.addLight({
+  id: 'panel',
+  kind: 'rect',
+  position: [0, 3, 0],
+  range: 12,
+  direction: [0, -1, 0],
+  right: [1, 0, 0],
+  size: [2, 1],
+  color: [1, 1, 1],
+  intensity: 30,
+  castsShadow: true,
+  shadowsFog: true,
+})
+```
+
+`shadowResolutionScale` (`1`, a number of 0 or more; a point, a spot or a rect; refused on a sun) is the factor on the
+resolution the light's shadow is given. It decides whether the light takes a shadow and how it fades with its size
+on the screen (see [Local lights' shadow gates](SHADOWS.md#local-lights-shadow-gates-and-distant-lights)): `0` takes the
+shadow away, a number above 1 keeps a far light's shadow longer, one below 1 lets it go sooner. A saved scene keeps it
+when it is not 1.
+
+```js
+const lamp = light.point({ intensity: 20, position: [0, 3, 0], distance: 12, castShadow: true })
+lamp.shadowResolutionScale = 2 // keeps its shadow farther than a lamp left at 1
+world.addLight({
+  id: 'far',
+  kind: 'point',
+  position: [0, 3, 90],
+  range: 12,
+  color: [1, 1, 1],
+  intensity: 20,
+  castsShadow: true,
+  shadowResolutionScale: 0.5,
+})
+```
+
+Of the directional lights of a scene, one is the forward light: the one the volumetric fog is lit by
+and the one the clouds' shade on translucent surfaces follows
+([ENGINE.md](ENGINE.md#transparent-surfaces)). It is the light of the highest `forwardShadingPriority`
+(a whole number of at least `0`, `0` by default); of equal priorities, the one whose colour times
+intensity is greatest, the first added of equals. A priority that is not a whole number of at least
+`0` is refused (`INVALID_SCENE_LIGHT`), and so is one on a light that is not directional. A saved
+world keeps it, and the sun part of the sky takes it as a field.
+
+```js
+const sun = light.directional({ intensity: 10, position: [-50, 70, 0] })
+const lamp = light.directional({ intensity: 30, position: [20, 40, 0] }) // brighter: the fog follows it
+world.scene.add(sun, lamp)
+sun.forwardShadingPriority = 1 // the sun now, whatever the lamp's brightness; a write reaches the world at once
+world.scene.sky = { clouds: true, sun: { forwardShadingPriority: 1 } } // the sky's own sun, the same field
+```
 
 No bound on the light count: a 16×16 screen tile lists up to 64 lights reaching it, past that
 exactly those reaching it. Past 64 shadow
@@ -1408,7 +2927,7 @@ another member is refused (`TypeError`), and a mesh refuses a light function mat
 import { material, light, Texture } from 'trillion3d'
 
 const window = material.lightFunction({ emissiveMap: new Texture(frameImage) }) // a window's panes
-const lamp = light.spot({ intensity: 60, position: [0, 4, 0], distance: 20, angle: 0.6 })
+const lamp = light.spot({ intensity: 60, position: [0, 4, 0], distance: 20, outerConeAngle: 0.6 })
 lamp.lightFunction = window // the light now shines through it
 lamp.lightFunctionScale.set(4, 4, 4) // metres a tile: up, right, along the light (10.24 each by default)
 lamp.lightFunctionFadeDistance = 200 // metres from the eye past which it fades (1000 by default)
@@ -1434,8 +2953,8 @@ the reference's default: `lightFunctionAtlas` (`true`, the whole system), `light
 16 materials at the default; a light whose material has no slot left has none),
 `lightFunctionMaxLights` (`-1`, no limit: the most lights that read the atlas, the nearest to the
 eye, suns first, kept), `lightFunctionFormat` (`'grey'`, the mean of the colour; or `'colour'`), and
-which passes read the atlas: `lightFunctionDeferred` (`true`, the lighting of the opaque image),
-`lightFunctionFog` (`true`, the volumetric fog's local lights; its sun always reads it),
+which passes read the atlas: `lightFunctionDeferred` (`true`, the lighting of the opaque image and
+the translucency volume's injection), `lightFunctionFog` (`true`, the volumetric fog's local lights; its sun always reads it),
 `lightFunctionBounce` (`true`, the lights of the bounce: the probes' rays and the screen probes' scene
 traces) and `lightFunctionTranslucent` (`false`, the translucent layers).
 
@@ -1473,71 +2992,556 @@ part wants it off, or it shades the part.
 A directional light's shadows follow the eye, and a caster far past the distance they are asked to
 reach costs a raster pass for a shadow nobody reads. A sun therefore has a **shadow distance**:
 `shadowDistance`, in metres, `400` by default, `true` the same, `false` or `0` none (no caster is
-left out for being far). 400 m is the distance the shadows are asked to reach; the test's edge lies
-a little farther: the far edge of the last of the sun's near shadow levels, with the overlap that
-level has into the next when a far-field shadow follows it — 427.0 m at the defaults (400 m, near
-plane 0.05 m), the distance itself from 512 m on. A caster whose object lies past the edge (its
-depth along the view, less the radius of its object's bounding sphere) is left out of the sun's
-shadow maps, all of the object or nothing of it, unless the object says `castFarShadow = true`. The
-object is the whole placement the caster belongs to (its root's box), or, for the merged far-field
-shells of the coarser levels of detail, the actor (the HLOD cell's merged mesh) it belongs to.
+left out for being far). The distance is the sun's own and the view scales it (`shadowDistanceScale`).
+A caster whose object lies past the **edge** of the test — its depth along the view, less the radius
+of its object's bounding sphere — is left out of the sun's shadow maps, all of the object or nothing
+of it, unless the object says `castFarShadow = true`; the sun's distance-field cascade shadows it
+there instead. The object is the whole placement the caster belongs to (its root's box), or, for the
+merged far-field shells of the coarser levels of detail, the actor (the HLOD cell's merged mesh) it
+belongs to.
 
 By default the test reaches the merged far-field shells of the world's coarser levels alone: the
 objects drawn as themselves keep casting at any distance. With `farShadowCullsAllMeshes` it reaches
-every caster, and then `castFarShadow` is what keeps an object in. A compiled object — one of a
-compiled world, drawn as itself — has no per-object setting of its own yet: its shells follow the
-view's.
+every caster, and then `castFarShadow` is what keeps an object in. An object says whether the test
+reaches it with `farShadowTest`: `true`, it does (left out past the edge unless it casts far shadows,
+whatever the view says); `false`, it never does; `null`, the default, the view's rule decides. A
+compiled object takes both from the job's object settings
+([COMPILER.md](COMPILER.md#object-settings)); a value set on the node at run time wins over the
+compiled one. The merged shells of a compiled world are no object's: they follow the view's rule.
+
+The edge lies a little past the distance: the far end of the last of the sun's near shadow levels,
+with the overlap that level has into the next when another level follows. The levels are the sun's
+own settings, each with the default of a directional light:
+
+| Light option                  | Default  | Meaning                                                                                                                                                                                                                                                     |
+| ----------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shadowCascades`              | `4`      | the near levels the distance is cut into (at most the view's `shadowNearLevels`)                                                                                                                                                                            |
+| `shadowCascadeExponent`       | `3`      | how many times the span of the level before each takes                                                                                                                                                                                                      |
+| `shadowCascadeTransition`     | `0.1`    | the share of its span a level overlaps into the next                                                                                                                                                                                                        |
+| `farShadowCascades`           | `0`      | far levels between the distance and `farShadowDistance`, while that is more than a metre farther: counted, never drawn (past the near levels the sun's shadow is the distance-field cascade's); a light that has some ends its near levels with the overlap |
+| `farShadowDistance`           | `3000` m | where those levels end                                                                                                                                                                                                                                      |
+| `distanceFieldShadows`        | `true`   | whether the distance-field cascade follows the near levels                                                                                                                                                                                                  |
+| `distanceFieldShadowDistance` | `512` m  | where that cascade ends (`true` the default, `false` none)                                                                                                                                                                                                  |
+| `distanceFieldTraceDistance`  | `100` m  | how far a ray of that cascade goes (10 to 10 000)                                                                                                                                                                                                           |
+| `distanceFieldRayStartOffset` | `0.003`  | the share of a pixel's depth its rays start off the surface by                                                                                                                                                                                              |
+| `shadowAmount`                | `1`      | how dark the distance-field cascade's shadow is, from 0 (none) to 1 (all of it); not part of the shadow maps' cache key                                                                                                                                     |
+
+The edge at the defaults is 427.0 m (400 m, near plane 0.05 m): the last level starts at 130.03 m and
+overlaps 27 m into the cascade that follows; the distance itself from 512 m on.
 
 ```js
-const sun = light.directional({ castShadow: true, shadowDistance: 600 })
-sun.shadowDistance = 250 // metres, from the next frame; no cached shadow page is redrawn for it
+const sun = light.directional({ castShadow: true, shadowDistance: 600, shadowCascades: 3 })
+sun.shadowDistance = 250 // metres, from the next frame; the light is made again, its cached pages drawn again
+sun.distanceFieldShadowDistance = false // no distance-field cascade after the near levels
 tower.castFarShadow = true // this object still casts past the edge (false by default, on every node)
+tower.farShadowTest = true // and the test reaches it even where the view says it reaches only the shells
 ```
 
-Six settings of the view sit beside it, each an option of `createWorld` too, resolved over the
-quality preset like the raster's: `shadowDistanceScale` (`1`, from 0 to 2) multiplies every sun's
-distance, so `0.5` halves it and `0` leaves the culling nothing to test against: it culls nothing;
-`farShadowCulling` (`true`) is the switch of the whole test; `farShadowCullsAllMeshes` (`false`) says
-which casters the test reaches; and three shape the edge: `shadowNearLevels` (`10`, a whole number
-from 0 to 10; the sun has at most four near levels, so more than four is four, and `0` leaves no
-edge: nothing is culled), `shadowOverlapScale` (`1`, from 0 to 2) is the factor on the tenth of its
-span the last near level overlaps into the next, and `shadowFarField` (`true`) says whether a
-far-field shadow follows the near levels (only for a scaled distance under 512 m). The levels are
-laid from the near plane to the scaled distance, each three times the span of the one before; the
-edge is the distance plus `(distance - start of the last level) * 0.1 * shadowOverlapScale` when a
-far field follows, the distance otherwise.
+The view's settings sit beside them, each an option of `createWorld` too, resolved over the quality
+preset like the raster's:
+
+| View option                       | Default               | Meaning                                                                                                       |
+| --------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `shadowDistanceScale`             | `1` (0 to 2)          | the factor on every sun's distance, so `0.5` halves it; `0` leaves the test nothing to cull                   |
+| `farShadowCulling`                | `true`                | the switch of the whole test                                                                                  |
+| `farShadowCullsAllMeshes`         | `false`               | which casters the test reaches                                                                                |
+| `shadowNearLevels`                | `10` (0 to 10)        | the most near levels; `0` leaves no edge: nothing is culled                                                   |
+| `shadowOverlapScale`              | `1` (0 to 2)          | the factor on the overlap                                                                                     |
+| `shadowFarField`                  | `true`                | whether the distance-field cascade follows the near levels, where the scene has distance fields               |
+| `shadowMaxFarCascades`            | `10`                  | the most far levels a light may count (`farShadowCascades`)                                                   |
+| `shadowFarDistanceOverride`       | `0`                   | metres, where far levels end for every light when above 0; no far level is drawn, so it has no visible effect |
+| `distanceFieldDistanceScale`      | `1` (0.0001 to 10000) | the factor on every light's distance-field distance                                                           |
+| `distanceFieldFarTransitionScale` | `1` (0 to 1)          | the factor on the length of the cascade's fade out at its end                                                 |
+
+A distance-field cascade needs two things besides its row: the sun's `distanceFieldShadows`, and a scene
+whose meshes have distance fields (the mesh build's `distanceField`, on by default). Without fields the
+edge is the distance itself (400 m).
 
 ```js
-const world = createWorld('viewer', { shadowDistanceScale: 0.85 })
+const world = createWorld('viewer', { shadowDistanceScale: 0.85, distanceFieldDistanceScale: 2 })
 world.shadows = { farShadowCullsAllMeshes: true } // every caster is tested, from the next frame
 world.shadows = { farShadowCullsAllMeshes: null } // back to the default
 ```
 
-The quality levels (the `shadows` group) write the four that shape the distance and its edge:
+One more setting of the view is the gate every light's shadow passes: `shadowQuality` (`5`, a whole
+number from 0 to 5). At `0` no light takes a shadow, the sun's included: no shadow map, page or trace
+is planned, no page pool is made (one made before is freed, its cache with it), the lit passes read no
+shadow and drop their shadow code, so a scene that asks for none pays nothing for them. At `1` to `5`
+every light takes the same shadow: the shadow maps have one method, so the levels above 0 differ in
+nothing today. A light that declares `castsShadow` keeps the declaration: the setting takes the shadow
+away, never the flag, and a scene turned back to a level above 0 draws its shadows again from a cache
+of its own. The setting does not reach the indirect light's own occlusion of a light (the bounce probes
+trace a ray toward each shadow-casting light, as before) nor the clouds' shadow on the sun.
 
-| level      | `shadowDistanceScale` | `shadowNearLevels` | `shadowOverlapScale` | `shadowFarField` | edge at 400 m |
-| ---------- | --------------------- | ------------------ | -------------------- | ---------------- | ------------- |
-| `smooth`   | 0.6                   | 1                  | 0                    | off              | 240.0 m       |
-| `balanced` | 0.7                   | 1                  | 0.25                 | off              | 280.0 m       |
-| `fine`     | 0.85                  | 4                  | 0.8                  | on               | 358.4 m       |
-| `max`      | nothing (1)           | nothing (10)       | nothing (1)          | nothing (on)     | 427.0 m       |
+```js
+const world = createWorld('viewer', { shadowQuality: 0 }) // no light takes a shadow
+world.shadows = { shadowQuality: 3 } // from the next frame: every light does
+world.shadows = { shadowQuality: null } // back to the default, 5
+world.quality.preset = 'smooth' // the first level: no shadow at all, unless the page set one
+```
 
-(edge at a near plane of 0.05 m.) A value the page set holds over a preset. A value of another kind,
-or out of its range, is refused by name. None of these settings, nor a light's `shadowDistance`,
-redraws a cached shadow page by itself: the pages follow the casters, as before. An object's
-`castFarShadow` flip does: the pages its rows were drawn into are drawn again.
+The quality levels (the `shadows` group) write the four that shape the distance and its edge, the shadow
+maps' rows and the shadow quality, as the rules' own rows (`SHADOW_PRESET_LEVELS`,
+`packages/sdk-core/src/contracts/shadowOptions.ts`):
 
-A saved scene keeps each node's `castFarShadow` when it is `true` (a file saved before the field
-loads, every node casting none far). An agent sets the same through `trillion3d_set_shadows`, and a
-light's distance through the `shadowDistance` field of `trillion3d_add_light`. How the far casters
-are left out of the maps: [SHADOWS.md](SHADOWS.md#far-casters).
+| level       | `shadowDistanceScale` | `shadowNearLevels` | `shadowOverlapScale` | `shadowFarField` | `shadowQuality` | edge at 400 m |
+| ----------- | --------------------- | ------------------ | -------------------- | ---------------- | --------------- | ------------- |
+| `smooth`    | 0.6                   | 1                  | 0                    | off              | 0               | 240.0 m       |
+| `balanced`  | 0.7                   | 1                  | 0.25                 | off              | 3               | 280.0 m       |
+| `fine`      | 0.85                  | 4                  | 0.8                  | on               | 5               | 358.4 m       |
+| `max`       | nothing (1)           | nothing (10)       | nothing (1)          | nothing (on)     | nothing (5)     | 427.0 m       |
+| `cinematic` | 1                     | 10                 | 1                    | on               | 5               | 427.0 m       |
 
-### A see-through surface casts no shadow unless it asks
+(edge at a near plane of 0.05 m.) A value the page set holds over a preset: a `smooth` preset draws no
+shadow at all, and a page that sets `shadowQuality: 5` brings them back over it. A value of another
+kind, or out of its range, is refused by name. A change of a light's own setting (its distance, its
+cascades) makes the light again and its cached pages are drawn again; a change of the view's settings
+moves the edge the next frame's test reads, and the cached pages are kept. An object's `castFarShadow`
+or `farShadowTest` flip rewrites its rows: the pages they were drawn into are drawn again.
 
-A blended material (`transparent: true`) lets light pass, as glass, smoke and a light beam do.
-`transparentShadow: true` asks for a shadow as dark as the surface is opaque:
-`material.meshStandard({ transparent: true, opacity: 0.5, transparentShadow: true })` casts half a
-shadow. An additive, transmissive or fully transparent surface never casts.
+#### The sun's distance-field shadow
+
+Past the near levels, a sun's shadow is traced against the distance fields of the meshes the far-shadow
+test leaves out of the shadow maps, from the near levels' end to `distanceFieldShadowDistance`, fading in
+over the last near level's overlap and out before the cascade's end. A sun with `angularRadius: 0`
+casts hard shadows there as in the maps (the angle is held between 0.001 and 5 degrees in the cascade).
+Its settings:
+
+| View option                         | Default      | Meaning                                                                                                                                                                |
+| ----------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `distanceFieldShadowQuality`        | `3` (0 to 3) | the steps of a ray: 0 none, 1 twenty, 2 thirty-two, 3 sixty-four (from 2, a thin transmitting surface keeps the light that survives the thickness it has gone through) |
+| `distanceFieldShadowFullResolution` | `false`      | traced at the display's resolution, else at half of it and upsampled keeping the depth edges                                                                           |
+| `distanceFieldShadowTileSize`       | `2` m        | the side of the tiles across the light the meshes are listed in                                                                                                        |
+| `distanceFieldShadowTwoSidedBias`   | `1`          | the factor on the distance a two-sided mesh's surface is expanded by                                                                                                   |
+| `distanceFieldShadowObjectsPerTile` | `128`        | the meshes a tile has room for on average; a tile past it loses meshes (its shadow flickers)                                                                           |
+
+It costs nothing while no mesh is one the test leaves out: with the defaults the test reaches the merged
+shells alone, and those carry a distance field only where their HLOD layer asks for one
+([COMPILER.md](COMPILER.md#hlod): `allowDistanceField`, on by default for an `approximate` layer, off for
+a `merge` or `simplify` one). Set `farShadowCullsAllMeshes: true` (or `farShadowTest: true` on the objects
+that should be traced) and the cascade shadows every such mesh. A merged shell's field is traced exactly
+where the shell is drawn: a cell shown instead of its actor, or an actor not loaded, casts nothing
+through it. The cascade is drawn for the first four shadowed lights of a frame (one byte each of the mask
+the lighting reads), for the main view's lit image, and the translucent surfaces do not read it.
+
+```js
+const world = createWorld('viewer', {
+  farShadowCullsAllMeshes: true,
+  distanceFieldShadowQuality: 2,
+})
+world.shadows = { distanceFieldShadowTileSize: 4 } // fewer, larger tiles: cheaper lists, more meshes a tile
+```
+
+A saved scene keeps each node's `castFarShadow` when it is `true` and its `farShadowTest` when it names
+one (a file saved before the fields loads, every node casting none far and leaving the test to the
+view). An agent sets the same through `trillion3d_set_shadows`, and a light's distance and cascades
+through the fields of `trillion3d_add_light` (`shadowDistance`, `shadowCascades`, `shadowCascadeExponent`,
+`shadowCascadeTransition`, `farShadowCascades`, `farShadowDistance`, `distanceFieldShadows`,
+`distanceFieldShadowDistance`, `distanceFieldTraceDistance`, `distanceFieldRayStartOffset`, `shadowAmount`, with `true` for
+the default and `false` for none where a distance). How the far casters are left out of the maps:
+[SHADOWS.md](SHADOWS.md#far-casters).
+
+### A see-through surface casts no shadow
+
+A blended material (`transparent: true`) lets light pass, as glass, smoke and a light beam do, and
+draws nothing into the shadow maps: `material.meshStandard({ transparent: true, opacity: 0.5 })` casts
+no shadow, whatever its opacity. An opaque or cutout surface behind it still casts its own.
+
+### A see-through surface reads the sun's shadow, with one sample
+
+A blended or transmissive surface is lit light by light in its own fragment: no mask holds it, so it
+reads each light's shadow map itself. Three project switches say how. They are shadow settings
+(`createWorld` options, `world.shadows`, `trillion3d_set_shadows`), read once when the session opens
+(changing them later changes nothing, as for `cloudShadowOnTranslucent`), and no quality level
+writes them:
+
+- `shadowTranslucentQuality` (`0`, or `1`): at `0`, one sample of the light's map at the surface's
+  point, with no ray, the cheap read every layer of a blend can pay; at `1`, the full trace the
+  opaque surfaces get (rays across the light, a screen ray for contact, a dither on the share in a
+  penumbra), at a high cost for every translucent pixel, and the sun's pages the trace reads are
+  also marked for the nearest translucent surface the image before drew in front of each pixel.
+- `shadowTranslucentLocalLights` (`false`): whether a point, spot or rectangle light's shadow reaches
+  the surface. Off, a shadowed local light lights it unshadowed and the translucent programs hold
+  none of the local lights' shadow code; the sun's shadow always reaches it. On, the local lights are
+  read as `shadowTranslucentQuality` says.
+- `translucentRectLights` (`false`): whether a rectangle light lights the surface as a rectangle.
+  Off, it lights it as a point light at its centre and the translucent programs hold none of the
+  rectangle shading; opaque surfaces always take the rectangle.
+
+```js
+// Glass under a lamp is shadowed by what stands between them: one sample of each light's map.
+const world = createWorld('viewer', { shadowTranslucentLocalLights: true })
+// And with the penumbra the opaque surfaces get, for every translucent pixel.
+const fine = createWorld('viewer', {
+  shadowTranslucentQuality: 1,
+  shadowTranslucentLocalLights: true,
+})
+// A rectangle light lights glass as the rectangle it is.
+const panels = createWorld('viewer', { translucentRectLights: true })
+```
+
+A material can ask more of its own, whatever the switches say, at their defaults of `false` and `0`:
+`translucentDirectionalLightShadowQuality` above 0 takes the full trace for the sun's shadow on its
+surfaces, `translucentLocalLightShadow` shadows the local lights on them, and
+`translucentLocalLightShadowQuality` above 0 takes the full trace for those lights. A scene whose
+surfaces ask nothing pays nothing: the translucent programs hold none of that code.
+
+```js
+// One pane of glass reads the sun's shadow with the full trace, the rest of the scene with one sample.
+material.meshStandard({
+  transparent: true,
+  opacity: 0.3,
+  translucentDirectionalLightShadowQuality: 1,
+})
+// A lantern's glass is shadowed by the lamps around it, one sample of each map.
+material.meshStandard({ transparent: true, translucentLocalLightShadow: true })
+// And with the full trace for those lamps.
+material.meshStandard({
+  transparent: true,
+  translucentLocalLightShadow: true,
+  translucentLocalLightShadowQuality: 1,
+})
+```
+
+A light shadows a translucent surface only while it casts (`castsShadow`) and the shadows are on
+(`shadowQuality` past 0). The shadows of the fog and of the air are their own reads: these switches do
+not touch them. How the read is made: [SHADOWS.md](SHADOWS.md#reading-the-shadow).
+
+### A see-through surface lit from the translucency lighting volume
+
+A blended surface takes the light of a **volume** the engine builds round the camera each image, one read for the
+pixel in place of every light (`translucencyLighting`):
+
+- `'volumetricNonDirectional'` (the default of a material made in code): the volume's light, as a medium takes it, from
+  its constant light alone, the same whatever the surface's normal: no reflection.
+- `'volumetric'`: the volume's light, as a medium takes it, weighed by the surface's normal: no reflection.
+- `'volume'`: the volume's light, as a surface takes it, and the reflection of the environment kept. A blended
+  material imported from a scene file is given this one.
+- `'forward'`: every light read for the pixel, its shadow and its highlight included. A material imported from a scene
+  file that transmits (`KHR_materials_transmission`) is given this one.
+
+In the three volume modes (a volume is built whenever a blended surface wears one of them, which is the default)
+the surface gives back the volume's light on its diffuse colour (none for a metal), in a `normal` or `additive` layer of
+the default lit model or the thin subsurface. The mode alone says what lights a layer, whatever its blending mode: a layer
+of another blending mode (`alphaComposite`, `alphaHoldout`, `multiply`, `subtractive`), and a layer of any other shading
+model (the skin, the subsurface profile, the eye, the hair), is lit by no light of its own in a volume mode: it takes
+nothing of the volume and no highlight from the lights, and keeps the light the bounce and the environment give it, as
+a forward surface does. Only `'forward'` reads every light. A
+shadow catcher and a transmissive (refracting) surface keep their forward lighting whatever the mode. A scene none of
+whose surfaces asks for a volume the volume lights makes none, nor does an image that draws no such layer: no pass runs, no texture is made and the programs hold none of its code;
+a surface whose mode is changed redraws the session's blended programs, as `cloudFog` does.
+
+#### The fog of a see-through surface: per vertex or per pixel
+
+The fog a see-through surface is seen through is worked out for each vertex and interpolated, from the farthest layer to the
+nearest: the height fog (or the distance fog) with the haze of the air behind it, the local fog volumes of the
+tile the vertex lies in over them, and the clouds over those where the material has `cloudFog`. The fog's volume is
+always read for the pixel and laid over it, the local fog volumes of a pixel under it. A scene none of whose see-through surfaces takes its fog per vertex (all
+`computeFogPerPixel`, water or `fog: false`) compiles its programs without the vertex fog. A material with
+`computeFogPerPixel: true` (`false` by default) works the whole fog out for each pixel instead: exact, and dearer, for
+a large triangle or a surface near the fog's start. Single-layer water is always per pixel.
+
+```js
+material.meshStandard({ transparent: true, opacity: 0.3, computeFogPerPixel: true }) // a large pane, fogged exactly
+```
+
+```js
+material.meshStandard({ transparent: true, opacity: 0.4, translucencyLighting: 'forward' }) // every light read for the pixel
+material.meshStandard({ transparent: true, opacity: 0.4, translucencyLighting: 'volume' }) // a pane lit by the volume
+material.meshStandard({ transparent: true, opacity: 0.2, translucencyLighting: 'volumetric' }) // smoke or a veil
+material.meshStandard({
+  transparent: true,
+  opacity: 0.2,
+  translucencyLighting: 'volumetricNonDirectional',
+}) // a glow lit the same on every side
+```
+
+A double-sided see-through surface (`side: 'double'`) is drawn in one pass that culls neither face, as every
+two-sided surface is. `twoSidedPasses` (boolean, `false` by default) asks two passes instead, its back faces then its front
+faces, so a closed shape (a bottle, a bubble) shows its far side through its near one in the right order, for twice the
+draws of the surface in the blend pass:
+
+```js
+// A bubble drawn back faces first, then front faces.
+material.meshStandard({ transparent: true, opacity: 0.3, side: 'double', twoSidedPasses: true })
+```
+
+The volume is two nested cascades of cubes of cells that follow the camera: the inner one holds the view to
+`translucencyVolumeInnerDistance` metres, the outer one the stretch from there to `translucencyVolumeOuterDistance`; their
+centres are snapped to a whole number of cells, so that the light does not crawl as the camera moves. Each image the sun
+and every local light that reaches a cascade are injected into its cells, each by its own shadow map read at the cell
+(the sun with its light function, the clouds' shade and the air's tint; a local light with its fall-off and its light
+function); the light is kept as a two-band spherical harmonic, so a surface reads the light's direction too. A cell whose
+shadow no virtual shadow map holds a page for reads its light unshadowed. A surface past the outer cascade reads the sun
+unshadowed and no local light. The cells are then blended with the image before (`translucencyVolumeTemporal`) and blurred
+(`translucencyVolumeBlur`), and the surfaces read them by eight loads and a blend of the two cascades. The settings are the
+reference's, each an option of `createWorld` too, held over the quality preset, changed later from the next frame
+(`packages/sdk-core/src/contracts/translucencyVolumeOptions.ts`); a value a setting does not take is refused:
+
+| Field                                    | Meaning                                                                                                                        | Default |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------- |
+| `translucencyVolume`                     | Whether the volume is made; off, a surface that reads it reads black                                                           | `true`  |
+| `translucencyVolumeDim`                  | Cells a side of each cascade, 4 to 2048 (held to what the device's 3D textures hold)                                            | `64`    |
+| `translucencyVolumeInnerDistance`        | Metres from the camera the inner cascade ends at                                                                               | `15`    |
+| `translucencyVolumeOuterDistance`        | Metres from the camera the outer cascade ends at                                                                               | `50`    |
+| `translucencyVolumeBlur`                 | The spatial filter: each cell is the mean of eight trilinear reads round it; it runs after the temporal blend where that is on | `true`  |
+| `translucencyVolumeTemporal`             | Each cell is blended with the same point of the volume of the image before, ahead of the blur                                  | `false` |
+| `translucencyVolumeHistoryWeight`        | The share of that history kept, 0 to 1                                                                                         | `0.9`   |
+| `translucencyVolumePositionOffsetRadius` | Cells: the radius of a noise, different for each pixel and image, that moves the point a surface reads the volume at; 0 none   | `0`     |
+| `translucencyVolumeAdaptToPerspective`   | The cascades are sized by the camera's own field of view and aspect, not a field of 45 degrees and a square view               | `false` |
+| `translucencyVolumeMinFov`               | Degrees: the least field of view the cascades follow while the setting above is on                                             | `45`    |
+| `translucencyVolumeFovSnap`              | Degrees: the field is rounded up to a multiple of it, which makes the volume jump in steps as the field animates               | `10`    |
+
+The quality presets write the cells' count and the blur: `smooth` 24 cells and no blur, `balanced` 32 and no blur, `fine`
+and `cinematic` nothing. A volume of the default size holds 16 MiB of textures (two half-float textures of the light as
+injected, and the packed volume the surfaces read); with the temporal filter on it holds two more such volumes, 24 MiB
+with no blur and 32 with it; the device's memory budget may refuse them, and the surfaces then read black.
+
+```js
+const world = createWorld('viewer', { translucencyVolumeDim: 32 }) // a coarser volume
+world.translucencyVolume = {
+  translucencyVolumeInnerDistance: 30,
+  translucencyVolumeOuterDistance: 120,
+} // a larger reach, from the next frame
+world.translucencyVolume = {
+  translucencyVolumeTemporal: true,
+  translucencyVolumeHistoryWeight: 0.8,
+} // blend with the image before
+world.translucencyVolume = { translucencyVolumeDim: null } // given back to the preset
+world.translucencyVolume = { translucencyVolume: false } // off: no pass, no texture, no byte
+```
+
+The explorer takes the same by field (`explorer.setTranslucencyVolume('translucencyVolumeDim', 48)`), and an agent through
+`trillion3d_set_translucency_volume`.
+
+### Translucency global illumination volume
+
+The indirect light of the see-through surfaces (blend, water, transmission) is held in a grid fitted to the view: a cell is
+`translucencyGiGridPixelSize` pixels a side across the image, and its depth slices follow a logarithm of the distance from the camera out
+to `translucencyGiEndDistance`. Each image every cell traces `translucencyGiTracingResolution` squared cones (the global distance field
+marched, the surface cache read at the hit, the radiance cache read for what the march leaves), the light is filtered along the three
+axes, projected on two-band harmonics and blended with the volume of the image before; a surface reads it with one filtered fetch,
+instead of gathering the world's probes in each fragment. The cells read the world's radiance cache, `translucencyGiRadianceCacheClipmapBias`
+cascades coarser than the one covering them. The grid needs the screen probes' levels that cast probes; below them, and with the setting
+off, a surface takes the sky light irradiance alone. Settings (`packages/sdk-core/src/contracts/translucencyGiOptions.ts`), distances in metres:
+
+| Setting                                                   | Meaning                                                              | Default |
+| --------------------------------------------------------- | -------------------------------------------------------------------- | ------- |
+| `translucencyGi`                                          | Whether the volume is made                                           | `true`  |
+| `translucencyGiTraceFromVolume`                           | The cells march the distance field before reading the cache          | `true`  |
+| `translucencyGiRadianceCache`                             | The cells read the radiance cache                                    | `true`  |
+| `translucencyGiRadianceCacheClipmapBias`                  | Cascades coarser than the covering one for reads and marks           | `3`     |
+| `translucencyGiGridPixelSize`                             | Pixels a side of a cell                                              | `32`    |
+| `translucencyGiGridDistributionLogZScale`                 | Per metre, the slices' logarithm scale                               | `1`     |
+| `translucencyGiGridDistributionLogZOffset`                | The logarithm's offset                                               | `1`     |
+| `translucencyGiGridDistributionZScale`                    | Slices per doubling of the depth                                     | `4`     |
+| `translucencyGiEndDistance`                               | Metres, the depth of the last slice                                  | `80`    |
+| `translucencyGiTracingResolution`                         | Cones a cell traces along a side                                     | `3`     |
+| `translucencyGiMaxRayIntensity`                           | The brightest a cone may be, in exposure units                       | `20`    |
+| `translucencyGiGridCenterOffsetFromDepthBuffer`           | Cells a trace point behind the depth is held in front of it; <0 none | `0.5`   |
+| `translucencyGiOffsetThresholdToAcceptDepthBufferOffset`  | Cells, the nearest behind the depth a point is moved forward from    | `1`     |
+| `translucencyGiSpatialFilter`                             | Filter the cones' light along the three axes                         | `true`  |
+| `translucencyGiSpatialFilterSampleCount`                  | Cells either side of the filter centre                               | `3`     |
+| `translucencyGiSpatialFilterStandardDeviation`            | Cells, the filter's Gaussian                                         | `5`     |
+| `translucencyGiTemporalReprojection`                      | Blend with the image before, reprojected                             | `true`  |
+| `translucencyGiTemporalJitter`                            | Turn the trace point and directions each image                       | `true`  |
+| `translucencyGiTemporalHistoryWeight`                     | Share of the history kept                                            | `0.9`   |
+| `translucencyGiTemporalMaxRayDirections`                  | Turns the directions take before they come round                     | `8`     |
+
+```js
+const world = createWorld('viewer', { translucencyGiGridPixelSize: 16 }) // finer cells
+world.translucencyGi = { translucencyGiEndDistance: 150 } // a deeper grid, from the next frame
+world.translucencyGi = { translucencyGiTemporalHistoryWeight: null } // given back to its default
+world.translucencyGi = { translucencyGi: false } // off: no pass, no texture
+```
+
+The explorer takes the same by field (`explorer.setTranslucencyGi('translucencyGiEndDistance', 120)`), and an agent through
+`trillion3d_set_translucency_gi`.
+
+### Single-layer water
+
+A lit surface whose material graph wires any of the four water outputs (`scatteringCoefficients`,
+`absorptionCoefficients`, `phaseG`, `colorScaleBehindWater`, the first two per centimetre) is a body of water seen through
+one layer. It is drawn over the opaque scene, after the lights and before every translucent layer, in the passes the
+reference's single-layer water has: the scene without the water is copied (its depth as the distance along the view, its
+colour), the water's depth is drawn first, then the water is shaded over the copy — its surface lit by the declared lights
+as a physical surface, the base material's colour under the coverage its `opacity` output gives (1: the base material
+only, 0: pure water), the volume between the surface and the scene behind it integrated analytically — and last the
+reflection of the surface is added. The volume is the sun's in-scattering (a phase function of `phaseG` in the direction
+the refraction bends the view to; the sun is the forward directional light) and the ambient light's, over the share of the
+light the volume scatters before it absorbs it, less the Fresnel reflectance of the surface; what lies behind is read
+where the surface refracts it (the surface normal bent by the index of refraction, from the surface's `specular`, or the
+`refraction` output when it is wired), dimmed by the colour absorption over the depth of water and by the fall from the
+scene to the water's height, and multiplied by `colorScaleBehindWater`. The reflection is the transparents' front
+layer's trace — the engine's reflection of the nearest transparent surface, traced as the opaque one is — weighed on the
+surface's reflectance, faded in over the first 50 cm of water above the scene, always traced for the water whatever
+`reflectionFrontLayer` says (at every level that traces reflections). The water's depth becomes the scene's: fog,
+particles and the transparents drawn after are hidden behind it.
+
+```js
+const g = material.graph('surface')
+g.output('baseColor', g.constant(0.05, 0.08, 0.1))
+g.output('opacity', g.constant(0)) // pure water; 1 shows the base material alone (foam)
+g.output('scatteringCoefficients', g.constant(0.0003, 0.0004, 0.0006)) // per centimetre
+g.output('absorptionCoefficients', g.constant(0.0004, 0.00015, 0.0001))
+g.output('phaseG', g.constant(0.2))
+g.output('colorScaleBehindWater', g.constant(1, 1, 1))
+g.output('roughness', g.constant(0.05))
+const water = material.meshStandard({ graph: g }) // wired to a water output: drawn as the water
+```
+
+The settings are the reference's `r.Water.SingleLayer.*`, each an option of `createWorld` too, held over the quality preset
+(which writes none of them), changed later from the next frame
+(`packages/sdk-core/src/contracts/singleLayerWaterOptions.ts`); a value a setting does not take is refused. Distances are
+metres, where the reference's are centimetres:
+
+| Field                                                | Meaning                                                                                                                                                                           | Default          |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `singleLayerWater`                                   | Whether the water is drawn                                                                                                                                                        | `true`           |
+| `singleLayerWaterReflection`                         | The reflection: `'enabled'` (the front layer's trace), `'disabled'`, `'captures'` (the captures and the sky) or `'screenSpace'` (the screen march and the captures, no scene ray) | `'enabled'`      |
+| `singleLayerWaterReflectionDownsample`               | Times fewer pixels a side (1 or 2) the water's reflections are traced at                                                                                                          | `1`              |
+| `singleLayerWaterReflectionCheckerboard`             | With a downsample of 2, blocks of two pixels across and one down                                                                                                                  | `false`          |
+| `singleLayerWaterReflectionReconstruction`           | A pixel rebuilds its reflection from the rays round it                                                                                                                            | `false`          |
+| `singleLayerWaterReflectionDenoising`                | The temporal and the bilateral denoising of the water's reflections                                                                                                               | `false`          |
+| `singleLayerWaterReflectionTemporal`                 | The temporal denoising of the `'screenSpace'` technique                                                                                                                           | `true`           |
+| `singleLayerWaterTiledComposite`                     | The reflection composite draws the 8 by 8 tiles that hold water, not the whole target                                                                                             | `true`           |
+| `singleLayerWaterTiledSceneColorCopy`                | The scene's colour is copied for those tiles alone (with the refraction culling on and the copy not downsampled)                                                                  | `true`           |
+| `singleLayerWaterWaveOps`                            | The tiles are listed with subgroup operations where the device grants them                                                                                                        | `true`           |
+| `singleLayerWaterDepthPrepass`                       | The water's depth is drawn first (the tiles and the refraction mask need it)                                                                                                      | `true`           |
+| `singleLayerWaterOptimizedClear`                     | The scene's depth is copied over the view alone, not the whole texture                                                                                                            | `true`           |
+| `singleLayerWaterVelocityOutputPass`                 | When the water writes its velocity: `'depthPrepass'` (right after its depth), `'basePass'` (with its shading) or `'none'`                                                         | `'depthPrepass'` |
+| `singleLayerWaterShadersSupportDistanceFieldShadow`  | The programs keep the sun apart from the rest of the water's light, to lay the sun's distance-field shadow over it; read when the session opens                                   | `true`           |
+| `singleLayerWaterDistanceFieldShadow`                | The sun's light on the water is multiplied by the sun's distance-field shadow traced at the water's depth (needs the setting above and meshes with fields)                        | `true`           |
+| `singleLayerWaterShadersSupportVsmFiltering`         | The programs hold the full trace of the sun's shadow for the water; read when the session opens                                                                                   | `false`          |
+| `singleLayerWaterVsmFiltering`                       | The sun's shadow on the water is the full trace the opaque surfaces get, not one sample: the shading reads the sun unshadowed (`shadowSkipSun`) and the composite multiplies the separated sun by the trace at the water's surface (needs the setting above)                                                                 | `false`          |
+| `singleLayerWaterCloudShadow`                        | The clouds shade the sun that lights the water's volume                                                                                                                           | `false`          |
+| `singleLayerWaterRefractionDownsample`               | Times fewer pixels a side (1 or 2) the copy of the scene the water refracts is made at                                                                                            | `1`              |
+| `singleLayerWaterRefractionCulling`                  | Skip the refraction where it shows little (the three cullings below)                                                                                                              | `false`          |
+| `singleLayerWaterRefractionDistanceCulling`          | Metres from the camera past which the refraction is skipped; 0 none                                                                                                               | `0`              |
+| `singleLayerWaterRefractionDistanceCullingFadeRange` | Metres over which it fades out before that distance                                                                                                                               | `4`              |
+| `singleLayerWaterRefractionFresnelCulling`           | Fresnel reflectance above which the refraction is skipped; 0 none                                                                                                                 | `0`              |
+| `singleLayerWaterRefractionFresnelCullingFadeRange`  | The Fresnel range over which it fades out                                                                                                                                         | `0.2`            |
+| `singleLayerWaterRefractionDepthCulling`             | Metres of water depth below which the refraction is skipped; 0 none                                                                                                               | `0`              |
+| `singleLayerWaterRefractionDepthCullingFadeRange`    | Metres of depth over which it fades out                                                                                                                                           | `1`              |
+
+The water writes its velocity as the reference's water pass does: the vectors of the texels it covers become the camera's motion at
+the water's depth and their visibility identifiers are cleared, so that the temporal pass and the motion blur read a surface that
+moves with the camera alone. Not ported: `ForceVelocity` (deprecated, ignored by the reference itself), `MobileFallback` and
+`r.ParallelSingleLayerWaterPass` (a mobile renderer and a render-thread parallelism this engine does not have). `screenSpace` is the
+screen march alone — full resolution, no scene ray, no far screen trace, no reconstruction or spatial filter —, `captures` the
+captures and the sky, `disabled` no reflection.
+
+```js
+const world = createWorld('viewer', { singleLayerWaterRefractionDownsample: 2 }) // a coarser copy of the scene
+world.singleLayerWater = { singleLayerWaterReflection: 'captures' } // no ray: the captures and the sky, from the next frame
+world.singleLayerWater = {
+  singleLayerWaterRefractionCulling: true,
+  singleLayerWaterRefractionDistanceCulling: 200,
+}
+world.singleLayerWater = { singleLayerWaterReflection: null } // given back its default
+```
+
+The explorer takes the same by field (`explorer.setSingleLayerWater('singleLayerWaterReflection', 'captures')`), and an agent
+through `trillion3d_set_single_layer_water`.
+
+### The scattering of the light under a surface (subsurface profile)
+
+A surface whose material graph picks the subsurface-profile shading model (`shadingModel: 'subsurfaceProfile'`, or a graph's output 5 under `fromMaterialExpression`) lights as a plain one, then the
+engine spreads its diffuse light over the neighbouring pixels of the lit image by the profile's scattering, and multiplies the
+result by the surface's colour: skin, wax, marble. The light is spread in the image, after the lights, the indirect light and the
+reflections and before the sky, the fog and the transparents; the specular light is not. A profile is a subsurface
+profile asset (`SubsurfaceProfile`: the colour and mean free path the light travels, the world unit scale, the boundary colour
+bleed, the dual specular and the transmission); a pixel keeps its profile's number in the table of profiles the engine holds (`setSubsurfaceProfiles`), the default
+skin being profile 0; the material parameter that names a profile is `subsurfaceProfile` (below). By default a profile is scattered by importance sampling, a few
+samples a pixel chosen for the pixel's variance and drawn from the profile's own distribution; a profile of `implementation:
+'separable'` is scattered by two separable passes. Each setting has the default of the reference's fourth quality level.
+
+The profile of a material is its `subsurfaceProfile` parameter: any of the fields of the reference's subsurface profile asset, the others being
+the default skin's (`scatterRadius` 1.2, `subsurfaceColor`, `falloffColor`, `boundaryColorBleed`, `extinctionScale`, `scatteringDistribution` 0.93,
+`normalScale` 0.08, `ior` 1.55, `roughness0` 0.75, `roughness1` 1.3, `lobeMix` 0.85, `surfaceAlbedo`, `meanFreePathColor`, `meanFreePathDistance`,
+`worldUnitScale`, `transmissionTintColor`, `tint`, `distanceScale`, `burley`, `meanFreePath` and `implementation`). A material that names none is
+scattered by the default skin; two that name the same profile share it (at most 255 profiles).
+
+```js
+// Skin: a profile of its own, scattered by the pass, with no graph. `subsurfaceOpacity` (above 0.1) is the share of the profile's
+// radius the pixel scatters over.
+const skin = material.meshPhysical({
+  color: 0xcc8c73,
+  roughness: 0.45,
+  shadingModel: 'subsurfaceProfile',
+  subsurfaceProfile: { scatterRadius: 1.2, lobeMix: 0.85, roughness0: 0.75, roughness1: 1.3 },
+  subsurfaceOpacity: 1,
+})
+// A graph decides each pixel's model only under `shadingModel: 'fromMaterialExpression'`.
+```
+
+**The shading model of a material** (`shadingModel`, the reference's own names: `defaultLit` the default, `unlit`, `subsurface`,
+`preintegratedSkin`, `clearCoat`, `subsurfaceProfile`, `twoSidedFoliage`, `hair`, `cloth`, `eye`, `singleLayerWater`,
+`thinTranslucent`, and `fromMaterialExpression`, the model the `shadingModel` output of the material's graph gives each pixel; under any
+other name the graph's output is ignored, as the reference ignores it). With no graph, as material parameters: `unlit` shows `emissive`
+(times `emissiveIntensity`, and its map) alone; `preintegratedSkin` is lit by `subsurfaceColor` and `subsurfaceOpacity`; `subsurfaceProfile` by
+`subsurfaceProfile` and `subsurfaceOpacity`; `eye` by `irisMask` (the share that is iris, 1 by default), `irisDistance` (0.1 by default, the
+caustic's concavity) and a profile, the iris looking along (0, 0, -1); `hair` by its fibre direction, the page's tangent (the surface's normal where
+the mesh stores none), `metalness` as its scatter amount, and `roughness`. The clear coat and the cloth are their parameters (`clearcoat`,
+`clearcoatRoughness`, `sheen`, `sheenColor`, `sheenRoughness`), the thin subsurface (`subsurface`, `twoSidedFoliage`) the `subsurfaceColor` of a
+double-sided surface. `singleLayerWater` and `thinTranslucent` stay node-driven, as in the reference: their inputs are the water's and the thin
+translucent's output nodes of the material's graph.
+
+| Setting                                    | Meaning                                                                                                                   | Default |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `subsurfaceScattering`                     | The master switch; off, such a surface is lit as a plain one                                                              | `true`  |
+| `subsurfaceScale`                          | A scale on every profile's radius; 0 is off, below 1 narrower, above 1 wider                                              | `1`     |
+| `subsurfaceHalfResolution`                 | Scatter at half the image's size: faster, of lower quality                                                                | `false` |
+| `subsurfaceHalfResolutionSeparable`        | In half resolution, scatter every profile with the separable passes                                                       | `true`  |
+| `subsurfaceRecombineQuality`               | How the lit image is rebuilt and recombined: 0 low, 1 high, -1 automatic (high); an accumulated image is always high      | `1`     |
+| `subsurfaceFilter`                         | The scattered image is read with the bilinear filter (off: the nearest texel)                                             | `true`  |
+| `subsurfaceSampleSet`                      | The separable passes' samples a side: 0 is 6, 1 is 9, 2 is 13                                                             | `2`     |
+| `subsurfaceCheckerboard`                   | 0: the lit image's alpha holds the diffuse light's luminance; 1: a checkerboard of diffuse and specular; 2: automatic (0) | `2`     |
+| `subsurfaceCheckerboardNeighborValidation` | With the checkerboard, a neighbour that is not a profile pixel adds nothing to the reconstruction                         | `false` |
+| `subsurfaceBurleyQuality`                  | 0 scatters every profile with the separable passes; 1 the sampled scattering, the separable ones in half resolution       | `1`     |
+| `subsurfaceBurleySamples`                  | A fixed count of samples a pixel for the sampled scattering; 0 lets the pixel's variance choose it                        | `0`     |
+| `subsurfaceBurleyProfileIdCache`           | Each pixel's profile kept in a texture the passes read in place of the surfaces (a byte a pixel)                          | `true`  |
+| `subsurfaceBurleyBilateralKernel`          | A sample weighs by depth alone (0) or depth and normal (1)                                                                | `1`     |
+| `subsurfaceBurleyMipsMinTileCount`         | The count of tiles of sampled scattering from which the diffuse light's mip chain is made; 0 always                       | `4000`  |
+| `subsurfaceSubpixelThreshold`              | The share of the scattering inside the pixel's own footprint above which a tile is not scattered                          | `1`     |
+| `subsurfaceSamplingChannel`                | The channel that steers the sampled scattering: 0 the largest diffuse mean free path, 1 the largest mean free path        | `1`     |
+| `subsurfaceColorTransmittanceDistance`     | The distance (0.05 to 1) at which a `subsurface` material's colour is read as the light's transmittance (its hue shift)  | `0.15`  |
+
+The quality presets write the scale, the separable samples, the recombine's quality and the half resolution: `smooth` a scale
+of 0, `balanced` 0.75, both with the lowest sample set, the low recombine and the half resolution; `fine` the scale 1, the
+medium sample set, the automatic recombine and the half resolution; `cinematic` the defaults at the full resolution; `max`
+writes nothing. A view pays its textures only while a resident surface may carry the model: at full resolution about 40 bytes a
+pixel (the setup texture with its mips, two scattering targets, the history pair, the recombined image and the profile ids).
+
+```js
+const world = createWorld('viewer', { subsurfaceScale: 0.5 }) // a narrower scattering
+world.subsurfaceScattering = { subsurfaceHalfResolution: true } // from the next frame, at half the size
+world.subsurfaceScattering = { subsurfaceBurleySamples: 32 } // a fixed 32 samples a pixel
+world.subsurfaceScattering = { subsurfaceColorTransmittanceDistance: 0.3 } // the `subsurface` model's hue shift, weaker
+world.subsurfaceScattering = { subsurfaceScale: null } // given back to the preset
+world.subsurfaceScattering = { subsurfaceScattering: false } // off: no pass, no texture, no byte
+```
+
+The explorer takes the same by field (`explorer.setSubsurfaceScattering('subsurfaceScale', 2)`), and an agent through
+`trillion3d_set_subsurface_scattering`.
+
+### The pass of the image a see-through surface is drawn in
+
+A see-through surface is drawn apart from the scene and laid over the image once the depth of field has read it, so that
+no blur reaches it (`translucencyPass: 'afterDepthOfField'`, the default). A surface that should be blurred with the
+scene it lies in — a haze, a distant window — says `'beforeDepthOfField'`: it is laid onto the scene before the depth of
+field. A surface that should stay as sharp as it was drawn — a hologram, a HUD element in the world — says
+`'afterMotionBlur'`: it is laid over the image after the temporal anti-aliasing and the motion blur have read it, so
+neither smears it (its edges are not anti-aliased by the temporal pass either). A particle pool takes the same setting in
+its spec (`ParticlePoolSpec.translucencyPass`). Without a depth of field on the image the first two passes draw alike;
+the third is its own pass whatever the image. The scene pays a second set of translucency targets and an image of the
+display's size only while one of its surfaces or pools names `'afterMotionBlur'`.
+
+```js
+material.meshStandard({ transparent: true, opacity: 0.3, translucencyPass: 'beforeDepthOfField' }) // blurred with the scene
+material.meshStandard({ transparent: true, opacity: 0.5, translucencyPass: 'afterMotionBlur' }) // never smeared by the temporal pass nor the motion blur
+new ParticlePool({ capacity: 64, translucencyPass: 'afterMotionBlur' }) // a pool's, in its spec
+```
 
 ### A luminaire does not block its own light
 
@@ -1547,6 +3551,40 @@ writes no depth within that sphere of its centre, per fragment, so a wall crossi
 occludes beyond. None declared means zero. Imported lamps:
 [COMPILER.md](COMPILER.md#lightsjson--the-lamps-of-the-source-file).
 
+### A lamp's cone, fall-off and share of light
+
+A spot light's edge is a fade, not a line. Its `innerConeAngle` is the half-angle, in radians, of the cone where the light is whole; it fades to nothing at its `outerConeAngle`, by the square of a ramp in the cosine between the two. The inner cone is `0` by default, so the light fades across the whole cone; an inner cone as wide as the outer one makes the edge sharp (the fade is a milliradian wide). The inner cone is held between 0 and 88.9 degrees, the outer one at least a milliradian past it.
+
+```ts
+light.spot({ outerConeAngle: 0.6, innerConeAngle: 0.3, distance: 20 }) // whole inside 0.3 rad, nothing at 0.6
+light.spot({ outerConeAngle: 0.6, innerConeAngle: 0.6 }) // a sharp edge at 0.6 rad
+```
+
+A point or spot light falls off as the inverse square of the distance, a square centimetre longer, windowed to nothing at its `distance`: that is `inverseSquared: true`, the default. With `inverseSquared: false` it falls off by the range alone: its light is one less the square of the distance over the square of `distance`, to the power `radialExponent` (8 by default; greater is a tighter pool), and no weight by distance beyond that.
+
+```ts
+light.point({ distance: 12, inverseSquared: false }) // exponent 8
+light.point({ distance: 12, inverseSquared: false, radialExponent: 2 }) // a wide soft pool
+```
+
+Every light, of any kind, takes two shares of what it gives: `diffuseShare` of its diffuse light (also its light through a thin surface and the light it gives the bounce) and `specularShare` of its specular light (the highlight), each from `0` to `1`, `1` by default. A fill light that must not make highlights is `specularShare: 0`; a light that must only make a highlight is `diffuseShare: 0`.
+
+```ts
+light.rectArea({ width: 2, height: 1, specularShare: 0 })
+light.directional({ diffuseShare: 0.5, specularShare: 1 })
+```
+
+| Option           | Applies to  | Default | Meaning                                                                                |
+| ---------------- | ----------- | ------- | -------------------------------------------------------------------------------------- |
+| `outerConeAngle` | spot        | `44°`   | Half the outer cone's opening, in radians (44° is 0.7679): the light is nothing at it. |
+| `innerConeAngle` | spot        | `0`     | Half the inner cone's opening, in radians: the light is whole inside it.               |
+| `inverseSquared` | point, spot | `true`  | Falls off as the inverse square of the distance; `false` uses `radialExponent`.        |
+| `radialExponent` | point, spot | `8`     | Exponent of the fall-off when `inverseSquared` is `false`; above 0.                    |
+| `diffuseShare`   | every kind  | `1`     | Share of the diffuse light given, 0 to 1.                                              |
+| `specularShare`  | every kind  | `1`     | Share of the specular light given, 0 to 1.                                             |
+
+The compiler's lights (`lights.json`) and a scene file's lights take the defaults. A saved world keeps the options a light sets and nothing for the defaults; a world saved before version 5 keeps the cone it saved, its `angle` read as the outer cone and its inner cone that angle less its `penumbra` share.
+
 ### Lights imported from the source file
 
 The compiler writes a source file's lights beside the manifest as `lights.json`
@@ -1555,13 +3593,15 @@ The compiler writes a source file's lights beside the manifest as `lights.json`
 schemas, Blender from `Lamp` blocks; OBJ declares none. Positions and directions are world space,
 after instancing: a light instanced by three nodes is three entries.
 
-**Units.** glTF's photometric values (candela for `point` and `spot`, lux for `directional`) are
-divided by **683 lm/W** into the engine's radiometric ones (W/sr, W/m²), no spectrum assumed, no
-hidden gain. FBX's `Intensity`, a percentage, converts at **1000 lm / 4π ≈ 79.6 cd** for a point or
+**Units.** glTF's values (candela for `point` and `spot`, lux for `directional`) are the engine's
+`intensity` as they stand: no luminous efficacy divides them, no hidden gain, and the exposure maps
+the number to the picture. FBX's `Intensity`, a percentage, converts at **1000 lm / 4π ≈ 79.6 cd** for a point or
 spot and **10 000 lux** for a directional. A `point` or `spot` without `range` gets
-`sqrt(I / 0.01 W·m⁻²)`, capped at 10 000 m. `innerConeAngle` is not carried (the engine's
-`spotEdgeSoftness` softens a spot edge). A light breaking the contract is counted in `rejected`
-and left out.
+an unbounded one (1e20 m, as glTF defines it: the light reaches every cell of the light grid); a declared `range` is kept
+as written, with no ceiling. A spot keeps the `innerConeAngle` and `outerConeAngle` the
+file writes (glTF's defaults, 0 and π/4, where it names none), and a point or spot names its unit,
+`candelas`. A light breaking
+the contract is counted in `rejected` and left out.
 
 A light casts when the file says so (glTF says nothing, so imported glTF lights cast). Every light
 is read as `(await scene.load(url)).lights` in cache order (`imported-lights` counts them), each a
@@ -1573,10 +3613,10 @@ What a host sets and reads; the pools' mechanics are [RESIDENCY.md](RESIDENCY.md
 
 | Setting                     | Default                      | What it is                                                                                                                                                   |
 | --------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `world.budget.gpu`          | 2 179 MiB                    | every GPU pool together, divided by `world.budget.split`                                                                                                     |
+| `world.budget.gpu`          | 2 007 MiB                    | every GPU pool together, divided by `world.budget.split`                                                                                                     |
 | `world.budget.cpu`          | the page cache's own default | what the world keeps in CPU memory                                                                                                                           |
 | `world.budget.geometryPool` | 512 MiB                      | slots of a 128 KiB streaming page each, the root pages held beside them in the root region; clamped to `geometryPoolCeiling`; the call a memory slider makes |
-| `world.budget.texturePool`  | 512 MiB                      | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`                                                                 |
+| `world.budget.texturePool`  | 512 MiB                      | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`; the room the pool grows into, never bytes taken up front       |
 | `world.budget.canvas`       | 3840 × 2160                  | the largest drawing buffer, `{ width, height }`, the effect targets are reserved at                                                                          |
 | `world.budget.physics`      | `DEFAULT_PHYSICS_BUDGET`     | [PHYSICS.md](PHYSICS.md#budgets)                                                                                                                             |
 
@@ -1584,10 +3624,14 @@ What a host sets and reads; the pools' mechanics are [RESIDENCY.md](RESIDENCY.md
   their live descriptor bytes), then the geometry and texture pools up to their ceilings; root
   coverage and texture tails are mandatory, and admission never changes resolution or raises the
   declared total.
+- **GPU total.** Unset, it only divides the pools — it grows with what the session holds, so the
+  pools keep their defaults — and refuses nothing: the passes make their targets in the middle of a
+  frame, and no allocation is ever refused for it. Set, it is also the ceiling on what the world
+  allocates (`GPU_BUDGET_EXCEEDED` below).
 - **CPU split.** The decoded-page cache takes the whole CPU total (`split.pageCache`): manifest
   tables, transfer queue and cut tables (sized by the view and the pool, never the world) are
-  reserved off it, and its entries — pages, decoded baked texture levels, files read whole and
-  the resident proxy — share the rest under one budget, the proxy leaving last. A change applies
+  reserved off it, and its entries — pages, decoded baked texture levels and files read whole —
+  share the rest under one budget. A change applies
   at once, entries leaving by last use, never one a frame keeps.
 - **Live textures.** A video or a canvas redrawn every frame takes its working texture,
   `textureLiveBytes`, from the texture pool; the recorded budget stays the declared one.
@@ -1601,7 +3645,10 @@ budget` with the bytes past the reserve.
   rebalance, the image complete throughout; a budget set during prepare is the later word, its
   report (`durationMs`) waiting for prepare. The texture pool's floor, `minimum`, holds every tail
   (one tile per texture, 900 a layer) plus one tile to stream into, a layer more when the tails
-  fill whole layers; a shrink never displaces a tail.
+  fill whole layers; a shrink never displaces a tail. The pool is made at that floor and grows where
+  a lane runs out of places — its arriving tiles find none —, one layer at a time within the
+  budget (`texture-pool-grown`), so `texturePoolBytes` is what is held, not the budget; a growth
+  the device refuses keeps the pool and is asked again after a wait.
 
 The low-level `createGpuPageCache` pins in tiers: `cache.pin(key, 'held')` for the root cover,
 `cache.pin(key)` for ordinary pins; `cache.resize(slots)` keeps held pages, then pinned, then
@@ -1622,17 +3669,17 @@ the nearest resident ancestor or a texture tile's coarser level: `coverageBudget
 `geometryPoolClamp` / `texturePoolClamp` naming why (`root-cover`, `scene`, `page-cap`, `minimum`,
 `device-limit`, `ceiling`, or `null`). Only this is refused, by name:
 
-| Code                                                                                                      | When                                                                                                                                                                                                            |
-| --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `INVALID_GPU_BUDGET`, `INVALID_CPU_BUDGET`, `INVALID_GEOMETRY_POOL_BUDGET`, `INVALID_TEXTURE_POOL_BUDGET` | a value that is not a whole number of bytes above zero                                                                                                                                                          |
-| `INVALID_BUDGET_CANVAS`                                                                                   | a declared canvas that is not a whole number of pixels above zero                                                                                                                                               |
-| `GPU_BUDGET_UNDER_MINIMUM`                                                                                | a GPU total below the root coverage and texture-tail minima                                                                                                                                                     |
-| `GPU_BUDGET_UNDER_SHADOW_POOL`                                                                            | a GPU total under its fixed shadow share                                                                                                                                                                        |
-| `GEOMETRY_POOL_DEVICE_LIMIT`                                                                              | a device whose limits cannot hold even the root cover                                                                                                                                                           |
-| `TEXTURE_POOL_DEVICE_LIMIT`                                                                               | a device whose limits cannot hold the tails of one texture lane                                                                                                                                                 |
-| `WEBGPU_GEOMETRY_POOL_REFUSED`, `WEBGPU_TEXTURE_POOL_REFUSED`, `WEBGPU_FRAME_TARGETS_REFUSED`             | the device refuses a floor or the frame targets ([RESIDENCY.md](RESIDENCY.md#out-of-memory))                                                                                                                    |
-| `GPU_BUDGET_EXCEEDED`                                                                                     | an allocation past the GPU total (or an unknown format): no new image, flush and capture reject; terminal for the session, reopened with enough budget once every session sharing the refused cache is released |
-| `SURFACE_DEVICE_LIMIT`                                                                                    | a device dimension limit                                                                                                                                                                                        |
+| Code                                                                                                      | When                                                                                                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INVALID_GPU_BUDGET`, `INVALID_CPU_BUDGET`, `INVALID_GEOMETRY_POOL_BUDGET`, `INVALID_TEXTURE_POOL_BUDGET` | a value that is not a whole number of bytes above zero                                                                                                                                                                     |
+| `INVALID_BUDGET_CANVAS`                                                                                   | a declared canvas that is not a whole number of pixels above zero                                                                                                                                                          |
+| `GPU_BUDGET_UNDER_MINIMUM`                                                                                | a GPU total below the root coverage and texture-tail minima                                                                                                                                                                |
+| `GPU_BUDGET_UNDER_SHADOW_POOL`                                                                            | a GPU total under its fixed shadow share                                                                                                                                                                                   |
+| `GEOMETRY_POOL_DEVICE_LIMIT`                                                                              | a device whose limits cannot hold even the root cover                                                                                                                                                                      |
+| `TEXTURE_POOL_DEVICE_LIMIT`                                                                               | a device whose limits cannot hold the tails of one texture lane                                                                                                                                                            |
+| `WEBGPU_GEOMETRY_POOL_REFUSED`, `WEBGPU_TEXTURE_POOL_REFUSED`, `WEBGPU_FRAME_TARGETS_REFUSED`             | the device refuses a floor or the frame targets ([RESIDENCY.md](RESIDENCY.md#out-of-memory))                                                                                                                               |
+| `GPU_BUDGET_EXCEEDED`                                                                                     | an allocation past a GPU total the page set (or an unknown format): no new image, flush and capture reject; terminal for the session, reopened with enough budget once every session sharing the refused cache is released |
+| `SURFACE_DEVICE_LIMIT`                                                                                    | a device dimension limit                                                                                                                                                                                                   |
 
 ### Out of memory is absorbed
 

@@ -36,7 +36,7 @@ const tessReadWgsl = (name: string, state: WgslDecl) =>
 fn tw4(at:u32)->vec4u{return vec4u(tw(at),tw(at+1u),tw(at+2u),tw(at+3u));}
 fn displacementOf(page:PageInfo)->DisplacementRecord{
  let at=tu.dispBase+(page.material&${MATERIAL_RANK_MASK}u)*${DISPLACEMENT_WORDS}u;
- return DisplacementRecord(bitcast<vec4f>(tw4(at)),bitcast<vec4f>(tw4(at+4u)),tw4(at+8u),bitcast<vec4f>(tw4(at+12u)));
+ return DisplacementRecord(bitcast<vec4f>(tw4(at)),bitcast<vec4f>(tw4(at+4u)),tw4(at+8u),bitcast<vec4f>(tw4(at+12u)),bitcast<vec4f>(tw4(at+16u)));
 }
 /** The patch at word \`at\`. */
 fn loadPatch(at:u32)->vec4u{return tw4(at);}`,

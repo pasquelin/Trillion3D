@@ -3,8 +3,12 @@ import {
   computeStorageTextureEntry,
   computeTextureEntry,
 } from '../../../gpu/core/computeBindings.ts'
-import { atlasEntry } from '../../bounce/atlas.ts'
-import { type SceneBindings, sceneLayoutEntries } from '../../bounce/sceneBindings.ts'
+import { globalDistanceFieldTraceWgsl } from '../../distanceField/globalTraceWgsl.ts'
+import {
+  surfaceHitLayoutEntries,
+  surfaceHitWgsl,
+  type SurfaceHitBindings,
+} from '../../surfaceCache/hitWgsl.ts'
 import { HDR_FORMAT } from '../../../scene/targetFormats.ts'
 import { FRONT_TRACED_FORMAT } from '../frontLayer.ts'
 import {
@@ -18,12 +22,9 @@ import { listWgsl } from '../../../gpu/dispatch/list.ts'
 
 /** The surface a kernel's pipeline works on — 0 the opaque, 1 the transparents' front
  *  (`../frontLayer.ts`) —, given by the pipeline (`createTraceStages`): one entry a kernel, two
- *  pipelines, the same specialisation two entries made. */
-export const REFLECTION_LAYER_WGSL = wgslBlock(
-  'REFLECTION_LAYER_WGSL',
-  [],
-  'override REFLECTION_LAYER:u32;',
-)
+ *  pipelines, the same specialisation two entries made. The override is declared with the reflection's
+ *  view (`reflectionBindingsWgsl`), which reads it for the block and the flags of each layer. */
+export const REFLECTION_LAYER_WGSL = wgslBlock('REFLECTION_LAYER_WGSL', [], '')
 
 /**
  * THE ONE TABLE OF THE REFLECTIONS' GROUP 0, shared by the classification, the trace, the resolve, the
@@ -32,11 +33,16 @@ export const REFLECTION_LAYER_WGSL = wgslBlock(
  * front one (`../frontLayer.ts`) — and one parity of the history's turn about (`traceGroups.ts`): its
  * flags, normals and lobes (its depth is the reflection group's), the blocks' ray words (`rays`: the
  * traced pixel the classification picks, the ray the screen stage casts), what a ray reads of the
- * scene — the lights, the light grid's world lists, the bounce cascades and their probes; the proxy is
- * the reflection group's —, the textures each kernel reads or writes (`../grids.ts`: the fresh grid the
+ * scene — the lights, the bounce levels' uniform, the global distance field its scene stage marches
+ * (`field`: six bindings) and the surface cache its hits read (`cards`: the tables, the atlas's seven layers and the
+ * feedback buffer; `grid`, the field's object grid; `instances`, the table from an object of the grid to its
+ * placement in the cache) —, the
+ * textures each kernel reads or writes (`../grids.ts`: the fresh grid the
  * trace writes, `traceOut`, and the resolve reads, `freshIn`; the resolved pixels the resolve writes,
  * `resolvedOut`, and the accumulation reads, `temporalIn`; the history the
- * accumulation reads, `historyIn`, and writes, `historyOut`, the last pass reads, `bilateralIn`), the
+ * accumulation reads, `historyIn`, and writes, `historyOut`, the last pass reads, `bilateralIn`; and the
+ * surfaces' vectors the velocity stage drew, `vectors`, by which the accumulation carries the history of a surface
+ * that moves by itself), the
  * lists the classification fills (`../tiles.ts`: `tracingOut`, `clearTracingOut`, `resolveOut`,
  * `clearOut` as it fills them, `tiles` as a kernel runs over one), and the rays the screen stage left
  * (`pendingOut`, `pendingIn`) with their partial answers (`partialOut`, `partialIn`), which the scene
@@ -50,9 +56,6 @@ export const REFLECTION_TRACE_BINDINGS = {
   normals: 1,
   lobes: 2,
   lights: 3,
-  lightLists: 4,
-  bounceGrid: 5,
-  probes: 6,
   traceOut: 10,
   rays: 11,
   freshIn: 12,
@@ -69,9 +72,6 @@ export const REFLECTION_TRACE_BINDINGS = {
   partialIn: 24,
   pendingOut: 25,
   pendingIn: 26,
-  proxy: 27,
-  worlds: 28,
-  tree: 29,
   tracingOut: 31,
   resolveOut: 32,
   raysRead: 33,
@@ -80,17 +80,32 @@ export const REFLECTION_TRACE_BINDINGS = {
   rayDataOut: 36,
   rayDataIn: 37,
   census: 38,
+  field: 39,
+  cards: 45,
+  grid: 54,
+  instances: 55,
+  vectors: 56,
 } as const
 
 const B = REFLECTION_TRACE_BINDINGS
 
-/** Where the scene stage reads the proxy its rays walk (`../../bounce/runtime/runtimeSceneWgsl.ts`). */
-export const REFLECTION_PROXY_BINDINGS: SceneBindings = {
+/** The global distance field the scene stage marches its rays through, and the march (`gdfTrace`): the field's
+ *  six bindings (`globalDistanceFieldReadWgsl`) from `field` on, in group 0. */
+export const REFLECTION_FIELD_WGSL = globalDistanceFieldTraceWgsl(0, B.field)
+
+/** Where the scene stage's hits read the surface cache (`../../surfaceCache/hitWgsl.ts`): the field's six bindings, the cache's from
+ *  `cards` on, its feedback buffer written, the field's object grid and the table of instances. */
+export const REFLECTION_HIT_BINDINGS: SurfaceHitBindings = {
   group: 0,
-  proxy: B.proxy,
-  worlds: B.worlds,
-  tree: B.tree,
+  field: B.field,
+  grid: B.grid,
+  cards: B.cards,
+  instances: B.instances,
+  feedback: true,
 }
+
+/** The hit's read the scene stage's rays end in (`scGlobalHit`), over the group's bindings. */
+export const REFLECTION_SURFACE_HIT_WGSL = surfaceHitWgsl(REFLECTION_HIT_BINDINGS)
 
 /** The surface every kernel reads — its flags, normals and lobes. */
 const pixels = () => [
@@ -114,31 +129,20 @@ const surface = (words = raysRead(), tiles = true) => [
   ...(tiles ? [computeBufferEntry(B.tiles, 'read-only-storage')] : []),
 ]
 
-/** The probes' field — the bounce cascades and their probes — and the lights, whose buffer holds the
- *  sky a ray that leaves the scene sees (`reflectionEnvironment`): what answers a lobe that casts no
- *  ray (the screen stage, the last pass), the rest of a ray (the scene stage) and, its cascades alone,
- *  whether a lobe traces (the classification, `reflectionTraceShare`). */
-const field = () => [
-  computeBufferEntry(B.bounceGrid, 'uniform'),
-  atlasEntry(B.probes),
-  computeBufferEntry(B.lights, 'read-only-storage'),
-]
+/** The lights, whose buffer holds the sky a ray that leaves the scene sees (`reflectionEnvironment`): what answers
+ *  a lobe that casts no ray (the screen stage, the last pass) and the rest of a ray (the scene stage). */
+const field = () => [computeBufferEntry(B.lights, 'read-only-storage')]
 
-/** What a ray reads of the scene here — the light grid's lists, the field with the lights, the proxy
- *  it walks (`REFLECTION_PROXY_BINDINGS`). The scene stage's alone. */
-const scene = () => [
-  computeBufferEntry(B.lightLists, 'read-only-storage'),
-  ...field(),
-  ...sceneLayoutEntries(REFLECTION_PROXY_BINDINGS),
-]
+/** What a ray reads of the scene here — the field with the lights, and what a hit reads (`REFLECTION_HIT_BINDINGS`): the global
+ *  distance field the ray is marched through with its object grid, the surface cache its hit is read in, less the layers a hit
+ *  does not read, and the table from an object of the grid to its placement. The scene stage's alone. */
+const scene = () => [...field(), ...surfaceHitLayoutEntries(REFLECTION_HIT_BINDINGS)]
 
-/** The classification's layout: the pixels, the bounce grid, the ray words it picks them into and the
- *  four lists it fills. */
+/** The classification's layout: the pixels, the ray words it picks them into and the four lists it fills. */
 const classifyLayout = (device: GPUDevice) =>
   device.createBindGroupLayout({
     entries: [
       ...pixels(),
-      computeBufferEntry(B.bounceGrid, 'uniform'),
       rays(),
       computeBufferEntry(B.tracingOut, 'storage'),
       computeBufferEntry(B.clearTracingOut, 'storage'),
@@ -149,8 +153,10 @@ const classifyLayout = (device: GPUDevice) =>
 
 /** The layouts of each kernel's group 0: the classification, the trace's two stages and the clear of
  *  its unused tiles, the resolve, the temporal accumulation, and each surface's last pass and clear,
- *  each writing its surface's answer. */
-export const traceLayouts = (device: GPUDevice) => {
+ *  each writing its surface's answer. The two ray stages bind the census's buffer where the project
+ *  counts (`statistics`, `reflectionStatistics`). */
+export const traceLayouts = (device: GPUDevice, statistics: boolean) => {
+  const census = statistics ? [computeBufferEntry(B.census, 'storage')] : []
   const layout = (
     entries: GPUBindGroupLayoutEntry[],
     words?: GPUBindGroupLayoutEntry,
@@ -162,7 +168,7 @@ export const traceLayouts = (device: GPUDevice) => {
   // the reflection target; the front one's: the radiance the forward fragments read.
   const opaque = [
     computeTextureEntry(B.base, 'unfilterable-float'),
-    computeStorageTextureEntry(B.target, HDR_FORMAT),
+    computeStorageTextureEntry(B.target, HDR_FORMAT, 'write-only', '2d-array'),
   ]
   const front = [computeStorageTextureEntry(B.frontTarget, FRONT_TRACED_FORMAT)]
   // The last pass reads the history; the clear empties it and the resolved pixels.
@@ -178,29 +184,26 @@ export const traceLayouts = (device: GPUDevice) => {
         storage(B.partialOut),
         storage(B.rayDataOut),
         computeBufferEntry(B.pendingOut, 'storage'),
-        computeBufferEntry(B.census, 'storage'),
+        ...census,
       ],
       rays(),
     ),
     clearTracing: layout([], rays()),
+    // The ray words are read as the storage they are written through, and the partial answers as read-only storage: no
+    // sampled texture of the stage's sixteen is spent on either, the hit's reads of the cache needing them.
     scene: layout(
       [
         ...scene(),
-        computeBufferEntry(B.census, 'storage'),
+        ...census,
         storage(B.traceOut),
-        sampled(B.partialIn),
+        computeStorageTextureEntry(B.partialIn, REFLECTION_GRID_FORMAT, 'read-only'),
         computeBufferEntry(B.pendingIn, 'read-only-storage'),
       ],
-      undefined,
+      rays(),
       false,
     ),
-    resolve: layout([
-      computeBufferEntry(B.bounceGrid, 'uniform'),
-      sampled(B.freshIn),
-      sampled(B.rayDataIn),
-      storage(B.resolvedOut),
-    ]),
-    temporal: layout([sampled(B.temporalIn), sampled(B.historyIn), history]),
+    resolve: layout([sampled(B.freshIn), sampled(B.rayDataIn), storage(B.resolvedOut)]),
+    temporal: layout([sampled(B.temporalIn), sampled(B.historyIn), sampled(B.vectors), history]),
     bilateral: layout([...field(), ...opaque, ...last]),
     bilateralFront: layout([...field(), ...front, ...last]),
     clear: layout([...field(), ...opaque, ...clear]),

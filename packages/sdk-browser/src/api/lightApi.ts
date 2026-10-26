@@ -1,5 +1,4 @@
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
-import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import {
   LIGHT_SETTINGS,
   type SceneLight,
@@ -10,7 +9,8 @@ import type { LightingCapabilities } from '../../../sdk-core/src/scene/light/cap
 import type { SceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
 import { cloneSceneLight } from '../../../sdk-core/src/scene/light/clone.ts'
 import type { ResolvedSky } from '../../../sdk-core/src/modules/sky/descriptor.ts'
-import type { Engine, SkyHost } from '../session/engine/types.ts'
+import type { Engine } from '../session/engine/types.ts'
+import { requiredStore } from './namedStoreApi.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 type Inputs = {
@@ -100,11 +100,11 @@ function lightWrites(inputs: Inputs, required: () => SceneLightStore) {
       notify()
     },
     /** The sky module's resolved parts for the engine to draw — the sky light's capture, the clouds
-     *  and their shadows —, none when the module is off, and what the host holds that the module
-     *  does not (`Engine.applySky`). Takes effect at the next frame. */
-    applySky(sky: ResolvedSky | undefined, host: SkyHost = {}) {
+     *  and their shadows —, none when the module is off (`Engine.applySky`). Takes effect at the next
+     *  frame. */
+    applySky(sky: ResolvedSky | undefined) {
       check()
-      engine.applySky(sky, host)
+      engine.applySky(sky)
     },
     setTransform(nodeName: string, matrix: Float32Array) {
       check()
@@ -131,11 +131,7 @@ function lightWrites(inputs: Inputs, required: () => SceneLightStore) {
  */
 export function createExplorerLightApi(inputs: Inputs) {
   const { store } = inputs
-  const required = () => {
-    if (!store)
-      throw new EngineError('SCENE_LIGHTS_UNAVAILABLE', 'session without a light store', {})
-    return store
-  }
+  const required = () => requiredStore(store, 'light')
   return {
     /** Published bounds of direct lighting, as the runtime applies them. */
     lightSettings: LIGHT_SETTINGS,

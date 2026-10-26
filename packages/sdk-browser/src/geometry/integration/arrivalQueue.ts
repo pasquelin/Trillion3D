@@ -24,8 +24,8 @@
  * That ceiling is the frame's one integration budget (`./frameBudget.ts`, CONTRIBUTING.md
  * §Streaming rule 4), handed in by the session: its frame opens it, what else the frame
  * integrates before the drain — the cells of a partitioned scene (`geometry/partition/cells.ts`) —
- * spends from it, the drain spends the rest, and the WebGPU row records written after it
- * (`geometry/rows/claims.ts`) whatever is left.
+ * spends from it, the drain spends the rest, and the texture tiles after it
+ * (`materials/virtual/streamer/streamer.ts`) whatever is left.
  */
 import { planArrival, planArrivalHere, type ArrivalPlan } from './host.ts'
 import type { FrameBudget } from './frameBudget.ts'
@@ -55,94 +55,102 @@ type Arrival = {
  */
 const MAX_PLAN_WAITS = 2
 
+/** What the queue keeps: the arrivals, where the drain stopped, and the pages waiting. */
+interface ArrivalState {
+  items: Arrival[]
+  // The same page may be seen by the cache then by the end of its download: while it waits,
+  // it is queued only once per target. The wait is forgotten as soon as it is delivered.
+  waiting: Map<ArrivalTarget, Set<string>>
+  head: number
+}
+
+/** Delivers an arrival with its plan, and removes its address from the waiting pages. */
+const deliver = (q: ArrivalState, item: Arrival) => {
+  item.done = true
+  q.waiting.get(item.target)?.delete(item.url)
+  item.target.acceptPage?.(item.url, item.array, item.plan)
+}
+
+/** Queues a page for a target; without `acceptPage` it has nothing to do with it. */
+function enqueue(q: ArrivalState, target: ArrivalTarget, url: string, array: Uint32Array) {
+  if (!target.acceptPage) return false
+  let urls = q.waiting.get(target)
+  if (!urls) {
+    urls = new Set()
+    q.waiting.set(target, urls)
+  }
+  if (urls.has(url)) return false
+  urls.add(url)
+  const item: Arrival = {
+    target,
+    url,
+    array,
+    plan: undefined,
+    ready: false,
+    done: false,
+    waits: 0,
+  }
+  q.items.push(item)
+  const planned = planArrival(url, array.length, target.pageSpecs?.(url))
+  // A plan already there — nothing to plan, or no off-thread queue — is not a wait: it
+  // makes the arrival deliverable as soon as it is queued. Only a message that actually left waits.
+  if (planned instanceof Promise)
+    void planned.then((plan) => {
+      // An arrival already delivered — the frame stopped waiting for it — ignores its late plan.
+      if (item.done) return
+      item.plan = plan
+      item.ready = true
+    })
+  else {
+    item.plan = planned
+    item.ready = true
+  }
+  return true
+}
+
+/**
+ * Delivers arrivals up to the budget — at most `countBudget` pages and what the frame's
+ * budget still admits. The following render
+ * synchronizes residency; calling `syncResident` here could draw a second frame. Returns the
+ * pages delivered.
+ */
+function drainArrivals(q: ArrivalState, countBudget: number, budget: FrameBudget) {
+  const { items } = q
+  let count = 0
+  while (q.head < items.length && count < countBudget && budget.admits()) {
+    const item = items[q.head]
+    if (!item.ready) {
+      // Order is priority: an arrival whose plan has not returned holds back those that
+      // follow, for two drains, then is planned inline and goes through.
+      if (item.waits++ < MAX_PLAN_WAITS) break
+      // Same function, same result, on the main thread: the contract fallback is synchronous.
+      item.plan = planArrivalHere(item.url, item.array.length, item.target.pageSpecs?.(item.url))
+    }
+    q.head++
+    deliver(q, item)
+    budget.spend()
+    count++
+  }
+  if (q.head >= items.length) {
+    items.length = 0
+    q.head = 0
+  }
+  return count
+}
+
 export function createArrivalQueue(
   countBudget: number,
   /** The frame's one integration budget, which its frame opens (`./frameBudget.ts`). */
   budget: FrameBudget,
 ) {
-  const items: Arrival[] = []
-  // The same page may be seen by the cache then by the end of its download: while it waits,
-  // it is queued only once per target. The wait is forgotten as soon as it is delivered.
-  const waiting = new Map<ArrivalTarget, Set<string>>()
-  let head = 0
-  /** Delivers an arrival with its plan, and removes its address from the waiting pages. */
-  const deliver = (item: Arrival) => {
-    item.done = true
-    waiting.get(item.target)?.delete(item.url)
-    item.target.acceptPage?.(item.url, item.array, item.plan)
-  }
+  const q: ArrivalState = { items: [], waiting: new Map<ArrivalTarget, Set<string>>(), head: 0 }
   return {
     /** Arrivals still waiting to drain. */
     get pending() {
-      return items.length - head
+      return q.items.length - q.head
     },
-    /** Queues a page for a target; without `acceptPage` it has nothing to do with it. */
-    queue(target: ArrivalTarget, url: string, array: Uint32Array) {
-      if (!target.acceptPage) return false
-      let urls = waiting.get(target)
-      if (!urls) {
-        urls = new Set()
-        waiting.set(target, urls)
-      }
-      if (urls.has(url)) return false
-      urls.add(url)
-      const item: Arrival = {
-        target,
-        url,
-        array,
-        plan: undefined,
-        ready: false,
-        done: false,
-        waits: 0,
-      }
-      items.push(item)
-      const planned = planArrival(url, array.length, target.pageSpecs?.(url))
-      // A plan already there — nothing to plan, or no off-thread queue — is not a wait: it
-      // makes the arrival deliverable as soon as it is queued. Only a message that actually left waits.
-      if (planned instanceof Promise)
-        void planned.then((plan) => {
-          // An arrival already delivered — the frame stopped waiting for it — ignores its late plan.
-          if (item.done) return
-          item.plan = plan
-          item.ready = true
-        })
-      else {
-        item.plan = planned
-        item.ready = true
-      }
-      return true
-    },
-    /**
-     * Delivers arrivals up to the budget — at most `countBudget` pages and what the frame's
-     * budget still admits. The following render
-     * synchronizes residency; calling `syncResident` here could draw a second frame. Returns the
-     * pages delivered.
-     */
-    drain() {
-      let count = 0
-      while (head < items.length && count < countBudget && budget.admits()) {
-        const item = items[head]
-        if (!item.ready) {
-          // Order is priority: an arrival whose plan has not returned holds back those that
-          // follow, for two drains, then is planned inline and goes through.
-          if (item.waits++ < MAX_PLAN_WAITS) break
-          // Same function, same result, on the main thread: the contract fallback is synchronous.
-          item.plan = planArrivalHere(
-            item.url,
-            item.array.length,
-            item.target.pageSpecs?.(item.url),
-          )
-        }
-        head++
-        deliver(item)
-        budget.spend()
-        count++
-      }
-      if (head >= items.length) {
-        items.length = 0
-        head = 0
-      }
-      return count
-    },
+    queue: (target: ArrivalTarget, url: string, array: Uint32Array) =>
+      enqueue(q, target, url, array),
+    drain: () => drainArrivals(q, countBudget, budget),
   }
 }

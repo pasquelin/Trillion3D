@@ -1,6 +1,6 @@
 // A batch of material chains reduces level by level across its chains (`texture/mipBatch.ts`):
-// each chain's levels equal, byte for byte, those it gets reduced alone — colour plain, weighted
-// and cut, data, even, odd, wide and tall —, and a chain reduced again alone on the views and
+// each chain's levels equal, byte for byte, those it gets reduced alone — colour and data, even,
+// odd, wide and tall —, and a chain reduced again alone on the views and
 // groups its texture holds (a live picture's refill) gets them again: image class 1.
 //
 //   node bench/dawn/proofs.ts tests/gpu/texture/mip-batch.gpu.ts

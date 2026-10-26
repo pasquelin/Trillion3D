@@ -46,6 +46,21 @@ export const octDecode = wgslFn(
   'fn octDecode(e:vec2f)->vec3f{return normalize(octUnfold(e));}',
 )
 
+/** The unit normal two cells of the octahedron of `bits` bits an axis stand for: each cell times the
+ *  grid's step less one, `z` one less their magnitudes, the lower half unfolded by what `z` lacks of
+ *  zero (`e ± lack`, not `octUnfold`'s fold), the vector made unit. The shader twin of the page
+ *  codec's `normal_decode` (`page-codec-wasm/src/bits/oct.rs`). */
+export const octCellsDecode = wgslFn(
+  'octCellsDecode',
+  [],
+  `fn octCellsDecode(cells:vec2u,bits:u32)->vec3f{
+ let e=vec2f(cells)*(2.0/f32((1u<<bits)-1u))-1.0;
+ let z=1.0-abs(e.x)-abs(e.y);
+ let lack=select(0.0,min(-z,1.0),z<0.0);
+ return normalize(vec3f(select(e+lack,e-lack,e>=vec2f(0.0)),z));
+}`,
+)
+
 /** The step of an octahedral byte, 2/255 in `f32`: a byte `q` back to `[-1, 1]` as
  *  `f32(q)·OCT_BYTE_STEP − 1` (`OCT_BYTE_STEP` of `../constants.ts`, `OCT_SCALE` of the Rust codec). */
 const OCT_BYTE_STEP = wgslConst(

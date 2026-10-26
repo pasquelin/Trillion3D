@@ -55,8 +55,10 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     },
     /** Packed pages `pages` asked for the next `updates` updates that read a readback — ahead of
      *  the views' requests, the nearer the deadline the higher: an HLOD actor about to draw
-     *  (`./pageRequests.ts`, `prefetch`). */
-    prefetch: (pages: readonly number[], updates: number) => s.requests.prefetch(pages, updates),
+     *  (`./pageRequests.ts`, `prefetch`); a `priority` the caller gives is kept as it is, so a
+     *  warm-up can ask below the views' requests. */
+    prefetch: (pages: readonly number[], updates: number, priority?: number) =>
+      s.requests.prefetch(pages, updates, priority),
     /** Settles when the pump stops: every page started is installed or failed, the root cover's
      *  included, or the head page's bytes are not in yet — the host has not given them, nothing
      *  else is loading — and the pages stay started (`busy`, `hostPages`); rejects with the loss
@@ -75,7 +77,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     },
     /** Bytes of the update's tables, bounded by its requests. */
     get hostBytes() {
-      return s.requests.byteLength + s.ranks.byteLength
+      return s.requests.byteLength + s.priority.ranks.byteLength
     },
   }
 }
@@ -88,7 +90,7 @@ function update(s: QueueState, readbacks: ViewReadbacks) {
   if (!cache || o.isLost()) return
   if (cache !== s.cache) reset(s, cache)
   followDepartures(s, cache)
-  s.limits = limitsOf(o.settings)
+  limitsOf(o.settings, s.limits)
   paceFrame(s)
   const cuts = freshCuts(s, readbacks)
   if (cuts) {

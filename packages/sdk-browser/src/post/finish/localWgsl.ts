@@ -1,5 +1,5 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
+import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
 import { FINISH, GRID_DEPTH, GRID_TILE } from './finishLayout.ts'
 import { FINISH_WGSL } from './finishWgsl.ts'
 
@@ -42,8 +42,7 @@ fn grid(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id) at:vec3u
    if(all(quad<size-vec2u(1u))){
     for(var q=0u;q<4u;q++){
      let pixel=textureLoad(scene,vec2i(quad+vec2u(q&1u,q>>1u)),0);
-     let radiance=pixel.rgb/max(pixel.a,1e-6);
-     let light=max(dot(radiance,finish.weights.xyz),finish.weights.w);
+     let light=max(dot(pixel.rgb,finish.weights.xyz),finish.weights.w);
      let stop=log2(light)*finish.histogram.x+finish.histogram.y;
      let place=saturate(stop)*${GRID_DEPTH - 1}.0;
      let low=min(u32(place),${GRID_DEPTH - 1}u);
@@ -83,7 +82,7 @@ export const LOG_LIGHT_WGSL = wgslProgram(
 @group(0) @binding(0) var scene:texture_2d<f32>;
 @fragment fn logLight(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let c=textureLoad(scene,vec2i(pixel.xy),0);
- return vec4f(lightLog(c.rgb/max(c.a,1e-6)),0.0,0.0,0.0);
+ return vec4f(lightLog(c.rgb),0.0,0.0,0.0);
 }`,
   [FINISH_WGSL, FULLSCREEN_VERTEX],
 )

@@ -137,8 +137,7 @@ What each package owns: [packages/README.md](packages/README.md).
 ## Measuring
 
 Frame time is measured on the GPU bench, which draws its own scene (`bench/kit/`) in Node on the
-machine's GPU through Dawn; a Chrome harness serves the material proof and pits the engine against
-two witnesses, bare Three.js and Three.js with a three-level `THREE.LOD`. Both, and the reports:
+machine's GPU through Dawn; a Chrome harness serves the material proof and the image proofs. Both, and the reports:
 [bench/runner/README.md](bench/runner/README.md); the measurement rules:
 [CONTRIBUTING.md](CONTRIBUTING.md#measure-before-optimising).
 

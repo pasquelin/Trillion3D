@@ -3,7 +3,20 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { frameAround, outOfFrame } from '../../../../../math/src/wgsl/basis.ts'
 import { sampleSphereEven } from '../../../../../math/src/wgsl/sampling.ts'
 import { GGX_DISTRIBUTION_WGSL } from '../../../lighting/standardLighting.ts'
+import { IRRADIANCE_TERMS } from '../../../../../sdk-core/src/scene/core/irradianceTerms.ts'
 import { MIP_ROUGHNESS_SLOPE, ROUGHEST_LEVEL } from './layout.ts'
+
+/** The terms `from` to `to` (excluded) of the basis, as comma-separated WGSL read at the shader's
+ *  unit `d` and its squares `sq`: each term's contract value times its polynomial, a difference
+ *  parenthesised, the constant term alone. */
+const harmonics = (from: number, to: number) =>
+  IRRADIANCE_TERMS.slice(from, to)
+    .map(({ contract, polynomial }, k) => {
+      if (from + k === 0) return `${contract}`
+      const factor = polynomial('d', 'sq')
+      return `${contract}*${factor.includes('-') ? `(${factor})` : factor}`
+    })
+    .join(',')
 
 /**
  * THE SKY LIGHT'S CUBE, AS ITS PROGRAMS READ IT: how a texel of a face is a direction, how the
@@ -82,9 +95,9 @@ struct Harmonics{low:vec4f,mid:vec4f,high:f32,}
 fn harmonicsBasis(d:vec3f)->Harmonics{
  let sq=d*d;
  var h:Harmonics;
- h.low=vec4f(0.282095,-0.488603*d.y,0.488603*d.z,-0.488603*d.x);
- h.mid=vec4f(1.092548*d.x*d.y,-1.092548*d.y*d.z,0.315392*(3.0*sq.z-1.0),-1.092548*d.x*d.z);
- h.high=0.546274*(sq.x-sq.y);
+ h.low=vec4f(${harmonics(0, 4)});
+ h.mid=vec4f(${harmonics(4, 8)});
+ h.high=${harmonics(8, 9)};
  return h;
 }
 `,

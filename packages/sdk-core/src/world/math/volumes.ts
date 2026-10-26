@@ -4,6 +4,7 @@ import {
   frustumPlanesFromMatrix,
 } from '../../../../math/src/geometry/frustum/frustum.ts'
 import { triangleCross } from '../../../../math/src/geometry/triangle.ts'
+import { length3 } from '../../../../math/src/vector/vector.ts'
 import { slabCut } from '../../../../math/src/geometry/slab.ts'
 import { Vector3 } from './vector3.ts'
 import type { Box3 } from './box3.ts'
@@ -131,11 +132,23 @@ export class Ray {
   }
 }
 
-/** The corners' edge cross product into `out` (`triangleCross`): the normal by their winding,
- *  twice the area long. */
-function crossInto({ a, b, c }: Triangle, out: Vector3) {
-  const n = triangleCross([0, 0, 0], 0, [a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z], 0, 3, 6)
-  return out.set(n[0], n[1], n[2])
+/** The corners, then their edge cross product, flat, for `triangleCross`. */
+const corners = new Float64Array(9),
+  cross = new Float64Array(3)
+
+/** The corners' edge cross product (`triangleCross`), in a module buffer valid until the next
+ *  call: the normal by their winding, twice the area long. */
+function crossOf({ a, b, c }: Triangle) {
+  corners[0] = a.x
+  corners[1] = a.y
+  corners[2] = a.z
+  corners[3] = b.x
+  corners[4] = b.y
+  corners[5] = b.z
+  corners[6] = c.x
+  corners[7] = c.y
+  corners[8] = c.z
+  return triangleCross(cross, 0, corners, 0, 3, 6)
 }
 
 /** Three corners, wound counter-clockwise for the front face. */
@@ -162,11 +175,13 @@ export class Triangle {
   }
   /** The arrow standing straight out of the triangle. */
   getNormal(out = new Vector3()) {
-    return crossInto(this, out).normalize()
+    const n = crossOf(this)
+    return out.set(n[0], n[1], n[2]).normalize()
   }
   /** How much surface the triangle covers. */
   getArea() {
-    return crossInto(this, new Vector3()).length() * 0.5
+    const n = crossOf(this)
+    return length3(n[0], n[1], n[2]) * 0.5
   }
   /** The middle of the three corners. */
   getMidpoint(out = new Vector3()) {

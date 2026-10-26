@@ -14,13 +14,13 @@ import {
 } from '../../materials/virtual/wgsl.ts'
 import { rasterSource } from '../raster/shader.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
-import { VIS_SHADER } from './visWgsl.ts'
+import { VIS_SHADER } from './visShader.fixture.ts'
 import { wrapLinear } from '../wrapModes.fixture.ts'
 import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts'
 import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
-const SMALL_SHADER = rasterSource(4)
+const SMALL_SHADER = rasterSource()
 
 /** How many times `fragment` appears, character for character, in `text`. */
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
@@ -70,8 +70,8 @@ test('maskKeepWgsl declares fn maskKeep only once in the rasters, camera and sha
   const camera = maskKeepWgsl(cameraAlpha)
   const shadow = maskKeepWgsl(shadowAlpha)
   assert.match(wgslSource(camera), /fn maskKeep\(/)
-  const { VSM_RENDER_RASTER, VSM_TRANSMISSION_BIN } = ENGINE_SHADERS
-  eachOnce(camera.text, { SMALL_SHADER, VIS_SHADER, VSM_RENDER_RASTER, VSM_TRANSMISSION_BIN })
+  const { VSM_RENDER_RASTER } = ENGINE_SHADERS
+  eachOnce(camera.text, { SMALL_SHADER, VIS_SHADER, VSM_RENDER_RASTER })
   // One text, its read of the map provided: each variant lists its own and is named after it, so
   // two variants never share a name.
   assert.equal(shadow.text, camera.text)

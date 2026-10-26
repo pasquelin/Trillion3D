@@ -78,18 +78,17 @@ export async function gridWorld(
   const table = Array.from({ length: side * side }, (_, cell) => gridCell(side, cell))
   const { partition, files } = paged(table, 4)
   const { manifest } = served(t, { world: gridRoots(side * side), answer })
-  // A failed read is tried again without end: the waits between the tries are what its tests read.
-  const opening = { transfers, onStalled: stalled, maxTransferBytes, numRetries: () => -1 }
+  const opening = { transfers, onStalled: stalled, maxTransferBytes }
   const { roots, queue: streamer } = await opened(t, manifest, opening)
   const cells = createPartitionCells({
     ...{ partition, base: 'https://cache.test/key/', root: new Group(), parents: [] },
     meshes: new Map([[0, placedMesh([{ meshes: 0, primitives: 0 }])]]),
     world: roots,
   })
-  const node = { parent: null, mesh: 0, matrix: null, translation: [1, 1, 1] }
-  const pose = { rotation: [0, 0, 0, 1], scale: [1, 1, 1] }
+  const node = { sourceNode: '00000000', parent: null, mesh: 0, matrix: null }
+  const pose = { translation: [1, 1, 1], rotation: [0, 0, 0, 1], scale: [1, 1, 1] }
   const cellFile = new TextEncoder().encode(
-    JSON.stringify({ version: 3, nodes: [{ ...node, ...pose }] }),
+    JSON.stringify({ version: 4, nodes: [{ ...node, ...pose }] }),
   )
   const bytes = (url: string) => files.get(url.split('/').at(-1)!) ?? cellFile
   const { port, held, asked } = io(bytes)

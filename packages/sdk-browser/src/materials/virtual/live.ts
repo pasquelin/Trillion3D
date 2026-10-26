@@ -2,7 +2,7 @@ import { previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels
 import type { WebgpuTileAtlas } from './atlas/atlasTypes.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { sourceSize } from '../texture/pictureSize.ts'
-import { tailSlotOf, tileKeyOf } from './ids.ts'
+import { tailSlotOf, tileKeyOf, tileSlotOf } from './ids.ts'
 import { copyTailFromTexture, copyTileFromTexture, tileRegion } from './write.ts'
 
 /** True when a texture's source still has the size its tiles were laid out at; a cooked chain,
@@ -32,8 +32,8 @@ export function copyLiveTexture(
     const id = pool.keyOf(index),
       tailOf = tailSlotOf(id)
     if (tailOf === undefined) {
-      const { slot: owner, level, tx, ty } = tileKeyOf(id)
-      if (owner !== slot) continue
+      if (tileSlotOf(id) !== slot) continue
+      const { level, tx, ty } = tileKeyOf(id)
       const [width, height] = previewLevelSize(layout.width, layout.height, level)
       copyTileFromTexture(
         encoder,

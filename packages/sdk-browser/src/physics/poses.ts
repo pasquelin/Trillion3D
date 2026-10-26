@@ -29,6 +29,159 @@ function copyPose(into: Float32Array, o: number, src: ArrayLike<number>, s: numb
   for (let k = 0; k < 7; k++) into[o + k] = src[s + k]
 }
 
+/** The slots' two states and arcs, the last step's state, the slots on their way and the placer
+ *  that writes the drawn poses (`createPhysicsPoses`). */
+function createPoseStore(maxBodies: number, root: Object3D, step: number) {
+  /** Each slot's state a step before the newest, and its newest (7 numbers a slot), and the arc
+   *  between their turns (`slerpArc`, 3 a slot). */
+  const from = new Float32Array(maxBodies * 7),
+    to = new Float32Array(maxBodies * 7),
+    arcs = new Float64Array(maxBodies * 3)
+  /** The bodies' last step (`ObjectPhysics._state`): what `physics.velocity` and `asleep` read. */
+  const state = {
+    asleep: new Uint8Array(maxBodies),
+    velocity: new Float32Array(maxBodies * 6),
+    stamp: new Uint32Array(maxBodies),
+  }
+  const { velocity } = state
+  /** The slots on their way, and the tick that last wrote each (`state.stamp`). */
+  const steps2 = createTwoSteps(maxBodies)
+  const placer = createPosePlacer(maxBodies, root)
+  const { position, quaternion } = placer
+  /** Copies the pose slot `index` is drawn at into `into`, 7 numbers a slot. */
+  const drawnInto = (into: Float32Array, index: number) => {
+    copyPose(into, index * 7, position, index * 3)
+    for (let k = 0; k < 4; k++) into[index * 7 + 3 + k] = quaternion[index * 4 + k]
+  }
+  return {
+    ...{ from, to, arcs, state, steps2, placer, drawnInto, tick: 0 },
+    decorative: new Uint8Array(maxBodies),
+    befores: beforesAt({ bodies: maxBodies }),
+    /** Slot `index` holds where it is drawn now, until its body's next tick. */
+    hold(index: number) {
+      drawnInto(to, index)
+      copyPose(from, index * 7, to, index * 7)
+      slerpArc(arcs, index * 3, from, index * 7 + 3, to, index * 7 + 3)
+    },
+    /** The slots on their way drawn at `t` in one pass: between the two states; else on the newest,
+     *  or moved on from it by its velocities while it is late. */
+    drawAll(moving: Readonly<Int32Array>, count: number, t: number) {
+      placer.begin()
+      if (t < 1) interpolateAll(moving, count, from, to, arcs, t, position, quaternion)
+      else if (t > 1)
+        extrapolateAll(moving, count, to, velocity, (t - 1) * step, position, quaternion)
+      else landAll(moving, count, to, position, quaternion)
+      placer.commit(moving, count)
+      placer.end()
+    },
+  }
+}
+type PoseStore = ReturnType<typeof createPoseStore>
+
+/** Whether the record at `at` holds exactly the pose `places` at `p` and `turns` at `q`: the
+ *  pose a slot is drawn at, or its newest state. */
+const posedAt = (
+  places: ArrayLike<number>,
+  p: number,
+  turns: ArrayLike<number>,
+  q: number,
+  floats: Float32Array,
+  at: number,
+) => sameRange(places, floats, 3, p, at + 1) && sameRange(turns, floats, 4, q, at + 4)
+
+/** A body new to its slot starts from its own pose, whatever the slot listed before it. */
+function bindSlot(
+  store: PoseStore,
+  index: number,
+  g: number,
+  mesh: Bodied | null | undefined,
+  made: NodeMove | undefined,
+) {
+  if (mesh) store.placer.bind(index, g, mesh)
+  else if (made) store.placer.bindNode(index, g, made.node, made.scale)
+  store.decorative[index] = mesh?.physics.decorative ? 1 : 0
+}
+
+/** The record's sleep, tick and velocities into the last step's state; whether it is asleep. */
+function noteState(
+  store: PoseStore,
+  floats: Float32Array,
+  at: number,
+  head: number,
+  index: number,
+) {
+  const { velocity, asleep: sleeping, stamp } = store.state
+  const asleep = (head & ASLEEP_BIT) !== 0,
+    v = index * 6
+  sleeping[index] = asleep ? 1 : 0
+  stamp[index] = store.tick
+  // An asleep body is not extrapolated.
+  const moves = asleep ? 0 : 1
+  for (let k = 0; k < 6; k++) velocity[v + k] = floats[at + 8 + k] * moves
+  return asleep
+}
+
+/** Slot `index`'s earlier state taken from where `earlier` says, its newest from the record
+ *  at `at`, and the arc between their turns. */
+function shiftStates(
+  store: PoseStore,
+  earlier: number,
+  index: number,
+  floats: Float32Array,
+  at: number,
+  before: number,
+) {
+  const { from, to, arcs } = store
+  const o = index * 7
+  if (earlier === FROM.newest) copyPose(from, o, floats, at + 1)
+  else if (earlier === FROM.before) copyPose(from, o, floats, before + 1)
+  else if (earlier === FROM.last) copyPose(from, o, to, o)
+  else store.drawnInto(from, index)
+  copyPose(to, o, floats, at + 1)
+  slerpArc(arcs, index * 3, from, o + 3, to, o + 3)
+}
+
+/** The record at `at` of a tick: 1 when it moved a body from where it is drawn, else 0. */
+function receiveRecord(
+  store: PoseStore,
+  words: Uint32Array,
+  floats: Float32Array,
+  at: number,
+  bodies: PosedBodies,
+  steps: number,
+) {
+  const { generation, meshes, nested } = bodies
+  const { placer, steps2, to } = store
+  const { bound, place, position, quaternion } = placer
+  const head = words[at],
+    index = head & BODY_INDEX,
+    g = generation[index],
+    mesh = meshes[index],
+    made = mesh ? undefined : nested.get(index)
+  // A body that left its slot, or a model's moving no node (`bodies/bodySlots.ts`), draws nothing.
+  if (g !== (head >>> GENERATION_SHIFT) % GENERATIONS || !(mesh || made)) return 0
+  const fresh = bound[index] !== g
+  if (fresh) bindSlot(store, index, g, mesh, made)
+  const asleep = noteState(store, floats, at, head, index)
+  if (asleep && store.decorative[index]) {
+    place(index, floats, at + 1)
+    // Its generation moves on: the next frame takes it off the moving list, and a body
+    // that takes the slot before then is listed once, not twice.
+    bodies.retire(index)
+    return 1
+  }
+  // A listed body is on its way: its record is its next state, whatever it holds.
+  if (!steps2.listed(index) && posedAt(position, index * 3, quaternion, index * 4, floats, at))
+    return 0
+  const o = index * 7,
+    before = store.befores + at,
+    same = steps === 0 && !fresh && posedAt(to, o, to, o + 3, floats, at),
+    earlier = steps2.take(index, keptBefore(head, words[before]), fresh, same)
+  if (earlier === FROM.kept) return 0
+  shiftStates(store, earlier, index, floats, at, before)
+  return 1
+}
+
 /**
  * The drawn poses of the moving bodies. A frame draws each body at the frame's time, the fraction
  * `t` of a step the session reads once for everything the physics draws (`along`), between its
@@ -45,57 +198,9 @@ function copyPose(into: Float32Array, o: number, src: ArrayLike<number>, s: numb
  * and the world matrix straight into the row the renderer reads; no per-body listener runs.
  */
 export function createPhysicsPoses(maxBodies: number, root: Object3D, step = PHYSICS_STEP) {
-  /** Each slot's state a step before the newest, and its newest (7 numbers a slot), and the arc
-   *  between their turns (`slerpArc`, 3 a slot). */
-  const from = new Float32Array(maxBodies * 7),
-    to = new Float32Array(maxBodies * 7),
-    arcs = new Float64Array(maxBodies * 3)
-  /** The bodies' last step (`ObjectPhysics._state`): what `physics.velocity` and `asleep` read. */
-  const state = {
-    asleep: new Uint8Array(maxBodies),
-    velocity: new Float32Array(maxBodies * 6),
-    stamp: new Uint32Array(maxBodies),
-  }
-  const { velocity, asleep: sleeping, stamp } = state
-  const decorative = new Uint8Array(maxBodies)
-  const befores = beforesAt({ bodies: maxBodies })
-  /** The slots on their way, and the tick that last wrote each (`state.stamp`). */
-  const steps2 = createTwoSteps(maxBodies)
-  let tick = 0
-  const placer = createPosePlacer(maxBodies, root)
-  const { bound, place, position, quaternion } = placer
-  /** Whether the record at `at` holds exactly the pose `places` at `p` and `turns` at `q`: the
-   *  pose a slot is drawn at, or its newest state. */
-  const posedAt = (
-    places: ArrayLike<number>,
-    p: number,
-    turns: ArrayLike<number>,
-    q: number,
-    floats: Float32Array,
-    at: number,
-  ) => sameRange(places, floats, 3, p, at + 1) && sameRange(turns, floats, 4, q, at + 4)
-  /** Copies the pose slot `index` is drawn at into `into`, 7 numbers a slot. */
-  const drawnInto = (into: Float32Array, index: number) => {
-    copyPose(into, index * 7, position, index * 3)
-    for (let k = 0; k < 4; k++) into[index * 7 + 3 + k] = quaternion[index * 4 + k]
-  }
-  /** Slot `index` holds where it is drawn now, until its body's next tick. */
-  const hold = (index: number) => {
-    drawnInto(to, index)
-    copyPose(from, index * 7, to, index * 7)
-    slerpArc(arcs, index * 3, from, index * 7 + 3, to, index * 7 + 3)
-  }
-  /** The slots on their way drawn at `t` in one pass: between the two states; else on the newest,
-   *  or moved on from it by its velocities while it is late. */
-  const drawAll = (moving: Readonly<Int32Array>, count: number, t: number) => {
-    placer.begin()
-    if (t < 1) interpolateAll(moving, count, from, to, arcs, t, position, quaternion)
-    else if (t > 1)
-      extrapolateAll(moving, count, to, velocity, (t - 1) * step, position, quaternion)
-    else landAll(moving, count, to, position, quaternion)
-    placer.commit(moving, count)
-    placer.end()
-  }
+  const store = createPoseStore(maxBodies, root, step)
+  const { state, placer, steps2, hold, drawAll } = store
+  const { bound, place } = placer
   /** The generations of the frame being drawn (`apply`): a slot whose body left, or went to
    *  another mesh, is no longer alive. One closure for every frame. */
   let generationNow: Uint8Array = new Uint8Array(0)
@@ -115,64 +220,16 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D, step = PHY
      * Typed arrays only, but for a mesh met for the first time in its slot.
      */
     receive(words: Uint32Array, records: number, bodies: PosedBodies, steps: number) {
-      const { generation, meshes, nested } = bodies
+      const { generation } = bodies
       const floats = new Float32Array(words.buffer, words.byteOffset, words.length)
       let moved = 0
-      tick++
+      store.tick++
       steps2.begin(steps)
       placer.begin()
-      for (let r = 0; r < records; r++) {
-        const at = r * POSE_WORDS,
-          head = words[at],
-          index = head & BODY_INDEX,
-          g = generation[index],
-          mesh = meshes[index],
-          made = mesh ? undefined : nested.get(index)
-        // A body that left its slot, or a model's moving no node (`bodies/bodySlots.ts`), draws nothing.
-        if (g !== (head >>> GENERATION_SHIFT) % GENERATIONS || !(mesh || made)) continue
-        // A body new to its slot starts from its own pose, whatever the slot listed before it.
-        const fresh = bound[index] !== g
-        if (fresh) {
-          if (mesh) placer.bind(index, g, mesh)
-          else if (made) placer.bindNode(index, g, made.node, made.scale)
-          decorative[index] = mesh?.physics.decorative ? 1 : 0
-        }
-        const asleep = (head & ASLEEP_BIT) !== 0,
-          v = index * 6
-        sleeping[index] = asleep ? 1 : 0
-        stamp[index] = tick
-        // An asleep body is not extrapolated.
-        const moves = asleep ? 0 : 1
-        for (let k = 0; k < 6; k++) velocity[v + k] = floats[at + 8 + k] * moves
-        if (asleep && decorative[index]) {
-          place(index, floats, at + 1)
-          // Its generation moves on: the next frame takes it off the moving list, and a body
-          // that takes the slot before then is listed once, not twice.
-          bodies.retire(index)
-          moved++
-          continue
-        }
-        // A listed body is on its way: its record is its next state, whatever it holds.
-        if (
-          !steps2.listed(index) &&
-          posedAt(position, index * 3, quaternion, index * 4, floats, at)
-        )
-          continue
-        const o = index * 7,
-          before = befores + at,
-          same = steps === 0 && !fresh && posedAt(to, o, to, o + 3, floats, at),
-          earlier = steps2.take(index, keptBefore(head, words[before]), fresh, same)
-        if (earlier === FROM.kept) continue
-        moved++
-        if (earlier === FROM.newest) copyPose(from, o, floats, at + 1)
-        else if (earlier === FROM.before) copyPose(from, o, floats, before + 1)
-        else if (earlier === FROM.last) copyPose(from, o, to, o)
-        else drawnInto(from, index)
-        copyPose(to, o, floats, at + 1)
-        slerpArc(arcs, index * 3, from, o + 3, to, o + 3)
-      }
+      for (let r = 0; r < records; r++)
+        moved += receiveRecord(store, words, floats, r * POSE_WORDS, bodies, steps)
       steps2.end((index) => {
-        if (bound[index] === generation[index]) place(index, to, index * 7)
+        if (bound[index] === generation[index]) place(index, store.to, index * 7)
       })
       placer.end()
       return moved

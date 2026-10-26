@@ -8,10 +8,7 @@ import { MS, timedDevice } from '../../gpu/timing/imageTimer.fixture.ts'
 import { prepareGpuTiming } from './timing.ts'
 import { createWebgpuTimingState } from '../backend/state/timing.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-import {
-  DEFERRED_LIGHTING_PASS,
-  RASTER_IDENTIFIERS_PASS,
-} from '../../diagnostic/stage/passLabels.ts'
+import { SURFACE_COLOUR_PASS, RASTER_IDENTIFIERS_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { NO_TIMING } from '../scale/dynamicResolution.ts'
 
 /** What the controller was handed by an image whose passes the device timed at `pairs` (ms), each
@@ -101,7 +98,7 @@ test('the controller is handed the views drawn beside the main one in the busy t
 })
 
 test('with a budget the controller is handed the time of the main view’s visibility passes alone, none without', async () => {
-  const labels = [RASTER_IDENTIFIERS_PASS, DEFERRED_LIGHTING_PASS]
+  const labels = [RASTER_IDENTIFIERS_PASS, SURFACE_COLOUR_PASS]
   assert.deepEqual(
     (await observed(TWO_PASSES, labels, 10)).edge,
     [2],

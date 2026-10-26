@@ -8,7 +8,6 @@ import { createReadFailures } from '../streaming/failures.ts'
 import { REQUEST_PRIORITY_MAX } from '../dag/request/request.ts'
 import { createPageRequests } from './pageRequests.ts'
 import { paceFrame, pumpOn } from './queueInstalls.ts'
-import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import { start } from './queueStarts.ts'
 import { createQueueState, limitsOf, type QueueOptions } from './queueState.ts'
 import { frame, keysOf, rec, scene, world } from './sets.fixture.ts'
@@ -48,7 +47,7 @@ test('what the image draws is held even when the cut never asked for it', () => 
 function startedOver(urls: string[], rooted = (_url: string) => false) {
   const w = world(urls.map((url) => rec(url, 0)))
   const failures = createReadFailures({
-    retriable: () => false,
+    retries: () => 0,
     objectOf: (url) => (url.startsWith('a/') ? 0 : urls.indexOf(url) + 1),
   })
   const settle = new Map<string, { done(): void; fail(error: Error): void }>()
@@ -137,33 +136,40 @@ const turns = async (count = 12) => {
   for (let turn = 0; turn < count; turn++) await Promise.resolve()
 }
 
-/** The queue over pages of `bytes` each, 1 MB a second the simulated bandwidth; `arrive()` brings
- *  every page's bytes in. The install loop ends with the test, whatever it waits for. */
+/** The queue over pages of `bytes` each, 1 MB a second the simulated bandwidth, the CPU clock in
+ *  the test's hands (`clock`, ms; `pace(ms)` moves it and paces the frame); `arrive()` brings every
+ *  page's bytes in. The install loop ends with the test, whatever it waits for. */
 function slowLink(
   t: TestContext,
   urls: string[],
   bytes: number,
   rooted?: (url: string) => boolean,
 ) {
-  const link = startedOver(urls, rooted)
+  const link = startedOver(urls, rooted),
+    clock = { now: 1000 }
+  t.mock.method(performance, 'now', () => clock.now)
   t.after(() => void (link.s.lost = new Error('end of the test')))
   Object.assign(link.s.o.settings, { streamingBandwidthLimit: 1 })
   link.s.limits = limitsOf(link.s.o.settings)
   for (const url of urls)
     Object.assign(link.w.tracking.units.records(link.unit(url))[0], { indexBytes: bytes })
-  return { ...link, arrive: () => urls.forEach((url) => link.settle.get(url)!.done()) }
+  const pace = (ms: number, s = link.s) => {
+    clock.now = ms
+    paceFrame(s)
+  }
+  return { ...link, clock, pace, arrive: () => urls.forEach((url) => link.settle.get(url)!.done()) }
 }
 
 test(
   'each page takes a share of its own of the frame’s bandwidth, in the order started, the bytes it is stored in',
   { timeout: 5000 },
   async (t) => {
-    const { s, installed, arrive } = slowLink(t, ['p0', 'p1', 'p2', 'p3'], 40001)
+    const { s, installed, arrive, pace } = slowLink(t, ['p0', 'p1', 'p2', 'p3'], 40001)
     arrive()
     // An update a tenth of a second: 104 857 bytes at 1 MB/s for each page, none the first time.
     const frame = async (ms: number) => {
       if (ms > 0) s.gate.frame()
-      paceFrame(s, ms)
+      pace(ms)
       await turns()
       return [installed.length, s.pending[0]?.bytesLeft]
     }
@@ -176,14 +182,14 @@ test(
     // Pages of 150 000 bytes: the head takes its share, and waits.
     const big = slowLink(t, ['q0', 'q1'], 150000)
     big.arrive()
-    paceFrame(big.s, 0)
+    big.pace(0)
     await turns()
     big.s.gate.frame()
-    paceFrame(big.s, 100)
+    big.pace(100)
     await turns()
     assert.deepEqual([big.installed, big.s.pending[0].bytesLeft], [[], 150000 - 104857])
     big.s.gate.frame()
-    paceFrame(big.s, 200)
+    big.pace(200)
     await turns()
     assert.deepEqual(big.installed, ['q0'], 'its second share ends it; the next page waits its own')
   },
@@ -193,40 +199,53 @@ test(
   'a frame the gate counts when no update came takes the time it really took, not the last update’s bytes',
   { timeout: 5000 },
   async (t) => {
-    const { s, installed, arrive } = slowLink(t, ['p0', 'p1'], 40000)
+    const { s, installed, arrive, clock } = slowLink(t, ['p0', 'p1'], 40000)
     s.pacing.bandwidthFrame = s.gate.count
-    s.pacing.bandwidthAt = cpuNow()
-    s.pacing.bytesLeft = 0
+    s.pacing.bandwidthAt = clock.now
+    s.pacing.share = 0
     arrive()
     await turns()
     s.gate.frame()
+    clock.now += 1
     await turns()
     assert.equal(s.pacing.bandwidthFrame, s.gate.count, 'paced by the first page that asked')
-    assert.ok(s.pacing.bytesLeft < 1048576, 'a few microseconds of the link')
+    assert.equal(s.pacing.share, Math.floor(0.001 * 1048576), 'the millisecond of its frame')
     assert.deepEqual(installed, [], 'the link holds')
   },
 )
 
 test(
-  'a limit of zero installs no streaming page but a root one, whole; a negative one reads no clock',
+  'a limit of zero installs no streaming page but a root one, whole; a negative one gives no share, its clock still read',
   { timeout: 5000 },
   async (t) => {
-    const { s, installed, arrive } = slowLink(t, ['r/p0', 'a/p1'], 4096, (url) =>
+    const { s, installed, arrive, pace } = slowLink(t, ['r/p0', 'a/p1'], 4096, (url) =>
       url.startsWith('r/'),
     )
     arrive()
     Object.assign(s.o.settings, { streamingBandwidthLimit: 0 })
     s.limits = limitsOf(s.o.settings)
-    paceFrame(s, 0)
+    pace(0)
     s.gate.frame()
-    paceFrame(s, 1000)
+    pace(1000)
     await turns()
     assert.deepEqual(installed, ['r/p0'], 'the root page is not slowed, the other never comes')
     Object.assign(s.o.settings, { streamingBandwidthLimit: -1 })
     s.limits = limitsOf(s.o.settings)
-    s.pacing.bandwidthAt = 5
-    paceFrame(s)
-    assert.equal(s.pacing.bandwidthAt, undefined, 'no limit: the clock is forgotten, never read')
+    s.gate.frame()
+    pace(1500)
+    assert.deepEqual(
+      [s.pacing.share, s.pacing.bandwidthAt],
+      [0, 1500],
+      'no limit: no share, the clock read',
+    )
+    // A limit set again has the real time of its first frame: 0.25 s at 1 MiB/s.
+    Object.assign(s.o.settings, { streamingBandwidthLimit: 1 })
+    s.limits = limitsOf(s.o.settings)
+    s.gate.frame()
+    pace(1750)
+    assert.equal(s.pacing.share, 1048576 / 4)
+    Object.assign(s.o.settings, { streamingBandwidthLimit: -1 })
+    s.limits = limitsOf(s.o.settings)
     s.gate.frame()
     await s.pump
     assert.deepEqual(installed, ['r/p0', 'a/p1'], 'a negative limit waits for nothing')

@@ -10,7 +10,8 @@ import { OPTICS_WGSL } from './opticsWgsl.ts'
  * farther (`transmittance`), and adds what it scatters toward the eye: the sun's light, through
  * the air between the step and the sun (the transmittance table), times the share of it the
  * phase sends along the ray, in shadow where the planet hides the sun, plus the light already
- * scattered more than once (the multi-scattering table). The air's second light, where there is
+ * scattered more than once (the multi-scattering table; for the first light, what the clouds' sky
+ * occlusion leaves of it, `airSkyOcclusion`). The air's second light, where there is
  * one (`Suns.count` 2), adds the same sum of its own to the step's, with its own direction, phase,
  * shadow and multiple scattering, and a ground that ends the ray bounces it too. The step's sum is
  * integrated in closed form against the extinction, so a thick step does not overshoot. A ray that
@@ -41,37 +42,63 @@ fn newMarch()->Marching{
  march.offset=SAMPLE_OFFSET;
  return march;
 }
+/** The march of the sky table's own samples, thicker with the distance over \`SKY_VIEW_DISTANCE_KM\`: the one the table's
+ *  builder and the sky a capture draws share. */
+fn skyViewMarch()->Marching{
+ var march=newMarch();
+ march.variable=true;
+ march.minSamples=SKY_VIEW_SAMPLES_MIN;
+ march.maxSamples=samplesMaxOf(SKY_VIEW_SAMPLES_MAX,SKY_VIEW_SAMPLES_MIN);
+ march.distanceInv=1.0/SKY_VIEW_DISTANCE_KM;
+ return march;
+}
+/** The march of a sky pixel's samples (\`MARCH_DISTANCE_KM\`), their offset in a step \`noise\`: the one the marched
+ *  sky and the haze on a cloud share. */
+fn airMarch(noise:f32)->Marching{
+ var march=newMarch();
+ march.variable=true;
+ march.minSamples=MARCH_SAMPLES_MIN;
+ march.maxSamples=samplesMaxOf(MARCH_SAMPLES_MAX,MARCH_SAMPLES_MIN);
+ march.distanceInv=1.0/MARCH_DISTANCE_KM;
+ march.offset=noise;
+ return march;
+}
+/** The reach of a march that goes as far as the air lets it, kilometres. */
+const AIR_REACH_KM:f32=9000000.0;
 /** What a light gives the phase along a ray that makes \`cosTheta\` with it: the haze's share, then
  *  the air's. */
 fn phasesOf(cosTheta:f32)->vec2f{return vec2f(hgPhase(atmo(${ATMOSPHERE_SLOT.mieExtinction}u).w,-cosTheta),rayleighPhase(cosTheta));}
+/** What a light scatters into the ray at \`p\`: the whole of the medium \`m\`, the haze's share of it and the air's. */
+struct SunParts{all:vec3f,mie:vec3f,ray:vec3f,}
 /** What a light scatters into the ray at \`p\` (\`up\` there), in the medium \`m\`: its illuminance times
  *  the air between it and \`p\` (none in the planet's shadow, and \`volumeShadow\` of what the
- *  scene's shadows leave) times the phase \`phase\`, plus the light scattered more than once. \`part\`
- *  picks what is summed: 0 all of the medium, 1 the haze alone, 2 the air alone. \`bottom\` is the
- *  planet's radius. */
-fn sunScatter(p:vec3f,up:vec3f,m:Medium,sun:Sun,phase:vec2f,miePhase:bool,bottom:f32,volumeShadow:f32,part:u32)->vec3f{
- var scattering=m.scattering;
- var phased=select(m.scattering*UNIFORM_PHASE,m.mieScattering*phase.x+m.rayScattering*phase.y,miePhase);
- if(part==1u){
-  scattering=m.mieScattering;
-  phased=m.mieScattering*select(UNIFORM_PHASE,phase.x,miePhase);
- }else if(part==2u){
-  scattering=m.rayScattering;
-  phased=m.rayScattering*select(UNIFORM_PHASE,phase.y,miePhase);
- }
+ *  scene's shadows leave) times the phase \`phase\`, plus the light scattered more than once, of
+ *  which \`multiShade\` is what the clouds' sky occlusion leaves. The air between the light and \`p\` and the
+ *  multiple scattering are read once for the three sums (the whole medium, the haze alone, the air alone).
+ *  \`bottom\` is the planet's radius. */
+fn sunScatter(p:vec3f,up:vec3f,m:Medium,sun:Sun,phase:vec2f,miePhase:bool,bottom:f32,volumeShadow:f32,multiShade:f32)->SunParts{
+ let phasedMie=m.mieScattering*select(UNIFORM_PHASE,phase.x,miePhase);
+ let phasedRay=m.rayScattering*select(UNIFORM_PHASE,phase.y,miePhase);
  let shadow=select(1.0,0.0,raySphereNearest(p,sun.toward,up*PLANET_OFFSET,bottom)>=0.0)*volumeShadow;
- return sun.illuminance*(shadow*transmittanceToward(p,sun.toward)*phased+multiScatter(p,dot(sun.toward,up))*scattering);
+ let direct=sun.illuminance*shadow*transmittanceToward(p,sun.toward);
+ let multi=sun.illuminance*multiScatter(p,dot(sun.toward,up))*multiShade;
+ return SunParts(direct*(phasedMie+phasedRay)+multi*m.scattering,direct*phasedMie+multi*m.mieScattering,direct*phasedRay+multi*m.rayScattering);
 }
 /** What a light gives a ray that ends on the ground at \`p\` (\`up\` there): its illuminance through
  *  the air toward it, by the cosine at the ground, times what the ray kept and the albedo over pi. */
 fn groundBounce(p:vec3f,up:vec3f,sun:Sun,throughput:vec3f)->vec3f{
  return sun.illuminance*transmittanceToward(p,sun.toward)*throughput*saturate(dot(up,sun.toward))*atmo(${ATMOSPHERE_SLOT.ground}u).xyz/PI;
 }
-/** The light of every light of the air at the step \`p\`, of the part \`part\` of the medium
- *  (\`sunScatter\`), \`shade\` the share of each the scene's shadows leave. */
-fn stepScatter(p:vec3f,up:vec3f,m:Medium,suns:Suns,phases:array<vec2f,2>,shade:vec2f,miePhase:bool,bottom:f32,part:u32)->vec3f{
- var scattered=vec3f(0.0);
- for(var k=0u;k<suns.count;k++){scattered+=sunScatter(p,up,m,suns.list[k],phases[k],miePhase,bottom,shade[k],part);}
+/** The light of every light of the air at the step \`p\`, of the medium \`m\` (\`sunScatter\`: all of it, the haze's, the air's),
+ *  \`shade\` the share of each light the scene's shadows leave (\`x\`, \`y\`) and the
+ *  share of the first light's multiple scattering the clouds' sky occlusion leaves (\`z\`): the
+ *  second light's is not dimmed by it. */
+fn stepScatter(p:vec3f,up:vec3f,m:Medium,suns:Suns,phases:array<vec2f,2>,shade:vec3f,miePhase:bool,bottom:f32)->SunParts{
+ var scattered=SunParts(vec3f(0.0),vec3f(0.0),vec3f(0.0));
+ for(var k=0u;k<suns.count;k++){
+  let one=sunScatter(p,up,m,suns.list[k],phases[k],miePhase,bottom,shade[k],select(1.0,shade.z,k==0u));
+  scattered=SunParts(scattered.all+one.all,scattered.mie+one.mie,scattered.ray+one.ray);
+ }
  return scattered;
 }
 /** The ray's reach: from \`start\` along \`dir\` to the air's top or the ground, whichever it meets
@@ -131,20 +158,19 @@ fn integrateAir(start:vec3f,dir:vec3f,ground:bool,march:Marching,miePhase:bool,s
   let up=p/length(p);
   let m=mediumAt(p);
   let stepT=exp(-m.extinction*dt*distanceScale);
-  var shade=vec2f(1.0);
+  var shade=vec3f(1.0);
   for(var k=0u;k<suns.count;k++){shade[k]=airShadow(k,p)*airCloudShadow(k,p);}
-  let scattered=stepScatter(p,up,m,suns,phases,shade,miePhase,bottom,0u);
+  shade.z=airSkyOcclusion(p);
+  let lit=stepScatter(p,up,m,suns,phases,shade,miePhase,bottom);
   let safe=max(m.extinction,vec3f(1e-9));
   r.multiAs1+=throughput*m.scattering*dt;
-  radiance+=throughput*((scattered-scattered*stepT)/safe);
+  radiance+=throughput*((lit.all-lit.all*stepT)/safe);
   if(march.separate){
    // The haze's light and the air's, each with the ozone's absorption shared half and half.
    let mieT=exp(-(m.mieExtinction+m.ozoneExtinction)*dt*distanceScale);
    let rayT=exp(-(m.rayScattering+m.ozoneExtinction)*dt*distanceScale);
-   let sMie=stepScatter(p,up,m,suns,phases,shade,miePhase,bottom,1u);
-   let sRay=stepScatter(p,up,m,suns,phases,shade,miePhase,bottom,2u);
-   r.radianceMie+=throughput*((sMie-sMie*stepT)/safe);
-   r.radianceRay+=throughput*((sRay-sRay*stepT)/safe);
+   r.radianceMie+=throughput*((lit.mie-lit.mie*stepT)/safe);
+   r.radianceRay+=throughput*((lit.ray-lit.ray*stepT)/safe);
    r.transmittanceMie*=mieT;
    r.transmittanceRay*=rayT;
   }

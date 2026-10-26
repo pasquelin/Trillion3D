@@ -104,6 +104,22 @@ impl PartitionGrid {
         })
     }
 
+    /// The job's refusal when a grid lists (`hlodLayers`) an HLOD layer name `hlod` has no layer
+    /// of, `None` when every name lists one.
+    pub(crate) fn unknown_hlod_layer(&self, hlod: &Hlod) -> Option<String> {
+        self.grids.iter().enumerate().find_map(|(at, grid)| {
+            let mut names = grid.loose.hlod_layers.iter().flatten();
+            let name = names.find(|n| !hlod.layers.iter().any(|l| l.name == **n))?;
+            let field = match self.grids_identity {
+                Some(_) => format!("{PARTITION_GRIDS_FIELD}[{at}]"),
+                None => PARTITION_GRID_FIELD.to_string(),
+            };
+            Some(format!(
+                "{field}: hlodLayers names {name:?}, which no layer of {HLOD_FIELD} bears"
+            ))
+        })
+    }
+
     /// The rank among the grids of the grid named `name`, told apart without regard to case; `None`
     /// for a name no grid of the job has, which streams on the first grid, the reference's
     /// fallback.
@@ -170,7 +186,7 @@ mod tests {
             ),
             (json!({"partitionGrids": [{"nme": "x"}]}), "no field nme"),
             (
-                square(json!([{}, {"name": "x", "nestedLevels": true}])),
+                square(json!([{}, {"name": "x", "nestedLevels": false}])),
                 "the whole partition's",
             ),
         ];

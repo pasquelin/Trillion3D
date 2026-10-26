@@ -1,4 +1,4 @@
-// An instance stores nothing per page. The layout's packed pages, the row state's ranks by
+// An instance stores nothing per page. The layout's packed pages, the cluster state's ranks by
 // address, the pool's copies and the DAG's page urls are counted per primitive page, whatever the
 // number of placements: one more placement adds a base, never one entry per page.
 import test from 'node:test'
@@ -27,9 +27,8 @@ const layoutOf = (count: number) =>
       bootstrap: [],
       cap: 64,
       // The census the layout reads: one page a slot, 64 bytes the widest cluster.
-      census: { unitPages: 1, clusterBytes: 64 },
+      census: { unitPages: 1 },
     } as unknown as WebgpuPagesSetup,
-    undefined,
     () => -1,
   )
 
@@ -39,9 +38,9 @@ test('the packed tables hold one entry per primitive page, whatever the placemen
     pages = dag.pages.length
   assert.equal(many.packedPages.length, 40 * pages, 'every instance keeps its packed rank')
   assert.equal(Array.isArray(many.packedPages), false, 'no flat list of records per instance')
-  assert.deepEqual([one.rows.instances.size, many.rows.instances.size], [pages, pages])
+  assert.deepEqual([one.clusters.instances.size, many.clusters.instances.size], [pages, pages])
   assert.deepEqual(
-    [one.rows.instances.copiesMax, many.rows.instances.copiesMax],
+    [one.clusters.instances.copiesMax, many.clusters.instances.copiesMax],
     [1, 40],
     'the largest placement count',
   )
@@ -49,9 +48,9 @@ test('the packed tables hold one entry per primitive page, whatever the placemen
   // rank names it, as the flat list did.
   const last = 39 * pages + 3
   assert.equal(many.recordOf(last), many.selectionRoots[0].pages[3])
-  assert.equal(many.rows.pageIndexOf(many.recordOf(last)!), 3)
+  assert.equal(many.clusters.pageIndexOf(many.recordOf(last)!), 3)
   const ranks: number[] = []
-  many.rows.instances.each(many.recordOf(3)!.url, (packed) => ranks.push(packed))
+  many.clusters.instances.each(many.recordOf(3)!.url, (packed) => ranks.push(packed))
   assert.deepEqual(
     ranks,
     Array.from({ length: 40 }, (_, r) => r * pages + 3),

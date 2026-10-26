@@ -13,8 +13,10 @@ import { dagViewFrames } from '../oracle/math.fixture.ts'
 import { refitTree } from '../tree/treeRefitRun.fixture.ts'
 import { graphDraws } from '../../selection/drawSource.ts'
 
-/** `side`² placements of the strip, `gap` apart on x and z, the first at the origin. */
-export function placementField(side: number, gap: number) {
+/** `side`² placements of the strip, `gap` apart on x and z, the first at the origin. A view has no
+ *  far plane, so a far world bounds nothing of what it holds: with `drawn`, each placement is drawn
+ *  within that many metres of the eye (`DagRoot.drawDistance`), as an object names its own. */
+export function placementField(side: number, gap: number, drawn?: number) {
   const fixture = dagFixture()
   const [root] = collectClusterPages(
     fixture.source,
@@ -27,12 +29,16 @@ export function placementField(side: number, gap: number) {
     const elements = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
     elements[12] = (k % side) * gap
     elements[14] = -Math.floor(k / side) * gap
-    roots.push({ ...root, world: { elements } } as DagRoot)
+    roots.push({
+      ...root,
+      world: { elements },
+      ...(drawn && { drawDistance: { min: 0, max: drawn, perInstance: false } }),
+    } as DagRoot)
   }
   return roots
 }
 
-/** A camera at `eye` looking at `at`, with a far plane `far`. */
+/** A camera at `eye` looking at `at`; its `far` bounds nothing of the cut (`placementField`'s `drawn` does). */
 export function fieldCamera(eye: number[], at: number[], far = 400) {
   const cam = G.perspectiveCamera(55, 16 / 9, 0.1, far)
   cam.position.set(eye[0], eye[1], eye[2])
@@ -65,5 +71,9 @@ export function fieldCut(
   const placements: number[] = []
   for (let w = 0; w < roots.length; w++) if (flags.reached(w)) placements.push(w)
   const reached = placements.length
-  return { pages: result.pageIds, drawn: result.drawablePageIds ?? [], reached, placements, dag }
+  return {
+    ...{ pages: result.pageIds, drawn: result.drawablePageIds ?? [], reached, placements, dag },
+    // The entries each level of the descent holds (`dagOracleDescent`, `work.levels`).
+    levels: flags.work.levels,
+  }
 }

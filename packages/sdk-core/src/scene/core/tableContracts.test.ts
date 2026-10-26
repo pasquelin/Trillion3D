@@ -13,7 +13,7 @@ const hasCode =
 const tables = () => ({
   version: 9,
   nodeTableVersion: 7,
-  materialTableVersion: 5,
+  materialTableVersion: 6,
   geometryTableVersion: 1,
   scene: { name: null, nodes: [] },
   nodes: [],
@@ -135,10 +135,19 @@ test('a partition root of another version or shape is refused, and a cell is rea
     () => assertSceneTables({ ...tables(), partition: { ...partition, pages: [EMPTY] } }),
     hasCode('INVALID_SCENE_TABLES'),
   )
-  assert.deepEqual(assertCellNodes({ version: 3, nodes: [] }), [])
-  // A cell of version 2 names no animated object's track nor its source row.
-  for (const version of [1, 2])
+  assert.deepEqual(assertCellNodes({ version: 4, nodes: [] }), [])
+  // A cell of version 2 names no animated object's track nor its source row, one of version 3 no
+  // source node.
+  for (const version of [1, 2, 3])
     assert.throws(() => assertCellNodes({ version, nodes: [] }), hasCode('INVALID_SCENE_TABLES'))
+  // Every row names the source node it draws, fixed-width.
+  const row = { sourceNode: '0000000a', parent: null, mesh: 0 }
+  assert.deepEqual(assertCellNodes({ version: 4, nodes: [row] }), [row])
+  for (const sourceNode of [undefined, 10, '', 'a', '0000000A', '0000000g'])
+    assert.throws(
+      () => assertCellNodes({ version: 4, nodes: [row, { ...row, sourceNode }] }, 'a cell'),
+      hasCode('INVALID_SCENE_TABLES', 'a cell names a node whose sourceNode'),
+    )
 })
 
 test('the root gives its slots, box, rows and parents; a page is read alone, checked', () => {

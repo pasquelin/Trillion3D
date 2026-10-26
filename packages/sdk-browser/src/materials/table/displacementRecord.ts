@@ -2,9 +2,11 @@ import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { MAX_UV_SETS } from '../../../../sdk-core/src/page/format.ts'
 import type { VisMaterial } from '../../visibility/materialType.ts'
+import { displacementProgramOf } from '../graph/displacementProgram.ts'
 import { fadeOutPixels, displacementRange } from '../../visibility/tessellation/numbers.ts'
 import type { MaterialLayers } from '../../geometry/rows/page/pageRowMaterial.ts'
 import { layerSlot } from '../../geometry/rows/page/pageRowMaterial.ts'
+import { copyChanged } from './materialRecord.ts'
 
 /**
  * A DISPLACED SURFACE'S RECORD, beside the material table and by the same rank
@@ -13,7 +15,8 @@ import { layerSlot } from '../../geometry/rows/page/pageRowMaterial.ts'
  * two ends of the fade range in pixels — both zero for a displacement that never fades —, `bounds`
  * the least and the greatest distance a point moves (`displacementRange`) and the size under which
  * the fade is gone (`fadeOutPixels`), `map` the height map's data-atlas slot and the texture
- * set it reads, zero for a surface that is not displaced. The table is its own small buffer, made only once a displaced surface is written: a
+ * set it reads — for a height a graph gives, no slot, the mark `1` and the surface's own rank, which
+ * names the graph's values (`heightWgsl.ts`) —, `density` and `densityHigh` the measured density of each texture set, zero for a surface that is not displaced. The table is its own small buffer, made only once a displaced surface is written: a
  * scene without one holds none, so the material record every other pass reads is untouched.
  */
 export const DISPLACEMENT_RECORD = fieldLayout('DisplacementRecord', [
@@ -21,6 +24,7 @@ export const DISPLACEMENT_RECORD = fieldLayout('DisplacementRecord', [
   ['bounds', 'vec4f'],
   ['map', 'vec4u'],
   ['density', 'vec4f'],
+  ['densityHigh', 'vec4f'],
 ] as const)
 /** Words of one record. */
 export const DISPLACEMENT_WORDS = DISPLACEMENT_RECORD.words
@@ -45,7 +49,42 @@ export type DisplacementRecords = ReturnType<typeof createDisplacementRecords>
 
 /** Whether the record of rank `rank` holds a displaced surface. */
 const held = (d: DisplacementRecords, rank: number) =>
-  (d.ints[rank * DISPLACEMENT_WORDS + F.map] ?? 0) !== 0
+  ((d.ints[rank * DISPLACEMENT_WORDS + F.map] ?? 0) |
+    (d.ints[rank * DISPLACEMENT_WORDS + F.map + 2] ?? 0)) !==
+  0
+
+type Displaced = NonNullable<VisMaterial['displacement']>
+
+/** Fills `scratch` with the record of a displaced surface: the height map's slot, or the graph
+ *  that gives the height. */
+function fillRecord(
+  displacement: Displaced,
+  map: VisMaterial['displacementMap'],
+  slot: number,
+  graph: ReturnType<typeof displacementProgramOf>,
+  rank: number,
+) {
+  const { magnitude, center, fade } = displacement
+  scratch[F.scale] = magnitude
+  scratch[F.scale + 1] = center
+  scratch[F.scale + 2] = fade?.start ?? 0
+  scratch[F.scale + 3] = fade?.end ?? 0
+  const { min, max } = displacementRange(displacement)
+  scratch[F.bounds] = min
+  scratch[F.bounds + 1] = max
+  scratch[F.bounds + 2] = fadeOutPixels(displacement)
+  scratchInts[F.map] = slot
+  // The texture set the map reads (glTF's `texCoord`), held to the last one a page carries; a
+  // graph's, the one its output names.
+  scratchInts[F.map + 1] = graph ? graph.set : Math.min(map?.channel ?? 0, MAX_UV_SETS - 1)
+  if (graph) {
+    scratchInts[F.map + 2] = 1
+    scratchInts[F.map + 3] = rank
+  }
+  // The density of each texture set, the first four in `density`, the others in `densityHigh`.
+  for (let set = 0; set < MAX_UV_SETS; set++)
+    scratch[F.density + set] = displacement.uvDensities?.[set] ?? 0
+}
 
 /**
  * Writes the displacement of `mat` at `rank` — or clears the rank, a surface that is not displaced
@@ -55,39 +94,24 @@ const held = (d: DisplacementRecords, rank: number) =>
 export function writeDisplacementRecord(
   d: DisplacementRecords,
   rank: number,
-  mat: Pick<VisMaterial, 'displacement' | 'displacementMap'>,
+  mat: Pick<VisMaterial, 'displacement' | 'displacementMap' | 'graph'>,
   { dataLayer }: Pick<MaterialLayers, 'dataLayer'>,
 ) {
   const at = rank * DISPLACEMENT_WORDS
+  // A height map's slot in the data atlas, or, with none, the graph that wires a `displacement`
+  // the tessellation reads (`../graph/displacementProgram.ts`) — the rank of the surface's record, which
+  // names it, and the texture set it reads, in place of the map's.
   const slot = mat.displacement ? layerSlot(dataLayer, mat.displacementMap) : 0
+  const graph = mat.displacement && !slot ? displacementProgramOf(mat) : undefined
   const was = held(d, rank)
-  if (!slot && !was) return false
+  if (!slot && !graph && !was) return false
   if (d.ints.length < at + DISPLACEMENT_WORDS) d.ints = resized(d.ints, at + DISPLACEMENT_WORDS)
   scratch.fill(0)
-  if (slot && mat.displacement) {
-    const { magnitude, center, fade } = mat.displacement
-    scratch[F.scale] = magnitude
-    scratch[F.scale + 1] = center
-    scratch[F.scale + 2] = fade?.start ?? 0
-    scratch[F.scale + 3] = fade?.end ?? 0
-    const { min, max } = displacementRange(mat.displacement)
-    scratch[F.bounds] = min
-    scratch[F.bounds + 1] = max
-    scratch[F.bounds + 2] = fadeOutPixels(mat.displacement)
-    scratchInts[F.map] = slot
-    // The texture set the map reads (glTF's `texCoord`), held to the last one a page carries.
-    scratchInts[F.map + 1] = Math.min(mat.displacementMap?.channel ?? 0, MAX_UV_SETS - 1)
-    for (let set = 0; set < 4; set++)
-      scratch[F.density + set] = mat.displacement.uvDensities?.[set] ?? 0
-  }
-  let changed = false
-  for (let i = 0; i < DISPLACEMENT_WORDS; i++)
-    if (d.ints[at + i] !== scratchInts[i]) {
-      d.ints[at + i] = scratchInts[i]
-      changed = true
-    }
+  if ((slot || graph) && mat.displacement)
+    fillRecord(mat.displacement, mat.displacementMap, slot, graph, rank)
+  const changed = copyChanged(d.ints, at, scratchInts)
   if (changed) {
-    if (was !== !!slot) d.count += slot ? 1 : -1
+    if (was !== !!(slot || graph)) d.count += slot || graph ? 1 : -1
     d.version++
   }
   return changed

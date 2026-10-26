@@ -13,10 +13,11 @@ const extentScratch = new Float64Array(3)
 /**
  * World sphere of a cluster, written at `base` of `out` as the spheres' buffer holds it (centre high,
  * radius, centre low, pad): the centre of its local box transformed by its root's world, and the
- * radius of the sphere about it that holds the transformed box (`../../../placement/rows/rowSphere.ts`, the
- * formula the rows pass evaluates). A dynamic page's box is where its vertices are this
- * frame (`moved`); another grows by its root's deformation reach. What a CPU change box reads
- * (`growClusterBox`); the GPU's spheres are the rows pass's alone.
+ * radius of the sphere about it that holds the transformed box (`../../../placement/rows/rowSphere.ts`:
+ * the growth and the margin of the candidates kernel's sphere, `../vsm/render/renderCandidatesWgsl.ts`,
+ * whose centre is a single-precision product where this one is a double). A dynamic page's box is
+ * where its vertices are this frame (`moved`); another grows by its root's deformation reach. What a
+ * CPU change box reads (`growClusterBox`); the GPU's spheres are the candidates kernel's alone.
  */
 export function writeClusterSphere(
   rec: PageRec,

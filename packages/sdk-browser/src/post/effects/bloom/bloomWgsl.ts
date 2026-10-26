@@ -1,8 +1,8 @@
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { luminance } from '../../../../../math/src/wgsl/color.ts'
-import { FULLSCREEN_VERTEX } from '../../../lighting/deferred/shaders.ts'
-import { FINISH_WGSL, GLOWED_PIXEL_WGSL } from '../../finish/finishWgsl.ts'
+import { FULLSCREEN_VERTEX } from '../../../gpu/shader/fullscreenTriangle.ts'
+import { DIRT_UV_WGSL, FINISH_WGSL, GLOWED_PIXEL_WGSL } from '../../finish/finishWgsl.ts'
 
 /** The uniform of the bloom's setup: the inverse size of the image it writes, the threshold, and
  *  1 where the local exposure's layers are applied. */
@@ -43,11 +43,13 @@ ${BLOOM_SETUP.wgsl}
  * - `keep`: what the image's colour is multiplied by where the glow took some of its light, its
  *   fourth word 1 where it applies;
  * - `dirt`: what the dirt mask multiplies the glow by, `1 + mask × dirt`, its fourth word 1 where a
- *   mask is drawn.
+ *   mask is drawn;
+ * - `lens`: the lens' principal point the mask is read by (`dirtUv`).
  */
 export const BLOOM_LOOK = fieldLayout('Look', [
   ['keep', 'vec4f'],
   ['dirt', 'vec4f'],
+  ['lens', 'vec4f'],
 ] as const)
 /** Bytes of the composite's uniform. */
 export const BLOOM_LOOK_BYTES = BLOOM_LOOK.words * 4
@@ -69,8 +71,8 @@ ${BLOOM_LOOK.wgsl}
 @fragment fn composite(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let uv=pixel.xy/vec2f(textureDimensions(scene));
  var mask=vec3f(0.0);
- if(look.dirt.w!=0.0){mask=textureSampleLevel(dirtImage,reader,uv,0.0).rgb;}
+ if(look.dirt.w!=0.0){mask=textureSampleLevel(dirtImage,reader,dirtUv(uv,look.lens),0.0).rgb;}
  return glowedPixel(textureLoad(scene,vec2i(pixel.xy),0),look.keep,textureSampleLevel(glow,reader,uv,0.0),mask,look.dirt);
 }`,
-  [GLOWED_PIXEL_WGSL, FULLSCREEN_VERTEX],
+  [GLOWED_PIXEL_WGSL, DIRT_UV_WGSL, FULLSCREEN_VERTEX],
 )

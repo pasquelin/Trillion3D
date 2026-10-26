@@ -8,8 +8,8 @@
 
 /** How an HLOD layer builds its actors:
  *  - `instanced`: the objects themselves, each its source mesh at its own detail. A layer
- *    disallowing their cluster DAG (`disallowClusterDag: true`) is built the way a `merge` layer
- *    keeping its materials builds its actors, each source at the last LOD of its mesh;
+ *    disallowing their cluster DAG (`disallowClusterDag: true`) stays instanced: each object is a
+ *    row of its source mesh's fallback mesh, built once per mesh and drawn whole;
  *  - `approximate`: one closed shell per cell, wearing a flattened material;
  *  - `merge`: the cell's objects merged into one mesh;
  *  - `voxel`: the cell's objects voxelized together, levels of bricks the cut picks by their
@@ -106,6 +106,40 @@ export const HLOD_NORMAL_METHODS = ['angleWeighted', 'areaWeighted', 'equalWeigh
 /** How a `simplify` layer's transfer rays — one each way along a texel's normal — pick their hit:
  *  `nearest`, the nearer (the default); `facing`, a source facing the ray's way first. */
 export const HLOD_TRANSFER_RAYS = ['nearest', 'facing'] as const
+/** Which hidden triangles an `approximate` layer's shell drops: `visibility`, those no ray from
+ *  outside reaches (the default); `none`, none. */
+export const HLOD_OCCLUSIONS = ['visibility', 'none'] as const
+/** One of `HLOD_OCCLUSIONS`. */
+export type HlodOcclusion = (typeof HLOD_OCCLUSIONS)[number]
+/** What an `approximate` layer's shell is simplified to: the layer's `deviation`, a number of
+ *  triangles a square metre of its area, or a fixed number of triangles. */
+export const HLOD_SIMPLIFICATIONS = [
+  'geometricTolerance',
+  'trianglesPerArea',
+  'fixedTriangleCount',
+] as const
+/** One of `HLOD_SIMPLIFICATIONS`. */
+export type HlodSimplification = (typeof HLOD_SIMPLIFICATIONS)[number]
+/** How an `approximate` layer's shell is unwrapped: grown charts, merged patches or an atlas of
+ *  charts cut by spectral analysis. */
+export const HLOD_APPROXIMATION_UV_METHODS = ['charts', 'patches', 'uvAtlas'] as const
+/** One of `HLOD_APPROXIMATION_UV_METHODS`. */
+export type HlodApproximationUvMethod = (typeof HLOD_APPROXIMATION_UV_METHODS)[number]
+/** How a layer's atlas is sized. */
+export const HLOD_TEXTURE_SIZINGS = [
+  'fixed',
+  'texelDensity',
+  'screenSize',
+  'drawDistance',
+  'biased',
+  'manual',
+] as const
+/** One of `HLOD_TEXTURE_SIZINGS`. */
+export type HlodTextureSizing = (typeof HLOD_TEXTURE_SIZINGS)[number]
+/** Which objects an `instanced` layer takes by the size of their world box. */
+export const HLOD_SIZE_FILTERS = ['none', 'extent', 'area', 'volume'] as const
+/** One of `HLOD_SIZE_FILTERS`. */
+export type HlodSizeFilter = (typeof HLOD_SIZE_FILTERS)[number]
 /** The atlas sides, in texels, a layer may name: a power of two in these bounds. */
 export const MIN_HLOD_TEXTURE_SIZE = 16
 /** See `MIN_HLOD_TEXTURE_SIZE`. */
@@ -128,8 +162,8 @@ export const DEFAULT_HLOD_LOADING_RANGE = 512
 export const MIN_HLOD_LEVELS = 1
 /** The most levels a chain may have, HLOD 0 included: the world table writes a level in 8 bits. */
 export const MAX_HLOD_LEVELS = 256
-/** The default chain's levels: the objects themselves, then one merged level. */
-export const DEFAULT_HLOD_LEVELS = 2
+/** The default chain's levels: the objects themselves, then three merged levels, HLOD 0 to 3. */
+export const DEFAULT_HLOD_LEVELS = 4
 /** A 1×1 opaque white PNG: what a scene decodes in place of an image whose mip chain the cache
  *  bakes — the image an HLOD actor's flattened material names, and what the prepared scene
  *  decodes for an image it skips reading. */
@@ -155,9 +189,9 @@ export interface HlodMatchOf<P> {
 /** A rule's match as the compiler reads it. */
 export type HlodWireMatch = HlodMatchOf<HlodWirePattern>
 
-/** The key of a glTF node's `extras` that marks its object for an HLOD: a group of the simple
- *  form or a layer of the expert form, by name — `"extras": { "hlod": "buildings" }`. A mark wins
- *  over the rules by name; a mark naming no group nor layer refuses the job. */
+/** The key of a glTF node's `extras` that marks its object for an HLOD: a layer's name —
+ *  `"extras": { "hlod": "hlod0" }`, the simple form's layers `hlod0` to `hlod{levels - 1}`. A mark
+ *  wins over the rules; a mark naming no layer refuses the job. */
 export const HLOD_MARK = 'hlod'
 /** The key of a glTF node's `extras` whose `true` makes its object stand as itself in every actor
  *  its chain builds: its meshes instanced there, each at its own detail, beside what the actor's

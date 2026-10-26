@@ -22,8 +22,7 @@ const HEAD_ORACLE = 4
  * only wrote the key when a mask existed, the reused readback always carries it. Fields that only
  * one of the two produces — `truncated`, `peaks`, the `requests` with their page counts and
  * priorities and the occlusion's counts that only the reader takes, `complete` that only the oracle
- * still reads (the cut rule leaves no surface undrawn), the difference only the GPU takes
- * (`shader/differenceWgsl.ts`), and the totals — are STRIPPED and asserted separately: comparing
+ * still reads (the cut rule leaves no surface undrawn), and the totals — are STRIPPED and asserted separately: comparing
  * them would ask a side for something it never knew.
  */
 const champs = (reading: (Partial<SelectionResult> & { complete?: boolean }) | null) => {

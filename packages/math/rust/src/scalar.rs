@@ -90,11 +90,15 @@ pub fn byte_to_unit_f32(byte: u8) -> f32 {
     f32::from(byte) / 255.0
 }
 
-/// The slope `tan(fov / 2)` of a perspective camera's half field, `fov` in degrees: the half
-/// height of the image plane one unit ahead.
+/// The least field a perspective camera opens, in degrees: a smaller one is read as this
+/// (`perspectiveField`, `packages/math/src/projection/camera.ts`).
+const MIN_FIELD_DEGREES: f64 = 0.001;
+
+/// The slope `tan(fov / 2)` of a perspective camera's half field, `fov` in degrees, at least
+/// `MIN_FIELD_DEGREES`: the half height of the image plane one unit ahead.
 #[inline]
 pub fn perspective_slope(fov_degrees: f64) -> f64 {
-    (fov_degrees.to_radians() * 0.5).tan()
+    (fov_degrees.max(MIN_FIELD_DEGREES).to_radians() * 0.5).tan()
 }
 
 /// Side of mip level `level` of an image whose base side is `size`: `size` halved `level` times by

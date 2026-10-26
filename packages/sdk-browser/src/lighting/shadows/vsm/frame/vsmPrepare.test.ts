@@ -17,7 +17,7 @@ import {
   disposeQuadRun,
   quadBackend,
 } from '../../../../frame/backend/testScenes.fixture.ts'
-import { VSM_RENDER_CORNER_TIERS, VSM_RENDER_TIERS } from '../render/renderParamsWgsl.ts'
+import { VSM_RENDER_CORNER_TIERS, VSM_RENDER_SOFTWARE_BIN } from '../render/renderParamsWgsl.ts'
 
 /** A pipeline's name, before the tag the session gives its label (`vsm.projection @t3d:1`). */
 const nameOf = (descriptor: { label?: string }) => (descriptor.label ?? '').split(' ')[0]
@@ -46,7 +46,7 @@ test('the first lit frame creates no shadow pipeline at once: prepare compiled t
     for (let tier = 0; tier < VSM_RENDER_CORNER_TIERS; tier++)
       assert.ok(prepared.includes(`vsm.render.raster${tier}`), `the raster of tier ${tier}`)
     // A scene with no voxel row compiles no voxel tier.
-    for (let tier = VSM_RENDER_CORNER_TIERS; tier < VSM_RENDER_TIERS; tier++)
+    for (let tier = VSM_RENDER_CORNER_TIERS; tier < VSM_RENDER_SOFTWARE_BIN; tier++)
       assert.ok(!prepared.includes(`vsm.render.raster${tier}`), `no raster of voxel tier ${tier}`)
     made.sync.length = made.async.length = 0
     backend.render(camera())

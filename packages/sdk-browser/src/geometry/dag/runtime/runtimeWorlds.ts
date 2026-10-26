@@ -14,7 +14,7 @@ export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int
   if (next.byteLength !== packed.worlds.byteLength) throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED')
   if (named) return updateNamedWorlds(run, next, named)
   const origins = frames.writeWorldOrigins()
-  run.proxies.worldsWritten(origins)
+  run.boxes.markRows(origins)
   // `packed.worlds` is what this selection last received, and only this method writes it:
   // the worlds the next send is compared with, without a second copy of them beside it. The rows
   // whose read words moved go up, they alone: a translation goes up through the origins.
@@ -73,8 +73,7 @@ function updateNamedWorlds(run: DagRun, next: Float32Array, all: Int32Array) {
   while (held && all[held - 1] >= packed.worldSources.length) held--
   const named = held === all.length ? all : all.subarray(0, held)
   const origins = frames.writeWorldOrigins(named)
-  // A translation alone is no cut's matrix word: the proxy mirrors it from the origins.
-  run.proxies.worldsWritten(origins)
+  run.boxes.markRows(origins)
   movedScratch = resized(movedScratch, named.length)
   let moved = 0
   for (const w of named) if (worldChangedAt(packed.worlds, next, w)) movedScratch[moved++] = w
@@ -91,7 +90,7 @@ function sendMoved(run: DagRun, next: Float32Array, moved: number) {
   }
   if (moved) {
     frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
-    run.proxies.worldsWritten(movedScratch, moved)
+    run.boxes.markRows(movedScratch, moved)
   }
   return moved
 }
@@ -101,14 +100,14 @@ function sendMoved(run: DagRun, next: Float32Array, moved: number) {
  *  world and its exact translation written again whatever the caches held. Its stretch is the root
  *  boxes pass's, from the host's world the unlink sends (`../../../placement/compose/gpuComposeLinks.ts`
  *  `unlinkHeld`, `noteRootWorld`): no frame row goes up. */
-export function rewritePlacement({ resources, state, proxies }: DagRun, w: number) {
+export function rewritePlacement({ resources, state, boxes }: DagRun, w: number) {
   const { packed, frames } = resources
   if (w >= packed.worldSources.length) return
   frames.forgetOrigin(w)
   rewritten[0] = w
   frames.writeWorldOrigins(rewritten)
   frames.writeNamedWorlds(packed.worlds, rewritten, 1)
-  proxies.worldsWritten(rewritten, 1)
+  boxes.markRows(rewritten, 1)
   frames.previous.moved(w)
   state.worldRevision++
 }

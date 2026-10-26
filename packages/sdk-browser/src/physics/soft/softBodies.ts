@@ -7,6 +7,7 @@ import {
   writeSoft,
   type SoftBodyRecord,
 } from '../../../../sdk-core/src/physics/soft/softCommands.ts'
+import { bodyCollision } from '../../../../sdk-core/src/physics/collisionChannels.ts'
 import type { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
 import type { ObjectPhysics } from '../../../../sdk-core/src/physics/objectPhysics.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
@@ -14,13 +15,6 @@ import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.
 import type { Bodied } from '../bodies/bodied.ts'
 
 type Pose = { position: ArrayLike<number>; quaternion: ArrayLike<number> }
-
-/** How far, relatively, a soft body's world scale may stray from the one it was made at. */
-const SCALE_TOLERANCE = 1e-4
-const near = (s: number, at: number) => Math.abs(s - at) <= SCALE_TOLERANCE * Math.abs(at)
-/** Whether `scale`, a soft body's world scale, is `at`, the one it was made (or cooked) at. */
-export const fits = (scale: { x: number; y: number; z: number }, at: ArrayLike<number>) =>
-  near(scale.x, at[0]) && near(scale.y, at[1]) && near(scale.z, at[2])
 
 /** The refusal of soft body `what`, made at scale `at` and placed at another: the physics module scales no soft
  *  body once made. `names` say which. */
@@ -53,6 +47,13 @@ export function writeSoftBody(
       restitution: p.restitution ?? matter.restitution,
     },
     ...{ gravityScale: p.gravityScale, linearDamping: p.damping.linear },
+    filter: writer.filter(
+      bodyCollision({
+        ...{ type: 'dynamic', sensor: p.sensor, decorative: p.decorative },
+        collision: p.collision,
+      }),
+      false,
+    ),
     ...{ settings: p.soft!, record },
   })
   if (flags) writer.flags(id & BODY_INDEX, flags)

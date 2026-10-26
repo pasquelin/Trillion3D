@@ -3,7 +3,7 @@
  * fragments of its one source: how the scene colour is read and its local exposure's gain, what
  * the pixel shown is made of and the dither added to it — the same four functions in the plain
  * and the finishing variant, so `composeAt` has none of its own for either — and the two ways
- * the display pixel is composed, sharpened or not.
+ * the display pixel is composed through the chain (`composeChain`), sharpened or not.
  */
 
 /**
@@ -21,7 +21,7 @@ export const SHARPEN_WGSL = `
 fn sourceNear(at:vec2f,step:vec2f)->vec3f{
  return sourceValue(clamp(at+step,vec2f(0.0),view.source.zw+0.999)).rgb;
 }
-fn composeColor(pixel:vec4f)->vec4f{
+fn composeChain(pixel:vec4f)->vec4f{
  let at=pixel.xy*view.source.xy;
  let value=sceneColor(at);
  let gain=gainOf(value,at);
@@ -38,7 +38,7 @@ fn composeColor(pixel:vec4f)->vec4f{
 
 /** The composition with no sharpening: the display pixel composed once. */
 export const UNSHARPENED_WGSL = `
-fn composeColor(pixel:vec4f)->vec4f{
+fn composeChain(pixel:vec4f)->vec4f{
  let at=pixel.xy*view.source.xy;
  let value=sceneColor(at);
  return composeAt(at,value,gainOf(value,at));

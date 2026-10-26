@@ -18,19 +18,6 @@ const catalogueMessages = (
 ).messages
 /** Code-shaped literals of the compiler that name something else: attributes, variables, tags. */
 const NOT_MESSAGES = new Set([
-  // The names of the WGSL constants a GPU pass's layout prints into its shader prelude
-  // (`wgsl_constants` in `hlod/flatten/approximate/gpu/layout.rs` and `bake/gpu/layout.rs`).
-  ...['ATTRIBUTE', 'BOUND', 'BOX_NODE', 'CORNER', 'FIELD_NODE', 'FRAME', 'INSTANCE'].map(
-    (record) => `${record}_RECORDS`,
-  ),
-  ...['LAID', 'MESH', 'NODE', 'SURFACE', 'TEXTURE', 'TRIANGLE', 'VIEW'].map(
-    (record) => `${record}_RECORDS`,
-  ),
-  // The merged tiles' surface slots and map bits the same prelude prints (`bake/gpu/layout.rs`).
-  ...['TRANSFORMS', 'LIT', 'MORE', 'EXTRA', 'STRENGTHS'].map((slot) => `SURFACE_${slot}`),
-  ...['OCCLUSION', 'ANISOTROPY', 'BLEND', 'MASK'].map((map) => `MAP_${map}`),
-  'WRAP_CLAMP',
-  'WRAP_MIRROR',
   'CARGO_PKG_VERSION',
   'COLOR_0',
   'JOINTS_0',
@@ -81,14 +68,27 @@ const withoutTests = (text: string) => text.split(/#\[cfg\(test\)\]\s*mod tests\
 const isRustSource = (path: string) => path.endsWith('.rs') && !/(^|[/_])tests?[_.]/.test(path)
 const isNodeSource = (path: string) => path.endsWith('.mts')
 
+/** The names of the WGSL constants a GPU pass's layout prints into its shader prelude: the first
+ *  member of each `("NAME", value)` pair of the `constants` table it hands `wgsl_constants`. */
+const preludeNames = (text: string) =>
+  new Set(
+    [...text.matchAll(/let constants = \[([\s\S]*?)\];[\s\S]*?wgsl_constants\(&constants\)/g)]
+      .flatMap(([, table]) => [...table.matchAll(/\("([A-Z][A-Z0-9_]*)",/g)])
+      .map(([, name]) => name),
+  )
+
 // Behaviour: every code the compiler can write — an error, a report reason, a DAG warning — is in
-// the catalogue; a new code-shaped literal is either catalogued or named here as something else.
+// the catalogue; a new code-shaped literal is either catalogued, a shader prelude's constant, or
+// named here as something else.
 test('every code emitted by the Rust sources is in the catalogue', () => {
   const missing = new Set<string>()
-  for (const path of files(RUST, isRustSource))
-    for (const [, code] of withoutTests(readFileSync(path, 'utf8')).matchAll(CODE_LITERAL))
-      if (!NOT_MESSAGES.has(code) && !messageOf(code))
+  for (const path of files(RUST, isRustSource)) {
+    const text = withoutTests(readFileSync(path, 'utf8'))
+    const prelude = preludeNames(text)
+    for (const [, code] of text.matchAll(CODE_LITERAL))
+      if (!prelude.has(code) && !NOT_MESSAGES.has(code) && !messageOf(code))
         missing.add(`${code} (${relative(REPOSITORY_ROOT, path)})`)
+  }
   assert.deepEqual([...missing], [])
 })
 

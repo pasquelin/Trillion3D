@@ -1,7 +1,4 @@
-import {
-  clipPlanesFromMatrix,
-  frustumFarPlane,
-} from '../../../../math/src/geometry/frustum/frustum.ts'
+import { clipPlanesFromMatrix } from '../../../../math/src/geometry/frustum/frustum.ts'
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { worldStretch } from '../selection/rootWorld.ts'
 import { selectionScratch, type PageRecord, type SelectionState } from './state.fixture.ts'
@@ -31,8 +28,6 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   // path. Silence means "I declared nothing": the cut ensures it as before.
   s.flatBoxes = root.boxes === true
   clipPlanesFromMatrix(planes, multiplyMatrix4(clip, s.cam.projection, viewMatrix))
-  // The engine projection no longer has a far plane: the frustum keeps the one the host declares.
-  frustumFarPlane(planes, 16, viewMatrix, s.cam.far, false)
   if (openMark(root.mark)) planes.set(OPEN_PLANES)
   else if (s.flatReach > 0) growPlanes(planes, s.flatReach)
   // The cut rule's residency, when the cut holds any: the nearest resident representation of each

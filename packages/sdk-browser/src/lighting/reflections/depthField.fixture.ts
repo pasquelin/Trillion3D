@@ -3,7 +3,7 @@
 // the Hi-Z oracle's reductions.
 import { f32Bits } from '../../../../math/src/float/bits.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { HIZ_SHADER, HIZ_NEAREST_BUILD } from '../../visibility/hiz/gpu/shader.ts'
+import { HIZ_SHADER, HIZ_WITH_TRACE } from '../../visibility/hiz/gpu/shader.ts'
 import { pyramidBytes } from '../../visibility/hiz/gpu/oracle.ts'
 import { HIZ_BUILD_SIDE, HIZ_MAX_LEVELS } from '../../visibility/hiz/gpu/uniforms.ts'
 import {
@@ -19,6 +19,7 @@ import {
   hizLevelWords,
 } from '../../visibility/hiz/gpu/levelsUniform.ts'
 import {
+  hizSquareStart,
   hizReduceCeil,
   hizReduceNearestCeil,
 } from '../../../../sdk-core/src/hiz/oracles.fixture.ts'
@@ -38,6 +39,7 @@ export const HIZ_DEPTH_READERS = [
   'hizCellFarthest',
   'hizCellCullFarthest',
   'hizLevelCount',
+  'hizTracePlanes',
   'hizCullFarthest',
   'hizNearest',
   'hizWholeFarthest',
@@ -110,14 +112,14 @@ export function depthField(
       'hizFrontAt',
       'hizFold',
       'surfaceSlopeOf',
-      'hizLayer',
+      'hizLevel0',
       'hizLoad',
       'hizIn',
       'hizSlice',
       'hizTexel',
     ],
     {
-      [HIZ_NEAREST_BUILD]: true,
+      [HIZ_WITH_TRACE]: true,
       // This image wrote the front layer: zero where no transparent surface lies.
       uni: { a: 0, b: width, c: height, upper, front: 1, planes: planes ? 1 : 0 },
       level0,
@@ -150,14 +152,15 @@ export function depthField(
   function cell(layer: number, level: number, x: number, y: number): number {
     const at = offsets[level] + y * sizes[level][0] + x
     if (Number.isNaN(made[layer][at])) {
-      if (level === 0) made[layer][at] = Math.fround(source(x, y)[layer === HIZ_NEAREST ? 0 : 1])
+      if (level === 0) made[layer][at] = Math.fround(source(x, y)[layer === HIZ_NEAREST ? 1 : 2])
       else {
         const [w, h] = sizes[level - 1],
           square: number[][] = []
-        for (let v = 2 * y; v < Math.min(2 * y + 2, h); v++) {
+        const v0 = hizSquareStart(y, h, level === 1),
+          u0 = hizSquareStart(x, w, level === 1)
+        for (let v = v0; v < Math.min(v0 + 2, h); v++) {
           const row: number[] = []
-          for (let u = 2 * x; u < Math.min(2 * x + 2, w); u++)
-            row.push(cell(layer, level - 1, u, v))
+          for (let u = u0; u < Math.min(u0 + 2, w); u++) row.push(cell(layer, level - 1, u, v))
           square.push(row)
         }
         made[layer][at] = Math.fround(
@@ -170,8 +173,9 @@ export function depthField(
   /** The bound a texel of a slice holds, and its natural packed index. */
   function bound(p: number[], slice: number) {
     const at = p[1] * row + p[0]
-    const layer = slice === HIZ_WHOLE_FARTHEST ? Math.floor(at / upper) : slice
-    return { layer, i: slice === HIZ_WHOLE_FARTHEST ? first + (at - layer * upper) : at }
+    if (slice === 0) return { layer: HIZ_NEAREST, i: at }
+    const layer = Math.floor(at / upper)
+    return { layer, i: first + (at - layer * upper) }
   }
   const words = hizLevelWords(sizes, offsets, layout)
   words[HIZ_LEVELS_FRONT_WORD] = 1
@@ -188,8 +192,8 @@ export function depthField(
     /** Which bound the texel `p` of `slice` holds. */
     layerOf: (p: number[], slice: number) => bound(p, slice).layer,
     /** The word at texel `p` of the slice `slice` of the texture: a depth's bits, or a pixel's
-     *  slopes. A level 0 lies in its own slice, the coarser levels of the three bounds in the
-     *  last, one after the other (`hizRoute`). */
+     *  slopes. A level 0 lies in the first slice, the coarser levels of the three bounds in the
+     *  second, one after the other (`hizRoute`). */
     word(p: number[], slice: number) {
       const { layer, i } = bound(p, slice)
       let level = 0

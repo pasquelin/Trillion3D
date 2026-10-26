@@ -1,12 +1,16 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { ndcToUv, unprojectPoint, uvToNdc } from '../../../../math/src/wgsl/projection.ts'
 import {
-  VOLUME_FADE_START,
-  VOLUME_UNIT_SCALE,
-} from '../../../../sdk-core/src/contracts/volumeMaterial.ts'
+  logSliceOfDepth,
+  ndcToUv,
+  unprojectPoint,
+  uvToNdc,
+} from '../../../../math/src/wgsl/projection.ts'
+import { VOLUME_FADE_START } from '../../../../sdk-core/src/contracts/volumeMaterial.ts'
+import { WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { FOG_VOLUME_FLAG } from './frame.ts'
 import { FOG_CELLS_WGSL } from './gridWgsl.ts'
 import { FOG_VOXEL_FRAME, FOG_VOXEL_OBJECT, FOG_VOXEL_SPAN } from './voxelLayout.ts'
+import { voxelGraphWgsl, type VoxelGraphSet } from './voxelGraph.ts'
 
 /** The structures of the voxelisation, written once for the programs that read them. */
 export const FOG_VOXEL_STRUCTS_WGSL = wgslBlock(
@@ -26,16 +30,16 @@ export const FOG_VOXEL_STRUCTS_WGSL = wgslBlock(
  */
 export const FOG_VOXEL_PREPARE_WGSL = wgslBlock(
   'FOG_VOXEL_PREPARE_WGSL',
-  [FOG_VOXEL_STRUCTS_WGSL],
+  [FOG_VOXEL_STRUCTS_WGSL, WORKGROUP_THREADS_WGSL, logSliceOfDepth],
   `
 fn voxelSliceOf(depth:f32)->i32{
  let x=depth*frame.sliceMap.x+frame.sliceMap.y;
  if(x<=0.0){return 0;}
- return i32(log2(x)*frame.sliceMap.z);
+ return i32(logSliceOfDepth(depth,frame.sliceMap.xyz));
 }
 /** The view-space coordinates across the view of a point relative to the eye. */
 fn voxelViewAcross(p:vec3f)->vec2f{return vec2f(dot(p,voxelFrame.right.xyz),dot(p,voxelFrame.up.xyz));}
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn prepareMain(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=voxelFrame.count.x){return;}
  let object=voxelObjects[id.x];
@@ -60,24 +64,26 @@ fn prepareMain(@builtin(global_invocation_id) id:vec3u){
 }`,
 )
 
-/**
- * THE OBJECTS IN THE VOLUME (\`voxelizeMain\`), one thread a cell: what each object that covers the
- * cell adds to the medium, summed — the scattering with the extinction beside, and the emissive
- * light. It is the rasterisation of each object's camera-facing quad on each slice it reaches, seen
- * from the cell: the quad of a slice lies at the slice's view depth (the slice plus the frame's
- * first offset in depth), over the view-space rectangle of the object's box, or over the square
- * around the circle the sphere cuts the slice at; it covers the cell whose centre falls in its
- * projection (the left and top edges in, the right and bottom out), the projection shifted by the
- * frame's first offsets across, as the quad's own was. A covered cell reads the object's material
- * at its centre's place on the slice — the point on the ray through it, read with the matrix the depth
- * was drawn with —, and counts it where that place lies in the object's sphere or box:
- * \`scale = unit · fade³\`, the fade 1 up to 0.6 of the fog's distance and 0 at it.
- */
-export const FOG_VOXEL_WGSL = wgslBlock(
-  'FOG_VOXEL_WGSL',
-  [FOG_VOXEL_STRUCTS_WGSL, FOG_CELLS_WGSL, ndcToUv, uvToNdc, unprojectPoint],
-  `
-const VOXEL_UNIT:f32=${VOLUME_UNIT_SCALE.toFixed(6)};
+/** The cells a graph's footprint is found at: the cell's centre a cell to the right and a cell below,
+ *  in the world relative to the eye. */
+const NEIGHBOUR_CELLS = ` let right=depth*voxelRay(uvToNdc((centre+vec2f(1.0,0.0))*frame.grid.w*frame.view.zw));
+ let below=depth*voxelRay(uvToNdc((centre+vec2f(0.0,1.0))*frame.grid.w*frame.view.zw));
+`
+
+/** An object that wears a graph adds what the graph gives the cell (\`fogGraphAt\`), which a cell the
+ *  object's mask or the fade leaves nothing of (\`scale\` zero) never evaluates; a graph that is none
+ *  of the image's set (its program's place zero) adds its material's. */
+const GRAPH_BRANCH = `  if(object.graph.x!=0u){
+   if(scale==0.0){continue;}
+   let made=fogGraphAt(object,position,right,below);
+   scattering+=vec4f(made.albedo*made.extinction,made.extinction)*scale;
+   emitted+=made.emissive*scale;
+   continue;
+  }
+`
+
+/** The ray of a cell, the quad an object covers on a slice, and the mask of its shape. */
+const VOXEL_HELPERS_TEXT = `
 const VOXEL_FADE_START:f32=${VOLUME_FADE_START.toFixed(6)};
 /** The ray through the device point \`ndc\` seen with the matrix the depth was drawn with, its forward
  *  component 1. */
@@ -113,8 +119,10 @@ fn voxelMask(object:FogVoxelObject,position:vec3f)->f32{
  }
  let local=(object.toLocal*vec4f(position,1.0)).xyz;
  return select(1.0,0.0,any(local<object.boundsMin.xyz)||any(local>object.boundsMax.xyz));
-}
-@compute @workgroup_size(4,4,4)
+}`
+
+/** The voxelisation's entry; `graphs` adds the neighbour cells and the graph branch. */
+const voxelizeMainText = (graphs?: VoxelGraphSet) => `@compute @workgroup_size(4,4,4)
 fn voxelizeMain(@builtin(global_invocation_id) cell:vec3u){
  if(any(cell>=vec3u(frame.grid.xyz))){return;}
  let slice=i32(cell.z);
@@ -122,12 +130,12 @@ fn voxelizeMain(@builtin(global_invocation_id) cell:vec3u){
  let centre=vec2f(cell.xy)+0.5;
  let position=depth*voxelRay(uvToNdc(centre*frame.grid.w*frame.view.zw));
  let fade=1.0-saturate((depth/voxelFrame.passes.z-VOXEL_FADE_START)/(1.0-VOXEL_FADE_START));
- let weight=VOXEL_UNIT*fade*fade*fade;
+ let weight=fade*fade*fade;
  let passSlices=max(i32(voxelFrame.passes.x),1);
  let only=i32(voxelFrame.passes.y);
  var scattering=vec4f(0.0);
  var emitted=vec3f(0.0);
- for(var i=0u;i<voxelFrame.count.x;i++){
+${graphs ? NEIGHBOUR_CELLS : ''} for(var i=0u;i<voxelFrame.count.x;i++){
   let span=voxelSpans[i];
   if(span.slices.z==0||slice<span.slices.x||slice>span.slices.y){continue;}
   if(only>=0&&(slice-span.slices.x)/passSlices!=only){continue;}
@@ -138,11 +146,41 @@ fn voxelizeMain(@builtin(global_invocation_id) cell:vec3u){
   let quad=voxelQuad(object,span,depth,sqrt(max(radius*radius-apart*apart,0.0)));
   if(any(centre<quad.xy)||any(centre>=quad.zw)){continue;}
   let scale=weight*voxelMask(object,position);
-  scattering+=vec4f(object.albedo.rgb*object.albedo.w,object.albedo.w)*scale;
+${graphs ? GRAPH_BRANCH : ''}  scattering+=vec4f(object.albedo.rgb*object.albedo.w,object.albedo.w)*scale;
   emitted+=object.emissive.rgb*scale;
  }
  if((u32(frame.medium.w)&${FOG_VOLUME_FLAG.glow}u)==0u){emitted=vec3f(0.0);}
  textureStore(fogVoxelOut,vec3i(cell),scattering);
  textureStore(fogVoxelEmitOut,vec3i(cell),vec4f(emitted,0.0));
-}`,
-)
+}`
+
+/**
+ * THE OBJECTS IN THE VOLUME (\`voxelizeMain\`), one thread a cell: what each object that covers the
+ * cell adds to the medium, summed — the scattering with the extinction beside, and the emissive
+ * light. It is the rasterisation of each object's camera-facing quad on each slice it reaches, seen
+ * from the cell: the quad of a slice lies at the slice's view depth (the slice plus the frame's
+ * first offset in depth), over the view-space rectangle of the object's box, or over the square
+ * around the circle the sphere cuts the slice at; it covers the cell whose centre falls in its
+ * projection (the left and top edges in, the right and bottom out), the projection shifted by the
+ * frame's first offsets across, as the quad's own was. A covered cell reads the object's material
+ * at its centre's place on the slice — the point on the ray through it, read with the matrix the depth
+ * was drawn with —, and counts it where that place lies in the object's sphere or box:
+ * \`scale = unit · fade³\`, the fade 1 up to 0.6 of the fog's distance and 0 at it.
+ */
+export const fogVoxelWgsl = (graphs?: VoxelGraphSet) =>
+  wgslBlock(
+    graphs ? `FOG_VOXEL_WGSL(${graphs.key})` : 'FOG_VOXEL_WGSL',
+    [
+      FOG_VOXEL_STRUCTS_WGSL,
+      FOG_CELLS_WGSL,
+      ndcToUv,
+      uvToNdc,
+      unprojectPoint,
+      ...(graphs ? [voxelGraphWgsl(graphs)] : []),
+    ],
+    `${VOXEL_HELPERS_TEXT}
+${voxelizeMainText(graphs)}`,
+  )
+
+/** The voxelisation of objects that wear no graph. */
+export const FOG_VOXEL_WGSL = fogVoxelWgsl()

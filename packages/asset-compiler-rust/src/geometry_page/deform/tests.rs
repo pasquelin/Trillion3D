@@ -39,16 +39,16 @@ fn joints_weights_and_targets_read_back_and_keep_vertices_apart() {
     let decoded = trillion3d_page_codec::decode(&page.bytes, 1 << 24).expect("decode");
     // Vertex 3 deforms on other joints than vertex 1: it is not merged into it.
     assert_eq!(decoded.vertex_count, 4);
-    let joints = decoded.attribute(8).expect("joints");
+    let joints = decoded.attribute(12).expect("joints");
     assert_eq!(joints[4..8], [5.0, 3.0, 0.0, 0.0]);
     assert_eq!(joints[12..16], [7.0, 0.0, 0.0, 0.0]);
-    let weights = decoded.attribute(9).expect("weights");
+    let weights = decoded.attribute(13).expect("weights");
     let expected = [0.7, 0.3, 0.0, 0.0];
     assert_eq!(weights[4..8], expected);
     for vertex in weights.chunks(4) {
         assert!((vertex.iter().sum::<f32>() - 1.0).abs() < 1e-6);
     }
-    let targets = decoded.attribute(10).expect("targets");
+    let targets = decoded.attribute(14).expect("targets");
     assert_eq!(targets[6..12], [0.0, 0.5, 0.0, 0.0, 0.0, 0.0]);
 }
 
@@ -79,11 +79,11 @@ fn soft_ids_survive_welding_permutation_and_reduction_origins() {
     // The duplicate positions 1 and 3 weld to the same simulation ID, despite first-use order.
     assert_eq!(decoded.vertex_count, 3);
     assert_eq!(
-        decoded.attribute(8).expect("source IDs"),
+        decoded.attribute(12).expect("source IDs"),
         &[2.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0]
     );
     assert_eq!(
-        decoded.attribute(9).expect("source weights"),
+        decoded.attribute(13).expect("source weights"),
         &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
     );
     // Rest offset survives: applying a source displacement cannot snap the reduced vertex.
@@ -107,7 +107,7 @@ fn all_influences_and_float_weights_survive_large_joint_separation() {
     };
     let page = encode_deformed(&[0, 1, 2], &POSITIONS[..9], &[], (&deform, &[]), grid()).unwrap();
     let decoded = trillion3d_page_codec::decode(&page.bytes, 1 << 24).unwrap();
-    let weights = decoded.attribute(9).unwrap();
+    let weights = decoded.attribute(13).unwrap();
     assert_eq!(weights, &[0.125; 24]);
     let x: f32 = weights[..8]
         .iter()
@@ -115,14 +115,14 @@ fn all_influences_and_float_weights_survive_large_joint_separation() {
         .map(|(j, w)| if j >= 4 { w * 8.0 } else { 0.0 })
         .sum();
     assert_eq!(x, 4.0);
-    assert_eq!(decoded.attribute(10).unwrap()[0], 0.12345679);
+    assert_eq!(decoded.attribute(14).unwrap()[0], 0.12345679);
     let mut half = deform;
     half.skin.as_mut().unwrap().1 = [0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0].repeat(3);
     let page = encode_deformed(&[0, 1, 2], &POSITIONS[..9], &[], (&half, &[]), grid()).unwrap();
     let decoded = trillion3d_page_codec::decode(&page.bytes, 1 << 24).unwrap();
-    assert_eq!(decoded.attribute(9).unwrap()[1] * 1000.0, 500.0);
+    assert_eq!(decoded.attribute(13).unwrap()[1] * 1000.0, 500.0);
     let reach = reach(&half, &POSITIONS[..9]);
-    let delta = decoded.attribute(10).unwrap();
+    let delta = decoded.attribute(14).unwrap();
     let radius =
         trillion3d_math::vector::vecn::length([0, 1, 2].map(|axis| f64::from(delta[axis])));
     assert!(reach["targets"][0].as_f64().unwrap() >= radius);

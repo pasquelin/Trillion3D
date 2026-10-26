@@ -1,10 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FEATURE_CLASS_KEYS, MATERIAL_CLASS_WGSL, materialClassKey } from './materialClass.ts'
-import { material } from '../../../../sdk-core/src/world/material/index.ts'
-import { Texture as WorldTexture } from '../../../../sdk-core/src/world/texture/texture.ts'
-import { isProgram, programOf } from '../../materials/graph/surfaceProgram.ts'
-import { graphClassKey } from '../../materials/graph/surfaceClasses.ts'
+import { MODEL_SHIFT, SURFACE_MODEL } from '../../materials/surface/surfaceModelWord.ts'
 import {
   FLAG_DISPLACED,
   FLAG_DYNAMIC,
@@ -48,6 +45,18 @@ test('a class key carries the resolve features of a row, and nothing a class doe
   assert.equal(materialClassKey(1 | 256 | 512 | 8192, noMaps), 0)
   // A voxel row resolves its voxels' own surface: a class of its own.
   assert.equal(materialClassKey(FLAG_VOXEL, noMaps), CLASS_FEATURE.VOXEL)
+  // A sprite or a line places its corners by its shape record; a matcap reads its image by the normal.
+  assert.equal(materialClassKey(FLAG_SPRITE, noMaps), CLASS_FEATURE.SHAPED)
+  assert.equal(materialClassKey(FLAG_LINE, noMaps), CLASS_FEATURE.SHAPED)
+  assert.equal(materialClassKey(SURFACE_MODEL.matcap << MODEL_SHIFT, noMaps), CLASS_FEATURE.MATCAP)
+  assert.equal(materialClassKey(SURFACE_MODEL.normal << MODEL_SHIFT, noMaps), 0)
+  // A record that names a shading model (skin, profile, eye, hair, unlit, thin subsurface) compiles its statements; the default lit one does not.
+  assert.equal(materialClassKey(0, { ...noMaps, shadingCode: 1 }), CLASS_FEATURE.HAS_SHADING_MODEL)
+  assert.equal(materialClassKey(0, { ...noMaps, shadingCode: 0 }), 0)
+  // Every feature is a bit of its own, inside the keys the features address.
+  const bits = Object.values(CLASS_FEATURE)
+  assert.ok(bits.every((bit) => (bit & (bit - 1)) === 0 && bit < FEATURE_CLASS_KEYS))
+  assert.equal(new Set(bits).size, bits.length)
 })
 
 test('the resolve shader tests class overrides, never the page flags, for what a class fixes', () => {
@@ -72,7 +81,8 @@ test('a class with vertex colours multiplies its base colour by them, and no oth
   assert.equal(materialClassKey(FLAG_HAS_COLOR, noMaps), CLASS_FEATURE.HAS_VERTEX_COLOR)
   const fragment = SHADE_SHADER.slice(SHADE_SHADER.indexOf('fn shadeSurface'))
   const multiply =
-    'if(HAS_VERTEX_COLOR){let h=pageHeader(page);let k=pageTriangle(page,h,tri);rgb*=(pageColor(page,h,k.x)*bary.x+pageColor(page,h,k.y)*bary.y+pageColor(page,h,k.z)*bary.z).xyz;}'
+    // The pixel's triangle record, read once for the surface (`t`: its header and corners).
+    'if(HAS_VERTEX_COLOR){rgb*=(pageColor(page,t.h,t.k.x)*bary.x+pageColor(page,t.h,t.k.y)*bary.y+pageColor(page,t.h,t.k.z)*bary.z).xyz;}'
   assert.equal(fragment.split(multiply).length - 1, 1)
   // After the base map, before any view or light reads `rgb`.
   assert.ok(fragment.indexOf(multiply) > fragment.indexOf('rgb=rgb*colorSample(m.mapIndex'))
@@ -155,6 +165,10 @@ test('a displaced class’s resolve is a module of its own over a group of its o
   assert.match(SHADE_SHADER, /let bary=perspectiveBarycentric/)
   assert.match(displaced, /var bary=perspectiveBarycentric/)
   assert.match(displaced, /if\(prism\.tessellation!=0u&&tessellatedFlags\(page\)\)\{/)
+  // The solve is the reference's as it is: the weights it gives are taken, no guard of its own
+  // (no validity word, no test of the placement's determinant nor of the depth).
+  assert.doesNotMatch(displaced, /\bsolved\.ok|\bs\.ok\b|PrismValue|1e-20|!\(depth>0\.0\)/)
+  assert.match(displaced, /bary=s\.value;stepX=s\.dx;stepY=s\.dy;solved=true;/)
   const added = Object.values(DISPLACED_SHADE_BINDINGS)
   assert.deepEqual(declaredBindings(displaced), [...declaredBindings(SHADE_SHADER), ...added])
   // Their layout: the resolve's entries and those two — the depth, and the uniform.
@@ -205,54 +219,4 @@ test('a displaced row is tessellated whatever moves or cuts it, and left as it i
     [false, false, false],
   )
   assert.equal(tessellatedFlags({ flags: FLAG_MASK, deformOutput: 7 }), false)
-})
-
-/** The program of a graph that reads a texture, for the surface resolve. */
-function textured() {
-  const graph = material.graph('surface')
-  graph.output('baseColor', graph.channel(graph.textureSample(new WorldTexture()), 'rgb'))
-  graph.output('normal', graph.constant(0, 0, 1))
-  const program = programOf({ graph })
-  if (!isProgram(program)) throw new Error('the graph of the test does not compile')
-  return program
-}
-
-test('the resolve of a graph reads its values from the material table and asks the tiles of its textures', () => {
-  const { compiled } = textured()
-  const text = shadeShader({ graph: compiled })
-  const fragment = text.slice(text.indexOf('fn shadeSurface'))
-  assert.match(fragment, /mgGiven=mgLoad\(max\(m\.graph,1u\)-1u\);/, 'the values beside the record')
-  assert.match(fragment, /rgb=saturate\(mgBaseColor\(mgPixel,mgGiven\)\);/)
-  // The normal the graph wires bends the vertex normal as a map does, at the pixel and its neighbours.
-  assert.match(fragment, /N=bendNormal\(N,mgT,mgB,mgFlip,mgMap\);/)
-  assert.match(fragment, /mgMapX=mgNormal\(mgNeighbour\[0\],mgGiven\)/)
-  // An output it does not wire is its default; one it wires is held as the reference holds it.
-  assert.match(fragment, /metal=ormMetalness\(1\.0,0\.00000000\);/)
-  // The pixel asks one of the graph's reads, never one of the maps': the tile request is its own.
-  assert.match(text, /fn shadePick\(p:RequestPick,missing:bool,m:Material\)->u32\{return mgAsk\(/)
-  assert.match(text, /let choices=1u;/)
-  assert.doesNotMatch(text, /MAP_CHOICES\+1u\+select/)
-  // The module of a surface with no graph holds none of it.
-  assert.doesNotMatch(SHADE_SHADER, /mgPixel|mgLoad/)
-  assert.match(SHADE_SHADER, /binOfClass\(CLASS_BIN\)/)
-})
-
-test('a class of a graph is compiled with its features, binned under its own key, over its program’s module', async () => {
-  const program = textured()
-  const first = graphClassKey(program, HAS_UV)!,
-    second = graphClassKey(program, HAS_UV | HAS_VERTEX_NORMAL)!
-  assert.ok(first >= FEATURE_CLASS_KEYS && second === first + 1)
-  assert.equal(graphClassKey(program, HAS_UV), first, 'a class once made is kept')
-  const { device, computePipelines } = fakeDevice()
-  const plain = {} as GPUShaderModule
-  const made = await createWebgpuShadePipelines(device, plain, [0, first, second])
-  assert.equal(made.shadeClasses.of(first).ready, true)
-  const [none, one, two] = computePipelines
-  assert.deepEqual(none!.compute.constants, { CLASS_KEY: 0, FEEDBACK: 1 })
-  assert.deepEqual(one!.compute.constants, { CLASS_KEY: HAS_UV, CLASS_BIN: first, FEEDBACK: 1 })
-  assert.equal(two!.compute.constants!.CLASS_KEY, HAS_UV | HAS_VERTEX_NORMAL)
-  assert.equal(none!.compute.module, plain, 'a class of the features keeps the shared module')
-  const code = (one!.compute.module as unknown as { code: string }).code
-  assert.equal(code, shadeShader({ graph: program.compiled }))
-  assert.equal(one!.compute.module, two!.compute.module, 'the classes of one program share it')
 })

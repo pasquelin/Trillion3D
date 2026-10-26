@@ -30,19 +30,19 @@ function historyOf() {
       P: number[],
       N: number[],
       noise: number,
-    ) => { texel: number[]; weights: number[]; words: number[][]; w: number }
+    ) => { texel: number[]; weights: number[]; metas: number[]; w: number }
   }>(wgslModule(spCommon([4, 2]), spHistory(7, 8)), ['spReproject'], {
     sp: {
       size: [64, 64, 16, 0],
       counts: [10, 0, 0, 0],
       mode: [0, 0, SCREEN_PROBE_FLAGS.temporal, 0],
-      scene: [0, 0, 0, 0.01],
+      scene: [0, 0.01],
       motion: [0.005, 10, 0.9, 0],
     },
     reflectionView: { radianceViewProj: identity, radiance: [64, 64, 0, 0], slab: [1, 0, 0, 1] },
-    historyIn: {},
+    metaIn: {},
     viewToEye: () => [0, 0, 1],
-    textureLoad: (_: unknown, texel: number[]) => [0, half(depths.get(String(texel)) ?? 0), 0, 0],
+    textureLoad: (_: unknown, texel: number[]) => [half(depths.get(String(texel)) ?? 0), 0, 0, 0],
   })
   return {
     set: (values: number[]) => texels.forEach((t, i) => depths.set(String(t), values[i])),
@@ -69,10 +69,10 @@ test("a history texel counts where its depth is the expected one within a thresh
   assert.equal(weights([0, 0, 1], 1)[1], 0.25, 'and widens it by a half')
   const kept = reproject([0, 0, 1], 0.5)
   assert.equal(kept.w, 1, 'the depth expected: the linear depth, the clip w of a perspective')
-  assert.deepEqual(
-    kept.words[0].length,
-    2,
-    "the words of a texel come with its weight: the light's and the meta",
+  assert.notEqual(
+    kept.metas[0],
+    0,
+    'the meta word of a texel comes with its weight: the depth it kept',
   )
 })
 

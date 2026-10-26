@@ -1,5 +1,6 @@
 import { wgslFn } from './decl.ts'
-import { PI, PLASTIC_STEP, QUARTER_PI } from './constants.ts'
+import { PI, PLASTIC_STEP, QUARTER_PI, TWO_PI } from './constants.ts'
+import { sinFromCosUnclamped } from './geometry.ts'
 
 /**
  * Where a shader samples: a seed folded into [0, 1), the interleaved gradient of a pixel, a texel
@@ -126,12 +127,6 @@ export const maxChannel = wgslFn(
   'fn maxChannel(c:vec3f)->f32{return max(c.r,max(c.g,c.b));}',
 )
 
-export const minChannel = wgslFn(
-  'minChannel',
-  [],
-  'fn minChannel(c:vec3f)->f32{return min(c.r,min(c.g,c.b));}',
-)
-
 /** The texel `p` held on an image of `size` texels, `clamp(p, 0, size − 1)` per axis: the fetch at
  *  an edge reads the edge's texel. */
 export const clampToExtent = wgslFn(
@@ -166,11 +161,37 @@ export const surfaceSlopeOf = wgslFn(
  *  runs its cosine from 1 down to -1. */
 export const sampleSphereEven = wgslFn(
   'sampleSphereEven',
-  [PI],
+  [PI, sinFromCosUnclamped],
   `fn sampleSphereEven(e:vec2f)->vec3f{
  let phi=2.0*PI*e.x;
  let cosTheta=1.0-2.0*e.y;
- let sinTheta=sqrt(1.0-cosTheta*cosTheta);
+ let sinTheta=sinFromCosUnclamped(cosTheta);
  return vec3f(sinTheta*cos(phi),sinTheta*sin(phi),cosTheta);
+}`,
+)
+
+/**
+ * The half vector of a GGX lobe of widths `alpha` seen from `v`, both in the surface's frame (z the
+ * normal), drawn among the normals the eye sees by `e` (Dupuy and Benyoub, "Sampling Visible GGX Normals
+ * with Spherical Caps", 2023): the view stretched by the widths, a point on the spherical cap it covers —
+ * the cap's height bounded by the reflection of the view (Eto and Tokuyoshi, "Bounded VNDF Sampling for
+ * Smith-GGX Reflections", 2023), so that no half vector sends the reflected ray below the horizon —,
+ * unstretched. `e.y` scales the cap's height: a caller that pulls it toward the middle draws fewer grazing
+ * normals. The normal itself where the unstretched vector has no length.
+ */
+export const visibleGgxHalf = wgslFn(
+  'visibleGgxHalf',
+  [TWO_PI],
+  `fn visibleGgxHalf(e:vec2f,alpha:vec2f,v:vec3f)->vec3f{
+ let seen=normalize(vec3f(alpha*v.xy,v.z));
+ let a=saturate(min(alpha.x,alpha.y));
+ let wide=1.0+length(v.xy);
+ let k=(wide*wide-a*a*wide*wide)/(wide*wide+a*a*v.z*v.z);
+ let z=mix(1.0,-k*seen.z,e.y);
+ let sine=sqrt(saturate(1.0-z*z));
+ let phi=TWO_PI*e.x;
+ let h=vec3f(sine*cos(phi),sine*sin(phi),z)+seen;
+ let stretched=vec3f(alpha*h.xy,max(0.0,h.z));
+ return select(vec3f(0.0,0.0,1.0),normalize(stretched),dot(stretched,stretched)>0.0);
 }`,
 )

@@ -1,7 +1,13 @@
 import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { cloudHazeInSecondPass, writeCloudTraceOptions } from './traceOptions.ts'
-import { cloudSetupOf, depthScale, tracedToView, type CloudSetup } from './cloudModes.ts'
+import {
+  cloudSetupOf,
+  depthScale,
+  depthSourceDownsample,
+  tracedToView,
+  type CloudSetup,
+} from './cloudModes.ts'
 import { put4, writeTracingJitter, type Size } from './reconstructLayout.ts'
 import type { CloudFramePlan } from './reconstruct.ts'
 
@@ -24,6 +30,8 @@ export const CLOUD_TRACE_BINDING = {
   colour: 10,
   secondary: 11,
   depth: 12,
+  /** The closest surface's depth, written beside the colours where the haze is laid per pixel. */
+  closest: 13,
 } as const
 
 /** The block's fields:
@@ -31,8 +39,8 @@ export const CLOUD_TRACE_BINDING = {
  *  - `traced`: the traced image's size and the pixel of its block this image traces;
  *  - `sizes`: the frame index modulo 8, 1 when the sun's colour is taken at each sample (an air to
  *    tint it), and the
- *    last coordinate of the scene's depth image, the view's size less one over the traced
- *    texel's size in reconstructed pixels;
+ *    last coordinate of the scene's depth image, the view's size less one over a texel of that
+ *    image in view pixels (`depthSourceDownsample`);
  *  - `mapping`: the texels of the scene's depth image a traced texel stands for, per axis, and the
  *    view pixels it stands for, which the noise is read at;
  *  - `jitter`: the shift of the rays in normalised device coordinates (`writeTracingJitter`);
@@ -53,9 +61,9 @@ export const CLOUD_TRACE_BINDING = {
  *  - `viewProjection`: the scene to clip matrix the light grid's slices count depth with, read only
  *    when the lamps light the cloud;
  *  - `options`: 1 when the haze is laid in the trace (an air to scatter it, and not by the second
- *    pass of the high-quality haze), 1 in a reflection or a capture (`markCloudTraceCapture`), 1 when the scene's depth cuts the
- *    ray (0 in the sky capture, which has none), and the sun's channel in the shadow maps
- *    (`NO_INDEX` when the sun's opaque shadow is not read);
+ *    pass of the high-quality haze), 1 in a reflection or a capture (`markCloudTraceCapture`), 1
+ *    when the scene's depth cuts the ray (0 in the sky capture, which has none), and the sun's
+ *    channel in the shadow maps (`NO_INDEX` when the sun's opaque shadow is not read);
  *  - `view`: the view's size in pixels and the light grid's cells across and down;
  *  - `empty`: the empty-space table's slice depth and its whole depth in centimetres, and the
  *    slices its start is moved by;
@@ -90,12 +98,7 @@ export const CLOUD_TRACE_LAYOUT = fieldLayout('CloudTraceBlock', [
 
 /** Whether the cloud material gives an occlusion of its own: the default material always does, so
  *  the sky light's bottom gradient (`undersideSkyLoss`) is kept for a material that does not. */
-export const CLOUD_MATERIAL_OUTPUTS_OCCLUSION = true
-
-/** What the cloud material gives besides its extinction: the default material gives an occlusion
- *  of its own and no empty-space output, so that table is not built and not read
- *  (`cloudTraceKey`). */
-export const CLOUD_MATERIAL_OUTPUTS_EMPTY_SPACE = false
+const CLOUD_MATERIAL_OUTPUTS_OCCLUSION = true
 
 /** What the image tells the tracing. */
 export interface CloudTraceImage {
@@ -153,8 +156,8 @@ function writeCloudTraceRay(
     at.sizes,
     image.frameIndex % 8,
     settings.sunTintPerSample && image.airPresent ? 1 : 0,
-    Math.floor((image.view.width - 1) / mode.traceDownsample),
-    Math.floor((image.view.height - 1) / mode.traceDownsample),
+    Math.floor((image.view.width - 1) / depthSourceDownsample(setup)),
+    Math.floor((image.view.height - 1) / depthSourceDownsample(setup)),
   )
   put4(words, at.mapping, depthScale(setup), tracedToView(setup), 0, 0)
   writeTracingJitter(out, at.jitter, plan.offset, reconstructed.view, mode)

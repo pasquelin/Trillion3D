@@ -15,7 +15,7 @@ import { VOXEL_TRACE_WGSL } from './voxelWgsl.ts'
  * giving each pixel its own exactly; its fragment runs the DDA and one division, and reads nothing
  * but its varyings — no matrix, no eye, no joint.
  *
- * A box is drawn by its back faces (`rowSide`): a perspective ray starts at the eye, an
+ * A box is drawn by its back faces (`FLAG_BACK`): a perspective ray starts at the eye, an
  * orthographic one a box's diagonal before the point, so a ray from an eye inside the box, or from
  * a box across the near plane, starts where the eye is and the trace keeps from 0 on
  * (`rayBoxSpan`).
@@ -31,13 +31,17 @@ fn voxelCells(page:PageInfo,brick:u32)->mat4x4f{
 }
 /** Where brick \`brick\`'s joint carries it, rigidly — its box's corner 0 at rest where the deformation
  *  put it, each of its three edges from there likewise —, the identity where its row does not
- *  deform. */
+ *  deform, then moved by the row's offset, which moves the box's corners by the same (\`pageOffset\`). */
 fn voxelCarry(page:PageInfo,brick:u32)->mat4x4f{
- if(page.deformOutput==0u){return mat4x4f(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);}
+ var carry=mat4x4f(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
  let base=page.pageOffset;let v=brick*${VOXEL_BRICK_CORNERS}u;
- let p0=voxelBoxCorner(base,v);let span=voxelBoxCorner(base,v+7u)-p0;let q0=pageDeformed(page,v,0u);
- let l=mat3x3f((pageDeformed(page,v+1u,0u)-q0)/span.x,(pageDeformed(page,v+2u,0u)-q0)/span.y,(pageDeformed(page,v+4u,0u)-q0)/span.z);
- return mat4x4f(vec4f(l[0],0.0),vec4f(l[1],0.0),vec4f(l[2],0.0),vec4f(q0-l*p0,1.0));
+ if(page.deformOutput!=0u){
+  let p0=voxelBoxCorner(base,v);let span=voxelBoxCorner(base,v+7u)-p0;let q0=pageDeformed(page,v,0u);
+  let l=mat3x3f((pageDeformed(page,v+1u,0u)-q0)/span.x,(pageDeformed(page,v+2u,0u)-q0)/span.y,(pageDeformed(page,v+4u,0u)-q0)/span.z);
+  carry=mat4x4f(vec4f(l[0],0.0),vec4f(l[1],0.0),vec4f(l[2],0.0),vec4f(q0-l*p0,1.0));
+ }
+ if(page.wpo!=0u){carry[3]+=vec4f(pageOffset(page,pageHeader(page),v,vec3f(0.0),0u,false,WPO_STILL),0.0);}
+ return carry;
 }
 /** The ray through box point \`o\` of a brick, in its cells, which \`m\` draws to clip space: where
  *  it starts and its direction, the clip depth and w at its start and their change along it

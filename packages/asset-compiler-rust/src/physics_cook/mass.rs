@@ -5,14 +5,12 @@
 //! meets its reverse once positions are welded: a mesh with an open or one-way edge bounds no
 //! volume, and is refused by name.
 use super::refused;
+use super::rules::SHAPE_DENSITY;
 use crate::Result;
 use serde_json::{json, Value};
 use trillion3d_math::vector::vec3::{divide, triple};
 use trillion3d_math::vector::vecn::sub;
 use trillion3d_page_codec::hash::WordMap;
-
-/// Density a body is weighed at, kg/m³: the runtime's (`SHAPE_DENSITY`, `src/commands.cpp`).
-pub(super) const DENSITY: f64 = 1000.0;
 
 /// Whether every edge of the welded `triangles` runs once each way as often.
 fn closed(triangles: &[u32]) -> bool {
@@ -28,7 +26,7 @@ fn closed(triangles: &[u32]) -> bool {
 
 /// `mass`, `centerOfMass` and `inertia` about it (nine floats, column-major) of the solid mesh
 /// `mesh`'s `triangles` over `pos`, welded (`weld_positions`), bound once scaled by `scale`, at
-/// `DENSITY`. Its winding may be either way; a mesh not closed, or closed on no volume, is refused.
+/// `SHAPE_DENSITY`. Its winding may be either way; a mesh not closed, or closed on no volume, is refused.
 pub(super) fn solid_mass(
     pos: &[f32],
     triangles: &[u32],
@@ -66,10 +64,11 @@ pub(super) fn solid_mass(
     }
     // A mesh wound inward, or mirrored by its scale, sums every integral negated.
     let sign = volume.signum();
-    let mass = DENSITY * volume * sign;
+    let mass = SHAPE_DENSITY * volume * sign;
     let local = divide(first, volume);
     // Second moments about the centre, then the inertia tensor: trace times identity, less them.
-    let about = |r: usize, q: usize| DENSITY * sign * second[r][q] - mass * local[r] * local[q];
+    let about =
+        |r: usize, q: usize| SHAPE_DENSITY * sign * second[r][q] - mass * local[r] * local[q];
     let trace = about(0, 0) + about(1, 1) + about(2, 2);
     let inertia: Vec<f64> = (0..9)
         .map(|k| (k / 3, k % 3))

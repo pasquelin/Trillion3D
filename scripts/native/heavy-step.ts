@@ -1,5 +1,5 @@
 import { heavyStep } from './heavy-lock.ts'
-import { run } from '../test/run.ts'
+import { run } from '../check/run.ts'
 
 // `node scripts/native/heavy-step.ts <step> <command> [argument...]` runs one command as a heavy step:
 // alone among the worktrees of the machine and at low priority, locally (`scripts/native/heavy-lock.ts`).

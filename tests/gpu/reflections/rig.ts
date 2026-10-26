@@ -1,27 +1,28 @@
 // The engine side of the reflection proofs: a synthetic still frame (flags, normals, base colour,
-// depth, lit image, physical lobes, the scene's proxy) laid in the engine's own inputs, then the
+// depth, lit image, physical lobes, the scene's faces) laid in the engine's own inputs, then the
 // engine's kernels run on it as an image runs them: the image staged as the engine stages it — its
 // view and turn (`stageReflectionImage`) —, the depth pyramid (`gpu/hiz`), the opaque
-// trace, then the radiance pyramid of the lit image (`encodeImageRadiance`), adopted as the next image's level 0 (`adoptRadianceImage`). Consecutive
+// trace, then the lit image kept (`holdLitImage`), adopted as the next image's (`adoptLitImage`). Consecutive
 // still images, whose reflection targets are read back to the bit.
-import { rigProxy } from './rigRuntime.ts'
+import { rigField } from './rigField.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
-import { createSurroundings } from '../../../packages/sdk-browser/src/lighting/toneUnmap.ts'
+import { createSurroundings } from '../../../packages/sdk-browser/src/lighting/reflections/surroundings.ts'
 import {
   createScreenReflection,
   reflectionsPending,
 } from '../../../packages/sdk-browser/src/lighting/reflections/gpu.ts'
 import { reflectionGroup } from '../../../packages/sdk-browser/src/lighting/reflections/group.ts'
+import { createHitCards } from '../../../packages/sdk-browser/src/lighting/reflections/hitCards.ts'
+import type { WebgpuPagesRuntime } from '../../../packages/sdk-browser/src/frame/backend/runtime.ts'
 import { createReflectionPipelines } from '../../../packages/sdk-browser/src/lighting/reflections/reflectionPipelines.ts'
-import { adoptRadianceImage } from '../../../packages/sdk-browser/src/lighting/reflections/radiance/radiance.ts'
 import {
-  encodeImageRadiance,
-  stageReflectionImage,
-} from '../../../packages/sdk-browser/src/lighting/reflections/image.ts'
+  adoptLitImage,
+  holdLitImage,
+} from '../../../packages/sdk-browser/src/lighting/reflections/litImage.ts'
+import { stageReflectionImage } from '../../../packages/sdk-browser/src/lighting/reflections/image.ts'
 import type { ReflectionFrame } from '../../../packages/sdk-browser/src/lighting/reflections/viewWrite.ts'
 import {
   HDR_FORMAT,
-  hdrAttachmentView,
   hdrTargetDescriptor,
 } from '../../../packages/sdk-browser/src/scene/targetFormats.ts'
 import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/lighting/reflections/trace/traceEncode.ts'
@@ -40,7 +41,8 @@ import { readTexture } from '../../kit/device/computeReadback.ts'
 import { halves, type RigFrame } from './rigFrame.ts'
 import { SURFACE_FORMATS } from '../../../packages/sdk-browser/src/materials/surface/surfaceBuffer.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../../packages/sdk-browser/src/materials/surface/physicalLobes.ts'
-import { REFLECTION_RULES } from '../../../packages/sdk-core/src/contracts/reflectionOptions.ts'
+import { defaultReflections } from '../../../packages/sdk-core/src/contracts/reflectionOptions.ts'
+import { skyLightStandIn } from '../../../packages/sdk-browser/src/modules/sky/skyLight/standIn.ts'
 import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 
 /**
@@ -60,7 +62,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
   const base = texture(SURFACE_FORMATS[0], sampled)
   const flags = texture(SURFACE_FORMATS[3], sampled)
   const normals = texture(SURFACE_FORMATS[1], sampled)
-  // The HDR target of the image's turn (the radiance pyramid's levels in its mips), lit each image.
+  // The HDR target of the image's turn, lit each image.
   const hdr = device.createTexture(hdrTargetDescriptor(width, height))
   // No pixel carries the physical lobes: their target is a texel the trace never reads.
   const lobes = texture(PHYSICAL_LOBES_FORMAT, sampled, frame.lobes ? [width, height] : [1, 1])
@@ -84,7 +86,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
   const lights = createSceneLightContractBuffer(device, store)
   uploadSceneLights(device, { store, buffer: lights, uploadedEpoch: -1 } as WebgpuLightState)
   const reflection = createScreenReflection(device, width, height, true)
-  const targets = { hdrTexture: hdr, hdrView: hdrAttachmentView(hdr), reflection }
+  const targets = { hdrTexture: hdr, hdrView: hdr.createView(), reflection }
   let lit = frame.radiance
   const inverse = new Float64Array(16)
   invertMatrix4(inverse, frame.viewProjection)
@@ -102,38 +104,43 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
     direct,
   )
   const over = { lightView: lightView.buffer }
-  const surroundings = createSurroundings()(frame.background ?? 0, 1, TONE_MAPPING_RANK.none)
-  // What each image tells its view: the frame's, no transparent; the lights' epoch moves with `light`.
+  const surroundings = createSurroundings()(frame.background ?? 0)
+  // What each image tells its view: the frame's, no transparent, the settings' defaults (the level's
+  // block is the trace's); the lights' epoch moves with `light`.
+  const settings = defaultReflections()
   const told: ReflectionFrame = {
     viewProjection: frame.viewProjection,
     eye: frame.eye,
     size: frame.size,
     depthDrawn: true,
-    relativeThickness: REFLECTION_RULES.reflectionRelativeDepthThickness.default,
+    settings,
     front: false,
     surroundings,
   }
-  // No bounce probes, no light grid: the engine's stand-ins, as an image without them binds them.
+  // No bounce probes: the engine's stand-ins, as an image without them binds them.
   const standIns = createDeferredPlaceholders(device)
-  // The scene's proxy the scene stage walks, and the radiance its faces give; else no proxy, a header
-  // of zeros, which reads as no placement.
-  const { proxy, proxyWorlds, proxyTree } = rigProxy(device, standIns, frame.proxy?.faces)
-  const scene = { buffer: proxy, worlds: proxyWorlds, tree: proxyTree }
+  // No surface cache: the stand-ins the scene stage's hits read, whose tables hold no placement, as an image whose cache is not
+  // made binds them.
+  const cards = createHitCards(device)
+  const hit = cards.resources({} as WebgpuPagesRuntime)
+  // The field the scene stage marches the faces' rays through, of the same faces; none without them.
+  const marched = rigField(device, standIns, frame.proxy?.faces)
   const inputs = {
-    proxy: scene,
+    hit,
+    field: marched.field,
     base: base.createView(),
     flags: flags.createView(),
     normals: normals.createView(),
     lobes: lobes.createView(),
     lights,
-    bounceGrid: standIns.bounceGrid,
     probes: standIns.probes,
-    lightLists: standIns.tiles,
+    // No screen probes: no vectors, every surface still, as an image without them binds.
+    vectors: reflection.noVectors,
   }
   return {
     reflection,
-    /** One image: staged, the depth pyramid built, the trace; then, when `radiance`, the pyramid of
-     *  the lit image the next image reflects. */
+    /** One image: staged, the depth pyramid built, the trace; then, when `radiance`, the lit image
+     *  the next image reflects kept. */
     image(radiance = true) {
       stageReflectionImage(reflection, told)
       const encoder = device.createCommandEncoder()
@@ -142,28 +149,33 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
       // the finished depth's farthest.
       hiz.encodePyramid({ pass })
       hiz.planes(planes)
-      hiz.encodeNearest({ pass })
+      hiz.encodeFull({ pass })
       pass.end()
-      const group = reflectionGroup(reflection, depth, over.lightView)
-      encodeReflectionTrace(encoder, reflection, pipelines, inputs, group, frame.size, !!told.front)
+      // No sky light: the engine's stand-in, as an image without one binds it.
+      const group = reflectionGroup(reflection, depth, over.lightView, skyLightStandIn(device))
+      encodeReflectionTrace(
+        encoder,
+        reflection,
+        pipelines,
+        inputs,
+        group,
+        frame.size,
+        [settings.block, settings.block],
+        settings.frontBlock,
+        !!told.front,
+      )
       if (radiance) {
         write(targets.hdrTexture, halves(lit))
-        encodeImageRadiance(
-          encoder,
-          reflection,
-          pipelines,
-          { texture: targets.hdrTexture, view: lightView.buffer },
-          told,
-        )
+        holdLitImage(reflection.lit, told.viewProjection, told.size, told.preExposure)
       }
       device.queue.submit([encoder.finish()])
-      adoptRadianceImage(targets)
+      adoptLitImage(targets)
     },
     /** The lit image is another from now on: a light changed. */
     light(radiance: Float32Array) {
       lit = radiance
     },
-    /** Whether the view's radiance pyramid holds an image of it (`reflectionsPending`). */
+    /** Whether the view holds a lit image of itself (`reflectionsPending`). */
     settled: () => !reflectionsPending(reflection),
     /** Every word of the reflection target set to `word`. */
     fill(word: number) {
@@ -182,10 +194,12 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
     dispose() {
       reflection.dispose()
       lights.destroy()
+      marched.dispose()
       standIns.dispose()
+      cards.dispose()
       hiz.dispose()
       lightView.dispose()
-      // The HDR target of the next turn: the rig's own, or the one the pyramid gave back.
+      // The HDR target of the next turn: the rig's own, or the one the lit image gave back.
       for (const made of [base, flags, normals, targets.hdrTexture, lobes]) made.destroy()
     },
   }

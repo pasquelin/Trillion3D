@@ -62,8 +62,6 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
     fences = 0
   // A render pipeline is its descriptor: a pass that sets it reads its entry points and blend.
   const renderPipeline = (descriptor: GPURenderPipelineDescriptor) => {
-    const target = [...(descriptor.fragment?.targets ?? [])][0]
-    if (options.rejectR32 && target?.format === 'r32uint') throw new Error('NO_R32UINT')
     const made = withGroups({ ...descriptor }, descriptor.layout)
     renderPipelines.push(made)
     return made
@@ -72,8 +70,8 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
   const computePipeline = (descriptor: GPUComputePipelineDescriptor) => {
     computePipelines.push(descriptor)
     if (options.failCompute) throw new Error('NO_COMPUTE')
-    if (options.failCompact && descriptor.compute.entryPoint === 'scatterGroups')
-      throw new Error('NO_COMPACT')
+    if (options.failBins && descriptor.compute.entryPoint === 'binScatter')
+      throw new Error('NO_BINS')
     return withGroups({ ...descriptor.compute, layout: descriptor.layout }, descriptor.layout)
   }
   const members: Record<string, unknown> = {

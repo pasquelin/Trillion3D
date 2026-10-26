@@ -7,10 +7,7 @@ import { blueNoiseNow } from '../../../../gpu/noise/blueNoiseTextures.ts'
 import { VSM_PROJECTION_VIEW_BYTES } from './projectionView.ts'
 import { vsmFrameSetHeld, type VsmPerFrameSet, type VsmResources } from '../resources.ts'
 import type { ViewWords } from './projectionViewWrite.ts'
-import { VSM_PROJECTION_THROUGH_FORMAT } from './projectionWgsl.ts'
-import { VSM_TRANSMISSION_FORMAT } from '../transmission/transmissionLayout.ts'
-import { arrayView } from '../../../../gpu/core/textureViews.ts'
-import { standInTexture } from '../../../../gpu/core/standInTexture.ts'
+import { sizedBuffer } from '../../../../gpu/core/sizedBuffer.ts'
 
 /** What a set's projection holds (`vsmProjectionReserve`), freed with the set
  *  (`releaseVsmProjection`): never shared by two sessions on one device. The engine projects its
@@ -20,32 +17,29 @@ export interface VsmProjectionState {
   /** Group 0 over the tables of a frame set and the layout (`vsmPerFrameSet`), the two sets in
    *  turn. */
   tables: VsmPerFrameSet<GPUBindGroup>
-  /** The pass group over its layout and the frame's views (`passGroupFor`). */
-  pass: HeldGroup
-  /** The receiver group over its layout and view (`receiverGroupFor`): one kept, made again when
-   *  one of them moved. */
-  receiver: HeldGroup
+  /** The suns' and the local lights' pass groups over their layouts and the frame's views
+   *  (`passGroupFor`). */
+  suns: HeldGroup
+  locals: HeldGroup
   /** The view uniform's image, uploaded each frame, and its words. */
   staging: ArrayBuffer
   words: ViewWords
   /** The engine's blue noise view (`blueNoiseNow`), once the device has made it. */
   blueNoiseView?: GPUTextureView
-  /** What a pass binds without translucent casters (`vsmProjectionStandIns`): a one-texel memory
-   *  and a one-texel transmission target, which no pixel reads or writes. */
-  noTransmission?: GPUTexture
-  noThrough?: GPUTexture
-  standIns?: { transmission: GPUTextureView; through: GPUTextureView }
+  /** The shadowed lights' grid (`lightGridWgsl.ts`) the local lights' pass writes and the lighting
+   *  reads, as long as the light grid's view part at least. */
+  lightGrid?: GPUBuffer
 }
 
-/** Bytes the projection of `res` holds — its view uniform —, which freeing the set gives back
- *  (`releaseVsmProjection`; the pass draws into the engine's mask). */
+/** Bytes the projection of `res` holds — its view uniform and its shadowed lights' grid —, which
+ *  freeing the set gives back (`releaseVsmProjection`; the pass draws into the engine's mask). */
 export const vsmProjectionHeldBytes = (res: VsmResources) =>
-  res.projection?.uniform ? VSM_PROJECTION_VIEW_BYTES : 0
+  (res.projection?.uniform ? VSM_PROJECTION_VIEW_BYTES : 0) + (res.projection?.lightGrid?.size ?? 0)
 
 /** Bytes the projection of `res` still asks — its view uniform, where it holds none —; of a set not
  *  made yet, all of it. */
 export const vsmProjectionBytesToMake = (res: VsmResources | undefined) =>
-  VSM_PROJECTION_VIEW_BYTES - (res ? vsmProjectionHeldBytes(res) : 0)
+  res?.projection?.uniform ? 0 : VSM_PROJECTION_VIEW_BYTES
 
 /** Makes the projection view uniform of `res`, where it holds none, and takes the device's blue noise
  *  once it is made (`blueNoiseView` is none before it: `projectionReady`): before the frame's lists,
@@ -61,6 +55,17 @@ export function vsmProjectionReserve(device: GPUDevice, res: VsmResources) {
   return state
 }
 
+/** The shadowed lights' grid of `state` for a light grid whose view part takes `words` words, grown by the
+ *  engine's one rule (`sizedBuffer`). */
+export const vsmLightGridFor = (device: GPUDevice, state: VsmProjectionState, words: number) =>
+  (state.lightGrid = sizedBuffer(
+    device,
+    state.lightGrid,
+    words * 4,
+    GPUBufferUsage.STORAGE,
+    'vsm.projection.lightGrid',
+  ))
+
 /** Whether the projection of `state` can run: the engine's blue noise is made. */
 export const projectionReady = (state: VsmProjectionState) => !!state.blueNoiseView
 
@@ -74,35 +79,13 @@ export function vsmProjectionShared(res: VsmResources) {
     : undefined
 }
 
-/** The one-texel memory and transmission target a pass of `state` binds without translucent
- *  casters, made at its first ask. */
-export function vsmProjectionStandIns(device: GPUDevice, state: VsmProjectionState) {
-  if (state.standIns) return state.standIns
-  state.noTransmission = standInTexture(
-    device,
-    'vsm.projection.noTransmission',
-    VSM_TRANSMISSION_FORMAT,
-  )
-  state.noThrough = device.createTexture({
-    label: 'vsm.projection.noThrough',
-    size: [1, 1, 1],
-    format: VSM_PROJECTION_THROUGH_FORMAT,
-    usage: GPUTextureUsage.STORAGE_BINDING,
-  })
-  return (state.standIns = {
-    transmission: arrayView(state.noTransmission),
-    through: arrayView(state.noThrough),
-  })
-}
-
 /** Frees what the projection of `res` holds, with the set (`destroyEngineVsm`). */
 export function releaseVsmProjection(res: VsmResources) {
   const state = res.projection
   if (!state) return
   res.projection = undefined
   state.uniform?.destroy()
-  state.noTransmission?.destroy()
-  state.noThrough?.destroy()
+  state.lightGrid?.destroy()
 }
 
 function projectionState(res: VsmResources) {
@@ -111,8 +94,8 @@ function projectionState(res: VsmResources) {
   return (res.projection = {
     staging,
     tables: vsmFrameSetHeld(),
-    pass: heldGroup(),
-    receiver: heldGroup(),
+    suns: heldGroup(),
+    locals: heldGroup(),
     words: {
       f: new Float32Array(staging),
       u: new Uint32Array(staging),

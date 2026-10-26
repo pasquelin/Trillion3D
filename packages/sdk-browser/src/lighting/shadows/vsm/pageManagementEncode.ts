@@ -5,7 +5,8 @@
  * - `encodeVsmPageMapping`: the page allocation build, after marking.
  * - `encodeVsmAfterRaster`: the post-render pass, after the shadow depth raster.
  * - `keepVsmFrame`: the page-management part of the frame data extraction: the frame just
- *   rendered becomes `prev` (`res.swapFrames()`), and the cache is available next frame.
+ *   rendered becomes `prev` (`res.swapFrames()`), and the cache is available next frame; its kept
+ *   tables are the occlusion's previous ones (`keepOcclusionFrame`).
  *
  * Loose shader parameters go through one uniform buffer of slots the device's `uniformStride` apart
  * (dynamic offsets) written with `queue.writeBuffer` at encode time: encode at most one frame per
@@ -23,10 +24,12 @@ import {
   VSM_PM_GROUP_RESOURCES,
 } from './physicalPagesWgsl.ts'
 import { type VsmResources, vsmBindGroupEntries } from './resources.ts'
+import type { ComputeRun } from '../../../gpu/core/lazyComputePass.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { writeChangedSlots } from '../../../gpu/core/writeChanged.ts'
 import { VSM_PASS_PREFIX } from '../../../diagnostic/stage/passLabels.ts'
 import { encodePoolSort } from '../../../gpu/sort/sort.ts'
+import { keepOcclusionFrame } from './occlusion/occlusionPass.ts'
 import { groupWidth } from '../../../gpu/dispatch/grid.ts'
 import {
   SLOT_ADDRESSES,
@@ -37,6 +40,9 @@ import {
   type VsmPageManagementContext,
   type VsmPageManagementFrame,
 } from './pageManagementPass.ts'
+
+const MAPPING_PASS: GPUComputePassDescriptor = { label: `${VSM_PASS_PREFIX}pageMapping` }
+const AFTER_RASTER_PASS: GPUComputePassDescriptor = { label: `${VSM_PASS_PREFIX}afterRaster` }
 
 /** Group 0 of `pipe` for the current frame parity (rebuilt lazily after `swapFrames`). */
 function group0(ctx: VsmPageManagementContext, res: VsmResources, pipe: Pipe) {
@@ -82,9 +88,12 @@ function bind(
   slot: number,
 ) {
   const pipe = ctx.pipes[name]
-  pass.setPipeline(pipe.pipe.pipeline)
+  const pipeline = pipe.pipe.pipeline
+  if (!pipeline) return false
+  pass.setPipeline(pipeline)
   pass.setBindGroup(VSM_PM_GROUP_RESOURCES, group0(ctx, res, pipe))
   pass.setBindGroup(VSM_PM_GROUP_PARAMS, ctx.paramsGroup, ctx.slots.offset(slot))
+  return true
 }
 
 /** Runs kernel `name` over `groups` groups: by default a thread a pool page, ⌈poolPages / 256⌉ —
@@ -97,8 +106,7 @@ function run(
   slot: number,
   groups = ceilDiv(res.layout.poolPages, VSM_GROUP_WIDTH),
 ) {
-  bind(ctx, res, pass, name, slot)
-  pass.dispatchWorkgroups(groups)
+  if (bind(ctx, res, pass, name, slot)) pass.dispatchWorkgroups(groups)
 }
 
 function runPerPage(
@@ -107,8 +115,7 @@ function runPerPage(
   pass: GPUComputePassEncoder,
   name: KernelName,
 ) {
-  bind(ctx, res, pass, name, SLOT_MAIN)
-  ctx.dispatcher.encode(pass, VSM_PM_GROUP_PER_PAGE)
+  if (bind(ctx, res, pass, name, SLOT_MAIN)) ctx.dispatcher.encode(pass, VSM_PM_GROUP_PER_PAGE)
 }
 
 /**
@@ -135,7 +142,7 @@ export function encodeVsmPageCarry(
  * is never taken.
  */
 export function encodeVsmPageMapping(
-  encoder: GPUCommandEncoder,
+  steps: ComputeRun,
   res: VsmResources,
   frame: VsmPageManagementFrame,
 ) {
@@ -143,10 +150,7 @@ export function encodeVsmPageMapping(
   const ctx = vsmPageManagementContext(res, frame)
   writeParams(ctx, res, frame, SLOT_MAIN, SLOT_ADDRESSES)
   ctx.dispatcher.setBins(frame.perPageBins ?? [])
-  // The indirect dispatch args, 1D, in (16, pages, 1) form.
-  encoder.copyBufferToBuffer(ctx.argsInit, 0, res.clearArgs, 0, 16)
-
-  const pass = encoder.beginComputePass({ label: `${VSM_PASS_PREFIX}pageMapping` })
+  const pass = steps.pass(MAPPING_PASS)
   // Update cached or newly invalidated pages against the new requests.
   run(ctx, res, pass, 'keepPages', SLOT_MAIN)
   // The free pages in the pool rank's order: the stages share `poolCount`'s group 0.
@@ -156,35 +160,46 @@ export function encodeVsmPageMapping(
   run(ctx, res, pass, 'pageFlagPyramid', SLOT_MAIN)
   runPerPage(ctx, res, pass, 'fillCoarserFallbacks')
   run(ctx, res, pass, 'listClears', SLOT_MAIN)
-  bind(ctx, res, pass, 'clearPages', SLOT_MAIN)
-  pass.dispatchWorkgroupsIndirect(res.clearArgs, 0)
+  if (bind(ctx, res, pass, 'clearPages', SLOT_MAIN))
+    pass.dispatchWorkgroupsIndirect(res.clearArgs, 0)
   // The feedback: the free pages left.
   run(ctx, res, pass, 'poolFeedback', SLOT_MAIN, 1)
-  pass.end()
 }
 
-/** After the render: fold dirty flags; then, where slice 0 changed, the pages' tile depths the
- *  rays' miss proof reads (their selection and dispatch). */
-export function encodeVsmAfterRaster(
+/** The clears' indirect dispatch arguments set to their empty form, 1D, (16, pages, 1): before the
+ *  pass that lists the pages to clear, and the one that lists the pages to merge. */
+export function resetVsmClearArgs(
   encoder: GPUCommandEncoder,
   res: VsmResources,
   frame: VsmPageManagementFrame,
 ) {
   if (frame.mapCount === 0) return
+  encoder.copyBufferToBuffer(vsmPageManagementContext(res, frame).argsInit, 0, res.clearArgs, 0, 16)
+}
+
+/** After the render, after `resetVsmClearArgs` (the clears' list and arguments, empty again, list the
+ *  pages to merge): fold the raster's dirty flags into the pages' metadata, then merge the static
+ *  layer of the pages that drew it into their dynamic layer. */
+export function encodeVsmAfterRaster(
+  steps: ComputeRun,
+  res: VsmResources,
+  frame: VsmPageManagementFrame,
+) {
+  if (frame.mapCount === 0) return
   const ctx = vsmPageManagementContext(res, frame)
-  // The tile depths' pages in (16, pages, 1) form.
-  encoder.copyBufferToBuffer(ctx.argsInit, 0, res.tileArgs, 0, 16)
-  const pass = encoder.beginComputePass({ label: `${VSM_PASS_PREFIX}afterRaster` })
+  const pass = steps.pass(AFTER_RASTER_PASS)
   run(ctx, res, pass, 'foldRasterMarks', SLOT_MAIN)
-  bind(ctx, res, pass, 'tileDepthsBuild', SLOT_MAIN)
-  pass.dispatchWorkgroupsIndirect(res.tileArgs, 0)
-  pass.end()
+  // The static layer drawn this frame joins the dynamic one, which every reader samples.
+  run(ctx, res, pass, 'selectMerges', SLOT_MAIN)
+  if (bind(ctx, res, pass, 'mergePages', SLOT_MAIN))
+    pass.dispatchWorkgroupsIndirect(res.clearArgs, 0)
 }
 
 /**
  * The frame data extraction, page-management part. `mapsGranted` = this frame allocated maps; without it the previous buffers are dropped.
  */
 export function keepVsmFrame(res: VsmResources, { mapsGranted }: { mapsGranted: boolean }) {
+  keepOcclusionFrame(res, mapsGranted)
   if (!mapsGranted) {
     res.prevFrameKept = false
     return

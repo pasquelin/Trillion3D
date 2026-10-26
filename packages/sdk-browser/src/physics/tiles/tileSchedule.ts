@@ -6,7 +6,14 @@ import type { SharedShapes } from '../sharedShapes.ts'
 import { createTileKeeps } from './tileKeeps.ts'
 import { createTileReads } from './tileReads.ts'
 import type { createResidentTiles } from './tileResident.ts'
-import { moversOf, nearness, selectNearest, type Placed, type TileShape } from './tilePlace.ts'
+import {
+  moversOf,
+  nearness,
+  selectNearest,
+  type Model,
+  type Placed,
+  type TileShape,
+} from './tilePlace.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 /** Tile bodies one update builds at most, nearest first: each an ADD in the worker's next step, so
@@ -58,18 +65,14 @@ export class TileSchedule {
     this.reads = createTileReads(parts.shapes, this.landed, parts.failed)
   }
   /** Lists the placements of `openings` wanted around `eye` within `range` and the moving bodies
-   *  (`nearness`), and their tiles nearest first; one unwanted, of a refused tile, or whose node a
-   *  declared body holds, is evicted. */
-  want(
-    openings: ReadonlyMap<unknown, { placed: Placed[] }>,
-    eye: ArrayLike<number>,
-    range: number,
-  ) {
+   *  (`nearness`), and their tiles nearest first; one unwanted, of a refused tile, whose node a
+   *  declared body holds, or whose node's cells are not placed, is evicted. */
+  want(openings: ReadonlyMap<Model, { placed: Placed[] }>, eye: ArrayLike<number>, range: number) {
     const bodies = this.parts.bodies
     this.moving = moversOf(bodies.slots, bodies.state.velocity, this.movers)
     this.pass++
     this.wants = this.tileCount = 0
-    for (const opening of openings.values()) this.collect(opening, eye, range)
+    for (const [model, opening] of openings) this.collect(model, opening, eye, range)
     // Sorted alone, the U tiles of this update: the list cut to them.
     this.tiles.length = this.tileCount
     this.tiles.sort(byNear)
@@ -140,11 +143,19 @@ export class TileSchedule {
   get listed() {
     return this.wanted.length + this.tiles.length + this.keeps.listed()
   }
-  /** Lists the placements of `opening` wanted around `eye` within `range`, and their tiles, each
-   *  with its nearest; evicts the others, and takes those out for good out of `opening`. */
-  private collect(opening: { placed: Placed[] }, eye: ArrayLike<number>, range: number) {
+  /** Lists the placements of `opening`, `model`'s, wanted around `eye` within `range`, and their
+   *  tiles, each with its nearest; evicts the others, and takes those out for good out of
+   *  `opening`. A placement lives with the cells that draw its node: while none of them is placed
+   *  it is no one's. */
+  private collect(
+    model: Model,
+    opening: { placed: Placed[] },
+    eye: ArrayLike<number>,
+    range: number,
+  ) {
     const placed = opening.placed,
-      parts = this.parts
+      parts = this.parts,
+      cells = model._cells?.()
     let kept = 0
     for (let i = 0; i < placed.length; i++) {
       const p = placed[i],
@@ -153,7 +164,10 @@ export class TileSchedule {
       // Out for good — its tile or its body refused —: out of its opening.
       if (p.out) continue
       placed[kept++] = p
-      const near = nearness(p, eye, range, this.movers, this.moving)
+      const near =
+        cells && !cells.holds(p.instance.node)
+          ? Infinity
+          : nearness(p, eye, range, this.movers, this.moving)
       if (near === Infinity || parts.declared.holds(p.model, p.instance.node)) {
         parts.resident.evict(p)
         continue

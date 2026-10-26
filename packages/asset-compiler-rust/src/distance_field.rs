@@ -13,21 +13,35 @@
 //!   for the trilinear filter; the field keeps a voxel's border around the mesh for the gradient;
 //! - a voxel holds its distance, in the band of four voxels either side of the surface, in one
 //!   byte (`brick.rs`): the unsigned distance is the nearest triangle's; it is negative when more
-//!   than a quarter of 98 rays across the sphere hit a back face (`samples.rs`, `scene.rs`);
+//!   than a quarter of 98 rays across the sphere hit a back face (`samples.rs`, `scene.rs`); the
+//!   voxels are measured on the GPU, the same walks in single precision (`gpu.rs`), or on the CPU
+//!   where there is none;
 //! - a brick holding only the far side of the band, all 0 or all 255, is not stored; its cell of
 //!   the indirection table holds `0xffffffff` (`build.rs`).
 //!
-//! `distanceFields.bin` (`encode.rs`) holds every mesh's field: its box, its mips' placement in the
+//! An HLOD cell's actors have a field too, where their layer allows one (`allowDistanceField`): built
+//! from the actors' own level-0 triangles in the world's space, at the settings of the scene's
+//! meshes (`actors.rs`).
+//!
+//! `distanceFields.bin` (`encode.rs`) holds every field: its box, its mips' placement in the
 //! volume and their data. The manifest's `distanceFields` section names it.
 pub(crate) mod abi;
+mod actors;
 mod brick;
 mod build;
 mod encode;
+mod gpu;
 mod grid;
 mod samples;
 mod scene;
 mod settings;
 mod stage;
 
+pub(crate) use actors::{actors_field, actors_scene, field_bytes, scene_bytes, ActorTriangles};
+pub(crate) use encode::{Owner, Placed};
+pub(crate) use samples::hemisphere;
+pub(crate) use scene::Scene;
 pub(crate) use settings::DistanceFieldSettings;
-pub(crate) use stage::{stage_distance_fields, DistanceFieldInputs};
+pub(crate) use stage::{
+    build_mesh_fields, source_meshes, write_distance_fields, DistanceFieldInputs,
+};

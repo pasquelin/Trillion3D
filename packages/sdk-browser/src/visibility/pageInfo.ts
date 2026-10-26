@@ -1,35 +1,37 @@
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 
 /**
- * A page-table row (`PageInfo`) in one table: the WGSL struct the shaders read
- * (`shader/pageWgsl.ts`, `PAGE_INFO_STRUCT_WGSL`), each field's first word, which the row writer
- * and every row reader index (`PAGE_INFO.at`), and the row's words. A row holds what its geometry
- * and its placement decide, and names its surface's record in the material table (`material`,
- * `../materials/table/materialTable.ts`): none of the surface's values, which a material's edit
- * writes once, in its record, and no row.
+ * A drawn cluster's record (`PageInfo`) in one table: the WGSL struct the shaders read
+ * (`shader/pageWgsl.ts`, `PAGE_INFO_STRUCT_WGSL`), each field's first word (`PAGE_INFO.at`), and the
+ * record's words. The table holds one record for each cluster of the frame's list of visible
+ * clusters, at the cluster's index in it (`../geometry/dag/visible/layout.ts`): written by the
+ * frame's decode (`decode/decodeWgsl.ts`) from the cluster's own record
+ * (`../geometry/dag/info/clusterInfoLayout.ts`), its placement's world and its placement's record
+ * (`../geometry/dag/info/placementInfoLayout.ts`), never by the host. A record names its surface's
+ * record in the material table (`material`, `../materials/table/materialTable.ts`) and holds none of
+ * the surface's values, which a material's edit writes once, in its record.
  */
 export const PAGE_INFO = fieldLayout('PageInfo', [
   ['world', 'mat4x4f'],
-  // The geometry's flags OR'd with its surface's (`../geometry/rows/page/pageRowMaterial.ts`): what the
+  // The geometry's flags OR'd with its surface's (`../geometry/clusters/infoWrite.ts`): what the
   // passes branch on without reading the record.
   ['flags', 'u32'],
-  // The page's place in the geometry pool, in words: what a slot move writes again, the occupant
-  // kept (`../geometry/rows/writers.ts`, `replace`).
+  // The page's place in the geometry pool, in words.
   ['pageOffset', 'u32'],
-  // How many indices the page draws: what the GPU reads to draw it, and so the only vertex count
-  // an image walk needs to reread.
+  // How many indices the page draws: what the GPU reads to draw it.
   ['indexCount', 'u32'],
-  // The geometry's first vertex in the shared pools, and the row's identifier base
-  // (`packedRowBase`, `../geometry/rows/page/pageRow.ts`).
+  // The geometry's first vertex in the shared pools, and the cluster's identifier base: its
+  // index in the list of visible clusters plus one, above the triangle's bits (`visWords.ts`).
   ['vertexBase', 'u32'],
   ['packedBase', 'u32'],
   ['clusterHash', 'u32'],
+  // The packed page the cluster is, and its placement: the page's index in the cut's tables.
   ['selectionIndex', 'u32'],
-  // The row's diagnostic word (`DIAGNOSTIC_WORD`, `../diagnostic/colors.ts`): its level, HLOD
-  // index and error, written with the row, which every diagnostic view reads in the shader.
+  // The cluster's diagnostic word (`DIAGNOSTIC_WORD`, `../diagnostic/colors.ts`): its level, HLOD
+  // index and error, which every diagnostic view reads in the shader.
   ['diagnosticWord', 'u32'],
   ['depthBias', 'u32'],
-  // The line's placement, and the resolve class key (`shader/materialClass.ts`).
+  // The cluster's placement, and the resolve class key (`shader/materialClass.ts`).
   ['placement', 'u32'],
   ['materialClass', 'u32'],
   // `deform` is the float-pool record address plus one, zero without deformation; `deformOutput`
@@ -40,17 +42,22 @@ export const PAGE_INFO = fieldLayout('PageInfo', [
   // The rank of the surface's record in the material table and its second UV set's bit
   // (`MATERIAL_SECOND_UV`, `../materials/table/materialTable.ts`).
   ['material', 'u32'],
-  // The cluster's level-of-detail sphere in its primitive's space (`PageRec.sphere`), written with
-  // the row; a radius below zero for a record without one. The cluster split judges the projected
-  // edge at it (`raster/binWgsl.ts`).
-  ['lodSphere', 'vec4f'],
-  // The cluster's vertex box (centre, half extent) and longest edge in its primitive's space, the
-  // split's other inputs: measured from its triangles by the binning of the first image after the
-  // row's upload and kept here — the CPU's copy holds zero, so every upload measures them again —,
-  // never by the CPU (`raster/binWgsl.ts`).
-  ['boxCenter', 'vec3f'],
-  ['edgeLength', 'f32'],
-  ['boxExtent', 'vec3f'],
+  // Whether the cluster's vertices are moved by its surface's `worldPositionOffset` (`WPO_ROW_MOVES`,
+  // with `WPO_ROW_VELOCITY` where the temporal pass reprojects them by where they were and
+  // `WPO_ROW_ALWAYS` where the distance does not stop it) or not (0): what every pass that places a
+  // vertex reads before it evaluates the offset (`shader/wpoGraphWgsl.ts`).
+  ['wpo', 'u32'],
+  // What the offset of the cluster's surface reads of its object (`../geometry/dag/info/placementInfoLayout.ts`):
+  // the centre of the object's bounds in its primitive's space — the point the distance is measured
+  // to —, the square of the distance, in metres, past which the object's offset stops (0 for never),
+  // and the most the offset may move a vertex along an axis (0 for no limit).
+  ['wpoCentre', 'vec3f'],
+  ['wpoDisableSq', 'f32'],
+  ['wpoMost', 'f32'],
+  // Whether the cluster's object is a first-person one (`PLACEMENT_FIRST_PERSON`), 1, or not, 0: the
+  // placement's mark, which the decode copies, since every bit of the row flags is taken. It fills the
+  // padding of the record's last four words, so the record does not grow.
+  ['firstPerson', 'u32'],
 ] as const)
 
 /** The level a row's diagnostic word holds (`pageDiagnosticWord`), a transparent instance's as an

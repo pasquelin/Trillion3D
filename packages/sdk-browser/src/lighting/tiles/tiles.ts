@@ -1,6 +1,6 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { tileViewInverse } from './tileFrame.ts'
-import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
+import { GRID_HEAD_WORDS, TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
 import { storageBufferCap } from '../../session/memory/pools.ts'
 import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
@@ -19,14 +19,12 @@ const tilesOn = (pixels: number) => workgroupCount(pixels, LIGHT_SETTINGS.tileSi
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>
 
 /**
- * The light grid's passes (`./shader.ts`) over ONE buffer every reader of a list binds: the view's
- * grid — its cells the view's, its records then the pool of their lists (`./pool.ts`) — then the
- * bounce's world grid over the lattice laid on the scene (`ensureWorld`), its records then its
- * pool. The grids are laid out again only when a grid needs more columns or its pool grows — the
- * buffer grown by the engine's one rule, the old one retired; then the world grid's lists are
- * listed again (`revision`) —; each grid's group follows the light buffer,
- * which grows with the scene; encoding allocates nothing. The view's pass reads the depth pyramid
- * of the image (`./cullWgsl.ts`, `./cullView.ts`); the world's reads no depth.
+ * The light grid's pass (`./shader.ts`) over the buffer every reader of a list binds: the slice map
+ * its pass and its readers share (`./gridMap.ts`), its records then the pool of their lists
+ * (`./pool.ts`). The grid is laid out again only when it needs more columns or its pool changes — the
+ * buffer grown by the engine's one rule, the old one retired; the group follows the light buffer,
+ * which grows with the scene; encoding allocates nothing. The pass reads the depth pyramid
+ * of the image (`./cullWgsl.ts`, `./cullView.ts`).
  */
 export async function createGpuLightTiles(device: GPUDevice) {
   const layout = device.createBindGroupLayout({
@@ -38,103 +36,184 @@ export async function createGpuLightTiles(device: GPUDevice) {
     ],
   })
   const cull = createCullBinding(device)
-  const view = await createGrid(device, 'view', [layout, cull.layout])
-  const world = await createGrid(device, 'world', [layout]).catch((error) => {
-    view.uniform.destroy()
-    view.pool.dispose()
+  const view = await createGrid(device, [layout, cull.layout]).catch((error) => {
     cull.dispose()
     throw error
   })
-  return lightTiles(device, layout, view, world, cull)
+  return lightTiles(device, layout, view, cull)
 }
 
-/** The passes' calls (`createGpuLightTiles`) on their two grids. */
+/** What the light grid's calls hold between images. */
+interface TilesState {
+  readonly device: GPUDevice
+  readonly layout: GPUBindGroupLayout
+  readonly view: Grid
+  readonly cull: ReturnType<typeof createCullBinding>
+  tiles: GPUBuffer | undefined
+  pyramid: GPUBindGroup
+  readonly inverse: Float64Array
+  readonly origin: Float64Array
+  readonly rows: Float64Array
+}
+
+/** The grid's group over the buffer and the lights it was last given, made again when either moved. */
+function bindGrid(s: TilesState, grid: Grid) {
+  if (grid.bound.moved() || !grid.group)
+    grid.group = s.device.createBindGroup({
+      layout: s.layout,
+      entries: sequentialEntries([
+        { buffer: grid.uniform },
+        { buffer: grid.bound.next[0] as GPUBuffer },
+        { buffer: s.tiles! },
+        { buffer: grid.pool.state },
+      ]),
+    })
+}
+
+/** The largest buffer the device binds, in whole words. */
+const bindableBytes = (device: GPUDevice) => Math.floor(storageBufferCap(device.limits) / 4) * 4
+
+/** The grid laid out again in the buffer, grown by the engine's one rule (`sizedBuffer`), never
+ *  past what the device binds. */
+function reallocate(s: TilesState) {
+  const { device, view } = s
+  view.start = GRID_HEAD_WORDS
+  s.tiles = sizedBuffer(
+    device,
+    s.tiles,
+    (view.start + recordsOf(view) + view.poolWords) * 4,
+    // Copyable, as the pool state: a proof reads the lists back.
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+    'Trillion3D light tiles v1',
+    ({ label, size, usage }) =>
+      device.createBuffer({ label, size: Math.min(size, bindableBytes(device)), usage }),
+  )
+  view.group = undefined
+}
+
+/** The buffer for the grid's columns and pool; `true` when the grid's group is ready. */
+function ensureGrid(s: TilesState, [x, y]: [number, number], lights: GPUBuffer, perCell: number) {
+  const { view: grid } = s
+  // Fewer columns than laid out keep the layout: views of other shapes drawn in turn share it.
+  const fits = !!s.tiles && x * y <= grid.columns
+  const columns = fits ? grid.columns : x * y
+  const records = columns * grid.slices * TILE_STRIDE_WORDS
+  // The pool never takes the buffer past what the device binds: past it, the columns without room
+  // drop their lights.
+  const room = Math.floor(storageBufferCap(s.device.limits) / 4) - records - GRID_HEAD_WORDS
+  const wantedPool = clampLowWins(columns * grid.slices * perCell, 0, room)
+  grid.tilesX = x
+  grid.tilesY = y
+  // The same columns with another pool: the setting `lightGridMaxCulledLightsPerCell` moved.
+  if (!fits || wantedPool !== grid.poolWords) {
+    grid.columns = columns
+    grid.poolWords = wantedPool
+    reallocate(s)
+  }
+  grid.bound.next[0] = lights
+  bindGrid(s, grid)
+  return !!grid.group
+}
+
+/** A grid's uniform as `packed` holds it, its records' start, and its pool opened past them. */
+function uploadGrid(s: TilesState, grid: Grid) {
+  grid.words[START_WORD] = grid.start
+  s.device.queue.writeBuffer(grid.uniform, 0, grid.packed)
+  grid.pool.open(grid.start + recordsOf(grid), grid.poolWords)
+}
+
+/** The view grid's matrices, size and cull of this image. */
+function updateViewGrid(
+  s: TilesState,
+  viewProjection: ArrayLike<number>,
+  eye: ArrayLike<number>,
+  width: number,
+  height: number,
+  depthCull: LightGridCull,
+) {
+  const { view, inverse, origin, rows } = s
+  const { packed } = view
+  packed.set(tileViewInverse(inverse, origin, viewProjection, eye, rows), 0)
+  packed[16] = width
+  packed[17] = height
+  packed[18] = view.tilesX
+  packed[19] = view.tilesY
+  packed.set(origin, 20)
+  packed.set(rows, 24)
+  packed.set(depthCull.words, CULL_WORD)
+  s.pyramid = s.cull.group(depthCull.depth)
+  if (s.tiles) s.device.queue.writeBuffer(s.tiles, 0, depthCull.map)
+  uploadGrid(s, view)
+}
+
+/** The calls of the light grid over its state. */
+function tileCalls(s: TilesState) {
+  const { view, cull } = s
+  const bind = (grid: Grid) => bindGrid(s, grid)
+  return {
+    /** The view pool's frame metrics: the last sample. */
+    poolMetrics() {
+      const sample = view.pool.sample()
+      return {
+        tileLightPoolReserved: sample?.reserved ?? null,
+        tileLightPoolCapacity: sample?.capacity ?? null,
+        tileLightPoolOverflowed: sample?.overflowed ?? null,
+      }
+    },
+    /** Ensures the buffer, the grid's pool of `perCell` words a cell (the setting
+     *  `lightGridMaxCulledLightsPerCell`), and its group; `true` if its pass is ready. */
+    ensure: (width: number, height: number, lights: GPUBuffer, perCell: number) =>
+      ensureGrid(s, [tilesOn(width), tilesOn(height)], lights, perCell),
+    /** The render matrix (jitter included) and the eye, both absolute and in f64, and the image's
+     *  cull (`cullView.ts`): the pyramid its pass reads and the numbers it cuts by. */
+    update: (
+      viewProjection: ArrayLike<number>,
+      eye: ArrayLike<number>,
+      width: number,
+      height: number,
+      depthCull: LightGridCull,
+    ) => updateViewGrid(s, viewProjection, eye, width, height, depthCull),
+    /** Encodes the view grid's pass of image `frame`, one workgroup a column; its pool state is
+     *  sampled after. */
+    encode: (encoder: GPUCommandEncoder, frame: number) =>
+      encodeGrid(view, bind, encoder, frame, s.pyramid),
+    /** Requests mapping of the pools' samples, once the frame that copied them is submitted. */
+    submitted() {
+      view.pool.submitted()
+    },
+    dispose() {
+      view.pool.dispose()
+      view.uniform.destroy()
+      view.group = undefined
+      cull.dispose()
+      s.tiles?.destroy()
+      s.tiles = undefined
+    },
+  }
+}
+
+/** The pass's calls (`createGpuLightTiles`) on its grid. */
 function lightTiles(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   view: Grid,
-  world: Grid,
   cull: ReturnType<typeof createCullBinding>,
 ) {
-  const inverse = new Float64Array(16),
-    origin = new Float64Array(3),
-    rows = new Float64Array(8)
-  const state = {
-    tiles: undefined as GPUBuffer | undefined,
-    revision: 0,
+  const s: TilesState = {
+    device,
+    layout,
+    view,
+    cull,
+    tiles: undefined,
     pyramid: cull.group(),
-  }
-  const grids = [view, world]
-  /** The grid's group over the buffer and the lights it was last given, made again when either
-   *  moved: a buffer the other grid's growth replaced is bound again by the next pass. */
-  const bind = (grid: Grid) => {
-    if (grid.bound.moved() || !grid.group)
-      grid.group = device.createBindGroup({
-        layout,
-        entries: sequentialEntries([
-          { buffer: grid.uniform },
-          { buffer: grid.bound.next[0] as GPUBuffer },
-          { buffer: state.tiles! },
-          { buffer: grid.pool.state },
-        ]),
-      })
-  }
-  /** The buffer for both grids' columns and pools; `true` when the grid's group is ready. */
-  const ensure = (grid: Grid, [x, y]: [number, number], lights: GPUBuffer, count: number) => {
-    const other = grid === view ? world : view,
-      others = recordsOf(other) + other.poolWords
-    // Fewer columns than laid out keep the layout: views of other shapes drawn in turn share it.
-    const fits = !!state.tiles && x * y <= grid.columns
-    const columns = fits ? grid.columns : x * y
-    const records = columns * grid.slices * TILE_STRIDE_WORDS
-    // The pool never takes the buffer past what the device binds: a cell with no room walks all.
-    const room = Math.floor(storageBufferCap(device.limits) / 4) - records - others
-    const wantedPool = clampLowWins(grid.pool.words(columns, count, grid.slices), 0, room)
-    grid.tilesX = x
-    grid.tilesY = y
-    if (!fits || wantedPool > grid.poolWords) {
-      // The same columns with more pool words: the pool grew, to what an overflowing frame asked
-      // or to more lights.
-      if (grid.poolWords && fits) grid.growths++
-      grid.columns = columns
-      grid.poolWords = wantedPool
-      reallocate()
-    }
-    grid.bound.next[0] = lights
-    bind(grid)
-    return !!grid.group
-  }
-  /** Both grids laid out again in the buffer, grown by the engine's one rule (`sizedBuffer`), never
-   *  past what the device binds: the view's, then the world's. The view's lists are written by its
-   *  pass each image; the world's are listed again (`revision`). */
-  const reallocate = () => {
-    view.start = 0
-    world.start = recordsOf(view) + view.poolWords
-    state.tiles = sizedBuffer(
-      device,
-      state.tiles,
-      (world.start + recordsOf(world) + world.poolWords) * 4,
-      // Copyable, as the pool state: a proof reads the lists back.
-      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-      'Trillion3D light tiles v1',
-      ({ label, size, usage }) =>
-        device.createBuffer({ label, size: Math.min(size, bindableBytes()), usage }),
-    )
-    for (const grid of grids) grid.group = undefined
-    state.revision++
-  }
-  /** The largest buffer the device binds, in whole words. */
-  const bindableBytes = () => Math.floor(storageBufferCap(device.limits) / 4) * 4
-  /** A grid's uniform as `packed` holds it, its records' start, and its pool opened past them. */
-  const upload = (grid: Grid) => {
-    grid.words[START_WORD] = grid.start
-    device.queue.writeBuffer(grid.uniform, 0, grid.packed)
-    grid.pool.open(grid.start + recordsOf(grid), grid.poolWords)
+    inverse: new Float64Array(16),
+    origin: new Float64Array(3),
+    rows: new Float64Array(8),
   }
   return {
     /** The buffer every reader of a list binds; never undefined after an `ensure()`. */
     get buffer() {
-      return state.tiles
+      return s.tiles
     },
     get tilesX() {
       return view.tilesX
@@ -142,82 +221,11 @@ function lightTiles(
     get tilesY() {
       return view.tilesY
     },
-    /** The world grid's records' first word (`bounceLightSlice`). */
+    /** The words the grid takes from the buffer's head: its records and its pool, the extent the shadowed lights' grid
+     *  is made over (`vsmLightGridFor`). */
     get worldStart() {
-      return world.start
+      return view.start + recordsOf(view) + view.poolWords
     },
-    /** Rises with every new buffer: the world grid's lists are then listed again. */
-    get revision() {
-      return state.revision
-    },
-    /** The view pool's frame metrics: the last sample, and its growths. */
-    poolMetrics() {
-      const sample = view.pool.sample()
-      return {
-        tileLightPoolReserved: sample?.reserved ?? null,
-        tileLightPoolCapacity: sample?.capacity ?? null,
-        tileLightPoolOverflowed: sample?.overflowed ?? null,
-        tileLightPoolGrowths: view.growths,
-      }
-    },
-    /** Ensures the buffer, the view grid's pool sized for `count` lights, and its group; `true` if
-     *  its pass is ready. */
-    ensure: (width: number, height: number, lights: GPUBuffer, count: number) =>
-      ensure(view, [tilesOn(width), tilesOn(height)], lights, count),
-    /** The world grid's `ensure`: `side` × `side` columns of `side` cells. */
-    ensureWorld: (side: number, lights: GPUBuffer, count: number) =>
-      ensure(world, [side, side], lights, count),
-    /** The world grid's lattice: its lowest corner and a cell's side. */
-    updateWorld(corner: ArrayLike<number>, cell: number) {
-      world.packed.fill(0)
-      world.packed[18] = world.tilesX
-      world.packed[19] = world.tilesY
-      world.packed.set(corner, 20)
-      world.packed[23] = cell
-      upload(world)
-    },
-    /** The render matrix (jitter included) and the eye, both absolute and in f64, and the image's
-     *  cull (`cullView.ts`): the pyramid its pass reads and the numbers it cuts by. */
-    update(
-      viewProjection: ArrayLike<number>,
-      eye: ArrayLike<number>,
-      width: number,
-      height: number,
-      depthCull: LightGridCull,
-    ) {
-      const { packed } = view
-      packed.set(tileViewInverse(inverse, origin, viewProjection, eye, rows), 0)
-      packed[16] = width
-      packed[17] = height
-      packed[18] = view.tilesX
-      packed[19] = view.tilesY
-      packed.set(origin, 20)
-      packed.set(rows, 24)
-      packed.set(depthCull.words, CULL_WORD)
-      state.pyramid = cull.group(depthCull.depth)
-      upload(view)
-    },
-    /** Encodes the view grid's pass of image `frame`, one workgroup a column; its pool state is
-     *  sampled after. */
-    encode: (encoder: GPUCommandEncoder, frame: number) =>
-      encodeGrid(view, bind, encoder, frame, state.pyramid),
-    /** Encodes the world grid's pass. */
-    encodeWorld: (encoder: GPUCommandEncoder, frame: number) =>
-      encodeGrid(world, bind, encoder, frame),
-    /** Requests mapping of the pools' samples, once the frame that copied them is submitted. */
-    submitted() {
-      view.pool.submitted()
-      world.pool.submitted()
-    },
-    dispose() {
-      for (const grid of grids) {
-        grid.pool.dispose()
-        grid.uniform.destroy()
-        grid.group = undefined
-      }
-      cull.dispose()
-      state.tiles?.destroy()
-      state.tiles = undefined
-    },
+    ...tileCalls(s),
   }
 }

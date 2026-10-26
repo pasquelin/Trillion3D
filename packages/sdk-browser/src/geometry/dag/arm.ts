@@ -4,12 +4,11 @@ import { DAG_ARM_BINDING } from './shader/armWgsl.ts'
 
 /** Where each list's group count lies in `work`, fixed with the layout (`dagWorkLayout`). */
 export type DagArmWords = {
-  drawnGroups: number
+  visibleGroups: number
   candGroups: number
-  liveGroups: number
   postNodeGroups: number
   postClusterGroups: number
-  listGroups: number
+  queueGroups: number
 }
 
 /** The arming kernel's group layout: the counts read, the arguments written, at their bindings. */
@@ -33,12 +32,11 @@ export const buildDagArm = (
   words: DagArmWords,
 ) =>
   buildComputeStage(device, [layout], module, 'dagArm', {
-    DRAWN_GROUPS: words.drawnGroups,
+    VISIBLE_GROUPS: words.visibleGroups,
     CAND_GROUPS: words.candGroups,
-    LIVE_GROUPS: words.liveGroups,
     POST_NODE_GROUPS: words.postNodeGroups,
     POST_CLUSTER_GROUPS: words.postClusterGroups,
-    LIST_GROUPS: words.listGroups,
+    QUEUE_GROUPS: words.queueGroups,
   })
 
 /** The arming kernel's one group, over the cut's `work` and its arguments `args`. */

@@ -8,7 +8,7 @@ use super::bake::write::{write_levels, LEVEL_WRITE_FAILED};
 use super::blocks::quality::{encode_chain, fast_chain, slow_chain, Channels, Measure};
 use super::blocks::{BlockFormat, Effort, Ladder, Layout};
 use super::collect::{absorb, AtlasTexture};
-use super::coverage::Cut;
+use super::cut::Cut;
 use super::reduce::AtlasKind;
 use super::{verdict, *};
 use std::borrow::Cow;
@@ -22,10 +22,10 @@ pub(super) struct GateSheet {
 }
 
 impl GateSheet {
-    /// Two channels only when every reader is a normal map; the union of the
-    /// channels read and of the cutoffs otherwise, the cutoffs in one order so
-    /// the verdict file has one name; `ladder` the image's.
-    pub fn of(readers: &[&AtlasTexture], ladder: Ladder) -> Self {
+    /// Two channels only when every reader is a normal map, unless the readers' setting names
+    /// `layout` (`setting.rs`); the union of the channels read and of the cutoffs otherwise, the
+    /// cutoffs in one order so the verdict file has one name; `ladder` the image's.
+    pub fn of(readers: &[&AtlasTexture], ladder: Ladder, layout: Option<Layout>) -> Self {
         let mut channels = [false; 4];
         let mut cutoffs = Vec::new();
         for reader in readers {
@@ -37,11 +37,11 @@ impl GateSheet {
             );
         }
         cutoffs.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)));
-        let layout = if readers.iter().all(|r| r.normal_only) {
+        let layout = layout.unwrap_or(if readers.iter().all(|r| r.normal_only) {
             Layout::TwoChannel
         } else {
             Layout::Rgba
-        };
+        });
         Self {
             layout,
             channels,
@@ -195,7 +195,7 @@ pub(super) fn cook_chain(
             (width, height),
             file,
             written_levels,
-            |level, (w, h)| Ok(tile_records(&blocks[level], w, h)),
+            |level, (w, h)| Ok(tile_records(&blocks[level], w, h, BLOCK_CELL)),
         )
         .is_ok();
     if !written {

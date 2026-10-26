@@ -1,173 +1,129 @@
-// The rows of a blended caster, a cutout and a grown table carry the placement's moving word
-// (`mobility.test.ts`).
+// The word of a placement carries the facts its clusters are cast by: how it casts far, whether its
+// transform pins its shadows, whether a deformation moves it; and a grown set of roots keeps the
+// placements' moving state (`mobility.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  MOBILITY_CORNER_SHIFT,
-  MOBILITY_CUTOUT,
+  MOBILITY_CACHE_STATIC,
+  MOBILITY_DEFORMS,
   MOBILITY_FAR_SHADOW,
   MOBILITY_FAR_SKIPPED,
   MOBILITY_FAR_TESTED,
   MOBILITY_MOVING,
 } from '../mobilityBits.ts'
 import { createShadowMobility } from './mobility.ts'
+import { castFlagsOf } from './castFlags.ts'
+import { CACHE_STATIC_ROOT, nodeCasting } from '../../../visibility/shader/castingMark.ts'
 
-/** Rows that draw no corner: the words hold their flags alone. */
-const none = () => 0
-
-// A blended caster follows its placement like any caster: the VSM transmission atlas keeps a still
-// one in the static slice.
-test("a blended caster's row is moving as its placement is", () => {
-  const mobility = createShadowMobility()
-  mobility.ensure(2, 4, () => new Float64Array(16))
-  mobility.move(1, new Float64Array(16).fill(1))
-  mobility.writeRows(
-    (row) => [0, 1, 0, 1][row],
-    4,
-    0,
-    3,
-    () => {},
-    none,
-    2,
-  )
-  assert.deepEqual([...mobility.rowWords], [0, 1, 0, 1])
-})
-
-// A cutout's row is filed with the casters drawn with the fragment test; a blended caster's
-// never is, cutout or not — the transmittance pass reads the other list alone.
-test("a cutout row's word carries the cutout bit, beside its moving bit", () => {
-  const mobility = createShadowMobility()
-  mobility.ensure(2, 5, () => new Float64Array(16))
-  mobility.move(1, new Float64Array(16).fill(1))
-  const cutouts = new Set([1, 2, 4])
-  mobility.writeRows(
-    (row) => [0, 0, 1, 1][row] ?? -1,
-    5,
-    0,
-    4,
-    () => {},
-    none,
-    4,
-    (row) => cutouts.has(row),
-  )
-  const [MOVING, CUTOUT] = [MOBILITY_MOVING, MOBILITY_CUTOUT]
-  assert.deepEqual([...mobility.rowWords], [0, CUTOUT, MOVING | CUTOUT, MOVING, 0])
-  assert.ok(mobility.rowWords.some((word) => (word & CUTOUT) !== 0))
-  // The cutouts rewritten opaque: none is left.
-  mobility.writeRows(
-    (row) => [0, 0, 1, 1][row] ?? -1,
-    5,
-    1,
-    2,
-    () => {},
-    none,
-    4,
-  )
-  assert.ok(mobility.rowWords.every((word) => (word & MOBILITY_CUTOUT) === 0))
-})
-
-// A placement that casts far shadows gives each of its rows the far-shadow bit, which a sun's
-// far-shadow test reads (`vsmRenderFarFlags`).
-// A placement that says the far-shadow test reaches it, or never does, gives its rows one bit or
+// A placement that says the far-shadow test reaches it, or never does, gives its word one bit or
 // the other, and a rewrite clears the one it no longer says.
-test('a placement’s far-shadow test bits reach its rows and are cleared when it stops saying them', () => {
+test('a placement’s far-shadow test bits reach its word and are cleared when it stops saying them', () => {
   const mobility = createShadowMobility()
-  mobility.ensure(1, 2, () => new Float64Array(16))
+  mobility.ensure(1, () => new Float64Array(16))
   let said = MOBILITY_FAR_TESTED
-  const write = (to: number) =>
-    mobility.writeRows(
-      () => 0,
-      2,
-      0,
-      to,
+  const write = () =>
+    mobility.writeRoots(
       () => {},
-      () => 0,
-      2,
-      () => false,
       () => said,
     )
-  write(1)
-  assert.deepEqual([...mobility.rowWords], [MOBILITY_FAR_TESTED, MOBILITY_FAR_TESTED])
+  write()
+  assert.deepEqual([...mobility.words], [MOBILITY_FAR_TESTED])
   for (said of [MOBILITY_FAR_SKIPPED, 0]) {
     mobility.touch(0)
-    write(-1)
-    assert.deepEqual([...mobility.rowWords], [said, said], `${said}`)
+    write()
+    assert.deepEqual([...mobility.words], [said], `${said}`)
   }
 })
 
-test('a placement that casts far shadows gives its rows the far bit, written again when touched', () => {
+test('a placement that casts far shadows has the far bit, written again when touched', () => {
   const mobility = createShadowMobility()
-  mobility.ensure(2, 4, () => new Float64Array(16))
-  let far = new Set([1])
-  const placementOf = (row: number) => [0, 1, 0, 1][row]
+  mobility.ensure(4, () => new Float64Array(16))
+  let far = new Set([1, 3])
   const pushed: number[][] = []
-  /** The rows of the placements touched alone (an empty span), or every row from `to` on. */
-  const write = (to: number) =>
-    mobility.writeRows(
-      placementOf,
-      4,
-      0,
-      to,
+  const write = () =>
+    mobility.writeRoots(
       (first, count) => pushed.push([first, count]),
-      () => 3,
-      4,
-      () => false,
       (rank) => (far.has(rank) ? MOBILITY_FAR_SHADOW : 0),
     )
-  const corners = 3 << MOBILITY_CORNER_SHIFT
-  write(3)
-  assert.deepEqual(
-    [...mobility.rowWords],
-    [corners, corners + MOBILITY_FAR_SHADOW, corners, corners + MOBILITY_FAR_SHADOW],
-  )
+  write()
+  assert.deepEqual([...mobility.words], [0, MOBILITY_FAR_SHADOW, 0, MOBILITY_FAR_SHADOW])
   far = new Set()
   mobility.touch(1)
+  mobility.touch(3)
   pushed.length = 0
-  write(-1)
-  assert.deepEqual([...mobility.rowWords], [corners, corners, corners, corners])
+  write()
+  assert.deepEqual([...mobility.words], [0, 0, 0, 0])
   assert.deepEqual(
     pushed,
     [
       [1, 1],
       [3, 1],
     ],
-    'its two rows, one run each',
+    'its two placements, one run each',
   )
-  far = new Set([1])
+  far = new Set([1, 2])
   mobility.touch(1)
-  write(-1)
-  assert.equal(mobility.rowWords[3], corners + MOBILITY_FAR_SHADOW)
+  mobility.touch(2)
+  pushed.length = 0
+  write()
+  assert.deepEqual(pushed, [[1, 2]], 'two neighbours, one run')
   mobility.touch(1)
   pushed.length = 0
-  write(-1)
-  assert.deepEqual(pushed, [], 'touched with nothing changed: the same words, none written')
+  write()
+  assert.deepEqual(pushed, [], 'touched with nothing changed: the same word, none written')
 })
 
-// A table grown in place resizes the row words, never the placements' state: a placement
-// that moved stays out of the static layer, and every row's word is written again.
-test('a moving placement stays moving across a grow of the rows', () => {
+// The roots grown in place resize the words, never the placements' state: a placement that moved
+// stays out of the static layer, and every word is written again.
+test('a moving placement stays moving across a grow of the roots', () => {
   const mobility = createShadowMobility()
-  mobility.ensure(2, 2, () => new Float64Array(16))
+  mobility.ensure(2, () => new Float64Array(16))
   mobility.move(1, new Float64Array(16).fill(1))
-  mobility.writeRows(
-    (row) => row,
-    2,
-    0,
-    1,
+  mobility.writeRoots(
     () => {},
-    none,
+    () => 0,
   )
-  mobility.ensure(2, 4, () => new Float64Array(16))
+  mobility.ensure(4, () => new Float64Array(16))
   assert.equal(mobility.moves(1), true)
   const pushed: Array<[number, number]> = []
-  mobility.writeRows(
-    (row) => [0, 1, 1, -1][row],
-    4,
-    3,
-    3,
+  mobility.writeRoots(
     (first, count) => pushed.push([first, count]),
-    none,
+    () => 0,
   )
-  assert.deepEqual(pushed, [[0, 4]], 'the whole grown table')
-  assert.deepEqual([...mobility.rowWords], [0, MOBILITY_MOVING, MOBILITY_MOVING, 0])
+  assert.deepEqual(pushed, [[0, 4]], 'the whole grown set')
+  assert.deepEqual([...mobility.words], [0, MOBILITY_MOVING, 0, 0])
+})
+
+// A node that says its transform never invalidates its shadow cache (`shadowCacheInvalidation`
+// `'static'`) marks its root, whose word carries the bit and never counts as moving: its pose is not
+// told to the static slice.
+test('a placement that pins its shadows has the pin, and never the moving bit', () => {
+  const node = { castShadow: true, shadowCacheInvalidation: 'static' }
+  assert.equal(nodeCasting(node), CACHE_STATIC_ROOT)
+  assert.equal(nodeCasting({ ...node, shadowCacheInvalidation: 'rigid' }), 0)
+  const pinned = castFlagsOf({ mark: nodeCasting(node) })
+  assert.ok(
+    (pinned & MOBILITY_CACHE_STATIC) !== 0 &&
+      (castFlagsOf({ mark: 0 }) & MOBILITY_CACHE_STATIC) === 0,
+  )
+  const mobility = createShadowMobility()
+  mobility.ensure(2, () => new Float64Array(16))
+  mobility.move(0, new Float64Array(16).fill(1))
+  mobility.move(1, new Float64Array(16).fill(1))
+  mobility.writeRoots(
+    () => {},
+    (rank) => (rank === 0 ? pinned : 0),
+  )
+  const pin = pinned & MOBILITY_CACHE_STATIC
+  assert.deepEqual(
+    [...mobility.words].map((word) => word & (MOBILITY_MOVING | pin)),
+    [pin, MOBILITY_MOVING],
+  )
+})
+
+// A placement a deformation moves says so: the pages its casters draw while it moves are marked
+// dirty as they are drawn (`vsmRenderCandidateFlags`).
+test('a deformed placement has the deforming bit, a plain one not', () => {
+  assert.ok((castFlagsOf({ deformation: {} }) & MOBILITY_DEFORMS) !== 0)
+  assert.equal(castFlagsOf({ mark: 0 }) & MOBILITY_DEFORMS, 0)
 })

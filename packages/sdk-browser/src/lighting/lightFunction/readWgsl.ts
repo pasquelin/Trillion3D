@@ -24,25 +24,12 @@ export const NO_LIGHT_FUNCTION_WGSL = wgslBlock(
   'fn lightFunctionOf(word:f32,P:vec3f)->vec3f{return vec3f(1.0);}\nfn lightFunctionFogLocalOf(word:f32,P:vec3f)->vec3f{return vec3f(1.0);}',
 )
 
-/**
- * THE LIGHT FUNCTION READ: the colour a light gives at the world point `P` is its colour times
- * `lightFunctionOf(word, P)`, `word` the light's kind word. The light's entry is read from the table
- * under the slots of the atlas (`layout.ts`); the point is taken to the light's axes and, by the
- * light's kind, to a coordinate in the slot of its material: a spot's and a rectangle's cone as
- * the tangent of its cone says, a point's by its direction as longitude and latitude, any other (a
- * sun, a rectangle without a cone) by the axes themselves; the coordinate wraps. The slot is read
- * bilinear, clamped to the atlas's edge, and squared (the atlas holds the square root of the colour).
- * The function then fades to the light's disabled brightness over the fifth of its fade distance
- * that ends at it, by the distance from the eye. An index of 0, or one the atlas holds no row for
- * (the stand-in's texel), answers white.
- */
-export const lightFunctionReadWgsl = (b: LightFunctionBindings) =>
-  wgslBlock(
-    `lightFunctionReadWgsl(${lightFunctionBindingsLabel(b)})`,
-    [],
-    `@group(${b.group}) @binding(${b.atlas}) var lightFunctionAtlas:${
-      b.storage ? 'texture_storage_2d<rgba32uint,read>' : 'texture_2d<u32>'
-    };
+/** The atlas and the reads of its texels, bilinear, and of the table. */
+const lightFunctionAtlasText = (
+  b: LightFunctionBindings,
+) => `@group(${b.group}) @binding(${b.atlas}) var lightFunctionAtlas:${
+  b.storage ? 'texture_storage_2d<rgba32uint,read>' : 'texture_2d<u32>'
+};
 fn lightFunctionLoad(texel:vec2u)->vec4u{return textureLoad(lightFunctionAtlas,texel${b.storage ? '' : ',0'});}
 const LF_PI:f32=3.14159265358979;
 const LF_SHIFT:u32=${LIGHT_FUNCTION_SHIFT}u;
@@ -70,8 +57,10 @@ fn lightFunctionWord(t:u32)->vec4f{
  let side=textureDimensions(lightFunctionAtlas).x;
  return bitcast<vec4f>(lightFunctionLoad(vec2u(t%side,side+t/side)));
 }
-fn lightFunctionEye()->vec3f{return ${b.eye};}
-fn lightFunctionOf(word:f32,P:vec3f)->vec3f{
+fn lightFunctionEye()->vec3f{return ${b.eye};}`
+
+/** The function of a light at a point, and the fog's local lights' share of it. */
+const LIGHT_FUNCTION_OF_TEXT = `fn lightFunctionOf(word:f32,P:vec3f)->vec3f{
  let index=u32(word)>>LF_SHIFT;
  if(index==0u){return vec3f(1.0);}
  let dims=textureDimensions(lightFunctionAtlas);
@@ -103,5 +92,24 @@ fn lightFunctionFogLocalOf(word:f32,P:vec3f)->vec3f{
  let dims=textureDimensions(lightFunctionAtlas);
  if((u32(word)>>LF_SHIFT)==0u||dims.y<=dims.x||lightFunctionWord(${ATLAS_NUMBERS_AT}u).w<0.5){return vec3f(1.0);}
  return lightFunctionOf(word,P);
-}`,
+}`
+
+/**
+ * THE LIGHT FUNCTION READ: the colour a light gives at the world point `P` is its colour times
+ * `lightFunctionOf(word, P)`, `word` the light's kind word. The light's entry is read from the table
+ * under the slots of the atlas (`layout.ts`); the point is taken to the light's axes and, by the
+ * light's kind, to a coordinate in the slot of its material: a spot's and a rectangle's cone as
+ * the tangent of its cone says, a point's by its direction as longitude and latitude, any other (a
+ * sun, a rectangle without a cone) by the axes themselves; the coordinate wraps. The slot is read
+ * bilinear, clamped to the atlas's edge, and squared (the atlas holds the square root of the colour).
+ * The function then fades to the light's disabled brightness over the fifth of its fade distance
+ * that ends at it, by the distance from the eye. An index of 0, or one the atlas holds no row for
+ * (the stand-in's texel), answers white.
+ */
+export const lightFunctionReadWgsl = (b: LightFunctionBindings) =>
+  wgslBlock(
+    `lightFunctionReadWgsl(${lightFunctionBindingsLabel(b)})`,
+    [],
+    `${lightFunctionAtlasText(b)}
+${LIGHT_FUNCTION_OF_TEXT}`,
   )

@@ -1,7 +1,7 @@
 // The "transparents in a few orders" bench scene and its frames: twelve placements per
 // paged prototype, and three camera regimes. Both sides of the bench each build a copy, so
 // neither benefits from the state the other leaves.
-import * as THREE from 'three'
+import { Matrix4 } from '../../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { basicSurface } from '../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 import { uniformStride } from '../../../../packages/sdk-browser/src/session/memory/pools.ts'
@@ -19,7 +19,7 @@ import { frustumExcludesBox } from '../../../../packages/math/src/geometry/frust
 /** The reduced item this bench builds: only the fields the blend order reads (no GPU buffers),
  *  picked from the engine's item so a renamed field fails the type check, not the bench run. */
 export type BenchItem = Pick<BlendGpuItem, 'surface' | 'pagedIndex' | 'tableBase'> & {
-  matrix: THREE.Matrix4
+  matrix: Matrix4
   bounds: Float64Array
 }
 
@@ -38,12 +38,15 @@ const alea = xorshiftRandom(31)
  * Both sides of a transparent scene, and why the bench measures both.
  *
  * Both paths yield one entry for a single-sided material and two, back then front, for a
- * double-sided material. The reference changes pipelines between faces; the current paged
+ * double-sided material that asks two passes (`twoSidedPasses`, off by default). The reference changes pipelines between faces; the current paged
  * path culls in the vertex stage so both faces can share a run. Keep both cases measured.
  */
-export const FACES: [string, THREE.Side][] = [
-  ['single-sided', THREE.FrontSide],
-  ['double-sided', THREE.DoubleSide],
+/** The face sides a bench scene draws. */
+export type Side = 'front' | 'back' | 'double'
+
+export const FACES: [string, Side][] = [
+  ['single-sided', 'front'],
+  ['double-sided', 'double'],
 ]
 
 /** Where item `i` stands: a grid of 64 by 16 by its rank. */
@@ -62,15 +65,18 @@ function boxOf(i: number) {
  * The scene: twelve placements per prototype. Reduced fixture: only the fields the blend order
  * reads are populated (no real GPU buffers).
  */
-function batisItems(side: THREE.Side): BenchItem[] {
+function batisItems(side: Side): BenchItem[] {
   const items: BenchItem[] = [],
     surface = surfaceOf(
       basicSurface({
-        side: side === THREE.DoubleSide ? 'double' : side === THREE.BackSide ? 'back' : 'front',
+        side,
+        // A double-sided surface draws in one pass by default (`twoSidedPasses` false); this case
+        // measures the two-pass path (back then front), so the bench asks for it.
+        twoSidedPasses: side === 'double',
       }),
     )
   for (let i = 0; i < ITEMS; i++) {
-    const matrix = new THREE.Matrix4().setPosition(...centreOf(i))
+    const matrix = new Matrix4().setPosition(...centreOf(i))
     const bounds = boxOf(i)
     items.push({
       surface,
@@ -140,7 +146,7 @@ for (let e = 0; e < spans.length / 2; e++) {
 }
 
 /** One side of the bench: its blend state, its plan in the host format, and its output buffers. */
-export function benchSide(side: THREE.Side) {
+export function benchSide(side: Side) {
   const blendState: WebgpuBlendState = createWebgpuBlendState()
   // Reduced fixture, matching the pattern already used by `packages/sdk-browser/src/blend/plan/plan.test.ts`: only the
   // fields the blend order reads are populated, not a full GPU `BlendGpuItem`.

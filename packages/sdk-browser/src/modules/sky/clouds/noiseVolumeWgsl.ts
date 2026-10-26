@@ -1,5 +1,5 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
-import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
+import { wgslF32, wgslVec3 } from '../../../../../math/src/wgsl/number.ts'
 
 /**
  * THE NOISE VOLUME'S PROGRAM: a cube of 128 texels a side, four channels, tiling with period 128 on
@@ -63,15 +63,13 @@ export function noiseHashTable() {
 
 export const NOISE_VOLUME_ENTRY_POINTS = ['noiseMain'] as const
 
-const vec3 = (values: readonly number[]) => `vec3f(${values.map(wgslF32).join(',')})`
-
 const SOURCE = `
 @group(0) @binding(0) var volume:texture_storage_3d<rgba16float,write>;
 @group(0) @binding(1) var<storage,read> hashTable:array<f32>;
 
 const SIZE:f32=${NOISE_VOLUME_SIZE}.0;
-const CHANNEL_CELLS=array<vec3f,4>(${NOISE_CHANNEL_OCTAVES.map((c) => vec3(c.multiples.map((m) => m * NOISE_BASE_CELLS))).join(',')});
-const CHANNEL_WEIGHTS=array<vec3f,4>(${NOISE_CHANNEL_OCTAVES.map((c) => vec3(c.weights)).join(',')});
+const CHANNEL_CELLS=array<vec3f,4>(${NOISE_CHANNEL_OCTAVES.map((c) => wgslVec3(c.multiples.map((m) => m * NOISE_BASE_CELLS))).join(',')});
+const CHANNEL_WEIGHTS=array<vec3f,4>(${NOISE_CHANNEL_OCTAVES.map((c) => wgslVec3(c.weights)).join(',')});
 
 // A hashed number in [0, 1) of a whole number: the fraction of a large multiple of a sine, read
 // from the table the host made (noiseHashTable in the host).

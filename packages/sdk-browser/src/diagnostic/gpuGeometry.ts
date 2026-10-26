@@ -12,14 +12,20 @@ import { VIS_FRAGMENT, VIS_UNMASKED } from '../visibility/shader/visWgsl.ts'
  * production image by construction.
  */
 
-/** The raster stage with no fragment at all. The one without a mask test is production's own
- *  stage under \`VIS_UNMASKED\` (\`../visibility/shader/visWgsl.ts\`). */
-export const DIAGNOSTIC_VIS_WGSL = wgslBlock(
-  'DIAGNOSTIC_VIS_WGSL',
-  [],
-  `
-@fragment fn vis_hiz_jete_fs(in:VSOut){discard;}`,
-)
+/** The raster stage with no fragment at all: on a device without the 64-bit atomic maximum, its
+ *  fragments write the attachments (`VIS_OUT_WGSL`), so the stage returns the output it discards.
+ *  The one without a mask test is production's own stage under \`VIS_UNMASKED\`
+ *  (\`../visibility/shader/visWgsl.ts\`). */
+export const diagnosticVisWgsl = (wide: boolean) =>
+  wgslBlock(
+    `DIAGNOSTIC_VIS_WGSL(${wide ? 'wide' : 'split'})`,
+    [],
+    wide
+      ? `
+@fragment fn vis_hiz_jete_fs(in:VSOut){discard;}`
+      : `
+@fragment fn vis_hiz_jete_fs(in:VSOut)->VisOut{return visLeft();}`,
+  )
 
 /** The two flat resolve stages, each over its class's bin as the resolve's (`binnedPixel`):
  *  one grey surface, then the identifier's low byte. */

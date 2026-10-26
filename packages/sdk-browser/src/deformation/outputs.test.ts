@@ -1,9 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { assignDeformationOutputs, writeRowDeformation, writeSpanDeformation } from './outputs.ts'
+import {
+  assignDeformationOutputs,
+  deformCountWord,
+  deformOutputWord,
+  writeSpanDeformation,
+} from './outputs.ts'
 import type { ClusterRoot, DeformationOutput, PageRec } from '../geometry/selection/types.ts'
-
-import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 const page = (url: string, count: number, deformed = true) =>
   ({
@@ -80,25 +83,23 @@ test('the roots of one batch ask its meshes whether they animate once, not once 
   assert.equal(roots[0].deformationOutputs, undefined, 'none where no mesh of the rows animates')
 })
 
-// The words a row and a span put to name an output.
-test('a row and a span name an output by its words', () => {
+// The words a page's record (the placements' outputs) and a span put to name an output.
+test('a page and a span name an output by its words', () => {
   const own: DeformationOutput = { from: 34, count: 3 },
     pool = { from: 100, count: 7, pool: {} } as DeformationOutput,
     poolWord = 101
-  const ints = new Uint32Array(200),
-    spans = new Uint32Array(8)
-  const at = 3 * 16
-  const { deformCount: count, deformOutput: out } = PAGE_INFO.at
-  writeRowDeformation(ints, at, own)
+  const spans = new Uint32Array(8)
   assert.deepEqual(
-    [ints[at + count], ints[at + out]],
+    [deformCountWord(own), deformOutputWord(own)],
     [3, 35],
     "a page's own: its count, its float",
   )
-  writeRowDeformation(ints, at, pool)
-  assert.deepEqual([ints[at + count], ints[at + out]], [0, poolWord], 'a pool block: no own count')
-  writeRowDeformation(ints, at, undefined)
-  assert.deepEqual([ints[at + count], ints[at + out]], [0, 0], 'none')
+  assert.deepEqual(
+    [deformCountWord(pool), deformOutputWord(pool)],
+    [0, poolWord],
+    'a pool block: no own count',
+  )
+  assert.deepEqual([deformCountWord(undefined), deformOutputWord(undefined)], [0, 0], 'none')
   writeSpanDeformation(spans, 1, own, 6)
   assert.deepEqual([...spans.subarray(6, 8)], [35, 3])
   writeSpanDeformation(spans, 1, pool, 6)

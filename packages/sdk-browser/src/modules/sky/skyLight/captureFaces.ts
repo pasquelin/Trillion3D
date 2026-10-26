@@ -1,4 +1,5 @@
 import { workgroupCount } from '../../../../../math/src/scalar/integers.ts'
+import { lowerHemisphereOf } from '../../../../../sdk-core/src/modules/sky/skyLight.ts'
 import { FRAME_FLOATS, writeAirFrame } from '../../../lighting/atmosphere/frame.ts'
 import {
   CLOUD_TRACE_LAYOUT,
@@ -17,6 +18,8 @@ import { faceCamera } from './faces.ts'
 import { BLOCK_STRIDE } from './layout.ts'
 import type { SkyLightPipelines } from './pipelines.ts'
 import type { SkyLightTargets } from './targets.ts'
+
+const PASS: GPUComputePassDescriptor = { label: 'Trillion3D sky light clouds' }
 
 /**
  * THE CAPTURE'S FACES: the sky and the distant fog drawn into the faces of the cube by render
@@ -37,7 +40,8 @@ const traceWords = new Uint32Array(traceFloats.buffer)
 type Clouds = NonNullable<SkyLightInputs['clouds']>
 
 /** Face `face`'s block: its number, whether the lower hemisphere is replaced and whether the
- *  clouds are laid, the position, the sides, and the lower colour with a coverage of one. */
+ *  clouds are laid, the position, the sides and the pre-exposure, and the lower colour with its
+ *  coverage. */
 function writeFace(
   device: GPUDevice,
   t: SkyLightTargets,
@@ -49,13 +53,14 @@ function writeFace(
   const { light } = input.part
   faceUints.set([face, light.lowerHemisphereIsSolidColor ? 1 : 0, withClouds ? 1 : 0, 0], at.face)
   faceFloats.set([...input.position, 0], at.eye)
-  faceFloats.set([t.width, 1 / t.width, t.cloudSide, 0], at.size)
-  faceFloats.set([...light.lowerHemisphereColor, 1], at.lower)
+  faceFloats.set([t.width, 1 / t.width, t.cloudSide, input.preExposure], at.size)
+  faceFloats.set(lowerHemisphereOf(light), at.lower)
   writeBlock(device, t.blocks.face, face * BLOCK_STRIDE, faceFloats)
 }
 
 /** Face `face`'s trace block, written: the camera of the face over the cloud texture, as a
- *  reflection with no late fog and no scene depth. */
+ *  reflection with no late fog and no scene depth, its light written multiplied by the capture's
+ *  pre-exposure. */
 function writeFaceTrace(
   device: GPUDevice,
   t: SkyLightTargets,
@@ -85,6 +90,7 @@ function writeFaceTrace(
       view,
       frameIndex: input.frame,
       time: clouds.time,
+      preExposure: input.preExposure,
       ...clouds.air,
     },
     plan,
@@ -124,9 +130,11 @@ function traceFace(
   )
   writeBlock(device, t.blocks.frame, face * BLOCK_STRIDE, frameFloats)
   writeFaceTrace(device, t, face, input, clouds, camera.inverseViewProj)
-  const pass = encoder.beginComputePass({ label: 'Trillion3D sky light clouds' })
   const traced = made.cloudTrace(key)
-  pass.setPipeline(traced.pipeline.get())
+  const pipeline = traced.pipeline.get()
+  if (!pipeline) return
+  const pass = encoder.beginComputePass(PASS)
+  pass.setPipeline(pipeline)
   pass.setBindGroup(0, holds.traceGroups[face].air)
   pass.setBindGroup(1, holds.traceGroups[face].cloud)
   if (traced.extra) pass.setBindGroup(2, holds.extraGroup!)
@@ -153,6 +161,29 @@ function faceWork(withSky: boolean, withClouds: boolean, input: SkyLightInputs):
   return { atmosphereDrawn, composing, clearing }
 }
 
+const faceTarget: GPURenderPassColorAttachment = {
+  view: undefined as never,
+  loadOp: 'load',
+  clearValue: { r: 0, g: 0, b: 0, a: 1 },
+  storeOp: 'store',
+}
+const FACE: GPURenderPassDescriptor = {
+  label: 'Trillion3D sky light face',
+  colorAttachments: [faceTarget],
+}
+
+/** The sky shaded by the opaque scene where the setting asks (`skyLightShadowFromOpaque`), asked
+ *  now where it is not made yet. */
+const shadowedSky = (made: SkyLightPipelines, input: SkyLightInputs) =>
+  input.part.quality.skyLightShadowFromOpaque && input.air?.maps
+    ? made.skyShadowed.ask()
+    : undefined
+
+/** Whether the sky the faces draw is compiled: a capture draws no face with the unshaded sky in
+ *  place of the shaded one, which would move its slices on over a wrong cube. */
+export const skyCompiled = (made: SkyLightPipelines, input: SkyLightInputs) =>
+  shadowedSky(made, input)?.ready ?? true
+
 /** The render pass of face `face`: the sky, the fog over it, then the clouds laid over. */
 function facePass(
   made: SkyLightPipelines,
@@ -164,36 +195,31 @@ function facePass(
   input: SkyLightInputs,
 ) {
   const { pipelines } = made
-  const pass = encoder.beginRenderPass({
-    label: 'Trillion3D sky light face',
-    colorAttachments: [
-      {
-        view: t.faceTargets[face],
-        loadOp: work.clearing ? 'clear' : 'load',
-        clearValue: { r: 0, g: 0, b: 0, a: 1 },
-        storeOp: 'store',
-      },
-    ],
-  })
+  faceTarget.view = t.faceTargets[face]
+  faceTarget.loadOp = work.clearing ? 'clear' : 'load'
+  const pass = encoder.beginRenderPass(FACE)
   const offset = [face * BLOCK_STRIDE]
   if (work.atmosphereDrawn) {
-    // Shaded by the opaque scene where the setting asks and the pipeline is compiled (`skyLightShadowFromOpaque`).
-    const shaded =
-      input.part.quality.skyLightShadowFromOpaque && input.air?.maps && made.skyShadowed.ask()
-    const shadowed = shaded && shaded.ready ? shaded : undefined
-    pass.setPipeline((shadowed ?? pipelines.sky).get())
-    pass.setBindGroup(0, shadowed ? holds.shadowedGroup! : holds.skyGroup!)
-    pass.setBindGroup(1, holds.faceGroup!.group, offset)
-    pass.draw(3)
-    if (input.fog && input.fogShown) {
-      pass.setPipeline(pipelines.fog.get())
+    // Compiled: the capture waits for it (`skyCompiled`).
+    const shadowed = shadowedSky(made, input)
+    const sky = (shadowed ?? pipelines.sky).get()
+    if (sky) {
+      pass.setPipeline(sky)
+      pass.setBindGroup(0, shadowed ? holds.shadowedGroup! : holds.skyGroup!)
+      pass.setBindGroup(1, holds.faceGroup!.group, offset)
+      pass.draw(3)
+    }
+    const fog = input.fog && input.fogShown ? pipelines.fog.get() : undefined
+    if (fog) {
+      pass.setPipeline(fog)
       pass.setBindGroup(0, holds.fogGroup!)
       pass.setBindGroup(1, holds.faceGroup!.group, offset)
       pass.draw(3)
     }
   }
-  if (work.composing) {
-    pass.setPipeline(pipelines.compose.get())
+  const compose = work.composing ? pipelines.compose.get() : undefined
+  if (compose) {
+    pass.setPipeline(compose)
     pass.setBindGroup(0, t.groups.clouds)
     pass.setBindGroup(1, holds.faceGroup!.group, offset)
     pass.draw(3)

@@ -135,13 +135,13 @@ export function waitWorldRow(
   cut.waitRow(rows, index, cell, instance, file, actor)
 }
 
-/** The HLOD level each placement root drew as when its rows were last written: set by the writing
+/** The HLOD level each placement root drew as when its record was last made: set by the making
  *  alone (`rowWrittenAs`). */
 const drawnBefore = new WeakMap<object, number>()
 
-/** The HLOD level placement root `rank` of `roots` draws as (`rowDrawnAs`), read as a row of it is
- *  written, and kept: what `linkWorldCell` compares a move with. It names the row's diagnostic word
- *  alone (`pageDiagnosticWord`), never what draws. */
+/** The HLOD level placement root `rank` of `roots` draws as (`rowDrawnAs`), read as its record is
+ *  made, and kept: what `linkWorldCell` compares a move with. It names the clusters' diagnostic word
+ *  alone (`diagnosticDrawnAs`), never what draws. */
 export function rowWrittenAs(roots: readonly ClusterRoot<PageRec>[], rank: number) {
   const root = roots[rank],
     placement = root?.placement
@@ -153,13 +153,13 @@ export function rowWrittenAs(roots: readonly ClusterRoot<PageRec>[], rank: numbe
 /** Placement `rank` of `rt`'s cut lies where its row lies now (`cellOfRoot`): told where its row's
  *  cell moved (`takeCellsMoved`) or the row was parked or taken (`flipWorld`); nothing when it
  *  packs no world DAG. A placement that turned to draw as another HLOD level — its cell's HLOD 0
- *  actor or back to its source mesh (`RowCell.proxy`) —, has its page rows written again: their
- *  diagnostic word names what draws (`pageDiagnosticWord`). */
+ *  actor or back to its source mesh (`RowCell.proxy`) —, has its record made again: the decode
+ *  of its clusters names what draws in their diagnostic word (`diagnosticDrawnAs`). */
 export function linkWorldCell(
   rt: {
     layout: {
       selectionRoots: ClusterRoot<PageRec>[]
-      rows?: Pick<WebgpuPagesCore['layout']['rows'], 'rowOf' | 'touchPage'>
+      clusters?: Pick<WebgpuPagesCore['layout']['clusters'], 'placementInfo'>
     }
     run: { gpuSelection?: GpuSelection }
   },
@@ -170,15 +170,12 @@ export function linkWorldCell(
   if (!root) return
   if (cut?.world) cut.placeInCell(rank, ...cellOfRoot(root))
   const placement = root.placement,
-    rows = rt.layout.rows
-  if (!rows || !placement) return
+    clusters = rt.layout.clusters
+  if (!clusters || !placement) return
   const level = rowDrawnAs(rowCell(placement.rows, placement.index))
-  // Against what its rows were written with: they are written again until they say it.
+  // Against what its record was made with: made again until it says it.
   if ((drawnBefore.get(root) ?? -1) === level) return
-  const base = root.packedBase ?? -1
-  if (base < 0) return
-  for (let page = 0; page < root.pages.length; page++)
-    if (rows.rowOf(base + page) >= 0) rows.touchPage(base + page)
+  clusters.placementInfo.mark(rank)
 }
 
 /**

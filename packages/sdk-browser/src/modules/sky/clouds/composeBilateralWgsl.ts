@@ -30,7 +30,7 @@ const WEIGHT_PER_KM = 1000
 const BLEND_SHARE = 0.1
 
 /** The four texels around the pixel, and the soft sample's position among them. */
-export const BILATERAL_TEXELS = `
+const BILATERAL_TEXELS = `
  let size=i32(view.scale.y);
  let low=pixel/size;
  let side=vec2i(select(1,-1,low.x*size==pixel.x),select(1,-1,low.y*size==pixel.y));

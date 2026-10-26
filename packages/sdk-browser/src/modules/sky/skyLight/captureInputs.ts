@@ -2,6 +2,7 @@ import type { ResolvedAtmosphere } from '../../../../../sdk-core/src/scene/core/
 import type { SkyLightPart } from '../../../../../sdk-core/src/modules/sky/skyLight.ts'
 import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
 import type { AirShadowMaps } from '../../../lighting/atmosphere/bindings.ts'
+import type { CloudShadowSet } from '../../../lighting/atmosphere/cloudShadowRead.ts'
 import type { AirlessPlanet } from '../../../lighting/atmosphere/frame.ts'
 import type { FogRead } from '../../../lighting/fog/read.ts'
 import type { CloudTraceImage } from '../clouds/traceLayout.ts'
@@ -12,6 +13,11 @@ export interface SkyLightInputs {
   readonly part: SkyLightPart
   /** The cube's side (`skyLightCubeWidth`). */
   readonly width: number
+  /** The number the real-time capture's light is written multiplied by (`cachedPreExposure`): the
+   *  sky, the fog, the clouds and the lower hemisphere's colour of its faces. The light's colour
+   *  holds its inverse (`skyLightColor`). A captured scene and a specified cubemap are written
+   *  at 1, and read none of it. */
+  readonly preExposure: number
   /** The frame's index (the clouds' noise) and the time in seconds. */
   readonly frame: number
   /** Where the sky light stands, in the scene, metres. */
@@ -30,25 +36,32 @@ export interface SkyLightInputs {
     readonly volumes: GPUBuffer
     /** The virtual shadow maps the air's lights shade the air with, or their stand-ins: read by the
      *  sky of the faces where `skyLightShadowFromOpaque` asks for it. */
-    readonly maps?: AirShadowMaps
+    readonly maps: AirShadowMaps
   }
-  /** The host's cube, when the light's source is a specified cubemap and it captures no sky in
+  /** The cube of the light, when its source is a specified cubemap and it captures no sky in
    *  real time (`skyLightSource`): six square faces of one side, a cube-compatible 2d array texture
-   *  with `TEXTURE_BINDING` (`createSkyCubemapFromImages` makes one from six images). Its top level
-   *  is read, bilinearly; a 32-bit float one needs the device's `float32-filterable`. None, the
-   *  light has no sky. */
+   *  with `TEXTURE_BINDING` (`openSkyCubemap` makes one of a cubemap held as data). Its
+   *  top level is read, bilinearly. None, the light has no sky. */
   readonly cubemap?: GPUTexture
-  /** The cube the host's cube blends to and the share of it (`SetCubemapBlend`): the light reads the
-   *  source mixed with the destination by `fraction`, a destination whole where it is 1. Only for a
-   *  specified cubemap. */
-  readonly blend?: { readonly destination: GPUTexture; readonly fraction: number }
+  /** The factor the light's colour is multiplied by where `cubemap` was written rescaled to fit the
+   *  half float (`openSkyCubemap`); absent, 1. */
+  readonly cubemapScale?: number
+  /** The cube the cube blends to and the share of it (`SetCubemapBlend`): the light reads the
+   *  source mixed with the destination by `fraction`, a destination whole where it is 1, its own
+   *  `scale` as `cubemapScale` is the source's. Only for a specified cubemap. */
+  readonly blend?: {
+    readonly destination: GPUTexture
+    readonly fraction: number
+    readonly scale?: number
+  }
   /** Whether the scene has an atmosphere, drawn into the faces (not so over the stand-in air). */
   readonly atmosphere: boolean
   /** The fog's resources, bound by the programs that read the fog (the distant fog and the clouds'
    *  tracing): its cubemap and sampler, and the stand-ins that answer no volume and no frame
    *  (`createFogStandIns`), for the capture holds no volumetric fog. */
   readonly fog?: FogRead
-  /** Whether the fog shows in the sky capture: the distant height fog is then laid over the sky. */
+  /** Whether the fog shows in the sky capture (the height fog's `inSkyCapture`): the distant height fog
+   *  is then laid over the sky. */
   readonly fogShown: boolean
   /** The clouds, where the scene has them: the part, the material's seven bindings of the
    *  tracing's group (from `B.material`), the blue noise's view and the time in seconds. */
@@ -63,6 +76,9 @@ export interface SkyLightInputs {
     /** What the sky light is read with where the scene has no air (`skyLightReadOf`): the cube it
      *  last captured, whose harmonics give the clouds' distant sky light. */
     readonly skyLight: SkyLightReadSet
+    /** The clouds' shadow maps of the image, or the stand-in that shades nothing: read where the
+     *  material does not march the cloud's own shade (`CloudTraceKey.volumeShadowMap`). */
+    readonly cloudShadow: CloudShadowSet
   }
 }
 

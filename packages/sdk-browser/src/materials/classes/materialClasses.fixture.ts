@@ -1,10 +1,10 @@
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { DAG, dagRoots, exactPrimitive } from '../../session/engine/pagesEngine.fixture.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 /** Primitive `index`'s one root cluster, its triangle's three corners from 0. */
 const roots = (index: number) =>
@@ -26,7 +26,7 @@ const roots = (index: number) =>
 /** Three primitives, one per material class, the way the compiler classifies them. */
 export function scene() {
   const source = new Group(),
-    meshes: HostMesh[] = [],
+    meshes: PageMesh[] = [],
     associations = new Map<Object3D, { meshes: number; primitives: number }>()
   const materials = [
     // A cut-out: alphaMode MASK carries an alpha test and is not blended.

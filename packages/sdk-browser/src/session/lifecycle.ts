@@ -3,7 +3,7 @@ import { releasePageWorkers } from '../geometry/work/host.ts'
 import { releasePageIntegration } from '../geometry/integration/host.ts'
 import { disposeSource } from './disposeSource.ts'
 import type { EngineContext, Engine } from './engine/types.ts'
-import type { HostCamera } from '../camera/world.ts'
+import type { ViewCamera } from '../camera/world.ts'
 import type { SessionState } from '../frame/schedule/sessionState.ts'
 import type { ExplorerSession } from './session.ts'
 import type { createExplorerStreaming } from '../scene/drive/streaming.ts'
@@ -25,7 +25,7 @@ type Inputs = {
   streaming: ReturnType<typeof createExplorerStreaming>
   engine: Engine
   source: EngineContext['source']
-  camera: HostCamera
+  camera: ViewCamera
 }
 
 /** Frees what a session owns: the scene source unless the caller holds it, the device unless

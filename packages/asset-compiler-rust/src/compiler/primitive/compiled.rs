@@ -6,9 +6,6 @@ pub(crate) struct SplitCompiled {
     pub primitives: Vec<Value>,
     /// The plane of each of its clusters, which the coplanar stage stacks.
     pub cluster_planes: Vec<Vec<Option<crate::coplanar::ClusterPlane>>>,
-    /// The coarse cut its proxy keeps, in object space, and the threshold it requested, in metres.
-    pub proxy_cuts: Vec<Vec<f32>>,
-    pub proxy_thresholds: Vec<f64>,
     pub collisions: Vec<Value>,
     /// Its level-0 geometry, which the world HLOD merges (`hlod::chain::stage_world_roots`).
     pub covers: Vec<crate::hlod::chain::SourceCover>,
@@ -21,8 +18,6 @@ pub(crate) fn split_compiled(compiled: Vec<CompiledPrimitive>) -> SplitCompiled 
     let mut split = SplitCompiled {
         primitives: Vec::with_capacity(compiled.len()),
         cluster_planes: Vec::with_capacity(compiled.len()),
-        proxy_cuts: Vec::with_capacity(compiled.len()),
-        proxy_thresholds: Vec::with_capacity(compiled.len()),
         collisions: Vec::with_capacity(compiled.len()),
         covers: Vec::with_capacity(compiled.len()),
         voxel_seeds: Vec::with_capacity(compiled.len()),
@@ -32,8 +27,6 @@ pub(crate) fn split_compiled(compiled: Vec<CompiledPrimitive>) -> SplitCompiled 
         split.runs.push(entry.page_run);
         split.primitives.push(entry.value);
         split.cluster_planes.push(entry.cluster_planes);
-        split.proxy_cuts.push(entry.proxy_cut);
-        split.proxy_thresholds.push(entry.proxy_threshold);
         split.collisions.push(entry.collision);
         split.covers.push(entry.source_cover);
         split.voxel_seeds.push(entry.voxel_seed);

@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { measureOutput } from '../../core/paths.ts'
-import { decodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
+import { decodePng } from '../../../packages/sdk-node/src/image/png.mts'
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 
 /** A decoded image: its size and its RGBA rows, top row first. */

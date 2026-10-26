@@ -1,5 +1,5 @@
 /** Record builders the physics tests share, free of Node: a page or a worker imports them too. */
-import { GENERATION_SHIFT } from '../../../sdk-core/src/physics/layout.ts'
+import { BUILT_IN_FILTER, GENERATION_SHIFT } from '../../../sdk-core/src/physics/layout.ts'
 
 /** Generation 1 of an engine id. */
 const GENERATION = 1 << GENERATION_SHIFT
@@ -10,7 +10,7 @@ export const id = (slot: number) => slot | GENERATION
 export const body = (id: number, motion: number, y: number, half: number, flags = 0) => ({
   id,
   motion,
-  layer: motion === 0 ? 0 : 1,
+  filter: motion === 0 ? BUILT_IN_FILTER.static : BUILT_IN_FILTER.moving,
   shape: 0 as const,
   flags,
   position: [0, y, 0],

@@ -7,6 +7,9 @@
 // nonsense pixel size for the shadow LOD; the magnitudes give the mirror image's own size. With
 // one axis mirrored the former maximum took the other, positive axis; the magnitudes take the
 // larger of the two, so that camera's shadow LOD may change too.
+//
+// The shadow raster no longer reads it: each map's view now selects its own level of detail
+// (`vsmRenderLodAt`). The sweep stays the proof of `focalPixels` itself.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createEngineCamera, writeEngineCamera } from '../../../../camera/engineCamera.ts'
@@ -36,15 +39,6 @@ function camera(i: number, mirrored: boolean) {
   })
   return [Math.round(haltonSpan(i, 13, 64, 4096)), Math.round(haltonSpan(i, 17, 64, 4096))]
 }
-
-test('the raster focal length is the former one for every camera that is not mirrored', () => {
-  for (let i = 1; i <= HALTON_SWEEP; i++) {
-    const [width, height] = camera(i, false)
-    const old = oldFocalPixels(cam.projection, width, height)
-    assert.ok(old > 0, `camera ${i}`)
-    assert.ok(Object.is(focalPixels(cam.projection, width, height), old), `camera ${i}`)
-  }
-})
 
 test('a mirrored camera takes a positive focal length, its mirror image', () => {
   let flipped = 0,

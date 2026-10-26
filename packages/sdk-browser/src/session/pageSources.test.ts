@@ -50,7 +50,7 @@ test('a page read that keeps failing reaches the host at its first failure and w
   t.mock.method(globalThis, 'fetch', async () => new Response('', { status: 503 }))
   const page = { url: 'a.bin', id: 0, bytes: 4, sha256: '' }
   const metadata = { primitives: [{ pages: [page] }] } as unknown as ClusterManifest
-  const told: [string, number][] = []
+  const told: [string, number, boolean][] = []
   const opening = openExplorerPageSources(
     metadata,
     {} as MeasuredWorldOptions,
@@ -59,7 +59,7 @@ test('a page read that keeps failing reaches the host at its first failure and w
     () => undefined,
     createDiagnosticChannel(undefined),
     () => {},
-    (detail, failedPages) => void told.push([detail, failedPages]),
+    (detail, failedPages, givenUp) => void told.push([detail, failedPages, givenUp]),
   )
   const { streamer } = await opening.sources
   t.after(() => streamer.dispose())
@@ -71,21 +71,30 @@ test('a page read that keeps failing reaches the host at its first failure and w
     await eventually(idle)
   }
   assert.equal(told.length, 2, 'said at the first failure and when given up, not once a try')
-  for (const [detail, failed] of told) {
-    assert.match(detail, /a\.bin: .*HTTP 503/)
-    assert.equal(failed, 1)
-  }
+  for (const [detail] of told) assert.match(detail, /a\.bin: .*HTTP 503/)
+  assert.deepEqual(
+    told.map(([, failed]) => failed),
+    [0, 1],
+    'asked again at once at the first failure: no page stalled yet; one when it is given up',
+  )
+  assert.deepEqual(
+    told.map(([, , givenUp]) => givenUp),
+    [false, true],
+  )
 })
 
-test('a page read that fails is fatal while no cover is resident, degraded while one is', () => {
+test('a page read given up is fatal while no cover is resident, degraded while one is; a first failure is degraded', () => {
   const events: { type: string; code?: string }[] = []
   const session = { scope: 'slice', emit: (event: never) => void events.push(event), diagnose() {} }
-  streamFailed(session as never, undefined, 1, 'a.bin: HTTP 503')
+  // Its first failure is asked again at once and may pass: nothing is lost yet, cover or not.
+  streamFailed(session as never, undefined, { failedPages: 1, givenUp: false }, 'a.bin: HTTP 503')
+  streamFailed(session as never, undefined, { failedPages: 1, givenUp: true }, 'a.bin: HTTP 503')
   const covered = { metrics: () => ({ coverageReady: true }) } as unknown as Engine
-  streamFailed(session as never, covered, 1, 'a.bin: HTTP 503')
+  streamFailed(session as never, covered, { failedPages: 1, givenUp: true }, 'a.bin: HTTP 503')
   assert.deepEqual(
     events.map(({ type, code }) => [type, code]),
     [
+      ['degraded', 'PAGE_STREAM_FAILED'],
       ['fatal', 'PAGE_STREAM_FAILED'],
       ['degraded', 'PAGE_STREAM_FAILED'],
     ],

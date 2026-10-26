@@ -1,6 +1,6 @@
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
+import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
 
 /** The uniform of a downsample pass: the inverse sizes of the image read and of the one written. */
 export const DOWNSAMPLE_PARAMS = fieldLayout('Down', [
@@ -11,7 +11,7 @@ export const DOWNSAMPLE_PARAMS = fieldLayout('Down', [
 export const DOWNSAMPLE_BYTES = DOWNSAMPLE_PARAMS.words * 4
 
 /**
- * The two ways down one level, on premultiplied radiance, a sampler clamping to the edge so a
+ * The two ways down one level, on radiance, a sampler clamping to the edge so a
  * read past the image is its last texel: `halve` one bilinear read at the centre of the four
  * texels a pixel covers, their mean; `halveWide` four such reads, one texel out along each
  * diagonal, the mean of the 4 × 4 texels around — a wider box, which keeps a bright pixel from

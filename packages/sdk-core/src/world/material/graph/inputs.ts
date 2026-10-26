@@ -1,11 +1,11 @@
 import type { Texture } from '../../texture/texture.ts'
 import type { Pin } from './graph.ts'
-import type { NodeProp } from './nodeSpecs.ts'
+import type { NodeProp, NoiseFunction } from './nodeSpecs.ts'
 import { MathGraph } from './math.ts'
 import { given, type Wire } from './wired.ts'
 
 /** How a sample picks its level: the computed one, an absolute one, or the computed plus a bias. */
-type MipMode = 'none' | 'level' | 'bias'
+export type MipMode = 'none' | 'level' | 'bias'
 
 /** The options of a texture sample. */
 export interface TextureSampleOptions {
@@ -97,6 +97,47 @@ export class InputGraph extends MathGraph {
   pixelNormal() {
     return this.addNode('pixelNormal')
   }
+  /** The colour painted on the vertices, interpolated: its outputs are rgb, r, g, b and a. */
+  vertexColor() {
+    return this.addNode('vertexColor')
+  }
+  /** The unit vector from the point shaded to the camera, in the world. */
+  cameraVector() {
+    return this.addNode('cameraVector')
+  }
+  /** A noise of `position` (the world position where not wired), the sum of `levels` noises each
+   *  `levelScale` times finer and weaker than the one before, mapped from 0 to 1 to `outputMin` to
+   *  `outputMax`. `filterWidth` (0) fades the levels finer than it away. */
+  noise(options: NoiseOptions = {}) {
+    const { position, filterWidth, ...props } = options
+    return this.wire('noise', { position, filterWidth }, given(props))
+  }
+}
+
+/** The options of a noise: what the node's properties are (`NODE_SPECS.noise`). */
+export interface NoiseOptions {
+  position?: Pin
+  filterWidth?: Wire
+  /** Whether a wired `position` is relative to the camera (`false`: in the world). */
+  relativeToCamera?: boolean
+  /** The factor the position is multiplied by (1). */
+  scale?: number
+  /** The function (`'simplex'`). */
+  noiseFunction?: NoiseFunction
+  /** Whether the levels add the absolute value of the noise, which makes creases (`true`), or the noise
+   *  itself, brought from -1 to 1 into 0 to 1 at the end. */
+  turbulence?: boolean
+  /** How many noises are added, 1 to 10 (6). */
+  levels?: number
+  outputMin?: number
+  outputMax?: number
+  /** The factor each level's frequency grows by (2). */
+  levelScale?: number
+  /** Whether `gradient`, `gradientAlu`, `valueAlu` and `voronoi` repeat every `repeatSize` cells. */
+  tiling?: boolean
+  repeatSize?: number
+  /** How many cells `voronoi` searches, 1 to 4: 8, 16, 27 and 32 (1). */
+  quality?: number
 }
 
 /** The options of a panner. */

@@ -33,13 +33,20 @@ function made(renderWidth: number, water: boolean) {
   // from the start (`reflectionBytes`): the bytes made are the bytes asked once that image has.
   void rt.gpu.reflection!.grids
   // The distortion's targets are charged beside the targets (`frameExtraBytes`); a scene without
-  // it keeps two 1×1 stand-ins no one charges.
-  const charged = gpu.textures.filter(
-    ({ label, width }) => water || width > 1 || !/distortion/.test(label ?? ''),
+  // it keeps two 1×1 stand-ins no one charges, as it keeps those of the translucency (its three
+  // targets and its passes' words) and the reflection's vectors.
+  const charged = gpu.textures.filter(({ label, width }) =>
+    width > 1
+      ? true
+      : /translucency|no modulation|no vectors/.test(label ?? '')
+        ? false
+        : water || !/distortion/.test(label ?? ''),
   )
   const bytes =
     charged.reduce((sum, texture) => sum + (textureBytesOf(texture) ?? 0), 0) +
-    gpu.buffers.reduce((sum, buffer) => sum + buffer.size, 0)
+    gpu.buffers
+      .filter(({ label }) => !/translucency passes/.test(label ?? ''))
+      .reduce((sum, buffer) => sum + buffer.size, 0)
   const labels = gpu.textures.map(({ label }) => label)
   return { rt, gpu, size, asked, bytes, labels, extra: frameExtraBytes(rt, size) }
 }

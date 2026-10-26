@@ -1,7 +1,7 @@
 import { COLD_HAS_BOX, COLD_MAX, COLD_MIN, COLD_TRIANGLES, COLD_WORDS } from '../layout.ts'
-import { RECORD_SHIFT_WORD } from '../frameTable.ts'
+import { INFO_SHIFT_WORD, RECORD_SHIFT_WORD } from '../frameTable.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 import { bitIsSet, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
@@ -23,13 +23,25 @@ import { bitIsSet, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/int
 const coldWords = (first: number, n: number) =>
   Array.from({ length: n }, (_, k) => `coldF(r,${first + k}u)`).join(',')
 
+/** The words of the residency bit sets that open the cold table, one for thirty-two pages: the
+ *  cut's clusters (`cutView.clusterCount`). A default: a program that reads the table beside
+ *  another count of pages declares its own `residentWords`, which replaces it. */
+const DAG_RESIDENT_WORDS_WGSL = wgslFn(
+  'residentWords',
+  [ceilDivWgsl],
+  'fn residentWords()->u32{return ceilDiv(cutView.clusterCount,32u);}',
+  { weak: true },
+)
+
 export const DAG_RECORD_WGSL = wgslBlock(
   'DAG_RECORD_WGSL',
-  [ceilDivWgsl, bitWord, bitIsSet],
+  [ceilDivWgsl, bitWord, bitIsSet, DAG_RESIDENT_WORDS_WGSL],
   `${wgslConsts({ COLD: COLD_WORDS })}
 /** Shared record of page \`i\` of primitive \`w\`: a wrapping add, as \`recordOf\` on the host. */
 fn recordOf(i:u32,w:u32)->u32{return i+framesWord(w,${RECORD_SHIFT_WORD}u);}
-fn residentWords()->u32{return ceilDiv(views[0u].clusterCount,32u);}
+/** The cluster record (\`../info/clusterInfoLayout.ts\`) of page \`i\` of primitive \`w\`: its index plus the
+ *  shift of its page array, its frame row's \`INFO_SHIFT_WORD\`. */
+fn infoOf(i:u32,w:u32)->u32{return i+framesWord(w,${INFO_SHIFT_WORD}u);}
 fn coldBase()->u32{return 2u*residentWords();}
 fn coldF(r:u32,k:u32)->f32{return bitcast<f32>(coldAt(coldBase()+r*COLD+k));}
 fn boxMin(r:u32)->vec3f{return vec3f(${coldWords(COLD_MIN, 3)});}

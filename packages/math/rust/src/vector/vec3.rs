@@ -11,10 +11,18 @@ use crate::vector::vecn::{dot, length, scale, squared_length};
 /// hemisphere's formula, so `1/(s + z)` never divides by less than 1 (`frameAcross` of
 /// `packages/math/src/vector/frame.ts`, the shader's `frameAround`, term for term).
 #[inline]
-pub fn frame_across([x, y, z]: [f64; 3]) -> [f64; 3] {
+pub fn frame_across(axis: [f64; 3]) -> [f64; 3] {
+    frame_around(axis).0
+}
+
+/// The two rows of the orthonormal frame around the unit `axis` (`frame_across` and the one that
+/// completes it), continuous but at `z == 0`.
+#[inline]
+pub fn frame_around([x, y, z]: [f64; 3]) -> ([f64; 3], [f64; 3]) {
     let s = if z >= 0.0 { 1.0 } else { -1.0 };
     let a = -1.0 / (s + z);
-    [1.0 + s * a * x * x, s * (x * y * a), -s * x]
+    let b = x * y * a;
+    ([1.0 + s * a * x * x, s * b, -s * x], [b, s + a * y * y, -y])
 }
 
 /// Vertex `id` of a flat `x, y, z` position array, in float64.

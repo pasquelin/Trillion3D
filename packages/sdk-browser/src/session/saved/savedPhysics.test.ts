@@ -6,7 +6,7 @@ import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { PhysicsOption } from '../../../../sdk-core/src/physics/options.ts'
 import { ObjectPhysics } from '../../../../sdk-core/src/physics/objectPhysics.ts'
-import { DAMPING } from '../../../../sdk-core/src/physics/layout.ts'
+import { ANGULAR_DAMPING, LINEAR_DAMPING } from '../../../../sdk-core/src/physics/layout.ts'
 import { savedPhysics } from './physics.ts'
 
 const noModel = () => new Scene(() => Promise.reject(new Error('no model here')))
@@ -69,12 +69,16 @@ test("a saved body leaves out what the engine's own defaults give, and keeps wha
     assert.deepEqual(saved(new ObjectPhysics({ type } as PhysicsOption)), { type }, type)
   // Every default spelled out is still a default; one step off it is kept.
   const spelled = { sensor: false, ccd: false, decorative: false, gravityScale: 1 }
-  const damping = { linear: DAMPING, angular: DAMPING }
+  const damping = { linear: LINEAR_DAMPING, angular: ANGULAR_DAMPING }
   const plain = new ObjectPhysics({ type: 'dynamic', ...spelled, damping })
   assert.deepEqual(saved(plain), { type: 'dynamic' })
   const off = { sensor: true, ccd: true, decorative: true, gravityScale: 0.5 }
   const moved = saved(new ObjectPhysics({ type: 'dynamic', ...off, damping: { linear: 0 } }))
-  assert.deepEqual(moved, { type: 'dynamic', ...off, damping: { linear: 0, angular: DAMPING } })
+  assert.deepEqual(moved, {
+    type: 'dynamic',
+    ...off,
+    damping: { linear: 0, angular: ANGULAR_DAMPING },
+  })
   const cloth = { type: 'cloth', stretch: 0.01, bend: 0.2, damping: { linear: 0.1 } } as const
   assert.deepEqual(saved(new ObjectPhysics({ ...cloth, stretch: 0, bend: Infinity })), {
     type: 'cloth',

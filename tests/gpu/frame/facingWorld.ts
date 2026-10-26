@@ -44,9 +44,15 @@ export function region(image: Uint8Array, [x0, x1]: number[], [y0, y1]: number[]
   return read
 }
 
+/** A fixed exposure, for a proof whose subject is not the meter: an automatic one moves toward a
+ *  light just added for a second or more (a stop takes some 160 images to come within 1/256 of a
+ *  stop at the reference's speed), and every image it moves on is drawn again. */
+export const FIXED_EXPOSURE = { exposureMethod: 'manual', exposureApplyPhysicalCamera: false }
+
 /** The golden `name` compiled, opened on the WebGPU page raster in a readable canvas of `VIEW`
- *  pixels, no temporal accumulation, the exact leaves drawn, and posed at `FACING`. */
-export async function openFacingWorld(name: string) {
+ *  pixels, no temporal accumulation, the exact leaves drawn, and posed at `FACING`; `options` added
+ *  to those (a fixed exposure, for a proof whose subject is not the meter's adaptation). */
+export async function openFacingWorld(name: string, options: Record<string, unknown> = {}) {
   const { manifestUrl } = coplanarCache(measureOutput('gpu-proofs', `facing-${name}`), name)
   const canvas = proofCanvas(`facing-${name}`) as unknown as FakeCanvas
   // Before the engine configures it: a texture read back carries COPY_SRC from the start.
@@ -60,6 +66,7 @@ export async function openFacingWorld(name: string) {
     pixelRatio: 1,
     pixelError: 0,
     temporalAntialiasing: false,
+    ...options,
   })
   world.setPose(FACING)
   return world

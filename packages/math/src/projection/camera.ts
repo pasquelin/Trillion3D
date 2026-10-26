@@ -1,10 +1,11 @@
+import { DEG2RAD } from '../constants.ts'
+import { FRUSTUM_PLANE_VALUES, frustumPlanesFromMatrix } from '../geometry/frustum/frustum.ts'
 import {
-  FAR_PLANE_SLOT,
-  FRUSTUM_PLANE_VALUES,
-  frustumFarPlane,
-  frustumPlanesFromMatrix,
-} from '../geometry/frustum/frustum.ts'
-import { multiplyMatrix4, type NumberSink } from '../matrix/matrix4.ts'
+  determinantMatrix4,
+  IDENTITY_MATRIX4,
+  multiplyMatrix4,
+  type NumberSink,
+} from '../matrix/matrix4.ts'
 import { invertMatrix4 } from '../matrix/matrix4Inverse.ts'
 import { length2 } from '../vector/vector.ts'
 
@@ -27,12 +28,35 @@ import { length2 } from '../vector/vector.ts'
  */
 
 // Radians in half a degree: a field of `fov` degrees opens `fov` of them on each side of the axis.
-const HALF_DEGREE = Math.PI / 360
+const HALF_DEGREE = DEG2RAD / 2
 
-/** Half the height a perspective camera of vertical field `fov` degrees, zoomed by `zoom`, sees
- *  one unit ahead: `tan(fov / 2) / zoom`. Its projection, its rays and a pixel's size read it. */
+/** The least vertical field a perspective camera opens, in degrees: a smaller one is read as this,
+ *  so the projection never divides by a zero tangent. */
+const MIN_FIELD = 0.001
+
+/** The nearest distance a perspective camera draws when it declares none (a near plane that is
+ *  not above zero), in metres. */
+export const DEFAULT_NEAR = 0.1
+
+/** The size under which an axis of a camera's world is taken for nothing, in metres. */
+const NEARLY_ZERO = 1e-8
+
+/** The nine entries of the three axes of a column-major world matrix. */
+const AXES = [0, 1, 2, 4, 5, 6, 8, 9, 10]
+
+/** The near plane a perspective camera draws: `near` where it is above zero, `DEFAULT_NEAR`
+ *  otherwise (zero, negative or NaN). */
+export const perspectiveNear = (near: number) => (near > 0 ? near : DEFAULT_NEAR)
+
+/** The vertical field a perspective camera of declared field `fov` degrees opens: `fov`, or
+ *  `MIN_FIELD` where it is smaller (or NaN). */
+export const perspectiveField = (fov: number) => (fov >= MIN_FIELD ? fov : MIN_FIELD)
+
+/** Half the height a perspective camera of vertical field `fov` degrees (`perspectiveField`),
+ *  zoomed by `zoom`, sees one unit ahead: `tan(fov / 2) / zoom`. Its projection, its rays and a
+ *  pixel's size read it. */
 export function perspectiveSlope(fov: number, zoom = 1) {
-  return Math.tan(fov * HALF_DEGREE) / zoom
+  return Math.tan(perspectiveField(fov) * HALF_DEGREE) / zoom
 }
 
 /** The diagonal slope of that camera at picture `aspect`: `perspectiveSlope(fov, zoom) ·
@@ -93,17 +117,19 @@ export function drawnView(
 }
 
 /**
- * Perspective projection of a camera with vertical `fov` degrees, ratio `aspect`, near plane
- * `near`, zoom `zoom`. Reversed depth, infinite far plane: `near` projects to
- * 1, infinity to 0. No far plane enters here, hence no division by it.
+ * Perspective projection of a camera with vertical `fov` degrees (`perspectiveField`), ratio
+ * `aspect`, near plane `near` (`perspectiveNear`), zoom `zoom`. Reversed depth, infinite far
+ * plane: the near plane projects to 1, infinity to 0. No far plane enters here, hence no
+ * division by it.
  */
 export function perspectiveProjection<T extends NumberSink>(
   out: T,
   fov: number,
   aspect: number,
-  near: number,
+  declaredNear: number,
   zoom: number,
 ) {
+  const near = perspectiveNear(declaredNear)
   // The eye looks down −z: a view point (X, Y, Z) lies δ = −Z ahead, and clip w = δ divides it
   // by that distance. Through the near plane it lands at (X, Y) · near / δ, inside a rectangle
   // centred on the axis, of half height hy = near · tan(fov / 2) / zoom and half width
@@ -193,14 +219,26 @@ export function createCameraFrame(): CameraFrame {
   }
 }
 
+/** The `view` of a camera standing at `world`, into `out`: its inverse, or the identity (a camera at
+ *  the origin looking down −z) where `world` has no inverse — its determinant zero or not finite,
+ *  or its three axes all within `NEARLY_ZERO` of nothing — so a camera scaled away never makes a
+ *  view of zeros or NaN. */
+function viewOf(out: Float64Array, world: Float64Array) {
+  const determinant = determinantMatrix4(world)
+  let largest = 0
+  for (const entry of AXES) largest = Math.max(largest, Math.abs(world[entry]))
+  if (determinant === 0 || !Number.isFinite(determinant) || largest <= NEARLY_ZERO)
+    return out.set(IDENTITY_MATRIX4)
+  return invertMatrix4(out, world)
+}
+
 /**
- * Rewrites frame: view = inverse of `world` (zero for a singular world matrix), view-projection = `projection · view`, and the six planes of this
- * view-projection frustum. A single depth convention crosses all three.
+ * Rewrites frame: view = inverse of `world` (`viewOf`), view-projection = `projection · view`, and
+ * the six planes of this view-projection frustum. A single depth convention crosses all three.
  *
- * `far` is the far plane DECLARED by host. Projection has none — it is infinite,
- * which is the whole point of reversed Z —, but frustum keeps it: without it, a frame would
- * suddenly gain all objects camera was not showing. Omitted or non-finite, far remains
- * unbounded (`frustumFarPlane`).
+ * The projection has no far plane — it is infinite, which is the whole point of reversed Z — and
+ * the frustum adds none: an object is culled by what the camera sees of it, never by a distance.
+ * An orthographic projection holds its own, in its depth row.
  *
  * Projection and world pose are owned `Float64Array`, like the frame's three buffers:
  * product only reads a single buffer type (`../matrix/matrix4.ts`), and caller starting from
@@ -210,25 +248,22 @@ export function updateCameraFrame(
   frame: CameraFrame,
   projection: Float64Array,
   world: Float64Array,
-  far = Infinity,
 ) {
-  invertMatrix4(frame.view, world)
-  viewFrustum(frame.viewProjection, frame.planes, projection, frame.view, far)
+  viewOf(frame.view, world)
+  viewFrustum(frame.viewProjection, frame.planes, projection, frame.view)
   return frame
 }
 
 /** The frustum of `view` under `projection` into `viewProjection` (`projection · view`) and its
- *  six normalized `planes`, the far one at the declared `far` (`frustumFarPlane`). */
+ *  six normalized `planes`. */
 export function viewFrustum(
   viewProjection: Float64Array,
   planes: Float32Array | Float64Array,
   projection: Float64Array,
   view: Float64Array,
-  far: number,
 ) {
   multiplyMatrix4(viewProjection, projection, view)
   frustumPlanesFromMatrix(planes, viewProjection)
-  frustumFarPlane(planes, FAR_PLANE_SLOT * 4, view, far, true)
 }
 
 /** The clip w of a point at view depth `depth`: `perspective·depth + (1 − perspective)` — its

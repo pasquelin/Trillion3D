@@ -1,7 +1,10 @@
 // What a held-level read fetched and failed is asked again by the one failure policy
 // (`geometry/streaming/failures.ts`): at once, by the next frame that wants the tile, or after the
-// wait its server asked, however many frames want it, as many times as the reader's retries allow;
-// one another request would meet again is never asked again. A block level's records fail apart: one good tile never clears another's wait.
+// wait its server asked, however many frames want it and whatever the failure of its read — bytes
+// that are not its record's included; `streamingNumRetries` times (3 by default, a negative count
+// without end), then the level is given up and never asked again; the first failure of a row and
+// the giving up are reported. A block level's records fail apart: one good tile never clears another's
+// wait.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
@@ -58,30 +61,51 @@ function serving(
   return { sent, failed, frames }
 }
 
-test('a failed level is asked again by the next frame that wants it, with no wait, each failure reported', async (t) => {
+test('a failed level is asked again by the next frame that wants it, with no wait, the first failure of a row reported', async (t) => {
   const { sent, failed, frames } = serving(t, 503)
-  await frames(500)
+  await frames(300)
   assert.deepEqual(sent.slice(0, 3), [0, 100, 200], 'at once, one request a frame at most')
-  assert.equal(failed.length, sent.length, 'each failure reported')
+  assert.equal(failed.length, 1, 'said once, not once a frame')
 })
 
-test('a level is given up once the reader’s retries are spent, each failure reported', async (t) => {
-  const { sent, failed, frames } = serving(t, 503, undefined, undefined, () => 2)
-  await frames(1_000)
-  assert.deepEqual(sent, [0, 100, 200], 'the read and two tries again, then none')
-  assert.equal(failed.length, 3)
+test('a level that keeps failing is asked again three times, then given up: no request after, said at its first failure and at its end', async (t) => {
+  const { sent, failed, frames } = serving(t, 503)
+  await frames(2_000)
+  assert.deepEqual(sent, [0, 100, 200, 300], 'the request and its three retries')
+  assert.equal(failed.length, 2)
+})
+
+test('a missing file (404) is asked again like any failed read, then given up', async (t) => {
+  const { sent, failed, frames } = serving(t, 404)
+  await frames(2_000)
+  assert.equal(sent.length, 4)
+  assert.equal(failed.length, 2)
+})
+
+test('a negative streamingNumRetries asks a failing level without end', async (t) => {
+  const endless = serving(t, 503, undefined, undefined, () => -1)
+  await endless.frames(2_000)
+  assert.equal(endless.sent.length, 20)
+  assert.equal(endless.failed.length, 1)
+})
+
+test('a zero streamingNumRetries gives a level up at its first failure', async (t) => {
+  const none = serving(t, 503, undefined, undefined, () => 0)
+  await none.frames(2_000)
+  assert.equal(none.sent.length, 1)
+  assert.equal(none.failed.length, 1)
+})
+
+test('a level whose bytes are not those its record implies is a failed read like any other: asked again three times, then given up', async (t) => {
+  const { sent, failed, frames } = serving(t, 200, () => new Uint8Array(1))
+  await frames(2_000)
+  assert.deepEqual([sent.length, failed.length], [4, 2])
 })
 
 test('a level whose server asks a wait (Retry-After) is not asked before it', async (t) => {
   const { sent, frames } = serving(t, 503, undefined, 1_000)
   await frames(2_000)
   assert.deepEqual(sent, [0, 1000], 'asked again once the server said')
-})
-
-test('a level another request would refuse again (404) is never asked again', async (t) => {
-  const { sent, failed, frames } = serving(t, 404)
-  await frames(10_000)
-  assert.deepEqual([sent, failed.length], [[0], 1])
 })
 
 test("one tile's record landing leaves another failing record's wait running", async (t) => {

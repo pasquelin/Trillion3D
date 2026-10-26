@@ -25,6 +25,15 @@ export const computeBufferEntry = (
   visibility = COMPUTE,
 ): GPUBindGroupLayoutEntry => ({ binding, visibility, ...bufferLayout(type) })
 
+/** The storage buffer entries of a kernel whose bindings are named by `bindings` (name → binding):
+ *  `read` a read-only one and `write` a writable one, by shader name, seen by `stage` (the compute
+ *  stage by default). */
+export const storageEntries = <Name extends string>(bindings: Record<Name, number>) => ({
+  read: (name: Name, stage = COMPUTE) =>
+    computeBufferEntry(bindings[name], 'read-only-storage', stage),
+  write: (name: Name, stage = COMPUTE) => computeBufferEntry(bindings[name], 'storage', stage),
+})
+
 /** A uniform buffer binding at `binding` in a layout, seen by `visibility` (the compute stage by
  *  default): read at a dynamic offset when `hasDynamicOffset`, `minBindingSize` bytes at least. */
 export const computeUniformEntry = (

@@ -12,32 +12,21 @@ import { REFLECTION_SIDE } from './constants.ts'
  * ended: answered whole with nothing left (`whole`), or left to the scene stage (`left`), which add up to
  * the rays cast;
  * and, across them, those the screen answered in part or whole (`screen`: the march met a surface it
- * trusts). The scene stage counts each ray it takes once, by how its walk of the proxy ended, its
- * windows together (`fates`, `REFLECTION_FATES`, `proxy.ts`): no proxy at all, a surface hit (a ring that spent its
- * budget having found one counts here: the hit is kept), the ray leaving the scene to the environment, the
- * screen's far trace answering it (`distant`, `wgsl.ts`), a miss that went nowhere (the field answers it), no walk
- * at all because the screen's surface was closer than the proxy can tell, or, for a ray that hit nothing and had
- * a window spent, the four ways one is spent (its units, its triangle tests, its tree steps, a mesh's walk — the
- * causes a probe's ray reports, named by `reflectionSpentFate`), that of the first window that was; and, for the
- * rays that walked, the units the windows spent together (`work`: under 8, 16, 32, 64, 128, 256, 512, 1 024,
- * 2 048, 4 096, 8 192, more).
+ * trusts).
+ *
+ * The scene stage counts each ray it takes once, by how its march through the global distance field ended
+ * (`fates`, `REFLECTION_FATES`, `sceneTrace.ts`): no field to march (`noField`), a surface hit (the cache gave its
+ * light), the ray leaving the scene to the environment, the screen's far trace answering it (`distant`, `wgsl.ts`), a
+ * miss that went nowhere (the field answers it: the march met nothing before the surface the screen met, or a surface
+ * none of the cards near it gave any light of), or no march at all because the screen's surface was closer than the
+ * march can tell; and, for the rays that marched, the steps the march took (`work`: under 8, 16, 32, 64, 128, 256,
+ * 512, 1 024, 2 048, 4 096, 8 192, more).
  *
  * A workgroup counts in its own memory and adds its words to the buffer once (`workgroupTallyWgsl`).
  */
-export const REFLECTION_FATES = [
-  'noProxy',
-  'work',
-  'tests',
-  'tree',
-  'mesh',
-  'hit',
-  'open',
-  'miss',
-  'bound',
-  'distant',
-] as const
+export const REFLECTION_FATES = ['noField', 'hit', 'open', 'miss', 'bound', 'distant'] as const
 export type ReflectionFate = (typeof REFLECTION_FATES)[number]
-/** Buckets of the walk's units: under 8, doubling, the last open. */
+/** Buckets of the march's steps: under 8, doubling, the last open. */
 export const REFLECTION_WORK_BUCKETS = 12
 export const REFLECTION_CENSUS = {
   screen: 0,
@@ -52,19 +41,14 @@ export const REFLECTION_CENSUS_WORDS = REFLECTION_CENSUS.work + REFLECTION_WORK_
 const fate = (name: ReflectionFate) => REFLECTION_FATES.indexOf(name)
 
 /**
- * How the last proxy ray ended and the units it spent, for the scene stage to count
- * (`reflectionProxied` sets them): `reflectionFate` is a number of `REFLECTION_FATES`, a spent walk's
- * named from what spent it (`reflectionSpentFate`, `proxy.ts`).
+ * How the last scene ray ended and the steps its march took, for the scene stage to count
+ * (`reflectionSceneTrace` sets them): `reflectionFate` is a number of `REFLECTION_FATES`.
  */
 export const REFLECTION_FATE_WGSL = wgslBlock(
   'REFLECTION_FATE_WGSL',
   [],
   `${wgslConsts({
-    REFLECTION_FATE_NO_PROXY: fate('noProxy'),
-    REFLECTION_FATE_WORK: fate('work'),
-    REFLECTION_FATE_TESTS: fate('tests'),
-    REFLECTION_FATE_TREE: fate('tree'),
-    REFLECTION_FATE_MESH: fate('mesh'),
+    REFLECTION_FATE_NO_FIELD: fate('noField'),
     REFLECTION_FATE_HIT: fate('hit'),
     REFLECTION_FATE_OPEN: fate('open'),
     REFLECTION_FATE_MISS: fate('miss'),
@@ -78,7 +62,7 @@ var<private> reflectionWork:u32;`,
 /**
  * The counters in a shader, their buffer at binding `binding` of group 0: `tallyAdd` counts in a word of
  * the workgroup's own, `flushTally`, which holds a workgroup barrier, adds the workgroup's words to the buffer, a
- * lane a word, and `censusWorkBucket` is the bucket of a walk's units.
+ * lane a word, and `censusWorkBucket` is the bucket of a march's steps.
  */
 export const reflectionCensusWgsl = (binding: number) =>
   wgslBlock(
@@ -102,8 +86,8 @@ export const reflectionCensusWgsl = (binding: number) =>
       REFLECTION_WORK_BUCKETS,
     })}
 @group(0) @binding(${binding}) var<storage,read_write> reflectionCensus:array<atomic<u32>,${REFLECTION_CENSUS_WORDS}>;
-fn censusWorkBucket(units:u32)->u32{
- let eighths=units>>3u;
+fn censusWorkBucket(steps:u32)->u32{
+ let eighths=steps>>3u;
  return min(select(0u,firstLeadingBit(eighths)+1u,eighths>0u),REFLECTION_WORK_BUCKETS-1u);
 }`,
   )

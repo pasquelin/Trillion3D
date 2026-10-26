@@ -6,20 +6,42 @@ import {
   CULL_BINS,
   HALF_SLOTS,
   type BinKind,
-} from '../draw/contract.ts'
+} from '../bins/contract.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { askVoxelTwin } from './pipelines.ts'
 import { visGroupFor } from './visGroup.ts'
 import type { RenderCommands } from '../../gpu/core/renderBundles.ts'
 import { prepared } from '../../frame/backend/state/prepared.ts'
+import { presentClassKeys, type PresentClasses } from '../../gpu/core/presentClasses.ts'
+import { FEATURE_CLASS_KEYS } from '../shader/materialClass.ts'
+import { CLASS_FEATURE } from '../shader/classWords.ts'
 
 /** The kind of rows bin `bin` of a half holds (`BIN_KIND`). */
 const binKind = (bin: number) => Math.floor(bin / CULL_BINS) as BinKind
 
-/** Whether bin `bin` of a half is walked: a voxel bin only while the table holds a voxel row, and
- *  never the two-sided one, which no voxel row takes (`rowSide`); a software bin only by a walk
- *  that shows every triangle the cut submitted (`software`, the x-ray view's): the hardware raster
- *  draws none of its rows. */
+/** Whether the scene holds a voxel cluster: a class of the resident clusters is a voxel's. The voxel
+ *  slots are walked only then. */
+export function voxelsPresent(rt: WebgpuPagesRuntime) {
+  const classes = rt.vis.presentClasses,
+    keys = presentClassKeys(classes)
+  let seen = voxelsSeen.get(classes)
+  if (seen?.revision === classes.revision) return seen.present
+  let present = false
+  for (let i = 0; !present && i < keys.length; i++)
+    present = keys[i] < FEATURE_CLASS_KEYS && (keys[i] & CLASS_FEATURE.VOXEL) !== 0
+  if (!seen) voxelsSeen.set(classes, (seen = { revision: 0, present }))
+  seen.revision = classes.revision
+  seen.present = present
+  return present
+}
+
+/** What `voxelsPresent` last found for a set of classes, and the listing it found it in. */
+const voxelsSeen = new WeakMap<PresentClasses, { revision: number; present: boolean }>()
+
+/** Whether bin `bin` of a half is walked: a voxel bin only while the scene holds a voxel cluster,
+ *  and never the two-sided one, which no voxel cluster takes (`FLAG_BACK`); a software bin only by a
+ *  walk that shows every triangle the cut submitted (`software`, the x-ray view's): the hardware
+ *  raster draws none of its clusters. */
 const walked = (bin: number, voxels: boolean, software: boolean) => {
   const kind = binKind(bin)
   if (kind === BIN_KIND.SOFTWARE) return software
@@ -48,12 +70,12 @@ export function walkSlots(
   software = false,
 ): SlotWalk {
   const { vis } = rt,
-    indirect = prepared(vis, 'gpuDraw').indirectBuffer
+    indirect = prepared(vis, 'gpuBins').indirectBuffer
   const walk = { draws: 0, complete: true }
   // No layout: no slot binds this frame, the key holding it.
   if (!vis.visBindGroupLayout) return walk
-  // A voxel row draws on layer 0 alone (`itemWords.ts`).
-  const voxels = rt.layout.itemWordsHold.voxelRows > 0
+  // A voxel cluster draws on layer 0 alone (`../bins/binsWgsl.ts`).
+  const voxels = voxelsPresent(rt)
   for (let layer = 0; layer < vis.drawLayerSlots; layer++) {
     const start = layer * BASE_SLOTS + (rest ? HALF_SLOTS : 0)
     for (let bin = 0; bin < HALF_SLOTS; bin++) {

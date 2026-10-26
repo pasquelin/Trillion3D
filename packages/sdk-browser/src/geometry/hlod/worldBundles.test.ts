@@ -1,6 +1,7 @@
 // A placed cell's world bundles are pages of the session's one read queue: those queued end to end
 // in the binary are one ranged request, a bundle on its way is shared, one no hold waits on is
-// dropped unread, one that may pass waits its turn, and one refused for good is never asked again.
+// dropped unread, one whose server asked a wait waits its turn, and one that failed past its tries
+// is never asked again.
 // The bundles the held cells need are told to who follows them — each once when its first cell
 // holds it and once when its last lets it go, those held already first.
 import test, { type TestContext } from 'node:test'
@@ -68,25 +69,31 @@ test('a hold let go while its bundle waits in the queue drops it, its cell still
   assert.deepEqual(heldBy(roots), [1, 3])
 })
 
-test('a bundle the server refuses for good (404) is never asked again', async (t) => {
+test('a bundle the server refuses (404) is asked again at once, its tries, then given up: never asked again', async (t) => {
   const world = served(t, {
     answer: async (from, _to, respond) =>
       from === world.table.bundles[2].offset ? new Response('', { status: 404 }) : respond(),
   })
   const { roots, queue } = await opened(t, world.manifest)
-  await assert.rejects(roots.hold(1), /PAGE_STREAM_FAILED.*after one attempt/)
+  await assert.rejects(roots.hold(1), /PAGE_STREAM_FAILED.*after 4 attempts/)
   await assert.rejects(roots.hold(1), /PAGE_STREAM_FAILED/)
-  assert.deepEqual(world.ranges, [rangeOf(world.table, 2, 4)], 'asked once')
+  assert.deepEqual(
+    world.ranges,
+    Array(4).fill(rangeOf(world.table, 2, 4)),
+    'asked and asked again three times, then never',
+  )
   assert.equal(queue.failed(bundleOf(world.table, 2)), true)
   roots.release(1)
   roots.release(1)
   assert.deepEqual(heldBy(roots), [], 'let go: refused at once while the session reads')
 })
 
-test('a bundle whose read may pass keeps its hold waiting; let go, it is dropped', async (t) => {
+test('a bundle whose server asked a wait keeps its hold waiting; let go, it is dropped', async (t) => {
   const world = served(t, {
     answer: async (from, _to, respond) =>
-      from === world.table.bundles[1].offset ? new Response('', { status: 503 }) : respond(),
+      from === world.table.bundles[1].offset
+        ? new Response('', { status: 503, headers: { 'retry-after': '60' } })
+        : respond(),
   })
   const { roots, queue } = await opened(t, world.manifest)
   const bundle = bundleOf(world.table, 1)

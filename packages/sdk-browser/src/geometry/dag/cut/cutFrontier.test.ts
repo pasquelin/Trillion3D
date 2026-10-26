@@ -13,7 +13,6 @@
 // top-down reject. The replacement error ceiling only drops a too-fine subtree; a leaf's least
 // own error, which the compiler stores in the node, also drops the too-coarse.
 import test from 'node:test'
-import { asHostLibrary } from '../../../session/host/resources.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../../scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
@@ -50,7 +49,7 @@ function image(
 ) {
   const { roots, packed } = m
   for (let w = 0; w < roots.length; w++)
-    asHostLibrary<Matrix4>(roots[w].world).makeTranslation(
+    (roots[w].world as unknown as Matrix4).makeTranslation(
       (w % 4) * 6.5 - 9.75 + displacement,
       Math.floor(w / 4) * 6.5 - 6.5,
       0,

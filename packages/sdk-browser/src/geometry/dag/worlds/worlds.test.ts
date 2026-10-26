@@ -4,11 +4,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FRAME_ROW_WORDS } from '../types.ts'
+import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import {
   DRAW_FAR_WORD,
   DRAW_NEAR_WORD,
   RECORD_SHIFT_WORD,
-  ROOT_PARENT_WORD,
+  PARENT_WORD,
   ROOT_WORD,
 } from '../frameTable.ts'
 import { primitiveFrameWords, primitiveWordAt, changedWorlds } from './worlds.ts'
@@ -73,38 +74,41 @@ test('the frame words carry the distances each placement is drawn at as floats, 
     worldSources: [placed, placed, placed],
     rootNodes: Uint32Array.of(0, 0, 0),
     recordShift: Uint32Array.of(0, 0, 0),
-    // The first names no distance, the second a nearest and a farthest, the third a farthest alone.
-    drawDistance: Float32Array.of(0, 0, 12.5, 400.25, 0, 90),
+    // The first names no distance, the second a nearest and a farthest, the third a farthest alone
+    // (a third float each: 1 for one instance of an instanced mesh).
+    drawDistance: Float32Array.of(0, 0, 0, 12.5, 400.25, 0, 0, 90, 1),
   }
   const frames = primitiveFrameWords(packed)
   const word = (w: number, k: number) => frames[primitiveWordAt(w) + k]
   assert.deepEqual([word(0, DRAW_NEAR_WORD), word(0, DRAW_FAR_WORD)], [0, 0])
   assert.deepEqual([word(1, DRAW_NEAR_WORD), word(1, DRAW_FAR_WORD)], [12.5, 400.25])
   assert.deepEqual([word(2, DRAW_NEAR_WORD), word(2, DRAW_FAR_WORD)], [0, 90])
+  // A nearest alone is a distance of an object of its own, and none of an instance's.
+  const alone = primitiveFrameWords({
+    ...packed,
+    drawDistance: Float32Array.of(7, 0, 0, 7, 0, 1, 0, 0, 0),
+  })
+  assert.equal(alone[primitiveWordAt(0) + DRAW_NEAR_WORD], 7, 'an object of its own')
+  assert.equal(alone[primitiveWordAt(1) + DRAW_NEAR_WORD], 0, 'an instance')
   // A packing that names none leaves both words zero, a placement drawn at every distance.
   const none = primitiveFrameWords({ ...packed, drawDistance: undefined })
   assert.equal(none[primitiveWordAt(1) + DRAW_FAR_WORD], 0)
 })
 
-test('the frame words carry the group above the root of an instance of an assembly as floats', () => {
+test('the frame words name the node of the group above the root of an instance of an assembly', () => {
   const placed = { world: { elements: new Float64Array(16) } }
   const packed = {
     worldCount: 2,
     worldSources: [placed, placed],
     rootNodes: Uint32Array.of(0, 0),
     recordShift: Uint32Array.of(0, 0),
-    // The first is no instance, the second names an error and a ball.
-    rootParent: Float32Array.of(0, 0, 0, 0, 0, 6.5, 1.25, -2, 3, 40),
+    // The first is no instance, the second reads the group of node 7.
+    parentNode: Uint32Array.of(NO_INDEX, 7),
   }
-  const frames = primitiveFrameWords(packed)
-  const words = (w: number) =>
-    Array.from({ length: 5 }, (_, k) => frames[primitiveWordAt(w) + ROOT_PARENT_WORD + k])
-  assert.deepEqual(words(0), [0, 0, 0, 0, 0])
-  assert.deepEqual(words(1), [6.5, 1.25, -2, 3, 40])
-  // A packing that names none leaves every word zero.
-  const none = primitiveFrameWords({ ...packed, rootParent: undefined })
-  assert.deepEqual(
-    Array.from(none.subarray(primitiveWordAt(1) + ROOT_PARENT_WORD)).slice(0, 5),
-    [0, 0, 0, 0, 0],
-  )
+  const frames = new Uint32Array(primitiveFrameWords(packed).buffer)
+  assert.equal(frames[primitiveWordAt(0) + PARENT_WORD], NO_INDEX)
+  assert.equal(frames[primitiveWordAt(1) + PARENT_WORD], 7)
+  // A packing that names none leaves every word at none.
+  const none = new Uint32Array(primitiveFrameWords({ ...packed, parentNode: undefined }).buffer)
+  assert.equal(none[primitiveWordAt(1) + PARENT_WORD], NO_INDEX)
 })

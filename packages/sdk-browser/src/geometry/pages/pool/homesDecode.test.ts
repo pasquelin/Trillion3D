@@ -1,14 +1,14 @@
 // S31: a page whose home ends where its bytes end is followed by its neighbour, or by nothing. The
 // shipped decode (`../../cluster/decodeWgsl.ts`) runs each routine on every vertex, corner and
-// triangle of a page followed by zeros, ones or noise: the values are the same, and the only word
-// past the end ever read is the one a block record's two-word window loads and keeps none of.
+// triangle of a page followed by zeros, ones or noise: the values are the same, and no word past
+// the end is ever read.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { builtins } from '../../../materials/texture/shaderRunBuiltins.fixture.ts'
 import { FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3 } from '../../../../../sdk-core/src/page/format.ts'
-import { decodeGeometryPage } from '../../codec/geometryPage.ts'
+import { decodeGeometryPage, residentGeometryPage } from '../../codec/geometryPage.ts'
 import { encodePage } from '../../codec/encodePage.fixture.ts'
 import { randomPage } from '../../codec/randomPages.fixture.ts'
 import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
@@ -23,12 +23,13 @@ const HELPERS = [
   'pow2FromExponent',
   'bitLength',
   'ceilDiv',
-  'clusterStream',
   'clusterWindow',
   'clusterBlock',
+  'clusterOffsets',
+  'clusterUvSets',
   'clusterHasUv',
   'clusterUvValue',
-  'clusterOctahedron',
+  'octCellsDecode',
 ].concat(['clusterPointHeader', 'clusterSurfaceHeader'])
 /** The presence bit of each texture set, in set order. */
 const UV_FLAGS = [FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3]
@@ -48,10 +49,11 @@ const INTEGERS = {
 /** Words before the page: its first word is never the pool's. */
 const BASE = 3
 
-/** The decode on a pool holding `page` at `BASE`, every word past its end `after(i)`, each read
- *  past it noted with the routine running then. */
+/** The decode on a pool holding `page`, a page on disk, as the install pass writes it at `BASE`,
+ *  every word past its end `after(i)`, each read past it noted with the routine running then. */
 function decoder(page: Uint8Array, after: (i: number) => number) {
-  const words = new Uint32Array(page.buffer, page.byteOffset, page.byteLength / 4),
+  const resident = residentGeometryPage(page)
+  const words = new Uint32Array(resident.buffer, resident.byteOffset, resident.byteLength / 4),
     end = BASE + words.length,
     past: string[] = []
   let running = ''
@@ -138,16 +140,15 @@ function pages() {
     POSITION: { itemSize: 3, array: floats(12, (i) => [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0][i]) },
     TEXCOORD_0: { itemSize: 2, array: floats(8, (i) => i / 8) },
   }).data
-  // One vertex: no corner bit, no position bit — the block table is the page's last word, and
-  // a block record's window reaches one word past the end.
+  // One vertex: no corner bit, no position bit — the block table is the page's last word.
   const point = encodePage([0, 0, 0], {
     POSITION: { itemSize: 3, array: floats(3, () => 2) },
   }).data
-  const random3 = [3, 40, 300].map((v) => randomPage(random, v))
+  const random3 = [3, 40, 250].map((v) => randomPage(random, v))
   return { every, linked, point, ...Object.fromEntries(random3.map((page, i) => [i, page])) }
 }
 
-test('a page decodes the same whatever follows its end; only a block window reads past it', () => {
+test('a page decodes the same whatever follows its end; no reader reads past it', () => {
   const readers = new Set<string>(),
     pastReaders = new Set<string>()
   for (const [name, page] of Object.entries(pages())) {
@@ -176,8 +177,7 @@ test('a page decodes the same whatever follows its end; only a block window read
     )
     for (const reader of Object.keys(expected)) readers.add(reader)
     for (const reader of [...zero.past, ...ones.past, ...noise.past]) pastReaders.add(reader)
-    if (name === 'point') assert.ok(zero.past.length > 0, 'the one-vertex page reads past its end')
   }
   assert.deepEqual([...readers].sort(), [...READERS, ...ATTRIBUTES, 'clusterMorph'].sort())
-  assert.deepEqual([...pastReaders].sort(), ['clusterIndex', 'clusterTriangle'])
+  assert.deepEqual([...pastReaders], [], 'no word past the end is read')
 })

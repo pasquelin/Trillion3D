@@ -1,8 +1,9 @@
 //! The Voronoi cut (`../voronoi.rs`): the cells of seeds inside a convex solid tile it, and a dense
 //! convex mesh is cut into closed pieces that weigh it (`../pieces.rs`).
 use super::mass::{cube, FACES};
-use crate::physics_cook::mass::{solid_mass, DENSITY};
+use crate::physics_cook::mass::solid_mass;
 use crate::physics_cook::pieces::{pieces, PIECES};
+use crate::physics_cook::rules::SHAPE_DENSITY;
 use crate::physics_cook::voronoi::{cells, clip, face_planes, welded};
 
 /// Share of a solid its cells may miss or overlap: their corners are rounded to 32 bits.
@@ -11,7 +12,7 @@ const TILED: f64 = 1e-6;
 /// The volume the mesh `triangles` over `pos` bounds; 0 for none or a flat one.
 fn solid(pos: &[f32], triangles: &[u32]) -> f64 {
     let mass = solid_mass(pos, triangles, [1.0; 3], 0);
-    mass.map_or(0.0, |m| m["mass"].as_f64().unwrap() / DENSITY)
+    mass.map_or(0.0, |m| m["mass"].as_f64().unwrap() / SHAPE_DENSITY)
 }
 
 /// The volume the polytope `faces` bounds.

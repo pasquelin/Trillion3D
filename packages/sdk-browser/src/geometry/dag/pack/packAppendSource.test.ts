@@ -11,12 +11,17 @@ import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { scenePages, sceneRoots } from '../cut/cutFrontierScene.fixture.ts'
 import { DAG_NODE_FLOATS, type DagRoot } from '../types.ts'
 
-/** `roots` drawn by another source of the same primitive: the page array a new surface makes. */
-const otherSource = (roots: DagRoot[], flags: { transparent?: boolean } = {}) =>
-  roots.map((root) => ({ ...root, pages: root.pages.map((rec) => ({ ...rec, ...flags })) }))
+/** `roots` drawn by another source of the same primitive: the page array a new surface makes, which
+ *  the placements of that source share. */
+const otherSource = (roots: DagRoot[], flags: { transparent?: boolean } = {}) => {
+  const pages = roots[0].pages.map((rec) => ({ ...rec, ...flags }))
+  return roots.map((root) => ({ ...root, pages }))
+}
 
 test('roots of another source of a packed primitive append on its records, as a packing of all reads', () => {
-  const { roots, capacity } = scene()
+  const { roots, capacity: asked } = scene()
+  // A growth's room keeps the cluster records of a source of another surface (`roomFor`).
+  const capacity = { ...asked, ahead: true }
   const worn = [...roots.slice(0, 3), ...otherSource(roots.slice(3))]
   const whole = packDagSelection(worn, capacity),
     grown = packDagSelection(worn.slice(0, 3), capacity)
@@ -24,6 +29,7 @@ test('roots of another source of a packed primitive append on its records, as a 
   assert.ok(appendDagRoots(grown, worn.slice(3)), 'appended in place')
   for (const table of TABLES) assert.deepEqual(grown[table], whole[table], table)
   assert.equal(grown.recordCount, whole.recordCount, 'no record added: the words are the same')
+  assert.equal(grown.live!.infos, whole.live!.infos, 'a set of cluster records for its surface')
 })
 
 test('a source whose records differ from the primitive’s is not appended: it needs its own', () => {
@@ -63,6 +69,8 @@ test('a source appended writes what it adds — its pages and placements — wha
         pages: 2 * counts.pages,
         nodes: 2 * counts.nodes,
         worlds: 2 * counts.worlds,
+        // The cluster records of the source's surface, its own set (`DagCapacity.records`).
+        records: 2 * per,
       })
       const [clusters, nodes, records] = [
         packed.clusters.slice(),

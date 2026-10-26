@@ -22,7 +22,7 @@ import { grownByCopy } from '../../../gpu/core/tableGrowth.ts'
 export function resizeTileAtlas(
   device: GPUDevice,
   options: TilePoolOptions,
-  tap: number,
+  tapOf: (slot: number) => number,
   pool: WebgpuTilePool,
   pages: WebgpuTilePageTable,
   resident: Map<number, number>,
@@ -34,7 +34,7 @@ export function resizeTileAtlas(
     device,
     [pool],
     (encoder) => {
-      evicted = moveTiles(encoder, tap, { pool, next, pages, resident }, onEvicted)
+      evicted = moveTiles(encoder, tapOf, { pool, next, pages, resident }, onEvicted)
     },
     `Trillion3D texture pool ${options.kind} ${options.lane} resize`,
   )
@@ -45,7 +45,7 @@ export function resizeTileAtlas(
  *  (`resizeTileAtlas`); the tiles evicted. */
 function moveTiles(
   encoder: GPUCommandEncoder,
-  tap: number,
+  tapOf: (slot: number) => number,
   { pool, next, pages, resident }: Moved,
   onEvicted?: (slot: number) => void,
 ) {
@@ -59,8 +59,9 @@ function moveTiles(
   // it does not list, read of late, before any it does, and the last victim before the first —
   // as many as its tiles hold; the rest is evicted, wherever it sat.
   const pinned = (index: number) => Number(pool.pinnedOf(index))
-  const lastOut = (index: number) => pool.rankOf(index) ?? Number.MAX_SAFE_INTEGER
-  const order = pool.occupied().sort((a, b) => pinned(b) - pinned(a) || lastOut(b) - lastOut(a))
+  const order = pool
+    .occupied()
+    .sort((a, b) => pinned(b) - pinned(a) || pool.rankOrLast(b) - pool.rankOrLast(a))
   // The floor keeps every pinned place (`texturePoolFor`): only a pool drawn under it refuses one.
   if (order.length > next.tiles && pool.pinnedOf(order[next.tiles]))
     throw new Error('TEXTURE_POOL_UNDER_FLOOR')
@@ -88,7 +89,7 @@ function moveTiles(
       [TILE_PITCH, TILE_PITCH, 1],
     )
     resident.set(id, target)
-    if (tail !== undefined) pages.setTail(tail, place, tap)
+    if (tail !== undefined) pages.setTail(tail, place, tapOf(tail))
     else pages.setTile(tileKeyOf(id), place)
   }
   return evicted

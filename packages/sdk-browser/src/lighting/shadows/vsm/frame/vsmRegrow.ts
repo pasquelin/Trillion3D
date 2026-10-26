@@ -3,23 +3,28 @@
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import type { VsmFrameLight } from '../frameSetup.ts'
 import { VSM_PRESSURE_CALM_FRAMES, VSM_PROJECTION_RECORD_BYTES } from '../constants.ts'
-import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
+import { constructGpuResources, ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
 import { destroyEngineVsm, engineVsmSideBytes, type EngineVsm } from './engineVsm.ts'
-import { engineVsmOptions, sunMapsFor, sunMapsOf, vsmPoolAsked } from './vsmLightMaps.ts'
+import {
+  engineVsmOptions,
+  mapSlotsPastOf,
+  sunMapsFor,
+  sunMapsOf,
+  vsmPoolAsked,
+} from './vsmLightMaps.ts'
 import { engineVsmBytes } from './vsmStats.ts'
 import { growVsmTables } from '../resources.ts'
-import { constructGpuResources } from '../../../../gpu/core/errorScope.ts'
 import { rebindVsmPageManagement } from '../pageManagementPass.ts'
 import { VSM_NEXT_MAP_BYTES } from '../mapIds.ts'
 import { vsmLayout, type VsmResourceOptions } from '../layout.ts'
 import { vsmTableBytes } from '../layoutBytes.ts'
 import { vsmPoolWithin } from '../poolDraw.ts'
-import { bytesBeside, heldBeside } from './vsmBeside.ts'
+import { bytesBeside, heldListBytes } from './vsmBeside.ts'
 import { grantEngineVsm, madeSet, sayPoolGrown } from './vsmGrant.ts'
 
 /**
- * The held set's tables grown for `list` — `fullMapCapacity` full maps at least, the receiver
- * mask of its suns — when the budget's room holds the new tables beside the old ones
+ * The held set's tables grown for `list` — `fullMapCapacity` full maps at least, `mapSlotsPast` map
+ * slots past the blocks at least, the receiver mask of its suns — when the budget's room holds the new tables beside the old ones
  * (`vsmTableBytes`): the pool, its pages and their cache kept, in the same frame. Past the room,
  * or refused by the device, false: the caller makes the set again (`grantEngineVsm`), its cache
  * restarting.
@@ -29,12 +34,16 @@ export function growEngineVsm(
   list: readonly VsmFrameLight[],
   vsm: EngineVsm,
   fullMapCapacity: number,
+  mapSlotsPast = 0,
 ) {
   const { layout } = vsm.res
   const options = engineVsmOptions(
     Math.max(fullMapCapacity, layout.fullMapCapacity),
     Math.max(vsm.sunMaps, sunMapsFor(list)),
     layout.poolPages,
+    layout.occlusion,
+    layout.hzbLayers > 1,
+    Math.max(mapSlotsPast, mapSlotsPastOf(layout)),
   )
   const grown = vsmLayout(options)
   if (vsmTableBytes(grown) > ledgerRoom(device)) return false
@@ -46,12 +55,11 @@ export function growEngineVsm(
 }
 
 /**
- * A pool drawn short of the one asked (`vsmPoolAsked`) grows once the budget's room holds a larger
- * one: the pool the budget drew short, or one the view outgrew — a larger view, or a fill past the
- * pressure's load (`VsmCacheManager.demandPages`), which asks the pool that holds it rather than a
- * resolution bias that would stay. At most every `VSM_PRESSURE_CALM_FRAMES` frames — the wait
+ * A pool drawn short of the one asked (`vsmPoolAsked`, the setting's fixed size) grows back once the
+ * budget's room holds a larger one: the pool the GPU budget drew short — the reference's pool is
+ * never smaller than its setting, a GPU budget being no part of it. At most every `VSM_PRESSURE_CALM_FRAMES` frames — the wait
  * before it raises a resolution the budget lowered —, and only by the pages the room holds beside
- * what the frame keeps (`bytesBeside`, the held atlas and lists as large as they are): no frame
+ * what the frame keeps (`bytesBeside`, the held lists as large as they are): no frame
  * flips between two pools, as a live set never shrinks. The new set is made while the held one
  * lives when both fit, and replaces it; otherwise the held one is freed first (`grantEngineVsm`),
  * and if the device refuses the larger set, the held size is made again. The cache restarts — every
@@ -66,14 +74,20 @@ export function regrowEngineVsm(
   const { layout } = vsm.res,
     { lights } = rt
   const pages = layout.poolPages
-  lights.vsmPoolDemand = Math.max(lights.vsmPoolDemand, vsm.state.cache.demandPages)
   const asked = vsmPoolAsked(rt)
   if (pages >= asked || rt.run.frame < vsm.regrowFrame) return vsm
   vsm.regrowFrame = rt.run.frame + VSM_PRESSURE_CALM_FRAMES
   const { fullMapCapacity } = layout
-  const options = engineVsmOptions(fullMapCapacity, sunMapsFor(list), asked)
+  const options = engineVsmOptions(
+    fullMapCapacity,
+    sunMapsFor(list),
+    asked,
+    layout.occlusion,
+    layout.hzbLayers > 1,
+    mapSlotsPastOf(layout),
+  )
   const room = ledgerRoom(device)
-  const beside = bytesBeside(rt, device, list, layout, heldBeside(vsm))
+  const beside = bytesBeside(rt, device, list, heldListBytes(vsm))
   const pool = vsmPoolWithin(room + engineVsmBytes(vsm) - beside, options)
   const grown = pool?.layout.poolPages ?? 0
   if (grown <= pages) return vsm

@@ -36,7 +36,8 @@ import { FOG_SKY_LIGHT_WGSL } from './skyLightWgsl.ts'
  * `frame.tune.w`) longer, so that no cell spikes near the light — a square centimetre at least,
  * `LAMP_BIAS` —, and the window of its range, the cone of a spot; a rectangle by its form factor
  * with no normal (`rectFormOf`). A local light whose `shadowsFog` is set and that holds a shadow
- * slot is shadowed by one sample of its map at the cell's point, as the sun is. The edge of a spot's
+ * slot is shadowed by one sample of its map at the cell's point, as the sun is, while the setting
+ * `volumetricFogLocalShadows` is on (`FOG_VOLUME_FLAG.localShadows`). The edge of a spot's
  * cone and of a rectangle's plane fade over a number of cells (`frame.blend.z`, none by default), so
  * that they flicker less. An orthographic view's rays are parallel: the eye's direction is the
  * view's own, its distance the one along the forward.
@@ -85,7 +86,7 @@ ${REACH('vec3f(0.0)')}
   if(isRect(light)){seen.w*=saturate(dot(P-light.positionRange.xyz,light.directionCone.xyz)/fade);}
   else if(isSpot(light)){seen.w*=fogSpotFade(light,P,fade);}
  }
- if(seen.w>0.0&&shadowsFog(light)){seen.w*=shadowFactor(i32(light.params.y),light,P,vec3f(0.0),true);}
+ if(seen.w>0.0&&shadowsFog(light)&&(u32(frame.medium.w)&${FOG_VOLUME_FLAG.localShadows}u)!=0u){seen.w*=shadowFactor(i32(light.params.y),light,P,vec3f(0.0),true);}
  return light.colorIntensity.rgb*lightFunctionFogLocalOf(light.params.x,P)*(light.colorIntensity.w*light.params.z)*(seen.w*hgPhase(frame.medium.x,dot(seen.xyz,toEye)));
 }
 /** The light of every light at the sample of a cell at \`offset\` within it: the sun, the sky light and

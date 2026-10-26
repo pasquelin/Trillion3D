@@ -1,4 +1,3 @@
-import type { HostAttributes } from '../../../session/host/resources.ts'
 import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
 import type { PageRec } from '../../selection/types.ts'
 import { slotSampled } from '../../../materials/virtual/sampling/samplingHeaders.ts'
@@ -10,9 +9,18 @@ import {
   FLAG_UV1,
   FLAG_UV2,
   FLAG_UV3,
+  FLAG_UV_EXTENDED,
 } from '../../../../../sdk-core/src/page/format.ts'
 import { GEOMETRY_VOXEL } from '../../../../../sdk-core/src/page/voxelPage.ts'
 import { FLAG_SAMPLED } from '../../../visibility/types.ts'
+import {
+  PHYSICAL_COLOUR_MAP_FIELDS,
+  type PHYSICAL_MAP_FIELDS,
+} from '../../../visibility/materialType.ts'
+import type { Geometry } from '../../../../../sdk-core/src/world/geometry/geometry.ts'
+
+/** The presence bits of the texture sets past the first. */
+const EXTRA_UV_FLAGS = FLAG_UV1 | FLAG_UV2 | FLAG_UV3 | FLAG_UV_EXTENDED
 
 export type GeometryBlock = {
   vertexBase: number
@@ -23,7 +31,7 @@ export type GeometryBlock = {
   /** Vertex colours: the page's `COLOR_0`, or the tail of the source UV buffer
    *  (`../../../gpu/core/vertexColors.ts`). */
   hasColor: boolean
-  /** A UV set past the first: any of the page's `TEXCOORD_1` to `TEXCOORD_3`, or the tail of the
+  /** A UV set past the first: any of the page's `TEXCOORD_1` to `TEXCOORD_7`, or the tail of the
    *  normal atlas the float block is read through (`../../pages/pool/geometryPoolLayout.ts`),
    *  which the maps on those sets read. */
   hasExtraUv?: boolean
@@ -48,7 +56,7 @@ export type GeometryBlock = {
  */
 export function rowGeometry(
   rec: Pick<PageRec, 'attributes' | 'geometryPage'>,
-  geometryBlocks: ReadonlyMap<HostAttributes, GeometryBlock>,
+  geometryBlocks: ReadonlyMap<Geometry['attributes'], GeometryBlock>,
   into: GeometryBlock,
 ) {
   const page = rec.geometryPage
@@ -67,7 +75,7 @@ export function rowGeometry(
   into.hasNormal = (page.flags & FLAG_NORMAL) !== 0
   into.hasTangent = (page.flags & FLAG_TANGENT) !== 0
   into.hasColor = (page.flags & FLAG_COLOR) !== 0
-  into.hasExtraUv = (page.flags & (FLAG_UV1 | FLAG_UV2 | FLAG_UV3)) !== 0
+  into.hasExtraUv = (page.flags & EXTRA_UV_FLAGS) !== 0
   into.quantized = true
   return into
 }
@@ -102,6 +110,15 @@ export type MaterialLayers = {
 export const layerSlot = (layers: ReadonlyMap<Texture, number>, texture?: Texture) =>
   texture ? (layers.get(texture) ?? 0) : 0
 
+/** The slot of the lobe map `field` of `mat` (`PHYSICAL_MAP_FIELDS`): in the colour atlas for a map that
+ *  holds a colour (`PHYSICAL_COLOUR_MAP_FIELDS`), in the data atlas for the others. */
+export const physicalMapSlot = (
+  layers: MaterialLayers,
+  mat: Partial<Record<(typeof PHYSICAL_MAP_FIELDS)[number], Texture>>,
+  field: (typeof PHYSICAL_MAP_FIELDS)[number],
+) =>
+  layerSlot(PHYSICAL_COLOUR_MAP_FIELDS.has(field) ? layers.mapLayer : layers.dataLayer, mat[field])
+
 /** `FLAG_SAMPLED` when one of a material's maps, by its atlas slots, takes its filter rule: the
  *  flag that compiles or skips the filtered read, per page and per transparent item. */
 export function sampledFlag(
@@ -113,6 +130,8 @@ export function sampledFlag(
   data2: number,
   data3: number,
   color2 = 0,
+  data4 = 0,
+  data5 = 0,
 ) {
   if (!textures) return 0
   const color = textures.color.pages,
@@ -123,7 +142,9 @@ export function sampledFlag(
     slotSampled(data, data0) ||
     slotSampled(data, data1) ||
     slotSampled(data, data2) ||
-    slotSampled(data, data3)
+    slotSampled(data, data3) ||
+    slotSampled(data, data4) ||
+    slotSampled(data, data5)
     ? FLAG_SAMPLED
     : 0
 }

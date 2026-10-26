@@ -31,18 +31,21 @@
 //! its voxel children in `inherit`, the encoding and report in `encode`. How a mesh's voxels are sampled — its rays, the level from which every group is
 //! voxels, the fit of its normals, its opacity — is its build's (`VoxelSettings`), one per
 //! source mesh (`VoxelInputs::settings`).
+use std::collections::BTreeMap;
+use std::path::Path;
+
+use rayon::prelude::*;
+use serde_json::{json, Value};
+
 use super::bricks::Brick;
 use super::raster::Cell;
 use super::seed::VoxelSeed;
 use super::solid::Voxel;
 use super::{VoxelSettings, ERROR_PER_SIZE, VOXEL_FILE};
 use crate::compiler::cache::storage::{product, Product};
+use crate::distance_field::source_meshes;
 use crate::texture::TexturePreview;
 use crate::Result;
-use rayon::prelude::*;
-use serde_json::{json, Value};
-use std::collections::BTreeMap;
-use std::path::Path;
 mod mesh;
 use mesh::voxelize_mesh;
 mod encode;
@@ -163,16 +166,14 @@ pub(crate) fn stage_voxels(
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<(Product, Value)> {
     let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::Voxels);
-    // A compiled mesh is read from the first source mesh it stands for.
-    let mut source_of: BTreeMap<u64, usize> = BTreeMap::new();
-    for (&source, &compiled) in inputs.mesh_map {
-        source_of.entry(compiled as u64).or_insert(source);
-    }
+    let source_of = source_meshes(inputs.mesh_map);
     let mut by_mesh: BTreeMap<(u64, usize), Vec<usize>> = BTreeMap::new();
     // A mesh none of whose primitives may be drawn as voxels has no voxel group (`seed.rs`).
     for p in (0..inputs.seeds.len()).filter(|&p| !inputs.seeds[p].groups.is_empty()) {
         let compiled = inputs.primitives[p]["mesh"].as_u64();
-        if let Some((m, &source)) = compiled.and_then(|m| Some((m, source_of.get(&m)?))) {
+        if let Some((m, &source)) =
+            compiled.and_then(|m| Some((m, source_of.get(&usize::try_from(m).ok()?)?)))
+        {
             by_mesh.entry((m, source)).or_default().push(p);
         }
     }

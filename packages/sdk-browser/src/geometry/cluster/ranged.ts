@@ -48,6 +48,93 @@ type Reading = {
 const cut = (whole: ArrayBuffer, offset: number, length: number) =>
   whole.slice(offset, Math.min(offset + length, whole.byteLength))
 
+/** The whole file `response` brings on `stop`: forgotten once stopped or failed. */
+const download = (file: Reading, response: Response, stop: AbortController) => {
+  const own: Download = { promise: response.arrayBuffer(), askers: 0, stop }
+  const forget = () => void (file.download === own && (file.download = undefined))
+  stop.signal.addEventListener('abort', forget, { once: true })
+  own.promise.catch(forget)
+  file.download = own
+}
+
+/** One request of `[offset, offset + length)` of `file` at `url`, on a signal of its own that its
+ *  asker's stops until the answer turns out whole: its range, or nothing once the whole file is
+ *  on its way. `ranged` holds the origins known to answer ranges. */
+const request = async (
+  ranged: Set<string>,
+  file: Reading,
+  url: string,
+  origin: string,
+  offset: number,
+  length: number,
+  { meter = unmetered, attempts, signal }: RangeAsk,
+) => {
+  const stop = new AbortController()
+  signal?.throwIfAborted()
+  const leave = followSignal(stop, signal)
+  const answer = checked(url, stop.signal, attempts, {
+    Range: `bytes=${offset}-${offset + length - 1}`,
+  })
+  if (!ranged.has(origin)) file.asking = answer
+  try {
+    const response = meter.read(await answer, url)
+    // Its asker left while it was asked: what came is let go, never kept.
+    if (stop.signal.aborted) throw (letGo(response), stop.signal.reason)
+    if (response.status === 206) return (ranged.add(origin), await response.arrayBuffer())
+    if (!file.download) download(file, response, stop)
+    else letGo(response) // a server that stopped answering ranges
+  } finally {
+    if (file.asking === answer) file.asking = undefined
+    leave()
+  }
+}
+
+/** The whole file `file` downloads, shared, cut for this range and kept in `files` by the last
+ *  range to leave it. */
+const fromDownload = async (
+  files: WholeFiles,
+  file: Reading,
+  own: Download,
+  url: string,
+  offset: number,
+  length: number,
+  asked: RangeAsk,
+) => {
+  // The last to leave stops the download: no one waits for it any more.
+  const buffer = await waitShared(own, asked.signal, () => own.stop.abort(asked.signal?.reason))
+  if (file.download === own) {
+    file.download = undefined
+    files.keepFile(url, buffer)
+  }
+  return cut(buffer, offset, length)
+}
+
+const readOf = async (
+  ranged: Set<string>,
+  files: WholeFiles,
+  file: Reading,
+  url: string,
+  offset: number,
+  length: number,
+  asked: RangeAsk,
+) => {
+  const origin = new URL(url).origin
+  // Waiting on another range's answer, its own signal still lets it go at once.
+  while (!ranged.has(origin) && file.asking)
+    await waited(
+      file.asking.catch(() => {}),
+      asked.signal,
+    )
+  for (;;) {
+    const whole = files.file(url)
+    if (whole) return cut(whole, offset, length)
+    const own = file.download
+    if (own) return fromDownload(files, file, own, url, offset, length, asked)
+    const range = await request(ranged, file, url, origin, offset, length, asked)
+    if (range) return range
+  }
+}
+
 /**
  * Reads byte ranges of files, each by an HTTP Range (`checked`) as it is asked. A server that
  * ignores the Range answers the whole file: its download is shared by every range waiting on it
@@ -65,84 +152,13 @@ export function createRangedReads(files: WholeFiles) {
   const ranged = new Set<string>()
   /** The files read now, by url: each leaves as its last read ends. */
   const reading = new Map<string, Reading>()
-  /** The whole file `response` brings on `stop`: forgotten once stopped or failed. */
-  const download = (file: Reading, response: Response, stop: AbortController) => {
-    const own: Download = { promise: response.arrayBuffer(), askers: 0, stop }
-    const forget = () => void (file.download === own && (file.download = undefined))
-    stop.signal.addEventListener('abort', forget, { once: true })
-    own.promise.catch(forget)
-    file.download = own
-  }
-  /** One request of `[offset, offset + length)` of `file` at `url`, on a signal of its own that its
-   *  asker's stops until the answer turns out whole: its range, or nothing once the whole file is
-   *  on its way. */
-  const request = async (
-    file: Reading,
-    url: string,
-    origin: string,
-    offset: number,
-    length: number,
-    { meter = unmetered, attempts, signal }: RangeAsk,
-  ) => {
-    const stop = new AbortController()
-    signal?.throwIfAborted()
-    const leave = followSignal(stop, signal)
-    const answer = checked(url, stop.signal, attempts, {
-      Range: `bytes=${offset}-${offset + length - 1}`,
-    })
-    if (!ranged.has(origin)) file.asking = answer
-    try {
-      const response = meter.read(await answer, url)
-      // Its asker left while it was asked: what came is let go, never kept.
-      if (stop.signal.aborted) throw (letGo(response), stop.signal.reason)
-      if (response.status === 206) return (ranged.add(origin), await response.arrayBuffer())
-      if (!file.download) download(file, response, stop)
-      else letGo(response) // a server that stopped answering ranges
-    } finally {
-      if (file.asking === answer) file.asking = undefined
-      leave()
-    }
-  }
-  const readOf = async (
-    file: Reading,
-    url: string,
-    offset: number,
-    length: number,
-    asked: RangeAsk,
-  ) => {
-    const origin = new URL(url).origin
-    // Waiting on another range's answer, its own signal still lets it go at once.
-    while (!ranged.has(origin) && file.asking)
-      await waited(
-        file.asking.catch(() => {}),
-        asked.signal,
-      )
-    for (;;) {
-      const whole = files.file(url)
-      if (whole) return cut(whole, offset, length)
-      const own = file.download
-      if (own) {
-        // The last to leave stops the download: no one waits for it any more.
-        const buffer = await waitShared(own, asked.signal, () =>
-          own.stop.abort(asked.signal?.reason),
-        )
-        if (file.download === own) {
-          file.download = undefined
-          files.keepFile(url, buffer)
-        }
-        return cut(buffer, offset, length)
-      }
-      const range = await request(file, url, origin, offset, length, asked)
-      if (range) return range
-    }
-  }
   /** Bytes `[offset, offset + length)` of the file at `url`, a copy its asker keeps. */
   const read: ReadRange = async (url, offset, length, asked = {}) => {
     let file = reading.get(url)
     if (!file) reading.set(url, (file = { asking: undefined, download: undefined, reads: 0 }))
     file.reads++
     try {
-      return await readOf(file, url, offset, length, asked)
+      return await readOf(ranged, files, file, url, offset, length, asked)
     } finally {
       if (--file.reads === 0) reading.delete(url)
     }

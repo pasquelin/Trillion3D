@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
 import { createTaaFrameState } from '../../post/taa/frameState.ts'
 import { taaConverged } from '../../post/taa/landing.ts'
-import { HISTORY_LAWS } from '../../post/taa/historyWgsl.ts'
+import { historySampleLaws } from '../../post/taa/historyWgsl.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { settledRt } from './hold.fixture.ts'
@@ -49,7 +49,7 @@ test('a quiet view whose history is not whole is drawn every frame, its jitter r
 
 test('the history is whole after whole cycles holding its most samples at every display pixel', () => {
   const frame = createTaaFrameState()
-  const { samples } = HISTORY_LAWS
+  const { samples } = historySampleLaws(1)
   // At the display's size every image reaches every pixel: ⌈16 / 11⌉ = 2 cycles of 11 phases.
   const whole = frame.phases * Math.ceil(samples / frame.phases)
   assert.equal(whole, 22)

@@ -14,17 +14,9 @@
  * eye along the view, and the volume ignores the fog's own start distance, maximum opacity and
  * cutoff.
  */
-import {
-  colourOf,
-  finite,
-  objectOf,
-  ranged,
-  rangedFields,
-  refuse,
-  type FogRange,
-} from './fogChecks.ts'
+import { colourOf, objectOf, ranged, rangedFields, refuse, type FogRange } from './fogChecks.ts'
 import type { LinearRgb } from '../../contracts/material.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { clamp, isFiniteNumber } from '../../../../math/src/scalar/reals.ts'
 
 /** The volume of a height fog (`SceneHeightFog.volumetric`). */
 export interface SceneVolumetricFog {
@@ -38,7 +30,9 @@ export interface SceneVolumetricFog {
   /** The light the fog emits, per unit of what it crosses, linear RGB: a density, so it adds the
    *  more the longer the ray crosses; black by default. Written in the numbers of the engines that
    *  fixed it, per centimetre divided by 10 000: a value of 1 is 1 / 100 per metre
-   *  (`GLOW_PER_METRE`). */
+   *  (`GLOW_PER_METRE`). Where the fog is made to match the volume (`fogMatchesVolume`), the glow
+   *  is read in those engines' other unit and follows the medium's density: the light it gives per
+   *  centimetre is its number times the density per centimetre, as the fog's own colour scatters. */
   glow?: LinearRgb
   /** Scales the extinction the volume reads: above 1, particles absorb more; 1 by default. */
   densityScale?: number
@@ -91,7 +85,7 @@ export const VOLUMETRIC_FOG_DEFAULTS = {
 
 /** What a glow number of the engines that fixed it gives per metre: they write it per
  *  centimetre, divided by 10 000, which is 1 / 100 per metre. */
-export const GLOW_PER_METRE = 1 / 100
+export const GLOW_PER_METRE = 0.01
 
 /** The nearest the scattering distribution comes to ±1, where the phase function is finite. */
 const DISTRIBUTION_LIMIT = 0.99
@@ -142,7 +136,7 @@ export function validateVolumetricFog(option: unknown, fog: unknown): boolean | 
   const v = objectOf<SceneVolumetricFog>(option, 'volumetric', fog)
   const out: SceneVolumetricFog = {}
   if (v.anisotropy !== undefined) {
-    if (!finite(v.anisotropy)) refuse('volumetric.anisotropy must be a finite number', fog)
+    if (!isFiniteNumber(v.anisotropy)) refuse('volumetric.anisotropy must be a finite number', fog)
     out.anisotropy = v.anisotropy
   }
   if (v.particleColor !== undefined) {

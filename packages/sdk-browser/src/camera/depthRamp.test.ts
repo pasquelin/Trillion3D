@@ -6,7 +6,7 @@ import { saturate } from '../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { writeDepthRamp } from './depthConvention.ts'
-import { SURFACE_MODEL } from '../materials/surface/surfaceModel.ts'
+import { SURFACE_MODEL } from '../materials/surface/surfaceModelWord.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import { SHADE_DECL_WGSL } from '../visibility/shader/shadeDeclWgsl.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
@@ -82,20 +82,28 @@ test('The weights land at the offset they are given, nothing around them', () =>
   assert.equal(words[4], 0, 'no clip-z weight under a perspective projection')
 })
 
-test('The resolve uniform: the ramp a 16-byte aligned vec4f, the voxel word, the eye, the time and the image index after it', () => {
+test('The resolve uniform: the ramp a 16-byte aligned vec4f, the voxel word, the eye, the time, the image index, the wall clock and the shading models’ switches after it', () => {
   assert.match(
     wgslModule(SHADE_DECL_WGSL),
-    /feedback:u32,pixelError:f32,depthRamp:vec4f,voxelCounting:u32,eye:vec3f,time:f32,frameIndex:u32,\}/,
+    /feedback:u32,pixelError:f32,depthRamp:vec4f,voxelCounting:u32,eye:vec3f,time:f32,frameIndex:u32,realTime:f32,irisNormal:u32,clearCoatNormal:u32,holdout:u32,normalCurvature:vec3f,\}/,
   )
   // viewProj 16 words, viewport 2 and six scalars: the ramp starts at word 24.
   assert.equal(SHADE_UNIFORM.at.depthRamp, 16 + 4 + 4)
   assert.equal(SHADE_UNIFORM.at.depthRamp % 4, 0)
   // The voxel trace's counting word, the camera on the next 16 bytes with the time in its last
-  // word (what a material graph reads), the image's index the voxels' normals are drawn with, then
-  // the struct rounded to its vec4f alignment.
+  // word (what a material graph reads), the image's index the voxels' normals are drawn with and the
+  // wall clock a graph reads beside the world's time, then the struct rounded to its vec4f alignment.
   assert.equal(SHADE_UNIFORM.at.voxelCounting, SHADE_UNIFORM.at.depthRamp + 4)
   assert.equal(SHADE_UNIFORM.at.eye, SHADE_UNIFORM.at.depthRamp + 8)
   assert.equal(SHADE_UNIFORM.at.time, SHADE_UNIFORM.at.eye + 3)
   assert.equal(SHADE_UNIFORM.at.frameIndex, SHADE_UNIFORM.at.time + 1)
-  assert.equal(SHADE_UNIFORM.words, SHADE_UNIFORM.at.depthRamp + 16)
+  assert.equal(SHADE_UNIFORM.at.realTime, SHADE_UNIFORM.at.frameIndex + 1)
+  // The shading models' switches after the clock, in the gap the struct's alignment left, then the alpha holdout's: the
+  // fortieth word fills the next 16 bytes, so the struct grows by one vec4f.
+  assert.equal(SHADE_UNIFORM.at.irisNormal, SHADE_UNIFORM.at.realTime + 1)
+  assert.equal(SHADE_UNIFORM.at.clearCoatNormal, SHADE_UNIFORM.at.realTime + 2)
+  assert.equal(SHADE_UNIFORM.at.holdout, SHADE_UNIFORM.at.realTime + 3)
+  // The normal curvature's curve (scale, bias, exponent) fills the next 16 bytes, so the struct grows by one vec4f more.
+  assert.equal(SHADE_UNIFORM.at.normalCurvature, SHADE_UNIFORM.at.holdout + 4)
+  assert.equal(SHADE_UNIFORM.words, SHADE_UNIFORM.at.depthRamp + 24)
 })

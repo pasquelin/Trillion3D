@@ -18,10 +18,6 @@ test('a switch off, or an occlusion of no strength, leaves its pass out; a value
     2,
   )
   assert.equal(
-    screenProbeSettings({ screenProbeMeshTraceDistance: 500 }).values.screenProbeMeshTraceDistance,
-    500,
-  )
-  assert.equal(
     screenProbeSettings({ screenProbeDisocclusionMaxFrames: 0 }).values
       .screenProbeDisocclusionMaxFrames,
     0,
@@ -39,7 +35,6 @@ test('a switch off, or an occlusion of no strength, leaves its pass out; a value
     { screenProbeOcclusionIntensity: 2 },
     { screenProbeMaxFastUpdate: 2 },
     { screenProbeFastUpdateFraction: 0 },
-    { screenProbeMeshTraceDistance: -1 },
     { screenProbeMaxTraceDistance: 0 },
     { screenProbeMaxTraceDistance: 10486 },
     { screenProbeGatherScale: 1.5 },

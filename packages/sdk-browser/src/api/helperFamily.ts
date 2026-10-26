@@ -176,7 +176,7 @@ export const helper = markedFamily({
    *  @param l - The light to show. */
   spotLight(l: Light) {
     const length = l.distance || 1,
-      r = Math.tan(l.angle) * length
+      r = Math.tan(l.outerConeAngle) * length
     const rim = circle(r, 32, 'xy').map((v, i) => (i % 3 === 2 ? -length : v))
     const out = [...rim]
     for (const [x, y] of [

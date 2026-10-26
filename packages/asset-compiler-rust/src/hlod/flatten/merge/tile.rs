@@ -26,19 +26,20 @@
 //! the texel's footprint carried along the ray onto it, front to back until an opaque one
 //! (`Behind`, `behind.rs`, `gpu/tile.wgsl`'s `seen_behind`); its normal its own, and its alpha
 //! one, the composite being opaque.
-use super::smear::Image;
+use super::smear::{Image, BACKGROUND};
 use crate::hlod::flatten::bake::gpu::{bake_tile, Laid, Tile};
 use crate::hlod::flatten::bake::sources::{Library, Piece, Sources};
-use crate::hlod::flatten::bake::{Maps, METALLIC, ROUGHNESS};
-use crate::texture::linear_to_srgb;
-use trillion3d_math::scalar::unit_to_byte;
+use crate::hlod::flatten::bake::Maps;
 use trillion3d_math::vector::vec2::{barycentric, double_area};
 use trillion3d_math::vector::vecn::{add, scale, sub};
 use trillion3d_page_codec::proxy::bvh::Node;
 mod behind;
 mod frame;
+mod targets;
 pub(in crate::hlod) use behind::Behind;
 pub(in crate::hlod) use frame::cotangent;
+pub(in crate::hlod) use targets::Targets;
+use targets::{held, place};
 
 /// One entry's images, each `size` texels square: base colour, and the normal map, the
 /// metal-roughness map, the emission map, the occlusion map and the anisotropy map where the
@@ -135,62 +136,34 @@ fn covered(
     (texels, all)
 }
 
-/// The place in an image `size` texels square of a texel `sample` names (`covered`).
-fn place(sample: [u32; 4], size: usize) -> usize {
-    (sample[0] >> 16) as usize * size + (sample[0] & 0xffff) as usize
-}
-
-/// The metal-roughness texel a tile's word holds, as `maps` bakes it: the specular where baked,
-/// else zero; the roughness and the metallic where baked, else their constants
-/// (`bake::ROUGHNESS`, `bake::METALLIC`).
-fn metal_rough_of(word: u32, maps: Maps) -> [u8; 4] {
-    let [specular, rough, metal, _] = word.to_le_bytes();
-    [
-        if maps.specular { specular } else { 0 },
-        if maps.roughness {
-            rough
-        } else {
-            unit_to_byte(ROUGHNESS)
-        },
-        if maps.metallic {
-            metal
-        } else {
-            unit_to_byte(METALLIC)
-        },
-        255,
-    ]
-}
-
-/// The anisotropy texel a tile's word holds, as `maps` bakes it: the direction in its first two
-/// channels, the tangent's — along `u` — where the layer does not bake the tangent, and the
-/// strength in its third, zero where it does not bake the anisotropy.
-fn anisotropy_of(word: u32, maps: Maps) -> [u8; 4] {
-    let [x, y, strength, _] = word.to_le_bytes();
-    let [x, y] = match maps.tangent {
-        true => [x, y],
-        false => [unit_to_byte(1.0), unit_to_byte(0.5)],
-    };
-    [x, y, if maps.anisotropy { strength } else { 0 }, 255]
-}
-
-/// The emission texel `emission` over the `strength` it is held to, opaque, in sRGB: black where
-/// nothing emits.
-fn held(emission: [f32; 3], strength: f32) -> [u8; 4] {
-    let share = if strength > 0.0 { 1.0 / strength } else { 0.0 };
-    let [r, g, b] = emission.map(|c| linear_to_srgb(c * share));
-    [r, g, b, 255]
+/// The triangles `coordinates` lays in the entry's image, each with its slot among the scene's
+/// sources and the steps of its weights.
+fn laid_triangles(
+    coordinates: &[[[f64; 2]; 3]],
+    steps: &[Steps],
+    slots: Option<&[usize]>,
+) -> Vec<Laid> {
+    (coordinates.iter().zip(steps).enumerate())
+        .map(|(triangle, (&[a, b, c], &steps))| {
+            let slot = slots.map_or(triangle, |slots| slots[triangle]);
+            (slot, [steps[0], steps[1], sub(b, a), sub(c, a)])
+        })
+        .collect()
 }
 
 /// The entry `read` — every triangle of its traced mesh, in order, each laid at its corners'
-/// texture coordinates `coordinates` in the unit square — baked `size` texels square, the images
-/// `maps` names beside the base colour, the chains `library` holds read on the GPU, a translucent
-/// texel over what lies behind it where the entry is read among the merged mesh (`Read::Behind`).
-pub(in crate::hlod) fn baked(
+/// texture coordinates `coordinates` in the unit square — baked `size` texels square into
+/// `targets`, the images `maps` names beside the base colour, the chains `library` holds read on
+/// the GPU, a translucent texel over what lies behind it where the entry is read among the merged
+/// mesh (`Read::Behind`). The texels the entry covers, and its emission strength: the largest
+/// channel of emission any of them holds.
+fn baked_into(
     read: Read<'_>,
     coordinates: &[[[f64; 2]; 3]],
     (size, maps): (usize, Maps),
     library: &Library,
-) -> crate::Result<Baked> {
+    targets: &mut Targets,
+) -> crate::Result<(Vec<[u32; 4]>, f32)> {
     let behind = matches!(read, Read::Behind(..));
     let no_nodes: &[Node] = &[];
     let (sources, nodes, slots) = match &read {
@@ -202,12 +175,28 @@ pub(in crate::hlod) fn baked(
         ),
     };
     let (texels, steps) = covered(coordinates, size, slots);
-    let laid: Vec<Laid> = (coordinates.iter().zip(&steps).enumerate())
-        .map(|(triangle, (&[a, b, c], &steps))| {
-            let slot = slots.map_or(triangle, |slots| slots[triangle]);
-            (slot, [steps[0], steps[1], sub(b, a), sub(c, a)])
-        })
-        .collect();
+    let laid = laid_triangles(coordinates, &steps, slots);
+    let mut strength = 0.0f32;
+    let mut write = |sample: [u32; 4], tile: &Tile| {
+        let emission = targets.put(place(sample, size), tile, maps);
+        for channel in emission.into_iter().flatten() {
+            strength = strength.max(channel);
+        }
+    };
+    let rows = std::slice::from_ref(&texels);
+    let scene = (library, maps, behind);
+    bake_tile((sources, nodes), &laid, scene, rows, &mut write)?;
+    Ok((texels, strength))
+}
+
+/// The entry `read` baked `size` texels square into images of its own (`baked_into`), its emission
+/// held over its own strength.
+pub(in crate::hlod) fn baked(
+    read: Read<'_>,
+    coordinates: &[[[f64; 2]; 3]],
+    (size, maps): (usize, Maps),
+    library: &Library,
+) -> crate::Result<Baked> {
     let blank = || Image::background(size, size);
     let mut base = blank();
     let mut normal = maps.normal.then(blank);
@@ -215,36 +204,16 @@ pub(in crate::hlod) fn baked(
     let mut occlusion = maps.occlusion.then(blank);
     let mut anisotropy = maps.anisotropic().then(blank);
     let mut emitted = maps.emissive.then(|| vec![[0.0f32; 3]; size * size]);
-    let mut strength = 0.0f32;
-    let mut write = |sample: [u32; 4], tile: &Tile| {
-        let at = place(sample, size);
-        base.texels[at] = tile[0].to_le_bytes();
-        if let Some(image) = normal.as_mut() {
-            image.texels[at] = tile[1].to_le_bytes();
-        }
-        if let Some(image) = metal_rough.as_mut() {
-            image.texels[at] = metal_rough_of(tile[2], maps);
-        }
-        if let Some(image) = occlusion.as_mut() {
-            image.texels[at] = tile[3].to_le_bytes();
-        }
-        if let Some(image) = anisotropy.as_mut() {
-            image.texels[at] = anisotropy_of(tile[4], maps);
-        }
-        if let Some(emitted) = emitted.as_mut() {
-            let emission = [tile[5], tile[6], tile[7]].map(f32::from_bits);
-            emitted[at] = emission;
-            strength = emission.into_iter().fold(strength, f32::max);
-        }
+    let mut targets = Targets {
+        base: &mut base,
+        normal: normal.as_mut(),
+        metal_rough: metal_rough.as_mut(),
+        occlusion: occlusion.as_mut(),
+        anisotropy: anisotropy.as_mut(),
+        emitted: emitted.as_deref_mut(),
+        masked: false,
     };
-    let rows = std::slice::from_ref(&texels);
-    bake_tile(
-        (sources, nodes),
-        &laid,
-        (library, maps, behind),
-        rows,
-        &mut write,
-    )?;
+    let (texels, strength) = baked_into(read, coordinates, (size, maps), library, &mut targets)?;
     let emission = emitted.map(|linear| {
         let mut image = blank();
         for &sample in &texels {
@@ -262,4 +231,56 @@ pub(in crate::hlod) fn baked(
         occlusion,
         anisotropy,
     })
+}
+
+/// The atlas an entry is baked into in place, shared by the entries: its images and the emission
+/// of every texel in linear (`Targets`), and the emission image, in sRGB, held over each entry's
+/// own strength.
+pub(in crate::hlod) struct Shared<'a> {
+    pub targets: Targets<'a>,
+    pub emission: Option<&'a mut Image>,
+}
+
+impl Shared<'_> {
+    /// The emission of the texels `texels` (`covered`, `size` texels square) held over `strength`,
+    /// the entry's own, written to the emission image where it is not the background's; the places
+    /// written.
+    pub(in crate::hlod) fn held_over(
+        &mut self,
+        texels: &[[u32; 4]],
+        size: usize,
+        strength: f32,
+    ) -> Vec<usize> {
+        let (Some(image), Some(linear)) = (self.emission.as_mut(), self.targets.emitted.as_ref())
+        else {
+            return Vec::new();
+        };
+        let mut wrote = Vec::new();
+        for &sample in texels {
+            let at = place(sample, size);
+            let value = held(linear[at], strength);
+            if value != BACKGROUND {
+                image.texels[at] = value;
+                wrote.push(at);
+            }
+        }
+        wrote
+    }
+}
+
+/// The entry `read` baked straight into the atlas `shared` (`baked_into`, masked): its texels are
+/// written where a triangle covers them, nothing else of the atlas is touched or scanned, and its
+/// emission, held over its own strength, is written to the emission image where it is not the
+/// background's. The emission strength of the entry, and the places of the emission texels it
+/// wrote.
+pub(in crate::hlod) fn baked_in(
+    read: Read<'_>,
+    coordinates: &[[[f64; 2]; 3]],
+    (size, maps): (usize, Maps),
+    library: &Library,
+    shared: &mut Shared,
+) -> crate::Result<(f32, Vec<usize>)> {
+    let targets = &mut shared.targets;
+    let (texels, strength) = baked_into(read, coordinates, (size, maps), library, targets)?;
+    Ok((strength, shared.held_over(&texels, size, strength)))
 }

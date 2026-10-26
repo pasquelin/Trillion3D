@@ -6,30 +6,32 @@
  *   invalidation processing (change boxes, previous ids) → planVirtualShadowFrame (CPU: clipmaps,
  *   local lights, ids, projection data) → instance page invalidation → physical page address
  *   update → page marking → page allocation build → non-cluster shadow map render → post render →
- *   projection (traced rays, ≤ 4 lights a pass, one layer of the mask array each) → lighting →
+ *   projection (traced rays: the suns' pass, a layer of the suns' mask each, then the local lights' one
+ *   pass, four bits a light in the pixel's mask) → lighting →
  *   translucent layers (their own traces) → feedback copy, mark rendered, frame data extraction.
  *
- * A shadowed light's `params.y` is `firstVsmId · 64 + k` (`store.assignSlice`): mask channel k
- * = layer k / 4, component k % 4, and the map a non-mask read samples; −1 for a light with no
- * virtual shadow map this frame. The maps the lights take are `vsmLightMaps.ts`'s, the mask
+ * A shadowed light's `params.y` is the rank of its record in the projection's view and its two flags
+ * (`shadowSliceOf`, `store.assignSlice`): a sun reads its layer of the suns' mask, a local light its
+ * lane of the pixel's mask (`vsmMaskLaneOf`), or, past the lanes the mask keeps, one sample of its own
+ * map; −1 for a light with no virtual shadow map this frame. The maps the lights take are `vsmLightMaps.ts`'s, the mask
  * `vsmMask.ts`'s.
  */
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import { createVsmResources, type VsmResources } from '../resources.ts'
-import { constructGpuResources } from '../../../../gpu/core/errorScope.ts'
+import { constructGpuResources } from '../../../../gpu/core/deviceLedger.ts'
 import { releaseVsmInvalidation } from '../invalidation/castStale.ts'
 import type { VsmCastBoxes } from '../invalidation/castBoxes.ts'
+import type { CastDiffAsk } from '../../casters/castDiff.ts'
 import { releaseVsmPageManagement } from '../pageManagementPass.ts'
+import { releaseVsmOcclusion } from '../occlusion/occlusionPass.ts'
 import { createVsmFrameState, type VsmFrameState } from '../frameState.ts'
 import type { VsmFramePlan } from '../frameSetup.ts'
 import { createVsmProjectionHold } from './vsmProjectionHold.ts'
 import { VsmFeedbackReadback, vsmFeedbackReadbackBytes } from '../feedbackReadback.ts'
+import { VsmOverflowLog } from '../overflowLog.ts'
 import { createVsmMarking, vsmMarkingBytes, type VsmMarking } from '../markingPass.ts'
 import { releaseVsmRender } from '../render/renderPass.ts'
 import { releaseVsmProjection } from '../projection/projectionStore.ts'
-import { releaseRowBins } from '../rows/rowBinsGpu.ts'
-import { releaseVsmTransmission } from '../transmission/transmissionContext.ts'
-import type { VsmTransmission } from '../transmission/transmissionMade.ts'
 import { createReadbackRing, type ReadbackRing } from '../../../../gpu/core/readbackRing.ts'
 import {
   createVsmSettle,
@@ -58,6 +60,8 @@ export interface EngineVsm {
   state: VsmFrameState
   marking: VsmMarking
   feedback: VsmFeedbackReadback
+  /** The overflows the frames saw, read back with the feedback. */
+  overflow: VsmOverflowLog
   /** i32 per light slot: its first VSM id, −1 for none (marking's `lightVsmIds`). */
   lightIds: GPUBuffer
   /** The words of `lightIds`, as the GPU reads them (−1 is 0xFFFFFFFF). */
@@ -71,20 +75,18 @@ export interface EngineVsm {
   /** The plan whose pages the raster drew (or that had none to draw): another one's pages are not
    *  kept as cached (`finishVirtualShadowFrame`). */
   renderedPlan: VsmFramePlan | undefined
-  /** The translucent casters' transmission atlas (`../transmission/transmissionPass.ts`), made with
-   *  the first blended caster. */
-  transmission?: VsmTransmission
-  /** The GPU budget held no first atlas: these maps make none (`vsmTransmission.ts`). */
-  transmissionDenied: boolean
-  /** The frame a capped or denied atlas is asked again at. */
-  transmissionRetry: number
   /** The memory limits already said for these maps, by what they held back. */
-  said: Set<'raster' | 'transmission' | 'mask' | 'transmission-full'>
+  said: Set<'raster' | 'mask'>
   /** The frame a pool drawn short of the full one may ask to grow again at (`vsmGrant.ts`). */
   regrowFrame: number
-  /** The box invalidation read before the plan, the maps the rows' shadow changes stale
-   *  (`vsmCastMaps`), and the previous frame's slot count. */
+  /** The pool size the setting asked when the set was made (`vsmPoolAsked`): another size asked makes
+   *  the set again, its cache dropped, as a pool whose size changed is. */
+  poolAsked: number
+  /** The box invalidation read before the plan, the maps the shadow changes stale
+   *  (`vsmCastMaps`), the previous frame's slot count, and the diff of the instances' boxes the frame
+   *  encodes before it (`followRoots`). */
   pendingBoxes: VsmCastBoxes | null
+  pendingDiff: CastDiffAsk | null
   pendingCastMaps: Uint32Array | null
   prevSlots: number
   /** Page counters of the stats permutation, read back a few frames late. */
@@ -147,13 +149,15 @@ export function createEngineVsm(device: GPUDevice, options: VsmResourceOptions):
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
     const stats = createVsmEngineStats()
+    const overflow = new VsmOverflowLog()
     const settle = createVsmSettle()
     return {
       res,
       sunMaps: sunMapsOf(options),
       state,
       marking: createVsmMarking(device, res),
-      feedback: new VsmFeedbackReadback(device, state.cache),
+      feedback: new VsmFeedbackReadback(device, state.cache, overflow),
+      overflow,
       lightIds,
       lightIdsData: new Uint32Array(LIGHT_SLOTS),
       directionalIds,
@@ -161,11 +165,11 @@ export function createEngineVsm(device: GPUDevice, options: VsmResourceOptions):
       projectionHold: createVsmProjectionHold(),
       plan: undefined,
       renderedPlan: undefined,
-      transmissionDenied: false,
-      transmissionRetry: 0,
       said: new Set(),
       regrowFrame: 0,
+      poolAsked: 0,
       pendingBoxes: null,
+      pendingDiff: null,
       pendingCastMaps: null,
       prevSlots: 0,
       statsReadback: createReadbackRing(
@@ -181,21 +185,25 @@ export function createEngineVsm(device: GPUDevice, options: VsmResourceOptions):
 }
 
 export function destroyEngineVsm(vsm: EngineVsm) {
-  releaseRowBins(vsm.res.render?.rowBound)
-  releaseRowBins(vsm.transmission?.context?.rowBound)
   vsm.marking.destroy()
   vsm.feedback.destroy()
   releaseVsmRender(vsm.res)
   releaseVsmPageManagement(vsm.res)
+  releaseVsmOcclusion(vsm.res)
   releaseVsmInvalidation(vsm.res)
   releaseVsmProjection(vsm.res)
   vsm.res.destroy()
   vsm.lightIds.destroy()
   vsm.directionalIds.destroy()
   destroyMask(vsm.mask)
-  if (vsm.transmission) releaseVsmTransmission(vsm.transmission)
-  vsm.transmission?.destroy()
   vsm.statsReadback.destroy()
+}
+
+/** Frees the maps `lights` hold and forgets them: the next frame that shadows makes them anew,
+ *  their cache restarted. */
+export function releaseEngineVsm(lights: WebgpuPagesRuntime['lights']) {
+  if (lights.vsm) destroyEngineVsm(lights.vsm)
+  lights.vsm = undefined
 }
 
 /** No light reads a shadow this frame. */

@@ -20,9 +20,15 @@ const PHYSICAL = [
   'iridescence',
 ]
 
-/** The family of a physical kind: physical when it declares a physical field, standard else. */
+/** Physical fields that only a physical surface carries but that do not make a surface physical by
+ *  themselves: the cloth amount of the sheen, which a sheen of zero leaves silent. */
+const PHYSICAL_COMPANIONS = ['sheenRoughness']
+
+/** The family of a physical kind: physical when it declares a physical field, standard else. A
+ *  declared specular makes it physical whatever its value: a specular of zero is a declaration. */
 const physicalFamily = (material: Material) =>
-  PHYSICAL.some((field) => typeof material[field] === 'number' && material[field] !== 0)
+  PHYSICAL.some((field) => typeof material[field] === 'number' && material[field] !== 0) ||
+  typeof material.specularIntensity === 'number'
     ? 'physical'
     : 'standard'
 
@@ -34,10 +40,18 @@ export function physicalDeclaration(material: Material, vertexColors: boolean) {
     ...contractDeclaration(material.surface(), vertexColors),
     family,
     subsurfaceColor: material.subsurfaceColor,
+    subsurfaceProfile: material.subsurfaceProfile,
+    shadingModel: material.shadingModel,
+    irisMask: material.irisMask,
+    irisDistance: material.irisDistance,
+    subsurfaceOpacity: material.subsurfaceOpacity,
   }
   if (family !== 'physical') return declared
   if (material.clearcoatNormalScale) declared.clearcoatNormalScale = material.clearcoatNormalScale
-  for (const field of PHYSICAL)
+  if (material.sheenColor) declared.sheenColor = material.sheenColor
+  if (typeof material.specularIntensity === 'number')
+    declared.specularIntensity = material.specularIntensity
+  for (const field of [...PHYSICAL, ...PHYSICAL_COMPANIONS])
     if (typeof material[field] === 'number') declared[field] = material[field]
   return declared
 }

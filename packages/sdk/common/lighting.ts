@@ -18,34 +18,20 @@ export type {
 export {
   BOUNCE_PROBE_QUEUE,
   BOUNCE_SETTINGS,
-  PROBE_FLOATS,
   resolveProbesPerFrame,
 } from '../../sdk-core/src/bounce/contracts.ts'
-export {
-  cellSpacing,
-  createBounceCascades,
-  lightLattice,
-} from '../../sdk-core/src/bounce/cascades.ts'
-export type {
-  BounceCascadeLevel,
-  BounceCascades,
-  LightLattice,
-} from '../../sdk-core/src/bounce/cascades.ts'
+export { cellSpacing, createBounceCascades } from '../../sdk-core/src/bounce/cascades.ts'
+export type { BounceCascadeLevel, BounceCascades } from '../../sdk-core/src/bounce/cascades.ts'
 export { cloneSceneLight } from '../../sdk-core/src/scene/light/clone.ts'
-export { CORNER_INFLUENCES } from '../../sdk-core/src/contracts/proxy.ts'
-export type {
-  CutDeformation,
-  RuntimeCutProxy,
-  SceneProxy,
-  SceneProxyColumns,
-  SceneProxyDescriptor,
-} from '../../sdk-core/src/contracts/proxy.ts'
-export { createProbePool } from '../../sdk-core/src/bounce/probePool.ts'
-export type { ProbePool } from '../../sdk-core/src/bounce/probePool.ts'
 export { createSceneLightStore } from '../../sdk-core/src/scene/light/store.ts'
 export type { SceneLightStore } from '../../sdk-core/src/scene/light/store.ts'
+export { DEFAULT_LIGHT_UNITS, LIGHT_UNITS } from '../../sdk-core/src/scene/light/lightUnits.ts'
+export type { LightUnits } from '../../sdk-core/src/scene/light/lightUnits.ts'
 export { LIGHT_FIELD } from '../../sdk-core/src/scene/light/fields.ts'
 export type { LightingCapabilities } from '../../sdk-core/src/scene/light/capabilities.ts'
-export type { ProbeEmit, TableEmit } from '../../sdk-core/src/bounce/probePlan.ts'
 export { SHADOW_PAGE } from '../../sdk-core/src/scene/light/shadow/sunEntries.ts'
+export type {
+  SubsurfaceImplementation,
+  SubsurfaceProfile,
+} from '../../sdk-core/src/lighting/subsurfaceProfile/profile.ts'
 export { validateSceneLight } from '../../sdk-core/src/scene/light/validate.ts'

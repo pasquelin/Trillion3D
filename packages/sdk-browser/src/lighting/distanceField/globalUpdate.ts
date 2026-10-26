@@ -1,3 +1,4 @@
+import { splitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import {
   clipmapMipResolution,
@@ -8,13 +9,10 @@ import type { GlobalDistanceFieldSettings } from '../../../../sdk-core/src/contr
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { ALLOCATE_ENTRIES } from './allocateWgsl.ts'
 import { ARGS_WORDS, CLIP_BLOCK, CLIP_BLOCK_BYTES } from './clipmapBlock.ts'
-import {
-  splitPosition,
-  writeClipmapBlock,
-  writePackedClipmap,
-  writeUpdateBounds,
-} from './clipmapUniforms.ts'
+import { writeClipmapBlock, writePackedClipmap, writeUpdateBounds } from './clipmapUniforms.ts'
 import { COMPOSE_ENTRY } from './composeWgsl.ts'
+import { COVERAGE_ENTRY } from './coverageWgsl.ts'
+import { OBJECT_GRID_ENTRY } from './objectGridWgsl.ts'
 import { CULL_BLOCK, CULL_ENTRIES, OBJECT_COUNTS } from './cullWgsl.ts'
 import type { GlobalGroups } from './globalGroups.ts'
 import type { GlobalPipelines, StageKey } from './globalPipelines.ts'
@@ -24,15 +22,24 @@ import { CACHE_FULL, CACHE_STATIC } from './objectTracker.ts'
 import type { Vec3 } from './regionBounds.ts'
 import type { ClipmapPlan, RegionPlan } from './updateRegions.ts'
 
+const RESET_PASS: GPUComputePassDescriptor = { label: 'Trillion3D global distance field reset' }
+const STATIC_PASS: GPUComputePassDescriptor = {
+  label: 'Trillion3D global distance field update, static',
+}
+const MOVABLE_PASS: GPUComputePassDescriptor = {
+  label: 'Trillion3D global distance field update, movable',
+}
+
 /**
  * ONE FRAME OF THE GLOBAL DISTANCE FIELD'S UPDATE, encoded. Given the plan of the clipmaps
  * (`updateRegions.ts`), it writes the blocks, regions and records the passes read, then for each
  * cache — the static meshes first, then the movable ones over them — one compute pass whose
  * dispatches follow the stages in the order of the reference: the placements culled to the clipmaps,
  * the update regions turned into page tiles and culling cells, the placements culled to the cells,
- * the pages allocated, the free pages returned, the pages composited, and, for the last cache, the
- * coarse mip propagated. When the plan says the field begins again, the page tables are filled with
- * no page and the free list made first.
+ * the pages allocated, the free pages returned, the pages composited, their coverage written and flagged
+ * (while a ray is marched through the field) and their object grid composited (while a pass reads it),
+ * and, for the last cache, the coarse mip propagated. When the plan says the field begins again, the
+ * page tables are filled with no page and the free list made first.
  */
 
 /** What an update is encoded from. */
@@ -50,6 +57,12 @@ export interface UpdateContext {
   readonly objects: number
   /** Whether the clipmaps flag the meshes not all streamed in. */
   readonly watch: boolean
+  /** Whether rays are marched through the field: the pages composed have their coverage written and flagged
+   *  where only two-sided meshes reach them (`coverageWgsl.ts`). */
+  readonly traced: boolean
+  /** Whether a pass reads the object grid: the pages composed have their object grid composited
+   *  (`objectGridWgsl.ts`). */
+  readonly grid: boolean
   /** Encodes, once the static cache's pass is, the copy of the flags the pass raised. */
   readonly afterStatic?: (encoder: GPUCommandEncoder) => void
 }
@@ -105,7 +118,7 @@ function writeCullBlock(ctx: UpdateContext, cache: number, clipmaps: number) {
   ints[at.objectStride] = ctx.res.objectStride
   ints[at.packedBase] = cache * MAX
   ctx.origin.forEach((c, k) => {
-    const [high, low] = splitPosition(-c)
+    const [high, low] = splitDouble(-c)
     words[at.translationHigh + k] = high
     words[at.translationLow + k] = low
   })
@@ -123,7 +136,7 @@ function clearCache(encoder: GPUCommandEncoder, ctx: UpdateContext, clipmaps: nu
 
 /** The page tables and the free list made anew. */
 function encodeReset(encoder: GPUCommandEncoder, ctx: UpdateContext, offset: number) {
-  const pass = encoder.beginComputePass({ label: 'Trillion3D global distance field reset' })
+  const pass = encoder.beginComputePass(RESET_PASS)
   pass.setPipeline(stage(ctx, 'fill', MIP_ENTRIES.fill))
   for (const { group, size } of ctx.groups.fill) {
     pass.setBindGroup(0, group)
@@ -205,6 +218,18 @@ function encodeComposition(
     pass.setBindGroup(1, own.compose, [blockOffset(cache, rank)])
     pass.dispatchWorkgroupsIndirect(res.args, (rank * ARGS_WORDS + 6) * 4)
   }
+  for (const [key, entry, bound, wanted] of [
+    ['coverage', COVERAGE_ENTRY, own.coverage, ctx.traced],
+    ['objectGrid', OBJECT_GRID_ENTRY, own.objectGrid, ctx.grid],
+  ] as const) {
+    if (!wanted) continue
+    pass.setPipeline(stage(ctx, key, entry))
+    pass.setBindGroup(0, ctx.scene)
+    for (let rank = 0; rank < count; rank++) {
+      pass.setBindGroup(1, bound, [blockOffset(cache, rank)])
+      pass.dispatchWorkgroupsIndirect(res.args, (rank * ARGS_WORDS + 12) * 4)
+    }
+  }
 }
 
 /** The coarse mip of the clipmaps: five propagations, the first from the pages. */
@@ -264,9 +289,7 @@ export function encodeGlobalUpdate(encoder: GPUCommandEncoder, ctx: UpdateContex
     if (!active.length) continue
     writeInputs(ctx, cache, active)
     clearCache(encoder, ctx, active.length)
-    const pass = encoder.beginComputePass({
-      label: `Trillion3D global distance field update, ${cache === CACHE_STATIC ? 'static' : 'movable'}`,
-    })
+    const pass = encoder.beginComputePass(cache === CACHE_STATIC ? STATIC_PASS : MOVABLE_PASS)
     encodeCulling(pass, ctx, cache, active.length)
     encodeComposition(pass, ctx, cache, active.length)
     if (cache === CACHE_FULL) encodeMips(pass, ctx, active)

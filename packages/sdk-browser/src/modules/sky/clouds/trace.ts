@@ -35,10 +35,10 @@ import {
  * the scene's depth (`CloudTraceKey.depth`: the range, the half-size checkerboard, or the depth
  * itself) and the traced images, written (`reconstructLayout.ts`): three with two surfaces, the
  * colour and the depth without. A frame that asks for the empty-space table, the sun's opaque
- * shadow or the lamps (`CloudTraceKey`) has a third group, 2, for their inputs
- * (`traceExtraLayout.ts`), and a pipeline of its own.
+ * shadow, the lamps or the sky light's harmonics (`CloudTraceKey`) has a third group, 2, for their
+ * inputs (`traceExtraLayout.ts`), and a pipeline of its own.
  */
-export function cloudTraceLayoutEntries(key: CloudTraceKey): GPUBindGroupLayoutEntry[] {
+function cloudTraceLayoutEntries(key: CloudTraceKey): GPUBindGroupLayoutEntry[] {
   return [
     ...cloudMaterialLayoutEntries(B.material),
     computeUniformEntry(B.block),
@@ -47,6 +47,7 @@ export function cloudTraceLayoutEntries(key: CloudTraceKey): GPUBindGroupLayoutE
     computeStorageTextureEntry(B.colour, CLOUD_FORMAT),
     ...(key.minMaxDepth ? [computeStorageTextureEntry(B.secondary, CLOUD_FORMAT)] : []),
     computeStorageTextureEntry(B.depth, CLOUD_FORMAT),
+    ...(key.closestDepth ? [computeStorageTextureEntry(B.closest, CLOUD_FORMAT)] : []),
   ]
 }
 

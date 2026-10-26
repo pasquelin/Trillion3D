@@ -1,12 +1,14 @@
 //! PNG driver, W3C PNG 1.2 / ISO 15948 standard, decoded losslessly by the `image` crate
 //! (`png` feature). No re-encoding: what enters losslessly comes out byte for byte.
 //!
-//! Depths read, all to exact RGBA8: 1, 2, 4 and 8 bits per channel, palette, greyscale and
+//! Depths read, all to RGBA8: 1, 2, 4 and 8 bits per channel, palette, greyscale and
 //! alpha included — up to eight bits, expansion to RGBA8 loses nothing, it copies.
 //!
-//! 16 bits per channel is refused and named: see `DEPTH`. Depth is read from the IHDR before
-//! any decode, because afterwards it is too late — the library would return an `Rgb16` that
-//! `to_rgba8()` would clip to eight bits without anyone having asked.
+//! 16 bits per channel is read too: the samples ride beside the RGBA8 image they round to
+//! (`ImageDecoded::wide`), the mip chain reduces from them, and each level is rounded to the
+//! nearest of 256 values — the precision of the atlases the textures end in — once, never from
+//! a rounded level; counted: see `DEPTH`. Depth is read from the IHDR, because once decoded the
+//! image no longer says it.
 //!
 //! **What the file declares around the pixels** is read in its chunks, not in its image.
 //! An animated PNG (APNG) carries an `acTL` chunk and several frames; the contract returns
@@ -22,12 +24,10 @@ mod chunks;
 pub(super) static PNG: Png = Png;
 pub(super) struct Png;
 
-/// A 16-bit-per-channel PNG. This is not an exotic profile: it is precision that
-/// `DecodedImage` cannot carry, its only variant being RGBA8. Clipping it in silence
-/// would add a loss the source did not have, which the import policy forbids. Accepting it
-/// would need an `Rgba16` variant on the image contract and its explicit handling at every
-/// consumer — `texture` today, the preview pyramid next.
-const DEPTH: &str = "image-depth-unsupported";
+/// A 16-bit-per-channel PNG, whose levels are stored rounded to eight bits: the atlases are
+/// `rgba8unorm` or blocks of at most eight bits, so the precision beyond is lost at the end of the
+/// pipeline in any case, after the mip chain has used it. Counted rather than lowered in silence.
+const DEPTH: &str = "image-depth-reduced";
 
 /// The file declares an animation — `acTL` chunk — and the contract returns only one image.
 /// It is the default image that comes out, the other frames are counted under this name
@@ -52,6 +52,10 @@ const LINEAR_GAMMA: u32 = 100_000;
 /// file that stays silent, and the gap is counted rather than passed over in silence.
 const TRANSFER: &str = "image-transfer-unsupported";
 
+/// What the chain of a 16-bit PNG holds beyond its bytes, per texel: its samples (eight bytes)
+/// and the `f32` levels being reduced (five and a third).
+const WIDE_CHAIN_BYTES_PER_PIXEL: usize = 14;
+
 /// Type of the first chunk, which is always the IHDR: eight-byte signature, then the chunk
 /// length over four.
 const FIRST_CHUNK: std::ops::Range<usize> = 12..16;
@@ -63,12 +67,12 @@ impl Plugin for Png {
     fn name(&self) -> &'static str {
         "png"
     }
-    /// The suffixes name what this driver returns of its own: the maximum depth beyond which
-    /// it refuses, and the animation count. The version enters the cache identity — without
+    /// The suffixes name what this driver returns of its own: the depth whose samples ride beside
+    /// the rounded image, and the animation count. The version enters the cache identity — without
     /// it, an entry produced when 16-bit was lowered, or when an APNG was flattened without a
     /// word, would keep being reread as if it were correct.
     fn version(&self) -> &'static str {
-        "png-image-0.25-depth8-apng-icc-gama"
+        "png-image-0.25-depth16-chain-apng-icc-gama"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["png"]
@@ -83,20 +87,31 @@ impl ImageDecoder for Png {
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(b"\x89PNG\r\n\x1a\n")
     }
-    /// Depth first, pixels next. A file too short to carry its IHDR is not judged here: it
-    /// goes to the decoder, which refuses it.
+    fn chain_bytes(&self, bytes: &[u8], pixels: usize) -> usize {
+        match is_sixteen_bit(bytes) {
+            true => pixels.saturating_mul(WIDE_CHAIN_BYTES_PER_PIXEL),
+            false => 0,
+        }
+    }
+    /// A file too short to carry its IHDR is not judged on its depth: it goes to the decoder,
+    /// which refuses it.
     fn decode(
         &self,
         bytes: &[u8],
         max_alloc: u64,
     ) -> std::result::Result<ImageDecoded, &'static str> {
-        if bytes.get(FIRST_CHUNK) == Some(b"IHDR") && bytes.get(BIT_DEPTH) == Some(&16) {
-            return Err(DEPTH);
-        }
         let decoded = crate_image::decode(bytes, max_alloc, image::ImageFormat::Png)?;
-        let (transfer, notes) = declarations(bytes);
+        let (transfer, mut notes) = declarations(bytes);
+        if is_sixteen_bit(bytes) {
+            notes.push(DEPTH);
+        }
         Ok(decoded.with_transfer(transfer).with_notes(notes))
     }
+}
+
+/// Whether the IHDR declares 16 bits a channel.
+fn is_sixteen_bit(bytes: &[u8]) -> bool {
+    bytes.get(FIRST_CHUNK) == Some(b"IHDR") && bytes.get(BIT_DEPTH) == Some(&16)
 }
 
 /// The curve the file declares, and what else it declares that the output does not carry.

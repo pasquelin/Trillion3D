@@ -19,11 +19,14 @@ import { stateDump } from '../stateDump.fixture.ts'
  *  (`167f1388…` and `65b9a780…`), so only the impulses and the event order move. Its volume
  *  declares the gas the reference's default gave it (`REFERENCE_PRESSURE`). A soft body starts
  *  just off its rest shape (`SOFT_IMPERFECTION`, `soft.cpp`), which moved them again (`61d4ead1…`
- *  and `18b54d36…` before, which the same module built with no imperfection still gives). */
-const DEVELOP_MOTION = 'a271ae3d19453587e238ef72c9d7498e9d52db3277db74cfc153362bc994df05'
+ *  and `18b54d36…` before, which the same module built with no imperfection still gives). The
+ *  reference's body defaults (linear damping 0.01, no angular damping, friction 0.7 and restitution
+ *  0.3 averaged, a 10 m/s² restitution threshold) and Jolt's own contact estimate moved them again
+ *  (`a271ae3d…` and `1909ce77…` before). */
+const DEVELOP_MOTION = '5de94946dcfd4a5a942b0ddfce91a9e65d11938b63f00e88a21b52c923a221fe'
 /** `stateDump` whole, vertices bit for bit, as the write-back of one matrix per body gives it, the
  *  events in the order the engine sent them (see `stateDump`), not the module's callback order. */
-const FULL_DUMP = '1909ce77cedd270df95023134ef3255d018190c724f96bcb7f7b700c0b96b4a6'
+const FULL_DUMP = '5cd6e9c54d8375929cdd95c03ef27beb1d74326eeef89cd9062aca346f5bdd0d'
 
 test('a finite scene steps exactly as before, but for pinned cloths that never stretch and the thickness of soft bodies', async () => {
   assert.deepEqual(stateDump(await startModule()), { motion: DEVELOP_MOTION, full: FULL_DUMP })

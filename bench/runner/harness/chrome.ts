@@ -6,7 +6,7 @@
 // measurements and proofs run on the browser used by end users.
 import { chromium } from 'playwright'
 import type { Browser, LaunchOptions, Page } from 'playwright'
-import { isUnitTest } from '../../../scripts/test/unit-tests.ts'
+import { isUnitTest } from '../../../scripts/check/unit-tests.ts'
 import { entryPath, underNodeTest } from '../../core/entryPoint.ts'
 import { CHROME_SUFFIX, isProof } from '../../dawn/proofs.ts'
 

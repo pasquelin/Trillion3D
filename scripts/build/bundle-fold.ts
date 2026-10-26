@@ -19,6 +19,7 @@ export const FAMILY_MODULES = {
   guides: ['sdk-browser/src/guides/guideCode.js'],
   diagnostics: ['sdk-browser/src/diagnostic/viewCode.js'],
   measurement: ['sdk-browser/src/measurement/measurementCode.js'],
+  benchmark: ['sdk-browser/src/session/world/hardwareBenchmark.js'],
   worldStream: ['sdk-browser/src/geometry/hlod/worldRootPages.js'],
   pageCodec: ['sdk-browser/src/geometry/codec/geometryPage.js'],
 }

@@ -134,3 +134,50 @@ fn rotating_fbx_skin_emits_quaternion_tracks_in_compiled_tables() {
         .any(|quaternion| quaternion[0].as_f64().unwrap().abs() > 0.9));
     fs::remove_dir_all(root).unwrap();
 }
+
+/// An FBX of one triangle whose mesh holds `sets` texture-coordinate layers, each shifted by its rank.
+fn layered(sets: usize) -> String {
+    let layer = |at: usize| {
+        let shift = 0.125 * at as f32;
+        format!(
+            "\t\tLayerElementUV: {at} {{\n\t\t\tVersion: 101\n\t\t\tName: \"set{at}\"\n\t\t\tMappingInformationType: \"ByPolygonVertex\"\n\t\t\tReferenceInformationType: \"Direct\"\n\t\t\tUV: *6 {{\n\t\t\t\ta: {},{},{},{},{},{}\n\t\t\t}}\n\t\t}}\n",
+            shift,
+            shift,
+            1.0 - shift,
+            shift,
+            shift,
+            1.0 - shift
+        )
+    };
+    let uv: String = (0..sets).map(layer).collect();
+    let text = fs::read_to_string(golden_dir("import-fbx").join("bend.fbx")).unwrap();
+    // The first geometry, the leaf, takes the layers after its polygons.
+    text.replacen(
+        "\t\tGeometryVersion: 124\n",
+        &format!("{uv}\t\tGeometryVersion: 124\n"),
+        1,
+    )
+}
+
+/// The texture sets the first page of the first primitive of `result` carries.
+fn paged_sets(result: &Value) -> usize {
+    let flags = result["primitives"][0]["pages"][0]["geometry"]["flags"].as_u64();
+    let flags = flags.expect("a paged mesh") as u32;
+    (trillion3d_page_codec::UV_FLAGS.iter())
+        .filter(|&&flag| flags & flag != 0)
+        .count()
+}
+
+#[test]
+fn an_fbx_mesh_pays_for_the_coordinate_sets_it_holds_up_to_eight() {
+    let (root, mut options) = fixture();
+    options.scope = "full".into();
+    for sets in [8, 2] {
+        options.source = root.join(format!("sets{sets}.fbx"));
+        fs::write(&options.source, layered(sets)).unwrap();
+        let result = compile(&options, |_| {}).expect("an FBX of coordinate sets");
+        // A mesh pays for the sets it holds, never for the eight a page can carry.
+        assert_eq!(paged_sets(&result), sets);
+    }
+    fs::remove_dir_all(root).unwrap();
+}

@@ -26,7 +26,7 @@ import {
  * mapped to a volume distance by the mip's scale and bias, then to the world by the smallest axis
  * scale. A negative distance inside the volume never reaches out of its box.
  */
-export const MESH_FIELD_FUNCTIONS_WGSL = wgslBlock(
+const MESH_FIELD_FUNCTIONS_WGSL = wgslBlock(
   'MESH_FIELD_FUNCTIONS_WGSL',
   [DOUBLE_FLOAT_WGSL],
   `
@@ -97,7 +97,7 @@ fn distanceToNearestSurfaceForObject(o:DfObjectData,world:DfVec3,maxDistance:f32
 )
 
 /** The structure of the scene's block, once. */
-export const MESH_FIELD_SCENE_STRUCT_WGSL = wgslBlock(
+const MESH_FIELD_SCENE_STRUCT_WGSL = wgslBlock(
   'MESH_FIELD_SCENE_STRUCT_WGSL',
   [],
   `\n${SCENE_BLOCK.wgsl}`,
@@ -123,6 +123,3 @@ ${at(5)} var brickTexture:texture_3d<f32>;
 ${at(6)} var brickSampler:sampler;`,
   )
 }
-
-/** The bindings `meshFieldWgsl` takes. */
-export const MESH_FIELD_BINDINGS = 7

@@ -9,7 +9,7 @@ import {
   VSM_LEVEL0_PAGES,
   VSM_MAP_UNSEEN,
 } from '../../lighting/shadows/vsm/constants.ts'
-import type { VsmLightCache } from '../../lighting/shadows/vsm/cacheManager.ts'
+import type { VsmLightCache } from '../../lighting/shadows/vsm/lightCache.ts'
 import type { VsmProjectionDataValues } from '../../lighting/shadows/vsm/projection/projectionData.ts'
 import { unprojectInto } from './camera.ts'
 import type { InspectedShadowMap } from './types.ts'

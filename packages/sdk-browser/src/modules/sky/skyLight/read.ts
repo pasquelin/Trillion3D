@@ -32,7 +32,8 @@ import { SKY_CUBE_WGSL } from './cubeWgsl.ts'
  *   (`skyHarmonicsIrradiance`: three dot products against the first band's vectors, three against
  *   the quadratic terms `n.xyzz * n.yzzx`, one with `n.x² - n.y²`, never negative) times the
  *   light's colour. A program multiplies it by the surface's diffuse colour;
- *   `skyLightDiffuseSimple(n)`: the same of the first three terms alone, what the fog reads;
+ *   `skyLightDiffuseSimple(n)`: the same of the first three terms alone (`skyHarmonicsSimple`, no
+ *   colour: at the origin, the harmonics' mean), what the fog reads;
  *   `skyLightIrradiance(n)`: π times the diffuse light, the irradiance for the engine's one Lambert
  *   (`lambertDiffuse` divides by π);
  * - `skyLightScattering()`: the share of the light the volumetric fog scatters;
@@ -40,7 +41,9 @@ import { SKY_CUBE_WGSL } from './cubeWgsl.ts'
  * The normal and the vector are turned into the cube's frame (`sceneToCube`) before they are read.
  *
  * The light's colour (`SkyLightRead.colour`) is the light's colour times its intensity times the
- * capture's multiplier (`skyLightColor`), black when the sky lighting is off.
+ * capture's multiplier (`skyLightColor`), black when the sky lighting is off. A real-time capture
+ * is written multiplied by the cached lighting pre-exposure and the colour holds its inverse, so
+ * what a program reads, cube or harmonics times the colour, is the sky's own radiance.
  */
 
 /** Where a program binds the sky light's resources, in the group `group`. */
@@ -48,7 +51,7 @@ export interface SkyLightBindings {
   readonly group: number
   /** The ready cubes, a cube array of all their mips (`SkyLightReadSet.cube`). */
   readonly cube: number
-  /** The trilinear sampler (`createSkyLightSampler`). */
+  /** The trilinear sampler (`postSamplers(device).mipped`). */
   readonly sampler: number
   /** The harmonics' buffer, read as a uniform. */
   readonly harmonics: number
@@ -105,10 +108,11 @@ fn skyHarmonicsIrradiance(n:vec3f)->vec3f{
  return max(vec3f(0.0),first+second+last);
 }
 fn skyLightDiffuse(n:vec3f)->vec3f{return skyHarmonicsIrradiance(n)*skyLight.colour.rgb;}
-fn skyLightDiffuseSimple(n:vec3f)->vec3f{
+fn skyHarmonicsSimple(n:vec3f)->vec3f{
  let v=vec4f(sceneToCube(n),1.0);
- return max(vec3f(0.0),vec3f(dot(skyHarmonic(0u),v),dot(skyHarmonic(1u),v),dot(skyHarmonic(2u),v)))*skyLight.colour.rgb;
+ return max(vec3f(0.0),vec3f(dot(skyHarmonic(0u),v),dot(skyHarmonic(1u),v),dot(skyHarmonic(2u),v)));
 }
+fn skyLightDiffuseSimple(n:vec3f)->vec3f{return skyHarmonicsSimple(n)*skyLight.colour.rgb;}
 fn skyLightIrradiance(n:vec3f)->vec3f{return PI*skyLightDiffuse(n);}
 `,
   )
@@ -176,18 +180,6 @@ export const skyLightReadBindEntries = (
   ...skyLightDiffuseBindEntries(b, set),
 ]
 
-/** The sampler the cube is read through: trilinear, clamped. */
-export const createSkyLightSampler = (device: GPUDevice) =>
-  device.createSampler({
-    label: 'Trillion3D sky light read',
-    magFilter: 'linear',
-    minFilter: 'linear',
-    mipmapFilter: 'linear',
-    addressModeU: 'clamp-to-edge',
-    addressModeV: 'clamp-to-edge',
-    addressModeW: 'clamp-to-edge',
-  })
-
 /** How the distance-field occlusion applies to the light this image: whether a bent normal is read (`applied`), the
  *  specular occlusion's mode and strength (`DistanceFieldOcclusionSettings`). */
 export interface SkyLightOcclusionUse {
@@ -220,7 +212,8 @@ const FIRST_SKY_LIGHT_CUBE: SkyLightCubeUse = { layer: 0, blend: 0 }
  *  occlusion (`skyLightOcclusion`), its contrast curve's contrast, scale and bias (`skyLightContrastCurve`) and exponent,
  *  and `mode`: the combine mode (0 the least of the occlusions, 1 their product), whether a bent normal is applied,
  *  the reciprocal of the specular strength, the specular mode. `cubemapScale` is
- *  the rescale of a 32-bit float cubemap (`SkyLightCubeRead.colorScale`). */
+ *  the rescale of a 32-bit float cubemap (`SkyLightCubeRead.colorScale`); `capturePreExposure` the
+ *  number a real-time capture is written multiplied by (`SkyLightInputs.preExposure`). */
 export function writeSkyLightRead(
   out: Float32Array,
   part: SkyLightPart,
@@ -229,11 +222,12 @@ export function writeSkyLightRead(
   cubemapScale = 1,
   occlusion: SkyLightOcclusionUse = NO_SKY_LIGHT_OCCLUSION,
   cube: SkyLightCubeUse = FIRST_SKY_LIGHT_CUBE,
+  capturePreExposure = 1,
 ) {
   const o = skyLightOcclusion(part)
   const curve = skyLightContrastCurve(o.contrast)
   out.set([
-    ...skyLightColor(part, skyLighting, cubemapScale),
+    ...skyLightColor(part, skyLighting, cubemapScale, capturePreExposure),
     Math.max(part.light.volumetricScatteringIntensity, 0),
     skyLighting && mips > 0 ? 1 : 0,
     mips - 1,

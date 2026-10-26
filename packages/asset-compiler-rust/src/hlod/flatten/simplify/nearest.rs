@@ -6,7 +6,7 @@ use super::reduce::Soup;
 use super::sources::Sources;
 use super::volume::tree::Tree;
 use rayon::prelude::*;
-use trillion3d_math::vector::vec3::cross;
+use trillion3d_math::vector::vec3::{cross, unit_where_squared};
 use trillion3d_math::vector::vecn::{dot, sub};
 
 /// The closest-polygon tree of a field on a voxel of `voxel` centimetres, over `sources`.
@@ -43,15 +43,15 @@ pub(super) fn blend<const N: usize>(w: [f64; 3], values: [[f32; N]; 3]) -> [f32;
 }
 
 /// `v` scaled to unit length when its squared length passes `tolerance`; `false`, left as it is,
-/// otherwise.
+/// otherwise (`unit_where_squared`).
 pub(super) fn normalize(v: &mut [f32; 3], tolerance: f32) -> bool {
-    let squared = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-    if squared > tolerance {
-        let scale = 1.0 / squared.sqrt();
-        v.iter_mut().for_each(|x| *x *= scale);
-        return true;
+    match unit_where_squared(*v, |squared| squared > tolerance) {
+        Some(unit) => {
+            *v = unit;
+            true
+        }
+        None => false,
     }
-    false
 }
 
 /// The tolerance a unit vector is made unit under by default.

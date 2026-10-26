@@ -4,11 +4,11 @@ import { PYRAMID_BOX_WGSL } from '../../geometry/dag/shader/occlusionWgsl.ts'
 import { OCCLUSION_MAIN, OCCLUSION_POST } from './contract.ts'
 import { BOX3 } from './patchWgsl.ts'
 
-/** What the view makes of a patch's box (`patchSight`): none of the image, seen, or hidden by the
- *  pyramid. */
+/** What the view makes of a patch's box (`patchSight`): none of the image (`SIGHT_GONE`), seen (1), or
+ *  hidden by the pyramid (`SIGHT_HIDDEN`). */
 export const SIGHT_GONE = 0,
-  SIGHT_SEEN = 1,
   SIGHT_HIDDEN = 2
+const SIGHT_SEEN = 1
 
 /** Whether the world's box `box` of a row (in its local space, `world` its placement) lies wholly
  *  outside one plane of the view's frustum, or behind the eye: the corners of the box through the
@@ -69,5 +69,3 @@ export const patchSightWgsl = (clipping: boolean) =>
  return ${SIGHT_SEEN}u;
 }`,
   )
-/** The sight of a program made for the project switch. */
-export const PATCH_SIGHT_WGSL = patchSightWgsl(true)

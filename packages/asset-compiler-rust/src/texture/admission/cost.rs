@@ -36,7 +36,7 @@ pub(super) fn estimate(
     // block's bytes and a half (`quality::first_alike`) — and a level's file — its deflated
     // records, at most its blocks, held twice while assembled. The stored family cooks alone
     // first; the other families then cook side by side (`bake.rs`); no family, no block chain.
-    // Coverage's scale table is 256*256 bytes. Two temporary tails coexist with clones.
+    // Two temporary tails coexist with clones.
     let family = blocks.saturating_mul(6).saturating_add(rgba);
     let cooking = match families {
         0 => 0,
@@ -48,28 +48,24 @@ pub(super) fn estimate(
         .saturating_add(256 * 256)
         .saturating_add(tail.saturating_mul(2));
     Cost {
-        working: source_and_payload.saturating_add(decode_and_alpha(pixels).max(bake)),
+        working: source_and_payload.saturating_add(decode_buffers(pixels).max(bake)),
         retained: tail.saturating_mul(readers),
     }
 }
 
-/// The cutout step's decode, measured and dropped: the bake's decode and alpha buffers alone, no
-/// chain and no tail retained.
+/// A decode worked on and dropped: the bake's decode buffers alone, no chain and no tail retained.
 pub(super) fn decoding(width: u32, height: u32, source_and_payload: usize) -> Cost {
     let pixels = (width as usize).saturating_mul(height as usize);
     Cost {
-        working: source_and_payload.saturating_add(decode_and_alpha(pixels)),
+        working: source_and_payload.saturating_add(decode_buffers(pixels)),
         retained: 0,
     }
 }
 
-/// The larger of a decode and an alpha classification of `pixels` texels.
-fn decode_and_alpha(pixels: usize) -> usize {
+/// The buffers a decode of `pixels` texels holds.
+fn decode_buffers(pixels: usize) -> usize {
     let rgba = pixels.saturating_mul(4);
     // An RGBA32F intermediate (16 bytes/texel) plus the returned RGBA8.
     // Float-only drivers are still rejected by bake, without changing their pixels.
-    let decode = pixels.saturating_mul(16).saturating_add(rgba);
-    // Alpha classification owns one byte/texel of contour distances.
-    let alpha = rgba.saturating_add(pixels);
-    decode.max(alpha)
+    pixels.saturating_mul(16).saturating_add(rgba)
 }

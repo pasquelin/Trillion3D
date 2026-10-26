@@ -31,7 +31,8 @@ import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
  * more than its slot, its run of ranks or of groups, or a burst.
  *
  * The program that holds it declares, over its own bindings: `poolSlotCount()`, the slots swept;
- * `poolSlotAge(j)`, `poolSlotTier(j)` and `poolInUse()`, what `poolRank` reads; `poolBurst()`;
+ * `poolSlotAge(j)`, `poolSlotTier(j)` and `poolInUse()`, what `poolRank` reads, and `poolAgeStep(age)`
+ * where the doubling of the age is not the pool's step (`POOL_AGE_STEP_WGSL`); `poolBurst()`;
  * the sort's words and its scratch (`poolSortWordsWgsl`); `poolPlaced(total)`; `poolEmit(at, j)`.
  */
 export const POOL_SORT_WGSL = wgslBlock(

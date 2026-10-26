@@ -15,14 +15,20 @@ import {
   type FogBindings,
   type FogProgramName,
 } from './bindings.ts'
-import { FOG_GRID_WGSL, FOG_CELLS_WGSL } from './gridWgsl.ts'
+import { fogGridWgsl, FOG_CELLS_WGSL } from './gridWgsl.ts'
 import { FOG_FURTHEST_WGSL, FOG_INTEGRATE_WGSL } from './integrateWgsl.ts'
 import { FOG_STATIC_FORMAT } from './layout.ts'
 import { FOG_FRAME_STRUCT_WGSL, fogBlockOf } from './readWgsl.ts'
 import { FOG_SCATTER_WGSL } from './scatterWgsl.ts'
 import { FOG_STATIC_WGSL } from './staticWgsl.ts'
 import { FOG_NO_SKY_VISIBILITY_WGSL, FOG_SKY_VISIBILITY_WGSL } from './skyVisibilityWgsl.ts'
-import { FOG_VOXEL_PREPARE_WGSL, FOG_VOXEL_STRUCTS_WGSL, FOG_VOXEL_WGSL } from './voxelWgsl.ts'
+import {
+  FOG_VOXEL_PREPARE_WGSL,
+  FOG_VOXEL_STRUCTS_WGSL,
+  FOG_VOXEL_WGSL,
+  fogVoxelWgsl,
+} from './voxelWgsl.ts'
+import type { VoxelGraphSet } from './voxelGraph.ts'
 
 const b = FOG_BINDING
 
@@ -60,7 +66,7 @@ const declarations = (bindings: FogBindings) =>
 
 /** A shadowed light's shadow, the sun's or a local light's whose `shadowsFog` is set: one sample of
  *  the light's virtual shadow map at the cell's point. */
-const SHADOW = directShadowWgsl(0, {
+const SHADOW = directShadowWgsl({
   vsm: {
     pageTable: b.pageTable,
     projectionData: b.projectionData,
@@ -73,9 +79,27 @@ const SHADOW = directShadowWgsl(0, {
   kinds: VSM_TRACE_KINDS_BOTH,
 })
 
-/** What the fog reads past the light buffer in the scatter: the cubemap, and the sampler it and the
- *  volume before are read through. */
-const SCATTER_FOG = fogBlockOf({ group: 0, cubemap: b.cubemap, sampler: b.sampler })
+/** What the fog reads past the light buffer in the scatter: the cubemap, the sampler it and the
+ *  volume before are read through, and the lists of the local fog volumes over each tile; without the
+ *  lists or the volumes' code where `local` is false. */
+const scatterFog = (local: boolean) =>
+  fogBlockOf({
+    group: 0,
+    cubemap: b.cubemap,
+    sampler: b.sampler,
+    ...(local ? { tiles: b.localTiles } : { localFog: false }),
+  })
+
+/** The fog's text in the static term's pass: the cubemap and the sampler, and no lists of local fog
+ *  volumes (it binds none: the view's own list, which it never reads, the pass reading no volume);
+ *  none of the volumes' code where `local` is false. */
+const staticFog = (local: boolean) =>
+  fogBlockOf({
+    group: 0,
+    cubemap: b.cubemap,
+    sampler: b.sampler,
+    ...(!local && { localFog: false }),
+  })
 
 /** The light functions the scatter reads for the sun and, where the setting says, the local lights. */
 const LIGHT_FUNCTION = lightFunctionReadWgsl({
@@ -96,28 +120,29 @@ const CLOUD_SHADOW = cloudShadowReadWgsl({
 /** The sky light the scatter's sky is read through: its harmonics. */
 const SKY_LIGHT = skyLightDiffuseWgsl({ group: 0, harmonics: b.skyHarmonics, params: b.skyParams })
 
-/** The scatter, over the sky's visibility `visibility` finds (`FOG_SKY_VISIBILITY_WGSL`, or `FOG_NO_SKY_VISIBILITY_WGSL`). */
-const scatterProgram = (bindings: FogBindings, visibility: WgslDecl) =>
+/** The scatter, over the sky's visibility `visibility` finds (`FOG_SKY_VISIBILITY_WGSL`, or `FOG_NO_SKY_VISIBILITY_WGSL`),
+ *  with the local fog volumes' code unless `local` is false. */
+const scatterProgram = (bindings: FogBindings, visibility: WgslDecl, local: boolean) =>
   wgslProgram(`${declarations(bindings)}\n`, [
     DIRECT_LIGHT_WGSL,
     TILE_SLICE_WGSL,
     SHADOW,
     FOG_FRAME_STRUCT_WGSL,
-    SCATTER_FOG,
+    scatterFog(local),
     LIGHT_FUNCTION,
     CLOUD_SHADOW,
     SKY_LIGHT,
     visibility,
     FOG_SCATTER_WGSL,
-    FOG_GRID_WGSL,
+    fogGridWgsl(local),
   ])
 
 /** The static term's pass: the lightmap beside the sky light's read and the fog's text. */
-const staticProgram = (bindings: FogBindings) =>
+const staticProgram = (bindings: FogBindings, local: boolean) =>
   wgslProgram(`${declarations(bindings)}\n`, [
     DIRECT_LIGHT_WGSL,
     FOG_FRAME_STRUCT_WGSL,
-    SCATTER_FOG,
+    staticFog(local),
     SKY_LIGHT,
     volumetricLightmapWgsl(0, b.lightmap),
     FOG_STATIC_WGSL,
@@ -134,34 +159,55 @@ const staticProgram = (bindings: FogBindings) =>
  *   (`FOG_SKY_VISIBILITY_WGSL`, a sample at a time); made once an image asks for it, the plain `scatter` serving
  *   until then and wherever the field is not asked for;
  * - `static`: the baked light each cell scatters (`FOG_STATIC_WGSL`), a pass of its own before the scatter,
- *   which binds the most sampled textures a stage may: the volumetric lightmap's nine, the depth, the
+ *   which binds the most sampled textures a stage may: the volumetric lightmap's eight, the depth, the
  *   furthest depths and the cubemap; the scatter loads what it writes as a storage texture;
  * - `integrate`: the sum of the cells along each column (`FOG_INTEGRATE_WGSL`);
  * - `prepare` and `voxelize`: the objects of the volume material domain in the volume, before the
  *   scatter (`voxelWgsl.ts`): the slices each reaches, then the medium each cell holds of them.
  */
 
-export const FOG_PROGRAMS = {
-  furthest: wgslProgram(`${declarations(FOG_PROGRAM_BINDINGS.furthest)}\n`, [
+/** The voxelisation of the objects that wear the graphs of `set` (`voxelGraph.ts`): the plain
+ *  voxelisation's text with the programs' functions, made when the set is known. */
+export const fogGraphProgram = (set: VoxelGraphSet) =>
+  wgslProgram(`${declarations(FOG_PROGRAM_BINDINGS.voxelize)}\n`, [
     FOG_FRAME_STRUCT_WGSL,
-    hizDepthWgsl(0, b.hiz),
-    FOG_FURTHEST_WGSL,
-  ]),
-  scatter: scatterProgram(FOG_PROGRAM_BINDINGS.scatter, FOG_NO_SKY_VISIBILITY_WGSL),
-  scatterSky: scatterProgram(FOG_PROGRAM_BINDINGS.scatterSky, FOG_SKY_VISIBILITY_WGSL(b.field)),
-  static: staticProgram(FOG_PROGRAM_BINDINGS.static),
-  integrate: wgslProgram(`${declarations(FOG_PROGRAM_BINDINGS.integrate)}\n`, [
-    FOG_FRAME_STRUCT_WGSL,
-    FOG_CELLS_WGSL,
-    FOG_INTEGRATE_WGSL,
-  ]),
-  prepare: wgslProgram(`${declarations(FOG_PROGRAM_BINDINGS.prepare)}\n`, [
-    FOG_FRAME_STRUCT_WGSL,
-    FOG_VOXEL_STRUCTS_WGSL,
-    FOG_VOXEL_PREPARE_WGSL,
-  ]),
-  voxelize: wgslProgram(`${declarations(FOG_PROGRAM_BINDINGS.voxelize)}\n`, [
-    FOG_FRAME_STRUCT_WGSL,
-    FOG_VOXEL_WGSL,
-  ]),
-} as const satisfies Record<FogProgramName, string>
+    fogVoxelWgsl(set),
+  ])
+
+const fogPrograms = (local: boolean) =>
+  ({
+    furthest: wgslProgram(`${declarations(FOG_PROGRAM_BINDINGS.furthest)}\n`, [
+      FOG_FRAME_STRUCT_WGSL,
+      hizDepthWgsl(0, b.hiz),
+      FOG_FURTHEST_WGSL,
+    ]),
+    scatter: scatterProgram(FOG_PROGRAM_BINDINGS.scatter, FOG_NO_SKY_VISIBILITY_WGSL, local),
+    scatterSky: scatterProgram(
+      FOG_PROGRAM_BINDINGS.scatterSky,
+      FOG_SKY_VISIBILITY_WGSL(b.field),
+      local,
+    ),
+    static: staticProgram(FOG_PROGRAM_BINDINGS.static, local),
+    integrate: wgslProgram(`${declarations(FOG_PROGRAM_BINDINGS.integrate)}\n`, [
+      FOG_FRAME_STRUCT_WGSL,
+      FOG_CELLS_WGSL,
+      FOG_INTEGRATE_WGSL,
+    ]),
+    prepare: wgslProgram(`${declarations(FOG_PROGRAM_BINDINGS.prepare)}\n`, [
+      FOG_FRAME_STRUCT_WGSL,
+      FOG_VOXEL_STRUCTS_WGSL,
+      FOG_VOXEL_PREPARE_WGSL,
+    ]),
+    voxelize: wgslProgram(`${declarations(FOG_PROGRAM_BINDINGS.voxelize)}\n`, [
+      FOG_FRAME_STRUCT_WGSL,
+      FOG_VOXEL_WGSL,
+    ]),
+  }) as const satisfies Record<FogProgramName, string>
+
+/** The programs of a session that supports the local fog volumes (the default). */
+export const FOG_PROGRAMS = fogPrograms(true)
+
+let withoutLocal: ReturnType<typeof fogPrograms> | undefined
+/** The programs of a session whose project switch `localFogVolumeSupport` is off: none holds any of the local
+ *  fog volumes' code. Made at the first ask. */
+export const fogProgramsWithoutLocal = () => (withoutLocal ??= fogPrograms(false))

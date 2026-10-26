@@ -1,16 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
-import {
-  applySceneFlag,
-  DEFAULT_SCENE,
-  gltfUrlIn,
-  REFERENCE_SCENES,
-  sceneDerived,
-  sceneOf,
-} from './scene.ts'
+import { applySceneFlag, DEFAULT_SCENE, REFERENCE_SCENES, sceneDerived, sceneOf } from './scene.ts'
 import { catalogueScenes } from './assetsCatalogue.ts'
 import { parseArgs } from '../harness/flags.ts'
 
@@ -19,32 +9,6 @@ test('the reference scenes are the public ones, the cut first and the mirror nex
   assert.equal(DEFAULT_SCENE, 'sponza')
   // Both are catalogue models: what the bench names, `assets.ts` knows how to fetch.
   for (const scene of REFERENCE_SCENES) assert.ok(catalogueScenes().includes(scene), scene)
-})
-
-test('gltfUrlIn takes the glTF from the sources when it is there', () => {
-  const root = join(tmpdir(), `trillion3d-scene-gltf-${Date.now()}`)
-  mkdirSync(join(root, 'ville'), { recursive: true })
-  writeFileSync(join(root, 'ville', 'ville.gltf'), '{}')
-  try {
-    assert.equal(gltfUrlIn(root, 'ville'), '/benchmark-assets/ville/ville.gltf')
-  } finally {
-    rmSync(root, { recursive: true, force: true })
-  }
-})
-
-test('gltfUrlIn falls back to source.gltf of the compiled cache', () => {
-  const root = join(tmpdir(), `trillion3d-scene-src-${Date.now()}`)
-  const dir = join(root, 'village-derived', 'native', 'full', 'abc')
-  mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, 'source.gltf'), '{}')
-  try {
-    assert.equal(
-      gltfUrlIn(root, 'village'),
-      '/benchmark-assets/village-derived/native/full/abc/source.gltf',
-    )
-  } finally {
-    rmSync(root, { recursive: true, force: true })
-  }
 })
 
 test('applySceneFlag sets the derived cache on sides that do not have one', () => {

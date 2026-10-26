@@ -1,5 +1,5 @@
 // The records a ray decodes (`createRayRecords`): a cluster the pool holds is tested, drawn by a view
-// or not — no row is read —; one the pool gives back is not; a line has no area; the records go up
+// or not — no drawn cluster is read —; one the pool gives back is not; a line has no area; the records go up
 // as the runs the pool's moves wrote.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -15,7 +15,7 @@ import {
   RECORD_WORDS,
 } from './rayRecords.ts'
 
-/** Two placements of one cluster each, the second a line's: their records 3 and 5, no row held. */
+/** Two placements of one cluster each, the second a line's: their records 3 and 5, no cluster drawn. */
 function rig() {
   const slots = new Map<string, number>()
   const record = (url: string, lineWidth = 0) => ({
@@ -28,7 +28,7 @@ function rig() {
   const rt = {
     layout: {
       recordOf: (page: number) => recs[page],
-      rows: { offsetOf: (page: number) => slots.get(recs[page]?.url) ?? -1, rowsRevision: 0 },
+      clusters: { offsetOf: (page: number) => slots.get(recs[page]?.url) ?? -1 },
       placement: { baseOfRoot: [0, 1], packedCount: 2 },
       packedPages: recs,
     },
@@ -56,7 +56,7 @@ test('a cluster the pool holds is tested out of every view; one it gives back is
   assert.equal(records.sync(tables), true)
   const { words } = records
   assert.equal(words[3 * RECORD_WORDS], 41, 'its slot, plus one')
-  assert.equal(flags(words, 3), FLAG_CLUSTER_PAGE | RECORD_DRAWABLE, 'tested with no row held')
+  assert.equal(flags(words, 3), FLAG_CLUSTER_PAGE | RECORD_DRAWABLE, 'tested with no cluster drawn')
   assert.equal(flags(words, 5) & RECORD_DRAWABLE, 0, 'out of the pool, not tested')
   assert.ok(flags(words, 5) & RECORD_LINE, 'a line is met as its segments')
   assert.equal(flags(words, 5) & RECORD_NO_AREA, 0, 'a line is not passed by')

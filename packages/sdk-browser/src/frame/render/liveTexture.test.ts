@@ -107,7 +107,7 @@ test('a picture alone leaves the rows and the records as they are; a value write
       backend.render(cam)
       const table = gpu.writes
         .slice(buffers)
-        .some((w) => w.buffer.label === 'Trillion3D page table')
+        .some((w) => w.buffer.label === 'Trillion3D decoded clusters')
       const sent = writes.slice(textures)
       return {
         table,

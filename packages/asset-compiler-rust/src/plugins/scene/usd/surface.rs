@@ -8,6 +8,10 @@
 use super::*;
 use crate::plugins::scene::convert::Vertices;
 use crate::plugins::scene::corners::{gltf_uv, Corners};
+use trillion3d_page_codec::MAX_UV_SETS;
+
+/// What identifies a face corner: its point, the slots of its normal and of each coordinate set.
+type Key = [u32; 2 + MAX_UV_SETS];
 
 /// Tables of a surface, read once for all its parts.
 pub(super) struct Surface {
@@ -16,7 +20,8 @@ pub(super) struct Surface {
     /// Rank of the first corner of each face, and its corner count.
     faces: Vec<(usize, usize)>,
     normals: Option<primvar::Primvar<[f32; 3]>>,
-    uvs: Option<primvar::Primvar<[f32; 2]>>,
+    /// The coordinate sets, `st`, `st1` to `st7` (`texture::set_rank`): none for a set it lacks.
+    uvs: [Option<primvar::Primvar<[f32; 2]>>; MAX_UV_SETS],
     reversed: bool,
     /// Faces that `holeIndices` makes invisible: they are not emitted.
     holes: BTreeSet<usize>,
@@ -36,9 +41,16 @@ impl Surface {
             primvar::read(prim, "normals", read::triples, count, corner_count).or_else(|| {
                 primvar::read(prim, "primvars:normals", read::triples, count, corner_count)
             });
-        let uvs = primvar::read(prim, "primvars:st", read::pairs, count, corner_count);
-        let sampled =
-            normals.as_ref().is_some_and(|(_, s)| *s) || uvs.as_ref().is_some_and(|(_, s)| *s);
+        let uvs: [_; MAX_UV_SETS] = std::array::from_fn(|set| {
+            let name = if set == 0 {
+                "primvars:st".to_string()
+            } else {
+                format!("primvars:st{set}")
+            };
+            primvar::read(prim, &name, read::pairs, count, corner_count)
+        });
+        let sampled = normals.as_ref().is_some_and(|(_, s)| *s)
+            || uvs.iter().flatten().any(|(_, sampled)| *sampled);
         if sampled {
             world.scene.report.add(world::TIME_SAMPLE);
         }
@@ -47,7 +59,7 @@ impl Surface {
             corners,
             faces,
             normals: normals.map(|(primvar, _)| primvar),
-            uvs: uvs.map(|(primvar, _)| primvar),
+            uvs: uvs.map(|set| set.map(|(primvar, _)| primvar)),
             reversed: read::text_attribute(prim, "orientation").as_deref() == Some("leftHanded"),
             holes,
         }
@@ -59,7 +71,7 @@ impl Surface {
         world: &mut World<'_>,
         part: &subset::Part,
     ) -> Option<(Value, usize)> {
-        let mut out: Corners<[u32; 3]> = Corners::new(Vertices::default());
+        let mut out: Corners<Key> = Corners::new(Vertices::default());
         let cancelled = world.cancelled;
         for face in &part.faces {
             // An invisible face enters neither the buffer nor the indices: its vertices are
@@ -112,27 +124,38 @@ impl Surface {
     /// What identifies a face corner — its point, and the slots of its normal and texture
     /// coordinate — and the values its vertex carries. `None` when a table is too short: the
     /// corner, and its face, are dropped rather than leaving a half-vertex.
-    fn key(&self, corner: usize, face: usize) -> Option<([u32; 3], Values)> {
+    fn key(&self, corner: usize, face: usize) -> Option<(Key, Values)> {
         let point = self.point_index(corner)?;
         let slot = |values: Option<u32>| values.unwrap_or(0);
         let normal = match self.normals.as_ref() {
             Some(values) => Some(values.slot(corner, face, point)?),
             None => None,
         };
-        let uv = match self.uvs.as_ref() {
-            Some(values) => Some(values.slot(corner, face, point)?),
-            None => None,
-        };
-        let key = [u32::try_from(point).ok()?, slot(normal), slot(uv)];
+        let mut uv = [None; MAX_UV_SETS];
+        for (set, values) in self.uvs.iter().enumerate() {
+            if let Some(values) = values {
+                uv[set] = Some(values.slot(corner, face, point)?);
+            }
+        }
+        let mut key = [0; 2 + MAX_UV_SETS];
+        key[..2].copy_from_slice(&[u32::try_from(point).ok()?, slot(normal)]);
+        for (set, rank) in uv.iter().enumerate() {
+            key[2 + set] = slot(*rank);
+        }
         let values = Values {
             position: *self.points.get(point)?,
             normal: match (&self.normals, normal) {
                 (Some(values), Some(slot)) => Some(unit(values.get(slot)?)),
                 _ => None,
             },
-            uv: match (&self.uvs, uv) {
-                (Some(values), Some(slot)) => Some(gltf_uv(values.get(slot)?)),
-                _ => None,
+            uv: {
+                let mut sets = [None; MAX_UV_SETS];
+                for (set, values) in self.uvs.iter().enumerate() {
+                    if let (Some(values), Some(slot)) = (values, uv[set]) {
+                        sets[set] = Some(gltf_uv(values.get(slot)?));
+                    }
+                }
+                sets
             },
         };
         Some((key, values))
@@ -143,7 +166,7 @@ impl Surface {
 struct Values {
     position: [f32; 3],
     normal: Option<[f32; 3]>,
-    uv: Option<[f32; 2]>,
+    uv: [Option<[f32; 2]>; MAX_UV_SETS],
 }
 
 impl Values {
@@ -151,7 +174,11 @@ impl Values {
     fn write(vertices: &mut Vertices, values: Self) {
         vertices.positions.extend(values.position);
         vertices.normals.extend(values.normal.into_iter().flatten());
-        vertices.uvs.extend(values.uv.into_iter().flatten());
+        let [first, rest @ ..] = values.uv;
+        vertices.uvs.extend(first.into_iter().flatten());
+        for (extra, uv) in vertices.extra_uvs.iter_mut().zip(rest) {
+            extra.extend(uv.into_iter().flatten());
+        }
     }
 }
 

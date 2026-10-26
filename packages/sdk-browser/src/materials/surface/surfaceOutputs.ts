@@ -9,13 +9,10 @@ export const SURFACE_WORDS_FORMAT = 'r32uint'
  *  metalness, then the normal and roughness; the emission follows when the frame holds it
  *  (`SurfaceBuffer.layers`). */
 export const SURFACE_COLOUR_LAYERS = { base: 0, normal: 1 } as const
-/** The words' layers: the flags, then the shadow receiver's two words
- *  (`../../visibility/shader/receiverTargetWgsl.ts`). */
-export const SURFACE_WORDS = { flags: 0, receiver: 1 } as const
-/** The words the shadow receiver takes, a layer each: its offset's, then its plane's. */
-export const SURFACE_RECEIVER_WORDS = 2
+/** The words' layers: the flags. */
+export const SURFACE_WORDS = { flags: 0 } as const
 /** Layers of the words. */
-export const SURFACE_WORD_LAYERS = SURFACE_WORDS.receiver + SURFACE_RECEIVER_WORDS
+export const SURFACE_WORD_LAYERS = 1
 
 /** THE SURFACE TARGETS a pass writes before lighting, in the order of the surfaces' views
  *  (`SurfaceBuffer.views`): name, WGSL type, format, and the layered target and layer that hold it

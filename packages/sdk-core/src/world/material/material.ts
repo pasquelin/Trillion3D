@@ -10,7 +10,13 @@ import {
 import { Color, type ColorInput } from '../math/color.ts'
 import { listen, unlisten } from '../observed.ts'
 import { createListeners, type Listeners } from '../../runtime/listeners.ts'
-import type { Blending, Side } from '../constants/index.ts'
+import {
+  DEFAULT_TRANSLUCENCY_LIGHTING,
+  type Blending,
+  type Side,
+  type TranslucencyLighting,
+  type TranslucencyPass,
+} from '../constants/index.ts'
 import {
   forgetLightFunctionMaterial,
   LIGHT_FUNCTION_MATERIAL_KIND,
@@ -87,7 +93,26 @@ export class Material {
   /** Whether the surface writes its depth. */
   depthWrite = true
   /** Whether the surface hides behind closer things. */ depthTest = true
-  /** Whether a see-through (`transparent`) surface still casts a shadow, paler the more see-through it is. */ transparentShadow = false
+  /** Whether the `emissive` output of the material's graph may be negative: held at zero unless it is. */ allowNegativeEmissive = false
+  /** The value the `opacityMask` output of the material's graph must reach for a pixel to be drawn: unset, the `alphaTest` where above 0, else 0.3333. */ declare opacityMaskClipValue?: number
+  /** Whether the `opacityMask` output of the material's graph cuts by a dither of the output instead of a hard threshold. */ ditherOpacityMask = false
+  /** Whether a double-sided see-through surface is drawn in two passes, its back faces then its front faces. */ twoSidedPasses = false
+  /** Whether the roughness is raised to at least the one the change of the vertex normal across the pixel gives it. */ normalCurvatureToRoughness = false
+  /** The greatest distance in metres along each axis the `worldPositionOffset` output may move a vertex, which also grows the bounds of the surface's clusters; 0 holds nothing and grows nothing. */ maxWorldPositionOffset = 0
+  /** Whether the `worldPositionOffset` output is evaluated whatever the object's switch (`Object3D.evaluateWorldPositionOffset`) and its distance (`worldPositionOffsetDisableDistance`) say. */ alwaysEvaluateWorldPositionOffset = false
+  /** How far, in metres, the `displacement` output of the material's graph moves a surface along its normal where it is 1 above where it is `displacementCenter`: the displaced height is `(output - displacementCenter) * displacementMagnitude`. */ displacementMagnitude = 4
+  /** The value of the `displacement` output that leaves the surface where it is, from 0 to 1. */ displacementCenter = 0.5
+  /** Where the displacement of the surface fades out with distance, as the on-screen size in pixels of its largest displacement: whole above `displacementFadeStart`, gone below `displacementFadeEnd` (which is the smaller). Both unset, it never fades. */ declare displacementFadeStart?: number
+  /** See `displacementFadeStart`. */ declare displacementFadeEnd?: number
+  /** Whether a see-through surface receives the clouds in front of it as part of its fog: a rough approximation that can help where it lies behind a cloud. It needs the fog (`fog`). */ cloudFog = false
+  /** Whether the fog of a see-through surface is worked out for each pixel instead of each vertex and interpolated: the exact fog, at the cost of a fog computed in every pixel of the surface. A surface of a large triangle, or one close enough to the fog's start to show its steps, wants it. */ computeFogPerPixel = false
+  /** How the lights light a see-through surface: `'volumetricNonDirectional'` (the default), read from the translucency lighting volume (`translucencyVolume`, a field of the light around the camera) as a medium with no direction; `'volumetric'`, as a medium; `'volume'`, as a surface; `'forward'`, each light evaluated for the pixel. A material imported from a scene file is given `'volume'`, or `'forward'` where it transmits. */ translucencyLighting: TranslucencyLighting =
+    DEFAULT_TRANSLUCENCY_LIGHTING
+  /** The pass of the image a see-through surface is drawn in: `'afterDepthOfField'` (the default), apart from the scene and laid over the image once the depth of field has read it, so that no blur reaches it; `'beforeDepthOfField'`, into the scene, blurred with it; `'afterMotionBlur'`, laid over the image after the temporal anti-aliasing and the motion blur, so neither smears it. */ translucencyPass: TranslucencyPass =
+    'afterDepthOfField'
+  /** Whether the shadow of a point, spot or rectangle light reaches a see-through surface even where the project switch `shadowTranslucentLocalLights` is off. It is read as `translucentLocalLightShadowQuality` says. */ translucentLocalLightShadow = false
+  /** How a see-through surface reads the shadow of the local lights that reach it, from 0 to 1: above 0 the full trace the opaque surfaces get, at 0 one sample of the light's map (unless the project switch `shadowTranslucentQuality` traces every translucent surface). Needs `translucentLocalLightShadow`, or the project switch `shadowTranslucentLocalLights`, for the lights to be shadowed at all. */ translucentLocalLightShadowQuality = 0
+  /** How a see-through surface reads the sun's shadow, from 0 to 1: above 0 the full trace the opaque surfaces get, at 0 one sample of the sun's map (unless the project switch `shadowTranslucentQuality` traces every translucent surface). */ translucentDirectionalLightShadowQuality = 0
   /** Physics matter preset of the bodies wearing it. */ declare physics?: PhysicsMaterialPreset
   /** kg/m³, for a body's mass. */ declare density?: number
   /** Physics friction. */ declare friction?: number
@@ -182,10 +207,14 @@ export class Material {
     if (this.kind === LIGHT_FUNCTION_MATERIAL_KIND) return 'lightFunction'
     return this.kind === VOLUME_MATERIAL_KIND ? 'volume' : 'surface'
   }
+  /** The emissive colour times its intensity, as three numbers. */
+  private emitted() {
+    return this.emissive.toArray().map((c) => c * this.emissiveIntensity)
+  }
   /** The outputs of a material of the volume domain, held to their ranges: its albedo, its
    *  extinction and its emissive light (`emissive` times `emissiveIntensity`). */
   volumeOutputs(): VolumeMaterial {
-    const emissive = this.emissive.toArray().map((c) => c * this.emissiveIntensity)
+    const emissive = this.emitted()
     return resolveVolumeMaterial({
       albedo: (this.albedo as Color | undefined)?.toArray(),
       extinction: this.extinction as number | undefined,
@@ -197,7 +226,7 @@ export class Material {
    *  outside the physical family is drawn through the host family of its name, which the engine
    *  maps onto its one lighting model (`surfaceModel.ts`). */
   surface(): EngineMaterial {
-    const emitted = this.emissive.toArray().map((c) => c * this.emissiveIntensity)
+    const emitted = this.emitted()
     return {
       baseColor: this.color.toArray(),
       emissive: emitted as [number, number, number],

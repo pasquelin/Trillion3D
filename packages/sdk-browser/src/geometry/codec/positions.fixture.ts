@@ -8,11 +8,12 @@ import { crossVector3 } from '../../../../math/src/vector/vector.ts'
 
 export type Mesh = { indices: number[]; attributes: PageAttributes }
 
-/** The largest flat-shaded page: 21,845 triangles of a `106 × 106` height field, each of its own
- *  three vertices — 65,535 of them — under its face normal, with a texture set and a colour. */
-export function largestFlatMesh(): Mesh {
+/** A flat-shaded page: 72 triangles of a `7 × 7` height field, each of its own three vertices —
+ *  216 of them, under the 256 a page holds — under its face normal, with a texture set and a
+ *  colour. */
+export function flatMesh(): Mesh {
   const rand = xorshiftRandom(106),
-    side = 106
+    side = 7
   const step = 0.05 + rand() * 2,
     heights = Array.from({ length: side * side }, () => rand() * 3 - 1.5)
   const corner = (i: number) => [(i % side) * step, heights[i], Math.floor(i / side) * step]
@@ -40,7 +41,7 @@ export function largestFlatMesh(): Mesh {
   })
   const p = (i: number, k: number) => positions[i * 3 + k]
   return {
-    indices: grid.map((_, i) => i).slice(0, 65535),
+    indices: grid.map((_, i) => i),
     attributes: {
       POSITION: { itemSize: 3, array: new Float32Array(positions) },
       NORMAL: { itemSize: 3, array: new Float32Array(normals) },

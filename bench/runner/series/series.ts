@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Page } from 'playwright'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
-import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
+import { encodePng } from '../../../packages/sdk-node/src/image/png.mts'
 import { pageBudget, geometryPool } from './seriesPools.ts'
 import { measurePayload, runInPage } from './seriesPage.ts'
 import type { Side } from '../harness/sideOptions.ts'
@@ -22,7 +22,7 @@ export async function runSeries(
   suffix = '',
 ): Promise<{ row: Row; captureFile: string }> {
   const { MANIFEST, OUT, settings, lights, poses } = ctx
-  // The side's engine (`--engine-<side>`): how the engine and the Three witness share one run.
+  // The side's engine (`--engine-<side>`).
   const ENGINE = side.engine
   const captureFile = `${side.name}-${view}-e${pixelError}${suffix}.png`
   const result = await runInPage(
@@ -85,8 +85,6 @@ export async function runSeries(
     lights: lights ? lights.resume : null,
     // Lights that came from the source file, as the engine declared them at open.
     importedLights: result.importedLights ?? null,
-    // What the Three witness received from the store; `null` when this side does not draw through Three.
-    witnessLights: result.witnessLights ?? null,
     movingNode: result.movingNode ?? null,
     png: capture ? captureFile : null,
     captureStatus: result.captureStatus,

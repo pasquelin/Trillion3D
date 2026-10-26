@@ -65,7 +65,10 @@ function asBrick(scene: K.ScenePreparee, rank: number, served: Map<string, Uint8
     count = bricks * VOXEL_BRICK_INDICES,
     vertexCount = bricks * VOXEL_BRICK_CORNERS
   for (const page of primitive.pages) scene.indices.delete(page.url)
-  const geometry = { url, sha256: 'proof', bytes: bytes.byteLength, vertexCount }
+  const geometry = {
+    ...{ url, sha256: 'proof', bytes: bytes.byteLength, vertexCount },
+    ...{ residentBytes: bytes.byteLength, residentOffset: 0 },
+  }
   const flags = { indexCount: count, flags: GEOMETRY_VOXEL, uncompressedBytes: bytes.byteLength }
   const band = { level: 0, lodError: 0, sphere: [0, 0, 0, 0.8], parentError: null }
   const links = { parentSphere: null, group: null, source: null }

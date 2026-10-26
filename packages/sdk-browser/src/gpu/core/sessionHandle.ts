@@ -40,7 +40,16 @@ type Labelled = { label?: string } | undefined
 type Queue = Pick<
   GPUQueue,
   'writeBuffer' | 'writeTexture' | 'copyExternalImageToTexture' | 'submit' | 'onSubmittedWorkDone'
->
+> & {
+  /** The submits this session made: what tells a device answer taken at one submit from one that
+   *  later submits have outrun (`queueSubmits`). */
+  readonly submits: number
+}
+
+/** How many submits the session's queue has taken, or `undefined` for a device that counts none:
+ *  a caller that kept `onSubmittedWorkDone` at a count reuses it only while the count stands. */
+export const queueSubmits = (device: GPUDevice | undefined) =>
+  (device?.queue as Partial<Queue> | undefined)?.submits
 
 /** Each handle → the device behind it. */
 const devices = new WeakMap<object, GPUDevice>()
@@ -48,6 +57,31 @@ const devices = new WeakMap<object, GPUDevice>()
 /** The device behind a session's handle — what every session shares is created on it, and the
  *  canvas takes it; `device` itself when it is no handle. */
 export const sharedGpuDevice = (device: GPUDevice) => devices.get(device) ?? device
+
+/** The device's queue as a session sees it: its writes and submits go no more once it is released. */
+function sessionQueue(device: GPUDevice, isReleased: () => boolean): Queue {
+  let submits = 0
+  return {
+    get submits() {
+      return submits
+    },
+    writeBuffer(buffer, offset, data, from, size) {
+      if (!isReleased()) device.queue.writeBuffer(buffer, offset, data, from, size)
+    },
+    writeTexture(destination, data, layout, size) {
+      if (!isReleased()) device.queue.writeTexture(destination, data, layout, size)
+    },
+    copyExternalImageToTexture(source, destination, size) {
+      if (!isReleased()) device.queue.copyExternalImageToTexture(source, destination, size)
+    },
+    submit(buffers) {
+      if (isReleased()) return
+      submits++
+      device.queue.submit(buffers)
+    },
+    onSubmittedWorkDone: () => device.queue.onSubmittedWorkDone(),
+  }
+}
 
 /** `device` as the session tagged `tag` sees it, and `release`, which makes it inert. */
 export function sessionHandle(device: GPUDevice, tag: string) {
@@ -97,22 +131,7 @@ export function sessionHandle(device: GPUDevice, tag: string) {
       scopes--
       return device.popErrorScope()
     }
-  const queue: Queue = {
-    writeBuffer(buffer, offset, data, from, size) {
-      if (!released) device.queue.writeBuffer(buffer, offset, data, from, size)
-    },
-    writeTexture(destination, data, layout, size) {
-      if (!released) device.queue.writeTexture(destination, data, layout, size)
-    },
-    copyExternalImageToTexture(source, destination, size) {
-      if (!released) device.queue.copyExternalImageToTexture(source, destination, size)
-    },
-    submit(buffers) {
-      if (!released) device.queue.submit(buffers)
-    },
-    onSubmittedWorkDone: () => device.queue.onSubmittedWorkDone(),
-  }
-  handle.queue = queue
+  handle.queue = sessionQueue(device, () => released)
   devices.set(handle, device)
   return {
     device: handle as unknown as GPUDevice,

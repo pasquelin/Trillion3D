@@ -1,6 +1,8 @@
 // A lit composition finishes the image — its local exposure, the bloom's glow, its vignette —
 // through pipelines compiled off the frame at the first that asks; handed the group that carries
-// them, it binds it as group 1. A program that finishes nothing, the unlit view's, has none.
+// them, it binds it as group 1. A program that finishes nothing, the unlit view's, has none. A lit
+// composition reads the baked tone table, after the share it reads; the table is baked again only
+// where a setting or the display curve changed.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createCompositions } from './compositions.ts'
@@ -8,38 +10,54 @@ import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from './shaders.ts'
 import { lobelessLighting } from './recorder.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
-import type { ExposureSettings } from '../../post/exposure/meterParams.ts'
+import type { ExposureValues } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { finishScope } from '../../post/finish/finishScope.fixture.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { askToneBake, createToneLut } from '../toneLut.ts'
+import { pipelinesSettled } from './compileLedger.ts'
+import { BAKE_LAYOUT } from '../toneBakeWgsl.ts'
+import {
+  COLOR_GRADING_RULES,
+  type ColorGradingValues,
+} from '../../../../sdk-core/src/contracts/colorGradingOptions.ts'
+import { resolveSettings } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 
 test('the finishing compositions compile off the frame at the first that asks, for every input', async () => {
-  const { device, renderPipelines, pipelineLayouts } = fakeDevice()
+  const { device, renderPipelines } = fakeDevice()
   const compositions = await createCompositions(device, CONTRACT_COMPOSITIONS, 'LIT')
   const compiled = renderPipelines.length,
     failures: unknown[] = []
-  assert.throws(() => compositions.pipelines('still', true), /not compiled/)
+  assert.throws(() => compositions.pipelines('asIs', true), /not compiled/)
   assert.equal(
     compositions.composesFinish((...failure) => failures.push(failure)),
     false,
     'compiling',
   )
   await new Promise((resolve) => setTimeout(resolve))
-  assert.equal(renderPipelines.length, compiled + 6, 'three inputs, capture and present')
+  // Two inputs since a debug view's as-is pixels are read from the surfaces whatever the image (a
+  // still and an accumulated input read a share each).
+  assert.equal(renderPipelines.length, compiled + 4, 'two inputs, capture and present')
   assert.equal(
     compositions.composesFinish((...failure) => failures.push(failure)),
     true,
   )
-  for (const input of ['still', 'accumulated', 'flagless'] as const) {
+  for (const input of ['asIs', 'flagless'] as const) {
     const { draw, present } = compositions.pipelines(input, true)
     // The fake device's pipeline is the descriptor it was made from.
     const made = draw as unknown as GPURenderPipelineDescriptor
     assert.match(made.fragment!.module.label!, /^LIT_COMPOSE_FINISH_/)
     assert.equal(compositions.pipelines(input, false).draw === draw, false, 'a pipeline of its own')
     assert.ok(present)
+    // The finishing's group is group 1 of both, the image's group 0.
+    const groups = (pipeline: unknown) => [
+      ...(pipeline as GPURenderPipelineDescriptor & { layout: GPUPipelineLayoutDescriptor }).layout
+        .bindGroupLayouts,
+    ]
+    assert.equal(groups(draw).length, 2)
+    assert.equal(groups(present).length, 2)
   }
-  // The finishing's group is group 1 of every one of them, the image's group 0.
-  const layouts = pipelineLayouts.slice(-6).map((layout) => [...layout.bindGroupLayouts].length)
-  assert.deepEqual(layouts, [2, 2, 2, 2, 2, 2])
   assert.deepEqual(failures, [])
 })
 
@@ -59,7 +77,7 @@ test('a program that finishes nothing never composes it, whatever it is asked', 
 test('a composition handed the finishing’s group binds it as group 1, one handed none binds one group', async () => {
   const { gpu, lighting } = await lobelessLighting()
   const view = () => ({}) as GPUTextureView
-  const image = { color: view(), share: view() },
+  const image = { color: view() },
     finish = {} as GPUBindGroup,
     failures: unknown[] = []
   lighting.composesFinish((...failure) => failures.push(failure))
@@ -76,8 +94,9 @@ test('a composition handed the finishing’s group binds it as group 1, one hand
     pipeline: commandArgs(commands, 'setPipeline')[0][0] as GPURenderPipelineDescriptor,
     groups: commandArgs(commands, 'setBindGroup'),
   }))
-  assert.match(passes[0].pipeline.fragment!.module.label!, /_COMPOSE_FINISH_ACCUMULATED$/)
-  assert.match(passes[1].pipeline.fragment!.module.label!, /_COMPOSE_ACCUMULATED$/)
+  // The as-is input: one for every image, the accumulated one gone with its share.
+  assert.match(passes[0].pipeline.fragment!.module.label!, /_COMPOSE_FINISH_ASIS$/)
+  assert.match(passes[1].pipeline.fragment!.module.label!, /_COMPOSE_ASIS$/)
   assert.deepEqual(passes[0].groups[1], [1, finish])
   assert.equal(passes[1].groups.length, 1, 'no finishing, no second group')
   assert.equal(passes[0].groups[0][1], passes[1].groups[0][1], 'one group per image read')
@@ -95,7 +114,7 @@ function layered(
   logExposed: number,
   base: number,
   grey: number,
-  s: ExposureSettings,
+  s: ExposureValues,
   thresholds = true,
 ) {
   let centred = base - grey
@@ -115,7 +134,7 @@ function layered(
 
 test('the local exposure moves a pixel by its layers, as their definition says, the thresholds too', () => {
   const grid = { cell: [0, 0] }
-  const run = (options: Partial<ExposureSettings>, exposure: number) => {
+  const run = (options: Partial<ExposureValues>, exposure: number) => {
     const { finish, settings } = finishScope(options)
     finish.look[1] = exposure
     const scope = {
@@ -129,19 +148,20 @@ test('the local exposure moves a pixel by its layers, as their definition says, 
     const fns = shaderRun<{
       localGain: (logLight: number, uv: number[]) => number
       baseLog: (logLight: number, uv: number[]) => number
-    }>(CONTRACT_COMPOSITIONS.finish.accumulated, ['localGain', 'baseLog'], scope)
+    }>(CONTRACT_COMPOSITIONS.finish.flagless, ['localGain', 'baseLog'], scope)
     return { ...fns, settings, grey: finish.base[0] }
   }
   // The grey is 0.18 × 2² (the exposure's bias, 1, plus the local one, 0 — the unit of two).
   const exposure = 0.5
+  const scaled = { localExposureHighlightContrast: 0.8, localExposureShadowContrast: 0.8 }
   for (const options of [
-    {},
+    scaled,
     { localExposureHighlightThreshold: 0.5, localExposureHighlightThresholdStrength: 0.5 },
     { localExposureShadowThreshold: 1, localExposureShadowThresholdStrength: 0 },
     { localExposureDetailStrength: 0.25, localExposureBlurBlend: 0 },
     { localExposureBlurBlend: 1, localExposureMiddleGreyBias: -1 },
-  ] as Partial<ExposureSettings>[]) {
-    const { localGain, baseLog, settings, grey } = run(options, exposure)
+  ] as Partial<ExposureValues>[]) {
+    const { localGain, baseLog, settings, grey } = run({ ...scaled, ...options }, exposure)
     const expectedGrey = Math.log2(0.18 * 2 * 2 ** settings.localExposureMiddleGreyBias)
     assert.ok(Math.abs(grey - expectedGrey) < 1e-6)
     for (const bilateral of [-6, -2, -0.5, 1, 3]) {
@@ -161,4 +181,125 @@ test('the local exposure moves a pixel by its layers, as their definition says, 
     grid.cell = [0, 0]
     assert.ok(Math.abs(baseLog(1, [0.5, 0.5]) - (-1.5 + Math.log2(exposure))) < 1e-9)
   }
+})
+
+test('the local exposure pulls toward the grey the exposure buffer holds, the compensation curve in it', () => {
+  const run = (grey: number | undefined) => {
+    // The word the GPU copies from the exposure buffer; the fixture's is the grey of the bias.
+    const { finish, settings } = finishScope(
+      { localExposureHighlightContrast: 0.8, localExposureShadowContrast: 0.8 },
+      {},
+      grey,
+    )
+    finish.look[1] = 0.5
+    const scope = {
+      finish,
+      grid: 'grid',
+      blurredLog: 'blurred',
+      finishSampler: 'sampler',
+      textureSampleLevel: (texture: string) =>
+        texture === 'grid' ? [0, 0, 0, 0] : [-1.5, 0, 0, 0],
+    }
+    const { localGain } = shaderRun<{ localGain: (logLight: number, uv: number[]) => number }>(
+      CONTRACT_COMPOSITIONS.finish.flagless,
+      ['localGain'],
+      scope,
+    )
+    return { gain: localGain(2, [0.3, 0.6]), word: finish.base[0], settings }
+  }
+  const plain = run(undefined)
+  // A compensation curve that lifts the middle grey by a stop and a half over the bias's two.
+  const lifted = Math.log2(0.18 * 2 ** 3.5)
+  const withCurve = run(lifted)
+  assert.ok(Math.abs(plain.word - Math.log2(0.18 * 2)) < 1e-6, 'the bias alone')
+  // The base layer is the blurred luminance alone (an empty grid), so the gain is the layers' own
+  // definition at the grey the word holds, and no other source moves it.
+  const base = -1.5 + Math.log2(0.5)
+  const logExposed = 2 + Math.log2(0.5)
+  assert.ok(Math.abs(plain.gain - layered(logExposed, base, plain.word, plain.settings)) < 1e-6)
+  const expected = layered(logExposed, base, lifted, withCurve.settings)
+  assert.ok(Math.abs(withCurve.gain - expected) < 1e-6 * Math.max(1, expected))
+  assert.ok(Math.abs(withCurve.gain - plain.gain) > 1e-3, 'the curve moves the gain')
+})
+
+test('a composition binds the flags and base colour of the as-is pixels, a lit one the tone table after them', async () => {
+  installGpuGlobals()
+  const { device, bindGroupLayouts } = fakeDevice()
+  const bindings = (sources: typeof CONTRACT_COMPOSITIONS | typeof UNLIT_COMPOSITIONS) =>
+    createCompositions(device, sources, 'LAYOUT').then((made) =>
+      Object.fromEntries(
+        Object.entries(made.layouts).map(([input, layout]) => [
+          input,
+          [...(layout as unknown as GPUBindGroupLayoutDescriptor).entries].map((e) => e.binding),
+        ]),
+      ),
+    )
+  // The as-is input binds the surfaces' flags and base colour (2, 3), the unlit chain too since its
+  // as-is pixels are drawn after the temporal pass as the lit chain's (it bound one share and the
+  // unlit chain none).
+  assert.deepEqual(await bindings(CONTRACT_COMPOSITIONS), {
+    asIs: [0, 1, 2, 3, 4, 5, 6],
+    flagless: [0, 1, 2, 3, 4],
+  })
+  assert.deepEqual(await bindings(UNLIT_COMPOSITIONS), {
+    asIs: [0, 1, 2, 3],
+    flagless: [0, 1],
+  })
+  assert.ok(bindGroupLayouts.length > 0)
+  // The text reads the table where the layout binds it: after the as-is pixels', or in their place.
+  assert.match(CONTRACT_COMPOSITIONS.plain.asIs, /@binding\(4\) var toneTable:texture_3d<f32>/)
+  assert.match(CONTRACT_COMPOSITIONS.plain.flagless, /@binding\(2\) var toneTable:texture_3d<f32>/)
+})
+
+test('the tone table is baked once for settings that hold, again when a setting or the curve changes, remade at another size', async () => {
+  installGpuGlobals()
+  const { device, textures, dispatches } = fakeDevice()
+  const lut = createToneLut(device)
+  // The baking's program, compiled off the frame before a frame bakes.
+  askToneBake(device)
+  await pipelinesSettled(device)
+  const values = (settings: object) =>
+    resolveSettings(COLOR_GRADING_RULES, settings) as ColorGradingValues
+  const rank = TONE_MAPPING_RANK.filmic
+  const encoder = device.createCommandEncoder()
+  assert.equal(lut.moving(values({}), rank), true, 'nothing baked yet')
+  assert.equal(lut.baked, false)
+  const first = lut.view()
+  assert.equal(textures.filter(({ label }) => label?.endsWith('tone table')).length, 1)
+  assert.equal(lut.moving(values({}), rank), true, 'a table made is not a table baked')
+  assert.equal(lut.encode(encoder, values({}), rank), true)
+  assert.equal(lut.baked, true)
+  assert.equal(lut.bytes, 32 ** 3 * 8, 'the view’s reserve counts the cube: 8 bytes a texel')
+  assert.equal(lut.words?.length, BAKE_LAYOUT.words, 'the baking’s words, which the layers copy')
+  assert.equal(lut.view(), first, 'the texture made at the first ask is the one baked')
+  assert.equal(lut.encode(encoder, values({}), rank), false, 'settings and curve as they were')
+  const side = () => textures.filter(({ label }) => label?.endsWith('tone table')).at(-1)!.width
+  assert.equal(side(), 32, 'rgba16float, 32 texels a side')
+  assert.equal(lut.moving(values({ whiteTint: 0.2 }), rank), true, 'a setting')
+  assert.equal(lut.moving(values({}), TONE_MAPPING_RANK.none), true, 'the scene’s curve')
+  assert.equal(lut.encode(encoder, values({ lutSize: 16 }), rank), true)
+  assert.notEqual(lut.view(), first, 'another size, another texture')
+  assert.equal(side(), 16)
+  assert.equal(lut.bytes, 16 ** 3 * 8)
+  // No other limit than the device's: a cube of 64 on a device that makes 3D textures of 24 is baked at 24.
+  const small = fakeDevice({ limits: { maxTextureDimension3D: 24 } })
+  const capped = createToneLut(small.device)
+  askToneBake(small.device)
+  await pipelinesSettled(small.device)
+  capped.encode(small.device.createCommandEncoder(), values({ lutSize: 64 }), rank)
+  assert.equal(capped.bytes, 24 ** 3 * 8)
+  assert.equal(
+    capped.words?.[BAKE_LAYOUT.at.lattice + 1],
+    24,
+    'the baking reads the side it was made at',
+  )
+  const bakes = dispatches.filter(({ entryPoint }) => entryPoint === 'bakeTable')
+  assert.deepEqual(
+    bakes.map(({ direct, rows }) => [direct, rows]),
+    [
+      [8, 8],
+      [4, 4],
+    ],
+    'one pass over the cube, a workgroup of 4 texels a side',
+  )
 })

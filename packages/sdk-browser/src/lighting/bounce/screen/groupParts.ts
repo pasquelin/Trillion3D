@@ -1,19 +1,19 @@
-import type { ProxyResources } from '../../../geometry/dag/cut/cutReaders.ts'
+import type { GlobalFieldRead } from '../../distanceField/view.ts'
+import type { SurfaceHitResources } from '../../surfaceCache/hitWgsl.ts'
 import type { ScreenProbeResources } from './resources.ts'
 
 /** What the image gives the probes that is not theirs: its normals and flags, the lights (the sky they hold),
- *  the light grid's lists, the cascades' uniform and atlas — the world's probes, or the stand-ins where none are
- *  made —, the proxy their rays walk, the light functions' atlas their lit hits wear (a stand-in where the
- *  bounce's lights wear none), the surfaces' vectors of the image (or the stand-in of none) and the engine's blue noise. */
+ *  the cascades' uniform and atlas — the world's probes, or the stand-ins where none are made —, the global distance field their
+ *  rays are marched through and the surface cache their hits read (`surfaceHitReads`), the surfaces' vectors of the image (or the
+ *  stand-in of none) and the engine's blue noise. */
 export interface ScreenProbeInputs {
   normals: GPUTextureView
   flags: GPUTextureView
   lights: GPUBuffer
-  lightLists: GPUBuffer
   bounceGrid: GPUBuffer
   probes: GPUTextureView
-  proxy: ProxyResources
-  lightFunction: GPUTextureView
+  field: GlobalFieldRead
+  hit: SurfaceHitResources
   vectors: GPUTextureView
   /** The engine's blue noise, both masks (`gpu/noise/blueNoiseTextures.ts`). */
   blue: GPUTextureView

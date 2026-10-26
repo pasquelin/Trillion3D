@@ -18,9 +18,3 @@ export function addressParam<T>(ask: (params: URLSearchParams) => T, absent: T) 
 
 /** A yes-or-no question asked of the page's address (`addressParam`): `false` with none. */
 export const addressFlag = (ask: (params: URLSearchParams) => boolean) => addressParam(ask, false)
-
-/** `ask`'s answer at the first question, held: everything built after it gets the same. */
-export function heldOnce<T>(ask: () => T) {
-  let held: { value: T } | undefined
-  return () => (held ??= { value: ask() }).value
-}

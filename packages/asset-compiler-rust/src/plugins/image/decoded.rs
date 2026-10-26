@@ -50,6 +50,15 @@ pub struct ImageDecoded {
     pub image: DecodedImage,
     pub transfer: Transfer,
     pub notes: Vec<&'static str>,
+    /// The levels below the image's that the file stores — level 1, then 2, as far as it goes —,
+    /// each the RGBA8 bytes of its side (`mip_size`), in the image's transfer function. Empty for
+    /// a file that stores none, and for a float image.
+    pub mips: Vec<Vec<u8>>,
+    /// The samples of an image the file stores at 16 bits a channel, RGBA, straight alpha, in the
+    /// image's transfer function, beside the RGBA8 `image` they round to (nearest of 256): the mip
+    /// chain reduces from them, rounded to bytes once at each level. `None` for a file that stores
+    /// 8 bits or fewer, and for a float image.
+    pub wide: Option<Vec<u16>>,
 }
 
 impl ImageDecoded {
@@ -60,7 +69,21 @@ impl ImageDecoded {
             image,
             transfer,
             notes: Vec::new(),
+            mips: Vec::new(),
+            wide: None,
         }
+    }
+
+    /// The same, with the levels the file stores below the image's.
+    pub fn with_mips(mut self, mips: Vec<Vec<u8>>) -> Self {
+        self.mips = mips;
+        self
+    }
+
+    /// The same, with the 16-bit samples the RGBA8 image was rounded from.
+    pub fn with_wide(mut self, wide: Vec<u16>) -> Self {
+        self.wide = Some(wide);
+        self
     }
 
     /// The same, its transfer function read from the file rather than lent by convention.

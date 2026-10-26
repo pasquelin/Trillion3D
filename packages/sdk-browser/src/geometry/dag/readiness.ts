@@ -7,7 +7,8 @@ import { NODE_OPEN } from './nodeLayout.ts'
 import { createChangedRuns, type ChangedRuns } from '../residency/ranges.ts'
 import { uniqueSortedInPlace } from '../../../../math/src/scalar/integers.ts'
 import { createHeldOpen, heldOpenSlots } from './heldOpen.ts'
-import { VIEW_ROWS } from '../rows/tableRows.ts'
+import { INITIAL_VISIBLE } from './visible/layout.ts'
+import { memberShift } from './placement/placementTree.ts'
 import { rootOfPacked, type PlacementIndex } from '../selection/placements.ts'
 import type { PageResidency } from '../../gpu/core/selection.ts'
 
@@ -31,7 +32,7 @@ function residentLevelsOf(packed: PackedDag) {
     while (deepest > 0 && levels[deepest - 1] === 0) deepest--
     return Math.max(1, deepest)
   }
-  return { levels, shift: packed.placementTree?.depth ?? 0 }
+  return { levels, shift: memberShift(packed.placementTree) }
 }
 
 /**
@@ -46,9 +47,9 @@ function residentLevelsOf(packed: PackedDag) {
  * (`../cut/readiness.ts`, #483 rule 6).
  */
 export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
-  // A host whose readout holds no table still keeps one, for the rows a view starts with: the
+  // A host whose readout holds no table still keeps one, for the clusters a view starts with: the
   // oracle reads it.
-  const heldOpen = createHeldOpen(heldSlots || heldOpenSlots(VIEW_ROWS))
+  const heldOpen = createHeldOpen(heldSlots || heldOpenSlots(INITIAL_VISIBLE))
   packed.heldOpen = heldOpen
   const { levels, shift } = residentLevelsOf(packed)
   const r: Readiness = {

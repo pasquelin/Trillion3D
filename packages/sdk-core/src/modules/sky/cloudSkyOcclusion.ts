@@ -4,8 +4,10 @@ import type { SkyQualityValues } from './quality.ts'
 
 /**
  * The clouds' sky occlusion map: a map seen from above along the planet's vertical, of how much the
- * clouds darken the sky's multiply scattered light under them, that the air reads to dim that light.
- * Off by default. Distances are in kilometres, as written.
+ * clouds darken the sky's multiply scattered light under them, that the air's marches read to dim
+ * the first light's multiple scattering (the sky, the haze, the capture of the sky light), and
+ * nothing else: not the sky light's own diffuse and specular light. Off by default (a sky light
+ * asks for it with `cloudAmbientOcclusion`). Distances are in kilometres, as written.
  *
  * It has no setting of its own. The sky light's five `cloudAmbientOcclusion…` fields are the
  * component's, held by the sky light part (`./skyLight.ts`); the renderer's `cloudSkyAO`,

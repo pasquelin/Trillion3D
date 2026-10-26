@@ -1,21 +1,16 @@
 import { arrayView } from '../../../gpu/core/textureViews.ts'
 import type { BounceCascades } from '../../../../../sdk-core/src/bounce/cascades.ts'
-import { constructGpuResources } from '../../../gpu/core/errorScope.ts'
+import { constructGpuResources } from '../../../gpu/core/deviceLedger.ts'
 import { createBounceUniform } from '../uniform.ts'
 import { BOUNCE_ATLAS_FORMAT } from '../atlas.ts'
-import { CENSUS_WORDS } from './censusWgsl.ts'
 
-/** Initial probe storage is atomic even when admission refuses the last resource. The probes and
- *  their snapshot are atlases of `extent` (`probeAtlasExtent`): the update writes the one, reads
- *  the other, which then takes the texels written (`BOUNCE_SNAPSHOT_SHADER`) — the table's texels
- *  are written into both (`BOUNCE_TABLE_SHADER`) —, so the two stay equal between updates. Both
- *  start zeroed: no probe, no entry. The frame's queue of probes and the table's queue of records
- *  are storage buffers of `queueBytes` and `recordBytes`; the census, one of its own. */
+/** Initial probe storage is atomic even when admission refuses the last resource: the levels' uniform, the frame's queue of probes
+ *  the pool writes (a storage buffer of `queueBytes`) and the cell table (`atlas.ts`, of `extent`), written as storage by the pool and
+ *  read by the passes that look for the probe of a cell. The table starts zeroed: no entry names a probe. */
 export function createProbeStorage(
   device: GPUDevice,
   cascades: BounceCascades,
   queueBytes: number,
-  recordBytes: number,
   extent: [number, number, number],
 ) {
   return constructGpuResources(device, () => {
@@ -25,28 +20,12 @@ export function createProbeStorage(
       size: queueBytes,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
-    const records = device.createBuffer({
-      label: 'Trillion3D bounce table records v1',
-      size: recordBytes,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    const table = device.createTexture({
+      label: 'Trillion3D bounce cell table v1',
+      size: extent,
+      format: BOUNCE_ATLAS_FORMAT,
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
     })
-    /** The census the update adds its counts to, and the census pass counts the field into. */
-    const census = device.createBuffer({
-      label: 'Trillion3D bounce census v1',
-      size: CENSUS_WORDS * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-    })
-    /** An atlas of `extent`: written as storage, and read. */
-    const atlas = (label: string) =>
-      device.createTexture({
-        label,
-        size: extent,
-        format: BOUNCE_ATLAS_FORMAT,
-        usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-      })
-    const probes = atlas('Trillion3D bounce probes v4')
-    const snapshot = atlas('Trillion3D bounce probes snapshot v4')
-    const views = { probes: arrayView(probes), snapshot: arrayView(snapshot) }
-    return { uniform, queue, records, census, probes, snapshot, views }
+    return { uniform, queue, table, view: arrayView(table) }
   })
 }

@@ -1,18 +1,81 @@
 import { arrayView } from '../../gpu/core/textureViews.ts'
-import { standInTexture } from '../../gpu/core/standInTexture.ts'
-import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
+import { standInTexture } from '../../gpu/core/standIns.ts'
 import { createWebgpuTilePool, type WebgpuTilePool } from './pool/pool.ts'
 import type { WebgpuTilePageTable } from './page/pageTable.ts'
-import type { LaneCounts, PoolEncoding, PoolLane } from '../texture/blockFormats.ts'
+import {
+  atlasLanes,
+  type LaneCounts,
+  type PoolEncoding,
+  type PoolLane,
+} from '../texture/blockFormats.ts'
 import { resizeTileAtlas } from './atlas/atlasResize.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 
 /** A lane's pool, and the places held in it by key: its tiles and its textures' tails. */
 export type Lane = { pool: WebgpuTilePool; resident: Map<number, number> }
 
+type TileLanesOptions = {
+  kind: 'color' | 'data'
+  encoding: PoolEncoding
+  /** Layers of each lane's pool; a lane no texture takes has none, and no pool. */
+  layers: LaneCounts
+  textures: readonly { lane: PoolLane; tap: number }[]
+  /** A tile a resize gave up: its texture. */
+  onEvicted?: (slot: number) => void
+}
+
+/** The shape of the pool of `lane` at `layers` layers. */
+const poolShape = (
+  kind: 'color' | 'data',
+  encoding: PoolEncoding,
+  lane: PoolLane,
+  layers: number,
+) => ({
+  kind,
+  lane,
+  format: encoding.formatOf(kind, lane),
+  texelBytes: encoding.texelBytes(lane),
+  layers,
+})
+
+/** Resizes the pool of lane `name` to `layers` layers, keeping its tiles; a lane that closes
+ *  empty is retired. Returns the tiles evicted. */
+function resizeLane(
+  target: GPUDevice,
+  lanes: Map<PoolLane, Lane>,
+  name: PoolLane,
+  lane: Lane,
+  layers: number,
+  context: {
+    shape: ReturnType<typeof poolShape>
+    options: TileLanesOptions
+    pages: WebgpuTilePageTable
+  },
+) {
+  if (layers === 0 && lane.pool.resident === 0) {
+    // Groups this image encoded may still name its view: retired, as a replaced pool.
+    retire(target, lane.pool)
+    lanes.delete(name)
+    return 0
+  }
+  const { options } = context
+  const result = resizeTileAtlas(
+    target,
+    context.shape,
+    (slot) => options.textures[slot].tap,
+    lane.pool,
+    context.pages,
+    lane.resident,
+    options.onEvicted,
+  )
+  lane.pool = result.pool
+  return result.evicted
+}
+
 /**
  * The pools of an atlas, one per lane its textures take: the lossless RGBA8 lane, the RGBA block
- * lane, the two-channel one. A lane with no layer has no pool and an opaque-white stand-in view at
+ * lane, then the two-channel one — the data atlas's — or the half-float one — the colour atlas's
+ * (`atlasLanes`). A lane with no layer has no pool and an opaque-white stand-in view at
  * its binding — only the white fill of an atlas with no map reads it (`atlas/atlas.ts`), where every tap
  * of the fill's one texel read white. Each pool is sized by
  * the layers the budget gave its lane, never below the tails of its textures (`texturePoolFor`),
@@ -20,32 +83,17 @@ export type Lane = { pool: WebgpuTilePool; resident: Map<number, number> }
  */
 export function createTileLanes(
   device: Pick<GPUDevice, 'createTexture' | 'queue'>,
-  options: {
-    kind: 'color' | 'data'
-    encoding: PoolEncoding
-    /** Layers of each lane's pool; a lane no texture takes has none, and no pool. */
-    layers: LaneCounts
-    textures: readonly { lane: PoolLane }[]
-    /** A tile a resize gave up: its texture. */
-    onEvicted?: (slot: number) => void
-  },
+  options: TileLanesOptions,
 ) {
   const { kind, encoding, textures } = options
-  const shape = (lane: PoolLane, layers: number) => ({
-    kind,
-    lane,
-    format: encoding.formatOf(kind, lane),
-    texelBytes: encoding.texelBytes(lane),
-    layers,
-  })
   const lanes = new Map<PoolLane, Lane>()
   const open = (lane: PoolLane, layers: number) =>
     lanes.set(lane, {
-      pool: createWebgpuTilePool(device, shape(lane, layers)),
+      pool: createWebgpuTilePool(device, poolShape(kind, encoding, lane, layers)),
       resident: new Map(),
     })
-  for (const lane of PREVIEW_LAYOUT_NAMES)
-    if (options.layers[lane] > 0) open(lane, options.layers[lane])
+  const bound = atlasLanes(kind)
+  for (const lane of bound) if (options.layers[lane] > 0) open(lane, options.layers[lane])
   const standInWhite = standInTexture(
     device,
     `Trillion3D texture pool ${kind} stand-in`,
@@ -56,7 +104,7 @@ export function createTileLanes(
     },
   )
   const standIn = arrayView(standInWhite)
-  const views = () => PREVIEW_LAYOUT_NAMES.map((lane) => lanes.get(lane)?.pool.view ?? standIn)
+  const views = () => bound.map((lane) => lanes.get(lane)?.pool.view ?? standIn)
   const pools = () => [...lanes.values()].map((lane) => lane.pool)
   return {
     lanes,
@@ -73,7 +121,7 @@ export function createTileLanes(
     resize(target: GPUDevice, layers: LaneCounts, pages: WebgpuTilePageTable) {
       let evicted = 0,
         replaced = 0
-      for (const name of PREVIEW_LAYOUT_NAMES)
+      for (const name of bound)
         if (!lanes.has(name) && layers[name] > 0) {
           open(name, layers[name])
           replaced++
@@ -81,23 +129,8 @@ export function createTileLanes(
       for (const [name, lane] of lanes) {
         if (layers[name] === lane.pool.layers) continue
         replaced++
-        if (layers[name] === 0 && lane.pool.resident === 0) {
-          // Groups this image encoded may still name its view: retired, as a replaced pool.
-          retire(target, lane.pool)
-          lanes.delete(name)
-          continue
-        }
-        const result = resizeTileAtlas(
-          target,
-          shape(name, layers[name]),
-          encoding.tapOf(name),
-          lane.pool,
-          pages,
-          lane.resident,
-          options.onEvicted,
-        )
-        lane.pool = result.pool
-        evicted += result.evicted
+        const shape = poolShape(kind, encoding, name, layers[name])
+        evicted += resizeLane(target, lanes, name, lane, layers[name], { shape, options, pages })
       }
       return { evicted, replaced }
     },

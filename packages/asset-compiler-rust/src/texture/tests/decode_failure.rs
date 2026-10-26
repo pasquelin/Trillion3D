@@ -36,3 +36,19 @@ fn a_missing_image_file_is_reported_and_yields_no_preview() {
     assert!(previews.is_empty());
     assert_eq!(report["skipped"]["image-missing"], json!(1));
 }
+
+// Behaviour: a texture whose only image is an extension's (`EXT_texture_webp`) is read as any: its
+// image is decoded — here a truncated one, reported as such — and the texture is not skipped as one
+// without an image, as the table that publishes it and the bakes that read it name its image alike
+// (`texture::binding`).
+#[test]
+fn a_texture_whose_only_image_is_an_extensions_is_read() {
+    let dir = scratch("texture-preview", "extension-image");
+    fs::write(dir.join("broken.png"), b"\x89PNG\r\n\x1a\nnot really a png").expect("write");
+    let mut scene = scene_with_one_texture();
+    scene["textures"] = json!([{"extensions": {"EXT_texture_webp": {"source": 0}}}]);
+    let (previews, report) = stage_scene(&dir, &scene);
+    assert!(previews.is_empty());
+    assert_eq!(report["skipped"]["image-decode-failed"], json!(1));
+    assert!(report["skipped"].get("texture-without-image").is_none());
+}

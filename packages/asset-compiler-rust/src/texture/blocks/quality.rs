@@ -9,7 +9,7 @@
 //! device decodes the stored BC chain instead, which is kept whatever it measures
 //! —, and the report names it with its figures.
 //! The blocks alike their neighbours live in `alike`.
-use super::super::coverage::{keeps, Cut};
+use super::super::cut::{keeps, Cut};
 use super::decode::decode_block;
 use super::{BlockFormat, Effort, Layout, BLOCK_BYTES};
 use rayon::prelude::*;

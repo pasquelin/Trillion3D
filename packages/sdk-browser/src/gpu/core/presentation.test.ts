@@ -1,10 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPresenter } from './presentation.ts'
+import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { claimGpuDevice } from './deviceOwners.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
-test('presentation acquires a fresh canvas target after resizing, shared by fused and copy paths', () => {
+test('presentation acquires a fresh canvas target after resizing, shared by fused and copy paths', async () => {
   const sizes: number[][] = [],
     views: object[] = []
   let configured: GPUCanvasConfiguration | undefined,
@@ -34,6 +35,7 @@ test('presentation acquires a fresh canvas target after resizing, shared by fuse
   const { device, passes } = fakeDevice()
   const encoder = device.createCommandEncoder()
   const presenter = createGpuPresenter(device, canvas)
+  await pipelinesSettled(device) // the program, asked as the presenter is made
   try {
     const first = presenter.targetView(32, 24),
       second = presenter.targetView(64, 48)
@@ -68,7 +70,7 @@ test("a session's canvas is configured with the device itself, not the session's
   assert.equal(given, device)
 })
 
-test('a view presents at its rectangle: the canvas keeps its size and what it shows', () => {
+test('a view presents at its rectangle: the canvas keeps its size and what it shows', async () => {
   // The canvas hands a new texture once the last one is shown, as a browser frame does.
   let current = { createView: () => ({}) }
   const canvas = {
@@ -89,6 +91,7 @@ test('a view presents at its rectangle: the canvas keeps its size and what it sh
       return step ? [[step, ...args]] : []
     })
   const presenter = createGpuPresenter(device, canvas)
+  await pipelinesSettled(device) // the program, asked as the presenter is made
   const image = { createView: () => ({}) } as GPUTexture
   presenter.present(encoder, image, 16, 8, { x: 40, y: 44, width: 32, height: 8 })
   assert.equal(passes.length, 0, 'no whole image this frame: the canvas keeps the last one')
@@ -109,7 +112,7 @@ test('a view presents at its rectangle: the canvas keeps its size and what it sh
   presenter.dispose()
 })
 
-test('the whole canvas and a view placed on it are drawn by one present program', () => {
+test('the whole canvas and a view placed on it are drawn by one present program', async () => {
   const current = { createView: () => ({}) }
   const canvas = {
     width: 64,
@@ -119,6 +122,7 @@ test('the whole canvas and a view placed on it are drawn by one present program'
   const { device, passes } = fakeDevice()
   const encoder = device.createCommandEncoder()
   const presenter = createGpuPresenter(device, canvas)
+  await pipelinesSettled(device) // the program, asked as the presenter is made
   const image = { createView: () => ({}) } as GPUTexture
   presenter.present(encoder, image, 64, 48)
   presenter.present(encoder, image, 16, 8, { x: 8, y: 4, width: 16, height: 8 })

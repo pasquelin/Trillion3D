@@ -10,6 +10,7 @@ import {
   computeUniformEntry,
 } from '../../gpu/core/computeBindings.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
+import { graphFrameEntry } from '../shader/graphFrameWgsl.ts'
 import { SHADE_OUTPUT_BINDINGS } from '../shader/shadeOutputsWgsl.ts'
 import {
   REQUEST_OUTPUT,
@@ -36,8 +37,6 @@ export const shadeLayoutEntries = (): GPUBindGroupLayoutEntry[] => {
     // The float pool's normal atlas (`../../gpu/core/floatAtlas.ts`).
     computeTextureEntry(b.normal, 'unfilterable-float', '2d-array'),
     computeBufferEntry(b.pageTable, 'read-only-storage'),
-    // The rows' frames the resolve reads (`../shader/shadeCacheWgsl.ts`).
-    computeBufferEntry(b.shadeCache, 'read-only-storage'),
     // The surfaces' records — a texture, no storage buffer of the eight —, and the lobes target
     // (`physicalWgsl.ts`).
     computeTextureEntry(b.material, 'uint', '2d-array'),
@@ -48,6 +47,8 @@ export const shadeLayoutEntries = (): GPUBindGroupLayoutEntry[] => {
     ...atlasLayoutEntries(b.data, COMPUTE),
     // The voxel trace's counters (`voxelStepsWgsl.ts`): only the voxel classes write them.
     computeBufferEntry(b.voxelSteps, 'storage'),
+    // The graph frame: the clocks and the camera an offset places a vertex by.
+    graphFrameEntry(b.frame, COMPUTE),
   ]
 }
 
@@ -64,6 +65,7 @@ export const shadeOutputLayout = oncePerDevice((device) => {
       computeStorageTextureEntry(b.request, REQUEST_OUTPUT.format),
       computeTextureEntry(b.bins, 'uint', '2d-array'),
       computeTextureEntry(b.bins + 1, 'uint', '2d-array'),
+      computeBufferEntry(b.bins + 2, 'read-only-storage'),
     ],
   })
 })

@@ -9,6 +9,7 @@ import {
 } from './adopter.fixture.ts'
 import type { GpuCut } from '../../../gpu/core/selection.ts'
 import type { PageRec } from '../../selection/types.ts'
+import type { RankList } from './copyRanks.ts'
 
 /** A readback of `ids`, all drawable, whose header carries `totals`. */
 const readback = (ids: number[], uniforms = fixtureUniforms(), totals = fixtureTotals()) =>
@@ -40,15 +41,13 @@ test('a shown list already held does not remake the drawable list, and yields th
   const { cutHeld: tenuPremier, listsRewritten: ecritPremier, ...premiers } = b.adopter.metrics
   assert.equal(tenuPremier, false, 'the first shown list is not the one that was held')
   assert.equal(ecritPremier, true, 'and it rewrote the lists')
-  const listeShown = b.shown,
-    listeDrawn = b.drawn
+  const listeShown = b.shown
   const contenu = [...b.shown]
   // Spot a rewrite without depending on a clock: an intruder that only a rewrite erases.
   const intrus = { url: 'intrus' } as unknown as PageRec
   b.shown.push(intrus)
   assert.equal(b.adopter.adopt(), true)
   assert.equal(b.shown, listeShown, 'the array itself does not change')
-  assert.equal(b.drawn, listeDrawn)
   assert.equal(b.shown.at(-1), intrus, 'the held list is not remade')
   const { cutHeld: tenuSecond, listsRewritten: ecritSecond, ...seconds } = b.adopter.metrics
   assert.deepEqual(seconds, premiers, 'the counts are those of the same shown list')
@@ -67,6 +66,36 @@ test('a shown list already held does not remake the drawable list, and yields th
   assert.deepEqual(b.shown, contenu, 'the list stayed that of the shown list')
 })
 
+const ranksOf = (list: RankList) => Array.from(list.ids.subarray(0, list.count))
+
+test('the packed ranks follow the cut rank by rank, the live count only, across a shorter cut', () => {
+  const b = banc([0, 1, 2, 3, 4, 5])
+  b.adopter.adopt()
+  assert.deepEqual(ranksOf(b.desiredPacked), [0, 1, 2, 3, 4, 5])
+  assert.deepEqual(ranksOf(b.shownPacked), [0, 1, 2, 3, 4, 5])
+  assert.deepEqual(
+    b.shown.map((page) => page.url),
+    b.packedPages.slice(0, 6).map((page) => page.url),
+  )
+  b.montre(readback([4, 1], b.cut.uniforms))
+  b.adopter.adopt()
+  assert.deepEqual(ranksOf(b.desiredPacked), [4, 1], 'no stale tail of the longer cut')
+  assert.deepEqual(ranksOf(b.shownPacked), [4, 1])
+  assert.equal(b.shown.length, 2)
+})
+
+// A readback cut under a camera the frame has left decides no list of the image, but its counts are
+// the latest the GPU gave: they follow it, so the stats do not stand still while the camera moves.
+test('a readback of another camera is not adopted, and its counts are', () => {
+  const b = banc([0, 1, 2, 3, 4])
+  const moved = fixtureUniforms()
+  moved.cameraWorld[0] += 1
+  b.montre(readback([0, 1, 2, 3, 4], moved, fixtureTotals({ selectedTriangles: 777 })))
+  assert.equal(b.adopter.adopt(), false, 'its lists wait for the camera in place')
+  assert.equal(b.adopter.metrics.counted, true)
+  assert.equal(b.adopter.metrics.selectedTriangles, 777, 'the counts are the readback own')
+})
+
 test('a new shown list remakes the list, and the one held before comes back whole', () => {
   const b = banc([0, 1, 2, 3, 4])
   assert.equal(b.adopter.adopt(), true)
@@ -77,7 +106,6 @@ test('a new shown list remakes the list, and the one held before comes back whol
     b.shown.map((page) => page.url),
     ['p3', 'p1'],
   )
-  assert.deepEqual(b.drawn, b.shown)
   assert.equal(b.adopter.metrics.selectedTriangles, 4 + 2)
 
   // The first readback again: its whole list is remade, not the difference alone.

@@ -6,6 +6,7 @@ import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { quadScene, camera } from './testScenes.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { SHADE_UNIFORM, VIS_UNIFORM } from '../../visibility/shader/uniformLayout.ts'
 import { FLAG_MASK, MATERIAL_RANK_MASK } from '../../visibility/types.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../../materials/table/materialLayout.ts'
 import { BLEND_ITEM_SHIPPED } from '../../blend/itemLayout.fixture.ts'
@@ -43,7 +44,7 @@ async function frameWords(transparent = false, dashed = false) {
     assert.ok(sent, 'the material records')
     const records = new Float32Array(sent.data.buffer as ArrayBuffer)
     const words = (label: string) => {
-      const buffer = buffers.find((candidate) => candidate.label === label)
+      const buffer = buffers.findLast((candidate) => candidate.label === label)
       assert.ok(buffer, label)
       return new Float32Array(buffer.data.buffer, buffer.data.byteOffset, buffer.size / 4)
     }
@@ -65,8 +66,16 @@ async function frameWords(transparent = false, dashed = false) {
 // pixel ratio, and the shared `lineClip` draws width × ratio.
 test('the rasters, the resolve and the blend pass read the host pixel ratio', async () => {
   const { words } = await frameWords()
-  assert.equal(words('Trillion3D visibility uniforms')[24], 2, 'Uniforms.pixelRatio')
-  assert.equal(words('Trillion3D resolve uniform')[18], 2, 'ShadeUni.pixelRatio')
+  assert.equal(
+    words('Trillion3D visibility uniforms')[VIS_UNIFORM.at.pixelRatio],
+    2,
+    'Uniforms.pixelRatio',
+  )
+  assert.equal(
+    words('Trillion3D resolve uniform')[SHADE_UNIFORM.at.pixelRatio],
+    2,
+    'ShadeUni.pixelRatio',
+  )
   const blend = await frameWords(true)
   const view = blend.words('Trillion3D blend view uniform')
   assert.equal(view[VIEW.pixelRatio], 2, 'BlendView.pixelRatio')
@@ -81,11 +90,17 @@ test('a dashed line writes its dash and gap where every WebGPU path reads them',
   for (const dashed of [false, true]) {
     const dash = dashed ? [0.25, 0.5] : [0, 0]
     const { words, record } = await frameWords(false, dashed)
-    const row = words('Trillion3D page table'),
-      own = record('Trillion3D page table', PAGE_INFO.at.material)
+    // The decoded cluster of the quad: the one record of the table that draws.
+    const table = words('Trillion3D decoded clusters'),
+      ints = new Uint32Array(table.buffer, table.byteOffset, table.length)
+    const first = Array.from(
+      { length: ints.length / PAGE_INFO.words },
+      (_, v) => v * PAGE_INFO.words,
+    ).find((base) => ints[base + PAGE_INFO.at.indexCount] > 0)!
+    const own = record('Trillion3D decoded clusters', first + PAGE_INFO.at.material)
     const at = MATERIAL_RECORD.at
     assert.deepEqual([...own.subarray(at.dash, at.dash + 2)], dash, 'Material.dash')
-    const flags = new Uint32Array(row.buffer, row.byteOffset, row.length)[PAGE_INFO.at.flags]
+    const flags = ints[first + PAGE_INFO.at.flags]
     assert.equal((flags & FLAG_MASK) !== 0, dashed, 'the cutout reads it')
     assert.equal(own[at.cut], dashed ? 0 : 1, 'no alpha threshold beside the gaps')
     const blend = await frameWords(true, dashed)

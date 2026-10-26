@@ -99,7 +99,8 @@ test('a scale change with targets in place is made aside: never held, old ones f
       oldSet.every((target) => s.gpu.destroyed.includes(target)),
       'freed once swapped out',
     )
-    // The two lit images that take turns: the frame's, and the reflection pyramid's.
+    // The two lit images that take turns: the frame's, and the one the reflection reads the last image from
+    // (`lighting/reflections/litImage.ts`).
     assert.equal(s.live(HDR).length, 2, 'one set left')
     assert.ok(s.live(HDR).some((texture) => (texture as unknown) === s.rt.gpu.hdrTexture))
     assert.equal(s.rt.gpu.temporal, temporal)
@@ -127,10 +128,14 @@ test('targets refused aside fall back to the held grant, then drawn at the size 
 test('targets that do not fit beside those in place are asked the held way, those released first', async () => {
   const s = await session()
   try {
-    // Room for a thirty-second more than what is held — the held way's peak: the targets made with
-    // the temporal pass's of the old render size still beside them (`ensureTaaTargets`), which the
-    // set's bytes do not count —, never for a second set, about half of it more.
-    s.box.limit = s.ledger.bytes + (s.ledger.bytes >> 5)
+    // Room for an eighth more than what is held — the held way's peak: the targets made with the
+    // temporal pass's analysis targets of the old render size, retired at the frame's submit and
+    // counted until then, still beside them and the new ones (`ensureTaaTargets`; the pass's
+    // analysis set is eleven targets of the render size and a ring of shading histories, which
+    // the set's bytes do not count) —, never for a second set. Measured on this display: a sixteenth
+    // is refused (the velocity target), an eighth held, a quarter fits a set made aside. (Not
+    // `>> 3`: the bytes held pass 2 GiB, where a shift reads them as negative.)
+    s.box.limit = s.ledger.bytes + Math.floor(s.ledger.bytes / 8)
     s.rt.views.main.scale.set({ min: 0.5, max: 0.75 })
     const asked: boolean[] = []
     await s.frames(3, (held) => asked.push(held))

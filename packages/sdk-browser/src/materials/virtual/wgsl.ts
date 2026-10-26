@@ -50,7 +50,8 @@ import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
  * is the one `wrapUv` mixes by hand — at each level read, on that level's size (`${k}Level`), as
  * the sampler of a mip chain mixes a level's last texel and its first.
  *
- * An atlas has one pool per LANE — lossless RGBA8, RGBA blocks, two-channel blocks — and a
+ * An atlas has one pool per LANE — lossless RGBA8, RGBA blocks, two-channel blocks (the colour
+ * atlas's third is half-float RGBA, `atlasLanes`) — and a
  * texture's header names the TAP every tile of it takes (`../texture/blockFormats.ts`, `tapOf`):
  * the pool it samples, the same place arithmetic on each, and for a two-channel block which
  * channel holds Y — the second for BC5, the alpha for the ASTC luminance-alpha block. A
@@ -66,6 +67,9 @@ import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
  * and the request's alike: a frame the temporal pass upscales adds `log2(render / display)` and
  * the −0.3 sharpening offset, so a texture keeps the display's texel density (`../../post/taa/jitter.ts`,
  * `upscaleMipBias`).
+ * Beside it, a texture the oversubscribed pool takes levels from adds an offset of its own to every
+ * read and every request (`TileSlot.bias`, from the texture's page table header: `residencyBias.ts`),
+ * showing coarser tiles instead of the finest ones of a pool that cannot hold them.
  * The pool provides the footprint rule at that level (`samplingFootprintWgsl`). The reads take the
  * pool as a provider (`tileKindWgsl`, `atlasReadWgsl`); its variants share one name, so a program
  * holding two biases is refused when it is written.
@@ -97,7 +101,7 @@ ${wgslConsts({
 fn rebuiltZ(xy:vec2f)->f32{let n=unitToSigned2(xy);return (sqrt(max(0.0,1.0-dot(n,n)))+1.0)*0.5;}
 /** LOD a footprint asks of a texture, clamped to its levels: the single rule for choosing a level
  *  of a texture at the default filters, for the read as for the request. */
-fn slotLod(s:TileSlot,ddx:vec2f,ddy:vec2f)->f32{return clamp(atlasLod(ddx*s.size,ddy*s.size),0.0,f32(s.last));}
+fn slotLod(s:TileSlot,ddx:vec2f,ddy:vec2f)->f32{return clamp(atlasLod(ddx*s.size,ddy*s.size)+s.bias,0.0,f32(s.last));}
 /** Coordinate brought back into the texture by its addressing nibble, near side of a seam. */
 fn slotWrapped(s:TileSlot,uv:vec2f)->vec2f{
  if(!wrapRepete(s.wrap)){return wrapReplie(uv,s.wrap);}

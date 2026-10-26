@@ -13,12 +13,11 @@ import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 /** The red quad on a prepared runtime, its main view drawn twice from the front; `options` add
- *  to its context. */
-export async function drawnQuad(options: Partial<EngineContext> = {}) {
+ *  to its context; `fixture` is the scene when a test has set something on it first. */
+export async function drawnQuad(options: Partial<EngineContext> = {}, fixture = quadScene()) {
   installGpuGlobals()
   const gpu = fakeDevice(BACKEND)
-  const fixture = quadScene(),
-    events: EngineDiagnostic[] = []
+  const events: EngineDiagnostic[] = []
   const rt = createWebgpuPagesRuntime({
     textureCaches: createTextureCaches(createPageCache()),
     ...fixture,

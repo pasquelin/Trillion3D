@@ -1,11 +1,12 @@
 import { families } from '../../session/host/families.ts'
+import { effectsShown, stagePlan, type PlanStage } from '../../post/effects/stagePlan.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import type { ResolveFrame, ResolveTemporal } from '../../post/effects/webgpuKinds.ts'
-import type { PlanStage } from '../../post/effects/stagePlan.ts'
 import type { Velocity } from '../../post/taa/velocity.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
+import { readTemporalSetting } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 
 /** The world's effect chain on the GPU, made at the first image that needs it once its code
  *  arrived (`../../session/host/families.ts`); none before. */
@@ -77,9 +78,55 @@ export function readResolveFrame(
   frame.camera = resolveCamera
   readTemporal(rt, velocity, stage === 'before-resolve')
   frame.temporal = resolveTemporal
+  frame.flatten = rt.gpu.temporal?.inputs.flatten
+  frame.halfBeside = readTemporalSetting(rt, 'temporalDownsampleQuality') === 'low'
+  // The translucency the lit image waits for is the depth of field's to compose (`ResolveFrame.layers`).
+  const translucency = gpu.translucency
+  frame.layers =
+    stage === 'before-resolve' && translucency?.phase === 'drawn'
+      ? translucency.modulated
+        ? translucency.group
+        : translucency.groupBare
+      : undefined
+  frame.layersComposed = false
+  const late = translucency?.late
+  frame.lateLayers =
+    stage === 'after-resolve' && late?.phase === 'drawn'
+      ? {
+          group: late.modulated ? late.group : late.groupBare,
+          extent: [late.color.width, late.color.height],
+        }
+      : undefined
+  frame.lateComposed = false
   if (!velocity) return
   frame.allocated = velocity.size
   frame.vectors = velocity.vectors
   frame.view = velocity.uniform
   frame.still = velocity.still
 }
+
+/**
+ * Asks the motion blur of the chain to flatten its motion in the temporal pass's nearest velocity
+ * (`WebgpuResolveKind.fuse`) for this image, ahead of the pass: what that dispatch writes, none where
+ * the chain draws no blur on the resolved image, the image shows the chain's passes no more, or the
+ * blur takes its own way. The chain's passes are those of the stage the blur draws on, as
+ * `drawStage` reads them.
+ */
+export function fuseMotionBlur(rt: WebgpuPagesRuntime, cam: EngineCamera, velocity: Velocity) {
+  const plan = motionBlurPlan(rt)
+  if (!plan) return undefined
+  readResolveFrame(resolveFrame, rt, cam, 'after-resolve', true, velocity)
+  return rt.gpu.effects!.stage('after-resolve').fuse(plan.passes, resolveFrame)
+}
+
+/** The plan of the motion blur the chain draws on the resolved image — the passes of its stage —,
+ *  none where it holds none or the image shows the chain's passes no more. */
+const motionBlurPlan = (rt: WebgpuPagesRuntime) => {
+  if (!rt.gpu.effects || !effectsShown(rt)) return undefined
+  const plan = stagePlan(rt, 'after-resolve')
+  return plan?.motion ? plan : undefined
+}
+
+/** Whether the chain holds a motion blur for the resolved image and shows it: the pass that draws
+ *  after the temporal pass, which writes the half-size image beside its own where it can. */
+export const motionBlurPlanned = (rt: WebgpuPagesRuntime) => !!motionBlurPlan(rt)

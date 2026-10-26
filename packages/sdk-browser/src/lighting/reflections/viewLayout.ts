@@ -11,8 +11,8 @@ import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
  * pixel's world point, the eye, the drawn size, the exposure, the display curve and the background
  * are read there, from the one uniform every pass of the image reads).
  *  - `viewProj`, the view-projection the depth was drawn with, and `radianceViewProj`, the one the
- *    radiance pyramid's image was drawn with;
- *  - `radiance`, the radiance image's drawn size and its top level (`z`), and the reciprocal of the
+ *    lit image was drawn with;
+ *  - `radiance`, the lit image's drawn size (`xy`; `z` unused), and the reciprocal of the
  *    pre-exposure its light was written multiplied by (`w`);
  *  - `slab`, the geometry of a surface's thickness (`screenBack`): the world size of a pixel at
  *    a unit clip `w` (`x`), the depth at an infinite distance under a perspective, the eye's plane
@@ -21,24 +21,23 @@ import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
  *  - `thickness`, the share of a surface's depth the reference walk takes for its thickness:
  *    `reflectionRelativeDepthThickness` times the projection's scale, `screenRelativeThickness`;
  *  - `traced`, whether the screen is traced this image (`x`: the depth pyramid holds this image's
- *    depth and the radiance pyramid an earlier image of this view);
+ *    depth and the view an earlier lit image of it);
  *  - `front`, whether this image's trace answers the transparents' front surface (`x`, one or zero,
- *    `frontLayer.ts`);
+ *    `frontLayer.ts`), and the blocks of pixels a texel of the front layer traces one ray of, across and down
+ *    (`yz`, which the scene's water may set apart from the level's, even not square);
  *  - `temporal`, the reflections' turn (`x`: the image's rank in the samples' sequence, advanced
  *    every image, `stageReflectionImage`; `yzw` unused);
- *  - `grid`, the grid's extent over the drawn size (`xy`, `gridExtent`, `grids.ts`), the side of the blocks of pixels a texel
- *    traces one ray of (`z`, the level's row), `w` unused;
+ *  - `grid`, the grid's extent over the drawn size (`xy`, `gridExtent`, `grids.ts`), the blocks of pixels a texel
+ *    traces one ray of, across and down (`zw`, the level's row, square);
  *  - `surroundings`, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`):
- *    the background the screen draws, through the exposure and the display curve
- *    (`createSurroundings`, `../toneUnmap.ts`);
+ *    the background the screen draws, as the scene radiance the lit image holds there
+ *    (`createSurroundings`, `./surroundings.ts`);
  *  - `scene`, what a ray may spend (`../../../../sdk-core/src/contracts/reflectionOptions.ts`): the iterations of
- *    its march of the screen (`x`), the work (`y`) and the triangle tests (`z`) of its walk of each ring of the
- *    scene, in the tracer's units, and the flags of what is traced and done (`w`, `REFLECTION_SCENE_TRACES` and
- *    the bits after it);
- *  - `detail`, the work (`x`) and triangle tests (`y`) of the detail window's walk, the steps of the far screen
- *    trace (`z`) and the voxels across a ring's cube (`w`);
- *  - `reach`, the detail window's length (`x`), the distance from the eye at which its hits fade out (`y`), the
- *    metres a ray leaves a surface by at least (`z`) and the far screen trace's length (`w`);
+ *    its march of the screen (`x`) and the steps of the far screen trace (`y`), and the flags of what is traced
+ *    and done (`z`, `REFLECTION_SCENE_TRACES` and the bits after it; `w` the front layer's, whose denoising
+ *    switches the scene's water may set apart);
+ *  - `reach`, the metres a ray leaves a surface by at least (`x`), the far screen trace's length (`y`) and the hard bound of a ray
+ *    the scene walks (`z`, `reflectionSceneReach`: the bounce cascades' reach, `REFLECTION_FAR` without probes);
  *  - `march`, the thickness of a surface of the screen march as a share of its depth (`x`), the far trace's slope
  *    tolerance (`y`) and offset bias (`z`), the longest ray (`w`);
  *  - `light`, the most radiance a ray brings back (`x`), the depth thickness (`y`) and the cosine of the facing
@@ -48,7 +47,11 @@ import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
  *  - `spread`, the reconstruction's radius (`x`), the bilateral filter's (`y`), the reconstruction's least weight
  *    (`z`), the disocclusion frames (`w`);
  *  - `lobe`, the roughness past which a lobe casts no ray (`x`), the fade to it (`y`), the sampling's bias (`z`);
- *  - `taps`, the reconstruction's samples (`x`), the bilateral filter's (`y`), the period of the ray directions (`z`).
+ *  - `taps`, the reconstruction's samples (`x`), the bilateral filter's (`y`), the period of the ray directions (`z`);
+ *  - `leak`, the share of the sky light's diffuse light that leaks onto a hit of the scene, by channel (`xyz`: the leaking,
+ *    its tint and the average albedo multiplied; `w` unused);
+ *  - `jitter`, the device offset the temporal anti-aliasing shifts `viewProj` by (`xy`) and the one it shifted
+ *    `radianceViewProj` by (`zw`): what the surfaces' vectors, drawn without it, are compared after.
  */
 const LAYOUT = fieldLayout('ReflectionView', [
   ['viewProj', 'mat4x4f'],
@@ -62,7 +65,6 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['grid', 'vec4u'],
   ['surroundings', 'vec4f'],
   ['scene', 'vec4u'],
-  ['detail', 'vec4u'],
   ['reach', 'vec4f'],
   ['march', 'vec4f'],
   ['light', 'vec4f'],
@@ -70,6 +72,8 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['spread', 'vec4f'],
   ['lobe', 'vec4f'],
   ['taps', 'vec4u'],
+  ['leak', 'vec4f'],
+  ['jitter', 'vec4f'],
 ] as const)
 
 /** Each field's first word in the view. */
@@ -87,9 +91,6 @@ export const REFLECTION_GROUP = 1
 /** The binding of the reflection's view (`ReflectionView`) in the reflection group. */
 export const REFLECTION_VIEW_BINDING = 0
 
-/** The binding of the radiance pyramid's trilinear sampler in the reflection group. */
-export const REFLECTION_SAMPLER_BINDING = 2
-
 /** The binding from which the reflection group holds the depth pyramid (`hizDepthEntries`), three
  *  bindings. */
 export const REFLECTION_DEPTH_BINDING = 3
@@ -97,8 +98,8 @@ export const REFLECTION_DEPTH_BINDING = 3
 /** The binding of the deferred lighting's view in the reflection group (`View`). */
 export const REFLECTION_LIGHT_VIEW_BINDING = 7
 
-/** The binding of the radiance pyramid in the reflection group: the HDR target the last image lit,
- *  the lit image itself at its level 0 and level `k` at its mip `k` (`radiance/radiance.ts`). */
+/** The binding of the lit image in the reflection group: the HDR target the last image lit, read as it
+ *  is (`litImage.ts`). */
 export const REFLECTION_IMAGE_BINDING = 9
 
 /** The binding of the transparents' front depth in the reflection group (`frontLayer.ts`). */
@@ -116,37 +117,40 @@ export const REFLECTION_SKY_LIGHT = {
 } as const
 
 /**
- * The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the
- * radiance pyramid — one texture (`reflectionImage`): the lit image at level 0, level `k` at mip
- * `k` — and its trilinear sampler, the depth it
- * marches, the engine's pyramid (`hizDepthWgsl`); and `reflectionPixelAt`, the world size of a
+ * The reflection's view in bind group `group` — what the forward programs bind (`reflectionForwardLayout`): its
+ * view (`REFLECTION_VIEW_WGSL`), the sky light's resources, `reflectionPixelAt`, the world size of a
  * pixel at the point `P` — its clip `w` times the pixel at a unit `w` (`slab.x`) —, the side of the blocks of
  * pixels a texel traces (`reflectionBlock`) and whether a flag of the trace is set (`reflectionDone`). The program names the deferred lighting's view (`view`, the pixel's world point
  * `worldAt`, the eye `viewToEye`, the drawn size, the exposure, the display curve, the background)
  * itself: it already has it, or declares it in this group (`reflectionLightViewWgsl`).
  */
+const reflectionViewWgsl = (group: number) =>
+  wgslBlock(
+    `reflectionViewWgsl(${group})`,
+    [REFLECTION_VIEW_WGSL, WORLD_AT_WGSL, skyLightReadWgsl({ ...REFLECTION_SKY_LIGHT, group })],
+    `@group(${group}) @binding(${REFLECTION_VIEW_BINDING}) var<uniform> reflectionView:ReflectionView;
+fn reflectionPixelAt(P:vec3f)->f32{return (reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.slab.x;}
+// The surface a trace kernel works on, 0 the opaque or 1 the transparents' front, set by the
+// pipeline (frontLayer.ts); the forward programs leave it at 0.
+override REFLECTION_LAYER:u32=0u;
+fn reflectionBlock()->vec2u{return select(reflectionView.grid.zw,reflectionView.front.yz,REFLECTION_LAYER==1u);}
+fn reflectionDone(bit:u32)->bool{return (select(reflectionView.scene.z,reflectionView.scene.w,REFLECTION_LAYER==1u)&bit)!=0u;}`,
+  )
+
+/** The reflection's resources of the trace, in bind group `group`: the view (`reflectionViewWgsl`), the
+ *  lit image (`reflectionImage`) and the depth it marches, the engine's pyramid (`hizDepthWgsl`). */
 export const reflectionBindingsWgsl = (group: number) =>
   wgslBlock(
     `reflectionBindingsWgsl(${group})`,
-    [
-      REFLECTION_VIEW_WGSL,
-      hizDepthWgsl(group, REFLECTION_DEPTH_BINDING),
-      WORLD_AT_WGSL,
-      skyLightReadWgsl({ ...REFLECTION_SKY_LIGHT, group }),
-    ],
-    `@group(${group}) @binding(${REFLECTION_VIEW_BINDING}) var<uniform> reflectionView:ReflectionView;
-@group(${group}) @binding(${REFLECTION_SAMPLER_BINDING}) var reflectionSampler:sampler;
-@group(${group}) @binding(${REFLECTION_IMAGE_BINDING}) var reflectionImage:texture_2d<f32>;
-fn reflectionPixelAt(P:vec3f)->f32{return (reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.slab.x;}
-fn reflectionBlock()->u32{return reflectionView.grid.z;}
-fn reflectionDone(bit:u32)->bool{return (reflectionView.scene.w&bit)!=0u;}`,
+    [reflectionViewWgsl(group), hizDepthWgsl(group, REFLECTION_DEPTH_BINDING)],
+    `@group(${group}) @binding(${REFLECTION_IMAGE_BINDING}) var reflectionImage:texture_2d<f32>;`,
   )
 
 /**
  * A clip point's depth that grows linearly along the view (`reflectionLinearDepth`): its `w` under a perspective,
  * its `z` under an orthographic projection (`ReflectionView.slab`), and the one of a world point in this view
  * (`surfaceLinearDepth`): the engine's one depth for both projections, which a program that declares the
- * reflection's view (`reflectionBindingsWgsl`) lists beside it.
+ * reflection's view (`reflectionViewWgsl`) lists beside it.
  */
 export const REFLECTION_LINEAR_DEPTH_WGSL = wgslBlock(
   'REFLECTION_LINEAR_DEPTH_WGSL',
@@ -169,7 +173,7 @@ export const reflectionLightViewWgsl = (group: number) =>
 export const reflectionFrontWgsl = (group: number) =>
   wgslBlock(
     `reflectionFrontWgsl(${group})`,
-    [reflectionBindingsWgsl(group)],
+    [reflectionViewWgsl(group)],
     `@group(${group}) @binding(${REFLECTION_FRONT_BINDING}) var reflectionFront:texture_2d<f32>;
 fn reflectionFrontTraced()->bool{return reflectionView.front.x!=0u;}
 fn reflectionFrontDepth(coord:vec2i)->f32{return textureLoad(reflectionFront,coord,0).r;}`,

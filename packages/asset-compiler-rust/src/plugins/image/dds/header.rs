@@ -35,11 +35,14 @@ const MISC_TEXTURECUBE: u32 = 0x4;
 const ALPHA_MODE_MASK: u32 = 0x7;
 const ALPHA_MODE_PREMULTIPLIED: u32 = 2;
 
-/// Surface the driver will read: its codec, its size, its chain and where level 0 starts.
+/// Surface the driver will read: its codec, its size, the levels it stores and where level 0
+/// starts.
 pub(super) struct Surface {
     pub(super) codec: Codec,
     pub(super) width: u32,
     pub(super) height: u32,
+    /// Levels the file stores, from level 0: its announced count, no more than the chain of its size.
+    pub(super) levels: u32,
     pub(super) data: usize,
     /// Transfer function the file declares. Only the DX10 header names it, through the `_SRGB`
     /// or `_UNORM` variant of its `dxgiFormat`; a legacy DDS stays silent, and convention lends
@@ -102,6 +105,7 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
         codec,
         width,
         height,
+        levels: levels.min(u32::BITS - width.max(height).leading_zeros()),
         data,
         transfer,
     })
@@ -124,8 +128,7 @@ fn dx10(bytes: &[u8]) -> std::result::Result<(Codec, Transfer), &'static str> {
     codec::from_dxgi(word(bytes, 128)).ok_or(CODEC_UNSUPPORTED)
 }
 
-/// The announced chain must fit in what remains of the file. That is the only use of the level
-/// count: only level 0 is read, but it is refused in a file that is lying.
+/// The announced chain must fit in what remains of the file: a file that is lying is refused.
 fn chain_fits(
     codec: Codec,
     width: u32,

@@ -1,6 +1,6 @@
 /**
  * THE LEVEL LOOP OF A BOTTOM-UP REFIT, written once for every tree the GPU fits again — the placement
- * tree (`treeRefit.ts`) and a posed copy of a mesh's proxy (`../proxy/proxyPose.ts`): in one compute pass, a
+ * tree (`treeRefit.ts`): in one compute pass, a
  * dispatch a level from the deepest (`refitSchedule`, `../placement/placementTree.ts`), a thread a node of it, in
  * rows past a dimension's limit (`dispatchRows`, the kernel's `flatIndex`). The level's nodes are the
  * `count` ids from `first` in the kernel's own list; its parameters lie in a uniform slot of their own
@@ -52,4 +52,4 @@ export function createRefitLevels(device: GPUDevice, label: string, count: numbe
     },
   }
 }
-export type RefitLevels = ReturnType<typeof createRefitLevels>
+type RefitLevels = ReturnType<typeof createRefitLevels>

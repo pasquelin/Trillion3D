@@ -1,5 +1,5 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
-import { madeTextureBytes } from '../../../gpu/core/textureBytes.ts'
+import { madeBytesOf } from '../../../gpu/core/textureBytes.ts'
 import { imageOf as sizedImageOf, type Image, type MippedImage } from '../../filters/sizedImage.ts'
 import { DEPTH_OF_FIELD_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import { GATHER_QUALITY, scattersOver, type Layer } from './dofConvolutions.ts'
@@ -16,7 +16,7 @@ import {
 } from './dofLayout.ts'
 import { spriteCapacity } from './dofParams.ts'
 
-export type { Image, MippedImage } from '../../filters/sizedImage.ts'
+export type { Image } from '../../filters/sizedImage.ts'
 /** The two tile images a range of circles is kept in: the foreground's and the background's. */
 export interface TilePair {
   readonly fg: Image
@@ -232,5 +232,4 @@ export function imagesIn(set: DofImages): Image[] {
 
 /** Bytes of a list of images and buffers as made. */
 export const bytesOf = (images: readonly Image[], buffers: readonly GPUBuffer[]) =>
-  images.reduce((sum, image) => sum + madeTextureBytes(image.texture), 0) +
-  buffers.reduce((sum, buffer) => sum + buffer.size, 0)
+  madeBytesOf([...images.map(({ texture }) => texture), ...buffers])

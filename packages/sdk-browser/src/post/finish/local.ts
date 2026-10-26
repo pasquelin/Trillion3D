@@ -129,8 +129,10 @@ function createGridPass(device: GPUDevice, uniform: GPUBuffer, programs: LocalPr
       const tilesX = ceilDiv(size[0], GRID_TILE),
         tilesY = ceilDiv(size[1], GRID_TILE)
       layer.fit(tilesX, tilesY)
+      const pipeline = programs.grid.get()
+      if (!pipeline) return
       const pass = encoder.beginComputePass(computing)
-      pass.setPipeline(programs.grid.get())
+      pass.setPipeline(pipeline)
       pass.setBindGroup(0, layer.groupOver(first, group))
       pass.dispatchWorkgroups(tilesX, tilesY)
       pass.end()

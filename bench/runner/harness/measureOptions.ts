@@ -18,7 +18,6 @@ export interface MeasureViewOptions {
   engineId: string
   modulesUrl: string
   page: string
-  gltfUrl: string | null
   pose: CameraPose
   poses: CameraPose[] | null
   captureFile: string
@@ -53,15 +52,10 @@ export interface MeasureViewOptions {
 interface MeasureViewSuccess {
   error?: undefined
   importedLights: { count: number; ids: string[] } | null
-  /** The lights a Three witness placed (`witness/threeMeasurePage.ts`); null on the engine's side,
-   *  which draws its own light store. */
-  witnessLights: unknown
   movingNode: MovingNode
   selection: CutSelection
   metrics: Partial<FrameMetrics> & Record<string, unknown>
   network: NetworkBytes
-  // Absent from the Three witnesses (`witness/threeMeasurePage.ts`): they have no reservoir tuning, no
-  // held-pose loop, no compiler warnings of their own.
   settleFrames?: number | null
   liveTuning?: LiveTuning | null
   size: { width: number; height: number; dpr?: number }

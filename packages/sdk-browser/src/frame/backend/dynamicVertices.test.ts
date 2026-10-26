@@ -5,15 +5,14 @@ import { test } from 'node:test'
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
-import { createVertexPool } from '../../geometry/pages/pool/geometryPool.ts'
-import { type VertexPool } from '../../geometry/pages/pool/geometryPool.ts'
+import { createVertexPool, type VertexPool } from '../../geometry/pages/pool/geometryPool.ts'
 import { createShadowMobility } from '../../lighting/shadows/casters/mobility.ts'
-import type { HostAttributes } from '../../session/host/resources.ts'
 import { webgpuVertexApi } from './dynamicVertices.ts'
 import type { VertexRange } from '../../placement/engineSceneUpdates.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createFrameGateCore } from '../gate/gateCore.ts'
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 
 /** A runtime of `pool` on `device`, drawing `roots` with `lights`. */
 const runtimeOf = (
@@ -27,13 +26,13 @@ const runtimeOf = (
     ...{ vis: { vertexPool }, gpu: { device }, lights },
     ...{ run: { lost: false, gate } },
     // No row resident: a root holding a reach finds none to rewrite (`moveRootRows`).
-    layout: { selectionRoots, rows: { rowOf: () => -1, blendRowOf: () => -1 } },
+    layout: { selectionRoots, rows: { rowOf: () => -1 } },
   }) as unknown as WebgpuPagesRuntime
 
 test('a rewrite lands in its pool block alone and stales only its own shadow pages', () => {
   const { device, writes } = fakeDevice()
   const [wave, rock] = [geometry.plane(1, 1, 1, 1), geometry.plane(1, 1, 1, 1)]
-  const attributes = [wave, rock].map((g) => g.attributes as unknown as HostAttributes)
+  const attributes = [wave, rock].map((g) => g.attributes as unknown as Geometry['attributes'])
   const pool = createVertexPool(device, 16, false, new Map())
   pool.place(attributes[1])
   const block = pool.place(attributes[0], true)!
@@ -43,7 +42,7 @@ test('a rewrite lands in its pool block alone and stales only its own shadow pag
     reach: undefined as number | undefined,
   }))
   const mobility = createShadowMobility()
-  mobility.ensure(2, 4, (rank) => roots[rank].world.elements)
+  mobility.ensure(2, (rank) => roots[rank].world.elements)
   const staled: [number[], boolean][] = []
   const worldChanged = (min: number[], max: number[], moving: boolean) =>
     void staled.push([[...min, ...max], moving])
@@ -80,7 +79,7 @@ test('a rewrite lands in its pool block alone and stales only its own shadow pag
 test('content mounted after the open grows the pool in place: it is drawn, never reopened', () => {
   const { device, copies } = fakeDevice()
   const pool = createVertexPool(device, 8, false, new Map())
-  const sheet = () => geometry.plane(1, 1, 1, 1).attributes as unknown as HostAttributes
+  const sheet = () => geometry.plane(1, 1, 1, 1).attributes as unknown as Geometry['attributes']
   assert.ok(pool.place(sheet(), true), 'the first block')
   assert.ok(pool.place(sheet(), true), 'a mount after the open, in the room kept')
   const api = webgpuVertexApi(runtimeOf(pool, device))
@@ -92,7 +91,7 @@ test('content mounted after the open grows the pool in place: it is drawn, never
 
 test('a block a rewritten mesh holds survives a growth: written at the same place, no reopen', () => {
   const { device, writes, copies } = fakeDevice()
-  const held = geometry.plane(1, 1, 2, 2).attributes as unknown as HostAttributes
+  const held = geometry.plane(1, 1, 2, 2).attributes as unknown as Geometry['attributes']
   const pool = createVertexPool(device, 9, false, new Map())
   const api = webgpuVertexApi(runtimeOf(pool, device))
   const box = new Float64Array(6),
@@ -100,7 +99,7 @@ test('a block a rewritten mesh holds survives a growth: written at the same plac
   assert.ok(api.updateVertices(held, range, box, 0), 'the dynamic mesh placed and written')
   const before = writes.at(-1)!
   // A record mounted after the open, past the room kept: the pool grows in place.
-  const mounted = geometry.plane(1, 1, 2, 2).attributes as unknown as HostAttributes
+  const mounted = geometry.plane(1, 1, 2, 2).attributes as unknown as Geometry['attributes']
   assert.ok(api.updateVertices(mounted, range, box, 0), 'the mount grown in place')
   assert.ok(api.updateVertices(held, range, box, 0), 'the held mesh written again, not reopened')
   const after = writes.at(-1)!
@@ -113,7 +112,7 @@ test('a rewrite weighs what it sends the GPU: a normal with its tangent', () => 
   const { device, writes, textureWrites } = fakeDevice()
   const plane = geometry.plane(1, 1, 1, 1).attributes // its doubles: the world hands floats
   const xyz = new BufferAttribute(Float32Array.from(plane.position.array), 3)
-  const attributes = { ...plane, position: xyz } as unknown as HostAttributes
+  const attributes = { ...plane, position: xyz } as unknown as Geometry['attributes']
   const pool = createVertexPool(device, 8, false, new Map())
   pool.place(attributes, true)
   const api = webgpuVertexApi(runtimeOf(pool, device))
@@ -135,7 +134,7 @@ test('a rewrite weighs what it sends the GPU: a normal with its tangent', () => 
 
 test('a rewrite breaks the held image but moves no pose: the next image walks no world', () => {
   const { device } = fakeDevice()
-  const attributes = geometry.plane(1, 1, 1, 1).attributes as unknown as HostAttributes
+  const attributes = geometry.plane(1, 1, 1, 1).attributes as unknown as Geometry['attributes']
   const pool = createVertexPool(device, 8, false, new Map())
   pool.place(attributes, true)
   const gate = createFrameGateCore(1),

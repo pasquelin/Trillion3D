@@ -1,4 +1,5 @@
 import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
+import { copyOffsetSwitches } from '../../../../../sdk-core/src/world/object/offsetSwitches.ts'
 import { sphereFromBoundsBatch } from '../../../../../math/src/batch/culling.ts'
 import { emptyWorldBox, hostWorldBounds } from '../../../scene/host/world/bounds.ts'
 
@@ -29,6 +30,7 @@ export function modelNode(graph: Object3D): Object3D {
   node.castFarShadow = graph.castFarShadow
   node.farField = graph.farField
   node.farShadowTest = graph.farShadowTest
+  copyOffsetSwitches(node, graph)
   // A morphed mesh's weights are one list for both: a clip writing them moves the drawn mesh.
   const weights = (graph as Weighted).morphTargetInfluences
   if (weights) (node as Weighted).morphTargetInfluences = weights
@@ -53,6 +55,7 @@ export function writeModelNode(node: Object3D) {
   graph.castFarShadow = node.castFarShadow
   graph.farField = node.farField
   graph.farShadowTest = node.farShadowTest
+  copyOffsetSwitches(graph, node)
   if (!graph.matrixAutoUpdate) graph.matrix.fromArray(node._matrixElements)
 }
 
@@ -61,13 +64,17 @@ const indexOfs = new WeakMap<readonly Object3D[], Map<Object3D, number>>()
 const sphere = new Float64Array(4)
 
 /**
- * The subtree of the graph node of source node `index` (`nodes`, by source index): the source
- * indices of the nodes it holds, itself included, and the radius of the box they draw in its
- * parent's frame (0 for none).
+ * The subtree of the graph node of source node `index` (`nodes`, by source index, a hole where a
+ * partition's cell places a node in its stead): the source indices of the nodes it holds, itself
+ * included, and the radius of the box they draw in its parent's frame (0 for none).
  */
 export function graphSubtree(nodes: readonly Object3D[], index: number) {
   let indexOf = indexOfs.get(nodes)
-  if (!indexOf) indexOfs.set(nodes, (indexOf = new Map(nodes.map((node, i) => [node, i]))))
+  if (!indexOf)
+    indexOfs.set(
+      nodes,
+      (indexOf = new Map(nodes.flatMap((node, i): [Object3D, number][] => [[node, i]]))),
+    )
   const indices: number[] = []
   nodes[index].traverse((node) => {
     const at = indexOf.get(node)

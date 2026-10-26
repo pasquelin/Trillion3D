@@ -4,7 +4,6 @@ import {
   MAX_LEVELS,
   packEntry,
   packPlace,
-  tilesAt,
   type TileLayout,
   type TilePlace,
 } from '../../texture/tiles.ts'
@@ -23,15 +22,25 @@ import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
  * searches: one read, one tile, always showable.
  *
  * One buffer per atlas, in words: `[feedback offset, textures, start of entries, start of
- * levels]`, ten words per texture (`width | height << 16`, first tail level, last level under the
- * sampling word, tail place under the pool tap, UV transform — `texture/sampling.ts`), sixteen per texture
- * (each streamed level's first word), the entries. A flush sends the words that changed
+ * levels]`, ten words per texture (`width | height << 16`, first tail level under the texture's
+ * residency bias — the level offset its reads add while the pools are oversubscribed, in sixteenths
+ * of a level (`setSlotBias`) —, last level under the sampling word, tail place under the pool tap, UV
+ * transform — `texture/sampling.ts`), sixteen per texture (each streamed level's first word), the entries. A flush sends the words that changed
  * (`pageUploads.ts`).
  */
 export const PAGE_HEADER_WORDS = 4
+/** Where a slot's residency bias lies in its first tail level's word, and how many steps it counts to a level. */
+export const SLOT_BIAS_SHIFT = 8,
+  SLOT_BIAS_STEPS = 16
 export const PAGE_SLOT_WORDS = 4 + TRANSFORM_WORDS,
   PAGE_TRANSFORM_WORD = 4,
   PAGE_FILTER_SHIFT = 8
+/** The word of a slot's header holding its last level and filter, and the ones holding its tail place and its first tail level. */
+export const SLOT_FILTER_WORD = 2
+const SLOT_TAIL_WORD = 3,
+  SLOT_FIRST_TAIL_WORD = 1
+/** The first word of texture `slot`'s header. */
+export const slotHeader = (slot: number) => PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS
 
 export type TileKey = { slot: number; level: number; tx: number; ty: number }
 
@@ -50,6 +59,8 @@ export type WebgpuTilePageTable = {
   setTile(key: TileKey, place: TilePlace): void
   /** Filter word, addressing and UV transform (`samplingWords`); true when a word moved. */
   setSampling(slot: number, texture: Texture): boolean
+  /** The level offset every read of texture `slot` adds to its level, from the next flush. */
+  setSlotBias(slot: number, levels: number): void
   clearTile(key: TileKey): void
   /** Sends the GPU what has changed; nothing when nothing moved. */
   flush(device: Pick<GPUDevice, 'queue'>): void
@@ -86,10 +97,10 @@ function pageTable(layouts: TileLayout[], feedbackOffset: number): Table {
   words[3] = levelsAt
   for (let slot = 0; slot < slots; slot++) {
     const layout = layouts[slot],
-      header = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS
+      header = slotHeader(slot)
     words[header] = layout.width | (layout.height << 16)
-    words[header + 1] = layout.tail
-    words[header + 2] = layout.last
+    words[header + SLOT_FIRST_TAIL_WORD] = layout.tail
+    words[header + SLOT_FILTER_WORD] = layout.last
     // Level 0's first word even for a texture all tail: the starts climb with the slots, what the
     // stamp's search reads (`../stampWgsl.ts`); no read takes a level at or past the tail.
     words[levelsAt + slot * MAX_LEVELS] = entriesAt + bases[slot]
@@ -99,13 +110,22 @@ function pageTable(layouts: TileLayout[], feedbackOffset: number): Table {
   return { layouts, words, bases, entries, entriesAt, uploads: createPageUploads() }
 }
 
+/** The index of the word of the tile (`slot`, `level`, `tx`, `ty`), unchecked. */
+const entryIndex = (
+  { layouts, entriesAt, bases }: Table,
+  slot: number,
+  level: number,
+  tx: number,
+  ty: number,
+) => entriesAt + bases[slot] + layouts[slot].offsets[level] + ty * layouts[slot].across[level] + tx
+
 /** The word of a streamed tile; a tile in the tail or off its level is refused. */
-function wordIndex({ layouts, entriesAt, bases }: Table, { slot, level, tx, ty }: TileKey) {
-  const layout = layouts[slot]
+function wordIndex(table: Table, { slot, level, tx, ty }: TileKey) {
+  const layout = table.layouts[slot]
   if (level >= layout.tail) throw new Error('TEXTURE_TILE_IN_TAIL')
-  const tw = layout.across[level]
-  if (tx >= tw || ty >= layout.down[level]) throw new Error('TEXTURE_TILE_OUT_OF_LEVEL')
-  return entriesAt + bases[slot] + layout.offsets[level] + ty * tw + tx
+  if (tx >= layout.across[level] || ty >= layout.down[level])
+    throw new Error('TEXTURE_TILE_OUT_OF_LEVEL')
+  return entryIndex(table, slot, level, tx, ty)
 }
 
 /** Writes `word` at `index`, marked for the next flush; true when it moved. */
@@ -138,9 +158,13 @@ function tileAt({ layouts, bases }: Table, entry: number, into: TileKey): TileKe
 
 /** Filter word, addressing and UV transform of texture `slot`; true when a word moved. */
 function setSampling(table: Table, slot: number, texture: Texture) {
-  const at = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS,
+  const at = slotHeader(slot),
     sampling = samplingWords(texture)
-  let moved = write(table, at + 2, table.layouts[slot].last | (sampling[0] << PAGE_FILTER_SHIFT))
+  let moved = write(
+    table,
+    at + SLOT_FILTER_WORD,
+    table.layouts[slot].last | (sampling[0] << PAGE_FILTER_SHIFT),
+  )
   for (let i = 1; i <= TRANSFORM_WORDS; i++)
     moved = write(table, at + PAGE_TRANSFORM_WORD - 1 + i, sampling[i]) || moved
   return moved
@@ -168,10 +192,11 @@ function finestAncestor(table: Table, key: TileKey) {
   const layout = table.layouts[key.slot]
   for (let level = key.level + 1; level < layout.tail; level++) {
     const shift = level - key.level,
-      [tw, th] = tilesAt(layout.width, layout.height, level)
-    const [tx, ty] = [key.tx >> shift, key.ty >> shift]
-    if (tx >= tw || ty >= th) continue
-    const word = table.words[wordIndex(table, { slot: key.slot, level, tx, ty })]
+      tw = layout.across[level],
+      tx = key.tx >> shift,
+      ty = key.ty >> shift
+    if (tx >= tw || ty >= layout.down[level]) continue
+    const word = table.words[entryIndex(table, key.slot, level, tx, ty)]
     if (word !== 0 && entryLevel(word) === level) return word
   }
   return 0
@@ -192,7 +217,7 @@ function clearTile(table: Table, key: TileKey) {
 export function createWebgpuTilePageTable(
   device: Pick<GPUDevice, 'createBuffer' | 'queue'>,
   layouts: TileLayout[],
-  options: { kind: 'color' | 'data'; feedbackOffset: number },
+  options: { kind: 'color' | 'data'; feedbackOffset: number; upload?: boolean },
 ): WebgpuTilePageTable {
   const table = pageTable(layouts, options.feedbackOffset),
     { words, entries, entriesAt } = table
@@ -201,7 +226,7 @@ export function createWebgpuTilePageTable(
     size: Math.max(16, words.byteLength),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
-  device.queue.writeBuffer(buffer, 0, words)
+  if (options.upload !== false) device.queue.writeBuffer(buffer, 0, words)
   return {
     words,
     entries,
@@ -214,10 +239,16 @@ export function createWebgpuTilePageTable(
       return tileAt(table, entry, into)
     },
     setTail(slot, place, tap) {
-      const header = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS
-      write(table, header + 3, packPlace(place) | (tap << 24))
+      write(table, slotHeader(slot) + SLOT_TAIL_WORD, packPlace(place) | (tap << 24))
     },
     setSampling: (slot, texture) => setSampling(table, slot, texture),
+    setSlotBias(slot, levels) {
+      write(
+        table,
+        slotHeader(slot) + SLOT_FIRST_TAIL_WORD,
+        table.layouts[slot].tail | (Math.round(levels * SLOT_BIAS_STEPS) << SLOT_BIAS_SHIFT),
+      )
+    },
     setTile: (key, place) => setTile(table, key, place),
     clearTile: (key) => clearTile(table, key),
     flush: (target) => table.uploads.flush(target.queue, buffer, words),

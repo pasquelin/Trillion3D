@@ -20,7 +20,6 @@ import type { PageSurface, SurfaceFamily } from '../../../geometry/pages/surface
 import { declareSurface } from '../../../geometry/pages/surfaceRecord.ts'
 import type { SurfaceDeclaration } from '../../../geometry/pages/surfaceDeclaration.ts'
 import { Texture } from '../../../../../sdk-core/src/world/texture/texture.ts'
-import type { HostAttributes } from '../../../session/host/resources.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { Vector3 } from '../../../../../sdk-core/src/world/math/vector3.ts'
 
@@ -48,7 +47,6 @@ export function triangleMesh(surface: PageSurface) {
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3))
   const made = new Mesh(geometry, surface)
-  made.frustumCulled = false
   return made
 }
 
@@ -57,7 +55,7 @@ export function triangleAttributes() {
   const geometry = new Geometry()
   geometry.setAttribute('position', floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3))
   geometry.setIndex(indices([0, 1, 2]))
-  return geometry.attributes as HostAttributes
+  return geometry.attributes as Geometry['attributes']
 }
 
 /** A surface of each family a scene declares. */

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FLOAT32_MAX } from '../constants.ts'
-import { wgslF32, wgslMatrix3 } from './number.ts'
+import { wgslF32, wgslMatrix3, wgslOperand, wgslVec3 } from './number.ts'
 
 test('the literal names the f32 nearest the number, nine digits', () => {
   const cases: [number, string][] = [
@@ -52,4 +52,14 @@ test('a 3×3 matrix is written column after column, each entry its f32 literal',
       'vec3f(0.100000001,-0.00000000,0.333333343),' +
       'vec3f(3.4028234663852886e+38,7.00000000,3.14159274))',
   )
+})
+
+test('a triple is a vec3f of its f32 literals', () => {
+  assert.equal(wgslVec3([1, -0.5, 2]), `vec3f(${wgslF32(1)},${wgslF32(-0.5)},${wgslF32(2)})`)
+})
+
+test('an operand is the literal, a negative one in parentheses so that no operator doubles into `--`', () => {
+  assert.equal(wgslOperand(0.5), wgslF32(0.5))
+  assert.equal(wgslOperand(-0.5), `(${wgslF32(-0.5)})`)
+  assert.equal(wgslOperand(0), wgslF32(0))
 })

@@ -4,11 +4,12 @@ import {
   transformHomogeneousPoint,
 } from '../../../../math/src/wgsl/projection.ts'
 import { toF32 } from '../../../../math/src/wgsl/f32.ts'
-import { CENTIMETRES_PER_METRE } from '../../../../sdk-core/src/page/format.ts'
-import { ROOT_BOX_DOUBLES } from '../../placement/roots/rootWorldSends.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../../visibility/shader/pageWgsl.ts'
 import { visPageIndex } from '../../visibility/visWords.ts'
+import { WPO_ROW_VELOCITY } from '../../visibility/types.ts'
 import { TAA_VIEW_WGSL } from './bindingsWgsl.ts'
+import { worldTableWgsl } from '../../geometry/dag/worlds/worldTable.ts'
+import { worldAtEyeWgsl } from '../../geometry/dag/shader/worldPoseWgsl.ts'
 import { TAA_REPROJECT_WGSL } from './deformWgsl.ts'
 import { DEPTH_WGSL } from './depthWgsl.ts'
 import { TILE_CLAMP_WGSL } from './tileWgsl.ts'
@@ -20,34 +21,89 @@ export const VELOCITY_INPUT_BINDINGS = {
   depth: 1,
   ids: 2,
   pages: 3,
-  motion: 4,
+  /** The placements' poses now (`../../geometry/dag/worlds/worldTable.ts`) and as the last drawn
+   *  frame drew them (`../../geometry/dag/previousPoses.ts`). */
+  worlds: 4,
+  previous: 24,
   indices: 5,
   positions: 6,
   uvs: 7,
-  boxes: 8,
   normals: 9,
+  /** The surfaces' records, which hold the values of the offsets that move vertices. */
+  material: 13,
+  /** The graph frame (`../../visibility/shader/graphFrameWgsl.ts`) those offsets are evaluated at. */
+  frame: 14,
+  /** The colour atlas an offset reads a texture from, the sampler it reads it through
+   *  (`wpoAtlasWgsl`). */
+  colorPool0: 15,
+  colorPool1: 16,
+  colorPool2: 17,
+  colorPages: 18,
+  sampler: 19,
 } as const
 
 /**
+ * A placement's motion since the last drawn frame, from its two poses: `placementMoved`, whether
+ * any word of its matrix or of its exact translation differs from the one the last drawn frame drew
+ * (`../../geometry/dag/previousPoses.ts`); `placementMotion`, `previous · current⁻¹` of its worlds
+ * taken at this image's eye (`worldAtEyeWgsl`, the eye in doubles `view.exactEye`), the inverse of
+ * the affine world by its cofactors, so a point relative to the eye where the placement is now goes
+ * where it was, relative to the same eye.
+ */
+const PLACEMENT_MOTION_WGSL = wgslBlock(
+  'PLACEMENT_MOTION_WGSL',
+  [
+    TAA_VIEW_WGSL,
+    worldTableWgsl('worlds', { group: 0, binding: VELOCITY_INPUT_BINDINGS.worlds, access: 'read' }),
+    worldTableWgsl('previous', {
+      group: 0,
+      binding: VELOCITY_INPUT_BINDINGS.previous,
+      access: 'read',
+    }),
+    worldAtEyeWgsl('worlds'),
+    worldAtEyeWgsl('previous'),
+  ],
+  `
+fn placementMoved(w:u32)->bool{
+ for(var k=0u;k<4u;k++){if(any(worldsMatrix(w,k)!=previousMatrix(w,k))){return true;}}
+ return any(worldsOrigin(w,0u)!=previousOrigin(w,0u))||any(worldsOrigin(w,1u)!=previousOrigin(w,1u));
+}
+fn affineInverse(m:mat4x4f)->mat4x4f{
+ let a=m[0].xyz;let b=m[1].xyz;let c=m[2].xyz;
+ let s=1.0/dot(a,cross(b,c));
+ let r0=cross(b,c)*s;let r1=cross(c,a)*s;let r2=cross(a,b)*s;
+ let t=m[3].xyz;
+ return mat4x4f(vec4f(r0.x,r1.x,r2.x,0.0),vec4f(r0.y,r1.y,r2.y,0.0),vec4f(r0.z,r1.z,r2.z,0.0),vec4f(-dot(r0,t),-dot(r1,t),-dot(r2,t),1.0));
+}
+fn placementMotion(w:u32)->mat4x4f{
+ let now=worldsWorldAtEye(w,view.exactEye[0],view.exactEye[1]);
+ return previousWorldAtEye(w,view.exactEye[0],view.exactEye[1])*affineInverse(now);
+}`,
+)
+
+/**
  * What the velocity passes read, declared once for every pass that measures it: the pass uniform,
- * the depth, the visibility identifiers, the page records, the placements' motion, the pools a
- * deformed or displaced pixel's triangle is read from — the normal atlas beside them, which a
- * displaced one's prism is solved with — and the roots' world boxes (`rootBoxes`, doubles, the
- * root boxes pass's, `../../placement/roots/rootBoxesWgsl.ts`), which tell how large an object is.
+ * the depth, the visibility identifiers, the page records, the placements' poses now and as the last
+ * drawn frame drew them (`PLACEMENT_MOTION_WGSL`), the pools a deformed or displaced pixel's triangle
+ * is read from — the normal atlas beside them, which a displaced one's prism is solved with.
  */
 const VELOCITY_INPUTS_WGSL = wgslBlock(
   'VELOCITY_INPUTS_WGSL',
-  [PAGE_INFO_STRUCT_WGSL, TAA_VIEW_WGSL, normalAtlasWgsl(VELOCITY_INPUT_BINDINGS.normals)],
+  [
+    PAGE_INFO_STRUCT_WGSL,
+    TAA_VIEW_WGSL,
+    PLACEMENT_MOTION_WGSL,
+    normalAtlasWgsl(VELOCITY_INPUT_BINDINGS.normals),
+  ],
   `
 @group(0) @binding(${VELOCITY_INPUT_BINDINGS.view}) var<uniform> view:TaaView;
 @group(0) @binding(${VELOCITY_INPUT_BINDINGS.depth}) var depth:texture_depth_2d;
 @group(0) @binding(${VELOCITY_INPUT_BINDINGS.ids}) var ids:texture_2d<u32>;
 @group(0) @binding(${VELOCITY_INPUT_BINDINGS.pages}) var<storage,read> pages:array<PageInfo>;
-@group(0) @binding(${VELOCITY_INPUT_BINDINGS.motion}) var<storage,read> motion:array<mat4x4f>;
 @group(0) @binding(${VELOCITY_INPUT_BINDINGS.indices}) var<storage,read> indices:array<u32>;
 @group(0) @binding(${VELOCITY_INPUT_BINDINGS.positions}) var<storage,read> positions:array<f32>;
 @group(0) @binding(${VELOCITY_INPUT_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;
-@group(0) @binding(${VELOCITY_INPUT_BINDINGS.boxes}) var<storage,read> boxes:array<vec2u>;`,
+`,
 )
 
 /**
@@ -78,10 +134,9 @@ fn cameraOnlyMotion(screen:vec2f,z:f32)->vec2f{
 /**
  * What a velocity pass measures a surface point by, declared once for every pass that reads the
  * frame's surfaces (`VELOCITY_INPUT_BINDINGS`):
- * - `drawsMotion`: whether the surface at identifier `id` moves by itself — a placement whose motion
- *   is not the identity, a deformed geometry — and is large enough on the screen to be measured
- *   (`smallObject`, `perObjectSize`: an object under it is left out, as one the velocity is not
- *   drawn for, and is measured as a surface that did not move by itself);
+ * - `drawsMotion`: whether the surface at identifier `id` moves by itself — a placement whose pose
+ *   moved since the last drawn frame (`placementMoved`), a deformed geometry, a surface whose offset
+ *   is a motion —, whatever its size on the screen, as the visibility buffer's surfaces are measured;
  * - `surfaceMotion`: the motion of the surface point a texel shows, `moves` saying whether its own
  *   motion carries it back (`pointBefore`) before the camera's does; `texelMotion`: that of texel
  *   `p`'s surface, taken at texel `q` — the one it was found at — where it moves by itself, else
@@ -99,30 +154,14 @@ export const SURFACE_MOTION_WGSL = wgslBlock(
     transformHomogeneousPoint,
     toF32,
   ],
-  `fn boxCorner(at:u32)->vec3f{
- return vec3f(bitcast<f32>(toF32(boxes[at])),bitcast<f32>(toF32(boxes[at+1u])),bitcast<f32>(toF32(boxes[at+2u])));
-}
-fn smallObject(rank:u32)->bool{
- if(view.rates.w<=0.0){return false;}
- let at=rank*${ROOT_BOX_DOUBLES}u;
- let low=boxCorner(at);
- let high=boxCorner(at+3u);
- let radius=length(high-low)*0.5*${CENTIMETRES_PER_METRE}.0;
- if(!(radius>0.0)){return false;}
- let offset=(low+high)*0.5-view.eye.xyz;
- let reach=select(dot(offset,offset)*${CENTIMETRES_PER_METRE * CENTIMETRES_PER_METRE}.0,0.0,view.radius.w!=0.0);
- let screen=view.rates.z*radius;
- return screen*screen/max(1.0,reach)<view.rates.w;
-}
-fn drawsMotion(id:u32)->bool{
+  `fn drawsMotion(id:u32)->bool{
  if(id==0u){return false;}
  let page=pages[visPageIndex(id)];
- var moves=view.eye.w!=0.0&&page.deformOutput!=0u;
+ var moves=view.eye.w!=0.0&&(page.deformOutput!=0u||(page.wpo&${WPO_ROW_VELOCITY}u)!=0u);
  if(!moves&&view.params.z!=0.0){
-  let m=motion[page.placement];
-  moves=any(m[0]!=vec4f(1.0,0.0,0.0,0.0))||any(m[1]!=vec4f(0.0,1.0,0.0,0.0))||any(m[2]!=vec4f(0.0,0.0,1.0,0.0))||any(m[3]!=vec4f(0.0,0.0,0.0,1.0));
+  moves=placementMoved(page.placement);
  }
- return moves&&!smallObject(page.placement);
+ return moves;
 }
 fn surfaceMotion(screen:vec2f,z:f32,id:u32,moves:bool)->TaaMotion{
  let here=transformHomogeneousPoint(view.invViewProj,vec3f(screen,z));

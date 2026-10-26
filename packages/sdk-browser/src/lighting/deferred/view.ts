@@ -35,19 +35,25 @@ export const ZERO_DIRECT = [
   DEFAULT_SHARPNESS,
   UNIT_EXPOSURE,
   UNIT_EXPOSURE,
+  0,
 ] as const
 /** The words of `direct` that fill `lightParams` and `display`; the ones after them are the
  *  sharpening strength, the viewport's fourth word, then the image's pre-exposure and the scale the
- *  composition multiplies it by (`preExposure`, `PreExposure`). */
+ *  composition multiplies it by (`preExposure`, `PreExposure`), then whether the image carries an alpha
+ *  channel (`propagateAlpha`, 1 or 0). */
 const DIRECT_WORDS = 8
 /** Where `direct` holds the words after those (`DIRECT_WORDS`), and how many it holds. */
-export const DIRECT_AT = { sharpness: 8, preExposure: 9, shown: 10, words: 11 } as const
+export const DIRECT_AT = { sharpness: 8, preExposure: 9, shown: 10, alpha: 11, words: 12 } as const
 
-/** Writes the source words of `drawn` pixels shown at `shown` into `packed`: the ratio on each
+/** Writes the words at `at` of `drawn` pixels shown at `shown` into `packed`: the ratio on each
  *  axis, exactly 1 at the display's size, and the last pixel. True when they changed. */
-function setSource(packed: Float32Array, drawn: readonly number[], shown: readonly number[]) {
-  const at = AT.source,
-    x = Math.fround(drawn[0] / shown[0]),
+function setSource(
+  packed: Float32Array,
+  drawn: readonly number[],
+  shown: readonly number[],
+  at: number = AT.source,
+) {
+  const x = Math.fround(drawn[0] / shown[0]),
     y = Math.fround(drawn[1] / shown[1])
   const same =
     packed[at] === x &&
@@ -70,6 +76,7 @@ function writeDirect(packed: Float32Array, direct: ArrayLike<number>) {
   for (let i = 0; i < DIRECT_WORDS; i++) packed[AT.lightParams + i] = direct[i]
   packed[AT.preExposure] = direct[DIRECT_AT.preExposure]
   packed[AT.preExposure + 1] = direct[DIRECT_AT.shown]
+  packed[AT.preExposure + 2] = direct[DIRECT_AT.alpha]
 }
 
 /** Writes `values` at the word `at` of `packed` and of `buffer`, the words alone, when one changed. */
@@ -80,27 +87,35 @@ function writeWords(
   at: number,
   values: readonly number[],
 ) {
-  if (values.every((value, i) => packed[at + i] === Math.fround(value))) return
+  let same = true
+  for (let i = 0; same && i < values.length; i++) same = packed[at + i] === Math.fround(values[i])
+  if (same) return
   packed.set(values, at)
   device.queue.writeBuffer(buffer, at * 4, packed, at, values.length)
 }
 
-export function createDeferredView(device: GPUDevice) {
-  const buffer = device.createBuffer({
-    label: 'Trillion3D deferred view v1',
-    size: VIEW_LAYOUT.words * 4,
-    // The exposure the meter copies in is copied out again, into the finishing's uniform.
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-  })
-  const packed = new Float32Array(VIEW_LAYOUT.words)
-  const setJitter = (jitter: ArrayLike<number> | null, phase = 0) =>
-    void viewJitterWords(jitter, packed, AT.jitter, phase)
-  setJitter(null)
-  setSource(packed, [1, 1], [1, 1])
+/** One word, compared and written alone. */
+function writeWord(
+  device: GPUDevice,
+  buffer: GPUBuffer,
+  packed: Float32Array<ArrayBuffer>,
+  at: number,
+  value: number,
+) {
+  if (packed[at] === Math.fround(value)) return
+  packed[at] = value
+  device.queue.writeBuffer(buffer, at * 4, packed, at, 1)
+}
+
+/** The words of the two- and four-word terms, rewritten by each write, never allocated. */
+const PAIR = [0, 0],
+  QUAD = [0, 0, 0, 0]
+
+type ViewBuffer = { device: GPUDevice; buffer: GPUBuffer; packed: Float32Array<ArrayBuffer> }
+
+/** The writes of an image's view: its matrices, size and background, and the source of its composition. */
+function viewWrites({ device, buffer, packed }: ViewBuffer) {
   return {
-    buffer,
-    /** The TAA jitter of the next image `write` writes (`viewJitterWords`). */
-    setJitter,
     /** `rawOutput` skips the display chain; `direct` carries the contract lights, the
      *  tiles in X and Y, the exposure, the display curve's rank, the eye, then the sharpening and the
      *  pre-exposure (`DIRECT_AT`). */
@@ -126,27 +141,48 @@ export function createDeferredView(device: GPUDevice) {
       device.queue.writeBuffer(buffer, 0, packed)
     },
     /** The composition's source of this image: an image of `drawn` pixels shown at `shown`, the
-     *  display's — the lit image drawn below it, or the temporal resolve's at its size. Its words
-     *  alone are written, when they change. */
-    writeSource(drawn: readonly number[], shown: readonly number[]) {
+     *  display's — the lit image drawn below it, or the temporal resolve's at its size —, and the
+     *  `surface` pixels the surfaces were drawn at, the as-is pixels' (`surface`). Their words alone
+     *  are written, when they change. */
+    writeSource(drawn: readonly number[], shown: readonly number[], surface = drawn) {
       if (setSource(packed, drawn, shown))
         device.queue.writeBuffer(buffer, AT.source * 4, packed, AT.source, 4)
+      if (setSource(packed, surface, shown, AT.surface))
+        device.queue.writeBuffer(buffer, AT.surface * 4, packed, AT.surface, 4)
     },
+  }
+}
+
+/** The writes of one term of the view, each when its words changed. */
+function termWrites({ device, buffer, packed }: ViewBuffer) {
+  return {
     /** The lighting term a view of the lit image shows in place of the surface (`LIT_VIEWS`,
      *  `../../visibility/shader/shadeMode.ts`), zero the lit surface: its word alone is written,
      *  when it changes. */
     writeLightView(code: number) {
-      writeWords(device, buffer, packed, AT.views, [code])
+      writeWord(device, buffer, packed, AT.views, code)
+    },
+    /** The shading models' switches this image, as the `MODEL_SWITCH` bits of the fourth word of the lighting term's
+     *  (`../../materials/surface/pixelModel.ts`). Written when it changes. */
+    writeModelSwitches(bits: number) {
+      writeWord(device, buffer, packed, AT.views + 3, bits)
+    },
+    /** The distance at which a subsurface-model surface's colour is the light's transmittance (`preExposure.w`; the setting
+     *  `subsurfaceColorTransmittanceDistance`). Its word alone is written, when it changes. */
+    writeSubsurfaceDistance(distance: number) {
+      writeWord(device, buffer, packed, AT.preExposure + 3, distance)
     },
     /** How the resolve applies the ambient occlusion this image drew (`../ao/frame.ts`): the mode's code — 0 none, 1 to the
      *  scene's emission and sky light, 2 to the screen probes' light — and the share it applies at. Its two words
      *  alone are written, when they change. */
     writeAmbientOcclusion(mode: number, amount: number) {
-      writeWords(device, buffer, packed, AT.views + 1, [mode, amount])
+      PAIR[0] = mode
+      PAIR[1] = amount
+      writeWords(device, buffer, packed, AT.views + 1, PAIR)
     },
     /** How the resolve reads the screen probes' history this image (`../bounce/screen/indirectWgsl.ts`): whether the material's
      *  occlusion multiplies their light (1 or 0), the albedo the occlusion's multi-bounce is capped at, the strength of their
-     *  short-range occlusion and their mode — 0 their light, 1 their occlusion alone over the world's probes' light. Its four
+     *  short-range occlusion and their mode — bit 0 set their occlusion alone over the sky light's irradiance, else their light; bit 1 set a level that gathers no back light of a thin surface. Its four
      *  words alone are written, when they change. */
     writeScreenProbes(
       materialOcclusion: number,
@@ -154,13 +190,35 @@ export function createDeferredView(device: GPUDevice) {
       intensity: number,
       mode: number,
     ) {
-      writeWords(device, buffer, packed, AT.screenProbes, [
-        materialOcclusion,
-        maxAlbedo,
-        intensity,
-        mode,
-      ])
+      QUAD[0] = materialOcclusion
+      QUAD[1] = maxAlbedo
+      QUAD[2] = intensity
+      QUAD[3] = mode
+      writeWords(device, buffer, packed, AT.screenProbes, QUAD)
     },
+  }
+}
+
+export function createDeferredView(device: GPUDevice) {
+  const buffer = device.createBuffer({
+    label: 'Trillion3D deferred view v1',
+    size: VIEW_LAYOUT.words * 4,
+    // The exposure the meter copies in is copied out again, into the finishing's uniform.
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+  })
+  const packed = new Float32Array(VIEW_LAYOUT.words)
+  const setJitter = (jitter: ArrayLike<number> | null, phase = 0) =>
+    void viewJitterWords(jitter, packed, AT.jitter, phase)
+  setJitter(null)
+  setSource(packed, [1, 1], [1, 1])
+  setSource(packed, [1, 1], [1, 1], AT.surface)
+  const parts = { device, buffer, packed }
+  return {
+    buffer,
+    /** The TAA jitter of the next image `write` writes (`viewJitterWords`). */
+    setJitter,
+    ...viewWrites(parts),
+    ...termWrites(parts),
     dispose() {
       buffer.destroy()
     },

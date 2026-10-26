@@ -1,133 +1,158 @@
 import { feedbackConstants } from '../../materials/virtual/requestWgsl.ts'
-import { fullscreenDescriptor, preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
-import {
-  DISTORTION_BINDINGS,
-  reflectedGroups,
-  stageDescriptors,
-  type TransmitPipelines,
-} from '../stagePipelines.ts'
-import { cullOf, refractsRank, transmitsRank } from '../plan/planCull.ts'
+import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { cullPipelines, reflectedGroups, type TransmitPipelines } from '../stagePipelines.ts'
+import { chromaRank, cullOf, refractsRank, transmitsRank } from '../plan/planCull.ts'
 import { displayMaskLayout } from '../display/displayFilter.ts'
-import { companionTargets, overTargets, type ShareTargets } from '../blendTargets.ts'
-import { ADD_ONE, OVER } from '../equations.ts'
-import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts'
-import { DISTORTION_FORMAT, HDR_FORMAT } from '../../scene/targetFormats.ts'
-import {
-  computeSamplerEntry,
-  computeTextureEntry,
-  computeUniformEntry,
-} from '../../gpu/core/computeBindings.ts'
-import { heldGroup } from '../../gpu/bind/bindIdentity.ts'
-import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
+import { layerOnlyTargets, marksTargets, overTargets } from '../blendTargets.ts'
+import { RESPONSIVE_TARGET } from '../responsive.ts'
+import { HOLDOUT_TARGET } from '../holdout.ts'
+import { ADD_ONE, KEEP } from '../equations.ts'
+import { DISTORTION_FORMAT, FEEDBACK_FORMAT, HDR_FORMAT } from '../../scene/targetFormats.ts'
+import { distortionApply, distortionLayout, emptyGroup } from './distortionGroups.ts'
 
-/** The dual blend: the first source added, the destination multiplied by the second; the alpha
- *  the first source's coverage laid over the target's, as the fallback's (`OVER_BLEND`). */
-const DUAL_BLEND: GPUBlendState = { color: { srcFactor: 'one', dstFactor: 'src1' }, alpha: OVER }
+/** The dual blend on the translucency target, of a layer whose transmittance differs by channel
+ *  (`chromaRank`): the first source added, the destination multiplied by the second; the
+ *  transmittance left as it is — the scene behind is multiplied on the modulation target
+ *  (`MODULATE`). A layer that transmits all channels alike is one blend over, as the others. */
+const DUAL_BLEND: GPUBlendState = { color: { srcFactor: 'one', dstFactor: 'src1' }, alpha: KEEP }
+/** The blend on the modulation target: the destination multiplied by the layer's own colour, nothing
+ *  added, the target's alpha left as it is (`translucency.ts`). */
+const MODULATE: GPUBlendState = {
+  color: { srcFactor: 'zero', dstFactor: 'src' },
+  alpha: KEEP,
+}
 /** The distortion accumulation: every refracting layer's offset added. */
 const ACCUMULATE: GPUBlendState = { color: ADD_ONE, alpha: ADD_ONE }
 /** The offsets' target, every accumulation's. */
 const DISTORTION_TARGET: GPUColorTargetState = { format: DISTORTION_FORMAT, blend: ACCUMULATE }
 
+/** The constants of a pipeline that computes no request. */
+const NO_FEEDBACK = feedbackConstants(false)
+
 /** A stage's three culls, compiled at their first use or by `precompile`. */
 type Culls = ReturnType<typeof preparedPipeline>[]
 
-/** The pipelines a plan rank of a transmissive item picks of `culls` of the frame's share: its
- *  cull's; every rank `drawn` refuses is skipped (\`transmitsRank\` unless given). */
+/** The pipelines a plan rank of a transmissive item picks of `culls`: its cull's; every rank `drawn`
+ *  refuses is skipped (\`transmitsRank\` unless given). */
 const ranked = (
-  culls: (share: ShareTargets) => Culls,
+  culls: () => Culls,
   drawn: (rank: number) => boolean = transmitsRank,
 ): TransmitPipelines['coverage'] => ({
-  at: (rank, _filtered, share = 0) => culls(share)[cullOf(rank)].get(),
+  at: (rank) => culls()[cullOf(rank)].get(),
   skips: (rank) => !drawn(rank),
 })
 
-/** The distortion's accumulation group: the deferred view, the opaque depth. */
-const distortionLayout = oncePerDevice((device: GPUDevice) =>
-  device.createBindGroupLayout({
-    label: 'Trillion3D distortion accumulation',
-    entries: [
-      computeUniformEntry(DISTORTION_BINDINGS.view, {}, GPUShaderStage.FRAGMENT),
-      computeTextureEntry(DISTORTION_BINDINGS.depth, 'depth', '2d', GPUShaderStage.FRAGMENT),
-    ],
-  }),
-)
+/** The lazily compiled cull sets of one blend program's transmissive stages. */
+interface TransmitStages {
+  overOf: (filtered: boolean) => Culls
+  dualOf: () => Culls
+  greyOf: () => Culls
+  modulateOf: () => Culls
+  coverageOf: () => Culls
+  responsiveOf: () => Culls
+  holdoutOf: () => Culls
+  distortionOf: () => Culls
+}
 
-/** The distortion's application group: the deferred view, the offsets, the scene copy — read
- *  bilinear by the sampler, rgba16float filtering — and the sampler. */
-const applyLayout = oncePerDevice((device: GPUDevice) =>
-  device.createBindGroupLayout({
-    label: 'Trillion3D distortion apply',
-    entries: [
-      computeUniformEntry(DISTORTION_BINDINGS.view, {}, GPUShaderStage.FRAGMENT),
-      computeTextureEntry(
-        DISTORTION_BINDINGS.offsets,
-        'unfilterable-float',
-        '2d',
-        GPUShaderStage.FRAGMENT,
-      ),
-      computeTextureEntry(DISTORTION_BINDINGS.scene, 'float', '2d', GPUShaderStage.FRAGMENT),
-      computeSamplerEntry(DISTORTION_BINDINGS.sampler, 'filtering', GPUShaderStage.FRAGMENT),
-    ],
-  }),
-)
+/** `make`, run at the first call and its result kept. */
+function lazy<T>(make: () => T): () => T {
+  let made: T | undefined
+  return () => (made ??= make())
+}
 
-/** The application's bilinear sampler, its edges clamped (the defaults). */
-const applySampler = oncePerDevice((device: GPUDevice) =>
-  device.createSampler({
-    label: 'Trillion3D distortion apply',
-    magFilter: 'linear',
-    minFilter: 'linear',
-  }),
-)
-
-/** The full-screen application's group 0, which it reads nothing of: an empty layout and group. */
-const emptyLayout = oncePerDevice((device: GPUDevice) =>
-  device.createBindGroupLayout({ label: 'Trillion3D empty', entries: [] }),
-)
-const emptyGroup = oncePerDevice((device: GPUDevice) =>
-  device.createBindGroup({ label: 'Trillion3D empty', layout: emptyLayout(device), entries: [] }),
-)
-
-/** The engine's held group (`heldGroup`) of `layout` over a uniform buffer and one or two texture
- *  views at `bindings`, in that order, with the fixed entries `fixed` beside them: made again only
- *  when one of them moved, a frame that names the same resources allocating nothing. */
-function viewsGroup(
+/** The stages' cull sets of the blend program on `module`, each compiled at its first use. */
+function transmitStages(
   device: GPUDevice,
-  label: string,
-  layout: () => GPUBindGroupLayout,
-  bindings: readonly number[],
-  fixed: readonly GPUBindGroupEntry[] = [],
-) {
-  const held = heldGroup()
-  return (buffer: GPUBuffer, first: GPUTextureView, second?: GPUTextureView) => {
-    const { identity } = held,
-      { next } = identity
-    next[0] = buffer
-    next[1] = first
-    next[2] = second
-    if (identity.moved() || !held.group) {
-      const resources = [{ buffer }, first, second]
-      held.group = device.createBindGroup({
-        label,
-        layout: layout(),
-        entries: [
-          ...bindings.map((binding, at) => ({ binding, resource: resources[at]! })),
-          ...fixed,
-        ],
-      })
-    }
-    return held.group
+  module: GPUShaderModule,
+  layout: GPUBindGroupLayout,
+  feedback: boolean,
+): TransmitStages {
+  const culls = (
+    entryPoint: string,
+    targets: (GPUColorTargetState | null)[],
+    groups: { mask?: GPUBindGroupLayout; own?: GPUBindGroupLayout[]; route?: boolean } = {},
+    constants = feedbackConstants(feedback),
+  ): Culls =>
+    cullPipelines(
+      device,
+      module,
+      layout,
+      {
+        module,
+        entryPoint,
+        targets,
+        constants: groups.route ? { ...constants, DISPLAY_ROUTE: 1 } : constants,
+      },
+      groups.own ?? reflectedGroups(device, groups.mask),
+    )
+  // The fallback by display layers (`+filtered`).
+  const plain = lazy(() => culls('fsTransmit', overTargets(feedback, false)))
+  const filtered = lazy(() =>
+    culls('fsTransmitFiltered', overTargets(feedback, true), {
+      mask: displayMaskLayout(device),
+      route: true,
+    }),
+  )
+  const own = () => ({ own: [distortionLayout(device)] })
+  return {
+    overOf: (isFiltered) => (isFiltered ? filtered() : plain()),
+    // The passes of one target, under the dual blend: no request computed (the modulation pass holds it).
+    dualOf: lazy(() =>
+      culls('fsTransmitDual', [{ format: HDR_FORMAT, blend: DUAL_BLEND }], {}, NO_FEEDBACK),
+    ),
+    greyOf: lazy(() => culls('fsTransmit', layerOnlyTargets(), {}, NO_FEEDBACK)),
+    // The modulation pass's: the multiply on its target, the request beside it where the pipelines write one.
+    modulateOf: lazy(() =>
+      culls('fsTransmitModulate', [
+        { format: HDR_FORMAT, blend: MODULATE },
+        ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
+      ]),
+    ),
+    // The request of a layer the modulation pass multiplies nothing by (`marksTargets`).
+    coverageOf: lazy(() => culls('fsTransmitCoverage', marksTargets(), { own: [] })),
+    // The responsiveness pass: its one target, no light, no feedback.
+    responsiveOf: lazy(() => culls('fsTransmitResponsive', [RESPONSIVE_TARGET], { own: [] })),
+    // The alpha holdout's accumulation: its one target, no light, no feedback, made at its first image.
+    holdoutOf: lazy(() => culls('fsTransmitHoldout', [HOLDOUT_TARGET], { own: [] })),
+    distortionOf: lazy(() => culls('fsDistortion', [DISTORTION_TARGET], own())),
   }
+}
+
+/** The colour pass's reached sets — with a chromatic layer under the dual blend the dual blend itself,
+ *  the modulation pass's multiply and the blend over on its one target, the single-source fallback on every
+ *  target otherwise and wherever display layers are on —, the responsiveness pass's where it is
+ *  drawn, then with `unlit` the request stage of the modulation pass where the pipelines write one. */
+function reachedSets(
+  stages: TransmitStages,
+  dual: boolean,
+  {
+    responsive,
+    filtered,
+    chromatic,
+    holdout,
+  }: { responsive: boolean; filtered: boolean; chromatic: boolean; holdout: boolean },
+  unlit: boolean,
+  feedback: boolean,
+) {
+  const split = dual && chromatic
+  const sets: Culls[] = split
+    ? [stages.dualOf(), stages.greyOf(), stages.modulateOf()]
+    : [stages.overOf(false)]
+  if (split && unlit && feedback) sets.push(stages.coverageOf())
+  if (unlit && responsive) sets.push(stages.responsiveOf())
+  if (unlit && holdout) sets.push(stages.holdoutOf())
+  if (filtered) sets.push(stages.overOf(true))
+  return sets.flat().map((pipeline) => pipeline.prepare())
 }
 
 /**
  * The transmissive pipelines of one blend program (`TransmitPipelines`), on its `module` — the
  * blend module, its transmissive stages in it (`transmitWgsl.ts`) — and the blend group's
  * `layout`, each made at its first use or by `precompile`; `dual`, the device grants
- * `dual-source-blending` and the module holds `fsTransmitDual`. The groups a frame binds are made
+ * `dual-source-blending` and the module holds `fsTransmitDual` and `fsTransmitModulate`. The groups a frame binds are made
  * again only when what they name moved (`createWebgpuBindIdentity`).
  *
- * Only the layer's colour lights: the companion pass and the distortion's passes read no light,
+ * Only the layer's colour lights: the request stage and the distortion's passes read no light,
  * so the programs of other lights take them from `shared`, the first program's of their lobes
  * (`../pipelines.ts`) — made once, not once per program.
  */
@@ -139,132 +164,60 @@ export function createTransmitPipelines(
   dual: boolean,
   shared?: TransmitPipelines,
 ): TransmitPipelines {
-  const constants = feedbackConstants(feedback)
-  const culls = (
-    entryPoint: string,
-    targets: (GPUColorTargetState | null)[],
-    groups: { mask?: GPUBindGroupLayout; own?: GPUBindGroupLayout[]; route?: boolean } = {},
-  ): Culls =>
-    stageDescriptors(
-      device,
-      module,
-      layout,
-      {
-        module,
-        entryPoint,
-        targets,
-        constants: groups.route ? { ...constants, DISPLAY_ROUTE: 1 } : constants,
-      },
-      false,
-      groups.own ?? reflectedGroups(device, groups.mask),
-    ).map((descriptor) => preparedPipeline(device, descriptor))
-  // The fallback by display layers then share-target key (`+filtered + 2 * share`), the companion
-  // pass by share-target key.
-  const overs: Culls[] = [],
-    coverage: Culls[] = []
-  const distortionCoverage: Culls[] = []
-  let dualCulls: Culls | undefined, distortionCulls: Culls | undefined
-  const overOf = (filtered: boolean, share: ShareTargets) =>
-    (overs[+filtered + 2 * share] ??= filtered
-      ? culls('fsTransmitFiltered', overTargets(feedback, true, share), {
-          mask: displayMaskLayout(device),
-          route: true,
-        })
-      : culls('fsTransmit', overTargets(feedback, false, share)))
-  const dualOf = () =>
-    (dualCulls ??= culls('fsTransmitDual', [{ format: HDR_FORMAT, blend: DUAL_BLEND }]))
-  const coverageOf = (share: ShareTargets) =>
-    (coverage[share] ??= culls(
-      'fsTransmitCoverage',
-      companionTargets(null, feedback, share, REACTIVE_TARGET),
-      { own: [] },
-    ))
-  const distortionOf = () =>
-    (distortionCulls ??= culls('fsDistortion', [DISTORTION_TARGET], {
-      own: [distortionLayout(device)],
-    }))
-  const distortionCoverageOf = (share: ShareTargets) =>
-    (distortionCoverage[share] ??= culls(
-      'fsDistortionCoverage',
-      companionTargets(DISTORTION_TARGET, feedback, share, REACTIVE_TARGET),
-      { own: [distortionLayout(device)] },
-    ))
+  const stages = transmitStages(device, module, layout, feedback)
+  const { overOf, dualOf, greyOf, modulateOf, distortionOf } = stages
   const over: TransmitPipelines['over'] = {
-    at: (rank, filtered = false, share = 0) => overOf(filtered, share)[cullOf(rank)].get(),
+    at: (rank, filtered = false) => overOf(filtered)[cullOf(rank)].get(),
   }
-  /** The colour pass's reached sets — the dual blend where the device has it, the fallback
-   *  otherwise and wherever display layers are on —, then with `unlit` the companion pass's. */
-  const reachedSets = (
-    { shares, filtered }: { shares: ReadonlySet<ShareTargets>; filtered: boolean },
-    unlit: boolean,
-  ) => {
-    const sets: Culls[] = dual ? [dualOf()] : []
-    for (const share of shares) {
-      if (!dual) sets.push(overOf(false, share))
-      else if (unlit) sets.push(coverageOf(share))
-      if (filtered) sets.push(overOf(true, share))
-    }
-    return sets.flat().map((pipeline) => pipeline.prepare())
+  // The colour pass under the dual blend: a chromatic layer dual, any other one blend over on the
+  // same target; the modulation pass draws the chromatic layers alone.
+  const chromatic = ranked(dualOf, chromaRank),
+    grey = ranked(greyOf, (rank) => transmitsRank(rank) && !chromaRank(rank))
+  const colour: NonNullable<TransmitPipelines['dual']> = {
+    at: (rank) => (chromaRank(rank) ? chromatic : grey).at(rank),
+    skips: (rank) => !transmitsRank(rank),
   }
+  const modulate = ranked(modulateOf, chromaRank)
   if (shared)
     return {
       ...shared,
       over,
-      dual: dual ? ranked(dualOf) : undefined,
+      dual: dual ? colour : undefined,
+      dualModulate: dual ? modulate : undefined,
       /** The colour pass's here, the stages it shares with `shared`. */
       precompile: (reached) =>
-        Promise.all([shared.precompile(reached), ...reachedSets(reached, false)]),
+        Promise.all([
+          shared.precompile(reached),
+          ...reachedSets(stages, dual, reached, false, feedback),
+        ]),
     }
-  const distortionGroup = viewsGroup(
+  const { apply, distortionGroup, applyGroup } = distortionApply(
     device,
-    'Trillion3D distortion accumulation',
-    () => distortionLayout(device),
-    [DISTORTION_BINDINGS.view, DISTORTION_BINDINGS.depth],
-  )
-  const applyGroup = viewsGroup(
-    device,
-    'Trillion3D distortion apply',
-    () => applyLayout(device),
-    [DISTORTION_BINDINGS.view, DISTORTION_BINDINGS.offsets, DISTORTION_BINDINGS.scene],
-    [{ binding: DISTORTION_BINDINGS.sampler, resource: applySampler(device) }],
-  )
-  // The application, full screen: no vertex buffer, no
-  // depth, the pixels without an offset dropped by its fragment (\`distortedScene\`).
-  const apply = preparedPipeline(
-    device,
-    fullscreenDescriptor(
-      device,
-      module,
-      [emptyLayout(device), applyLayout(device)],
-      'fsDistortionApply',
-      [{ format: HDR_FORMAT }],
-      'Trillion3D distortion apply',
-      constants,
-    ),
+    module,
+    feedbackConstants(feedback),
   )
   return {
     over,
-    dual: dual ? ranked(dualOf) : undefined,
-    coverage: ranked(coverageOf),
+    dual: dual ? colour : undefined,
+    dualModulate: dual ? modulate : undefined,
+    coverage: ranked(stages.coverageOf),
+    responsive: ranked(stages.responsiveOf),
+    holdout: ranked(stages.holdoutOf),
     distortion: ranked(distortionOf, refractsRank),
-    distortionCoverage: ranked(distortionCoverageOf),
     apply,
+    distortionChain: () => [...distortionOf(), apply],
     applyEmpty: emptyGroup(device),
     distortionGroup,
     applyGroup,
-    /** What the scene reaches compiles off the frame: the colour pass's, the companion pass of
-     *  the dual blend — alone, and in the accumulation of a dual image that refracts —, the
-     *  distortion's accumulation and application. */
+    /** What the scene reaches compiles off the frame: the colour pass's, the modulation pass's request
+     *  stage, the responsiveness pass's, and where an item refracts the distortion's accumulation and
+     *  application. */
     precompile: (reached) =>
       Promise.all([
-        apply.prepare(),
-        ...distortionOf().map((pipeline) => pipeline.prepare()),
-        ...(dual
-          ? [...reached.shares].flatMap((share) =>
-              distortionCoverageOf(share).map((pipeline) => pipeline.prepare()),
-            )
+        ...(reached.refracts
+          ? [apply.prepare(), ...distortionOf().map((pipeline) => pipeline.prepare())]
           : []),
-        ...reachedSets(reached, true),
+        ...reachedSets(stages, dual, reached, true, feedback),
       ]),
   }
 }

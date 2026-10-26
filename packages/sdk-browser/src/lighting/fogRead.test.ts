@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { near } from '../../../math/src/float/near.fixture.ts'
 import { subtract } from '../../../math/src/vector/vectorTuple.ts'
 import { sliceParams } from './fog/layout.ts'
-import { fogResourcesWgsl } from './fog/readWgsl.ts'
+import { fogBlockOf } from './fog/readWgsl.ts'
 import { CAM, EYE, image, sliceAtDepth, viewBlockOf, type V3 } from './fogVolumeRun.fixture.ts'
 import { RGB, fogRun, wgslFogged } from './fogShaderRun.fixture.ts'
 
@@ -24,7 +24,7 @@ function hash16(p: number[]) {
   return v.map((word) => word >>> 16)
 }
 
-/** A surface's read of the volume (`fogResourcesWgsl`): the volume a fake texture answering `found`,
+/** A surface's read of the volume (`fogBlockOf`): the volume a fake texture answering `found`,
  *  the view block of the image over the camera, the samples kept, the points hashed. */
 function reading(
   volumetric: Parameters<typeof image>[1],
@@ -38,7 +38,7 @@ function reading(
   const found = [0.1, 0.2, 0.3, 0.5]
   const fogView = viewBlockOf(image(CAM, volumetric, settings, more))
   const resources = {
-    decl: fogResourcesWgsl({ group: 0, volume: 1, sampler: 2, translucent }),
+    block: fogBlockOf({ group: 0, volume: 1, sampler: 2, translucent }),
     scope: {
       fogVolume: {},
       fogSampler: {},
@@ -67,14 +67,15 @@ test('a surface reads the volume at its pixel and its depth, the fog before it l
   near([run.fogVolumeExclude(ray)], [24 / cosine], 'exclude', 1e-5)
   assert.equal(run.fogVolumeExclude([0, 0, 5]), 0)
   // A ray the view's plane barely leaves has the volume's end projected a long way along it, as far as a
-  // float's epsilon allows (cosine 10⁻⁵); at the plane itself, or behind it, none.
-  const grazing = [1, 0, -1e-5]
+  // thousandth of cosine allows (cosine 2·10⁻³); within it of the plane, at it, or behind it, none.
+  const grazing = [1, 0, -2e-3]
   near(
-    [run.fogVolumeExclude(grazing) / (24 / (1e-5 / Math.hypot(...grazing)))],
+    [run.fogVolumeExclude(grazing) / (24 / (2e-3 / Math.hypot(...grazing)))],
     [1],
     'grazing',
-    1e-4,
+    1e-3,
   )
+  assert.equal(run.fogVolumeExclude([1, 0, -5e-4]), 0)
   assert.equal(run.fogVolumeExclude([1, 0, 0]), 0)
   // The point at view depth 10: its pixel and its slice of the volume that starts at 4 m.
   const toward = [2, 1, -10]

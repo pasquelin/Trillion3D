@@ -7,7 +7,11 @@ import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { written } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { holdWebgpuFrame, keepWebgpuFrame } from '../frame/loop/hold.ts'
 import { settledRt } from '../frame/loop/hold.fixture.ts'
-import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluids/particles.ts'
+import {
+  PARTICLE_FLOATS,
+  ParticlePool,
+  type ParticlePoolSpec,
+} from '../../../sdk-core/src/fluids/particles.ts'
 import { createWebgpuParticles } from './gpu/webgpuParticles.ts'
 import { webgpuModel } from './stepModels.fixture.ts'
 import { PARTICLES_PASS } from '../diagnostic/stage/passLabels.ts'
@@ -43,7 +47,7 @@ test('WebGPU: one timed pass writes the step words and the staged records, once'
     [0, -GRAVITY_PRESETS.earth, 0, 0.01].map(Math.fround),
   )
   assert.deepEqual([...new Uint32Array(words, 16, 3)], [0, 3, 1000], 'first slot, count, capacity')
-  assert.deepEqual([...written(records)], [...pool.staging.subarray(0, 24)])
+  assert.deepEqual([...written(records)], [...pool.staging.subarray(0, 3 * PARTICLE_FLOATS)])
   assert.equal(particles.run([pool], encoder), 0, 'nothing staged, no time: no pass')
   const made = 'state, staging, step, draw words, partials and window dispatch made once'
   assert.equal(gpu.buffers.length, 6, made)

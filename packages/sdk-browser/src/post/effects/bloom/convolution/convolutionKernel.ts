@@ -21,6 +21,8 @@ import { createTransients, type KernelTransients } from './kernelTransients.ts'
 import type { ConvolutionPlan } from './plan.ts'
 import { writeTransformWords } from './transformShape.ts'
 
+const PASS: GPUComputePassDescriptor = { label: BLOOM_PASS }
+
 const tiles = (n: number) => ceilDiv(n, KERNEL_TILE)
 
 type Programs = ReturnType<typeof convolutionPrograms>
@@ -159,7 +161,7 @@ export function createConvolutionKernel(device: GPUDevice) {
       const buffer = slot.bufferOf(plan.bytes.kernel)
       transients.begin()
       const source = transients.picture(image)
-      const pass = encoder.beginComputePass({ label: BLOOM_PASS })
+      const pass = encoder.beginComputePass(PASS)
       const params = kernelUniform.buffer
       const drawn = prepareKernel(device, programs, pass, params, plan, source, transients)
       transformKernel(device, programs, pass, fftUniform, plan, drawn, buffer)

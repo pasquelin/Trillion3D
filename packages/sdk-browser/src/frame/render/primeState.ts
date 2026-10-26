@@ -1,5 +1,7 @@
 import type { AsideCut } from '../../gpu/core/aside.ts'
 import type { GpuSelection } from '../../gpu/core/selection.ts'
+import { notePrimeBuilt } from './primeBuilt.ts'
+import type { GraphRasters } from '../../materials/graph/graphRasters.ts'
 import { createGpuRaster } from '../../visibility/raster/raster.ts'
 import { HIZ_LEVELS } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { budgetRefused, ledgerTentative } from '../../gpu/core/deviceLedger.ts'
@@ -8,23 +10,12 @@ import { createWebgpuView, type WebgpuView } from '../backend/state/view.ts'
 import { onView } from '../backend/state/viewSwitch.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
-/** What the primed pyramid holds between its building and the cut that tests against it. */
-export type PrimeBuilt = {
-  /** The image it was built for (`WebgpuRunState.frame`). */
-  frame: number
-  /** The pyramid's texture view and the copy of the levels uniform it was built with. */
-  view: GPUTextureView
-  levels: GPUBuffer
-  /** The size it was drawn at, which a box is tested in (`SelectionUniforms.prevSize`). */
-  size: [number, number]
-}
-
 /**
  * THE PRIMED PYRAMID'S OWN: a view that holds nothing but what a small depth-only draw needs — a
  * depth target and a visibility target, the raster over them, the Hi-Z's pyramid —, at the main
  * view's targets shifted right by `shift`; its cut on the shared tables (`GpuSelection.aside`,
- * primed), the copy of the levels its pyramid was built with, and what it built this image. Made
- * only while a view primes (`hizPrime`), given back when none does.
+ * primed) and the copy of the levels its pyramid was built with; what it built this image is
+ * `primeBuilt.ts`'s. Made only while a view primes (`hizPrime`), given back when none does.
  */
 export type Prime = {
   view: WebgpuView
@@ -37,7 +28,6 @@ export type Prime = {
   selection: GpuSelection | undefined
   /** The render matrix the draw and the test share, this image's. */
   matrix: Float64Array
-  built: PrimeBuilt | undefined
 }
 
 const primes = new WeakMap<WebgpuPagesRuntime, Prime>()
@@ -53,12 +43,12 @@ export const primedExtent = (value: number, shift: number) => Math.max(1, value 
 
 /**
  * The runtime's primed pyramid made, or kept when its key stands: its targets at the main view's
- * `allocatedSize` shifted right by `shift`, its raster over them for the table's capacity. A
+ * `allocatedSize` shifted right by `shift`, its raster over them for the cut's list of visible clusters. A
  * pyramid the Hi-Z cannot make gives back what was made, and none.
  */
 export function ensurePrime(rt: WebgpuPagesRuntime, device: GPUDevice, shift: number) {
   const [allocatedWidth, allocatedHeight] = rt.gpu.allocatedSize,
-    capacity = rt.layout.rasterCapacity
+    capacity = rt.run.gpuSelection?.visibleCap ?? 0
   const width = primedExtent(allocatedWidth, shift),
     height = primedExtent(allocatedHeight, shift)
   const key = `${width}x${height}:${capacity}`
@@ -91,7 +81,7 @@ function buildPrime(
   capacity: number,
   key: string,
 ) {
-  const prime = makePrime(device, width, height, capacity, key)
+  const prime = makePrime(device, width, height, capacity, key, rt.vis.rasters)
   try {
     if (onView(rt, prime.view, () => !!rt.vis.gpuHiz?.resize(device, width, height))) return prime
   } catch (error) {
@@ -108,6 +98,7 @@ function makePrime(
   height: number,
   capacity: number,
   key: string,
+  rasters: GraphRasters,
 ): Prime {
   const view = createWebgpuView(width, height)
   const usage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
@@ -117,11 +108,12 @@ function makePrime(
     format: DEPTH_FORMAT,
     usage,
   })
+  // The identifiers are written by the export of the visibility buffer, a compute pass.
   const ids = device.createTexture({
     label: 'Trillion3D primed visibility',
     size: { width, height },
     format: 'r32uint',
-    usage,
+    usage: usage | GPUTextureUsage.STORAGE_BINDING,
   })
   view.gpu.depthTexture = depth
   view.gpu.depthView = depth.createView()
@@ -138,7 +130,7 @@ function makePrime(
       size: HIZ_LEVELS.words * 4,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     })
-    view.vis.gpuRaster = createGpuRaster(device, width, height, capacity)
+    view.vis.gpuRaster = createGpuRaster(device, width, height, capacity, rasters)
   } catch (error) {
     // A refusal of the budget leaves nothing of the pyramid counted.
     levels?.destroy()
@@ -154,7 +146,6 @@ function makePrime(
     cut: undefined,
     selection: undefined,
     matrix: new Float64Array(16),
-    built: undefined,
   }
 }
 
@@ -163,6 +154,7 @@ export function releasePrime(rt: WebgpuPagesRuntime) {
   const prime = primes.get(rt)
   if (!prime) return
   primes.delete(rt)
+  notePrimeBuilt(rt, undefined)
   disposePrime(prime)
 }
 

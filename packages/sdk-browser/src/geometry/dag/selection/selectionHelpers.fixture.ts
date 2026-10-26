@@ -1,4 +1,4 @@
-import { readCameraWorld, type HostCamera } from '../../../camera/world.ts'
+import { readCameraWorld, type ViewCamera } from '../../../camera/world.ts'
 import { createEngineCamera } from '../../../camera/engineCamera.ts'
 import { collectClusterPages } from '../../selection/collect.ts'
 import { selectVisiblePages } from '../../cut/cut.fixture.ts'
@@ -38,7 +38,7 @@ const helperCam = createEngineCamera()
 export function kernelUniforms(
   dag: ReturnType<typeof packDagSelection>,
   roots: Parameters<typeof packDagSelection>[0],
-  camera: HostCamera,
+  camera: ViewCamera,
   pixelError: number,
   viewport: [number, number] = VIEWPORT,
 ) {
@@ -52,7 +52,7 @@ export function kernelUniforms(
 export function kernelUrls(
   fixture: ReturnType<typeof dagFixture>,
   pixelError: number,
-  camera: HostCamera,
+  camera: ViewCamera,
   resident?: Uint32Array,
 ) {
   const { dag, roots } = packed(fixture)
@@ -67,7 +67,7 @@ export function kernelUrls(
 export function cpuUrls(
   fixture: ReturnType<typeof dagFixture>,
   pixelError: number,
-  camera: HostCamera,
+  camera: ViewCamera,
 ) {
   const { roots } = collectClusterPages(
     fixture.source,
@@ -107,7 +107,15 @@ export async function fixtureSelection() {
     roots: hostStretches(dag),
   })
   assert.ok(selection)
+  followNoResidency(dag)
   return { fixture, dag, uniforms, selection }
+}
+
+/** A cut that follows no residency dispatches every level of its hierarchies
+ *  (`levelsDispatched`, `../encode.ts`): the descent reaches the pages a test asks of it, though
+ *  nothing is resident yet. */
+export function followNoResidency(dag: { residentLevels?: () => number }) {
+  delete dag.residentLevels
 }
 
 /** A selection on the fixture, cut once under a wide camera: its requests in hand, every page of the

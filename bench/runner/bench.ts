@@ -10,10 +10,10 @@ import { mkdir } from 'node:fs/promises'
 import type { Page } from 'playwright'
 import { onFreshPage } from './harness/chrome.ts'
 import { PATH_VERSION, VIEWS, poseAt, trajectoryPoses } from './trajectory/poses.ts'
-import { assetsManifest, sceneGltf, readsCache } from './assets/scene.ts'
+import { assetsManifest, readsCache } from './assets/scene.ts'
 import { equipSides, readOptions, resolveMounts } from './harness/options.ts'
 import { resolveSides, sdkEntryUrl } from './harness/dists.ts'
-import { sideReport, isEngine } from './harness/sideOptions.ts'
+import { sideReport } from './harness/sideOptions.ts'
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts'
 import { readStreet } from './street/street.ts'
 import { imageDiff } from './references/imageDiff.ts'
@@ -55,13 +55,10 @@ async function main() {
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))]
   if (settings.gazeNetwork && !readsCache(scene))
     throw new Error('--gaze-network requires a compiled cache scene')
-  if (settings.gazeNetwork && sides.some((side) => !isEngine(side.engine)))
-    throw new Error('--gaze-network requires the WebGPU page engine on every side')
   const MANIFEST = assetsManifest(scene, readsCache(scene) && sides.some((side) => !side.cache))
   CTX.MANIFEST = MANIFEST
   for (const side of sides) {
     side.manifestUrl = side.cache ? `/cache/${side.name}/native/full/manifest.json` : MANIFEST
-    side.sourceUrl = side.engine.source === 'gltf' ? sceneGltf(scene) : null
   }
   const captures = new Map<string, Capture>()
   const mounts = resolveMounts(REPOSITORY_ROOT, sides, resources)

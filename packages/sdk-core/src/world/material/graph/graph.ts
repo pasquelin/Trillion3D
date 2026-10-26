@@ -70,6 +70,8 @@ export class GraphStore {
   private signed: { shape: number; text: string } | undefined
   private valued: { version: number; text: string } | undefined
   readonly _listeners = createListeners()
+  /** What the textures the graph reads tell: one function, so a texture holds it once. */
+  private readonly heard = () => this.changed()
 
   constructor(domain: MaterialDomain) {
     if (!isGraphDomain(domain)) throw graphError(`unknown domain '${String(domain)}'`)
@@ -122,7 +124,7 @@ export class GraphStore {
   private holdTexture(id: number, texture: Texture) {
     if (!texture.isTexture) throw graphError('a texture node needs a texture')
     this.textures.set(id, texture)
-    texture._listeners?.subscribe(() => this.changed())
+    texture._listeners?.subscribe(this.heard)
   }
 
   /** The program of the graph as text: its nodes, their wires, its outputs and the textures of its
@@ -167,11 +169,19 @@ export class GraphStore {
     this.changed()
   }
 
+  /** Whether a node or a parameter of the graph still holds `texture`. */
+  private reads(texture: Texture) {
+    return [...this.textures.values(), ...this.values.values()].includes(texture)
+  }
+
   /** Gives the parameter `name` a value: a number for a scalar, up to four numbers for a vector or
    *  a colour, a texture for a texture parameter. */
   set(name: string, value: ParameterValue) {
-    if ((value as Texture).isTexture) (value as Texture)._listeners?.subscribe(() => this.changed())
+    const was = this.values.get(name)
+    if ((value as Texture).isTexture) (value as Texture)._listeners?.subscribe(this.heard)
     this.values.set(name, value)
+    if ((was as Texture | undefined)?.isTexture && was !== value && !this.reads(was as Texture))
+      (was as Texture)._listeners?.unsubscribe(this.heard)
     this.changed()
   }
 }

@@ -1,4 +1,5 @@
 import { EngineError } from '../../../../../sdk-core/src/contracts/cache.ts'
+import { parentErrorOf } from '../../selection/helpers.ts'
 import type { PlacementIndex } from '../../selection/placements.ts'
 import {
   DAG_NODE_FLOATS,
@@ -14,12 +15,9 @@ import { hierarchyLevelSizes, pageDepths } from '../hierarchy.ts'
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import type { DagCapacity } from './packCapacity.ts'
 import { WORLD_ROOT_MARK } from '../worlds/worldLinks.ts'
-import {
-  DRAW_DISTANCE_MARK,
-  ROOT_PARENT_MARK,
-  ROOT_PARENT_WORDS,
-  writeRootParent,
-} from '../frameTable.ts'
+import { drawDistanceMarks, ROOT_PARENT_MARK } from '../frameTable.ts'
+import { DRAW_DISTANCE_STRIDE, writeDrawDistanceAt } from '../drawDistance.ts'
+import { placeParentNode } from './packParents.ts'
 
 /** A ROOT PLACED IN A PACKING (`pack.ts`): its primitive's nodes, shared by its placements, its
  *  world, mark, draw distance and links, and the shift that leads its pages to their records. */
@@ -46,8 +44,10 @@ export type Packing = Pick<
   | 'rootBases'
   | 'mark'
   | 'drawDistance'
-  | 'rootParent'
+  | 'parentNode'
+  | 'parentNodes'
   | 'recordShift'
+  | 'infoShift'
 > & {
   nodeInts: Uint32Array
   pageIndex: PlacementIndex
@@ -99,9 +99,39 @@ function nodeBlockOf(p: Packing, root: DagRoot, culling: Culling) {
 }
 
 /**
+ * Placement `w`'s mark and its columns, from its root. A placement of the world DAG is marked so,
+ * whatever its root's own bits (`WORLD_ROOT_MARK`), one that names a distance
+ * (`DRAW_DISTANCE_MARK`, `DRAW_INSTANCE_MARK`), and one that is an instance of an assembly (`ROOT_PARENT_MARK`). The
+ * distances' column is made by the first placement that names some, the parents' likewise: the node
+ * that holds the group above an instance's root, shared by the placements that read the same group
+ * (`packParents.ts`).
+ */
+function placeMark(p: Packing, root: DagRoot, w: number) {
+  const distance = root.drawDistance,
+    parent = root.rootParent
+  p.mark[w] =
+    (root.mark ?? 0) |
+    (root.hlod ? WORLD_ROOT_MARK : 0) |
+    drawDistanceMarks(distance) |
+    (parent ? ROOT_PARENT_MARK : 0)
+  if (distance || p.drawDistance) {
+    p.drawDistance ??= new Float32Array(DRAW_DISTANCE_STRIDE * p.mark.length)
+    writeDrawDistanceAt(p.drawDistance, w, distance)
+  }
+  if (parent || p.parentNode) {
+    p.parentNode ??= new Uint32Array(p.mark.length).fill(NO_INDEX)
+    const node = parent && placeParentNode(p, parent)
+    p.parentNode[w] = node ?? NO_INDEX
+    // A group the table has no node for names none: the instance opens whatever the group says.
+    if (parent && node === undefined) p.mark[w] &= ~ROOT_PARENT_MARK
+  }
+}
+
+/**
  * Root `root` packed as placement `w`, behind the live pages: its world, root node — its
- * primitive's, shared — and mark, its links, its pages' placement words, and the shift that leads
- * its pages to their records, the first record `recordBase` gives for its owner nodes.
+ * primitive's, shared — and mark, its links, its pages' placement words, and the shifts that lead
+ * its pages to their records, the first record `recordBase` gives for its owner nodes, and to their
+ * cluster records, the first of its page array's own.
  */
 export function placeRoot(
   p: Packing,
@@ -116,26 +146,7 @@ export function placeRoot(
   p.worlds.set(root.world.elements, w * 16)
   p.rootBases[w] = nodeBase
   p.rootNodes[w] = root.parked ? NO_INDEX : nodeBase
-  // A placement of the world DAG is marked so, whatever its root's own bits (`WORLD_ROOT_MARK`),
-  // one that names a farthest distance (`DRAW_DISTANCE_MARK`), and one that is an instance of an
-  // assembly (`ROOT_PARENT_MARK`).
-  const distance = root.drawDistance,
-    parent = root.rootParent
-  p.mark[w] =
-    (root.mark ?? 0) |
-    (root.hlod ? WORLD_ROOT_MARK : 0) |
-    (distance ? DRAW_DISTANCE_MARK : 0) |
-    (parent ? ROOT_PARENT_MARK : 0)
-  // The distances' column is made by the first placement that names some, the parents' likewise.
-  if (distance || p.drawDistance) {
-    p.drawDistance ??= new Float32Array(2 * p.mark.length)
-    p.drawDistance[2 * w] = distance?.min ?? 0
-    p.drawDistance[2 * w + 1] = distance?.max ?? 0
-  }
-  if (parent || p.rootParent) {
-    p.rootParent ??= new Float32Array(ROOT_PARENT_WORDS * p.mark.length)
-    writeRootParent(p.rootParent, w, parent)
-  }
+  placeMark(p, root, w)
   const links = linksFor(culling, count)
   const { structure } = root
   // The levels its pages need reached once resident: walked once per page array.
@@ -150,17 +161,21 @@ export function placeRoot(
   let first = p.shared.firstOf.get(root.pages)
   const base =
     first?.nodes === culling.nodes ? first.recordBase : recordBase(culling, owner, nodeBase)
-  if (!first)
+  if (!first) {
     p.shared.firstOf.set(
       root.pages,
       (first = {
         pageBase,
         recordBase: base,
+        infoBase: p.live.infos,
         nodes: culling.nodes,
         rootClusters: rootClusterCount(root),
       }),
     )
+    p.live.infos += count
+  }
   p.recordShift[w] = (base - pageBase) >>> 0
+  p.infoShift[w] = (first.infoBase - pageBase) >>> 0
   p.pageIndex.baseOfRoot[w] = pageBase
   p.rootClusters += first.rootClusters
   p.live.pages += count
@@ -172,8 +187,7 @@ export function placeRoot(
 /** The pages of `root` whose parent error is not finite: the clusters a view starts a descent on. */
 function rootClusterCount(root: DagRoot) {
   let count = 0
-  for (const rec of root.pages)
-    if (!(typeof rec.parentError === 'number' && Number.isFinite(rec.parentError))) count++
+  for (const rec of root.pages) if (parentErrorOf(rec) === null) count++
   return count
 }
 
@@ -189,14 +203,16 @@ export function allocatePacking(capacity: DagCapacity, shared: PackShared): Pack
     pageIndex: { baseOfRoot: new Int32Array(worldSlots).fill(ROOM_BASE), packedCount: 0 },
     worlds: new Float32Array(worldSlots * 16),
     recordShift: new Uint32Array(worldSlots),
+    infoShift: new Uint32Array(worldSlots),
     // Each primitive's root, which prepare deposits in pass 0's queue; a parked row deposits none,
     // and `rootBases` keeps the node it takes back.
     rootNodes: new Uint32Array(worldSlots).fill(NO_INDEX),
     rootBases: new Uint32Array(worldSlots).fill(NO_INDEX),
     // The whole frame word: the mark's bits, and the deformation reach above them (`rootMark`).
     mark: new Uint32Array(worldSlots),
+    parentNodes: new Map(),
     cutLinks: [],
-    live: { pages: 0, nodes: 0, worlds: 0, entries: 0 },
+    live: { pages: 0, nodes: 0, worlds: 0, entries: 0, infos: 0 },
     shared,
     rootClusters: 0,
   }

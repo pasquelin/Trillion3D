@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createVsmProjectionHold, vsmTraceKey } from './vsmProjectionHold.ts'
+import { SHADOW_RAY_COUNT_MAX } from '../../../../../../sdk-core/src/contracts/shadowMapOptions.ts'
 
 const IDENTITY = Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
 const mask = {}
@@ -29,7 +30,7 @@ function frame(change: (inputs: ReturnType<typeof createVsmProjectionHold>['inpu
   }
   set()
   assert.equal(hold.held(mask), false, 'nothing projected yet')
-  hold.keep(mask)
+  hold.keep()
   set()
   assert.equal(hold.held(mask), true, 'the same inputs')
   set(change)
@@ -67,14 +68,14 @@ test('another mask is projected into', () => {
   const hold = createVsmProjectionHold()
   hold.inputs.lights = []
   assert.equal(hold.held(mask), false)
-  hold.keep(mask)
+  hold.keep()
   assert.equal(hold.held(mask), true)
   assert.equal(hold.held({}), false)
 })
 
 test('every pair of rays and steps the settings take has a key of its own', () => {
   const keys = new Set<number>()
-  const rays = [0, 1, 7, 8, 15],
+  const rays = [0, 1, 7, 8, SHADOW_RAY_COUNT_MAX - 1, SHADOW_RAY_COUNT_MAX],
     steps = [0, 1, 4, 63, 64]
   for (const rd of rays)
     for (const rl of rays)

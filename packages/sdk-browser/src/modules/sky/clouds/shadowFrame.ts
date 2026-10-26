@@ -8,6 +8,7 @@ import {
   CM_PER_KM,
   type SkyQualityValues,
 } from '../../../../../sdk-core/src/modules/sky/quality.ts'
+import { CENTIMETRES_PER_METRE } from '../../../../../sdk-core/src/page/format.ts'
 
 /**
  * WHERE A LIGHT'S CLOUD SHADOW MAP LOOKS: the camera, the sphere of the map and the matrices that
@@ -30,7 +31,6 @@ import {
  * The matrices are given from the position in centimetres from the camera, on the scene's axes.
  */
 
-const CM_PER_M = 100
 /** Kilometres in a centimetre: the product, not the quotient by `CM_PER_KM`, which differs in the last bit. */
 export const KM_PER_CM = 0.00001
 
@@ -123,7 +123,7 @@ export function mapAim(
   planetRadiusKm: number,
   snapKm: number,
 ) {
-  const camera = sceneToMaterial(eye).map((v) => v * CM_PER_M)
+  const camera = sceneToMaterial(eye).map((v) => v * CENTIMETRES_PER_METRE)
   const centre = sceneToMaterial(eyeFromPlanetKm).map((v, k) => camera[k] - v * CM_PER_KM)
   const up = sceneToMaterial(eyeFromPlanetKm)
   normalizeVector3(up)

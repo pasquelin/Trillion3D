@@ -8,6 +8,7 @@ import { encodeBlendExpansion } from '../expand/expansionFrame.ts'
 import { orderStepCount } from '../order/orderSteps.ts'
 import { ORDER_UNI } from '../order/orderWgsl.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { VIEW_COUNT } from '../expand/expansionViews.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 
@@ -23,7 +24,7 @@ test('a device aligning uniform offsets at 512 lays every step and pass 512 byte
   const entries = await expandable(device, blendState)
   orderBlendPasses(blendState, [0, 5, 0])
   encodeBlendExpansion(
-    { blendState, gpu: {}, run: {} } as unknown as WebgpuPagesRuntime,
+    { blendState, gpu: {}, run: {}, context: {} } as unknown as WebgpuPagesRuntime,
     fake.device.createCommandEncoder(),
   )
   // The dynamic offset of each group the passes set: the verdict's group has none.
@@ -35,7 +36,8 @@ test('a device aligning uniform offsets at 512 lays every step and pass 512 byte
   const steps = blendState.orderSteps
   assert.ok(steps.length, 'the pass ordered')
   const size = (label: string) => buffers.find((b) => b.label === label)!.size
-  assert.equal(size('Trillion3D blend expand uniforms'), 512)
+  // One slot a view of the expansion (`VIEW_COUNT`).
+  assert.equal(size('Trillion3D blend expand uniforms'), VIEW_COUNT * 512)
   const stepCount = orderStepCount(entries)
   assert.equal(size('Trillion3D blend order steps'), stepCount * 512)
   assert.equal(blendState.orderStepWords.length, stepCount * 128)
@@ -45,7 +47,7 @@ test('a device aligning uniform offsets at 512 lays every step and pass 512 byte
       blendState.orderStepWords[step.uniform * 128 + ORDER_UNI.entryCount],
       blendState.seeds.length,
     )
-  // The expansion's uniform written at 0.
+  // The expansion's uniform written at 0: only the view of every layer is made.
   const uniforms = buffers.find((b) => b.label === 'Trillion3D blend expand uniforms')
   const uniformWrites = writes
     .filter((w) => w.buffer === (uniforms as unknown as GPUBuffer))

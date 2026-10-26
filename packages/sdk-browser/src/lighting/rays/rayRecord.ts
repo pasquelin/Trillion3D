@@ -41,7 +41,7 @@ export const FILTER_INCLUDE = 0x80000000
 /**
  * The farthest a ray reaches, in world units: under 2²⁴, where `reach + 1` still rounds above
  * `reach` in single precision — the traversal's bound on a span it does not keep
- * (`../bounce/traceWgsl.ts`).
+ * (`./wideTraversalWgsl.ts`).
  */
 export const RAY_REACH_MAX = 2 ** 23
 

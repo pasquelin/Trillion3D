@@ -1,7 +1,7 @@
 //! Spline meshes: a node whose `extras.splineMesh` names a curve is drawn bent along it. The mesh
 //! of the node is bent once, here, before anything reads it: each vertex goes where the curve's
 //! slice at its distance puts it, its normal and tangent turn with the slice (`bend.rs`), and the
-//! node takes the bent copy; the cluster DAG, the pages, the proxy and the collider are then built
+//! node takes the bent copy; the cluster DAG, the pages and the collider are then built
 //! of the bent mesh, so every error they hold is measured on the shape that is drawn. Each node
 //! that names a spline gets a mesh of its own: a rail of five hundred segments is five hundred
 //! meshes, their pages and their builds, where the reference keeps one and bends it as it draws;
@@ -20,6 +20,7 @@
 //! - `forwardAxis` `x`: the mesh's axis laid along the curve, `x`, `y` or `z`; `boundaryMin` and
 //!   `boundaryMax` 0: the range on that axis that maps to the curve, the mesh's own extent when
 //!   they are equal.
+//!
 //! A mesh the curve mirrors (its start scales differ in sign) has its triangles turned over and its
 //! tangents' sign reversed. A node whose mesh is skinned or morphed cannot be bent, nor one whose
 //! mesh names an assembly the job builds (`allowAssemblies`, read later with the job's settings:

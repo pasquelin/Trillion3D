@@ -1,3 +1,5 @@
+import { DAG_CLUSTER_VERTICES } from '../../../../sdk-core/src/page/format.ts'
+
 /**
  * Software-raster contract: one writing of the numbers that both the WGSL and the encoder read.
  *
@@ -5,50 +7,36 @@
  * edge, projected at the nearest point of its level-of-detail sphere, stays under
  * `hardwareRasterEdgePixels` (32 by default)
  * and whose box crosses neither the near nor the far plane is rastered here, in compute; every
- * other one by the hardware raster, which clips (`binWgsl.ts`). Lines, sprites and voxel bricks,
- * which the vertex stage widens, turns or traces, are always hardware's. Blend keeps its pass.
+ * other one by the hardware raster, which clips (`../../geometry/dag/shader/visibleWgsl.ts`: the
+ * cut decides it where it appends the cluster to its list). Lines, sprites and voxel bricks, which
+ * the vertex stage widens, turns or traces, are always hardware's. Blend keeps its pass.
  *
- * Three size classes, two lists a pass. A class says how many pixels a sixty-four-thread group covers
- * at once, never what a triangle is worth: the class is read on the triangle's pixel box,
- * clipped to the viewport and to the `MAX_SPAN` every triangle setup holds. Fine and coarse
- * share a list, filled from both ends: neither overflows while the other has room, and the
- * bound is held on the sum; large has the other one.
+ * THE UNIT OF WORK IS THE CLUSTER: the bins list the clusters the cut hands to compute, and one group
+ * of sixty-four threads rasters one listed cluster (`clusterWgsl.ts`) — its vertices transformed once
+ * into the group's memory, a thread to a triangle.
  */
 
-/** Side of the fine-class tile, and triangles a sixty-four-thread group treats there. */
-export const FINE_SIDE = 4
-
-export const FINE_PER_GROUP = 64 / (FINE_SIDE * FINE_SIDE)
-/** Side of a full group's tile: the coarse class fits in one, the large class loops. */
-export const TILE = 8
+/** Subpixel samples on a pixel's side: eight fractional bits, the precision a vertex is snapped
+ *  to before its edges are set up — the hardware rasterizers' own. */
+export const SUBPIXEL_SAMPLES = 256
 /** The widest pixel box a triangle setup keeps, past its first pixel: 64 pixels a side, the
  *  bound the cluster split already holds a software triangle under (its edges stay below the
  *  32-pixel threshold). */
 export const MAX_SPAN = 63
-/** Maximum span of a fine-class box: a tile of `FINE_SIDE` pixels on a side. */
-export const FINE_SPAN = FINE_SIDE - 1
-/** Subpixel samples on a pixel's side: eight fractional bits, the precision a vertex is snapped
- *  to before its edges are set up — the hardware rasterizers' own. */
-export const SUBPIXEL_SAMPLES = 256
-
-/** Words the list reserves before its entries: the three class counts, then the three
- *  dispatches the `plan` kernel derives from them. */
-export const CNT_FINE = 0,
-  CNT_COARSE = 1,
-  CNT_LARGE = 2
-/** First word of the indirect dispatches; they are contiguous so they copy as one. */
-export const DISPATCH_BASE = 3
-export const DISPATCH_WORDS = 9
-export const LIST_HEADER = DISPATCH_BASE + DISPATCH_WORDS
-/** Words of one pass's lists: its header, then the fine-and-coarse list and the large one,
- *  `capacity` entries each. */
-export const rasterListWords = (capacity: number) => LIST_HEADER + 2 * capacity
+/** Vertices a group holds in its memory at once: the most an encoded cluster has. A row with more
+ *  — an older cache's, or one that is not a quantized page — transforms the corners of each
+ *  triangle as it sets it up. */
+export const VERTEX_CACHE = DAG_CLUSTER_VERTICES
+/** A triangle whose box is wider than this many pixels is rastered by scanlines, the others by
+ *  their box: the edge a group of lanes tells the two apart at. */
+export const SCANLINE_SPAN = 4
 
 /**
- * The cut's two passes, each with lists of its own in the work buffer: `MAIN` the clusters the
- * main pass drew against the previous image's pyramid — selected by the frame mask before the
- * post pass —, `POST` those the post pass drew against the pyramid of the main pass's depth —
- * selected by the post mask (`GpuSelection.postMaskOffset`). A cluster is in one of them only.
+ * The cut's two passes, each with a list of its own: `MAIN` the clusters the main pass drew
+ * against the previous image's pyramid — the records of the list of visible clusters before the post
+ * pass opened —, `POST` those the post pass drew against the pyramid of the main pass's depth — the
+ * records it appended (`VIS_SW_SPLIT`, `VIS_HW_SPLIT`, `../../geometry/dag/visible/layout.ts`). A
+ * cluster is in one of them only.
  */
 export const RASTER_PASS_MAIN = 0,
   RASTER_PASS_POST = 1
@@ -57,16 +45,45 @@ export const RASTER_PASSES = [RASTER_PASS_MAIN, RASTER_PASS_POST] as const
 export type RasterPass = (typeof RASTER_PASSES)[number]
 
 /**
- * The two modes of a raster kernel: `DEPTH` writes its pass's depth keys — the main pass's are what
- * the pyramid reduces —, `ID` resolves identifiers on the final depth, once both passes wrote
- * theirs (`VIS_WRITE_WGSL`).
+ * The two modes of the software raster: `DEPTH` writes the pass's depth — on a device with the
+ * 64-bit atomic maximum the pair (depth, identifier) whole, and it is the only mode —, `ID`, on a
+ * device without it, resolves identifiers on the final depth, once both passes wrote theirs
+ * (`visWriteWgsl`).
  */
 export const MODE_DEPTH = 0,
   MODE_ID = 1
 
-/** The three classes, in the order of their indirect dispatches. */
-export const RASTER_CLASSES = ['fine', 'coarse', 'large'] as const
-type RasterClass = (typeof RASTER_CLASSES)[number]
+/** Entry-point name of the software raster in a mode: one rule, both sides read it. */
+export const rasterEntry = (mode: number) => (mode === MODE_ID ? 'clusterIds' : 'clusterDepth')
 
-/** Entry-point name of a class in a mode: one rule, both sides read it. */
-export const rasterEntry = (klass: RasterClass, mode: number) => `${klass}${mode}`
+/**
+ * A pass's lists of clusters in the lists buffer, written by the bins (`../bins/binsWgsl.ts`). The
+ * buffer opens with the two passes' headers, one after the other (`headerWord`), then holds the
+ * entries — the index of a cluster in the list of visible clusters each —: first the software
+ * raster's, `capacity` at most, then the tessellation's, `capacity` more (`listWords`). A pass's
+ * entries follow its predecessor's: the main pass's lie from the start of each, the post pass's
+ * behind them. A header is, as words from its first (the pass's `LIST`):
+ *  - `LIST_COUNT`, the software clusters listed, the clusters of no cutout first, the cutout ones
+ *    after them, nearest depth bucket first (`DEPTH_BUCKETS`), and `LIST_AT`, the word of the buffer
+ *    its first lies at;
+ *  - the three words of the indirect dispatch of the software raster over them (`LIST_DISPATCH`),
+ *    contiguous so that they copy as one;
+ *  - `LIST_TESS_COUNT`, `LIST_TESS_AT` and `LIST_TESS_DISPATCH`: the same for the clusters whose
+ *    displaced surface the frame tessellates, which the seeding of the patches reads.
+ */
+export const LIST_COUNT = 0,
+  LIST_AT = 1,
+  LIST_DISPATCH = 2,
+  LIST_TESS_COUNT = 5,
+  LIST_TESS_AT = 6,
+  LIST_TESS_DISPATCH = 7
+const LIST_HEADER = 10
+/** Depth buckets of the order: the reference's own number, 256. */
+export const DEPTH_BUCKETS = 256
+/** The first word of pass `pass`'s header. */
+export const headerWord = (pass: RasterPass) => pass * LIST_HEADER
+/** The first entry's word of the buffer: behind both headers. */
+export const LIST_ROWS = RASTER_PASSES.length * LIST_HEADER
+/** Words of the lists buffer for lists of `capacity` clusters: both headers, then the software
+ *  raster's entries and the tessellation's. */
+export const rasterListWords = (capacity: number) => LIST_ROWS + 2 * capacity

@@ -45,7 +45,8 @@ fn airTintOf(rank:u32,light:DirectLight,P:vec3f)->vec3f{
  if(f32(rank)==slots.x){k=0u;}else if(f32(rank)==slots.y){k=1u;}
  if(k==2u||flags[2u+k]==0.0){return vec3f(1.0);}
  let planet=directLights.atmosphere[${ATMOSPHERE_SLOT.planet}];
- let q=vec3f(P.x*0.001,(P.y-planet.w)*0.001+planet.y,P.z*0.001);
+ let place=directLights.atmosphere[${ATMOSPHERE_SLOT.planetPlace}];
+ let q=vec3f((P.x-place.x)*0.001,(P.y-planet.w)*0.001+planet.y,(P.z-place.y)*0.001);
  let toward=-light.directionCone.xyz;
  let hit=raySphere(q,toward,planet.y);
  if(hit.x>0.0||hit.y>0.0){return vec3f(0.0);}

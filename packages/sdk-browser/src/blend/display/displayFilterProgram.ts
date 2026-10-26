@@ -4,6 +4,7 @@ import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { computeSamplerEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { DISPLAY_FILTER_SHADER } from './displayFilterWgsl.ts'
+import { CANVAS_FORMAT } from '../../gpu/core/canvasFormat.ts'
 
 /** The program of one device, kept across sizes: its layouts are made by the first blend pass that
  *  routes through display layers, its pipelines off the frame by `prepareDisplayProgram`. */
@@ -25,7 +26,7 @@ function createProgram(device: GPUDevice) {
       fragment: { module, entryPoint, targets: formats.map((format) => ({ format, blend })) },
       primitive: { topology: 'triangle-list' },
     })
-  const both: GPUTextureFormat[] = [DISPLAY_FORMAT, 'bgra8unorm']
+  const both: GPUTextureFormat[] = [DISPLAY_FORMAT, CANVAS_FORMAT]
   const [tint, add] = [TINT_EQUATIONS.multiply, ADD_EQUATIONS.additive]
   return {
     layout,
@@ -42,4 +43,10 @@ export const programOf = oncePerDevice(createProgram)
 export const prepareDisplayProgram = (device: GPUDevice) => {
   const { draw, present } = programOf(device)
   return Promise.all([...draw, ...present].map((pipeline) => pipeline.prepare())).then(() => {})
+}
+
+/** Asks the program's four pipelines, the frames waiting for them (`PreparedPipeline.ask`). */
+export const askDisplayProgram = (device: GPUDevice) => {
+  const { draw, present } = programOf(device)
+  for (const pipeline of [...draw, ...present]) pipeline.ask()
 }

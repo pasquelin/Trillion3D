@@ -1,9 +1,10 @@
 import { syncFeedbackTarget, type FeedbackPipelines } from '../../frame/prepare/feedbackVariant.ts'
 import { sha256Hex } from '../../geometry/streaming/sha256Hex.ts'
+import { freshDisplay } from '../../frame/io/displayRead.ts'
 import { readGpuImage } from '../../gpu/core/readback.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
 import { createWebgpuShadePipelines } from '../../visibility/passes/shadePipelines.ts'
-import { blendShareTargets } from '../../frame/prepare/asIsShareTarget.ts'
+import { wantsResponsive } from '../../frame/prepare/responsiveTarget.ts'
 import { blendContext } from '../../frame/prepare/contractLight.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 
@@ -57,6 +58,7 @@ export async function captureFeedbackAb(rt: WebgpuPagesRuntime) {
     throw new Error('FEEDBACK_AB_CAPTURE_UNAVAILABLE')
   const [width, height] = rt.gpu.displaySize
   if (!width || !height || !rt.run.imageRevision) throw new Error('FEEDBACK_AB_IMAGE_MISSING')
+  freshDisplay(rt)
   return readGpuImage(rt.gpu.device, rt.gpu.displayTexture, width, height, rt.signal)
 }
 
@@ -76,6 +78,7 @@ export async function prepareFeedbackAb(
     false,
     rt.vis.shadeBindGroupLayout,
     rt.vis.writesEmissiveAo,
+    () => rt.vis.rasters,
   )
   const blend = await createWebgpuBlendPipelines(
     device,
@@ -83,7 +86,7 @@ export async function prepareFeedbackAb(
     undefined,
     false,
     rt.vis.blendBindGroupLayout,
-    blendShareTargets(rt),
+    wantsResponsive(rt),
     blendContext(rt),
   )
   if (rt.blendState.transmissive > 0 && !rt.vis.blendPipelines?.transmission)

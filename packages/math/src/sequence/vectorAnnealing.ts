@@ -1,6 +1,8 @@
+import { GOLDEN_U32 } from '../constants.ts'
 import { mulberry32 } from './random.ts'
 import {
   energyWeights,
+  NOISE_SEED,
   NOISE_SIGMA,
   volumeAddress,
   type NoiseVolume,
@@ -37,7 +39,7 @@ export const ANNEALING_DEFAULTS: AnnealingOptions = {
   valueSigma: 1,
   swapCountFactor: 0.001,
   coolingFactor: 0.00001,
-  seed: 0x1337feed,
+  seed: NOISE_SEED,
 }
 
 /** Steps of the table `exp(−d^(2/3) / 2σᵥ²)` is read from, over the distances 0 to 2. */
@@ -177,7 +179,7 @@ export function annealVectors(
   const cells = whiteVectors(count, options.seed)
   const total = Math.max(1, Math.floor(options.swapCountFactor * count * count))
   const cooling = options.coolingFactor * count * count
-  const random = mulberry32(options.seed ^ 0x9e3779b9)
+  const random = mulberry32(options.seed ^ GOLDEN_U32)
   for (let done = 0; done < total; done++) {
     const temperature = Math.max(1 - done / cooling, 0)
     const a = Math.floor(random() * count),

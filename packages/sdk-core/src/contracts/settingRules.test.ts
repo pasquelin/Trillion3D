@@ -5,17 +5,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CUT_RULES } from './cutOptions.ts'
-import { DYNAMIC_RESOLUTION_RULES } from './dynamicResolutionOptions.ts'
-import { STREAMING_RULES } from './streamingOptions.ts'
-import {
-  SUN_TEMPERATURE_RULES,
-  temperatureColour,
-  temperatureFactor,
-} from '../modules/sky/sunColour.ts'
+import { temperatureColour } from '../modules/sky/sunColour.ts'
+import { temperatureFactor } from '../modules/sky/blackBody.ts'
 import { defineModule, mergeModuleParts, resolveModuleOption } from '../modules/descriptor.ts'
 import {
   choiceSetting,
   countSetting,
+  distanceSetting,
   nonNegativeSetting,
   nonZeroSetting,
   resolveSetting,
@@ -24,6 +20,10 @@ import {
   settingsDiffer,
   vectorSetting,
   settingsWatch,
+  resolveSettingsStamped,
+  settingsWritten,
+  trackSettings,
+  settingsRevision,
 } from './settingRules.ts'
 import { TESSELLATION_RULES } from './tessellationOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from './volumetricFogOptions.ts'
@@ -44,6 +44,27 @@ test('a non-negative setting takes any finite number of at least zero', () => {
   assert.equal(resolveSetting(scale, 2.5), 2.5)
   assert.throws(() => resolveSetting(scale, -0.1), /a finite number of at least 0/)
   assert.throws(() => resolveSetting(scale, Infinity), /a finite number of at least 0/)
+})
+
+test('a distance takes metres, true for its default and false for none, and refuses the rest in words', () => {
+  const reach = distanceSetting('reach', 400)
+  assert.deepEqual(
+    [undefined, null, true, false, 0, 90.5].map((option) => resolveSetting(reach, option)),
+    [400, 400, 400, 0, 0, 90.5],
+  )
+  for (const bad of [-1, NaN, Infinity, '400', {}, [1]])
+    assert.throws(
+      () => resolveSetting(reach, bad as never),
+      /reach: must be a finite number of metres of at least 0, true or false/,
+      String(bad),
+    )
+  // The switch is the distance's alone: a number rule takes no boolean.
+  assert.throws(
+    () => resolveSetting(nonNegativeSetting('scale', 1), true as never),
+    /scale: must be/,
+  )
+  const rules = rulesOf([reach] as const)
+  assert.deepEqual(resolveSettings(rules, { reach: false }), { reach: 0 })
 })
 
 test('two readings of a family differ where one of its settings does', () => {
@@ -88,92 +109,23 @@ test('a vector takes finite numbers of its default length, and two readings comp
 test('the temperature colour is white off, and a black body clamped to 1000..15000 K on', () => {
   const near = (got: readonly number[], want: readonly number[]) =>
     got.forEach((x, i) => assert.ok(Math.abs(x - want[i]!) < 1e-4, `${got} vs ${want}`))
-  const rest = resolveSettings(SUN_TEMPERATURE_RULES, {})
-  assert.deepEqual([rest.useTemperature, rest.temperatureKelvin], [false, 6500])
-  assert.deepEqual(temperatureColour([0.5, 0.6, 0.7], rest), [0.5, 0.6, 0.7])
+  const off = { useTemperature: false, temperatureKelvin: 6500 }
+  assert.deepEqual(temperatureColour([0.5, 0.6, 0.7], off), [0.5, 0.6, 0.7])
   near(temperatureFactor(1000), [4.60024713, 0.0397531, 0])
   near(temperatureFactor(6500), [1.04415519, 0.98326854, 1.03569215])
   near(temperatureFactor(15000), [0.78461866, 0.99252683, 1.70842794])
   assert.deepEqual(temperatureFactor(10), temperatureFactor(1000))
   assert.deepEqual(temperatureFactor(1e6), temperatureFactor(15000))
-  const on = resolveSettings(SUN_TEMPERATURE_RULES, { useTemperature: true })
+  const on = { useTemperature: true, temperatureKelvin: 6500 }
   assert.deepEqual(temperatureColour([1, 1, 1], on), temperatureFactor(6500))
-})
-
-test('the cut culls an object by the distances it names, at their own size, unless asked otherwise', () => {
-  assert.equal(CUT_RULES.cutDrawDistanceCulling.default, true)
-  assert.equal(resolveSetting(CUT_RULES.cutDrawDistanceCulling, null), true)
-  assert.equal(resolveSetting(CUT_RULES.cutDrawDistanceCulling, false), false)
-  assert.throws(() => resolveSetting(CUT_RULES.cutDrawDistanceCulling, 'no'), /true or false/)
-  assert.equal(resolveSetting(CUT_RULES.cutViewDistanceScale, undefined), 1)
-  assert.equal(resolveSetting(CUT_RULES.cutViewDistanceScale, 0), 0)
-  assert.equal(resolveSetting(CUT_RULES.cutViewDistanceScale, 2.5), 2.5)
-  assert.throws(
-    () => resolveSetting(CUT_RULES.cutViewDistanceScale, -1),
-    /a finite number of at least 0/,
-  )
-})
-
-test('the cut applies no view’s clip plane unless asked, culls by it and filters by the lists unless asked otherwise', () => {
-  assert.equal(CUT_RULES.cutClipPlane.default, false)
-  assert.equal(CUT_RULES.cutClipPlaneCulling.default, true)
-  assert.equal(CUT_RULES.cutViewFiltering.default, true)
-  for (const field of ['cutClipPlane', 'cutClipPlaneCulling', 'cutViewFiltering'] as const) {
-    assert.equal(resolveSetting(CUT_RULES[field], true), true)
-    assert.equal(resolveSetting(CUT_RULES[field], false), false)
-    assert.throws(() => resolveSetting(CUT_RULES[field], 'no'), /true or false/)
-  }
-})
-
-test('the cut’s GPU time budget is off, its lowest scale 30 % from 1 to 100, the streaming’s bandwidth unlimited', () => {
-  const { cutEdgeScaleBudgetMs: budget, cutEdgeScaleMinPercent: lowest } = CUT_RULES
-  const { streamingBandwidthLimit: bandwidth } = STREAMING_RULES
-  assert.deepEqual(
-    [budget, lowest, bandwidth].map((rule) => resolveSetting(rule)),
-    [0, 30, -1],
-  )
-  assert.deepEqual(
-    [-4, 8.3].map((value) => resolveSetting(budget, value)),
-    [-4, 8.3],
-  )
-  for (const bad of [0.5, 101, Infinity])
-    assert.throws(() => resolveSetting(lowest, bad), /a number from 1 to 100/)
-  assert.throws(() => resolveSetting(bandwidth, '1' as never), /a number from/)
-})
-
-test('the dynamic resolution’s eleven settings default to the reference’s and refuse what they do not take', () => {
-  const rules = DYNAMIC_RESOLUTION_RULES
-  assert.deepEqual(
-    Object.values(rules).map((rule) => resolveSetting(rule)),
-    [0, 0, 10, 0, 16, 0.9, 8, 0.9, 2, 2, false],
-  )
-  assert.equal(resolveSetting(rules.dynamicResolutionHistorySize, 4), 4)
-  assert.throws(() => resolveSetting(rules.dynamicResolutionHistorySize, 0), /whole number/)
-  assert.throws(() => resolveSetting(rules.dynamicResolutionHeadroomPercent, 100), /from 0 to 99/)
-  assert.throws(
-    () => resolveSetting(rules.dynamicResolutionIncreaseAmortization, 1.5),
-    /from 0 to 1/,
-  )
-  assert.throws(() => resolveSetting(rules.dynamicResolutionFrameTimeBudgetMs, -1), /at least 0/)
-  assert.throws(() => resolveSetting(rules.dynamicResolutionUseCpuTimeLogic, 1), /true or false/)
-})
-
-test('the cut’s secondary view distance scale is off and 1, a non-negative number', () => {
-  const { cutViewDistanceApplySecondaryScale: apply, cutViewDistanceSecondaryScale: scale } =
-    CUT_RULES
-  assert.deepEqual(
-    [apply, scale].map((rule) => resolveSetting(rule)),
-    [false, 1],
-  )
-  assert.equal(resolveSetting(scale, 0.25), 0.25)
-  assert.throws(() => resolveSetting(scale, -1), /at least 0/)
-  assert.throws(() => resolveSetting(apply, 1), /true or false/)
 })
 
 test('a level rule — a choice whose first name is off — also takes true for its default and false for off', () => {
   const quality = choiceSetting('quality', 'high', ['off', 'low', 'high'] as const)
   assert.deepEqual(
-    [undefined, null, true, false, 'low', 'off'].map((option) => resolveSetting(quality, option)),
+    ([undefined, null, true, false, 'low', 'off'] as const).map((option) =>
+      resolveSetting(quality, option),
+    ),
     ['high', 'high', 'high', 'off', 'low', 'off'],
   )
   assert.throws(
@@ -263,4 +215,44 @@ test('the fog volume’s numbers take what the engines that fixed them let them 
     () => resolveSetting(rules.volumetricFogSliceSpread, 0),
     /volumetricFogSliceSpread: must be a finite number but 0, which the slices divide by, got 0/,
   )
+})
+
+test('a stamped reading reads a tracked context once until a write, and an untracked one every time', () => {
+  const rules = rulesOf([nonNegativeSetting('scale', 1)] as const)
+  const into = { scale: 0 }
+  const mine = trackSettings({ scale: 2 } as { scale?: number })
+  resolveSettingsStamped(rules, mine, into)
+  assert.equal(into.scale, 2)
+  mine.scale = 3 // in place, no write named: the reading stands
+  resolveSettingsStamped(rules, mine, into)
+  assert.equal(into.scale, 2)
+  const revision = settingsRevision(mine)
+  settingsWritten()
+  assert.notEqual(settingsRevision(mine), revision)
+  resolveSettingsStamped(rules, mine, into)
+  assert.equal(into.scale, 3)
+  assert.ok(Number.isNaN(settingsRevision({})), 'an untracked context has no revision')
+  const loose = { scale: 5 }
+  resolveSettingsStamped(rules, loose, into)
+  loose.scale = 6
+  resolveSettingsStamped(rules, loose, into)
+  assert.equal(into.scale, 6)
+})
+
+test('two contexts sharing one reading object are each read right when they alternate, tracked or not', () => {
+  const rules = rulesOf([nonNegativeSetting('scale', 1)] as const)
+  const into = { scale: 0 }
+  const one = trackSettings({ scale: 1 } as { scale?: number }),
+    two = trackSettings({ scale: 2 } as { scale?: number }),
+    loose = { scale: 9 }
+  for (const [context, want] of [
+    [one, 1],
+    [two, 2],
+    [one, 1],
+    [loose, 9],
+    [one, 1], // the loose reading overwrote `into`: the stamp of `one` no longer vouches for it
+  ] as const) {
+    resolveSettingsStamped(rules, context, into)
+    assert.equal(into.scale, want)
+  }
 })

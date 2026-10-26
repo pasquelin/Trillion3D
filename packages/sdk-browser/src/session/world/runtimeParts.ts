@@ -46,64 +46,87 @@ export type WorldRuntimeParts = {
 /** The loop of openings a world runs (`requestLoop.ts`). */
 export type WorldReopens = ReturnType<typeof createRequestLoop>
 
+/** The models a world not yet drawing asked for are in its scene, and resolved, before the plan
+ *  is taken (`loader.ts`); a refused grant of the device is said below. */
+async function awaitResolved(parts: WorldRuntimeParts) {
+  const { inputs, state } = parts
+  await inputs.ready().catch(() => {})
+  while (parts.resolves.running && !state.disposed) await parts.resolves.running
+}
+
+/** The session in place closed, and the plan the next one opens on taken from what the scene holds. */
+function closeForPlan(parts: WorldRuntimeParts) {
+  const { inputs, state, contents, lights, volumes, track } = parts
+  state.closed = 'its session is opening'
+  // What was resolved since the last frame opens with this session, not with the next one.
+  if (state.seatWanted) contents.seat()
+  state.seatWanted = false
+  const plan = contents.plan()
+  const built = buildWorldSource(plan)
+  track.closing(state.explorer)
+  state.explorer?.dispose()
+  state.explorer = null
+  plan.release()
+  lights.reset()
+  volumes.reset()
+  state.lightsChanged = true
+  inputs.diagnostic.opening()
+  return built
+}
+
+/** The session opened on `built`, with the options it opens under; none, said, when it fails. */
+async function openSession(
+  parts: WorldRuntimeParts,
+  built: NonNullable<ReturnType<typeof buildWorldSource>>,
+) {
+  const { inputs, state, placeCamera, moveNamed } = parts
+  const { canvas, open = openMeasuredWorld } = inputs
+  try {
+    const scope = built.source.metadata.scope // its first model's scope, or the default
+    await inputs.ready() // a lost device is asked again: it opens on what is granted, or fails
+    const options: MeasuredWorldOptions = {
+      ...inputs.options(),
+      scope,
+      onContentRefused: (what, reason) => noticeRefused(inputs.diagnostic.notices, what, reason),
+      onPartitionOutgrown: () =>
+        noticeRefused(
+          inputs.diagnostic.notices,
+          'partition rows',
+          'the view outgrew the rows and the engine cannot grow them in place: the cells past them wait',
+        ),
+    }
+    // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
+    const explorer = (state.explorer = await open(canvas, options, {
+      ...built.source,
+      placeCamera,
+      moveNamed,
+    }))
+    return { explorer, options }
+  } catch (error) {
+    state.closed = 'its session failed to open'
+    if (!state.disposed) inputs.diagnostic.failed(error) // cut short by disposal, it failed nothing
+    return undefined
+  }
+}
+
 /** One opening: the session in place closed, the next one opened on what the scene holds. */
 export function worldOpening(parts: WorldRuntimeParts) {
-  const { inputs, state, contents, lights, volumes, track, placeCamera, moveNamed } = parts
-  const { canvas, open = openMeasuredWorld } = inputs
+  const { inputs, state, track } = parts
   return async () => {
     if (state.disposed) return
-    // The models a world not yet drawing asked for are in its scene, and resolved, before the plan
-    // is taken (`loader.ts`); a refused grant of the device is said below. A session in
-    // place, closed for a lost device or an option, is closed at once.
+    // Awaited only without a session: one in place closes in this very call, before any frame.
     if (!state.explorer) {
-      await inputs.ready().catch(() => {})
-      while (parts.resolves.running && !state.disposed) await parts.resolves.running
+      await awaitResolved(parts)
       if (state.disposed) return
     }
-    state.closed = 'its session is opening'
-    // What was resolved since the last frame opens with this session, not with the next one.
-    if (state.seatWanted) contents.seat()
-    state.seatWanted = false
-    const plan = contents.plan()
-    const built = buildWorldSource(plan)
-    track.closing(state.explorer)
-    state.explorer?.dispose()
-    state.explorer = null
-    plan.release()
-    lights.reset()
-    volumes.reset()
-    state.lightsChanged = true
-    inputs.diagnostic.opening()
+    const built = closeForPlan(parts)
     if (!built) {
       state.closed = 'nothing to draw: the scene holds no mesh and no loaded model'
       return track.none()
     }
-    let explorer: MeasuredWorld, options: MeasuredWorldOptions
-    try {
-      const scope = built.source.metadata.scope // its first model's scope, or the default
-      await inputs.ready() // a lost device is asked again: it opens on what is granted, or fails
-      options = {
-        ...inputs.options(),
-        scope,
-        onContentRefused: (what, reason) => noticeRefused(inputs.diagnostic.notices, what, reason),
-        onPartitionOutgrown: () =>
-          noticeRefused(
-            inputs.diagnostic.notices,
-            'partition rows',
-            'the view outgrew the rows and the engine cannot grow them in place: the cells past them wait',
-          ),
-      }
-      // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
-      explorer = state.explorer = await open(canvas, options, {
-        ...built.source,
-        placeCamera,
-        moveNamed,
-      })
-    } catch (error) {
-      state.closed = 'its session failed to open'
-      if (!state.disposed) inputs.diagnostic.failed(error) // cut short by disposal, it failed nothing
-      return track.none()
-    }
+    const opened = await openSession(parts, built)
+    if (!opened) return track.none()
+    const { explorer, options } = opened
     if (state.disposed) return explorer.dispose()
     // Lit before the page's own settings: the first image had no lights. A session's own loop is
     // asked a frame; a world its page leads draws the frame it asks (`frames/askedFrame.ts`).
@@ -168,7 +191,7 @@ export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
       })
       // The sky module's parts, after the lights its sun and sky light are: the clouds, their shadow
       // maps and the sky light's capture follow them.
-      session.applySky(inputs.modules.sky.resolved, {})
+      session.applySky(inputs.modules.sky.resolved)
     }
     state.lightsChanged = false
     volumes.sync(session)

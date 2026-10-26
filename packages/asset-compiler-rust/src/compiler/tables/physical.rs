@@ -99,6 +99,36 @@ fn anisotropy(p: &mut Params, e: &Value) {
     map(p, "anisotropyMap", e, "anisotropyTexture");
 }
 
+/// Whether a transmission or a clear coat takes the surface before its sheen: a surface has one shading
+/// model, the transmission wins over the coat and the coat over the cloth, whatever the factors are.
+fn sheen_overridden(m: &Value) -> bool {
+    extension(m, "KHR_materials_transmission").is_some()
+        || extension(m, "KHR_materials_clearcoat").is_some()
+}
+
+/// The physical extensions of `m` the image does not show, as the codes of the message catalogue: the
+/// specular colour, the iridescence, and a sheen another extension overrides. The table keeps the
+/// values of the first two, so a file that declares them reads back whole.
+pub(super) fn unrendered(m: &Value) -> Vec<&'static str> {
+    let mut codes = Vec::new();
+    if let Some(e) = extension(m, "KHR_materials_specular") {
+        let tint = triple(e.get("specularColorFactor"), [1.0; 3]);
+        if tint != [1.0; 3] || e.get("specularColorTexture").is_some() {
+            codes.push("gltf-specular-color-not-drawn");
+        }
+    }
+    if let Some(e) = extension(m, "KHR_materials_iridescence") {
+        if number_or(e.get("iridescenceFactor"), 0.0) > 0.0 || e.get("iridescenceTexture").is_some()
+        {
+            codes.push("gltf-iridescence-not-drawn");
+        }
+    }
+    if extension(m, "KHR_materials_sheen").is_some() && sheen_overridden(m) {
+        codes.push("gltf-sheen-dropped");
+    }
+    codes
+}
+
 /// Whether the host builds this material as its physical surface, and the parameters the physical
 /// extensions add to it.
 pub(super) fn physical_params(m: &Value) -> (bool, Params) {
@@ -117,7 +147,9 @@ pub(super) fn physical_params(m: &Value) -> (bool, Params) {
         iridescence(&mut p, e);
     }
     if let Some(e) = extension(m, "KHR_materials_sheen") {
-        sheen(&mut p, e);
+        if !sheen_overridden(m) {
+            sheen(&mut p, e);
+        }
     }
     if let Some(e) = extension(m, "KHR_materials_transmission") {
         map(&mut p, "transmissionMap", e, "transmissionTexture");

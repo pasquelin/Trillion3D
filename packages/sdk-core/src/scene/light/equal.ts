@@ -4,8 +4,19 @@ import type { SceneLight } from './contracts.ts'
 import {
   atmosphereSunIndexOf,
   DEFAULT_TEMPERATURE_KELVIN,
+  diffuseShareOf,
   fogScatteringOf,
+  forwardShadingPriorityOf,
+  intensityOf,
+  inverseSquaredOf,
+  innerConeAngleOf,
+  lightUnitsOf,
+  radialExponentOf,
+  shadowResolutionScaleOf,
+  specularShareOf,
+  mobilityOf,
   shadowsFogOf,
+  transmitsOf,
   sunDiskTintOf,
 } from './fields.ts'
 import { sameSceneFog } from '../core/fog.ts'
@@ -17,6 +28,7 @@ import {
 } from './lightFunction.ts'
 import { sameLightShafts } from './lightShafts.ts'
 import { sameLightCloudShadow } from './lightCloudShadow.ts'
+import { sameLightShadow } from './lightShadow.ts'
 
 /** Two optional contract vectors: both absent, or identical component by component. */
 const sameVector = (a: readonly number[] | undefined, b: readonly number[] | undefined) =>
@@ -46,31 +58,57 @@ function sameColourAndAir(a: SceneLight, b: SceneLight) {
  * The identifier is not compared: the two lights are those of the same slot.
  */
 export function sameSceneLight(a: SceneLight, b: SceneLight) {
+  return sameStrength(a, b) && sameAirAndFunction(a, b) && sameShape(a, b)
+}
+
+/** Two lights of the same kind, as strong, in the same unit, scattering and casting alike. */
+function sameStrength(a: SceneLight, b: SceneLight) {
   return (
     a.kind === b.kind &&
-    a.intensity === b.intensity &&
+    intensityOf(a) === intensityOf(b) &&
+    lightUnitsOf(a) === lightUnitsOf(b) &&
     a.castsShadow === b.castsShadow &&
     fogScatteringOf(a) === fogScatteringOf(b) &&
     shadowsFogOf(a) === shadowsFogOf(b) &&
-    a.range === b.range &&
-    a.coneAngle === b.coneAngle &&
-    a.penumbra === b.penumbra &&
-    a.angularRadius === b.angularRadius &&
-    a.shadowDistance === b.shadowDistance &&
+    transmitsOf(a) === transmitsOf(b) &&
+    mobilityOf(a) === mobilityOf(b) &&
+    shadowResolutionScaleOf(a) === shadowResolutionScaleOf(b) &&
+    sameLightShadow(a, b) &&
+    diffuseShareOf(a) === diffuseShareOf(b) &&
+    specularShareOf(a) === specularShareOf(b) &&
+    sameVector(a.color, b.color)
+  )
+}
+
+/** Two lights that ask the same of the air, the shafts, the clouds and the light function. */
+function sameAirAndFunction(a: SceneLight, b: SceneLight) {
+  return (
     a.atmosphereSun === b.atmosphereSun &&
     sameColourAndAir(a, b) &&
     sameLightShafts(a, b) &&
     sameLightCloudShadow(a, b) &&
     atmosphereSunIndexOf(a) === atmosphereSunIndexOf(b) &&
+    forwardShadingPriorityOf(a) === forwardShadingPriorityOf(b) &&
     a.lightFunction === b.lightFunction &&
     lightFunctionFadeOf(a) === lightFunctionFadeOf(b) &&
     lightFunctionDisabledOf(a) === lightFunctionDisabledOf(b) &&
     (a.lightFunctionConeAngle ?? 0) === (b.lightFunctionConeAngle ?? 0) &&
-    sameVector(lightFunctionScaleOf(a), lightFunctionScaleOf(b)) &&
+    sameVector(lightFunctionScaleOf(a), lightFunctionScaleOf(b))
+  )
+}
+
+/** Two lights of the same place, reach, cone, source and fall-off. */
+function sameShape(a: SceneLight, b: SceneLight) {
+  return (
+    a.range === b.range &&
+    a.outerConeAngle === b.outerConeAngle &&
+    innerConeAngleOf(a) === innerConeAngleOf(b) &&
+    a.angularRadius === b.angularRadius &&
     a.emitterRadius === b.emitterRadius &&
     a.emitterLength === b.emitterLength &&
     a.emitterSoftRadius === b.emitterSoftRadius &&
-    sameVector(a.color, b.color) &&
+    inverseSquaredOf(a) === inverseSquaredOf(b) &&
+    radialExponentOf(a) === radialExponentOf(b) &&
     sameVector(a.position, b.position) &&
     sameVector(a.direction, b.direction) &&
     sameVector(a.right, b.right) &&

@@ -6,6 +6,7 @@ import {
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { DAG_UNIFORM_BYTES } from '../shader/viewsWgsl.ts'
 import { FRAME_ROW_WORDS } from '../types.ts'
+import { NODE_TABLE } from '../nodeTable.ts'
 import { FRAME_TABLE } from '../frameTable.ts'
 import { writtenTexels } from '../../../gpu/core/recordTexture.fixture.ts'
 import { fieldStart } from '../../../gpu/core/recordLayout.ts'
@@ -25,12 +26,23 @@ export function mockDagDevice(
   const gpu = fakeDevice({ ...BACKEND, packed, ...faults })
   return {
     device: gpu.device,
+    /** The buffers the device made (`drawnPageIds`). */
+    buffers: gpu.buffers,
     uniformWrites: () =>
       gpu.writes.filter(({ buffer }) => buffer.size === DAG_UNIFORM_BYTES).length,
     /** Copies to a READABLE slot: one per due readback, never one per send. */
     readbackCopies: () => gpu.copies.filter(({ to }) => to.usage & GPUBufferUsage.MAP_READ).length,
     /** Mappings asked of a destroyed buffer: each one a validation error on the device. */
     destroyedMaps: gpu.destroyedMaps,
+    /** The nodes the writes to the node table sent (`../nodeTable.ts`), as the index of the first
+     *  node each write holds and its words. */
+    nodes: () =>
+      gpu.textureWrites
+        .filter(({ destination }) => destination.texture.label === NODE_TABLE.label)
+        .map((write) => {
+          const { first, words } = writtenTexels(NODE_TABLE, write as never, 'Node')
+          return [first / NODE_TABLE.fields.Node, words] as [number, Uint32Array]
+        }),
     /** The host rows the writes to the frame words sent (`../cameraFrames.ts`), every write decoded
      *  into the rows it holds — one run of several included —, each as its first word's index in
      *  the host's rows and its words. */

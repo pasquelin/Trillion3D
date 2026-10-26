@@ -7,9 +7,9 @@ import {
   WORKGROUP_THREADS,
 } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { tangentBillboard } from '../../../../math/src/wgsl/basis.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { stepFoldWgsl } from './stepFoldWgsl.ts'
+import { drawStruct } from '../drawWords.ts'
 import {
   perspectiveDivide,
   pixelToNdc,
@@ -50,7 +50,7 @@ const STATE_WGSL = wgslBlock(
   'STATE_WGSL',
   [],
   `
-struct Particle { position: vec4f, velocity: vec4f }
+struct Particle { position: vec4f, velocity: vec4f, shape: vec4f, color: vec4f }
 struct Window { vertices: u32, instances: u32, firstVertex: u32, firstInstance: u32, first: u32, pad0: u32, pad1: u32, pad2: u32 }
 struct State { window: Window, particles: array<Particle> }`,
 )
@@ -62,26 +62,8 @@ export const PARTICLE_ARGS_BYTES = 12
 /** The workgroups covering `slots` slots. */
 export const particleGroups = (slots: number) => ceilDiv(slots, WORKGROUP_THREADS)
 
-/** One invocation per slot that can change: `main` over the window of the slots alive after the
- *  last step, its workgroups the dispatch `bound` wrote; `emit` over the ring's records of this
- *  image, `[first, first + count)` around the capacity. A slot is replaced by its record when the
- *  ring holds one — so a slot both cover ends the same —, then a live particle moves (position
- *  from the pool's origin); a dead one nobody emitted into is left as it is, and a slot outside
- *  both is neither alive nor written: the cost follows the live window and the records, not the
- *  slots ever used. The move is the exact one under a constant acceleration, `p += (v + a·dt/2)·dt`
- *  then `v += a·dt`: the velocity's end alone would add `a·dt²/2` a step, 0.33 m of fall over 2 s
- *  at 60 Hz. Each lane then holds its slot's span — its complement and one past it, alive after
- *  the step, else 0 —, the workgroup folds them (`subgroups`: by subgroup, else through its
- *  memory) and its first lane stores the fold in the workgroup's partial — the window's from 0,
- *  the records' past the capacity's workgroups —: no device atomic. `bound`, one workgroup
- *  dispatched after the pools' steps, folds the partials both dispatches wrote — a strided max a
- *  lane, then the same fold, by subgroup where the device has them —, writes the window as the
- *  draw's first slot and instance count, and the next window's workgroups. The draw then takes the
- *  live slots' span in slot order, never a slot past it (#755). */
-export const particlesWgsl = (subgroups: boolean) =>
-  wgslProgram(
-    /* wgsl */ `${subgroups ? 'enable subgroups;' : ''}
-struct Step { acceleration: vec3f, dt: f32, first: u32, count: u32, capacity: u32, groups: u32 }
+/** The step's uniform and bindings, and the slot it moves: `stepSlot`, `spanOf`, `windowGroups`. */
+const STEP_SLOT_TEXT = /* wgsl */ `struct Step { acceleration: vec3f, dt: f32, first: u32, count: u32, capacity: u32, groups: u32 }
 @group(0) @binding(0) var<uniform> step: Step;
 @group(0) @binding(1) var<storage, read> staged: array<Particle>;
 @group(0) @binding(2) var<storage, read_write> state: State;
@@ -90,19 +72,22 @@ struct Step { acceleration: vec3f, dt: f32, first: u32, count: u32, capacity: u3
 fn stepSlot(i: u32) -> bool {
   let d = i - step.first;
   let k = select(d, d + step.capacity, i < step.first);
-  var p = state.particles[i];
-  if (k < step.count) { p = staged[k]; } else if (p.position.w >= p.velocity.w) { return false; }
-  if (p.position.w < p.velocity.w) {
-    let gain = step.acceleration * step.dt;
-    p.position = vec4f(p.position.xyz + (p.velocity.xyz + 0.5 * gain) * step.dt, p.position.w + step.dt);
-    p.velocity = vec4f(p.velocity.xyz + gain, p.velocity.w);
-  }
-  state.particles[i] = p;
-  return p.position.w < p.velocity.w;
+  if (k < step.count) { state.particles[i] = staged[k]; }
+  var position = state.particles[i].position;
+  var velocity = state.particles[i].velocity;
+  if (!(position.w < velocity.w)) { return false; }
+  let gain = step.acceleration * step.dt;
+  position = vec4f(position.xyz + (velocity.xyz + 0.5 * gain) * step.dt, position.w + step.dt);
+  velocity = vec4f(velocity.xyz + gain, velocity.w);
+  state.particles[i].position = position;
+  state.particles[i].velocity = velocity;
+  return position.w < velocity.w;
 }
 fn spanOf(i: u32, alive: bool) -> vec2u { return select(vec2u(0u), vec2u(~i, i + 1u), alive); }
-fn windowGroups() -> u32 { return (step.capacity + (WORKGROUP_THREADS-1u)) / WORKGROUP_THREADS; }
-@compute @workgroup_size(WORKGROUP_THREADS)
+fn windowGroups() -> u32 { return (step.capacity + (WORKGROUP_THREADS-1u)) / WORKGROUP_THREADS; }`
+
+/** The step of the live window (`main`) and of the records (`emit`), each folding its slots' span. */
+const STEP_ENTRIES_TEXT = /* wgsl */ `@compute @workgroup_size(WORKGROUP_THREADS)
 fn main(@builtin(global_invocation_id) id: vec3u, @builtin(workgroup_id) wg: vec3u, @builtin(local_invocation_index) local: u32, @builtin(num_workgroups) n: vec3u) {
   let k = flatIndex(id, n, WORKGROUP_THREADS);
   let i = state.window.first + k;
@@ -118,8 +103,10 @@ fn emit(@builtin(global_invocation_id) id: vec3u, @builtin(workgroup_id) wg: vec
   let span = foldStep(local, spanOf(i, k < step.count && stepSlot(i)));
   // A group of the last row past the records, its first lane past the count, writes no partial.
   if (local == 0u && k < step.count) { partials[windowGroups() + flatIndex(wg, n, 1u)] = span; }
-}
-@compute @workgroup_size(WORKGROUP_THREADS)
+}`
+
+/** `bound`: folds the partials both dispatches wrote into the window and the draw's arguments. */
+const STEP_BOUND_TEXT = /* wgsl */ `@compute @workgroup_size(WORKGROUP_THREADS)
 fn bound(@builtin(local_invocation_index) local: u32) {
   var span = vec2u(0u);
   // The window's workgroups \`main\` stepped: its rows' padding wrote no partial.
@@ -135,19 +122,42 @@ fn bound(@builtin(local_invocation_index) local: u32) {
     args[0] = grid.x;
     args[1] = grid.y;
   }
-}`,
+}`
+
+/** One invocation per slot that can change: `main` over the window of the slots alive after the
+ *  last step, its workgroups the dispatch `bound` wrote; `emit` over the ring's records of this
+ *  image, `[first, first + count)` around the capacity. A slot is replaced by its record when the
+ *  ring holds one — so a slot both cover ends the same —, then a live particle moves (position
+ *  from the pool's origin), its position and velocity alone stored: its size, rotation and colour
+ *  are written once, at birth; a dead one nobody emitted into is left as it is, and a slot outside
+ *  both is neither alive nor written: the cost follows the live window and the records, not the
+ *  slots ever used. The move is the exact one under a constant acceleration, `p += (v + a·dt/2)·dt`
+ *  then `v += a·dt`: the velocity's end alone would add `a·dt²/2` a step, 0.33 m of fall over 2 s
+ *  at 60 Hz. Each lane then holds its slot's span — its complement and one past it, alive after
+ *  the step, else 0 —, the workgroup folds them (`subgroups`: by subgroup, else through its
+ *  memory) and its first lane stores the fold in the workgroup's partial — the window's from 0,
+ *  the records' past the capacity's workgroups —: no device atomic. `bound`, one workgroup
+ *  dispatched after the pools' steps, folds the partials both dispatches wrote — a strided max a
+ *  lane, then the same fold, by subgroup where the device has them —, writes the window as the
+ *  draw's first slot and instance count, and the next window's workgroups. The draw then takes the
+ *  live slots' span in slot order, never a slot past it (#755). */
+export const particlesWgsl = (subgroups: boolean) =>
+  wgslProgram(
+    /* wgsl */ `${subgroups ? 'enable subgroups;' : ''}
+${STEP_SLOT_TEXT}
+${STEP_ENTRIES_TEXT}
+${STEP_BOUND_TEXT}`,
     [STATE_WGSL, stepFoldWgsl(subgroups), FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL],
   )
 
-/** Per slot of the step's window, a disc facing the eye, fading with age, at its edge and near
- *  the scene's depth; one module, two fragment entries. `fs`: its coverage is the reactive value
- *  (#833), so the temporal pass keeps no trail of it. `fsRouted`, an image with display layers
+/** Per slot of the step's window, a disc across the view, its colour changing with age, soft at its
+ *  edge and where it nears the scene's depth along the view; one module, two fragment entries.
+ *  `fs` writes the lit colour. `fsRouted`, an image with display layers
  *  (`../../blend/display/displayFilter.ts`): where the mask is set, the disc maps the tint and the added
  *  value by its display colour, not the lit image. */
 const particleDrawWgsl = (clipping?: Clipping) =>
   wgslProgram(
-    /* wgsl */ `struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32, drawn: vec2f, preExposure: f32${clipping ? ', clipPlane: vec4f' : ''} }
-@group(0) @binding(0) var<uniform> draw: Draw;
+    /* wgsl */ `@group(0) @binding(0) var<uniform> draw: Draw;
 @group(0) @binding(1) var<storage, read> state: State;
 @group(0) @binding(2) var depth: texture_depth_2d;
 struct Out { ${PARTICLE_OUT.join(', ')} }${clipping === 'distance' ? `\n${clippedStructText('Out', PARTICLE_OUT)}` : ''}
@@ -156,37 +166,39 @@ struct Out { ${PARTICLE_OUT.join(', ')} }${clipping === 'distance' ? `\n${clippe
   var o: Out;
   o.at = vec4f(2, 2, 2, 1);
   if (!(p.position.w < p.velocity.w)) { return ${clipReturn('Out', clipping, 'o', '1.0')}; }
-  let toEye = normalize(draw.eye - p.position.xyz);
-  let right = tangentBillboard(toEye);
   o.corner = unitToSigned2(vec2f(f32(v & 1u), f32(v >> 1u)));
-  o.local = p.position.xyz + (right * o.corner.x + cross(toEye, right) * o.corner.y) * draw.size;
+  let side = o.corner * p.shape.xy;
+  let turn = vec2f(cos(p.shape.z), sin(p.shape.z));
+  o.local = p.position.xyz + draw.right * (side.x * turn.x + side.y * turn.y) + draw.up * (side.y * turn.x - side.x * turn.y);
   o.at = draw.clip * vec4f(o.local, 1);
-  o.life = 1 - p.position.w / p.velocity.w;
+  o.color = p.color * mix(vec4f(1), draw.ending, p.position.w / p.velocity.w);
   return ${clipReturn('Out', clipping, 'o', 'planeDistance(draw.clipPlane, o.local)')};
 }
-fn particle(in: Out) -> vec4f {
-  let size = draw.drawn;
-  let ndc = pixelToNdc(in.at.xy, size);
+fn coverage(in: Out) -> f32 {
+  let ndc = pixelToNdc(in.at.xy, draw.drawn);
   let scene = transformHomogeneousPoint(draw.unclip, vec3f(ndc, textureLoad(depth, vec2i(in.at.xy), 0)));
-  let behind = distance(perspectiveDivide(scene), draw.eye) - distance(in.local, draw.eye);
+  let behind = dot(perspectiveDivide(scene) - in.local, draw.forward);
   let soft = select(1.0, saturate(behind / draw.softness), abs(scene.w) > DIVISOR_FLOOR);
-  let k = saturate(1 - dot(in.corner, in.corner)) * soft * in.life * draw.color.a;
-  return vec4f(preExposedClipped(draw.color.rgb), 1) * k;
+  return saturate(1 - dot(in.corner, in.corner)) * soft * in.color.a;
 }
-${clipping === 'pixel' ? 'fn particleClipped(in: Out) -> bool { return planeDistance(draw.clipPlane, in.local) < 0.0; }\n' : ''}struct Lit { @location(0) color: vec4f, @location(1) reactive: vec4f }
-@fragment fn fs(in: Out) -> Lit { let c = particle(in); return Lit(c, vec4f(0, 1, 0, c.a)); }
-struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2) add: vec4f, @location(3) reactive: vec4f }
+fn particle(in: Out) -> vec4f {
+  return vec4f(preExposedClipped(in.color.rgb), 1) * coverage(in);
+}
+${clipping === 'pixel' ? 'fn particleClipped(in: Out) -> bool { return planeDistance(draw.clipPlane, in.local) < 0.0; }\n' : ''}@fragment fn fs(in: Out) -> @location(0) vec4f { return particle(in); }
+// The alpha holdout's accumulation of a premultiplied pool (\`../../blend/holdout.ts\`), drawn where the alpha holdout is not in effect: it lets \`1 − coverage\` of the path through.
+@fragment fn fsHoldout(in: Out) -> @location(0) vec4f { return vec4f(0.0, 0.0, 0.0, 1.0 - coverage(in)); }
+struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2) add: vec4f }
 @fragment fn fsRouted(in: Out) -> Routed {
   let c = particle(in);
-  let r = displayRoute(preExposedClipped(draw.color.rgb), draw.exposure, u32(draw.curve), draw.unlit != 0, c.a, maskAt(in.at));
-  return Routed(c * r.keep, r.tint, r.add, vec4f(0, 1, 0, c.a));
+  let r = displayRoute(preExposedClipped(in.color.rgb), draw.exposure, u32(draw.curve), draw.unlit != 0, c.a, maskAt(in.at), draw.bake);
+  return Routed(c * r.keep, r.tint, r.add);
 }`,
     [
+      drawStruct(!!clipping),
       STATE_WGSL,
       preExposedWgsl('draw.preExposure'),
       DISPLAY_ROUTE_WGSL,
       displayMaskWgsl(1),
-      tangentBillboard,
       perspectiveDivide,
       transformHomogeneousPoint,
       DIVISOR_FLOOR,
@@ -202,7 +214,7 @@ const PARTICLE_OUT = [
   '@builtin(position) at: vec4f',
   '@location(0) corner: vec2f',
   '@location(1) local: vec3f',
-  '@location(2) life: f32',
+  '@location(2) color: vec4f',
 ]
 
 /** The draw's module of a view with no plane: nothing of the cut at it in the text. */

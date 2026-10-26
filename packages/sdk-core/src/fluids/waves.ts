@@ -1,5 +1,6 @@
 import { length2, normalizeVector2, normalizeVector3 } from '../../../math/src/vector/vector.ts'
 import { HALF_PI, TAU } from '../../../math/src/constants.ts'
+import { sum } from '../../../math/src/scalar/quantile.ts'
 import { wrap } from '../../../math/src/scalar/reals.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { GRAVITY_PRESETS } from '../physics/options.ts'
@@ -149,7 +150,8 @@ export class Waves {
   /** Angular speed and phase at `t = 0` of each wave. */
   private readonly omega: Float64Array
   private readonly phase0: Float64Array
-  /** Each wave's phase at the time set, in [0, 2π): the only per-time state. */
+  /** Each wave's phase at the time set, in [0, 2π): the only per-time state; every other field is
+   *  fixed at construction (the physics module copies them once per `Waves`, `joltModule.planes`). */
   readonly phase: Float64Array
   /** Highest point the sum can reach above rest: `Σ Aᵢ`. */
   readonly crest: number
@@ -184,29 +186,17 @@ export class Waves {
       this.omega[i] = Math.sqrt(GRAVITY_PRESETS.earth * this.k[i])
       this.phase0[i] = spec.phase ?? 0
     })
-    this.crest = this.amplitude.reduce((a, b) => a + b, 0)
+    this.crest = sum(this.amplitude)
     this.setTime(0)
   }
 
-  /** `Σ Qᵢ·Aᵢ·kᵢ` after normalisation: 1 at most. */
-  get steepness() {
-    let sum = 0
-    for (let i = 0; i < this.count; i++) sum += this.lateral[i] * this.k[i]
-    return sum
-  }
-
-  /** Each wave's phase at `t` seconds, reduced to [0, 2π) in double precision. */
-  phasesAt(t: number, out: Float64Array) {
+  /** Clocks the waves at `t` seconds, each phase reduced to [0, 2π) in double precision; the
+   *  previous frame's surface is `setTime(t - dt)`. */
+  setTime(t: number) {
     for (let i = 0; i < this.count; i++) {
       const phase = (this.omega[i] * t + this.phase0[i]) % TAU
-      out[i] = phase < 0 ? phase + TAU : phase
+      this.phase[i] = phase < 0 ? phase + TAU : phase
     }
-    return out
-  }
-
-  /** Clocks the waves at `t` seconds; the previous frame's surface is `setTime(t - dt)`. */
-  setTime(t: number) {
-    this.phasesAt(t, this.phase)
   }
 
   /** Displacement `[x, y, z]` of the rest point `(x, 0, z)`, into `out`. */

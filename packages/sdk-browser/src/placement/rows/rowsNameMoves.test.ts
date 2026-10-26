@@ -20,7 +20,7 @@ test('a row its owner moves names its placement to the next upload', () => {
   })
   const { rt } = runtime(new Object3D(), roots)
   Object.assign(rt.blendState, { blendGpu: [] })
-  rt.lights.mobility.ensure(2, 2, (rank) => roots[rank].world.elements)
+  rt.lights.mobility.ensure(2, (rank) => roots[rank].world.elements)
   rows.matrices.set(new Matrix4().makeTranslation(25, 0, 0).elements, 16)
   updateWebgpuPlacements(rt, rows, 1, 1)
   assert.deepEqual([...rt.run.movedWorlds.take()], [1], 'its world alone goes up')

@@ -1,11 +1,11 @@
-import { clamp } from '../../../../math/src/scalar/reals.ts'
-import type { DYNAMIC_RESOLUTION_RULES } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
+import { clamp, lerp } from '../../../../math/src/scalar/reals.ts'
+import { DYNAMIC_RESOLUTION_RULES } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import type { SettingValues } from '../../../../sdk-core/src/contracts/settingRules.ts'
 
 /** The budgets the heuristic fits, by their place in its history: the render scale, and the cut's
  *  edge scale (`cutEdgeScaleBudgetMs`, `../../../../sdk-core/src/contracts/cutOptions.ts`). */
-export const RENDER_SCALE = 0
-export const EDGE_SCALE = 1
+const RENDER_SCALE = 0
+const EDGE_SCALE = 1
 const BUDGETS = 2
 
 /** A GPU time that is negative is no timing yet: its frame is skipped for that budget. A time of
@@ -19,9 +19,25 @@ const EDGE_HEADROOM = 0.05,
   EDGE_THRESHOLD = 0.01,
   EDGE_AMORTIZATION = 0.9
 
+/** What one budget is fitted by, written in place at each refresh (`modelOf`): whether its time
+ *  scales with the area (the render scale's does), its budget, headroom, change threshold and rise
+ *  share, its fraction now, its bounds and the most it may be. One record a budget, none shared. */
+const createModel = () => ({
+  quadratic: false,
+  budgetMs: 0,
+  headroom: 0,
+  threshold: 0,
+  amortization: 0,
+  current: 1,
+  min: 0,
+  max: 1,
+  top: 1,
+})
+type Model = ReturnType<typeof createModel>
+
 /** The settings the heuristic reads of the render scale's budget, resolved
  *  (`../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts`). */
-export type DynamicResolutionValues = SettingValues<typeof DYNAMIC_RESOLUTION_RULES>
+type DynamicResolutionValues = SettingValues<typeof DYNAMIC_RESOLUTION_RULES>
 
 /** The frames in a row over the budget past which the older ones no longer count: no lower than 2. */
 const MIN_OVER_BUDGET = 2
@@ -51,7 +67,9 @@ const MIN_OVER_BUDGET = 2
  *
  * State in fields, the rings in typed arrays: a frame makes no object.
  */
-export function createDynamicResolution(capacity = 16) {
+export function createDynamicResolution(
+  capacity = DYNAMIC_RESOLUTION_RULES.dynamicResolutionHistorySize.default,
+) {
   return {
     /** The frames a budget's ring holds: `dynamicResolutionHistorySize`. */
     capacity,
@@ -70,10 +88,11 @@ export function createDynamicResolution(capacity = 16) {
     ignore: 1,
     /** The render scale's budget, ms: written by the controller, read in place. */
     budgetMs: Number.NaN,
-    /** The fractions a refresh gives each budget, applied together; whether it found the render
-     *  scale all over its budget; the weights of the browse in hand (sum, total, frames over,
-     *  frames counted). */
+    /** The fractions a refresh gives each budget, applied together; each budget's record
+     *  (`modelOf`); whether it found the render scale all over its budget; the weights of the
+     *  browse in hand (sum, total, frames over, frames counted). */
     next: new Float64Array(BUDGETS),
+    models: [createModel(), createModel()],
     panicked: false,
     weighed: new Float64Array(4),
   }
@@ -152,16 +171,42 @@ export function recordFrame(
   for (let b = 0; b < BUDGETS; b++) h.sizes[b] = Math.min(h.sizes[b] + 1, capacity)
 }
 
+/** Budget `b`'s record for this refresh, written in place: the render scale's from the host's
+ *  settings and its bounds, the edge scale's from its own constants. */
+function modelOf(h: DynamicResolution, f: Fraction, b: number) {
+  const m = h.models[b],
+    { rules } = f
+  if (b === RENDER_SCALE) {
+    const throttle = rules.dynamicResolutionThrottlingMaxPercent / 100
+    m.quadratic = true
+    m.budgetMs = h.budgetMs
+    m.headroom = rules.dynamicResolutionHeadroomPercent / 100
+    m.threshold = rules.dynamicResolutionChangePercentThreshold / 100
+    m.amortization = rules.dynamicResolutionIncreaseAmortization
+    m.current = f.s
+    m.min = f.bounds.min
+    m.max = f.bounds.max
+    m.top = throttle > 0 ? clamp(throttle, m.min, m.max) : m.max
+  } else {
+    m.quadratic = false
+    m.budgetMs = f.edgeBudgetMs
+    m.headroom = EDGE_HEADROOM
+    m.threshold = EDGE_THRESHOLD
+    m.amortization = EDGE_AMORTIZATION
+    m.current = f.edge
+    m.min = f.edgeMin
+    m.max = m.top = 1
+  }
+  return m
+}
+
 /** The newest `size` entries of budget `b`, browsed from the newest, weighed into `h.weighed`:
  *  the sum of their suggestions, the sum of their weights, the frames over the budget in a row
  *  and the frames counted. A frame the CPU alone made late is not over budget when the settings
  *  say so. */
-function weigh(h: DynamicResolution, f: Fraction, b: number, size: number) {
+function weigh(h: DynamicResolution, f: Fraction, b: number, m: Model, size: number) {
   const { rules } = f,
-    render = b === RENDER_SCALE,
-    budgetMs = render ? h.budgetMs : f.edgeBudgetMs,
-    headroom = render ? rules.dynamicResolutionHeadroomPercent / 100 : EDGE_HEADROOM,
-    target = budgetMs * (1 - headroom),
+    target = m.budgetMs * (1 - m.headroom),
     cpuLate = h.budgetMs * (1 - rules.dynamicResolutionHeadroomPercent / 100),
     last = Math.max(rules.dynamicResolutionMaxOverBudgetFrames, MIN_OVER_BUDGET)
   let sum = 0,
@@ -175,10 +220,10 @@ function weigh(h: DynamicResolution, f: Fraction, b: number, size: number) {
     if (ms < 0) continue
     const cpu = h.cpuMs[slot],
       cpuBound = rules.dynamicResolutionUseCpuTimeLogic && (cpu > h.budgetMs || cpu > cpuLate)
-    if (!cpuBound && ms > budgetMs) over++
+    if (!cpuBound && ms > m.budgetMs) over++
     else over = 0
     const ratio = target / ms
-    sum += (render ? Math.sqrt(ratio) : ratio) * h.fractions[b * h.capacity + slot] * weight
+    sum += (m.quadratic ? Math.sqrt(ratio) : ratio) * h.fractions[b * h.capacity + slot] * weight
     total += weight
     count++
     weight *= rules.dynamicResolutionFrameWeightExponent
@@ -191,41 +236,33 @@ function weigh(h: DynamicResolution, f: Fraction, b: number, size: number) {
 }
 
 /** Budget `b`'s fraction after the history, written to `h.next[b]`: the one it has where the history
- *  holds none or it is not asked for, within its bounds. A budget that `panics` and whose newest
- *  times were all over its budget forgets the history (`h.panicked`). Fields only: a frame boxes
- *  no number. */
+ *  holds none or it is not asked for, within its bounds. A budget that is the render scale and whose
+ *  newest times were all over its budget forgets the history (`h.panicked`). Fields only: a frame
+ *  boxes no number. */
 function fitBudget(h: DynamicResolution, f: Fraction, b: number, canChange: boolean) {
-  const render = b === RENDER_SCALE,
-    { rules } = f,
-    budgetMs = render ? h.budgetMs : f.edgeBudgetMs,
-    current = render ? f.s : f.edge,
+  const m = modelOf(h, f, b),
+    { current, min, max } = m,
     size = Math.min(h.size, h.sizes[b])
   h.next[b] = current
   // The render scale is always fitted, another budget while it is asked for.
-  if (size === 0 || (!render && !(budgetMs > 0))) return
-  weigh(h, f, b, size)
+  if (size === 0 || (b !== RENDER_SCALE && !(m.budgetMs > 0))) return
+  weigh(h, f, b, m, size)
   const { weighed } = h,
     sum = weighed[0],
     total = weighed[1],
     over = weighed[2],
-    count = weighed[3],
-    min = render ? f.bounds.min : f.edgeMin,
-    max = render ? f.bounds.max : 1,
-    throttle = rules.dynamicResolutionThrottlingMaxPercent / 100,
-    top = render && throttle > 0 ? clamp(throttle, min, max) : max
+    count = weighed[3]
   let next = current
   if (count > 0) {
     next = sum / total
     if (over === count) {
       h.sizes[b] = 0
-      if (render) {
+      if (b === RENDER_SCALE) {
         h.size = 0
         h.panicked = true
       }
     } else {
-      const threshold = render
-          ? rules.dynamicResolutionChangePercentThreshold / 100
-          : EDGE_THRESHOLD,
+      const { threshold } = m,
         enough =
           threshold === 0 ||
           (canChange &&
@@ -233,13 +270,10 @@ function fitBudget(h: DynamicResolution, f: Fraction, b: number, canChange: bool
               next < current * (1 - threshold) ||
               (next !== current && (next === min || next === max))))
       if (!enough) next = current
-      if (next > current) {
-        const share = render ? rules.dynamicResolutionIncreaseAmortization : EDGE_AMORTIZATION
-        next = current + (next - current) * share
-      }
+      if (next > current) next = lerp(current, next, m.amortization)
     }
   }
-  h.next[b] = clamp(next, min, top)
+  h.next[b] = clamp(next, min, m.top)
 }
 
 /** The fractions of the next frame written into `f.s` and `f.edge`, on the frame time budget

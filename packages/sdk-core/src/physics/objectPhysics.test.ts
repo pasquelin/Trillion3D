@@ -2,7 +2,7 @@
 // `objectPhysicsHost.test.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DAMPING } from './layout.ts'
+import { ANGULAR_DAMPING, LINEAR_DAMPING } from './layout.ts'
 import { ObjectPhysics } from './objectPhysics.ts'
 import { PHYSICS_STEP } from './options.ts'
 import { SOFT_DAMPING } from './soft/soft.ts'
@@ -30,7 +30,7 @@ test('a body keeps the settings it declares, and a type or word alone takes the 
       [undefined, 1, undefined, undefined],
       'the material’s matter and the world’s gravity',
     )
-    assert.deepEqual(plain.damping, { linear: DAMPING, angular: DAMPING })
+    assert.deepEqual(plain.damping, { linear: LINEAR_DAMPING, angular: ANGULAR_DAMPING })
   }
   assert.equal(new ObjectPhysics('kinematic').type, 'kinematic')
   assert.deepEqual([body._host, body._state, body._index], [null, null, -1], 'in no simulation')
@@ -39,11 +39,11 @@ test('a body keeps the settings it declares, and a type or word alone takes the 
 test('a body keeps the damping it declares, the simulation’s own left unset, and refuses a negative one', () => {
   assert.deepEqual(new ObjectPhysics({ damping: { linear: 0 } }).damping, {
     linear: 0,
-    angular: DAMPING,
+    angular: ANGULAR_DAMPING,
   })
-  assert.deepEqual(new ObjectPhysics({ damping: { angular: 0 } }).damping, {
-    linear: DAMPING,
-    angular: 0,
+  assert.deepEqual(new ObjectPhysics({ damping: { angular: 0.3 } }).damping, {
+    linear: LINEAR_DAMPING,
+    angular: 0.3,
   })
   for (const damping of [{ angular: -2 }, { linear: -0.1 }, { linear: Number.NaN }])
     assert.throws(
@@ -70,7 +70,7 @@ test('a soft body that declares no damping loses a hundredth of its speed a step
   }
   assert.equal(
     new ObjectPhysics('dynamic').damping.linear,
-    DAMPING,
+    LINEAR_DAMPING,
     'a rigid body keeps the simulation’s own',
   )
 })

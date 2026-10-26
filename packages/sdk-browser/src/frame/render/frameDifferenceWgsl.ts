@@ -1,6 +1,6 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { luminance } from '../../../../math/src/wgsl/color.ts'
-import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
+import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
 
 /** How many times the frame-difference view amplifies a change: a step of one 8-bit level in the
  *  display shows as eight. */

@@ -6,8 +6,8 @@ Two benches, one per question:
   this machine's GPU through Dawn, the WebGPU implementation Chrome runs, with no browser, playing a
   scenario identical frame for frame. It is the one bench that times, and its `--ab` the one that
   compares two checkouts' times.
-- **Images and witnesses: the Chrome harness** (`bench/runner/`, this folder). Playwright drives
-  the system Chrome: the engine against the witness libraries, image proofs, the screen error of
+- **Images: the Chrome harness** (`bench/runner/`, this folder). Playwright drives
+  the system Chrome: the engine's image proofs, the screen error of
   what is drawn, and the published reports. It reads no time.
 
 How the acceptance session uses them, batch by batch:
@@ -111,13 +111,12 @@ the comparison of two builds' times, are the GPU bench's (`bench/dawn/`).
 
 ### Flags
 
-`<side>` is `before` or `after`. Chromium flags come from the engine (`harness/sideOptions.ts`);
-with two engines they are the union of both sides' needs.
+`<side>` is `before` or `after`. Chromium flags come from the engine (`harness/sideOptions.ts`).
 
 | Flag                                                                   | Default                                 | Effect                                                                                                                                                                                           |
 | ---------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--engine`                                                             | `webgpu`                                | `webgpu` (webgpu-page-raster, the engine), or a witness: `three-nu`, `three-lod` ([The witnesses](#the-witnesses))                                                                               |
-| `--engine-<side>`                                                      | `--engine`                              | per-side engine: the engine against a witness in one run, same poses, lights, caches and server                                                                                                  |
+| `--engine`                                                             | `webgpu`                                | `webgpu` (webgpu-page-raster, the engine)                                                                                                                                                        |
+| `--engine-<side>`                                                      | `--engine`                              | per-side engine, from the same set                                                                                                                                                               |
 | `--before` / `--after`                                                 | none / `dist/`                          | a built `dist/` or a git ref; without `--before` one side is measured                                                                                                                            |
 | `--scene <name>`                                                       | from the cache, else `sponza`           | any compiled folder of `.mesure/assets/`; sets each side's cache. `fluids`: no cache, an ocean, 100 floating bodies, 20 fires, 5 smoke volumes built through the public API (`fluids/fluids.ts`) |
 | `--cache-<side>`                                                       | the scene's cache                       | a compiled cache (`native/full`), to compare two compilers on one scene                                                                                                                          |
@@ -165,26 +164,6 @@ with two engines they are the union of both sides' needs.
 Every run first probes browser limits (`harness/limits.ts`): the WebGPU
 adapter's limits past the defaults (`limits` in `measure.json`). How the shadow maps are drawn is
 [docs/SHADOWS.md](../../docs/SHADOWS.md).
-
-## The witnesses
-
-A witness is a comparison backend pitted against the engine on one side
-(`--engine-before three-nu|three-lod`). The SDK never mounts one. The Three.js witnesses are pages of their own, on Three's WebGPU
-renderer (`witness/threeRenderer.ts`): the capture read back from the GPU.
-
-- `three-nu`: Three.js alone, every mesh every frame (`witness/threeBarePage.ts`).
-- `three-lod`: Three.js with a three-level `THREE.LOD` per mesh simplified by meshoptimizer at load
-  (`witness/threeLodPage.ts`).
-
-**Lights.** Both witnesses place the contract lights the harness hands them, converted to Three
-units (`witness/threeLights.ts`): linear colour, radiometric intensity, `distance` = range,
-`decay` = 2, spot edge matched by penumbra; the surface model differs. The witness's
-`witnessLights` records what it received. With no light anywhere, the witnesses draw the unlit
-view, never a black frame.
-
-Witnesses cast **no shadows** and `bounce` renders the lit view: run fidelity campaigns
-`--shadows off` on both sides. The camera path advances once per `requestAnimationFrame` on both
-sides.
 
 ## Outputs
 
@@ -345,8 +324,6 @@ walks its light-grid cell's list, built by the grid oracle
 
 **Deformation.** `a-character-that-walks`, `a-shape-that-morphs`, `a-crowd-of-characters`
 (`?count=1`, 10, 100) and `additive-poses` expose `deformationCase.world` and `setTime(seconds)`.
-`witness/deformationWitness.ts` evaluates the same public glTF's first clip in the witness;
-`captureDeformationWitness` posts its pixels through the capture transport for `imageDiff`.
 
 ## Reports
 

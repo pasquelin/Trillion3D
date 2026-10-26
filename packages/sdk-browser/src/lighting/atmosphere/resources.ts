@@ -1,3 +1,4 @@
+import { postSamplers } from '../../gpu/core/postSamplers.ts'
 import { fullscreenDescriptor, preparedPipeline } from '../deferred/fullscreen.ts'
 import { askedComputeStage } from '../../gpu/core/computeStages.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
@@ -7,10 +8,14 @@ import { cloudShadowStandIn } from './cloudShadowStandIn.ts'
 import { airBindEntries, airLayoutEntries, type AirProgram } from './programs.ts'
 import { volumesBytes } from './separatedWgsl.ts'
 import { AIR_PROGRAM_MAKERS, type AirProgramName } from './shaders.ts'
-import type { AirShape } from './shape.ts'
+import { HAZE_VOLUME_FORMAT, type AirShape } from './shape.ts'
 
 /** The sky is composited over the lit image: premultiplied, an alpha of one where it draws. */
 const OVER: GPUBlendComponent = { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }
+/** The image's alpha, the share of the background left visible, is multiplied by what the sky lets through: nothing, where it draws. */
+const ALPHA_THROUGH: GPUBlendComponent = { srcFactor: 'zero', dstFactor: 'one-minus-src-alpha' }
+/** An atmosphere that holds its light out lays its coverage on the alpha instead, a hole in it. */
+const ALPHA_HOLDOUT: GPUBlendComponent = OVER
 
 /** The tables the air's passes build, each a storage texture with its view, and the sampler they
  *  are read through. The transmittance table is four bytes a texel where the shape asks for the
@@ -41,13 +46,7 @@ function createAirTables(device: GPUDevice, shape: AirShape) {
     ),
     skyView: texture('Trillion3D air sky', skyView.width, skyView.height, 'rgba16float'),
   }
-  const sampler = device.createSampler({
-    label: 'Trillion3D air tables',
-    magFilter: 'linear',
-    minFilter: 'linear',
-    addressModeU: 'clamp-to-edge',
-    addressModeV: 'clamp-to-edge',
-  })
+  const sampler = postSamplers(device).clamped
   return { tables, sampler }
 }
 
@@ -71,7 +70,6 @@ function createAirPasses(device: GPUDevice, shape: AirShape, failed: (error: unk
     hazeSeparate: ['hazeMain', 'Trillion3D air haze apart'],
     capture360: ['capture360Main', 'Trillion3D air capture haze'],
     distantSky: ['distantSkyMain', 'Trillion3D air distant sky'],
-    skyRays: ['skyRaysMain', 'Trillion3D sky by direction'],
   }
   return (name: Exclude<AirProgramName, 'sky'>) => {
     let pass = made.get(name)
@@ -99,19 +97,30 @@ function createSkyPipeline(device: GPUDevice, shape: AirShape, failed: (error: u
     entries: airLayoutEntries(program.bindings, GPUShaderStage.FRAGMENT, shape),
   })
   const skyModule = device.createShaderModule({ label: 'Trillion3D sky', code: program.code })
-  const skyPipeline = preparedPipeline(
-    device,
-    fullscreenDescriptor(
+  const pipelineOf = (alpha: GPUBlendComponent) => {
+    const made = preparedPipeline(
       device,
-      skyModule,
-      skyLayout,
-      'skyMain',
-      [{ format: HDR_FORMAT, blend: { color: OVER, alpha: OVER } }],
-      'Trillion3D sky',
-    ),
-  ).ask()
-  skyPipeline.prepare().catch(failed)
-  return { skyProgram: program, skyLayout, skyPipeline }
+      fullscreenDescriptor(
+        device,
+        skyModule,
+        skyLayout,
+        'skyMain',
+        [{ format: HDR_FORMAT, blend: { color: OVER, alpha } }],
+        'Trillion3D sky',
+      ),
+    ).ask()
+    made.prepare().catch(failed)
+    return made
+  }
+  const skyPipeline = pipelineOf(ALPHA_THROUGH)
+  // The holdout's pipeline is made at the first image that holds the sky out.
+  let holdout: ReturnType<typeof pipelineOf> | undefined
+  return {
+    skyProgram: program,
+    skyLayout,
+    skyPipeline,
+    skyHoldoutPipeline: () => (holdout ??= pipelineOf(ALPHA_HOLDOUT)),
+  }
 }
 
 /** The bind group of `layout` for `program`: the resources it binds under `shape`, each at its
@@ -153,6 +162,16 @@ export function createAirResources(
   failed: (error: unknown) => void,
 ) {
   const { tables, sampler } = createAirTables(device, shape)
+  // The haze's volume as a 3D texture: what the haze pass writes beside the light buffer's region and
+  // the fog pass samples (`HAZE_VOLUME_FORMAT`).
+  const { aerial } = shape
+  const hazeTexture = device.createTexture({
+    label: 'Trillion3D air haze volume',
+    dimension: '3d',
+    size: { width: aerial.width, height: aerial.width, depthOrArrayLayers: aerial.slices },
+    format: HAZE_VOLUME_FORMAT,
+    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+  })
   const frameBuffer = device.createBuffer({
     label: 'Trillion3D air frame',
     size: FRAME_FLOATS * 4,
@@ -163,7 +182,7 @@ export function createAirResources(
   // The passes the shape makes at once: the transmittance table's is none where it makes no table.
   const asked = [
     ...(shape.transmittance.on ? [pass('transmittance')] : []),
-    ...(['multiScatter', 'publish', 'skyView', 'haze', 'distantSky', 'skyRays'] as const).map(pass),
+    ...(['multiScatter', 'publish', 'skyView', 'haze', 'distantSky'] as const).map(pass),
   ]
   let volumesMade: GPUBuffer | undefined
   return {
@@ -173,6 +192,8 @@ export function createAirResources(
     frameBuffer,
     pass,
     asked,
+    /** The haze's volume, a 3D texture of `aerial.width` cells across and down and `aerial.slices` deep. */
+    hazeVolume: hazeTexture.createView(),
     cloudShadowNone: cloudShadowStandIn(device),
     ...createSkyPipeline(device, shape, failed),
     group: groupMaker(device, shape),
@@ -183,6 +204,7 @@ export function createAirResources(
     },
     dispose() {
       for (const { made } of Object.values(tables)) made.destroy()
+      hazeTexture.destroy()
       frameBuffer.destroy()
       volumesMade?.destroy()
     },

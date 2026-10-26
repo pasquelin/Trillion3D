@@ -1,5 +1,5 @@
 // The spheres of rows `[from, to]` by the CPU's formula (`clusterSphere.ts`), the oracle the tests
-// hold the rows pass's against: the engine keeps no CPU copy of them.
+// hold the candidates kernel's against: the engine keeps no CPU copy of them.
 import type { PageRec } from '../../../geometry/selection/types.ts'
 import type { Placements } from '../../../geometry/selection/placements.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../sphereContract.ts'

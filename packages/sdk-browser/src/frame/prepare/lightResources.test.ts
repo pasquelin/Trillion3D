@@ -5,9 +5,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
-import { directLightResources, readsAsIs, wantsContractLighting } from './contractLight.ts'
+import { directLightResources, litPrograms, readsAsIs } from './contractLight.ts'
+import { wantsContractLighting } from './lit.ts'
+import { castingLights } from '../../lighting/shadows/vsm/frame/vsmPlan.ts'
 import { setSkyLightSource, skyLightPending } from '../render/skyLightState.ts'
 import { resolveSkyLight } from '../../../../sdk-core/src/modules/sky/skyLight.ts'
+import { DEFAULT_SKY_QUALITY } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { NO_OVERRIDES } from '../backend/state/viewOverrides.ts'
 
@@ -28,7 +31,13 @@ function harness() {
   const views = { active: { overrides: NO_OVERRIDES } }
   return {
     store,
-    rt: { lights: { store }, run: {}, views, context: {} } as unknown as WebgpuPagesRuntime,
+    rt: {
+      lights: { store },
+      run: {},
+      views,
+      context: {},
+      setup: { localFog: true },
+    } as unknown as WebgpuPagesRuntime,
   }
 }
 
@@ -93,6 +102,36 @@ test('the resolve with no shadow code is asked by the declared lights, never a s
     b.store.assignSlice(1, slice)
     assert.equal(directLightResources(rt).unshadowed, false)
   }
+})
+
+test('shadowQuality 0 takes every light its shadow: no light casts, and the programs drop their shadow code', () => {
+  const b = harness()
+  const rt = { ...b.rt, bounce: {}, vis: {}, gpu: {}, lights: { store: b.store, pageLayout: {} } }
+  const run = rt as unknown as WebgpuPagesRuntime
+  const sun: SceneLight = {
+    id: 'sun',
+    kind: 'directional',
+    color: [1, 1, 1],
+    intensity: 5,
+    direction: [0, -1, 0],
+    castsShadow: true,
+  }
+  b.store.add({ ...LAMP, castsShadow: true })
+  b.store.add(sun)
+  const asked = () => [
+    directLightResources(run).unshadowed,
+    litPrograms(run).key.unshadowed,
+    castingLights(run),
+  ]
+  assert.deepEqual(asked(), [false, false, 2], 'the default quality shadows the sun and the lamp')
+  for (const quality of [1, 3, 5]) {
+    Object.assign(rt.context, { shadowQuality: quality })
+    assert.deepEqual(asked(), [false, false, 2], `quality ${quality}: every level above 0 alike`)
+  }
+  Object.assign(rt.context, { shadowQuality: 0 })
+  assert.deepEqual(asked(), [true, true, 0], 'quality 0: no light casts, no shadow code')
+  Object.assign(rt.context, { shadowQuality: undefined })
+  assert.deepEqual(asked(), [false, false, 2], 'back at the default')
 })
 
 test('a frame with no rectangle light asks for the resolve with no rectangle code', () => {
@@ -160,11 +199,31 @@ test('a frame asks for the shadow read of the kinds its shadowed lights are, nev
 test('the probes wait for the sky only while a real-time sky light has no cube ready', () => {
   const rt = {} as unknown as WebgpuPagesRuntime
   assert.equal(skyLightPending(rt), false, 'no sky light: nothing to wait for')
-  setSkyLightSource(rt, { part: resolveSkyLight({}), position: [0, 0, 0] })
+  setSkyLightSource(rt, { part: resolveSkyLight({}, DEFAULT_SKY_QUALITY), position: [0, 0, 0] })
   assert.equal(skyLightPending(rt), true, 'a sky light, its capture not made')
   // A sky light that does not capture in real time has no cube to wait for.
-  setSkyLightSource(rt, { part: resolveSkyLight({ realTimeCapture: false }), position: [0, 0, 0] })
+  setSkyLightSource(rt, {
+    part: resolveSkyLight({ realTimeCapture: false }, DEFAULT_SKY_QUALITY),
+    position: [0, 0, 0],
+  })
   assert.equal(skyLightPending(rt), false)
   setSkyLightSource(rt, undefined)
   assert.equal(skyLightPending(rt), false, 'taken away: released')
+})
+
+test('the sky light’s occlusion this image drew is handed to the resolve, and none is where the image drew none', () => {
+  const b = harness()
+  const occlusion = { read: undefined as { bent: GPUBuffer; params: GPUBuffer } | undefined }
+  const rt = { ...b.rt, bounce: {}, vis: {}, gpu: {}, distanceFields: { occlusion, sunShadow: {} } }
+  const run = rt as unknown as WebgpuPagesRuntime
+  b.store.add({ ...LAMP })
+  assert.equal(directLightResources(run).skyShadowing, undefined, 'drawn none')
+  occlusion.read = { bent: {} as GPUBuffer, params: {} as GPUBuffer }
+  assert.equal(directLightResources(run).skyShadowing, occlusion.read, 'drawn: its buffers')
+  const unlit = { ...b.rt.views, active: { overrides: { ...NO_OVERRIDES, lighting: false } } }
+  assert.equal(
+    directLightResources({ ...rt, views: unlit } as unknown as WebgpuPagesRuntime).skyShadowing,
+    undefined,
+    'a view the lighting is overridden off reads none',
+  )
 })

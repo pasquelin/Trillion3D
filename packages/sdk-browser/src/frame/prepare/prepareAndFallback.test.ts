@@ -80,7 +80,7 @@ test('webgpu pages prepare without resident bytes and stream the visible set', a
   material.dispose()
 })
 
-test('webgpu pages without a device fail prepare so the explorer can keep the host-library path', async () => {
+test('webgpu pages without a device fail prepare so the explorer can fall back', async () => {
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const backend = webgpuPagesEngine({
     textureCaches: createTextureCaches(createPageCache()),

@@ -1,7 +1,8 @@
 import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
-import { standInTexture } from '../../../gpu/core/standInTexture.ts'
+import { postSamplers } from '../../../gpu/core/postSamplers.ts'
+import { standInBuffer, standInTexture } from '../../../gpu/core/standIns.ts'
 import { CUBE_FACES, HARMONICS_SET_BYTES, HARMONICS_SETS, SKY_LIGHT_CUBE_FORMAT } from './layout.ts'
-import { createSkyLightSampler, SKY_LIGHT_READ_WORDS, type SkyLightReadSet } from './read.ts'
+import { SKY_LIGHT_READ_WORDS, type SkyLightReadSet } from './read.ts'
 
 /**
  * THE SKY LIGHT OF A SCENE WITH NONE (`SkyLightReadSet`): one black texel for the cube, harmonics
@@ -14,10 +15,10 @@ export const skyLightStandIn = oncePerDevice((device: GPUDevice): SkyLightReadSe
     layers: CUBE_FACES,
   })
   const zeroes = (label: string, bytes: number) =>
-    device.createBuffer({ label, size: bytes, usage: GPUBufferUsage.UNIFORM })
+    standInBuffer(device, label, bytes, GPUBufferUsage.UNIFORM)
   return {
     cube: cube.createView({ dimension: 'cube-array' }),
-    sampler: createSkyLightSampler(device),
+    sampler: postSamplers(device).mipped,
     harmonics: zeroes('Trillion3D no sky light harmonics', HARMONICS_SET_BYTES * HARMONICS_SETS),
     params: zeroes('Trillion3D no sky light', SKY_LIGHT_READ_WORDS * 4),
   }

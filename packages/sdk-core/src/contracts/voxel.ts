@@ -1,4 +1,6 @@
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import { EngineError } from './cache.ts'
+import { assertSidecarSection } from './sidecarSection.ts'
 import { VOXEL_BRICK_BYTES, VOXEL_RECORD_BYTES, VOXEL_VERSION } from './writtenFormats.ts'
 
 /**
@@ -54,29 +56,24 @@ export type VoxelFile = {
   voxelBase: number
 }
 
-/** A reason the section cannot be read, or null; an absent section is no error. */
-function voxelSectionProblem(section: unknown) {
-  if (section === undefined || section === null) return null
-  if (typeof section !== 'object' || Array.isArray(section)) return 'the section is not an object'
+/** The `voxels` section, or undefined when the cache has none; an unknown one is refused by name. */
+export function assertVoxelSection(section: unknown): VoxelSection | undefined {
+  if (assertSidecarSection(section, VOXEL_VERSION, 'Cannot read voxels', false) === undefined)
+    return undefined
   const value = section as Partial<VoxelSection>
-  if (value.version !== VOXEL_VERSION)
-    return `version ${String(value.version)} where ${VOXEL_VERSION} is expected`
-  if (typeof value.file !== 'string' || !value.file) return 'it names no file'
   const layout = [
     [value.headBytes, HEAD_WORDS * 4],
     [value.groupBytes, GROUP_WORDS * 4],
     [value.brickBytes, VOXEL_BRICK_BYTES],
     [value.voxelBytes, VOXEL_RECORD_BYTES],
   ]
-  if (layout.some(([read, known]) => read !== known)) return 'its record sizes are not this layout'
-  return null
-}
-
-/** The `voxels` section, or undefined when the cache has none; an unknown one is refused by name. */
-export function assertVoxelSection(section: unknown): VoxelSection | undefined {
-  const problem = voxelSectionProblem(section)
-  if (problem) throw new EngineError('UNSUPPORTED_FORMAT', `Cannot read voxels: ${problem}`, {})
-  return (section ?? undefined) as VoxelSection | undefined
+  if (layout.some(([read, known]) => read !== known))
+    throw new EngineError(
+      'UNSUPPORTED_FORMAT',
+      'Cannot read voxels: its record sizes are not this layout',
+      {},
+    )
+  return value as VoxelSection
 }
 
 /** Group `g`'s record, read from `view` (`VoxelGroup`). */
@@ -86,7 +83,7 @@ function groupAt(view: DataView, g: number): VoxelGroup {
     real = (k: number) => view.getFloat32(at + 4 * k, true)
   const primitive = word(0)
   return {
-    primitive: primitive === 0xffffffff ? null : primitive,
+    primitive: primitive === NO_INDEX ? null : primitive,
     group: word(1),
     firstBrick: word(2),
     bricks: word(3),

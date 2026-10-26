@@ -1,12 +1,13 @@
 // The atlas and baked-level words of a preview entry: they round-trip, entries sort by texture then
-// atlas — a coverage chain as its texture's colour entry —, and words out of range are refused.
+// atlas — a half-float chain as its texture's colour entry —, and words out of range are refused.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { preview } from '../../../../tests/fixtures/manifest/manifestBinaryPreview.ts'
+import { hdrPreview, preview } from '../../../../tests/fixtures/manifest/manifestBinaryPreview.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
 import {
   PREVIEW_ATLAS,
   PREVIEW_BAKED_LEVELS,
+  PREVIEW_LAYOUTS,
   encode,
   previewWord,
   refused,
@@ -38,13 +39,13 @@ test('the same texture twice for one atlas, or data before colour, is refused as
   assert.throws(() => encode(backwards), /not ordered by texture and atlas/)
 })
 
-// A coverage chain (word 2) is its texture's colour-atlas entry: it sorts where the plain
+// A half-float chain (word 2) is its texture's colour-atlas entry: it sorts where the 8-bit
 // colour one would, before the data entry, and one texture never carries both colour chains —
-// the reader would have to pick one, and an emissive reader would draw the weighted one.
-test('a coverage chain sorts as the colour entry of its texture, and never beside a plain one', () => {
-  const coverage = { ...preview(3, 8, 8, 1), atlas: 2 }
+// the reader would have to pick one. Its tail is eight bytes a texel and no block family holds it.
+test('a half-float chain sorts as the colour entry of its texture, and never beside a plain one', () => {
+  const hdr = hdrPreview(3, 8, 8, 1)
   const data = { ...preview(3, 8, 8, 2), atlas: 1 }
-  const { slim, buffer } = encode([coverage, data, preview(4, 8, 8, 3)])
+  const { slim, buffer } = encode([hdr, data, preview(4, 8, 8, 3)])
   const decoded = decodeManifestBinary(slim, buffer).texturePreviews!
   assert.deepEqual(
     decoded.map((p) => [p.texture, p.atlas]),
@@ -54,8 +55,16 @@ test('a coverage chain sorts as the colour entry of its texture, and never besid
       [4, 0],
     ],
   )
-  assert.throws(() => encode([data, coverage]), /not ordered by texture and atlas/)
-  assert.throws(() => encode([preview(3, 8, 8, 1), coverage]), /not ordered by texture and atlas/)
+  assert.equal(decoded[0].levels[0].length, 8 * 8 * 8)
+  assert.deepEqual(decoded[0].levels, hdr.levels)
+  assert.throws(() => encode([data, hdr]), /not ordered by texture and atlas/)
+  assert.throws(() => encode([preview(3, 8, 8, 1), hdr]), /not ordered by texture and atlas/)
+})
+
+test('a half-float chain that names a block layout is refused on read', () => {
+  const { slim, buffer } = encode([hdrPreview(0, 8, 8, 1)])
+  previewWord(buffer, 0, PREVIEW_LAYOUTS)[0] = 1
+  refused(buffer, slim)
 })
 
 test('an unknown atlas, or more baked levels than lie above the tail, is refused by both sides', () => {

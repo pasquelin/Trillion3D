@@ -5,6 +5,7 @@ import {
   DEFAULT_BANK_POSITION,
   DEFAULT_DRAW_DISTANCE_MAX,
   DEFAULT_DRAW_DISTANCE_MIN,
+  DEFAULT_DRAW_DISTANCE_PER_INSTANCE,
   DEFAULT_OBJECT_ANIMATION_MIN_SCREEN_SIZE,
   DEFAULT_OBJECT_MOBILITY,
   DEFAULT_SPATIALLY_LOADED,
@@ -14,6 +15,9 @@ import {
   RUNTIME_GRID_SETTING,
   FAR_FIELD_SETTING,
   DEFAULT_FAR_FIELD,
+  CAST_FAR_SHADOW_SETTING,
+  DEFAULT_CAST_FAR_SHADOW,
+  FAR_SHADOW_TEST_SETTING,
   SKINNED_INSTANCE_SETTING,
   SPATIALLY_LOADED_SETTING,
   type DrawDistanceWire,
@@ -61,12 +65,15 @@ const skinnedInstanceSettings: Record<keyof SkinnedInstanceWire, JsonSchemaPrope
 const drawDistanceSettings: Record<keyof DrawDistanceWire, JsonSchemaProperty> =
   /* @__PURE__ */ (() => ({
     min: num(
-      `The distance, from the eye to the centre of the object's bounds, under which it is not drawn, in the scene's units (default ${DEFAULT_DRAW_DISTANCE_MIN}).`,
+      `The distance under which the object is not drawn, in the scene's units: the sphere of its bounds is wholly nearer to the eye (default ${DEFAULT_DRAW_DISTANCE_MIN}).`,
       0,
     ),
     max: num(
-      `The distance, from the eye to the centre of the object's bounds, past which it is not drawn, in the scene's units: 0 none, the object is drawn at every distance, whatever its min (default ${DEFAULT_DRAW_DISTANCE_MAX}).`,
+      `The distance past which the object is not drawn, in the scene's units: the sphere of its bounds is wholly farther from the eye; 0 none (default ${DEFAULT_DRAW_DISTANCE_MAX}).`,
       0,
+    ),
+    perInstance: flag(
+      `Whether the object is one instance of an instanced mesh: its bounds' centre is tested instead of the sphere, and only a max above 0 is a distance, a min alone is none (default ${DEFAULT_DRAW_DISTANCE_PER_INSTANCE}).`,
     ),
   }))()
 
@@ -90,7 +97,7 @@ const objectSettingsOf: Record<keyof ObjectSettingsWire, JsonSchemaProperty> =
     },
     [DRAW_DISTANCE_SETTING]: {
       description:
-        'The distances the object is drawn at, culled nearer than min and farther than max from the eye, measured to the centre of its bounds: false (the default) none, the object is drawn at every distance, or the distances it names over their defaults. The run-time setting cutDrawDistanceCulling turns the cull off, cutViewDistanceScale scales the distances.',
+        'The distances the object is drawn at, culled nearer than min and farther than max from the eye, measured to the sphere of its bounds (cutDistanceCullToSphereEdge) or, for an instance (perInstance), to the centre of its bounds: false (the default) none, the object is drawn at every distance, or the distances it names over their defaults. The run-time setting cutDrawDistanceCulling turns the cull of instances off (an object of its own is always culled), cutViewDistanceScale scales the distances.',
       anyOf: [
         flag('false: none, the object is drawn at every distance; true is refused.'),
         {
@@ -102,6 +109,12 @@ const objectSettingsOf: Record<keyof ObjectSettingsWire, JsonSchemaProperty> =
     },
     [FAR_FIELD_SETTING]: flag(
       `Whether a view's primed depth draws the object: the small, coarse draw its Hi-Z pyramid is built from before its cut (hizPrime). With hizPrimeFarFieldOnly, only objects that set it are drawn (default ${DEFAULT_FAR_FIELD}).`,
+    ),
+    [CAST_FAR_SHADOW_SETTING]: flag(
+      `Whether the object casts far shadows: a directional light's shadow maps leave out the casters past the edge of its shadow distance (farShadowCulling), and the objects it casts far shadows for are kept at any distance (default ${DEFAULT_CAST_FAR_SHADOW}).`,
+    ),
+    [FAR_SHADOW_TEST_SETTING]: flag(
+      "Whether a directional light's far-shadow test reaches the object: true, the object is left out of the light's shadow maps past the edge of its shadow distance unless it casts far shadows (castFarShadow); false, the test never leaves it out. Left out, the view's rule decides: only the merged far-field shells of the world's coarser levels, or every caster when farShadowCullsAllMeshes is true.",
     ),
     [RUNTIME_GRID_SETTING]: {
       type: 'string',

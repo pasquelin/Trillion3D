@@ -1,6 +1,5 @@
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { openMeasuredWorld } from '../session/explorer.ts'
 import {
   CLUSTERED_BLEND_FORMAT_VERSION,
@@ -47,16 +46,19 @@ function assertOpenRejects(code: string) {
 for (const version of [FORMAT_VERSION, CLUSTERED_BLEND_FORMAT_VERSION])
   test(`explorer accepts format ${version} pointer and metadata before loading the source`, async (t) => {
     stubLocation(t)
-    t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL) =>
-      cacheResponse(String(input), version),
-    )
-    const load = t.mock.method(GLTFLoader.prototype, 'loadAsync', async () => {
-      throw new Error('source-load-boundary')
+    const fetched: string[] = []
+    t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL) => {
+      fetched.push(String(input))
+      return cacheResponse(String(input), version)
     })
     // #274: the machine is read before the source. An accepted format therefore stops at the
     // capability floor here — no WebGPU under Node — and never asks for the glTF.
     await assertOpenRejects('WEBGPU_UNAVAILABLE')
-    assert.equal(load.mock.callCount(), 0)
+    assert.deepEqual(
+      fetched.filter((url) => /\.(gltf|glb)(\?|$)/.test(url)),
+      [],
+      'the source is never requested',
+    )
   })
 test('explorer rejects an unsupported pointer format before requesting metadata', async (t) => {
   stubLocation(t)

@@ -1,12 +1,22 @@
 import type { HostRetentionDelta, StreamContext } from './types.ts'
 import { countBy } from '../../../../math/src/sequence/counts.ts'
 
-/** URLs designated by ranks in `urls`; a rank off the table designates nothing. */
-function* rankUrls(urls: readonly string[], ranks: ArrayLike<number>, count: number) {
+/** `visit` each URL designated by the first `count` of `ranks` in `urls`; a rank off the table
+ *  designates nothing. How many were visited. */
+export function eachRankUrl(
+  urls: readonly string[],
+  ranks: ArrayLike<number>,
+  count: number,
+  visit: (url: string) => void,
+) {
+  let visited = 0
   for (let i = 0; i < count; i++) {
     const url = urls[ranks[i]]
-    if (url !== undefined) yield url
+    if (url === undefined) continue
+    visit(url)
+    visited++
   }
+  return visited
 }
 
 /** The pages the session keeps: each owner — a view's ask, the engine's rank delta — holds its
@@ -15,7 +25,8 @@ function* rankUrls(urls: readonly string[], ranks: ArrayLike<number>, count: num
  *  no longer fits (`evict`). */
 export function createStreamingPins(context: StreamContext, evict: () => void) {
   const { pinned, emit, store } = context
-  const add = (url: string) => {
+  /** One more owner of `url`'s page: its hold lasts till `unpin`. */
+  const pin = (url: string) => {
     countBy(pinned, url, 1)
     store.acquire(url)
   }
@@ -24,8 +35,6 @@ export function createStreamingPins(context: StreamContext, evict: () => void) {
     countBy(pinned, url, -1)
     store.release(url)
   }
-  /** One more owner of `url`'s page: its hold lasts till `unpin`. */
-  const pin = add
   /** One owner of `url`'s page lets it go; the cache evicts what no longer fits. */
   const unpin = (url: string) => {
     release(url)
@@ -47,16 +56,8 @@ export function createStreamingPins(context: StreamContext, evict: () => void) {
   const retainRanks = (delta: HostRetentionDelta) => {
     if (!delta.enteredCount && !delta.exitedCount) return false
     const { urls, entered, exited } = delta
-    let removed = 0,
-      added = 0
-    for (const url of rankUrls(urls, exited, delta.exitedCount)) {
-      release(url)
-      removed++
-    }
-    for (const url of rankUrls(urls, entered, delta.enteredCount)) {
-      add(url)
-      added++
-    }
+    const removed = eachRankUrl(urls, exited, delta.exitedCount, release),
+      added = eachRankUrl(urls, entered, delta.enteredCount, pin)
     evict()
     emitRetain(delta.heldCount, added, removed)
     return true

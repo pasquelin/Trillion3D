@@ -1,0 +1,113 @@
+// The translucent layers of an image (`encodeBlend`): with the depth of field drawn, the pools of the
+// pass before it are drawn first and composed onto the lit image at once, the others after, composed
+// once the depth of field has read the image; without it, one draw, composed later.
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
+import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
+import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
+import type { TranslucencyPass } from '../../../../sdk-core/src/world/constants/index.ts'
+import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { createTranslucency } from '../../blend/translucency.ts'
+import { TRANSLUCENCY_COMPOSE_PASS, TRANSPARENTS_PASS } from '../../diagnostic/stage/passLabels.ts'
+import { drawing } from './encodeEffects.fixture.ts'
+import { encodeBlend } from './encodeBlend.ts'
+import { translucencyPassBit as bit } from '../../blend/translucencyPasses.ts'
+
+/** A runtime drawing a pool of each of `passes`, 20 m ahead of the camera, whose draw records the pass
+ *  it was asked. */
+function drawingPool(chain: EffectChain, passes: readonly TranslucencyPass[]) {
+  const kit = fakeDevice()
+  const rt = drawing(chain)
+  const pools = passes.map((translucencyPass) => {
+    const pool = new ParticlePool({ capacity: 8, origin: [0, 0, -20], translucencyPass })
+    pool.emit(0, 0, -20, 0, 1, 0, 2)
+    pool.flush()
+    return pool
+  })
+  const sides: unknown[] = []
+  const cam = { eye: [0, 0, 0], world: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] }
+  Object.assign(rt.context, { particles: pools })
+  Object.assign(rt.run, { lastCamera: cam, gate: { cam } })
+  Object.assign(rt.gpu, {
+    particles: {
+      run: () => 0,
+      draw: (_: unknown, view: { passes?: number }) => sides.push(view.passes),
+    },
+    depthView: {},
+    hdrView: {},
+    responsive: { view: {} },
+    translucency: createTranslucency(kit.device, 8, 4, true, [8, 4]),
+  })
+  Object.assign(rt.gpu.deferred!, { toneLut: { words: [] } })
+  return { rt, kit, sides }
+}
+
+const passLabels = (passes: { label?: string }[]) => passes.map(({ label }) => label)
+
+test('with the depth of field drawn, the pass before it is drawn and composed first', async () => {
+  const chain = new EffectChain()
+  chain.add(effect.depthOfField({ focusDistance: 3 }))
+  const { rt, kit, sides } = drawingPool(chain, ['beforeDepthOfField', 'afterDepthOfField'])
+  // The first image asks the compose pipelines (the frames wait for them) and composes nothing.
+  encodeBlend(rt, kit.device, kit.device.createCommandEncoder(), undefined, [])
+  await pipelinesSettled(kit.device, true)
+  kit.passes.length = 0
+  sides.length = 0
+  const encoder = kit.device.createCommandEncoder()
+  encodeBlend(rt, kit.device, encoder, undefined, [])
+  // Each pass draws its own pool; the first is composed onto the lit image at once, the second left
+  // to the composition after the depth of field.
+  assert.deepEqual(sides, [bit('beforeDepthOfField'), bit('afterDepthOfField')])
+  assert.deepEqual(passLabels(kit.passes), [
+    TRANSPARENTS_PASS,
+    TRANSLUCENCY_COMPOSE_PASS,
+    TRANSPARENTS_PASS,
+  ])
+  assert.equal(rt.gpu.translucency!.phase, 'drawn', 'the later pass waits for the depth of field')
+})
+
+test('a lone pass before the depth of field is composed at once and draws every pool', async () => {
+  const chain = new EffectChain()
+  chain.add(effect.depthOfField({ focusDistance: 3 }))
+  const { rt, kit, sides } = drawingPool(chain, ['beforeDepthOfField'])
+  encodeBlend(rt, kit.device, kit.device.createCommandEncoder(), undefined, [])
+  await pipelinesSettled(kit.device, true)
+  kit.passes.length = 0
+  sides.length = 0
+  encodeBlend(rt, kit.device, kit.device.createCommandEncoder(), undefined, [])
+  assert.deepEqual(sides, [undefined])
+  assert.deepEqual(passLabels(kit.passes), [TRANSPARENTS_PASS, TRANSLUCENCY_COMPOSE_PASS])
+  assert.equal(
+    rt.gpu.translucency!.phase,
+    'idle',
+    'composed: nothing waits for the depth of field, and the temporal pass reads none of it',
+  )
+})
+
+test('without a depth of field the layers wait for the composition after it', () => {
+  const { rt, kit, sides } = drawingPool(new EffectChain(), ['beforeDepthOfField'])
+  encodeBlend(rt, kit.device, kit.device.createCommandEncoder(), undefined, [])
+  assert.deepEqual(sides, [undefined], 'every pool, one draw')
+  assert.deepEqual(passLabels(kit.passes), [TRANSPARENTS_PASS])
+  assert.equal(rt.gpu.translucency!.phase, 'drawn', 'drawn, composed once the effects have read')
+})
+
+test('the layers after the motion blur are drawn apart into their own targets, composed later', () => {
+  const chain = new EffectChain()
+  const { rt, kit, sides } = drawingPool(chain, ['afterDepthOfField', 'afterMotionBlur'])
+  const main = rt.gpu.translucency!
+  const seen: unknown[] = []
+  const draw = rt.gpu.particles!.draw
+  rt.gpu.particles!.draw = (...args: Parameters<typeof draw>) => {
+    seen.push(rt.gpu.translucency === main.late)
+    return draw(...args)
+  }
+  encodeBlend(rt, kit.device, kit.device.createCommandEncoder(), undefined, [])
+  assert.deepEqual(sides, [bit('afterDepthOfField'), bit('afterMotionBlur')])
+  assert.deepEqual(seen, [false, true], 'the second draw reads the late set as the translucency')
+  assert.equal(rt.gpu.translucency, main, 'the targets are back')
+  assert.equal(main.phase, 'drawn')
+  assert.equal(main.late!.phase, 'drawn', 'composed after the motion blur')
+})

@@ -1,9 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile, readdir } from 'node:fs/promises'
-import { PUBLIC_FAMILIES } from './engine-without-three-lists.ts'
 const core = new URL('../../packages/sdk-core/src/', import.meta.url)
 const browser = new URL('../../packages/sdk-browser/src/', import.meta.url)
+/**
+ * The page-word families of the world API and the placement rows (`session/world/`, the `api/*Family.ts` modules, the `index.ts` of
+ * each family, `placement/`): they pose the core's own scene objects, so the camera-pose rule
+ * below does not read them.
+ */
+const PUBLIC_FAMILIES =
+  /^(?:placement\/|session\/(?:world|saved)\/|api\/capability\/|guides\/transform\/|geometry\/runtime\/|materials\/live\/|api\/\w+Family\.ts$|api\/capture\/index\.ts$|diagnostic\/world\/(?:index|worldNotices)\.ts$)/
 /** The code of `text` a browser global could be reached from: no string, no comment, and no
  *  member or key of the core's own data under such a name — the scene tables' `document`
  *  (`scene/core/tableContracts.ts`) is the layout of the published file, never the DOM's. A member
@@ -73,9 +79,8 @@ const POSE_LOCALE: Record<string, string> = {
  * Who READS the resolved world pose, and how it reaches them.
  *
  * The per-frame path does not read the pose on a host camera: per-frame input
- * copies it ONCE into the engine camera (`readCameraWorld`), and downstream reads this structure —
- * `tests/integration/engine-without-three.test.ts` forbids these files from importing host library.
- * Only the contract and the oracle traversing host graph remain here.
+ * copies it ONCE into the engine camera (`readCameraWorld`), and downstream reads this structure.
+ * Only the contract and the oracle traversing the scene graph remain here.
  */
 const LISENT_LA_POSE: Record<string, string> = {
   'camera/world.ts': 'the contract',

@@ -1,7 +1,8 @@
 // Root clusters by hand: one over a box, and two primitives each carrying its own.
-import type { HostMesh } from '../../session/host/resources.ts'
+
 import { DAG, dagRoots, exactPrimitive } from '../../session/engine/pagesEngine.fixture.ts'
 import { drawSourceOf } from '../../geometry/selection/drawSource.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 /** One exact root cluster of three indices over the given box. */
 export function rootPage(url: string, min: number[], max: number[]) {
@@ -10,8 +11,8 @@ export function rootPage(url: string, min: number[], max: number[]) {
 
 /** Two primitives, one per mesh, each carrying its own root cluster over the first triangle. */
 export function twoPrimitives(
-  meshA: HostMesh,
-  meshB: HostMesh,
+  meshA: PageMesh,
+  meshB: PageMesh,
   pageA: ReturnType<typeof rootPage>,
   pageB: ReturnType<typeof rootPage>,
 ) {

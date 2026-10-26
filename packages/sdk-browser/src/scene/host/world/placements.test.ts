@@ -114,8 +114,8 @@ test('a node placed at its own world is a root drawn at the distances its mesh n
       fixture.indices,
     ).roots
   assert.equal(collect()[0].drawDistance, undefined, 'none named: every distance')
-  holdDrawDistance(fixture.mesh, { min: 3, max: 90 })
-  assert.deepEqual(collect()[0].drawDistance, { min: 3, max: 90 })
+  holdDrawDistance(fixture.mesh, { min: 3, max: 90, perInstance: false })
+  assert.deepEqual(collect()[0].drawDistance, { min: 3, max: 90, perInstance: false })
   fixture.geometry.dispose()
   fixture.material.dispose()
 })

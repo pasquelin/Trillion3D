@@ -89,6 +89,38 @@ export const FLY_DEFAULTS = {
   autoForward: false,
 }
 
+/** The stick moved towards `wanted` by at most `travel`, on `axis`: where it stands. */
+const deflect = (stick: Float64Array, axis: number, wanted: number, travel: number) =>
+  (stick[axis] += clampCompare(wanted - stick[axis], -travel, travel))
+
+/** The deflection the keys of `keyed` and the stick input ask for, in [-1, 1]. */
+const wantedOf = (keys: Set<string>, keyed: KeyAxis, input: number) =>
+  clamp(axisOf(keys, ...keyed) + input, -1, 1)
+
+/** `orientation` turned by the stick and the look of `dt` seconds: the stick travels towards the
+ *  keys held by at most `dt / inputResponse` of its range. */
+function turnFly(
+  api: FlyCameraControls,
+  keys: Set<string>,
+  stick: Float64Array,
+  looked: Float64Array,
+  orientation: Float64Array,
+  turn: Float64Array,
+  dt: number,
+) {
+  const travel = api.inputResponse > 0 ? dt / api.inputResponse : Infinity
+  const pitchStick = deflect(stick, 0, wantedOf(keys, PITCH, api.pitchInput), travel),
+    yawStick = deflect(stick, 1, wantedOf(keys, YAW, api.yawInput), travel),
+    rollStick = deflect(stick, 2, wantedOf(keys, ROLL, api.rollInput), travel)
+  const pitch = looked[1] + pitchStick * (api.pitchSpeed ?? api.rollSpeed) * dt,
+    yaw = looked[0] + yawStick * (api.yawSpeed ?? api.rollSpeed) * dt,
+    roll = rollStick * api.rollSpeed * dt
+  if (pitch || yaw || roll)
+    normalizeQuaternion(
+      multiplyQuaternion(orientation, orientation, localTurnQuaternion(turn, pitch, yaw, roll)),
+    )
+}
+
 export function createFlyCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
@@ -113,21 +145,8 @@ export function createFlyCameraControls(
       const dt = delta > 0 ? delta : 0
       pose.readPosition(position)
       pose.readOrientation(orientation)
-      // The stick travels towards the keys held by at most `dt / inputResponse` of its range.
-      const travel = api.inputResponse > 0 ? dt / api.inputResponse : Infinity
-      const deflect = (axis: number, keyed: KeyAxis, input: number) => {
-        const wanted = clamp(axisOf(keys, ...keyed) + input, -1, 1)
-        return (stick[axis] += clampCompare(wanted - stick[axis], -travel, travel))
-      }
       look.take(looked)
-      const pitch =
-          looked[1] + deflect(0, PITCH, api.pitchInput) * (api.pitchSpeed ?? api.rollSpeed) * dt,
-        yaw = looked[0] + deflect(1, YAW, api.yawInput) * (api.yawSpeed ?? api.rollSpeed) * dt,
-        roll = deflect(2, ROLL, api.rollInput) * api.rollSpeed * dt
-      if (pitch || yaw || roll)
-        normalizeQuaternion(
-          multiplyQuaternion(orientation, orientation, localTurnQuaternion(turn, pitch, yaw, roll)),
-        )
+      turnFly(api, keys, stick, looked, orientation, turn, dt)
       const step = api.movementSpeed * dt,
         advance = axisOf(keys, ...ADVANCE_KEYS)
       moveLocal(

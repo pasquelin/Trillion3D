@@ -3,7 +3,7 @@ import type { GlobalDistanceFieldSettings } from '../../../../sdk-core/src/contr
 import { createGlobalField, type GlobalFieldFrame } from './globalField.ts'
 import { createGlobalPipelines } from './globalPipelines.ts'
 import { createMeshFieldScene, type MeshFieldFrame } from './meshFieldScene.ts'
-import { globalReadLayoutEntries, type ReadResources } from './view.ts'
+import { createNoGlobalField, globalReadLayoutEntries } from './view.ts'
 
 /**
  * THE DISTANCE FIELDS OF A SCENE, the one object a session holds: the meshes' fields streamed into
@@ -23,41 +23,12 @@ export type DistanceFieldFrame = MeshFieldFrame &
  *  reference world's default for the farthest an occlusion reaches, in centimetres. */
 export const DEFAULT_OCCLUSION_DISTANCE = 600
 
-/** What the bindings hold while the field has no resources: a table, an atlas and a mip of one texel. */
-function createNoField(device: GPUDevice): ReadResources & { destroy(): void } {
-  const table = device.createTexture({
-    label: 'Trillion3D no global distance field, table',
-    dimension: '3d',
-    size: [1, 1, 1],
-    format: 'r32uint',
-    usage: GPUTextureUsage.TEXTURE_BINDING,
-  })
-  const mip = device.createTexture({
-    label: 'Trillion3D no global distance field, mip',
-    dimension: '3d',
-    size: [1, 1, 1],
-    format: 'r32float',
-    usage: GPUTextureUsage.TEXTURE_BINDING,
-  })
-  const atlas = device.createBuffer({
-    label: 'Trillion3D no global distance field, atlas',
-    size: 16,
-    usage: GPUBufferUsage.STORAGE,
-  })
-  return {
-    read: table,
-    mip,
-    atlas,
-    destroy: () => (table.destroy(), mip.destroy(), atlas.destroy()),
-  }
-}
-
 /** The distance fields of the scene whose meshes' fields are `fields`. */
 export function createDistanceFieldScene(device: GPUDevice, fields: readonly MeshDistanceField[]) {
   const pipelines = createGlobalPipelines(device)
   const meshes = createMeshFieldScene(device, fields, pipelines.layouts.scene)
   const field = createGlobalField(device, pipelines)
-  const none = createNoField(device)
+  const none = createNoGlobalField(device)
   let occlusionDistance = DEFAULT_OCCLUSION_DISTANCE
   return {
     /** The meshes' fields the scene was made with. */

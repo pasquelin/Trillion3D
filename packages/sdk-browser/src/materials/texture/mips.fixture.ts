@@ -8,14 +8,9 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 /** The reduction's entry point. */
 export const REDUCE = 'reduceLevel'
 
-/** One chain alone: a 4×4 texture under `format`, its rule and its cutoff. */
-export const oneChain = (
-  device: GPUDevice,
-  texture: GPUTexture,
-  format: GPUTextureFormat,
-  weighted: boolean,
-  cutoff?: number,
-) => generateMaterialMips(device, [{ texture, format, width: 4, height: 4, weighted, cutoff }])
+/** One chain alone: a 4×4 texture under `format`. */
+export const oneChain = (device: GPUDevice, texture: GPUTexture, format: GPUTextureFormat) =>
+  generateMaterialMips(device, [{ texture, format, width: 4, height: 4 }])
 
 /** A four-texel-wide working texture, as tiles of a host texture cut them. */
 export function scratch() {

@@ -79,21 +79,22 @@ export interface CompilerEvent {
   /** Threads the compiler may use; every core of the machine when omitted. */ threads?: number
   /** Memory the compiler may use, in MB. @defaultValue 4096 */ ramBudgetMb?: number
   /** How meshes are simplified. @defaultValue 'qem-endpoints' */ simplification?: Simplification
-  /** The world's HLOD: the simple form (`levels`, `groups`, `default`) or the expert form (`layers`, `assign`, `default`), over the objects a node's
-   *  `extras.hlod` mark or a group or rule names. @defaultValue none: the job builds no HLOD */
+  /** The world's HLOD: the simple form (`levels`, `default`) or the expert form (`layers`, `assign`, `default`), over the objects a node's
+   *  `extras.hlod` mark or a rule names, or the default layer. @defaultValue none: the job builds no HLOD */
   hlod?: HlodOptions
   /** The scene's temporal anti-aliasing level, written in its manifest — `'off'`, `'low'`,
    *  `'medium'`, `'high'`, `'max'`, `true` the default level, `false` off —: the runtime's
    *  `'scene'` setting, below the quality, the page and the editor; the first loaded scene naming
    *  it decides (`resolveTemporalAntialiasing`). @defaultValue none: the runtime's own, `'max'` */
   temporalAntialiasing?: TemporalAntialiasingOption
-  /** The objects whose materials keep a responsive temporal history: a node's name, a pattern on
-   *  it, or a match (`resolveResponsive`). @defaultValue none */
+  /** The objects whose materials are responsive in the temporal anti-aliasing — their pixels'
+   *  history restarts every image (`'full'`): a node's name, a pattern on it, or a match
+   *  (`resolveResponsive`). @defaultValue none */
   responsive?: ResponsiveOption
-  /** Settings by material name — `{ name: { temporalAntialiasing, responsive } }`, the history
-   *  share a name of `'normal'`, `'responsive'`, `'soft'`, `'off'` or a number in [0, 1] —,
-   *  winning over `responsive` and the material's own `extras` (`resolveMaterials`).
-   *  @defaultValue none */
+  /** Settings by material name — `{ name: { responsive } }`, how far the temporal anti-aliasing
+   *  trusts the history on its pixels: `'off'`, `'medium'`, `'full'`, `true` for `'full'`, `false`
+   *  for `'off'` —, winning over `responsive` and the material's own `extras`
+   *  (`resolveMaterials`). @defaultValue none */
   materials?: MaterialsOption
   /** The objects whose meshes are voxelized far away — their coarse levels bricks of voxels, a
    *  leaf's cut-out kept —: a node's name, a pattern on it, or a match (`resolveVoxelize`); the
@@ -113,10 +114,10 @@ export interface CompilerEvent {
    *  metres, its load priority among the grids, the lower the sooner, its origin (glTF `x`, `z`,
    *  or under `hashSet` `x`, `y`, `z`), whether a load waits for its cells near the view while the
    *  session's `worldStreamingBlockOnSlowStreaming` is on —, and each scheme's own settings — under
-   *  `hashSet` `{ streamBounds, flat, hlodGrids }`, under `spatialHash` `{ nestedLevels,
+   *  `hashSet` `{ streamBounds, flat, hlodGrids, hlodLayers }`, under `spatialHash` `{ nestedLevels,
    *  pullCoarser, smallByCentre }`, the other scheme's refused —, each the reference's when left
    *  out (128 m, 256 m, 0, the origin, `false`, `'content'`, `true`, `2 << level` the main grid's,
-   *  `false`, `false`, `true`); `true` every
+   *  every layer of the HLOD, `false`, `false`, `true`); `true` every
    *  default, `false` the streaming off: every object loaded with the scene, no HLOD built
    *  (`resolvePartitionGrid`). @defaultValue none: the reference's main grid, the cache key
    *  unchanged */
@@ -130,7 +131,8 @@ export interface CompilerEvent {
    *  computeWeightedNormals, skinnedWeldPosition, skinnedWeldNormal, skinnedWeldTexture,
    *  voxelRays, voxelLevel, voxelBackUp, voxelSeparable, voxelNdf, voxelOpacity, allowAssemblies,
    *  distanceField, distanceFieldScale, distanceFieldTwoSided, distanceFieldDensity,
-   *  distanceFieldMaxResolution, displacementMaps, displacementUvChannel, displacementEdgeSplit,
+   *  distanceFieldMaxResolution, maxMeshCards, meshCardMinDensity, meshCardNormalThreshold,
+   *  displacementMaps, displacementUvChannel, displacementEdgeSplit,
    *  positionPrecision, normalPrecision, tangentPrecision, objects }`
    *  — whether its pages store the build's tangents (default `false`), the share of its triangles
    *  (default 1) and the error in percent of its size (default 0) its finest level is cut to,
@@ -147,10 +149,15 @@ export interface CompilerEvent {
    *  a voxel keeps its normals' spread (default `true`) and its coverage as opacity (default
    *  `false`), whether the assembly its glTF `extras.assembly` names — parts and nodes — is built,
    *  each node a node of the scene carrying its part's mesh, whose pages are written once (default
-   *  `false`: its own triangles alone), the height maps baked into the triangles of a mesh of one
+   *  `false`: its own triangles alone), the cards found for each mesh — boxes, each looking at it
+   *  along one of the six axis directions, that cover its surface —: the most it keeps (a whole
+   *  number from 0 to 32, default 12, 0 builds none), how much of its box's face a card's
+   *  surfaces must fill to be kept (0 to 1, default 0.2) and the cosine at which a surface faces a
+   *  card squarely enough to be covered by it (0 to 1, default 0.25), the height maps baked into
+   *  the triangles of a mesh of one
    *  triangle primitive that names a `trimmedError` — `[{ texture: { index }, magnitude, center }]`,
    *  the first the one read, default none: nothing baked —, the set of texture coordinates they are
-   *  read at (0 to 3, default 0) and how the tessellation shares the vertex it adds on an edge
+   *  read at (0 to 7, default 0) and how the tessellation shares the vertex it adds on an edge
    *  (`seams`, the default, or `always-duplicate`), the position grid of its pages (cells
    *  of 2^-n centimetre, a whole number from -20 to 43; default none: the mesh's density sets it),
    *  the bits an axis of its normals (1 to 15, default 8) and of its stored tangents' angle (0 to
@@ -160,7 +167,8 @@ export interface CompilerEvent {
    *  mesh's own `extras`, the default (`resolveMeshBuild`). @defaultValue none: every default,
    *  the cache key unchanged */
   meshBuild?: MeshBuildOption
-  /** Each object's settings: `{ spatiallyLoaded, skinnedInstance, drawDistance, runtimeGrid, objects }` —
+  /** Each object's settings: `{ spatiallyLoaded, skinnedInstance, drawDistance, runtimeGrid, farField,
+   *  castFarShadow, farShadowTest, objects }` —
    *  whether it streams on the partition's main grid, drawn while the view lies within the grid's
    *  loading range of its cell (default `true`: an animated object streams too, no HLOD standing
    *  for it past its cell's range), or is loaded with the scene and always drawn (`false`);
@@ -169,11 +177,19 @@ export interface CompilerEvent {
    *  (the default) its host's clips move it, or `{ clip, looping, playRate, position, boundsScale,
    *  animationMinScreenSize, mobility }`, each its default when left out: the first animation
    *  moving a joint of its skin, `true`, 1, 0, 1, 0 the run-time setting
-   *  `animationMinScreenSize`, `'movable'` —; the distances from the eye to the centre of its
-   *  bounds, in the scene's units, it is drawn at, culled nearer than `min` and farther than `max`
-   *  unless `max` is 0 (`cutDrawDistanceCulling`): `false` (the default) none, or `{ min, max }`,
-   *  each 0 when left out —; `runtimeGrid`, the name of the streaming grid it streams on
-   *  (`partitionGrids`; the first when it names none or one the job does not hold); `objects` the
+   *  `animationMinScreenSize`, `'movable'` —; the distances from the eye, in the scene's units, it
+   *  is drawn at, culled when the sphere of its bounds lies wholly nearer than `min` or wholly
+   *  farther than `max` (`cutDrawDistanceCulling`, `cutDistanceCullToSphereEdge`), a `min` or a
+   *  `max` of 0 naming none: `false` (the default) none, or `{ min, max, perInstance }`, 0, 0
+   *  and `false` when left out, `perInstance` an instance of an instanced mesh, tested at its
+   *  bounds' centre and drawn at every distance without a `max` —; `runtimeGrid`, the name of the streaming grid it streams on
+   *  (`partitionGrids`; the first when it names none or one the job does not hold); `farField`,
+   *  whether a view's primed depth draws it (`false` by default); `castFarShadow`, whether it
+   *  casts far shadows, which a sun's far-shadow test keeps in its shadow maps (`false` by
+   *  default); `farShadowTest`, whether that test reaches it (`true`: it is left out of the sun's
+   *  shadow maps past the edge of the shadow distance unless it casts far shadows) or never does
+   *  (`false`), left out the view's rule decides (the world's merged shells alone, or every caster
+   *  with `farShadowCullsAllMeshes`); `objects` the
    *  rules `{ match, …settings }` setting them for the objects a match names; for each setting,
    *  the first rule matching, the scene's, the node's own `extras`, the default
    *  (`resolveObjectSettings`). @defaultValue none: every default, the cache key unchanged */
@@ -184,14 +200,16 @@ export interface CompilerEvent {
    *  it is baked: `true` every default, `false` none, or `{ detailCellSize, qualityMultiplier,
    *  giSamples, maxRefinementLevels, irradianceCaching, irradianceCacheQuality,
    *  irradianceCacheSpacing, irradianceCacheCornerRejection, automaticVolumeExpand,
-   *  automaticVolumeLimit, volumes }` — the finest cell in metres (default 2), the paths a probe
+   *  automaticVolumeLimit, volumes, skyLight }` — the finest cell in metres (default 2), the paths a probe
    *  takes: `giSamples` (512) times `qualityMultiplier` (4), the levels of bricks (3, at most 4),
    *  whether paths end in an irradiance cache (default `true`) of that many building passes
    *  (128) and cells of that many metres (0.32), rejected within that many cells of a corner (1),
    *  how far the scene's box grows (5 m) and the half-size it is cut to (100 m) when no volume is
    *  named, and the boxes `[lower, upper]` in metres the volume covers (default none: the
-   *  scene's own) (`resolveLightmapBake`). The sky light is not baked: no sky radiance reaches a
-   *  compile job. @defaultValue none: no bake, the cache key unchanged */
+   *  scene's own) and the sky light the bake shines (`skyLight`: `true`, or `{ intensity, color,
+   *  lowerHemisphereColor, castShadows }`, default none: a flat sky, as no captured sky reaches a
+   *  compile job; it lights the bounces and, casting shadows, fills the layer of the sky's bent
+   *  normal) (`resolveLightmapBake`). @defaultValue none: no bake, the cache key unchanged */
   lightmapBake?: LightmapBakeOption
   /** Stops the job when aborted. */ signal?: AbortSignal
   /** Called on each event. */
@@ -313,30 +331,4 @@ export interface BatchJob extends Pick<
   /** Full or streamed. */ scope?: AssetScope
   /** Triangle budget. */ triangleBudget?: number
   /** Hears each state. */ telemetry?: (snapshot: JobSnapshot<CompilationResult>) => void
-}
-
-/** A model already compiled, as the cutout review reads it: its product, its source, its scope.
- *  Not a `BatchJob`: the review submits nothing and needs no triangle budget to ask a question. */
-export interface CutoutModel {
-  /** Its name. */ id?: string
-  /** The cache folder. */ cache: string
-  /** The source file. */ source: string
-  /** Full or streamed. */ scope?: AssetScope
-}
-
-/** How the cut-out review asks. */ export interface CutoutReviewOptions {
-  /** Where to write. */ stream?: ProgressStream
-  /** Where answers come from. */ input?: NodeJS.ReadStream
-  /** Defaults to whether the stream is a terminal. */ interactive?: boolean
-}
-
-/**
- * What the pass did. `changed` names the models an answer moved: compiling them again is the
- * caller's to do, with its own budget, its own progress and its own cancellation — the review has
- * none of those and has no business guessing them.
- */
-export interface CutoutReviewSummary {
-  /** Questions left. */ pending: number
-  /** Questions answered. */ answered: number
-  /** Models to compile again. */ changed: CutoutModel[]
 }

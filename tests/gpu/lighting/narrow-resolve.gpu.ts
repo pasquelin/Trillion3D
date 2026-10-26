@@ -1,5 +1,6 @@
-// The deferred resolve's lists run on a real GPU: the shipped `directLightingWgsl` —
-// its narrow program (a scene of at most `TILE_LIGHTS` lights) and its wide one — shades the same
+// The lit passes' lists run on a real GPU: the shipped light terms (`directLightingWgsl`, the light loop's
+// fixture) —
+// their narrow program (a scene of at most `TILE_LIGHTS` lights) and its wide one — shades the same
 // samples through `contractLighting`, on a cell record of the light grid and its list in the pool
 // (`cellRecord`). The f32 sums are compared as bits: the narrow list, the wide list, a list past
 // `TILE_LIGHTS` and the walk over every light of the scene give the same sum, bit for bit, since a
@@ -56,7 +57,9 @@ function scene(count: number, near: number) {
       id: `l${lights.length}`,
       kind: spot ? 'spot' : 'point',
       position,
-      ...(spot ? { direction: unit(vector(1)), coneAngle: 0.7, penumbra: 0.3 } : {}),
+      ...(spot
+        ? { direction: unit(vector(1)), outerConeAngle: 0.7, innerConeAngle: 0.7 * (1 - 0.3) }
+        : {}),
       color: [between(0.2, 1), between(0.2, 1), between(0.2, 1)],
       intensity: between(1, 20),
       range,

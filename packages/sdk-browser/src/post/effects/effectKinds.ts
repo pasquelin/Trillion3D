@@ -3,6 +3,9 @@ import { EFFECT_KINDS } from './kindRules.ts'
 import { countKinds } from './targets.ts'
 import { type Kinds, WEBGPU_KINDS } from './webgpuKinds.ts'
 
+/** What `settled` answers while nothing compiles: shared, no promise is made for it. */
+const SETTLED = Promise.resolve<unknown[]>([])
+
 /** The number of each kind among the passes of one stage that draw (`KindSettings.drawn`: an idle
  *  pass counts for no kind, its code is not loaded until the first image it has something to draw)
  *  and the rank the next pass of each kind takes, rewritten by each image: an image allocates none. */
@@ -43,17 +46,21 @@ export function createKinds(device: GPUDevice, fail: (error: unknown) => void) {
     )
     pending.set(kind, loaded)
   }
+  const anyArriving = () => {
+    for (const kind of EFFECT_KINDS) if (made[kind]?.arriving) return true
+    return false
+  }
   return {
     made,
     /** True while programs compile, a kind's own after it was made included. */
     get loading() {
-      if (pending.size > 0) return true
-      for (const kind of EFFECT_KINDS) if (made[kind]?.arriving) return true
-      return false
+      return pending.size > 0 || anyArriving()
     },
     /** Resolves once every program in compilation has arrived or failed. */
-    settled: () =>
-      Promise.all([...pending.values(), ...EFFECT_KINDS.map((kind) => made[kind]?.arriving)]),
+    settled: () => {
+      if (pending.size === 0 && !anyArriving()) return SETTLED
+      return Promise.all([...pending.values(), ...EFFECT_KINDS.map((kind) => made[kind]?.arriving)])
+    },
     /** Counts the passes of `passes` — the ones of `stage` that draw — by kind and resets their
      *  ranks; whether every kind they need is compiled, the compile of those that are not started. */
     ready(stage: Stage, passes: readonly EffectPass[]) {

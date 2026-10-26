@@ -78,3 +78,16 @@ test('a tile written from its record lands the blocks the whole-level cut wrote'
     assert.equal(end, tileRecord(width, height, 0, 0).count, `${width}×${height}`)
   }
 })
+
+// A half-float level file is cut in texels, eight bytes each: the same tiles and gutters, the
+// numbers pinned by `asset-compiler-rust/src/texture/tests/tile_records.rs`.
+test('a half-float record is the tile and its gutter in texels, eight bytes each', () => {
+  const at = (tx: number, ty: number) => tileRecord(300, 130, tx, ty, 'rgba16f')
+  assert.deepEqual(
+    [at(0, 0).bytes, at(1, 1).bytes, at(1, 1).index, at(1, 1).count],
+    [132 * 130 * 8, 136 * 6 * 8, 4, 6],
+  )
+  let inflated = 0
+  for (let i = 0; i < 6; i++) inflated += at(i % 3, Math.floor(i / 3)).bytes
+  assert.equal(inflated, (132 + 136 + 48) * (130 + 6) * 8)
+})

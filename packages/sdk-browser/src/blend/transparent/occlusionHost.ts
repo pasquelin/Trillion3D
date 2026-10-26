@@ -7,10 +7,11 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { taaRenderMatrix } from '../../post/taa/frame.ts'
 import { visLayerTop } from '../../visibility/passes/uniforms.ts'
 import { cullStep } from '../../frame/render/cutFreeze.ts'
-import { hizSetting } from '../../visibility/hiz/setting.ts'
+import { readHizSetting } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import {
   createEntryCorners,
   encodeEntryCorners,
+  entryCornersReady,
   ensureEntryInputs,
   sendEntryInputs,
   targetEntry,
@@ -32,6 +33,7 @@ export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device
   blendState.occlusion = await createTransparentOcclusion(device, table.capacity, {
     pyramid: () => hiz.pyramidView(),
     levels: hiz.levelTable,
+    depth: () => hiz.depth()?.resources[0],
     // The compaction's, read at each image: its buffers are made over when the table outgrows them.
     occluded: () => blendState.compaction!.occludedBuffer,
   })
@@ -82,7 +84,7 @@ export function beginTransparentOcclusion(rt: WebgpuPagesRuntime, cam: EngineCam
   // (`../../frame/render/cutFreeze.ts`).
   frame.cull = cullStep(rt)
   // The walk of the pyramid (`hizTransparentTest`): the finer level's, or the reference's.
-  frame.referenceTest = hizSetting(rt, 'hizTransparentTest') === 'reference'
+  frame.referenceTest = readHizSetting(rt, 'hizTransparentTest') === 'reference'
   occlusion.begin(frame)
 }
 
@@ -104,21 +106,25 @@ export function growTransparentOcclusion(rt: WebgpuPagesRuntime) {
  * on the GPU from each entry's root's world (`entryCorners.ts`) just before the test, in the frame's
  * command buffer.
  *
- * A transparent cluster claims no visibility-buffer row: its corners therefore do not travel with
- * the row table's dirty range, and it is here they leave. As for opaques, a corner changes only when
+ * A transparent cluster is in no list of visible clusters (the cut keeps its mask bit for the blend
+ * pass alone): its corners therefore do not travel with a decoded cluster, and it is here they
+ * leave. As for opaques, a corner changes only when
  * its page's world matrix changes: a moving camera derives none, and a moving placement its own
- * entries (`occlusionPosed`), never the table. A table of another age, or a corners buffer made
+ * entries (`occlusionPosed`), never the table. Records of another age (`infoEpoch`), or a corners buffer made
  * anew, sends every entry's inputs and the entries never culled (`neverCulled`), one bit each, and
- * derives every entry; a table of the same age sends again the inputs of the entries whose pages a
+ * derives every entry; records of the same age send again the inputs of the entries whose pages a
  * rewrite bounded elsewhere (`occlusionMoved`): a sea rewritten each frame sends its own, no other.
+ * Returns whether the corners are current: false, with nothing sent, named or consumed, while the
+ * entries kernel compiles (the test then does not read them).
  */
 export function refreshTransparentCorners(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { blendState, layout } = rt,
     { table, occlusion, occlusionMoved: moved, occlusionPosed: posed } = blendState,
     device = rt.gpu.device
-  if (!table || !occlusion || !device) return
+  if (!table || !occlusion || !device) return false
+  if (!entryCornersReady(device)) return false
   const held = (blendState.occlusionEntries ??= createEntryCorners()),
-    epoch = layout.rows.tableEpoch,
+    epoch = layout.clusters.infoEpoch,
     last = table.capacity - 1,
     named = posed.take()
   const made = ensureEntryInputs(device, held, table.capacity)
@@ -139,4 +145,5 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime, encoder: GPUCo
   moved.from = Infinity
   moved.to = -1
   encodeEntryCorners(rt, device, encoder, { held, capacity: table.capacity })
+  return true
 }

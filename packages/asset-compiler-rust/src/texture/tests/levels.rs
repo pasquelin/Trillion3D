@@ -60,7 +60,7 @@ fn geometry_matches_expectations_for_a_non_square_and_a_maximal_texture() {
     assert_eq!(preview_level_count(128, 64), 7);
     assert_eq!(preview_level_size(128, 64, 1), (64, 32));
     assert_eq!(preview_level_size(128, 64, 7), (1, 1));
-    assert_eq!(preview_pixel_bytes(128, 64), 10_924);
+    assert_eq!(preview_pixel_bytes(128, 64, AtlasKind::Color), 10_924);
 
     // 4096x4096: large enough for first carried level to land exactly on base.
     assert_eq!(preview_first_level(4096, 4096), 6);
@@ -70,5 +70,5 @@ fn geometry_matches_expectations_for_a_non_square_and_a_maximal_texture() {
         preview_level_size(4096, 4096, 6),
         (PREVIEW_BASE, PREVIEW_BASE)
     );
-    assert_eq!(preview_pixel_bytes(4096, 4096), 21_844);
+    assert_eq!(preview_pixel_bytes(4096, 4096, AtlasKind::Color), 21_844);
 }

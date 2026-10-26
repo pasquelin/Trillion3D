@@ -63,6 +63,7 @@ export function paged(
   declared: (cell: CellRecord) => Box = (cell) => cell.parents[0][1],
   ladder: Ladder = { cube: 1, rows: (_, total) => total },
   ranges: readonly number[] = RANGES,
+  blocking: readonly number[] = [],
 ) {
   const files = new Map<string, Uint8Array>()
   const cells = records.map((cell, rank) => gridded(cell, rank, declared(cell)))
@@ -91,15 +92,16 @@ export function paged(
   const top = build(0, cells.length)
   const rungs = (mesh: number, total: number) =>
     Array.from({ length: RUNGS }, (_, rung) => hex(ladder.rows(mesh, total, rung), 8)).join('')
-  // Loose grids, each at priority 0, none blocking: the main grid, then HLOD level `at - 1`'s;
-  // cell files stream on the main grid and on the HLOD 0 cells' (`GRID_FILES`, 2).
+  // Loose grids, each at priority 0, those of the ranks `blocking` blocking (`GRID_BLOCKS`, 1): the
+  // main grid, then HLOD level `at - 1`'s; cell files stream on the main grid and on the HLOD 0
+  // cells' (`GRID_FILES`, 2).
   const grids = ranges.map(
     (range, at) =>
       f64(range / 2) +
       f64(range) +
       hex(0, 8) +
       hex(Math.max(at - 1, 0), 8) +
-      hex(at < 2 ? 2 : 0, 8),
+      hex((at < 2 ? 2 : 0) | (blocking.includes(at) ? 1 : 0), 8),
   )
   const root = {
     version: 13,

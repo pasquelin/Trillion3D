@@ -1,5 +1,5 @@
 // A chain's levels reduce on the device without waiting for it: held uniforms grown twice their
-// size at least, one pipeline a rule, sRGB levels read decoded, one labelled pass, views and groups
+// size at least, one pipeline a format, sRGB levels read decoded, one labelled pass, views and groups
 // made once.
 import test from 'node:test'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
@@ -13,14 +13,10 @@ import { writtenBytes } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts
 test('reduction submits without waiting for the device and keeps its buffers', () => {
   const { device, texture, buffers, submits } = scratch()
   const before = buffers.length
-  oneChain(device, texture, 'rgba8unorm', false)
-  oneChain(device, texture, 'rgba8unorm', false)
+  oneChain(device, texture, 'rgba8unorm')
+  oneChain(device, texture, 'rgba8unorm')
   assert.equal(submits.length, 2, 'both chains went out')
-  assert.equal(
-    buffers.length - before,
-    2,
-    'one uniform and one bin buffer for both, never destroyed',
-  )
+  assert.equal(buffers.length - before, 1, 'one uniform buffer for both, never destroyed')
 })
 
 // A batch outgrowing the held uniforms grows them to twice their size at least (`sizedBuffer.ts`),
@@ -28,13 +24,11 @@ test('reduction submits without waiting for the device and keeps its buffers', (
 // it encoded may read it.
 test('uniforms take a block a level, at the alignment, grown twice their size at least', async () => {
   const { device, texture, buffers, writes, destroyed } = scratch()
-  oneChain(device, texture, 'rgba8unorm', false)
+  oneChain(device, texture, 'rgba8unorm')
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256)
   assert.equal(writtenBytes(writes[0]).byteLength, mipLevelCountFor(4, 4) * stride)
   const sixteen = wider(device, texture, 16)
-  generateMaterialMips(device, [
-    { texture: sixteen, format: 'rgba8unorm', width: 16, height: 16, weighted: false },
-  ])
+  generateMaterialMips(device, [{ texture: sixteen, format: 'rgba8unorm', width: 16, height: 16 }])
   const uniforms = buffers.filter(({ label }) => label === 'Trillion3D texture mips uniforms')
   assert.deepEqual(
     uniforms.map(({ size }) => size),
@@ -49,22 +43,16 @@ test('uniforms take a block a level, at the alignment, grown twice their size at
   )
 })
 
-// #42: the weighted rule is a pipeline of its own, built with the `weighted` constant; the plain one
-// keeps it off. An sRGB chain encodes its levels again (`srgb`). The compiler proves the rule's bytes
-// (`texture/tests/weighted_colour.rs`); which texture takes which rule is `scratch.test.ts`
-// and `sourcesWeighted.test.ts`.
-test('one reduction pipeline per rule, the weighted and sRGB ones built with their constants', () => {
+// A colour chain encodes its levels again (`srgb`): one reduction pipeline per format, built with
+// its constant. The compiler proves the rule's bytes (`texture/tests/alpha_mean.rs`).
+test('one reduction pipeline per format, the sRGB one built with its constant', () => {
   const { device, texture, computePipelines } = scratch()
-  for (const rule of [true, false, true]) oneChain(device, texture, 'rgba8unorm-srgb', rule)
-  oneChain(device, texture, 'rgba8unorm', false)
+  for (let n = 0; n < 3; n++) oneChain(device, texture, 'rgba8unorm-srgb')
+  oneChain(device, texture, 'rgba8unorm')
   const reductions = computePipelines.filter(({ compute }) => compute.entryPoint === REDUCE)
   assert.deepEqual(
     reductions.map(({ compute }) => compute.constants),
-    [
-      { weighted: 1, srgb: 1 },
-      { weighted: 0, srgb: 1 },
-      { weighted: 0, srgb: 0 },
-    ],
+    [{ srgb: 1 }, { srgb: 0 }],
   )
 })
 
@@ -75,21 +63,21 @@ test('a level reads the one above in the pool format and writes its own storage 
   const groups: GPUBindGroupEntry[][] = [],
     createBindGroup = device.createBindGroup.bind(device)
   device.createBindGroup = (desc) => (groups.push([...desc.entries]), createBindGroup(desc))
-  oneChain(device, texture, 'rgba8unorm-srgb', false)
+  oneChain(device, texture, 'rgba8unorm-srgb')
   const view = (entries: GPUBindGroupEntry[], binding: number) =>
     entries.find((entry) => entry.binding === binding)!.resource as GPUTextureViewDescriptor
   assert.equal(groups.length, 2, 'one group a level')
   for (const entries of groups) {
     assert.deepEqual([view(entries, 0).format, view(entries, 0).usage], ['rgba8unorm-srgb', 4])
-    assert.equal(view(entries, 3).format, 'rgba8unorm')
+    assert.equal(view(entries, 2).format, 'rgba8unorm')
   }
 })
 
 // #685: the pass carries its label, so no pass the engine begins is unnamed; nothing is drawn.
-test('a chain’s counts and reductions run in one labelled compute pass', () => {
+test('a chain’s reductions run in one labelled compute pass', () => {
   const { device, texture, passes, commands } = scratch()
-  oneChain(device, texture, 'rgba8unorm-srgb', true, 128)
-  assert.deepEqual(commands, ['clear', `compute ${TEXTURE_MIPS_PASS}`])
+  oneChain(device, texture, 'rgba8unorm-srgb')
+  assert.deepEqual(commands, [`compute ${TEXTURE_MIPS_PASS}`])
   assert.deepEqual(passes, [])
 })
 
@@ -101,13 +89,9 @@ test('a texture reduced again at the same place makes no view nor group again', 
   const createBindGroup = device.createBindGroup.bind(device)
   device.createBindGroup = (desc) => (groups++, createBindGroup(desc))
   const views = (texture as unknown as { views: unknown[] }).views
-  oneChain(device, texture, 'rgba8unorm', false, 128)
+  oneChain(device, texture, 'rgba8unorm')
   const made = [views.length, groups]
-  assert.deepEqual(
-    made,
-    [3, 2 + 3 + 1],
-    'one view a level; two reductions, three counts, the picks',
-  )
-  for (let picture = 0; picture < 3; picture++) oneChain(device, texture, 'rgba8unorm', true, 99)
-  assert.deepEqual([views.length, groups], made, 'the rule and cutoff move no group')
+  assert.deepEqual(made, [3, 2], 'one view a level; two reductions')
+  for (let picture = 0; picture < 3; picture++) oneChain(device, texture, 'rgba8unorm')
+  assert.deepEqual([views.length, groups], made, 'no view nor group again')
 })

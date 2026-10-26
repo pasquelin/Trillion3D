@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { depthOfLogSlice, logSliceOfDepth } from '../../../../math/src/wgsl/projection.ts'
 import { HIZ_FOOTPRINT_WGSL } from '../../visibility/hiz/gpu/footprintWgsl.ts'
 
 /**
@@ -20,14 +21,14 @@ import { HIZ_FOOTPRINT_WGSL } from '../../visibility/hiz/gpu/footprintWgsl.ts'
  */
 export const GRID_CULL_WGSL = wgslBlock(
   'GRID_CULL_WGSL',
-  [HIZ_FOOTPRINT_WGSL],
+  [HIZ_FOOTPRINT_WGSL, logSliceOfDepth, depthOfLogSlice],
   `@group(1) @binding(0) var hizPyramid:texture_2d_array<u32>;
 @group(1) @binding(1) var<uniform> hizLevels:HizLevels;
 /** The farthest depth the fog volume's cells read the lists at, behind a surface at \`farthest\`. */
 fn fogReachDepth(farthest:f32)->f32{
- let slice=floor(log2(view.cull.w/farthest*view.sliceMap.x+view.sliceMap.y)*view.sliceMap.z);
+ let slice=floor(logSliceOfDepth(view.cull.w/farthest,view.sliceMap.xyz));
  if(!(slice>=0.0)){return farthest;}
- let limit=(exp2((slice+view.cull.z+1.0)/view.sliceMap.z)-view.sliceMap.y)/view.sliceMap.x;
+ let limit=depthOfLogSlice(slice+view.cull.z+1.0,view.sliceMap.xyz);
  return min(farthest,view.cull.w/limit);
 }
 /** The last slice of the column of cell \`cell\` a pixel can read the lists at. */
@@ -40,6 +41,6 @@ fn columnReach(cell:vec2u)->u32{
  var farthest=pyramidFarthest(vec4i(low,high));
  if(!(farthest>0.0)){return GRID_SLICES-1u;}
  if(view.cull.z>0.0){farthest=fogReachDepth(farthest);}
- return gridSlice(farthest);
+ return gridSlice(farthest,gridMap());
 }`,
 )

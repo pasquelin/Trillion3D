@@ -1,4 +1,4 @@
-import { resolveSettingsInto } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { resolveSettingsStamped } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import {
   VOLUMETRIC_FOG_RULES,
   type VolumetricFogValues,
@@ -12,5 +12,5 @@ const resolved = {} as VolumetricFogValues
  *  shows, never for a scene with none. The returned object is the same for every call, and is
  *  rewritten by the next one. */
 export function fogSettingsOf(rt: WebgpuPagesRuntime): VolumetricFogValues {
-  return resolveSettingsInto(VOLUMETRIC_FOG_RULES, rt.context, resolved)
+  return resolveSettingsStamped(VOLUMETRIC_FOG_RULES, rt.context, resolved)
 }

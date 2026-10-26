@@ -14,7 +14,7 @@ import type { Texture } from '../../../../../sdk-core/src/world/texture/texture.
 import { composesWithBackground } from '../../../materials/surface/materialBlending.ts'
 import { physicalDeclaration } from './physicalSurface.ts'
 import { TABLE_SLOTS } from '../../../../../sdk-core/src/scene/core/tableSurfaces.ts'
-import { PHYSICAL_MAP_FIELDS } from '../../../visibility/materialType.ts'
+import { PHYSICAL_MAP_FIELDS, type SurfaceDisplacement } from '../../../visibility/materialType.ts'
 import type { PageSurface, SurfaceFamily } from '../../../geometry/pages/surface.ts'
 import { declareSurface, redeclareSurface } from '../../../geometry/pages/surfaceRecord.ts'
 import type { SurfaceDeclaration } from '../../../geometry/pages/surfaceDeclaration.ts'
@@ -59,6 +59,11 @@ function familyDeclaration(family: SurfaceFamily, material: Material, vertexColo
     alphaTest: material.alphaTest,
     side: material.side,
     vertexColors,
+    subsurfaceProfile: material.subsurfaceProfile,
+    shadingModel: material.shadingModel,
+    irisMask: material.irisMask,
+    irisDistance: material.irisDistance,
+    subsurfaceOpacity: material.subsurfaceOpacity,
   })
 }
 
@@ -75,10 +80,10 @@ function dash(material: Material) {
   }
 }
 
-/** Both sides in one pass, for a quad the rasters lay on screen (a line's, a sprite's): it has no
- *  face to cull, and a transparent one drawn back then front would take two entries of the
- * transparent plan, whose per-frame ranking grows with the square of their count. */
-const BOTH_SIDES_ONCE = { side: 'double', forceSinglePass: true } as const
+/** Both sides, for a quad the rasters lay on screen (a line's, a sprite's): it has no face to cull,
+ *  and a transparent one is drawn in one pass whatever the material's `twoSidedPasses` asks: a
+ *  quad that faces the camera has no back to draw twice. */
+const BOTH_SIDES = { side: 'double', twoSidedPasses: false } as const
 
 /**
  * What a surface that draws line quads (`drawn.ts`) or a sprite's quad adds. A line: its
@@ -96,14 +101,14 @@ function readingFields(material: Material, reading: SurfaceReading) {
     return {
       lineWidth: (material.linewidth as number | undefined) ?? 1,
       ...(material.kind === 'lineDashed' ? dash(material) : {}),
-      ...BOTH_SIDES_ONCE,
+      ...BOTH_SIDES,
     }
   if (reading === 'sprite')
     return {
       sprite: true,
       rotation: (material.rotation as number | undefined) ?? 0,
       sizeAttenuation: material.sizeAttenuation !== false,
-      ...BOTH_SIDES_ONCE,
+      ...BOTH_SIDES,
     }
   return reading === 'sheet' ? { side: 'double' } : {}
 }
@@ -111,8 +116,8 @@ function readingFields(material: Material, reading: SurfaceReading) {
 /** What a mesh draws of its geometry: faces, line quads, a sprite's quad, or a cloth's faces
  *  (`sheet`), seen from both sides: every pass that draws them — the visibility and material
  *  passes, the shadows they cast — culls neither face and turns the normal of a back face toward
- *  the eye, off this one side. A blended cloth keeps its two passes, back then front, as a blended
- *  double-sided surface does. */
+ *  the eye, off this one side. A blended cloth is drawn in one pass, as a blended
+ *  double-sided surface is unless its material asks two (`twoSidedPasses`). */
 export type SurfaceReading = 'faces' | 'lines' | 'sprite' | 'sheet'
 
 /** What a mesh draws with a material of a domain that has no surface — a light function's —: the
@@ -140,13 +145,40 @@ function worldDeclaration(
     graph: material.domain === 'surface' ? material.graph : undefined,
     depthWrite: material.depthWrite,
     depthTest: material.depthTest,
-    transparentShadow: material.transparentShadow === true,
+    allowNegativeEmissive: material.allowNegativeEmissive === true,
+    opacityMaskClipValue: material.opacityMaskClipValue,
+    ditherOpacityMask: material.ditherOpacityMask === true,
+    twoSidedPasses: material.twoSidedPasses === true,
+    normalCurvatureToRoughness: material.normalCurvatureToRoughness === true,
+    maxWorldPositionOffset: material.maxWorldPositionOffset,
+    displacement: graphDisplacement(material),
+    alwaysEvaluateWorldPositionOffset: material.alwaysEvaluateWorldPositionOffset === true,
+    cloudFog: material.cloudFog === true,
+    computeFogPerPixel: material.computeFogPerPixel === true,
+    translucentLocalLightShadow: material.translucentLocalLightShadow === true,
+    translucentLocalLightShadowQuality: material.translucentLocalLightShadowQuality,
+    translucentDirectionalLightShadowQuality: material.translucentDirectionalLightShadowQuality,
+    translucencyLighting: material.translucencyLighting,
+    translucencyPass: material.translucencyPass,
     blending: material.blending,
     // A mode that composes with the background is drawn in the transparent pass, whatever
     // `transparent` says: the opaque pass has nothing behind to add to.
     ...(composesWithBackground(material.blending) ? { transparent: true } : {}),
     ...readingFields(material, reading),
   }) as SurfaceDeclaration
+}
+
+/** The numbers of the displacement a material's graph gives (`displacement` output): its magnitude and
+ *  centre, and the on-screen size range it fades out over where it names one. None for a surface whose
+ *  graph wires no `displacement`. */
+function graphDisplacement(material: Material): SurfaceDisplacement | undefined {
+  if (material.domain !== 'surface' || !material.graph?.outputs.displacement) return undefined
+  const { displacementFadeStart: start, displacementFadeEnd: end } = material
+  return {
+    magnitude: material.displacementMagnitude,
+    center: material.displacementCenter,
+    fade: start !== undefined && end !== undefined ? { start, end } : null,
+  }
 }
 
 /** How each rank of a material entry's plain surfaces reads its triangles (`materials.ts`):

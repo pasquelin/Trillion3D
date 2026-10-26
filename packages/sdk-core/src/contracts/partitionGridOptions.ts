@@ -5,62 +5,24 @@
  * settings a grid may hold, is told in `partitionOptions.ts`.
  */
 import {
-  DEFAULT_PARTITION_CELL_SIZE,
   DEFAULT_PARTITION_GRID_NAME,
-  DEFAULT_PARTITION_LOADING_RANGE,
-  DEFAULT_PARTITION_PRIORITY,
-  MAX_PARTITION_PRIORITY,
   PARTITION_GRID_FIELD,
   PARTITION_GRID_NAME_FORBIDDEN,
   PARTITION_GRID_NAME_KEY,
   PARTITION_GRIDS_FIELD,
 } from './compilerAbi.ts'
 import { isFiniteNumber } from '../../../math/src/scalar/reals.ts'
-import { fieldsOf, refusal } from './nameMatch.ts'
+import { fieldsOf, refusal, type Refuse } from './nameMatch.ts'
+import { settingFits, settingTakes } from './settingRules.ts'
+import {
+  GRID_RULES,
+  PARTITION_GRID_SETTINGS,
+  PARTITION_HLOD_GRID_SETTINGS,
+  SPATIAL_HASH_GRID_SETTINGS,
+  type PartitionStreamBounds,
+} from './partitionGridRules.ts'
 
-/** The main grid's settings only the `hashSet` scheme reads: the bounds a cell of its finest
- *  level streams by, whether it lies flat on the ground, and each HLOD level's grid. */
-export const HASH_SET_GRID_SETTINGS = ['streamBounds', 'flat', 'hlodGrids'] as const
-/** The main grid's settings only the `spatialHash` scheme reads: whether each level's cells nest
- *  in the next one's, whether a wished cell pulls in the coarser cells overlapping it, and whether
- *  an object no wider than a finest cell goes to the one under its centre. */
-export const SPATIAL_HASH_GRID_SETTINGS = ['nestedLevels', 'pullCoarser', 'smallByCentre'] as const
-/** The settings `partitionGrid` may name: every scheme's, then each scheme's own. */
-export const PARTITION_GRID_SETTINGS = /* @__PURE__ */ (() =>
-  [
-    'cellSize',
-    'loadingRange',
-    'priority',
-    'origin',
-    'blockOnSlowStreaming',
-    ...HASH_SET_GRID_SETTINGS,
-    ...SPATIAL_HASH_GRID_SETTINGS,
-  ] as const)()
-/** The main grid's `blockOnSlowStreaming` when the job says nothing: the reference's, off. */
-export const DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING = false
-/** The bounds a cell of a loose grid's finest level streams by (`streamBounds`): the box around
- *  its content, its cell's box — of unbounded height on a flat grid —, or the first clipped to the
- *  second. A coarser level's cell streams by its content whatever it says. */
-export const PARTITION_STREAM_BOUNDS = ['content', 'cell', 'clipped'] as const
-/** One of `PARTITION_STREAM_BOUNDS`. */
-export type PartitionStreamBounds = (typeof PARTITION_STREAM_BOUNDS)[number]
-/** The main grid's stream bounds when the job names none: the reference's, its content. */
-export const DEFAULT_PARTITION_STREAM_BOUNDS = 'content' satisfies PartitionStreamBounds
-/** Whether a loose grid lies flat on the ground when the job says nothing: the reference's —
- *  height neither places an object nor keeps a cell out. */
-export const DEFAULT_PARTITION_FLAT = true
-/** The settings one HLOD level's grid may name (`hlodGrids`), each the main grid's times
- *  `2 << level` when left out, as the reference creates them. */
-export const PARTITION_HLOD_GRID_SETTINGS = ['cellSize', 'loadingRange'] as const
-/** Whether a square grid's levels nest when the job says nothing: a grid the reference creates
- *  does not — each level but the top one cell wider, its edges off those of the level below. */
-export const DEFAULT_PARTITION_NESTED_LEVELS = false
-/** Whether a wished cell of a square grid pulls in the coarser cells overlapping it when the job
- *  says nothing: a grid the reference creates does not. */
-export const DEFAULT_PARTITION_PULL_COARSER = false
-/** Whether an object no wider than a finest cell of a square grid goes to the one under its
- *  centre when the job says nothing: a grid the reference creates does. */
-export const DEFAULT_PARTITION_SMALL_BY_CENTRE = true
+export * from './partitionGridRules.ts'
 
 /** One HLOD level's grid, each setting the main grid's times `2 << level` when left out. */
 export type PartitionHlodGrid = {
@@ -95,6 +57,10 @@ export type PartitionGridSettings = {
   /** `hashSet`: each HLOD level's grid by level, from 0; a level left out or `null` takes the
    *  main grid's cell and range times `2 << level`. @defaultValue none */
   hlodGrids?: readonly (PartitionHlodGrid | null)[]
+  /** `hashSet`: the names of the HLOD layers (`hlod.layers`) that have grids on this main grid.
+   *  The actors of another layer are built all the same, always loaded, as those of a layer not
+   *  spatially loaded. @defaultValue every layer of the job's HLOD */
+  hlodLayers?: readonly string[]
   /** `spatialHash`: whether each level's cells nest in the next one's. @defaultValue false */
   nestedLevels?: boolean
   /** `spatialHash`: whether a wished cell pulls in every coarser cell overlapping it, and those
@@ -119,6 +85,7 @@ export type PartitionGridSettingsWire = {
   streamBounds?: PartitionStreamBounds
   flat?: boolean
   hlodGrids?: (PartitionHlodGrid | null)[]
+  hlodLayers?: string[]
   nestedLevels?: boolean
   pullCoarser?: boolean
   smallByCentre?: boolean
@@ -127,78 +94,80 @@ export type PartitionGridSettingsWire = {
 /** The main grid as the compiler reads it, or `false`, the streaming off. */
 export type PartitionGridWire = false | PartitionGridSettingsWire
 
-/** A finite number above 0. */
-const positive = (value: unknown): value is number => isFiniteNumber(value) && value > 0
-/** A boolean. */
-const boolean = (value: unknown): value is boolean => typeof value === 'boolean'
+/** Whether `value` is a point of two or three finite numbers. */
+const isPoint = (value: unknown) =>
+  Array.isArray(value) && [2, 3].includes(value.length) && value.every(isFiniteNumber)
+
+/** The grid of HLOD level `at` the job names, `null` for a level that streams none, refused by
+ *  `refuse` when it holds a setting its rule does not take. */
+function readLevel(value: unknown, at: number, refuse: Refuse) {
+  if (value === null) return null
+  const fields = fieldsOf(value, PARTITION_HLOD_GRID_SETTINGS, `hlodGrids[${at}]`, refuse)
+  for (const name of PARTITION_HLOD_GRID_SETTINGS)
+    if (fields[name] != null && !settingFits(GRID_RULES[name], fields[name]))
+      refuse(`hlodGrids[${at}].${name} must be ${settingTakes(GRID_RULES[name])}`)
+  return fields as PartitionHlodGrid
+}
+
+/** Whether `value` is a list of layer names, each a text that is not empty. */
+const isLayerNames = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((name) => typeof name === 'string' && name !== '')
 
 /** The grid `option` names, read from the job field `field`, which a refusal names. */
 function readGrid(
   option: PartitionGridOption | null | undefined,
   field: string,
 ): PartitionGridWire | undefined {
-  if (option === undefined || option === null) return undefined
+  if (option == null) return undefined
   if (option === false) return false
-  const refuse = refusal(field)
+  const refuse: Refuse = refusal(field)
   if (option !== true && (typeof option !== 'object' || Array.isArray(option)))
     refuse(
       `must be true, false or an object of ${PARTITION_GRID_SETTINGS.join(', ')}, got ${String(option)}`,
     )
   const named: Record<string, unknown> =
     option === true ? {} : fieldsOf(option, PARTITION_GRID_SETTINGS, 'the grid', refuse)
-  const read = <T>(name: string, fits: (value: unknown) => boolean, fallback: T, takes: string) => {
+  /** The value the job names of the setting `name`, `undefined` for none; refused when the rule
+   *  does not take it. */
+  const read = <K extends keyof typeof GRID_RULES>(name: K) => {
     const value = named[name]
-    if (value === undefined || value === null) return fallback
-    if (!fits(value)) refuse(`${name} must be ${takes}, got ${JSON.stringify(value)}`)
-    return value as T
+    if (value == null) return undefined
+    const rule = GRID_RULES[name]
+    if (!settingFits(rule, value))
+      refuse(`${name} must be ${settingTakes(rule)}, got ${JSON.stringify(value)}`)
+    return value as (typeof GRID_RULES)[K]['default']
   }
-  const whole = (value: unknown) =>
-    Number.isInteger(value) && (value as number) >= 0 && (value as number) <= MAX_PARTITION_PRIORITY
-  const point = (value: unknown) =>
-    Array.isArray(value) &&
-    (value.length === 2 || value.length === 3) &&
-    value.every(isFiniteNumber)
-  const level = (value: unknown, at: number) => {
-    if (value === null) return null
-    const fields = fieldsOf(value, PARTITION_HLOD_GRID_SETTINGS, `hlodGrids[${at}]`, refuse)
-    for (const name of PARTITION_HLOD_GRID_SETTINGS)
-      if (fields[name] != null && !positive(fields[name]))
-        refuse(`hlodGrids[${at}].${name} must be a number of metres above 0`)
-    return fields as PartitionHlodGrid
-  }
+  /** The setting `name` as the job names it, else its rule's default. */
+  const readOr = (name: 'cellSize' | 'loadingRange' | 'priority') =>
+    read(name) ?? GRID_RULES[name].default
+  const origin = (named.origin ?? [0, 0]) as number[]
+  if (!isPoint(origin))
+    refuse(`origin must be two or three finite numbers, got ${JSON.stringify(origin)}`)
   const wire: PartitionGridSettingsWire = {
-    cellSize: read('cellSize', positive, DEFAULT_PARTITION_CELL_SIZE, 'a number of metres above 0'),
-    loadingRange: read(
-      'loadingRange',
-      positive,
-      DEFAULT_PARTITION_LOADING_RANGE,
-      'a number of metres above 0',
-    ),
-    priority: read(
-      'priority',
-      whole,
-      DEFAULT_PARTITION_PRIORITY,
-      `a whole number from 0 to ${MAX_PARTITION_PRIORITY}`,
-    ),
-    origin: [...read<readonly number[]>('origin', point, [0, 0], 'two or three finite numbers')] as
-      [number, number] | [number, number, number],
+    cellSize: readOr('cellSize'),
+    loadingRange: readOr('loadingRange'),
+    priority: readOr('priority'),
+    origin: [...origin] as [number, number] | [number, number, number],
   }
   // A scheme's own settings are written only where named: the compiler refuses one the job's
   // scheme does not read.
-  const bounds = (value: unknown) => (PARTITION_STREAM_BOUNDS as readonly unknown[]).includes(value)
-  const streamBounds = read<PartitionStreamBounds | undefined>(
-    'streamBounds',
-    bounds,
-    undefined,
-    `one of ${PARTITION_STREAM_BOUNDS.join(', ')}`,
-  )
+  const streamBounds = read('streamBounds')
   if (streamBounds) wire.streamBounds = streamBounds
-  const levels = read<unknown[] | undefined>('hlodGrids', Array.isArray, undefined, 'an array')
-  if (levels) wire.hlodGrids = levels.map(level)
+  const levels = named.hlodGrids
+  if (levels != null) {
+    if (!Array.isArray(levels)) refuse(`hlodGrids must be an array, got ${JSON.stringify(levels)}`)
+    wire.hlodGrids = levels.map((level, at) => readLevel(level, at, refuse))
+  }
+  const layers = named.hlodLayers
+  if (layers != null) {
+    if (!isLayerNames(layers))
+      refuse(`hlodLayers must be an array of layer names, got ${JSON.stringify(layers)}`)
+    wire.hlodLayers = [...layers]
+  }
   // The settings that are true or false, written only where the job names them.
   for (const name of ['blockOnSlowStreaming', 'flat', ...SPATIAL_HASH_GRID_SETTINGS] as const) {
-    const named = read<boolean | undefined>(name, boolean, undefined, 'true or false')
-    if (named !== undefined) wire[name] = named
+    const value = read(name)
+    if (value !== undefined) wire[name] = value
   }
   return wire
 }
@@ -230,14 +199,6 @@ export const isGridName = (value: unknown): value is string =>
   typeof value === 'string' &&
   value !== '' &&
   ![...value].some((char) => PARTITION_GRID_NAME_FORBIDDEN.includes(char))
-
-/** The square settings of the whole partition, which a grid names alike or not at all, by what a
- *  grid that names none takes. */
-const SQUARE_DEFAULTS = {
-  nestedLevels: DEFAULT_PARTITION_NESTED_LEVELS,
-  pullCoarser: DEFAULT_PARTITION_PULL_COARSER,
-  smallByCentre: DEFAULT_PARTITION_SMALL_BY_CENTRE,
-}
 
 /**
  * The streaming grids the compiler reads for `option`: none when left out.
@@ -280,7 +241,8 @@ export function resolvePartitionGrids(
     told.add(key)
     const grid = readGrid(settings as PartitionGridSettings, field) as PartitionGridSettingsWire
     for (const setting of SPATIAL_HASH_GRID_SETTINGS) {
-      const first = at > 0 ? (wires[0][setting] ?? SQUARE_DEFAULTS[setting]) : grid[setting]
+      // The square settings are the whole partition's: a later grid names them alike or not at all.
+      const first = at > 0 ? (wires[0][setting] ?? GRID_RULES[setting].default) : grid[setting]
       if (grid[setting] !== undefined && grid[setting] !== first)
         refuse(`${setting} is the whole partition's, the first grid's: name it alike or not at all`)
     }

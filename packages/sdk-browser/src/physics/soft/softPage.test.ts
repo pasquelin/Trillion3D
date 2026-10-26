@@ -154,7 +154,7 @@ test('obj.physics gives a soft body its friction, restitution, pull and damping,
   // Left out, any soft body loses a hundredth of its speed a step; declared, even none, its own.
   assert.deepEqual(
     [...softWords({}).subarray(12, 16)],
-    [DEFAULT_MATTER.friction, DEFAULT_MATTER.restitution, 1, Math.fround(SOFT_DAMPING)],
+    [DEFAULT_MATTER.friction, DEFAULT_MATTER.restitution, 1, SOFT_DAMPING].map(Math.fround),
   )
   assert.equal(softWords({ damping: { linear: 0 } })[15], 0, 'none declared, none kept')
   assert.equal(softWords({ type: 'volume' })[15], Math.fround(SOFT_DAMPING), 'a volume alike')
@@ -174,7 +174,7 @@ test('obj.physics gives a soft body its stretch, bend, pressure, pins and mass, 
 
 test('a soft body with a contact handler asks for its events when made, and as handlers come and go', () => {
   let session: PhysicsHost | null = null
-  const host = { listened: (body: ObjectPhysics) => session!.listened(body) } as PhysicsHost
+  const host = { flagged: (body: ObjectPhysics) => session!.flagged(body) } as PhysicsHost
   const { writer, bodies, cloth } = sceneOf(100, host)
   session = createSessionHost(
     writer,

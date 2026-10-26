@@ -6,7 +6,7 @@ use trillion3d_math::sequence::random::xorshift32;
 use trillion3d_page_codec::bits::grid::PageGrid;
 use trillion3d_page_codec::bits::pow2;
 use trillion3d_page_codec::encode::{encode, Attribute};
-use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
+use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, UV_FLAGS};
 
 /// A float in `[-scale, scale]`, with exact zeros and negative zeros sprinkled in.
 fn value(state: &mut u32, scale: f32) -> f32 {
@@ -18,19 +18,18 @@ fn value(state: &mut u32, scale: f32) -> f32 {
 }
 
 fn attributes(count: usize, state: &mut u32) -> Vec<Attribute> {
-    [
-        (FLAG_NORMAL, 3, 1.0),
-        (FLAG_UV, 2, 4.0),
-        (FLAG_UV1, 2, 1.0),
-        (FLAG_COLOR, 3, 1.0),
-    ]
-    .into_iter()
-    .map(|(flag, width, scale)| Attribute {
-        flag,
-        width,
-        values: (0..count * width).map(|_| value(state, scale)).collect(),
-    })
-    .collect()
+    // Every texture set a page carries, the sets past the second at the first's scale.
+    let sets = UV_FLAGS.map(|flag| (flag, 2, if flag == FLAG_UV { 4.0 } else { 1.0 }));
+    [(FLAG_NORMAL, 3, 1.0)]
+        .into_iter()
+        .chain(sets)
+        .chain([(FLAG_COLOR, 3, 1.0)])
+        .map(|(flag, width, scale)| Attribute {
+            flag,
+            width,
+            values: (0..count * width).map(|_| value(state, scale)).collect(),
+        })
+        .collect()
 }
 
 /// Mesh with every vertex touched, repeated triangles and shared vertices.
@@ -69,9 +68,36 @@ pub(crate) fn verify(
     attrs: &[Attribute],
     bound: f64,
 ) {
-    for (corner, &source) in indices.iter().enumerate() {
+    // The page lays each triangle from the corner its strip starts at, the triangles in the
+    // order of the source: a triangle's corners are the source's, turned by the rotation that
+    // puts each at its own position.
+    let decoded = page.attribute(0).expect("position");
+    let turn = |triangle: usize| {
+        let cost = |rotation: usize| -> f64 {
+            (0..3)
+                .map(|k| {
+                    let local = page.indices()[triangle * 3 + k] as usize;
+                    let source = indices[triangle * 3 + (k + rotation) % 3] as usize;
+                    distance(
+                        &decoded[local * 3..local * 3 + 3],
+                        &positions[source * 3..source * 3 + 3],
+                    )
+                })
+                .sum()
+        };
+        (0..3)
+            .min_by(|&a, &b| cost(a).total_cmp(&cost(b)))
+            .unwrap_or(0)
+    };
+    assert_eq!(
+        page.indices().len(),
+        indices.len(),
+        "every triangle is laid"
+    );
+    for corner in 0..indices.len() {
+        let triangle = corner / 3;
         let local = page.indices()[corner] as usize;
-        let source = source as usize;
+        let source = indices[triangle * 3 + (corner % 3 + turn(triangle)) % 3] as usize;
         let position = &page.attribute(0).expect("position")[local * 3..local * 3 + 3];
         let wanted = &positions[source * 3..source * 3 + 3];
         // The page decodes its cell to a single-precision coordinate, twice rounded — the cell
@@ -157,22 +183,18 @@ fn round_trip(vertices: usize, seed: u32) {
     assert_eq!(page.decoded_bytes(), header.decoded_bytes());
     assert_eq!(
         page.decoded_bytes(),
-        header.vertex_count * (3 + 3 + 2 + 2 + 4) * 4 + indices.len() * 4
+        header.vertex_count * (3 + 3 + 2 * UV_FLAGS.len() + 4) * 4 + indices.len() * 4
     );
-    // Random vertices spend their full widths; a real cluster, tighter, spends fewer.
-    if vertices >= 1024 {
-        assert!(
-            encoded.bytes.len() < page.decoded_bytes() / 2,
-            "{} B packed",
-            encoded.bytes.len()
-        );
-    }
+    // The page on disk lays out as the resident page the install pass writes: whole words.
+    assert_eq!(header.resident_bytes() % 4, 0);
     verify(&page, &indices, &positions, &attrs, position_bound(grid));
 }
 
 #[test]
 fn golden_page_reread_within_what_its_grid_holds() {
-    for (vertices, seed) in [(3usize, 1u32), (17, 7), (1024, 99), (65_535, 424_242)] {
+    // Each triangle lays two vertices at most, the third being the one the triangle before it
+    // laid last: 120 triangles lay no more than a page holds.
+    for (vertices, seed) in [(3usize, 1u32), (17, 7), (64, 99), (120, 424_242)] {
         round_trip(vertices, seed);
     }
 }

@@ -49,17 +49,20 @@ function streamer(budgetMs: number) {
   const fill = {
     layout: tileLayout(1, 1),
     lane: 'lossless' as const,
+    tap: 0,
     source: { kind: 'bytes' as const, tail: { levels: [new Uint8Array(4)], blocks } },
   }
   const sha256 = 'a'.repeat(64)
   const read = Object.assign(
     async ({ level, tx, ty }: TextureLevelRequest) => {
       const [width, height] = previewLevelSize(256, 256, level)
-      return new Uint8Array(tileLevelBytes(tileRecord(width, height, tx, ty).bytes, true))
+      return new Uint8Array(
+        tileLevelBytes(tileRecord(width, height, tx, ty).bytes, { format: 'bc7', rgba: true }),
+      )
     },
     { store: createPageCache(), key: 'k' },
   )
-  const lossless = { lossless: 1, rgba: 0, 'two-channel': 0 }
+  const lossless = { lossless: 1, rgba: 0, 'two-channel': 0, hdr: 0 }
   const textures = createWebgpuTileStreamer({
     device,
     color: [
@@ -67,7 +70,14 @@ function streamer(budgetMs: number) {
       {
         layout,
         lane: 'lossless',
-        source: { kind: 'baked', sha256, atlas: 0, tail: { levels: tail, blocks, layouts }, read },
+        tap: 0,
+        source: {
+          kind: 'baked',
+          sha256,
+          atlas: 0,
+          tail: { levels: tail, blocks, layouts, atlas: 0 },
+          read,
+        },
       },
     ],
     data: [fill],

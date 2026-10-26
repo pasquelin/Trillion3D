@@ -1,7 +1,8 @@
-import { wantsContractLighting } from '../prepare/contractLight.ts'
+import { wantsContractLighting } from '../prepare/lit.ts'
 import { deviceAnswer } from './deviceAnswer.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { frameStart } from '../scheduling.ts'
+import { queueSubmits } from '../../gpu/core/sessionHandle.ts'
 import { DAG_READBACK_SLOTS } from '../../geometry/dag/layout.ts'
 
 /**
@@ -45,7 +46,7 @@ export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
   // A frame held to measure the display's refresh waits for nothing (`ScaleControl.held`).
   if (rt.views.main.scale.held) return true
   // What the device still answers for: its answer asks a frame, held or not.
-  const answer = deviceAnswer(rt)
+  const answer = deviceAnswer(rt, true)
   if (answer) {
     await answer
     return true
@@ -55,9 +56,16 @@ export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
   if (run.frameHeld) return false
   // Asked at the frame's submit, all three: the feedback answers for this frame's GPU work and the
   // reads it queued, never for a frame the loop draws meanwhile (`FRAMES_IN_FLIGHT`).
-  const work = gpu.device?.queue.onSubmittedWorkDone(),
+  // The main submit's answer stands only while nothing was submitted after it — a view drawn
+  // beside, a capture, a readback: else the device is asked again, for the last submit.
+  const submitted = queueSubmits(gpu.device),
+    work =
+      run.submittedDone && submitted !== undefined && submitted === run.submittedAt
+        ? run.submittedDone
+        : gpu.device?.queue.onSubmittedWorkDone(),
     cut = run.gpuSelection?.flush(),
     textures = vis.textures?.settled()
+  run.submittedDone = run.submittedAt = undefined
   await Promise.all([work, cut, textures])
   if (gpu.deferred && wantsContractLighting(rt)) await gpu.deferred.settle()
   // An image drawn while the effect programs compile is drawn again once, when they arrive,

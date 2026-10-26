@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 19
+export const PHYSICS_LAYOUT_VERSION = 20
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -32,17 +32,44 @@ export const OP = {
   unvehicle: 22,
   drive: 23,
   /** The soft bodies' (`soft/softLayout.ts`). */ soft: 24,
+  /** A collision filter, named by later ADDs (`FILTER_WORDS`). */ filter: 25,
 } as const
 
 /** How a body moves: fixed, moved by the page, or moved by the simulation. */
 export const MOTION = { static: 0, kinematic: 1, dynamic: 2 } as const
 
 /**
- * Collision layers. Static geometry meets everything that moves; moving bodies meet everything;
- * decorative bodies (debris) meet the static world only, so a thousand of them never push a
- * character or a crate.
+ * FILTER defines what a body is to the others: `op, id, object type, switches, block low, block
+ * high, overlap low, overlap high` (`collisionChannels.ts`). The id is the page's; ADD names a body's
+ * filter by it (the id is the Jolt object layer of the body, so the page keeps below
+ * `MAX_FILTERS`). `switches` carries `FILTER_BIT`: the body takes part in the queries, in the
+ * simulation, and does not move (a static body). The object type is a channel from 0 to 63; the
+ * block and overlap masks are the channels the body blocks and overlaps, 64 bits each as two
+ * words, the low word first. A filter is defined before any ADD that names it and never changes.
+ * Two bodies meet by the lesser of what each answers to the other's channel: both block and they
+ * collide, the lesser an overlap and they pass through each other and report it, either ignores
+ * and they do not meet; a body that takes no part in the simulation is a sensor.
  */
-export const LAYER = { static: 0, moving: 1, decorative: 2 } as const
+export const FILTER_WORDS = 8
+/** The word each field of a FILTER is at. */
+export const FILTER_AT = {
+  op: 0,
+  id: 1,
+  objectType: 2,
+  switches: 3,
+  block: 4,
+  overlap: 6,
+} as const
+/**
+ * The four filters the module knows from its start, so a page needs no FILTER for them: static
+ * ground that blocks everything (`BlockAll`), a moving physics body (`PhysicsActor`), and debris
+ * that meets the static ground alone, and the pawn the character is (`Pawn`). The page's own filters are numbered after them.
+ */
+export const BUILT_IN_FILTER = { static: 0, moving: 1, decorative: 2, pawn: 3 } as const
+/** Filters the module holds: the object layers Jolt names (16 bits). */
+export const MAX_FILTERS = 0x10000
+/** The bits of a FILTER's switches. */
+export const FILTER_BIT = { query: 1, physics: 2, still: 4 } as const
 
 /** Shape kinds of the ADD command: four exact primitives, a triangle mesh, a convex hull, a
  *  cooked shape (`physics.json`), named by the handle a RESTORE gave it — its first data word —
@@ -66,17 +93,51 @@ export const SHAPE = {
 export const PART_WORDS = 11
 
 /**
- * A scene query (`jolt_cast`): `kind, origin x, y, z, travel x, y, z, a, b, c, ignored` — a ray,
- * or a sphere (radius `a`), box (half extents `a, b, c`) or capsule (half height `a`, radius `b`)
- * swept along `travel`, through the body whose engine id is `ignored` (`NO_INDEX`, `../../../math/src/constants.ts`: none). Its hit: `engine id, fraction, point x, y, z, normal x, y, z`; a miss names no
+ * A scene query (`jolt_cast`): `kind, origin x, y, z, travel x, y, z, a, b, c, ignored, channel,
+ * answer block low, high, answer overlap low, high` — a ray, or a sphere (radius `a`), box (half
+ * extents `a, b, c`) or capsule (half height `a`, radius `b`) swept along `travel`, through the body
+ * whose engine id is `ignored` (`NO_INDEX`, `../../../math/src/constants.ts`: none), and stopped by
+ * what blocks its `channel` as it answers channels (`FILTER_WORDS`). Its hit: `engine id, fraction, point x, y, z, normal x, y, z`; a miss names no
  * body (`0xFFFFFFFF`). A tile's glTF material is its collider's, read from `physics.json`.
  */
-export const CAST_WORDS = 11
+export const CAST_WORDS = 16
 export const HIT_WORDS = 8
 /** Words of RESTORE before its bytes (`op, handle, byteCount`), and of RELEASE (`op, handle`). */
 export const RESTORE_WORDS = 3
 export const RELEASE_WORDS = 2
 export const CAST = { ray: 0, sphere: 1, box: 2, capsule: 3 } as const
+
+/**
+ * An overlap query (`jolt_overlap`): `mode, shape, a, b, c, position x, y, z, rotation x, y, z, w,
+ * channel, answer block low, high, answer overlap low, high, object types low, high, ignored` — a
+ * sphere (radius `a`), box (half extents `a, b, c`) or capsule (half height `a`, radius `b`) at a
+ * place, asked with a channel and the answers it gives to channels (`mode` MULTI/ANY/BLOCKING by
+ * channel) or with the object types it seeks (`mode` MULTI/ANY by object type), through the body
+ * whose engine id is `ignored` (`NO_INDEX`: none). A body is met by the same rule two bodies are
+ * (`FILTER_WORDS`): the lesser of what each answers to the other's channel, the query's channel and
+ * answers being the body's own here; by object type it is met when its channel is among the types.
+ * The reply is `hit count`, then per hit `engine id, flags, sub-shape`: flags `OVERLAP_HIT.blocking`
+ * when the meeting is a block. ANY and BLOCKING stop at the first body met and list none of them (the
+ * count is 1 or 0).
+ */
+export const OVERLAP_WORDS = 20
+/** The word each field of an overlap query is at: `block`, `overlap` and `objectTypes` the first of
+ *  their two words. */
+export const OVERLAP_AT = {
+  mode: 0,
+  shape: 1,
+  extents: 2,
+  position: 5,
+  rotation: 8,
+  channel: 12,
+  block: 13,
+  overlap: 15,
+  objectTypes: 17,
+  ignored: 19,
+} as const
+export const OVERLAP_HIT_WORDS = 3
+export const OVERLAP = { multi: 0, any: 1, blocking: 2, multiByObject: 3, anyByObject: 4 } as const
+export const OVERLAP_HIT = { blocking: 1 } as const
 
 /** Joint kinds of the JOINT command, each one of the module's two-body constraints. */
 export const JOINT = {
@@ -99,7 +160,7 @@ export const MOTOR = { off: 0, velocity: 1, position: 2 } as const
  * Words of JOINT: `op, joint id, kind, engine id a, engine id b, motor mode, motor axis, extra
  * count`, then for `a` and for `b` its frame — `point x, y, z, axis x, y, z, normal x, y, z` in
  * that body's own frame, the world's when the engine id is `NO_INDEX` — then `limit min, limit max,
- * spring frequency, spring damping, motor target, motor max force, break force`, then the kind's
+ * spring frequency, spring damping, motor target, motor max force, break force, break torque`, then the kind's
  * own `extra count` words: a swing-twist's swing half angle; a six-DOF's `min, max` per axis (`x,
  * y, z`, then turns about them; min +∞ locks one); a path's `loop, follow, point count` and per
  * point `position, tangent, normal` in `b`'s frame; a pulley's `ratio`, `a`'s wheel and `b`'s
@@ -107,14 +168,15 @@ export const MOTOR = { off: 0, velocity: 1, position: 2 } as const
  * six-DOF's motor drives, 0 to 5. The joint id is a slot and its generation, as a body's engine
  * id (`BODY_INDEX`). A joint whose body is gone is not made. UNJOINT is `op, joint id`; MOTOR is
  * `op, joint id, mode, axis, target, max force`. After a step, the module lists the joints pulled
- * past their break force and takes them out (`jolt_broken`).
+ * past their break force or break torque and takes them out (`jolt_broken`).
  */
-export const JOINT_WORDS = 33
+export const JOINT_WORDS = 34
 export const UNJOINT_WORDS = 2
 export const MOTOR_WORDS = 6
 
-/** Per-body flag bits: sensor, continuous collision, events wanted, hidden (no pose), asleep (ADD). */
-export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8, asleep: 16 } as const
+/** Per-body flag bits: sensor, continuous collision, events wanted, hidden (no pose), asleep (ADD),
+ *  decorative (debris: simulated only in range and in view). */
+export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8, asleep: 16, decorative: 32 } as const
 
 /**
  * A body's engine id, carried by ADD and by every pose and event record: its slot in the bits of
@@ -130,7 +192,7 @@ export const engineId = (index: number, generation: number) =>
   index | (generation << GENERATION_SHIFT)
 
 /**
- * Words of the fixed part of ADD: `op, engine id, motion, layer, shape, flags, px, py, pz, qx, qy,
+ * Words of the fixed part of ADD: `op, engine id, motion, filter, shape, flags, px, py, pz, qx, qy,
  * qz, qw, a, b, c, mass, density, friction, restitution, gravityScale, linearDamping,
  * angularDamping, vertexCount, indexCount`, then `vertexCount × 3` floats and `indexCount` words.
  * `a, b, c` are a box's half extents; a sphere's radius; a capsule's or cylinder's half height,
@@ -139,9 +201,10 @@ export const engineId = (index: number, generation: number) =>
  * centre of mass it turns about, then a dynamic body's inertia about it (nine, column-major).
  */
 export const ADD_WORDS = 25
-/** The simulation's own damping, per second, linear and angular alike: what ADD carries for a
- *  body that sets none (the module's). */
-export const DAMPING = 0.05
+/** The simulation's own damping, per second: what ADD carries for a body that sets none (the
+ *  module's). Air costs a body a little of its speed; nothing slows its spin. */
+export const LINEAR_DAMPING = 0.01
+export const ANGULAR_DAMPING = 0
 
 /**
  * Words of VIEW: `op, eye x, y, z, facing x, y, z, halfCone, range`. Distance decides what is
@@ -182,20 +245,24 @@ export const EVENT = { begin: 1, end: 2 } as const
 export const MODULE_ERROR = ['NONE', 'BODY_LIMIT', 'UNKNOWN_BODY', 'BAD_SHAPE', 'BAD_COMMAND']
 
 /**
- * Words of CHARACTER: `op, radius, height, maxSlope, stepHeight, mass, pushStrength, feet x, y, z`.
- * It puts the world's one character at rest with its feet there, replacing any before; a radius
- * of 0 removes it.
+ * Words of CHARACTER: `op, radius, height, maxSlope, stepHeight, mass, pushStrength, feet x, y, z,
+ * filter, crouched height, crouch keeps base`. It puts the world's one character at rest with its
+ * feet there, replacing any before; a radius of 0 removes it. The character is the object type and
+ * answers of its `filter` (`FILTER_WORDS`); the crouched height is the capsule's total height when
+ * crouched, and a crouch keeps the capsule's base in place when `crouch keeps base` is 1 and its
+ * centre in place otherwise.
  */
-export const CHARACTER_WORDS = 10
+export const CHARACTER_WORDS = 13
 /**
- * Words of CHARACTER_MOVE: `op, vx, vy, vz, grounded` — the velocity the character moves at over
- * the next step, in m/s, and whether it walks (it then climbs steps and follows the floor down).
+ * Words of CHARACTER_MOVE: `op, vx, vy, vz, grounded, crouch` — the velocity the character moves at
+ * over the next step, in m/s, whether it walks (it then climbs steps and follows the floor down) and
+ * whether it wishes to be crouched (it stands again only where the room is).
  */
-export const CHARACTER_MOVE_WORDS = 5
+export const CHARACTER_MOVE_WORDS = 6
 /**
  * Words of the character's state after a step: `present, feet x, y, z, ground, ground velocity
- * x, y, z, ground friction`; `ground` is `GROUND`, the ground velocity that of the point it stands
- * on, the ground friction that of the body it stands on (`material.physics`), -1 when none.
+ * x, y, z, crouched`; `ground` is `GROUND`, the ground velocity that of the point it stands on;
+ * `crouched` is 1 while the capsule is the crouched one.
  */
 export const CHARACTER_STATE_WORDS = 9
 /** What the character stands on: a floor, a slope too steep, a touch that holds nothing, air. */

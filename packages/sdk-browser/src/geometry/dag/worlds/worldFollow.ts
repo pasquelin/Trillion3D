@@ -26,9 +26,11 @@
  * No switch waits on one during the initial load — till the first image is shown
  * (`firstImageShown`) —, nor while a load blocks on slow streaming (`blockingLoad`), when no cell
  * turns visible, nor any cell file but those the load waits for. The HLOD actors off
- * (`hlodEnabled`), no cell draws its actor nor its HLOD 0 actor; the cells not activated
- * (`activated`), nothing a cell holds draws — each cell and file stays loaded, wished and counted
- * as it is, its word zero — but the actors always loaded, which no cell holds.
+ * (`hlodEnabled`), no cell draws its actor nor its HLOD 0 actor; the cells only loaded
+ * (`activated`), none is shown — each cell and file stays loaded, wished and counted as it is, its
+ * word zero —, so an actor draws wherever its cell is not shown, and the actors always loaded,
+ * which no cell holds, over every cell, wished or not; those held in a cell draw as that cell,
+ * which is not shown, says.
  *
  * What draws is then: a cell's actor as above; a visible HLOD 0 cell's placements — its HLOD 0
  * actor, the source meshes instanced —; and the placements of a cell file shown as its main cell,
@@ -42,152 +44,61 @@
  * before them is then not the cut made now (`../runtime/runtime.ts`).
  */
 import type { PackedDag } from '../types.ts'
-import { writeRanges, type RangeTarget } from '../runWrites.ts'
-import { createChangedRuns } from '../../residency/ranges.ts'
-import { CELL_DRAW, LINK_WORDS, cellChildren } from './worldLinks.ts'
-import { CHAIN_ACTOR } from '../../../../../sdk-core/src/manifest/worldRoots.ts'
+import { writeRanges, type RangeSource, type RangeTarget } from '../runWrites.ts'
+import { CELL_DRAW } from './worldLinks.ts'
 import { byteLengths } from '../../../../../math/src/sequence/byteLengths.ts'
-import { createMarkStack } from './worldMarks.ts'
-import { createWorldFiles } from './worldFiles.ts'
-import { createWorldPlacements } from './worldPlacements.ts'
-import { createSwitchedPages } from './worldSwitched.ts'
-import { createSwitchWarmth } from './worldWarm.ts'
-import { createVisibilityMoves } from './worldMoves.ts'
-import { createUnshown } from './worldUnshown.ts'
+import {
+  CELL_TOLD,
+  createFollowState,
+  followWords,
+  markAll,
+  settleAll,
+  tell,
+  type Follow,
+} from './worldFollowState.ts'
 
-/** What the partition tells of a cell (`show`), bit by bit: wished, every cell file of an HLOD 0
- *  cell placed, its actor's hold failed for good — it stands for nothing —, a file of it refused
- *  for good — never placed whole: nothing waits for its content (`shown`) —, its rows placed. */
-export const CELL_TOLD = { wished: 1, placed: 2, failed: 4, lost: 8, rows: 16 } as const
+export { CELL_TOLD }
 
-/** The follower of the world's cells in `packed`'s cold words; none without a world DAG. A member
- *  of the run (`../runtime/runtime.ts`): `placeInCell` moves a link, `waitRow` a row without its
- *  root, `show` what a cell is told, every residency the cut receives moves the readiness
- *  (`residency`), and every cut takes the moves up first (`sync`). */
-export function createLinkFollower(resources: { packed: PackedDag; cold: RangeTarget }) {
-  const { packed, cold } = resources,
-    world = packed.world
-  if (!world) return undefined
-  const { links, states, cells, roots, rootsOf, rowsOf, parent, layer, actor } = world
-  const instances = roots.length
-  /** Each cell's children: the cells whose actors lie in it. */
-  const below = cellChildren(parent)
-  /** Per cell and instance: what it was told (`CELL_TOLD`), and whether it is visible. */
-  const told = new Uint8Array(cells * instances),
-    visible = new Uint8Array(cells * instances)
-  /** The cell slots wished and not visible at their last switch — an actor drawn for them, or
-   *  nothing —, their content not lost (`CELL_TOLD.lost`); per instance, the cell files a load
-   *  blocking on slow streaming waits for (`blockingLoad`). */
-  const unshown = createUnshown(cells * instances),
-    blockOn: (ReadonlySet<number> | undefined)[] = []
-  /** The cell slots waiting to be switched again: every one at first, its word written. */
-  const marks = createMarkStack(cells * instances),
-    { mark } = marks
-  /** How many times a cell's or a file's visibility moved. */
-  let revision = 0
-  /** The cells whose visibility moved, per instance (`worldMoves.ts`), and the words moved. */
-  const moves = createVisibilityMoves(instances, cells),
-    movedStates = createChangedRuns()
-  const linkWords = { data: links, sourceBase: 0, targetBase: world.linkBase, stride: LINK_WORDS },
-    stateWords = { data: states, sourceBase: 0, targetBase: world.stateBase, stride: 1 },
-    fileWords = { data: world.files, sourceBase: 0, targetBase: world.fileBase, stride: 1 }
-  /** The warm-ups the switches that draw an actor wait on (`worldWarm.ts`). */
-  const warmth = createSwitchWarmth(actor, cells)
-  /** Cell slot `at` waits to be switched again, and its parent's, whose load counts its actor. */
-  const markWithParent = (at: number) => {
-    mark(at)
-    const cell = at % cells
-    if (parent[cell] >= 0) mark(at - cell + parent[cell])
+/** The words `moved` names of `words`, sent. */
+function send(cold: RangeTarget, moved: Follow['movedStates'], words: RangeSource) {
+  if (!moved.count) return
+  const sorted = moved.take()
+  writeRanges(cold, sorted, sorted.length, words)
+}
+
+/** The queries on the cells and files: what is visible, what draws, which file is shown where. */
+function cellQueries(s: Follow) {
+  const { cells, states, roots } = s.world
+  const { instances, visible } = s
+  return {
+    /** Whether cell `cell` of instance `instance` was visible at the last cut. */
+    visible: (instance: number, cell: number) =>
+      instance < instances && cell < cells && visible[instance * cells + cell] === 1,
+    /** Whether the actor of cell `cell` of instance `instance` draws as of the last cut: its word. */
+    draws: (instance: number, cell: number) =>
+      instance < instances &&
+      cell < cells &&
+      (states[instance * cells + cell] & CELL_DRAW.hlod) !== 0,
+    /** Whether cell file `file` of instance `instance` was shown at the last cut, the slot of its
+     *  word (-1 for none), and how many times a file took a slot or gave one back (`worldFiles.ts`). */
+    fileShown: s.files.shownIn,
+    fileSlot: s.files.slotIn,
+    /** The packed page of world rank 0 in instance `instance`: its rank `r` is packed page
+     *  `pageBase(instance) + r`. */
+    pageBase: (instance: number) => s.packed.cutLinks[roots[instance]].pageBase,
+    /** Each cell of instance `instance` whose visibility moved since the last call for it. */
+    moved: s.moves.moved,
+    /** Each page whose drawing a switch moved since the last call, told to `visit` by its placement
+     *  and its rank there (`worldSwitched.ts`). */
+    switched: s.switchedPages.take,
   }
-  /** Every cell slot waits to be switched again. */
-  const markAll = () => {
-    for (let at = cells * instances - 1; at >= 0; at--) mark(at)
-  }
-  markAll()
-  /** The cell files (`worldFiles.ts`), the placements' links and what each cell and file waits on
-   *  (`worldPlacements.ts`), and the pages the switches moved (`worldSwitched.ts`). */
-  const files = createWorldFiles(world.files, instances),
-    placed = createWorldPlacements(packed, world, files, { mark, markWithParent }),
-    { missing, unready } = placed,
-    switchedPages = createSwitchedPages(packed, world)
-  /** Whether the file `key` names stays hidden while a load blocks: one it does not wait for. */
-  const heldBack = (key: number) => !blockOn[key % instances]?.has(Math.floor(key / instances))
-  /** The actors in cell `cell` at `base` — its children's — drawn or let go. */
-  const releaseIn = (base: number, cell: number) => {
-    for (const child of below[cell]) warmth.release(base, child)
-  }
-  /** Whether cell `cell` at `base` has an actor to wait for: built, with a root that wears a page
-   *  or a row, its hold not failed for good; one not built, or failed, stands for nothing. */
-  const usable = (base: number, cell: number) =>
-    (actor[cell] & CHAIN_ACTOR.built) !== 0 &&
-    (rootsOf[cell].length > 0 || rowsOf[cell] > 0) &&
-    (told[base + cell] & CELL_TOLD.failed) === 0
-  /** Whether cell `cell` at `base` is loaded: an HLOD 0 cell every cell file of it placed and its
-   *  placements resident; a cell above it each actor of its children resident. */
-  const loaded = (base: number, cell: number) => {
-    const at = base + cell
-    if (layer[cell] === 0) return (told[at] & CELL_TOLD.placed) !== 0 && unready[at] === 0
-    for (const child of below[cell])
-      if (usable(base, child) && missing[base + child] !== 0) return false
-    return true
-  }
-  /** Whether cell `cell` at `base` may turn visible: the actors in it — its children's — warmed up,
-   *  every one asked, none left for the next. */
-  const warmedIn = (base: number, cell: number) => {
-    let ready = true
-    for (const child of below[cell])
-      if (usable(base, child)) ready = warmth.ready(base, child, cell, base + cell) && ready
-    return ready
-  }
-  /** Whether cell `cell` at `base` may turn invisible: its own actor warmed up, when loaded — its
-   *  parent visible, or none, the actor always loaded. */
-  const warmedOut = (base: number, cell: number) => {
-    const up = parent[cell]
-    if (!usable(base, cell) || (up >= 0 && !visible[base + up])) return true
-    return warmth.ready(base, cell, cell, base + cell)
-  }
-  /** Cell slot `at` switched where it may, its word written; its children switched again once it
-   *  switched — their actors draw as it shows or hides. */
-  const settle = (at: number) => {
-    const cell = at % cells,
-      base = at - cell,
-      up = parent[cell]
-    const wished = (told[at] & CELL_TOLD.wished) !== 0
-    const was = visible[at]
-    if (was && !wished && warmedOut(base, cell)) visible[at] = 0
-    else if (!was && wished && !warmth.blocking && loaded(base, cell) && warmedIn(base, cell))
-      visible[at] = 1
-    // The HLOD actors off, no cell draws its actor, nor its placements as its HLOD 0 actor; the
-    // world hidden, only the actors always loaded (`up < 0`) draw: no cell holds them.
-    const within = up < 0 || visible[base + up] === 1,
-      on = warmth.hlodOn,
-      held = !files.hidden
-    const stands = on && (held || up < 0) && !visible[at] && within ? CELL_DRAW.hlod : 0
-    const own = on && held && layer[cell] === 0 && visible[at] ? CELL_DRAW.placements : 0
-    if (states[at] !== (stands | own)) {
-      switchedPages.cellMoved(at, states[at] ^ (stands | own))
-      states[at] = stands | own
-      movedStates.mark(at)
-    }
-    unshown.set(at, wished && !visible[at] && (told[at] & CELL_TOLD.lost) === 0)
-    if (visible[at] === was) {
-      // Hidden and wished no more, it lets the actors in it go.
-      if (!visible[at] && !wished) releaseIn(base, cell)
-      return
-    }
-    // Shown, it draws the actors in it; hidden, it lets them go and shows its own.
-    releaseIn(base, cell)
-    if (!visible[at]) warmth.release(base, cell)
-    revision++
-    moves.note(base / cells, cell)
-    for (const child of below[cell]) mark(base + child)
-  }
-  /** The words `moved` names of `words`, sent. */
-  const send = (moved: ReturnType<typeof createChangedRuns>, words: typeof linkWords) => {
-    if (!moved.count) return
-    const sorted = moved.take()
-    writeRanges(cold, sorted, sorted.length, words)
-  }
+}
+
+/** What the partition and the session tell the follower: the placements (`worldPlacements.ts`),
+ *  the cells' words, the warm-ups, the HLOD actors and the blocking load. */
+function followerInputs(s: Follow) {
+  const { cells } = s.world
+  const { instances, warmth, placed } = s
   return {
     /** The rows' flags `next` reach the cut, changed at `changes` (every page without): the
      *  readiness follows (`worldPlacements.ts`). */
@@ -204,54 +115,60 @@ export function createLinkFollower(resources: { packed: PackedDag; cold: RangeTa
     show(instance: number, cell: number, word: number) {
       if (instance >= instances || cell >= cells) return false
       const at = instance * cells + cell
-      if (told[at] === word) return false
-      // Its actor's rows placed or parked count in its readiness (`worldPlacements.ts`).
-      if ((told[at] ^ word) & CELL_TOLD.rows) missing[at] += word & CELL_TOLD.rows ? -1 : 1
-      told[at] = word
-      // Its parent's load counts its actor, whose hold may have failed.
-      markWithParent(at)
+      if (s.told[at] === word) return false
+      tell(s, at, word)
       return true
     },
-    /** Whether cell `cell` of instance `instance` was visible at the last cut. */
-    visible: (instance: number, cell: number) =>
-      instance < instances && cell < cells && visible[instance * cells + cell] === 1,
-    /** Whether cell file `file` of instance `instance` was shown at the last cut, the slot of its
-     *  word (-1 for none), and how many times a file took a slot or gave one back (`worldFiles.ts`). */
-    fileShown: files.shownIn,
-    fileSlot: files.slotIn,
-    get slotRevision() {
-      return files.slotRevision
-    },
-    /** The packed page of world rank 0 in instance `instance`: its rank `r` is packed page
-     *  `pageBase(instance) + r`. */
-    pageBase: (instance: number) => packed.cutLinks[roots[instance]].pageBase,
     /** A switch that draws an actor waits until the warm-up given says it passed, asked again at
      *  each cut while it waits; none, it waits for nothing past its loads. */
     warmWith: warmth.warmWith,
-    /** Whether a switch waits on an actor's warm-up: the view keeps drawing till it is done. */
-    get warming() {
-      return warmth.warming
-    },
     /** The session's first image is shown (`../../../frame/loop/firstImage.ts`): the initial load
      *  ends, and a switch waits on a warm-up from now on. */
     firstImageShown: warmth.firstImageShown,
     /** The HLOD actors on or off (`hlodEnabled`): every cell's word written again. */
     hlodEnabled(on: boolean) {
-      if (warmth.hlodEnabled(on)) markAll()
+      if (warmth.hlodEnabled(on)) markAll(s.marks, cells * instances)
     },
-    /** The cells and files the partition places are drawn, or placed and hidden (`activated`
-     *  false: a cell loaded and not activated): every cell's and file's word written again. */
+    /** The cells are activated, or loaded and not activated: every cell's and file's word is
+     *  written again. */
     activated(on: boolean) {
-      if (files.hide(!on)) markAll()
+      if (!warmth.activated(on)) return
+      s.refile = true
+      markAll(s.marks, cells * instances)
     },
     /** The cell files of instance `instance` a load blocking on slow streaming waits for, read as
      *  they stand at each sync, none once it blocks no more: the cells it kept hidden then switch
      *  again. */
     blockingLoad(instance: number, waits: ReadonlySet<number>) {
       if (instance >= instances) return
-      blockOn[instance] = waits
-      const on = blockOn.some((files) => !!files?.size)
-      if (warmth.blockingLoad(on) && !on) markAll()
+      s.blockOn[instance] = waits
+      const on = s.blockOn.some((files) => !!files?.size)
+      if (warmth.blockingLoad(on) && !on) markAll(s.marks, cells * instances)
+    },
+  }
+}
+
+/** The follower of the world's cells in `packed`'s cold words; none without a world DAG. A member
+ *  of the run (`../runtime/runtime.ts`): `placeInCell` moves a link, `waitRow` a row without its
+ *  root, `show` what a cell is told, every residency the cut receives moves the readiness
+ *  (`residency`), and every cut takes the moves up first (`sync`). */
+export function createLinkFollower(resources: { packed: PackedDag; cold: RangeTarget }) {
+  const { packed, cold } = resources
+  if (!packed.world) return undefined
+  const s = createFollowState(packed, packed.world)
+  const words = followWords(packed.world)
+  const { instances, files, placed, marks, unshown } = s
+  /** Whether the file `key` names stays hidden while a load blocks: one it does not wait for. */
+  const heldBack = (key: number) => !s.blockOn[key % instances]?.has(Math.floor(key / instances))
+  return {
+    ...followerInputs(s),
+    ...cellQueries(s),
+    get slotRevision() {
+      return files.slotRevision
+    },
+    /** Whether a switch waits on an actor's warm-up: the view keeps drawing till it is done. */
+    get warming() {
+      return s.warmth.warming
     },
     /** Whether every cell and every cell file wished shows its own content, as the last cut
      *  switched them — none drawn by an actor, none drawing nothing, but a cell whose content is
@@ -260,37 +177,26 @@ export function createLinkFollower(resources: { packed: PackedDag; cold: RangeTa
     get shown() {
       return unshown.none && files.shown && marks.count === 0
     },
-    /** Each cell of instance `instance` whose visibility moved since the last call for it. */
-    moved: moves.moved,
     /** Advanced whenever a cell's or a file's visibility moved. */
     get revision() {
-      return revision
+      return s.revision
     },
     /** Before every cut: the cells and files waiting switched — those whose switch waits on an
      *  actor warming asked again —, the links and words that moved go up; whether any did. */
     sync() {
-      warmth.again(mark)
-      marks.drain(settle)
-      if (files.settle(warmth.blocking ? heldBack : undefined)) {
-        switchedPages.fileMoved()
-        revision++
-      }
-      const moved = placed.movedLinks.count + movedStates.count + files.moved.count > 0
-      send(placed.movedLinks, linkWords)
-      send(movedStates, stateWords)
-      send(files.moved, fileWords)
+      const moved = settleAll(s, heldBack)
+      send(cold, placed.movedLinks, words.link)
+      send(cold, s.movedStates, words.state)
+      send(cold, files.moved, words.file)
       return moved
     },
-    /** Each page whose drawing a switch moved since the last call, told to `visit` by its placement
-     *  and its rank there (`worldSwitched.ts`). */
-    switched: switchedPages.take,
     /** Bytes of its host tables. */
     get hostBytes() {
       return (
-        byteLengths(told, visible, marks, unshown, movedStates) +
+        byteLengths(s.told, s.visible, marks, unshown, s.movedStates) +
         placed.hostBytes +
         files.hostBytes +
-        switchedPages.hostBytes
+        s.switchedPages.hostBytes
       )
     },
   }

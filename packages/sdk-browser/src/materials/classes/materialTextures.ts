@@ -2,7 +2,6 @@ import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import type { BlendCopy } from '../../geometry/cluster/blendCopyContract.ts'
 import type { PageSurface } from '../../geometry/pages/surface.ts'
 import type { PageRec } from '../../geometry/selection/types.ts'
-import { CoverageReaders } from '../texture/coverage.ts'
 import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts'
 import { hasPhysicalLobes } from '../surface/physicalLobes.ts'
 
@@ -16,8 +15,7 @@ const adder = (known: Map<Texture, number>, list: Texture[]) => (texture?: Textu
 }
 
 /**
- * Census every colour and data texture once, in a stable slot order, and the readers of each
- * colour texture, which say whether its mips weigh by alpha (`CoverageReaders`).
+ * Census every colour and data texture once, in a stable slot order.
  */
 export function collectWebgpuMaterialTextures(
   allPages: PageRec[],
@@ -29,9 +27,10 @@ export function collectWebgpuMaterialTextures(
   const dataMaps: Texture[] = []
   const addColor = adder(mapLayer, maps)
   const addData = adder(dataLayer, dataMaps)
-  const coverage = new CoverageReaders()
+  const visited = new Set<PageSurface>()
   const collect = (mat: PageSurface) => {
-    if (!coverage.read(mat)) return
+    if (visited.has(mat)) return
+    visited.add(mat)
     addColor(mat.map)
     addColor(mat.emissiveMap)
     addColor(mat.subsurfaceMap)
@@ -48,5 +47,5 @@ export function collectWebgpuMaterialTextures(
   }
   for (const rec of allPages) collect(rec.material)
   for (const copy of blendCopies) collect(copy.surface)
-  return { maps, dataMaps, coverage }
+  return { maps, dataMaps }
 }

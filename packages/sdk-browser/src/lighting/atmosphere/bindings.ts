@@ -25,7 +25,31 @@ export const sameShadowMaps = (a: AirShadowMaps | undefined, b: AirShadowMaps | 
 /** Whether two sets of the clouds' shade name the same block and maps (the sampler is the tables'). */
 export const sameCloudShadow = (a: CloudShadowSet | undefined, b: CloudShadowSet | undefined) =>
   a === b ||
-  (!!a && !!b && a.block === b.block && a.maps[0] === b.maps[0] && a.maps[1] === b.maps[1])
+  (!!a &&
+    !!b &&
+    a.block === b.block &&
+    a.maps[0] === b.maps[0] &&
+    a.maps[1] === b.maps[1] &&
+    a.ao === b.ao)
+
+/** What a group of the air's programs binds of the virtual shadow maps, by the air's binding
+ *  names. */
+export const shadowMapResources = (maps: AirShadowMaps) => ({
+  pageTable: { buffer: maps.pageTable },
+  projectionData: { buffer: maps.projectionData },
+  shadowUniforms: { buffer: maps.uniforms },
+  shadowPool: { buffer: maps.pool },
+  shadowView: { buffer: maps.view },
+})
+
+/** What a group of the air's programs binds of the clouds' shade, by the air's binding names: the
+ *  block, the two light maps and the sky occlusion map (read through the tables' sampler). */
+export const cloudShadeResources = (set: CloudShadowSet) => ({
+  cloudShadow: { buffer: set.block },
+  cloudShadowMap0: set.maps[0],
+  cloudShadowMap1: set.maps[1],
+  cloudSkyAO: set.ao,
+})
 
 /**
  * THE GROUPS OF THE AIR'S PASSES over one light buffer and one set of shadow maps: each pass's
@@ -45,18 +69,8 @@ export function airGroupsOver(
     frame = { buffer: frameBuffer },
     transmittance = tables.transmittance.view,
     multiScatter = tables.multiScatter.view
-  const shadow = {
-    pageTable: { buffer: maps.pageTable },
-    projectionData: { buffer: maps.projectionData },
-    shadowUniforms: { buffer: maps.uniforms },
-    shadowPool: { buffer: maps.pool },
-    shadowView: { buffer: maps.view },
-  }
-  const clouds = {
-    cloudShadow: { buffer: cloudShadow.block },
-    cloudShadowMap0: cloudShadow.maps[0],
-    cloudShadowMap1: cloudShadow.maps[1],
-  }
+  const shadow = shadowMapResources(maps)
+  const clouds = cloudShadeResources(cloudShadow)
   const tabled = { air, transmittance, multiScatter, sampler }
   const over = (
     name: Parameters<typeof pass>[0],
@@ -65,6 +79,7 @@ export function airGroupsOver(
     const { program, layout } = pass(name)
     return group(program, layout, resourcesOf)
   }
+  const lit = { ...tabled, frame, ...shadow, ...clouds }
   const lazy: { separate?: GPUBindGroup; capture360?: GPUBindGroup } = {}
   return {
     buffer,
@@ -75,24 +90,15 @@ export function airGroupsOver(
       : undefined,
     multiScatter: over('multiScatter', { air, table: multiScatter, transmittance, sampler }),
     publish: over('publish', { air, transmittance, sampler }),
-    skyView: over('skyView', {
-      ...tabled,
-      table: tables.skyView.view,
-      frame,
-      ...shadow,
-      ...clouds,
-    }),
-    haze: over('haze', { ...tabled, frame, ...shadow, ...clouds }),
+    skyView: over('skyView', { ...lit, table: tables.skyView.view }),
+    haze: over('haze', { ...lit, hazeVolume: resources.hazeVolume }),
     distantSky: over('distantSky', tabled),
-    skyRays: over('skyRays', { ...tabled, frame }),
     /** The haze that keeps the haze's light and the air's apart. */
     get separate() {
       return (lazy.separate ??= over('hazeSeparate', {
-        ...tabled,
-        frame,
-        ...shadow,
-        ...clouds,
+        ...lit,
         volumes: { buffer: resources.volumes },
+        hazeVolume: resources.hazeVolume,
       }))
     },
     /** The haze around the capture's place. */
@@ -100,6 +106,7 @@ export function airGroupsOver(
       return (lazy.capture360 ??= over('capture360', {
         ...tabled,
         frame,
+        ...clouds,
         volumes: { buffer: resources.volumes },
       }))
     },

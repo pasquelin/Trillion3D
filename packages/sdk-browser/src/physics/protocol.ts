@@ -19,6 +19,8 @@ export type ToPhysics =
       /** Seconds of one fixed step: the page's clock owes them (`step/stepClock.ts`), the worker
        *  takes them. */
       step: number
+      /** The acceleration below which a contact does not bounce, m/s² (`jolt_init`). */
+      restitutionThreshold: number
       /** Two result buffers, exchanged back and forth. */
       buffers: ArrayBuffer[]
     }
@@ -33,8 +35,16 @@ export type ToPhysics =
   | { type: 'water'; water: WaterSpec | null; at: number }
   /** Scene queries (`CAST_WORDS` each), answered against the last step by a `cast` reply. */
   | { type: 'cast'; id: number; queries: Uint32Array }
-  /** The world's character: its settings (`null` removes it), and its feet when it is put there. */
-  | { type: 'character'; settings: CharacterSettings | null; feet: number[] | null }
+  /** An overlap query (`OVERLAP_WORDS`), answered against the last step by an `overlap` reply. */
+  | { type: 'overlap'; id: number; query: Uint32Array }
+  /** The world's character: its settings (`null` removes it), the downward pull the world's
+   *  gravity gives it in m/s² (`characterGravity`), and its feet when it is put there. */
+  | {
+      type: 'character'
+      settings: CharacterSettings | null
+      gravity: number
+      feet: number[] | null
+    }
   /** The character's keys, and the jump presses counted since it began. */
   | { type: 'input'; input: CharacterInput; jumps: number }
   /** A result buffer the page has read, handed back. */
@@ -106,6 +116,8 @@ export type FromPhysics =
   | { type: 'rest'; step: number; heard: number }
   /** The hits of a `cast` request (`HIT_WORDS` each), in its order. */
   | { type: 'cast'; id: number; hits: Uint32Array }
+  /** The bodies an `overlap` request meets (`OVERLAP_HIT_WORDS` each). */
+  | { type: 'overlap'; id: number; hits: Uint32Array }
   /** The joints a step broke, by id (`JOINT_WORDS`): the module took them out. */
   | { type: 'broken'; joints: number[] }
   | { type: 'error'; code: string; message: string; fatal: boolean; bodies?: number[] }

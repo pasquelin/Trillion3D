@@ -1,10 +1,10 @@
 /**
  * The one table of the deferred pass's bindings: the layout (`setup.ts`), the bind-group entries
- * (`program.ts`) and the WGSL declarations read their number here, so the opaque resolve and the
+ * (`program.ts`) and the WGSL declarations read their number here, so the opaque lit passes and the
  * blend, which extend the same list, read a surface lit on the same numbers; 30 and 31 are the resolve
  * proofs'. The surfaces are read through two bindings of their layered targets and one of the emission
  * (`SurfaceBuffer`): `colours`, the colour layers (the base and metalness, then the normal and roughness),
- * and `words`, the word layers (the flags, then the shadow receiver's two), each a layer of one texture —
+ * and `words`, the word layers (the flags), each a layer of one texture —
  * three sampled textures of the sixteen a stage holds in place of five.
  */
 export const DEFERRED_BINDINGS = {
@@ -15,21 +15,18 @@ export const DEFERRED_BINDINGS = {
   view: 5,
   lights: 6,
   tiles: 7,
-  bounceGrid: 11,
-  probes: 12,
-  /** The mask's transmission, what the panes let through along each light's missed rays: the
-   *  opaque resolve's (`vsmMaskThrough`). */
-  transmissionResolve: 14,
-  transmittance: 18,
+  /** The virtual shadow maps' local lights' mask, a texel a pixel (`vsmLocalFactor`): the opaque lit passes'. */
+  vsmMask: 18,
   subsurface: 22,
-  /** The shadow mask's tile words (`vsmMaskFactor`): the opaque resolve's. */
-  maskTiles: 29,
+  /** The suns' mask, a layer a sun (`vsmSunFactor`): a read-only storage texture, for the lit pass has no
+   *  sampled texture to spare; the opaque lit passes'. */
+  vsmSunMask: 29,
   lobes: 32,
   reflection: 33,
   /** What the screen probes left of the pixels' indirect light (`../bounce/screen/indirectWgsl.ts`): the
    *  bounce program's, a sampled texture read by load. */
   screenIndirect: 34,
-  /** The screen-space ambient occlusion the image drew (`../ao/frame.ts`): the opaque resolve's, a sampled
+  /** The screen-space ambient occlusion the image drew (`../ao/frame.ts`): the opaque lit passes', a sampled
    *  texture of one byte a pixel read by load, a stand-in where the image drew none. */
   ambientOcclusion: 35,
   /** What the fog reads past the light buffer (`DEFERRED_FOG_BINDINGS`): the sampler its cubemap and
@@ -55,6 +52,42 @@ export const DEFERRED_BINDINGS = {
   cloudShadowMap0: 50,
   cloudShadowMap1: 51,
   cloudShadowSampler: 52,
+  /** The sun's distance-field shadow (`../distanceField/shadow/`): the opaque lit passes', a read-only
+   *  storage buffer of words, a byte a lane of the suns, a stand-in where the image drew none
+   *  (`vsmSunFactor`): a buffer, for the lit pass has no sampled texture to spare. */
+  farShadowMask: 53,
+  /** The lists of the local fog volumes over each tile of the view (`DEFERRED_FOG_BINDINGS`,
+   *  `fogTilesWgsl`, `../fog/localWgsl.ts`): the contract programs', a read-only storage buffer of words. */
+  fogLocalTiles: 54,
+  /** The sky light's distance-field occlusion (`../distanceField/ao/`): the image of bent normals and depths packed in a
+   *  read-only storage buffer — the lit pass has no sampled texture to spare —, and the uniform that describes it
+   *  (`dfaoReadWgsl`): the opaque lit passes', stand-ins where the image drew none. */
+  dfaoBent: 55,
+  dfaoRead: 56,
+  /** The tile lists of the classification (`tileClass.ts`): a read-only storage buffer of words the
+   *  tile passes' vertex stage reads, a tile a word, a list a class. */
+  tileList: 57,
+  /** The ranks of the directional lights in the light buffer (`DirectLights.items`), after their
+   *  count: what the sun pass walks in place of a cell's list (`frame/backend/state/lightBuffer.ts`). */
+  sunRanks: 58,
+  /** The volume of the haze the fog pass lays over the surfaces (`../atmosphere/hazeReadWgsl.ts`),
+   *  a 3D texture read through `fogSampler`. */
+  hazeVolume: 60,
+  /** The light the volumetric lightmap gives each pixel (`volumetricLightWgsl.ts`): the irradiance of its third-order
+   *  harmonics along the pixel's normal, a texture of the lighting that the indirect pass reads by load,
+   *  a stand-in where the image drew none. */
+  volumetricLight: 61,
+  /** The virtual shadow maps a light with no lane in the mask is read from, one sample of its own map
+   *  (`vsmSampleMapLocal`): the uniforms, the page table, the projection data and the pool's first
+   *  slice, and the projection's view uniform — the opaque lit passes'. */
+  vsmUniforms: 62,
+  vsmPageTable: 63,
+  vsmProjectionData: 64,
+  vsmPool: 65,
+  vsmView: 66,
+  /** The shadowed lights of each cell of the light grid (`lightGridWgsl.ts`), the projection's: where the
+   *  local lights' mask holds a light's lane (`vsmMaskLaneOf`) — the opaque lit passes'. */
+  vsmLightGrid: 67,
 } as const
 
 /** Where the contract programs bind the sky light's resources, in group 0 (`skyLightReadWgsl`). */
@@ -90,4 +123,5 @@ export const DEFERRED_FOG_BINDINGS = {
   cubemap: DEFERRED_BINDINGS.fogCubemap,
   volume: DEFERRED_BINDINGS.fogVolume,
   lightShaft: DEFERRED_BINDINGS.fogLightShaft,
+  tiles: DEFERRED_BINDINGS.fogLocalTiles,
 } as const

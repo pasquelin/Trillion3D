@@ -73,12 +73,13 @@ fn reflectionGridSize()->vec2u{return reflectionView.grid.xy;}
 fn reflectionViewport()->vec2u{return vec2u(view.viewport.xy);}
 fn reflectionBlockPixel(g:vec2u,k:u32)->vec2u{
  let block=reflectionBlock();
- return g*block+vec2u(k%block,k/block);
+ return g*block+vec2u(k%block.x,k/block.x);
 }
 fn reflectionJitter(g:vec2u)->vec2u{
- if(reflectionBlock()==1u){return vec2u(0u);}
+ let block=reflectionBlock();
+ if(all(block==vec2u(1u))){return vec2u(0u);}
  let index=((g.x&1u)+2u*(g.y&1u)+reflectionView.temporal.x)%4u;
- return vec2u(select(0u,1u,(index&2u)!=0u),select(1u,0u,(index&1u)!=0u));
+ return min(vec2u(select(0u,1u,(index&2u)!=0u),select(1u,0u,(index&1u)!=0u)),block-vec2u(1u));
 }
 /** Grid texel \`g\`'s ray word (\`rayPack\`): its block's picked pixel, its ray's direction. */
 fn reflectionRayWord(g:vec2u)->u32{return textureLoad(surfaceRaysRead,vec2i(g),0).r;}

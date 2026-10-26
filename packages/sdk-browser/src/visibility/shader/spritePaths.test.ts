@@ -8,9 +8,9 @@ import assert from 'node:assert/strict'
 import { SPRITE_WGSL, writeSpriteWords } from './spriteWgsl.ts'
 import { PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
 import { PAGE_SHAPE_WGSL } from './pageShapeWgsl.ts'
-import { VIS_SHADER } from './visWgsl.ts'
+import { VIS_SHADER } from './visShader.fixture.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
-import { binSource } from '../raster/binWgsl.ts'
+import { DAG_VISIBLE_WGSL } from '../../geometry/dag/shader/visibleWgsl.ts'
 import { FLAG_LINE, FLAG_SPRITE, FLAG_VOXEL } from '../types.ts'
 import { BLEND_ITEM_WGSL } from '../../blend/items.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
@@ -42,9 +42,13 @@ test('every raster turns a sprite page off its record, the shadow vertex stage i
   // The one text, not a name some pass declares its own way: the name sweep proves only a name.
   for (const shader of [VIS_SHADER, SHADE_SHADER])
     assert.ok(shader.includes(PAGE_SCREEN_WGSL.text) && shader.includes(PAGE_SHAPE_WGSL.text))
-  // A sprite row is the hardware raster's, as a line's and a voxel row's: the split never hands
-  // it to the software raster, which draws no turned quad.
-  assert.ok(binSource(4).includes(`(page.flags&${FLAG_LINE | FLAG_SPRITE | FLAG_VOXEL}u)==0u`))
+  // A sprite cluster is the hardware raster's, as a line's and a voxel's: the cut never lists it
+  // for the software raster, which draws no turned quad.
+  assert.ok(
+    wgslSource(DAG_VISIBLE_WGSL).includes(
+      `const FORCE_HARDWARE:u32=${FLAG_LINE | FLAG_SPRITE | FLAG_VOXEL}u;`,
+    ),
+  )
   // The one hardware vertex stage, both halves', after the untouched triangle and line expressions.
   const hardware =
     ' out.position=uni.viewProj*world;\n if(shape.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position,shape.lineWidth);}\n if(shape.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p,shape.sprite);}'
@@ -52,7 +56,7 @@ test('every raster turns a sprite page off its record, the shadow vertex stage i
   // The resolve rebuilds the turned triangle, and shades its turned world positions.
   assert.ok(
     SHADE_SHADER.includes(
-      ' if(shape.sprite.y!=0.0){w0=pageSprite(page,p0,shape.sprite);w1=pageSprite(page,p1,shape.sprite);w2=pageSprite(page,p2,shape.sprite);}\n var c0=uni.viewProj*w0;',
+      ' if(shape.sprite.y!=0.0){w0=pageSprite(page,p0,shape.sprite);w1=pageSprite(page,p1,shape.sprite);w2=pageSprite(page,p2,shape.sprite);}\n var c0=shadeViewProj()*w0;',
     ),
   )
 })

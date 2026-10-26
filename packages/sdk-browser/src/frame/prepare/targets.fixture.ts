@@ -1,13 +1,20 @@
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { createShapeMemo } from '../../post/taa/historyShape.ts'
+import { createFrameRing } from '../../post/taa/historyFrames.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { createResidentSurfaces } from '../../geometry/clusters/surfaces.ts'
 
 /** An engine reduced to its targets, with a dummy temporal pass that notes its resizes. */
 export function runtime() {
   const resized: number[][] = [],
     failures: string[] = []
+  const device = fakeDevice({ limits: { maxTextureDimension2D: 8192 } }).device
   const temporal = {
-    frame: { hasHistory: true },
-    resize(w: number, h: number) {
+    frame: { hasHistory: true, ring: createFrameRing() },
+    packed: true,
+    wanted: createShapeMemo(device),
+    /** Notes the render size the targets are made at. */
+    resize(_shape: unknown, w: number, h: number) {
       resized.push([w, h])
       return true
     },
@@ -20,10 +27,12 @@ export function runtime() {
     // A textured scene's: its pipelines write the feedback (`feedbackVariant.ts`).
     vis: { gpuHiz: {}, writesFeedback: true, writesEmissiveAo: true },
     run: { diagnostic: 'beauty' },
-    layout: { rows: { packedCount: 0, packedRecs: [] } },
+    layout: { clusters: { surfaces: createResidentSurfaces() } },
     blendState: { blendGpu: [], refracts: false, refractGranted: false },
     context: {},
-    gpu: { device: fakeDevice({ limits: { maxTextureDimension2D: 8192 } }).device, temporal },
+    // The pass's level, as the engine's state holds it from its creation (`createWebgpuGpuState`):
+    // the level's knobs shape the history `wanted` returns.
+    gpu: { device, temporal, temporalLevel: 'max' },
     capture: { capturing: false },
     capabilities: { unsupported: [] as string[] },
     diag: { diagnosticFailure: (phase: string) => failures.push(phase) },

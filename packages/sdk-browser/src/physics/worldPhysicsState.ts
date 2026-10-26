@@ -5,7 +5,12 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { WaterSpec } from '../../../sdk-core/src/fluids/buoyancy.ts'
 import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
-import { GRAVITY_PRESETS, physicsBudgetOf } from '../../../sdk-core/src/physics/options.ts'
+import {
+  DEFAULT_RESTITUTION_THRESHOLD,
+  GRAVITY_PRESETS,
+  PHYSICS_STEP,
+  physicsBudgetOf,
+} from '../../../sdk-core/src/physics/options.ts'
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { families } from '../session/host/families.ts'
@@ -13,6 +18,8 @@ import { createJointList } from './joints/jointList.ts'
 import { createWaterCarry } from './water/waterCarry.ts'
 import type { PhysicsSession } from './session/session.ts'
 import {
+  physicsStepOf,
+  restitutionThresholdOf,
   simulationRangeOf,
   type GravityInput,
   type WorldPhysicsOptions,
@@ -33,6 +40,8 @@ export type PhysicsState = {
   paused: boolean
   timeScale: number
   range: ReturnType<typeof simulationRangeOf>
+  /** The fixed step, s, and the restitution threshold, m/s²: set when the world is made. */
+  timing: { readonly step: number; readonly restitutionThreshold: number }
   water: WaterSpec | null
   surface: WaterSurface | null
   error: EngineError | null
@@ -60,6 +69,12 @@ export function physicsState(
     paused: false,
     timeScale: 1,
     range: simulationRangeOf(settings.simulationRange ?? null),
+    timing: Object.freeze({
+      step: physicsStepOf(settings.step ?? PHYSICS_STEP),
+      restitutionThreshold: restitutionThresholdOf(
+        settings.restitutionThreshold ?? DEFAULT_RESTITUTION_THRESHOLD,
+      ),
+    }),
     water: null,
     surface: null,
     error: null,
@@ -100,6 +115,8 @@ const start = (s: PhysicsState) =>
         s.invalidate,
         (cause: EngineError, fatal?: boolean) => failed(s, cause, fatal),
         s.joints,
+        s.gravity,
+        s.timing,
       )
       s.session = session
       session.writer.gravity(s.gravity.elements)

@@ -5,6 +5,7 @@ import { texturePoolFor } from '../../geometry/residency/memoryBudgets.ts'
 import { grantedTexturePool, sameLayers } from '../../geometry/residency/poolGrants.ts'
 import { grantedLatest } from './grantLatest.ts'
 import { stopped } from '../io/lost.ts'
+import { laneCounts, type AtlasLanes } from '../../materials/texture/blockFormats.ts'
 import { laneDemand, laneTails } from './textureCensus.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import {
@@ -38,8 +39,10 @@ export function takeMaterialTextures(rt: WebgpuPagesRuntime) {
  * Builds the virtual textures of the census over the geometry prepare concatenated
  * (`prepareWebgpuGeometry`, `takeMaterialTextures`): for each atlas one tile pool per lane its
  * textures take — the block family the session chose for the chains the gate kept in it, RGBA8 for
- * the others and for a host image —, sized together by the host budget, their page tables, each
- * texture's queue pinned from the start, and the sampler the passes read.
+ * the others and for a host image —, their page tables, each texture's queue pinned from the
+ * start, and the sampler the passes read. The pools are made at their floors, the tails and one
+ * tile to stream into: the host budget they are sized by is the room they grow into where a lane
+ * runs out of places (`../io/memory.ts`, `followTexturePressure`), never bytes taken up front.
  */
 export async function prepareWebgpuTextures(
   rt: WebgpuPagesRuntime,
@@ -56,30 +59,32 @@ export async function prepareWebgpuTextures(
   // are reduced (`../../materials/texture/mips.ts`); a scene of cooked chains alone reduces nothing on
   // the device, and compiles none.
   const reductions = prepareHostReductions(gpuDevice, encoding, hostKinds({ color, data }))
-  // The lanes settle here, where the textures are known: each pool is sized by what its lane holds,
-  // never below the tails it keeps resident whole, one tile each.
+  // The lanes settle here, where the textures are known: each pool's share of the budget is drawn
+  // on what its lane holds, never below the tails it keeps resident whole, one tile each.
   const demand = { color: laneDemand(color), data: laneDemand(data) }
   const tails = { color: laneTails(color), data: laneTails(data) }
-  const poolFor = (budgetBytes: number) =>
-    texturePoolFor(budgetBytes, gpuDevice, demand, encoding.texelBytes, tails)
+  const poolFor = (budgetBytes: number, held?: AtlasLanes) =>
+    texturePoolFor(budgetBytes, gpuDevice, demand, encoding.texelBytes, tails, held)
+  // No layer held by any lane: the pool is drawn at its floors (`texturePoolFor`).
+  const floors: AtlasLanes = { color: laneCounts(), data: laneCounts() }
   const streamer = tileStreamerFor(rt, gpuDevice, catalogues)
   // Out of memory absorbed: the lane pools are those the device grants, allocated once, under the
   // out-of-memory scope (`poolGrants.ts`). One refused even at its floor is refused by name, never
   // allocated at the full request outside any scope: the material pipeline then drops. A budget
   // `setMemoryBudgets` records while the device answers is the later word (`grantedLatest`).
+  const atFloors = (budgetBytes: number) => poolFor(budgetBytes, floors)
   const granted = await grantedLatest({
     budget: () => rt.setup.texturePoolBudget,
-    draw: (asked) => ({ asked, pool: poolFor(asked) }),
+    draw: (asked) => ({ asked, pool: atFloors(asked) }),
     same: sameLayers,
     grant: ({ asked }) =>
-      grantedTexturePool(gpuDevice, asked, { poolFor }, diag.engineDiagnostic, (pool) =>
+      grantedTexturePool(gpuDevice, asked, { poolFor: atFloors }, diag.engineDiagnostic, (pool) =>
         streamer(pool.layers),
       ),
     stopped: () => stopped(rt),
   })
   if (!granted) throw new Error('WEBGPU_TEXTURE_POOL_REFUSED')
-  const { coverage } = census
-  rt.setup.texturePools = { choice, encoding, pool: granted.pool, poolFor, demand, tails, coverage }
+  rt.setup.texturePools = { choice, encoding, pool: granted.pool, poolFor, demand, tails }
   // The budget recorded is the one granted, not the one asked.
   rt.setup.texturePoolBudget = granted.pool.budgetBytes
   const textures = granted.made

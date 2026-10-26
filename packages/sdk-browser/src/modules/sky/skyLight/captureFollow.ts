@@ -2,13 +2,14 @@ import {
   skyLightCloudWidth,
   skyLightSource,
 } from '../../../../../sdk-core/src/modules/sky/skyLight.ts'
+import { retire } from '../../../gpu/core/frameRetire.ts'
 import type { SkyLightInputs } from './captureInputs.ts'
 import type { createSkyLightPipelines } from './pipelines.ts'
 import { createSkyLightTargets, type SkyLightTargets } from './targets.ts'
 
 /**
  * THE TARGETS AND THE SOURCE THE CAPTURE FOLLOWS: the cube's targets, made again when its side or
- * its clouds' side changes, and the source the light now has (`skyLightSource`); the capture starts
+ * its clouds' side changes (the old ones retired after the frame's submit, `retire`), and the source the light now has (`skyLightSource`); the capture starts
  * again (`restart`) when either changed.
  */
 export function createFollower(
@@ -23,7 +24,7 @@ export function createFollower(
     follow(input: SkyLightInputs) {
       const cloudSide = skyLightCloudWidth(input.width, input.part)
       if (!targets || targets.width !== input.width || targets.cloudSide !== cloudSide) {
-        targets?.destroy()
+        if (targets) retire(device, targets)
         targets = createSkyLightTargets(device, made, input.width, cloudSide)
         restart()
       }
@@ -41,7 +42,7 @@ export function createFollower(
       return source
     },
     destroy() {
-      targets?.destroy()
+      if (targets) retire(device, targets)
       targets = undefined
     },
   }

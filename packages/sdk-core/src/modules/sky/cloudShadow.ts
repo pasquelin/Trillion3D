@@ -8,7 +8,6 @@ import {
   numberSetting as number,
   resolveSettings,
   rulesOf,
-  type SettingOptions,
   type SettingValues,
   vectorSetting as vector,
 } from '../../contracts/settingRules.ts'
@@ -58,7 +57,6 @@ export const CLOUD_SHADOW_LIGHT_RULES = /* @__PURE__ */ (() =>
     vector('cloudScatteredLuminanceScale', [1, 1, 1]),
   ] as const))()
 
-export type CloudShadowLightOptions = SettingOptions<typeof CLOUD_SHADOW_LIGHT_RULES>
 export type CloudShadowLight = SettingValues<typeof CLOUD_SHADOW_LIGHT_RULES>
 
 /** The light's settings, each its default when the fields hold none.

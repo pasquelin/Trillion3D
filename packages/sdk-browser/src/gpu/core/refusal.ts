@@ -45,6 +45,8 @@ export const retryFrame = (refusal: Refusal) => refusal.frame + refusal.wait
 export const deviceWaiting = (refusal: Refusal, frame: number) =>
   refusal.roomBytes === Infinity && frame < retryFrame(refusal)
 
-/** Whether `refusal` may be asked again at `frame`, the ledger's room at `roomBytes`. */
+/** Whether `refusal` may be asked again at `frame`, the ledger's room at `roomBytes`: a device
+ *  refusal holds no room to wait for, even a ledger with no ceiling, and waits its frames. */
 export const retryDue = (refusal: Refusal, roomBytes: number, frame: number) =>
-  roomBytes >= refusal.roomBytes || frame >= retryFrame(refusal)
+  (Number.isFinite(refusal.roomBytes) && roomBytes >= refusal.roomBytes) ||
+  frame >= retryFrame(refusal)

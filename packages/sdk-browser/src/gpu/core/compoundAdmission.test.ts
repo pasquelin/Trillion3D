@@ -1,18 +1,22 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { installGpuDeviceLedger } from './deviceLedger.ts'
-import { createGpuDraw } from '../../visibility/draw/factory.ts'
-import { DRAW_ITEM_U32 } from '../../visibility/draw/contract.ts'
+import { constructGpuResources, installGpuDeviceLedger } from './deviceLedger.ts'
+import { createBinStages, createGpuBins } from '../../visibility/bins/bins.ts'
 
-// The compact's first buffer, for one row: the items it holds (`createGpuDrawBuffers`).
-const ROW_BYTES = DRAW_ITEM_U32 * 4
+// The bins' first buffer, for one cluster of three corners: its one instance word
+// (`createGpuBins`).
+const INSTANCE_BYTES = 4
 
-test('draw initial second-buffer refusal rolls back only the partial constructor', async () => {
+test('bins initial second-buffer refusal rolls back only the partial constructor', () => {
   const gpu = fakeDevice()
-  const ledger = installGpuDeviceLedger(gpu.device, { limit: () => 64 + ROW_BYTES })
+  const ledger = installGpuDeviceLedger(gpu.device, { limit: () => 64 + INSTANCE_BYTES })
   const previous = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
-  assert.equal(await createGpuDraw(gpu.device, 1, 1, 3), undefined)
+  const stages = createBinStages(gpu.device, 1)
+  assert.throws(
+    () => constructGpuResources(gpu.device, () => createGpuBins(gpu.device, stages, 1, 3)),
+    /GPU_BUDGET_EXCEEDED/,
+  )
   assert.equal(gpu.buffers.length, 2, 'refused second constructor buffer never reaches device')
   assert.equal(ledger.bytes, 64)
   assert.equal(gpu.destroyed.includes(previous), false)
@@ -20,17 +24,21 @@ test('draw initial second-buffer refusal rolls back only the partial constructor
   assert.match(ledger.refusal!.message, /GPU_BUDGET_EXCEEDED/)
 })
 
-test('draw row growth refusal preserves every old buffer and frees its partial replacement', async () => {
+test('bins growth refusal preserves every old buffer and frees its partial replacement', () => {
   const gpu = fakeDevice()
   let ceiling = 1e9
   const ledger = installGpuDeviceLedger(gpu.device, { limit: () => ceiling })
   const previous = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
-  const made = await createGpuDraw(gpu.device, 1, 1, 3)
-  assert.ok(made)
+  const stages = createBinStages(gpu.device, 1)
+  const made = constructGpuResources(gpu.device, () => createGpuBins(gpu.device, stages, 1, 3))
   const baseline = ledger.bytes
   const old = gpu.buffers.slice()
-  ceiling = baseline + 2 * ROW_BYTES
-  assert.throws(() => made.grow(2), /GPU_BUDGET_EXCEEDED/)
+  // Room for the grown instance buffer and not for the commands behind it.
+  ceiling = baseline + 2 * INSTANCE_BYTES
+  assert.throws(
+    () => constructGpuResources(gpu.device, () => createGpuBins(gpu.device, stages, 2, 3)),
+    /GPU_BUDGET_EXCEEDED/,
+  )
   assert.equal(gpu.buffers.length, old.length + 1)
   assert.equal(ledger.bytes, baseline)
   assert.ok(

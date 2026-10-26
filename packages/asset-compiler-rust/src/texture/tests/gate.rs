@@ -192,3 +192,111 @@ fn a_kept_chain_whose_level_will_not_write_is_left_out() {
     assert_eq!(report["lossless"][0]["sha256"], json!(previews[0].sha256));
     assert_eq!(report["notes"]["texture-level-write-failed"], json!(1));
 }
+
+/// `g` with the compression setting `name` on its texture.
+fn with_setting(mut g: Value, name: &str) -> Value {
+    g["textures"][0]["extras"] = json!({"compression": name});
+    g
+}
+
+// Behaviour: a texture whose setting is `alpha` is cooked as BC4 — a `.bc4` file per level above
+// the tail, the tail in eight-byte blocks of its layout, no other file, no gate decision.
+#[test]
+fn an_alpha_texture_is_cooked_in_bc4_blocks() {
+    let dir = scratch("texture-preview", "setting-alpha");
+    noise(128, 128).save(dir.join("map.png")).expect("save");
+    let g = with_setting(scene(json!({"occlusionTexture": {"index": 0}})), "alpha");
+    let (previews, report) = stage_scene(&dir, &g);
+    assert_eq!(previews.len(), 1);
+    let entry = &previews[0];
+    assert_eq!(entry.layouts, [Some(Layout::OneChannel), None, None]);
+    assert_eq!(
+        entry.blocks[0].len(),
+        preview_layout_bytes(128, 128, Layout::OneChannel)
+    );
+    assert_eq!((entry.first_level, entry.baked_levels), (1, 1));
+    let native = dir.join("cache").join("native");
+    let file = |format: &str| native.join(level_path(&entry.sha256, AtlasKind::Data, 0, format));
+    assert!(file("bc4").exists());
+    assert!(!file("bc7").exists() && !file("bc5").exists());
+    assert_eq!(report["lossless"], json!([]));
+}
+
+// Behaviour: a texture whose setting is `grayscale` is cooked as eight-bit texels of its red channel —
+// a `.g8` file per level above the tail, the tail's blocks holding the channel to the bit, its RGBA8
+// texels the grey the engine reads —; `displacementmap` the same from the alpha channel in a `.a8` file,
+// its texels the channel in all four; `vectorDisplacementmap` keeps no block, the source image read
+// lossless.
+#[test]
+fn a_grayscale_texture_is_cooked_in_eight_bit_blocks() {
+    let dir = scratch("texture-preview", "setting-grayscale");
+    rgba_from(128, 128, |x, y| [x as u8, 200 - y as u8, 7, (x ^ y) as u8])
+        .save(dir.join("map.png"))
+        .expect("save");
+    let native = dir.join("cache").join("native");
+    let cooked = |setting: &str, layout: Layout, file: &str| {
+        let g = with_setting(scene(json!({"occlusionTexture": {"index": 0}})), setting);
+        let (previews, _) = stage_scene(&dir, &g);
+        let entry = &previews[0];
+        assert_eq!(entry.layouts, [Some(layout), None, None]);
+        assert_eq!(
+            entry.blocks[0].len(),
+            preview_layout_bytes(128, 128, layout)
+        );
+        assert_eq!((entry.first_level, entry.baked_levels), (1, 1));
+        assert!(native
+            .join(level_path(&entry.sha256, AtlasKind::Data, 0, file))
+            .exists());
+        // The tail's first texel, level 1 at (0, 0): its channel kept as the source's mean.
+        let texel = [
+            entry.pixels[0],
+            entry.pixels[1],
+            entry.pixels[2],
+            entry.pixels[3],
+        ];
+        (entry.blocks[0][0], texel)
+    };
+    let (block, texel) = cooked("grayscale", Layout::Gray, "g8");
+    assert_eq!(
+        texel,
+        [block, block, block, 255],
+        "grey: the red channel, opaque"
+    );
+    let (block, texel) = cooked("displacementmap", Layout::Displacement, "a8");
+    assert_eq!(
+        texel,
+        [block, block, block, block],
+        "displacement: the alpha channel"
+    );
+    let g = with_setting(
+        scene(json!({"occlusionTexture": {"index": 0}})),
+        "vectorDisplacementmap",
+    );
+    let (previews, _) = stage_scene(&dir, &g);
+    let entry = &previews[0];
+    assert_eq!(entry.layouts, [None; FAMILIES]);
+    assert!(entry.blocks.iter().all(Vec::is_empty));
+    assert_eq!(entry.baked_levels, 0);
+    assert_eq!(
+        entry.pixels.len(),
+        preview_pixel_bytes(128, 128, AtlasKind::Data)
+    );
+}
+
+// Behaviour: `normalmap` and `bc7` decide the layout whatever reads the texture; the gate still
+// judges the chain.
+#[test]
+fn a_setting_decides_the_layout_the_readers_would() {
+    let dir = scratch("texture-preview", "setting-layout");
+    normal_map(128, 128)
+        .save(dir.join("map.png"))
+        .expect("save");
+    let occlusion = || scene(json!({"occlusionTexture": {"index": 0}}));
+    let (previews, _) = stage_scene(&dir, &with_setting(occlusion(), "normalmap"));
+    assert_eq!(previews[0].layouts, [Some(Layout::TwoChannel), None, None]);
+    let (previews, _) = stage_scene(
+        &dir,
+        &with_setting(scene(json!({"normalTexture": {"index": 0}})), "bc7"),
+    );
+    assert_eq!(previews[0].layouts, [Some(Layout::Rgba), None, None]);
+}

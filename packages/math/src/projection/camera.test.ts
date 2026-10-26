@@ -5,6 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { invertMatrix4 } from '../matrix/matrix4Inverse.ts'
 import { multiplyMatrix4 } from '../matrix/matrix4.ts'
+import { frustumExcludesSphere } from '../geometry/frustum/frustum.ts'
 import {
   createCameraFrame,
   perspectiveProjection,
@@ -87,12 +88,64 @@ test('updateCameraFrame: view = inverse of world matrix, viewProjection = projec
   assert.deepEqual([...frame.viewProjection], [...vpExpected])
 })
 
-test('updateCameraFrame: a singular world matrix yields a zero view', () => {
+test('updateCameraFrame: a world matrix with no inverse yields the identity view, not zeros or NaN', () => {
   const frame = createCameraFrame()
   const projection = perspectiveProjection(new Float64Array(16), 60, 1, 0.1, 1)
-  const singuliere = new Float64Array(16)
-  updateCameraFrame(frame, projection, singuliere)
-  assert.deepEqual([...frame.view], new Array(16).fill(0))
+  const flat = Float64Array.from([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 3, 4, 5, 1]) // y scaled to 0
+  const tiny = Float64Array.from([1e-9, 0, 0, 0, 0, 1e-9, 0, 0, 0, 0, 1e-9, 0, 0, 0, 0, 1])
+  const worlds = [new Float64Array(16), flat, tiny, Float64Array.from(IDENTITY).fill(NaN)]
+  for (const world of worlds) {
+    updateCameraFrame(frame, projection, world)
+    assert.deepEqual([...frame.view], [...IDENTITY])
+    assert.deepEqual(
+      [...frame.viewProjection],
+      [...multiplyMatrix4(new Float64Array(16), projection, IDENTITY)],
+    )
+  }
+})
+
+test('updateCameraFrame: a perspective frustum holds no far plane, whatever the distance', () => {
+  const frame = createCameraFrame()
+  const projection = perspectiveProjection(new Float64Array(16), 60, 1, 0.1, 1)
+  updateCameraFrame(frame, projection, IDENTITY)
+  assert.deepEqual(
+    [...frame.planes.slice(16, 20)],
+    [0, 0, 0, 1],
+    'the far plane every point passes',
+  )
+  assert.ok(
+    frustumExcludesSphere(frame.planes, 0, 0, -1e9, 0) === false,
+    'a point 10⁹ m ahead is kept',
+  )
+})
+
+test('perspectiveProjection: a field under a thousandth of a degree and a near plane not above zero are read as the defaults', () => {
+  for (const fov of [0, -10, 1e-6, NaN])
+    assert.deepEqual(
+      [...perspectiveProjection(new Float64Array(16), fov, 1.5, 0.5, 1)],
+      [...perspectiveProjection(new Float64Array(16), 0.001, 1.5, 0.5, 1)],
+    )
+  for (const near of [0, -1, NaN])
+    assert.deepEqual(
+      [...perspectiveProjection(new Float64Array(16), 60, 1.5, near, 1)],
+      [...perspectiveProjection(new Float64Array(16), 60, 1.5, 0.1, 1)],
+    )
+  const p = perspectiveProjection(new Float64Array(16), 0, 1, 0, 1)
+  assert.ok(p.every(Number.isFinite), 'no NaN reaches the matrix')
+})
+
+test('perspectiveProjection: a field converted from a horizontal one gives the horizontal image', () => {
+  // The engine's field is vertical (glTF `yfov`): a horizontal field `h` at aspect `a` is
+  // `2·atan(tan(h/2)/a)` there, and opens the same x half-extent at the near plane.
+  for (const [horizontal, aspect] of [
+    [90, 16 / 9],
+    [60, 1],
+    [110, 0.75],
+  ] as const) {
+    const vertical = (2 * Math.atan(Math.tan(horizontal * DEG2RAD * 0.5) / aspect)) / DEG2RAD
+    const p = perspectiveProjection(new Float64Array(16), vertical, aspect, 0.1, 1)
+    assert.ok(isNear(p[0], 1 / Math.tan(horizontal * DEG2RAD * 0.5)), `${horizontal} at ${aspect}`)
+  }
 })
 
 test('allocation: CameraFrame buffers are the same objects across frames', () => {

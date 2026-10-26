@@ -26,8 +26,9 @@ import { MAX_ANISOTROPY } from './maxAnisotropy.ts'
  * footprint's. A filter without `mip` picks the read inside a level — nearest or linear — and
  * never the level, so level selection and tile requests stay those of the default read.
  *
- * Bits of the filter word, zero for the default `linear` / `linearMipLinear` / 1 × untransformed:
- * the zero word takes the read the pools had before, and nothing else. Which read a pass compiles
+ * Bits of the filter word, zero for `linear` / `linearMipLinear` / 1 × untransformed: the zero word
+ * takes the read the pools had before, and nothing else. A texture asking anisotropy — the engine's
+ * default does — wears a word, and is read through the filter rule's taps. Which read a pass compiles
  * is not tested per sample: a page whose maps are all at zero carries no `FLAG_SAMPLED`, and its
  * resolve class — `HAS_SAMPLING` — compiles the default read alone (`samplingWgsl.ts`).
  */

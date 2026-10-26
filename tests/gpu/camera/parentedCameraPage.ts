@@ -8,7 +8,7 @@ import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag
 import { collectClusterPages } from '../../../packages/sdk-browser/src/geometry/selection/collect.ts'
 import { dagFixture } from '../../../packages/sdk-browser/src/geometry/selection/dag.fixture.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
-import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts'
+import type { ViewCamera } from '../../../packages/sdk-browser/src/camera/world.ts'
 import { POSES_PARENT, flattenedCamera, creeRig, poseRig } from '../../kit/device/cameraRig.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { graphDraws } from '../../../packages/sdk-browser/src/geometry/selection/drawSource.ts'
@@ -22,7 +22,7 @@ export type FrameSelection = { pages: string[]; frustumRejected: number }
 /** A fresh GPU selection per sequence: no reading of one sequence serves the other. */
 async function sequence(
   device: GPUDevice,
-  cameras: (pose: (typeof POSES_PARENT)[number]) => HostCamera,
+  cameras: (pose: (typeof POSES_PARENT)[number]) => ViewCamera,
   pixelError: number,
 ): Promise<FrameSelection[]> {
   const fixture = dagFixture()

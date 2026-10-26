@@ -1,21 +1,19 @@
-import { cpuNow } from '../../diagnostic/stopwatch.ts'
-import { EXPOSURE_CURVE_SAMPLES } from '../../../../sdk-core/src/contracts/exposureCurve.ts'
-import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
-import { settingsDiffer } from '../../../../sdk-core/src/contracts/settingRules.ts'
-import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
-import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
-import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
-import { EXPOSURE_PASS } from '../../diagnostic/stage/passLabels.ts'
+import { createReadbackRing, type ReadbackRing } from '../../gpu/core/readbackRing.ts'
+import type { HeldExposure } from '../../../../sdk-core/src/contracts/exposureManual.ts'
+import type { ExposureMeterMaskImage } from '../../../../sdk-core/src/contracts/exposureMeterMask.ts'
+import type { ExposureValues } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { meterPrograms } from './meterPrograms.ts'
-import { writeMeterParams, type ExposureSettings } from './meterParams.ts'
+import { createMeterBuffers, type MeterBuffers } from './meterBuffers.ts'
+import { createMeasure, encodeMeterPass } from './meterMeasure.ts'
 import {
-  EXPOSURE_BYTES,
-  HISTOGRAM_WORDS,
-  LOCAL_AT,
-  METER_PARAMS,
-  READBACK_BYTES,
-  SHOWN_AT,
-} from './meterLayout.ts'
+  meterWriter,
+  noteImage,
+  runChanged,
+  startingRun,
+  writeHeld,
+  type MeterInput,
+} from './meterRun.ts'
+import { GREY_AT, LOCAL_AT, READBACK_BYTES, SHOWN_AT } from './meterLayout.ts'
 
 /** Exposures that can be in flight back to the CPU at once: one an image, never a wait. */
 const IN_FLIGHT = 3
@@ -26,118 +24,21 @@ const SETTLED_STOPS = 1 / 256
 /** Images drawn at the most while waiting for the first readback: past them, a device that never
  *  brings one back no longer keeps the view drawing. */
 const WAIT_IMAGES = 16
-/** What the pass starts from, and the reference's own: an exposure of 1 asking 1, shown at 1. */
-const START = new Float32Array([1, 1, 1, 1, 1, 0, 0, 0])
-const PASS = { label: EXPOSURE_PASS }
-
 /** A view's automatic exposure (`createExposureMeter`). */
 export type ExposureMeter = ReturnType<typeof createExposureMeter>
 
-type MeterPrograms = ReturnType<typeof meterPrograms>
-
-/** The meter's buffers — its uniform, the histogram, the exposure it leaves, started at 1, the
- *  compensation curve's table — and the group of the update, which reads the first, the second and
- *  the last and writes the third. */
-function createMeterBuffers(device: GPUDevice, programs: MeterPrograms) {
-  const label = 'Trillion3D exposure meter v1'
-  const uniform = device.createBuffer({
-    label,
-    size: METER_PARAMS.words * 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  const histogram = device.createBuffer({
-    label,
-    size: HISTOGRAM_WORDS * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  const exposure = device.createBuffer({
-    label,
-    size: EXPOSURE_BYTES,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-  })
-  const curve = device.createBuffer({
-    label,
-    size: EXPOSURE_CURVE_SAMPLES * 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(exposure, 0, START)
-  const adaptGroup = device.createBindGroup({
-    layout: programs.adaptLayout,
-    entries: sequentialEntries([
-      { buffer: uniform },
-      { buffer: histogram },
-      { buffer: exposure },
-      { buffer: curve },
-    ]),
-  })
-  return {
-    uniform,
-    histogram,
-    exposure,
-    curve,
-    adaptGroup,
-    dispose() {
-      uniform.destroy()
-      histogram.destroy()
-      exposure.destroy()
-      curve.destroy()
-    },
-  }
-}
-
-type MeterBuffers = ReturnType<typeof createMeterBuffers>
-
-/** The group of the measure over an image, kept for each of the few images the meter is given in
- *  turn: with the temporal resolve the image alternates, so one group is not enough, and none is
- *  made per frame. */
-function measureGroupsOver(
-  device: GPUDevice,
-  programs: MeterPrograms,
-  { uniform, histogram }: MeterBuffers,
-) {
-  const identity = createWebgpuBindIdentity(4),
-    groups: GPUBindGroup[] = []
-  return (image: GPUTextureView) => {
-    identity.next[0] = image
-    if (identity.moved())
-      groups[identity.slot] = device.createBindGroup({
-        layout: programs.measureLayout,
-        entries: sequentialEntries([image, { buffer: uniform }, { buffer: histogram }]),
-      })
-    return groups[identity.slot]
-  }
-}
-
-/** The update's compute pass: the histogram of the image (`measure`, one workgroup a row of
- *  half-resolution pixels, `rows` of them), then the exposure it asks. */
-function encodeMeterPass(
-  encoder: GPUCommandEncoder,
-  programs: MeterPrograms,
-  buffers: MeterBuffers,
-  measure: GPUBindGroup,
-  rows: number,
-) {
-  encoder.clearBuffer(buffers.histogram)
-  const pass = encoder.beginComputePass(PASS)
-  pass.setPipeline(programs.measure.get())
-  pass.setBindGroup(0, measure)
-  pass.dispatchWorkgroups(rows)
-  pass.setPipeline(programs.adapt.get())
-  pass.setBindGroup(0, buffers.adaptGroup)
-  pass.dispatchWorkgroups(1)
-  pass.end()
-}
-
 /** What the last readback said — the exposure and the one its mean asked, 0 before any came
- *  back, and the local exposure's mean gain, 1 before — and the ring that brings it. */
+ *  back, and the local exposure's mean gain, 1 before —, the number of the exposures the engine
+ *  held since (`holds`, the tag of each copy: a copy taken before the last hold says an exposure
+ *  that is no longer the view's) and the ring that brings it. */
 function createMeterReadback(device: GPUDevice) {
-  const read = { last: 0, asked: 0, local: 1 }
+  const read = { last: 0, asked: 0, local: 1, holds: 0 }
   const ring = createReadbackRing(
     device,
     { label: 'Trillion3D exposure readback', bytes: READBACK_BYTES, count: IN_FLIGHT },
-    (mapped) => {
+    (mapped, _, taken) => {
       const values = new Float32Array(mapped, 0, 3)
-      if (!(values[0] > 0 && values[1] > 0)) return
+      if (taken !== read.holds || !(values[0] > 0 && values[1] > 0)) return
       read.last = values[0]
       read.asked = values[1]
       read.local = values[2] > 0 ? values[2] : 1
@@ -154,75 +55,91 @@ function readbackMoving({ last, asked }: { last: number; asked: number }, images
   return Math.abs(Math.log2(last / asked)) > SETTLED_STOPS
 }
 
-/** What the meter remembers of the images it measured: the time and the cut of the last, how many,
- *  the settings it ran with, and the curve table it holds (by identity). */
-type MeterRun = {
-  seen: number | undefined
-  at: number
-  images: number
-  used: ExposureSettings
-  curve: Float32Array | undefined
-}
-
-/** The writer of the meter's uniform of each image, sent to its buffer: the seconds since the last
- *  image, whether the exposure jumps (a first image or a cut), the pre-exposure the image holds its
- *  light multiplied by. It answers the rows of half-resolution pixels the measure dispatches. */
-function meterWriter(device: GPUDevice, buffers: MeterBuffers, run: MeterRun) {
-  const words = new Float32Array(METER_PARAMS.words),
-    ints = new Uint32Array(words.buffer)
-  return (
-    settings: ExposureSettings,
-    size: readonly number[],
-    cut: number | undefined,
-    preExposure: number,
-  ) => {
-    const now = cpuNow()
-    const seconds = run.at < 0 ? 0 : (now - run.at) / 1000
-    writeMeterParams(
-      words,
-      ints,
-      settings,
-      size,
-      seconds,
-      run.at < 0 || cut !== run.seen,
-      preExposure,
-    )
-    run.at = now
-    run.seen = cut
-    run.images++
-    Object.assign(run.used, settings)
-    device.queue.writeBuffer(buffers.uniform, 0, words)
-    return ints[METER_PARAMS.at.size + 3]
+/**
+ * The meter's update of its exposure buffer and what comes with it: the measure and the update
+ * (`encode`), then the scale shown copied into the view's uniform and the words into the readback's
+ * staging buffer; or the exposure the engine holds written by the CPU where it changed (`hold`),
+ * and the scale shown copied into the view's uniform alone: the CPU knows the exposure, nothing
+ * comes back.
+ */
+function createMeterUpdate(
+  device: GPUDevice,
+  buffers: MeterBuffers,
+  ring: ReadbackRing,
+  read: { holds: number },
+) {
+  const measure = createMeasure(device, buffers)
+  const run = startingRun()
+  const writeMeter = meterWriter(device, buffers.uniform, run)
+  // The curve table the GPU holds, which is not the one the last image saw when that was a held one.
+  let uploaded: Float32Array | undefined
+  /** The exposure buffer's scale shown into the view `view` at byte `at`. */
+  const show = (encoder: GPUCommandEncoder, view: GPUBuffer, at: number) =>
+    encoder.copyBufferToBuffer(buffers.exposure, SHOWN_AT, view, at, 4)
+  /** The scale shown, and the exposure buffer's words to the readback. */
+  const leave = (encoder: GPUCommandEncoder, view: GPUBuffer, at: number) => {
+    show(encoder, view, at)
+    const staging = ring.take(read.holds)
+    if (staging) {
+      encoder.copyBufferToBuffer(buffers.exposure, 0, staging, 0, 8)
+      encoder.copyBufferToBuffer(buffers.exposure, LOCAL_AT, staging, 8, 4)
+    }
+  }
+  return {
+    run,
+    /** Encodes the update of the image `input` hands, in one compute pass, its exposure over its
+     *  pre-exposure copied into `view` — the composition's uniform — at byte `at`, and its
+     *  exposure to the readback. The curve's table is written to the GPU when it is not the one
+     *  the meter holds. */
+    encode(encoder: GPUCommandEncoder, input: MeterInput, view: GPUBuffer, at: number) {
+      if (input.curve !== uploaded) {
+        device.queue.writeBuffer(buffers.curve, 0, input.curve as Float32Array<ArrayBuffer>)
+        uploaded = input.curve
+      }
+      const rows = writeMeter(input)
+      encodeMeterPass(encoder, meterPrograms(device), buffers, measure.of(encoder, input, rows))
+      leave(encoder, view, at)
+    },
+    /** Writes the exposure `held` into the buffer, as the update would have left it, where it
+     *  differs from what the buffer holds, and copies the scale shown into the view: no program
+     *  runs, no copy to the readback. */
+    hold(
+      encoder: GPUCommandEncoder,
+      input: MeterInput,
+      held: HeldExposure,
+      view: GPUBuffer,
+      at: number,
+    ) {
+      noteImage(run, input)
+      writeHeld(device, buffers.exposure, held, input.preExposure, run)
+      show(encoder, view, at)
+    },
+    dispose: measure.dispose,
   }
 }
 
 /**
- * A VIEW'S AUTOMATIC EXPOSURE, MEASURED ON THE GPU, READ BACK A FEW IMAGES LATE. The image the
- * composition reads — radiance multiplied by the image's pre-exposure, before exposure — goes
- * through the histogram and the update (`meterWgsl.ts`) in one compute pass; the exposure it leaves
- * over that pre-exposure is copied, on the GPU, into the composition's view uniform, so the image is
- * shown at the exposure it measured, no frame late,
- * and into a staging buffer of the engine's one readback ring (`createReadbackRing`), which brings
- * it to the CPU a few images later: `last`, the exposure the CPU's own readers use
- * (`applied.ts`). No frame waits for it, and an image whose staging buffers are all in flight
- * copies none.
+ * A VIEW'S EXPOSURE BUFFER, THE ONE SOURCE OF WHAT THE IMAGE IS SHOWN AT, MEASURED ON THE GPU AND
+ * READ BACK A FEW IMAGES LATE. The image the composition reads — radiance multiplied by the image's
+ * pre-exposure, before exposure — goes through the measure (the histogram's or the basic method's)
+ * and the update (`meterWgsl.ts`) in one compute pass (`encode`); an exposure the engine holds
+ * without measuring, a number or the manual method, is written into the same buffer by the CPU
+ * (`hold`). Either way the exposure over the pre-exposure is copied, on the GPU, into the
+ * composition's view uniform, so the image is shown at the exposure it was given, no frame late,
+ * and the local exposure's middle grey into the finishing's (`copyGrey`); the exposure goes also
+ * into a staging buffer of the engine's one readback ring (`createReadbackRing`), which brings it
+ * to the CPU a few images later: `last`, the exposure the CPU's own readers use.
+ * No frame waits for it, and an image whose staging buffers are all in flight copies none.
  *
- * It starts from an exposure of 1 and jumps to its target at its first update and at each view cut
- * (`cut`), where the world holds no earlier exposure to move from.
+ * It adapts on the world's time (`MeterInput.clock`), starts from an exposure of 1 and jumps to its
+ * target at its first update and at each view cut (`cut`), where the world holds no earlier
+ * exposure to move from; a held exposure counts as an image, so a measuring method that follows it
+ * adapts from it over a normal frame.
  */
 export function createExposureMeter(device: GPUDevice) {
-  const programs = meterPrograms(device)
-  const buffers = createMeterBuffers(device, programs)
-  const measureGroupOf = measureGroupsOver(device, programs, buffers)
+  const buffers = createMeterBuffers(device)
   const { read, ring } = createMeterReadback(device)
-  const run: MeterRun = {
-    seen: undefined,
-    at: -1,
-    images: 0,
-    used: {} as ExposureSettings,
-    curve: undefined,
-  }
-  const writeMeter = meterWriter(device, buffers, run)
+  const { run, encode, hold, dispose } = createMeterUpdate(device, buffers, ring, read)
   return {
     /** The exposure the last readback brought, 0 until one has. */
     get last() {
@@ -237,44 +154,40 @@ export function createExposureMeter(device: GPUDevice) {
     get local() {
       return read.local
     },
-    /** Whether `settings` or the curve `curve` are not the ones the last update ran with: the view
-     *  is drawn again to show them, a still image being held otherwise. */
-    changed: (settings: ExposureSettings, curve: Float32Array) =>
-      curve !== run.curve || settingsDiffer(EXPOSURE_RULES, run.used, settings),
-    /** Encodes the update of the image `image` of `size` pixels, written multiplied by
-     *  `preExposure`, in one compute pass, its exposure over that number copied into `view` — the
-     *  composition's uniform — at byte `at`, and its exposure to the readback. A change
-     *  of `cut`, the view's camera cut, jumps the exposure to its target. `curve` is the table of
-     *  the exposure compensation curve (`bakeExposureCurve`), written to the GPU when it is not
-     *  the one the meter holds. */
-    encode(
-      encoder: GPUCommandEncoder,
-      image: GPUTextureView,
-      size: readonly number[],
-      settings: ExposureSettings,
+    /** Whether `settings`, the curve `curve` or the mask `mask` are not the ones the last image
+     *  saw: the view is drawn again to show them, a still image being held otherwise. */
+    changed: (
+      settings: ExposureValues,
       curve: Float32Array,
-      cut: number | undefined,
+      mask: ExposureMeterMaskImage | undefined,
+    ) => runChanged(run, settings, curve, mask),
+    encode,
+    /** The exposure the engine holds, `held`, written for the image (`createMeterUpdate`): the
+     *  CPU knows it — what the readback would bring is it — so `last`, the one asked and the
+     *  local mean are set at once, and the copies still on their way are of exposures no longer
+     *  held. */
+    hold(
+      encoder: GPUCommandEncoder,
+      input: MeterInput,
+      held: HeldExposure,
       view: GPUBuffer,
       at: number,
-      preExposure: number,
     ) {
-      if (curve !== run.curve) {
-        device.queue.writeBuffer(buffers.curve, 0, curve as Float32Array<ArrayBuffer>)
-        run.curve = curve
-      }
-      const rows = writeMeter(settings, size, cut, preExposure)
-      encodeMeterPass(encoder, programs, buffers, measureGroupOf(image), rows)
-      encoder.copyBufferToBuffer(buffers.exposure, SHOWN_AT, view, at, 4)
-      const staging = ring.take()
-      if (staging) {
-        encoder.copyBufferToBuffer(buffers.exposure, 0, staging, 0, 8)
-        encoder.copyBufferToBuffer(buffers.exposure, LOCAL_AT, staging, 8, 4)
-      }
+      hold(encoder, input, held, view, at)
+      read.last = read.asked = held.exposure
+      read.local = 1
+      read.holds++
+    },
+    /** Copies the log2 of the middle grey the local exposure pulls toward — the update's or the
+     *  held exposure's — `at` bytes into `into`: the finishing's uniform. */
+    copyGrey(encoder: GPUCommandEncoder, into: GPUBuffer, at: number) {
+      encoder.copyBufferToBuffer(buffers.exposure, GREY_AT, into, at, 4)
     },
     /** After the image's submit: its copy maps. */
     submitted: () => ring.submitted(),
     dispose() {
       ring.destroy()
+      dispose()
       buffers.dispose()
     },
   }

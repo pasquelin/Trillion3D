@@ -23,6 +23,88 @@ type Held = {
   last: number
 }
 
+/** Where each placement's joints rank, what each holds, and each bone as last read with its
+ *  world's count then. */
+type Inputs = {
+  starts: number[]
+  held: Held[]
+  bones: (object | null)[]
+  versions: number[]
+}
+
+/** The placements `entries` follow the ones held: their joints rank behind the others'. */
+function appendPlacements(inputs: Inputs, entries: readonly (Deformed | null)[]) {
+  const { starts, held, bones, versions } = inputs
+  for (const entry of entries) {
+    const joints = entry?.shape.joints ?? 0
+    starts.push(starts[starts.length - 1] + joints)
+    held.push({
+      skeleton: null,
+      world: new Float64Array(16),
+      reach: 0,
+      settled: false,
+      whole: false,
+      last: -2,
+    })
+    for (let j = 0; j < joints; j++) {
+      bones.push(null)
+      versions.push(0)
+    }
+  }
+}
+
+/** True when bone `j` of placement `i` is the world held for it, which it is from here on. */
+function holdBone(inputs: Inputs, i: number, j: number, skeleton: Skeleton) {
+  const { starts, bones, versions } = inputs
+  const at = starts[i] + j,
+    bone = skeleton.bones[j],
+    version = bone._worldVersion
+  if (bones[at] === bone && versions[at] === version) return true
+  bones[at] = bone
+  versions[at] = version
+  return false
+}
+
+/** Whether placement `i`'s palette may differ from the one last written for it: true unless
+ *  every input it reads is the one held. While every one is held, the first change found is
+ *  enough. The palette is then taken as changed while that input still changes, the others
+ *  left unread; once it stands, every input is read and held again, and the palette is written
+ *  once more. A moving rig reads one input a frame, a still one all of them. */
+function paletteChanged(inputs: Inputs, i: number, entry: Deformed) {
+  const { starts, held } = inputs
+  const skeleton = entry.mesh.skeleton!,
+    count = skeleton.bones.length
+  const own = held[i]
+  // A skeleton grown past the record's joints is not held: the record cannot hold it either.
+  if (count > starts[i + 1] - starts[i]) {
+    own.whole = false
+    own.last = -2
+    return true
+  }
+  const enough = own.whole,
+    moving = own.last
+  let changed = !enough || own.skeleton !== skeleton
+  own.skeleton = skeleton
+  if (!enough && moving > -2 && moving < count) {
+    const same =
+      moving < 0 ? keepNumbers(own.world, frameOf(entry)) : holdBone(inputs, i, moving, skeleton)
+    if (!same) return true
+  }
+  own.whole = false
+  own.last = -1
+  if (!keepNumbers(own.world, frameOf(entry))) {
+    if (enough) return true
+    changed = true
+  }
+  for (let j = 0; j < count; j++) {
+    if (holdBone(inputs, i, j, skeleton)) continue
+    if (enough) return ((own.last = j), true)
+    changed = true
+  }
+  own.whole = true
+  return changed
+}
+
 /**
  * The skin palettes of a frame's records (`frame.ts`), each written only when an input it reads
  * changed since it was last written: the palette would otherwise come out the very bits the
@@ -34,80 +116,11 @@ type Held = {
  * new skeleton. Each placement holds as many joints as its record.
  */
 export function createSkinPalettes(placed: readonly (Deformed | null)[], block: Float32Array) {
-  const starts: number[] = [0],
-    held: Held[] = [],
-    // Each bone as last read, and its world's count then.
-    bones: (object | null)[] = [],
-    versions: number[] = []
+  const inputs: Inputs = { starts: [0], held: [], bones: [], versions: [] }
+  const { held } = inputs
   let kept = block
-  /** The placements `entries` follow the ones held: their joints rank behind the others'. */
-  const append = (entries: readonly (Deformed | null)[]) => {
-    for (const entry of entries) {
-      const joints = entry?.shape.joints ?? 0
-      starts.push(starts[starts.length - 1] + joints)
-      held.push({
-        skeleton: null,
-        world: new Float64Array(16),
-        reach: 0,
-        settled: false,
-        whole: false,
-        last: -2,
-      })
-      for (let j = 0; j < joints; j++) {
-        bones.push(null)
-        versions.push(0)
-      }
-    }
-  }
+  const append = (entries: readonly (Deformed | null)[]) => appendPlacements(inputs, entries)
   append(placed)
-  /** True when bone `j` of placement `i` is the world held for it, which it is from here on. */
-  const holdBone = (i: number, j: number, skeleton: Skeleton) => {
-    const at = starts[i] + j,
-      bone = skeleton.bones[j],
-      version = bone._worldVersion
-    if (bones[at] === bone && versions[at] === version) return true
-    bones[at] = bone
-    versions[at] = version
-    return false
-  }
-  /** Whether placement `i`'s palette may differ from the one last written for it: true unless
-   *  every input it reads is the one held. While every one is held, the first change found is
-   *  enough. The palette is then taken as changed while that input still changes, the others
-   *  left unread; once it stands, every input is read and held again, and the palette is written
-   *  once more. A moving rig reads one input a frame, a still one all of them. */
-  const changed = (i: number, entry: Deformed) => {
-    const skeleton = entry.mesh.skeleton!,
-      count = skeleton.bones.length
-    const own = held[i]
-    // A skeleton grown past the record's joints is not held: the record cannot hold it either.
-    if (count > starts[i + 1] - starts[i]) {
-      own.whole = false
-      own.last = -2
-      return true
-    }
-    const enough = own.whole,
-      moving = own.last
-    let changed = !enough || own.skeleton !== skeleton
-    own.skeleton = skeleton
-    if (!enough && moving > -2 && moving < count) {
-      const same =
-        moving < 0 ? keepNumbers(own.world, frameOf(entry)) : holdBone(i, moving, skeleton)
-      if (!same) return true
-    }
-    own.whole = false
-    own.last = -1
-    if (!keepNumbers(own.world, frameOf(entry))) {
-      if (enough) return true
-      changed = true
-    }
-    for (let j = 0; j < count; j++) {
-      if (holdBone(i, j, skeleton)) continue
-      if (enough) return ((own.last = j), true)
-      changed = true
-    }
-    own.whole = true
-    return changed
-  }
   return {
     append,
     /** The block the palettes are written into: a larger one replaces it when the records grew. */
@@ -125,7 +138,7 @@ export function createSkinPalettes(placed: readonly (Deformed | null)[], block: 
     /** Placement `i`'s palette of this frame from `at` (`keep` first), the last frame's taken for
      *  it when `cold`; returns whether the record moved: `moved`, or the palette did. */
     write(i: number, entry: Deformed, at: number, floats: number, cold: boolean, moved: boolean) {
-      if (!changed(i, entry) && !cold) return moved
+      if (!paletteChanged(inputs, i, entry) && !cold) return moved
       entry.mesh.skeleton!.palette(frameOf(entry), kept, at)
       const own = held[i]
       own.reach = paletteReach(kept, at, entry.shape.joints, entry.reach.joints)

@@ -1,4 +1,5 @@
 import { FLAG_SAMPLED } from '../visibility/types.ts'
+import { PHYSICAL_MAP_FIELDS } from '../visibility/materialType.ts'
 import {
   FEEDBACK_RULE_WGSL,
   TILE_REQUEST_WGSL,
@@ -15,7 +16,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  * declares `VSOut` and `uni.feedback`.
  *
  * With `lobes`, a lobed program's: a fragment whose item names a physical record (`physicalOn`,
- * `physicalWgsl.ts`) asks for its four maps' tiles after the others, each at its own UV set
+ * `physicalWgsl.ts`) asks for its lobe maps' tiles after the others, each at its own UV set
  * (`physicalRequest`, `BLEND_PHYSICAL_RECORD_WGSL`'s lobes core), as an opaque row does
  * (`../visibility/shader/request.ts`).
  */
@@ -37,7 +38,7 @@ ${requestLoopFn({
   head: 'fn blendRequest(in:VSOut,g:BlendGrads)->u32',
   pos: 'in.position.xy',
   word: 'uni.feedback',
-  choices: `MAP_CHOICES+blendSubsurfaceChoices(in)${lobes ? '+select(0u,4u,physicalOn)' : ''}`,
+  choices: `MAP_CHOICES+blendSubsurfaceChoices(in)${lobes ? `+select(0u,${PHYSICAL_MAP_FIELDS.length}u,physicalOn)` : ''}`,
   pick: (p, missing) => `blendPick(in,${p},${missing},g)`,
 })}
 `,

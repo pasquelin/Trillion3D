@@ -1,10 +1,10 @@
-import type { HostAttributes } from '../../../session/host/resources.ts'
 import type { GeometryBlock } from '../../rows/page/pageRowMaterial.ts'
 import { LAYOUT, offsetOf, type poolFloats, type PoolList } from './geometryPoolLayout.ts'
 import type { createPoolStores } from './geometryPoolStores.ts'
 import { fillScratch, scratchFloats } from './geometryPoolScratch.ts'
 import { writeFloatAtlas } from '../../../gpu/core/floatAtlas.ts'
 import { UV1_FLOATS, writeUv1Tail } from '../../../gpu/core/uv1Tail.ts'
+import type { Geometry } from '../../../../../sdk-core/src/world/geometry/geometry.ts'
 
 /** What the vertex pool's methods share (`geometryPool.ts`): its options, its blocks, the room
  *  used and held, the floats of each store, the stores. */
@@ -14,7 +14,7 @@ export type Pool = {
   secondUv: boolean
   tailFloats: number
   grown: ((capacity: number) => void) | undefined
-  blocks: Map<HostAttributes, GeometryBlock>
+  blocks: Map<Geometry['attributes'], GeometryBlock>
   used: number
   size: number
   floats: ReturnType<typeof poolFloats>
@@ -30,7 +30,7 @@ function upload(p: Pool, name: PoolList, at: number, n: number) {
 }
 
 /** Whether `attributes` carry list `name`: a missing one reads zero, as a new buffer holds. */
-export const holds = (p: Pool, attributes: HostAttributes, name: PoolList) =>
+export const holds = (p: Pool, attributes: Geometry['attributes'], name: PoolList) =>
   (name !== 'color' || p.coloured) &&
   (name !== 'uv1' || p.secondUv) &&
   LAYOUT[name].parts.some(([source]) => attributes[source])
@@ -39,7 +39,7 @@ export const holds = (p: Pool, attributes: HostAttributes, name: PoolList) =>
  *  `vertex`: a second UV set at the normal atlas's tail (`../../../gpu/core/uv1Tail.ts`). Returns its floats. */
 export function put(
   p: Pool,
-  attributes: HostAttributes,
+  attributes: Geometry['attributes'],
   name: PoolList,
   at: { vertex: number; from: number; n: number },
 ) {

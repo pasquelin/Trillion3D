@@ -29,7 +29,9 @@ function pendingFrameOf(
     const loading = streaming.pending()
     // The engine's feedback asked at the frame's submit, beside the arrivals: it answers for this
     // frame's GPU work, never for a frame drawn while they load (`FRAMES_IN_FLIGHT`).
-    const [, , pending] = await Promise.all([families, loading, engine.pendingFrame()])
+    const asked = engine.pendingFrame()
+    const pending =
+      families || loading ? (await Promise.all([families, loading, asked]))[2] : await asked
     if (state.disposed) return false
     const cells = await followCells?.pending()
     const arriving = !!families || !!loading

@@ -24,7 +24,7 @@ import { spHistory } from './historyWgsl.ts'
 import { spProbes, spReach } from './probesWgsl.ts'
 import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
 
-/** The screen trace's bindings: the probes' records and pixels, the ray words, the last image's history (the depths it
+/** The screen trace's bindings: the probes' records and pixels, the ray words, the last image's meta words (the depths it
  *  was lit at) and the surfaces' vectors, the radiance and ends written, the list the rays the screen left are
  *  appended to; the cascades, whose level the probe stands in says how far the screen is trusted (`spLocalReach`). */
 export const TRACE_SCREEN_BINDINGS = bindingTable({
@@ -34,7 +34,7 @@ export const TRACE_SCREEN_BINDINGS = bindingTable({
   counts: [3, 'buffer-read'],
   pixels: [4, 'buffer-read'],
   ray: [5, 'uint'],
-  history: [6, 'uint'],
+  meta: [6, 'uint'],
   vectors: [7, 'uint'],
   radiance: [8, { store: F.trace }],
   hit: [9, { store: F.hit }],
@@ -63,18 +63,32 @@ const SCENE_RAYS_LIST = listWgsl({
 
 /** The ray a trace texel stands for: its direction from the probe, by the octahedron texel the ray word names
  *  (or the texel itself, with no importance sampling) and the point of it the tile's blue noise picks. A kernel that
- *  reads it names the ray words at `words`, the probes' pixels at `pixels` and the blue noise at `noise`. */
-export const spRays = (words: number, pixels: number, noise: number) =>
+ *  reads it names the ray words at `words` — a sampled texture, or, where `stored`, a texture read as the storage it is written
+ *  through: no sampled texture of the stage's sixteen spent on it —, the probes' pixels at `pixels` and the blue noise at `noise`;
+ *  `spRayWordAt` reads a ray word. */
+export const spRays = (words: number, pixels: number, noise: number, stored = false) =>
   wgslBlock(
-    `spRays(${words}, ${pixels}, ${noise})`,
+    `spRays(${words}, ${pixels}, ${noise}, ${stored})`,
     [blueNoiseWgsl(0, noise)],
-    `@group(0) @binding(${words}) var rayWords:texture_2d<u32>;
+    `${
+      stored
+        ? `@group(0) @binding(${words}) var rayWords:texture_storage_2d<${F.ray},read>;
+fn spRayWordAt(at:vec2i)->u32{return textureLoad(rayWords,at).r;}`
+        : `@group(0) @binding(${words}) var rayWords:texture_2d<u32>;
+fn spRayWordAt(at:vec2i)->u32{return textureLoad(rayWords,at,0).r;}`
+    }
 @group(0) @binding(${pixels}) var<storage,read> probePixels:array<u32>;
+/** The texel the noise of the ray \`t\` of the probe \`index\` is drawn at: the probe's pixel, never its atlas row — the adaptive probes are
+ *  numbered in the order the threads reached them, which differs from run to run —, so a view casts the same rays every run. */
+fn spRayNoiseTexel(index:u32,t:vec2u)->vec2u{
+ let pixel=probePixels[index];
+ return vec2u(pixel&0xffffu,pixel>>16u)*SP_TRACE+t;
+}
 fn spRayDirection(atlas:vec2u,t:vec2u,index:u32)->vec3f{
  var coord=t;
  var size=f32(SP_TRACE);
  if(spFlag(SP_FLAG_IMPORTANCE)){
-  let word=textureLoad(rayWords,vec2i(atlas*SP_TRACE+t),0).r;
+  let word=spRayWordAt(vec2i(atlas*SP_TRACE+t));
   coord=spRayCoord(word);
   size=f32(spRayMip(spRayLevel(word),SP_TRACE));
  }
@@ -181,7 +195,7 @@ fn spScreenTrace(probe:SpProbe,pixel:vec2u,reach:f32,d:vec3f,noise:f32)->SpSeen{
  if(sp.trace.y>0.0&&spThinFeature(S0,delta,end,marched.t,size,sp.trace.y)){return seen;}
  let previous=spHitHistory(H,hitPoint,noise);
  if(!previous.kept){return seen;}
- if(spDeviceGap(textureLoad(historyIn,previous.texel,0).g,previous.expected)>=sp.tuning.z*mix(0.5,2.0,noise)){return seen;}
+ if(spDeviceGap(textureLoad(metaIn,previous.texel,0).r,previous.expected)>=sp.tuning.z*mix(0.5,2.0,noise)){return seen;}
  if(spFlag(SP_FLAG_SKIP_FOLIAGE_HITS)&&(textureLoad(sceneFlags,vec2i(floor(H.xy)),0).r&${SUBSURFACE_FLAG}u)!=0u){return seen;}
  seen.hit=true;
  // The last image holds its light multiplied by the pre-exposure it was lit with: read as it is.
@@ -193,10 +207,10 @@ fn spScreenTrace(probe:SpProbe,pixel:vec2u,reach:f32,d:vec3f,noise:f32)->SpSeen{
 
 /**
  * THE SCREEN STAGE, a group a probe, a thread each of its rays. It writes every ray's radiance (`packLight`) and end, and
- * lists, for the scene stage, the rays the screen neither answered nor cleanly missed — those that left the screen or whose
- * hit was dropped — and that the probe's cell leaves to the scene (the end of the ray's distance under the probe's reach): a
- * workgroup counts its own and takes its place in the list once (`sceneRaysAppend`, the dispatch raised with it), each
- * entry the ray's texel (the distance the screen left it at is its end's, which the scene stage reads).
+ * lists, for the scene stage, every ray the screen did not answer — those that left the screen, whose hit was dropped or that
+ * reached the end of the screen's range: the radiance cache answers what the near scene leaves of them —: a workgroup counts its own
+ * and takes its place in the list once (`sceneRaysAppend`, the dispatch raised with it), each entry the ray's texel (the distance the
+ * screen left it at is its end's, which the scene stage reads).
  */
 const SP_TRACE_SCREEN_ENTRY = wgslBlock(
   'SP_TRACE_SCREEN_ENTRY',
@@ -223,10 +237,10 @@ fn traceScreen(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_inde
  if(live&&spFlag(SP_FLAG_SCREEN_TRACES)){
   let own=probePixels[index];
   let pixel=vec2u(own&0xffffu,own>>16u);
-  let noise=interleavedGradientNoise(vec2f(at)+vec2f(0.5),f32(sp.size.w%SP_TILE_JITTERS));
+  let noise=interleavedGradientNoise(vec2f(spRayNoiseTexel(index,t))+vec2f(0.5),f32(sp.size.w%SP_TILE_JITTERS));
   seen=spScreenTrace(probe,pixel,probeReach,spRayDirection(atlas,t,index),noise);
  }
- let wants=live&&spFlag(SP_FLAG_SCENE_TRACES)&&!seen.hit&&seen.distance<probeReach;
+ let wants=live&&!seen.hit;
  var slot=0u;
  if(wants){slot=atomicAdd(&sceneCount,1u);}
  workgroupBarrier();
@@ -234,7 +248,7 @@ fn traceScreen(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_inde
  workgroupBarrier();
  if(wants){sceneRays.entries[sceneBase+slot]=at.x|(at.y<<16u);}
  textureStore(radianceOut,vec2i(at),vec4u(packLight(seen.radiance),0u,0u,0u));
- textureStore(hitOut,vec2i(at),vec4u(select(0u,spHitWord(seen.distance,seen.hit,seen.moving),live&&spFlag(SP_FLAG_SCREEN_TRACES)),0u,0u,0u));
+ textureStore(hitOut,vec2i(at),vec4u(select(0u,spHitWord(seen.distance,seen.moving),live&&spFlag(SP_FLAG_SCREEN_TRACES)),0u,0u,0u));
 }`,
 )
 
@@ -251,7 +265,7 @@ ${wgslConsts({ SP_TRACE: side })}`,
       spReach,
       spProbes(S.info, S.normal, S.counts),
       spRays(S.ray, S.pixels, S.blue),
-      spHistory(S.history, S.vectors),
+      spHistory(S.meta, S.vectors),
       SP_SCREEN_TRACE,
       SP_TRACE_SCREEN_ENTRY,
     ],

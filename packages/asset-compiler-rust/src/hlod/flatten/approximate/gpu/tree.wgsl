@@ -10,7 +10,12 @@ struct Params {
 @group(0) @binding(0) var<uniform> params: Params;
 @group(0) @binding(1) var<storage, read> scene: array<vec4u>;
 @group(0) @binding(2) var<storage, read> points: array<vec4f>;
-@group(0) @binding(3) var<storage, read_write> values: array<f32>;
+@group(0) @binding(3) var<storage, read_write> values: array<vec2u>;
+
+// A query's result: its value's bits, then 1 when the walk stopped early, else 0.
+fn result(value: f32, stopped: bool) -> vec2u {
+    return vec2u(bitcast<u32>(value), select(0u, 1u, stopped));
+}
 
 fn f4(at: u32) -> vec4f {
     return bitcast<vec4f>(scene[at]);

@@ -1,7 +1,7 @@
 import { MAX_LEVELS } from '../texture/tiles.ts'
 import { entryPlace, placeIndex } from '../texture/tiles.fixture.ts'
-import { PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './page/pageTable.ts'
 import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
+import { PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './page/pageTable.ts'
 
 // CPU mirrors of the feedback stamp (`stampWgsl.ts`) and of the reduction that calls it
 // (`reduceWgsl.ts`), on the words the kernels read.

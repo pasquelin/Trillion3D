@@ -9,6 +9,7 @@ import { validateSceneLight } from '../scene/light/validate.ts'
 import type { SceneLight } from '../scene/light/contracts.ts'
 import { HALF_PI } from '../../../math/src/constants.ts'
 import { FILM_RULES, type FilmField } from '../contracts/filmOptions.ts'
+import { COLOR_GRADING_RULES, type ColorGradingField } from '../contracts/colorGradingOptions.ts'
 
 const ajv = new Ajv()
 const tool = (name: string) => {
@@ -100,8 +101,11 @@ test('a light the tool accepts, the engine accepts; a field bound it refuses, th
       position: [1, 2, 3],
       direction: [0, -1, 0],
       range: 10,
-      coneAngle: 0.5,
+      outerConeAngle: 0.5,
       castsShadow: true,
+      ...{ emitterRadius: 0.1, emitterLength: 0.4, emitterSoftRadius: 0.2 },
+      ...{ innerConeAngle: 0.4, inverseSquared: false, radialExponent: 3 },
+      ...{ diffuseShare: 0.5, specularShare: 0.25 },
     },
     directional: {
       id: 'sun',
@@ -109,6 +113,8 @@ test('a light the tool accepts, the engine accepts; a field bound it refuses, th
       color: [1, 1, 1],
       intensity: 4,
       direction: [0, -1, 0],
+      angularRadius: 0.0046,
+      atmosphereSunIndex: 1,
     },
   }
   const engineAccepts = (light: object) => {
@@ -123,30 +129,59 @@ test('a light the tool accepts, the engine accepts; a field bound it refuses, th
     assert.equal(validate(light), true, light.kind)
     assert.equal(engineAccepts(light), true, light.kind)
   }
-  for (const key of ['id', 'kind', 'color', 'intensity']) {
+  for (const key of ['id', 'kind', 'color']) {
     const input: Record<string, unknown> = { ...complete.point }
     delete input[key]
     assert.equal(validate(input), false, `missing ${key}`)
     assert.equal(engineAccepts(input), false, `missing ${key}`)
   }
+  // The intensity has a default, its kind's (8 candelas, 10 lux): a light naming none is taken.
+  const unnamed: Record<string, unknown> = { ...complete.point }
+  delete unnamed.intensity
+  assert.equal(validate(unnamed), true, 'missing intensity')
+  assert.equal(engineAccepts(unnamed), true, 'missing intensity')
+  assert.equal(validate({ ...complete.spot, intensityUnits: 'lumens' }), true)
+  assert.equal(engineAccepts({ ...complete.spot, intensityUnits: 'lumens' }), true)
+  // An EV of 0 or under is a light (2^ev candelas): the tool takes it as the engine does. The bound
+  // that reads two fields — above 0 in any other unit, or off the inverse square — is the engine's
+  // alone: a field of the tool's schema reads no neighbour, on every provider.
+  const dim = { ...complete.point, intensity: -2, intensityUnits: 'ev' }
+  assert.deepEqual([validate(dim), engineAccepts(dim)], [true, true], 'ev -2')
+  const off = { ...complete.point, intensity: -1 }
+  assert.deepEqual([validate(off), engineAccepts(off)], [true, false], 'candelas -1')
+  const flat = { ...dim, inverseSquared: false }
+  assert.deepEqual([validate(flat), engineAccepts(flat)], [true, false], 'ev -2, no inverse square')
   for (const [kind, patch] of [
     ['point', { id: 7 }],
     ['point', { kind: 'lantern' }],
     ['point', { kind: 1 }],
     ['point', { color: 'white' }],
     ['point', { color: [0, -0.1, 1] }],
-    ['point', { intensity: -1 }],
     ['point', { intensity: 'bright' }],
+    ['point', { intensityUnits: 'watts' }],
     ['point', { position: 5 }],
     ['point', { position: [0, 'up', 1] }],
     ['point', { range: 0 }],
     ['point', { range: 'far' }],
     ['spot', { direction: 5 }],
     ['spot', { direction: [0, 'up', 1] }],
-    ['spot', { coneAngle: 0 }],
-    ['spot', { coneAngle: HALF_PI }],
-    ['spot', { coneAngle: 1.6 }],
-    ['spot', { coneAngle: 'wide' }],
+    ['spot', { outerConeAngle: 0 }],
+    ['spot', { outerConeAngle: HALF_PI }],
+    ['spot', { outerConeAngle: 1.6 }],
+    ['spot', { outerConeAngle: 'wide' }],
+    ['spot', { emitterRadius: 0 }],
+    ['spot', { emitterLength: 0 }],
+    ['spot', { emitterSoftRadius: -1 }],
+    ['spot', { innerConeAngle: -0.1 }],
+    ['spot', { innerConeAngle: 1.6 }],
+    ['spot', { inverseSquared: 'no' }],
+    ['spot', { radialExponent: 0 }],
+    ['spot', { diffuseShare: 2 }],
+    ['spot', { specularShare: -0.5 }],
+    ['directional', { angularRadius: -0.1 }],
+    ['directional', { angularRadius: 1.6 }],
+    ['directional', { atmosphereSunIndex: 2 }],
+    ['directional', { atmosphereSunIndex: 'moon' }],
   ] as const) {
     const input = { ...complete[kind], ...patch }
     assert.equal(validate(input), false, JSON.stringify(patch))
@@ -177,4 +212,35 @@ test('the film tool names every film setting with its rule’s default', () => {
   assert.deepEqual(Object.keys(properties).sort(), Object.keys(FILM_RULES).sort())
   for (const [name, property] of Object.entries(properties))
     assert.equal(property.default, FILM_RULES[name as FilmField].default, name)
+})
+
+test('the colour grading tool names every colour setting with its rule’s default, the grade’s eighty among them', () => {
+  const { properties } = tool('trillion3d_set_color_grading').parameters
+  assert.deepEqual(Object.keys(properties).sort(), Object.keys(COLOR_GRADING_RULES).sort())
+  for (const [name, property] of Object.entries(properties)) {
+    assert.equal(property.default, COLOR_GRADING_RULES[name as ColorGradingField].default, name)
+    assert.ok(property.description, `${name} says what it means`)
+  }
+  const grade = Object.keys(properties).filter((name) =>
+    /^color(Saturation|Contrast|Gamma|Gain|Offset)/.test(name),
+  )
+  assert.equal(grade.length, 80)
+  // The grade's eighty numbers differ by operation, zone and channel alone: each says so in a few
+  // words, and what each operation does is said once, in the tool's text.
+  for (const name of grade) assert.ok(properties[name].description.length <= 60, name)
+  const text = tool('trillion3d_set_color_grading').description
+  for (const meaning of [
+    'saturation pulls',
+    'contrast raises',
+    'gamma raises',
+    'gain multiplies',
+    'offset adds',
+  ])
+    assert.equal(text.split(meaning).length, 2, `${meaning} … is said once`)
+  assert.match(
+    properties.tonemapperGamma.description,
+    /0\b.*keeps the transfer.*under 1 is read as 1/,
+  )
+  assert.equal(properties.colorOffsetShadowsBlue.default, 0)
+  assert.equal(properties.colorGainHighlightsMaster.default, 1)
 })

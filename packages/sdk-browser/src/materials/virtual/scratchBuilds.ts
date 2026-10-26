@@ -24,7 +24,6 @@ export function buildHostScratch(
       atlas.kind === 'color'
         ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
         : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
-    coverage: source.coverage,
   })
   counters.scratches++
   counters.uploadedBytes += rgbaBytes(layout.width, layout.height)
@@ -80,6 +79,84 @@ function buildAsked(
   return lost
 }
 
+/** What the cache holds: the entries by id, the build in flight, the bytes of the live working
+ *  textures, and the entries asked or built — the ones a pass's room counts. */
+type ScratchState = {
+  entries: Map<number, Entry>
+  building: Promise<void> | undefined
+  liveBytes: number
+  passing: number
+}
+
+/** `id`'s entry let go, its texture freed. */
+function release(st: ScratchState, id: number) {
+  const entry = st.entries.get(id)
+  if (!entry) return
+  if (entry.state === 'live') st.liveBytes -= entry.scratch.bytes
+  else st.passing--
+  if (entry.state !== 'asked') entry.scratch.destroy()
+  st.entries.delete(id)
+}
+
+/** `refresh` of the cache: the working texture of `id` refilled or built, turned live, `copy` encoded. */
+function refreshLive(
+  st: ScratchState,
+  device: GPUDevice,
+  build: Build,
+  atlas: WebgpuTileAtlas,
+  slot: number,
+  id: number,
+  copy: (encoder: GPUCommandEncoder, texture: GPUTexture) => void,
+) {
+  const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' })
+  const held = st.entries.get(id)
+  let scratch: TileScratch
+  if (held && held.state !== 'asked') {
+    scratch = held.scratch
+    scratch.fill(encoder)
+  } else {
+    scratch = build(atlas, slot)
+    scratch.reduce(encoder)
+  }
+  if (held?.state !== 'live') {
+    if (held) st.passing--
+    st.liveBytes += scratch.bytes
+    st.entries.set(id, { state: 'live', scratch })
+  }
+  copy(encoder, scratch.texture)
+  device.queue.submit([encoder.finish()])
+}
+
+/** `ask` of the cache: `id`'s working texture asked for the tiles of feedback `frame`, built in a
+ *  task after the frame. */
+function askScratch(
+  st: ScratchState,
+  device: GPUDevice,
+  build: Build,
+  onFailure: (phase: string, error: unknown) => void,
+  id: number,
+  frame: number,
+  atlas: WebgpuTileAtlas,
+  slot: number,
+) {
+  const { entries } = st
+  if (entries.has(id) || st.passing >= MAX_SCRATCHES) return
+  entries.set(id, { state: 'asked', atlas, slot, frame })
+  st.passing++
+  st.building ??= new Promise<void>((done) =>
+    setTimeout(() => {
+      st.building = undefined
+      try {
+        st.passing -= buildAsked(device, entries, build, onFailure)
+      } catch (error) {
+        onFailure('texture-tile-failed', error)
+      } finally {
+        done()
+      }
+    }),
+  )
+}
+
 /**
  * THE WORKING TEXTURES OF THE HOST TEXTURES, one map under one key (`scratchId`, `sources/sources.ts`), an
  * id in one state at a time (`Entry`): a texture whose picture moves turns LIVE (`refresh`, #362)
@@ -95,22 +172,10 @@ export function createScratches(
   build: Build,
   onFailure: (phase: string, error: unknown) => void,
 ) {
-  const entries = new Map<number, Entry>()
-  let building: Promise<void> | undefined,
-    liveBytes = 0,
-    // Entries asked or built: the ones a pass's room counts.
-    passing = 0
-  /** `id`'s entry let go, its texture freed. */
-  const release = (id: number) => {
-    const entry = entries.get(id)
-    if (!entry) return
-    if (entry.state === 'live') liveBytes -= entry.scratch.bytes
-    else passing--
-    if (entry.state !== 'asked') entry.scratch.destroy()
-    entries.delete(id)
-  }
+  const st: ScratchState = { entries: new Map(), building: undefined, liveBytes: 0, passing: 0 }
+  const { entries } = st
   return {
-    release,
+    release: (id: number) => release(st, id),
     /** The working texture held for `id`, built or live, if one is. */
     get(id: number) {
       const entry = entries.get(id)
@@ -124,21 +189,7 @@ export function createScratches(
     /** Asks `id`'s working texture for the tiles of feedback `frame`, if a pass has room and the id
      *  holds nothing yet. */
     ask(id: number, frame: number, atlas: WebgpuTileAtlas, slot: number) {
-      if (entries.has(id) || passing >= MAX_SCRATCHES) return
-      entries.set(id, { state: 'asked', atlas, slot, frame })
-      passing++
-      building ??= new Promise<void>((done) =>
-        setTimeout(() => {
-          building = undefined
-          try {
-            passing -= buildAsked(device, entries, build, onFailure)
-          } catch (error) {
-            onFailure('texture-tile-failed', error)
-          } finally {
-            done()
-          }
-        }),
-      )
+      askScratch(st, device, build, onFailure, id, frame, atlas, slot)
     },
     /** A new picture of host texture `slot` of `atlas`, its working texture `id` refilled — or
      *  built, the texture turning live, whatever state it was in —, then `copy` encoded: its
@@ -149,40 +200,24 @@ export function createScratches(
       id: number,
       copy: (encoder: GPUCommandEncoder, texture: GPUTexture) => void,
     ) {
-      const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' })
-      const held = entries.get(id)
-      let scratch: TileScratch
-      if (held && held.state !== 'asked') {
-        scratch = held.scratch
-        scratch.fill(encoder)
-      } else {
-        scratch = build(atlas, slot)
-        scratch.reduce(encoder)
-      }
-      if (held?.state !== 'live') {
-        if (held) passing--
-        liveBytes += scratch.bytes
-        entries.set(id, { state: 'live', scratch })
-      }
-      copy(encoder, scratch.texture)
-      device.queue.submit([encoder.finish()])
+      refreshLive(st, device, build, atlas, slot, id, copy)
     },
     /** Bytes the live textures' working textures hold, mips included. */
     get liveBytes() {
-      return liveBytes
+      return st.liveBytes
     },
     /** End of pass `frame`: frees the built working textures a copy read, or that feedback newer
      *  than their ask passed over; every built one without a frame. */
     drop(frame = Infinity) {
       for (const [id, entry] of entries)
-        if (entry.state === 'built' && (entry.read || entry.frame < frame)) release(id)
+        if (entry.state === 'built' && (entry.read || entry.frame < frame)) release(st, id)
     },
     get building() {
-      return building
+      return st.building
     },
     /** Every entry let go, the live ones too. */
     destroy() {
-      for (const id of [...entries.keys()]) release(id)
+      for (const id of [...entries.keys()]) release(st, id)
     },
   }
 }

@@ -1,7 +1,7 @@
 //! `EXT_mesh_gpu_instancing`: a node that draws its mesh once per instance, each instance placed
 //! by the translation, rotation and scale its accessors hold, applied before the node's own
 //! transform. The load expands every instance into a child node that carries the mesh and that
-//! pose, so the stages after it — selection, tables, proxy, physics, lights — place it by the one
+//! pose, so the stages after it — selection, tables, physics, lights — place it by the one
 //! world walk (`node_transform.rs`, `world_matrices`) and none of them reads the extension.
 use crate::compiler::source::nodes::{append_children, child_name};
 use crate::*;

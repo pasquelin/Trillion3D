@@ -1,9 +1,7 @@
 /**
  * Math foundation colors: piecewise sRGB transfer curve as written across the repo
  * (thresholds 0.04045 and 0.0031308, slope 12.92, exponent 2.4), identical to
- * Rust compiler and WGSL composition. Reference 3D library rounds its
- * constants (`c · 0.0773993808`, `c · 0.9478672986 + 0.0521327014`): deviation is benchmarked in
- * `bench/perf/browser/core-math.perf.ts`, and it is not the decision maker here.
+ * Rust compiler and WGSL composition: the exact constants, never rounded ones.
  */
 
 import type { NumberSink } from '../matrix/matrix4.ts'

@@ -1,3 +1,5 @@
+import { disposeWaterTargets } from '../../blend/water/waterTargets.ts'
+import { disposeWaterSun } from '../../blend/water/waterFold.ts'
 import type { WebgpuRunState } from '../backend/state/run.ts'
 import { disposeEntryCorners } from '../../blend/transparent/entryCorners.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -8,7 +10,7 @@ export function invalidateOccluderHistory(run: WebgpuRunState) {
 }
 
 /** The visibility raster dropped, made again at its next image over what grew; no occluder
- *  history describes the new rows. */
+ *  history describes the new clusters. */
 export function dropRaster(rt: Pick<WebgpuPagesRuntime, 'vis' | 'run'>) {
   rt.vis.gpuRaster?.dispose()
   rt.vis.gpuRaster = undefined
@@ -46,15 +48,24 @@ function dropGpuHiz(rt: WebgpuPagesRuntime) {
   invalidateOccluderHistory(rt.run)
 }
 
-function dropGpuDraw(rt: WebgpuPagesRuntime) {
-  rt.vis.gpuDraw?.dispose()
-  rt.vis.gpuDraw = undefined
+/** The decode, the bins and what they read and write, which follow the cut's list of visible
+ *  clusters (`../render/visibleTables.ts`), and the measure of the clusters' edges. */
+function dropVisibleTables(rt: WebgpuPagesRuntime) {
+  const { vis } = rt
+  vis.gpuBins?.dispose()
+  vis.gpuBins = undefined
+  vis.binStages = undefined
+  vis.gpuDecode = undefined
+  vis.clusterMeasure?.dispose()
+  vis.clusterMeasure = undefined
+  vis.placementGpu?.buffer.destroy()
+  vis.placementGpu?.outputs.destroy()
+  vis.placementGpu = undefined
 }
 
 /** Releases the visibility path's GPU resources, at dispose. */
 export function disposeVis(rt: WebgpuPagesRuntime) {
-  const { vis } = rt,
-    { rows } = rt.layout
+  const { vis } = rt
   vis.visPipelineBack = undefined
   vis.visPipelineNone = undefined
   vis.visPipelineFront = undefined
@@ -65,10 +76,9 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
   vis.shadeCensus = undefined
   vis.shadeBins?.dispose()
   vis.shadeBins = undefined
-  vis.shadeCache?.dispose()
-  vis.shadeCache = undefined
   vis.voxelSteps?.dispose()
   vis.voxelSteps = undefined
+  vis.shadeModule = undefined
   vis.shadeBindGroupLayout = undefined
   vis.visBindGroupLayout = undefined
   vis.mapsSampler = undefined
@@ -78,9 +88,12 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
   vis.feedbackAside = undefined
   rt.blendState.overdraw?.dispose()
   rt.blendState.overdraw = undefined
+  disposeWaterTargets(rt.blendState)
+  disposeWaterSun(rt.blendState.waterSun)
+  rt.blendState.waterSun = undefined
   vis.gpuRaster?.dispose()
   vis.gpuRaster = undefined
-  dropGpuDraw(rt)
+  dropVisibleTables(rt)
   dropGpuHiz(rt)
   // The pool frees its buffers and its normal atlas: the concatenated buffers only come with it.
   vis.vertexPool?.destroy()
@@ -101,6 +114,4 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
     vis.visUniform =
     vis.zeroRows =
       undefined
-  rows.pageTableFloats = undefined
-  rows.pageTableInts = undefined
 }

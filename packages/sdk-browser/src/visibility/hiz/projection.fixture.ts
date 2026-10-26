@@ -5,6 +5,7 @@ import type { HizPage } from './types.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { locationOf, type PageLocations } from '../../geometry/selection/placements.ts'
 import type { MatrixElements } from '../../session/host/matrixElements.ts'
+import { isAffineMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 
 /** Screen AABB of eight world-space corners, the CPU model of the occlusion and water projections:
  *  term for term the arithmetic of the one-shot path. */
@@ -32,7 +33,7 @@ export function projectCornersInto(
     e = viewProjElements
   // An affine view — fourth row (0,0,0,1) — yields a denominator of exactly 1 for a finite
   // corner: the dot product is then not computed, and `viewZ * 1` is `viewZ`.
-  const affine = v[3] === 0 && v[7] === 0 && v[11] === 0 && v[15] === 1
+  const affine = isAffineMatrix4(v)
   // A perspective projection has fourth row (0,0,-1,0), of which `multiplyMatrices` makes
   // exactly the opposite of the view's third row: `cw` is then `-viewZ` to the bit — negation
   // is exact and `(-a) + (-b)` equals `-(a + b)` —, one fewer dot product per corner. Any

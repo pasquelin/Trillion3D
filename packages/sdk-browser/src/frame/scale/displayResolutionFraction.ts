@@ -1,4 +1,4 @@
-import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { clamp, lerp } from '../../../../math/src/scalar/reals.ts'
 
 /** The pixels of a 16:9 image `height` tall: the tiers are pixel counts, so a display of any
  *  aspect ratio falls between them by its area. */
@@ -30,7 +30,7 @@ export function displayResolutionFraction(pixels: number) {
       hi = upper ? d2 : d1,
       from = upper ? r1 : r0,
       to = upper ? r2 : r1
-    rendered = from + (to - from) * clamp((shown - lo) / (hi - lo), 0, 1)
+    rendered = lerp(from, to, clamp((shown - lo) / (hi - lo), 0, 1))
   }
   return Math.sqrt(rendered / shown)
 }

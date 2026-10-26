@@ -9,7 +9,7 @@ import type { AtlasGpu } from './atlasGpu.ts'
 import type { ObjectBuffers } from './objectBuffers.ts'
 
 /**
- * THE BINDINGS OF THE MESHES' FIELDS (`meshFieldWgsl`, `MESH_FIELD_BINDINGS` of them from a first one): the
+ * THE BINDINGS OF THE MESHES' FIELDS (`meshFieldWgsl`, seven of them from a first one): the
  * scene's block, the bounds and the data of the placements, the meshes' records, the indirection
  * tables, the brick atlas and the sampler it is read through. They name buffers that grow, so a
  * group over them is made again whenever one of them was. The passes of the global field bind them
@@ -27,6 +27,17 @@ export const sceneLayoutEntries = (first = 0, stage = COMPUTE): GPUBindGroupLayo
   computeTextureEntry(first + 5, 'float', '3d', stage),
   computeSamplerEntry(first + 6, 'filtering', stage),
 ]
+
+/** The layout entries of the meshes' fields' bindings from `first` that the stage `stage` reads: all
+ *  seven, or the bounds and the data alone. */
+export const sceneObjectEntries = (
+  first: number,
+  all: boolean,
+  stage = COMPUTE,
+): GPUBindGroupLayoutEntry[] => {
+  const entries = sceneLayoutEntries(first, stage)
+  return all ? entries : entries.slice(1, 3)
+}
 
 /** The bind group entries over the atlas's resources and the placements' buffers, from `first`. */
 export const sceneBindEntries = (

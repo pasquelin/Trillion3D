@@ -16,27 +16,23 @@ import { cloudShadowOf } from '../render/encodeCloudShadow.ts'
 import {
   vsmConsumerResources,
   vsmShadowMask,
-  vsmShadowMaskTiles,
-  vsmShadowThrough,
-  vsmTransmissionView,
+  vsmShadowedLightGrid,
+  vsmSunShadowMask,
 } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
+import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmFarShadow.ts'
+import { sunShadowMask } from '../../lighting/distanceField/shadow/state.ts'
+import { skyOcclusionRead } from '../../lighting/distanceField/ao/state.ts'
 import { lobesHeld, rowsWearLobes } from './lobesTarget.ts'
+import { wantsContractLighting } from './lit.ts'
+import { tracesFrontLayer } from '../../lighting/reflections/settings.ts'
+import { readSingleLayerWaterSetting } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
+import { waterTraces } from '../../blend/water/waterReflection.ts'
+import { waterSeparates } from '../../blend/water/waterTargets.ts'
 import { track } from '../../lighting/deferred/compileLedger.ts'
 import { drawsLit, showsRaw } from '../../visibility/shader/shadeMode.ts'
 import { unlitLights } from '../render/captureLights.ts'
-
-/**
- * True when the image must be lit by the declared lights. False in the only unlit view: `unlit`
- * requested by the host, or `auto` on a scene with no light — there, raw albedo comes out as-is.
- *
- * The light count does not enter the decision. An explicitly requested `lit` view lights even with
- * no light: the contract then outputs black, emissives kept, and that is the right answer — a scene
- * no source lights is black. Falling back to albedo made a room bright when the host had just turned
- * off all its lights, with no blackout showing.
- */
-export function wantsContractLighting(rt: WebgpuPagesRuntime) {
-  return !rt.lights.store.unlit
-}
+import { fogReadOf } from '../render/localFogGpu.ts'
+import { volumetricLightmapOf } from '../../lighting/volumetricLightmap/frame.ts'
 
 /** Whether the image shows the lit image as the lighting draws it — a lit view that paints no raw
  *  values (`showsRaw`) —: what the air and the fog are laid over; the unlit view and the views that
@@ -51,16 +47,17 @@ export const readsAsIs = ({ vis, run }: WebgpuPagesRuntime) =>
   vis.asIsShown || !drawsLit(run.diagnostic)
 
 /** Whether the surfaces `pass` lights carry an anisotropic or clear-coat lobe: its programs then
- *  hold the lobe code. The opaque resolve's, a row's that the targets hold the lobes of; the
+ *  hold the lobe code. The opaque lit passes', a row's that the targets hold the lobes of; the
  *  translucent layers', their items' (`refreshBlendScene`). */
 function lobedFor(pass: LitPass, rt: WebgpuPagesRuntime) {
   if (pass === 'blend') return rt.blendState.lobed
   return lobesHeld(rt) && rowsWearLobes(rt)
 }
 
-/** The key a first frame of `pass` asks for, fresh: the declared lights' and the pass's lobes. */
-const keyFor = (pass: LitPass, rt: WebgpuPagesRuntime) =>
-  contractKey(rt.lights.store, true, lobedFor(pass, rt))
+/** The key a first frame of `pass` asks for, fresh: the declared lights' and the pass's lobes, the
+ *  shadow code only where a light takes a shadow (`shadowsOn`). */
+export const keyFor = (pass: LitPass, rt: WebgpuPagesRuntime) =>
+  contractKey(rt.lights.store, shadowsOn(rt), lobedFor(pass, rt))
 
 /** The lit programs prepare compiles beside the others when the image wants the contract (#1362),
  *  with bounce too when the session wants it; a failed one is said, then or later. The one it
@@ -70,12 +67,18 @@ export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
   bounce: rt.bounce.wanted,
   key: keyFor('opaque', rt),
   onFailure: (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
+  localFog: rt.setup.localFog,
 })
 
 /** What the blend programs are built with (`createWebgpuBlendPipelines`): the session's
  *  context, and the key each pass's first frame asks for, as the lit programs' (`keyFor`); a failed
  *  variant is said, the pass's twin lighting in its place; how they cut at a view's plane (the
- *  project switch, `../../gpu/core/clipDistances.ts`). */
+ *  project switch, `../../gpu/core/clipDistances.ts`) and whether they read the clouds' shade per
+ *  vertex (the project switch `cloudShadowOnTranslucent`, `../../blend/cloudVertex.ts`), how their
+ *  fragments read a light's shadow (the project switches `shadowTranslucentQuality` and
+ *  `shadowTranslucentLocalLights`, `../../lighting/direct/shadowWgsl.ts`), whether they light a
+ *  rectangle light as a rectangle (`translucentRectLights`), and whether the settings trace the
+ *  transparents' front layer (`reflectionFrontLayer`, the front stage compiled). */
 export const blendContext = (rt: WebgpuPagesRuntime) => {
   const lit = (pass: LitPass) => ({
     precompile: wantsContractLighting(rt),
@@ -83,7 +86,20 @@ export const blendContext = (rt: WebgpuPagesRuntime) => {
     onFailure: (error: unknown) =>
       rt.diag.diagnosticFailure('forward-lighting-program-failed', error),
   })
-  return { ...rt.context, lit: lit('blend'), clipping: rt.setup.clipping }
+  return {
+    ...rt.context,
+    lit: lit('blend'),
+    clipping: rt.setup.clipping,
+    cloudShade: rt.blendState.cloudShade,
+    translucentShadow: rt.setup.translucentShadow,
+    translucentRectLights: rt.setup.translucentRectLights,
+    localFog: rt.setup.localFog,
+    rasters: rt.vis.rasters,
+    frontLayer: tracesFrontLayer(rt.context),
+    waterReflects: waterTraces(rt),
+    waterSeparate: waterSeparates(rt),
+    waterSunTrace: readSingleLayerWaterSetting(rt, 'singleLayerWaterShadersSupportVsmFiltering'),
+  }
 }
 
 /**
@@ -126,7 +142,7 @@ export function litProgramPending(rt: WebgpuPagesRuntime) {
 }
 
 /**
- * At a frame's entry, the lobe code its lit passes need — the opaque resolve's where a row wears a
+ * At a frame's entry, the lobe code its lit passes need — the opaque lit passes' where a row wears a
  * lobed surface, the translucent layers' where their items carry a lobe —, asked off the frame, the frame held while none can light it (`track`):
  * never an image of a lobed surface drawn without its lobes (#1483). A pass waits for its program
  * with every code path, which lights any lobed frame (`SERVING`); its own, asked by the frame, then
@@ -135,13 +151,72 @@ export function litProgramPending(rt: WebgpuPagesRuntime) {
 export function askLobedPrograms(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (!wantsContractLighting(rt)) return
   askLightFunctionPrograms(rt, device)
-  const { vis, blendState } = rt,
-    { deferred } = rt.gpu
+  const { deferred } = rt.gpu
+  // The fog pass is asked now, the frames waiting for its compile, not at the first image it lays fog on.
+  deferred?.askFog()
   if (deferred && rowsWearLobes(rt)) track(device, deferred.awaited(FULL_CONTRACT), true)
-  if (blendState.lobed) track(device, vis.blendPipelines?.lobedAwaited(), true)
 }
 
 const contractResources: DirectLightResources = {}
+
+/** The shadow resources the deferred pass reads, none where the lighting is not the contract's. */
+function shadowResources(rt: WebgpuPagesRuntime, active: boolean) {
+  contractResources.vsmMask = active ? vsmShadowMask(rt) : undefined
+  contractResources.vsmLightGrid = active ? vsmShadowedLightGrid(rt) : undefined
+  contractResources.vsmSunMask = active ? vsmSunShadowMask(rt) : undefined
+  contractResources.farShadowMask = active ? sunShadowMask(rt) : undefined
+  contractResources.vsm = active ? vsmConsumerResources(rt) : undefined
+}
+
+/** The directional lights' ranks the sun's pass walks, and the bounce grid. */
+function bounceResources(rt: WebgpuPagesRuntime, lit: boolean) {
+  // The directional lights' ranks the sun's pass walks: none for a view whose light buffer is cleared
+  // of its lights.
+  contractResources.sunRanks = lit ? rt.lights.sunRanks : undefined
+  // The grid is named only if it exists: without it, the deferred pass compiles and binds the
+  // contract program alone, with no bounce.
+  const bounce = lit && rt.bounce.wanted ? rt.bounce.probes : undefined
+  contractResources.bounceGrid = bounce?.uniform
+}
+
+/** The sky light's cubes and harmonics, and the clouds' shade of the lights. */
+function skyResources(rt: WebgpuPagesRuntime, active: boolean) {
+  // The sky light's cubes and harmonics, and the clouds' shade of the lights: the stand-ins give none.
+  contractResources.sky = active && rt.gpu.device ? skyLightReadOf(rt) : undefined
+  contractResources.cloudShadow = active ? cloudShadowOf(rt) : undefined
+}
+
+/** The fog's cubemap and volume, and the haze the air built this image. */
+function fogResources(rt: WebgpuPagesRuntime, active: boolean) {
+  // What the fog's cubemap and volume this image built are read through (`encodeFogVolume`).
+  contractResources.fog = active ? fogReadOf(rt) : undefined
+  // The volume of the haze the air built this image, which the fog pass samples (`hazeSampledWgsl`).
+  contractResources.haze = active ? rt.gpu.atmosphere?.hazeVolume : undefined
+}
+
+/** What the lit view reads of the passes before it: light shafts, light functions, screen probes,
+ *  ambient occlusion, volumetric lightmap, sky occlusion. */
+function litPassResources(rt: WebgpuPagesRuntime, lit: boolean) {
+  // The light shafts' occlusion mask the fog is multiplied by (`../../modules/sky/lightShafts/frame.ts`).
+  contractResources.lightShaft = lit ? rt.gpu.lightShafts?.mask : undefined
+  // The light functions' atlas and table (`../../lighting/lightFunction/frame.ts`).
+  contractResources.lightFunction = lit
+    ? lightFunctionResources(rt, 'lightFunctionDeferred')
+    : undefined
+  // What the screen probes left of the pixels' indirect light this image (`../../lighting/bounce/screen/frame.ts`).
+  contractResources.screenIndirect = lit ? rt.gpu.screenProbes?.indirect : undefined
+  // The ambient occlusion this image drew (`../../lighting/ao/frame.ts`).
+  contractResources.ambientOcclusion = lit ? rt.gpu.ambientOcclusion?.output : undefined
+  // The volumetric lightmap, where the scene has one and the setting reads it
+  // (`../../lighting/deferred/volumetricLightPass.ts`).
+  contractResources.volumetricLightmap =
+    lit && rt.gpu.device ? volumetricLightmapOf(rt, rt.gpu.device) : undefined
+  // The sky light's distance-field occlusion this image drew (`../render/encodeSkyOcclusion.ts`): the program that applies it.
+  contractResources.skyShadowing = lit ? skyOcclusionRead(rt) : undefined
+}
+
+/** The resources the last `directLightResources` of the frame resolved: the one object, as it stands. */
+export const heldDirectLightResources = () => contractResources
 
 /**
  * Contract resources the deferred pass binds, or nothing when they do not exist. Each is returned as
@@ -157,40 +232,24 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
     lit = active && rt.views.active.overrides.lighting
   contractResources.lights = active && !lit ? unlitLights(rt) : lights.buffer
   contractResources.tiles = lit ? lights.tiles?.buffer : undefined
+  // The lights the sun's pass and the local lights' pass walk: none for a view whose light buffer is
+  // cleared of its lights.
+  contractResources.suns = lit ? lights.store.suns : 0
+  contractResources.locals = lit ? lights.store.locals : 0
   // The narrow resolve reads the narrow pass's lists (#849); a scene with no declared shadow, or
   // no rectangle, resolves without that code (#1249, #1369): all read off stable state.
   if (active) {
     // Lobe code while the targets hold the lobes of a surface that carries one (`physicalLobes.ts`).
-    const shadowed = !!lights.pageLayout || !!lights.vsm
+    const shadowed = shadowsOn(rt) && (!!lights.pageLayout || !!lights.vsm)
     contractKey(lights.store, shadowed, lobedFor('opaque', rt), contractResources)
     contractResources.narrow &&= !!lights.tiles
   } else Object.assign(contractResources, FULL_CONTRACT)
-  contractResources.vsmMask = active ? vsmShadowMask(rt) : undefined
-  contractResources.vsmMaskTiles = active ? vsmShadowMaskTiles(rt) : undefined
-  contractResources.vsmTransmission = active ? vsmTransmissionView(rt) : undefined
-  contractResources.vsmThrough = active ? vsmShadowThrough(rt) : undefined
-  contractResources.vsm = active ? vsmConsumerResources(rt) : undefined
-  // The grid is bound only if it exists: without it, the deferred pass compiles and binds the
-  // contract program alone, exactly the one from before the bounce lot.
-  const bounce = lit && rt.bounce.wanted ? rt.bounce.probes : undefined
-  contractResources.bounceGrid = bounce?.uniform
-  contractResources.probes = bounce?.probes
-  // The sky light's cubes and harmonics, and the clouds' shade of the lights: the stand-ins give none.
-  contractResources.sky = active && rt.gpu.device ? skyLightReadOf(rt) : undefined
-  contractResources.cloudShadow = active ? cloudShadowOf(rt) : undefined
+  shadowResources(rt, active)
+  bounceResources(rt, lit)
+  skyResources(rt, active)
   // The share of the radiance the opaque trace wrote this image (`../../lighting/reflections/frame.ts`).
   contractResources.reflection = lit ? rt.gpu.reflection?.targetView : undefined
-  // What the fog's cubemap and volume this image built are read through (`encodeFogVolume`).
-  contractResources.fog = active ? rt.gpu.fogVolume?.read : undefined
-  // The light shafts' occlusion mask the fog is multiplied by (`../../modules/sky/lightShafts/frame.ts`).
-  contractResources.lightShaft = lit ? rt.gpu.lightShafts?.mask : undefined
-  // The light functions' atlas and table (`../../lighting/lightFunction/frame.ts`).
-  contractResources.lightFunction = lit
-    ? lightFunctionResources(rt, 'lightFunctionDeferred')
-    : undefined
-  // What the screen probes left of the pixels' indirect light this image (`../../lighting/bounce/screen/frame.ts`).
-  contractResources.screenIndirect = lit ? rt.gpu.screenProbes?.indirect : undefined
-  // The ambient occlusion this image drew (`../../lighting/ao/frame.ts`).
-  contractResources.ambientOcclusion = lit ? rt.gpu.ambientOcclusion?.output : undefined
+  fogResources(rt, active)
+  litPassResources(rt, lit)
   return contractResources
 }

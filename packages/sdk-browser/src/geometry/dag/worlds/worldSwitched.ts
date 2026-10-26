@@ -13,9 +13,32 @@ import type { PackedDag } from '../types.ts'
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import { ACTOR_ROW, CELL_DRAW, LINK_WORDS, type PackedWorld } from './worldLinks.ts'
 
+/** Each cell's world ranks, its actor's pages. */
+function ranksByCell({ cells, hlod }: PackedWorld) {
+  const ranks: number[][] = Array.from({ length: cells }, () => [])
+  hlod.forEach((cell, rank) => ranks[cell].push(rank))
+  return ranks
+}
+
+/** Whether placement `w` draws as its file's and its cell's words stand, 1 or 0: one in neither
+ *  is never switched — parked, or always drawn —, 0; a row of a cell's actor (`ACTOR_ROW`) draws
+ *  as its cell draws that actor, never in an instance not packed. The host's twin of the
+ *  shaders' `linkDraws` (`../shader/worldGateWgsl.ts`). */
+function draws({ links, states, files, cells }: PackedWorld, w: number) {
+  const at = w * LINK_WORDS,
+    h = links[at],
+    k = links[at + 1],
+    f = links[at + 2]
+  if (h !== NO_INDEX && h & ACTOR_ROW)
+    return k !== NO_INDEX && states[k * cells + (h & ~ACTOR_ROW)] & CELL_DRAW.hlod ? 1 : 0
+  let word = f === NO_INDEX ? 0 : files[f]
+  if (h !== NO_INDEX) word |= states[k * cells + h]
+  return word & CELL_DRAW.placements ? 1 : 0
+}
+
 /** The pages `packed`'s `world` switches moved, followed. */
 export function createSwitchedPages(packed: PackedDag, world: PackedWorld) {
-  const { links, states, files, hlod, roots, cells, rowsOf } = world
+  const { links, roots, cells, rowsOf } = world
   const slots = links.length / LINK_WORDS
   /** Per cell slot, whether its actor's drawing moved since the last walk, and the slots so
    *  marked. */
@@ -27,26 +50,6 @@ export function createSwitchedPages(packed: PackedDag, world: PackedWorld) {
   let ranksOf: number[][] | undefined, drew: Uint8Array | undefined
   /** Whether a placement's word moved since the last walk. */
   let placementsMoved = false
-  const ranksByCell = () => {
-    const ranks: number[][] = Array.from({ length: cells }, () => [])
-    hlod.forEach((cell, rank) => ranks[cell].push(rank))
-    return ranks
-  }
-  /** Whether placement `w` draws as its file's and its cell's words stand, 1 or 0: one in neither
-   *  is never switched — parked, or always drawn —, 0; a row of a cell's actor (`ACTOR_ROW`) draws
-   *  as its cell draws that actor, never in an instance not packed. The host's twin of the
-   *  shaders' `linkDraws` (`../shader/worldGateWgsl.ts`). */
-  const draws = (w: number) => {
-    const at = w * LINK_WORDS,
-      h = links[at],
-      k = links[at + 1],
-      f = links[at + 2]
-    if (h !== NO_INDEX && h & ACTOR_ROW)
-      return k !== NO_INDEX && states[k * cells + (h & ~ACTOR_ROW)] & CELL_DRAW.hlod ? 1 : 0
-    let word = f === NO_INDEX ? 0 : files[f]
-    if (h !== NO_INDEX) word |= states[k * cells + h]
-    return word & CELL_DRAW.placements ? 1 : 0
-  }
   return {
     /** Cell slot `at`'s word moved by the bits `moved` (`CELL_DRAW`): an actor that places rows
      *  moves them too. */
@@ -68,14 +71,14 @@ export function createSwitchedPages(packed: PackedDag, world: PackedWorld) {
         actorMoved[at] = 0
         const cell = at % cells,
           w = roots[(at - cell) / cells]
-        for (const rank of (ranksOf ??= ranksByCell())[cell]) visit(w, rank)
+        for (const rank of (ranksOf ??= ranksByCell(world))[cell]) visit(w, rank)
       }
       actorSlots.length = 0
       if (!placementsMoved) return
       placementsMoved = false
       const before = (drew ??= new Uint8Array(slots))
       for (let w = 0; w < slots; w++) {
-        const now = draws(w)
+        const now = draws(world, w)
         if (before[w] === now) continue
         before[w] = now
         for (let rank = 0; rank < packed.cutLinks[w].pageCount; rank++) visit(w, rank)

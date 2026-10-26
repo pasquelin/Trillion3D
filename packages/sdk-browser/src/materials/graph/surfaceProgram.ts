@@ -2,7 +2,8 @@ import type { MaterialGraph } from '../../../../sdk-core/src/world/material/grap
 import type { GraphBlend } from '../../../../sdk-core/src/world/material/graph/outputs.ts'
 import { TILE_REQUEST_WGSL } from '../virtual/requestWgsl.ts'
 import { COLOR_SAMPLE_WGSL } from '../virtual/wgsl.ts'
-import { compileGraph, type CompileOptions, type CompiledGraph } from './compile.ts'
+import { compileGraph, readingKey, type CompileOptions, type CompiledGraph } from './compile.ts'
+import { compileKept, isRefusal, type GraphRefusal } from './kept.ts'
 
 /**
  * A SURFACE'S GRAPH COMPILED for the pass that shades it: the opaque resolve (`resolve`; its mask is
@@ -25,57 +26,42 @@ export interface SurfaceProgram {
   readonly id: number
 }
 
-/** A graph the pass could not compile, with the error's words: its surface is drawn from its
- *  parameters, as a surface with no graph is. */
-export interface GraphRefusal {
-  readonly error: string
-}
-
-/** What a surface says of how its graph is compiled: its blend, and whether it transmits. */
+/** What a surface says of how its graph is compiled: its blend, whether it transmits, whether it is
+ *  lit and whether its emission may be negative. */
 export interface GraphSurface {
   readonly graph?: MaterialGraph
-  readonly transparent: boolean
-  readonly alphaTest: number
+  readonly transparent?: boolean
   readonly transmission?: number
+  readonly water?: boolean
+  readonly lit?: boolean
+  readonly allowNegativeEmissive?: boolean
+  /** Whether its graph's `shadingModel` output decides its pixels' model (the material says `fromMaterialExpression`); unsaid, it does. */
+  readonly modelFromGraph?: boolean
 }
 
 type Entry = SurfaceProgram | GraphRefusal
-/** What was compiled of a graph, by kind, and the shape and blend it was compiled at. */
-const kept = new WeakMap<MaterialGraph, Map<string, { shape: number; entry: Entry }>>()
-/** The distinct programs of each kind, by the text they compile to (`ids`), the first of each kept. */
+/** The distinct programs of each kind, by the whole text they compile to (`CompiledGraph.key`: no
+ *  collision of a hash can make two of one), the first of each kept. */
 const ids = { resolve: new Map<string, number>(), blend: new Map<string, number>() }
 const known = { resolve: [] as SurfaceProgram[], blend: [] as SurfaceProgram[] }
-/** The refusals made since they were last taken, once each (`takeGraphRefusals`). */
-const refused: string[] = []
 
 /** Whether `entry` is a program, not a refusal. */
 export const isProgram = (entry: Entry | undefined): entry is SurfaceProgram =>
-  !!entry && 'compiled' in entry
+  !!entry && !isRefusal(entry)
 
 /** Which pass shades `surface`: the transparent pass for a blended surface or one that transmits
  *  (`blendedSurface`, `../table/materialSummary.ts`), the opaque resolve otherwise. */
-export const kindOf = (surface: Pick<GraphSurface, 'transparent' | 'transmission'>): ProgramKind =>
-  surface.transparent || (surface.transmission ?? 0) > 0 ? 'blend' : 'resolve'
+const kindOf = (
+  surface: Pick<GraphSurface, 'transparent' | 'transmission' | 'water'>,
+): ProgramKind =>
+  surface.transparent || (surface.transmission ?? 0) > 0 || surface.water ? 'blend' : 'resolve'
 
-/** The blend a surface's graph is read under: the opacity only where it blends (`alphaModeOf`). */
-const blendOf = (surface: GraphSurface, kind: ProgramKind): GraphBlend =>
-  kind === 'blend' && surface.transparent ? 'blend' : 'opaque'
-
-/** The graph compiled for `kind`; in the transparent pass its declarations are named by the text's
- *  own hash, so that the programs of one module are apart. */
-function compileFor(graph: MaterialGraph, kind: ProgramKind, blend: GraphBlend) {
-  const options: CompileOptions = {
-    sample: COLOR_SAMPLE_WGSL,
-    derivatives: 'neighbours',
-    request: TILE_REQUEST_WGSL,
-    blend,
-  }
-  const plain = compileGraph(graph, options)
-  if (kind === 'resolve') return { compiled: plain, key: plain.hash }
-  return {
-    compiled: compileGraph(graph, { ...options, suffix: `_${plain.hash}` }),
-    key: plain.hash,
-  }
+/** The blend a surface's graph is read under: the opacity only where it blends (`alphaModeOf`), the
+ *  mask only where the opaque resolve's surface wires one — it is then a masked surface, cut by the
+ *  rasters (`maskProgram.ts`). */
+const blendOf = (surface: GraphSurface, kind: ProgramKind): GraphBlend => {
+  if (kind === 'blend') return surface.transparent ? 'blend' : 'opaque'
+  return surface.graph?.outputs.opacityMask ? 'mask' : 'opaque'
 }
 
 /** The id of the program `key` of `kind`, taken at the first ask. */
@@ -88,6 +74,30 @@ function idOf(kind: ProgramKind, key: string, make: (id: number) => SurfaceProgr
   return known[kind][id - 1]
 }
 
+/** How a surface's graph is compiled besides the pass: what its surface says (`GraphSurface`). */
+type Reading = Required<
+  Pick<CompileOptions, 'blend' | 'lit' | 'translucent' | 'negativeEmissive' | 'modelFromGraph'>
+>
+
+/** The graph compiled for `kind`, once: in the transparent pass its declarations are named by the
+ *  text's own hash, so that the programs of one module are apart. */
+function compileFor(graph: MaterialGraph, kind: ProgramKind, reading: Reading): Entry {
+  const options: CompileOptions = {
+    sample: COLOR_SAMPLE_WGSL,
+    derivatives: 'neighbours',
+    request: TILE_REQUEST_WGSL,
+    ...reading,
+    named: kind === 'blend',
+    // The resolve and the offset carry the vertex colour (`shadeGraphWgsl.ts`, `wpoGraphWgsl.ts`); the
+    // transparent pass's fragment has no varying for it (`../../blend/vertexWgsl.ts`).
+    vertexColor: kind === 'resolve',
+  }
+  const compiled = compileGraph(graph, options)
+  // The values are this graph's; the program is the first graph's of the same text.
+  const shared = idOf(kind, compiled.key, (id) => ({ kind, compiled, graph, id }))
+  return { kind, compiled, graph, id: shared.id }
+}
+
 /**
  * The program a surface's graph compiles to for `kind` — the pass that shades it, `kindOf` by
  * default —, once for each shape of the graph — a value written to a parameter compiles nothing
@@ -97,29 +107,17 @@ function idOf(kind: ProgramKind, key: string, make: (id: number) => SurfaceProgr
 export function programOf(surface: GraphSurface, kind = kindOf(surface)): Entry | undefined {
   const { graph } = surface
   if (!graph) return undefined
-  const blend = blendOf(surface, kind),
-    slot = `${kind}:${blend}`
-  let held = kept.get(graph)
-  if (!held) kept.set(graph, (held = new Map()))
-  const last = held.get(slot)
-  if (last?.shape === graph.shape) return last.entry
-  let entry: Entry
-  try {
-    const { compiled, key } = compileFor(graph, kind, blend)
-    const shared = idOf(kind, key, (id) => ({ kind, compiled, graph, id }))
-    // The values are this graph's; the program is the first graph's of the same text.
-    entry = { kind, compiled, graph, id: shared.id }
-  } catch (error) {
-    entry = { error: error instanceof Error ? error.message : String(error) }
-    refused.push(entry.error)
+  const reading: Reading = {
+    blend: blendOf(surface, kind),
+    lit: surface.lit !== false,
+    translucent: kind === 'blend',
+    negativeEmissive: surface.allowNegativeEmissive === true,
+    modelFromGraph: surface.modelFromGraph !== false,
   }
-  held.set(slot, { shape: graph.shape, entry })
-  return entry
+  const key = `${kind}:${reading.blend}:${readingKey(reading)}`
+  return compileKept(graph, key, () => compileFor(graph, kind, reading))
 }
 
 /** The programs of `kind` among those known, by id: what a module of the transparent pass holds the
  *  functions of. */
 export const programsOf = (kind: ProgramKind): readonly SurfaceProgram[] => known[kind]
-
-/** The refusals made since the last call: what the frame names once (`material-graph-refused`). */
-export const takeGraphRefusals = () => refused.splice(0)

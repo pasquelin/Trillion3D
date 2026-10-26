@@ -55,10 +55,18 @@ fn ray_aabb_meets_the_box_ahead_and_misses_beside_behind_and_past_the_limit() {
         diagonal,
         10.0
     ));
-    // Along a face, its direction zero across it: the bound through the origin gives `0 · ∞`, a
-    // NaN that `min` and `max` pass over, so the other bound's infinite distance is both the
-    // nearer and the farther, and the ray misses.
-    assert!(!ray_aabb(low, high, [0.0, 1.0, 0.0], along, 10.0));
+    // Along a face, its direction zero across it: the origin on the face is between the sides,
+    // inclusive, so the ray meets the box; one past it misses.
+    assert!(ray_aabb(low, high, [0.0, 1.0, 0.0], along, 10.0));
+    assert!(!ray_aabb(low, high, [0.0, 1.0 + 1e-9, 0.0], along, 10.0));
+    // A ray along y from (9, -1) meets the box [8, 10] x [0, 1] at t = 1 / 3.7596.
+    let (low, high) = ([8.0, 0.0, -1.0], [10.0, 1.0, 1.0]);
+    let up = inverse([0.0, 3.7596, 0.0]);
+    assert_eq!(
+        ray_span((low, high), ([9.0, -1.0, 0.0], up), (0.0, 1.0)),
+        Some(1.0 / 3.7596)
+    );
+    assert_eq!(inverse([0.0, -0.0, 1e-30]), [f64::INFINITY; 3]);
 }
 
 #[test]

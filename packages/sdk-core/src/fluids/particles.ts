@@ -7,11 +7,13 @@
  * step never reads the origin; drawing adds it back.
  */
 import { GRAVITY_PRESETS } from '../physics/options.ts'
+import type { TranslucencyPass } from '../world/constants/index.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 
-/** Floats of one particle and of one emission record, the same eight words: position from the
- *  origin then age, velocity then lifetime. A record's age is zero: the GPU copies it as it is. */
-export const PARTICLE_FLOATS = 8
+/** Floats of one particle and of one emission record, the same sixteen words: position from the
+ *  origin then age, velocity then lifetime, half width and half height then rotation (and a word
+ *  left at 0), colour and opacity at birth. A record's age is zero: the GPU copies it as it is. */
+export const PARTICLE_FLOATS = 16
 /** The largest pool the ring's 32-bit slot arithmetic holds; the device bounds it below that, by
  *  the storage buffer its state takes (the renderer refuses a pool past it, `PARTICLE_CAPACITY`). */
 const MAX_CAPACITY = 2 ** 31
@@ -35,12 +37,31 @@ export interface ParticlePoolSpec {
   origin?: readonly [number, number, number]
   /** How the particles blend; `additive` by default. */
   blend?: ParticleBlend
-  /** Linear colour and opacity at birth, fading to nothing at death; a warm white by default. */
+  /** Linear colour and opacity of a particle born with none of its own (`ParticleLook`); a warm
+   *  white by default. */
   color?: readonly [number, number, number, number]
-  /** A particle's radius, metres; 0.1 by default. */
+  /** Radius of a particle born with none of its own, metres; 0.1 by default. */
   size?: number
-  /** Metres over which a particle fades before the surface behind it; its `size` by default. */
+  /** What the colour and the opacity are multiplied by at death, from 1 at birth, linearly with
+   *  the age; `[1, 1, 1, 1]`, no change, by default. */
+  fade?: readonly [number, number, number, number]
+  /** Metres over which a particle fades before the surface behind it, along the view's depth; its
+   *  `size` by default. */
   softness?: number
+  /** The pass of the image the pool is drawn in (`Material.translucencyPass`); after the depth of
+   *  field, apart from the scene, by default; `'afterMotionBlur'` lays it over the image after the
+   *  temporal anti-aliasing and the motion blur. */
+  translucencyPass?: TranslucencyPass
+}
+
+/** What a particle is born with besides its motion, each left out for the pool's. */
+export interface ParticleLook {
+  /** Half width and half height of its sprite, metres: one number for both. */
+  size?: number | readonly [number, number]
+  /** Radians the sprite is turned clockwise on the screen. */
+  rotation?: number
+  /** Linear colour and opacity at birth. */
+  color?: readonly [number, number, number, number]
 }
 
 /** One image's step: `count` records land from ring slot `first`, then live ones move `dt` s. */
@@ -55,7 +76,9 @@ export class ParticlePool {
   readonly blend: ParticleBlend
   readonly color: Float32Array
   readonly size: number
+  readonly fade: Float32Array
   readonly softness: number
+  readonly translucencyPass: TranslucencyPass
   /** The staged records, `emitPerFrame` of them, read by the renderer up to `step.count`. */
   readonly staging: Float32Array<ArrayBuffer>
   /** Records staged since creation, and those refused: the image's staging full, or the pool
@@ -72,7 +95,7 @@ export class ParticlePool {
 
   constructor(spec: ParticlePoolSpec) {
     const { capacity, emitPerFrame, acceleration, origin, blend = 'additive' } = spec,
-      { color = [1, 0.8, 0.5, 1], size = 0.1, softness = size } = spec
+      { color = [1, 0.8, 0.5, 1], size = 0.1, softness = size, fade = [1, 1, 1, 1] } = spec
     const perFrame = emitPerFrame ?? clamp(Math.floor(capacity / 16), 256, capacity)
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > MAX_CAPACITY)
       throw new Error(`PARTICLE_CAPACITY: a pool holds 1 to ${MAX_CAPACITY} particles`)
@@ -82,7 +105,7 @@ export class ParticlePool {
       throw new Error(`PARTICLE_BLEND: a pool blends as ${PARTICLE_BLENDS.join(' or ')}`)
     if (!(size > 0) || !(softness > 0))
       throw new Error('PARTICLE_SIZE: a particle has a positive size and softness')
-    if (color.length !== 4 || !color.every(Number.isFinite))
+    if (![color, fade].every((four) => four.length === 4 && four.every(Number.isFinite)))
       throw new Error('PARTICLE_COLOR: a colour is four finite numbers, linear RGB and opacity')
     this.capacity = capacity
     this.emitPerFrame = perFrame
@@ -91,13 +114,24 @@ export class ParticlePool {
     this.staging = new Float32Array(perFrame * PARTICLE_FLOATS)
     this.blend = blend
     this.color = Float32Array.from(color)
+    this.fade = Float32Array.from(fade)
     this.size = size
     this.softness = softness
+    this.translucencyPass = spec.translucencyPass ?? 'afterDepthOfField'
   }
 
-  /** Stages one particle at world position `x, y, z`, born at the next image; false, and
-   *  counted, when the image's staging is full. */
-  emit(x: number, y: number, z: number, vx: number, vy: number, vz: number, lifetime: number) {
+  /** Stages one particle at world position `x, y, z`, born at the next image, with its `look`
+   *  where it has one; false, and counted, when the image's staging is full. */
+  emit(
+    x: number,
+    y: number,
+    z: number,
+    vx: number,
+    vy: number,
+    vz: number,
+    lifetime: number,
+    look?: ParticleLook,
+  ) {
     if (this.refused || this.staged === this.emitPerFrame) {
       this.dropped++
       return false
@@ -113,6 +147,11 @@ export class ParticlePool {
     words[at + 5] = vy
     words[at + 6] = vz
     words[at + 7] = lifetime
+    const size = look?.size ?? this.size
+    words[at + 8] = typeof size === 'number' ? size : size[0]
+    words[at + 9] = typeof size === 'number' ? size : size[1]
+    words[at + 10] = look?.rotation ?? 0
+    words.set(look?.color ?? this.color, at + 12)
     this.liveFor = Math.max(this.liveFor, lifetime + MAX_STEP)
     this.emitted++
     return true

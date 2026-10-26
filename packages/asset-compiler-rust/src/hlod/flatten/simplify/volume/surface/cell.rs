@@ -5,21 +5,9 @@
 use super::super::tree::{local, offset, shift, Coord, Leaf, Tree, LEAF_SIDE};
 use super::cases::SADDLE_FACE;
 use super::sheets::SHEETS;
+use crate::hlod::flatten::approximate::marching::CELL_CORNERS;
 use trillion3d_math::vector::vec3::unit_where;
 use trillion3d_math::vector::vecn::{add, scale};
-
-/// A cell's corners as steps from its voxel, numbered as the sign bits and the tables number them:
-/// the four at the voxel's `y` in turn — the voxel, `+x`, `+x+z`, `+z` —, then the four above.
-pub(super) const CELL_CORNERS: [Coord; 8] = [
-    [0, 0, 0],
-    [1, 0, 0],
-    [1, 0, 1],
-    [0, 0, 1],
-    [0, 1, 0],
-    [1, 1, 0],
-    [1, 1, 1],
-    [0, 1, 1],
-];
 
 /// A cell's twelve edges in the tables' order, each its two corners — the lower first along the
 /// axis it runs — and that axis.

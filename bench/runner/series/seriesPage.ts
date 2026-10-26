@@ -30,9 +30,8 @@ export function measurePayload(
     engineId: ENGINE.id,
     // Modules the page imports by URL.
     modulesUrl: '/runner/',
-    // The engine measurement page, and the source it loads when it is not the cache.
+    // The engine measurement page.
     page: ENGINE.page,
-    gltfUrl: side.sourceUrl ?? null,
     pose,
     poses,
     captureFile,

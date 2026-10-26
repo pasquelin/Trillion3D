@@ -7,9 +7,18 @@ export interface IrradianceTerm {
   basis: number
   /** Cosine-lobe factor `Â_l · basis`: the term's irradiance is `L_k · band · polynomial(n)`. */
   band: number
-  /** The polynomial in the components of a unit vector named `v`, as WGSL shader text. */
-  polynomial: (v: string) => string
+  /** `basis` as the sky light's projection and the volumetric lightmap's file format write it: six
+   *  digits, signed with the real harmonics' sign (negative on the terms 1, 3, 5 and 7). */
+  contract: number
+  /** The polynomial in the components of a unit vector named `v`, as WGSL shader text. With `squares`,
+   *  the name of a vector holding the squares of `v`'s components, the terms that square a component
+   *  read it there instead of multiplying it by itself. */
+  polynomial: (v: string, squares?: string) => string
 }
+
+/** The square of component `axis` of `v`, read from the vector `squares` of the squares when given. */
+const square = (v: string, axis: string, squares?: string) =>
+  squares ? `${squares}.${axis}` : `${v}.${axis}*${v}.${axis}`
 
 const constant = 0.2820948,
   linear = 0.4886025,
@@ -17,21 +26,48 @@ const constant = 0.2820948,
 
 /** The nine terms, in band order. */
 export const IRRADIANCE_TERMS: readonly IrradianceTerm[] = [
-  { basis: constant, band: IRRADIANCE_BAND.constant, polynomial: () => '1.0' },
-  { basis: linear, band: IRRADIANCE_BAND.linear, polynomial: (v) => `${v}.y` },
-  { basis: linear, band: IRRADIANCE_BAND.linear, polynomial: (v) => `${v}.z` },
-  { basis: linear, band: IRRADIANCE_BAND.linear, polynomial: (v) => `${v}.x` },
-  { basis: cross, band: IRRADIANCE_BAND.quadraticCross, polynomial: (v) => `${v}.x*${v}.y` },
-  { basis: cross, band: IRRADIANCE_BAND.quadraticCross, polynomial: (v) => `${v}.y*${v}.z` },
+  { basis: constant, contract: 0.282095, band: IRRADIANCE_BAND.constant, polynomial: () => '1.0' },
+  {
+    basis: linear,
+    contract: -0.488603,
+    band: IRRADIANCE_BAND.linear,
+    polynomial: (v) => `${v}.y`,
+  },
+  { basis: linear, contract: 0.488603, band: IRRADIANCE_BAND.linear, polynomial: (v) => `${v}.z` },
+  {
+    basis: linear,
+    contract: -0.488603,
+    band: IRRADIANCE_BAND.linear,
+    polynomial: (v) => `${v}.x`,
+  },
+  {
+    basis: cross,
+    contract: 1.092548,
+    band: IRRADIANCE_BAND.quadraticCross,
+    polynomial: (v) => `${v}.x*${v}.y`,
+  },
+  {
+    basis: cross,
+    contract: -1.092548,
+    band: IRRADIANCE_BAND.quadraticCross,
+    polynomial: (v) => `${v}.y*${v}.z`,
+  },
   {
     basis: 0.3153916,
+    contract: 0.315392,
     band: IRRADIANCE_BAND.quadraticZ,
-    polynomial: (v) => `3.0*${v}.z*${v}.z-1.0`,
+    polynomial: (v, squares) => `3.0*${square(v, 'z', squares)}-1.0`,
   },
-  { basis: cross, band: IRRADIANCE_BAND.quadraticCross, polynomial: (v) => `${v}.x*${v}.z` },
+  {
+    basis: cross,
+    contract: -1.092548,
+    band: IRRADIANCE_BAND.quadraticCross,
+    polynomial: (v) => `${v}.x*${v}.z`,
+  },
   {
     basis: 0.5462742,
+    contract: 0.546274,
     band: IRRADIANCE_BAND.quadraticDifference,
-    polynomial: (v) => `${v}.x*${v}.x-${v}.y*${v}.y`,
+    polynomial: (v, squares) => `${square(v, 'x', squares)}-${square(v, 'y', squares)}`,
   },
 ]

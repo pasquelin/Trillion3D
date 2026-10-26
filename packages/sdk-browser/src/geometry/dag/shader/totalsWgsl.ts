@@ -7,8 +7,8 @@ import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
  * Triangle totals of a frame, held BY THE GPU.
  *
  * The CPU sums none: that would require it to know the cut — the whole list, reported frame after
- * frame. They are accumulated where the verdict is given, in `dagMask`, the only kernel that
- * knows what a frame draws.
+ * frame. They are accumulated where the verdict is given, in `dagWanted` (`wantedWgsl.ts`), the only
+ * kernel that knows what a frame draws.
  *
  * They are taken on the set the cut rule draws (`../../cut/rule.ts`): `selected`, the
  * triangles it draws — no cluster the rule draws can lack its bytes, so the readout copies it as

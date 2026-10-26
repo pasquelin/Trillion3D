@@ -53,6 +53,10 @@ export type WebgpuTileAtlas = {
    *  refusal. Residency is decided BEFORE reading a level: a pool full for the view launches no
    *  read for a tile it would then refuse. */
   roomFor(slot: number): boolean
+  /** The lanes that refused an arrival since this was last asked — every place of the pool read of
+   *  late —, forgotten as they are read: where the pool is short of places and grows
+   *  (`../../../frame/io/memory.ts`, `followTexturePressure`). */
+  takePressure(): readonly PoolLane[]
   /** Level that serves a tile today: its own, an ancestor, or the tail. */
   servedLevel(key: TileKey): number
   /** Sends the table's changed words and the places' that arrived or left. */

@@ -4,6 +4,8 @@
  * read them (`./screenProbeOptions.ts`).
  */
 
+import type { SurfaceCacheOptions } from '../contracts/surfaceCacheOptions.ts'
+
 /** The levels, `'off'` first, then from the coarsest to the finest. */
 export const SCREEN_PROBE_LEVELS = ['off', 'low', 'high', 'ultra', 'cinematic'] as const
 /** A level of the screen probes. */
@@ -11,17 +13,18 @@ export type ScreenProbeLevel = (typeof SCREEN_PROBE_LEVELS)[number]
 /** The level of a view that names none. */
 export const DEFAULT_SCREEN_PROBE_LEVEL: CastingLevel = 'ultra'
 
-/** The levels that cast screen probes: `'off'` lights nothing, `'low'` reads the world's probes with the short-range occlusion. */
+/** The levels that cast screen probes: `'off'` lights nothing, `'low'` takes the sky light's irradiance under the short-range occlusion. */
 export type CastingLevel = Exclude<ScreenProbeLevel, 'off' | 'low'>
 
 /** What each quality level below the top writes of the level, the reference's own scalability levels: the lowest
  *  lights nothing (the bounce is off, as its first row has no diffuse global illumination), the second reads the
  *  world's probes under the short-range occlusion, the third is `high` (`runtime/qualityLevels.ts`); `max` writes
- *  nothing, the default `ultra`. */
+ *  nothing, the default `ultra`; `cinematic` is the level of its own name, the reference's fifth row. */
 export const SCREEN_PROBE_PRESET_LEVELS = {
   smooth: { screenProbes: 'off', bounce: false },
   balanced: { screenProbes: 'low' },
   fine: { screenProbes: 'high' },
+  cinematic: { screenProbes: 'cinematic' },
 } as const
 
 /** How a probe's light is kept for the pixels that read it: nine spherical-harmonic coefficients, or an
@@ -32,7 +35,7 @@ type IrradianceFormat = 'sh3' | 'octahedral'
 export const IRRADIANCE_PROBE_SIDE = 6
 
 /** What a level holds of the short-range occlusion, every level above `'off'`. */
-export type OcclusionKnobs = {
+type OcclusionKnobs = {
   /** The short-range occlusion's reduction: 1 at the image's size, 2 at half. */
   occlusionDownsample: number
   /** Whether the horizon search reads the depth pyramid's first level rather than the depth itself. */
@@ -41,12 +44,13 @@ export type OcclusionKnobs = {
   occlusionForegroundPower: number
   /** The slices of the horizon search a pixel makes. */
   occlusionSlices: number
-  /** Whether the occlusion keeps a direction, the bent normal, beside its amount. */
+  /** Whether the occlusion keeps a direction, the bent normal, beside its amount: the pass writes it, the temporal pass accumulates
+   *  it and the lighting reads the specular occlusion from it (a row of each level). */
   bentNormal: boolean
 }
 
 /** What a level that casts probes holds beside it. */
-export type GatherKnobs = {
+type GatherKnobs = {
   /** Pixels along the side of a probe's tile. */
   downsampleFactor: number
   /** Samples of a tile an adaptive probe may be placed on, a count. */
@@ -58,14 +62,15 @@ export type GatherKnobs = {
   stochasticInterpolation: boolean
   /** How far, in tiles, the probes a pixel reads are jittered. */
   jitterWidth: number
-  /** Whether the level lets a probe's ray be traced against the scene's detail (`screenProbeMeshTraces`
-   *  turns it on over a level that allows it). */
-  meshTraces: boolean
   /** Texels along the side of a world probe's radiance map (the radiance cache): the probe traces this side squared rays
    *  at most, half that side where nothing asks for more. */
   radianceProbeResolution: number
   /** Probes of the radiance cache traced an image, before the update speed scales it. */
   radianceProbeBudget: number
+  /** Whether a pixel of a thin double-sided sheet that transmits light gathers the light along its backface
+   *  (a row of each level; `screenProbeTwoSidedFoliageBackfaceDiffuse`
+   *  turns it off over a level that allows it): else its back takes the sky light's irradiance. */
+  backfaceDiffuse: boolean
 }
 
 /** What a level holds. */
@@ -95,9 +100,9 @@ export const SCREEN_PROBE_LEVEL_KNOBS: Readonly<Record<CastingLevel, LevelKnobs>
     occlusionForegroundPower: 1.5,
     occlusionSlices: 2,
     bentNormal: false,
-    meshTraces: false,
     radianceProbeResolution: 16,
     radianceProbeBudget: 100,
+    backfaceDiffuse: false,
   },
   ultra: {
     downsampleFactor: 16,
@@ -111,9 +116,9 @@ export const SCREEN_PROBE_LEVEL_KNOBS: Readonly<Record<CastingLevel, LevelKnobs>
     occlusionForegroundPower: 1,
     occlusionSlices: 2,
     bentNormal: true,
-    meshTraces: true,
     radianceProbeResolution: 32,
     radianceProbeBudget: 150,
+    backfaceDiffuse: true,
   },
   cinematic: {
     downsampleFactor: 8,
@@ -127,10 +132,45 @@ export const SCREEN_PROBE_LEVEL_KNOBS: Readonly<Record<CastingLevel, LevelKnobs>
     occlusionForegroundPower: 1,
     occlusionSlices: 2,
     bentNormal: true,
-    meshTraces: true,
     radianceProbeResolution: 32,
     radianceProbeBudget: 350,
+    backfaceDiffuse: true,
   },
+}
+
+/**
+ * What each level of the global illumination holds of the surface cache's settings (`../contracts/surfaceCacheOptions.ts`), the
+ * reference's scalability rows: the settings' own defaults are the `'ultra'` row, `'cinematic'` holds the same, `'high'` a smaller
+ * atlas and cards, fewer lights a tile, a slower update and coarser, fewer radiosity probes, and `'low'` — which reads the world's
+ * probes — a still smaller atlas at half the cards' density and resolution; `'off'` lights nothing with it and holds none. A setting
+ * a host names keeps its value over the row (`resolveSurfaceCacheSettings`).
+ */
+export const SURFACE_CACHE_LEVEL_ROWS: Readonly<Record<ScreenProbeLevel, SurfaceCacheOptions>> = {
+  off: {},
+  low: {
+    surfaceCacheAtlasSize: 2048,
+    surfaceCacheCardTexelDensityScale: 50,
+    surfaceCacheCardMinResolution: 2,
+    surfaceCacheCardMaxResolution: 256,
+    surfaceCacheDirectLightingMaxLightsPerTile: 4,
+    surfaceCacheDirectLightingUpdateFactor: 128,
+    surfaceCacheRadiosityUpdateFactor: 128,
+    surfaceCacheRadiosityProbeSpacing: 4,
+    surfaceCacheRadiosityHemisphereProbeResolution: 3,
+  },
+  high: {
+    surfaceCacheAtlasSize: 3584,
+    surfaceCacheCardTexelDensityScale: 100,
+    surfaceCacheCardMinResolution: 4,
+    surfaceCacheCardMaxResolution: 512,
+    surfaceCacheDirectLightingMaxLightsPerTile: 4,
+    surfaceCacheDirectLightingUpdateFactor: 64,
+    surfaceCacheRadiosityUpdateFactor: 128,
+    surfaceCacheRadiosityProbeSpacing: 8,
+    surfaceCacheRadiosityHemisphereProbeResolution: 3,
+  },
+  ultra: {},
+  cinematic: {},
 }
 
 /** Whether `level` casts screen probes. */

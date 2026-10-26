@@ -27,7 +27,8 @@ export function encodePrimedLayer(h: HizState, open: OpenPass, push: HizPrimedPu
   const { at, device } = h
   if (h.disposed || !at) return false
   const { layout, stage } = hizPrimedPipeline(device)
-  if (!stage.ready) return false
+  const kernel = stage.get()
+  if (!kernel) return false
   let own = held.get(h)
   if (!own) {
     const uniform = device.createBuffer({
@@ -53,6 +54,6 @@ export function encodePrimedLayer(h: HizState, open: OpenPass, push: HizPrimedPu
     })
     own.groups.set(at, group)
   }
-  encodeHizPyramid(open.pass, group, stage.get(), at.drawn.passes, at.drawn.slots)
+  encodeHizPyramid(open.pass, group, kernel, at.drawn.passes, at.drawn.slots)
   return true
 }

@@ -18,7 +18,7 @@ use super::Built;
 use crate::dag::clusters::named_by;
 use rayon::prelude::*;
 use trillion3d_page_codec::edges::{first_uses, position_key};
-use trillion3d_page_codec::{FLAG_NORMAL, FLAG_TANGENT, FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3};
+use trillion3d_page_codec::{FLAG_NORMAL, FLAG_TANGENT, UV_MASK};
 
 /// How far two unit vectors may differ on every axis and match: a normal, a tangent, a bitangent.
 const SAME_NORMAL: f32 = 2e-5;
@@ -47,7 +47,7 @@ pub(super) fn matches(built: &Built, v: usize, u: usize, (normal, texture): (f32
         match a.flag {
             FLAG_NORMAL => near(x, y, normal),
             FLAG_TANGENT => near(&x[..3], &y[..3], normal),
-            FLAG_UV | FLAG_UV1 | FLAG_UV2 | FLAG_UV3 => near(x, y, texture),
+            flag if flag & UV_MASK != 0 => near(x, y, texture),
             _ => x == y,
         }
     })

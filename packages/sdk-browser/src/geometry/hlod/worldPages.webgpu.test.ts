@@ -4,7 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { replayWrites } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { writtenBytes } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { createGpuPageCache } from '../pages/pool/pages.ts'
 import { worldPage } from './worldRootsPages.fixture.ts'
 import { opened, served } from './worldRoots.fixture.ts'
@@ -31,8 +31,15 @@ test('every page lands in a WebGPU page slot as cooked', async (t) => {
       cache = createGpuPageCache(gpu.device, source, { pageBytes, slots: 1 }),
       resident = await cache.load(address)
     assert.equal(resident.bytes, bytes, `page ${at}: its bytes in the slot`)
-    const slot = new Uint8Array(pageBytes)
-    replayWrites(slot.buffer, gpu.writes)
-    assert.deepEqual([...slot.subarray(0, bytes)], [...cooked], `page ${at}: the cook's page`)
+    // The page on disk goes to the install pass's staging whole; the pass transcodes it into its slot.
+    const staging = gpu.writes.find(
+      ({ buffer }) => buffer.label === 'Trillion3D page install staging',
+    )
+    assert.ok(staging, `page ${at}: staged`)
+    assert.deepEqual(
+      [...writtenBytes(staging).subarray(0, bytes)],
+      [...cooked],
+      `page ${at}: the cook's page`,
+    )
   }
 })

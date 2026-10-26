@@ -1,4 +1,4 @@
-import { budgetRefused, ledgerTentative } from '../../../gpu/core/deviceLedger.ts'
+import { ledgerTentative } from '../../../gpu/core/deviceLedger.ts'
 import { bytesOfBuffers } from '../../../gpu/core/tableGrowth.ts'
 
 /** The session's budget asked for a buffer of `bytes` more of the cut's tables: it throws, by its
@@ -14,11 +14,6 @@ const PAST_SHARE = 'GPU_CUT_TABLES_PAST_SHARE'
 
 /** The refusal of a cut whose tables would hold `bytes`, past its `share`: said by name. */
 const pastShare = (bytes: number, share: number) => new Error(`${PAST_SHARE}: ${bytes} > ${share}`)
-
-/** Whether `error` is a refusal `admitInto` says by name: past the cut's share, or past the
- *  session's budget (`budgetRefused`). Any other error is no refusal. */
-export const cutRefused = (error: unknown) =>
-  String(error).includes(PAST_SHARE) || budgetRefused(error)
 
 /** Bytes a ledger's labels give the cuts' tables (`CUT_LABEL`). */
 export const cutLedgerBytes = (byLabel: Readonly<Record<string, number>>) =>

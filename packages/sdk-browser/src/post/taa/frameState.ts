@@ -1,4 +1,6 @@
+import { NO_CAMERA, type CameraImage } from '../../frame/backend/state/previousCamera.ts'
 import { TAA_SAMPLES } from './jitter.ts'
+import { createFrameRing, planFrame, type FrameRing, type FrameSlices } from './historyFrames.ts'
 
 /** What the temporal pass keeps from one image to the next on the CPU side. */
 export interface TaaFrameState {
@@ -16,24 +18,32 @@ export interface TaaFrameState {
   /** Render view-projection of this image, jitter included: what the raster, shading, blend and
    *  the partition read, decided once at image entry. */
   viewProjection: Float64Array
-  /** View-projection WITHOUT jitter of the last accumulated image: what the history describes. */
-  previousViewProjection: Float64Array
-  /** The eye of that image: the camera's move since, which a point's parallax is told by. */
-  previousEye: Float64Array
+  /** The number of the last image kept (`keepImage`): the view's camera of the image before — its view-projection without
+   *  jitter and its eye, which the history describes and the camera's move since is told by — is this history's where that
+   *  is its image (`before`, `cameraSeen`); a history that skipped an image starts again, as after a cut. */
+  seen: number
+  /** The camera of the history's image, set once an image by the velocity stage (`encodeVelocity`): none, zeros, where the
+   *  history holds none. */
+  before: CameraImage
   /** The render grid that image was drawn in, `(width, height)`: the render-resolution histories'
    *  viewport (`analysis.ts`). */
   previousRender: Float64Array
   /** That image's scale (the exposure over its pre-exposure): the render-resolution histories are
    *  kept exposed, and corrected by the ratio to this image's. */
   previousExposure: number
-  /** That image's pre-exposure: the colour history holds light multiplied by it, and is brought to
-   *  this image's by the ratio (`historyRead`). */
-  previousPreExposure: number
   hasHistory: boolean
+  /** The frames the history keeps and the walk over them (`historyFrames.ts`): replaced with the
+   *  history when it is made as another shape (`resize`). */
+  ring: FrameRing
+  /** The slots the image being drawn reads and writes, planned at its entry (`planFrame`). */
+  slices: FrameSlices
+  /** The history's size over the display's per axis, 1 to 2 (`historyShape.ts`): what the sample
+   *  laws and the convergence are counted in. */
+  historyScale: number
   /** Images accumulated, the view still, since the history was last dropped (`dropTaaHistory`) or
    *  the image last moved — the camera, a placement, a deformation, the scene or its resources —:
    *  how converged a still view is (`taaConverged`). A moving history keeps fewer samples than a
-   *  still one (`HISTORY_LAWS`), so motion restarts the count. */
+   *  still one (`historySampleLaws`), so motion restarts the count. */
   accumulated: number
   /** Resources revision of the last accumulated image: another one restarts `accumulated`. */
   resourcesSeen: number
@@ -49,17 +59,14 @@ export interface TaaFrameState {
   sceneSeen: number
   /** True when the current image accumulates: rendered with jitter, resolved by the pass. */
   active: boolean
-  /** The smallest object, in percent of the screen, whose own motion this image measures
-   *  (`perObjectSize`), which the velocity stage decides once for every pass that measures it
-   *  (`encodeVelocity`); 0 leaves none out. */
-  objectSize: number
   /** Whether this image draws the surfaces that name a displacement tessellated
-   *  (`tessellationWanted`), decided with `objectSize`: the velocity passes then solve a displaced
-   *  texel's flat point (`TaaView.tessellation`). */
+   *  (`tessellationWanted`), decided once by the velocity stage (`encodeVelocity`): the velocity passes then run their displaced
+   *  pipelines, which solve a displaced texel's flat point (`DISPLACED`, `deformWgsl.ts`). */
   tessellated: boolean
 }
 
 export function createTaaFrameState(): TaaFrameState {
+  const ring = createFrameRing()
   return {
     sample: 0,
     stochasticSample: 0,
@@ -67,12 +74,14 @@ export function createTaaFrameState(): TaaFrameState {
     jitter: new Float64Array(2),
     jitterGrid: new Float64Array(2),
     viewProjection: new Float64Array(16),
-    previousViewProjection: new Float64Array(16),
-    previousEye: new Float64Array(3),
+    seen: 0,
+    before: NO_CAMERA,
     previousRender: new Float64Array(2),
     previousExposure: 1,
-    previousPreExposure: 1,
     hasHistory: false,
+    ring,
+    slices: planFrame(ring, false),
+    historyScale: 1,
     accumulated: 0,
     resourcesSeen: -1,
     flickerRan: false,
@@ -80,7 +89,6 @@ export function createTaaFrameState(): TaaFrameState {
     sceneSeen: -1,
     viewSeen: -1,
     active: false,
-    objectSize: 0,
     tessellated: false,
   }
 }

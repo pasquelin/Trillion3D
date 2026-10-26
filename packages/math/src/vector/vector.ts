@@ -118,7 +118,32 @@ export function transformPointRow(
   z: number,
   mAt = 0,
 ) {
-  return m[mAt + row] * x + m[mAt + 4 + row] * y + m[mAt + 8 + row] * z + m[mAt + 12 + row]
+  return transformPointRowOf(
+    m[mAt + row],
+    m[mAt + 4 + row],
+    m[mAt + 8 + row],
+    m[mAt + 12 + row],
+    x,
+    y,
+    z,
+  )
+}
+
+/**
+ * `transformPointRow`'s sum on the four entries of the row given as numbers — `a` the x column's,
+ * `b` the y column's, `c` the z column's, `d` the translation's —: the one home of its terms and
+ * order, for the callers that hold a matrix in locals across a loop.
+ */
+export function transformPointRowOf(
+  a: number,
+  b: number,
+  c: number,
+  d: number,
+  x: number,
+  y: number,
+  z: number,
+) {
+  return a * x + b * y + c * z + d
 }
 
 /** Row `row` of `M · (x, y, z, 0)`, `M` column-major: one coordinate of a direction, the
@@ -130,7 +155,23 @@ export function transformDirectionRow(
   y: number,
   z: number,
 ) {
-  return m[row] * x + m[4 + row] * y + m[8 + row] * z
+  return transformDirectionRowOf(m[row], m[4 + row], m[8 + row], x, y, z)
+}
+
+/**
+ * `transformDirectionRow`'s sum on the three entries of the row given as numbers — `a` the x
+ * column's, `b` the y column's, `c` the z column's —: the one home of its terms and order, for the
+ * callers that hold a matrix in locals across a loop.
+ */
+export function transformDirectionRowOf(
+  a: number,
+  b: number,
+  c: number,
+  x: number,
+  y: number,
+  z: number,
+) {
+  return a * x + b * y + c * z
 }
 
 /**
@@ -142,7 +183,12 @@ export function transformDirectionRow(
  * many inputs.
  */
 export function length3(x: number, y: number, z: number) {
-  const s = x * x + y * y + z * z
+  return length3OfSquared(x * x + y * y + z * z, x, y, z)
+}
+
+/** The rule of `length3` on its plain square sum `s = x·x + y·y + z·z`, already computed by a caller
+ *  that also tests it. */
+function length3OfSquared(s: number, x: number, y: number, z: number) {
   return s < NORMAL_SQUARES || s === Infinity ? hypot3(x, y, z) : Math.sqrt(s)
 }
 
@@ -176,7 +222,12 @@ export function circlePoint<T extends { [index: number]: number }>(
 
 /** The length of `(x, y)`: the rule of `length3` in the plane, `hypot2` outside the band. */
 export function length2(x: number, y: number) {
-  const s = x * x + y * y
+  return length2OfSquared(x * x + y * y, x, y)
+}
+
+/** The rule of `length2` on its plain square sum `s = x·x + y·y`, already computed by a caller that
+ *  also tests it. */
+function length2OfSquared(s: number, x: number, y: number) {
   return s < NORMAL_SQUARES || s === Infinity ? hypot2(x, y) : Math.sqrt(s)
 }
 
@@ -205,7 +256,8 @@ const TINY_SCALE = 2 ** 1000
 
 /** Normalises the vector at `at` in place: each component is multiplied by `1 / (length3 || 1)`,
  *  so a zero vector stays zero; a vector shorter than 2^-1024 is first scaled exactly by 2^1000, so
- *  its inverse length does not overflow. */
+ *  its inverse length does not overflow. An already unit vector is left as it is: its length is
+ *  exactly 1. */
 export function normalizeVector3(v: NumberSink, at = 0) {
   // The rule lives in `writeNormalizedVector3`; the vector is read once into it. The scaled copy of
   // the tiny branch is exact, so holding it in locals rather than in `v` changes no bit.
@@ -213,7 +265,8 @@ export function normalizeVector3(v: NumberSink, at = 0) {
 }
 
 /** `normalizeVector3`'s rule on three numbers, written to `out[at..at + 2]`: read once, written
- *  once, so a caller holding a transformed vector in locals does not read it back. */
+ *  once, so a caller holding a transformed vector in locals does not read it back. An already unit
+ *  vector is written as it is: its length is exactly 1. */
 export function writeNormalizedVector3(
   out: NumberSink,
   at: number,
@@ -221,7 +274,14 @@ export function writeNormalizedVector3(
   y: number,
   z: number,
 ) {
-  let inverse = 1 / (length3(x, y, z) || 1)
+  const s = x * x + y * y + z * z
+  if (s === 1) {
+    out[at] = x
+    out[at + 1] = y
+    out[at + 2] = z
+    return
+  }
+  let inverse = 1 / (length3OfSquared(s, x, y, z) || 1)
   if (inverse === Infinity) {
     x *= TINY_SCALE
     y *= TINY_SCALE
@@ -233,12 +293,30 @@ export function writeNormalizedVector3(
   out[at + 2] = z * inverse
 }
 
+/** `(x, y, z)` divided by its `length3` (1 when that is 0 or NaN) into `out[at..at + 2]`: the
+ *  division form, not `writeNormalizedVector3`'s reciprocal rule. The last bit differs from it, so
+ *  the sites that held these bits keep them through this one owner. An already unit vector is
+ *  written as it is: its length is exactly 1. */
+export function writeDividedVector3(out: NumberSink, at: number, x: number, y: number, z: number) {
+  const s = x * x + y * y + z * z
+  if (s === 1) {
+    out[at] = x
+    out[at + 1] = y
+    out[at + 2] = z
+    return
+  }
+  const length = length3OfSquared(s, x, y, z) || 1
+  out[at] = x / length
+  out[at + 1] = y / length
+  out[at + 2] = z / length
+}
+
 /**
  * The vector at `v[vAt]` made unit into `out` at `outAt`, or zero when its squared length is below
  * `minLengthSq`: `sq = x·x + y·y + z·z`, then each component times `1 / Math.sqrt(sq)` — the bits of
  * `normalizeVector3` whenever `sq` is finite and at least both `minLengthSq` and `NORMAL_SQUARES`.
  * The three are read before the first write, so `out` may be `v`. A NaN component compares false
- * against the bound and comes out NaN.
+ * against the bound and comes out NaN. An already unit vector (`sq` exactly 1) is written as it is.
  */
 export function normalizeVector3OrZero<T extends NumberSink>(
   out: T,
@@ -255,6 +333,12 @@ export function normalizeVector3OrZero<T extends NumberSink>(
     out[outAt] = 0
     out[outAt + 1] = 0
     out[outAt + 2] = 0
+    return out
+  }
+  if (sq === 1) {
+    out[outAt] = x
+    out[outAt + 1] = y
+    out[outAt + 2] = z
     return out
   }
   const s = 1 / Math.sqrt(sq)
@@ -285,9 +369,14 @@ export function signedAngleVector3(
 }
 
 /** `normalizeVector3` in the plane: the two components at `at` multiplied by `1 / (length2 || 1)`,
- *  a vector shorter than 2^-1024 scaled exactly by 2^1000 first. */
+ *  a vector shorter than 2^-1024 scaled exactly by 2^1000 first. An already unit vector is left as
+ *  it is: its length is exactly 1. */
 export function normalizeVector2(v: NumberSink, at = 0) {
-  let inverse = 1 / (length2(v[at], v[at + 1]) || 1)
+  const x = v[at],
+    y = v[at + 1]
+  const s = x * x + y * y
+  if (s === 1) return
+  let inverse = 1 / (length2OfSquared(s, x, y) || 1)
   if (inverse === Infinity) {
     v[at] *= TINY_SCALE
     v[at + 1] *= TINY_SCALE
@@ -300,7 +389,7 @@ export function normalizeVector2(v: NumberSink, at = 0) {
 /**
  * `out[outAt..outAt + 2] = M · (x, y, z, 1)` for an affine matrix stored row-major on twelve
  * numbers from `mAt` — three rows of four, the translation last in each: the layout of a skinning
- * palette or a proxy's bind map. Each row is summed left to right, then rounded once into `out`;
+ * palette. Each row is summed left to right, then rounded once into `out`;
  * `out` must not be `m`.
  */
 export function transformAffinePointRowMajor<T extends NumberSink>(
@@ -320,10 +409,10 @@ export function transformAffinePointRowMajor<T extends NumberSink>(
 
 /** The squared length of the vector read at `at`: the three squares summed in a fixed order. */
 export function lengthSqVector3(v: ArrayLike<number>, at = 0) {
-  return v[at] * v[at] + v[at + 1] * v[at + 1] + v[at + 2] * v[at + 2]
+  return dotVector3(v, v, at, at)
 }
 
-/** `out.addVectors(a, b)`: `out = a + b` component by component; `out` may be `a` or `b`. */
+/** `out = a + b` component by component; `out` may be `a` or `b`. */
 export function addVector3<T extends NumberSink>(
   out: T,
   a: ArrayLike<number>,
@@ -335,7 +424,7 @@ export function addVector3<T extends NumberSink>(
   return out
 }
 
-/** `out.subVectors(a, b)`: `out = a - b` component by component; `out` may be `a` or `b`. */
+/** `out = a - b` component by component; `out` may be `a` or `b`. */
 export function subVector3<T extends NumberSink>(
   out: T,
   a: ArrayLike<number>,
@@ -347,7 +436,7 @@ export function subVector3<T extends NumberSink>(
   return out
 }
 
-/** `v.multiplyScalar(s)`: the three components of `out` multiplied in place. */
+/** The three components of `out` multiplied by `s`, in place. */
 export function scaleVector3<T extends NumberSink>(out: T, s: number) {
   out[0] *= s
   out[1] *= s
@@ -355,7 +444,7 @@ export function scaleVector3<T extends NumberSink>(out: T, s: number) {
   return out
 }
 
-/** `out.copy(a).multiplyScalar(s)`: `out = a · s` component by component, written at `outAt`, read at `aAt`. */
+/** `out = a · s` component by component, written at `outAt`, read at `aAt`. */
 export function copyScaledVector3<T extends NumberSink>(
   out: T,
   a: ArrayLike<number>,
@@ -369,7 +458,7 @@ export function copyScaledVector3<T extends NumberSink>(
   return out
 }
 
-/** `v.addScaledVector(a, s)`: `out += a · s`, component by component. */
+/** `out += a · s`, component by component. */
 export function addScaledVector3<T extends NumberSink>(out: T, a: ArrayLike<number>, s: number) {
   out[0] += a[0] * s
   out[1] += a[1] * s
@@ -378,7 +467,7 @@ export function addScaledVector3<T extends NumberSink>(out: T, a: ArrayLike<numb
 }
 
 /**
- * `v.applyMatrix3(m)`: `out = M · (x, y, z)`, `m` column-major on nine numbers. The three
+ * `out = M · (x, y, z)`, `m` column-major on nine numbers. The three
  * components are read as parameters, so `out` may be the input vector itself.
  */
 export function applyMatrix3Vector3<T extends NumberSink>(

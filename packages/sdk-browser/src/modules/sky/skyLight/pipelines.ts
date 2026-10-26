@@ -20,9 +20,10 @@ import {
   skyFaceProgram,
 } from './faceWgsl.ts'
 import { FILTER_ENTRIES, FILTER_CODE } from './filterWgsl.ts'
-import { IRRADIANCE_ENTRY, IRRADIANCE_CODE } from './irradianceWgsl.ts'
+import { IRRADIANCE_CODE, IRRADIANCE_ENTRIES } from './irradianceWgsl.ts'
 import { askedPipelines } from './askedPipelines.ts'
 import { SKY_LIGHT_CUBE_FORMAT } from './layout.ts'
+import { KEEP_ALPHA, LIGHT_THROUGH } from '../../../materials/surface/materialBlending.ts'
 
 /** `GPUShaderStage`'s flags and `GPUColorWrite`'s, written in the clear. */
 const FRAGMENT = 2,
@@ -42,8 +43,8 @@ const OVER: GPUColorTargetState = {
   format: SKY_LIGHT_CUBE_FORMAT,
   writeMask: RED | GREEN | BLUE,
   blend: {
-    color: { srcFactor: 'one', dstFactor: 'src-alpha', operation: 'add' },
-    alpha: { srcFactor: 'zero', dstFactor: 'one', operation: 'add' },
+    color: LIGHT_THROUGH,
+    alpha: KEEP_ALPHA,
   },
 }
 
@@ -76,7 +77,7 @@ function skyLightLayouts(device: GPUDevice, shape: AirShape) {
     irradiance: layout([
       computeUniformEntry(0, { minBindingSize: 4 }),
       computeTextureEntry(1, 'float', 'cube'),
-      computeSamplerEntry(2, 'non-filtering'),
+      computeSamplerEntry(2, 'filtering'),
       computeBufferEntry(3, 'storage', COMPUTE),
     ]),
   }
@@ -123,7 +124,8 @@ function faceDraws(
   }
 }
 
-/** The mips' downsample, the roughness filter and the harmonics' sum. */
+/** The mips' downsample, the roughness filter and the harmonics' two sums, the filtered cube's and
+ *  the captured cube's. */
 function filterStages(device: GPUDevice, compute: Asked['compute'], layouts: SkyLightLayouts) {
   const filterModule = device.createShaderModule({
     label: 'Trillion3D sky light filter',
@@ -149,19 +151,25 @@ function filterStages(device: GPUDevice, compute: Asked['compute'], layouts: Sky
     irradiance: compute(
       irradianceModule,
       layouts.irradiance,
-      IRRADIANCE_ENTRY,
+      IRRADIANCE_ENTRIES.filtered,
       'Trillion3D sky light harmonics',
+    ),
+    capturedIrradiance: compute(
+      irradianceModule,
+      layouts.irradiance,
+      IRRADIANCE_ENTRIES.captured,
+      'Trillion3D sky light captured harmonics',
     ),
   }
 }
 
 /**
  * THE CAPTURE'S LAYOUTS AND PIPELINES, asked at once, off the frame (`PreparedPipeline.ask`): the
- * three face draws, the mips' downsample and the filter, and the harmonics' sum, the air's programs
- * written for `shape`; the clouds' tracing (the clouds part's own, `createCloudTracePass`) is asked
+ * three face draws, the mips' downsample and the filter, and the harmonics' two sums, the air's
+ * programs written for `shape`; the clouds' tracing (the clouds part's own, `createCloudTracePass`) is asked
  * when first wanted, one for each key the capture traces with (`cloudTrace`). The cube is read by a
  * sampler that takes the nearest texel and the nearest level, which the face composition's cloud
- * read does not use.
+ * read does not use; the captured cube's harmonics read it bilinearly.
  */
 export function createSkyLightPipelines(
   device: GPUDevice,
@@ -172,6 +180,8 @@ export function createSkyLightPipelines(
   const { draw, compute } = askedPipelines(device, failed)
   const module = (label: string, code: string) => device.createShaderModule({ label, code })
   const traces = new Map<string, ReturnType<typeof createCloudTracePass>>()
+  /** The tracing of each key object asked: a frame's readers hold one key, and join its text once. */
+  const byKey = new WeakMap<CloudTraceKey, ReturnType<typeof createCloudTracePass>>()
   return {
     layouts,
     shape,
@@ -193,9 +203,12 @@ export function createSkyLightPipelines(
     /** The clouds' tracing of the key `key`, asked when first wanted: the faces draw no cloud until
      *  it is compiled. */
     cloudTrace(key: CloudTraceKey) {
+      let pass = byKey.get(key)
+      if (pass) return pass
       const text = cloudTraceKeyText(key)
-      let pass = traces.get(text)
+      pass = traces.get(text)
       if (!pass) traces.set(text, (pass = createCloudTracePass(device, failed, key, shape)))
+      byKey.set(key, pass)
       return pass
     },
   }

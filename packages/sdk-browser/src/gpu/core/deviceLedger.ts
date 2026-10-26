@@ -28,8 +28,8 @@ export interface GpuDeviceLedger {
   snapshot(): GpuDeviceLedgerSnapshot
   readonly bytes: number
   /** Bytes the limit still admits beside `bytes` (negative past it, none when it is not finite);
-   *  unbounded without a limit. A caller with a smaller fallback asks no more than this, and its
-   *  allocation is never refused. */
+   *  unbounded without a limit, or while the limit answers none. A caller with a smaller fallback
+   *  asks no more than this, and its allocation is never refused. */
   readonly room: number
   /** Terminal admission refusal: a session cannot present a fallback that omits the resource. Its
    *  message names the refused allocation by label, beside its bytes, the bytes held and the limit. */
@@ -61,7 +61,7 @@ export function installGpuDeviceLedger(
   options: {
     counts?: (label: string | undefined) => boolean
     base?: GpuDeviceLedger
-    limit?: () => number
+    limit?: () => number | undefined
   } = {},
 ): GpuDeviceLedger {
   const existing = ledgers.get(device)
@@ -173,22 +173,54 @@ export const ledgerTentative = <T>(device: LedgerDevice | undefined, build: () =
   return ledger ? ledger.tentative(build) : build()
 }
 
+/** Roll back only resources made synchronously by this construction, never across an await. */
+export function constructGpuResources<T>(device: LedgerDevice | undefined, build: () => T): T {
+  const allocation = gpuDeviceLedgerOf(device)?.transaction()
+  try {
+    return build()
+  } catch (error) {
+    allocation?.rollback()
+    throw error
+  } finally {
+    allocation?.commit()
+  }
+}
+
+/** An allocation a view holds and gives back: its bytes, and the means of returning them. */
+export interface HeldAllocation {
+  readonly bytes: number
+  dispose(): void
+}
+
 /**
  * An optional allocation the device's budget may refuse, the one admission sequence every such view makes: `make` built
- * tentatively, as the replacement of the `replaced` bytes the held one gives back, where the room holds the `asked` bytes
- * past them — `{ value }` —; else `{ why }`, naming `what`: no room, or the budget refused it. Any other error is thrown.
- * The caller gives the held allocation back, whichever answers.
+ * tentatively, as the replacement of the `held` allocation, whose bytes it gives back, where the room holds the `asked` bytes
+ * past them — `{ value }` —, made as one construction that rolls back whole if it throws (`constructGpuResources`); else `{ why }`, naming `what`: no room, or the budget refused it. Any other error is thrown.
+ * The `held` allocation is disposed whichever answers, a throw included.
  */
 export function ledgerAdmitted<T>(
   device: LedgerDevice | undefined,
-  { replaced, asked, what, make }: { replaced: number; asked: number; what: string; make: () => T },
+  {
+    held,
+    asked,
+    what,
+    make,
+  }: { held?: HeldAllocation; asked: number; what: string; make: () => T },
 ): { value?: T; why?: string } {
-  if (asked - replaced > ledgerRoom(device))
-    return { why: `the memory budget leaves no room for ${what}` }
   try {
-    return { value: ledgerTentative(device, () => ledgerReplacing(device, replaced, make)) }
-  } catch (error) {
-    if (budgetRefused(error)) return { why: `the memory budget refused ${what}` }
-    throw error
+    if (asked - (held?.bytes ?? 0) > ledgerRoom(device))
+      return { why: `the memory budget leaves no room for ${what}` }
+    try {
+      return {
+        value: ledgerTentative(device, () =>
+          ledgerReplacing(device, held?.bytes ?? 0, () => constructGpuResources(device, make)),
+        ),
+      }
+    } catch (error) {
+      if (budgetRefused(error)) return { why: `the memory budget refused ${what}` }
+      throw error
+    }
+  } finally {
+    held?.dispose()
   }
 }

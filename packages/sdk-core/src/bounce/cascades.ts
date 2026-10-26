@@ -14,10 +14,7 @@ import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
  *
  * Probes live at the centre of a cell, `(cell + ½) · spacing`, on a lattice of the world. A cell is
  * stored by its remainder modulo the side, so that sliding by one cell changes only the cells that
- * enter: the others keep their place in every table that names them (`probePool.ts`).
- *
- * The world light grid, the lists of lights that the rays of the probes walk, is the one thing that
- * still covers the whole extent: a coarse lattice of its own (`lightLattice`), which holds no probe.
+ * enter: the others keep their place in every table that names them (`pool/poolWgsl.ts` of the browser engine).
  *
  * Nothing here names a scene: a viewpoint, an extent, published settings.
  */
@@ -26,12 +23,6 @@ export interface BounceCascadeLevel {
   spacing: number
   /** World cell index of the level's lowest cell, on each axis. */
   base: [number, number, number]
-}
-
-/** The lattice of the world light grid: its lowest corner, in meters, and the side of a cell. */
-export interface LightLattice {
-  spacing: number
-  corner: [number, number, number]
 }
 
 /** The levels of probes around the eye. */
@@ -44,12 +35,10 @@ export interface BounceCascades {
   probes: number
   /** Each level, finest first. */
   levels: BounceCascadeLevel[]
-  /** The world light grid's lattice, over the scene's extent. */
-  lattice: LightLattice
   /** Ray reach: the extent's diagonal, beyond which there is nothing to hit, or `rayReachMetres`. */
   reach: number
-  /** Places the world light grid and the reach on a new extent; whether the lattice moved. */
-  replan(bounds: readonly number[]): boolean
+  /** Places the reach on a new extent. */
+  replan(bounds: readonly number[]): void
   /**
    * Repositions every level around a viewpoint. Returns true when at least one base cell
    * index changed: the only signal a slide needs, costing no GPU readback.
@@ -63,18 +52,6 @@ export interface BounceCascades {
 export function cellSpacing(level: number) {
   const { cascadeHalfExtentMetres, cascadeSize, cascadeBase } = BOUNCE_SETTINGS
   return ((2 * cascadeHalfExtentMetres) / cascadeSize) * cascadeBase ** level
-}
-
-/**
- * The lattice of the world light grid over `bounds`: its cell a thirteenth of the extent's longest
- * side, its corner a cell before the extent on every axis. A cube of `lightGridSide` cells holds the
- * extent whole, and a point just off a surface still falls inside it.
- */
-export function lightLattice(bounds: readonly number[]): LightLattice {
-  const sizes = [0, 1, 2].map((axis) => Math.max(bounds[3 + axis] - bounds[axis], 1e-3))
-  const spacing = Math.max(...sizes) / (BOUNCE_SETTINGS.lightGridSide - 3)
-  const corner = [0, 1, 2].map((axis) => (Math.floor(bounds[axis] / spacing) - 1) * spacing)
-  return { spacing, corner: corner as LightLattice['corner'] }
 }
 
 /** The reach of a ray over `bounds`: past the extent's diagonal there is nothing to hit, and past
@@ -105,16 +82,9 @@ export function createBounceCascades(bounds: readonly number[]): BounceCascades 
     cells: cascadeSize ** 3,
     probes: probePool,
     levels,
-    lattice: lightLattice(bounds),
     reach: reachOf(bounds),
     replan(nextBounds) {
-      const next = lightLattice(nextBounds)
-      const moved =
-        next.spacing !== cascades.lattice.spacing ||
-        !sameValues(next.corner, cascades.lattice.corner)
-      cascades.lattice = next
       cascades.reach = reachOf(nextBounds)
-      return moved
     },
     follow(viewpoint) {
       let moved = false

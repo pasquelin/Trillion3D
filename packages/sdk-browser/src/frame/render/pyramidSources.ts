@@ -1,13 +1,14 @@
 import type { CutPyramid } from '../../geometry/dag/occlusion.ts'
 import { twoPassOf } from '../../geometry/dag/shader/occlusionWgsl.ts'
 import { prepared } from '../backend/state/prepared.ts'
+import { builtPrime } from './primeBuilt.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /**
  * What each view's last built pyramid was built from, and the pyramids the cut and the patches read
- * (`cutPyramid`, `previousPyramid`): the sources `./cutPyramid.ts` notes and writes the occlusion
- * from. Read by the passes beside the cut (`../../visibility/tessellation/`) without the frame's
- * encoders.
+ * (`cutPyramid`, `previousPyramid`; the primed one stands in place of the previous image's when the
+ * image primed it): the sources `./cutPyramid.ts` notes and writes the occlusion from. Read by the
+ * passes beside the cut (`../../visibility/tessellation/`) without the frame's encoders.
  */
 export type PyramidSource = {
   /** The image's render matrix, its jitter included, from the world to clip space, in doubles. */
@@ -36,6 +37,10 @@ export function cutPyramid(rt: WebgpuPagesRuntime): CutPyramid | undefined {
  *  pass, which tests no box and no patch (`../../visibility/tessellation/`). */
 export function previousPyramid(rt: WebgpuPagesRuntime): CutPyramid | undefined {
   if (!twoPassOf(rt.run.selectionUniforms)) return undefined
+  // The pyramid primed for this image replaces the previous image's, with the matrix and the size
+  // the uniforms were written with (`writeCutOcclusion`).
+  const primed = builtPrime(rt)
+  if (primed) return { view: primed.view, levels: primed.levels }
   const source = standingSource(rt)
   return source && { view: source.view, levels: source.levels }
 }

@@ -44,8 +44,8 @@ fn compile_writes_pages_and_namespaced_pointer() {
     let geometry = &result["primitives"][0]["pages"][0]["geometry"];
     assert!(geometry.get("formatVersion").is_none());
     let primitive = &result["primitives"][0];
-    let page = geometry_page(&options.cache, &result, primitive, &primitive["pages"][0]);
-    let decoded = trillion3d_page_codec::decode(&page, 1 << 20).expect("decode");
+    let decoded =
+        PrimitivePages::new(&options.cache, &result, primitive).decoded(&primitive["pages"][0]);
     assert_eq!(decoded.indices(), [0, 1, 2]);
     fs::remove_dir_all(root).expect("cleanup");
 }
@@ -139,9 +139,10 @@ fn a_part_is_cooked_once_however_many_nodes_place_it() {
         let sizes: Vec<(usize, usize)> = (result["primitives"].as_array().into_iter().flatten())
             .map(|primitive| {
                 let pages = primitive["pages"].as_array().into_iter().flatten();
+                let mut read = PrimitivePages::new(&options.cache, &result, primitive);
                 pages.fold((0, 0), |(bytes, triangles), page| {
-                    let raw = geometry_page(&options.cache, &result, primitive, page);
-                    let decoded = trillion3d_page_codec::decode(&raw, 1 << 20).expect("decode");
+                    let raw = read.bytes(page);
+                    let decoded = read.decoded(page);
                     (bytes + raw.len(), triangles + decoded.indices().len() / 3)
                 })
             })
@@ -166,7 +167,23 @@ fn a_part_is_cooked_once_however_many_nodes_place_it() {
             .iter()
             .zip(&sizes)
             .partition(|(primitive, _)| primitive["triangles"] == 0);
-        let others: Vec<Value> = others.iter().map(|(p, size)| json!([p, size])).collect();
+        // What the scene decides of a page is not the part's cooking: its place in the shared file
+        // follows the pages written before it (the carrier's levels, which grow with the count),
+        // and its depth layer the surfaces sharing its plane (`coplanar`, bounded per plane). The
+        // pages compared are their bytes and their records, not where they sit nor how they stack.
+        let others: Vec<Value> = (others.iter())
+            .map(|(p, size)| {
+                let mut p = (*p).clone();
+                for page in p["streams"]["pages"].as_array_mut().into_iter().flatten() {
+                    page.as_object_mut().map(|fields| fields.remove("offset"));
+                }
+                for page in p["pages"].as_array_mut().into_iter().flatten() {
+                    page.as_object_mut()
+                        .map(|fields| fields.remove("depthLayer"));
+                }
+                json!([p, size])
+            })
+            .collect();
         let levels = carriers.first().map(|(_, (_, triangles))| *triangles);
         (
             others,

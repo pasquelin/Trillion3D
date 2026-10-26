@@ -1,6 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { GOLDEN_U32, TWO_PI } from '../../../../math/src/wgsl/constants.ts'
-import { additive2d, mixWord } from '../../../../math/src/wgsl/sampling.ts'
+import { GOLDEN_U32 } from '../../../../math/src/wgsl/constants.ts'
+import { additive2d, mixWord, visibleGgxHalf } from '../../../../math/src/wgsl/sampling.ts'
 import { highHalf, lowHalf } from '../../../../math/src/wgsl/integer.ts'
 import { tangentFallback } from '../../../../math/src/wgsl/basis.ts'
 import { vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
@@ -30,9 +30,10 @@ export const REFLECTION_LOBE_RAY_WGSL = wgslBlock(
  *
  * - DIRECTION: the half-vector drawn among the normals the eye sees (`reflectionSampleDirection`): the
  *   view stretched by the lobe's widths along its axis and across, a direction drawn on the spherical cap
- *   the visible normals cover — its height drawn over all but the sampling bias's share of it nearest
- *   the horizon, the grazing microfacets whose rays are the noisiest and dimmest —, unstretched; the ray
- *   its mirror about it, pdf D(h)·G₁(v) / (4 n·v), which the reuse weighs by (`resolveWgsl.ts`). A ray
+ *   the visible normals cover (`visibleGgxHalf`, its height bounded by the view's reflection) — its height
+ *   drawn over all but the sampling bias's share of it nearest the horizon, the grazing microfacets whose
+ *   rays are the noisiest and dimmest —, unstretched; the ray its mirror about it, pdf D(h) / (2 (k n·v +
+ *   |v̂|)) with `k` the bound (`reflectionRayPdf`), which the reuse weighs by (`resolveWgsl.ts`). A ray
  *   that would leave under the surface is folded back above it: never the lobe's centre, a spike.
  * - THIN RAYS: each ray is read through the cone of the smoothest lobe the engine draws (`lobeAlpha(0)`,
  *   under a pixel over the whole march), so the mean of the rays is the lobe's own. A wider cone with a
@@ -53,7 +54,7 @@ export const REFLECTION_SAMPLE_WGSL = wgslBlock(
     REFLECTION_CONSTANTS_WGSL,
     REFLECTION_CONE_WGSL,
     GOLDEN_U32,
-    TWO_PI,
+    visibleGgxHalf,
     mixWord,
     additive2d,
     lowHalf,
@@ -73,12 +74,7 @@ fn reflectionSampleDirection(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,u:vec2f)->v
  if(dot(T,T)<1e-12){T=tangentFallback(N);}
  T=normalize(T);
  let B=cross(N,T);
- let seen=normalize(vec3f(widths*vec2f(dot(V,T),dot(V,B)),max(dot(V,N),1e-4)));
- let phi=TWO_PI*u.x;
- let z=mix(1.0,-seen.z,u.y*(1.0-reflectionView.lobe.z));
- let sine=sqrt(clamp(1.0-z*z,0.0,1.0));
- let cap=vec3f(sine*cos(phi),sine*sin(phi),z)+seen;
- let h=normalize(vec3f(widths*cap.xy,max(cap.z,0.0)));
+ let h=visibleGgxHalf(vec2f(u.x,u.y*(1.0-reflectionView.lobe.z)),widths,vec3f(dot(V,T),dot(V,B),max(dot(V,N),1e-4)));
  let L=reflect(-V,normalize(h.x*T+h.y*B+h.z*N));
  return L-2.0*min(dot(L,N),0.0)*N;
 }

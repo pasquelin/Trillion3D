@@ -1,5 +1,4 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { FOG_GRID_WGSL } from './gridWgsl.ts'
 import { FOG_LIGHTS_WGSL } from './lightsWgsl.ts'
 import { FOG_PLAN_WGSL } from './planWgsl.ts'
 
@@ -19,11 +18,11 @@ import { FOG_PLAN_WGSL } from './planWgsl.ts'
  * written multiplied by its own, brought to this one by the ratio (\`frame.exposure.y\`); the
  * extinction is left as it is. A surface reads the light divided by it again (\`readWgsl.ts\`). The result
  * is kept where it is positive and finite as a 32-bit float, and made zero where it is not
- * (\`fogPositiveFinite\`).
+ * (\`fogPositiveFinite\`). The program lists the grid it reads the cells through (\`fogGridWgsl\`).
  */
 export const FOG_SCATTER_WGSL = wgslBlock(
   'FOG_SCATTER_WGSL',
-  [FOG_GRID_WGSL, FOG_PLAN_WGSL, FOG_LIGHTS_WGSL],
+  [FOG_PLAN_WGSL, FOG_LIGHTS_WGSL],
   `
 /** The light of a cell over \`samples\` samples, one for each offset of the jitter. */
 fn fogCellLight(cell:vec3u,samples:u32)->vec3f{

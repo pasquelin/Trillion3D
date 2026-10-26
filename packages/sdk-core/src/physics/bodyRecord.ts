@@ -13,7 +13,8 @@ export interface BodyRecord {
   /** The body's engine id: its slot and the slot's generation (`BODY_INDEX`). */
   id: number
   motion: number
-  layer: number
+  /** The body's filter (`CommandWriter.filter`): what it is to the others. */
+  filter: number
   shape: (typeof SHAPE)[keyof typeof SHAPE]
   flags: number
   position: ArrayLike<number>
@@ -25,7 +26,7 @@ export interface BodyRecord {
   friction: number
   restitution: number
   gravityScale: number
-  /** Speed lost per second, linear then angular; left out, `DAMPING`. */
+  /** Speed lost per second, linear then angular; left out, `LINEAR_DAMPING` and `ANGULAR_DAMPING`. */
   damping?: readonly [number, number]
   vertices?: ArrayLike<number>
   indices?: ArrayLike<number>

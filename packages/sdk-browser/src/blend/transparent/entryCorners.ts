@@ -1,6 +1,6 @@
 /**
- * THE TRANSPARENT ENTRIES' WORLD CORNERS, DERIVED ON THE GPU (`entryCornersWgsl.ts`), the rows pass's
- * second list: a transparent cluster claims no visibility row, so the occlusion test reads its own
+ * THE TRANSPARENT ENTRIES' WORLD CORNERS, DERIVED ON THE GPU (`entryCornersWgsl.ts`), the occlusion
+ * pass's second list: a transparent cluster claims no visibility row, so the occlusion test reads its own
  * corners, an entry each of the transparent table. An entry's inputs — its page's box grown by its
  * reach (`grownPageBox`) and its root's rank — are written when the entry is (a new table, a page
  * bounded elsewhere); its corners are derived from its root's world whenever that root moves, the
@@ -12,6 +12,7 @@ import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { autoKernel } from '../../gpu/core/computeStages.ts'
+import { chainReady } from '../../lighting/deferred/fullscreen.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { liveBuffer } from '../../gpu/bind/liveEntries.ts'
 import { COMPOSE_ROWS_PASS } from '../../diagnostic/stage/passLabels.ts'
@@ -27,6 +28,8 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { TransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts'
 import { createChangedRuns } from '../../geometry/residency/ranges.ts'
 import { ENTRY_CORNERS_ENTRY, ENTRY_CORNERS_WGSL, ENTRY_INPUT_DOUBLES } from './entryCornersWgsl.ts'
+
+const PASS: GPUComputePassDescriptor = { label: COMPOSE_ROWS_PASS }
 
 const ENTRY_WORDS = ENTRY_INPUT_DOUBLES * 2
 /** Entries one write sends at most: the scratch a run is packed in stays this size. */
@@ -54,6 +57,10 @@ const entryKernel = autoKernel(COMPOSE_ROWS_PASS, ENTRY_CORNERS_WGSL, ENTRY_CORN
 export function askEntryCorners(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (rt.blendState.table) entryKernel(device).ask()
 }
+
+/** Whether the entries kernel is compiled: the test reads the corners it derives, so the whole
+ *  chain (inputs sent, test, compaction's verdict) waits for it (`refreshTransparentCorners`). */
+export const entryCornersReady = (device: GPUDevice) => chainReady(entryKernel(device))
 
 export function createEntryCorners() {
   return {
@@ -149,7 +156,9 @@ export function encodeEntryCorners(
 ) {
   const roots = rt.rootWorlds,
     listed = held.all ? capacity : held.count
-  if (!listed || !roots?.worlds || !held.inputs) return
+  const pipeline = entryKernel(device).get()
+  // The caller ran `entryCornersReady`: the kernel is compiled.
+  if (!listed || !roots?.worlds || !held.inputs || !pipeline) return
   const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   held.absent ??= device.createBuffer({ label: 'Trillion3D no entry list', size: 16, usage })
   if (!held.all) {
@@ -163,7 +172,6 @@ export function encodeEntryCorners(
     device.queue.writeBuffer(held.list, 0, held.targets, 0, held.count)
   }
   writePassParams(device, held.params, roots.held, listed, held.all ? 1 : 0)
-  const pipeline = entryKernel(device).get()
   held.group.identity.entries[0] ??= sequentialEntries([
     liveBuffer(() => held.params.buffer),
     liveBuffer(() => rt.rootWorlds?.worlds),
@@ -172,7 +180,7 @@ export function encodeEntryCorners(
     liveBuffer(() => held.list ?? held.absent),
   ])
   composeGroup(device, held.group, pipeline)
-  const pass = encoder.beginComputePass({ label: COMPOSE_ROWS_PASS })
+  const pass = encoder.beginComputePass(PASS)
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, held.group.group!)
   dispatchRows(pass, ceilDiv(listed, WORKGROUP_THREADS))

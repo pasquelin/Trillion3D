@@ -1,4 +1,4 @@
-import { BUFFER, READ_WRITE_FORMATS, STORAGE_FORMATS, TEXTURE } from './formats.ts'
+import { BUFFER, READ_WRITE_FORMATS, TEXTURE, isStorageFormat, type Features } from './formats.ts'
 import type { BufferInfo } from './bufferRules.ts'
 import type { ViewInfo } from './textureRules.ts'
 
@@ -18,15 +18,19 @@ import { checkStageLimits, limitOf } from './limitRules.ts'
 
 type Entry = GPUBindGroupLayoutEntry
 
+/** The features of a device that grants none. */
+const NO_FEATURES: Features = { has: () => false }
+
 export function checkLayout(
   descriptor: GPUBindGroupLayoutDescriptor,
   limits?: Record<string, number>,
+  features: Features = NO_FEATURES,
 ) {
   for (const entry of [...(descriptor.entries ?? [])] as Entry[]) {
     const storage = entry.storageTexture
     if (!storage) continue
     const where = `[BindGroupLayout "${descriptor.label ?? ''}"] binding ${entry.binding}`
-    if (!STORAGE_FORMATS.has(storage.format))
+    if (!isStorageFormat(storage.format, features))
       throw new Error(`${where}: ${storage.format} is not a storage texture format`)
     if (storage.access === 'read-write' && !READ_WRITE_FORMATS.has(storage.format))
       throw new Error(`${where}: ${storage.format} cannot be bound read-write`)
@@ -44,7 +48,13 @@ export type Bound =
 /** The kind of resource a layout entry takes: a texture, storage or external entry takes a view. */
 const kindOf = (entry: Entry) => (entry.buffer ? 'buffer' : entry.sampler ? 'sampler' : 'view')
 
-function checkBinding(where: string, entry: Entry, bound: Bound, limits?: Record<string, number>) {
+function checkBinding(
+  where: string,
+  entry: Entry,
+  bound: Bound,
+  limits?: Record<string, number>,
+  features: Features = NO_FEATURES,
+) {
   const kind = kindOf(entry)
   if (bound.kind !== kind) throw new Error(`${where}: a ${bound.kind} bound to a ${kind} entry`)
   if (bound.kind === 'buffer') {
@@ -71,7 +81,7 @@ function checkBinding(where: string, entry: Entry, bound: Bound, limits?: Record
       ? [TEXTURE.STORAGE_BINDING, 'StorageBinding']
       : [TEXTURE.TEXTURE_BINDING, 'TextureBinding']
     if (!(usage & flag)) throw new Error(`${where}: the view's usage ${usage} lacks ${word}`)
-    if (storage && (format !== storage.format || !STORAGE_FORMATS.has(format)))
+    if (storage && (format !== storage.format || !isStorageFormat(format, features)))
       throw new Error(`${where}: a ${format} view bound as a ${storage.format} storage texture`)
     if (storage && mips !== 1) throw new Error(`${where}: a storage view of ${mips} mips`)
   }
@@ -81,6 +91,7 @@ export function checkGroup(
   descriptor: GPUBindGroupDescriptor,
   resolve: (resource: unknown) => Bound | undefined = () => undefined,
   limits?: Record<string, number>,
+  features: Features = NO_FEATURES,
 ) {
   const layout = descriptor.layout as unknown as { label?: string; entries?: Entry[] }
   if (!layout?.entries) return
@@ -89,7 +100,7 @@ export function checkGroup(
   for (const entry of layout.entries) {
     if (!given.has(entry.binding)) throw new Error(`${where}: binding ${entry.binding} missing`)
     const bound = resolve(given.get(entry.binding))
-    if (bound) checkBinding(`${where} binding ${entry.binding}`, entry, bound, limits)
+    if (bound) checkBinding(`${where} binding ${entry.binding}`, entry, bound, limits, features)
   }
   if (given.size !== layout.entries.length)
     throw new Error(`${where}: ${given.size} entries for ${layout.entries.length} in the layout`)

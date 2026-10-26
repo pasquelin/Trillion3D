@@ -1,5 +1,5 @@
-// A host visibility change hands each root that flipped to `flip`, once: its rows, derived again,
-// stale the shadow pages it left or entered (`rows/rowCastWgsl.ts`); no box is declared on the CPU.
+// A host visibility change hands each root that flipped to `flip`, once; no box is declared on the
+// CPU.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'

@@ -1,6 +1,7 @@
 // The virtual shadow maps' buffer set (`resources.ts`): what it makes is what `vsmResourceBytes`
-// counts without a device, the page table, receiver covers and uncached rects are one buffer for
-// both frames (no pass reads them as last frame's), and `destroy` frees every buffer once.
+// counts without a device — its buffers and, with the occlusion culling, its pyramid and kept tables
+// —, the page table, receiver covers and uncached rects are one buffer for both frames (no pass reads
+// them as last frame's), and `destroy` frees every buffer and texture once.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -21,17 +22,22 @@ import { vsmPageManagementKernels } from './pageManagementWgsl.ts'
 import { vsmPhysicalPageKernels } from './physicalPagesWgsl.ts'
 import { VSM_PROJECTION_VSM_SPECS } from './projection/projectionWgsl.ts'
 import { VSM_RENDER_CULL_SPECS } from './render/renderCullWgsl.ts'
-import { VSM_RENDER_EXPAND_SPECS } from './render/renderExpandWgsl.ts'
+import { VSM_RENDER_BIN_SPECS } from './render/renderBinWgsl.ts'
 import {
   VSM_RENDER_RASTER_FRAGMENT_SPECS,
+  VSM_RENDER_RASTER_SHARED_SPECS,
   VSM_RENDER_RASTER_VERTEX_SPECS,
 } from './render/renderRasterWgsl.ts'
-import { VSM_TRANSMISSION_CLEAR_SPECS } from './transmission/transmissionClearWgsl.ts'
 import { SHADOW_POOL_BYTES } from '../../../session/memory/shadowBudgetBytes.ts'
 import { vsmLayout, type VsmResourceOptions } from './layout.ts'
 import { vsmResourceBytes } from './layoutBytes.ts'
 import { MIB } from '../../../../../math/src/constants.ts'
+import { madeTextureBytes } from '../../../gpu/core/textureBytes.ts'
+import { keepOcclusionTables } from './occlusion/occlusionPass.ts'
+import { VSM_KEPT_RECTS_WIDTH } from './constants.ts'
 
+/** The shadows' GPU share in MiB (`SHADOW_POOL_BYTES`), the occlusion culling's resources in it. */
+const SHADOW_MIB = 880
 /** Directional maps a sun takes: its clipmap levels (`encodeVsm.ts`). */
 const LEVELS = 17
 const SHARED = ['pageTable', 'receiverCover', 'staleRects'] as const
@@ -40,6 +46,14 @@ const DOUBLED = ['uniforms', 'pageMarks', 'pageRequests', 'mappedRects', 'projec
 /** A recording device whose storage bindings hold `binding` bytes. */
 const deviceFor = (binding = 128 * MIB) =>
   fakeDevice({ limits: { maxStorageBufferBindingSize: binding } })
+
+/** The bytes a recording device was asked for: its buffers and its textures. */
+const madeBytes = (fake: ReturnType<typeof fakeDevice>) =>
+  fake.buffers.reduce((sum, buffer) => sum + buffer.size, 0) +
+  fake.textures.reduce(
+    (sum, texture) => sum + madeTextureBytes(texture as unknown as GPUTexture),
+    0,
+  )
 
 const CASES: [string, VsmResourceOptions, number?][] = [
   // As the engine makes them (`createEngineVsm`): two page-table rows, the mask for two suns.
@@ -50,13 +64,14 @@ const CASES: [string, VsmResourceOptions, number?][] = [
   ['255 maps, the pool in parts', { fullMapCapacity: 255 }, 8 * MIB],
   ['a 4096-page pool', { fullMapCapacity: 127, poolPages: 4096 }],
   ['no masks, no cache slice', { fullMapCapacity: 63, coverMode: 'none', cacheEnabled: false }],
+  ['no occlusion culling', { fullMapCapacity: 127, occlusion: false }],
 ]
 
 for (const [name, options, binding] of CASES)
   test(`vsmResourceBytes counts every byte createVsmResources makes: ${name}`, () => {
     const fake = deviceFor(binding)
     const res = createVsmResources(fake.device, options)
-    const made = fake.buffers.reduce((sum, buffer) => sum + buffer.size, 0)
+    const made = madeBytes(fake)
     assert.equal(res.bytes, made, 'res.bytes is what the device was asked for')
     assert.equal(vsmResourceBytes(res.layout), made)
     assert.equal(vsmResourceBytes(vsmLayout(options)), made)
@@ -92,13 +107,16 @@ test('the page table, receiver covers and uncached rects are one buffer for both
   assert.ok(Math.abs(saved - 33.5 * MIB) < 1024, `${saved}`)
 })
 
-test('destroy frees every buffer once, the shared ones included', () => {
+test('destroy frees every buffer once, the shared ones included, and the occlusion textures', () => {
   const fake = deviceFor()
   const res = createVsmResources(fake.device, { fullMapCapacity: 127 })
   res.destroy()
-  assert.equal(fake.destroyed.length, fake.buffers.length)
-  assert.equal(new Set(fake.destroyed).size, fake.buffers.length, 'none twice')
-  for (const buffer of fake.buffers) assert.ok(fake.destroyed.includes(buffer), buffer.label)
+  const made = [...fake.buffers, ...fake.textures] as { label?: string }[]
+  // The pyramid and both frame sets' kept tables: a page table, marks and rects each.
+  assert.equal(fake.textures.length, 7)
+  assert.equal(fake.destroyed.length, made.length)
+  assert.equal(new Set(fake.destroyed).size, made.length, 'none twice')
+  for (const resource of made) assert.ok(fake.destroyed.includes(resource), resource.label)
 })
 
 test("a swap exchanges the doubled members and keeps the shared ones; prev binds last frame's", () => {
@@ -142,10 +160,10 @@ test("no pass binds a shared member as last frame's: such a spec is refused at i
     VSM_PIXELS_SPECS,
     VSM_PROJECTION_VSM_SPECS,
     VSM_RENDER_CULL_SPECS,
-    VSM_RENDER_EXPAND_SPECS,
+    VSM_RENDER_BIN_SPECS,
     VSM_RENDER_RASTER_VERTEX_SPECS,
     VSM_RENDER_RASTER_FRAGMENT_SPECS,
-    VSM_TRANSMISSION_CLEAR_SPECS,
+    VSM_RENDER_RASTER_SHARED_SPECS,
   ]
   // What the invalidation and the page updates read of last frame: the doubled members, exactly.
   const lastFrame = new Set(
@@ -155,7 +173,7 @@ test("no pass binds a shared member as last frame's: such a spec is refused at i
   for (const specs of lists) assert.doesNotThrow(() => vsmBindingsWgsl(0, specs, layout))
 })
 
-test('the projection buffer is a 304-byte record a slot, and the shadows hold 413 MiB of the GPU', () => {
+test('the projection buffer is a 400-byte record a slot, and the shadows hold their MiB of the GPU', () => {
   // `shadowBudgetBytes.ts` and `budget.fixture.ts` are both built from `vsmResourceBytes`, so a
   // record size that moved would move both and pass `world/budget.test.ts`: the numbers are here.
   const fake = deviceFor()
@@ -167,10 +185,60 @@ test('the projection buffer is a 304-byte record a slot, and the shadows hold 41
     /^vsm\.projectionData\d$/.test(buffer.label ?? ''),
   )
   assert.equal(records.length, 2, 'one a frame')
-  for (const buffer of records) assert.equal(buffer.size, res.layout.mapSlots * 304)
+  // 400 since the record carries the occlusion's previous view (its id, table, clip matrix, depth
+  // terms): 304 before.
+  for (const buffer of records) assert.equal(buffer.size, res.layout.mapSlots * 400)
+  assert.equal(vsmResourceBytes(res.layout), madeBytes(fake))
+  // 633 MiB, 8 less than the 641 of the chunked raster: its 2²¹ pairs, commands and order took 36 B
+  // a pair, the cull's records and the same sorted by tier take 32 (2²¹ of them), at 2²² · 1.5 records
+  // now (`vsmRecordCapacity`, the reference's rule: 128 MiB more than at 2²¹). Then
+  // the occlusion culling: its pyramid (85⅓ MiB at 4096 pages: 8192 × 2048 texels at level 0, seven
+  // levels), both frame sets' kept tables (32 MiB: a page table, its marks and the stale rects each),
+  // its page list and arguments, and the records' 96 more bytes (6.3 MiB over both frames).
+  assert.equal(SHADOW_POOL_BYTES / MIB, SHADOW_MIB)
+})
+
+// The occlusion's kept tables take only what the frame's maps hold (`encodeKeptTables`): the page
+// table and its marks over the table blocks its maps were packed into — whole block rows, then the
+// last row's first blocks — and its maps' stale rects. A sun's 17 levels in one block row: 3.2 MiB a
+// frame where the whole tables were 12 MiB and 4 MiB of rects.
+test('the kept tables copy the blocks and rects of the frame’s maps alone', () => {
+  const fake = deviceFor()
+  const res = createVsmResources(fake.device, { fullMapCapacity: 127 })
+  const copied = (mapCount: number, blocks: number) => {
+    fake.textureBufferCopies.length = 0
+    const encoder = fake.device.createCommandEncoder()
+    keepOcclusionTables(encoder, res, { mapCount, blocks })
+    let bytes = 0
+    for (const { size, destination } of fake.textureBufferCopies) {
+      const [w, h] = size as number[]
+      const { format } = (destination as GPUTexelCopyTextureInfo).texture
+      bytes += w * h * (format === 'rgba32uint' ? 16 : 4)
+    }
+    return { bytes, regions: fake.textureBufferCopies.map((c) => [...(c.size as number[])]) }
+  }
+  const sun = copied(17, 17)
+  assert.deepEqual(sun.regions, [
+    [17 * 128, 192],
+    [17 * 128, 192],
+    [VSM_KEPT_RECTS_WIDTH, 2],
+  ])
+  // Its blocks of the table and of the marks, a word a texel, and its maps' two rect rows.
+  assert.equal(sun.bytes, 2 * 17 * 128 * 192 * 4 + 2 * VSM_KEPT_RECTS_WIDTH * 16)
+  assert.ok(sun.bytes < 3.3 * MIB && res.layout.pageTableWords * 8 >= 24 * MIB)
+  // Past a block row: the whole rows, then the last row's blocks, each read where it lies.
+  const many = copied(100, 70)
+  assert.deepEqual(many.regions.slice(0, 4), [
+    [8192, 192],
+    [8192, 192],
+    [6 * 128, 192],
+    [6 * 128, 192],
+  ])
+  const last = fake.textureBufferCopies[2]
+  assert.equal((last.source as GPUTexelCopyBufferInfo).offset, 192 * 8192 * 4)
+  assert.deepEqual((last.destination as GPUTexelCopyTextureInfo).origin, [0, 192])
   assert.equal(
-    vsmResourceBytes(res.layout),
-    fake.buffers.reduce((sum, buffer) => sum + buffer.size, 0),
+    many.bytes,
+    2 * 70 * 128 * 192 * 4 + many.regions.at(-1)![1]! * VSM_KEPT_RECTS_WIDTH * 16,
   )
-  assert.equal(SHADOW_POOL_BYTES / MIB, 413)
 })

@@ -2,6 +2,7 @@ import type { CloudMaterial } from '../../../../../sdk-core/src/modules/sky/clou
 import { sequentialEntries } from '../../../gpu/core/computeBindings.ts'
 import { CLOUD_MATERIAL_FLOATS, packCloudMaterial } from './materialWgsl.ts'
 import { CLOUD_SAMPLER, createCloudTextures, type CloudTextures } from './textures.ts'
+import { sameWords } from '../../../gpu/core/sameWords.ts'
 
 /**
  * THE CLOUD MATERIAL ON THE GPU, one for a world's clouds part: the material's block, its five
@@ -56,7 +57,7 @@ export function createCloudMaterialGpu(
     },
     update(material) {
       packCloudMaterial(packed, material)
-      if (written && packed.every((v, i) => v === held[i])) return
+      if (written && sameWords(packed, held)) return
       held.set(packed)
       written = true
       device.queue.writeBuffer(block, 0, packed)

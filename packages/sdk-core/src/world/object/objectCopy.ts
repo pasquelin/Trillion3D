@@ -1,5 +1,6 @@
 import type { Object3D } from './object3d.ts'
 import { jsonCopy } from '../../runtime/jsonCopy.ts'
+import { copyOffsetSwitches } from './offsetSwitches.ts'
 
 /** `Object3D.copy`: writes `source`'s name, pose, matrices and flags into `into`, and a `clone` of
  *  each of its children unless told not to — each child keeps its own class. The values are the
@@ -21,8 +22,7 @@ export function copyObject<T extends Object3D>(into: T, source: Object3D, recurs
   into.castFarShadow = source.castFarShadow
   into.farField = source.farField
   into.farShadowTest = source.farShadowTest
-  into.receiveShadow = source.receiveShadow
-  into.frustumCulled = source.frustumCulled
+  copyOffsetSwitches(into, source)
   into.renderOrder = source.renderOrder
   into.userData = jsonCopy(source.userData)
   if (recursive) for (const child of source.children) into.add(child.clone())

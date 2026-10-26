@@ -137,6 +137,14 @@ function worldFrame(parts: WorldRuntimeParts, apply: () => void) {
   return { beforeFrame, afterDraw, draw }
 }
 
+/** Settles once the session reflects every change made so far. */
+async function settledOf(parts: WorldRuntimeParts, reopens: WorldReopens) {
+  const { resolves, state, contents } = parts
+  while (resolves.running || reopens.running || contents.joining)
+    await (resolves.running ?? reopens.running ?? contents.joining)
+  await state.explorer?.familiesPending() // a family on its way: a change not drawn yet
+}
+
 /** What a world reads of its runtime. */
 function runtimeHandle(
   parts: WorldRuntimeParts,
@@ -167,12 +175,7 @@ function runtimeHandle(
       return state.explorer
     },
     /** Settles once the session reflects every change made so far. */
-    async settled() {
-      const { resolves } = parts
-      while (resolves.running || reopens.running || contents.joining)
-        await (resolves.running ?? reopens.running ?? contents.joining)
-      await state.explorer?.familiesPending() // a family on its way: a change not drawn yet
-    },
+    settled: () => settledOf(parts, reopens),
     /** A frame, `ahead` stepping first: drawn now, or once the world can (`frames/askedFrame.ts`). */
     render: askedFrame({
       // The session opening, or the families the frame draws with on their way (`familyUse.ts`).

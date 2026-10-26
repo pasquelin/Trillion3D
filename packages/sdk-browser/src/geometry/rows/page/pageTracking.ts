@@ -5,7 +5,7 @@ import { createPageUnits } from '../../residency/pageUnits.ts'
 
 /** Addresses a trace sample names, at most, whatever the size of the described set. */
 const TRACE_SAMPLE = 16
-/** A record list as a sample reads it: the row table holds empty slots. */
+/** A record list as a sample reads it: the catalogue holds empty slots. */
 type PageList = ArrayLike<PageRec | undefined>
 
 /** The pages a session tracks (`createWebgpuPageTracking`). */
@@ -88,7 +88,7 @@ function createTraceSamples(pageCatalog: readonly string[], pageRefs: Samples['p
     traceSet: (name: string, urls: readonly string[]) =>
       publish(t, name, urls.length, (index) => urls[index]),
     /** The same sample, taken from the records themselves: no address list is built for it. `count`
-     *  bounds the list when only its start is valid, like the row table. */
+     *  bounds the list when only its start is valid, like the catalogue. */
     traceRecs: (name: string, pages: PageList, count = pages.length) =>
       publish(t, name, count, (index) => {
         const rec = pages[index]

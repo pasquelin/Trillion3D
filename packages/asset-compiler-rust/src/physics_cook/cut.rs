@@ -1,7 +1,7 @@
 //! The collision level of one primitive and its tiles.
 //!
 //! The level is a cut through the DAG at one threshold — the clusters with
-//! `lod_error <= threshold < parent_error`, the rule the renderer and the proxy cut by, so the
+//! `lod_error <= threshold < parent_error`, the rule the renderer cuts by, so the
 //! surface is covered once, without a hole: group borders are locked in the DAG. The object's
 //! tolerance `t` is its own: the median error of its first simplified level, the finest step its
 //! DAG certifies. A cluster's error is the simplifier's estimate, not a bound, so the distance of a
@@ -38,14 +38,18 @@ pub(crate) fn tolerance(dag: &[DagCluster]) -> f64 {
     median_in_place(&mut errors)
 }
 
+/// The ranks a leaf owns, none for a node with children or without clusters.
+fn leaf_range(n: &CullingNode) -> Option<(usize, usize)> {
+    (n.child_count == 0 && n.cluster_count > 0)
+        .then(|| (n.first_cluster, n.first_cluster + n.cluster_count))
+}
+
 /// The rank ranges (culling order) of the leaves of a node's subtree, its group parts: a subtree
 /// owns no one range, its parts lie where the page assignment laid them.
 fn leaf_ranges(culling: &[CullingNode], node: usize, out: &mut Vec<(usize, usize)>) {
     let n = &culling[node];
     if n.child_count == 0 {
-        if n.cluster_count > 0 {
-            out.push((n.first_cluster, n.first_cluster + n.cluster_count));
-        }
+        out.extend(leaf_range(n));
         return;
     }
     for child in n.first_child..n.first_child + n.child_count {
@@ -53,29 +57,45 @@ fn leaf_ranges(culling: &[CullingNode], node: usize, out: &mut Vec<(usize, usize
     }
 }
 
-/// The culling nodes whose collision triangles make one tile each, each as its leaves' rank
-/// ranges.
-fn tile_ranges(
+/// The collision triangles of every subtree of the culling hierarchy under `node`, into `counts`
+/// (`prefix` counting them by rank): each subtree is walked once.
+fn subtree_triangles(
     culling: &[CullingNode],
     prefix: &[usize],
     node: usize,
+    counts: &mut [usize],
+) -> usize {
+    let n = &culling[node];
+    counts[node] = if n.child_count == 0 {
+        leaf_range(n).map_or(0, |(from, to)| prefix[to] - prefix[from])
+    } else {
+        (n.first_child..n.first_child + n.child_count)
+            .map(|child| subtree_triangles(culling, prefix, child, counts))
+            .sum()
+    };
+    counts[node]
+}
+
+/// The culling nodes whose collision triangles (`counts`) make one tile each, each as its leaves'
+/// rank ranges.
+fn tile_ranges(
+    culling: &[CullingNode],
+    counts: &[usize],
+    node: usize,
     out: &mut Vec<Vec<(usize, usize)>>,
 ) {
-    let mut ranges = Vec::new();
-    leaf_ranges(culling, node, &mut ranges);
-    let triangles: usize = ranges
-        .iter()
-        .map(|&(from, to)| prefix[to] - prefix[from])
-        .sum();
+    let triangles = counts[node];
     let n = &culling[node];
     if triangles == 0 {
         return;
     }
     if triangles <= TILE_TRIANGLES || n.child_count == 0 {
+        let mut ranges = Vec::new();
+        leaf_ranges(culling, node, &mut ranges);
         return out.push(ranges);
     }
     for child in n.first_child..n.first_child + n.child_count {
-        tile_ranges(culling, prefix, child, out);
+        tile_ranges(culling, counts, child, out);
     }
 }
 
@@ -99,13 +119,14 @@ fn tile(o: &Options, pos: &[f32], triangles: &[u32]) -> Result<Value> {
     Ok(descriptor)
 }
 
-/// The collision triangles of the cut at `threshold`, one list per tile.
+/// The collision triangles of the cut at `threshold`, tile after tile in one list, and where each
+/// tile's end stands in it.
 fn cut_tiles(
     dag: &[DagCluster],
     order: &[usize],
     culling: &[CullingNode],
     threshold: f64,
-) -> Vec<Vec<u32>> {
+) -> (Vec<u32>, Vec<usize>) {
     let cut = |rank: usize| {
         let cluster = &dag[order[rank]];
         crate::proxy::cut::selected(cluster, threshold).then_some(&cluster.indices)
@@ -116,14 +137,31 @@ fn cut_tiles(
     }
     let mut ranges = Vec::new();
     if !culling.is_empty() {
-        tile_ranges(culling, &prefix, 0, &mut ranges);
+        let mut counts = vec![0usize; culling.len()];
+        subtree_triangles(culling, &prefix, 0, &mut counts);
+        tile_ranges(culling, &counts, 0, &mut ranges);
     }
-    ranges
-        .iter()
-        .map(|tile| {
-            (tile.iter())
-                .flat_map(|&(from, to)| (from..to).filter_map(cut).flatten().copied())
-                .collect()
+    let mut flat = Vec::with_capacity(prefix[order.len()] * 3);
+    let mut ends = Vec::with_capacity(ranges.len());
+    for tile in &ranges {
+        for &(from, to) in tile {
+            for indices in (from..to).filter_map(cut) {
+                flat.extend_from_slice(indices);
+            }
+        }
+        ends.push(flat.len());
+    }
+    (flat, ends)
+}
+
+/// `flat` cut into the tiles that end at `ends`.
+fn tiles_of(flat: &[u32], ends: &[usize]) -> Vec<Vec<u32>> {
+    let mut from = 0;
+    ends.iter()
+        .map(|&end| {
+            let tile = flat[from..end].to_vec();
+            from = end;
+            tile
         })
         .collect()
 }
@@ -150,9 +188,9 @@ pub(crate) fn collision_cut(
     thresholds.dedup();
     let level0 = hausdorff::Level0::new(pos, source);
     let measure = |threshold: f64| {
-        let tiles = cut_tiles(dag, order, culling, threshold);
-        let hausdorff = level0.distance(&tiles.concat(), 0.0);
-        (tiles, hausdorff)
+        let (flat, ends) = cut_tiles(dag, order, culling, threshold);
+        let hausdorff = level0.distance(&flat, 0.0);
+        ((flat, ends), hausdorff)
     };
     let (mut held, mut failed) = (0, thresholds.len() - 1);
     let mut best = measure(thresholds[failed]);
@@ -168,7 +206,8 @@ pub(crate) fn collision_cut(
             }
         }
     }
-    best
+    let ((flat, ends), hausdorff) = best;
+    (tiles_of(&flat, &ends), hausdorff)
 }
 
 /// The collision of one primitive: a height field when its triangles are a regular grid, else the

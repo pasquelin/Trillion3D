@@ -2,17 +2,18 @@
  * What virtual textures publish on a frame: the pool, the tiles, the image feedback.
  *
  * These fields live apart from `FrameMetrics` because they describe another queue than the frame:
- * tiles arrive at their own pace, bounded by bytes and by frame, and the pool is sized
- * once. All optional: an engine without textures leaves them absent, `null` says "unmeasured",
- * never an estimate.
+ * tiles arrive at their own pace, bounded by bytes and by frame, and the pool grows where a lane
+ * runs out of places, never past its budget. All optional: an engine without textures leaves them
+ * absent, `null` says "unmeasured", never an estimate.
  */
 export interface TextureFrameMetrics {
   /**
-   * The physical pools, fixed for the session: their bytes — COMPUTED from their dimensions and
-   * formats, WebGPU not publishing occupied memory —, the block family the session samples
-   * (`bc7`, `astc`, `etc2`, or `rgba8` when the device samples none of them or the host asked for
-   * none), the layers of every lane pool of both atlases added up, and what they hold.
-   * `texturePoolBytes` depends on the budget and on which lanes the scene's chains take;
+   * The physical pools, made at their floors and grown where a lane runs out of places, within the
+   * budget: their bytes — COMPUTED from their dimensions and formats, WebGPU not publishing
+   * occupied memory —, the block family the session samples (`bc7`, `astc`, `etc2`, or `rgba8`
+   * when the device samples none of them or the host asked for none), the layers of every lane pool
+   * of both atlases added up, and what they hold. `texturePoolBytes` depends on the budget, on how
+   * far the lanes have grown in it and on which lanes the scene's chains take;
    * `textureResidentBytes` is the occupied share, pinned tails included, at each lane's own texel
    * cost.
    */

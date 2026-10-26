@@ -2,7 +2,6 @@ import test from 'node:test'
 import { MANIFEST_IDENTITY } from '../../session/engine/pagesEngine.fixture.ts'
 import assert from 'node:assert/strict'
 import { createWebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import { ensurePageTable } from '../../frame/render/pageTable.ts'
 import { refreshTransparentSpans } from './spans.ts'
 import { disposeWebgpuPages } from '../../frame/io/metrics.ts'
 import { BACKEND, writtenBytes } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
@@ -29,7 +28,6 @@ test('transparent spans follow only changed resident pages through arrival, evic
   })
   try {
     await prepareWebgpuPages(rt, mock.device)
-    ensurePageTable(rt, mock.device)
     const table = rt.blendState.table!
     assert.ok(
       table.spans.every((v) => v === 0),
@@ -39,7 +37,7 @@ test('transparent spans follow only changed resident pages through arrival, evic
       mock.writes.filter((w) => w.buffer.label === 'Trillion3D transparent cluster spans')
     const flush = () => {
       mock.writes.length = 0
-      rt.services.syncRows()
+      rt.services.syncClusters()
       refreshTransparentSpans(rt)
       return spans()
     }

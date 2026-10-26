@@ -30,6 +30,12 @@ test('the table reads every bundle, page and HLOD 0 cell back at its record', ()
   assert.deepEqual(readWorldRoots(shifted.subarray(1)).hlod, spec.hlod)
 })
 
+test('the version before reads as this one, its layout being the same', () => {
+  const { spec } = worldRootsFixture()
+  spec.version = 36
+  assert.equal(readWorldRoots(encodeWorldRoots(spec)).bundles.length, spec.bundles.length)
+})
+
 test('a binary past 4 GiB is named whole, its offsets in two words', () => {
   const { spec } = worldRootsFixture()
   const [first, second] = [3e9, 3e9]

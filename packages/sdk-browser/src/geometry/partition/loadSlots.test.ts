@@ -4,6 +4,7 @@ import { loadsBefore, type LoadingCell } from './loadOrder.ts'
 import { createLoadSlots } from './loadSlots.ts'
 import { cellPriority, PRIORITY_VISIBLE } from '../streaming/priority.ts'
 import { resolveWorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
+import { io, noBudget, settled, sizedWhole, world } from './cells.fixture.ts'
 
 /** A cell wished at `distance`, as the order ranks it: one level, one grid priority. */
 const at = (key: number, distance: number, always = false): LoadingCell => ({
@@ -105,4 +106,25 @@ test('0 or less cells loading at once lifts the limit; the setting is a whole 32
   assert.throws(refused(1.5), /worldStreamingMaxLoadingCells.*whole number/)
   assert.throws(refused(2147483648), /2147483647/)
   assert.equal(refused(-2147483648)().maxLoadingCells, -2147483648)
+})
+
+test('a load that blocks on slow streaming lifts the cap: every wished cell starts, not the blockers alone', async () => {
+  // The eye stands on the far cell, which blocks (a ratio of 0); the near one, 4 990 m off in a
+  // range of 6 000, is wished and does not. One cell loads at once at most.
+  const eye = [5000, 0, 0]
+  const loaded = async (blocking: readonly number[]) => {
+    const { cells, bytes } = await sizedWhole(world(0, null, [], [6000, 6000, 12000], blocking))
+    const { port, asked } = io(bytes)
+    port.streaming = resolveWorldStreaming({ worldStreamingMaxLoadingCells: 1 })
+    port.world = {
+      activated() {},
+      hlodEnabled() {},
+      blockingLoad() {},
+      fileShown: () => false,
+    } as never
+    await settled(cells, eye, port, noBudget)
+    return [...new Set(asked.map((url) => url.split('/').at(-1)))].sort()
+  }
+  assert.deepEqual(await loaded([]), ['far.json'], 'no block: the cap holds')
+  assert.deepEqual(await loaded([0]), ['far.json', 'near.json'], 'a block: the cap is lifted')
 })

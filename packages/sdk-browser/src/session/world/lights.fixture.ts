@@ -37,7 +37,7 @@ export function wiredLights(scene: Object3D = object.group()) {
   const lights = createWorldLights(scene, () => sky)
   const calls = { relight: 0, invalidate: 0 }
   const contents = {
-    poses: { moved() {}, touchRange() {} },
+    poses: { moved() {}, structure() {}, touchRange() {} },
     changed() {},
     entered() {},
     stale() {},

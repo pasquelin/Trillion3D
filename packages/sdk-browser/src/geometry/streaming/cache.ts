@@ -10,6 +10,33 @@ export const cacheStats = (store: PageCache) => ({
   maxCachedBytes: store.budgetBytes,
 })
 
+/** What the cache tells the session: a page evicted, and an eviction that found nothing to take. */
+function sessionHooks(context: StreamContext) {
+  const { store, state, pinned, emit, onEvict } = context
+  return {
+    evicted(url: string) {
+      state.evictions++
+      emit?.('page-cache-eviction', 'Page evicted from the LRU cache', () => ({
+        version: 1,
+        url,
+        reason: 'capacity',
+        drawDetached: false,
+        ...cacheStats(store),
+      }))
+      onEvict?.(url)
+    },
+    blocked() {
+      state.admissionBlocked++
+      emit?.('page-cache-admission-blocked', 'No evictable page to meet the budget', () => ({
+        version: 1,
+        ...cacheStats(store),
+        pinned: pinned.size,
+        loading: state.active,
+      }))
+    },
+  }
+}
+
 /** A session's side of the page cache: its reserve and its holds. Its reserve — its manifest
  *  tables, its transfer queue and the engine's host tables, beside its pages — is told the cache
  *  each time it moves; the cache evicts (`PageCache.fit`), and tells the session each page that
@@ -17,37 +44,17 @@ export const cacheStats = (store: PageCache) => ({
  *  (`cacheEntries.ts`) directly; the session only lists them (`pinned`, `jobs`) to give them back
  *  at its close. */
 export function createStreamingCache(context: StreamContext) {
-  const { store, state, pinned, jobs, emit, onEvict, maxTransferBytes } = context
+  const { store, state, pinned, jobs, maxTransferBytes } = context
   /** The page at `url` leaves the cache, its holds with it: each taken again that the session's
    *  pins and transfer still own. */
   const drop = (url: string) => {
     store.drop(url)
     for (let n = (pinned.get(url) ?? 0) + (jobs.has(url) ? 1 : 0); n > 0; n--) store.acquire(url)
   }
-  const evicted = (url: string) => {
-    state.evictions++
-    emit?.('page-cache-eviction', 'Page evicted from the LRU cache', () => ({
-      version: 1,
-      url,
-      reason: 'capacity',
-      drawDetached: false,
-      ...cacheStats(store),
-    }))
-    onEvict?.(url)
-  }
-  const blocked = () => {
-    state.admissionBlocked++
-    emit?.('page-cache-admission-blocked', 'No evictable page to meet the budget', () => ({
-      version: 1,
-      ...cacheStats(store),
-      pinned: pinned.size,
-      loading: state.active,
-    }))
-  }
   const evict = store.fit
   /** What the session reserves off the cache's total beside its pages. */
   const reserved = () => state.tableBytes + maxTransferBytes + state.engineBytes
-  const session = { evicted, blocked }
+  const session = sessionHooks(context)
   let seat: ReturnType<PageCache['open']> | undefined
   const told = () => seat?.reserve(reserved())
   /** The catalogue's tables grew by `bytes`, or shrank (`manifestTables.ts`). */

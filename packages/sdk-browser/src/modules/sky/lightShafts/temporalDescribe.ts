@@ -1,4 +1,5 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
+import { sum } from '../../../../../math/src/scalar/quantile.ts'
 import { multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import {
   inverseAtRenderOrigin,
@@ -10,6 +11,7 @@ import {
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
+import type { CameraImage } from '../../../frame/backend/state/previousCamera.ts'
 import { quantizationError } from '../../../post/taa/colorSpaceWgsl.ts'
 import { stochasticSlot, type TaaFrameState } from '../../../post/taa/frameState.ts'
 import { put4 } from '../clouds/reconstructLayout.ts'
@@ -60,9 +62,9 @@ function lightShaftTemporalWeights(jitter: ArrayLike<number>, divisor: number) {
       y = oy - jy
     return Math.exp(-2.29 * (x * x + y * y))
   })
-  const total = nine.reduce((sum, weight) => sum + weight, 0)
+  const total = sum(nine)
   const plus = PLUS.map((index) => nine[index] / total)
-  const plusTotal = plus.reduce((sum, weight) => sum + weight, 0)
+  const plusTotal = sum(plus)
   weightsFor = { jx, jy, divisor }
   return (weights = plus.map((weight) => weight / plusTotal))
 }
@@ -97,17 +99,19 @@ export function describeLightShaftTemporal(sizes: LightShaftSizes) {
 /** What the uniform is written from. */
 export interface LightShaftTemporalInput {
   readonly sizes: LightShaftSizes
-  /** The view's temporal state: this image's jitter, the last image's view-projection, its
-   *  exposure, and whether it exists. */
+  /** The view's temporal state: this image's jitter and whether its history exists. */
   readonly state: TaaFrameState
   /** The camera of this image, without jitter. */
   readonly camera: Pick<EngineCamera, 'viewProjection' | 'eye'>
   /** The history of the chain, as the last image left it. */
   readonly history: Pick<LightShaftHistory, 'valid' | 'viewport' | 'buffer' | 'exposure'>
+  /** The view's camera of the image the history was drawn for, where that is the image before
+   *  (`cameraSeen`); none for a history that skipped an image, which starts again as after a cut. */
+  readonly before: CameraImage | undefined
   /** The scale this image's pixels are stored at: the history's colour is multiplied by its ratio
    *  to the one the history was stored at (`LightShaftHistory.exposure`). */
   readonly exposure: number
-  /** The exposure scale the tone weights read, the frame's (`TemporalAA.usf`'s `FrameExposureScale`). */
+  /** The exposure scale the tone weights read, the frame's. */
   readonly frameExposure: number
 }
 
@@ -158,10 +162,10 @@ export function writeLightShaftTemporalView<T extends Float32Array>(
   out: T,
   input: LightShaftTemporalInput,
 ) {
-  const { sizes, state, camera, history } = input
+  const { sizes, state, camera, history, before } = input
   const { shaft, scene, factor } = sizes
-  const cut = !history.valid || !state.hasHistory
-  out.set(clipToPrevClip(state.previousViewProjection, camera), T.clipToPrevClip)
+  const cut = !history.valid || !state.hasHistory || !before
+  out.set(clipToPrevClip(before?.viewProjection ?? camera.viewProjection, camera), T.clipToPrevClip)
   const { width: pw, height: ph } = shaft.view
   put4(out, T.outputSize, pw, ph, 1 / pw, 1 / ph)
   put4(

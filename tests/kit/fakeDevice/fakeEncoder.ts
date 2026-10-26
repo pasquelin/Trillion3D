@@ -16,6 +16,7 @@ import {
   type PassCommands,
 } from './fakeRenderPass.ts'
 import { copyTexels } from './fakeResources.ts'
+import { TIMED_ENCODER } from '../../../packages/sdk-browser/src/gpu/core/timedEncoder.ts'
 
 /** What the encoders of one device record, in the order they were encoded. */
 export type EncoderRecords = {
@@ -43,7 +44,8 @@ export type EncoderRecords = {
  * (`fakeCompute.ts`) on the bound buffers — `packed` the DAG the selection reads when the session
  * uploads none, `kernel` a test's own double. `failVisPass` refuses the first visibility pass at its
  * beginning. Every pass is encoded under the device's usage scopes (`scopeRules.ts`); a `deferred`
- * device runs the work when its command buffer is submitted.
+ * device runs the work when its command buffer is submitted; a `timed` device's encoders
+ * answer as the timed ones do.
  */
 export function createFakeCommandEncoderFactory(
   records: EncoderRecords,
@@ -51,8 +53,9 @@ export function createFakeCommandEncoderFactory(
     packed,
     failVisPass = false,
     deferred = false,
+    timed = false,
     kernel,
-  }: Pick<FakeDeviceOptions, 'packed' | 'failVisPass' | 'deferred' | 'kernel'>,
+  }: Pick<FakeDeviceOptions, 'packed' | 'failVisPass' | 'deferred' | 'timed' | 'kernel'>,
 ) {
   const { passDescriptors, commands, dispatches, copies, textureCopies } = records
   let computeBind: ComputeBind | undefined,
@@ -64,6 +67,7 @@ export function createFakeCommandEncoderFactory(
     const ops: Array<() => void> = []
     const act = (op: () => void) => (deferred ? void ops.push(op) : op())
     return {
+      [TIMED_ENCODER]: timed,
       beginRenderPass: (desc?: GPURenderPassDescriptor) => {
         if (visPassFails && desc?.label === 'Trillion3D visibility primary') {
           visPassFails = false

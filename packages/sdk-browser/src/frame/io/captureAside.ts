@@ -1,4 +1,4 @@
-import type { HostCamera } from '../../camera/world.ts'
+import type { ViewCamera } from '../../camera/world.ts'
 import { renderWebgpuPages } from '../render/render.ts'
 import { frameTargetsAwaited, grantFrameTargets } from '../prepare/targetGrant.ts'
 import { poolFundingPending } from '../prepare/targetFunding.ts'
@@ -15,6 +15,18 @@ import { fetchHostPages } from './hostPages.ts'
  *  it waits for them and draws again, never reading pages a funding moved. */
 const targetsMoving = (rt: WebgpuPagesRuntime) =>
   frameTargetsAwaited(rt) || poolFundingPending(rt) !== undefined
+
+/** Refuses a capture while another holds the engine, or before the main view drew an image
+ *  (`unavailable` names the error of that); gives the device and the main view's last camera. */
+export function assertCaptureReady(rt: WebgpuPagesRuntime, unavailable = 'CAPTURE_NOT_READY') {
+  const { run, capture } = rt,
+    device = rt.gpu.device,
+    main = run.lastCamera
+  if (capture.capturing || capture.surfaceCapture)
+    throw new Error('SURFACE_CAPTURE_BUSY: dispose the previous capture first')
+  if (run.lost || !device || !main) throw new Error(unavailable)
+  return { device, main }
+}
 
 /**
  * Runs `work` in a view of its own at `width × height`, once the device has answered for what the
@@ -63,7 +75,7 @@ export async function captureAside<T>(
  *  into, when it is not the camera's own. */
 export async function renderForCapture(
   rt: WebgpuPagesRuntime,
-  camera: HostCamera,
+  camera: ViewCamera,
   aspect?: number,
 ) {
   await grantFrameTargets(rt, rt.gpu.device!)
@@ -88,19 +100,19 @@ const CAPTURE_ROUNDS = 64
 
 /**
  * Whether the capture's cut is whole: every page of it the pool accepted is resident, its instance
- * ready for the GPU cut — bytes and row (`../../geometry/rows/slots.ts`) —, no row is owed, and the
- * streaming leaves no page to start (`busy`). A page past the budget is drawn by its nearest
- * resident ancestor, as on any image.
+ * ready for the GPU cut — bytes and cluster record (`../../geometry/clusters/clusterResidency.ts`) —,
+ * no record is owed, and the streaming leaves no page to start (`busy`). A page past the budget is
+ * drawn by its nearest resident ancestor, as on any image.
  */
 function captureSettled(rt: WebgpuPagesRuntime) {
   const { run, services, views } = rt,
-    { rows } = rt.layout
+    { clusters } = rt.layout
   if (!views.active.cut?.adopted || !services.bootstrapState.ready) return false
-  if (services.rowsOwed() || rows.rowsDenied || services.residency.busy) return false
+  if (services.clustersOwed() || services.residency.busy) return false
   for (let i = 0; i < run.desired.length; i++) {
     const rec = run.desired[i]
     if (!services.residencySets.accepts(rec)) continue
-    if (!services.poolHolds(rec) || !rows.residentFlag(run.desiredPacked[i])) return false
+    if (!services.poolHolds(rec) || !clusters.residentFlag(run.desiredPacked.ids[i])) return false
   }
   return true
 }
@@ -109,13 +121,12 @@ function captureSettled(rt: WebgpuPagesRuntime) {
  * Draws the capture's cut once it is whole. Each round reads back the cut the last image of the
  * view drew (`../../geometry/dag/aside.ts`), adopts it — its requests join the queue, ranked first
  * under the one budget (#268) —, waits for the queue and for the host's bytes of the pages it
- * stopped on (`fetchHostPages`), and draws again: the GPU cut then draws the pages that landed and
- * the rows they took. The hooks let a capture refuse a cut the budget or the host has dropped,
+ * stopped on (`fetchHostPages`), and draws again: the GPU cut then draws the pages that landed. The hooks let a capture refuse a cut the budget or the host has dropped,
  * before any draw.
  */
 export async function drawResidentCut(
   rt: WebgpuPagesRuntime,
-  camera: HostCamera,
+  camera: ViewCamera,
   aspect: number,
   hooks: { admitted?: () => void; beforeEncode?: () => void } = {},
 ) {

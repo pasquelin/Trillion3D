@@ -43,6 +43,7 @@ export function hostScene(count: number, blend = false) {
     parkWorld: (rank: number) => void parks.push(rank),
     markWorld() {},
     drawDistanceWorld() {},
+    rootParentWorld: () => true,
   } as never
   // The drawn entries, read again whenever the watched list is: roots a test adds included.
   const drawn = () => roots.map((root) => root.pages[0])

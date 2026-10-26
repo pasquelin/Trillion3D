@@ -15,11 +15,11 @@ use crate::trace::surface::material::{
     ANISOTROPY_SLOT, EMISSION_SLOT, METAL_ROUGH_SLOT, NORMAL_SLOT, OCCLUSION_SLOT, SPECULAR_SLOT,
 };
 use trillion3d_page_codec::encode::Attribute;
-use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3};
+use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1, UV_FLAGS};
 
 /// What an entry is baked on: a full-frame quad of its material, or a mesh's own triangles at the
 /// coordinates generated for it — the mesh, and whether its parts mirror it.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(super) enum Ground {
     Quad,
     Mesh(usize, bool),
@@ -95,13 +95,12 @@ const MOST_SETS: usize = 8;
 /// index at its first open set — as many as it has sets, or 1 when it holds the most
 /// (`MOST_SETS`) —, so the mesh has a set there only when it is full. None otherwise.
 fn lightmap(part: &Part) -> Option<&[f32]> {
-    let flags = [FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3];
-    let sets = flags
+    let sets = UV_FLAGS
         .iter()
         .filter(|&&flag| part.carried(flag).is_some())
         .count();
     let index = if sets >= MOST_SETS { 1 } else { sets };
-    part.carried(*flags.get(index)?)
+    part.carried(*UV_FLAGS.get(index)?)
 }
 
 /// `part`'s triangles' corners' coordinates on its texture set `set`, in the order `part`'s
@@ -122,26 +121,68 @@ pub(in crate::hlod) fn lightmapped(part: &Part) -> Option<Vec<[[f64; 2]; 3]>> {
 }
 
 /// The texture coordinates `part`'s mesh is baked at, per corner of its triangles in its mesh's own
-/// order (`oriented`): its lightmap set where it reuses one and has one (`lightmap`), its own
-/// unique coordinates; else coordinates generated as `method` unwraps (`coordinates`) — for
-/// `legacy`, the old layout of its first texture set (`legacy::layout`) for an atlas `side`
-/// texels wide, the default unwrap where it finds no layout, either way scaled to fill the unit
-/// square (`legacy::scaled_to_box`).
+/// order (`oriented`): its lightmap set where it has one (`lightmap`), its own unique coordinates;
+/// else coordinates generated as `method` says (`generated`). A layer that does not reuse its
+/// lightmap sets lays its meshes out together instead (`global`), each mesh generated alone only
+/// where that fails.
 pub(in crate::hlod) fn laid_out(
     part: &Part,
-    (reuse, method): (bool, HlodUvMethod),
+    method: HlodUvMethod,
     side: usize,
 ) -> Vec<[[f64; 2]; 3]> {
-    let Some(set) = lightmap(part).filter(|_| reuse) else {
-        if method != HlodUvMethod::Legacy {
-            return coordinates(part, method);
-        }
-        let laid = legacy::layout(part, side).unwrap_or_else(|| coordinates(part, method));
-        return legacy::scaled_to_box(laid);
-    };
-    (on_set(part, set).into_iter())
-        .map(|corners| oriented(corners, part.mirrored))
-        .collect()
+    match lightmap(part) {
+        Some(set) => (on_set(part, set).into_iter())
+            .map(|corners| oriented(corners, part.mirrored))
+            .collect(),
+        None => generated(part, method, side),
+    }
+}
+
+/// The coordinates generated for `part`'s mesh alone as `method` unwraps (`coordinates`) — for
+/// `legacy`, the old layout of its first texture set (`legacy::layout`) for an atlas `side` texels
+/// wide, the default unwrap where it finds no layout, either way scaled to fill the unit square
+/// (`legacy::scaled_to_box`) — per corner of its triangles in its mesh's own order (`oriented`).
+pub(super) fn generated(part: &Part, method: HlodUvMethod, side: usize) -> Vec<[[f64; 2]; 3]> {
+    if method != HlodUvMethod::Legacy {
+        return coordinates(part, method);
+    }
+    let laid = legacy::layout(part, side).unwrap_or_else(|| coordinates(part, method));
+    let mut sets = [laid];
+    legacy::scaled_to_box(&mut sets);
+    let [laid] = sets;
+    laid
+}
+
+/// A part's points welded where they coincide, and its triangles over them, in its own order.
+pub(super) struct Welded {
+    pub points: Vec<[f64; 3]>,
+    pub triangles: Vec<[usize; 3]>,
+}
+
+/// `part`'s points welded where their bits are the same (`first_seen`, in the order the vertices
+/// first name them), its triangles over the welded points.
+pub(super) fn welded(part: &Part) -> Welded {
+    let (positions, _, indices) = &part.geometry;
+    let bits: Vec<[u32; 3]> = (positions.as_chunks::<3>().0.iter())
+        .map(|p| p.map(f32::to_bits))
+        .collect();
+    let (welded, of) = first_seen(bits);
+    let points = (welded.iter())
+        .map(|p| p.map(|x| f64::from(f32::from_bits(x))))
+        .collect();
+    let triangles = (indices.as_chunks::<3>().0.iter())
+        .map(|t| t.map(|v| of[v as usize] as usize))
+        .collect();
+    Welded { points, triangles }
+}
+
+/// The coordinates of the triangle `tri` of `part` on its first texture set, zero without one.
+pub(super) fn own_set(part: &Part, tri: [u32; 3]) -> [[f64; 2]; 3] {
+    let own = part.carried(FLAG_UV);
+    tri.map(|v| {
+        let at = v as usize * 2;
+        own.map_or([0.0; 2], |uv| [0, 1].map(|k| f64::from(uv[at + k])))
+    })
 }
 
 /// Unique texture coordinates in the unit square for `part`'s mesh, per corner of its triangles in
@@ -149,30 +190,18 @@ pub(in crate::hlod) fn laid_out(
 /// `method` says and packed (`flatten::unwrapped`) — as the unwrap's maps made them where the
 /// packer finds no layout, the bake then reading what of them lies in the square. A triangle the
 /// unwrap's mesh does not hold — one naming a point twice, or repeating a triangle — keeps its own
-/// first set, zero without one.
+/// first set, zero without one, as does every triangle where the unwrap fails.
 pub(in crate::hlod) fn coordinates(part: &Part, method: HlodUvMethod) -> Vec<[[f64; 2]; 3]> {
-    let (positions, _, indices) = &part.geometry;
-    let bits: Vec<[u32; 3]> = (positions.as_chunks::<3>().0.iter())
-        .map(|p| p.map(f32::to_bits))
-        .collect();
-    let (welded, of) = first_seen(bits);
-    let points: Vec<[f64; 3]> = (welded.iter())
-        .map(|p| p.map(|x| f64::from(f32::from_bits(x))))
-        .collect();
-    let corners: &[[u32; 3]] = indices.as_chunks::<3>().0;
-    let triangles: Vec<[usize; 3]> = (corners.iter())
-        .map(|t| t.map(|v| of[v as usize] as usize))
-        .collect();
-    let (laid, held) = unwrapped(&points, &triangles, method);
-    let own = part.carried(FLAG_UV);
-    let first_set = |v: u32| {
-        let at = v as usize * 2;
-        own.map_or([0.0; 2], |uv| [0, 1].map(|k| f64::from(uv[at + k])))
+    let Welded { points, triangles } = welded(part);
+    let corners: &[[u32; 3]] = part.geometry.2.as_chunks::<3>().0;
+    let own = |tri: [u32; 3]| oriented(own_set(part, tri), part.mirrored);
+    let Some((laid, held)) = unwrapped(&points, &triangles, method) else {
+        return corners.iter().map(|&tri| own(tri)).collect();
     };
     (laid.as_chunks::<3>().0.iter().zip(corners).zip(held))
-        .map(|((&t, tri), held)| match held {
+        .map(|((&t, &tri), held)| match held {
             true => oriented(t, part.mirrored),
-            false => oriented(tri.map(first_set), part.mirrored),
+            false => own(tri),
         })
         .collect()
 }

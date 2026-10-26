@@ -33,11 +33,6 @@ const PHASES: Record<string, (event: CompilerEvent, state: PhaseState) => string
   primitive: (e, s) =>
     `clustering ${s.primitives}${s.primitivesTotal ? `/${s.primitivesTotal}` : ''} primitives`,
   bootstrap: (e) => `root bundles ${e.completed}/${e.total}`,
-  // Cutouts are decided by hand, and the questions come at the end of the batch: the line only
-  // says there will be some. Nothing to decide is a line too — the answer sheet exists for every
-  // model, and it is what says whether a review is due.
-  cutouts: (e) =>
-    Number(e.pending ?? 0) > 0 ? `${e.pending} cutout(s) to review` : 'cutouts up to date',
   // A folder already holding the product is proven, then kept: no clustering line follows.
   reuse: (e) =>
     Number(e.completed ?? 0) > 0
@@ -59,6 +54,81 @@ function summaryOf(pointer?: ProgressPointer) {
   if (pointer.metrics?.wallMs) parts.push(`${Math.round(pointer.metrics.wallMs)} ms`)
   return parts.join(', ') || 'ready'
 }
+/** What a job's line shows and keeps between events. */
+interface ProgressState extends PhaseState {
+  ratio: number
+  phase: string
+  text: string
+  frame: number
+  lastKey: string
+  timer: ReturnType<typeof setInterval> | null
+  finished: boolean
+}
+const initialState = (): ProgressState => ({
+  ratio: 0,
+  phase: '',
+  text: 'waiting',
+  primitives: 0,
+  primitivesTotal: 0,
+  frame: 0,
+  lastKey: '',
+  timer: null,
+  finished: false,
+})
+/** The bar for `ratio` over `width` cells, with its percentage. */
+const barOf = (ratio: number, width: number) => {
+  const filled = Math.round(ratio * width)
+  return `[${'█'.repeat(filled)}${'░'.repeat(width - filled)}] ${String(Math.round(ratio * 100)).padStart(3)}%`
+}
+/** Takes one compiler event into the state: the ratio, the primitive counts, the phase and its text. */
+function advance(state: ProgressState, event: CompilerEvent) {
+  if (typeof event.ratio === 'number') state.ratio = clamp(event.ratio, state.ratio, 1)
+  if (event.phase === 'import' && typeof event.primitives === 'number')
+    state.primitivesTotal = event.primitives
+  if (event.phase === 'primitive') state.primitives += 1
+  state.phase = event.phase ?? event.event ?? ''
+  const describe = PHASES[state.phase]
+  if (describe) state.text = describe(event, state)
+}
+const elapsedSince = (started: number) => `${((performance.now() - started) / 1000).toFixed(1)}s`
+/** What a job's line is made of besides its state. */
+interface LineSpec {
+  label: string
+  index: number
+  total: number
+  width: number
+  started: number
+}
+/** The line to draw in `columns` characters. Fixed parts (spinner, index, bar, elapsed) always fit;
+ *  only the phase text yields to a narrow terminal. */
+function lineOf(state: ProgressState, spec: LineSpec, columns: number) {
+  const { label, index, total, width, started } = spec
+  const head = `${SPINNER[state.frame++ % SPINNER.length]} ${index + 1}/${total} ${label} ${barOf(state.ratio, width)} `
+  const tail = ` ${elapsedSince(started)}`
+  return head + clip(state.text, Math.max(1, columns - [...head].length - [...tail].length)) + tail
+}
+/** Draws the line: over itself on a terminal, a new line on each change of phase elsewhere. */
+function drawState(
+  state: ProgressState,
+  stream: ProgressStream,
+  line: (columns: number) => string,
+) {
+  if (state.finished) return
+  if (stream.isTTY) stream.write(`\r\x1b[K${line(Math.max(20, (stream.columns ?? 80) - 1))}`)
+  else {
+    const key = `${state.phase}:${state.text.split(' ')[0]}`
+    if (key !== state.lastKey) {
+      stream.write(`${line(Infinity)}\n`)
+      state.lastKey = key
+    }
+  }
+}
+function stopTimer(state: ProgressState) {
+  if (state.timer) {
+    clearInterval(state.timer)
+    state.timer = null
+  }
+}
 /** A progress bar in the terminal that follows the compiler's events. */
 export function createTerminalProgress({
   label = 'job',
@@ -71,59 +141,16 @@ export function createTerminalProgress({
 }: TerminalProgressOptions = {}): TerminalProgress {
   const tty = Boolean(stream.isTTY)
   const started = performance.now()
-  const state: PhaseState & {
-    ratio: number
-    phase: string
-    text: string
-    frame: number
-    lastKey: string
-    timer: ReturnType<typeof setInterval> | null
-    finished: boolean
-  } = {
-    ratio: 0,
-    phase: '',
-    text: 'waiting',
-    primitives: 0,
-    primitivesTotal: 0,
-    frame: 0,
-    lastKey: '',
-    timer: null,
-    finished: false,
-  }
-  const elapsed = () => `${((performance.now() - started) / 1000).toFixed(1)}s`
-  const bar = () => {
-    const filled = Math.round(state.ratio * width)
-    return `[${'█'.repeat(filled)}${'░'.repeat(width - filled)}] ${String(Math.round(state.ratio * 100)).padStart(3)}%`
-  }
-  // Fixed parts (spinner, index, bar, elapsed) always fit; only the phase text yields to a narrow terminal.
-  const line = (width: number) => {
-    const head = `${SPINNER[state.frame++ % SPINNER.length]} ${index + 1}/${total} ${label} ${bar()} `
-    const tail = ` ${elapsed()}`
-    return head + clip(state.text, Math.max(1, width - [...head].length - [...tail].length)) + tail
-  }
-  const draw = () => {
-    if (state.finished) return
-    if (tty) stream.write(`\r\x1b[K${line(Math.max(20, (stream.columns ?? 80) - 1))}`)
-    else {
-      const key = `${state.phase}:${state.text.split(' ')[0]}`
-      if (key !== state.lastKey) {
-        stream.write(`${line(Infinity)}\n`)
-        state.lastKey = key
-      }
-    }
-  }
-  const stop = () => {
-    if (state.timer) {
-      clearInterval(state.timer)
-      state.timer = null
-    }
-  }
+  const state = initialState()
+  const spec = { label, index, total, width, started }
+  const elapsed = () => elapsedSince(started)
+  const draw = () => drawState(state, stream, (columns) => lineOf(state, spec, columns))
   // A line that stays: the bar is erased first on a terminal, written as-is elsewhere.
   const persist = (text: string) => stream.write(`${tty ? '\r\x1b[K' : ''}${text}\n`)
   const messages = messageTally(verbose)
   const finish = (mark: string, summary: string) => {
     if (state.finished) return
-    stop()
+    stopTimer(state)
     state.finished = true
     persist(`${mark} ${index + 1}/${total} ${label} ${summary} ${elapsed()}`)
   }
@@ -144,13 +171,7 @@ export function createTerminalProgress({
         finish('✖', describeMessage(event.code ?? 'COMPILER_EXIT', event.message))
         return
       }
-      if (typeof event.ratio === 'number') state.ratio = clamp(event.ratio, state.ratio, 1)
-      if (event.phase === 'import' && typeof event.primitives === 'number')
-        state.primitivesTotal = event.primitives
-      if (event.phase === 'primitive') state.primitives += 1
-      state.phase = event.phase ?? event.event ?? ''
-      const describe = PHASES[state.phase]
-      if (describe) state.text = describe(event, state)
+      advance(state, event)
       draw()
     },
     /** Host-side step happening before or between compiler events (a manifest check, a copy...). */

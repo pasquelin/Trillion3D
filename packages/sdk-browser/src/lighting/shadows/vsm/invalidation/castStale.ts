@@ -14,6 +14,7 @@
  * `mayHoldCachedPages`).
  */
 import { COMPUTE, computeBufferEntry } from '../../../../gpu/core/computeBindings.ts'
+import type { ComputeRun } from '../../../../gpu/core/lazyComputePass.ts'
 import { sizedBuffer } from '../../../../gpu/core/sizedBuffer.ts'
 import { composeGroup, heldGroup, type HeldGroup } from '../../../../gpu/bind/bindIdentity.ts'
 import { bufferEntry } from '../../../../gpu/bind/liveEntries.ts'
@@ -27,6 +28,7 @@ import {
   VSM_CAST_PARAMS_BYTES,
 } from './castInvalidationWgsl.ts'
 import { VSM_INVALIDATION_SPECS } from '../invalidationWgsl.ts'
+import { frameParity, vsmOcclusionEntries } from '../occlusion/occlusionPass.ts'
 import type { VsmLayout } from '../layout.ts'
 import { vsmComputePipe } from '../passKit.ts'
 import {
@@ -40,6 +42,7 @@ import {
 
 /** The pass that stales the shadow changes, its two kernels in it. */
 const CAST_LABEL = `${VSM_PASS_PREFIX}invalidateCastPages`
+const CAST_PASS: GPUComputePassDescriptor = { label: CAST_LABEL }
 
 /** The stale's kernels for `layout`, made once a device and source. */
 export function vsmCastPipes(device: GPUDevice, layout: VsmLayout) {
@@ -56,8 +59,10 @@ export function vsmCastPipes(device: GPUDevice, layout: VsmLayout) {
       castInvalidationWgsl(layout),
       CAST_INVALIDATION_ENTRY,
       [
-        vsmBindGroupLayoutEntries(VSM_INVALIDATION_SPECS, layout, COMPUTE),
+        vsmBindGroupLayoutEntries(VSM_INVALIDATION_SPECS, COMPUTE),
         [uniform(0), read(1), read(2), read(3)],
+        // The previous frame's pyramid and kept tables, where the layout holds them.
+        ...(layout.occlusion ? [vsmOcclusionEntries()] : []),
       ],
     ),
   }
@@ -70,6 +75,8 @@ export interface VsmCastState {
   device: GPUDevice
   pipes: ReturnType<typeof vsmCastPipes>
   tables: VsmPerFrameSet<GPUBindGroup>
+  /** The pyramid and the previous frame's kept tables, group 2 over the tables of a frame set. */
+  hzb: VsmPerFrameSet<GPUBindGroup>
   params: GPUBuffer
   maps?: GPUBuffer
   boxes?: GPUBuffer
@@ -86,6 +93,7 @@ function castState(device: GPUDevice, res: VsmResources) {
     device,
     pipes: vsmCastPipes(device, res.layout),
     tables: vsmFrameSetHeld(),
+    hzb: vsmFrameSetHeld(),
     params: device.createBuffer({
       label: `${CAST_LABEL}.params`,
       size: VSM_CAST_PARAMS_BYTES,
@@ -115,21 +123,39 @@ const tablesGroup = (res: VsmResources, state: VsmCastState) =>
     entries: vsmBindGroupEntries(res, VSM_INVALIDATION_SPECS),
   })
 
-/** The parameters' words: the maps' count, the CPU's boxes' count, then padding. */
+/** Group 2 of the stale over the tables of `res.current`: the pyramid, and the kept tables of the
+ *  previous frame set, the ones the raster's first cull reads. */
+const hzbGroup = (res: VsmResources, state: VsmCastState) => {
+  const kept = res.kept![1 - frameParity(res)]
+  return state.device.createBindGroup({
+    layout: state.pipes.stale.groups[2]!,
+    entries: [
+      { binding: 0, resource: res.occlusion!.pyramid.createView({ dimension: '2d-array' }) },
+      { binding: 1, resource: kept.table.createView() },
+      { binding: 2, resource: kept.marks.createView() },
+      { binding: 3, resource: kept.rects.createView() },
+    ],
+  })
+}
+
+/** The parameters' words: the maps' count, the CPU's boxes' count, whether the pages are tested
+ *  against the pyramid, then padding. */
 const paramsImage = new Uint32Array(VSM_CAST_PARAMS_BYTES / 4)
 
 /**
  * Records the stale of `res`'s previous frame's `maps` (`vsmCastMaps`) into `encoder`, its buffers
  * written: the arguments' kernel over the `list`'s count and the CPU's `boxes`', then the stale over
- * the dispatch it sized, the list's records then the boxes'.
+ * the dispatch it sized, the list's records then the boxes'; `hzb` (`shadowCacheInvalidateUseHzb`):
+ * with the previous frame's pyramid kept, a page a box is hidden on is not staled.
  */
 export function encodeCastStale(
-  encoder: GPUCommandEncoder,
+  steps: ComputeRun,
   res: VsmResources,
   device: GPUDevice,
   maps: Uint32Array,
   boxes: VsmCastBoxes | null,
   list: GPUBuffer,
+  hzb: boolean,
 ) {
   const state = castState(device, res),
     { pipes, groups, params } = state,
@@ -150,21 +176,25 @@ export function encodeCastStale(
   if (boxCount) device.queue.writeBuffer(state.boxes, 0, boxes!.words, 0, words)
   paramsImage[0] = maps.length
   paramsImage[1] = boxCount
+  paramsImage[2] = hzb && res.kept && res.occlusion?.prevKept ? 1 : 0
   device.queue.writeBuffer(params, 0, paramsImage)
   const indirect = GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT
   state.args = sizedBuffer(device, state.args, 16, indirect, `${CAST_LABEL}.args`)
   state.list = list
-  composeGroup(device, groups.sizing, pipes.args.pipeline)
-  composeGroup(device, groups.stale, pipes.stale.pipeline, 1)
-  const pass = encoder.beginComputePass({ label: CAST_LABEL })
-  pass.setPipeline(pipes.args.pipeline)
+  const argsPipeline = pipes.args.pipeline
+  const stalePipeline = pipes.stale.pipeline
+  if (!argsPipeline || !stalePipeline) return
+  composeGroup(device, groups.sizing, argsPipeline)
+  composeGroup(device, groups.stale, stalePipeline, 1)
+  const pass = steps.pass(CAST_PASS)
+  pass.setPipeline(argsPipeline)
   pass.setBindGroup(0, groups.sizing.group!)
   pass.dispatchWorkgroups(1)
-  pass.setPipeline(pipes.stale.pipeline)
+  pass.setPipeline(stalePipeline)
   pass.setBindGroup(0, vsmPerFrameSet(state.tables, res, tablesGroup, state))
   pass.setBindGroup(1, groups.stale.group!)
+  if (res.kept) pass.setBindGroup(2, vsmPerFrameSet(state.hzb, res, hzbGroup, state))
   pass.dispatchWorkgroupsIndirect(state.args, 0)
-  pass.end()
 }
 
 /** Frees what the stale of `res` holds, with the set (`destroyEngineVsm`). */

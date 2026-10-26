@@ -5,7 +5,8 @@
 //! base, and `prefix`, the sum of the widths of the blocks before it: the block's first corner
 //! lies at bit `3 * TRIANGLE_BLOCK * prefix` of the corner stream: any corner is one record and one field
 //! away, in O(1), as a shader reads it in place. The code is lossless — `base + delta == index`,
-//! in order, which the tests prove on every input —, and pages number vertices by first use.
+//! in order, which the tests prove on every input —, and pages number vertices in the order their strips
+//! lay them (`clusters/strip.rs`), which keeps the corners of neighbouring triangles close.
 
 use crate::bits::{bits_for, le_words, BitReader};
 use crate::writer::BitWriter;

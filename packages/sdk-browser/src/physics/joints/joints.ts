@@ -15,13 +15,25 @@ const motorOf = (motor: JointMotor | null) => ({
   axis: sixDofAxis(motor?.axis),
 })
 
-/**
- * The joints of a session: which are made in the simulation, under which id (a slot and its
- * generation, as a body's engine id). A joint is made once both its bodies are simulated, and
- * taken out when one leaves, is rebuilt, or the joint is removed or breaks — as it does when a
- * body leaves for good.
- */
-export function createPhysicsJoints(
+/** The limits a joint writes: a distance keeps its length, or stays within the limits from 0 up to
+ *  its length, or up to the minimum when that is further; a pulley's rope slackens down to 0; the
+ *  others have none. */
+function limitsOf(joint: Joint, length: number) {
+  const { limits, spring } = joint.options
+  const distance = joint.kind === 'distance',
+    rope = distance || joint.kind === 'pulley'
+  const min = limits?.min ?? (!rope ? -Infinity : distance && !limits ? length : 0)
+  const max = limits?.max ?? (rope ? Math.max(min, length) : Infinity)
+  return [min, max, spring?.frequency ?? 0, spring?.damping ?? 0] as [
+    number,
+    number,
+    number,
+    number,
+  ]
+}
+
+/** The joints made in the simulation, and how a joint is made there or taken out. */
+function createJointLinks(
   writer: CommandWriter,
   bodies: ReturnType<typeof createPhysicsBodies>,
   invalidate: () => void,
@@ -44,6 +56,44 @@ export function createPhysicsJoints(
     joint._host = null
     joint._id = -1
   }
+  const connect = (joint: Joint) => {
+    const a = idOf(joint.a),
+      b = idOf(joint.b)
+    if (a < 0 || b < 0 || joint._host) return
+    const frames = (joint._frames ??= framesOf(joint))
+    const id = slots.take(joint)
+    writer.joint({
+      id,
+      kind: JOINT[joint.kind],
+      a,
+      b,
+      frameA: frames.a,
+      frameB: frames.b,
+      limits: limitsOf(joint, frames.length),
+      motor: motorOf(joint.motor),
+      breakForce: joint.options.breakForce ?? 0,
+      breakTorque: joint.options.breakTorque ?? 0,
+      extra: frames.extra,
+    })
+    made.set(joint, { a, b })
+    joint._host = host
+    joint._id = id
+  }
+  return { made, slots, idOf, drop, connect }
+}
+
+/**
+ * The joints of a session: which are made in the simulation, under which id (a slot and its
+ * generation, as a body's engine id). A joint is made once both its bodies are simulated, and
+ * taken out when one leaves, is rebuilt, or the joint is removed or breaks — as it does when a
+ * body leaves for good.
+ */
+export function createPhysicsJoints(
+  writer: CommandWriter,
+  bodies: ReturnType<typeof createPhysicsBodies>,
+  invalidate: () => void,
+) {
+  const { made, slots, idOf, drop, connect } = createJointLinks(writer, bodies, invalidate)
   /** The `physics` of the bodies out for good (asleep decorative, or diverged), until set anew:
    *  a joint on one breaks. */
   const gone = new WeakSet<object>()
@@ -52,35 +102,6 @@ export function createPhysicsJoints(
   const snap = (joint: Joint) => {
     drop(joint)
     joint._break()
-  }
-  const connect = (joint: Joint) => {
-    const a = idOf(joint.a),
-      b = idOf(joint.b)
-    if (a < 0 || b < 0 || joint._host) return
-    const frames = (joint._frames ??= framesOf(joint))
-    const id = slots.take(joint)
-    const { limits, spring } = joint.options
-    // A distance keeps its length, or stays within the limits from 0 up to its length, or up to
-    // the minimum when that is further; a pulley's rope slackens down to 0; the others have none.
-    const distance = joint.kind === 'distance',
-      rope = distance || joint.kind === 'pulley'
-    const min = limits?.min ?? (!rope ? -Infinity : distance && !limits ? frames.length : 0)
-    const max = limits?.max ?? (rope ? Math.max(min, frames.length) : Infinity)
-    writer.joint({
-      id,
-      kind: JOINT[joint.kind],
-      a,
-      b,
-      frameA: frames.a,
-      frameB: frames.b,
-      limits: [min, max, spring?.frequency ?? 0, spring?.damping ?? 0],
-      motor: motorOf(joint.motor),
-      breakForce: joint.options.breakForce ?? 0,
-      extra: frames.extra,
-    })
-    made.set(joint, { a, b })
-    joint._host = host
-    joint._id = id
   }
   return {
     /** Brings the made joints in line with `joints` and with the bodies, after the bodies are;

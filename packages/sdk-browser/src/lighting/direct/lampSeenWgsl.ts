@@ -1,11 +1,14 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { horizonWrap } from '../../../../math/src/wgsl/lighting.ts'
+import { safeRcp } from '../../../../math/src/wgsl/reals.ts'
 
 /**
  * A LAMP AS A SURFACE SEES IT: a point, or a source with a size — a sphere of `shape.x` metres, a
  * tube twice as long as `capsule.xyz` is, along it (its two ends are the light's place less and
  * plus it), a capsule with both — and what the term of a light reads of it (`lampSeen`): the inverse
  * square, the cosine, the direction toward it. A lamp with no size is the point: its inverse square
- * is `1 / (d² + LAMP_BIAS)` and its cosine the plain one, as the incidence has them.
+ * is `1 / (d² + bias)` and its cosine the plain one. The one place the sum is formed is here: the
+ * range and cone mask comes from `lampReach` (`lightWgsl.ts`), the distance's weight from this block.
  *
  * - A tube's falloff is the integral of the inverse square along it: with `i = 1 / (|p₀| |p₁|)` over
  *   the distances to its two ends and `c` the cosine between the directions to them, `i / (c/2 + 1/2 +
@@ -14,76 +17,73 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  * - A sphere, or a capsule, wraps the horizon: where the sphere's angular radius `α` (sin² α =
  *   radius² times the falloff) reaches the surface's horizon, the cosine falls off by the Hermite
  *   curve `(sin α + cos)² / (4 sin α)`, down to nothing at `−sin α`, not at the horizon.
+ * - A lamp that does not fall off as the inverse square (`shape.y` an exponent) has a falloff of 1:
+ *   its light is the mask alone, while the horizon's wrap still takes the inverse square's.
  *
- * What is finite stays finite: a point on a tube's end or between its ends, or a reflection ray
- * along its line (`lineClosest`), answer numbers.
+ * Where a sum is nothing the reciprocal is nothing (`safeRcp`), not an infinity: with the bias 0 of
+ * the bounce cache's light, the sum is the squared distance itself, nothing at the lamp's own
+ * centre or on a tube's line between its ends, and the division would give an infinity there and,
+ * times the direction it has none of, a NaN into the cache: that point takes no light from the lamp.
  */
 export const LAMP_WGSL = wgslBlock(
   'LAMP_WGSL',
-  [],
+  [safeRcp, horizonWrap],
   `
-const LINE_FLOOR:f32=1e-12;
-/** \`1 / sum\`, nothing where the sum is nothing. */
-fn inverseOf(sum:f32)->f32{return select(0.0,1.0/sum,sum>0.0);}
 /** Whether a lamp has a size: a source radius or a tube. A sun's lane of \`shape\` is its disk, and a
  *  rectangle's its axis: neither a lamp's source. */
-fn isCapsule(light:DirectLight)->bool{return !isSun(light)&&(light.shape.x>0.0||any(light.capsule!=vec4f(0.0)));}
+fn isCapsule(light:DirectLight)->bool{return !isSun(light)&&!isRect(light)&&(light.shape.x>0.0||any(light.capsule!=vec4f(0.0)));}
 /** A lamp seen from a point of normal N: the unit direction \`toward\` it (the mean of its ends, for a
- *  tube), its \`falloff\` times the incidence's mask, the signed cosine \`side\` of the plain direction
- *  and the \`cosine\` the surface takes light by (wrapped about the horizon, a tube's vector
- *  irradiance, at least 0), \`wrap\` its sphere's sin² α, \`lineCos\` the cosine between the directions
- *  to a tube's ends (1 for none), and whether the lamp has a size. */
-struct Lamp{toward:vec3f,falloff:f32,side:f32,cosine:f32,wrap:f32,lineCos:f32,capsule:bool,}
-/** A cosine wrapped about the horizon of a sphere of sin² α \`sinSq\`: the Hermite curve from 0 at −sin α
- *  to sin α at sin α, whose slope there is 1, joining the plain cosine. */
-fn horizonWrap(cosine:f32,sinSq:f32)->f32{
- let s=sqrt(sinSq);
- if(cosine<s&&s>0.0){
-  let c=max(cosine,-s);
-  return (s+c)*(s+c)/(4.0*s);
- }
- return cosine;
-}
+ *  tube) and \`centre\` its centre's (the same for a lamp with no tube), its \`falloff\` times the
+ *  mask, the signed cosine \`side\` of the plain direction and the \`cosine\` the surface takes light by
+ *  (wrapped about the horizon, a tube's vector irradiance, at least 0), \`wrap\` its sphere's sin² α,
+ *  \`lineCos\` the cosine between the directions to a tube's ends (1 for none), and whether the lamp
+ *  has a size. */
+struct Lamp{toward:vec3f,centre:vec3f,falloff:f32,side:f32,cosine:f32,wrap:f32,lineCos:f32,capsule:bool,}
+/** The inverse square of a lamp with no tube, \`offset\` away from the point, at a squared distance
+ *  \`bias\` longer: the one place the sum \`1 / (d² + bias)\` is formed. */
+fn pointFalloff(offset:vec3f,bias:f32)->f32{return safeRcp(dot(offset,offset)+bias);}
 /** A lamp of size seen from the point \`offset\` away from its centre, a tube \`halfAxis\` long on each
  *  side of it (zero for a sphere), of source \`radius\`, at normal N, its range and cone \`mask\`, its
  *  inverse square taken at a squared distance \`bias\` longer: the sum \`1 / (d² + bias)\`, a tube's
  *  \`i / (c/2 + 1/2 + bias · i)\`. \`bias\` is \`LAMP_BIAS\`, a medium's own in the way of its cells, or 0
- *  for the light a surface's cache stores: there the sum is the squared distance itself, which is
- *  nothing at the lamp's own centre (or on a tube's line between its ends), where the division
- *  would give an infinity and, with the direction it has none of, a NaN into the cache: that point
- *  takes no light from it (\`inverseOf\`). */
-fn capsuleLamp(offset:vec3f,halfAxis:vec3f,radius:f32,N:vec3f,mask:f32,bias:f32)->Lamp{
+ *  for the light a surface's cache stores. \`squared\` false, the light is the mask alone. */
+fn capsuleLamp(offset:vec3f,halfAxis:vec3f,radius:f32,N:vec3f,mask:f32,bias:f32,squared:bool)->Lamp{
  var falloff:f32;var lineCos=1.0;var mean:vec3f;
  if(any(halfAxis!=vec3f(0.0))){
   let p0=offset-halfAxis;let p1=offset+halfAxis;
-  let i0=inverseSqrt(max(dot(p0,p0),LINE_FLOOR));let i1=inverseSqrt(max(dot(p1,p1),LINE_FLOOR));
+  let i0=safeRcp(length(p0));let i1=safeRcp(length(p1));
   let i01=i0*i1;
   lineCos=clamp(dot(p0,p1)*i01,-1.0,1.0);
-  falloff=i01*inverseOf(lineCos*0.5+0.5+bias*i01);
+  falloff=i01*safeRcp(lineCos*0.5+0.5+bias*i01);
   mean=0.5*(p0*i0+p1*i1);
  }else{
-  let d2=dot(offset,offset);
-  falloff=inverseOf(d2+bias);
-  mean=offset/max(sqrt(d2),1e-6);
+  falloff=pointFalloff(offset,bias);
+  mean=offset*safeRcp(length(offset));
  }
- let toward=mean*inverseSqrt(max(dot(mean,mean),1e-20));
+ let toward=mean*safeRcp(length(mean));
  var cosine=dot(N,mean);
  let wrap=saturate(radius*radius*falloff);
  if(radius>0.0){cosine=horizonWrap(cosine,wrap);}
- return Lamp(toward,mask*falloff,dot(N,toward),saturate(cosine),wrap,lineCos,true);
+ return Lamp(toward,toward,mask*select(1.0,falloff,squared),dot(N,toward),saturate(cosine),wrap,lineCos,true);
 }
-/** The lamp of \`light\` seen from \`P\` at normal N, its \`incidence\` (\`directIncidence\`) given, its
- *  inverse square taken at a squared distance \`bias\` longer (\`capsuleLamp\`): a lamp of no size is the
- *  incidence itself, the plain cosine apart, where \`bias\` is \`LAMP_BIAS\`, as the incidence has it. */
-fn lampSeen(light:DirectLight,P:vec3f,N:vec3f,incidence:vec4f,bias:f32)->Lamp{
- let sized=isCapsule(light);
- if(!sized&&(isSun(light)||bias==LAMP_BIAS)){
-  let side=dot(N,incidence.xyz);
-  return Lamp(incidence.xyz,incidence.w,side,max(side,0.0),0.0,1.0,false);
+/** The lamp of \`light\` seen from \`P\` at normal N, its inverse square taken at a squared distance
+ *  \`bias\` longer (\`capsuleLamp\`). A sun gives the same light at every point, never weighed by
+ *  distance; a lamp of no size is its mask over the distance, the plain cosine apart. */
+fn lampSeen(light:DirectLight,P:vec3f,N:vec3f,bias:f32)->Lamp{
+ if(isSun(light)){
+  let L=-light.directionCone.xyz;
+  let side=dot(N,L);
+  return Lamp(L,L,1.0,side,max(side,0.0),0.0,1.0,false);
  }
+ let reach=lampReach(light,P);
  let offset=light.positionRange.xyz-P;
- var lamp=capsuleLamp(offset,light.capsule.xyz,light.shape.x,N,incidence.w*(dot(offset,offset)+LAMP_BIAS),bias);
- lamp.capsule=sized;
+ let squared=light.shape.y<=0.0;
+ if(!isCapsule(light)){
+  let side=dot(N,reach.xyz);
+  return Lamp(reach.xyz,reach.xyz,reach.w*select(1.0,pointFalloff(offset,bias),squared),side,max(side,0.0),0.0,1.0,false);
+ }
+ var lamp=capsuleLamp(offset,light.capsule.xyz,light.shape.x,N,reach.w,bias,squared);
+ lamp.centre=reach.xyz;
  return lamp;
 }`,
 )
@@ -91,7 +91,7 @@ fn lampSeen(light:DirectLight,P:vec3f,N:vec3f,incidence:vec4f,bias:f32)->Lamp{
 /**
  * A LOCAL LIGHT AS A POINT OF A MEDIUM SEES IT, which has no surface: the unit direction toward it
  * in `xyz` and, in `w`, how much of it reaches the point. A rectangle is its form factor with no
- * normal (`rectFormOf`) times its range window; any other lamp the falloff its own term gives
+ * normal times its range window (`rectWindowed`); any other lamp the falloff its own term gives
  * (`lampSeen`), its cosine unread, its inverse square taken at a squared distance `bias` longer
  * (`LAMP_BIAS` for a point of no cell size). The volumetric fog and the clouds both read a lamp so.
  */
@@ -102,9 +102,9 @@ export const VOLUME_LAMP_WGSL = wgslBlock(
 fn volumeLamp(light:DirectLight,P:vec3f,bias:f32)->vec4f{
  if(isRect(light)){
   let r=rectView(light,P);
-  return vec4f(normalize(light.positionRange.xyz-P),rectFormOf(r)*r.window);
+  return vec4f(normalize(light.positionRange.xyz-P),rectWindowed(r));
  }
- let incidence=directIncidence(light,P);
- return vec4f(incidence.xyz,lampSeen(light,P,vec3f(0.0),incidence,bias).falloff);
+ let lamp=lampSeen(light,P,vec3f(0.0),bias);
+ return vec4f(lamp.centre,lamp.falloff);
 }`,
 )

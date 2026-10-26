@@ -1,5 +1,7 @@
 import {
   createCameraFrame,
+  perspectiveField,
+  perspectiveNear,
   updateCameraFrame,
   type CameraFrame,
 } from '../../../math/src/projection/camera.ts'
@@ -31,7 +33,7 @@ export interface EngineCamera extends CameraFrame, RenderOriginFrame {
   eye: Float64Array
   /** Nearest distance drawn. */
   near: number
-  /** Farthest distance drawn. */
+  /** Farthest distance an orthographic camera draws; a perspective one has no far plane. */
   far: number
   /** Vertical field in degrees and aspect ratio, as the host declares them. */
   fov: number
@@ -50,6 +52,10 @@ export interface EngineCamera extends CameraFrame, RenderOriginFrame {
    *  object it was last read as, replaced at each write, so its identity is its revision
    *  (`ViewSet`). */
   viewSet: ViewSet
+  /** The tile of a wider view the camera draws, as its optics declare it; none (`null`, or absent)
+   *  draws the view whole. The lens-space effects of the display finishing place themselves by
+   *  it. */
+  viewTile?: ViewTile | null
 }
 
 /** The box an orthographic camera sees, in its own frame, before its zoom. */
@@ -70,7 +76,7 @@ export type CameraOptics = {
   aspect: number
   /** Nearest distance drawn. */
   near: number
-  /** Farthest distance drawn. */
+  /** Farthest distance an orthographic camera draws; a perspective one has no far plane. */
   far: number
   /** Magnification. */
   zoom: number
@@ -110,21 +116,26 @@ export function createEngineCamera(): EngineCamera {
  * Derives everything a frame reads from `into.world`, already set, and the declared optics:
  * the projection in the engine's depth convention, then the view, the view-projection and
  * the six frustum planes (`updateCameraFrame`), the render frame (`renderOrigin.ts`)
- * and the eye. `far` is kept for what still depends on it (shadow range, frustum far plane); it
- * enters no depth.
+ * and the eye. A perspective camera reads its field and near plane as `perspectiveProjection`
+ * does (at least a thousandth of a degree, a default near plane where none is above zero), and
+ * holds them so. `far` is kept for what still depends on it (shadow range); it enters no depth
+ * and no frustum plane.
  */
 export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): EngineCamera {
-  const { fov, aspect, near, far, zoom, orthographic: box } = optics
+  const { aspect, far, zoom, orthographic: box } = optics
+  const near = box ? optics.near : perspectiveNear(optics.near),
+    fov = perspectiveField(optics.fov)
   into.near = near
   into.far = far
   into.fov = fov
   into.aspect = aspect
   opticsProjection(into.projection, fov, aspect, near, far, zoom, box)
   applyViewTile(into.projection, optics.viewTile)
-  updateCameraFrame(into, into.projection, into.world, into.far)
+  into.viewTile = optics.viewTile ?? null
+  updateCameraFrame(into, into.projection, into.world)
   // The render frame is set here, in the same pass: what leaves in single precision will read
   // the view without translation, never an absolute view accompanied by relative worlds.
-  updateRenderOriginFrame(into, into.view, into.projection, into.far)
+  updateRenderOriginFrame(into, into.view, into.projection)
   into.eye[0] = into.world[12]
   into.eye[1] = into.world[13]
   into.eye[2] = into.world[14]

@@ -1,7 +1,7 @@
-import type { HostAttributes } from '../../session/host/resources.ts'
 import type { VertexRange } from '../../placement/engineSceneUpdates.ts'
 import { noteRewritten } from '../render/movedGeometry.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 
 /**
  * A dynamic geometry's rewrites on WebGPU. `updateVertices` writes its rewritten lists in place —
@@ -15,7 +15,7 @@ import type { WebgpuPagesRuntime } from './runtime.ts'
  */
 export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
   updateVertices(
-    attributes: HostAttributes,
+    attributes: Geometry['attributes'],
     ranges: readonly VertexRange[],
     box: Float64Array,
     reach: number,
@@ -28,11 +28,11 @@ export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
     for (const { name, from, count } of ranges) pool?.write(attributes, name, from, count)
     noteRewritten(rt, attributes, box, reach, boxes)
     // A rewrite moves vertices, never a pose: the hierarchy keeps its matrices, so the next image
-    // walks no world — the row table is kept. A host pose
+    // walks no world — the placements' tables are kept. A host pose
     // write still unread stays owed (`engineWriting`) and is walked.
     run.gate.engineMovedInPlace()
     return true
   },
-  vertexBytes: (attributes: HostAttributes, ranges: readonly VertexRange[]) =>
+  vertexBytes: (attributes: Geometry['attributes'], ranges: readonly VertexRange[]) =>
     rt.vis.vertexPool?.bytesOf(attributes, ranges) ?? 0,
 })

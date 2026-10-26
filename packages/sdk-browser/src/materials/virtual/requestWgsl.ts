@@ -16,7 +16,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 /**
  * Virtual-texture image feedback: the rank of the tile a pixel ASKS for, posted in the image's
  * feedback target and reduced to counters by a compute pass (`reduce.ts`) for one pixel in
- * sixteen. Level and address are those of the read — the default one, or `${k}Footprint` when
+ * 256. Level and address are those of the read — the default one, or `${k}Footprint` when
  * `sampled` (`atlas/atlasReadWgsl.ts`) —, the texture's transform and addressing included: what a pixel
  * asks is what it reads. An anisotropic read
  * spreads its taps along the footprint, into tiles the centre does not touch: `along` (0, 1, 2)

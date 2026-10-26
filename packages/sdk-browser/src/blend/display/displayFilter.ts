@@ -1,8 +1,10 @@
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
-import { DISPLAY_VALUE_WGSL } from '../../lighting/toneMappingWgsl.ts'
+import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
+import { TONE_CHAIN_WGSL } from '../../lighting/toneBakeWgsl.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { ADD_EQUATIONS, TINT_EQUATIONS } from '../equations.ts'
 import { programOf } from './displayFilterProgram.ts'
+import { chainReady } from '../../lighting/deferred/fullscreen.ts'
 import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -37,15 +39,21 @@ export const displayTargets = (mode: Blending): GPUColorTargetState[] => [
 /** Where a layer's colour `rgb` goes: `DISPLAY_ROUTE` 1 (normal, additive) sends it to the
  *  display layers where `masked`, else to the lit target (`keep`); 2 (multiply, subtractive)
  *  always; 0 leaves the layers at `(1, 0)` and shows nothing. What the layers take is its display
- *  value `shown`, the composition's chain: exposure, curve unless unlit, sRGB. */
+ *  value `shown`, the composition's chain: exposure, the table's colours unless unlit — the
+ *  baking's chain, run on the copy of its words `tone` that the view carries: the white balance, the
+ *  grade, the curve, the transfer, as the table gives them, no texture read —, sRGB where unlit. */
 export const DISPLAY_ROUTE_WGSL = wgslBlock(
   'DISPLAY_ROUTE_WGSL',
-  [DISPLAY_VALUE_WGSL],
+  [TONE_CHAIN_WGSL, linearToSrgb],
   `override DISPLAY_ROUTE:u32=0u;
 struct Route{keep:f32,tint:vec4f,add:vec4f,}
-fn displayRoute(rgb:vec3f,exposure:f32,curve:u32,unlit:bool,alpha:f32,masked:f32)->Route{
+fn layerShown(tone:Bake,exposed:vec3f,curve:u32)->vec3f{
+ if(curve==${TONE_MAPPING_RANK.none}u){return linearToSrgb(exposed);}
+ return displayLight(tone,exposed)*tone.device.w;
+}
+fn displayRoute(rgb:vec3f,exposure:f32,curve:u32,unlit:bool,alpha:f32,masked:f32,tone:Bake)->Route{
  if(DISPLAY_ROUTE==0u){return Route(1.0,vec4f(1.0),vec4f(0.0));}
- let shown=displayValue(select(rgb*exposure,rgb,unlit),select(curve,${TONE_MAPPING_RANK.none}u,unlit));
+ let shown=layerShown(tone,select(rgb*exposure,rgb,unlit),select(curve,${TONE_MAPPING_RANK.none}u,unlit));
  if(DISPLAY_ROUTE==1u){let a=alpha*masked;return Route(1.0-masked,vec4f(0.0,0.0,0.0,a),vec4f(shown*a,a));}
  return Route(1.0,vec4f(shown,1.0),vec4f(shown,1.0));
 }`,
@@ -88,6 +96,10 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
   )
   const [tint, add, mask] = textures.map((texture) => texture.createView())
   const views = [tint, add] as const
+  // The layers' attachments, held: the first pass of an image clears them, the others load.
+  const clearing = [clear(tint, true), clear(add)]
+  const loading = views.map(load)
+  const masking = clear(mask)
   const program = programOf(device)
   // The share of the layers the image covers: a frame drawn below its targets fills their top-left.
   const drawn = device.createBuffer({
@@ -119,12 +131,12 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
     attachments(): GPURenderPassColorAttachment[] {
       const first = !this.written
       this.written = true
-      return first ? [clear(tint, true), clear(add)] : views.map(load)
+      return first ? clearing : loading
     },
     /** The mask pass's attachment, cleared. */
     maskAttachment(): GPURenderPassColorAttachment {
       this.masked = true
-      return clear(mask)
+      return masking
     },
     /** Composes the target with the layers (`displayApply`). */
     apply: displayApply(device, program, drawn, share),
@@ -148,6 +160,15 @@ function displayApply(
   // The raw layers, or either temporal history: three held, a group each (`bindIdentity.ts`).
   const identity = createWebgpuBindIdentity(3),
     groups: GPUBindGroup[] = []
+  // The pass over the target alone or with the canvas beside it, its attachments rewritten in place.
+  const onTarget = { loadOp: 'load', storeOp: 'store' } as GPURenderPassColorAttachment
+  const onCanvas = { loadOp: 'load', storeOp: 'store' } as GPURenderPassColorAttachment
+  const alone = [onTarget],
+    both = [onTarget, onCanvas]
+  const descriptor: GPURenderPassDescriptor = {
+    label: DISPLAY_FILTER_PASS,
+    colorAttachments: alone,
+  }
   return (
     encoder: GPUCommandEncoder,
     source: readonly [GPUTextureView, GPUTextureView],
@@ -156,6 +177,10 @@ function displayApply(
     x = 1,
     y = 1,
   ) => {
+    // The tint then the added value are one composition: none is drawn, and no share written,
+    // while one of the pair compiles (`prepareDisplayProgram`, asked once layers are reached).
+    const pipelines = presentation ? present : draw
+    if (!chainReady(...pipelines)) return false
     // Compared as stored, a 32-bit float: a ratio that holds is not written again.
     if (share[0] !== Math.fround(x) || share[1] !== Math.fround(y)) {
       ;[share[0], share[1]] = [x, y]
@@ -169,16 +194,17 @@ function displayApply(
         entries: sequentialEntries([...source, sampler, { buffer: drawn }]),
       })
     const group = groups[identity.slot]
-    const pass = encoder.beginRenderPass({
-      label: DISPLAY_FILTER_PASS,
-      colorAttachments: presentation ? [load(target), load(presentation)] : [load(target)],
-    })
+    onTarget.view = target
+    if (presentation) onCanvas.view = presentation
+    descriptor.colorAttachments = presentation ? both : alone
+    const pass = encoder.beginRenderPass(descriptor)
     pass.setBindGroup(0, group)
-    for (const pipeline of presentation ? present : draw) {
-      pass.setPipeline(pipeline.get())
+    for (const pipeline of pipelines) {
+      pass.setPipeline(pipeline.get()!)
       pass.draw(3)
     }
     pass.end()
+    return true
   }
 }
 

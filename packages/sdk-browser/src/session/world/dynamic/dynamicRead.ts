@@ -32,7 +32,13 @@ export function fits(held: DrawnTriangles, next: DrawnTriangles, box: HeldBox) {
 
 /** Whether every point of `p`, three numbers each, lies within `box`. */
 function inBox(p: ArrayLike<number>, box: ArrayLike<number>) {
-  for (let i = 0; i < p.length; i++) if (p[i] < box[i % 3] || p[i] > box[(i % 3) + 3]) return false
+  for (let i = 0; i < p.length; i += 3) {
+    const x = p[i],
+      y = p[i + 1],
+      z = p[i + 2]
+    if (x < box[0] || x > box[3] || y < box[1] || y > box[4] || z < box[2] || z > box[5])
+      return false
+  }
   return true
 }
 
@@ -56,6 +62,36 @@ export function readingOf({ index, drawRange }: Geometry, drawn: DrawnTriangles)
   }
 }
 
+/** Whether `geometry` still draws the corners `into` was cut from, as plain triangles: the same
+ *  index, draw range and vertex count. */
+function keepsCorners(
+  geometry: Geometry,
+  reading: Primitive,
+  options: { wireframe?: boolean; flat?: boolean },
+  into: Reading,
+) {
+  const { next } = into,
+    { position } = geometry.attributes,
+    index = geometry.index
+  if (reading !== 'triangles' || options.wireframe || options.flat || next.lines) return false
+  if (index !== into.index || (index?.version ?? 0) !== into.indexVersion) return false
+  const { start, count } = geometry.drawRange
+  if (start !== into.range[0] || count !== into.range[1]) return false
+  return !!position && position.count * 3 === next.positions.length
+}
+
+/** Every list after the positions as `drawnTriangles` reads it, into `next`; false where one
+ *  cannot be read in place. */
+function readLists(geometry: Geometry, count: number, next: DrawnTriangles) {
+  for (let l = 1; l < LISTS.length; l++) {
+    const [field, name, width] = LISTS[l],
+      out = next[field]
+    if (!out && (geometry.attributes[name]?.count ?? -1) >= count) return false
+    if (out && !readList(geometry, name, width, count, out) && field !== 'normals') return false
+  }
+  return true
+}
+
 /** Reads `geometry`'s plain triangles into `into.next`, in place, when they keep the corners and
  *  lists `into` was cut from, within its `box`; false otherwise: the caller reads them anew. */
 export function readInPlace(
@@ -65,22 +101,11 @@ export function readInPlace(
   into: Reading & { box: ArrayLike<number> },
 ) {
   const { next } = into,
-    { position, normal } = geometry.attributes,
-    index = geometry.index
-  if (reading !== 'triangles' || options.wireframe || options.flat || next.lines) return false
-  if (index !== into.index || (index?.version ?? 0) !== into.indexVersion) return false
-  const { start, count } = geometry.drawRange
-  if (start !== into.range[0] || count !== into.range[1]) return false
-  if (!position || position.count * 3 !== next.positions.length) return false
+    { position, normal } = geometry.attributes
+  if (!position || !keepsCorners(geometry, reading, options, into)) return false
   position.readInto(next.positions, 0, 3, 0, position.count, 3, 0)
-  // Every other list as `drawnTriangles` reads it; missing normals are made below.
-  for (let l = 1; l < LISTS.length; l++) {
-    const [field, name, width] = LISTS[l],
-      out = next[field]
-    if (!out && (geometry.attributes[name]?.count ?? -1) >= position.count) return false
-    if (out && !readList(geometry, name, width, position.count, out) && field !== 'normals')
-      return false
-  }
+  // Missing normals are made below.
+  if (!readLists(geometry, position.count, next)) return false
   if (!inBox(next.positions, into.box)) return false
   if (!normal || normal.count < position.count)
     computeNormals(next.positions, next.indices, next.normals)

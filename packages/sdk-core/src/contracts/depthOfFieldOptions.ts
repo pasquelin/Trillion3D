@@ -1,4 +1,5 @@
 import {
+  atLeast,
   flagSetting as flag,
   integerSetting as integer,
   nonNegativeSetting as nonNegative,
@@ -29,7 +30,6 @@ import { refusal } from './nameMatch.ts'
  */
 
 /** The largest finite number: the open end of a range. */
-const MOST = Number.MAX_VALUE
 
 /** The pass's scalar settings, by field, each with the reference's default and the range the
  *  reference clamps it to:
@@ -56,11 +56,11 @@ const MOST = Number.MAX_VALUE
 export const DEPTH_OF_FIELD_VOLUME_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('enabled', true),
-    number('focusDistance', 0, [0, MOST]),
+    number('focusDistance', 0, atLeast(0)),
     number('aperture', 4, [1, 32]),
     number('minAperture', 1.2, [0, 32]),
     integer('bladeCount', 5, [4, 16]),
-    number('sensorWidth', 24.576, [0.1, MOST]),
+    number('sensorWidth', 24.576, atLeast(0.1)),
     number('squeezeFactor', 1, [0.1, 10]),
     nonNegative('aspectRatioScalar', 1),
     number('depthBlurAmount', 1, [0.000001, 100]),
@@ -89,7 +89,7 @@ export interface ResolvedMatteBoxFlag {
   readonly length: number
 }
 /** Panels a matte box holds. */
-export const MATTE_BOX_FLAGS = 3
+const MATTE_BOX_FLAGS = 3
 
 /** What a page may pass to `effect.depthOfField`: any of the scalar settings
  *  (`DEPTH_OF_FIELD_VOLUME_RULES`) and the matte box's three flags; a field left out is the default. */

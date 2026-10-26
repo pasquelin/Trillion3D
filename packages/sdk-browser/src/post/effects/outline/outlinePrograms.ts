@@ -3,13 +3,12 @@ import { makeFullscreenPipeline } from '../../../lighting/deferred/fullscreen.ts
 import { computeBufferEntry, computeTextureEntry } from '../../../gpu/core/computeBindings.ts'
 import { DISPLAY_FORMAT } from '../../../scene/targetFormats.ts'
 import { OUTLINE_PASS } from '../../../diagnostic/stage/passLabels.ts'
-import { KEEP, OVER } from '../../../blend/equations.ts'
+import { KEEP } from '../../../blend/equations.ts'
+import { OVER } from '../../../materials/surface/materialBlending.ts'
 import { OUTLINE_FORMAT } from './outlineTarget.ts'
 import { OUTLINE_WGSL } from './outlineWgsl.ts'
+import { CANVAS_FORMAT } from '../../../gpu/core/canvasFormat.ts'
 
-/** The canvas's format, as the composition presents it
- *  (`../../../lighting/deferred/compositions.ts`). */
-const CANVAS_FORMAT: GPUTextureFormat = 'bgra8unorm'
 /** The line laid over what is there, premultiplied; the display keeps its alpha. */
 const LINE_BLEND: GPUBlendState = { color: OVER, alpha: KEEP }
 

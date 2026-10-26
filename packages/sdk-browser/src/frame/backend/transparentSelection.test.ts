@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals, transparentDraws } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
@@ -9,6 +8,7 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from './testScenes.fixture.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 test('a host diagnostic exception cannot break GPU initialization or rendering', async () => {
   installGpuGlobals()
@@ -40,24 +40,25 @@ test('transparent frustum selection preserves intersections and transformed boun
     { name: 'above', position: [0, 100, 0], visible: false },
     { name: 'below', position: [0, -100, 0], visible: false },
     { name: 'behind', position: [0, 0, 10], visible: false },
-    { name: 'past far plane', position: [0, 0, -110], visible: false },
+    {
+      name: 'past the camera far distance, which bounds nothing',
+      position: [0, 0, -110],
+      visible: true,
+    },
     { name: 'partly in view', position: [3, 0, 0], visible: true },
     { name: 'near plane intersection', position: [0, 0, 4.9], rotate: true, visible: true },
     { name: 'mirrored nonuniform scale', position: [4, 0, 0], scale: [-4, 2, 1], visible: true },
-    // Its clusters are culled by the cut on their bounds, which hold every vertex they draw: the
-    // host's opt-out keeps nothing in view that the cut can see is out.
-    { name: 'disabled culling', position: [100, 0, 0], unculled: true, visible: false },
   ]
   for (const item of cases) {
     const fixture = quadScene(),
       { device, draws } = fakeDevice(BACKEND),
-      mesh = fixture.source.children[0] as HostMesh
+      mesh = fixture.source.children[0] as PageMesh
     fixture.material.transparent = true
     G.sided(fixture.material, G.DOUBLE_SIDE)
+    fixture.material.twoSidedPasses = true
     mesh.position.fromArray(item.position)
     if (item.scale) mesh.scale.fromArray(item.scale)
     if (item.rotate) mesh.rotation.y = 0.5
-    mesh.frustumCulled = !item.unculled
     fixture.source.updateMatrixWorld(true)
     const backend = webgpuPagesEngine({
       textureCaches: createTextureCaches(createPageCache()),

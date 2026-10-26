@@ -1,43 +1,23 @@
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
-import { readSetting, resolveSettings } from '../../../sdk-core/src/contracts/settingRules.ts'
-import { RASTER_RULES } from '../../../sdk-core/src/contracts/rasterOptions.ts'
-import { STREAMING_RULES } from '../../../sdk-core/src/contracts/streamingOptions.ts'
-import { WORLD_STREAMING_RULES } from '../../../sdk-core/src/contracts/worldStreamingOptions.ts'
-import { CUT_RULES } from '../../../sdk-core/src/contracts/cutOptions.ts'
-import { DYNAMIC_RESOLUTION_RULES } from '../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
-import { ANIMATION_RULES } from '../../../sdk-core/src/contracts/animationOptions.ts'
+import { trackSettings } from '../../../sdk-core/src/contracts/settingRules.ts'
 import { exposureCurveTable } from '../../../sdk-core/src/contracts/exposureCurveTable.ts'
-import { EXPOSURE_RULES } from '../../../sdk-core/src/contracts/exposureOptions.ts'
-import { TEMPORAL_RULES } from '../../../sdk-core/src/contracts/temporalOptions.ts'
-import { HIZ_RULES } from '../../../sdk-core/src/contracts/hizOptions.ts'
-import { LIGHT_FUNCTION_RULES } from '../../../sdk-core/src/contracts/lightFunctionOptions.ts'
-import { VOLUMETRIC_LIGHTMAP_RULES } from '../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
-import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
-import { SHADOW_RULES } from '../../../sdk-core/src/contracts/shadowOptions.ts'
-import { MOTION_BLUR_RULES } from '../../../sdk-core/src/contracts/motionBlurOptions.ts'
-import { DEPTH_OF_FIELD_RULES } from '../../../sdk-core/src/contracts/depthOfFieldRules.ts'
-import { BLOOM_RULES } from '../../../sdk-core/src/contracts/bloomRules.ts'
-import { GAUSSIAN_BLUR_RULES } from '../../../sdk-core/src/contracts/gaussianBlurRules.ts'
-import { FILM_RULES } from '../../../sdk-core/src/contracts/filmOptions.ts'
-import { SCREEN_PROBE_RULES } from '../../../sdk-core/src/bounce/screenProbeOptions.ts'
-import { REFLECTION_RULES } from '../../../sdk-core/src/contracts/reflectionOptions.ts'
-import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
-import { AMBIENT_OCCLUSION_RULES } from '../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
-import { SKY_QUALITY_RULES } from '../../../sdk-core/src/modules/sky/quality.ts'
-import { VOLUMETRIC_FOG_RULES } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
-import { TESSELLATION_RULES } from '../../../sdk-core/src/contracts/tessellationOptions.ts'
-import { SHADING_RULES } from '../../../sdk-core/src/contracts/shadingOptions.ts'
+import { resolveExposureMeterMask } from '../../../sdk-core/src/contracts/exposureMeterMask.ts'
 import type { WorldRootsHold } from '../geometry/hlod/worldRoots.ts'
 import { isCancelled, pixelRatioOf } from './engine/common.ts'
+import { resolvedFamilies } from './engine/familySettings.ts'
 import { readDistanceFields } from '../lighting/distanceField/fieldsLoad.ts'
-import { readVolumetricLightmap } from '../lighting/volumetricLightmap/fileLoad.ts'
+import { readMeshCards } from '../lighting/surfaceCache/cardsLoad.ts'
+import {
+  readVolumetricLightmap,
+  type ReadLightmap,
+} from '../lighting/volumetricLightmap/fileLoad.ts'
 import { unmetered } from '../geometry/cluster/byteMeter.ts'
 import type { MeshDistanceField } from '../../../sdk-core/src/lighting/distanceFieldFile.ts'
-import type { VolumetricLightmapData } from '../../../sdk-core/src/lighting/volumetricLightmapFile.ts'
+import type { MeshCards } from '../../../sdk-core/src/lighting/meshCardsFile.ts'
 import { createSceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
 import { createSceneFogVolumeStore } from '../../../sdk-core/src/scene/volume/store.ts'
+import { createSceneLocalFogStore } from '../../../sdk-core/src/scene/localFog/store.ts'
 import { dagWarningsDiagnostic } from '../../../sdk-core/src/contracts/dagWarnings.ts'
-import { createSceneProxyReader } from '../scene/proxyLoad.ts'
 import { createTextureCaches, type TextureCache } from '../materials/texture/textureCaches.ts'
 import { resolveDiagnosticGpuVariant } from '../diagnostic/gpuVariant.ts'
 import { declareImportedLights, loadImportedLights } from '../lighting/importedLights.ts'
@@ -56,15 +36,16 @@ type Inputs = {
   gpuDevice?: GPUDevice
   /** What builds the session's engine: the WebGPU page raster's factory. */
   factory: EngineFactory
-  /** Manifest url base: that is what locates the resident-proxy cache object. */
+  /** Manifest url base: what locates the scene's own files. */
   base: string
   frameBudget?: EngineContext['frameBudget']
   /** Each model's world roots: the pinned top and the bundles its placed cells hold (#1237). */
   worldRoots: readonly WorldRootsHold[]
 }
 
-/** One light store per session, and one of the objects voxelised into the fog's volume
- *  (`sceneVolumes`): the engine reads them and the host writes them, with the lights the
+/** One light store per session, one of the objects voxelised into the fog's volume
+ *  (`sceneVolumes`) and one of the local fog volumes (`sceneLocalFog`): the engine reads them and the
+ *  host writes them, with the lights the
  *  source file carried declared before the engine: the `auto` view knows from its first frame
  *  that it has a source, and no engine prepares on an empty store that would then be pushed. A
  *  cache without this product declares none. What the compiler named without being able to fix
@@ -90,7 +71,12 @@ async function sessionLights(session: ExplorerSession, base: string) {
       kind: 'preparation',
       ...dagWarnings.context,
     })
-  return { sceneLights, importedLightIds, sceneVolumes: createSceneFogVolumeStore() }
+  return {
+    sceneLights,
+    importedLightIds,
+    sceneVolumes: createSceneFogVolumeStore(),
+    sceneLocalFog: createSceneLocalFogStore(),
+  }
 }
 
 /** What the session's options hand the engine as they are. */
@@ -101,6 +87,7 @@ function optionContext(session: ExplorerSession) {
     maxResidentPages: options.maxResidentPages,
     pixelError: options.pixelError,
     pixelRatio: () => pixelRatioOf(options),
+    worldClock: options.worldClock,
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
     temporalAntialiasing: options.temporalAntialiasing,
@@ -108,35 +95,11 @@ function optionContext(session: ExplorerSession) {
     maxFrameRate: options.maxFrameRate,
     effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
-    // The settings declared by rule, each refused at the opening when of another kind or out of
-    // range, as the world refuses them.
-    ...resolveSettings(RASTER_RULES, options),
-    ...resolveSettings(STREAMING_RULES, options),
-    ...resolveSettings(WORLD_STREAMING_RULES, options),
-    ...resolveSettings(CUT_RULES, options),
-    ...resolveSettings(DYNAMIC_RESOLUTION_RULES, options),
-    ...resolveSettings(ANIMATION_RULES, options),
-    ...resolveSettings(SHADING_RULES, options),
-    ...resolveSettings(EXPOSURE_RULES, options),
+    // The settings declared by rule (`SETTING_FAMILIES`), each refused at the opening when of
+    // another kind or out of range, as the world refuses them.
+    ...resolvedFamilies(options),
     exposureCurve: options.exposureCurve,
-    ...resolveSettings(TEMPORAL_RULES, options),
-    ...resolveSettings(HIZ_RULES, options),
-    ...resolveSettings(LIGHT_FUNCTION_RULES, options),
-    ...resolveSettings(VOLUMETRIC_LIGHTMAP_RULES, options),
-    ...resolveSettings(GLOBAL_DISTANCE_FIELD_RULES, options),
-    ...resolveSettings(DISTANCE_FIELD_OCCLUSION_RULES, options),
-    ...resolveSettings(SHADOW_RULES, options),
-    ...resolveSettings(MOTION_BLUR_RULES, options),
-    ...resolveSettings(DEPTH_OF_FIELD_RULES, options),
-    ...resolveSettings(BLOOM_RULES, options),
-    ...resolveSettings(GAUSSIAN_BLUR_RULES, options),
-    ...resolveSettings(FILM_RULES, options),
-    ...resolveSettings(SCREEN_PROBE_RULES, options),
-    ...resolveSettings(REFLECTION_RULES, options),
-    ...resolveSettings(AMBIENT_OCCLUSION_RULES, options),
-    ...resolveSettings(VOLUMETRIC_FOG_RULES, options),
-    ...resolveSettings(SKY_QUALITY_RULES, options),
-    ...resolveSettings(TESSELLATION_RULES, options),
+    exposureMeterMask: resolveExposureMeterMask(options.exposureMeterMask), // refused when not a picture
     admitGpuMemory: options.admitGpuMemory,
     texturePoolBytes: options.texturePoolBytes,
     textureCompression: options.textureCompression,
@@ -162,7 +125,8 @@ function engineContext(
   inputs: Inputs,
   lights: Awaited<ReturnType<typeof sessionLights>>,
   distanceFields: MeshDistanceField[] | undefined,
-  volumetricLightmapData: VolumetricLightmapData | undefined,
+  meshCards: MeshCards[] | undefined,
+  volumetricLightmap: ReadLightmap | undefined,
 ): EngineContext {
   const { canvas, metadata, signal, diagnosticChannel, diagnose } = session
   const { indices, streamer, pageCache } = inputs.pageSources
@@ -173,11 +137,10 @@ function engineContext(
   const worldRoots = inputs.worldRoots.find((hold) => hold.dag)
   // The caches the scene's textures come from, their levels held among the pages the streamer
   // reads, in their page cache.
-  const textureCaches = createTextureCaches(pageCache, signal, () =>
-    readSetting(STREAMING_RULES, context, 'streamingNumRetries'),
-  )
+  const textureCaches = createTextureCaches(pageCache, signal, streamer.numRetries)
   textureCaches.add(...inputs.textureCaches)
-  const context: EngineContext = {
+  // Every write of its settings is a writer's (`api/ruleApi.ts`): tracked, so a frame reads a rest once.
+  return trackSettings({
     ...optionContext(session),
     source: inputs.source,
     metadata,
@@ -198,14 +161,14 @@ function engineContext(
     viewport: [canvas.width, canvas.height],
     gpuDevice: inputs.gpuDevice,
     gpuCanvas: canvas,
-    readSceneProxy: createSceneProxyReader(metadata.proxy, inputs.base, pageCache, signal),
     textureCaches,
     ...lights,
     distanceFields,
-    volumetricLightmapData,
+    meshCards,
+    volumetricLightmapData: volumetricLightmap?.data,
+    readVolumetricLightmapCell: volumetricLightmap?.readCell,
     frameBudget: inputs.frameBudget,
-  }
-  return context
+  })
 }
 
 /** Prepares `engine`; a failure is diagnosed and thrown, the engine released — awaited when the
@@ -256,15 +219,26 @@ export async function prepareExplorerEngine(session: ExplorerSession, inputs: In
     inputs.base,
     session.signal,
     unmetered,
+    inputs.pageSources.pageCache.readRange,
   )
+  // The cards the meshes keep, none for a cache whose meshes kept none.
+  const meshCards = await readMeshCards(session.metadata, inputs.base, session.signal, unmetered)
   // The scene's baked indirect light, none for a cache whose job baked none.
-  const volumetricLightmapData = await readVolumetricLightmap(
+  const volumetricLightmap = await readVolumetricLightmap(
     session.metadata,
     inputs.base,
     session.signal,
     unmetered,
+    inputs.pageSources.pageCache.readRange,
   )
-  const context = engineContext(session, inputs, lights, distanceFields, volumetricLightmapData)
+  const context = engineContext(
+    session,
+    inputs,
+    lights,
+    distanceFields,
+    meshCards,
+    volumetricLightmap,
+  )
   const engine = inputs.factory(context)
   await prepareEngine(session, engine)
   if (preload !== 'all') indices.clear()

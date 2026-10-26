@@ -13,7 +13,7 @@
 import type { ResolvedAtmosphere } from './atmosphere.ts'
 import { DEG2RAD, TAU } from '../../../../math/src/constants.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
-import { length2 } from '../../../../math/src/vector/vector.ts'
+import { dotVector3, length2 } from '../../../../math/src/vector/vector.ts'
 
 /** Three channels, red, green, blue. */
 export type Rgb = readonly [number, number, number]
@@ -43,8 +43,7 @@ const MIN_HEIGHT = 0.1
 
 /** The radius of the top of `a`'s air, kilometres: the planet's plus its height, never thinner than
  *  `MIN_HEIGHT`. */
-export const topRadiusOf = (a: ResolvedAtmosphere) =>
-  a.planetRadius + Math.max(MIN_HEIGHT, a.height)
+const topRadiusOf = (a: ResolvedAtmosphere) => a.planetRadius + Math.max(MIN_HEIGHT, a.height)
 
 const sum = (a: Rgb, b: Rgb): Rgb => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 
@@ -80,7 +79,7 @@ export function coefficientsOf(a: ResolvedAtmosphere): AtmosphereCoefficients {
 /** Distance along a ray to the first point of a sphere at the origin, `radius` large, the ray
  *  starting at `origin` inside or outside it: `-1` when it never meets it. */
 function nearestHit(origin: Rgb, direction: Rgb, radius: number) {
-  const b = 2 * (origin[0] * direction[0] + origin[1] * direction[1] + origin[2] * direction[2])
+  const b = 2 * dotVector3(origin, direction)
   const c = origin[0] ** 2 + origin[1] ** 2 + origin[2] ** 2 - radius * radius
   const discriminant = b * b - 4 * c
   if (discriminant < 0) return -1

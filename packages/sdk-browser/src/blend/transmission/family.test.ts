@@ -6,7 +6,9 @@ import { families } from '../../session/host/families.ts'
 import type { BlendGpuItem } from '../state.ts'
 
 const items = (transmissive: boolean) =>
-  [{ transmissive, surface: { blending: 'normal' } }] as unknown as BlendGpuItem[]
+  [
+    { transmissive, surface: { blending: 'normal', baseColor: [1, 1, 1] } },
+  ] as unknown as BlendGpuItem[]
 
 test("glass loads transmission's code at prepare, never the particles'", async () => {
   await createWebgpuBlendPipelines(mountDevice().device, items(false))

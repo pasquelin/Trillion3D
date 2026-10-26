@@ -11,14 +11,7 @@ use trillion3d_compiler::shared_math::elapsed_ms;
 
 pub(crate) fn run_batch(spec_path: &str, cancellation: Arc<Cancellation>) -> Result<i32, String> {
     let started = Instant::now();
-    let text = if spec_path == "-" {
-        let mut s = String::new();
-        std::io::Read::read_to_string(&mut std::io::stdin().lock(), &mut s)
-            .map_err(|e| e.to_string())?;
-        s
-    } else {
-        std::fs::read_to_string(spec_path).map_err(|e| format!("{spec_path}: {e}"))?
-    };
+    let text = trillion3d_compiler::support::input::read_job(spec_path)?;
     let spec: Value = serde_json::from_str(&text).map_err(|e| format!("batch JSON: {e}"))?;
     let (workers, jobs) = parse_batch(&spec, &cancellation)?;
     if spec_path != "-" {

@@ -39,8 +39,6 @@ test('the headroom leaves the budget free: the target is the budget less it', ()
   assert.ok(Math.abs(fitted({}, [20]).f.s - Math.sqrt(9 / 20)) < 1e-12, 'a tenth, the default')
   const none = fitted({ dynamicResolutionHeadroomPercent: 0 }, [20])
   assert.ok(Math.abs(none.f.s - Math.sqrt(10 / 20)) < 1e-12)
-  const strict = fitted({ dynamicResolutionOverBudgetHeadroomPercent: 20 }, [9])
-  assert.equal(strict.f.s, 1, 'the budget the frame must pass is the one the page gave')
 })
 
 test('the frame weight, the history and the frames over budget shape what the browse finds', () => {
@@ -66,6 +64,11 @@ test('the frame weight, the history and the frames over budget shape what the br
 })
 
 test('a history that changes size keeps the newest frames, in their order', () => {
+  assert.equal(
+    createDynamicResolution().capacity,
+    DYNAMIC_RESOLUTION_RULES.dynamicResolutionHistorySize.default,
+    'a new history holds what the rule defaults to',
+  )
   const { h, f } = fitted({}, [1, 2, 3, 4, 5])
   f.rules.dynamicResolutionHistorySize = 3
   recordFrame(h, f, 6, 1)
@@ -114,11 +117,14 @@ test('the render scale never passes its throttling maximum, and a late CPU excus
   assert.ok(fitted(cpu, [20], { ...early, cpu: 2 }).f.s < 1, 'the CPU free: at once')
 })
 
-test('a frame time budget the page names replaces the frame cap’s interval', () => {
-  const run = (budget: number) => {
+test('a frame time budget the page names replaces the frame cap’s interval; the over-budget headroom shortens it', () => {
+  const run = (budget: number, late = 0, gpuMs = 20) => {
     const control = createScaleControl('auto'),
       clock = { now: 0 }
-    Object.assign(control.rules, { dynamicResolutionFrameTimeBudgetMs: budget })
+    Object.assign(control.rules, {
+      dynamicResolutionFrameTimeBudgetMs: budget,
+      dynamicResolutionOverBudgetHeadroomPercent: late,
+    })
     for (let i = 0; i < 8; i++) {
       control.tick((clock.now += HZ120), true)
       control.hold()
@@ -126,12 +132,15 @@ test('a frame time budget the page names replaces the frame cap’s interval', (
     for (let i = 0; i < 3; i++) {
       control.tick((clock.now += HZ120), true)
       control.drew(control.wanted(), true)
-      control.observe(20, control.wanted(), true)
+      control.observe(gpuMs, control.wanted(), true)
     }
     return control.wanted()
   }
   assert.ok(run(0) < 1, '20 ms over the 120 Hz display’s 8.3 ms')
   assert.equal(run(33.3), 1, '20 ms under the 33.3 ms of the reference')
+  // 28 ms under 33.3 ms; over the 26.6 ms a headroom of a fifth leaves of it.
+  assert.equal(run(33.3, 0, 28), 1, 'under the whole budget')
+  assert.ok(run(33.3, 20, 28) < 1, 'over the budget less its over-budget headroom')
 })
 
 test('each GPU time pairs with the edge fraction in force when it is recorded', () => {

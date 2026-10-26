@@ -7,7 +7,8 @@
  * goes first (`../roots/rootPasses.ts`): a world the host moved is sent, a composed one written, before the
  * leaves read it. No leaf is taken on the CPU, and none is kept there.
  */
-import { autoKernel } from '../../gpu/core/computeStages.ts'
+import { chainReady } from '../../lighting/deferred/fullscreen.ts'
+import { leafKernels } from '../../geometry/dag/tree/treeKernels.ts'
 import type { TreeLeaves } from '../../geometry/dag/tree/treeFollow.ts'
 import { liveBuffer, resourceEntry } from '../../gpu/bind/liveEntries.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
@@ -27,8 +28,10 @@ import {
 } from '../roots/rootListPass.ts'
 import { takeComposed } from '../compose/gpuComposeState.ts'
 
-/** The leaves kernel, made once a device. */
-export const leafKernel = autoKernel(TREE_LEAVES_PASS, TREE_LEAVES_WGSL, 'main')
+const PASS: GPUComputePassDescriptor = { label: TREE_LEAVES_PASS }
+
+/** The leaves kernel, made once a device for each width of leaf (`leafStride`). */
+export const leafKernel = leafKernels(TREE_LEAVES_PASS, TREE_LEAVES_WGSL)
 
 /** The pass over the named placements, then the composed roots (`../roots/rootListPass.ts`), and what its
  *  groups read live while it binds them: the frame words and the nodes of the cut whose tree it
@@ -68,11 +71,17 @@ export function disposeTreeLeaves(rt: Pick<WebgpuPagesRuntime, 'treeLeaves'>) {
 /** The tree's leaves of runtime `rt`: what the follower of its cut's tree writes them by. */
 export function treeLeaves(rt: WebgpuPagesRuntime): TreeLeaves {
   return {
-    ready: () => !!rt.rootWorlds?.worlds && !rt.rootWorlds.whole,
-    encode(encoder, { members, nodes, frames }, { ranks, count, whole }) {
+    ready: (parented) =>
+      !!rt.rootWorlds?.worlds &&
+      !rt.rootWorlds.whole &&
+      !!rt.gpu.device &&
+      chainReady(leafKernel(parented)(rt.gpu.device).ask()),
+    encode(encoder, { members, nodes, frames, parented }, { ranks, count, whole }) {
       const device = rt.gpu.device,
         roots = rt.rootWorlds?.held ?? 0
       if (!device || !roots) return
+      // Compiled: the follower asks `ready` before it takes what moved.
+      const pipeline = leafKernel(parented)(device).get()!
       // A pass over every root writes the composed roots' leaves too: none is owed after it.
       const state = rt.compose,
         owed = state ? takeComposed(state, state.owed.leaves) : undefined,
@@ -85,8 +94,7 @@ export function treeLeaves(rt: WebgpuPagesRuntime): TreeLeaves {
         const label = 'Trillion3D placement tree leaves composed'
         gpu.frame.composed = sendWords(device, gpu.frame.composed, owed, composed, label)
       }
-      const pipeline = leafKernel(device).ask().get()
-      const pass = encoder.beginComputePass({ label: TREE_LEAVES_PASS })
+      const pass = encoder.beginComputePass(PASS)
       pass.setPipeline(pipeline)
       gpu.frame.frames = frames
       gpu.frame.nodes = nodes

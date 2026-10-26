@@ -1,6 +1,6 @@
 import { createGpuTiming } from '../../gpu/timing/timing.ts'
 import { addGpuPasses, bounceGpuMs } from '../../diagnostic/stage/mapping.ts'
-import { gpuPassBlockTotals } from '../../gpu/core/passBlocks.ts'
+import { passBlockMs } from '../../gpu/core/passBlocks.ts'
 import { DYNAMIC_RESOLUTION_RULES } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import { resolveSettingsInto } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { NO_TIMING } from '../scale/dynamicResolution.ts'
@@ -46,7 +46,7 @@ function besideMs(rt: WebgpuPagesRuntime) {
  *  budget to fit. */
 function edgeMsOf(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
   if (!(rt.views.main.scale.edge.budgetMs > 0)) return NO_TIMING
-  return gpuPassBlockTotals(sample).visibilityMs ?? NO_TIMING
+  return passBlockMs(sample, 'visibility') ?? NO_TIMING
 }
 
 /** What a sample hands the dynamic resolution: the settings now, the frame's GPU busy time — never

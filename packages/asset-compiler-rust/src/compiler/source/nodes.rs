@@ -47,6 +47,30 @@ pub(crate) fn child_name(name: &str, at: usize) -> String {
     format!("{name}#{at}")
 }
 
+/// Each node's children by rank, read from the nodes' `children` (`children_of`), each refused
+/// unless it is a node of the document.
+pub(crate) fn child_lists(nodes: &[Value]) -> Result<Vec<Vec<usize>>> {
+    (0..nodes.len()).map(|id| children_of(nodes, id)).collect()
+}
+
+/// Each node's parent by rank, none for a root, from `children`, each node's children
+/// (`child_lists`): a hierarchy is a forest, each node the child of one parent at most.
+pub(crate) fn parent_ranks(children: &[Vec<usize>]) -> Vec<Option<usize>> {
+    let mut parent = vec![None; children.len()];
+    for (id, below) in children.iter().enumerate() {
+        for &child in below {
+            parent[child] = Some(id);
+        }
+    }
+    parent
+}
+
+/// Each node's parent by rank, none for a root, read from the nodes' `children` (`child_lists`,
+/// `parent_ranks`).
+pub(crate) fn node_parents(nodes: &[Value]) -> Result<Vec<Option<usize>>> {
+    Ok(parent_ranks(&child_lists(nodes)?))
+}
+
 /// Whether `node` moves by itself: it carries bones or morph weights, which a pass that places a
 /// mesh under another node cannot follow.
 pub(crate) fn moves_by_itself(node: &Value) -> bool {
@@ -155,8 +179,8 @@ pub(crate) fn declared_hidden(node: &Value) -> bool {
 }
 
 /// Nodes the rendered scene reaches from its roots, and those a hidden node hides (itself and
-/// every node under it: compiled, but no surface, proxy triangle or collider comes from them). A
-/// node no scene reaches is not compiled at all. Selection, the proxy and lights read this walk.
+/// every node under it: compiled, but no surface or collider comes from them). A
+/// node no scene reaches is not compiled at all. Selection and lights read this walk.
 pub(crate) fn scene_nodes(g: &Value) -> Result<(BTreeSet<usize>, BTreeSet<usize>)> {
     let nodes = values(g, "nodes")?;
     let roots = scene_roots(g, nodes)?;

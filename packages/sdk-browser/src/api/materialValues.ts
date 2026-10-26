@@ -106,15 +106,15 @@ export function validate(
   vector('tiling', 2, (n) => Number.isFinite(n) && n !== 0)
 }
 
-/** Writes the patch into one surface record in place — drawn in alpha mode `mode` from now on
- *  when its alpha moved — and journals it: every reader takes it at its next read, as a World's
- *  live edit does (`../session/world/materials/surface.ts`). A family without metal or glow keeps neither;
- *  colours are new arrays, never written into ones a variant shares. */
 /** The cutoff a patch leaves `surface` at, as the open draws a table entry: the page's, or the one
  *  kept, or glTF's for a new cutout. */
 export const cutoffOf = (surface: PageSurface, patch: SceneMaterialPatch) =>
   patch.alphaCutoff ?? (surface.alphaTest || MASK_CUTOFF)
 
+/** Writes the patch into one surface record in place — drawn in alpha mode `mode` from now on
+ *  when its alpha moved — and journals it: every reader takes it at its next read, as a World's
+ *  live edit does (`../session/world/materials/surface.ts`). A family without metal or glow keeps neither;
+ *  colours are new arrays, never written into ones a variant shares. */
 export function write(surface: PageSurface, patch: SceneMaterialPatch, mode?: AlphaMode) {
   const metalRough = metalRoughFamily(surface.family)
   if (patch.baseColor) surface.baseColor = [...patch.baseColor]

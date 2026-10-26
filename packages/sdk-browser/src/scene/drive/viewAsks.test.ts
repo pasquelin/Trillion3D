@@ -9,7 +9,7 @@ import { createViewAsks } from './viewAsks.ts'
 import { sha256Hex } from '../../geometry/streaming/sha256Hex.ts'
 
 /** A streamer of `count` pages of four zero bytes the server answers with `status` once `release`
- *  runs. */
+ *  runs; a 503 asks a long wait (`Retry-After`), so the page waits its turn. */
 async function served(t: TestContext, status: number, count = 1) {
   const body = new Uint8Array(4),
     sha256 = await sha256Hex(body.slice().buffer)
@@ -20,7 +20,8 @@ async function served(t: TestContext, status: number, count = 1) {
   t.mock.method(globalThis, 'fetch', async (url: string) => {
     sent.push(String(url).split('/').at(-1)!)
     await gate
-    return new Response(status === 200 ? body.slice() : '', { status })
+    const headers = status === 503 ? { 'retry-after': '60' } : undefined
+    return new Response(status === 200 ? body.slice() : '', { status, headers })
   })
   const pages = Array.from({ length: count }, (_, i) => ({ url: `p${i}.bin`, bytes: 4, sha256 }))
   const streamer = createPageStreamer(pages, 'http://cache/', {
@@ -42,7 +43,7 @@ test('a page the next frame no longer asks is let go: waiting after a failure, i
   asks.end()
   release()
   await eventually(() => streamer.stats().failed === 1)
-  assert.equal(streamer.loading('p0.bin'), true, 'it may pass: it waits its turn')
+  assert.equal(streamer.loading('p0.bin'), true, 'its server asked a wait: it waits its turn')
   asks.end() // the camera turned away: this frame asks it no more
   assert.equal(streamer.loading('p0.bin'), false, 'dropped, never asked again')
 })

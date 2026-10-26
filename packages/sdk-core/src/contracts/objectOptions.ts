@@ -12,13 +12,18 @@
  *   the GPU, every instance of one clip, mesh and settings in one pose (`SkinnedInstanceSettings`)
  *   — `true` every default, `false` (the default) a skinned object its host's clips move.
  * - `drawDistance`: the nearest and the farthest distance from the eye the object is drawn at, in
- *   the scene's units, tested on the centre of its bounds (`DrawDistanceSettings`) — `false` (the
- *   default) none: it is drawn at every distance. The cut applies it (`cutDrawDistanceCulling`,
- *   `cutOptions.ts`).
+ *   the scene's units, tested on the sphere of its bounds, on their centre for one instance of an
+ *   instanced mesh (`DrawDistanceSettings`) — `false` (the default) none: it is drawn at every
+ *   distance. The cut applies it (`cutDrawDistanceCulling` for an instance, `cutOptions.ts`).
  * - `runtimeGrid`: the name of the streaming grid the object streams on (`partitionGrids`) — the
  *   first grid when it names none or one the job does not hold, the reference's rule; an object
  *   attached under another streams on its topmost object's grid.
  * - `farField`: the object is drawn by a view's primed depth (`hizPrime`), `false` by default.
+ * - `castFarShadow`: the object casts far shadows, which a sun's far-shadow test never leaves out
+ *   of its shadow maps (`shadowOptions.ts`), `false` by default.
+ * - `farShadowTest`: a sun's far-shadow test reaches the object (`true`: it is left out of the sun's
+ *   shadow maps past the edge of the shadow distance unless it casts far shadows) or never does
+ *   (`false`); left out, the view's rule decides (`shadowOptions.ts`).
  * Its `objects` are rules `{ match, …settings }`, `match` naming objects as `meshBuild` does: each
  * sets its settings for the objects it matches. For each setting of an object, the first that
  * names it wins: the first rule matching it, the scene's setting, its node's own glTF `extras`
@@ -27,6 +32,7 @@
  */
 import {
   DEFAULT_DRAW_DISTANCE_MAX,
+  DEFAULT_DRAW_DISTANCE_MIN,
   DRAW_DISTANCE_SETTING,
   DRAW_DISTANCE_SETTINGS,
   OBJECT_MOBILITIES,
@@ -37,6 +43,8 @@ import {
   PARTITION_GRID_NAME_FORBIDDEN,
   RUNTIME_GRID_SETTING,
   FAR_FIELD_SETTING,
+  CAST_FAR_SHADOW_SETTING,
+  FAR_SHADOW_TEST_SETTING,
   SKINNED_INSTANCE_SETTING,
   SKINNED_INSTANCE_SETTINGS,
   SPATIALLY_LOADED_SETTING,
@@ -46,7 +54,7 @@ import {
   type ObjectSettingsWire,
   type SkinnedInstanceWire,
 } from './compilerAbi.ts'
-import { isFiniteNumber as finite } from '../../../math/src/scalar/reals.ts'
+import { isFiniteNumber } from '../../../math/src/scalar/reals.ts'
 import { isGridName } from './partitionGridOptions.ts'
 import {
   fieldsOf,
@@ -84,14 +92,17 @@ export type SkinnedInstanceSettings = {
 /** An object's skinned instance: `true` every default, `false` none, or its settings. */
 export type SkinnedInstanceOption = boolean | SkinnedInstanceSettings
 
-/** The distances an object is drawn at, from the eye to the centre of its bounds, in the scene's
- *  units. */
+/** The distances an object is drawn at, from the eye to its bounds, in the scene's units. */
 export type DrawDistanceSettings = {
-  /** The distance under which the object is not drawn. @defaultValue 0 */
+  /** The distance under which the object is not drawn: its bounds' sphere is wholly nearer.
+   *  @defaultValue 0 */
   min?: number
-  /** The distance past which the object is not drawn: 0 none, the object is drawn at every
-   *  distance, whatever its `min`. @defaultValue 0 */
+  /** The distance past which the object is not drawn: its bounds' sphere is wholly farther; 0
+   *  none. @defaultValue 0 */
   max?: number
+  /** Whether the object is one instance of an instanced mesh: its bounds' centre is tested, and
+   *  it is drawn at every distance without a `max`, whatever its `min`. @defaultValue false */
+  perInstance?: boolean
 }
 
 /** One source's object settings, each the next source's, or its default, when left out. */
@@ -108,6 +119,13 @@ export type ObjectSettings = {
   runtimeGrid?: string
   /** Whether a view's primed depth draws the object. @defaultValue false */
   farField?: boolean
+  /** Whether the object casts far shadows, which a sun's far-shadow test never leaves out of its
+   *  shadow maps. @defaultValue false */
+  castFarShadow?: boolean
+  /** Whether a sun's far-shadow test reaches the object (`true`) or never does (`false`); left
+   *  out, the view's rule decides: the world's merged shells alone, or every caster with
+   *  `farShadowCullsAllMeshes`. */
+  farShadowTest?: boolean
 }
 
 /** A rule of `objects`: the objects it names — a node's name (exact), a regular expression on it,
@@ -120,7 +138,7 @@ export type ObjectSettingsOption = ObjectSettings & { objects?: readonly ObjectR
 /** What a distance, or a position in a clip, takes. */
 const NON_NEGATIVE: [string, (v: unknown) => boolean] = [
   'a finite number of at least 0',
-  (value) => finite(value) && value >= 0,
+  (value) => isFiniteNumber(value) && value >= 0,
 ]
 
 /** What each setting of an instanced skinned object takes, as a refusal names it, and whether a
@@ -134,10 +152,10 @@ const SKINNED_TAKES: Record<
     (value) => typeof value === 'string' || (Number.isInteger(value) && (value as number) >= 0),
   ],
   looping: ['true or false', (value) => typeof value === 'boolean'],
-  playRate: ['a finite number', finite],
+  playRate: ['a finite number', isFiniteNumber],
   position: NON_NEGATIVE,
-  boundsScale: ['a finite number above 0', (value) => finite(value) && value > 0],
-  animationMinScreenSize: ['a finite number', finite],
+  boundsScale: ['a finite number above 0', (value) => isFiniteNumber(value) && value > 0],
+  animationMinScreenSize: ['a finite number', isFiniteNumber],
   mobility: [
     `one of ${OBJECT_MOBILITIES.join(', ')}`,
     (value) => (OBJECT_MOBILITIES as readonly unknown[]).includes(value),
@@ -151,6 +169,7 @@ const DRAW_DISTANCE_TAKES: Record<
 > = {
   min: NON_NEGATIVE,
   max: NON_NEGATIVE,
+  perInstance: ['true or false', (value) => typeof value === 'boolean'],
 }
 
 /** The settings of `keys` the object `value` names, each read as its `takes` entry says and a
@@ -184,41 +203,51 @@ function skinnedOf(value: unknown, what: string, refuse: Refuse): boolean | Skin
 }
 
 /** The draw distance `value` names, as the compiler reads it, `what` naming it in a refusal: `false`
- *  none, or an object of `min` and `max`, each a finite number of at least 0. An object whose `max`
- *  is left out or 0 names no farthest distance: it is `false` too, one form for none. */
+ *  none, or an object of `min`, `max` — each a finite number of at least 0 — and `perInstance`. An
+ *  object that names no distance — a `max` left out or 0 and, unless it is `perInstance` (a `min`
+ *  alone is none of an instance's), no `min` — is `false` too: one form for none. */
 function drawDistanceOf(value: unknown, what: string, refuse: Refuse): false | DrawDistanceWire {
   if (value === false) return false
   if (!isRecord(value))
     refuse(`${what} must be false or an object of ${DRAW_DISTANCE_SETTINGS.join(', ')}`)
-  const wire = recordOf(value, DRAW_DISTANCE_SETTINGS, DRAW_DISTANCE_TAKES, what, refuse)
-  return ((wire.max as number | undefined) ?? DEFAULT_DRAW_DISTANCE_MAX) > 0
-    ? (wire as DrawDistanceWire)
-    : false
+  const wire = recordOf(
+    value,
+    DRAW_DISTANCE_SETTINGS,
+    DRAW_DISTANCE_TAKES,
+    what,
+    refuse,
+  ) as DrawDistanceWire
+  const named = (wire.max ?? DEFAULT_DRAW_DISTANCE_MAX) > 0
+  return named || (!wire.perInstance && (wire.min ?? DEFAULT_DRAW_DISTANCE_MIN) > 0) ? wire : false
+}
+
+/** The switch `named` holds under `setting`, `undefined` where it holds none.
+ *  @throws TypeError (`refuse`) when it is not a boolean. */
+function switchOf(named: Record<string, unknown>, setting: string, what: string, refuse: Refuse) {
+  const value = named[setting]
+  if (value === undefined || value === null) return undefined
+  if (typeof value !== 'boolean')
+    refuse(`${what}${setting} must be true or false, got ${JSON.stringify(value)}`)
+  return value as boolean
 }
 
 /** The settings of `named` the compiler reads, `what` naming them in a refusal. */
 function settingsOf(named: Record<string, unknown>, what: string, refuse: Refuse) {
   const wire: ObjectSettingsWire = {}
-  const loaded = named[SPATIALLY_LOADED_SETTING]
-  if (loaded !== undefined && loaded !== null) {
-    if (typeof loaded !== 'boolean')
-      refuse(
-        `${what}${SPATIALLY_LOADED_SETTING} must be true or false, got ${JSON.stringify(loaded)}`,
-      )
-    wire.spatiallyLoaded = loaded as boolean
-  }
+  const loaded = switchOf(named, SPATIALLY_LOADED_SETTING, what, refuse)
+  if (loaded !== undefined) wire.spatiallyLoaded = loaded
   const skinned = named[SKINNED_INSTANCE_SETTING]
   if (skinned !== undefined && skinned !== null)
     wire.skinnedInstance = skinnedOf(skinned, `${what}${SKINNED_INSTANCE_SETTING}`, refuse)
   const drawn = named[DRAW_DISTANCE_SETTING]
   if (drawn !== undefined && drawn !== null)
     wire.drawDistance = drawDistanceOf(drawn, `${what}${DRAW_DISTANCE_SETTING}`, refuse)
-  const far = named[FAR_FIELD_SETTING]
-  if (far !== undefined && far !== null) {
-    if (typeof far !== 'boolean')
-      refuse(`${what}${FAR_FIELD_SETTING} must be true or false, got ${JSON.stringify(far)}`)
-    wire.farField = far as boolean
-  }
+  const far = switchOf(named, FAR_FIELD_SETTING, what, refuse)
+  if (far !== undefined) wire.farField = far
+  const castFar = switchOf(named, CAST_FAR_SHADOW_SETTING, what, refuse)
+  if (castFar !== undefined) wire.castFarShadow = castFar
+  const farTest = switchOf(named, FAR_SHADOW_TEST_SETTING, what, refuse)
+  if (farTest !== undefined) wire.farShadowTest = farTest
   const grid = named[RUNTIME_GRID_SETTING]
   if (grid !== undefined && grid !== null) {
     if (!isGridName(grid))

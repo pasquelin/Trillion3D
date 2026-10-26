@@ -26,7 +26,7 @@ function docOf(node: ts.Node) {
 }
 
 /** The functions of the module at `path`, in their order, each with its body and documentation. */
-export function functionsOf(path: string) {
+function functionsOf(path: string) {
   return moduleOf(path)
     .statements.filter(
       (statement): statement is ts.FunctionDeclaration & { name: ts.Identifier; body: ts.Block } =>

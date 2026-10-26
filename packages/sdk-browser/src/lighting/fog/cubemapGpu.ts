@@ -1,3 +1,4 @@
+import { HALF_MAX } from '../../../../math/src/constants.ts'
 import { toHalf } from '../../../../math/src/float/half.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import {
@@ -6,9 +7,6 @@ import {
   type ResolvedFogCubemap,
 } from '../../../../sdk-core/src/scene/core/fogCubemap.ts'
 
-/** The most a half float holds: a texel past it is held to it, never to the infinity a product with
- *  zero would turn into a NaN. */
-const HALF_MAX = 65504
 /** Half float bits of 1: a texel's alpha. */
 const HALF_ONE = toHalf(1)
 
@@ -66,7 +64,7 @@ export function createFogCubemap(device: GPUDevice, cube: ResolvedFogCubemap) {
 }
 
 /** Bytes of the cubemap of a face of `size` texels, its whole chain of levels (four half floats a texel). */
-export function cubemapBytes(size: number) {
+function cubemapBytes(size: number) {
   let texels = 0
   for (let level = 0; level < cubemapMipCount(size); level++)
     texels += Math.max(1, size >> level) ** 2

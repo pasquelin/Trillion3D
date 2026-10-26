@@ -13,7 +13,6 @@ import {
   bitWord,
   byteOf,
   isFiniteWord,
-  isNanWord,
 } from '../../../../math/src/wgsl/integer.ts'
 import { unorm8 } from '../../../../math/src/wgsl/color.ts'
 
@@ -26,11 +25,10 @@ const run = shaderRun<{
   bitIsSet: B
   byteOf: U
   unorm8: U
-  isNanWord: B
   isFiniteWord: B
 }>(
-  wgslModule(bitWord, bitMask, bitAt, bitIsSet, byteOf, unorm8, isNanWord, isFiniteWord),
-  ['bitWord', 'bitMask', 'bitAt', 'bitIsSet', 'byteOf', 'unorm8', 'isNanWord', 'isFiniteWord'],
+  wgslModule(bitWord, bitMask, bitAt, bitIsSet, byteOf, unorm8, isFiniteWord),
+  ['bitWord', 'bitMask', 'bitAt', 'bitIsSet', 'byteOf', 'unorm8', 'isFiniteWord'],
   {},
 )
 
@@ -81,7 +79,6 @@ test('a float classed by its bits: NaN past the infinity, finite under the full 
   const words = [...floats.map(f32Bits), 0x7f800001, 0xff800001, 0x7fffffff, 0xffc00000, 0x7f7fffff]
   for (const word of words) {
     const x = fromF32Bits(word)
-    assert.equal(run.isNanWord(word), Number.isNaN(x), word.toString(16))
     assert.equal(run.isFiniteWord(word), Number.isFinite(x), word.toString(16))
   }
 })

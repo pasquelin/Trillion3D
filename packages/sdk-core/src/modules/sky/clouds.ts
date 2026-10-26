@@ -9,18 +9,17 @@ import {
   numberSetting as number,
   resolveSettings,
   rulesOf,
-  type SettingOptions,
   type SettingValues,
   vectorSetting as vector,
 } from '../../contracts/settingRules.ts'
 import { CLOUD_MATERIAL_RULES, type CloudMaterial } from './cloudMaterial.ts'
-import { CM_PER_KM, SKY_QUALITY_RULES, type SkyQualityValues } from './quality.ts'
+import { CM_PER_KM, type SkyQualityValues } from './quality.ts'
 
 /**
  * The clouds part of the sky module: one layer of clouds, a shell round the planet ray marched
  * from the eye, drawn with the cloud material (`./cloudMaterial.ts`). Run-time settings, as
- * `../../contracts/settingRules.ts` says; each has the layer's default, but the two reflection
- * scales, which are those of the sky module's clouds. Distances are in kilometres, as written.
+ * `../../contracts/settingRules.ts` says; each has the layer's default. Distances are in
+ * kilometres, as written.
  */
 
 /** The tracing distance modes, in the order the marcher is told them. */
@@ -38,17 +37,19 @@ const TRACING_MODES = ['layerEntry', 'eye'] as const
  * - `sunTintPerSample` (false): the sun's colour at each sample, not once
  *   per ray;
  * - `undersideSkyLoss` (0.5, 0 to 1): how much sky light the cloud's underside loses, where the
- *   material gives no occlusion of its own;
- * - `viewSamplesScale` (1), `reflectionSamplesScale` (0.1041667),
- *   `shadowSamplesScale` (1), `reflectionShadowSamplesScale` (0.3), each at least
- *   0.05: the samples of a ray, of one in a reflection, of a shadow ray, of one in a reflection;
+ *   material gives no occlusion of its own; the built-in material always gives one
+ *   (`ambientOcclusion`), so no cloud of it reads the setting;
+ * - `viewSamplesScale` (1), `reflectionSamplesScale` (1), `shadowSamplesScale` (1),
+ *   `reflectionShadowSamplesScale` (1), each at least 0.05: the samples of a ray, of one in a
+ *   reflection, of a shadow ray, of one in a reflection (at a scale of 1: 96, at most the quality's
+ *   80, and 10, at most 24);
  * - `shadowRayLengthKm` (15, at least 0.01): how far a shadow ray goes;
  * - `opaqueBelow` (0.005, 0 to 1): a ray that lets less light through ends;
  * - `hazeRayleighStartKm`, `…RayleighFadeKm`, `…MieStartKm`, `…MieFadeKm` (0):
  *   where the air's two scatterings start to tint the cloud and over how far they come in;
  * - `nearestStartKm` is also the distance under which a pixel takes no cloud; the distances of the
  *   reprojection and the disocclusion, and the late fog, are quality settings (`./quality.ts`);
- * - `alphaHole` (false), `inMainView` (true), `inSkyCapture` (true).
+ * - `alphaHole` (false): the clouds hold their light out, drawing black and laying their coverage on the image's alpha, where the alpha holdout is in effect (`../../contracts/filmOptions.ts`); `inMainView` (true), `inSkyCapture` (true).
  */
 export const CLOUD_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -63,9 +64,9 @@ export const CLOUD_RULES = /* @__PURE__ */ (() =>
     flag('sunTintPerSample', false),
     number('undersideSkyLoss', 0.5, [0, 1]),
     number('viewSamplesScale', 1, atLeast(0.05)),
-    number('reflectionSamplesScale', 0.1041667, atLeast(0.05)),
+    number('reflectionSamplesScale', 1, atLeast(0.05)),
     number('shadowSamplesScale', 1, atLeast(0.05)),
-    number('reflectionShadowSamplesScale', 0.3, atLeast(0.05)),
+    number('reflectionShadowSamplesScale', 1, atLeast(0.05)),
     number('shadowRayLengthKm', 15, atLeast(0.01)),
     number('opaqueBelow', 0.005, [0, 1]),
     nonNegative('hazeRayleighStartKm', 0),
@@ -76,10 +77,6 @@ export const CLOUD_RULES = /* @__PURE__ */ (() =>
     flag('inMainView', true),
     flag('inSkyCapture', true),
   ] as const))()
-
-/** What a host writes for the part: any of the layer's and the material's fields. */
-export type CloudOptions = SettingOptions<typeof CLOUD_RULES> &
-  SettingOptions<typeof CLOUD_MATERIAL_RULES>
 
 /** The samples of a view ray and of a shadow ray at a scale of 1. */
 const VIEW_SAMPLES = 96
@@ -146,25 +143,15 @@ function gpuValues(layer: SettingValues<typeof CLOUD_RULES>, quality: SkyQuality
 export const cloudSeparatesAir = (layer: SettingValues<typeof CLOUD_RULES>) =>
   layer.hazeRayleighStartKm > 0 || layer.hazeMieStartKm > 0
 
-/** The radii of the shell round a planet of radius `planetRadiusKm`, in kilometres: the atmosphere's
- *  when there is one, else the part's `planetRadiusKm`. */
-export const cloudLayerRadiiKm = (
-  layer: SettingValues<typeof CLOUD_RULES>,
-  planetRadiusKm: number,
-) => {
-  const bottom = planetRadiusKm + layer.baseAltitudeKm
-  return { bottom, top: bottom + layer.thicknessKm }
-}
-
 /**
  * The one reading of the part's merged fields: the layer's and the material's settings, each its
  * default when the fields hold none, and what the marcher is told of them with the sky's `quality`
- * settings (`./quality.ts`), their defaults when none is given.
+ * settings (`./quality.ts`).
  * @throws TypeError naming a field the part does not have, or a value a field does not take.
  */
 export function resolveCloudPart(
   fields: Readonly<Record<string, unknown>>,
-  quality: SkyQualityValues = resolveSettings(SKY_QUALITY_RULES, {}),
+  quality: SkyQualityValues,
 ): CloudPart {
   const names = [...Object.keys(CLOUD_RULES), ...Object.keys(CLOUD_MATERIAL_RULES)]
   const held = fieldsOf(fields, names, 'the clouds part', refusal('clouds'))
@@ -176,3 +163,11 @@ export function resolveCloudPart(
     gpu: gpuValues(settings, quality),
   }
 }
+
+/** The part under other quality settings: the same layer and material, the marcher's values worked
+ *  out again from `quality` (what the frame does where a quality setting moves). */
+export const cloudPartAt = (part: CloudPart, quality: SkyQualityValues): CloudPart => ({
+  ...part,
+  quality,
+  gpu: gpuValues(part.settings, quality),
+})

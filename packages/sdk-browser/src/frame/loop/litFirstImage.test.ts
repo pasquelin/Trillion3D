@@ -97,6 +97,6 @@ test('the unlit view keeps what a surface emits, opaque and transparent alike', 
   )
   assert.match(
     BLEND_SHADER,
-    /\}else\{rgb\+=s\.emissive;\}[^]*?let hdr=preExposedClipped\(rgb\);\s*let r=displayRoute/,
+    /\}else\{rgb\+=s\.emissive;\}[^]*?let hdr=select\(preExposedClipped\(rgb\),vec3f\(0\.0\),holdoutPrimitive\(in\)\);\s*let r=displayRoute/,
   )
 })

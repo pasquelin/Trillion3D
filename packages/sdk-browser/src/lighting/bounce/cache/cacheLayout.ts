@@ -7,12 +7,12 @@ import { textureBytesOf } from '../../../gpu/core/textureBytes.ts'
 import { POOL_ROW_PROBES } from '../atlas.ts'
 
 /**
- * THE RADIANCE CACHE'S SHAPES. Every probe of the world's pool (`../atlas.ts`) holds, beside its harmonics, the light it sees in
+ * THE RADIANCE CACHE'S SHAPES. Every probe of the world's pool (`../pool/pool.ts`) holds the light it sees in
  * every direction: an octahedral map of `resolution × resolution` texels, equal in solid angle (`equalAreaDecode`), traced from
  * the probe, filtered with its six neighbours', and read by the screen probes for the rays that leave the screen and the near
  * scene. The probes' slots are the pool's: a slot's map is the square of texels at the slot's place in the pool's rows
- * (`POOL_ROW_PROBES` along a row), so the cache has the pool's own size and the table that names a cell's slot is the world
- * probes'.
+ * (`POOL_ROW_PROBES` along a row), so the cache has the pool's own size and the table that names a cell's slot is the pool's
+ * (`../atlas.ts`).
  *
  * Two atlases: the RAW one, a texel the radiance a ray found (`packLight`, the 11-11-10 word) and, in the second word, the
  * distance it went, whether it met a surface and the share of it that left the scene (`cacheDepthWord`) — what the filter and the
@@ -26,9 +26,6 @@ export const RADIANCE_CACHE_FORMATS = {
   final: 'r32uint',
   sky: 'r32float',
 } as const satisfies Record<string, GPUTextureFormat>
-
-/** The most levels of detail the final maps hold. */
-export const CACHE_MAX_MIPS = 3
 
 /** Words of a slot's tag: the cell's three coordinates and the level plus one (zero for a map never made). */
 export const CACHE_TAG_WORDS = 4
@@ -60,7 +57,7 @@ export const RADIANCE_CACHE_PARAMS = fieldLayout('RadianceCacheParams', [
 export const RADIANCE_CACHE_PARAMS_BYTES = RADIANCE_CACHE_PARAMS.words * 4
 
 /** The most tiles a probe's map is traced in: every texel of a map twice the side. */
-export const maxTilesPerProbe = (resolution: number) => (resolution / (CACHE_TILE_SIDE / 2)) ** 2
+const maxTilesPerProbe = (resolution: number) => (resolution / (CACHE_TILE_SIDE / 2)) ** 2
 
 /** Entries the tile list holds: every probe a frame queues, each at the most tiles. */
 export const cacheTileCapacity = (resolution: number) =>
@@ -83,8 +80,8 @@ export interface CacheShape {
 export const sameShape = (a: CacheShape, b: CacheShape) =>
   a.resolution === b.resolution && a.mipmaps === b.mipmaps && a.skyVisibility === b.skyVisibility
 
-/** Bytes a cache of `slots` probes' maps of the shape `shape` holds: the atlases, the tags, the importance functions,
- *  the traced probes' flags and the tile list. */
+/** Bytes a cache of `slots` probes' maps of the shape `shape` holds: the atlases, the tags, the importance functions
+ *  and the tile list. */
 export function cacheBytes(shape: CacheShape, slots: number) {
   const { resolution, mipmaps, skyVisibility } = shape
   const size = cacheExtent(resolution, slots)
@@ -93,7 +90,6 @@ export function cacheBytes(shape: CacheShape, slots: number) {
     textureBytesOf({ size, format: RADIANCE_CACHE_FORMATS.final, mipLevelCount: mipmaps })! +
     (skyVisibility ? textureBytesOf({ size, format: RADIANCE_CACHE_FORMATS.sky })! : 0) +
     slots * (CACHE_TAG_WORDS + CACHE_PDF_WORDS) * 4 +
-    BOUNCE_PROBE_QUEUE * 4 +
     listBytes(cacheTileCapacity(resolution), 2) +
     RADIANCE_CACHE_PARAMS_BYTES
   )

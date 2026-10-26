@@ -1,7 +1,7 @@
 //! The world's HLOD wears its objects' attributes: every page a `WGP3` page with the normals and
 //! texture coordinates of its covers and its shell's tangents, mirrored faces turned to the front.
 //! On generated plates.
-use super::decoded::decoded;
+use super::decoded::{decoded, WorldPages};
 use super::{cooked, plate};
 use crate::dag::{build_dag, DagAttributes, DagStrategy, Grown, DAG_CLUSTER_TRIANGLES};
 use crate::hlod::chain::*;
@@ -12,7 +12,7 @@ use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::{FLAG_NORMAL, FLAG_TANGENT, FLAG_UV};
 
 /// Per vertex of `positions`, the sum of the normals of the faces of `indices` around it.
-pub(crate) fn vertex_normals(positions: &[f32], indices: &[u32]) -> Vec<f32> {
+fn vertex_normals(positions: &[f32], indices: &[u32]) -> Vec<f32> {
     let at = |v: u32| [0, 1, 2].map(|a| f64::from(positions[v as usize * 3 + a]));
     let mut normals = vec![0.0f32; positions.len()];
     for &[a, b, c] in indices.as_chunks::<3>().0 {
@@ -28,26 +28,28 @@ pub(crate) fn vertex_normals(positions: &[f32], indices: &[u32]) -> Vec<f32> {
     normals
 }
 
-/// The source cover of a plate carrying normals and a texture set spanning [0, 1].
-fn textured(n: usize, size: f32) -> SourceCover {
-    let (positions, indices) = plate(n, size, false);
-    let uv = positions
-        .as_chunks::<3>()
-        .0
-        .iter()
-        .flat_map(|p| [p[0] / size, p[2] / size]);
-    let carried = [
+/// The attributes a plate of `size` over `positions` and `indices` carries: its normals and a
+/// texture set spanning [0, 1].
+pub(crate) fn plate_attributes(positions: &[f32], indices: &[u32], size: f32) -> [Attribute; 2] {
+    let uv = (positions.as_chunks::<3>().0.iter()).flat_map(|p| [p[0] / size, p[2] / size]);
+    [
         Attribute {
             flag: FLAG_NORMAL,
             width: 3,
-            values: vertex_normals(&positions, &indices),
+            values: vertex_normals(positions, indices),
         },
         Attribute {
             flag: FLAG_UV,
             width: 2,
             values: uv.collect(),
         },
-    ];
+    ]
+}
+
+/// The source cover of a plate carrying normals and a texture set spanning [0, 1].
+fn textured(n: usize, size: f32) -> SourceCover {
+    let (positions, indices) = plate(n, size, false);
+    let carried = plate_attributes(&positions, &indices, size);
     let refs: Vec<&Attribute> = carried.iter().collect();
     let attributes = DagAttributes { carried: &refs };
     let strategy = DagStrategy::QemEndpoints;
@@ -73,6 +75,7 @@ pub(crate) fn field(cover: &SourceCover, side: usize) -> Vec<Instance<'_>> {
                 node: k,
                 mesh: 0,
                 track: None,
+                fallback: None,
             }
         })
         .collect()
@@ -84,7 +87,7 @@ fn an_hlod_page_is_a_geometry_page_wearing_its_objects_attributes() {
     let instances = field(&cover, 6);
     let cooked = cooked(&instances, 1).expect("cooked");
     let table = decoded(&cooked);
-    let (pages, bundles) = (table["pages"].as_array().unwrap(), &table["bundles"]);
+    let pages = table["pages"].as_array().unwrap();
     assert!(pages.len() > 1, "the actors are paged");
     // HLOD 1's shell at its full detail: the clusters of the HLOD 0 cells' actors.
     let cell_level =
@@ -100,12 +103,13 @@ fn an_hlod_page_is_a_geometry_page_wearing_its_objects_attributes() {
             .and_then(|c| c["lodError"].as_f64())
             .unwrap_or(0.0)
     };
+    let mut world = WorldPages::new(&table, &cooked.payload);
     for page in pages {
-        let bundle = &bundles[page["bundle"].as_u64().expect("bundle") as usize];
-        let start =
-            (bundle["offset"].as_u64().unwrap() + page["offset"].as_u64().unwrap()) as usize;
-        let bytes = &cooked.payload[start..start + page["bytes"].as_u64().unwrap() as usize];
-        let decoded = trillion3d_page_codec::decode(bytes, 1 << 24).expect("a WGP3 page");
+        let place = (
+            page["bundle"].as_u64().unwrap(),
+            page["offset"].as_u64().unwrap(),
+        );
+        let decoded = world.page(place);
         assert!(
             decoded.index_count <= 3 * DAG_CLUSTER_TRIANGLES,
             "a page a visibility id holds"

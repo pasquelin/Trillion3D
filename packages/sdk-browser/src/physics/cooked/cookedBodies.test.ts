@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   ADD_WORDS,
   BODY_INDEX,
+  FILTER_WORDS,
   FLAG,
   MOTION,
   OP,
@@ -12,9 +13,11 @@ import {
   RESTORE_WORDS,
 } from '../../../../sdk-core/src/physics/layout.ts'
 import { createCookedBodies } from './cookedBodies.ts'
+import { SharedShapes } from '../sharedShapes.ts'
 import { castDown, startModule, type Module } from '../module.fixture.ts'
-import { cookedParts } from '../tiles/tileShapes.fixture.ts'
+import { cookedParts, reads } from '../tiles/tileShapes.fixture.ts'
 import {
+  cellsOf,
   cooked,
   declared,
   fixture,
@@ -37,7 +40,7 @@ const cube = (centre = [0.5, 0.5, 0.5]) => ({
   ...hull(),
   mass: { mass: 1000, centerOfMass: centre, inertia: diagonal(1000 / 6) },
 })
-/** The ADD records among `words` — ADDs, RESTOREs and RELEASEs —: each one's words and floats. */
+/** The ADD records among `words` — ADDs, FILTERs, RESTOREs and RELEASEs —: each one's words and floats. */
 function adds(words: Uint32Array) {
   const f = new Float32Array(words.buffer, words.byteOffset, words.length)
   const found: { w: Uint32Array; f: Float32Array }[] = []
@@ -46,7 +49,8 @@ function adds(words: Uint32Array) {
     if (op === OP.add) {
       found.push({ w: words.subarray(at), f: f.subarray(at) })
       at += ADD_WORDS + words[at + 23] * 3 + words[at + 24]
-    } else at += op === OP.restore ? RESTORE_WORDS + ceilDiv(words[at + 2], 4) : 2
+    } else if (op === OP.filter) at += FILTER_WORDS
+    else at += op === OP.restore ? RESTORE_WORDS + ceilDiv(words[at + 2], 4) : 2
   }
   return found
 }
@@ -185,4 +189,81 @@ test('a declared kinematic body follows its model; refusals are named; a removed
   tiles.scan(scene)
   assert.deepEqual([...writer.take()], [OP.remove, id & BODY_INDEX])
   assert.deepEqual([bodies.count.bodies, tiles.modelOf(id)], [0, null], 'its slot given back')
+})
+
+test('a declared body lives with the cells that draw its node: made when one is placed, let go of when it leaves', async () => {
+  const crate = declared(1, [0, 1, 0], { isKinematic: true }, { type: 'sphere' })
+  const post = declared(2, [4, 1, 0], { isKinematic: true }, { type: 'sphere' })
+  stubFetch({ ...cooked([], []), bodies: [crate, post] }, new Uint8Array(4))
+  const { tiles, scene, model, writer, bodies, errors } = modelStreamer({}, 1, [crate, post])
+  // A cell draws node 1; the core draws node 2.
+  const cells = cellsOf(model, [1])
+  tiles.scan(scene)
+  await landed()
+  assert.equal(bodies.count.bodies, 1, 'the core’s node alone: its cell is not placed')
+  const [held] = adds(writer.take())
+  assert.deepEqual([held.f[6], tiles.modelOf(held.w[1])], [4, model], 'node 2’s, at its node')
+  cells.place(1)
+  tiles.update([0, 0, 0], 100)
+  assert.equal(bodies.count.bodies, 2, 'made with its cell')
+  const [made, ...more] = adds(writer.take())
+  assert.deepEqual([made.f[6], more], [0, []], 'at its node, once')
+  tiles.update([0, 0, 0], 100)
+  assert.deepEqual([...writer.take()], [], 'a look with nothing moved asks nothing')
+  cells.leave(1)
+  tiles.update([0, 0, 0], 100)
+  assert.deepEqual([...writer.take()], [OP.remove, made.w[1] & BODY_INDEX], 'let go with its cell')
+  assert.deepEqual([bodies.count.bodies, tiles.modelOf(made.w[1])], [1, null])
+  cells.place(1)
+  tiles.update([0, 0, 0], 100)
+  assert.equal(bodies.count.bodies, 2, 'made again when its cell is placed again')
+  assert.deepEqual(errors, [])
+})
+
+test('a body its cell left before its hull was restored is never made', async () => {
+  const crate = declared(1, [0, 1, 0], { isKinematic: true }, cube())
+  stubFetch(cooked([], []), await hullBytes())
+  const { model, writer, bodies } = modelStreamer({}, 1, [crate])
+  const cells = cellsOf(model, [1])
+  const rigid = createCookedBodies(cookedParts(writer, bodies))
+  cells.place(1)
+  rigid.open(model, [crate], new AbortController().signal)
+  cells.leave(1)
+  rigid.stream(model)
+  await landed()
+  assert.deepEqual([bodies.count.bodies, adds(writer.take())], [0, []])
+  cells.place(1)
+  rigid.stream(model)
+  await landed()
+  assert.equal(bodies.count.bodies, 1, 'its cell placed again, it is made, once')
+})
+
+test('a body refused its hull is out until its model opens again, its nodes given back once', async () => {
+  // Both bodies name node 5's collider: it stays theirs while either stands.
+  const refused = declared(1, [0, 1, 0], { isKinematic: true }, cube(), { colliderNode: 5 })
+  const sphere = { type: 'sphere' }
+  const other = declared(2, [4, 1, 0], { isKinematic: true }, sphere, { colliderNode: 5 })
+  const fetched = stubFetch(cooked([], []), new Uint8Array(4), (name) =>
+    name === 'hull.bin' ? new Response('', { status: 404 }) : undefined,
+  )
+  const { model, writer, bodies } = modelStreamer({}, 1, [refused, other])
+  const errors: unknown[] = []
+  const failed = (error: unknown) => void errors.push(error)
+  const shapes = new SharedShapes({ writer, ledger: bodies.ledger, failed })
+  const rigid = createCookedBodies({ writer, bodies, shapes, invalidate() {}, failed })
+  const cells = cellsOf(model, [1])
+  cells.place(1)
+  rigid.open(model, [refused, other], new AbortController().signal)
+  await landed()
+  assert.deepEqual([reads(fetched, 'hull.bin'), errors.length], [1, 1])
+  assert.equal(rigid.holds(model, 5), true, 'the other body still stands for node 5')
+  for (const place of [false, true]) {
+    if (place) cells.place(1)
+    else cells.leave(1)
+    rigid.stream(model)
+    await landed()
+  }
+  assert.equal(reads(fetched, 'hull.bin'), 1, 'not asked again')
+  assert.equal(rigid.holds(model, 5), true, 'its nodes given back once, not again')
+  assert.equal(bodies.count.bodies, 1, 'the other body alone')
 })

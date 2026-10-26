@@ -141,7 +141,11 @@ pub(super) fn write(case: &Case) -> Written {
         gltf["extensionsUsed"] = json!(["KHR_mesh_quantization"]);
         gltf["extensionsRequired"] = json!(["KHR_mesh_quantization"]);
     }
-    let (root, options) = gltf_fixture(case.name, &gltf, &buffer.bin);
+    let (root, mut options) = gltf_fixture(case.name, &gltf, &buffer.bin);
+    // The corpus checks the cluster DAG, its pages and the cache: the distance field and the mesh
+    // cards every seed would bake are another stage's subject, tested on their own.
+    options.mesh_build =
+        crate::MeshBuildOptions::read(Some(&json!({ "distanceField": false, "maxMeshCards": 0 })));
     Written {
         root,
         options,

@@ -76,14 +76,16 @@ test('views are rebuilt when a LATER allocation grows memory', async () => {
   ;(arena.blocks()[0].view as Float64Array).set(values)
   const before = arena.blocks()[0].view,
     offsetBefore = arena.blocks()[0].offset
-  assert.equal(arena.generation(), 0, 'nothing has grown memory yet')
+  assert.equal(arena.blocks()[0].view, before, 'nothing has grown memory yet')
   // An allocation that has nothing to do with this buffer — another kernel's, on the same
   // module — replaces the module's `ArrayBuffer` and detaches the previous view.
   const large = wasm.arena_alloc(64 * MIB)
   assert.ok(large, 'the large reservation must succeed')
   assert.equal(before.length, 0, 'the previous view must have been detached by the growth')
   const after = arena.blocks()[0]
-  assert.equal(arena.generation(), 1, 'one rebuild, and only one')
+  assert.notEqual(after.view, before, 'the views were rebuilt')
+  assert.equal(arena.blocks()[0].view, after.view, 'and only once')
+  assert.equal(arena.blocks(), arena.blocks(), 'the blocks are one array, rebuilt once')
   assert.equal(after.view.buffer, wasm.memory.buffer, 'the view must point at the current buffer')
   assert.equal(after.offset, offsetBefore, 'the block offset does not move')
   const reread = Array.from(after.view as Float64Array)

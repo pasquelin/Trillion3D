@@ -8,6 +8,7 @@ import { createWebgpuBloom } from './webgpuBloom.ts'
 import { createWebgpuDepthOfField } from './webgpuDepthOfField.ts'
 import { createWebgpuMotionBlur } from './webgpuMotionBlur.ts'
 import { createWebgpuOutline } from './webgpuOutline.ts'
+import type { FusedFlatten } from './motionBlur/motionBlurLayout.ts'
 
 /** What a pass left to the composition: the glow it drew, which the composition adds to the image
  *  it reads where it applies the exposure — the glow times `1 + mask × factor` where a dirt mask
@@ -107,6 +108,24 @@ export type ResolveFrame = {
   /** Whether the image is the temporal pass's, which makes the half-size copy of it the motion blur's
    *  samples may read (`motionBlurHalfResInput`); an image the pass did not resolve has none. */
   resolved: boolean
+  /** Where the temporal pass's nearest velocity flattened the motion blur's motion for this image,
+   *  when the blur asked for it (`WebgpuResolveKind.fuse`); none, the blur flattens its own. */
+  flatten: FusedFlatten | undefined
+  /** Whether the passes that write the half-size image beside their own do it, the quality asking
+   *  the chain's own pass for it otherwise (`temporalDownsampleQuality`); not told, they do. */
+  halfBeside?: boolean
+  /** The group of the translucency the lit image is composed with (`blend/translucencyLayers.ts`),
+   *  where layers are drawn for it: the last depth of field composes it in its recombine
+   *  (`layersComposed`). None on the resolved image, and where the image has none. */
+  layers?: GPUBindGroup
+  /** Set by the pass that composed `layers`. */
+  layersComposed?: boolean
+  /** On the resolved image, the translucency drawn after the motion blur, where there is some: its
+   *  group (`blend/translucencyLayers.ts`) and the size of its textures. The last motion blur lays
+   *  it over its image (`lateComposed`). */
+  lateLayers?: { group: GPUBindGroup; extent: readonly number[] }
+  /** Set by the pass that laid `lateLayers`. */
+  lateComposed?: boolean
 }
 
 /** One kind of pass on WebGPU that runs on the lit image before the temporal pass, or on the image it
@@ -127,6 +146,16 @@ export type WebgpuResolveKind<P, V = undefined> = KindResources & {
   ): GPUTextureView
   /** The render and compute passes the last `resolve` encoded. */
   readonly passes: number
+  /** For a kind that writes the half-size image of the image it leaves, as it writes the image
+   *  (`motionBlur/filterWgsl.ts`): that image of the last `resolve`, none where it wrote none or
+   *  drew nothing. The scene's chain reads it in place of the pass that draws it
+   *  (`../filters/sceneChain.ts`). */
+  readonly half?: GPUTextureView
+  /** For a kind whose motion the temporal pass's nearest velocity can flatten as it dilates it: sets
+   *  the first `pass` of the kind up for this image, ahead of the temporal pass, and returns what that
+   *  dispatch is to write (`FusedFlatten`) — none where the image takes the kind's own way: the
+   *  kind's `resolve` then finds the flattening done (`ResolveFrame.flatten`). */
+  fuse?(pass: P, frame: ResolveFrame, settings: V): FusedFlatten | undefined
 }
 
 /** What the frame offers a pass drawn over its display image: the image and the canvas it was

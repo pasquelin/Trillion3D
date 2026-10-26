@@ -1,13 +1,16 @@
+import type { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { volumetricFogKnobs } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import { writeFogVolumeFrame, type FogVolumeImage, type FogVolumePrevious } from './frame.ts'
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { cellGrid, DEFAULT_MAX_VOLUME_DIMENSION, historyHorizon, type FogGrid } from './layout.ts'
+import { DEFAULT_MAX_VOLUME_DIMENSION, historyHorizon, type FogGrid } from './layout.ts'
+import { NO_GRID, gridsOf } from './gridsOf.ts'
+import { graphPass } from './graphPass.ts'
 import { createFogGroups, encodeFogPasses, type FogPassInputs } from './passes.ts'
 import { newFogStaticLight, staticTermWanted } from './staticLight.ts'
 import type { FogRead } from './read.ts'
 import { createFogVolumeResources, type FogVolumeResources } from './resources.ts'
-import { createVoxelBuffers, type VoxelBuffers } from './voxelGpu.ts'
+import { createVoxelBuffers, type VoxelBuffers, type VoxelGraphMaps } from './voxelGpu.ts'
 import type { SceneFogVolumeStore } from '../../../../sdk-core/src/scene/volume/store.ts'
+import type { GraphClocks } from '../../materials/graph/clocks.ts'
 
 /** What one image gives the volume's passes: the image — its camera, the medium, the run's settings,
  *  the sun's rank, the light grid's columns and rows, the image's number (`FogVolumeImage`), minus
@@ -25,6 +28,10 @@ export interface FogVolumeInputs
     FogPassInputs {
   /** The objects of the volume material domain, none where the scene holds none. */
   volumes?: SceneFogVolumeStore
+  /** What the voxelisation reads of the colour atlas for the textures the objects' graphs read. */
+  graphMaps?: VoxelGraphMaps
+  /** The clocks their graphs read, in seconds: the image's (`WebgpuRun.graphClocks`). */
+  graphClocks?: GraphClocks
   /** A camera cut: the image before is no history for this one. */
   cut?: boolean
   /** The size the targets were made for, pixels: the textures follow it, the camera's size being the
@@ -70,42 +77,6 @@ interface History {
   view: { -readonly [K in keyof FogGrid]: FogGrid[K] }
 }
 
-/** The grid of a volume not yet made: one cell. */
-const NO_GRID: FogGrid = { x: 1, y: 1, z: 1, pixelSize: 1 }
-
-/** The cells of the textures for targets of `allocated` pixels at the cell side and depth a quality
- *  names — the one held while those hold, made again when one changes — and the cells the view of
- *  `width × height` pixels uses of them, the same side. */
-function gridsOf(
-  history: History,
-  { width, height }: { width: number; height: number },
-  allocated: readonly [number, number],
-  knobs: { cellSize: number; sliceCount: number },
-  maxDimension: number,
-) {
-  const { key } = history.resource
-  const { cellSize, sliceCount } = knobs
-  if (
-    key[0] !== allocated[0] ||
-    key[1] !== allocated[1] ||
-    key[2] !== cellSize ||
-    key[3] !== sliceCount
-  ) {
-    history.resource.grid = cellGrid(allocated[0], allocated[1], cellSize, sliceCount, maxDimension)
-    key[0] = allocated[0]
-    key[1] = allocated[1]
-    key[2] = cellSize
-    key[3] = sliceCount
-  }
-  const { grid } = history.resource
-  const { view } = history
-  view.x = Math.min(ceilDiv(width, grid.pixelSize), grid.x)
-  view.y = Math.min(ceilDiv(height, grid.pixelSize), grid.y)
-  view.z = grid.z
-  view.pixelSize = grid.pixelSize
-  return history
-}
-
 /** This image's frame written, where a volume is built: the history the previous image left, if it
  *  can be read (the same textures, no cut, the cells held hidden or not as before). */
 function writeFrame(
@@ -139,21 +110,24 @@ function writeFrame(
   return kept
 }
 
-/** The volume of one image, built on `encoder` (`createFogVolumeGpu`): its integrated view, none
+/** The volume of one image, built in the run `steps` (`createFogVolumeGpu`): its integrated view, none
  *  where the quality is `off` or the device's budget refuses the
  *  textures. */
-function buildVolume(
-  parts: Parts,
-  history: History,
-  encoder: GPUCommandEncoder,
-  input: FogVolumeInputs,
-) {
+function buildVolume(parts: Parts, history: History, steps: ComputeRun, input: FogVolumeInputs) {
   const { resources, none, maxDimension, context } = parts
   const knobs = volumetricFogKnobs(input.settings.volumetricFogQuality)
   const { camera } = input
   if (!knobs) return void ((history.known = false), (history.frames = 0))
   gridsOf(history, camera, input.allocated, knobs, maxDimension)
-  const voxels = parts.voxel.write(input.volumes, camera, input.settings, input.medium)
+  const voxels = parts.voxel.write(
+    input.volumes,
+    camera,
+    input.settings,
+    input.medium,
+    input.graphMaps,
+    input.graphClocks,
+  )
+  parts.context.graph = graphPass(parts.voxel, parts.resources, parts.groups, input.graphMaps)
   const staticBuilt = !!input.lightmap && staticTermWanted(input.staticLight)
   const textures = resources.texturesOf(history.resource.grid, voxels > 0, staticBuilt)
   if (!textures) return void ((history.known = false), (history.frames = 0))
@@ -171,7 +145,7 @@ function buildVolume(
   context.ping = history.ping
   context.cells = history.view
   context.whiteCubemap = none.cubemap
-  encodeFogPasses(encoder, context, input, textures, skipHidden)
+  encodeFogPasses(steps, context, input, textures, skipHidden)
   const { previous } = history
   previous.viewProj.set(camera.viewProj)
   previous.width = camera.width
@@ -180,7 +154,7 @@ function buildVolume(
   previous.skipHidden = skipHidden
   history.known = true
   history.ping = 1 - history.ping
-  return textures.integrated.view
+  return textures.integrated
 }
 
 /** What an image's work holds (`Parts`), made once: nothing in it is allocated again. */
@@ -255,14 +229,16 @@ const newHistory = (): History => ({
  * holds any), the light each cell scatters blended with the volume of the image before, and the
  * sum along each column. It builds none — `encode` answers no volume — where the quality is `off` or the
  * budget refuses the textures. Its pipelines compile off the
- * frame (`ask`): the frames wait for them.
+ * frame (`ask`): the frames wait for them. The passes hold the local fog volumes' code unless `local` is
+ * false, the project switch `localFogVolumeSupport` off.
  */
 export function createFogVolumeGpu(
   device: GPUDevice,
   failed: (error: unknown) => void,
   none: FogRead,
+  local = true,
 ) {
-  const resources = createFogVolumeResources(device, failed)
+  const resources = createFogVolumeResources(device, failed, local)
   const parts = newParts(device, resources, none)
   const history = newHistory()
   const pipelines = Object.values(resources.programs).map((program) => program.pipeline)
@@ -271,6 +247,11 @@ export function createFogVolumeGpu(
      *  is drawn again till it is whole (`historyHorizon` images), then held. */
     get settling() {
       return history.known && history.frames < history.horizon
+    },
+    /** Whether the objects the last image voxelised wear a graph that reads the time: the volume
+     *  changes from one image to the next with nothing else moving, so the image is never held. */
+    get animated() {
+      return !!parts.voxel.graphs?.programs.some((program) => program.compiled.uses.time)
     },
     /** Whether every pipeline is compiled: until then the image builds no volume. */
     get ready() {
@@ -285,10 +266,10 @@ export function createFogVolumeGpu(
     get frame() {
       return resources.frame.words.f
     },
-    /** The volume of this image, built on `encoder`: its integrated view, which a surface's program
+    /** The volume of this image, built in the run `steps`: its integrated view, which a surface's program
      *  reads, or none. */
-    encode: (encoder: GPUCommandEncoder, input: FogVolumeInputs) =>
-      buildVolume(parts, history, encoder, input),
+    encode: (steps: ComputeRun, input: FogVolumeInputs) =>
+      buildVolume(parts, history, steps, input),
     /** The scene's fog changed to one with no volume, or the world closed: the history is dropped
      *  and the textures retired. */
     reset() {

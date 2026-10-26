@@ -27,7 +27,7 @@
  * box is finite: a member drawn whatever the view — never culled, or deformed past every finite
  * reach (`drawnAlways`) — is no group's to open; it is listed apart (`always`) and opened from
  * queue 0 with the tree's top (`placementTreeWgsl.ts`), its leaf kept in its group for what walks
- * the tree by boxes — a ray (`../../../lighting/bounce/runtime/runtimeSceneWgsl.ts`).
+ * the tree by boxes — a ray (`../../../lighting/rays/rayQueryWgsl.ts`).
  * A parked member, or a member slot no placement holds yet, holds nothing.
  *
  * The tree is laid out here — `packPlacementTree` writes every node open, as the tables are made —,
@@ -124,12 +124,45 @@ export function placementTreeShape(
   }
 }
 
+/** The levels a member's root stands below the top of `tree`, none without one: the tree's `depth`
+ *  levels and one more — a group kept at the last of them is opened at the next level, which hands
+ *  its members on untested (`openCell`, `../shader/placementTreeWgsl.ts`), and the level after
+ *  tests them (`testMember`). Every count of the levels a member's pages stand at reads it: the
+ *  cut dispatches this shift and the depth of the members' own hierarchy, so that no node a kept
+ *  member opens waits at a level never run. Members opened from queue 0 (`always`) are counted at
+ *  this shift too, so the dispatch may hold levels that stay empty. */
+export const memberShift = (tree?: Pick<PlacementTree, 'depth'>) => (tree ? tree.depth + 1 : 0)
+
 /** Nodes the tree holds: the queue entries it adds to the packing's nodes. */
 export const treeNodeCount = (tree?: PlacementTree) =>
   tree ? tree.nodes.length / DAG_NODE_FLOATS : 0
 
 /** Relative margin a box grows by: far above both tests' single-precision rounding (2⁻²⁴). */
 export const MARGIN = 2 ** -16
+
+/** The doubles a placement's leaf holds in `members` (`../tree/treeRefitWgsl.ts`,
+ *  `../../../placement/tree/treeLeavesWgsl.ts`): its box (six, from 0), then, from `PARENT_LEAF`,
+ *  three pairs of words — the centre of the world ball of the group above its root, as single
+ *  precision floats, the ball's radius, the error scaled to the world, and a one when it names such
+ *  a group — and zeros when it names none. A cut whose packing names no group above any root
+ *  keeps the box alone: `PARENT_LEAF` doubles (`leafStride`). */
+export const LEAF_DOUBLES = 9,
+  PARENT_LEAF = 6
+
+/** The doubles a leaf takes in a cut that names groups above instances' roots (`parented`: its
+ *  packing holds the column of their nodes, `PackedDag.parentNode`), else the box's six. */
+export const leafStride = (parented: boolean) => (parented ? LEAF_DOUBLES : PARENT_LEAF)
+
+/** The pipeline constant a leaf's stride is given by, in the leaves pass and in the refit. */
+export const LEAF_STRIDE_CONSTANT = 'LEAF_STRIDE'
+
+/** The relative margin the error and the ball of a group above an instance's root grow by, in the
+ *  leaf and in the refit (2⁻¹²), far above the single-precision rounding of the scales and of the
+ *  union's length (2⁻²⁴). The rounding of a ball far from the origin is absolute — its centre's
+ *  coordinates round by 2⁻²⁴ of themselves — and is absorbed by the leaf's own `MARGIN` of the
+ *  farthest coordinate, not by this one, which is relative to the radius. A group that culls its
+ *  instances is never one a member's own test would keep. */
+export const PARENT_MARGIN = 2 ** -12
 
 /** A deformation reach's bits from an infinite half up: past every finite reach (`rootMark`). */
 export const REACH_UNBOUNDED = 0x7c00

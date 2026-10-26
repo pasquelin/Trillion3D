@@ -20,12 +20,17 @@ export function quantileOf(values: ArrayLike<number>, q: number): number | undef
   return quantile(ascending(values), q)
 }
 
-/** The arithmetic mean of `values`, summed left to right from 0 then divided by the count: the
- *  `reduce((a, b) => a + b, 0) / length` form, bit for bit. An empty list gives NaN. */
+/** The sum of `values`, added left to right from 0: the `reduce((a, b) => a + b, 0)` form, bit for
+ *  bit. An empty list gives 0. */
+export function sum(values: ArrayLike<number>) {
+  let total = 0
+  for (let i = 0; i < values.length; i++) total += values[i]
+  return total
+}
+
+/** The arithmetic mean of `values`: their `sum` divided by the count. An empty list gives NaN. */
 export function mean(values: ArrayLike<number>) {
-  let sum = 0
-  for (let i = 0; i < values.length; i++) sum += values[i]
-  return sum / values.length
+  return sum(values) / values.length
 }
 
 /** The numbers of a list of values, from `summaryOf`. */

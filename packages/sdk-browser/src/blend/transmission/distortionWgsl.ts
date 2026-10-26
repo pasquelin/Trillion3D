@@ -1,22 +1,19 @@
 import { WORLD_AT_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { fresnelScalar } from '../../../../math/src/wgsl/lighting.ts'
 import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
+import { DISTORTION_FUDGE } from '../distortionFudge.ts'
 import { DISTORTION_BINDINGS, DISTORTION_GROUP } from '../stagePipelines.ts'
 import { VSM_CM_PER_UNIT } from '../../lighting/shadows/vsm/constants.ts'
 
-/** The distortion offset scale: the view normal's bend, times the projection terms, to a fraction
- *  of the screen small enough that a glass of ior 1.5 moves the scene by a few pixels. */
-const DISTORTION_FUDGE = 0.00023
 /** The precision scale of the stored offsets: written four times larger and divided back at the
  *  application, so the half-float target keeps more bits of the small offsets. */
 const DISTORTION_SCALE = 4
 
 /**
  * The distortion of a refracting fragment, in the blend module (`transmitWgsl.ts`): its
- * accumulation, of a glTF material's index of refraction (`KHR_materials_ior`) as a refraction
- * `lerp(1, ior, Fresnel)`, Fresnel of a 4% specular on the pixel normal: the view normal's `xy` —
- * the camera's axes, written once an image (`viewRight`, `viewUp`) — times `ior − 1`, clipped
+ * accumulation, of a glTF material's index of refraction (`KHR_materials_ior`), in full at every
+ * incidence: the view normal's `xy` — the camera's axes, written once an image (`viewRight`,
+ * `viewUp`) — times `ior − 1`, clipped
  * under a pixel, scaled to the view by the distortion parameters (the projection's `M[0][0]`, the
  * aspect, the display's unscaled size, never the render scale's) and its fudge,
  * faded where the opaque scene behind lies within a centimetre, scaled up four times, stored
@@ -27,21 +24,19 @@ const DISTORTION_SCALE = 4
  */
 export const DISTORTION_WGSL = wgslBlock(
   'DISTORTION_WGSL',
-  [WORLD_AT_WGSL, fresnelScalar, clampToExtent],
+  [WORLD_AT_WGSL, clampToExtent],
   `@group(${DISTORTION_GROUP}) @binding(${DISTORTION_BINDINGS.depth}) var distortionDepth:texture_depth_2d;
 @group(${DISTORTION_GROUP}) @binding(${DISTORTION_BINDINGS.offsets}) var distortionOffsets:texture_2d<f32>;
 @group(${DISTORTION_GROUP}) @binding(${DISTORTION_BINDINGS.scene}) var distortionScene:texture_2d<f32>;
 @group(${DISTORTION_GROUP}) @binding(${DISTORTION_BINDINGS.sampler}) var distortionSampler:sampler;
 const DISTORTION_FUDGE=${DISTORTION_FUDGE};
 const DISTORTION_CENTIMETRES=${VSM_CM_PER_UNIT}.0;
-fn distortionOffset(ior:f32,N:vec3f,V:vec3f,P:vec3f,pixel:vec2f)->vec4f{
+fn distortionOffset(ior:f32,N:vec3f,P:vec3f,pixel:vec2f)->vec4f{
  let size=view.viewport.xy;
  let texel=1.0/size;
  let uv=pixel*texel;
  let viewNormal=vec2f(dot(uni.viewRight.xyz,N),dot(uni.viewUp.xyz,N));
- // The material's refraction: lerp(1, ior, Fresnel), Fresnel on the pixel normal.
- let fresnel=fresnelScalar(0.04,max(dot(N,V),0.0));
- let raw=viewNormal*(mix(1.0,ior,fresnel)-1.0);
+ let raw=viewNormal*(ior-1.0);
  // Under a pixel the distortion is clipped: nothing is accumulated.
  if(all(abs(raw)<texel)){return vec4f(0.0);}
  // Scaled at the display's size, never the render's (\`writeDistortionView\`).

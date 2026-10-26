@@ -17,7 +17,7 @@ import {
 import {
   CPU_STEP_NAMES,
   CPU_STEP_STAGES,
-} from '../../../packages/sdk-browser/src/frame/render/cpuStepTable.ts'
+} from '../../../packages/sdk-browser/src/diagnostic/stage/cpuStepTable.ts'
 import { measure, parElement } from '../../core/measure.ts'
 import { stress } from '../../core/measureStress.ts'
 import { rapport } from '../../core/report.ts'
@@ -90,13 +90,14 @@ const measureCpu = await measure({
 // WebGPU timer gives it: a stage adds that share, not the pass's whole span.
 const ETIQUETTES = [
   'Trillion3D DAG selection',
-  'Trillion3D partition',
+  'Trillion3D raster binning',
   'Trillion3D HiZ',
   'Trillion3D material surfaces v1',
   'vsm.pass',
   'Trillion3D light tiles v1',
   'Trillion3D bounce v1',
-  'Trillion3D deferred lighting',
+  'Trillion3D tile classification',
+  'Trillion3D height fog',
   'Trillion3D HDR composition + present',
   'Trillion3D unknown pass',
 ]
@@ -155,7 +156,7 @@ await stress({
         frame: 0,
         totalMs: null,
         truncated: false,
-        passes: [{ name: 'Trillion3D partition', gpuMs: NaN }],
+        passes: [{ name: 'Trillion3D raster binning', gpuMs: NaN }],
       },
     },
   ],

@@ -17,6 +17,8 @@ import { directLightResources } from '../prepare/contractLight.ts'
 import { cloudShadowOf } from './encodeCloudShadow.ts'
 import { skyLightReadOf } from './skyLightState.ts'
 import { fogSkyField } from './encodeSkyOcclusion.ts'
+import { fogGraphMaps } from './fogGraphMaps.ts'
+import { fogReadOf } from './localFogGpu.ts'
 
 /** The matrices and vectors of the image's camera the volume reads: the inverse view-projection and
  *  the forward are written here, the rest are the engine camera's own. */
@@ -54,8 +56,11 @@ const inputs: Scratch<FogVolumeInputs> = {
   hiz: undefined,
   field: undefined,
   volumes: undefined,
+  graphMaps: undefined,
+  graphClocks: undefined,
   lights: undefined,
   tiles: undefined,
+  localTiles: undefined,
   cubemap: undefined,
   lightFunction: undefined,
   cloudShadow: undefined,
@@ -112,8 +117,11 @@ export function fogInputsOf(
   inputs.hiz = opaquePyramidOf(rt)
   inputs.field = fogSkyField(rt, camera!.perspective)
   inputs.volumes = rt.context.sceneVolumes
+  inputs.graphMaps = rt.context.sceneVolumes?.count ? fogGraphMaps(rt) : undefined
+  inputs.graphClocks = rt.run.graphClocks
   inputs.lights = buffer
   inputs.tiles = contract.tiles ?? placeholders.tiles
+  inputs.localTiles = (fogReadOf(rt) ?? placeholders.fog).tiles
   const vsm = vsmOrStandIns(contract.vsm, placeholders)
   vsmInputs.pageTable = vsm.pageTable
   vsmInputs.projectionData = vsm.projectionData
@@ -121,7 +129,7 @@ export function fogInputsOf(
   vsmInputs.pool = vsm.pool
   vsmInputs.view = vsm.view
   inputs.vsm = vsmInputs as FogVolumeInputs['vsm']
-  inputs.sunRank = lights.store.fogSunSlot
+  inputs.sunRank = lights.store.forwardDirectionalSlot
   lightCells[0] = direct[1]
   lightCells[1] = direct[2]
   inputs.frameIndex = rt.run.frame
@@ -143,6 +151,7 @@ export function clearFogInputs() {
   inputs.depth =
     inputs.lights =
     inputs.tiles =
+    inputs.localTiles =
     inputs.medium =
     inputs.hiz =
     inputs.cubemap =

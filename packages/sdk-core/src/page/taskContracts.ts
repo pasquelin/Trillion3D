@@ -1,15 +1,15 @@
-import type { RuntimeCutProxy } from '../contracts/proxy.ts'
 import type { CullingHierarchy } from '../contracts/geometry.ts'
 import type { readCellPage } from '../scene/core/tablePartition.ts'
 
 /**
- * Off-main-thread page-task contract, version 12: `cut` turns drawn triangles into pages, which
+ * Off-main-thread page-task contract, version 14: `cut` turns drawn triangles into pages, which
  * come back as bytes with their descriptors, in the order of the culling hierarchy that comes back
- * with them (version 10); `cells` reads a partition's cell file into the rows it places, `cellPage`
- * a page of its cell index (#575), and `blocks` decodes a texture tile's BC blocks to RGBA8 for a
+ * with them (version 10), each with the bytes it takes in the pool once installed (version 13);
+ * `cells` reads a partition's cell file into the rows it places, each naming the source node it
+ * draws (version 14), `cellPage` a page of its cell index (#575), and `blocks` decodes a texture tile's BC blocks to RGBA8 for a
  * device that samples none (version 11, `texture/blockDecode.ts`). No geometry page is decoded on
- * the CPU: the GPU reads it in place (#1483), and a fetched page's digest is taken where it lands
- * (`crypto.subtle`, which runs off the main thread already).
+ * the CPU: the GPU transcodes it into the pool and reads it in place (#1483), and a fetched
+ * page's digest is taken where it lands (`crypto.subtle`, which runs off the main thread already).
  *
  * The calling thread sends a `PageTaskRequest`, the executor returns a `PageTaskAnswer` carrying
  * the same `id`. Nothing here touches the platform: no `Worker`, no fetch, no clock — the browser
@@ -21,7 +21,7 @@ import type { readCellPage } from '../scene/core/tablePartition.ts'
  * synchronous fallback) returns exactly the same values: the contract does not say how the work
  * travels, only what it returns.
  */
-export const PAGE_TASK_PROTOCOL = 12
+export const PAGE_TASK_PROTOCOL = 14
 
 /** `cut`: drawn triangles, packed as five lengths, whether they are faces, whether a blended
  *  material wears them, then five four-byte arrays (`packDrawn`), cut into pages. `cells`:
@@ -42,6 +42,7 @@ export interface PageCutPage {
   /** Lowest corner. */ min: number[]
   /** Highest corner. */ max: number[]
   /** Bounding ball. */ sphere: number[]
+  /** Bytes of the geometry page in the pool, once installed. */ residentBytes: number
   /** Vertices in the page. */ vertexCount: number
   /** Indices in the page. */ indexCount: number
   /** Which attributes it carries. */ flags: number
@@ -52,9 +53,6 @@ export interface PageCutPayload {
   /** The pages written, in the order of their culling hierarchy. */ pages: PageCutPage[]
   /** Their culling hierarchy, in the manifest's node layout (`page-codec-wasm/src/culling.rs`). */
   culling: CullingHierarchy
-  /** The cut's own proxy, for the faces a light's ray or a reflection can meet; absent for lines,
-   *  sprites, blended, skinned or rewritten faces. */
-  proxy?: RuntimeCutProxy
 }
 
 /** A message asking a worker to cut pages, or to read a partition's cells. */
@@ -74,6 +72,14 @@ export type PageTaskBlocks = {
   /** Texels across. */ width: number
   /** Texels down. */ height: number
   /** BC5, X and Y with Z rebuilt, rather than BC7. */ twoChannel: boolean
+  /** BC4, one channel, BC6H, half-float texels, or the eight-bit texels of a `gray` (`g8`) or
+   *  `displacement` (`a8`) chain, rather than BC7 or BC5. */
+  codec?: 'bc4' | 'bc6h' | 'g8' | 'a8' | 'rgba32f' | 'r32f' | 'r16f'
+  /** One byte a texel — the channel alone — rather than RGBA8: the one-channel pool's. */
+  single?: boolean
+  /** The kind of texel the answer holds, when the float pools ask for another than the codec's
+   *  own: `rgba32f`, `r32f` and `r16f` blocks (a float chain's) answer in it always. */
+  to?: 'r8' | 'r16' | 'r32' | 'rgba8' | 'rgba16' | 'rgba32'
 }
 
 /** A worker's answer when a page request succeeded. */ export interface PageTaskDone {
@@ -85,9 +91,10 @@ export type PageTaskBlocks = {
   /** `cells`: per node, its core parent's rank (`-1`: the scene root) and its mesh's in `ranks`,
    *  two 32-bit integers, the local matrix the engine composes for its pose in `locals`, sixteen
    *  doubles, the item of the scene's animation banks it plays in `tracks`, one 32-bit integer
-   *  (`-1`: none), whether it is drawn from its parent's own host mesh in `sources`, one byte, and
-   *  the nearest and the farthest distance it is drawn at in `drawDistances`, two 32-bit floats
-   *  (0 and 0: none), whether a view's primed depth draws it in `farFields`, one byte, and, for an
+   *  (`-1`: none), whether it is drawn from its parent's own host mesh in `sources`, one byte, the
+   *  source node it draws in `sourceNodes`, one unsigned 32-bit integer, and
+   *  the nearest and the farthest distance it is drawn at, and 1 for one instance of an instanced
+   *  mesh, in `drawDistances`, three 32-bit floats (all 0: none), whether a view's primed depth draws it in `farFields`, one byte, whether it casts far shadows in `castFarShadows`, one byte, whether a sun's far-shadow test reaches it in `farShadowTests`, one byte (0: the view's rule decides, 1: it does, 2: it never does), and, for an
    *  instance of an assembly, the group that replaces the root of each primitive of its mesh in
    *  `rootParents`: seven 32-bit floats an entry — the node, the primitive, the error, the ball's
    *  centre and radius —, none for a cell that holds none; all transferred. Absent otherwise. */
@@ -97,8 +104,11 @@ export type PageTaskBlocks = {
     locals: ArrayBuffer
     tracks: ArrayBuffer
     sources: ArrayBuffer
+    sourceNodes: ArrayBuffer
     drawDistances: ArrayBuffer
     farFields: ArrayBuffer
+    castFarShadows: ArrayBuffer
+    farShadowTests: ArrayBuffer
     rootParents: ArrayBuffer
   }
   /** `cellPage`: the page's slots, or its cells (`readCellPage`). Absent otherwise. */

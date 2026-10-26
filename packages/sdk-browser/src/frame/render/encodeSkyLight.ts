@@ -1,16 +1,19 @@
 import { skyLightCubeWidth } from '../../../../sdk-core/src/modules/sky/skyLight.ts'
 import { cloudSeparatesAir } from '../../../../sdk-core/src/modules/sky/clouds.ts'
+import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts'
 import { cloudsInView } from '../../modules/sky/clouds/cloudModes.ts'
 import { airlessAirOf } from '../../lighting/atmosphere/airless.ts'
 import { airlessPlanet } from '../../lighting/atmosphere/frame.ts'
-import { airShapeKey, DEFAULT_AIR_SHAPE } from '../../lighting/atmosphere/shape.ts'
+import { airShapeKey } from '../../lighting/atmosphere/shape.ts'
 import type { FogRead } from '../../lighting/fog/read.ts'
 import { createSkyLightCapture, type SkyLightInputs } from '../../modules/sky/skyLight/capture.ts'
 import { SKY_LIGHT_READ_WORDS, writeSkyLightRead } from '../../modules/sky/skyLight/read.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { skyOcclusionUse } from '../../lighting/distanceField/ao/state.ts'
-import { airRequests, atmosphereDeclared } from './airState.ts'
+import { airRequests, airShapeOfRuntime, atmosphereDeclared } from './airState.ts'
 import { mapsOf } from './encodeAtmosphere.ts'
+import { shownHeightFogOf } from './encodeFogVolume.ts'
+import { capturePreExposure } from './skyLightFog.ts'
 import { skyLightStateOf, type SkyLightState } from './skyLightState.ts'
 
 /**
@@ -41,7 +44,10 @@ export function requestSkyAir(rt: WebgpuPagesRuntime) {
 function captureFog(rt: WebgpuPagesRuntime, state: SkyLightState, stand: FogRead) {
   const cubemap = (rt.gpu.fogVolume?.read ?? stand).cubemap
   if (state.fog?.cubemap !== cubemap)
-    state.fog = { cubemap, read: { cubemap, volume: stand.volume, sampler: stand.sampler } }
+    state.fog = {
+      cubemap,
+      read: { cubemap, volume: stand.volume, sampler: stand.sampler, tiles: stand.tiles },
+    }
   return state.fog.read
 }
 
@@ -81,6 +87,10 @@ function airOf(rt: WebgpuPagesRuntime, state: SkyLightState) {
   return { air, fog: fog(), atmosphere: false }
 }
 
+/** Whether the scene's fog is a height fog that shows in the sky capture (`inSkyCapture`). */
+const fogInSkyCapture = (fog: SceneFog | undefined) =>
+  !!fog && !!shownHeightFogOf(fog)?.inSkyCapture
+
 /** This image's inputs of the capture; none where there is no light. */
 function inputsOf(rt: WebgpuPagesRuntime, state: SkyLightState): SkyLightInputs | undefined {
   const { source } = state,
@@ -90,22 +100,25 @@ function inputsOf(rt: WebgpuPagesRuntime, state: SkyLightState): SkyLightInputs 
   return {
     part: source.part,
     width: skyLightCubeWidth(source.part, gpu.device.limits.maxTextureDimension2D),
+    preExposure: capturePreExposure(rt),
     frame: rt.run.frame,
     position: source.position,
     air: around?.air,
     cubemap: source.cubemap,
+    cubemapScale: source.cubemapScale,
     blend: source.blend,
     atmosphere: around?.atmosphere ?? false,
     fog: around?.fog,
-    fogShown: !!lights.store.environment?.fog,
+    fogShown: fogInSkyCapture(lights.store.environment?.fog),
     clouds: source.clouds,
   }
 }
 
 /** The capture over the air of the current shape: made again when the quality settings made another
- *  shape of the air, so that its programs follow them. */
+ *  shape of the air, so that its programs follow them — and the project switch of the local fog
+ *  volumes (`localFogVolumeSupport`), also where the scene has no atmosphere. */
 function captureOf(rt: WebgpuPagesRuntime, state: SkyLightState, device: GPUDevice) {
-  const shape = rt.gpu.atmosphere?.shape ?? DEFAULT_AIR_SHAPE
+  const shape = airShapeOfRuntime(rt)
   const key = airShapeKey(shape)
   if (state.capture && state.shape !== key) {
     state.capture.dispose()
@@ -119,24 +132,33 @@ function captureOf(rt: WebgpuPagesRuntime, state: SkyLightState, device: GPUDevi
   ))
 }
 
+/** Whether this image makes the capture: the main view's, which is drawn first each frame. A view drawn
+ *  beside it, or a capture of the image aside, only reads the light: the capture is the scene's, made
+ *  once a frame, from the air and the clouds of the main view. */
+const makesCapture = (rt: WebgpuPagesRuntime) =>
+  rt.views.active === rt.views.main && !rt.capture.capturing
+
 /** The real-time capture's step of this image (`SkyLightCapture.encode`), on `encoder`, after the
- *  air's tables of the image are built and before the passes that read the light. */
+ *  air's tables of the image are built and before the passes that read the light; the light's read
+ *  uniform of the view drawn now is written in every view. */
 export function encodeSkyLight(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
 ) {
-  const state = skyLightStateOf(rt),
-    input = inputsOf(rt, state)
-  const capture = input && captureOf(rt, state, device)
-  if (input && capture?.ready) capture.encode(encoder, input)
+  const state = skyLightStateOf(rt)
+  if (makesCapture(rt)) {
+    const input = inputsOf(rt, state)
+    const capture = input && captureOf(rt, state, device)
+    if (input && capture?.ready) capture.encode(encoder, input)
+  }
   writeSkyLightParams(rt, device, state)
 }
 
 /** The image was submitted: a captured scene that is due is drawn aside, between two images
  *  (`SkyLightCapture.captureScene`), never from a capture's own image. */
 export function skyLightSubmitted(rt: WebgpuPagesRuntime) {
-  if (rt.capture.capturing || rt.views.active !== rt.views.main) return
+  if (!makesCapture(rt)) return
   const state = skyLightStateOf(rt),
     input = inputsOf(rt, state),
     capture = state.capture,
@@ -147,8 +169,9 @@ export function skyLightSubmitted(rt: WebgpuPagesRuntime) {
 /**
  * The light's read uniform written for the view drawn now (`writeSkyLightRead`), after the capture's
  * step of the image: the light's colour, black where the view's `skyLighting` override is off, the
- * cube of the ready capture, its last mip and the layer of it that is ready. Nothing while no cube
- * is ready: the programs read the stand-in.
+ * cube of the ready capture, its last mip and the layer of it that is ready, and, for a real-time
+ * capture, the inverse of the pre-exposure it is written with. Nothing while no cube is ready: the
+ * programs read the stand-in.
  */
 function writeSkyLightParams(rt: WebgpuPagesRuntime, device: GPUDevice, state: SkyLightState) {
   const ready = state.capture?.read()
@@ -167,6 +190,7 @@ function writeSkyLightParams(rt: WebgpuPagesRuntime, device: GPUDevice, state: S
     ready.colorScale,
     skyOcclusionUse(rt),
     { layer: ready.layer, blend: ready.blend },
+    capturePreExposure(rt),
   )
   device.queue.writeBuffer(state.params, 0, words.buffer, words.byteOffset, words.byteLength)
 }

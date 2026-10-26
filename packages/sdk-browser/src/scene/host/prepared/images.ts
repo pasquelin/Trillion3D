@@ -9,12 +9,18 @@ import type { PreparedBinary } from './accessors.ts'
  * the binary: a one-pixel placeholder stands in its place, and the engine reads the baked levels
  * instead (`../../../materials/texture/skip.ts`). An image that
  * cannot be read or decoded is no image — its textures are left empty — as the loader left them.
+ * A read the network or the server refused is asked again once the longest wait of the HTTP loader
+ * has passed (`RETRY_AFTER_CAP_MS`); a file that cannot be decoded stays no image.
  */
 import type { TableDocument } from '../../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { BAKED_IMAGE } from '../../../../../sdk-core/src/contracts/compilerAbi.ts'
 import { decodeRaw, fetchDecoded } from '../../../materials/texture/decode.ts'
 import type { ByteMeter } from '../../../geometry/cluster/byteMeter.ts'
 import { log } from '../../../diagnostic/log.ts'
+import { EngineError } from '../../../../../sdk-core/src/contracts/cache.ts'
+import { retriableError } from '../../../geometry/cluster/checked.ts'
+import { RETRY_AFTER_CAP_MS } from '../../../geometry/cluster/retryCap.ts'
+import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 
 /** A failed read of the document's binary, told apart from an image that cannot be decoded. */
 class UnreadBinary extends Error {
@@ -64,7 +70,14 @@ export function preparedImages(inputs: Inputs) {
     return decodeBytes(new Uint8Array(buffer), image.mimeType ?? '')
   }
   const held = new Map<number, Promise<unknown>>()
+  /** When each image whose read was refused for a reason that may pass was given up, on the CPU clock. */
+  const refusedAt = new Map<number, number>()
   return (rank: number): Promise<unknown> => {
+    const since = refusedAt.get(rank)
+    if (since !== undefined && msSince(since) >= RETRY_AFTER_CAP_MS) {
+      refusedAt.delete(rank)
+      held.delete(rank)
+    }
     let image = held.get(rank)
     if (!image) {
       image = read(rank).catch((error: unknown) => {
@@ -74,6 +87,12 @@ export function preparedImages(inputs: Inputs) {
         }
         signal?.throwIfAborted()
         log.error('could not read image', rank, error)
+        if (
+          error instanceof EngineError &&
+          error.code === 'RESOURCE_HTTP_ERROR' &&
+          retriableError(error)
+        )
+          refusedAt.set(rank, cpuNow())
         return null
       })
       held.set(rank, image)

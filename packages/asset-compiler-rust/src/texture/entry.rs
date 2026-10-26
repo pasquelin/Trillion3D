@@ -37,8 +37,6 @@ pub struct TexturePreview {
     /// The chain's key (`GateSheet::key`): the folder of its level files, the `{sha}` of the
     /// level template.
     pub sha256: String,
-    /// The fingerprint of the source image's bytes: what the cutout sheet names it by.
-    pub image_sha256: String,
     /// Atlas entry serves: same texture can have one per atlas.
     pub kind: AtlasKind,
     pub first_level: u32,

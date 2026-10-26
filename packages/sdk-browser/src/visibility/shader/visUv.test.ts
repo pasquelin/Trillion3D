@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { Mat } from '../../materials/texture/shaderRunMatrix.fixture.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
-import { VIS_SHADER } from './visWgsl.ts'
+import { VIS_SHADER } from './visShader.fixture.ts'
 import { FLAG_HAS_COLOR, FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_MASK, FLAG_SAMPLED } from '../types.ts'
 
 type Vec = number[]

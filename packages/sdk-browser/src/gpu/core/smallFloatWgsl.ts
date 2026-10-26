@@ -6,6 +6,8 @@ import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
  * - `packSmallFloat`, `unpackSmallFloat`: a number as the field of `mantissa` bits after five of exponent,
  *   rounded to nearest, held to the format's range (0 to 65024 at six bits, 64512 at five) — below 2⁻¹⁴ the
  *   field is a denormal —, and back;
+ * - `packSmallFloatDown`: the same field rounded toward zero (none below zero, NaN as zero, the largest
+ *   finite past it), the rounding a stochastic rounding before it is made for;
  * - `packLight`, `unpackLight`: a colour's three channels in the word, the first two of six bits of mantissa, the
  *   third of five, the first in the low bits; a channel under zero is zero;
  * - `ditherLight`: a colour moved by up to half a unit in the last place of the word's mantissas, either way, by a
@@ -13,7 +15,7 @@ import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
  *   rounding the result rounds the colour up or down with the odds that make it right on average: what a light
  *   kept over many images, each blended into the last, needs not to drift.
  */
-export const packSmallFloat = wgslFn(
+const packSmallFloat = wgslFn(
   'packSmallFloat',
   [],
   `fn packSmallFloat(x:f32,mantissa:u32)->u32{
@@ -23,6 +25,25 @@ export const packSmallFloat = wgslFn(
  let shift=23u-mantissa;
  let bits=bitcast<u32>(v);
  return min((((bits>>23u)-112u)<<mantissa)+(((bits&0x7fffffu)+(1u<<(shift-1u)))>>shift),top);
+}`,
+)
+
+const powerOfTwo = wgslFn(
+  'powerOfTwo',
+  [],
+  'fn powerOfTwo(exponent:i32)->f32{return bitcast<f32>(u32(exponent+127)<<23u);}',
+)
+
+export const packSmallFloatDown = wgslFn(
+  'packSmallFloatDown',
+  [powerOfTwo],
+  `fn packSmallFloatDown(f:f32,mantissa:u32)->u32{
+ if(!(f>0.0)){return 0u;}
+ let bits=bitcast<u32>(f);let e=bits>>23u;
+ let mask=(1u<<mantissa)-1u;
+ if(e<113u){return u32(f*powerOfTwo(14+i32(mantissa)));}
+ if(e>142u){return (30u<<mantissa)|mask;}
+ return ((e-112u)<<mantissa)|((bits>>(23u-mantissa))&mask);
 }`,
 )
 

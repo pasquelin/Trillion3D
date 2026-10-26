@@ -35,8 +35,8 @@ fn random_vector<const N: usize>(
 
 /// The reference decoder, field by field.
 pub fn reference(data: &[u8], max: usize) -> Result<Vec<u32>, PageError> {
-    let h = Header::parse(data, max)?;
-    let w: Vec<u32> = le_words(&data[h.bytes()..]).collect();
+    let h = Header::parse_resident(data, max)?;
+    let w: Vec<u32> = le_words(&data[h.body_at()..]).collect();
     let (l, n) = (Layout::of(&h), h.vertex_count);
     let mut out = vec![0u32; h.decoded_bytes() / 4];
     let (indices, mut rest) = out.split_at_mut(h.index_count);

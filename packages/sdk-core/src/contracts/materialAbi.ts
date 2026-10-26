@@ -27,11 +27,23 @@ export const DEFAULT_TEMPORAL_AA_LEVEL = 'max' satisfies TemporalAntialiasingLev
 /** The job field naming the objects whose materials the temporal anti-aliasing keeps responsive
  *  (`resolveResponsive`): one match on what the glTF carries, as one HLOD group names its objects
  *  — a node's exact name, a pattern on it, or `HlodWireMatch` —; the command line's
- *  `--responsive=` flag holds it as JSON. A responsive material keeps at most
- *  `TEMPORAL_AA_SHARES.responsive` of its history. */
+ *  `--responsive=` flag holds it as JSON. A responsive material is at the level
+ *  `DEFAULT_RESPONSIVE_LEVEL`. */
 export const RESPONSIVE_FIELD = 'responsive'
 /** The command line's flag naming the responsive objects, its JSON after the `=`. */
 export const RESPONSIVE_OPTION = '--responsive='
+/** The levels of a material's temporal responsiveness, `off` first: how far the temporal
+ *  anti-aliasing trusts the history on the pixels the material draws. `off` accumulates as it does
+ *  everywhere; `medium` takes the material's motion vectors for a mismatch of its detail — a pixel
+ *  animation: the pass reads it as moving and rejects its history more aggressively, small features
+ *  above all —; `full` takes them for wrong altogether, the pixel's history restarting every image
+ *  (it is read as disoccluded and never resurrected). */
+export const RESPONSIVE_LEVELS = ['off', 'medium', 'full'] as const
+/** A material's temporal responsiveness level. */
+export type ResponsiveLevel = (typeof RESPONSIVE_LEVELS)[number]
+/** The level `true`, or an object the `responsive` match takes, names: `full`, the history of a
+ *  spark or a particle that the motion vectors cannot follow restarting every image. */
+export const DEFAULT_RESPONSIVE_LEVEL = 'full' satisfies ResponsiveLevel
 /** The job field naming the objects whose meshes are voxelized far away (`resolveVoxelize`): one
  *  match on what the glTF carries, as `responsive` names its objects. Their DAG's coarse levels are
  *  bricks of voxels wherever voxels hold the error better than triangles; the objects of the HLOD
@@ -43,32 +55,20 @@ export const VOXELIZE_OPTION = '--voxelize='
 /** The key of a glTF mesh's `extras` asking for voxels far away — `"extras": { "shapePreservation":
  *  "voxelize" }` —, the lowest source of a mesh's voxels. */
 export const VOXELIZE_EXTRA = 'shapePreservation'
-/** The job field setting materials by name (`resolveMaterials`): `{ name: { temporalAntialiasing,
- *  responsive } }`, an explicit value that wins over the match and the material's own extras; the
+/** The job field setting materials by name (`resolveMaterials`): `{ name: { responsive } }`,
+ *  `responsive` a level of `RESPONSIVE_LEVELS`, `true` for `DEFAULT_RESPONSIVE_LEVEL` and `false`
+ *  for `off`, an explicit value that wins over the match and the material's own extras; the
  *  command line's `--materials=` flag holds it as JSON. */
 export const MATERIALS_FIELD = 'materials'
 /** The command line's flag setting materials by name, its JSON after the `=`. */
 export const MATERIALS_OPTION = '--materials='
-/** The key of a glTF material's `extras` asking for a responsive history — `"extras":
- *  { "responsive": true }` —, the lowest source of a material's history share. */
+/** The key of a glTF material's `extras` naming its responsiveness — `"extras": { "responsive":
+ *  true }` or a level of `RESPONSIVE_LEVELS` —, the lowest source of a material's level. */
 export const RESPONSIVE_EXTRA = 'responsive'
-/** The key of a glTF material's `extras` naming its history share — `"extras":
- *  { "temporalAntialiasing": 0.5 }` or a name of `TEMPORAL_AA_SHARES` —, below the `materials`
- *  setting and the `responsive` match, above its own `responsive` extra. */
-export const TEMPORAL_AA_EXTRA = 'temporalAntialiasing'
-/** The named history shares a material may name in place of a number in [0, 1]: the most of its
- *  history the temporal anti-aliasing keeps on its pixels — `normal` the engine's own blend,
- *  `responsive` the current image weighing at least a quarter, `soft` a half, `off` the current
- *  filtered image alone. */
-export const TEMPORAL_AA_SHARES = { normal: 1, responsive: 0.75, soft: 0.5, off: 0 } as const
-/** A named history share. */
-export type TemporalAntialiasingShareName = keyof typeof TEMPORAL_AA_SHARES
-/** The settings a material may name in `materials`: `temporalAntialiasing`, its history share
- *  (a name of `TEMPORAL_AA_SHARES` or a number in [0, 1]), and `responsive`, `true` the shortcut
- *  for `TEMPORAL_AA_SHARES.responsive`. */
-export const MATERIAL_SETTINGS = ['temporalAntialiasing', 'responsive'] as const
-/** One material's settings as the compiler reads them: the history share as a number. */
-export type MaterialSettingsWire = { temporalAntialiasing?: number; responsive?: boolean }
+/** The settings a material may name in `materials`: `responsive`. */
+export const MATERIAL_SETTINGS = ['responsive'] as const
+/** One material's settings as the compiler reads them: the level as its name. */
+export type MaterialSettingsWire = { responsive?: ResponsiveLevel }
 
 /** The key of a glTF material's `extras` naming its displacement — `"extras": { "displacement":
  *  { "texture": { "index": 3 }, "tessellation": true } }` —, the only source of it: glTF has no
@@ -101,7 +101,7 @@ export type DisplacementWire = {
   magnitude: number
   center: number
   fade: { start: number; end: number } | null
-  /** How many units of the object's space one unit of each of its first four texture-coordinate
+  /** How many units of the object's space one unit of each of its eight texture-coordinate
    *  sets covers, measured over the triangles that wear the material (the compiler's
    *  `uv_density`): the level of the height map each micro-triangle reads is chosen by it, one
    *  number a set and never one a triangle. Absent where no triangle measured a set, and a set it

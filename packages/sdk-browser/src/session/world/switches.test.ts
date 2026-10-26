@@ -171,48 +171,6 @@ test('how the motion blur is drawn is the page’s setting, applied once each', 
     assert.throws(() => (switches.motionBlur = bad), /motionBlur(Directions|Scale)/)
 })
 
-// The film effects' settings are a family by rule (`FILM_RULES`), in the image effects' quality group:
-// the page's are written into the session once opened and, after, in place; a preset writes two.
-test('the film effects are the page’s setting, applied once each, over the preset’s', () => {
-  const written: unknown[][] = []
-  const setters = { setFilm: (...write: unknown[]) => void written.push(write) }
-  const explorer = new Proxy(setters, {
-    get: (held, name) => held[name as keyof typeof held] ?? (() => {}),
-  }) as unknown as MeasuredWorld
-  const runtime = { explorer: null as MeasuredWorld | null, renew() {}, invalidate() {} }
-  const switches = worldSwitches({ filmGrainIntensity: 0.3 }, () => runtime, unseen)
-  assert.deepEqual(
-    [switches.film.filmGrainIntensity, switches.film.filmGrainShadowsMax],
-    [0.3, 0.09],
-    'the page’s grain, the reference’s default for the rest',
-  )
-  switches.apply(explorer, sessionOptions({}, {}))
-  assert.deepEqual(
-    written.filter(([field]) => field === 'filmGrainIntensity'),
-    [['filmGrainIntensity', 0.3]],
-    'written into the session once it is open',
-  )
-  written.length = 0
-  runtime.explorer = explorer
-  switches.film = { chromaticAberration: 2 }
-  switches.film = { chromaticAberration: 2 }
-  assert.deepEqual(written, [['chromaticAberration', 2]], 'once, in place')
-  switches.film = { chromaticAberration: null }
-  assert.equal(switches.film.chromaticAberration, 0, 'given back: the default, off')
-  // A preset writes the tonemapper's quality and the fringe's; the page's setting holds over it.
-  switches.quality.preset = 'smooth'
-  assert.deepEqual(
-    [switches.film.tonemapperQuality, switches.film.chromaticAberrationQuality],
-    [0, 'off'],
-  )
-  switches.film = { tonemapperQuality: 5, chromaticAberrationQuality: true }
-  assert.deepEqual(
-    [switches.film.tonemapperQuality, switches.film.chromaticAberrationQuality],
-    [5, 'high'],
-  )
-  assert.throws(() => (switches.film = { tonemapperQuality: 6 }), /tonemapperQuality/)
-})
-
 // The screen-space ambient occlusion's settings are a family by rule (`AMBIENT_OCCLUSION_RULES`), in the
 // image effects' quality group: the page's are written into the session once opened and, after, in place.
 test('how the ambient occlusion is set is the page’s setting, applied once each', () => {
@@ -332,7 +290,7 @@ test('the resolution asked at creation is the render scale, unless the page give
   const runtime = { explorer: null, renew() {}, invalidate() {} }
   const made = (options: Parameters<typeof worldSwitches>[0]) =>
     worldSwitches(options, () => runtime, unseen).held
-  assert.equal(made({}).renderScale, 'auto')
+  assert.equal(made({}).renderScale, undefined, 'the display default, fixed')
   assert.equal(made({ quality: { resolution: { mode: 'fast' } } }).renderScale, 0.5)
   assert.equal(made({ renderScale: 1, quality: { resolution: { mode: 'fast' } } }).renderScale, 1)
 })

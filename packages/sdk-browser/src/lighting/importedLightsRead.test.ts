@@ -34,3 +34,31 @@ test('a lights file the server refuses otherwise (a 503 twice, a 401) fails the 
     assert.equal(asked.length, status === 503 ? 2 : 1)
   }
 })
+
+test('a sun’s shadow distance the compiler wrote reaches its light, one the contract refuses is counted', async (t) => {
+  const sun = (id: string, extra: object) => ({
+    ...{ id, kind: 'directional', direction: [0, -1, 0], color: [1, 1, 1] },
+    ...{ intensity: 1, castsShadow: true },
+    ...extra,
+  })
+  const file = {
+    version: 2,
+    lights: [
+      sun('near', { shadowDistance: 250 }),
+      sun('none', { shadowDistance: 0 }),
+      sun('plain', {}),
+      sun('bad', { shadowDistance: -3 }),
+    ],
+  }
+  answering(t, 'lights.json', [200], () => JSON.stringify(file))
+  const { lights, rejected } = await loadImportedLights(BASE)
+  assert.deepEqual(
+    lights.map((light) => [light.id, light.shadowDistance]),
+    [
+      ['near', 250],
+      ['none', 0],
+      ['plain', undefined],
+    ],
+  )
+  assert.deepEqual(rejected, { 'light-refused-by-contract': 1 })
+})

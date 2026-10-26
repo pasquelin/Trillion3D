@@ -72,6 +72,11 @@ test('the targets of the effect chain count in gpuFrameTargetBytes', () => {
   assert.equal(metricsOf(runtimeOver(createWebgpuRunState(), bare)).gpuFrameTargetBytes, 1000)
 })
 
+test('the tone table’s texture counts in gpuFrameTargetBytes, whatever its size', () => {
+  const gpu = { targetBytes: 1000, deferred: { toneLut: { bytes: 32 ** 3 * 8 } } }
+  assert.equal(metricsOf(runtimeOver(createWebgpuRunState(), gpu)).gpuFrameTargetBytes, 263144)
+})
+
 test('the display cadence and the GPU idle are published as the scale clock and the timer hold them', () => {
   const rt = runtimeOver(createWebgpuRunState())
   const before = metricsOf(rt)

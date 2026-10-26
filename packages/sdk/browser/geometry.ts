@@ -40,6 +40,7 @@ export type {
   PageUnit,
   PageUnitsOf,
 } from '../../sdk-browser/src/geometry/pages/pool/homes.ts'
+export type { PageMaterials, PageMesh } from '../../sdk-browser/src/geometry/pages/pageMesh.ts'
 export type {
   PageSurface,
   SurfaceFacts,
@@ -48,6 +49,9 @@ export type {
 export type { RangeAsk, ReadRange } from '../../sdk-browser/src/geometry/cluster/ranged.ts'
 export type { ResidentPage } from '../../sdk-browser/src/geometry/pages/pool/types.ts'
 export type { RootSlots } from '../../sdk-browser/src/geometry/pages/pool/placement.ts'
-export type { SurfaceDeclaration } from '../../sdk-browser/src/geometry/pages/surfaceDeclaration.ts'
+export type {
+  SurfaceColour,
+  SurfaceDeclaration,
+} from '../../sdk-browser/src/geometry/pages/surfaceDeclaration.ts'
 export type { TexturePool } from '../../sdk-browser/src/geometry/residency/memoryBudgets.ts'
 export type { WorldCells } from '../../sdk-browser/src/geometry/dag/worlds/worldCells.ts'

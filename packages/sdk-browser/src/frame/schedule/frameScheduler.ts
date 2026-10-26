@@ -51,7 +51,7 @@ export function createExplorerFrameScheduler(inputs: {
     const answer = inputs.pending()
     // Handled now, consumed behind the feedbacks asked before it: a failure is said in turn too.
     answer.catch(() => {})
-    consumed = consumed.then(() => answer).then(() => void inFlight--, fail)
+    consumed = consumed.then(() => answer.then(() => void inFlight--, fail))
   }
   function draw() {
     frame = undefined

@@ -3,6 +3,39 @@
 use super::format::*;
 use std::{fs, io, path::Path};
 
+/// A cell of the finest bricks that stream together: where it lies in the grid of cells, the
+/// indirection texel of each of its bricks, and their padded texels, brick after brick.
+pub struct LightmapCell {
+    pub coordinates: [u32; 3],
+    pub bricks: Vec<[u32; 3]>,
+    pub ambient: Vec<u8>,
+    pub coefficients: [Vec<u8>; 6],
+    /// Empty where the file has no bent normal.
+    pub sky_bent_normal: Vec<u8>,
+    pub directional_shadowing: Vec<u8>,
+}
+
+impl LightmapCell {
+    /// The cell's bytes: the bricks' coordinates, then each layer's texels.
+    fn bytes(&self) -> Vec<u8> {
+        let mut bytes: Vec<u8> = self
+            .bricks
+            .iter()
+            .flatten()
+            .flat_map(|c| c.to_le_bytes())
+            .collect();
+        for part in [&self.ambient]
+            .into_iter()
+            .chain(&self.coefficients)
+            .chain([&self.sky_bent_normal, &self.directional_shadowing])
+        {
+            bytes.extend_from_slice(part);
+        }
+        bytes.resize(bytes.len().next_multiple_of(4), 0);
+        bytes
+    }
+}
+
 /// A volumetric lightmap's layers, texels in x, then y, then z order.
 pub struct VolumetricLightmapLayers {
     /// The world box the indirection volume covers: lower corner, upper corner.
@@ -23,6 +56,17 @@ pub struct VolumetricLightmapLayers {
     pub sky_bent_normal: Vec<u8>,
     /// Per atlas texel: the stationary sun's unshadowed fraction.
     pub directional_shadowing: Vec<u8>,
+    /// The side of a streaming cell in finest bricks; 0 where the file has no cells.
+    pub cell_texels: u32,
+    /// The finest bricks, cell by cell, in the order of their coordinates.
+    pub cells: Vec<LightmapCell>,
+}
+
+/// The bytes of a file, and how many of them (the head, the layers, the cells' table) are the
+/// part always read: the cells' bytes follow.
+pub struct Encoded {
+    pub bytes: Vec<u8>,
+    pub base_bytes: usize,
 }
 
 fn texels(dimensions: [u32; 3]) -> usize {
@@ -71,6 +115,25 @@ impl VolumetricLightmapLayers {
         {
             return Err("the bounds must be a box".into());
         }
+        if self.cell_texels == 0 && !self.cells.is_empty() {
+            return Err("cells need the side of a cell".into());
+        }
+        for cell in &self.cells {
+            let count = cell.bricks.len();
+            let texels = count * VOLUMETRIC_LIGHTMAP_CELL_TEXELS;
+            let sky = if self.sky_bent_normal.is_empty() {
+                0
+            } else {
+                texels * 4
+            };
+            if cell.ambient.len() != texels * 4
+                || cell.coefficients.iter().any(|c| c.len() != texels * 4)
+                || cell.sky_bent_normal.len() != sky
+                || cell.directional_shadowing.len() != texels
+            {
+                return Err("a cell's layers disagree with its bricks".into());
+            }
+        }
         for kind in LayerKind::ALL {
             let volume = if kind == LayerKind::Indirection {
                 self.indirection_dimensions
@@ -91,7 +154,7 @@ impl VolumetricLightmapLayers {
 }
 
 /// The file's bytes for `layers`; an error names the layer that disagrees with its volume.
-pub fn encode(layers: &VolumetricLightmapLayers) -> Result<Vec<u8>, String> {
+pub fn encode(layers: &VolumetricLightmapLayers) -> Result<Encoded, String> {
     layers.check()?;
     let mut words = vec![
         VOLUMETRIC_LIGHTMAP_MAGIC,
@@ -112,19 +175,101 @@ pub fn encode(layers: &VolumetricLightmapLayers) -> Result<Vec<u8>, String> {
         words.push(kind.format() as u32);
         words.push(layers.layer(kind).len() as u32);
     }
+    words.push(layers.cell_texels);
+    words.push(layers.cells.len() as u32);
     let mut bytes: Vec<u8> = words.iter().flat_map(|word| word.to_le_bytes()).collect();
     for kind in LayerKind::ALL {
         bytes.extend_from_slice(layers.layer(kind));
         bytes.resize(bytes.len().next_multiple_of(4), 0);
     }
-    Ok(bytes)
+    let cells: Vec<Vec<u8>> = layers.cells.iter().map(LightmapCell::bytes).collect();
+    let base_bytes = bytes.len() + layers.cells.len() * VOLUMETRIC_LIGHTMAP_CELL_RECORD_WORDS * 4;
+    let mut offset = base_bytes;
+    for (cell, body) in layers.cells.iter().zip(&cells) {
+        let mut record = cell.coordinates.to_vec();
+        record.extend([cell.bricks.len() as u32, offset as u32, body.len() as u32]);
+        let digest = crate::compiler::cache::digest::digest_bytes(body);
+        record.extend(
+            digest
+                .chunks_exact(4)
+                .map(|w| u32::from_le_bytes([w[0], w[1], w[2], w[3]])),
+        );
+        bytes.extend(record.iter().flat_map(|word| word.to_le_bytes()));
+        offset += body.len();
+    }
+    for body in &cells {
+        bytes.extend_from_slice(body);
+    }
+    Ok(Encoded { bytes, base_bytes })
 }
 
 /// Writes the file `layers` make at `path`, whole or not at all.
 pub fn write(path: &Path, layers: &VolumetricLightmapLayers) -> io::Result<()> {
-    let bytes =
+    let encoded =
         encode(layers).map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
     let partial = path.with_extension("tmp");
-    fs::write(&partial, bytes)?;
+    fs::write(&partial, encoded.bytes)?;
     fs::rename(partial, path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn layers(cells: Vec<LightmapCell>) -> VolumetricLightmapLayers {
+        VolumetricLightmapLayers {
+            bounds: ([0.0; 3], [8.0; 3]),
+            brick_size: 4,
+            indirection_dimensions: [1, 1, 1],
+            brick_dimensions: [5, 5, 5],
+            indirection: vec![0; 4],
+            ambient: vec![0; 500],
+            coefficients: std::array::from_fn(|_| vec![0; 500]),
+            sky_bent_normal: Vec::new(),
+            directional_shadowing: vec![0; 125],
+            cell_texels: 1,
+            cells,
+        }
+    }
+
+    fn cell() -> LightmapCell {
+        LightmapCell {
+            coordinates: [1, 2, 3],
+            bricks: vec![[0, 0, 0]],
+            ambient: vec![1; 500],
+            coefficients: std::array::from_fn(|_| vec![2; 500]),
+            sky_bent_normal: Vec::new(),
+            directional_shadowing: vec![3; 125],
+        }
+    }
+
+    #[test]
+    fn the_cells_follow_the_part_always_read_and_are_told_by_their_records() {
+        let encoded = encode(&layers(vec![cell()])).expect("a file");
+        let words = |at: usize| u32::from_le_bytes(encoded.bytes[at..at + 4].try_into().unwrap());
+        assert_eq!(words(4), VOLUMETRIC_LIGHTMAP_VERSION);
+        assert_eq!(words(35 * 4), 1, "the cells' side");
+        assert_eq!(words(36 * 4), 1, "the cells' count");
+        let record = encoded.base_bytes - VOLUMETRIC_LIGHTMAP_CELL_RECORD_WORDS * 4;
+        assert_eq!(
+            [words(record), words(record + 4), words(record + 8)],
+            [1, 2, 3]
+        );
+        assert_eq!(
+            words(record + 16) as usize,
+            encoded.base_bytes,
+            "its offset"
+        );
+        assert_eq!(
+            encoded.bytes.len(),
+            encoded.base_bytes + words(record + 20) as usize
+        );
+    }
+
+    #[test]
+    fn a_cell_whose_layers_disagree_with_its_bricks_is_refused() {
+        let mut broken = cell();
+        broken.ambient.pop();
+        assert!(encode(&layers(vec![broken])).is_err());
+    }
 }

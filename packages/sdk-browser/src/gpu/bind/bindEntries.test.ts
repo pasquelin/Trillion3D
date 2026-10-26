@@ -18,8 +18,8 @@ import { createWebgpuBlendState } from '../../blend/state.ts'
 import { createWebgpuVisState } from '../../frame/backend/state/vis.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
 import { VIS_BINDINGS, SHADE_BINDINGS } from './bindLayout.ts'
-import { BASE_SLOTS } from '../../visibility/draw/contract.ts'
-import { createGpuRaster } from '../../visibility/raster/raster.ts'
+import { BASE_SLOTS } from '../../visibility/bins/contract.ts'
+import { createGpuRaster, type BinningSteps } from '../../visibility/raster/raster.ts'
 import { RASTER_PASS_MAIN } from '../../visibility/raster/contract.ts'
 import type { WebgpuTileStreamer } from '../../materials/virtual/streamer/streamer.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
@@ -55,14 +55,17 @@ function stubVis(layouts: Record<string, unknown>) {
     pageTable: { size: 3 * PAGE_INFO_STRIDE } as GPUBuffer,
     visUniform: token(),
     shadeUniform: token(),
-    shadeCache: { buffer: token() },
     voxelSteps: { buffer: token() },
     zeroRows: token(),
     visView: {} as GPUTextureView,
     textures: stubTextures(),
     mapsSampler: {} as GPUSampler,
     gpuHiz: undefined,
-    gpuDraw: { indirectBuffer: token(), instanceBuffer: token(), groupsBuffer: token() },
+    gpuBins: {
+      indirectBuffer: token(),
+      instanceBuffer: token(),
+      slotOffsetBuffer: token(),
+    },
   }
 }
 
@@ -99,22 +102,23 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   const rt = {
     vis,
     gpu: {
+      // The sky light's stand-in is made on the device the pass encodes on (`skyLightReadOf`).
+      device,
       reflection: reflectionFront(),
       cache: { buffer: {} },
-      surfaces: { subsurfaceView: {}, receiverView: {}, lobesView: {}, lobes: { width: 1 } },
+      surfaces: { subsurfaceView: {}, lobesView: {}, lobes: { width: 1 } },
       zeroUv: {},
       targetSize: [4, 4],
       colorView: {},
       depthView: {},
-      asIsShare: { view: {}, givenUpView: {} },
+      responsive: { view: {} },
       backdrop: { colorView: {}, depthView: {}, active: false },
+      translucency: { colorView: {}, modulationView: {}, group: {}, active: true, phase: 'idle' },
       deferred: {
         placeholders: {
           slices: {},
           atlasView: {},
           sampler: {},
-          bounceGrid: {},
-          probes: {},
           fog: {},
         },
       },
@@ -135,7 +139,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   // Resolve shares the prepare-time entries.
   ensureWebgpuShadeBindings(rt, device)
   // PageInfo is a tightly packed storage array, not a dynamically offset binding per row.
-  assert.equal(PAGE_INFO_STRIDE, 176)
+  assert.equal(PAGE_INFO_STRIDE, 160)
   for (const [index, binding] of [
     [0, VIS_BINDINGS.pageTable],
     [1, SHADE_BINDINGS.pageTable],
@@ -157,9 +161,10 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   blendState.lighting = blendLightResources(rt)
   drawBlendPass(rt, device, encoder)
 
-  // The constructors of the visibility raster, fourth set of the path: the hardware raster's group
-  // over the visibility buffer, then the software raster's, its binning's and the resolve's. The
-  // software raster reads the same colour pool and the same page table as the other passes.
+  // The constructors of the visibility raster, fourth set of the path: the software raster's group,
+  // the export's and the scene depth's — on a device with the 64-bit atomic maximum the hardware
+  // raster's group over the visibility buffer too. The software raster reads the same colour pool
+  // and the same page table as the other passes.
   const raster = createGpuRaster(device, 4, 4, 8)
   const buffer = {} as GPUBuffer,
     view = {} as GPUTextureView
@@ -168,22 +173,23 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     positions: buffer,
     pages: buffer,
     uniform: buffer,
-    postUniformOffset: 0,
     uvs: buffer,
     textures: vis.textures,
     sampler: vis.mapsSampler,
     material: view,
     normals: view,
-    items: buffer,
-    pageRows: 1,
+    frame: buffer,
+    noise: view,
     idsView: view,
+    classBins: view,
     depthView: view,
     hizView: view,
   }
-  raster.encodeBinning(encoder, rasterInput, RASTER_PASS_MAIN)
-  raster.encodeIds(encoder, rasterInput, [4, 4], false)
+  const steps: BinningSteps = { ready: () => true, clear() {}, decode() {}, bins() {} }
+  raster.encodeBinning(encoder, rasterInput, RASTER_PASS_MAIN, steps)
+  raster.encodeClose(encoder, rasterInput, [4, 4], false)
   const counted = groups.map((group) => [group.entries.length, group.layout.entries.length])
-  assert.equal(counted.length, 7, 'every constructor ran, the visibility raster’s four included')
+  assert.equal(counted.length, 6, 'every constructor ran, the visibility raster’s three included')
   for (const [built, expected] of counted)
     assert.equal(built, expected, `a group binds ${built} entries for a layout of ${expected}`)
   assert.deepEqual(
@@ -193,6 +199,6 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
       [shadeCount, shadeCount],
       [blendCount, blendCount],
     ],
-    'in order: slot group, hardware resolve, transparents',
+    'in order: slot group, resolve, transparents',
   )
 })

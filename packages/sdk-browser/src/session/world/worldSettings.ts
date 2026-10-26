@@ -2,9 +2,10 @@ import type { TemporalAntialiasingLevel } from '../../../../sdk-core/src/contrac
 import type { TemporalAntialiasingOption } from '../../../../sdk-core/src/contracts/materialOptions.ts'
 import type { RenderScale } from '../../frame/scale/renderScaleOption.ts'
 import type { WorldParts } from './worldParts.ts'
+import { joined } from '../../../../sdk-core/src/runtime/joined.ts'
 
-/** The world's drawing settings: screen error, quality, bounce, antialiasing, scale, effects. */
-export function worldSettings({ switches, modules, live }: WorldParts) {
+/** The cut's and the raster's settings, each applied from the next frame over the quality preset. */
+function rasterSettings({ switches, live }: WorldParts) {
   return {
     /** The DAG cut's screen error, in pixels; the page's value holds over a quality preset. */
     get pixelError() {
@@ -35,6 +36,50 @@ export function worldSettings({ switches, modules, live }: WorldParts) {
       live()
       switches.hardwareRasterEdgePixels = option
     },
+  }
+}
+
+/** The software raster's depth buckets, applied from the next frame over the quality preset. */
+function bucketSettings({ switches, live }: WorldParts) {
+  return {
+    /** Whether the software raster's cutout clusters are ordered nearest first by depth bucket
+     *  (`WorldOptions.depthBucketing`): on by default, and, as in the reference, ordering only
+     *  where the scene holds voxels; applied from the next frame over the quality preset;
+     *  `undefined` gives it back to it. */
+    get depthBucketing(): boolean {
+      return switches.depthBucketing
+    },
+    set depthBucketing(option: boolean | null | undefined) {
+      live()
+      switches.depthBucketing = option
+    },
+    /** The depth in metres the buckets start at (`WorldOptions.depthBucketsMinZ`): a finite number
+     *  above zero, applied from the next frame over the quality preset; `undefined` gives it back
+     *  to it. */
+    get depthBucketsMinZ(): number {
+      return switches.depthBucketsMinZ
+    },
+    set depthBucketsMinZ(option: number | null | undefined) {
+      live()
+      switches.depthBucketsMinZ = option
+    },
+    /** The depth in metres the buckets end at (`WorldOptions.depthBucketsMaxZ`): a finite number
+     *  above zero, applied from the next frame over the quality preset; `undefined` gives it back
+     *  to it. */
+    get depthBucketsMaxZ(): number {
+      return switches.depthBucketsMaxZ
+    },
+    set depthBucketsMaxZ(option: number | null | undefined) {
+      live()
+      switches.depthBucketsMaxZ = option
+    },
+  }
+}
+
+/** The world's drawing settings: screen error, quality, bounce, antialiasing, scale, effects. */
+export function worldSettings(parts: WorldParts) {
+  const { switches, modules } = parts
+  return joined(rasterSettings(parts), bucketSettings(parts), {
     /** The quality: a preset, each group's level over it, and the resolution the image is drawn at. */
     quality: switches.quality,
     /** Light bounced off the surfaces, traced against the resident proxy; on by default. Applied
@@ -81,5 +126,5 @@ export function worldSettings({ switches, modules, live }: WorldParts) {
      *  the module runs, who decided, and its merged parts. A refused value changes nothing. */
     modules: modules.page,
     /** The effect chain: passes drawn over the image (`effect`). */ effects: switches.held.effects,
-  }
+  })
 }

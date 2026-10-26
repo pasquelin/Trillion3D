@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { joint } from '../../../sdk-core/src/physics/joint/joint.ts'
 import { jointRig } from './joints/joints.fixture.ts'
+import { ANGULAR_DAMPING, LINEAR_DAMPING } from '../../../sdk-core/src/physics/layout.ts'
 
 /** Two cubes launched at 10 m/s without gravity, one declaring no damping: their speeds after 1 s. */
 async function speedsAfterOneSecond() {
@@ -17,11 +18,14 @@ async function speedsAfterOneSecond() {
   return [(rig.at(kept)[0] - before[0]) * 60, (rig.at(unset)[0] - before[1]) * 60]
 }
 
-test('a body declaring no damping keeps its speed in free flight; one left unset loses 5 % a second', async () => {
+test('a body declaring no damping keeps its speed in free flight; one left unset loses 1 % a second', async () => {
   const [kept, unset] = await speedsAfterOneSecond()
   assert.ok(Math.abs(kept - 10) < 1e-3, `no damping: ${kept} m/s`)
-  // The module's own 0.05 per second, applied step by step: 10 × (1 − 0.05 / 60)^60.
-  assert.ok(Math.abs(unset - 10 * (1 - 0.05 / 60) ** 60) < 1e-2, `default damping: ${unset} m/s`)
+  // The default 0.01 per second (`LINEAR_DAMPING`), applied step by step: 10 × (1 − 0.01 / 60)^60.
+  assert.ok(
+    Math.abs(unset - 10 * (1 - LINEAR_DAMPING / 60) ** 60) < 1e-2,
+    `default damping: ${unset} m/s`,
+  )
 })
 
 /** Two cubes spun at 1 rad/s on frictionless hinges, then let go, one declaring no angular
@@ -42,11 +46,12 @@ async function spinsAfterOneSecond() {
   return [(rig.yaw(kept) - before[0]) * 60, (rig.yaw(unset) - before[1]) * 60]
 }
 
-test('a body declaring no angular damping keeps its spin; one left unset loses 5 % a second', async () => {
+test('a body declaring no angular damping keeps its spin, and so does one left unset', async () => {
   const [kept, unset] = await spinsAfterOneSecond()
   assert.ok(Math.abs(kept - 1) < 1e-3, `no angular damping: ${kept} rad/s`)
+  // The default angular damping is none (`ANGULAR_DAMPING`).
   assert.ok(
-    Math.abs(unset - (1 - 0.05 / 60) ** 60) < 1e-3,
+    Math.abs(unset - (1 - ANGULAR_DAMPING / 60) ** 60) < 1e-3,
     `default angular damping: ${unset} rad/s`,
   )
 })

@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { bindingsLabel, lightingBase, type LightingBindings } from './lightingWgsl.ts'
+import { translucentShadowLabel, type TranslucentShadow } from './shadowWgsl.ts'
 import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
 
 /**
@@ -14,11 +15,13 @@ import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
  * the number of lights walked, hence the number of shadow-atlas reads.
  *
  * With no list — a device that could not fit the grid pass, or a pixel past the grid —, the loop
- * walks every declared light, the one rule of the opaque resolve too (`cellSlice`).
+ * walks every declared light, the one rule of the opaque lit passes too (`cellSlice`).
  *
- * Its shadows are read from the fragment (`directShadowWgsl`): every translucent layer reads its own.
+ * Its shadows are read from the fragment (`directShadowWgsl`): every translucent layer reads its own,
+ * as `translucentShadow` says (the project switches of `TranslucentShadow`; the defaults unless
+ * given).
  *
- * `key` (`LOBELESS_KEY` unless given) as the opaque resolve's, its `narrow` aside: `unshadowed`,
+ * `key` (`LOBELESS_KEY` unless given) as the opaque lit passes', its `narrow` aside: `unshadowed`,
  * the loop of a scene no light of which holds a shadow slot; `rectless`, of a scene that holds no
  * rectangle light (`declaredLightWgsl`, #1249, #1369), picked on the same key
  * (`createLitVariants`). Without `lobeless`, the forward pass's program of a scene that holds an
@@ -28,10 +31,11 @@ import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
 export const declaredLightingWgsl = (
   bindings: LightingBindings,
   key: Partial<ContractKey> = LOBELESS_KEY,
+  translucentShadow?: TranslucentShadow,
 ) =>
   wgslBlock(
-    `declaredLightingWgsl(${bindingsLabel(bindings)}, ${variantLabel(key)})`,
-    [lightingBase(bindings, key)],
+    `declaredLightingWgsl(${bindingsLabel(bindings)}, ${variantLabel(key)}${translucentShadowLabel(translucentShadow)})`,
+    [lightingBase(bindings, key, { translucentShadow })],
     `
 fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->vec3f{
  vsmTraceAt(pixel);

@@ -6,12 +6,23 @@ import { transformHomogeneousPoint } from '../../../../math/src/vector/vector.ts
 import { localTurnQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import type { TileView } from '../../../../../bench/oracles/browser/gpuLightGridOracle.ts'
 import { tileViewInverse } from './tileFrame.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
+import { sliceParams } from '../fog/layout.ts'
 
 // The views and world points the tile-bounds tests draw lights around, in f64.
 
 export type Vec3 = [number, number, number]
 /** The near distance of every test camera. */
 export const NEAR = 0.1
+/** The farthest depth, in metres, the grid of the test cameras reaches a light at. */
+const GRID_FAR = 5000
+
+/** The slice map of the test cameras' grid, `near · B`, `O`, `S` (`writeGridMap`). */
+export const GRID_MAP: Vec3 = (() => {
+  const { gridDepthDistribution: s, gridSlices } = LIGHT_SETTINGS
+  const map = sliceParams(NEAR, GRID_FAR, s, gridSlices - 1)
+  return [Math.fround(NEAR * map.b), Math.fround(map.o), s]
+})()
 
 /** A camera at `eye`, turned by `yaw` about +Y then `pitch` about +X (−90° looks straight down),
  *  in the pass's frame, as `update` writes it; with the render matrix and eye `update` takes. */

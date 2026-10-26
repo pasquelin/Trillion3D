@@ -1,3 +1,4 @@
+import { settingsWritten } from '../../../sdk-core/src/contracts/settingRules.ts'
 import type { EngineContext } from '../session/engine/types.ts'
 
 type Inputs = {
@@ -13,6 +14,7 @@ export function createExplorerSelectionApi(inputs: Inputs) {
       check()
       if (!Number.isFinite(value) || value < 0) throw new Error('Invalid pixelError')
       context.pixelError = value
+      settingsWritten()
     },
   }
 }

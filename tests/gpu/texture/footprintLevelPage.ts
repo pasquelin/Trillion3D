@@ -29,7 +29,7 @@ function footprintWgsl() {
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=arrayLength(&cases)){return;}
  let c=cases[id.x];
- let s=TileSlot(c.size,0u,c.last,0u,0u,0u,c.sampling,0u);
+ let s=TileSlot(c.size,0u,c.last,0u,0u,0u,c.sampling,0u,0.0);
  let r=tileRead(s,vec2f(0.5),c.ddx,c.ddy,true);
  reads[id.x]=vec4f(r.lod,f32(r.taps),select(0.0,1.0,r.nearest),0.0);
 }`,

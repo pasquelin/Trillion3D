@@ -10,7 +10,8 @@ import {
   frameTargetBytes,
 } from './surfaceBuffer.ts'
 import { createSurfaceBuffer } from './surfaceAllocation.ts'
-import { EMISSIVE_AO_SURFACE_FLAG, MODEL_SHIFT, SURFACE_MODEL, modelFlag } from './surfaceModel.ts'
+import { MODEL_SHIFT, SURFACE_MODEL, modelFlag } from './surfaceModelWord.ts'
+import { EMISSIVE_AO_SURFACE_FLAG, HOLDOUT_SURFACE_FLAG } from './surfaceModel.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { SHADE_SHADER } from '../../visibility/shader/shadeWgsl.ts'
@@ -19,21 +20,21 @@ test('a surface rejects an invalid or off-device size, and nothing else: no byte
   const { device } = fakeDevice({ limits: { maxTextureDimension2D: 1024 } })
   assert.throws(() => checkSurfaceSize(device, 0, 10), /INVALID_SURFACE_SIZE/)
   assert.throws(() => checkSurfaceSize(device, 1025, 1), /SURFACE_DEVICE_LIMIT/)
-  assert.equal(checkSurfaceSize(device, 100, 100), 360000)
-  assert.equal(checkSurfaceSize(device, 1024, 1024), MIB * 36, 'targets follow resolution')
-  const pyramid = Math.max(9, 3 * (4 + 1)) * 4 * 3
+  assert.equal(checkSurfaceSize(device, 100, 100), 280000)
+  assert.equal(checkSurfaceSize(device, 1024, 1024), MIB * 28, 'targets follow resolution')
+  const pyramid = Math.max(9, 3 * (4 + 1)) * 4 * 2
   assert.equal(
     frameTargetBytes(3, 3, true),
-    9 * 60 + 9 * 4 + pyramid + 8 + 16,
-    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made: level 0 (4 B/px, the opaque depth; the front layer is a scene with transparents’ alone), then three layers of max(N, 3M) words (N = 9 at level 0, M = 4 + 1 in the coarser levels, odd levels at ceil dimensions); the 1×1 thin transmission and lobes',
+    9 * 52 + 9 * 4 + pyramid + 8 + 16,
+    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made: level 0 (4 B/px, the opaque depth; the front layer is a scene with transparents’ alone), then two slices of max(N, 3M) words (N = 9 at level 0, M = 4 + 1 in the coarser levels, odd levels at ceil dimensions); the 1×1 thin transmission and lobes',
   )
 })
 
-test('the per-pixel frame holds the shadow receiver target: 28 B/px and its 8', () => {
-  assert.equal(SURFACE_BYTES_PER_PIXEL, 28 + 8)
+test('the per-pixel frame holds the surfaces: 28 B/px', () => {
+  assert.equal(SURFACE_BYTES_PER_PIXEL, 28)
   // Read off the formats (`textureBytesOf`): the feedback's 4, the frame's 24 beside the surfaces.
   assert.equal(FEEDBACK_BYTES, 4)
-  assert.equal(frameTargetBytes(1, 1, false), 24 + 28 + 8 + 8 + 16)
+  assert.equal(frameTargetBytes(1, 1, false), 24 + 28 + 8 + 16)
   const gpu = fakeDevice({ limits: { maxTextureDimension2D: 4096 } })
   const surface = createSurfaceBuffer(gpu.device, 3840, 2160)
   assert.equal(surface.allocationBytes, 3840 * 2160 * SURFACE_BYTES_PER_PIXEL + 8 + 16)
@@ -41,7 +42,7 @@ test('the per-pixel frame holds the shadow receiver target: 28 B/px and its 8', 
   assert.equal(
     gpu.textures.length,
     4,
-    'the colours and the words, the receiver among them; disabled transmission and lobes a 1×1 each',
+    'the colours and the words; disabled transmission and lobes a 1×1 each',
   )
   surface.dispose()
   surface.dispose()
@@ -121,14 +122,16 @@ test('every flag the resolve writes fits the flags word unchanged, in eight bits
             )
   }
   // Background 0, unlit 1, lit 2, as-is 3, diffuse 4, toon 5: the whole documented set; a surface
-  // shown unlit or lit with its emission-and-occlusion mark.
+  // shown unlit or lit with its emission-and-occlusion mark; a held-out primitive's pixel, unlit with
+  // its own mark above the eight bits.
   const marked = [1, 2, 4, 5].map((flag) => flag | EMISSIVE_AO_SURFACE_FLAG)
   assert.deepEqual(
     [...written].sort((a, b) => a - b),
-    [0, 1, 2, 3, 4, 5, ...marked],
+    [0, 1, 2, 3, 4, 5, ...marked, 1 | HOLDOUT_SURFACE_FLAG],
   )
   for (const value of written) {
     assert.equal(Uint32Array.of(value)[0], value, `${value} as the r32uint target held it`)
-    assert.equal(Uint8Array.of(value)[0], value, `${value} in eight bits`)
+    const low = value & ~HOLDOUT_SURFACE_FLAG
+    assert.equal(Uint8Array.of(low)[0], low, `${value} in eight bits, the holdout mark apart`)
   }
 })

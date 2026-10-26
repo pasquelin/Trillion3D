@@ -1,13 +1,13 @@
 // The ground truth the grazing fixtures are judged against — a footprint integral along the
 // minified axis alone —, and the judgement itself: a gap counted in pixels over one level,
-// silhouettes aside; the engine within tolerance and no farther from the truth than the witness.
+// silhouettes aside.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { cameraFace } from '../../kit/device/sharedSceneProof.ts'
 import { backgroundRgb } from '../../../bench/oracles/browser/cpu-image/math.ts'
 import { linearToSrgb8 } from '../../../packages/math/src/color/color.ts'
-import { groundTruth, truthGap, truthVerdict, type TruthView } from './groundTruth.ts'
+import { groundTruth, truthGap, type TruthView } from './groundTruth.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { wrap } from '../../../packages/math/src/scalar/reals.ts'
 
@@ -94,21 +94,6 @@ test('a gap counts the pixels over one level on a channel, never a silhouette', 
   const edge = truth.edge.indexOf(1) * 4
   image[edge] = 255 - image[edge]
   assert.deepEqual(truthGap(image, truth), { pixels: 1, max: 3 }, 'the edge pixel is not read')
-})
-
-// The verdict: no sampler reaches an ideal truth at a grazing angle, the witness's
-// hardware included; the engine passes when it is no farther from it than the witness, give or
-// take CONTRIBUTING's tolerance.
-test('the engine passes within tolerance of the witness gap to the truth', () => {
-  const gap = (pixels: number) => ({ pixels, max: 9 })
-  assert.equal(truthVerdict(gap(0), gap(5), 0), undefined)
-  assert.equal(truthVerdict(gap(183), gap(183), 0), undefined)
-  assert.equal(truthVerdict(gap(87), gap(83), 4), undefined)
-  assert.match(
-    truthVerdict(gap(184), gap(183), 0)!,
-    /engine 184 px .* the witness 183 px, tolerance 0/,
-  )
-  assert.match(truthVerdict(gap(88), gap(83), 4)!, /engine 88 px/)
 })
 
 // A truth that averaged a magnified axis too, and cut each ray, could be met by no sampler. On the

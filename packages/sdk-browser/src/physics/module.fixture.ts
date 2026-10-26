@@ -1,8 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import { Worker as NodeWorker } from 'node:worker_threads'
+import { channelWords, resolveCollision } from '../../../sdk-core/src/physics/collisionChannels.ts'
 import { CAST, CAST_WORDS, EVENT_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import {
   DEFAULT_PHYSICS_BUDGET,
+  DEFAULT_RESTITUTION_THRESHOLD,
+  GRAVITY_PRESETS,
   PHYSICS_STEP,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/options.ts'
@@ -29,7 +32,7 @@ export async function startModule(
   const bytes = await readFile(new URL(file, import.meta.url))
   const full = { ...DEFAULT_PHYSICS_BUDGET, bodies: 64, memoryBytes: 64 << 20, ...budget }
   const opened = await openJolt(bytes, full.memoryBytes, pool)
-  const jolt = startJolt(opened, full, pool?.count ?? 1, step)
+  const jolt = startJolt(opened, full, pool?.count ?? 1, step, DEFAULT_RESTITUTION_THRESHOLD)
   /** A diagnostic count the module keeps since it started: the joints some work has visited. */
   const count = (name: string) => () => (opened.exports[name] as () => number)()
   /** By the gear linking, the step's breaking, and the bodies placed against the view
@@ -79,6 +82,7 @@ export function castDown(jolt: Module, x: number) {
   query[0] = CAST.ray
   query[10] = NO_INDEX
   new Float32Array(query.buffer).set([x, 5, 0, 0, -10, 0], 1)
+  query.set(channelWords(resolveCollision({ objectType: 'visibility' }, 'BlockAll')), 11)
   return jolt.cast(query)
 }
 
@@ -98,7 +102,7 @@ export function moduleRaycast(jolt: Module, bodies: ReturnType<typeof createPhys
  *  `words` writes: its driver, read once. */
 export function standCharacter(jolt: Module, words: Uint32Array, feet: number[]) {
   const driver = createCharacterDriver()
-  const made = driver.configure({ ...HUMAN_BODY }, feet)!
+  const made = driver.configure({ ...HUMAN_BODY }, GRAVITY_PRESETS.earth, feet)!
   const all = new Uint32Array(words.length + made.length)
   all.set(words)
   all.set(made, words.length)

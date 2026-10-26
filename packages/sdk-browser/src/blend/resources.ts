@@ -1,12 +1,14 @@
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 import { BLEND_ITEM_WORDS } from './items.ts'
 import { refreshBlendScene } from './sceneRefresh.ts'
-import { buildBlendStatics } from './statics.ts'
+import { buildBlendStatics, needsMoreBlocks, needsMoreSides } from './statics.ts'
 import { mountBlendExpand } from './expand/expand.ts'
 import { compileBlendExpand, EXPANSION_REFUSED } from './expand/expandKernels.ts'
 import { validated } from '../gpu/core/errorScope.ts'
 import { planWords, scratchWords, slotCapacity } from './plan/planLayout.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
+import { VIEW_COUNT } from './expand/expansionViews.ts'
+import { instanceBlocks } from './expand/viewRoom.ts'
 import { uniformStride } from '../session/memory/pools.ts'
 import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 
@@ -58,22 +60,23 @@ export function mountBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
   for (const item of items) blendState.visibleBlend.push(item)
   allocateBlendRecords(blendState, device)
   // The two outputs of expansion: the instance list the shader reads at the rank the vertex index
-  // gives it, and one indirect argument per slot. They belong to the scene.
+  // gives it, and one indirect argument per slot, for each view (`expansionViews.ts`). They belong to the scene.
   const entries = blendState.maxPlanEntries
   // The verdict's buffers are new: no count read back before holds for them.
   blendState.verdictEpoch++
   refreshBlendScene(rt, device)
+  blendState.instanceBlocks = instanceBlocks(blendState)
   blendState.expandedBuffer = sizedBuffer(
     device,
     blendState.expandedBuffer,
-    blendState.instanceCapacity * 8,
+    blendState.instanceCapacity * blendState.instanceBlocks * 8,
     GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     'Trillion3D blend expanded instances',
   )
   blendState.argsBuffer = sizedBuffer(
     device,
     blendState.argsBuffer,
-    slotCapacity(entries) * 16,
+    slotCapacity(entries) * 16 * VIEW_COUNT,
     GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     'Trillion3D blend indirect arguments',
   )
@@ -93,6 +96,23 @@ export function mountBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
     { expanded: blendState.expandedBuffer, args: blendState.argsBuffer },
   )
   blendState.expand.uploadDraws(blendState.drawsPacked)
+}
+
+/**
+ * The records and plan written again after a change of what the items read, the scene buffers
+ * mounted again where the change asks more room than they hold: a surface that came to ask two
+ * passes needs the second plan entry the statics did not reserve (never planned past the room), and
+ * one that came to fall in another pass, or to mark the responsiveness, a block of the instance
+ * list more.
+ */
+export function followBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { blendState } = rt
+  if (needsMoreSides(blendState.blendGpu) && blendState.itemBuffer) {
+    mountBlendResources(rt, device)
+    return
+  }
+  refreshBlendScene(rt, device)
+  if (needsMoreBlocks(blendState) && blendState.itemBuffer) mountBlendResources(rt, device)
 }
 
 /** The item records, host side and on the device, and the view uniform: one scene buffer, one

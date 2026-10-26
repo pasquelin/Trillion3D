@@ -1,10 +1,14 @@
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import { prepareTemporalAntialiasing } from '../../post/taa/prepare.ts'
-import { createSceneLightContractBuffer } from '../backend/state/lightBuffer.ts'
+import {
+  createSceneLightContractBuffer,
+  createSunRanksBuffer,
+} from '../backend/state/lightBuffer.ts'
 import { createGpuPresenter } from '../../gpu/core/presentation.ts'
 import { grantCapability } from '../io/drops.ts'
 import { throwIfStopped } from '../io/lost.ts'
 import { litPrograms } from './contractLight.ts'
+import { holdGraphRasters } from './visibility.ts'
 import { type WebgpuPagesRuntime } from '../backend/runtime.ts'
 import {
   finishPreparation,
@@ -21,6 +25,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     rt.context.preparationStep?.(name)
     return work()
   }
+  holdGraphRasters(rt, gpuDevice)
   await preparePrograms(rt, gpuDevice, step)
   preparePresenter(rt, gpuDevice)
   await prepareGeometryAndBlend(rt, gpuDevice, step)
@@ -33,6 +38,7 @@ async function preparePrograms(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, ste
   const { gpu, run, diag } = rt
   const lightBuffer = createSceneLightContractBuffer((gpu.device = gpuDevice), rt.lights.store)
   rt.lights.buffer = lightBuffer
+  rt.lights.sunRanks = createSunRanksBuffer(gpuDevice, rt.lights.store)
   // No more light written into the scene: opaques and transparents read the same declared-light buffer.
   diag.engineDiagnostic('scene-lighting', 'Scene lights active', {
     version: 1,

@@ -10,7 +10,7 @@ pub(crate) fn parent_or_dot(file: &Path) -> &Path {
 }
 
 /// Whether `name` is one relative path segment, as a source file and its sidecar must be: no
-/// `../../`, `\`, `..` or NUL, under 256 bytes. Anything else, a path escape first, is refused.
+/// `/`, `\`, NUL, `.` or `..`, under 256 bytes. Anything else, a path escape first, is refused.
 pub(crate) fn is_safe_source_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() < 256
@@ -18,7 +18,6 @@ pub(crate) fn is_safe_source_name(name: &str) -> bool {
         && name != ".."
         && !name.contains('/')
         && !name.contains('\\')
-        && !name.contains("..")
         && !name.contains('\0')
 }
 /// A path under a root, sanitized: the one rule of a resource under the served root and of an

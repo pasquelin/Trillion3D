@@ -11,9 +11,8 @@ import { Box3, boxFromFlat } from '../../../../../sdk-core/src/world/math/box3.t
 import { Vector3 } from '../../../../../sdk-core/src/world/math/vector3.ts'
 import { Camera } from '../../../../../sdk-core/src/world/camera/camera.ts'
 import { Mesh } from '../../../../../sdk-core/src/world/object/mesh.ts'
-import type { HostCamera } from '../../../camera/world.ts'
-import type { ControlVector } from '../../../camera/controls/types.ts'
-import type { HostBox, HostMesh } from '../../../session/host/resources.ts'
+import type { ViewCamera } from '../../../camera/world.ts'
+import type { PageMesh } from '../../../geometry/pages/pageMesh.ts'
 
 /** The camera the explorer frames its scene with, at the optics the framing computed. */
 export const hostFramingCamera = (
@@ -21,14 +20,14 @@ export const hostFramingCamera = (
   aspect: number,
   near: number,
   far: number,
-): HostCamera => new Camera('perspective', { fov, aspect, near, far })
+): ViewCamera => new Camera('perspective', { fov, aspect, near, far })
 
 /** A point the host reads and its controls aim at: the scene centre, the home offset. */
-export const hostPoint = (x: number, y: number, z: number): ControlVector => new Vector3(x, y, z)
+export const hostPoint = (x: number, y: number, z: number): Vector3 => new Vector3(x, y, z)
 
 /** The world box the explorer publishes, from the six numbers the core computed. */
-export const hostBox = (flat: ArrayLike<number>): HostBox => boxFromFlat(new Box3(), flat)
+export const hostBox = (flat: ArrayLike<number>): Box3 => boxFromFlat(new Box3(), flat)
 
 /** A copy of `mesh` sharing its geometry and its surface, posed by whoever asked for it:
  *  replication copies transforms alone, and a resource is never rebuilt. */
-export const hostMeshCopy = (mesh: HostMesh): HostMesh => new Mesh(mesh.geometry, mesh.material)
+export const hostMeshCopy = (mesh: PageMesh): PageMesh => new Mesh(mesh.geometry, mesh.material)

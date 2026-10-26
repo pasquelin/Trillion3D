@@ -170,10 +170,14 @@ pub(super) fn solidify<'a>(
     };
     let middle = centre(low, high);
     let Scene { winding, seeds, .. } = scene;
-    let words = super::winding::pack(&winding, middle)?;
+    let limit = super::gpu::part_bytes()?;
+    let parts: Vec<(Vec<u32>, [f64; 3])> = (super::winding::pack(&winding, middle, limit)?)
+        .into_iter()
+        .map(|words| (words, middle))
+        .collect();
     drop(winding);
-    let mut queries = Queries::new(Pass::Winding, &words, middle, cancelled)?;
-    drop(words);
+    let mut queries = Queries::new(Pass::Winding, &parts, cancelled)?;
+    drop(parts);
     // Past the bounds the point is outside, read without the GPU.
     let outside = -(threshold + 1.0) as f32;
     let within = move |p: &[f64; 3]| (0..3).all(|k| p[k] >= inner_low[k] && p[k] <= inner_high[k]);

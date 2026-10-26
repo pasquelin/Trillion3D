@@ -19,6 +19,7 @@ import { MIB } from '../../../../math/src/constants.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { OverlayFrame } from '../../post/effects/webgpuKinds.ts'
 import { createFinish } from '../../post/finish/finish.ts'
+import { lensOf } from '../../post/finish/finishParams.ts'
 import { createWorldEffects } from '../../../../sdk-core/src/world/effect/defaultChain.ts'
 import { createKindSettings } from '../../post/effects/kindSettings.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
@@ -46,7 +47,14 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
     finish.scene.begin(encoder, input, width, height)
     // The grain's texture too, which the finishing makes where the grain is drawn.
     const layers = finish.groupFor(false, undefined, true)
-    return { scene: finish.scene, bare: finish.bare, layers, local: false }
+    return {
+      scene: finish.scene,
+      bare: finish.bare,
+      layers,
+      local: false,
+      uniform: finish.uniform,
+      lens: lensOf(null),
+    }
   }
   webgpu.encode(encoder, chain, input, width, height, framed())
   await webgpu.settled()
@@ -150,6 +158,8 @@ test('the pass targets a chain gives back are retired with the frame that may st
       bare: finish.bare,
       layers,
       local: false,
+      uniform: finish.uniform,
+      lens: lensOf(null),
     })
   }
   draw(chain.slice(0, 2))

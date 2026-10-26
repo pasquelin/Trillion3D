@@ -71,7 +71,7 @@ function drawTriangles(
   if (corners.length < 3) return null
   if (options.wireframe) {
     // Every edge of the drawn triangles once, however many of them share it (`edgesOf`).
-    const segments = [...edgesOf(geometry, corners).values()].flatMap(({ a, b }) => [a, b])
+    const segments = [...edgesOf(geometry, corners, false).values()].flatMap(({ a, b }) => [a, b])
     const drawn = quads(p, segments, options.dashed)
     return drawn && sourced(drawn.drawn, drawn.sources, geometry, position.count, traced)
   }

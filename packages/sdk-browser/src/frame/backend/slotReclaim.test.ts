@@ -1,41 +1,26 @@
 import test from 'node:test'
-import { MANIFEST_IDENTITY } from '../../session/engine/pagesEngine.fixture.ts'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
 import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
-import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { camera } from './testScenes.fixture.ts'
-import { twoCoarseQuadsScene } from './coarseQuads.fixture.ts'
-import { deepQuadScene } from './deepQuad.fixture.ts'
-import { EVICT_IN_USE } from '../../gpu/sort/rank.ts'
+import { deepCoarseQuadsScene } from './coarseQuads.fixture.ts'
+import { EVICT_IN_USE } from '../../gpu/sort/rank.fixture.ts'
 import { DAG_READBACK_SLOTS } from '../../geometry/dag/layout.ts'
-import type { ClusterManifest, Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { VISIBLE_RECORD_WORDS } from '../../geometry/dag/visible/layout.ts'
+import { VIS_HW, VIS_SW, VISIBLE_HEADER_WORDS } from '../../geometry/dag/visible/layout.fixture.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
-/** `twoCoarseQuadsScene`, its manifest completed with the cache-identity fields the fixture
- *  omits — unread by the backends under test. Its second primitive's `pages` carry every `Page`
- *  field at runtime (`...page` spread in the fixture); only the inline callback annotation
- *  there narrows the static type to `{ url: string }`, which this cast corrects. */
-function scene() {
-  const raw = twoCoarseQuadsScene(deepQuadScene)
-  const metadata: ClusterManifest = {
-    ...raw.metadata,
-    ...MANIFEST_IDENTITY,
-    primitives: raw.metadata.primitives as Primitive[],
-  }
-  return { ...raw, metadata }
-}
-
 test('GPU camera jumps reclaim detail slots while preserving pinned coarse coverage', async () => {
   installGpuGlobals()
-  const fixture = scene()
+  const fixture = deepCoarseQuadsScene()
   const collected = collectClusterPages(
     fixture.source,
     graphDraws(fixture.source, fixture.associations),
@@ -67,10 +52,7 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
       for (let step = 0; step < 32; step++) {
         draws.length = 0
         backend.render(cam)
-        assert.ok(
-          drawnPageIds(buffers, packed).length > 0,
-          'current cut must retain visible coverage',
-        )
+        assert.ok(drawnPageIds(buffers).length > 0, 'current cut must retain visible coverage')
         await backend.flush()
         assert.equal(backend.metrics().submittedTriangles, 2)
         const selected = backend.selectedPageIds().sort()
@@ -86,12 +68,12 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
   }
 })
 
-test('a recycled page-table row describes its new cluster and reaches the GPU before the image reads it', async () => {
+test('a recycled pool slot is described by its new cluster in the decoded records, which the host never writes', async () => {
   installGpuGlobals()
-  const { device, writes, buffers, submits } = fakeDevice(BACKEND),
-    fixture = scene()
+  const { device, writes, buffers } = fakeDevice(BACKEND),
+    fixture = deepCoarseQuadsScene()
   // Eight clusters share five slots, the two roots' among them, so every jump between the two
-  // primitives recycles rows on eviction.
+  // primitives recycles slots on eviction.
   const backend = webgpuPagesEngine({
     textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
@@ -117,59 +99,60 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
         look(round % 2 ? 100 : 0)
         await backend.flush()
       }
-    assert.ok(backend.metrics().cacheEvictions! > 0, 'the run has to recycle rows')
-    const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')
-    assert.ok(table, 'the page table is allocated once')
+    assert.ok(backend.metrics().cacheEvictions! > 0, 'the run has to recycle slots')
+    const table = buffers.findLast((buffer) => buffer.label === 'Trillion3D decoded clusters')
+    assert.ok(table, 'the decoded clusters are allocated')
     const rows = new Uint32Array(
       table.data.buffer,
       table.data.byteOffset,
       table.data.byteLength / 4,
     )
-    // The rows the image reads, `[0, rows)` of the draw compaction, its uniform's first word
-    // (`encodeDraw`; `../../geometry/rows/slots.ts`: ranks stay contiguous) — the last made, a grown
-    // table's —; a rank past them, left by a row moved down, is read by no pass.
-    const uniform = buffers.findLast(
-      (buffer) => buffer.label === 'Trillion3D draw compaction uniform',
-    )!
-    const live = new Uint32Array(uniform.data.buffer, uniform.data.byteOffset, uniform.size / 4)[0]
-    assert.ok(live > 0 && live <= table.size / PAGE_INFO_STRIDE, `${live} rows read`)
+    // The clusters the image reads, the software raster's from the start of the list and the
+    // hardware raster's from its end (`geometry/dag/visible/layout.ts`), the indices of the list.
+    const list = buffers.findLast((buffer) => buffer.label === 'Trillion3D DAG visible clusters')!
+    const header = new Uint32Array(list.data.buffer, list.data.byteOffset, VISIBLE_HEADER_WORDS)
+    const cap = (list.size / 4 - VISIBLE_HEADER_WORDS) / VISIBLE_RECORD_WORDS
+    const live = [
+      ...Array.from({ length: header[VIS_SW] }, (_, k) => k),
+      ...Array.from({ length: header[VIS_HW] }, (_, k) => cap - 1 - k),
+    ]
+    assert.ok(live.length > 0, 'clusters are read')
     const seen = new Set<number>(),
       slots = new Set<number>()
-    for (let row = 0; row < live; row++) {
-      const base = row * ROW_WORDS,
+    for (const v of live) {
+      const base = v * ROW_WORDS,
         indexCount = rows[base + PAGE_INFO.at.indexCount]
       if (!indexCount) continue
-      // A live row names itself, so a recycled row cannot be read through the identifier of its predecessor.
-      assert.equal(rows[base + PAGE_INFO.at.packedBase], (row + 1) << 8, `row ${row} identifier`)
-      // Its index range is one of the fixture's clusters, and no two live rows claim the same cluster or
-      // the same GPU slot: a row still describing the cluster it was recycled from would do both.
-      assert.ok(indexCount === 3 || indexCount === 6, `row ${row} index count ${indexCount}`)
+      // A record names itself by its place in the list, so a recycled slot cannot be read through
+      // the identifier of its predecessor.
+      assert.equal(rows[base + PAGE_INFO.at.packedBase], (v + 1) << 8, `cluster ${v} identifier`)
+      // Its index range is one of the fixture's clusters, and no two clusters claim the same cluster
+      // or the same GPU slot: a record still describing the cluster its slot was recycled from would
+      // do both.
+      assert.ok(indexCount === 3 || indexCount === 6, `cluster ${v} index count ${indexCount}`)
       assert.equal(
         seen.has(rows[base + PAGE_INFO.at.selectionIndex]),
         false,
-        `row ${row} duplicates cluster ${rows[base + PAGE_INFO.at.selectionIndex]}`,
+        `cluster ${v} duplicates cluster ${rows[base + PAGE_INFO.at.selectionIndex]}`,
       )
       assert.equal(
         slots.has(rows[base + PAGE_INFO.at.pageOffset]),
         false,
-        `row ${row} duplicates slot ${rows[base + PAGE_INFO.at.pageOffset]}`,
+        `cluster ${v} duplicates slot ${rows[base + PAGE_INFO.at.pageOffset]}`,
       )
       seen.add(rows[base + PAGE_INFO.at.selectionIndex])
       slots.add(rows[base + PAGE_INFO.at.pageOffset])
     }
-    // The rows are a cache of the resident instances the cut draws or asks (`../../geometry/rows/slots.ts`): a
-    // leaked row would show up as a live row past the resident pages, and none at all as a lost one.
+    // The records describe the resident instances the cut draws: a leaked one would show up as a
+    // record past the resident pages.
     assert.ok(
       seen.size > 0 && seen.size <= backend.metrics().residentPages!,
-      `live rows ${seen.size}`,
+      `live clusters ${seen.size}`,
     )
-    const lastRowWrite = writes
-      .filter((write) => write.buffer.label === 'Trillion3D page table')
-      .at(-1)
-    assert.ok(lastRowWrite, 'rows are uploaded')
-    assert.ok(
-      lastRowWrite.seq < submits.at(-1)!,
-      'a row is uploaded before the image that reads it is submitted',
+    assert.equal(
+      writes.filter((write) => write.buffer.label === 'Trillion3D decoded clusters').length,
+      0,
+      'the decode writes the records: the host sends none',
     )
   } finally {
     backend.dispose()

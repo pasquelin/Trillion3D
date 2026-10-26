@@ -1,6 +1,6 @@
-// The depth pyramid's three layers on the machine's device (`hiz/gpu/shader.ts`): the occluders'
+// The depth pyramid's two slices on the machine's device (`hiz/gpu/shader.ts`): the occluders'
 // depth built by `encodePyramid`, then a finished depth, nearer where more was drawn, by
-// `encodeNearest`. The pyramid texture is read back whole and compared with the oracle's
+// `encodeFull`. The pyramid texture is read back whole and compared with the oracle's
 // reductions (`sdk-core/src/hiz/oracles.fixture.ts`), bit for bit; the finished depth's farthest
 // layer reduces the far corner of each pixel's plane, not its depth.
 import { fromF32Bits } from '../../../packages/math/src/float/bits.ts'
@@ -107,11 +107,11 @@ export async function testWholeFarthest(cases: WholeFarthestCase[]) {
     draw(occluders, (open) => hiz.encodePyramid(open))
     // The finished depth's farthest layer is the planes' build's (`hizTrace` `'planes'`).
     hiz.planes(true)
-    draw(finished, (open) => hiz.encodeNearest(open))
+    draw(finished, (open) => hiz.encodeFull(open))
     const size = pyramidBytes(width, height),
       { texels } = size
     const layers = []
-    for (let layer = 0; layer < 3; layer++)
+    for (let layer = 0; layer < 2; layer++)
       layers.push(await readLayer(device, pyramid.pyramid, layer, size))
     const cull = hizPackedFrom(layers, HIZ_CULL_FARTHEST, size)
     const whole = hizPackedFrom(layers, HIZ_WHOLE_FARTHEST, size)

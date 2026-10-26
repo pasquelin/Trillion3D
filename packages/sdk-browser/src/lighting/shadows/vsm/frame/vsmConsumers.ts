@@ -18,9 +18,9 @@ function projectedVsm(rt: WebgpuPagesRuntime) {
   return vsm?.plan && vsm.plan.projectionCount > 0 ? vsm : undefined
 }
 
-/** This frame's resources a non-mask read takes (the translucent layers): the maps, the pool's first slice —
- *  its one window (`VSM_FORWARD_LAYOUT`) — and the projection's view and noise its fragments trace
- *  with (`vsmTraceFactor`), or none. */
+/** This frame's resources a non-mask read takes (the translucent layers): the maps, the pool's first
+ *  slice — one buffer (`VSM_FORWARD_LAYOUT`) — and the projection's view and noise its fragments
+ *  trace with (`vsmTraceFactor`), or none. */
 export function vsmConsumerResources(rt: WebgpuPagesRuntime) {
   const vsm = projectedVsm(rt)
   const shared = vsm && vsmProjectionShared(vsm.res)
@@ -28,7 +28,7 @@ export function vsmConsumerResources(rt: WebgpuPagesRuntime) {
   consumer.pageTable = vsm.res.current.pageTable
   consumer.projectionData = vsm.res.current.projectionData
   consumer.uniforms = vsm.res.current.uniforms
-  consumer.pool = vsm.res.pagePool[0][0]
+  consumer.pool = vsm.res.pagePool[0]
   consumer.view = shared.view
   consumer.noise = shared.noise
   return consumer
@@ -52,12 +52,11 @@ export function vsmOrStandIns(
   return standIns
 }
 
-/** The transmission atlas the shadow reads multiply by, or none. */
-export const vsmTransmissionView = (rt: WebgpuPagesRuntime) => projectedVsm(rt)?.transmission?.view
-
-/** The mask's transmission the lighting pass reads (`vsmMaskThrough`), or none this frame. */
-export const vsmShadowThrough = (rt: WebgpuPagesRuntime) => projectedVsm(rt)?.mask?.throughView
-/** The mask the lighting pass reads, or none this frame. */
-export const vsmShadowMask = (rt: WebgpuPagesRuntime) => projectedVsm(rt)?.mask?.view
-/** The mask's tile words the lighting pass reads with it (`vsmMaskFactor`), or none this frame. */
-export const vsmShadowMaskTiles = (rt: WebgpuPagesRuntime) => projectedVsm(rt)?.mask?.tilesView
+/** The local lights' mask the lighting pass reads (`vsmLocalFactor`), or none this frame. */
+export const vsmShadowMask = (rt: WebgpuPagesRuntime) => projectedVsm(rt)?.mask?.localsView
+/** The shadowed lights' grid the lighting pass finds a light's lane of the local lights' mask in
+ *  (`vsmMaskLaneOf`), or none this frame. */
+export const vsmShadowedLightGrid = (rt: WebgpuPagesRuntime) =>
+  projectedVsm(rt)?.res.projection?.lightGrid
+/** The suns' mask the lighting pass reads with it (a layer a sun), or none this frame. */
+export const vsmSunShadowMask = (rt: WebgpuPagesRuntime) => projectedVsm(rt)?.mask?.sunsView

@@ -12,17 +12,18 @@
  */
 import { createJobHeap, takeAdmissible } from './queueOrder.ts'
 import type { Job } from './types.ts'
+import { entryOf } from '../../../../math/src/sequence/counts.ts'
 
 /** Each file's queued ranges by one end: where they start, or where they end. */
 type Ends = Map<string, Map<number, Job>>
+
+const newEnds = () => new Map<number, Job>()
 
 const endOf = (job: Job) => job.range!.offset + job.bytes
 
 /** `job` at `at` of `file` in `ends`. */
 function put(ends: Ends, file: string, at: number, job: Job) {
-  let own = ends.get(file)
-  if (!own) ends.set(file, (own = new Map()))
-  own.set(at, job)
+  entryOf(ends, file, newEnds).set(at, job)
 }
 
 /** `job` at `at` of `file` out of `ends`, if it is the one there. */

@@ -7,12 +7,11 @@ use trillion3d_math::color::srgb_byte_to_linear;
 /// Mean color of a texture, decoded right here. Oracle does not read the cache preview: it
 /// recomputes the average on the source image, embedded or linked, so both paths verify each other.
 fn texture_mean(g: &Value, bin: &[u8], directory: &Path, texture: u64) -> Option<[f64; 3]> {
-    let image = g
+    let entry = g
         .get("textures")
         .and_then(Value::as_array)?
-        .get(texture as usize)?
-        .get("source")
-        .and_then(Value::as_u64)?;
+        .get(texture as usize)?;
+    let image = crate::texture::binding::texture_image(entry)?;
     let image = g
         .get("images")
         .and_then(Value::as_array)?

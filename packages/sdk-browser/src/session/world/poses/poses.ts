@@ -73,6 +73,14 @@ export function createWorldPoses() {
     moved(node: Object3D) {
       state.moved.add(node)
     },
+    /** `parent`'s children changed: a parent the session composes may no longer hold leaf meshes
+     *  alone, and the children it gained or lost have rows nobody writes while it follows its
+     *  link. It is dropped and written whole at the next frame, linked again if it still may be. */
+    structure(parent: Object3D) {
+      if (!state.composed.delete(parent)) return
+      state.dropped.add(parent)
+      state.moved.add(parent)
+    },
     get pending() {
       return state.moved.size > 0 || state.ranges.size > 0
     },

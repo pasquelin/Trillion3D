@@ -38,9 +38,8 @@ export function createBlendCopyRecord(
     surface,
     matrix: world,
     placement,
-    frustumCulled: source?.frustumCulled ?? true,
     renderOrder,
-    userData: { drawSource: source },
+    drawSource: source,
   }
   return copy
 }

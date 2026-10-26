@@ -11,8 +11,9 @@
 //! - the propagation (`propagate`): a point placed in a neighbour's frame, turned by the angle
 //!   between that frame's first axis and the seed frame's turned onto the neighbour's normal.
 use crate::hlod::flatten::mesh::plane_angle;
+use trillion3d_math::matrix::rotation::half_angle_wxyz;
 use trillion3d_math::vector::vec3::{cross, unit_or_itself, unit_where};
-use trillion3d_math::vector::vecn::{add, dot, scale, sub};
+use trillion3d_math::vector::vecn::{add, dot, length, scale, sub};
 
 /// A unit quaternion `(x, y, z, w)`.
 type Turn = [f64; 4];
@@ -30,11 +31,8 @@ const TOLERANCE: f64 = 1e-8;
 
 /// `q` made unit — each part times the inverse of its length —, none when it has no length.
 fn unit_turn(q: Turn) -> Option<Turn> {
-    let length = dot(q, q).sqrt();
-    (length > 0.0).then(|| {
-        let inverse = 1.0 / length;
-        q.map(|part| part * inverse)
-    })
+    let length = length(q);
+    (length > 0.0).then(|| scale(q, 1.0 / length))
 }
 
 /// The turn `a` after `b`: their product `a · b`.
@@ -67,9 +65,8 @@ fn from_to(from: [f64; 3], to: [f64; 3]) -> Turn {
 
 /// The turn of `degrees` about unit `axis`.
 fn about(axis: [f64; 3], degrees: f64) -> Turn {
-    let half = 0.5 * degrees.to_radians();
-    let sin = half.sin();
-    [sin * axis[0], sin * axis[1], sin * axis[2], half.cos()]
+    let [w, x, y, z] = half_angle_wxyz(axis, degrees.to_radians());
+    [x, y, z, w]
 }
 
 /// The turn of the matrix whose columns are `columns`, unit or not, made unit: from the trace when

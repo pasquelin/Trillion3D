@@ -132,11 +132,6 @@ impl Sources {
         let extents: [f32; 3] = std::array::from_fn(|k| self.high[k] - self.low[k]);
         extents[major_axis(extents)]
     }
-
-    /// Whether the bounds hold a volume: every side longer than nothing.
-    pub(super) fn has_volume(&self) -> bool {
-        (0..3).all(|k| self.high[k] > self.low[k])
-    }
 }
 
 /// The sources' triangles in a field's index space: each corner times the voxel's inverse.

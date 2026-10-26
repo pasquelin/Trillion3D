@@ -71,8 +71,9 @@ pub(super) fn gather(
     Ok(out)
 }
 
-/// A vertex once on every grid: two vertices that quantize alike decode alike, so one is kept.
-#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
+/// A vertex once on every grid: two vertices that quantize alike and deform alike decode alike, so
+/// a page keeps one.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Cell {
     pub position: [u32; 3],
     pub normal: [u32; 2],
@@ -80,7 +81,8 @@ pub struct Cell {
     pub color: [u32; 4],
     /// The stored tangent's code (`bits::tangent_code`), zero on a page that stores none.
     pub tangent: u32,
-    /// Rank of the vertex's deformation fields among the page's (`deform.rs`).
+    /// Rank of the vertex's deformation fields among the page's (`deform.rs`); no part of the
+    /// vertex another page names (`refs.rs`).
     pub extra: u32,
 }
 

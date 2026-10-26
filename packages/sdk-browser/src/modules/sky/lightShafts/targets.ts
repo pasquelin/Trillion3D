@@ -48,6 +48,35 @@ function makeImages(device: GPUDevice, texture: Size): LightShaftImages {
   }
 }
 
+/** The uniforms of the draws of an image: a slot of one buffer for each, grown when it is full. */
+function createUniformSlots(device: GPUDevice) {
+  let uniforms: GPUBuffer | undefined
+  let slots = 0
+  return {
+    /** Begins an image: its draws take the slots from the first. */
+    begin: () => void (slots = 0),
+    /** The next slot's uniform, `floats` written into it; the buffer and the offset to bind. */
+    slot(floats: Float32Array<ArrayBuffer>) {
+      if (!uniforms || (slots + 1) * SLOT_BYTES > uniforms.size) {
+        if (uniforms) retire(device, uniforms)
+        uniforms = device.createBuffer({
+          label: 'Trillion3D light shafts uniforms',
+          size: Math.max(16, 2 * (slots + 1)) * SLOT_BYTES,
+          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        })
+      }
+      const offset = slots++ * SLOT_BYTES
+      device.queue.writeBuffer(uniforms, offset, floats)
+      return { slot: slots - 1, buffer: uniforms, offset }
+    },
+    bytes: () => uniforms?.size ?? 0,
+    dispose() {
+      if (uniforms) retire(device, uniforms)
+      uniforms = undefined
+    },
+  }
+}
+
 /**
  * WHAT A VIEW HOLDS OF THE LIGHT SHAFTS, on the GPU: the images the chains draw in (`LightShaftImages`,
  * made for the shafts' texture size, kept while it is that), the history of the occlusion's chain
@@ -56,8 +85,7 @@ function makeImages(device: GPUDevice, texture: Size): LightShaftImages {
  */
 export function createLightShaftTargets(device: GPUDevice) {
   let images: LightShaftImages | undefined
-  let uniforms: GPUBuffer | undefined
-  let slots = 0
+  const uniforms = createUniformSlots(device)
   const histories = new Map<string, LightShaftHistory>()
   const targets = {
     /** The images, made for `sizes` where they are not. */
@@ -83,33 +111,18 @@ export function createLightShaftTargets(device: GPUDevice) {
           histories.delete(key)
         }
     },
-    /** Begins an image: its draws take the slots from the first. */
-    begin: () => void (slots = 0),
-    /** The next slot's uniform, `floats` written into it; the buffer and the offset to bind. */
-    slot(floats: Float32Array<ArrayBuffer>) {
-      if (!uniforms || (slots + 1) * SLOT_BYTES > uniforms.size) {
-        if (uniforms) retire(device, uniforms)
-        uniforms = device.createBuffer({
-          label: 'Trillion3D light shafts uniforms',
-          size: Math.max(16, 2 * (slots + 1)) * SLOT_BYTES,
-          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        })
-      }
-      const offset = slots++ * SLOT_BYTES
-      device.queue.writeBuffer(uniforms, offset, floats)
-      return { slot: slots - 1, buffer: uniforms, offset }
-    },
+    begin: uniforms.begin,
+    slot: uniforms.slot,
     /** Bytes the images, the histories and the uniforms hold. */
     get bytes() {
-      let bytes = (images?.bytes ?? 0) + (uniforms?.size ?? 0)
+      let bytes = (images?.bytes ?? 0) + uniforms.bytes()
       for (const history of histories.values()) bytes += history.bytes
       return bytes
     },
     dispose() {
       images?.dispose()
       images = undefined
-      if (uniforms) retire(device, uniforms)
-      uniforms = undefined
+      uniforms.dispose()
       for (const history of histories.values()) history.drop()
       histories.clear()
     },

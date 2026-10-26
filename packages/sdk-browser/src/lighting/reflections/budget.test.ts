@@ -18,15 +18,31 @@ const SCENES = 40
 const WIDTH = 320,
   HEIGHT = 180
 
+/** The highest the water of `amplitude` rises: its two swells' amplitudes added. */
+const crest = (amplitude: number) => 1.6 * amplitude
+
 /** The height of the water at `(x, z)`: two crossing swells, the second steeper. */
 const wave = (amplitude: number, x: number, z: number) =>
   amplitude * (Math.sin(0.9 * x + 0.3 * z) + 0.6 * Math.sin(2.1 * z - 1.3 * x))
 
 /** The first `t` at which the ray `o + d·t` is under the surface `y = height(x, z)`, found by a
- *  march of steps shrinking toward the horizon and bisected, or Infinity. */
-function castHeightfield(o: Vec3, d: Vec3, height: (x: number, z: number) => number) {
+ *  march of steps shrinking toward the horizon and bisected, or Infinity. The surface never rises
+ *  above `ceiling`: the march starts at the first step the ray can be under it, none for a ray that
+ *  never comes down to it, the same steps as from the first. */
+function castHeightfield(
+  o: Vec3,
+  d: Vec3,
+  height: (x: number, z: number) => number,
+  ceiling: number,
+) {
+  let from = 0.02
+  if (o[1] > ceiling) {
+    if (d[1] >= 0) return Infinity
+    from *=
+      1.01 ** Math.max(0, Math.floor(Math.log((o[1] - ceiling) / -d[1] / from) / Math.log(1.01)))
+  }
   let previous = 0
-  for (let t = 0.02; t < 400; t *= 1.01) {
+  for (let t = from; t < 400; t *= 1.01) {
     const y = o[1] + d[1] * t - height(o[0] + d[0] * t, o[2] + d[2] * t)
     if (y <= 0) {
       let lo = previous,
@@ -44,12 +60,13 @@ function castHeightfield(o: Vec3, d: Vec3, height: (x: number, z: number) => num
   return Infinity
 }
 
-/** The depth a view of the floor `height` and a wall `wallDistance` away draws, and the floor point each pixel shows
+/** The depth a view of the floor `height`, no higher than `ceiling`, and a wall `wallDistance` away draws, and the floor point each pixel shows
  *  (none where the wall does). */
 function seen(
   view: ReturnType<typeof camera>,
   eye: Vec3,
   height: (x: number, z: number) => number,
+  ceiling: number,
   wallDistance: number,
 ) {
   const depth = new Float64Array(WIDTH * HEIGHT)
@@ -57,7 +74,7 @@ function seen(
   for (let y = 0; y < HEIGHT; y++)
     for (let x = 0; x < WIDTH; x++) {
       const d = view.ray(x + 0.5, y + 0.5)
-      const floor = castHeightfield(eye, d, height)
+      const floor = castHeightfield(eye, d, height, ceiling)
       const wall = d[2] < 0 ? wallDistance / -d[2] : Infinity
       const t = Math.min(floor, wall)
       depth[y * WIDTH + x] = view.depthOf(d, t)
@@ -85,7 +102,7 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
       Math.PI / 3,
     )
     const wallDistance = 12 + 30 * rand()
-    const { depth, surfaces } = seen(view, eye, height, wallDistance)
+    const { depth, surfaces } = seen(view, eye, height, crest(amplitude), wallDistance)
     const run = reflectionRunner(...sceneFromDepth(view, depth))
     for (let k = 0; k < RAYS / SCENES; k++) {
       let P: Vec3 | undefined
@@ -101,7 +118,7 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
       if (dotVector3(V, N) <= 0) continue
       const R = reflect(scale(V, -1), N)
       const alpha = 0.0028
-      const lobe = run.reflectionLobeOf(R, alpha, [0, 0, 0, alpha])
+      const lobe = run.reflectionLobeOf(R, alpha)
       const ray = run.reflectionRaySpan(
         P,
         N,

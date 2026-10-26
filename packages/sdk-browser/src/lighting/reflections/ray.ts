@@ -14,11 +14,7 @@ import { SCREEN_MARCH_WGSL } from '../../visibility/hiz/gpu/screenMarch.ts'
  * starts and how long it is. It leaves the surface off along its normal by `reflectionRayBias`, twice the distance
  * from the pixel's point to its far corner measured along the normal: a ray never starts inside the depth it leaves.
  * `reflectionReach`: the world distance along a reflected ray, from its origin `A` (clip) along
- * `toward` (clip), to which the screen can answer: where it meets the near plane, or where the
- * lobe's footprint grows to the radiance pyramid's top level — the widest short axis, or the long
- * axis's share of the taps, 2 · s · tan = 2^top pixels, a pixel `scale · w` wide at the clip `w`
- * of the point, which grows along the ray at `toward.w` —, past which `reflectionLevelTrust` is
- * zero. A mirror's reach is the near plane's, or `REFLECTION_FAR`.
+ * `toward` (clip), to which the screen can answer: where it meets the near plane, or `REFLECTION_FAR`.
  */
 export const reflectionRayWgsl = (group: number) =>
   wgslBlock(
@@ -30,13 +26,9 @@ export const reflectionRayWgsl = (group: number) =>
       clipToFramebuffer,
       SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING),
     ],
-    `fn reflectionReach(A:vec4f,toward:vec4f,lobe:ReflectionLobe)->f32{
+    `fn reflectionReach(A:vec4f,toward:vec4f)->f32{
  let grow=toward.z-toward.w;
- let near=select(REFLECTION_FAR,(A.w-A.z)/grow,grow>0.0);
- let tangent=reflectionReadTangent(lobe);
- let top=exp2(reflectionView.radiance.z)*reflectionView.slab.x;
- let room=2.0*tangent-top*toward.w;
- return min(near,select(REFLECTION_FAR,top*A.w/room,room>0.0));
+ return select(REFLECTION_FAR,(A.w-A.z)/grow,grow>0.0);
 }
 fn reflectionRayBias(P:vec3f,N:vec3f)->f32{
  let S=clipToFramebuffer(reflectionView.viewProj*vec4f(P,1.0),view.viewport.xy);
@@ -48,7 +40,7 @@ fn reflectionRaySpan(P:vec3f,N:vec3f,lobe:ReflectionLobe,bias:f32,start:f32,stop
  let origin=P+N*bias;
  let A=reflectionView.viewProj*vec4f(origin,1.0);
  let toward=reflectionView.viewProj*vec4f(lobe.R,0.0);
- let reach=min(reflectionReach(A,toward,lobe),stop);
+ let reach=min(reflectionReach(A,toward),stop);
  let B=A+toward*start;
  let E=A+toward*reach;
  let S0=clipToFramebuffer(B,size);

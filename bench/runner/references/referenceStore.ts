@@ -2,7 +2,7 @@
 // how the class-2 proof (`references/referenceProof.ts`) reads them back.
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { decodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
+import { decodePng } from '../../../packages/sdk-node/src/image/png.mts'
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'

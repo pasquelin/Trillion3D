@@ -1,4 +1,3 @@
-import type { HostAttributes } from '../../../session/host/resources.ts'
 import type { GeometryBlock } from '../../rows/page/pageRowMaterial.ts'
 import { LAYOUT, LISTS, poolFits, poolFloats, type PoolList } from './geometryPoolLayout.ts'
 import {
@@ -13,6 +12,7 @@ import { releaseScratch } from './geometryPoolScratch.ts'
 import { holds, put, type Pool } from './geometryPoolWrite.ts'
 import { grownLength } from '../../../../../math/src/sequence/resized.ts'
 import { nextPow2 } from '../../../../../math/src/scalar/integers.ts'
+import type { Geometry } from '../../../../../sdk-core/src/world/geometry/geometry.ts'
 
 /** The lists of the normal atlas, written again at a growth. */
 const ATLAS_LISTS: readonly PoolList[] = ['normal', 'uv1']
@@ -25,7 +25,7 @@ const floatsOf = (p: Carried, count: number, tail: number) =>
   poolFloats(count, tail, p.coloured, p.secondUv)
 
 /** The bytes `count` vertices of list `name` of `attributes` weigh in the pool, if it holds it. */
-const weigh = (p: Pool, attributes: HostAttributes, name: PoolList, count: number) =>
+const weigh = (p: Pool, attributes: Geometry['attributes'], name: PoolList, count: number) =>
   holds(p, attributes, name) ? count * LAYOUT[name].stride * 4 : 0
 
 /** The pool laid out for `size` vertices and a tail of `tail` floats, in place, carrying the lists
@@ -87,7 +87,7 @@ export function reserveTail(p: Pool, tail: number) {
 /** The pool carries the lists `attributes` has — colours, a second UV set — which it was opened
  *  without: laid out wider by the open's own rule (`poolFloats`), what it holds copied, the owners
  *  told. False when the device refuses the size. */
-function widen(p: Pool, attributes: HostAttributes) {
+function widen(p: Pool, attributes: Geometry['attributes']) {
   const carried = {
     coloured: p.coloured || !!attributes.color,
     secondUv: p.secondUv || !!attributes.uv1,
@@ -100,7 +100,7 @@ function widen(p: Pool, attributes: HostAttributes) {
 
 /** A block for `attributes` in the room left, grown when it is spent; undefined when the device
  *  bounds the size. */
-export function claim(p: Pool, attributes: HostAttributes, dynamic: boolean) {
+export function claim(p: Pool, attributes: Geometry['attributes'], dynamic: boolean) {
   const count = attributes.position?.count ?? 0
   if (!widen(p, attributes) || !ensure(p, count)) return undefined
   const block: GeometryBlock = {
@@ -117,7 +117,7 @@ export function claim(p: Pool, attributes: HostAttributes, dynamic: boolean) {
  *  normal with its tangent — in place, no buffer allocated; returns the bytes written. */
 export function writeBlock(
   p: Pool,
-  attributes: HostAttributes,
+  attributes: Geometry['attributes'],
   name: PoolList,
   from: number,
   count: number,
@@ -129,7 +129,7 @@ export function writeBlock(
 }
 
 /** The block of `attributes`, placed when it has none, each of its lists written. */
-export function placeBlock(p: Pool, attributes: HostAttributes, dynamic: boolean) {
+export function placeBlock(p: Pool, attributes: Geometry['attributes'], dynamic: boolean) {
   const known = p.blocks.get(attributes)
   if (known) return known
   const block = claim(p, attributes, dynamic)
@@ -141,7 +141,7 @@ export function placeBlock(p: Pool, attributes: HostAttributes, dynamic: boolean
  *  its block is still to place. */
 export function poolBytesOf(
   p: Pool,
-  attributes: HostAttributes,
+  attributes: Geometry['attributes'],
   ranges: readonly { name: PoolList; count: number }[],
 ) {
   let bytes = 0

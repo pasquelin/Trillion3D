@@ -9,17 +9,24 @@
  * run this very text (`filterWeights.fixture.ts`).
  */
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { FULL_PRECISION, HALF_PRECISION, type Precision } from './colorSpaceWgsl.ts'
 
 /** The minimal contribution of a sample of the kernel: no weight sum of the 3×3 is ever zero. */
 const MINIMAL_CONTRIBUTION = 0.005
 
-export const TAA_WINDOW_WGSL = wgslBlock(
-  'TAA_WINDOW_WGSL',
-  [],
-  `fn taaKernel(d2:f32,minimal:f32)->f32{
+const windowText = ({ F, S }: Precision) => `fn taaKernel${S}(d2:${F},minimal:${F})->${F}{
  let x2=saturate(d2);
  return saturate((0.9*x2-1.9)*x2+1.0+minimal);
 }
-fn taaWindow(d2:f32)->f32{return taaKernel(d2,${MINIMAL_CONTRIBUTION});}
-fn taaAlignment(d2:f32)->f32{return taaKernel(d2,0.0);}`,
+fn taaWindow${S}(d2:${F})->${F}{return taaKernel${S}(d2,${MINIMAL_CONTRIBUTION});}
+fn taaAlignment${S}(d2:${F})->${F}{return taaKernel${S}(d2,0.0);}`
+
+const TAA_WINDOW_WGSL = wgslBlock('TAA_WINDOW_WGSL', [], windowText(FULL_PRECISION))
+const TAA_WINDOW_HALF_WGSL = wgslBlock(
+  'TAA_WINDOW_HALF_WGSL',
+  HALF_PRECISION.enable,
+  windowText(HALF_PRECISION),
 )
+/** The window in precision `p`, its names suffixed by `p.S` (`Precision`). */
+export const taaWindowWgsl = (p: Precision) =>
+  p === HALF_PRECISION ? TAA_WINDOW_HALF_WGSL : TAA_WINDOW_WGSL

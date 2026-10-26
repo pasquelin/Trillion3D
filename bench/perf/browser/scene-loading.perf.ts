@@ -12,8 +12,6 @@ import { measure } from '../../core/measure.ts'
 import { stress } from '../../core/measureStress.ts'
 import { rapport } from '../../core/report.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/geometry/selection/types.ts'
-import { referenceCollectClusterPages } from '../../oracles/browser/page-collection.ts'
-import { referenceExactPagesBounds } from '../../oracles/browser/bounds-and-index.ts'
 import {
   referenceIndexManifestBundles,
   referenceIndexManifestPages,
@@ -22,10 +20,7 @@ import { manifesteEtScene } from './support/scenesLoading.ts'
 import { DEFAULT_SCOPE } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
 
-/** A box the reference returns, or the engine's six numbers. */
-type Box = { readonly min: { toArray(): number[] }; readonly max: { toArray(): number[] } }
-const boxToArray = (box: Box | ArrayLike<number>): number[] =>
-  'min' in box ? [...box.min.toArray(), ...box.max.toArray()] : Array.from(box as ArrayLike<number>)
+const boxToArray = (box: ArrayLike<number>): number[] => Array.from(box)
 
 type ChargementScene = ReturnType<typeof manifesteEtScene>
 
@@ -80,41 +75,38 @@ const recDe = (rec: PageRec) => ({
   keyIndex: rec.keyIndex,
 })
 
-const passeCollect =
-  (fn: typeof collectClusterPages | typeof referenceCollectClusterPages) =>
-  (input: ChargementScene) => {
-    let output
-    try {
-      output = fn(
-        input.source,
-        graphDraws(input.source, input.associations),
-        input.metadata,
-        input.indices,
-      )
-    } catch (error) {
-      return { refusal: error instanceof Error ? error.message : String(error) }
-    }
-    return {
-      refusal: null,
-      requestCount: output.requests.size,
-      prepared: output.prepared,
-      pages: output.allPages.map(recDe),
-      boxes: output.roots.flatMap((root) => [
-        ...boxToArray(root.localBox ?? new Float64Array(6)),
-        ...boxToArray(root.worldBox ?? new Float64Array(6)),
-      ]),
-      bornes: output.roots.map((root) => root.culling?.nodes ?? null),
-    }
-  }
-
-const passeBounds =
-  (fn: typeof pagesBounds | typeof referenceExactPagesBounds) => (input: ChargementScene) => {
-    const manquants: string[] = []
-    const box = fn(input.source, input.associations, input.metadata, (mesh) =>
-      manquants.push(mesh.name),
+const passeCollect = (input: ChargementScene) => {
+  let output
+  try {
+    output = collectClusterPages(
+      input.source,
+      graphDraws(input.source, input.associations),
+      input.metadata,
+      input.indices,
     )
-    return { box: boxToArray(box), manquants }
+  } catch (error) {
+    return { refusal: error instanceof Error ? error.message : String(error) }
   }
+  return {
+    refusal: null,
+    requestCount: output.requests.size,
+    prepared: output.prepared,
+    pages: output.allPages.map(recDe),
+    boxes: output.roots.flatMap((root) => [
+      ...boxToArray(root.localBox ?? new Float64Array(6)),
+      ...boxToArray(root.worldBox ?? new Float64Array(6)),
+    ]),
+    bornes: output.roots.map((root) => root.culling?.nodes ?? null),
+  }
+}
+
+const passeBounds = (input: ChargementScene) => {
+  const manquants: string[] = []
+  const box = pagesBounds(input.source, input.associations, input.metadata, (mesh) =>
+    manquants.push(mesh.name),
+  )
+  return { box: boxToArray(box), manquants }
+}
 
 const passeIndex =
   (pages: typeof indexManifestPages, bundles: typeof indexManifestBundles) =>
@@ -140,8 +132,8 @@ const resCollect = await measure({
   name: 'cluster page collection',
   fichier: 'packages/sdk-browser/src/geometry/selection/collect.ts',
   cas,
-  calculation: passeCollect(collectClusterPages),
-  expected: passeCollect(referenceCollectClusterPages),
+  calculation: passeCollect,
+  motif: 'time only — correctness in packages/sdk-browser/src/deformation/bounds.test.ts',
   options: { tours: 40, budgetMs: 1500 },
 })
 
@@ -149,8 +141,8 @@ const resBounds = await measure({
   name: 'exact page bounds',
   fichier: 'packages/sdk-browser/src/scene/drive/pagesBounds.ts',
   cas,
-  calculation: passeBounds(pagesBounds),
-  expected: passeBounds(referenceExactPagesBounds),
+  calculation: passeBounds,
+  motif: 'time only — correctness in packages/sdk-browser/src/scene/drive/scene.test.ts',
   options: { tours: 40, budgetMs: 1500 },
 })
 

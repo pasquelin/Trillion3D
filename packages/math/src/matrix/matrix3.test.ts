@@ -1,12 +1,29 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { composeAffine2, normalMatrix3 } from './matrix3.ts'
+import { linearPartDeterminant } from './matrix4.ts'
+import { lcgRandom } from '../sequence/random.ts'
 import { dotVector3 } from '../vector/vector.ts'
 
 test('normalMatrix3: affine identity block yields the 3×3 identity', () => {
   const m = Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1])
   const out = normalMatrix3(new Float64Array(9), m)
   assert.deepEqual([...out], [1, 0, 0, 0, 1, 0, 0, 0, 1])
+})
+
+// The determinant is summed on the cofactors the matrix needs anyway, three products fewer than
+// `linearPartDeterminant`'s own expansion: the same bits, which this holds it to (the factor of a
+// regular matrix is the reciprocal of that determinant, the cofactor written beside it).
+test('normalMatrix3: the factor of a regular matrix is the reciprocal of linearPartDeterminant, bit for bit', () => {
+  const next = lcgRandom(5)
+  for (let i = 0; i < 2000; i++) {
+    const m = Float64Array.from({ length: 16 }, (_, k) =>
+      k % 4 === 3 ? (k === 15 ? 1 : 0) : (next() - 0.5) * 8,
+    )
+    const out = normalMatrix3(new Float64Array(9), m)
+    const first = (m[10] * m[5] - m[6] * m[9]) * (1 / linearPartDeterminant(m))
+    assert.ok(Object.is(out[0], first), `matrix ${i}`)
+  }
 })
 
 test('normalMatrix3: non-uniform scale, reciprocal diagonal term by term', () => {

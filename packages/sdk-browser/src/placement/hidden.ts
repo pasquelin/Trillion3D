@@ -1,6 +1,11 @@
 import type { ClusterRoot } from '../geometry/selection/types.ts'
 import { rowParked, type PlacementOf } from './rows/rows.ts'
-import { markCasting, nodeCasting } from '../visibility/shader/castingMark.ts'
+import {
+  HIDDEN_SHADOW_ROOT,
+  markCasting,
+  nodeCasting,
+  SHADOWLESS_ROOT,
+} from '../visibility/shader/castingMark.ts'
 import { rootedUnder } from '../scene/host/world/rooted.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
@@ -25,15 +30,21 @@ export const rootSource = <T extends { drawSource?: { node?: Object3D } }>(
   root.placement?.rows.sources?.[root.placement.index] ??
   undefined
 
-/** Root `root` (rank `rank`) parked as the one rule says — its source hidden, or its row parked —,
- *  `flip` hearing it when that flipped or when its shadow bit did (`cast`). Whether it flipped. */
+/** Whether a root hidden by its source still casts its shadow: its object says so (`castHiddenShadow`)
+ *  and casts at all. The views do not draw it (`hiddenFromViews`); the shadow maps do. */
+export const castsWhileHidden = (root: { mark?: number }) =>
+  ((root.mark ?? 0) & (HIDDEN_SHADOW_ROOT | SHADOWLESS_ROOT)) === HIDDEN_SHADOW_ROOT
+
+/** Root `root` (rank `rank`) parked as the one rule says — its source hidden and not casting while
+ *  hidden, or its row parked —, `flip` hearing it when that flipped or when its shadow bit did
+ *  (`cast`). Whether it flipped. */
 export function settleRoot<T>(
   root: ClusterRoot<T>,
   rank: number,
   flip?: (rank: number, root: ClusterRoot<T>) => void,
   cast = false,
 ) {
-  const parked = !!root.hidden || rowParked(root.placement),
+  const parked = (!!root.hidden && !castsWhileHidden(root)) || rowParked(root.placement),
     flipped = parked !== !!root.parked
   if (!flipped && !cast) return false
   root.parked = parked
@@ -82,10 +93,9 @@ function followHidden<E extends { hidden?: boolean }>(
  * row is — every cut, the light cuts included, skips it, its tables stay —, and taken back once
  * shown again, unless its row is parked. A root placed at its own node's world casts as its mesh
  * says (`nodeCasting`, its marks); a row says for its own (`followPlacementRows`). `flip`
- * hears the rank of each root that flipped: its rows, derived again, stale the shadow pages it left
- * or entered (`rows/rowCastWgsl.ts`). A see-through draw of a hidden node takes `hidden`, which its
- * selection reads (`notDrawn`), and `seeThrough.flipped` hears it and its rank. Read once per scene revision,
- * never per frame. `under`, when given, names the roots and the see-through draws to read — those
+ * hears the rank of each root that flipped. A see-through draw of a hidden node takes `hidden`,
+ * which its selection reads (`notDrawn`), and `seeThrough.flipped` hears it and its rank. Read once
+ * per scene revision, never per frame. `under`, when given, names the roots and the see-through draws to read — those
  * under the nodes the host flipped —, the others standing as they are.
  */
 export function followHostVisibility<
@@ -115,7 +125,8 @@ export function followHostVisibility<
       root = roots[rank],
       node = rootSource(root)
     if (root.placement || !node || !markCasting(root, nodeCasting(node))) continue
-    flip?.(rank, root)
+    // Its mark changed: it may now park or not while hidden.
+    settleRoot(root, rank, flip, true)
   }
   followHidden(
     seeThrough.entries,

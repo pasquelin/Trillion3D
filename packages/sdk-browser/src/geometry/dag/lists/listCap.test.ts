@@ -1,6 +1,6 @@
 // The readout's list, at the size the settings and the cut's demand give it (`requestSize.ts`):
-// the largest one whose readout and kept ranks' tables one binding of the device holds, within the
-// catalogue; one given its ranks holds them. A cut that lists more is read by its head
+// the largest one whose readout one binding of the device holds, within the catalogue; one given its
+// ranks holds them. A cut that lists more is read by its head
 // (`../../cut/adoption/adoption.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -8,7 +8,6 @@ import { listCapFor } from './listCap.ts'
 import { stagedOutputBytes } from '../layout.ts'
 import { DEFAULT_STREAMING_MIN_REQUESTS as LEAST } from '../../../../../sdk-core/src/contracts/streamingOptions.ts'
 import { deviceListCap } from '../deviceListCap.ts'
-import { keptRankRow } from '../keptRanks.ts'
 import { createDagResources } from '../resources.ts'
 import { createDagRuntime } from '../runtime/runtime.ts'
 import { packDagSelection } from '../pack/pack.ts'
@@ -16,16 +15,16 @@ import { createSelectionUniforms } from '../../../gpu/core/selection.ts'
 import { dagFixture } from '../../selection/dag.fixture.ts'
 import { packed } from '../selection/selectionHelpers.fixture.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { idleKernels, writtenReadbacks } from '../differenceRig.fixture.ts'
+import { idleKernels, writtenReadbacks } from './writtenReadbacks.fixture.ts'
 import { hostStretches } from '../hostStretches.fixture.ts'
 
-test('the list a device holds is the largest whose readout and kept ranks one binding holds', () => {
+test('the list a device holds is the largest whose readout one binding holds', () => {
   const binding = 128 << 20,
     limits = { maxStorageBufferBindingSize: binding }
   const cap = deviceListCap(limits)
-  // The readout of `cap` ranks and each kept list's table fit the binding; one rank more breaks one.
-  assert.ok(stagedOutputBytes(cap) <= binding && keptRankRow(0, cap).size <= binding)
-  assert.ok(stagedOutputBytes(cap + 1) > binding || keptRankRow(0, cap + 1).size > binding)
+  // The readout of `cap` ranks fits the binding; one rank more breaks it.
+  assert.ok(stagedOutputBytes(cap) <= binding)
+  assert.ok(stagedOutputBytes(cap + 1) > binding)
   assert.equal(listCapFor(limits, 2_000_000, LEAST), LEAST, 'a real device: the size asked')
   assert.equal(listCapFor(limits, 1000, LEAST), 1000, 'never more than the catalogue')
   assert.equal(listCapFor({ maxStorageBufferBindingSize: stagedOutputBytes(9) }, 1000, LEAST), 9)

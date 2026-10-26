@@ -20,8 +20,9 @@ test('every virtual shadow map pass label the engine can emit lands in the Shado
     'lighting/shadows/vsm/invalidation/castStale.ts',
     'lighting/shadows/vsm/pageManagementEncode.ts',
     'lighting/shadows/vsm/pageManagementPass.ts',
-    'lighting/shadows/vsm/transmission/transmissionMade.ts',
     'lighting/shadows/vsm/render/renderPipes.ts',
+    // The occlusion pyramid's build, its pass and its pipes.
+    'lighting/shadows/vsm/occlusion/occlusionPass.ts',
   ]
   const labels = new Set<string>()
   for (const file of files) {

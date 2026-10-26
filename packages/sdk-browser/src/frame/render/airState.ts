@@ -18,7 +18,7 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
  *  its own), the haze all around the capture's place (the clouds a capture draws), and the place the
  *  sky is captured from, scene metres — the sky light's, the eye's height over the origin where
  *  none is given. Each rests until it is written again. */
-export interface AirRequests {
+interface AirRequests {
   separate: boolean
   capture360: boolean
   capturePosition?: readonly [number, number, number]
@@ -55,7 +55,7 @@ export function airStateOf(rt: WebgpuPagesRuntime) {
     const values = state.watch.read(rt.context as SkyQualityOptions)
     if (state.watch.moved || !state.shape) {
       state.quality = { ...values }
-      state.shape = airShapeOf(values)
+      state.shape = airShapeOf(values, rt.setup.localFog)
       state.key = airShapeKey(state.shape)
     }
   }

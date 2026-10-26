@@ -1,3 +1,4 @@
+import { retire } from '../../../gpu/core/frameRetire.ts'
 import { allocPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
 import { HIZ_SLOT_WORDS, HIZ_UNI } from './uniforms.ts'
 import { HIZ_LEVELS_FRONT_WORD, HIZ_LEVELS_PLANES_WORD } from './levelsUniform.ts'
@@ -98,7 +99,7 @@ export function hizResize(
   if (width === gpu.width && height === gpu.height && h.at) return true
   try {
     // The drawn view's pyramid is replaced; another view's, held aside, is not touched.
-    h.at?.destroy()
+    if (h.at) retire(h.device, h.at)
     installHiz(h, gpu, allocPyramid(h.device, h.level0Usage, width, height, h.slots))
     return true
   } catch {

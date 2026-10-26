@@ -15,20 +15,17 @@ import { SPHERE_DIRECTIONS_WGSL } from './sphereSamples.ts'
  * which marches the air as the sky does (`groundSkyMarch`), so a sky light and the sky agree.
  */
 
-/** The statements that set a march of the sky's rays seen from `altitudeKm` above the ground — a
- *  number, or a WGSL expression of kilometres (the capture's `frame.capture.w`) —: the air's lights
- *  (`suns`), the ray's `start` and its `march`, the sky table's own — so a capture, a table by
- *  direction and the sky drawn agree —, and the expression of one ray's radiance along `dir`, the
- *  disks of the lights not in it (they are lights of their own). */
-export const groundSkyMarch = (altitudeKm: number | string) => `
+/** The statements that set a march of the sky's rays seen from `place`, a WGSL expression of a point
+ *  of the planet's frame in kilometres (`sceneToPlanet`): the air's lights (`suns`), the ray's `start`
+ *  — from the place itself, or, above the air, where the ray enters it (a ray that misses it marches
+ *  nothing) — and its `march`, the sky table's own (`skyViewMarch`), so a capture and the sky drawn
+ *  agree, and the expression of one ray's radiance along `dir`, the disks of the lights not in it
+ *  (they are lights of their own). */
+export const groundSkyMarch = (place: string) => `
  let suns=airSuns();
- let start=vec3f(0.0,bottomRadius()+${altitudeKm},0.0);
- var march=newMarch();
- march.variable=true;
- march.minSamples=SKY_VIEW_SAMPLES_MIN;
- march.maxSamples=samplesMaxOf(SKY_VIEW_SAMPLES_MAX,SKY_VIEW_SAMPLES_MIN);
- march.distanceInv=1.0/SKY_VIEW_DISTANCE_KM;`
-export const GROUND_SKY_RADIANCE = `integrateAir(start,dir,false,march,true,suns,1.0,9000000.0).radiance*atmo(${ATMOSPHERE_SLOT.skyFactor}u).xyz`
+ let start=moveToTopAtmosphere(${place},dir).xyz;
+ let march=skyViewMarch();`
+export const GROUND_SKY_RADIANCE = `integrateAir(start,dir,false,march,true,suns,1.0,AIR_REACH_KM).radiance*atmo(${ATMOSPHERE_SLOT.skyFactor}u).xyz`
 
 /** The statements that sum a workgroup's `part` array into its first element, halving the stride. */
 const SUM_WORKGROUP = (threads: number) => `
@@ -51,7 +48,7 @@ fn distantSkyMain(@builtin(local_invocation_index) li:u32){
  march.samples=${DISTANT_SKY.samples}.0;
  let suns=airSuns();
  let start=vec3f(0.0,bottomRadius()+DISTANT_SKY_ALTITUDE_KM,0.0);
- let r=integrateAir(start,dir,false,march,false,suns,1.0,9000000.0);
+ let r=integrateAir(start,dir,false,march,false,suns,1.0,AIR_REACH_KM);
  part[li]=r.radiance*atmo(${ATMOSPHERE_SLOT.skyFactor}u).xyz;
  workgroupBarrier();${SUM_WORKGROUP(DISTANT_SKY.directions)}
  if(li==0u){

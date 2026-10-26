@@ -20,4 +20,4 @@ pub mod writer;
 
 pub use format::*;
 pub(crate) use stage::{stage_volumetric_lightmap, LightmapInputs};
-pub use writer::{encode, write, VolumetricLightmapLayers};
+pub use writer::{encode, write, LightmapCell, VolumetricLightmapLayers};

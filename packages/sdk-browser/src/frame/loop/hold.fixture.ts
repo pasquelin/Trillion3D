@@ -1,3 +1,4 @@
+import { NO_RASTERS } from '../../materials/graph/graphRasters.ts'
 import type { GuideSet } from '../../guides/guideSet.ts'
 import { createScaleControl } from '../scale/scaleControl.ts'
 import { createFrameGateCore } from '../gate/gateCore.ts'
@@ -10,6 +11,7 @@ import { createKindSettings } from '../../post/effects/kindSettings.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
 import { NO_OVERRIDES } from '../backend/state/viewOverrides.ts'
+import { createPresentClasses } from '../../gpu/core/presentClasses.ts'
 
 /**
  * An `rt` reduced to the strict necessary read by `frameSettled`/`holdWebgpuFrame`/`keepWebgpuFrame`:
@@ -43,29 +45,34 @@ export function settledRt() {
     blendSubmittedTriangles: 0,
     blendFrustumRejected: 0,
   }
-  const rows = {
-    rowsChanged: false,
-    dirtyCount: 0,
-    rowsEpoch: 1,
-    tableEpoch: 1,
-    rowsDenied: 0,
-    packedCount: 1,
-    rowCount: 1,
-  }
+  // One packed page, opaque, its cluster record written: what `sampleWebgpuFrame` and the mask of
+  // what a still view owes read of the layout.
+  const clusters = { infoEpoch: 1, touchRevision: () => 0 }
   // The main view alone, drawn, its scale the world's controller.
   const scale = createScaleControl(undefined),
     main = { scale, overrides: NO_OVERRIDES }
   const rt = {
     run,
+    // The project switch of the local fog volumes, on (the programs the session makes hold their code).
+    setup: { localFog: true },
     views: { main, active: main, persistent: [] },
-    // No root and no caster row: the frame entry asks no roots' or rows' pass (`askFramePipelines`).
-    layout: { rows, selectionRoots: [] as unknown[], rootIndex: { revision: 0 } },
+    // No root: the frame entry asks no roots' pass (`askFramePipelines`).
+    layout: {
+      clusters,
+      packedPages: [{}] as unknown[],
+      blendedPageCount: 0,
+      selectionRoots: [] as unknown[],
+      rootIndex: { revision: 0 },
+    },
     vis: {
-      gpuDraw: true,
+      displacedClasses: createPresentClasses(),
       textureJobs: [] as unknown[],
       gpuHiz: undefined,
       // No displaced surface: the frame tessellates nothing (`tessellationWanted`).
-      materialTable: { displaced: { count: 0 } },
+      materialTable: { displaced: { count: 0 }, offsetEpoch: 0, dithers: false },
+      // No graph output the rasters hold, none joined late.
+      rasters: NO_RASTERS,
+      rasterRebuild: undefined,
     },
     lights: {
       changes: { deferred: () => false },
@@ -79,6 +86,8 @@ export function settledRt() {
     capture: { capturing: false, capturePending: false },
     services: {
       bootstrapState: { ready: true },
+      // No cluster owes its record.
+      clustersOwed: () => false,
       residency: { busy: false, progress: async () => {} },
       // Count of cut pages still waiting for their bytes, held by the difference.
       cutPending: { count: 0 },

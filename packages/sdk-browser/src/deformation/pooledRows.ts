@@ -1,12 +1,13 @@
 import { WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { ROW_WORDS, FLAG_DYNAMIC } from '../visibility/types.ts'
-import { DEFORM_TAG_WORDS, DEFORM_VERTEX_WORDS, deformOutputWord } from './outputs.ts'
+import { deformOutputWord } from './outputs.ts'
+import { DEFORM_TAG_WORDS, DEFORM_VERTEX_WORDS } from './vertexWords.ts'
 import type { GeometryBlock } from '../geometry/rows/page/pageRowMaterial.ts'
 import type { DeformationOutput } from '../geometry/selection/types.ts'
-import type { HostAttributes } from '../session/host/resources.ts'
 import type { SessionDeformation } from './session.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 
 /**
  * Setup-only layout of the float-pool blocks of the pages drawn from it (`pooled`,
@@ -36,7 +37,7 @@ export function pooledDeformationRows(
     upload(
       device: GPUDevice,
       base: number,
-      blockOf: (attributes: HostAttributes) => GeometryBlock,
+      blockOf: (attributes: Geometry['attributes']) => GeometryBlock,
     ) {
       const table = new Uint32Array(rows * ROW_WORDS)
       let row = 0

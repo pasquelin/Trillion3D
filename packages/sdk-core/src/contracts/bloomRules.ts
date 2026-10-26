@@ -19,7 +19,7 @@ import {
 
 /** The quality levels, `off` first, then coarsest to finest: each names how many of the six
  *  Gaussian levels draw (`BLOOM_QUALITY_LEVELS`). */
-export const BLOOM_QUALITY_LEVELS = ['off', 'lowest', 'low', 'medium', 'high', 'highest'] as const
+const BLOOM_QUALITY_LEVELS = ['off', 'lowest', 'low', 'medium', 'high', 'highest'] as const
 /** A quality level of the bloom. */
 export type BloomQualityLevel = (typeof BLOOM_QUALITY_LEVELS)[number]
 
@@ -70,10 +70,12 @@ export type BloomValues = SettingValues<typeof BLOOM_RULES>
 /** What each quality level below the top writes of the quality and the convolution's resolution, the
  *  reference's own scalability rows: five Gaussian levels and the convolution at 25 % of the image's
  *  width at `smooth`, five and 35.355 % at `balanced`, all six and 50 % at `fine`; `max` writes
- *  nothing: six levels and half the width, the defaults, which are its row (`runtime/qualityLevels.ts`).
- *  The blur's own settings are the Gaussian blur's (`./gaussianBlurRules.ts`). */
+ *  nothing: six levels and half the width, the defaults, which are its row (`runtime/qualityLevels.ts`);
+ *  `cinematic` all six and the whole width, the reference's last row. The blur's own settings are
+ *  the Gaussian blur's (`./gaussianBlurRules.ts`). */
 export const BLOOM_PRESET_LEVELS = {
   smooth: { bloomQuality: 'high', bloomScreenPercentage: 25 },
   balanced: { bloomQuality: 'high', bloomScreenPercentage: 35.355 },
   fine: { bloomQuality: 'highest', bloomScreenPercentage: 50 },
+  cinematic: { bloomQuality: 'highest', bloomScreenPercentage: 100 },
 } as const

@@ -4,7 +4,6 @@ import { FINITE_SENTINEL } from '../../../../../math/src/constants.ts'
 import { mirrorKey } from '../../cut/adoption/denseKeys.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from '../types.ts'
 import {
-  NODE_CEIL,
   NODE_CHILD_COUNT,
   NODE_FIRST_CHILD,
   NODE_FLOOR,
@@ -12,6 +11,7 @@ import {
   NODE_MAX,
   NODE_MIN,
   NODE_WORLD,
+  TREE_PARENT_ERROR,
 } from '../nodeLayout.ts'
 import {
   TREE_CELL,
@@ -56,7 +56,7 @@ export function packPlacementTree(packed: TreeSource, tree: PlacementTree) {
         : groupMembers(tree, j)
       nodeInts[at + NODE_KIND] = below ? TREE_CELL : TREE_GROUP
       nodeInts[at + NODE_WORLD] = 0
-      tree.nodes[at + NODE_CEIL] = -1
+      tree.nodes[at + TREE_PARENT_ERROR] = -1
       tree.nodes[at + NODE_FLOOR] = 0
     }
   })

@@ -9,14 +9,18 @@ use trillion3d_page_codec::facts::PageFacts;
 
 /// What a page's geometry descriptor says of it, as a primitive page's `geometry` does
 /// (`compiler/pages/record.rs`, `geometry_record`), without its address — the world names it by its
-/// bundle and offset —: five words.
-fn page_facts(r: &mut Records, page: &PageFacts) -> Result<()> {
+/// bundle and offset on disk —: seven words, the first its length on disk (`bytes`), the last two
+/// the bytes it takes in the pool once installed and where it lies in its streaming page's place
+/// there (`resident`).
+fn page_facts(r: &mut Records, page: &PageFacts, (bytes, resident): (usize, usize)) -> Result<()> {
     for value in [
-        page.bytes.len(),
+        bytes,
         page.vertex_count,
         page.index_count,
         page.flags as usize,
         page.decoded_bytes,
+        page.resident_bytes,
+        resident,
     ] {
         r.word(index(value)?);
     }
@@ -26,11 +30,13 @@ fn page_facts(r: &mut Records, page: &PageFacts) -> Result<()> {
 /// World cluster `slot`, named by its world rank, the same rank its group's `children` and
 /// `outputs` use: its page's place in the binary (bundle, offset), the rank of the actor whose
 /// flattened material it wears, its HLOD cell — whose switch shows it, and whose level the table
-/// carries —, and what its geometry descriptor reads of its page (`page_facts`).
+/// carries —, and what its geometry descriptor reads of its page (`page_facts`). `located` is each
+/// cluster's page and offset there on disk, `resident` its offset in the pool's place, `lengths`
+/// the bytes each page takes on disk.
 pub(crate) fn cluster(
     r: &mut Records,
     world: &WorldDag,
-    located: &[(usize, usize)],
+    (located, resident, lengths): (&[(usize, usize)], &[usize], &[usize]),
     slot: usize,
 ) -> Result<()> {
     let cluster = &world.clusters[slot];
@@ -51,20 +57,24 @@ pub(crate) fn cluster(
     r.floats((!root).then_some(&cluster.parent_sphere));
     r.floats(Some(&min));
     r.floats(Some(&max));
-    page_facts(r, &world.pages[slot])
+    page_facts(r, &world.pages[slot], (lengths[slot], resident[slot]))
 }
 
 /// `world-roots.dag` of `world`'s clusters, groups and culling nodes: a 24-byte header (magic,
-/// version, the two counts, the pool's length, the node count), then 180-byte clusters, in the
+/// version, the two counts, the pool's length, the node count), then 188-byte clusters, in the
 /// order their streaming pages are filled in (`WorldDag::in_culling_order`) — level, triangles, the
 /// rank of the actor it wears, bundle, offset, HLOD cell and two zeros, then as `f64` the error,
 /// the parent's (NaN for a root), the sphere, the parent's (NaN for a root), the minimum and the
-/// maximum, then its page's length, vertex count, index count, attribute flags and decoded bytes —,
+/// maximum, then its page's length on disk, vertex count, index count, attribute flags, decoded
+/// bytes, bytes in the pool and offset in the pool's place —,
 /// 64-byte groups — level, its children and outputs in
 /// the pool, zero, then as `f64` its error and sphere —, 128-byte culling nodes — the
 /// `CULLING_STRIDE` `f64` of a primitive's (`CullingNode::flat`) — and the pool. Every error is
 /// its actor's own build's (`builds.rs`).
-pub(super) fn encode_dag(world: &WorldDag, located: &[(usize, usize)]) -> Result<Vec<u8>> {
+pub(super) fn encode_dag(
+    world: &WorldDag,
+    located: (&[(usize, usize)], &[usize], &[usize]),
+) -> Result<Vec<u8>> {
     let mut r = Records::default();
     r.out.raw(DAG_MAGIC);
     for value in [

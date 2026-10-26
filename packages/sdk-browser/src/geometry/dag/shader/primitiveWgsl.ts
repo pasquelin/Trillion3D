@@ -34,7 +34,7 @@ fn placed(w:u32){
  placedScale=vec2f(min(s.x,min(s.y,s.z)),max(s.x,max(s.y,s.z)));
 }
 /** \`view · world\` of primitive \`w\`. */
-fn viewWorld(w:u32)->mat4x4f{placed(w);return views[0u].view*placedPose;}
+fn viewWorld(w:u32)->mat4x4f{placed(w);return cutView.view*placedPose;}
 /** Primitive \`w\`'s world at the eye (\`worldPose\`). */
 fn preparedPose(w:u32)->mat4x4f{placed(w);return placedPose;}
 /** The placement whose pose before this thread read, and that pose. */
@@ -53,10 +53,10 @@ fn placedPlane(w:u32,plane:vec4f)->vec4f{
  return select(grownPlane(placedT*plane,reachOf(w)),vec4f(0.0,0.0,0.0,1.0),unculledOf(w));
 }
 /** Plane \`i\` of the view's frustum in placement \`w\`'s space (\`placedPlane\`). */
-fn planeOf(w:u32,i:u32)->vec4f{return placedPlane(w,views[0u].planes[i]);}
+fn planeOf(w:u32,i:u32)->vec4f{return placedPlane(w,cutView.planes[i]);}
 /** Frustum planes are brought into the primitive's space, so no box is ever transformed. GPU
  *  mirror of \`frustumExcludesBox\` (sdk-core, packages/math/src/geometry/frustum/box.ts): same
- *  corners, same sum. An infinite far plane is not tested (\`farSkip\`): it rejects no box. */
+ *  corners, same sum. A view with no far plane sends the plane every box passes (\`frustum.ts\`). */
 ${outsidePlanesFn('outsideFrustum', 'w:u32,', (i) => `planeOf(w,${i})`)}
 `,
 )

@@ -1,18 +1,15 @@
 import { createChangeGate, createControlBase } from './base.ts'
-import { ADVANCE_ARROW_KEYS, axisOf, STRAFE_ARROW_KEYS, trackKeys } from './input.ts'
 import { controlPose } from './pose.ts'
 import { createHead, HEAD_DEFAULTS, headLock, type PersonHead } from './look.ts'
 import { createCharacterEye } from '../../../../sdk-core/src/collision/characterEye.ts'
 import {
   HUMAN_BODY,
-  type CharacterBody,
-  type CharacterBodyFactory,
   type CharacterSettings,
 } from '../../../../sdk-core/src/collision/characterSettings.ts'
-import { createRestingBody } from './restingBody.ts'
+import type { CharacterMode } from '../../../../sdk-core/src/collision/characterModes.ts'
+import { createBodySlot, definePhysics, trackCharacterKeys } from './characterInput.ts'
+import { createCharacterBuffers, updateCharacter, type CharacterRig } from './characterUpdate.ts'
 import type { CameraControlBase, ControlCamera } from './types.ts'
-import { yawWalk } from './math.ts'
-import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 /**
  * A CHARACTER, seen through its eyes: a body with mass that walks, runs, jumps and falls, and
@@ -20,11 +17,13 @@ import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
  *
  * The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code`
  * so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward
- * and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start
- * or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, never faster
- * than the friction of its floor lets a sole push, so a stop glides a little on stone and far on
- * ice; it keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`,
- * climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope`
+ * and back, A/D or the side arrows strafe, Space jumps, C crouches
+ * (`canCrouch`); in water the body swims where the head looks, Space rising and the crouch key sinking,
+ * and with `flying` set it flies so. The body does not start
+ * or stop at once: on a floor it gathers speed by `maxAcceleration` and brakes by
+ * `groundFriction` and `brakingDecelerationWalking`; it keeps its momentum in the air, rises and falls under the world's gravity times `gravityScale`,
+ * climbs ledges up to `stepHeight`, slides along walls and stands on
+ * slopes up to `maxSlope`
  * (`sdk-browser/src/physics/character/characterDriver.ts`, `sdk-core/src/collision/characterDrive.ts`).
  *
  * The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and
@@ -38,6 +37,10 @@ export interface CharacterCameraControls extends CameraControlBase, PersonHead, 
   readonly velocity: Readonly<Float64Array>
   /** Whether the feet are on a floor. */
   readonly onGround: boolean
+  /** How the body moves now: `walking`, `falling`, `swimming` or `flying`. */
+  readonly mode: CharacterMode
+  /** Whether the body is crouched. */
+  readonly crouched: boolean
   /** The stride's phase in radians, in [0, 2π): one foot strikes at 0, the other at π. */
   readonly stride: number
   /** Called on landing with the downward speed, in metres per second: a sound, a shake. */
@@ -48,23 +51,15 @@ export interface CharacterCameraControls extends CameraControlBase, PersonHead, 
   update(delta?: number): boolean
 }
 
-const SPRINT = ['ShiftLeft', 'ShiftRight'],
-  JUMP = 'Space'
-
 export function createCharacterCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
 ): CharacterCameraControls {
   const pose = controlPose(camera),
     base = createControlBase()
-  const at = new Float64Array(3),
-    written = new Float64Array(3).fill(NaN),
-    orientation = new Float64Array(4),
-    moved = new Float64Array(7)
+  const buffers = createCharacterBuffers()
   const gate = createChangeGate(base, 7)
-  const input = { wishX: 0, wishZ: 0, sprint: false },
-    wish = new Float64Array(2)
-  let physics: CharacterBodyFactory | null = null
+  const slot = createBodySlot()
   const api: CharacterCameraControls = {
     ...base.api,
     ...HUMAN_BODY,
@@ -73,71 +68,34 @@ export function createCharacterCameraControls(
     onLand: null,
     onJump: null,
     get velocity() {
-      return body.velocity
+      return slot.body.velocity
     },
     get onGround() {
-      return body.onGround
+      return slot.body.onGround
+    },
+    get mode() {
+      return slot.body.mode ?? 'falling'
+    },
+    get crouched() {
+      return slot.body.crouched ?? false
     },
     get stride() {
       return eye.stride
     },
     ...headLock(() => head),
-    update(delta = 0) {
-      pose.readPosition(at)
-      if (!sameValues(at, written)) body.place(at[0], at[1] - api.eyeHeight, at[2])
-      const yaw = head.turn(orientation)
-      const strafe = axisOf(keys, ...STRAFE_ARROW_KEYS),
-        advance = axisOf(keys, ...ADVANCE_ARROW_KEYS)
-      yawWalk(wish, yaw, strafe, advance)
-      input.wishX = wish[0]
-      input.wishZ = wish[1]
-      input.sprint = SPRINT.some((code) => keys.has(code))
-      const feet = body.advance(delta, input, events)
-      written.set(feet)
-      written[1] += api.eyeHeight + eye.offset(delta, body.velocity, body.onGround)
-      pose.write(written, orientation)
-      moved.set(written)
-      moved.set(orientation, 3)
-      return gate(moved)
-    },
+    update: (delta = 0) => updateCharacter(rig, delta),
   }
-  /**
-   * `physics`, kept off the public type: what makes the body of the world's physics, when it
-   * runs (`world.controls` hands it over) — Jolt's virtual character in the physics worker, which
-   * meets every body of the simulation; `null` leaves the body standing where it is. The body
-   * keeps its place across the switch.
-   */
-  Object.defineProperty(api, 'physics', {
-    get: () => physics,
-    set(next: CharacterBodyFactory | null) {
-      if (next === physics) return
-      const [x, y, z] = body.feet
-      body.dispose?.()
-      physics = next
-      body = next ? next(api) : createRestingBody()
-      body.place(x, y, z)
-    },
-  })
-  let body: CharacterBody = createRestingBody()
-  base.undo(() => body.dispose?.())
+  definePhysics(api, slot)
+  base.undo(() => slot.body.dispose?.())
   // A paused controller lets go of its keys: a body elsewhere must hear it.
-  base.onPause(() => body.advance(0, { wishX: 0, wishZ: 0, sprint: false }))
+  base.onPause(() => slot.body.advance(0, { wishX: 0, wishZ: 0 }))
   const eye = createCharacterEye(api)
   const events = {
     onLand: (impact: number) => (eye.land(impact), api.onLand?.(impact)),
     onJump: () => api.onJump?.(),
   }
   const head = createHead(pose, surface, base, api)
-  let jumpHeld = false
-  const keys = trackKeys(
-    surface,
-    base,
-    () => {
-      if (keys.has(JUMP) && !jumpHeld) body.pressJump()
-      jumpHeld = keys.has(JUMP)
-      base.emit()
-    },
-    [STRAFE_ARROW_KEYS, ADVANCE_ARROW_KEYS, SPRINT, [JUMP]],
-  )
+  const keys = trackCharacterKeys(surface, base, slot)
+  const rig: CharacterRig = { api, pose, slot, head, eye, keys, events, gate, ...buffers }
   return api
 }

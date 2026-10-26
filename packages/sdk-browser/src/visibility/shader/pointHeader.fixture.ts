@@ -5,6 +5,7 @@ import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { Mat } from '../../materials/texture/shaderRunMatrix.fixture.ts'
 import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { encodePage } from '../../geometry/codec/encodePage.fixture.ts'
+import { residentGeometryPage } from '../../geometry/codec/geometryPage.ts'
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts'
 import * as F from '../types.ts'
 import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
@@ -19,8 +20,10 @@ const floats = (n: number, at: () => number) => Float32Array.from({ length: n },
 function encoded(triangles: number, vertices: number, full: boolean, shared: boolean) {
   const position = floats(vertices * 3, () => random() * 4 - 2)
   if (shared) for (let v = 1; v < vertices; v += 2) position.copyWithin(v * 3, v * 3 - 3, v * 3)
+  // Every vertex once in order, then triangles along them as a strip runs (`t`, `t + 1`, `t + 2`):
+  // a page the encoder lays within its 256 vertices, as the cluster builder makes them.
   const indices = Array.from({ length: triangles * 3 }, (_, i) =>
-    i < vertices ? i : Math.floor(random() * vertices),
+    i < vertices ? i : (Math.floor(i / 3) + (i % 3)) % vertices,
   )
   const attributes = full
     ? {
@@ -30,7 +33,8 @@ function encoded(triangles: number, vertices: number, full: boolean, shared: boo
       }
     : {}
   const POSITION = { itemSize: 3, array: position }
-  const data = encodePage(indices, { POSITION, ...attributes }).data as Uint8Array
+  // The page as the install pass writes it, which the shaders read.
+  const data = residentGeometryPage(encodePage(indices, { POSITION, ...attributes }).data)
   return new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4)
 }
 
@@ -80,9 +84,9 @@ function scene() {
 const DECODE = [
   'pageHeader pageHeaderFor pageSurfaceRead pageCorner pageTriangle pagePosition',
   'pageRestPosition pageUv pageMaskAlpha pageColor vertPos vertUv clusterPointHeader',
-  'clusterSurfaceHeader clusterStream clusterWidths clusterUnit pow2FromExponent bitLength ceilDiv',
+  'clusterSurfaceHeader clusterWidths clusterUnit pow2FromExponent bitLength ceilDiv',
   'clusterIndex clusterTriangle clusterBlock clusterWindow clusterField clusterPosition',
-  'clusterUv clusterNormal clusterColor clusterHasUv clusterUvValue clusterOctahedron',
+  'clusterUv clusterNormal clusterColor clusterOffsets clusterUvSets clusterHasUv clusterUvValue octCellsDecode',
 ].flatMap((line) => line.split(' '))
 /** Column-major 4×4 product, which `shaderRun`'s operators leave to the scope. */
 const product = (a: readonly number[], b: readonly number[]) =>

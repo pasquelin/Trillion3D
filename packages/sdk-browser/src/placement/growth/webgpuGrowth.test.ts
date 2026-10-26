@@ -18,8 +18,8 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, its G
       .find((page) => page.url === 'ground')!
     const before = {
       cut: rt.run.gpuSelection!,
-      ranks: Array.from({ length: layout.packedPages.length }, (_, page) =>
-        layout.rows.rowOf(page),
+      homes: Array.from({ length: layout.packedPages.length }, (_, page) =>
+        layout.clusters.offsetOf(page),
       ),
       slot: cache.get(pageAddress(ground))!.offset,
       ...cache.stats(),
@@ -44,12 +44,12 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, its G
     assert.notEqual(cut, before.cut, 'the cut grown with the rows')
     assert.equal(cut.pageCount, layout.packedPages.length)
     assert.equal(before.cut.failed(), true, 'the old cut is released')
-    // Nothing else was prepared again: the table grew in place, every page it held at its rank
-    // (`growTables.ts`), the same pool, the ground in its slot, and no page uploaded for the new
-    // rows, whose clusters read the slots their addresses hold.
+    // Nothing else was prepared again: every page it held in the slot it held, the same pool, the
+    // ground in its slot, and no page uploaded for the new rows, whose clusters read the slots
+    // their addresses hold.
     assert.deepEqual(
-      before.ranks.map((_, page) => layout.rows.rowOf(page)),
-      before.ranks,
+      before.homes.map((_, page) => layout.clusters.offsetOf(page)),
+      before.homes,
     )
     assert.equal(rt.gpu.cache, cache)
     assert.equal(cache.get(pageAddress(ground))!.offset, before.slot)
@@ -59,14 +59,14 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, its G
       [before.residentPages, before.uploadedBytes],
     )
     for (let packed = 0; packed < layout.packedPages.length; packed++)
-      assert.ok(layout.rows.offsetOf(packed) >= 0, layout.recordOf(packed)!.url)
-    // The new rows draw: every page of a taken leaf holds a row once the grown cut asked for it.
+      assert.ok(layout.clusters.offsetOf(packed) >= 0, layout.recordOf(packed)!.url)
+    // The new rows draw: every page of a taken leaf is resident once the grown cut asked for it.
     for (let frame = 0; frame < 4; frame++) await session.draw()
     const { baseOfRoot } = layout.placement
     layout.selectionRoots.forEach((root, rank) => {
       if (!root.placement || root.parked) return
       for (let at = 0; at < root.pages.length; at++)
-        assert.ok(layout.rows.rowOf(baseOfRoot[rank] + at) >= 0, `root ${rank} draws`)
+        assert.ok(layout.clusters.residentFlag(baseOfRoot[rank] + at) !== 0, `root ${rank} draws`)
     })
   } finally {
     session.dispose()

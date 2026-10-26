@@ -14,7 +14,7 @@ const buildDist = (dir: string) =>
 /**
  * One side of the comparison, before `equipSide` (`harness/sideOptions.ts`) turns it into a `Side` by
  * filling its engine, variant and error metric. `dist`/`from` are set here; `cache` too, once a
- * side names its own; `manifestUrl`/`sourceUrl` are set by `bench.ts`/`references/oracle.ts` once the scene
+ * side names its own; `manifestUrl` is set by `bench.ts`/`references/oracle.ts` once the scene
  * and cache are known.
  */
 export interface SideBase {
@@ -23,7 +23,6 @@ export interface SideBase {
   from: string
   cache?: string
   manifestUrl?: string
-  sourceUrl?: string | null
 }
 
 /** Requested sides: the candidate always, the reference only if named. */

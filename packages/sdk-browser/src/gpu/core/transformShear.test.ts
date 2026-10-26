@@ -129,15 +129,14 @@ test('a negative scale keeps its negative determinant, therefore its face windin
 
 test('two successive moves do not accumulate and the scene is declared moved', () => {
   const { source, mesh, worlds } = scene(),
-    { rt, layout, run } = runtime(source, [], worlds),
+    { rt, run } = runtime(source, [], worlds),
     premier = versGpu(cisaillee(3, 6)),
     second = versGpu(cisaillee(-2, -4))
   setWebgpuTransform(rt, 'target', premier)
   setWebgpuTransform(rt, 'target', second)
   assert.deepEqual(Array.from(worlds.of(mesh).elements), Array.from(second))
-  // The table keeps its age and the scene its occlusion history: only the rows of a moved root
-  // are rewritten (`movedRoot.ts`), and no root is drawn here.
-  assert.equal(layout.rows.tableEpoch, 0)
+  // The scene keeps its occlusion history: only the placement records of a moved root are marked
+  // (`movedRoot.ts`), and no root is drawn here.
   assert.equal(run.noOccluderHistory, false)
   // Without this increment, the image gate would hold the previous image and the moved node
   // would stay drawn where it was; `worldsRevision` follows, the hierarchy already carrying these

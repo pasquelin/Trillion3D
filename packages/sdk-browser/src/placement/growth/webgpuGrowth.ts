@@ -29,6 +29,7 @@ import type { ClusterRoot, PageRec } from '../../geometry/selection/types.ts'
 import type { BlendCopy } from '../../geometry/cluster/blendCopyContract.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { forgetRowRoots } from '../update.ts'
+import { growing } from './growthOf.ts'
 import { rebindComposedWorlds } from '../compose/gpuCompose.ts'
 import { rebindReaders } from '../compose/composeReaders.ts'
 import { updateWebgpuPlacements } from '../webgpuPlacements.ts'
@@ -54,13 +55,13 @@ export type GrowthInFlight = {
   copies: BlendCopy[]
   appended: number
   asked: boolean
+  /** The running cut could not take a group above an instance's root — no node in its table, or
+   *  leaves with no ball (`takesParents`): the cut asked is made over the roots it holds, at a
+   *  grown capacity, though no root joins (`askNodeRoom`). */
+  starved?: true
   making?: Promise<void>
   ready?: { cut: GpuSelection; roots: number; inPlace?: true }
 }
-/** The growth of `rt`, begun when none is. */
-const growing = (rt: WebgpuPagesRuntime) =>
-  (rt.growth ??= { roots: [], copies: [], appended: 0, asked: false })
-
 /** Whether the session grows the rows in place, asked before any is (`growth.ts`). */
 function webgpuGrowsInPlace(rt: WebgpuPagesRuntime) {
   const { run, gpu } = rt

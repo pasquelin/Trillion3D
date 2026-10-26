@@ -21,7 +21,8 @@ import {
   type MovedList,
 } from '../roots/rootMoves.ts'
 
-export function createComposeState(roots: number) {
+/** What the composed roots are linked by: each one's parent and local matrix. */
+function composeTables(roots: number) {
   return {
     roots,
     parentOf: new Uint32Array(Math.max(1, roots)).fill(NO_INDEX),
@@ -29,6 +30,12 @@ export function createComposeState(roots: number) {
     /** Each linked root's local matrix, as the doubles it was linked by: what a CPU reader of its
      *  world composes with its parent's (`composedWorld`). */
     localMats: new Float64Array(Math.max(1, roots) * MATRIX_VALUES),
+  }
+}
+
+/** The clock the slots' versions are drawn from, and what reads them. */
+function composeClock() {
+  return {
     /** The clock the versions are drawn from, and each slot's version: drawn anew whenever its
      *  parent's world, or one of its links, moves — a moving parent leaves every other slot's
      *  roots composed (`composeOnRead.ts`). */
@@ -40,23 +47,23 @@ export function createComposeState(roots: number) {
     readers: new Map() as Readers,
     /** The roots a parent composes, each once: what a pass over every composed root lists. */
     rankList: createDenseKeySet(),
+  }
+}
+
+/** What the passes run over, and what each last ran at. */
+function composePasses() {
+  return {
     /**
      * The composed roots whose world the next worlds pass writes anew — the roots of each slot whose
      * parent moved or whose links moved, the composed roots a host write named —, every one when a
      * table the passes write was made anew. Taken by the worlds pass into the frame's list
      * (`frameRanks`), which the roots and root boxes passes read too, and handed to the passes that
-     * derive from the composed worlds later — the motion, the rows and the tree's leaves —, each of
-     * which takes its own (`owed`): only the dirty roots are uploaded, so a parent's move costs the
+     * derive from the composed worlds later — the tree's leaves —, each of which
+     * takes its own (`owed`): only the dirty roots are uploaded, so a parent's move costs the
      * roots it composes, never every composed root.
      */
     composed: movedList(),
     owed: {
-      /** Moved since the motion pass last took their world as reference (`previous`). */
-      reference: movedList(),
-      /** Whose motion row the last compared image may have left other than identity. */
-      motion: movedList(),
-      /** Whose rows the rows pass derives again. */
-      rows: movedList(),
       /** Whose leaves the tree's leaves pass writes again. */
       leaves: movedList(),
     },
@@ -64,20 +71,24 @@ export function createComposeState(roots: number) {
      *  them: what the worlds, roots and root boxes passes run over. */
     frameRanks: new Int32Array(8),
     frameCount: 0,
-    /** What each pass last ran over: the composition's version, the motion bound. */
+    /** What each pass last ran over: the composition's version. */
     ranAt: {
       worlds: -1,
       roots: -1,
-      rows: -1,
-      motion: undefined as GPUBuffer | undefined,
     },
     /** The slots whose parent's world was set since the parents went up, and the roots whose link
      *  moved since the links did: sent in runs (`frameParents`), every one with a table made. */
     parentsMoved: createChangedRuns(),
     linksMoved: createChangedRuns(),
-    /** Moves with what the passes compose — a parent's world, the links, a motion's start, the
+    /** Moves with what the passes compose — a parent's world, the links, the
      *  parents' buffer —, as each frame sends it (`frameParents`): a pass runs until it ran at it. */
     composedAt: 0,
+  }
+}
+
+/** The slots the parents take, and the worlds sent for them. */
+function composeSlots() {
+  return {
     /** The roots each slot composes, listed once as its links change (`slotRanks`). */
     linked: new Map<number, Int32Array>(),
     /** The world view each composed root was composed at: what its unlink lets go, even once a
@@ -93,13 +104,6 @@ export function createComposeState(roots: number) {
     /** Each parent's world as last sent, in double. */
     worlds: new Float64Array(MATRIX_VALUES),
     packed: new Uint32Array(PACKED_MATRIX_WORDS),
-    /** Roots linked since the last frame, with the world their motion starts from. */
-    seeds: new Map<number, Float32Array<ArrayBuffer>>(),
-    /** The temporal pass's decision and eye (`composedMotionPass.ts`), as the motion pass reads it. */
-    motionMode: new Uint32Array(8),
-    /** The motion buffer the roots pass bound this frame, which the motion pass writes
-     *  (`composedMotionPass.ts`); undefined without one. */
-    motionBound: undefined as GPUBuffer | undefined,
     /** The frame whose parents the GPU holds. */
     frame: -1,
     /** A parent moved since the frame last sent the parents (`settleSlot`), and what the frame
@@ -107,6 +111,15 @@ export function createComposeState(roots: number) {
     movedSince: false,
     moving: false,
     gpu: undefined as ComposeGpu | undefined,
+  }
+}
+
+export function createComposeState(roots: number) {
+  return {
+    ...composeTables(roots),
+    ...composeClock(),
+    ...composePasses(),
+    ...composeSlots(),
   }
 }
 
@@ -132,27 +145,15 @@ export function composeHostWrites(
     if (composedRoot(rt, ranks[k])) noteMovedRank(state.composed, ranks[k])
 }
 
-/** Root `rank`'s motion starts from the pose the CPU motion last accumulated it at — the one
- *  `../../post/taa/motion.ts` would compare its next world with —, its world without one. */
-export function seedMotion(rt: WebgpuPagesRuntime, state: ComposeState, rank: number) {
-  const world =
-    rt.gpu.velocity?.motion.poseOf(rank) ?? rt.layout.selectionRoots[rank].world.elements
-  state.seeds.set(rank, Float32Array.from(world))
-}
-
 /** `state` over `roots` roots, those it held kept and linked. Its GPU tables are laid out for the
- *  roots: made again at the next frame, the links sent whole, and each linked root's motion starts
- *  again from the pose its last image held. */
-export function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, roots: number) {
-  const held = state.roots
+ *  roots: made again at the next frame, the links sent whole. */
+export function growComposeState(state: ComposeState, roots: number) {
   state.parentOf = resized(state.parentOf, roots, NO_INDEX)
   state.locals = resized(state.locals, roots * PACKED_MATRIX_WORDS)
   state.localMats = resized(state.localMats, roots * MATRIX_VALUES)
   state.roots = roots
   state.gpu?.dispose()
   state.gpu = undefined
-  for (let rank = 0; rank < held; rank++)
-    if (state.parentOf[rank] !== NO_INDEX) seedMotion(rt, state, rank)
 }
 
 /** The roots `slot` composes now, listed once as its links change: what a move of its parent
@@ -187,9 +188,8 @@ export const takeComposed = (state: ComposeState, list: MovedList) =>
   takeMoved(list) ?? everyComposed(state)
 
 /** The frame's composed roots, `ranks` — every one when undefined —, owed to the passes that derive
- *  from their worlds later: the motion's reference, the rows and the tree's leaves. */
+ *  from their worlds later: the tree's leaves. */
 export function oweComposed(state: ComposeState, ranks: Int32Array | undefined) {
-  for (const list of [state.owed.reference, state.owed.rows, state.owed.leaves])
-    if (ranks) noteMoved(list, ranks)
-    else list.whole = true
+  if (ranks) noteMoved(state.owed.leaves, ranks)
+  else state.owed.leaves.whole = true
 }

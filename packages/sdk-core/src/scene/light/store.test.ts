@@ -13,15 +13,7 @@ import {
   SCENE_LIGHT_HEADER_FLOATS,
   type SceneLight,
 } from './contracts.ts'
-import {
-  DEFAULT_VIGNETTE,
-  ENVIRONMENT_COEFFICIENTS,
-  environmentVignette,
-} from '../core/environment.ts'
-import { near } from '../../../../math/src/float/near.fixture.ts'
-import { validateSceneAtmosphere } from '../core/atmosphere.ts'
-import { ATMOSPHERE_SLOT } from '../core/atmospherePack.ts'
-import { FOG_SLOT } from '../core/fog.ts'
+import { DEFAULT_VIGNETTE, environmentVignette } from '../core/environment.ts'
 
 const LIGHT: SceneLight = {
   id: 'l0',
@@ -168,88 +160,14 @@ test('the store counts its shadowed suns, shadowed local lights and rectangles a
     size: [1, 1],
   })
   assert.deepEqual(kinds(), [0, 1, 1], 'a sun casting none is not counted')
+  assert.deepEqual([store.suns, store.locals], [1, 2], 'the lit passes’ lights, shadowed or not')
   store.set('sun', { castsShadow: true })
   store.set('l0', { castsShadow: false })
   assert.deepEqual(kinds(), [1, 0, 1], 'a change moves the counts')
   store.remove('sun')
   store.remove('panel')
   assert.deepEqual(kinds(), [0, 0, 0])
-})
-
-test('the sun is held whatever the air: put out and on again, it is not forgotten', () => {
-  const store = createSceneLightStore()
-  const light = (id: string, kind: 'directional' | 'point', direction: [number, number, number]) =>
-    store.add(
-      kind === 'point'
-        ? {
-            id,
-            kind,
-            position: direction,
-            range: 10,
-            color: [1, 1, 1],
-            intensity: 3,
-            castsShadow: false,
-          }
-        : { id, kind, direction, color: [1, 1, 1], intensity: 3, castsShadow: false },
-    )
-  const toward = (block: Float32Array, at: number) => block.subarray(at, at + 3)
-  const air = () => toward(store.atmospherePacked, ATMOSPHERE_SLOT.sunDirection * 4)
-  const fog = () => toward(store.environmentPacked, ENVIRONMENT_COEFFICIENTS * 4 + FOG_SLOT.sun * 4)
-  const [a, b, c] = [
-    [-1, 0, 0],
-    [0, -1, 0],
-    [0, 0, -1],
-  ] as const
-  store.setEnvironment({ exposure: 1, fog: {} })
-  light('p', 'point', [0, 5, 0])
-  light('a', 'directional', [...a])
-  near(fog(), [1, 0, 0], 'a is the sun, without air')
-  // The point light's removal frees the lowest rank: b takes it. It is equal and later, so a keeps
-  // the sun, and the fog scatters a.
-  store.remove('p')
-  light('b', 'directional', [...b])
-  near(fog(), [1, 0, 0], 'a holds the sun against b, which has the lower rank')
-  // b removed, c takes its rank: still a, which the air set now reads.
-  store.remove('b')
-  light('c', 'directional', [...c])
-  store.setEnvironment({ exposure: 1, fog: {}, atmosphere: validateSceneAtmosphere(true) })
-  near(air(), [1, 0, 0], 'a, held while there was no air, not c of the lowest rank')
-  store.setEnvironment({ exposure: 1 })
-  store.setEnvironment({ exposure: 1, atmosphere: validateSceneAtmosphere(true) })
-  near(air(), [1, 0, 0], 'the air put out and on again: a still')
-  // The first directional light removed, the fog's fallback is empty until a directional light is
-  // added again — as one that stops lighting the air is: removed and added again.
-  store.setEnvironment({ exposure: 1, fog: {} })
-  store.remove('a')
-  near(fog(), [0, 0, 1], 'c, the sun now')
-  store.set('c', { atmosphereSun: false })
-  near(fog(), [0, 0, 1], 'c no longer lights the air: added again, the fog falls back on it')
-})
-
-test('the air holds a light for each index, the brightest of its candidates; a light moved is removed and added again', () => {
-  const store = createSceneLightStore()
-  const base: Omit<SceneLight, 'id' | 'intensity'> = {
-    kind: 'directional',
-    color: [1, 1, 1],
-    castsShadow: false,
-  }
-  const sun = (id: string, intensity: number, index: 0 | 1, direction: [number, number, number]) =>
-    store.add({ ...base, id, intensity, direction, atmosphereSunIndex: index })
-  const air = (slot: number) => Array.from(store.atmospherePacked.subarray(slot * 4, slot * 4 + 3))
-  const color = (id: string) => store.packed[baseOf(store.slotOf(id)) + LIGHT_FIELD.color]
-  const [first, second] = [ATMOSPHERE_SLOT.sunDirection, ATMOSPHERE_SLOT.secondDirection]
-  store.setEnvironment({ exposure: 1, atmosphere: validateSceneAtmosphere(true) })
-  sun('sun', 5, 0, [-1, 0, 0])
-  sun('moon', 1, 1, [0, 0, -1])
-  sun('moon2', 2, 1, [0, -1, 0])
-  near(air(second), [0, 1, 0], 'the brighter of index 1')
-  store.remove('moon2')
-  near(air(second), [0, 0, 1], 'removed: the moon again')
-  assert.ok(color('moon') < 1 && color('sun') < 1, 'each tinted by the air toward it')
-  store.set('sun', { atmosphereSunIndex: 1 })
-  near(air(first), [0, 0, 0], 'index 0 has none: no remapping')
-  near(air(second), [1, 0, 0], 'the sun, brighter, holds index 1')
-  assert.equal(color('moon'), 1, 'the moon it displaced is as declared again')
+  assert.deepEqual([store.suns, store.locals], [0, 1])
 })
 
 test('a light’s kind word carries its rank and its flags, and lane 14 the share the fog scatters', () => {
@@ -281,28 +199,56 @@ test('a light’s kind word carries its rank and its flags, and lane 14 the shar
   assert.throws(() => store.add({ ...LIGHT, id: 'bad', shadowsFog: 1 as never }), /shadowsFog/)
 })
 
-test('with no atmosphere the block holds the lights of the air as the clouds light a medium by them', () => {
+test('a rectangle that casts, and shadows the fog, carries both flags and counts as a shadowed local light', () => {
   const store = createSceneLightStore()
-  const slot = store.add({
-    id: 'sun',
-    kind: 'directional',
-    direction: [0, -1, 0],
-    color: [1, 0.5, 0.25],
-    intensity: 4,
-    castsShadow: false,
-  })
-  const block = (at: number) => Array.from(store.atmospherePacked.subarray(at * 4, at * 4 + 4))
-  assert.equal(block(ATMOSPHERE_SLOT.planet)[0], 0, 'no air')
-  near(block(ATMOSPHERE_SLOT.sunDirection), [0, 1, 0, 1], 'toward the light, with no disk')
-  near(block(ATMOSPHERE_SLOT.sunIlluminance), [4, 2, 1, 0], 'its illuminance, whole')
-  near(block(ATMOSPHERE_SLOT.sunDisk), [0, 0, 0, 1], 'no luminance of a disk, and a light')
-  near(block(ATMOSPHERE_SLOT.sunTransmittance), [1, 1, 1, 0], 'no air toward it, none for the fog')
-  near(block(ATMOSPHERE_SLOT.secondDisk), [0, 0, 0, 0], 'no second light')
-  near(block(ATMOSPHERE_SLOT.lightSlots), [slot, -1, 0, 0], 'its place in the light buffer')
-  near(block(ATMOSPHERE_SLOT.lightFlags), [0, 0, 0, 0], 'it shades no air')
-  store.set('sun', { intensity: 2 })
-  near(block(ATMOSPHERE_SLOT.sunIlluminance), [2, 1, 0.5, 0], 'it follows the light')
-  store.remove('sun')
-  near(block(ATMOSPHERE_SLOT.lightSlots), [-1, -1, 0, 0], 'removed: no slot, never the first')
-  near(block(ATMOSPHERE_SLOT.sunIlluminance), [0, 0, 0, 0], 'and no illuminance')
+  const panel = {
+    ...{ id: 'panel', kind: 'rect', position: [0, 3, 0], range: 10, direction: [0, -1, 0] },
+    ...{ right: [1, 0, 0], size: [2, 1], color: [1, 1, 1], intensity: 4, castsShadow: true },
+  } as SceneLight
+  store.add({ ...panel, shadowsFog: true })
+  const word = store.packed[baseOf(store.slotOf('panel')) + LIGHT_FIELD.kind]
+  assert.equal(word, LIGHT_KIND.rect + LIGHT_FLAG.castsShadow + LIGHT_FLAG.shadowsFog)
+  assert.deepEqual([store.shadowedLocals, store.shadowedSuns, store.rects], [1, 0, 1])
+  store.set('panel', { castsShadow: false })
+  assert.deepEqual([store.shadowedLocals, store.rects], [0, 1], 'a rectangle that casts none')
+})
+
+test('a rectangle’s sides are held to 1 cm where the lighting reads them, the light as declared', () => {
+  const store = createSceneLightStore()
+  const sides = (id: string) => {
+    const at = baseOf(store.slotOf(id))
+    return [store.packed[at + LIGHT_FIELD.halfWidth], store.packed[at + LIGHT_FIELD.halfHeight]]
+  }
+  const panel = {
+    ...{ id: 'thin', kind: 'rect', position: [0, 3, 0], range: 10, direction: [0, -1, 0] },
+    ...{ right: [1, 0, 0], size: [0.001, 2], color: [1, 1, 1], intensity: 4, castsShadow: false },
+  } as SceneLight
+  store.add(panel)
+  assert.deepEqual(
+    sides('thin').map((v) => +v.toFixed(6)),
+    [0.005, 1],
+    'width 1 cm, height as given',
+  )
+  assert.deepEqual(store.light('thin')!.size, [0.001, 2], 'the record keeps what the host declared')
+  store.add({ ...panel, id: 'wide', size: [3, 0.005] })
+  assert.deepEqual(
+    sides('wide').map((v) => +v.toFixed(6)),
+    [1.5, 0.005],
+    'height 1 cm',
+  )
+})
+
+test('a light transmits through the profile surfaces only when it asks, casts and is movable', () => {
+  const store = createSceneLightStore()
+  const word = (id: string) => store.packed[baseOf(store.slotOf(id)) + LIGHT_FIELD.kind]
+  store.add({ ...LIGHT, id: 'asks', transmission: true, mobility: 'movable' })
+  store.add({ ...LIGHT, id: 'still', transmission: true })
+  store.add({ ...LIGHT, id: 'dark', transmission: true, mobility: 'movable', castsShadow: false })
+  store.add({ ...LIGHT, id: 'plain', mobility: 'movable' })
+  const cast = LIGHT_KIND.point + LIGHT_FLAG.castsShadow
+  assert.equal(word('asks'), cast + LIGHT_FLAG.transmission)
+  assert.equal(word('still'), cast, 'a stationary light has its shadow baked')
+  assert.equal(word('dark'), LIGHT_KIND.point, 'no shadow, no transmission')
+  assert.equal(word('plain'), cast, 'off by default')
+  assert.throws(() => store.add({ ...LIGHT, id: 'bad', transmission: 1 as never }), /transmission/)
 })

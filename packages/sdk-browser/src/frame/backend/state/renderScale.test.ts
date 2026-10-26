@@ -10,8 +10,7 @@ import {
 import { displayResolutionFraction } from '../../scale/displayResolutionFraction.ts'
 import { renderExtent, type RenderScale } from '../../scale/renderScaleOption.ts'
 // The controller's instant drop sets the scale drawn; the rules tested hold under either.
-import { createScaleControl } from '../../scale/scaleControl.ts'
-import { lowered } from '../../scale/scaleFit.fixture.ts'
+import { lowered, refreshControl } from '../../scale/scaleFit.fixture.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 const DISPLAY = [3456, 2234]
@@ -25,7 +24,7 @@ const DEFAULT = displayResolutionFraction(DISPLAY[0] * DISPLAY[1])
 function runtime(scale: RenderScale | undefined, allocated = DISPLAY, apart = true) {
   const extents: number[][] = [],
     colorTexture = {},
-    control = createScaleControl(scale)
+    control = refreshControl(scale)
   const rt = {
     setup: { viewport: DISPLAY, pixelRatio: () => 2 },
     context: {},

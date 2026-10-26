@@ -41,15 +41,20 @@ yaml-rust2 = { version = "0.13", default-features = false }
 # notices retained alongside dependency). Pure Rust, without `std` or editor SDK: the entire
 # reconstruction defined by the specification, nothing more.
 texture2ddecoder = "0.1.2"
-# BC7 block encoding of every baked level (MIT, hasenbanck/block_compression): a pure Rust port of
+# BC7 block encoding of every baked level, BC6H of a half-float level a texture's `hdrCompressed`
+# setting asks for (MIT, hasenbanck/block_compression): a pure Rust port of
 # Intel's ISPC texture compressor, all eight BC7 modes searched — partitions, separate alpha —, CPU
 # only (`wgpu` left out), deterministic. Pinned version: it decides the cooked bytes. Built from the
 # copy in `vendor/block_compression` (`[patch.crates-io]` below), patched where it fails.
-block_compression = { version = "=0.10.0", default-features = false, features = ["bc7"] }
+block_compression = { version = "=0.10.0", default-features = false, features = ["bc7", "bc6h"] }
 # OpenEXR reading (BSD-3-Clause, `johannesvollmer/exrs`, pure Rust without `unsafe`, notices
 # retained alongside dependency), for the `exr` driver. Pinned version: names the driver and
 # participates in cache identity. No editor code or SDK, no C library.
 exr = "1.74.2"
+# IEEE half-float conversion (MIT OR Apache-2.0, VoidStarKat/half-rs) for the half-float atlas of
+# the textures (`texture/hdr.rs`): round to nearest even, the conversion the GPU's own
+# `rgba16float` texels are defined by. Already built by `exr`, whose version it shares.
+half = { version = "2.7.1", default-features = false }
 # Basis Universal payload transcoding for the `ktx2` driver — ETC1S under BasisLZ and UASTC LDR 4 × 4 —
 # to RGBA8 (Apache-2.0, marcogomez/basisu, notices retained alongside dependency). Pure Rust, without
 # `cc` or C++ source, its output verified bit for bit against the format's decoder.
@@ -88,9 +93,9 @@ regex-lite = "=0.1.9"
 smallvec = "=1.16.1"
 # The HLOD atlases baked and shells built on the GPU (MIT OR Apache-2.0, gfx-rs/wgpu): one
 # headless device per process, opened the first time a layer needs it (`hlod/flatten/bake/gpu.rs`),
-# compute passes over the shell's texels and the solid's sample points. Every native backend — Metal, Vulkan, Direct3D 12, GL last —, no
+# compute passes over the shell's texels and the solid's sample points. Every native WebGPU-class backend — Metal, Vulkan, Direct3D 12 —, no GL, no
 # browser, no window. Pinned: a baked texel's bytes follow the GPU and this version.
-wgpu = { version = "=30.0.1", default-features = false, features = ["std", "wgsl", "metal", "vulkan", "dx12", "gles"] }
+wgpu = { version = "=30.0.1", default-features = false, features = ["std", "wgsl", "metal", "vulkan", "dx12"] }
 # Blocks on the device's few futures — adapter, device — from the compiler's threads (MIT OR
 # Apache-2.0, zesterer/pollster). Pinned.
 pollster = "=1.0.1"

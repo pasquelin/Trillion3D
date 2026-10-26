@@ -18,7 +18,6 @@ import {
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { replayWrites } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { createVertexPool } from '../../geometry/pages/pool/geometryPool.ts'
-import type { HostAttributes } from '../host/resources.ts'
 
 const VALUES = [0.1, -2.5e7, 3, 1 / 3, Math.PI, -0, 65535, 1e-40, 7, 255, 0.5, -1]
 
@@ -60,7 +59,7 @@ test('the float pool writes a list from its numbers as it did from each componen
   const gpu = fakeDevice()
   const position = new BufferAttribute(new Float64Array(VALUES), 3),
     uv = new BufferAttribute(Int16Array.from(VALUES.slice(0, 8).map(Math.round)), 2),
-    attributes = { position, uv } as unknown as HostAttributes
+    attributes = { position, uv } as unknown as Geometry['attributes']
   const pool = createVertexPool(gpu.device, 8, false, new Map())
   pool.place(attributes, true)
   pool.write(attributes, 'position', 1, 2)

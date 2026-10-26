@@ -1,5 +1,5 @@
 //! Blocks alike their neighbours: the inside of an image, its first alike blocks, their encoding.
-use super::super::super::coverage::Cut;
+use super::super::super::cut::Cut;
 use super::super::decode::decode_block;
 use super::super::{blocks_of, encode_block, fit, BlockFormat, Effort, Layout, BLOCK_BYTES};
 use super::{flipped, Channels, Tally};

@@ -2,7 +2,7 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { writeBlocksLevel, writeTileFromBlocks } from './writeBlocks.ts'
-import { writeTail, tileRegion } from './write.ts'
+import { texelLevelWriter, writeTail, writeTileTexels, tileRegion } from './write.ts'
 import { tailOffset, TILE_PITCH } from '../texture/tiles.ts'
 import { TILE_BORDER } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -57,5 +57,48 @@ test('tail levels are written block by block at their aligned offsets', () => {
         writeBlocksLevel,
       ),
     /TEXTURE_LEVEL_BYTES/,
+  )
+})
+
+// Behaviour: a half-float tile is written in texels, eight bytes each, rows packed — no block
+// padding, a 6-texel edge tile 6 wide —; a half-float tail level of the wrong length is refused.
+test('a half-float record and tail are written in texels, eight bytes each', () => {
+  const { queue, writes } = fakeQueue()
+  const region = tileRegion(130, 130, 1, 0)
+  writeTileTexels(
+    queue,
+    pool,
+    { x: 2, y: 1, layer: 3 },
+    new Uint8Array(6 * 130 * 8),
+    region,
+    8,
+    false,
+  )
+  assert.deepEqual(writes[0].destination.origin, [2 * TILE_PITCH, TILE_PITCH + region.dy, 3])
+  assert.deepEqual(writes[0].size, { width: 6, height: 130 })
+  assert.deepEqual(writes[0].layout, { bytesPerRow: 6 * 8, rowsPerImage: 130 })
+  const place = { x: 0, y: 0, layer: 0 }
+  writeTail(
+    queue,
+    pool,
+    place,
+    [2, 1],
+    0,
+    [new Uint8Array(16), new Uint8Array(8)],
+    texelLevelWriter(8),
+  )
+  assert.deepEqual(writes[1].size, { width: 2, height: 1 })
+  assert.throws(
+    () =>
+      writeTail(
+        queue,
+        pool,
+        place,
+        [2, 1],
+        0,
+        [new Uint8Array(8), new Uint8Array(8)],
+        texelLevelWriter(8),
+      ),
+    /TEXTURE_TAIL_BYTES/,
   )
 })

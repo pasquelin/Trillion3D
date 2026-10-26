@@ -6,6 +6,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { refreshTransparentCorners } from './occlusionHost.ts'
+import { askEntryCorners } from './entryCorners.ts'
+import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { CORNER_VALUES } from '../../gpu/core/boxProjectWgsl.ts'
 import { packPageCorners } from '../../visibility/passes/corners.fixture.ts'
 import { moveRootRows } from '../../frame/render/movedRoot.ts'
@@ -59,7 +61,7 @@ function runtime() {
   const rt = {
     blendState,
     layout: {
-      rows: { tableEpoch: 3 },
+      clusters: { infoEpoch: 3 },
       recordOf: (page: number) => recs[page],
       selectionRoots: roots,
       placement: { baseOfRoot: Int32Array.of(0, 2), packedCount: ENTRIES },
@@ -87,8 +89,11 @@ function runtime() {
       .splice(0)
       .filter((write) => (write.buffer as { label?: string }).label?.includes('entry inputs'))
       .map(({ offset, size }) => [offset / 64, size! / 16])
+  /** The entries kernel asked and compiled off the frame, as the frames wait for it. */
+  const ready = () => (askEntryCorners(rt, device), pipelinesSettled(device))
   return {
     rt,
+    ready,
     blendState,
     recs,
     roots,
@@ -101,8 +106,9 @@ function runtime() {
   }
 }
 
-test('a new age derives every entry; a page bounded elsewhere sends its own entry alone', () => {
-  const { blendState, recs, held, oracle, image, inputs, unculled } = runtime()
+test('a new age derives every entry; a page bounded elsewhere sends its own entry alone', async () => {
+  const { blendState, recs, held, oracle, image, inputs, unculled, ready } = runtime()
+  await ready()
   assert.equal(image(), 1, 'a new age: one pass over every entry')
   assert.deepEqual(inputs(), [[0, ENTRIES]], 'every entry’s inputs, once')
   assert.equal(unculled(), 1)
@@ -118,15 +124,16 @@ test('a new age derives every entry; a page bounded elsewhere sends its own entr
   assert.deepEqual(held(), oracle())
 })
 
-test('a moving glass derives its own entries again and sends no input', () => {
-  const { rt, roots, held, oracle, image, inputs, sendWorlds } = runtime()
+test('a moving glass derives its own entries again and sends no input', async () => {
+  const { rt, roots, held, oracle, image, inputs, sendWorlds, ready } = runtime()
+  await ready()
   image()
   inputs()
   const before = held()
   const first = roots[0].world.elements as Float64Array
   first[12] = 9
-  assert.equal(moveRootRows(rt, roots[0], 0), 0, 'no row written')
-  assert.equal(rt.blendState.occlusionEpoch, 3, 'the table keeps its age')
+  moveRootRows(rt, roots[0], 0)
+  assert.equal(rt.blendState.occlusionEpoch, 3, 'the records keep their age')
   sendWorlds()
   assert.equal(image(), 1, 'one pass')
   assert.deepEqual(inputs(), [], 'no input sent')
@@ -137,8 +144,9 @@ test('a moving glass derives its own entries again and sends no input', () => {
   assert.deepEqual(after, oracle())
 })
 
-test('before the roots have worlds, the inputs are sent once and every entry waits for them', () => {
-  const { rt, held, oracle, image, inputs, unculled } = runtime()
+test('before the roots have worlds, the inputs are sent once and every entry waits for them', async () => {
+  const { rt, held, oracle, image, inputs, unculled, ready } = runtime()
+  await ready()
   const host: { rootWorlds?: unknown } = rt
   const worlds = host.rootWorlds
   host.rootWorlds = undefined

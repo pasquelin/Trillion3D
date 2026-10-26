@@ -29,9 +29,7 @@ use trillion3d_math::scalar::byte_to_unit_f32;
 use trillion3d_math::vector::vec3::cross;
 use trillion3d_math::vector::vecn::{dot, scale};
 use trillion3d_page_codec::encode::Attribute;
-use trillion3d_page_codec::{
-    FLAG_COLOR, FLAG_NORMAL, FLAG_SKIN, FLAG_TANGENT, FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3,
-};
+use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_SKIN, FLAG_TANGENT, UV_MASK};
 
 /// The source's vertices as built: their positions, every carried attribute in the source's order
 /// and layout, and, when they have a normal and a tangent, each one's bitangent, and the tangent's
@@ -75,7 +73,7 @@ pub(in crate::dag) fn built(
                         v[3] = 0.0;
                     }
                 }
-                FLAG_UV | FLAG_UV1 | FLAG_UV2 | FLAG_UV3 if !finite(v) => v.fill(0.0),
+                flag if flag & UV_MASK != 0 && !finite(v) => v.fill(0.0),
                 FLAG_COLOR => {
                     v[..3].iter_mut().for_each(|c| *c = srgb_to_linear_f32(*c));
                     if !finite(v) {

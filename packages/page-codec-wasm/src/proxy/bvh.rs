@@ -1,8 +1,8 @@
 //! THE PROXY BVH, built 4-wide directly: every node splits its triangles by two levels of the median
 //! split of every tree over boxed things (`split::bisect_least_cost`), into two to four children,
 //! down to leaves of `PROXY_LEAF_TRIANGLES`. Nodes are numbered in preorder, each with the rank
-//! past its subtree: the GPU's quantized wide records (`wide::encode`) and the CPU tracer's
-//! stackless skip list (`flatten`) are two writings of this one tree.
+//! past its subtree: the CPU tracer's stackless skip list (`flatten`) and the bakes' GPU records are
+//! writings of this one tree.
 use super::{PROXY_CHILDREN, PROXY_LEAF_TRIANGLES, PROXY_TRIANGLE_FLOATS};
 use crate::split::{bisect_least_cost, centres_and_boxes, Boxed};
 use trillion3d_math::geometry::aabb::aabb_of_f32;

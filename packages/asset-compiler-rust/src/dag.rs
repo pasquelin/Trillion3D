@@ -34,6 +34,11 @@ pub const DAG_CLUSTER_TRIANGLES: usize = 128;
 /// Vertex limit of an encoded cluster. The partition never reads it: a cluster whose strips lay
 /// more vertices is halved once every level is built (`clusters::constrain_wide`).
 pub const DAG_CLUSTER_VERTICES: usize = 256;
+// A cluster is a page, which holds as many triangles and vertices as the install pass transcodes.
+const _: () = assert!(
+    DAG_CLUSTER_TRIANGLES <= trillion3d_page_codec::MAX_PAGE_TRIANGLES
+        && DAG_CLUSTER_VERTICES <= trillion3d_page_codec::MAX_PAGE_VERTICES
+);
 /// Fewest and most clusters a group holds (`groups::group_clusters`), short of its level's only
 /// group; the DAG warnings and the stall report read them.
 pub const DAG_GROUP_MIN: usize = 8;
@@ -86,6 +91,12 @@ impl From<DagStrategy> for DagSettings {
     }
 }
 
+/// The `source_rank` of a cluster that descends from no triangle of its primitive's source: the
+/// root of an assembly's instance, a cluster of the levels above instances alone, a corner no
+/// triangle used. A group takes the least of its children's (`dag::reduce`), so it is the rank of a
+/// group of such children only.
+pub const NO_SOURCE_RANK: u32 = u32::MAX;
+
 #[derive(Clone, Debug)]
 pub struct DagCluster {
     /// Triangle list in the source vertex buffer, three indices per triangle.
@@ -107,8 +118,9 @@ pub struct DagCluster {
     pub whole_box: Option<([f64; 3], [f64; 3])>,
     /// Bounds of the group that replaces this cluster, used to project `parent_error`.
     pub parent_sphere: [f64; 4],
-    /// Earliest source triangle this cluster descends from. Keeps a transparent draw order close to
-    /// the source order, which spatial clustering would otherwise scramble.
+    /// Earliest source triangle this cluster descends from, `NO_SOURCE_RANK` when it descends from
+    /// none. Keeps a transparent draw order close to the source order, which spatial clustering
+    /// would otherwise scramble.
     pub source_rank: u32,
     /// Group that replaces this cluster, `None` for a root. The runtime swaps a whole group at once.
     pub group: Option<usize>,

@@ -5,6 +5,7 @@ use super::super::seed::{SeedGroup, VoxelSeed};
 use super::inherit::{parent_of, Boxes};
 use super::surface::{mesh_joints, voxelize, Surface};
 use super::{VoxelInputs, Voxelized, Voxelled};
+use crate::displace::Baked;
 use crate::trace::surface::Traceable;
 use crate::trace::tracer::vertex;
 use crate::{invalid, Result};
@@ -29,7 +30,8 @@ pub(super) fn voxelize_mesh(
     (compiled, source): (u64, usize),
     primitives: &[usize],
 ) -> Result<Voxelled> {
-    let traceable = Traceable::read(inputs.g, inputs.bin, source, inputs.previews)?;
+    let baked = baked_primitives(inputs, primitives);
+    let traceable = Traceable::read_with(inputs.g, inputs.bin, source, inputs.previews, &baked)?;
     let count = traceable.world.tags.len();
     let joints = mesh_joints(inputs, source, &traceable)?;
     let near = vec![0.0; count];
@@ -79,6 +81,18 @@ pub(super) fn voxelize_mesh(
         voxels_from,
         settings,
     })
+}
+
+/// The primitives among `primitives` whose displacement was baked into their triangles, each by its
+/// index in the source mesh, with the baked mesh its seed keeps: sampled as its build holds it.
+fn baked_primitives<'a>(inputs: &VoxelInputs<'a>, primitives: &[usize]) -> Vec<(usize, &'a Baked)> {
+    let seeds = inputs.seeds;
+    (primitives.iter())
+        .filter_map(|&p| {
+            let index = inputs.primitives[p]["primitive"].as_u64()?;
+            Some((index as usize, seeds[p].traced.as_ref()?))
+        })
+        .collect()
 }
 
 /// The far group of compiled mesh `mesh` sampled against all its triangles (`whole`), and whether

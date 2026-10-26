@@ -21,7 +21,6 @@ export const CACHE_MIPS_PROGRAM = wgslProgram(
   `${RADIANCE_CACHE_PARAMS.wgsl}
 @group(0) @binding(${B.queue}) var<storage,read> probeQueue:array<u32>;
 @group(0) @binding(${B.params}) var<uniform> cache:RadianceCacheParams;
-@group(0) @binding(${B.entries}) var<storage,read> cacheEntries:array<u32>;
 @group(0) @binding(${B.above}) var mipAbove:texture_2d<u32>;
 @group(0) @binding(${B.below}) var mipBelow:texture_storage_2d<${F.final},write>;
 ${wgslConsts({ CACHE_TILE_SIDE })}
@@ -29,7 +28,7 @@ override CACHE_MIP:u32=1u;
 @compute @workgroup_size(CACHE_TILE_SIDE,CACHE_TILE_SIDE)
 fn buildMip(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
  let entry=group.x;
- if(entry>=bounce.frame.y||bounce.counts.w==0u||cacheEntries[entry]==0u){return;}
+ if(entry>=bounce.frame.y||bounce.counts.w==0u){return;}
  let queued=queuedProbe(entry);
  if(!queued.valid){return;}
  let res=cache.size.x>>CACHE_MIP;
@@ -45,7 +44,7 @@ fn buildMip(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) 
  }
 }`,
   [
-    bounceBindingsWgsl(0, B.grid, B.probes),
+    bounceBindingsWgsl(0, B.grid, B.table),
     QUEUED_PROBE_WGSL,
     CACHE_WORDS_WGSL,
     packLight,

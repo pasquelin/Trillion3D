@@ -24,8 +24,9 @@ export function grid(side: number, rank: number | null = null) {
       meshes: [[0, 1]],
       meshPages: [],
     })
-    const node = { parent: rank, mesh: 0, matrix: null, rotation: null, scale: null }
-    const body = { version: 3, nodes: [{ ...node, translation: [10 * x + 5, 0, 10 * y + 5] }] }
+    const node = { sourceNode: '00000000', parent: rank, mesh: 0, matrix: null, rotation: null }
+    const at = { translation: [10 * x + 5, 0, 10 * y + 5], scale: null }
+    const body = { version: 4, nodes: [{ ...node, ...at }] }
     files.set(url, new TextEncoder().encode(JSON.stringify(body)))
   }
   halve(0, 0, side, side)

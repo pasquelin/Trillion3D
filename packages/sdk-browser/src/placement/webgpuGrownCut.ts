@@ -1,15 +1,13 @@
 /**
  * A GROWTH IN PLACE JOINS, between two images (`growth/webgpuGrowth.ts`): the waiting roots join every list
- * the session reads by rank — the cut's roots, the packed catalogue, the per-page row arrays, the
- * placement worlds, the temporal pass's previous poses, the shadow mobility, the root boxes —, the
- * cut made over them replaces the running one — or the running one took them in place —, and the
- * new rows follow their owner's writes.
+ * the session reads by rank — the cut's roots, the packed catalogue, the per-page cluster arrays, the
+ * placement worlds and records, the temporal pass's previous poses, the shadow mobility, the root
+ * boxes —, the cut made over them replaces the running one — or the running one took them in
+ * place —, and the new placement rows follow their owner's writes.
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
-import { growRows, tableRowsFor } from '../frame/prepare/growTables.ts'
 import { blendedPagesOf } from '../frame/prepare/layout.ts'
 import { postPackedBases } from '../geometry/selection/placements.ts'
-import { mainViewGpu, viewGpu } from '../frame/backend/state/view.ts'
 import { rootMark } from '../deformation/halfFloat.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { ClusterRoot, PageRec } from '../geometry/selection/types.ts'
@@ -23,6 +21,17 @@ import { takeGrownCopies } from './growth/webgpuGrowth.ts'
 import { growBlend, waitsForFrontDepth, waitsForRefraction } from '../blend/growth.ts'
 import { announceGrowth, replayMoves, type GrownRoots } from './growth/growthAnnounce.ts'
 import { joinDeformation, placeDeformation } from '../deformation/growth.ts'
+import { followPlacementMobility } from '../frame/render/followMobility.ts'
+
+/** The worlds the cut takes laid out for `placements` placements: a growth into its room keeps
+ *  them, one past it lays them out once more. */
+function layOutWorlds(layout: WebgpuPagesRuntime['layout'], placements: number) {
+  const slots = placements * MATRIX_VALUES
+  if (layout.worldUpdates.length === slots) return
+  const worlds = new Float32Array(slots)
+  worlds.set(layout.worldUpdates.subarray(0, Math.min(slots, layout.worldUpdates.length)))
+  layout.worldUpdates = worlds
+}
 
 /**
  * At frame entry, a cut made over every root replaces the running one (step 3): the waiting roots
@@ -33,7 +42,7 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   const growth = rt.growth,
     ready = growth?.ready
   const { layout, setup, run } = rt,
-    { selectionRoots, packedPages, rows } = layout
+    { selectionRoots, packedPages, clusters } = layout
   if (!growth || !ready || selectionRoots.length + growth.roots.length !== ready.roots) return false
   // A refracting copy joins over the distortion's targets, asked of the frame.
   if (waitsForRefraction(rt, growth.copies)) return false
@@ -55,13 +64,13 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
     setup.roots.push(root)
   }
   forgetRowRoots(selectionRoots)
-  // The new rows read their primitive's own shared records (#1235); the placement tables are
-  // rewritten in place, and the pool's copies follow the instances (`rows.addPages`).
+  // The new clusters read their primitive's own shared records (#1235); the placement tables are
+  // rewritten in place, and the pool's copies follow the instances (`clusters.addPages`).
   postPackedBases(selectionRoots, layout.placement) // in place: readers hold this object
   for (const root of added) layout.blendedPageCount += blendedPagesOf(root)
-  rows.addPages(first)
+  clusters.addPages(first)
   // Their records join the deformation's, before the blended items name them; the pool lays its
-  // tail out for them once these exist.
+  // tail out for them once these exist, and the placements' records are made for them.
   const copies = takeGrownCopies(rt)
   joinDeformation(rt, added, firstRank)
   // The blended copies join the pass with the ranks their pages hold now, before the first sync of
@@ -70,21 +79,11 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   // A row a parent composed for its readers while its root waited is the roots pass's now.
   adoptRootedReaders(rt)
   placeDeformation(rt)
+  clusters.placementInfo.layOut(selectionRoots.length)
   // The worlds the cut takes, laid out for every placement its tables hold: a growth into its room
   // keeps them, one past it lays them out once more.
-  const slots = Math.max(1, selectionRoots.length, ready.cut.worldCapacity) * MATRIX_VALUES
-  if (layout.worldUpdates.length !== slots) {
-    const worlds = new Float32Array(slots)
-    worlds.set(layout.worldUpdates.subarray(0, Math.min(slots, layout.worldUpdates.length)))
-    layout.worldUpdates = worlds
-  }
-  rt.lights.mobility.ensure(
-    selectionRoots.length,
-    rows.casterSlots,
-    (rank) => selectionRoots[rank].world.elements,
-  )
-  mainViewGpu(rt).velocity?.motion.grow()
-  for (const view of rt.views.persistent) viewGpu(rt, view).velocity?.motion.grow()
+  layOutWorlds(layout, Math.max(1, selectionRoots.length, ready.cut.worldCapacity))
+  followPlacementMobility(rt)
   // Taken in place, the running cut already holds them; else the cut made over them replaces it.
   if (!ready.inPlace) swapCut(rt, ready.cut, added, firstRank)
   // A world DAG among them is the session's (`append/webgpuAppendWorld.ts`): the roots its held cells add
@@ -94,12 +93,6 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   for (const root of added)
     if (root.placement)
       updateWebgpuPlacements(rt, root.placement.rows, root.placement.index, root.placement.index)
-  // More rows than the table holds: it grows after them, the image going on meanwhile.
-  const asked = tableRowsFor(rt, setup.cap)
-  if (asked.drawSlots > layout.drawSlots || asked.blendSlots > rows.casterSlots - rows.blendFirst)
-    growRows(rt, setup.cap).catch((error) =>
-      rt.diag.diagnosticFailure('page-tables-growth-failed', error),
-    )
   announceGrowth(rt, added, firstRank)
   return true
 }
@@ -137,5 +130,5 @@ function swapCut(rt: WebgpuPagesRuntime, cut: GpuSelection, added: GrownRoots, f
   })
   // The poses named since the cut was packed — it holds them as they were then —: replayed.
   replayMoves(rt, cut, added, first)
-  cut.updateResidency(layout.rows.residency, layout.rows.residentPages())
+  cut.updateResidency(layout.clusters.residency, layout.clusters.residentPages())
 }

@@ -10,7 +10,7 @@ import {
   kernelUrls,
   packed,
 } from '../../geometry/dag/selection/selectionHelpers.fixture.ts'
-import { DAG_SELECTION_SHADER } from '../../geometry/dag/shader/shader.ts'
+import { DAG_SELECTION_SHADER } from '../../geometry/dag/shader/selectionShader.fixture.ts'
 import { primitiveFrameWords, primitiveWordAt } from '../../geometry/dag/worlds/worlds.ts'
 import { neverCulled, spriteMark } from './spriteWgsl.ts'
 import { MARK_WORD } from '../../geometry/dag/frameTable.ts'

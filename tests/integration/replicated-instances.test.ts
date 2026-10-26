@@ -3,12 +3,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Group, type Object3D } from '../../packages/sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../packages/sdk-browser/src/session/host/resources.ts'
 import { Mesh } from '../../packages/sdk-core/src/world/object/mesh.ts'
 import { InstancedMesh } from '../../packages/sdk-core/src/world/object/instancedMesh.ts'
 import { Box3 } from '../../packages/sdk-core/src/world/math/box3.ts'
 import { Vector3 } from '../../packages/sdk-core/src/world/math/vector3.ts'
 import { replicateInstances } from '../../packages/sdk-browser/src/scene/replicateInstances.ts'
+import type { PageMesh } from '../../packages/sdk-browser/src/geometry/pages/pageMesh.ts'
 test('1/4/9/12 replicas share assets, preserve associations and extend real bounds', () => {
   const counts: readonly (1 | 4 | 9 | 12)[] = [1, 4, 9, 12]
   for (const count of counts) {
@@ -21,9 +21,9 @@ test('1/4/9/12 replicas share assets, preserve associations and extend real boun
         [mesh, { meshes: 7, primitives: 0 }],
       ]),
       grid = replicateInstances(source, associations, count),
-      meshes: HostMesh[] = []
+      meshes: PageMesh[] = []
     grid.traverse((o) => {
-      if (o instanceof Mesh && !(o instanceof InstancedMesh)) meshes.push(o as HostMesh)
+      if (o instanceof Mesh && !(o instanceof InstancedMesh)) meshes.push(o as PageMesh)
     })
     assert.equal(meshes.length, count)
     for (const copy of meshes) {

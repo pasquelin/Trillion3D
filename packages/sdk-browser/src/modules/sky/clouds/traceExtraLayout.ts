@@ -1,4 +1,6 @@
+import { cloudHazeInSecondPass } from './traceOptions.ts'
 import type { SkyQualityValues } from '../../../../../sdk-core/src/modules/sky/quality.ts'
+import type { CloudMaterial } from '../../../../../sdk-core/src/modules/sky/cloudMaterial.ts'
 import {
   COMPUTE,
   computeBufferEntry,
@@ -7,18 +9,24 @@ import {
 } from '../../../gpu/core/computeBindings.ts'
 import type { AirShadowMaps } from '../../../lighting/atmosphere/bindings.ts'
 import {
+  cloudShadowBindEntries,
+  cloudShadowLayoutEntries,
+  type CloudShadowBindings,
+  type CloudShadowSet,
+} from '../../../lighting/atmosphere/cloudShadowRead.ts'
+import {
   skyLightDiffuseBindEntries,
   skyLightDiffuseLayoutEntries,
   type SkyLightDiffuseBindings,
   type SkyLightReadSet,
 } from '../skyLight/read.ts'
 import { CAPTURE_CLOUD_SETUP, type CloudSetup } from './cloudModes.ts'
-import { CLOUD_MATERIAL_OUTPUTS_EMPTY_SPACE } from './traceLayout.ts'
 
 /**
  * THE VIEW TRACING'S OPTIONAL INPUTS, each a static variation of its program as the reference
  * compiles them: the empty-space table, the sun's opaque shadow, the lamps, the sky light's
- * harmonics (a scene with no air). A variation the frame
+ * harmonics (a scene with no air), the clouds' shadow maps (the material's own shade read, not
+ * marched). A variation the frame
  * does not ask for is not compiled and binds nothing, so the plain program is the one of
  * `traceWgsl.ts` alone; the ones asked for bind their inputs in group 2, in this order of numbers.
  */
@@ -36,7 +44,21 @@ export const CLOUD_TRACE_EXTRA_BINDING = {
   /** The sky light's harmonics and its read uniform (`SkyLightDiffuseBindings`). */
   skyHarmonics: 7,
   skyParams: 8,
+  /** The clouds' shadow maps' block, the two maps and their sampler (`CLOUD_TRACE_SHADOW_MAPS`). */
+  cloudShadowBlock: 9,
+  cloudShadowMap0: 10,
+  cloudShadowMap1: 11,
+  cloudShadowSampler: 12,
 } as const
+
+/** Where the tracing reads the clouds' shadow maps, in group 2, through a sampler of their own. */
+export const CLOUD_TRACE_SHADOW_MAPS: CloudShadowBindings = {
+  group: CLOUD_TRACE_EXTRA_GROUP,
+  block: CLOUD_TRACE_EXTRA_BINDING.cloudShadowBlock,
+  map0: CLOUD_TRACE_EXTRA_BINDING.cloudShadowMap0,
+  map1: CLOUD_TRACE_EXTRA_BINDING.cloudShadowMap1,
+  sampler: CLOUD_TRACE_EXTRA_BINDING.cloudShadowSampler,
+}
 
 /** Where the tracing reads the sky light's diffuse light, in group 2. */
 export const CLOUD_TRACE_SKY_LIGHT: SkyLightDiffuseBindings = {
@@ -58,6 +80,12 @@ export interface CloudTraceKey extends Pick<CloudSetup, 'depth' | 'minMaxDepth'>
   /** The distant sky light that lights the cloud is the sky light's own diffuse light, read from
    *  its harmonics: the scene has no air to give it (`CloudTraceFrame.airless`). */
   readonly skyLight: boolean
+  /** The cloud's own shade is read from the clouds' shadow maps, no ray marched toward the lights
+   *  (the material's `rayMarchVolumeShadow` off). */
+  readonly volumeShadowMap: boolean
+  /** The haze is laid in a second pass over two surfaces (`cloudHazeInSecondPass`): the trace
+   *  writes the closest surface's depth beside its colour, which the second surface is hazed at. */
+  readonly closestDepth: boolean
 }
 
 /** What the frame says of the image it traces: a reflection or a capture (no table), the sky
@@ -71,11 +99,10 @@ export interface CloudTraceFrame {
 }
 
 /** The key a frame traces with, from the quality settings and the setup (its depth source and its
- *  two surfaces): the table when the option is on,
- *  the material gives the output and the image is not a reflection; the sun's shadow when the
+ *  two surfaces): the table when the option is on and the image is not a reflection; the sun's shadow when the
  *  option is on and the sun casts shadows on the clouds; the lamps when the option is on and the
  *  image is not the sky light's capture; the sky light's harmonics when the distant sky light is on
- *  and the scene has no air. */
+ *  and the scene has no air; the clouds' shadow maps when the material does not march its shadow. */
 export const cloudTraceKey = (
   quality: Pick<
     SkyQualityValues,
@@ -83,17 +110,22 @@ export const cloudTraceKey = (
     | 'cloudSampleLightShadowMap'
     | 'cloudLocalLights'
     | 'cloudDistantSkyLight'
+    | 'cloudHighQualityAerial'
+    | 'cloudAerialPerspective'
   >,
   frame: CloudTraceFrame,
   setup: CloudSetup,
+  material: Pick<CloudMaterial, 'rayMarchVolumeShadow'>,
 ): CloudTraceKey => ({
   depth: setup.depth,
   minMaxDepth: setup.minMaxDepth,
-  emptySpace:
-    quality.cloudEmptySpaceSkipping && CLOUD_MATERIAL_OUTPUTS_EMPTY_SPACE && !frame.reflection,
+  emptySpace: quality.cloudEmptySpaceSkipping && !frame.reflection,
   opaqueShadow: quality.cloudSampleLightShadowMap && frame.sunShadowsOnClouds,
   localLights: quality.cloudLocalLights && !frame.skyCapture,
   skyLight: quality.cloudDistantSkyLight && frame.airless,
+  volumeShadowMap: !material.rayMarchVolumeShadow,
+  closestDepth:
+    setup.minMaxDepth && !frame.skyCapture && cloudHazeInSecondPass(quality, !frame.airless),
 })
 
 /** The key the sky light's capture traces with: the capture setup's depth source, no empty-space
@@ -103,20 +135,26 @@ export const captureCloudKey = (
   quality: Parameters<typeof cloudTraceKey>[0],
   shadowed: boolean,
   airless: boolean,
+  material: Parameters<typeof cloudTraceKey>[3],
 ): CloudTraceKey =>
   cloudTraceKey(
     quality,
     { reflection: true, skyCapture: true, sunShadowsOnClouds: shadowed, airless },
     CAPTURE_CLOUD_SETUP,
+    material,
   )
 
 /** The key as text, to keep what is made for it. */
 export const cloudTraceKeyText = (k: CloudTraceKey) =>
-  [k.depth, k.minMaxDepth, k.emptySpace, k.opaqueShadow, k.localLights, k.skyLight].join('|')
+  [
+    ...[k.depth, k.minMaxDepth, k.emptySpace, k.opaqueShadow, k.localLights, k.skyLight],
+    k.volumeShadowMap,
+    k.closestDepth,
+  ].join('|')
 
 /** Whether the program binds group 2. */
 export const cloudTraceHasExtra = (p: CloudTraceKey) =>
-  p.emptySpace || p.opaqueShadow || p.localLights || p.skyLight
+  p.emptySpace || p.opaqueShadow || p.localLights || p.skyLight || p.volumeShadowMap
 
 /** The layout entries of group 2 for the variations `p`. */
 export function cloudTraceExtraLayoutEntries(p: CloudTraceKey): GPUBindGroupLayoutEntry[] {
@@ -134,33 +172,49 @@ export function cloudTraceExtraLayoutEntries(p: CloudTraceKey): GPUBindGroupLayo
       : []),
     ...(p.localLights ? [computeBufferEntry(b.tileLights, 'read-only-storage')] : []),
     ...(p.skyLight ? skyLightDiffuseLayoutEntries(CLOUD_TRACE_SKY_LIGHT, COMPUTE) : []),
+    ...(p.volumeShadowMap ? cloudShadowLayoutEntries(CLOUD_TRACE_SHADOW_MAPS, COMPUTE) : []),
   ]
 }
 
 /** What the options of the tracing read beyond the air: the virtual shadow maps' tables, bound
  *  where the sun's opaque shadow is read, the light grid's lists, where the lamps light the cloud,
- *  and the sky light's harmonics, where the scene has no air. */
+ *  the sky light's harmonics, where the scene has no air, and the clouds' shadow maps (or their
+ *  stand-in), where the material's shade is read from them, and the empty-space table, where the
+ *  march starts where it says. */
 export interface CloudTraceInputs {
+  readonly startDistance?: GPUTextureView
   readonly maps?: AirShadowMaps
   readonly tileLights?: GPUBuffer
   readonly skyLight?: SkyLightReadSet
+  readonly cloudShadow?: CloudShadowSet
 }
 
 /** The resources of `inputs` a group 2 is kept for. */
-export const cloudTraceExtraHeld = ({ maps, tileLights, skyLight }: CloudTraceInputs) => [
+export const cloudTraceExtraHeld = ({
+  startDistance,
+  maps,
+  tileLights,
+  skyLight,
+  cloudShadow,
+}: CloudTraceInputs) => [
+  startDistance,
   ...[maps?.pageTable, maps?.projectionData, maps?.uniforms, maps?.pool, maps?.view],
   tileLights,
   skyLight?.harmonics,
   skyLight?.params,
+  ...[cloudShadow?.block, cloudShadow?.maps[0], cloudShadow?.maps[1], cloudShadow?.sampler],
 ]
 
 /** The entries of group 2 for the variations `p`, of `inputs`. */
 export function cloudTraceExtraEntries(
   p: CloudTraceKey,
-  { maps, tileLights, skyLight }: CloudTraceInputs,
+  { startDistance, maps, tileLights, skyLight, cloudShadow }: CloudTraceInputs,
 ): GPUBindGroupEntry[] {
   const b = CLOUD_TRACE_EXTRA_BINDING
   return [
+    ...(p.emptySpace && startDistance
+      ? [{ binding: b.startDistance, resource: startDistance }]
+      : []),
     ...(p.opaqueShadow && maps
       ? [
           { binding: b.vsm.pageTable, resource: { buffer: maps.pageTable } },
@@ -174,5 +228,8 @@ export function cloudTraceExtraEntries(
       ? [{ binding: b.tileLights, resource: { buffer: tileLights } }]
       : []),
     ...(p.skyLight && skyLight ? skyLightDiffuseBindEntries(CLOUD_TRACE_SKY_LIGHT, skyLight) : []),
+    ...(p.volumeShadowMap && cloudShadow
+      ? cloudShadowBindEntries(CLOUD_TRACE_SHADOW_MAPS, cloudShadow)
+      : []),
   ]
 }

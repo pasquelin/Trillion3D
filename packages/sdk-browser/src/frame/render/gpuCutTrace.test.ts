@@ -5,11 +5,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTimingState } from '../backend/state/timing.ts'
-import { CPU_STEP, CPU_STEP_STAGES } from './cpuStepTable.ts'
+import { CPU_STEP, CPU_STEP_STAGES } from '../../diagnostic/stage/cpuStepTable.ts'
 import { recordGpuCutTiming } from './gpuCutTrace.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
-function image(worked: boolean) {
+function image(worked: boolean, diag = { listened: false, traceEnabled: false }) {
   const timing = createWebgpuTimingState()
   Object.assign(timing.marks, {
     preStart: 10,
@@ -19,7 +19,7 @@ function image(worked: boolean) {
     adoptEnd: 11.5,
     admissionEnd: 11.75,
     queueEnd: 12,
-    rowsEnd: 12,
+    clustersEnd: 12,
     residencyUploadEnd: 12.25,
     tilesEnd: 14.25,
     selectionEnd: 14.75,
@@ -28,11 +28,26 @@ function image(worked: boolean) {
   })
   const rt = {
     timing,
+    diag,
     run: { frame: 3, imageRevision: 1, textureConverging: false },
     vis: { textures: { counters: { worked, lastMs: 1.25 } } },
   } as unknown as WebgpuPagesRuntime
   return { rt, timing }
 }
+
+test('the CPU sample is made for a listened channel or a trace, not for an unobserved image', () => {
+  const quiet = image(true)
+  recordGpuCutTiming(quiet.rt)
+  assert.equal(quiet.timing.cpuSample, undefined)
+  for (const diag of [
+    { listened: true, traceEnabled: false },
+    { listened: false, traceEnabled: true },
+  ]) {
+    const seen = image(true, diag)
+    recordGpuCutTiming(seen.rt)
+    assert.equal(seen.timing.cpuSample?.frame, 3)
+  }
+})
 
 test('the gate, the tile pump and the world step each own their bound', () => {
   const { rt, timing } = image(true)

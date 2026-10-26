@@ -6,8 +6,8 @@ import assert from 'node:assert/strict'
 import { composeWebgpuPlacements } from './gpuCompose.ts'
 import { session, turn } from './composeSession.fixture.ts'
 
-test('a still frame sends the roots pass no parameter, one block whatever the world', () => {
-  const { rt, rows, frame, writes } = session()
+test('a still frame sends the roots pass no parameter, one block whatever the world', async () => {
+  const { rt, rows, frame, ready, writes } = session()
   composeWebgpuPlacements(
     rt,
     {},
@@ -15,6 +15,7 @@ test('a still frame sends the roots pass no parameter, one block whatever the wo
     [0, 1].map((index) => ({ rows, index, local: turn(0) })),
     true,
   )
+  await ready()
   frame()
   const block = rt.compose!.gpu!.params.buffer
   assert.ok(block, 'the roots pass ran')

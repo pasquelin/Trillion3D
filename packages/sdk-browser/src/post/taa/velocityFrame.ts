@@ -1,23 +1,30 @@
+import { velocityWpo } from './velocityWpo.ts'
 import { sameMatrixBits } from '../../../../math/src/matrix/matrixElements.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { WebgpuGpuState } from '../../frame/backend/state/gpu.ts'
 import { screenProbesCast } from '../../lighting/bounce/screen/cast.ts'
-import { encodeComposedMotion } from '../../placement/compose/composedMotionPass.ts'
 import { tessellationWanted } from '../../visibility/tessellation/wanted.ts'
-import { motionWanted, perObjectSizeOf } from '../effects/stagePlan.ts'
+import { motionWanted } from '../effects/stagePlan.ts'
+import {
+  cameraSeen,
+  NO_CAMERA,
+  previousCameraOf,
+} from '../../frame/backend/state/previousCamera.ts'
+import { dropTaaHistory } from './landing.ts'
 import type { TaaFrameState } from './frameState.ts'
 import type { VelocityInputs } from './inputs.ts'
-import { askVelocityProgram, createVelocity, type Velocity } from './velocity.ts'
+import { askVelocityProgram, createVelocity } from './velocity.ts'
 import { writeTaaView } from './view.ts'
+import type { WpoSet } from '../../materials/graph/wpoProgram.ts'
 
 /**
  * THE VELOCITY STAGE OF THE IMAGE, once before the lighting: the motion of every render texel,
  * measured once and read by every pass that needs it — the indirect light, the temporal pass, the
  * motion blur. A view holds one stage (`velocityOf`) as soon as a pass reads it, and every image
  * asks whether one does (`readsVelocity`, `followVelocity`): the stage is then drawn
- * (`encodeVelocity`) and the placements' motion it measures with is decided (`trackMotion`), once,
- * for all of them.
+ * (`encodeVelocity`), once for all of them, the placements' motion read from the cut's poses now
+ * and as the last drawn frame drew them (`../../geometry/dag/previousPoses.ts`).
  */
 
 /** Whether a pass other than the temporal pass reads this image's vectors: the motion blur or the
@@ -28,13 +35,19 @@ const readsVelocity = (rt: WebgpuPagesRuntime) => motionWanted(rt) || screenProb
 export const velocityOf = (
   gpu: Pick<WebgpuGpuState, 'velocity'>,
   device: GPUDevice,
-  roots: WebgpuPagesRuntime['layout']['selectionRoots'],
-) => (gpu.velocity ??= createVelocity(device, roots))
+  wpo?: WpoSet,
+) => (gpu.velocity ??= createVelocity(device, wpo))
 
 /** Asks the stage's program, off the frame, once a pass reads the vectors — the temporal pass, once
- *  rigged, or another —: the frame is held on it, never compiling it. */
+ *  rigged, or another —: the frame is held on it, never compiling it. An image that draws displaced
+ *  surfaces (`tessellationWanted`) asks the programs that solve their flat points, the temporal
+ *  pass's analysis' included; any other asks none of them. */
 export function askVelocity(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  if (rt.gpu.temporal || readsVelocity(rt)) askVelocityProgram(device)
+  const { temporal } = rt.gpu,
+    tessellated = tessellationWanted(rt)
+  if (temporal || readsVelocity(rt))
+    askVelocityProgram(device, tessellated, velocityWpo(rt.vis.rasters))
+  if (temporal && tessellated) temporal.askDisplaced()
 }
 
 /**
@@ -47,31 +60,11 @@ export function followVelocity(rt: WebgpuPagesRuntime, taa: boolean) {
     wanted = taa || readsVelocity(rt)
   const velocity =
     gpu.velocity ??
-    (wanted && gpu.device ? velocityOf(gpu, gpu.device, rt.layout.selectionRoots) : undefined)
+    (wanted && gpu.device ? velocityOf(gpu, gpu.device, velocityWpo(rt.vis.rasters)) : undefined)
   if (!velocity) return
   if (velocity.active && !wanted) velocity.release()
   velocity.active = wanted
   velocity.measured = false
-}
-
-/**
- * The placements' motion of this image, decided once for the stage that owns it: a restart without
- * history, a compared image when the scene moved since the last one (`scan`), else one kept; the
- * linked placements' motion, which the GPU composes, follows the same decision
- * (`encodeComposedMotion`). Returns `scan`.
- */
-function trackMotion(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-  cam: EngineCamera,
-  { frame, motion }: Velocity,
-) {
-  const scan = frame.sceneSeen !== rt.run.gate.revisions.scene
-  if (!frame.hasHistory) motion.reset()
-  else motion.update(cam.eye, scan)
-  encodeComposedMotion(rt, device, encoder, cam.eye, frame.hasHistory, scan)
-  return scan
 }
 
 /** Whether the image shows what the last one did: its history kept, the scene, the resources, the
@@ -90,7 +83,8 @@ const imageStill = (
   rt.run.gate.revisions.resources === state.resourcesSeen &&
   !moved &&
   !rt.vis.deformationCompute &&
-  sameMatrixBits(state.previousViewProjection, cam.viewProjection)
+  state.before.image > 0 &&
+  sameMatrixBits(state.before.viewProjection, cam.viewProjection)
 
 /** Keeps this image, drawn on the `render` grid, as the one the next is measured against: the
  *  scene and resources it saw, the camera's view and eye, the grid. The last pass that reads the
@@ -102,8 +96,7 @@ export function keepImage(
   render: readonly number[],
 ) {
   state.sceneSeen = rt.run.gate.revisions.scene
-  state.previousViewProjection.set(cam.viewProjection)
-  state.previousEye.set(cam.eye)
+  state.seen = rt.run.frame
   state.previousRender[0] = render[0]
   state.previousRender[1] = render[1]
   state.resourcesSeen = rt.run.gate.revisions.resources
@@ -112,27 +105,34 @@ export function keepImage(
 
 /**
  * Writes into `inputs` what the velocity passes read of the frame — its depth, identifiers and page
- * records, the placements' `motion`, the pools and the normal atlas a deformed or displaced pixel's
- * triangle is read from and the roots' world boxes; false, with nothing written, while the frame lacks any of them.
+ * records, the placements' poses now and as the last drawn frame drew them, the pools and the normal atlas a deformed or displaced pixel's
+ * triangle is read from; false, with nothing written, while the frame lacks any of them.
  */
-export function readVelocityInputs(
-  rt: WebgpuPagesRuntime,
-  inputs: VelocityInputs,
-  velocity: Velocity,
-): boolean {
+export function readVelocityInputs(rt: WebgpuPagesRuntime, inputs: VelocityInputs): boolean {
   const { gpu, vis } = rt,
-    pool = gpu.cache?.buffer
-  if (!gpu.depthView || !vis.visView || !vis.pageTable) return false
+    pool = gpu.cache?.buffer,
+    selection = rt.run.gpuSelection
+  if (!gpu.depthView || !vis.visView || !vis.pageTable || !selection) return false
   if (!pool || !vis.concatPos || !vis.concatUv || !vis.concatNrm) return false
   inputs.depth = gpu.depthView
   inputs.ids = vis.visView
   inputs.pages = vis.pageTable
-  inputs.motion = velocity.motion.buffer
-  inputs.boxes = velocity.boxes(rt.rootWorlds)
+  inputs.worlds = selection.worlds
+  inputs.previous = selection.previous
   inputs.pool = pool
   inputs.positions = vis.concatPos
   inputs.uvs = vis.concatUv
   inputs.normals = vis.concatNrm
+  // The records that hold the values of the offsets the stage places a pixel's triangle by, and the
+  // frame they are evaluated at.
+  const material = vis.materialTable.view
+  if (!material || !gpu.device) return false
+  inputs.material = material
+  inputs.frame = vis.graphFrame.bufferOn(gpu.device)
+  // The colour atlas an offset reads a texture from.
+  if (!vis.textures || !vis.mapsSampler) return false
+  inputs.textures = vis.textures
+  inputs.sampler = vis.mapsSampler
   return true
 }
 
@@ -154,13 +154,18 @@ export function encodeVelocity(
 ) {
   const { gpu, vis } = rt,
     velocity = gpu.velocity
-  if (!velocity?.active || !readVelocityInputs(rt, inputs, velocity)) return
+  if (!velocity?.active || !readVelocityInputs(rt, inputs)) return
   const state = velocity.frame
+  // The history's camera: the view's, kept once, where the history's image is the one before. A history that skipped an image
+  // holds a camera no one kept, and starts again, as after a cut.
+  state.before = cameraSeen(previousCameraOf(rt), state.seen) ?? NO_CAMERA
+  if (state.hasHistory && !state.before.image) dropTaaHistory(state)
   velocity.ensure(...gpu.allocatedSize)
-  const scan = trackMotion(rt, device, encoder, cam, velocity)
-  state.objectSize = perObjectSizeOf(rt)
+  const scan = state.sceneSeen !== rt.run.gate.revisions.scene
+  // The placements' motion is measured from the scene's kept poses (`../../geometry/dag/previousPoses.ts`),
+  // the last drawn frame's, whichever view drew it: a view drawn less often keeps its history.
+  const moved = rt.run.gpuSelection!.posesMoving
   state.tessellated = tessellationWanted(rt)
-  const moved = velocity.motion.moved || !!rt.compose?.moving
   const grids = [gpu.targetSize, gpu.displaySize, velocity.size] as const
   writeTaaView(
     device,
@@ -170,9 +175,10 @@ export function encodeVelocity(
     ...grids,
     moved,
     false,
-    !!vis.deformationCompute,
+    !!vis.deformationCompute || vis.rasters.offsets.length > 0,
   )
-  velocity.encode(encoder, inputs, gpu.targetSize)
+  // Its program, flat or displaced as `tessellationWanted` says, was asked at the frame's entry (`askVelocity`).
+  velocity.encode(encoder, inputs, gpu.targetSize, state.tessellated)
   rt.run.gpuDrawCalls++
   velocity.scan = scan
   velocity.moved = moved

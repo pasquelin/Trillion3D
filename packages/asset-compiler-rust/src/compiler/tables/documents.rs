@@ -82,12 +82,6 @@ fn semantics(
 
 /// One primitive: its attributes by glTF semantic, its morph targets, its index list and the surface rank it wears.
 fn primitive(g: &Value, p: &Value, accessors: usize, surfaces: &mut Materials) -> Result<Value> {
-    if optional_index(p.get("mode"), "primitive.mode", 4)? != 4 {
-        return Err(CompilerError::new(
-            "UNSUPPORTED_PRIMITIVE",
-            "Only static triangles are supported",
-        ));
-    }
     let attributes = semantics(p.get("attributes"), accessors)?
         .ok_or_else(|| invalid("primitive.attributes is required"))?;
     // Morph targets, each a set of attributes the host adds to the base ones by a weight.

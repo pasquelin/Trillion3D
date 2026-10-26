@@ -31,6 +31,8 @@ function drawAtTime(c: SessionParts) {
 /** The frame's time and its physics. */
 export function createSessionFrame(c: SessionParts) {
   const { s, clock, link } = c
+  /** The camera's world position, rewritten each frame. */
+  const eye = new Float64Array(3)
   return {
     /** The frame's time, `seconds` after the last (`FrameInfo.delta`), set at its start: all it
      *  draws reads it, the character the controller moves first included (`frames/frames.ts`). */
@@ -48,7 +50,9 @@ export function createSessionFrame(c: SessionParts) {
       drawAtTime(c)
       ;[c.stats.mainMs, s.received] = [s.received, 0]
       const reach = c.view(camera, c.writer, range)
-      c.tiles.update(resolveCameraWorld(camera).matrixWorld.elements.slice(12, 15), reach)
+      const world = resolveCameraWorld(camera).matrixWorld.elements
+      for (let i = 0; i < 3; i++) eye[i] = world[12 + i]
+      c.tiles.update(eye, reach)
       link.flush()
       if (s.ready) c.character.flush()
       // After the frame's commands and keys: the steps they reach while the world is awake; the

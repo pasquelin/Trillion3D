@@ -1,7 +1,7 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { LIGHT_SHAFT_BLUR_SAMPLES } from '../../../../../sdk-core/src/modules/sky/lightShafts.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
-import { FULLSCREEN_VERTEX } from '../../../lighting/deferred/shaders.ts'
+import { FULLSCREEN_VERTEX } from '../../../gpu/shader/fullscreenTriangle.ts'
 
 /**
  * The light shafts' uniform, one for every pass, written by the pass:

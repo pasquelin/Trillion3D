@@ -36,6 +36,69 @@ type Control = {
   emit: (type: TransformEvent) => void
 }
 
+type Parts = ReturnType<typeof buildTransformHandles>
+type Drag = { start: DragStart; pointer: number }
+type Hovered = { handle: TransformHandle; at: CanvasPoint }
+
+/** The point of `event` on the canvas. */
+const pointOf = (host: TransformHost, event: PointerEvent): CanvasPoint => {
+  const box = host.canvas.getBoundingClientRect()
+  return { x: event.clientX - box.left, y: event.clientY - box.top }
+}
+
+/** The handle the latest answer holds at `point`, or none. */
+const handleAt = (hovered: Hovered | null, point: CanvasPoint) =>
+  hovered &&
+  Math.abs(hovered.at.x - point.x) <= HOVER_SLACK &&
+  Math.abs(hovered.at.y - point.y) <= HOVER_SLACK
+    ? hovered.handle
+    : null
+
+/** Writes a world pose on the object: the local pose that places it so under its parents. */
+function applyPose(object: Object3D, { position, quaternion, scale }: DragPose) {
+  const parent = object.parent
+  if (parent) {
+    parent.worldToLocal(position)
+    quaternion.premultiply(parent.getWorldQuaternion(parentTurn).invert())
+  }
+  object.position.copy(position)
+  object.quaternion.copy(quaternion)
+  object.scale.copy(scale)
+}
+
+/** The handle's material in `colour`, or its own. */
+function paintHandle(parts: Parts, handle: TransformHandle, colour?: number) {
+  const key = colourOf(handle)
+  parts.materials[key].color.set(colour ?? parts.colours[key])
+}
+
+/** The press `event` on `handle`, along its first ray, kept from every later listener: the
+ *  pointer captured, the handle painted, `dragStart`. Returns the drag. */
+function beginDrag(
+  at: { host: TransformHost; parts: Parts; control: Control },
+  event: PointerEvent,
+  handle: TransformHandle,
+  ray: Ray,
+): Drag {
+  const { host, parts, control } = at
+  event.stopImmediatePropagation()
+  event.preventDefault()
+  host.canvas.setPointerCapture?.(event.pointerId)
+  const drag = { start: control.start(handle, ray.clone()), pointer: event.pointerId }
+  paintHandle(parts, handle, ACTIVE)
+  control.emit('dragStart')
+  return drag
+}
+
+/** The pointer of `drag` moved: the pose `dragTransform` asks for, on `object` through its parents. */
+function moveDrag(control: Control, drag: Drag, object: Object3D, ray: Ray) {
+  const pose = dragTransform(drag.start, ray, control.snap())
+  if (!pose) return
+  applyPose(object, pose)
+  control.fit()
+  control.emit('change')
+}
+
 /**
  * The pointer of a transform control. The pointer's hover is picked as it moves (`hovering`): the
  * world's ray query (`world.raycast`, the handles included) answers a frame or so later, one ray in
@@ -49,57 +112,21 @@ type Control = {
  * Each move writes the pose `dragTransform` asks for, through the object's parents; the release
  * restores the handle's colour. A press beside the handles is left alone.
  */
-export function trackTransformDrag(
-  host: TransformHost,
-  parts: ReturnType<typeof buildTransformHandles>,
-  control: Control,
-) {
+export function trackTransformDrag(host: TransformHost, parts: Parts, control: Control) {
   const base = createControlBase()
-  let drag: { start: DragStart; pointer: number } | null = null
+  let drag: Drag | null = null
   /** The handle the latest answer found nearest under the pointer, and the point it was asked at. */
-  let hovered: { handle: TransformHandle; at: CanvasPoint } | null = null
-  const pointOf = (event: PointerEvent): CanvasPoint => {
-    const box = host.canvas.getBoundingClientRect()
-    return { x: event.clientX - box.left, y: event.clientY - box.top }
-  }
+  let hovered: Hovered | null = null
   const rayAt = (event: PointerEvent) =>
-    canvasRay(host.camera, host.canvas, pointOf(event), moveRay)
+    canvasRay(host.camera, host.canvas, pointOf(host, event), moveRay)
   const hovering = hoverQuery(host, (handle, at) => (hovered = handle && { handle, at }), parts)
-  /** The handle the latest answer holds at `point`, or none. */
-  const handleAt = (point: CanvasPoint) =>
-    hovered &&
-    Math.abs(hovered.at.x - point.x) <= HOVER_SLACK &&
-    Math.abs(hovered.at.y - point.y) <= HOVER_SLACK
-      ? hovered.handle
-      : null
-  /** Writes a world pose on the object: the local pose that places it so under its parents. */
-  const apply = (object: Object3D, { position, quaternion, scale }: DragPose) => {
-    const parent = object.parent
-    if (parent) {
-      parent.worldToLocal(position)
-      quaternion.premultiply(parent.getWorldQuaternion(parentTurn).invert())
-    }
-    object.position.copy(position)
-    object.quaternion.copy(quaternion)
-    object.scale.copy(scale)
-  }
-  const paint = (handle: TransformHandle, colour?: number) => {
-    const key = colourOf(handle)
-    parts.materials[key].color.set(colour ?? parts.colours[key])
-  }
   const press = (event: PointerEvent) => {
     if (!control.object() || drag || event.button !== 0) return
-    const point = pointOf(event),
-      handle = handleAt(point)
+    const point = pointOf(host, event),
+      handle = handleAt(hovered, point)
     if (!handle) return void hovering.ask(point)
     control.fit()
-    const ray = rayAt(event)
-    event.stopImmediatePropagation()
-    event.preventDefault()
-    host.canvas.setPointerCapture?.(event.pointerId)
-    drag = { start: control.start(handle, ray.clone()), pointer: event.pointerId }
-    paint(handle, ACTIVE)
-    control.emit('dragStart')
+    drag = beginDrag({ host, parts, control }, event, handle, rayAt(event))
   }
   base.listen<PointerEvent>(host.canvas, 'pointerdown', press, { capture: true })
   base.listen<PointerEvent>(host.canvas, 'pointerleave', () => {
@@ -108,19 +135,15 @@ export function trackTransformDrag(
   })
   base.listen<PointerEvent>(host.canvas, 'pointermove', (event) => {
     const object = control.object()
-    if (!drag && object) hovering.ask(pointOf(event))
+    if (!drag && object) hovering.ask(pointOf(host, event))
     if (!drag || !object || event.pointerId !== drag.pointer) return
-    const pose = dragTransform(drag.start, rayAt(event), control.snap())
-    if (!pose) return
-    apply(object, pose)
-    control.fit()
-    control.emit('change')
+    moveDrag(control, drag, object, rayAt(event))
   })
   /** Ends the drag under way, if any: the pointer let go, the handle's colour back, `dragEnd`. */
   const end = () => {
     if (!drag) return
     host.canvas.releasePointerCapture?.(drag.pointer)
-    paint(drag.start.handle)
+    paintHandle(parts, drag.start.handle)
     drag = null
     control.emit('dragEnd')
   }
@@ -128,7 +151,7 @@ export function trackTransformDrag(
     if (!drag || event.pointerId !== drag.pointer) return
     end()
     // The handle moved under the pointer with its object: the next press reads where it rests.
-    hovering.ask(pointOf(event))
+    hovering.ask(pointOf(host, event))
   }
   base.listen<PointerEvent>(host.canvas, 'pointerup', release)
   base.listen<PointerEvent>(host.canvas, 'pointercancel', release)

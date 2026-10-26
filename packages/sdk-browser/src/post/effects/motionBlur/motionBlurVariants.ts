@@ -9,6 +9,7 @@ import { buildComputeStage } from '../../../gpu/core/computeStages.ts'
 import { createCheckedShaderModule } from '../../../gpu/core/shaderModule.ts'
 import { groupWidth, groupWidthConstants } from '../../../gpu/dispatch/grid.ts'
 import { MOTION_BLUR_PASS } from '../../../diagnostic/stage/passLabels.ts'
+import { HALF_IMAGE_FORMAT } from '../../filters/levelSizes.ts'
 import { CLASSIFY_BINDINGS, CLASSIFY_TWO_BINDINGS, classifyShader } from './classifyWgsl.ts'
 import { GATHER_BINDINGS, GATHER_TWO_BINDINGS, gatherShader } from './dilateWgsl.ts'
 import { FILTER_BINDINGS, filterShader } from './filterWgsl.ts'
@@ -25,6 +26,7 @@ import {
   type TileClass,
 } from './motionBlurLayout.ts'
 import { FILTER_TWO_BINDINGS, filterTwoShader } from './weighTwoWgsl.ts'
+import { layersLayout } from '../../../blend/translucencyLayers.ts'
 
 /** The pipeline constants of each class's filter (`filterShader`): the workgroup's side, and whether
  *  its tiles are gathered at half the resolution and weighed. */
@@ -43,7 +45,9 @@ export type Kit = {
   filters: readonly GPUComputePipeline[]
 }
 
-/** The bind group layout of each pass of a variant of the blur: those of the flattening and the filter
+/** The bind group layout of each pass of a variant of the blur (the filter's pipelines also bind the
+ *  translucency drawn after the blur, `layersLayout`, as their second group, laid over what the last
+ *  blur writes, `MotionBlurParams.outputs`): those of the flattening and the filter
  *  follow the form of the flattened motion, those of the gathering, the classifying and the class of
  *  two motions (`filterTwo`) the directions. */
 type VariantLayouts = {
@@ -88,6 +92,7 @@ const filterEntries = (flat: BlurVariant['flat']): GPUBindGroupLayoutEntry[] => 
   read(FILTER_BINDINGS.tiles),
   computeBufferEntry(FILTER_BINDINGS.list, 'read-only-storage', GPUShaderStage.COMPUTE),
   computeStorageTextureEntry(FILTER_BINDINGS.blurred, OUTPUT_FORMAT),
+  computeStorageTextureEntry(FILTER_BINDINGS.half, HALF_IMAGE_FORMAT),
 ]
 
 /** The layouts of the passes the directions decide: the gathering and the classifying of one motion,
@@ -161,12 +166,12 @@ function variantLayouts(
 const stageOf =
   (device: GPUDevice) =>
   async (
-    layout: GPUBindGroupLayout,
+    layout: GPUBindGroupLayout | readonly GPUBindGroupLayout[],
     made: Promise<GPUShaderModule>,
     entryPoint: string,
     constants?: Record<string, number>,
   ) =>
-    buildComputeStage(device, [layout], await made, entryPoint, constants, MOTION_BLUR_PASS)
+    buildComputeStage(device, [layout].flat(), await made, entryPoint, constants, MOTION_BLUR_PASS)
 
 /** The name a module of the blur is labelled by. */
 const label = (name: string) => `${MOTION_BLUR_PASS} ${name}`
@@ -208,7 +213,7 @@ async function compileStages(
           groupWidthConstants(groupWidth(device.limits)),
         ),
     ...TILE_CLASSES.map((kind) =>
-      stage(layouts.filter, filters, 'filterTiles', classConstants(kind)),
+      stage([layouts.filter, layersLayout(device)], filters, 'filterTiles', classConstants(kind)),
     ),
   ])
   return { flatten, gather, classify, filters: classes }
@@ -230,7 +235,7 @@ async function compileTwoStages(
       'dilateGather',
     ),
     stage(
-      filterTwo!,
+      [filterTwo!, layersLayout(device)],
       createCheckedShaderModule(device, filterTwoShader({ flat, subgroups }), label('filter two')),
       'filterTwoTiles',
     ),

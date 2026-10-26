@@ -46,7 +46,7 @@ export const AO_SAMPLE_SETS: Readonly<Record<1 | 3, readonly (readonly [number, 
  * scaled down by a share that varies with its rank, its cosine and its sine quantised to a byte (`bytes / 255 · 2 − 1`).
  * Written as the bytes; the derivation, in single precision, is checked against them where the tables are tested.
  */
-export const AO_NOISE_BYTES = [
+const AO_NOISE_BYTES = [
   [240, 128],
   [67, 219],
   [147, 224],

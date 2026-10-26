@@ -1,7 +1,7 @@
 /**
- * A plan entry: the item rank, the vertex-cull bit, a bit kept at zero, then the pipeline in the
- * low five — five blend modes of three culls, then the transmissive items' three (`TRANSMIT_BASE`)
- * and the refracting ones' three (`REFRACT_BASE`), the cull mode being the pipeline modulo three. Every
+ * A plan entry: the item rank, the vertex-cull bit, then the pipeline in the low seven — the blend
+ * variants (`BLEND_MODES` in each lighting program, `BLEND_LIGHTINGS`) of three culls each, then the transmissive items' four kinds of three (`TRANSMIT_BASE`)
+ * and the water's, the cull mode being the pipeline modulo three. Every
  * entry draws clusters through the one shared group: the plan splits a pass into its main class
  * and its own entries (`plan.ts`, `../runs.ts`) by pipeline alone.
  *
@@ -9,11 +9,11 @@
  * pipeline that culls nothing, and the vertex stage drops the triangles that mode culls
  * (`../shader.ts`): the back and the face share one run, in the same order, back first — two
  * pipelines would each break the other's run, one call per entry on a double-sided scene.
- * `../runs.ts` and `../expand/expandWgsl.ts` read the low seven bits from here: shifting the rank without
+ * `../runs.ts` and `../expand/expandWgsl.ts` read the low eight bits from here: shifting the rank without
  * following them would let the other sites compile and decode wrong.
  */
-export const PLAN_SHIFT = 7,
-  PLAN_PIPELINE_MASK = 31,
-  PLAN_VERTEX_CULL_BIT = 64
+export const PLAN_SHIFT = 8,
+  PLAN_PIPELINE_MASK = 127,
+  PLAN_VERTEX_CULL_BIT = 128
 export const planEntry = (item: number, pipeline: number, vertexCull = false) =>
   (item << PLAN_SHIFT) | (vertexCull ? PLAN_VERTEX_CULL_BIT : 0) | pipeline

@@ -8,6 +8,43 @@ import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
  *  where they end (`../../frame/render/movedNode.ts`, `appendRootsUnder`). */
 export type RootsUnder = (node: Object3D, out: number[], at: number) => number
 
+type Seen = { set?: ViewSet; roots: number; revision: number; forced?: readonly number[] }
+
+/** Whether the filter was last made for this very view set, root count, revision and forced
+ *  roots. */
+const sameAsSeen = (
+  seen: Seen | undefined,
+  set: ViewSet | undefined,
+  rootCount: number,
+  revision: number,
+  forced: readonly number[] | undefined,
+) =>
+  seen !== undefined &&
+  seen.set === set &&
+  seen.roots === rootCount &&
+  seen.revision === revision &&
+  seen.forced === forced
+
+/** The bits of the roots the view does not draw, written into `bits` (`rootCount` roots). */
+function fillBits(
+  bits: Uint32Array,
+  set: ViewSet | undefined,
+  rootCount: number,
+  under: RootsUnder,
+  ranks: number[],
+  forced: readonly number[] | undefined,
+) {
+  const words = bits.length
+  bits.fill(set?.showOnly ? 0xffffffff : 0)
+  // Past the last root a bit names no placement: left clear.
+  const used = rootCount - 32 * (words - 1)
+  if (used < 32) bits[words - 1] &= used > 0 ? (1 << used) - 1 : 0
+  if (set?.showOnly)
+    for (const node of set.showOnly) mark(bits, node, under, ranks, rootCount, false)
+  for (const node of set?.hidden ?? []) mark(bits, node, under, ranks, rootCount, true)
+  for (const rank of forced ?? []) if (rank < rootCount) setBit(bits, rank)
+}
+
 /**
  * THE BITS OF A VIEW'S FILTER (`Camera.hidden`, `Camera.showOnly`,
  * `../../../../sdk-core/src/contracts/viewOptions.ts`): a bit a root, by its rank — the placement
@@ -18,6 +55,10 @@ export type RootsUnder = (node: Object3D, out: number[], at: number) => number
  * (`RootsUnder`), so a filter costs what it names. A view with no filter has no bits and costs
  * nothing: `update` answers `undefined`.
  *
+ * Beside the view's lists, the roots `forced` names — the ones the view does not draw whatever it
+ * lists: an object hidden from the view that owns it (`firstPersonWorldSpaceRepresentation`), one that
+ * casts its shadow while hidden (`castHiddenShadow`) — are set last, as `hidden` is.
+ *
  * `update` answers the array it answered before when the bits did not change, so that the
  * identity of the array is the revision of the filter — the cut in hand stands
  * (`sameSelectionUniforms`) and the GPU holds the bits already (`../dag/viewFilterRegion.ts`)
@@ -27,26 +68,27 @@ export type RootsUnder = (node: Object3D, out: number[], at: number) => number
 export function createViewFilter() {
   let held: Uint32Array | undefined,
     scratch = new Uint32Array(0),
-    seen: { set?: ViewSet; roots: number; revision: number } | undefined
+    seen: Seen | undefined
   const ranks: number[] = []
   return {
-    update(set: ViewSet | undefined, rootCount: number, under: RootsUnder, revision: number) {
-      if (!set || (set.hidden.length === 0 && set.showOnly === null)) {
+    update(
+      set: ViewSet | undefined,
+      rootCount: number,
+      under: RootsUnder,
+      revision: number,
+      forced?: readonly number[],
+    ) {
+      const listed = !!set && (set.hidden.length > 0 || set.showOnly !== null)
+      if (!listed && !forced?.length) {
         seen = undefined
         return (held = undefined)
       }
-      if (seen?.set === set && seen.roots === rootCount && seen.revision === revision) return held
-      seen = { set, roots: rootCount, revision }
+      if (sameAsSeen(seen, set, rootCount, revision, forced)) return held
+      seen = { set, roots: rootCount, revision, forced }
       const words = Math.max(1, bitWords(rootCount))
       if (scratch.length < words) scratch = new Uint32Array(words)
       const bits = scratch.subarray(0, words)
-      bits.fill(set.showOnly ? 0xffffffff : 0)
-      // Past the last root a bit names no placement: left clear.
-      const used = rootCount - 32 * (words - 1)
-      if (used < 32) bits[words - 1] &= used > 0 ? (1 << used) - 1 : 0
-      if (set.showOnly)
-        for (const node of set.showOnly) mark(bits, node, under, ranks, rootCount, false)
-      for (const node of set.hidden) mark(bits, node, under, ranks, rootCount, true)
+      fillBits(bits, set, rootCount, under, ranks, forced)
       return (held = held && sameValues(held, bits) ? held : bits.slice())
     },
   }

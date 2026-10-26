@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../scene/host/graph/graph.fixture.ts'
-import { VIS_SHADER } from './shader/visWgsl.ts'
+import { VIS_SHADER } from './shader/visShader.fixture.ts'
 import { camera, centerId, nearestQuadTexture, quadPages } from './buffer.fixture.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { maskKeepWgsl } from './shader/pageWgsl.ts'
@@ -91,8 +91,11 @@ test('both rasters hand the interpolated vertex alpha to the cutout; shadows pas
   )
   // One camera fragment stage cuts, in both phases of the visibility write.
   assert.equal(VIS_SHADER.split('maskKeep(page,in.tc.xy,in.tc.z,').length, 2)
-  const small = rasterSource(4)
+  const small = rasterSource()
   assert.ok(small.includes('t.ua=vec3f(pageMaskUv(page,h,k.x),pageMaskAlpha(page,h,k.x));'))
-  assert.ok(small.includes('let tc=t.ua*uvw.x+t.ub*uvw.y+t.uc*uvw.z;'), 'interpolated with the UV')
+  // Interpolated with the UV by the setup's one cutout reading (`triCutout`), which the shadow
+  // maps' software raster reads too.
+  assert.ok(small.includes('t.ua*uvw.x+t.ub*uvw.y+t.uc*uvw.z'), 'interpolated with the UV')
+  assert.ok(small.includes('let cut=triCutout(t,c);'))
   assert.ok(small.includes('maskKeep(page,tc.xy,tc.z,ddx,ddy)'))
 })

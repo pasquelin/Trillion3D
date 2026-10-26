@@ -8,6 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from '../placement/placementTree.fixture.ts'
 import { packDagSelection } from '../pack/pack.ts'
+import { dagRootCounts } from '../pack/packCapacity.ts'
 import { createDagResources } from '../resources.ts'
 import { createDagRuntime } from '../runtime/runtime.ts'
 import type { RootsOnGpu } from '../runtime/runtimeOps.ts'
@@ -16,15 +17,22 @@ import { TREE_REFIT_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import { BACKEND } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
+import { pipelinesSettled } from '../../../lighting/deferred/compileLedger.ts'
 import { hostStretches } from '../hostStretches.fixture.ts'
 
 /** A field of `side`² placements cut on a mock device, its tree followed by the run itself
  *  (`createDagRuntime`) over a writer of leaves that records what each fit names — `ready` once
- *  the worlds are on the GPU; what the run sent and encoded, and `cut`. */
-async function followed(side = 40, ready = { now: true }) {
+ *  the worlds are on the GPU — one of them an instance of an assembly, in a packing with room, when
+ *  `wide`: its leaves hold the balls of the groups above instances' roots —; what the run sent and
+ *  encoded, and `cut`. */
+async function followed(side = 40, ready = { now: true }, wide = false) {
   installGpuGlobals()
-  const roots = placementField(side, 6),
-    packed = packDagSelection(roots),
+  const roots = placementField(side, 6)
+  if (wide) roots[0].rootParent = { error: 2, sphere: [0, 0, 0, 4] }
+  const packed = packDagSelection(
+      roots,
+      wide ? { ...dagRootCounts(roots), ahead: true } : undefined,
+    ),
     gpu = fakeDevice({
       ...BACKEND,
       packed,
@@ -52,6 +60,9 @@ async function followed(side = 40, ready = { now: true }) {
     passes: gpu.commands.filter((command) => command === `compute ${TREE_REFIT_PASS}`).length,
   })
   const cut = () => selection.dispatch(createSelectionUniforms())
+  // The first cut asks the kernels (the frames wait for them) and fits nothing; the next fits.
+  cut()
+  await pipelinesSettled(gpu.device, true)
   cut()
   await selection.flush()
   const moved = (w: number) => {
@@ -140,4 +151,40 @@ test('a root a parent composes has its leaf named like any other, its parent’s
   assert.equal(state().passes - after.passes, 1)
   assert.deepEqual(named.at(-1)!.ranks, [], 'the composed leaves are the pass’s own list')
   assert.equal(state().nodes - after.nodes, 2 /* levels of a 1600-placement tree */)
+})
+
+test('a group set above an instance’s root, taken back or changed, fits the leaf that holds its ball at the next cut, a group read again none', async () => {
+  const { selection, state, cut, named } = await followed(40, { now: true }, true)
+  const group = { error: 6.5, sphere: [1.25, -2, 3, 40] as const }
+  let before = state()
+  assert.equal(selection.rootParentWorld(70, group), true)
+  cut()
+  assert.deepEqual(named.at(-1)!.ranks, [70], 'its leaf, written again with the ball')
+  assert.equal(state().passes - before.passes, 1)
+  before = state()
+  assert.equal(selection.rootParentWorld(70, { ...group }), true)
+  cut()
+  assert.equal(state().passes, before.passes, 'the same group: nothing to fit')
+  assert.equal(selection.rootParentWorld(70, { ...group, error: 3 }), true)
+  cut()
+  assert.equal(state().passes - before.passes, 1, 'another group')
+  before = state()
+  selection.rootParentWorld(70, undefined)
+  cut()
+  assert.equal(state().passes - before.passes, 1, 'the group taken back')
+})
+
+test('a cut whose leaves are narrow takes no group above an instance’s root; a wide one does', async () => {
+  const { selection, packed, state, cut } = await followed(40)
+  assert.equal(packed.parentNode, undefined, 'its packing names none')
+  const before = state()
+  assert.equal(selection.treeParented, false, 'the narrow kernel is asked for')
+  assert.equal(selection.rootParentWorld(70, { error: 6.5, sphere: [1, 2, 3, 4] }), false)
+  cut()
+  assert.equal(state().passes, before.passes, 'nothing was written, nothing fits')
+  assert.equal(selection.rootParentWorld(70, undefined), true)
+  assert.equal(packed.parentNode, undefined, 'no column was made in place')
+  const wide = await followed(40, { now: true }, true)
+  assert.equal(wide.selection.treeParented, true)
+  assert.equal(wide.selection.rootParentWorld(70, { error: 6.5, sphere: [1, 2, 3, 4] }), true)
 })

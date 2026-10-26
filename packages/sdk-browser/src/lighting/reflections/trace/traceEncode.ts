@@ -33,8 +33,9 @@ export async function createTraceStages(
   device: GPUDevice,
   modules: { trace: GPUShaderModule },
   groupLayout: GPUBindGroupLayout,
+  statistics: boolean,
 ) {
-  const layouts: TraceLayouts = traceLayouts(device)
+  const layouts: TraceLayouts = traceLayouts(device, statistics)
   const kernelLayouts = (layer: number) =>
     ({
       screen: layouts.screen,
@@ -112,8 +113,8 @@ const HEAD_BYTES = 16
  * screen; the rays the screen left traced through the scene; then resolved, accumulated and filtered
  * over the resolve tiles, and answered by the field over the clear ones. Every kernel after the
  * classification is dispatched indirectly: over a list of tiles, the scene stage over the rays left.
- * `depthGroup` is the reflection group over the depth pyramid, `block` the side of the blocks of pixels a grid texel
- * traces (the level's row). The history's parity turns every call.
+ * `depthGroup` is the reflection group over the depth pyramid, `block` the blocks of pixels a grid texel
+ * traces, across and down (the level's row), `frontBlock` the front layer's. The history's parity turns every call.
  */
 export function encodeReflectionTrace(
   encoder: GPUCommandEncoder,
@@ -122,7 +123,8 @@ export function encodeReflectionTrace(
   inputs: TraceInputs,
   depthGroup: GPUBindGroup,
   size: readonly [number, number],
-  block: number,
+  block: readonly [number, number],
+  frontBlock: readonly [number, number],
   front: boolean,
 ) {
   const groups = traceGroups(reflection, stages, stages.layouts, inputs)
@@ -142,7 +144,7 @@ export function encodeReflectionTrace(
       if (label === REFLECTION_TRACE_PASS) {
         pass.setPipeline(stages.classify)
         pass.setBindGroup(0, groups[side].classify[parity])
-        const [x, y] = classifyGroups(size, block, classifying)
+        const [x, y] = classifyGroups(size, side === 'opaque' ? block : frontBlock, classifying)
         pass.dispatchWorkgroups(x, y)
       }
       for (const kernel of kernels) {

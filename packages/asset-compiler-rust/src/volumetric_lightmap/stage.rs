@@ -41,12 +41,15 @@ pub(crate) fn stage_volumetric_lightmap(
     let Some((layers, mut section)) = bake(&bake_inputs, settings, progress)? else {
         return Ok(None);
     };
-    let bytes =
+    let encoded =
         encode(&layers).map_err(|message| CompilerError::new("INVALID_LIGHTMAP", message))?;
-    let written = product(directory, LIGHTMAP_BAKE_FILE, &bytes)?;
+    let bytes = &encoded.bytes;
+    let written = product(directory, LIGHTMAP_BAKE_FILE, bytes)?;
     section["version"] = json!(VOLUMETRIC_LIGHTMAP_VERSION);
     section["file"] = json!(LIGHTMAP_BAKE_FILE);
     section["bytes"] = json!(bytes.len());
+    section["baseBytes"] = json!(encoded.base_bytes);
+    section["baseSha256"] = json!(crate::hash(&bytes[..encoded.base_bytes]));
     section["bounds"] = json!([layers.bounds.0, layers.bounds.1]);
     Ok(Some((written, section)))
 }

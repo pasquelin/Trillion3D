@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { instanceItem } from '../../../../../bench/oracles/browser/instanceItem.ts'
 import { blendVertexShift, RUN_WORDS } from '../plan/planLayout.ts'
 import { expandBlendPlan } from './expandCpu.fixture.ts'
+import { itemFilterWord } from './expansionViews.ts'
 import { planEntry } from '../plan/planEntry.ts'
 import { hasBit } from '../../../../math/src/scalar/bits.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
@@ -125,4 +126,26 @@ test('the frustum verdict is read bit by bit, at the item rank', () => {
     [0, 1, 2, 3, 32, 33].map((item) => hasBit(keep, item)),
     [false, true, false, true, true, false],
   )
+})
+
+test('a view expands the items of its passes alone, and the instances of the others leave no gap', () => {
+  const base = scene()
+  // Items 0 and 2 are of the pass before the depth of field (code 1), item 1 of the pass after (code 2); item 2 is responsive.
+  base.draws[3] = itemFilterWord(1, false)
+  base.draws[7] = itemFilterWord(2, false)
+  base.draws[11] = itemFilterWord(1, true)
+  const order = Uint32Array.from([entryOf(0), entryOf(1), entryOf(2)])
+  const runs = new Uint32Array(RUN_WORDS)
+  runs.set([0, 3])
+  // The three passes' bits, and the flag a responsive item carries beside its pass's.
+  const passes = (1 << 1) | (1 << 2) | (1 << 3),
+    responsive = itemFilterWord(1, true) ^ itemFilterWord(1, false)
+  const before = { exclude: passes & ~(1 << 1), require: 0 }
+  assert.equal(expandBlendPlan({ ...base, order, runs, runCount: 1, filter: before }), 3)
+  assert.deepEqual(Array.from(base.expanded.subarray(0, 6)), [0, 100, 0, 101, 2, 108])
+  assert.deepEqual(Array.from(base.args.subarray(0, 4)), [48, 3, 0, 0])
+  const marking = { exclude: before.exclude, require: responsive }
+  assert.equal(expandBlendPlan({ ...base, order, runs, runCount: 1, filter: marking }), 1)
+  assert.deepEqual(Array.from(base.expanded.subarray(0, 2)), [2, 108])
+  assert.equal(expandBlendPlan({ ...base, order, runs, runCount: 1 }), 6, 'the view of every layer')
 })

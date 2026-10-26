@@ -1,4 +1,4 @@
-import { gpuDeviceLedgerOf } from './deviceLedger.ts'
+import { constructGpuResources } from './deviceLedger.ts'
 
 /** Destroys, in order, every resource a failed setup made. A `destroy` that throws is passed
  *  over, so the setup's own failure is the one reported. */
@@ -9,19 +9,6 @@ export function destroyAll(resources: Iterable<{ destroy(): void } | undefined>)
     } catch {
       /* Partial setup. */
     }
-}
-
-/** Roll back only resources made synchronously by this construction, never across an await. */
-export function constructGpuResources<T>(device: GPUDevice, build: () => T): T {
-  const allocation = gpuDeviceLedgerOf(device)?.transaction()
-  try {
-    return build()
-  } catch (error) {
-    allocation?.rollback()
-    throw error
-  } finally {
-    allocation?.commit()
-  }
 }
 
 /**

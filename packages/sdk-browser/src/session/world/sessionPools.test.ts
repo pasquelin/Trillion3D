@@ -1,10 +1,12 @@
 // A session's pools are those of its first admission (`sessionPools`): a byte the frame frees later
 // stays free, never handed to a pool; they shrink when room runs short and come back up to that
 // grant, and only a pool the page asks passes it. By default, the frame's share and an effect chain
-// past its reserve are funded before them (`defaultGpuBudget`).
+// past its reserve are funded before them (`defaultGpuBudget`), and no allocation is held to the
+// total: only a total the page sets is the session's ceiling.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { sessionPools, worldPools } from './budget.ts'
+import { sessionPools, worldBudget, worldPools, type Pools } from './budget.ts'
+import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/options.ts'
 import type { ActiveGpuMemory } from '../memory/activeMemory.ts'
 import { DEFAULT_BUDGET_CANVAS, defaultGpuBudget } from '../memory/memoryBudget.ts'
 import { effectTargetReserve } from '../memory/effectReserve.ts'
@@ -15,6 +17,10 @@ import {
 } from '../../../../sdk-core/src/contracts/poolBudgets.ts'
 
 const MiB = 2 ** 20
+/** The GPU total the world reads (`world.budget.gpu`): the default one, beside what the session
+ *  last held, unless the page set it. */
+const totalOf = (world: Pools) =>
+  worldBudget(world, { explorer: null }, { last: null }, { ...DEFAULT_PHYSICS_BUDGET }).gpu
 /** A session holding `frameTargets` beside 400 MiB of shadows, its pools' floors 64 and 32 MiB. */
 const holding = (frameTargets: number, more: Partial<ActiveGpuMemory> = {}): ActiveGpuMemory => ({
   frameTargets,
@@ -31,6 +37,7 @@ const holding = (frameTargets: number, more: Partial<ActiveGpuMemory> = {}): Act
 test('a byte the frame frees stays free: the pools keep their first grant', () => {
   const world = Object.assign(worldPools(), { gpu: 2048 * MiB })
   const { admitGpuMemory } = sessionPools(world)
+  assert.equal(admitGpuMemory.limit(), 2048 * MiB, 'the total the page set is the ceiling')
   const first = admitGpuMemory(holding(1200 * MiB))
   assert.deepEqual(first, { geometryPoolBytes: 224 * MiB, texturePoolBytes: 224 * MiB })
   assert.deepEqual(admitGpuMemory(holding(1000 * MiB)), first, '200 MiB freed, none to a pool')
@@ -64,37 +71,44 @@ const atShare = (frameTargets: number, more: Partial<ActiveGpuMemory> = {}) =>
 test('the default total funds the frame share and a chain past its reserve before the pools', () => {
   const world = worldPools()
   const { admitGpuMemory } = sessionPools(world)
-  assert.equal(admitGpuMemory.limit(), defaultGpuBudget(), 'before any admission: the shares')
+  assert.equal(totalOf(world), defaultGpuBudget(), 'before any admission: the shares')
   const reserve = effectTargetReserve(DEFAULT_BUDGET_CANVAS)
   const active = atShare(1100 * MiB, { frameShare: 1180 * MiB, effectTargets: reserve + 10 * MiB })
   const pools = admitGpuMemory(active)
-  assert.equal(admitGpuMemory.limit(), defaultGpuBudget() + 1180 * MiB + 10 * MiB)
+  assert.equal(totalOf(world), defaultGpuBudget() + 1180 * MiB + 10 * MiB)
   assert.deepEqual(pools, {
     geometryPoolBytes: DEFAULT_GEOMETRY_POOL_BUDGET,
     texturePoolBytes: DEFAULT_TEXTURE_POOL_BUDGET,
   })
   // A chain within its reserve adds nothing.
   admitGpuMemory(atShare(1100 * MiB, { frameShare: 1180 * MiB, effectTargets: reserve - MiB }))
-  assert.equal(admitGpuMemory.limit(), defaultGpuBudget() + 1180 * MiB)
+  assert.equal(totalOf(world), defaultGpuBudget() + 1180 * MiB)
+})
+
+test('by default no allocation is held to the total: the default one is never a ceiling', () => {
+  const { admitGpuMemory } = sessionPools(worldPools())
+  assert.equal(admitGpuMemory.limit(), undefined, 'before any admission')
+  admitGpuMemory(atShare(1100 * MiB))
+  assert.equal(admitGpuMemory.limit(), undefined, 'once the session holds its frame')
 })
 
 test("a scene whose floors pass the pools' defaults: the default total funds them", () => {
-  const { admitGpuMemory } = sessionPools(worldPools())
+  const world = worldPools()
+  const { admitGpuMemory } = sessionPools(world)
   const floors = { geometryMinimum: 700 * MiB, textureMinimum: 600 * MiB }
   const pools = admitGpuMemory(atShare(1100 * MiB, floors))
-  assert.equal(admitGpuMemory.limit(), defaultGpuBudget() + 1100 * MiB + (700 + 600 - 1024) * MiB)
+  assert.equal(totalOf(world), defaultGpuBudget() + 1100 * MiB + (700 + 600 - 1024) * MiB)
   assert.deepEqual(pools, { geometryPoolBytes: 700 * MiB, texturePoolBytes: 600 * MiB })
 })
 
 test('shadows still to be made past their share: the default total funds them, pools whole', () => {
-  const { admitGpuMemory } = sessionPools(worldPools())
+  const world = worldPools()
+  const { admitGpuMemory } = sessionPools(world)
+  // Held and reserved, the shadows come to 100 MiB past the share the default total holds for them.
   const pools = admitGpuMemory(
-    holding(1100 * MiB, { shadowPool: 80 * MiB, shadowReserve: 700 * MiB }),
+    holding(1100 * MiB, { shadowPool: 80 * MiB, shadowReserve: SHADOW_POOL_BYTES + 20 * MiB }),
   )
-  assert.equal(
-    admitGpuMemory.limit() - defaultGpuBudget(),
-    1100 * MiB + 780 * MiB - SHADOW_POOL_BYTES,
-  )
+  assert.equal(totalOf(world) - defaultGpuBudget(), 1100 * MiB + 100 * MiB)
   assert.deepEqual(pools, {
     geometryPoolBytes: DEFAULT_GEOMETRY_POOL_BUDGET,
     texturePoolBytes: DEFAULT_TEXTURE_POOL_BUDGET,
@@ -102,18 +116,18 @@ test('shadows still to be made past their share: the default total funds them, p
 })
 
 // By default, what the session holds beside its pools past the frame's share — its scene's own
-// buffers — is funded too: the total never falls under what is held, which would refuse the next
-// allocation of a frame by name, and the pools keep their defaults. A total the page sets presses
-// them instead.
-test('by default what is held past the frame share is funded: pools whole, limit over the held', () => {
-  const { admitGpuMemory } = sessionPools(worldPools())
+// buffers — is funded too: the total never falls under what is held, and the pools keep their
+// defaults. A total the page sets presses them instead.
+test('by default what is held past the frame share is funded: pools whole, total over the held', () => {
+  const world = worldPools()
+  const { admitGpuMemory } = sessionPools(world)
   const active = holding(1100 * MiB, { frameShare: 300 * MiB })
   assert.deepEqual(admitGpuMemory(active), {
     geometryPoolBytes: DEFAULT_GEOMETRY_POOL_BUDGET,
     texturePoolBytes: DEFAULT_TEXTURE_POOL_BUDGET,
   })
   const held = active.frameTargets + active.shadowPool + 2 * DEFAULT_GEOMETRY_POOL_BUDGET
-  assert.ok(admitGpuMemory.limit() >= held, `${admitGpuMemory.limit()} >= ${held}`)
+  assert.ok(totalOf(world) >= held, `${totalOf(world)} >= ${held}`)
   const set = sessionPools(Object.assign(worldPools(), { gpu: 2048 * MiB }))
   assert.ok(set.admitGpuMemory(active).geometryPoolBytes < DEFAULT_GEOMETRY_POOL_BUDGET)
 })
@@ -129,6 +143,6 @@ test('a held grant is never under a floor risen since', () => {
 test("a session opens on its own holdings, not the last session's", () => {
   const world = worldPools()
   sessionPools(world).admitGpuMemory(holding(4000 * MiB))
-  const { admitGpuMemory } = sessionPools(world)
-  assert.equal(admitGpuMemory.limit(), defaultGpuBudget())
+  sessionPools(world)
+  assert.equal(totalOf(world), defaultGpuBudget())
 })

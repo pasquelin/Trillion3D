@@ -1,11 +1,11 @@
 import type { CameraPose } from '../../../sdk-core/src/contracts/base.ts'
 import type { MeasuredWorldOptions, PointOfInterest } from '../session/options.ts'
-import type { HostCamera } from '../camera/world.ts'
+import type { ViewCamera } from '../camera/world.ts'
 
 type Inputs = {
   options: MeasuredWorldOptions
-  camera: HostCamera
-  center: HostCamera['position']
+  camera: ViewCamera
+  center: ViewCamera['position']
 }
 
 /** A point of interest the host declared whole: an id, a label and a pose. */

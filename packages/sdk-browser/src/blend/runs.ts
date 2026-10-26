@@ -68,21 +68,24 @@ export function assignOwnSlots(
 }
 
 /** Writes the expansion kernel's uniform words (`expand/expandUniform.ts`) into `out`, at the rank each
- *  occupies. */
+ *  occupies, for one view (`expand/expansionViews.ts`): its filter, where its instances start, and its arguments at `argsBase`. */
 export function blendExpandUniform(
   out: Uint32Array,
-  counts: { entries: number; runs: number; instanceBase: number },
-  region: { order: number; runs: number; args: number },
+  counts: { entries: number; runs: number },
+  region: { order: number; runs: number },
   scene: { maxVertexWords: number; vertexShift: number },
+  view: { exclude: number; require: number; instanceBase: number; argsBase: number },
 ) {
   out[EXPAND_UNI.entryCount] = counts.entries
   out[EXPAND_UNI.groupCount] = workgroupCount(counts.entries, WORKGROUP_THREADS)
   out[EXPAND_UNI.runCount] = counts.runs
-  out[EXPAND_UNI.instanceBase] = counts.instanceBase
-  out[EXPAND_UNI.argsBase] = region.args
+  out[EXPAND_UNI.instanceBase] = view.instanceBase
+  out[EXPAND_UNI.argsBase] = view.argsBase
   out[EXPAND_UNI.maxVertexWords] = scene.maxVertexWords
   out[EXPAND_UNI.vertexShift] = scene.vertexShift
   out[EXPAND_UNI.orderBase] = region.order
   out[EXPAND_UNI.runsBase] = region.runs
+  out[EXPAND_UNI.exclude] = view.exclude
+  out[EXPAND_UNI.required] = view.require
   return out
 }

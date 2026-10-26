@@ -24,6 +24,10 @@ export type VisBindResources = AtlasResources & {
   material: GPUTextureView
   /** The float pool's normal atlas (`VIS_BINDINGS.normals`). */
   normals: GPUTextureView
+  /** The graph frame (`../../frame/render/graphFrame.ts`) and the blue noise a dithered cutout is
+   *  cut by (`../noise/blueNoiseTextures.ts`, or its neutral stand-in). */
+  frame: GPUBuffer
+  noise: GPUTextureView
 }
 /** Resources of the hardware-resolve group, identical for both of its constructors. */
 export type ShadeBindResources = AtlasResources & {
@@ -35,11 +39,11 @@ export type ShadeBindResources = AtlasResources & {
   normal: GPUTextureView
   pageTable: GPUBuffer
   uniform: GPUBuffer
-  /** The frame's cache (`../../visibility/shader/shadeCacheWgsl.ts`). */
-  shadeCache: GPUBuffer
   /** The surfaces' records (`../../materials/table/materialTable.ts`) and the lobes target the resolve writes. */
   material: GPUTextureView
   lobes: GPUTextureView
+  /** The graph frame (`../../frame/render/graphFrame.ts`). */
+  frame: GPUBuffer
   /** The voxel trace's counters (`../../visibility/passes/voxelSteps.ts`). */
   voxelSteps: GPUBuffer
 }
@@ -51,12 +55,17 @@ export type SmallBindResources = AtlasResources & {
   /** The visibility-buffer uniform (`VIS_UNIFORM_BYTES`), read from its first slot. */
   uniform: GPUBuffer
   uvs: GPUBuffer
-  /** The visibility buffer then, right after it, the software raster's triangle lists. */
+  /** The visibility buffer the software raster writes. */
   work: GPUBuffer
+  /** The lists of clusters the split made, one a pass of the cut (`../../visibility/raster/contract.ts`). */
+  lists: GPUBuffer
   /** The surfaces' records (`../../materials/table/materialTable.ts`). */
   material: GPUTextureView
   /** The float pool's normal atlas (`SMALL_BINDINGS.normals`). */
   normals: GPUTextureView
+  /** The graph frame and the blue noise (`VisBindResources`). */
+  frame: GPUBuffer
+  noise: GPUTextureView
 }
 
 /** The four entries of an atlas: one view per lane, in `PREVIEW_LAYOUT_NAMES` order, and its page table. */
@@ -89,6 +98,8 @@ export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
     bufferEntry(b.slotOffsets, () => r.slotOffsets),
     resourceEntry(b.material, () => r.material),
     resourceEntry(b.normals, () => r.normals),
+    bufferEntry(b.frame, () => r.frame),
+    resourceEntry(b.noise, () => r.noise),
   ]
 }
 
@@ -107,10 +118,10 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
     resourceEntry(b.sampler, () => r.sampler),
     bufferEntry(b.uniform, () => r.uniform),
     ...atlasEntries(b.data, () => r.textures?.data),
-    bufferEntry(b.shadeCache, () => r.shadeCache),
     resourceEntry(b.material, () => r.material),
     resourceEntry(b.lobes, () => r.lobes),
     bufferEntry(b.voxelSteps, () => r.voxelSteps),
+    bufferEntry(b.frame, () => r.frame),
   ]
 }
 
@@ -131,7 +142,10 @@ export function smallBindEntries(r: SmallBindResources): GPUBindGroupEntry[] {
     ...atlasEntries(b.color, () => r.textures?.color),
     resourceEntry(b.sampler, () => r.sampler),
     bufferEntry(b.work, () => r.work),
+    bufferEntry(b.lists, () => r.lists),
     resourceEntry(b.material, () => r.material),
     resourceEntry(b.normals, () => r.normals),
+    bufferEntry(b.frame, () => r.frame),
+    resourceEntry(b.noise, () => r.noise),
   ]
 }

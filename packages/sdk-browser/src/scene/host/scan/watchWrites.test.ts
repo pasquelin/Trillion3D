@@ -67,7 +67,10 @@ const WRITES: Array<[string, (s: Scene) => void, WatchVerdict?]> = [
   ['matrixAutoUpdate', ({ mesh }) => void (mesh.matrixAutoUpdate = true)],
   ['a reparenting', ({ mesh }) => void new Group().add(mesh), 'reshaped'],
   ['a light intensity', ({ lamp }) => void (lamp.intensity = 7)],
-  ['a light range and cone', ({ lamp }) => void ((lamp.distance = 42), (lamp.angle = 0.1))],
+  [
+    'a light range and cone',
+    ({ lamp }) => void ((lamp.distance = 42), (lamp.outerConeAngle = 0.1)),
+  ],
   ['a light colour set', ({ lamp }) => void lamp.color.setRGB(0.25, 0.5, 0.75)],
   ['a light ground colour set', ({ lamp }) => void lamp.groundColor.setRGB(0.1, 0.2, 0.3)],
   [

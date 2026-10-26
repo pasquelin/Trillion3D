@@ -2,26 +2,14 @@ import { FLAG_MORPH, FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/p
 import type { BankTrack } from '../../../sdk-core/src/scene/core/animationBanks.ts'
 import type { ClusterRoot, DeformationOutput, PageRec } from '../geometry/selection/types.ts'
 
-import type { HostAttributes } from '../session/host/resources.ts'
-import { DEFORM_SHARED, ROW_WORDS } from '../visibility/types.ts'
+import { DEFORM_SHARED } from '../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
-import { rootOfPacked } from '../geometry/selection/placements.ts'
-import { ownPageRow } from '../geometry/rows/state.ts'
-import { PAGE_INFO } from '../visibility/pageInfo.ts'
 import type { PlacementRows } from '../placement/rows/rows.ts'
 import type { SharedOutputs } from './bankTracks.ts'
 import { createRootTracks } from './rootTracks.ts'
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 
-/** The words a vertex's results start with: its owner's tag, then its image's; a block's address
- *  lies past the first vertex's. */
-export const DEFORM_TAG_WORDS = 2
-/** Where each result of a vertex lies from its address, three floats each: its current position,
- *  its previous one, its current normal — what the stage writes and the page passes read. */
-export const DEFORMED_FIELD = { position: 0, previous: 3, normal: 6 } as const
-/** Words per vertex: the tags, then the three results. */
-export const DEFORM_VERTEX_WORDS = DEFORM_TAG_WORDS + 3 * 3
-
-/** The word a row or a transparent span carries to name the results of a page and a placement
+/** The word a deformed-results record or a transparent span carries to name the results of a page and a placement
  *  (`ClusterRoot.deformationOutputs`): their first float plus one, in the float pool, zero for
  *  none; a bank track's block carries `DEFORM_SHARED` above its address. */
 export const deformOutputWord = (output: DeformationOutput | undefined) =>
@@ -31,20 +19,8 @@ export const deformOutputWord = (output: DeformationOutput | undefined) =>
  *  pool's table deforms once for every page that reads it (`pooledRows.ts`); every one for a bank
  *  track's block, which the row of each placement playing the track deforms, a row leaving a
  *  vertex another row already deformed in this image (`computeWgsl.ts`). */
-const deformCountWord = (output: DeformationOutput | undefined) =>
+export const deformCountWord = (output: DeformationOutput | undefined) =>
   output && !output.pool ? output.count : 0
-
-/** Names `output` in the page-table row at word `at` (`row * ROW_WORDS`): the words
- *  the row's own deformation reads (`deformCountWord`, `deformOutputWord`). The one writer of them
- *  for a row, at its first write and when the pool's tail is laid out again. */
-export function writeRowDeformation(
-  ints: Uint32Array,
-  at: number,
-  output: DeformationOutput | undefined,
-) {
-  ints[at + PAGE_INFO.at.deformCount] = deformCountWord(output)
-  ints[at + PAGE_INFO.at.deformOutput] = deformOutputWord(output)
-}
 
 /** Names `output` in the transparent span `entry` (output word, then count word), zero when the
  *  span `drawn` nothing. The one writer of them for a span, at its first write and when the pool's
@@ -172,7 +148,7 @@ export function assignDeformationOutputs(
     const animate = rowsAnimate(rows),
       alone = !tracks.length
     // Made on the first float page that deforms: a still root allocates nothing.
-    let shared: Map<HostAttributes, DeformationOutput> | undefined
+    let shared: Map<Geometry['attributes'], DeformationOutput> | undefined
     let outputs: (DeformationOutput | undefined)[] | undefined
     root.pages.forEach((page, k) => {
       const count = animate || (alone && want[k]) ? pageVertices(page) : 0
@@ -196,28 +172,21 @@ export function assignDeformationOutputs(
   return blocks
 }
 
-/** The rows of `root`'s pages — a blended page's caster row — and its transparent spans pointed at
- *  what it reads now, the record word `record` and its pages' results
- *  (`ClusterRoot.deformationOutputs`), as `followPooledBlocks` points every row: a root whose bank
- *  track started or stopped animating (`bankTracks.ts`), before the next image's deformation reads
- *  them. */
+/** The placement of `root` — rank `rank` — and its transparent spans pointed at what it reads now,
+ *  its record word and its pages' results (`ClusterRoot.deformationOutputs`), as
+ *  `followPooledBlocks` points every placement: a root whose bank track started or stopped
+ *  animating (`bankTracks.ts`), before the next image's deformation reads them. */
 export function followRootBlocks(
   rt: Pick<WebgpuPagesRuntime, 'layout' | 'blendState'>,
   root: ClusterRoot<PageRec>,
-  record: number,
+  rank: number,
 ) {
-  const { rows } = rt.layout,
-    { table, dirtySpans } = rt.blendState,
-    ints = rows.pageTableInts,
+  const { table, dirtySpans } = rt.blendState,
     base = root.packedBase ?? -1
+  // Its clusters are decoded from the placement's record each image (`../visibility/decode/`).
+  rt.layout.clusters.placementInfo.mark(rank)
   for (let page = 0; base >= 0 && page < root.pages.length; page++) {
-    const output = root.deformationOutputs?.[page],
-      row = ints ? ownPageRow(rows, base + page, !!root.pages[page].transparent) : -1
-    if (ints && row >= 0) {
-      ints[row * ROW_WORDS + PAGE_INFO.at.deform] = record
-      writeRowDeformation(ints, row * ROW_WORDS, output)
-      rows.markRowWords(row)
-    }
+    const output = root.deformationOutputs?.[page]
     const entry = table ? table.entryOf(base + page) : -1,
       drawn = entry < 0 ? 0 : table!.spans[entry * 4 + 1]
     if (!drawn) continue
@@ -227,29 +196,16 @@ export function followRootBlocks(
 }
 
 /** The tail of the float pool laid out again moves the deformation block and the result blocks
- *  (`SessionDeformation.place`, `pooledRows.ts`). The rows that read a record or a block, and the
- *  transparent spans that read a block, are pointed at them again, before the next image's
- *  deformation reads them. */
-export function followPooledBlocks(rt: Pick<WebgpuPagesRuntime, 'layout' | 'blendState' | 'vis'>) {
-  const { rows, deformationOutputOf, placement } = rt.layout,
-    { deformation } = rt.vis,
-    ints = rows.pageTableInts
-  for (let row = 0; ints && row < rows.packedRecs.length; row++) {
-    if (!rows.packedRecs[row]) continue
-    const at = row * ROW_WORDS,
-      page = rows.packedPageIndex[row],
-      // The record word the row writer gives the row's placement (`pageRowWriter.ts`).
-      record = deformation?.rowWord(rootOfPacked(placement, page)) ?? 0,
-      output = deformationOutputOf(page)
-    if (!output && record === ints[at + PAGE_INFO.at.deform]) continue
-    ints[at + PAGE_INFO.at.deform] = record
-    writeRowDeformation(ints, at, output)
-    rows.markRowWords(row)
-  }
+ *  (`SessionDeformation.place`, `pooledRows.ts`). The placements' records, which name a record and a
+ *  block, are made again with their pages' results laid out anew
+ *  (`../geometry/clusters/placementInfo.ts`), and the transparent spans that read a block are
+ *  pointed at them again, before the next image's deformation reads them. */
+export function followPooledBlocks(rt: Pick<WebgpuPagesRuntime, 'layout' | 'blendState'>) {
+  rt.layout.clusters.placementInfo.layOut(rt.layout.selectionRoots.length)
   const { table, dirtySpans } = rt.blendState
   for (let entry = 0; table && entry < table.pageOfEntry.length; entry++) {
     const page = table.pageOfEntry[entry],
-      output = page < 0 ? undefined : deformationOutputOf(page)
+      output = page < 0 ? undefined : rt.layout.deformationOutputOf(page)
     if (!output || !table.spans[entry * 4 + 1]) continue
     writeSpanDeformation(table.spans, entry, output, table.spans[entry * 4 + 1])
     dirtySpans.mark(entry)

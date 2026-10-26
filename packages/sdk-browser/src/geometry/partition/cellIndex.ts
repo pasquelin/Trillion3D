@@ -28,86 +28,165 @@ type Cell = TableCell & { squareBox: Declared; leafBox: Declared | null; content
 /** A page's body as the pool reads it. */
 export type PageBody = ReturnType<typeof readCellPage>
 
-/** The index under the root's `slots`, whose files lie beside `base`, boxed through `boxes`. */
-export function createCellIndex(slots: readonly TableSlot[], base: string, boxes: CellBoxes) {
-  const cells = new Map<number, Cell>()
-  let opened = 0,
-    forgotten: string[] = []
-  const pageOf = ({ page, bounds, parents }: TableSlot): IndexPage => ({
-    slot: { ...page, url: new URL(page.url, base).href },
-    declared: bounds,
-    parents,
-    box: new Float64Array(BOX_VALUES),
-    written: -1,
-    body: null,
-  })
-  const top = slots.map(pageOf)
-  /** The file of a cell the index holds, as the catalogue takes it. */
-  const fileOf = (cell: number): StreamPage => {
-    const { url, bytes, sha256 } = cells.get(cell)!
-    return { url, bytes, sha256 }
-  }
+/** What the index keeps: the cells it holds, the pages it opened and the files it let go. */
+interface Index {
+  base: string
+  boxes: CellBoxes
+  cells: Map<number, Cell>
+  top: IndexPage[]
+  opened: number
+  forgotten: string[]
   /** Where the walk meets `cell` from `eye`: the bounds its grid cell streams by and those of its
    *  HLOD 0 cell — none for objects in no layer —, where the parents its nodes hang under carried
    *  them (a page's box and a cell's boxes follow a moved parent, so do the bounds its cells
    *  stream by), and the distance to the nearest of both (`reach`) — a cell is met while either
    *  grid could stream it. */
-  const met = {
-    reach: 0,
-    square: new Float64Array(0) as ArrayLike<number>,
-    leaf: null as ArrayLike<number> | null,
+  met: { reach: number; square: ArrayLike<number>; leaf: ArrayLike<number> | null }
+}
+
+const pageOf = (base: string, { page, bounds, parents }: TableSlot): IndexPage => ({
+  slot: { ...page, url: new URL(page.url, base).href },
+  declared: bounds,
+  parents,
+  box: new Float64Array(BOX_VALUES),
+  written: -1,
+  body: null,
+})
+
+/** The file of a cell the index holds, as the catalogue takes it. */
+const fileOf = (s: Index, cell: number): StreamPage => {
+  const { url, bytes, sha256 } = s.cells.get(cell)!
+  return { url, bytes, sha256 }
+}
+
+const measure = (s: Index, { squareBox, leafBox }: Cell, eye: ArrayLike<number>) => {
+  const { met, boxes } = s
+  met.square = boxes.around(squareBox)
+  met.leaf = leafBox && boxes.around(leafBox)
+  const own = boxDistance(met.square, eye)
+  met.reach = met.leaf ? Math.min(own, boxDistance(met.leaf, eye)) : own
+  return met
+}
+
+/** Whether `page` holds no cell of `held`. */
+const idle = (page: IndexPage, held: { has(cell: number): boolean }): boolean =>
+  !page.body ||
+  ('pages' in page.body
+    ? page.body.pages.every((below) => idle(below, held))
+    : !page.body.cells.some((cell) => held.has(cell)))
+
+const close = (s: Index, page: IndexPage) => {
+  const body = page.body
+  if (!body) return
+  s.opened--
+  page.body = null
+  if ('pages' in body)
+    for (const below of body.pages) {
+      s.forgotten.push(below.slot.url)
+      close(s, below)
+    }
+  else
+    for (const cell of body.cells) {
+      s.forgotten.push(s.cells.get(cell)!.url)
+      s.cells.delete(cell)
+    }
+}
+
+/** Every file the index names now — the root's pages, those its opened pages list, their cells'
+ *  files —: what a session's catalogue holds at open, the index kept from a session before
+ *  included, whose opened pages its prime walks no more. */
+const named = (s: Index) => {
+  const out: StreamPage[] = [],
+    walk = [...s.top]
+  for (let page = walk.pop(); page; page = walk.pop()) {
+    out.push(page.slot)
+    if (!page.body) continue
+    if ('pages' in page.body) walk.push(...page.body.pages)
+    else for (const cell of page.body.cells) out.push(fileOf(s, cell))
   }
-  const measure = ({ squareBox, leafBox }: Cell, eye: ArrayLike<number>) => {
-    met.square = boxes.around(squareBox)
-    met.leaf = leafBox && boxes.around(leafBox)
-    const own = boxDistance(met.square, eye)
-    met.reach = met.leaf ? Math.min(own, boxDistance(met.leaf, eye)) : own
-    return met
+  return out
+}
+
+/** Opens `page` on its decoded `body`; returns the files it names, which the catalogue takes. */
+const openPage = (s: Index, page: IndexPage, body: PageBody): StreamPage[] => {
+  s.opened++
+  if (body.pages) {
+    const pages = body.pages.map((below) => pageOf(s.base, below))
+    page.body = { pages }
+    return pages.map((below) => below.slot)
   }
-  /** Whether `page` holds no cell of `held`. */
-  const idle = (page: IndexPage, held: { has(cell: number): boolean }): boolean =>
-    !page.body ||
-    ('pages' in page.body
-      ? page.body.pages.every((below) => idle(below, held))
-      : !page.body.cells.some((cell) => held.has(cell)))
-  const close = (page: IndexPage) => {
-    const body = page.body
-    if (!body) return
-    opened--
-    page.body = null
-    if ('pages' in body)
-      for (const below of body.pages) {
-        forgotten.push(below.slot.url)
-        close(below)
-      }
+  // A cell is its cook's rank, whatever page opens first: the world roots name it so.
+  const ids = body.cells.map((record, at) => {
+    const url = new URL(record.url, s.base).href
+    const id = body.first + at
+    const parents = record.parents.flatMap(([rank]) => (rank === null ? [] : [rank]))
+    const carried = (declared: ArrayLike<number>): Declared => ({
+      declared,
+      parents,
+      box: new Float64Array(BOX_VALUES),
+      written: -1,
+    })
+    s.cells.set(id, {
+      ...record,
+      url,
+      squareBox: carried(record.bounds),
+      leafBox: record.hlod && carried(record.hlod[1]),
+    })
+    return id
+  })
+  page.body = { cells: ids }
+  return ids.map((id) => fileOf(s, id))
+}
+
+/** Walks the pages from the root: see `CellIndex.near`. */
+const walkNear = (
+  s: Index,
+  eye: ArrayLike<number>,
+  radius: number,
+  keep: number,
+  held: { has(cell: number): boolean },
+  visit: (cell: number, square: ArrayLike<number>, leaf: ArrayLike<number> | null) => void,
+  unread: (page: IndexPage, distance: number) => void,
+) => {
+  const tested = { pages: 0, cells: 0 },
+    open = [...s.top]
+  for (let page = open.pop(); page; page = open.pop()) {
+    tested.pages++
+    const away = boxDistance(s.boxes.around(page), eye)
+    if (away > radius) {
+      if (away > keep && idle(page, held)) close(s, page)
+    } else if (!page.body) unread(page, away)
+    else if ('pages' in page.body) open.push(...page.body.pages)
     else
-      for (const cell of body.cells) {
-        forgotten.push(cells.get(cell)!.url)
-        cells.delete(cell)
+      for (const cell of page.body.cells) {
+        tested.cells++
+        const { reach, square, leaf } = measure(s, s.cells.get(cell)!, eye)
+        if (reach <= radius) visit(cell, square, leaf)
       }
+  }
+  return tested
+}
+
+/** The index under the root's `slots`, whose files lie beside `base`, boxed through `boxes`. */
+export function createCellIndex(slots: readonly TableSlot[], base: string, boxes: CellBoxes) {
+  const s: Index = {
+    base,
+    boxes,
+    cells: new Map<number, Cell>(),
+    top: slots.map((slot) => pageOf(base, slot)),
+    opened: 0,
+    forgotten: [],
+    met: { reach: 0, square: new Float64Array(0), leaf: null },
   }
   return {
-    /** Every file the index names now — the root's pages, those its opened pages list, their cells'
-     *  files —: what a session's catalogue holds at open, the index kept from a session before
-     *  included, whose opened pages its prime walks no more. */
-    named() {
-      const named: StreamPage[] = [],
-        walk = [...top]
-      for (let page = walk.pop(); page; page = walk.pop()) {
-        named.push(page.slot)
-        if (!page.body) continue
-        if ('pages' in page.body) walk.push(...page.body.pages)
-        else for (const cell of page.body.cells) named.push(fileOf(cell))
-      }
-      return named
-    },
+    named: () => named(s),
     /** The record of a cell the index holds. */
-    cell: (cell: number): TableCell => cells.get(cell)!,
+    cell: (cell: number): TableCell => s.cells.get(cell)!,
     /** Where the content of a cell the index holds lies now: the box around its nodes at the
      *  declared poses (`CellBoxes.declaredUnion`), made at the first ask, carried where its parents
      *  stand. */
     content(cell: number) {
-      const held = cells.get(cell)!
+      const held = s.cells.get(cell)!
       held.contentBox ??= {
         declared: boxes.declaredUnion(held.parents),
         parents: held.squareBox.parents,
@@ -117,37 +196,8 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
       return boxes.around(held.contentBox)
     },
     /** How many pages the index holds opened, and cells. */
-    stats: () => ({ pages: opened, cells: cells.size }),
-    /** Opens `page` on its decoded `body`; returns the files it names, which the catalogue takes. */
-    open(page: IndexPage, body: PageBody): StreamPage[] {
-      opened++
-      if (body.pages) {
-        const pages = body.pages.map(pageOf)
-        page.body = { pages }
-        return pages.map((below) => below.slot)
-      }
-      // A cell is its cook's rank, whatever page opens first: the world roots name it so.
-      const ids = body.cells.map((record, at) => {
-        const url = new URL(record.url, base).href
-        const id = body.first + at
-        const parents = record.parents.flatMap(([rank]) => (rank === null ? [] : [rank]))
-        const carried = (declared: ArrayLike<number>): Declared => ({
-          declared,
-          parents,
-          box: new Float64Array(BOX_VALUES),
-          written: -1,
-        })
-        cells.set(id, {
-          ...record,
-          url,
-          squareBox: carried(record.bounds),
-          leafBox: record.hlod && carried(record.hlod[1]),
-        })
-        return id
-      })
-      page.body = { cells: ids }
-      return ids.map(fileOf)
-    },
+    stats: () => ({ pages: s.opened, cells: s.cells.size }),
+    open: (page: IndexPage, body: PageBody): StreamPage[] => openPage(s, page, body),
     /**
      * Walks the pages from the root: visits each cell within `radius` of `eye` — the bounds its
      * grid cell or its HLOD 0 cell streams by, which its page's box holds too (`partition.rs`) —,
@@ -156,36 +206,18 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
      * `keep` whose cells `held` holds none. Distances are 2D (`boxDistance`). Returns the boxes
      * it tested: the pages it met, and the cells of the region pages it walked.
      */
-    near(
+    near: (
       eye: ArrayLike<number>,
       radius: number,
       keep: number,
       held: { has(cell: number): boolean },
       visit: (cell: number, square: ArrayLike<number>, leaf: ArrayLike<number> | null) => void,
       unread: (page: IndexPage, distance: number) => void,
-    ) {
-      const tested = { pages: 0, cells: 0 },
-        open = [...top]
-      for (let page = open.pop(); page; page = open.pop()) {
-        tested.pages++
-        const away = boxDistance(boxes.around(page), eye)
-        if (away > radius) {
-          if (away > keep && idle(page, held)) close(page)
-        } else if (!page.body) unread(page, away)
-        else if ('pages' in page.body) open.push(...page.body.pages)
-        else
-          for (const cell of page.body.cells) {
-            tested.cells++
-            const { reach, square, leaf } = measure(cells.get(cell)!, eye)
-            if (reach <= radius) visit(cell, square, leaf)
-          }
-      }
-      return tested
-    },
+    ) => walkNear(s, eye, radius, keep, held, visit, unread),
     /** The files the pages closed since the last call named: the catalogue lets them go. */
     forgotten() {
-      const out = forgotten
-      forgotten = []
+      const out = s.forgotten
+      s.forgotten = []
       return out
     },
   }

@@ -9,7 +9,6 @@ import {
   FLOAT32_MIN_NORMAL,
   FLOAT32_STEP,
   GOLDEN_ANGLE,
-  GOLDEN_FRACTION,
   GOLDEN_U32,
   HALF_MAX,
   HALF_PI,
@@ -26,7 +25,7 @@ import {
   WORD_RANGE,
 } from './constants.ts'
 import { toHalf } from './float/half.ts'
-import { HALTON_SWEEP, haltonSpan } from './sequence/sweep.fixture.ts'
+import { GOLDEN_FRACTION } from './goldenRatio.fixture.ts'
 
 test('each constant is the bits of the expression its doc names', () => {
   assert.equal(PI, Math.PI)
@@ -35,7 +34,6 @@ test('each constant is the bits of the expression its doc names', () => {
   assert.equal(TAU, Math.PI * 2)
   assert.equal(DEG2RAD, Math.PI / 180)
   assert.equal(RAD2DEG, 180 / Math.PI)
-  assert.equal(GOLDEN_FRACTION, (Math.sqrt(5) - 1) / 2)
   assert.equal(SQRT3, Math.sqrt(3))
   assert.equal(GOLDEN_ANGLE, Math.PI * (3 - Math.sqrt(5)))
   assert.equal(FLOAT32_STEP, 2 ** -23)
@@ -99,21 +97,4 @@ test('the plastic steps are 1/p and 1/p², p the real root of x³ = x + 1', () =
   assert.ok(Math.abs(p * p * p - p - 1) <= 4 * Number.EPSILON)
   assert.ok(Math.abs(PLASTIC_STEP_X - 1 / p) <= Number.EPSILON)
   assert.ok(Math.abs(PLASTIC_STEP_Y - 1 / (p * p)) <= Number.EPSILON)
-})
-
-test('a power-of-two multiple of a constant scales without rounding: the expression it replaces, bit for bit', () => {
-  // `x · π · 2` is `x · TAU`, `(x · π) / 4` is `x · QUARTER_PI`, `(x · π) · 4` is `x · TAU · 2`, a
-  // byte count over `1024 · 1024` is over `MIB`: a power of two scales a double exactly.
-  for (let i = 1; i <= HALTON_SWEEP; i++) {
-    const x = haltonSpan(i, 2, -1e3, 1e3)
-    assert.ok(Object.is(x * Math.PI * 2, x * TAU), `${x} turns`)
-    assert.ok(Object.is((x * Math.PI) / 4, x * QUARTER_PI), `${x} eighths`)
-    assert.ok(Object.is(x * Math.PI * 4, x * TAU * 2), `${x} half turns`)
-    assert.ok(Object.is(x * (Math.PI / 2), x * HALF_PI), `${x} quarters`)
-    const bytes = haltonSpan(i, 2, 0.001, 4096)
-    assert.ok(Object.is(bytes * 1024 * 1024, bytes * MIB), `${bytes} bytes`)
-    assert.ok(Object.is(bytes / (1024 * 1024), bytes / MIB), `${bytes} bytes`)
-  }
-  assert.ok(Object.is((2 * Math.PI) / 3, TAU / 3) && Object.is((4 * Math.PI) / 3, (2 * TAU) / 3))
-  assert.ok(Object.is(2 * TAU, 4 * Math.PI) && Object.is(2 * SQRT3, 2 * Math.sqrt(3)))
 })

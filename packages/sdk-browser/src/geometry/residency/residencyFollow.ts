@@ -14,7 +14,7 @@ type FollowerOptions = {
 
 /**
  * Names the packed ranks whose address arrived, left or moved in the cache — every address,
- * transparent keys outside the row table included —, from the cache's residency log alone
+ * transparent keys included —, from the cache's residency log alone
  * (`../pages/pool/residencyLog.ts`): one entry a key, its last place. The slot itself is read on
  * the cache, where it is true (`../rows/page/pageState.ts`, `offsetOf`): nothing is mirrored, so nothing
  * can drift and nothing is rebuilt.

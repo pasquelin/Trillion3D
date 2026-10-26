@@ -4,14 +4,14 @@ import { createFrameGateCore } from './gate/gateCore.ts'
 import { createViewHold } from './view/viewRevision.ts'
 import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { HostCamera } from '../camera/world.ts'
+import type { ViewCamera } from '../camera/world.ts'
 
-const enter = (gate: ReturnType<typeof createFrameGateCore>, camera: HostCamera) =>
+const enter = (gate: ReturnType<typeof createFrameGateCore>, camera: ViewCamera) =>
   gate.enterFrame({}, camera, [640, 480], new Object3D(), [])
 
 test('ordinary camera motion preserves history while an explicit cut invalidates it', () => {
   const gate = createFrameGateCore(1)
-  const camera = G.perspectiveCamera() as HostCamera
+  const camera = G.perspectiveCamera() as ViewCamera
   enter(gate, camera)
   const first = gate.temporalRevision
   camera.position.x = 10
@@ -34,8 +34,8 @@ test('ordinary camera motion preserves history while an explicit cut invalidates
 
 test('each persistent view retains its own camera discontinuity revision', () => {
   const gate = createFrameGateCore(1)
-  const a = G.perspectiveCamera() as HostCamera
-  const b = G.perspectiveCamera() as HostCamera
+  const a = G.perspectiveCamera() as ViewCamera
+  const b = G.perspectiveCamera() as ViewCamera
   enter(gate, a)
   a.temporalRevision = 1
   enter(gate, a)

@@ -1,4 +1,4 @@
-import type { HostCamera } from '../../../camera/world.ts'
+import type { ViewCamera } from '../../../camera/world.ts'
 import { viewTargetBytes } from './gpu.ts'
 import type { ViewFrameMetrics } from '../../../../../sdk-core/src/contracts/metrics.ts'
 import { rigViewTemporal, setWebgpuTemporalAntialiasing } from '../../../post/taa/prepare.ts'
@@ -102,7 +102,7 @@ export function resizeWebgpuView(
 export function renderWebgpuView(
   rt: WebgpuPagesRuntime,
   view: WebgpuView,
-  camera: HostCamera,
+  camera: ViewCamera,
   index: number,
 ): ViewFrameMetrics {
   const { run, capture, views } = rt
@@ -118,7 +118,7 @@ export function renderWebgpuView(
 }
 
 /** Draws the drawn view from `camera` at its viewport's shape, and returns its metrics. */
-function drawView(rt: WebgpuPagesRuntime, camera: HostCamera) {
+function drawView(rt: WebgpuPagesRuntime, camera: ViewCamera) {
   const [width, height] = rt.setup.viewport
   renderWebgpuPages(rt, camera, width / height)
   return viewMetrics(rt, rt.views.active)

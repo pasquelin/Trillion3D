@@ -35,6 +35,9 @@ export const constantOf = (type: ValueType, numbers: readonly number[]): Value =
 export const widen = (numbers: readonly number[], width: number) =>
   numbers.length === width ? numbers : Array<number>(width).fill(numbers[0])
 
+/** Whether `x` and `y` are one type written as the same code. */
+export const sameValue = (x: Value, y: Value) => x.type === y.type && x.code === y.code
+
 /** Whether `value` is a constant whose every component is `x`. */
 export const isConstantOf = (value: Value, x: number) => !!value.constant?.every((c) => c === x)
 

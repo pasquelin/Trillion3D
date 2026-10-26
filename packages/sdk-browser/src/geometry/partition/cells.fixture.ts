@@ -26,14 +26,16 @@ const WORLD_RANGES = [2800, 2800, 5600]
 /** Two cells of one mesh, one near the origin and one 5 km away, each in a region page of its
  *  own; each hangs under a core node standing 10 m up, or under the scene root when its `far` or
  *  `near` is null. `drawn` are the host meshes of its two primitives; `ranges` the grids' loading
- *  ranges. */
+ *  ranges; `blocking` the ranks of the grids that block on slow streaming. */
 export function world(
   far: number | null = 0,
   near: number | null = null,
   drawn: readonly Object3D[] = [],
   ranges: readonly number[] = WORLD_RANGES,
+  blocking: readonly number[] = [],
 ) {
   const node = (x: number, parent: number | null) => ({
+    sourceNode: x.toString(16).padStart(8, '0'),
     parent,
     mesh: 7,
     matrix: null,
@@ -42,8 +44,8 @@ export function world(
     scale: [2, 2, 2],
   })
   const bodies: Record<string, unknown> = {
-    'near.json': { version: 3, nodes: [node(1, near), node(3, near)] },
-    'far.json': { version: 3, nodes: [node(5000, far)] },
+    'near.json': { version: 4, nodes: [node(1, near), node(3, near)] },
+    'far.json': { version: 4, nodes: [node(5000, far)] },
   }
   const cell = (url: string, rank: number | null, x: number, nodes: number): CellRecord => ({
     url,
@@ -58,7 +60,7 @@ export function world(
   // Declared where the core node stands at open: 10 m up.
   const up = ({ parents: [[rank, box]] }: CellRecord) =>
     rank === null ? box : [box[0], box[1] + 10, box[2], box[3], box[4] + 10, box[5]]
-  const { partition, files } = paged(table, 1, up, LADDER, ranges)
+  const { partition, files } = paged(table, 1, up, LADDER, ranges, blocking)
   const root = new Group()
   const core = new Object3D()
   core.position.set(0, 10, 0)

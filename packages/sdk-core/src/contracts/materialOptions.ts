@@ -5,39 +5,42 @@
  * `temporalAntialiasing` sets the scene's quality level (`TEMPORAL_AA_LEVELS`, `true` the default
  * level, `false` off), written in its manifest: the runtime's `'scene'` setting.
  *
- * Each material's history share — the most of its history the temporal anti-aliasing keeps on its
- * pixels, a number in [0, 1] or a name of `TEMPORAL_AA_SHARES`, 1 the engine's own blend — is
+ * Each material's responsiveness — how far the temporal anti-aliasing trusts the history on its
+ * pixels, a level of `RESPONSIVE_LEVELS`: `off` the normal accumulation, `medium`, `full` — is
  * resolved by the compiler once, the first source naming it winning:
- * 1. `materials[name].temporalAntialiasing`, by the material's exact name;
- * 2. `materials[name].responsive`: `true` the responsive share, `false` taking the material out of
- *    the responsive shortcuts below;
- * 3. `responsive` — a match on the objects, as one HLOD group names its objects: the materials of
- *    every object it matches, only those its `material` pattern names where it has one —: the
- *    responsive share;
- * 4. the material's own `extras.temporalAntialiasing` in the glTF (`TEMPORAL_AA_EXTRA`);
- * 5. its own `extras.responsive: true` (`RESPONSIVE_EXTRA`): the responsive share;
- * 6. 1.
+ * 1. `materials[name].responsive`, by the material's exact name: a level, `true` for
+ *    `DEFAULT_RESPONSIVE_LEVEL`, `false` for `off`;
+ * 2. `responsive` — a match on the objects, as one HLOD group names its objects: the materials of
+ *    every object it matches, only those its `material` pattern names where it has one —:
+ *    `DEFAULT_RESPONSIVE_LEVEL`;
+ * 3. the material's own `extras.responsive` in the glTF (`RESPONSIVE_EXTRA`), a level, `true` or
+ *    `false` as in 1;
+ * 4. `off`.
  * A job naming none of them compiles as before. A value left out or `null` names nothing, as the
  * compiler reads it.
  */
 import {
+  DEFAULT_RESPONSIVE_LEVEL,
   DEFAULT_TEMPORAL_AA_LEVEL,
   MATERIAL_SETTINGS,
+  MATERIALS_FIELD,
   MATERIALS_OPTION,
+  RESPONSIVE_FIELD,
+  RESPONSIVE_LEVELS,
   RESPONSIVE_OPTION,
+  TEMPORAL_AA_FIELD,
   TEMPORAL_AA_LEVELS,
   TEMPORAL_AA_OPTION,
-  TEMPORAL_AA_SHARES,
-  type HlodWireMatch,
   type MaterialSettingsWire,
+  type ResponsiveLevel,
   type TemporalAntialiasingLevel,
-  type TemporalAntialiasingShareName,
 } from './compilerAbi.ts'
 import {
   fieldsOf,
   isRecord,
+  jsonJobOption,
+  matchResolver,
   refusal,
-  wireMatch,
   type NameMatch,
   type NamePattern,
   type Refuse,
@@ -47,15 +50,13 @@ import {
  *  regular expression on it, or a match on what the glTF carries (`NameMatch`). */
 export type ResponsiveOption = NamePattern | NameMatch
 
-/** A material's history share: a name of `TEMPORAL_AA_SHARES` — `'normal'` (1), `'responsive'`
- *  (0.75), `'soft'` (0.5), `'off'` (0) — or a number in [0, 1]. */
-export type TemporalAntialiasingShare = TemporalAntialiasingShareName | number
+/** A material's responsiveness as a host names it: a level of `RESPONSIVE_LEVELS`, `true` for
+ *  `DEFAULT_RESPONSIVE_LEVEL`, `false` for `off`. */
+export type ResponsiveSetting = ResponsiveLevel | boolean
 
-/** One material's settings: `temporalAntialiasing`, its history share; `responsive`, `true` the
- *  shortcut for the responsive share, `false` taking it out of the responsive match and extras. */
+/** One material's settings: `responsive`, its temporal responsiveness. */
 export type MaterialSettings = {
-  temporalAntialiasing?: TemporalAntialiasingShare
-  responsive?: boolean
+  responsive?: ResponsiveSetting
 }
 
 /** The settings of materials, by their exact names in the glTF. */
@@ -63,6 +64,25 @@ export type MaterialsOption = Readonly<Record<string, MaterialSettings>>
 
 /** The scene's temporal anti-aliasing: a quality level, `true` the default one, `false` off. */
 export type TemporalAntialiasingOption = TemporalAntialiasingLevel | boolean
+
+/**
+ * The level `setting` names among `levels`: a level by its name, `true` the level `fallback`, `false`
+ * the first of `levels`, the one that is off — the one reading of a scene's level and of a
+ * material's, as the compiler reads both (`level_among`).
+ * @param what - What names it, for the refusal.
+ * @throws TypeError naming the levels when it is none of them.
+ */
+function levelAmong<L extends string>(
+  setting: unknown,
+  levels: readonly L[],
+  fallback: L,
+  what: string,
+): L {
+  if (setting === true) return fallback
+  if (setting === false) return levels[0]
+  if ((levels as readonly unknown[]).includes(setting)) return setting as L
+  return refusal(what)(`must be one of ${levels.join(', ')}, true or false, got ${String(setting)}`)
+}
 
 /**
  * The scene's temporal anti-aliasing level the compiler writes for `option`: none when left out.
@@ -74,13 +94,7 @@ export function resolveTemporalAntialiasing(
   option?: TemporalAntialiasingOption | null,
 ): TemporalAntialiasingLevel | undefined {
   if (option === undefined || option === null) return undefined
-  if (option === true) return DEFAULT_TEMPORAL_AA_LEVEL
-  if (option === false) return 'off'
-  if (!(TEMPORAL_AA_LEVELS as readonly unknown[]).includes(option))
-    refusal('temporalAntialiasing')(
-      `must be one of ${TEMPORAL_AA_LEVELS.join(', ')}, true or false, got ${String(option)}`,
-    )
-  return option
+  return levelAmong(option, TEMPORAL_AA_LEVELS, DEFAULT_TEMPORAL_AA_LEVEL, 'temporalAntialiasing')
 }
 
 /**
@@ -96,18 +110,14 @@ export function temporalAntialiasingLevel(
 }
 
 /**
- * A material's history share as a number: a name of `TEMPORAL_AA_SHARES`, or a number in [0, 1].
- * @param share - The share, by name or by value.
+ * A material's responsiveness as its level: a level of `RESPONSIVE_LEVELS`, `true` the default
+ * level (`DEFAULT_RESPONSIVE_LEVEL`), `false` `off`.
+ * @param setting - The level, by name or by boolean.
  * @param what - What names it, for the refusal.
- * @throws TypeError naming the names when it is neither.
+ * @throws TypeError naming the levels when it is none of them.
  */
-export function temporalAntialiasingShare(share: unknown, what = 'temporalAntialiasing'): number {
-  if (typeof share === 'string' && Object.hasOwn(TEMPORAL_AA_SHARES, share))
-    return TEMPORAL_AA_SHARES[share as TemporalAntialiasingShareName]
-  if (typeof share === 'number' && share >= 0 && share <= 1) return share
-  return refusal(what)(
-    `must be a number from 0 to 1 or one of ${Object.keys(TEMPORAL_AA_SHARES).join(', ')}, got ${String(share)}`,
-  )
+export function responsiveLevel(setting: unknown, what = 'responsive'): ResponsiveLevel {
+  return levelAmong(setting, RESPONSIVE_LEVELS, DEFAULT_RESPONSIVE_LEVEL, what)
 }
 
 /**
@@ -116,14 +126,11 @@ export function temporalAntialiasingShare(share: unknown, what = 'temporalAntial
  * @returns The compiler's form (`HlodWireMatch`), `undefined` for none.
  * @throws TypeError naming what the host wrote wrong.
  */
-export function resolveResponsive(option?: ResponsiveOption | null): HlodWireMatch | undefined {
-  if (option === undefined || option === null) return undefined
-  return wireMatch(option, 'responsive', refusal('responsive'))
-}
+export const resolveResponsive = matchResolver<ResponsiveOption>('responsive')
 
 /**
  * The material settings the compiler reads for `option`: none when left out; each entry holding
- * only `MATERIAL_SETTINGS`, its share as a number, `responsive` a boolean.
+ * only `MATERIAL_SETTINGS`, `responsive` as the name of its level.
  * @param option - The settings by material name, or none.
  * @returns The compiler's form, `undefined` for none.
  * @throws TypeError naming what the host wrote wrong.
@@ -139,16 +146,8 @@ export function resolveMaterials(
       const what = `materials.${name}`
       const fields = fieldsOf(settings, MATERIAL_SETTINGS, what, refuse)
       const wire: MaterialSettingsWire = {}
-      if (fields.temporalAntialiasing != null)
-        wire.temporalAntialiasing = temporalAntialiasingShare(
-          fields.temporalAntialiasing,
-          `${what}.temporalAntialiasing`,
-        )
-      if (fields.responsive != null) {
-        if (typeof fields.responsive !== 'boolean')
-          refuse(`${what}.responsive must be true or false`)
-        wire.responsive = fields.responsive as boolean
-      }
+      if (fields.responsive != null)
+        wire.responsive = responsiveLevel(fields.responsive, `${what}.responsive`)
       return [name, wire]
     }),
   )
@@ -161,34 +160,33 @@ export type MaterialJobOptions = {
   materials?: MaterialsOption | null
 }
 
-/** A job's temporal anti-aliasing options as the compiler reads them, each left out when the job
- *  names none. */
-export function materialJobFields({
-  temporalAntialiasing,
-  responsive,
-  materials,
-}: MaterialJobOptions) {
-  const out: {
-    temporalAntialiasing?: TemporalAntialiasingLevel
-    responsive?: HlodWireMatch
-    materials?: Record<string, MaterialSettingsWire>
-  } = {}
-  const level = resolveTemporalAntialiasing(temporalAntialiasing)
-  const match = resolveResponsive(responsive)
-  const settings = resolveMaterials(materials)
-  if (level) out.temporalAntialiasing = level
-  if (match) out.responsive = match
-  if (settings) out.materials = settings
-  return out
+/** A job's scene temporal anti-aliasing level as the job field and the command line's flag the
+ *  compiler reads: left out, none, when the job names none. */
+const temporalAntialiasingJob = {
+  fields(job: MaterialJobOptions) {
+    const level = resolveTemporalAntialiasing(job.temporalAntialiasing)
+    return level ? { [TEMPORAL_AA_FIELD]: level } : {}
+  },
+  flags(job: MaterialJobOptions): string[] {
+    const level = resolveTemporalAntialiasing(job.temporalAntialiasing)
+    return level ? [`${TEMPORAL_AA_OPTION}${level}`] : []
+  },
 }
+/** A job's `responsive` and `materials` as job fields and flags (`jsonJobOption`). */
+const responsiveJob = jsonJobOption(RESPONSIVE_FIELD, RESPONSIVE_OPTION, resolveResponsive)
+const materialsJob = jsonJobOption(MATERIALS_FIELD, MATERIALS_OPTION, resolveMaterials)
 
-/** A job's temporal anti-aliasing options as the command line's flags, none when the job names
- *  none. */
-export function materialFlags(options: MaterialJobOptions): string[] {
-  const { temporalAntialiasing, responsive, materials } = materialJobFields(options)
-  return [
-    ...(temporalAntialiasing ? [`${TEMPORAL_AA_OPTION}${temporalAntialiasing}`] : []),
-    ...(responsive ? [`${RESPONSIVE_OPTION}${JSON.stringify(responsive)}`] : []),
-    ...(materials ? [`${MATERIALS_OPTION}${JSON.stringify(materials)}`] : []),
-  ]
+/** A job's temporal anti-aliasing options as the compiler reads them (`fields`) and as the command
+ *  line's flags (`flags`), each left out when the job names none. */
+export const materialJob = {
+  fields: (job: MaterialJobOptions) => ({
+    ...temporalAntialiasingJob.fields(job),
+    ...responsiveJob.fields(job),
+    ...materialsJob.fields(job),
+  }),
+  flags: (job: MaterialJobOptions): string[] => [
+    ...temporalAntialiasingJob.flags(job),
+    ...responsiveJob.flags(job),
+    ...materialsJob.flags(job),
+  ],
 }

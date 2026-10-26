@@ -1,17 +1,23 @@
-import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
 import type { SceneLight } from '../../scene/light/contracts.ts'
 import { DEFAULT_TEMPERATURE_KELVIN } from '../../scene/light/fields.ts'
 import { Color } from '../math/color.ts'
 import { listen } from '../observed.ts'
 import type { Light } from './light.ts'
+import { lightChanged } from './lightNumbers.ts'
 
 /** The settings of a light that touch the air and its colour, held aside the light's own numbers:
  *  the yes/no settings (`LIGHT_SWITCHES`) and the tint of a sun's disk (`tintOf`). The yes/no
  *  settings of a light that are off by default: whether its colour follows a
  *  temperature (`SceneLight.useTemperature`), whether its shadow shades the air
  *  (`shadowsAir`) and whether the air's transmittance toward it is read per surface point
- *  (`transmittancePerPixel`). */
-export const LIGHT_SWITCHES = ['useTemperature', 'shadowsAir', 'transmittancePerPixel'] as const
+ *  (`transmittancePerPixel`) and whether it shines through the subsurface-profile surfaces it
+ *  shadows (`transmission`). */
+const LIGHT_SWITCHES = [
+  'useTemperature',
+  'shadowsAir',
+  'transmittancePerPixel',
+  'transmission',
+] as const
 /** The name of one of the switches. */
 export type LightSwitch = (typeof LIGHT_SWITCHES)[number]
 
@@ -20,6 +26,7 @@ const ON: Record<LightSwitch, WeakSet<Light>> = {
   useTemperature: new WeakSet(),
   shadowsAir: new WeakSet(),
   transmittancePerPixel: new WeakSet(),
+  transmission: new WeakSet(),
 }
 
 /** Turns the switches `p` names on for `light`; the others stay off. */
@@ -35,9 +42,6 @@ export function copySwitches(light: Light, source: Light) {
   }
 }
 
-/** The switches of `light` that are on, by name. */
-export const switchesOn = (light: Light) => LIGHT_SWITCHES.filter((name) => ON[name].has(light))
-
 /** Defines the switches as accessors of `proto`: a write is noted on the light and reaches the
  *  world at once. */
 export function defineSwitches(proto: Light) {
@@ -49,8 +53,7 @@ export function defineSwitches(proto: Light) {
       set(this: Light, value: boolean) {
         if (value) ON[name].add(this)
         else ON[name].delete(this)
-        noteNodeWrite(this)
-        this._link?.content(this)
+        lightChanged(this)
       },
     })
 }
@@ -66,10 +69,7 @@ export function tintOf(light: Light) {
   if (!tint) {
     tint = new Color([1, 1, 1])
     TINTS.set(light, tint)
-    listen(tint, () => {
-      noteNodeWrite(light)
-      light._link?.content(light)
-    })
+    listen(tint, () => lightChanged(light))
   }
   return tint
 }
@@ -97,6 +97,7 @@ export function copyTint(light: Light, source: Light) {
  *  where it is not the default: a light that names none keeps the record it had. */
 export function recordColourAndAir(light: Light, record: SceneLight) {
   if (light.useTemperature) record.useTemperature = true
+  if (light.transmission) record.transmission = true
   if (light.temperatureKelvin !== DEFAULT_TEMPERATURE_KELVIN)
     record.temperatureKelvin = light.temperatureKelvin
   if (record.kind !== 'directional') return

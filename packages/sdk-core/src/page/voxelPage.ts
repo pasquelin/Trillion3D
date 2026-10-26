@@ -1,3 +1,5 @@
+import { hasBit } from '../../../math/src/scalar/bits.ts'
+import { sum } from '../../../math/src/scalar/quantile.ts'
 import { EngineError } from '../contracts/cache.ts'
 import {
   GEOMETRY_VOXEL,
@@ -85,7 +87,7 @@ export function encodeVoxelPage(
   const held = Array.from({ length: count }, (_, b) =>
     popcount(view.getUint32(brickAt(b), true), view.getUint32(brickAt(b) + 4, true)),
   )
-  const voxels = held.reduce((sum, n) => sum + n, 0)
+  const voxels = sum(held)
   if (voxel + voxels > group.firstVoxel + group.voxels)
     throw new EngineError('INVALID_CACHE', 'a voxel brick lies past its group', {})
   const voxelsAt = VOXEL_PAGE_HEAD_WORDS + count * VOXEL_BRICK_WORDS
@@ -105,14 +107,18 @@ export function encodeVoxelPage(
     bytes.set(source(brickAt(b), VOXEL_BRICK_BYTES), record * 4)
     words[record + VOXEL_BRICK_BYTES / 4] = rank
     rank += held[b]
-    const masks = [words[record], words[record + 1]],
-      corner = [words[record + 2] & 0xffff, words[record + 2] >>> 16, words[record + 3] & 0xffff]
+    const corner = [
+      words[record + 2] & 0xffff,
+      words[record + 2] >>> 16,
+      words[record + 3] & 0xffff,
+    ]
     for (let bit = 0; bit < 64; bit++) {
-      if (!((masks[bit >> 5] >>> (bit & 31)) & 1)) continue
-      const xyz = [bit & 3, (bit >> 2) & 3, bit >> 4]
+      if (!hasBit(words, bit, record)) continue
+      // The voxel's cell in the brick: four a side.
       for (let a = 0; a < 3; a++) {
-        lo[a] = Math.min(lo[a], corner[a] * 4 + xyz[a])
-        hi[a] = Math.max(hi[a], corner[a] * 4 + xyz[a] + 1)
+        const at = corner[a] * 4 + ((bit >> (2 * a)) & 3)
+        lo[a] = Math.min(lo[a], at)
+        hi[a] = Math.max(hi[a], at + 1)
       }
     }
   }

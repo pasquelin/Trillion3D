@@ -11,7 +11,13 @@ import { dagRootCounts } from '../pack/packCapacity.ts'
 import { appendDagRoots } from '../pack/packAppend.ts'
 import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { mirrorKey } from '../../cut/adoption/denseKeys.ts'
-import { DAG_NODE_FLOATS } from '../types.ts'
+import { DAG_NODE_FLOATS, type DagRoot } from '../types.ts'
+import { kernelUniforms } from '../selection/selectionHelpers.fixture.ts'
+import { evaluateDagSelectionKernel } from '../oracle/oracle.fixture.ts'
+import { levelsDispatched } from '../encode.ts'
+import { dagOracleDescent } from '../oracle/descent.fixture.ts'
+import { dagViewFrames } from '../oracle/math.fixture.ts'
+import { outsideRootDrawDistance } from '../oracle/nodeVerdict.fixture.ts'
 
 const views = [
   // Inside the field, looking along a row; from above its corner; past its edge, looking away.
@@ -34,9 +40,10 @@ test('the tree over a generated field changes no cut, whatever the view', () => 
 test("a frame reads the placements its kept groups hold, never the world's", () => {
   // The same view over fields 4×, 16× and 64× as large: the placements read stay those of the
   // groups the view keeps, the cut the same, where the flat descent reads every placement.
-  const camera = fieldCamera([30, 2, -30], [30, 0, -200], 120)
+  // A view has no far plane: each placement is drawn within 120 m of the eye, as an object names.
+  const camera = fieldCamera([30, 2, -30], [30, 0, -200])
   const cuts = [40, 80, 160, 320].map((side) => {
-    const roots = placementField(side, 6),
+    const roots = placementField(side, 6, 120),
       tree = fieldCut(roots, camera, true)
     return { tree, flat: fieldCut(roots, camera, false, tree.dag), count: side * side }
   })
@@ -46,7 +53,9 @@ test("a frame reads the placements its kept groups hold, never the world's", () 
     assert.equal(tree.drawn.length, cuts[0].tree.drawn.length, 'the same view, the same pages')
     assert.ok(tree.reached <= 1.5 * cuts[0].tree.reached, `${tree.reached} read of ${count}`)
   }
-  assert.ok(cuts[0].tree.reached < cuts[0].count / 2)
+  // The groups cull by distance conservatively, so the 1600 placements of the smallest world are
+  // mostly read (1088); the 102400 of the largest read no more than the smallest holds.
+  assert.ok(cuts.at(-1)!.tree.reached < cuts[0].count)
 })
 
 test('moving, parking or opening one placement refits its group and its cell, at any size: the fit names a node per level', () => {
@@ -162,4 +171,52 @@ test('a member drawn whatever the view is listed apart: every box stays finite, 
       fieldCut(roots, camera, true, dag).pages,
       fieldCut(roots, camera, false, dag).pages,
     )
+})
+
+// A placement is out of the distances it names where its world puts it from the eye. The cut holds
+// the world at the render origin, the eye already off it, so the descent's test takes the eye off
+// nowhere again: a placement near the eye is drawn whatever the eye's distance from the origin.
+test('a placement is out of its draw distance by its world from the eye, the eye taken off once', () => {
+  const camera = fieldCamera([30, 2, -30], [30, 0, -200])
+  const eye = camera.position.toArray()
+  // The root verdicts of the flat descent over `roots`: true where it rejected the placement's root.
+  const rejected = (roots: DagRoot[]) => {
+    const dag = { ...packDagSelection(roots), placementTree: undefined },
+      flags = dagOracleDescent(dag, dagViewFrames(dag, kernelUniforms(dag, roots, camera, 1)))
+    return { dag, out: roots.map((_, w) => flags.at(w, dag.rootNodes[w]) === 2) }
+  }
+  const named = placementField(10, 6, 25),
+    free = rejected(placementField(10, 6)).out,
+    { dag, out } = rejected(named)
+  let beyond = 0
+  named.forEach((root, w) => {
+    const at = dag.rootNodes[w] * DAG_NODE_FLOATS
+    const past = outsideRootDrawDistance(
+      root.drawDistance,
+      root.world.elements,
+      eye,
+      dag.nodes.subarray(at, at + 3),
+      dag.nodes.subarray(at + 4, at + 7),
+    )
+    if (past) beyond++
+    // Rejected for the frustum or the error with no distance named, or by the distance it names.
+    assert.equal(out[w], free[w] || past, `placement ${w}`)
+  })
+  assert.ok(beyond > 10 && beyond < 90, `${beyond} of 100 beyond 25 m`)
+})
+
+// The cut dispatches as many levels as its packing counts (`levelsDispatched`), and a node deposited
+// at a later one is never read. A tree's members stand below its groups, so the count holds them:
+// the levels dispatched read the whole descent, and one fewer loses the clusters of the last.
+test('the levels the cut dispatches hold every node the tree’s members open, one fewer loses clusters', () => {
+  const roots = placementField(71, 6),
+    camera = views[0]
+  const { dag } = fieldCut(roots, camera, true)
+  const uniforms = kernelUniforms(dag, roots, camera, 1)
+  const drawn = (levels?: number) =>
+    evaluateDagSelectionKernel(dag, uniforms, undefined, undefined, levels).drawablePageIds ?? []
+  const dispatched = levelsDispatched({ packed: dag, levelSizes: dag.levelSizes })
+  assert.equal(dispatched, dag.levelSizes.length, 'no residency followed: every level')
+  assert.deepEqual(drawn(dispatched), drawn(), 'the levels dispatched read the whole descent')
+  assert.ok(drawn(dispatched - 1).length < drawn().length, 'a level fewer loses clusters')
 })

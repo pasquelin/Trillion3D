@@ -1,4 +1,7 @@
 import type { DagResources } from './resources.ts'
+import type { SelectionUniforms } from '../../gpu/core/selection.ts'
+import { cutTablesAt } from './queueGrowth.ts'
+import { writeDagUniforms } from './uniforms.ts'
 
 /**
  * THE FILTER'S BITS IN `work` (`shader/viewFilterWgsl.ts`): the region behind the group counts
@@ -31,6 +34,15 @@ export function writeViewFilter(
       filter.byteOffset,
       words * 4,
     )
+}
+
+/** View `uniforms`' block put on the GPU for its cut: the uniforms written over the tables as they
+ *  stand, then its filter's bits (`writeViewFilter`). The main view's cut and a view aside's alike. */
+export function writeCutView(resources: DagResources, uniforms: SelectionUniforms) {
+  const { device, uniformData, packed, listCap } = resources
+  writeDagUniforms(uniformData, packed, uniforms, listCap, cutTablesAt(resources))
+  device.queue.writeBuffer(resources.uniforms, 0, uniformData)
+  writeViewFilter(resources, uniforms.filter)
 }
 
 /**

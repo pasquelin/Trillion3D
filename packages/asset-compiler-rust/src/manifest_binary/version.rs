@@ -55,7 +55,21 @@
 /// version-16 cook's for the same source, and no record carries a quantization error any more.
 /// Version 18 drops the page normal-cone column, the last, which the runtime read none of: a
 /// sidecar holds 27 columns, and a version-17 reader would expect 28, so it refuses.
-pub const MANIFEST_BINARY_VERSION: u32 = 18;
+/// Version 19 widens a geometry page's record from five words to seven — the bytes it takes in the
+/// pool once installed and where it lies in its streaming page's place there — and its pages are
+/// the `WGP3` format 11, written on disk as strips and zig-zag delta streams, naming the vertices
+/// they share with other clusters, which the install passes transcode
+/// (`page-codec-wasm/src/disk.rs`): a version-18 reader would stride through the records wrongly,
+/// so it refuses.
+/// Version 20 keeps every column; the pages are the `WGP3` format 12, which carries up to eight
+/// texture sets — the ranges of those past the fourth after the header's morph records, only on a
+/// page that stores one —, so a version-19 reader would refuse its pages' flags or read their
+/// streams off their places.
+/// Version 21 keeps every column; a geometry page's `residentBytes` holds the table of the
+/// resident page's stream offsets (`RESIDENT_TABLE_WORDS`, 15 words) the shaders read the streams
+/// by: a version-20 cache names a size too small by it, which the install pass would refuse page by
+/// page, so a reader refuses the file whole and the compiler cooks it again.
+pub const MANIFEST_BINARY_VERSION: u32 = 21;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 pub const MANIFEST_BINARY_HEADER_WORDS: usize = 4;

@@ -3,9 +3,11 @@ import { PI } from '../../../../../math/src/wgsl/constants.ts'
 import { hammersley16, rand3dPcg16 } from '../../../../../math/src/wgsl/sampling.ts'
 import { DOF_COC_WGSL, DOF_PARAMS_WGSL } from './dofCommonWgsl.ts'
 import { BOKEH_LUT_SIZE, COLOR_FORMAT, GROUP } from './dofLayout.ts'
+import { LAYERS_BINDINGS } from '../../../blend/translucencyLayers.ts'
 
 /** The recombine's bindings: the image, its depth, the foreground's, the hole filling's, the slight
- *  out of focus' and the background's colour and opacity, the table, the two samplers, the output. */
+ *  out of focus' and the background's colour and opacity, the table, the two samplers, the output.
+ *  The translucency the image is composed with is the second group's (`LAYERS_BINDINGS`). */
 export const RECOMBINE_BINDINGS = {
   scene: 1,
   depth: 2,
@@ -47,6 +49,8 @@ override BOKEH:bool=false;
 @group(0) @binding(${RECOMBINE_BINDINGS.linear}) var linearSampler:sampler;
 @group(0) @binding(${RECOMBINE_BINDINGS.point}) var pointSampler:sampler;
 @group(0) @binding(${RECOMBINE_BINDINGS.out}) var sceneOut:texture_storage_2d<${COLOR_FORMAT},write>;
+@group(1) @binding(${LAYERS_BINDINGS.layers}) var layers:texture_2d<f32>;
+@group(1) @binding(${LAYERS_BINDINGS.modulation}) var modulation:texture_2d<f32>;
 var<workgroup> reach:array<f32,${GROUP * GROUP}>;
 // The circle of confusion of the image texel p, from the depth under it.
 fn fullCoc(p:vec2i)->f32{

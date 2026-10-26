@@ -4,7 +4,7 @@ import { fromHalf, toHalf } from '../../../packages/math/src/float/half.ts'
 import type { RigFace } from './rigRuntime.ts'
 import type { Camera } from '../../../packages/sdk-browser/src/lighting/reflections/boxes.fixture.ts'
 import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/lighting/reflections/constants.ts'
-import { MODEL_FLAG } from '../../../packages/sdk-browser/src/materials/surface/surfaceModel.ts'
+import { MODEL_FLAG } from '../../../packages/sdk-browser/src/materials/surface/surfaceModelWord.ts'
 import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 
 /** A synthetic still frame of `size` pixels: what the engine's targets hold, as arrays of the
@@ -22,7 +22,7 @@ export type RigFrame = {
   /** The physical lobes' texel of every pixel, four words each (`physicalTexel`), for a frame
    *  whose pixels carry them (`PHYSICAL_SURFACE_FLAG`). */
   lobes?: Uint32Array<ArrayBuffer>
-  /** The proxy of the scene: its faces, two triangles each, and the radiance each gives (`rigRuntime.ts`). */
+  /** The faces of the scene, two triangles each, and the radiance each gives: the rig marches their field; no cache holds their light (`rigRuntime.ts`). */
   proxy?: { faces: RigFace[] }
   /** The background, `0xrrggbb`, as the display shows it: black by default. A ray that leaves the
    *  scene reaches it (`createSurroundings`). */

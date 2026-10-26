@@ -6,17 +6,22 @@ import { createCookedSoftBodies } from './soft/cookedSoft.ts'
 import type { Model } from './tiles/tilePlace.ts'
 
 /** The bodies the compiled models in a scene declare, soft (`soft/cookedSoft.ts`) and rigid, opened,
- *  moved, refused and forgotten together, each by its model. */
+ *  streamed with the cells that draw them, moved, refused and forgotten together, each by its
+ *  model. */
 export function createModelBodies(parts: CookedParts) {
   const softs = createCookedSoftBodies(parts)
   const rigid = createCookedBodies(parts)
   const both = [softs, rigid]
   return {
-    /** Makes the bodies `model` was `cooked` with, read until `signal` aborts. */
+    /** Opens the bodies `model` was `cooked` with, read until `signal` aborts: those its cells hold
+     *  are made (`stream`). */
     open(model: Model, cooked: CookedPhysics, signal: AbortSignal) {
       softs.open(model, cooked.softBodies ?? [], signal)
       rigid.open(model, cooked.bodies ?? [], signal)
     },
+    /** The bodies of `model`'s nodes its cells hold made, the others let go of, when the cells it is
+     *  drawn by drew something else since the last look; a model no cell draws holds them all. */
+    stream: (model: Model) => both.forEach((kind) => kind.stream(model)),
     forget: (model: Model) => both.forEach((kind) => kind.forget(model)),
     moved: (model: Model) => both.forEach((kind) => kind.moved(model)),
     holds: rigid.holds,

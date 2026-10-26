@@ -45,7 +45,7 @@ function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => 
     backend.render(camera())
     await backend.flush()
     backend.render(camera())
-    const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
+    const table = buffers.findLast((buffer) => buffer.label === 'Trillion3D decoded clusters')!
     const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
     const bases = Array.from({ length: table.size / PAGE_INFO_STRIDE }, (_, row) => row * ROW_WORDS)
     const drawn = bases.filter((base) => ints[base + PAGE_INFO.at.indexCount] > 0)

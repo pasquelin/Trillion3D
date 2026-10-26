@@ -11,7 +11,7 @@
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ParticlePool } from '../../../packages/sdk-core/src/fluids/particles.ts'
+import { PARTICLE_FLOATS, ParticlePool } from '../../../packages/sdk-core/src/fluids/particles.ts'
 import {
   particlesWgsl,
   DISC_VERTICES,
@@ -27,6 +27,11 @@ import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/c
 
 type Steps = { words: number[][]; staged: number[]; capacity: number; runs: number[][] }
 
+/** The slots read back after each image. */
+const READ_SLOTS = 8
+/** Bytes of one particle slot. */
+const SLOT_BYTES = PARTICLE_FLOATS * 4
+
 /** Images of `runs` (`[words, steps]`) under each fold the device has: after each, the window's
  *  eight words and the first eight particle slots read back. */
 async function step({ words, staged, capacity, runs }: Steps) {
@@ -41,8 +46,8 @@ async function step({ words, staged, capacity, runs }: Steps) {
     }),
   )
   const { UNIFORM, STORAGE, INDIRECT, COPY_DST, COPY_SRC } = GPUBufferUsage
-  const groups = particleGroups(capacity) + particleGroups(staged.length / 8),
-    read = PARTICLE_STATE_HEAD + 8 * 32
+  const groups = particleGroups(capacity) + particleGroups(staged.length / PARTICLE_FLOATS),
+    read = PARTICLE_STATE_HEAD + READ_SLOTS * SLOT_BYTES
   const byFold: { subgroups: boolean; window: number[]; particles: number[] }[][] = []
   for (const subgroups of folds) {
     const { module, compilation } = await gpu.compile(particlesWgsl(subgroups))
@@ -59,7 +64,7 @@ async function step({ words, staged, capacity, runs }: Steps) {
       device.createBuffer({ size: 32, usage: UNIFORM | COPY_DST }),
       device.createBuffer({ size: staged.length * 4, usage: STORAGE | COPY_DST }),
       device.createBuffer({
-        size: PARTICLE_STATE_HEAD + capacity * 32,
+        size: PARTICLE_STATE_HEAD + capacity * SLOT_BYTES,
         usage: STORAGE | INDIRECT | COPY_DST | COPY_SRC,
       }),
       device.createBuffer({ size: groups * PARTICLE_PARTIAL_BYTES, usage: STORAGE }),
@@ -97,7 +102,9 @@ async function step({ words, staged, capacity, runs }: Steps) {
       images.push({
         subgroups,
         window: Array.from(new Uint32Array(range, 0, 8)),
-        particles: Array.from(new Float32Array(range, PARTICLE_STATE_HEAD, 64)),
+        particles: Array.from(
+          new Float32Array(range, PARTICLE_STATE_HEAD, READ_SLOTS * PARTICLE_FLOATS),
+        ),
       })
     }
     byFold.push(images)
@@ -153,9 +160,14 @@ test('the particle step drifts, keeps what it must not move, stops a dead life, 
     [x, y, , age] = particles
   assert.ok(Math.abs(x - (0.5 + 0.0576 * dt)) < 1e-6 && x > 0.5, `drifted 0.4 mm: x = ${x}`)
   assert.ok(y > 2 && age === Math.fround(dt), 'rose, and aged by the step')
-  assert.deepEqual(particles.slice(8, 16), [0, 3, 0, 0, 5, 5, 5, 0], 'born dead: as staged')
-  assert.deepEqual(particles.slice(24, 32), [0, 0, 0, 0, 0, 0, 0, 0], 'never emitted: untouched')
-  const [, , , died, , , , lifetime] = last.particles.slice(16, 24)
+  const slot = (of: number[], n: number) => of.slice(n * PARTICLE_FLOATS, (n + 1) * PARTICLE_FLOATS)
+  assert.deepEqual(slot(particles, 1), slot(Array.from(pool.staging), 1), 'born dead: as staged')
+  assert.deepEqual(
+    slot(particles, 3),
+    new Array(PARTICLE_FLOATS).fill(0),
+    'never emitted: untouched',
+  )
+  const [, , , died, , , , lifetime] = slot(last.particles, 2)
   assert.ok(died >= lifetime && died < lifetime + 0.02, `died at 60 s, aged no more: ${died}`)
   // Four vertices, instances, first vertex and instance, the first slot, three pad words.
   assert.deepEqual(first.window, [4, 3, 0, 0, 0, 0, 0, 0], 'slots 0 to 2, the dead one between')

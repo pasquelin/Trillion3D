@@ -3,20 +3,37 @@ import { groupWidth, groupWidthConstants } from '../../gpu/dispatch/grid.ts'
 import { MODE_DEPTH, MODE_ID } from '../raster/contract.ts'
 import { tessLayoutEntries, type TessProgram } from './bindings.ts'
 import { diceSource } from './diceWgsl.ts'
+import { hasWideAtomics } from '../../gpu/core/wideAtomics.ts'
+import { diceMasks } from './diceMasks.ts'
+import { NO_RASTERS, type GraphRasters } from '../../materials/graph/graphRasters.ts'
+import { diceWpo, tessellationWpo } from '../shader/wpoSets.ts'
 import { planSource } from './planWgsl.ts'
 import { seedSource } from './seedWgsl.ts'
 import { splitSource } from './splitWgsl.ts'
 
 /** The tessellation's four modules, one for each program. */
-function tessellationModules(device: GPUDevice, clipping: boolean) {
+function tessellationModules(
+  device: GPUDevice,
+  clipping: boolean,
+  rasters: GraphRasters,
+  wide: boolean,
+) {
   return {
     plan: device.createShaderModule({ label: 'Trillion3D tessellation plan', code: planSource() }),
-    seed: device.createShaderModule({ label: 'Trillion3D tessellation seed', code: seedSource() }),
+    seed: device.createShaderModule({
+      label: 'Trillion3D tessellation seed',
+      code: seedSource(tessellationWpo(rasters)),
+    }),
     split: device.createShaderModule({
       label: 'Trillion3D tessellation split',
-      code: splitSource(clipping),
+      code: splitSource(clipping, tessellationWpo(rasters)),
     }),
-    dice: device.createShaderModule({ label: 'Trillion3D tessellation dice', code: diceSource() }),
+    dice: device.createShaderModule({
+      label: 'Trillion3D tessellation dice',
+      // The session's graph masks cut the patches' vertices (the dicing binds no blue noise), and its
+      // offsets place the corners the seeding and the splitting placed alike.
+      code: diceSource(diceMasks(rasters), diceWpo(rasters), wide),
+    }),
   }
 }
 
@@ -27,9 +44,13 @@ function tessellationModules(device: GPUDevice, clipping: boolean) {
  * frame is held on, and compiled on a device only when a displaced surface is drawn.
  *
  * The dicing has one entry point a mode of the raster (`MODE_DEPTH`, `MODE_ID`), `dice` indexed by
- * it.
+ * it: a device with the 64-bit atomic maximum has the first alone.
  */
-export function createTessellationPrograms(device: GPUDevice, clipping = false) {
+export function createTessellationPrograms(
+  device: GPUDevice,
+  clipping = false,
+  rasters: GraphRasters = NO_RASTERS,
+) {
   const layouts: Partial<Record<TessProgram, GPUBindGroupLayout>> = {}
   const stage = (
     program: TessProgram,
@@ -50,7 +71,8 @@ export function createTessellationPrograms(device: GPUDevice, clipping = false) 
     )
   }
   const rows = groupWidthConstants(groupWidth(device.limits))
-  const { plan, seed, split, dice } = tessellationModules(device, clipping)
+  const wide = hasWideAtomics(device)
+  const { plan, seed, split, dice } = tessellationModules(device, clipping, rasters, wide)
   const stages = {
     seed: stage('seed', seed, 'tessSeed'),
     resume: stage('seed', seed, 'tessResume'),
@@ -58,7 +80,9 @@ export function createTessellationPrograms(device: GPUDevice, clipping = false) 
     visibleArgs: stage('plan', plan, 'tessVisibleArgs', rows),
     resumeArgs: stage('plan', plan, 'tessResumeArgs', rows),
     split: stage('split', split, 'tessSplit'),
-    dice: [stage('dice', dice, `tessDice${MODE_DEPTH}`), stage('dice', dice, `tessDice${MODE_ID}`)],
+    dice: (wide ? [MODE_DEPTH] : [MODE_DEPTH, MODE_ID]).map((mode) =>
+      stage('dice', dice, `tessDice${mode}`),
+    ),
   }
   const all = [...Object.values(stages).flat()]
   return {

@@ -9,6 +9,7 @@ import {
   nonNegativeSetting as nonNegative,
   numberSetting as number,
   positiveSetting as positive,
+  contextReader,
   rulesOf,
   type SettingOptions,
   type SettingValues,
@@ -42,14 +43,14 @@ import {
 
 /** The trace tiles of the radiance cache: `adaptive` the importance of the pixels' lobes picks each probe's, else one for all —
  *  `half`, `full` or `supersampled` the resolution the probe's map is traced at. */
-export const RADIANCE_TRACE_TILES = ['adaptive', 'half', 'full', 'supersampled'] as const
+const RADIANCE_TRACE_TILES = ['adaptive', 'half', 'full', 'supersampled'] as const
 
-/** The screen probes' settings by field, each with its default; `'ultra'` the level. */
-export const SCREEN_PROBE_RULES = /* @__PURE__ */ (() =>
-  rulesOf([
+/** The level, the probes, their filtering, their history and the short-range occlusion. */
+const PLACEMENT_AND_OCCLUSION_RULES = /* @__PURE__ */ (() =>
+  [
     choice('screenProbes', DEFAULT_SCREEN_PROBE_LEVEL, SCREEN_PROBE_LEVELS),
-    positive('screenProbeQuality', 1, 'a finite number above 0'),
-    positive('screenProbeUpdateSpeed', 1, 'a finite number above 0'),
+    positive('screenProbeQuality', 1),
+    positive('screenProbeUpdateSpeed', 1),
     nonNegative('screenProbeAdaptiveFraction', SCREEN_PROBE_CONSTANTS.adaptiveFractionDefault),
     number('screenProbeGatherScale', 1, [0.1, 1]),
     flag('screenProbeScreenTraces', true),
@@ -57,7 +58,7 @@ export const SCREEN_PROBE_RULES = /* @__PURE__ */ (() =>
     flag('screenProbeSpatialFilter', true),
     count('screenProbeSpatialFilterPasses', 3, 0),
     count('screenProbeSpatialFilterKernel', 1, 0),
-    positive('screenProbeMaxRayIntensity', 10, 'a finite number above 0'),
+    positive('screenProbeMaxRayIntensity', 10),
     flag('screenProbeTemporal', true),
     count('screenProbeMaxFramesAccumulated', SCREEN_PROBE_CONSTANTS.maxFramesAccumulated, 1),
     count('screenProbeMaxRayDirections', SCREEN_PROBE_CONSTANTS.rayDirections, 1),
@@ -65,22 +66,26 @@ export const SCREEN_PROBE_RULES = /* @__PURE__ */ (() =>
     flag('screenProbeShortRangeOcclusion', true),
     number('screenProbeOcclusionIntensity', 1, [0, 1]),
     flag('screenProbeOcclusionTemporal', true),
+    flag('screenProbeBentNormal', true),
     count('screenProbeOcclusionSteps', 3, 1),
     nonNegative('screenProbeOcclusionForegroundFraction', 0.3),
     nonNegative('screenProbeOcclusionMaxAlbedo', 0.5),
     number('screenProbeOcclusionClampScale', 1, ANY_NUMBER),
+    number('screenProbeOcclusionFoliageStrength', 0.7, [0, 1]),
+  ] as const)()
+
+/** The scene traces, the history thresholds, the screen trace and the radiance cache. */
+const TRACE_AND_CACHE_RULES = /* @__PURE__ */ (() =>
+  [
     flag('screenProbeSceneTraces', true),
-    flag('screenProbeMeshTraces', false),
-    positive('screenProbeMeshTraceDistance', 1.8, 'a finite number of metres above 0'),
-    positive('screenProbeMeshTraceEndDistance', 40, 'a finite number of metres above 0'),
     number('screenProbeMaxTraceDistance', 200, [0.0001, 10485.76]),
     positive('screenProbeSurfaceBias', 0.05, 'a finite number of metres above 0'),
-    nonNegative('screenProbeMinTraceDistance', 0),
+    number('screenProbeMinTraceDistance', 0.0001, [0.0001, 10]),
     number('screenProbeInterpolationDepthWeight', 1, ANY_NUMBER),
     number('screenProbeInterpolationDepthWeightFallback', 0.1, ANY_NUMBER),
-    positive('screenProbeHistoryDistanceThreshold', 0.01, 'a finite number above 0'),
-    positive('screenProbeRelativeSpeedThreshold', 0.005, 'a finite number above 0'),
-    positive('screenProbeFastUpdateFraction', 0.1, 'a finite number above 0'),
+    positive('screenProbeHistoryDistanceThreshold', 0.01),
+    positive('screenProbeRelativeSpeedThreshold', 0.005),
+    positive('screenProbeFastUpdateFraction', 0.1),
     number('screenProbeMaxFastUpdate', 0.9, [0, 1]),
     flag('screenProbeFastUpdateClamp', false),
     flag('screenProbeImportanceIncomingLighting', true),
@@ -90,8 +95,8 @@ export const SCREEN_PROBE_RULES = /* @__PURE__ */ (() =>
     number('screenProbeSpatialFilterMaxHitAngle', 10, [0.01, 180]),
     count('screenProbeDisocclusionMaxFrames', 4, 0),
     number('screenProbeDisocclusionFraction', 0.4, [0, 1]),
-    positive('screenProbeHistoryDepthTestThickness', 0.005, 'a finite number above 0'),
-    positive('screenProbeRelativeDepthThickness', 0.02, 'a finite number above 0'),
+    positive('screenProbeHistoryDepthTestThickness', 0.005),
+    positive('screenProbeRelativeDepthThickness', 0.02),
     count('screenProbeMaxIterations', 50, 0),
     flag('screenProbeRadianceCache', true),
     nonNegative('screenProbeRadianceCacheReprojectionRadiusScale', 1.5),
@@ -104,9 +109,19 @@ export const SCREEN_PROBE_RULES = /* @__PURE__ */ (() =>
     integer('screenProbeRadianceCacheMipmaps', 1, [1, 3]),
     flag('screenProbeRadianceCacheSkyVisibility', false),
     flag('screenProbeSkipFoliageHits', true),
-    positive('screenProbeThicknessScaleWithoutField', 2, 'a finite number above 0'),
+    positive('screenProbeThicknessScaleWithoutField', 2),
     integer('screenProbeThicknessCertaintySteps', 4, [0, 64]),
-  ] as const))()
+    flag('screenProbeTwoSidedFoliageBackfaceDiffuse', true),
+    number('screenProbeMaxRoughnessToEvaluateRoughSpecular', 0.8, ANY_NUMBER),
+    number('screenProbeMaxRoughnessToEvaluateRoughSpecularForFoliage', 0.8, ANY_NUMBER),
+  ] as const)()
+
+/** The screen probes' settings by field, each with its default; `'ultra'` the level. */
+export const SCREEN_PROBE_RULES = /* @__PURE__ */ (() =>
+  rulesOf([...PLACEMENT_AND_OCCLUSION_RULES, ...TRACE_AND_CACHE_RULES] as const))()
+/** The screen probes setting `field` of a runtime's context (`contextReader`): its default where the
+ *  context holds none. */
+export const readScreenProbeSetting = /* @__PURE__ */ contextReader(SCREEN_PROBE_RULES)
 /** The field of one setting of the screen probes. */
 export type ScreenProbeField = keyof typeof SCREEN_PROBE_RULES
 /** The screen probes' settings as a host writes them, by their fields: each its value, or nothing for its
@@ -134,14 +149,15 @@ export type ScreenProbeSettings = LevelKnobs & {
   maxFramesAccumulated: number
   /** Whether the short-range occlusion is searched and applied. */
   occlusion: boolean
+  /** Whether the occlusion keeps its bent normal: the switch over a level that allows it, with the occlusion searched. */
+  bentNormal: boolean
+  /** Whether the pixels of a thin double-sided sheet gather the light along their backface: the switch over a level that allows it. */
+  backfaceDiffuse: boolean
   /** Whether the far light comes from the radiance cache: the switch, over a level that casts. */
   radianceCache: boolean
   /** What the radiance cache — a map of the light by direction in every probe of the world's pool — is made of: the settings
-   *  the world's probes trace it by, which every level but none needs (a level that casts no probe reads the probes' harmonics,
-   *  made of the same pool). */
+   *  the world's probes trace it by, which every level that casts needs. */
   cache: RadianceCacheSettings
-  /** Whether the scene trace goes to the detail: the switch over a level that allows it. */
-  meshTraces: boolean
   /** The inverse of the share of a pixel's light that must move for its history to give way. */
   fastUpdateInverseFraction: number
   /** Whether the rays' directions follow the light (the importance sampling's second half). */
@@ -155,7 +171,7 @@ export const searchesOcclusion = (switchedOn: boolean, intensity: number) =>
   switchedOn && intensity > 0
 
 /** The radiance cache's settings, resolved (`resolveScreenProbes`). */
-export interface RadianceCacheSettings {
+interface RadianceCacheSettings {
   /** Texels along a side of a probe's map. */
   resolution: number
   /** Probes traced an image, in the cost of a whole map each (the update speed taken in, `screenProbeUpdateSpeed`). */
@@ -191,24 +207,29 @@ const TRACING_RANGE = [4, 16] as const
  */
 export function resolveScreenProbes(values: ScreenProbeValues): ScreenProbeSettings {
   const level = values.screenProbes
+  const casts = castsProbes(level)
   const knobs: LevelKnobs = {
-    ...SCREEN_PROBE_LEVEL_KNOBS[castsProbes(level) ? level : DEFAULT_SCREEN_PROBE_LEVEL],
+    ...SCREEN_PROBE_LEVEL_KNOBS[casts ? level : DEFAULT_SCREEN_PROBE_LEVEL],
     ...(level === 'low' && SCREEN_PROBE_LOW_KNOBS),
   }
   const quality = values.screenProbeQuality
-  const rows = SCREEN_PROBE_LEVEL_KNOBS[castsProbes(level) ? level : 'high']
+  const rows = SCREEN_PROBE_LEVEL_KNOBS[casts ? level : 'high']
   const tracingResolution = clamp(
     nextPow2(Math.trunc(Math.sqrt(quality) * knobs.tracingResolution)),
     ...TRACING_RANGE,
   )
   const speed = 1 / Math.sqrt(clamp(values.screenProbeUpdateSpeed, 0.5, 8))
   const divisor = Math.round(1 / Math.max(values.screenProbeGatherScale, 0.1))
+  const occlusion = searchesOcclusion(
+    values.screenProbeShortRangeOcclusion,
+    values.screenProbeOcclusionIntensity,
+  )
   return {
     ...knobs,
     values,
     level,
     enabled: level !== 'off',
-    casts: castsProbes(level),
+    casts,
     downsampleFactor: clamp(knobs.downsampleFactor / (quality >= 6 ? 2 : 1), ...DOWNSAMPLE_RANGE),
     jitterWidth: knobs.jitterWidth * (quality >= 4 ? 0.5 : 1),
     tracingResolution,
@@ -218,7 +239,7 @@ export function resolveScreenProbes(values: ScreenProbeValues): ScreenProbeSetti
         ? values.screenProbeSpatialFilterPasses
         : 0,
     maxFramesAccumulated: Math.max(1, Math.round(values.screenProbeMaxFramesAccumulated * speed)),
-    radianceCache: values.screenProbeRadianceCache && castsProbes(level),
+    radianceCache: values.screenProbeRadianceCache && casts,
     cache: {
       resolution: rows.radianceProbeResolution,
       budget: Math.round(rows.radianceProbeBudget * clamp(values.screenProbeUpdateSpeed, 0.5, 4)),
@@ -231,11 +252,9 @@ export function resolveScreenProbes(values: ScreenProbeValues): ScreenProbeSetti
       mipmaps: values.screenProbeRadianceCacheMipmaps,
       skyVisibility: values.screenProbeRadianceCacheSkyVisibility,
     },
-    occlusion: searchesOcclusion(
-      values.screenProbeShortRangeOcclusion,
-      values.screenProbeOcclusionIntensity,
-    ),
-    meshTraces: values.screenProbeMeshTraces && knobs.meshTraces,
+    occlusion,
+    bentNormal: values.screenProbeBentNormal && knobs.bentNormal && occlusion,
+    backfaceDiffuse: values.screenProbeTwoSidedFoliageBackfaceDiffuse && knobs.backfaceDiffuse,
     fastUpdateInverseFraction: 1 / values.screenProbeFastUpdateFraction,
     importanceLighting:
       values.screenProbeImportanceSampling && values.screenProbeImportanceIncomingLighting,

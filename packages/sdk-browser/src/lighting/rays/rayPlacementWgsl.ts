@@ -3,7 +3,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { placementRay } from '../../geometry/dag/placement/placementRayWgsl.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
-import { WIDE_TRAVERSAL_WGSL, wideTraversal } from '../bounce/traceWgsl.ts'
+import { WIDE_TRAVERSAL_WGSL, wideTraversal } from './wideTraversalWgsl.ts'
 import { DAG_READ_TABLES_WGSL } from '../../geometry/dag/shader/bindings.ts'
 import {
   NODE_CHILD_COUNT,
@@ -59,11 +59,11 @@ fn rqBox(n:u32,reach:f32)->Box{return Box(nodesLow(n)-vec3f(reach),nodesHigh(n)+
 /** Child \`slot\` of node \`n\`: a node with children of its own is entered, one without them is a
  *  leaf whose pages — counted from the placement's first, \`pageBase\` — are tested, as the cut
  *  deposits them (\`../../gpu/dag/shader/levelWgsl.ts\`); a leaf with no page holds nothing. */
-fn rqChild(n:u32,slot:u32,reach:f32,pageBase:u32)->ProxyChild{
+fn rqChild(n:u32,slot:u32,reach:f32,pageBase:u32)->WideChild{
  let c=nodesWord(n,RQ_FIRST_CHILD)+slot;
  let leaf=nodesWord(c,RQ_CHILD_COUNT)==0u;
  let pageCount=nodesWord(c,RQ_PAGE_COUNT);
- return ProxyChild(rqBox(c,reach),select(c,pageBase+nodesWord(c,RQ_FIRST_PAGE),leaf),select(0u,pageCount,leaf),!leaf||pageCount>0u);
+ return WideChild(rqBox(c,reach),select(c,pageBase+nodesWord(c,RQ_FIRST_PAGE),leaf),select(0u,pageCount,leaf),!leaf||pageCount>0u);
 }`,
 )
 

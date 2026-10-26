@@ -19,6 +19,11 @@ const t = new Float64Array(3),
   s = new Float64Array(3),
   scratch = new Float64Array(16)
 
+/** The three axes `makeRotationX`, `Y` and `Z` turn about. */
+const AXIS_X = Object.freeze({ x: 1, y: 0, z: 0 }),
+  AXIS_Y = Object.freeze({ x: 0, y: 1, z: 0 }),
+  AXIS_Z = Object.freeze({ x: 0, y: 0, z: 1 })
+
 /** A 4×4 matrix, column-major, over the core's free functions (`mathMatrix4*.ts`). */
 export class Matrix4 {
   /** Always `true`: tells a 4×4 matrix apart. */ readonly isMatrix4 = true as const
@@ -74,8 +79,15 @@ export class Matrix4 {
     return this.multiplyMatrices(m, this)
   }
   /** Becomes `a` times `b`. */ multiplyMatrices(a: Matrix4, b: Matrix4) {
-    multiplyMatrix4(scratch, a.elements, b.elements)
-    this.elements.set(scratch)
+    const o = this.elements,
+      x = a.elements,
+      y = b.elements
+    // `multiplyMatrix4` reads each input before writing over it, but only when `o` is the very
+    // same view as an input, not a different view of the same buffer.
+    if ((o !== x && o.buffer === x.buffer) || (o !== y && o.buffer === y.buffer)) {
+      multiplyMatrix4(scratch, x, y)
+      o.set(scratch)
+    } else multiplyMatrix4(o, x, y)
     return this
   }
   /** Builds the matrix from a position, a rotation and a size. */
@@ -119,13 +131,13 @@ export class Matrix4 {
     return this
   }
   /** Becomes a turn around x. */ makeRotationX(a: number) {
-    return this.makeRotationAxis({ x: 1, y: 0, z: 0 }, a)
+    return this.makeRotationAxis(AXIS_X, a)
   }
   /** Becomes a turn around y. */ makeRotationY(a: number) {
-    return this.makeRotationAxis({ x: 0, y: 1, z: 0 }, a)
+    return this.makeRotationAxis(AXIS_Y, a)
   }
   /** Becomes a turn around z. */ makeRotationZ(a: number) {
-    return this.makeRotationAxis({ x: 0, y: 0, z: 1 }, a)
+    return this.makeRotationAxis(AXIS_Z, a)
   }
   /** Sets the move part only. */ setPosition(x: number, y: number, z: number) {
     this.elements[12] = x

@@ -29,13 +29,38 @@ import type { WorldFiles } from './worldFiles.ts'
  *  it and its parent's, whose load counts its actor. */
 type Marks = { mark(at: number): void; markWithParent(at: number): void }
 
-/** The links and readiness of `world`'s placements in `packed`, its files counted in `files`. */
-export function createWorldPlacements(
+/** What the world's placements count in: the tables `createWorldPlacements` hands to the functions
+ *  below, with the rows' flags the cut last received and the residencies it received. */
+type Tables = {
+  packed: PackedDag
+  world: PackedWorld
+  files: WorldFiles
+  marks: Marks
+  slots: number
+  instances: number
+  ranks: number
+  instanceOf: Int32Array
+  isRoot: Uint8Array
+  rootResident: Uint8Array
+  missing: Int32Array
+  unready: Int32Array
+  covered: Uint8Array
+  recountedAt: Uint32Array
+  fileOf: Int32Array
+  mainOf: Uint8Array
+  actorOf: Uint8Array
+  waiting: Map<object, Map<number, readonly [number, number, boolean]>>
+  movedLinks: ReturnType<typeof createChangedRuns>
+  rows: PageResidency | undefined
+  residencies: number
+}
+
+function createTables(
   packed: PackedDag,
   world: PackedWorld,
   files: WorldFiles,
-  { mark, markWithParent }: Marks,
-) {
+  marks: Marks,
+): Tables {
   const { links, cells, roots, rootsOf, rowsOf: actorRows, hlod } = world
   const slots = links.length / LINK_WORDS,
     instances = roots.length,
@@ -55,153 +80,227 @@ export function createWorldPlacements(
     unready = new Int32Array(cells * instances)
   for (let k = 0; k < instances; k++)
     rootsOf.forEach((list, h) => (missing[k * cells + h] = list.length + Math.sign(actorRows[h])))
-  /** Per linked placement: whether its roots were resident as last counted, the residency it was
-   *  last counted at, its file's slot (-1 for none), whether it says its main cell is wished, and
-   *  whether it is a row of its cell's actor. */
-  const covered = new Uint8Array(slots),
-    recountedAt = new Uint32Array(slots),
-    fileOf = new Int32Array(slots).fill(-1),
-    mainOf = new Uint8Array(slots),
-    actorOf = new Uint8Array(slots)
-  let residencies = 0
-  /** Per row list, the cell slot and file key each of its rows without a root counts in, -1 for
-   *  none, and whether it is a row of its cell's actor (`waitRow`). */
-  const waiting = new Map<object, Map<number, readonly [number, number, boolean]>>()
-  /** The rows' flags the cut last received. */
-  let rows: PageResidency | undefined
-  const movedLinks = createChangedRuns()
-  /** Whether every root of placement `w`'s cover is resident in the rows last received: a
-   *  primitive without its group structure is all roots. */
-  const coverResident = (w: number) => {
-    if (!rows) return false
-    const { structure, pageBase: base, pageCount: count } = packed.cutLinks[w]
-    if (structure) {
-      for (const root of structure.roots) if (!rows.flag(base + root)) return false
-      return true
-    }
-    for (let page = base; page < base + count; page++) if (!rows.flag(page)) return false
-    return true
-  }
-  /** The cell slot placement `w` counts in, -1 for none: an actor's row of an instance not packed
-   *  counts in none. */
-  const linkedAt = (w: number) => {
-    const h = links[w * LINK_WORDS],
-      k = links[w * LINK_WORDS + 1]
-    return h === NO_INDEX || k === NO_INDEX ? -1 : k * cells + (h & ~ACTOR_ROW)
-  }
-  /** Cell slot `at` gains `count` placements not resident. */
-  const unreadyBy = (at: number, count: number) => {
-    unready[at] += count
-    mark(at)
-  }
-  /** Cell slot `at` gains `by` placements not resident: a row of its actor (`actor`) in its actor's
-   *  readiness — its parent's load counts it —, any other in the cell's. */
-  const notResident = (at: number, actor: boolean | number, by: number) => {
-    if (!actor) return unreadyBy(at, by)
-    missing[at] += by
-    markWithParent(at)
-  }
-  /** Placement `w`'s roots counted again, once a residency: its cell's and its file's readiness
-   *  moved with them. */
-  const recount = (w: number) => {
-    const at = linkedAt(w),
-      g = fileOf[w]
-    if ((at < 0 && g < 0) || recountedAt[w] === residencies) return
-    recountedAt[w] = residencies
-    const now = coverResident(w) ? 1 : 0
-    if (covered[w] === now) return
-    covered[w] = now
-    if (at >= 0) notResident(at, actorOf[w], now ? -1 : 1)
-    if (g >= 0) files.count(g, 0, 0, now ? -1 : 1)
-  }
-  /** Packed page `page`'s flag moved, or may have. */
-  const pageMoved = (page: number) => {
-    const w = rootOfPacked(packed.pageIndex, page)
-    if (w < 0) return
-    const k = instanceOf[w]
-    if (k < 0) return void recount(w)
-    const rank = page - packed.cutLinks[w].pageBase
-    if (!isRoot[rank]) return
-    const now = rows!.flag(page) ? 1 : 0,
-      seen = k * ranks + rank
-    if (rootResident[seen] === now) return
-    rootResident[seen] = now
-    const at = k * cells + hlod[rank]
-    missing[at] += now ? -1 : 1
-    markWithParent(at)
-  }
   return {
+    packed,
+    world,
+    files,
+    marks,
+    slots,
+    instances,
+    ranks,
+    instanceOf,
+    isRoot,
+    rootResident,
     missing,
     unready,
-    movedLinks,
-    /** The rows' flags `next` reach the cut, changed at `changes` (every page without): the
-     *  readiness follows. */
-    residency(next: PageResidency, changes?: ResidencyChanges) {
-      rows = next
-      residencies++
-      if (changes) for (let i = 0; i < changes.count; i++) pageMoved(changes.pages[i])
-      else for (let page = 0; page < next.length; page++) pageMoved(page)
-    },
-    /** Placement `w` lies in HLOD 0 cell `cell` and in cell file `file` of the world DAG's instance
-     *  `instance` now — or is a row of cell `cell`'s actor (`actor`), in no file —, or in none
-     *  (`-1`), its file's main cell wished (`main`) or not: what it counted moves with it. The file
-     *  it stays in keeps its slot. */
-    place(w: number, cell: number, instance = 0, file = -1, main = false, actor = false) {
-      // A placement of the world DAG itself lies in no cell; a cell it cannot lie in is refused
-      // before anything is counted.
-      if (w >= slots || instanceOf[w] >= 0) return
-      checkLinkCell(world, w, cell, actor)
-      const before = linkedAt(w),
-        was = fileOf[w],
-        key = file >= 0 && instance < instances ? files.key(file, instance) : -1,
-        stays = was >= 0 && files.keyOf(was) === key
-      if (before >= 0 && !covered[w]) notResident(before, actorOf[w], -1)
-      if (was >= 0) files.count(was, -1, -mainOf[w], covered[w] - 1)
-      if (was >= 0 && !stays) files.close(was)
-      const g = stays ? was : key >= 0 ? files.open(key) : -1
-      if (setLink(world, w, cell, instance, g < 0 ? NO_INDEX : g, actor)) movedLinks.mark(w)
-      fileOf[w] = g
-      mainOf[w] = main ? 1 : 0
-      actorOf[w] = actor ? 1 : 0
-      const at = linkedAt(w)
-      covered[w] = (at >= 0 || g >= 0) && coverResident(w) ? 1 : 0
-      if (at >= 0 && !covered[w]) notResident(at, actor, 1)
-      if (g >= 0) files.count(g, 1, mainOf[w], 1 - covered[w])
-    },
-    /** Row `index` of the row list `key`, whose root the cut does not hold yet, lies in HLOD 0 cell
-     *  `cell` and cell file `file` of instance `instance` — or is a row of cell `cell`'s actor
-     *  (`actor`) —, or in none (`-1`, its root held or the row left): until then it counts in that
-     *  cell, or that actor, and that file as a placement not resident. */
-    waitRow(key: object, index: number, cell: number, instance: number, file = -1, actor = false) {
-      let rowsOf = waiting.get(key)
-      const before = rowsOf?.get(index),
-        packedHere = instance < instances,
-        at = cell >= 0 && cell < cells && packedHere ? instance * cells + cell : -1,
-        owner = file >= 0 && packedHere ? files.key(file, instance) : -1
-      const same = before?.[2] === actor && before[1] === owner && before[0] === at
-      if (same || (!before && at < 0 && owner < 0)) return
-      if (before && before[0] >= 0) notResident(before[0], before[2], -1)
-      if (before && before[1] >= 0) files.wait(before[1], -1)
-      if (at < 0 && owner < 0) return void rowsOf?.delete(index)
-      if (!rowsOf) waiting.set(key, (rowsOf = new Map()))
-      rowsOf.set(index, [at, owner, actor])
-      if (at >= 0) notResident(at, actor, 1)
-      if (owner >= 0) files.wait(owner, 1)
-    },
+    /** Per linked placement: whether its roots were resident as last counted, the residency it was
+     *  last counted at, its file's slot (-1 for none), whether it says its main cell is wished, and
+     *  whether it is a row of its cell's actor. */
+    covered: new Uint8Array(slots),
+    recountedAt: new Uint32Array(slots),
+    fileOf: new Int32Array(slots).fill(-1),
+    mainOf: new Uint8Array(slots),
+    actorOf: new Uint8Array(slots),
+    /** Per row list, the cell slot and file key each of its rows without a root counts in, -1 for
+     *  none, and whether it is a row of its cell's actor (`waitRow`). */
+    waiting: new Map(),
+    movedLinks: createChangedRuns(),
+    /** The rows' flags the cut last received. */
+    rows: undefined,
+    residencies: 0,
+  }
+}
+
+/** Whether every root of placement `w`'s cover is resident in the rows last received: a
+ *  primitive without its group structure is all roots. */
+function coverResident(t: Tables, w: number) {
+  const { rows } = t
+  if (!rows) return false
+  const { structure, pageBase: base, pageCount: count } = t.packed.cutLinks[w]
+  if (structure) {
+    for (const root of structure.roots) if (!rows.flag(base + root)) return false
+    return true
+  }
+  for (let page = base; page < base + count; page++) if (!rows.flag(page)) return false
+  return true
+}
+
+/** The cell slot placement `w` counts in, -1 for none: an actor's row of an instance not packed
+ *  counts in none. */
+function linkedAt(t: Tables, w: number) {
+  const { links, cells } = t.world
+  const h = links[w * LINK_WORDS],
+    k = links[w * LINK_WORDS + 1]
+  return h === NO_INDEX || k === NO_INDEX ? -1 : k * cells + (h & ~ACTOR_ROW)
+}
+
+/** Cell slot `at` gains `by` placements not resident: a row of its actor (`actor`) in its actor's
+ *  readiness — its parent's load counts it —, any other in the cell's. */
+function notResident(t: Tables, at: number, actor: boolean | number, by: number) {
+  if (!actor) {
+    t.unready[at] += by
+    t.marks.mark(at)
+    return
+  }
+  t.missing[at] += by
+  t.marks.markWithParent(at)
+}
+
+/** Placement `w`'s roots counted again, once a residency: its cell's and its file's readiness
+ *  moved with them. */
+function recount(t: Tables, w: number) {
+  const at = linkedAt(t, w),
+    g = t.fileOf[w]
+  if ((at < 0 && g < 0) || t.recountedAt[w] === t.residencies) return
+  t.recountedAt[w] = t.residencies
+  const now = coverResident(t, w) ? 1 : 0
+  if (t.covered[w] === now) return
+  t.covered[w] = now
+  if (at >= 0) notResident(t, at, t.actorOf[w], now ? -1 : 1)
+  if (g >= 0) t.files.count(g, 0, 0, now ? -1 : 1)
+}
+
+/** Packed page `page`'s flag moved, or may have. */
+function pageMoved(t: Tables, page: number) {
+  const w = rootOfPacked(t.packed.pageIndex, page)
+  if (w < 0) return
+  const k = t.instanceOf[w]
+  if (k < 0) return void recount(t, w)
+  const rank = page - t.packed.cutLinks[w].pageBase
+  if (!t.isRoot[rank]) return
+  const now = t.rows!.flag(page) ? 1 : 0,
+    seen = k * t.ranks + rank
+  if (t.rootResident[seen] === now) return
+  t.rootResident[seen] = now
+  const at = k * t.world.cells + t.world.hlod[rank]
+  t.missing[at] += now ? -1 : 1
+  t.marks.markWithParent(at)
+}
+
+/** The rows' flags `next` reach the cut, changed at `changes` (every page without): the
+ *  readiness follows. */
+function residency(t: Tables, next: PageResidency, changes?: ResidencyChanges) {
+  t.rows = next
+  t.residencies++
+  if (changes) for (let i = 0; i < changes.count; i++) pageMoved(t, changes.pages[i])
+  else for (let page = 0; page < next.length; page++) pageMoved(t, page)
+}
+
+/** What placement `w` counted in its cell and its file is taken off; the slot of the file it lies
+ *  in from now on (`file` of `instance`), the one it stays in kept, -1 for none. */
+function leave(t: Tables, w: number, instance: number, file: number) {
+  const { files, covered, fileOf, mainOf, actorOf } = t
+  const before = linkedAt(t, w),
+    was = fileOf[w],
+    key = file >= 0 && instance < t.instances ? files.key(file, instance) : -1,
+    stays = was >= 0 && files.keyOf(was) === key
+  if (before >= 0 && !covered[w]) notResident(t, before, actorOf[w], -1)
+  if (was >= 0) files.count(was, -1, -mainOf[w], covered[w] - 1)
+  if (was >= 0 && !stays) files.close(was)
+  return stays ? was : key >= 0 ? files.open(key) : -1
+}
+
+/** Placement `w` lies in HLOD 0 cell `cell` and in cell file `file` of the world DAG's instance
+ *  `instance` now — or is a row of cell `cell`'s actor (`actor`), in no file —, or in none
+ *  (`-1`), its file's main cell wished (`main`) or not: what it counted moves with it. The file
+ *  it stays in keeps its slot. */
+function place(
+  t: Tables,
+  w: number,
+  cell: number,
+  instance: number,
+  file: number,
+  main: boolean,
+  actor: boolean,
+) {
+  const { files, world, covered, fileOf, mainOf, actorOf } = t
+  // A placement of the world DAG itself lies in no cell; a cell it cannot lie in is refused
+  // before anything is counted.
+  if (w >= t.slots || t.instanceOf[w] >= 0) return
+  checkLinkCell(world, w, cell, actor)
+  const g = leave(t, w, instance, file)
+  if (setLink(world, w, cell, instance, g < 0 ? NO_INDEX : g, actor)) t.movedLinks.mark(w)
+  fileOf[w] = g
+  mainOf[w] = main ? 1 : 0
+  actorOf[w] = actor ? 1 : 0
+  const at = linkedAt(t, w)
+  covered[w] = (at >= 0 || g >= 0) && coverResident(t, w) ? 1 : 0
+  if (at >= 0 && !covered[w]) notResident(t, at, actor, 1)
+  if (g >= 0) files.count(g, 1, mainOf[w], 1 - covered[w])
+}
+
+/** What a row counted before in its cell (or actor) and its file, taken off. */
+function unwait(t: Tables, before: readonly [number, number, boolean] | undefined) {
+  if (!before) return
+  if (before[0] >= 0) notResident(t, before[0], before[2], -1)
+  if (before[1] >= 0) t.files.wait(before[1], -1)
+}
+
+/** Row `index` of the row list `key`, whose root the cut does not hold yet, lies in HLOD 0 cell
+ *  `cell` and cell file `file` of instance `instance` — or is a row of cell `cell`'s actor
+ *  (`actor`) —, or in none (`-1`, its root held or the row left): until then it counts in that
+ *  cell, or that actor, and that file as a placement not resident. */
+function waitRow(
+  t: Tables,
+  key: object,
+  index: number,
+  cell: number,
+  instance: number,
+  file: number,
+  actor: boolean,
+) {
+  let rowsOf = t.waiting.get(key)
+  const before = rowsOf?.get(index),
+    packedHere = instance < t.instances,
+    at = cell >= 0 && cell < t.world.cells && packedHere ? instance * t.world.cells + cell : -1,
+    owner = file >= 0 && packedHere ? t.files.key(file, instance) : -1
+  const same = before?.[2] === actor && before[1] === owner && before[0] === at
+  if (same || (!before && at < 0 && owner < 0)) return
+  unwait(t, before)
+  if (at < 0 && owner < 0) return void rowsOf?.delete(index)
+  if (!rowsOf) t.waiting.set(key, (rowsOf = new Map()))
+  rowsOf.set(index, [at, owner, actor])
+  if (at >= 0) notResident(t, at, actor, 1)
+  if (owner >= 0) t.files.wait(owner, 1)
+}
+
+/** The links and readiness of `world`'s placements in `packed`, its files counted in `files`. */
+export function createWorldPlacements(
+  packed: PackedDag,
+  world: PackedWorld,
+  files: WorldFiles,
+  marks: Marks,
+) {
+  const t = createTables(packed, world, files, marks)
+  return {
+    missing: t.missing,
+    unready: t.unready,
+    movedLinks: t.movedLinks,
+    residency: (next: PageResidency, changes?: ResidencyChanges) => residency(t, next, changes),
+    place: (w: number, cell: number, instance = 0, file = -1, main = false, actor = false) =>
+      place(t, w, cell, instance, file, main, actor),
+    waitRow: (
+      key: object,
+      index: number,
+      cell: number,
+      instance: number,
+      file = -1,
+      actor = false,
+    ) => waitRow(t, key, index, cell, instance, file, actor),
     /** Bytes of its host tables. */
     get hostBytes() {
       return byteLengths(
-        instanceOf,
-        isRoot,
-        rootResident,
-        missing,
-        unready,
-        covered,
-        recountedAt,
-        fileOf,
-        mainOf,
-        actorOf,
-        movedLinks,
+        t.instanceOf,
+        t.isRoot,
+        t.rootResident,
+        t.missing,
+        t.unready,
+        t.covered,
+        t.recountedAt,
+        t.fileOf,
+        t.mainOf,
+        t.actorOf,
+        t.movedLinks,
       )
     },
   }

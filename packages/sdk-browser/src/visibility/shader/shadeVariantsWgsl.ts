@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { COTANGENT_FRAME_WGSL } from '../../geometry/cluster/cotangentFrameWgsl.ts'
 import { DIAGNOSTIC_VIEWS as V } from './shadeMode.ts'
+import { normalCurvatureOfModel } from '../../materials/surface/surfaceModelWord.ts'
 
 /**
  * The pieces of the surface resolve's text that only some of its modules hold (`shadeWgsl.ts`): the
@@ -15,13 +16,23 @@ import { DIAGNOSTIC_VIEWS as V } from './shadeMode.ts'
 export const DISPLACED_PIXEL = ` var solved=false;var stepX=vec3f(0.0);var stepY=vec3f(0.0);
  if(prism.tessellation!=0u&&tessellatedFlags(page)){
   let s=solveDisplaced(page,tri,pos.xy);
-  if(s.ok){bary=s.value;stepX=s.dx;stepY=s.dy;solved=true;}
+  bary=s.value;stepX=s.dx;stepY=s.dy;solved=true;
  }
 `
 export const DISPLACED_GRADIENTS = `  if(solved){ddx=t.uva*stepX.x+t.uvb*stepX.y+t.uvc*stepX.z;ddy=t.uva*stepY.x+t.uvb*stepY.y+t.uvc*stepY.z;}
 `
-export const DISPLACED_STEPS = `   if(solved){bx=bary+stepX;by=bary+stepY;}
+const DISPLACED_STEPS = `   if(solved){bx=bary+stepX;by=bary+stepY;}
 `
+
+/** The barycentric weights one pixel right (`bx`) and one down (`by`), those of the displaced
+ *  triangle's own steps where the pixel was solved on it (`DISPLACED_STEPS`): what the normal's
+ *  change across the pixel and a graph's footprints read. */
+export const NEIGHBOUR_WEIGHTS = (displaced: boolean, indent: string) => {
+  const declare = displaced ? 'var' : 'let'
+  return `${indent}${declare} bx=perspectiveBarycentric(s0,s1,s2,t.iw,p+vec2f(1.0,0.0),area);
+${indent}${declare} by=perspectiveBarycentric(s0,s1,s2,t.iw,p+vec2f(0.0,1.0),area);
+${displaced ? DISPLACED_STEPS : ''}`
+}
 
 /** What a voxel class's resolve adds to the text (`VOXEL`): its own module alone holds it, made
  *  the first time a voxel class is asked (`shadePipelines.ts`); every other class compiles the text
@@ -58,26 +69,17 @@ export const VOXEL_SURFACE = ` // A voxel wears its own prefiltered surface; its
   rgb=v.rgb;metal=v.metal;ao=v.ao;emissive=vec3f(0.0);rough=v.rough;
  }
 `
-export const VOXEL_RECEIVER = `   // A voxel's receiver is its hit, which the depth already places, and its own normal: no
-   // offset from its box's corners.
-   rcvOffset=select(receiver.offset,vec3f(0.0),VOXEL);
-   rcvPlane=select(receiver.plane,voxelN,VOXEL);
-`
-export const PLAIN_RECEIVER = `   rcvOffset=receiver.offset;
-   rcvPlane=receiver.plane;
-`
-export const VOXEL_NORMAL = `  if(VOXEL){N=voxelSampledNormal(voxelN,voxelRatio(page.pageOffset,voxel),voxelV,vec2i(pos.xy),uni.frameIndex);Nx=N;Ny=N;}
+export const VOXEL_NORMAL = `  if(VOXEL){N=voxelSampledNormal(voxelN,voxelRatio(page.pageOffset,voxel),voxelV,vec2i(pos.xy),uni.frameIndex);curvature=select(0.0,normalCurvatureFlat(uni.normalCurvature),${normalCurvatureOfModel('m.model')});}
 `
 
-/** The frame of the tangents a page stores (`pageTangent`) at the weights `bary` of triangle `tri`:
+/** The frame of the tangents a page stores (`pageTangent`) at the weights `bary` of the triangle whose corners are `k` in the header `h`:
  *  each corner's tangent turned to the world (`world3`) and to the row's `side`, its bitangent the
  *  corner normal's cross with it by its sign, both blended. The one tangent source of a pixel whose
  *  page stores tangents: its normal map and its lobes bend in it (`physicalValues`). */
 export const STORED_TANGENT_FRAME_WGSL = wgslBlock(
   'STORED_TANGENT_FRAME_WGSL',
   [COTANGENT_FRAME_WGSL],
-  `fn storedTangentFrame(page:PageInfo,tri:u32,bary:vec3f,n0:vec3f,n1:vec3f,n2:vec3f,world3:mat3x3f,side:f32)->CotangentFrame{
- let h=pageHeader(page);let k=pageTriangle(page,h,tri);
+  `fn storedTangentFrame(page:PageInfo,h:ClusterHeader,k:vec3u,bary:vec3f,n0:vec3f,n1:vec3f,n2:vec3f,world3:mat3x3f,side:f32)->CotangentFrame{
  let ta=pageTangent(page,h,k.x);let tb=pageTangent(page,h,k.y);let tc=pageTangent(page,h,k.z);
  let t0=normalize(world3*ta.xyz)*side;let t1=normalize(world3*tb.xyz)*side;let t2=normalize(world3*tc.xyz)*side;
  let T=normalize(t0*bary.x+t1*bary.y+t2*bary.z);

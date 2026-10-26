@@ -1,4 +1,5 @@
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
+import { standInTexture } from '../../gpu/core/standIns.ts'
 import { postSamplers } from '../../gpu/core/postSamplers.ts'
 import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
 import { fullscreenDescriptor, preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
@@ -72,12 +73,7 @@ export const filterPrograms = oncePerDevice((device: GPUDevice) => {
     halveWide: tableOf('halveWide'),
     blurTaps: tableOf('blurTaps'),
   }
-  const empty = device.createTexture({
-    label: `${DOWNSAMPLE_PASS} empty`,
-    size: { width: 1, height: 1 },
-    format: HDR_FORMAT,
-    usage: GPUTextureUsage.TEXTURE_BINDING,
-  })
+  const empty = standInTexture(device, `${DOWNSAMPLE_PASS} empty`, HDR_FORMAT)
   return {
     layouts,
     /** The pipeline of `entry` writing `format`. */

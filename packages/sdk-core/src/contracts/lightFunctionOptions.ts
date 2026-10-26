@@ -37,7 +37,7 @@ const LIGHT_FUNCTION_SIZE_RANGE = [2, 16] as const
  *  texels a side of a slot, at least 32 —; `lightFunctionAtlasSize` (4) — slots a side of the atlas,
  *  from 2 to 16, so 16 materials at the default —; `lightFunctionMaxLights` (−1, no limit) — the most
  *  lights that read the atlas; a light past it has no light function —; `lightFunctionFormat`
- *  (`'grey'`); `lightFunctionDeferred` (on) — the opaque lighting reads the atlas —;
+ *  (`'grey'`); `lightFunctionDeferred` (on) — the opaque lighting and the translucency volume's injection read the atlas —;
  *  `lightFunctionFog` (on) — the volumetric fog's local lights read it, its sun's always does —;
  *  `lightFunctionBounce` (on) — the bounce's lights (the probes' rays, the screen probes' scene
  *  traces) read it —; `lightFunctionTranslucent` (off) — the translucent layers read it. */
@@ -74,4 +74,4 @@ export function lightFunctionAtlasShape(
 }
 
 /** Each frame's reading of one setting of the light functions from a runtime's context. */
-export const readLightFunctionSetting = contextReader(LIGHT_FUNCTION_RULES)
+export const readLightFunctionSetting = /* @__PURE__ */ contextReader(LIGHT_FUNCTION_RULES)

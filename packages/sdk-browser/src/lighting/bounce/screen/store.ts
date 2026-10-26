@@ -77,7 +77,7 @@ export function createScreenProbeStore(): ScreenProbeStore {
       let asked = shapes.get(wanted)
       if (!asked) {
         const shape = kernelShapeOf(wanted)
-        const key = `${shape.casts}|${shape.side}|${shape.gather}|${shape.samples}|${shape.occlusion.downsample}|${shape.occlusion.pyramid}|${shape.occlusion.power}|${shape.scene}`
+        const key = `${shape.casts}|${shape.side}|${shape.gather}|${shape.samples}|${shape.occlusion.downsample}|${shape.occlusion.pyramid}|${shape.occlusion.power}|${shape.occlusion.bentNormal}`
         shapes.set(wanted, (asked = { shape, key }))
       }
       const set = sets.get(asked.key)

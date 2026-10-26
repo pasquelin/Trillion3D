@@ -1,5 +1,5 @@
 // The repository's own Rust crates, listed once: `native.ts` tests, lints and formats them (and
-// `../test/check-changed.ts` through it), `../lint/format-staged.ts` formats the staged ones, `../check/check-helpers.ts`
+// `../check/check-changed.ts` through it), `../lint/format-staged.ts` formats the staged ones, `../check/check-helpers.ts`
 // reads each as a unit and `../build/build-wasm.ts` compiles the WebAssembly one. `native-crates.test.ts`
 // holds the list to every `Cargo.toml` of `packages/` but the third-party Jolt sources.
 

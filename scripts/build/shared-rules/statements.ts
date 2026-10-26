@@ -108,6 +108,13 @@ function statement(node: ts.Statement, t: Target, depth: number, tail: boolean):
   return unsupported(node)
 }
 
+/** A Rust array of the strings `words`, its type and value: `[&str; n] = ["a", ...]`. */
+export const rustStrings = (words: readonly string[]) =>
+  `[&str; ${words.length}] = [${words.map((word) => JSON.stringify(word)).join(', ')}]`
+
+/** A Rust float literal of `value`: a whole number always with its point. */
+export const float = (value: number) => (Number.isInteger(value) ? value.toFixed(1) : String(value))
+
 /** `doc` as comment lines opening with `prefix`. */
 export const comment = (doc: readonly string[], prefix: string) =>
   doc.map((line) => `${prefix}${line}`.trimEnd()).join('\n')

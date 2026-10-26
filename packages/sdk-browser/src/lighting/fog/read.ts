@@ -1,6 +1,10 @@
-import { computeSamplerEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
-import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
-import { standInTexture } from '../../gpu/core/standInTexture.ts'
+import {
+  computeBufferEntry,
+  computeSamplerEntry,
+  computeTextureEntry,
+} from '../../gpu/core/computeBindings.ts'
+import { postSamplers } from '../../gpu/core/postSamplers.ts'
+import { standInBuffer, standInTexture } from '../../gpu/core/standIns.ts'
 import { createWhiteCubemap } from './cubemapGpu.ts'
 import type { FogResourceBindings } from './readWgsl.ts'
 
@@ -8,55 +12,49 @@ import type { FogResourceBindings } from './readWgsl.ts'
 export const FOG_VOLUME_FORMAT: GPUTextureFormat = 'rgba16float'
 
 /** What a program that reads the fog is bound to, past the light buffer: the cubemap, the integrated
- *  volume, and the sampler both are read through (`fogResourcesWgsl`). A new object where one of
- *  the views changed, so that a program that keeps its group compares the object. */
+ *  volume, the sampler both are read through, and the lists of the local fog volumes over each tile
+ *  (`fogResourcesWgsl`). A new object where one of the views or the lists' buffer changed, so that a
+ *  program that keeps its group compares the object. */
 export interface FogRead {
   cubemap: GPUTextureView
   volume: GPUTextureView
   sampler: GPUSampler
+  tiles: GPUBuffer
 }
-
-/** The sampler the cubemap and the volume are read through: linear, clamped, the one of the device. */
-export const createFogSampler = oncePerDevice((device: GPUDevice) =>
-  device.createSampler({
-    label: 'Trillion3D fog',
-    magFilter: 'linear',
-    minFilter: 'linear',
-    mipmapFilter: 'linear',
-    addressModeU: 'clamp-to-edge',
-    addressModeV: 'clamp-to-edge',
-    addressModeW: 'clamp-to-edge',
-  }),
-)
 
 /**
  * What a program that reads the fog is bound to where the scene has no cubemap and builds no
  * volume: a white cubemap, one empty cell of volume — the view block says no volume is built, its
- * read answers none (`fogVolumeBuilt`) — and the sampler. Made when the first program asks for it
- * (`DeferredPlaceholders.fog`), handed to every program that reads the fog.
+ * read answers none (`fogVolumeBuilt`) — the sampler, and one word of lists of local fog volumes,
+ * which the view's tiling is checked against and found too small (`localFogTiled`). Made when the
+ * first program asks for it (`DeferredPlaceholders.fog`), handed to every program that reads the fog.
  */
 export function createFogStandIns(device: GPUDevice) {
   const white = createWhiteCubemap(device)
   const empty = standInTexture(device, 'Trillion3D fog no volume', FOG_VOLUME_FORMAT, {
     dimension: '3d',
   })
+  const tiles = standInBuffer(device, 'Trillion3D fog no local volumes', 16, GPUBufferUsage.STORAGE)
   const read: FogRead = {
     cubemap: white.view,
     volume: empty.createView(),
-    sampler: createFogSampler(device),
+    sampler: postSamplers(device).mipped,
+    tiles,
   }
   return {
     read,
     destroy() {
       white.destroy()
       empty.destroy()
+      tiles.destroy()
     },
   }
 }
 
-/** The layout entries of a program that reads the fog's cubemap and volume as `b` binds them
- *  (`fogResourcesWgsl`), seen by `visibility`: what a lighting program adds to its own layout so the
- *  fog's read runs in it. The cubemap is a filterable cube, the volume a filterable 3D texture. */
+/** The layout entries of a program that reads the fog's cubemap, volume and local fog volumes' lists as
+ *  `b` binds them (`fogResourcesWgsl`), seen by `visibility`: what a lighting program adds to its own
+ *  layout so the fog's read runs in it. The cubemap is a filterable cube, the volume a filterable 3D
+ *  texture, the lists a read-only storage buffer. */
 export function fogReadLayoutEntries(
   b: FogResourceBindings,
   visibility: GPUShaderStageFlags,
@@ -68,6 +66,8 @@ export function fogReadLayoutEntries(
   if (b.volume !== undefined) entries.push(computeTextureEntry(b.volume, 'float', '3d', visibility))
   if (b.lightShaft !== undefined)
     entries.push(computeTextureEntry(b.lightShaft, 'float', '2d', visibility))
+  if (b.tiles !== undefined)
+    entries.push(computeBufferEntry(b.tiles, 'read-only-storage', visibility))
   return entries
 }
 
@@ -84,5 +84,6 @@ export function fogReadBindEntries(
   if (b.volume !== undefined) entries.push({ binding: b.volume, resource: read.volume })
   if (b.lightShaft !== undefined && lightShaft)
     entries.push({ binding: b.lightShaft, resource: lightShaft })
+  if (b.tiles !== undefined) entries.push({ binding: b.tiles, resource: { buffer: read.tiles } })
   return entries
 }

@@ -15,17 +15,8 @@ import { heldBuffers } from '../gpu/core/heldBuffers.ts'
 
 const STRIDE = GUIDE_INSTANCE_FLOATS * 4
 
-/**
- * The WebGPU guide pass. Nothing exists until a guide is shown: the frame entry that first finds
- * one makes the pass (`../frame/loop/framePipelines.ts`), whose pipeline compiles off the frame
- * from then, the frame held on it; its buffers are made by the first image it draws. It draws on
- * the display colour target, AFTER temporal accumulation and composition, with the camera's
- * unjittered view-projection: the guides never enter the history the next image reprojects, so a
- * moving camera cannot smear them, and a still one does not make them shimmer. It reads the opaque
- * depth as a texture and tests against it in the shader, allowing the depth the image's jitter
- * moved (`jitterSlack`, `guideShaders.ts`): the scene was drawn jittered, the guides are not.
- */
-export function createWebgpuGuidePass(device: GPUDevice) {
+/** The guide pass's group layout and its pipeline, compiled off the frame. */
+function createGuidePipeline(device: GPUDevice) {
   const module = device.createShaderModule({ label: GUIDE_PASS, code: GUIDE_WGSL })
   const layout = device.createBindGroupLayout({
     label: GUIDE_PASS,
@@ -56,11 +47,35 @@ export function createWebgpuGuidePass(device: GPUDevice) {
     fragment: { module, entryPoint: 'fragmentMain', targets: [{ format: 'rgba8unorm' }] },
     primitive: { topology: 'triangle-list', cullMode: 'none' },
   }).ask()
+  return { layout, pipeline }
+}
+
+const guideTarget = { loadOp: 'load', storeOp: 'store' } as GPURenderPassColorAttachment
+const GUIDE: GPURenderPassDescriptor = { label: GUIDE_PASS, colorAttachments: [guideTarget] }
+
+/** The `count` instances drawn over `color`: six vertices each. */
+function drawGuides(
+  encoder: GPUCommandEncoder,
+  color: GPUTextureView,
+  pipeline: GPURenderPipeline,
+  buffers: { group: GPUBindGroup; instances: GPUBuffer },
+  count: number,
+) {
+  guideTarget.view = color
+  const pass = encoder.beginRenderPass(GUIDE)
+  pass.setPipeline(pipeline)
+  pass.setBindGroup(0, buffers.group)
+  pass.setVertexBuffer(0, buffers.instances)
+  pass.draw(6, count)
+  pass.end()
+}
+
+/** The pass's uniform and instance buffers, and the group binding the uniform and the depth. */
+function createGuideBuffers(device: GPUDevice, layout: GPUBindGroupLayout) {
   let uniform: GPUBuffer | undefined,
     instances: GPUBuffer | undefined,
     group: GPUBindGroup | undefined,
     uploaded: unknown
-  const view = new Float32Array(GUIDE_UNIFORM_FLOATS)
   /** The group binds the uniform and the depth target, made again when one moved — a resize gives
    *  the depth a new view (`createWebgpuBindIdentity`). */
   const bound = createWebgpuBindIdentity()
@@ -84,6 +99,48 @@ export function createWebgpuGuidePass(device: GPUDevice) {
     uploaded = packed
   }
   return {
+    /** The uniform made on the first image, the instances uploaded, the group bound to `depth`. */
+    prepare(packed: ReturnType<GuideSet['pack']>, depth: GPUTextureView) {
+      uniform ??= device.createBuffer({
+        label: GUIDE_PASS,
+        size: GUIDE_UNIFORM_FLOATS * 4,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      })
+      upload(packed)
+      bind(depth)
+    },
+    get uniform() {
+      return uniform!
+    },
+    get group() {
+      return group!
+    },
+    get instances() {
+      return instances!
+    },
+    dispose() {
+      uniform?.destroy()
+      held.drop(device, GUIDE_PASS)
+      uniform = instances = group = uploaded = undefined
+    },
+  }
+}
+
+/**
+ * The WebGPU guide pass. Nothing exists until a guide is shown: the frame entry that first finds
+ * one makes the pass (`../frame/loop/framePipelines.ts`), whose pipeline compiles off the frame
+ * from then, the frame held on it; its buffers are made by the first image it draws. It draws on
+ * the display colour target, AFTER temporal accumulation and composition, with the camera's
+ * unjittered view-projection: the guides never enter the history the next image reprojects, so a
+ * moving camera cannot smear them, and a still one does not make them shimmer. It reads the opaque
+ * depth as a texture and tests against it in the shader, allowing the depth the image's jitter
+ * moved (`jitterSlack`, `guideShaders.ts`): the scene was drawn jittered, the guides are not.
+ */
+export function createWebgpuGuidePass(device: GPUDevice) {
+  const { layout, pipeline } = createGuidePipeline(device)
+  const buffers = createGuideBuffers(device, layout)
+  const view = new Float32Array(GUIDE_UNIFORM_FLOATS)
+  return {
     /**
      * Draws the visible guides over `color`, tested against `depth`, seen through the camera's
      * own view-projection — never the jittered one — at the host's `pixelRatio`; `jitter` is the
@@ -101,34 +158,20 @@ export function createWebgpuGuidePass(device: GPUDevice) {
       jitter: ArrayLike<number>,
       scene?: ArrayLike<number>,
     ) {
+      // Single step, before anything is packed, uploaded or counted drawn: the pipeline was asked at
+      // creation (`askGuidePass`), the frames waiting for it.
+      const drawing = pipeline.get()
+      if (!drawing) return false
       const packed = guides.pack()
       if (!packed.count) return false
-      uniform ??= device.createBuffer({
-        label: GUIDE_PASS,
-        size: GUIDE_UNIFORM_FLOATS * 4,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-      })
-      upload(packed)
-      bind(depth)
+      buffers.prepare(packed, depth)
       const { anchor } = packed
       writeGuideView(view, camera.viewProjection, anchor, width, height, pixelRatio, jitter, scene)
-      device.queue.writeBuffer(uniform!, 0, view)
-      const pass = encoder.beginRenderPass({
-        label: GUIDE_PASS,
-        colorAttachments: [{ view: color, loadOp: 'load', storeOp: 'store' }],
-      })
-      pass.setPipeline(pipeline.get())
-      pass.setBindGroup(0, group!)
-      pass.setVertexBuffer(0, instances!)
-      pass.draw(6, packed.count)
-      pass.end()
+      device.queue.writeBuffer(buffers.uniform, 0, view)
+      drawGuides(encoder, color, drawing, buffers, packed.count)
       return true
     },
-    dispose() {
-      uniform?.destroy()
-      held.drop(device, GUIDE_PASS)
-      uniform = instances = group = uploaded = undefined
-    },
+    dispose: buffers.dispose,
   }
 }
 

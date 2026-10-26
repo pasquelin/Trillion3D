@@ -1,5 +1,5 @@
-import type { NumberSink } from '../matrix/matrix4.ts'
-import { length3, transformPointRow } from '../vector/vector.ts'
+import { isAffineMatrix4, type NumberSink } from '../matrix/matrix4.ts'
+import { length3, transformPointRowOf } from '../vector/vector.ts'
 
 /**
  * Axis-aligned bounding boxes, stored flat: six floats `minX, minY, minZ, maxX, maxY, maxZ`
@@ -47,6 +47,13 @@ function writeBounds(
   out[o + 3] = maxX
   out[o + 4] = maxY
   out[o + 5] = maxZ
+}
+
+/** Writes one corner `x, y, z` into `out` at `at`. */
+function writeCorner(out: Float64Array, at: number, x: number, y: number, z: number) {
+  out[at] = x
+  out[at + 1] = y
+  out[at + 2] = z
 }
 
 /** True when an upper bound falls below its lower bound. A NaN bound does not make the box empty. */
@@ -130,7 +137,7 @@ export function boxExpandByPoint(out: Float64Array, o: number, x: number, y: num
 
 /**
  * The smallest box around `count` points read from `points` at `at`, one every `stride` numbers,
- * into `out` at `o`: `boxEmpty`, then `boxExpandByPoint` per point, the engine's one fold. `Math.min` and `Math.max` decide, so a NaN coordinate makes its bounds NaN,
+ * into `out` at `o`: `boxEmpty`, then `boxExpandByPoint` per point, the engine's one fold, held in locals. `Math.min` and `Math.max` decide, so a NaN coordinate makes its bounds NaN,
  * `-0` sits below `+0`, and no point leaves the box empty. `out` must not be `points`.
  */
 export function boxFromPoints(
@@ -141,9 +148,26 @@ export function boxFromPoints(
   count: number,
   stride = 3,
 ) {
-  boxEmpty(out, o)
-  for (let i = 0, p = at; i < count; i++, p += stride)
-    boxExpandByPoint(out, o, points[p], points[p + 1], points[p + 2])
+  // The six bounds are held in locals, from the values `boxEmpty` writes, and folded with the
+  // min and max of `boxUnion` on a point alone; written once.
+  let minX = Infinity,
+    minY = Infinity,
+    minZ = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity,
+    maxZ = -Infinity
+  for (let i = 0, p = at; i < count; i++, p += stride) {
+    const x = points[p],
+      y = points[p + 1],
+      z = points[p + 2]
+    minX = Math.min(minX, x)
+    minY = Math.min(minY, y)
+    minZ = Math.min(minZ, z)
+    maxX = Math.max(maxX, x)
+    maxY = Math.max(maxY, y)
+    maxZ = Math.max(maxZ, z)
+  }
+  writeBounds(out, o, minX, minY, minZ, maxX, maxY, maxZ)
 }
 
 /** The box at `bo` of `box` grown by `g` on every side, into `out` at `o` (the same box allowed):
@@ -182,6 +206,11 @@ export function boxUnion(
   out[o + 5] = Math.max(out[o + 5], maxZ)
 }
 
+/** Union of the box with the six bounds of `box` from `bo`. */
+export function boxUnionBox(out: Float64Array, o: number, box: ArrayLike<number>, bo = 0) {
+  boxUnion(out, o, box[bo], box[bo + 1], box[bo + 2], box[bo + 3], box[bo + 4], box[bo + 5])
+}
+
 /**
  * Whether every corner of the box of bounds `min…max` has `w` exactly 1 under `m`: the last row
  * of `m` is `0, 0, 0, 1` and every bound finite, so each product of the row is a zero and their sum
@@ -198,10 +227,7 @@ function unitW(
   maxZ: number,
 ) {
   return (
-    m[3] === 0 &&
-    m[7] === 0 &&
-    m[11] === 0 &&
-    m[15] === 1 &&
+    isAffineMatrix4(m) &&
     Number.isFinite(minX) &&
     Number.isFinite(minY) &&
     Number.isFinite(minZ) &&
@@ -215,7 +241,7 @@ function unitW(
  * The eight corners of a box transformed by `m` (4×4 column-major), written flat — twenty-four
  * floats starting at `o`. Corner `i` takes `max` on `x` when bit 1 is set, on `y`
  * for bit 2, on `z` for bit 4. Each corner is the homogeneous transformation of a point:
- * `(m·p) / (m₃·p)`, each row `transformPointRow`, inverse of `w` computed once then multiplied.
+ * `(m·p) / (m₃·p)`, each row `transformPointRowOf`, inverse of `w` computed once then multiplied.
  */
 export function boxCornersInto(
   out: Float64Array,
@@ -228,16 +254,7 @@ export function boxCornersInto(
   maxZ: number,
   m: ArrayLike<number>,
 ) {
-  for (let i = 0; i < 8; i++) {
-    const lx = i & 1 ? maxX : minX,
-      ly = i & 2 ? maxY : minY,
-      lz = i & 4 ? maxZ : minZ
-    const mw = 1 / transformPointRow(m, 3, lx, ly, lz)
-    const at = o + i * 3
-    out[at] = transformPointRow(m, 0, lx, ly, lz) * mw
-    out[at + 1] = transformPointRow(m, 1, lx, ly, lz) * mw
-    out[at + 2] = transformPointRow(m, 2, lx, ly, lz) * mw
-  }
+  transformCorners(out, o, minX, minY, minZ, maxX, maxY, maxZ, m, true, false)
 }
 
 /**
@@ -245,9 +262,10 @@ export function boxCornersInto(
  * empty box stays as is, bounds included. `out` can be `box`: bounds are read
  * before the first write.
  *
- * Each corner is computed into locals and folded into `out` by `boxExpandByPoint`, corners in the
- * order of `boxCornersInto`, from an empty box: the bits of the union of `boxCornersInto`'s
- * corners (`box.test.ts`). Where `unitW` holds, the divide by `w` is skipped as there.
+ * The corners of `boxCornersInto`, in its order, folded into six bound locals from the values
+ * `boxEmpty` writes and with the min and max of `boxExpandByPoint`; `out` is written once at the
+ * end: the bits of the union of `boxCornersInto`'s corners (`box.test.ts`). Where `unitW` holds,
+ * the divide by `w` is skipped as there.
  */
 export function boxTransform(
   out: Float64Array,
@@ -267,23 +285,71 @@ export function boxTransform(
     return
   }
   const affine = unitW(m, minX, minY, minZ, maxX, maxY, maxZ)
-  // The bounds are held in locals, so `out` may be `box`: emptied, then grown corner by corner.
-  boxEmpty(out, o)
+  transformCorners(out, o, minX, minY, minZ, maxX, maxY, maxZ, m, !affine, true)
+}
+
+/** The eight corners of the bounds by `m`, its sixteen entries read once: each divided by its `w`
+ *  when `divide`, then written flat at `o` (`boxCornersInto`), or, when `fold`, grown into six
+ *  bound locals written once at `o` (`boxTransform`; the bounds are arguments, so `out` may hold
+ *  them). */
+function transformCorners(
+  out: Float64Array,
+  o: number,
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+  m: ArrayLike<number>,
+  divide: boolean,
+  fold: boolean,
+) {
+  const m0 = m[0],
+    m1 = m[1],
+    m2 = m[2],
+    m3 = m[3]
+  const m4 = m[4],
+    m5 = m[5],
+    m6 = m[6],
+    m7 = m[7]
+  const m8 = m[8],
+    m9 = m[9],
+    m10 = m[10],
+    m11 = m[11]
+  const m12 = m[12],
+    m13 = m[13],
+    m14 = m[14],
+    m15 = m[15]
+  let loX = Infinity,
+    loY = Infinity,
+    loZ = Infinity,
+    hiX = -Infinity,
+    hiY = -Infinity,
+    hiZ = -Infinity
   for (let i = 0; i < 8; i++) {
     const lx = i & 1 ? maxX : minX,
       ly = i & 2 ? maxY : minY,
       lz = i & 4 ? maxZ : minZ
-    let x = transformPointRow(m, 0, lx, ly, lz),
-      y = transformPointRow(m, 1, lx, ly, lz),
-      z = transformPointRow(m, 2, lx, ly, lz)
-    if (!affine) {
-      const mw = 1 / transformPointRow(m, 3, lx, ly, lz)
+    let x = transformPointRowOf(m0, m4, m8, m12, lx, ly, lz),
+      y = transformPointRowOf(m1, m5, m9, m13, lx, ly, lz),
+      z = transformPointRowOf(m2, m6, m10, m14, lx, ly, lz)
+    if (divide) {
+      const mw = 1 / transformPointRowOf(m3, m7, m11, m15, lx, ly, lz)
       x *= mw
       y *= mw
       z *= mw
     }
-    boxExpandByPoint(out, o, x, y, z)
+    if (fold) {
+      loX = Math.min(loX, x)
+      loY = Math.min(loY, y)
+      loZ = Math.min(loZ, z)
+      hiX = Math.max(hiX, x)
+      hiY = Math.max(hiY, y)
+      hiZ = Math.max(hiZ, z)
+    } else writeCorner(out, o + i * 3, x, y, z)
   }
+  if (fold) writeBounds(out, o, loX, loY, loZ, hiX, hiY, hiZ)
 }
 
 /** The length of the diagonal of the box of bounds `min…max`, `length3(max − min)` axis by axis.

@@ -18,14 +18,21 @@
 //! off by default): here a mesh's `allowAssemblies` setting (`meshBuild`, false by default). A mesh
 //! that does not allow it is its own triangles alone, its `extras.assembly` left unread, and the
 //! import report tells how many such meshes there are (`assembly-not-built`), as the reference
-//! logs a warning for an assembly it does not build.
+//! logs a warning for an assembly it does not build. It tells too how many groups of instances
+//! climb nowhere (`assembly-group-not-merged`): their instances draw down to their own roots.
+//!
+//! A part is built with the settings its assembly's mesh resolves, the ten the reference hands
+//! on (`parts.rs`): they come from the build settings the job resolved for the assembly — a rule,
+//! the scene, its `extras` — never from what the part names.
 use crate::*;
 
 mod carriers;
 mod expand;
+pub(crate) mod parts;
 pub(crate) mod plan;
 mod spec;
 
+use plan::NOT_MERGED;
 pub(crate) use spec::names_assembly;
 
 /// The reason an assembly left unbuilt is counted under in the import report.
@@ -41,15 +48,21 @@ fn assembly_meshes(g: &Value) -> Vec<usize> {
         .collect()
 }
 
-/// Counts `count` assemblies left unbuilt in the import report of `manifest`.
-fn tell_not_built(manifest: &mut Value, count: usize) {
+/// Counts `count` of what the import report of `manifest` tells under `reason`.
+pub(crate) fn tell(manifest: &mut Value, reason: &str, count: usize) {
     let report = &mut manifest["unsupported"];
     if report.is_null() {
         *report = json!({});
     }
     if let Some(reasons) = report.as_object_mut() {
-        reasons.insert(NOT_BUILT.into(), json!(count));
+        reasons.insert(reason.into(), json!(count));
     }
+}
+
+/// The meshes of `g` the job draws as voxels far away, read as the compile reads them.
+fn voxelized_meshes(o: &Options, g: &Value) -> Result<BTreeSet<usize>> {
+    let hlod = o.hlod()?;
+    o.voxelize()?.meshes(g, hlod, &hlod.assignments(g)?)
 }
 
 /// Lays out the assembly of every mesh that names one and allows it, before the plan: its nodes
@@ -69,16 +82,25 @@ pub(crate) fn expand_assemblies(o: &Options, loaded: &mut RuntimeSource) -> Resu
         return Err(crate::compiler::source::spline::refuse_bent_assembly(mesh));
     }
     if !left.is_empty() {
-        tell_not_built(&mut loaded.manifest, left.len());
+        tell(&mut loaded.manifest, NOT_BUILT, left.len());
     }
-    expand::expand(&mut loaded.g, &allowed, o.ram_budget_bytes())?;
     if allowed.is_empty() {
         return Ok(());
     }
+    let voxelized = voxelized_meshes(o, &loaded.g)?;
+    let resolved = parts::Resolved {
+        builds: &builds,
+        voxelized: &voxelized,
+    };
+    expand::expand(&mut loaded.g, &allowed, &resolved, o.ram_budget_bytes())?;
     // The levels above the instances exist where the build makes coarse levels at all.
     if crate::dag::DagStrategy::named(&o.simplification) != crate::dag::DagStrategy::ExactClusters {
         let binary = std::mem::replace(&mut loaded.binary, Binary::Owned(Vec::new()));
-        loaded.binary = carriers::lay(&mut loaded.g, binary, o.ram_budget_bytes())?;
+        let laid = carriers::lay(&mut loaded.g, binary, o.ram_budget_bytes())?;
+        loaded.binary = laid.binary;
+        if laid.alone > 0 {
+            tell(&mut loaded.manifest, NOT_MERGED, laid.alone);
+        }
     }
     expand::strip_bare(&mut loaded.g);
     Ok(())

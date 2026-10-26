@@ -1,0 +1,41 @@
+/** The fields of a scene light that say what kind of lamp it is, beside its colour and its range
+ *  (`SceneLight`): the size of its source, how its light falls off with the distance, and how much
+ *  of its diffuse and specular light it gives. */
+export interface SceneLightLamp {
+  /**
+   * Point and spot only: the radius, in metres, of the envelope that holds the source.
+   * A real light is always housed in something — lantern glass, reflector, shade
+   * — and that envelope is geometry like any other: without this field, it enters its own
+   * light's shadow map and turns it off. Fragments within this sphere do not cast a shadow;
+   * the map's near plane continues to depend on range. This radius is also the source's: it sets
+   * the source size of the contact-hardening shadow filter, and the lamp lights a surface as a
+   * sphere of that radius (`emitterLength` for a tube): the horizon wraps the light, a highlight
+   * spreads. It is a property of the light, never an object name or a material type: the engine
+   * only knows surfaces. Strictly positive and strictly less than the range; if absent, nothing
+   * changes.
+   */
+  emitterRadius?: number
+  /** Point and spot only: the length, in metres, of the tube the source is (a capsule with its
+   *  `emitterRadius`), centred on the light, along `emitterAxis`; absent, a sphere or a point.
+   *  Strictly positive. */
+  emitterLength?: number
+  /** Point and spot only: the soft radius, in metres, that widens the highlight a source leaves
+   *  without lighting more of the surface; strictly positive and strictly less than the range;
+   *  absent, none. */
+  emitterSoftRadius?: number
+  /** Point and spot only, with an `emitterLength`: the unit direction the tube lies along (a
+   *  light's own up, `[0, 1, 0]` unless given); refused without a length. */
+  emitterAxis?: [number, number, number]
+  /** Point and spot only: whether the light falls off as the inverse square of the distance,
+   *  windowed by its range; absent, it does. Off, it falls off by its range alone, as the
+   *  `radialExponent` power of one less the squared distance over the squared range, with no
+   *  distance law of its own. */
+  inverseSquared?: boolean
+  /** Point and spot only, where `inverseSquared` is off: the exponent of the fall-off, above 0;
+   *  absent, 8. */
+  radialExponent?: number
+  /** The share of its diffuse light the light gives, from 0 to 1; absent, 1. */
+  diffuseShare?: number
+  /** The share of its specular light the light gives, from 0 to 1; absent, 1. */
+  specularShare?: number
+}

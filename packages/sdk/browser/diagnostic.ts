@@ -8,7 +8,10 @@ export type {
   InspectedReflections,
   InspectedShadowMap,
 } from '../../sdk-browser/src/diagnostic/inspection/types.ts'
-export type { CpuStepSummary } from '../../sdk-browser/src/diagnostic/stage/profiler.ts'
+export type {
+  CpuStepReader,
+  CpuStepSummary,
+} from '../../sdk-browser/src/diagnostic/stage/profiler.ts'
 export { createDiagnosticChannel } from '../../sdk-browser/src/diagnostic/channel.ts'
 export type {
   DiagnosticChannel,

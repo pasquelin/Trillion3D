@@ -21,9 +21,9 @@ A test-only module is named `*.fixture.ts` and stays out of the build. The track
 (`packages/asset-compiler-rust/src/tests/` by topic, `tests/` for the CLI).
 
 Benchmarks measure speed, never correctness, under `bench/`, outside every published package:
-`bench/core/` (measure, report, diff, ulp, baseline), `bench/perf/<package>/` (`*.perf.ts`),
+`bench/core/` (measure, report, diff, baseline), `bench/perf/<package>/` (`*.perf.ts`),
 `bench/oracles/` (reference implementations), `bench/runner/` (the measurement harness,
-[README](../bench/runner/README.md)), `bench/witnesses/` (the host-library witnesses, never
+[README](../bench/runner/README.md)), `bench/witnesses/` (the measurement entry the harness pages import, never
 published).
 
 ## 2. The Commands
@@ -38,16 +38,16 @@ published).
 | `pnpm run test:mutation` | the mutation measurement of `packages/sdk-core/src`                                |
 | `pnpm run perf:all`      | every benchmark of `bench/perf/`, then the aggregated report                       |
 
-`check:changed` (`scripts/test/check-changed.ts`) compares with `develop` (`TRILLION3D_BASE_REF`
-overriding) and runs the unit tests a change can affect (`scripts/test/affected-tests.ts`); a change of
+`check:changed` (`scripts/check/check-changed.ts`) compares with `develop` (`TRILLION3D_BASE_REF`
+overriding) and runs the unit tests a change can affect (`scripts/check/affected-tests.ts`); a change of
 documentation alone (Markdown, images outside the code trees) runs the gates only. It type-checks (`tsc --noEmit`) every tracked
 `tsconfig*.json` project owning a changed TypeScript file, by listing it or by import
-(`scripts/test/ts-projects.ts`); a changed file no project reaches fails, unless a type-check-only
+(`scripts/check/ts-projects.ts`); a changed file no project reaches fails, unless a type-check-only
 (`noEmit`) project's `include` covers it and its `exclude` takes it back. A project reading
 `trillion3d` from `dist/` (the tools) is checked after `pnpm run build`.
 
 CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one per
-group of `scripts/test/validate-steps.ts`, the `unit` group split into shards of one file list
+group of `scripts/check/validate-steps.ts`, the `unit` group split into shards of one file list
 (`TRILLION3D_TEST_SHARD=i/n`, passed to `node --test --test-shard`). No test is skipped by path.
 The single required check, `validate`, needs every job; it runs on every pull request, on `develop`
 and on every push of a branch named `<issue>-<name>`. Push and pull request runs never share a
@@ -62,7 +62,7 @@ and proves nothing about the image. What a shader computes is proved on a device
 
 ### Mutation Measurement
 
-`pnpm run test:mutation [--out <dir>] [--mutate <glob>…]` (`scripts/test/test-mutation.ts`) runs
+`pnpm run test:mutation [--out <dir>] [--mutate <glob>…]` (`scripts/check/mutation.ts`) runs
 Stryker on `packages/sdk-core/src`: each mutant (a `<` turned into `<=`, a branch emptied) runs
 against the package's unit test files that reach it, and the report credits each test file with
 the mutants it kills. It is a measurement, never a gate, and the CI does not run it: an hour or
@@ -113,7 +113,7 @@ What a proof needs beyond that is in its file's header.
 ### Chrome Proofs
 
 What Dawn does not have is proved in the system Chrome: the absence of WebGPU (`world/no-webgpu`)
-and the per-material comparison with the witness library (`webgpu/material-pixels`). Each is a
+and the per-material fixtures on screen (`webgpu/material-pixels`). Each is a
 `tests/gpu/<area>/<name>.chrome.ts`, found by the same rule and declared in the same `EXCLUDED`;
 its page module is served from the sources and called in a fresh headless Chrome
 (`tests/kit/device/onChrome.ts`), under the bench lock. Their scenes are built by the proofs.
@@ -131,23 +131,15 @@ p95, nanoseconds per element, operations per second, baseline difference, witnes
 the oracle verdict. `mesure()` refuses to run if the file a benchmark reports as measured does not
 exist.
 
-A witness (`temoin` in `mesure()`) is a second calculation of the same thing — the host library, a
+A witness (`temoin` in `mesure()`) is a second calculation of the same thing — a
 rejected candidate — timed on the same input and settings; "vs witness" reads the median relative
 to it as "vs baseline" does to the baseline. A witness is a comparison, never a regression gate.
 
 Two verdict types, never silence:
 
-- **✓ / ✗** — bitwise equality (`diff.ts`: `-0`, `NaN`, typed arrays, `Map`, `Set`), or a declared
-  tolerance (`differences` + `tolere`, in ULPs by `ulp.ts`);
+- **✓ / ✗** — bitwise equality (`diff.ts`: `-0`, `NaN`, typed arrays, `Map`, `Set`);
 - **reason** — no oracle exists; the line says why and where correctness is held. A stale oracle is
   declared, never silently removed.
-
-The witness duels (`bench/perf/core/three-vs-core-*.perf.ts`, `pnpm run perf:core`) run the host
-library and the engine on the same seeded inputs, Three.js the witness and its result read untimed
-as the oracle; they refuse an engine that differs by a bit (or beyond the tolerance a family
-declares) or runs slower than its declared ceiling. The `three-vs-core-batch-*` duels pit the
-reference's loop over 200 000 elements against one batch call; [MATHS.md](MATHS.md) carries the
-ratios.
 
 ## 3. Baselines and Report
 
@@ -165,7 +157,7 @@ machine, not a campaign, which uses the [harness](../bench/runner/README.md) und
 
 ## 4. Quality Gates
 
-The gates and their order are `VALIDATE_GROUPS` in `scripts/test/validate-steps.ts`; each gate's rule is
+The gates and their order are `VALIDATE_GROUPS` in `scripts/check/validate-steps.ts`; each gate's rule is
 in its script's header, and `pnpm run check:changed` runs them on what a branch changed. Two rules
 that shape every file: a maintained JS, TS or Rust file holds at most 300 lines (`check:lines`),
 except the runtime modules of `sdk-core`, `sdk-browser`, and `sdk-node`, which answer

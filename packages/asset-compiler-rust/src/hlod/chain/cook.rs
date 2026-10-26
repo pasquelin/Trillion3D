@@ -20,6 +20,9 @@ pub(crate) struct Instance<'a> {
     pub node: usize,
     pub mesh: u64,
     pub track: Option<usize>,
+    /// The fallback mesh of its mesh, by its published rank (`source/fallback.rs`), where it has
+    /// one: what its row stands on in the actors of an instanced layer without a cluster DAG.
+    pub fallback: Option<u64>,
 }
 
 impl Instance<'_> {

@@ -29,9 +29,6 @@ const FRINGE_START_LIMIT = 1 - 1e-4
 const GRAIN_REFERENCE_WIDTH = 1920
 /** The smallest grain scale and the smallest vignette size read. */
 const LEAST_SCALE = 0.001
-/** The bits from which the dither's step, 1/(2^bits − 1), is under what a single-precision colour
- *  holds near 1: adding it changes nothing, so none is drawn. */
-const DITHER_NONE_BITS = 24
 /** The bits of a channel of the display (`DISPLAY_FORMAT`): its step is the dither's. */
 const DISPLAY_BITS = Math.round(-Math.log2(quantizationError(DISPLAY_FORMAT)))
 
@@ -50,7 +47,7 @@ export type FilmInput = {
 }
 
 /** The vignette's strength: the scene's, 0 under the quality that has none. */
-export const vignetteStrength = (film: FilmValues, vignette: number) =>
+const vignetteStrength = (film: FilmValues, vignette: number) =>
   film.tonemapperQuality < VIGNETTE_LEAST_QUALITY ? 0 : vignette
 
 /**
@@ -90,23 +87,15 @@ export function grainOn(film: FilmValues) {
 }
 
 /** The dither's step: one level of the display's channel, or of `quantizationDitheringBits` where
- *  the setting names them; 0, none drawn, from `DITHER_NONE_BITS`. */
+ *  the setting names some (above 0), 1/(2^bits − 1): always added, as the reference adds it, the
+ *  step of 32 bits too small to change a colour the display holds. */
 function ditherStep(film: FilmValues) {
-  const bits = film.quantizationDitheringBits || DISPLAY_BITS
-  return bits >= DITHER_NONE_BITS ? 0 : 1 / (2 ** bits - 1)
+  const bits = film.quantizationDitheringBits
+  return 1 / (2 ** (bits > 0 ? bits : DISPLAY_BITS) - 1)
 }
 
 const tintOn = (film: FilmValues) =>
   film.sceneColorTintRed !== 1 || film.sceneColorTintGreen !== 1 || film.sceneColorTintBlue !== 1
-
-/** Whether a film effect other than the vignette is drawn — the fringe, the grain (`grain`), the
- *  tint or the dither —: a lit image with none of them, no vignette, no local exposure and no glow
- *  is composed plain (`finishedGroup`). */
-export const filmOn = (film: FilmValues, grain: boolean) =>
-  grain || tintOn(film) || fringeIntensity(film) > FRINGE_LEAST || ditherStep(film) > 0
-
-/** `high` read at least a step above `low`: a `smoothstep` of two edges that meet is undefined. */
-const above = (low: number, high: number) => Math.max(high, low + Math.max(1e-6, low * 1e-6))
 
 /** The vignette's words: its strength, scale, shape, colour, centre and size. */
 function writeVignette(words: Float32Array, { film, size, vignette }: FilmInput) {
@@ -138,13 +127,12 @@ function writeGrain(words: Float32Array, { film, size, frame }: FilmInput) {
     strength * film.filmGrainIntensityMidtones,
     strength * film.filmGrainIntensityHighlights,
   )
-  const low = film.filmGrainHighlightsMin
   putVec4(
     words,
     AT.grainBounds,
-    above(0, film.filmGrainShadowsMax),
-    low,
-    above(low, film.filmGrainHighlightsMax),
+    film.filmGrainShadowsMax,
+    film.filmGrainHighlightsMin,
+    film.filmGrainHighlightsMax,
   )
   const [decodeRed, decodeGreen, decodeBlue] = grainTexels().decode
   putVec4(words, AT.grainDecode, decodeRed, decodeGreen, decodeBlue)

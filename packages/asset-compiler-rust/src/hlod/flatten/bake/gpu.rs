@@ -96,22 +96,39 @@ pub(super) fn bake(
     rows: &[Vec<[u32; 4]>],
     write: &mut dyn FnMut([u32; 4], [u32; 4]),
 ) -> crate::Result<()> {
+    let mut land = |sample: [u32; 4], result: &[u32; 4]| write(sample, *result);
+    run_pass::<[u32; 4]>(
+        library,
+        CAPTURE,
+        rows,
+        || scene::Scene::captured(flat, sources, (nodes, views, seen_through)),
+        &mut land,
+    )
+}
+
+/// The pass `pass` of the bake's program over the texels `rows`, against the scene `scene` makes
+/// once the library's pages are bound, each texel's result handed to `write` with its sample as its
+/// batch returns. Nothing runs, and no device is taken, where no row holds a texel.
+fn run_pass<O: bytemuck::Pod>(
+    library: &Library,
+    pass: usize,
+    rows: &[Vec<[u32; 4]>],
+    scene: impl FnOnce() -> crate::Result<scene::Scene>,
+    write: &mut dyn FnMut([u32; 4], &O),
+) -> crate::Result<()> {
     if rows.iter().all(Vec::is_empty) {
         return Ok(());
     }
     let device = device()?;
     let passes: &Passes = device.passes(Program::Bake, source)?;
     let pages = library.pages()?;
-    let scene = scene::Scene::captured(flat, sources, (nodes, views, seen_through))?;
-    let mut land = |sample: [u32; 4], result: &[u32; 4]| write(sample, *result);
-    let cancelled = &library.cancelled;
-    run::run::<[u32; 4]>(
+    run::run(
         device,
-        (passes, CAPTURE),
-        (scene, &pages),
+        (passes, pass),
+        (scene()?, &pages),
         rows,
-        cancelled,
-        &mut land,
+        &library.cancelled,
+        write,
     )
 }
 
@@ -147,20 +164,11 @@ pub(crate) fn bake_tile(
     rows: &[Vec<[u32; 4]>],
     write: &mut dyn FnMut([u32; 4], &Tile),
 ) -> crate::Result<()> {
-    if rows.iter().all(Vec::is_empty) {
-        return Ok(());
-    }
-    let device = device()?;
-    let passes: &Passes = device.passes(Program::Bake, source)?;
-    let pages = library.pages()?;
-    let scene = scene::Scene::tiled((sources, nodes), laid, (maps, behind))?;
-    let cancelled = &library.cancelled;
-    run::run(
-        device,
-        (passes, TILE),
-        (scene, &pages),
+    run_pass(
+        library,
+        TILE,
         rows,
-        cancelled,
+        || scene::Scene::tiled((sources, nodes), laid, (maps, behind)),
         write,
     )
 }

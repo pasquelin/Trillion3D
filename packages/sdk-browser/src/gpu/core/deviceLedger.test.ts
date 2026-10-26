@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { gpuDeviceLedgerOf, installGpuDeviceLedger } from './deviceLedger.ts'
+import { gpuDeviceLedgerOf, installGpuDeviceLedger, ledgerAdmitted } from './deviceLedger.ts'
+import { countingAllocator, gpuAllocator, type ResourceAllocator } from './resourceAllocator.ts'
 import { namesNoSession, sessionHandle } from './sessionHandle.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
@@ -61,11 +62,12 @@ test('a budget refusal names the allocation it refused, by the label the engine 
   const handle = sessionHandle(gpu.device, '@t3d:7')
   const ledger = installGpuDeviceLedger(handle.device, { limit: () => 100 })
   handle.device.createBuffer({ label: 'vsm.pageTable', size: 90, usage: GPUBufferUsage.STORAGE })
-  const refused = 'GPU_BUDGET_EXCEEDED: requested=20, label=vsm.physicalPool1.0, held=90, limit=100'
+  const refused =
+    'GPU_BUDGET_EXCEEDED: requested=20, label=vsm.physicalPool1, held=90, limit=100; heaviest: vsm.pageTable=90'
   assert.throws(
     () =>
       handle.device.createBuffer({
-        label: 'vsm.physicalPool1.0',
+        label: 'vsm.physicalPool1',
         size: 20,
         usage: GPUBufferUsage.STORAGE,
       }),
@@ -83,10 +85,14 @@ test('a budget refusal names the allocation it refused, by the label the engine 
         format: 'rgba8unorm',
         usage: GPUTextureUsage.TEXTURE_BINDING,
       }),
-    { message: 'GPU_BUDGET_EXCEEDED: requested=64, label=vsm.depth, held=90, limit=100' },
+    {
+      message:
+        'GPU_BUDGET_EXCEEDED: requested=64, label=vsm.depth, held=90, limit=100; heaviest: vsm.pageTable=90',
+    },
   )
   assert.throws(() => handle.device.createBuffer({ size: 11, usage: GPUBufferUsage.STORAGE }), {
-    message: 'GPU_BUDGET_EXCEEDED: requested=11, label=unlabeled, held=90, limit=100',
+    message:
+      'GPU_BUDGET_EXCEEDED: requested=11, label=unlabeled, held=90, limit=100; heaviest: vsm.pageTable=90',
   })
   assert.equal(gpu.textures.length, 0)
   handle.release()
@@ -98,7 +104,8 @@ test('a shared allocation refused by a session budget carries its own label to t
   const handle = sessionHandle(gpu.device, '@t3d:8')
   const session = installGpuDeviceLedger(handle.device, { base, limit: () => 100 })
   handle.device.createBuffer({ label: 'main view', size: 90, usage: GPUBufferUsage.STORAGE })
-  const refused = 'GPU_BUDGET_EXCEEDED: requested=20, label=shared cache, held=90, limit=100'
+  const refused =
+    'GPU_BUDGET_EXCEEDED: requested=20, label=shared cache, held=90, limit=100; heaviest: main view=90'
   assert.throws(
     () =>
       gpu.device.createBuffer({ label: 'shared cache', size: 20, usage: GPUBufferUsage.STORAGE }),
@@ -193,4 +200,72 @@ test("a session's sweep destroys what its handle still holds, named, and never a
   assert.deepEqual(session.sweep(), [], 'a second sweep finds nothing')
   assert.ok(!gpu.destroyed.includes(shared as never), 'the shared cache stays')
   assert.ok(gpu.destroyed.includes(kept as never))
+})
+
+test('one admission sequence: the held allocation is given back whichever answers, its bytes credited to the replacement', () => {
+  const gpu = fakeDevice()
+  installGpuDeviceLedger(gpu.device, { limit: () => 100 })
+  gpu.device.createBuffer({ label: 'held', size: 90, usage: GPUBufferUsage.STORAGE })
+  const given: string[] = []
+  const held = (name: string, bytes: number) => ({ bytes, dispose: () => void given.push(name) })
+  const next = (label: string, size: number) => () =>
+    gpu.device.createBuffer({ label, size, usage: GPUBufferUsage.STORAGE })
+  // Another 90 bytes fit only because the held 90 are credited: the replacement is made, the held one given back.
+  const made = ledgerAdmitted(gpu.device, {
+    held: held('first', 90),
+    asked: 90,
+    what: 'a view',
+    make: next('second', 90),
+  })
+  assert.ok(made.value && !made.why)
+  assert.deepEqual(given, ['first'])
+  // With no room the answer says why, nothing is made, and the held allocation is given back all the same.
+  const refused = ledgerAdmitted(gpu.device, {
+    held: held('second', 90),
+    asked: 500,
+    what: 'a view',
+    make: next('third', 500),
+  })
+  assert.match(refused.why!, /no room for a view/)
+  assert.deepEqual(given, ['first', 'second'])
+  // A failure that is no refusal is thrown, the held allocation given back first.
+  const open = fakeDevice()
+  installGpuDeviceLedger(open.device, { limit: () => 100 })
+  assert.throws(
+    () =>
+      ledgerAdmitted(open.device, {
+        held: held('third', 0),
+        asked: 1,
+        what: 'a view',
+        make: () => {
+          throw new Error('device lost')
+        },
+      }),
+    /device lost/,
+  )
+  assert.deepEqual(given, ['first', 'second', 'third'])
+  // A first allocation holds nothing to give back.
+  assert.ok(ledgerAdmitted(open.device, { asked: 1, what: 'a view', make: () => 1 }).value)
+})
+
+test('the bytes a view asks of the budget are the allocations it makes, counted by the same list', () => {
+  const gpu = fakeDevice()
+  const view = (allocator: ResourceAllocator) => {
+    allocator.texture('plane', [16, 8], 'rgba16float')
+    allocator.texture('volume', [4, 4, 4], 'rgba16float', { dimension: '3d' })
+    allocator.buffer('uniform', 10, 'uniform')
+  }
+  const counting = countingAllocator()
+  view(counting)
+  const made = gpuAllocator(gpu.device, 'Trillion3D test')
+  view(made)
+  // A plane and a volume of eight bytes a texel, a uniform of ten words held to forty bytes.
+  assert.equal(counting.bytes(), 16 * 8 * 8 + 4 * 4 * 4 * 8 + 40)
+  assert.equal(made.bytes(), counting.bytes())
+  assert.deepEqual(
+    gpu.textures.map((texture) => texture.label),
+    ['Trillion3D test plane', 'Trillion3D test volume'],
+  )
+  made.destroy()
+  assert.equal(gpu.destroyed.length, 3, 'all given back together')
 })

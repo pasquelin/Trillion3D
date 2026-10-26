@@ -1,22 +1,25 @@
 import type { GpuHiz, HizDepth } from '../../visibility/hiz/gpu/types.ts'
-import { hizDepthBindEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
-import type { ProxyResources } from '../../geometry/dag/cut/cutReaders.ts'
+import {
+  hizDepthBindEntries,
+  hizLevelZeroBindEntries,
+} from '../../visibility/hiz/gpu/pyramidTexture.ts'
+import type { GlobalFieldRead } from '../distanceField/view.ts'
 import type { ScreenReflection } from './gpu.ts'
 import { skyLightReadBindEntries, type SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
-import { reflectionLayout } from './reflectionPipelines.ts'
+import { heldProgramGroup, keptProgramGroup } from '../../gpu/bind/programGroups.ts'
+import { reflectionForwardLayout, reflectionLayout } from './reflectionPipelines.ts'
 import {
   REFLECTION_DEPTH_BINDING,
   REFLECTION_FRONT_BINDING,
   REFLECTION_GROUP,
   REFLECTION_IMAGE_BINDING,
   REFLECTION_LIGHT_VIEW_BINDING,
-  REFLECTION_SAMPLER_BINDING,
   REFLECTION_SKY_LIGHT,
   REFLECTION_VIEW_BINDING,
 } from './viewLayout.ts'
 
 /** The reflection group of `reflection` over the depth pyramid `depth` (`GpuHiz.depth`), the lit
- *  image its pyramid holds now, its front layer's depth and the lighting's view `lightView`, made
+ *  image it holds now, its front layer's depth and the lighting's view `lightView`, made
  *  again when one of them is not the one it was made over: the two HDR targets taking turns find a
  *  group each. */
 export function reflectionGroup(
@@ -25,11 +28,11 @@ export function reflectionGroup(
   lightView: GPUBuffer,
   sky: SkyLightReadSet,
 ) {
-  const image = reflection.radiance.image.texture,
+  const image = reflection.lit.image.texture,
     { identity, slots } = reflection.group
   const { next } = identity
   next.length = 0
-  next.push(depth, image, lightView, sky.cube, sky.params)
+  next.push(depth, image, lightView, sky.cube, sky.harmonics, sky.params)
   const moved = identity.moved()
   const kept = slots[identity.slot]
   if (kept && !moved) return kept
@@ -39,10 +42,9 @@ export function reflectionGroup(
     layout: reflectionLayout(device),
     entries: [
       { binding: REFLECTION_VIEW_BINDING, resource: { buffer: reflection.uniform } },
-      { binding: REFLECTION_SAMPLER_BINDING, resource: reflection.radiance.sampler },
       ...hizDepthBindEntries(REFLECTION_DEPTH_BINDING, depth),
       { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: lightView } },
-      // Every level of the pyramid: the lit image and its mips (`hdrTargetDescriptor`).
+      // The lit image the last image lit (`hdrTargetDescriptor`).
       { binding: REFLECTION_IMAGE_BINDING, resource: image.createView() },
       // The transparents' front depth, the front pass's depth itself (`frontLayer.ts`).
       { binding: REFLECTION_FRONT_BINDING, resource: reflection.front.views.depth },
@@ -51,49 +53,71 @@ export function reflectionGroup(
   }))
 }
 
-/** What a frame holds that the reflection reads (`reflectionLightView`, `reflectionProxy`). */
+/** The forward programs' reflection group of `reflection` (`reflectionForwardLayout`): the view, level 0 of the depth `depth`
+ *  (`GpuHiz.depth`), the lighting's view `lightView`, the front depth and the sky light, made again when one of them is not the one
+ *  it was made over. */
+function forwardReflectionGroup(
+  reflection: ScreenReflection,
+  depth: HizDepth,
+  lightView: GPUBuffer,
+  sky: SkyLightReadSet,
+) {
+  const { device, forward } = reflection
+  const front = reflection.front.views.depth
+  const { next } = forward.identity
+  next.length = 0
+  next.push(depth, lightView, front, sky.cube, sky.harmonics, sky.params)
+  return (
+    heldProgramGroup(forward) ??
+    keptProgramGroup(
+      device,
+      reflectionForwardLayout(device),
+      forward,
+      [
+        { binding: REFLECTION_VIEW_BINDING, resource: { buffer: reflection.uniform } },
+        ...hizLevelZeroBindEntries(REFLECTION_DEPTH_BINDING, depth),
+        { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: lightView } },
+        { binding: REFLECTION_FRONT_BINDING, resource: front },
+        ...skyLightReadBindEntries(REFLECTION_SKY_LIGHT, sky),
+      ],
+      'Trillion3D reflection forward',
+    )
+  )
+}
+
+/** What a frame holds that the reflection reads (`reflectionLightView`, `reflectionField`). */
 type ReflectionHost = {
   gpu: {
     reflection?: ScreenReflection
     deferred?: {
       uniform: GPUBuffer
-      placeholders: {
-        runtime: GPUBuffer
-        runtimeWorlds: GPUTextureView
-        runtimeTree: GPUTextureView
-      }
+      placeholders: { distanceField: GlobalFieldRead }
     }
   }
   vis: { gpuHiz?: GpuHiz }
-  run: { gpuSelection?: { proxy(): ProxyResources | undefined } }
+  distanceFields?: { scene: GlobalFieldRead }
 }
 
 /** The reflection group's other resource: the lighting's view. Undefined while the lighting is not made. */
 export const reflectionLightView = ({ gpu }: ReflectionHost) => gpu.deferred?.uniform
 
-/** What a reflection ray of the scene stage can meet of the scene: the proxy, its blended copies
- *  taken before the cut (`dispatchCut`), else the lighting's empty stand-in; undefined while the
- *  lighting is not made. */
-export function reflectionProxy({ gpu, run }: ReflectionHost): ProxyResources | undefined {
-  const placeholders = gpu.deferred?.placeholders
-  if (!placeholders) return undefined
-  const proxy = run.gpuSelection?.proxy()
-  return {
-    buffer: proxy?.buffer ?? placeholders.runtime,
-    worlds: proxy?.worlds ?? placeholders.runtimeWorlds,
-    tree: proxy?.tree ?? placeholders.runtimeTree,
-  }
-}
+/** The global distance field the scene stage marches its rays through: the session's, else the stand-in of a scene
+ *  that has none, a view block that holds no clipmap; undefined while the lighting is not made. */
+export const reflectionField = ({ gpu, distanceFields }: ReflectionHost) =>
+  distanceFields?.scene ?? gpu.deferred?.placeholders.distanceField
 
-/** Binds, in the forward `pass`, the reflection group (`REFLECTION_GROUP`): the view's reflection
- *  over its depth pyramid, made with the frame's targets and the visibility programs. */
+/** Binds, in the forward `pass`, the reflection group (`REFLECTION_GROUP`): the view's reflection as the forward programs read it
+ *  (`forwardReflectionGroup`). */
 export function bindForwardReflection(
   pass: GPURenderPassEncoder,
   rt: ReflectionHost,
   sky: SkyLightReadSet,
 ) {
-  const depth = rt.vis.gpuHiz?.depth(),
-    lightView = reflectionLightView(rt)
-  if (rt.gpu.reflection && depth && lightView)
-    pass.setBindGroup(REFLECTION_GROUP, reflectionGroup(rt.gpu.reflection, depth, lightView, sky))
+  const lightView = reflectionLightView(rt),
+    depth = rt.vis.gpuHiz?.depth()
+  if (rt.gpu.reflection && lightView && depth)
+    pass.setBindGroup(
+      REFLECTION_GROUP,
+      forwardReflectionGroup(rt.gpu.reflection, depth, lightView, sky),
+    )
 }

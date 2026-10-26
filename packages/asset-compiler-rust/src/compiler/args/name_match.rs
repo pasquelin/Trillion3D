@@ -89,7 +89,7 @@ pub(crate) fn present(value: Option<&Value>) -> Option<&Value> {
 /// an object of `settings` and of the rules' list `objects`, each rule `{ match, …settings }`,
 /// `field` naming it in a refusal; `read` reads the settings one object of it holds, `what`
 /// prefixing their keys. The scene's settings, then each rule's match with its settings, in order.
-pub(crate) fn read_rules<N>(
+fn read_rules<N>(
     value: &Value,
     (field, settings, objects): (&str, &[&str], &str),
     read: impl Fn(&Map<String, Value>, &str) -> Result<N>,
@@ -111,6 +111,39 @@ pub(crate) fn read_rules<N>(
         }
     }
     Ok((scene, rules))
+}
+
+/// A job option read into its rules: the scene's settings, the rules by object in order, and the
+/// value that named them, the option's cache identity; none for an option the job leaves out.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct Rules<N> {
+    pub(crate) scene: N,
+    pub(crate) objects: Vec<(NameMatch, N)>,
+    identity: Option<Value>,
+}
+
+impl<N: Default> Rules<N> {
+    /// The rules the job's field `value` names (`read_rules`), none for none.
+    pub(crate) fn read(
+        value: Option<&Value>,
+        names: (&str, &[&str], &str),
+        read: impl Fn(&Map<String, Value>, &str) -> Result<N>,
+    ) -> Result<Self> {
+        let Some(value) = present(value) else {
+            return Ok(Self::default());
+        };
+        let (scene, objects) = read_rules(value, names, read)?;
+        Ok(Self {
+            scene,
+            objects,
+            identity: Some(value.clone()),
+        })
+    }
+
+    /// What named the settings, for the cache key: `None` when the job names none.
+    pub(crate) fn identity(&self) -> Option<&Value> {
+        self.identity.as_ref()
+    }
 }
 
 /// The fields a match may hold.

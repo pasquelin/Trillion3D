@@ -10,17 +10,23 @@ import { DEFAULT_CACHED_BYTES } from '../../geometry/streaming/pageCache.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/options.ts'
 import { createBounceCascades } from '../../../../sdk-core/src/bounce/cascades.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
-import { atlasBytes, probeAtlasExtent } from '../../lighting/bounce/atlas.ts'
+import { tableBytes, tableExtent } from '../../lighting/bounce/atlas.ts'
 import { vsmLayout } from '../../lighting/shadows/vsm/layout.ts'
-import { poolWindowSizes } from '../../lighting/shadows/vsm/layoutBytes.ts'
+import { poolSliceBytes } from '../../lighting/shadows/vsm/layoutBytes.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from '../memory/shadowBudgetBytes.ts'
 import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from '../memory/budget.fixture.ts'
 
 /** The virtual shadow maps of one sun at the default pool when this golden was taken, every part
- *  the shadow share sums (`shadowBudgetBytes.ts`): the set's buffers, the raster's pair and command
- *  lists at their ceiling, the coloured transmission's first atlas. A change to any of them moves
- *  this number, and the share must be retaken with it. */
-const ONE_SUN_SHADOW_MAP_BYTES = 432_644_260
+ *  the shadow share sums (`shadowBudgetBytes.ts`): the set's buffers, the raster's two record lists
+ *  at the records the reference's rule gives them (`vsmRecordCapacity`: 2²² · 1.5 records each, 134 217 728
+ *  B more than 2²¹ records did). A change to any of them moves this number, and the share must be
+ *  retaken with it. Retaken when the raster's chunks gave way to one cull and one raster a view pass:
+ *  671 291 332 less the 2²¹ pairs, commands and order places (36 B each) plus the 2²¹ records and
+ *  sorted records (32 B each), 8 MiB less. Retaken when the shadow maps took their occlusion culling:
+ *  662 902 724 plus its depth pyramid (89 473 024 B: 8192 × 2048 r32float texels at level 0, seven
+ *  levels), both frame sets' kept tables (33 554 432 B: a page table, its marks and the stale rects
+ *  each), its page list and arguments, and the projection records' 96 more bytes over both frames. */
+const ONE_SUN_SHADOW_MAP_BYTES = 921_749_336
 
 const budget = (
   frame: Partial<FrameMetrics> | null,
@@ -73,10 +79,10 @@ test("the default totals split into each pool's own default", () => {
 test('the shadow share holds the virtual shadow maps of one sun, within a MiB', () => {
   const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }),
     bytes = ONE_SUN_SHADOW_MAP_BYTES
-  // One page-table row; 2048 physical pages a slice, each slice one 128 MiB window.
+  // One page-table row; 4096 physical pages a slice, each slice one 256 MiB buffer.
   assert.equal(layout.pageTableRows, 1)
-  assert.equal(layout.poolPages, 2048)
-  assert.deepEqual(poolWindowSizes(layout), [2 ** 27])
+  assert.equal(layout.poolPages, 4096)
+  assert.equal(poolSliceBytes(layout), 2 ** 28)
   assert.ok(bytes <= SHADOW_POOL_BYTES, `${bytes} bytes of maps, ${SHADOW_POOL_BYTES} held`)
   assert.ok(SHADOW_POOL_BYTES - bytes < MIB, `${SHADOW_POOL_BYTES - bytes} bytes beside the maps`)
   assert.equal(budget(null).split.shadowPool, SHADOW_POOL_BYTES)
@@ -108,7 +114,7 @@ test('a GPU total redraws every pool by the split, and the pools never sum past 
 })
 
 // What the shadows take is sized inside `split.shadowPool` — the virtual shadow maps
-// of one sun, the same on any device (the pool binds in windows every device holds), the screen
+// of one sun at the default pool, whatever the device (a device that binds less holds a smaller pool), the screen
 // sizing none of it (the projection's mask is a frame target) —, and a total below 512 MiB never
 // lets the pools sum past it.
 test('the shadow maps fit their share on any device, and totals below 512 MiB never overflow', () => {
@@ -126,16 +132,14 @@ test('the shadow maps fit their share on any device, and totals below 512 MiB ne
   assert.ok(shadows + probes + g + t <= FIXED + 2)
 })
 
-test('the GPU total counts the bounce probes as their atlas holds them, before the pools', () => {
-  // Both copies of the atlas — the pool's layer and the table's —, whatever the scene: a city's and a
-  // room's weigh the same.
+test('the GPU total counts the bounce probes as their table holds them, before the pools', () => {
+  // The table that names the probe of each cell, whatever the scene: a city's and a room's weigh the same.
   for (const bounds of [
     [0, 0, 0, 8000, 300, 8000],
     [0, 0, 0, 6, 3, 6],
   ]) {
-    const { probes, levels, cells } = createBounceCascades(bounds)
-    const extent = probeAtlasExtent(probes, levels.length * cells)
-    assert.equal(2 * atlasBytes(extent), BOUNCE_PROBE_BYTES)
+    const { levels, cells } = createBounceCascades(bounds)
+    assert.equal(tableBytes(tableExtent(levels.length * cells)), BOUNCE_PROBE_BYTES)
   }
   for (const total of [DEFAULT_GPU_BUDGET, FIXED + 8 * MIB]) {
     const handle = budget(null, { gpu: total })

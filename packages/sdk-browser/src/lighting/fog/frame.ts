@@ -23,12 +23,16 @@ export const FOG_VOLUME_FLAG = {
   fogColors: 8,
   /** The objects of the volume material domain were voxelised into this image's volume. */
   voxels: 16,
+  /** The local lights that shadow the fog read their shadow maps (`volumetricFogLocalShadows`). */
+  localShadows: 32,
+  /** The fog is made to match the volume (`fogMatchesVolume`): the glow follows the density. */
+  matches: 64,
 } as const
 
 /** What one image tells the volume about its camera: the matrices as column-major arrays — the
  *  unjittered projection, view-projection and its inverse, the one the depth buffer was drawn with
  *  —, the eye and the unit forward, the pixels of the view. */
-export interface FogVolumeCamera {
+interface FogVolumeCamera {
   eye: ArrayLike<number>
   forward: ArrayLike<number>
   /** The engine's projection (`EngineCamera.projection`): its clip depth maps the depth buffer's
@@ -85,8 +89,9 @@ export interface FogVolumeImage {
    *  that pass only then. */
   staticLight: FogStaticLight
   staticBuilt: boolean
-  /** The rank of the directional light that lights the volume — the light store's held sun, the
-   *  one the analytic fog's lobe follows (`SceneLightStore.fogSunSlot`) —, −1 for none. */
+  /** The rank of the directional light that lights the volume — the one the forward readers take
+   *  (`SceneLightStore.forwardDirectionalSlot`): of the highest priority, then the brightest —, −1
+   *  for none. */
   sunRank: number
   /** The columns and rows of the light grid the lights of a cell are read from. */
   lightCells: readonly [number, number]
@@ -188,7 +193,9 @@ function writeMedium(out: Float32Array, image: FogVolumeImage) {
     (image.skipHidden ? FOG_VOLUME_FLAG.skipHidden : 0) |
     (settings.volumetricFogUsesHistory ? FOG_VOLUME_FLAG.usesHistory : 0) |
     (medium.useFogColors ? FOG_VOLUME_FLAG.fogColors : 0) |
-    (image.voxels ? FOG_VOLUME_FLAG.voxels : 0)
+    (image.voxels ? FOG_VOLUME_FLAG.voxels : 0) |
+    (settings.volumetricFogLocalShadows ? FOG_VOLUME_FLAG.localShadows : 0) |
+    (settings.fogMatchesVolume ? FOG_VOLUME_FLAG.matches : 0)
   const { anisotropy: g, densityScale, fadeInRate } = medium
   put(out, at.medium, g, densityScale, fadeInRate, flags)
   put(
@@ -246,7 +253,5 @@ export function writeFogVolumeFrame(out: Float32Array, image: FogVolumeImage) {
   return out
 }
 
-/** A frame's worth of words, to write into (`writeFogVolumeFrame`). */
-export const newFogVolumeFrame = () => new Float32Array(FOG_VOLUME_FRAME_WORDS)
 /** The WGSL declaration of the frame's structure. */
 export const FOG_VOLUME_FRAME_WGSL = FOG_VOLUME_FRAME.wgsl

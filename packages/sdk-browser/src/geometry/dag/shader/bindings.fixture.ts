@@ -4,7 +4,7 @@ import { dagGroupEntries } from './bindings.ts'
 const NAMES = [
   'clusters',
   'nodes',
-  'views',
+  'cutView',
   'flags',
   'out',
   'work',
@@ -13,6 +13,9 @@ const NAMES = [
   'cold',
   'tree',
   'previous',
+  'visible',
+  'info',
+  'edges',
 ] as const
 
 /** The binding of each table of the selection kernel's group 0, read off the entries the

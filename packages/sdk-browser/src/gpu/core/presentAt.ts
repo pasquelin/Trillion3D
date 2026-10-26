@@ -1,4 +1,5 @@
 import { PRESENT_AT_SHADER } from './presentWgsl.ts'
+import { heldColour } from './heldAttachment.ts'
 import { preparedPipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { DIRECT_PRESENT_PASS, VIEW_PRESENT_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { computeTextureEntry, sequentialEntries } from './computeBindings.ts'
@@ -6,14 +7,8 @@ import { computeTextureEntry, sequentialEntries } from './computeBindings.ts'
 /** A rectangle of the canvas, in canvas pixels from the top left. */
 export type PresentRect = { x: number; y: number; width: number; height: number }
 
-/**
- * THE ONE PRESENT PROGRAM: an image copied texel for pixel to the canvas at an origin — the whole
- * canvas at the origin 0, cleared first (`whole`), or a persistent view's rectangle, what the main
- * view and the other views presented there this frame kept (`at`). The origin rides in the draw's
- * first instance (`PRESENT_AT_SHADER`), so one pipeline serves both, compiled off the frame as the
- * presenter is made (`presentation.ts`).
- */
-export function createPresent(device: GPUDevice, format: GPUTextureFormat) {
+/** The present program: its bind group layout, and its pipeline compiled as it is made. */
+function presentProgram(device: GPUDevice, format: GPUTextureFormat) {
   const layout = device.createBindGroupLayout({
     entries: [computeTextureEntry(0, 'unfilterable-float', '2d', GPUShaderStage.FRAGMENT)],
   })
@@ -26,10 +21,15 @@ export function createPresent(device: GPUDevice, format: GPUTextureFormat) {
       primitive: { topology: 'triangle-list' },
     }),
   )
+  return { layout, pipeline }
+}
+
+/** The bind group of an image, made once and kept as long as the image. */
+function imageGroups(device: GPUDevice, layout: GPUBindGroupLayout) {
   // One group an image, kept as long as the image: every view presents its own each frame
   // (`gpu/bind/bindIdentity.ts`, its one exception).
   const groups = new WeakMap<GPUTexture, GPUBindGroup>()
-  const group = (image: GPUTexture) => {
+  return (image: GPUTexture) => {
     let made = groups.get(image)
     if (!made) {
       made = device.createBindGroup({
@@ -40,20 +40,45 @@ export function createPresent(device: GPUDevice, format: GPUTextureFormat) {
     }
     return made
   }
+}
+
+/**
+ * THE ONE PRESENT PROGRAM: an image copied texel for pixel to the canvas at an origin — the whole
+ * canvas at the origin 0, cleared first (`whole`), or a persistent view's rectangle, what the main
+ * view and the other views presented there this frame kept (`at`). The origin rides in the draw's
+ * first instance (`PRESENT_AT_SHADER`), so one pipeline serves both, compiled off the frame as the
+ * presenter is made (`presentation.ts`).
+ */
+const wholeTarget = heldColour({ loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] })
+const WHOLE: GPURenderPassDescriptor = {
+  label: DIRECT_PRESENT_PASS,
+  colorAttachments: [wholeTarget],
+}
+const placedTarget = { loadOp: 'load', storeOp: 'store' } as GPURenderPassColorAttachment
+const PLACED: GPURenderPassDescriptor = {
+  label: VIEW_PRESENT_PASS,
+  colorAttachments: [placedTarget],
+}
+
+export function createPresent(device: GPUDevice, format: GPUTextureFormat) {
+  const { layout, pipeline } = presentProgram(device, format)
+  const group = imageGroups(device, layout)
   return {
     /** Compiles the program off the frame — already asked when it was made —, before a view
      *  placed on the canvas presents. */
     prepare: () => pipeline.prepare(),
-    /** Draws `image` over the whole of `view`, cleared first. */
+    /** Draws `image` over the whole of `view`, cleared first. Whether it drew: not while the
+     *  program compiles. */
     whole(encoder: GPUCommandEncoder, view: GPUTextureView, image: GPUTexture) {
-      const pass = encoder.beginRenderPass({
-        label: DIRECT_PRESENT_PASS,
-        colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }],
-      })
-      pass.setPipeline(pipeline.get())
+      const program = pipeline.get()
+      if (!program) return false
+      wholeTarget.view = view
+      const pass = encoder.beginRenderPass(WHOLE)
+      pass.setPipeline(program)
       pass.setBindGroup(0, group(image))
       pass.draw(3)
       pass.end()
+      return true
     },
     /** Draws `image` at `at` of `view`, the rest kept. `canvas` is the canvas's size: the part of
      *  `at` past its right or bottom edge is not drawn, and a rectangle that starts left of or
@@ -68,11 +93,11 @@ export function createPresent(device: GPUDevice, format: GPUTextureFormat) {
       const width = Math.min(at.width, canvas.width - at.x),
         height = Math.min(at.height, canvas.height - at.y)
       if (width <= 0 || height <= 0 || at.x < 0 || at.y < 0) return
-      const pass = encoder.beginRenderPass({
-        label: VIEW_PRESENT_PASS,
-        colorAttachments: [{ view, loadOp: 'load', storeOp: 'store' }],
-      })
-      pass.setPipeline(pipeline.get())
+      const program = pipeline.get()
+      if (!program) return
+      placedTarget.view = view
+      const pass = encoder.beginRenderPass(PLACED)
+      pass.setPipeline(program)
       pass.setBindGroup(0, group(image))
       pass.setViewport(at.x, at.y, width, height, 0, 1)
       pass.setScissorRect(at.x, at.y, width, height)

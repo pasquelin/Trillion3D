@@ -19,19 +19,30 @@ export interface CapturedClouds {
   readonly key: CloudTraceKey
 }
 
-/** The clouds `input` traces this frame, none where it traces none. */
+/** What each frame's `input` was asked once: the frame's readers (the wait for the program, the
+ *  groups, the faces) share one key, and with it the program it names. */
+const asked = new WeakMap<SkyLightInputs, CapturedClouds | undefined>()
+
+/** The clouds `input` traces this frame, none where it traces none; worked out once for an `input`. */
 export function capturedClouds(input: SkyLightInputs): CapturedClouds | undefined {
+  if (asked.has(input)) return asked.get(input)
   const { air, clouds, fog } = input
-  if (!air || !clouds || !fog || !cloudsInView(clouds.part.settings, true)) return undefined
-  const shadowed =
-    input.part.quality.skyLightShadowFromOpaque &&
-    air.maps !== undefined &&
-    clouds.air.sunShadowChannel !== undefined
-  return {
-    air,
-    clouds,
-    key: captureCloudKey(clouds.part.quality, shadowed, !clouds.air.airPresent),
-  }
+  const traced =
+    air && clouds && fog && cloudsInView(clouds.part.settings, true)
+      ? {
+          air,
+          clouds,
+          key: captureCloudKey(
+            clouds.part.quality,
+            input.part.quality.skyLightShadowFromOpaque &&
+              clouds.air.sunShadowChannel !== undefined,
+            !clouds.air.airPresent,
+            clouds.part.material,
+          ),
+        }
+      : undefined
+  asked.set(input, traced)
+  return traced
 }
 
 /** Whether the program of the clouds `input` traces is compiled, asked where it is not made yet: a

@@ -3,7 +3,8 @@ import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { PI } from '../../../../math/src/wgsl/constants.ts'
 import { TAU } from '../../../../math/src/constants.ts'
 import { uvToNdc } from '../../../../math/src/wgsl/projection.ts'
-import { HISTORY_SHARE_MASK } from '../../visibility/types.ts'
+import { RESPONSIVE_ANIMATED, RESPONSIVE_RESTARTS } from '../../visibility/types.ts'
+import { TILE_CLAMP_WGSL } from './tileWgsl.ts'
 
 /** The texel tile of a render-resolution pass that reads no neighbourhood network: 8 × 8. */
 export const TEXEL_TILE = 8
@@ -105,17 +106,39 @@ fn orthoOccluderDepth(word:u32)->f32{return f32(word>>9u)*${wgslF32(1 / ORTHO_DE
 fn orthoOccluderFill(word:u32,low:u32)->u32{return ((word&0x1ffu)<<9u)|(low&0x1ffu);}`,
 )
 
+/**
+ * The closest surface of a texel as the nearest velocity (`nearestVelocityWgsl.ts`) left it in the
+ * marks: `closestOffsetOf`, the offset in [-1, 1]² of the neighbour whose surface it took, in the
+ * four low bits of the marks' fourth channel, two bits an axis (the offset plus one); and
+ * `closestDepthOf`, that neighbour's depth.
+ */
+export const CLOSEST_TEXEL_WGSL = wgslBlock(
+  'CLOSEST_TEXEL_WGSL',
+  [TILE_CLAMP_WGSL],
+  `
+fn closestOffsetOf(c:vec2i)->vec2i{
+ let code=textureLoad(marks,c,0).a&0xfu;
+ return vec2i(i32(code&3u),i32((code>>2u)&3u))-vec2i(1);
+}
+fn closestDepthOf(c:vec2i)->f32{return textureLoad(depth,clampTexel(c+closestOffsetOf(c)),0);}`,
+)
+
 /** The nearest velocity's targets: each render texel's closest depth in the last image (signed by
  *  its pixel animation) and its marks (reprojection edge and offset bit, depth error, moving
- *  share, offset code and history share code); and the format of a reprojection vector
+ *  share, offset code and restart bit); and the format of a reprojection vector
  *  (`encodeVector`), which the velocity stage writes (`../velocity.ts`). */
 export const CLOSEST_FORMAT: GPUTextureFormat = 'r32uint'
 export const MARKS_FORMAT: GPUTextureFormat = 'rgba8uint'
-/** The shift of the four bits holding the code of the most of its history the texel's surface
- *  keeps (`pageOf`, `HISTORY_SHARE_SHIFT`): above the offset code in the marks' fourth channel,
- *  which the reprojection writes into the same bits of its word, which the shading rejection
- *  writes into the same bits of its own (`resolveWgsl.ts`). */
-export const SHARE_CODE_SHIFT = 4
-/** Those four bits, in place. */
-export const SHARE_CODE_MASK = HISTORY_SHARE_MASK << SHARE_CODE_SHIFT
-export const VECTOR_FORMAT: GPUTextureFormat = 'r32uint'
+/** The bit of the marks' fourth channel, above the four of the offset code, set where the texel's
+ *  pixel restarts its history (`PIXEL_RESTARTS`): the reprojection reads it into its word
+ *  (`REPROJECT_BITS.restarts`). */
+export const RESTART_MARK = 16
+/** The velocity stage's target: two words a render texel (`surfaceVelocityShader`) — the texel's
+ *  reprojection vector (`encodeOwnVector`) and the flags of its pixel (`PIXEL_ANIMATED`,
+ *  `PIXEL_RESTARTS`) — and, hole-filled, the temporal pass's one word (`FIELD_FORMAT`, `reprojectionFieldWgsl.ts`). */
+export const VECTOR_FORMAT: GPUTextureFormat = 'rg32uint'
+/** The bits of a pixel's flags (the velocity stage's second word): its surface animates its own
+ *  pixels, or its material reads them as animated (`pageOf`); its material asks its history to
+ *  restart (`responsiveCode`). */
+export const PIXEL_ANIMATED = RESPONSIVE_ANIMATED
+export const PIXEL_RESTARTS = RESPONSIVE_RESTARTS

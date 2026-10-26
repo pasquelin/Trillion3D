@@ -1,4 +1,3 @@
-import type { DistanceFieldMip } from '../../../../sdk-core/src/lighting/distanceFieldFile.ts'
 import type { MipState } from './atlasState.ts'
 import { BRICK, BRICK_VOXELS } from './layout.ts'
 
@@ -19,11 +18,7 @@ export interface BrickRun {
 }
 
 /** The runs of `held`'s bricks, a block at a time, split where the atlas's row ends. */
-export function* brickRuns(
-  held: MipState,
-  blockBricks: number,
-  sizeXY: number,
-): Generator<BrickRun> {
+function* brickRuns(held: MipState, blockBricks: number, sizeXY: number): Generator<BrickRun> {
   for (let b = 0; b < held.blocks.length; b++) {
     let first = b * blockBricks
     const end = Math.min(first + blockBricks, held.bricks)
@@ -38,14 +33,14 @@ export function* brickRuns(
 }
 
 /** The bytes of `bricks` as words: a view when they are aligned, else a copy. */
-export function wordsOf(bricks: Uint8Array) {
+function wordsOf(bricks: Uint8Array) {
   if (bricks.byteOffset % 4 === 0)
     return new Uint32Array(bricks.buffer, bricks.byteOffset, bricks.byteLength >> 2)
   return new Uint32Array(bricks.slice().buffer)
 }
 
 /** The rows of `run`'s bricks, from the `source` words of the mip, in the order of the region. */
-export function interleave(source: Uint32Array, run: BrickRun, out: Uint32Array) {
+function interleave(source: Uint32Array, run: BrickRun, out: Uint32Array) {
   const rowWords = BRICK / 4
   const brickWords = BRICK_VOXELS / 4
   for (let row = 0; row < BRICK * BRICK; row++)
@@ -57,17 +52,17 @@ export function interleave(source: Uint32Array, run: BrickRun, out: Uint32Array)
     }
 }
 
-/** Writes every brick of `mip`, held as `held`, into `texture`. */
+/** Writes every brick of a mip, the `bricks` it stores and `held` the room it took, into `texture`. */
 export function writeBricks(
   queue: GPUQueue,
   texture: GPUTexture,
-  mip: DistanceFieldMip,
+  bricks: Uint8Array,
   held: MipState,
   blockBricks: number,
   sizeXY: number,
   scratch: Uint32Array,
 ) {
-  const source = wordsOf(mip.bricks)
+  const source = wordsOf(bricks)
   const plane = sizeXY * sizeXY
   for (const run of brickRuns(held, blockBricks, sizeXY)) {
     const words = (run.count * BRICK_VOXELS) / 4

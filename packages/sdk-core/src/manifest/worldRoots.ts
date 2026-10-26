@@ -161,10 +161,13 @@ export type WorldRootsCluster = {
   page: WorldRootsPageFacts
 }
 
-/** A world page's length, vertex and index counts, attribute flags and decoded bytes
+/** A world page's length on disk, vertex and index counts, attribute flags, decoded bytes, and the
+ *  bytes it takes in the pool once installed and where it lies in its streaming page's place there
  *  (`pages.rs`). */
 export type WorldRootsPageFacts = {
   bytes: number
+  residentBytes: number
+  residentOffset: number
   vertexCount: number
   indexCount: number
   flags: number

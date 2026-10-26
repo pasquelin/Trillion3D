@@ -20,23 +20,141 @@ pub(super) fn fixture_named(gltf_name: &str, bin_name: &str) -> (PathBuf, Option
 pub(super) fn paged(directory: &Path) -> crate::compiler::pages::manifest::Paged {
     crate::compiler::pages::manifest::read_manifest_at(directory).expect("the manifest's pages")
 }
-/// The bytes of `page`'s geometry page, a page of `primitive` of `result`: read from its bundle in
-/// the container it lies in, under `cache`.
-pub(super) fn geometry_page(
-    cache: &Path,
-    result: &Value,
-    primitive: &Value,
-    page: &Value,
-) -> Vec<u8> {
-    let at = |value: &Value, key: &str| value[key].as_u64().expect(key) as usize;
-    let bundle = &primitive["streams"]["pages"][at(page, "stream")];
-    let file = &result["geometryFiles"][at(bundle, "file")]["sha256"];
-    let path = objects_dir(cache).join(format!("{}.bin", file.as_str().expect("file")));
-    let bytes = fs::read(path).expect("geometry file");
-    let start = at(bundle, "offset") + at(page, "streamOffset");
-    bytes[start..start + at(&page["geometry"], "bytes")].to_vec()
+/// A number of the JSON record `value`.
+fn number(value: &Value, key: &str) -> usize {
+    value[key].as_u64().expect(key) as usize
+}
+
+/// The geometry pages of one primitive of a compile. A page is read from its container and
+/// expanded to its resident page ONCE, whoever names it: the vertices a page names are found in the
+/// resident pages of the clusters it names them in, each expanded from its own references the same
+/// way (the order the pool installs them in), never read and decoded again for each reference.
+pub(super) struct PrimitivePages<'a> {
+    cache: &'a Path,
+    result: &'a Value,
+    primitive: &'a Value,
+    /// The page of each cluster place: its streaming page and its offset in the pool there, in bytes.
+    places: std::collections::HashMap<(usize, usize), &'a Value>,
+    /// The containers read, by digest.
+    files: std::collections::HashMap<String, Vec<u8>>,
+    /// The resident page of each cluster place, once expanded.
+    residents: std::collections::HashMap<(usize, usize), Vec<u8>>,
+}
+
+impl<'a> PrimitivePages<'a> {
+    /// The pages of `primitive` of `result`, whose containers lie under `cache`.
+    pub(super) fn new(cache: &'a Path, result: &'a Value, primitive: &'a Value) -> Self {
+        let places = (primitive["pages"].as_array().into_iter().flatten())
+            .filter_map(|page| {
+                let place = page["geometry"]["residentOffset"].as_u64()? as usize;
+                Some(((page["stream"].as_u64()? as usize, place), page))
+            })
+            .collect();
+        Self {
+            cache,
+            result,
+            primitive,
+            places,
+            files: Default::default(),
+            residents: Default::default(),
+        }
+    }
+
+    /// The bytes of `page`'s geometry page: a slice of its bundle in the container it lies in.
+    pub(super) fn bytes(&mut self, page: &Value) -> Vec<u8> {
+        let (cache, result, primitive) = (self.cache, self.result, self.primitive);
+        let bundle = &primitive["streams"]["pages"][number(page, "stream")];
+        let digest = result["geometryFiles"][number(bundle, "file")]["sha256"]
+            .as_str()
+            .expect("file");
+        let file = self.files.entry(digest.to_string()).or_insert_with(|| {
+            fs::read(objects_dir(cache).join(format!("{digest}.bin"))).expect("geometry file")
+        });
+        let start = number(bundle, "offset") + number(page, "streamOffset");
+        file[start..start + number(&page["geometry"], "bytes")].to_vec()
+    }
+
+    /// `page` decoded whole (`trillion3d_page_codec::decode_with`): the vertices it names found in
+    /// the resident pages of the clusters it names them in.
+    pub(super) fn decoded(&mut self, page: &Value) -> trillion3d_page_codec::DecodedPage {
+        let bytes = self.bytes(page);
+        let named = self.named(page, &bytes);
+        let named: Vec<&[u8]> = named.iter().map(Vec::as_slice).collect();
+        trillion3d_page_codec::decode_with(&bytes, usize::MAX, &named).expect("a geometry page")
+    }
+
+    /// The resident page of each cluster the page `bytes` of `page` names a vertex of, in the order
+    /// of its pairs: a pair is the rank of a streaming page in the page's own list of dependencies
+    /// (0 for its own) above the words from the start of that streaming page's place in the pool to
+    /// the cluster's resident page; a pair that names the page itself has none.
+    fn named(&mut self, page: &Value, bytes: &[u8]) -> Vec<Vec<u8>> {
+        let primitive = self.primitive;
+        let raw =
+            trillion3d_page_codec::disk::read_raw(bytes, usize::MAX).expect("a geometry page");
+        let own = number(page, "stream");
+        let dependencies = primitive["streams"]["pages"][own]["dependencies"]
+            .as_array()
+            .expect("dependencies");
+        named_pages(
+            &raw.refs.pairs,
+            own,
+            |rank| dependencies[rank - 1].as_u64().expect("a bundle") as usize,
+            |bundle, place| {
+                let target = (self.places.get(&(bundle, place * 4)).copied())
+                    .expect("the cluster a pair names");
+                self.resident(target)
+            },
+        )
+    }
+
+    /// The resident page of `page`, expanded the first time it is asked for.
+    fn resident(&mut self, page: &Value) -> Vec<u8> {
+        let key = (
+            number(page, "stream"),
+            number(&page["geometry"], "residentOffset"),
+        );
+        if let Some(done) = self.residents.get(&key) {
+            return done.clone();
+        }
+        let bytes = self.bytes(page);
+        let named = self.named(page, &bytes);
+        let named: Vec<&[u8]> = named.iter().map(Vec::as_slice).collect();
+        let resident = trillion3d_page_codec::resident::expand(&bytes, usize::MAX, &named)
+            .expect("a resident page");
+        self.residents.insert(key, resident.clone());
+        resident
+    }
 }
 /// The digests of the geometry containers the manifest in `directory` names.
+/// The resident page of each vertex `pairs` name, in their order: a pair is the rank of a bundle in
+/// the page's dependencies (`dependency` gives that bundle, 0 being `own`) above the place in the
+/// pool (`resident` gives the page there); a pair that names the page itself has none.
+pub(crate) fn named_pages(
+    pairs: &[u32],
+    own: usize,
+    dependency: impl Fn(usize) -> usize,
+    mut resident: impl FnMut(usize, usize) -> Vec<u8>,
+) -> Vec<Vec<u8>> {
+    use trillion3d_page_codec::{REF_PLACE_BITS, SELF_PLACE};
+    pairs
+        .iter()
+        .map(|&pair| {
+            if pair == SELF_PLACE {
+                return Vec::new();
+            }
+            let (rank, place) = (
+                (pair >> REF_PLACE_BITS) as usize,
+                (pair & SELF_PLACE) as usize,
+            );
+            let bundle = match rank {
+                0 => own,
+                _ => dependency(rank),
+            };
+            resident(bundle, place)
+        })
+        .collect()
+}
+
 pub(super) fn geometry_files(directory: &Path) -> Vec<String> {
     let manifest = paged(directory).manifest;
     let files = manifest["geometryFiles"]
@@ -67,13 +185,7 @@ pub(super) fn write_gltf(options: &Options, gltf: &Value, bin: Option<&[u8]>) ->
 }
 /// The glTF the compiler copied into the cache slice it wrote under `key`.
 pub(super) fn written_gltf(options: &Options, key: &str) -> Value {
-    read_json(
-        &options
-            .cache
-            .join("native/slice")
-            .join(key)
-            .join("source.gltf"),
-    )
+    read_json(&options.key_directory(key).join("source.gltf"))
 }
 
 /// A tiny OBJ, one triangle, one material, and the library it cites, placed in a

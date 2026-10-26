@@ -1,8 +1,13 @@
+import { velocityWpo } from './velocityWpo.ts'
 import type { TemporalAntialiasingLevel } from '../../../../sdk-core/src/contracts/compilerAbi.ts'
 import { temporalAntialiasingLevel } from '../../../../sdk-core/src/contracts/materialOptions.ts'
 import { isTaaLevelOn } from './levels.ts'
 import { createTemporalAntialiasing } from './temporalAntialiasing.ts'
 import { taaTargetBytes } from './historyTargets.ts'
+import { wantedShapeOf } from './historyShape.ts'
+import { executionOf } from './waveOps.ts'
+import { readTemporalSetting } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import { track } from '../../lighting/deferred/compileLedger.ts'
 import type { FrameSize } from '../../frame/backend/state/renderScale.ts'
 import { dropTaaHistory } from './landing.ts'
 import { grantCapability } from '../../frame/io/drops.ts'
@@ -42,11 +47,12 @@ async function rigMainTemporal(rt: WebgpuPagesRuntime, device: GPUDevice) {
 
 /**
  * Sets the pass of `view` — the main one by default, whose switch is the world's — to `level`
- * during the session, no session reopened. Another level while on keeps the pass and its history
- * — no level changes a target's format or size —, its knobs written into the next image's uniform
- * (`TAA_LEVEL_KNOBS`), and asks a frame: a held view draws again, its convergence counted anew
- * (`resourcesSeen`); an image that runs the flicker measure after one that did not drops the
- * history itself (`encodeTaaPass`). Turned on or off, the history is dropped either way. Off, the next image is sampled at the pixel centre, the history's targets are
+ * during the session, no session reopened. Another level while on keeps the pass, its knobs
+ * written into the next image's uniform (`TAA_LEVEL_KNOBS`), and asks a frame: a held view draws
+ * again, its convergence counted anew (`resourcesSeen`); an image that runs the flicker measure
+ * after one that did not drops the history itself (`encodeTaaPass`), and so does one whose level
+ * asks another history — its size, the frames it keeps, whether it reprojects by the field —, which
+ * the image makes again (`historyShapeOf`). Turned on or off, the history is dropped either way. Off, the next image is sampled at the pixel centre, the history's targets are
  * released — no byte of them is kept off — and the program is kept, so that on again is
  * immediate: the targets are made again at the view's size, the first image a cut. On in a session
  * opened without it, the program is rigged in the background and the images stay unjittered until
@@ -68,10 +74,14 @@ export function setWebgpuTemporalAntialiasing(
     on = isTaaLevelOn(level)
   if (was === level) return
   gpu.temporalLevel = level
-  if (isTaaLevelOn(was) && on) return void rt.run.gate.resourcesChanged()
+  if (isTaaLevelOn(was) && on) {
+    // Another level may ask another history: made now, the programs it needs asked before the next image.
+    joinTargets(rt, gpu)
+    return void rt.run.gate.resourcesChanged()
+  }
   dropTaaHistory(temporal?.frame)
   if (temporal) {
-    if (on) joinTargets(gpu)
+    if (on) joinTargets(rt, gpu)
     else releaseHistory(gpu)
   }
   if (view !== rt.views.main) {
@@ -93,12 +103,41 @@ export function setWebgpuTemporalAntialiasing(
   rt.run.gate.resourcesChanged()
 }
 
-/** The history joins the view's targets as they stand, a capture drawn aside meanwhile or not;
- *  unallocated, `makeTargets` counts it. */
-function joinTargets(gpu: WebgpuView['gpu']) {
+/**
+ * The temporal pass of every view that holds one made again over the offsets of `rt.vis.rasters`, a
+ * graph with an offset having joined the session: its programs place the vertices of a pixel's
+ * triangle by the offsets they were made with. The old pass goes with the velocity stage it read and
+ * its history, which starts again.
+ */
+export async function rigTemporalAgain(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  for (const view of [rt.views.main, ...rt.views.persistent]) {
+    const gpu = viewGpu(rt, view),
+      { velocity, temporal } = gpu
+    if (!velocity || velocity.wpo.programs === rt.vis.rasters.offsets) continue
+    if (temporal) {
+      releaseHistory(gpu)
+      temporal.dispose()
+      gpu.temporal = undefined
+    }
+    velocity.dispose()
+    gpu.velocity = undefined
+    if (temporal) await rigViewTemporal(rt, view, device)
+  }
+}
+
+/** The history joins the view's targets as they stand, a capture drawn aside meanwhile or not, made
+ *  as the level and the settings ask (`historyShapeOf`): one that is another history than the one
+ *  held — a level of another size — replaces it, its history dropped, the bytes the targets count
+ *  following; unallocated, `makeTargets` counts it. The programs the history needs are asked here,
+ *  off the frame. */
+function joinTargets(rt: WebgpuPagesRuntime, gpu: WebgpuView['gpu']) {
   const { temporal } = gpu
-  if (temporal && gpu.hdrTexture && temporal.resize(...gpu.displaySize, ...gpu.allocatedSize))
-    gpu.targetBytes += temporal.historyBytes
+  if (!temporal || !gpu.hdrTexture) return
+  const shape = wantedShapeOf(rt, temporal, gpu.temporalLevel, ...gpu.displaySize)
+  const before = temporal.historyBytes
+  if (!temporal.resize(shape, ...gpu.allocatedSize)) return
+  dropTaaHistory(temporal.frame)
+  gpu.targetBytes += temporal.historyBytes - before
 }
 
 /** The history leaves the view's targets, its bytes with it; the pass and its programs stay. */
@@ -122,7 +161,9 @@ export async function rigViewTemporal(
   // The velocity stage the pass reads its vectors and its last image from, the view's own.
   const temporal = await createTemporalAntialiasing(
     device,
-    velocityOf(wanted, device, rt.layout.selectionRoots),
+    velocityOf(wanted, device, velocityWpo(rt.vis.rasters)),
+    executionOf(rt, device),
+    readTemporalSetting(rt, 'temporalHistoryPacked'),
   )
   const gpu = viewGpu(rt, view)
   // Switched off, rigged, removed or closed while the program compiled: not kept.
@@ -132,9 +173,42 @@ export async function rigViewTemporal(
     return false
   }
   gpu.temporal = temporal
-  joinTargets(gpu)
+  joinTargets(rt, gpu)
   rt.run.gate.resourcesChanged()
   return true
+}
+
+/** Views whose pass is being made again for the history formats the setting asks. */
+const remaking = new WeakSet<object>()
+
+/**
+ * The pass of every view that holds `temporal` made again in the history formats
+ * `temporalHistoryPacked` asks now (its programs and targets are made for one set of formats): the
+ * old pass goes with its history, which starts again, while the frames wait for the new.
+ */
+export function remakeTemporalFormats(rt: WebgpuPagesRuntime, temporal: object) {
+  const device = rt.gpu.device
+  if (!device || remaking.has(temporal)) return
+  remaking.add(temporal)
+  const views = [rt.views.main, ...rt.views.persistent].filter(
+    (view) => viewGpu(rt, view).temporal === temporal,
+  )
+  const remake = (async () => {
+    // Not within the image that asked: its encoding still holds the old pass.
+    await Promise.resolve()
+    for (const view of views) {
+      const gpu = viewGpu(rt, view)
+      releaseHistory(gpu)
+      gpu.temporal?.dispose()
+      gpu.temporal = undefined
+      await rigViewTemporal(rt, view, device)
+    }
+  })()
+    .catch((error: unknown) => {
+      if (!isCancelled(rt.signal)) dropTemporalAntialiasing(rt, error)
+    })
+    .finally(() => remaking.delete(temporal))
+  track(device, remake, true)
 }
 
 /** The pass leaves the session: capabilities dropped, cause named, image without the pass. */
@@ -147,8 +221,8 @@ function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {
 }
 
 /**
- * History targets for the display size of `size`, the analysis and spatial anti-aliaser's for its
- * render size, and their bytes (`taaTargetBytes`). They follow resolution
+ * History targets for the display size of `size`, at the level's percent of it, the analysis and
+ * spatial anti-aliaser's for its render size, and their bytes (`taaTargetBytes`). They follow resolution
  * like the other targets: no budget makes them leave; switched off, they are not made
  * (`setWebgpuTemporalAntialiasing` makes them when it is on again). A surface capture renders
  * from another camera and does not accumulate: its targets do not touch the view's history,
@@ -162,7 +236,8 @@ export function ensureTaaTargets(rt: WebgpuPagesRuntime, size: FrameSize, aside 
   // Under a capture, the capture's reserve already carries history: it is not counted twice.
   if (rt.capture.capturing) return 0
   const { width, height, renderWidth, renderHeight } = size
-  if (!aside && temporal.resize(width, height, renderWidth, renderHeight))
+  const shape = wantedShapeOf(rt, temporal, rt.gpu.temporalLevel, width, height)
+  if (!aside && temporal.resize(shape, renderWidth, renderHeight))
     dropTaaHistory(rt.gpu.temporal?.frame)
-  return taaTargetBytes(size)
+  return taaTargetBytes(size, shape)
 }

@@ -1,4 +1,3 @@
-import { resolveCloudShadowLight } from '../../../../../sdk-core/src/modules/sky/cloudShadow.ts'
 import type { CloudSkyOcclusionLight } from '../../../../../sdk-core/src/modules/sky/cloudSkyOcclusion.ts'
 import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
 import { writeCloudShadowTrace, type CloudShadowImage } from './shadowLayout.ts'
@@ -12,17 +11,19 @@ import { SKY_OCCLUSION_FILTER_LAYOUT } from './skyOcclusionWgsl.ts'
  */
 
 /** The block of the sky occlusion's trace into `out`: the shadow trace's block, with the sky
- *  light's strength and no depth bias (`cloudShadowDepthBiasKm` 0), the frame's samples. */
+ *  light's strength and no depth bias, the frame's samples. */
 export function writeSkyOcclusionTrace(
   out: Float32Array,
   image: CloudShadowImage,
   light: CloudSkyOcclusionLight,
   part: CloudPart,
 ) {
-  const strength = resolveCloudShadowLight({
-    cloudShadowStrength: light.cloudAmbientOcclusionStrength,
-  })
-  return writeCloudShadowTrace(out, image, strength, part)
+  return writeCloudShadowTrace(
+    out,
+    image,
+    { cloudShadowStrength: light.cloudAmbientOcclusionStrength, cloudShadowDepthBiasKm: 0 },
+    part,
+  )
 }
 
 /** The block of the sky occlusion's filter into `out` (`SKY_OCCLUSION_FILTER_LAYOUT.words`

@@ -32,9 +32,10 @@ const SCENE_TABLES_VERSION = 9
  *  which animated node a cell draws (`streamed`) and which node plays a track of the scene's
  *  animation banks (`bank`). */
 const NODE_TABLE_VERSION = 7
-/** The version of the material table this runtime reads: 5 names an entry's history share
- *  (`temporalAntialiasing`, below 1 only) in place of 4's `responsive`. */
-const MATERIAL_TABLE_VERSION = 5
+/** The version of the material table this runtime reads: 6 names an entry's responsiveness level
+ *  (`responsive`, above `off` only), where 4 wrote `responsive: true` and 5 a
+ *  `temporalAntialiasing` number. */
+const MATERIAL_TABLE_VERSION = 6
 /** The version of the geometry layout this runtime reads. */
 const GEOMETRY_TABLE_VERSION = 1
 
@@ -73,6 +74,11 @@ export interface TableNode {
    *  by a row of the cell that holds it, while that cell is placed (`CellNode.source`), its own
    *  host mesh that row's animation source. */
   streamed?: true
+  /** A static object with nodes under it whose mesh streams: the core keeps it as their frame, its
+   *  mesh left out, and a row of the cell that holds it draws that mesh while the cell is placed
+   *  (`CellNode` `{parent, mesh}`); its collider is made and let go of with that cell. Left out
+   *  otherwise, as an older runtime, which streams the collider by distance alone, reads it. */
+  meshStreams?: true
   /** An instanced skinned node loaded with the scene: the item of the scene's animation banks its
    *  mesh plays (`./animationBanks.ts`); the node hangs under its skin's frame at no pose. */
   bank?: number
@@ -82,6 +88,12 @@ export interface TableNode {
   /** Its mesh is drawn by a view's primed depth (`farField` of the job's object settings); left
    *  out otherwise. */
   farField?: true
+  /** Its mesh casts far shadows (`castFarShadow` of the job's object settings); left out
+   *  otherwise. */
+  castFarShadow?: true
+  /** Whether a sun's far-shadow test reaches its mesh (`true`) or never does (`false`), by
+   *  `farShadowTest` of the job's object settings; left out when none names it. */
+  farShadowTest?: boolean
   /** An instance of an assembly: per primitive of its mesh, the group that replaces its root,
    *  `null` for a primitive none replaces (`CellNode.rootParents`); left out otherwise. */
   rootParents?: readonly (TableRootParent | null)[]

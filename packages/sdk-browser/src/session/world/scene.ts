@@ -57,10 +57,6 @@ export class Scene extends Object3D {
   environment: Texture | null = null
   private _sky: ModuleOption = undefined
 
-  /** Called before the scene is drawn; none by default. */
-  declare onBeforeRender?: () => void
-  /** Called once the scene is drawn; none by default. */
-  declare onAfterRender?: () => void
   // Written only when used, as `reading` is: a scene the engine builds holds neither.
   declare private readonly loader?: SceneLoader
   /** A scene; `loader` reads the models `load` adds, and a scene built without one loads none. */

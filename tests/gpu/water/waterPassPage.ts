@@ -12,7 +12,7 @@ import {
   type ScenePreparee,
 } from '../../kit/device/sharedSceneProof.ts'
 import { image } from '../../kit/device/sceneImageProof.ts'
-import { REFLECTION_COUNTS } from '../../../packages/sdk-browser/src/lighting/reflections/constants.ts'
+import { defaultReflections } from '../../../packages/sdk-core/src/contracts/reflectionOptions.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { recordPassLabels, runOnDevice } from '../../kit/device/deviceProof.ts'
 import {
@@ -75,8 +75,9 @@ async function waterCase(
       pixels: Uint8Array
     }[] = []
     // Four images of the pose, then a fixed count more: the reflections' history full twice over
-    // (`REFLECTION_HISTORY`).
-    for (let i = 0; i < 4 + 2 * REFLECTION_COUNTS.REFLECTION_HISTORY; i++) {
+    // (`reflectionMaxFramesAccumulated`).
+    const history = defaultReflections().historyFrames
+    for (let i = 0; i < 4 + 2 * history; i++) {
       const { pixels, metrics: metrics } = await image(backend, camera)
       frames.push({
         centre: centre(pixels),

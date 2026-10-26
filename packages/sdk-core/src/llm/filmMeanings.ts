@@ -27,7 +27,7 @@ export const FILM_MEANINGS: Readonly<Record<FilmField, string>> = {
   chromaticAberrationStartOffset:
     'How far from the centre along each axis the colour fringe starts, from 0, the centre, to 1, the edge of the image (default 0); 1 draws nothing.',
   chromaticAberrationQuality:
-    "The colour fringe's quality: 'off' draws no fringe whatever its intensity, 'high' (default) reads three samples a pixel. The quality levels write 'off' at 'smooth' and 'balanced'.",
+    "The colour fringe's quality: 'off' draws no fringe whatever its intensity, 'high' (default) reads three samples a pixel. The quality levels write 'off' at 'smooth' and 'balanced', 'high' at 'fine' and 'cinematic'.",
   chromaticAberrationMax:
     'Caps the colour fringe: -1 (default) leaves its intensity as it is, 0 or more caps it there, -2 forces an extreme one, 5, to look at the fringe.',
   vignetteType:
@@ -44,7 +44,7 @@ export const FILM_MEANINGS: Readonly<Record<FilmField, string>> = {
   vignetteSoftness:
     "How fast the oval vignette falls to its colour (default 5): the oval's light is its distance's complement to this power.",
   tonemapperQuality:
-    "The tonemapper's quality, from 0 to 5 (default 5): under 2 the vignette is off, under 4 the film grain is. The quality levels write 0 at 'smooth' and 2 at 'balanced'.",
+    "The tonemapper's quality, from 0 to 5 (default 5): under 2 the vignette is off, under 4 the film grain is. The quality levels write 0 at 'smooth', 2 at 'balanced' and 5 at 'fine' and 'cinematic'.",
   tonemapperSharpen:
     "The tonemapper's sharpening: below 0 (default -1) the scene's own sharpness (environment.sharpness), 0 or more replaces it, read from 0 to 10; 1 is a unit-gain sharpening.",
   sceneColorTintRed:
@@ -52,5 +52,11 @@ export const FILM_MEANINGS: Readonly<Record<FilmField, string>> = {
   sceneColorTintGreen: "The green of the scene's tint (default 1).",
   sceneColorTintBlue: "The blue of the scene's tint (default 1).",
   quantizationDitheringBits:
-    "The dither that hides the display's steps: a triangular noise of one level of the display's channel added to the colour shown. 0 (default) takes the step from the display, 1/255 for an 8-bit one; a number of bits from 1 makes the step 1/(2^bits - 1). From 24 bits no dither is drawn: set 32 to switch it off, for images compared pixel for pixel.",
+    "The dither that hides the display's steps: a triangular noise of one level of the display's channel added to the colour shown. 0 (default) or less takes the step from the display, 1/255 for an 8-bit one; a number of bits from 1 makes the step 1/(2^bits - 1). The dither is always drawn; the step of 32 bits is under what the display holds of a colour: set 32 for images compared pixel for pixel.",
+  propagateAlpha:
+    'Whether the image carries an alpha channel, false by default: the colour is shown opaque and the alpha is read by nothing. True makes the alpha the share of the background the image leaves visible, an inverse opacity (1 where nothing is drawn, 0 on a surface, multiplied by the transmittance of the sky, the fog, the clouds and the translucent layers), carried through the post stages beside a colour they read as it is, and written to the image a capture takes.',
+  primitiveAlphaHoldout:
+    "Whether the engine supports the alpha holdout, false by default; it takes effect only with propagateAlpha on. The translucent layers are then drawn once more to accumulate the share of the background they hold out, and laid over the image's alpha, so that a holdout layer (blending 'alphaHoldout') punches a hole in it.",
+  translucencyHoldoutLocation:
+    "Where the accumulated holdout is laid over the image's alpha: 'beforeDepthOfField' (default), with the translucent layers, or 'afterDepthOfField', with the post stages.",
 }

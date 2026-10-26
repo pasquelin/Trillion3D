@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type { Metafile } from 'esbuild'
 import type { Bundle, Run, Write } from './contracts.ts'
 import { readJson } from '../../git/repository-files.ts'
-import { runChecked } from '../../test/run.ts'
+import { runChecked } from '../../check/run.ts'
 
 /** One child-process invocation the installed-package proof made, kept for the failure report. */
 interface LogEntry {

@@ -3,6 +3,7 @@ import type { WebgpuTileAtlas } from './atlas/atlasTypes.ts'
 import type { createTileSources } from './sources/sources.ts'
 import type { createTileRequests, TileRequest } from './requests.ts'
 import type { TileCounters } from './counters.ts'
+import type { createResidencyBias } from './residencyBias.ts'
 
 /** What a tile pass reads: the streamer's parts (`./streamer/streamer.ts`). */
 type PumpParts = {
@@ -16,18 +17,24 @@ type PumpParts = {
   sources: ReturnType<typeof createTileSources>
   requests: ReturnType<typeof createTileRequests>
   counters: TileCounters
+  /** The textures' residency bias, followed once a bounded pass: a barrier reads the bias it found. */
+  residency: ReturnType<typeof createResidencyBias>
   flushAll: () => void
   onFailure: (phase: string, error: unknown) => void
   onColorChanged: (slots: ReadonlySet<number>) => void
 }
 
+/** The most tiles a pass lands, whatever their format: a fixed count a frame, the byte and the
+ *  millisecond budgets being the host's ceilings above it. */
+const MAX_TILES_PER_PASS = 32
+
 /**
  * One pass: requested tiles — the feedback's in weight order, then those asked beside it
- * (`requests.ts`, `ask`) —, served until the byte or the millisecond budget (the
+ * (`requests.ts`, `ask`) —, served until the tile count, the byte or the millisecond budget (the
  * pass's stage on the session's clock, capped by the host's ceiling) is spent; `unbounded` lifts
- * both. Both are read after each copy, the clock once: the first always lands, the one that crosses
- * a budget overshoots it — the peak says by how much. Returns what was served and what is pending —
- * waiting for its bytes, or deferred to the next pass; a pool refusal is neither — nothing will
+ * all three. They are read after each copy, the clock once: the first always lands, the one that
+ * crosses a budget overshoots it — the peak says by how much. Returns what was served and what is
+ * pending — waiting for its bytes, or deferred to the next pass; a pool refusal is neither — nothing will
  * come, the coarse level holds — and is counted.
  */
 export const createTilePump =
@@ -35,6 +42,7 @@ export const createTilePump =
   (frame: number, unbounded = false) => {
     const { clock, sources, requests, counters, colorChanged } = p
     clock.stage(p.budgetMs)
+    if (!unbounded) p.residency.follow(requests.coverageOf)
     let served = 0,
       waiting = 0,
       bytes = 0,
@@ -61,7 +69,8 @@ export const createTilePump =
         bytes += request.atlas.poolOf(request.key.slot).tileBytes
         if (request.atlas === p.color) colorChanged.add(request.key.slot)
         clock.spend()
-        stop = !unbounded && (bytes >= p.budgetBytes || !clock.admits())
+        stop =
+          !unbounded && (served >= MAX_TILES_PER_PASS || bytes >= p.budgetBytes || !clock.admits())
       }
     }
     let index = wanted.from

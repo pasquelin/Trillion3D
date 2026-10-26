@@ -1,6 +1,46 @@
 import { lerp } from '../../../../../math/src/scalar/reals.ts'
 import { EdgeList, NONE, type PatchMesh } from './patchMesh.ts'
 
+/** The edges of `a` that run to the two third vertices `c` and `d`; undefined when `a` and `b` share
+ *  a neighbour beside them, which a collapse would fold into a double edge. */
+function sharedNeighbours(m: PatchMesh, a: number, b: number, c: number, d: number) {
+  let eac = NONE,
+    ead = NONE
+  for (const ea of m.vertexEdges[a].values) {
+    const x = m.otherVertex(ea, a)
+    if (x === c) eac = ea
+    else if (x === d) ead = ea
+    else if (x !== b && m.vertexEdges[b].values.some((eb) => m.otherVertex(eb, b) === x))
+      return undefined
+  }
+  return { eac, ead }
+}
+
+/** Whether the collapse of `a` into `b` would pinch the mesh at the triangles around the edge. */
+function pinches(
+  m: PatchMesh,
+  a: number,
+  b: number,
+  c: number,
+  d: number,
+  t0: number,
+  eac: number,
+  boundary: boolean,
+) {
+  if (!boundary && m.vertexEdges[a].length === 3) {
+    const edc = m.findEdge(d, c)
+    if (edc !== NONE && m.edge[edc].t[1] !== NONE) {
+      const [u, w] = m.edge[edc].t
+      const has = (t: number, v: number) => m.triangle[t].includes(v)
+      if ((has(u, a) && has(w, b)) || (has(u, b) && has(w, a))) return true
+    }
+  } else if (boundary && eac !== NONE && m.isBoundaryEdge(eac)) {
+    const ebc = m.triangleEdgeOf(t0, b, c)
+    if (m.isBoundaryEdge(ebc)) return true
+  }
+  return !boundary && m.isBoundaryVertex(a) && m.isBoundaryVertex(b)
+}
+
 /** Whether edge `a`-`b`'s collapse into `b` leaves a manifold mesh, and the neighbourhood it
  *  would act on. */
 function collapsible(m: PatchMesh, b: number, a: number) {
@@ -13,27 +53,10 @@ function collapsible(m: PatchMesh, b: number, a: number) {
   const boundary = t1 === NONE
   const d = boundary ? NONE : m.third(t1, a, b)
   if (!boundary && c === d) return undefined
-  let eac = NONE,
-    ead = NONE
-  for (const ea of m.vertexEdges[a].values) {
-    const x = m.otherVertex(ea, a)
-    if (x === c) eac = ea
-    else if (x === d) ead = ea
-    else if (x !== b && m.vertexEdges[b].values.some((eb) => m.otherVertex(eb, b) === x))
-      return undefined
-  }
-  if (!boundary && m.vertexEdges[a].length === 3) {
-    const edc = m.findEdge(d, c)
-    if (edc !== NONE && m.edge[edc].t[1] !== NONE) {
-      const [u, w] = m.edge[edc].t
-      const has = (t: number, v: number) => m.triangle[t].includes(v)
-      if ((has(u, a) && has(w, b)) || (has(u, b) && has(w, a))) return undefined
-    }
-  } else if (boundary && eac !== NONE && m.isBoundaryEdge(eac)) {
-    const ebc = m.triangleEdgeOf(t0, b, c)
-    if (m.isBoundaryEdge(ebc)) return undefined
-  }
-  if (!boundary && m.isBoundaryVertex(a) && m.isBoundaryVertex(b)) return undefined
+  const shared = sharedNeighbours(m, a, b, c, d)
+  if (!shared) return undefined
+  const { eac, ead } = shared
+  if (pinches(m, a, b, c, d, t0, eac, boundary)) return undefined
   return { eab, t0, t1, c, d, eac, ead, boundary }
 }
 

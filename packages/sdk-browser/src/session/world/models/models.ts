@@ -5,7 +5,6 @@ import { nodeCasting } from '../../../visibility/shader/castingMark.ts'
 import { updateTransformTree } from '../../../../../sdk-core/src/world/transform/pass.ts'
 import type { Geometry } from '../../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { PageSurface } from '../../../geometry/pages/surface.ts'
-import type { HostMesh } from '../../host/resources.ts'
 import { meshes } from '../../../scene/meshes.ts'
 import {
   drawSourceOf,
@@ -32,6 +31,7 @@ import {
   type ModelRecord,
 } from './loadedModel.ts'
 import type { WorldRanks } from '../ranks.ts'
+import type { PageMesh } from '../../../geometry/pages/pageMesh.ts'
 
 /** A placement's world times a mesh's, made here before its row takes it. */
 const composed = new Float64Array(MATRIX_VALUES)
@@ -49,8 +49,8 @@ class ModelMeshSource implements DrawSource {
   rows: PlacementRows
   readonly mesh: number | undefined
   readonly primitives: number | undefined
-  private readonly drawn: HostMesh
-  constructor(drawn: HostMesh, ranks: DrawRanks) {
+  private readonly drawn: PageMesh
+  constructor(drawn: PageMesh, ranks: DrawRanks) {
     this.drawn = drawn
     this.mesh = ranks.meshes
     this.primitives = ranks.primitives
@@ -73,9 +73,6 @@ class ModelMeshSource implements DrawSource {
   }
   get casting() {
     return nodeCasting(this.drawn)
-  }
-  get frustumCulled() {
-    return this.drawn.frustumCulled
   }
   wear(surface: PageSurface) {
     this.drawn.material = surface
@@ -196,6 +193,66 @@ function recordDraws(record: ModelRecord, ranks: WorldRanks): RecordDraws {
   }
 }
 
+/** The rows of `draws` a placement grows: its sources', and its world DAG's poses. */
+const grownOf = (draws: RecordDraws) => [...draws.rowed, ...(draws.world ? [draws.world] : [])]
+
+/** Gives `model` its row in its record's sources (`createWorldModels`'s `place`): the refusal by
+ *  name when the session does not take the growth, nothing given. */
+function placeRow(
+  ranks: WorldRanks,
+  held: WeakMap<ModelRecord, RecordDraws>,
+  placed: WeakSet<LoadedModel>,
+  model: LoadedModel,
+  grow?: PlacementGrowth,
+): string | undefined {
+  if (placed.has(model)) return undefined
+  const { record } = model
+  let draws = held.get(record)
+  if (!draws) held.set(record, (draws = recordDraws(record, ranks)))
+  const row = placementIndex(model),
+    needed = row + 1,
+    sources = grownOf(draws),
+    froms = sources.map((source) => source.rows)
+  if (froms.some((rows) => rows.capacity < needed)) {
+    const capacity = grownLength(Math.max(...froms.map((rows) => rows.capacity)), needed)
+    if (grow && !grow.growsInPlace(froms, capacity))
+      return `the session grows no row for another placement of ${record.manifestUrl}`
+    for (const source of sources) {
+      const from = source.rows
+      if (from.capacity >= needed) continue
+      source.rows = source.grown(capacity)
+      grow?.growPlacements(from, source.rows)
+    }
+  }
+  placed.add(model)
+  draws.rowsHeld = Math.max(draws.rowsHeld, needed, ...sources.map((s) => s.rows.capacity))
+  // Its partitions' scene hangs in this placement's world, which no node of theirs carries; its
+  // rows draw the objects of this placement's instance of the world DAG.
+  for (const cells of modelPartitions(model))
+    cells.pose(() => resolveCameraWorld(model).worldMatrix as Float64Array, row)
+  return undefined
+}
+
+/** The rows of a placed `model` written from its graph (`createWorldModels`'s `pose`). */
+function writePose(
+  held: WeakMap<ModelRecord, RecordDraws>,
+  model: LoadedModel,
+  shown: boolean,
+  composes?: (draws: ModelDraws, row: number) => void,
+): ModelDraws {
+  const draws = held.get(model.record)!,
+    row = placementIndex(model)
+  // The graph's worlds are its own, brought up to date where they changed.
+  updateTransformTree(Object3D._treeOf(model.record.scene.source))
+  const world = model.matrixWorld.elements,
+    // A matrix is written only where no session exists to compose it: the pose it opens on.
+    matrices = !composes
+  composes?.(draws, row)
+  for (const source of draws.rowed) source.write(row, world, shown, matrices)
+  draws.world?.write(row, world, shown, matrices)
+  return draws
+}
+
 /**
  * THE MODELS OF A WORLD AS WHAT THEY DRAW. A model's graph holds meshes; each is a source drawn at
  * rows of its own — one per placement of the model, the row the model's load was read for first
@@ -209,8 +266,6 @@ export function createWorldModels(ranks: WorldRanks) {
   const held = new WeakMap<ModelRecord, RecordDraws>()
   /** The placements each record's sources hold a row for. */
   const placed = new WeakSet<LoadedModel>()
-  /** The rows of `draws` a placement grows: its sources', and its world DAG's poses. */
-  const grownOf = (draws: RecordDraws) => [...draws.rowed, ...(draws.world ? [draws.world] : [])]
   /** `model`'s record's draws, `model` placed. */
   const drawsOf = (model: LoadedModel) => {
     models.place(model)
@@ -225,34 +280,8 @@ export function createWorldModels(ranks: WorldRanks) {
      * (`PlacementGrowth`), which adds one root per new row —; the refusal by name when it does not
      * take them, nothing given.
      */
-    place(model: LoadedModel, grow?: PlacementGrowth): string | undefined {
-      if (placed.has(model)) return undefined
-      const { record } = model
-      let draws = held.get(record)
-      if (!draws) held.set(record, (draws = recordDraws(record, ranks)))
-      const row = placementIndex(model),
-        needed = row + 1,
-        sources = grownOf(draws),
-        froms = sources.map((source) => source.rows)
-      if (froms.some((rows) => rows.capacity < needed)) {
-        const capacity = grownLength(Math.max(...froms.map((rows) => rows.capacity)), needed)
-        if (grow && !grow.growsInPlace(froms, capacity))
-          return `the session grows no row for another placement of ${record.manifestUrl}`
-        for (const source of sources) {
-          const from = source.rows
-          if (from.capacity >= needed) continue
-          source.rows = source.grown(capacity)
-          grow?.growPlacements(from, source.rows)
-        }
-      }
-      placed.add(model)
-      draws.rowsHeld = Math.max(draws.rowsHeld, needed, ...sources.map((s) => s.rows.capacity))
-      // Its partitions' scene hangs in this placement's world, which no node of theirs carries; its
-      // rows draw the objects of this placement's instance of the world DAG.
-      for (const cells of modelPartitions(model))
-        cells.pose(() => resolveCameraWorld(model).worldMatrix as Float64Array, row)
-      return undefined
-    },
+    place: (model: LoadedModel, grow?: PlacementGrowth) =>
+      placeRow(ranks, held, placed, model, grow),
     drawsOf: drawsOf as (model: LoadedModel) => ModelDraws,
     /** `model`'s world roots: what the engine draws the world DAG from, one instance per placement
      *  of its record, each at its placement's world — the same holds for every placement. */
@@ -277,18 +306,7 @@ export function createWorldModels(ranks: WorldRanks) {
       shown: boolean,
       composes?: (draws: ModelDraws, row: number) => void,
     ): ModelDraws | undefined {
-      if (!placed.has(model)) return undefined
-      const draws = held.get(model.record)!,
-        row = placementIndex(model)
-      // The graph's worlds are its own, brought up to date where they changed.
-      updateTransformTree(Object3D._treeOf(model.record.scene.source))
-      const world = model.matrixWorld.elements,
-        // A matrix is written only where no session exists to compose it: the pose it opens on.
-        matrices = !composes
-      composes?.(draws, row)
-      for (const source of draws.rowed) source.write(row, world, shown, matrices)
-      draws.world?.write(row, world, shown, matrices)
-      return draws
+      return placed.has(model) ? writePose(held, model, shown, composes) : undefined
     },
   }
   return models

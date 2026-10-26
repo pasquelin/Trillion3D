@@ -8,8 +8,15 @@ import { plane } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import { createCookedSoftBodies } from './cookedSoft.ts'
 import { startModule } from '../module.fixture.ts'
 import { addSoft, at, settle, softWorld } from './soft.fixture.ts'
-import { cookedParts } from '../tiles/tileShapes.fixture.ts'
-import { cooked, landed, streamedModel } from '../tiles/tiles.fixture.ts'
+import { cookedParts, reads } from '../tiles/tileShapes.fixture.ts'
+import {
+  cellsOf,
+  cooked,
+  landed,
+  modelStreamer,
+  streamedModel,
+  stubFetch,
+} from '../tiles/tiles.fixture.ts'
 import { FLAT } from '../records.fixture.ts'
 import { SOFT_WORDS } from '../../../../sdk-core/src/physics/soft/softLayout.ts'
 
@@ -186,4 +193,46 @@ test('a cooked soft body past the budget, or its model scaled from its cook, is 
   scaled.tiles.moved(scaled.model)
   await landed()
   assert.equal(scaled.bodies.count.softVertices, 9, 'placed back at its scale, it is made')
+})
+
+test('a cooked cloth lives with the cells that draw its node: made when one is placed, let go of when it leaves', async () => {
+  const bytes = await golden()
+  const fetched = stubFetch(cooked([], [], [cookedCloth(bytes.length)]), bytes)
+  const { tiles, scene, model, writer, bodies, errors } = modelStreamer()
+  const cells = cellsOf(model, [0])
+  tiles.scan(scene)
+  await landed()
+  assert.deepEqual([bodies.count.softVertices, writer.length], [0, 0], 'its cell is not placed')
+  cells.place(0)
+  tiles.update([0, 0, 0], 100)
+  await landed()
+  const made = writer.take()
+  assert.deepEqual([made[0], bodies.count.softVertices], [OP.soft, 9], 'made with its cell')
+  tiles.update([0, 0, 0], 100)
+  await landed()
+  assert.equal(writer.length, 0, 'a look with nothing moved asks nothing')
+  cells.leave(0)
+  tiles.update([0, 0, 0], 100)
+  assert.deepEqual([...writer.take()], [OP.remove, made[1] & BODY_INDEX], 'let go with its cell')
+  assert.deepEqual([bodies.count.softVertices, tiles.modelOf(made[1])], [0, null])
+  cells.place(0)
+  tiles.update([0, 0, 0], 100)
+  await landed()
+  assert.deepEqual([writer.take()[0], bodies.count.softVertices], [OP.soft, 9], 'made again')
+  assert.equal(reads(fetched, 'cloth.bin'), 1, 'from the settings it holds')
+  assert.deepEqual(codes(errors), [])
+})
+
+test('a cooked cloth its cell left before its settings landed is never made', async () => {
+  const bytes = await golden()
+  stubFetch(cooked([], [], [cookedCloth(bytes.length)]), bytes)
+  const { model, writer, bodies } = modelStreamer()
+  const cells = cellsOf(model, [0])
+  const softs = createCookedSoftBodies(cookedParts(writer, bodies))
+  cells.place(0)
+  softs.open(model, [cookedCloth(bytes.length)], new AbortController().signal)
+  cells.leave(0)
+  softs.stream(model)
+  await landed()
+  assert.deepEqual([bodies.count.softVertices, writer.length], [0, 0])
 })

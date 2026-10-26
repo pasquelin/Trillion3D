@@ -1,11 +1,7 @@
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
-import {
-  BODY_INDEX,
-  engineId,
-  FLAG,
-  LAYER,
-  MOTION,
-} from '../../../../sdk-core/src/physics/layout.ts'
+import { BODY_INDEX, engineId, FLAG, MOTION } from '../../../../sdk-core/src/physics/layout.ts'
+import { bodyCollision } from '../../../../sdk-core/src/physics/collisionChannels.ts'
+import type { PhysicsType } from '../../../../sdk-core/src/physics/options.ts'
 import type { ObjectPhysics, PhysicsHost } from '../../../../sdk-core/src/physics/objectPhysics.ts'
 import { physicsMatterOf } from '../../../../sdk-core/src/physics/matter.ts'
 import { isSoftType } from '../../../../sdk-core/src/physics/soft/soft.ts'
@@ -24,76 +20,63 @@ export function flagsOf(mesh: Pick<Bodied, 'physics' | 'visible'>) {
   const p = mesh.physics
   return (
     (p.sensor ? FLAG.sensor : 0) |
+    (p.decorative ? FLAG.decorative : 0) |
     (p.ccd ? FLAG.ccd : 0) |
     (p.listens ? FLAG.events : 0) |
     (mesh.visible ? 0 : FLAG.hidden)
   )
 }
 
-/**
- * The bodies of a world, by slot: which mesh holds each, and what they count against the budget,
- * simulated in fixed steps of `step` seconds. Adding and removing write commands; nothing reaches
- * the worker before the frame's flush.
- */
-export function createPhysicsBodies(
-  writer: CommandWriter,
-  budget: Readonly<PhysicsBudget>,
-  host: PhysicsHost,
-  root: Object3D,
-  state: NonNullable<ObjectPhysics['_state']>,
-  step: number,
+type BodySlots = ReturnType<typeof createBodySlots>
+type BodyLedger = ReturnType<typeof createBodyLedger>
+
+/** Refused: a dynamic or soft body is not a direct child of the scene. */
+function assertDirectChild(mesh: Bodied, root: Object3D) {
+  const type = mesh.physics.type
+  if (type !== 'static' && type !== 'kinematic' && mesh.parent !== root)
+    throw new EngineError(
+      'PHYSICS_NESTED',
+      'A dynamic or soft body must be a direct child of the scene: the simulation owns its world pose.',
+      { name: mesh.name },
+    )
+}
+
+/** The command that adds `mesh`'s rigid body in slot `id`, at `pose`. */
+function addCommand(
+  mesh: Bodied,
+  id: number,
+  type: PhysicsType,
+  pose: ReturnType<typeof worldPoseOf>,
+  shape: ReturnType<typeof resolveShape>,
+  filter: number,
 ) {
-  const slots = createBodySlots(budget.bodies)
-  const { meshes, physicsAt } = slots
-  /** What the bodies count against the budget (`bodyLedger.ts`); a soft body's vertex map. */
-  const ledger = createBodyLedger(budget)
-  const { count } = ledger
-  const softMaps: (Uint32Array | null)[] = []
-  /** Bodies taken out: asleep decorative or refused ones, their mesh left where it came to rest,
-   *  until their `physics` is set again. */
-  const retired = new WeakSet<Bodied['physics']>()
-  /** Makes `mesh`'s body where the page puts it, at its world scale, recorded on its slot (the
-   *  scale it is made at: `followNode`); a soft one going on from the one `carries` names. */
-  const add = (mesh: Bodied, carries?: number) => {
-    const p = mesh.physics
-    if (p._host) return
-    if (p.type !== 'static' && p.type !== 'kinematic' && mesh.parent !== root)
-      throw new EngineError(
-        'PHYSICS_NESTED',
-        'A dynamic or soft body must be a direct child of the scene: the simulation owns its world pose.',
-        { name: mesh.name },
-      )
-    const owner: SlotOwner = { mesh, physics: p }
-    // Refused before its shape is built, no tile leaving for it yet.
-    ledger.admit(owner, 0, 0)
-    // The world pose as the transform tree composes it.
-    const pose = worldPoseOf(mesh),
-      size = pose.scale
-    owner.scale = [size.x, size.y, size.z]
-    if (isSoftType(p.type)) {
-      const take = (bytes: number, vertices: number) => claim(bytes, vertices, owner)
-      const flags = flagsOf(mesh)
-      return hold(mesh, addSoftBody(writer, mesh, pose, size, take, softMaps, flags, step, carries))
-    }
-    if (p.type === 'dynamic') owner.reach = reachOf(mesh, size)
-    const matter = physicsMatterOf(mesh.material)
-    const shape = resolveShape(mesh.geometry, size, p.type, p.shape, mesh.name)
-    const id = claim(shape.triangles * TRIANGLE_BYTES, 0, owner)
-    const { position, quaternion } = pose
-    const layer =
-      p.type === 'static' ? LAYER.static : p.decorative ? LAYER.decorative : LAYER.moving
-    writer.add({
-      ...{ id, motion: MOTION[p.type], layer, flags: flagsOf(mesh), position, quaternion },
-      ...{ shape: shape.shape, size: shape.size, mass: p.mass ?? 0, density: matter.density },
-      ...{
-        friction: p.friction ?? matter.friction,
-        restitution: p.restitution ?? matter.restitution,
-      },
-      ...{ gravityScale: p.gravityScale, damping: [p.damping.linear, p.damping.angular] },
-      ...{ vertices: shape.vertices, indices: shape.indices, parts: shape.parts },
-    })
-    hold(mesh, id & BODY_INDEX)
+  const p = mesh.physics
+  const matter = physicsMatterOf(mesh.material)
+  const { position, quaternion } = pose
+  return {
+    ...{ id, motion: MOTION[type], filter, flags: flagsOf(mesh), position, quaternion },
+    ...{ shape: shape.shape, size: shape.size, mass: p.mass ?? 0, density: matter.density },
+    ...{
+      friction: p.friction ?? matter.friction,
+      restitution: p.restitution ?? matter.restitution,
+    },
+    ...{
+      gravityScale: p.gravityScale,
+      damping: [p.damping.linear, p.damping.angular] as [number, number],
+    },
+    ...{ vertices: shape.vertices, indices: shape.indices, parts: shape.parts },
   }
+}
+
+/** How a slot is held, claimed against the budget, released and removed. */
+function createBodyClaims(
+  writer: CommandWriter,
+  parts: { slots: BodySlots; ledger: BodyLedger; softMaps: (Uint32Array | null)[] },
+  host: PhysicsHost,
+  state: NonNullable<ObjectPhysics['_state']>,
+) {
+  const { slots, ledger, softMaps } = parts
+  const { count } = ledger
   /** A slot's body made: the mesh that holds it. */
   const hold = (mesh: Bodied, index: number) => {
     const p = mesh.physics
@@ -120,12 +103,142 @@ export function createPhysicsBodies(
     softMaps[index] = null
   }
   const removeAt = (index: number) => {
-    const p = physicsAt(index)
+    const p = slots.physicsAt(index)
     if (!p) return
     release(index)
     if (p.decorative) count.decorative--
     p._detach()
   }
+  return { hold, claim, release, removeAt }
+}
+
+/** Makes `mesh`'s body where the page puts it, at its world scale, recorded on its slot (the
+ *  scale it is made at: `followNode`); a soft one going on from the one `carries` names. */
+function createBodyAdder(
+  writer: CommandWriter,
+  root: Object3D,
+  step: number,
+  parts: {
+    ledger: BodyLedger
+    softMaps: (Uint32Array | null)[]
+    claims: ReturnType<typeof createBodyClaims>
+  },
+) {
+  const { ledger, softMaps, claims } = parts
+  const { claim, hold } = claims
+  return (mesh: Bodied, carries?: number) => {
+    const p = mesh.physics
+    if (p._host) return
+    assertDirectChild(mesh, root)
+    const owner: SlotOwner = { mesh, physics: p }
+    // Refused before its shape is built, no tile leaving for it yet.
+    ledger.admit(owner, 0, 0)
+    // The world pose as the transform tree composes it.
+    const pose = worldPoseOf(mesh),
+      size = pose.scale
+    owner.scale = [size.x, size.y, size.z]
+    if (isSoftType(p.type)) {
+      const take = (bytes: number, vertices: number) => claim(bytes, vertices, owner)
+      const flags = flagsOf(mesh)
+      return hold(mesh, addSoftBody(writer, mesh, pose, size, take, softMaps, flags, step, carries))
+    }
+    if (p.type === 'dynamic') owner.reach = reachOf(mesh, size)
+    const shape = resolveShape(mesh.geometry, size, p.type, p.shape, mesh.name)
+    const id = claim(shape.triangles * TRIANGLE_BYTES, 0, owner)
+    const type = p.type // not a soft one: it returned above
+    const filter = writer.filter(
+      bodyCollision({
+        ...{ type, sensor: p.sensor },
+        decorative: p.decorative,
+        collision: p.collision,
+      }),
+      type === 'static',
+    )
+    writer.add(addCommand(mesh, id, type, pose, shape, filter))
+    hold(mesh, id & BODY_INDEX)
+  }
+}
+
+/** The body in slot `index`, placed off the scale it was made at, made again at its new one:
+ *  a soft one before it leaves (its REMOVE after), going on from it, its simulation carried and
+ *  scaled (`softPlacement.h`); any other after, its slot given back first, so a rescale needs
+ *  none past the budget. Throws, the old body out, when the new one is refused. */
+function remakeBody(
+  slots: BodySlots,
+  count: BodyLedger['count'],
+  index: number,
+  release: (index: number) => void,
+  add: (mesh: Bodied, carries?: number) => void,
+) {
+  const p = slots.physicsAt(index),
+    mesh = slots.meshes[index]
+  if (!p || !mesh) return
+  if (p.decorative) count.decorative--
+  p._detach()
+  if (!isSoftType(p.type)) return (release(index), add(mesh))
+  try {
+    add(mesh, engineId(index, slots.generation[index]))
+  } finally {
+    release(index)
+  }
+}
+
+/**
+ * Brings the bodies in line with the scene, once per frame that changed it: a body whose mesh
+ * left the scene, whose `physics` was replaced or whose shape or matter changed (`stale`) is
+ * removed; every mesh under the scene with physics and no body gets one. A request past a
+ * budget is refused and handed to `refused`, the other bodies proceed.
+ */
+function reconcileBodies(
+  root: Object3D,
+  slots: BodySlots,
+  retired: WeakSet<Bodied['physics']>,
+  edit: { removeAt: (index: number) => void; add: (mesh: Bodied) => void },
+  stale: ReadonlySet<Object3D>,
+  refused: (error: unknown) => void,
+) {
+  const { meshes, physicsAt } = slots
+  for (let i = 0; i < meshes.length; i++) {
+    const mesh = meshes[i]
+    if (mesh && (!mesh._link || mesh.physics !== physicsAt(i) || stale.has(mesh))) edit.removeAt(i)
+  }
+  root.traverse((node) => {
+    if (!hasBody(node) || node.physics._host) return
+    if (retired.has(node.physics)) return
+    try {
+      edit.add(node)
+    } catch (error) {
+      refused(error)
+    }
+  })
+}
+
+/**
+ * The bodies of a world, by slot: which mesh holds each, and what they count against the budget,
+ * simulated in fixed steps of `step` seconds. Adding and removing write commands; nothing reaches
+ * the worker before the frame's flush.
+ */
+export function createPhysicsBodies(
+  writer: CommandWriter,
+  budget: Readonly<PhysicsBudget>,
+  host: PhysicsHost,
+  root: Object3D,
+  state: NonNullable<ObjectPhysics['_state']>,
+  step: number,
+) {
+  const slots = createBodySlots(budget.bodies)
+  const { meshes } = slots
+  /** What the bodies count against the budget (`bodyLedger.ts`); a soft body's vertex map. */
+  const ledger = createBodyLedger(budget)
+  const { count } = ledger
+  const softMaps: (Uint32Array | null)[] = []
+  /** Bodies taken out: asleep decorative or refused ones, their mesh left where it came to rest,
+   *  until their `physics` is set again. */
+  const retired = new WeakSet<Bodied['physics']>()
+  const claims = createBodyClaims(writer, { slots, ledger, softMaps }, host, state)
+  const { claim, release, removeAt } = claims
+  const add = createBodyAdder(writer, root, step, { ledger, softMaps, claims })
+  const edit = { removeAt, add }
   return {
     meshes,
     /** By slot: the compiled nodes bodies move (`createBodySlots`), their last step (`state`). */
@@ -145,51 +258,18 @@ export function createPhysicsBodies(
     /** A body no mesh holds (a cooked tile or soft body): its slot, then its removal. */
     claim,
     release,
-    /** The body in slot `index`, placed off the scale it was made at, made again at its new one:
-     *  a soft one before it leaves (its REMOVE after), going on from it, its simulation carried and
-     *  scaled (`softPlacement.h`); any other after, its slot given back first, so a rescale needs
-     *  none past the budget. Throws, the old body out, when the new one is refused. */
-    remake(index: number) {
-      const p = physicsAt(index),
-        mesh = meshes[index]
-      if (!p || !mesh) return
-      if (p.decorative) count.decorative--
-      p._detach()
-      if (!isSoftType(p.type)) return (release(index), add(mesh))
-      try {
-        add(mesh, engineId(index, slots.generation[index]))
-      } finally {
-        release(index)
-      }
-    },
+    /** The body in slot `index` made again at its new scale (`remakeBody`). */
+    remake: (index: number) => remakeBody(slots, count, index, release, add),
     /** A body asleep decorative or refused: out of the simulation and budget until its `physics`
      *  is set again. */
     retire(index: number) {
-      const p = physicsAt(index)
+      const p = slots.physicsAt(index)
       removeAt(index)
       if (p) retired.add(p)
     },
-    /**
-     * Brings the bodies in line with the scene, once per frame that changed it: a body whose mesh
-     * left the scene, whose `physics` was replaced or whose shape or matter changed (`stale`) is
-     * removed; every mesh under the scene with physics and no body gets one. A request past a
-     * budget is refused and handed to `refused`, the other bodies proceed.
-     */
-    reconcile(stale: ReadonlySet<Object3D>, refused: (error: unknown) => void) {
-      for (let i = 0; i < meshes.length; i++) {
-        const mesh = meshes[i]
-        if (mesh && (!mesh._link || mesh.physics !== physicsAt(i) || stale.has(mesh))) removeAt(i)
-      }
-      root.traverse((node) => {
-        if (!hasBody(node) || node.physics._host) return
-        if (retired.has(node.physics)) return
-        try {
-          add(node)
-        } catch (error) {
-          refused(error)
-        }
-      })
-    },
+    /** The bodies in line with the scene (`reconcileBodies`). */
+    reconcile: (stale: ReadonlySet<Object3D>, refused: (error: unknown) => void) =>
+      reconcileBodies(root, slots, retired, edit, stale, refused),
     /** Every body the world holds, removed (physics turned off or the world disposed). */
     clear() {
       for (let i = 0; i < meshes.length; i++) removeAt(i)

@@ -10,11 +10,9 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { rootRankOfRow } from '../update.ts'
 import { noteRootWorld } from '../roots/rootWorlds.ts'
-import { deriveRootRows } from '../rows/rowWords.ts'
 import {
   createComposeState,
   growComposeState,
-  seedMotion,
   slotMoved,
   type ComposeState,
 } from './gpuComposeState.ts'
@@ -31,7 +29,7 @@ import type { PlacementLink } from './gpuCompose.ts'
 export function composeState(rt: WebgpuPagesRuntime) {
   const roots = rt.layout.selectionRoots.length,
     state = rt.compose
-  if (state && roots > state.roots) growComposeState(rt, state, roots)
+  if (state && roots > state.roots) growComposeState(state, roots)
   else if (state && roots < state.roots) {
     for (let slot = 0; slot < state.ranksOf.length; slot++)
       if (state.ranksOf[slot]?.length) unlinkHeld(rt, state, slot, [])
@@ -95,10 +93,8 @@ export function unlinkHeld(
     // Its world is no longer composed: what derives from it is taken again (`worldMoved`).
     const root = rt.layout.selectionRoots[rank]
     if (root) worldMoved(root)
-    // Its world is the CPU's again: sent from it, its rows derived from it, the pages they leave
-    // and enter staled.
+    // Its world is the CPU's again: sent from it.
     noteRootWorld(rt, rank)
-    deriveRootRows(rt, rank)
     state.rankList.remove(rank)
     state.linksMoved.mark(rank)
     mobility.follow(rank, -1)
@@ -131,15 +127,12 @@ export function linkRanks(
     if (whole || was !== slot) held.push(rank)
     if (was === slot && sameElements(state.localMats, local, rank * MATRIX_VALUES)) continue
     changed = true
-    // A root linked already keeps its own motion; one joining leaves the lists of the slot it left.
+    // One joining leaves the lists of the slot it left.
     if (was !== slot) {
       slotMoved(state, slot)
       if (was !== NO_INDEX) slotMoved(state, was)
     }
-    if (was === NO_INDEX) {
-      seedMotion(rt, state, rank)
-      state.rankList.add(rank)
-    }
+    if (was === NO_INDEX) state.rankList.add(rank)
     state.parentOf[rank] = slot
     rt.lights.mobility.follow(rank, slot)
     rt.run.gpuSelection?.composedPlacement(rank, true)

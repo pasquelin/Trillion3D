@@ -33,7 +33,7 @@ test('the lobed blend program sums a fragment without lobes as the lobeless one,
     sums = 0
   for (let round = 0; round < 160; round++) {
     const { count, P, normal: N, scope: shared } = randomLampScope(r, u, K, round, () => -1)
-    const scope = { ...F32_SCOPE, ...shared, shadowTransmission: [1, 1, 1] }
+    const scope = { ...F32_SCOPE, ...shared }
     const surface = [[u(0, 1), u(0, 1), u(0, 1)], u(0, 1), u(0.06, 1), N, [0.6, 0.8, 0], P, 1]
     const sum = (text: string, names: string[], lobes: object, slice: number[]) =>
       shaderRun<Record<string, Sum>>(text, names, { ...scope, lobes }).sliceLighting(

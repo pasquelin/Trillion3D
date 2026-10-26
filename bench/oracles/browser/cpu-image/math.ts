@@ -1,9 +1,9 @@
-import type { HostAttribute } from '../../../../packages/sdk-browser/src/session/host/resources.ts'
 import { srgbToLinear } from '../../../../packages/math/src/color/color.ts'
 import type { Texture } from '../../../../packages/sdk-core/src/texture/contract.ts'
 import { mapTexel } from '../../../../packages/sdk-browser/src/visibility/mapTexel.fixture.ts'
 import { signedArea, type Projected } from './projection.ts'
 import { textureRgba } from '../../../../packages/sdk-browser/src/visibility/types.ts'
+import type { VertexAttribute } from '../../../../packages/sdk-core/src/world/buffer/attribute.ts'
 
 /** A colour byte times its alpha byte, as an 8-bit `premultiplyAlpha` upload stores it: the rule
  *  the GPU turn of raw texels applies in integers (`turnLevel`, `materials/texture/mipsWgsl.ts`). */
@@ -64,7 +64,7 @@ export function barycentric(a: Projected, b: Projected, c: Projected, x: number,
 }
 
 export function attr2(
-  attribute: HostAttribute | undefined,
+  attribute: VertexAttribute | undefined,
   i0: number,
   i1: number,
   i2: number,

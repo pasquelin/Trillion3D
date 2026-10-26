@@ -2,7 +2,7 @@ import { rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { cleanBundle } from './build-bundle.ts'
 import { heavyStep } from '../native/heavy-lock.ts'
-import { run } from '../test/run.ts'
+import { run } from '../check/run.ts'
 
 // `pnpm run build`: the packages' `dist/`, from a clean output, as one heavy step
 // (`scripts/native/heavy-lock.ts`).

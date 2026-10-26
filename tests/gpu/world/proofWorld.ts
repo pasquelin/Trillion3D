@@ -11,8 +11,10 @@ import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/cont
 import { animationFrame } from '../../kit/device/frame.ts'
 import { measurementSdk, proofCanvas } from '../../kit/device/renderHarness.ts'
 
-/** Frames a pose gets to be held before the proof gives up on it. */
-const SETTLE_FRAMES = 128
+/** Frames a pose gets to be held before the proof gives up on it: the surface cache's light
+ *  settles over `settleImages` images after its last capture (255 at the defaults), its captures
+ *  confirmed a few images after they are drawn. */
+const SETTLE_FRAMES = 320
 
 /** The measurement SDK as a URL, for the bench helpers that import it themselves. */
 export const SDK_URL = pathToFileURL(

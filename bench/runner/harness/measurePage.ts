@@ -1,4 +1,4 @@
-// What both measurement pages (`lighting/lightingPage.ts`, `witness/threeBarePage.ts`) do the same: the moving
+// What the measurement page (`lighting/lightingPage.ts`) does: the moving
 // light on its small circle, the capture sent to Node, the bytes transferred on the network.
 // Served to the page under `/runner/` and imported by URL, with nothing from the SDK.
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/session/explorer.ts'
@@ -56,7 +56,7 @@ export const HOLD_FRAME_LIMIT = 64
  * image too, since the bench opens its sessions with `drawConverged` (`explorerOptions`): each
  * measured frame costs a draw. A capture after it depends on the pose, not on the
  * trajectory's arrivals. Returns how many frames it drew, or `null` if the engine reports no hold
- * at all (the Three witness, for example).
+ * at all.
  */
 export async function calmPose(
   explorer: MeasuredWorld,

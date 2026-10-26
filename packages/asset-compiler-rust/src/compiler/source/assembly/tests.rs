@@ -32,11 +32,21 @@ fn windows(count: usize) -> Value {
     json!({"parts": [{"mesh": 0}], "nodes": nodes})
 }
 
-/// The assemblies of `g`, laid out, within a budget that holds them, the nodes of one with no
-/// primitive of its own left with none.
+/// The assemblies of `allowed` laid out in `g` within `limit` bytes, as a job naming no setting.
+fn expanded(g: &mut Value, allowed: &[usize], limit: usize) -> Result<()> {
+    let builds = crate::MeshBuildOptions::default().meshes(g)?;
+    let voxelized = BTreeSet::new();
+    let resolved = parts::Resolved {
+        builds: &builds,
+        voxelized: &voxelized,
+    };
+    expand::expand(g, allowed, &resolved, limit)
+}
+
+/// The assemblies of `g`, laid out, the nodes of one with no primitive of its own left with none.
 fn lay_out(g: &mut Value) -> Result<()> {
     let meshes = assembly_meshes(g);
-    expand::expand(g, &meshes, usize::MAX)?;
+    expanded(g, &meshes, usize::MAX)?;
     expand::strip_bare(g);
     Ok(())
 }
@@ -129,18 +139,27 @@ fn a_part_that_remaps_its_materials_is_copied_once() {
 }
 
 // Behaviour: a part with no remap takes the assembly's slot of each primitive's rank, and the
-// assembly mesh's shape, tangent, texture, edge and voxel settings: a copy wearing them; a part that
-// already wears them is drawn from its own mesh.
+// settings the assembly mesh resolves — its shape word, edge bound and texture hold written into a
+// copy, its tangents and voxel settings given by the mark the copy wears (`PART_EXTRA`): a copy
+// wearing them; a part that already wears them is drawn from its own mesh.
 #[test]
 fn a_part_takes_the_assemblys_slots_and_settings() {
     let mut g = scene(windows(1), 1);
     g["meshes"][0]["primitives"][0]["material"] = json!(0);
     g["meshes"][1]["primitives"][0]["material"] = json!(1);
     g["meshes"][1]["extras"]["voxelRays"] = json!(128);
+    g["meshes"][1]["extras"]["edgeLengthBound"] = json!(2.5);
+    g["meshes"][0]["extras"] = json!({"holdTextureCoordinates": true});
     lay_out(&mut g).expect("lays out");
     let copy = &g["meshes"][2];
     assert_eq!(copy["primitives"][0]["material"], 1);
-    assert_eq!(copy["extras"]["voxelRays"], 128);
+    assert_eq!(copy["extras"]["edgeLengthBound"], 2.5);
+    assert!(copy["extras"].get("holdTextureCoordinates").is_none());
+    assert_eq!(plan::part_of(copy), Some(1));
+    let builds = crate::MeshBuildOptions::default()
+        .meshes(&g)
+        .expect("resolves");
+    assert_eq!(builds[2].voxels.asked_rays, 128);
     assert!(copy["extras"].get("assembly").is_none());
     let mut same = scene(windows(1), 1);
     same["meshes"][0]["primitives"][0]["material"] = json!(1);
@@ -189,7 +208,7 @@ fn a_part_that_is_an_assembly_is_refused_whatever_the_order_of_the_meshes() {
     };
     for (first, second) in [(1, 2), (2, 1)] {
         let mut g = nested(first, second);
-        let refusal = lay_out(&mut g).err().expect("nested");
+        let refusal = lay_out(&mut g).expect_err("nested");
         assert_eq!(refusal.code, "INVALID_ASSEMBLY");
         assert!(
             refusal.message.contains("assemblies of assemblies"),
@@ -199,12 +218,30 @@ fn a_part_that_is_an_assembly_is_refused_whatever_the_order_of_the_meshes() {
     }
     // The part's own assembly not built: drawn as its own triangles, a part like any.
     let mut g = nested(1, 2);
-    expand::expand(&mut g, &[1], usize::MAX).expect("the part is not built as an assembly");
+    expanded(&mut g, &[1], usize::MAX).expect("the part is not built as an assembly");
     assert_eq!(children(&g, 0).len(), 1);
     // An assembly listed as a part that no node places is never laid out: not refused.
     let mut g = nested(1, 2);
     g["meshes"][1]["extras"]["assembly"]["parts"] = json!([{"mesh": 0}, {"mesh": 2}]);
     lay_out(&mut g).expect("an unplaced nested part is not met");
+}
+
+// Behaviour: an assembly that names no part or no node is no assembly — the reference builds it as
+// a plain mesh — so it is a part like any mesh: listed as a part of another, built, never refused.
+#[test]
+fn an_assembly_that_names_nothing_is_a_part_like_any_mesh() {
+    for empty in [
+        json!({}),
+        json!({"parts": [], "nodes": []}),
+        json!({"parts": [{"mesh": 0}]}),
+    ] {
+        let mut g = scene(windows(1), 1);
+        let part = json!({"name": "Shed", "primitives": [], "extras": {"assembly": empty}});
+        g["meshes"].as_array_mut().expect("meshes").push(part);
+        g["meshes"][1]["extras"]["assembly"]["parts"] = json!([{"mesh": 2}]);
+        lay_out(&mut g).expect("an assembly that names nothing is a plain part");
+        assert_eq!(g["nodes"][1]["mesh"], 2);
+    }
 }
 
 // Behaviour: what does not read is refused by name — an unknown field, a part or a node out of
@@ -252,13 +289,11 @@ fn an_assembly_that_does_not_read_is_refused_by_name() {
         (too_many, "65535"),
     ];
     for (mut g, words) in cases {
-        let refusal = lay_out(&mut g).err().expect(words);
+        let refusal = lay_out(&mut g).expect_err(words);
         assert_eq!(refusal.code, "INVALID_ASSEMBLY", "{words}");
         assert!(refusal.message.contains(words), "{}", refusal.message);
     }
     let mut g = scene(windows(10), 2);
-    let refusal = expand::expand(&mut g, &[1], 64)
-        .err()
-        .expect("over the budget");
+    let refusal = expanded(&mut g, &[1], 64).expect_err("over the budget");
     assert_eq!(refusal.code, "RAM_ADMISSION_BUDGET_EXCEEDED");
 }

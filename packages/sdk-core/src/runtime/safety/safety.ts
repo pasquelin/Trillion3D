@@ -50,8 +50,8 @@ export interface SafetyConfig {
   /** Whether GPU time must be measured. */
   requireGpuTiming?: boolean
 }
-/** Policy evaluates evidence; it never fabricates a reference or samples a clock itself. */
-export function createSafetyPolicy(config: SafetyConfig) {
+/** Refuses a configuration whose counts, period, ratios or ceilings are out of range. */
+function assertSafetyConfig(config: SafetyConfig) {
   if (
     !Number.isInteger(config.minimumSamples) ||
     config.minimumSamples < 1 ||
@@ -68,6 +68,10 @@ export function createSafetyPolicy(config: SafetyConfig) {
     )
   )
     throw new Error('INVALID_SAFETY_POLICY')
+}
+/** Policy evaluates evidence; it never fabricates a reference or samples a clock itself. */
+export function createSafetyPolicy(config: SafetyConfig) {
+  assertSafetyConfig(config)
   let decision: SafetyDecision = {
       tier: 'baseline',
       enabled: false,

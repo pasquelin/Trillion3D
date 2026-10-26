@@ -6,9 +6,12 @@
 //!   an object, its own chain, level `i`'s cell side and loading range those the job names it
 //!   (`hlodGrids` of the main grid), each else that main grid's doubled `i + 1` times; on the main
 //!   grid's origin, flat as it is, each finest cell streaming by its content clipped to its cell;
-//!   its cells loaded at priority 0. A layer's own `cellSize` and `loadingRange` set nothing, as
-//!   the reference deprecates them. An actor lies in the cell its loose grid gives it
-//!   (`LooseGrid::place`): no actor of a spatially loaded layer is always loaded.
+//!   its cells loaded at priority 0. The chain has grids for the layers the main grid lists
+//!   (`hlodLayers`, every layer of the job's HLOD by default) and for those alone: an actor of
+//!   another is always loaded, as one of a layer not spatially loaded. A layer's own `cellSize`
+//!   and `loadingRange` set nothing, as the reference deprecates them. An actor lies in the cell
+//!   its loose grid gives it (`LooseGrid::place`): no actor of a layer with grids is always
+//!   loaded.
 //! - `spatialHash`: the grid the layer names (`HlodLayer::cell_size`, `loading_range`), the layers
 //!   of one level, cell side and loading range sharing one whichever main grid their objects
 //!   stream on, each a square grid over the world centred on the world's origin, its cells loaded
@@ -91,7 +94,8 @@ impl Grids {
         }
     }
 
-    /// The loose grids of `hashSet`: each of the main grids `all`, then its own HLOD level grids.
+    /// The loose grids of `hashSet`: each of the main grids `all`, then its own HLOD level grids,
+    /// for the layers it lists (`LooseSettings::lists`) when it owns an object (`owners`).
     fn loose(
         (hlod, levels): (&Hlod, &[Option<usize>]),
         all: &[GridSettings],
@@ -110,7 +114,8 @@ impl Grids {
             .collect();
         Self::keyed(
             (hlod, levels),
-            (mains, owners),
+            mains,
+            |main, l| owners[main] && all[main].loose.lists(&l.name),
             |main, _, level| (main, level),
             |(main, level)| {
                 let g = &all[main];
@@ -154,10 +159,10 @@ impl Grids {
         };
         // Its HLOD grids are the layers', whichever main grid owns an object: every chain
         // reaches them.
-        let owners = vec![true; all.len()];
         Self::keyed(
             (hlod, levels),
-            (mains, &owners),
+            mains,
+            |_, _| true,
             key,
             |(level, cell, range)| GridSpec {
                 main: None,
@@ -171,12 +176,14 @@ impl Grids {
     }
 
     /// `mains`, then one grid per key `key` gives a spatially loaded layer of `hlod` at its level
-    /// (`levels`) in the chain of a main grid `owners` says owns an object, in the keys' order,
-    /// each as `spec` makes it; each main grid's layers' actors on the grid of their key, none for
-    /// a layer not spatially loaded or no object's chain reaches.
+    /// (`levels`) in the chain of a main grid, where `has` says the chain has grids for the layer,
+    /// in the keys' order, each as `spec` makes it; each main grid's layers' actors on the grid of
+    /// their key, none for a layer not spatially loaded, without grids on that main grid, or no
+    /// object's chain reaches.
     fn keyed<K: Ord + Copy>(
         (hlod, levels): (&Hlod, &[Option<usize>]),
-        (mains, owners): (Vec<GridSpec>, &[bool]),
+        mains: Vec<GridSpec>,
+        has: impl Fn(usize, &HlodLayer) -> bool,
         key: impl Fn(usize, &HlodLayer, usize) -> K,
         spec: impl Fn(K) -> GridSpec,
     ) -> Self {
@@ -186,7 +193,7 @@ impl Grids {
                 (hlod.layers.iter().zip(levels))
                     .map(|(l, level)| {
                         let level = (*level)?;
-                        (l.spatially_loaded && owners[main]).then(|| key(main, l, level))
+                        (l.spatially_loaded && has(main, l)).then(|| key(main, l, level))
                     })
                     .collect()
             })
@@ -218,5 +225,56 @@ impl Grids {
     pub(crate) fn place(&self, main: usize, layer: usize, bounds: &Box6) -> Option<(usize, Coord)> {
         let grid = self.of_layer[main][layer]?;
         Some((grid, self.list[grid].place(bounds)?))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// The partition `job` names.
+    fn read(job: Value) -> std::result::Result<PartitionGrid, String> {
+        PartitionGrid::read(job.as_object().expect("a job"))
+    }
+
+    #[test]
+    fn a_main_grid_has_grids_for_the_layers_it_lists_and_for_those_alone() {
+        let hlod = crate::tests::fixtures::hlod_chain();
+        let job = json!({"partitionGrids": [{}, {"name": "far", "hlodLayers": ["hlod0"]}]});
+        let grid = read(job).expect("reads");
+        assert_eq!(grid.unknown_hlod_layer(&hlod), None);
+        let levels = hlod.levels([0]);
+        let grids = Grids::of((&hlod, &levels, &grid), &[0.0; 6], [0, 1].into_iter());
+        // The first grid lists every layer: hlod0 to hlod2 have grids, hlod3 is not spatially
+        // loaded. The second lists hlod0 alone.
+        assert_eq!(grids.list.len(), 2 + 3 + 1);
+        let on = |main, layer| {
+            grids
+                .place(main, layer, &[1.0, 0.0, 1.0, 2.0, 1.0, 2.0])
+                .is_some()
+        };
+        assert_eq!(
+            [0, 1, 2, 3].map(|layer| on(0, layer)),
+            [true, true, true, false]
+        );
+        assert_eq!(
+            [0, 1, 2, 3].map(|layer| on(1, layer)),
+            [true, false, false, false]
+        );
+    }
+
+    #[test]
+    fn a_layer_no_job_layer_bears_or_a_square_scheme_refuses_the_list() {
+        let hlod = crate::tests::fixtures::hlod_chain();
+        let wrong = read(json!({"partitionGrid": {"hlodLayers": ["nowhere"]}})).expect("reads");
+        let refusal = wrong.unknown_hlod_layer(&hlod).expect("refused");
+        assert!(
+            refusal.contains("partitionGrid") && refusal.contains("nowhere"),
+            "{refusal}"
+        );
+        let square = json!({"partitionScheme": "spatialHash", "partitionGrid": {"hlodLayers": []}});
+        assert!(read(square).expect_err("refused").contains("hashSet alone"));
+        assert!(read(json!({"partitionGrid": {"hlodLayers": [3]}})).is_err());
     }
 }

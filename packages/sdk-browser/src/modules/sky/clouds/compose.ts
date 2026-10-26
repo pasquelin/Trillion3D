@@ -6,12 +6,19 @@ import {
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
 import { HDR_FORMAT } from '../../../scene/targetFormats.ts'
+import {
+  ALPHA_ONLY,
+  KEEP_ALPHA,
+  LIGHT_THROUGH,
+  SCALED_BY_ALPHA,
+} from '../../../materials/surface/materialBlending.ts'
 import { composeScale, type CloudSetup } from './cloudModes.ts'
 import {
   COMPOSE_BINDING,
   COMPOSE_AIR_BINDINGS,
   COMPOSE_VIEW,
   composeProgram,
+  type HeldClouds,
 } from './composeWgsl.ts'
 import {
   put4,
@@ -74,7 +81,7 @@ const imageEntries = new Map<boolean, GPUBindGroupLayoutEntry[]>()
 /** The cloud images' group (group 1): the uniform, the colour, secondary (two surfaces) and depth
  *  images, the scene's depth, and the sampler (`RECONSTRUCT_SAMPLER`), made once for each kind and
  *  shared: not to be changed. */
-export function composeEntries(setup: CloudSetup) {
+function composeEntries(setup: CloudSetup) {
   let entries = imageEntries.get(setup.minMaxDepth)
   if (!entries) {
     const stage = GPUShaderStage.FRAGMENT,
@@ -92,27 +99,34 @@ export function composeEntries(setup: CloudSetup) {
   return entries
 }
 
-/** `GPUColorWrite`'s flags, written in the clear. */
-const RED = 1,
-  GREEN = 2,
-  BLUE = 4
-
 /** The blend over the HDR image: the cloud's luminance added to the image multiplied by its
- *  transmittance (the output's alpha), the colour written and the image's alpha left as it is. */
-export const COMPOSE_TARGET: GPUColorTargetState = {
+ *  transmittance (the output's alpha), the image's alpha, the share of the background left visible,
+ *  multiplied by it as well. */
+const COMPOSE_TARGET: GPUColorTargetState = {
   format: HDR_FORMAT,
   blend: {
-    color: { srcFactor: 'one', dstFactor: 'src-alpha', operation: 'add' },
-    alpha: { srcFactor: 'zero', dstFactor: 'one', operation: 'add' },
+    color: LIGHT_THROUGH,
+    alpha: SCALED_BY_ALPHA,
   },
-  writeMask: RED | GREEN | BLUE,
+}
+
+/** The alpha holdout's second draw (`HeldClouds`): the coverage the clouds, the haze and the fog in front
+ *  of them hold out, the output's alpha, added to the image's alpha — the alpha alone is written
+ *  (`GPUColorWrite.ALPHA`), after the first draw multiplied it by the clouds' transmittance. */
+const COMPOSE_HELD_TARGET: GPUColorTargetState = {
+  format: HDR_FORMAT,
+  writeMask: ALPHA_ONLY,
+  blend: {
+    // The write mask is the alpha alone: the colour component is never written, `KEEP_ALPHA` only fills the field.
+    color: KEEP_ALPHA,
+    alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'add' },
+  },
 }
 
 const groupsByKind = new Map<boolean, GPUBindGroupLayoutEntry[][]>()
 
-/** What the pass draws for `setup`: a full-screen triangle over the `view` pixels of the HDR image,
- *  its layouts (group 0 the air's, group 1 the cloud images'), its two entries and its blend. */
-export function describeCompose(view: Size, setup: CloudSetup) {
+/** The composition's layouts: group 0 the air's, group 1 the cloud images'. */
+const composeGroups = (setup: CloudSetup) => {
   let groups = groupsByKind.get(setup.minMaxDepth)
   if (!groups) {
     groups = [
@@ -121,12 +135,18 @@ export function describeCompose(view: Size, setup: CloudSetup) {
     ]
     groupsByKind.set(setup.minMaxDepth, groups)
   }
+  return groups
+}
+
+/** What the pass draws for `setup`: a full-screen triangle over the `view` pixels of the HDR image,
+ *  its layouts (group 0 the air's, group 1 the cloud images'), its two entries and its blend. */
+export function describeCompose(view: Size, setup: CloudSetup, localFog = true, held?: HeldClouds) {
   return {
-    code: composeProgram(setup),
+    code: composeProgram(setup, localFog, held),
     vertexEntry: 'fullscreen',
     fragmentEntry: 'composeMain',
-    groups,
-    target: COMPOSE_TARGET,
+    groups: composeGroups(setup),
+    target: held ? COMPOSE_HELD_TARGET : COMPOSE_TARGET,
     viewport: view,
     uniformFloats: COMPOSE_VIEW.words,
     sampler: RECONSTRUCT_SAMPLER,

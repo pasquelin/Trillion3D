@@ -18,6 +18,7 @@ use crate::compiler::primitive::triangles;
 use crate::compiler::source::node_transform::local_matrix;
 use crate::*;
 use serde_json::Map;
+use std::collections::BTreeSet;
 
 /// The readers of an assembly's data: every refusal of it is `INVALID_ASSEMBLY`.
 pub(super) const ASSEMBLY: Fields = Fields("INVALID_ASSEMBLY");
@@ -65,15 +66,10 @@ fn material(value: &Value, what: &str, materials: usize) -> Result<Option<usize>
     }
 }
 
-/// Part `at` of assembly `assembly`, read from `part`: refused when a node places it (`placed`) and
-/// it is an assembly that is built (`allowed`: a part is built whole, never as an assembly of its
-/// own) — a part no node places is not laid out, so the reference never meets its nesting —, or
-/// when it moves with bones or morph targets.
-fn read_part(
-    g: &Value,
-    (at, part, placed): (usize, &Value, bool),
-    (assembly, allowed): (usize, &[usize]),
-) -> Result<Part> {
+/// Part `at` of assembly `assembly`, read from `part`: refused when it moves with bones or morph
+/// targets. A part that is itself an assembly is refused once every assembly is read
+/// (`refuse_nested`).
+fn read_part(g: &Value, (at, part): (usize, &Value), assembly: usize) -> Result<Part> {
     let what = format!("meshes[{assembly}].extras.assembly.parts[{at}]");
     let part = ASSEMBLY.known(part, &["mesh", "materialRemap"], &what)?;
     let meshes = values(g, "meshes")?;
@@ -81,10 +77,6 @@ fn read_part(
         .get("mesh")
         .ok_or_else(|| ASSEMBLY.bad(format!("{what}.mesh is required")))?;
     let mesh = ASSEMBLY.bounded_index(named, &format!("{what}.mesh"), meshes.len())?;
-    if placed && (mesh == assembly || allowed.contains(&mesh)) {
-        let why = "a part cannot be an assembly: assemblies of assemblies are not supported";
-        return Err(ASSEMBLY.bad(format!("{what}: {why}")));
-    }
     let primitives = meshes[mesh].get("primitives").and_then(Value::as_array);
     if !primitives.into_iter().flatten().all(triangles::is_rigid) {
         let why = "an assembly is static: a part has no bones and no morph targets";
@@ -128,8 +120,8 @@ fn read_node(at: usize, node: &Value, (parts, assembly): (usize, usize)) -> Resu
 
 /// The assembly mesh `mesh` names, read whole before any assembly is laid out: `None` when it
 /// names no part or no node, as the reference builds no assembly then; a refusal naming the field
-/// when the data does not read. `allowed` are the meshes whose assembly is built: none is a part.
-pub(super) fn read(g: &Value, mesh: usize, allowed: &[usize]) -> Result<Option<Spec>> {
+/// when the data does not read.
+pub(super) fn read(g: &Value, mesh: usize) -> Result<Option<Spec>> {
     let what = format!("meshes[{mesh}].extras.{ASSEMBLY_EXTRA}");
     let extra = extra_of(&g["meshes"][mesh]);
     let extra = extra.ok_or_else(|| ASSEMBLY.bad(format!("{what} is not an assembly")))?;
@@ -153,12 +145,33 @@ pub(super) fn read(g: &Value, mesh: usize, allowed: &[usize]) -> Result<Option<S
     let nodes = (nodes.iter().enumerate())
         .map(|(at, node)| read_node(at, node, (parts.len(), mesh)))
         .collect::<Result<Vec<_>>>()?;
-    let mut placed = vec![false; parts.len()];
-    for node in &nodes {
-        placed[node.part] = true;
-    }
-    let parts = (parts.iter().zip(placed).enumerate())
-        .map(|(at, (part, placed))| read_part(g, (at, part, placed), (mesh, allowed)))
+    let parts = (parts.iter().enumerate())
+        .map(|(at, part)| read_part(g, (at, part), mesh))
         .collect::<Result<Vec<_>>>()?;
     Ok(Some(Spec { parts, nodes }))
+}
+
+/// Refuses an assembly one of whose parts, that a node places, is itself an assembly: `specs` are
+/// the assemblies that read non-empty, each with its mesh — a part is built whole, never as an
+/// assembly of its own. A part no node places is not laid out, so the reference never meets its
+/// nesting; an assembly that names no part or no node is built as a plain mesh, a part like any.
+pub(super) fn refuse_nested(specs: &[(usize, Spec)]) -> Result<()> {
+    let built: BTreeSet<usize> = specs.iter().map(|(mesh, _)| *mesh).collect();
+    for (assembly, spec) in specs {
+        // The parts a node places, marked in one pass over the nodes (a node's part is below the
+        // parts: `read_node`).
+        let mut placed = vec![false; spec.parts.len()];
+        for node in &spec.nodes {
+            placed[node.part] = true;
+        }
+        for (at, part) in spec.parts.iter().enumerate() {
+            if placed[at] && built.contains(&part.mesh) {
+                let what = format!("meshes[{assembly}].extras.assembly.parts[{at}]");
+                let why =
+                    "a part cannot be an assembly: assemblies of assemblies are not supported";
+                return Err(ASSEMBLY.bad(format!("{what}: {why}")));
+            }
+        }
+    }
+    Ok(())
 }

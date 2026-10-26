@@ -31,7 +31,9 @@ export class MathGraph extends WiredGraph {
   lerp(a: Wire, b: Wire, alpha: Wire) {
     return this.wire('lerp', { a, b, alpha })
   }
-  /** `base` to the power `exponent` (2); a negative base counts as 0. */
+  /** `base` to the power `exponent` (2); a base of at most 2.98e-8 (2^-25) counts as 0. A vector
+   *  `exponent` of the base's width works on each component of it; a scalar one is repeated; two
+   *  vectors of different widths are refused. */
   power(base: Pin, exponent?: Wire) {
     return this.wire('power', { base, exponent })
   }
@@ -51,14 +53,78 @@ export class MathGraph extends WiredGraph {
   /** The sine of `input`: `input` is in turns of `period` when `period` is above 0, in radians
    *  otherwise. */
   sine(input: Pin, period = 1) {
-    return this.add2('sine', input, period)
+    return this.trig('sine', input, period)
   }
   /** The cosine of `input`, as `sine`. */
   cosine(input: Pin, period = 1) {
-    return this.add2('cosine', input, period)
+    return this.trig('cosine', input, period)
   }
-  private add2(kind: 'sine' | 'cosine', input: Pin, period: number) {
+  /** The tangent of `input`, as `sine`. */
+  tangent(input: Pin, period = 1) {
+    return this.trig('tangent', input, period)
+  }
+  private trig(kind: 'sine' | 'cosine' | 'tangent', input: Pin, period: number) {
     return this.addNode(kind, { period }, { input })
+  }
+  /** The angle in radians, from -π to π, of the point (`x`, `y`): the arctangent of `y` over `x`,
+   *  the signs of both naming the quadrant. */
+  arctangent2(y: Pin, x: Pin) {
+    return this.addNode('arctangent2', {}, { y, x })
+  }
+  /** The remainder of `a` over `b`, of the sign of `a`; a vector `b` of the width of `a`, or a scalar
+   *  `b`, works on each component of it. Where `a` and `b` are both known when the program is
+   *  compiled (constants, parameters), a `b` under 1e-5 in magnitude is read as 1e-5, of its sign. */
+  fmod(a: Pin, b: Pin) {
+    return this.addNode('fmod', {}, { a, b })
+  }
+  /** The square root; a negative `input` has none (NaN). */
+  sqrt(input: Pin) {
+    return this.addNode('sqrt', {}, { input })
+  }
+  /** e to the power `input`. */
+  exp(input: Pin) {
+    return this.addNode('exp', {}, { input })
+  }
+  /** 2 to the power `input`. */
+  exp2(input: Pin) {
+    return this.addNode('exp2', {}, { input })
+  }
+  /** The natural logarithm of `input`, above 0. */
+  log(input: Pin) {
+    return this.addNode('log', {}, { input })
+  }
+  /** The base-2 logarithm of `x`, above 0. */
+  log2(x: Pin) {
+    return this.addNode('log2', {}, { x })
+  }
+  /** The base-10 logarithm of `x`, above 0. */
+  log10(x: Pin) {
+    return this.addNode('log10', {}, { x })
+  }
+  /** -1 below 0, 1 above it, 0 at 0. */
+  sign(input: Pin) {
+    return this.addNode('sign', {}, { input })
+  }
+  /** The nearest whole number: a half goes up where the value is known when the program is compiled
+   *  (a constant or a parameter), to the even one otherwise. */
+  round(input: Pin) {
+    return this.addNode('round', {}, { input })
+  }
+  /** The reflectance of a surface seen at a grazing angle: `pow(1 - max(0, normal · cameraVector),
+   *  exponent)` scaled into the range from `baseReflectFraction` to 1. `normal` is the pixel's own
+   *  normal where not wired; `exponent` is 5 and `baseReflectFraction` 0.04. */
+  fresnel(options: { exponent?: Wire; baseReflectFraction?: Wire; normal?: Pin } = {}) {
+    return this.wire('fresnel', options)
+  }
+  /** `input`, a colour of three components or a scalar, towards the grey of its luminance by `fraction`
+   *  (a colour of three components; with no `fraction`, the grey itself, a scalar); `luminance` weighs
+   *  the channels (the sRGB working space's by default). */
+  desaturation(input: Pin, fraction?: Wire, luminance?: readonly [number, number, number]) {
+    return this.wire('desaturation', { input, fraction }, luminance ? { luminance } : {})
+  }
+  /** `input` spread away from `pivot` (0.5) by `amount` (1): `(input - pivot) × amount + pivot`. */
+  contrast(input: Pin, amount?: Wire, pivot?: Wire) {
+    return this.wire('contrast', { input, amount, pivot })
   }
   /** The absolute value. */
   abs(input: Pin) {

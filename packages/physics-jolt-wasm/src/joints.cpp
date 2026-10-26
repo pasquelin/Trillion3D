@@ -16,12 +16,19 @@ namespace trillion {
 
 namespace {
 
+/// Whether a break bound is set: 0 is never, and so is a bound that is not finite.
+bool bounded(float bound) { return bound > 0 && std::isfinite(bound); }
+
+/// Whether `measure()` (a force or a torque) is past a bound set at `limit` over a step of `dt`;
+/// it is measured only where the bound is set.
+template <class Measure> bool exceeds(float limit, Measure measure, float dt) { return bounded(limit) && measure() > limit * dt; }
+
 struct Joint {
   Ref<TwoBodyConstraint> constraint;
   /** The page's joint id (slot and generation), and the body slots it connects. */
   uint32_t id = 0, a = MISS, b = MISS, kind = 0;
-  /** Newtons of pull past which it breaks; 0 never. */
-  float breakForce = 0;
+  /** Newtons of pull, and newton-metres of torque, past which it breaks; 0 never. */
+  float breakForce = 0, breakTorque = 0;
   /** Its axis on `a` and on `b`, in each body's frame: what matches a gear to its wheels' hinges. */
   Vec3 axisA = Vec3::sZero(), axisB = Vec3::sZero();
   /** A gear's or a rack and pinion's body order and phase correction. */
@@ -89,7 +96,7 @@ void file(uint32_t index, bool in) {
   for (uint32_t side : {0u, 1u})
     if (uint32_t slot = side ? joint.b : joint.a; slot != MISS)
       list(ends, slot, joint.at[side], [=](Joint &o) -> uint32_t & { return o.at[o.a == slot ? 0 : 1]; });
-  if (joint.breakForce > 0 && std::isfinite(joint.breakForce))
+  if (bounded(joint.breakForce) || bounded(joint.breakTorque))
     list(breakable, 0, joint.listed, [](Joint &o) -> uint32_t & { return o.listed; });
 }
 
@@ -123,7 +130,7 @@ void add(const uint32_t *w) {
   joint.order = order;
   joint.constraint = joint.order.aFirst ? bodies.CreateConstraint(settings, a, b) : bodies.CreateConstraint(settings, b, a);
   if (kind == PATH) joint.constraint = keptPath(joint.constraint, *settings);
-  joint.id = id, joint.kind = kind, joint.breakForce = f32(w + 32);
+  joint.id = id, joint.kind = kind, joint.breakForce = f32(w + 32), joint.breakTorque = f32(w + 33);
   joint.axisA = f2.axis, joint.axisB = f1.axis;
   joint.a = w[3] == MISS ? MISS : w[3] & INDEX_MASK;
   joint.b = w[4] == MISS ? MISS : w[4] & INDEX_MASK;
@@ -166,8 +173,12 @@ void breakJoints(float dt) {
   breakVisits += uint32_t(breakable.at(0).size());
   // Taking a joint out changes the list: the broken are found first, then taken in slot order.
   std::vector<uint32_t> gone;
-  for (uint32_t i : breakable.at(0))
-    if (jointPull(joints[i].constraint, joints[i].kind) > joints[i].breakForce * dt) gone.push_back(i);
+  for (uint32_t i : breakable.at(0)) {
+    Joint &j = joints[i];
+    if (exceeds(j.breakForce, [&] { return jointPull(j.constraint, j.kind); }, dt) ||
+        exceeds(j.breakTorque, [&] { return jointTwist(j.constraint, j.kind); }, dt))
+      gone.push_back(i);
+  }
   std::sort(gone.begin(), gone.end());
   for (uint32_t i : gone) broken.push_back(joints[i].id), take(i);
 }

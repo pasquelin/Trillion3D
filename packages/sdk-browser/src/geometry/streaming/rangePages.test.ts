@@ -81,14 +81,10 @@ test('ranges that are not end to end are read apart', async (t) => {
   assert.deepEqual(asked, ['bytes=0-3', 'bytes=7-10'])
 })
 
-test('a range of a merged read whose bytes are not its own fails alone: the others land', async (t) => {
+test('a range of a merged read whose bytes are not its own fails alone: the others land, it is asked again alone, then given up', async (t) => {
   const { streamer, asked } = await served(t, 3, { wrong: 1 })
-  let settled = false
   const [a, b, c] = [0, 1, 2].map((i) => streamer.readBytes(`part${i}`, streamer.signal))
-  b.then(
-    () => (settled = true),
-    () => (settled = true),
-  )
+  const given = assert.rejects(b, /after 4 attempts/)
   assert.deepEqual(
     [[...(await a)], [...(await c)]],
     [
@@ -96,8 +92,9 @@ test('a range of a merged read whose bytes are not its own fails alone: the othe
       [9, 10, 11, 12],
     ],
   )
-  assert.deepEqual(asked, ['bytes=0-11'])
-  assert.deepEqual([settled, streamer.loading('part1')], [false, true], 'it may pass: it waits')
+  await given
+  assert.deepEqual(asked, ['bytes=0-11', ...Array(3).fill('bytes=4-7')], 'its three tries, alone')
+  assert.deepEqual([streamer.loading('part1'), streamer.failed('part1')], [false, true])
 })
 
 test('a range whose last asker lets go while it transfers is read to its end: asked again, read once', async (t) => {

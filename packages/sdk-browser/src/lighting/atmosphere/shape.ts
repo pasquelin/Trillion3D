@@ -21,6 +21,11 @@ import {
  *  four 32-bit floats a cell holds half as many. */
 export const AERIAL_CELLS_MAX = 32768
 
+/** The format of the haze's volume as a 3D texture, which the fog pass samples by hand-free hardware
+ *  filtering: four half floats a cell, its light kept under what a half float holds (`HALF_MAX`), as
+ *  the default cells of the light buffer's region are. */
+export const HAZE_VOLUME_FORMAT = 'rgba16float'
+
 /** The shape of the air: see `airShapeOf`. */
 export interface AirShape {
   /** Whether a transmittance table is made; else the air answers all-clear (a white table). */
@@ -70,6 +75,9 @@ export interface AirShape {
   readonly distantSky: { readonly on: boolean; readonly altitudeKm: number }
   /** Whether the march reads the shadow of the air's lights (`SceneLight.shadowsAir`). */
   readonly shadows: boolean
+  /** Whether the passes that lay the fog over the clouds hold the local fog volumes' code:
+   *  the project switch `localFogVolumeSupport`, read once when the session opens. */
+  readonly localFog: boolean
 }
 
 /** The floor of a count of samples: a march takes at least one. */
@@ -84,8 +92,9 @@ function aerialSize(settings: SkyQualityValues) {
   return { width, slices, full }
 }
 
-/** The shape the settings give the air. */
-export function airShapeOf(settings: SkyQualityValues): AirShape {
+/** The shape the settings give the air, its fog's passes holding the local fog volumes' code unless
+ *  `localFog` says the project switch is off. */
+export function airShapeOf(settings: SkyQualityValues, localFog = true): AirShape {
   const aerial = aerialSize(settings)
   const skyMin = atLeastOne(settings.skyTableSamplesMin)
   return {
@@ -129,6 +138,7 @@ export function airShapeOf(settings: SkyQualityValues): AirShape {
       altitudeKm: settings.distantSkyLightAltitudeKm,
     },
     shadows: settings.atmosphereSampleLightShadowMap,
+    localFog,
   }
 }
 

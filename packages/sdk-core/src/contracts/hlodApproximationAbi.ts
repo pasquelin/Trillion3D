@@ -3,8 +3,11 @@
  * (`hlodLayerAbi.ts` holds the layer that carries them; `hlodAbi.ts` the values they name).
  */
 import type {
+  HlodApproximationUvMethod,
   HlodBaseCapping,
   HlodGroundClipping,
+  HlodOcclusion,
+  HlodSimplification,
   HLOD_NORMAL_METHODS,
   HLOD_TRANSFER_RAYS,
 } from './hlodAbi.ts'
@@ -31,12 +34,12 @@ export interface HlodApproximation {
   gapDistance?: number
   /** Which hidden triangles are dropped: those no ray from outside reaches, or none.
    *  @defaultValue 'visibility' */
-  occlusion?: 'visibility' | 'none'
+  occlusion?: HlodOcclusion
   /** Whether a floor under the shell hides what only faces down. @defaultValue true */
   occludeFromBelow?: boolean
   /** What the shell is simplified to: the layer's `deviation`, `trianglesPerSquareMetre` of its
    *  area, or `triangleCount` triangles. @defaultValue 'geometricTolerance' */
-  simplification?: 'geometricTolerance' | 'trianglesPerArea' | 'fixedTriangleCount'
+  simplification?: HlodSimplification
   /** The triangles a `fixedTriangleCount` shell keeps, from 16 to 2147483647. @defaultValue 2000 */
   triangleCount?: number
   /** The triangles a `trianglesPerArea` shell keeps per square metre, from 0.01 to the largest
@@ -51,7 +54,7 @@ export interface HlodApproximation {
   hardNormalAngle?: number
   /** How the shell is unwrapped: charts grown by cost and flattened conformally, patches merged
    *  into islands, or charts cut by spectral analysis of the surface. @defaultValue 'charts' */
-  uvMethod?: 'charts' | 'patches' | 'uvAtlas'
+  uvMethod?: HlodApproximationUvMethod
   /** The most stretch the `uvAtlas` charts may reach, from 0 (none) to 1 (any). @defaultValue 0.1 */
   uvAtlasStretch?: number
   /** The `patches` unwrap's initial patch count, from 1 to 99999999. @defaultValue 250 */

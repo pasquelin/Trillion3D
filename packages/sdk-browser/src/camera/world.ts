@@ -1,22 +1,20 @@
 import { decomposeMatrix4 } from '../../../math/src/matrix/matrix4Trs.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import type { HostNodeMatrix, MatrixElements } from '../session/host/matrixElements.ts'
 import {
   writeEngineCamera,
   type CameraOptics,
   type EngineCamera,
   type OrthographicBox,
+  type ViewTile,
 } from './engineCamera.ts'
-import type { ControlVector } from './controls/types.ts'
-import type { HostRotation } from '../scene/host/scan/graphNodes.ts'
-import { NO_VIEW_SET, type ViewSet } from '../../../sdk-core/src/world/camera/viewSet.ts'
+import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
+import { NO_VIEW_SET } from '../../../sdk-core/src/world/camera/viewSet.ts'
 
 /**
  * THE CAMERA-POSE CONTRACT. Unique home of a camera's world pose in `sdk-browser`;
  * `tests/integration/engine-structure.test.ts` forbids any other module from resolving it or
  * reading a camera's local pose, and names the consumers allowed to read the resolved pose.
- * It is also where the host camera is named BY SHAPE, once: `tests/integration/engine-without-three.test.ts`
- * holds that nobody else turns one into an engine camera.
  *
  * THE FACT. The engine does not own the camera: the host hands it over every frame, and it
  * may be the child of a rig that belongs to no prepared scene. The frame's world pass runs only
@@ -32,7 +30,7 @@ import { NO_VIEW_SET, type ViewSet } from '../../../sdk-core/src/world/camera/vi
  *     calls it. The operation is idempotent and has no side effect outside the host graph: it only
  *     reads local matrices the engine does not write, so calling it again downstream changes
  *     no number. That is what lets the two uses coexist without contradicting each other.
- *  2. COPY. `readCameraWorld` resolves then copies, once per frame, the host camera's world
+ *  2. COPY. `readCameraWorld` resolves then copies, once per frame, the view camera's world
  *     matrix and declared optics into an `EngineCamera` the engine owns (`engineCamera.ts`) —
  *     allocated once, rewritten every frame. Derived matrices (projection, view,
  *     view-projection, frustum planes, world position) are set there, once for the whole frame.
@@ -53,79 +51,45 @@ import { NO_VIEW_SET, type ViewSet } from '../../../sdk-core/src/world/camera/vi
  */
 
 /**
- * THE CAMERA THE HOST HANDS TO THE ENGINE, named by shape and by this file alone.
+ * THE CAMERA A VIEW IS DRAWN FROM: the core's camera, and what a session adds to it.
  *
- * What the engine READS of it: the world pose its own graph resolves, and the optics it
- * declares. What the engine WRITES on it: nothing a FRAME writes. The pose setters, `lookAt`
- * and the matrix a restore puts back are the host's own gestures — framing, home,
- * controls, the view a measurement came from — which the explorer performs on the host's behalf
- * at the boundary; a frame never touches them.
- *
- * The host's world-matrix update is asked to make the world matrix current, ancestors included. Any host
- * object of this shape satisfies the contract, whatever class it comes from.
- *
- * WHY `lookAt` TAKES A `ControlVector` AND NOT THREE READ-ONLY NUMBERS. A camera class of the application aims a
- * camera through a vector of its own and tells it apart from a triple of numbers by a flag of
- * its own; handed a plain `{ x, y, z }` literal it reads the object as the first number and
- * composes a world matrix of `NaN`. Asking for the whole vector vocabulary — which no literal
- * satisfies and every point class of this package already offers (`hostGraphObjects.hostPoint`) —
- * puts that back under the compiler without naming any library.
+ * What the engine READS of it: the world pose its graph resolves, and the optics it declares.
+ * What the engine WRITES on it: nothing a FRAME writes. The pose setters, `lookAt` and the matrix a
+ * restore puts back are the page's own gestures — framing, home, controls, the view a measurement
+ * came from — which the explorer performs on the page's behalf at the boundary; a frame never
+ * touches them.
  */
-export type HostCamera = {
-  /** Incremented by the host when a discontinuous pose must discard temporal history. */
+export type ViewCamera = Camera & {
+  /** Incremented when a discontinuous pose must discard temporal history. */
   temporalRevision?: number
-  /** LOCAL pose, as the host stores it: what its controls write, never what a frame reads. */
-  readonly position: ControlVector
-  /** How it is turned. */ readonly quaternion: HostRotation
-  /** Optics the host declares; the engine composes its own projection from them. */
-  fov: number
-  /** Width over height. */ aspect: number
-  /** Nearest distance. */ near: number
-  /** Farthest distance. */ far: number
-  /** Magnification. */ zoom: number
-  /** The box an orthographic camera sees; absent or null for a perspective one. */
+  /** The box an orthographic view is drawn in; absent or null for a perspective one. A session's
+   *  camera is perspective and takes the box of the page's camera it copies (`copyWorldCamera`). */
   orthographic?: OrthographicBox | null
-  /** False when the host poses the camera by matrix: `matrix` IS the pose and nothing
-   *  recomposes it from the three local fields. */
-  matrixAutoUpdate: boolean
-  /** LOCAL matrix, the other face of the pose: what a restore puts back beside the three fields. */
-  readonly matrix: HostNodeMatrix
-  /** Its world matrix. */ readonly matrixWorld: MatrixElements
-  /** Updates its world matrix. */
-  updateWorldMatrix(ancestors: boolean, descendants: boolean): void
-  /** Updates its world matrix, children too. */ updateMatrixWorld(force?: boolean): void
-  /** Rebuilds its projection. */ updateProjectionMatrix(): void
-  /** Turns it toward a point. */ lookAt(target: ControlVector): void
-  /** A view of its own the host keeps — the pose a measurement comes back to. */
-  clone(): HostCamera
-  /** The clip plane and the lists of objects the view draws by, when the host's camera has any
-   *  (`ViewSet`). */
-  _viewSet?: ViewSet
+  /** The tile of the image the view draws, when it draws one. */
+  viewTile?: ViewTile | null
 }
-/** What resolving a world pose asks of a host object, and nothing more: a camera, a rig, a node. */
-export type HostResolvable = { updateWorldMatrix(ancestors: boolean, descendants: boolean): void }
 
-export function resolveCameraWorld<T extends HostResolvable>(camera: T): T {
-  camera.updateWorldMatrix(true, false)
-  return camera
+/** Makes the world pose of `node` current, ancestors included: a camera, a rig, a node. */
+export function resolveCameraWorld<T extends Object3D>(node: T): T {
+  node.updateWorldMatrix(true, false)
+  return node
 }
 
 /** Optics of the camera being read, rewritten in place: a frame allocates nothing here. */
 const optics: CameraOptics = { fov: 0, aspect: 1, near: 0, far: 0, zoom: 1 }
 
 /**
- * Copies the host camera into the engine camera, ancestors resolved. The POSE comes from
+ * Copies the view camera into the engine camera, ancestors resolved. The POSE comes from
  * the host, the PROJECTION does not: the engine composes it from the declared optics
  * (field, aspect, near plane, zoom) in its own depth convention — reversed, infinite far
  * plane — because the host matrix carries its library's and a finite far plane. `camera.far`
- * is still read as-is for what still depends on it (shadow range) and for the frustum far
- * plane, which keeps it; it enters no depth. `writeEngineCamera`
- * then rebuilds the view by inverting the world matrix, the view-projection and the six
- * frustum planes, once for the whole frame.
+ * is still read as-is for what still depends on it (shadow range); it enters no depth and no
+ * frustum plane. `writeEngineCamera` then rebuilds the view by inverting the world matrix, the
+ * view-projection and the six frustum planes, once for the whole frame.
  */
 export function readCameraWorld(
   into: EngineCamera,
-  camera: HostCamera,
+  camera: ViewCamera,
   /** Aspect ratio the view is drawn at, when it is not the one the camera declares: a capture
    *  renders the SAME camera aside, at the shape of the surface it writes into. */
   aspect = camera.aspect,
@@ -138,7 +102,7 @@ export function readCameraWorld(
   optics.far = camera.far
   optics.zoom = camera.zoom
   optics.orthographic = camera.orthographic
-  optics.viewTile = (camera as { viewTile?: CameraOptics['viewTile'] }).viewTile ?? null
+  optics.viewTile = camera.viewTile ?? null
   into.viewSet = camera._viewSet ?? NO_VIEW_SET
   return writeEngineCamera(into, optics)
 }
@@ -150,7 +114,7 @@ const poseTranslation = new Float64Array(3),
 /**
  * World pose that traces and diagnostics publish, read from the engine camera: the eye is
  * the translation of `world`, and the core decomposition yields the bits of `Matrix4.decompose`,
- * of which `getWorldQuaternion` is only the call. No host camera enters here: the published
+ * of which `getWorldQuaternion` is only the call. No view camera enters here: the published
  * pose is that of the drawn frame, ancestors included, because `readCameraWorld` resolved it first.
  */
 export function enginePose(cam: EngineCamera) {

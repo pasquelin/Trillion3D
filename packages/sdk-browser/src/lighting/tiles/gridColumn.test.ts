@@ -1,7 +1,7 @@
 // S19.4: a column of the light grid marks a run holding every slice — a sun's — by one lane bit,
 // and deals its room out by a scan over its 64 lanes, never by two walks of its 256 slices on lane
 // zero. Everything is an integer: on random series — full depth, more lights than lanes and than
-// the cache holds, pools that overflow or stand past half the word — the shipped routines give
+// the cache holds, pools that overflow, dropping the lights past them, or stand past half the word — the shipped routines give
 // the serial column's counts, cursors, lists and overflow flag, column after column.
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import test from 'node:test'
@@ -90,7 +90,7 @@ test('a batch of any width: its lane masks hold every lane, no slice reads its n
   }
 })
 
-test('overflow: a column past the pool walks every light, a head past half the word takes none', () => {
+test('overflow: a column past the pool keeps the lights it got, a head past half the word takes none', () => {
   const runs = series(5, 150, 0.1, 0.2)
   const tight = same([runs, runs, []], { start: 64, capacity: 2000, head: 0, overflow: 0 })
   assert.equal(tight.overflow, 1)
@@ -111,5 +111,5 @@ test('the pass is the routines the harness runs, in its order', () => {
     'let walk=workgroupUniformLoad(&walked);',
     'dealRoom(span,before,walk.w);',
   ]
-  assert.ok(lightTilesShader('view').includes(between.join('\n ')))
+  assert.ok(lightTilesShader().includes(between.join('\n ')))
 })

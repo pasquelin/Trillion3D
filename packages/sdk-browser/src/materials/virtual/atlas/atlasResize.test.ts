@@ -21,10 +21,16 @@ const options: Omit<TilePoolOptions, 'layers'> = {
 const empty = { levels: [], blocks: { bc7: [], astc: [], etc2: [] } }
 const atlasOptions = { kind: 'color' as const, encoding: poolEncoding(undefined) }
 /** Layers of the lossless lane alone: what a session without a block family opens. */
-const lossless = (layers: number) => ({ lossless: layers, rgba: 0, 'two-channel': 0 })
+const lossless = (layers: number) => ({
+  lossless: layers,
+  rgba: 0,
+  'two-channel': 0,
+  hdr: 0,
+})
 const raw = (layout: ReturnType<typeof tileLayout>) => ({
   layout,
   lane: 'lossless' as const,
+  tap: 0,
   source: { kind: 'bytes' as const, tail: empty },
 })
 
@@ -83,7 +89,14 @@ test('a tile from a vanished layer is moved into a free slot — queues first �
   pool.adopt(952, tileId({ slot: 0, level: 0, tx: 6, ty: 0 }))
   resident.set(tileId({ slot: 0, level: 0, tx: 6, ty: 0 }), 952)
   pool.follow(Uint32Array.from([2, 952, 5]), pool.arrivals)
-  const result = resizeTileAtlas(gpu, { ...options, layers: 1 }, 0, pool, pages as never, resident)
+  const result = resizeTileAtlas(
+    gpu,
+    { ...options, layers: 1 },
+    () => 0,
+    pool,
+    pages as never,
+    resident,
+  )
   assert.equal(result.evicted, 0, 'three free places are enough')
   assert.equal(result.pool.resident, 4)
   // The tail first (slot 0), then the tile read of late (slot 1), then the old one (slot 2).
@@ -115,9 +128,13 @@ test('growing the pool keeps the resident count, and a pool full for the view re
   for (let i = 0; i < TILES_PER_LAYER - 1; i++)
     atlas.place({ slot: 0, level: 0, tx: i % 32, ty: Math.floor(i / 32) })
   assert.equal(atlas.pools[0].resident, TILES_PER_LAYER, 'full: one tail and 899 tiles')
-  // No queue came back: every place was read of late — refusal counted, no slot taken.
+  // No queue came back: every place was read of late — refusal counted, no slot taken, the lane
+  // named once as short of places, until it is read.
+  assert.deepEqual(atlas.takePressure(), [])
   assert.equal(atlas.roomFor(0), false)
   assert.equal(atlas.refused, 1)
+  assert.deepEqual(atlas.takePressure(), ['lossless'])
+  assert.deepEqual(atlas.takePressure(), [], 'read once')
   // The GPU's queue lists a place: there is one to give.
   atlas.pools[0].follow(Uint32Array.from([1, 7]), atlas.pools[0].arrivals)
   assert.equal(atlas.roomFor(0), true)

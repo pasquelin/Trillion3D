@@ -8,6 +8,7 @@ import type { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Engine } from '../session/engine/types.ts'
 import { physicsLink } from './physicsLink.ts'
+import { physicsOverlap, type OverlapOptions, type OverlapShape } from './overlap.ts'
 import { emptyPhysicsStats, type PhysicsStats } from './protocol.ts'
 import {
   simulationRangeOf,
@@ -34,7 +35,7 @@ const simulationControls = (s: PhysicsState) => ({
     enable(s, on)
   },
   /** Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`)
-   *  or a vector. @defaultValue 'earth' (0, −9.80665, 0) */
+   *  or a vector. @defaultValue 'earth' (0, −9.8, 0) */
   get gravity(): Vector3 {
     return s.gravity
   },
@@ -91,8 +92,8 @@ function worldControls(s: PhysicsState) {
       s.invalidate()
     },
     /** The water's surface at the simulation's time: the waves buoyancy reads, the same numbers
-     *  (`height`, `point`, `normal`). A mesh that lies on its rest plane, or whose `mesh.waves` is
-     *  this surface, is drawn carried by it, on the GPU. @defaultValue null (no water) */
+     *  (`height`, `point`, `normal`). A mesh whose `mesh.waves` the page set to this surface is the
+     *  water's drawn surface: carried by it, on the GPU. @defaultValue null (no water) */
     get waterSurface(): WaterSurface | null {
       return clocked(s)
     },
@@ -120,7 +121,7 @@ function linkPhysics(s: PhysicsState) {
 }
 
 /** Runs the frame's physics, timed into the `physics` CPU stage of `engine`, then clocks the
- *  water's surface and finds the meshes it carries (`water/waterCarry.ts`); returns whether a body is
+ *  water's surface and finds the meshes that hold it (`water/waterCarry.ts`); returns whether a body is
  *  still on its way, or waves still move a mesh that holds the surface. */
 function physicsFrame(
   s: PhysicsState,
@@ -187,6 +188,18 @@ export function createWorldPhysics(
       },
     },
     dispose: () => (handle.enabled = false),
+    /**
+     * What a sphere, box or capsule meets at a place, between two steps: the bodies it overlaps or
+     * touches, met by the rule two bodies meet by (`PhysicsBodyOptions.collision`). The physics
+     * must be on.
+     * @example
+     * const { hits, blocking } = await world.physics.overlap(
+     *   { type: 'box', halfExtents: { x: 1, y: 1, z: 1 } },
+     *   { at: door.position, channel: { objectType: 'pawn' }, mode: 'blocking' },
+     * )
+     */
+    overlap: (shape: OverlapShape, options: OverlapOptions) =>
+      physicsOverlap(s.session, shape, options),
     /** The running session, for the queries asked of it (`physicsRaycast`). */
     session: () => s.session,
   }

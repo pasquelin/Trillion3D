@@ -2,7 +2,7 @@
 // plays spread (stable or not), and whether they drew the same images — the same situation, frame
 // for frame, gives the same pixels, so a difference between two versions is theirs.
 import { readFileSync } from 'node:fs'
-import { decodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
+import { decodePng } from '../../../packages/sdk-node/src/image/png.mts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import type { BenchPlay } from '../runs/play.ts'
 import { spread, STABLE_SPREAD } from './summary.ts'

@@ -48,11 +48,9 @@ fn at_least_a_unit(low: Vec3, high: Vec3) -> (Vec3, Vec3) {
     )
 }
 
-/// The bricks along each axis at mip 0 of a box of `size`: its voxels at the density the scale
-/// gives, in bricks, rounded and held between 1 and the most the resolution allows — half of it
-/// for a scale of at most 1.
-fn mip0_bricks(size: Vec3, settings: &DistanceFieldSettings) -> [usize; 3] {
-    let unique = DISTANCE_FIELD_UNIQUE_BRICK as f64;
+/// The most bricks along an axis at mip 0 that the resolution allows — half of it for a scale of at
+/// most 1 —, at least 1.
+pub(super) fn most_bricks(settings: &DistanceFieldSettings) -> usize {
     let resolution = f64::from(settings.max_resolution);
     let allowed = match settings.scale <= 1.0 {
         true => (resolution / 2.0).floor(),
@@ -60,8 +58,16 @@ fn mip0_bricks(size: Vec3, settings: &DistanceFieldSettings) -> [usize; 3] {
     };
     let most = round_nearest(allowed as i64, DISTANCE_FIELD_UNIQUE_BRICK as i64)
         .min(DISTANCE_FIELD_MAX_INDIRECTION as i64 - 1);
+    most.max(1) as usize
+}
+
+/// The bricks along each axis at mip 0 of a box of `size`: its voxels at the density the scale
+/// gives, in bricks, rounded and held between 1 and the most the resolution allows.
+fn mip0_bricks(size: Vec3, settings: &DistanceFieldSettings) -> [usize; 3] {
+    let unique = DISTANCE_FIELD_UNIQUE_BRICK as f64;
+    let most = most_bricks(settings) as i64;
     let per_unit = settings.density * settings.scale;
-    size.map(|s| round(s * per_unit / unique).clamp(1, most.max(1)) as usize)
+    size.map(|s| round(s * per_unit / unique).clamp(1, most) as usize)
 }
 
 /// `a / b` rounded to the nearest whole number, for `b` positive.
@@ -151,6 +157,11 @@ pub(super) struct MipGrid {
 }
 
 impl MipGrid {
+    /// How many bricks the mip holds, cell after cell.
+    pub(super) fn cells(&self) -> usize {
+        self.bricks.iter().product()
+    }
+
     /// The box the bricks span.
     pub(super) fn volume(&self) -> (Vec3, Vec3) {
         let high = [0, 1, 2].map(|k| self.low[k] + self.brick_size[k] * self.bricks[k] as f64);
@@ -161,5 +172,30 @@ impl MipGrid {
     /// volume's units.
     pub(super) fn scale_bias(&self) -> [f64; 2] {
         [2.0 * self.band, -self.band]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The bricks of a mesh a thousand units across, of scale 1, at the density `density`.
+    fn bricks(density: f64) -> [usize; 3] {
+        let settings = DistanceFieldSettings {
+            density,
+            ..DistanceFieldSettings::default()
+        };
+        mip0_bricks([1000.0; 3], &settings)
+    }
+
+    #[test]
+    fn any_density_builds_a_field_held_between_one_brick_and_the_resolution_allowed() {
+        // A scale of 1 holds half of 256 voxels, in bricks of 7: 18.
+        assert_eq!(bricks(0.2), [18; 3]);
+        assert_eq!(bricks(0.5), [18; 3]);
+        assert_eq!(bricks(1.0e300), [18; 3]);
+        assert_eq!(bricks(0.01), [1; 3]);
+        assert_eq!(bricks(0.0), [1; 3]);
+        assert_eq!(bricks(-3.0), [1; 3]);
     }
 }

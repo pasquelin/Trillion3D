@@ -1,12 +1,9 @@
-// The resolve writes its two storage texels — the thin transmission and the shadow receiver —
-// once, never twice (zero first, then the value). In one invocation the last write of a
-// texel wins, so writing only the last value, once, leaves every texel as it was.
+// The resolve writes its storage texel beside the surfaces — the thin transmission — once, never
+// twice (zero first, then the value). In one invocation the last write of a texel wins, so
+// writing only the last value, once, leaves the texel as it was.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { SHADE_SHADER } from './shadeWgsl.ts'
-import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { RECEIVER_WORDS_WGSL } from './receiverTargetWgsl.ts'
-import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 
 /** The text of WGSL function `name` of the resolve, to its closing brace. */
 const bodyOf = (name: string) => {
@@ -14,63 +11,18 @@ const bodyOf = (name: string) => {
   return SHADE_SHADER.slice(at, SHADE_SHADER.indexOf('\n}\n', at))
 }
 
-test('shade_cs writes each storage texel exactly once, after the resolve, which writes none', () => {
+test('shade_cs writes the storage texel exactly once, after the resolve, which writes none', () => {
   const entry = bodyOf('shade_cs'),
     resolve = bodyOf('shadeSurface')
-  assert.equal(entry.match(/storeReceiver\(/g)?.length, 1)
   assert.equal(entry.match(/storeSubsurface\(/g)?.length, 1)
   assert.ok(entry.indexOf('shadeSurface(') < entry.indexOf('storeSubsurface('))
   // A lane with no pixel of its class leaves before any read or write.
   assert.ok(entry.indexOf('if(!shadesPixel(at)){return;}') < entry.indexOf('shadeSurface('))
-  assert.doesNotMatch(resolve, /store(?:Receiver|Subsurface)\(/)
-  // Their values are the invocation's private variables, zero at its start; one path sets each.
-  for (const name of ['thinOut', 'rcvOffset', 'rcvPlane'])
-    assert.ok(SHADE_SHADER.includes(`var<private> ${name}:vec3f;`), name)
-  for (const set of ['thinOut=', 'rcvOffset=', 'rcvPlane='])
-    assert.equal(resolve.split(set).length, 2, set)
-})
-
-test('every way out of the resolve leaves the receiver word the double write left', () => {
-  let texel: number[] = []
-  const { receiverWords } = shaderRun<{
-    receiverWords: (offset: number[], plane: number[]) => number[]
-  }>(
-    wgslModule(RECEIVER_WORDS_WGSL),
-    ['receiverWords', 'octEncode', 'octFold', 'ndcToUvUnflipped', 'pow2FromExponent'],
-    {},
-  )
-  // The store of a pixel's receiver (`storeReceiver`): its two words, written whole.
-  const storeReceiver = (_pixel: number[], offset: number[], plane: number[]) =>
-    void (texel = receiverWords(offset, plane))
-  const resolve = bodyOf('shadeSurface'),
-    setAt = resolve.indexOf('rcvOffset=')
-  // Each return of the resolve, by the text: those before the receiver is set never set it.
-  const returns = [...resolve.matchAll(/return /g)].map(({ index }) => index)
-  assert.ok(
-    returns.length >= 5,
-    'the empty surface, the wireframe and x-ray background, the diagnostic modes, the as-is models, the lit',
-  )
-  const zero = [0, 0, 0],
-    offset = [0.01, -0.02, 0.005],
-    plane = [0, 0.3, 0.4]
-  for (const at of returns) {
-    // Before it, the receiver is never set; after, it is set unless the page is a sprite or a line
-    // or has no vertex normal.
-    for (const sets of at > setAt ? [false, true] : [false]) {
-      // Before: zero, then the value where the resolve found one.
-      storeReceiver([2.5, 1.5], zero, zero)
-      if (sets) storeReceiver([2.5, 1.5], offset, plane)
-      const twice = texel
-      // Now: the value or zero, once.
-      texel = []
-      storeReceiver([2.5, 1.5], sets ? offset : zero, sets ? plane : zero)
-      assert.deepEqual(texel, twice, `return at ${at}, receiver ${sets}`)
-    }
-  }
-  assert.ok(
-    returns.some((at) => at > setAt),
-    'a return after the receiver is set',
-  )
+  assert.doesNotMatch(resolve, /storeSubsurface\(/)
+  // Its value is the invocation's private variable, zero at its start; two paths set it, once each: the shading model the material
+  // names (`materialModelWgsl.ts`) and the thin sheet.
+  assert.ok(SHADE_SHADER.includes('var<private> thinOut:vec3f;'))
+  assert.equal(resolve.split('thinOut=').length, 3)
 })
 
 test('the thin transmission keeps its zero or its colour, written once', () => {

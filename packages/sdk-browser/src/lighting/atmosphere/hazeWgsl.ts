@@ -1,6 +1,8 @@
+import { HALF_MAX } from '../../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
-import { VIEW_SLOT } from './layout.ts'
+import { AIR_RAY_WGSL } from './airRayWgsl.ts'
+import { EYE_FLOOR, VIEW_SLOT } from './layout.ts'
 import { airProgram } from './programs.ts'
 import type { AirShape } from './shape.ts'
 
@@ -27,13 +29,13 @@ import type { AirShape } from './shape.ts'
  *  one after the other. */
 export const HAZE_CELL_WGSL = wgslBlock(
   'HAZE_CELL_WGSL',
-  [],
+  [HALF_MAX],
   `
 fn cellIndex(c:vec3u)->u32{return (c.z*AERIAL_WIDTH+c.y)*AERIAL_WIDTH+c.x;}
 fn cellStride()->u32{return select(1u,2u,AERIAL_FULL);}
 fn cellWords(v:vec4f)->array<vec2u,2>{
  if(AERIAL_FULL){return array<vec2u,2>(vec2u(bitcast<u32>(v.x),bitcast<u32>(v.y)),vec2u(bitcast<u32>(v.z),bitcast<u32>(v.w)));}
- let kept=min(v.xyz,vec3f(65000.0));
+ let kept=min(v.xyz,vec3f(HALF_MAX));
  return array<vec2u,2>(vec2u(pack2x16float(kept.xy),pack2x16float(vec2f(kept.z,v.w))),vec2u(0u));
 }
 /** Writes the cell \`index\` of the light buffer's volume. */
@@ -59,10 +61,25 @@ fn storeVolume(region:u32,index:u32,v:vec4f){
 )
 
 /** The scene's metres of a point of the planet's frame (up its y): the planet's ground is the
- *  scene's plane. */
+ *  scene's plane, its top at the block's place on it. */
 export const PLANET_TO_SCENE = `
-fn airToScene(p:vec3f)->vec3f{
- return vec3f(p.x*1000.0,(p.y-bottomRadius())*1000.0+atmo(${ATMOSPHERE_SLOT.planet}u).w,p.z*1000.0);
+fn planetToScene(p:vec3f)->vec3f{
+ let place=atmo(${ATMOSPHERE_SLOT.planetPlace}u);
+ return vec3f(p.x*1000.0+place.x,(p.y-bottomRadius())*1000.0+atmo(${ATMOSPHERE_SLOT.planet}u).w,p.z*1000.0+place.y);
+}`
+
+/** `airToScene` of a march in the planet's frame: the scene's metres of its point. */
+export const AIR_TO_SCENE = `${PLANET_TO_SCENE}
+fn airToScene(p:vec3f)->vec3f{return planetToScene(p);}`
+
+/** The place in the planet's frame of the scene's point `scene` (metres), held as the eye is: no
+ *  lower than just over the ground, where it stands above (the inverse of `planetToScene` there). */
+export const SCENE_TO_PLANET = `
+fn sceneToPlanet(scene:vec3f)->vec3f{
+ let place=atmo(${ATMOSPHERE_SLOT.planetPlace}u);
+ let p=vec3f((scene.x-place.x)/1000.0,(scene.y-atmo(${ATMOSPHERE_SLOT.planet}u).w)/1000.0+bottomRadius(),(scene.z-place.y)/1000.0);
+ let length_=max(length(p),1e-6);
+ return p/length_*max(length_,bottomRadius()+${EYE_FLOOR});
 }`
 
 /** Where the ray of a cell of the volume starts, along which direction and how far it is marched:
@@ -122,10 +139,38 @@ fn froxelOf(eyeIn:vec3f,dirIn:vec3f,z:u32,startKm:f32)->Froxel{
 }`,
 )
 
-/** The volume's builder, one thread a cell, a group of four across. The first thread also writes the
- *  view's block — the view-projection, whether the volume is valid for the image (an orthographic
- *  view has no haze), its size and its way of being read. `separate`: the haze's light and the
- *  air's also go into their own volumes. */
+/** What the first thread of the builder writes of the view's block (`writeHazeView`): the
+ *  view-projection, the volume's kind (1 for a perspective view, 2 for an orthographic one: a
+ *  surface's distance is then its distance along the view's direction from the near plane, the
+ *  direction and the plane's offset written beside it; 0 for a view the air is not drawn in, which
+ *  no surface is hazed by), its size and its way of being read. */
+const HAZE_VIEW_WGSL = wgslBlock(
+  'HAZE_VIEW_WGSL',
+  [AIR_RAY_WGSL],
+  `
+fn writeHazeView(){
+ directLights.atmosphereView[${VIEW_SLOT.projection}]=frame.viewProj[0];
+ directLights.atmosphereView[${VIEW_SLOT.projection + 1}]=frame.viewProj[1];
+ directLights.atmosphereView[${VIEW_SLOT.projection + 2}]=frame.viewProj[2];
+ directLights.atmosphereView[${VIEW_SLOT.projection + 3}]=frame.viewProj[3];
+ let ortho=frame.eye.w==0.0;
+ directLights.atmosphereView[${VIEW_SLOT.haze}].w=select(select(1.0,2.0,ortho),0.0,frame.hidden.x!=0.0);
+ directLights.atmosphereView[${VIEW_SLOT.volume}]=vec4f(f32(AERIAL_WIDTH),f32(AERIAL_WIDTH),f32(AERIAL_SLICES),AERIAL_DEPTH_KM);
+ directLights.atmosphereView[${VIEW_SLOT.flags}]=vec4f(select(0.0,1.0,AERIAL_FULL),select(0.0,1.0,AERIAL_DEPTH_TEST),0.0,select(1.0,0.0,AERIAL_FAST_OPAQUE));
+ var look=vec4f(0.0);
+ if(ortho){
+  let near=airUnproject(vec2f(0.0),1.0);
+  let dir=normalize(airUnproject(vec2f(0.0),0.5)-near);
+  look=vec4f(dir,dot(near,dir));
+ }
+ directLights.atmosphereView[${VIEW_SLOT.ortho}]=look;
+}`,
+)
+
+/** The volume's builder, one thread a cell, a group of four across: the cell's ray is the pixel's
+ *  (`airRay`), the eye's or, in an orthographic view, the pixel's own. The first thread also writes
+ *  the view's block (`HAZE_VIEW_WGSL`); in a view the air is not drawn in, it writes that block
+ *  alone. `separate`: the haze's light and the air's also go into their own volumes. */
 export const hazeProgram = (shape: AirShape, separate: boolean) => {
   const clear = 'vec4f(0.0,0.0,0.0,1.0)'
   return airProgram(
@@ -137,27 +182,24 @@ export const hazeProgram = (shape: AirShape, separate: boolean) => {
       shadow: shape.shadows,
       cloudShadow: true,
       volumes: separate,
+      hazeVolume: true,
     },
-    `${PLANET_TO_SCENE}
+    `${AIR_TO_SCENE}
+/** Writes a cell to the light buffer's volume and to the 3D texture the fog pass samples. */
+fn storeHaze(id:vec3u,index:u32,v:vec4f){
+ storeCell(index,v);
+ textureStore(hazeVolume,id,vec4f(min(v.xyz,vec3f(HALF_MAX)),v.w));
+}
 @compute @workgroup_size(4,4,4)
 fn hazeMain(@builtin(global_invocation_id) id:vec3u){
- if(id.x==0u&&id.y==0u&&id.z==0u){
-  directLights.atmosphereView[${VIEW_SLOT.projection}]=frame.viewProj[0];
-  directLights.atmosphereView[${VIEW_SLOT.projection + 1}]=frame.viewProj[1];
-  directLights.atmosphereView[${VIEW_SLOT.projection + 2}]=frame.viewProj[2];
-  directLights.atmosphereView[${VIEW_SLOT.projection + 3}]=frame.viewProj[3];
-  directLights.atmosphereView[${VIEW_SLOT.haze}].w=frame.eye.w;
-  directLights.atmosphereView[${VIEW_SLOT.volume}]=vec4f(f32(AERIAL_WIDTH),f32(AERIAL_WIDTH),f32(AERIAL_SLICES),AERIAL_DEPTH_KM);
-  directLights.atmosphereView[${VIEW_SLOT.flags}]=vec4f(select(0.0,1.0,AERIAL_FULL),select(0.0,1.0,AERIAL_DEPTH_TEST),0.0,select(1.0,0.0,AERIAL_FAST_OPAQUE));
- }
- if(frame.eye.w==0.0||id.x>=AERIAL_WIDTH||id.y>=AERIAL_WIDTH||id.z>=AERIAL_SLICES){return;}
+ if(id.x==0u&&id.y==0u&&id.z==0u){writeHazeView();}
+ if(frame.hidden.x!=0.0||id.x>=AERIAL_WIDTH||id.y>=AERIAL_WIDTH||id.z>=AERIAL_SLICES){return;}
  let index=cellIndex(id);
  let uv=(vec2f(id.xy)+0.5)/f32(AERIAL_WIDTH);
- let through=frame.inverseViewProj*vec4f(uv.x*2.0-1.0,1.0-uv.y*2.0,0.5,1.0);
- let dir=normalize(through.xyz/through.w-frame.eye.xyz);
- let ray=froxelOf(frame.camera.xyz,dir,id.z,atmo(${ATMOSPHERE_SLOT.scatteredFactor}u).w);
+ let seen=airRay(vec2f(uv.x*2.0-1.0,1.0-uv.y*2.0));
+ let ray=froxelOf(seen.origin,seen.dir,id.z,atmo(${ATMOSPHERE_SLOT.scatteredFactor}u).w);
  if(!ray.inside){
-  storeCell(index,${clear});${
+  storeHaze(id,index,${clear});${
     separate
       ? `
   storeVolume(0u,index,${clear});
@@ -171,15 +213,17 @@ fn hazeMain(@builtin(global_invocation_id) id:vec3u){
  march.samples=max(1.0,(f32(id.z)+1.0)*max(1.0,min(2.0*atmo(${ATMOSPHERE_SLOT.sunIlluminance}u).w,AERIAL_SAMPLES_PER_SLICE)));
  let r=integrateAir(ray.start,ray.dir,false,march,true,airSuns(),atmo(${ATMOSPHERE_SLOT.skyFactor}u).w,ray.reach);
  let grey=vec3f(1.0/3.0);
- storeCell(index,vec4f(r.radiance,dot(r.transmittance,grey)));${
+ // The atmosphere that holds its light out (\`frame.hidden.y\`) adds none to what its haze lies over.
+ let held=select(1.0,0.0,frame.hidden.y!=0.0);
+ storeHaze(id,index,vec4f(r.radiance*held,dot(r.transmittance,grey)));${
    separate
      ? `
- storeVolume(0u,index,vec4f(r.radianceMie,dot(r.transmittanceMie,grey)));
- storeVolume(1u,index,vec4f(r.radianceRay,dot(r.transmittanceRay,grey)));`
+ storeVolume(0u,index,vec4f(r.radianceMie*held,dot(r.transmittanceMie,grey)));
+ storeVolume(1u,index,vec4f(r.radianceRay*held,dot(r.transmittanceRay,grey)));`
      : ''
  }
 }`,
-    [HAZE_CELL_WGSL, HAZE_FROXEL_WGSL, ...(separate ? [VOLUME_STORE_WGSL] : [])],
+    [HAZE_CELL_WGSL, HAZE_FROXEL_WGSL, HAZE_VIEW_WGSL, ...(separate ? [VOLUME_STORE_WGSL] : [])],
     shape,
   )
 }

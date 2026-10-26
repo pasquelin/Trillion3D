@@ -5,6 +5,7 @@ import { worldBudget } from './budget.ts'
 import { worldTelemetry } from './telemetry.ts'
 import { worldMaterialMethods } from './materials/materialMethods.ts'
 import type { WorldParts } from './worldParts.ts'
+import { createParticleSet } from '../../particles/emitterSet.ts'
 
 /** The world's parts and methods: physics, budget, diagnostic, guides, materials, nodes, frames,
  *  pages, and its disposal. */
@@ -16,6 +17,12 @@ export function worldMethods(parts: WorldParts) {
     /** The world's memory pools, read and set in bytes, and the physics envelopes. */
     budget: worldBudget(pools, runtime, frames, physics.budget),
     diagnostic: diagnostic.handle,
+    /** Particle emitters spawning and stepping with the world's frames (`ParticleHandle`). */
+    particles: createParticleSet(switches.held.particles, {
+      beforeFrame: frames.before,
+      onFrame: frames.add,
+      invalidate,
+    }),
     /** Lines, points and helpers drawn over the image (`Guides`). */ guides: switches.guides,
     ...worldMaterialMethods(live, invalidate),
     /** The object a canvas point or a world ray meets, and a node reached by its name
@@ -53,7 +60,7 @@ export function worldMethods(parts: WorldParts) {
     /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {
       if (state.disposed) return
       state.disposed = true
-      for (const part of [parts.views, controls, physics, runtime]) part.dispose()
+      for (const part of [parts.views, controls, physics, runtime, parts.switches]) part.dispose()
       pools.pageCache.clear()
       diagnostic.close()
       frames.clear()

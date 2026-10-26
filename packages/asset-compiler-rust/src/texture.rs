@@ -7,7 +7,7 @@
 //! not keep up with screen. Here, every level exists: tail in sidecar,
 //! RGBA8 and in each kept family's blocks; levels above are GPU block files in
 //! cache, one file per level, addressed by source byte hash and chain
-//! (`textures/<sha>/<srgb|linear|srgb-coverage[-<C>]>-<k>.<format>`), shared
+//! (`textures/<sha>/<srgb|linear>-<k>.<format>`), shared
 //! across scenes sharing image, never rewritten if present. Every chain the
 //! quality gate lets is stored in BC (`blocks.rs`: BC7, BC5 for a normal map) —
 //! one byte per texel in the pool instead of four, each tile record deflated on
@@ -17,9 +17,12 @@
 //! default: ASTC and ETC2 for mobile cards —, and the tail carried in those
 //! blocks too.
 //!
-//! Reduction rule matches GPU (`reduce.rs`): baking instead of
-//! regenerating does not change image. Covers both engine atlases — base color
-//! and emissive in one, metallic-roughness, normal, occlusion in other —, each by own curve.
+//! Reduction (`reduce.rs`): the mean of the four texels of every channel, each atlas by its own
+//! curve — base color and emissive in one, metallic-roughness, normal, occlusion in other —;
+//! the levels a file stores (a DDS's) are kept, the rest reduced from the last. A texture a file
+//! stores in floating point (OpenEXR, Radiance HDR) read as a base color or an emissive map is
+//! chained in floating point (`hdr.rs`) and held in half-float RGBA — its own atlas, `hdr`, no
+//! block family —, its levels above the tail written as files of its own (`bake/half.rs`).
 //!
 //! Failed decode — format outside image driver registry, corrupt PNG, missing
 //! image — is named report entry and zero levels: compilation never fails
@@ -29,16 +32,18 @@ use super::*;
 
 pub(crate) mod admission;
 pub(crate) mod bake;
+pub(crate) mod binding;
 pub(crate) mod blocks;
 pub(crate) mod collect;
-pub(crate) mod coverage;
-mod coverage_math;
 mod curves;
+pub(crate) mod cut;
 mod entry;
 mod gate;
+pub(crate) mod hdr;
 mod levels;
 pub(crate) mod reduce;
 mod report;
+pub(crate) mod setting;
 pub(crate) mod source;
 #[cfg(test)]
 pub(crate) mod tests;
@@ -51,10 +56,8 @@ pub use levels::*;
 /// binary sidecar version carrying it. Version 3 is GPU rule and full chain,
 /// both atlases included; version 4 adds the gated block-compressed levels and
 /// tails. A new chain under a name of its own moves no existing file and needs
-/// no increment: the `Coverage` chain (#42) is one, and so is each cutoff's
-/// coverage-preserving chain (#44), `srgb-coverage-<C>`. Version 5 counts that
-/// chain's coverage on the filtered cut (#43): its bytes move under the same
-/// names, and level files are written only when missing. Version 6 lays a block
+/// no increment. Version 5 counted a coverage chain's coverage on the filtered cut (#43), a chain
+/// version 11 removes. Version 6 lays a block
 /// level file out in tile records, one HTTP Range each (#962, `tile_records`);
 /// the manifest's `textures.version` names it for the engine. Version 7 adds
 /// the ETC2 family (ETC2 RGBA8, EAC RG11): a third block column and layout
@@ -66,8 +69,16 @@ pub use levels::*;
 /// two readings of one image under other channels or cuts never share a file. Version 10 moves
 /// the BC7 bytes of most blocks: the vendored encoder's axis search starts from the covariance's
 /// widest row instead of grey (`block_compression`, `compute_axis`), which every block's search
-/// goes through — the ones varying orthogonally to grey, flat before, gain the most.
-pub const TEXTURE_PREVIEW_VERSION: u32 = 10;
+/// goes through — the ones varying orthogonally to grey, flat before, gain the most. Version 11
+/// moves the levels of every chain with an alpha that varies and of every DDS that stores its
+/// levels: alpha is the mean of four texels, no coverage chain weighs colours by it or scales it,
+/// and the stored levels are kept, not reduced again. Version 12 adds the half-float atlas: an
+/// entry of atlas word 2 whose pixel column holds half-float texels and whose level files are
+/// `rgba16f` tile records of texels. The texture's compression setting (`setting.rs`) adds the
+/// layout words 3 and 4 — BC6H blocks of a half-float chain (an `hdr` entry then names a block
+/// layout and carries its tail in the stored family's column) and BC4 blocks of eight bytes — as
+/// new chains under names of their own: no existing byte moves, no increment.
+pub const TEXTURE_PREVIEW_VERSION: u32 = 12;
 pub use bake::write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, TEXTURE_DIR};
 pub use blocks::{BlockFormat, Ladder, Layout, FAMILIES};
 pub(crate) use curves::{linear_table, linear_to_srgb, srgb_table};
@@ -102,28 +113,19 @@ pub(super) struct PreviewInputs<'a> {
     /// Materials of the compiled meshes (`collect::used_materials`), read once per compilation.
     pub used_materials: &'a BTreeSet<usize>,
     pub view_map: &'a BTreeMap<usize, usize>,
-    /// Textures whose alpha to measure on pass, designated by `cutout`: this step
-    /// knows what it decodes, not what cutout is.
-    pub to_measure: &'a BTreeSet<usize>,
-    pub measurements: &'a crate::cutout::MeasureCache,
-    /// The fingerprint of every image the step reads, taken once before the cutout step
+    /// The fingerprint of every image the step reads, taken once before the bake
     /// (`source::ImageShas`): the bake addresses its files by it, never hashes again.
     pub image_shas: &'a source::ImageShas,
 }
 
 /// Calculates chain for each atlas texture of retained meshes, single image decode
 /// once regardless of citing textures. Returns entries sorted by texture then
-/// atlas, candidate cutout alpha shape — measured in this decode,
-/// never second —, and step report. Images processed in parallel on
+/// atlas, and step report. Images processed in parallel on
 /// caller pool, as many at once as their working sets and retained tails admit.
 pub(super) fn stage_texture_previews(
     inputs: &PreviewInputs<'_>,
     progress: &(impl Fn(Value) + Sync),
-) -> Result<(
-    Vec<TexturePreview>,
-    BTreeMap<usize, crate::cutout::AlphaShape>,
-    Value,
-)> {
+) -> Result<(Vec<TexturePreview>, Value)> {
     let wanted = collect::atlas_textures(inputs.g, inputs.used_materials);
     let (Some(textures), Some(images)) = (
         inputs.g.get("textures").and_then(Value::as_array),
@@ -137,7 +139,7 @@ pub(super) fn stage_texture_previews(
             &BTreeMap::new(),
             &BTreeMap::new(),
         );
-        return Ok((Vec::new(), BTreeMap::new(), report));
+        return Ok((Vec::new(), report));
     };
     // Per image: (texture, atlas) reading it. Texture without image is report
     // entry, not image to decode.
@@ -147,11 +149,8 @@ pub(super) fn stage_texture_previews(
         match textures
             .get(entry.texture)
             .ok_or("texture-out-of-bounds")
-            .and_then(|t| {
-                t.get("source")
-                    .and_then(Value::as_u64)
-                    .ok_or("texture-without-image")
-            }) {
+            .and_then(|t| binding::texture_image(t).ok_or("texture-without-image"))
+        {
             Ok(image) => by_image
                 .entry(image as usize)
                 .or_default()
@@ -161,13 +160,11 @@ pub(super) fn stage_texture_previews(
     }
     let results = admission::bake(inputs, images, &by_image, progress)?;
     let mut previews = Vec::new();
-    let mut shapes = BTreeMap::new();
     let mut gates = Vec::new();
     let mut notes: BTreeMap<&'static str, usize> = BTreeMap::new();
     for outcome in results {
         match outcome {
             Ok(baked) => {
-                shapes.extend(baked.shapes);
                 for note in baked.notes {
                     *notes.entry(note).or_default() += 1;
                 }
@@ -177,10 +174,10 @@ pub(super) fn stage_texture_previews(
             Err((reason, count)) => *skipped.entry(reason).or_default() += count,
         }
     }
-    previews.sort_by_key(|p| (p.texture, p.kind.atlas()));
+    previews.sort_by_key(|p| (p.texture, p.kind));
     gates.sort_by(|a, b| {
         (&a.sha256, a.kind, a.format.name()).cmp(&(&b.sha256, b.kind, b.format.name()))
     });
     let report = report::report(inputs.o, &wanted, &previews, &gates, &skipped, &notes);
-    Ok((previews, shapes, report))
+    Ok((previews, report))
 }

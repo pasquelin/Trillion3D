@@ -3,7 +3,7 @@ import type { CameraPose } from '../../../sdk-core/src/contracts/base.ts'
 import { devicePixels } from '../session/engine/common.ts'
 import type { MeasuredWorldOptions } from '../session/options.ts'
 import type { Engine } from '../session/engine/types.ts'
-import type { HostCamera } from '../camera/world.ts'
+import type { ViewCamera } from '../camera/world.ts'
 import { hostPoint } from '../scene/host/scan/graphObjects.ts'
 import { poseCamera } from '../frame/schedule/sessionState.ts'
 
@@ -26,7 +26,7 @@ type Inputs = {
   check: () => void
   engine: Engine
   setCapturingSurface: (value: boolean) => void
-  camera: HostCamera
+  camera: ViewCamera
   canvas: HTMLCanvasElement
   viewport: [number, number]
   options: MeasuredWorldOptions

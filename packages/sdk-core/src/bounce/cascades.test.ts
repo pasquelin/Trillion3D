@@ -1,17 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { cellSpacing, createBounceCascades, lightLattice } from './cascades.ts'
+import { cellSpacing, createBounceCascades } from './cascades.ts'
 import { BOUNCE_SETTINGS } from './contracts.ts'
 import { near } from '../../../math/src/float/near.fixture.ts'
 
-const {
-  cascadeLevels,
-  cascadeSize,
-  cascadeHalfExtentMetres,
-  cascadeBase,
-  lightGridSide,
-  probePool,
-} = BOUNCE_SETTINGS
+const { cascadeLevels, cascadeSize, cascadeHalfExtentMetres, cascadeBase, probePool } =
+  BOUNCE_SETTINGS
 
 /** Extents of every shape: cubes, long slabs, thin sheets and flat planes, by size per axis. */
 const SIZES = [
@@ -135,33 +129,13 @@ test('a level holds exactly the cells of its cube, and no cell past it', () => {
   }
 })
 
-test('the world light lattice holds the whole extent wherever it lies, one cell before it', () => {
-  for (const sizes of SIZES)
-    for (const at of [
-      [0, 0, 0],
-      [-37.3, 5.25, -1234.5],
-      [0.999, 1e4 - 0.001, -0.001],
-    ]) {
-      const bounds = boundsOf(sizes, at)
-      const { spacing, corner } = lightLattice(bounds)
-      for (let axis = 0; axis < 3; axis++) {
-        const low = (bounds[axis] - corner[axis]) / spacing,
-          high = (bounds[3 + axis] - corner[axis]) / spacing
-        assert.ok(low >= 1 - 1e-9 && low < 2 + 1e-9, `${sizes} at ${at}: ${low}`)
-        assert.ok(high <= lightGridSide - 1, `${sizes} at ${at}: ${high}`)
-      }
-    }
-})
-
-test('a replan moves the lattice and the reach, never a level', () => {
+test('a replan moves the reach, never a level', () => {
   const cascades = createBounceCascades([0, 0, 0, 1000, 1, 1])
   cascades.follow([7, 7, 7])
   const levels = structuredClone(cascades.levels)
-  assert.equal(cascades.replan([0, 0, 0, 1000, 1, 1]), false, 'the same extent changes nothing')
   const moved = [100, 200, 300, 1100, 201, 301]
-  assert.equal(cascades.replan(moved), true)
+  cascades.replan(moved)
   assert.deepEqual(cascades.levels, levels)
-  assert.deepEqual(cascades.lattice, lightLattice(moved))
   assert.equal(cascades.reach, createBounceCascades(moved).reach)
 })
 

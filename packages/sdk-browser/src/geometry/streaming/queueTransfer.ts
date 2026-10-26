@@ -10,10 +10,11 @@ type Transfers = {
   forgotten: (url: string) => boolean
 }
 
-/** `job` landed as `landed`: read, it is done; failed, it is asked again (`failures.ts`) while it
- *  may pass and someone waits on it, else it fails. A streamer closed meanwhile records nothing. */
+/** `job` landed as `landed`: read, it is done; failed, it is asked again (`failures.ts`) while its
+ *  tries last and someone waits on it — at once, queued behind the transfer that just ended, or
+ *  after the wait its server asked —, else it fails. A streamer closed meanwhile records nothing. */
 function settle(context: StreamContext, job: Job, landed: Landed, own: Transfers) {
-  const { failures, abort, emit } = context,
+  const { failures, abort, emit, queue } = context,
     { url } = job
   if (landed.bytes) {
     failures.passed(url)
@@ -23,7 +24,11 @@ function settle(context: StreamContext, job: Job, landed: Landed, own: Transfers
   const recorded = abort.signal.aborted ? undefined : failures.record(url, landed.cause),
     error = String(landed.cause)
   // A page forgotten while it transferred is wanted no more: it ends, never waits.
-  if (recorded?.waits && job.askers > 0 && !own.forgotten(url)) {
+  if (recorded?.again && job.askers > 0 && !own.forgotten(url)) {
+    if (!recorded.waits) {
+      job.state = 'queued'
+      return queue.push(job)
+    }
     job.state = 'waiting'
     return emit?.('page-retry', 'A read that failed waits its turn', () => ({
       ...{ version: 1, url, error },
@@ -33,7 +38,7 @@ function settle(context: StreamContext, job: Job, landed: Landed, own: Transfers
   job.reject(recorded?.error ?? landed.cause)
   if (recorded)
     emit?.('page-error', 'Persistent page-load failure', () => ({
-      ...{ version: 1, url, error, sticky: !recorded.waits },
+      ...{ version: 1, url, error, sticky: !recorded.again },
     }))
 }
 

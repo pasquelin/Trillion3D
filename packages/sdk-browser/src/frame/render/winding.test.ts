@@ -2,7 +2,6 @@
 // of a 3×3 determinant recomputed on every read. Oracle: the uncached verdict, `matrixWindingCw` of
 // the maths package.
 import test from 'node:test'
-import { asHostLibrary } from '../../session/host/resources.ts'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { windingCw } from './winding.ts'
@@ -30,7 +29,8 @@ test('a read at the same world version reuses the memo verbatim; a world moved r
   const first = cw(page)
   assert.equal(page.roots[0].windingEpoch, 0)
   // Same version, matrix mutated without the move being taken: the memoised value comes back.
-  asHostLibrary<Matrix4>(page.matrix).makeScale(1, 1, -1)
+  const matrix = page.matrix as unknown as Matrix4
+  matrix.makeScale(1, 1, -1)
   assert.equal(cw(page), first, 'same version: the memoised value is reused, not recomputed')
   worldMoved(page.roots[0])
   assert.equal(

@@ -28,6 +28,15 @@
  * horizontal, the ray stops integrating; a cubemap (`fogCubemap.ts`) the colour is read from by
  * direction; a volume (`fogVolumetric.ts`) that scatters the lights in beams.
  *
+ * Where it is drawn. Three switches, each on by default, say in which views the fog shows:
+ * `inMainView`, the views the page draws (the camera's and the extra views of the page);
+ * `inSkyCapture`, the distant fog laid over the sky of the sky light's real-time capture;
+ * `inReflectionCaptures`, the scene the sky light captures from its own place (`capturedScene`).
+ * The sky light's capture can also light the fog (`skyLightScattering`, strength 0 by default):
+ * the fog's in-scattering colour is then the filtered cube read along the ray, at the mip of the
+ * `roughness`, times the light's colour, mixed in by the `strength`, and the sun's lobe fades by it;
+ * while the strength is above 0 the fog's own cubemap is not read.
+ *
  * The extinction form of the exponential law of `fog.ts` is a spelling of this law, which
  * `heightFogOf` maps exactly to the numbers the GPU reads.
  */
@@ -94,6 +103,33 @@ export interface SceneHeightFog {
   /** The volume that scatters the lights in beams (`SceneVolumetricFog`): `true` for its defaults;
    *  off by default. */
   volumetric?: boolean | SceneVolumetricFog
+  /** Whether the views the page draws show the fog; true by default. */
+  inMainView?: boolean
+  /** Whether the distant fog is laid over the sky of the sky light's real-time capture, and so
+   *  lights the scene through it; true by default. */
+  inSkyCapture?: boolean
+  /** Whether the scene the sky light captures from its own place (the source `capturedScene`)
+   *  shows the fog; true by default. */
+  inReflectionCaptures?: boolean
+  /** Whether the fog holds its light out: it draws black and punches a hole in the image's alpha by
+   *  its coverage instead of lighting the image. It takes effect with the alpha holdout
+   *  (`primitiveAlphaHoldout`, `propagateAlpha`, `../../contracts/filmOptions.ts`); false by default. */
+  holdout?: boolean
+  /** The sky light's capture as a light of the fog (`SceneSkyLightScattering`); none by default. */
+  skyLightScattering?: SceneSkyLightScattering
+}
+
+/** The sky light's capture lighting the fog (`SceneHeightFog.skyLightScattering`). It applies where
+ *  the run's `fogReadsSkyLight` is on, the sky lighting is on in the view and the sky light has a
+ *  cube. */
+export interface SceneSkyLightScattering {
+  /** How far the fog's in-scattering colour is the sky light's rather than its own: the two are
+   *  mixed by this share, and the sun's lobe fades by it; from 0 (none, the default), 1 the sky
+   *  light's alone. */
+  strength?: number
+  /** The roughness the cube is read at, in [0, 1] (0.15 by default): the blur of the read, which
+   *  stands for the dispersion a phase function gives. */
+  roughness?: number
 }
 
 /** A height fog with every field set: what the GPU block is made of. */
@@ -113,9 +149,17 @@ export interface ResolvedHeightFog {
   cubemap?: ResolvedFogCubemap
   /** Absent where the volume is off. */
   volumetric?: ResolvedVolumetricFog
+  inMainView: boolean
+  inSkyCapture: boolean
+  inReflectionCaptures: boolean
+  holdout: boolean
+  skyLightScattering: Required<SceneSkyLightScattering>
 }
 
-/** The defaults of a height fog, the converted ones of the engines that fixed them. */
+/** The defaults of a height fog, the converted ones of the engines that fixed them: those of the fog
+ *  component, whose density 0.02 and falloff 0.2 are `baseDensity` 0.002 and `falloff` 0.02 here, at
+ *  the origin. The fog of the sky module's level is another object, placed lower and denser
+ *  (`modules/sky/descriptor.ts`); this one is the default of every fog a scene declares itself. */
 export const HEIGHT_FOG_DEFAULTS: ResolvedHeightFog = {
   color: [0, 0, 0],
   baseDensity: 0.002,
@@ -128,6 +172,11 @@ export const HEIGHT_FOG_DEFAULTS: ResolvedHeightFog = {
   skyContribution: [1, 1, 1],
   second: SECOND_FOG_DEFAULTS,
   horizontalLimit: 0,
+  inMainView: true,
+  inSkyCapture: true,
+  inReflectionCaptures: true,
+  holdout: false,
+  skyLightScattering: { strength: 0, roughness: 0.15 },
 }
 
 /** The extinction a density of 1 gives a uniform medium: `(ln 2)²` per metre, written as the
@@ -138,6 +187,29 @@ const EXTINCTION_PER_DENSITY = 0.4804530139182014
  *  every `1 / heightFalloff` metres up. */
 export const isExtinctionFog = (fog: object): fog is SceneExponentialFog =>
   'density' in fog || 'heightFalloff' in fog
+
+/** The directional lobe a declaration is, over the defaults. */
+function directionalOf(
+  directional: SceneHeightFog['directional'],
+): ResolvedHeightFog['directional'] {
+  const d = HEIGHT_FOG_DEFAULTS.directional
+  return {
+    exponent: directional?.exponent ?? d.exponent,
+    startDistance: directional?.startDistance ?? d.startDistance,
+    color: directional?.color ?? d.color,
+  }
+}
+
+/** The sky light scattering a declaration is, over the defaults. */
+function skyLightScatteringOf(
+  scattering: SceneHeightFog['skyLightScattering'],
+): ResolvedHeightFog['skyLightScattering'] {
+  const d = HEIGHT_FOG_DEFAULTS.skyLightScattering
+  return {
+    strength: scattering?.strength ?? d.strength,
+    roughness: scattering?.roughness ?? d.roughness,
+  }
+}
 
 /** The height fog a declaration is, every field set: a height fog over its defaults, or an
  *  extinction-form fog mapped exactly — its extinction `s` is `baseDensity · (ln 2)²`, its natural
@@ -160,15 +232,16 @@ export function heightFogOf(fog: SceneExponentialFog | SceneHeightFog): Resolved
     maxOpacity: fog.maxOpacity ?? d.maxOpacity,
     startDistance: fog.startDistance ?? d.startDistance,
     cutoffDistance: fog.cutoffDistance ?? d.cutoffDistance,
-    directional: {
-      exponent: fog.directional?.exponent ?? d.directional.exponent,
-      startDistance: fog.directional?.startDistance ?? d.directional.startDistance,
-      color: fog.directional?.color ?? d.directional.color,
-    },
+    directional: directionalOf(fog.directional),
     skyContribution: fog.skyContribution ?? d.skyContribution,
     second: resolveSecondLayer(fog.secondLayer),
     horizontalLimit: fog.horizontalLimit ?? d.horizontalLimit,
     cubemap: fog.cubemap && resolveFogCubemap(fog.cubemap),
     volumetric: resolveVolumetricFog(fog.volumetric),
+    inMainView: fog.inMainView ?? d.inMainView,
+    inSkyCapture: fog.inSkyCapture ?? d.inSkyCapture,
+    inReflectionCaptures: fog.inReflectionCaptures ?? d.inReflectionCaptures,
+    holdout: fog.holdout ?? d.holdout,
+    skyLightScattering: skyLightScatteringOf(fog.skyLightScattering),
   }
 }

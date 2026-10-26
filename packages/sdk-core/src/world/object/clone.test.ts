@@ -19,8 +19,8 @@ test('a clone keeps every field a saved scene keeps, and shares nothing', () => 
   const lamp = light.spot({
     intensity: 4,
     distance: 9,
-    angle: 0.4,
-    penumbra: 0.3,
+    outerConeAngle: 0.4,
+    innerConeAngle: 0.3,
     target: [0, -2, 0],
   })
   lamp.visible = false

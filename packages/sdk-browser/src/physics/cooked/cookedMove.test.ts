@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BODY_INDEX, MOTION, OP } from '../../../../sdk-core/src/physics/layout.ts'
+import { BODY_INDEX, FILTER_WORDS, MOTION, OP } from '../../../../sdk-core/src/physics/layout.ts'
 import type { CookedBody } from '../../../../sdk-core/src/physics/cooked.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createCookedBodies } from './cookedBodies.ts'
@@ -92,7 +92,9 @@ test('a model with no dynamic body moves no node and wants no ground for one', a
   tiles.update([0, 0, 0], 1000)
   await landed()
   const words = writer.take()
-  assert.deepEqual([words[0], words[2]], [OP.add, MOTION.kinematic])
+  // The kinematic body's filter, the module knowing none of that kind, comes first.
+  assert.equal(words[0], OP.filter)
+  assert.deepEqual([words[FILTER_WORDS], words[FILTER_WORDS + 2]], [OP.add, MOTION.kinematic])
   assert.equal(bodies.nested.size, 0, 'no node moved by the physics')
   assert.deepEqual(moversIn(bodies), [])
 })

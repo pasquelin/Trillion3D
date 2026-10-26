@@ -1,21 +1,21 @@
-import { TAU } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { createSurfaceBuffer } from './surfaceAllocation.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { directLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
+import { directLightingWgsl } from '../../lighting/direct/lightLoop.fixture.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { hostSurface, repaintHostSurface } from '../../session/world/materials/surface.ts'
 import { surfaceRow } from '../../geometry/rows/surfaceRow.ts'
-import { RECEIVER_TARGET_BYTES } from '../../visibility/shader/receiverTargetWgsl.ts'
 import { SURFACE_WORD_LAYERS, SURFACE_WORDS_FORMAT } from './surfaceOutputs.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { wantsSubsurface } from './subsurface.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import type { PageSurface } from '../../geometry/pages/surface.ts'
+import { createResidentSurfaces } from '../../geometry/clusters/surfaces.ts'
 
 const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 
@@ -51,11 +51,10 @@ test('enabled transmission allocates exactly eight bytes per pixel, without anot
   assert.equal(enabled.hasSubsurface, true)
   assert.equal(enabled.colours.depthOrArrayLayers, disabled.colours.depthOrArrayLayers + 1)
   assert.equal(enabled.colours.width * enabled.colours.height, 13 * 7)
-  // The shadow receiver is the same with or without transmission: two words a pixel.
+  // The words are the same with or without transmission: the flags' layer.
   for (const { words } of [disabled, enabled]) {
     assert.equal(words.format, SURFACE_WORDS_FORMAT)
     assert.equal(words.depthOrArrayLayers, SURFACE_WORD_LAYERS)
-    assert.equal(words.width * words.height * RECEIVER_TARGET_BYTES, 13 * 7 * RECEIVER_TARGET_BYTES)
   }
   disabled.dispose()
   enabled.dispose()
@@ -63,20 +62,32 @@ test('enabled transmission allocates exactly eight bytes per pixel, without anot
   assert.equal(gpu.destroyed.length, 7)
 })
 
-test('shipped thin diffuse transmission integrates to its color, dark front and shadow included', () => {
-  // The back of a thin surface is the Lambert diffuse of the light's cosine from behind
-  // (`lambertDiffuse`, `declaredLight`), on a white subsurface colour.
-  const { lambertDiffuse } = shaderRun<{
-    lambertDiffuse: (rgb: number[], metal: number, irradiance: number[], ao: number) => number[]
-  }>(DIRECT_LIGHTING_WGSL, ['lambertDiffuse'], {})
-  const back = (cosine: number, energy: number) =>
-    lambertDiffuse([1, 1, 1], 0, Array(3).fill(Math.max(-cosine, 0) * energy), 1)[0]
-  assert.equal(back(0.5, 8), 0)
-  assert.equal(back(-0.5, 0), 0)
-  assert.ok(Math.abs(back(-0.5, 8) - 4 / Math.PI) < 1e-6)
-  let integral = 0
-  for (let i = 0; i < 1024; i++) integral += (back(-(i + 0.5) / 1024, 1) * TAU) / 1024
-  assert.ok(Math.abs(integral - 1) < 1e-6)
+test('shipped thin transmission is a wrapped cosine times a broad lobe against the light', () => {
+  // The share of a light's energy a thin sheet gives the eye (`thinTransmission`, `declaredLight`): its
+  // subsurface colour weighs it per channel, and it has no 1/π and no cosine of its own.
+  const { thinTransmission } = shaderRun<{
+    thinTransmission: (n: number[], v: number[], l: number[]) => number
+  }>(DIRECT_LIGHTING_WGSL, ['thinTransmission'], {})
+  // The program computes in single precision (its constants are rounded to 24 bits: a relative
+  // 1.6e-8 against the double-precision formula), so the formulas are held to a relative 1e-6.
+  const near = (actual: number, expected: number) =>
+    assert.ok(
+      Math.abs(actual - expected) <= 1e-6 * Math.abs(expected),
+      `${actual} against ${expected}`,
+    )
+  const N = [0, 0, 1]
+  // A light straight behind and the eye on its line: the wrap's 2/3 on the lobe's top, 1 / (π · 0.36).
+  const peak = 2 / 3 / (Math.PI * 0.36)
+  near(thinTransmission(N, N, [0, 0, -1]), peak)
+  // Past the horizon the sheet still takes the light, down to nothing at a cosine of one half in front.
+  const horizon = thinTransmission(N, N, [1, 0, 0])
+  near(horizon, (0.5 / 2.25) * (0.36 / Math.PI))
+  assert.equal(thinTransmission(N, N, [Math.sqrt(0.75), 0, 0.5]), 0)
+  assert.equal(thinTransmission(N, N, N), 0)
+  // The eye on the light's own side sees the lobe's foot, against it its top.
+  const back: number[] = [0, 0, -1]
+  near(thinTransmission(N, back, back), (2 / 3) * (0.36 / Math.PI))
+  assert.ok(thinTransmission(N, N, back) > 7 * thinTransmission(N, back, back))
 })
 
 test('public material reaches the engine, and a color edit repaints without an API rebuild', () => {
@@ -99,7 +110,7 @@ test('public material reaches the engine, and a color edit repaints without an A
   assert.equal(surfaceRow(repainted, layers).subsurface, 3, 'its own atlas slot')
 })
 
-test('the thin transmission target asks still rows their sheets once, again once they move', () => {
+test('the thin transmission target asks still clusters their sheets once, again once they move', () => {
   let reads = 0
   const sheet = {
     get subsurfaceColor() {
@@ -107,16 +118,12 @@ test('the thin transmission target asks still rows their sheets once, again once
       return [0.2, 0.7, 0.1]
     },
   }
-  const rows = {
-    packedRecs: [{ material: sheet }, { material: sheet }],
-    packedCount: 2,
-    rowWrites: 0,
-    tableEpoch: 0,
-  }
-  const rt = { layout: { rows } } as unknown as WebgpuPagesRuntime
+  const surfaces = createResidentSurfaces()
+  surfaces.set(0, sheet as PageSurface)
+  surfaces.set(1, sheet as PageSurface)
+  const rt = { layout: { clusters: { surfaces, infoEpoch: 0 } } } as unknown as WebgpuPagesRuntime
   for (let frame = 0; frame < 4; frame++) assert.equal(wantsSubsurface(rt), true)
   assert.equal(reads, 1, 'one read of the one surface over four frames')
-  rows.packedCount = 0
-  rows.rowWrites++
+  surfaces.clear()
   assert.equal(wantsSubsurface(rt), false)
 })

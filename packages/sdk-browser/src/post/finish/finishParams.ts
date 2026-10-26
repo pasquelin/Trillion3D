@@ -1,7 +1,8 @@
-import { EXPOSURE_MIDDLE_GREY } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
+import type { ExposureValues } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import type { ViewTile } from '../../camera/engineCamera.ts'
 import { putVec4 } from '../../gpu/core/fieldLayout.ts'
-import { luminanceReading, reachOf, type ExposureSettings } from '../exposure/meterParams.ts'
+import { luminanceReading, reachOf } from '../exposure/meterParams.ts'
 import { halfOf } from '../filters/levelSizes.ts'
 import { FINISH, GRID_EMPTY, GRID_TILE } from './finishLayout.ts'
 import { writeFilmParams, type FilmInput } from './filmParams.ts'
@@ -12,9 +13,7 @@ const AT = FINISH.at
  *  the scene's vignette strength, the display image's size — the grid is built over its half-size
  *  image —, whether the grain is drawn and the image's number) and the exposure's. */
 export type FinishInput = FilmInput & {
-  settings: ExposureSettings
-  /** Whether the exposure is the automatic one, whose bias moves the middle grey. */
-  auto: boolean
+  settings: ExposureValues
   /** Whether the local exposure runs, and whether a glow is added. */
   local: boolean
   glow: boolean
@@ -23,6 +22,32 @@ export type FinishInput = FilmInput & {
   keep?: readonly number[]
   /** What the glow's dirt mask multiplies it by, per channel; none where no mask is drawn. */
   dirt?: readonly number[]
+  /** The lens' principal point (`lensOf`). */
+  lens: readonly number[]
+}
+
+/** The lens of a view drawn whole: its centre at the image's, its scale the image's. */
+const WHOLE_LENS: readonly number[] = Object.freeze([0, 0, 1, 1])
+
+/**
+ * The lens' principal point of a camera that draws `tile` of a wider view: the offset of the tile's
+ * centre in the wider view's `[−1, 1]` square and the scale from the one square to the other, on
+ * each axis — a point at `p` of the tile's square lies at `offset + p · scale` of the lens' —;
+ * `(0, 0, 1, 1)` where the view is drawn whole. The inverse of the clip window the tile's
+ * projection applies (`camera/engineCamera.ts`). Written into `into` when given, which a frame that
+ * draws a tile does, so an image allocates none; else a new array, or the shared whole lens.
+ */
+export function lensOf(tile: ViewTile | null | undefined, into?: number[]): readonly number[] {
+  if (!tile && !into) return WHOLE_LENS
+  const [x, y, scaleX, scaleY] = tile
+    ? [tile.offsetX / tile.scaleX, tile.offsetY / tile.scaleY, 1 / tile.scaleX, 1 / tile.scaleY]
+    : WHOLE_LENS
+  const out = into ?? []
+  out[0] = x
+  out[1] = y
+  out[2] = scaleX
+  out[3] = scaleY
+  return out
 }
 
 /** The share of the grid's width the half-size image fills along one axis, `pixels` wide: the
@@ -33,17 +58,13 @@ const gridScale = (pixels: number) => pixels / GRID_TILE / ceilDiv(pixels, GRID_
 /**
  * Writes the finishing's uniform (`FINISH`) into `words`. The exposure, its second word, is the
  * GPU's to copy in (`finishFrame`): written as 1 here, so a buffer written again holds the same
- * words frame after frame. The middle grey the local exposure pulls toward is 0.18 times two to
- * the local bias, times two to the exposure's own bias where the exposure is automatic — its
- * target —; a manual exposure leaves the grey where it is. The film's words follow
- * (`writeFilmParams`), the vignette's among them.
+ * words frame after frame. The log2 of the middle grey the local exposure pulls toward, the first
+ * word of `base`, is the GPU's to copy in too, from the exposure buffer (`ExposureMeter.copyGrey`):
+ * 0 here. The film's words follow (`writeFilmParams`), the vignette's among them.
  */
 export function writeFinishParams(words: Float32Array, input: FinishInput) {
   const { settings, size } = input
   const reading = luminanceReading(settings)
-  const grey =
-    EXPOSURE_MIDDLE_GREY *
-    2 ** ((input.auto ? settings.exposureBias : 0) + settings.localExposureMiddleGreyBias)
   words.fill(0)
   words[AT.look + 1] = 1
   words[AT.look + 2] = input.local ? 1 : 0
@@ -56,7 +77,6 @@ export function writeFinishParams(words: Float32Array, input: FinishInput) {
   words[AT.histogram + 1] = reading.bias
   words[AT.histogram + 2] = settings.localExposureBlurBlend
   words[AT.histogram + 3] = GRID_EMPTY
-  words[AT.base] = Math.log2(grey)
   words[AT.base + 1] = settings.localExposureHighlightContrast
   words[AT.base + 2] = settings.localExposureShadowContrast
   words[AT.base + 3] = settings.localExposureDetailStrength
@@ -66,5 +86,6 @@ export function writeFinishParams(words: Float32Array, input: FinishInput) {
   words[AT.grid + 3] = settings.localExposureShadowThreshold
   words[AT.reach] = reachOf(settings.localExposureHighlightThresholdStrength)
   words[AT.reach + 1] = reachOf(settings.localExposureShadowThresholdStrength)
+  putVec4(words, AT.lens, input.lens[0], input.lens[1], input.lens[2], input.lens[3])
   writeFilmParams(words, input)
 }

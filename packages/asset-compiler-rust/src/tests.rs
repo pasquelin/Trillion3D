@@ -1,5 +1,5 @@
 use super::*;
-mod base;
+pub(crate) mod base;
 pub(crate) mod directories;
 /// The RAM budget, in bytes, a test driver request runs under.
 pub(crate) const RAM_BUDGET: usize = 1 << 30;

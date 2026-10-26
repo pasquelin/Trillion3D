@@ -23,8 +23,7 @@ export function createResidencyLog() {
     arrived(key: string) {
       arrivals?.push(key)
     },
-    /** Each key that arrived since the last call, told once, in order: what a reader that waits on
-     *  pages follows instead of asking for every one it waits on. Kept from the first call. */
+    /** Each key that arrived since the last call, told once, in order. Kept from the first call. */
     takeArrivals(visit: (key: string) => void) {
       arrivals ??= []
       for (let i = 0; i < arrivals.length; i++) visit(arrivals[i])
@@ -34,8 +33,7 @@ export function createResidencyLog() {
     unpinned(key: string) {
       unpinned.add(key)
     },
-    /** Each pinned page that left since the last call, told once: what a reader that keeps pages
-     *  pinned puts back. */
+    /** Each pinned page that left since the last call, told once. */
     takeUnpinned(visit: (key: string) => void) {
       for (const key of unpinned) visit(key)
       unpinned.clear()
@@ -46,9 +44,8 @@ export function createResidencyLog() {
       else changes.delete(key)
       departures?.push(key)
     },
-    /** Each key that left since the last call, told once, in order: what a reader that keeps its
-     *  own book of the resident pages follows (`../../residency/streamedPages.ts`). Kept from the
-     *  first call. */
+    /** Each key that left since the last call, told once, in order (`../../residency/streamedPages.ts`).
+     *  Kept from the first call. */
     takeDepartures(visit: (key: string) => void) {
       departures ??= []
       for (let i = 0; i < departures.length; i++) visit(departures[i])

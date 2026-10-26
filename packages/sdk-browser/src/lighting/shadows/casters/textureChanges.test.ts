@@ -1,150 +1,167 @@
-// A colour tile stales only the shadow pages of the masked surfaces that read its texture: a tile
-// of a texture no cutout reads, or a colour change on an opaque material, leaves every map as it is.
-// The CPU names the rows alone, one scan of the page table a pump, each once to the rows pass's
-// list (`ROW_STALES`); the GPU stales each by the sphere the rows pass holds for it: no sphere, no
-// box, is made on the CPU.
+// A colour tile stales only the shadow pages of the masked surfaces that read its texture: a tile of
+// a texture no cutout reads, or a colour change on an opaque material, leaves every map as it is.
+// The CPU boxes the resident clusters of those surfaces alone, one box a root, one scan of the
+// resident clusters a pump (`followChanges.ts`); and a surface whose alpha moved under a casting light
+// stales the pages over its clusters (`refreshWebgpuMaterials`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { FLAG_BLEND_CASTER, FLAG_MASK, ROW_WORDS } from '../../../visibility/types.ts'
-import {
-  shadowsFollowSurfaces,
-  shadowsFollowTextures,
-} from '../../../frame/prepare/lightResources.ts'
+import { FLAG_MASK } from '../../../visibility/types.ts'
+import { refreshWebgpuMaterials } from '../../../frame/io/refreshMaterials.ts'
 import type { PageSurface } from '../../../geometry/pages/surface.ts'
 import type { PageRec } from '../../../geometry/selection/types.ts'
-import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
-import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
+import { shadowsFollowSurfaces, shadowsFollowTextures } from './followChanges.ts'
+import type { FollowRuntime } from './followChanges.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
-import { ROW_NAMED, ROW_STALES } from '../../../placement/rows/rowWordsWgsl.ts'
 
-/** Three colour textures, at slots 3, 5 and 7 of the atlas; the surfaces that wear them. */
-const [T3, T5, T7] = [{}, {}, {}] as unknown as Texture[]
-const MAP_LAYER = new Map([
-  [T3, 3],
-  [T5, 5],
-  [T7, 7],
+/** The surfaces of a forest: bark and knots are cutouts on the atlas slots 3 and 5, leaves an opaque
+ *  surface on slot 7. */
+const bark = {} as PageSurface,
+  leaves = {} as PageSurface,
+  knots = {} as PageSurface
+const ROWS = new Map<PageSurface, { map: number; bits: number }>([
+  [bark, { map: 3, bits: FLAG_MASK }],
+  [leaves, { map: 7, bits: 0 }],
+  [knots, { map: 5, bits: FLAG_MASK }],
 ])
-const leaves = { map: T7 } as unknown as PageSurface,
-  bark = { map: T3 } as unknown as PageSurface,
-  knots = { map: T5 } as unknown as PageSurface
 
-const record = (material: PageSurface) => ({ material }) as unknown as PageRec
+/** A cluster, the unit box about `at` along x, of `material`. */
+const record = (material: PageSurface, at: number) =>
+  ({ material, min: [at, 0, 0], max: [at + 1, 1, 1] }) as unknown as PageRec
 
-/** Three visibility rows — a masked cutout on texture 3, an opaque surface on texture 7, a cutout
- *  on texture 5 —, then a blended caster's row on texture 7, each its surface's colour map. */
-function table() {
-  const ints = new Uint32Array(4 * ROW_WORDS)
-  ints[0 * ROW_WORDS + PAGE_INFO.at.flags] = FLAG_MASK
-  ints[1 * ROW_WORDS + PAGE_INFO.at.flags] = 0
-  ints[2 * ROW_WORDS + PAGE_INFO.at.flags] = FLAG_MASK
-  ints[3 * ROW_WORDS + PAGE_INFO.at.flags] = FLAG_BLEND_CASTER
-  return {
-    rowCount: 3,
-    blendFirst: 3,
-    casterSlots: 4,
-    pageTableInts: ints,
-    packedRecs: [record(bark), record(leaves), record(knots), record(leaves)],
+/** One root holding bark, leaves and knots clusters, its second a lone knots cluster; a light that
+ *  casts, and a spy of the CPU's boxes. `resident` names the packed pages that are. */
+function forest(casting = true, resident = [0, 1, 2, 3]) {
+  const records = [record(bark, 0), record(leaves, 10), record(knots, 20), record(knots, 100)]
+  const boxes: Array<{ box: number[]; moving: boolean }> = []
+  const representation: number[][] = []
+  const identity = () => {
+    const elements = new Float64Array(16)
+    for (let k = 0; k < 4; k++) elements[k * 5] = 1
+    return { world: { elements }, pages: [] as PageRec[], reach: 0 }
   }
+  const roots = [identity(), identity()]
+  roots[0].pages = records.slice(0, 3)
+  roots[1].pages = records.slice(3)
+  const moving = new Set<number>()
+  const rt = {
+    lights: {
+      store: { count: casting ? 1 : 0 },
+      mobility: { moves: (rank: number) => moving.has(rank) },
+      changes: {
+        worldChanged: (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
+          void boxes.push({ box: [...Array.from(min), ...Array.from(max)], moving: movingOnly }),
+        representationChanged: (min: ArrayLike<number>, max: ArrayLike<number>) =>
+          void representation.push([...Array.from(min), ...Array.from(max)]),
+      },
+    },
+    layout: {
+      clusters: {
+        residentPages: () => ({ pages: Int32Array.from(resident), count: resident.length }),
+      },
+      recordOf: (page: number) => records[page],
+      selectionRoots: roots,
+      placement: { baseOfRoot: Int32Array.of(0, 3), packedCount: 4 },
+    },
+    vis: {
+      mapLayer: new Map(),
+      dataLayer: new Map(),
+      materialTable: {
+        surface: (material: PageSurface) => ({ rank: 0, row: ROWS.get(material)! }),
+      },
+    },
+  } as unknown as FollowRuntime
+  return { rt, boxes, representation, moving }
 }
 
-/** A light casting, its rows' shadow changes made (`castChanges.ts`), and a spy of the CPU's boxes. */
-function lightsSpy(casting = true) {
-  const boxes: number[][] = []
-  const spy = (min: number[], max: number[]) => void boxes.push([...min, ...max])
-  const lights = {
-    store: { count: 1 },
-    casts: casting ? {} : undefined,
-    changes: { representationChanged: spy, worldChanged: spy },
-  }
-  const rt = { lights } as unknown as Pick<WebgpuPagesRuntime, 'lights' | 'rowWords'>
-  /** The rows named so far, as the rows pass reads them: each marked staled, `stales` of them. */
-  const named = () => {
-    const state = rt.rowWords
-    if (!state) return []
-    const words = [...state.targets.subarray(0, state.count)]
-    assert.ok(
-      words.every((word) => (word & ROW_STALES) !== 0),
-      'each staled',
-    )
-    assert.equal(state.stales, state.count)
-    return words.map((word) => word & ROW_NAMED)
-  }
-  return { rt, boxes, named }
-}
-
-test('a tile of a texture read by a cutout names that cutout, not the opaque surface beside it', () => {
-  const { rt, boxes, named } = lightsSpy()
-  shadowsFollowTextures(rt, table(), new Set([3]), MAP_LAYER)
-  assert.deepEqual(named(), [0])
-  assert.equal(boxes.length, 0, 'no box made on the CPU')
+test('a tile of a texture read by a cutout boxes that cutout, not the opaque surface beside it', () => {
+  const { rt, boxes } = forest()
+  shadowsFollowTextures(rt, new Set([3]))
+  assert.equal(boxes.length, 1, 'one box a root')
+  const [{ box }] = boxes
+  assert.ok(box[0] <= 0 && box[3] >= 1, 'the bark cluster is in it')
+  assert.ok(box[3] < 10, 'the leaves beside it are not')
 })
 
-test('tiles of two textures served by one pump name both cutouts, in one scan', () => {
-  const { rt, named } = lightsSpy()
-  shadowsFollowTextures(rt, table(), new Set([3, 5]), MAP_LAYER)
-  assert.deepEqual(named(), [0, 2])
+test('tiles of two textures served by one pump box both cutouts of the root, in one scan', () => {
+  const { rt, boxes } = forest()
+  shadowsFollowTextures(rt, new Set([3, 5]))
+  const first = boxes.find(({ box }) => box[0] <= 0)!.box
+  assert.ok(first[0] <= 0 && first[3] >= 21, 'bark and knots in one box of their root')
+  assert.equal(boxes.length, 2, 'and the other root’s knots in its own')
+  assert.ok(boxes.some(({ box }) => box[0] <= 100 && box[3] >= 101 && box[0] > 50))
 })
 
-test('a tile of a texture no cutout reads names nothing', () => {
-  const { rt, boxes, named } = lightsSpy()
-  shadowsFollowTextures(rt, table(), new Set([9]), MAP_LAYER)
-  assert.deepEqual(named(), [])
+test('a tile of a texture no cutout reads boxes nothing', () => {
+  const { rt, boxes } = forest()
+  shadowsFollowTextures(rt, new Set([9]))
   assert.equal(boxes.length, 0)
 })
 
-test('a tile of a texture a blended caster reads names that caster, whose coverage it carries', () => {
-  const { rt, named } = lightsSpy()
-  shadowsFollowTextures(rt, table(), new Set([7]), MAP_LAYER)
-  assert.deepEqual(named(), [3], 'the opaque row on the same texture is left')
+test('a tile of a texture only an opaque surface reads boxes nothing', () => {
+  const { rt, boxes } = forest()
+  shadowsFollowTextures(rt, new Set([7]))
+  assert.equal(boxes.length, 0, 'the opaque cluster on that texture is left')
 })
 
-test('a row that holds no page is never named', () => {
-  const { rt, named } = lightsSpy(),
-    rows = table()
-  rows.packedRecs[0] = undefined as unknown as PageRec
-  shadowsFollowTextures(rt, rows, new Set([3, 5]), MAP_LAYER)
-  assert.deepEqual(named(), [2])
+test('a cluster that is not resident is never boxed', () => {
+  const { rt, boxes } = forest(true, [2, 3])
+  shadowsFollowTextures(rt, new Set([3, 5]))
+  assert.equal(boxes.length, 2)
+  assert.ok(
+    boxes.every(({ box }) => box[0] > 15),
+    'the bark cluster, not resident, is left out',
+  )
 })
 
-test('without the rows’ shadow changes no sphere holds a row yet: nothing is named', () => {
-  const { rt, boxes } = lightsSpy(false)
-  shadowsFollowTextures(rt, table(), new Set([3]), MAP_LAYER)
-  assert.equal(boxes.length, 0)
+test('the boxes of a placement already moving are for its moving casters alone', () => {
+  const { rt, boxes, moving } = forest()
+  moving.add(1)
+  shadowsFollowTextures(rt, new Set([5]))
+  assert.deepEqual(boxes.map(({ moving }) => moving).sort(), [false, true])
 })
 
 test('a resize, which names no texture, still restarts everything', () => {
-  const { rt, boxes, named } = lightsSpy()
-  shadowsFollowTextures(rt, table(), -1, MAP_LAYER)
-  assert.equal(boxes.length, 1)
-  assert.ok(boxes[0][0] < -1e29 && boxes[0][3] > 1e29)
-  assert.deepEqual(named(), [])
-})
-
-test('with no light declared, a tile stales nothing and names no row', () => {
-  const { rt, boxes, named } = lightsSpy()
-  const store: { count: number } = rt.lights.store
-  store.count = 0
-  shadowsFollowTextures(rt, table(), -1, MAP_LAYER)
-  shadowsFollowTextures(rt, table(), new Set([3]), MAP_LAYER)
+  const { rt, boxes, representation } = forest()
+  shadowsFollowTextures(rt, -1)
+  assert.equal(representation.length, 1)
+  assert.ok(representation[0][0] < -1e29 && representation[0][3] > 1e29)
   assert.equal(boxes.length, 0)
-  assert.deepEqual(named(), [])
 })
 
-// A page moved a material's alpha: its rows' shadow pages stale whatever their flags say —
-// an opaque surface turned masked has no cutout flag until its row is written again.
-test('an alpha change names the rows of its surfaces, the opaque and blended ones too', () => {
-  const { rt, boxes, named } = lightsSpy()
-  shadowsFollowSurfaces(rt, table(), new Set([leaves]))
-  assert.deepEqual(named(), [1, 3], 'the still row, then the blended one')
-  assert.equal(boxes.length, 0, 'no box made on the CPU')
-  shadowsFollowSurfaces(rt, table(), new Set())
-  assert.deepEqual(named(), [1, 3], 'no surface, no row')
+test('with no light declared, a tile stales nothing', () => {
+  const { rt, boxes, representation } = forest(false)
+  shadowsFollowTextures(rt, -1)
+  shadowsFollowTextures(rt, new Set([3]))
+  shadowsFollowSurfaces(rt, new Set([bark]))
+  assert.equal(boxes.length + representation.length, 0)
 })
 
-test('a row two pumps name before the rows pass is listed once', () => {
-  const { rt, named } = lightsSpy()
-  shadowsFollowTextures(rt, table(), new Set([3]), MAP_LAYER)
-  shadowsFollowTextures(rt, table(), new Set([3, 5]), MAP_LAYER)
-  shadowsFollowSurfaces(rt, table(), new Set([bark]))
-  assert.deepEqual(named(), [0, 2], 'the cutout named three times takes one entry')
+// A page moved a material's alpha: its clusters' shadow pages stale whatever their flags say —
+// an opaque surface turned masked has no cutout flag until its cluster record is written again.
+test('an alpha change boxes the clusters of its surfaces, the opaque ones too', () => {
+  const { rt, boxes } = forest()
+  shadowsFollowSurfaces(rt, new Set([leaves]))
+  assert.equal(boxes.length, 1)
+  assert.ok(boxes[0].box[0] <= 10 && boxes[0].box[3] >= 11 && boxes[0].box[3] < 20)
+  shadowsFollowSurfaces(rt, new Set())
+  assert.equal(boxes.length, 1, 'no surface, no box')
+})
+
+// A cutoff moved in place under a casting light drew a few shadowed pixels off the image of a
+// session opened on it: its redrawn shadow pages land in other pool slots, and a shadow read
+// depended on the slot. The move is taken in place, the shadow over its clusters drawn again — the
+// box of those clusters entered into the world's changes, which the next plan stales.
+test('an alpha move is taken in place under a casting light, the shadow over its clusters drawn again', () => {
+  const { rt, boxes } = forest()
+  const runtime = Object.assign(rt, {
+    layout: Object.assign(rt.layout, { clusters: { ...rt.layout.clusters, infoEpoch: 1 } }),
+    run: { gate: { movedInPlace() {} } },
+  }) as unknown as WebgpuPagesRuntime
+  const alpha = { surfaces: [bark], from: 'mask', to: 'mask' } as const
+  assert.equal(refreshWebgpuMaterials(runtime, true, alpha as never), true, 'no new session')
+  assert.equal(boxes.length, 1, 'the shadow pages over the cutout drawn again')
+  assert.ok(boxes[0].box[0] <= 0 && boxes[0].box[3] >= 1)
+  assert.equal(runtime.layout.clusters.infoEpoch, 2, 'and its clusters’ records written again')
+  assert.equal(refreshWebgpuMaterials(runtime, true), true, 'values alone stay in place')
+  assert.equal(boxes.length, 1, 'and stale no shadow')
 })

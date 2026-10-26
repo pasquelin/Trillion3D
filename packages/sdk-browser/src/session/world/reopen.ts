@@ -11,6 +11,70 @@ export type ReopenCause = 'device-lost' | 'option'
 /** The measure of a reopen in flight: its causes, its start, the display frames it lasted. */
 type Reopening = { causes: Set<ReopenCause>; start: number; frames: number; tick(): void }
 
+/** What a world's reopens keep: the causes asked for the next pass, when the earliest began, the reopen
+ *  in flight, and the wait on each session's end. */
+type ReopenState = {
+  wanted: Set<ReopenCause>
+  ends: WeakMap<object, { promise: Promise<void>; end: () => void }>
+  reopening: Reopening | null
+  since: number
+  frame: ((callback: () => void) => unknown) | undefined
+}
+
+const endOf = ({ ends }: ReopenState, session: object) => {
+  let known = ends.get(session)
+  if (!known) {
+    const { promise, resolve: end } = createDeferred<void>()
+    ends.set(session, (known = { promise, end }))
+  }
+  return known
+}
+
+/** The reopen in flight is over: said, drawn or not. */
+function settleReopen(
+  state: ReopenState,
+  notices: Pick<WorldNotices, 'say'>,
+  kept: () => number,
+  drawn: boolean,
+) {
+  const by = state.reopening
+  if (!by) return
+  state.reopening = null
+  const causes = [...by.causes]
+  notices.say('session-reopen', `The world's session opened again (${causes.join(', ')})`, {
+    kind: 'lifecycle',
+    cause: causes.join('+'),
+    drawn,
+    durationMs: msSince(by.start),
+    framesWithoutImage: by.frames,
+    keptPages: kept(),
+  })
+}
+
+/** A pass closes a session: its causes join the reopen in flight, or begin one counted in display
+ *  frames. */
+function joinReopen(state: ReopenState, causes: ReopenCause[], start: number) {
+  const { reopening, frame } = state
+  if (reopening) {
+    for (const cause of causes) reopening.causes.add(cause)
+    reopening.start = Math.min(reopening.start, start)
+    return
+  }
+  // One display-frame counter per reopen, stopped once it is said.
+  const by: Reopening = {
+    causes: new Set(causes),
+    start,
+    frames: 0,
+    tick() {
+      if (state.reopening !== by) return
+      by.frames++
+      frame?.(by.tick)
+    },
+  }
+  state.reopening = by
+  frame?.(by.tick)
+}
+
 /**
  * THE REOPENS OF A WORLD, KEPT AND JUSTIFIED. Its canvas keeps the image of a session that
  * closes until the next one draws (`canvasHandover.ts`); each reopen is said once that next image
@@ -26,84 +90,46 @@ export function worldReopens(
   kept: () => number,
 ) {
   keepCanvasImage(canvas)
-  const wanted = new Set<ReopenCause>(),
-    ends = new WeakMap<object, { promise: Promise<void>; end: () => void }>()
-  let reopening: Reopening | null = null,
-    since = Infinity
-  const frame = globalThis.requestAnimationFrame?.bind(globalThis)
-  const endOf = (session: object) => {
-    let known = ends.get(session)
-    if (!known) {
-      const { promise, resolve: end } = createDeferred<void>()
-      ends.set(session, (known = { promise, end }))
-    }
-    return known
+  const state: ReopenState = {
+    wanted: new Set(),
+    ends: new WeakMap(),
+    reopening: null,
+    since: Infinity,
+    frame: globalThis.requestAnimationFrame?.bind(globalThis),
   }
-  /** The reopen in flight is over: said, drawn or not. */
-  const settle = (drawn: boolean) => {
-    const by = reopening
-    if (!by) return
-    reopening = null
-    const causes = [...by.causes]
-    notices.say('session-reopen', `The world's session opened again (${causes.join(', ')})`, {
-      kind: 'lifecycle',
-      cause: causes.join('+'),
-      drawn,
-      durationMs: msSince(by.start),
-      framesWithoutImage: by.frames,
-      keptPages: kept(),
-    })
-  }
+  const settle = (drawn: boolean) => settleReopen(state, notices, kept, drawn)
   /** Asks a pass for `cause`, which that pass carries; `at`, when the cause began (a device's
    *  loss), starts the reopen's measure there. */
   const request = (cause: ReopenCause, at?: number) => {
-    wanted.add(cause)
-    if (at !== undefined) since = Math.min(since, at)
+    state.wanted.add(cause)
+    if (at !== undefined) state.since = Math.min(state.since, at)
     pass()
   }
-  /** A session drew: the reopen that led to it is said. */
-  const drew = () => settle(true)
   return {
     request,
     /** A pass begins, `previous` the session it closes, if any: that one is a reopen. */
     closing(previous: object | null) {
-      const causes = [...wanted],
-        start = Math.min(cpuNow(), since)
-      wanted.clear()
-      since = Infinity
+      const causes = [...state.wanted],
+        start = Math.min(cpuNow(), state.since)
+      state.wanted.clear()
+      state.since = Infinity
       if (!previous) return
-      endOf(previous).end()
-      if (reopening) {
-        for (const cause of causes) reopening.causes.add(cause)
-        reopening.start = Math.min(reopening.start, start)
-      } else {
-        // One display-frame counter per reopen, stopped once it is said.
-        const by: Reopening = {
-          causes: new Set(causes),
-          start,
-          frames: 0,
-          tick() {
-            if (reopening !== by) return
-            by.frames++
-            frame?.(by.tick)
-          },
-        }
-        reopening = by
-        frame?.(by.tick)
-      }
+      endOf(state, previous).end()
+      joinReopen(state, causes, start)
     },
-    drew,
+    /** A session drew: the reopen that led to it is said. */
+    drew: () => settle(true),
     /** No session follows for now — nothing to draw, or one failed to open: the kept image goes. */
     none() {
       releaseCanvasImage(canvas)
       settle(false)
     },
     /** Settles once `session` has closed. */
-    ended: (session: object) => endOf(session).promise,
+    ended: (session: object) => endOf(state, session).promise,
     /** The world is gone: a reopen in flight is said undrawn, its canvas released, and every
      *  wait on its sessions ends. */
     dispose(last: object | null) {
-      if (last) endOf(last).end()
+      if (last) endOf(state, last).end()
       releaseCanvasImage(canvas, true)
       settle(false)
     },

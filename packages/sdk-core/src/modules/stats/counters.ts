@@ -22,7 +22,6 @@ export const STATS_COUNTERS = [
   { field: 'shadowVsmPageManagementMs', key: 'shadows.pageManagement', tab: 'shadows', unit: 'ms' },
   { field: 'shadowVsmRenderMs', key: 'shadows.render', tab: 'shadows', unit: 'ms' },
   { field: 'shadowVsmProjectionMs', key: 'shadows.projection', tab: 'shadows', unit: 'ms' },
-  { field: 'shadowVsmTransmissionMs', key: 'shadows.transmission', tab: 'shadows', unit: 'ms' },
   { field: 'shadowVsmLights', key: 'shadows.lights', tab: 'shadows', unit: 'count' },
   { field: 'shadowVsmMaps', key: 'shadows.maps', tab: 'shadows', unit: 'count' },
   {
@@ -41,6 +40,8 @@ export const STATS_COUNTERS = [
   { field: 'shadowVsmPagesRendered', key: 'shadows.pagesRendered', tab: 'shadows', unit: 'count' },
   { field: 'shadowVsmFreePages', key: 'shadows.freePages', tab: 'shadows', unit: 'count' },
   { field: 'shadowVsmLodBias', key: 'shadows.lodBias', tab: 'shadows', unit: 'count' },
+  { field: 'shadowVsmRootsNoted', key: 'shadows.rootsNoted', tab: 'shadows', unit: 'count' },
+  { field: 'shadowVsmRootsBoxed', key: 'shadows.rootsBoxed', tab: 'shadows', unit: 'count' },
   {
     field: 'shadowVsmProjectionPasses',
     key: 'shadows.projectionPasses',

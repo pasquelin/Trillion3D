@@ -1,5 +1,6 @@
 import {
   countSetting as count,
+  integerSetting as integer,
   flagSetting as flag,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
@@ -20,20 +21,22 @@ import {
 const PERCENT: SettingRange = [0, 100]
 /** A blend factor, from 0 to 1. */
 const BLEND: SettingRange = [0, 1]
+/** The GPU times the history keeps: from 1 to 4096 — more than any budget browses, 160 kB of rings at
+ *  the most. */
+const HISTORY_SIZES: SettingRange = [1, 4096]
 
 /** The dynamic resolution's settings by field, each with the reference's default, in the order the
  *  heuristic reads them:
- *  - `dynamicResolutionFrameTimeBudgetMs`, the frame's GPU time budget the render scale is fitted
- *    to, in milliseconds. 0 — the default — is the page's frame cap interval, the display's
- *    refresh unless the page caps the frame rate (`packages/sdk-browser/src/frame/cadence.ts`):
- *    the reference's own 33.3 ms is the project's 30 frames a second, which a page's display and
- *    cap replace;
+ *  - `dynamicResolutionFrameTimeBudgetMs`, 33.3, the frame's GPU time budget the render scale is
+ *    fitted to, in milliseconds; 0 is the page's frame cap interval, the display's refresh unless
+ *    the page caps the frame rate (`packages/sdk-browser/src/frame/cadence.ts`);
  *  - `dynamicResolutionThrottlingMaxPercent`, 0 — none —, the most the render scale may be, in
  *    percent of the display, when above 0, within the page's bounds, whatever the budget allows;
  *  - `dynamicResolutionHeadroomPercent`, 10, the share of the budget left free;
  *  - `dynamicResolutionOverBudgetHeadroomPercent`, 0, the share of the budget a frame must take
  *    to be over it;
- *  - `dynamicResolutionHistorySize`, 16, the GPU times kept;
+ *  - `dynamicResolutionHistorySize`, 16, the GPU times kept, a whole number from 1 to 4096: five
+ *    doubles an entry, allocated at the next sample;
  *  - `dynamicResolutionFrameWeightExponent`, 0.9, each frame back weighs this much of the one
  *    after it;
  *  - `dynamicResolutionChangePeriod`, 8, the fewest GPU times between two changes;
@@ -47,11 +50,11 @@ const BLEND: SettingRange = [0, 1]
  *    resolution would not shorten it. The CPU time is the engine's own for the image, the one thread's. */
 export const DYNAMIC_RESOLUTION_RULES = /* @__PURE__ */ (() =>
   rulesOf([
-    nonNegative('dynamicResolutionFrameTimeBudgetMs', 0),
+    nonNegative('dynamicResolutionFrameTimeBudgetMs', 33.3),
     number('dynamicResolutionThrottlingMaxPercent', 0, PERCENT),
     number('dynamicResolutionHeadroomPercent', 10, [0, 99]),
     number('dynamicResolutionOverBudgetHeadroomPercent', 0, [0, 99]),
-    count('dynamicResolutionHistorySize', 16, 1),
+    integer('dynamicResolutionHistorySize', 16, HISTORY_SIZES),
     nonNegative('dynamicResolutionFrameWeightExponent', 0.9),
     count('dynamicResolutionChangePeriod', 8, 0),
     number('dynamicResolutionIncreaseAmortization', 0.9, BLEND),

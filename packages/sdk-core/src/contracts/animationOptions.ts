@@ -3,6 +3,7 @@ import {
   flagSetting as flag,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
+  contextReader,
   rulesOf,
   type SettingOptions,
 } from './settingRules.ts'
@@ -24,6 +25,9 @@ export const ANIMATION_RULES = /* @__PURE__ */ (() =>
     flag('animationBankInterpolation', true),
     number('animationBankTimeScale', 1, ANY),
   ] as const))()
+/** The animation setting `field` of a runtime's context (`contextReader`): its default where the
+ *  context holds none. */
+export const readAnimationSetting = /* @__PURE__ */ contextReader(ANIMATION_RULES)
 /** The field of one setting of the animation. */
 export type AnimationField = keyof typeof ANIMATION_RULES
 /** The animation's settings as a host writes them, by their fields: each its value, or nothing for

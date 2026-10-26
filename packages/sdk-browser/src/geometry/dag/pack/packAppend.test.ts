@@ -8,14 +8,19 @@ import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from './pack.ts'
 import { appendDagRoots } from './packAppend.ts'
 import { scene, TABLES } from './packAppend.fixture.ts'
+import { dagRootCounts } from './packCapacity.ts'
+import { placementField } from '../placement/placementTree.fixture.ts'
 import { scenePages, sceneRoots } from '../cut/cutFrontierScene.fixture.ts'
 import { createGpuDagSelection } from '../selection/selection.ts'
 import { mockDagDevice } from '../selection/selection.fixture.ts'
-import { kernelUniforms } from '../selection/selectionHelpers.fixture.ts'
+import { followNoResidency, kernelUniforms } from '../selection/selectionHelpers.fixture.ts'
 import { frontCamera } from '../../selection/dag.fixture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import { hostStretches } from '../hostStretches.fixture.ts'
-import { ROOT_PARENT_MARK } from '../frameTable.ts'
+import { DRAW_DISTANCE_MARK, DRAW_INSTANCE_MARK, ROOT_PARENT_MARK } from '../frameTable.ts'
+import { NODE_KIND, NODE_PARENT, PARENT_ERROR, PARENT_SPHERE } from '../nodeLayout.ts'
+import { DAG_NODE_FLOATS } from '../types.ts'
+import { NO_INDEX } from '../../../../../math/src/constants.ts'
 
 test('roots appended into the room read as a packing of every root at that capacity', () => {
   const { roots, counts, capacity } = scene()
@@ -34,7 +39,11 @@ test('roots appended into the room read as a packing of every root at that capac
   })
   for (const table of TABLES) assert.deepEqual(grown[table], whole[table], table)
   assert.deepEqual(grown.live, whole.live)
-  assert.deepEqual(grown.live, { pages: counts.pages, nodes, worlds: 5, entries: counts.nodes })
+  // One cluster record's set for the one page array the placements share.
+  assert.deepEqual(grown.live, {
+    ...{ pages: counts.pages, nodes, worlds: 5, entries: counts.nodes },
+    infos: per,
+  })
   const sizes = ({
     pageCount,
     nodeCount,
@@ -52,37 +61,109 @@ test('roots appended into the room read as a packing of every root at that capac
 
 test('the distances a root names are packed with its placement, appended in place as packed whole', () => {
   const { roots, capacity } = scene()
-  roots[1].drawDistance = { min: 5, max: 40 }
-  roots[3].drawDistance = { min: 0, max: 250.5 }
+  roots[1].drawDistance = { min: 5, max: 40, perInstance: false }
+  roots[3].drawDistance = { min: 0, max: 250.5, perInstance: true }
+  roots[4].drawDistance = { min: 3, max: 0, perInstance: false }
   const whole = packDagSelection(roots, capacity),
     grown = packDagSelection(roots.slice(0, 2), capacity)
   appendDagRoots(grown, roots.slice(2))
-  // Two floats a placement, the nearest then the farthest, 0 for none, a slot of the room included.
-  const named = Float32Array.of(0, 0, 5, 40, 0, 0, 0, 250.5, 0, 0, 0, 0, 0, 0, 0, 0)
+  // Three floats a placement, the nearest, the farthest and 1 for an instance, 0 for none, a slot
+  // of the room included.
+  const named = new Float32Array(3 * 8)
+  named.set([5, 40, 0], 3)
+  named.set([0, 250.5, 1], 9)
+  named.set([3, 0, 0], 12)
   assert.deepEqual(whole.drawDistance, named)
   assert.deepEqual(grown.drawDistance, named)
-})
-
-test('the group above the root of an instance of an assembly is packed with its placement, appended in place as packed whole', () => {
-  const { roots, capacity } = scene()
-  roots[1].rootParent = { error: 6.5, sphere: [1.25, -2, 3, 40] }
-  roots[3].rootParent = { error: 0.5, sphere: [0, 0, 0, 9] }
-  const whole = packDagSelection(roots, capacity),
-    grown = packDagSelection(roots.slice(0, 2), capacity)
-  appendDagRoots(grown, roots.slice(2))
-  // Five floats a placement — the error, then the ball —, zeros for none, a slot of the room included,
-  // and the mark bit that says the placement names one.
-  const named = new Float32Array(5 * capacity.worlds)
-  named.set([6.5, 1.25, -2, 3, 40], 5)
-  named.set([0.5, 0, 0, 0, 9], 15)
-  assert.deepEqual(whole.rootParent, named)
-  assert.deepEqual(grown.rootParent, named)
+  // The mark says which name one, and which of them is an instance.
   for (const packed of [whole, grown])
     assert.deepEqual(
-      Array.from(packed.mark.subarray(0, 5), (mark) => (mark & ROOT_PARENT_MARK) !== 0),
-      [false, true, false, true, false],
+      Array.from(packed.mark.subarray(0, 5), (mark) => [
+        (mark & DRAW_DISTANCE_MARK) !== 0,
+        (mark & DRAW_INSTANCE_MARK) !== 0,
+      ]),
+      [
+        [false, false],
+        [true, false],
+        [false, false],
+        [true, true],
+        [true, false],
+      ],
     )
-  assert.equal(packDagSelection(scene().roots, capacity).rootParent, undefined, 'none names one')
+})
+
+test('the group above the root of an instance of an assembly is a node, shared by the placements that read it, packed with its placement and appended in place as packed whole', () => {
+  const { roots, counts, capacity } = scene()
+  const room = { ...capacity, ahead: true },
+    per = counts.nodes / roots.length
+  const group = { error: 6.5, sphere: [1.25, -2, 3, 40] } as const
+  roots[1].rootParent = group
+  roots[3].rootParent = { error: 0.5, sphere: [0, 0, 0, 9] }
+  roots[4].rootParent = { ...group }
+  const whole = packDagSelection(roots, room),
+    grown = packDagSelection(roots.slice(0, 2), room)
+  const added = appendDagRoots(grown, roots.slice(2))
+  // One node a distinct group, behind the primitive's: the placements of the same group share it,
+  // a placement that names none holds none, and the mark bit says which name one.
+  const named = [NO_INDEX, per, NO_INDEX, per + 1, per]
+  assert.deepEqual(added?.nodes, [per + 1, per + 2], 'the second group, appended behind the first')
+  for (const packed of [whole, grown]) {
+    assert.deepEqual(Array.from(packed.parentNode!.subarray(0, 5)), named)
+    assert.deepEqual(
+      Array.from(packed.mark.subarray(0, 5), (mark) => (mark & ROOT_PARENT_MARK) !== 0),
+      [false, true, false, true, true],
+    )
+    assert.equal(packed.live!.nodes, per + 2)
+    const words = new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset)
+    for (const [node, error, ball] of [
+      [per, 6.5, [1.25, -2, 3, 40]],
+      [per + 1, 0.5, [0, 0, 0, 9]],
+    ] as const) {
+      const at = node * DAG_NODE_FLOATS
+      assert.equal(packed.nodes[at + PARENT_ERROR], error)
+      assert.deepEqual(
+        Array.from(packed.nodes.subarray(at + PARENT_SPHERE, at + PARENT_SPHERE + 4)),
+        ball,
+      )
+      assert.equal(words[at + NODE_KIND], NODE_PARENT, 'a node no descent reaches')
+    }
+  }
+  assert.equal(packDagSelection(scene().roots, capacity).parentNode, undefined, 'none names one')
+  // A packing exactly the roots' holds a node for each of their groups, and no room for another.
+  const exact = packDagSelection(roots)
+  assert.equal(exact.primitiveNodeCount, per + 2)
+  assert.equal(exact.parentNode![3], per + 1)
+})
+
+test('a growth’s room keeps a node for every placement it takes once the roots name a group, none before', () => {
+  const { roots, capacity } = scene()
+  const nodes = (worlds: number) =>
+    packDagSelection(roots, { ...capacity, worlds, ahead: true }).primitiveNodeCount
+  assert.equal(nodes(200) - nodes(100), 0, 'no group named: the primitives’ room alone')
+  roots[1].rootParent = { error: 6.5, sphere: [1.25, -2, 3, 40] }
+  assert.equal(nodes(200) - nodes(100), 100, 'a node for each placement the room takes')
+  const exact = packDagSelection(roots, { ...capacity, worlds: 200 })
+  assert.equal(exact.primitiveNodeCount, exact.live!.nodes, 'a room that is no growth’s keeps none')
+})
+
+test('roots that name a group are not appended into a packing whose tree holds no ball, wide ones are', () => {
+  const roots = placementField(40, 6),
+    counts = dagRootCounts(roots)
+  const room = {
+    ...{ pages: 2 * counts.pages, nodes: 2 * counts.nodes },
+    ...{ worlds: roots.length + 8, ahead: true },
+  }
+  const narrow = packDagSelection(roots, room)
+  assert.ok(narrow.placementTree, 'a tree over the placements')
+  assert.equal(narrow.parentNode, undefined, 'its packing names no group')
+  const named = { ...roots[0], rootParent: { error: 2, sphere: [0, 0, 0, 4] as const } }
+  assert.equal(appendDagRoots(narrow, [named]), undefined, 'packed again, wide')
+  assert.equal(narrow.parentNode, undefined, 'nothing was made in place')
+  assert.ok(appendDagRoots(narrow, [roots[0]]), 'a placement that names none is appended')
+  roots[3].rootParent = { error: 1, sphere: [0, 0, 0, 2] }
+  const wide = packDagSelection(roots, room)
+  assert.ok(appendDagRoots(wide, [named]), 'the packing that names groups takes one more')
+  assert.equal(wide.live!.worlds, roots.length + 1)
 })
 
 test('roots past the room, or of a primitive the packing does not hold, are not appended', () => {
@@ -114,6 +195,7 @@ test('the GPU cut over the roots appended in place selects what a cut over every
       roots: hostStretches(packed),
     })
     assert.ok(selection)
+    followNoResidency(packed)
     return selection
   }
   const whole = packDagSelection(roots, capacity),
@@ -156,6 +238,7 @@ test('roots appended under a still eye are brought to it before the next cut', a
     const selection = (await createGpuDagSelection(mockDagDevice(packed).device, packed, {
       roots: hostStretches(packed),
     }))!
+    followNoResidency(packed)
     selection.dispatch(uniforms)
     await selection.flush()
     // The eye has not moved: the cut reads the worlds the append wrote at it.

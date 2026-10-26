@@ -126,11 +126,12 @@ fn instance_value(record: u32, p: vec3f) -> f32 {
 
 // The solids' sum at `p`: the box tree walked down the boxes that hold it, each instance of a leaf
 // read when its own box holds it too, the walk stopped at the first instance whose value reaches
-// `SHELL_WINDING` in magnitude.
-fn solids_winding(p: vec3f) -> f32 {
+// `SHELL_WINDING` in magnitude, the result saying whether it stopped: the host joins the parts of a
+// scene by it.
+fn solids_winding(p: vec3f) -> vec2u {
     let head = scene[0];
     if head.y == 0u {
-        return 0.0;
+        return result(0.0, false);
     }
     var total = 0.0;
     var stack: array<u32, STACK>;
@@ -158,11 +159,11 @@ fn solids_winding(p: vec3f) -> f32 {
             let value = instance_value(record, p);
             total = total + value;
             if abs(value) >= SHELL_WINDING {
-                return total;
+                return result(total, true);
             }
         }
     }
-    return total;
+    return result(total, false);
 }
 
 @compute @workgroup_size(WORKGROUP)
@@ -182,5 +183,5 @@ fn winding(@builtin(global_invocation_id) id: vec3u) {
     for (var i = 0u; i < head.w; i = i + 1u) {
         total = total + instance_value(head.z + i * INSTANCE_RECORDS, p);
     }
-    values[at] = total;
+    values[at] = result(total, false);
 }

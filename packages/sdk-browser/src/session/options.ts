@@ -1,3 +1,4 @@
+import type { SettingOptions } from './settingOptions.ts'
 import type { AdmitGpuMemory } from './memory/activeMemory.ts'
 import type {
   AssetScope,
@@ -7,36 +8,6 @@ import type {
 import type { EngineDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts'
 import type { EngineFactory } from './engine/factory.ts'
 import type { DiagnosticGpuVariant } from '../diagnostic/gpuVariant.ts'
-import type {
-  HlodWarmupOptions,
-  WorldStreamingOptions,
-} from '../../../sdk-core/src/contracts/worldStreamingOptions.ts'
-import type { CutOptions } from '../../../sdk-core/src/contracts/cutOptions.ts'
-import type { DynamicResolutionOptions } from '../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
-import type { AnimationOptions } from '../../../sdk-core/src/contracts/animationOptions.ts'
-import type { ShadingOptions } from '../../../sdk-core/src/contracts/shadingOptions.ts'
-import type { ExposureCurveOptions } from '../../../sdk-core/src/contracts/exposureCurve.ts'
-import type { ExposureOptions } from '../../../sdk-core/src/contracts/exposureOptions.ts'
-import type { TemporalOptions } from '../../../sdk-core/src/contracts/temporalOptions.ts'
-import type { HizOptions } from '../../../sdk-core/src/contracts/hizOptions.ts'
-import type { LightFunctionOptions } from '../../../sdk-core/src/contracts/lightFunctionOptions.ts'
-import type { VolumetricLightmapOptions } from '../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
-import type { DistanceFieldOcclusionOptions } from '../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
-import type { GlobalDistanceFieldOptions } from '../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
-import type { ShadowOptions } from '../../../sdk-core/src/contracts/shadowOptions.ts'
-import type { MotionBlurSettings } from '../../../sdk-core/src/contracts/motionBlurOptions.ts'
-import type { DepthOfFieldSettings } from '../../../sdk-core/src/contracts/depthOfFieldRules.ts'
-import type { BloomSettings } from '../../../sdk-core/src/contracts/bloomRules.ts'
-import type { GaussianBlurSettings } from '../../../sdk-core/src/contracts/gaussianBlurRules.ts'
-import type { FilmSettings } from '../../../sdk-core/src/contracts/filmOptions.ts'
-import type { AmbientOcclusionOptions } from '../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
-import type { SkyQualityOptions } from '../../../sdk-core/src/modules/sky/quality.ts'
-import type { ScreenProbeOptions } from '../../../sdk-core/src/bounce/screenProbeOptions.ts'
-import type { ReflectionOptions } from '../../../sdk-core/src/contracts/reflectionOptions.ts'
-import type { VolumetricFogOptions } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
-import type { TessellationOptions } from '../../../sdk-core/src/contracts/tessellationOptions.ts'
-import type { RasterOptions } from '../../../sdk-core/src/contracts/rasterOptions.ts'
-import type { StreamingOptions } from '../../../sdk-core/src/contracts/streamingOptions.ts'
 
 /** A named view of a scene a page can jump to. */
 export type PointOfInterest = {
@@ -47,117 +18,11 @@ export type PointOfInterest = {
   /** Where the camera stands and what it looks at. */
   pose: CameraPose
 }
-/** A session's options. Beside those below, how the view streams a partitioned scene's cells
- *  (`worldStreaming…`) and the warm-up an HLOD switch waits on (`hlodWarmup…`), each setting by
- *  its field (`../../../sdk-core/src/contracts/worldStreamingOptions.ts`), its default left out;
- *  set during the session by `explorer.setWorldStreaming`, one field at a time. The cut's
- *  settings likewise (`cut…`, `../../../sdk-core/src/contracts/cutOptions.ts`), set during the
- *  session by `explorer.setCut` (among them the GPU time budget of the cut,
- *  `cutEdgeScaleBudgetMs`, and its lowest scale, `cutEdgeScaleMinPercent`), the dynamic
- *  resolution's heuristic's (`dynamicResolution…`,
- *  `../../../sdk-core/src/contracts/dynamicResolutionOptions.ts`), set by
- *  `explorer.setDynamicResolution`, the animation's (`animation…`,
- *  `../../../sdk-core/src/contracts/animationOptions.ts`), set by `explorer.setAnimation`, and the
- *  shading's (`shadeBinningMode`, `../../../sdk-core/src/contracts/shadingOptions.ts`), set by
- *  `explorer.setShading`, and the exposure's (`exposure…` and `localExposure…`,
- *  `../../../sdk-core/src/contracts/exposureOptions.ts`: bias, range, histogram, shares, speeds,
- *  transition, black bucket, luminance, then the local exposure's contrasts, detail, blur,
- *  middle grey and thresholds), set by `explorer.setExposure`, the exposure's compensation curve (`exposureCurve`,
- *  `../../../sdk-core/src/contracts/exposureCurve.ts`), set by `explorer.setExposureCurve`, and the temporal pass's
- *  (`temporalThinGeometry`, `../../../sdk-core/src/contracts/temporalOptions.ts`), set by
- *  `explorer.setTemporal`, and the sun's shadows' (`shadowDistanceScale`, 1: the factor on every
- *  sun's shadow distance, from 0 to 2; `farShadowCulling`, true: whether a sun's shadow maps leave
- *  out the casters past the edge of that distance; `farShadowCullsAllMeshes`, false: whether the
- *  test reaches every caster, not only the world's merged shells; and the three that shape its
- *  edge: `shadowNearLevels`, 10, from 0 to 10, capped by the light's four; `shadowOverlapScale`, 1,
- *  from 0 to 2; `shadowFarField`, true, `../../../sdk-core/src/contracts/shadowOptions.ts`) and the
- *  shadow maps' own (the clipmap's levels and depth range, the coarse pages, the resolution biases,
- *  the radius threshold, the rays and steps of a trace, the page pool: `shadowClipmap…`,
- *  `shadowMarkCoarsePages…`, `shadowResolutionLodBias…`, `shadowRadiusThreshold…`, `shadowRayCount…`,
- *  `shadowSamplesPerRay…`, `shadowMaxPhysicalPages`,
- *  `../../../sdk-core/src/contracts/shadowMapOptions.ts`), set by
- *  `explorer.setShadows`. The motion
- *  blur's drawing (`motionBlurQuality`, `'veryHigh'`;
- *  `motionBlurHalfResGather`, false; `motionBlurHalfResInput`, true; `motionBlurSeparable`, false;
- *  `motionBlurScatter`, false; `motionBlurDirections`, 1,
- *  `../../../sdk-core/src/contracts/motionBlurOptions.ts`), set by
- *  `explorer.setMotionBlur`. The depth of field's drawing (`depthOfFieldQuality`, `'on'`: `'off'` or `'on'`;
- *  `depthOfFieldRingCount`, 4; `depthOfFieldAccumulator`, `'high'`; `depthOfFieldTemporalQuality`, `'high'`; and the others of
- *  `../../../sdk-core/src/contracts/depthOfFieldRules.ts`), set by `explorer.setDepthOfField`. The bloom's drawing (`bloomQuality`, `'highest'`: `'off'`, `'lowest'`,
- *  `'low'`, `'medium'`, `'high'` or `'highest'`; `bloomCross`, 0; `bloomScreenPercentage`, 50;
- *  `bloomApplyLocalExposure`, true; `bloomCacheKernel`, true,
- *  `../../../sdk-core/src/contracts/bloomRules.ts`), set by `explorer.setBloom`. The Gaussian blur's
- *  (`gaussianFastBlurThreshold`, 100; `gaussianSampleScale`, 1; `gaussianLoopMode`, 0,
- *  `../../../sdk-core/src/contracts/gaussianBlurRules.ts`), set by `explorer.setGaussianBlur`. The film effects' (`filmGrain…`, `chromaticAberration…`,
- *  `vignette…`, `tonemapperQuality`, `tonemapperSharpen`, `sceneColorTint…`,
- *  `quantizationDitheringBits`, `../../../sdk-core/src/contracts/filmOptions.ts`), set by
- *  `explorer.setFilm`. The volumetric fog's quality (`volumetricFogQuality`, `'high'`: `'off'`,
- *  `'low'`, `'high'` or `'ultra'`) and its eleven other settings
- *  (`../../../sdk-core/src/contracts/volumetricFogOptions.ts`), set by `explorer.setVolumetricFog`;
- *  the volume exists only in a scene whose fog sets `volumetric`. The reflections' trace
- *  (`reflectionScreenSteps`, 50 and `reflectionRingSteps`, 256: the iterations of a reflected ray's march of the screen and
- *  the steps it takes in each ring of the scene; `reflectionMeshTraces`, true and `reflectionDetailSteps`, 64: its detail
- *  window; `reflectionDistantScreenTraces`, true, `reflectionDistantScreenSteps`, 16 and `reflectionDistantScreenDistance`,
- *  2000 m: the far screen trace, `../../../sdk-core/src/contracts/reflectionOptions.ts`), set by `explorer.setReflections`. The screen-space
- *  ambient occlusion's (`ambientOcclusion`, true; `ambientOcclusionIntensity`, 0.5; `ambientOcclusionRadius`, 2 m;
- *  `ambientOcclusionQuality`, 50; and the others of `../../../sdk-core/src/contracts/ambientOcclusionOptions.ts`),
- *  set by `explorer.setAmbientOcclusion`. The depth pyramid's (`hizTrace`, `hizFoldTransparents`,
- *  `hizTransparentTest`, `hizFullResDepth`, `lightGridHizCull`,
- *  and the five of the primed pyramid, `hizPrime` (`'off'`), `hizPrimeSizeBias`, `hizPrimeDepthBias`,
- *  `hizPrimeErrorScale` and `hizPrimeFarFieldOnly`,
- *  `../../../sdk-core/src/contracts/hizOptions.ts`),
- *  set by `explorer.setHiz`. The software raster (`softwareRaster`, on by default: a cluster whose
- *  longest edge projects under `hardwareRasterEdgePixels` and that crosses neither clip plane is
- *  rastered in compute, every other one by the hardware rasterizer; `false` draws every cluster
- *  with the hardware) and the edge it goes to the hardware at (`hardwareRasterEdgePixels`, 32 by
- *  default, a finite number above zero), `../../../sdk-core/src/contracts/rasterOptions.ts`, set by
- *  `explorer.setSoftwareRaster` and `explorer.setHardwareRasterEdgePixels`. The geometry
- *  streaming's nine settings (`streaming…`,
- *  `../../../sdk-core/src/contracts/streamingOptions.ts`): the pages kept started at once
- *  (`streamingMaxPendingPages`, 128), those a frame installs at most
- *  (`streamingMaxInstallsPerFrame`, 128, never more than may be pending), the pool's load in
- *  percent of its pages under which the quality rises again and over which it falls
- *  (`streamingQualityMinPoolPercent` 70, `streamingQualityMaxPoolPercent` 85, read no lower than
- *  the low mark, from 10 to 100), the lowest scale of the screen error it falls to
- *  (`streamingQualityMinScale`, 0.3, from 0.1 to 1), the times a failed read of a page is tried
- *  again before its page is given up (`streamingNumRetries`, 3, at once and with no wait but the
- *  one a server asks, a negative value without end), the least and the most requests the camera
- *  cut's readout holds (`streamingMinRequests`, 65 536, `streamingMaxRequests`, 1 048 576, from
- *  4 096 to 1 048 576, the most read no lower than the least: it starts at the least and follows
- *  what the cut asks of it) and the bandwidth the reads are simulated to have
- *  (`streamingBandwidthLimit`, in megabytes a second, -1 for none); set by
- *  `explorer.setStreaming`, from the streaming's next update. Each is refused at the opening when
- *  out of its range. */
-export interface MeasuredWorldOptions
-  extends
-    WorldStreamingOptions,
-    HlodWarmupOptions,
-    CutOptions,
-    DynamicResolutionOptions,
-    AnimationOptions,
-    ShadingOptions,
-    ExposureOptions,
-    ExposureCurveOptions,
-    TemporalOptions,
-    HizOptions,
-    LightFunctionOptions,
-    VolumetricLightmapOptions,
-    GlobalDistanceFieldOptions,
-    DistanceFieldOcclusionOptions,
-    ShadowOptions,
-    MotionBlurSettings,
-    DepthOfFieldSettings,
-    BloomSettings,
-    GaussianBlurSettings,
-    FilmSettings,
-    VolumetricFogOptions,
-    TessellationOptions,
-    ScreenProbeOptions,
-    ReflectionOptions,
-    AmbientOcclusionOptions,
-    SkyQualityOptions,
-    RasterOptions,
-    StreamingOptions {
+/** A session's options. Beside those below, each setting of the engine by its field, its default
+ *  left out (`SettingOptions`, `./settingOptions.ts`): the fields, ranges and defaults of each group
+ *  are stated by its contract file (`../../../sdk-core/src/contracts/`), and a group is set during
+ *  the session by its `explorer.set…` setter. Each is refused at the opening when out of its range. */
+export interface MeasuredWorldOptions extends SettingOptions {
   /** Own controls, CSS/DPR sizing and demand-driven rendering. Off by default. */
   interactive?: boolean
   /** Called before every frame the interactive session draws: the host writes its scene then. */
@@ -174,6 +39,12 @@ export interface MeasuredWorldOptions
   drawViews?: () => void
   /** Called after every frame the session draws, with that frame's metrics. */
   onFrame?: (metrics: import('../../../sdk-core/src/contracts/metrics.ts').FrameMetrics) => void
+  /** The world's time, in seconds, read at each image: the sum of the seconds the world's clips and
+   *  controllers integrated, a pause of the loop counted as one running interval, and what the
+   *  automatic exposure adapts on and the `time` of a material graph reads — what the world did not
+   *  live, a frame the loop slept through, they do not either. Set by the world that draws the
+   *  session; absent, the engine runs on its own image clock (a bench or a test with no world). */
+  worldClock?: () => number
   replicaCount?: 1 | 4 | 9 | 12
   detail?: 'source' | 'maximum'
   onEvent?: (event: import('../../../sdk-core/src/runtime/events.ts').RuntimeEvent) => void
@@ -208,12 +79,13 @@ export interface MeasuredWorldOptions
    *  and leaves it alive when disposed — what a world reopening its session keeps. */
   gpuDevice?: GPUDevice
   pointsOfInterest?: PointOfInterest[]
-  /** Texture-tile bytes the WebGPU engine admits per frame; 16 MiB by default. */
+  /** Texture-tile bytes the WebGPU engine admits per frame, besides the cap of 32 tiles a frame;
+   *  16 MiB by default. */
   maxTextureTransferBytesPerFrame?: number
-  /** CPU milliseconds the WebGPU engine may spend copying texture tiles per frame; 1.0 by
-   *  default. The pass stops after the copy that crosses it; the tiles left wait for the next
-   *  frame, shown meanwhile by their coarser resident level; the worst pass is published as
-   *  `textureUploadPeakMs`. */
+  /** CPU milliseconds the WebGPU engine may spend copying texture tiles per frame, besides the cap
+   *  of 32 tiles a frame; 1.0 by default. The pass stops after the copy that crosses it; the
+   *  tiles left wait for the next frame, shown meanwhile by their coarser resident level; the
+   *  worst pass is published as `textureUploadPeakMs`. */
   maxTextureUploadMsPerFrame?: number
   /** Geometry-page pool bytes — streamed geometry memory, regardless of the scene, a fixed
    *  512 MB pool. 512 MiB by default.
@@ -257,7 +129,7 @@ export interface MeasuredWorldOptions
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain
   /** Lines and points drawn over the image, held by the world (`world.guides`). */
   guides?: import('../guides/guideSet.ts').GuideSet
-  /** Particle pools, held by the world (`attachParticles`). */
+  /** Particle pools, held by the world (`world.particles`). */
   particles?: readonly import('../../../sdk-core/src/fluids/particles.ts').ParticlePool[]
   /** Bounced light. On by default; `false` turns it off for the whole session. */
   bounce?: boolean

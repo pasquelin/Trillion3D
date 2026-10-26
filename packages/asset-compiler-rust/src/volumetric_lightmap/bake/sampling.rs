@@ -1,24 +1,14 @@
 //! The bake's sampling of directions: a basis around a normal, the hemisphere and cone
 //! distributions with their densities, and the power heuristic that weighs two of them.
 use std::f64::consts::PI;
+use trillion3d_math::vector::vec3::frame_around;
 use trillion3d_math::vector::vecn::{add, dot, scale};
 
 pub type Vec3 = [f64; 3];
 
-/// A basis around the unit vector `n` (its two tangents), continuous but at `n.z == 0`.
-fn tangents(n: Vec3) -> (Vec3, Vec3) {
-    let sign = if n[2] >= 0.0 { 1.0 } else { -1.0 };
-    let a = -1.0 / (sign + n[2]);
-    let b = n[0] * n[1] * a;
-    (
-        [1.0 + sign * a * n[0] * n[0], sign * b, -sign * n[0]],
-        [b, sign + a * n[1] * n[1], -n[1]],
-    )
-}
-
 /// `v`, given in the frame whose third axis is `n`, in the world.
 pub fn tangent_to_world(v: Vec3, n: Vec3) -> Vec3 {
-    let (x, y) = tangents(n);
+    let (x, y) = frame_around(n);
     add(add(scale(x, v[0]), scale(y, v[1])), scale(n, v[2]))
 }
 

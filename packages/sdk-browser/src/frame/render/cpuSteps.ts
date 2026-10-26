@@ -1,5 +1,5 @@
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
-import { CPU_STEP } from './cpuStepTable.ts'
+import { CPU_STEP } from '../../diagnostic/stage/cpuStepTable.ts'
 import { gpuFrameCostSnapshot } from '../costAudit.ts'
 import type { HostCpuStep } from '../../session/host/cpuProfile.ts'
 import { debugMode } from '../../session/host/debugMode.ts'
@@ -27,16 +27,15 @@ function recordStages(rt: WebgpuPagesRuntime) {
       gpu: 'transfers go through the GPU queue, with no timestamped pass',
     })
   stages.setCounts('lightLists', { activeLights: lights.lightsActive })
-  // What bounce actually did: probes and rays, never a duration. A still, converged scene encodes
+  // What bounce actually did: probes, never a duration. A still, converged scene encodes
   // no pass, so the stage stays "unmeasured" and not zero.
   stages.setCounts('bounce', {
     probesUpdated: bounce.probesUpdated,
-    raysPerFrame: bounce.raysLaunched,
     cascadeProbes: bounce.probes?.cascades.probes ?? 0,
     // Probes alive, taken by the cells the image reads; and, of those, the ones that hold nothing
     // yet: zero once the light the image reads is filled.
-    liveProbes: bounce.probes?.pool.live ?? 0,
-    unfilledProbes: bounce.probes?.unfilled ?? 0,
+    liveProbes: bounce.probes?.stats.live ?? 0,
+    unfilledProbes: bounce.probes?.stats.unfilled ?? 0,
     // The count a frame traces, the probes never traced first.
     probesPerFrame: probesPerFrameOf(rt),
   })
@@ -94,6 +93,11 @@ export function hostCpuStep(rt: WebgpuPagesRuntime, step: HostCpuStep, ms: numbe
   rt.timing.profiler.row[CPU_STEP[step]] = ms
 }
 
+/** Whether the image's CPU time is profiled: the stage profile mounted, a channel listening, or
+ *  debug mode. */
+export const cpuProfiled = (rt: WebgpuPagesRuntime) =>
+  rt.timing.profiler.stages || rt.diag.listened || debugMode()
+
 /**
  * Closes the image on the host side: bounds the host samples after the render belong to the image
  * that just drew, so the row is filed only here. An image that has not filled a row — an image
@@ -107,7 +111,7 @@ export function endCpuFrame(rt: WebgpuPagesRuntime) {
   if (!timing.rowFilled) return
   timing.rowFilled = false
   const { profiler } = timing
-  const profiled = profiler.stages || rt.diag.listened || debugMode()
+  const profiled = cpuProfiled(rt)
   if (!profiled && profiler.readers === 0) return
   profiler.record(run.frame, profiler.row[CPU_STEP.totalMs], !profiled)
   if (!profiled) return

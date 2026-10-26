@@ -4,7 +4,6 @@
 import type { PageRec } from '../selection/types.ts'
 import type { GpuPageCache } from '../pages/pool/pages.ts'
 import { pageAddress } from '../rows/page/pageSlots.ts'
-import { createHeap } from '../../../../math/src/sequence/heap.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { QueueState, Started, Victim } from './queueState.ts'
 import { dependOn, letGo, residentAddress, takeDesired, unloadStranded } from './queueHold.ts'
@@ -91,6 +90,42 @@ const rootGrained = (s: QueueState, cache: GpuPageCache, unit: number) => {
   return units.keys(unit).some((key) => cache.rooted(pageCatalog[key]))
 }
 
+/** The free streaming slots and root grains of the pool that no started page counts on yet. */
+const roomLeft = (s: QueueState, cache: GpuPageCache) => ({
+  free: cache.room() - s.onFree,
+  grains: cache.rootRoom() - s.onGrain,
+})
+
+/**
+ * Where the pages of `unit` land, taken from the `room` left: a streaming page the pool holds a
+ * page of already — a victim let go before its taker came — takes the slot it has, no free slot, no
+ * victim; a root page — an HLOD cell's, not yet held — a free root grain, never a streaming slot
+ * nor a victim's; another a free slot, else a victim's (`given`). `'short'` where a root page finds
+ * no grain left, which it waits for the root region to grow (`rootsShort`); `'none'` where no
+ * victim is left.
+ */
+function seatOf(
+  s: QueueState,
+  cache: GpuPageCache,
+  unit: number,
+  room: ReturnType<typeof roomLeft>,
+  victim: () => Victim | undefined,
+): 'short' | 'none' | { given: Victim | undefined; grain: boolean } {
+  const absent = residentAddress(s, cache, unit) === undefined,
+    grain = absent && rootGrained(s, cache, unit)
+  if (grain && room.grains <= 0) {
+    s.rootsShort++
+    return 'short'
+  }
+  let given: Victim | undefined
+  if (grain) room.grains--
+  else if (absent) {
+    if (room.free > 0) room.free--
+    else if (!(given = victim())) return 'none'
+  }
+  return { given, grain }
+}
+
 /** The streaming pages a later holder brought into the root cover that the pool lacks a page of,
  *  in the order of their lowest-ranked missing page, loaded at once, pinned on arrival: each takes
  *  the slot its pages hold; a root page a free root grain, or none left, waits for the region to
@@ -99,26 +134,16 @@ const rootGrained = (s: QueueState, cache: GpuPageCache, unit: number) => {
 export function loadCover(s: QueueState, cache: GpuPageCache, victim: () => Victim | undefined) {
   const { sets, tracking, coverRank } = s.o
   const missing = sets.coverMissing((page) => !!cache.get(pageAddress(page)), coverRank)
-  let free = cache.room() - s.onFree,
-    grains = cache.rootRoom() - s.onGrain
+  const room = roomLeft(s, cache)
   s.rootsShort = 0
   for (const page of missing) {
     const unit = tracking.units.of(tracking.keyOf(page))
     if (s.covering.has(unit) || s.refused.has(unit)) continue
-    let given: Victim | undefined
-    const absent = residentAddress(s, cache, unit) === undefined,
-      grain = absent && rootGrained(s, cache, unit)
-    if (grain && grains <= 0) {
-      s.rootsShort++
-      continue
-    }
-    if (grain) grains--
-    else if (absent) {
-      if (free > 0) free--
-      else if (!(given = victim())) return
-    }
+    const seat = seatOf(s, cache, unit, room, victim)
+    if (seat === 'short') continue
+    if (seat === 'none') return
     s.covering.add(unit)
-    install(s, cache, started(s, cache, unit, given, grain, true))
+    install(s, cache, started(s, cache, unit, seat.given, seat.grain, true))
   }
 }
 
@@ -144,28 +169,14 @@ export function start(s: QueueState, cache: GpuPageCache, victim: () => Victim |
   const { o, requests } = s,
     { streamed } = o.sets
   const chosen = highest(s, s.limits.maxPendingPages - s.pending.length)
-  let free = cache.room() - s.onFree,
-    grains = cache.rootRoom() - s.onGrain
+  const room = roomLeft(s, cache)
   for (const at of chosen) {
     const unit = requests.keys[at],
       page: PageRec = requests.recordAt(at)
-    let given: Victim | undefined
-    // A streaming page the pool holds a page of already — a victim let go before its taker came —
-    // takes the slot it has: no free slot, no victim. A root page — an HLOD cell's, not yet held —
-    // takes a free root grain, never a streaming slot nor a victim's: none left, it waits for the
-    // root region to grow (`rootsShort`).
-    const absent = residentAddress(s, cache, unit) === undefined,
-      grain = absent && rootGrained(s, cache, unit)
-    if (grain && grains <= 0) {
-      s.rootsShort++
-      continue
-    }
-    if (grain) grains--
-    else if (absent) {
-      if (free > 0) free--
-      else if (!(given = victim())) return void (s.more = false)
-    }
-    const entry = started(s, cache, unit, given, grain, false)
+    const seat = seatOf(s, cache, unit, room, victim)
+    if (seat === 'short') continue
+    if (seat === 'none') return void (s.more = false)
+    const entry = started(s, cache, unit, seat.given, seat.grain, false)
     // Started: at the use order's end, holding what it depends on, its desired pages taken on by
     // the pool.
     streamed.start(unit, page)
@@ -185,10 +196,9 @@ export function start(s: QueueState, cache: GpuPageCache, victim: () => Victim |
 function highest(s: QueueState, room: number) {
   const { requests } = s,
     { streamed } = s.o.sets,
-    ranks = (s.ranks = resized(s.ranks, requests.count))
+    ranks = (s.priority.ranks = resized(s.priority.ranks, requests.count)),
+    heap = s.top
   for (let at = 0; at < requests.count; at++) ranks[at] = requests.priorityOf(requests.keys[at])
-  // The lowest first: the one a fuller heap lets go.
-  const heap = createHeap<number>((a, b) => ranks[a] < ranks[b] || (ranks[a] === ranks[b] && a > b))
   let candidates = 0
   for (let at = 0; at < requests.count; at++) {
     const unit = requests.keys[at]
@@ -199,7 +209,8 @@ function highest(s: QueueState, room: number) {
     if (heap.size > room) heap.take()
   }
   s.more = candidates > heap.size
-  const chosen: number[] = []
+  const chosen = s.chosen
+  chosen.length = 0
   while (heap.size) chosen.push(heap.take()!)
   return chosen.reverse()
 }

@@ -17,10 +17,12 @@ const WORKERS = [
   'sdk-browser/src/geometry/work/pageWorker.js',
   'sdk-browser/src/geometry/integration/pageIntegrationWorker.js',
   'sdk-browser/src/physics/physicsWorker.js',
+  'sdk-browser/src/session/world/benchmarkWorker.js',
 ]
 const MODULES = [
   'sdk-browser/src/wasm/kernels.wasm',
   'sdk-browser/src/gpu/noise/blueNoise.bin',
+  'sdk-browser/src/lighting/direct/skinTable.bin',
   'sdk-browser/src/physics/joltPhysics.wasm',
   'sdk-browser/src/physics/joltPhysicsThreads.wasm',
 ]

@@ -6,10 +6,10 @@
 //! `Lamp` block — and only has to fill this structure: the glTF is written here,
 //! once, so one more format does not reinvent the document shape.
 //!
-//! **Units.** `intensity` is photometric, as glTF requires: candelas for a
-//! punctual and a spot, lux for a directional. It is the driver's job to convert
-//! its format's unit, and to say which; `compiler::lights` then redivides by
-//! `LUMENS_PER_WATT`. `emitter_radius` is in world metres, like the rest of the scene.
+//! **Units.** `intensity` is in candelas for a punctual and a spot, lux for a directional, as
+//! glTF requires. It is the driver's job to convert its format's unit, and to say which;
+//! `compiler::lights` reads the number back unchanged. `emitter_radius` is in world metres, like
+//! the rest of the scene.
 use super::*;
 
 /// A light read from a source, before it becomes glTF.
@@ -45,7 +45,7 @@ impl LightSource {
         if let Some(shadow) = self.casts_shadow {
             extras.insert("castsShadow".into(), json!(shadow));
         }
-        // A radius that is not finite and positive describes no envelope: the compiler derives one.
+        // A radius that is not finite and positive describes no envelope: none is written.
         if let Some(radius) = self.emitter_radius.filter(|r| r.is_finite() && *r > 0.0) {
             extras.insert("emitterRadius".into(), json!(radius));
         }

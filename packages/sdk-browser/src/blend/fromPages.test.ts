@@ -8,7 +8,6 @@ import { BACKEND } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { pagedQuad, FIRST, SECOND, type PagedQuad } from '../frame/backend/pagedQuad.fixture.ts'
 import { createWebgpuPagesRuntime } from '../frame/backend/runtime.ts'
-import { ensurePageTable } from '../frame/render/pageTable.ts'
 import { disposeWebgpuPages } from '../frame/io/metrics.ts'
 import { prepareWebgpuPages } from '../frame/prepare/preparePages.ts'
 import type { PageSurface } from '../geometry/pages/surface.ts'
@@ -36,7 +35,7 @@ async function preparedQuad(pass: string, surface: PageSurface) {
     readGeometryPage: async (url: string) => fixture.bytes.get(url)!,
   } as never)
   await prepareWebgpuPages(rt, mock.device)
-  return { rt, fixture, mesh, device: mock.device }
+  return { rt, fixture, mesh }
 }
 
 const release = async (rt: Awaited<ReturnType<typeof preparedQuad>>['rt'], fixture: PagedQuad) => {
@@ -55,15 +54,14 @@ test('a paged transparent item owns no host buffer and draws each cluster from i
 })
 
 async function pagedItem(pass: string, surface: PageSurface) {
-  const { rt, fixture, mesh, device } = await preparedQuad(pass, surface)
+  const { rt, fixture, mesh } = await preparedQuad(pass, surface)
   try {
     const [item] = rt.blendState.blendGpu
     assert.equal(item.geometry.quantized, true, `${pass}: the shader decodes its pages`)
     assert.equal(item.geometry.hasTangent, false, 'a page stores no tangent')
     assert.equal(rt.vis.geometryBlocks.has(mesh.geometry.attributes), false, 'no float geometry')
     // Once resident, each cluster's span is its slot and the corners its page declares.
-    ensurePageTable(rt, device)
-    rt.services.syncRows()
+    rt.services.syncClusters()
     const { spans, entryOf } = rt.blendState.table!
     fixture.encoded.forEach((page, id) => {
       const entry = entryOf(id)

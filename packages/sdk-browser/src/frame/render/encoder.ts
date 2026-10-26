@@ -6,7 +6,7 @@ import { viewProj } from '../backend/helpers.ts'
 import { enginePose } from '../../camera/world.ts'
 import { composesOffscreen } from '../../diagnostic/gpuVariant.ts'
 import type { WebgpuPagesCore } from '../backend/runtime.ts'
-import { rowWordsDropped } from '../../placement/rows/rowTargets.ts'
+import { queueSubmits } from '../../gpu/core/sessionHandle.ts'
 import { distanceFieldsSubmitted } from '../../lighting/distanceField/frame.ts'
 
 /** A command buffer of the image, timed with its other parts when the image is sampled
@@ -29,14 +29,12 @@ export const openFrameEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   (rt.timing.frameEncoder = createImagePart(rt, device))
 
 /** Drops the open command buffer and settles the selection whose readback would have ridden in it.
- *  The passes it held never ran: the rows pass runs again, whole, the rows it staled named again
- *  (`rowWordsDropped`). */
+ *  The passes it held never ran. */
 export function abandonFrameEncoder(rt: WebgpuPagesCore) {
   const { timing } = rt
   const dropped = timing.frameEncoder
   if (!dropped) return
   timing.frameEncoder = undefined
-  rowWordsDropped(rt.rowWords, dropped)
   settleFrameSelection(timing, false)
   timing.gpuTiming?.cancelUnsubmitted()
 }
@@ -66,6 +64,71 @@ function submittedReadbacks(rt: WebgpuPagesCore, published: boolean) {
   distanceFieldsSubmitted(rt)
 }
 
+/** The display colour presented before the frame is submitted, unless the variant composes
+ *  off-screen or the image is withheld. */
+function presentDisplay(rt: WebgpuPagesCore, encoder: GPUCommandEncoder) {
+  const { run, gpu, capture, context } = rt
+  // The off-screen variant does not touch the swap chain in any way: neither a composition target
+  // nor a separate presentation pass. That is what isolates what Presentation actually contains.
+  // Nor does an image withheld — till the view has loaded, or while a load blocks on slow
+  // streaming (`../loop/firstImage.ts`).
+  const offscreen = composesOffscreen(context.diagnosticGpuVariant) || run.imageWithheld
+  if (!offscreen && gpu.presenter && gpu.displayTexture && !capture.capturing) {
+    // The display colour at its size: a frame drawn below it is the resolve's input, never shown.
+    const at = rt.views.active.rect
+    if (gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize, at))
+      run.gpuDrawCalls++
+  }
+}
+
+/** The trace of the commands submitted. */
+function traceSubmit(rt: WebgpuPagesCore, width: number, height: number) {
+  const { run, capture, context } = rt
+  if (rt.diag.traceEnabled)
+    rt.diag.traceDiagnostic('encoding-submit', 'Commandes WebGPU soumises', () => ({
+      frame: run.frame,
+      submission: run.imageRevision,
+      pose: run.lastCamera ? enginePose(run.gate.cam) : null,
+      width,
+      height,
+      drawCalls: run.gpuDrawCalls,
+      drawnTriangles: run.selectedTriangles,
+      transparent: {
+        drawCalls: run.blendDrawCalls,
+        submittedTriangles: run.blendSubmittedTriangles,
+      },
+      presentation: capture.capturing
+        ? 'surface-capture'
+        : context.gpuCanvas
+          ? 'direct'
+          : 'composed',
+    }))
+}
+
+/** The timing of the image, handed over once its commands are submitted, if it is sampled. */
+function sampleSubmitted(
+  rt: WebgpuPagesCore,
+  encoder: GPUCommandEncoder,
+  width: number,
+  height: number,
+) {
+  const { run, timing } = rt
+  if (timing.gpuTiming?.isSampled(encoder))
+    timing.gpuTiming.submitted(encoder, {
+      submission: run.imageRevision,
+      viewport: [width, height],
+      cameraWorld: run.lastCamera && [...run.gate.cam.eye],
+      viewProjection: [...viewProj],
+      scope: 'selection-and-render-passes',
+      excludes: ['uploads and copies', 'CPU work', 'presentation latency'],
+      drawCalls: run.gpuDrawCalls,
+      renderScale: rt.views.active.scale.drawn,
+      scaleSteered: rt.views.active.scale.steered,
+      transparentDrawCalls: run.blendDrawCalls,
+      transparentSubmittedTriangles: run.blendSubmittedTriangles,
+    })
+}
+
 export function submitColorCopy(
   rt: WebgpuPagesCore,
   device: GPUDevice,
@@ -74,18 +137,8 @@ export function submitColorCopy(
   width: number,
   presented = false,
 ) {
-  const { run, gpu, timing, capture, context } = rt
-  // The off-screen variant does not touch the swap chain in any way: neither a composition target
-  // nor a separate presentation pass. That is what isolates what Presentation actually contains.
-  // Nor does an image withheld — till the view has loaded, or while a load blocks on slow
-  // streaming (`../loop/firstImage.ts`).
-  const offscreen = composesOffscreen(context.diagnosticGpuVariant) || run.imageWithheld
-  if (!presented && !offscreen && gpu.presenter && gpu.displayTexture && !capture.capturing) {
-    // The display colour at its size: a frame drawn below it is the resolve's input, never shown.
-    const at = rt.views.active.rect
-    if (gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize, at))
-      run.gpuDrawCalls++
-  }
+  const { run, gpu, timing, capture } = rt
+  if (!presented) presentDisplay(rt, encoder)
   const owned = encoder === timing.frameEncoder
   // Texture image feedback leaves with the image: the target where pixels posted their requests is
   // reduced to counts, copied to their readback then zeroed.
@@ -108,7 +161,10 @@ export function submitColorCopy(
   // a frame — the main view's image; the views drawn beside it follow it in the queue.
   if (rt.views.active === rt.views.main) {
     run.gpuFramesInFlight++
-    void device.queue.onSubmittedWorkDone().finally(() => run.gpuFramesInFlight--)
+    // Kept for the loop's own feedback wait (`pendingWebgpuFrame`): one device call a frame.
+    run.submittedDone = device.queue.onSubmittedWorkDone()
+    run.submittedAt = queueSubmits(device)
+    void run.submittedDone.finally(() => run.gpuFramesInFlight--)
   }
   // What the image replaced as it was encoded goes, its last command submitted (`frameRetire.ts`).
   destroyRetired(device)
@@ -116,45 +172,11 @@ export function submitColorCopy(
   // An inspection asked reads the main view's image now, before a view aside overwrites what the
   // views share (`../../diagnostic/inspection/read.ts`).
   if (rt.views.active === rt.views.main && !capture.capturing) run.inspect?.()
-  // Every encode path has sent what its rows need before it submits: the image that leaves consumed
-  // the row change, whether it drew rows or had none to draw.
-  rt.layout.rows.rowsChanged = false
   run.imageRevision++
   if (owned) {
     timing.frameEncoder = undefined
     settleFrameSelection(timing, true)
   }
-  if (rt.diag.traceEnabled)
-    rt.diag.traceDiagnostic('encoding-submit', 'Commandes WebGPU soumises', () => ({
-      frame: run.frame,
-      submission: run.imageRevision,
-      pose: run.lastCamera ? enginePose(run.gate.cam) : null,
-      width,
-      height,
-      drawCalls: run.gpuDrawCalls,
-      drawnTriangles: run.selectedTriangles,
-      transparent: {
-        drawCalls: run.blendDrawCalls,
-        submittedTriangles: run.blendSubmittedTriangles,
-      },
-      presentation: capture.capturing
-        ? 'surface-capture'
-        : context.gpuCanvas
-          ? 'direct'
-          : 'composed',
-    }))
-  if (timing.gpuTiming?.isSampled(encoder))
-    timing.gpuTiming.submitted(encoder, {
-      submission: run.imageRevision,
-      viewport: [width, height],
-      cameraWorld: run.lastCamera && [...run.gate.cam.eye],
-      viewProjection: [...viewProj],
-      scope: 'selection-and-render-passes',
-      excludes: ['uploads and copies', 'CPU work', 'presentation latency'],
-      drawCalls: run.gpuDrawCalls,
-      renderScale: rt.views.active.scale.drawn,
-      scaleSteered: rt.views.active.scale.steered,
-      transparentDrawCalls: run.blendDrawCalls,
-      transparentSubmittedTriangles: run.blendSubmittedTriangles,
-    })
+  traceSubmit(rt, width, height)
+  sampleSubmitted(rt, encoder, width, height)
 }

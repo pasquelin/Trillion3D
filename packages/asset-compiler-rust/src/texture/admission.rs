@@ -81,12 +81,22 @@ fn execute<T: Send + Sync>(
     .0)
 }
 
-/// The dimensions of an image and its encoded bytes plus what its driver expands them to, read
-/// from its head without decoding: what every cost below is estimated from.
+/// What an image's head says of its cost: its dimensions, its encoded bytes plus what its driver
+/// expands them to (`payload`), and what the floating-point chain of a floating or 16-bit image
+/// holds beyond its decoded texels (`chain`; none for a byte image).
+struct Head {
+    width: u32,
+    height: u32,
+    payload: usize,
+    chain: usize,
+}
+
+/// The `Head` of an image, read from its bytes without decoding: what every cost below is
+/// estimated from.
 fn head(
     (g, bin, image_root): (&Value, &[u8], &Path),
     image: Option<&Value>,
-) -> std::result::Result<(u32, u32, usize), &'static str> {
+) -> std::result::Result<Head, &'static str> {
     let image = image.ok_or("image-out-of-bounds")?;
     source::with_image_bytes(g, bin, image_root, image, |bytes, _| {
         let driver = crate::plugins::image::by_head(bytes).ok_or("image-format-unknown")?;
@@ -97,12 +107,19 @@ fn head(
         let payload = bytes
             .len()
             .saturating_add(driver.expanded_payload_bytes(bytes)?);
-        Ok((width, height, payload))
+        let texels = (width as usize).saturating_mul(height as usize);
+        let chain = driver.chain_bytes(bytes, texels);
+        Ok(Head {
+            width,
+            height,
+            payload,
+            chain,
+        })
     })
 }
 
 /// Decodes `images`, as many at once as the job's allowance less `reserved` admits, `work`
-/// measuring each and dropping its pixels: the cutout step's decodes take the same admission as the bake's, and
+/// reading each and dropping its pixels: the decodes take the same admission as the bake's, and
 /// an image too wide for it refuses the job here as it would there. An image whose head does not
 /// read costs nothing; `work` names its failure.
 pub(crate) fn decode_admitted<T: Send + Sync>(
@@ -116,10 +133,9 @@ pub(crate) fn decode_admitted<T: Send + Sync>(
     let costs: Vec<Cost> = images
         .iter()
         .map(|&index| {
-            head(source, declared.and_then(|images| images.get(index)))
-                .map_or(NOTHING, |(width, height, payload)| {
-                    cost::decoding(width, height, payload)
-                })
+            head(source, declared.and_then(|images| images.get(index))).map_or(NOTHING, |head| {
+                cost::decoding(head.width, head.height, head.payload)
+            })
         })
         .collect();
     execute(
@@ -144,11 +160,11 @@ pub(super) fn bake(
     let source = (inputs.g, inputs.bin, inputs.image_root);
     for (&index, readers) in &jobs {
         check(inputs.o)?;
-        let described = head(source, images.get(index)).map(|(width, height, payload)| {
+        let described = head(source, images.get(index)).map(|head| {
             cost::estimate(
-                width,
-                height,
-                payload,
+                head.width,
+                head.height,
+                head.payload.saturating_add(head.chain),
                 readers.len(),
                 inputs.o.texture_formats.len(),
             )

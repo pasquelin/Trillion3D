@@ -27,7 +27,7 @@ import { recordWords, type RecordWords } from './objectRecords.ts'
  */
 
 /** The depth of the atlas, in bricks, `bricks` being what the blocks have held at once. */
-export function atlasDepth(bricks: number, budget: AtlasBudget) {
+function atlasDepth(bricks: number, budget: AtlasBudget) {
   const wanted = Math.max(1, ceilDiv(bricks, budget.sizeXY * budget.sizeXY))
   return wanted <= budget.maxDepth ? nextPow2(wanted) : ceilDiv(wanted, 4) * 4
 }
@@ -82,23 +82,51 @@ function createBrickTexture(device: GPUDevice, sizeXY: number) {
   }
 }
 
+/** A buffer for `source` that replaces `old` (retired), written whole. */
+function remade(device: GPUDevice, old: GPUBuffer | undefined, source: Uint32Array, label: string) {
+  const next = device.createBuffer({
+    label,
+    size: source.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
+  if (old) retire(device, old)
+  device.queue.writeBuffer(next, 0, source as Uint32Array<ArrayBuffer>)
+  return next
+}
+
+/** The table of a mip added written into `table` and `buffer`, its cells now the atlas's brick indices. */
+function writeMipTable(
+  device: GPUDevice,
+  table: Uint32Array,
+  buffer: GPUBuffer,
+  state: AtlasState,
+  { asset, reversed }: AssetMip,
+  blockBricks: number,
+) {
+  const held = state.assets[asset]!.mips[reversed]
+  const { indirection } = state.dataOf(mipOf(state.assets[asset]!.field, reversed))
+  indirection.forEach((brick, cell) => {
+    const block = Math.floor(brick / blockBricks)
+    table[held.tableOffset + cell] =
+      brick === INVALID_BRICK_INDEX || block >= held.blocks.length
+        ? INVALID_BRICK_INDEX
+        : (brick % blockBricks) + held.blocks[block] * blockBricks
+  })
+  device.queue.writeBuffer(
+    buffer,
+    held.tableOffset * 4,
+    table as Uint32Array<ArrayBuffer>,
+    held.tableOffset,
+    indirection.length,
+  )
+}
+
 /** The two storage buffers and the host's copy of each. */
 function createRecordBuffers(device: GPUDevice) {
   let table = new Uint32Array(4)
   let tableBuffer: GPUBuffer | undefined
   let assets: RecordWords = recordWords(new ArrayBuffer(ASSET_STRIDE * 16))
   let assetBuffer: GPUBuffer | undefined
-  /** A buffer for `source` that replaces `old` (retired), written whole. */
-  const remade = (old: GPUBuffer | undefined, source: Uint32Array, label: string) => {
-    const next = device.createBuffer({
-      label,
-      size: source.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-    if (old) retire(device, old)
-    device.queue.writeBuffer(next, 0, source as Uint32Array<ArrayBuffer>)
-    return next
-  }
   return {
     get table() {
       return tableBuffer!
@@ -113,7 +141,7 @@ function createRecordBuffers(device: GPUDevice) {
       const next = recordWords(new ArrayBuffer(words * 4))
       next.u32.set(assets.u32)
       assets = next
-      assetBuffer = remade(assetBuffer, next.u32, 'Trillion3D mesh distance field assets')
+      assetBuffer = remade(device, assetBuffer, next.u32, 'Trillion3D mesh distance field assets')
     },
     /** Room for `words` words of tables. */
     growTable(words: number) {
@@ -122,7 +150,7 @@ function createRecordBuffers(device: GPUDevice) {
       const next = new Uint32Array(size)
       next.set(table)
       table = next
-      tableBuffer = remade(tableBuffer, next, 'Trillion3D mesh distance field indirection')
+      tableBuffer = remade(device, tableBuffer, next, 'Trillion3D mesh distance field indirection')
     },
     /** The record of `asset`'s reversed mip, as `state` holds it, written. */
     writeRecord(state: AtlasState, { asset, reversed }: AssetMip) {
@@ -137,23 +165,8 @@ function createRecordBuffers(device: GPUDevice) {
       )
     },
     /** The table of a mip added, its cells now the atlas's brick indices. */
-    writeTable(state: AtlasState, { asset, reversed }: AssetMip, blockBricks: number) {
-      const held = state.assets[asset]!.mips[reversed]
-      const { indirection } = mipOf(state.assets[asset]!.field, reversed)
-      indirection.forEach((brick, cell) => {
-        const block = Math.floor(brick / blockBricks)
-        table[held.tableOffset + cell] =
-          brick === INVALID_BRICK_INDEX || block >= held.blocks.length
-            ? INVALID_BRICK_INDEX
-            : (brick % blockBricks) + held.blocks[block] * blockBricks
-      })
-      device.queue.writeBuffer(
-        tableBuffer!,
-        held.tableOffset * 4,
-        table as Uint32Array<ArrayBuffer>,
-        held.tableOffset,
-        indirection.length,
-      )
+    writeTable(state: AtlasState, mip: AssetMip, blockBricks: number) {
+      writeMipTable(device, table, tableBuffer!, state, mip, blockBricks)
     },
     destroy() {
       tableBuffer?.destroy()
@@ -218,19 +231,21 @@ export function createAtlasGpu(device: GPUDevice, sizeXY: number) {
     apply(state: AtlasState, step: AtlasStep, budget: AtlasBudget, objects: number) {
       bricks.ensure(atlasDepth(state.blocks.size * budget.blockBricks, budget))
       records.growAssets(state.assets.length)
-      records.growTable(state.spans.size)
+      records.growTable(state.spans.extent)
       for (const add of step.added) {
         records.writeTable(state, add, budget.blockBricks)
         const asset = state.assets[add.asset]!
+        const mip = mipOf(asset.field, add.reversed)
         writeBricks(
           device.queue,
           bricks.texture,
-          mipOf(asset.field, add.reversed),
+          state.dataOf(mip).bricks,
           asset.mips[add.reversed],
           budget.blockBricks,
           sizeXY,
           scratch,
         )
+        state.forget(mip)
       }
       for (const record of step.records) records.writeRecord(state, record)
       writeSceneBlock(device.queue, sceneBuffer, sizeXY, bricks.depth, objects)

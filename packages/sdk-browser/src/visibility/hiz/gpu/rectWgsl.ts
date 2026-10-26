@@ -5,15 +5,25 @@ import { floorLog2 as floorLog2Decl } from '../../../../../math/src/wgsl/integer
 import { HIZ_LEVELS_STRUCT_WGSL, HIZ_READ_WGSL } from './pyramidTexture.ts'
 
 /** Mip `l`'s first index in the culling layer and its width, from the levels uniform the host binds
- *  as `hizLevels`: level 0's every layer is its own slice, a coarser level's culling bound lies
- *  `upper` before its nearest (`hizRoute`). The one reader of a mip's place, for every host that
- *  reads the culling layer — the transparent clusters, the cut's occlusion. */
+ *  as `hizLevels`: the culling layer starts at level 1, and a level's culling bound lies `upper`
+ *  before its nearest (`hizRoute`). The one reader of a mip's place, for every host that reads the
+ *  culling layer — the transparent clusters, the cut's occlusion. */
 export const HIZ_MIP_WGSL = wgslFn(
   'hizMip',
   [HIZ_LEVELS_STRUCT_WGSL],
   `fn hizMip(l:u32)->vec2u{
  let level=hizLevels.level[l];
- return vec2u(select(level.x-hizLevels.count.z,level.x,l==0u),level.y);
+ return vec2u(level.x-hizLevels.count.z,level.y);
+}`,
+)
+
+/** Rectangle `rect` clipped to the viewport (`uni.width`, `uni.height`, the host's uniform); empty
+ *  when its max corner lies before its min. The one clip of every reader of a box's footprint. */
+export const HIZ_CLIP_RECT_WGSL = wgslFn(
+  'hizClipRect',
+  [],
+  `fn hizClipRect(rect:vec4i)->vec4i{
+ return vec4i(max(rect.x,0),max(rect.y,0),min(rect.z,i32(uni.width)-1),min(rect.w,i32(uni.height)-1));
 }`,
 )
 
@@ -28,13 +38,14 @@ export const HIZ_MIP_WGSL = wgslFn(
  */
 const HIZ_LEVEL_WGSL = wgslBlock(
   'HIZ_LEVEL_WGSL',
-  [floorLog2Decl, HIZ_LEVELS_STRUCT_WGSL, HIZ_MIP_WGSL],
+  [floorLog2Decl, HIZ_LEVELS_STRUCT_WGSL, HIZ_MIP_WGSL, HIZ_CLIP_RECT_WGSL],
   `
-/** Lowest mip where a span of \`span\` texels can fit in the kernel. */
+/** Lowest mip where a span of \`span\` texels can fit in the kernel: the first mip the culling layer
+ *  holds is level 1 (the pyramid starts at half resolution). */
 fn firstLevel(span:i32)->u32{
- if(span<${HIZ_KERNEL_TEXELS}){return 0u;}
+ if(span<${HIZ_KERNEL_TEXELS}){return 1u;}
  let level=floorLog2(u32(span))-${floorLog2(HIZ_KERNEL_TEXELS) - 1}u;
- return select(level,0u,level>31u);
+ return select(level,1u,level>31u);
 }
 /** Whether the level-0 rectangle spans fewer than \`n\` texel steps per side in mip \`l\`. */
 fn fitsAt(rect:vec4i,l:u32,n:i32)->bool{return (rect.z>>l)-(rect.x>>l)<n&&(rect.w>>l)-(rect.y>>l)<n;}
@@ -64,7 +75,7 @@ struct HizRectPick{rect:vec4i,level:u32,coarse:u32,found:bool,}
 /** Rectangle \`rect\` clipped to the viewport, the mip that covers it and its coarse pre-test's
  *  (\`hizLevelFor\`); not found when the clipped rectangle is empty or no mip covers it. */
 fn hizRectPick(rect:vec4i)->HizRectPick{
- let r=vec4i(max(rect.x,0),max(rect.y,0),min(rect.z,i32(uni.width)-1),min(rect.w,i32(uni.height)-1));
+ let r=hizClipRect(rect);
  if(r.z<r.x||r.w<r.y){return HizRectPick(r,0u,0u,false);}
  let pick=hizLevelFor(r,hizLevels.count.x);
  return HizRectPick(r,pick.x,pick.z,pick.y!=0u);

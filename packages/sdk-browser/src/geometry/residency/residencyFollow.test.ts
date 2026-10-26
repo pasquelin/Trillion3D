@@ -1,12 +1,12 @@
-// A pooled key names every placement's packed rank at its arrival (`onOffsetChange`), whether a row
-// was written or not; and a page's slot is read on the cache,
-// never mirrored (`../rows/page/pageState.ts`): a slot the cache moved is the one every reader sees, before
+// A pooled key names every placement's packed rank at its arrival (`onOffsetChange`), whether a
+// cluster record was written or not; and a page's slot is read on the cache,
+// never mirrored (`../clusters/pageState.ts`): a slot the cache moved is the one every reader sees, before
 // any sync, and nothing is ever rebuilt from the catalogue.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createResidencyFollower } from './residencyFollow.ts'
 import { createGpuPageCache } from '../pages/pool/pages.ts'
-import { createWebgpuRowState } from '../rows/state.ts'
+import { createClusterState } from '../clusters/clusterState.ts'
 import { pageAddress } from '../rows/page/pageSlots.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -16,7 +16,7 @@ import { postPackedBases } from '../selection/placements.ts'
 
 const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 }
 
-test('a key the pool takes is noted for each placement at its arrival, before any row', () => {
+test('a key the pool takes is noted for each placement at its arrival, before any record', () => {
   const noted: number[][] = []
   const arrivals: [string, number][] = [
     ['k', 16],
@@ -87,8 +87,8 @@ test('a key that moved is followed once per primitive page, by its least rank, w
   assert.deepEqual(primitives, [1, 2], 'one call a primitive: its first placement')
 })
 
-/** Eight pages of one placement over a real page cache of `slots` slots, the row state reading its
- *  slots on it. */
+/** Eight pages of one placement over a real page cache of `slots` slots, the cluster state reading
+ *  its slots on it. */
 function pooled(slots: number) {
   const { device } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(
@@ -97,25 +97,25 @@ function pooled(slots: number) {
     { pageBytes: 8, slots },
   )
   const pages = Array.from({ length: 8 }, (_, i) => ({ url: `p${i}` }) as PageRec)
-  const rows = createWebgpuRowState(pages, 4, 0, undefined, (address) => cache.slotWords(address))
-  return { cache, pages, rows }
+  const clusters = createClusterState(pages, undefined, (address) => cache.slotWords(address))
+  return { cache, pages, clusters }
 }
 
 test('a slot the cache moves is the one every instance reads, before any sync', async () => {
-  const { cache, pages, rows } = pooled(4)
+  const { cache, pages, clusters } = pooled(4)
   for (const page of pages.slice(0, 4)) await cache.load(pageAddress(page))
   for (const page of pages.slice(0, 3)) cache.unload(pageAddress(page))
-  const before = rows.offsetOf(3)
+  const before = clusters.offsetOf(3)
   // The pool shrinks past the last slot: its page moves to the lowest free one (a page the
   // shrunk pool still holds keeps its bytes), and no journal was drained.
   await cache.resize(2)
   const moved = cache.get(pageAddress(pages[3]))!
   assert.notEqual(moved.offset / 4, before, 'the page moved')
-  assert.equal(rows.offsetOf(3), moved.offset / 4)
+  assert.equal(clusters.offsetOf(3), moved.offset / 4)
 })
 
 test('loads, evictions and resizes: every instance reads the cache, never a stale slot', async () => {
-  const { cache, pages, rows } = pooled(6)
+  const { cache, pages, clusters } = pooled(6)
   const next = lcgRandom(0x1527)
   for (let step = 0; step < 200; step++) {
     const pick = Math.floor(next() * pages.length),
@@ -126,7 +126,7 @@ test('loads, evictions and resizes: every instance reads the cache, never a stal
     else await cache.resize(3 + Math.floor(next() * 4))
     for (let page = 0; page < pages.length; page++) {
       const held = cache.get(pageAddress(pages[page]))
-      assert.equal(rows.offsetOf(page), held ? held.offset / 4 : -1, `page ${page} at ${step}`)
+      assert.equal(clusters.offsetOf(page), held ? held.offset / 4 : -1, `page ${page} at ${step}`)
     }
   }
 })

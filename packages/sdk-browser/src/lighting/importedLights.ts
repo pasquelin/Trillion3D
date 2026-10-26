@@ -8,7 +8,8 @@ import { optionalFile } from '../geometry/cluster/checked.ts'
 const IMPORTED_LIGHTS_FILE = 'lights.json'
 /** Where a cache keeps its lights: the one address their reader and a load's plan use. */
 export const importedLightsUrl = (base: string) => new URL(IMPORTED_LIGHTS_FILE, base).href
-const IMPORTED_LIGHTS_VERSION = 1
+/** The version the compiler writes (`SCENE_LIGHTS_VERSION`): 2 holds candela and lux as declared. */
+const IMPORTED_LIGHTS_VERSION = 2
 
 /** What the cache declares: the source file's light list and the count of those refused. */
 type ImportedLightsFile = {

@@ -6,7 +6,6 @@
 use super::{cut::store_shape, height_field_shape};
 use crate::{Options, Result};
 use serde_json::{json, Value};
-use std::collections::BTreeMap;
 
 /// A detected grid: `size`² samples (holes are `f32::MAX`), placed by `offset` and `scale`.
 pub(crate) struct Grid {
@@ -21,14 +20,9 @@ pub(crate) struct Grid {
 
 /// The sorted distinct values of one axis, when evenly spaced; with their spacing.
 fn lattice(values: impl Iterator<Item = f32>) -> Option<(Vec<f32>, f32)> {
-    let distinct: Vec<f32> = values
-        .map(f32::to_bits)
-        .collect::<std::collections::BTreeSet<_>>()
-        .into_iter()
-        .map(f32::from_bits)
-        .collect::<Vec<_>>();
-    let mut sorted = distinct;
-    sorted.sort_by(f32::total_cmp);
+    let mut sorted: Vec<f32> = values.collect();
+    sorted.sort_unstable_by(f32::total_cmp);
+    sorted.dedup_by(|a, b| a.to_bits() == b.to_bits());
     if sorted.len() < 2 {
         return None;
     }
@@ -42,7 +36,9 @@ fn lattice(values: impl Iterator<Item = f32>) -> Option<(Vec<f32>, f32)> {
 
 /// The grid `source` draws over `pos`, if it is one.
 pub(crate) fn detect(pos: &[f32], source: &[u32]) -> Option<Grid> {
-    let used: std::collections::BTreeSet<u32> = source.iter().copied().collect();
+    let mut used: Vec<u32> = source.to_vec();
+    used.sort_unstable();
+    used.dedup();
     let (xs, dx) = lattice(used.iter().map(|&i| pos[i as usize * 3]))?;
     let (zs, dz) = lattice(used.iter().map(|&i| pos[i as usize * 3 + 2]))?;
     let (nx, nz) = (xs.len(), zs.len());
@@ -50,7 +46,8 @@ pub(crate) fn detect(pos: &[f32], source: &[u32]) -> Option<Grid> {
         return None;
     }
     let cell = |v: f32, origin: f32, step: f32| ((v - origin) / step).round() as usize;
-    let mut point: BTreeMap<u32, (usize, usize)> = BTreeMap::new();
+    // The lattice cell of each used vertex, by vertex index.
+    let mut point: Vec<(usize, usize)> = vec![(0, 0); pos.len() / 3];
     let size = (nx.max(nz).max(4) + 1) & !1;
     // The height field holds a square of samples: a long thin lattice (a road, a ribbon) would
     // hold far more than its vertices, and collides by mesh tiles instead.
@@ -65,10 +62,10 @@ pub(crate) fn detect(pos: &[f32], source: &[u32]) -> Option<Grid> {
             return None;
         }
         samples[z * size + x] = p[1];
-        point.insert(i, (x, z));
+        point[i as usize] = (x, z);
     }
     for tri in source.as_chunks::<3>().0.iter() {
-        let cells: Vec<(usize, usize)> = tri.iter().map(|i| point[i]).collect();
+        let cells = tri.map(|i| point[i as usize]);
         let span = |f: fn(&(usize, usize)) -> usize| {
             cells.iter().map(f).max().unwrap_or(0) - cells.iter().map(f).min().unwrap_or(0)
         };

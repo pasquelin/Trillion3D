@@ -23,8 +23,13 @@ import type {
 
 /** The parameters a session lays out when it opens, and so the only ones never written in place:
  *  `kind` its family, `transparent`, `blending` and `transmission` its pass, `side`, `depthTest`
- *  and `depthWrite` its pipeline, `vertexColors` which surface its wearers take, `transparentShadow`
- *  its shadow pass, `sizeAttenuation` a sprite's root mark (`spriteMark`), and `wireframe`,
+ *  and `depthWrite` its pipeline, `vertexColors` which surface its wearers take,
+ *  `allowNegativeEmissive` the program of its graph (`compileGraph`), `cloudFog`
+ *  the programs of the blended pass (`blend/cloudFogText.ts`), `translucencyLighting` those of the
+ *  blended pass too (`blend/pipelines.ts`: `translucencyVolumeOf`), `translucencyPass` the pass its
+ *  items' records name (`blend/items.ts`), and the three `translucent…Shadow` ones
+ *  the shadow code of those programs (`blend/pipelines.ts`: `translucentShadowOf`), `sizeAttenuation` a sprite's root
+ *  mark (`spriteMark`), and `wireframe`,
  *  `flatShading` and `size` the triangles its wearers draw (`cuts.ts`), and `graph`, whose nodes
  *  and textures the shaders and the atlases are laid out for (the values written to its
  *  parameters are written in place, `writeGraphValues`). Every other field but a texture is a
@@ -40,7 +45,13 @@ const LAYOUT = new Set([
   'depthTest',
   'depthWrite',
   'vertexColors',
-  'transparentShadow',
+  'allowNegativeEmissive',
+  'cloudFog',
+  'translucencyLighting',
+  'translucencyPass',
+  'translucentLocalLightShadow',
+  'translucentLocalLightShadowQuality',
+  'translucentDirectionalLightShadowQuality',
   'sizeAttenuation',
   'wireframe',
   'flatShading',

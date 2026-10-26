@@ -14,7 +14,7 @@ fn nearest(@builtin(global_invocation_id) id: vec3u) {
     var best = limit * limit;
     var found = false;
     if head.z == 0u {
-        values[at] = MISS;
+        values[at] = result(MISS, false);
         return;
     }
     var stack: array<vec2u, STACK>;
@@ -68,5 +68,5 @@ fn nearest(@builtin(global_invocation_id) id: vec3u) {
             depth = depth + 1u;
         }
     }
-    values[at] = select(MISS, sqrt(best), found);
+    values[at] = result(select(MISS, sqrt(best), found), false);
 }

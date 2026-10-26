@@ -26,19 +26,25 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { transformPoint } from '../../../../../math/src/wgsl/projection.ts'
 import { REQUEST_CATEGORY, REQUEST_PRIORITY_MAX, REQUEST_PRIORITY_MIN } from '../request/request.ts'
 
+/** A request's priority word of category `category` (the top two bits) for priority `p`, the float's
+ *  bits below them, within the range the host's heap keeps (`../request/request.ts`): the camera's
+ *  (`requestPriority`) and a shadow view's (`../../../lighting/shadows/vsm/traversal/`). */
+export const requestPriorityOf = (category: number, p: string) =>
+  `clamp((${category}u<<30u)|(bitcast<u32>(${p})>>2u),${REQUEST_PRIORITY_MIN}u,${REQUEST_PRIORITY_MAX}u)`
+
 export const DAG_ERROR_WGSL = wgslBlock(
   'DAG_ERROR_WGSL',
   [DAG_INF, CUT_RULE_WGSL, transformPoint],
   `
 /** The view's pixels per unit at unit depth on its vertical axis. */
-fn viewPixels()->f32{return views[0u].pixelScale.y;}
+fn viewPixels()->f32{return cutView.pixelScale.y;}
 /** The projected edge scales of a sphere of view-space centre \`c\` and radius \`r\`, the eye at zero
  *  looking down \`-z\`: the smallest and the largest, over the sphere, of a point's depth times the
  *  cosine of its angle to the axis, the near plane taking the points past it; none (zero) for a
  *  sphere wholly behind the near plane; one for an orthographic view. */
 fn edgeScales(c:vec3f,r:f32)->vec2f{
- if(views[0u].perspective<=0.0){return vec2f(1.0);}
- let near=views[0u].near;
+ if(cutView.perspective<=0.0){return vec2f(1.0);}
+ let near=cutView.near;
  let distSq=dot(c,c);let z=-c.z;
  let axisSq=distSq-z*z;let axis=sqrt(max(0.0,axisSq));
  let tangentSq=distSq-r*r;let tangent=sqrt(max(0.0,tangentSq));
@@ -61,7 +67,7 @@ fn sphereEdges(sphere:vec4f,e:mat4x4f)->vec2f{
 /** Whether an error \`error\` of the placement read last, at edge scale \`edge\`, shows at the
  *  threshold: \`edge <= (F / t) · scale · error\`, the threshold multiplied out; a zero error never. */
 fn errorShows(edge:f32,error:f32)->bool{
- return error>0.0&&edge*views[0u].pixelError<=viewPixels()*placedScale.x*error;
+ return error>0.0&&edge*cutView.pixelError<=viewPixels()*placedScale.x*error;
 }
 /** The cut rule's two comparisons on a cluster (\`../../cut/rule.ts\`): the error it replaces shows
  *  (\`x\`: no parent, or the parent's error at its sphere shows), and its own does not (\`y\`). */
@@ -73,12 +79,12 @@ fn clusterRule(cluster:Cluster,e:mat4x4f)->vec2<bool>{
 /** A request's priority word: the category of the view in the top two bits, the priority's float
  *  bits below them, within the range the host's heap keeps (\`../request/request.ts\`). */
 fn requestPriority(p:f32)->u32{
- return clamp((${REQUEST_CATEGORY}u<<30u)|(bitcast<u32>(p)>>2u),${REQUEST_PRIORITY_MIN}u,${REQUEST_PRIORITY_MAX}u);
+ return ${requestPriorityOf(REQUEST_CATEGORY, 'p')};
 }
 /** A kept leaf's priority: the error its pages replace, its reach over the threshold — \`F · scale ·
  *  error / (t · edge)\`, one or more for a leaf the cut needs —; unbounded without a ceiling. */
 fn leafPriority(node:CullNode,e:mat4x4f)->u32{
- let reach=viewPixels()*placedScale.x*node.maxParentError/(views[0u].pixelError*sphereEdges(node.sphere,e).x);
+ let reach=viewPixels()*placedScale.x*node.maxParentError/(cutView.pixelError*sphereEdges(node.sphere,e).x);
  return requestPriority(select(INF,reach,node.maxParentError>=0.0));
 }
 `,

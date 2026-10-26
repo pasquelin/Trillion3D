@@ -1,24 +1,44 @@
 //! The atlas the bake fills: for every texel of every padded brick the ambient (three floats
-//! packed in 32 bits), the six layers of coefficients (four bytes each), the sun's shadowing (a
-//! byte) and whether the texel was lit by enough paths to be trusted. A texel is read and written
-//! as the floats it holds (`Texel`), through the same roundings the stored formats make.
+//! packed in 32 bits), the six layers of coefficients (four bytes each), the sky's bent normal
+//! (four bytes), the sun's shadowing (a byte) and whether the texel was lit by enough paths to be
+//! trusted. A texel is read and written as the floats it holds (`Texel`), through the same
+//! roundings the stored formats make.
 
-/// A texel as floats: the ambient, the six layers of coefficients, the shadowing.
-pub type Texel = [f32; 28];
+use crate::volumetric_lightmap::LightmapCell;
+use trillion3d_math::scalar::unit_to_byte_f32 as unorm;
 
-/// Floats of a texel up to and including its ambient and coefficients.
+/// The floats of a texel: the ambient, the six layers of coefficients, the shadowing, the bent
+/// normal.
+pub const TEXEL_FLOATS: usize = 31;
+/// A texel as floats.
+pub type Texel = [f32; TEXEL_FLOATS];
+
+/// Where the shadowing is in a texel, after the ambient and the coefficients.
 const SHADOWING: usize = 27;
+/// Where the bent normal's three floats start, after the shadowing.
+pub const BENT: usize = 28;
+/// The alpha of a bent normal's texel: a half, as nothing is gathered in it.
+const BENT_ALPHA: u8 = 128;
+
+/// The stored parts of one texel, as the layers hold them.
+struct Held {
+    ambient: u32,
+    coefficients: [[u8; 4]; 6],
+    bent: Option<[u8; 4]>,
+    shadowing: u8,
+    valid: u8,
+}
 
 pub struct Store {
     pub dims: [usize; 3],
     pub ambient: Vec<u32>,
     pub coefficients: [Vec<[u8; 4]>; 6],
+    /// The bent normal's texels, none where the bake gathers none.
+    pub bent: Vec<[u8; 4]>,
     pub shadowing: Vec<u8>,
     pub valid: Vec<u8>,
-}
-
-fn unorm(v: f32) -> u8 {
-    (v.clamp(0.0, 1.0) * 255.0).round() as u8
+    /// Per brick, the mean over its probes of the distance to the nearest geometry, in metres.
+    pub distance: Vec<f32>,
 }
 
 /// A float in an unsigned small float of `mantissa` bits and a five-bit exponent.
@@ -74,14 +94,17 @@ pub fn unpack_ambient(packed: u32) -> [f32; 3] {
 }
 
 impl Store {
-    pub fn new(dims: [usize; 3]) -> Self {
-        let texels = dims.iter().product();
+    /// An atlas of `dims` texels, holding the bent normal's where `bent`.
+    pub fn new(dims: [usize; 3], bent: bool) -> Self {
+        let texels: usize = dims.iter().product();
         Self {
             dims,
             ambient: vec![0; texels],
             coefficients: std::array::from_fn(|_| vec![[0; 4]; texels]),
+            bent: vec![[0; 4]; if bent { texels } else { 0 }],
             shadowing: vec![0; texels],
             valid: vec![0; texels],
+            distance: Vec::new(),
         }
     }
 
@@ -91,7 +114,7 @@ impl Store {
 
     /// The texel `at` as floats.
     pub fn read(&self, at: usize) -> Texel {
-        let mut texel = [0.0; 28];
+        let mut texel = [0.0; TEXEL_FLOATS];
         texel[..3].copy_from_slice(&unpack_ambient(self.ambient[at]));
         for (layer, values) in self.coefficients.iter().enumerate() {
             for k in 0..4 {
@@ -99,6 +122,11 @@ impl Store {
             }
         }
         texel[SHADOWING] = f32::from(self.shadowing[at]) / 255.0;
+        if let Some(held) = self.bent.get(at) {
+            for k in 0..3 {
+                texel[BENT + k] = f32::from(held[k]) / 255.0;
+            }
+        }
         texel
     }
 
@@ -109,16 +137,56 @@ impl Store {
             values[at] = std::array::from_fn(|k| unorm(texel[3 + layer * 4 + k]));
         }
         self.shadowing[at] = unorm(texel[SHADOWING]);
+        if let Some(held) = self.bent.get_mut(at) {
+            let [x, y, z] = [0, 1, 2].map(|k| unorm(texel[BENT + k]));
+            *held = [x, y, z, BENT_ALPHA];
+        }
     }
 
     /// Copies the texel `from` over the texel `to`, with its validity.
     pub fn copy(&mut self, from: usize, to: usize) {
-        self.ambient[to] = self.ambient[from];
-        for values in &mut self.coefficients {
-            values[to] = values[from];
+        let held = self.held(from);
+        self.hold(to, held);
+    }
+
+    /// Copies the texel `from` of this atlas over the texel `to` of `target`, with its validity.
+    pub fn copy_texel(&self, from: usize, target: &mut Store, to: usize) {
+        target.hold(to, self.held(from));
+    }
+
+    /// Appends the bytes of the texel `at` to the layers of `cell`, in the file's layer order.
+    pub fn push_texel_bytes(&self, at: usize, cell: &mut LightmapCell) {
+        cell.ambient.extend(self.ambient[at].to_le_bytes());
+        for (into, from) in cell.coefficients.iter_mut().zip(&self.coefficients) {
+            into.extend(from[at]);
         }
-        self.shadowing[to] = self.shadowing[from];
-        self.valid[to] = self.valid[from];
+        if !self.bent.is_empty() {
+            cell.sky_bent_normal.extend(self.bent[at]);
+        }
+        cell.directional_shadowing.push(self.shadowing[at]);
+    }
+
+    /// The stored parts of the texel `at`: the one list of layers a texel is made of.
+    fn held(&self, at: usize) -> Held {
+        Held {
+            ambient: self.ambient[at],
+            coefficients: std::array::from_fn(|layer| self.coefficients[layer][at]),
+            bent: self.bent.get(at).copied(),
+            shadowing: self.shadowing[at],
+            valid: self.valid[at],
+        }
+    }
+
+    fn hold(&mut self, at: usize, held: Held) {
+        self.ambient[at] = held.ambient;
+        for (values, part) in self.coefficients.iter_mut().zip(held.coefficients) {
+            values[at] = part;
+        }
+        if let (Some(slot), Some(part)) = (self.bent.get_mut(at), held.bent) {
+            *slot = part;
+        }
+        self.shadowing[at] = held.shadowing;
+        self.valid[at] = held.valid;
     }
 }
 

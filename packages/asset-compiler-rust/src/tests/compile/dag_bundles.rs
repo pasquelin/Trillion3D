@@ -43,10 +43,10 @@ fn compile_lays_every_page_in_a_bundle_of_a_geometry_file_and_names_its_group() 
     let container =
         fs::read(object_path(&options, files[0]["sha256"].as_str().unwrap())).expect("container");
     let mut members = vec![Vec::new(); bundles.len()];
+    let mut read = PrimitivePages::new(&options.cache, &result, primitive);
     for (id, page) in pages.iter().enumerate() {
         members[at(page, "stream")].push(id);
-        let bytes = geometry_page(&options.cache, &result, primitive, page);
-        trillion3d_page_codec::decode(&bytes, usize::MAX).expect("a geometry page");
+        read.decoded(page);
     }
     for (index, bundle) in bundles.iter().enumerate() {
         let bytes = &container[at(bundle, "offset")..at(bundle, "offset") + at(bundle, "bytes")];

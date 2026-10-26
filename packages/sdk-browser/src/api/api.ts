@@ -13,6 +13,7 @@ import { createExplorerViewportApi } from './viewportApi.ts'
 import { createExplorerTelemetryApi } from './telemetryApi.ts'
 import { createExplorerLightApi } from './lightApi.ts'
 import { createExplorerFogVolumeApi } from './fogVolumeApi.ts'
+import { createExplorerLocalFogApi } from './localFogApi.ts'
 import { createExplorerMaterialApi } from './materialApi.ts'
 
 type Inputs = SessionRuntime & {
@@ -44,6 +45,7 @@ function engineApis(inputs: Inputs, onDispose: (release: () => void) => void) {
       imported: context.importedLightIds ?? [],
     }),
     ...createExplorerFogVolumeApi({ check, engine, store: context.sceneVolumes }),
+    ...createExplorerLocalFogApi({ check, engine, store: context.sceneLocalFog }),
     ...createExplorerMaterialApi({
       ...{ check, engine, onDispose },
       draws: context.draws,

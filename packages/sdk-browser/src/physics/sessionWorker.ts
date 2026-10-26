@@ -5,9 +5,13 @@ import { PHYSICS_LAYOUT_VERSION } from '../../../sdk-core/src/physics/layout.ts'
 import { resultWords } from './protocol.ts'
 
 /** The physics worker, started on the module that fits the page (threaded when it can share
- *  memory) with the budget, the fixed step of `step` seconds and its two result buffers. Both the
+ *  memory) with the budget, the fixed step of `step` seconds, the restitution threshold and its two result
+ *  buffers. Both the
  *  worker and its WebAssembly are named beside this module: it lies with them. */
-export function startPhysicsWorker(budget: PhysicsBudget, step: number) {
+export function startPhysicsWorker(
+  budget: PhysicsBudget,
+  { step, restitutionThreshold }: { step: number; restitutionThreshold: number },
+) {
   const worker = startModuleWorker(besideModule('physicsWorker', import.meta.url))
   const threads = stepThreads(budget.threads)
   const bytes = resultWords(budget) * 4
@@ -23,6 +27,7 @@ export function startPhysicsWorker(budget: PhysicsBudget, step: number) {
       budget,
       threads,
       step,
+      restitutionThreshold,
       buffers,
     },
     buffers,

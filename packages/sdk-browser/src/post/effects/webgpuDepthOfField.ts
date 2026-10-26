@@ -10,10 +10,70 @@ import {
   writeUniforms,
   type Held,
 } from './depthOfField/dofHeld.ts'
-import { markDrawn, takeHistory } from './depthOfField/dofHistory.ts'
+import { fitHistory, markDrawn } from './depthOfField/dofHistory.ts'
 import { createDofPrograms } from './depthOfField/dofPrograms.ts'
 import { createDofOutputs } from './depthOfField/dofTargets.ts'
+import { noLayers } from '../../blend/translucencyLayers.ts'
 import type { WebgpuResolveKind } from './webgpuKinds.ts'
+
+type Outputs = ReturnType<typeof createDofOutputs>
+type Kit = Parameters<typeof stepsOf>[0]
+type ResolveArgs = Parameters<WebgpuResolveKind<DepthOfField, DepthOfFieldValues>['resolve']>
+
+/** What the last `resolve` left: the passes it encoded, and whether any depth of field of the
+ *  chain has drawn this frame. */
+type DofState = { passes: number; drew: boolean }
+
+/** Frees every hold and the output images. */
+function releaseDof(device: GPUDevice, held: Held[], outputs: Outputs) {
+  for (const mine of held) dropHeld(device, mine)
+  held.length = 0
+  outputs.release()
+}
+
+/** Bytes of the output images and of every hold. */
+function dofBytes(held: Held[], outputs: Outputs) {
+  let bytes = outputs.bytes
+  for (const mine of held) bytes += heldBytes(mine)
+  return bytes
+}
+
+/** Draws the nth depth of field, whose plan draws something, into the next output image; the
+ *  input itself while a pipeline is still compiling. */
+function drawDof(
+  device: GPUDevice,
+  kit: Kit,
+  outputs: Outputs,
+  state: DofState,
+  mine: Held,
+  plan: ReturnType<typeof planOf>,
+  last: boolean,
+  [encoder, pass, nth, input, frame, settings]: ResolveArgs,
+) {
+  const { targets } = mine
+  targets.ensure(plan)
+  const cut = frame.temporal.cut || !fitHistory(device, mine, plan)
+  writeUniforms(device, mine, frame, pass, settings, cut)
+  const output = outputs.view(nth % 2, frame.extent)
+  const made = stepsOf(kit, mine, frame, input, output)
+  let ready = true
+  for (const pipeline of made.steps.pipelines) ready = pipeline.ask().ready && ready
+  if (!ready) return input
+  // The last depth of field of the chain composes the layers drawn after it, where there are some.
+  const layers = last ? frame.layers : undefined
+  state.passes = encodeDof(
+    encoder,
+    made.steps,
+    targets.buffers.drawArguments,
+    plan.gather,
+    layers ?? noLayers(device),
+  )
+  frame.layersComposed ||= !!layers
+  if (made.stale) targets.tablesBuilt(plan.bokeh)
+  state.drew = true
+  markDrawn(mine, plan, frame)
+  return output
+}
 
 /**
  * The WebGPU depth of field (`depthOfField/`): the passes of each depth of field of the chain, which run one
@@ -36,54 +96,35 @@ export async function createWebgpuDepthOfField(
   const outputs = createDofOutputs(device)
   const kit = { device, programs }
   const held: Held[] = []
-  let passes = 0,
-    drew = false
-  const release = () => {
-    for (const mine of held) dropHeld(device, mine)
-    held.length = 0
-    outputs.release()
-  }
+  const state: DofState = { passes: 0, drew: false }
+  const release = () => releaseDof(device, held, outputs)
   return {
     get bytes() {
-      let bytes = outputs.bytes
-      for (const mine of held) bytes += heldBytes(mine)
-      return bytes
+      return dofBytes(held, outputs)
     },
     get passes() {
-      return passes
+      return state.passes
     },
     resize(_width: number, _height: number, count: number) {
       if (!count) return release()
       while (held.length < count) held.push(newHeld(device))
       while (held.length > count) dropHeld(device, held.pop()!)
     },
-    resolve(encoder, pass, nth, input, frame, settings) {
-      passes = 0
-      if (!nth) drew = false
+    resolve(...args) {
+      const [, pass, nth, input, frame, settings] = args
+      state.passes = 0
+      if (!nth) state.drew = false
       const mine = held[nth]
-      const { targets } = mine
       const plan = planOf(mine, pass, frame, settings)
       if (plan.idle) {
         // One that draws nothing gives its images and its history back, and the output images go with the
         // last of a chain where none drew.
-        takeHistory(device, mine, plan)
-        targets.release()
-        if (nth === held.length - 1 && !drew) outputs.release()
+        fitHistory(device, mine, plan)
+        mine.targets.release()
+        if (nth === held.length - 1 && !state.drew) outputs.release()
         return input
       }
-      targets.ensure(plan)
-      const cut = frame.temporal.cut || !takeHistory(device, mine, plan)
-      writeUniforms(device, mine, frame, pass, settings, cut)
-      const output = outputs.view(nth % 2, frame.extent)
-      const made = stepsOf(kit, mine, frame, input, output)
-      let ready = true
-      for (const pipeline of made.steps.pipelines) ready = pipeline.ask().ready && ready
-      if (!ready) return input
-      passes = encodeDof(encoder, made.steps, targets.buffers.drawArguments, plan.gather)
-      if (made.stale) targets.tablesBuilt(plan.bokeh)
-      drew = true
-      markDrawn(mine, plan, frame)
-      return output
+      return drawDof(device, kit, outputs, state, mine, plan, nth === held.length - 1, args)
     },
     dispose: release,
   }

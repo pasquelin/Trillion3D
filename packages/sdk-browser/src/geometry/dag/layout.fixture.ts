@@ -11,7 +11,7 @@ export function residentFlags(bits: Uint32Array, pageCount: number, base = 0) {
 }
 
 /**
- * The two triangle totals placed in the header, in the order THIS file fixes. `dagMask`
+ * The two triangle totals placed in the header, in the order THIS file fixes. `dagWanted`
  * writes them on the GPU (`shader/totalsWgsl.ts`); anything that stands in for the GPU
  * must write them the same way, or else adoption — which reads the GPU first — would
  * take an empty header for a frame without triangles.

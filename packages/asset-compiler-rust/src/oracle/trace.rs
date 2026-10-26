@@ -1,4 +1,4 @@
-use super::{OracleJob, OracleLight, KIND_SPOT, KIND_SUN, SPOT_EDGE};
+use super::{OracleJob, OracleLight, KIND_SPOT, KIND_SUN};
 use crate::trace::tracer::{trace, World};
 use rayon::prelude::*;
 use trillion3d_math::vector::vecn::{dot, length, scale, sub};
@@ -29,9 +29,9 @@ pub fn direct(world: &World, lights: &[OracleLight], point: [f64; 3], n: [f64; 3
             let mut value = window / (distance * distance).max(1e-4);
             if light.kind == KIND_SPOT {
                 let cosine = dot(scale(unit, -1.0), light.direction);
-                let edge = light.cos_cone;
-                let t = ((cosine - edge) / SPOT_EDGE).clamp(0.0, 1.0);
-                value *= t * t * (3.0 - 2.0 * t);
+                let ramp = ((cosine - light.cos_cone) / (light.cos_inner - light.cos_cone))
+                    .clamp(0.0, 1.0);
+                value *= ramp * ramp;
             }
             (unit, value, distance)
         };

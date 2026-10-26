@@ -1,4 +1,5 @@
 import {
+  atLeast,
   choiceSetting as choice,
   flagSetting as flag,
   integerSetting as integer,
@@ -13,8 +14,8 @@ import {
 /**
  * HOW THE DEPTH OF FIELD IS DRAWN (`./depthOfFieldOptions.ts` says what it is and what its pass holds):
  * run-time settings, as `./settingRules.ts` says, of the world's registry (`DEPTH_OF_FIELD_RULES`),
- * each with the default of the reference's quality level the reference is compared at (the third
- * of its four post-process levels), a quality preset writing the ones the reference's own levels
+ * each with the default of the reference's quality level the reference is compared at (the fourth
+ * of its five post-process levels), a quality preset writing the ones the reference's own levels
  * write (`DEPTH_OF_FIELD_PRESET_LEVELS`).
  *
  * The draw, per image: each pixel's circle of confusion is set up at the gather's resolution; the
@@ -30,26 +31,24 @@ import {
  *  level as on or off alone (above 0) for this method — what differs between its levels are the
  *  settings each level writes (`DEPTH_OF_FIELD_PRESET_LEVELS`) —, so the level is no more than the switch. */
 export const DEPTH_OF_FIELD_LEVELS = ['off', 'on'] as const
-/** A quality level of the depth of field. */
-export type DepthOfFieldLevel = (typeof DEPTH_OF_FIELD_LEVELS)[number]
 
 /** The accumulators of the gather, coarsest first: the cheaper one that gathers the rings as they are,
  *  the one that sorts the samples by their depth, and that one gathering the background in layers. */
-export const DEPTH_OF_FIELD_ACCUMULATORS = ['low', 'high', 'cinematic'] as const
+const DEPTH_OF_FIELD_ACCUMULATORS = ['low', 'high', 'cinematic'] as const
 /** The post-filters of a gather: none, the median or the maximum of each channel over 3 × 3 texels. */
 export const DEPTH_OF_FIELD_POSTFILTERS = ['none', 'median', 'max'] as const
 /** How the bright highlights of the foreground are scattered: not at all, or added over the gather. */
-export const DEPTH_OF_FIELD_FOREGROUND_SCATTERS = ['off', 'additive'] as const
+const DEPTH_OF_FIELD_FOREGROUND_SCATTERS = ['off', 'additive'] as const
 /** How those of the background are: not at all, added over the gather, or added and occluding the
  *  gather behind them (the one that asks the gather to output its own occlusion). */
-export const DEPTH_OF_FIELD_BACKGROUND_SCATTERS = ['off', 'additive', 'occlusion'] as const
+const DEPTH_OF_FIELD_BACKGROUND_SCATTERS = ['off', 'additive', 'occlusion'] as const
 /** The quality of the recombine's slight out of focus: none, 12 pairs of samples at the full size,
  *  or 16. */
 export const DEPTH_OF_FIELD_RECOMBINES = ['off', 'low', 'high'] as const
 /** The quality of the temporal accumulation of the setup: both read the history bicubically, bound it by
  *  the neighbourhood and filter the image's samples by a window the size of the jitter's pixels; the
  *  stable one also works in a luma-chroma space, which keeps the colours of the box together. */
-export const DEPTH_OF_FIELD_TEMPORALS = ['low', 'high'] as const
+const DEPTH_OF_FIELD_TEMPORALS = ['low', 'high'] as const
 
 /**
  * The settings of how the depth of field is drawn, by field, each with the default of the
@@ -102,7 +101,7 @@ export const DEPTH_OF_FIELD_RULES = /* @__PURE__ */ (() =>
     choice('depthOfFieldForegroundScatter', 'additive', DEPTH_OF_FIELD_FOREGROUND_SCATTERS),
     choice('depthOfFieldBackgroundScatter', 'occlusion', DEPTH_OF_FIELD_BACKGROUND_SCATTERS),
     flag('depthOfFieldScatterBokeh', true),
-    number('depthOfFieldScatterMinRadius', 3, [3, Number.MAX_VALUE]),
+    number('depthOfFieldScatterMinRadius', 3, atLeast(3)),
     number('depthOfFieldScatterMaxRatio', 0.1, [0, 1]),
     nonNegative('depthOfFieldScatterNeighborColor', 10),
     choice('depthOfFieldRecombine', 'low', DEPTH_OF_FIELD_RECOMBINES),
@@ -123,10 +122,11 @@ export type DepthOfFieldSettings = SettingOptions<typeof DEPTH_OF_FIELD_RULES>
 /** The settings of how the depth of field is drawn as the engine reads them: every field set. */
 export type DepthOfFieldValues = SettingValues<typeof DEPTH_OF_FIELD_RULES>
 
-/** What each quality level below the top writes: the reference's own, the first three of its four
- *  quality levels — none at `smooth`, the cheap level at `balanced`, the next at `fine`; `max`
- *  writes nothing, the defaults. Each level writes only the settings the reference's level does
- *  (`runtime/qualityLevels.ts`). */
+/** What each quality level below the top writes: the reference's own, its first three quality
+ *  levels — none at `smooth`, the cheap level at `balanced`, the next at `fine`; `max`
+ *  writes nothing, the defaults; `cinematic` writes its fifth row, the gather at the full size
+ *  with five rings and the diaphragm's shape, the scatter and the recombine at their finest. Each
+ *  level writes only the settings the reference's level does (`runtime/qualityLevels.ts`). */
 export const DEPTH_OF_FIELD_PRESET_LEVELS = {
   smooth: { depthOfFieldQuality: 'off' },
   balanced: {
@@ -156,5 +156,22 @@ export const DEPTH_OF_FIELD_PRESET_LEVELS = {
     depthOfFieldTemporalQuality: 'low',
     depthOfFieldMaxForegroundRadius: 0.012,
     depthOfFieldMaxBackgroundRadius: 0.012,
+  },
+  cinematic: {
+    depthOfFieldQuality: 'on',
+    depthOfFieldGatherDivisor: 1,
+    depthOfFieldAccumulator: 'high',
+    depthOfFieldPostfilter: 'median',
+    depthOfFieldGatherBokeh: true,
+    depthOfFieldRingCount: 5,
+    depthOfFieldForegroundScatter: 'additive',
+    depthOfFieldBackgroundScatter: 'occlusion',
+    depthOfFieldScatterBokeh: true,
+    depthOfFieldScatterMaxRatio: 0.25,
+    depthOfFieldRecombine: 'high',
+    depthOfFieldRecombineBokeh: true,
+    depthOfFieldTemporalQuality: 'high',
+    depthOfFieldMaxForegroundRadius: 0.025,
+    depthOfFieldMaxBackgroundRadius: 0.025,
   },
 } as const

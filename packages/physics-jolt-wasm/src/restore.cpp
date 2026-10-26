@@ -20,16 +20,6 @@ namespace {
 std::unordered_map<uint32_t, RefConst<Shape>> restored;
 std::vector<uint32_t> queries, hits;
 
-/// Every body but the one whose engine id a query names: the body it passes through.
-class IgnoredBody : public BodyFilter {
-public:
-  explicit IgnoredBody(uint32_t engine) : engine(engine) {}
-  bool ShouldCollideLocked(const Body &body) const override { return uint32_t(body.GetUserData()) != engine; }
-
-private:
-  uint32_t engine;
-};
-
 /// Writes the hit on body `id`, its one lock reading the engine id and the normal (`normal(body)`).
 template <class Normal> void writeHit(uint32_t *out, const BodyID &id, float fraction, RVec3 point, Normal normal) {
   BodyLockRead lock(world().system->GetBodyLockInterfaceNoLock(), id);
@@ -46,10 +36,13 @@ void cast(const uint32_t *q, uint32_t *out) {
   RVec3 origin(vec3(q + 1));
   Vec3 travel = vec3(q + 4);
   IgnoredBody ignored(q[10]);
+  // A trace stops at what blocks its channel; what it overlaps is no wall to it.
+  const Query trace = traceQuery(q + 11);
+  const LayerMeets blocks(trace, Meeting::Block);
   if (q[0] == 0) {
     RRayCast ray(origin, travel);
     RayCastResult hit;
-    if (!query.CastRay(ray, hit, {}, {}, ignored)) return;
+    if (!query.CastRay(ray, hit, {}, blocks, ignored)) return;
     RVec3 point = ray.GetPointOnRay(hit.mFraction);
     return writeHit(out, hit.mBodyID, hit.mFraction, point,
                     [&](const Body &body) { return body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, point); });
@@ -60,7 +53,7 @@ void cast(const uint32_t *q, uint32_t *out) {
   RShapeCast sweep(shape, Vec3::sOne(), RMat44::sTranslation(origin), travel);
   ShapeCastSettings settings;
   ClosestHitCollisionCollector<CastShapeCollector> closest;
-  query.CastShape(sweep, settings, origin, closest, {}, {}, ignored);
+  query.CastShape(sweep, settings, origin, closest, {}, blocks, ignored);
   if (!closest.HadHit()) return;
   const ShapeCastResult &hit = closest.mHit;
   writeHit(out, hit.mBodyID2, hit.mFraction, origin + hit.mContactPointOn2,

@@ -1,8 +1,8 @@
 //! What the partition reads of the scene graph: the nodes a skin names, each node's parent and
 //! whether the scene reaches it, and the topmost object above each node, the root of its batch.
 //! The nodes an animation moves are the motion tables' reading (`../motion.rs`, `moved`).
-use super::super::graph::{child_lists, parents_of};
 use super::*;
+use crate::compiler::source::nodes::{child_lists, parent_ranks};
 
 /// The joints and skeleton roots the skins name: a skin names them by their rank in the core, so
 /// they never leave it. They pin nothing under them: a node below a joint streams as any other,
@@ -17,7 +17,7 @@ pub(super) fn named(g: &Value) -> BTreeSet<usize> {
 }
 
 /// Each node's parent, and whether the scene reaches it from `roots`: the node table's children
-/// read once (`graph::child_lists`).
+/// read once (`nodes::child_lists`).
 pub(super) fn hierarchy(
     table: &[Value],
     roots: &[usize],
@@ -30,7 +30,7 @@ pub(super) fn hierarchy(
             stack.extend_from_slice(&children[id]);
         }
     }
-    Ok((parents_of(&children), reached))
+    Ok((parent_ranks(&children), reached))
 }
 
 /// Per node of the graph `parent` gives, whether it and every node above it lies outside `moved`:

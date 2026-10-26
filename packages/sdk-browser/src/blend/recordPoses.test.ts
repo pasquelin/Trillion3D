@@ -43,7 +43,7 @@ function scene() {
     blendState,
     vis: { mapLayer: new Map(), dataLayer: new Map(), materialTable: createMaterialTable() },
     gpu: {},
-    layout: { rows: { tableEpoch: 0 } },
+    layout: { clusters: { infoEpoch: 0 } },
     run: { gate: { movedInPlace() {} } },
   } as unknown as WebgpuPagesRuntime
   /** The spans the queue was sent since the last `clear`. */

@@ -17,7 +17,6 @@ export function heldFrame() {
   Object.assign(run, {
     frame: 5,
     desired: [],
-    drawn: [],
     imageRevision: 3,
     gpuDrawCalls: 42,
     blendDrawCalls: 7,

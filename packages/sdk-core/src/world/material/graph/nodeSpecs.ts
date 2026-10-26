@@ -1,44 +1,4 @@
-/** The kinds of node a material graph holds. */
-export type NodeKind =
-  | 'constant'
-  | 'scalarParameter'
-  | 'vectorParameter'
-  | 'textureObject'
-  | 'textureParameter'
-  | 'textureSample'
-  | 'texCoord'
-  | 'time'
-  | 'panner'
-  | 'rotator'
-  | 'worldPosition'
-  | 'cameraPosition'
-  | 'objectPosition'
-  | 'vertexNormal'
-  | 'pixelNormal'
-  | 'add'
-  | 'subtract'
-  | 'multiply'
-  | 'divide'
-  | 'power'
-  | 'abs'
-  | 'min'
-  | 'max'
-  | 'clamp'
-  | 'saturate'
-  | 'lerp'
-  | 'oneMinus'
-  | 'frac'
-  | 'floor'
-  | 'ceil'
-  | 'sine'
-  | 'cosine'
-  | 'dot'
-  | 'cross'
-  | 'normalize'
-  | 'length'
-  | 'appendVector'
-  | 'componentMask'
-  | 'if'
+import { SRGB_LUMINANCE } from '../../../../../math/src/color/color.ts'
 
 /** A value a node keeps beside its wires: a number, a flag, a word or a short list of numbers. */
 export type NodeProp = number | boolean | string | readonly number[]
@@ -64,9 +24,25 @@ const pair = (constA: number, constB: number) => spec(['a', 'b'], [], { constA, 
 const both = spec(['a', 'b'], ['a', 'b'])
 const COLOUR = ['rgb', 'r', 'g', 'b', 'a', 'rgba']
 
+/** The noise functions of a `noise` node: gradient noise of a simplex lattice (`simplex`) and of a
+ *  cubic one (`gradient`), a gradient noise that repeats every 15 cells (`fastGradient`), a gradient
+ *  noise (`gradientAlu`) and a value noise (`valueAlu`) of hashed lattice points, and the distance to
+ *  the nearest of the points jittered in each cell (`voronoi`). */
+export const NOISE_FUNCTIONS = [
+  'simplex',
+  'gradient',
+  'fastGradient',
+  'gradientAlu',
+  'valueAlu',
+  'voronoi',
+] as const
+
+/** The name of a noise function of a `noise` node. */
+export type NoiseFunction = (typeof NOISE_FUNCTIONS)[number]
+
 /** Every kind with its inputs and defaults: the constants a node falls back to where an input is not
  *  wired are the properties named `const…`. */
-export const NODE_SPECS: Record<NodeKind, NodeSpec> = {
+export const NODE_SPECS = {
   constant: spec([], [], { value: [0] }),
   scalarParameter: spec([], [], { name: '', value: 0 }),
   vectorParameter: spec([], [], { name: '', value: [0, 0, 0, 1] }, COLOUR),
@@ -97,6 +73,22 @@ export const NODE_SPECS: Record<NodeKind, NodeSpec> = {
   objectPosition: spec([], [], { cameraRelative: false }),
   vertexNormal: spec([], []),
   pixelNormal: spec([], []),
+  vertexColor: spec([], [], {}, ['rgb', 'r', 'g', 'b', 'a']),
+  cameraVector: spec([], []),
+  noise: spec(['position', 'filterWidth'], [], {
+    constFilterWidth: 0,
+    relativeToCamera: false,
+    scale: 1,
+    quality: 1,
+    noiseFunction: 'simplex',
+    turbulence: true,
+    levels: 6,
+    outputMin: -1,
+    outputMax: 1,
+    levelScale: 2,
+    tiling: false,
+    repeatSize: 512,
+  }),
   add: pair(0, 1),
   subtract: pair(1, 1),
   multiply: pair(0, 1),
@@ -114,6 +106,17 @@ export const NODE_SPECS: Record<NodeKind, NodeSpec> = {
   ceil: unary,
   sine: spec(['input'], ['input'], { period: 1 }),
   cosine: spec(['input'], ['input'], { period: 1 }),
+  tangent: spec(['input'], ['input'], { period: 1 }),
+  arctangent2: spec(['y', 'x'], ['y', 'x']),
+  fmod: both,
+  sqrt: unary,
+  exp: unary,
+  exp2: unary,
+  log: unary,
+  log2: spec(['x'], ['x']),
+  log10: spec(['x'], ['x']),
+  sign: unary,
+  round: unary,
   dot: both,
   cross: both,
   normalize: unary,
@@ -125,7 +128,16 @@ export const NODE_SPECS: Record<NodeKind, NodeSpec> = {
     ['a', 'aGreaterThanB', 'aLessThanB'],
     { constB: 0, equalsThreshold: 0.00001 },
   ),
-}
+  fresnel: spec(['exponent', 'baseReflectFraction', 'normal'], [], {
+    constExponent: 5,
+    constBaseReflectFraction: 0.04,
+  }),
+  desaturation: spec(['input', 'fraction'], ['input'], { luminance: [...SRGB_LUMINANCE] }),
+  contrast: spec(['input', 'amount', 'pivot'], ['input'], { constAmount: 1, constPivot: 0.5 }),
+} satisfies Record<string, NodeSpec>
+
+/** The kinds of node a material graph holds: the kinds of `NODE_SPECS`. */
+export type NodeKind = keyof typeof NODE_SPECS
 
 /** The component masks of the outputs of a node: a constant's whole value then its channels. */
 export function outputMasks(kind: NodeKind, props: Readonly<Record<string, NodeProp>>) {

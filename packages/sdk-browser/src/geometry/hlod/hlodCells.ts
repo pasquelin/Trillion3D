@@ -50,6 +50,294 @@ import { CELL_TOLD } from '../dag/worlds/worldFollow.ts'
 import { cellChildren } from '../dag/worlds/worldLinks.ts'
 import { CHAIN_ACTOR } from '../../../../sdk-core/src/manifest/worldRoots.ts'
 
+/** What `createHlodCells` follows: the per-cell flags and the work queues its steps share. */
+interface ChainState {
+  chain: NonNullable<WorldRootsHold['table']>['chain'] | undefined
+  count: number
+  holds: ReturnType<typeof createCellHolds>
+  actorRows: ActorRows | undefined
+  tops: ReturnType<typeof createTops>
+  order: ReturnType<typeof createHoldOrder> | undefined
+  slots: Pick<LoadSlots, 'loads' | 'priorityOf'>
+  /** The cells above HLOD 0 the view wishes (`hlodWishes.ts`). */
+  wishes: ReturnType<typeof createWishes> | undefined
+  /** Per cell: wished, every cell file of an HLOD 0 cell placed, one of them refused for good, its
+   *  actor's roots held, its turn to load come while it stays wished, its actor's reads done, and
+   *  the word it was last told (`CELL_TOLD`). */
+  wished: Uint8Array
+  placed: Uint8Array
+  lost: Uint8Array
+  loadedNow: Uint8Array
+  started: Uint8Array
+  landedNow: Uint8Array
+  toldWords: Uint8Array
+  /** Each cell's children: the cells whose actors lie in it. */
+  below: readonly (readonly number[])[]
+  /** Per cell, how many of its children with an actor built are not landed: none, it is whole. */
+  unlanded: Uint32Array
+  /** The HLOD 0 cells wished or placed now. */
+  leavesOn: Set<number>
+  /** The cells whose actors are loaded. */
+  loadedCells: Set<number>
+  /** The cells whose word may have moved, those whose load may have, and those whose landing may
+   *  have. */
+  toldDue: number[]
+  loadDue: number[]
+  landDue: number[]
+  /** What the cells were last followed under: the cut and the instance of the world DAG, and the
+   *  holds. */
+  toldTo: WorldCells | undefined
+  instance: number
+  seenHolds: number
+  /** Whether every cell was weighed since the last cut, instance or close. */
+  weighed: boolean
+  /** `tell`, `weighChildren` and `lands` as callbacks of the cell, made once. */
+  tell: (cell: number) => void
+  weigh: (cell: number) => void
+  land: (cell: number) => void
+}
+
+/** Whether `cell` has an actor built: what the table says (`CHAIN_ACTOR`), the cut's own word. */
+const hasActor = (s: ChainState, cell: number) => (s.chain!.actor[cell] & CHAIN_ACTOR.built) !== 0
+
+const countUnlanded = (s: ChainState) => {
+  s.unlanded.fill(0)
+  for (let cell = 0; cell < s.count; cell++)
+    if (s.chain!.parent[cell] >= 0 && hasActor(s, cell)) s.unlanded[s.chain!.parent[cell]]++
+}
+
+const visibleCell = (s: ChainState, cell: number) => !!s.toldTo?.visible(s.instance, cell)
+
+/** Whether `cell`'s actor is loaded: none not built; one always loaded once its unit's turn has
+ *  come (`hlodTops.ts`), else while its parent loads or has loaded — its turn come, while it
+ *  stays wished — or is still visible. */
+const isLoaded = (s: ChainState, cell: number) => {
+  if (!hasActor(s, cell)) return false
+  const up = s.chain!.parent[cell]
+  return up < 0 ? s.tops.opened(cell) : s.started[up] === 1 || visibleCell(s, up)
+}
+
+/** `cell`'s word may have moved. */
+const tell = (s: ChainState, cell: number) => void s.toldDue.push(cell)
+
+/** The loads of `cell`'s children may have moved. */
+const weighChildren = (s: ChainState, cell: number) => {
+  for (const child of s.below[cell]) s.loadDue.push(child)
+}
+
+/** `cell`'s actor held and its reads done, or no longer: its parent's count, or its unit's, told.
+ *  A failed read waits for nothing; rows waiting for room in the pool wait for nothing either. */
+const lands = (s: ChainState, cell: number) => {
+  const now = s.loadedNow[cell] === 1 && !s.holds.stillReads(cell)
+  if (now === (s.landedNow[cell] === 1)) return
+  s.landedNow[cell] = Number(now)
+  const up = s.chain!.parent[cell]
+  if (up < 0) s.tops.landing(cell, now)
+  else s.unlanded[up] += now ? -1 : 1
+}
+
+/** `cell`'s actor loaded or let go as it now is, one loaded held by `settle`. */
+const load = (s: ChainState, cell: number) => {
+  const now = isLoaded(s, cell)
+  if (now === (s.loadedNow[cell] === 1)) return
+  s.loadedNow[cell] = Number(now)
+  if (now) {
+    s.loadedCells.add(cell)
+    s.order!.open(cell)
+  } else {
+    s.loadedCells.delete(cell)
+    s.holds.release(cell)
+    s.actorRows?.release(cell)
+  }
+  s.landDue.push(cell)
+  // Its hold's failure, or its end, moves its word.
+  tell(s, cell)
+}
+
+/** `cell` told what it is now. */
+const told = (s: ChainState, cell: number) => {
+  let word = s.wished[cell] ? CELL_TOLD.wished : 0
+  if (s.placed[cell]) word |= CELL_TOLD.placed
+  if (s.lost[cell]) word |= CELL_TOLD.lost
+  if (s.holds.failed(cell)) word |= CELL_TOLD.failed
+  if (s.actorRows?.seated(cell)) word |= CELL_TOLD.rows
+  if (s.toldWords[cell] === word) return
+  s.toldWords[cell] = word
+  s.toldTo?.show(s.instance, cell, word)
+}
+
+/** Every cell due, settled — what a word told moves is read by the cut at once, never left for a
+ *  camera move that may not come —, the loads in the order they fell due, a cell loaded held
+ *  before its landing is weighed. */
+const settle = (s: ChainState) => {
+  while (s.toldDue.length || s.loadDue.length) {
+    for (let cell = s.toldDue.pop(); cell !== undefined; cell = s.toldDue.pop()) told(s, cell)
+    for (let at = 0; at < s.loadDue.length; at++) load(s, s.loadDue[at])
+    s.loadDue.length = 0
+    s.order?.flush((cell) => s.loadedNow[cell] === 1)
+    for (const cell of s.landDue) lands(s, cell)
+    s.landDue.length = 0
+  }
+}
+
+/** Another cut or instance was told nothing yet: every cell is told and weighed anew. */
+const retell = (s: ChainState, cells: WorldCells | undefined, at: number) => {
+  s.toldWords.fill(0)
+  s.toldTo = cells
+  s.instance = at
+  s.weighed = true
+  for (let cell = 0; cell < s.count; cell++) {
+    tell(s, cell)
+    s.loadDue.push(cell)
+  }
+}
+
+/** The HLOD 0 cells the plan met, their words read and the cells that changed told. */
+const readLeaves = (s: ChainState, leaves: ReadonlyMap<number, LeafWish>) => {
+  const { wished, placed, lost, leavesOn } = s
+  for (const [cell, leaf] of leaves) {
+    const wish = Number(leaf.wished),
+      placedNow = Number(leaf.placed),
+      gone = Number(leaf.lost)
+    if (wish || placedNow || gone) leavesOn.add(cell)
+    if (wished[cell] === wish && placed[cell] === placedNow && lost[cell] === gone) continue
+    wished[cell] = wish
+    placed[cell] = placedNow
+    lost[cell] = gone
+    tell(s, cell)
+  }
+  for (const cell of leavesOn) {
+    if (leaves.has(cell)) continue
+    leavesOn.delete(cell)
+    wished[cell] = placed[cell] = lost[cell] = 0
+    tell(s, cell)
+  }
+}
+
+/** The frame: see `createHlodCells.follow`. */
+const followFrame = (
+  s: ChainState,
+  leaves: ReadonlyMap<number, LeafWish>,
+  eye: ArrayLike<number>,
+  cells: WorldCells | undefined,
+  at: number,
+) => {
+  const { chain, holds, actorRows } = s
+  if (!chain) return
+  if (!s.weighed || cells !== s.toldTo || at !== s.instance) retell(s, cells, at)
+  s.wishes!.measure(eye)
+  readLeaves(s, leaves)
+  // A cell whose visibility moved moves its children's loads.
+  cells?.moved(at, s.weigh)
+  // A hold landed or failed ends its cell's reads.
+  holds.arrived(s.land)
+  // A hold failed or ended moves its cell's word; so do its actor's rows placed while the cut
+  // follows the world, or parked, those read since placed.
+  if (holds.revision !== s.seenHolds) for (const cell of s.loadedCells) tell(s, cell)
+  actorRows?.turn(!!cells, s.tell)
+  actorRows?.place(s.tell)
+  settle(s)
+  s.seenHolds = holds.revision
+}
+
+/** The cells above HLOD 0 wished whose children's actors are not all held and read, ranked on
+ *  `ranker`'s records, and the units of the actors always loaded not whole, onto `out`. */
+const waitingCells = (s: ChainState, out: LoadingCell[], ranker: Ranker) => {
+  if (!s.chain) return
+  for (const [, [now]] of s.wishes!.lists)
+    for (const cell of now) if (s.unlanded[cell] > 0) out.push(s.order!.ranked(cell, ranker))
+  s.tops.waiting(out)
+}
+
+/** The cells above HLOD 0 whose turn to load `slots` gives now start. */
+const startCells = (s: ChainState) => {
+  if (!s.chain) return
+  for (const [, [now]] of s.wishes!.lists)
+    for (const cell of now) {
+      if (s.started[cell] || !s.slots.loads(cellUnit(cell))) continue
+      s.started[cell] = 1
+      weighChildren(s, cell)
+    }
+  s.tops.start()
+  settle(s)
+}
+
+/** Every cell let go: its roots, its actor's rows, and what it was told. */
+const closeAll = (s: ChainState, cells: WorldCells | undefined, at: number) => {
+  const { holds, actorRows } = s
+  for (const cell of holds.cells()) holds.release(cell)
+  for (const cell of s.loadedCells) actorRows?.release(cell)
+  for (let cell = 0; cell < s.count; cell++) if (s.toldWords[cell]) cells?.show(at, cell, 0)
+  for (const state of [
+    s.wished,
+    s.placed,
+    s.lost,
+    s.loadedNow,
+    s.started,
+    s.landedNow,
+    s.toldWords,
+  ])
+    state.fill(0)
+  countUnlanded(s)
+  s.loadedCells.clear()
+  s.leavesOn.clear()
+  s.wishes?.clear()
+  s.toldDue.length = s.loadDue.length = s.landDue.length = 0
+  s.order?.clear()
+  s.tops.clear()
+  s.toldTo = undefined
+  s.weighed = false
+}
+
+/** The state of the chain of `world`'s table: every flag clear, every queue empty. */
+function createChainState(
+  world: Partial<Pick<WorldRootsHold, 'table'>> | undefined,
+  holds: ReturnType<typeof createCellHolds>,
+  grids: readonly PartitionGrid[],
+  slots: Pick<LoadSlots, 'loads' | 'priorityOf'>,
+  actorRows?: ActorRows,
+) {
+  const chain = world?.table?.chain
+  const count = chain?.parent.length ?? 0
+  const loadDue: number[] = []
+  /** The units of the actors always loaded (`hlodTops.ts`), and the cells' ranks and holds
+   *  (`hlodHolds.ts`). */
+  const tops = createTops(chain, slots, (cell) => void loadDue.push(cell))
+  const s: ChainState = {
+    chain,
+    count,
+    holds,
+    actorRows,
+    tops,
+    order: chain && createHoldOrder(chain, grids, slots, tops, holds, actorRows),
+    slots,
+    wishes: undefined,
+    wished: new Uint8Array(count),
+    placed: new Uint8Array(count),
+    lost: new Uint8Array(count),
+    loadedNow: new Uint8Array(count),
+    started: new Uint8Array(count),
+    landedNow: new Uint8Array(count),
+    toldWords: new Uint8Array(count),
+    below: chain ? cellChildren(chain.parent) : [],
+    unlanded: new Uint32Array(count),
+    leavesOn: new Set<number>(),
+    loadedCells: new Set<number>(),
+    toldDue: [],
+    loadDue,
+    landDue: [],
+    toldTo: undefined,
+    instance: 0,
+    seenHolds: -1,
+    weighed: false,
+    tell: (cell) => tell(s, cell),
+    weigh: (cell) => weighChildren(s, cell),
+    land: (cell) => lands(s, cell),
+  }
+  countUnlanded(s)
+  return s
+}
+
 /** The chain of HLOD cells of a partition, their roots held in `holds` on `world`'s table and
  *  their actors' rows placed by `actorRows`, the partition's `grids` (`TablePartition.hlod.grids`)
  *  streamed by the view `source`, the cells taking their turn to load from `slots`. */
@@ -62,211 +350,36 @@ export function createHlodCells(
   pulls?: Pick<HlodPulls, 'on' | 'pulled'>,
   actorRows?: ActorRows,
 ) {
-  const chain = world?.table?.chain
-  const count = chain?.parent.length ?? 0
-  /** Per cell: wished, every cell file of an HLOD 0 cell placed, one of them refused for good, its
-   *  actor's roots held, its turn to load come while it stays wished, its actor's reads done, and
-   *  the word it was last told (`CELL_TOLD`). */
-  const wished = new Uint8Array(count),
-    placed = new Uint8Array(count),
-    lost = new Uint8Array(count),
-    loadedNow = new Uint8Array(count),
-    started = new Uint8Array(count),
-    landedNow = new Uint8Array(count),
-    toldWords = new Uint8Array(count)
-  /** Each cell's children: the cells whose actors lie in it. */
-  const below = chain ? cellChildren(chain.parent) : []
-  /** Whether `cell` has an actor built: what the table says (`CHAIN_ACTOR`), the cut's own word. */
-  const hasActor = (cell: number) => (chain!.actor[cell] & CHAIN_ACTOR.built) !== 0
-  /** Per cell, how many of its children with an actor built are not landed: none, it is whole. */
-  const unlanded = new Uint32Array(count)
-  const countUnlanded = () => {
-    unlanded.fill(0)
-    for (let cell = 0; cell < count; cell++)
-      if (chain!.parent[cell] >= 0 && hasActor(cell)) unlanded[chain!.parent[cell]]++
-  }
-  countUnlanded()
-  /** The HLOD 0 cells wished or placed now. */
-  const leavesOn = new Set<number>()
-  /** The cells whose actors are loaded. */
-  const loadedCells = new Set<number>()
-  /** The cells whose word may have moved, those whose load may have, and those whose landing may
-   *  have. */
-  const toldDue: number[] = [],
-    loadDue: number[] = [],
-    landDue: number[] = []
-  /** The units of the actors always loaded (`hlodTops.ts`), and the cells' ranks and holds
-   *  (`hlodHolds.ts`). */
-  const tops = createTops(chain, slots, (cell) => void loadDue.push(cell))
-  const order = chain && createHoldOrder(chain, grids, slots, tops, holds, actorRows)
-  /** What the cells were last followed under: the cut and the instance of the world DAG, and the
-   *  holds. */
-  let toldTo: WorldCells | undefined,
-    instance = 0,
-    seenHolds = -1,
-    /** Whether every cell was weighed since the last cut, instance or close. */
-    weighed = false
-  const visible = (cell: number) => !!toldTo?.visible(instance, cell)
-  /** Whether `cell`'s actor is loaded: none not built; one always loaded once its unit's turn has
-   *  come (`hlodTops.ts`), else while its parent loads or has loaded — its turn come, while it
-   *  stays wished — or is still visible. */
-  const loaded = (cell: number) => {
-    if (!hasActor(cell)) return false
-    const up = chain!.parent[cell]
-    return up < 0 ? tops.opened(cell) : started[up] === 1 || visible(up)
-  }
-  /** `cell`'s word may have moved. */
-  const tell = (cell: number) => void toldDue.push(cell)
-  /** The loads of `cell`'s children may have moved. */
-  const weighChildren = (cell: number) => {
-    for (const child of below[cell]) loadDue.push(child)
-  }
-  /** The cells above HLOD 0 the view wishes (`hlodWishes.ts`). */
-  const wishes =
-    chain && createWishes(chain, grids, source, pulls, { wished, started, tell, weighChildren })
-  /** `cell`'s actor held and its reads done, or no longer: its parent's count, or its unit's, told.
-   *  A failed read waits for nothing; rows waiting for room in the pool wait for nothing either. */
-  const lands = (cell: number) => {
-    const now = loadedNow[cell] === 1 && !holds.stillReads(cell)
-    if (now === (landedNow[cell] === 1)) return
-    landedNow[cell] = Number(now)
-    const up = chain!.parent[cell]
-    if (up < 0) tops.landing(cell, now)
-    else unlanded[up] += now ? -1 : 1
-  }
-  /** `cell`'s actor loaded or let go as it now is, one loaded held by `settle`. */
-  const load = (cell: number) => {
-    const now = loaded(cell)
-    if (now === (loadedNow[cell] === 1)) return
-    loadedNow[cell] = Number(now)
-    if (now) {
-      loadedCells.add(cell)
-      order!.open(cell)
-    } else {
-      loadedCells.delete(cell)
-      holds.release(cell)
-      actorRows?.release(cell)
-    }
-    landDue.push(cell)
-    // Its hold's failure, or its end, moves its word.
-    tell(cell)
-  }
-  /** `cell` told what it is now. */
-  const told = (cell: number) => {
-    let word = wished[cell] ? CELL_TOLD.wished : 0
-    if (placed[cell]) word |= CELL_TOLD.placed
-    if (lost[cell]) word |= CELL_TOLD.lost
-    if (holds.failed(cell)) word |= CELL_TOLD.failed
-    if (actorRows?.seated(cell)) word |= CELL_TOLD.rows
-    if (toldWords[cell] === word) return
-    toldWords[cell] = word
-    toldTo?.show(instance, cell, word)
-  }
-  /** Every cell due, settled — what a word told moves is read by the cut at once, never left for a
-   *  camera move that may not come —, the loads in the order they fell due, a cell loaded held
-   *  before its landing is weighed. */
-  const settle = () => {
-    while (toldDue.length || loadDue.length) {
-      for (let cell = toldDue.pop(); cell !== undefined; cell = toldDue.pop()) told(cell)
-      for (let at = 0; at < loadDue.length; at++) load(loadDue[at])
-      loadDue.length = 0
-      order?.flush((cell) => loadedNow[cell] === 1)
-      for (const cell of landDue) lands(cell)
-      landDue.length = 0
-    }
-  }
+  const s = createChainState(world, holds, grids, slots, actorRows)
+  const { chain } = s
+  s.wishes =
+    chain &&
+    createWishes(chain, grids, source, pulls, {
+      wished: s.wished,
+      started: s.started,
+      tell: s.tell,
+      weighChildren: s.weigh,
+    })
   return {
     /** The frame from `eye` (in the cells' frame), with the HLOD 0 cells the plan met (`leaves`):
      *  each cell that moved told to `cells`, as instance `at` of the world DAG; each loaded
      *  actor's roots held, every other let go. */
-    follow(
+    follow: (
       leaves: ReadonlyMap<number, LeafWish>,
       eye: ArrayLike<number>,
       cells: WorldCells | undefined,
       at: number,
-    ) {
-      if (!chain) return
-      if (!weighed || cells !== toldTo || at !== instance) {
-        // Another cut or instance was told nothing yet: every cell is told and weighed anew.
-        toldWords.fill(0)
-        toldTo = cells
-        instance = at
-        weighed = true
-        for (let cell = 0; cell < count; cell++) {
-          tell(cell)
-          loadDue.push(cell)
-        }
-      }
-      wishes!.measure(eye)
-      for (const [cell, leaf] of leaves) {
-        const wish = Number(leaf.wished),
-          placedNow = Number(leaf.placed),
-          gone = Number(leaf.lost)
-        if (wish || placedNow || gone) leavesOn.add(cell)
-        if (wished[cell] === wish && placed[cell] === placedNow && lost[cell] === gone) continue
-        wished[cell] = wish
-        placed[cell] = placedNow
-        lost[cell] = gone
-        tell(cell)
-      }
-      for (const cell of leavesOn) {
-        if (leaves.has(cell)) continue
-        leavesOn.delete(cell)
-        wished[cell] = placed[cell] = lost[cell] = 0
-        tell(cell)
-      }
-      // A cell whose visibility moved moves its children's loads.
-      cells?.moved(at, weighChildren)
-      // A hold landed or failed ends its cell's reads.
-      holds.arrived(lands)
-      // A hold failed or ended moves its cell's word; so do its actor's rows placed while the cut
-      // follows the world, or parked, those read since placed.
-      if (holds.revision !== seenHolds) for (const cell of loadedCells) tell(cell)
-      actorRows?.turn(!!cells, tell)
-      actorRows?.place(tell)
-      settle()
-      seenHolds = holds.revision
-    },
+    ) => followFrame(s, leaves, eye, cells, at),
     /** The cells above HLOD 0 wished whose children's actors are not all held and read, ranked on
      *  `ranker`'s records in the load order (`LoadingCell`), and the units of the actors always
      *  loaded not whole, onto `out`. */
-    waiting(out: LoadingCell[], ranker: Ranker) {
-      if (!chain) return
-      for (const [, [now]] of wishes!.lists)
-        for (const cell of now) if (unlanded[cell] > 0) out.push(order!.ranked(cell, ranker))
-      tops.waiting(out)
-    },
+    waiting: (out: LoadingCell[], ranker: Ranker) => waitingCells(s, out, ranker),
     /** The cells above HLOD 0 whose turn to load `slots` gives now start, their children's actors
      *  held from now on, while they stay wished; so do the units of the actors always loaded. */
-    start() {
-      if (!chain) return
-      for (const [, [now]] of wishes!.lists)
-        for (const cell of now) {
-          if (started[cell] || !slots.loads(cellUnit(cell))) continue
-          started[cell] = 1
-          weighChildren(cell)
-        }
-      tops.start()
-      settle()
-    },
+    start: () => startCells(s),
     /** Whether HLOD cell `cell` was visible at the cut's last image. */
-    visible,
+    visible: (cell: number) => visibleCell(s, cell),
     /** Every cell let go: its roots, its actor's rows, and what it was told. */
-    close(cells: WorldCells | undefined, at: number) {
-      for (const cell of holds.cells()) holds.release(cell)
-      for (const cell of loadedCells) actorRows?.release(cell)
-      for (let cell = 0; cell < count; cell++) if (toldWords[cell]) cells?.show(at, cell, 0)
-      for (const state of [wished, placed, lost, loadedNow, started, landedNow, toldWords])
-        state.fill(0)
-      countUnlanded()
-      loadedCells.clear()
-      leavesOn.clear()
-      wishes?.clear()
-      toldDue.length = loadDue.length = landDue.length = 0
-      order?.clear()
-      tops.clear()
-      toldTo = undefined
-      weighed = false
-    },
+    close: (cells: WorldCells | undefined, at: number) => closeAll(s, cells, at),
   }
 }

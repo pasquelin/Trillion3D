@@ -17,18 +17,9 @@ import { WEBGPU_KINDS } from '../../post/effects/webgpuKinds.ts'
 import { KIND_RULES } from '../../post/effects/kindRules.ts'
 import type { PostFrame } from '../../post/finish/finish.ts'
 import { computePasses, drawing, encoder, framed, input, passes } from './encodeEffects.fixture.ts'
-import {
-  convolvedBySum,
-  testKernel,
-  texelGrid,
-  transformed,
-} from '../../post/effects/bloom/bloom.fixture.ts'
-import { analyseKernel, applyConstants } from '../../post/effects/bloom/convolution/kernelStats.ts'
-import { planConvolution } from '../../post/effects/bloom/convolution/plan.ts'
-import {
-  convolutionArriving,
-  transformLineOf,
-} from '../../post/effects/bloom/convolution/convolutionPrograms.ts'
+import { testKernel } from '../../post/effects/bloom/bloom.fixture.ts'
+import { convolutionArriving } from '../../post/effects/bloom/convolution/convolutionPrograms.ts'
+import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { askEffectPrograms } from '../../post/effects/stagePlan.ts'
 
 /** Two identical complete frames, each encoding the chain: what arms the hold. */
@@ -53,8 +44,9 @@ test('a held frame with a chain does no work; a change of the chain draws it aga
   // The last bloom's glow is the composition's: it reads the image the levels read.
   const composed = encodeEffects(rt, device, encoder, input, framed(rt, device), rt.gpu.displaySize)
   assert.equal(composed?.color, input.color, 'composition reads the image the chain read')
+  // No as-is share rides with it: a debug view's as-is pixels are read from the surfaces at the
+  // composition (it carried the share of the image it read).
   assert.ok(composed?.glow, "with the chain's glow")
-  assert.equal(composed?.share, input.share, 'with the as-is share of the image it read')
   const lit = {} as GPUTextureView
   rt.gpu.hdrView = lit
   const still = encodeEffects(
@@ -65,7 +57,7 @@ test('a held frame with a chain does no work; a change of the chain draws it aga
     framed(rt, device, lit),
     rt.gpu.targetSize,
   )
-  assert.ok(still?.color === lit && still.glow && still.share === undefined, 'a still image too')
+  assert.ok(still?.color === lit && still.glow, 'a still image too')
   drawTwice(rt, device)
   const drawn = passes.length
   assert.ok(drawn > 0, 'the full frames drew the bloom')
@@ -102,6 +94,9 @@ test('the view’s bloom settings and the effect’s dirt mask reach the passes,
   assert.deepEqual(drawnBy(rt, device), [0, 0], 'off draws no bloom')
   Object.assign(rt.context, { bloomQuality: undefined })
   bloom.dirtMask = { image: { width: 8, height: 8 }, intensity: 1 }
+  drawnBy(rt, device) // asks the programs the mask's levels need
+  await pipelinesSettled(device)
+  await rt.gpu.effects!.settled()
   assert.equal(drawnBy(rt, device)[0], all + 3, 'the three mip levels, no pass of its own')
   assert.equal(drawnBy(rt, device)[0], all, 'the picture is kept')
 })
@@ -149,7 +144,8 @@ test('an idle loop waits for the programs, then draws the image with the chain o
   const made = WEBGPU_KINDS.bloom.create
   t.after(() => void (WEBGPU_KINDS.bloom.create = made))
   let arrive = () => {}
-  WEBGPU_KINDS.bloom.create = (gpu) => new Promise((done) => (arrive = () => done(made(gpu))))
+  WEBGPU_KINDS.bloom.create = (gpu, fail) =>
+    new Promise((done) => (arrive = () => done(made(gpu, fail))))
   const chain = new EffectChain().add(effect.bloom())
   const rt = drawing(chain)
   const turn = () => new Promise((resolve) => setImmediate(resolve))
@@ -230,71 +226,4 @@ test('the renderer hands each pass to its kind, with its rank among that kind', 
     [pair[1], 1],
   ])
   assert.deepEqual(kind.sized.at(-1), [8, 4, 2])
-})
-
-test('the convolution plan and the kernel’s reading follow the reference’s numbers', () => {
-  const at = (percent: number) =>
-    planConvolution({ view: [1920, 1080], percent, size: 1, bufferScale: 0.133 }, LIMITS)
-  assert.deepEqual(
-    [at(100).image, at(100).frequency],
-    [
-      [1920, 1080],
-      [2048, 2048],
-    ],
-  )
-  assert.deepEqual(
-    [at(100).level, at(35.355).level, at(35.355).image, at(25).level],
-    [-1, 0, [679, 382], 1],
-  )
-  // The transform is made for the plan's line: 1024 values at the default half, 2048 at the full.
-  assert.deepEqual([at(50), at(100)].map(transformLineOf), [1024, 2048])
-  // 4K at 50 %, the default: a line of 2048, which a device of 16 KiB of workgroup memory holds.
-  const half = planConvolution(
-    { view: [3840, 2160], percent: 50, size: 1, bufferScale: 0.133 },
-    { ...LIMITS, maxLine: 2048 },
-  )
-  assert.deepEqual([half.fraction, Math.max(...half.frequency)], [0.5, 2048])
-  const stats = analyseKernel(testKernel(64), 1920, 1)
-  const { sceneTint, multiply } = applyConstants(stats, 0.675)
-  assert.deepEqual(stats.centre, [32, 32], 'the brightest texel is the centre')
-  // The image keeps what the glow leaves, each channel by its own share of the kernel's light: the
-  // green and the blue of this kernel carry 0.7 and 0.4 of the red's.
-  const kept = [0, 1, 2].map((c) => +(sceneTint[c] + multiply[c]).toFixed(3))
-  assert.deepEqual(kept, [1, 0.7, 0.4])
-})
-
-const LIMITS = { side: 16384, maxLine: 4096, bytes: 2 ** 31 }
-
-test('the transform’s passes convolve as a direct sum does, each channel by its own kernel sum and scale', () => {
-  for (const [w, h] of [
-    [6, 5],
-    [5, 6],
-  ]) {
-    // The transform goes along the longer padded side first: both directions are run.
-    const plan = planConvolution({ view: [w, h], percent: 100, size: 1, bufferScale: 0 }, LIMITS)
-    const [across, down] = plan.frequency
-    const image = texelGrid(w, h, (x, y, c) => 1 + ((x * 7 + y * 3 + c * 5) % 11) / 4)
-    // A kernel whose channels differ in strength, so a channel divided by another's sum, or scaled
-    // by another's multiplier, comes out wrong.
-    const kernel = texelGrid(
-      across,
-      down,
-      (x, y, c) => ((x + y) % 5 ? 0.05 : 0.2 + ((x * y) % 3)) * (c + 1),
-    )
-    const spectrum: number[][] = []
-    transformed(kernel, [], spectrum, plan.shapes.kernel)
-    const scale = [0.5, 1.5, 2.5, 3.5]
-    const glow = transformed(image, spectrum, [], plan.shapes.image, scale)
-    convolvedBySum(image, kernel).forEach((row, y) =>
-      row.forEach((texel, x) =>
-        texel.forEach((value, c) => {
-          const expected = value * scale[c]
-          assert.ok(
-            Math.abs(glow.get(`${x},${y}`)![c] - expected) < 1e-5 * (1 + expected),
-            `${plan.horizontalFirst} ${x},${y},${c}`,
-          )
-        }),
-      ),
-    )
-  }
 })

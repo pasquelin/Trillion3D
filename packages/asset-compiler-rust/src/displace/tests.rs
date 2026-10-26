@@ -3,5 +3,6 @@
 mod affine;
 mod bake;
 mod hierarchy;
+mod load;
 mod map;
 mod mesh;

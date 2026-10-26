@@ -1,20 +1,19 @@
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-import type { HostMaterials } from '../../session/host/resources.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { surfaceOf } from '../../geometry/pages/surface.ts'
 import { appendWebgpuTexture, releaseWebgpuTexture } from './appendTexture.ts'
+import type { PageMaterials } from '../../geometry/pages/pageMesh.ts'
 
 /** Runtime maps join the same colour census and atlas as maps present at open. */
 export function runtimeMaterialApi(rt: WebgpuPagesRuntime) {
   return {
     appendTexture: (texture: Texture, kind: 'color' | 'data') =>
       appendWebgpuTexture(rt, texture, kind),
-    async admitMaterial(material: HostMaterials) {
+    async admitMaterial(material: PageMaterials) {
       const surface = surfaceOf(material)
-      rt.setup.texturePools?.coverage.read(surface)
       if (surface.map) await appendWebgpuTexture(rt, surface.map, 'color')
     },
-    releaseMaterial(material: HostMaterials) {
+    releaseMaterial(material: PageMaterials) {
       const map = surfaceOf(material).map
       if (map) releaseWebgpuTexture(rt, map, 'color')
     },

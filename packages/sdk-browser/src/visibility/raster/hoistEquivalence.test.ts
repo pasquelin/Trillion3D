@@ -1,6 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { binSource } from './binWgsl.ts'
+import { DAG_VISIBLE_WGSL } from '../../geometry/dag/shader/visibleWgsl.ts'
+import {
+  DAG_CLIP_PLANE_WGSL,
+  DAG_NO_CLIP_PLANE_WGSL,
+} from '../../geometry/dag/shader/clipPlaneWgsl.ts'
+import { rasterSource } from './shader.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { Mat } from '../../materials/texture/shaderRunMatrix.fixture.ts'
 import {
@@ -16,23 +21,29 @@ import {
 import { linearPartDeterminant } from '../../../../math/src/matrix/matrix4.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { buildTessellationTable } from '../tessellation/table/build.ts'
-import { TABLE_DATA_WORD, patternIndex } from '../tessellation/contract.ts'
+import { TABLE_DATA_WORD } from '../tessellation/contract.ts'
+import { patternIndex } from '../tessellation/patternIndex.fixture.ts'
 import { CHILDREN_WGSL } from '../tessellation/queueWgsl.ts'
 
-// The binning (`binWgsl.ts`) computes viewProj*world and the linear determinant once per page (per
-// workgroup) instead of recomputing them for every triangle. Structure: the sharing really exists in
-// the shader. Behavior: the hoisted product and determinant equal exactly what per-triangle
+// The cluster raster (`clusterWgsl.ts`) computes viewProj*world and the linear determinant once per
+// cluster (per workgroup) instead of recomputing them for every triangle, and transforms each vertex
+// of the cluster once instead of once for every triangle that uses it. Structure: the sharing really
+// exists in the shader. Behavior: the hoisted product and determinant equal exactly what per-triangle
 // calculation would yield, on hostile matrices (mirror, near-singular, large scale) — no approximation.
 
-test('binning computes vp/det once per workgroup and rereads them per triangle', () => {
-  const shader = binSource(4096)
-  assert.match(shader, /var<workgroup> rowVp:mat4x4f;/)
-  assert.match(shader, /var<workgroup> rowDet:f32;/)
-  assert.match(shader, /rowVp=pageTransform\(page\);rowDet=pageWinding\(page\);/)
-  assert.match(shader, /workgroupUniformLoad\(&rowSoftware\)/)
-  assert.match(shader, /setupTriangle\(row,page,h,t,rowVp,rowDet\)/)
-  // The setup takes the precomputed product, it never recomputes it.
-  assert.match(shader, /subpixelOf\(vp\*vec4f\(pagePosition\(page,h,t\.corners\.x\),1\.0\)\)/)
+test('the cluster raster computes vp/det once per group and each vertex once into the group’s memory', () => {
+  const shader = rasterSource()
+  assert.match(shader, /var<workgroup> corner:array<vec4f,256>;/)
+  assert.match(shader, /let vp=pageTransform\(page\);/)
+  assert.match(shader, /let det=pageWinding\(page\);/)
+  assert.match(shader, /workgroupUniformLoad\(&groupRow\)/)
+  // Each thread transforms some of the cluster's vertices once, by the precomputed product.
+  assert.match(shader, /corner\[v\]=subpixelOf\(vp\*vec4f\(pagePosition\(page,h,v\),1\.0\)\);/)
+  // A triangle reads its corners there and sets up from them, with the determinant it was given.
+  assert.match(shader, /s0=corner\[k\.x\];s1=corner\[k\.y\];s2=corner\[k\.z\];/)
+  assert.match(shader, /setupSubpixel\(t,page,det,s0,s1,s2\)/)
+  // A row held in no such memory takes the product, never recomputes it.
+  assert.match(shader, /subpixelOf\(vp\*vec4f\(pagePosition\(page,h,k\.x\),1\.0\)\)/)
 })
 
 function assertSameVertices(viewProj: Mat4, world: Mat4, vertices: readonly Point[]) {
@@ -76,73 +87,50 @@ test('determinant hoisted once per page equals the linear part determinant, incl
   for (const [world, determinant] of cases) assert.equal(linearPartDeterminant(world), determinant)
 })
 
-/** The shipped split's verdict for a row of box `centre` ± 1 under a view whose clip depth is a
- *  constant (every corner within the near and far planes), its plane `plane`, from the split made
- *  for the project switch (`clipping`) or the plain one, `clipRoute` the word that says the cut
- *  culls by the plane. */
-function splitsToSoftware(centre: number[], plane: number[], clipRoute: number, clipping = true) {
-  const uni = {
-    viewProj: new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 1]),
-    clipPlane: plane,
-    clipRoute,
-    perspective: 0,
-    hardwareEdge: 0,
-  }
-  const run = shaderRun<{ rasteredInSoftware(page: object, b: object, moving: boolean): boolean }>(
-    binSource(4, false, clipping),
-    ['rasteredInSoftware'],
-    // The row's world is the identity: its product with the view's is the view's.
-    { uni, pageTransform: () => uni.viewProj },
+/** The cut's verdict for a cluster of box `centre` ± 1 (`needsClipping`, `../../geometry/dag/shader/visibleWgsl.ts`)
+ *  under a view whose clip depth is a constant (every corner within the near and far planes), its
+ *  plane `plane`, from the cut made for the project switch (`clipping`) or the plain one, `off`
+ *  the host's switch of the plane's cull: whether the hardware raster takes it, which cuts it. */
+function needsClipping(centre: number[], plane: number[], off = false, clipping = true) {
+  const identity = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+  const views = [
+    { viewProj: new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 1]), clipPlane: plane },
+  ]
+  const run = shaderRun<{ needsClipping(w: number, c: number[], e: number[]): boolean }>(
+    wgslBlock(
+      'NEEDS_CLIPPING',
+      [DAG_VISIBLE_WGSL, clipping ? DAG_CLIP_PLANE_WGSL : DAG_NO_CLIP_PLANE_WGSL],
+      '',
+    ),
+    ['needsClipping'],
+    {
+      views,
+      // The cut reads its one view as `cutView` (the descent's uniform), no longer `views[0]`.
+      cutView: views[0],
+      // The placement is the identity: its pose and its plane's matrix.
+      placed: () => {},
+      placedPose: identity,
+      placedT: identity,
+      cullOff: () => off,
+      CULL_CLIP_PLANE_OFF: 0,
+      // The finite stand-in for infinity the cut's `INF` takes.
+      FINITE_SENTINEL: 3.4e38,
+    },
   )
-  const page = {
-    world: new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
-    lodSphere: [0, 0, 0, -1],
-  }
-  return run.rasteredInSoftware(page, { center: centre, extent: [1, 1, 1], edge: 1 }, false)
+  return run.needsClipping(0, centre, [1, 1, 1])
 }
 
 test('a cluster that reaches behind the view’s plane is the hardware raster’s while the cut culls by it', () => {
   const plane = [0, 0, 1, -5]
   // Wholly in front of z = 5, across it, wholly behind it.
-  assert.equal(splitsToSoftware([0, 0, 10], plane, 1), true, 'in front: software')
-  assert.equal(splitsToSoftware([0, 0, 5], plane, 1), false, 'across the plane: hardware')
-  assert.equal(
-    splitsToSoftware([0, 0, 0], plane, 1),
-    false,
-    'behind it: hardware, which cuts it all',
-  )
-  // The cull off, or a view with no plane: the verdict of the split without it.
-  assert.equal(splitsToSoftware([0, 0, 5], plane, 0), true, 'the cull off')
-  assert.equal(splitsToSoftware([0, 0, 5], [0, 0, 0, 0], 1), true, 'no plane')
-  assert.match(
-    binSource(4, false, true),
-    /if\(uni\.clipRoute!=0u\)\{behind=min\(behind,planeDistance\(uni\.clipPlane,/,
-  )
-  // The split that leaves the displaced rows to the tessellation takes it the same way.
-  assert.match(binSource(4096, true, true), /behind<0\.0[^]*tessellatedRow\(page\)/)
-  // Without the project switch the split holds none of it, whatever the uniform says.
-  assert.equal(splitsToSoftware([0, 0, 5], plane, 1, false), true, 'the switch off')
-  for (const plain of [binSource(4), binSource(4096, true)])
-    for (const code of ['var behind', 'behind<', 'uni.clipPlane', 'uni.clipRoute'])
-      assert.ok(!plain.includes(code), `${code} is not in the split without the switch`)
-})
-
-test('the binning leaves the displaced rows to the tessellation only where asked, and is the same text without', () => {
-  const plain = binSource(4096)
-  assert.equal(binSource(4096, false), plain)
-  assert.ok(!plain.includes('tessellatedRow'))
-  const asked = binSource(4096, true)
-  // A row the frame tessellates is no software row, and its `raster` word is the software's, so the
-  // hardware compaction walks none of its slots.
-  assert.match(asked, /&&\(page\.flags&\d+u\)==0u&&!tessellatedRow\(page\);/)
-  assert.match(asked, /select\(\d+u,\d+u,software\|\|tessellatedRow\(page\)\)/)
-  // Those two phrases and the predicate's own declarations are all it adds.
-  const stripped = asked
-    .replace('&&!tessellatedRow(page)', '')
-    .replace('software||tessellatedRow(page)', 'software')
-    .replace(/fn tessellatedRow\(page:PageInfo\)->bool\{[^}]*\}\n?/, '')
-    .replace(/fn tessellatedFlags\(page:PageInfo\)->bool\{[^}]*\}\n?/, '')
-  assert.equal(stripped, plain)
+  assert.equal(needsClipping([0, 0, 10], plane), false, 'in front: none')
+  assert.equal(needsClipping([0, 0, 5], plane), true, 'across the plane: hardware')
+  assert.equal(needsClipping([0, 0, 0], plane), true, 'behind it: hardware, which cuts it all')
+  // The cull off, or a view with no plane: the verdict without it.
+  assert.equal(needsClipping([0, 0, 5], plane, true), false, 'the cull off')
+  assert.equal(needsClipping([0, 0, 5], [0, 0, 0, 0]), false, 'no plane')
+  // Without the project switch the cut holds none of it, whatever the uniform says.
+  assert.equal(needsClipping([0, 0, 5], plane, false, false), false, 'the switch off')
 })
 
 /** The tessellation's table as the kernels read it: the offsets, then the patterns' words. */

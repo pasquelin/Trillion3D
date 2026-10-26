@@ -1,12 +1,13 @@
 import type { pooledDeformationRows } from '../../../deformation/pooledRows.ts'
 import { hasPage } from '../../rows/page/pageSlots.ts'
-import type { HostAttributes } from '../../../session/host/resources.ts'
+
 import type { PageRec, DeformationOutput } from '../../selection/types.ts'
 import type { GeometryBlock } from '../../rows/page/pageRowMaterial.ts'
 import type { SessionDeformation } from '../../../deformation/session.ts'
 
 import { createVertexPool, type VertexPool } from './geometryPool.ts'
-type GeometryBlocks = Map<HostAttributes, GeometryBlock>
+import type { Geometry } from '../../../../../sdk-core/src/world/geometry/geometry.ts'
+type GeometryBlocks = Map<Geometry['attributes'], GeometryBlock>
 type PooledRows = { table: GPUBuffer; count: number } | undefined
 /** The deformation rows of the float-pool blocks a pool holds after its records
  *  (`pooledDeformationRows`, deformation's code). */
@@ -36,6 +37,68 @@ export function placeFloatPages(pool: Pick<VertexPool, 'place'>, pages: readonly
   )
 }
 
+/** What the packing keeps: the deformation, the blocks placed after the records, and the pool. */
+interface Packing {
+  device: GPUDevice
+  deformation: SessionDeformation | undefined
+  grown: ((update: VertexPoolGrowth) => void) | undefined
+  geometryBlocks: GeometryBlocks
+  pooled: ReturnType<PooledRowsOf>
+  pooledDeformation: VertexPoolGrowth['pooledDeformation']
+  /** The floats the records had when the blocks were last placed after them. */
+  recordFloats: number
+  vertexPool: VertexPool
+}
+
+/** Places the deformation block after `count` vertices and the result blocks after it: a
+ *  growth's table replaces the one placed before it, which is freed. */
+const placePooled = (g: Packing, count: number) => {
+  g.deformation?.place(count * 3)
+  g.recordFloats = g.deformation?.floats ?? 0
+  g.pooledDeformation?.table.destroy()
+  g.pooledDeformation = g.pooled.upload(
+    g.device,
+    count * 3 + (g.deformation?.floats ?? 0),
+    (attributes) => g.geometryBlocks.get(attributes)!,
+  )
+}
+
+/** The pool's buffers and the blocks re-placed, the owners told. */
+const regrow = (g: Packing, count: number) => {
+  placePooled(g, count)
+  g.grown?.({
+    concatPos: g.vertexPool.concatPos,
+    concatUv: g.vertexPool.concatUv,
+    concatNrm: g.vertexPool.concatNrm,
+    pooledDeformation: g.pooledDeformation,
+  })
+}
+
+/** Whether the pool holds the float geometries `pages` read, its tail the records and blocks
+ *  they need: false where the device refuses the room. */
+const extendPool = (
+  g: Packing,
+  pooledRows: PooledRowsOf,
+  blocks: readonly DeformationOutput[],
+  pages: readonly PageRec[],
+  code: PooledRowsOf = pooledRows,
+) => {
+  const { deformation, vertexPool } = g
+  const next = code(deformation, blocks)
+  if (!placeFloatPages(vertexPool, pages)) return false
+  const before = g.pooled,
+    unmoved =
+      next.floats === before.floats &&
+      next.rows === before.rows &&
+      (deformation?.floats ?? 0) === g.recordFloats
+  g.pooled = next
+  if (unmoved) return true
+  if (!vertexPool.reserve((deformation?.floats ?? 0) + next.floats))
+    return ((g.pooled = before), false)
+  regrow(g, vertexPool.size)
+  return true
+}
+
 /**
  * Packs, once, the source geometry the passes still read as floats: that of the clusters no
  * quantized page covers, from a cache that carries no geometry page. A cluster drawn from its
@@ -61,10 +124,19 @@ export function prepareWebgpuGeometry(
    *  read live. */
   blocks: readonly DeformationOutput[] = [],
 ) {
-  const sourced = new Map<HostAttributes, boolean>()
+  const sourced = new Map<Geometry['attributes'], boolean>()
   for (const rec of allPages)
     if (!rec.geometryPage && hasPage(rec)) sourced.set(rec.attributes, !!rec.drawSource?.dynamic)
-  let pooled = pooledRows(deformation, blocks)
+  const g: Packing = {
+    device,
+    deformation,
+    grown,
+    geometryBlocks,
+    pooled: pooledRows(deformation, blocks),
+    pooledDeformation: undefined,
+    recordFloats: 0,
+    vertexPool: undefined as unknown as VertexPool,
+  }
   let vertices = 0,
     room = 0,
     coloured = false,
@@ -79,56 +151,25 @@ export function prepareWebgpuGeometry(
   const capacity = Math.max(1, vertices + room)
   // The deformation records ride after the positions: the passes read them through the
   // binding they already read the positions through.
-  const blockOf = (attributes: HostAttributes) => geometryBlocks.get(attributes)!
-  let pooledDeformation: VertexPoolGrowth['pooledDeformation'],
-    /** The floats the records had when the blocks were last placed after them. */
-    recordFloats = 0
-  /** Places the deformation block after `count` vertices and the result blocks after it: a
-   *  growth's table replaces the one placed before it, which is freed. */
-  const placePooled = (count: number) => {
-    deformation?.place(count * 3)
-    recordFloats = deformation?.floats ?? 0
-    pooledDeformation?.table.destroy()
-    pooledDeformation = pooled.upload(device, count * 3 + (deformation?.floats ?? 0), blockOf)
-  }
-  /** The pool's buffers and the blocks re-placed, the owners told. */
-  const regrow = (count: number) => {
-    placePooled(count)
-    grown?.({
-      concatPos: vertexPool.concatPos,
-      concatUv: vertexPool.concatUv,
-      concatNrm: vertexPool.concatNrm,
-      pooledDeformation,
-    })
-  }
-  const vertexPool = createVertexPool(
+  const vertexPool = (g.vertexPool = createVertexPool(
     device,
     capacity,
     coloured,
     geometryBlocks,
-    (deformation?.floats ?? 0) + pooled.floats,
-    regrow,
+    (deformation?.floats ?? 0) + g.pooled.floats,
+    (count) => regrow(g, count),
     secondUv,
-  )
+  ))
   vertexPool.pack(sourced)
-  placePooled(capacity)
+  placePooled(g, capacity)
   const { concatPos, concatUv, concatNrm } = vertexPool
-  /** Whether the pool holds the float geometries `pages` read, its tail the records and blocks
-   *  they need: false where the device refuses the room. */
-  const extend = (pages: readonly PageRec[], code: PooledRowsOf = pooledRows) => {
-    const next = code(deformation, blocks)
-    if (!placeFloatPages(vertexPool, pages)) return false
-    const before = pooled,
-      unmoved =
-        next.floats === before.floats &&
-        next.rows === before.rows &&
-        (deformation?.floats ?? 0) === recordFloats
-    pooled = next
-    if (unmoved) return true
-    if (!vertexPool.reserve((deformation?.floats ?? 0) + next.floats))
-      return ((pooled = before), false)
-    regrow(vertexPool.size)
-    return true
+  return {
+    concatPos,
+    concatUv,
+    concatNrm,
+    vertexPool,
+    pooledDeformation: g.pooledDeformation,
+    extendGeometry: (pages: readonly PageRec[], code?: PooledRowsOf) =>
+      extendPool(g, pooledRows, blocks, pages, code),
   }
-  return { concatPos, concatUv, concatNrm, vertexPool, pooledDeformation, extendGeometry: extend }
 }

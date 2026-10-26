@@ -1,3 +1,4 @@
+import { createGraphFrame } from '../../frame/render/graphFrame.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeMaterialPasses } from './materialPasses.ts'
@@ -13,8 +14,7 @@ import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { createTextureCaches } from '../texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
-import { PAGE_INFO } from '../../visibility/pageInfo.ts'
-import { FLAG_DISPLACED } from '../../visibility/types.ts'
+import { noteClass } from '../../gpu/core/presentClasses.ts'
 import { SHADE_UNIFORM } from '../../visibility/shader/uniformLayout.ts'
 import { PRISM_UNIFORM } from '../../visibility/tessellation/prismWgsl.ts'
 
@@ -64,7 +64,7 @@ test('an empty class census retains the pass that clears the surfaces, and shade
   assert.equal(rt.run.gpuComputeDispatches, 0)
 })
 
-test('an image shades each class of its rows once, one dispatch of its bin, from the class set', () => {
+test('an image shades each class of its clusters once, one dispatch of its bin, from the class set', () => {
   const { rt, encoder, passes, computePasses, made, ordinary, bins } = resolveFixture(
     [5, 9, 5, 2],
     [5, 9, 2],
@@ -72,12 +72,13 @@ test('an image shades each class of its rows once, one dispatch of its bin, from
   encodeMaterialPasses(rt, encoder)
   // No material depth is written or tested: each class shades its own bin.
   assert.equal(passes[0].depth, undefined)
-  // Rows of class 5 twice: one bin, one dispatch; each class with its compiled pipeline.
-  assert.deepEqual(bins.assigned, [[5, 9, 2]])
+  // Clusters of class 5 twice: one bin, one dispatch; the classes in increasing order, each with
+  // its compiled pipeline.
+  assert.deepEqual(bins.assigned, [[2, 5, 9]])
   assert.deepEqual(pipelinesOf(computePasses[0]), [
+    ordinary.get(2),
     ordinary.get(5),
     ordinary.get(9),
-    ordinary.get(2),
   ])
   assert.deepEqual(bins.shaded, [0, 1, 2])
   assert.deepEqual(made, [])
@@ -121,10 +122,8 @@ test('a class that draws displaced pixels shades over its own group and pipeline
     [5, 9, 5],
     [5, 9],
   )
-  // Class 5 holds a displaced row the image tessellates; class 9 none.
-  const rows = rt.layout.rows as unknown as { pageTableInts: Uint32Array; rowWrites: number }
-  rows.pageTableInts[PAGE_INFO.at.flags] = FLAG_DISPLACED
-  rows.rowWrites = 1
+  // Class 5 holds a displaced cluster the image tessellates; class 9 none.
+  noteClass(rt.vis.displacedClasses, 5, 1)
   const token = () => ({}) as GPUBuffer
   const atlas = () => ({ views: [{}, {}, {}], pages: { buffer: token() } })
   Object.assign(rt.vis, {
@@ -137,7 +136,7 @@ test('a class that draws displaced pixels shades over its own group and pipeline
     textures: { color: atlas(), data: atlas() },
     mapsSampler: {},
     shadeUniform: token(),
-    shadeCache: { buffer: token(), encode: () => {} },
+    graphFrame: createGraphFrame(),
     voxelSteps: { buffer: token() },
     shadeUniPacked: new Float32Array(SHADE_UNIFORM.words).map((_, i) =>
       i < 16 && i % 5 === 0 ? 1 : 0,

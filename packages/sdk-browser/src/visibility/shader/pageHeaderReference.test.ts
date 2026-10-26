@@ -11,11 +11,12 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts'
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts'
-import { decodeGeometryPage } from '../../geometry/codec/geometryPage.ts'
+import { decodeGeometryPage, residentGeometryPage } from '../../geometry/codec/geometryPage.ts'
 import { encodePage } from '../../geometry/codec/encodePage.fixture.ts'
 import { randomPage } from '../../geometry/codec/randomPages.fixture.ts'
 import { reference, POINT, type Header } from './pageHeaderReference.fixture.ts'
 import { FLAG_CLUSTER_PAGE } from '../types.ts'
+import { MAX_UV_SETS } from '../../../../sdk-core/src/page/format.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
@@ -34,7 +35,8 @@ const random = lcgFloatRandom(831)
 const floats = (n: number, at: (i: number) => number) =>
   Float32Array.from({ length: n }, (_, i) => at(i))
 
-/** Pages of every kind the vertex stages meet, each at its own word of one pool. */
+/** Pages of every kind the vertex stages meet, each at its own word of one pool, as the install pass
+ *  writes it (`residentGeometryPage`); `page` is the page on disk it comes from. */
 function pool() {
   const n = 9
   const position = floats(n * 3, (i) => (i % 7) * 0.5 - 1 + random() * 1e-3)
@@ -68,14 +70,29 @@ function pool() {
   const plain = encodePage(indices, { POSITION }).data
   const masked = encodePage(indices, { POSITION, ...base }).data
   const lines = encodePage(indices, { POSITION, NORMAL: base.NORMAL }).data
-  const kinds = { plain, lines, masked, deformed, shared, lone }
-  const larger = [3, 40, 300].map((v) => randomPage(random, v))
+  // Texture sets past the fourth: the ranges of the ones a page carries follow its morph records.
+  const set = () => ({ itemSize: 2, array: floats(n * 2, random) })
+  const sparse = encodePage(indices, {
+    ...{ POSITION, TEXCOORD_0: set(), TEXCOORD_5: set(), TEXCOORD_7: set() },
+  }).data
+  const eight = encodePage(indices, {
+    ...{ POSITION, NORMAL: base.NORMAL, TEXCOORD_0: set(), TEXCOORD_1: set(), TEXCOORD_2: set() },
+    ...{ TEXCOORD_3: set(), TEXCOORD_4: set(), TEXCOORD_5: set(), TEXCOORD_6: set() },
+    ...{ TEXCOORD_7: set() },
+  }).data
+  const kinds = { plain, lines, masked, deformed, shared, lone, sparse, eight }
+  const larger = [3, 40, 250].map((v) => randomPage(random, v))
   larger.forEach((page, i) => Object.assign(kinds, { [`random${i}`]: page }))
   const words: number[] = [7, 7, 7]
   const placed = Object.entries(kinds).map(([name, data]) => {
     const page = data as Uint8Array
     const at = words.length
-    words.push(...new Uint32Array(page.buffer, page.byteOffset, page.byteLength / 4), 0, 0)
+    const resident = residentGeometryPage(page)
+    words.push(
+      ...new Uint32Array(resident.buffer, resident.byteOffset, resident.byteLength / 4),
+      0,
+      0,
+    )
     return { name, at, page }
   })
   return { words: Uint32Array.from(words), placed }
@@ -83,14 +100,21 @@ function pool() {
 
 const NAMES = [
   ...'pageHeader pageHeaderFor pageCorner pageRestPosition vertPos'.split(' '),
-  ...'clusterPointHeader clusterSurfaceHeader clusterStream clusterWidths clusterUnit'.split(' '),
+  ...'clusterPointHeader clusterSurfaceHeader clusterWidths clusterUnit'.split(' '),
   ...'pow2FromExponent bitLength ceilDiv clusterIndex clusterBlock clusterWindow clusterField'.split(
     ' ',
   ),
-  ...'clusterPosition clusterHasUv'.split(' '),
+  ...'clusterPosition clusterOffsets clusterUvSets clusterHasUv clusterUv clusterUvValue'.split(
+    ' ',
+  ),
 ]
 const flat = (v: unknown): number[] =>
   typeof v === 'object' && v ? Object.values(v).flatMap(flat) : [Number(v)]
+/** A WGSL array is zero where nothing wrote it; the interpreter's is empty (`shaderRunStructs`). */
+const zeroed = (got: unknown, want: unknown) =>
+  Array.isArray(got) && Array.isArray(want)
+    ? Object.assign(new Array(want.length).fill(0), got)
+    : got
 const same = (got: unknown, want: unknown) =>
   flat(got).length === flat(want).length &&
   flat(got).every((x, i) => Object.is(Math.fround(x), Math.fround(flat(want)[i])))
@@ -111,14 +135,24 @@ function firstDifference(code: string): string | null {
     const part = run.pageHeaderFor(row, false) as Header
     const whole = run.pageHeaderFor(row, true) as Header
     for (const key of Object.keys(want)) {
-      if (!same(whole[key], want[key])) return `${name}: whole header ${key}`
-      if (POINT.includes(key) && !same(part[key], want[key])) return `${name}: part ${key}`
+      if (!same(zeroed(whole[key], want[key]), want[key])) return `${name}: whole header ${key}`
+      if (POINT.includes(key) && !same(zeroed(part[key], want[key]), want[key]))
+        return `${name}: part ${key}`
     }
     if (!same(run.pageHeader(row), whole)) return `${name}: pageHeader is not the whole`
     // What the stages do with the part: the corners and positions of the JavaScript decoder.
     const decoded = decodeGeometryPage(page)
     for (let c = 0; c < decoded.indices.length; c++)
       if (run.pageCorner(row, part, c) !== decoded.indices[c]) return `${name}: corner ${c}`
+    // Each texture set the page stores, the first four and those past them, as the JavaScript
+    // decoder decodes it.
+    for (let s = 0; s < MAX_UV_SETS; s++) {
+      const coordinates = decoded.attributes[s ? `uv${s}` : 'uv']
+      for (let v = 0; coordinates && v < decoded.vertexCount; v++) {
+        const got = run.clusterUv(whole, at, v, s) as number[]
+        if (!same(got, [coordinates[v * 2], coordinates[v * 2 + 1]])) return `${name}: uv${s} ${v}`
+      }
+    }
     for (let v = 0; v < decoded.vertexCount; v++)
       for (let k = 0; k < 3; k++)
         if (
@@ -146,7 +180,16 @@ const BREAKS: [string, string][] = [
   ['h.flags=indices[base+4u]', 'h.flags=indices[base+5u]'],
   ['(h.flags&1u)!=0u', '(h.flags&2u)!=0u'],
   ['h.normalBits=(cb>>16u)&15u', 'h.normalBits=(cb>>17u)&15u'],
-  ['let u=indices[base+9u+2u*s]', 'let u=indices[base+10u+2u*s]'],
+  ['u=indices[base+9u+2u*s]', 'u=indices[base+10u+2u*s]'],
+  ['else{u=indices[base+extension]', 'else{u=indices[base+extension+1u]'],
+  ['*countOneBits(h.flags&30720u)', '*countOneBits(h.flags&28672u)'],
+  // The table of the streams' offsets: its place, the half of a word an offset lies in, the word
+  // each stream is loaded from.
+  ['let w=indices[base+table+k];', 'let w=indices[base+table+k+1u];'],
+  ['return vec2u(w&0xffffu,w>>16u);', 'return vec2u(w>>16u,w&0xffffu);'],
+  ['h.streams=h.table+15u;', 'h.streams=h.table+14u;'],
+  ['h.normal=clusterOffsets(base,h.table,3u)', 'h.normal=clusterOffsets(base,h.table,2u)'],
+  ['clusterOffsets(base,h.table,14u);h.tangent', 'clusterOffsets(base,h.table,13u);h.tangent'],
 ]
 for (const [from, to] of BREAKS)
   test(`the reference catches ${from} read as ${to}`, () => {

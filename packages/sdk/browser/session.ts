@@ -15,23 +15,8 @@ export type {
   MemoryBudgets,
   MemoryBudgetsReport,
   PoolClamp,
-  TableGrowthReport,
 } from '../../sdk-browser/src/session/memory/pools.ts'
-export type {
-  HostAttribute,
-  HostAttributes,
-  HostBox,
-  HostColour,
-  HostDisposable,
-  HostMaterials,
-  HostMesh,
-  HostPoint,
-  HostScene,
-} from '../../sdk-browser/src/session/host/resources.ts'
-export type {
-  HostNodeMatrix,
-  MatrixElements,
-} from '../../sdk-browser/src/session/host/matrixElements.ts'
+export type { HardwareBenchmarkOptions } from '../../sdk-browser/src/session/world/benchmarkSource.ts'
 export { LoadedModel } from '../../sdk-browser/src/session/world/models/loadedModel.ts'
 export type {
   ModelRecord,
@@ -39,7 +24,10 @@ export type {
 } from '../../sdk-browser/src/session/world/models/loadedModel.ts'
 export { Scene } from '../../sdk-browser/src/session/world/scene.ts'
 export type { LoadOptions } from '../../sdk-browser/src/session/world/scene.ts'
+export type { MatrixElements } from '../../sdk-browser/src/session/host/matrixElements.ts'
+export type { ModuleName } from '../../sdk-browser/src/session/world/worldModules.ts'
 export type { PointOfInterest } from '../../sdk-browser/src/session/options.ts'
+export type { QualityHardware } from '../../sdk-browser/src/session/world/qualityHardware.ts'
 export type {
   QualityResolution,
   WorldQualityOptions,
@@ -58,5 +46,7 @@ export type {
   WorldView,
 } from '../../sdk-browser/src/session/world/views.ts'
 export type { WorldControls } from '../../sdk-browser/src/session/world/camera.ts'
+export type { WorldImageSettings } from '../../sdk-browser/src/session/world/worldImageTypes.ts'
 export type { WorldOptions } from '../../sdk-browser/src/session/world/options.ts'
+export type { WorldSceneSettings } from '../../sdk-browser/src/session/world/worldSceneTypes.ts'
 export type { WorldTarget } from '../../sdk-browser/src/session/world/target.ts'

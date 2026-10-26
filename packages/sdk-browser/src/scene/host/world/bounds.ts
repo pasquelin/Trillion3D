@@ -7,7 +7,7 @@ import {
 } from '../../../geometry/decode/batchRuntime.ts'
 import { hostWorldPlacements } from './placements.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
-import type { HostBox } from '../../../session/host/resources.ts'
+import type { Box3 } from '../../../../../sdk-core/src/world/math/box3.ts'
 
 /**
  * World bounds of a host subtree, computed by the core on flat boxes.
@@ -59,7 +59,7 @@ export async function hostBoundsLot(source: Object3D) {
 }
 
 /** A host box written flat into `out` from `at`: its least corner, then its greatest. */
-export function readHostBox(box: HostBox, out: Float64Array, at: number) {
+export function readHostBox(box: Box3, out: Float64Array, at: number) {
   out[at] = box.min.x
   out[at + 1] = box.min.y
   out[at + 2] = box.min.z

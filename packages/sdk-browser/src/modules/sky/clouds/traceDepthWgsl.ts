@@ -12,8 +12,8 @@ import type { CloudDepthSource } from './cloudModes.ts'
  *
  * The texel read is the traced texel's times the mapping's scale, plus the pixel of the block the
  * image traces, kept inside the part of the image the view fills (`sizes` of the block). The
- * depth is a distance from the eye, in kilometres, of the point of the texel's ray at that device
- * depth; the nearest depths that read as zero are held off it. Where only one surface is kept, the
+ * depth is a distance from the ray's origin (the eye, or in an orthographic view the pixel's point on
+ * the near plane), in kilometres, of the point of the texel's ray at that device depth; the nearest depths that read as zero are held off it. Where only one surface is kept, the
  * closest and the furthest are the same.
  */
 
@@ -29,9 +29,8 @@ fn cloudSceneDepth(p:vec2u,ndc:vec2f)->CloudDepth{
  ${COORD}
  let range=textureLoad(depthRange,coord/2u,0).xy;
  let device=max(range.yx,vec2f(DEVICE_DEPTH_FLOOR));
- let eye=frame.eye.xyz;
- let closestKm=min(length(cloudUnproject(ndc,device.x)-eye)*CLOUD_M_TO_KM,HALF_MAX);
- let furthestKm=min(length(cloudUnproject(ndc,device.y)-eye)*CLOUD_M_TO_KM,HALF_MAX);
+ let closestKm=min(length(cloudUnproject(ndc,device.x)-cloudOrigin)*CLOUD_M_TO_KM,HALF_MAX);
+ let furthestKm=min(length(cloudUnproject(ndc,device.y)-cloudOrigin)*CLOUD_M_TO_KM,HALF_MAX);
  var d:CloudDepth;
  d.closestCm=closestKm*CM_PER_KM;
  d.furthestCm=furthestKm*CM_PER_KM;
@@ -43,7 +42,7 @@ const ONE_SURFACE = (read: string) => `
 fn cloudSceneDepth(p:vec2u,ndc:vec2f)->CloudDepth{
  ${COORD}
  let device=max(${read},DEVICE_DEPTH_FLOOR);
- let km=min(length(cloudUnproject(ndc,device)-frame.eye.xyz)*CLOUD_M_TO_KM,HALF_MAX);
+ let km=min(length(cloudUnproject(ndc,device)-cloudOrigin)*CLOUD_M_TO_KM,HALF_MAX);
  var d:CloudDepth;
  d.closestCm=km*CM_PER_KM;
  d.furthestCm=d.closestCm;

@@ -22,6 +22,46 @@ interface Counted {
 type Counts = Record<string, unknown> | null | undefined
 const MARK: Record<MessageLevel, string> = { error: '✖', warn: '⚠', info: 'ℹ' }
 
+type Add = (code: string, count: number, occurrence: () => string) => Counted | undefined
+
+/** The DAG warnings of one primitive's event, each counted and the worst of its code kept. */
+function recordWarnings(event: CompilerEvent, add: Add) {
+  for (const warning of event.warnings ?? []) {
+    const where = `mesh ${event.mesh}/${event.primitive}`
+    const cause = warning.cause ? ` (cause ${warning.cause})` : ''
+    const row = add(
+      warning.code,
+      1,
+      () => `${warning.code} ${where}: ${warning.roots} roots of ${warning.pages} pages${cause}`,
+    )
+    if (row && (!row.worst || warning.roots > row.worst.roots))
+      row.worst = { where, roots: warning.roots, pages: warning.pages }
+  }
+}
+
+/** The pointer's texture reasons and unsupported modes of a completed job. */
+function recordPointer(
+  pointer: NonNullable<Counts>,
+  add: Add,
+  addCounts: (counts: Counts) => void,
+) {
+  addCounts(pointer.textureSkipped as Counts)
+  addCounts(pointer.textureNotes as Counts)
+  const modes = Array.isArray(pointer.unsupported) ? (pointer.unsupported as unknown[]) : []
+  for (const mode of modes) if (typeof mode === 'string') add(mode, 1, () => mode)
+}
+
+/** The lines of one code: its summary, and with `verbose` every occurrence under it. */
+function tellLines({ entry, count, worst, occurrences }: Counted, label: string, verbose: boolean) {
+  const worstText = worst
+    ? ` Worst: ${worst.where}, ${worst.roots} roots of ${worst.pages} pages.`
+    : ''
+  const head =
+    `${MARK[entry.level]} ${label} ${entry.id} ${entry.code} ×${count}: ${entry.message}` +
+    `${worstText} ${causeOf(entry)} ${entry.action}`
+  return verbose ? [head, ...occurrences.map((text) => `    ${text}`)] : [head]
+}
+
 /**
  * The messages of one job, counted while it compiles and told once at its end: one line per code —
  * how many, the worst case, what to do — never one line per primitive. It reads the primitives' DAG
@@ -53,29 +93,14 @@ export function messageTally(verbose = false) {
   return {
     /** Feeds one compiler event. */
     record(event: CompilerEvent) {
-      for (const warning of event.warnings ?? []) {
-        const where = `mesh ${event.mesh}/${event.primitive}`
-        const cause = warning.cause ? ` (cause ${warning.cause})` : ''
-        const row = add(
-          warning.code,
-          1,
-          () =>
-            `${warning.code} ${where}: ${warning.roots} roots of ${warning.pages} pages${cause}`,
-        )
-        if (row && (!row.worst || warning.roots > row.worst.roots))
-          row.worst = { where, roots: warning.roots, pages: warning.pages }
-      }
+      recordWarnings(event, add)
       if (event.phase === 'import') addCounts(event.unsupported as Counts)
       if (event.phase === 'lights') {
         addCounts(event.rejected as Counts)
         addCounts(event.counts as Counts)
       }
       const pointer = event.event === 'complete' ? (event.pointer as Counts) : null
-      if (!pointer) return
-      addCounts(pointer.textureSkipped as Counts)
-      addCounts(pointer.textureNotes as Counts)
-      const modes = Array.isArray(pointer.unsupported) ? (pointer.unsupported as unknown[]) : []
-      for (const mode of modes) if (typeof mode === 'string') add(mode, 1, () => mode)
+      if (pointer) recordPointer(pointer, add, addCounts)
     },
     /** Warning-level occurrences: what `--strict` refuses. */
     get warnings() {
@@ -85,15 +110,7 @@ export function messageTally(verbose = false) {
     },
     /** One line per code; info codes only when `verbose`, which also lists every occurrence. */
     lines(label: string) {
-      return shown().flatMap(({ entry, count, worst, occurrences }) => {
-        const worstText = worst
-          ? ` Worst: ${worst.where}, ${worst.roots} roots of ${worst.pages} pages.`
-          : ''
-        const head =
-          `${MARK[entry.level]} ${label} ${entry.id} ${entry.code} ×${count}: ${entry.message}` +
-          `${worstText} ${causeOf(entry)} ${entry.action}`
-        return verbose ? [head, ...occurrences.map((text) => `    ${text}`)] : [head]
-      })
+      return shown().flatMap((row) => tellLines(row, label, verbose))
     },
     /** The same summary as JSON events, for a pipe. */
     events(job: string) {

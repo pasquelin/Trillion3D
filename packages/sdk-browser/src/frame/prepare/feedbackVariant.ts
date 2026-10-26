@@ -1,9 +1,8 @@
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { FEEDBACK_BYTES } from '../../materials/surface/surfaceBuffer.ts'
-import { SHADE_SHADER } from '../../visibility/shader/shadeWgsl.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
 import { createWebgpuShadePipelines } from '../../visibility/passes/shadePipelines.ts'
-import { blendShareTargets } from './asIsShareTarget.ts'
+import { wantsResponsive } from './responsiveTarget.ts'
 import { blendContext } from './contractLight.ts'
 import { makeFeedbackTarget } from './targets.ts'
 import { keepsEveryOutput } from './emissiveAoLayer.ts'
@@ -118,15 +117,15 @@ async function feedbackPipelines(
   feedback: boolean,
 ): Promise<FeedbackPipelines> {
   const { vis, blendState } = rt
-  const module = device.createShaderModule({ code: SHADE_SHADER })
   const shadeMade = createWebgpuShadePipelines(
     device,
-    module,
+    vis.shadeModule!,
     [...vis.shadeClasses!.keys()],
     undefined,
     feedback,
     vis.shadeBindGroupLayout,
     vis.writesEmissiveAo,
+    () => vis.rasters,
   )
   const blendMade =
     vis.blendPipelines &&
@@ -136,7 +135,7 @@ async function feedbackPipelines(
       undefined,
       feedback,
       vis.blendBindGroupLayout,
-      blendShareTargets(rt),
+      wantsResponsive(rt),
       // The transmissive stages in place have their twin in this variant, copies joined or not.
       { ...blendContext(rt), holdsTransmission: transmitsNow(rt) },
     )

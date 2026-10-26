@@ -13,6 +13,7 @@ import {
   type StreamingOptions,
 } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { createHeap } from '../../../../math/src/sequence/heap.ts'
 import { createFrameGate } from '../integration/frameBudget.ts'
 import { createPageRequests } from './pageRequests.ts'
 import { createUnitParents } from './queueHold.ts'
@@ -90,8 +91,8 @@ export type Started = {
 /** The pacing of the installs, per frame of the engine (`createFrameGate`): `installFrame` the one
  *  the installs left were counted for, `installsLeft` how many it has; `bandwidthFrame` the one the
  *  simulated bandwidth was paced for (`paceFrame`), `bandwidthAt` the clock it was paced at, ms —
- *  none while no limit holds —, `share` the bytes it gives each page of the frame. */
-export const createInstallPacing = () => ({
+ *  none before the first frame —, `share` the bytes it gives each page of the frame. */
+const createInstallPacing = () => ({
   installFrame: -1,
   installsLeft: 0,
   bandwidthFrame: -1,
@@ -101,20 +102,30 @@ export const createInstallPacing = () => ({
 
 /** The limits an update runs by, in streaming pages: each setting read by its one resolver, the
  *  installs never more than may be pending, the high mark of the pool's load never under its low
- *  mark, the simulated bandwidth in megabytes a second (negative: none). */
-export function limitsOf(settings: StreamingOptions) {
+ *  mark, the simulated bandwidth in megabytes a second (negative: none). Written into `into` when
+ *  one is given, so an update allocates none. */
+export function limitsOf(settings: StreamingOptions, into: Limits = {} as Limits): Limits {
   const read = <F extends keyof typeof STREAMING_RULES>(field: F) =>
     readSetting(STREAMING_RULES, settings, field)
   const maxPendingPages = read('streamingMaxPendingPages'),
     minPoolPercent = read('streamingQualityMinPoolPercent')
-  return {
-    maxPendingPages,
-    maxInstallsPerFrame: Math.min(read('streamingMaxInstallsPerFrame'), maxPendingPages),
-    minPoolPercent,
-    maxPoolPercent: Math.max(minPoolPercent, read('streamingQualityMaxPoolPercent')),
-    minScale: read('streamingQualityMinScale'),
-    bandwidthLimit: read('streamingBandwidthLimit'),
-  }
+  into.maxPendingPages = maxPendingPages
+  into.maxInstallsPerFrame = Math.min(read('streamingMaxInstallsPerFrame'), maxPendingPages)
+  into.minPoolPercent = minPoolPercent
+  into.maxPoolPercent = Math.max(minPoolPercent, read('streamingQualityMaxPoolPercent'))
+  into.minScale = read('streamingQualityMinScale')
+  into.bandwidthLimit = read('streamingBandwidthLimit')
+  return into
+}
+
+/** The limits an update runs by (`limitsOf`). */
+type Limits = {
+  maxPendingPages: number
+  maxInstallsPerFrame: number
+  minPoolPercent: number
+  maxPoolPercent: number
+  minScale: number
+  bandwidthLimit: number
 }
 
 export type QueueState = ReturnType<typeof createQueueState>
@@ -126,11 +137,10 @@ export type ViewReadbacks = {
   readonly first: GpuCut | null
 }
 
-export function createQueueState(o: QueueOptions) {
-  const { tracking, sets } = o,
-    parents = createUnitParents(o.parentsOf, tracking)
+/** What the update plans from: the requests, the limits, the pressure and the readbacks read. */
+function planningState(o: QueueOptions, parents: ReturnType<typeof createUnitParents>) {
+  const { tracking, sets } = o
   return {
-    o,
     /** The streaming pages each streaming page depends on (`createUnitParents`). */
     parents,
     /** The pool the streaming holds pages of: another one lets them all go (`reset`). */
@@ -152,6 +162,13 @@ export function createQueueState(o: QueueOptions) {
     pressure: createPoolPressure(),
     /** The engine's frames, which pace the installs (`createFrameGate`). */
     gate: createFrameGate(),
+  }
+}
+
+/** What the installs run on: the pending pages, the loads under way and the places chosen. */
+function installState() {
+  const priority = { ranks: new Float64Array(64) }
+  return {
     /** Streaming pages started whose install is not handed to the pool yet, in the order
      *  started. */
     pending: [] as Started[],
@@ -178,8 +195,21 @@ export function createQueueState(o: QueueOptions) {
     /** The failure that withdrew the device: the loop ends on it. */
     lost: undefined as unknown,
     /** Each requested streaming page's priority, by its place in the requests (`highest`). */
-    ranks: new Float64Array(64),
+    priority,
+    /** The heap of `highest`, empty between updates: the lowest priority first, the later place
+     *  of a tie first. */
+    top: createHeap<number>(
+      (a, b) =>
+        priority.ranks[a] < priority.ranks[b] || (priority.ranks[a] === priority.ranks[b] && a > b),
+    ),
+    /** The places `highest` chose, rewritten by each call. */
+    chosen: [] as number[],
     /** Streaming pages the last update started, for its trace. */
     started: 0,
   }
+}
+
+export function createQueueState(o: QueueOptions) {
+  const parents = createUnitParents(o.parentsOf, o.tracking)
+  return { o, ...planningState(o, parents), ...installState() }
 }

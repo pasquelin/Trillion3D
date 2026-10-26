@@ -1,18 +1,4 @@
-import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../../sdk-core/src/physics/options.ts'
-import { addressParam, heldOnce } from '../../session/host/addressFlag.ts'
-
-/** `trillion3dPhysicsHz=<n>`: a temporary switch for a measure, the fixed step `1/n` s rather than
- *  `PHYSICS_STEP`; read once, and the page and its worker share the answer (`start.step`). */
-const physicsHzAsked = heldOnce(
-  addressParam((params) => Number(params.get('trillion3dPhysicsHz') ?? Number.NaN), Number.NaN),
-)
-
-/** Seconds of one fixed step: `PHYSICS_STEP`, or the address switch's `1/n` when it names a
- *  rate above 0. */
-export function physicsStep() {
-  const hz = physicsHzAsked()
-  return hz > 0 && hz < Infinity ? 1 / hz : PHYSICS_STEP
-}
+import { MAX_CATCH_UP_STEPS } from '../../../../sdk-core/src/physics/options.ts'
 
 /**
  * THE SIMULATION'S CLOCK IS THE FRAMES'. Each frame the world draws, the seconds it advanced

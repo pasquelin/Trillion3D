@@ -20,18 +20,17 @@ export function wgslF32(value: number) {
   return text.includes('.') || text.includes('e') ? text : `${text}.0`
 }
 
+/** `value` as a WGSL literal that can follow an operator: a negative one in parentheses, never `--`
+ *  after a minus. */
+export const wgslOperand = (value: number) => (value < 0 ? `(${wgslF32(value)})` : wgslF32(value))
+
+/** `values`, three numbers, as a WGSL `vec3f`, each its `f32` literal (`wgslF32`). */
+export const wgslVec3 = (values: readonly number[]) => `vec3f(${values.map(wgslF32).join(',')})`
+
 /** `m`, a 3×3 matrix of nine numbers column after column, as a WGSL `mat3x3f`: one `vec3f` a
  *  column, each entry its `f32` literal (`wgslF32`). */
 export const wgslMatrix3 = (m: readonly number[]) =>
-  `mat3x3f(${[0, 3, 6]
-    .map(
-      (at) =>
-        `vec3f(${m
-          .slice(at, at + 3)
-          .map(wgslF32)
-          .join(',')})`,
-    )
-    .join(',')})`
+  `mat3x3f(${[0, 3, 6].map((at) => wgslVec3(m.slice(at, at + 3))).join(',')})`
 
 const doubleWords = new Uint32Array(2)
 /** A WGSL double of the library (`double.ts`), `vec2u(high word, low word)`, naming `value` to the

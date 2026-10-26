@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { lcgRandom, mulberry32, xorshiftRandom } from './random.ts'
-import { axisWeights, energyWeights, rankByte, volumeAddress } from './noiseEnergy.ts'
+import { energyWeights, rankByte, volumeAddress } from './noiseEnergy.ts'
 import { buildTree, createField, extremum, flip, refresh } from './noiseField.ts'
 import { bandMean, spatialSpectrum, temporalSpectrum } from './noiseSpectrum.fixture.ts'
 import { ANNEALING_DEFAULTS, annealVectors } from './vectorAnnealing.ts'
@@ -142,6 +142,8 @@ test("a mask's energy weights are the method's: each axis cut where a Gaussian h
   const sigma = 1.9
   const beyond = (reach: number) =>
     Array.from({ length: reach }, (_, d) => Math.exp(-((d + 1) ** 2) / (2 * sigma * sigma)))
+  const axisWeights = (size: number, sigma: number, centre: boolean) =>
+    energyWeights({ width: size, height: size, depth: size }, sigma, centre).x
   const wide = axisWeights(128, sigma, false)
   assert.deepEqual(
     [wide.from, wide.to, wide.weights.length],

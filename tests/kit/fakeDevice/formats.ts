@@ -33,9 +33,15 @@ export type Features = { has(name: string): boolean }
 const set = (names: string) => new Set(names.trim().split(/\s+/))
 
 /** The formats core WebGPU stores to (write-only or read-only access). */
-export const STORAGE_FORMATS = set(
+const STORAGE_FORMATS = set(
   'rgba8unorm rgba8snorm rgba8uint rgba8sint rgba16uint rgba16sint rgba16float r32uint r32sint ' +
     'r32float rg32uint rg32sint rg32float rgba32uint rgba32sint rgba32float bgra8unorm',
+)
+/** The storage formats `texture-formats-tier1` adds (§ 26.1.1 of the specification): the 8- and
+ *  16-bit one- and two-channel formats, `rgb10a2` and `rg11b10ufloat`. */
+const TIER1_STORAGE_FORMATS = set(
+  'r8unorm r8snorm r8uint r8sint rg8unorm rg8snorm rg8uint rg8sint r16unorm r16snorm r16uint r16sint ' +
+    'r16float rg16unorm rg16snorm rg16uint rg16sint rg16float rgb10a2uint rgb10a2unorm rg11b10ufloat',
 )
 /** The formats core WebGPU reads and writes in one binding. */
 export const READ_WRITE_FORMATS = set('r32uint r32sint r32float')
@@ -52,7 +58,10 @@ const RENDERABLE_COLOR = set(
     'rgba32sint rgba32float rgb10a2uint rgb10a2unorm',
 )
 
-const isStorage = (format: string) => STORAGE_FORMATS.has(format)
+/** Whether a texture of `format` is a storage texture on a device of `features`. */
+export const isStorageFormat = (format: string, features: Features) =>
+  STORAGE_FORMATS.has(format) ||
+  (features.has('texture-formats-tier1') && TIER1_STORAGE_FORMATS.has(format))
 
 const isRenderable = (format: string, features: Features) =>
   RENDERABLE_COLOR.has(format) ||
@@ -74,7 +83,8 @@ export const srgbPair = (a: string, b: string) =>
 /** The usage bits of `usage` a view in `format` cannot hold, by the name the device gives them. */
 export function usageRefusedBy(format: string, usage: number, features: Features) {
   const refused: string[] = []
-  if (usage & TEXTURE.STORAGE_BINDING && !isStorage(format)) refused.push('StorageBinding')
+  if (usage & TEXTURE.STORAGE_BINDING && !isStorageFormat(format, features))
+    refused.push('StorageBinding')
   if (usage & TEXTURE.RENDER_ATTACHMENT && !isRenderable(format, features))
     refused.push('RenderAttachment')
   return refused

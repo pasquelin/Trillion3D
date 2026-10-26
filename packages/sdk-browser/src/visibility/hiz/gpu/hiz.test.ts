@@ -2,6 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DEPTH_CLEAR } from '../../../camera/depthConvention.ts'
 import { HIZ_SHADER } from './shader.ts'
+import { HIZ_PRIMED_SHADER } from './primedWgsl.ts'
+import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { packHizPyramid, evaluateHizReduce } from './oracle.fixture.ts'
 import { hizBuildPyramid, hizReduceCeil } from '../../../../../sdk-core/src/hiz/oracles.fixture.ts'
 import { buildHizPyramid } from '../../../../../../bench/oracles/browser/hizPyramid.ts'
@@ -167,4 +169,29 @@ test('Hi-Z compute shader declares this-frame min reduction, background at the f
   assert.match(HIZ_SHADER, /var level0:texture_2d_array<f32>/)
   assert.doesNotMatch(HIZ_SHADER, /texture_depth_2d/)
   assert.match(HIZ_SHADER, /texture_storage_2d_array<r32uint,read_write>/)
+})
+
+test('the primed pyramid’s level 0 is the depth pushed away by the bias in metres, the far plane staying the far plane', () => {
+  const level0 = (near: number, far: number, perspective: number, bias: number) =>
+    shaderRun<{ hizLevel0(z: number): number }>(HIZ_PRIMED_SHADER, ['hizLevel0'], {
+      primed: { near, far, perspective, bias },
+    }).hizLevel0
+  // A perspective's depth is the near plane over the distance: 0.2 m away, 1.5 m further.
+  const eye = level0(0.1, 100, 1, 1.5)
+  assert.ok(Math.abs(eye(0.5) - 0.1 / 1.7) < 1e-6)
+  assert.ok(Math.abs(eye(1) - 0.1 / 1.6) < 1e-6, 'at the near plane')
+  assert.equal(eye(0), 0, 'nothing drawn stays at the far plane')
+  assert.equal(level0(0.1, 100, 1, 0)(0.3), 0.3, 'no bias, no push')
+  assert.ok(eye(0.01) < 0.01, 'farther everywhere')
+  // An orthographic depth is affine from 1 at the near plane to 0 at the far one.
+  const flat = level0(0.1, 100.1, 0, 10)
+  assert.ok(Math.abs(flat(0.5) - 0.4) < 1e-6, '10 m of 100 m')
+  assert.equal(flat(0.05), 0, 'clamped at the far plane')
+  assert.equal(flat(1.2), 1, 'and never nearer than the near plane')
+})
+
+test('the primed build is the culling build over the pushed level 0: its text declares the push beside the build’s bindings', () => {
+  assert.ok(HIZ_PRIMED_SHADER.includes('fn hizLevel0(z:f32)->f32'))
+  assert.ok(HIZ_PRIMED_SHADER.includes('var<uniform> primed:Primed'))
+  assert.ok(HIZ_PRIMED_SHADER.split('hizLevel0(').length > 2, 'declared, and read by the build')
 })

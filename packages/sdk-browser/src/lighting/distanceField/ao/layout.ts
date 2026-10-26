@@ -67,7 +67,7 @@ export const DFAO_STAND_IN_FORMAT: GPUTextureFormat = 'rgba8unorm'
 
 /**
  * The bindings, one table for every pass, so a resource has one number: a pass binds the ones it names
- * (`DFAO_PROGRAM_BINDINGS`). The depth pyramid takes three, from `depth`; the global field's reads four, from
+ * (`DFAO_PROGRAM_BINDINGS`). The depth pyramid takes three, from `depth`; the global field's reads six, from
  * `field` (`globalDistanceFieldReadWgsl`); the meshes' fields seven, from `objects` (`meshFieldWgsl`).
  */
 export const DFAO_BINDING = {
@@ -93,6 +93,8 @@ export const DFAO_BINDING = {
   tileOffsets: 17,
   tileData: 18,
   tileArgs: 19,
-  field: 20,
   objects: 24,
+  /** The image's bent normals and depths, packed for the lit pass to read as a buffer (`packWgsl.ts`). */
+  packed: 31,
+  field: 32,
 } as const

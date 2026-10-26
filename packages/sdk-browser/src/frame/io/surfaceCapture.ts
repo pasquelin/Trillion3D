@@ -12,12 +12,79 @@ import { createSurfaceBuffer } from '../../materials/surface/surfaceAllocation.t
 import { collectPendingUrls } from '../../geometry/selection/requests.ts'
 import { awaitedPages } from '../../geometry/rows/page/pageSlots.ts'
 import { viewProj } from '../backend/helpers.ts'
-import type { HostCamera } from '../../camera/world.ts'
-import { captureAside, drawResidentCut, renderForCapture } from './captureAside.ts'
+import type { ViewCamera } from '../../camera/world.ts'
+import {
+  assertCaptureReady,
+  captureAside,
+  drawResidentCut,
+  renderForCapture,
+} from './captureAside.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { CAPTURE_PASS } from '../../diagnostic/stage/passLabels.ts'
 
 type CaptureOptions = { width: number; height: number; signal?: AbortSignal }
+
+/** The depth texture the host owns beside its surfaces; `owned` goes if it cannot be made. */
+function ownedDepth(
+  gpuDevice: GPUDevice,
+  owned: ReturnType<typeof createSurfaceBuffer>,
+  options: CaptureOptions,
+) {
+  try {
+    return gpuDevice.createTexture({
+      label: 'Trillion3D owned surface depth',
+      size: { width: options.width, height: options.height },
+      format: DEPTH_FORMAT,
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
+    })
+  } catch (error) {
+    owned.dispose()
+    throw error
+  }
+}
+
+/** The surfaces and depth of the second view copied into the buffers the host owns, and submitted. */
+function copyIntoOwned(
+  gpuDevice: GPUDevice,
+  surfaces: NonNullable<WebgpuPagesRuntime['gpu']['surfaces']>,
+  depthSource: GPUTexture,
+  owned: ReturnType<typeof createSurfaceBuffer>,
+  depth: GPUTexture,
+  options: CaptureOptions,
+) {
+  const encoder = gpuDevice.createCommandEncoder(),
+    size = [options.width, options.height] as const
+  /** Layer `from` of `source`'s target `target` copied into layer `to` of the owned one's. */
+  const copyLayer = (target: 'colours' | 'words', from: number, to = from) =>
+    encoder.copyTextureToTexture(
+      { texture: surfaces[target], origin: [0, 0, from] },
+      { texture: owned[target], origin: [0, 0, to] },
+      size,
+    )
+  copyLayer('colours', 0)
+  copyLayer('colours', 1)
+  copyLayer('words', SURFACE_WORDS.flags)
+  encoder.copyTextureToTexture({ texture: depthSource }, { texture: depth }, size)
+  // A view without the emission-and-occlusion layer holds `(0, 0, 0, 1)` in every texel of it
+  // (`SurfaceBuffer.hasEmissiveAo`): the owned layer is cleared to that, never copied from the 1×1.
+  if (surfaces.hasEmissiveAo) copyLayer('colours', surfaces.layers & 255, owned.layers & 255)
+  else
+    encoder
+      .beginRenderPass({
+        label: CAPTURE_PASS,
+        colorAttachments: [
+          {
+            view: owned.views()[2],
+            loadOp: 'clear',
+            clearValue: [0, 0, 0, 1],
+            storeOp: 'store',
+          },
+        ],
+      })
+      .end()
+  if (surfaces.hasSubsurface) copyLayer('colours', surfaces.layers >> 8, owned.layers >> 8)
+  gpuDevice.queue.submit([encoder.finish()])
+}
 
 /** Copies the surfaces of the second view into buffers the host owns until it disposes them. */
 function copySurfaces(
@@ -32,18 +99,7 @@ function copySurfaces(
   const owned = createSurfaceBuffer(gpuDevice, options.width, options.height, {
     subsurface: gpu.surfaces.hasSubsurface,
   })
-  let depth: GPUTexture
-  try {
-    depth = gpuDevice.createTexture({
-      label: 'Trillion3D owned surface depth',
-      size: { width: options.width, height: options.height },
-      format: DEPTH_FORMAT,
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
-    })
-  } catch (error) {
-    owned.dispose()
-    throw error
-  }
+  const depth = ownedDepth(gpuDevice, owned, options)
   let released = false
   const result: SurfaceCapture = {
     ...owned,
@@ -66,55 +122,49 @@ function copySurfaces(
       })
     },
   }
-  const encoder = gpuDevice.createCommandEncoder(),
-    { surfaces } = gpu,
-    size = [options.width, options.height] as const
-  /** Layer `from` of `source`'s target `target` copied into layer `to` of the owned one's. */
-  const copyLayer = (target: 'colours' | 'words', from: number, to = from) =>
-    encoder.copyTextureToTexture(
-      { texture: surfaces[target], origin: [0, 0, from] },
-      { texture: owned[target], origin: [0, 0, to] },
-      size,
-    )
-  copyLayer('colours', 0)
-  copyLayer('colours', 1)
-  copyLayer('words', SURFACE_WORDS.flags)
-  encoder.copyTextureToTexture({ texture: gpu.depthTexture }, { texture: depth }, size)
-  // A view without the emission-and-occlusion layer holds `(0, 0, 0, 1)` in every texel of it
-  // (`SurfaceBuffer.hasEmissiveAo`): the owned layer is cleared to that, never copied from the 1×1.
-  if (surfaces.hasEmissiveAo) copyLayer('colours', surfaces.layers & 255, owned.layers & 255)
-  else
-    encoder
-      .beginRenderPass({
-        label: CAPTURE_PASS,
-        colorAttachments: [
-          {
-            view: owned.views()[2],
-            loadOp: 'clear',
-            clearValue: [0, 0, 0, 1],
-            storeOp: 'store',
-          },
-        ],
-      })
-      .end()
-  if (surfaces.hasSubsurface) copyLayer('colours', surfaces.layers >> 8, owned.layers >> 8)
-  gpuDevice.queue.submit([encoder.finish()])
+  copyIntoOwned(gpuDevice, gpu.surfaces, gpu.depthTexture, owned, depth, options)
   return result
+}
+
+/** Before the cover is resident a view's cut publishes nothing (`../render/gpuCut.ts`): the capture's
+ *  own `desired` is still empty, so it awaits the cover. Throws while a page it needs is missing. */
+function requirePagesResident(rt: WebgpuPagesRuntime) {
+  const { run } = rt
+  const asked = rt.services.bootstrapState.ready ? run.desired : rt.layout.gpuWanted
+  const missing = collectPendingUrls(awaitedPages(asked, run.awaitedScratch), [])
+  if (missing.length) throw new Error(`SURFACE_PAGES_NOT_RESIDENT: ${missing.length}`)
+  if (run.coverageBudgetLimited) throw new Error('SURFACE_PAGE_BUDGET')
+}
+
+/** The capture is ready: said, with what it holds and what it took. */
+function reportSurfaceReady(
+  rt: WebgpuPagesRuntime,
+  options: CaptureOptions,
+  reserve: number,
+  started: number,
+) {
+  const { run, diag } = rt
+  diag.engineDiagnostic('surface-capture-ready', 'Surface GPU ready', {
+    surfaceVersion: 1,
+    width: options.width,
+    height: options.height,
+    selectedTriangles: run.selectedTriangles,
+    allocationBytes: reserve,
+    durationMs: msSince(started),
+    imageReadback: false,
+  })
 }
 
 /** Renders a second camera into owned material surfaces, in a view of its own (`captureAside`). */
 export async function captureSurfaceView(
   rt: WebgpuPagesRuntime,
-  camera: HostCamera,
+  camera: ViewCamera,
   options: CaptureOptions,
 ) {
-  const { run, capture, context, diag } = rt,
-    gpuDevice = rt.gpu.device
+  const { run, capture, context, diag } = rt
   context.signal?.throwIfAborted()
   options.signal?.throwIfAborted()
-  if (capture.capturing || capture.surfaceCapture)
-    throw new Error('SURFACE_CAPTURE_BUSY: dispose the previous capture first')
-  if (run.lost || !gpuDevice || !run.lastCamera) throw new Error('SURFACE_CAPTURE_UNAVAILABLE')
+  const { device: gpuDevice } = assertCaptureReady(rt, 'SURFACE_CAPTURE_UNAVAILABLE')
   // The owned surfaces and depth. Other views and temporal histories stay live and are
   // charged once by the device ledger during admission, not again as owned capture bytes.
   const reserve =
@@ -143,14 +193,7 @@ export async function captureSurfaceView(
       run.diagnostic = 'beauty'
       await renderForCapture(rt, camera, aspect)
       await drawResidentCut(rt, camera, aspect, {
-        admitted: () => {
-          // Before the cover is resident a view's cut publishes nothing (`../render/gpuCut.ts`):
-          // the capture's own `desired` is still empty, so it awaits the cover.
-          const asked = rt.services.bootstrapState.ready ? run.desired : rt.layout.gpuWanted
-          const missing = collectPendingUrls(awaitedPages(asked, run.awaitedScratch), [])
-          if (missing.length) throw new Error(`SURFACE_PAGES_NOT_RESIDENT: ${missing.length}`)
-          if (run.coverageBudgetLimited) throw new Error('SURFACE_PAGE_BUDGET')
-        },
+        admitted: () => requirePagesResident(rt),
         beforeEncode: throwIfAborted,
       })
       result = copySurfaces(rt, gpuDevice, options, reserve)
@@ -167,14 +210,6 @@ export async function captureSurfaceView(
     run.diagnostic = diagnostic
   }
   capture.surfaceCapture = result
-  diag.engineDiagnostic('surface-capture-ready', 'Surface GPU ready', {
-    surfaceVersion: 1,
-    width: options.width,
-    height: options.height,
-    selectedTriangles: run.selectedTriangles,
-    allocationBytes: reserve,
-    durationMs: msSince(started),
-    imageReadback: false,
-  })
+  reportSurfaceReady(rt, options, reserve, started)
   return result!
 }

@@ -2,8 +2,8 @@
 
 **The goal:** an open-world engine on the web: geometry whose detail follows the pixels, a world
 streamed and computed only where it is seen, dynamic light and shadows, the work on the GPU, a
-perfect image at high frame rates on any machine and scene, faster and finer than the witness
-library the bench compares with. The engine is the product; a scene only shows it, and a scene
+perfect image at high frame rates on any machine and scene, faster and finer than any other web
+engine. The engine is the product; a scene only shows it, and a scene
 working is never the goal (CONTRIBUTING.md "The mission").
 
 [CONTRIBUTING.md](CONTRIBUTING.md) wins over this file; read only the sections your change touches.
@@ -22,7 +22,7 @@ Sub-agents run in the foreground, one task each, and launch none. Never the Fabl
    issue (`in progress`, an assignee) is not taken until one hour passes without activity.
 6. Every To-do and Proof item of the issue is delivered; none left out without the boss's yes.
 7. Reuse the engine's API; a second mechanism beside it is a defect.
-8. Everything is TypeScript; the witness library serves the bench only.
+8. Everything is TypeScript.
 9. Commits: no trailer, co-author, tool name or forced identity.
 10. Measurement outputs (`.mesure/out/`) are deleted once their numbers are posted.
 11. Pull requests: reviewed, auto-merge on, assigned to `pasquelin`, merged within the hour (a

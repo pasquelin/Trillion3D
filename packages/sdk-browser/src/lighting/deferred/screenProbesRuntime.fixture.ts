@@ -2,6 +2,9 @@
 
 import { VIEW_LAYOUT } from './worldAtWgsl.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { createWebgpuViews } from '../../frame/backend/state/view.ts'
+import { createWebgpuTimingState } from '../../frame/backend/state/timing.ts'
+import { createScaleControl } from '../../frame/scale/scaleControl.ts'
 import { createGpuHiz } from '../../visibility/hiz/gpu/factory.ts'
 import { createScreenReflection } from '../reflections/gpu.ts'
 import { encodeScreenProbes } from '../bounce/screen/frame.ts'
@@ -27,10 +30,14 @@ export async function probesRuntime(options: Record<string, unknown> = {}) {
     },
     vis: { gpuHiz: await createGpuHiz(h.device, 64, 64), reflectionPipelines: {} },
     lights: { buffer: {} as GPUBuffer, store: { unlit: false } },
-    run: { depthDrawn: true, diagnostic: 'beauty' },
+    run: { depthDrawn: true, diagnostic: 'beauty', frame: 0, gate: { temporalRevision: 0 } },
     bounce: { wanted: true, probes: undefined },
+    setup: { viewport: [64, 64] },
+    timing: createWebgpuTimingState(),
     context: options,
   } as unknown as WebgpuPagesRuntime
+  // The views the cameras of the images before are kept by.
+  rt.views = createWebgpuViews(rt, createScaleControl(1))
   // The kernels compile off the frame: the first image casts none, a later one does.
   const encode = async () => {
     for (let waited = 0; waited < 100; waited++) {

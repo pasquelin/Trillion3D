@@ -23,9 +23,13 @@ export function startGrownCut(rt: WebgpuPagesRuntime) {
   // stream of sources joining over many images never holds the tables of several cuts at once.
   if (cut?.growing || growth.making) return
   growth.asked = false
-  const added = growth.roots.slice(growth.appended)
-  // Copies alone bring no root: the running cut holds what they join.
-  if (cut && (!added.length || cut.appendRoots(added))) {
+  const added = growth.roots.slice(growth.appended),
+    starved = growth.starved
+  growth.starved = undefined
+  // Copies alone bring no root: the running cut holds what they join. A cut that cannot take the
+  // groups above its instances' roots — short of nodes for them, or its leaves holding no ball —
+  // takes none in place: another is made, that can.
+  if (cut && !starved && (!added.length || cut.appendRoots(added))) {
     // The worlds the host sends hold theirs at once, at their ranks.
     holdGrownWorlds(
       rt.layout.worldUpdates,

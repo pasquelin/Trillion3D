@@ -12,11 +12,8 @@ import {
   flushedImage,
 } from './testScenes.fixture.ts'
 import { settledImage } from './settledImage.fixture.ts'
-import { twoCoarseQuadsScene } from './coarseQuads.fixture.ts'
-import { deepQuadScene } from './deepQuad.fixture.ts'
+import { deepCoarseQuadsEngine } from './coarseQuads.fixture.ts'
 import type { Engine } from '../../session/engine/types.ts'
-import { DEFAULT_SCOPE } from '../../../../sdk-core/src/contracts/base.ts'
-import type { ClusterManifest, Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
@@ -93,34 +90,8 @@ test('a failed transparent material pipeline refuses the scene by name, never dr
 
 test('camera jumps and obsolete uploads preserve coverage while detail slots are reclaimed', async () => {
   installGpuGlobals()
-  const { device } = fakeDevice(BACKEND),
-    fixture = twoCoarseQuadsScene(deepQuadScene)
-  // `twoCoarseQuadsScene` rebuilds `metadata` with only `primitives`, itself narrowed to `{url}`
-  // pages by an inner callback's own annotation: the real page objects it spreads keep every
-  // field at runtime, only their perceived type loses them. The rest of `ClusterManifest` is
-  // never read past `primitives`, so the rest is filled with placeholders.
-  const metadata: ClusterManifest = {
-    formatVersion: 0,
-    status: 'ready',
-    key: 'test-two-coarse-quads',
-    scope: DEFAULT_SCOPE,
-    sourceTriangles: 0,
-    selectedTriangles: 0,
-    selectedNodes: 0,
-    totalNodes: 0,
-    primitives: fixture.metadata.primitives as Primitive[],
-  }
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
-    ...fixture,
-    metadata,
-    gpuDevice: device,
-    // Three streaming slots of the widest page (24 bytes) beside the two roots' (`geometryPoolFor`):
-    // five, below the eight clusters' 144, so the pool holds no home of each (`poolBytes`) and a jump
-    // between the quads evicts.
-    maxResidentPages: 3,
-    viewport: [32, 32],
-  }) as Engine
+  const { device } = fakeDevice(BACKEND)
+  const { fixture, backend } = deepCoarseQuadsEngine(device)
   const cam = camera()
   const aim = (x: number) => {
     cam.position.set(x, 0, 5)

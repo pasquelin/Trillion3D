@@ -3,6 +3,7 @@
 //! (`bend_primitive`).
 use super::bend::{Bend, Fit};
 use super::*;
+use crate::compiler::accessor::decode::{non_finite, POSITION};
 use crate::compiler::source::synth::{
     attribute, float_accessor, index_accessor, position_accessor,
 };
@@ -61,18 +62,42 @@ impl Arrays {
         })
     }
 
+    /// Refused when a value is not finite: the bend sent a vertex to a point that is not a number,
+    /// or turned its normal or tangent to one.
+    fn finite(&self) -> Result<()> {
+        let held = [
+            (POSITION, Some(&self.positions)),
+            ("NORMAL", self.normals.as_ref()),
+            ("TANGENT", self.tangents.as_ref()),
+        ];
+        for (what, values) in held {
+            if values.is_some_and(|values| values.iter().any(|x| !x.is_finite())) {
+                let refused = non_finite(what);
+                let message = format!("{} once bent", refused.message);
+                return Err(CompilerError::new(refused.code, message));
+            }
+        }
+        Ok(())
+    }
+
     /// Every vertex bent by `bend` under `fit`: its position, and the normal and tangent it may
     /// carry, and, when the bend mirrors the mesh, its triangles turned over and the tangents' sign
-    /// — the frame's handedness — reversed. A vertex the bend sends to a point that is not a
-    /// number is refused.
-    fn bend(&self, (bend, fit): (&Bend, Fit)) -> Result<Self> {
+    /// — the frame's handedness — reversed. A vertex the bend sends to a point that is not a number
+    /// is caught by `finite`.
+    fn bend(&self, (bend, fit): (&Bend, Fit)) -> Self {
         let count = self.positions.len() / 3;
         let mirror = if bend.mirrors() { -1.0 } else { 1.0 };
-        let turned_over = |triangle: &[u32]| [triangle[0], triangle[2], triangle[1]];
+        let turned_over = |triangle: &[u32; 3]| [triangle[0], triangle[2], triangle[1]];
         let mut done = Self {
             positions: Vec::with_capacity(self.positions.len()),
             indices: match bend.mirrors() {
-                true => self.indices.chunks_exact(3).flat_map(turned_over).collect(),
+                true => self
+                    .indices
+                    .as_chunks::<3>()
+                    .0
+                    .iter()
+                    .flat_map(turned_over)
+                    .collect(),
                 false => Vec::new(),
             },
             normals: self.normals.as_ref().map(|_| Vec::with_capacity(count * 3)),
@@ -88,10 +113,6 @@ impl Arrays {
             let at = point_f32(&self.positions, v);
             let tangent = carried.map(|t| [t[0], t[1], t[2]]);
             let bent = bend.vertex(fit, at, normal, tangent);
-            let laid = [Some(bent.pos), bent.normal, bent.tangent];
-            if laid.iter().flatten().flatten().any(|c| !c.is_finite()) {
-                return Err(SPLINE.bad("the bend sends a vertex to a point that is not a number"));
-            }
             done.positions.extend(bent.pos);
             done.normals
                 .iter_mut()
@@ -103,7 +124,7 @@ impl Arrays {
                 into.push(source[3] * mirror);
             }
         }
-        Ok(done)
+        done
     }
 }
 
@@ -151,7 +172,11 @@ fn bend_mesh(
     let mut done = Vec::with_capacity(primitives.len());
     for (p, arrays) in primitives.iter().zip(&decoded.arrays) {
         done.push(match arrays {
-            Some(arrays) => bend_primitive(g, out, p, arrays.bend((bend, fit))?, bend)?,
+            Some(arrays) => {
+                let bent = arrays.bend((bend, fit));
+                bent.finite()?;
+                bend_primitive(g, out, p, bent, bend)?
+            }
             None => p.clone(),
         });
     }

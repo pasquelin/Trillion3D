@@ -8,12 +8,12 @@ import {
 import { fogReadLayoutEntries } from '../fog/read.ts'
 import { blueNoiseWgsl } from '../../gpu/noise/blueNoiseWgsl.ts'
 import { AIR_SHADOW_WGSL } from './airShadowWgsl.ts'
-import { cloudShadowReadWgsl, type CloudShadowBindings } from './cloudShadowRead.ts'
-import { AIR_BINDING, type AirBindingName } from './binding.ts'
+import { cloudShadowReadWgsl } from './cloudShadowRead.ts'
+import { AIR_BINDING, AIR_CLOUD_SHADOW, type AirBindingName } from './binding.ts'
 import { FRAME_WGSL } from './frame.ts'
 import { AIR_BUFFER_STRUCT } from './layout.ts'
 import { SCATTER_WGSL } from './scatterWgsl.ts'
-import { DEFAULT_AIR_SHAPE, shapeConstants, type AirShape } from './shape.ts'
+import { DEFAULT_AIR_SHAPE, HAZE_VOLUME_FORMAT, shapeConstants, type AirShape } from './shape.ts'
 
 export { AIR_BINDING }
 
@@ -24,13 +24,7 @@ export const AIR_FOG_BINDINGS = {
   sampler: AIR_BINDING.fogSampler,
   cubemap: AIR_BINDING.fogCubemap,
   volume: AIR_BINDING.fogVolume,
-} as const
-
-/** The fog's bindings of the sky's draw: those of `AIR_FOG_BINDINGS` and the light shafts' occlusion
- *  mask, which multiplies the fog's inscattering over the sky's pixels (`fogBeyondAt`). */
-export const SKY_FOG_BINDINGS = {
-  ...AIR_FOG_BINDINGS,
-  lightShaft: AIR_BINDING.lightShaft,
+  tiles: AIR_BINDING.fogTiles,
 } as const
 
 /** What a program binds, by name: its tables are bound as the shader names them. */
@@ -49,11 +43,9 @@ export type AirBindings = {
   skyView?: boolean
   frame?: boolean
   flags?: boolean
-  /** The fog's cubemap and volume, which the fog the program lays over the sky reads
-   *  (`AIR_FOG_BINDINGS`, `skyWgsl.ts`). */
+  /** The fog's cubemap and volume, which the fog the program lays over the clouds and the sky light's faces
+   *  reads (`AIR_FOG_BINDINGS`). */
   fog?: boolean
-  /** The light shafts' occlusion mask, read through the fog's sampler (`SKY_FOG_BINDINGS`). */
-  lightShaft?: boolean
   /** The virtual shadow maps the air's lights shade the air with (`airShadowWgsl.ts`); the program
    *  declares `airToScene`. The buffer is declared whole. */
   shadow?: boolean
@@ -61,11 +53,14 @@ export type AirBindings = {
   noise?: boolean
   /** The volumes the clouds read besides the haze (`separatedWgsl.ts`). */
   volumes?: boolean
-  /** The shade the clouds cast on the air's lights (`cloudShadowRead.ts`): the program declares
-   *  `airToScene`, and reads the maps through the tables' sampler. */
+  /** The shade the clouds cast on the air's lights and the sky occlusion that dims the first light's
+   *  multiple scattering (`cloudShadowRead.ts`): the program declares `airToScene`, and reads the
+   *  maps through the tables' sampler. */
   cloudShadow?: boolean
   /** The scene's depth, read by the haze marched on the opaque surfaces. */
   depth?: boolean
+  /** The haze's volume as a 3D texture, written by the haze pass (`HAZE_VOLUME_FORMAT`). */
+  hazeVolume?: boolean
 }
 
 /** Whether the buffer is declared whole: asked for, or read for the shadows' lights. */
@@ -74,7 +69,7 @@ const wholeBuffer = (bindings: AirBindings) => !!(bindings.lights || bindings.sh
 /** The bindings a program that binds `bindings` has under a shape, in the order of
  *  `AIR_BINDING`'s declaration: a table the shape does not make is not bound, the air answers as
  *  no air would (`declarations`). */
-export function boundNames(bindings: AirBindings, shape: AirShape): AirBindingName[] {
+function boundNames(bindings: AirBindings, shape: AirShape): AirBindingName[] {
   const transmittance = bindings.transmittance && shape.transmittance.on
   const wanted: Partial<Record<AirBindingName, unknown>> = {
     air: true,
@@ -88,7 +83,7 @@ export function boundNames(bindings: AirBindings, shape: AirShape): AirBindingNa
     fogSampler: bindings.fog,
     fogCubemap: bindings.fog,
     fogVolume: bindings.fog,
-    lightShaft: bindings.lightShaft,
+    fogTiles: bindings.fog,
     pageTable: bindings.shadow,
     projectionData: bindings.shadow,
     shadowUniforms: bindings.shadow,
@@ -99,29 +94,19 @@ export function boundNames(bindings: AirBindings, shape: AirShape): AirBindingNa
     cloudShadow: bindings.cloudShadow,
     cloudShadowMap0: bindings.cloudShadow,
     cloudShadowMap1: bindings.cloudShadow,
+    cloudSkyAO: bindings.cloudShadow,
     depth: bindings.depth,
+    hazeVolume: bindings.hazeVolume,
   }
   return (Object.keys(AIR_BINDING) as AirBindingName[]).filter((name) => wanted[name])
 }
 
 /** The format of the table a program writes: the transmittance table's is the shape's, the others
  *  four half floats. */
-export const tableFormatOf = (
-  bindings: AirBindings,
-  shape: AirShape,
-): 'rgba8unorm' | 'rgba16float' =>
+const tableFormatOf = (bindings: AirBindings, shape: AirShape): 'rgba8unorm' | 'rgba16float' =>
   bindings.table === 'transmittance' && shape.transmittance.small ? 'rgba8unorm' : 'rgba16float'
 
 const b = AIR_BINDING
-
-/** Where the air's programs bind the clouds' shade: in group 0, read through the tables' sampler. */
-export const AIR_CLOUD_SHADOW: CloudShadowBindings = {
-  group: 0,
-  block: b.cloudShadow,
-  map0: b.cloudShadowMap0,
-  map1: b.cloudShadowMap1,
-  samplerName: 'tableSampler',
-}
 
 /** The accessor of a table the program samples: the table decoded as it was encoded (the
  *  transmittance table holds its square root, which keeps its low values in eight bits), or, for a
@@ -161,8 +146,10 @@ ${AIR_BUFFER_STRUCT}
 fn atmo(slot:u32)->vec4f{return directLights.atmosphere[slot];}
 ${bindings.shadow ? '' : 'fn airShadow(k:u32,p:vec3f)->f32{return 1.0;}'}
 ${bindings.cloudShadow ? 'fn airCloudShadow(k:u32,p:vec3f)->f32{return cloudShadowOnAir(k,airToScene(p));}' : 'fn airCloudShadow(k:u32,p:vec3f)->f32{return 1.0;}'}
+${bindings.cloudShadow ? 'fn airSkyOcclusion(p:vec3f)->f32{return cloudSkyOcclusionAt(airToScene(p));}' : 'fn airSkyOcclusion(p:vec3f)->f32{return 1.0;}'}
 ${has('table') ? `@group(0) @binding(${b.table}) var table:texture_storage_2d<${tableFormatOf(bindings, shape)},write>;` : ''}
 ${has('sampler') ? `@group(0) @binding(${b.sampler}) var tableSampler:sampler;` : ''}${tableAccessors(bindings, shape)}
+${has('hazeVolume') ? `@group(0) @binding(${b.hazeVolume}) var hazeVolume:texture_storage_3d<${HAZE_VOLUME_FORMAT},write>;` : ''}
 ${bindings.frame ? `@group(0) @binding(${b.frame}) var<uniform> frame:AirFrame;` : ''}
 ${bindings.depth ? `@group(0) @binding(${b.depth}) var depthTex:texture_depth_2d;` : ''}
 ${bindings.flags ? `@group(0) @binding(${b.flags}) var flags:texture_2d<u32>;` : ''}
@@ -204,9 +191,6 @@ function layoutEntry(
   shape: AirShape,
 ): GPUBindGroupLayoutEntry[] {
   const at = b[name]
-  const sampled = (sampleType: GPUTextureSampleType = 'float') => [
-    { binding: at, visibility, texture: { sampleType, viewDimension: '2d' as const } },
-  ]
   switch (name) {
     case 'air':
       return [
@@ -216,6 +200,42 @@ function layoutEntry(
           buffer: { type: bindings.air === 'read' ? 'read-only-storage' : 'storage' },
         },
       ]
+    case 'sampler':
+      return [{ binding: at, visibility, sampler: { type: 'filtering' } }]
+    case 'frame':
+    case 'shadowUniforms':
+    case 'shadowView':
+    case 'cloudShadow':
+      return [computeUniformEntry(at, {}, visibility)]
+    case 'volumes':
+      return [{ binding: at, visibility, buffer: { type: 'storage' } }]
+    case 'pageTable':
+    case 'projectionData':
+    case 'shadowPool':
+      return [computeBufferEntry(at, 'read-only-storage', visibility)]
+    case 'fogSampler':
+      return fogReadLayoutEntries(AIR_FOG_BINDINGS, visibility)
+    case 'fogCubemap':
+    case 'fogVolume':
+    case 'fogTiles':
+      return []
+    default:
+      return textureLayoutEntry(name, visibility, bindings, shape)
+  }
+}
+
+/** The layout entry of a texture binding, seen by `visibility`. */
+function textureLayoutEntry(
+  name: AirBindingName,
+  visibility: GPUShaderStageFlags,
+  bindings: AirBindings,
+  shape: AirShape,
+): GPUBindGroupLayoutEntry[] {
+  const at = b[name]
+  const sampled = (sampleType: GPUTextureSampleType = 'float') => [
+    { binding: at, visibility, texture: { sampleType, viewDimension: '2d' as const } },
+  ]
+  switch (name) {
     case 'table':
       return [
         {
@@ -228,32 +248,22 @@ function layoutEntry(
           },
         },
       ]
-    case 'sampler':
-      return [{ binding: at, visibility, sampler: { type: 'filtering' } }]
-    case 'frame':
-    case 'shadowUniforms':
-    case 'shadowView':
-      return [computeUniformEntry(at, {}, visibility)]
-    case 'cloudShadow':
-      return [computeUniformEntry(at, {}, visibility)]
-    case 'cloudShadowMap0':
-    case 'cloudShadowMap1':
-      return sampled()
-    case 'volumes':
-      return [{ binding: at, visibility, buffer: { type: 'storage' } }]
-    case 'pageTable':
-    case 'projectionData':
-    case 'shadowPool':
-      return [computeBufferEntry(at, 'read-only-storage', visibility)]
+    case 'hazeVolume':
+      return [
+        {
+          binding: at,
+          visibility,
+          storageTexture: {
+            access: 'write-only',
+            format: HAZE_VOLUME_FORMAT,
+            viewDimension: '3d',
+          },
+        },
+      ]
     case 'flags':
       return sampled('uint')
     case 'depth':
       return sampled('depth')
-    case 'fogSampler':
-      return fogReadLayoutEntries(AIR_FOG_BINDINGS, visibility)
-    case 'fogCubemap':
-    case 'fogVolume':
-      return []
     default:
       return sampled()
   }

@@ -10,7 +10,7 @@ const session = (pages: object[], roots: object[] = []) => ({
   vis: { geometryBlocks: new Map() } as Record<string, unknown> & {
     geometryBlocks: Map<never, never>
   },
-  layout: { selectionRoots: roots },
+  layout: { selectionRoots: roots, clusters: { placementInfo: { layOut() {} } } },
   setup: {
     worlds: { of: () => undefined },
     blendCopies: [],

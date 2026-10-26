@@ -8,7 +8,7 @@ import { ruleDag } from './cutRule.fixture.ts'
 import { wgslBackend } from './cutRuleBackends.fixture.ts'
 import { ruleChecks } from './cutRuleChecks.fixture.ts'
 import { CUT_RULE_WGSL } from './rule.ts'
-import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
+import { DAG_SELECTION_SHADER } from '../dag/shader/selectionShader.fixture.ts'
 
 const THRESHOLD = 0.1
 const dag = ruleDag(256)

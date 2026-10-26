@@ -1,18 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { CATMULL_ROM_TAPS_WGSL, HISTORY_LAWS } from './historyWgsl.ts'
-import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts'
+import { CATMULL_ROM_TAPS_WGSL, historySampleLaws, historySamples } from './historyWgsl.ts'
+import { TEMPORAL_DEFAULTS } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createTaaFrameState } from './frameState.ts'
 import { writeTaaView } from './view.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
-import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
 import { blendTargets } from '../../blend/blendTargets.ts'
 import { particleTargets } from '../../particles/particleTargets.ts'
-import { PARTICLE_DRAW_WGSL } from '../../particles/gpu/particlesWgsl.ts'
 import { TAA_VIEW } from './bindingsWgsl.ts'
 
 const T = TAA_VIEW.at
@@ -42,31 +40,35 @@ test('the five-tap Catmull-Rom weighs one in all, and a texel centre is read as 
   )
 })
 
-test('blends and particles write their coverage as the reactive value, seeded 0', () => {
-  // The seed: the as-is share in red, a reactive value of 0 in green.
-  assert.match(AS_IS_SHARE_SHADER, /return vec2f\(f32\(.*\),0\.0\);/)
-  // A blend writes 1 in green at its coverage, over what the pixel holds.
-  assert.match(BLEND_SHADER, /s\.request,vec4f\(0\.0,1\.0,0\.0,alpha\*r\.keep\),/)
-  // The share's slot follows the request's, empty without feedback.
-  const share = blendTargets('normal', 0xf, false)[2]!
-  assert.equal(share.format, 'rg8unorm')
-  assert.equal(share.blend?.color.srcFactor, 'src-alpha')
-  assert.equal(share.blend?.color.dstFactor, 'one-minus-src-alpha')
-  // A particle too, the as-is share untouched: green alone.
-  assert.match(PARTICLE_DRAW_WGSL, /return Lit\(c, vec4f\(0, 1, 0, c\.a\)\);/)
-  assert.equal(REACTIVE_TARGET.writeMask, 0x2)
-  assert.equal(REACTIVE_TARGET.blend, share.blend)
+// The as-is pixels of a debug view are composed after the temporal pass from the surfaces, which
+// no translucency writes: a blend writes no as-is share (it wrote 0 over a seeded share at its
+// coverage, in a target after the request's).
+test('a blend writes no as-is share, a particle neither', () => {
+  // A blend's outputs: its colour, the request and the display layers.
+  assert.match(
+    BLEND_SHADER,
+    /struct BlendOut\{@location\(0\) color:vec4f,@location\(1\) request:u32,@location\(2\) tint:vec4f,@location\(3\) add:vec4f,\}/,
+  )
+  // Its targets: the translucency target, the request's slot (empty without feedback), the display
+  // layers' (empty unfiltered); the responsiveness is the pass of its own's.
+  const targets = blendTargets('normal', 0xf, false)
+  assert.equal(targets.length, 4)
+  assert.deepEqual(targets.slice(1, 4), [null, null, null])
+  // A particle's targets are the translucency target and the display layers alone.
   for (const routed of [false, true])
     for (const blend of ['additive', 'premultiplied'] as const)
-      assert.equal(particleTargets(blend, routed).at(-1), REACTIVE_TARGET)
+      assert.equal(particleTargets(blend, routed).length, routed ? 3 : 1)
 })
 
 test('the uniform carries the parallax, the flicker rates, the blend factor and the depth terms', () => {
   const { device, writes } = fakeDevice(),
     state = createTaaFrameState()
   // Last image: the identity view at the eye (1, 2, 3); this one: the eye moved by (0.5, 0, 0).
-  state.previousViewProjection.set(IDENTITY_MATRIX4)
-  state.previousEye.set([1, 2, 3])
+  state.before = {
+    viewProjection: new Float64Array(IDENTITY_MATRIX4),
+    eye: new Float64Array([1, 2, 3]),
+    image: 1,
+  }
   state.stochasticSample = 13
   const projection = new Float64Array(16)
   projection[0] = 2
@@ -93,14 +95,130 @@ test('the uniform carries the parallax, the flicker rates, the blend factor and 
   assert.equal(u[T.radius + 2], -1, 'the view looks down its negative axis')
   assert.equal(u[T.params], 1, 'no history yet: a cut')
   assert.equal(u[T.jitter + 3], 13 % 8, 'the image rank among eight')
+  // The settings' defaults: the thin geometry detection's depth step ten errors, its contrast and
+  // weights, and the measures' exposure factor one.
+  assert.deepEqual(
+    [...u.subarray(T.thin, T.thin + 4)].map((v) => Math.fround(v)),
+    [10, 0.3, 0.6, 0.6].map((v) => Math.fround(v)),
+  )
+  assert.deepEqual(
+    [...u.subarray(T.thinFade, T.thinFade + 3)].map((v) => Math.fround(v)),
+    [0.1, 0.03, 0.037].map((v) => Math.fround(v)),
+  )
+  assert.equal(u[T.preExposure + 1], 1)
+})
+
+test('the uniform carries the settings of the thin geometry detection, the flicker measure and the exposure offset', () => {
+  const { device, writes } = fakeDevice(),
+    state = createTaaFrameState()
+  state.before = {
+    viewProjection: new Float64Array(IDENTITY_MATRIX4),
+    eye: new Float64Array([0, 0, 0]),
+    image: 1,
+  }
+  const projection = new Float64Array(16)
+  projection[0] = 2
+  projection[11] = -1
+  const cam = {
+    viewProjection: IDENTITY_MATRIX4,
+    eye: [0, 0, 0],
+    projection,
+  } as unknown as EngineCamera
+  const settings = {
+    ...TEMPORAL_DEFAULTS,
+    temporalThinGeometryErrorMultiplier: 100,
+    temporalThinGeometryMinKeepLineContrast: 0.5,
+    temporalThinGeometryLineFadeRate: 0.2,
+    temporalThinGeometryLineFadeRateInsideRegion: 0.05,
+    temporalThinGeometryLineWeight: 0.4,
+    temporalThinGeometryMaxRelaxationWeight: 0.5,
+    temporalThinGeometryRejectTranslucency: 0.7,
+    temporalShadingExposureOffset: 2,
+    temporalFlickeringPeriod: 0,
+    temporalHistorySampleCount: 8,
+  }
+  const history = {
+    width: 1920,
+    height: 1080,
+    scale: 1,
+    field: false,
+    fieldSpeed: 0.125,
+    resurrects: false,
+    settings,
+  }
+  writeTaaView(
+    device,
+    {} as GPUBuffer,
+    state,
+    cam,
+    [1920, 1080],
+    [1920, 1080],
+    [1920, 1080],
+    false,
+    false,
+    false,
+    undefined,
+    null,
+    0,
+    undefined,
+    undefined,
+    1,
+    history,
+  )
+  const u = writes.at(-1)!.data as Float32Array
+  assert.deepEqual(
+    [...u.subarray(T.thin, T.thin + 4)],
+    [5, 0.5, Math.fround(0.4), Math.fround(0.7)],
+    'a twentieth of the multiplier, 5 errors',
+  )
+  assert.deepEqual(
+    [...u.subarray(T.thinFade, T.thinFade + 3)],
+    [Math.fround(0.2), Math.fround(0.05), 0.5],
+  )
+  assert.equal(u[T.preExposure + 1], 4, 'two stops')
+  assert.equal(u[T.exposure + 2], 0, 'a period of 0 fades in nothing')
+  assert.equal(u[T.quality], 0, 'and runs no flicker rejection')
+  assert.equal(u[T.history], 8, 'the history holds eight samples a pixel')
+  assert.ok(Math.abs(u[T.rates + 1] - 1 / (1 + 8)) < 1e-7, 'the blend factor of a whole history')
 })
 
 test('the display history holds 16 samples a pixel: an image weighs one, a rejection keeps two, motion four', () => {
-  assert.deepEqual(HISTORY_LAWS, {
+  assert.deepEqual(historySampleLaws(1), {
     samples: 16,
     hysteresis: 1 / 16,
     rejectedDrop: 1 - 2 / 16,
     movingDrop: 1 - 4 / 16,
     speedInverse: 1,
   })
+})
+
+test('a history of twice the display holds a quarter of the samples a pixel, and a moving one is not clamped', () => {
+  // Four samples a history pixel, still sixteen a display pixel; a rejection keeps two of a display
+  // pixel, half a history pixel's; motion four samples of a history pixel, all it holds; the speed read
+  // in display pixels over a history pixel is half.
+  assert.deepEqual(historySampleLaws(2), {
+    samples: 4,
+    hysteresis: 1 / 4,
+    rejectedDrop: 1 - (2 / 4) * (1 / 4),
+    movingDrop: 0,
+    speedInverse: 1 / 2,
+  })
+})
+
+test('the history keeps the samples its settings name: the most, after a rejection, and in motion', () => {
+  const laws = historySampleLaws(1, {
+    ...TEMPORAL_DEFAULTS,
+    temporalHistorySampleCount: 32,
+    temporalShadingRejectionSampleCount: 4,
+    temporalVelocityWeightClampingSampleCount: 8,
+    temporalVelocityWeightClampingPixelSpeed: 2,
+  })
+  assert.deepEqual(laws, {
+    samples: 32,
+    hysteresis: 1 / 32,
+    rejectedDrop: 1 - 4 / 32,
+    movingDrop: 1 - 8 / 32,
+    speedInverse: 1 / 2,
+  })
+  assert.equal(historySamples(2, 32), 8, 'a history of twice the display holds a quarter a pixel')
 })

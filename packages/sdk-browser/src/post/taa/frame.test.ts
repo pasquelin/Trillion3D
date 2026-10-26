@@ -1,17 +1,22 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { dropTaaHistory, taaConverged } from './landing.ts'
-import { HISTORY_LAWS } from './historyWgsl.ts'
-import { RAD2DEG } from '../../../../math/src/constants.ts'
+import { historySampleLaws } from './historyWgsl.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { taaRenderMatrix } from './frame.ts'
+import { askVelocity } from './velocityFrame.ts'
 import { runtime } from './frame.fixture.ts'
 import { TAA_SAMPLES } from './jitter.ts'
 import type { TaaInputs } from './inputs.ts'
 import { TAA_VIEW } from './bindingsWgsl.ts'
 import { NO_VIEW_SET } from '../../../../sdk-core/src/world/camera/viewSet.ts'
-import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
-import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
+import { material } from '../../../../sdk-core/src/world/material/index.ts'
+import { graphRastersOf } from '../../materials/graph/graphRasters.ts'
+import { velocityWpo } from './velocityWpo.ts'
+import { VELOCITY_INPUT_BINDINGS } from './nearestSurfaceWgsl.ts'
+import { velocityInputEntries } from './inputs.ts'
+import { SURFACE_VELOCITY_WGSL, surfaceVelocityShader } from './surfaceVelocityWgsl.ts'
+import { velocityShader } from './nearestVelocityWgsl.ts'
 
 /** The uniform's words a frame writes: whether the history describes nothing (a cut, none yet),
  *  and whether a placement moved. */
@@ -31,33 +36,46 @@ test("without accumulation this frame, the render matrix is the camera's and com
 })
 
 test('an accumulated frame advances jitter, writes the uniform and returns the written target', () => {
-  const { rt, cam, temporal, velocity, encoded, frame, flags } = runtime()
+  const { rt, cam, temporal, encoded, frame } = runtime()
+  const selection = rt.run.gpuSelection as unknown as {
+    previous: GPUTextureView
+    posesMoving: boolean
+  }
   let u = frame(false)!
   assert.notEqual(taaRenderMatrix(rt, cam), cam.viewProjection, 'the matrix carries the jitter')
   assert.equal(encoded.length, 1)
-  assert.equal((encoded[0] as TaaInputs).flags, flags, 'what the as-is share comes from')
   assert.equal(
     (encoded[0] as TaaInputs).normals,
     rt.vis.concatNrm,
     'the atlas a prism is solved by',
   )
-  assert.equal(velocity.motion.resets, 1, 'the first frame has no history: poses are taken')
+  // The placements' motion is read from the cut's poses now and as the last drawn frame drew them
+  // (`previousPoses.ts`): the velocity reads both tables, and no motion of its own is kept.
+  assert.equal((encoded[0] as TaaInputs).previous, selection.previous, 'the kept poses')
   // Without history the frame is a cut (`params.x`); the next one reads it, and nobody moved
   // (`params.z`).
   assert.equal(u[CUT], 1)
   u = frame(false)!
   assert.equal(u[CUT], 0)
   assert.equal(u[MOVED], 0)
-  assert.deepEqual(velocity.motion.updates, [false], 'unchanged scene: no pose comparison')
   assert.equal(temporal.frame.sample, 2)
-  // A scene change makes poses be compared, and a placement that moved is told to the pass.
-  rt.run.gate.revisions.scene++
-  velocity.motion.moved = true
+  // A pose that moved since the kept poses is told to the pass, and the history stands.
+  selection.posesMoving = true
   u = frame(false)!
-  assert.deepEqual(velocity.motion.updates, [false, true])
   assert.equal(u[MOVED], 1)
-  frame(false, false)
-  assert.equal((encoded.at(-1) as TaaInputs).flags, undefined, 'no as-is pixel, no flags (OMB-11)')
+  assert.equal(u[CUT], 0, 'a moved pose is no cut')
+  // A view drawn less often than its frame — other views drew the frames between, poses moving —
+  // measures from the scene's kept poses as every view does: its history stands.
+  rt.run.frame += 2
+  u = frame(false)!
+  assert.equal(u[MOVED], 1)
+  assert.equal(u[CUT], 0, 'frames the view did not draw: the history stands')
+  selection.posesMoving = false
+  u = frame(false)!
+  assert.equal(u[CUT], 0, 'the history stands')
+  // No flag is read by the pass: a debug view's as-is pixels are composed after it (it read the
+  // flags of a frame with as-is pixels).
+  assert.ok(!('flags' in (encoded.at(-1) as object)))
 })
 
 test('the jitter runs on every image, a cut drops the history', () => {
@@ -97,7 +115,7 @@ test('motion restarts the convergence count: a still view after it holds once it
     frame(true)
     images++
   }
-  const { samples } = HISTORY_LAWS
+  const { samples } = historySampleLaws(1)
   assert.ok(images >= samples, `${images} still images, at least ${samples}`)
   assert.equal(temporal.frame.sample, 0, 'held at the end of a jitter cycle')
   // A resource landing restarts it too.
@@ -106,54 +124,63 @@ test('motion restarts the convergence count: a still view after it holds once it
   assert.equal(temporal.frame.accumulated, 1)
 })
 
-test('a view that has a plane is drawn without jitter, whatever the project switch, the pass still accumulating', () => {
+test('a view that has a plane is jittered like any other, the pass accumulating', () => {
   const { rt, cam, temporal, frame } = runtime()
-  const plane = Object.freeze({
-    ...NO_VIEW_SET,
-    clipPlane: [0, 0, 1, 2],
-    jitters: false,
-  }) as never
-  cam.viewSet = plane
-  for (let i = 0; i < 3; i++) {
-    frame(false)
-    assert.deepEqual(Array.from(temporal.frame.jitter), [0, 0], `image ${i}: no jitter`)
-    assert.deepEqual(Array.from(taaRenderMatrix(rt, cam)), Array.from(cam.viewProjection))
-  }
-  assert.equal(temporal.frame.active, true, 'it still accumulates')
-  // The same camera without its plane is jittered again.
-  cam.viewSet = NO_VIEW_SET
+  cam.viewSet = Object.freeze({ ...NO_VIEW_SET, clipPlane: [0, 0, 1, 2] }) as never
   frame(false)
-  assert.notDeepEqual(Array.from(temporal.frame.jitter), [0, 0])
+  assert.notDeepEqual(Array.from(temporal.frame.jitter), [0, 0], 'a sub-pixel sample')
+  assert.notDeepEqual(Array.from(taaRenderMatrix(rt, cam)), Array.from(cam.viewProjection))
+  assert.equal(temporal.frame.active, true)
 })
 
-test("the smallest object measured is the chain's motion blur's, in the stage's uniform and the pass's", () => {
-  const { rt, cam, frame } = runtime()
-  const { rates } = TAA_VIEW.at
-  const sizes = () => [...frame(false)!.subarray(rates + 2, rates + 4)]
-  // Half the projection's scale and the least radius squared: none left out without a blur.
-  assert.deepEqual(sizes(), [0.5, 0])
-  const blur = effect.motionBlur({ perObjectSize: 10 })
-  Object.assign(rt.context, { effects: new EffectChain().add(blur) })
-  // 10 % of the screen is a radius of 5 %, at the reference's 90 degrees (a scale of 1).
-  assert.deepEqual(sizes(), [0.5, Math.fround(0.05 ** 2)])
-  // A narrower view (a projection scale of 2) asks less: the radius follows the field of view
-  // over 90 degrees.
-  const projection = [...IDENTITY_MATRIX4]
-  projection[0] = 2
-  Object.assign(cam, { projection })
-  const fov = (2 * Math.atan(0.5) * RAD2DEG) / 90
-  assert.deepEqual(sizes(), [1, Math.fround((0.05 * fov) ** 2)])
-  blur.perObjectSize = 0
-  assert.deepEqual(sizes(), [1, 0])
-})
-
-test("the frame's tessellation reaches the stage's uniform and the pass's: the one word the rasters read", () => {
-  const { rt, temporal, frame } = runtime()
-  const { tessellation } = TAA_VIEW.at
-  assert.equal(frame(false)![tessellation], 0, 'no displaced surface: the surfaces are flat')
+test("the frame's tessellation picks the velocity stage's program and the pass's: decided once", () => {
+  const { rt, temporal, velocity, frame } = runtime()
+  frame(false)
+  assert.deepEqual(velocity.drawn, [false], 'no displaced surface: the surfaces are flat')
   Object.assign(rt.vis.materialTable.displaced, { count: 1 })
-  assert.equal(frame(false)![tessellation], 1)
+  frame(false)
+  assert.deepEqual(velocity.drawn, [false, true])
   assert.equal(temporal.frame.tessellated, true, 'decided once, by the stage, for the pass')
   Object.assign(rt.context, { tessellation: false })
-  assert.equal(frame(false)![tessellation], 0, 'the setting off draws them flat')
+  frame(false)
+  assert.deepEqual(velocity.drawn, [false, true, false], 'the setting off draws them flat')
+})
+
+test('an image that draws displaced surfaces asks the velocity programs that solve their flat points, any other asks none', () => {
+  const { rt, device, computePipelines, temporal } = runtime()
+  const stages = () =>
+    computePipelines
+      .filter(({ compute }) => compute.entryPoint === 'surfaceVelocity')
+      .map(({ compute }) => compute.constants)
+  askVelocity(rt, device)
+  assert.deepEqual(stages(), [undefined], 'the flat program only')
+  assert.equal(temporal.askedDisplaced, 0)
+  Object.assign(rt.vis.materialTable.displaced, { count: 1 })
+  askVelocity(rt, device)
+  assert.deepEqual(stages(), [undefined, { DISPLACED: 1 }], 'the same module, the displaced stage')
+  assert.equal(temporal.askedDisplaced, 1, 'and the analysis asks its own')
+})
+
+test('where an offset moves vertices, the velocity places a pixel on them now and before, over the records and the frame it reads', () => {
+  const g = material.graph('surface')
+  g.output('baseColor', g.constant(1, 0, 0))
+  g.output('worldPositionOffset', g.multiply(g.time(), g.constant(1, 0, 0)))
+  const rasters = graphRastersOf([{ graph: g }])
+  assert.equal(rasters.offsets.length, 1)
+  const offsets = velocityWpo(rasters)
+  assert.deepEqual(
+    velocityInputEntries().map(({ binding }) => binding),
+    Object.values(VELOCITY_INPUT_BINDINGS).sort((a, b) => a - b),
+    'the records and the frame are in the layout whatever the session holds: a program that joins later is a module',
+  )
+  for (const text of [surfaceVelocityShader(offsets), velocityShader(offsets)]) {
+    assert.match(text, /let word=materialGraphWord\(page\.material\);/)
+    assert.match(text, /@binding\(13\) var materialTable/)
+    assert.match(text, /@binding\(14\) var<uniform> graphFrame/)
+    // A row whose offset is a motion is measured as one that moves, and reprojected by the vertices
+    // of the image before, the placement's motion taking the object back.
+    assert.match(text, /\(page\.wpo&2u\)!=0u/)
+    assert.match(text, /pagePreviousPosition\(page,h,corners\.x,before\)/)
+  }
+  assert.doesNotMatch(SURFACE_VELOCITY_WGSL, /materialGraphWord|@binding\(13\)/)
 })

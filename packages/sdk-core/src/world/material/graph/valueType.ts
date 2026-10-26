@@ -25,6 +25,11 @@ export const isNumeric = (type: ValueType) => type !== 'texture'
 export const describeType = (type: ValueType) =>
   type === 'flex' ? 'scalar constant' : type === 'texture' ? 'texture' : `float${type[1]}`
 
+/** Refuses a texture where `what` (an operation) needs a number or a vector. */
+export function assertNumeric(type: ValueType, what: string) {
+  if (!isNumeric(type)) throw graphError(`${what} of a ${describeType(type)}`)
+}
+
 /**
  * The type of an operation between two values: the same type is itself; a scalar (`flex` or `f1`)
  * takes the other's type (the scalar is repeated); two vectors of different widths are refused.

@@ -14,10 +14,10 @@
  */
 import { saturate } from '../../../../math/src/scalar/reals.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
-import type { HostMaterials } from '../../session/host/resources.ts'
 import type { Releasable } from '../../../../sdk-core/src/runtime/releasable.ts'
 import type { VisMaterial } from '../../visibility/materialType.ts'
 import { declareSurface } from './surfaceRecord.ts'
+import type { PageMaterials } from './pageMesh.ts'
 
 /** The families a surface is declared in: a scene's unlit, standard and physical ones, and the
  *  others a world draws — the shadow catcher among them. The surface model reads the family
@@ -48,10 +48,9 @@ export type SurfaceFacts = {
   transparent: boolean
   /** How it composes over what is behind it. */
   blending: Blending
-  /** A double-sided blended surface drawn in one pass instead of back then front. */
-  forceSinglePass: boolean
-  /** Whether it casts a shadow while blended; unsaid, it casts none. */
-  transparentShadow: boolean
+  /** A double-sided blended surface drawn in two passes, back then front, instead of one that
+   *  culls neither (`Material.twoSidedPasses`). */
+  twoSidedPasses: boolean
   /** Whether it tests and writes depth, and is shaded flat. */
   depthTest: boolean
   depthWrite: boolean
@@ -72,7 +71,7 @@ const NOTHING = declareSurface({ family: 'basic' })
 
 /** The record `material` declares: the one surface it wears, or the first of a list — a list
  *  declaring nothing drawing as `NOTHING`. */
-export const surfaceOf = (material: HostMaterials): PageSurface =>
+export const surfaceOf = (material: PageMaterials): PageSurface =>
   Array.isArray(material) ? (material[0] ?? NOTHING) : material
 
 /** A surface's opacity, its colour factor's alpha, clamped: the light a blended one stops before
@@ -80,11 +79,11 @@ export const surfaceOf = (material: HostMaterials): PageSurface =>
 export const surfaceOpacity = (surface: { opacity: number }) => saturate(surface.opacity)
 
 /** The record of a source's declaration: the collection's only door to a material. */
-export const sourceSurface = (source: { declaration: HostMaterials }) =>
+export const sourceSurface = (source: { declaration: PageMaterials }) =>
   surfaceOf(source.declaration)
 
 /** Whether `source` wears one of `surfaces`: the record a repaint or an assignment names. */
-export const wearsOneOf = (source: { declaration: HostMaterials }, surfaces: readonly object[]) =>
+export const wearsOneOf = (source: { declaration: PageMaterials }, surfaces: readonly object[]) =>
   surfaces.includes(sourceSurface(source))
 
 /** The records of the source meshes a created material was assigned to. */
@@ -94,6 +93,6 @@ export const recordsOfMeshes = <T extends { drawSource?: object }>(
 ) => records.filter((rec) => !!rec.drawSource && meshes.has(rec.drawSource))
 
 /** A record wears `declaration` from now on: its surface record. */
-export function wearDeclaration(rec: { material: PageSurface }, declaration: HostMaterials) {
+export function wearDeclaration(rec: { material: PageSurface }, declaration: PageMaterials) {
   rec.material = surfaceOf(declaration)
 }

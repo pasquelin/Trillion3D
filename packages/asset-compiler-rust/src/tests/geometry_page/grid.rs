@@ -32,7 +32,7 @@ fn a_constant_colour_costs_no_bits_and_the_primitive_grid_follows_the_finest_clu
     assert_eq!(tinted.bytes.len(), plain);
     let page = trillion3d_page_codec::decode(&tinted.bytes, 1 << 20).expect("decode");
     let bytes = [128, 64, 255, 255].map(trillion3d_page_codec::bits::color_value);
-    assert_eq!(page.attribute(6), Some(&bytes.repeat(3)[..]));
+    assert_eq!(page.attribute(10), Some(&bytes.repeat(3)[..]));
     // A cluster a metre wide is half a diagonal of 70.7 cm: seven less its base-2 logarithm, 6,
     // is 1, under the finest the density alone may pick, a sixteenth of a centimetre.
     let of = |precision, side| PageGrid::of(precision, &[cluster(side)]);

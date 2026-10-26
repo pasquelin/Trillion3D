@@ -30,7 +30,7 @@ export const DEFAULT_STREAMING_QUALITY_MIN_POOL_PERCENT = 70
 export const DEFAULT_STREAMING_QUALITY_MAX_POOL_PERCENT = 85
 /** The lowest scale's default, 0.3: the reference's own. */
 export const DEFAULT_STREAMING_QUALITY_MIN_SCALE = 0.3
-/** The tries again of a failed read, 3 by default: the reference's own. */
+/** The tries again of a failed read of a streaming page, 3 by default: the reference's own. */
 export const DEFAULT_STREAMING_NUM_RETRIES = 3
 /** The least requests the readout holds, 65 536 by default: the reference's own. */
 export const DEFAULT_STREAMING_MIN_REQUESTS = 65_536
@@ -39,8 +39,9 @@ export const DEFAULT_STREAMING_MAX_REQUESTS = 1_048_576
 /** The simulated bandwidth's default, −1: none — a negative limit is no limit; the reference's own. */
 export const DEFAULT_STREAMING_BANDWIDTH_LIMIT = -1
 
-/** How many times a failed read is tried again: a whole number a 32-bit counter holds; negative
- *  tries without end. */
+/** How many times a failed read of a streaming page is tried again: a whole number a 32-bit
+ *  counter holds; negative tries without end. A texture level is not counted: it is asked again,
+ *  whatever the failure, by each frame that wants it. */
 const NUM_RETRIES: SettingRange = INT32_RANGE
 /** The requests the readout holds, from 4 096 to 1 048 576: the reference's own limits. */
 const REQUESTS_RANGE: SettingRange = [4096, 1_048_576]

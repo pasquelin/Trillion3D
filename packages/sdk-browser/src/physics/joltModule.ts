@@ -8,6 +8,8 @@ import {
   EVENT_WORDS,
   HIT_WORDS,
   MODULE_ERROR,
+  OVERLAP_HIT_WORDS,
+  OVERLAP_WORDS,
   PLANE_WORDS,
   WATER_PIECE_WORDS,
   POSE_WORDS,
@@ -26,6 +28,7 @@ interface JoltExports {
     tempBytes: number,
     threads: number,
     step: number,
+    restitutionThreshold: number,
   ): number
   jolt_buffer(which: number, words: number): number
   jolt_step(commandWords: number, dt: number): number
@@ -45,6 +48,9 @@ interface JoltExports {
   jolt_water_planes(pieces: number, count: number, level: number, sample: number): number
   jolt_cast_buffer(count: number): number
   jolt_cast(count: number): number
+  jolt_overlap_buffer(): number
+  jolt_overlap(): number
+  jolt_overlap_hits(): number
   jolt_character(): number
   jolt_broken_count(): number
   jolt_broken(i: number): number
@@ -63,6 +69,14 @@ const INITIAL_PAGES = 512
 /** The budget each bit of `jolt_update_error` names (`EPhysicsUpdateError`: the manifold
  *  cache is sized from both). */
 const UPDATE_ERRORS = ['bodyPairs and contactConstraints', 'bodyPairs', 'contactConstraints']
+/** The place of a wave's phase among its doubles: the one that changes from step to step. */
+const PHASE = WAVE_FIELDS.indexOf('phase')
+/** What a step with nothing to report answers: one empty list, read and never written, so the
+ *  usual step allocates none. */
+const NONE = Object.freeze([]) as never[]
+/** The `count` numbers `at` gives, or `NONE`. */
+const listed = (count: number, at: (i: number) => number) =>
+  count ? Array.from({ length: count }, (_, i) => at(i)) : NONE
 
 /** A module's own exports and memory, before the engine starts it: tools read these. */
 export interface OpenedJolt {
@@ -96,73 +110,28 @@ export async function openJolt(
   return { exports: exports as WebAssembly.Exports, memory }
 }
 
-/**
- * Starts an opened module for a budget's bodies, pairs and contacts, stepped by `threads` threads
- * (those it was opened with) in fixed steps of `step` seconds, the page's (`start.step`): what a
- * soft body's bend floor and calm are reckoned with (`soft.cpp`). A step that would need more
- * than `budget.memoryBytes` fails.
- */
-export function startJolt(
-  { exports, memory }: OpenedJolt,
-  budget: PhysicsBudget,
-  threads: number,
-  step: number,
-) {
-  const jolt = exports as unknown as JoltExports
-  if (budget.bodies > BODY_INDEX)
-    throw new EngineError('PHYSICS_BUDGET', `Physics budget "bodies" is above ${BODY_INDEX}.`)
-  jolt._initialize()
-  const { bodies, bodyPairs, contactConstraints } = budget
-  if (jolt.jolt_init(bodies, bodyPairs, contactConstraints, TEMP_BYTES, threads, step) !== 0)
-    throw new EngineError('PHYSICS_FAILED', 'Physics: the module did not start.')
-  const outOfMemory = () =>
-    new EngineError('PHYSICS_BUDGET', 'Physics budget "memoryBytes" exceeded.')
-  let commandWords = 1024
-  let commands = jolt.jolt_buffer(0, commandWords)
-  const poses = jolt.jolt_buffer(1, bodies * POSE_WORDS)
-  const events = jolt.jolt_buffer(2, budget.contactEvents * EVENT_WORDS)
-  if (!commands || !poses || !events) throw outOfMemory()
-  const maximum = alignDown(budget.memoryBytes, PAGE)
+const outOfMemory = () =>
+  new EngineError('PHYSICS_BUDGET', 'Physics budget "memoryBytes" exceeded.')
+
+/** The failure of a command the module ran. */
+const commandFailure = (jolt: JoltExports) =>
+  new EngineError(
+    'PHYSICS_FAILED',
+    `Physics: ${MODULE_ERROR[jolt.jolt_error()] ?? 'unknown'} in a command.`,
+  )
+
+/** The budgets the last step's collision ran out of, named; empty when none. */
+function overflowOf(jolt: JoltExports) {
+  const bits = jolt.jolt_update_error()
+  return bits ? UPDATE_ERRORS.filter((_, bit) => bits & (1 << bit)) : NONE
+}
+
+/** What a step leaves in the module's memory, read in place or copied: the vehicles, the soft
+ *  bodies, the water, the scene queries and the character. */
+function createJoltQueries(jolt: JoltExports, memory: WebAssembly.Memory) {
+  /** The waves whose numbers the module's wave buffer holds (`planes`). */
+  let waved: Waves | null = null
   return {
-    /** The fixed step it was started at, s. */
-    fixedStep: step,
-    /** Copies `count` of `words` into the command buffer, runs them, steps `dt` seconds; returns
-     *  the pose count. */
-    step(words: Uint32Array | null, dt: number, count = words?.length ?? 0) {
-      if (count > commandWords) {
-        commands = jolt.jolt_buffer(0, count)
-        if (!commands) throw outOfMemory()
-        commandWords = count
-      }
-      if (words) new Uint32Array(memory.buffer, commands, count).set(words.subarray(0, count))
-      // The module's `uint32_t` comes back as a signed 32-bit number: -1 is its failure.
-      const posed = jolt.jolt_step(count, dt) >>> 0
-      if (posed === 0xffffffff)
-        throw new EngineError(
-          'PHYSICS_FAILED',
-          `Physics: ${MODULE_ERROR[jolt.jolt_error()] ?? 'unknown'} in a command.`,
-        )
-      return posed
-    },
-    /** The module's pose words, valid until the next step. */
-    poses: (count: number) => new Uint32Array(memory.buffer, poses, count * POSE_WORDS),
-    /** The module's event words for the last step. */
-    events: () => new Uint32Array(memory.buffer, events, jolt.jolt_event_count() * EVENT_WORDS),
-    /** Enters the last step dropped past `budget.contactEvents`. */
-    dropped: () => jolt.jolt_dropped_events(),
-    /** The budgets the last step's collision ran out of, named; empty when none. */
-    overflow: () => UPDATE_ERRORS.filter((_, bit) => jolt.jolt_update_error() & (1 << bit)),
-    /** The engine ids of the bodies whose shape the last step refused. */
-    refused: () =>
-      Array.from({ length: jolt.jolt_refused_count() }, (_, i) => jolt.jolt_refused(i)),
-    /** The engine ids of the bodies the last step left non-finite: taken out, nothing sent. */
-    diverged: () =>
-      Array.from({ length: jolt.jolt_diverged_count() }, (_, i) => jolt.jolt_diverged(i)),
-    /** The ids of the joints the last step broke. */
-    broken: () => Array.from({ length: jolt.jolt_broken_count() }, (_, i) => jolt.jolt_broken(i)),
-    active: () => jolt.jolt_active_count(),
-    /** Bounds the jobs a step splits its work into (`createThreadTuner`); returns the bound. */
-    concurrency: (count: number) => jolt.jolt_concurrency(count),
     /** The vehicles' state after the last step (`vehicleLayout.ts`), valid until the next. */
     vehicles: () => new Uint32Array(memory.buffer, jolt.jolt_vehicles(), jolt.jolt_vehicle_words()),
     /** The soft bodies the last step moved (`softLayout.ts`), valid until the next. */
@@ -179,8 +148,14 @@ export function startJolt(
     planes(waves: Waves, level: number, sample: number, count: number, from?: number) {
       const at = jolt.jolt_wave_buffer(waves.count)
       const out = new Float64Array(memory.buffer, at, waves.count * WAVE_DOUBLES)
-      for (let i = 0, o = 0; i < waves.count; i++)
-        for (const field of WAVE_FIELDS) out[o++] = waves[field][i]
+      // The waves the module's buffer already holds differ by their phases alone.
+      if (waves === waved)
+        for (let i = 0; i < waves.count; i++) out[i * WAVE_DOUBLES + PHASE] = waves.phase[i]
+      else {
+        for (let i = 0, o = 0; i < waves.count; i++)
+          for (const field of WAVE_FIELDS) out[o++] = waves[field][i]
+        waved = waves
+      }
       const planes = jolt.jolt_water_planes(from ?? jolt.jolt_water_pieces(), count, level, sample)
       return new Uint32Array(memory.buffer, planes, count * PLANE_WORDS)
     },
@@ -192,8 +167,110 @@ export function startJolt(
       new Uint32Array(memory.buffer, at, queries.length).set(queries)
       return new Uint32Array(memory.buffer, jolt.jolt_cast(count), count * HIT_WORDS).slice()
     },
+    /** Answers an overlap query (`OVERLAP_WORDS`) against the last step: a copy of the bodies it
+     *  meets (`OVERLAP_HIT_WORDS` each). */
+    overlap(query: Uint32Array) {
+      new Uint32Array(memory.buffer, jolt.jolt_overlap_buffer(), OVERLAP_WORDS).set(query)
+      const count = jolt.jolt_overlap()
+      if (!count) return new Uint32Array(0)
+      return new Uint32Array(
+        memory.buffer,
+        jolt.jolt_overlap_hits(),
+        count * OVERLAP_HIT_WORDS,
+      ).slice()
+    },
     /** The character's state after the last step (`CHARACTER_STATE_WORDS`). */
     character: () => new Float32Array(memory.buffer, jolt.jolt_character(), CHARACTER_STATE_WORDS),
+  }
+}
+
+/** The module started for `budget`: its buffers, the command one grown on demand. */
+function initJolt(
+  jolt: JoltExports,
+  budget: PhysicsBudget,
+  threads: number,
+  steps: { step: number; restitutionThreshold: number },
+) {
+  if (budget.bodies > BODY_INDEX)
+    throw new EngineError('PHYSICS_BUDGET', `Physics budget "bodies" is above ${BODY_INDEX}.`)
+  jolt._initialize()
+  const { bodies, bodyPairs, contactConstraints } = budget
+  if (
+    jolt.jolt_init(
+      bodies,
+      bodyPairs,
+      contactConstraints,
+      TEMP_BYTES,
+      threads,
+      steps.step,
+      steps.restitutionThreshold,
+    ) !== 0
+  )
+    throw new EngineError('PHYSICS_FAILED', 'Physics: the module did not start.')
+  const commands = jolt.jolt_buffer(0, 1024)
+  const poses = jolt.jolt_buffer(1, bodies * POSE_WORDS)
+  const events = jolt.jolt_buffer(2, budget.contactEvents * EVENT_WORDS)
+  if (!commands || !poses || !events) throw outOfMemory()
+  return { commands, poses, events }
+}
+
+/**
+ * Starts an opened module for a budget's bodies, pairs and contacts, stepped by `threads` threads
+ * (those it was opened with) in fixed steps of `step` seconds, the page's (`start.step`): what a
+ * soft body's bend floor and calm are reckoned with (`soft.cpp`). A step that would need more
+ * than `budget.memoryBytes` fails.
+ */
+export function startJolt(
+  { exports, memory }: OpenedJolt,
+  budget: PhysicsBudget,
+  threads: number,
+  step: number,
+  restitutionThreshold: number,
+) {
+  const jolt = exports as unknown as JoltExports
+  const { poses, events, ...first } = initJolt(jolt, budget, threads, {
+    step,
+    restitutionThreshold,
+  })
+  let commands = first.commands,
+    commandWords = 1024
+  const queries = createJoltQueries(jolt, memory)
+  const maximum = alignDown(budget.memoryBytes, PAGE)
+  return {
+    /** The fixed step it was started at, s. */
+    fixedStep: step,
+    /** Copies `count` of `words` into the command buffer, runs them, steps `dt` seconds; returns
+     *  the pose count. */
+    step(words: Uint32Array | null, dt: number, count = words?.length ?? 0) {
+      if (count > commandWords) {
+        commands = jolt.jolt_buffer(0, count)
+        if (!commands) throw outOfMemory()
+        commandWords = count
+      }
+      if (words) new Uint32Array(memory.buffer, commands, count).set(words.subarray(0, count))
+      // The module's `uint32_t` comes back as a signed 32-bit number: -1 is its failure.
+      const posed = jolt.jolt_step(count, dt) >>> 0
+      if (posed === 0xffffffff) throw commandFailure(jolt)
+      return posed
+    },
+    /** The module's pose words, valid until the next step. */
+    poses: (count: number) => new Uint32Array(memory.buffer, poses, count * POSE_WORDS),
+    /** The module's event words for the last step. */
+    events: () => new Uint32Array(memory.buffer, events, jolt.jolt_event_count() * EVENT_WORDS),
+    /** Enters the last step dropped past `budget.contactEvents`. */
+    dropped: () => jolt.jolt_dropped_events(),
+    /** The budgets the last step's collision ran out of, named; empty when none. */
+    overflow: () => overflowOf(jolt),
+    /** The engine ids of the bodies whose shape the last step refused. */
+    refused: () => listed(jolt.jolt_refused_count(), jolt.jolt_refused),
+    /** The engine ids of the bodies the last step left non-finite: taken out, nothing sent. */
+    diverged: () => listed(jolt.jolt_diverged_count(), jolt.jolt_diverged),
+    /** The ids of the joints the last step broke. */
+    broken: () => listed(jolt.jolt_broken_count(), jolt.jolt_broken),
+    active: () => jolt.jolt_active_count(),
+    /** Bounds the jobs a step splits its work into (`createThreadTuner`); returns the bound. */
+    concurrency: (count: number) => jolt.jolt_concurrency(count),
+    ...queries,
     /** Leaves a full event buffer held back: the next step sends them first. */
     owedLeaves: () => jolt.jolt_owed_leaves(),
     /** Whether the memory has grown to its budget: a trap then is the budget, not a fault. */

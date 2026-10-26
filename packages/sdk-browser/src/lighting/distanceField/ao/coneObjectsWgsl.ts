@@ -6,9 +6,9 @@ import { DFAO_BINDING as B } from './layout.ts'
 import { meshFieldWgsl } from '../meshFieldWgsl.ts'
 
 /** The threads of a group of the cone trace against the meshes. */
-export const CONE_OBJECTS_GROUP = 64
+const CONE_OBJECTS_GROUP = 64
 /** The side of a culled tile in cells of the cone grid, and the tiles a group of threads traces. */
-export const CONE_TILE_SIDE = TILE_SIZE / CONE_TRACE_DOWNSAMPLE
+const CONE_TILE_SIDE = TILE_SIZE / CONE_TRACE_DOWNSAMPLE
 export const CONE_TILES_PER_GROUP = CONE_OBJECTS_GROUP / (CONE_TILE_SIDE * CONE_TILE_SIDE)
 /** The words of a culled tile's record: the tile, then the mesh. */
 export const CULLED_TILE_DATA_STRIDE = 2

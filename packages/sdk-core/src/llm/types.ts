@@ -82,15 +82,8 @@ export interface AnthropicToolDefinition {
   input_schema: JsonSchemaObject
 }
 
-/** A tool in the form Gemini's API reads. */
-export interface GeminiFunctionDeclaration {
-  /** The tool's name. */
-  name: string
-  /** What it does. */
-  description: string
-  /** Its arguments. */
-  parameters: JsonSchemaObject
-}
+/** A tool in the form Gemini's API reads: the generic tool's fields. */
+export type GeminiFunctionDeclaration = Trillion3dTool
 
 /** A tool in the form the Model Context Protocol reads. */
 export interface McpToolDefinition {

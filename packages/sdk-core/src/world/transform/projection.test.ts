@@ -76,7 +76,7 @@ test('camera frame: view-projection takes a point in front of the eye, in a rota
   setNodeQuaternion(tree, cam, 0, Math.SQRT1_2, 0, Math.SQRT1_2) // yaw 90: looks down -x
   updateNodeMatrixWorld(tree, cam, true)
   const projection = perspectiveProjection(new Float64Array(16), 60, 1, 0.1, 1)
-  const frame = updateCameraFrame(createCameraFrame(), projection, tree.worldViews[cam], 1000)
+  const frame = updateCameraFrame(createCameraFrame(), projection, tree.worldViews[cam])
   const [x, y, z] = transformPoint(frame.viewProjection, [-5, 0.2, 0])
   assert.ok(Math.abs(x) <= 1 && Math.abs(y) <= 1 && z > 0 && z < 1, `${x} ${y} ${z}`)
 })

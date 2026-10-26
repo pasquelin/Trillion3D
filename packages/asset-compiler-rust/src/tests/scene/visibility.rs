@@ -1,14 +1,14 @@
 //! `KHR_node_visibility`: a hidden node's mesh is compiled, to be shown later, and the node
-//! table says it hidden; no coplanar surface, proxy triangle, oracle triangle or collider comes
+//! table says it hidden; no coplanar surface, oracle triangle or collider comes
 //! from it. Provenance: the coplanar golden `full-overlap` (two coplanar squares, one per node),
 //! its second node declaring itself hidden or not, and a body on it.
 use super::*;
 use crate::tests::golden::{compile_golden_source, golden_dir};
 
 /// What the compiler derived from `full-overlap`, its node 1 a kinematic body hidden or not:
-/// the compiled primitives, the coplanar surfaces, the proxy's triangles, the static instances,
+/// the compiled primitives, the coplanar surfaces, the static instances,
 /// the bodies cooked or refused, the oracle's triangles and node 1's table entry.
-fn derived(hidden: bool) -> [Value; 7] {
+fn derived(hidden: bool) -> [Value; 6] {
     let fixture = golden_dir("coplanar/full-overlap");
     let root = scratch("visibility", if hidden { "hidden" } else { "shown" });
     fs::create_dir_all(&root).expect("root");
@@ -26,9 +26,6 @@ fn derived(hidden: bool) -> [Value; 7] {
     let source = root.join("full-overlap.gltf");
     fs::write(&source, serde_json::to_vec(&gltf).expect("gltf")).expect("write");
     let run = compile_golden_source(&source, "visibility");
-    let proxy = (run.reports.iter())
-        .find(|report| report["phase"] == "proxy")
-        .map(|report| report["triangles"].clone());
     let key = run.result["key"].as_str().expect("key");
     let scope = run
         .cache
@@ -46,7 +43,6 @@ fn derived(hidden: bool) -> [Value; 7] {
     [
         json!(run.result["primitives"].as_array().map(Vec::len)),
         run.result["coplanar"]["surfaces"].clone(),
-        proxy.expect("proxy report"),
         physics["instances"].clone(),
         json!(bodies),
         json!(oracle),
@@ -65,22 +61,18 @@ fn visibility(tables: &Value) -> Value {
 }
 
 #[test]
-fn a_hidden_node_is_compiled_but_derives_no_surface_proxy_oracle_or_collider() {
-    let [primitives, surfaces, proxy, instances, bodies, oracle, visible] = derived(false);
+fn a_hidden_node_is_compiled_but_derives_no_surface_oracle_or_collider() {
+    let [primitives, surfaces, instances, bodies, oracle, visible] = derived(false);
     assert_eq!(primitives, json!(2));
     assert_eq!(
         (surfaces, instances, bodies),
         (json!(2), json!(2), json!(1))
     );
     assert_eq!(visible, json!(true));
-    let [primitives, surfaces, fewer, instances, bodies, less, visible] = derived(true);
+    let [primitives, surfaces, instances, bodies, less, visible] = derived(true);
     assert_eq!(primitives, json!(2), "its mesh is compiled all the same");
     assert_eq!(surfaces, json!(1), "no coplanar surface");
     let count = |v: &Value| v.as_u64().expect("a count");
-    assert!(
-        count(&fewer) < count(&proxy),
-        "no proxy triangle: {proxy} then {fewer}"
-    );
     assert_eq!((instances, bodies), (json!(1), json!(0)), "no collider");
     assert!(count(&less) < count(&oracle), "no oracle triangle");
     assert_eq!(visible, json!(false), "the table says it hidden");

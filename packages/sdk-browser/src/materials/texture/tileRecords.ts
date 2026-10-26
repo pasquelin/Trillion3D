@@ -1,8 +1,13 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { blocksAcross } from '../../../../sdk-core/src/texture/previewLevels.ts'
 import {
   PREVIEW_BLOCK_BYTES,
   PREVIEW_BLOCK_SIDE,
+  PREVIEW_HALF_FILE,
+  PREVIEW_HALF_TEXEL_BYTES,
+  PREVIEW_LAYOUT_FILES,
+  PREVIEW_STORED_FORMAT,
+  previewLayoutBlockBytes,
+  type StoredLayout,
 } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { TILE_SIZE } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import { tileSpanEnd, tileSpanStart } from './tiles.ts'
@@ -13,29 +18,55 @@ import { tileSpanEnd, tileSpanStart } from './tiles.ts'
  * (`tileRegion`, `../virtual/write.ts`) in whole blocks, block rows top to bottom, compressed
  * alone by raw DEFLATE. The file opens on a head of one little-endian `u32` per record — where
  * its compressed bytes end, counted from the end of the head —, whose length follows from the
- * level's dimensions: one HTTP Range reads the head, one more a tile.
+ * level's dimensions: one HTTP Range reads the head, one more a tile. A half-float level file is
+ * cut the same way in texels, eight bytes each, instead of blocks.
  */
+
+/** What a record is cut in: units `side` texels wide, `bytes` each — blocks, or half-float texels. */
+type Cell = { side: number; bytes: number }
+const HALF_TEXELS: Cell = { side: 1, bytes: PREVIEW_HALF_TEXEL_BYTES }
 
 /** Bytes of one record's end in the head. */
 export const RECORD_END_BYTES = 4
 
-/** Blocks along one side of tile `t`'s record, for a level `texels` long on that side. */
-const span = (texels: number, t: number) =>
-  blocksAcross(tileSpanEnd(texels, t)) - tileSpanStart(t) / PREVIEW_BLOCK_SIDE
+/** Cells along one side of tile `t`'s record, for a level `texels` long on that side. */
+const span = (texels: number, t: number, side: number) =>
+  ceilDiv(tileSpanEnd(texels, t), side) - tileSpanStart(t) / side
 
-/** The record of tile (`tx`, `ty`) in a `width` × `height` block level file: its rank, the count
- *  of records — the head's entries —, its blocks across and down and its bytes once inflated. No
- *  array is built: a waiting tile asks every frame. */
-export function tileRecord(width: number, height: number, tx: number, ty: number) {
+/** The layout each stored-family level file holds, by its format name. */
+const LAYOUT_OF_FILE = new Map(
+  Object.entries(PREVIEW_LAYOUT_FILES[PREVIEW_STORED_FORMAT]).map(([layout, file]) => [
+    file as string,
+    layout as StoredLayout,
+  ]),
+)
+
+/** The cell a level file of `format` is cut in: half-float texels, or the blocks of its layout —
+ *  sixteen bytes unless the layout says otherwise (BC4's eight, the float files' squares). */
+export const cellOf = (format: string): Cell => {
+  const layout = LAYOUT_OF_FILE.get(format)
+  return format === PREVIEW_HALF_FILE
+    ? HALF_TEXELS
+    : {
+        side: PREVIEW_BLOCK_SIDE,
+        bytes: layout ? previewLayoutBlockBytes(layout) : PREVIEW_BLOCK_BYTES,
+      }
+}
+
+/** The record of tile (`tx`, `ty`) in a `width` × `height` level file of `format` — of blocks, or of
+ *  half-float texels —: its rank, the count of records — the head's entries —, its cells across
+ *  and down and its bytes once inflated. No array is built: a waiting tile asks every frame. */
+export function tileRecord(width: number, height: number, tx: number, ty: number, format = 'bc7') {
+  const cell = cellOf(format)
   const tilesAcross = ceilDiv(width, TILE_SIZE)
-  const across = span(width, tx),
-    down = span(height, ty)
+  const across = span(width, tx, cell.side),
+    down = span(height, ty, cell.side)
   return {
     index: ty * tilesAcross + tx,
     count: tilesAcross * ceilDiv(height, TILE_SIZE),
     across,
     down,
-    bytes: across * down * PREVIEW_BLOCK_BYTES,
+    bytes: across * down * cell.bytes,
   }
 }
 

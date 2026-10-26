@@ -54,16 +54,16 @@ host axis, a wave direction or a light direction of 1e200 or 1e-170 normalises t
 of the band: a site moved from one to the other carries the proof that no 8-bit pixel moves. A
 site moved from the plain root keeps its bits inside the band and, declared, gains the true
 length outside it where the plain root gave 0 or Infinity: under `packages/sdk-browser/src/`, the
-bounding-sphere radius of `host/prepared/geometry.ts`, the lateral distance of
+bounding-sphere radius of `scene/host/prepared/geometry.ts`, the lateral distance of
 `geometry/selection/projection.fixture.ts`, a light's far distance in `session/world/lights.ts`, and the
-light's horizontal axis in `vsmWorldToLightRotation` (`vsm/clipmap.ts`), which for a direction
+light's horizontal axis in `vsmWorldToLightRotation` (`lighting/shadows/vsm/clipmap.ts`), which for a direction
 within about 1e-146 of vertical follows the direction where the 0 snapped it to world Y
 (`lightRotation.test.ts`).
 
 The declared exceptions, each held to bits the rule would change:
 
-- `hypot` where a twin fixes other bits or an answer needs its last bit: the kernels of
-  `packages/page-codec-wasm/src/wasm/math.rs` (`hypot`); `length`
+- `hypot` where a twin fixes other bits or an answer needs its last bit: the `hypot`
+  of `packages/math/rust/src/scalar/js.rs`, which the page codec's kernels call; `length`
   of `packages/sdk-core/src/world/animation/ik.ts`, where the bend of a straight chain out of
   reach depends on the last bit; `closes` of `packages/sdk-core/src/world/math/curves.ts`, an
   outline's closing point dropped at a gap under 1e-12, where the rule's root would decide a gap
@@ -86,6 +86,50 @@ The declared exceptions, each held to bits the rule would change:
   `packages/sdk-core/src/scene/light/validate.ts`, a light direction divided by its `hypot3`,
   because the validated direction feeds the shadow clipmap's own normalise and basis in double and
   the rule's product differs from that quotient in the last bit on about two directions in three.
+  `writeDividedVector3` (`vector/vector.ts`) is that division's one owner for a uniform axis,
+  `length3 || 1` then three quotients (the camera axes of
+  `packages/sdk-browser/src/blend/uniforms.ts`). Sites that keep a form of their own, each held
+  to its bits: `axisOf` of `lighting/ao/params.ts` (a flipped axis, `+ 0` on each quotient),
+  `yawWalk` of `camera/controls/math.ts` and `toward` of `geometry/partition/sourceShape.ts`
+  (two components, `length2`), `axisFor` of `geometry/partition/sourceRank.ts` (the reciprocal of
+  a plain root over a floor), the tint step of `lighting/whiteBalance.ts` (two components), and
+  `packages/sdk-core/src/modules/sky/lightShafts.ts` (a plain root, the input kept when it is not
+  positive), all under `packages/sdk-browser/src/` but the last.
+
+### Declared variants
+
+One formula, one owner; where two forms of one quantity must both live, each has its own owner
+and its own name, and the reason is the bits a file or a twin pins:
+
+- The order-2 harmonics: `IRRADIANCE_TERMS` (`packages/sdk-core/src/scene/core/irradianceTerms.ts`)
+  holds each term's 7-digit `basis`, unsigned, for the irradiance and the reflection lobes, and its
+  `contract`, the 6-digit signed value of the sky light's projection and of the volumetric
+  lightmap's file format (terms 1, 3, 5 and 7 negative). The sky light's `harmonicsBasis`
+  (`modules/sky/skyLight/cubeWgsl.ts`) and the lightmap's decode scales
+  (`lighting/volumetricLightmap/sampleWgsl.ts`) are emitted from it; the bake writes the same six
+  digits in Rust (`packages/asset-compiler-rust/src/volumetric_lightmap/bake/accumulate.rs`), the
+  file's other side. `contract` is written, not rounded from `basis`: `0.4886025` rounds to
+  `0.488602` in double, the file holds `0.488603`.
+- The octahedral decode by what `z` lacks, `e ± lack`, of the page codec: `unproject_unfolded`
+  (`packages/math/rust/src/vector/octahedral.rs`, called by
+  `packages/page-codec-wasm/src/bits/oct.rs`, pinned by `oct.json`) and its shader twin
+  `octCellsDecode` (`wgsl/octahedral.ts`); `unproject` and `octDecode` fold instead, the last bits
+  apart.
+- The cofactor inverse with the plain reciprocal of the determinant, `inverse3` of
+  `wgsl/matrix.ts` (the tessellation's prism solve), beside the processor's `inverse3`
+  (`matrix/matrix3.ts`), which takes the singular rule of `adjugateFactor`; and `inverseRows`
+  (`color/color.ts`), each cofactor divided by the determinant, rows as written, which builds
+  `XYZ_TO_SRGB` once at load: the reciprocal of `inverse3` would move its bits.
+- The quaternion's rotation row by row, `quaternionRows` (`wgsl/quaternion.ts`, the deformation
+  banks), `2·(y·y + z·z)`, where `composeMatrix4At` takes the factor two on the vector first.
+- The sRGB decode of the HLOD transfer, a table of `(v * (1 / 1.055) + 0.0521327)^2.4`, the reciprocal
+  multiplied as the code does (the quotient differs in the last bit on many inputs),
+  (`packages/asset-compiler-rust/src/hlod/flatten/simplify/transfer/colour.rs`), the flattened
+  materials' own conversion, beside `srgb_to_linear` of `packages/math/rust/src/color.rs`; and the
+  Rec. 709 weights `0.2126, 0.7152, 0.0722` of the bake report's tone gap
+  (`hlod/flatten/bake/appearance.rs`), a measure, beside the primaries' luminance of the engine.
+- The gradient noise of the horizon search is `interleavedGradientNoise` (`wgsl/sampling.ts`) at
+  frame 0, its `dot` form.
 
 ### The WGSL library
 
@@ -153,11 +197,15 @@ Three gates keep a formula in its one home; each runs in `check:changed` and in 
   `perspectiveSlope`) and
   `2 ** Math.ceil(Math.log2(v))` (`nextPow2`);
 - `check:helpers` reports a free function of any tree whose signature and body are those of a
-  `packages/math` function, whatever its name and its parameters' names;
+  `packages/math` function, whatever its name and its parameters' names, and a Rust function of
+  another crate whose signature and body are those of a `packages/math/rust` function, whatever
+  its name;
 - `check:wgsl-library` reports a shader whose text declares a function, a constant or a structure
-  the WGSL library holds.
+  the WGSL library holds; a standalone `.wgsl` file a crate loads, which cannot list the library,
+  may hold such a declaration only as its twin — the library's text, comments, layout and the
+  spelling of an `f32` literal aside.
 
-The declared oracles — the bench's reference implementations and witnesses, the image metric's
+The declared oracles — the bench's reference implementations, the image metric's
 reference, the before-forms a rewrite is proved against, and the test
 modules, fixtures and GPU proofs, whose expectations are their own arithmetic — keep their forms on
 purpose: the list is `MATHS_ORACLES` of the same file, read by all three gates.
@@ -180,8 +228,8 @@ or batch, follows these conventions:
   `decomposeMatrix4` — returns nothing, and its row says so. A call on a per-frame path allocates
   nothing. `outAt`/`aAt` offsets let one large buffer hold many operands. A batch returns a count
   as its only value and repeats the formula of its unit function, which stays the oracle. The clone check
-  (`check:duplicates`) skips only the regions marked `jscpd:ignore`, each one a loop that keeps
-  its values in registers, with its measurement beside it; a rewrite is proved against its
+  (`check:duplicates`) skips only the regions marked `jscpd:ignore`, each one a loop, or a batch's
+  one-plane test, that keeps its values in registers, with its measurement beside it; a rewrite is proved against its
   before-form while it lands, and the before-form is deleted with that proof.
 - **`Float64Array` for what is computed**, `ArrayLike<number>` for what is only read: a host
   matrix, a plain array or a `Float32Array` enters as-is; a batch writes flags into a `Uint8Array`.
@@ -272,20 +320,10 @@ golden:write` rewrites them all, the command each file names.
 - The page decoder has no TypeScript twin: `decodeGeometryPage` calls the Rust one in the SDK module.
 - Single numbers, `packages/math/golden`: `mip_size` (TypeScript `mipSize`, WGSL `mipSize` through `mipSize.golden.test.ts` of `packages/sdk-browser/src/gpu/shader/`), `srgb_to_linear`, `hermite_basis`, `xorshift32`, `lcg32`; `preview_levels` (`previewLevels.golden.test.ts` of `packages/sdk-core/src/texture/`).
 - WebAssembly twin: `packages/sdk-browser/src/geometry/decode/multiplyBatch.golden.test.ts`.
-- The proxy BVH child box and albedo bytes are read by WGSL alone (`nodeWgsl.ts`): no CPU twin.
 - The grid rule (`PageGrid::of`, positions in centimetres on cells of one precision) has no
   TypeScript twin and no golden: the run-time cut runs the Rust rule in the SDK module
   (`wasm/grid.rs`), the one the compiler runs, tested where it lives
   (`packages/asset-compiler-rust/src/tests/geometry_page/grid.rs`).
-
-### Measured against the witness library
-
-Each row names its witness call and proof: `pnpm run perf:core`
-(`bench/perf/core/three-vs-core-*.perf.ts`; how a line reads:
-[TESTS.md](TESTS.md#performance-benchmarks)) runs Three.js and the engine on the same seeded inputs,
-compares bit for bit and refuses an engine slower than the witness. Ratios are the engine's speed-up
-over the witness (best of three runs); they say where, not how much a frame gains. From Three.js,
-the witness calls are the migration table.
 
 ### Unit functions
 
@@ -297,30 +335,29 @@ The engine does not read the host's clip-depth convention. It composes its own p
 declared optics — field, aspect, near plane, zoom — in **reversed depth with an infinite far
 plane**: `near` projects to 1, infinity to 0 (`packages/sdk-browser/src/camera/depthConvention.ts`,
 `engineCamera.ts` beside it), one convention for the frustum planes, the GPU's view-projection, the
-Hi-Z bounds and the CPU visibility raster. A declared exception: the bench compares the projection's
-x/y terms to the witness's, the depth terms being the engine's. `far` is still read for the frustum
-far plane and the shadow range.
+Hi-Z bounds and the CPU visibility raster. `far` is still read for the shadow
+range, never for the frustum: a perspective view has no far plane, so nothing is culled for its
+distance alone. A perspective field is read as at least 0.001°, a near plane not above zero as 0.1 m,
+and a camera whose world matrix has no inverse (a scale of zero) is drawn from the origin looking down −z.
 
 #### Sides — `packages/sdk-browser/src/materials/surface/materialSide.ts`
 
-| Function                                    | Computes                                                                                                     | Witness call                          | Proof                  |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------- | ---------------------- |
-| `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, pipeline and blend-plan decision compares against it       | `FrontSide`, `BackSide`, `DoubleSide` | `materialSide.test.ts` |
-| `sideOf(material)`                          | the `Side` a mesh's surface record declares, the first of an array deciding, an empty array front            | the host's double-side test           | `materialSide.test.ts` |
+| Function                                    | Computes                                                                                               | Proof                  |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------- |
+| `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, pipeline and blend-plan decision compares against it | `materialSide.test.ts` |
+| `sideOf(material)`                          | the `Side` a mesh's surface record declares, the first of an array deciding, an empty array front      | `materialSide.test.ts` |
 
 ### Batch functions
 
 `packages/math/src/batch/`: `batch.ts`, with `culling.ts` and `points.ts` beside it,
-and `composeMatrix4Batch` in `packages/math/src/matrix/matrix4Compose.ts`. The proof is `pnpm run perf:core` (`three-vs-core-batch-*.perf.ts`).
-Ratios are the batch's speed-up over the witness's loop, rounded from the range of the per-run
-medians over three runs.
+and `composeMatrix4Batch` in `packages/math/src/matrix/matrix4Compose.ts`.
 
-| Function                                                      | Computes                                                        | Witness loop                       | Proof                                                  |
-| ------------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------ |
-| `frustumKeepsBoxBatch(kept, planes, boxes, n)`                | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept | `for … frustum.intersectsBox(box)` | bench `Frustum.intersectsBox batch` (×1.1)             |
-| `sphereFromBoundsBatch(out, boxes, n)`                        | four values per box, `sphereFromBounds`                         | `for … box.getBoundingSphere(s)`   | bench `Box3.getBoundingSphere batch` (×2.2)            |
-| `boxUnionBatch(into, boxes, n)`                               | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion`                | `for … box.union(b)`               | bench `Box3.union batch` (×1.9)                        |
-| `composeMatrix4Batch(out, positions, quaternions, scales, n)` | `T · R · S` per element, all flat or all sub-views              | `for … m.compose(p, q, s)`         | bench `Matrix4.compose batch` (×1.5)                   |
-| `transformPointsBatch(out, m, points, n)`                     | `n` points by one affine matrix, `transformAffinePoint`         | `for … v.applyMatrix4(m)`          | bench `Vector3.applyMatrix4 batch` (×1.4)              |
-| `transformPointsByMatricesBatch(out, mats[], points, n)`      | `n` points, one matrix each                                     | `for … v[i].applyMatrix4(mats[i])` | bench `Vector3.applyMatrix4 per-instance batch` (×1.9) |
-| `transformDirectionsBatch(out, m, dirs, n)`                   | upper 3×3 then normalize, `transformDirectionVector3`           | `for … v.transformDirection(m)`    | bench `Vector3.transformDirection batch` (×1.3)        |
+| Function                                                      | Computes                                                        |
+| ------------------------------------------------------------- | --------------------------------------------------------------- |
+| `frustumKeepsBoxBatch(kept, planes, boxes, n)`                | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept |
+| `sphereFromBoundsBatch(out, boxes, n)`                        | four values per box, `sphereFromBounds`                         |
+| `boxUnionBatch(into, boxes, n)`                               | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion`                |
+| `composeMatrix4Batch(out, positions, quaternions, scales, n)` | `T · R · S` per element, all flat or all sub-views              |
+| `transformPointsBatch(out, m, points, n)`                     | `n` points by one affine matrix, `transformAffinePoint`         |
+| `transformPointsByMatricesBatch(out, mats[], points, n)`      | `n` points, one matrix each                                     |
+| `transformDirectionsBatch(out, m, dirs, n)`                   | upper 3×3 then normalize, `transformDirectionVector3`           |

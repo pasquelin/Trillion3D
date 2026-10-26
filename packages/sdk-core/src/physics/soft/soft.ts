@@ -79,9 +79,9 @@ const SOFT_STEP_LOSS = 0.01
 export const SOFT_DAMPING = decayRate(1 - SOFT_STEP_LOSS, PHYSICS_STEP)
 
 /** Declared: a volume keeps within a tenth of its rest volume, or its pressure is refused. */
-const SOFT_MAX_SWELL = 0.1
+export const SOFT_MAX_SWELL = 0.1
 /** The physics module's substeps of a soft body per step: `SoftBodyCreationSettings::mNumIterations`, its default. */
-const SOFT_SUBSTEPS = 5
+export const SOFT_SUBSTEPS = 5
 
 /**
  * The most gauge pressure, Pa, a volume's skin holds within `SOFT_MAX_SWELL`, simulated in fixed
@@ -139,6 +139,31 @@ export interface SoftRecord {
   pressure: number
 }
 
+/** The vertices of `source` (three numbers each) at one position welded into one: `map` gives each
+ *  vertex its welded rank, `kept` the first vertex of each. */
+function weldVertices(source: Float32Array, count: number) {
+  const map = new Uint32Array(count)
+  const at = new Map<string, number>()
+  const kept: number[] = []
+  for (let v = 0; v < count; v++) {
+    const key = `${source[v * 3]},${source[v * 3 + 1]},${source[v * 3 + 2]}`
+    let welded = at.get(key)
+    if (welded === undefined) at.set(key, (welded = kept.push(v) - 1))
+    map[v] = welded
+  }
+  return { map, kept }
+}
+
+/** The triangles of `corners` through the weld, those that collapsed to a line or point left out. */
+function weldedTriangles(corners: ArrayLike<number>, map: Uint32Array) {
+  const indices: number[] = []
+  for (let t = 0; t + 2 < corners.length; t += 3) {
+    const [a, b, c] = [map[corners[t]], map[corners[t + 1]], map[corners[t + 2]]]
+    if (a !== b && b !== c && a !== c) indices.push(a, b, c)
+  }
+  return indices
+}
+
 /**
  * The simulated vertices of `geometry`: those at one position welded into one (a sphere's seam
  * and poles would otherwise tear), their triangles (none for a rope: its vertices in order), and
@@ -153,22 +178,9 @@ export function softBodyOf(
 ): SoftRecord {
   const source = Float32Array.from(readPoints(geometry.getAttribute('position')))
   const count = source.length / 3
-  const map = new Uint32Array(count)
-  const at = new Map<string, number>()
-  const kept: number[] = []
-  for (let v = 0; v < count; v++) {
-    const key = `${source[v * 3]},${source[v * 3 + 1]},${source[v * 3 + 2]}`
-    let welded = at.get(key)
-    if (welded === undefined) at.set(key, (welded = kept.push(v) - 1))
-    map[v] = welded
-  }
+  const { map, kept } = weldVertices(source, count)
   const corners = geometry.index ? geometry.index.array : Uint32Array.from(map.keys())
-  const indices: number[] = []
-  if (settings.type !== 'rope')
-    for (let t = 0; t + 2 < corners.length; t += 3) {
-      const [a, b, c] = [map[corners[t]], map[corners[t + 1]], map[corners[t + 2]]]
-      if (a !== b && b !== c && a !== c) indices.push(a, b, c)
-    }
+  const indices = settings.type === 'rope' ? [] : weldedTriangles(corners, map)
   if (settings.type === 'rope' ? kept.length < 2 : !indices.length)
     throw new EngineError('PHYSICS_FAILED', `A soft ${settings.type} needs more vertices.`)
   const vertices = new Float32Array(kept.length * SOFT_VERTEX_WORDS)

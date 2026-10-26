@@ -1,4 +1,5 @@
-import type { ControlCamera, ControlVector } from './types.ts'
+import type { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import type { ControlCamera } from './types.ts'
 import { screenWorldLength } from './math.ts'
 import { loadXyz, loadXyzw } from '../../../../sdk-core/src/world/math/likes.ts'
 
@@ -14,9 +15,9 @@ import { loadXyz, loadXyzw } from '../../../../sdk-core/src/world/math/likes.ts'
  */
 export interface ControlPose {
   /** The camera as the contract exposes it; its `position` is live. */
-  object: { position: ControlVector }
+  object: { position: Vector3 }
   /** A fresh vector of the host's kind, zeroed. */
-  vector(): ControlVector
+  vector(): Vector3
   /** The world length spanning `share` of the picture's height at view `depth`
    *  (`screenWorldLength`): perspective or orthographic, as the camera draws. */
   worldLength(depth: number, share: number): number
@@ -42,7 +43,7 @@ export function controlPose(camera: ControlCamera): ControlPose {
 }
 
 /** Writes flat numbers back into a host vector. */
-export function writeVector(v: ControlVector, from: ArrayLike<number>) {
+export function writeVector(v: Vector3, from: ArrayLike<number>) {
   v.set(from[0], from[1], from[2])
   return v
 }

@@ -15,24 +15,11 @@ import {
 } from '../projection/projectionDataWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 import { sinFromCosUnclamped } from '../../../../../../math/src/wgsl/geometry.ts'
+import { transformPoint } from '../../../../../../math/src/wgsl/projection.ts'
 
 const CM = `${VSM_UNIT_PER_CM}`
 
-/** The map of a light at a receiver and its texels, sampling the pages of `pool`. The host brings the
- *  light's struct (`vsmTraceLightWgsl`) and the view `vsmView`. */
-export const vsmTraceMapWgsl = (pool: WgslDecl) =>
-  wgslBlock(
-    'vsmTraceMapWgsl',
-    [
-      vsmProjectionSampleWgsl(pool),
-      VSM_HANDLE_WGSL,
-      VSM_PAGE_ADDRESS_WGSL,
-      VSM_PROJECTION_DATA_WGSL,
-      VSM_PROJECTION_DATA_READ_WGSL,
-      sinFromCosUnclamped,
-    ],
-    `
-/** A light's map at a receiver \`shifted\` (the view's shifted frame), read once for its rays: a
+const mapOfLightText = /* wgsl */ `/** A light's map at a receiver \`shifted\` (the view's shifted frame), read once for its rays: a
  *  sun's clipmap level mapped at the receiver's texel, none past the last (the level its texel is
  *  mapped on is told by the page's words, \`vsmClipmapTexel\`); a spot's one map; the cube face of a point or rectangle
  *  light the receiver lies in. \`mip\` is the finest mip its reads start from, \`pInMap\` the
@@ -56,7 +43,8 @@ fn vsmLightMapAt(light:VsmProjectionLight,shifted:vec3f)->VsmLightMap{
   r.clipmap=true;
   let base=vsmProjectionOf(h);
   let d2=vsmDistanceSqToOrigin(base,shifted,vsmView.originShiftHigh,vsmView.originShiftLow);
-  let levelIndex=max(0,i32(floor(vsmSampledLevel(base,d2)))-base.mapLevel);
+  let sceneDepth=transformPoint(vsmView.shiftedToView,shifted).z;
+  let levelIndex=max(0,i32(floor(vsmSampledLevel(base,d2,sceneDepth)))-base.mapLevel);
   if(levelIndex>=base.levelsLeft){return r;}
   let levelMap=vsmHandleOffset(h,levelIndex);
   vsmLightMapOn(&r,levelMap,shifted);
@@ -75,7 +63,9 @@ fn vsmLightMapAt(light:VsmProjectionLight,shifted:vec3f)->VsmLightMap{
  r.mip=face.finestMip;
  r.valid=true;
  return r;
-}
+}`
+
+const mapTexelText = /* wgsl */ `
 /** The texel a sample of map \`h\` reads: its pool texel and the bias and inverse scale its raw
  *  depth takes to \`h\`'s depth (\`vsmMapTexelDepth\`: a coarser clipmap level's; 0 and 1 for a
  *  local map's coarser mip, the same projection). Invalid outside the map's square and where no
@@ -91,15 +81,14 @@ fn vsmDepthGradientUv(pd:VsmProjectionData,pointInMap:vec3f,n:vec3f)->vec2f{
  return -planeUv.xy/planeUv.z;
 }
 /**
- * THE RECEIVER-PLANE BIAS OF A LIGHT'S RAYS, every light's one rule, known before any ray: the
- * depth the receiver's plane (\`uvDepthSlope\`) climbs across one texel of the map's finest mip
- * (\`texelUv\` wide) — the most it climbs from any start to the centre of the texel it reads,
- * |sx|·t/2 + |sy|·t/2, doubled —, held to \`cap\`. The ray line takes off it the depth its start
- * already gained toward the light (\`vsmRayLine\`): a start the screen segment moved past the
- * receiver needs less.
+ * THE DEPTH THE RECEIVER'S PLANE (\`slope\`) CLIMBS toward the light over \`offset\`, a step in the
+ * space the slope is given in (a UV step on the map for \`uvDepthSlope\`, a step across the light's
+ * frame for \`frameDepthSlope\`), doubled and never below 0: the one rule of the receiver-plane
+ * biases of the rays (\`traceRayWgsl.ts\`) — a local ray's offset from its start to the centre of
+ * the texel it reads, a sun ray's the dither it was started with, a local ray's dither lift.
  */
-fn vsmPlaneBias(uvDepthSlope:vec2f,texelUv:f32,cap:f32)->f32{
- return min(cap,(abs(uvDepthSlope.x)+abs(uvDepthSlope.y))*texelUv);
+fn vsmPlaneLift(slope:vec2f,offset:vec2f)->f32{
+ return 2.0*max(0.0,dot(slope,offset));
 }
 /** The depth a unit of view depth takes in the map at a point of clip w \`w\`: |M22·M33 − M32·M23| / w², the
  *  derivative of the map's z/w — an orthographic map's |M22|, a perspective one's |M32| / w². */
@@ -114,10 +103,27 @@ fn vsmReceiverPixelSize(pd:VsmProjectionData,sceneDepth:f32)->f32{
  return max(0.1*${CM},pixelWorldHere*exp2(pd.levelBias));
 }
 /** A local ray's reach toward its light, a share of the distance: three quarters of the way,
- *  sooner off the light's axis (\`VSM_TRACE_CONE_COT\`). */
+ *  sooner off the light's axis (\`traceConeCot\`). */
 fn vsmLocalRayReach(cosTheta:f32)->f32{
  let sinTheta=sinFromCosUnclamped(cosTheta);
- return 0.75*saturate(1.5/(cosTheta+VSM_TRACE_CONE_COT*sinTheta));
-}
+ return 0.75*saturate(1.5/(cosTheta+vsm.traceConeCot*sinTheta));
+}`
+
+/** The map of a light at a receiver and its texels, sampling the pages of `pool`. The host brings the
+ *  light's struct (`vsmTraceLightWgsl`) and the view `vsmView`. */
+export const vsmTraceMapWgsl = (pool: WgslDecl) =>
+  wgslBlock(
+    'vsmTraceMapWgsl',
+    [
+      vsmProjectionSampleWgsl(pool),
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      sinFromCosUnclamped,
+      transformPoint,
+    ],
+    `
+${mapOfLightText}${mapTexelText}
 `,
   )

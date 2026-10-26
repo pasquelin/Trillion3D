@@ -19,8 +19,6 @@ import { SHADE_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts'
 import { SHADE_OUTPUTS_WGSL } from './shadeOutputsWgsl.ts'
 import { SURFACE_MODEL_SHADE_WGSL } from '../../materials/surface/surfaceModel.ts'
-import { SHADING_POINT_WGSL } from './shadingPoint.ts'
-import { shadeCacheReadWgsl } from './shadeCacheLayout.ts'
 import { PHYSICAL_RESOLVE_WGSL } from './physicalWgsl.ts'
 
 /**
@@ -34,12 +32,10 @@ export const shadeDeclWgsl = (request: WgslDecl = SHADE_REQUEST_WGSL) =>
     request === SHADE_REQUEST_WGSL ? 'SHADE_DECL_WGSL' : `SHADE_DECL_WGSL(${request.name})`,
     [
       PAGE_GEOMETRY_WGSL,
-      shadeCacheReadWgsl(SHADE_BINDINGS.shadeCache),
       PIXEL_TRIANGLE_WGSL,
       PHYSICAL_RESOLVE_WGSL,
       SHADE_OUTPUTS_WGSL,
       PAGE_INFO_STRUCT_WGSL,
-      SHADING_POINT_WGSL,
       SHADE_UNI_WGSL,
       normalAtlasWgsl(SHADE_BINDINGS.normal),
       MATERIAL_CLASS_WGSL,

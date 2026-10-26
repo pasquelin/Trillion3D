@@ -6,6 +6,11 @@ import type { MatrixElements } from '../session/host/matrixElements.ts'
 import type { PlacementOf } from '../placement/rows/rows.ts'
 import { FRUSTUM_PLANE_VALUES } from '../../../math/src/geometry/frustum/frustum.ts'
 import type { DiagnosticMode } from '../../../sdk-core/src/runtime/diagnostics.ts'
+import { readSetting } from '../../../sdk-core/src/contracts/settingRules.ts'
+import {
+  SKY_QUALITY_RULES,
+  type SkyQualityOptions,
+} from '../../../sdk-core/src/modules/sky/quality.ts'
 import { createWebgpuBindIdentity } from '../gpu/bind/bindIdentity.ts'
 import type { BlendLighting } from '../gpu/bind/blendBindEntries.ts'
 import type { BlendOverdraw } from './overdraw.ts'
@@ -17,6 +22,8 @@ import { planState, planTotals } from './plan/planState.ts'
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import type { GeometryBlock } from '../geometry/rows/page/pageRowMaterial.ts'
 import type { NodeIndex } from '../frame/render/movedNode.ts'
+import type { WaterTargets } from './water/waterTargets.ts'
+import type { WaterSun } from './water/waterFold.ts'
 import type { FrontOutputs } from '../lighting/reflections/frontLayer.ts'
 
 /** A transparent item: one blended root's placement, drawn from its pages cluster by cluster, as
@@ -25,6 +32,8 @@ export type BlendGpuItem = {
   /** The material transmits: its layer is lit and composed as a thin translucent layer, and it
    *  distorts what lies behind it (`./transmission/transmitWgsl.ts`). */
   transmissive?: boolean
+  /** The material is single-layer water: drawn by the water pass, over the scene without it (`./water/`). */
+  water?: boolean
   /** Its surface carries an anisotropic or clear-coat lobe, set with its record
    *  (`refreshBlendScene`): what every lobe switch of the transparent passes is derived from. */
   lobed?: boolean
@@ -40,7 +49,7 @@ export type BlendGpuItem = {
   hidden?: boolean
   drawSource?: DrawSource
   sourceGeometry: Geometry
-  /** Its local box, six bounds flat: what its pages lie in (`BlendCopy.userData`), read
+  /** Its local box, six bounds flat: what its pages lie in (`BlendCopy.localBox`), read
    *  in place of its geometry's box (`readItemBox`). */
   pageBox?: Float64Array
   /** World box of the item, six bounds flat (`packages/math/src/geometry/box.ts`); absent, the item is not rejected. */
@@ -59,6 +68,8 @@ export type BlendGpuItem = {
   pagedIndex?: number
   /** Base of its cluster list in the transparent table, zero before it joins it. */
   tableBase?: number
+  /** Plan entries the statics reserved for it (`buildBlendStatics`): one, or two when its surface asked two passes. */
+  sides?: number
   /** First vertex of its geometry in the float pool, zero for one drawn from quantized pages. */
   vertexBase?: number
 }
@@ -66,13 +77,17 @@ export type BlendGpuItem = {
 /** The blend state a session holds (`createWebgpuBlendState`). */
 export type WebgpuBlendState = ReturnType<typeof createWebgpuBlendState>
 
-/** Reused transparent draw lists and GPU resources for one backend instance. */
-export function createWebgpuBlendState() {
+/** Reused transparent draw lists and GPU resources for one backend instance. `context`: the session's
+ *  settings, of which the project switch `cloudShadowOnTranslucent` is read once when it opens, as
+ *  the clip plane's is (`cloudVertex.ts`). */
+export function createWebgpuBlendState(context: SkyQualityOptions = {}) {
   /** Words of the view uniform, allocated once. */
   const view = new Float32Array(BLEND_VIEW_SIZE / 4)
   const blendGpu: BlendGpuItem[] = []
   const visibleBlend: BlendGpuItem[] = []
   const state = {
+    /** Whether the translucent programs read the clouds' shade at each vertex. */
+    cloudShade: readSetting(SKY_QUALITY_RULES, context, 'cloudShadowOnTranslucent'),
     blendGpu,
     /** The draws' index by node, its slots made at its first read (`../frame/render/movedNode.ts`). */
     blendIndex: { revision: 0 } as NodeIndex,
@@ -133,13 +148,21 @@ function translucentState() {
     /** An item is `lobed`: the blends are lit by a lobed program (`shader.ts`). Set with the
      *  records. */
     lobed: false,
-    /** An item's surface gives up some of its history (`ITEM_NEEDS.givesUp`): under a temporal
-     *  pass, the blends write the history given up (`blendShareTargets`). Set with the records. */
-    givesUp: false,
+    /** An item's surface carries a responsiveness (`ITEM_NEEDS.responsive`): under a temporal
+     *  pass, the blends write it (`blendResponsiveTargets`). Set with the records. */
+    responsive: false,
+    /** The passes of the image the items' surfaces are drawn in, as a set of `translucencyPassBit`s:
+     *  what the frame splits its layers by (`splitsTranslucency`). Set with the records. */
+    translucencyPasses: 0,
     /** What the front pass writes (`frontStageOf`): the reflecting surface the trace answers once an
      *  item reflects (lit, of the physical model), its lobes once one carries a lobe. Set with the
      *  records. */
     frontOutputs: 0 as FrontOutputs,
+    /** The single-layer water pass's targets, made at the first image that draws it
+     *  (`./water/waterTargets.ts`). */
+    waterTargets: undefined as WaterTargets | undefined,
+    /** The sun's distance-field shadow traced at the water's depth (`encodeWaterSunFieldShadow`). */
+    waterSun: undefined as WaterSun | undefined,
   }
 }
 

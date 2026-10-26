@@ -23,13 +23,11 @@ fn run(root: &Path, ram: usize, cancelled: bool) -> Result<Vec<TexturePreview>> 
                     image_root: root,
                     used_materials: &used,
                     view_map: &BTreeMap::new(),
-                    to_measure: &BTreeSet::new(),
-                    measurements: crate::cutout::MeasureCache::EMPTY,
                     image_shas: &shas,
                 },
                 &|_| {},
             )
-            .map(|(p, _, _)| p)
+            .map(|(p, _)| p)
         })
 }
 

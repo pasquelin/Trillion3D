@@ -1,0 +1,137 @@
+/**
+ * THE CHANGES NO PLACEMENT SAYS, declared by the CPU as the boxes of the clusters they touch: a colour
+ * tile of a cutout's texture arrived, a surface's alpha moved, a world cell switched between its
+ * placements and its HLOD actor. The diff of the instances' boxes (`castDiff.ts`) sees a placement
+ * move, appear or leave; it cannot see a cluster's shadow change where it stands, so the cluster's
+ * sphere is boxed here (`growClusterBox`) and entered into the world's changes
+ * (`WebgpuLightState.changes`), which the invalidation reads beside the diff's list.
+ */
+import { boxEmpty, boxesOverlap, boxUnion } from '../../../../../math/src/geometry/box.ts'
+import { FAR_VALUE } from '../../../../../math/src/constants.ts'
+import { FLAG_MASK } from '../../../visibility/types.ts'
+import type { PageSurface } from '../../../geometry/pages/surface.ts'
+import type { PageRec } from '../../../geometry/selection/types.ts'
+import { rootOfPacked } from '../../../geometry/selection/placements.ts'
+import type { MaterialLayers } from '../../../geometry/rows/page/pageRowMaterial.ts'
+import type { MaterialTable } from '../../../materials/table/materialTable.ts'
+import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
+import { growClusterBox } from './spheres.ts'
+
+const EVERYWHERE_MIN = [-FAR_VALUE, -FAR_VALUE, -FAR_VALUE],
+  EVERYWHERE_MAX = [FAR_VALUE, FAR_VALUE, FAR_VALUE]
+
+/** What the followers read of the runtime: the lights' changes and mobility, the layout's clusters,
+ *  and the material table that says what a cluster's surface reads. */
+export type FollowRuntime = Pick<WebgpuPagesRuntime, 'lights' | 'layout'> & {
+  vis: MaterialLayers & { materialTable: Pick<MaterialTable, 'surface'> }
+  run?: Pick<WebgpuPagesRuntime['run'], 'gpuSelection'>
+}
+
+/** The box of the resident clusters of each root that `wants` names, one a root: scratch, rewritten
+ *  by each call. */
+const perRoot = new Map<number, Float64Array>()
+
+/**
+ * Declares, for each root with a resident cluster whose record `wants`, the box of those clusters:
+ * the pages over them go stale at the next plan, only the moving casters' layer when the root already
+ * moves. One scan of the resident clusters a call, however many tiles were served.
+ */
+function declareResident(rt: FollowRuntime, wants: (rec: PageRec) => boolean) {
+  const { lights, layout } = rt
+  if (!lights.store.count) return
+  const { pages, count } = layout.clusters.residentPages()
+  perRoot.clear()
+  for (let i = 0; i < count; i++) {
+    const page = pages[i],
+      rec = layout.recordOf(page)
+    if (!rec || rec.transparent || !wants(rec)) continue
+    const rank = rootOfPacked(layout.placement, page)
+    if (rank < 0) continue
+    let box = perRoot.get(rank)
+    if (!box) {
+      box = new Float64Array(6)
+      boxEmpty(box, 0)
+      perRoot.set(rank, box)
+    }
+    growClusterBox(rec, layout.selectionRoots, box, rank)
+  }
+  for (const [rank, box] of perRoot)
+    lights.changes.worldChanged(box.subarray(0, 3), box.subarray(3, 6), lights.mobility.moves(rank))
+  perRoot.clear()
+}
+
+/**
+ * Colour tiles of textures `slots` are resident, or have left: the alpha cutout the shadow pass
+ * reads has just changed for every masked surface that carries one of these textures, and a map
+ * drawn at the previous level would describe foliage that is no longer the image's. The pages over
+ * the clusters of those surfaces go stale at the frame's next invalidation, under the ordinary
+ * Shadows stage budget — and those alone: a colour tile of a texture no cutout reads changes no depth,
+ * and stales nothing. One scan of the resident clusters per pump, whatever the tiles served. At `-1`
+ * the pool changed without naming a texture — a resize — and every page restarts. Without this
+ * signal, two identical runs produced two different shadows, depending on when each page had been
+ * drawn.
+ */
+export function shadowsFollowTextures(rt: FollowRuntime, slots: ReadonlySet<number> | -1) {
+  if (!rt.lights.store.count) return
+  if (slots === -1) {
+    rt.lights.changes.representationChanged(EVERYWHERE_MIN, EVERYWHERE_MAX)
+    return
+  }
+  if (!slots.size) return
+  const { materialTable } = rt.vis
+  declareResident(rt, (rec) => {
+    const { row } = materialTable.surface(rec.material, rt.vis)
+    return (row.bits & FLAG_MASK) !== 0 && slots.has(row.map)
+  })
+}
+
+/**
+ * Surfaces whose alpha mode or cutoff a page changed: the depth their clusters cast is no longer
+ * the one drawn, whether they cut it before or not: the shadow pages over those clusters alone are
+ * drawn again at once, as a node shown or hidden is, not when the camera rests.
+ */
+export function shadowsFollowSurfaces(rt: FollowRuntime, surfaces: ReadonlySet<PageSurface>) {
+  declareResident(rt, (rec) => surfaces.has(rec.material as PageSurface))
+}
+
+/** The box being merged by `shadowsFollowCells`: the cluster boxes of one run of a cell, joined while
+ *  they overlap, scratch. */
+const run = new Float64Array(6),
+  incoming = new Float64Array(6)
+
+/**
+ * The world's cells that switched between their placements and their HLOD actors since the last
+ * image (`GpuSelection.switchedPages`): the clusters of the representation a cell draws now cast
+ * where they stand, those of the one it left no more — the casters obey the cut's switch
+ * (`../../../geometry/dag/shader/worldGateWgsl.ts`, `worldDraws`) —, so the box of each is entered
+ * into the world's changes, the boxes of a cell's clusters merged while they overlap: the pages it
+ * covers are drawn again in the same image, as a primitive added or removed stales its bounds.
+ */
+export function shadowsFollowCells(rt: FollowRuntime) {
+  const { lights, layout } = rt,
+    selection = rt.run?.gpuSelection
+  if (!selection || !lights.store.count) return
+  let open = false,
+    movingRun = false
+  const flush = () => {
+    if (open) lights.changes.worldChanged(run.subarray(0, 3), run.subarray(3, 6), movingRun)
+    open = false
+  }
+  selection.switchedPages((world, rank) => {
+    const page = layout.placement.baseOfRoot[world] + rank,
+      rec = layout.recordOf(page)
+    if (!rec) return
+    boxEmpty(incoming, 0)
+    growClusterBox(rec, layout.selectionRoots, incoming, world)
+    const moving = lights.mobility.moves(world)
+    if (open && moving === movingRun && boxesOverlap(run, 0, incoming, 0))
+      boxUnion(run, 0, incoming[0], incoming[1], incoming[2], incoming[3], incoming[4], incoming[5])
+    else {
+      flush()
+      run.set(incoming)
+      open = true
+      movingRun = moving
+    }
+  })
+  flush()
+}

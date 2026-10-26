@@ -1,14 +1,20 @@
 import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
 import { uniformBlock } from '../../gpu/core/uniformBlock.ts'
-import { retire } from '../../gpu/core/frameRetire.ts'
-import { ledgerAdmitted } from '../../gpu/core/deviceLedger.ts'
-import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
-import { standInTexture } from '../../gpu/core/standInTexture.ts'
+import {
+  allocatedTextures,
+  createHeldTextures,
+  listedBytes,
+  type AllocatedTextures,
+} from '../../gpu/core/heldTextures.ts'
+import type { ResourceAllocator } from '../../gpu/core/resourceAllocator.ts'
+import { standInTexture } from '../../gpu/core/standIns.ts'
 import { FOG_STATIC_FORMAT, FOG_VOLUME_FRAME_WORDS, type FogGrid } from './layout.ts'
 import { type FogProgramName } from './bindings.ts'
-import { layoutEntries } from './layoutEntries.ts'
-import { FOG_PROGRAMS } from './programs.ts'
-import { createFogSampler, FOG_VOLUME_FORMAT } from './read.ts'
+import { graphLayoutEntries, layoutEntries } from './layoutEntries.ts'
+import { FOG_PROGRAMS, fogGraphProgram, fogProgramsWithoutLocal } from './programs.ts'
+import type { VoxelGraphSet } from './voxelGraph.ts'
+import { FOG_VOLUME_FORMAT } from './read.ts'
+import { postSamplers } from '../../gpu/core/postSamplers.ts'
 
 /** The entry points of the programs. */
 const ENTRY_POINT = {
@@ -21,52 +27,32 @@ const ENTRY_POINT = {
   voxelize: 'voxelizeMain',
 } as const satisfies Record<FogProgramName, string>
 
-/** The textures of one grid: the volume of the scatter twice — this image's, the previous —, the
+/** The textures of one grid, asked of `allocator`: the volume of the scatter twice — this image's, the previous —, the
  *  integrated volume, and the furthest depth twice; where `voxels` holds, the two volumes the
  *  objects of the volume material domain are voxelised into (their scattering with the extinction,
  *  their emissive light); where `baked` holds, the volume of the static term's pass (`FOG_STATIC_FORMAT`). A 3D texture of half floats, the grid's cells; a 2D one of floats, its
  *  cells across the image. */
-function createVolumeTextures(device: GPUDevice, grid: FogGrid, voxels: boolean, baked: boolean) {
-  const made: GPUTexture[] = []
-  const make = (descriptor: GPUTextureDescriptor) => {
-    const texture = device.createTexture(descriptor)
-    made.push(texture)
-    return { made: texture, view: texture.createView() }
-  }
-  const usage = GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
+function volumeTextures(
+  allocator: ResourceAllocator,
+  grid: FogGrid,
+  voxels: boolean,
+  baked: boolean,
+) {
   const volume = (label: string, format: GPUTextureFormat = FOG_VOLUME_FORMAT) =>
-    make({
-      label,
-      dimension: '3d',
-      size: { width: grid.x, height: grid.y, depthOrArrayLayers: grid.z },
-      format,
-      usage,
-    })
-  const plane = (label: string) =>
-    make({ label, size: { width: grid.x, height: grid.y }, format: 'r32float', usage })
-  try {
-    return {
-      grid,
-      scattering: [volume('Trillion3D fog scattering 0'), volume('Trillion3D fog scattering 1')],
-      integrated: volume('Trillion3D fog integrated'),
-      furthest: [plane('Trillion3D fog depth 0'), plane('Trillion3D fog depth 1')],
-      voxel: voxels
-        ? ([
-            volume('Trillion3D fog voxel medium'),
-            volume('Trillion3D fog voxel emissive'),
-          ] as const)
-        : undefined,
-      baked: baked ? volume('Trillion3D fog static term', FOG_STATIC_FORMAT) : undefined,
-    }
-  } catch (error) {
-    // A refusal midway leaves nothing behind.
-    for (const texture of made) texture.destroy()
-    throw error
+    allocator.texture(label, [grid.x, grid.y, grid.z], format, { dimension: '3d' })
+  const plane = (label: string) => allocator.texture(label, [grid.x, grid.y], 'r32float')
+  return {
+    grid,
+    scattering: [volume('scattering 0'), volume('scattering 1')],
+    integrated: volume('integrated'),
+    furthest: [plane('depth 0'), plane('depth 1')],
+    voxel: voxels ? ([volume('voxel medium'), volume('voxel emissive')] as const) : undefined,
+    baked: baked ? volume('static term', FOG_STATIC_FORMAT) : undefined,
   }
 }
 
-/** The textures of a grid (`createVolumeTextures`). */
-export type VolumeTextures = ReturnType<typeof createVolumeTextures>
+/** The textures of a grid, with the allocator that holds them and the bytes they take. */
+export type VolumeTextures = AllocatedTextures<ReturnType<typeof volumeTextures>>
 
 /** A program of the volume: its layout and its pipeline. */
 interface FogProgram {
@@ -74,55 +60,70 @@ interface FogProgram {
   pipeline: ReturnType<ReturnType<typeof preparedComputeStage>['ask']>
 }
 
-/** The layout and the pipeline of each program but the sky scatter, the pipelines asked now, off the frame; and the
- *  sky scatter, whose pipeline is asked at the first image that wants it (`skyScatter`). */
-function createFogPrograms(device: GPUDevice, failed: (error: unknown) => void) {
-  const program = (name: FogProgramName): FogProgram => {
-    const label = `Trillion3D fog ${name}`
-    const layout = device.createBindGroupLayout({ entries: layoutEntries(name) })
-    const module = device.createShaderModule({ label, code: FOG_PROGRAMS[name] })
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-    const pipeline = preparedComputeStage(
-      device,
-      pipelineLayout,
-      module,
-      ENTRY_POINT[name],
-      undefined,
-      label,
-    ).ask()
-    pipeline.prepare().catch(failed)
-    return { layout, pipeline }
-  }
-  const programs = {} as Record<Exclude<FogProgramName, 'scatterSky'>, FogProgram>
-  for (const name of Object.keys(FOG_PROGRAMS) as FogProgramName[])
-    if (name !== 'scatterSky') programs[name] = program(name)
-  let sky: FogProgram | undefined
-  return { programs, skyScatter: () => (sky ??= program('scatterSky')) }
+/** A program of the volume from its layout `entries` and its `module`: the layout, and the pipeline
+ *  asked now, off the frame (`failed` hears a refusal). */
+function makeProgram(
+  device: GPUDevice,
+  failed: (error: unknown) => void,
+  label: string,
+  entries: GPUBindGroupLayoutEntry[],
+  module: GPUShaderModule,
+  entryPoint: string,
+): FogProgram {
+  const layout = device.createBindGroupLayout({ entries })
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
+  const pipeline = preparedComputeStage(
+    device,
+    pipelineLayout,
+    module,
+    entryPoint,
+    undefined,
+    label,
+  ).ask()
+  pipeline.prepare().catch(failed)
+  return { layout, pipeline }
 }
 
-/** Bytes of the textures of `grid` (`createVolumeTextures`): three volumes, two planes, two volumes
- *  more where the objects are voxelised, and the static term's where it is baked. */
-const volumeBytes = (grid: FogGrid, voxels = false, baked = false) =>
-  (voxels ? 5 : 3) * grid.x * grid.y * grid.z * texelBytesOf(FOG_VOLUME_FORMAT) +
-  2 * grid.x * grid.y * texelBytesOf('r32float') +
-  (baked ? grid.x * grid.y * grid.z * texelBytesOf(FOG_STATIC_FORMAT) : 0)
-
-/** Bytes the textures held take. */
-const bytesOf = (held: VolumeTextures) => volumeBytes(held.grid, !!held.voxel, !!held.baked)
-
-/** Every texture of `held`. */
-const allOf = (held: VolumeTextures) => [
-  ...held.scattering,
-  held.integrated,
-  ...held.furthest,
-  ...(held.voxel ?? []),
-  ...(held.baked ? [held.baked] : []),
-]
+/** The layout and the pipeline of each program but the sky scatter, the pipelines asked now, off the frame; the
+ *  sky scatter, whose pipeline is asked at the first image that wants it (`skyScatter`); and the
+ *  voxelisation of the set of graphs the image holds, asked when it first does (`graphVoxelize`),
+ *  with the set before it kept: a camera that walks across the edge of a fog object with a graph
+ *  flips between two sets, and neither compiles again. */
+function createFogPrograms(device: GPUDevice, failed: (error: unknown) => void, local: boolean) {
+  const texts = local ? FOG_PROGRAMS : fogProgramsWithoutLocal()
+  const program = (name: FogProgramName): FogProgram => {
+    const label = `Trillion3D fog ${name}`
+    const module = device.createShaderModule({
+      label,
+      code: (local ? FOG_PROGRAMS : fogProgramsWithoutLocal())[name],
+    })
+    return makeProgram(device, failed, label, layoutEntries(name), module, ENTRY_POINT[name])
+  }
+  const programs = {} as Record<Exclude<FogProgramName, 'scatterSky'>, FogProgram>
+  for (const name of Object.keys(texts) as FogProgramName[])
+    if (name !== 'scatterSky') programs[name] = program(name)
+  let sky: FogProgram | undefined
+  // The voxelisation of the set in place and of the one before it, the more recent first.
+  const graphs: { key: string; program: FogProgram }[] = []
+  const graphVoxelize = (set: VoxelGraphSet) => {
+    const at = graphs.findIndex(({ key }) => key === set.key)
+    if (at > 0) graphs.unshift(...graphs.splice(at, 1))
+    if (at >= 0) return graphs[0]!.program
+    const label = 'Trillion3D fog voxelize graphs'
+    const module = device.createShaderModule({ label, code: fogGraphProgram(set) })
+    const entries = graphLayoutEntries(set.textured)
+    const program = makeProgram(device, failed, label, entries, module, ENTRY_POINT.voxelize)
+    graphs.unshift({ key: set.key, program })
+    graphs.length = Math.min(graphs.length, 2)
+    return program
+  }
+  return { programs, skyScatter: () => (sky ??= program('scatterSky')), graphVoxelize }
+}
 
 /** Whether `held` are the textures of `grid` and hold the voxelised objects' volumes where `voxels`
  *  asks for them, the static term's where `baked` does. */
-const holds = (held: VolumeTextures | undefined, grid: FogGrid, voxels: boolean, baked: boolean) =>
-  !!held && held.grid === grid && !!(held.voxel || !voxels) && !!(held.baked || !baked)
+const holds = (held: VolumeTextures, grid: FogGrid, voxels: boolean, baked: boolean) =>
+  held.grid === grid && !!(held.voxel || !voxels) && !!(held.baked || !baked)
 
 /** The static term's volume of an image that has no such pass: one cell the scatter does not read (the
  *  frame says so). */
@@ -134,18 +135,44 @@ function createBakedStandIn(device: GPUDevice) {
   return { texture, view: texture.createView({ dimension: '3d' }) }
 }
 
+/** The textures of the grid the volume holds (`createHeldTextures`), made again when the grid changes,
+ *  and how they are asked: those of `grid` where the held ones are — and, where `voxels` asks for the
+ *  voxelised objects' volumes or `baked` for the static term's, they are among them —, else new ones,
+ *  with those volumes too if the held ones had them; none where the device's budget refuses them. */
+function createFogTextures(device: GPUDevice) {
+  const held = createHeldTextures<ReturnType<typeof volumeTextures>>(device)
+  const texturesOf = (grid: FogGrid, voxels = false, baked = false) =>
+    held.texturesOf(
+      (textures) => holds(textures, grid, voxels, baked),
+      (textures) => {
+        const keptVoxels = voxels || !!textures?.voxel
+        const keptBaked = baked || !!textures?.baked
+        const list = (allocator: ResourceAllocator) =>
+          volumeTextures(allocator, grid, keptVoxels, keptBaked)
+        return {
+          asked: listedBytes(list),
+          what: 'the fog volume',
+          make: () => allocatedTextures(device, 'Trillion3D fog', list),
+        }
+      },
+    )
+  return { held, texturesOf }
+}
+
 /**
  * WHAT THE VOLUME'S PASSES ARE MADE OF, made once (`createFogVolumeGpu`): the frame's buffer, the
  * layout and the pipeline of each program — asked now, off the frame —, and the textures of the
- * grid, made again, the old ones retired, when the grid changes (`generation` counts the makings).
- * The textures are the device's budget's to refuse (`budgetRefused`): the volume is then built by
- * none, and asked again at the next image.
+ * grid (`createFogTextures`). The textures are the device's budget's to refuse: the volume is then
+ * built by none, and asked again at the next image.
  */
-export function createFogVolumeResources(device: GPUDevice, failed: (error: unknown) => void) {
+export function createFogVolumeResources(
+  device: GPUDevice,
+  failed: (error: unknown) => void,
+  local = true,
+) {
   const frame = uniformBlock(device, 'Trillion3D fog frame', FOG_VOLUME_FRAME_WORDS * 4)
-  const { programs, skyScatter } = createFogPrograms(device, failed)
-  let textures: VolumeTextures | undefined
-  let generation = 0
+  const { programs, skyScatter, graphVoxelize } = createFogPrograms(device, failed, local)
+  const textures = createFogTextures(device)
   let standIn: ReturnType<typeof createBakedStandIn> | undefined
   return {
     /** The frame the passes read: its words, written each image, and its buffer, sent by what
@@ -155,49 +182,25 @@ export function createFogVolumeResources(device: GPUDevice, failed: (error: unkn
     /** The scatter that finds the sky's visibility of each sample in the global distance field, its pipeline asked at the
      *  first call: the plain scatter serves until it is `ready`. */
     skyScatter,
+    /** The voxelisation that evaluates the graphs of `set`, its pipeline asked at the first call: the plain
+     *  voxelisation serves until it is `ready`. */
+    graphVoxelize,
     /** The sampler the scatter reads the previous volume and the cubemap through (the one of the device). */
-    sampler: createFogSampler(device),
-    /** How many times the textures were made. */
+    sampler: postSamplers(device).mipped,
     get generation() {
-      return generation
+      return textures.held.generation
     },
-    /** Bytes the textures held take. */
     get bytes() {
-      return textures ? bytesOf(textures) : 0
+      return textures.held.bytes
     },
     /** The static term's volume of an image that has no such pass, made at the first call. */
     get bakedStandIn() {
       return (standIn ??= createBakedStandIn(device)).view
     },
-    /** The textures of `grid`: the held ones where it is the same grid — and, where `voxels` asks
-     *  for the voxelised objects' volumes or `baked` for the static term's, they are among them —,
-     *  else new ones, with those volumes too if the held ones had them — none where the device's
-     *  budget refuses them. */
-    texturesOf(grid: FogGrid, voxels = false, baked = false) {
-      if (textures && holds(textures, grid, voxels, baked)) return textures
-      const keptVoxels = voxels || !!textures?.voxel
-      const keptBaked = baked || !!textures?.baked
-      const replaced = textures ? bytesOf(textures) : 0
-      if (textures) this.release()
-      // The volume is an optional allocation, the analytic fog its fallback: made under the ledger's
-      // tentative admission, the memory it replaces counted out (`ledgerAdmitted`).
-      textures = ledgerAdmitted(device, {
-        replaced,
-        asked: volumeBytes(grid, keptVoxels, keptBaked),
-        what: 'the fog volume',
-        make: () => createVolumeTextures(device, grid, keptVoxels, keptBaked),
-      }).value
-      if (textures) generation++
-      return textures
-    },
-    /** Retires the textures held: they may be named by this image's commands. */
-    release() {
-      if (!textures) return
-      for (const t of allOf(textures)) retire(device, t.made)
-      textures = undefined
-    },
+    texturesOf: textures.texturesOf,
+    release: textures.held.release,
     dispose() {
-      this.release()
+      textures.held.release()
       frame.buffer.destroy()
       standIn?.texture.destroy()
     },

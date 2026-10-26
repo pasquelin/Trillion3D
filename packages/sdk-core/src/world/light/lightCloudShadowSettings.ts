@@ -1,9 +1,8 @@
-import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
 import type { SceneLight } from '../../scene/light/contracts.ts'
 import { resolveCloudShadowLight } from '../../modules/sky/cloudShadow.ts'
 import { Color, type ColorInput } from '../math/color.ts'
-import { listen } from '../observed.ts'
 import type { Light } from './light.ts'
+import { defineWritable, lightStates, scalarGroup } from './lightNumbers.ts'
 
 /** What a page may pass to a light about the clouds' shadows (`SceneLight.cloudShadow*`); a
  *  directional light's alone. */
@@ -78,29 +77,19 @@ interface State {
   values: Record<(typeof SCALARS)[number], number | boolean>
   readonly scale: Color
 }
-const STATES = new WeakMap<Light, State>()
-
-const changed = (light: Light) => {
-  noteNodeWrite(light)
-  light._link?.content(light)
-}
-
-function stateOf(light: Light): State {
-  let state = STATES.get(light)
-  if (!state) {
-    state = {
-      values: Object.fromEntries(SCALARS.map((name) => [name, DEFAULTS[name]])) as State['values'],
-      scale: new Color(DEFAULTS.cloudScatteredLuminanceScale as [number, number, number]),
-    }
-    STATES.set(light, state)
-    listen(state.scale, () => changed(light))
-  }
-  return state
-}
+const GROUP = scalarGroup(SCALARS, DEFAULTS)
+const STATES = lightStates<State>(
+  () => ({
+    values: GROUP.fresh(),
+    scale: new Color(DEFAULTS.cloudScatteredLuminanceScale as [number, number, number]),
+  }),
+  (state) => [state.scale],
+)
+const stateOf = STATES.of
 
 /** Gives `light` the cloud shadow settings `p` names; the others stay at their defaults. */
 export function take(light: Light, p: LightCloudShadowParameters) {
-  for (const name of SCALARS) if (p[name] !== undefined) stateOf(light).values[name] = p[name]
+  GROUP.take(stateOf(light).values, p)
   if (p.cloudScatteredLuminanceScale !== undefined)
     stateOf(light).scale.set(p.cloudScatteredLuminanceScale)
 }
@@ -116,45 +105,28 @@ export function copy(light: Light, source: Light) {
 /** The cloud shadow settings of `light` that differ from their default, by field; a directional
  *  light's alone. Empty for a light that sets none. */
 export function settingsSet(light: Light): LightCloudShadowParameters {
-  const state = STATES.get(light)
+  const state = STATES.peek(light)
   if (!state || light.kind !== 'directional') return {}
-  const out: Record<string, unknown> = {}
-  for (const name of SCALARS)
-    if (state.values[name] !== DEFAULTS[name]) out[name] = state.values[name]
+  const out: Record<string, unknown> = GROUP.differing(state.values)
   const scale = state.scale.toArray()
   if (scale.some((v, i) => v !== DEFAULTS.cloudScatteredLuminanceScale[i]))
     out.cloudScatteredLuminanceScale = scale
   return out
 }
 
-/** Writes into `record` each cloud shadow setting of `light` that differs from its default. */
-export function record(light: Light, into: SceneLight) {
-  Object.assign(into, settingsSet(light))
-}
-
 /** The cloud shadow settings a record holds, as the parameters of a light. */
 export function fromRecord(record: SceneLight): LightCloudShadowParameters {
-  const from = record as unknown as Record<string, number | boolean | undefined>
   const out: Record<string, unknown> = {
     cloudScatteredLuminanceScale: record.cloudScatteredLuminanceScale,
+    ...GROUP.fromRecord(record),
   }
-  for (const name of SCALARS) out[name] = from[name]
   return out
 }
 
 /** Defines the cloud shadow settings as accessors of `proto`: a write is noted on the light and
  *  reaches the world at once. */
 export function define(proto: Light) {
-  for (const name of SCALARS)
-    Object.defineProperty(proto, name, {
-      get(this: Light) {
-        return stateOf(this).values[name]
-      },
-      set(this: Light, value: number | boolean) {
-        stateOf(this).values[name] = value
-        changed(this)
-      },
-    })
+  defineWritable(proto, SCALARS, (light) => stateOf(light).values)
   Object.defineProperty(proto, 'cloudScatteredLuminanceScale', {
     get(this: Light) {
       return stateOf(this).scale

@@ -12,7 +12,7 @@ export interface StatsSceneNode {
 
 /** Triangles of the visible meshes built in the scene: indexed, or three vertices each. Points and
  *  lines draw no triangle. */
-export function sceneTriangles(scene: StatsSceneNode): number {
+function sceneTriangles(scene: StatsSceneNode): number {
   let total = 0
   scene.traverseVisible?.((node) => {
     const shape = node.geometry

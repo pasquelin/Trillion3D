@@ -2,16 +2,18 @@
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { commandArgs, type FakePass } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
+import type { FakeBuffer } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import type { EffectPass } from '../../../../sdk-core/src/world/effect/chain.ts'
 import { createKindSettings } from './kindSettings.ts'
 import { createWebgpuEffects } from './webgpuEffects.ts'
 import { createWebgpuMotionBlur } from './webgpuMotionBlur.ts'
 import { MOTION_BLUR_PARAMS, MOTION_BLUR_PARAMS_BYTES } from './motionBlur/motionBlurLayout.ts'
 import { createFinish, type PostFrame } from '../finish/finish.ts'
+import { lensOf } from '../finish/finishParams.ts'
 import { resolveBloom } from '../../../../sdk-core/src/contracts/bloomOptions.ts'
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
-import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
+import { effect, type MotionBlurOptions } from '../../../../sdk-core/src/world/effect/index.ts'
 import { TAA_VIEW_BYTES } from '../taa/bindingsWgsl.ts'
 import type { ResolveFrame } from './webgpuKinds.ts'
 
@@ -54,8 +56,8 @@ const LENS = Float64Array.from({ length: 16 }, (_, at) =>
 /** The chain on a kit device: its display finishing beside it, which a frame begins on the image
  *  (`frame`) before the chain draws — what the renderer shares between the local exposure and the
  *  bloom (`../finish/finish.ts`), the local exposure `local` where a test wants its setup. */
-export async function loaded() {
-  const gpu = fakeDevice()
+export async function loaded(options?: Parameters<typeof fakeDevice>[0]) {
+  const gpu = fakeDevice(options)
   const effects = createWebgpuEffects(gpu.device, (error) => assert.fail(String(error)))
   const finish = createFinish(gpu.device)
   const frame = (
@@ -71,6 +73,7 @@ export async function loaded() {
       layers: finish.groupFor(local),
       local,
       uniform: finish.uniform,
+      lens: lensOf(null),
     }
   }
   // The stages around the temporal pass, which the tests of the passes on them name.
@@ -109,16 +112,17 @@ export function frameOf(
     now: 0,
     still: false,
     resolved: true,
+    flatten: undefined,
   }
 }
 
 /** The words a uniform buffer holds, as the writes left them. */
-export const wordsOf = (buffer: GPUBuffer) => {
+export const wordsOf = (buffer: GPUBuffer | FakeBuffer) => {
   const { data } = buffer as unknown as { data: Uint8Array }
   return new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4)
 }
 /** The same words, as the unsigned numbers a shader reads them. */
-export const intsOf = (buffer: GPUBuffer) => {
+export const intsOf = (buffer: GPUBuffer | FakeBuffer) => {
   const words = wordsOf(buffer)
   return new Uint32Array(words.buffer, words.byteOffset, words.length)
 }
@@ -127,10 +131,7 @@ export const FILTERS = Array<string>(4).fill('filterTiles')
 export const HEAD = ['flattenMotion', 'dilateGather', 'classifyTiles']
 
 /** A chain of motion blurs on a kit device, their programs compiled, drawn as `settings` say. */
-export async function blurring(
-  settings: MotionBlurSettings,
-  ...passes: Parameters<typeof effect.motionBlur>[]
-) {
+export async function blurring(settings: MotionBlurSettings, ...passes: MotionBlurOptions[]) {
   const made = await loaded()
   const chain = passes.map((options) => effect.motionBlur(options))
   made.after.ready(chain)

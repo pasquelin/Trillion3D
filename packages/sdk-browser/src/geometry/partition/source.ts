@@ -33,25 +33,72 @@ import type {
 import type { LoadingCell } from './loadOrder.ts'
 import { createSourceRank } from './sourceRank.ts'
 import { createSourceShape, NO_HEADING, type ViewPose } from './sourceShape.ts'
+import { watchSourceSettings } from './sourceSettings.ts'
 
 /** A view standing still. */
 const NO_VELOCITY = [0, 0, 0]
-/** The settings that shape the view's circle or sector: the update reads them too. */
-export const SOURCE_SHAPE = [
-  'useGridRange',
-  'rangeScale',
-  'radius',
-  'sector',
-  'sectorAngle',
-  'force2D',
-  'extraRadius',
-  'extraAngle',
-] as const
-/** The reference adds a velocity in centimetres per second to the unit axis: one metre is a
- *  hundred of them. */
-const CENTIMETRES = 100
-/** The settings `meets` and `radius` read. */
-const READ = [...SOURCE_SHAPE, 'zCulling'] as const
+
+/** The view stands at `at` looking along the unit `axis`, heading `aim` on the ground; whether
+ *  the eye, the axis or the heading moved, `moved` being whether a setting did. */
+function movePose(
+  pose: ViewPose,
+  loose: boolean,
+  settingsMoved: boolean,
+  at: ArrayLike<number>,
+  axis: ArrayLike<number>,
+  aim: ArrayLike<number>,
+) {
+  const { eye, heading, eye3, axis3 } = pose
+  let moved = settingsMoved
+  for (let k = 0; k < 3; k++) {
+    if (eye3[k] !== at[k] || axis3[k] !== axis[k]) moved = true
+    eye3[k] = at[k]
+    axis3[k] = axis[k]
+  }
+  eye[0] = at[0]
+  eye[1] = at[2]
+  // A loose grid's sector keeps the axis as it is, its up part dropped; a square grid's turns
+  // the aim to a unit heading on the ground.
+  const side = loose ? axis : aim
+  const length = length2(side[0], side[2])
+  pose.headed = length > NO_HEADING
+  const scale = loose ? 1 : pose.headed ? 1 / length : 0
+  moved ||= heading[0] !== side[0] * scale || heading[1] !== side[2] * scale
+  heading[0] = side[0] * scale
+  heading[1] = side[2] * scale
+  return moved
+}
+
+/** Whether the view's shape for a grid meets the bounds `bounds` at `at` stream by (`meets`). */
+function createMeets(
+  streaming: WorldStreaming,
+  loose: boolean,
+  pose: ViewPose,
+  shape: ReturnType<typeof createSourceShape>,
+  radiusOf: (range: number) => number,
+  solid: (flat: boolean) => boolean,
+) {
+  const { eye } = pose
+  const { valid, besideSector, beyondHeight, gapTo, outsideCone } = shape
+  /** Whether the view's shape for `grid` meets the bounds `bounds` at `at` stream by: within or
+   *  on its radius in 3D and not outside its cone — a loose cell's content box on a grid that
+   *  does not lie flat —; else on the ground within or on it — a loose cell's —, or strictly
+   *  within it, and its content's height range meeting the eye's within it when the settings
+   *  cull by height — a square cell's —, and not beside its sector. */
+  return (
+    bounds: ArrayLike<number>,
+    at: number,
+    { range, flat }: Pick<PartitionGrid, 'range' | 'flat'>,
+  ) => {
+    const radius = radiusOf(range)
+    if (!valid(radius)) return false
+    if (solid(flat)) return gapTo(bounds, at) <= radius * radius && !outsideCone(bounds, at)
+    const away = boxGroundDistance(bounds, at, eye[0], eye[1])
+    if (!(loose ? away <= radius : away < radius)) return false
+    if (!loose && streaming.zCulling && beyondHeight(bounds, at, radius)) return false
+    return !besideSector(bounds, at)
+  }
+}
 
 /**
  * The view as the source for a partition of `scheme` whose grids (`hlod.grids`) lie flat or not,
@@ -80,65 +127,25 @@ export function createStreamingSource(
     axis3: [0, 0, 0],
     headed: false,
   }
-  const { eye, heading, eye3, axis3 } = pose
   const shape = createSourceShape(streaming, loose, pose)
-  const { sectored, valid, besideSector, beyondHeight, gapTo, outsideCone } = shape
-  /** The axis the loose cells are sorted by: the view's, its average velocity added when the
-   *  settings ask (`useVelocity`). */
-  const rankAxis = [0, 0, 0]
+  const { sectored } = shape
   /** The circle's radius for a grid of loading range `range`, its extra radius added. */
   const radiusOf = (range: number) =>
     (streaming.useGridRange ? range * streaming.rangeScale : streaming.radius) +
     streaming.extraRadius
-  const { loose: looseRanked, square: squareRanked } = createSourceRank(
-    streaming,
-    pose,
-    shape,
-    rankAxis,
-    radiusOf,
-  )
-  /** `READ` as the last `set` saw them: what moves `revision` with the eye and the axis. */
-  const seen = READ.map(() => NaN)
+  const rank = createSourceRank(streaming, pose, shape, radiusOf)
+  /** Whether a setting `meets` reads changed since the last `set`: what moves `revision` with the
+   *  eye and the axis. */
+  const settingsMoved = watchSourceSettings(streaming)
+  const meets = createMeets(streaming, loose, pose, shape, radiusOf, solid)
   let revision = 0
-  /** Whether a setting `meets` reads changed since the last call; the settings now seen. */
-  const settingsMoved = () => {
-    let moved = false
-    for (let at = 0; at < READ.length; at++) {
-      const now = Number(streaming[READ[at]])
-      moved ||= seen[at] !== now
-      seen[at] = now
-    }
-    return moved
-  }
   return {
     /** The view stands at `eye` looking along the unit `axis`, heading `aim` on the ground — the
      *  axis, but for a view looking straight down or up (`aimOf`) — and moving at `velocity`
      *  metres per second, all in the cells' frame. */
     set(at: ArrayLike<number>, axis: ArrayLike<number>, aim = axis, velocity = NO_VELOCITY) {
-      let moved = settingsMoved()
-      for (let k = 0; k < 3; k++) {
-        if (eye3[k] !== at[k] || axis3[k] !== axis[k]) moved = true
-        eye3[k] = at[k]
-        axis3[k] = axis[k]
-      }
-      eye[0] = at[0]
-      eye[1] = at[2]
-      // A loose grid's sector keeps the axis as it is, its up part dropped; a square grid's turns
-      // the aim to a unit heading on the ground.
-      const side = loose ? axis : aim
-      const length = length2(side[0], side[2])
-      pose.headed = length > NO_HEADING
-      const scale = loose ? 1 : pose.headed ? 1 / length : 0
-      moved ||= heading[0] !== side[0] * scale || heading[1] !== side[2] * scale
-      heading[0] = side[0] * scale
-      heading[1] = side[2] * scale
-      if (moved) revision++
-      // The axis the loose cells are sorted by, its velocity added when the settings ask.
-      const push = streaming.useVelocity ? CENTIMETRES : 0
-      let size = 0
-      for (let k = 0; k < 3; k++) size += (rankAxis[k] = axis[k] + velocity[k] * push) ** 2
-      const inverse = push && size >= 1e-8 ? 1 / Math.sqrt(size) : push ? 0 : 1
-      for (let k = 0; k < 3; k++) rankAxis[k] *= inverse
+      if (movePose(pose, loose, settingsMoved(), at, axis, aim)) revision++
+      rank.axisFor(axis, velocity)
     },
     /** Advances whenever what `meets` reads moved at a `set`: the eye, the axis or a setting. What
      *  it said at one revision it says at the same revision again. */
@@ -150,28 +157,12 @@ export function createStreamingSource(
     /** Whether the shape turns with the view: a sector, the view headed or a grid not flat — what
      *  it meets then moves with the view's axis, the eye standing. */
     turns: () => (pose.headed || hlod.grids.some(({ flat }) => solid(flat))) && sectored(),
-    /** Whether the view's shape for `grid` meets the bounds `bounds` at `at` stream by: within or
-     *  on its radius in 3D and not outside its cone — a loose cell's content box on a grid that
-     *  does not lie flat —; else on the ground within or on it — a loose cell's —, or strictly
-     *  within it, and its content's height range meeting the eye's within it when the settings
-     *  cull by height — a square cell's —, and not beside its sector. */
-    meets(
-      bounds: ArrayLike<number>,
-      at: number,
-      { range, flat }: Pick<PartitionGrid, 'range' | 'flat'>,
-    ) {
-      const radius = radiusOf(range)
-      if (!valid(radius)) return false
-      if (solid(flat)) return gapTo(bounds, at) <= radius * radius && !outsideCone(bounds, at)
-      const away = boxGroundDistance(bounds, at, eye[0], eye[1])
-      if (!(loose ? away <= radius : away < radius)) return false
-      if (!loose && streaming.zCulling && beyondHeight(bounds, at, radius)) return false
-      return !besideSector(bounds, at)
-    },
+    /** Whether the view's shape for a grid meets the bounds `bounds` at `at` stream by. */
+    meets,
     /** What ranks the bounds `bounds` at `at` stream by, of a grid of loading range `range`, by
      *  distance (`LoadingCell`), as the scheme says (`looseRanked`, `squareRanked`). */
     ranked(bounds: ArrayLike<number>, at: number, range: number, out: LoadingCell) {
-      return loose ? looseRanked(bounds, at, range, out) : squareRanked(bounds, at, range, out)
+      return loose ? rank.loose(bounds, at, range, out) : rank.square(bounds, at, range, out)
     },
   }
 }

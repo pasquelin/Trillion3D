@@ -8,6 +8,9 @@ import { composeAffine2 } from '../../../../math/src/matrix/matrix3.ts'
 
 let nextTexture = 1
 
+/** The anisotropy of a new texture: the sharpest the high quality level takes. */
+const DEFAULT_ANISOTROPY = 8
+
 /** What a write moves, by field: its addressing, filters and anisotropy count as `sampling`, its
  *  placement as `placement`; any other field — the picture and how it is read — as `version`. */
 const COUNTER: Record<string, 'sampling' | 'placement'> = {
@@ -38,9 +41,9 @@ export class Texture implements TextureRecord {
   /** A name for the page's own use. */
   name = ''
   /** How the picture repeats left to right. */
-  wrapS: Wrap = 'clamp'
+  wrapS: Wrap = 'repeat'
   /** How the picture repeats bottom to top. */
-  wrapT: Wrap = 'clamp'
+  wrapT: Wrap = 'repeat'
   /** How many times the picture fits across and up. */
   repeat = new Vector2(1, 1)
   /** How far the picture is slid, across and up. */
@@ -57,8 +60,8 @@ export class Texture implements TextureRecord {
   flipY = true
   /** Whether colour is already multiplied by alpha. */
   premultiplyAlpha = false
-  /** How sharp the picture stays when seen at a slant. */
-  anisotropy = 1
+  /** How sharp the picture stays when seen at a slant: the most taps along the footprint. */
+  anisotropy = DEFAULT_ANISOTROPY
   /** Which set of UVs of the geometry the texture follows. */
   channel = 0
   /** Bumped by a write of the picture or of how it is read: what a material compares to send the

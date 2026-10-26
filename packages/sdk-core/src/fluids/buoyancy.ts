@@ -7,12 +7,11 @@
  * displaced, and the physics module measures the displaced volume exactly.
  */
 import { PI } from '../../../math/src/constants.ts'
-import { nextPow2 } from '../../../math/src/scalar/integers.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 import { BUOYANCY_WORDS, OP, PLANE_WORDS } from '../physics/layout.ts'
+import { WATER_DENSITY } from '../physics/options.ts'
 import { Waves, type WaveSpec } from './waves.ts'
 
-/** Fresh water, kg/m³. */
-const WATER_DENSITY = 1000
 /**
  * Declared drags, the quadratic coefficients of the water's resistance on a body's linear and
  * angular speed. The linear one is
@@ -93,9 +92,10 @@ export class StepWords {
   private floats = new Float32Array(this.words.buffer)
 
   private reserve(count: number) {
-    if (count <= this.words.length) return
-    this.words = new Uint32Array(nextPow2(count))
-    this.floats = new Float32Array(this.words.buffer)
+    const grown = resized(this.words, count)
+    if (grown === this.words) return
+    this.words = grown
+    this.floats = new Float32Array(grown.buffer)
   }
 
   /** Writes the BUOYANCY command of `water` over `planes` (`PLANE_WORDS` each), then `queued`;

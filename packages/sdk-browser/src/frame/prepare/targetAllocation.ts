@@ -7,9 +7,13 @@ import {
   FEEDBACK_BYTES,
   frameTargetBytes,
 } from '../../materials/surface/surfaceBuffer.ts'
-import { AS_IS_SHARE_BYTES } from '../../lighting/deferred/asIsShare.ts'
-import { wantsAsIsShare } from './asIsShareTarget.ts'
+import { RESPONSIVE_BYTES } from '../../blend/responsive.ts'
+import { wantsResponsive } from './responsiveTarget.ts'
+import { waterBytes } from '../../blend/water/waterBytes.ts'
 import { backdropBytes } from '../../blend/transparent/transmission.ts'
+import { translucencyBytes } from '../../blend/translucency.ts'
+import { imagePasses } from '../../blend/translucencyPhase.ts'
+import { translucencyPassBit } from '../../blend/translucencyPasses.ts'
 import { reflectionBytes } from '../../lighting/reflections/gpu.ts'
 import { level0LayerBytes } from '../../visibility/hiz/gpu/pyramid.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -28,6 +32,27 @@ const DISPLAY_BYTES = texelBytesOf(DISPLAY_FORMAT)
  */
 export const sceneBlends = (rt: Pick<WebgpuPagesRuntime, 'blendState'>) =>
   rt.blendState.blendGpu.length > 0 || !!rt.blendState.frontGranted
+
+/**
+ * Whether the scene has layers to draw into the translucency target: blends (`sceneBlends`), or
+ * particle pools, which join a session at any time — the targets are then made again (`targetsFit`).
+ */
+export const drawsTranslucency = (rt: Pick<WebgpuPagesRuntime, 'blendState' | 'context'>) =>
+  sceneBlends(rt) || !!rt.context.particles?.length
+
+/**
+ * Whether the scene has layers to draw after the motion blur: the translucency targets then hold a
+ * second set beside the first, and the image the layers are composed into (`createTranslucency`).
+ */
+export const drawsLateTranslucency = (rt: Pick<WebgpuPagesRuntime, 'blendState' | 'context'>) =>
+  drawsTranslucency(rt) && (imagePasses(rt) & translucencyPassBit('afterMotionBlur')) !== 0
+
+/** The size of the image the late layers are composed into: the larger of the display's size and the
+ *  render's, a side each. */
+export const lateImageSize = (size: FrameSize): [number, number] => [
+  Math.max(size.width, size.renderWidth),
+  Math.max(size.height, size.renderHeight),
+]
 
 /**
  * Whether a frame of `size` makes a display colour of its own at the render size (`Trillion3D
@@ -55,7 +80,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     // The emission-and-occlusion layer, or its 1×1 stand-in (`emissiveAoLayer.ts`).
     emissiveAoBytes(width, height, rt.vis.writesEmissiveAo) -
     emissiveAoBytes(width, height, true) +
-    (wantsAsIsShare(rt) ? width * height * AS_IS_SHARE_BYTES : 0) +
+    (wantsResponsive(rt) ? width * height * RESPONSIVE_BYTES : 0) +
     additional +
     // frameTargetBytes already counts the 1×1 placeholder.
     SUBSURFACE_TARGET.bytes(width, height, wantsSubsurface(rt)) -
@@ -63,8 +88,8 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     // The lobes target, or its 1×1 placeholder, which frameTargetBytes counts (`physicalLobes.ts`).
     PHYSICAL_LOBES_TARGET.bytes(width, height, wantsPhysicalLobes(rt)) -
     PHYSICAL_LOBES_TARGET.texelBytes +
-    // The reflection's target and radiance pyramid (`../../lighting/reflections/gpu.ts`).
-    reflectionBytes(width, height, sceneBlends(rt)) +
+    // The reflection's target and lit image (`../../lighting/reflections/gpu.ts`).
+    reflectionBytes(width, height, sceneBlends(rt), rt.setup.reflectionStatistics) +
     // The Hi-Z level 0's front layer, made with every pyramid.
     (hiz ? level0LayerBytes(width, height) : 0) +
     display * DISPLAY_BYTES
@@ -72,8 +97,16 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
 }
 
 /** What a frame of `size` asks of the budget beside its targets (`frameTargetAllocation`'s
- *  `additional`, `requestFrameTargets`): the capture's reserve while one is under way, and the
- *  distortion's targets at the render size. */
+ *  `additional`, `requestFrameTargets`): the capture's reserve while one is under way, the
+ *  distortion's targets, the single-layer water's and the translucency's at the render size. */
 export const frameExtraBytes = (rt: WebgpuPagesRuntime, size: FrameSize) =>
   (rt.capture.surfaceCapture ? 0 : rt.capture.captureAllocationBytes) +
-  backdropBytes(rt, size.renderWidth, size.renderHeight)
+  backdropBytes(rt, size.renderWidth, size.renderHeight) +
+  waterBytes(rt, size.renderWidth, size.renderHeight) +
+  translucencyBytes(
+    drawsTranslucency(rt),
+    drawsLateTranslucency(rt),
+    size.renderWidth,
+    size.renderHeight,
+    lateImageSize(size),
+  )

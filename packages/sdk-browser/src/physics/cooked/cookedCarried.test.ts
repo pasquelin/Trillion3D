@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { OP, SHAPE } from '../../../../sdk-core/src/physics/layout.ts'
+import { FILTER_WORDS, OP, SHAPE } from '../../../../sdk-core/src/physics/layout.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { followNode } from '../followNode.ts'
 import { createPhysicsPoses } from '../poses.ts'
@@ -89,7 +89,9 @@ test('a declared body a rescale refused is made again once its model is back at 
   const ball = declared(0, [0, 1, 0], { isKinematic: true }, { type: 'sphere' })
   const file = { ...cooked([], []), bodies: [ball] }
   const { tiles, model, writer, bodies, errors } = await streamedModel(file, await ramp())
-  assert.equal(writer.take()[0], OP.add, 'made at its cooked scale')
+  // Its kinematic filter first, the module knowing none of that kind; then the body.
+  const made = writer.take()
+  assert.deepEqual([made[0], made[FILTER_WORDS]], [OP.filter, OP.add], 'made at its cooked scale')
   model.scale.set(2, 1, 1)
   model.updateMatrixWorld(true)
   tiles.moved(model)

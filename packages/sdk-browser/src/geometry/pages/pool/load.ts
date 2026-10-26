@@ -1,7 +1,7 @@
 import type { GpuPageContext, ResidentPage } from './types.ts'
 import { behind } from '../../../gpu/core/behind.ts'
 import { commitGpuPage } from './commit.ts'
-import { checkRoom, placeOf, placesFor, refusal } from './loadPlace.ts'
+import { checkDependencies, checkRoom, placeOf, placesFor, refusal } from './loadPlace.ts'
 import { refusedStatus } from '../../cluster/checked.ts'
 
 /** `pinned` pins the page inside the queued operation: no resize queued behind the load runs between
@@ -14,7 +14,9 @@ import { refusedStatus } from '../../cluster/checked.ts'
  *  page is resident by its turn; a page resident at the request is read only if it left by its
  *  turn. A failure fails the load, and its source says when the page is asked again
  *  (`geometry/streaming/failures.ts`). A page absent when the pool has no free place and no victim
- *  named is refused at once, read for nothing never. */
+ *  named is refused at once, read for nothing never. `dependencies` are the keys of one page of each
+ *  streaming page its own depends on, in the order of its list, resident when it is installed: the
+ *  page names vertices of their clusters (`../install/installer.ts`). */
 export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
   const { resident, state, reader } = context
   const { emit, now } = reader
@@ -24,6 +26,7 @@ export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
     pinned?: boolean,
     priority?: number,
     victim?: string,
+    dependencies?: readonly string[],
   ): Promise<ResidentPage> {
     const abortListener =
       emit && signal
@@ -52,6 +55,7 @@ export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
       pinned,
       priority,
       victim,
+      dependencies,
       abortListener,
       requestStarted,
       fetched: resident.has(key) ? undefined : readOf(context, key, signal, priority),
@@ -88,6 +92,9 @@ type Load = {
   priority: number | undefined
   /** The page the host gives up for it, by key. */
   victim: string | undefined
+  /** One page of each streaming page its own depends on, by key, in the order of its list: where
+   *  the clusters a page names vertices of are found. */
+  dependencies: readonly string[] | undefined
   abortListener: (() => void) | undefined
   requestStarted: number
   /** Its read, started with the request when the page was absent. */
@@ -120,6 +127,7 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
     const bytes = await (job.fetched ?? readOf(context, key, signal, job.priority))
     check(signal)
     checkRoom(context, key, bytes)
+    checkDependencies(context, key, bytes, job.dependencies)
     const given = job.victim === undefined ? undefined : resident.get(job.victim),
       victim = given && !eviction.isPinned(given.key) ? given : undefined
     const page = commitGpuPage(
@@ -128,6 +136,7 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
       bytes,
       placeOf(context, key, victim),
       job.requestStarted,
+      job.dependencies,
     )
     if (pinned) pin(key)
     return page

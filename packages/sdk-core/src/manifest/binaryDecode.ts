@@ -17,6 +17,88 @@ import {
 } from './binaryPageWords.ts'
 import { readManifestColumns } from './binaryRead.ts'
 import type { SlimClusterManifest } from './binaryTypes.ts'
+type PageColumns = ReturnType<typeof readManifestColumns>['pages']
+type Streams = ReturnType<typeof decodeStreams>
+
+/** The optional fields a page's flag word says it carries: its role, start, level, cluster error and
+ *  sphere, parent error and sphere, group, source and depth layer. */
+function readPageFlags(item: Page, page: number, flags: number, columns: PageColumns) {
+  const { sphere, parentSphere, error, ints, pageDepthLayer } = columns
+  const base = page * 8
+  if (flags & FLAG_ROLE) item.role = flags & FLAG_COARSE ? 'coarse' : 'exact'
+  if (ints[base + format.INT_START] >= 0) item.start = ints[base + format.INT_START]
+  if (ints[base + format.INT_LEVEL] >= 0) item.level = ints[base + format.INT_LEVEL]
+  if (flags & FLAG_CLUSTER_ERROR) {
+    item.lodError = error[page * 2]
+    item.sphere = [
+      sphere[page * 4],
+      sphere[page * 4 + 1],
+      sphere[page * 4 + 2],
+      sphere[page * 4 + 3],
+    ]
+  }
+  if (flags & FLAG_PARENT_ERROR)
+    item.parentError = flags & FLAG_PARENT_ERROR_FINITE ? error[page * 2 + 1] : null
+  if (flags & FLAG_PARENT_SPHERE)
+    item.parentSphere =
+      flags & FLAG_PARENT_SPHERE_SET
+        ? [
+            parentSphere[page * 4],
+            parentSphere[page * 4 + 1],
+            parentSphere[page * 4 + 2],
+            parentSphere[page * 4 + 3],
+          ]
+        : null
+  if (flags & FLAG_GROUP)
+    item.group = ints[base + format.INT_GROUP] >= 0 ? ints[base + format.INT_GROUP] : null
+  if (flags & FLAG_SOURCE)
+    item.source = ints[base + format.INT_SOURCE] >= 0 ? ints[base + format.INT_SOURCE] : null
+  // Layer 0 is the untouched draw; leaving the field out keeps one shape for every page record.
+  if (pageDepthLayer[page] > 0) item.depthLayer = pageDepthLayer[page]
+}
+
+/** The page `page` of the columns: its geometry page, its bounds and the fields its flags carry. */
+function decodePage(page: number, columns: PageColumns, streams: Streams): Page {
+  const { bounds, ints, words, geometryWords } = columns
+  const flags = words[page],
+    base = page * 8,
+    at = page * format.COLUMN_STRIDE.geometryU32
+  const stream = ints[base + format.INT_STREAM],
+    bundle = streams?.pages[stream]
+  if (!bundle)
+    throw new EngineError('INVALID_CACHE', 'A page lies in no bundle of its primitive', {
+      page,
+      stream,
+    })
+  const offset = ints[base + format.INT_STREAM_OFFSET]
+  const geometry: GeometryPageDescriptor = {
+    url: geometryPageAddress(bundle.range!.file, bundle.range!.offset + offset),
+    bundle: { url: bundle.url, offset },
+    sha256: bundle.sha256,
+    bytes: geometryWords[at + format.GEOMETRY_BYTES],
+    residentBytes: geometryWords[at + format.GEOMETRY_RESIDENT_BYTES],
+    residentOffset: geometryWords[at + format.GEOMETRY_RESIDENT_OFFSET],
+    vertexCount: geometryWords[at + format.GEOMETRY_VERTICES],
+    indexCount: geometryWords[at + format.GEOMETRY_INDICES],
+    flags: geometryWords[at + format.GEOMETRY_FLAGS],
+    uncompressedBytes: geometryWords[at + format.GEOMETRY_UNCOMPRESSED],
+  }
+  const item: Page = {
+    id: ints[base + format.INT_ID],
+    url: geometry.url,
+    sha256: geometry.sha256,
+    bytes: geometry.bytes,
+    count: ints[base + format.INT_COUNT],
+    min: [bounds[page * 6], bounds[page * 6 + 1], bounds[page * 6 + 2]],
+    max: [bounds[page * 6 + 3], bounds[page * 6 + 4], bounds[page * 6 + 5]],
+    geometry,
+    stream,
+    streamOffset: offset,
+  }
+  readPageFlags(item, page, flags, columns)
+  return item
+}
+
 /** Turns a binary manifest back into the full manifest a runtime reads. A page is read as its
  *  geometry page, a slice of its streaming bundle — a range of the container `slim.geometryFiles`
  *  names at its rank —: its `url` names where it lies (`geometryPageAddress`), its `bytes` are its
@@ -26,7 +108,7 @@ export function decodeManifestBinary(
   buffer: ArrayBuffer,
 ): ClusterManifest {
   const {
-    pages: { bounds, sphere, parentSphere, error, ints, words, geometryWords, pageDepthLayer },
+    pages: pageColumns,
     groups: groupColumns,
     bundles,
     previews,
@@ -40,70 +122,7 @@ export function decodeManifestBinary(
     const streams = decodeStreams(binary, bundles, files, cursors)
     const pages: Page[] = new Array(binary.pages)
     for (let i = 0; i < binary.pages; i++, page++) {
-      const flags = words[page],
-        base = page * 8,
-        at = page * 5
-      const stream = ints[base + format.INT_STREAM],
-        bundle = streams?.pages[stream]
-      if (!bundle)
-        throw new EngineError('INVALID_CACHE', 'A page lies in no bundle of its primitive', {
-          page,
-          stream,
-        })
-      const offset = ints[base + format.INT_STREAM_OFFSET]
-      const geometry: GeometryPageDescriptor = {
-        url: geometryPageAddress(bundle.range!.file, bundle.range!.offset + offset),
-        bundle: { url: bundle.url, offset },
-        sha256: bundle.sha256,
-        bytes: geometryWords[at + format.GEOMETRY_BYTES],
-        vertexCount: geometryWords[at + format.GEOMETRY_VERTICES],
-        indexCount: geometryWords[at + format.GEOMETRY_INDICES],
-        flags: geometryWords[at + format.GEOMETRY_FLAGS],
-        uncompressedBytes: geometryWords[at + format.GEOMETRY_UNCOMPRESSED],
-      }
-      const item: Page = {
-        id: ints[base + format.INT_ID],
-        url: geometry.url,
-        sha256: geometry.sha256,
-        bytes: geometry.bytes,
-        count: ints[base + format.INT_COUNT],
-        min: [bounds[page * 6], bounds[page * 6 + 1], bounds[page * 6 + 2]],
-        max: [bounds[page * 6 + 3], bounds[page * 6 + 4], bounds[page * 6 + 5]],
-        geometry,
-        stream,
-        streamOffset: offset,
-      }
-      if (flags & FLAG_ROLE) item.role = flags & FLAG_COARSE ? 'coarse' : 'exact'
-      if (ints[base + format.INT_START] >= 0) item.start = ints[base + format.INT_START]
-      if (ints[base + format.INT_LEVEL] >= 0) item.level = ints[base + format.INT_LEVEL]
-      if (flags & FLAG_CLUSTER_ERROR) {
-        item.lodError = error[page * 2]
-        item.sphere = [
-          sphere[page * 4],
-          sphere[page * 4 + 1],
-          sphere[page * 4 + 2],
-          sphere[page * 4 + 3],
-        ]
-      }
-      if (flags & FLAG_PARENT_ERROR)
-        item.parentError = flags & FLAG_PARENT_ERROR_FINITE ? error[page * 2 + 1] : null
-      if (flags & FLAG_PARENT_SPHERE)
-        item.parentSphere =
-          flags & FLAG_PARENT_SPHERE_SET
-            ? [
-                parentSphere[page * 4],
-                parentSphere[page * 4 + 1],
-                parentSphere[page * 4 + 2],
-                parentSphere[page * 4 + 3],
-              ]
-            : null
-      if (flags & FLAG_GROUP)
-        item.group = ints[base + format.INT_GROUP] >= 0 ? ints[base + format.INT_GROUP] : null
-      if (flags & FLAG_SOURCE)
-        item.source = ints[base + format.INT_SOURCE] >= 0 ? ints[base + format.INT_SOURCE] : null
-      // Layer 0 is the untouched draw; leaving the field out keeps one shape for every page record.
-      if (pageDepthLayer[page] > 0) item.depthLayer = pageDepthLayer[page]
-      pages[i] = item
+      pages[i] = decodePage(page, pageColumns, streams)
     }
     const culling = decodeCulling(binary, cullingNodes, cursors)
     const structure = decodeStructure(binary, groupColumns, cursors)

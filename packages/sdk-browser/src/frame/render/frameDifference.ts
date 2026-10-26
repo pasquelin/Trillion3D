@@ -1,8 +1,10 @@
+import { drawFullscreenTriangle } from '../../gpu/shader/fullscreenTriangle.ts'
 import { fullscreenDescriptor, preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { FRAME_DIFFERENCE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { FRAME_DIFFERENCE_WGSL } from './frameDifferenceWgsl.ts'
+import { CANVAS_FORMAT } from '../../gpu/core/canvasFormat.ts'
 
 /** The arguments of a copy of one texture into another. */
 type TextureCopy = Parameters<GPUCommandEncoder['copyTextureToTexture']>
@@ -90,7 +92,7 @@ export function createFrameDifference(device: GPUDevice) {
       module,
       layout,
       'difference',
-      [{ format: 'bgra8unorm' }],
+      [{ format: CANVAS_FORMAT }],
       'Trillion3D frame difference',
     ),
   ).ask()
@@ -108,13 +110,12 @@ export function createFrameDifference(device: GPUDevice) {
   return {
     /** Draws `display`'s difference with the image before onto `canvas`, then keeps `display`. */
     encode(encoder: GPUCommandEncoder, display: GPUTexture, canvas: GPUTextureView) {
+      // Not compiled: nothing is drawn and the image before stays, compared with the next.
+      const program = pipeline.get()
+      if (!program) return
       const group = held.groupOf(encoder, display)
       target.view = canvas
-      const pass = encoder.beginRenderPass(descriptor)
-      pass.setPipeline(pipeline.get())
-      pass.setBindGroup(0, group)
-      pass.draw(3)
-      pass.end()
+      drawFullscreenTriangle(encoder, descriptor, program, group)
       held.keep(encoder)
     },
     dispose: held.release,

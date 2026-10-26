@@ -110,20 +110,19 @@ fn spMaxTrace()->f32{return sp.spatial.w;}`,
 )
 
 /**
- * A RAY'S END AS THE TRACE STORES IT, and the ray word: the distance it reached (its bits but two, whether the ray met
- * a surface and whether what it met moves against the probe), the texel of the octahedron a ray is traced through
+ * A RAY'S END AS THE TRACE STORES IT, and the ray word: the distance it reached (its bits but one, whether what the ray
+ * met moves against the probe), the texel of the octahedron a ray is traced through
  * and its level (`spPackRay`; 6, 6 and 4 bits), the size of that level's grid (`spRayMip`).
  */
 const SP_HITS = wgslBlock(
   'SP_HITS',
   [],
   `${wgslConsts({ SP_IMPORTANCE_LEVELS: SCREEN_PROBE_CONSTANTS.importanceLevels })}
-fn spHitWord(distance:f32,hit:bool,moving:bool)->u32{
- return (bitcast<u32>(max(distance,0.0))&0x7ffffffcu)|select(0u,1u,hit)|select(0u,2u,moving);
+fn spHitWord(distance:f32,moving:bool)->u32{
+ return (bitcast<u32>(max(distance,0.0))&0x7ffffffeu)|select(0u,1u,moving);
 }
-fn spHitDistance(word:u32)->f32{return bitcast<f32>(word&0x7ffffffcu);}
-fn spHitIs(word:u32)->bool{return (word&1u)!=0u;}
-fn spHitMoves(word:u32)->bool{return (word&2u)!=0u;}
+fn spHitDistance(word:u32)->f32{return bitcast<f32>(word&0x7ffffffeu);}
+fn spHitMoves(word:u32)->bool{return (word&1u)!=0u;}
 fn spPackRay(coord:vec2u,level:u32)->u32{return (coord.x&63u)|((coord.y&63u)<<6u)|((level&15u)<<12u);}
 fn spRayCoord(word:u32)->vec2u{return vec2u(word&63u,(word>>6u)&63u);}
 fn spRayLevel(word:u32)->u32{return (word>>12u)&15u;}

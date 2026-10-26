@@ -1,12 +1,10 @@
 import { resolveProbesPerFrame } from '../../../../../sdk-core/src/bounce/contracts.ts'
-import type { SceneProxy } from '../../../../../sdk-core/src/contracts/proxy.ts'
 import type { BounceFrameMetrics } from '../../../../../sdk-core/src/contracts/shadowMetrics.ts'
-import type { BounceCensus } from '../../../lighting/bounce/census.ts'
 import type { GpuBounceProbes } from '../../../lighting/bounce/probes/probes.ts'
 import type { ScreenProbeStore } from '../../../lighting/bounce/screen/store.ts'
 
 /**
- * State of bouncing light: the probe grid, what the host asked of it, and what the last image
+ * State of bouncing light: the probe pool and its radiance cache, what the host asked of it, and what the last image
  * actually did. Nothing is allocated per image.
  */
 export interface WebgpuBounceState {
@@ -14,9 +12,7 @@ export interface WebgpuBounceState {
   /** The screen probes of the views, made at the first image that casts them
    *  (`lighting/bounce/screen/frame.ts`). */
   screen?: ScreenProbeStore
-  /** The scene's proxy as the cache object carried it, once read: its sizes are published. */
-  proxy: SceneProxy | undefined
-  /** In-flight load of the resident proxy; it is launched only once, at the first light. */
+  /** In-flight making of the probes; it is launched only once, at the first light. */
   pending: Promise<unknown> | undefined
   /** What the host asked. */
   wanted: boolean
@@ -30,16 +26,13 @@ export interface WebgpuBounceState {
   reason: string | null
   /** Light-store revision already seen: a change restarts convergence. */
   lightEpoch: number
-  /** Builds of the sky by direction already seen (`AtmosphereGpu.skyBuilds`): a new one restarts it too. */
-  skyBuilds: number
   /** The light functions' atlas as the bounce's lights read it (`lightFunctionRevision`) already seen: a change restarts it too. */
   lightFunctions: number
   /** Scene revision the probes last followed the placements at, -1 before any
-   *  (`../../prepare/bounce.ts`, `syncLightingProxies`). */
+   *  (`../../prepare/bounce.ts`, `syncBouncePlacements`). */
   sceneEpoch: number
-  /** Probes updated and rays launched by the last image; zero when nothing was encoded. */
+  /** Probes queued by the last image; zero when nothing was encoded. */
   probesUpdated: number
-  raysLaunched: number
   /** True when the last image actually encoded the probe pass. */
   encoded: boolean
   firstFrameLogged: boolean
@@ -49,59 +42,31 @@ export interface WebgpuBounceState {
  *  probes queued, whether the series is closed. */
 function rigState(bounce: WebgpuBounceState) {
   const probes = bounce.probes
-  const worn = probes?.worn()
   return {
     rigged: !!probes,
     loading: !probes && !!bounce.pending && !bounce.reason,
     unavailable: bounce.reason,
     probes: probes?.cascades.probes ?? null,
-    liveProbes: probes ? probes.pool.live : null,
+    liveProbes: probes ? probes.stats.live : null,
     // Probes alive that still hold nothing: zero says the light the image reads is filled.
-    unfilledProbes: probes ? probes.unfilled : null,
-    refusedMarks: probes ? probes.pool.refused : null,
-    marksRead: probes ? probes.marked.reads : null,
-    cellsMarked: probes ? probes.marked.cells : null,
+    unfilledProbes: probes ? probes.stats.unfilled : null,
+    refusedMarks: probes ? probes.stats.refused : null,
+    marksRead: probes ? probes.stats.reads : null,
+    cellsMarked: probes ? probes.stats.marked : null,
     probesUpdated: bounce.probesUpdated,
-    rays: bounce.raysLaunched,
     passMs: probes ? bounce.passMs : null,
     converged: probes ? !probes.working : null,
     rayReach: probes?.cascades.reach ?? null,
-    // What the proxy held at the last sync of the probes with the placements.
-    proxyPlacements: worn?.placements ?? null,
-    proxyTriangles: worn?.triangles ?? null,
-  }
-}
-
-/** What the last census of the field that came back counted (`lighting/bounce/census.ts`): none
- *  before the first. */
-function censusState(counted: BounceCensus | undefined) {
-  return {
-    censusReads: counted?.reads ?? null,
-    publishedSlots: counted?.publishedSlots ?? null,
-    nonZeroProbes: counted?.litProbes ?? null,
-    darkProbes: counted?.darkProbes ?? null,
-    buriedProbes: counted?.buriedProbes ?? null,
-    probesFiredTotal: counted?.updated ?? null,
-    raysFired: counted?.fired ?? null,
-    raysLit: counted?.lit ?? null,
-    probesWrittenTotal: counted?.written ?? null,
-    probesBuriedTotal: counted?.buried ?? null,
-    raysExhaustedBy: counted?.exhaustedBy ?? null,
-    rayWork: counted?.work ?? null,
-    raysEscaped: counted?.escaped ?? null,
-    shadowRaysFree: counted?.shadowFree ?? null,
-    shadowRaysBlocked: counted?.shadowBlocked ?? null,
-    imageRayWork: counted?.walkWork ?? null,
-    imageRayMembers: counted?.walkMembers ?? null,
+    // What the placements held at the last sync of the probes with them.
+    placements: probes?.placements() ?? null,
   }
 }
 
 /** Bounce state, as the image diagnostics, the frame's metrics and the per-stage profile publish it:
- *  the CPU's counts of the image just drawn, and the last census of the field the GPU counted. */
+ *  the CPU's counts of the image just drawn. */
 export function bounceState(bounce: WebgpuBounceState): BounceFrameMetrics {
   return {
     ...rigState(bounce),
-    ...censusState(bounce.probes?.counted()),
     screen: bounce.screen?.metrics,
   }
 }
@@ -112,7 +77,6 @@ export function createWebgpuBounceState(
 ): WebgpuBounceState {
   return {
     probes: undefined,
-    proxy: undefined,
     pending: undefined,
     wanted,
     probesPerFrame:
@@ -120,11 +84,9 @@ export function createWebgpuBounceState(
     passMs: null,
     reason: null,
     lightEpoch: 0,
-    skyBuilds: 0,
     lightFunctions: -1,
     sceneEpoch: -1,
     probesUpdated: 0,
-    raysLaunched: 0,
     encoded: false,
     firstFrameLogged: false,
   }

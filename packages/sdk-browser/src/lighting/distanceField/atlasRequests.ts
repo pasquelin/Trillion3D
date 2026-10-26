@@ -85,29 +85,38 @@ function processAnswer(
 
 /**
  * The mips to add this frame: the coarsest mip of each mesh made, and the requests of the frame
- * before, until the frame's bytes are spent (a mip that starts below the limit is whole).
+ * before, until the frame's bytes are spent (a mip that starts below the limit is whole). A mip
+ * whose bytes are still being read waits for a later frame.
  */
 function processReady(state: AtlasState, budget: AtlasBudget, records: AssetMip[]) {
   const adds: AssetMip[] = []
   let bytes = 0
   for (const id of state.added) {
-    adds.push({ asset: id, reversed: 0 })
-    bytes += brickBytes(mipOf(state.assets[id]!.field, 0))
-  }
-  state.added.clear()
-  const { requests } = state
-  for (let k = 0; k < requests.length; k++) {
-    const request = requests[k]
-    requests[k] = requests[requests.length - 1]
-    requests.pop()
-    k--
-    const asset = state.assets[request.asset]
-    if (asset && asset.field === request.field && request.reversed === asset.mips.length) {
-      bytes += brickBytes(mipOf(asset.field, request.reversed))
-      adds.push({ asset: request.asset, reversed: request.reversed })
-      records.push({ asset: request.asset, reversed: 0 })
+    const mip = mipOf(state.assets[id]!.field, 0)
+    if (!state.ready(mip)) {
+      state.fetch(mip)
+      continue
     }
-    if (bytes >= budget.uploadBytes) break
+    state.added.delete(id)
+    adds.push({ asset: id, reversed: 0 })
+    bytes += brickBytes(mip)
+  }
+  const asked = state.requests.splice(0)
+  for (const [k, request] of asked.entries()) {
+    if (bytes >= budget.uploadBytes) {
+      state.requests.push(...asked.slice(k))
+      break
+    }
+    const asset = state.assets[request.asset]
+    if (!asset || asset.field !== request.field || request.reversed !== asset.mips.length) continue
+    const mip = mipOf(asset.field, request.reversed)
+    if (!state.ready(mip)) {
+      state.requests.push(request)
+      continue
+    }
+    bytes += brickBytes(mip)
+    adds.push({ asset: request.asset, reversed: request.reversed })
+    records.push({ asset: request.asset, reversed: 0 })
   }
   records.push(...adds)
   return adds
@@ -131,6 +140,7 @@ export function stepAtlas(
   budget: AtlasBudget,
   answer: Uint32Array | undefined,
 ): AtlasStep {
+  if (state.failure !== undefined) throw state.failure
   const records: AssetMip[] = []
   processRemoves(state, records)
   const fresh: ReadRequest[] = []
@@ -138,6 +148,7 @@ export function stepAtlas(
   const adds = processReady(state, budget, records)
   const order = budget.reverseOrder ? adds.slice().reverse() : adds
   for (const add of order) state.allocate(add, budget.blockBricks)
+  for (const { field, reversed } of fresh) state.fetch(mipOf(field, reversed))
   state.requests.push(...fresh)
   return { records: once(records), added: order }
 }

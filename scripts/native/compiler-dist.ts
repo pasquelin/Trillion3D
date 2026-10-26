@@ -18,7 +18,7 @@ import {
 import { rustHost, rustTool } from '../build/build-wasm.ts'
 import { compileReferenceScenes, referenceRecord, type HashRecord } from './compiler-hashes.ts'
 import { REPOSITORY_ROOT, posixPath } from '../git/repository-files.ts'
-import { runChecked } from '../test/run.ts'
+import { runChecked } from '../check/run.ts'
 
 const CRATE = join(REPOSITORY_ROOT, 'packages/asset-compiler-rust')
 /** The Rust target of this machine, which the build names so that the flags reach no build script. */

@@ -20,9 +20,11 @@ use crate::compiler::accessor::create::accessor;
 use crate::compiler::primitive::triangles::{mesh_primitives, read};
 use crate::compiler::validate::required_index;
 use std::collections::{BTreeMap, BTreeSet};
+use trillion3d_math::vector::vec3::cross;
+use trillion3d_math::vector::vecn::{length, sub};
 
-/// The texture-coordinate sets measured: the first four, the ones a material reads.
-pub(crate) const UV_SETS: usize = 4;
+/// The texture-coordinate sets measured: the eight a page carries (`MAX_UV_SETS`).
+pub(crate) const UV_SETS: usize = trillion3d_page_codec::MAX_UV_SETS;
 /// The least area, in the object's squared units and in the coordinate's, a triangle measures at.
 const SMALL_AREA: f32 = 1e-8;
 /// The weight under which a set's density is not measured.
@@ -45,14 +47,7 @@ pub(crate) struct Density {
 
 /// The length of the cross product of the edges `ab` and `ac`: twice the area of the triangle.
 fn surface_area(a: [f32; 3], b: [f32; 3], c: [f32; 3]) -> f32 {
-    let (u, v) = (
-        [b[0] - a[0], b[1] - a[1], b[2] - a[2]],
-        [c[0] - a[0], c[1] - a[1], c[2] - a[2]],
-    );
-    let x = u[1] * v[2] - u[2] * v[1];
-    let y = u[2] * v[0] - u[0] * v[2];
-    let z = u[0] * v[1] - u[1] * v[0];
-    (x * x + y * y + z * z).sqrt()
+    length(cross(sub(b, a), sub(c, a)))
 }
 
 /// The absolute cross product of the edges `ab` and `ac` in the coordinate: twice its area.
@@ -71,7 +66,7 @@ impl Density {
         };
         // For each set, the (density, weight) of every triangle it measures.
         let mut measured: [Vec<(f32, f32)>; UV_SETS] = Default::default();
-        for triangle in indices.chunks_exact(3) {
+        for triangle in indices.as_chunks::<3>().0 {
             let area = surface_area(
                 vertex(triangle[0]),
                 vertex(triangle[1]),

@@ -25,7 +25,7 @@ import { rootOfPacked } from '../selection/placements.ts'
  * Every placement of a primitive shares its records (#1235), and what the cache holds is a record,
  * never an instance: so a group is held once per primitive, named at the packed ranks of the first
  * placement that asked for it, however many placements the cut selects it on (#1232). The tables
- * follow the records the cut closes over — bounded by the view's rows —, never the world's instances.
+ * follow the records the cut closes over — bounded by the view —, never the world's instances.
  */
 export type GroupClosure = ReturnType<typeof createGroupClosure>
 
@@ -36,8 +36,7 @@ type Visitor = (id: number, rec: PageRec, priority: number) => void
  * The closure's state: holders per group and per page, the pages whose count moved in this
  * difference with whether each was held before it (`seen`: 1 no, 2 yes), the groups one
  * `closeOver` walk reached at the highest priority it reached them at (a u32 held in an int's
- * bits), and what a walk does — counts `step` on what it reaches, or hands each page to `visitor`,
- * naming each placement's own pages under `perInstance` rather than its primitive's holder's.
+ * bits), and what a walk does — counts `step` on what it reaches, or hands each page to `visitor`.
  * `holder` is the placement a shared page list is held at: the first that asked, while it still
  * places it.
  */
@@ -65,7 +64,6 @@ function createWalk(
     },
     step: 0,
     visitor: undefined as Visitor | undefined,
-    perInstance: false,
     holder: new Map<readonly unknown[], number>(),
   }
 }
@@ -127,7 +125,7 @@ function enter(w: Walk, id: number, priority: number) {
   if (!rec) return
   const placed = rootOfPacked(w.placement, id)
   if (placed < 0 || !w.roots[placed]) return touchId(w, id, rec, priority)
-  const r = w.perInstance ? placed : holderOf(w, placed),
+  const r = holderOf(w, placed),
     page = id - baseOf(w, placed),
     owner = w.roots[r].structure?.owners[page] ?? -1
   if (owner >= 0) reach(w, r, owner, priority)
@@ -169,9 +167,6 @@ export function createGroupClosure(
   placement: PlacementIndex,
   /** The packed catalogue ids resolve in. */
   packedPages: PageList = [],
-  /** The counted closure names each placement's own packed ranks, as the row cache holds them
-   *  (`../rows/demand/rowDemand.ts`), rather than its primitive's holder's. */
-  instances = false,
 ) {
   const w = createWalk(roots, placement, packedPages)
   return {
@@ -194,31 +189,20 @@ export function createGroupClosure(
      * its own request's for a request, its group-mates and every group up to the roots, a group
      * walked again only when a request reaches it higher: what the residency's requests read
      * (`../residency/pageRequests.ts`), which raises the streaming pages the requests depend on.
-     * Without them every page is handed 1. `instances` names each placement's own packed ranks, as
-     * the row cache holds them (`../rows/demand/rowDemand.ts`), rather than the ranks of the
-     * placement its primitive's records are held at.
+     * Without them every page is handed 1.
      */
-    closeOver(
-      ids: ArrayLike<number>,
-      visit: Visitor,
-      priorities?: ArrayLike<number>,
-      instances = false,
-    ) {
+    closeOver(ids: ArrayLike<number>, visit: Visitor, priorities?: ArrayLike<number>) {
       w.visitor = visit
-      w.perInstance = instances
       for (let i = 0; i < ids.length; i++)
         enter(w, ids[i], priorities ? Math.max(1, priorities[i] >>> 0) : 1)
       w.visitor = undefined
-      w.perInstance = false
       w.walked.clear()
     },
     /** Turns the cut's difference into the difference of the pages it closes over. */
     apply(cut: IdDelta) {
       // Entries first: a group one page leaves and another joins is never let go in between.
-      w.perInstance = instances
       enterAll(w, cut.entered, cut.enteredCount, 1)
       enterAll(w, cut.exited, cut.exitedCount, -1)
-      w.perInstance = false
       settleDelta(w)
     },
   }

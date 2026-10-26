@@ -1,6 +1,14 @@
 import { wordViews } from './wordViews.ts'
 import { writeChanged } from './writeChanged.ts'
 
+/** A uniform buffer of `bytes` bytes, written from the CPU; `also` adds usage flags to its own. */
+export const uniformBuffer = (device: GPUDevice, label: string, bytes: number, also = 0) =>
+  device.createBuffer({
+    label,
+    size: bytes,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | also,
+  })
+
 /**
  * A uniform buffer of `bytes` bytes and the words it is written from — one image of them, read as
  * unsigned, signed and float (`wordViews`) —: `send` copies to the buffer the words that changed
@@ -9,11 +17,7 @@ import { writeChanged } from './writeChanged.ts'
  * adds usage flags to the buffer's own (`COPY_SRC` for one a pass copies from).
  */
 export function uniformBlock(device: GPUDevice, label: string, bytes: number, also = 0) {
-  const buffer = device.createBuffer({
-    label,
-    size: bytes,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | also,
-  })
+  const buffer = uniformBuffer(device, label, bytes, also)
   const words = wordViews(new ArrayBuffer(bytes))
   return { buffer, words, send: () => writeChanged(device, buffer, words.u, 0, words.u.length) }
 }

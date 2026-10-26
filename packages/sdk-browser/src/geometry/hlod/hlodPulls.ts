@@ -16,7 +16,12 @@ import { NO_CELLS, type CoarserPull } from '../partition/coarser.ts'
 import type { StreamingSource } from '../partition/source.ts'
 import type { PartitionGrid } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
-import { appendTo } from '../../../../math/src/sequence/counts.ts'
+import { appendTo, entryOf } from '../../../../math/src/sequence/counts.ts'
+
+/** A grid that pulls: its cells and those at each key. */
+type Pulled = { cells: number[]; at: Map<number, number[]> }
+
+const newPulled = (): Pulled => ({ cells: [], at: new Map() })
 
 /** The cells of `chain` that the wished ones pull in on `grids`, as their `pulls` say, from the view
  *  `source`. */
@@ -28,14 +33,13 @@ export function createHlodPulls(
 ) {
   const count = chain?.parent.length ?? 0
   /** Per grid that pulls, its cells and those at each key. */
-  const on = new Map<number, { cells: number[]; at: Map<number, number[]> }>()
+  const on = new Map<number, Pulled>()
   const keys = new Float64Array(count)
   for (let cell = 0; cell < count; cell++) {
     const grid = chain!.grid[cell],
       pull = pulls[grid]
     if (grids[grid].main || !pull) continue
-    let cells = on.get(grid)
-    if (!cells) on.set(grid, (cells = { cells: [], at: new Map() }))
+    const cells = entryOf(on, grid, newPulled)
     const key = (keys[cell] = pull.key(chain!.rung[cell], chain!.bounds, BOX_VALUES * cell))
     cells.cells.push(cell)
     appendTo(cells.at, key, cell)

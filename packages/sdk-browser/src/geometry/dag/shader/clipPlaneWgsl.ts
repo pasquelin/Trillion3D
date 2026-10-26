@@ -8,10 +8,11 @@ import { NODE_KIND } from '../nodeLayout.ts'
  * its normal points to, and the cut culls, at every level, what lies wholly behind it: the objects
  * whose root box does (`outsideClipPlane`, `testRoot`), the groups of the placement tree
  * (`outsideGroupClipPlane`, `testCell`), the nodes (`testNode`) and the clusters (`dagWanted`).
- * What straddles the plane is kept: the raster cuts it.
+ * What straddles the plane is kept, and handed to the hardware raster, which cuts it
+ * (`straddlesClipPlane`, which `needsClipping` of `visibleWgsl.ts` asks).
  *
  * The plane is in the render frame, `dot(xyz, p) + w` at least 0 drawn, as the frustum's planes
- * are (`views[0u].clipPlane`); a box is tested in the space of its placement, the plane brought
+ * are (`cutView.clipPlane`); a box is tested in the space of its placement, the plane brought
  * into it as a frustum plane is (`placedPlane`, `primitiveWgsl.ts`), so the scale of the placement
  * enters once, in the plane. The cut holds none of it without the project switch
  * (`DAG_NO_CLIP_PLANE_WGSL`); with it, a view that has no plane — all zero, or the host turned the
@@ -30,18 +31,26 @@ export const DAG_CLIP_PLANE_WGSL = wgslBlock(
  *  when its normal is zero. */
 fn clipPlaneOn()->bool{
  if(cullOff(CULL_CLIP_PLANE_OFF)){return false;}
- return any(views[0u].clipPlane.xyz!=vec3f(0.0));
+ return any(cutView.clipPlane.xyz!=vec3f(0.0));
 }
 /** Whether the box \`lo\`–\`hi\` of placement \`w\`, in its space, lies wholly behind the plane. */
 fn outsideClipPlane(w:u32,lo:vec3f,hi:vec3f)->bool{
- return clipPlaneOn()&&boxBehindPlane(placedPlane(w,views[0u].clipPlane),lo,hi);
+ return clipPlaneOn()&&boxBehindPlane(placedPlane(w,cutView.clipPlane),lo,hi);
 }
 /** Whether node \`t\` of the placement tree, a group, its world box \`lo\`–\`hi\` in the render frame,
  *  lies wholly behind the plane: the main pass of a cut in two passes alone. */
 fn outsideGroupClipPlane(t:u32,lo:vec3f,hi:vec3f)->bool{
- if(!clipPlaneOn()||(views[0u].occlusion&OCCLUSION_TWO_PASS)==0u){return false;}
+ if(!clipPlaneOn()||(cutView.occlusion&OCCLUSION_TWO_PASS)==0u){return false;}
  if(treeWord(t,${NODE_KIND}u)!=TREE_GROUP){return false;}
- return boxBehindPlane(views[0u].clipPlane,lo,hi);
+ return boxBehindPlane(cutView.clipPlane,lo,hi);
+}
+/** Whether the box \`c\` ± \`e\` of placement \`w\`, in its space, reaches behind the plane: some
+ *  corner lies on the wrong side, where the hardware raster has to cut it. */
+fn straddlesClipPlane(w:u32,c:vec3f,e:vec3f)->bool{
+ if(!clipPlaneOn()){return false;}
+ placed(w);
+ let p=placedT*cutView.clipPlane;
+ return dot(p.xyz,c)-dot(abs(p.xyz),e)+p.w<0.0;
 }
 `,
 )
@@ -53,5 +62,6 @@ export const DAG_NO_CLIP_PLANE_WGSL = wgslBlock(
   [],
   `fn outsideClipPlane(w:u32,lo:vec3f,hi:vec3f)->bool{return false;}
 fn outsideGroupClipPlane(t:u32,lo:vec3f,hi:vec3f)->bool{return false;}
+fn straddlesClipPlane(w:u32,c:vec3f,e:vec3f)->bool{return false;}
 `,
 )

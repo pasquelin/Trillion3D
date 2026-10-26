@@ -12,7 +12,7 @@ import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
 export const DISTANCE_FIELD_REPRESENTATION_FLAG = 8
 
 /** Whether a surface of surface-buffer flags `flags` has a distance field. */
-export const hasDistanceFieldRepresentation = wgslFn(
+const hasDistanceFieldRepresentation = wgslFn(
   'hasDistanceFieldRepresentation',
   [],
   `fn hasDistanceFieldRepresentation(flags:u32)->bool{return (flags&${DISTANCE_FIELD_REPRESENTATION_FLAG}u)!=0u;}`,

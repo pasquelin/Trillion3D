@@ -17,12 +17,20 @@ import { length3 } from '../../../../math/src/vector/vector.ts'
 import { selectByKey } from '../../../../math/src/select.ts'
 import { keepRadius } from '../../geometry/partition/reach.ts'
 
-/** A compiled model as the streamer reads it (`LoadedModel`): where its files are, and the scene
- *  node of a source node, the nodes below it and its radius (`_nodeAt`), where it numbers them. */
+/** What the cells of a compiled model draw (`LoadedModel._cells`): how many times the set of
+ *  source nodes they draw moved, and whether they hold source node `node` — no cell draws it, or a
+ *  placed cell does. A body or a collider lives while its node's cells are held. */
+type ModelCells = { readonly changes: number; holds(node: number): boolean }
+/** A compiled model as the streamer reads it (`LoadedModel`): where its files are, the graph node
+ *  of a source node (`_graphNodeAt`), its scene node, the nodes below it and its radius
+ *  (`_nodeAt`), where it numbers them, and what its cells draw (`_cells`, none for a model with
+ *  no partition: all of it is drawn). */
 export type Model = Object3D & {
   isLoadedModel: true
-  record: { base: string; scene?: { nodes?: readonly Object3D[] } }
+  record: { base: string }
+  _graphNodeAt?(index: number): Object3D | null
   _nodeAt?(index: number): ModelNode | null
+  _cells?(): ModelCells | null
 }
 /** A source node of a model: its scene node, the source indices below it, its drawn radius. */
 export type ModelNode = { node: Object3D; indices: number[]; radius: number }
@@ -170,6 +178,8 @@ export function moversOf(
   return n
 }
 
+const reached = (r: number) => r
+
 /**
  * How near tile `p` is wanted: 0 within reach of a moving body of the first `count` values of
  * `movers` (`moversOf`), its distance to `eye` within `range`, else `Infinity`; a resident tile as
@@ -183,7 +193,7 @@ export function nearness(
   movers: number[],
   count: number,
 ) {
-  const reach = p.id >= 0 ? keepRadius : (r: number) => r
+  const reach = p.id >= 0 ? keepRadius : reached
   for (let m = 0; m < count; m += 4)
     if (boxPointDistance(p.box, 0, movers[m], movers[m + 1], movers[m + 2]) <= reach(movers[m + 3]))
       return 0

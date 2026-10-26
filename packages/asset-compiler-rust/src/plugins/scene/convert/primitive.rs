@@ -7,6 +7,7 @@
 use super::*;
 use crate::compiler::accessor::codes::{ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER, FLOAT, UNSIGNED_SHORT};
 use trillion3d_math::geometry::aabb::aabb_of_f32;
+use trillion3d_page_codec::MAX_UV_SETS;
 
 /// Primitive vertices, deduplicated by driver. `positions` mandatory; empty array
 /// means attribute does not exist on primitive and is not written.
@@ -15,6 +16,8 @@ pub(crate) struct Vertices {
     pub(crate) positions: Vec<f32>,
     pub(crate) normals: Vec<f32>,
     pub(crate) uvs: Vec<f32>,
+    /// The texture sets past the first, `TEXCOORD_1` to `TEXCOORD_7`: empty where the mesh has none.
+    pub(crate) extra_uvs: [Vec<f32>; MAX_UV_SETS - 1],
     pub(crate) colors: Vec<f32>,
     /// All bones and weights a vertex, on a skinned mesh (`motion.rs`).
     pub(crate) joints: Vec<u16>,
@@ -67,11 +70,14 @@ pub(crate) fn primitive(
         json!({"bufferView":view,"componentType":FLOAT,"count":count,"type":"VEC3","min":min,"max":max}),
     );
     let mut attributes = json!({ "POSITION": accessors.len() - 1 });
-    for (name, values, kind) in [
-        ("NORMAL", &vertices.normals, "VEC3"),
-        ("TEXCOORD_0", &vertices.uvs, "VEC2"),
-        ("COLOR_0", &vertices.colors, "VEC4"),
-    ] {
+    let extra = (vertices.extra_uvs.iter().enumerate())
+        .map(|(set, values)| (format!("TEXCOORD_{}", set + 1), values, "VEC2"));
+    let named = [
+        ("NORMAL".to_string(), &vertices.normals, "VEC3"),
+        ("TEXCOORD_0".to_string(), &vertices.uvs, "VEC2"),
+    ];
+    let colour = ("COLOR_0".to_string(), &vertices.colors, "VEC4");
+    for (name, values, kind) in named.into_iter().chain(extra).chain([colour]) {
         if values.is_empty() {
             continue;
         }

@@ -157,6 +157,12 @@ impl Lods {
         }
     }
 
+    /// The fallback as a cover — the geometry a fallback mesh is built from
+    /// (`compiler/source/fallback.rs`) —, none for LODs made without it.
+    pub(crate) fn fallback_cover(&self) -> Option<SourceCover> {
+        (!self.fallback.is_empty()).then(|| self.cut((LodSelection::Lowest, 0.0)))
+    }
+
     /// The vertices and corners the LOD `cut` takes holds as a cover — at most a vertex per corner,
     /// within the source's own.
     pub(super) fn cut_counts(&self, cut: Cut) -> (usize, usize) {

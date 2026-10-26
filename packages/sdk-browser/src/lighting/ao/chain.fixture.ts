@@ -5,11 +5,13 @@ import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import { aoOcclusionShader, aoShapeOf } from './occlusionWgsl.ts'
 import { AO_SETUP_WGSL } from './setupWgsl.ts'
+import { AO_SMOOTH_WGSL } from './smoothWgsl.ts'
 import { aoPasses, aoTargetExtent, aoTargetRect, type AoPass, type AoTarget } from './plan.ts'
-import { searchOf, setupTexel, type RunSpec } from './reference.fixture.ts'
+import { searchOf, setupTexel, smoothOf, type RunSpec } from './reference.fixture.ts'
 import {
   createScene,
   HEIGHT,
+  imageOf,
   sceneScope,
   settingsOf,
   uniformOf,
@@ -74,7 +76,12 @@ function searchPass(spec: Spec, pass: AoPass, held: Held, compare: (a: number, b
   const [w, h] = aoTargetExtent(pass.target, extent)
   const [rw, rh] = aoTargetRect(pass.target, extent)
   const { setup, lower } = pass
-  const shape = aoShapeOf(pass.kind === 'final' ? 'final' : 'step', settings.shaderQuality, !!lower)
+  const shape = aoShapeOf(
+    pass.kind === 'final' ? 'final' : 'step',
+    settings.shaderQuality,
+    !!lower,
+    settings.compute,
+  )
   const scope = sceneScope(scene, ao, {
     setup: setup && { texels: held.setupWgsl[setup]!, width: aoTargetExtent(setup, extent)[0] },
     lower: lower ? (x, y) => held.wgsl[lower]![y][x] : undefined,
@@ -93,6 +100,7 @@ function searchPass(spec: Spec, pass: AoPass, held: Held, compare: (a: number, b
     last: pass.kind === 'final',
     quality: settings.shaderQuality,
     noiseStep: 0,
+    depthNormals: settings.compute,
     setup:
       setup &&
       ((x, y) =>
@@ -114,6 +122,24 @@ function searchPass(spec: Spec, pass: AoPass, held: Held, compare: (a: number, b
   )
 }
 
+/** The smoothing pass, run twice over the result the last pass left, the two compared. */
+function smoothPass(spec: Spec, pass: AoPass, held: Held, compare: (a: number, b: number) => void) {
+  const { scene, extent, ao } = spec
+  const source = held.wgsl[pass.lower!]!
+  const [w, h] = aoTargetExtent(pass.target, extent)
+  const { aoSmooth } = shaderRun<{ aoSmooth: (at: number[]) => number[] }>(
+    AO_SMOOTH_WGSL,
+    ['aoSmooth'],
+    sceneScope(scene, ao, { lower: (x, y) => source[y][x] }),
+  )
+  const apartSource = held.apart[pass.lower!]!
+  const wgsl = filled([w, h], (x, y) => aoSmooth([x + 0.5, y + 0.5, 0, 1])[0])
+  const apart = filled([w, h], (x, y) => smoothOf((tx, ty) => apartSource[ty][tx], [w, h], [x, y]))
+  held.wgsl[pass.target] = wgsl
+  held.apart[pass.target] = apart
+  wgsl.forEach((row, y) => row.forEach((v, x) => compare(v, apart[y][x])))
+}
+
 /**
  * Runs the plan of the options' resolutions over `geometry`: the WGSL and the apart search, the occlusion each leaves at every
  * pixel of the last texture, and the largest difference between them over every pass.
@@ -121,14 +147,17 @@ function searchPass(spec: Spec, pass: AoPass, held: Held, compare: (a: number, b
 export function runChain(geometry: Geometry, options: AmbientOcclusionOptions) {
   const scene = createScene(geometry)
   const settings = settingsOf(options)
-  const passes = aoPasses(settings.levels)
+  const smooth = settings.compute && settings.computeSmooth
+  const passes = aoPasses(settings.levels, smooth)
   const extent: [number, number] = [WIDTH, HEIGHT]
   const held: Held = { setupWgsl: {}, setupApart: {}, wgsl: {}, apart: {} }
   let worst = 0
   const compare = (a: number, b: number) => (worst = Math.max(worst, Math.abs(a - b)))
   for (const [at, pass] of passes.entries()) {
-    const spec = { scene, settings, extent, ao: uniformOf(settings.levels, at, settings) }
+    const ao = uniformOf(settings.levels, at, settings, imageOf(), smooth)
+    const spec = { scene, settings, extent, ao }
     if (pass.kind === 'setup') setupPass(spec, pass.target, held, compare)
+    else if (pass.kind === 'smooth') smoothPass(spec, pass, held, compare)
     else searchPass(spec, pass, held, compare)
   }
   return { wgsl: held.wgsl.ao!, apart: held.apart.ao!, worst, passes, settings }

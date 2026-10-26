@@ -8,11 +8,10 @@ import { cpuNow } from '../../diagnostic/stopwatch.ts'
  *
  * A session holds ONE CLOCK PER FRAME (`EngineContext.frameBudget`, `MAIN_THREAD_FRAME_MS`), its
  * stages spending it in priority order: its frame opens it, the cells and the arrival drain spend
- * from it first (`./arrivalQueue.ts`), it pauses while the engine does its other work, the WebGPU
- * row records and the texture tiles spend what is left (`../rows/claims.ts`,
- * `../../materials/virtual/streamer/streamer.ts`). No stage opens a clock of its own: their sum is
- * the frame's main-thread share. The geometry pool's pages spend none of it: a frame installs a
- * count of them (`../residency/queue.ts`), whatever they cost.
+ * from it first (`./arrivalQueue.ts`), it pauses while the engine does its other work, the texture
+ * tiles spend what is left (`../../materials/virtual/streamer/streamer.ts`). No stage opens a clock
+ * of its own: their sum is the frame's main-thread share. The geometry pool's pages spend none of
+ * it: a frame installs a count of them (`../residency/queue.ts`), whatever they cost.
  *
  * Until the session's first image is shown, the share is the whole main-thread frame (`widen`,
  * `../../frame/loop/firstImage.ts`): nothing is on screen to keep smooth, every stage loads the

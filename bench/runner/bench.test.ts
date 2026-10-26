@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DEFAULT_SCENE, sceneOf } from './assets/scene.ts'
-import { ENGINES, engineOf, equipSide, isEngine } from './harness/sideOptions.ts'
+import { ENGINES, engineOf, equipSide } from './harness/sideOptions.ts'
 import { equipSides, readOptions } from './harness/options.ts'
 import { parseArgs } from './harness/flags.ts'
 import { poseAt, trajectoryPoses } from './trajectory/poses.ts'
@@ -88,14 +88,14 @@ test('readOptions reads --instances and rejects a grid that the SDK cannot place
 })
 
 test('engineOf gives a side its own engine, otherwise that of the campaign', () => {
-  const flags = parseArgs(['--engine-before', 'three-lod'])
-  assert.strictEqual(engineOf(flags, 'before', 'webgpu').id, 'three-lod')
+  const flags = parseArgs(['--engine-before', 'webgpu'])
+  assert.strictEqual(engineOf(flags, 'before', 'webgpu').id, 'webgpu-page-raster')
   assert.strictEqual(engineOf(flags, 'after', 'webgpu').id, 'webgpu-page-raster')
 })
 
 // The flags a campaign types are English, their per-side forms named after the side.
 test('the engine, the two sides and their variants are read under English flags', () => {
-  const argv = ['--engine', 'webgpu', '--before', 'dist', '--engine-before', 'three-lod']
+  const argv = ['--engine', 'webgpu', '--before', 'dist', '--engine-before', 'webgpu']
   const { settings, flags } = readOptions([...argv, '--variant-before', 'geometry-flat'], '/r')
   assert.strictEqual(settings.engine, 'webgpu')
   assert.strictEqual(flags.get('before'), 'dist')
@@ -120,7 +120,7 @@ test('the bench refuses a flag it never reads, the retired French ones included'
     new RegExp(`^Error: unknown flag: ${retired}, --varaint$`),
   )
   // A side flag for a side the run does not measure changes nothing either.
-  assert.throws(() => benchFlags(['--engine-before', 'three-lod']), /--engine-before/)
+  assert.throws(() => benchFlags(['--engine-before', 'webgpu']), /--engine-before/)
 })
 
 test('engineOf rejects an unknown engine for a side', () => {
@@ -130,13 +130,8 @@ test('engineOf rejects an unknown engine for a side', () => {
   )
 })
 
-test('the engines are WebGPU and the two Three witnesses, nothing else', () => {
-  assert.deepStrictEqual(Object.keys(ENGINES).sort(), ['three-lod', 'three-nu', 'webgpu'])
-  assert.deepStrictEqual(
-    Object.keys(ENGINES).filter((name) => isEngine(ENGINES[name])),
-    ['webgpu'],
-    'the engine itself is the one SDK side',
-  )
+test('the one engine is WebGPU, nothing else', () => {
+  assert.deepStrictEqual(Object.keys(ENGINES), ['webgpu'])
 })
 
 test('--gaze-network is a recorded setting', () => {

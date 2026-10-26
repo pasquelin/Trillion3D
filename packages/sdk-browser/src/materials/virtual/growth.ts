@@ -23,8 +23,9 @@ export function createTileGrowth(
   },
 ) {
   const { color, data, feedback, sources, flushAll, followHeaders } = parts
-  const relayout = () => {
-    data.relayout(color.pages.entries)
+  /** The tables laid out again: the data table's ranks only move behind a colour one that grew. */
+  const relayout = (dataMoves = true) => {
+    if (dataMoves) data.relayout(color.pages.entries)
     feedback.grow(color.pages.entries + data.pages.entries)
     parts.resetRequests()
     followHeaders(true)
@@ -54,7 +55,7 @@ export function createTileGrowth(
       sources.hold(texture)
       try {
         atlas.pinTails(device.queue, (at, place) => sources.tail(atlas, at, place), slot, slot + 1)
-        relayout()
+        relayout(kind === 'color')
       } catch (error) {
         sources.release(atlas, slot)
         atlas.release(slot)

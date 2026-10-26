@@ -5,7 +5,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { MATERIAL_SURFACES_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
@@ -18,6 +17,7 @@ import { wantsEmissiveAo } from './emissiveAoLayer.ts'
 import { surfaceWritten } from '../../geometry/pages/surfaceWrites.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 type Gpu = ReturnType<typeof fakeDevice>
 const count = (list: string[], item: string) => list.filter((at) => at === item).length
@@ -28,7 +28,7 @@ async function opened(emits: boolean) {
   const fixture = quadScene()
   const material = G.standardSurface({ roughness: 0.5 })
   if (emits) material.emissive = [0.5, 0.25, 0]
-  const mesh = fixture.source.children[0] as HostMesh
+  const mesh = fixture.source.children[0] as PageMesh
   mesh.material = material
   const backend = webgpuPagesEngine({
     textureCaches: createTextureCaches(createPageCache()),

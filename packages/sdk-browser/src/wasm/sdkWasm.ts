@@ -25,24 +25,27 @@ export type SdkWasm = {
   /** The page encoder of the run-time cut (`../geometry/codec/encodeGeometryPage.ts`): 0 written, the
    *  page held; 1 refused, its code in the answer block. */
   encode_page(request: number, answer: number): number
-  /** The proxy of a run-time cut (`../geometry/runtime/runtimeProxy.ts`): 0 built, the columns held. */
-  proxy_build(
-    indices: number,
-    indexCount: number,
-    positions: number,
-    vertexCount: number,
-    answer: number,
-  ): number
   /** The page decoder (`../geometry/codec/geometryPage.ts`): `page_check` gates a page's header and
    *  answers its counts, `page_unpack` writes its indices and attributes into a block of the
-   *  decoded bytes; each 0 when it succeeds, 1 with the refusal's code in the answer block. */
+   *  decoded bytes, `page_resident` writes the resident page the install pass writes into the pool
+   *  and holds it; each 0 when it succeeds, 1 with the refusal's code in the answer block. `pool`
+   *  is the block that says where the pool lies, for a page that names the vertices of other
+   *  clusters (`POOL_WORDS`), 0 for a page that names none. */
   page_check(data: number, length: number, maxDecodedBytes: number, answer: number): number
+  page_resident(
+    data: number,
+    length: number,
+    maxDecodedBytes: number,
+    answer: number,
+    pool: number,
+  ): number
   page_unpack(
     data: number,
     length: number,
     maxDecodedBytes: number,
     answer: number,
     out: number,
+    pool: number,
   ): number
   /** The clusters of the run-time cut (`../geometry/codec/clusterTriangles.ts`): 0 built, the answer
    *  held; 1 refused. */

@@ -38,11 +38,10 @@ struct Piece {
 std::vector<uint32_t> pieces;
 BodyIDVector awake;
 
-/** Piece `index` of `count` of a body's `shape`. */
-Piece pieceOf(const Shape &shape, uint32_t index, uint32_t count) {
-  Mat44 place = Mat44::sIdentity();
-  Vec3 scale = Vec3::sOne();
-  if (const Shape *compound = compoundOf(shape, place, scale)) {
+/** Piece `index` of `count` of a body's `shape`, its `compound` (`compoundOf`, under `place` and
+ *  `scale`) null when it has none. */
+Piece pieceIn(const Shape &shape, const Shape *compound, Mat44 place, Vec3 scale, uint32_t index, uint32_t count) {
+  if (compound) {
     const CompoundShape::SubShape &sub = static_cast<const CompoundShape *>(compound)->GetSubShape(index);
     Mat44 at = place * sub.GetLocalTransformNoScale(scale);
     Vec3 size = sub.TransformScale(scale);
@@ -59,6 +58,14 @@ Piece pieceOf(const Shape &shape, uint32_t index, uint32_t count) {
   piece.slab[0] = {-axis, from}, piece.slab[1] = {axis, -to}, piece.cuts = 2;
   piece.bounds.mMin.SetComponent(k, from), piece.bounds.mMax.SetComponent(k, to);
   return piece;
+}
+
+/** Piece `index` of `count` of a body's `shape`. */
+Piece pieceOf(const Shape &shape, uint32_t index, uint32_t count) {
+  Mat44 place = Mat44::sIdentity();
+  Vec3 scale = Vec3::sOne();
+  const Shape *compound = compoundOf(shape, place, scale);
+  return pieceIn(shape, compound, place, scale, index, count);
 }
 
 /** The pieces of a body's `shape`: a compound's sub-shapes, else slices `sliceLength` long at most
@@ -99,17 +106,18 @@ uint32_t runBuoyancy(const uint32_t *w) {
     const Slot *slot = slotOf(engine);
     Body *body = slot && world.stepping ? locks.TryGetBody(slot->id) : nullptr;
     Submerged sums;
+    // The records of one body share its shape: its compound is looked for once.
+    const Shape *shape = body ? body->GetShape() : nullptr;
+    Mat44 place = Mat44::sIdentity();
+    Vec3 scale = Vec3::sOne();
+    const Shape *compound = shape ? compoundOf(*shape, place, scale) : nullptr;
+    uint32_t limit = compound ? static_cast<const CompoundShape *>(compound)->GetNumSubShapes() : MAX_SLICES;
     for (; plane < end && plane[0] == engine; plane += PLANE_WORDS) {
       if (!body || !body->IsDynamic()) continue;
-      const Shape *shape = body->GetShape();
       uint32_t index = plane[1] & 0xFFFFu, pieces = plane[1] >> 16;
       // A stale record (the body's shape changed since the query) names no piece of it.
-      Mat44 place = Mat44::sIdentity();
-      Vec3 scale = Vec3::sOne();
-      const Shape *compound = compoundOf(*shape, place, scale);
-      uint32_t limit = compound ? countOf(*shape, 0) : MAX_SLICES;
       if (index >= pieces || pieces > limit) continue;
-      Piece piece = pieceOf(*shape, index, pieces);
+      Piece piece = pieceIn(*shape, compound, place, scale, index, pieces);
       // The water's space: the body's centre of mass at its origin, the world's axes.
       Quat turn = body->GetRotation();
       Vec3 up = vec3(plane + 5).NormalizedOr(Vec3::sAxisY());

@@ -1,10 +1,11 @@
+import { MAX_10_BIT_FLOAT } from '../../../../math/src/constants.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 
 /** The most a surface colour is written at, pre-exposure applied: the greatest value of a 10-bit
  *  float, halved, which leaves room above it for the additive elements (bloom, clouds, particles)
  *  — the number of the material's emission, whatever the target. */
-const MAX_EMISSIVE = 64512 * 0.5
+const MAX_EMISSIVE = MAX_10_BIT_FLOAT * 0.5
 
 /**
  * The ways a pass that writes light to the lit image applies the pre-exposure, over `factor`, the

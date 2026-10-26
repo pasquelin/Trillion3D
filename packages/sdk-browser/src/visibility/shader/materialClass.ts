@@ -5,22 +5,24 @@ import {
   FLAG_HAS_NORMAL,
   FLAG_HAS_TANGENT,
   FLAG_HAS_UV,
+  FLAG_LINE,
   FLAG_LIT,
   FLAG_MASK,
   FLAG_SAMPLED,
+  FLAG_SPRITE,
   FLAG_VOXEL,
 } from '../types.ts'
+import { MODEL_SHIFT, SURFACE_MODEL } from '../../materials/surface/surfaceModelWord.ts'
 import { CLASS_FEATURE } from './classWords.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { visPageIndex, visRowIn } from '../visWords.ts'
 export type MaterialClassFeature = keyof typeof CLASS_FEATURE
 /** Keys the features address: one more bit than the highest feature. */
-export const FEATURE_CLASS_KEYS = 32768
-/** Keys of the classes of the surfaces that wear a graph, past the features': a class of them is a
- *  graph's program over a set of features (`../../materials/graph/surfaceClasses.ts`). */
-export const GRAPH_CLASS_KEYS = 256
-/** Keys addressable: the features', then the graphs'. */
-export const MATERIAL_CLASS_KEYS = FEATURE_CLASS_KEYS + GRAPH_CLASS_KEYS
+export const FEATURE_CLASS_KEYS = Math.max(...Object.values(CLASS_FEATURE)) * 2
+/** Keys addressable: the features', then as many again for the classes of the surfaces that wear
+ *  a graph — a class of them a graph's program over a set of features
+ *  (`../../materials/graph/surfaceClasses.ts`). */
+export const MATERIAL_CLASS_KEYS = 2 * FEATURE_CLASS_KEYS
 
 /** Map slots of a row, as `../../geometry/rows/page/pageRowWriter.ts` resolves them: zero is the absence of a texture. */
 type MaterialClassMaps = {
@@ -31,6 +33,8 @@ type MaterialClassMaps = {
   normal: number
   /** The surface carries an anisotropic or clear-coat lobe (`hasPhysicalLobes`). */
   physical?: boolean
+  /** The record's shading model code (`shadingModelCode`): 0 for the default lit model. */
+  shadingCode?: number
 }
 
 /** Class key of a row: its resolve-relevant flags, which maps it reads, and whether one of them
@@ -55,6 +59,9 @@ export function materialClassKey(flags: number, maps: MaterialClassMaps, secondU
   // nor that set compiles none of it.
   if ((maps.physical && flags & FLAG_LIT) || secondUv) key |= f.HAS_PHYSICAL
   if (flags & FLAG_VOXEL) key |= f.VOXEL
+  if (flags & (FLAG_SPRITE | FLAG_LINE)) key |= f.SHAPED
+  if (((flags >>> MODEL_SHIFT) & 7) === SURFACE_MODEL.matcap) key |= f.MATCAP
+  if (maps.shadingCode) key |= f.HAS_SHADING_MODEL
   return key
 }
 

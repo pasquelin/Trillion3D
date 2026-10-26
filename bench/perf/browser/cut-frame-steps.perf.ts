@@ -17,7 +17,7 @@ import { prepareWebgpuBackend } from '../../../packages/sdk-browser/src/frame/pr
 import { renderWebgpuPages } from '../../../packages/sdk-browser/src/frame/render/render.ts'
 import { flushWebgpuPages } from '../../../packages/sdk-browser/src/frame/render/flush.ts'
 import { disposeWebgpuPages } from '../../../packages/sdk-browser/src/frame/io/metrics.ts'
-import { CPU_STEP } from '../../../packages/sdk-browser/src/frame/render/cpuStepTable.ts'
+import { CPU_STEP } from '../../../packages/sdk-browser/src/diagnostic/stage/cpuStepTable.ts'
 import { BACKEND } from '../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuGlobals } from '../../../tests/kit/fakeDevice/globals.ts'
@@ -66,7 +66,7 @@ function pose(f: number, still: boolean) {
 const STEPS = {
   adoption: [CPU_STEP.adoptCutMs],
   admission: [CPU_STEP.admissionMs],
-  stream: [CPU_STEP.residencyQueueMs, CPU_STEP.syncRowsMs, CPU_STEP.residencyUploadMs],
+  stream: [CPU_STEP.residencyQueueMs, CPU_STEP.syncClustersMs, CPU_STEP.residencyUploadMs],
 } as const
 type Step = keyof typeof STEPS
 
@@ -86,9 +86,13 @@ async function flight(frames: number, still: boolean) {
       const readback = sample.result.pageIds.map((id) => dag.pageUrlOf(id)).sort()
       if (adopted.join() !== readback.join())
         fault = `frame ${f}: the adopted cut is not the readback`
-      const { requestedCount, keepCount } = rt.services.residencySets,
+      const { requestedCount, keepCount, drawnCoarse } = rt.services.residencySets,
         slots = rt.setup.slots
-      if (rt.run.coverageBudgetLimited !== (requestedCount > slots || keepCount > slots))
+      // Limited only while a coarser page is drawn than the finest (`gpuCutAdmission.ts`).
+      if (
+        rt.run.coverageBudgetLimited !==
+        ((requestedCount > slots || keepCount > slots) && drawnCoarse > 0)
+      )
         fault = `frame ${f}: the admission verdict is not its counts'`
     }
     const row = rt.timing.profiler.row

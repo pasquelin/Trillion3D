@@ -1,15 +1,15 @@
 // What the transparent-pass tests share: a scene of three transparent copies, one of which
 // transmits, prepared and planned as `prepareBlendResources` does, and the frame targets of a
 // replay.
+import { createGraphFrame } from '../frame/render/graphFrame.ts'
 import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Color } from '../../../sdk-core/src/world/math/color.ts'
-import { Scene } from '../session/world/scene.ts'
 import { surfaceOf, type PageSurface } from '../geometry/pages/surface.ts'
 import { prepareWebgpuBlend } from './prepare.ts'
 import { voidStaleBlendGroups } from './identity.ts'
 import { blendLightResources } from './lighting.ts'
 import { createWebgpuBlendState } from './state.ts'
-import { refreshBlendPlan } from './plan/plan.ts'
+import { refreshBlendPlan, planItem } from './plan/plan.ts'
 import { buildBlendStatics } from './statics.ts'
 import { uniformStride } from '../session/memory/pools.ts'
 import { orderBlendPasses } from './order/order.ts'
@@ -20,7 +20,6 @@ import type { WebgpuGpuState } from '../frame/backend/state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { reflectionFront } from '../lighting/reflections/frontDepth.fixture.ts'
 import { VERDICT_WORDS } from './verdict/verdictLayout.ts'
-import { planItem } from './plan/plan.ts'
 import { NO_OVERRIDES } from '../frame/backend/state/viewOverrides.ts'
 
 const buffer = () => ({ size: 0 }) as unknown as GPUBuffer
@@ -60,7 +59,6 @@ function copy(material: PageSurface, order: number) {
   const mesh = G.mesh(geometry, material)
   mesh.matrixAutoUpdate = false
   mesh.renderOrder = order
-  mesh.frustumCulled = false
   return Object.assign(mesh, { surface: surfaceOf(material) })
 }
 function eau(transmission: number) {
@@ -84,7 +82,7 @@ export function prepared() {
     copy(eau(1), 1),
     copy(G.standardSurface({ transparent: true, opacity: 0.2 }), 2),
   ]
-  blendState.transmissive = prepareWebgpuBlend(copies, blendState, new Scene())
+  blendState.transmissive = prepareWebgpuBlend(copies, blendState)
   // The scene's transparent list IS the draw list: static tables and the encode plan are built with
   // it, as `prepareBlendResources` does.
   buildBlendStatics(blendState, uniformStride())
@@ -124,14 +122,23 @@ export function targets(gpu: WebgpuGpuState) {
     hdrTexture: {},
     depthTexture: {},
     feedbackView: {},
-    asIsShare: { view: {}, givenUpView: {} },
+    responsive: { view: {} },
     surfaces: { views: () => views, lobesView: {}, width: 8, height: 8, lobes: { width: 1 } },
     backdrop: { color: {}, colorView: {}, distortion: {}, distortionView: {}, active: true },
+    translucency: {
+      colorView: {},
+      modulationView: {},
+      group: {},
+      groupBare: {},
+      modulated: false,
+      passes: {},
+      active: true,
+      drawn: false,
+      shown: false,
+    },
     deferred: {
       uniform: {},
-      placeholders: Object.fromEntries(
-        ['bounceGrid', 'probes', 'tiles', 'fog'].map((k) => [k, {}]),
-      ),
+      placeholders: Object.fromEntries(['tiles', 'fog'].map((k) => [k, {}])),
     },
   })
 }
@@ -157,7 +164,12 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
       : []
   const rt = {
     // A textured scene: its pipelines write the feedback.
-    vis: { blendPipelines: anyPipelines(), writesFeedback: true, materialTable: {} },
+    vis: {
+      blendPipelines: anyPipelines(),
+      writesFeedback: true,
+      materialTable: {},
+      graphFrame: createGraphFrame(),
+    },
     gpu,
     capture: { capturing: false },
     lights: { buffer: {}, store: { count: 0, epoch: 0, unlit: false } },

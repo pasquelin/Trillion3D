@@ -1,5 +1,6 @@
 import { computeTextureEntry, computeUniformEntry } from '../../../gpu/core/computeBindings.ts'
 import { createCheckedShaderModule } from '../../../gpu/core/shaderModule.ts'
+import { postSamplers } from '../../../gpu/core/postSamplers.ts'
 import { hasSubgroups } from '../../../gpu/core/subgroups.ts'
 import { buildRenderPipeline } from '../../../lighting/deferred/fullscreen.ts'
 import { MOTION_BLUR_PASS } from '../../../diagnostic/stage/passLabels.ts'
@@ -72,13 +73,7 @@ export async function createMotionBlurPrograms(device: GPUDevice) {
     scatterDraw(device, layout, scatter, false),
     scatterDraw(device, layout, scatter, true),
   ])
-  const sampler = device.createSampler({
-    label: `${MOTION_BLUR_PASS} sampler`,
-    magFilter: 'linear',
-    minFilter: 'linear',
-    addressModeU: 'clamp-to-edge',
-    addressModeV: 'clamp-to-edge',
-  })
+  const sampler = postSamplers(device).clamped
   return { subgroups, scatterLayout: layout, base, scatterSmallest, scatterLargest, sampler }
 }
 

@@ -2,7 +2,7 @@ import type { StatsWindow } from '../../../../sdk-core/src/modules/stats/report.
 import { WEBGPU_STAGES } from '../../diagnostic/stage/passDeclaration.ts'
 import type { CpuStepReader, CpuStepSummary } from '../../diagnostic/stage/profiler.ts'
 import { stepsByStage } from '../../diagnostic/stage/stageDeposits.ts'
-import { CPU_STEP_NAMES, CPU_STEP_STAGES } from '../../frame/render/cpuStepTable.ts'
+import { CPU_STEP_NAMES, CPU_STEP_STAGES } from '../../diagnostic/stage/cpuStepTable.ts'
 import { WINDOW_MS } from './frameSeries.ts'
 
 /**

@@ -2,64 +2,51 @@
 //!
 //! glTF carries them in `KHR_lights_punctual`; the ufbx importer rewrites those of
 //! an FBX under that extension, so one reader serves both formats — an OBJ
-//! declares none, and the cache product comes out empty. glTF is photometric
-//! (candela, lux), the engine is radiometric (W/sr, W/m²): conversion is a
-//! division by `LUMENS_PER_WATT`, with no spectrum assumption, and the host sets
-//! exposure, never import. Detail in `docs/SDK.md`.
+//! declares none, and the cache product comes out empty. glTF intensities are candela
+//! and lux, and the engine takes them as the same numbers, with no luminous efficacy
+//! between them: the host sets exposure, never import. Detail in `docs/SDK.md`.
 use crate::compiler::source::node_transform::Mat4;
 use crate::*;
 
 mod emitter;
 mod fields;
 mod naming;
-use emitter::Emitter;
-use fields::{axis, colour_of, cone_of, range_of};
+use emitter::attach;
+use fields::{attach_shadow_distance, axis, colour_of, cone_of, range_of};
 use naming::unique_id;
 
-/// Luminous efficacy of photometric → radiometric conversion, in lumens per watt.
-/// This is `K_cd`, the candela definition constant (683 lm/W at 540 THz). One
-/// candela is therefore 1/683 W/sr and one lux 1/683 W/m². Choice published in
-/// `docs/SDK.md`, not a buried constant.
-const LUMENS_PER_WATT: f64 = 683.0;
-/// Setting: irradiance below which a punctual light without `range` is declared
-/// off, in W/m². The contract requires a finite range, glTF allows infinity:
-/// `range` is `sqrt(I/threshold)`. A hundredth of a watt per square metre sits
-/// under an eight-bit image floor, and keeps the range — hence the shadow map —
-/// at a useful size.
-const RANGE_CUTOFF_IRRADIANCE: f64 = 1e-2;
-/// Maximum range, declared or deduced, in metres: beyond it, the light covers any playable scene.
-const MAX_RANGE: f64 = 1.0e4;
+/// Range, in metres, of a punctual light that declares none: glTF gives it no end. A finite number
+/// the runtime reads as a radius that covers every cell of the light grid.
+const UNBOUNDED_RANGE: f64 = 1.0e20;
 /// Version of the `lights.json` cache product. It lives outside the manifest: its version is its own.
-const SCENE_LIGHTS_VERSION: u32 = 1;
+/// 4 gives a light without range an unbounded one (1e20 m) and drops the `units` block; 3 names a spot's cones `innerConeAngle` and `outerConeAngle` and a lamp's unit `candelas`; 2
+/// writes the intensities as the source declares them, in candela and lux; 1 divided them by 683.
+const SCENE_LIGHTS_VERSION: u32 = 4;
 const SCENE_LIGHTS_FILE: &str = "lights.json";
 /// Version of the `SceneLight` contract fulfilled by this product (`packages/sdk-core/sceneLightContracts`).
-const SCENE_LIGHT_CONTRACT: u32 = 2;
+/// 4 reads a lamp that names no unit as unitless, and a spot's opening as an inner and an outer
+/// cone: the records written here name their unit, `candelas`, and both cones. 3 gave a lamp's
+/// intensity a unit, candelas when it named none.
+const SCENE_LIGHT_CONTRACT: u32 = 4;
 const QUARTER_PI: f64 = std::f64::consts::FRAC_PI_4;
 /// The open interval of a spot's half-angle the `SceneLight` contract accepts, the one clamp
 /// every importer's cone goes through (`fields::cone_of`): a milliradian off a point and off a
 /// half-space.
 const SPOT_CONE_MIN: f64 = 1e-3;
 const SPOT_CONE_MAX: f64 = std::f64::consts::FRAC_PI_2 - SPOT_CONE_MIN;
+/// The intensity of a source whose format is radiometric, like `UsdLux` and Blender: its `value`
+/// raised by `exposure` stops and times the format's `factor` (area, spread), grouped
+/// `(value · 2^exposure) · factor`. The glTF written from it carries that number, and the
+/// engine reads it back unchanged.
+pub(crate) fn radiometric_intensity(value: f64, exposure: f64, factor: f64) -> f64 {
+    value * exposure.exp2() * factor
+}
+
 /// What one FBX intensity unit is worth in glTF's photometric unit — the only
 /// place this setting is taken. FBX has no unit: its `Intensity` is a percentage,
 /// which ufbx yields as a fraction. A punctual or spot takes the 1000 lm bulb in
 /// 4π sr (≈ 79.6 cd per unit), a directional the illuminance of an overcast day
 /// (10 000 lux).
-/// Photometric intensity of glTF — candela or lux — of a radiometric quantity in
-/// W/sr or W/m². Exact inverse of the division this module does on reread: a
-/// driver whose format is radiometric, like `UsdLux` and Blender, goes through
-/// here rather than its own factor, and the value written in the glTF returns to
-/// the original watt.
-pub(crate) fn photometric(radiometric: f64) -> f64 {
-    radiometric * LUMENS_PER_WATT
-}
-
-/// `photometric` of a radiometric `value` raised by `exposure` stops and times the format's
-/// `factor` (area, spread), grouped `(value · 2^exposure) · factor`.
-pub(crate) fn radiometric_intensity(value: f64, exposure: f64, factor: f64) -> f64 {
-    photometric(value * exposure.exp2() * factor)
-}
-
 pub(crate) fn fbx_intensity_scale(kind: &str) -> f64 {
     if kind == "directional" {
         10_000.0
@@ -76,10 +63,9 @@ fn convert(light: &Value, m: &Mat4, id: String) -> std::result::Result<Value, &'
     if !matches!(kind, "point" | "spot" | "directional") {
         return Err("light-unsupported-type");
     }
-    let radiant =
-        crate::compiler::validate::number_or(light.get("intensity"), 1.0) / LUMENS_PER_WATT;
-    if !radiant.is_finite() || radiant <= 0.0 {
-        return Err("light-non-positive-intensity");
+    let intensity = crate::compiler::validate::number_or(light.get("intensity"), 1.0);
+    if !intensity.is_finite() || intensity < 0.0 {
+        return Err("light-negative-intensity");
     }
     let colour = colour_of(light);
     // Shadow flag of a format that carries one (FBX) travels in `extras`; otherwise
@@ -89,7 +75,11 @@ fn convert(light: &Value, m: &Mat4, id: String) -> std::result::Result<Value, &'
         .and_then(Value::as_bool)
         .unwrap_or(true);
     let mut entry =
-        json!({"id":id,"kind":kind,"color":colour,"intensity":radiant,"castsShadow":shadow});
+        json!({"id":id,"kind":kind,"color":colour,"intensity":intensity,"castsShadow":shadow});
+    // A lamp's intensity is candela in the glTF; a sun's is lux, which names no unit.
+    if kind != "directional" {
+        entry["intensityUnits"] = json!("candelas");
+    }
     // A punctual light radiates everywhere: no axis, and the contract expects none.
     // The sun and the spot require one, and a matrix that flattens it refuses them.
     if kind != "point" {
@@ -99,9 +89,11 @@ fn convert(light: &Value, m: &Mat4, id: String) -> std::result::Result<Value, &'
         return Ok(entry);
     }
     entry["position"] = json!([m[12], m[13], m[14]]);
-    entry["range"] = json!(range_of(light, radiant, colour));
+    entry["range"] = json!(range_of(light));
     if kind == "spot" {
-        entry["coneAngle"] = json!(cone_of(light));
+        let (inner, outer) = cone_of(light);
+        entry["innerConeAngle"] = json!(inner);
+        entry["outerConeAngle"] = json!(outer);
     }
     Ok(entry)
 }
@@ -110,7 +102,7 @@ fn convert(light: &Value, m: &Mat4, id: String) -> std::result::Result<Value, &'
 /// anything from the reader.
 type Tally = BTreeMap<&'static str, usize>;
 fn report(lights: Vec<Value>, rejected: Tally, counts: Tally) -> Value {
-    json!({"version":SCENE_LIGHTS_VERSION,"sceneLightVersion":SCENE_LIGHT_CONTRACT,"units":{"lumensPerWatt":LUMENS_PER_WATT,"rangeCutoffIrradiance":RANGE_CUTOFF_IRRADIANCE,"maxRange":MAX_RANGE},"count":lights.len(),"lights":lights,"rejected":rejected,"counts":counts})
+    json!({"version":SCENE_LIGHTS_VERSION,"sceneLightVersion":SCENE_LIGHT_CONTRACT,"count":lights.len(),"lights":lights,"rejected":rejected,"counts":counts})
 }
 /// The rendered scene's nodes, and those a hidden node hides (`source/nodes.rs`, `scene_nodes`).
 type Nodes<'a> = (&'a BTreeSet<usize>, &'a BTreeSet<usize>);
@@ -120,19 +112,15 @@ type Nodes<'a> = (&'a BTreeSet<usize>, &'a BTreeSet<usize>);
 /// light whose type, matrix or intensity fails the contract is counted in
 /// `rejected` and left aside: a compilation never dies on a light, it says so. `world` is every
 /// node's transform, computed once for the job (`proxy::placement::Placement`).
-fn scene_lights(
-    (g, bin, world): (&Value, &[u8], &[Mat4]),
-    (reached, hidden): Nodes<'_>,
-) -> Result<Value> {
+fn scene_lights((g, world): (&Value, &[Mat4]), (reached, hidden): Nodes<'_>) -> Value {
     let (mut rejected, mut counts) = (Tally::new(), Tally::new());
     let (Some(nodes), Some(declared)) = (
         g.get("nodes").and_then(Value::as_array),
         g.pointer("/extensions/KHR_lights_punctual/lights")
             .and_then(Value::as_array),
     ) else {
-        return Ok(report(Vec::new(), rejected, counts));
+        return report(Vec::new(), rejected, counts);
     };
-    let emitter = Emitter::new(g, bin, world)?;
     let mut seen = BTreeSet::new();
     let mut lights = Vec::new();
     for (index, node) in nodes.iter().enumerate() {
@@ -152,24 +140,25 @@ fn scene_lights(
         let id = unique_id(light, node, index, &mut seen);
         match convert(light, &world[index], id) {
             Ok(mut entry) => {
-                emitter.attach(&mut entry, light, index, &mut counts);
+                attach_shadow_distance(&mut entry, light, &mut counts);
+                attach(&mut entry, light, &mut counts);
                 lights.push(entry);
             }
             Err(why) => *rejected.entry(why).or_insert(0) += 1,
         }
     }
-    Ok(report(lights, rejected, counts))
+    report(lights, rejected, counts)
 }
 /// Compilation stage: lights come out as a cache product under their name, outside
 /// the manifest, and as the document the bake of the volumetric lightmap reads. Its version
 /// therefore does not move, and a reader that ignores this file reads the cache unchanged.
 pub(crate) fn stage_scene_lights(
-    scene: (&Value, &[u8], &[Mat4]),
+    scene: (&Value, &[Mat4]),
     scene_nodes: Nodes<'_>,
     directory: &Path,
     progress: impl Fn(Value),
 ) -> Result<(Product, Value)> {
-    let lights = scene_lights(scene, scene_nodes)?;
+    let lights = scene_lights(scene, scene_nodes);
     let written = product(directory, SCENE_LIGHTS_FILE, &serde_json::to_vec(&lights)?)?;
     progress(lights_event(&lights));
     Ok((written, lights))

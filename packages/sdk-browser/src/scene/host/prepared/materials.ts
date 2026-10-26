@@ -22,6 +22,7 @@ import {
   COLOUR_MAPS,
   MATERIAL_COLOURS,
 } from '../../../../../sdk-core/src/world/material/material.ts'
+import { importedTranslucencyLighting } from '../../../../../sdk-core/src/world/constants/index.ts'
 import { Color } from '../../../../../sdk-core/src/world/math/color.ts'
 import type { PageSurface } from '../../../geometry/pages/surface.ts'
 import { declareSurface } from '../../../geometry/pages/surfaceRecord.ts'
@@ -106,9 +107,11 @@ async function build(materials: readonly TableMaterial[], rank: number, slot: Sl
   // Which frame the normal factors were written for: an engine pass that reads no tangent turns
   // the second one of a surface written for vertex tangents (`../../../geometry/pages/surfaceRecord.ts`).
   params.forVertexTangents = !entry.derivativeTangents
+  params.translucencyLighting = importedTranslucencyLighting(
+    entry.kind === 'physical' && entry.transmission > 0,
+  )
   if (entry.doubleSided) params.side = 'double'
-  if (entry.temporalAntialiasing !== undefined)
-    params.temporalAntialiasing = entry.temporalAntialiasing
+  if (entry.responsive !== undefined) params.responsive = entry.responsive
   // A displaced material: its height map, a data texture, and the numbers it was resolved to.
   if (entry.displacement) {
     const { map, ...numbers } = entry.displacement

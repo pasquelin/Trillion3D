@@ -27,13 +27,17 @@ import {
   WORLD_ROOTS_VERSION,
 } from '../contracts/writtenFormats.ts'
 
+/** The versions this reader reads: the compiler's, and 36, laid out the same (37 only adds the
+ *  fallback meshes an instanced layer without cluster DAG names). */
+const WORLD_ROOTS_READABLE_VERSIONS: readonly number[] = [36, WORLD_ROOTS_VERSION]
+
 /** Bytes of each header and record (`records.rs`, `dag_records.rs`). */
 const [TABLE_HEADER, BUNDLE, PAGE, HLOD_CELL] = [64, 56, 24, 124]
 /** Where a row's track and matrix lie, after its mesh: a row is its mesh's rank, the item of the
  *  animation banks it plays (`NO_INDEX` for none), then sixteen `f64` of its world matrix. */
 const ROW_TRACK = 4,
   ROW_MATRIX = 8
-const [DAG_HEADER, CLUSTER, GROUP, NODE] = [24, 180, 64, CULLING_STRIDE * 8]
+const [DAG_HEADER, CLUSTER, GROUP, NODE] = [24, 188, 64, CULLING_STRIDE * 8]
 
 /** `bytes`' view, its `u32` words, and its pool from where `poolAt` reads it starts: `poolAt`
  *  refuses a file its records do not fill exactly. */
@@ -47,7 +51,7 @@ function opened(
   const word = (at: number) => view.getUint32(at, true)
   if (bytes.byteLength < header || String.fromCharCode(...bytes.subarray(0, 4)) !== magic)
     refuseWorldRoots(`not a ${magic} file`)
-  if (word(4) !== WORLD_ROOTS_VERSION) refuseWorldRoots(`version ${word(4)}`)
+  if (!WORLD_ROOTS_READABLE_VERSIONS.includes(word(4))) refuseWorldRoots(`version ${word(4)}`)
   const at = poolAt(word)
   const words = (bytes.byteLength - at) / 4
   // Aligned it is viewed in place; a caller's unaligned view is copied once.
@@ -108,6 +112,72 @@ function tablePages({ view, word }: Opened, at: number, count: number): WorldRoo
   }
 }
 
+/** The columns the HLOD chain is read into, one entry a cell. */
+const newChain = (hlodCount: number) => ({
+  parent: new Int32Array(hlodCount),
+  level: new Uint8Array(hlodCount),
+  actorLevel: new Uint16Array(hlodCount),
+  grid: new Uint16Array(hlodCount),
+  rung: new Uint8Array(hlodCount),
+  actor: new Uint8Array(hlodCount),
+  bounds: new Float64Array(6 * hlodCount),
+  content: new Float64Array(6 * hlodCount),
+})
+
+/** What reading a cell needs: the table, where its cells start, and the columns it fills. */
+interface HlodRead {
+  file: Opened
+  hlodAt: number
+  bundleCount: number
+  hlodCount: number
+  bundles: ReturnType<typeof tableBundles>['bundles']
+  chain: ReturnType<typeof newChain>
+  rows: { bundle: Int32Array; count: Uint32Array }
+}
+
+/** The HLOD cell `cell`: its bundles are returned, its chain entry and its rows are filled in. */
+function readHlodCell(
+  cell: number,
+  { file, hlodAt, bundleCount, hlodCount, bundles, chain, rows }: HlodRead,
+) {
+  const { word, list } = file
+  const at = hlodAt + cell * HLOD_CELL,
+    held = list(at)
+  if (!below(held, bundleCount)) refuseWorldRoots(`HLOD cell ${cell} bundles`)
+  // Its actor's rows: one of its bundles, `WORLD_ROOTS_ROW_BYTES` a row (`records.rs`), or none.
+  const own = word(at + 20)
+  rows.bundle[cell] = indexOf(own)
+  rows.count[cell] = word(at + 24)
+  const sized = own === NO_INDEX ? rows.count[cell] === 0 : held.includes(own)
+  if (
+    !sized ||
+    (own !== NO_INDEX && bundles[own].bytes !== rows.count[cell] * WORLD_ROOTS_ROW_BYTES)
+  )
+    refuseWorldRoots(`HLOD cell ${cell} rows`)
+  // The level in the low 8 bits, whether its actor asks a warm-up in the next bit, the level of
+  // its cell on its grid in the next 7, the grid in the high 16, then its actor's HLOD level
+  // (`records.rs`); an actor built is one whose bundles hold roots or that places rows.
+  const parent = word(at + 8),
+    level = word(at + 12) & 0xff,
+    warmup = (word(at + 12) >>> 8) & 1,
+    grid = word(at + 12) >>> 16
+  chain.rung[cell] = (word(at + 12) >>> 9) & 0x7f
+  // A cell's actor lies in a cell of a coarser grid, after it in the chain.
+  if (parent !== NO_INDEX && (parent <= cell || parent >= hlodCount))
+    refuseWorldRoots(`HLOD cell ${cell} parent`)
+  chain.parent[cell] = indexOf(parent)
+  chain.level[cell] = level
+  chain.actorLevel[cell] = word(at + 16)
+  chain.grid[cell] = grid
+  const built = held.length > 0 || rows.count[cell] > 0
+  chain.actor[cell] = built ? CHAIN_ACTOR.built | (warmup && CHAIN_ACTOR.warmup) : 0
+  for (let k = 0; k < 6; k++) {
+    chain.bounds[6 * cell + k] = file.view.getFloat64(at + 28 + 8 * k, true)
+    chain.content[6 * cell + k] = file.view.getFloat64(at + 76 + 8 * k, true)
+  }
+  return [...held]
+}
+
 /**
  * `bytes` as a world-roots table, or `INVALID_CACHE`: its magic and version, its records filling
  * it, its bundles laid end to end from the binary's start, and every bundle an HLOD cell or a
@@ -119,61 +189,17 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
     if (TABLE_HEADER + records + w(20) * 4 !== bytes.byteLength) refuseWorldRoots('table length')
     return TABLE_HEADER + records
   })
-  const { word, list } = file
+  const { word } = file
   const [bundleCount, pageCount, hlodCount] = [8, 12, 16].map(word)
   const pagesAt = TABLE_HEADER + bundleCount * BUNDLE,
     hlodAt = pagesAt + pageCount * PAGE
   const { bundles, end } = tableBundles(bytes, file, bundleCount)
   const payloadBytes = uint64FromWords(word(24), word(28))
   if (payloadBytes !== end) refuseWorldRoots('payload')
-  const chain = {
-    parent: new Int32Array(hlodCount),
-    level: new Uint8Array(hlodCount),
-    actorLevel: new Uint16Array(hlodCount),
-    grid: new Uint16Array(hlodCount),
-    rung: new Uint8Array(hlodCount),
-    actor: new Uint8Array(hlodCount),
-    bounds: new Float64Array(6 * hlodCount),
-    content: new Float64Array(6 * hlodCount),
-  }
+  const chain = newChain(hlodCount)
   const rows = { bundle: new Int32Array(hlodCount), count: new Uint32Array(hlodCount) }
-  const hlod = Array.from({ length: hlodCount }, (_, cell) => {
-    const at = hlodAt + cell * HLOD_CELL,
-      held = list(at)
-    if (!below(held, bundleCount)) refuseWorldRoots(`HLOD cell ${cell} bundles`)
-    // Its actor's rows: one of its bundles, `WORLD_ROOTS_ROW_BYTES` a row (`records.rs`), or none.
-    const own = word(at + 20)
-    rows.bundle[cell] = indexOf(own)
-    rows.count[cell] = word(at + 24)
-    const sized = own === NO_INDEX ? rows.count[cell] === 0 : held.includes(own)
-    if (
-      !sized ||
-      (own !== NO_INDEX && bundles[own].bytes !== rows.count[cell] * WORLD_ROOTS_ROW_BYTES)
-    )
-      refuseWorldRoots(`HLOD cell ${cell} rows`)
-    // The level in the low 8 bits, whether its actor asks a warm-up in the next bit, the level of
-    // its cell on its grid in the next 7, the grid in the high 16, then its actor's HLOD level
-    // (`records.rs`); an actor built is one whose bundles hold roots or that places rows.
-    const parent = word(at + 8),
-      level = word(at + 12) & 0xff,
-      warmup = (word(at + 12) >>> 8) & 1,
-      grid = word(at + 12) >>> 16
-    chain.rung[cell] = (word(at + 12) >>> 9) & 0x7f
-    // A cell's actor lies in a cell of a coarser grid, after it in the chain.
-    if (parent !== NO_INDEX && (parent <= cell || parent >= hlodCount))
-      refuseWorldRoots(`HLOD cell ${cell} parent`)
-    chain.parent[cell] = indexOf(parent)
-    chain.level[cell] = level
-    chain.actorLevel[cell] = word(at + 16)
-    chain.grid[cell] = grid
-    const built = held.length > 0 || rows.count[cell] > 0
-    chain.actor[cell] = built ? CHAIN_ACTOR.built | (warmup && CHAIN_ACTOR.warmup) : 0
-    for (let k = 0; k < 6; k++) {
-      chain.bounds[6 * cell + k] = file.view.getFloat64(at + 28 + 8 * k, true)
-      chain.content[6 * cell + k] = file.view.getFloat64(at + 76 + 8 * k, true)
-    }
-    return [...held]
-  })
+  const read = { file, hlodAt, bundleCount, hlodCount, bundles, chain, rows }
+  const hlod = Array.from({ length: hlodCount }, (_, cell) => readHlodCell(cell, read))
   return {
     version: WORLD_ROOTS_VERSION,
     payload: {
@@ -222,6 +248,8 @@ function pageFacts(view: DataView, at: number): WorldRootsPageFacts {
     indexCount: word(2),
     flags: word(3),
     uncompressedBytes: word(4),
+    residentBytes: word(5),
+    residentOffset: word(6),
   }
 }
 

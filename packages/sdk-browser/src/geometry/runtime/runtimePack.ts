@@ -1,4 +1,5 @@
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
+import { sum } from '../../../../math/src/scalar/quantile.ts'
 import { drawnKind } from '../../../../sdk-core/src/world/geometry/drawnKind.ts'
 
 /** The words before the arrays: five lengths, whether they are faces, whether a blended material
@@ -16,7 +17,7 @@ export function packDrawn(drawn: DrawnTriangles, blended: boolean): ArrayBuffer 
     parts.push(deformation.joints, deformation.weights)
   for (const target of deformation?.targets ?? []) parts.push(target.positions, target.normals)
   const lengths = parts.map((part) => part?.length ?? 0)
-  const packed = new Uint32Array(HEADER_WORDS + lengths.reduce((a, b) => a + b, 0))
+  const packed = new Uint32Array(HEADER_WORDS + sum(lengths))
   packed.set([...lengths.slice(0, 5), Number(drawnFaces(drawn)), Number(blended)])
   packed[7] = deformation?.joints && deformation.weights ? (deformation.influences ?? 4) : 0
   packed[8] = deformation?.targets.length ?? 0

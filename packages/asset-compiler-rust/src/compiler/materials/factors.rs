@@ -2,10 +2,13 @@
 use super::*;
 use crate::compiler::validate::number_or;
 
+/// The alpha cutoff of a `MASK` material that names none: glTF's own half.
+pub(crate) const ALPHA_CUTOFF_DEFAULT: f64 = 0.5;
+
 /// How a material's alpha draws, as glTF names it: a mode glTF does not name draws opaque, and a
-/// `MASK` that declares no cutoff cuts at glTF's own half (`CUTOUT_ALPHA`). The one reading of
-/// `alphaMode` and `alphaCutoff`: the material table, the coverage test, the cutout decisions and
-/// the blended pass all judge by it.
+/// `MASK` that declares no cutoff cuts at glTF's own half (`ALPHA_CUTOFF_DEFAULT`). The mode is the
+/// one the source authored, never re-judged from its textures. The one reading of `alphaMode` and
+/// `alphaCutoff`: the material table, the coverage test and the blended pass all judge by it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum AlphaMode {
     Opaque,
@@ -15,10 +18,9 @@ pub(crate) enum AlphaMode {
 impl AlphaMode {
     pub(crate) fn of(material: &Value) -> Self {
         match material.get("alphaMode").and_then(Value::as_str) {
-            Some("MASK") => Self::Mask(number_or(
-                material.get("alphaCutoff"),
-                crate::cutout::CUTOUT_ALPHA,
-            )),
+            Some("MASK") => {
+                Self::Mask(number_or(material.get("alphaCutoff"), ALPHA_CUTOFF_DEFAULT))
+            }
             Some("BLEND") => Self::Blend,
             _ => Self::Opaque,
         }
@@ -48,8 +50,9 @@ pub(crate) fn triple(value: Option<&Value>, default: [f64; 3]) -> [f64; 3] {
 /// The `pbrMetallicRoughness` factors of a material, each at glTF's default of one when silent:
 /// the base colour (linear RGBA), the metalness and the roughness, unclamped as declared; its
 /// `KHR_materials_transmission` factor, zero when silent; its emission, `emissiveFactor` (black
-/// when silent) times `KHR_materials_emissive_strength` (one); and its `KHR_materials_specular`
-/// factor, the share of a dielectric's reflectance it keeps (one when silent).
+/// when silent) times `KHR_materials_emissive_strength` (one); and its specular input, the
+/// `KHR_materials_specular` factor as declared — the input a dielectric reflects eight hundredths
+/// of at full scale —, one half, a reflectance of four hundredths, where it declares none.
 pub(crate) struct MaterialFactors {
     pub(crate) base_colour: [f64; 4],
     pub(crate) metallic: f64,
@@ -69,10 +72,9 @@ impl MaterialFactors {
         );
         Self {
             emission: triple(material.get("emissiveFactor"), [0.0; 3]).map(|c| c * strength),
-            specular: number_or(
-                material.pointer("/extensions/KHR_materials_specular/specularFactor"),
-                1.0,
-            ),
+            specular: material
+                .pointer("/extensions/KHR_materials_specular")
+                .map_or(0.5, |e| number_or(e.get("specularFactor"), 1.0)),
             base_colour: [0, 1, 2, 3].map(|c| number_or(colour.and_then(|f| f.get(c)), 1.0)),
             metallic: number_or(of("metallicFactor"), 1.0),
             roughness: number_or(of("roughnessFactor"), 1.0),

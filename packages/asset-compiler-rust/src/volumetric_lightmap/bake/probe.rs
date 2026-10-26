@@ -30,6 +30,8 @@ pub struct Scene<'a> {
     pub lights: &'a [BakeLight],
     /// A distance that crosses the scene and the volume.
     pub reach: f64,
+    /// Whether the bake fills the layer of the sky's bent normal.
+    pub bent: bool,
 }
 
 /// Where a probe is: its cell, in finest-brick fourths, and the seed of its sequences.
@@ -161,11 +163,11 @@ fn trace_batch(
             lights: scene.lights,
             cache: cache.as_ref(),
             reach: scene.reach,
+            bent: scene.bent,
         };
-        let effects: Vec<[Option<Effect>; 2]> = accumulators
-            .par_iter_mut()
-            .zip(sites.par_iter())
-            .map_init(Scratch::default, |scratch, (accumulator, site)| {
+        let probes = accumulators.par_iter_mut().zip(sites.par_iter()).map_init(
+            Scratch::default,
+            |scratch, (accumulator, site)| {
                 run_probe(
                     scene,
                     &context,
@@ -173,10 +175,18 @@ fn trace_batch(
                     (frame, effective),
                     scratch,
                 )
-            })
-            .collect();
-        if let Some(store) = cache.as_mut() {
-            store.apply(effects.into_iter().flatten().flatten());
+            },
+        );
+        // The effects only feed the irradiance cache: with it off, none are gathered.
+        if context.cache.is_some() {
+            let effects: Vec<Effect> = probes
+                .flat_map_iter(|pair| pair.into_iter().flatten())
+                .collect();
+            if let Some(store) = cache.as_mut() {
+                store.apply(effects);
+            }
+        } else {
+            probes.for_each(drop);
         }
         passed(frame);
     }
@@ -199,8 +209,12 @@ pub fn bake_batch(
             place[a] as usize * super::layout::PADDED as usize + site.inside[a] as usize
         }));
         if accumulator.count > 0 {
-            store.write(at, &texel_of(accumulator));
+            let smoothing = scene.settings.spherical_harmonic_smoothing;
+            store.write(at, &texel_of(accumulator, smoothing));
         }
+        // The brick's mean distance to the geometry: a probe that met none is a reach away.
+        let near = f64::from(accumulator.nearest).min(scene.reach);
+        store.distance[site.brick] += (near / BRICK_PROBES as f64) as f32;
         store.valid[at] = u8::from(accumulator.count > trusted);
     }
     Ok(())

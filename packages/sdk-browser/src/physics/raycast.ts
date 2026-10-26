@@ -1,4 +1,9 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
+import {
+  channelWords,
+  resolveCollision,
+  type CollisionOptions,
+} from '../../../sdk-core/src/physics/collisionChannels.ts'
 import { CAST, CAST_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import type { Intersection } from '../api/query/types.ts'
 import type { Ray } from '../../../sdk-core/src/world/math/volumes.ts'
@@ -24,6 +29,10 @@ export interface PhysicsRaycastOptions {
   maxDistance?: number
   /** A body the ray or shape passes through: the asker's own, looking round itself. */
   ignore?: Object3D
+  /** The channel the trace is in and the answers it gives to channels, as a body has them
+   *  (`PhysicsBodyOptions.collision`): the trace stops at what blocks its channel and passes
+   *  through what it overlaps or ignores. @defaultValue the visibility channel, every channel blocked */
+  channel?: Pick<CollisionOptions, 'objectType' | 'responses'>
 }
 
 /** A physics hit: the object — the compiled model, or the mesh of a body —, and the glTF material
@@ -59,6 +68,7 @@ export async function physicsRaycast(
   else if (shape) floats.set([shape.halfHeight, shape.radius], 7)
   const ignored = options.ignore ? session.engineIdOf(options.ignore) : NO_INDEX
   words[10] = ignored < 0 ? NO_INDEX : ignored
+  writeCastChannel(words, options.channel)
   const hit = await session.cast(words)
   const object: Object3D | null = hit[0] === NO_INDEX ? null : session.objectOf(hit[0])
   if (!object) return null
@@ -71,4 +81,27 @@ export async function physicsRaycast(
     face: -1,
     material: session.materialOf(hit[0]),
   }
+}
+
+/** The words of the channel a trace runs in when it names none: the visibility channel, every
+ *  channel blocked. */
+const DEFAULT_CAST_CHANNEL = channelWords(
+  resolveCollision({ objectType: 'visibility' }, 'BlockAll'),
+)
+
+/** Writes into a cast query (`CAST_WORDS`) the channel it traces in and its answers to channels,
+ *  from word 11: the visibility channel, every channel blocked, unless `channel` says otherwise. */
+function writeCastChannel(
+  words: Uint32Array,
+  channel?: Pick<CollisionOptions, 'objectType' | 'responses'>,
+) {
+  const asked = channel
+    ? channelWords(
+        resolveCollision(
+          { ...channel, objectType: channel.objectType ?? 'visibility' },
+          'BlockAll',
+        ),
+      )
+    : DEFAULT_CAST_CHANNEL
+  words.set(asked, 11)
 }

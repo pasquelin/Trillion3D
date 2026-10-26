@@ -1,6 +1,7 @@
 import type { GraphNode } from '../../../../sdk-core/src/world/material/graph/graph.ts'
+import type { MaterialDomain } from '../../../../sdk-core/src/contracts/volumeMaterial.ts'
 import type { NodeKind } from '../../../../sdk-core/src/world/material/graph/nodeSpecs.ts'
-import { graphError } from '../../../../sdk-core/src/world/material/graph/valueType.ts'
+import { graphError, vectorType } from '../../../../sdk-core/src/world/material/graph/valueType.ts'
 import { arithmetic } from './arith.ts'
 import { componentwise, COMPONENT_FUNCTIONS, append, dot, mask } from './vector.ts'
 import { constantOf, type Value } from './value.ts'
@@ -82,31 +83,73 @@ function parameter(s: State, n: GraphNode): Value {
 
 /** What a domain has at its points: a light function's atlas slot is drawn once for every light and
  *  view, so it has no world position, camera or normal, and its light's position reads as zero. */
-const WORLD_DOMAINS: Record<string, readonly string[]> = {
+const WORLD_DOMAINS: Record<MaterialDomain, readonly NodeKind[]> = {
   lightFunction: ['objectPosition'],
-  volume: ['worldPosition', 'cameraPosition', 'objectPosition'],
-  surface: ['worldPosition', 'cameraPosition', 'objectPosition', 'vertexNormal', 'pixelNormal'],
+  volume: ['worldPosition', 'cameraPosition', 'objectPosition', 'cameraVector'],
+  surface: [
+    'worldPosition',
+    'cameraPosition',
+    'objectPosition',
+    'cameraVector',
+    'vertexNormal',
+    'pixelNormal',
+    'vertexColor',
+  ],
+}
+
+function assertWorld(s: State, n: GraphNode, kind: NodeKind) {
+  if (!WORLD_DOMAINS[s.domain].includes(kind))
+    throw graphError(`${kind} has no value in the ${s.domain} domain`, { node: n.id })
 }
 
 const world =
-  (field: string, kind: string, normal: boolean): Handler =>
+  (field: string, kind: NodeKind, normal: boolean): Handler =>
   (s, n) => {
-    if (!WORLD_DOMAINS[s.domain].includes(kind))
-      throw graphError(`${kind} has no value in the ${s.domain} domain`, { node: n.id })
+    assertWorld(s, n, kind)
     if (s.domain === 'lightFunction') return constantOf('f3', [0, 0, 0])
-    if (kind === 'pixelNormal' && s.output === 'normal')
-      throw graphError('Invalid node pixelNormal used for the normal output.', { node: n.id })
+    // The pixel's normal is not yet known where the normal is computed, nor where a vertex is placed.
+    if (kind === 'pixelNormal' && (s.output === 'normal' || s.output === 'worldPositionOffset'))
+      throw graphError(`Invalid node pixelNormal used for the ${s.output} output.`, { node: n.id })
     s.uses[normal ? 'normal' : 'position'] = true
     return n.props.cameraRelative
       ? s.e.local('f3', `(${s.context}.${field}-${s.context}.eye)`)
       : { type: 'f3', code: `${s.context}.${field}` }
   }
 
+/** The world position of the point, absolute or relative to the camera by the node's flag. */
+export const worldPosition = world('world', 'worldPosition', false)
+
+/** The position of the camera, in the world. */
+export const cameraPosition = world('eye', 'cameraPosition', false)
+
+/** The normal of the pixel, in the world. */
+export const pixelNormal = world('pixelNormal', 'pixelNormal', true)
+
+/** The unit vector from the point to the camera: the opposite of the direction an orthographic view
+ *  looks along (`viewForward`, zero for a perspective view). */
+export const cameraVector: Handler = (s, n) => {
+  assertWorld(s, n, 'cameraVector')
+  s.uses.position = true
+  const c = s.context
+  return s.e.local(
+    'f3',
+    `select(normalize(${c}.eye-${c}.world),-${c}.viewForward,any(${c}.viewForward!=vec3f(0.0)))`,
+  )
+}
+
+/** The colour painted on the vertices, where the pass carries it. */
+const vertexColor: Handler = (s, n) => {
+  assertWorld(s, n, 'vertexColor')
+  if (!s.vertexColor) throw graphError('vertexColor is not carried by this pass', { node: n.id })
+  s.uses.colour = true
+  return { type: 'f4', code: `${s.context}.vertexColor` }
+}
+
 /** The nodes that bring a value in, by kind. */
 export const INPUT_HANDLERS: Partial<Record<NodeKind, Handler>> = {
   constant: (s, n) => {
     const value = n.props.value as number[]
-    return constantOf(value.length === 1 ? 'flex' : (`f${value.length}` as Value['type']), value)
+    return constantOf(value.length === 1 ? 'flex' : vectorType(value.length), value)
   },
   scalarParameter: parameter,
   vectorParameter: parameter,
@@ -114,9 +157,11 @@ export const INPUT_HANDLERS: Partial<Record<NodeKind, Handler>> = {
   time,
   panner,
   rotator,
-  worldPosition: world('world', 'worldPosition', false),
-  cameraPosition: world('eye', 'cameraPosition', false),
+  worldPosition,
+  cameraPosition,
   objectPosition: world('origin', 'objectPosition', false),
   vertexNormal: world('vertexNormal', 'vertexNormal', true),
-  pixelNormal: world('pixelNormal', 'pixelNormal', true),
+  pixelNormal,
+  vertexColor,
+  cameraVector,
 }

@@ -26,14 +26,26 @@ pub(crate) fn concat_gltf_buffers(
             .and_then(Value::as_str)
             .filter(|s| !s.is_empty())
         {
-            if !is_safe_source_name(uri) {
-                return Err(invalid("glTF buffer uri is required"));
+            if uri.starts_with("data:") {
+                let bytes = decode_data_uri(uri)?;
+                if bytes.len() != required_index(buffer.get("byteLength"), "buffer.byteLength")? {
+                    return Err(invalid(
+                        "glTF data URI buffer length differs from byteLength",
+                    ));
+                }
+                Binary::Owned(bytes)
+            } else {
+                // A sub-folder is allowed, as are `%XX` escapes; the key a sidecar is declared
+                // under is the decoded relative path.
+                let path = crate::support::uri::decode(uri)
+                    .and_then(|decoded| safe_relative(&decoded, &['/']))
+                    .ok_or_else(|| invalid("glTF buffer uri is required"))?;
+                let map = map_source(&dir.join(&path))?;
+                let digest = hash(&map);
+                verify_sidecar(declared, &path, &digest)?;
+                sidecars.push((path, digest));
+                Binary::Mapped(map)
             }
-            let map = map_source(&dir.join(uri))?;
-            let digest = hash(&map);
-            verify_sidecar(declared, uri, &digest)?;
-            sidecars.push((uri.to_string(), digest));
-            Binary::Mapped(map)
         } else if load::compressed::placeholder(g, i) && (i != 0 || embedded.is_none()) {
             parts.push(None);
             continue;
@@ -67,6 +79,39 @@ pub(crate) fn concat_gltf_buffers(
     }
     Ok((Binary::Owned(out), offsets, sidecars))
 }
+/// The bytes of a `data:<mime>;base64,<data>` buffer URI; the mime must be `application/octet-stream`
+/// or `application/gltf-buffer`, and the encoding base64, as a glTF buffer's is.
+fn decode_data_uri(uri: &str) -> Result<Vec<u8>> {
+    let bad = || invalid("Problem decoding glTF buffer from data URI");
+    let (head, data) = uri.split_once(',').ok_or_else(bad)?;
+    let (mime, encoding) = head["data:".len()..].split_once(';').ok_or_else(bad)?;
+    if encoding != "base64"
+        || !matches!(mime, "application/octet-stream" | "application/gltf-buffer")
+    {
+        return Err(bad());
+    }
+    let data = data.trim_end_matches('=').as_bytes();
+    let mut out = Vec::with_capacity(data.len() / 4 * 3 + 3);
+    let (mut acc, mut bits) = (0u32, 0u32);
+    for &c in data {
+        let v = match c {
+            b'A'..=b'Z' => c - b'A',
+            b'a'..=b'z' => c - b'a' + 26,
+            b'0'..=b'9' => c - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => return Err(bad()),
+        };
+        acc = (acc << 6) | v as u32;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((acc >> bits) as u8);
+            acc &= (1 << bits) - 1;
+        }
+    }
+    Ok(out)
+}
 pub(crate) fn flatten_buffer_views(g: &mut Value, offsets: &[usize], bin_len: usize) -> Result<()> {
     let declared: Vec<usize> = values(g, "buffers")?
         .iter()
@@ -76,22 +121,18 @@ pub(crate) fn flatten_buffer_views(g: &mut Value, offsets: &[usize], bin_len: us
         .get_mut("bufferViews")
         .and_then(Value::as_array_mut)
         .ok_or_else(|| invalid("bufferViews array is required"))?;
-    for (id, v) in views.iter_mut().enumerate() {
+    for v in views.iter_mut() {
         let buffer = optional_index(v.get("buffer"), "bufferView.buffer", 0)?;
         if buffer >= offsets.len() {
             return Err(invalid(format!(
                 "bufferView.buffer {buffer} is out of bounds"
             )));
         }
+        let local = optional_index(v.get("byteOffset"), "bufferView.byteOffset", 0)?;
         let start = offsets[buffer]
-            .checked_add(optional_index(
-                v.get("byteOffset"),
-                "bufferView.byteOffset",
-                0,
-            )?)
+            .checked_add(local)
             .ok_or_else(|| invalid("bufferView offset overflow"))?;
         let len = required_index(v.get("byteLength"), "bufferView.byteLength")?;
-        let local = optional_index(v.get("byteOffset"), "bufferView.byteOffset", 0)?;
         if local
             .checked_add(len)
             .filter(|&end| end <= declared[buffer])
@@ -110,7 +151,6 @@ pub(crate) fn flatten_buffer_views(g: &mut Value, offsets: &[usize], bin_len: us
         }
         v["buffer"] = json!(0);
         v["byteOffset"] = json!(start);
-        let _id = id;
     }
     g["buffers"] = json!([{"byteLength":bin_len}]);
     Ok(())
@@ -126,6 +166,10 @@ pub(crate) fn append_accessor(
     data: &[u8],
     target: Option<u32>,
 ) -> Result<usize> {
+    // A glTF with no buffer view may leave the array out: the first view appended makes it.
+    if g.get("bufferViews").is_none() {
+        g["bufferViews"] = json!([]);
+    }
     let views = g["bufferViews"]
         .as_array_mut()
         .ok_or_else(|| invalid("bufferViews array is required"))?;

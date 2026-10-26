@@ -36,7 +36,7 @@ function axesOf(light: SceneLight) {
 /** The tangent of the cone `light`'s function is projected through, negative for none: a spot's own
  *  cone; a rectangle's light function cone when it has one. */
 function coneTangentOf(light: SceneLight) {
-  if (light.kind === 'spot') return Math.tan(light.coneAngle!)
+  if (light.kind === 'spot') return Math.tan(light.outerConeAngle!)
   return light.kind === 'rect' ? lightFunctionConeTangentOf(light) || -1 : -1
 }
 

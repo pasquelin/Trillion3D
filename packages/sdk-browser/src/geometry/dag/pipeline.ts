@@ -44,8 +44,6 @@ export function createDagPipeline(
       /** Bind layout, returned with the stages: the dispatch bench mounts the previous cut on
        *  EXACTLY this one, instead of retyping a fourth copy. */
       layout,
-      /** The program, which the row cache's closure is compiled from too
-       *  (`../rows/rowClosure.ts`). */
       module,
       ...stages,
       bindGroup,

@@ -54,6 +54,16 @@ import {
  * GROUND: `groundContribution` (off), the material's advanced output: the light the ground bounces
  * up into the cloud (the component's `groundAlbedo`) is added to its sky light, dimmed by the
  * extinction of the cloud between the sample and the ground.
+ *
+ * SHADOW: `rayMarchVolumeShadow` (on), the material's advanced output: how the cloud's shade from
+ * the air's lights reaches the cloud itself, in the view and in the sky light's capture. On, a ray
+ * is marched through the material from each sample toward each light (the component's
+ * `shadowSamplesScale`, `shadowRayLengthKm`). Off, no ray is marched: the sample reads the
+ * clouds' shadow map of each light (the sky quality's `cloudShadowMap`; a light with none, or the
+ * setting off, shades nothing), its optical depth `d` giving `exp(-d)` for the first order of
+ * scattering and `exp(-d · e^n)` for the order `n`, `e` the multiple-scattering extinction
+ * (`multiScatterOcclusion`). It is read when the programs are made, so changing it makes them
+ * again.
  */
 export const CLOUD_MATERIAL_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -90,6 +100,7 @@ export const CLOUD_MATERIAL_RULES = /* @__PURE__ */ (() =>
     number('multiScatterEccentricity', 0.18, [0, 1]),
     integerSetting('multiScatterOctaves', 2, [0, 2]),
     flag('groundContribution', false),
+    flag('rayMarchVolumeShadow', true),
   ] as const))()
 
 /** The material's settings as resolved. */

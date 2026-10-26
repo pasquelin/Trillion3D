@@ -69,6 +69,21 @@ function stepDownAfterRefusal(
   )
 }
 
+/** The view's Hi-Z pyramid fits the render size, or there is none. */
+function hizFits(hiz: { width: number; height: number } | null | undefined, size: FrameSize) {
+  return !hiz || (hiz.width === size.renderWidth && hiz.height === size.renderHeight)
+}
+
+/** A grant in flight holds the next ask back: it is not settled, or it was refused at this size and
+ *  its wait (`retryAt`) is not over at `frame`. */
+function grantBlocks(
+  pending: NonNullable<ReturnType<typeof heldTargetGrant>>,
+  size: FrameSize,
+  frame: number,
+) {
+  return !pending.settled || (sameFrameSize(pending, size) && frame < (pending.retryAt ?? Infinity))
+}
+
 /**
  * Asks the device for the frame targets of the view's sizes (`frameSizeOf`), unless those in place
  * fit, a grant is still in flight — one at a time —, or this size was refused. A size the device
@@ -79,10 +94,10 @@ function stepDownAfterRefusal(
  * released, the frames held until the device answers.
  */
 export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, held = false) {
-  const { gpu, capture, diag, run } = rt
+  const { gpu, run } = rt
   rt.views.active.scale.liftMemoryCap(run.frame)
   const size = frameSizeOf(rt, wanted),
-    { width, height, renderWidth, renderHeight } = size
+    { width, height } = size
   const fit = targetsFit(rt, size),
     hiz = rt.vis.gpuHiz,
     aside = asideTargets(rt)
@@ -95,7 +110,7 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
     dropAside(rt)
   }
   // The view's Hi-Z pyramid fits too, at the render size.
-  if (fit && (!hiz || (hiz.width === renderWidth && hiz.height === renderHeight))) {
+  if (fit && hizFits(hiz, size)) {
     return refreshTargetGrant(rt, size, (error) =>
       refuseTargets(rt, { ...size, requestedBytes: gpu.targetBytes }, 'budget', error),
     )
@@ -103,12 +118,7 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
   // Made aside, the grant went above: one asked the held way is left, if any.
   const pending = heldTargetGrant(gpu)
   // A size refused is asked again after its wait (`memoryRefused`): never every frame, never never.
-  if (
-    pending &&
-    (!pending.settled ||
-      (sameFrameSize(pending, size) && run.frame < (pending.retryAt ?? Infinity)))
-  )
-    return pending.done
+  if (pending && grantBlocks(pending, size, run.frame)) return pending.done
   const view = rt.views.active,
     // Granted, the record goes; refused, the size steps down, unless the session stopped.
     settle = (asked: HeldTargets) => (made: boolean) =>
@@ -122,6 +132,22 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
     gpu.targetGrant = startGrant(done, asked)
     return gpu.targetGrant.done
   }
+  return askHeldTargets(rt, device, size, held, !!hiz, view, settle)
+}
+
+/** Asks the device for the targets of `size` the held way (`requestFrameTargets`): at once, or
+ *  beside those in place, and settles the grant on `view`. */
+function askHeldTargets(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  size: FrameSize,
+  held: boolean,
+  hiz: boolean,
+  view: WebgpuView,
+  settle: (asked: HeldTargets) => (made: boolean) => void,
+) {
+  const { gpu, capture, diag, run } = rt,
+    { width, height, renderWidth, renderHeight } = size
   diag.traceDiagnostic('targets-request', 'GPU frame targets request', () => ({
     frame: run.frame,
     width,
@@ -131,7 +157,7 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
     previousSize: gpu.targetSize.slice(),
     additionalBytes: capture.captureAllocationBytes,
     // The view's pyramid, which the targets' bytes count while it exists (`frameTargetAllocation`).
-    hiZReserved: !!hiz,
+    hiZReserved: hiz,
   }))
   // Thrown here, synchronously: a size beyond the device's limits releases nothing.
   const extra = frameExtraBytes(rt, size),

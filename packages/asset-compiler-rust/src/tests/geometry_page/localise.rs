@@ -1,8 +1,7 @@
 use trillion3d_page_codec::encode::vertices::localise;
 
-// localise starts from known bound (page carries at most 65,535 vertices and
-// no more corners than indices) instead of resizing corner by corner. Same renumbering on
-// hostile inputs: empty page, duplicate vertices, out of bounds index, limit 65,535.
+// localise starts from known bound (no more vertices than indices) instead of resizing corner by
+// corner. Same renumbering on hostile inputs: empty page, duplicate vertices, out of bounds index.
 
 #[test]
 fn localise_on_empty_indices_returns_empty_lists() {
@@ -31,19 +30,4 @@ fn localise_uses_the_declared_vertex_count_not_a_positions_buffer() {
     let (original, local) = localise(&[999], 1000).expect("declared bound");
     assert_eq!(original, vec![999]);
     assert_eq!(local, vec![0]);
-}
-
-#[test]
-fn localise_accepts_exactly_sixty_five_thousand_five_hundred_thirty_five_vertices() {
-    let indices: Vec<u32> = (0..65_535).collect();
-    let (original, local) = localise(&indices, 65_535).expect("exact limit");
-    assert_eq!(original.len(), 65_535);
-    assert_eq!(*local.last().unwrap(), 65_534);
-}
-
-#[test]
-fn localise_rejects_one_vertex_past_the_sixty_five_thousand_five_hundred_thirty_five_limit() {
-    let indices: Vec<u32> = (0..65_536).collect();
-    let error = localise(&indices, 65_536).unwrap_err();
-    assert_eq!(error.code, "PAGE_VERTEX_LIMIT");
 }

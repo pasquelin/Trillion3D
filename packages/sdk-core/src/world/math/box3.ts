@@ -8,7 +8,7 @@ import {
   boxGrow,
   boxIsEmpty,
   boxTransform,
-  boxUnion,
+  boxUnionBox,
 } from '../../../../math/src/geometry/box.ts'
 import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
 import { Vector3 } from './vector3.ts'
@@ -25,11 +25,27 @@ export interface BoundedNode {
   readonly matrixWorld: Matrix4
   /** The box of the node's own content in its local frame; null for a node that holds none. */
   localBounds?(): Box3 | null
+  /** A node drawn at several placements: one matrix of sixteen numbers each in `instanceMatrix`,
+   *  `count` of them drawn. */
+  readonly instanceMatrix?: { readonly array: Float32Array; readonly count: number }
+  readonly count?: number
+  /** A node bent by bones: where each stands in the world reaches the box too. */
+  readonly skeleton?: { readonly bones: readonly { readonly matrixWorld: Matrix4 }[] }
 }
+
+/** How many placements of a node drawn at several are drawn: its `count`, within the matrices it holds. */
+export const drawnCount = (node: {
+  readonly count?: number
+  readonly instanceMatrix: { readonly count: number }
+}) => Math.min(node.count ?? node.instanceMatrix.count, node.instanceMatrix.count)
+
+/** One placement's matrix, copied out of the instance array to be read as the transform's. */
+const placement = new Float64Array(16)
 
 /** The six bounds of a box, flat, for the core box functions; `other` holds a second box. */
 const flat = new Float64Array(6),
-  other = new Float64Array(6)
+  other = new Float64Array(6),
+  point = new Float64Array(6)
 
 /** An axis-aligned box. Empty is `min > max`, the state a new box starts in. */
 export class Box3 {
@@ -83,7 +99,11 @@ export class Box3 {
   }
   /** Grows the box to hold another box too. */
   union(b: Box3) {
-    boxUnion(boxToFlat(this, flat), 0, b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z)
+    return this.unionFlat(boxToFlat(b, other))
+  }
+  /** Grows the box to hold the six bounds of a flat box. */
+  private unionFlat(b: ArrayLike<number>) {
+    boxUnionBox(boxToFlat(this, flat), 0, b)
     return boxFromFlat(this, flat)
   }
   /** The smallest box around a flat list of coordinates: every whole point, one each `itemSize`
@@ -105,7 +125,29 @@ export class Box3 {
     node.updateMatrixWorld(true)
     node.traverse((child) => {
       const local = child.localBounds?.()
-      if (local && !local.isEmpty()) this.union(local.clone().applyMatrix4(child.matrixWorld))
+      if (local && !local.isEmpty()) {
+        const { instanceMatrix } = child
+        if (instanceMatrix) {
+          const placed = drawnCount({ count: child.count, instanceMatrix }),
+            matrices = instanceMatrix.array
+          for (let at = 0; at < placed; at++) {
+            for (let i = 0; i < 16; i++) placement[i] = matrices[16 * at + i]
+            boxTransform(other, 0, boxToFlat(local, other), 0, placement)
+            boxTransform(other, 0, other, 0, child.matrixWorld.elements)
+            this.unionFlat(other)
+          }
+        } else {
+          boxTransform(other, 0, boxToFlat(local, other), 0, child.matrixWorld.elements)
+          this.unionFlat(other)
+        }
+        for (const bone of child.skeleton?.bones ?? []) {
+          const e = bone.matrixWorld.elements
+          point[0] = point[3] = e[12]
+          point[1] = point[4] = e[13]
+          point[2] = point[5] = e[14]
+          this.unionFlat(point)
+        }
+      }
     })
     return this
   }

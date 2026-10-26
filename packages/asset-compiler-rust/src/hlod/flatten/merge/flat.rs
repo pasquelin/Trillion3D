@@ -12,6 +12,10 @@
 //!   material (`quad`), the tile its own texture coordinates address. Parts of one material and
 //!   one ground share one entry, one bake: every quad of a material is one, a mesh's parts
 //!   mirrored alike are one, read behind as its first part lies.
+//! - A layer that does not reuse its meshes' lightmap sets (`reuseLightmapUVs: false`) lays every
+//!   mesh out together instead: every entry is baked on its mesh, whatever `bakeOnMesh` says, at
+//!   coordinates generated once for all the entries' triangles as one mesh (`global`), and all of
+//!   them into the one atlas, no cell and no gutter (`images`).
 //! - Each entry baked at the atlas's side, one sample a texel, on the GPU (`tile.rs`), its images
 //!   then shrunk to one texel when they hold one value, their background filled outward
 //!   (`smear.rs`) and placed in the entry's cell (`grid.rs`); the atlas's background filled
@@ -23,29 +27,33 @@
 //!   The flattened material draws both faces when one of its materials does and the layer allows
 //!   it (`allowDoubleSided`, on by default).
 //!
-//! What an entry is baked on lives in `ground`, the mesh laid into the atlas in `remap`, the
-//! atlas's side and the counts a cut holds in `sizing`, the bytes its making holds in `working`,
-//! the emission atlas in `emission`.
+//! What an entry is baked on lives in `ground`, the coordinates the meshes are laid at together in
+//! `global`, the old layout in `legacy`, the images of the atlas in `images`, the mesh laid into
+//! the atlas in `remap`, the atlas's side and the counts a cut holds in `sizing`, the bytes its
+//! making holds in `working`, the emission atlas in `emission`.
 use super::super::bake::appearance::tone;
 use super::super::bake::sources::Piece;
 use super::super::bake::{sized, Emission, Maps};
 use super::super::uv::raster::{EMPTY, SAMPLED};
 use super::super::{step, Atlas, Library, Made, Sides, StageMs, Stages};
-use super::grid::{binned, grid, placed, Cell};
-use super::smear::{shrunk, smeared, uniform, Image};
-use super::tile::{baked, Baked, Behind, Read};
+use super::tile::{Behind, Read};
 use super::Part;
 use crate::hlod::options::HlodUvMethod;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 mod emission;
-use emission::rescaled;
+mod entries;
+use entries::{cells_of, entries_of, grounds_of, weights, Entry};
+mod global;
+use global::laid_together;
 mod ground;
 pub(in crate::hlod) use ground::{coordinates, lightmapped, quad, seen_through};
-use ground::{laid_out, oriented, reads_mesh, Ground};
+use ground::{generated, laid_out, reads_mesh, Ground};
+mod images;
+use images::{Finished, Images};
 mod legacy;
 mod remap;
-use remap::{occupancy, remapped};
+use remap::{remapped, Laid};
 mod sizing;
 pub(in crate::hlod) use sizing::{area, atlas_sides, cut_counts, sphere};
 mod working;
@@ -55,10 +63,12 @@ pub(in crate::hlod) use working::{working_bytes, Flattened};
 /// texels (`atlasGutter`), whether the cells are binned by their materials' texture sizes
 /// (`binByTextureSize`), whether a part whose look its mesh decides bakes on that mesh
 /// (`bakeOnMesh`) and at which coordinates — its lightmap set where `lightmaps.0` reuses it, else
-/// generated as `lightmaps.1` unwraps —, whether the flattened material may draw both faces
-/// (`allowDoubleSided`), and the maps baked beside the base colour (`maps`) with how a translucent
-/// source shows in them (`translucency`). The atlas is baked at `side`, each image then averaged
-/// down to its own of `sides` (`atlas_sides`).
+/// generated as `lightmaps.1` unwraps, per mesh, or for all its meshes together where it does not
+/// reuse them (`global`, which has no cell, gutter or binning, and bakes every entry on its
+/// mesh) —, whether the flattened material may draw both faces (`allowDoubleSided`), and the maps
+/// baked beside the base colour (`maps`) with how a translucent source shows in them
+/// (`translucency`). The atlas is baked at `side`, each image then averaged down to its own of
+/// `sides` (`atlas_sides`).
 pub(in crate::hlod) struct Flattening {
     pub side: usize,
     pub sides: Sides,
@@ -70,173 +80,98 @@ pub(in crate::hlod) struct Flattening {
     pub maps: Maps,
 }
 
-/// Each entry's share of a binned atlas: its material's largest texture in texels — at least
-/// 64 × 64 —, over the sum of every entry's.
-fn weights(materials: &[Option<u64>], library: &Library) -> Vec<f64> {
-    let largest = |material: Option<u64>| {
-        let surface = library.surface(material);
-        [
-            &surface.colour,
-            &surface.metal_rough,
-            &surface.occlusion,
-            &surface.normal_map,
-        ]
-        .into_iter()
-        .flatten()
-        .map(|texels| {
-            let (width, height, _) = texels.levels()[0];
-            (width * height) as f64
-        })
-        .fold(64.0 * 64.0, f64::max)
-    };
-    let sizes: Vec<f64> = materials.iter().map(|&m| largest(m)).collect();
-    let total: f64 = sizes.iter().sum();
-    sizes.iter().map(|s| s / total).collect()
+impl Flattening {
+    /// Whether the layer lays its meshes out together (`reuseLightmapUVs: false`, `global`): every
+    /// entry is baked on its mesh into the whole atlas, with no cell, gutter or binning.
+    pub(in crate::hlod) fn together(&self) -> bool {
+        !self.lightmaps.0
+    }
 }
 
-/// The merged mesh's one actor when its materials are merged (`mergeMaterials`): its `parts` with
-/// their materials of `library` flattened into one atlas as `flattening` says (module doc), the
-/// job's `checkpoint` read before each entry's bake.
-pub(in crate::hlod) fn merged_flat(
-    parts: &[Part],
-    (library, checkpoint): (&Library, &(dyn Fn() -> crate::Result<()> + Sync)),
-    flattening: &Flattening,
-) -> crate::Result<Made> {
-    let Flattening {
-        side,
-        sides,
-        gutter,
-        maps,
-        ..
-    } = *flattening;
-    let parts: Vec<&Part> = parts.iter().filter(|p| !p.geometry.2.is_empty()).collect();
-    let corners: usize = parts.iter().map(|p| p.geometry.2.len()).sum();
-    let stages: Stages = [corners / 3; super::super::STAGE_COUNT];
-    let mut ms: StageMs = [0; step::COUNT];
-    let started = std::time::Instant::now();
-    let seen: Vec<bool> = parts
-        .iter()
-        .map(|p| seen_through(p.material, library, maps))
-        .collect();
-    let grounds: Vec<Ground> = (parts.iter().zip(&seen))
-        .map(|(p, &through)| {
-            match through || (flattening.on_mesh && reads_mesh(p, library, maps)) {
-                true => Ground::Mesh(p.mesh, p.mirrored),
-                false => Ground::Quad,
-            }
-        })
-        .collect();
-    // The entries in the order the parts first name them, each with its first part.
-    let mut entries: Vec<(Option<u64>, Ground, usize)> = Vec::new();
-    let entry_of: Vec<usize> = (parts.iter().zip(&grounds).enumerate())
-        .map(|(k, (part, &ground))| {
-            let same =
-                |&(m, g, _): &(Option<u64>, Ground, usize)| m == part.material && g == ground;
-            let found = entries.iter().position(same);
-            found.unwrap_or_else(|| {
-                entries.push((part.material, ground, k));
-                entries.len() - 1
-            })
-        })
-        .collect();
-    // Each mesh baked on its own triangles: its coordinates, laid once from its first part, the
-    // meshes side by side.
+/// The coordinates the entries' meshes are baked and laid at (`Laid`): where the layer lays its
+/// meshes out `together`, all of them at once (`global`); else, or where that fails — the unwrap of
+/// the whole cuts or packs nothing —, each mesh's on its own, generated once from its first part,
+/// the meshes side by side: its lightmap set where the layer reuses it (`laid_out`), what is
+/// generated for it alone where it does not (`generated`), so that a failing unwrap of the whole
+/// leaves each mesh the coordinates of its own unwrap.
+fn laid_of(
+    parts: &[&Part],
+    (grounds, entries): (&[Ground], &[Entry]),
+    (together, method, side): (bool, HlodUvMethod, usize),
+) -> Laid {
+    if together {
+        let firsts: Vec<&Part> = entries.iter().map(|&(.., first)| parts[first]).collect();
+        if let Some(sets) = laid_together(&firsts, method, side) {
+            return Laid::PerEntry(sets);
+        }
+    }
     let mut firsts: BTreeMap<usize, &Part> = BTreeMap::new();
-    for (part, ground) in parts.iter().zip(&grounds) {
+    for (part, ground) in parts.iter().zip(grounds) {
         if let Ground::Mesh(mesh, _) = *ground {
             firsts.entry(mesh).or_insert(*part);
         }
     }
-    let laid: BTreeMap<usize, Vec<[[f64; 2]; 3]>> = firsts
-        .into_par_iter()
-        .map(|(mesh, part)| (mesh, laid_out(part, flattening.lightmaps, side)))
-        .collect();
-    ms[step::UNWRAP] = super::super::millis(started);
-    let started = std::time::Instant::now();
-    // What lies behind the translucent parts seen through: every part, traced once.
-    let behind = seen.contains(&true).then(|| {
-        let pieces: Vec<Piece> = parts.iter().map(|p| p.piece()).collect();
-        Behind::of(&pieces, library)
-    });
-    let materials: Vec<Option<u64>> = entries.iter().map(|&(m, ..)| m).collect();
-    let cells = match flattening.binned {
-        true => binned(&weights(&materials, library), side, gutter),
-        false => grid(entries.len(), side, gutter),
+    let lay = |part: &Part| match together {
+        true => generated(part, method, side),
+        false => laid_out(part, method, side),
     };
-    // The atlas's base colour, and its other maps where they are baked: the normal, the
-    // metal-roughness, the emission, the occlusion and the anisotropy.
-    let blank = |baked: bool| baked.then(|| Image::background(side, side));
-    let mut base_map = Image::background(side, side);
-    let mut maps_baked = [
-        blank(maps.normal),
-        blank(maps.metal_rough()),
-        blank(maps.emissive),
-        blank(maps.occlusion),
-        blank(maps.anisotropic()),
-    ];
-    // An entry's image shrunk, its background filled and placed in its cell.
-    let place = |atlas: &mut Image, mut image: Image, cell: &Cell| {
-        shrunk(&mut image);
-        smeared(&mut image);
-        uniform(&mut image);
-        placed(atlas, &image, cell);
+    Laid::PerMesh(
+        (firsts.into_par_iter())
+            .map(|(mesh, part)| (mesh, lay(part)))
+            .collect(),
+    )
+}
+
+/// What an entry's bake reads, besides its own parts: the parts of the merged mesh, and which of
+/// them are seen through.
+struct Scene<'a> {
+    parts: &'a [&'a Part],
+    behind: Option<Behind>,
+    seen: &'a [bool],
+    library: &'a Library,
+}
+
+/// Entry number `rank` baked into the atlas `images` at the atlas's side: a quad of its material,
+/// or its mesh's triangles at the coordinates `laid` gives it, read among the merged mesh where it
+/// is seen through.
+fn bake_entry(
+    (rank, (material, ground, first)): (usize, Entry),
+    laid: &Laid,
+    scene: &Scene,
+    images: &mut Images,
+) -> crate::Result<()> {
+    let library = scene.library;
+    let Ground::Mesh(mesh, mirrored) = ground else {
+        let (sources, coordinates) = quad(material, library);
+        return images.bake(rank, (Read::Own(&sources), &coordinates), library);
     };
-    let mut strengths = Vec::with_capacity(entries.len());
-    for (&(material, ground, first), cell) in entries.iter().zip(&cells) {
-        checkpoint()?;
-        let Baked {
-            base,
-            normal,
-            metal_rough,
-            emission,
-            emission_strength,
-            occlusion,
-            anisotropy,
-        } = match ground {
-            Ground::Quad => {
-                let (sources, coordinates) = quad(material, library);
-                baked(Read::Own(&sources), &coordinates, (side, maps), library)?
-            }
-            Ground::Mesh(mesh, mirrored) => {
-                let coordinates: Vec<[[f64; 2]; 3]> =
-                    laid[&mesh].iter().map(|&t| oriented(t, mirrored)).collect();
-                let behind = behind.as_ref().filter(|_| seen[first]);
-                let piece_of = |k: usize| parts[k].piece();
-                Read::of(behind, &[first], piece_of, library, |read| {
-                    baked(read, &coordinates, (side, maps), library)
-                })?
-            }
-        };
-        strengths.push(emission_strength);
-        place(&mut base_map, base, cell);
-        let images = [normal, metal_rough, emission, occlusion, anisotropy];
-        for (atlas, image) in maps_baked.iter_mut().zip(images) {
-            if let (Some(atlas), Some(image)) = (atlas.as_mut(), image) {
-                place(atlas, image, cell);
-            }
-        }
-    }
-    // The emission atlas held over the largest strength any entry's emission is held over.
-    let strength = strengths.iter().copied().fold(0.0f32, f32::max);
-    if let Some(atlas) = maps_baked[2].as_mut() {
-        rescaled(atlas, (&cells, &strengths), strength);
-    }
-    // Each map's background filled outward from the cells: the gutters and the empty cells.
-    let finished = |mut image: Image| {
-        smeared(&mut image);
-        image.texels.into_flattened()
-    };
-    let base = finished(base_map);
-    let [normal, metal_rough, emission, occlusion, anisotropy] =
-        maps_baked.map(|image| image.map(finished));
-    let flat = remapped(&parts, (&grounds, &entry_of), (&laid, &cells));
-    let occupancy = occupancy(&cells, side);
-    let double_sided =
-        flattening.double_sided && parts.iter().any(|p| library.double_sided(p.material));
-    // Each image averaged down to its own side: the base colour — its alpha too — and the colours
-    // of the emission in sRGB, the others as stored.
+    let coordinates: Vec<[[f64; 2]; 3]> = laid.of_entry(rank, mesh, mirrored).iter().collect();
+    let behind = scene.behind.as_ref().filter(|_| scene.seen[first]);
+    let piece_of = |k: usize| scene.parts[k].piece();
+    Read::of(behind, &[first], piece_of, library, |read| {
+        images.bake(rank, (read, &coordinates), library)
+    })
+}
+
+/// The atlas of the finished images `done`, each averaged down to its own side of `sides`: the
+/// base colour — its alpha too — and the colours of the emission in sRGB, the others as stored.
+fn atlas_of(
+    done: Finished,
+    (side, sides, maps): (usize, Sides, Maps),
+    double_sided: bool,
+) -> Atlas {
+    let Finished {
+        base,
+        normal,
+        metal_rough,
+        emission,
+        occlusion,
+        anisotropy,
+        strength,
+        occupancy,
+    } = done;
     let own = |image: Vec<u8>, to: usize, srgb: bool| sized(image, (side, to), srgb);
-    let atlas = Atlas {
+    Atlas {
         sides,
         tone: [
             tone(&base, &occupancy, &[SAMPLED]),
@@ -254,7 +189,58 @@ pub(in crate::hlod) fn merged_flat(
         anisotropy: anisotropy.map(|image| own(image, sides.anisotropy, false)),
         coverage: maps.coverage(),
         double_sided,
+    }
+}
+
+/// The merged mesh's one actor when its materials are merged (`mergeMaterials`): its `parts` with
+/// their materials of `library` flattened into one atlas as `flattening` says (module doc), the
+/// job's `checkpoint` read before each entry's bake.
+pub(in crate::hlod) fn merged_flat(
+    parts: &[Part],
+    (library, checkpoint): (&Library, &(dyn Fn() -> crate::Result<()> + Sync)),
+    flattening: &Flattening,
+) -> crate::Result<Made> {
+    let Flattening {
+        side, sides, maps, ..
+    } = *flattening;
+    let parts: Vec<&Part> = parts.iter().filter(|p| !p.geometry.2.is_empty()).collect();
+    let corners: usize = parts.iter().map(|p| p.geometry.2.len()).sum();
+    let stages: Stages = [corners / 3; super::super::STAGE_COUNT];
+    let mut ms: StageMs = [0; step::COUNT];
+    let started = std::time::Instant::now();
+    let seen: Vec<bool> = (parts.iter())
+        .map(|p| seen_through(p.material, library, maps))
+        .collect();
+    let together = flattening.together();
+    let reads = |part: &Part| flattening.on_mesh && reads_mesh(part, library, maps);
+    let grounds = grounds_of(&parts, &seen, (together, reads));
+    let (entries, entry_of) = entries_of(&parts, &grounds);
+    let at = (together, flattening.lightmaps.1, side);
+    let laid = laid_of(&parts, (&grounds, &entries), at);
+    ms[step::UNWRAP] = super::super::millis(started);
+    let started = std::time::Instant::now();
+    // What lies behind the translucent parts seen through: every part, traced once.
+    let behind = seen.contains(&true).then(|| {
+        let pieces: Vec<Piece> = parts.iter().map(|p| p.piece()).collect();
+        Behind::of(&pieces, library)
+    });
+    let scene = Scene {
+        parts: &parts,
+        behind,
+        seen: &seen,
+        library,
     };
+    let weights = |materials: &[Option<u64>]| weights(materials, library);
+    let cells = cells_of(&entries, flattening, (together, weights));
+    let mut images = Images::new(side, maps, cells);
+    for (rank, &entry) in entries.iter().enumerate() {
+        checkpoint()?;
+        bake_entry((rank, entry), &laid, &scene, &mut images)?;
+    }
+    let flat = remapped(&parts, (&grounds, &entry_of), (&laid, images.cells()));
+    let double_sided =
+        flattening.double_sided && parts.iter().any(|p| library.double_sided(p.material));
+    let atlas = atlas_of(images.finished(), (side, sides, maps), double_sided);
     ms[step::BAKE] = super::super::millis(started);
     Ok(Made {
         flat,
@@ -263,3 +249,6 @@ pub(in crate::hlod) fn merged_flat(
         stage_ms: ms,
     })
 }
+
+#[cfg(test)]
+mod tests;

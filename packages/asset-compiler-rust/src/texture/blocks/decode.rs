@@ -65,6 +65,7 @@ pub fn decode_block(block: &[u8; BLOCK_BYTES], format: BlockFormat, layout: Layo
         (BlockFormat::Astc, _) => decode_astc_block(block, 4, 4, &mut words),
         (BlockFormat::Etc2, Layout::Rgba) => decode_etc2_rgba8_block(block, &mut words),
         (BlockFormat::Etc2, Layout::TwoChannel) => eac_rg_block(block, &mut words),
+        _ => unreachable!("only the gated layouts are read back"),
     }
     let mut rgba = [0u8; 64];
     for (texel, word) in rgba.as_chunks_mut::<4>().0.iter_mut().zip(words) {

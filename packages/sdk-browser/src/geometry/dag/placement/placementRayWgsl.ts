@@ -9,7 +9,7 @@ const PlacedRay = wgslStruct(
 
 /**
  * THE ONE RAY TAKEN INTO A PLACEMENT'S SPACE, for every ray that walks the placement tree
- * (`../tree/treeWalkWgsl.ts`): the run-time proxy's (`../../../lighting/bounce/runtime/runtimeSceneWgsl.ts`) and the ray query's
+ * (`../tree/treeWalkWgsl.ts`): the ray query's
  * (`../../../lighting/rays/rayPlacementWgsl.ts`). `linear` is the world's linear part, `offset` the ray's
  * origin less the world's translation — each caller makes it at its own precision —, `direction`
  * the ray's. The ray is taken there by the inverse of the linear part: a row vector times the

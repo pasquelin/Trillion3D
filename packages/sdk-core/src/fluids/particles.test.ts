@@ -1,17 +1,33 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PARTICLE_FLOATS, ParticlePool } from './particles.ts'
+import { ParticleEmitter } from './emitter.ts'
 
 const emitMany = (pool: ParticlePool, n: number) => {
   for (let i = 0; i < n; i++) pool.emit(i, 0, 0, 0, 1, 0, 2)
 }
 
-test('a record is the particle as the GPU keeps it: position, age zero, velocity, lifetime', () => {
-  const pool = new ParticlePool({ capacity: 8, emitPerFrame: 4 })
+test('a record is the particle as the GPU keeps it: position, age zero, velocity, lifetime, look', () => {
+  const pool = new ParticlePool({
+    capacity: 8,
+    emitPerFrame: 4,
+    size: 0.3,
+    color: [1, 0.5, 0.25, 1],
+  })
   assert.equal(pool.emit(1, 2, 3, 4, 5, 6, 7), true)
-  assert.deepEqual([...pool.staging.subarray(0, PARTICLE_FLOATS)], [1, 2, 3, 0, 4, 5, 6, 7])
+  const of = (n: number) => [
+    ...pool.staging.subarray(n * PARTICLE_FLOATS, (n + 1) * PARTICLE_FLOATS),
+  ]
+  // A particle born with no look of its own takes the pool's size and colour, no turn.
+  const rest = [1, 2, 3, 0, 4, 5, 6, 7, 0.3, 0.3, 0, 0, 1, 0.5, 0.25, 1].map(Math.fround)
+  assert.deepEqual(of(0), rest)
+  // One born with its own: a size by half width and half height, a turn, a colour.
+  pool.emit(1, 2, 3, 4, 5, 6, 7, { size: [0.5, 2], rotation: 1.5, color: [0, 1, 0, 0.5] })
+  assert.deepEqual(of(1).slice(8), [0.5, 2, 1.5, 0, 0, 1, 0, 0.5])
+  pool.emit(1, 2, 3, 4, 5, 6, 7, { size: 4 })
+  assert.deepEqual(of(2).slice(8, 12), [4, 4, 0, 0])
   pool.advance(0.01)
-  assert.deepEqual({ ...pool.flush() }, { first: 0, count: 1, dt: 0.01 })
+  assert.deepEqual({ ...pool.flush() }, { first: 0, count: 3, dt: 0.01 })
 })
 
 test('the ring wraps past capacity onto the oldest slots, and allocates nothing after creation', () => {
@@ -80,6 +96,8 @@ test('an idle pool stops moving: its step takes no time once its last particle i
 test('a pool blends, sizes and softens as told, and refuses by name what no renderer draws', () => {
   const fire = new ParticlePool({ capacity: 8 })
   assert.deepEqual([fire.blend, fire.size, fire.softness], ['additive', 0.1, 0.1])
+  assert.deepEqual([...fire.fade], [1, 1, 1, 1], 'no fade of its own: the colour holds to death')
+  assert.deepEqual([...new ParticlePool({ capacity: 8, fade: [0, 0, 0, 0] }).fade], [0, 0, 0, 0])
   const smoke = new ParticlePool({ capacity: 8, blend: 'premultiplied', size: 2 })
   assert.deepEqual([smoke.blend, smoke.softness], ['premultiplied', 2], 'soft over its size')
   const blend = 'alpha' as ParticlePool['blend']
@@ -87,4 +105,41 @@ test('a pool blends, sizes and softens as told, and refuses by name what no rend
   assert.throws(() => new ParticlePool({ capacity: 8, softness: 0 }), /^Error: PARTICLE_SIZE/)
   const color = [1, 1, 1] as unknown as [number, number, number, number]
   assert.throws(() => new ParticlePool({ capacity: 8, color }), /^Error: PARTICLE_COLOR/)
+  assert.throws(() => new ParticlePool({ capacity: 8, fade: color }), /^Error: PARTICLE_COLOR/)
+})
+
+test('an emitter spawns its rate over the images, the fraction owed carried, and a burst at once', () => {
+  const emitter = new ParticleEmitter({
+    capacity: 64,
+    rate: 30,
+    lifetime: [1, 2],
+    speed: 2,
+    seed: 7,
+  })
+  for (let i = 0; i < 10; i++) emitter.advance(1 / 60)
+  assert.equal(emitter.pool.emitted, 5, 'ten images of a sixtieth at thirty a second')
+  emitter.burst(3)
+  assert.equal(emitter.pool.emitted, 8)
+  emitter.update({ active: false })
+  emitter.advance(1)
+  assert.equal(emitter.pool.emitted, 8, 'inactive: no rate')
+})
+
+test('an emitter sends its particles inside the cone about its direction', () => {
+  const emitter = new ParticleEmitter({
+    capacity: 256,
+    emitPerFrame: 256,
+    direction: [0, 0, 2],
+    spread: 0.3,
+    speed: 3,
+  })
+  emitter.burst(200)
+  for (let n = 0; n < 200; n++) {
+    const at = n * PARTICLE_FLOATS,
+      v = emitter.pool.staging.subarray(at + 4, at + 7)
+    assert.ok(Math.abs(Math.hypot(v[0], v[1], v[2]) - 3) < 1e-4, 'the speed')
+    assert.ok(v[2] / 3 >= Math.cos(0.3) - 1e-5, 'inside the cone')
+  }
+  assert.throws(() => emitter.update({ spread: 4 }), /PARTICLE_SPREAD/)
+  assert.throws(() => emitter.update({ lifetime: 0 }), /PARTICLE_SPAWN/)
 })

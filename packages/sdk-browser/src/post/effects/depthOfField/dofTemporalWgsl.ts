@@ -190,7 +190,7 @@ fn temporalSetup(@builtin(global_invocation_id) gid:vec3u){
  var rgb=original(blended.color);
  rgb=select(min(rgb,vec3f(${wgslF32(HALF_MAX)})),vec3f(0.0),!(rgb>vec3f(0.0)));
  let alpha=select(blended.color.a,1.0,blended.color.a>0.995);
- rgb=ditherFloat(rgb,frameRandom(h,view.counts.z).x,${wgslF32(quantizationError(HDR_FORMAT))});
+ rgb=ditherFloat(rgb,frameRandom(h,view.counts.z).x,vec3f(${wgslF32(quantizationError(HDR_FORMAT))}));
  textureStore(colorOut,h,vec4f(rgb,alpha));
  textureStore(cocOut,h,vec4f(select(0.0,blended.coc,blended.coc==blended.coc),0.0,0.0,0.0));
 }`,

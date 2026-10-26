@@ -18,7 +18,8 @@ export type TileQueueCut = {
   read(words: Uint32Array): void
 }
 
-type Cut = TileQueueCut & {
+/** A cut record being made: the pools it sorted and their arrivals. */
+export type TileQueueRecord = TileQueueCut & {
   pools: (WebgpuTilePool | undefined)[]
   arrivals: Uint32Array
 }
@@ -26,8 +27,8 @@ type Cut = TileQueueCut & {
 /** The cut records over the queues' `buffer`, of `TILE_QUEUE_BYTES`, taken in turn: each the pools
  *  a frame sorted and their arrivals at the cut. */
 export function createQueueCuts(buffer: GPUBuffer) {
-  const cut = (): Cut => {
-    const made: Cut = {
+  const cut = (): TileQueueRecord => {
+    const made: TileQueueRecord = {
       buffer,
       pools: new Array(TILE_QUEUES).fill(undefined),
       arrivals: new Uint32Array(TILE_QUEUES),

@@ -43,11 +43,21 @@ const levelOf = (s: State, n: GraphNode) =>
 
 /** The footprint of one pixel on the coordinate `uv` of the sample `n`: the screen's derivatives
  *  of it, or its difference to the coordinate a pixel to the right and a pixel below
- *  (`NEIGHBOURS`), each read in the context the host fills there. */
+ *  (`NEIGHBOURS`), each read in the context the host fills there. A read met while the coordinate
+ *  of another is read at one of those points takes the footprint it took at the centre, which that
+ *  read was made first (its coordinate is read before its footprint): the quad's one derivative,
+ *  never one of a neighbour's neighbours. */
 function footprint(s: State, n: GraphNode, uv: Value): [string, string] {
   if (s.derivatives === 'screen') return [`dpdx(${uv.code})`, `dpdy(${uv.code})`]
+  if (s.centre) {
+    const held = s.footprints.get(n.id)
+    if (!held) throw graphError('a texture read beside the centre has no footprint', { node: n.id })
+    return [...held]
+  }
   const [right, below] = NEIGHBOURS.map((context) => coordinateOf(s.at(context), n))
-  return [`(${right.code}-${uv.code})`, `(${below.code}-${uv.code})`]
+  const found: [string, string] = [`(${right.code}-${uv.code})`, `(${below.code}-${uv.code})`]
+  s.footprints.set(n.id, found)
+  return found
 }
 
 /** The footprint a sample reads at, scaled by `exp2(bias)` in a `bias` read. */

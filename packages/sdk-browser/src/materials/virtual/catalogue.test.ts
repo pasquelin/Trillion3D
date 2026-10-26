@@ -4,14 +4,15 @@ import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import {
   PREVIEW_ATLAS_COLOR,
   PREVIEW_ATLAS_DATA,
-  PREVIEW_ATLAS_COVERAGE,
+  PREVIEW_ATLAS_HDR,
 } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import type { TexturePreview } from '../../../../sdk-core/src/texture/previewContracts.ts'
 
+import { hdrPreview } from '../../../../../tests/fixtures/manifest/manifestBinaryPreview.ts'
 import { previewLevels } from '../../../../../tests/fixtures/manifest/manifestBinaryLevels.ts'
 import { tileCatalogue } from './catalogue.ts'
 import { createTextureCaches } from '../texture/textureCaches.ts'
-import { poolEncoding, WHITE_TAIL } from '../texture/blockFormats.ts'
+import { poolEncoding } from '../texture/blockFormats.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 const preview = (width: number, height: number, bakedLevels: number): TexturePreview => ({
@@ -46,6 +47,8 @@ const baked = (preview: TexturePreview) => () => ({ preview, read: reader })
 // lossless one where the gate refused it, without a family, or hosted for want of a whole
 // chain; the fill sits in the family's RGBA lane when a chain is kept there, else in any lane
 // the textures already open.
+const SIZE = { width: 4, height: 4, tail: 0 }
+
 test('a catalogue routes each texture to the lane of its layout and hosts what has no chain', () => {
   const chain = preview(256, 128, 2)
   const bc7 = poolEncoding('bc7')
@@ -57,7 +60,8 @@ test('a catalogue routes each texture to the lane of its layout and hosts what h
   assert.deepEqual(fill, {
     layout: fill.layout,
     lane: 'rgba',
-    source: { kind: 'bytes', tail: WHITE_TAIL },
+    tap: 1,
+    source: { kind: 'bytes', tail: bc7.whiteOf('rgba') },
   })
   assert.equal(entry.source.kind, 'baked')
   assert.equal(entry.lane, 'rgba')
@@ -80,22 +84,33 @@ test('a catalogue routes each texture to the lane of its layout and hosts what h
   assert.deepEqual([rawFill.lane, small.source.kind, small.lane], ['lossless', 'bytes', 'lossless'])
 })
 
-// A coverage chain (word 2) is the colour atlas's entry of its texture, found where the plain
-// one would be, and keeps its word — the one its level files are named by.
-test('a coverage chain is filed as the colour entry of its texture and keeps its word', () => {
-  const coverage = { ...preview(256, 128, 2), texture: 3, atlas: PREVIEW_ATLAS_COVERAGE }
+// A half-float chain (word 2) is the colour atlas's entry of its texture, found where the 8-bit
+// one would be, and keeps its word — the one its level files are named by. Whatever the session's
+// family, it takes the half-float lane, its texels as they are: eight bytes a texel, its files
+// `rgba16f`, no sRGB decode.
+test('a half-float chain is filed as the colour entry of its texture and takes the half-float lane', () => {
+  const hdr = { ...hdrPreview(3, 256, 128, 2), bakedLevels: 2 }
   const data = { ...preview(256, 128, 2), texture: 3, atlas: PREVIEW_ATLAS_DATA }
   const texture = map()
   const caches = createTextureCaches(createPageCache())
   caches.add({
     ranks: new Map([[texture, 3]]),
-    metadata: { key: 'k', texturePreviews: [data, coverage] },
+    metadata: { key: 'k', texturePreviews: [hdr, data] },
     base: '',
   })
   const previewAt = (atlas: number) => caches.chainOf(texture, atlas)?.preview
-  assert.equal(previewAt(PREVIEW_ATLAS_COLOR), coverage)
+  assert.equal(previewAt(PREVIEW_ATLAS_COLOR), hdr)
   assert.equal(previewAt(PREVIEW_ATLAS_DATA), data)
-  assert.equal(previewAt(PREVIEW_ATLAS_COVERAGE), undefined, 'filed by atlas, not by word')
-  const [, entry] = tileCatalogue([map()], baked(coverage), poolEncoding('bc7'))
-  assert.equal(entry.source.kind === 'baked' && entry.source.atlas, PREVIEW_ATLAS_COVERAGE)
+  assert.equal(previewAt(PREVIEW_ATLAS_HDR), undefined, 'filed by atlas, not by word')
+  for (const block of ['bc7', undefined] as const) {
+    const encoding = poolEncoding(block)
+    const [, entry] = tileCatalogue([map()], baked(hdr), encoding)
+    assert.equal(entry.lane, 'hdr')
+    assert.equal(entry.source.kind === 'baked' && entry.source.atlas, PREVIEW_ATLAS_HDR)
+    assert.equal(encoding.formatOf('color', 'hdr'), 'rgba16float')
+    assert.equal(encoding.texelBytes('hdr'), 8)
+    assert.equal(encoding.levelFormat('hdr', hdr), 'rgba16f')
+    assert.equal(encoding.tapOf('hdr'), 4)
+    assert.equal(encoding.tailOf(hdr, 'hdr', SIZE), hdr.levels)
+  }
 })

@@ -2,6 +2,7 @@ import { halfCeilBits } from '../../../math/src/float/half.ts'
 import { wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { REACH_UNBOUNDED } from '../geometry/dag/placement/placementTree.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
+import type { ClusterRoot, PageRec } from '../geometry/selection/types.ts'
 
 /** THE MARK WORD A ROOT SENDS THE GPU CUT (`markWorld`): its `mark` with its deformation `reach`
  *  in the high sixteen bits — the smallest half float at or above it (`halfCeilBits`): a reach the
@@ -11,15 +12,31 @@ import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 export const rootMark = ({ mark = 0, reach = 0 }: { mark?: number; reach?: number }) =>
   ((mark & 0xffff) | (halfCeilBits(reach) << 16)) >>> 0
 
-/** THE ONE WRITER OF A ROOT'S REACH (`ClusterRoot.reach`): root `rank` reaches `reach` from where
- *  its pages are bounded, which the CPU cut reads there and the GPU cut in its mark word
- *  (`rootMark`), sent again only when it changes. Returns whether it changed. */
-export function holdReach(rt: WebgpuPagesRuntime, rank: number, reach: number) {
-  const root = rt.layout.selectionRoots[rank]
-  if (reach === (root.reach ?? 0)) return false
-  root.reach = reach
+/** THE ONE WRITER OF A ROOT'S REACH (`ClusterRoot.reach`), the sum of what its deformation moves a
+ *  vertex (`deformReach`, `holdReach`) and what its surfaces' offsets may (`offsetReach`,
+ *  `holdOffsetReach`): root `rank` reaches that far from where its pages are bounded, which the CPU
+ *  cut reads there and the GPU cut in its mark word (`rootMark`), sent again only when it changes.
+ *  Returns whether it changed. */
+function sendReach(rt: WebgpuPagesRuntime, rank: number, root: ClusterRoot<PageRec>) {
+  const total = (root.deformReach ?? 0) + (root.offsetReach ?? 0)
+  if (total === (root.reach ?? 0)) return false
+  root.reach = total
   rt.run.gpuSelection?.markWorld(rank, rootMark(root))
   return true
+}
+
+/** Root `rank`'s deformation moves a vertex up to `reach` this frame (`sendReach`). */
+export function holdReach(rt: WebgpuPagesRuntime, rank: number, reach: number) {
+  const root = rt.layout.selectionRoots[rank]
+  root.deformReach = reach
+  return sendReach(rt, rank, root)
+}
+
+/** Root `rank`'s offsets move a vertex up to `reach` (`sendReach`), in its units. */
+export function holdOffsetReach(rt: WebgpuPagesRuntime, rank: number, reach: number) {
+  const root = rt.layout.selectionRoots[rank]
+  root.offsetReach = reach
+  return sendReach(rt, rank, root)
 }
 
 /** The reach a mark word carries (`rootMark`), read in WGSL: infinite past every finite one. */

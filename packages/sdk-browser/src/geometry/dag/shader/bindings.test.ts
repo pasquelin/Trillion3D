@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { dagBindEntries } from './bindings.ts'
 import { dagBindingOf } from './bindings.fixture.ts'
-import { DAG_SELECTION_SHADER } from './shader.ts'
+import { DAG_SELECTION_SHADER } from './selectionShader.fixture.ts'
 import { DAG_ARM_BINDING } from './armWgsl.ts'
 import {
   entryBufferBindings,
@@ -22,7 +22,11 @@ test('the DAG layout entries are the bindings the selection shader declares', ()
   // The arming entry point's group is its own (`arm.ts`): its bindings are not the selection's.
   const arm: readonly number[] = Object.values(DAG_ARM_BINDING)
   const declared = wgslBufferBindings(DAG_SELECTION_SHADER).filter((b) => !arm.includes(b.binding))
-  assert.equal(declared.length, 3, 'the uniforms, the readout and `work`, whatever the world')
+  assert.equal(
+    declared.length,
+    6,
+    'the uniforms, the readout, `work`, the list of visible clusters and the clusters’ records and edges, whatever the world',
+  )
   assert.deepEqual(buffers(), declared)
   // Every other table is a record table (`../cut/cutTables.ts`), no storage buffer of the stage's
   // eight; the flags the one the kernels write, a storage texture.

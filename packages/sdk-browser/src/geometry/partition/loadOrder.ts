@@ -17,17 +17,12 @@
  */
 import type { WorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import type { PartitionScheme } from '../../../../sdk-core/src/contracts/partitionOptions.ts'
+import { CENTIMETRES_PER_METRE } from '../../../../sdk-core/src/page/format.ts'
+import { NEARLY_ZERO_SQUARED_LENGTH } from './sourceShape.ts'
 
 /** How far apart two loose cells' distance ratios must lie for one to load first: the reference's
  *  tolerance on that ratio, which has no unit. */
 const RATIO_TOLERANCE = 1e-8
-
-/** How near two square cells' squared distances must lie to tie, in m²: the reference's near-zero
- *  test, 1e-8, on a squared distance it counts in cm². */
-const SQUARE_TOLERANCE = 1e-12
-
-/** Centimetres in a metre: square cells' half sides compare in whole centimetres. */
-const CENTIMETRES = 100
 
 /** A cell waiting to load, as the order ranks it: its key, the half side of the bounds it streams
  *  by — a square cell's half side — and the level of its cell on its grid, its grid's priority,
@@ -68,12 +63,12 @@ function squareBefore(streaming: WorldStreaming, a: LoadingCell, b: LoadingCell)
   const last = alwaysLast(a, b)
   if (last !== 0) return last
   const wider = streaming.sortByExtent
-    ? Math.trunc((b.extent - a.extent) * CENTIMETRES)
+    ? Math.trunc((b.extent - a.extent) * CENTIMETRES_PER_METRE)
     : b.level - a.level
   if (wider !== 0) return wider
   if (streaming.sortByPriority && a.priority !== b.priority) return a.priority - b.priority
   const nearer = a.distance - b.distance
-  const order = Math.abs(nearer) <= SQUARE_TOLERANCE ? a.raw - b.raw : nearer
+  const order = Math.abs(nearer) <= NEARLY_ZERO_SQUARED_LENGTH ? a.raw - b.raw : nearer
   if (order !== 0) return order
   if (!streaming.sortByPriority && a.priority !== b.priority) return a.priority - b.priority
   return a.key - b.key

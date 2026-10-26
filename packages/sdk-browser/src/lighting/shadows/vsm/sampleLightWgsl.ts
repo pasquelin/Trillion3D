@@ -1,6 +1,6 @@
 /**
  * THE ONE-SAMPLE READ OF A LIGHT'S MAP, the default for translucent surfaces
- * (`LIGHT_SETTINGS.translucentShadowQuality` 0): a single depth compare at the receiver, with no ray
+ * (`shadowTranslucentQuality` 0): a single depth compare at the receiver, with no ray
  * start and no optimal bias, cheap enough for every layer of a blend. The receiver's map is the trace's own (`vsmLightMapAt`: a sun's clipmap level, a spot's
  * map, a point light's cube face), one page-table read and one depth read at its texel, falling back
  * to a coarser level or mip as the trace's samples do.

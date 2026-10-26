@@ -13,9 +13,10 @@ import { length3 } from '../../vector/vector.ts'
  * NEAR plane `z <= w`. Readers address a plane by its slot: the FAR plane is rewritten at 16.
  *
  * Infinite far plane: projection's `z` row is then `(0, 0, 0, near)`, so the FAR plane has a zero
- * normal and, normalized, non-numeric components — no comparison satisfies it, so it rejects
- * nothing, which is exactly what an infinite far plane means. `frustumFarPlane` replaces it with
- * the far plane declared by the host when present.
+ * normal. A plane with no normal is stored as `(0, 0, 0, 1)`, the plane every point satisfies: it
+ * rejects nothing, which is exactly what an infinite far plane means, and every reader tests it
+ * as any other. The engine's camera frame keeps it so; `frustumFarPlane` writes a far plane at a
+ * given distance for a caller that wants one.
  */
 
 /** Rank of the FAR plane among the six, the slot the floats of `planes` address at four a plane. */
@@ -25,9 +26,11 @@ export const FAR_PLANE_SLOT = 4
 export const FRUSTUM_PLANE_VALUES = 24
 
 /** Stores the plane `a, b, c, d` at `at`, scaled to a unit normal: one division by the normal's
- *  length, then four products. Everything is computed in double precision before the store, so a
- *  single-precision output rounds only once. The components travel as arguments, not through a
- *  module buffer: measured twice as fast, the compiler inlines the call and none are wrapped. */
+ *  length, then four products; a normal of no length — a bound the matrix does not have — stores
+ *  `(0, 0, 0, 1)`, the plane every point satisfies. Everything is computed in double precision
+ *  before the store, so a single-precision output rounds only once. The components travel as
+ *  arguments, not through a module buffer: measured twice as fast, the compiler inlines the call
+ *  and none are wrapped. */
 function storeUnitPlane(
   out: Float32Array | Float64Array,
   at: number,
@@ -36,7 +39,15 @@ function storeUnitPlane(
   c: number,
   d: number,
 ) {
-  const reciprocal = 1 / length3(a, b, c)
+  const length = length3(a, b, c)
+  if (length === 0) {
+    out[at] = 0
+    out[at + 1] = 0
+    out[at + 2] = 0
+    out[at + 3] = 1
+    return
+  }
+  const reciprocal = 1 / length
   out[at] = a * reciprocal
   out[at + 1] = b * reciprocal
   out[at + 2] = c * reciprocal
@@ -50,8 +61,8 @@ const RAW_PLANES = /* @__PURE__ */ new Float64Array(FRUSTUM_PLANE_VALUES)
  * The six normalized planes of the frustum of a clip matrix — a view-projection, or a
  * projection alone for planes in view space: `clipPlanesFromMatrix`'s, each scaled to a unit
  * normal, so `a*x + b*y + c*z + d` is a signed distance. Under an infinite far plane the z row is
- * (0, 0, 0, near) and the FAR plane NaN, a plane no point fails. A degenerate matrix yields NaN or
- * infinite planes without throwing.
+ * (0, 0, 0, near) and the FAR plane `(0, 0, 0, 1)`, a plane no point fails. A matrix of NaN or
+ * infinite entries yields NaN or infinite planes without throwing.
  */
 export function frustumPlanesFromMatrix(out: Float32Array | Float64Array, m: ArrayLike<number>) {
   // The raw planes in doubles first (`clipPlanesFromMatrix`), then each made unit into `out`: a
@@ -121,11 +132,10 @@ export function clipPlanesFromMatrix(out: Float64Array, m: ArrayLike<number>) {
  * The FAR plane of a frustum whose projection does not have one, written into `out` at `at`.
  *
  * Engine projection has an INFINITE far plane: its depth row bounds nothing and the
- * clip bounds give a zero plane, which rejects nothing. The frustum, however, keeps the far plane
- * DECLARED by the host — otherwise a scene would suddenly gain all objects that the camera was not
- * showing. That plane is not read from the clip matrix but from the VIEW matrix, whose third row
- * gives view depth `z`: a point is inside when `far + z >= 0`. A non-finite `far` leaves the zero
- * plane in place, meaning a truly unbounded far plane.
+ * clip bounds give a zero plane, which rejects nothing. A caller that wants a far plane at the
+ * distance `far` anyway writes it here. That plane is not read from the clip matrix but from the
+ * VIEW matrix, whose third row gives view depth `z`: a point is inside when `far + z >= 0`. A
+ * non-finite `far` leaves the zero plane in place, meaning a truly unbounded far plane.
  */
 export function frustumFarPlane(
   out: Float32Array | Float64Array,

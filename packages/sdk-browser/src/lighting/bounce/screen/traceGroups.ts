@@ -1,23 +1,18 @@
 import { namedEntries } from '../../../gpu/core/computeBindings.ts'
-import { sceneBindEntries } from '../sceneBindings.ts'
+import { surfaceHitEntries } from '../../surfaceCache/hitWgsl.ts'
 import { COMPOSITE_BINDINGS, CONVERT_BINDINGS } from './gatherWgsl.ts'
 import { buffers, groupOf, type GroupParts } from './groupParts.ts'
 import type { CastKernels, ScreenProbeKernels } from './kernels.ts'
 import { OCCLUSION_BINDINGS } from './occlusionWgsl.ts'
 import { SPATIAL_BINDINGS } from './spatialWgsl.ts'
 import { TEMPORAL_BINDINGS } from './temporalWgsl.ts'
-import { TRACE_FIELD_BINDINGS, TRACE_FIELD_PROBES } from './traceFieldWgsl.ts'
-import {
-  SCREEN_PROXY_BINDINGS,
-  TRACE_SCENE_BINDINGS,
-  TRACE_SCENE_LIGHT_FUNCTION,
-  TRACE_SCENE_PROBES,
-} from './traceSceneWgsl.ts'
+import { TRACE_SCENE_BINDINGS, TRACE_SCENE_HIT, TRACE_SCENE_PROBES } from './traceSceneWgsl.ts'
 import { TRACE_SCREEN_BINDINGS, TRACE_SCREEN_PROBES } from './traceWgsl.ts'
 
-/** The trace of the rays: the screen's stage, the field's and the scene's where it is asked. */
+/** The trace of the rays: the screen's stage and the scene's, which marches the rays through the global distance field, reads the surface cache at
+ *  their hits and the radiance cache for the rays it leaves. */
 export function traceGroups(g: GroupParts, kernels: CastKernels) {
-  const { device, r, inputs, last, common, records } = g
+  const { device, r, inputs, last, common, probe, records } = g
   const field = { bounceGrid: inputs.bounceGrid }
   const trace = { ray: r.ray, radiance: r.radiance, hit: r.hit }
   return {
@@ -27,45 +22,33 @@ export function traceGroups(g: GroupParts, kernels: CastKernels) {
         ...records,
         ...trace,
         ...buffers({ ...field, sceneRays: r.sceneRays }),
-        history: r.history[last],
+        meta: r.meta[last],
         vectors: inputs.vectors,
         flags: inputs.flags,
         blue: inputs.blue,
       }),
       { binding: TRACE_SCREEN_PROBES, resource: inputs.probes },
     ]),
-    traceField: groupOf(device, kernels.traceField, [
-      ...namedEntries(TRACE_FIELD_BINDINGS.at, {
+    traceScene: groupOf(device, kernels.traceScene, [
+      ...namedEntries(TRACE_SCENE_BINDINGS.at, {
         ...common,
-        ...records,
+        ...probe,
         ...trace,
         blue: inputs.blue,
         cacheFinal: inputs.cacheFinal,
         cacheRaw: inputs.cacheRaw,
         cacheSky: inputs.cacheSky,
-        ...buffers({ ...field, lights: inputs.lights, cacheTags: inputs.cacheTags }),
+        ...buffers({
+          ...field,
+          pixels: r.pixels,
+          lights: inputs.lights,
+          sceneRays: r.sceneRays,
+          cacheTags: inputs.cacheTags,
+        }),
       }),
-      { binding: TRACE_FIELD_PROBES, resource: inputs.probes },
+      { binding: TRACE_SCENE_PROBES, resource: inputs.probes },
+      ...surfaceHitEntries(TRACE_SCENE_HIT, inputs.field, inputs.hit),
     ]),
-    traceScene: kernels.traceScene
-      ? groupOf(device, kernels.traceScene, [
-          ...namedEntries(TRACE_SCENE_BINDINGS.at, {
-            ...common,
-            ...records,
-            ...trace,
-            blue: inputs.blue,
-            ...buffers({
-              ...field,
-              lights: inputs.lights,
-              lightLists: inputs.lightLists,
-              sceneRays: r.sceneRays,
-            }),
-          }),
-          { binding: TRACE_SCENE_PROBES, resource: inputs.probes },
-          ...sceneBindEntries(SCREEN_PROXY_BINDINGS, inputs.proxy),
-          { binding: TRACE_SCENE_LIGHT_FUNCTION.atlas, resource: inputs.lightFunction },
-        ])
-      : undefined,
   }
 }
 
@@ -117,10 +100,11 @@ export function filterGroups(g: GroupParts, kernels: CastKernels) {
 
 /** The pixels: the short-range occlusion and the temporal pass, which integrates the probes where the level casts them. */
 export function pixelGroups(g: GroupParts, kernels: ScreenProbeKernels) {
-  const { device, r, inputs, last, turn, common, probe, surface } = g
+  const { device, r, inputs, last, turn, final, common, probe, surface } = g
   const probes = kernels.cast && {
     ...probe,
     irradiance: r.irradiance,
+    gather: r.gather[final],
     ...buffers({
       pixels: r.pixels,
       header: r.header,
@@ -149,6 +133,8 @@ export function pixelGroups(g: GroupParts, kernels: ScreenProbeKernels) {
         occlusion: r.occlusion,
         history: r.history[last],
         historyOut: r.history[turn],
+        meta: r.meta[last],
+        metaOut: r.meta[turn],
         vectors: inputs.vectors,
         blue: inputs.blue,
         ...probes,

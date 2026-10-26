@@ -1,5 +1,6 @@
 import { createWebgpuCutAdopter } from './adoption.ts'
 import { createCutDelta } from './delta.ts'
+import { createRankList } from './copyRanks.ts'
 import {
   createSelectionUniforms,
   type GpuCut,
@@ -27,12 +28,10 @@ export function fixturePages(count: number, transparent: (index: number) => bool
   )
 }
 
-/** A selection that only knows how to return the current readback, whose readbacks claim no
- *  rank: all an adopter asks of it. */
-export const peekOnly = (peek: () => GpuCut | null) =>
-  ({ peek, adopt: () => undefined }) as unknown as GpuSelection
+/** A selection that only knows how to return the current readback: all an adopter asks of it. */
+export const peekOnly = (peek: () => GpuCut | null) => ({ peek }) as unknown as GpuSelection
 
-/** Triangle totals of a readback header, as `dagMask` ships them: all zero unless given. */
+/** Triangle totals of a readback header, as the cut ships them: all zero unless given. */
 export const fixtureTotals = (totals: Partial<GpuCut['result']> = {}) => ({
   selectedTriangles: 0,
   transparentTriangles: 0,
@@ -48,16 +47,13 @@ export function mountCutAdopter(options: {
   packedPages: PageList
   uniforms: SelectionUniforms
   selection: () => GpuSelection | undefined
-  onDrawnMirrored?: () => void
 }) {
   const { packedPages } = options
   const desired: PageRec[] = [],
-    shown: PageRec[] = [],
-    drawn: PageRec[] = []
+    shown: PageRec[] = []
   // The packed ranks of the lists, rank by rank: one record may serve several placements.
-  const desiredPacked: number[] = [],
-    shownPacked: number[] = [],
-    drawnPacked: number[] = []
+  const desiredPacked = createRankList(),
+    shownPacked = createRankList()
   const drawnPages: PageRec[] = []
   const drawnDelta = createCutDelta(packedPages, drawnPages),
     delta = createCutDelta(packedPages, desired)
@@ -67,15 +63,12 @@ export function mountCutAdopter(options: {
     desiredPacked,
     shown,
     shownPacked,
-    drawn,
-    drawnPacked,
     uniforms: options.uniforms,
     delta,
     drawnDelta,
     drawnPages,
     onCutDelta: () => {},
     onDrawnDelta: () => {},
-    onDrawnMirrored: options.onDrawnMirrored ?? (() => {}),
   })
   return {
     adopter,
@@ -86,7 +79,5 @@ export function mountCutAdopter(options: {
     desiredPacked,
     shown,
     shownPacked,
-    drawn,
-    drawnPacked,
   }
 }

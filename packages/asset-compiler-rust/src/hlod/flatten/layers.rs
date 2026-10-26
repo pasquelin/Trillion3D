@@ -82,26 +82,21 @@ fn unwrapped_by(topology: &Topology, texture_size: usize, how: &UvSettings) -> V
 /// merge's settings (`MERGE_PATCHES`) and packed as that unwrap packs them (`uv::unwrap`) — as its
 /// maps made them where the packer finds no layout —; its charts cut and packed (`uv::charts`), a
 /// triangle set aside at the origin held by no chart; or its spectral charts (`MERGE_STRETCH`).
-/// Where those fail no triangle is held: each keeps its mesh's own first texture set, as the
-/// unwrap's mesh leaves it.
+/// None where the unwrap fails (the spectral charts cut or pack nothing): the caller keeps what
+/// the mesh has, its own first texture set.
 pub(super) fn unwrapped(
     points: &[[f64; 3]],
     triangles: &[[usize; 3]],
     method: HlodUvMethod,
-) -> (Vec<[f64; 2]>, Vec<bool>) {
+) -> Option<(Vec<[f64; 2]>, Vec<bool>)> {
     let topology = Topology { points, triangles };
     let settings = UvSettings {
         method,
         patches: &MERGE_PATCHES,
         stretch: MERGE_STRETCH,
     };
-    match laid(&topology, &settings) {
-        Some(unwrapped) => (unwrapped.corners, unwrapped.held),
-        None => (
-            vec![[0.0; 2]; triangles.len() * 3],
-            vec![false; triangles.len()],
-        ),
-    }
+    let unwrapped = laid(&topology, &settings)?;
+    Some((unwrapped.corners, unwrapped.held))
 }
 
 /// A mesh's points, its triangles over them and one normal per corner.

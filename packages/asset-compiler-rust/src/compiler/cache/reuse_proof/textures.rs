@@ -22,13 +22,20 @@ pub(crate) fn check_textures(
         if entry.baked < entry.first {
             return Err(format!("texture {} was not fully baked", entry.sha256));
         }
+        // A half-float chain's files are its own, half-float texels or the BC6H blocks that hold it.
         let mut formats = Vec::new();
         for (family, word) in crate::texture::BlockFormat::ALL.iter().zip(entry.layouts) {
             match crate::texture::Layout::from_word(word) {
-                Some(Some(layout)) => formats.push(family.file_name(layout)),
+                Some(Some(layout)) if family.holds(layout) => {
+                    formats.push(family.file_name(layout))
+                }
+                Some(Some(_)) => return Err(format!("sidecar names layout {word} in {family:?}")),
                 Some(None) => {}
                 None => return Err(format!("sidecar names layout {word}")),
             }
+        }
+        if kind == crate::texture::AtlasKind::Hdr && formats.is_empty() {
+            formats.push(crate::texture::hdr::HALF_FILE);
         }
         for level in 0..entry.baked {
             for format in &formats {

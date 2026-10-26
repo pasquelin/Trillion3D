@@ -7,6 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { fogWgsl } from './fogShader.ts'
 import {
   COLOR,
   RGB,
@@ -24,7 +25,7 @@ type Layer = { density: number; falloff: number; base: number }
 /** The fog over `RGB` at `P` seen from `eye` by numerical integration: the ray cut short where it
  *  passes `end` on the horizontal, the layers' densities summed along it, `(ln 2)²` times their
  *  integral the optical depth. */
-function layersLaw(layers: Layer[], eye: V3, P: V3, color: V3, end = 0) {
+function layersLaw(layers: Layer[], eye: V3, P: V3, color: Readonly<V3>, end = 0) {
   const to = [P[0] - eye[0], P[1] - eye[1], P[2] - eye[2]]
   const horizontal = Math.hypot(to[0], to[2])
   const scale = end > 0 && horizontal > end ? end / horizontal : 1
@@ -154,9 +155,11 @@ function cubemap() {
     `fn fogCubeSharp(direction:vec3f)->vec3f{return cubeSample(direction,1.0);}
 fn fogCubeAverage(direction:vec3f)->vec3f{return cubeSample(direction,0.0);}
 fn fogVolumeExclude(toward:vec3f)->f32{return 0.0;}
-fn fogVolumeLookup(toward:vec3f,infinite:bool)->vec4f{return vec4f(0.0,0.0,0.0,1.0);}`,
+fn fogVolumeLookup(toward:vec3f,infinite:bool)->vec4f{return vec4f(0.0,0.0,0.0,1.0);}
+fn fogSkyLightStrength()->f32{return 0.0;}
+fn fogSkyLightColour(direction:vec3f)->vec3f{return vec3f(0.0);}`,
   )
-  return { calls, resources: { decl, scope: { cubeSample: sample } } }
+  return { calls, resources: { block: fogWgsl(decl), scope: { cubeSample: sample } } }
 }
 
 const CUBE_FOG = {

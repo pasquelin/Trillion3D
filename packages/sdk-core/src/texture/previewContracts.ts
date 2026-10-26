@@ -1,4 +1,4 @@
-import type { TextureBlockFormat, TextureLayout } from './previewFormat.ts'
+import type { StoredLayout, TextureBlockFormat } from './previewFormat.ts'
 
 /**
  * The mip chain of an atlas texture: the tail in the sidecar — from the first level where no
@@ -22,9 +22,8 @@ export interface TexturePreview {
   sourceBufferView: number
   /** SHA-256 of decoded source bytes. */
   sha256: string
-  /** The chain this entry holds: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, or
-   *  PREVIEW_ATLAS_COVERAGE, sampled in the colour atlas, in the low byte; a coverage chain's
-   *  cutoff byte fills bits 8–15. */
+  /** The chain this entry holds: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, or PREVIEW_ATLAS_HDR,
+   *  sampled in the colour atlas, whose levels are half-float RGBA and which no block family holds. */
   atlas: number
   /** Index of the first level carried in the source's mip chain; 0 when it already fits
    *  under PREVIEW_BASE and the sidecar thus carries its full resolution. */
@@ -32,10 +31,11 @@ export interface TexturePreview {
   /** Levels baked into files in the cache, from 0 to bakedLevels - 1; firstLevel when the
    *  chain is complete, 0 when nothing was written and the engine loads the source image. */
   bakedLevels: number
-  /** Levels carried in order, from finest to 1x1, each a view on sidecar bytes. */
+  /** Levels carried in order, from finest to 1x1, each a view on sidecar bytes: RGBA8, or half-float
+   *  RGBA (eight bytes a texel) in the half-float atlas. */
   levels: Uint8Array<ArrayBuffer>[]
   /** What each block family holds of the chain: lossless when the gate refused it there. */
-  layouts: Record<TextureBlockFormat, TextureLayout>
+  layouts: Record<TextureBlockFormat, StoredLayout>
   /** The same levels block-compressed, one list per family, each level whole 4x4 blocks;
    *  empty where the layout is lossless. */
   blocks: Record<TextureBlockFormat, Uint8Array<ArrayBuffer>[]>

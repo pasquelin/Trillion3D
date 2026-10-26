@@ -18,7 +18,7 @@ import {
 } from '../../../../tests/kit/device/cameraRig.ts'
 import { SITES, renderFrameResidual } from './parentedSites.fixture.ts'
 import type { Site } from './parentedEngineSites.fixture.ts'
-import type { HostCamera } from './world.ts'
+import type { ViewCamera } from './world.ts'
 
 type Pose = (typeof POSES_PARENT)[number]
 
@@ -26,7 +26,7 @@ type Pose = (typeof POSES_PARENT)[number]
 type Disposable = { backend?: { dispose?: () => void }; dispose?: () => void } | undefined
 
 /** A site played over the frame sequence, as texts comparable character for character. */
-async function readings(site: Site, camera: (pose: Pose) => HostCamera) {
+async function readings(site: Site, camera: (pose: Pose) => ViewCamera) {
   const state = (await site.create?.()) as Disposable
   const frames: string[] = []
   for (const pose of POSES_PARENT)

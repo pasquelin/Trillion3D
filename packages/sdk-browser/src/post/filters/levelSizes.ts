@@ -18,6 +18,12 @@ export function halfSize(
   return into
 }
 
+/** The format of the half-size image the scene's chain reads (`sceneChain.ts`) where the motion blur
+ *  writes it beside the blurred image or the chain draws it itself: the HDR images' of the effects
+ *  chain. The temporal pass writes its own in the history's colour format (`halfImageBytes`,
+ *  `../taa/historyShape.ts`); the chain samples either. */
+export const HALF_IMAGE_FORMAT: GPUTextureFormat = HDR_FORMAT
+
 /** The sizes of the `count` levels of an image of `width × height` texels: the half of it, then
  *  each the half of the one before. */
 export function chainSizes(width: number, height: number, count: number) {

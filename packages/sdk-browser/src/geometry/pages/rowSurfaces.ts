@@ -1,56 +1,30 @@
 import type { PageSurface } from './surface.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import { rowsMoved, rowsUnread, type RowsReading } from '../rows/dirty.ts'
 
-/** The distinct surfaces of a row table's packed rows, and the rows and table age they were
- *  read at; held per table, so a runtime that never draws a row keeps nothing. */
-type RowSurfaces = { read: RowsReading; epoch: number; surfaces: PageSurface[] }
-const rowSurfaces = new WeakMap<object, RowSurfaces>()
-
-/**
- * The surfaces rows `[0, count)` wear, each once: the rows are walked again only once written, or
- * once the table ages — a record takes another surface in place (`wearDeclaration`) under a new
- * age, before its rows are written again.
- */
-function surfacesOfRows(rows: WebgpuPagesRuntime['layout']['rows']) {
-  let held = rowSurfaces.get(rows)
-  if (!held) rowSurfaces.set(rows, (held = { read: rowsUnread(), epoch: -1, surfaces: [] }))
-  const moved = rowsMoved(held.read, rows.packedRecs, rows.packedCount, rows.rowWrites)
-  if (!moved && held.epoch === rows.tableEpoch) return held.surfaces
-  held.epoch = rows.tableEpoch
-  const seen = new Set<PageSurface>()
-  let last: PageSurface | undefined
-  for (let i = 0; i < rows.packedCount; i++) {
-    const surface = rows.packedRecs[i]?.material
-    // Rows of one surface run together: the run skips the set.
-    if (!surface || surface === last) continue
-    last = surface
-    seen.add(surface)
-  }
-  held.surfaces = [...seen]
-  return held.surfaces
-}
-
-/** What a frame asks of the rows' surfaces: whether one of them, read in place, answers `true`. */
+/** What a frame asks of the resident clusters' surfaces: whether one of them, read in place,
+ *  answers `true`. */
 export type SurfaceQuestion = (surface: PageSurface) => boolean | undefined
 
+/** An answer, with the list of surfaces and the age of the cluster records it was taken at. */
+type Held = { surfaces: readonly PageSurface[]; epoch: number; answer: boolean }
+
 /**
- * Whether a surface rows `[0, count)` wear answers `question` (each read in place), one answer
- * held per surface list: taken again only once `surfacesOfRows` walked the rows again — a row
- * written, or the table aged: a material's new values that change what its rows read beside its
- * record (`materialTable.follow`, `../../frame/render/render.ts`), an alpha change
- * (`refreshWebgpuMaterials`) —, else read where it was held. A frame over still rows and
+ * Whether a surface the resident clusters wear answers `question` (each read in place), one answer
+ * held per cluster state: taken again only once the list of surfaces changed — one came or went
+ * (`ResidentSurfaces.list`, `../clusters/surfaces.ts`) — or the records aged (`infoEpoch`): a
+ * material's new values that change what its clusters read beside its record
+ * (`materialTable.follow`, `../../frame/render/render.ts`), an alpha change
+ * (`refreshWebgpuMaterials`) — else read where it was held. A frame over still clusters and
  * materials asks it in O(1), however many surfaces they wear.
  */
 export function someRowSurface(question: SurfaceQuestion) {
-  const answers = new WeakMap<readonly PageSurface[], boolean>()
-  return (rows: WebgpuPagesRuntime['layout']['rows']) => {
-    const surfaces = surfacesOfRows(rows)
-    let answer = answers.get(surfaces)
-    if (answer === undefined) {
-      answer = surfaces.some((surface) => !!question(surface))
-      answers.set(surfaces, answer)
-    }
+  const held = new WeakMap<object, Held>()
+  return (clusters: WebgpuPagesRuntime['layout']['clusters']) => {
+    const surfaces = clusters.surfaces.list(),
+      kept = held.get(clusters)
+    if (kept && kept.surfaces === surfaces && kept.epoch === clusters.infoEpoch) return kept.answer
+    const answer = surfaces.some((surface) => !!question(surface))
+    held.set(clusters, { surfaces, epoch: clusters.infoEpoch, answer })
     return answer
   }
 }

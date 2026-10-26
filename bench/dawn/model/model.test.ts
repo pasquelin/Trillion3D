@@ -19,6 +19,7 @@ import {
 } from '../../../packages/sdk-browser/src/geometry/dag/encode.fixture.ts'
 import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
 import { countTaaFetches } from '../../runner/counts/taaFetchCount.ts'
+import { TAA_DISPLAY_BYTES, TAA_RENDER_BYTES } from '../../runner/counts/taaPassBytes.ts'
 
 // 400 GB/s of memory, 500 Gtexel/s, 400 GB/s of attachment (50 Gpixel/s), 4 Gtriangle/s, 0.01 ms a pass.
 const MACHINE = {
@@ -41,6 +42,20 @@ const frame: Frame = {
   reflecting: 0,
 }
 const pass = (label: string) => PASSES.find((p) => p.label === label)!
+/** The temporal passes' rows, in their order. */
+const TAA_LABELS = [
+  'temporal measure flickering luma',
+  'temporal measure thin geometry coverage',
+  'temporal dilate velocity',
+  'temporal decimate history',
+  'temporal detect thin geometry',
+  'temporal thin geometry weight relaxation',
+  'temporal reject shading',
+  'temporal spatial anti-aliasing',
+  'temporal update history',
+  'temporal resolve history',
+  'temporal resolve display layers',
+]
 
 test('a floor is its slowest resource at its peak, plus a fixed cost a pass', () => {
   // 400 MB at 400 GB/s: 1 ms; 100 M texels at 500 Gtexel/s: 0.2 ms.
@@ -52,12 +67,36 @@ test('a floor is its slowest resource at its peak, plus a fixed cost a pass', ()
 })
 
 test('the passes count their shipped constants', () => {
-  // TAA at half the display per axis: its analysis' fetches a render texel over the four a display
-  // pixel holds, and its update's 19 (`taaFetchCount.test.ts`), 48 B of targets a display pixel and
-  // 21 B of inputs a render pixel: colour, depth, identifier, the r32uint flags, the given-up history.
-  const taa = pass('temporal antialiasing').work(frame)
-  assert.equal(taa.texels! / frame.D, countTaaFetches(0.5).analysis / 4 + 19)
-  assert.equal(taa.bytes, 48 * frame.D + 21 * frame.P)
+  // TAA at half the display per axis, split into its eight passes as the engine times them
+  // (`TAA_*_PASS`), the rows summing to the temporal pass's: its analysis' fetches a render texel
+  // over the four a display pixel holds, and its update and resolve's (`taaFetchCount.test.ts`);
+  // 61 B a display pixel: the history at twice the display per axis, five bytes a pixel (11-11-10
+  // colour, the one-byte validity since the metadata holds it alone and the as-is pixels are
+  // composed after the temporal pass), read and written by the update (40) beside the half-size
+  // image (1: a quarter texel of the history's colour format, 11-11-10 floats), and the history's resolve (16 read, 4 written: its colour in the history's 11-11-10
+  // format, no share);
+  // and 157 B a render pixel: the analysis's 68 B of targets (the anti-aliaser's mask among them, one byte, an `r8uint` texture where the device grants the storage textures it takes, as a desktop adapter's eight do — a word on a device at WebGPU's guaranteed four —, written by the rejection and read by the anti-aliaser) written and read back (the scene
+  // colour's 4 B and the luma's 1 B buffers among them, the four bytes of the measures taken before
+  // the translucency and of the thin geometry's outputs since their passes are their own), 21 B of inputs — colour, depth,
+  // identifier, the r32uint flags, the blends' responsiveness.
+  const rows = TAA_LABELS.map((label) => pass(label).work(frame))
+  const sum = (key: 'bytes' | 'texels') => rows.reduce((total, row) => total + row[key]!, 0)
+  const fetches = countTaaFetches(0.5)
+  // To the last bits: the shading rejection's fetches a texel are a share of its tile (32² read,
+  // 26² written), no longer a sum of powers of two.
+  assert.ok(Math.abs(sum('texels') / frame.D - (fetches.analysis / 4 + fetches.resolve)) < 1e-9)
+  assert.equal(sum('bytes'), 61 * frame.D + 157 * frame.P)
+  assert.equal(sum('bytes'), TAA_DISPLAY_BYTES * frame.D + TAA_RENDER_BYTES * frame.P)
+  // Each pass its own: the two measures 1 B a render pixel each, the nearest velocity 33, the
+  // reprojection 41, the thin geometry's detection 5 and relaxation 6, the shading rejection 44 (its mask included), the
+  // anti-aliaser 4, the update 22 and 41 a display pixel,
+  // the resolve 20 a display pixel; the display layers' resolve none in this frame.
+  const per = (unit: Pick<Frame, 'P' | 'D'>) =>
+    TAA_LABELS.map((label) => pass(label).work({ ...frame, ...unit }).bytes)
+  // The measures before the translucency, a byte each; the thin geometry's word between the detection
+  // and its weight relaxation, the mask and the coverage history bytes it writes.
+  assert.deepEqual(per({ P: 1, D: 0 }), [1, 1, 33, 41, 5, 6, 44, 4, 22, 0, 0])
+  assert.deepEqual(per({ P: 0, D: 1 }), [0, 0, 0, 0, 0, 0, 0, 0, 41, 20, 0])
   // One sun: one ray of five samples, two fetches each, plus the screen ray's start and four samples.
   const vsm = pass('vsm.projection').work(frame)
   assert.equal(vsm.texels, frame.P * (5 + 5 * 2))
@@ -65,14 +104,10 @@ test('the passes count their shipped constants', () => {
   assert.equal(pass('vsm.projection').work({ ...frame, L: 5 }).bytes, 21 * frame.P + 8 * frame.P)
   assert.equal(pass('visibility primary').work(frame).triangles, frame.T)
   // A reflecting block of the default level's pixels (`TRACE_SHARE`) marches one ray: 16 iterations
-  // of three texels, four loads before and four at its hit, and five filtered taps there.
+  // of three texels, four loads before and three at its hit.
   const trace = pass('reflection trace')
   const marched = (reflecting: number) => trace.work({ ...frame, reflecting }).texels!
-  assert.equal((marched(1) - marched(0)) / frame.P, (4 + 16 * 3 + 4) / TRACE_SHARE)
-  assert.equal(trace.work({ ...frame, reflecting: 1 }).filtered, (5 * frame.P) / TRACE_SHARE)
-  // The radiance pyramid reads the lit image once and writes it, and a third of it again.
-  const radiance = pass('reflection radiance').work(frame)
-  assert.ok(Math.abs(radiance.bytes! / (8 * frame.P) - (2 + 1 / 3)) < 0.01)
+  assert.equal((marched(1) - marched(0)) / frame.P, (4 + 16 * 3 + 3) / TRACE_SHARE)
 })
 
 const report = {
@@ -90,7 +125,7 @@ const report = {
       measured: true,
       gpuMs: { median: 9 },
       benchPasses: [
-        { name: 'temporal antialiasing', median: 3 },
+        { name: 'temporal update history', median: 6 },
         { name: 'HDR composition + present', median: 0.2 },
         { name: 'mystery', median: 0.5 },
       ],
@@ -104,7 +139,7 @@ test('a measured frame ranks its passes by the milliseconds above their floor', 
   const model = modelRows(report, f, MACHINE)
   assert.deepEqual(
     model.rows.map((r) => r.label),
-    ['temporal antialiasing', 'HDR composition + present'],
+    ['temporal update history', 'HDR composition + present'],
   )
   assert.ok(model.rows[0].aboveMs > model.rows[1].aboveMs)
   assert.deepEqual(model.unmodelled, [{ label: 'mystery', ms: 0.5 }])
@@ -131,7 +166,7 @@ test('every source a pass cites holds its symbol, and its formula the bytes its 
   assert.ok(dag.formula.includes(`${perRow} B`), `${dag.formula} counts ${perRow} B a row`)
 })
 
-test('the selection’s dispatches are the encoder’s: ten, and two a level', () => {
+test('the selection’s dispatches are the encoder’s: five, and two a level', () => {
   for (const levels of [2, 3, 4, 5]) {
     const witness = witnessEncoder()
     encodeDagKernels(witness.encoder as never, cutResources(levels) as never)

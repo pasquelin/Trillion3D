@@ -1,4 +1,4 @@
-import { linearPartDeterminant, type NumberSink } from './matrix4.ts'
+import type { NumberSink } from './matrix4.ts'
 import { adjugateFactor } from './singular.ts'
 
 /**
@@ -36,8 +36,9 @@ export function normalMatrix3<T extends NumberSink>(out: T, m: ArrayLike<number>
   const t11 = n33 * n22 - n32 * n23,
     t12 = n32 * n13 - n33 * n12,
     t13 = n23 * n12 - n22 * n13
-  // `linearPartDeterminant`: its three products are these cofactors, the same bits.
-  const det = linearPartDeterminant(m)
+  // The determinant expanded along the first column on the cofactors above: the products of
+  // `linearPartDeterminant`, whose middle cofactor is `t12` negated, so its difference is this sum.
+  const det = n11 * t11 + n21 * t12 + n31 * t13
   // The factor comes from the engine's single rule: `1 / det` if the matrix is regular — the
   // previous bits —, `1` if it is singular, and nothing at all if its scale is neither finite nor
   // strictly positive. The first three cofactors are already here — the determinant
@@ -81,12 +82,17 @@ export function inverse3(m: readonly number[]) {
 }
 
 /** `a · b`, column-major 3×3. */
-export const multiply3 = (a: readonly number[], b: readonly number[]) =>
-  Array.from({ length: 9 }, (_, i) => {
-    const col = Math.floor(i / 3),
-      row = i % 3
-    return a[row] * b[col * 3] + a[3 + row] * b[col * 3 + 1] + a[6 + row] * b[col * 3 + 2]
-  })
+export const multiply3 = (a: readonly number[], b: readonly number[]) => [
+  a[0] * b[0] + a[3] * b[1] + a[6] * b[2],
+  a[1] * b[0] + a[4] * b[1] + a[7] * b[2],
+  a[2] * b[0] + a[5] * b[1] + a[8] * b[2],
+  a[0] * b[3] + a[3] * b[4] + a[6] * b[5],
+  a[1] * b[3] + a[4] * b[4] + a[7] * b[5],
+  a[2] * b[3] + a[5] * b[4] + a[8] * b[5],
+  a[0] * b[6] + a[3] * b[7] + a[6] * b[8],
+  a[1] * b[6] + a[4] * b[7] + a[7] * b[8],
+  a[2] * b[6] + a[5] * b[7] + a[8] * b[8],
+]
 
 /**
  * A 2D scale, turn and slide composed into a 3 × 3 affine matrix, column-major — entries 0 to 2

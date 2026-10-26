@@ -1,93 +1,145 @@
 /**
- * THE RASTER'S PIPES AND CONTEXT (`renderPass.ts`): its candidates and chunk kernels, its render
- * pipeline on the shadow page group — described once a device and raster text —, its dummy target,
- * and the context of a set that holds them with its lists.
+ * THE RASTER'S PIPES AND CONTEXT (`renderPass.ts`): its candidates, views, cull, bin and argument
+ * kernels, its render pipeline on the shadow page group — described once a device and raster text —,
+ * its dummy target, and the context of a set that holds them with its lists.
  */
+import { NO_RASTERS, type GraphRasters } from '../../../../materials/graph/graphRasters.ts'
+import { shadowMasks } from '../../../../visibility/shader/maskSets.ts'
+import { shadowWpo, voxelWpo } from '../../../../visibility/shader/wpoSets.ts'
 import { preparedPipeline, type PreparedPipeline } from '../../../deferred/fullscreen.ts'
 import { preparedPipelines } from '../../../../gpu/core/preparedPipelines.ts'
 import { oncePerDevice } from '../../../../gpu/core/oncePerDevice.ts'
 import { COMPUTE, computeBufferEntry } from '../../../../gpu/core/computeBindings.ts'
-import { VSM_PAGE_TEXELS } from '../constants.ts'
+import {
+  createWebgpuBindIdentity,
+  heldGroup,
+  type HeldGroup,
+  type WebgpuBindIdentity,
+} from '../../../../gpu/bind/bindIdentity.ts'
+import type { UniformSlots } from '../../../../session/memory/pools.ts'
 import { vsmComputePipe } from '../passKit.ts'
-import { vsmBindGroupLayoutEntries, type VsmResources } from '../resources.ts'
+import { vsmOcclusionEntries } from '../occlusion/occlusionPass.ts'
+import {
+  vsmBindGroupLayoutEntries,
+  vsmFrameSetHeld,
+  type VsmPerFrameSet,
+  type VsmResources,
+} from '../resources.ts'
 import type { VsmLayout } from '../layout.ts'
-import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
-import { vsmRenderCandidatesWgsl } from './renderCandidatesWgsl.ts'
+import { VSM_RENDER_CULL_SPECS, vsmRenderCullWgsl } from './renderCullWgsl.ts'
+import { VSM_RENDER_BIN_SPECS, vsmRenderBinWgsl } from './renderBinWgsl.ts'
+import { VSM_RENDER_VIEWS_SPECS, vsmRenderViewsWgsl } from './renderViewsWgsl.ts'
+import {
+  VSM_RENDER_CASTERS_DONE_ENTRY,
+  VSM_RENDER_CASTERS_ENTRY,
+  VSM_RENDER_CASTERS_POST_DONE_ENTRY,
+  vsmRenderCandidatesWgsl,
+  vsmRenderCastersDoneWgsl,
+} from './renderCandidatesWgsl.ts'
 import {
   VSM_RENDER_RASTER_FRAGMENT_SPECS,
+  VSM_RENDER_RASTER_SHARED_SPECS,
   VSM_RENDER_RASTER_VERTEX_SPECS,
   VSM_RENDER_TARGET_FORMAT,
+  VSM_RENDER_TARGET_TEXELS,
   vsmRenderRasterWgsl,
 } from './renderRasterWgsl.ts'
-import { vsmChunkContext, vsmChunkKernels } from '../chunks/chunkKernels.ts'
 import {
-  vsmCandidatesEntries,
-  vsmCandidatesWorldEntries,
-  vsmRenderParamsEntry,
-} from '../chunks/chunkParams.ts'
-import { VSM_RENDER_EXPAND_SPECS, vsmRenderExpandWgsl } from './renderExpandWgsl.ts'
-import {
+  VSM_RENDER_ARGS_WGSL,
   VSM_RENDER_CORNER_TIERS,
-  VSM_RENDER_TIERS,
+  VSM_RENDER_SOFTWARE_BIN,
   vsmRenderTierCorners,
 } from './renderParamsWgsl.ts'
+import {
+  vsmCandidatesEntries,
+  vsmCastersDoneEntries,
+  vsmCandidatesWorldEntries,
+  vsmRenderParamSlots,
+  vsmRenderParamsEntry,
+} from './renderParams.ts'
 import { vsmRenderVoxelWgsl } from './renderVoxelWgsl.ts'
-import type { RasterTables } from './renderChunks.ts'
-import type { VsmRenderContext } from './renderPass.ts'
+import {
+  VSM_RENDER_SOFTWARE_ENTRY,
+  VSM_RENDER_SOFTWARE_SPECS,
+  VSM_RENDER_SOFTWARE_STATIC_ENTRY,
+  vsmRenderSoftwareWgsl,
+} from './renderSoftwareWgsl.ts'
+import { shadowPageComputeEntries } from '../../casters/pageGroup.ts'
+import { hasSubgroups } from '../../../../gpu/core/subgroups.ts'
+import type { RasterTables, RenderListGroups } from './renderEncode.ts'
+import type { VsmListName } from './renderLists.ts'
 import { VSM_PASS_PREFIX } from '../../../../diagnostic/stage/passLabels.ts'
 
 /** What the raster's passes, pipes and lists are labelled under. */
 export const RENDER_LABEL = `${VSM_PASS_PREFIX}render`
 
-/** The tiers, lowest first: each one's expand and raster pipeline (`VSM_RENDER_TIERS`). */
-const TIERS = Array.from({ length: VSM_RENDER_TIERS }, (_, t) => t)
+/** The tiers, lowest first, each one's raster pipeline: those before the software bin. */
+const TIERS = Array.from({ length: VSM_RENDER_SOFTWARE_BIN }, (_, t) => t)
 
-/** The raster's compute pipes of `layout` (`vsmComputePipe`): its candidates, chunk kernels, the
- *  bin and the expand of each tier — one module, the tier an override (`vsmRenderExpandWgsl`); a
- *  voxel tier's expand is compiled the first time it is asked (`vsmEncodeChunks`), never by the
- *  prepare step (`VSM_RENDER_CORNER_TIERS`, `vsmPlan.ts`). */
+/** The raster's compute pipes of `layout` (`vsmComputePipe`): its candidates and their closing
+ *  kernel, the views, the cull, the bin and the argument kernels; their groups' layouts. Pipes are
+ *  made once a device and source, read where they are bound. */
 export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
-  const candidates = vsmComputePipe(
-    device,
-    `${RENDER_LABEL}.candidates`,
-    vsmRenderCandidatesWgsl(),
-    'vsmRenderCandidates',
-    [vsmCandidatesEntries(), vsmCandidatesWorldEntries()],
-  )
-  const expandCode = vsmRenderExpandWgsl(layout)
-  const expandGroups = [
-    vsmBindGroupLayoutEntries(VSM_RENDER_EXPAND_SPECS, layout, COMPUTE),
-    [
-      vsmRenderParamsEntry(0),
-      computeBufferEntry(1, 'read-only-storage', COMPUTE),
-      computeBufferEntry(2, 'storage', COMPUTE),
-      computeBufferEntry(3, 'storage', COMPUTE),
-      computeBufferEntry(4, 'storage', COMPUTE),
-    ],
+  const P = vsmRenderParamsEntry
+  const pipe = (
+    name: string,
+    code: string,
+    entryPoint: string,
+    groups: GPUBindGroupLayoutEntry[][],
+  ) => vsmComputePipe(device, `${RENDER_LABEL}.${name}`, code, entryPoint, groups)
+  const castersCode = vsmRenderCandidatesWgsl()
+  const castersGroups = [vsmCandidatesEntries(), vsmCandidatesWorldEntries()]
+  const doneCode = vsmRenderCastersDoneWgsl()
+  const doneGroups = [vsmCastersDoneEntries()]
+  const storage = (binding: number) => computeBufferEntry(binding, 'storage', COMPUTE)
+  const read = (binding: number) => computeBufferEntry(binding, 'read-only-storage', COMPUTE)
+  const argsGroups = [[P(0), storage(1), storage(2), storage(3)]]
+  const cullCode = vsmRenderCullWgsl(layout)
+  const cullGroups = [
+    vsmBindGroupLayoutEntries(VSM_RENDER_CULL_SPECS, COMPUTE),
+    [P(0), read(1), read(2), storage(3), storage(4)],
   ]
+  const occlusionGroup = vsmOcclusionEntries()
   return {
-    candidates,
-    ...vsmChunkKernels(device, layout, RENDER_LABEL, vsmRenderCullWgsl(layout)),
-    bin: vsmComputePipe(device, `${RENDER_LABEL}.bin`, expandCode, 'vsmRenderBin', expandGroups),
-    expands: TIERS.map((t) =>
-      vsmComputePipe(
-        device,
-        `${RENDER_LABEL}.expand${t}`,
-        expandCode,
-        'vsmRenderExpand',
-        expandGroups,
-        { VSM_RENDER_TIER: t },
-      ),
+    candidates: pipe('candidates', castersCode, VSM_RENDER_CASTERS_ENTRY, castersGroups),
+    candidatesDone: pipe('candidatesDone', doneCode, VSM_RENDER_CASTERS_DONE_ENTRY, doneGroups),
+    candidatesPostDone: pipe(
+      'candidatesPostDone',
+      doneCode,
+      VSM_RENDER_CASTERS_POST_DONE_ENTRY,
+      doneGroups,
     ),
+    views: pipe('views', vsmRenderViewsWgsl(layout), 'vsmRenderViews', [
+      vsmBindGroupLayoutEntries(VSM_RENDER_VIEWS_SPECS, COMPUTE),
+      [P(0), storage(1), storage(2), read(3)],
+    ]),
+    // The cull with no test reaches the occlusion's group through the cull of a view, as the two
+    // others do: it binds the blank one (`noOcclusionGroup`).
+    cull: pipe('cull', cullCode, 'vsmRenderCull', [...cullGroups, occlusionGroup]),
+    cullFirst: pipe('cullFirst', cullCode, 'vsmRenderCullFirst', [...cullGroups, occlusionGroup]),
+    cullSecond: pipe('cullSecond', cullCode, 'vsmRenderCullSecond', [
+      ...cullGroups,
+      occlusionGroup,
+    ]),
+    cullPost: pipe('cullPost', cullCode, 'vsmRenderCullPost', [...cullGroups, occlusionGroup]),
+    bin: pipe('bin', vsmRenderBinWgsl(layout), 'vsmRenderBin', [
+      vsmBindGroupLayoutEntries(VSM_RENDER_BIN_SPECS, COMPUTE),
+      [P(0), storage(1), read(2), storage(3)],
+    ]),
+    args: {
+      cull: pipe('args', VSM_RENDER_ARGS_WGSL, 'vsmRenderArgsCull', argsGroups),
+      bin: pipe('args', VSM_RENDER_ARGS_WGSL, 'vsmRenderArgsBin', argsGroups),
+      second: pipe('args', VSM_RENDER_ARGS_WGSL, 'vsmRenderArgsSecond', argsGroups),
+    },
   }
 }
+type VsmRenderKernels = ReturnType<typeof vsmRenderComputePipes>
 
 /** What a raster pipeline is made for: the raster's text of a layout and, asked the first time a
  *  table holds a voxel row, its voxel rows' text (`renderVoxelWgsl.ts`), on the shadow page group. */
 interface RasterSource {
   code: string
   voxelCode: () => string
-  layout: VsmLayout
   pageLayout: GPUBindGroupLayout
 }
 
@@ -117,17 +169,17 @@ function madeLater(
  *  (`vsmRasterPipe`). */
 function makeRaster(
   device: GPUDevice,
-  { code, voxelCode, layout, pageLayout }: RasterSource,
+  { code, voxelCode, pageLayout }: RasterSource,
 ): VsmRenderContext['raster'] {
   const layout1 = device.createBindGroupLayout({
     label: `${RENDER_LABEL}.raster1`,
     entries: [
       computeBufferEntry(0, 'read-only-storage', GPUShaderStage.VERTEX),
-      ...vsmBindGroupLayoutEntries(VSM_RENDER_RASTER_VERTEX_SPECS, layout, GPUShaderStage.VERTEX),
+      ...vsmBindGroupLayoutEntries(VSM_RENDER_RASTER_VERTEX_SPECS, GPUShaderStage.VERTEX),
+      ...vsmBindGroupLayoutEntries(VSM_RENDER_RASTER_FRAGMENT_SPECS, GPUShaderStage.FRAGMENT),
       ...vsmBindGroupLayoutEntries(
-        VSM_RENDER_RASTER_FRAGMENT_SPECS,
-        layout,
-        GPUShaderStage.FRAGMENT,
+        VSM_RENDER_RASTER_SHARED_SPECS,
+        GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
       ),
     ],
   })
@@ -183,50 +235,156 @@ export const vsmRasterPipe = (
   device: GPUDevice,
   layout: VsmLayout,
   pageLayout: GPUBindGroupLayout,
+  held: GraphRasters = NO_RASTERS,
 ): VsmRenderContext['raster'] =>
   rasters(device).of({
-    code: vsmRenderRasterWgsl(layout),
-    voxelCode: () => vsmRenderVoxelWgsl(layout),
-    layout,
+    code: vsmRenderRasterWgsl(layout, shadowMasks(held), shadowWpo(held)),
+    voxelCode: () => vsmRenderVoxelWgsl(layout, voxelWpo(held)),
     pageLayout,
   })
 
-/** The raster's dummy target (`context`): one page of depth. */
+/** The software half's pipes (`renderSoftwareWgsl.ts`) for `layout` and the session's graphs
+ *  (`held`): every record into slice 0, the static layer's into the static slice; group 0 the page
+ *  rows' compute twin (`shadowPageComputeLayout`), group 1 the sorted records, the VSM resources of
+ *  `VSM_RENDER_SOFTWARE_SPECS` and the parameters. */
+export function vsmSoftwarePipes(
+  device: GPUDevice,
+  layout: VsmLayout,
+  held: GraphRasters = NO_RASTERS,
+) {
+  const code = vsmRenderSoftwareWgsl(
+    layout,
+    shadowMasks(held),
+    shadowWpo(held),
+    hasSubgroups(device),
+  )
+  const groups = [
+    shadowPageComputeEntries(device),
+    [
+      computeBufferEntry(0, 'read-only-storage', COMPUTE),
+      ...vsmBindGroupLayoutEntries(VSM_RENDER_SOFTWARE_SPECS, COMPUTE),
+      vsmRenderParamsEntry(4),
+    ],
+  ]
+  const pipe = (entry: string) =>
+    vsmComputePipe(device, `${RENDER_LABEL}.${entry}`, code, entry, groups)
+  return {
+    all: pipe(VSM_RENDER_SOFTWARE_ENTRY),
+    static: pipe(VSM_RENDER_SOFTWARE_STATIC_ENTRY),
+  }
+}
+
+/** The raster's dummy target (`context`): one window of depth. */
 export const renderTarget = () => ({
   label: `${RENDER_LABEL}.dummyTarget`,
-  size: [VSM_PAGE_TEXELS, VSM_PAGE_TEXELS],
+  size: [VSM_RENDER_TARGET_TEXELS, VSM_RENDER_TARGET_TEXELS],
   format: VSM_RENDER_TARGET_FORMAT,
   usage: GPUTextureUsage.RENDER_ATTACHMENT,
 })
 
+/** The raster's context on a device: its kernels and pipelines, its lists and their groups. */
+export interface VsmRenderContext extends VsmRenderKernels {
+  device: GPUDevice
+  layout: VsmLayout
+  pageLayout: GPUBindGroupLayout
+  /** The session's graph outputs the raster's module is made with (`VsmRenderScene.rasters`). */
+  held: GraphRasters
+  /** The software half's pipes (`vsmSoftwarePipes`). */
+  software: ReturnType<typeof vsmSoftwarePipes>
+  raster: {
+    layout1: GPUBindGroupLayout
+    /** The raster pipeline of each tier, lowest first, the voxel tiers last — made the first time
+     *  a table holds a voxel row —; read where it is bound. */
+    tiers: PreparedPipeline<GPURenderPipeline>[]
+  }
+  target: GPUTextureView
+  targetTexture: GPUTexture
+  /** Its lists, by name (`vsmEnsureLists`). */
+  buffers: Partial<Record<VsmListName, GPUBuffer>>
+  /** The view passes' parameter slots (`vsmRenderParamSlots`). */
+  slots: UniformSlots
+  /** Each view pass's labels — its compute and raster passes, and the occlusion's second ones — and
+   *  parameter offset, made once a context. */
+  passes: {
+    pass: (p: number) => {
+      cull: GPUComputePassDescriptor
+      raster: string
+      second: GPUComputePassDescriptor
+      rasterSecond: string
+      offset: number[]
+    }
+  }
+  /** The scene's rows and the lists the list groups bound when made. */
+  bound: WebgpuBindIdentity
+  /** The groups over the scene's rows and the lists, made again when one of them moved. */
+  groups?: RenderListGroups
+  /** The groups over the tables of a frame set (`res.current`, the two in turn). */
+  tables: VsmPerFrameSet<RasterTables>
+  /** The candidates' group over the camera cut's world switch (`vsmWorldGroup`). */
+  world: HeldGroup
+}
+
+/** The pass labels of the raster and view pass `p`'s parameter offset in `slots`: made once for
+ *  every frame. */
+function renderPasses(slots: UniformSlots): VsmRenderContext['passes'] {
+  const held: ReturnType<VsmRenderContext['passes']['pass']>[] = []
+  return {
+    pass: (p) =>
+      (held[p] ??= {
+        cull: { label: `${RENDER_LABEL}.cull ${p}` },
+        raster: `${RENDER_LABEL}.raster ${p}`,
+        second: { label: `${RENDER_LABEL}.cullSecond ${p}` },
+        rasterSecond: `${RENDER_LABEL}.rasterSecond ${p}`,
+        offset: slots.offset(p),
+      }),
+  }
+}
+
+/** Frees what a context holds on the device: its lists and its dummy target. */
+export function vsmReleaseContext(ctx: VsmRenderContext) {
+  for (const buffer of Object.values(ctx.buffers)) buffer?.destroy()
+  ctx.targetTexture.destroy()
+}
+
 /** The raster's context of `res` on `device` over the shadow page group `pageLayout`: the one it
- *  holds, or made again — for another device, set layout or page group. */
+ *  holds, or made again — for another device, set layout or page group, or other graph outputs
+ *  (`held`: the session's cutouts and offsets the raster is made with). */
 export function vsmRenderContext(
   res: VsmResources,
   device: GPUDevice,
   pageLayout: GPUBindGroupLayout,
+  held: GraphRasters = NO_RASTERS,
 ): VsmRenderContext {
   const existing = res.render
   if (
     existing &&
     existing.device === device &&
     existing.layout === res.layout &&
-    existing.pageLayout === pageLayout
+    existing.pageLayout === pageLayout &&
+    existing.held === held
   )
     return existing
   const layout = res.layout
   // A context made again for the same device keeps its lists; its old target is freed.
   if (existing?.device === device) existing.targetTexture.destroy()
   const targetTexture = device.createTexture(renderTarget())
+  const slots = vsmRenderParamSlots(device.limits)
   const ctx: VsmRenderContext = {
     device,
     layout,
     pageLayout,
     ...vsmRenderComputePipes(device, layout),
-    raster: vsmRasterPipe(device, layout, pageLayout),
+    held,
+    raster: vsmRasterPipe(device, layout, pageLayout, held),
+    software: vsmSoftwarePipes(device, layout, held),
     target: targetTexture.createView(),
     targetTexture,
-    ...vsmChunkContext<RasterTables>(RENDER_LABEL, device, existing),
+    buffers: existing?.device === device ? existing.buffers : {},
+    slots,
+    passes: renderPasses(slots),
+    bound: createWebgpuBindIdentity(),
+    tables: vsmFrameSetHeld<RasterTables>(),
+    world: heldGroup(),
   }
   res.render = ctx
   return ctx

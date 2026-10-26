@@ -46,6 +46,7 @@ function previewsByAtlas(previews: readonly TexturePreview[]) {
 export function createTextureCaches(
   cache: Pick<PageCache, 'readRange'> & TextureLevelStore,
   signal?: AbortSignal,
+  /** How many times a level read that failed is tried again (`streamingNumRetries`). */
   retries?: () => number,
 ) {
   const cooks: {

@@ -2,7 +2,8 @@
 //! body collides by (`../hull.rs`).
 use super::assert_golden;
 use crate::physics_cook::hull::hull_shape;
-use crate::physics_cook::mass::{solid_mass, DENSITY};
+use crate::physics_cook::mass::solid_mass;
+use crate::physics_cook::rules::SHAPE_DENSITY;
 use serde_json::Value;
 
 /// The golden hull: a unit cube from the origin, Jolt's `ConvexHullShape` binary state.
@@ -16,10 +17,10 @@ pub(crate) fn cube(o: [f32; 3], s: [f32; 3]) -> Vec<f32> {
         .flat_map(|c| (0..3).map(move |a| o[a] + if c >> a & 1 == 1 { s[a] } else { 0.0 }))
         .collect()
 }
-/// Mass, centre and inertia of solid boxes (`corner`, `size`) at `DENSITY`, by the closed-form box
+/// Mass, centre and inertia of solid boxes (`corner`, `size`) at `SHAPE_DENSITY`, by the closed-form box
 /// formula and the parallel-axis theorem: the analytic values the integrals must meet.
 fn boxes(list: &[([f64; 3], [f64; 3])]) -> (f64, [f64; 3], [[f64; 3]; 3]) {
-    let weight = |s: &[f64; 3]| DENSITY * s[0] * s[1] * s[2];
+    let weight = |s: &[f64; 3]| SHAPE_DENSITY * s[0] * s[1] * s[2];
     let mass: f64 = list.iter().map(|(_, s)| weight(s)).sum();
     let centre = [0, 1, 2].map(|k| {
         let moment = |(o, s): &([f64; 3], [f64; 3])| weight(s) * (o[k] + s[k] / 2.0);
@@ -67,14 +68,12 @@ pub(crate) fn assert_boxes(mass: &Value, list: &[([f64; 3], [f64; 3])]) {
 }
 
 // Behaviour: a closed mesh weighs exactly as the solid it bounds at the runtime's density
-// (`commands.cpp`), whichever way it is wound, at its scale and 100 km away: a unit cube 1000 kg
+// (`rules.rs`), whichever way it is wound, at its scale and 100 km away: a unit cube 1000 kg
 // about its middle, inertia m/6; an L of two boxes 7000 kg, its analytic centre and inertia. An
 // open box is refused by name; a unit cube's hull cooks to the golden bytes
 // (`TRILLION3D_WRITE_GOLDEN`).
 #[test]
 fn a_closed_mesh_is_weighed_exactly_and_its_hull_cooked() {
-    let runtime = include_str!("../../../../physics-jolt-wasm/src/commands.cpp");
-    assert!(runtime.contains(&format!("SHAPE_DENSITY = {DENSITY:.1}f;")));
     let unit = cube([0.0; 3], [1.0; 3]);
     assert_boxes(&solid_mass(&unit, &FACES, [1.0; 3], 0).unwrap(), &UNIT);
     let inward: Vec<u32> = FACES

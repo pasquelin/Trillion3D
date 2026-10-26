@@ -1,5 +1,14 @@
 import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 
+/** The shadow maps' stage times, as the stats panel lists them. */
+export const VSM_STAGES = [
+  'shadowVsmInvalidationMs',
+  'shadowVsmMarkingMs',
+  'shadowVsmPageManagementMs',
+  'shadowVsmRenderMs',
+  'shadowVsmProjectionMs',
+] as const
+
 /**
  * The measurements an engine publishes as-is and the host copies one by one, `null` when that
  * engine does not hold them. The list IS the contract: the type `metrics()` returns derives from
@@ -75,24 +84,24 @@ export const ENGINE_METRIC_KEYS = [
   'shadowVsmPagesRendered',
   'shadowVsmFreePages',
   'shadowVsmLodBias',
+  'shadowVsmRootsNoted',
+  'shadowVsmRootsBoxed',
   'shadowVsmProjectionPasses',
-  'shadowVsmInvalidationMs',
-  'shadowVsmMarkingMs',
-  'shadowVsmPageManagementMs',
-  'shadowVsmRenderMs',
-  'shadowVsmProjectionMs',
-  'shadowVsmTransmissionMs',
+  'shadowVsmOverflowFlags',
+  ...VSM_STAGES,
   'shadowPoolBytes',
   'shadowResolutionBias',
   'gpuLightListsMs',
   'tileLightPoolReserved',
   'tileLightPoolCapacity',
   'tileLightPoolOverflowed',
-  'tileLightPoolGrowths',
   'gpuShadowsMs',
   'gpuLightingMs',
   'bounce',
   'reflections',
+  'surfaceCache',
+  'ambientOcclusion',
+  'toneTable',
 ] as const
 
 /** Measurements the engine publishes of every frame beside the host's own counters: `null`

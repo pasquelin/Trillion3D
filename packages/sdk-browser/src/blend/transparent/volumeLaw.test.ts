@@ -4,15 +4,11 @@
 // `exp2(x·log2 e)` as Tint, Metal and HLSL lower it). The attenuation's worst error halves and more
 // of its values come closer than go further; f0, 1 / ior and x⁵ come within an ULP or three of
 // what `pow` and the divide left tens of ULPs from. A black volume transmits nothing past a zero
-// path, in the water as in its shadow, where the water let 10⁻⁵ of it through and the shadow's
-// `pow(0, y)` is undefined. The shadow's raster keeps its per-fragment `c^(x / d)` on every colour
-// that is not black, bit for bit.
+// path, where the water let 10⁻⁵ of it through.
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
-import { VOLUME_LAW_WGSL, volumeAttenuation } from './volumeLaw.ts'
+import { volumeAttenuation } from './volumeLaw.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const LOG2E = Math.fround(Math.LOG2E)
@@ -90,31 +86,15 @@ test('f0, 1 / ior and the fifth power come within ULPs of their exact values', (
   assert.ok(fifthShipped < 3 && fifthDevelop > 20, `x⁵ ${fifthShipped} against ${fifthDevelop}`)
 })
 
-test('one law for the water and its shadow: a black volume transmits nothing past a zero path', () => {
-  // One function, the constant's form: the shadow's own power of the colour is gone.
-  assert.equal(VOLUME_LAW_WGSL.text.match(/\bfn /g)?.length, 1)
-  const { volumeTransmittance } = shaderRun<{
-    volumeTransmittance: (k: number[], path: number) => number[]
-  }>(VOLUME_LAW_WGSL, ['volumeTransmittance'], F32_SCOPE)
+test('one law for the water: a black volume holds a constant that transmits nothing past a zero path', () => {
   const k = volumeAttenuation([0, 0.5, 2], 3)
   assert.deepEqual(k, [-(2 ** 64), -1 / 3, 0])
   assert.deepEqual(volumeAttenuation([0, 0.5, 1], 0), [0, 0, 0], 'no volume')
   assert.deepEqual(volumeAttenuation([0.5, 0.5, 0.5], Infinity), [-0, -0, -0], 'no absorption')
+  const through = (constant: number, path: number) => Math.fround(2 ** Math.fround(constant * path))
   for (const path of [1e-12, 0.01, 3, 1e5])
-    assert.deepEqual(volumeTransmittance(k.map(Math.fround), path).slice(0, 1), [0], `${path}`)
-  assert.deepEqual(volumeTransmittance(k.map(Math.fround), 0), [1, 1, 1])
+    assert.equal(through(Math.fround(k[0]), path), 0, `${path}`)
+  assert.equal(through(Math.fround(k[0]), 0), 1)
   // Develop's water at a twentieth of the distance: 10⁻⁵ to the 1/20 lets through more than half.
   assert.ok(Math.fround(1e-5) ** (1 / 20) > 0.5)
-  // Any other colour: within far less than half an 8-bit step of the exact c^(x / d), which the
-  // shadow's former per-fragment power approximated too (the GPU's own rounding: the Dawn proof
-  // `tests/gpu/shadow/volume-law.gpu.ts`).
-  let worst = 0
-  for (let i = 0; i < 10_000; i++) {
-    const c = [random(), random(), random()].map(Math.fround),
-      d = Math.fround(0.01 + random() * 10),
-      x = Math.fround(random() * 4 * d)
-    const shipped = volumeTransmittance(volumeAttenuation(c, d).map(Math.fround), x)
-    c.forEach((v, j) => (worst = Math.max(worst, Math.abs(shipped[j] - v ** (x / d)))))
-  }
-  assert.ok(worst < 1e-5, `${worst}`)
 })

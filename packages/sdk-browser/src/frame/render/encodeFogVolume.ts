@@ -1,5 +1,6 @@
+import type { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import type { VolumetricFogValues } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
-import { shownHeightFog } from '../../../../sdk-core/src/scene/core/fog.ts'
+import { shownHeightFog, type SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts'
 import type { ResolvedHeightFog } from '../../../../sdk-core/src/scene/core/fogHeight.ts'
 import { fogCubemapView, type createFogCubemap } from '../../lighting/fog/cubemapGpu.ts'
 import { createFogVolumeGpu, type FogVolumeGpu } from '../../lighting/fog/gpu.ts'
@@ -10,7 +11,8 @@ import { litImageShown } from '../prepare/contractLight.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { clearFogInputs, fogInputsOf } from './fogInputs.ts'
 import { fogSettingsOf } from './fogSettings.ts'
-import { publishFogView } from './fogView.ts'
+import { fogHiddenIn, publishFogView } from './fogView.ts'
+import { skyLightFogOf, type SkyLightFog } from './skyLightFog.ts'
 
 /** What a view holds of the scene's fog beyond the light buffer: the volume's passes, made once a
  *  scene turns the volume on; the cubemap's texture, made for the picture the fog holds; what the
@@ -21,6 +23,9 @@ export interface FogVolumeState {
   /** A new object where one of its resources changed, so that a program keeps its group while it
    *  has not (`FogRead`). */
   read?: FogRead
+  /** `read` with the sky light's cube in the place of the fog's own cubemap, while the sky light
+   *  lights the fog (`skyLightFogOf`): what the programs of the view read the fog through then. */
+  skyRead?: FogRead
   revision?: number
   /** Bytes of the textures the view holds for the fog. */
   readonly bytes: number
@@ -35,20 +40,30 @@ const newState = (): FogVolumeState => ({
 /** The height fog each fog a scene set shows, resolved once; none where it shows nothing. */
 const shownOf = new WeakMap<object, ResolvedHeightFog | undefined>()
 
-/** The height fog this image shows over the lit image: the scene's, in a lit view of the lit image —
- *  the unlit view and the views that paint raw values show none. */
-function shownFog(rt: WebgpuPagesRuntime): ResolvedHeightFog | undefined {
-  const fog = rt.lights.store.environment?.fog
-  if (!fog || !litImageShown(rt)) return undefined
+/** The height fog a fog of the scene shows, resolved once; none for a distance fog and for a fog
+ *  that shows nothing. */
+export function shownHeightFogOf(fog: SceneFog): ResolvedHeightFog | undefined {
   if (!shownOf.has(fog)) shownOf.set(fog, shownHeightFog(fog))
   return shownOf.get(fog)
 }
 
+/** The height fog this image shows over the lit image: the scene's, in a lit view of the lit image —
+ *  the unlit view and the views that paint raw values show none. */
+function shownFog(rt: WebgpuPagesRuntime): ResolvedHeightFog | undefined {
+  const fog = rt.lights.store.environment?.fog
+  return fog && litImageShown(rt) ? shownHeightFogOf(fog) : undefined
+}
+
 /** The medium of the volume this image builds: the scene's, unless the run holds the quality `off`,
- *  draws no fog or the volume reaches nowhere; none where the scene has no volume. */
-function volumeMedium(fog: ResolvedHeightFog | undefined, settings: VolumetricFogValues) {
-  const medium = fog?.volumetric
-  const built = medium && medium.farEnd > 0 && settings.fogEnabled
+ *  draws no fog, the view does not show the fog (`fogHiddenIn`) or the volume reaches nowhere; none
+ *  where the scene has no volume. */
+function volumeMedium(
+  rt: WebgpuPagesRuntime,
+  fog: ResolvedHeightFog,
+  settings: VolumetricFogValues,
+) {
+  const medium = fog.volumetric
+  const built = medium && medium.farEnd > 0 && settings.fogEnabled && !fogHiddenIn(rt, fog)
   return built && settings.volumetricFogQuality !== 'off' ? medium : undefined
 }
 
@@ -57,7 +72,7 @@ function volumeMedium(fog: ResolvedHeightFog | undefined, settings: VolumetricFo
  *  settings are not read where the scene has no volume. */
 export function fogVolumeMedium(rt: WebgpuPagesRuntime) {
   const fog = shownFog(rt)
-  return fog?.volumetric ? volumeMedium(fog, fogSettingsOf(rt)) : undefined
+  return fog?.volumetric ? volumeMedium(rt, fog, fogSettingsOf(rt)) : undefined
 }
 
 /** Whether this image shows an atmosphere: the scene's, in a lit view of the lit image. */
@@ -68,7 +83,12 @@ const airShown = (rt: WebgpuPagesRuntime) =>
  *  (`createFogVolumeGpu`). */
 function startVolume(rt: WebgpuPagesRuntime, device: GPUDevice, held: FogVolumeState) {
   const failed = (error: unknown) => rt.diag.diagnosticFailure('fog-volume-program-failed', error)
-  held.gpu ??= createFogVolumeGpu(device, failed, rt.gpu.deferred!.placeholders.fog)
+  held.gpu ??= createFogVolumeGpu(
+    device,
+    failed,
+    rt.gpu.deferred!.placeholders.fog,
+    rt.setup.localFog,
+  )
 }
 
 /** Starts the volume's GPU work once a scene turns the volume on, at a frame's entry: the frames
@@ -77,7 +97,8 @@ export function askFogVolume(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu } = rt
   const fog = shownFog(rt)
   if (!gpu.deferred || !fog?.volumetric) return
-  if (volumeMedium(fog, fogSettingsOf(rt))) startVolume(rt, device, (gpu.fogVolume ??= newState()))
+  if (volumeMedium(rt, fog, fogSettingsOf(rt)))
+    startVolume(rt, device, (gpu.fogVolume ??= newState()))
 }
 
 /** What the programs read the fog through this image: the held object where nothing changed. */
@@ -90,28 +111,41 @@ function readOf(
   const { read } = held
   const next = { cubemap: cubemap ?? none.cubemap, volume: volume ?? none.volume }
   if (read?.cubemap === next.cubemap && read.volume === next.volume) return read
-  return (held.read = { ...next, sampler: none.sampler })
+  return (held.read = { ...next, sampler: none.sampler, tiles: none.tiles })
 }
 
-/** This image's volume, built on `encoder` where the scene turns it on, the passes are compiled and
+/** `read` with the sky light's cube in the place of the fog's own cubemap (`FogVolumeState.skyRead`):
+ *  the object `held` where nothing changed, none where no sky light lights the fog. */
+function skyReadOf(held: FogRead | undefined, read: FogRead, sky: SkyLightFog | undefined) {
+  if (!sky) return undefined
+  const same =
+    held?.cubemap === sky.cube &&
+    held.volume === read.volume &&
+    held.sampler === read.sampler &&
+    held.tiles === read.tiles
+  return same ? held : { ...read, cubemap: sky.cube }
+}
+
+/** This image's volume, built in the run `steps` where the scene turns it on, the passes are compiled and
  *  the lights are on the GPU: its integrated view, none otherwise — the view block then says so. */
 function buildVolume(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
-  encoder: GPUCommandEncoder,
+  steps: ComputeRun,
   cam: EngineCamera,
   direct: ArrayLike<number>,
   held: FogVolumeState,
   fog: ResolvedHeightFog,
   settings: VolumetricFogValues,
   cubemap: GPUTextureView | undefined,
+  sky: SkyLightFog | undefined,
 ) {
-  const medium = volumeMedium(fog, settings)
+  const medium = volumeMedium(rt, fog, settings)
   const buffer = rt.lights.buffer
   if (medium) startVolume(rt, device, held)
   if (!medium || !buffer || !held.gpu?.ready) {
     held.gpu?.reset()
-    if (buffer) publishFogView(rt, device, buffer, cam, undefined, settings, fog)
+    if (buffer) publishFogView(rt, device, buffer, cam, undefined, settings, fog, sky)
     return undefined
   }
   const cut = rt.run.gate.temporalRevision !== held.revision
@@ -119,21 +153,24 @@ function buildVolume(
   const inputs = fogInputsOf(rt, cam, direct, device, buffer, { medium, settings, cubemap }, cut)
   let volume: GPUTextureView | undefined
   try {
-    volume = held.gpu.encode(encoder, inputs)
+    volume = held.gpu.encode(steps, inputs)
   } finally {
     clearFogInputs()
   }
-  publishFogView(rt, device, buffer, cam, volume && held.gpu.frame, settings, fog)
+  publishFogView(rt, device, buffer, cam, volume && held.gpu.frame, settings, fog, sky)
   return volume
 }
 
 /**
  * The fog's volume for this image, built before the lighting resolve, the blends and the sky read
  * it: the cubemap's texture, the volume's three passes where the scene turns the volume on, the
- * view block that tells a surface where its cell lies, and what the programs read the fog through
- * (`FogRead`, `directLightResources`), and the view's clip plane, which the fog is measured from. A
- * scene with no cubemap and no volume makes nothing and its programs read the stand-ins; one that
- * had them and no longer does lets them go. `direct` is what the light lists encoded
+ * view block that tells a surface where its cell lies, whether the view shows the fog and the sky
+ * light that lights it, and what the programs read the fog through (`FogRead`,
+ * `directLightResources`), and the view's clip plane, which the fog is measured from. A scene with
+ * no cubemap, no volume and no sky light on the fog makes nothing and its programs read the
+ * stand-ins; one that had them and no longer does lets them go. While the sky light lights the fog
+ * the programs read its cube in the place of the fog's own cubemap (`FogVolumeState.skyRead`).
+ * `direct` is what the light lists encoded
  * (`encodeDirectLights`), whose columns and rows the volume's lights are read from. Where the
  * passes are not compiled yet, or the lights are not on the GPU, the image shows the analytic fog
  * alone.
@@ -141,7 +178,7 @@ function buildVolume(
 export function encodeFogVolume(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
-  encoder: GPUCommandEncoder,
+  steps: ComputeRun,
   cam: EngineCamera,
   direct: ArrayLike<number>,
 ) {
@@ -154,7 +191,8 @@ export function encodeFogVolume(
     return void (gpu.fogVolume && disposeFogVolume(gpu))
   }
   const settings = fogSettingsOf(rt)
-  if (!fog.cubemap && !fog.volumetric) {
+  const sky = skyLightFogOf(rt, fog, settings)
+  if (!fog.cubemap && !fog.volumetric && !sky) {
     // A height fog alone still starts at the view's clip plane.
     if (rt.lights.buffer)
       publishFogView(rt, device, rt.lights.buffer, cam, undefined, settings, fog)
@@ -162,8 +200,9 @@ export function encodeFogVolume(
   }
   const held = (gpu.fogVolume ??= newState())
   const cubemap = fogCubemapView(device, held, fog.cubemap)
-  const volume = buildVolume(rt, device, encoder, cam, direct, held, fog, settings, cubemap)
-  readOf(held, gpu.deferred!.placeholders.fog, cubemap, volume)
+  const volume = buildVolume(rt, device, steps, cam, direct, held, fog, settings, cubemap, sky)
+  const read = readOf(held, gpu.deferred!.placeholders.fog, cubemap, volume)
+  held.skyRead = skyReadOf(held.skyRead, read, sky)
 }
 
 /** The fog's volume released: its passes, its textures, the cubemap's. */

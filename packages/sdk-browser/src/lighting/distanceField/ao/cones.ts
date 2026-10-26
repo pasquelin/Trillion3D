@@ -39,7 +39,7 @@ const JITTER_OFFSETS = [
   [0, 0.5],
 ] as const
 /** The images over which the cone grid jitters. */
-export const JITTER_IMAGES = JITTER_OFFSETS.length
+const JITTER_IMAGES = JITTER_OFFSETS.length
 
 /** Sample directions restricted not to intersect the surface they leave, by the cone angle. */
 const ORIGINAL_DIRECTIONS = [

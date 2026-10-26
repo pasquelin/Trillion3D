@@ -52,7 +52,7 @@ pub fn oct_decode(q: u32) -> [f32; 3] {
 /// sum is replaced by 1 (the zenith `(0, 0)` of a zero direction), as the shader's `octEncode`
 /// does.
 #[inline]
-fn project([x, y, z]: [f32; 3]) -> [f32; 2] {
+pub fn project([x, y, z]: [f32; 3]) -> [f32; 2] {
     let sum = x.abs() + y.abs() + z.abs();
     let sum = if sum <= 0.0 { 1.0 } else { sum };
     let p = [x / sum, y / sum];
@@ -70,6 +70,18 @@ fn unproject(e: [f32; 2]) -> [f32; 3] {
     let z = 1.0 - e[0].abs() - e[1].abs();
     let [x, y] = if z < 0.0 { fold(e) } else { e };
     [x, y, z]
+}
+
+/// `project`'s point `e` back on the octahedron by the page codec's unfold, not made unit:
+/// `z = (1 − |x|) − |y|`, and below the equator each axis moved by what `z` lacks of zero (at most
+/// 1), `e − lack` for a non-negative axis, `e + lack` for a negative one. `unproject` folds instead;
+/// the two differ in the last bits.
+#[inline]
+pub fn unproject_unfolded([x, y]: [f32; 2]) -> [f32; 3] {
+    let z = (1.0 - x.abs()) - y.abs();
+    let lack = if z < 0.0 { (-z).min(1.0) } else { 0.0 };
+    let unfold = |v: f32| if v >= 0.0 { v - lack } else { v + lack };
+    [unfold(x), unfold(y), z]
 }
 
 /// The lower half folded over the upper one: each axis `1 − |other|`, on its own side, `+` at zero

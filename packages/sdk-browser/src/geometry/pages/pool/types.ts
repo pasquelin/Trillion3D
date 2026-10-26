@@ -3,6 +3,7 @@ import type { PageHomes, PageUnitsOf } from './homes.ts'
 import type { Eviction } from './eviction.ts'
 import type { Placement, RootSlots } from './placement.ts'
 import type { ResidencyLog } from './residencyLog.ts'
+import type { PageInstaller } from '../install/installer.ts'
 
 /** One page held in the GPU page pool. */
 export interface ResidentPage {
@@ -10,7 +11,7 @@ export interface ResidentPage {
   key: string
   /** Its byte offset. */
   offset: number
-  /** Its size. */
+  /** Its size as it was installed from: the bytes of its page on disk, or of the raw page it is. */
   bytes: number
   /** The cache's placing count when it landed (`commit.ts`): a page placed again reads another. */
   generation: number
@@ -28,6 +29,8 @@ export type GpuPageContext = {
   /** Each address's streaming page and offset there (`homes.ts`). */
   units?: PageUnitsOf
   buffer: GPUBuffer
+  /** Writes the pages on disk into the pool, transcoded (`../install/installer.ts`). */
+  install: PageInstaller
   resident: Map<string, ResidentPage>
   /** The root cover's pages: a pool never goes below them (`resize.ts`). */
   cover: ReadonlySet<string>

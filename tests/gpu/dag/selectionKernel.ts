@@ -1,12 +1,13 @@
 // The DAG selection kernel run on the GPU: the device and its pipelines opened once, then for each
 // case its buffers as the engine lays them out (`selectionCase.ts`), the stages `dagPrepare`, the
-// level descent, `dagWanted`, `dagMask` and `dagCommitMask` in the engine's order
-// (`geometry/dag/encode.ts`) for a cut in one pass that starts from fresh buffers, under no pyramid
-// (`geometry/dag/occlusion.ts`), then the readout, the frame counters and the draw flags read back.
+// level descent, `dagWanted` — which appends the clusters it draws to the list of visible clusters —,
+// `dagFinish` and `dagDrawn` in the engine's order (`geometry/dag/encode.ts`) for a cut in one pass
+// that starts from fresh buffers, under no pyramid (`geometry/dag/occlusion.ts`), then the readout,
+// the frame counters and the list of visible clusters read back.
 import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import assert from 'node:assert/strict'
-import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/geometry/dag/shader/shader.ts'
+import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/geometry/dag/shader/selectionShader.fixture.ts'
 import { dagBindEntries } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.ts'
 import { OCCLUSION_GROUP } from '../../../packages/sdk-browser/src/geometry/dag/shader/occlusionWgsl.ts'
 import { createCutOcclusion } from '../../../packages/sdk-browser/src/geometry/dag/occlusion.ts'
@@ -16,6 +17,13 @@ import {
   SELECTION_HEADER_WORDS,
 } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
 import { LEVEL_QUEUES } from '../../../packages/sdk-browser/src/geometry/dag/shader/levelWgsl.ts'
+import { COUNTER } from '../../../packages/sdk-browser/src/geometry/dag/shader/floorWgsl.ts'
+import { VISIBLE_RECORD_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/visible/layout.ts'
+import {
+  VIS_HW,
+  VIS_SW,
+  VISIBLE_HEADER_WORDS,
+} from '../../../packages/sdk-browser/src/geometry/dag/visible/layout.fixture.ts'
 import {
   OUT_COUNT,
   OUT_FLAGS,
@@ -27,7 +35,6 @@ import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { bindCase, type SelectionCase } from './selectionCase.ts'
 import { workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
-import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
 
 /** What one case's cut left on the GPU. */
 interface SelectionReading {
@@ -43,9 +50,9 @@ interface SelectionReading {
   overflow: number
   selectedTriangles: number
   transparentTriangles: number
-  /** Pages `dagMask` flagged drawn, in increasing order. */
+  /** The pages of the clusters `dagWanted` listed visible, each once, in increasing order. */
   drawn: number[]
-  /** The descent's candidates and the live clusters `dagWanted` kept: what the frame rereads. */
+  /** The descent's candidates and the clusters `dagWanted` listed visible: what the frame rereads. */
   candidates: number
   live: number
 }
@@ -55,7 +62,7 @@ interface SelectionReading {
  * or a variant to compare it with — for every cut a proof runs on them. A device that is missing or
  * a text that does not compile fails the opening; a GPU error fails `close`.
  */
-export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
+async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
   const gpu = await openGpuDevice()
   assert.ok(gpu, 'WebGPU must be available')
   const { device } = gpu
@@ -76,8 +83,8 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
   const prepare = stage('dagPrepare'),
     levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => stage(`dagLevel${q}`)),
     wanted = stage('dagWanted'),
-    mask = stage('dagMask'),
-    commit = stage('dagCommitMask')
+    finish = stage('dagFinish'),
+    drawn = stage('dagDrawn')
   const groups = (threads: number) => workgroupCount(threads, WORKGROUP_THREADS)
 
   const bind = (selection: SelectionCase) => bindCase(device, layout, selection)
@@ -113,7 +120,7 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     // The whole descent in one pass, as the engine encodes it: a thread per primitive, and at
     // least one per block of pages (it resets the block counts), then each level dispatched flat
     // over a bound of its entries, a placement's node each. Then the kept leaves' pages and their
-    // verdict: `pageCount` bounds the candidate list and the live list.
+    // verdict: `pageCount` bounds the candidate list and the list of visible clusters.
     const levelRuns = Array.from({ length: Math.max(1, packed.levelSizes.length) }, (_, l): Run => [
       levels[l % LEVEL_QUEUES],
       groups(packed.entryCount),
@@ -123,16 +130,26 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
       [[prepare, groups(Math.max(at.worldCount, pages))], ...levelRuns],
       [
         [wanted, pages],
-        [mask, pages],
-        // The cut's mask made the frame's, a thread a word of two a block (`commitWgsl.ts`).
-        [commit, groups(2 * pages)],
+        // The peaks and the clusters drawn counted, then the drawn list, a thread a visible cluster
+        // (`shader/finishWgsl.ts`).
+        [finish, 1],
+        [drawn, pages],
       ],
     )
     const header = SELECTION_HEADER_WORDS
     const out = (await readGpuBuffer(device, buffers.out.buffer, (header + packed.pageCount) * 4))!
     const work = (await readGpuBuffer(device, buffers.work.buffer, at.work.words * 4))!
-    // The frame's draw mask, a bit a page in `work` (`compactWgsl.ts`).
-    const drawBits = work.subarray(at.work.drawMask)
+    // The list of visible clusters: its counts, then a record each — the software raster's from
+    // the start, the hardware raster's from the end (`geometry/dag/visible/layout.ts`).
+    const list = (await readGpuBuffer(device, buffers.visible.buffer, at.visible))!,
+      room = Math.floor((list.length - VISIBLE_HEADER_WORDS) / VISIBLE_RECORD_WORDS),
+      software = Math.min(list[VIS_SW], room),
+      hardware = Math.min(list[VIS_HW], room - software)
+    const listed = new Set<number>()
+    const pageAt = (index: number) =>
+      listed.add(list[VISIBLE_HEADER_WORDS + VISIBLE_RECORD_WORDS * index])
+    for (let k = 0; k < software; k++) pageAt(k)
+    for (let k = 0; k < hardware; k++) pageAt(room - 1 - k)
     const count = Math.min(out[OUT_COUNT], packed.pageCount)
     const firsts = Array.from(out.subarray(header, header + count))
     // Each request's priority and page count at its rank of their lists (`priorityWord`,
@@ -161,11 +178,9 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
       overflow: out[OUT_FLAGS],
       selectedTriangles: out[OUT_SELECTED_TRIANGLES],
       transparentTriangles: out[OUT_TRANSPARENT_TRIANGLES],
-      drawn: Array.from({ length: packed.pageCount }, (_, page) => page).filter((page) =>
-        hasBit(drawBits, page),
-      ),
-      candidates: work[at.work.candCounter],
-      live: work[at.work.liveCounter],
+      drawn: [...listed].sort((a, b) => a - b),
+      candidates: work[at.work.base + COUNTER.cand],
+      live: software + hardware,
     }
     await then?.(bound, reading)
     destroy()

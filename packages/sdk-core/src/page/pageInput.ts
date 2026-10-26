@@ -14,6 +14,10 @@ export interface PageAttributes {
   TEXCOORD_1?: PageAttribute
   TEXCOORD_2?: PageAttribute
   TEXCOORD_3?: PageAttribute
+  TEXCOORD_4?: PageAttribute
+  TEXCOORD_5?: PageAttribute
+  TEXCOORD_6?: PageAttribute
+  TEXCOORD_7?: PageAttribute
   /** Three or four wide; a three-wide colour takes alpha 1. */
   COLOR_0?: PageAttribute
   /** Joints and weights, read only with each other; a rank after the first adds its influences. */

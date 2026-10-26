@@ -9,27 +9,24 @@
  * reverse-Z in both. Shifted = world + originShift (default −camera position), the
  * same split double the projection data carries.
  */
-import { namedEntries, sequentialEntries } from '../../../../gpu/core/computeBindings.ts'
+import { chainReady } from '../../../deferred/fullscreen.ts'
+import type { ComputeRun } from '../../../../gpu/core/lazyComputePass.ts'
+import { namedEntries } from '../../../../gpu/core/computeBindings.ts'
 import { hizDepthBindEntries } from '../../../../visibility/hiz/gpu/pyramidTexture.ts'
 import type { HizDepth } from '../../../../visibility/hiz/gpu/types.ts'
 import { VSM_PROJECTION_MAX_PASS_LIGHTS, type VsmTraceCounts } from './projectionView.ts'
-import {
-  VSM_PROJECTION_BINDING,
-  VSM_PROJECTION_RECEIVER_GROUP,
-  vsmProjectionGroups,
-} from './projectionWgsl.ts'
+import { VSM_PROJECTION_BINDING, vsmProjectionGroups } from './projectionWgsl.ts'
 import { vsmPerFrameSet, type VsmResources } from '../resources.ts'
 import {
   VSM_PROJECTION_PASS,
-  pipelineOfLights,
+  localsPipeline,
   pipelinesFor,
+  sunsPipeline,
   tablesGroup,
 } from './projectionPipelines.ts'
-import {
-  vsmProjectionReserve,
-  vsmProjectionStandIns,
-  type VsmProjectionState,
-} from './projectionStore.ts'
+import type { onePassMaskFormat } from './maskFormat.ts'
+import { vsmProjectionReserve, type VsmProjectionState } from './projectionStore.ts'
+import type { HeldGroup } from '../../../../gpu/bind/bindIdentity.ts'
 import { writeVsmProjectionView } from './projectionViewWrite.ts'
 
 /** The camera the pixels are reconstructed with. */
@@ -62,40 +59,50 @@ export interface VsmProjectionFrame {
   frameIndex: number
   /** The view's rays and steps of a trace (`VsmProjectionView.traceRays`); absent, the defaults'. */
   trace?: VsmTraceCounts
-  /** The lights the passes project, a mask channel each (≤ `VSM_PROJECTION_MAX_PASS_LIGHTS`). */
+  /** The lights the passes project, the suns first (≤ `VSM_PROJECTION_MAX_PASS_LIGHTS`). */
   lights: readonly VsmProjectionLight[]
 }
 
-/** The opaque surfaces a pass projects: their depth (depth32float, reverse-Z) and normals
- *  (`normalRough`, xyz = world normal), the opaque resolve's surface flags with the engine's shadow
- *  receiver target
- *  (`receiverTargetWgsl.ts`), each pixel projected from its point on the surface its vertex normals
- *  describe. */
+/** The opaque surfaces a pass projects: their depth (depth32float, reverse-Z), normals
+ *  (`normalRough`, xyz = world normal) and the opaque resolve's surface flags, each pixel projected
+ *  from its reconstructed point, moved along its normal by the normal bias; and what the local lights'
+ *  pass walks: the engine's deferred view, its lights and the light grid's lists. */
 export type VsmProjectionSource = {
   depth: GPUTextureView
   normalRough: GPUTextureView
   flags: GPUTextureView
-  receiver: GPUTextureView
-  /** The translucent casters' memory (`VsmTransmission.view`), none without them. */
-  transmission?: GPUTextureView
+  /** The thin transmission's target, whose alpha is a subsurface receiver's opacity
+   *  (`SurfaceBuffer.subsurfaceView`; a placeholder where no surface is thin). */
+  subsurface: GPUTextureView
+  /** The lobes target, whose coat factor marks a clear-coated receiver (`SurfaceBuffer.lobesView`; a
+   *  placeholder where no surface carries a lobe). */
+  lobes: GPUTextureView
+  deferredView?: GPUBuffer
+  directLights?: GPUBuffer
+  tileLights?: GPUBuffer
+  /** The light grid's view cells (columns × depth slices): none, no grid pruned (`lightGridWgsl.ts`). */
+  gridCells?: number
 }
 
-/** Where a pass stores: a mask's
- *  2-D array (`VSM_PROJECTION_MASK_FORMAT`, a layer per four lights at least) and its tile words
- *  (`VSM_PROJECTION_TILE_FORMAT`, a texel per group at least), both storage bindings, the size of
- *  the targets (`vsmMask.ts`'s `VsmMask`). */
+/** Where the passes store (`vsmMask.ts`'s `VsmMask`): the suns' mask, a layer a sun
+ *  (`VSM_SUN_MASK_FORMAT`), and the local lights' mask, a texel a pixel of `localFormat`
+ *  (`maskFormat.ts`), both storage bindings, the size of the targets. */
 export interface VsmProjectionTarget {
-  view: GPUTextureView
-  tilesView: GPUTextureView
-  /** What the panes let through along each light's missed rays, a layer a light
-   *  (`VSM_PROJECTION_THROUGH_FORMAT`): made only with translucent casters. */
-  throughView?: GPUTextureView
+  suns: GPUTextureView
+  locals: GPUTextureView
+  localFormat: ReturnType<typeof onePassMaskFormat>
+  /** The shadowed lights' grid the marking pruned (`vsmLightGridFor`), which the local lights' pass and
+   *  the lighting read. */
+  lightGrid?: GPUBuffer
 }
 
 /** What every light of the pass holds. */
 interface VsmProjectionLightCommon {
   /** The light's VSM id: first clipmap level (directional), the map (spot) or face 0 (point, rect). */
   mapId: number
+  /** A sun's: the id of the first level of its first-person clipmap, traced beside its own for the
+   *  receivers that are not first-person ones (`shadowFirstPersonClipmap`); absent, it has none. */
+  firstPersonMapId?: number
   /** Direction the light travels (directional), the cone axis (spot), the emitting face normal
    *  (rect). Unit vector, world. Turned into the direction towards the light. */
   direction: ArrayLike<number>
@@ -120,44 +127,41 @@ export type VsmProjectionLight = VsmProjectionLightCommon &
     | ({ type: 'point' | 'rect' } & VsmProjectionReach)
     | ({
         type: 'spot'
-        /** The cone's half-angle (radians), `SceneLight.coneAngle`. */
+        /** The outer cone's half-angle (radians) the lighting lights the spot by (`spotConesOf`). */
         coneAngle: number
       } & VsmProjectionReach)
   )
 
-/** Whether the translucent casters' memory and the target their transmission is stored in are
- *  both bound: never without translucent casters. */
-const panesBound = (source: VsmProjectionSource, target: VsmProjectionTarget) =>
-  !!source.transmission && !!target.throughView
-
-/** The pass group of `state` over `source`, `target` and the frame's depth pyramid: made again
+/** A pass's group over `source`, the frame's depth pyramid and the pass's own `bindings`: made again
  *  only when the layout or one of the resources it binds moved (`createWebgpuBindIdentity`). */
 function passGroupFor(
   device: GPUDevice,
   state: VsmProjectionState,
-  passLayout: GPUBindGroupLayout,
+  held: HeldGroup,
+  groupLayout: GPUBindGroupLayout,
   hizDepth: HizDepth,
   source: VsmProjectionSource,
-  target: VsmProjectionTarget,
+  mask: GPUTextureView,
+  lightGrid?: GPUBuffer,
 ) {
-  const held = state.pass
-  const standIns = panesBound(source, target) ? undefined : vsmProjectionStandIns(device, state)
-  const transmission = standIns?.transmission ?? source.transmission!,
-    through = standIns?.through ?? target.throughView!
+  const locals = !!lightGrid
   const { next } = held.identity
-  next[0] = passLayout
+  next[0] = groupLayout
   next[1] = source.depth
   next[2] = hizDepth
   next[3] = source.normalRough
   next[4] = source.flags
-  next[5] = target.view
-  next[6] = target.tilesView
-  next[7] = transmission
-  next[8] = through
+  next[5] = mask
+  next[6] = source.subsurface
+  next[7] = source.deferredView
+  next[8] = source.directLights
+  next[9] = source.tileLights
+  next[10] = lightGrid
+  next[11] = source.lobes
   if (held.identity.moved())
     held.group = device.createBindGroup({
-      label: 'vsm.projection.pass',
-      layout: passLayout,
+      label: locals ? 'vsm.projection.locals' : 'vsm.projection.suns',
+      layout: groupLayout,
       entries: [
         ...namedEntries(VSM_PROJECTION_BINDING, {
           view: { buffer: state.uniform! },
@@ -165,33 +169,18 @@ function passGroupFor(
           normalRough: source.normalRough,
           flags: source.flags,
           blueNoise: state.blueNoiseView!,
-          shadowMask: target.view,
-          shadowMaskTiles: target.tilesView,
-          transmission,
-          shadowThrough: through,
+          mask,
+          subsurface: source.subsurface,
+          lobes: source.lobes,
+          ...(locals && {
+            deferredView: { buffer: source.deferredView! },
+            directLights: { buffer: source.directLights! },
+            tileLights: { buffer: source.tileLights! },
+            lightGrid: { buffer: lightGrid! },
+          }),
         }),
         ...hizDepthBindEntries(VSM_PROJECTION_BINDING.hizDepth, hizDepth),
       ],
-    })
-  return held.group!
-}
-
-/** The receiver group of `state` over `receiver` on `layout`, made again when one of them moved. */
-function receiverGroupFor(
-  device: GPUDevice,
-  state: VsmProjectionState,
-  layout: GPUBindGroupLayout,
-  receiver: GPUTextureView,
-) {
-  const held = state.receiver
-  const { next } = held.identity
-  next[0] = layout
-  next[1] = receiver
-  if (held.identity.moved())
-    held.group = device.createBindGroup({
-      label: 'vsm.projection.receiver',
-      layout,
-      entries: sequentialEntries([receiver]),
     })
   return held.group!
 }
@@ -211,15 +200,20 @@ export function writeVsmProjectionFrame(res: VsmResources, frame: VsmProjectionF
   device.queue.writeBuffer(state.uniform!, 0, state.staging, 0, bytes)
 }
 
+const PROJECTION_PASS: GPUComputePassDescriptor = { label: VSM_PROJECTION_PASS }
+
 /**
- * Projects the frame's lights (`writeVsmProjectionFrame`, written before) in one dispatch into
- * `target` (r32uint, a layer per four lights): lane k % 4 of layer k / 4 is the shadow factor of
- * light k as its trace counted it (`vsmMaskCode`), stored only in the 8×8 tiles whose words hold a
- * light of that layer, the opaque surfaces over the whole view. Reads `res.current` (page table, projection
- * data, uniforms) and the pool; call after the frame's VSM render and before `res.swapFrames()`.
+ * Projects the frame's lights (`writeVsmProjectionFrame`, written before), the opaque surfaces over the
+ * whole view, in two passes as the reference does: the suns into `target.suns` (a layer a sun, the
+ * share of its shadow at each pixel) and the local lights, in one pass, into `target.locals` (the shares
+ * of the lights of the pixel's cell, four bits a light, `maskFormat.ts`). A pass is made where the
+ * frame holds a light of its kind; the local lights' over the shadowed lights' grid of `res`, which the
+ * marking pruned (`lightGridWgsl.ts`) and the lighting reads too (`vsmShadowedLightGrid`). Reads
+ * `res.current` (page table, projection data, uniforms) and the pool; call after the frame's VSM render and before `res.swapFrames()`.
+ * False, and nothing encoded, while a pipeline it needs compiles.
  */
 export function encodeVirtualShadowProjection(
-  encoder: GPUCommandEncoder,
+  steps: ComputeRun,
   res: VsmResources,
   frame: VsmProjectionFrame,
   source: VsmProjectionSource,
@@ -229,17 +223,48 @@ export function encodeVirtualShadowProjection(
   const state = vsmProjectionReserve(device, res)
   const p = pipelinesFor(device, res.layout)
   const vsmGroup = vsmPerFrameSet(state.tables, res, tablesGroup, p, p.vsmLayout)
-  const passGroup = passGroupFor(device, state, p.passLayout, frame.hizDepth, source, target)
-  const pass = encoder.beginComputePass({ label: VSM_PROJECTION_PASS })
-  // Without translucent casters bound, the pipeline whose panes' gate and walk fold away.
-  const transmits = panesBound(source, target)
-  pass.setPipeline(pipelineOfLights(p, lights, transmits))
+  // The suns head the lights (`VsmProjectionFrame.lights`).
+  const suns = lights.length > 0 && lights[0].type === 'directional'
+  const locals =
+    lights.length > 0 &&
+    lights[lights.length - 1].type !== 'directional' &&
+    !!source.deferredView &&
+    !!source.directLights &&
+    !!source.tileLights &&
+    !!source.gridCells &&
+    !!target.lightGrid
+  // Both pipelines or neither: the caller keeps the projection as drawn once it ran.
+  const sunsStage = suns ? sunsPipeline(p) : undefined
+  const mine = locals ? localsPipeline(p, target.localFormat) : undefined
+  if (!chainReady(sunsStage, mine?.pipeline)) return false
+  const pass = steps.pass(PROJECTION_PASS)
   pass.setBindGroup(0, vsmGroup)
-  pass.setBindGroup(1, passGroup)
-  pass.setBindGroup(
-    VSM_PROJECTION_RECEIVER_GROUP,
-    receiverGroupFor(device, state, p.receiverLayout, source.receiver),
-  )
-  pass.dispatchWorkgroups(vsmProjectionGroups(width), vsmProjectionGroups(height), 1)
-  pass.end()
+  const sunsCompiled = sunsStage?.get()
+  if (sunsCompiled) {
+    pass.setPipeline(sunsCompiled)
+    pass.setBindGroup(
+      1,
+      passGroupFor(device, state, state.suns, p.sunsLayout, frame.hizDepth, source, target.suns),
+    )
+    pass.dispatchWorkgroups(vsmProjectionGroups(width), vsmProjectionGroups(height), 1)
+  }
+  const compiled = mine?.pipeline.get()
+  if (mine && compiled) {
+    pass.setBindGroup(
+      1,
+      passGroupFor(
+        device,
+        state,
+        state.locals,
+        mine.groupLayout,
+        frame.hizDepth,
+        source,
+        target.locals,
+        target.lightGrid,
+      ),
+    )
+    pass.setPipeline(compiled)
+    pass.dispatchWorkgroups(vsmProjectionGroups(width), vsmProjectionGroups(height), 1)
+  }
+  return true
 }

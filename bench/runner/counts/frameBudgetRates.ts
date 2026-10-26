@@ -27,11 +27,10 @@ export const FRAME_RATES = {
  *  row, its triangle's three indices, positions, normals and texture coordinates, its three maps
  *  (base, normal, metal-roughness), its five targets (four surfaces and the texture request). */
 export const SURFACE_ACCESSES = { visibility: 1, page: 1, vertex: 12, maps: 3, targets: 5 }
-/** A shadow setup's texels: eight neighbour depths and the receiver target's texel
- *  (`shadowSetup`, `receiverTargetWgsl.ts`). */
-export const SETUP_TEXELS = 8 + 1
+/** A shadow setup's texels: eight neighbour depths (`shadowSetup`). */
+export const SETUP_TEXELS = 8
 /** The texels a shadow read of the opaque resolve takes: the light's lane of the projection's mask
- *  (`vsmMaskFactor`); the trace itself is the projection pass's. */
+ *  (`vsmLocalFactor`, `vsmSunFactor`); the trace itself is the projection pass's. */
 export const MASK_TEXELS = 1
 /** Page-table accesses the marking pass spends a light it marks: its home page and its neighbours
  *  across a page edge (`lighting/shadows/vsm/markingWgsl.ts`). */
@@ -46,7 +45,7 @@ export const UNCOUNTED = [
 
 /** The texels of the Hi-Z pyramid of a `width` × `height` depth at level 0 and in its coarser
  *  levels (`hizLevelSizes`). */
-export const hizLevelTexels = (width: number, height: number) => ({
+const hizLevelTexels = (width: number, height: number) => ({
   first: width * height,
   upper: hizLevelSizes(width, height)
     .slice(1)
@@ -58,22 +57,22 @@ export const hizLevelTexels = (width: number, height: number) => ({
 const PLANE_READS = 9
 
 /** Texel reads and writes of the culling layer's build of the Hi-Z pyramid of a `width` × `height`
- *  depth, mid-frame (`pyramidTexture.ts`): the copy of level 0, then four reads and a write a
- *  coarser texel. */
+ *  depth, mid-frame (`pyramidTexture.ts`): a read of level 0, no copy of it, then four reads and a
+ *  write a coarser texel. */
 export const hizCullAccesses = (width: number, height: number) => {
   const { first, upper } = hizLevelTexels(width, height)
-  return 2 * first + 5 * upper
+  return first + 5 * upper
 }
 
 /** Those of the build of its nearest layer and of the finished depth's farthest, once the depth is
- *  drawn: `PLANE_READS` reads and a write a pixel for the slopes, and four reads and a write a
+ *  drawn (in the same dispatches as the culling layer's): `PLANE_READS` reads and a write a pixel for the slopes, and four reads and a write a
  *  coarser texel of each of the two bounds. */
 export const hizNearestAccesses = (width: number, height: number) => {
   const { first, upper } = hizLevelTexels(width, height)
   return (PLANE_READS + 1) * first + 2 * 5 * upper
 }
 
-/** Those of the whole pyramid, its three layers. */
+/** Those of the whole pyramid, its three bounds. */
 export const hizAccesses = (width: number, height: number) =>
   hizCullAccesses(width, height) + hizNearestAccesses(width, height)
 

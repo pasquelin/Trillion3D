@@ -2,11 +2,12 @@
 //! (`encode::Encoded::facts`) and a voxel page's (`voxel::VoxelPage::facts`) alike, so a writer of
 //! descriptors reads one type.
 
-/// A page and its descriptor's facts: its bytes, vertex and index counts, flags, decoded bytes and
-/// the triangles it draws.
+/// A page and its descriptor's facts: its bytes, the bytes it takes resident in the pool, vertex
+/// and index counts, flags, decoded bytes and the triangles it draws.
 #[derive(Debug)]
 pub struct PageFacts {
     pub bytes: Vec<u8>,
+    pub resident_bytes: usize,
     pub vertex_count: usize,
     pub index_count: usize,
     pub flags: u32,
@@ -22,6 +23,7 @@ impl crate::encode::Encoded {
             index_count: self.header.index_count,
             flags: self.header.flags,
             decoded_bytes: self.header.decoded_bytes(),
+            resident_bytes: self.header.resident_bytes(),
             triangles,
             bytes: self.bytes,
         }

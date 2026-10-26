@@ -1,20 +1,18 @@
 // The census of the resolve classes is taken again only once what it reads moved — a surface's
-// values, the surfaces drawables wear —, and then names the class every row will carry: the frame
+// values, the surfaces drawables wear —, and then names the class every cluster record will carry: the frame
 // entry asks it before the image that draws it (`../../frame/loop/framePipelines.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
 import { createShadeCensus } from './shadeCensus.ts'
-import { testRowWriter } from '../../geometry/rows/page/pageRowWriter.fixture.ts'
-import { ROW_WORDS } from '../types.ts'
+import { testInfoWriter } from '../../geometry/clusters/infoWrite.fixture.ts'
 import { CLASS_FEATURE } from '../shader/classWords.ts'
 import { scene } from '../../materials/classes/materialClasses.fixture.ts'
 import type { PageSurface } from '../../geometry/pages/surface.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { PAGE_INFO } from '../pageInfo.ts'
 import { surfaceWritten } from '../../geometry/pages/surfaceWrites.ts'
 
-/** The fixture's pages, the blocks their rows read, and the class a row of the cut-out carries. */
+/** The fixture's pages, the blocks their records read, and the class a record of the cut-out carries. */
 function opened() {
   const { source, metadata, indices, associations, meshes } = scene()
   const { allPages, roots } = collectClusterPages(
@@ -28,12 +26,8 @@ function opened() {
     roots.map((root) => [root.pages[0].attributes, { ...block, hasColor: false }]),
   )
   const layers = { mapLayer: new Map(), dataLayer: new Map() }
-  const writeRow = testRowWriter(geometryBlocks, layers)
-  const ints = new Uint32Array(ROW_WORDS)
-  const rowClass = () => {
-    writeRow(roots[0].pages[0], 0, 0, 0, new Float32Array(ints.buffer), ints)
-    return ints[PAGE_INFO.at.materialClass]
-  }
+  const writeInfo = testInfoWriter(geometryBlocks, layers)
+  const rowClass = () => writeInfo(roots[0].pages[0], 0).classKey
   const census = createShadeCensus(allPages, geometryBlocks, layers)
   const cutout = meshes[0].material as PageSurface
   return { census, rowClass, allPages, cutout }
@@ -54,7 +48,7 @@ test('a surface turned opaque takes, at the retake, the class its rows will carr
   census.moved()
   assert.equal(census.retake(), true)
   assert.deepEqual(census.keys, [HAS_VERTEX_NORMAL | DOUBLE_SIDED])
-  assert.deepEqual(census.keys, [rowClass()], 'the class the row writes')
+  assert.deepEqual(census.keys, [rowClass()], 'the class the record writes')
   assert.equal(census.retake(), false, 'once')
 })
 

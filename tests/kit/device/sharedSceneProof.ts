@@ -4,7 +4,6 @@
 import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { Group, type Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../../packages/sdk-browser/src/session/host/resources.ts'
 import type { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import type {
@@ -26,6 +25,7 @@ import { manifestCulling } from '../../../packages/sdk-browser/src/geometry/dag/
 import type { PageSurface } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 import { createTextureCaches } from '../../../packages/sdk-browser/src/materials/texture/textureCaches.ts'
 import { createPageCache } from '../../../packages/sdk-browser/src/geometry/streaming/pageCache.ts'
+import type { PageMesh } from '../../../packages/sdk-browser/src/geometry/pages/pageMesh.ts'
 
 export const VIEWPORT: [number, number] = [96, 96]
 /** An indexed square of half-side `half` in the plane `z = 0`, its two triangles already bounded. */
@@ -68,7 +68,7 @@ export function batisseur() {
       builder.add(mesh, pass, half)
       return mesh
     },
-    add(mesh: HostMesh, pass: string, half: number) {
+    add(mesh: PageMesh, pass: string, half: number) {
       const rank = primitives.length,
         radius = half * Math.SQRT2
       const pages: Page[] = [0, 1].map((id) => ({

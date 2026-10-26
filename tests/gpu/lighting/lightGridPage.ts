@@ -7,6 +7,7 @@
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import { createGpuLightTiles } from '../../../packages/sdk-browser/src/lighting/tiles/tiles.ts'
+import type { LightGridCull } from '../../../packages/sdk-browser/src/lighting/tiles/cullView.ts'
 import {
   createSceneLightContractBuffer,
   uploadSceneLights,
@@ -14,11 +15,22 @@ import {
 import { createWebgpuLightState } from '../../../packages/sdk-browser/src/frame/backend/state/lights.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import type { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
-import { TILE_STRIDE_WORDS } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts'
+import {
+  GRID_HEAD_WORDS,
+  TILE_STRIDE_WORDS,
+} from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts'
+import { GRID_MAP } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 export type GridLamp = { position: [number, number, number]; range: number; slot: boolean }
 const SHADOWED = 0x80000000
+/** The proof's grid cuts nothing — no depth pyramid, every number of the cull at 0 — and slices by
+ *  the oracle's map (`GRID_MAP`). */
+const NO_CULL: LightGridCull = {
+  depth: undefined,
+  words: new Float32Array(8),
+  map: new Float32Array([...GRID_MAP, 0]),
+}
 
 /** The grid pass over each set of lamps, seen from `view` (`tileCamera.fixture.ts`). */
 export async function run({ view, sets }: { view: ReturnType<typeof camera>; sets: GridLamp[][] }) {
@@ -45,15 +57,16 @@ export async function run({ view, sets }: { view: ReturnType<typeof camera>; set
     const lights = createWebgpuLightState(store)
     lights.buffer = createSceneLightContractBuffer(device, store)
     uploadSceneLights(device, lights)
-    tiles.ensure(width, height, lights.buffer, store.count)
-    tiles.update(view.viewProjection, view.eye, width, height)
+    tiles.ensure(width, height, lights.buffer, 32) // the setting's default
+    tiles.update(view.viewProjection, view.eye, width, height, NO_CULL)
     const encoder = device.createCommandEncoder()
     tiles.encode(encoder, 1)
     device.queue.submit([encoder.finish()])
     const words = (await readGpuBuffer(device, tiles.buffer!, tiles.buffer!.size))!
     const cells = []
     for (let cell = 0; cell < tiles.tilesX * tiles.tilesY * LIGHT_SETTINGS.gridSlices; cell++) {
-      const [count, first] = [words[cell * TILE_STRIDE_WORDS], words[cell * TILE_STRIDE_WORDS + 1]]
+      const at = GRID_HEAD_WORDS + cell * TILE_STRIDE_WORDS
+      const [count, first] = [words[at], words[at + 1]]
       const kept = count & ~SHADOWED
       cells.push({
         shadowed: (count & SHADOWED) !== 0,

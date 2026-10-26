@@ -88,10 +88,9 @@ fn a_blended_surface_and_its_physical_extensions_are_carried() {
         m["extensions"],
         json!({
             "clearcoat":0.5,"clearcoatMap":slot,"clearcoatNormalMap":slot,"clearcoatNormalScale":2.0,
-            "sheen":1.0,"sheenColor":[0.1,0.2,0.3],"sheenRoughness":0.0,
             "specularIntensity":0.75,"specularColor":[1.0,1.0,1.0],
         }),
-        "the host's names and defaults, and nothing the material does not declare"
+        "the host's names and defaults, nothing the material does not declare, and no sheen: the clear coat takes the surface before the cloth"
     );
 }
 

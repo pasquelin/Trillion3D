@@ -1,5 +1,7 @@
 //! The soup's adjacency, kept by the edits the tessellation makes.
 use crate::displace::mesh::{cycle3, Soup};
+use crate::displace::policy::Displacer;
+use crate::displace::tessellate::{Record, Tessellation};
 use crate::displace::EdgeSplit;
 
 fn near(a: f32, b: f32) {
@@ -104,4 +106,97 @@ fn a_flip_turns_the_diagonal_of_a_quad() {
     assert_eq!(soup.triangle(1), [1, 3, 0]);
     assert_eq!(soup.across(0, 0), Some(1));
     assert_paired(&soup);
+}
+
+#[test]
+fn a_half_edge_pairs_with_the_latest_earlier_one_that_has_no_partner() {
+    // Three triangles on one edge, (0 → 1) twice then (1 → 0): the last takes the second.
+    let rows: Vec<f32> = [
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, -1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ]
+    .concat();
+    let indices = vec![0, 1, 2, 0, 1, 3, 1, 0, 4];
+    let soup = Soup::new((rows, 3), vec![], (indices, vec![0; 3]), EdgeSplit::Seams);
+    assert_eq!((soup.adjacent[6], soup.adjacent[3]), (3, 6));
+    assert_eq!(soup.adjacent[0], -1, "the earlier one waits");
+}
+
+/// The refinement of `mesh`, displacing nothing, its first two triangles asking to be split and the
+/// queue holding the first.
+fn refinement<'a>(mesh: Soup, policy: &'a Displacer<'a>) -> Tessellation<'a> {
+    let mut records = vec![Record::default(); mesh.triangle_count()];
+    records[0].request = 0;
+    Tessellation {
+        mesh,
+        policy,
+        target_error: 1.0,
+        sample_rate: 1.0,
+        displacements: Vec::new(),
+        records,
+        find: Vec::new(),
+        splits: vec![0],
+        new_triangles: 0,
+        cap: usize::MAX,
+    }
+}
+
+/// Two triangles over the quad (−1, 0), (0, −0.2), (1, 0), (0, 0.2) — the angles across their
+/// diagonal 157° each — or over the unit square.
+fn flat_quad(skinny: bool) -> Soup {
+    let corners: [[f32; 3]; 4] = match skinny {
+        true => [
+            [-1.0, 0.0, 0.0],
+            [0.0, -0.2, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 0.2, 0.0],
+        ],
+        false => [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ],
+    };
+    let indices = vec![0, 1, 2, 0, 2, 3];
+    Soup::new(
+        (corners.concat(), 3),
+        vec![],
+        (indices, vec![0; 2]),
+        EdgeSplit::Seams,
+    )
+}
+
+#[test]
+fn a_diagonal_whose_angles_are_obtuse_is_flipped_and_its_triangles_look_again() {
+    let policy = Displacer {
+        maps: &[],
+        normal: None,
+        uv: None,
+    };
+    let mut work = refinement(flat_quad(true), &policy);
+    work.try_flip(0, 2);
+    assert_eq!(work.mesh.triangle(0), [3, 1, 2]);
+    assert_eq!(work.mesh.triangle(1), [1, 3, 0]);
+    // Both look again, the first first; the request the first held is out of the queue.
+    assert_eq!(work.find, vec![0, 1]);
+    assert!(work.splits.is_empty());
+    assert_eq!((work.records[0].request, work.records[1].request), (-2, -2));
+}
+
+#[test]
+fn a_diagonal_whose_triangles_are_as_well_shaped_across_it_stays() {
+    let policy = Displacer {
+        maps: &[],
+        normal: None,
+        uv: None,
+    };
+    let mut work = refinement(flat_quad(false), &policy);
+    work.try_flip(0, 2);
+    assert_eq!(work.mesh.triangle(0), [0, 1, 2]);
+    assert!(work.find.is_empty());
+    assert_eq!(work.splits, vec![0], "its request stands");
 }

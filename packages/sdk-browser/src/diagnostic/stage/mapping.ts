@@ -55,9 +55,20 @@ export function passTotals<Group extends string | number>(
   return totals
 }
 
+const stageAt = (name: string) => passRowOf(name)?.at
+
+/** The last sample's totals by stage and its direct-light timings: a sample is made once an
+ *  image, and the profile, the bounce and the metrics each read it. */
+let stageSample: GpuPassTimings | null | undefined,
+  stageTotals: Map<number, number | null> | undefined
+let directSample: GpuPassTimings | null | undefined, directTimings: DirectLightTimings | undefined
+
 /** GPU duration of each profile stage, by its index in `WEBGPU_STAGES`. */
-const gpuStageTotals = (sample: GpuPassTimings | null | undefined) =>
-  gpuTotalsBy(sample, (name) => passRowOf(name)?.at)
+function gpuStageTotals(sample: GpuPassTimings | null | undefined) {
+  if (stageTotals && sample === stageSample) return stageTotals
+  stageSample = sample
+  return (stageTotals = gpuTotalsBy(sample, stageAt))
+}
 
 /** The stages the engine's own readers take from a sample, by index. */
 const BOUNCE = WEBGPU_STAGES.indexOf('bounce'),
@@ -81,10 +92,18 @@ export function bounceGpuMs(sample: GpuPassTimings | null | undefined) {
 
 /** The direct-lighting durations of the frame, read from the same sample by label. */
 export function directLightTimings(sample: GpuPassTimings | null | undefined) {
+  if (directTimings && sample === directSample) return directTimings
   const totals = gpuStageTotals(sample)
-  return {
+  directSample = sample
+  return (directTimings = {
     gpuLightListsMs: totals.get(LIGHT_LISTS) ?? null,
     gpuShadowsMs: totals.get(SHADOWS) ?? null,
     gpuLightingMs: totals.get(LIGHTING) ?? null,
-  }
+  })
+}
+
+type DirectLightTimings = {
+  gpuLightListsMs: number | null
+  gpuShadowsMs: number | null
+  gpuLightingMs: number | null
 }

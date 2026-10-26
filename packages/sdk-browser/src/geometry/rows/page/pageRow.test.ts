@@ -1,9 +1,6 @@
-// Shared formulae lot: packedRowBase, factored out of 2 copies (first write of a row and the
-// compact that moves it).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../scene/host/graph/graph.fixture.ts'
-import { packedRowBase } from './pageRow.ts'
 import { emptyGeometryBlock, rowGeometry, type MaterialLayers } from './pageRowMaterial.ts'
 import { rowFlags, surfaceRow } from '../surfaceRow.ts'
 import type { VisMaterial } from '../../../visibility/materialType.ts'
@@ -19,7 +16,6 @@ import {
   FLAG_VOXEL,
 } from '../../../visibility/types.ts'
 import { GEOMETRY_VOXEL } from '../../../../../sdk-core/src/page/voxelPage.ts'
-import { VIS_TRIANGLE_BITS } from '../../../visibility/visWords.ts'
 import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
 import {
   PAGE_FILTER_SHIFT,
@@ -36,22 +32,6 @@ const rowMaterial = (
   geo: Parameters<typeof rowFlags>[1],
   layers: MaterialLayers,
 ) => rowFlags(surfaceRow(mat, layers), geo, layers.textures)
-
-test('packedRowBase shifts the rank by VIS_TRIANGLE_BITS bits, one rank further than the rank', () => {
-  assert.equal(packedRowBase(0), 1 << VIS_TRIANGLE_BITS)
-  assert.equal(packedRowBase(5), 6 << VIS_TRIANGLE_BITS)
-})
-
-test('packedRowBase at the first row (rank 0) reserves zero for the background', () => {
-  assert.equal(packedRowBase(0), 256)
-  assert.notEqual(packedRowBase(0), 0)
-})
-
-test('packedRowBase returns a 32-bit unsigned integer for a large rank', () => {
-  const value = packedRowBase(0xffffff)
-  assert.ok(Number.isInteger(value) && value >= 0)
-  assert.equal(value, ((0xffffff + 1) << VIS_TRIANGLE_BITS) >>> 0)
-})
 
 // Where a row reads its geometry: the quantized page in its slot says which attributes it
 // carries, and it carries no tangent — the resolve rebuilds the frame from the triangle.
@@ -72,6 +52,8 @@ test('a row over a quantized page takes its attributes from the page, never a ta
     url: 'g',
     sha256: 'g',
     bytes: 64,
+    residentBytes: 64,
+    residentOffset: 0,
     vertexCount: 3,
     indexCount: 3,
     flags: FLAG_UV,
@@ -161,6 +143,8 @@ test('a row multiplies by its vertex colours only when the material asks and the
           url: 'g',
           sha256: 'g',
           bytes: 64,
+          residentBytes: 64,
+          residentOffset: 0,
           vertexCount: 3,
           indexCount: 3,
           flags,
@@ -183,7 +167,7 @@ test('a row multiplies by its vertex colours only when the material asks and the
 })
 
 // A voxel brick is no quantized page: its row reads its bricks' boxes, carries its voxels' normals,
-// draws its boxes' back faces alone (`rowSide`) — each pixel traced once, an eye inside a box
+// draws its boxes' back faces alone (`FLAG_BACK`) — each pixel traced once, an eye inside a box
 // too —, and wears its voxels' surface — none of its material's maps, whatever side its material
 // draws.
 test("a voxel brick's row reads its voxels, back faces alone, in the voxel class alone", () => {
@@ -191,6 +175,7 @@ test("a voxel brick's row reads its voxels, back faces alone, in the voxel class
   const layers = { mapLayer: new Map([[map, 1]]), dataLayer: new Map() }
   const geometryPage = {
     ...{ url: 'v', sha256: 'v', bytes: 96, vertexCount: 24, indexCount: 24 },
+    ...{ residentBytes: 96, residentOffset: 0 },
     ...{ flags: GEOMETRY_VOXEL, uncompressedBytes: 96 },
   }
   const geo = rowGeometry(

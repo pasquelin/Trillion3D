@@ -2,6 +2,7 @@
 //! positions and their morph targets', each placed node's, that box under its world matrix
 //! (`box_transform`, in `partition`), and a box carried from one frame into another's (`carried`).
 use super::*;
+use crate::compiler::source::assembly::plan::{extra, TOP_EXTRA};
 use trillion3d_math::geometry::aabb::EMPTY_FLAT;
 use trillion3d_math::geometry::box_transform::box_transform;
 use trillion3d_math::matrix::linear::{determinant, linear_columns};
@@ -83,18 +84,68 @@ pub(super) fn carried(bounds: &Box6, from: &Mat4, world: &Mat4) -> Option<Box6> 
 
 /// The box of each mesh, its morph targets' offsets included (`primitive_box`), or `None` when one
 /// of its primitives declares none: a node whose extent the compiler cannot bound stays in the
-/// core, read at once.
+/// core, read at once. A placeholder an assembly's load added to carry its levels holds no
+/// geometry: no point of it bounds the mesh, and a mesh of placeholders alone has no box.
 pub(crate) fn mesh_boxes(g: &Value) -> Vec<Option<[f64; 6]>> {
     let accessors = listed(g, "accessors");
     listed(g, "meshes")
         .iter()
         .map(|mesh| {
             let primitives = mesh.get("primitives")?.as_array()?;
+            let mut drawn = (primitives.iter())
+                .filter(|primitive| extra(primitive, TOP_EXTRA).is_none())
+                .peekable();
+            drawn.peek()?;
             let mut union = EMPTY_FLAT;
-            for primitive in primitives {
+            for primitive in drawn {
                 grow_flat(&mut union, &primitive_box(accessors, primitive)?);
             }
-            (!primitives.is_empty()).then_some(union)
+            Some(union)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A document of one mesh, its primitives' positions bounded by `boxes` (`[min, max]` each),
+    /// the ones in `placeholders` marked as an assembly's placeholders.
+    fn document(boxes: &[([f64; 3], [f64; 3])], placeholders: &[usize]) -> Value {
+        let accessors: Vec<Value> = (boxes.iter())
+            .map(
+                |(min, max)| json!({"componentType": 5126, "type": "VEC3", "min": min, "max": max}),
+            )
+            .collect();
+        let primitives: Vec<Value> = (0..boxes.len())
+            .map(|at| {
+                let mut p = json!({"attributes": {"POSITION": at}});
+                if placeholders.contains(&at) {
+                    p["extras"] = json!({ (TOP_EXTRA): true });
+                }
+                p
+            })
+            .collect();
+        json!({"accessors": accessors, "meshes": [{"primitives": primitives}]})
+    }
+
+    // Behaviour: the placeholder an assembly's load added bounds nothing: the box of a mesh is its
+    // other primitives', not stretched to the placeholder's point at the origin; a mesh that holds
+    // placeholders alone has no box, and its node stays in the core.
+    #[test]
+    fn a_placeholder_of_an_assembly_bounds_no_mesh() {
+        let own = ([4.0, 4.0, 4.0], [6.0, 5.0, 7.0]);
+        let point = ([0.0; 3], [0.0; 3]);
+        let g = document(&[own, point], &[1]);
+        assert_eq!(mesh_boxes(&g), [Some([4.0, 4.0, 4.0, 6.0, 5.0, 7.0])]);
+        assert_eq!(mesh_boxes(&document(&[point], &[0])), [None]);
+        // A primitive that declares no bounds still leaves the mesh without one; so does no primitive.
+        let mut unbounded = document(&[own, point], &[]);
+        unbounded["accessors"][0] = json!({"componentType": 5126, "type": "VEC3"});
+        assert_eq!(mesh_boxes(&unbounded), [None]);
+        assert_eq!(mesh_boxes(&document(&[], &[])), [None]);
+        // Unmarked, the point stretches the box as it did.
+        let g = document(&[own, point], &[]);
+        assert_eq!(mesh_boxes(&g), [Some([0.0, 0.0, 0.0, 6.0, 5.0, 7.0])]);
+    }
 }

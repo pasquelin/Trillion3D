@@ -14,33 +14,71 @@ type Scalar = number | boolean
 
 const LETTERS = { x: 0, y: 1, z: 2, w: 3, r: 0, g: 1, b: 2, a: 3 } as Record<string, number>
 
-/** `f` applied component by component, scalars broadcast to the vectors' size. */
+/** `f` applied component by component, scalars broadcast to the vectors' size: plain loops, so a
+ *  kernel run as JavaScript makes one array a result and nothing a component. */
 export const each =
   (f: (...parts: Scalar[]) => Scalar) =>
   (...args: Value[]): Value => {
-    const size = args.find(Array.isArray)?.length
-    if (size === undefined) return f(...(args as Scalar[]))
-    return Array.from({ length: size }, (_, i) =>
-      f(...args.map((arg) => (Array.isArray(arg) ? arg[i] : (arg as Scalar)))),
-    )
+    let size = -1
+    for (const arg of args)
+      if (Array.isArray(arg)) {
+        size = arg.length
+        break
+      }
+    if (size < 0) return f(...(args as Scalar[]))
+    const out = new Array<Scalar>(size)
+    const parts = new Array<Scalar>(args.length)
+    for (let i = 0; i < size; i++) {
+      for (let k = 0; k < args.length; k++) {
+        const arg = args[k]
+        parts[k] = Array.isArray(arg) ? (arg[i] as Scalar) : (arg as Scalar)
+      }
+      out[i] = f(...parts)
+    }
+    return out
   }
 
 const n = (value: Scalar) => Number(value)
 
+/** Whether `value` is a matrix (`shaderRunMatrix.fixture.ts`). */
+const isMatrix = (value: Value) => value instanceof Mat || value instanceof Mat3
+
 /** A binary operator: a matrix times a vector, otherwise component-wise. */
 function $b(op: string, a: Value, b: Value): Value {
-  const product = matrixProduct(a, b)
-  if (product) return product
-  // Two scalars, the most of what a kernel's integer work runs: no vector to broadcast.
-  if (!Array.isArray(a) && !Array.isArray(b)) return SCALAR[op](n(a as Scalar), n(b as Scalar))
-  return each((x, y) => SCALAR[op](n(x), n(y)))(a, b)
+  const apply = SCALAR[op]
+  // Two numbers, the most of what a kernel runs: no matrix to multiply, no vector to broadcast.
+  if (typeof a === 'number' && typeof b === 'number') return apply(a, b)
+  const left = Array.isArray(a),
+    right = Array.isArray(b)
+  if (isMatrix(a) || isMatrix(b)) {
+    // A matrix takes part in the products `matrixProduct` makes alone — a 4×4 by a 4×4, a matrix
+    // by a vector and a vector by a matrix —: anything else on one is refused, not run.
+    const vector = left || right
+    const product =
+      op === '*' && (vector || (a instanceof Mat && b instanceof Mat))
+        ? matrixProduct(a, b)
+        : undefined
+    if (product) return product
+    throw new Error(`shaderRun runs no '${op}' on these matrix operands`)
+  }
+  if (!left && !right) return apply(n(a as Scalar), n(b as Scalar))
+  const size = ((left ? a : b) as Vec).length
+  const out = new Array<number | boolean>(size)
+  for (let i = 0; i < size; i++)
+    out[i] = apply(
+      n(left ? (a as Vec)[i] : (a as Scalar)),
+      n(right ? (b as Vec)[i] : (b as Scalar)),
+    )
+  return out
 }
 
 /** A swizzle: one component, or a vector of several; on a structure, its member of that name. */
 function $sw(value: Vec | Record<string, unknown>, name: string) {
   if (!Array.isArray(value)) return value[name]
-  const parts = [...name].map((letter) => value[LETTERS[letter]])
-  return parts.length === 1 ? parts[0] : parts
+  if (name.length === 1) return value[LETTERS[name]]
+  const parts = new Array<number | boolean>(name.length)
+  for (let i = 0; i < name.length; i++) parts[i] = value[LETTERS[name[i]]]
+  return parts
 }
 
 /** The JavaScript text assigning `value` to the translated `target`: through `$set` where the
@@ -54,22 +92,27 @@ export const assigned = (target: string, value: string) => {
 
 /** A copy of a value: a vector's or an array's elements, a structure's members, a matrix's
  *  columns (one is written column by column). */
-export const $cp = <T>(value: T): T =>
-  Array.isArray(value)
-    ? (value.map($cp) as T)
-    : value instanceof Mat
-      ? (new Mat(value.m) as T)
-      : value instanceof Mat3
-        ? (new Mat3(value.columns) as T)
-        : value?.constructor === Object
-          ? (Object.fromEntries(Object.entries(value).map(([k, v]) => [k, $cp(v)])) as T)
-          : value
+export const $cp = <T>(value: T): T => {
+  // A scalar is its own copy: most of what a kernel assigns.
+  if (typeof value !== 'object' || value === null) return value
+  if (Array.isArray(value)) {
+    return value.map($cp) as T
+  }
+  if (value instanceof Mat) return new Mat(value.m) as T
+  if (value instanceof Mat3) return new Mat3(value.columns) as T
+  return value.constructor === Object
+    ? (Object.fromEntries(Object.entries(value).map(([k, v]) => [k, $cp(v)])) as T)
+    : value
+}
 
 /** A vector constructor: its arguments flattened, one scalar splat to `size`. */
 export const vector =
   (size: number, convert: (x: Scalar) => number) =>
   (...args: Value[]) => {
-    const flat = (args as Array<Scalar | Vec>).flat().map(convert)
+    const flat: number[] = []
+    for (const arg of args as Array<Scalar | Vec>)
+      if (Array.isArray(arg)) for (const part of arg) flat.push(convert(part))
+      else flat.push(convert(arg))
     return flat.length === 1 ? new Array<number>(size).fill(flat[0]) : flat
   }
 const float = (x: Scalar) => Number(x)
@@ -144,6 +187,7 @@ export const builtins = {
   sin: numeric(Math.sin),
   cos: numeric(Math.cos),
   asin: numeric(Math.asin),
+  acos: numeric(Math.acos),
   atan: numeric(Math.atan),
   atan2: numeric(Math.atan2),
   sqrt: numeric(Math.sqrt),
@@ -173,6 +217,12 @@ export const builtins = {
   reflect: (i: Value, normal: Value) => {
     const d = 2 * vec(i).reduce((sum, x, k) => sum + x * vec(normal)[k], 0)
     return vec(i).map((x, k) => x - d * vec(normal)[k])
+  },
+  refract: (i: Value, normal: Value, eta: Value) => {
+    const d = vec(i).reduce((sum, x, k) => sum + x * vec(normal)[k], 0)
+    const e = n(eta as Scalar)
+    const k = 1 - e * e * (1 - d * d)
+    return vec(i).map((x, c) => (k < 0 ? 0 : e * x - (e * d + Math.sqrt(k)) * vec(normal)[c]))
   },
   faceForward: (e1: Value, e2: Value, e3: Value) =>
     vec(e2).reduce((sum, x, k) => sum + x * vec(e3)[k], 0) < 0 ? vec(e1) : vec(e1).map((x) => -x),

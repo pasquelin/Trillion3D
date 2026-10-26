@@ -4,6 +4,7 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { loadOnlyTarget } from '../../gpu/core/loadOnlyTarget.ts'
 import type { VisMaterial } from '../../visibility/materialType.ts'
 import { SURFACE_COLOURS_FORMAT } from './surfaceOutputs.ts'
+import { holdsPixelModels } from './pixelModel.ts'
 
 /** Independent diffuse transmission, disabled by black and restricted to thin double-sided matter. */
 export const SUBSURFACE_FLAG = 32
@@ -20,11 +21,23 @@ export const SUBSURFACE_TARGET = loadOnlyTarget(
 /** Whether `surface` is a thin sheet that transmits: its subsurface colour not black — the record
  *  keeps that colour on a lit double-sided surface alone (`sheet`, `../../geometry/pages/surfaceRecord.ts`) —,
  *  what the thin transmission target is made for (`wantsSubsurface`). */
-export const isSubsurfaceSheet = (surface: Pick<VisMaterial, 'subsurfaceColor'>) =>
+const isSubsurfaceSheet = (surface: Pick<VisMaterial, 'subsurfaceColor'>) =>
   !!surface.subsurfaceColor?.some((component) => component > 0)
 
-const sheetRows = someRowSurface(isSubsurfaceSheet)
+/** Whether the target holds something of `surface`: its thin transmission (`isSubsurfaceSheet`), or what a
+ *  shading model its graph may pick per pixel needs (`holdsPixelModels`). */
+export const writesSubsurfaceTarget = (
+  surface: Pick<VisMaterial, 'subsurfaceColor' | 'graph' | 'shadingModel' | 'modelFromGraph'>,
+) => isSubsurfaceSheet(surface) || holdsPixelModels(surface)
 
-/** Whether a row's surface is a thin sheet that transmits (`isSubsurfaceSheet`): the target is made.
- *  O(1) while the rows and their materials hold (`someRowSurface`). */
-export const wantsSubsurface = (rt: WebgpuPagesRuntime) => sheetRows(rt.layout.rows)
+const sheetRows = someRowSurface(writesSubsurfaceTarget)
+
+/** Whether a resident cluster's surface writes the thin transmission's target (`writesSubsurfaceTarget`):
+ *  the target is made. O(1) while the clusters and their materials hold (`someRowSurface`). */
+export const wantsSubsurface = (rt: WebgpuPagesRuntime) => sheetRows(rt.layout.clusters)
+
+const modelRows = someRowSurface(holdsPixelModels)
+
+/** Whether a resident cluster's surface may give its pixels a shading model of a graph's choice
+ *  (`holdsPixelModels`): the data those models read is made ready. */
+export const wantsPixelModels = (rt: WebgpuPagesRuntime) => modelRows(rt.layout.clusters)

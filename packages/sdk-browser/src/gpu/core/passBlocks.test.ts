@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { GpuPassTimings } from '../../../../sdk-core/src/contracts/metrics.ts'
-import { gpuPassBlockTotals } from './passBlocks.ts'
+import { gpuPassBlockTotals, passBlockMs } from './passBlocks.ts'
 import { gpuPassBlockOf } from '../../diagnostic/stage/mapping.ts'
-import { VSM_PASS_PREFIX } from '../../diagnostic/stage/passLabels.ts'
+import { SURFACE_COLOUR_PASS, VSM_PASS_PREFIX } from '../../diagnostic/stage/passLabels.ts'
 
 const sample = (
   passes: Array<[string, number | null]>,
@@ -22,7 +22,7 @@ test('each pass falls in the block its label names, and an unknown one stays out
   assert.equal(gpuPassBlockOf('Trillion3D HiZ'), 'visibility')
   assert.equal(gpuPassBlockOf('Trillion3D material surfaces v1'), 'materials')
   assert.equal(gpuPassBlockOf('Trillion3D empty surfaces'), 'materials')
-  assert.equal(gpuPassBlockOf('Trillion3D deferred lighting'), 'other')
+  assert.equal(gpuPassBlockOf(SURFACE_COLOUR_PASS), 'other')
   assert.equal(gpuPassBlockOf(`${VSM_PASS_PREFIX}pass`), 'other')
   assert.equal(gpuPassBlockOf('Trillion3D pass invented tomorrow'), undefined)
 })
@@ -30,13 +30,13 @@ test('each pass falls in the block its label names, and an unknown one stays out
 test("a block's durations add up, and the three sum to that of the passes", () => {
   const totals = gpuPassBlockTotals(
     sample([
-      ['Trillion3D partition', 0.066],
+      ['Trillion3D raster binning', 0.066],
       ['Trillion3D DAG selection', 0.406],
       ['Trillion3D visibility primary', 1.148],
       ['Trillion3D HiZ', 0.099],
       ['Trillion3D empty surfaces', 0.217],
       ['Trillion3D material surfaces v1', 2.084],
-      ['Trillion3D deferred lighting', 1.5],
+      [SURFACE_COLOUR_PASS, 1.5],
     ]),
   )
   assert.equal(totals.visibilityMs?.toFixed(3), '1.719')
@@ -83,4 +83,17 @@ test('a truncated or missing sample yields no block', () => {
     materialsMs: null,
     otherMs: null,
   })
+})
+
+test('one block read alone adds its passes’ shares and is none where the sample cannot say', () => {
+  const passes: Array<[string, number | null]> = [
+    ['Trillion3D DAG selection', 0.4],
+    ['Trillion3D visibility primary', 1.1],
+    [SURFACE_COLOUR_PASS, 1.5],
+  ]
+  assert.equal(passBlockMs(sample(passes), 'visibility')?.toFixed(1), '1.5')
+  assert.equal(passBlockMs(sample(passes), 'materials'), null, 'a block no pass ran: no zero')
+  assert.equal(passBlockMs(sample(passes, { truncated: true }), 'visibility'), null)
+  assert.equal(passBlockMs(sample([['Trillion3D HiZ', null], ...passes]), 'visibility'), null)
+  assert.equal(passBlockMs(null, 'visibility'), null)
 })

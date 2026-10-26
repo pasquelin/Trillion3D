@@ -7,22 +7,14 @@ import { cacheFingerprint, differences } from './compiler-hashes.ts'
 import { sha256 } from '../../packages/sdk-node/src/compiler/provenance.mts'
 
 /** A cache as the compiler lays it out, under `key`, with one page of `page` bytes and a manifest
- *  that reports the run's time, whether it found a cutout sheet, the threads
- *  it ran on and names the folder it was written to. */
-function cache(
-  key: string,
-  page: string,
-  compileMs: number,
-  found?: boolean,
-  threads?: number,
-): string {
+ *  that reports the run's time, the threads it ran on and names the folder it was written to. */
+function cache(key: string, page: string, compileMs: number, threads?: number): string {
   const root = mkdtempSync(join(tmpdir(), 'trillion3d-hashes-'))
   const manifest = {
     key,
     url: `${key}/c`,
-    sheet: join(root, 'cutouts.json'),
+    folder: root,
     metrics: { compileMs, threads },
-    cutouts: { changes: { decisions: { file: join(root, 'cutouts.json'), found, answers: 0 } } },
   }
   mkdirSync(join(root, 'native/full', key), { recursive: true })
   writeFileSync(join(root, 'native/.lock'), String(process.pid))
@@ -32,11 +24,10 @@ function cache(
 }
 
 // Behaviour: two compilers that cook the same bytes have one fingerprint, whatever their key, their
-// run's times, the cutout sheet an older head says it found, the threads it ran on
-// and their folder; one changed byte is named — the platforms against Linux x64, the branch
+// run's times, the threads it ran on and their folder; one changed byte is named — the platforms against Linux x64, the branch
 // against develop.
 test('the fingerprint compares the cooked bytes and names the file that differs', () => {
-  const develop = cache('a'.repeat(64), 'page', 1, false, 4),
+  const develop = cache('a'.repeat(64), 'page', 1, 4),
     branch = cache('b'.repeat(64), 'page', 2),
     changed = cache('c'.repeat(64), 'pagf', 1)
   try {

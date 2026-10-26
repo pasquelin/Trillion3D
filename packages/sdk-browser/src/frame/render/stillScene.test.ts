@@ -29,6 +29,8 @@ function image(count: number, next: () => number) {
     setup: { worlds: {} },
     // A host walk with no deformation and nothing hidden or shown (`worldUpload.test.ts`).
     vis: {},
+    // The main view, drawn, and no other: the moves are told to every view's motion.
+    views: { main: {}, active: undefined, persistent: [] },
     blendState: { blendGpu: [], blendIndex: { revision: 0 } },
     lights: { mobility: { moves: () => false } },
     layout: {

@@ -1,56 +1,41 @@
-import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
-import { BOUNCE_GRID_WGSL, bounceBindingsWgsl } from './gridWgsl.ts'
 import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { INDIRECT_WGSL } from './indirectWgsl.ts'
+import { SCREEN_INDIRECT_WGSL } from './screen/indirectWgsl.ts'
 
 /**
- * Bounce application, at the bindings the calling pass gives it: opaque deferred resolve and
- * the blend pass read the same probes, with the same law, from two different binding layouts.
- * One implementation, never two.
+ * Bounce application (`bounceLighting`), as the opaque deferred resolve gives it, and its measurement view (`bounceIrradiance`): the
+ * screen probes' irradiance, the pixel's diffuse term. (The see-through surfaces read the translucency volume instead,
+ * `../translucencyGi/readWgsl.ts`, one fetch for their fragments' gather.)
  *
- * Interpolated probe irradiance multiplies the pixel's diffuse albedo, times 1/π: that is
- * the same Lambert law as the direct term, with the same function (`lambertAlbedoMul`). The term is
- * strictly additive to the direct — emission, direct and indirect are partitioned — and it
- * is exactly zero where no probe sees the point, which forbids a leak through a wall.
+ * Irradiance multiplies the pixel's diffuse albedo, times 1/π: that is the same Lambert law as the direct term, with the same
+ * function (`lambertAlbedoMul`). The term is strictly additive to the direct — emission, direct and indirect are partitioned.
  *
- * A pure metal has no diffuse albedo: its indirect share is zero, as in the direct term.
- * Indirect specular is not part of this term: the reflection reads the same probes through its
- * lobe (`reflectionProbesGathered`, `../reflections/field.ts`).
+ * A pure metal has no diffuse albedo: its indirect share is zero, as in the direct term. Indirect specular is not part of this term:
+ * the reflection reads the screen probes' rough light, and the radiance around the scene beyond what its rays meet.
  *
- * The probes carry the sky the scene lets through (a ray of theirs that leaves the scene reaches
- * it, `skyProbeRadiance`), so a program that reads them takes the sky light's diffuse share from
- * them alone, never added again beside them (`environmentSky`, zero here): where they answer
- * the whole, the share they leave unanswered — no probe yet, a point no cascade reaches — is the sky
- * light's own irradiance, the sky nothing hides (`indirectGathered`); with no sky light, the probes
- * that answer stand for it, the environment being the pixel's own term beside them.
+ * The screen probes carry the sky the scene lets through (a ray of theirs that leaves the scene reaches it, `skyProbeRadiance`), so a
+ * program that reads them takes the sky light's diffuse share from them alone, never added again beside them (`environmentSky`, zero
+ * here); the pixel they did not read has the sky light's own irradiance (`indirectIrradiance`).
  */
-export function bounceApplyWgsl(grid: number, probes: number) {
-  return wgslBlock(
-    `bounceApplyWgsl(${grid}, ${probes})`,
-    [lambertDiffuse, bounceBindingsWgsl(0, grid, probes), BOUNCE_GRID_WGSL, INDIRECT_WGSL],
-    `
-/** What the environment adds of the sky light's diffuse: nothing, the probes carry it. */
-fn environmentSky(N:vec3f)->vec3f{return vec3f(0.0);}
-/** Diffuse radiance a pixel returns from light that bounced before reaching it, the sky's with it. */
-fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{
- return lambertDiffuse(rgb,metal,indirectIrradiance(P,N),ao);
-}`,
-  )
-}
-
-/** Bounce application at the deferred-resolve bindings, and its two measurement views. */
 export const BOUNCE_APPLY_WGSL = wgslBlock(
   'BOUNCE_APPLY_WGSL',
-  [bounceApplyWgsl(DEFERRED_BINDINGS.bounceGrid, DEFERRED_BINDINGS.probes)],
+  [lambertDiffuse, INDIRECT_WGSL, SCREEN_INDIRECT_WGSL],
   `
-/** True when the host asked for the indirect-irradiance diagnostic view, and that view only. */
-fn bounceOnly()->bool{return bounce.reach.y>0.5;}
+/** What the environment adds of the sky light's diffuse: nothing, the screen probes carry it. */
+fn environmentSky(N:vec3f)->vec3f{return vec3f(0.0);}
+/** Diffuse radiance a pixel the screen probes did not read returns: the sky's. */
+fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{
+ return lambertDiffuse(rgb,metal,indirectIrradiance(P,N),ao);
+}
 /**
- * The pixel's raw indirect irradiance, multiplied by exposure: that is what the harness
+ * The pixel's raw indirect irradiance at \`coord\`, multiplied by exposure: that is what the harness
  * compares to the compiler oracle. No albedo, no ACES, no sRGB — an image to measure, not an
  * image to look at, and exposure is there only to fit it in the eight bits of the capture.
  * A value beyond one is clipped, and the harness counts what it clipped.
  */
-fn bounceIrradiance(N:vec3f,P:vec3f,exposure:f32)->vec3f{return sampleBounce(P,N)*exposure;}`,
+fn bounceIrradiance(coord:vec2i,N:vec3f,P:vec3f,exposure:f32)->vec3f{
+ let seen=screenIndirectAt(coord);
+ return select(indirectIrradiance(P,N),seen.rgb,screenLights(seen))*exposure;
+}`,
 )

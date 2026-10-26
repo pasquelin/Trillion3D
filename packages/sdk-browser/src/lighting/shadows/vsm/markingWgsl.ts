@@ -33,30 +33,41 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../../deferred/worldAtWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { localLightReaches } from '../../direct/lightReachWgsl.ts'
 import { TILE_SLICE_WGSL, pixelCellWgsl } from '../../direct/lightingWgsl.ts'
-import { SUBSURFACE_FLAG } from '../../../materials/surface/subsurface.ts'
-import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../../../materials/surface/surfaceModel.ts'
+import { SHADOW_SLICE_WGSL } from '../../direct/shadowSlice.ts'
+import { vsmSubsurfaceModel } from './subsurfaceModelWgsl.ts'
+import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../../../materials/surface/surfaceModelWord.ts'
+import { isFirstPerson } from '../../../materials/surface/surfaceModel.ts'
 import type { VsmLayout } from './layout.ts'
 import { FLAT_INDEX_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
-import { perspectiveDivide } from '../../../../../math/src/wgsl/projection.ts'
+import { clipToFramebuffer, perspectiveDivide } from '../../../../../math/src/wgsl/projection.ts'
+import { HIZ_FRONT_LAYER } from '../../../visibility/hiz/gpu/pyramidTexture.ts'
+
+/** The level below which a sun's marks never go: none (a first-person pixel's marks are clamped to
+ *  `shadowFirstPersonRequestMinLevelClamp`). */
+export const NO_MIN_LEVEL = -10000
 
 /** The group side of the page marks from pixels pass. */
 export const VSM_MARK_PIXELS_GROUP_XY = 8
 /** The group side of the per-page shaders. */
 export const VSM_PER_PAGE_GROUP_XY = 8
 /** Byte size of `VsmMarkingParams`. */
-export const VSM_MARKING_PARAMS_BYTES = 128
+export const VSM_MARKING_PARAMS_BYTES = 240
 
 /**
  * The marking passes' own parameters (the page marks generation, coarse marking and page rect
  * bounds scalars) and the map view.
  * Offsets: 0 viewToClip, 64 depthFromDeviceZ, 80 originShiftHigh, 92 sunMapCount,
- * 96 originShiftLow, 108 rectsToClear, 112 viewRectMin, 120 viewSize. The margins, the pixel
- * stride and the rest the marking never varies are constants of the shader (`constants.ts`).
+ * 96 originShiftLow, 108 rectsToClear, 112 viewRectMin, 120 viewSize, 128 previousViewProjection,
+ * 192 historySize, 200 pageDilation (the sun's, the local lights'), 208 markStride, 216
+ * cullBackfacing, 220 firstPersonBias (a negative one marks nothing for the pixels of first-person objects),
+ * 224 firstPersonLevelClamp. historySize and the matrix before it are read by the pass that marks from the
+ * translucent front layer alone (`vsmPixelPageMarkingWgsl` `front`). The rest the marking never
+ * varies is constants of the shader (`constants.ts`).
  */
-const VSM_MARKING_PARAMS_WGSL = wgslBlock(
+export const VSM_MARKING_PARAMS_WGSL = wgslBlock(
   'VSM_MARKING_PARAMS_WGSL',
   [],
   `
@@ -69,6 +80,13 @@ struct VsmMarkingParams{
  rectsToClear:u32,
  viewRectMin:vec2u,
  viewSize:vec2u,
+ previousViewProjection:mat4x4f,
+ historySize:vec2f,
+ pageDilation:vec2f,
+ markStride:vec2u,
+ cullBackfacing:u32,
+ firstPersonBias:f32,
+ firstPersonLevelClamp:i32,
 }
 `,
 )
@@ -154,34 +172,28 @@ fn vsmPagesAcross(mipLevel:u32)->u32{return VSM_LEVEL0_PAGES>>mipLevel;}
 `,
 )
 
-/**
- * The clears of several tables in one walk of each map's pages (`targets`, each its own `numMips`
- * and `sampleStride`): every table a texel of a page clears is cleared there, as one kernel a table
- * cleared it; the clear value is 0, the only value the marking pass clears with. Entry
- * `vsmClearPageTables`, 8x8; binding 4 + n is the n-th target.
- */
-export function vsmResetPageTableWgsl(targets: readonly VsmClearTarget[], layout: VsmLayout) {
-  const tables = targets.map((target, n) => {
-    const { numMips, sampleStride } = vsmClearTargetShape(target, layout)
-    const size = target === 'receiverCover' ? 'vsm.coverSize' : 'vsm.pageTableSize'
-    const mipOffset =
-      target === 'pageMarks'
-        ? 'vsmMarkMipOffset(m)'
-        : target === 'receiverCover'
-          ? 'vsmCoverMipOffset(m)'
-          : '0u'
-    const store = `vsmClearStore${n}`
-    const body =
-      sampleStride === 2
-        ? [
-            `let a${n}=po.tableXY*2u;`,
-            ...[0, 1].flatMap((y) => [0, 1].map((x) => `${store}(a${n}+vec2u(${x}u,${y}u),0u);`)),
-          ]
-        : [`${store}(po.tableXY,0u);`]
-    for (let h = 1; h < numMips; h++)
-      body.push(`vsmClearMip${n}(${h}u,lo,page,${sampleStride}u,mipLevel);`)
-    return {
-      declarations: `@group(0) @binding(${4 + n}) var<storage,read_write> vsmClearDest${n}:array<u32>;
+/** The declarations and the walk's lines that clear `target`, the `n`-th of a clear. */
+function vsmClearTable(target: VsmClearTarget, n: number, layout: VsmLayout) {
+  const { numMips, sampleStride } = vsmClearTargetShape(target, layout)
+  const size = target === 'receiverCover' ? 'vsm.coverSize' : 'vsm.pageTableSize'
+  const mipOffset =
+    target === 'pageMarks'
+      ? 'vsmMarkMipOffset(m)'
+      : target === 'receiverCover'
+        ? 'vsmCoverMipOffset(m)'
+        : '0u'
+  const store = `vsmClearStore${n}`
+  const body =
+    sampleStride === 2
+      ? [
+          `let a${n}=po.tableXY*2u;`,
+          ...[0, 1].flatMap((y) => [0, 1].map((x) => `${store}(a${n}+vec2u(${x}u,${y}u),0u);`)),
+        ]
+      : [`${store}(po.tableXY,0u);`]
+  for (let h = 1; h < numMips; h++)
+    body.push(`vsmClearMip${n}(${h}u,lo,page,${sampleStride}u,mipLevel);`)
+  return {
+    declarations: `@group(0) @binding(${4 + n}) var<storage,read_write> vsmClearDest${n}:array<u32>;
 /** Texel t of mip m of ${target}; a texel past the mip is dropped, as a storage texture drops it. */
 fn ${store}(t:vec2u,m:u32){
  let dims=max(vec2u(1u),${size}>>vec2u(m));
@@ -194,9 +206,18 @@ fn vsmClearMip${n}(pyramidLevel:u32,levelOffset:VsmTableLevel,pageCoord:vec2u,sa
  let pyramidFirst=(levelOffset.firstCell*sampleStrideLocal)>>vec2u(pyramidLevel);
  if(all(pageCoord<vec2u(levelDim))){${store}(pyramidFirst+pageCoord,pyramidLevel);}
 }`,
-      body: body.map((line) => `    ${line}`).join('\n'),
-    }
-  })
+    body: body.map((line) => `    ${line}`).join('\n'),
+  }
+}
+
+/**
+ * The clears of several tables in one walk of each map's pages (`targets`, each its own `numMips`
+ * and `sampleStride`): every table a texel of a page clears is cleared there, as one kernel a table
+ * cleared it; the clear value is 0, the only value the marking pass clears with. Entry
+ * `vsmClearPageTables`, 8x8; binding 4 + n is the n-th target.
+ */
+export function vsmResetPageTableWgsl(targets: readonly VsmClearTarget[], layout: VsmLayout) {
+  const tables = targets.map((target, n) => vsmClearTable(target, n, layout))
   return wgslProgram(
     `@group(0) @binding(3) var<uniform> vsmPerPage:VsmMapWalkParams;
 const VSM_CLEAR_VALUE:u32=0u;
@@ -372,7 +393,7 @@ export const VSM_PIXELS_SPECS: readonly VsmBindingSpec[] = [
  * The page marking and the projection helpers it calls, against the primary
  * view in `vsmMarking`, through the module's `vsmPageRequestsStore` and `vsmReceiverCoverOr`.
  */
-const VSM_PAGE_MARKING_WGSL = wgslBlock(
+export const VSM_PAGE_MARKING_WGSL = wgslBlock(
   'VSM_PAGE_MARKING_WGSL',
   [
     VSM_CONSTANTS_WGSL,
@@ -387,18 +408,22 @@ const VSM_PAGE_MARKING_WGSL = wgslBlock(
   ],
   `
 /** The biased clipmap level of a position, against the marking view's origin shift. */
-fn vsmMarkedLevel(base:VsmProjectionData,shiftedPosition:vec3f)->i32{
+fn vsmMarkedLevel(base:VsmProjectionData,shiftedPosition:vec3f,extraBias:f32)->i32{
  let biasedLevel=vsmLevelOfDistanceSq(vsmDistanceSqToOrigin(base,shiftedPosition,vsmMarking.originShiftHigh,vsmMarking.originShiftLow))
-  +base.levelBias+vsm.pressureBias;
+  +base.levelBias+vsm.pressureBias+extraBias;
  return i32(floor(biasedLevel));
 }
 /** The mip level a local light's page is marked at. */
-fn vsmMarkLocalMipLevel(pd:VsmProjectionData,shiftedPosition:vec3f,sceneDepth:f32)->u32{
+fn vsmMarkLocalMipLevel(pd:VsmProjectionData,shiftedPosition:vec3f,sceneDepth:f32,extraBias:f32)->u32{
  let toMapShift=vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,vsmMarking.originShiftHigh,vsmMarking.originShiftLow);
  let pointInMap=shiftedPosition+toMapShift;
  let footprint=vsmLocalPixelFootprint(pd,pointInMap,sceneDepth,vsmMarking.viewToClip,vec2f(vsmMarking.viewSize));
  // A map's table holds its mips from its finest on (\`vsmTableLevelOrigin\`).
- return max(vsmLocalMipLevel(footprint,pd.levelBias,vsm.pressureBias,0.0),pd.finestMip);
+ var mip=vsmLocalMipLevel(footprint,pd.levelBias,vsm.pressureBias,extraBias);
+ // The mips a pixel marks: all, the even ones (1), the odd ones (2).
+ if(vsm.mipModeLocal==1u){mip=mip&~1u;}
+ else if(vsm.mipModeLocal==2u){mip=mip|1u;}
+ return max(mip,pd.finestMip);
 }
 /** Marks the receiver cover: one bit of the page's 8x8 cells, atomic OR. */
 fn vsmMarkCover(entryCell:VsmTableCell,mapTexelAt:vec2u){
@@ -442,40 +467,70 @@ fn vsmMarkPage(handle:VsmHandle,mipLevel:u32,shiftedPosition:vec3f,hasMargin:boo
   if(vsmTableCellPack(entryCell3)!=vsmTableCellPack(entryCell)){vsmRequestPage(entryCell3,flags);}
  }
 }
-/** Marks the page of a position in a sun's clipmap. The biased level is raised to the clipmap's
+/** Marks the page of a position in a sun's clipmap, \`extraBias\` levels beyond the map's own bias and
+ *  no level below \`minLevel\`. The biased level is raised to the clipmap's
  *  first: a level below it marks the first anyway, and the first (0 or more) keeps the difference
  *  from overflowing where a point at the clipmap's origin gives a level of -infinity. */
-fn vsmMarkPageDirectional(handle:VsmHandle,shiftedPosition:vec3f,hasMargin:bool,marginOffset:vec2f){
+fn vsmMarkPageDirectional(handle:VsmHandle,shiftedPosition:vec3f,hasMargin:bool,marginOffset:vec2f,extraBias:f32,minLevel:i32){
  let pd=vsmProjectionOf(handle);
- let mapLevel=max(pd.mapLevel,vsmMarkedLevel(pd,shiftedPosition));
+ let mapLevel=max(pd.mapLevel,max(minLevel,vsmMarkedLevel(pd,shiftedPosition,extraBias)));
  let levelIndex=mapLevel-pd.mapLevel;
  if(levelIndex<pd.levelsLeft){
   vsmMarkPage(vsmHandleOffset(pd.handle,levelIndex),0u,shiftedPosition,hasMargin,marginOffset,true);
  }
 }
 /** Marks the page of a position for a local light: radialNotSpot = a point light (radial, not a spot). */
-fn vsmMarkPageLocal(lightShiftedPosition:vec3f,radialNotSpot:bool,handleIn:VsmHandle,shiftedPosition:vec3f,sceneDepth:f32,hasMargin:bool,marginOffset:vec2f){
+fn vsmMarkPageLocal(lightShiftedPosition:vec3f,radialNotSpot:bool,handleIn:VsmHandle,shiftedPosition:vec3f,sceneDepth:f32,hasMargin:bool,marginOffset:vec2f,extraBias:f32){
  var handle=handleIn;
  if(radialNotSpot){
   let toLightSq=lightShiftedPosition-shiftedPosition;
   handle=vsmHandleOffset(handle,i32(vsmCubeFace(-toLightSq)));
  }
- let mipLevel=vsmMarkLocalMipLevel(vsmProjectionOf(handle),shiftedPosition,sceneDepth);
+ let mipLevel=vsmMarkLocalMipLevel(vsmProjectionOf(handle),shiftedPosition,sceneDepth,extraBias);
  vsmMarkPage(handle,mipLevel,shiftedPosition,hasMargin,marginOffset,false);
 }
 `,
 )
 
+/** The binding of the translucent front layer's depth in group 1 of the pass that marks from it. */
+export const VSM_FRONT_DEPTH_BINDING = 9
+
+/** The front layer's depth, the Hi-Z's level 0 with its two layers (`HIZ_FRONT_LAYER`). */
+const FRONT_DEPTH_WGSL = `@group(1) @binding(${VSM_FRONT_DEPTH_BINDING}) var frontDepth:texture_2d_array<f32>;`
+
 /**
- * The page marks from pixels, entry `vsmMarkPagesFromPixels`, 8x8, input
- * type GBuffer. Group 0: `VSM_PIXELS_SPECS`. Group 1: 0 depth, 1 normalRough, 2 surface flags,
- * 3 the engine's deferred `View`, 4 directLights, 5 tileLights, 6 per-light VSM id (i32, -1 none,
- * indexed like `directLights.items`: the light's VSM id), 7 directional VSM ids, 8 `VsmMarkingParams`.
+ * The marks of the translucent surface the image before drew in front of the place a pixel stood
+ * in it: the pixel's position, reprojected by the camera of that image into the layer it drew
+ * (`historySize` its drawn size; a point behind that camera or out of the layer has none), the
+ * layer's depth there (zero for no translucent surface), and the position that depth has at the
+ * pixel's own place now, marked in every sun's clipmap with the page dilation of the pixel's own
+ * marks and no bias.
  */
-export const vsmPixelPageMarkingWgsl = (layout: VsmLayout) =>
-  wgslProgram(
-    `@group(1) @binding(0) var depth:texture_depth_2d;
-@group(1) @binding(1) var normalRough:texture_2d<f32>;
+const FRONT_MARKING_WGSL = `
+fn vsmMarkTranslucent(svPosition:vec2f,shiftedPosition:vec3f,marginSide:vec2f){
+ let previous=vsmMarking.previousViewProjection*vec4f(shiftedPosition,1.0);
+ if(!(previous.w>0.0)){return;}
+ let there=clipToFramebuffer(previous,vsmMarking.historySize).xy;
+ if(any(there<vec2f(0.5))||any(there>vsmMarking.historySize-0.5)){return;}
+ let frontZ=textureLoad(frontDepth,vec2i(there),${HIZ_FRONT_LAYER},0).r;
+ if(!(frontZ>0.0)){return;}
+ let position=(worldAt(svPosition,frontZ)+vsmMarking.originShiftHigh)+vsmMarking.originShiftLow;
+ let hasMargin=vsmMarking.pageDilation.x>0.0;
+ let marginOffset=vsmMarking.pageDilation.x*marginSide;
+ for(var index=0u;index<vsmMarking.sunMapCount;index++){
+  vsmMarkPageDirectional(vsmHandleFromId(vsmDirectionalLightIds[index]),position,hasMargin,marginOffset,0.0,${NO_MIN_LEVEL});
+ }
+}`
+
+/** The pass's call of it, before a pixel that is not lit leaves: it marks the translucent surface
+ *  in front of it all the same. */
+const FRONT_MARKS_CALL = ` vsmMarkTranslucent(svPosition,shiftedPosition,marginSide);
+ if(!lit){return;}
+`
+
+const pixelMarkingHead = (
+  front: boolean,
+) => /* wgsl */ `@group(1) @binding(1) var normalRough:texture_2d<f32>;
 @group(1) @binding(2) var flags:texture_2d<u32>;
 @group(1) @binding(3) var<uniform> view:View;
 @group(1) @binding(4) var<storage,read> directLights:DirectLights;
@@ -483,10 +538,12 @@ export const vsmPixelPageMarkingWgsl = (layout: VsmLayout) =>
 @group(1) @binding(6) var<storage,read> vsmLightIds:array<i32>;
 @group(1) @binding(7) var<storage,read> vsmDirectionalLightIds:array<u32>;
 @group(1) @binding(8) var<uniform> vsmMarking:VsmMarkingParams;
+${front ? FRONT_DEPTH_WGSL : ''}
 /** The engine's light \`light\`'s position, translated, as the loop reads it. */
 fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  return (light.positionRange.xyz+vsmMarking.originShiftHigh)+vsmMarking.originShiftLow;
 }
+${front ? FRONT_MARKING_WGSL : ''}
 @compute @workgroup_size(${VSM_MARK_PIXELS_GROUP_XY},${VSM_MARK_PIXELS_GROUP_XY}) fn vsmMarkPagesFromPixels(
  @builtin(local_invocation_index) groupIndex:u32,
  @builtin(local_invocation_id) lane:vec3u,
@@ -494,9 +551,9 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  @builtin(num_workgroups) n:vec3u){
  // A group a tile of the strided view, row after row of \`tilesX\`: its rank read back as the tile.
  let side=${VSM_MARK_PIXELS_GROUP_XY}u;
- let tilesX=ceilDiv(ceilDiv(vsmMarking.viewSize.x,VSM_MARK_STRIDE.x),side);
+ let tilesX=ceilDiv(ceilDiv(vsmMarking.viewSize.x,vsmMarking.markStride.x),side);
  let tile=flatIndex(group,n,1u);
- let stridedPixel=(vec2u(tile%tilesX,tile/tilesX)*side+lane.xy)*VSM_MARK_STRIDE;
+ let stridedPixel=(vec2u(tile%tilesX,tile/tilesX)*side+lane.xy)*vsmMarking.markStride;
  let pixelPos=vsmMarking.viewRectMin+stridedPixel;
  if(any(pixelPos>=vsmMarking.viewRectMin+vsmMarking.viewSize)){return;}
  let coord=vec2i(pixelPos);
@@ -504,42 +561,63 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  // skipped before their depth and normal are read; backface culling is off for subsurface surfaces.
  let surfaceFlags=textureLoad(flags,coord,0).r;
  let surfaceModel=surfaceFlags&${SURFACE_MODEL_MASK}u;
- if(surfaceModel<=1u||surfaceModel==${AS_IS_FLAG}u){return;}
+ ${
+   front
+     ? `let lit=surfaceModel>1u&&surfaceModel!=${AS_IS_FLAG}u;`
+     : `if(surfaceModel<=1u||surfaceModel==${AS_IS_FLAG}u){return;}`
+ }
  let deviceZ=textureLoad(depth,coord,0);
- let worldNormal=normalize(textureLoad(normalRough,coord,0).xyz);
- let backfaceCull=(surfaceFlags&${SUBSURFACE_FLAG}u)==0u;
  // Position: the fragment position = pixel + 0.5, shifted from the view's own reconstruction.
- let sceneDepth=vsmViewDepthOfDeviceZ(deviceZ,vsmMarking.depthFromDeviceZ);
  let svPosition=vec2f(pixelPos)+0.5;
  let world=worldAt(svPosition,deviceZ);
  let shiftedPosition=(world+vsmMarking.originShiftHigh)+vsmMarking.originShiftLow;
  // Dither pattern for page dilation: one diagonal, by the group index.
- let marginSide=vec2f(select(-1.0,1.0,(groupIndex&1u)!=0u),select(-1.0,1.0,(groupIndex&2u)!=0u));
+ let marginSide=vec2f(select(-1.0,1.0,(groupIndex&1u)!=0u),select(-1.0,1.0,(groupIndex&2u)!=0u));`
+
+const pixelMarkingDirectional = (front: boolean) => /* wgsl */ `
+${front ? FRONT_MARKS_CALL : ''} let worldNormal=normalize(textureLoad(normalRough,coord,0).xyz);
+ let backfaceCull=!vsmSubsurfaceModel(surfaceFlags)&&vsmMarking.cullBackfacing!=0u;
+ let sceneDepth=vsmViewDepthOfDeviceZ(deviceZ,vsmMarking.depthFromDeviceZ);
+ // Where the depth of field blurs the image the maps are asked at a lower resolution.
+ let localExtraBias=vsmDofResolutionBias(sceneDepth);
+ // The pixels of first-person objects are not self-shadowing and very near the camera: their request is
+ // coarser, and never finer than a level (\`shadowFirstPersonPixelRequestBias\`,
+ // \`shadowFirstPersonRequestMinLevelClamp\`). They still receive the environment's shadow.
+ let firstPersonPixel=isFirstPerson(surfaceFlags);
+ let marksFirstPerson=vsmMarking.firstPersonBias>=0.0;
+ let primaryExtraBias=localExtraBias+select(0.0,vsmMarking.firstPersonBias,firstPersonPixel);
+ let primaryMinLevel=select(${NO_MIN_LEVEL},vsmMarking.firstPersonLevelClamp,firstPersonPixel);
  // Directional lights.
  {
-  let hasMargin=VSM_MARK_MARGIN>0.0;
-  let marginOffset=VSM_MARK_MARGIN*marginSide;
+  let hasMargin=vsmMarking.pageDilation.x>0.0;
+  let marginOffset=vsmMarking.pageDilation.x*marginSide;
   for(var index=0u;index<vsmMarking.sunMapCount;index++){
    let handle=vsmHandleFromId(vsmDirectionalLightIds[index]);
    let pd=vsmProjectionOf(handle);
    var facesSun=true;
    if(backfaceCull&&vsmFacesAwayFromSun(worldNormal,pd.lightDirection,pd.emitterSize)){facesSun=false;}
-   if(facesSun){vsmMarkPageDirectional(handle,shiftedPosition,hasMargin,marginOffset);}
+   // A first-person pixel is not shadowed by a first-person clipmap, and asks none when its bias is negative.
+   if(firstPersonPixel&&(pd.firstPerson||!marksFirstPerson)){facesSun=false;}
+   if(facesSun){vsmMarkPageDirectional(handle,shiftedPosition,hasMargin,marginOffset,primaryExtraBias,primaryMinLevel);}
   }
- }
- // Local lights, over the engine's light grid cell: lights without a VSM and directional lights
- // are skipped in the walk.
- {
-  let hasMargin=VSM_MARK_MARGIN>0.0;
-  let marginOffset=VSM_MARK_MARGIN*marginSide;
+ }`
+
+const pixelMarkingLocal = () => /* wgsl */ `
+ // Local lights, over the shadowed lights of the engine's light grid cell (the pruned grid): the pixels
+ // of first-person objects where their bias is negative walk none.
+ if(!firstPersonPixel||marksFirstPerson){
+  let hasMargin=vsmMarking.pageDilation.y>0.0;
+  let marginOffset=vsmMarking.pageDilation.y*marginSide;
   let localPosition=pixelPos-vsmMarking.viewRectMin;
-  // The lighting's one rule of a missing list (\`cellSlice\`): every light, as the resolve walks.
+  // The pruned list of the cell (\`vsmPruneLightGrid\`, read as the engine's): the shadowed lights, those with a map of one page last; a pixel without a grid walks every light.
   let slice=cellSlice(pixelCell(vec2f(localPosition)+0.5,deviceZ));
   for(var index=0u;index<slice.y;index++){
    let lightIndex=listedLight(slice,index);
+   let light=directLights.items[lightIndex];
+   // A distant light's page is marked by the coarse marking: those come last and end the walk.
+   if(shadowSliceDistant(i32(light.params.y))){if(slice.x==TILE_NO_SLICE){continue;}break;}
    let handle=vsmHandleFromId(bitcast<u32>(vsmLightIds[lightIndex]));
    if(!vsmHandleIsValid(handle)){continue;}
-   let light=directLights.items[lightIndex];
    if(isSun(light)){continue;}
    let lightShiftedPosition=vsmLightShiftedPosition(light);
    let d=lightShiftedPosition-shiftedPosition;
@@ -548,25 +626,49 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
    // The source radius: a point/spot's emitter radius, a rect's half width.
    let sourceRadius=select(light.shape.x,length(light.shape.xyz),rect);
    if(backfaceCull&&vsmFacesAwayFromLocal(d,worldNormal,sourceRadius)){continue;}
-   vsmMarkPageLocal(lightShiftedPosition,!isSpot(light),handle,shiftedPosition,sceneDepth,hasMargin,marginOffset);
+   vsmMarkPageLocal(lightShiftedPosition,!isSpot(light),handle,shiftedPosition,sceneDepth,hasMargin,marginOffset,localExtraBias);
   }
  }
-}
+}`
+
+/**
+ * The page marks from pixels, entry `vsmMarkPagesFromPixels`, 8x8, input
+ * type GBuffer. Group 0: `VSM_PIXELS_SPECS`. Group 1: 0 depth, 1 normalRough, 2 surface flags,
+ * 3 the engine's deferred `View`, 4 directLights, 5 tileLights (the light grid pruned to the shadowed lights, `vsmPruneLightGrid`), 6 per-light VSM id (i32, -1 none,
+ * indexed like `directLights.items`: the light's VSM id), 7 directional VSM ids, 8 `VsmMarkingParams`.
+ *
+ * `front`, the project switch `shadowTranslucentQuality` above 0 with the front layer of the image
+ * before in hand: the pass also marks, in every sun's clipmap, the page of the nearest translucent
+ * surface that image drew over the place this pixel stood in it. Binding 9 is that layer's depth,
+ * the Hi-Z's level 0 (`VSM_FRONT_DEPTH_BINDING`, layer `HIZ_FRONT_LAYER`, zero for none); the pixel
+ * is reprojected by `previousViewProjection` to the layer's `historySize`, and the layer's depth
+ * there is read at the pixel's own place in this image, as the temporal history is. A pixel that
+ * is not lit marks that surface alone. Without `front` the program has neither the binding nor the
+ * code.
+ */
+export const vsmPixelPageMarkingWgsl = (layout: VsmLayout, front = false) =>
+  wgslProgram(
+    `@group(1) @binding(0) var depth:texture_depth_2d;
+${pixelMarkingHead(front)}${pixelMarkingDirectional(front)}${pixelMarkingLocal()}
 `,
     [
       VSM_HANDLE_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       VSM_MARKING_PARAMS_WGSL,
       VIEW_WGSL,
+      isFirstPerson,
       vsmBindingsWgsl(0, VSM_PIXELS_SPECS, layout),
       DIRECT_LIGHT_WGSL,
       localLightReaches,
+      vsmSubsurfaceModel,
       TILE_SLICE_WGSL,
       pixelCellWgsl(),
+      SHADOW_SLICE_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
       VSM_PAGE_MARKING_WGSL,
       WORLD_AT_WGSL,
       FLAT_INDEX_WGSL,
       ceilDivWgsl,
+      ...(front ? [clipToFramebuffer] : []),
     ],
   )

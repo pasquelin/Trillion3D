@@ -18,6 +18,7 @@
  *   its main cell's row alone (`placed.ts`).
  */
 import { readPreparedSourceRank } from './sourceRanks.ts'
+import { EngineError } from '../../../../../sdk-core/src/contracts/cache.ts'
 import type { PreparedSceneTables } from '../../../../../sdk-core/src/scene/core/tableContracts.ts'
 import { camera, pose, uniqueNames, weigh } from './nodes.ts'
 import { buildMeshes, type MeshInputs } from './meshes.ts'
@@ -41,9 +42,11 @@ type Inputs = MeshInputs & {
   banks?: AnimationBanks | null
 }
 
-/** The prepared scene as a host graph, the ranks each drawn host mesh answers to, the placed
- *  meshes the cells draw by rows, and the meshes each streamed node draws, by primitive — what a
- *  row its cell draws from that node reads (`CellNode.source`). */
+/** The prepared scene as a host graph, the ranks each drawn host mesh answers to, its host nodes
+ *  by table rank (`nodes`, what a cell's node hangs under) and by source rank (`sourced`, what the
+ *  physics names) with the source ranks of those a cell draws (`streams`), the placed meshes the
+ *  cells draw by rows, and the meshes each streamed node draws, by primitive — what a row its cell
+ *  draws from that node reads (`CellNode.source`). */
 export async function preparedGraph(inputs: Inputs) {
   const { tables, banks } = inputs
   const unique = uniqueNames()
@@ -53,7 +56,7 @@ export async function preparedGraph(inputs: Inputs) {
   const reference = referencer(tables, unique, ranks)
   const names = reserveNames(tables, unique)
   const { made, built } = await buildMeshes(inputs, names.order, unique, ranks)
-  const { nodes, assemble } = assembler(tables, names, built, reference)
+  const { nodes, sourced, streams, assemble } = assembler(tables, names, built, reference)
   for (const root of tables.scene.nodes) scene.add(assemble(root))
   bindSkins(tables, nodes)
   const clips = clipsOf(tables, nodes)
@@ -64,7 +67,7 @@ export async function preparedGraph(inputs: Inputs) {
   // After the copies the cells place are made: a copy of a banked node's mesh plays its row's
   // track, never that node's.
   bindBanks(tables, nodes, banks)
-  return { scene, ranks, nodes, placed, streamed, clips }
+  return { scene, ranks, nodes, sourced, streams, placed, streamed, clips }
 }
 
 type Unique = ReturnType<typeof uniqueNames>
@@ -132,8 +135,35 @@ function reserveNames(tables: PreparedSceneTables, unique: Unique) {
   return { cameras, nodeNames, order }
 }
 
+/** What a node declares of the parts its mesh draws, held on each. */
+function markDrawn(mesh: Object3D, declared: PreparedSceneTables['nodes'][number]) {
+  // Weights a node declares override its mesh's, on every primitive it draws.
+  if (declared.weights) mesh.traverse((part) => isDrawnNode(part) && weigh(part, declared.weights))
+  // The distances it names are every drawn part's.
+  const { drawDistance } = declared
+  if (drawDistance)
+    mesh.traverse((part) => isDrawnNode(part) && holdDrawDistance(part, drawDistance))
+  // An instance of an assembly: the group above each primitive's root, which the part picks by
+  // its primitive's rank (`DrawSource.rootParent`).
+  const { rootParents } = declared
+  if (rootParents) mesh.traverse((part) => isDrawnNode(part) && holdRootParents(part, rootParents))
+  // Drawn by a view's primed depth, as its drawn parts say (`Object3D.farField`).
+  if (declared.farField) mesh.traverse((part) => isDrawnNode(part) && (part.farField = true))
+  // Casts far shadows, which a sun's far-shadow test keeps in its maps (`Object3D.castFarShadow`).
+  if (declared.castFarShadow)
+    mesh.traverse((part) => isDrawnNode(part) && (part.castFarShadow = true))
+  // Reached by a sun's far-shadow test, or never, as the job says (`Object3D.farShadowTest`).
+  if (declared.farShadowTest !== undefined) {
+    const test = declared.farShadowTest
+    mesh.traverse((part) => isDrawnNode(part) && (part.farShadowTest = test))
+  }
+}
+
 /** Builds a node and its subtree as the host loader did; `nodes` holds the host node of each
- *  rank, which a cell's node may hang under. */
+ *  rank, which a cell's node may hang under, `sourced` the same by its declared source rank — a
+ *  partition renumbers the table, and a node a cell places in its stead has none —, and `streams`
+ *  the source ranks of the core nodes whose mesh a cell draws: the animated ones
+ *  (`TableNode.streamed`) and the frames of static objects (`TableNode.meshStreams`). */
 function assembler(
   tables: PreparedSceneTables,
   { cameras, nodeNames }: ReturnType<typeof reserveNames>,
@@ -141,25 +171,14 @@ function assembler(
   reference: ReturnType<typeof referencer>,
 ) {
   const nodes: Object3D[] = []
+  const sourced: Object3D[] = []
+  const streams = new Set<number>()
   const assemble = (id: number): Object3D => {
     const declared = tables.nodes[id]
     const carried: Object3D[] = []
     if (declared.mesh !== null) {
       const mesh = reference('mesh', declared.mesh, built.get(declared.mesh)!)
-      // Weights a node declares override its mesh's, on every primitive it draws.
-      if (declared.weights)
-        mesh.traverse((part) => isDrawnNode(part) && weigh(part, declared.weights))
-      // The distances it names are every drawn part's.
-      const { drawDistance } = declared
-      if (drawDistance)
-        mesh.traverse((part) => isDrawnNode(part) && holdDrawDistance(part, drawDistance))
-      // An instance of an assembly: the group above each primitive's root, which the part picks by
-      // its primitive's rank (`DrawSource.rootParent`).
-      const { rootParents } = declared
-      if (rootParents)
-        mesh.traverse((part) => isDrawnNode(part) && holdRootParents(part, rootParents))
-      // Drawn by a view's primed depth, as its drawn parts say (`Object3D.farField`).
-      if (declared.farField) mesh.traverse((part) => isDrawnNode(part) && (part.farField = true))
+      markDrawn(mesh, declared)
       carried.push(mesh)
     }
     if (declared.camera !== null)
@@ -176,10 +195,14 @@ function assembler(
     // Hidden, it is parked as any hidden node (`placement/hidden.ts`); its subtree with it.
     node.visible = declared.visible
     nodes[id] = node
-    // Its declared source rank is checked: a malformed one refuses the tables.
-    readPreparedSourceRank(declared.sourceNode, id)
+    // A malformed source rank refuses the tables, as does one two nodes name.
+    const source = readPreparedSourceRank(declared.sourceNode, id, !!tables.partition)
+    if (sourced[source])
+      throw new EngineError('INVALID_SCENE_TABLES', 'two nodes name one sourceNode', { source })
+    sourced[source] = node
+    if (declared.streamed || declared.meshStreams) streams.add(source)
     for (const child of declared.children) node.add(assemble(child))
     return node
   }
-  return { nodes, assemble }
+  return { nodes, sourced, streams, assemble }
 }

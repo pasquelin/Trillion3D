@@ -1,6 +1,7 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { MOTION_BLUR_PASS } from '../../../diagnostic/stage/passLabels.ts'
-import { resetList } from '../../../gpu/dispatch/list.ts'
+import { heldColour } from '../../../gpu/core/heldAttachment.ts'
+import { resetListIn } from '../../../gpu/dispatch/list.ts'
 import { SCATTER_QUADS, SCATTER_VERTICES } from './dilateWgsl.ts'
 import { FILTER_TILE, FLATTEN_TILE, filterTiles, flattenTiles } from './motionBlurLayout.ts'
 import type { MotionBlurPrograms } from './motionBlurPrograms.ts'
@@ -26,7 +27,8 @@ export type MotionBlurGroups = {
 
 /** What one blur encodes from: the programs and targets, the pipelines of its compute passes (`kit`,
  *  the blur's directions and spread), its groups and its lists of filter tiles, the image's size, the
- *  grid the motion was measured on, and whether the spread is drawn. */
+ *  grid the motion was measured on, whether the spread is drawn and whether the motion is flattened
+ *  already. */
 type MotionBlurDraw = {
   programs: MotionBlurPrograms
   kit: Kit
@@ -36,6 +38,11 @@ type MotionBlurDraw = {
   image: readonly number[]
   grid: readonly number[]
   drawn: boolean
+  /** Whether the temporal pass's nearest velocity flattened the motion already (`FusedFlatten`). */
+  flattened: boolean
+  /** The translucency drawn after the blur, the filter's second group: the layers of the image, or
+   *  none (`noLayers`) where the pass lays none. */
+  layers: GPUBindGroup
 }
 
 /** The motion flattened to its tiles, one dispatch. */
@@ -56,24 +63,27 @@ function gather(pass: GPUComputePassEncoder, { kit, grid }: MotionBlurDraw, grou
   )
 }
 
+const scatterTarget = heldColour({ loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] })
+const scatterDepth = {
+  depthLoadOp: 'clear',
+  depthStoreOp: 'discard',
+  depthClearValue: 1,
+} as GPURenderPassDepthStencilAttachment
+const SCATTER: GPURenderPassDescriptor = {
+  label: MOTION_BLUR_PASS,
+  colorAttachments: [scatterTarget],
+  depthStencilAttachment: scatterDepth,
+}
+
 /** The same spread by drawing: two draws of a quad a tile in one pass over the tile image, the
  *  first keeping the shorter smallest motion, the second the longer largest. */
 function scatter(encoder: GPUCommandEncoder, { programs, targets, groups, grid }: MotionBlurDraw) {
   const { tilesB, depth } = targets.held
   const across = flattenTiles(grid[0]),
     down = flattenTiles(grid[1])
-  const pass = encoder.beginRenderPass({
-    label: MOTION_BLUR_PASS,
-    colorAttachments: [
-      { view: tilesB.view, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
-    ],
-    depthStencilAttachment: {
-      view: depth.view,
-      depthLoadOp: 'clear',
-      depthStoreOp: 'discard',
-      depthClearValue: 1,
-    },
-  })
+  scatterTarget.view = tilesB.view
+  scatterDepth.view = depth.view
+  const pass = encoder.beginRenderPass(SCATTER)
   pass.setViewport(0, 0, across, down, 0, 1)
   pass.setScissorRect(0, 0, across, down)
   pass.setBindGroup(0, groups.scatter)
@@ -99,9 +109,10 @@ function classify(pass: GPUComputePassEncoder, draw: MotionBlurDraw) {
 /** The image filtered, a dispatch for each class of tile over its list, through `groups`. */
 function filter(
   pass: GPUComputePassEncoder,
-  { kit, lists }: MotionBlurDraw,
+  { kit, lists, layers }: MotionBlurDraw,
   groups: readonly GPUBindGroup[],
 ) {
+  pass.setBindGroup(1, layers)
   for (let at = 0; at < kit.filters.length; at++) {
     pass.setPipeline(kit.filters[at])
     pass.setBindGroup(0, groups[at])
@@ -109,8 +120,11 @@ function filter(
   }
 }
 
+const PASS: GPUComputePassDescriptor = { label: MOTION_BLUR_PASS }
+
 /**
- * Encodes the blur of one image, its lists emptied first: the motion flattened to its tiles, those
+ * Encodes the blur of one image, its lists emptied first: the motion flattened to its tiles — left
+ * to the temporal pass's nearest velocity where it did (`flattened`), which wrote it already —, those
  * spread over the tiles they cross — by reading the neighbours in the same compute pass, or by
  * drawing between two —, the filter tiles classified into the lists of their classes, the filter
  * of each class over its list, and, for a separable blur, a second pass of it reading the first's
@@ -121,15 +135,14 @@ export function encodeMotionBlur(
   encoder: GPUCommandEncoder,
   draw: MotionBlurDraw,
 ) {
-  const descriptor = { label: MOTION_BLUR_PASS }
-  for (const list of draw.lists) resetList(device, list)
-  let pass = encoder.beginComputePass(descriptor)
-  flatten(pass, draw)
+  for (const list of draw.lists) resetListIn(device, encoder, list)
+  let pass = encoder.beginComputePass(PASS)
+  if (!draw.flattened) flatten(pass, draw)
   let passes = 1
   if (draw.drawn) {
     pass.end()
     scatter(encoder, draw)
-    pass = encoder.beginComputePass(descriptor)
+    pass = encoder.beginComputePass(PASS)
     passes += 2
     if (draw.groups.gatherDrawn) gather(pass, draw, draw.groups.gatherDrawn)
   } else gather(pass, draw, draw.groups.gather)

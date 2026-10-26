@@ -41,6 +41,8 @@ function worldRecord(page: WorldPage, rank: number, surface: PageSurface, order:
         url: page.url,
         sha256: '',
         bytes: facts.bytes,
+        residentBytes: facts.residentBytes,
+        residentOffset: facts.residentOffset,
         vertexCount: facts.vertexCount,
         indexCount: facts.indexCount,
         flags: facts.flags,

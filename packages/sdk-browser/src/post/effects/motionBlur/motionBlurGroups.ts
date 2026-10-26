@@ -118,14 +118,16 @@ function twoDirectionGroups(c: Context) {
   }
 }
 
-/** The groups of one filter pass, from the image `color` into `blurred`: one a class, each naming
- *  the `nth` blur's list of the tiles of its class; the class of two motions too, with two
- *  directions, which also names the image of the tiles' second largest motions. */
+/** The groups of one filter pass, from the image `color` into `blurred` and, where its uniform says,
+ *  the half-size image `half`: one a class, each naming the `nth` blur's list of the tiles of its
+ *  class; the class of two motions too, with two directions, which also names the image of the
+ *  tiles' second largest motions. */
 function filterGroups(
   c: Context,
   binding: GPUBufferBinding,
   color: GPUTextureView,
   blurred: GPUTextureView,
+  half: GPUTextureView,
 ) {
   const { flat, tilesB, secondsB } = c.targets.held
   const lists = c.targets.lists(c.nth)
@@ -139,6 +141,7 @@ function filterGroups(
       tiles: tilesB.view,
       list: whole(lists[at]),
       blurred,
+      half,
     }
     return at < TILE_CLASSES.length
       ? group(c, layouts.filter, FILTER_BINDINGS, own)
@@ -147,8 +150,8 @@ function filterGroups(
 }
 
 /** The groups the passes of the `nth` blur of the chain are bound with, over the image `input`, the
- *  blurred image `output` and, for two passes, the one `between` (`MotionBlurTargets`), for the
- *  programs of `variant`. */
+ *  blurred image `output` with its half-size image `half`, written by the last pass and, for two
+ *  passes, the one `between` (`MotionBlurTargets`), for the programs of `variant`. */
 export function bindGroups(
   device: GPUDevice,
   programs: MotionBlurPrograms,
@@ -157,9 +160,14 @@ export function bindGroups(
   nth: number,
   uniforms: readonly Uniform[],
   frame: ResolveFrame,
-  images: { input: GPUTextureView; output: GPUTextureView; between?: GPUTextureView },
+  images: {
+    input: GPUTextureView
+    output: GPUTextureView
+    half: GPUTextureView
+    between?: GPUTextureView
+  },
 ): MotionBlurGroups {
-  const { input, output, between } = images
+  const { input, output, half, between } = images
   const params = whole(uniforms[0].buffer)
   const c: Context = { device, programs, vp: variant, targets, nth, params, frame }
   const { tilesA } = targets.held
@@ -167,7 +175,7 @@ export function bindGroups(
   return {
     ...before,
     scatter: group(c, programs.scatterLayout, SCATTER_BINDINGS, { params, tiles: tilesA.view }),
-    filter: filterGroups(c, params, input, between ?? output),
-    second: between && filterGroups(c, whole(uniforms[1].buffer), between, output),
+    filter: filterGroups(c, params, input, between ?? output, half),
+    second: between && filterGroups(c, whole(uniforms[1].buffer), between, output, half),
   }
 }

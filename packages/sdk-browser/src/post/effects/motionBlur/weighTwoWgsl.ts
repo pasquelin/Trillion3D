@@ -1,12 +1,13 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { PI, TWO_PI } from '../../../../../math/src/wgsl/constants.ts'
+import { safeRcp } from '../../../../../math/src/wgsl/reals.ts'
 import { interleavedGradientNoise } from '../../../../../math/src/wgsl/sampling.ts'
 import { LEAST_STREAK_PIXELS } from './classifyWgsl.ts'
 import {
   DEPTH_SOFT_EXTENT_CM,
   FILTER_BINDINGS,
-  FILTER_STORE,
+  filterStore,
   filterHead,
   filterInputs,
   headDeclarations,
@@ -18,7 +19,7 @@ import { MOTION_BLUR_PARAMS_WGSL, POLAR_TWO_WGSL, POLAR_WGSL } from './motionBlu
 
 /** The filter's bindings with two directions: those of one, and the image of the second largest
  *  motions of the tiles beside the ranges'. */
-export const FILTER_TWO_BINDINGS = { ...FILTER_BINDINGS, tilesSecond: 7 } as const
+export const FILTER_TWO_BINDINGS = { ...FILTER_BINDINGS, tilesSecond: 8 } as const
 
 /** What the weighing of two motions reads of the tiles' second largest motion, beside the filter's
  *  own inputs. */
@@ -69,10 +70,10 @@ fn sharedWeight(centre:vec3f,other:vec3f,offset:f32,blurAngle:f32,scale:f32)->f3
  return saturate(0.5+apart)*tapWeight(centre,offset,blurAngle,scale)+saturate(0.5-apart)*tapWeight(other,offset,blurAngle,scale);
 }
 fn normalized(accumulator:vec4f,weight:f32)->vec4f{
- return max(accumulator*select(0.0,1.0/weight,weight>0.0),vec4f(0.0));
+ return max(accumulator*safeRcp(weight),vec4f(0.0));
 }
 fn normalizedOne(accumulator:f32,weight:f32)->f32{
- return max(accumulator*select(0.0,1.0/weight,weight>0.0),0.0);
+ return max(accumulator*safeRcp(weight),0.0);
 }
 fn walkLeg(uv:vec2f,centre:vec3f,search:vec2f,blurAngle:f32,scale:f32,mip:f32,first:u32,steps:u32,noise:f32,spread:f32,holeOpen:bool)->Leg{
  let low=mb.color.zw*0.5;
@@ -155,7 +156,7 @@ fn weighStreakTwo(uv:vec2f,largest:vec2f,second:vec2f,noise:f32,count:u32,mips:v
 const twoStreak = once((flat) =>
   wgslBlock(
     `TWO_STREAK_WGSL(${flat})`,
-    [secondInput(flat), streakWgsl(flat), POLAR_WGSL, POLAR_TWO_WGSL, PI, TWO_PI],
+    [secondInput(flat), streakWgsl(flat), POLAR_WGSL, POLAR_TWO_WGSL, PI, TWO_PI, safeRcp],
     TWO_STREAK_TEXT,
   ),
 )
@@ -189,7 +190,7 @@ const TWO_MOTIONS = ` let second=select(vec2f(0.0),textureLoad(secondsTexture,ti
  * motion alone, as the other classes do, its samples read at the levels the two motions ask.
  */
 export const filterTwoShader = ({ flat = 'packed', subgroups = false }: FilterShape = {}) =>
-  wgslProgram(`${filterHead('filterTwoTiles', subgroups)}${TWO_MOTIONS}${FILTER_STORE}`, [
+  wgslProgram(`${filterHead('filterTwoTiles', subgroups)}${TWO_MOTIONS}${filterStore(subgroups)}`, [
     MOTION_BLUR_PARAMS_WGSL,
     twoStreak(flat),
     interleavedGradientNoise,

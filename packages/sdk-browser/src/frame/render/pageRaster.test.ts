@@ -1,7 +1,6 @@
 import test from 'node:test'
 import { MANIFEST_IDENTITY } from '../../session/engine/pagesEngine.fixture.ts'
 import assert from 'node:assert/strict'
-import { isDrawnNode } from '../../scene/host/graph/kinds.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import {
   drawnPageIds,
@@ -30,10 +29,10 @@ import { rasterOf } from '../../visibility/raster/rasterFrame.fixture.ts'
 import { OCCLUSION_NONE, PASS_DISPATCH_WORDS } from '../../visibility/tessellation/contract.ts'
 import { DISPLACEMENT_WORDS } from '../../materials/table/displacementRecord.ts'
 
-test('webgpu pages raster consumes the GPU cache and does not attach a mesh per visible page', async () => {
+test('webgpu pages raster consumes the GPU cache', async () => {
   installGpuGlobals()
   const { source, metadata, indices, associations, geometry, material } = quadScene()
-  const { draws, writes, dispatches, buffers, packed, backend } = await flushedGpuScene({
+  const { draws, writes, dispatches, buffers, backend } = await flushedGpuScene({
     source,
     metadata,
     indices,
@@ -42,36 +41,31 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
   draws.length = 0
   dispatches.length = 0
   backend.render(camera())
-  let pageMeshes = 0
-  backend.scene.traverse((o) => {
-    if (isDrawnNode(o)) pageMeshes++
-  })
-  assert.equal(pageMeshes, 0)
   assert.equal(backend.metrics().clusters, 2)
   assert.equal(backend.metrics().selectedTriangles, 2)
   assert.equal(backend.metrics().residentPages, 2)
   assert.ok(writes.length >= 2)
-  // The scene has one prepared material class: what the frame composes once for the resolve (the
-  // material cache), the bins of the image, then one dispatch of its bin, and no surface draw.
+  // The scene has one prepared material class: the bins of the image, then one dispatch of its bin,
+  // and no surface draw.
   assert.deepEqual(
     dispatchedEntries(dispatches).filter((entry) => /Bins$|^shade_/.test(entry)),
-    [
-      ...['shade_clear', 'shade_marks', 'shade_rows', 'shade_tris'],
-      ...['clearBins', 'countBins', 'reserveBins', 'scatterBins', 'shade_cs'],
-    ],
+    ['clearBins', 'countBins', 'reserveBins', 'scatterBins', 'shade_cs'],
   )
   assert.ok(!draws.some((d) => d.entryPoint?.startsWith('shade_')))
-  // The cut reaches the hardware raster through the image mask, which its indirect commands consume
-  // as instances — each row twice: drawn by the main pass, then by the identifiers pass over
-  // everything drawn (`encodeWebgpuVisibilityPasses`) —, and the software raster through the
-  // cluster split, which bins each image's rows before either compaction reads them.
-  assert.deepEqual(drawnPageIds(buffers, packed), [0, 1])
+  // The cut reaches the hardware raster through its list of visible clusters, which the decode and
+  // the bins turn to the indirect commands' instances — each cluster once, drawn by the main pass
+  // (`encodeWebgpuVisibilityPasses`) —, and the software raster through the lists the bins write.
+  assert.deepEqual(drawnPageIds(buffers), [0, 1])
   const vis = indirectDraws(draws)
   assert.equal(
     vis.reduce((n, d) => n + (d.instanceCount ?? 0), 0),
-    2 * 2,
+    2,
   )
-  assert.equal(dispatchedEntries(dispatches).includes('bin'), true)
+  assert.ok(
+    ['decodePlan', 'decode', 'binFinalize'].every((entry) =>
+      dispatchedEntries(dispatches).includes(entry),
+    ),
+  )
   backend.dispose()
   geometry.dispose()
   material.dispose()
@@ -90,7 +84,7 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
     both,
   } = mixedBinScene()
   const metadata: ClusterManifest = { ...metadataPartial, ...MANIFEST_IDENTITY }
-  const { draws, dispatches, buffers, packed, backend } = await flushedGpuScene({
+  const { draws, dispatches, buffers, backend } = await flushedGpuScene({
     source,
     metadata,
     indices,
@@ -100,16 +94,16 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
   dispatches.length = 0
   backend.render(camera())
   // The two bins — front-only and double-sided — hold two indirect commands on a shared page
-  // table, and read the SAME image mask.
-  assert.deepEqual(drawnPageIds(buffers, packed), [0, 1])
-  // The cluster split bins the rows of every image, whichever raster draws them.
-  assert.equal(dispatchedEntries(dispatches).includes('bin'), true)
+  // table, and read the SAME list of visible clusters.
+  assert.deepEqual(drawnPageIds(buffers), [0, 1])
+  // The bins list the clusters of every image, whichever raster draws them.
+  assert.equal(dispatchedEntries(dispatches).includes('binFinalize'), true)
   const vis = indirectDraws(draws)
   assert.ok(vis.length >= 2)
   assert.equal(
     vis.reduce((n, draw) => n + (draw.instanceCount ?? 0), 0),
-    2 * 2,
-    'each row drawn by the main pass, then by the identifiers pass',
+    2,
+    'each row drawn once, by the main pass',
   )
   assert.deepEqual([...new Set(vis.map((draw) => draw.bindOffset ?? 0))], [0])
   assert.ok(vis.every((draw) => draw.instanceBuffer && draw.groupsBuffer))
@@ -145,7 +139,7 @@ test('the uniform carries the view’s pixels per unit over the threshold, the p
     at = TESS_UNIFORM.at
   const settings = { tessellationDicingRate: 2, tessellationMaxPatchesPerGroup: 5 }
   const capacity = { candidate: 700, visible: 300, records: 192 }
-  const regions = { args: 11, queue: 22, visible: 33, dispatch: 8, disp: 44 }
+  const regions = { args: 11, queue: 22, visible: 33, dispatch: 8, disp: 44, list: 55 }
   const sight = {
     mode: 1,
     prevViewProj: Array.from({ length: 16 }, (_, i) => i + 1),
@@ -227,7 +221,9 @@ test('the buffer lays the table, the records, the chains’ state, the queue and
   assert.equal(layout.words, 1280 + 64 * 4 + 2 * 32 * 4)
   // The records have room for their words, a power of two, sixteen at least.
   assert.equal(recordRoom(0), 16 * DISPLACEMENT_WORDS)
-  assert.equal(recordRoom(16 * DISPLACEMENT_WORDS + 1), 2 * 16 * DISPLACEMENT_WORDS)
+  // Past them the next power of two.
+  const past = 16 * DISPLACEMENT_WORDS + 1
+  assert.equal(recordRoom(past), 2 ** Math.ceil(Math.log2(past)))
   // What fits is kept; what does not is brought down in proportion, to a buffer that fits.
   const asked = { candidate: 2 * 1048576, visible: 2 * 1048576, records: 192 }
   assert.deepEqual(fitCapacity(134217728, 44000, asked), asked)

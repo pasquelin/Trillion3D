@@ -57,7 +57,7 @@ test('the helper marks are passed by unless asked, and the objects are handed on
   assert.deepEqual(asked[1].filter, { objects: [picked], skip: [] })
 })
 
-test('a line is hit within one world unit by default, as three.js hits it, or as asked', () => {
+test('a line is hit within one world unit by default, or as asked', () => {
   const { raycast, asked } = recordedRaycast()
   raycast({ x: 200, y: 200 })
   raycast({ x: 200, y: 200 }, { lineThreshold: 0.25 })

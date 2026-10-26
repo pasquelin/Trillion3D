@@ -71,11 +71,11 @@ export function pagedBlendCopiesOf(
         placement,
       )
       // The compiler writes a geometry page for every cluster of a primitive, or for none.
-      copy.userData.pageFlags = rec.geometryPage?.flags
+      copy.pageFlags = rec.geometryPage?.flags
       // The box its pages lie in at rest: the frustum and the water rectangle read it in place of
       // the source geometry's, which no coarse or quantized page keeps to. A deforming root's pages
       // leave it.
-      if (!root.deformation) copy.userData.localBox = root.localBox
+      if (!root.deformation) copy.localBox = root.localBox
       copies.push(copy)
       if (!root.mixed) break
     }

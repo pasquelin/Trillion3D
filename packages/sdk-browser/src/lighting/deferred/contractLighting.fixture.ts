@@ -14,6 +14,8 @@ export function gpuHarness() {
     surface = {
       views: () => surfaceViews,
       stores: () => [surfaceViews[0], surfaceViews[3]],
+      subsurfaceView: view(),
+      lobesView: view(),
     } as unknown as SurfaceBuffer
   return {
     ...gpu,
@@ -22,7 +24,7 @@ export function gpuHarness() {
     surface,
     /** Each view uniform write, as the floats it sent. */
     get viewWrites() {
-      const view = viewBuffer()
+      const view: object | undefined = viewBuffer()
       return gpu.writes
         .filter((write) => 'buffer' in write && write.buffer === view)
         .map((write) => written(write) as Float32Array)

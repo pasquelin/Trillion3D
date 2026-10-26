@@ -1,5 +1,5 @@
 /**
- * THE RASTER'S VIEWS, LISTED ON THE GPU (`../chunks/chunkGroups.ts` `encodeVsmViews`): a thread a
+ * THE RASTER'S VIEWS, LISTED ON THE GPU (`renderEncode.ts`, each view pass): a thread a
  * light of the frame (`lights`, the CPU's table: its first map's id and its map count, laid by
  * `vsmWriteLights`), of those whose maps lie in the view pass (`params.viewFirst`,
  * `params.viewCount`: the ids of its maps, all the frame's in a pass that holds every light), which
@@ -19,6 +19,7 @@
  * 2 counters (rw atomic), 3 lights (read).
  */
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
+import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatch/grid.ts'
 import { VSM_CONSTANTS_WGSL, VSM_STALE_RECT_INDEX_WGSL } from '../constants.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from '../resources.ts'
@@ -32,6 +33,48 @@ export const VSM_RENDER_VIEWS_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'projectionData', binding: 2 },
 ]
 
+/** A map's view as the raster lists it (\`vsmRenderMapView\`): the views' and the shadow views'
+ *  descent's, which leaves a light with no page to draw out and lists a view of each mip with one
+ *  (\`vsmRenderMapMips\`, \`../traversal/traversalWgsl.ts\`). */
+export const VSM_RENDER_MAP_VIEW_WGSL = wgslBlock(
+  'VSM_RENDER_MAP_VIEW_WGSL',
+  [VSM_CONSTANTS_WGSL, VSM_STALE_RECT_INDEX_WGSL],
+  `/** Whether mip \`m\` of map \`id\` has a page to draw in a layer (1: the static layer): its stale rect
+ *  is not empty. */
+fn vsmRenderMipStale(id:u32,m:u32,layer:u32)->bool{
+ let r=vsmStaleRects[vsmStaleRectIndex(id,m,layer==1u)];
+ return all(r.xy<=r.zw);
+}
+/** The mips the raster draws of map \`id\` (\`vsmMapViewMips\`): one for a clipmap level, every mip from
+ *  its finest for a local map. */
+fn vsmRenderMapMipsEnd(id:u32)->u32{
+ return select(VSM_MIPS,1u,vsmProjectionData[id].lightKind==LIGHT_KIND_DIRECTIONAL);
+}
+/** Map \`id\`'s view: its id, its mips, its flags and its stale layers (0 when no mip has a page to draw). */
+fn vsmRenderMapView(id:u32)->vec4u{
+ let pd=vsmProjectionData[id];
+ let directional=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
+ let mips=vsmRenderMapMipsEnd(id);
+ var layers=0u;
+ for(var m=pd.finestMip;m<mips;m++){
+  for(var layer=0u;layer<2u;layer++){
+   if(vsmRenderMipStale(id,m,layer)){layers|=1u<<layer;}
+  }
+ }
+ return vec4u(id,mips,select(0u,VSM_RENDER_VIEW_DIRECTIONAL,directional),layers);
+}
+/** The mips of map \`id\` with a page to draw in a layer at least, a bit each (bit \`m\`): the views the
+ *  shadow views' descent lists of it. */
+fn vsmRenderMapMips(id:u32)->u32{
+ var bits=0u;
+ for(var m=vsmProjectionData[id].finestMip;m<vsmRenderMapMipsEnd(id);m++){
+  if(vsmRenderMipStale(id,m,0u)||vsmRenderMipStale(id,m,1u)){bits|=1u<<m;}
+ }
+ return bits;
+}
+`,
+)
+
 export const vsmRenderViewsWgsl = (layout: VsmLayout) =>
   wgslProgram(
     /* wgsl */ `
@@ -39,20 +82,6 @@ export const vsmRenderViewsWgsl = (layout: VsmLayout) =>
 @group(1) @binding(1) var<storage,read_write> views:array<vec4u>;
 @group(1) @binding(2) var<storage,read_write> counts:array<atomic<u32>>;
 @group(1) @binding(3) var<storage,read> lights:array<vec4u>;
-/** Map \`id\`'s view: its id, its mips, its flags and its stale layers (0 when no mip has a page to draw). */
-fn vsmRenderMapView(id:u32)->vec4u{
- let pd=vsmProjectionData[id];
- let directional=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
- let mips=select(VSM_MIPS,1u,directional);
- var layers=0u;
- for(var m=pd.finestMip;m<mips;m++){
-  for(var layer=0u;layer<2u;layer++){
-   let r=vsmStaleRects[vsmStaleRectIndex(id,m,layer==1u)];
-   if(all(r.xy<=r.zw)){layers|=1u<<layer;}
-  }
- }
- return vec4u(id,mips,select(0u,VSM_RENDER_VIEW_DIRECTIONAL,directional),layers);
-}
 @compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderViews(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let rank=flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lane;
  if(rank>=params.lightCount){return;}
@@ -83,8 +112,7 @@ fn vsmRenderMapView(id:u32)->vec4u{
 }
 `,
     [
-      VSM_CONSTANTS_WGSL,
-      VSM_STALE_RECT_INDEX_WGSL,
+      VSM_RENDER_MAP_VIEW_WGSL,
       vsmBindingsWgsl(0, VSM_RENDER_VIEWS_SPECS, layout),
       VSM_RENDER_PARAMS_WGSL,
       FLAT_INDEX_WGSL,

@@ -24,7 +24,7 @@ class BroadPhaseLayers final : public BroadPhaseLayerInterface {
 public:
   uint GetNumBroadPhaseLayers() const override { return 2; }
   BroadPhaseLayer GetBroadPhaseLayer(ObjectLayer layer) const override {
-    return layer == STATIC ? BP_STATIC : BP_MOVING;
+    return filterOf(layer).still ? BP_STATIC : BP_MOVING;
   }
 #if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
   // Named for the profiler of the bench builds (`bench/profile.cpp`).
@@ -37,16 +37,15 @@ public:
 class ObjectVsBroadPhase final : public ObjectVsBroadPhaseLayerFilter {
 public:
   bool ShouldCollide(ObjectLayer layer, BroadPhaseLayer bp) const override {
-    return layer != STATIC || bp == BP_MOVING;
+    return !filterOf(layer).still || bp == BP_MOVING;
   }
 };
 
 class ObjectPairs final : public ObjectLayerPairFilter {
 public:
+  // Two bodies that do not move never meet; the others by what each answers to the other's channel.
   bool ShouldCollide(ObjectLayer a, ObjectLayer b) const override {
-    if (a == STATIC) return b != STATIC;
-    if (a == DECORATIVE) return b == STATIC;
-    return b != DECORATIVE;
+    return layersCollide(a, b);
   }
 };
 
@@ -116,14 +115,18 @@ extern "C" {
 
 /// Creates the physics system for at most `maxBodies` bodies, `bodyPairs` broad phase pairs and
 /// `contactConstraints` contacts per step (the budget's), stepped by `threads` threads (the
-/// caller's included; 1 steps on the caller alone) in fixed steps of `step` seconds, the page's.
+/// caller's included; 1 steps on the caller alone) in fixed steps of `step` seconds, the page's,
+/// a contact bouncing past `restitutionThreshold` m/s² times the step of approach.
 /// Returns 0, or 1 when called twice, past the bodies an engine id can name, or with a step that
-/// is not a finite number of seconds above 0.
+/// is not a finite number of seconds above 0 or a threshold that is not a finite number from 0.
 uint32_t jolt_init(uint32_t maxBodies, uint32_t bodyPairs, uint32_t contactConstraints,
-                   uint32_t tempBytes, uint32_t threads, float step) {
+                   uint32_t tempBytes, uint32_t threads, float step, float restitutionThreshold) {
   trillion::World &w = world();
-  if (w.system || maxBodies > trillion::INDEX_MASK || !(step > 0 && std::isfinite(step))) return 1;
+  if (w.system || maxBodies > trillion::INDEX_MASK || !(step > 0 && std::isfinite(step)) ||
+      !(restitutionThreshold >= 0 && std::isfinite(restitutionThreshold)))
+    return 1;
   w.fixedStep = step;
+  w.restitutionSpeed = restitutionThreshold * step;
   RegisterDefaultAllocator();
   Factory::sInstance = new Factory();
   RegisterTypes();
@@ -140,11 +143,23 @@ uint32_t jolt_init(uint32_t maxBodies, uint32_t bodyPairs, uint32_t contactConst
   // A step that needs more scratch than `tempBytes` takes it from the heap, inside the memory budget.
   w.system->Init(bodies, 0, bodyPairs, contactConstraints, trillion::broadPhaseLayers,
                  trillion::objectVsBroadPhase, trillion::objectPairs);
+  // Two materials meet at the mean of their frictions and of their restitutions; a bounce needs
+  // the restitution speed of approach to rebound at all.
+  w.system->SetCombineFriction([](const Body &a, const SubShapeID &, const Body &b, const SubShapeID &) {
+    return 0.5f * (a.GetFriction() + b.GetFriction());
+  });
+  w.system->SetCombineRestitution([](const Body &a, const SubShapeID &, const Body &b, const SubShapeID &) {
+    return 0.5f * (a.GetRestitution() + b.GetRestitution());
+  });
+  PhysicsSettings settings = w.system->GetPhysicsSettings();
+  settings.mMinVelocityForRestitution = w.restitutionSpeed;
+  w.system->SetPhysicsSettings(settings);
   w.system->SetContactListener(&w.listener);
   w.system->SetBodyActivationListener(&w.listener);
   w.system->SetSoftBodyContactListener(&w.listener);
   w.slots.resize(bodies);
   w.engineOf.assign(bodies, 0);
+  trillion::clearFilters();
   return 0;
 }
 

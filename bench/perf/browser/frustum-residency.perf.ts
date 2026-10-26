@@ -1,9 +1,9 @@
 // Absolute selection measurement: frustum clip and the pending pages of a cut. No oracle here:
 // these two computations have no prior implementation to confront; their correctness is held by
-// `bench/witnesses/three/parity/core/math/frustum/box.test.ts` and
+// `bench/core/frustum/box.test.ts` and
 // `packages/sdk-browser/src/geometry/selection/streamingBundles.test.ts`. Each line says so rather than
 // staying silent.
-import * as THREE from 'three'
+import { multiplyMatrix4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import { clipPlanesFromMatrix } from '../../../packages/math/src/geometry/frustum/frustum.ts'
 import { frustumClipBox } from '../../../packages/math/src/geometry/frustum/box.ts'
 import { collectPendingUrls } from '../../../packages/sdk-browser/src/geometry/selection/requests.ts'
@@ -15,12 +15,13 @@ import { pageRecFixture } from './support/pageRecFixture.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/geometry/selection/types.ts'
 
 const cam = camera(6, 0.1, 16 / 9)
-const clip = new THREE.Matrix4().multiplyMatrices(
-  new THREE.Matrix4().fromArray(cam.projectionMatrix.elements),
-  new THREE.Matrix4().fromArray(cam.matrixWorldInverse.elements),
+const clip = multiplyMatrix4(
+  new Float64Array(16),
+  Float64Array.from(cam.projectionMatrix.elements),
+  Float64Array.from(cam.matrixWorldInverse.elements),
 )
 const planes = new Float64Array(24)
-clipPlanesFromMatrix(planes, clip.elements)
+clipPlanesFromMatrix(planes, clip)
 
 const flatBoxes = (list: SceneBox[]) => {
   const plat = new Float64Array(list.length * 6)
@@ -59,7 +60,7 @@ const clipResult = await measure({
     { name: 'no boxes', input: empty, size: 0 },
   ],
   calculation: clipper,
-  motif: 'time only — correctness in bench/witnesses/three/parity/core/math/frustum/box.test.ts',
+  motif: 'time only — correctness in bench/core/frustum/box.test.ts',
   options: { tours: 200, budgetMs: 1000 },
 })
 

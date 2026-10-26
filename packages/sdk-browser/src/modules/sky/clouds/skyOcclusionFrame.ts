@@ -1,5 +1,10 @@
 import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
 import { normalizeVector3 } from '../../../../../math/src/vector/vector.ts'
+import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
+import {
+  cloudSkyOcclusionSide,
+  type CloudSkyOcclusionLight,
+} from '../../../../../sdk-core/src/modules/sky/cloudSkyOcclusion.ts'
 import {
   CM_PER_KM,
   type SkyQualityValues,
@@ -31,7 +36,7 @@ import {
  */
 
 /** What the frame of the sky occlusion map is made from. */
-export interface CloudSkyOcclusionFrameInput {
+interface CloudSkyOcclusionFrameInput {
   /** The camera in the scene, metres, and from the planet's centre, kilometres (the air's frame). */
   readonly eye: ArrayLike<number>
   readonly eyeFromPlanetKm: ArrayLike<number>
@@ -49,7 +54,7 @@ export interface CloudSkyOcclusionFrameInput {
 /** The frame of the sky occlusion map, in the form of the shadow map's (`CloudShadowFrame`), its
  *  `samples` the quality's `cloudSkyAOTraceSamples`. A snap length of 0 or less is read as the
  *  shadow map's is (`mapAim`). */
-export function cloudSkyOcclusionFrame(input: CloudSkyOcclusionFrameInput): CloudShadowFrame {
+function cloudSkyOcclusionFrame(input: CloudSkyOcclusionFrameInput): CloudShadowFrame {
   const { quality } = input
   const aim = mapAim(
     input.eye,
@@ -74,5 +79,34 @@ export function cloudSkyOcclusionFrame(input: CloudSkyOcclusionFrameInput): Clou
     rayDirection: [x, y, z],
     farDepthKm: far * KM_PER_CM,
     samples: quality.cloudSkyAOTraceSamples,
+  }
+}
+
+/** What an image of the map is made from, beside the sky light's settings it reads: the clouds part
+ *  and the camera and planet it looks from (`CloudSkyOcclusionFrameInput`). */
+export interface SkyOcclusionPlanInput {
+  readonly part: CloudPart
+  readonly eye: ArrayLike<number>
+  readonly eyeFromPlanetKm: ArrayLike<number>
+  readonly planetRadiusKm: number
+}
+
+/** The map of an image for the sky light `light`: its side in texels (the light's resolution scale
+ *  on 512, no more than `cloudSkyAOResolutionMax`), its frame, and whether the hemisphere filter
+ *  runs (`cloudSkyAOFiltering`). */
+export function skyOcclusionPlan(input: SkyOcclusionPlanInput, light: CloudSkyOcclusionLight) {
+  const { quality, settings } = input.part
+  return {
+    side: cloudSkyOcclusionSide(light, quality.cloudSkyAOResolutionMax),
+    filtered: quality.cloudSkyAOFiltering,
+    frame: cloudSkyOcclusionFrame({
+      eye: input.eye,
+      eyeFromPlanetKm: input.eyeFromPlanetKm,
+      planetRadiusKm: input.planetRadiusKm,
+      layerBaseKm: settings.baseAltitudeKm,
+      layerThicknessKm: settings.thicknessKm,
+      extentKm: light.cloudAmbientOcclusionExtentKm,
+      quality,
+    }),
   }
 }

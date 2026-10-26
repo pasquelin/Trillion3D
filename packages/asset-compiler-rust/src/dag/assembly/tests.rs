@@ -1,5 +1,6 @@
 use super::*;
 use crate::dag::tests::{build, grid};
+use trillion3d_page_codec::FLAG_COLOR;
 
 /// A matrix of column-major sixteen: `scale` on every axis, `at` for its translation.
 fn placed(scale: f64, at: [f64; 3]) -> Mat4 {
@@ -21,12 +22,9 @@ fn part() -> (RootCover, Vec<f32>, Vec<u32>) {
     (cover, positions, indices)
 }
 
-// Behaviour: the instances of an assembly climb with its own clusters into levels above them: each
-// instance carries the error and ball of the group that replaces its root, never below its root's
-// own error carried by its transform; the DAG that comes back holds the mesh's own level 0 and the
-// clusters the levels made — none of an instance's —, every link in range.
-#[test]
-fn instances_climb_with_the_assemblys_own_clusters_and_leave_no_cluster_of_theirs() {
+/// The assembly of twelve instances of `part`'s roots, doubled in size and far apart, climbed over
+/// the grid's own triangles: its DAG and, for each instance, the group above its root.
+fn twelve_instances() -> (Climbed, RootCover, (Vec<f32>, Vec<u32>)) {
     let (cover, positions, indices) = part();
     let matrices: Vec<Mat4> = (0..12)
         .map(|k| placed(2.0, [60.0 + 80.0 * f64::from(k), 0.0, 0.0]))
@@ -44,6 +42,16 @@ fn instances_climb_with_the_assemblys_own_clusters_and_leave_no_cluster_of_their
         &|| Ok(()),
     )
     .expect("climbs");
+    (climbed, cover, (positions, indices))
+}
+
+// Behaviour: the instances of an assembly climb with its own clusters into levels above them: each
+// instance carries the error and ball of the group that replaces its root, never below its root's
+// own error carried by its transform; the DAG that comes back holds the mesh's own level 0 and the
+// clusters the levels made — none of an instance's —, every link in range.
+#[test]
+fn instances_climb_with_the_assemblys_own_clusters_and_leave_no_cluster_of_theirs() {
+    let (climbed, cover, (positions, indices)) = twelve_instances();
     assert_eq!(climbed.parents.len(), 12);
     for parent in &climbed.parents {
         let parent = parent.expect("every instance has a group above it");
@@ -221,6 +229,6 @@ fn a_colour_one_side_lacks_is_white_there() {
         [1.0; 4],
         "white where the mesh has none"
     );
-    let brought = (colour.values.chunks_exact(4)).filter(|c| c.iter().all(|&v| v == 0.5));
+    let brought = (colour.values.as_chunks::<4>().0.iter()).filter(|c| c.iter().all(|&v| v == 0.5));
     assert!(brought.count() >= instances.len() * vertices);
 }

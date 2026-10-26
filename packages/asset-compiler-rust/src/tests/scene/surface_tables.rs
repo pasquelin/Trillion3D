@@ -95,7 +95,8 @@ fn the_material_table_carries_every_field_the_engine_reads() {
     assert_eq!(
         tables["textures"][0],
         json!({"name":"","sampler":0,"image":0,"wrapS":"clamp","wrapT":"mirror",
-            "magFilter":"nearest","minFilter":"linear-mip-nearest"})
+            "magFilter":"linear","minFilter":"linear-mip-nearest"}),
+        "the sampler's magnification is not read: its minification names the filtering"
     );
     assert_eq!(
         tables["document"]["meshes"][0]["primitives"][0]["material"],
@@ -116,6 +117,16 @@ fn the_material_table_carries_every_field_the_engine_reads() {
         1,
         "one surface worn"
     );
+}
+
+#[test]
+fn a_volume_without_a_distance_attenuates_over_one_metre() {
+    let (_root, tables) = published(|gltf| {
+        gltf["materials"] =
+            json!([{"extensions":{"KHR_materials_volume":{"thicknessFactor":0.5}}}]);
+        gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
+    });
+    assert_eq!(tables["materials"][0]["attenuationDistance"], json!(1.0));
 }
 
 #[test]
@@ -191,7 +202,7 @@ fn a_slot_keeps_its_own_coordinate_set_beside_the_one_its_transform_names() {
         "a silent transform keeps the slot's set"
     );
     assert_eq!(m["emissiveMap"]["slotTexCoord"], json!(1));
-    assert_eq!(tables["materialTableVersion"], json!(5));
+    assert_eq!(tables["materialTableVersion"], json!(6));
 }
 
 /// The entry of the one material the fixture wears, whose glTF `extras` are `extras`: a height map

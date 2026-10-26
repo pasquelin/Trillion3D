@@ -2,12 +2,12 @@ import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { PAGE_REQUEST_BATCH } from '../../session/engine/common.ts'
 import type { Engine } from '../../session/engine/types.ts'
-import type { HostCamera } from '../../camera/world.ts'
+import type { ViewCamera } from '../../camera/world.ts'
 import type { PageStreaming } from '../../geometry/streaming/pageStreamer.ts'
 import type { createExplorerStreaming } from '../../scene/drive/streaming.ts'
 
 type Inputs = {
-  camera: HostCamera
+  camera: ViewCamera
   streamer: PageStreaming
   streaming: ReturnType<typeof createExplorerStreaming>
   engine: Engine

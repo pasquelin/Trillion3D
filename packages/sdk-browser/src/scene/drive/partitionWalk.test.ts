@@ -36,6 +36,7 @@ function grid(side: number) {
       const url = `https://cache.test/key/cell-${x}-${z}.json`
       const mesh = (x + z) % 2
       const nodes = [0, 1, 2, 3].map((at) => ({
+        sourceNode: (4 * (x * side + z) + at).toString(16).padStart(8, '0'),
         parent: null,
         mesh,
         matrix: null,
@@ -43,7 +44,7 @@ function grid(side: number) {
         rotation: null,
         scale: null,
       }))
-      bodies.set(url, new TextEncoder().encode(JSON.stringify({ version: 3, nodes })))
+      bodies.set(url, new TextEncoder().encode(JSON.stringify({ version: 4, nodes })))
       const bounds = [x * 10, 0, z * 10, x * 10 + 8, 1, z * 10 + 8]
       const parents: TableCell['parents'] = [[null, bounds]]
       cells.push({ url, sha256: '', bytes: 1, parents, meshes: [[mesh, 4]], meshPages: [] })

@@ -29,7 +29,14 @@ test('a tile moved by a shrink takes the finer entries it served to its new plac
   pages.setTile(coarse, pool.placeOf(TILES_PER_LAYER))
   pages.setTile(fine, { x: 3, y: 0, layer: 0 })
   const resident = new Map([[id, TILES_PER_LAYER]])
-  const { pool: next } = resizeTileAtlas(gpu, { ...options, layers: 1 }, 0, pool, pages, resident)
+  const { pool: next } = resizeTileAtlas(
+    gpu,
+    { ...options, layers: 1 },
+    () => 0,
+    pool,
+    pages,
+    resident,
+  )
   const moved = packEntry(next.placeOf(resident.get(id)!), 1)
   assert.equal(pages.entryOf(coarse), moved)
   // Level 0 under it: the finer tile at 2,1 stays; the three it served follow it.
@@ -63,8 +70,14 @@ test('a shrink tells the texture of each tile it evicts, and never clears a tail
   }
   const heard: number[] = []
   const shrunk = { ...options, layers: 1 }
-  const result = resizeTileAtlas(gpu, shrunk, 0, pool, pages as never, resident, (slot) =>
-    heard.push(slot),
+  const result = resizeTileAtlas(
+    gpu,
+    shrunk,
+    () => 0,
+    pool,
+    pages as never,
+    resident,
+    (slot) => heard.push(slot),
   )
   assert.deepEqual(heard, [1, 1], 'the texture of each tile evicted hears it')
   assert.equal(result.evicted, 2)
@@ -73,7 +86,7 @@ test('a shrink tells the texture of each tile it evicts, and never clears a tail
   const under = createWebgpuTilePool(gpu, { ...options, layers: 2 })
   for (let slot = 0; slot <= TILES_PER_LAYER; slot++) under.adopt(slot, tailId(slot))
   assert.throws(
-    () => resizeTileAtlas(gpu, shrunk, 0, under, pages as never, new Map()),
+    () => resizeTileAtlas(gpu, shrunk, () => 0, under, pages as never, new Map()),
     /TEXTURE_POOL_UNDER_FLOOR/,
   )
   assert.equal(cleared.length, 2, 'no tail cleared')
@@ -99,7 +112,14 @@ test('a tail pinned past the surviving layers keeps its place: a streamed tile t
   pool.follow(Uint32Array.of(1, 7), pool.arrivals)
   pool.adopt(TILES_PER_LAYER, tailId(3))
   resident.set(tailId(3), TILES_PER_LAYER)
-  const result = resizeTileAtlas(gpu, { ...options, layers: 1 }, 0, pool, pages as never, resident)
+  const result = resizeTileAtlas(
+    gpu,
+    { ...options, layers: 1 },
+    () => 0,
+    pool,
+    pages as never,
+    resident,
+  )
   assert.equal(result.evicted, 1, 'one streamed tile gives way')
   assert.deepEqual(cleared, [7], 'the first victim of the queue')
   assert.deepEqual(tails, [3], 'the tail moved into the place it left')

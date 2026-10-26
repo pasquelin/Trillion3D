@@ -6,12 +6,13 @@ import { mixWord } from '../../../../math/src/wgsl/sampling.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { openProbeStatement } from '../../geometry/dag/shader/probeWgsl.ts'
+import { VISIBLE_LAYOUT_WGSL } from '../../geometry/dag/visible/layout.ts'
 
 /**
  * The ray query's parameters, one uniform its two kernels read (`rayQuery.ts`): the rays and where
  * their records, their filter lists and their hits lie in the query's buffer; where the record
- * table lies in it; where the deformation index lies and its mask, and the rows and the blended
- * entries it is made over; the tree's top, none without a tree; the placements the packing holds.
+ * table lies in it; where the deformation index lies and its mask, and the room of the decoded
+ * clusters' table (`rows`) and the blended entries it is made over; the tree's top, none without a tree; the placements the packing holds.
  */
 export const RAY_PARAMS = fieldLayout('RayParams', [
   ['rays', 'u32'],
@@ -27,7 +28,7 @@ export const RAY_PARAMS = fieldLayout('RayParams', [
   ['placements', 'u32'],
 ] as const)
 
-/** Words of a slot of the deformation index: the page plus one, its results' word, its row's
+/** Words of a slot of the deformation index: the page plus one, its results' word, its cluster's
  *  identifier base, and a pad. */
 export const DEFORM_SLOT_WORDS = 4
 
@@ -61,18 +62,21 @@ const DEFORM_SLOT_WGSL = wgslBlock(
 
 /**
  * WHERE THIS FRAME DEFORMED A PAGE, ON THE GPU. A deformed page's results lie where the one that
- * deforms it names them: its visibility row (`PageInfo.deformOutput`, `../../geometry/rows/page/pageRowWriter.ts`) or
- * its blended span (`../../blend/transparent/spans.ts`), a placement's own block in the float pool
- * (`../../deformation/outputs.ts`). The index from a page to them is made from the row table and
- * the span table as they stand, one thread a row, then an entry, into an open-addressed table of
- * `hashMask + 1` slots cleared before — each slot the page plus one, its results' word and its row's
- * identifier base (`DEFORM_SLOT_WORDS`). Only a deformed page takes a slot: every other page is
+ * deforms it names them: its decoded cluster (`PageInfo.deformOutput`, `../../visibility/pageInfo.ts`)
+ * or its blended span (`../../blend/transparent/spans.ts`), a placement's own block in the float pool
+ * (`../../deformation/outputs.ts`). The index from a page to them is made from the clusters the
+ * frame's decode wrote — the software ones from the bottom of the table, the hardware ones from its
+ * top, as many as the list's header counts (`../../geometry/dag/visible/layout.ts`) — and the span
+ * table as they stand, one thread a record, then an entry, into an open-addressed table of
+ * `hashMask + 1` slots cleared before — each slot the page plus one, its results' word and its
+ * cluster's identifier base (`DEFORM_SLOT_WORDS`). Only a deformed page takes a slot: every other page is
  * decoded from its record (`rayRecords.ts`), drawn or not. Made at each batch of rays, never kept.
  */
 export const DEFORM_INDEX_SHADER = wgslProgram(
   `@group(0) @binding(2) var<storage,read> pages:array<PageInfo>;
 @group(0) @binding(3) var<storage,read> entries:array<u32>;
 @group(0) @binding(4) var<storage,read> spans:array<u32>;
+@group(0) @binding(5) var<storage,read> visible:array<u32>;
 fn insertDeformed(page:u32,output:u32,base:u32){
 ${deformProbe(`// Another page's slot: the next one. A weak exchange that failed on an empty slot tries it again.
   loop{
@@ -81,11 +85,22 @@ ${deformProbe(`// Another page's slot: the next one. A weak exchange that failed
    if(held.old_value!=0u){break;}
   }`)}
 }
+// Whether record \`i\` of the decoded clusters' table was written by the frame's decode: the software
+// records from the bottom, the hardware ones from the top, as many as the list's header counts, both
+// counted past the room too (the cut's own bounds, \`heldSoftware\`, \`heldHardware\`). A record
+// past them is the table's older content.
+fn clusterWritten(i:u32)->bool{
+ let software=min(visible[VIS_SW],params.rows);
+ let hardware=min(visible[VIS_HW],params.rows-software);
+ return i<software||i>=params.rows-hardware;
+}
 @compute @workgroup_size(WORKGROUP_THREADS) fn indexDeformed(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let i=flatIndex(g,n,WORKGROUP_THREADS);
  if(i<params.rows){
-  let row=pages[i];
-  if(row.deformOutput!=0u){insertDeformed(row.selectionIndex,row.deformOutput,row.packedBase);}
+  if(clusterWritten(i)){
+   let row=pages[i];
+   if(row.deformOutput!=0u){insertDeformed(row.selectionIndex,row.deformOutput,row.packedBase);}
+  }
   return;
  }
  let e=i-params.rows;
@@ -98,6 +113,7 @@ ${deformProbe(`// Another page's slot: the next one. A weak exchange that failed
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,
     PAGE_INFO_STRUCT_WGSL,
+    VISIBLE_LAYOUT_WGSL,
     NO_INDEX,
     rayQueryBindingsWgsl(0, true),
     DEFORM_SLOT_WGSL,

@@ -109,6 +109,7 @@ function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) 
     vertexShift: uni[EXPAND_UNI.vertexShift],
     instanceBase: uni[EXPAND_UNI.instanceBase],
     argsBase: uni[EXPAND_UNI.argsBase],
+    filter: { exclude: uni[EXPAND_UNI.exclude], require: uni[EXPAND_UNI.required] },
     expanded: boundWords(bind.entries, EXPAND_BINDING.expanded),
     args: boundWords(bind.entries, EXPAND_BINDING.args),
   })

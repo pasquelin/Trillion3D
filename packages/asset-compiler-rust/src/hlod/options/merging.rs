@@ -64,7 +64,8 @@ const _: () = assert!(HLOD_MERGE_UV_METHODS.len() == MERGE_UV_METHODS.len());
 ///   (`bakeOnMesh`, true);
 /// - `reuse_lightmap_uvs`: whether such an entry bakes on its mesh's texture set at its lightmap
 ///   index where it has one, its unique coordinates, else on generated ones (`reuseLightmapUVs`,
-///   true);
+///   true); false lays every mesh out together, once, and bakes every entry on its mesh into the
+///   one atlas, no cell, gutter or binning (`flatten/merge/flat/global.rs`);
 /// - `uv_method`: how those are generated (`uvMethod`, `default`, the patches unwrap, `legacy`, the
 ///   old chart layout, and `uvAtlas`, the spectral charts, among its words);
 /// - `double_sided`: whether the flattened material may draw both faces (`allowDoubleSided`,
@@ -176,6 +177,16 @@ pub(super) fn merging(map: &Map<String, Value>, what: &str, flattens: bool) -> R
              materials: the atlas of a layer merging them already holds them"
         )));
     }
+    atlas_settings(&mut read, map, what)?;
+    Ok(read)
+}
+
+/// The settings of the atlas of a merged layer that merges its materials, read from `map` into
+/// `read`: the sizing with the one setting it reads, the gutter, the binning, the bake on meshes
+/// and the coordinates it is baked at, both faces and the maps. A layer that does not reuse its
+/// meshes' lightmap sets (`reuseLightmapUVs` false) lays them out together: it has no cell, so no
+/// gutter and no binning, and bakes every entry on its mesh, whatever `bakeOnMesh` says.
+fn atlas_settings(read: &mut HlodMerging, map: &Map<String, Value>, what: &str) -> Result<()> {
     read.sizing = atlas_sizing(map, what, MERGE_SIZING)?;
     set(
         &mut read.gutter,
@@ -193,5 +204,5 @@ pub(super) fn merging(map: &Map<String, Value>, what: &str, flattens: bool) -> R
         switch(map, "allowDoubleSided", what)?,
     );
     read.maps = maps_with(map.get("maps"), what, read.maps, &MAP_FIELDS)?;
-    Ok(read)
+    Ok(())
 }

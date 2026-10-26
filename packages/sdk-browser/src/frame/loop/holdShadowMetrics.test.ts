@@ -27,6 +27,7 @@ test("the shadow counters of a frame are the virtual shadow maps', under their p
   lights.vsm = {
     res: { bytes: 4096 },
     countersOn: true,
+    overflow: { recent: () => 0 },
     stats: {
       lights: 2,
       maps: 17,

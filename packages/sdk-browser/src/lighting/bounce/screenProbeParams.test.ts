@@ -4,7 +4,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { DEG2RAD } from '../../../../math/src/constants.ts'
-import { createScreenProbeParams, screenProbeFlags } from './screen/params.ts'
+import { createScreenProbeParams } from './screen/params.ts'
+import { screenProbeFlags } from './screen/modeFlags.ts'
 import {
   SCREEN_PROBE_FLAGS,
   SCREEN_PROBE_PARAMS,
@@ -12,19 +13,21 @@ import {
   screenProbeGeometry,
 } from './screen/screenProbeLayout.ts'
 
+/** What an image with all of it can read: its screen, history, field and vectors. */
+const all = {
+  frame: 1,
+  previousFrame: 0,
+  history: true,
+  screen: true,
+  cache: true,
+  velocity: true,
+  previousInverse: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+  relativeThickness: 0.02,
+  fullResDepth: true,
+}
+
 test('the screen probes flags say what each image can read: the screen, the history, the field, the vectors, the switches of its level', () => {
   const F = SCREEN_PROBE_FLAGS
-  const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-  const all = {
-    frame: 1,
-    history: true,
-    screen: true,
-    cache: true,
-    velocity: true,
-    previousInverse: identity,
-    relativeThickness: 0.02,
-    fullResDepth: true,
-  }
   const ultra = screenProbeSettings()
   assert.equal(
     screenProbeFlags(ultra, all),
@@ -40,7 +43,8 @@ test('the screen probes flags say what each image can read: the screen, the hist
       F.disocclusion |
       F.occlusionTemporal |
       F.fullResDepth |
-      F.skipFoliageHits,
+      F.skipFoliageHits |
+      F.backfaceDiffuse,
   )
   const high = screenProbeSettings({ screenProbes: 'high' })
   assert.equal(
@@ -61,19 +65,8 @@ test('the screen probes flags say what each image can read: the screen, the hist
 
 test('the screen probes flags leave out what an image has not: no history, no vectors; and the temporal, detail and clamp switches follow the settings', () => {
   const F = SCREEN_PROBE_FLAGS
-  const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-  const all = {
-    frame: 1,
-    history: true,
-    screen: true,
-    cache: true,
-    velocity: true,
-    previousInverse: identity,
-    relativeThickness: 0.02,
-    fullResDepth: true,
-  }
   const ultra = screenProbeSettings()
-  const first = { ...all, frame: 0, history: false, screen: false, cache: false }
+  const first = { ...all, frame: 0, previousFrame: 0, history: false, screen: false, cache: false }
   assert.equal(
     screenProbeFlags(ultra, first) &
       (F.screenTraces | F.radianceHistory | F.temporal | F.cache | F.velocity),
@@ -84,13 +77,11 @@ test('the screen probes flags leave out what an image has not: no history, no ve
     screenProbeFlags(screenProbeSettings({ screenProbeTemporal: false }), all) & F.temporal,
     0,
   )
-  // The detail trace needs the switch and a level that allows it, over the scene trace.
-  const mesh = (options: Parameters<typeof screenProbeSettings>[0]) =>
-    screenProbeFlags(screenProbeSettings(options), all) & (F.sceneTraces | F.meshTraces)
-  assert.equal(mesh({}), F.sceneTraces, 'off by default')
-  assert.equal(mesh({ screenProbeMeshTraces: true }), F.sceneTraces | F.meshTraces)
-  assert.equal(mesh({ screenProbeMeshTraces: true, screenProbes: 'high' }), F.sceneTraces)
-  assert.equal(mesh({ screenProbeMeshTraces: true, screenProbeSceneTraces: false }), 0)
+  // The scene trace is a switch, on by default.
+  const scene = (options: Parameters<typeof screenProbeSettings>[0]) =>
+    screenProbeFlags(screenProbeSettings(options), all) & F.sceneTraces
+  assert.equal(scene({}), F.sceneTraces, 'on by default')
+  assert.equal(scene({ screenProbeSceneTraces: false }), 0)
   assert.equal(
     screenProbeFlags(screenProbeSettings({ screenProbeFastUpdateClamp: true }), all) &
       F.fastUpdateClamp,
@@ -116,6 +107,7 @@ test('the screen probes parameters are the words of the settings and the image, 
   const previousInverse = [1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
   const image = (frame: number) => ({
     frame,
+    previousFrame: frame - 1,
     history: true,
     screen: true,
     cache: true,
@@ -135,13 +127,13 @@ test('the screen probes parameters are the words of the settings and the image, 
   assert.deepEqual(floats(at.weights), [-10000, -1000, 0.1, 10].map(Math.fround))
   assert.deepEqual(floats(at.spatial), [1000, 10 * DEG2RAD, 1, 200].map(Math.fround))
   assert.deepEqual(floats(at.occlusion), [2, 3, 0.3, 1].map(Math.fround))
-  assert.deepEqual(floats(at.scene), [1.8, 40, 0.05, 0.01].map(Math.fround))
-  assert.deepEqual(floats(at.motion), [0.005, 10, 0.9, 0].map(Math.fround))
+  assert.deepEqual(floats(at.scene), [0.05, 0.01, 0, 0].map(Math.fround))
+  assert.deepEqual(floats(at.motion), [0.005, 10, 0.9, 0.0001].map(Math.fround))
   assert.deepEqual(floats(at.tuning), [4, 0.4, 0.005, 0.03].map(Math.fround))
   assert.deepEqual(
     floats(at.trace),
-    [2, 0, 0, 0].map(Math.fround),
-    'foliage hits skipped: no certainty steps',
+    [2, 0, 0.8, 0.8].map(Math.fround),
+    'foliage hits skipped: no certainty steps; the rough specular up to a roughness of 0.8, of foliage too',
   )
   assert.deepEqual(floats(at.previous + 4), [0, 2, 0, 0], 'the second column of the last inverse')
   const first = sent

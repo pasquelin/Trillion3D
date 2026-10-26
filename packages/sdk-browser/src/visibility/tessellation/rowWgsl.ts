@@ -20,16 +20,3 @@ export const TESSELLATED_FLAGS_WGSL = wgslFn(
  return (page.flags&${FLAG_DISPLACED}u)!=0u&&(page.flags&${UNTESSELLATED}u)==0u;
 }`,
 )
-
-/**
- * Whether the frame tessellates a row (`page`, a row of the page table; `uni`, the visibility
- * uniform): the `tessellation` setting is on (`uni.tessellation`) and the row is one the
- * tessellation can draw (`tessellatedFlags`). The one test the split of the rasters
- * (`../raster/binWgsl.ts`) and the seeding of the patches (`seedWgsl.ts`) both make of a drawn row,
- * so that every row the first leaves out the second takes.
- */
-export const TESSELLATED_ROW_WGSL = wgslFn(
-  'tessellatedRow',
-  [TESSELLATED_FLAGS_WGSL],
-  `fn tessellatedRow(page:PageInfo)->bool{return uni.tessellation!=0u&&tessellatedFlags(page);}`,
-)

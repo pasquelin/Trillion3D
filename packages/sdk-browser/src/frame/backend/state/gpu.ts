@@ -1,14 +1,17 @@
 import type { ScreenReflection } from '../../../lighting/reflections/gpu.ts'
 import type { GpuPageCache } from '../../../geometry/pages/pool/pages.ts'
 import type { createGpuPresenter } from '../../../gpu/core/presentation.ts'
-import type { createDeferredLighting } from '../../../lighting/deferred/deferred.ts'
+import type { ComposeSource, createDeferredLighting } from '../../../lighting/deferred/deferred.ts'
+import type { ComposedImage } from '../../../lighting/deferred/program.ts'
 import type { SurfaceBuffer } from '../../../materials/surface/surfaceBuffer.ts'
-import type { AsIsShare } from '../../../lighting/deferred/asIsShare.ts'
+import type { Responsive } from '../../../blend/responsive.ts'
 import type { DisplayFilter } from '../../../blend/display/displayFilter.ts'
+import type { TranslucencyTargets } from '../../../blend/translucency.ts'
 import type { TemporalAntialiasing } from '../../../post/taa/temporalAntialiasing.ts'
 import type { Velocity } from '../../../post/taa/velocity.ts'
 import type { ScreenProbeView } from '../../../lighting/bounce/screen/view.ts'
 import type { AmbientOcclusion } from '../../../lighting/ao/frame.ts'
+import type { SubsurfaceScattering } from '../../../lighting/subsurface/frame.ts'
 import { createKindSettings, type KindSettings } from '../../../post/effects/kindSettings.ts'
 import type { ExposureMeter } from '../../../post/exposure/meter.ts'
 import type { Finish } from '../../../post/finish/finish.ts'
@@ -24,10 +27,21 @@ import type { TargetGrant } from '../../prepare/targetsSet.ts'
 import type { FrameDifference } from '../../render/frameDifference.ts'
 import type { AtmosphereGpu } from '../../../lighting/atmosphere/gpu.ts'
 import type { FogVolumeState } from '../../render/encodeFogVolume.ts'
+import type { TranslucencyVolumeState } from '../../../lighting/translucency/frame.ts'
+import type { TranslucencyGiState } from '../../../lighting/translucencyGi/gpu.ts'
+import { localFogBytes, type LocalFogGpu } from '../../render/localFogGpu.ts'
 import type { LightShaftsGpu } from '../../../modules/sky/lightShafts/frame.ts'
 import type { CloudViewGpu } from '../../../modules/sky/clouds/viewTargets.ts'
 
 /** GPU resources of the image: page cache, frame targets and presentation. */
+/** What an image composed onto the canvas alone was composed from (`composePass`'s arguments). */
+interface CanvasOnly {
+  clear: GPUColor
+  composed: ComposedImage | undefined
+  asIs: boolean
+  source: ComposeSource
+}
+
 export interface WebgpuGpuState {
   /** The session's handle on the device (`gpu/core/deviceOwners.ts`), from `prepare`: everything
    *  the session creates goes through it, so that the labels name the session. */
@@ -44,6 +58,11 @@ export interface WebgpuGpuState {
    *  it (`../../prepare/targets.ts`). */
   displayTexture: GPUTexture | undefined
   displayView: GPUTextureView | undefined
+  /** Set where the last image was composed straight onto the canvas, the display texture not
+   *  written: what it was composed from, to compose it again into the display texture for a reader
+   *  (`../../io/displayRead.ts`). Undefined where the display texture holds the image; it goes
+   *  with the targets it names. */
+  canvasOnly: CanvasOnly | undefined
   /** What transparents ask of virtual textures, one tile rank per pixel: a target, never a fragment-
    *  stage write, which would cost early-z reject. */
   feedbackTexture: GPUTexture | undefined
@@ -52,11 +71,16 @@ export interface WebgpuGpuState {
    *  accumulates. A 1×1 texel while the scene carries no transmissive surface — the binding then
    *  exists without costing anything. */
   backdrop: TransmissionBackdrop | undefined
-  /** The view's reflection: the opaque trace's target and the radiance pyramid of its last lit
+  /** The separate translucency: the targets the translucent layers are drawn into and composed from
+   *  (`../../../blend/translucency.ts`), a texel each while the scene has none. */
+  translucency: TranslucencyTargets | undefined
+  /** The view's reflection: the opaque trace's target and its last lit
    *  image (`../../../lighting/reflections/gpu.ts`). */
   reflection: ScreenReflection | undefined
   surfaces: SurfaceBuffer | undefined
-  asIsShare: AsIsShare | undefined
+  /** The responsiveness the blends write for the temporal analysis
+   *  (`../../prepare/responsiveTarget.ts`). */
+  responsive: Responsive | undefined
   /** The display filter, made by the first image whose blends filter and kept while the plan
    *  holds such a blend (`../../../blend/display/displayFilter.ts`). */
   displayFilter: DisplayFilter | undefined
@@ -91,6 +115,10 @@ export interface WebgpuGpuState {
    *  reads this image —, made at the first image that draws it and given back when none does
    *  (`../../../lighting/ao/frame.ts`). */
   ambientOcclusion: AmbientOcclusion | undefined
+  /** The view's screen-space subsurface scattering — its textures at the size its targets are made at, the profile table and the
+   *  quality history —, made at the first image whose surfaces may carry a subsurface-profile pixel and given back when none do
+   *  (`../../../lighting/subsurface/frame.ts`). */
+  subsurface: SubsurfaceScattering | undefined
   /** The level the host wants the pass at (`../../../post/taa/levels.ts`), `'off'` none: set at
    *  preparation, then by `setTemporalAntialiasing` (`taaWanted`). */
   temporalLevel: TemporalAntialiasingLevel
@@ -126,6 +154,15 @@ export interface WebgpuGpuState {
   /** The scene's fog volume and cubemap, made once a scene turns the volume on or sets a cubemap
    *  (`../../render/encodeFogVolume.ts`). */
   fogVolume?: FogVolumeState
+  /** The translucency lighting volume, made once a scene's surfaces are lit from it
+   *  (`../../../lighting/translucency/frame.ts`). */
+  translucencyVolume?: TranslucencyVolumeState
+  /** The translucency global illumination volume, made once a scene's see-through surfaces could read it
+   *  (`../../../lighting/translucencyGi/frame.ts`). */
+  translucencyGi?: TranslucencyGiState
+  /** The lists of the local fog volumes over each tile of the view, in a buffer made for its tile grid
+   *  while a view draws a volume (`../../render/localFogGpu.ts`). */
+  localFog?: LocalFogGpu
   /** The view's light shafts: their images and histories, and the occlusion mask the fog reads,
    *  made at the first image that draws them (`../../../modules/sky/lightShafts/frame.ts`). */
   lightShafts?: LightShaftsGpu
@@ -161,12 +198,14 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     hdrView: undefined,
     displayTexture: undefined,
     displayView: undefined,
+    canvasOnly: undefined,
     feedbackTexture: undefined,
     feedbackView: undefined,
     backdrop: undefined,
+    translucency: undefined,
     reflection: undefined,
     surfaces: undefined,
-    asIsShare: undefined,
+    responsive: undefined,
     displayFilter: undefined,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],
     allocatedSize: [viewport[0] ?? 1, viewport[1] ?? 1],
@@ -180,6 +219,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     velocity: undefined,
     screenProbes: undefined,
     ambientOcclusion: undefined,
+    subsurface: undefined,
     temporalLevel: DEFAULT_TEMPORAL_AA_LEVEL,
     exposure: undefined,
     finish: undefined,
@@ -211,20 +251,28 @@ export function swapSurfaces(
 }
 
 /** Bytes of a view's frame targets: those it made, its effect chain's, its finishing's, its
- *  velocity stage's, its screen probes', its ambient occlusion's, its fog's, its light shafts' and its clouds'. */
+ *  velocity stage's, its screen probes', its ambient occlusion's, its fog's, its light shafts', its
+ *  clouds' and, where `deferred` is given, its tone table's. The table is the session's, not the
+ *  view's (`VIEW_GPU_KEYS` holds no `deferred`): the state of the view drawn has it, the share a
+ *  view keeps aside while another is drawn has none. */
 export const viewTargetBytes = (
-  gpu: Pick<
-    WebgpuGpuState,
-    | 'targetBytes'
-    | 'effects'
-    | 'finish'
-    | 'velocity'
-    | 'screenProbes'
-    | 'ambientOcclusion'
-    | 'fogVolume'
-    | 'lightShafts'
-    | 'clouds'
-  >,
+  gpu: Partial<Pick<WebgpuGpuState, 'deferred'>> &
+    Pick<
+      WebgpuGpuState,
+      | 'targetBytes'
+      | 'effects'
+      | 'finish'
+      | 'velocity'
+      | 'screenProbes'
+      | 'ambientOcclusion'
+      | 'subsurface'
+      | 'fogVolume'
+      | 'translucencyVolume'
+      | 'translucencyGi'
+      | 'localFog'
+      | 'lightShafts'
+      | 'clouds'
+    >,
 ) =>
   gpu.targetBytes +
   (gpu.effects?.bytes ?? 0) +
@@ -232,6 +280,11 @@ export const viewTargetBytes = (
   (gpu.velocity?.bytes ?? 0) +
   (gpu.screenProbes?.bytes ?? 0) +
   (gpu.ambientOcclusion?.bytes ?? 0) +
+  (gpu.subsurface?.bytes ?? 0) +
   (gpu.fogVolume?.bytes ?? 0) +
+  (gpu.translucencyVolume?.bytes ?? 0) +
+  (gpu.translucencyGi?.bytes ?? 0) +
+  localFogBytes(gpu) +
   (gpu.lightShafts?.bytes ?? 0) +
-  (gpu.clouds?.bytes ?? 0)
+  (gpu.clouds?.bytes ?? 0) +
+  (gpu.deferred?.toneLut.bytes ?? 0)

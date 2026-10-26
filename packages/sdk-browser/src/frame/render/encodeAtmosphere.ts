@@ -1,7 +1,8 @@
 import type { AirShadowMaps } from '../../lighting/atmosphere/bindings.ts'
 import { createAtmosphereGpu } from '../../lighting/atmosphere/gpu.ts'
 import type { AirInputs } from '../../lighting/atmosphere/encode.ts'
-import { FRAME_FLOATS, captureKmOf, writeAirFrame } from '../../lighting/atmosphere/frame.ts'
+import { FRAME_FLOATS, writeAirFrame } from '../../lighting/atmosphere/frame.ts'
+import { FRAME_LAYOUT } from '../../lighting/atmosphere/frameLayout.ts'
 import { airShapeKey } from '../../lighting/atmosphere/shape.ts'
 import {
   vsmConsumerResources,
@@ -11,6 +12,7 @@ import { preExposureOf } from '../../post/exposure/pre.ts'
 import { airStateOf } from './airState.ts'
 import { cloudShadowOf } from './encodeCloudShadow.ts'
 import { litImageShown } from '../prepare/contractLight.ts'
+import { holdoutOn } from '../prepare/alphaHoldout.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
@@ -19,12 +21,10 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 const inputs: AirInputs = {
   buffer: undefined as unknown as GPUBuffer,
   version: 0,
-  epoch: 0,
   frame: new Float32Array(FRAME_FLOATS),
   maps: undefined as unknown as AirShadowMaps,
   separate: false,
   capture360: false,
-  captureKm: 0,
 }
 
 /** The atmosphere this image shows: the scene's, in a lit view of the lit image, the quality settings
@@ -45,7 +45,11 @@ function atmosphereShown(rt: WebgpuPagesRuntime) {
 export function askAtmosphere(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (!atmosphereShown(rt)) return
   const { shape, key } = airStateOf(rt)
-  if (rt.gpu.atmosphere && airShapeKey(rt.gpu.atmosphere.shape) === key) return
+  if (rt.gpu.atmosphere && airShapeKey(rt.gpu.atmosphere.shape) === key) {
+    // The variants the clouds ask are asked as the frame enters, the frame waits for them.
+    rt.gpu.atmosphere.variantsReady(airStateOf(rt).requests)
+    return
+  }
   rt.gpu.atmosphere?.dispose()
   rt.gpu.atmosphere = createAtmosphereGpu(device, shape, (error) =>
     rt.diag.diagnosticFailure('atmosphere-program-failed', error),
@@ -77,55 +81,62 @@ export function encodeAtmosphere(
     { lights, gpu } = rt
   if (!air || !lights.buffer) return false
   askAtmosphere(rt, device)
-  if (!gpu.atmosphere?.ready) return false
-  const [width, height] = gpu.targetSize
   const { requests } = airStateOf(rt)
+  if (!gpu.atmosphere?.ready || !gpu.atmosphere.variantsReady(requests)) return false
+  const [width, height] = gpu.targetSize
   const capture = requests.capturePosition && { position: requests.capturePosition }
   writeAirFrame(inputs.frame, cam, air, viewProj, inverseViewProj, width, height, {
     capture,
     frameIndex: rt.run.frame,
     preExposure: preExposureOf(rt).now,
   })
+  inputs.frame[FRAME_LAYOUT.at.hidden] = air.inMainView ? 0 : 1
+  inputs.frame[FRAME_LAYOUT.at.hidden + 1] = atmosphereHoldout(rt) ? 1 : 0
   const maps = mapsOf(rt)
   inputs.buffer = lights.buffer
   inputs.version = lights.store.atmosphereVersion
-  inputs.epoch = lights.store.atmosphereEpoch
   inputs.maps = maps
   inputs.cloudShadow = cloudShadowOf(rt)
   inputs.separate = requests.separate
   inputs.capture360 = requests.capture360
-  inputs.captureKm = captureKmOf(inputs.frame)
   gpu.atmosphere.encode(encoder, inputs)
   return true
 }
 
-/** The sky over the lit image where the resolve drew no surface: after the lighting, before the
- *  transparents, the fog over it read from what this image's fog volume built (`encodeFogVolume`). */
+/** Whether the atmosphere holds its light out of the image's alpha this image (`SceneAtmosphere.holdout`, with the
+ *  alpha holdout in effect). */
+export const atmosphereHoldout = (rt: WebgpuPagesRuntime) =>
+  !!atmosphereShown(rt)?.holdout && holdoutOn(rt)
+
+/** The sky over the lit image where no surface was drawn: after the lighting, before the fog and the
+ *  transparents. Where the atmosphere is not drawn in the view (`inMainView`) the sky is black, the fog
+ *  pass's colour alone over it. */
 export function encodeSky(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu } = rt,
     flags = gpu.surfaces?.views()[3]
   if (!gpu.atmosphere || !gpu.hdrView || !flags || !gpu.deferred) return
   const [width, height] = gpu.targetSize
-  const fog = gpu.fogVolume?.read ?? gpu.deferred.placeholders.fog
-  const lightShaft = gpu.lightShafts?.mask ?? gpu.deferred.placeholders.lightShaft
-  gpu.atmosphere.drawSky(
-    encoder,
-    gpu.hdrView,
-    flags,
-    width,
-    height,
-    fog,
-    lightShaft,
-    mapsOf(rt).noise,
-  )
+  // Held out, or drawn in no view (`inMainView` off): the sky is black and lays its coverage on the alpha, which
+  // leaves the background's where the view draws none.
+  const air = atmosphereShown(rt)
+  const held = !!air && (atmosphereHoldout(rt) || !air.inMainView)
+  gpu.atmosphere.drawSky(encoder, gpu.hdrView, flags, width, height, mapsOf(rt).noise, held)
 }
 
 /** The haze marched on the opaque surfaces, over the lit image after the sky (`aerialFastOnOpaque`
- *  off; nothing otherwise): each pixel a surface drew is hazed up to its depth. */
+ *  off; nothing otherwise, nor where the atmosphere is not drawn in the view): each pixel a surface
+ *  drew is hazed up to its depth. */
 export function encodeOpaqueHaze(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu } = rt,
     flags = gpu.surfaces?.views()[3]
-  if (!gpu.atmosphere?.drawOpaqueHaze || !gpu.hdrView || !flags || !gpu.depthView || !gpu.deferred)
+  if (
+    !rt.lights.store.environment?.atmosphere?.inMainView ||
+    !gpu.atmosphere?.drawOpaqueHaze ||
+    !gpu.hdrView ||
+    !flags ||
+    !gpu.depthView ||
+    !gpu.deferred
+  )
     return
   const [width, height] = gpu.targetSize
   gpu.atmosphere.drawOpaqueHaze(

@@ -11,7 +11,7 @@ import { notDrawn } from '../placement/hidden.ts'
 import { rowCell } from '../geometry/partition/rowCells.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import { ACTOR_ROW } from '../geometry/dag/worlds/worldLinks.ts'
-import type { WebgpuBlendState } from './state.ts'
+import type { BlendGpuItem, WebgpuBlendState } from './state.ts'
 
 const RECORD_DOUBLES = KEY_RECORD_WORDS / 2
 
@@ -40,42 +40,52 @@ function writeKeyRecord(
   instances = Infinity,
 ) {
   const item = blendState.blendGpu[i],
-    at = i * RECORD_DOUBLES,
-    packed = blendState.keyPacked,
     words = blendState.keyWords,
-    box = item.bounds,
     base = i * KEY_RECORD_WORDS,
     placement = item.placement,
     cell = placement && rowCell(placement.rows, placement.index)
-  if (box) packed.set(box, at)
-  else {
-    const m = item.matrix.elements
-    packed[at] = m[12]
-    packed[at + 1] = m[13]
-    packed[at + 2] = m[14]
-  }
+  writeKeyBounds(blendState.keyPacked, i * RECORD_DOUBLES, item)
   const unpacked = !!cell && cell.instance >= instances,
     unlinked = unpacked && cell.actor === undefined
-  const flags =
-    (box ? KEY_HAS_BOX : 0) |
-    (notDrawn(item) ? 0 : KEY_DRAWN) |
-    (item.transmissive ? KEY_TRANSMITS : 0) |
-    (cell && !unlinked ? KEY_FILED : 0)
   const slot = cell && slots && !unpacked ? slots(cell.instance, cell.cell) : -1
-  words[base + KEY_WORD.flags] = flags
+  words[base + KEY_WORD.flags] = keyFlags(item, !!cell && !unlinked)
   words[base + KEY_WORD.priority] = item.priority + PRIORITY_BIAS
-  // A row of a cell's instanced actor names that cell as its actor's (`ACTOR_ROW`).
-  words[base + KEY_WORD.cell] =
-    !cell || unlinked
-      ? NO_INDEX
-      : cell.actor === undefined
-        ? cell.hlod
-        : (cell.hlod | ACTOR_ROW) >>> 0
+  words[base + KEY_WORD.cell] = keyCellWord(cell, unlinked)
   words[base + KEY_WORD.instance] = unpacked ? NO_INDEX : (cell?.instance ?? 0)
   words[base + KEY_WORD.file] = slot < 0 ? NO_INDEX : slot
   if (!cell) return
   blendState.keyFiled = true
   if (item.transmissive) blendState.cellTransmits = true
+}
+
+/** The doubles of an item's record at `at`: its world box, or its world origin when it has none. */
+function writeKeyBounds(packed: Float64Array, at: number, item: BlendGpuItem) {
+  const box = item.bounds
+  if (box) {
+    packed.set(box, at)
+    return
+  }
+  const m = item.matrix.elements
+  packed[at] = m[12]
+  packed[at + 1] = m[13]
+  packed[at + 2] = m[14]
+}
+
+/** The flag word of a record: a box, drawn, transmissive, `filed` in a cell file. */
+function keyFlags(item: BlendGpuItem, filed: boolean) {
+  return (
+    (item.bounds ? KEY_HAS_BOX : 0) |
+    (notDrawn(item) ? 0 : KEY_DRAWN) |
+    (item.transmissive ? KEY_TRANSMITS : 0) |
+    (filed ? KEY_FILED : 0)
+  )
+}
+
+/** The HLOD 0 cell word of a record: `NO_INDEX` for no cell or an unlinked row; a row of a cell's
+ *  instanced actor names that cell as its actor's (`ACTOR_ROW`). */
+function keyCellWord(cell: ReturnType<typeof rowCell> | undefined, unlinked: boolean): number {
+  if (!cell || unlinked) return NO_INDEX
+  return cell.actor === undefined ? cell.hlod : (cell.hlod | ACTOR_ROW) >>> 0
 }
 
 /**

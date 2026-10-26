@@ -1,6 +1,7 @@
-// Every program of the opaque resolve, the blends, the transmissive stages, the reflections, the depth
+// Every program of the lighting's passes, the blends, the transmissive stages, the reflections, the depth
 // pyramid and the ray query, of the cut — its culling, the composition of the poses, the root
-// boxes, the tree's leaves and refit —, and both halves of the draw compaction, binds no more of a
+// boxes, the tree's leaves and refit —, the decode of the visible clusters, the bins and the measure
+// of the clusters' edges, and the deformation of the clusters, binds no more of a
 // kind in one stage than WebGPU guarantees a device that asks for nothing: 16 sampled textures,
 // 8 storage buffers, 4 storage textures — the engine runs on any machine at the default limits,
 // whatever the world's size. The kit's device, holding the defaults, refuses a pipeline layout
@@ -18,34 +19,10 @@ import { createDeferredPlaceholders } from '../../lighting/deferred/setup.ts'
 import { createDeferredView } from '../../lighting/deferred/view.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
 import type { BlendGpuItem } from '../../blend/state.ts'
-import { createReflectionPipelines } from '../../lighting/reflections/reflectionPipelines.ts'
-import { createHizPipelines } from '../../visibility/hiz/gpu/pipelines.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { limitOf, stageBindingCounts } from '../../../../../tests/kit/fakeDevice/limitRules.ts'
 import { BLEND_BINDINGS } from '../bind/bindLayout.ts'
-import { dagBindEntries } from '../../geometry/dag/shader/bindings.ts'
-import { drawBindEntries } from '../../visibility/draw/shader.ts'
-import { dagDeviceRefusal } from '../../geometry/dag/deviceRefusal.ts'
-import type { PackedDag } from '../../geometry/dag/types.ts'
-import { TREE_REFIT_WGSL } from '../../geometry/dag/tree/treeRefitWgsl.ts'
-import { TREE_LEAVES_WGSL } from '../../placement/tree/treeLeavesWgsl.ts'
-import { ROOT_BOXES_WGSL } from '../../placement/roots/rootBoxesWgsl.ts'
-import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_WGSL } from '../../placement/compose/gpuComposeWgsl.ts'
-import { COMPOSE_MOTION_WGSL } from '../../placement/compose/composedMotionWgsl.ts'
-import { wgslComputeLayout } from './wgslBindings.fixture.ts'
-import { RAY_QUERY_WGSL } from '../../lighting/rays/rayQueryWgsl.ts'
-import { DEFORM_INDEX_SHADER } from '../../lighting/rays/deformIndexWgsl.ts'
-
-/** Every stage of every layout of `layouts` within WebGPU's defaults (`limitOf`, the kit device's
- *  one table), each kind; `where` names the programs. */
-function withinDefaults(layouts: GPUPipelineLayoutDescriptor[], where: string) {
-  assert.ok(layouts.length > 0, `${where}: built`)
-  for (const layout of layouts)
-    for (const { limit, kind, count } of stageBindingCounts(layout)) {
-      const max = limitOf(limit)
-      assert.ok(count <= max, `${where}: ${count} ${kind}, past ${max}`)
-    }
-}
+import { withinDefaults } from './stageLimits.fixture.ts'
 
 test('the engine asks no more sampled textures a stage than WebGPU guarantees', () => {
   assert.equal(
@@ -54,7 +31,7 @@ test('the engine asks no more sampled textures a stage than WebGPU guarantees', 
   )
 })
 
-/** Every key a frame can ask the opaque resolve for: both list widths, each set of cuts. */
+/** Every key a frame can ask the lighting's passes for: both list widths, each set of cuts. */
 const KEYS: ContractKey[] = [false, true].flatMap((narrow) =>
   Array.from({ length: 32 }, (_, set) => ({
     narrow,
@@ -78,8 +55,8 @@ test("every opaque resolve program fits WebGPU's default limits", async () => {
   const variants = createContractVariants(device, bindings, undefined, { onFailure })
   for (const bounce of [false, true]) for (const key of KEYS) await variants.precompile(bounce, key)
   assert.deepEqual(failures, [])
-  // Its targets read by load alone are read-only storage textures (`deferredLayoutEntries`).
-  withinDefaults(layouts, 'the opaque resolve')
+  // Its targets read by load alone are read-only storage textures (`layoutEntries.ts`).
+  withinDefaults(layouts, 'the lighting passes')
   variants.release()
   unlit.dispose()
 })
@@ -99,14 +76,15 @@ const bindsFront = (layouts: GPUBindGroupLayoutDescriptor[], binding: number) =>
     ),
   )
 
-/** The most of each kind any pipeline layout of `layouts` binds in its fragment stage. */
-function fragmentCounts(layouts: GPUPipelineLayoutDescriptor[]) {
+/** The most of each kind any pipeline layout of `layouts` binds in its `stage`. */
+function stageCounts(layouts: GPUPipelineLayoutDescriptor[], stage: 'Fragment' | 'Vertex') {
   const worst: Record<string, number> = {}
   for (const layout of layouts)
     for (const { limit, kind, count } of stageBindingCounts(layout))
-      if (kind.endsWith('Fragment')) worst[limit] = Math.max(worst[limit] ?? 0, count)
+      if (kind.endsWith(stage)) worst[limit] = Math.max(worst[limit] ?? 0, count)
   return worst
 }
+const fragmentCounts = (layouts: GPUPipelineLayoutDescriptor[]) => stageCounts(layouts, 'Fragment')
 
 test("the blends and the transmissive stages fit WebGPU's default limits", async () => {
   const { device, pipelineLayouts: layouts, bindGroupLayouts } = fakeDevice()
@@ -119,14 +97,15 @@ test("the blends and the transmissive stages fit WebGPU's default limits", async
     return { surface: surfaceOf(surface), transmissive: index === all.length - 1 }
   }) as unknown as BlendGpuItem[]
   const lit = { precompile: true, key: FULL_CONTRACT, onFailure: (e: unknown) => failures.push(e) }
-  for (const share of [0, 2] as const) {
+  // Without the responsiveness and with it (the as-is share's key is gone with the share).
+  for (const responsive of [false, true] as const) {
     const built = await createWebgpuBlendPipelines(
       device,
       items,
       undefined,
       true,
       undefined,
-      share,
+      responsive,
       {
         lit,
       },
@@ -143,75 +122,85 @@ test("the blends and the transmissive stages fit WebGPU's default limits", async
       assert.ok(!(proxy in bindings), `the ${name} bind no ${proxy}`)
   }
   withinDefaults(layouts, 'the blends and the transmissive stages')
-  // The fragment stage keeps room for the fog's cubemap and volume: the casters' memory, the blue
-  // noise and the front's radiance, read by load alone, are storage textures, not sampled ones.
+  // The fragment stage keeps room for the fog's cubemap and volume: the blue noise and the front's
+  // radiance, read by load alone, are storage textures, not sampled ones.
   // Before the fog's resources were bound there, and the volume with them: 16 of 16 sampled textures,
   // 8 of 8 storage buffers, 1 of 4 storage textures, 8 of 12 uniform buffers, 2 of 16 samplers.
-  // The light functions' atlas and its table, one texture of words read by load, is the fourth
+  // The light functions' atlas and its table, one texture of words read by load, is the third
   // storage texture: the sampled textures and the storage buffers stay as they were.
+  // The shadow pool's first slice is one of the eight, one binding at every level of pages
+  // (`../../lighting/shadows/vsm/poolLayout.test.ts`): a second window would be the ninth.
+  // The lists of the local fog volumes over each tile of the view are the eighth and last storage buffer: a
+  // texture, as a list of a tile is kept elsewhere, would pass the sixteen sampled textures this
+  // stage holds with the storage textures it keeps (16 of 16); a buffer fits the eight.
   // The sky light's cubes (the reflection group's, one cube array and its sampler) are the sixteenth sampled
-  // texture; its harmonics and the view's uniform are two uniform buffers. The clouds' shade is not bound here:
-  // the reference lights a translucent surface by it only where a project setting asks, per vertex
-  // (`r.SupportCloudShadowOnForwardLitTranslucent`, off), and two maps more would pass the sixteen.
+  // texture; its harmonics and the view's uniform are two uniform buffers. The clouds' shade and the cloud
+  // image are not bound here: a translucent surface reads them per vertex, their bindings the
+  // vertex stage's alone (the test below), for their maps would pass the sixteen. The graph frame
+  // (the clocks and the camera an offset moves a vertex by) is the tenth uniform buffer of twelve.
+  // The reflection group binds no sampler for the lit image any more (it is read by load, a level): three samplers a stage, not four.
+  // The translucency lighting volume, the ambient and directional light of both cascades stacked in one half-float texture, is sampled
+  // through the translucency global illumination volume's trilinear sampler, two samples a pixel (four where the light has a direction),
+  // not loaded: it was the fourth storage texture, it is a sampled one. The forward programs' reflection group
+  // (`reflectionForwardLayout`) binds of the reflection group only what a forward fragment reads: level 0 of the depth and its levels
+  // uniform (the screen segment of a translucent surface's traced shadow), not the depth pyramid nor the lit image, which only the trace
+  // reads, so the stage holds 15 of 16 sampled textures, 3 of 4 storage textures and 9 of 12 uniform buffers.
+  // The translucency global illumination volume (the see-through surfaces' indirect light, one filtered fetch) is read through a sampled 3D
+  // texture and a trilinear sampler, which take the sampled texture and the uniform buffer the world's probes' atlas and levels held: a surface
+  // no longer gathers the probes. 16 of 16 sampled textures, 4 of 16 samplers, 9 of 12 uniform buffers.
   assert.deepEqual(fragmentCounts(layouts), {
-    maxSampledTexturesPerShaderStage: 16,
-    maxStorageBuffersPerShaderStage: 7,
-    maxStorageTexturesPerShaderStage: 4,
+    maxSampledTexturesPerShaderStage: 15,
+    maxStorageBuffersPerShaderStage: 8,
+    maxStorageTexturesPerShaderStage: 3,
     maxUniformBuffersPerShaderStage: 9,
     maxSamplersPerShaderStage: 4,
   })
+  // The vertex stage holds the eight storage buffers too: the geometry's three, the items, the lights, the
+  // instances, the spans with the clusters' identity words after them, and the lists of the local fog volumes it
+  // lays over the fog of a vertex.
+  assert.equal(stageCounts(layouts, 'Vertex').maxStorageBuffersPerShaderStage, 8)
 })
 
-test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", async () => {
-  const { device, pipelineLayouts: layouts } = fakeDevice()
-  // The trace binds the reflection group (`reflectionLayout`) beside its own: the radiance
-  // pyramid one texture, level 0 its opaque and front depths in one (`hizDepthEntries`).
-  assert.ok(await createReflectionPipelines(device), 'the reflection kernels build')
-  assert.ok(await createHizPipelines(device), 'the depth pyramid kernels build')
-  withinDefaults(layouts, 'the reflections and the depth pyramid')
-})
-
-test("the cut's programs fit WebGPU's default limits, whatever the world", () => {
-  // The culling's one layout, whatever the device splits nothing: its tables are record tables.
-  withinDefaults([{ bindGroupLayouts: [{ entries: dagBindEntries() }] as never }], 'the culling')
-  for (const [name, text] of [
-    ['the refit', TREE_REFIT_WGSL],
-    ['the tree leaves', TREE_LEAVES_WGSL],
-    ['the root boxes', ROOT_BOXES_WGSL],
-    ['the compose roots', COMPOSE_ROOTS_WGSL],
-    ['the compose worlds', COMPOSE_WORLDS_WGSL],
-    ['the compose motion', COMPOSE_MOTION_WGSL],
-    // The ray query reads the cut's nodes, frame words, worlds and tree where the culling reads
-    // them, at its bindings: four sampled textures, whatever the world's size.
-    ['the ray trace', RAY_QUERY_WGSL],
-    ['the deformation index', DEFORM_INDEX_SHADER],
-  ] as const)
-    withinDefaults([wgslComputeLayout(text)], name)
-})
-
-test('a device whose binding holds two thirds of the frame words binds the cut at the defaults', () => {
-  // The frame-ranges proof's split case (`tests/gpu/dag/frame-ranges.gpu.ts`): its binding holds
-  // two thirds of 600 placements' frame words, once past what its stage bound in parts, and
-  // `work` whole: 668 bytes for a thousand pages — sixteen blocks of eight words, twenty-seven frame
-  // counters and the lists' twelve group words (`dagWorkLayout`).
-  const packed = {
-    pageCount: 1000,
-    nodeCount: 10,
-    worldCount: 600,
-    ...Object.fromEntries(
-      ['clusters', 'nodes', 'worlds', 'coldWords'].map((name) => [name, new Float32Array(16)]),
-    ),
-  } as unknown as PackedDag
-  // Every other limit at WebGPU's default: the check reads a limit the device leaves out as such.
-  const limits = { maxStorageBufferBindingSize: 400 * 32 }
-  assert.equal(dagDeviceRefusal(limits, packed), undefined, 'the device holds the cut')
-  withinDefaults([{ bindGroupLayouts: [{ entries: dagBindEntries() }] as never }], 'its culling')
-})
-
-test("the draw compaction fits WebGPU's default limits", () => {
-  // Both halves bind the one layout: the groups' offsets, counts and slot totals in one buffer.
-  withinDefaults(
-    [{ bindGroupLayouts: [{ entries: drawBindEntries() }] as never }],
-    'the draw compaction',
-  )
+test("the clouds' shade and the cloud image read per vertex are in every layout, read by the vertex stage alone", async () => {
+  // The project switch `cloudShadowOnTranslucent` (the block, the map and the sampler of the one
+  // light's shade) and a surface whose material has `cloudFog` (the block, the colour, the depth and
+  // the sampler of the cloud image) make one flag of the programs, `reads.clouds`; both reads are
+  // bound by every layout, the vertex stage's, so the fragment stage's bindings are those of the
+  // programs without, whose sixteen sampled textures are spent.
+  const counts = async (options: { cloudShade?: boolean; cloudFog?: boolean }) => {
+    const { device, pipelineLayouts: layouts } = fakeDevice()
+    const surface = G.basicSurface()
+    Object.assign(surface, { blending: 'normal', cloudFog: !!options.cloudFog })
+    const items = [
+      { surface: surfaceOf(surface), transmissive: false },
+    ] as unknown as BlendGpuItem[]
+    const lit = { precompile: true, key: FULL_CONTRACT, onFailure: assert.ifError }
+    const { blendPipelines } = await createWebgpuBlendPipelines(
+      device,
+      items,
+      undefined,
+      true,
+      undefined,
+      false,
+      { lit, cloudShade: !!options.cloudShade },
+    )
+    withinDefaults(layouts, `the blends, the clouds per vertex ${JSON.stringify(options)}`)
+    const worst: Record<string, number> = {}
+    for (const layout of layouts)
+      for (const { kind, count } of stageBindingCounts(layout))
+        worst[kind] = Math.max(worst[kind] ?? 0, count)
+    return { worst, reads: blendPipelines.reads?.clouds }
+  }
+  const [off, shade, fog, both] = [
+    await counts({}),
+    await counts({ cloudShade: true }),
+    await counts({ cloudFog: true }),
+    await counts({ cloudShade: true, cloudFog: true }),
+  ]
+  assert.deepEqual([off.reads, shade.reads, fog.reads, both.reads], [false, true, true, true])
+  for (const other of [shade, fog, both])
+    assert.deepEqual(other.worst, off.worst, 'one layout: the programs bind nothing more')
+  // The vertex stage holds the shade's three and the cloud image's four reads, whatever the program.
+  assert.ok(off.worst['sampled textures in the Vertex'] >= 3)
+  assert.ok(off.worst['uniform buffers in the Vertex'] >= 3)
 })

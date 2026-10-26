@@ -11,7 +11,7 @@ import { boxUnionBatch } from '../../../../math/src/batch/batch.ts'
 
 import { extendSpan } from '../../../../math/src/sequence/span.ts'
 import { holdReach } from '../../deformation/halfFloat.ts'
-import { markRootRows } from './movedRoot.ts'
+import { markRootEntries } from './movedRoot.ts'
 import type { ClusterRoot, MovedBox, PageRec } from '../../geometry/selection/types.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { rootWorldBox } from '../../geometry/selection/rootWorld.ts'
@@ -44,8 +44,8 @@ function holds(own: MovedBox, boxes: Float64Array, b: number) {
 }
 
 /** The union of a page list's own boxes (`PageRec.moved`), by its first record — the records its
- *  placements share —, written with the boxes: what a root's reach reads in one look, never its
- *  pages (`../../lighting/shadows/casters/rowTravel.ts`). */
+ *  placements share —, written with the boxes: what a root's bound reads in one look, never its
+ *  pages (`rootLocalBound`). */
 const movedUnions = new WeakMap<PageRec, Float64Array>()
 
 /** The union of the boxes `pages` hold (`takeBoxes`), none while they hold none. */
@@ -54,8 +54,7 @@ export const movedPagesBox = (pages: readonly PageRec[]) =>
 
 /** The local box every row of `root` lies in, into `out` (six bounds): its local box united with
  *  its pages' own (`movedPagesBox`), grown by its reach. False for a root with no local box: its
- *  rows may lie anywhere. The one bound a root's travel (`../../lighting/shadows/casters/rowTravel.ts`) and its
- *  screen rectangle (`../../post/effects/rootsRect.ts`) read. */
+ *  rows may lie anywhere. The bound its screen rectangle (`../../post/effects/rootsRect.ts`) reads. */
 export function rootLocalBound(out: Float64Array, root: ClusterRoot<PageRec>) {
   const local = root.localBox
   if (!local || !(local[3] >= local[0])) return false
@@ -98,11 +97,11 @@ function takeBoxes(root: ClusterRoot<PageRec>, boxes: Float64Array) {
   movedUnions.set(first, union)
 }
 
-/** Root `rank`'s vertices moved: its pages `from` to `to` lie in other boxes, which every
- *  bound of their rows reads (`rowBox`), and its vertices lie up to `reach` from where its pages
- *  are bounded, which every cut — the GPU's by its mark — grows those rest bounds by, as a
- *  deformation's. Only the rows whose bounds changed travel again: without boxes (`boxed` false),
- *  each row grows by the reach, and a new one moves them all. */
+/** Root `rank`'s vertices moved: its pages `from` to `to` lie in other boxes, and its vertices lie
+ *  up to `reach` from where its pages are bounded, which every cut — the GPU's by its mark — grows
+ *  those rest bounds by, as a deformation's. Only the transparent entries whose bounds changed
+ *  travel again: without boxes (`boxed` false), each page grows by the reach, and a new one moves
+ *  them all. */
 function holdMotion(
   rt: WebgpuPagesRuntime,
   rank: number,
@@ -116,7 +115,7 @@ function holdMotion(
     from = 0
     to = root.pages.length - 1
   }
-  markRootRows(rt, root, from, to)
+  markRootEntries(rt, root, from, to)
 }
 
 const local = new Float64Array(BOX_VALUES),
@@ -170,7 +169,7 @@ export function holdPageBoxes(
   span.from = Infinity
   span.to = -1
   takeBoxes(roots[ranks[0]], boxes)
-  for (const rank of ranks) markRootRows(rt, roots[rank], span.from, span.to)
+  for (const rank of ranks) markRootEntries(rt, roots[rank], span.from, span.to)
 }
 
 /** Roots `ranks`' pages bounded by their own boxes grown by the roots' reach again (`rowBox`):
@@ -180,7 +179,7 @@ export function releasePageBoxes(rt: WebgpuPagesRuntime, ranks: readonly number[
     { pages } = roots[ranks[0]]
   for (const rec of pages) rec.moved = undefined
   if (pages.length) movedUnions.delete(pages[0])
-  for (const rank of ranks) markRootRows(rt, roots[rank], 0, pages.length - 1)
+  for (const rank of ranks) markRootEntries(rt, roots[rank], 0, pages.length - 1)
 }
 
 /** Root `rank`'s GPU deformation moved: it moves, and its rest world box grown by `reach`

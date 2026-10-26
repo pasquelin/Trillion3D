@@ -1,7 +1,8 @@
-//! The objects standing as themselves in an HLOD actor — every object of an instanced layer's
-//! actor, one keeping its cluster DAG (`disallowClusterDag` makes it a merged layer, which builds the
-//! fallback of each object, `options/parse.rs`), those marked `hlodInstance` in any other layer's
-//! (`HLOD_INSTANCE_MARK`) —: nothing is built of them. The actor names each one's source mesh and
+//! The objects standing as themselves in an HLOD actor — every object a cell of an instanced
+//! layer's builder takes (an instanced layer's own HLOD 0 is its source meshes, the placed
+//! objects' pages, with no actor of its own), one keeping its cluster DAG (`disallowClusterDag`
+//! makes it a merged layer, which builds the fallback of each object, `options/layer.rs`), those
+//! marked `hlodInstance` in any other layer's (`HLOD_INSTANCE_MARK`) —: nothing is built of them. The actor names each one's source mesh and
 //! world matrix (`ActorRow`), a row the runtime places on that mesh's rows as a cell file's node,
 //! its own pages instanced, and draws while its cell draws the actor. Each cell's rows are one
 //! bundle of the binary its cell holds with its actor's root pages (`lay_rows`): they stream with
@@ -44,8 +45,13 @@ pub(super) fn split(
 }
 
 /// The rows of the objects `standing` of `instances`: one per object — its primitives share it —,
-/// in the order of their nodes.
-pub(super) fn actor_rows(instances: &[Instance], standing: &[usize]) -> Vec<ActorRow> {
+/// in the order of their nodes. Each stands on its fallback mesh where it has one when the actor's
+/// layer disallows the cluster DAG (`fallback`), on its source mesh otherwise.
+pub(super) fn actor_rows(
+    instances: &[Instance],
+    standing: &[usize],
+    fallback: bool,
+) -> Vec<ActorRow> {
     let by_node: BTreeMap<usize, ActorRow> = (standing.iter())
         .map(|&i| {
             let Instance {
@@ -53,8 +59,10 @@ pub(super) fn actor_rows(instances: &[Instance], standing: &[usize]) -> Vec<Acto
                 mesh,
                 matrix,
                 track,
+                fallback: on,
                 ..
             } = instances[i];
+            let mesh = on.filter(|_| fallback).unwrap_or(mesh);
             (
                 node,
                 ActorRow {

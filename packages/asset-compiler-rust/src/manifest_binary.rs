@@ -11,7 +11,7 @@
 //!   columnCount × (u32 byteOffset, u32 byteLength)
 //!   column payloads, each starting on an 8-byte boundary
 use crate::texture::{
-    preview_block_bytes, preview_first_level, preview_level_count, preview_pixel_bytes,
+    preview_first_level, preview_layout_bytes, preview_level_count, preview_pixel_bytes,
     TexturePreview, FAMILIES,
 };
 use crate::Result;
@@ -91,7 +91,7 @@ const PAGE_COLUMN_WIDTHS: [(usize, usize); 8] = [
     (PAGE_ERROR, 16),
     (PAGE_INT, 32),
     (PAGE_U32, 4),
-    (GEOMETRY_U32, 20),
+    (GEOMETRY_U32, 28),
     (PAGE_DEPTH_LAYER, 4),
 ];
 

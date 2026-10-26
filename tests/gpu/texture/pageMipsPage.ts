@@ -12,8 +12,8 @@ import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { checkView } from '../../kit/fakeDevice/textureRules.ts'
 import { encodeReferenceChain, type ChainCase } from './pageMipsReference.ts'
 
-/** Colour chains plain, weighted and cut; data chains; even, odd, wide and tall sizes. Alphas mix
- *  the foliage's two ends with random ones, so the median, the weights and the cut all act. */
+/** Colour and data chains; even, odd, wide and tall sizes. Alphas mix the foliage's two ends with
+ *  random ones, so the mean of the four texels acts on every channel. */
 export function chainCases(): ChainCase[] {
   const next = lcgRandom(1469)
   const texels = (width: number, height: number) =>
@@ -23,19 +23,16 @@ export function chainCases(): ChainCase[] {
       return pick < 0.35 ? 0 : pick < 0.7 ? 255 : Math.floor(next() * 256)
     })
   // prettier-ignore
-  const shapes: Array<[ChainCase['format'], number, number, boolean, number]> = [
-    ['rgba8unorm-srgb', 37, 23, false, 0], ['rgba8unorm-srgb', 64, 64, true, 0],
-    ['rgba8unorm-srgb', 45, 30, true, 128], ['rgba8unorm-srgb', 1, 9, true, 77],
-    ['rgba8unorm-srgb', 129, 2, true, 200], ['rgba8unorm', 33, 17, false, 0],
-    ['rgba8unorm', 256, 3, false, 0],
+  const shapes: Array<[ChainCase['format'], number, number]> = [
+    ['rgba8unorm-srgb', 37, 23], ['rgba8unorm-srgb', 64, 64], ['rgba8unorm-srgb', 45, 30],
+    ['rgba8unorm-srgb', 1, 9], ['rgba8unorm-srgb', 129, 2], ['rgba8unorm', 33, 17],
+    ['rgba8unorm', 256, 3],
   ]
-  return shapes.map(([format, width, height, weighted, cutoff]) => ({
-    name: `${format} ${width}×${height}${weighted ? ' weighted' : ''}${cutoff ? ` cut ${cutoff}` : ''}`,
+  return shapes.map(([format, width, height]) => ({
+    name: `${format} ${width}×${height}`,
     format,
     width,
     height,
-    weighted,
-    cutoff,
     texels: texels(width, height),
   }))
 }

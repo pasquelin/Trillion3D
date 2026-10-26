@@ -3,16 +3,17 @@
 //! is a stationary one: the lightmap holds only what a light gives after a bounce. A point or a
 //! spot is a sphere of the light's `emitterRadius` (a point of no size when it names none), the
 //! sun a disk of its `angularRadius`; a light that has an extent is also found by the rays of a
-//! material, and the two ways of finding it are weighed against each other.
+//! material, and the two ways of finding it are weighed against each other. The sky light a job
+//! names (`sky.rs`) is the last of them and has the whole sphere for its extent.
 use super::sampling::{luminance, one_minus_cos, tangent_to_world, uniform_cone, Vec3};
+use super::settings::SkySettings;
+use super::sky::Sky;
+use crate::shared_math::{spot_cosines, DEFAULT_INNER_CONE_ANGLE};
 use serde_json::Value;
 use std::f64::consts::PI;
 use trillion3d_math::vector::vec3::unit;
 use trillion3d_math::vector::vecn::{dot, length, scale, sub};
 
-/// How far a spot's cone fades at its edge, in cosine, when the light declares no inner cone: the
-/// engine's own edge (`spotEdgeSoftness`).
-const SPOT_EDGE: f64 = 0.02;
 /// The share of the squared distance a sphere light's squared radius may reach: a point is never
 /// inside the light it is lit by.
 const OUTSIDE: f64 = 0.99;
@@ -22,14 +23,18 @@ pub enum Kind {
     Directional = 0,
     Point = 1,
     Spot = 2,
+    Sky = 3,
 }
 
 /// A light of the scene.
 #[derive(Clone, Copy)]
 pub struct BakeLight {
     pub kind: Kind,
-    /// Radiant power of the colour: W/m² for the sun, W/sr for the others.
+    /// Radiant power of the colour: W/m² for the sun, W/sr for the others; a sky's radiance over
+    /// the horizon.
     power: Vec3,
+    /// A sky's radiance under the horizon.
+    lower: Vec3,
     position: Vec3,
     /// The way to the sun; the axis the light of a spot leaves along.
     axis: Vec3,
@@ -87,6 +92,7 @@ fn read_light(entry: &Value) -> Option<BakeLight> {
         spot: (0.0, 1.0),
         radius: number(entry, "emitterRadius").unwrap_or(0.0).max(0.0),
         casts_shadow: entry.get("castsShadow").and_then(Value::as_bool) == Some(true),
+        lower: [0.0; 3],
     };
     match kind {
         Kind::Directional => {
@@ -94,32 +100,57 @@ fn read_light(entry: &Value) -> Option<BakeLight> {
             light.radius = number(entry, "angularRadius").unwrap_or(0.0).max(0.0).sin();
         }
         Kind::Spot => light.spot = spot_cone(entry),
-        Kind::Point => {}
+        Kind::Point | Kind::Sky => {}
     }
     Some(light)
 }
 
-/// A spot's cosine at its edge and the inverse of the cosine's fade to its full light: the
-/// declared penumbra's inner cone, never narrower than the engine's edge.
+/// A spot's cosine at its edge and the inverse of the cosine's fade to its full light: the cones
+/// the engine lights it by (`spot_cosines`), the inner one the declared inner cone's, a whole cone's
+/// fade where it names none.
 fn spot_cone(entry: &Value) -> (f64, f64) {
-    let outer = number(entry, "coneAngle").unwrap_or(std::f64::consts::FRAC_PI_4);
-    let edge = outer.cos();
-    let penumbra = number(entry, "penumbra").unwrap_or(0.0).clamp(0.0, 1.0);
-    let inner = (outer * (1.0 - penumbra)).cos().max(edge + SPOT_EDGE);
+    let outer = number(entry, "outerConeAngle").unwrap_or(std::f64::consts::FRAC_PI_4);
+    let inner_angle = number(entry, "innerConeAngle").unwrap_or(DEFAULT_INNER_CONE_ANGLE);
+    let (edge, inner) = spot_cosines(inner_angle, outer);
     (edge, 1.0 / (inner - edge))
 }
 
-/// The scene's lights in the order the bake draws them: the suns, then the points, then the spots.
-pub fn read_lights(scene_lights: &Value) -> Vec<BakeLight> {
+/// The scene's lights in the order the bake draws them: the suns, then the points, then the spots,
+/// then the sky `sky` names, if it is not black.
+pub fn read_lights(scene_lights: &Value, sky: Option<&SkySettings>) -> Vec<BakeLight> {
     let mut lights: Vec<BakeLight> = scene_lights["lights"]
         .as_array()
         .map(|entries| entries.iter().filter_map(read_light).collect())
         .unwrap_or_default();
+    lights.extend(sky.and_then(BakeLight::sky));
     lights.sort_by_key(|light| light.kind as u8);
     lights
 }
 
 impl BakeLight {
+    /// The sky light `settings` name, none when it is black.
+    fn sky(settings: &SkySettings) -> Option<Self> {
+        let sky = Sky::of(settings)?;
+        Some(Self {
+            kind: Kind::Sky,
+            power: sky.upper,
+            lower: sky.lower,
+            position: [0.0; 3],
+            axis: [0.0, 1.0, 0.0],
+            inverse_range: 0.0,
+            spot: (0.0, 1.0),
+            radius: 0.0,
+            casts_shadow: settings.casts_shadows,
+        })
+    }
+
+    fn sky_of(&self) -> Sky {
+        Sky {
+            upper: self.power,
+            lower: self.lower,
+        }
+    }
+
     /// The range window of the squared distance `d2`.
     fn falloff(&self, d2: f64) -> f64 {
         let normalised = d2 * self.inverse_range * self.inverse_range;
@@ -145,11 +176,14 @@ impl BakeLight {
 
     /// Whether a ray of a material can meet the light: the sun's disk or a sphere.
     pub fn has_extent(&self) -> bool {
-        self.radius > 0.0
+        self.kind == Kind::Sky || self.radius > 0.0
     }
 
     /// An upper bound of what the light gives the point `p`, which weighs the choice of a light.
     pub fn estimate(&self, p: Vec3) -> f64 {
+        if self.kind == Kind::Sky {
+            return self.sky_of().estimate();
+        }
         let power = luminance(self.power);
         if self.kind == Kind::Directional {
             return power;
@@ -162,6 +196,15 @@ impl BakeLight {
     /// A direction toward the light from `p`, drawn with `e`; `reach` is how far a ray to the sun
     /// goes.
     pub fn sample(&self, p: Vec3, e: [f64; 2], reach: f64) -> LightSample {
+        if self.kind == Kind::Sky {
+            let sample = self.sky_of().sample(e);
+            return LightSample {
+                direction: sample.direction,
+                distance: reach,
+                radiance_over_pdf: scale(sample.radiance, 1.0 / sample.pdf),
+                pdf: sample.pdf,
+            };
+        }
         if self.kind == Kind::Directional {
             let (local, pdf) = uniform_cone(e, self.radius * self.radius);
             return LightSample {
@@ -195,6 +238,14 @@ impl BakeLight {
     pub fn trace(&self, origin: Vec3, direction: Vec3, reach: f64) -> Option<LightHit> {
         if !self.has_extent() {
             return None;
+        }
+        if self.kind == Kind::Sky {
+            let (radiance, pdf) = self.sky_of().eval(direction);
+            return (pdf > 0.0).then_some(LightHit {
+                radiance,
+                pdf,
+                distance: reach,
+            });
         }
         if self.kind == Kind::Directional {
             return self.trace_sun(direction, reach);

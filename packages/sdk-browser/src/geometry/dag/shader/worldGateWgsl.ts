@@ -33,27 +33,9 @@ export const linkDrawsWgsl = wgslFn(
 }`,
 )
 
-/**
- * The world's switch in the descent (`../worlds/worldLinks.ts`): per HLOD cell and instance, and
- * per cell file, what the host chose to draw there (`CELL_DRAW`, `../worlds/worldFollow.ts`). A
- * placement neither its file — shown as its main cell — nor its HLOD 0 cell draws opens nothing; a
- * node of the world DAG in the subtree of an actor whose cell does not draw it is not opened
- * (`worldNodeHides`), as nothing of an actor not shown is: every page under such a node is that
- * actor's (`hlod/chain/merge.rs`). Outside the level text, so a descent of another shape reads the
- * same words, and a pass beside the descent the same switch on a resident page (`worldDraws`): the
- * shadow casters (`../../../lighting/shadows/vsm/render/renderCandidatesWgsl.ts`), so that what the
- * view does not draw casts nothing.
- *
- * `links` is the WGSL expression of the cold word the placements' links start at, zero for a cut
- * that follows no world: the descent's uniform (`DAG_WORLD_GATE_WGSL`), or a pass's own. Its
- * variants share one name: a program holding two is refused. Its host binds the cut's cold words
- * as `cold` and its frame words as `frames`, read through `coldAt`, `markOf` and `pageBaseOf`.
- */
-export const worldGateWgsl = (links: string) =>
-  wgslBlock(
-    'worldGateWgsl',
-    [NO_INDEX, linkDrawsWgsl, DAG_COLD_AT_WGSL, DAG_MARK_OF_WGSL, DAG_PAGE_BASE_OF_WGSL],
-    `/** The word of HLOD cell \`h\` of instance \`k\` (\`CELL_DRAW\`), behind the links' header. */
+/** The cell's word and whether a placement opens nothing, or is one of the world DAG's. */
+const worldCoversWgsl = (links: string) =>
+  `/** The word of HLOD cell \`h\` of instance \`k\` (\`CELL_DRAW\`), behind the links' header. */
 fn worldCellState(k:u32,h:u32)->u32{
  let links=${links};
  return coldAt(${header(LINK_HEADER_AT.states)}+k*${header(LINK_HEADER_AT.cells)}+h);
@@ -84,7 +66,11 @@ fn worldPlaced(w:u32)->bool{
  let links=${links};
  return links!=0u&&(markOf(w)&${WORLD_ROOT_MARK}u)!=0u;
 }
-/** Whether the actor of HLOD cell \`h\`, in world placement \`w\`'s instance, is not drawn: its cell
+`
+
+/** Whether a world actor or a node of its subtree is hidden, and the verdict on a resident page. */
+const worldHidesWgsl = (links: string) =>
+  `/** Whether the actor of HLOD cell \`h\`, in world placement \`w\`'s instance, is not drawn: its cell
  *  does not draw it. \`NO_INDEX\` — several actors' — hides nothing. */
 fn worldActorHidden(w:u32,h:u32)->bool{
  if(h==NO_INDEX){return false;}
@@ -108,8 +94,30 @@ fn worldNodeHides(c:u32,w:u32)->bool{
  *  a world cluster, its cell draws its actor. The one verdict a pass beside the descent reads of
  *  the switch. */
 fn worldDraws(i:u32,w:u32)->bool{return !worldCovers(w)&&!worldHides(i,w);}
-`,
+`
+
+/**
+ * The world's switch in the descent (`../worlds/worldLinks.ts`): per HLOD cell and instance, and
+ * per cell file, what the host chose to draw there (`CELL_DRAW`, `../worlds/worldFollow.ts`). A
+ * placement neither its file — shown as its main cell — nor its HLOD 0 cell draws opens nothing; a
+ * node of the world DAG in the subtree of an actor whose cell does not draw it is not opened
+ * (`worldNodeHides`), as nothing of an actor not shown is: every page under such a node is that
+ * actor's (`hlod/chain/merge.rs`). Outside the level text, so a descent of another shape reads the
+ * same words, and a pass beside the descent the same switch on a resident page (`worldDraws`): the
+ * shadow casters (`../../../lighting/shadows/vsm/render/renderCandidatesWgsl.ts`), so that what the
+ * view does not draw casts nothing.
+ *
+ * `links` is the WGSL expression of the cold word the placements' links start at, zero for a cut
+ * that follows no world: the descent's uniform (`DAG_WORLD_GATE_WGSL`), or a pass's own. Its
+ * variants share one name: a program holding two is refused. Its host binds the cut's cold words
+ * as `cold` and its frame words as `frames`, read through `coldAt`, `markOf` and `pageBaseOf`.
+ */
+export const worldGateWgsl = (links: string) =>
+  wgslBlock(
+    'worldGateWgsl',
+    [NO_INDEX, linkDrawsWgsl, DAG_COLD_AT_WGSL, DAG_MARK_OF_WGSL, DAG_PAGE_BASE_OF_WGSL],
+    worldCoversWgsl(links) + worldHidesWgsl(links),
   )
 
 /** The descent's gate, the links' first word on its uniform (`../viewLayout.ts`, `worldLinks`). */
-export const DAG_WORLD_GATE_WGSL = worldGateWgsl('views[0u].worldLinks')
+export const DAG_WORLD_GATE_WGSL = worldGateWgsl('cutView.worldLinks')

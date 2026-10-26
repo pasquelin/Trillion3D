@@ -1,9 +1,11 @@
 // The one-pixel model of the blend tests: WebGPU's blend equation, factor by factor, and
-// the reference display value, an ACES filmic fit then sRGB, kept independent of the
-// engine's shader on purpose.
-import { saturate } from '../../../math/src/scalar/reals.ts'
+// the display value of a colour, the engine's default curve then sRGB.
 import assert from 'node:assert/strict'
 import { linearToSrgb } from '../../../math/src/color/color.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
+import { DISPLAY_VALUE_WGSL } from '../lighting/toneMappingWgsl.ts'
+import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 
 export type Rgba = readonly [number, number, number, number]
 
@@ -45,26 +47,21 @@ export function blend(state: GPUBlendState, src: Rgba, dst: Rgba): Rgba {
 export const written = (target: GPUColorTargetState, src: Rgba, dst: Rgba) =>
   target.writeMask === 0 ? dst : blend(target.blend!, src, dst)
 
-/** The reference tone curve of a linear colour: an ACES filmic fit, clamped. */
-export function filmic([r, g, b]: readonly number[]): number[] {
-  const c = [r, g, b].map((v) => v / 0.6)
-  const into = [0.59719, 0.076, 0.0284, 0.35458, 0.90834, 0.13383, 0.04823, 0.01566, 0.83777]
-  const out = [
-    1.60475, -0.10208, -0.00327, -0.53108, 1.10813, -0.07276, -0.07367, -0.00605, 1.07602,
-  ]
-  const times = (m: number[], v: number[]) =>
-    [0, 1, 2].map((i) => m[i] * v[0] + m[3 + i] * v[1] + m[6 + i] * v[2])
-  const fit = times(into, c).map(
-    (v) => (v * (v + 0.0245786) - 0.000090537) / (v * (0.983729 * v + 0.432951) + 0.238081),
-  )
-  return times(out, fit).map((v) => saturate(v))
-}
+/** The display chain the engine ships (`displayValue`), run as JavaScript: the default curve then the
+ *  sRGB transfer; the curve's own numbers are pinned by `../lighting/toneTable.test.ts`. */
+const chain = shaderRun<{ displayValue: (c: number[], curve: number) => number[] }>(
+  wgslModule(DISPLAY_VALUE_WGSL),
+  ['displayValue'],
+  // The film curve reads a hue as an angle; the interpreter's built-ins hold no `atan2`.
+  { atan2: Math.atan2 },
+)
 
 /** The sRGB transfer of a linear colour. */
 export const srgb = (rgb: readonly number[]) => rgb.map(linearToSrgb)
 
-/** The reference display value of a linear colour: its tone curve, then sRGB. */
-export const display = (rgb: readonly number[]) => srgb(filmic(rgb))
+/** The display value of a linear colour: the default curve, then sRGB. */
+export const display = (rgb: readonly number[]) =>
+  chain.displayValue([...rgb], TONE_MAPPING_RANK.filmic)
 
 /** The display value of `colour`, opaque. */
 export const shown = (colour: Rgba): Rgba => {

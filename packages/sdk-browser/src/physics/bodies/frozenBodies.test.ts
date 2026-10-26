@@ -1,6 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BODY_INDEX, LAYER, POSE_WORDS } from '../../../../sdk-core/src/physics/layout.ts'
+import {
+  BODY_INDEX,
+  BUILT_IN_FILTER,
+  FLAG,
+  POSE_WORDS,
+} from '../../../../sdk-core/src/physics/layout.ts'
 import { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
 import { startModule, type Module } from '../module.fixture.ts'
 import { body } from '../records.fixture.ts'
@@ -23,7 +28,11 @@ async function boxes(centres: number[][], view: (w: CommandWriter) => void, deco
   view(writer)
   centres.forEach((centre, id) => {
     const record = { ...body(id, 2, 0, HALF), position: centre }
-    writer.add(decorative ? { ...record, layer: LAYER.decorative } : record)
+    writer.add(
+      decorative
+        ? { ...record, filter: BUILT_IN_FILTER.decorative, flags: FLAG.decorative }
+        : record,
+    )
     writer.velocity(id, [1, 0, 0])
   })
   const first = poses(jolt, jolt.step(writer.take(), 0))

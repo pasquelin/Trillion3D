@@ -3,7 +3,8 @@ import test from 'node:test'
 import type { SceneLight } from './contracts.ts'
 import { validateSceneLight } from './validate.ts'
 import { createSceneLightStore } from './store.ts'
-import { baseOf, LIGHT_FIELD } from './fields.ts'
+import { baseOf, brightnessOf, LIGHT_FIELD } from './fields.ts'
+import { spotAnglesOf } from './spotAngles.ts'
 
 const lanterne = (emitterRadius?: number): SceneLight => ({
   id: 'lanterne',
@@ -129,4 +130,103 @@ test('a lamp’s tube and soft radius pass validation, and reach their lanes: ze
     [...store.packed.slice(at + LIGHT_FIELD.halfAxis, at + LIGHT_FIELD.halfAxis + 3)],
     [0.5, 0, 0],
   )
+})
+
+test('a lamp’s fall-off and shares and a spot’s cones pass validation and reach their lanes', () => {
+  const spot = (extra: Partial<SceneLight> = {}) =>
+    validateSceneLight({
+      ...{ ...lanterne(), kind: 'spot', direction: [0, -1, 0], outerConeAngle: 0.8 },
+      ...extra,
+    })
+  const lane = (light: SceneLight, field: number, count = 1) => {
+    const store = createSceneLightStore()
+    store.add(light)
+    return [...store.packed.slice(baseOf(0) + field, baseOf(0) + field + count)]
+  }
+  const f = Math.fround
+  // The cones: the outer one the outer angle, the inner one the inner angle, none by default (the
+  // whole cone fades); a sharp spot fades across a milliradian.
+  const cones = (extra?: Partial<SceneLight>) => [
+    ...lane(spot(extra), LIGHT_FIELD.cosInner),
+    ...lane(spot(extra), LIGHT_FIELD.cosCone),
+  ]
+  assert.deepEqual(cones(), [1, f(Math.cos(0.8))])
+  assert.deepEqual(cones({ innerConeAngle: 0.4 }), [f(Math.cos(0.4)), f(Math.cos(0.8))])
+  assert.deepEqual(cones({ innerConeAngle: 0.8 }), [f(Math.cos(0.8)), f(Math.cos(0.801))])
+  assert.deepEqual(spotAnglesOf(0.5, 0.2), [0.5, 0.501], 'the outer cone past the inner one')
+  const [inner, outer] = spotAnglesOf(-1, 3)
+  assert.ok(inner === 0 && outer < 1.5532 && outer > 1.5522, 'held at 88.9 degrees, and its gap')
+  // The fall-off: the inverse square by default (lane 0), else its exponent, 8 by default.
+  const exponent = (extra?: Partial<SceneLight>) => lane(spot(extra), LIGHT_FIELD.radialExponent)[0]
+  assert.deepEqual(
+    [exponent(), exponent({ inverseSquared: false }), exponent({ radialExponent: 3 })],
+    [0, 8, 0],
+  )
+  assert.equal(exponent({ inverseSquared: false, radialExponent: 3 }), 3)
+  // The shares of diffuse then specular light: 1 and 1 for every kind; a rectangle's are elsewhere.
+  const panel: Partial<SceneLight> = {
+    kind: 'rect',
+    position: [0, 3, 0],
+    range: 9,
+    size: [1, 1],
+    right: [1, 0, 0],
+  }
+  const kinds: Partial<SceneLight>[] = [
+    { kind: 'directional', direction: [0, -1, 0] },
+    { ...panel, direction: [0, -1, 0] },
+  ]
+  const shares = (extra: Partial<SceneLight>) =>
+    lane(
+      validateSceneLight({
+        id: 'k',
+        color: [1, 1, 1],
+        intensity: 1,
+        castsShadow: false,
+        ...extra,
+      } as SceneLight),
+      extra.kind === 'rect' ? LIGHT_FIELD.rectShares : LIGHT_FIELD.shares,
+      2,
+    )
+  const own = { diffuseShare: 0.5, specularShare: 0.25 }
+  assert.deepEqual(lane(spot(), LIGHT_FIELD.shares, 2), [1, 1])
+  assert.deepEqual(lane(spot(own), LIGHT_FIELD.shares, 2), [0.5, 0.25])
+  for (const kind of kinds)
+    assert.deepEqual(
+      [shares(kind), shares({ ...kind, ...own })],
+      [
+        [1, 1],
+        [0.5, 0.25],
+      ],
+      kind.kind,
+    )
+  for (const bad of [{ inverseSquared: 1 }, { radialExponent: 0 }, { radialExponent: Number.NaN }])
+    assert.throws(() => spot(bad as Partial<SceneLight>), /inverseSquared|radialExponent/)
+  for (const bad of [{ diffuseShare: -1 }, { specularShare: 2 }, { diffuseShare: Number.NaN }])
+    assert.throws(() => spot(bad), /Share expected in \[0, 1\]/)
+  const refused = () => shares({ ...kinds[1], inverseSquared: false })
+  assert.throws(refused, /exists only for a point or a spot/)
+})
+
+test('a unit is refused on a directional light or when unknown; an EV intensity may be 0 or under, any other 0 or over', () => {
+  const lamp = { id: 'l', kind: 'point', position: [0, 0, 0], range: 5, color: [1, 1, 1] }
+  const ok = (light: object) => validateSceneLight({ castsShadow: false, ...light } as SceneLight)
+  assert.equal(ok(lamp).intensity, undefined, 'no intensity named, none written')
+  assert.equal(ok({ ...lamp, intensityUnits: 'ev', intensity: -2 }).intensity, -2)
+  assert.equal(ok({ ...lamp, intensity: 0 }).intensity, 0, 'a lamp of no light is a light')
+  for (const bad of [
+    { ...lamp, intensity: -0.5 },
+    { ...lamp, intensity: -1, intensityUnits: 'lumens' },
+    { ...lamp, intensityUnits: 'watts' },
+    { id: 's', kind: 'directional', direction: [0, -1, 0], color: [1, 1, 1], intensityUnits: 'ev' },
+    // Off the inverse square the unit is not read: the number is a brightness, at least 0 in any unit.
+    { ...lamp, intensityUnits: 'ev', intensity: -3, inverseSquared: false },
+    // A nit read without a source area would give no light at all.
+    { ...lamp, intensityUnits: 'nits', intensity: 5 },
+    { ...lamp, intensityUnits: 'nits' },
+  ])
+    assert.throws(() => ok(bad), /INVALID_SCENE_LIGHT|intensity|nits/, JSON.stringify(bad))
+  // With a source, or off the inverse square, a nit lamp lights.
+  assert.equal(ok({ ...lamp, intensityUnits: 'nits', emitterRadius: 0.1 }).intensityUnits, 'nits')
+  const flat = { ...lamp, intensityUnits: 'nits', inverseSquared: false, intensity: 2 }
+  assert.equal(brightnessOf(ok(flat)), 2)
 })

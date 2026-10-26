@@ -36,7 +36,8 @@ export type HizBuildPass = { source: number; width: number; height: number; leve
 /**
  * The build passes of a pyramid of `sizes`, at most `maxLevels` deep: each pass reads one level
  * and reduces the next `HIZ_PASS_LEVELS` from it through workgroup memory. The first reads the
- * level-0 texture, copying it into the pyramid on the way, even when there is nothing to reduce.
+ * level-0 texture and reduces level 1 from it, nothing copied, even when there is nothing to reduce
+ * (the planes' slopes are still written).
  */
 export function hizBuildPasses(sizes: Array<[number, number]>, maxLevels = HIZ_MAX_LEVELS) {
   const last = Math.min(sizes.length, maxLevels) - 1

@@ -17,12 +17,13 @@ use super::*;
 use crate::compiler::source::node_transform::Mat4;
 use std::ops::Range;
 use trillion3d_page_codec::encode::Attribute;
-use trillion3d_page_codec::FLAG_COLOR;
 
 mod cover;
+mod lay;
 #[cfg(test)]
 mod tests;
 pub(crate) use cover::{part_space, RootCover};
+use lay::{arrays_of, lay_instances, lay_origins};
 
 /// An instance of the assembly: the root of the part it draws and the transform it stands at, in
 /// the assembly's space.
@@ -43,89 +44,6 @@ pub(crate) struct Parent {
 pub(crate) struct Climbed {
     pub build: DagBuild,
     pub parents: Vec<Option<Parent>>,
-}
-
-/// The mesh's own level 0 (`own`, none when it holds no triangle) and its arrays: the source's, or
-/// the build's when it rebuilt them.
-fn arrays_of(
-    own: &Option<DagBuild>,
-    positions: &[f32],
-    attributes: DagAttributes,
-) -> (Vec<f32>, Vec<Attribute>) {
-    match own {
-        Some(built) => {
-            let (positions, carried) = Grown::level(&built.grown, positions, attributes);
-            (positions.to_vec(), carried.into_iter().cloned().collect())
-        }
-        None => {
-            let empty = |a: &&Attribute| Attribute {
-                flag: a.flag,
-                width: a.width,
-                values: Vec::new(),
-            };
-            (Vec::new(), attributes.carried.iter().map(empty).collect())
-        }
-    }
-}
-
-/// The instances laid after the mesh's own arrays: each one's cover carried by its matrix
-/// (`RootCover::carried_by`), its vertices appended to `positions` and `carried`, and a cluster of
-/// its triangles — level 0, its error and ball the root's, in no group — pushed to `clusters`. A
-/// colour is the one attribute either side may lack, a build dropping a colour white at every vertex:
-/// it is white where it is missing, and a column made of the vertices laid so far when only an
-/// instance carries it. Refused when an instance carries other attributes than the primitive.
-fn lay_instances(
-    instances: &[Instance],
-    (positions, carried): (&mut Vec<f32>, &mut Vec<Attribute>),
-    clusters: &mut Vec<DagCluster>,
-) -> Result<()> {
-    let refused = || {
-        CompilerError::new(
-            "INVALID_ASSEMBLY",
-            "An assembly instance carries other attributes than the primitive it joins",
-        )
-    };
-    for instance in instances {
-        let placed = instance.cover.carried_by(&instance.matrix);
-        let vertices = positions.len() / 3;
-        let colour = placed.carried.iter().find(|a| a.flag == FLAG_COLOR);
-        if let Some(from) = colour.filter(|_| !carried.iter().any(|a| a.flag == FLAG_COLOR)) {
-            carried.push(Attribute {
-                flag: from.flag,
-                width: from.width,
-                values: vec![1.0; vertices * from.width],
-            });
-        }
-        let has =
-            |into: &Attribute, from: &Attribute| into.flag == from.flag && into.width == from.width;
-        let known = placed
-            .carried
-            .iter()
-            .all(|from| carried.iter().any(|into| has(into, from)));
-        if !known {
-            return Err(refused());
-        }
-        let count = placed.positions.len() / 3;
-        for into in carried.iter_mut() {
-            match placed.carried.iter().find(|from| has(into, from)) {
-                Some(from) => into.values.extend_from_slice(&from.values),
-                None if into.flag == FLAG_COLOR => into
-                    .values
-                    .resize(into.values.len() + count * into.width, 1.0),
-                None => return Err(refused()),
-            }
-        }
-        let base = vertices as u32;
-        positions.extend_from_slice(&placed.positions);
-        let indices = placed.indices.iter().map(|&v| v + base).collect();
-        clusters.push(DagCluster::leaf(
-            indices,
-            placed.lod_error,
-            placed.sphere,
-            u32::MAX,
-        ));
-    }
-    Ok(())
 }
 
 /// The external edges of the clusters the climb starts over: those of the mesh's own — the first
@@ -166,37 +84,30 @@ fn without(build: &mut DagBuild, gone: Range<usize>) {
     }
 }
 
-/// The DAG of the primitive `positions`, `attributes` and `indices` describe — the assembly's own
-/// triangles, none for a mesh that has none — with the levels above its own clusters and the roots
-/// of `instances`. Each instance's group is `Climbed::parents`'s entry for it. A build with no
-/// cluster of its own and fewer than two instances, or none above level 0, has nothing to climb:
-/// refused when it holds no cluster, else returned as `build_dag` returns it.
-pub(crate) fn build_with_instances(
+/// The mesh's own level 0: the clusters its triangles make as `build_levels` makes them — none for
+/// a mesh with no triangle, or none that is not two corners at one point.
+fn own_level0(
     (positions, attributes, indices): (&[f32], DagAttributes, &[u32]),
-    instances: &[Instance],
     settings: DagSettings,
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
-) -> Result<Climbed> {
+) -> Result<Option<DagBuild>> {
     let exact = DagSettings {
         strategy: DagStrategy::ExactClusters,
         ..settings
     };
-    let own = match indices.is_empty() {
-        true => None,
-        false => match build_levels(positions, attributes, indices, exact, checkpoint) {
-            Ok(built) => Some(built),
-            Err(refusal) if refusal.code == "INVALID_TRIANGLES" => None,
-            Err(refusal) => return Err(refusal),
-        },
-    };
-    let (mut drawn, mut carried) = arrays_of(&own, positions, attributes);
-    let DagBuild {
-        clusters: mut dag,
-        indices: source_indices,
-        triangle_source,
-        grown: own_grown,
-        ..
-    } = own.unwrap_or_else(|| DagBuild {
+    if indices.is_empty() {
+        return Ok(None);
+    }
+    match build_levels(positions, attributes, indices, exact, checkpoint) {
+        Ok(built) => Ok(Some(built)),
+        Err(refusal) if refusal.code == "INVALID_TRIANGLES" => Ok(None),
+        Err(refusal) => Err(refusal),
+    }
+}
+
+/// A DAG of no cluster: the level 0 of a mesh with no triangle.
+fn nothing() -> DagBuild {
+    DagBuild {
         clusters: Vec::new(),
         groups: Vec::new(),
         tallies: Vec::new(),
@@ -204,33 +115,31 @@ pub(crate) fn build_with_instances(
         grown: None,
         indices: Vec::new(),
         triangle_source: Vec::new(),
-    });
+    }
+}
+
+/// The climb over the mesh's own clusters (`own`, whose arrays are the first of `drawn` and
+/// `carried`) and the roots of `instances`, laid after them: the levels above them all, and the
+/// group that replaces each instance's root, which is not a cluster of the DAG that comes back.
+fn climb(
+    own: DagBuild,
+    (drawn, carried): (&mut Vec<f32>, &mut Vec<Attribute>),
+    instances: &[Instance],
+    settings: DagSettings,
+    checkpoint: &(dyn Fn() -> Result<()> + Sync),
+) -> Result<Climbed> {
+    let DagBuild {
+        clusters: mut dag,
+        indices: source_indices,
+        triangle_source,
+        ..
+    } = own;
     let own_clusters = dag.len();
-    if dag.is_empty() && (settings.strategy == DagStrategy::ExactClusters || instances.len() < 2) {
-        return Err(CompilerError::new(
-            "INVALID_TRIANGLES",
-            "Every triangle has two corners at one point",
-        ));
-    }
-    if settings.strategy == DagStrategy::ExactClusters || dag.len() + instances.len() < 2 {
-        let mut build = DagBuild {
-            clusters: dag,
-            groups: Vec::new(),
-            tallies: Vec::new(),
-            stalls: Vec::new(),
-            grown: own_grown,
-            indices: source_indices,
-            triangle_source,
-        };
-        finish(&mut build, positions);
-        let parents = vec![None; instances.len()];
-        return Ok(Climbed { build, parents });
-    }
-    lay_instances(instances, (&mut drawn, &mut carried), &mut dag)?;
+    lay_instances(instances, (&mut *drawn, &mut *carried), &mut dag);
     let refs: Vec<&Attribute> = carried.iter().collect();
     let all = DagAttributes { carried: &refs };
     let used: Vec<u32> = dag.iter().flat_map(|c| c.indices.iter().copied()).collect();
-    let welds = welds::Welds::of(&drawn, all, &used);
+    let welds = welds::Welds::of(drawn, all, &used);
     let identities: Vec<u64> = (0..dag.len())
         .map(|id| identity::of_range(id, id + 1))
         .collect();
@@ -253,26 +162,54 @@ pub(crate) fn build_with_instances(
         })
         .collect();
     without(&mut build, roots);
-    // The vertices past the mesh's own source, each with the source vertex it deforms as: the
-    // assembly is static, so the roots' and those the reductions placed from them take the first.
-    let grown = build.grown.take().unwrap_or(Grown {
-        positions: drawn.clone(),
-        carried: carried.clone(),
-        origin: Vec::new(),
-    });
+    Ok(Climbed { build, parents })
+}
+
+/// The DAG of the primitive `positions`, `attributes` and `indices` describe — the assembly's own
+/// triangles, none for a mesh that has none — with the levels above its own clusters and the roots
+/// of `instances`. Each instance's group is `Climbed::parents`'s entry for it. A build with no
+/// cluster of its own and fewer than two instances, or none above level 0, has nothing to climb:
+/// refused when it holds no cluster, else returned as `build_dag` returns it.
+pub(crate) fn build_with_instances(
+    arrays: (&[f32], DagAttributes, &[u32]),
+    instances: &[Instance],
+    settings: DagSettings,
+    checkpoint: &(dyn Fn() -> Result<()> + Sync),
+) -> Result<Climbed> {
+    let (positions, attributes, _) = arrays;
+    let own = own_level0(arrays, settings, checkpoint)?;
+    let (mut drawn, mut carried) = arrays_of(&own, positions, attributes);
+    let mut own = own.unwrap_or_else(nothing);
+    let exact = settings.strategy == DagStrategy::ExactClusters;
+    if own.clusters.is_empty() && (exact || instances.len() < 2) {
+        return Err(CompilerError::new(
+            "INVALID_TRIANGLES",
+            "Every triangle has two corners at one point",
+        ));
+    }
+    if exact || own.clusters.len() + instances.len() < 2 {
+        let mut build = DagBuild {
+            groups: Vec::new(),
+            tallies: Vec::new(),
+            stalls: Vec::new(),
+            ..own
+        };
+        finish(&mut build, positions);
+        let parents = vec![None; instances.len()];
+        return Ok(Climbed { build, parents });
+    }
+    let own_grown = own.grown.take();
+    let climbed = climb(
+        own,
+        (&mut drawn, &mut carried),
+        instances,
+        settings,
+        checkpoint,
+    )?;
+    let Climbed { mut build, parents } = climbed;
     let laid: usize = instances.iter().map(|i| i.cover.positions.len() / 3).sum();
-    let kept = (grown.origin.iter()).map(|&o| {
-        if (o as usize) < positions.len() / 3 {
-            o
-        } else {
-            0
-        }
-    });
-    let origin: Vec<u32> = (own_grown.into_iter().flat_map(|g| g.origin))
-        .chain(std::iter::repeat_n(0, laid))
-        .chain(kept)
-        .collect();
-    build.grown = Some(Grown { origin, ..grown });
+    let counts = (own_grown, positions.len() / 3, laid);
+    lay_origins(&mut build, (&drawn, &carried), counts);
     finish(&mut build, &drawn);
     Ok(Climbed { build, parents })
 }

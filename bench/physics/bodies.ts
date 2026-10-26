@@ -16,12 +16,13 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { Worker, isMainThread, workerData } from 'node:worker_threads'
 import {
+  DEFAULT_RESTITUTION_THRESHOLD,
   PHYSICS_STEP,
   DEFAULT_PHYSICS_BUDGET,
   PHYSICS_MATERIALS,
 } from '../../packages/sdk-core/src/physics/options.ts'
 import { CommandWriter } from '../../packages/sdk-core/src/physics/commands.ts'
-import { LAYER, MOTION, SHAPE } from '../../packages/sdk-core/src/physics/layout.ts'
+import { BUILT_IN_FILTER, MOTION, SHAPE } from '../../packages/sdk-core/src/physics/layout.ts'
 import { summaryOf } from '../../packages/math/src/scalar/quantile.ts'
 import { Quaternion } from '../../packages/sdk-core/src/world/math/quaternion.ts'
 import { openJolt, startJolt } from '../../packages/sdk-browser/src/physics/joltModule.ts'
@@ -56,7 +57,7 @@ function scene(count: number) {
     writer.add({
       id,
       motion,
-      layer: motion === MOTION.static ? LAYER.static : LAYER.moving,
+      filter: motion === MOTION.static ? BUILT_IN_FILTER.static : BUILT_IN_FILTER.moving,
       shape: SHAPE.box,
       flags: 0,
       position,
@@ -122,7 +123,13 @@ async function web(words: Uint32Array, bodies: number, threads: number, file: st
     new Worker(fileURLToPath(import.meta.url), { workerData: start }).unref()
   const pool = threads > 1 || file ? { count: threads, spawn } : null
   const opened = await openJolt(readFileSync(file ?? join(PHYSICS, name)), 1 << 30, pool)
-  const jolt = startJolt(opened, budgetFor(bodies), threads, PHYSICS_STEP)
+  const jolt = startJolt(
+    opened,
+    budgetFor(bodies),
+    threads,
+    PHYSICS_STEP,
+    DEFAULT_RESTITUTION_THRESHOLD,
+  )
   const profile =
     'jolt_profile_name' in opened.exports ? (opened.exports as unknown as Profiled) : null
   const phases = new Map<string, number>()

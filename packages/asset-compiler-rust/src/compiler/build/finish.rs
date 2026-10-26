@@ -20,13 +20,11 @@ pub(super) fn finish_job(
     (bin, offset, threads, estimated_working_bytes, waited): Sizes<'_>,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<Value> {
-    let (scene_plugin, coplanar_report, texture_preview_report, cutout_report) = reports;
+    let (scene_plugin, coplanar_report, texture_preview_report) = reports;
     let Staged {
-        proxy_bytes,
-        proxy_sha,
-        proxy_descriptor,
         voxels,
         distance_fields,
+        mesh_cards,
         volumetric_lightmap,
         products,
         paged,
@@ -59,8 +57,8 @@ pub(super) fn finish_job(
         "geometryFiles": geometry_files, "status": "ready", "key": key,
         "scenePlugin": scene_plugin, "scope": o.scope,
         "clusterStrategy": DAG_CLUSTER_STRATEGY, "coplanar": coplanar_report,
-        "texturePreviews": texture_preview_report, "cutouts": cutout_report,
-        "proxy": proxy_descriptor, "voxels": voxels,
+        "texturePreviews": texture_preview_report,
+        "voxels": voxels,
         "physics": physics,
         "selectedTriangles": selected_triangles,
         "sourceTriangles": manifest["runtime"]["trianglesAcrossNodes"],
@@ -73,6 +71,10 @@ pub(super) fn finish_job(
     // Named only by a scene whose meshes build a distance field.
     if let Some(fields) = distance_fields {
         result["distanceFields"] = fields;
+    }
+    // Named only by a scene whose meshes keep some card.
+    if let Some(cards) = mesh_cards {
+        result["meshCards"] = cards;
     }
     // Named only by a job that baked a volumetric lightmap.
     if let Some(lightmap) = volumetric_lightmap {
@@ -88,8 +90,6 @@ pub(super) fn finish_job(
             key,
             directory,
             cache_format,
-            proxy_bytes: &proxy_bytes,
-            proxy_sha: &proxy_sha,
             products: &products,
             previews: texture_previews,
             mesh_pages: &paged,
@@ -106,9 +106,9 @@ pub(super) fn finish_job(
     Ok(result)
 }
 
-/// What the stages report beside their products: the scene plugin's provenance, the coplanar, the
-/// texture preview and the cutout reports.
-type Reports = (Option<Value>, Value, Value, Value);
+/// What the stages report beside their products: the scene plugin's provenance, the coplanar and
+/// the texture preview reports.
+type Reports = (Option<Value>, Value, Value);
 
 /// What the job's metrics weigh: the source binary, the geometry written, the workers, the
 /// admitted working set and the primitives the room made wait (`budget/admission.rs`).

@@ -5,9 +5,10 @@ import { BODY_INDEX } from '../../../../sdk-core/src/physics/layout.ts'
 import { SOFT_STATE_WORDS } from '../../../../sdk-core/src/physics/soft/softLayout.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { computeNormals } from '../../../../sdk-core/src/world/geometry/normals.ts'
+import type { Bodied } from '../bodies/bodied.ts'
 import type { createPhysicsBodies } from '../bodies/bodies.ts'
 import type { TickRecords } from '../protocol.ts'
-import { createTwoSteps, eachRecord } from '../step/twoSteps.ts'
+import { createTwoSteps, drawEach, eachRecord } from '../step/twoSteps.ts'
 import { lerpArray } from '../../../../math/src/scalar/reals.ts'
 
 /** The soft body drawing now (`drawSoft`), if any. */
@@ -38,6 +39,32 @@ function drawSoft(mesh: Mesh, vertices: Float32Array) {
  *  engine id. */
 type SoftState = { id: number; from: Float32Array; to: Float32Array }
 
+type SoftBodies = Pick<ReturnType<typeof createPhysicsBodies>, 'meshOf' | 'softMap' | 'slots'>
+
+/** The source of the compiled model's soft body `id`, or none. */
+function softSourceOf(bodies: SoftBodies, id: number) {
+  const owner = bodies.slots.of(id)
+  return owner && 'soft' in owner ? owner.soft.source : undefined
+}
+
+/** The page's soft body `id` and its vertex map, or none. */
+function softPageOf(bodies: SoftBodies, id: number) {
+  const mesh = bodies.meshOf(id),
+    map = mesh && bodies.softMap(mesh.physics._index)
+  return map ? { mesh: mesh!, map } : null
+}
+
+/** The page's soft body `mesh` drawn at `vertices`, one simulated place per vertex of `map`. */
+function drawPage(mesh: Bodied, map: Uint32Array, vertices: Float32Array) {
+  // Made again from another geometry, it takes the new one's vertex count.
+  if (mesh.physics.vertices?.length !== map.length * 3)
+    mesh.physics.vertices = new Float32Array(map.length * 3)
+  const out = mesh.physics.vertices
+  for (let v = 0; v < map.length; v++)
+    for (let k = 0; k < 3; k++) out[v * 3 + k] = vertices[map[v] * 3 + k]
+  drawSoft(mesh, out)
+}
+
 /**
  * The soft bodies' drawn vertices (`SOFT_STATE_WORDS` records): each one's simulated vertices kept
  * in two states by slot (`../step/twoSteps.ts`), and each frame every vertex of a soft body's geometry
@@ -45,25 +72,13 @@ type SoftState = { id: number; from: Float32Array; to: Float32Array }
  * to, in `physics.vertices`, its geometry drawn there (`drawSoft`); a compiled model's at the same
  * places (`receiveSoftSource`). A record naming a body that left is skipped.
  */
-export function createSoftVertices(
-  bodies: Pick<ReturnType<typeof createPhysicsBodies>, 'meshOf' | 'softMap' | 'slots'>,
-  capacity: number,
-) {
+export function createSoftVertices(bodies: SoftBodies, capacity: number) {
   const steps2 = createTwoSteps(capacity)
   const bySlot: (SoftState | undefined)[] = []
   /** The simulated vertices drawn, grown to the most a soft body held. */
   let drawn = new Float32Array(0)
-  /** The source of the compiled model's soft body `id`, or none. */
-  const sourceOf = (id: number) => {
-    const owner = bodies.slots.of(id)
-    return owner && 'soft' in owner ? owner.soft.source : undefined
-  }
-  /** The page's soft body `id` and its vertex map, or none. */
-  const meshOf = (id: number) => {
-    const mesh = bodies.meshOf(id),
-      map = mesh && bodies.softMap(mesh.physics._index)
-    return map ? { mesh: mesh!, map } : null
-  }
+  const sourceOf = (id: number) => softSourceOf(bodies, id)
+  const meshOf = (id: number) => softPageOf(bodies, id)
   /** Whether the soft body `id` is still simulated: a page's or a compiled model's. */
   const drawable = (id: number) => !!(sourceOf(id) || meshOf(id))
   /** Draws the soft body in `slot` at `t` of its step. */
@@ -79,24 +94,15 @@ export function createSoftVertices(
     }
     if (source) receiveSoftSource(source, vertices)
     if (!page) return
-    const { mesh, map } = page
-    // Made again from another geometry, it takes the new one's vertex count.
-    if (mesh.physics.vertices?.length !== map.length * 3)
-      mesh.physics.vertices = new Float32Array(map.length * 3)
-    const out = mesh.physics.vertices
-    for (let v = 0; v < map.length; v++)
-      for (let k = 0; k < 3; k++) out[v * 3 + k] = vertices[map[v] * 3 + k]
-    drawSoft(mesh, out)
+    drawPage(page.mesh, page.map, vertices)
   }
+  const drawAll = drawEach(draw)
   /** Whether the soft body kept in `slot` is still simulated; one gone gives its states back. */
   const alive = (slot: number) => {
     const state = bySlot[slot]
     if (state && drawable(state.id)) return true
     bySlot[slot] = undefined
     return false
-  }
-  const drawAll = (moving: Readonly<Int32Array>, count: number, t: number) => {
-    for (let i = 0; i < count; i++) draw(moving[i], t)
   }
   return {
     /** A tick's records, after `steps` fixed steps; returns how many it kept. */

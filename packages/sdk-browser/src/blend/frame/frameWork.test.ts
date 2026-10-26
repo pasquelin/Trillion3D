@@ -36,7 +36,7 @@ test('a steady frame sends the GPU the eye alone: no order, no run, no word per 
   await expandable(device, blendState)
   assert.ok(blendState.expand, 'the kernels are made')
   const encoder = device.createCommandEncoder()
-  const rt = { blendState, gpu: {}, run: {} } as unknown as WebgpuPagesRuntime
+  const rt = { blendState, gpu: {}, run: {}, context: {} } as unknown as WebgpuPagesRuntime
   orderBlendPasses(blendState, [0, 5, 0])
   encodeBlendExpansion(rt, encoder)
   for (const eye of [
@@ -71,7 +71,10 @@ test('a plan sends its order steps in one write at 256 bytes, as the whole steps
   const ofSteps = () => writes.filter((w) => w.buffer === (steps as unknown as GPUBuffer))
   writes.length = 0
   orderBlendPasses(blendState, [0, 5, 0])
-  encodeBlendExpansion({ blendState, gpu: {}, run: {} } as unknown as WebgpuPagesRuntime, encoder)
+  encodeBlendExpansion(
+    { blendState, gpu: {}, run: {}, context: {} } as unknown as WebgpuPagesRuntime,
+    encoder,
+  )
   const sent = ofSteps()
   assert.equal(sent.length, 1, 'one write, the one the whole steps made')
   assert.ok(written(sent[0]).byteLength <= steps.size, 'never past the whole steps')

@@ -1,9 +1,8 @@
 // A parked car (0 km/h) is no move of its placement.
 // A car the physics poses writes its placement rows (`physics/placer.ts`): a pose written again
 // within a float32 step of the one its mobility last saw — a parked body's pose rounded again, frame
-// after frame — names no root for its rows' derivation (`deriveRootRows`); its rows follow the
-// world sent, each appending what its own words changed (`rows/rowCastWgsl.ts`); a millimetre is a move
-// again, the car moving already. The CPU declares no box.
+// after frame — is no move of its mobility (`ShadowMobility.move`): the world sent is the one drawn;
+// a millimetre is a move again, the car moving already. The CPU declares no box.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
@@ -23,20 +22,26 @@ test('a parked caster written again within a float32 step is no move, frame afte
   Object.assign(root, { placement: { rows, index: 0 } })
   const { rt, motions } = runtime(new Object3D(), [root])
   Object.assign(rt.blendState, { blendGpu: [] })
-  rt.lights.mobility.ensure(1, 1, () => root.world.elements)
+  rt.lights.mobility.ensure(1, () => root.world.elements)
   const write = (x: number, turn = 0) => {
     const pose = new Matrix4().makeRotationY(turn).setPosition(x, 2, -25).elements
     rows.matrices.set(pose)
     updateWebgpuPlacements(rt, rows, 0, 0)
   }
-  // The roots named to the rows pass since the last look, taken as its follow takes them: a root
-  // is listed once a follow (`deriveRootRows`).
+  // The moves the mobility was told of since the last look.
+  const { mobility } = rt.lights,
+    told = mobility.move
+  let moves = 0
+  mobility.move = ((...args: Parameters<typeof told>) => {
+    moves++
+    return told.apply(mobility, args)
+  }) as typeof told
   const asked = () => {
-    const words = rt.rowWords
-    if (!words) return 0
-    return words.roots.take().length
+    const taken = moves
+    moves = 0
+    return taken
   }
-  // Its first move: it turns moving, its root named.
+  // Its first move: it turns moving.
   write(40.001)
   assert.equal(asked(), 1, 'its first move')
   assert.equal(rt.lights.mobility.moves(0), true)

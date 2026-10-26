@@ -20,7 +20,7 @@ export function appendRoots(run: DagRun, roots: readonly DagRoot[]) {
   // Their groups are fitted at the next cut, over the leaves of the placements they hold.
   const [first, end] = added.worlds
   for (let w = first; w < end; w++) tree?.touch(w)
-  run.proxies.appended(first, end)
+  run.boxes.markRange(first, end)
   voidCuts(state, true)
   return true
 }

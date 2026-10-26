@@ -1,6 +1,6 @@
 import { fieldLayout } from '../../../../gpu/core/fieldLayout.ts'
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
-import { FULLSCREEN_VERTEX } from '../../../../lighting/deferred/shaders.ts'
+import { FULLSCREEN_VERTEX } from '../../../../gpu/shader/fullscreenTriangle.ts'
 import { FINISH_WGSL } from '../../../finish/finishWgsl.ts'
 
 /** The uniform of the convolution's input: the inverse size of the image it writes, and 1 where the

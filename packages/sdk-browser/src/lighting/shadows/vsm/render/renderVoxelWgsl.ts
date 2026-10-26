@@ -1,6 +1,5 @@
 import { VSM_CASTER_PROJECTION_WGSL } from './renderCasterWgsl.ts'
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
-import { bitAt, bitIsSet, byteOf } from '../../../../../../math/src/wgsl/integer.ts'
 import { PAGE_BINDING, PAGE_INFO_WGSL } from '../../../../visibility/shader/pageWgsl.ts'
 import { VIS_BINDINGS } from '../../../../gpu/bind/bindLayout.ts'
 import { VOXEL_HIT_WGSL } from '../../../../visibility/shader/voxelHitWgsl.ts'
@@ -9,36 +8,28 @@ import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE } from '../constants.ts'
 import { VSM_PROJECTION_DATA_WGSL } from '../projection/projectionDataWgsl.ts'
 import { vsmBindingsWgsl } from '../resources.ts'
 import {
+  VSM_RENDER_JOIN_WGSL,
+  VSM_RENDER_OUT_WGSL,
   VSM_RENDER_RASTER_FRAGMENT_SPECS,
+  VSM_RENDER_RASTER_SHARED_SPECS,
   VSM_RENDER_RASTER_VERTEX_SPECS,
 } from './renderRasterWgsl.ts'
 import type { VsmLayout } from '../layout.ts'
+import { NO_WPO, type WpoSet } from '../../../../materials/graph/wpoProgram.ts'
+import { materialTableWgsl } from '../../../../materials/table/materialWgsl.ts'
+import { wpoGraphWgsl } from '../../../../visibility/shader/wpoGraphWgsl.ts'
 
-/**
- * The shadow raster's voxel tiers (from `VSM_RENDER_CORNER_TIERS`), a module of their own beside the
- * raster (`renderRasterWgsl.ts`), whose text the other tiers compile as they did before voxels: the
- * same pairs, groups and pool, a voxel row's pairs alone, made the first time a table holds a voxel
- * row (`renderPipes.ts`). Its vertex draws a corner of a brick's box,
- * carried by its joint, on the pair's page as the raster places every corner, and hands its pixels
- * the light's ray through it (`voxelRay`, the camera's one sequence); its fragment traces it
- * (`voxelPixel`) and joins the first voxel's depth to the pool, or nothing — a sun level's hit in
- * front of its near plane flattened onto it, as the raster flattens a corner (`vsmRenderClip`). A
- * voxel row draws one side of its boxes, no cutout, and reads no page in its fragment.
- */
-export const vsmRenderVoxelWgsl = (layout: VsmLayout) =>
-  wgslProgram(
-    /* wgsl */ `
-${PAGE_BINDING.indices}
+const voxelVertex = (wpo: WpoSet) => /* wgsl */ `${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
 @group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
-@group(1) @binding(0) var<storage,read> vsmRenderPairs:array<vec4u>;
-/** The corners a pair of this pipeline's voxel tier draws (\`vsmRenderTierCorners\`). */
+@group(1) @binding(0) var<storage,read> vsmRenderRecords:array<vec4u>;
+/** The corners a record of this pipeline's voxel tier draws (\`vsmRenderTierCorners\`). */
 override VSM_RENDER_CORNERS:u32=768u;
 struct VsmVoxelOut{
  @builtin(position) position:vec4f,
- /** Physical page address (x | y << 10) and pool slice. */
- @location(0) @interpolate(flat) dest:vec2u,
+ /** The window (\`vsmRenderWindowOf\`). */
+ @location(0) @interpolate(flat) window:vec4u,
  /** Translated world (relative to a local light) and the emitter radius, 0 for none. */
  @location(1) fromEmitter:vec4f,
  /** The light's ray through the box point (\`voxelRay\`); \`cells.w\` whether a sun level flattens. */
@@ -48,16 +39,16 @@ struct VsmVoxelOut{
  @location(5) @interpolate(flat) cells:vec4u,
 }
 @vertex fn vsmRenderVs(@builtin(vertex_index) vertexIndex:u32)->VsmVoxelOut{
- let pair=vsmRenderPairs[vertexIndex/VSM_RENDER_CORNERS];
- let pairCorner=vertexIndex%VSM_RENDER_CORNERS;
+ let record=vsmRenderRecords[vertexIndex/VSM_RENDER_CORNERS];
+ let recordCorner=vertexIndex%VSM_RENDER_CORNERS;
  var out:VsmVoxelOut;
- out.dest=vec2u(pair.w,bitAt(pair.y,21u));
- let page=pages[pair.x];
- if(pairCorner>=page.indexCount){out.position=vec4f(-4.0,-4.0,0.5,1.0);return out;}
- let raw=vsmProjectionData[pair.y&0xFFFFu];
- var corner=pairCorner%3u;
- if(corner!=0u&&bitIsSet(pair.y,22u)){corner=3u-corner;}
- let v=voxelBoxVertex(pairCorner-pairCorner%3u+corner);let brick=v/${VOXEL_BRICK_CORNERS}u;
+ out.window=vsmRenderWindowOf(record);
+ let page=pages[record.x];
+ if(recordCorner>=page.indexCount){out.position=vsmRenderNan();return out;}
+ let raw=vsmProjectionData[vsmRecordMap(record)];
+${wpo.programs.length ? ' wpoThreshold=raw.wpoThreshold;\n' : ''} var corner=recordCorner%3u;
+ if(corner!=0u&&vsmRecordSwapped(record)){corner=3u-corner;}
+ let v=voxelBoxVertex(recordCorner-recordCorner%3u+corner);let brick=v/${VOXEL_BRICK_CORNERS}u;
  let mask=voxelBrickMask(page.pageOffset,brick);let box=voxelMaskBox(mask);
  let o=voxelBoxPoint(box,v);
  let shift=raw.originShiftHigh+raw.originShiftLow;
@@ -66,43 +57,59 @@ struct VsmVoxelOut{
  let shifted=vsmRenderShifted(raw,(cells*vec4f(o,1.0)).xyz);
  let isOrthoView=raw.lightViewToClip[3][3]>=1.0;
  out.fromEmitter=vec4f(shifted,select(raw.emitterSize,0.0,isOrthoView));
- let flatten=bitIsSet(pair.y,20u);
+ let flatten=vsmRecordFlatten(record);
  let clip=vsmRenderClip(raw,shifted,flatten);
  let r=voxelRay(mask,box,o,raw.shiftedToMapUv*toShifted*cells);
  out.start=r.start;out.dir=r.dir;out.depth=r.depth;out.cells=vec4u(r.cells,select(0u,1u,flatten));
- // Clip scaled and biased onto the pair's page, as the raster places every corner.
- let mipLevel=(pair.y>>16u)&7u;
- let s=f32(VSM_LEVEL0_TEXELS>>mipLevel)/f32(VSM_PAGE_TEXELS/2u);
- let vPage=vec2f(f32(byteOf(pair.z,0u)),f32(byteOf(pair.z,1u)));
- out.position=vec4f(clip.x*s-clip.w*(2.0*vPage.x+1.0),clip.w*(2.0*vPage.y+1.0)-clip.y*s,clip.z,clip.w);
+ // Placed on the record's window, as the raster places every corner.
+ out.position=vsmRenderWindowPosition(clip,record);
  return out;
-}
+}`
+
+const voxelFragment = () => /* wgsl */ `
 /** The depth fragment: the emitter envelope, then the first voxel's depth on the light's ray, an
  *  atomic max into the pool. */
 @fragment fn vsmRenderFs(in:VsmVoxelOut){
+ var texel:vec2u;
+ if(!vsmRenderPoolTexel(in.window,in.position.xy,&texel)){discard;}
  let r=in.fromEmitter.w;
  if(r>0.0&&dot(in.fromEmitter.xyz,in.fromEmitter.xyz)<r*r){discard;}
  let hit=voxelPixel(in.start,in.dir,in.cells.xyz);
  if(!hit.found){discard;}
  var z=voxelDepth(in.depth,hit.t);
  if(in.cells.w!=0u){z=min(z,${VSM_F32_BELOW_ONE});}
- let physical=vec2u(in.dest.x&0x3FFu,(in.dest.x>>10u)&0x3FFu);
- let texel=physical*VSM_PAGE_TEXELS+min(vec2u(in.position.xy),vec2u(VSM_PAGE_TEXEL_MASK));
- let depth=bitcast<u32>(clamp(z,0.0,1.0));
- vsmPoolAtomicMax(texel,in.dest.y,depth);
- if(in.dest.y!=0u){vsmPoolAtomicMax(texel,0u,depth);}
-}
+ vsmRenderJoin(in.window,texel,z);
+}`
+
+/**
+ * The shadow raster's voxel tiers (from `VSM_RENDER_CORNER_TIERS`), a module of their own beside the
+ * raster (`renderRasterWgsl.ts`), whose text the other tiers compile as they did before voxels: the
+ * same records, groups and pool, a voxel row's records alone, made the first time a table holds a
+ * voxel row (`renderPipes.ts`). Its vertex draws a corner of a brick's box, carried by its joint, on
+ * the record's window as the raster places every corner, and hands its pixels
+ * the light's ray through it (`voxelRay`, the camera's one sequence); its fragment traces it
+ * (`voxelPixel`) and joins the first voxel's depth to the pool, or nothing — a sun level's hit in
+ * front of its near plane flattened onto it, as the raster flattens a corner (`vsmRenderClip`). A
+ * voxel row draws one side of its boxes, no cutout, and reads no page in its fragment. With `wpo`, a
+ * brick whose surface wires a `worldPositionOffset` is carried by it where the map's level shows the
+ * motion (`wpoThreshold`), as the raster moves a vertex.
+ */
+export const vsmRenderVoxelWgsl = (layout: VsmLayout, wpo: WpoSet = NO_WPO) =>
+  wgslProgram(
+    /* wgsl */ `
+${voxelVertex(wpo)}${voxelFragment()}
 `,
     [
+      VSM_RENDER_OUT_WGSL,
+      VSM_RENDER_JOIN_WGSL,
       PAGE_INFO_WGSL,
       VSM_CASTER_PROJECTION_WGSL,
       VSM_CONSTANTS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, layout),
+      vsmBindingsWgsl(1, VSM_RENDER_RASTER_SHARED_SPECS, layout),
       VOXEL_HIT_WGSL,
-      byteOf,
-      bitAt,
-      bitIsSet,
+      ...(wpo.programs.length ? [materialTableWgsl(VIS_BINDINGS.material), wpoGraphWgsl(wpo)] : []),
     ],
   )

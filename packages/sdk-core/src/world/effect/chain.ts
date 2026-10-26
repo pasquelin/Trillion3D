@@ -42,7 +42,8 @@ export abstract class EffectPass {
  * those that run after draw over the display image, in theirs. An empty
  * chain, or one whose passes are all idle, costs nothing: no pass, no copy, no target. A
  * transparent surface blending in `multiply` or `subtractive` is drawn under the chain like any
- * other.
+ * other. The depth of field does not blur the translucent surfaces: they are composed onto the
+ * image it leaves — but those that lie deeper than twice its focus distance, which it blurs.
  */
 export class EffectChain {
   private readonly list: EffectPass[] = []

@@ -1,28 +1,36 @@
 import { EngineError } from '../contracts/cache.ts'
 import {
+  PREVIEW_HALF_FILE,
   PREVIEW_LAYOUT_FILES,
   previewAtlasName,
   type TextureBlockFormat,
-  type TextureLayout,
+  type StoredLayout,
 } from './previewFormat.ts'
 
-/** What a level file holds: the blocks of one family in one layout. */
-export type TextureLevelFormat = (typeof PREVIEW_LAYOUT_FILES)[TextureBlockFormat][Exclude<
-  TextureLayout,
-  'lossless'
->]
+/** What a level file holds: the blocks of one family in one layout, or the half-float texels of
+ *  the half-float atlas. */
+export type TextureLevelFormat =
+  | {
+      [
+        F in TextureBlockFormat
+      ]: (typeof PREVIEW_LAYOUT_FILES)[F][keyof (typeof PREVIEW_LAYOUT_FILES)[F]]
+    }[TextureBlockFormat]
+  | typeof PREVIEW_HALF_FILE
 
 /** The level file a chain's layout in a family names; a family that holds nothing of it names
  *  none. */
 export function textureLevelFormat(
   family: TextureBlockFormat,
-  layout: TextureLayout,
+  layout: StoredLayout,
 ): TextureLevelFormat {
-  if (layout === 'lossless')
+  const files: Partial<Record<StoredLayout, string>> = PREVIEW_LAYOUT_FILES[family]
+  const file = files[layout] as TextureLevelFormat | undefined
+  if (!file)
     throw new EngineError('INVALID_CACHE', 'A texture level names a family that holds no chain', {
       family,
+      layout,
     })
-  return PREVIEW_LAYOUT_FILES[family][layout]
+  return file
 }
 
 /**

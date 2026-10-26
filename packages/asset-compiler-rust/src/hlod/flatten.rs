@@ -17,10 +17,10 @@
 //! simplified layer sizing its atlas by texel density (`merge::atlas_sides`). An actor's cell
 //! doubles with each layer, so its texel does too.
 //! The unique meshes and the approximated and baked layers live in `layers`.
-mod approximate;
+pub(crate) mod approximate;
 pub(crate) mod bake;
 mod first_seen;
-mod gpu;
+pub(crate) mod gpu;
 mod lists;
 pub(crate) mod merge;
 pub(crate) mod mesh;

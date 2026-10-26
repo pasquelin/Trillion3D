@@ -24,9 +24,11 @@ export function encodeRealTime(
   switch (step.kind) {
     case 'whole':
       faces.draw(encoder, t, 0, CUBE_FACES, true, true, input)
-      mipChain(stage, encoder, t)
-      filter(stage, encoder, t, state.ready, 0, t.mips - 1, 0, CUBE_FACES)
-      harmonics(stage, encoder, t, state.ready)
+      stage.steps.begin(encoder)
+      mipChain(stage, t)
+      filter(stage, t, state.ready, 0, t.mips - 1, 0, CUBE_FACES)
+      harmonics(stage, t, state.ready)
+      stage.steps.end()
       break
     case 'sky':
       faces.draw(encoder, t, step.faceFirst, step.faceEnd, true, false, input)
@@ -35,12 +37,14 @@ export function encodeRealTime(
       faces.draw(encoder, t, step.faceFirst, step.faceEnd, false, true, input)
       break
     case 'mips':
-      mipChain(stage, encoder, t)
+      stage.steps.begin(encoder)
+      mipChain(stage, t)
+      stage.steps.end()
       break
     case 'filter':
+      stage.steps.begin(encoder)
       filter(
         stage,
-        encoder,
         t,
         workIndex(state),
         step.mipFirst,
@@ -48,9 +52,12 @@ export function encodeRealTime(
         step.faceFirst,
         step.faceCount,
       )
+      stage.steps.end()
       break
     case 'harmonics':
-      harmonics(stage, encoder, t, workIndex(state))
+      stage.steps.begin(encoder)
+      harmonics(stage, t, workIndex(state))
+      stage.steps.end()
       break
     case 'nothing':
       break

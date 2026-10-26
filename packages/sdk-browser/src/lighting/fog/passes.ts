@@ -1,4 +1,4 @@
-import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
+import type { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import { FOG_VOLUME_PASS } from '../../diagnostic/stage/passLabels.ts'
 import type { SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
@@ -10,10 +10,15 @@ import type { VolumetricLightmapGpu } from '../volumetricLightmap/gpu.ts'
 import { FOG_BINDING } from './bindings.ts'
 import type { FogGrid } from './layout.ts'
 import type { FogVolumeResources, VolumeTextures } from './resources.ts'
-import { heldGroup, keptGroup, threads, type ProgramGroups } from './groupKeeping.ts'
+import {
+  createProgramGroups,
+  heldProgramGroup,
+  keptProgramGroup,
+} from '../../gpu/bind/programGroups.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import type { VoxelBuffers } from './voxelGpu.ts'
 import { encodeStatic } from './staticPass.ts'
-import { encodeVoxels } from './voxelPasses.ts'
+import { encodeVoxels, type VoxelGraphPass } from './voxelPasses.ts'
 
 /** What one image gives the volume's passes: the scene's depth and, where this image built the depth
  *  pyramid's farthest layer of the finished opaque depth before the volume (after the raster's rest
@@ -26,6 +31,9 @@ export interface FogPassInputs {
   hiz?: HizDepth
   lights: GPUBuffer
   tiles: GPUBuffer
+  /** The lists of the local fog volumes over each tile of the view the cells walk, or the stand-in
+   *  that leaves the cells every volume of the view (`localFogTiled`). */
+  localTiles: GPUBuffer
   vsm: {
     pageTable: GPUBuffer
     projectionData: GPUBuffer
@@ -51,15 +59,15 @@ export interface FogPassInputs {
 /** The bind groups of the three programs, made again only where a resource they name was replaced:
  *  nothing is allocated in an image whose resources are those of two images before. */
 export function createFogGroups() {
-  const program = (): ProgramGroups => ({ identity: createWebgpuBindIdentity(2), groups: [] })
   return {
-    furthest: program(),
-    scatter: program(),
-    scatterSky: program(),
-    static: program(),
-    integrate: program(),
-    prepare: program(),
-    voxelize: program(),
+    furthest: createProgramGroups(),
+    scatter: createProgramGroups(),
+    scatterSky: createProgramGroups(),
+    static: createProgramGroups(),
+    integrate: createProgramGroups(),
+    prepare: createProgramGroups(),
+    voxelize: createProgramGroups(),
+    voxelizeGraph: createProgramGroups(),
   }
 }
 
@@ -80,6 +88,8 @@ export interface FogPassContext {
   cells: FogGrid
   voxel: VoxelBuffers
   voxelObjects: number
+  /** The voxelisation of the objects' graphs this image (`VoxelGraphPass`), none where they wear none. */
+  graph?: VoxelGraphPass
   /** Whether the static term's pass runs this image (`FogVolumeImage.staticBuilt`). */
   staticBuilt: boolean
 }
@@ -105,13 +115,14 @@ function scatterEntries(context: FogPassContext, input: FogPassInputs, textures:
   return namedEntries(FOG_BINDING, {
     lights: { buffer: input.lights },
     tiles: { buffer: input.tiles },
+    localTiles: { buffer: input.localTiles },
     frame: { buffer: resources.frame.buffer },
     depth: input.depth,
-    furthest: planes[ping].view,
-    previousFurthest: planes[1 - ping].view,
-    previousVolume: textures.scattering[1 - ping].view,
+    furthest: planes[ping],
+    previousFurthest: planes[1 - ping],
+    previousVolume: textures.scattering[1 - ping],
     sampler: resources.sampler,
-    scattering: textures.scattering[ping].view,
+    scattering: textures.scattering[ping],
     cubemap: input.cubemap ?? whiteCubemap,
     voxelIn: voxelViews(context, textures)[0],
     voxelEmitIn: voxelViews(context, textures)[1],
@@ -126,14 +137,14 @@ function scatterEntries(context: FogPassContext, input: FogPassInputs, textures:
     cloudShadowMap1: input.cloudShadow.maps[1],
     skyHarmonics: { buffer: input.sky.harmonics },
     skyParams: { buffer: input.sky.params },
-    staticIn: textures.baked?.view ?? resources.bakedStandIn,
+    staticIn: textures.baked ?? resources.bakedStandIn,
   })
 }
 
 /** The two volumes the scatter reads the voxelised objects from: this image's, where it voxelised
  *  any, else the stand-in volume (the frame's flag then says not to read it). */
 const voxelViews = ({ emptyVolume }: FogPassContext, textures?: VolumeTextures) =>
-  textures?.voxel ? [textures.voxel[0].view, textures.voxel[1].view] : [emptyVolume, emptyVolume]
+  textures?.voxel ? [textures.voxel[0], textures.voxel[1]] : [emptyVolume, emptyVolume]
 
 /** The entries of the integration's group: the frame, the scatter read, the volume written. */
 function integrateEntries(
@@ -158,22 +169,24 @@ function encodeFurthest(
 ) {
   const { device, resources, groups, ping } = context
   const { programs } = resources
+  const pipeline = programs.furthest.pipeline.get()
+  if (!pipeline) return
   const plane = textures.furthest[ping]
   const { next } = groups.furthest.identity
   next[0] = hiz
   next[1] = plane
-  pass.setPipeline(programs.furthest.pipeline.get())
+  pass.setPipeline(pipeline)
   pass.setBindGroup(
     0,
-    heldGroup(groups.furthest) ??
-      keptGroup(
+    heldProgramGroup(groups.furthest) ??
+      keptProgramGroup(
         device,
         programs.furthest.layout,
         groups.furthest,
-        furthestEntries(resources, hiz, plane.view),
+        furthestEntries(resources, hiz, plane),
       ),
   )
-  pass.dispatchWorkgroups(threads(context.cells.x, 8), threads(context.cells.y, 8))
+  pass.dispatchWorkgroups(ceilDiv(context.cells.x, 8), ceilDiv(context.cells.y, 8))
 }
 
 /** The scatter this image runs and the groups it keeps: the one that finds the sky's visibility of each sample in the
@@ -187,6 +200,8 @@ function scatterOf(context: FogPassContext, input: FogPassInputs) {
     : { program: resources.programs.scatter, groups: groups.scatter, field: undefined }
 }
 
+const FOG_PASS: GPUComputePassDescriptor = { label: FOG_VOLUME_PASS }
+
 /** The light each cell scatters, blended with the volume of the image before. */
 function encodeScatter(
   pass: GPUComputePassEncoder,
@@ -196,6 +211,8 @@ function encodeScatter(
 ) {
   const { device, ping, whiteCubemap } = context
   const { program, groups, field } = scatterOf(context, input)
+  const pipeline = program.pipeline.get()
+  if (!pipeline) return
   const { next } = groups.identity
   const { vsm } = input
   next[0] = input.depth
@@ -221,17 +238,18 @@ function encodeScatter(
   next[20] = input.sky.harmonics
   next[21] = input.sky.params
   next[22] = textures.baked ?? null
-  pass.setPipeline(program.pipeline.get())
+  next[23] = input.localTiles
+  pass.setPipeline(pipeline)
   pass.setBindGroup(
     0,
-    heldGroup(groups) ??
-      keptGroup(device, program.layout, groups, [
+    heldProgramGroup(groups) ??
+      keptProgramGroup(device, program.layout, groups, [
         ...scatterEntries(context, input, textures),
         ...(field?.readEntries(FOG_BINDING.field) ?? []),
       ]),
   )
   const { cells } = context
-  pass.dispatchWorkgroups(threads(cells.x, 4), threads(cells.y, 4), threads(cells.z, 4))
+  pass.dispatchWorkgroups(ceilDiv(cells.x, 4), ceilDiv(cells.y, 4), ceilDiv(cells.z, 4))
 }
 
 /** The sum of the cells along each column. */
@@ -241,22 +259,24 @@ function encodeIntegrate(
   textures: VolumeTextures,
 ) {
   const { device, resources, groups, ping } = context
+  const pipeline = resources.programs.integrate.pipeline.get()
+  if (!pipeline) return
   const { next } = groups.integrate.identity
   const { scattering, integrated } = textures
   next[0] = scattering[ping]
   next[1] = integrated
-  pass.setPipeline(resources.programs.integrate.pipeline.get())
+  pass.setPipeline(pipeline)
   pass.setBindGroup(
     0,
-    heldGroup(groups.integrate) ??
-      keptGroup(
+    heldProgramGroup(groups.integrate) ??
+      keptProgramGroup(
         device,
         resources.programs.integrate.layout,
         groups.integrate,
-        integrateEntries(resources, scattering[ping].view, integrated.view),
+        integrateEntries(resources, scattering[ping], integrated),
       ),
   )
-  pass.dispatchWorkgroups(threads(context.cells.x, 8), threads(context.cells.y, 8))
+  pass.dispatchWorkgroups(ceilDiv(context.cells.x, 8), ceilDiv(context.cells.y, 8))
 }
 
 /**
@@ -265,21 +285,22 @@ function encodeIntegrate(
  * of the volume material domain voxelised into the volume (where there are any), the light
  * each cell scatters blended with the volume of the image before — each sample lit by the sky's visibility it sees in the
  * global distance field, where that is given —, and the sum along each column.
- * This image's volume is the one `context.ping` names.
+ * This image's volume is the one `context.ping` names. Every program is compiled when this runs
+ * (`FogVolumeGpu.ready`, asked at the frame's entry by `askFogVolume`): none of the passes is skipped
+ * alone, so the history and the ping-pong advance only for a volume that was built.
  */
 export function encodeFogPasses(
-  encoder: GPUCommandEncoder,
+  steps: ComputeRun,
   context: FogPassContext,
   input: FogPassInputs,
   textures: VolumeTextures,
   skipHidden: boolean,
 ) {
-  const pass = encoder.beginComputePass({ label: FOG_VOLUME_PASS })
+  const pass = steps.pass(FOG_PASS)
   if (skipHidden && input.hiz) encodeFurthest(pass, context, input.hiz, textures)
   if (context.voxelObjects && textures.voxel) encodeVoxels(pass, context, textures.voxel)
   if (context.staticBuilt && input.lightmap && textures.baked)
     encodeStatic(pass, context, input, input.lightmap, textures.baked, textures)
   encodeScatter(pass, context, input, textures)
   encodeIntegrate(pass, context, textures)
-  pass.end()
 }

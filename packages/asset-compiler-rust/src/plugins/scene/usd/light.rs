@@ -10,10 +10,9 @@
 //! `inputs:intensity · 2^inputs:exposure`, which `inputs:normalize` divides by the source area.
 //! The radiant intensity of a surface light is therefore that radiance multiplied by the
 //! projected area of its geometry — `π r²` for a sphere or a disk, `width × height` for a
-//! rectangle —, and the illuminance of a `DistantLight` is directly that radiance. glTF, for
-//! its part, is photometric: the conversion is the multiplication by `LUMENS_PER_WATT`, the
-//! constant that `compiler::lights` then divides again to return to the engine's radiometric.
-//! Nothing is invented between the two, no spectrum is assumed.
+//! rectangle —, and the illuminance of a `DistantLight` is directly that radiance. The glTF
+//! written carries that number as its candelas or lux, which `compiler::lights` reads back
+//! unchanged. Nothing is invented between the two, no spectrum is assumed.
 //!
 //! **Emitter radius** comes from the native datum: `inputs:radius` for a sphere or a disk, the
 //! half-diagonal of `inputs:width` × `inputs:height` for a rectangle. It is written in world

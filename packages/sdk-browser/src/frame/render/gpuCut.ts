@@ -6,6 +6,7 @@ import {
   CULL_DRAW_DISTANCE_OFF,
   CULL_FRUSTUM_OFF,
   CULL_MIN_LOD_OFF,
+  CULL_SPHERE_EDGE_OFF,
 } from '../../geometry/dag/shader/viewsWgsl.ts'
 import { taaRenderMatrix } from '../../post/taa/frame.ts'
 import { writeCutOcclusion } from './cutPyramid.ts'
@@ -13,9 +14,13 @@ import { pyramidStands } from './pyramidSources.ts'
 import { primeHizFrame } from './primeHiz.ts'
 import { writeCutViewSet } from './cutViewSet.ts'
 import { readCutSetting as cutSetting } from '../../../../sdk-core/src/contracts/cutOptions.ts'
-import { mirrorDrawnFromShown } from '../backend/helpers.ts'
+import { writeDrawDistanceScales } from './drawDistanceView.ts'
 import { abandonFrameEncoder, openFrameEncoder } from './encoder.ts'
-import { encodeDraws, followRows } from './encodeDraws.ts'
+import { encodeDraws } from './encodeDraws.ts'
+import { encodeClusterMeasure, followVisibleTables } from './visibleTables.ts'
+import { followPlacementMobility } from './followMobility.ts'
+import { ensureGpuRaster } from './encodeVisSetup.ts'
+import { writeRasterJudgement } from '../../visibility/raster/judgement.ts'
 import { admitGpuCut } from './gpuCutAdmission.ts'
 import { cutOf, dispatchCut, dispatchWaitingSelection, streamCutResidency } from './gpuCutStream.ts'
 import { keepWebgpuFrame } from '../loop/hold.ts'
@@ -32,13 +37,13 @@ function logFirstRenderPath(rt: WebgpuPagesRuntime) {
   diag.engineDiagnostic('first-render-path', 'WebGPU first render configuration', {
     clearColor: `#${run.clearColor.toString(16).padStart(6, '0')}`,
     targetSize: gpu.targetSize,
-    residentCandidates: layout.rows.candidateCount,
+    residentCandidates: layout.clusters.candidateCount,
   })
 }
 
 /**
- * One image drawn by the GPU cluster cut, the engine's one cut (#1483): the mask of the current
- * frame decides the draw, the readback of the previous one decides streaming and metrics. A view
+ * One image drawn by the GPU cluster cut, the engine's one cut (#1483): the clusters it lists the
+ * frame it cuts are the draw, the readback of the previous one decides streaming and metrics. A view
  * drawn beside the main one — a capture, a persistent view — cuts on the same tables, with lists of
  * its own (`../../geometry/dag/aside.ts`). A scene without a cluster draws what is not paged alone.
  */
@@ -77,8 +82,8 @@ export function renderGpuCut(
 }
 
 /**
- * The drawn view's occlusion, decided once its rows are followed: two passes when the host asks
- * them (`cutTwoPassOcclusion`, `cutOcclusionCulling`), the image draws rows — its visibility
+ * The drawn view's occlusion, decided once its tables are followed: two passes when the host asks
+ * them (`cutTwoPassOcclusion`, `cutOcclusionCulling`), the image draws clusters — its visibility
  * passes then encode the post pass (`../../visibility/passes/passes.ts`) — and the view's last
  * pyramid stands for it (`./cutPyramid.ts`); that pyramid bound for the next dispatch of the drawn
  * view's cut, the main one or its own aside (`cutOf`). A frozen cut keeps what it froze with.
@@ -89,7 +94,7 @@ function decideOcclusion(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const asked =
     cutSetting(rt, 'cutTwoPassOcclusion') &&
     cutSetting(rt, 'cutOcclusionCulling') &&
-    layout.rows.packedCount > 0
+    layout.packedPages.length > layout.blendedPageCount
   // The pyramid the view has none of, primed from a small draw when the setting asks it.
   if (asked) primeHizFrame(rt, cam, pyramidStands)
   const pyramid = writeCutOcclusion(rt, cam, run.selectionUniforms, asked)
@@ -145,22 +150,16 @@ function writeCutUniforms(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError:
     (cutSetting(rt, 'cutFrustumCulling') ? 0 : CULL_FRUSTUM_OFF) |
     (cutSetting(rt, 'cutMinLodCulling') ? 0 : CULL_MIN_LOD_OFF) |
     (cutSetting(rt, 'cutDrawDistanceCulling') ? 0 : CULL_DRAW_DISTANCE_OFF) |
+    (cutSetting(rt, 'cutDistanceCullToSphereEdge') ? 0 : CULL_SPHERE_EDGE_OFF) |
     (cutSetting(rt, 'cutClipPlaneCulling') ? 0 : CULL_CLIP_PLANE_OFF)
   // The view's clip plane and its lists of hidden and shown objects (`./cutViewSet.ts`).
   writeCutViewSet(rt, cam, uniforms, cutSetting(rt, 'cutViewFiltering'))
-  const distances =
-    cutSetting(rt, 'cutViewDistanceScale') *
-    (cutSetting(rt, 'cutViewDistanceApplySecondaryScale')
-      ? cutSetting(rt, 'cutViewDistanceSecondaryScale')
-      : 1)
-  uniforms.viewDistanceScale = distances
-  // What the rays' scene meets of the objects out of their draw distances, from the same eye.
-  run.gpuSelection?.proxyDistance(
-    cam.eye,
-    cutSetting(rt, 'cutDrawDistanceCulling') ? distances : undefined,
-  )
-  // The clock every view's cut of this frame stamps the rows it uses with
-  // (`../../geometry/rows/rowClosureWgsl.ts`), and a cut in two passes is known by.
+  // The scales the draw distances are judged by from the same eye.
+  writeDrawDistanceScales(rt, cam, uniforms)
+  // What the cut judges the rasters by: the software raster, the edge a cluster goes to the hardware
+  // raster at, the tessellation, the depth buckets (`../../visibility/raster/judgement.ts`).
+  writeRasterJudgement(rt, cam, size[1], uniforms)
+  // The clock a cut in two passes is known by.
   uniforms.frame = run.frame
 }
 
@@ -185,13 +184,17 @@ function adoptAndAdmit(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: nu
   marks.admissionEnd = cpuNow()
 }
 
-/** The frame's encoder opened, the rows followed, the occlusion decided and the cut dispatched into
- *  it; false when the image stops there. */
+/** The frame's encoder opened, the tables sized by the cut's list followed, the clusters measured, the
+ *  occlusion decided and the cut dispatched into it; false when the image stops there. */
 function cutFrame(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, cam: EngineCamera) {
   let cut: boolean
   try {
     const encoder = openFrameEncoder(rt, gpuDevice)
-    followRows(rt, gpuDevice)
+    // Before anything is encoded against them: the decoded table, the bins and the lists the cut's
+    // room asks, the raster, the tessellation it holds.
+    followPlacementMobility(rt)
+    if (followVisibleTables(rt, gpuDevice)) ensureGpuRaster(rt, gpuDevice)
+    encodeClusterMeasure(rt, encoder)
     rt.vis.deformationCode?.encodeDeformation(rt, encoder)
     decideOcclusion(rt, cam)
     cut = dispatchCut(rt, encoder)
@@ -201,7 +204,7 @@ function cutFrame(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, cam: EngineCamer
     dropFailedView(rt)
     return false
   }
-  // A list being grown cut nothing for a view drawn aside: it keeps the image it has.
+  // A cut that did not run (its tables are being made again) draws nothing: the view keeps the image it has.
   if (!cut) abandonFrameEncoder(rt)
   return cut
 }
@@ -210,9 +213,6 @@ function cutFrame(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, cam: EngineCamer
 function encodeImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, cam: EngineCamera) {
   const { run } = rt,
     marks = rt.timing.marks
-  // An image whose lists no adoption touched would push eighty thousand records already in place:
-  // the flag says so, the copy abstains.
-  mirrorDrawnFromShown(run)
   marks.selectionEnd = cpuNow()
   logFirstRenderPath(rt)
   const imageBeforeEncode = run.imageRevision

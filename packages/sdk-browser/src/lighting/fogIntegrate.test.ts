@@ -6,12 +6,17 @@ import assert from 'node:assert/strict'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { near } from '../../../math/src/float/near.fixture.ts'
 import { subtract } from '../../../math/src/vector/vectorTuple.ts'
+import type { ResolvedHeightFog } from '../../../sdk-core/src/scene/core/fogHeight.ts'
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { cellGrid } from './fog/layout.ts'
 import { FOG_PROGRAMS } from './fog/programs.ts'
+import { fogBlockOf } from './fog/readWgsl.ts'
 import { FOG_FURTHEST_WGSL } from './fog/integrateWgsl.ts'
 import { FOG_FRAME_STRUCT_WGSL } from './fog/readWgsl.ts'
 import { CAM, GRID, frameScope, image, pointOf, table, type V3 } from './fogVolumeRun.fixture.ts'
+import { hizCellSpan } from '../../../sdk-core/src/hiz/oracles.fixture.ts'
+import { scatter } from './fogScatterRun.fixture.ts'
+import { HEIGHT, RGB, wgslFogged } from './fogShaderRun.fixture.ts'
 
 /** The furthest depth's program over a pyramid of `levels` levels, whose cells a test table answers
  *  (`hizCellCullFarthest`, the depth pyramid's own read, by level and cell). */
@@ -137,7 +142,8 @@ function furthestAround(
 }
 
 /** The pyramid of `depth` over the view, as the program reads it: a cell of level `l` holds the
- *  least depth over the block of `2^l` pixels a side it covers, the edge cells clamped. */
+ *  least depth over the block of `2^l` pixels a side it covers, the edge cells clamped (the last one
+ *  also holding the image's last two pixels, `hizCellSpan`). */
 const pyramidOf = (depth: (x: number, y: number) => number) => ({
   load: ([x, y]: number[], level: number) => {
     const side = 2 ** level
@@ -145,10 +151,11 @@ const pyramidOf = (depth: (x: number, y: number) => number) => ({
       Math.min(x, Math.ceil(CAM.width / side) - 1),
       Math.min(y, Math.ceil(CAM.height / side) - 1),
     ]
+    const [x0, x1] = hizCellSpan(cx, level, CAM.width)
+    const [y0, y1] = hizCellSpan(cy, level, CAM.height)
     let least = 1
-    for (let py = cy * side; py < Math.min((cy + 1) * side, CAM.height); py++)
-      for (let px = cx * side; px < Math.min((cx + 1) * side, CAM.width); px++)
-        least = Math.min(least, depth(px, py))
+    for (let py = y0; py < y1; py++)
+      for (let px = x0; px < x1; px++) least = Math.min(least, depth(px, py))
     return [least, 0, 0, 0]
   },
 })
@@ -215,5 +222,78 @@ test('the furthest depth of a cell is the furthest of the blocks the pyramid wou
       `cell ${cell}`,
       1e-6,
     )
+  }
+})
+
+/** The ratio of the volume's optical depth to the analytic fog's, whatever the medium: half the density's integral
+ *  over `(ln 2)²` times it. */
+const VOLUME_TO_ANALYTIC = 0.5 / Math.LN2 ** 2
+
+/** The optical depth of the column `column` of the volume the scatter and the integration give, the
+ *  analytic fog's over the same stretch of the same ray — from the front of the first slice to the centre
+ *  of the last, the fog the scene declares being a height fog of `density` and `falloff`, black —, and
+ *  the volume's own law integrated finely along it: half the density, per metre. */
+function columnDepths(column: [number, number], density: number, falloff: number) {
+  const cells = Array.from({ length: GRID.z }, (_, z) => [...column, z] as V3)
+  const stored = cells.map((cell) => scatter(cell, { density, falloff })!)
+  const out = table()
+  shaderRun<{ integrateMain: (id: V3) => void }>(FOG_PROGRAMS.integrate, ['integrateMain'], {
+    frame: frameScope(image(CAM, true, PLAIN)),
+    fogScatterIn: table((c) => stored[c[2]]),
+    fogIntegrated: out,
+  }).integrateMain([...column, 0])
+  const [front, last] = [pointOf([...column, 0], [0.5, 0.5, 0]), pointOf(cells[GRID.z - 1])]
+  const [, , , kept] = out.cells.get(cells[GRID.z - 1].join(',')) as number[]
+  const fog: ResolvedHeightFog = {
+    ...HEIGHT,
+    color: [0, 0, 0],
+    baseDensity: density,
+    falloff,
+    baseHeight: 0,
+  }
+  const clear = { ...fog, startDistance: 0, cutoffDistance: 0, maxOpacity: 1 }
+  const analytic = wgslFogged(clear, RGB, last, front)[0] / RGB[0]
+  // The volume's law by 20 000 steps: half the density at the height of each.
+  const length = Math.hypot(...subtract(last, front))
+  let exact = 0
+  for (let i = 0, n = 20000; i < n; i++) {
+    const y = front[1] + ((i + 0.5) / n) * (last[1] - front[1])
+    exact += 0.5 * density * 2 ** (-falloff * y) * (length / n)
+  }
+  const heights = cells.map((cell) => pointOf(cell)[1])
+  const rise = Math.max(...heights.map((y, z) => Math.abs(y - (heights[z - 1] ?? y))))
+  return { volume: -Math.log(kept), analytic: -Math.log(analytic), exact, rise }
+}
+
+test('the volume and the analytic fog are one law: the same density, read as an exponent of two or as an extinction of half of it', () => {
+  for (const [column, falloff] of [
+    [[7, 5], 0],
+    [[7, 1], 0.03],
+  ] as const) {
+    const { volume, analytic, exact, rise } = columnDepths([...column], 0.04, falloff)
+    // The analytic fog's optical depth over the volume's, whatever the falloff, is the units' ratio alone:
+    // (ln 2)² over a half. The shipped fog agrees with the law integrated finely to the float's rounding.
+    near([(analytic * VOLUME_TO_ANALYTIC) / exact], [1], `falloff ${falloff}: the law`, 1e-4)
+    // The cells sum the density at the centre of each step's far end, an error of at most half the share
+    // of the density a step's rise changes — `falloff · ln 2 · rise` — and none where the medium is uniform.
+    const tolerance = (falloff * Math.LN2 * rise) / 2
+    assert.ok(tolerance < 0.05, `the widest step rises ${rise} m: a coarse grid, a loose tolerance`)
+    near([volume / exact], [1], `falloff ${falloff}: the cells`, tolerance + 1e-5)
+  }
+  assert.ok(Math.abs(VOLUME_TO_ANALYTIC - 1.0407) < 1e-4, 'half the density is (ln 2)² to 4 %')
+})
+
+test('the law is written once: the analytic fog and the volume’s cells read a layer’s density through one function, neither spells its exponential', () => {
+  const analytic = wgslProgram('', [fogBlockOf({ group: 0 })])
+  // The analytic fog reads a layer's density where a ray starts, the volume's cell the medium's at its height.
+  for (const [name, code, call] of [
+    ['the analytic fog', analytic, 'fogLayerDensity(layer,z,-125.0,126.0)'],
+    ['the volume’s scatter', FOG_PROGRAMS.scatter, 'fogDensityAt(fogCellPoint('],
+  ] as const) {
+    assert.equal(code.match(/fn fogLayerDensity\(/g)?.length, 1, `${name} declares the law once`)
+    assert.ok(code.includes(call), `${name} calls it`)
+    // The density by height is spelt there and nowhere else: no other `exp2` of a layer's falloff.
+    assert.equal(code.match(/exp2\(clamp\(-layer\.y/g)?.length, 1, `${name}: the one spelling`)
+    assert.ok(!/exp2\(-(first|second|layer)\.y/.test(code), `${name}: no other`)
   }
 })

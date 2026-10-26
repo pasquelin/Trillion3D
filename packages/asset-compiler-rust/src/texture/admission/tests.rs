@@ -114,7 +114,7 @@ fn varying_weights_and_thin_images_keep_within_the_allowance() {
     let cost = cost::estimate(1, 16384, 128, 3, 2);
     assert_eq!(
         cost.retained,
-        3 * (preview_pixel_bytes(1, 16384) + 2 * preview_block_bytes(1, 16384))
+        3 * (preview_pixel_bytes(1, 16384, AtlasKind::Color) + 2 * preview_block_bytes(1, 16384))
     );
     assert!(cost.working >= 128 + 16384 * 20);
     assert!(admit(

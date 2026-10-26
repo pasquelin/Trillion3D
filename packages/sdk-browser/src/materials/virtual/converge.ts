@@ -7,6 +7,7 @@ import {
 } from '../../frame/loop/unsettled.ts'
 import { taaPhaseCount } from '../../post/taa/frame.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { followTexturePressure } from '../../frame/io/memory.ts'
 import { shadowsUnsettled } from '../../frame/backend/state/lights.ts'
 import { convergeBound, texturesConverged, drainsAgain } from './convergeRules.ts'
 /** Images a barrier grants at most to the shadow pages' round trips: a report read, casters
@@ -53,10 +54,15 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pi
     await textures.settled()
     const { served, pending } = textures.pump(run.frame, true)
     total += served
+    // A lane that found no place for a tile grows its pool, and the barrier asks again once it
+    // has: the pose never settles on a pool still at its floor.
+    const held = rt.setup.texturePools?.pool
+    await followTexturePressure(rt)
+    const grown = rt.setup.texturePools?.pool !== held
     // A served tile is shown only by the next image: we stop only after a round that asked
     // nothing more, or on a wait that nothing will fill. Nothing is deferred under a lifted
     // budget: what is pending waits for its bytes.
-    quiet = served ? 0 : quiet + 1
+    quiet = served || grown ? 0 : quiet + 1
     if (texturesConverged(quiet, phasesOf(), pending, textures.reading)) break
     if (pending) await textures.settled()
   }
@@ -75,7 +81,7 @@ async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const revision = () => rt.gpu.cache?.residencyRevision
   let drains = 0,
     seen = revision()
-  const again = () => drainsAgain(seen, revision(), () => shadowsUnsettled(lights, rt.rowWords))
+  const again = () => drainsAgain(seen, revision(), () => shadowsUnsettled(lights))
   for (; drains < SHADOW_DRAIN_LIMIT && again(); drains++) {
     renderWebgpuPages(rt, rt.run.lastCamera!)
     seen = revision()
@@ -109,9 +115,10 @@ export async function settlePose(
     drains = 0
   run.textureConverging = true
   try {
-    // Rows the per-image time budget left owed are part of the pose: a barrier image, with the
-    // budget lifted, writes them all, and the GPU cut the barrier then adopts sees every page.
-    if (rt.services.rowsOwed()) {
+    // Cluster records the per-image time budget left owed are part of the pose: a barrier image,
+    // with the budget lifted, writes them all, and the GPU cut the barrier then adopts sees every
+    // page.
+    if (rt.services.clustersOwed()) {
       renderWebgpuPages(rt, run.lastCamera)
       await gpuDevice.queue.onSubmittedWorkDone()
     }

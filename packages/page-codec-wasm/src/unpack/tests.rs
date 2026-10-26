@@ -1,20 +1,36 @@
-//! Equivalence harness of the sequential reader (STR-01/02/03, E0): `decode` gives the same
-//! words and the same refusal as the reference decoder — every field read at random, the first
-//! corner out of range refusing —, kept here as the reference, on the page shapes of the format,
-//! ten thousand random pages and their corruptions, and the edge cases.
+//! Equivalence harness of the sequential reader (STR-01/02/03, E0): `decode_resident` gives the
+//! same words and the same refusal as the reference decoder — every field read at random, the
+//! first corner out of range refusing —, kept here as the reference, on the page shapes of the
+//! format, ten thousand random pages and their corruptions, and the edge cases; then the page on
+//! disk: its strips unpack to the triangles they were laid from, it reads back the values it was
+//! written from — the vertices it names found in the clusters it names them in —, and decodes as
+//! the resident page it expands to.
 
 use super::*;
+use crate::bits::grid::PageGrid;
 use crate::bits::{ColorRange, PositionGrid, UvRange, MAX_BITS};
+use crate::clusters::strip::strips_in_order;
+use crate::encode::encode;
+use crate::refs::{alone, pair, share, Parent, Same, Shelf};
+use crate::streams::{Page, Streams};
 use crate::triangles::{CornerCode, Spans};
 use crate::unpack::reference::reference;
 use crate::writer::BitWriter;
 use crate::{
-    COLOR_BITS, COLOR_LEVELS, FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3, MAX_NORMAL_PRECISION,
-    MAX_POSITION_BITS, MAX_POSITION_PRECISION, MAX_TANGENT_PRECISION, MIN_POSITION_PRECISION,
-    UV_CODE_BITS,
+    COLOR_BITS, COLOR_LEVELS, FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3, FLAG_UV4, FLAG_UV5, FLAG_UV6,
+    FLAG_UV7, HEADER_UV_SETS, MAX_NORMAL_PRECISION, MAX_PAGE_TRIANGLES, MAX_PAGE_VERTICES,
+    MAX_POSITION_BITS, MAX_POSITION_PRECISION, MAX_TANGENT_PRECISION, MAX_UV_SETS,
+    MIN_POSITION_PRECISION, RESIDENT_VERSION, UV_CODE_BITS,
 };
 use trillion3d_math::sequence::random::xorshift32;
 use trillion3d_math::GOLDEN_32;
+
+/// A grid of cells a sixteenth of a centimetre.
+const GRID: PageGrid = PageGrid {
+    position: 4,
+    normal: 8,
+    tangent: 7,
+};
 
 struct Rng(u32);
 
@@ -27,9 +43,18 @@ impl Rng {
     }
 }
 
-/// Every attribute a page carries but the stored tangent: the normal, the four texture sets and
+/// Every attribute a page carries but the stored tangent: the normal, the eight texture sets and
 /// the colour.
-const ALL: u32 = FLAG_NORMAL | FLAG_UV | FLAG_UV1 | FLAG_UV2 | FLAG_UV3 | FLAG_COLOR;
+const ALL: u32 = FLAG_NORMAL
+    | FLAG_UV
+    | FLAG_UV1
+    | FLAG_UV2
+    | FLAG_UV3
+    | FLAG_UV4
+    | FLAG_UV5
+    | FLAG_UV6
+    | FLAG_UV7
+    | FLAG_COLOR;
 
 /// A random set of the attributes `ALL` names.
 fn attributes(rng: &mut Rng) -> u32 {
@@ -38,6 +63,18 @@ fn attributes(rng: &mut Rng) -> u32 {
         .chain([FLAG_NORMAL, FLAG_COLOR])
         .filter(|_| rng.below(2) == 0)
         .fold(0, |flags, flag| flags | flag)
+}
+
+/// The ranges of a page of `flags`: one for each set of the fixed header, whether the page carries
+/// it or not, and for each set past them only one the page carries.
+fn uv_ranges(rng: &mut Rng, widest: bool, flags: u32) -> [UvRange; MAX_UV_SETS] {
+    core::array::from_fn(|set| {
+        if set < HEADER_UV_SETS || flags & UV_FLAGS[set] != 0 {
+            uv_range(rng, widest)
+        } else {
+            UvRange::default()
+        }
+    })
 }
 
 /// A `bits`-wide field at most, or the widest when `widest`.
@@ -118,7 +155,7 @@ fn page(rng: &mut Rng, n: usize, indices: &[u32], flags: u32, widest: bool) -> V
         index_count: indices.len(),
         flags,
         position: position_grid(rng, widest),
-        uv: core::array::from_fn(|_| uv_range(rng, widest)),
+        uv: uv_ranges(rng, widest, flags),
         color: color_range(rng, widest),
         normal_precision,
         tangent_precision: width(rng, widest, MAX_TANGENT_PRECISION),
@@ -150,7 +187,7 @@ fn page(rng: &mut Rng, n: usize, indices: &[u32], flags: u32, widest: bool) -> V
         streams(&h.uv[set].bits, flags & flag != 0, n, 0);
     }
     streams(&h.color.bits, flags & FLAG_COLOR != 0, n, 0);
-    let words = h.words().into_iter().chain(out.words().iter().copied());
+    let words = (h.words(RESIDENT_VERSION).into_iter()).chain(out.words().iter().copied());
     words.flat_map(u32::to_le_bytes).collect()
 }
 
@@ -160,7 +197,7 @@ fn same(data: &[u8]) -> Result<(), PageError> {
     let mut shifted = vec![0u8];
     shifted.extend_from_slice(data);
     for bytes in [data, &shifted[1..]] {
-        let decoded = decode(bytes, 1 << 24).map(|page| page.words);
+        let decoded = decode_resident(bytes, 1 << 24).map(|page| page.words);
         assert_eq!(decoded, expected, "{} bytes", data.len());
     }
     expected.map(|_| ())
@@ -179,78 +216,84 @@ fn corners(rng: &mut Rng, n: usize, triangles: usize) -> Vec<u32> {
         .collect()
 }
 
-#[test]
-fn the_audits_page_shapes_decode_to_the_same_words() {
-    let mut rng = Rng(12345);
-    let shapes = [
-        (9, 3),
-        (24, 3),
-        (64, 3),
-        (72, 1),
-        (64, ALL),
-        (181, 3),
-        (128, 0),
-    ];
-    for (side, flags) in shapes {
-        let mut indices = Vec::new();
-        for y in 0..side - 1 {
-            for a in (y * side..).take(side - 1).map(|a| a as u32) {
-                let (b, c) = (a + 1, a + side as u32);
-                indices.extend([a, c, b, b, c, c + 1]);
+/// A random page on disk of at most 85 triangles over `n` vertices: its triangles laid in strips in
+/// the order given, every field of every vertex laid a random value of its width — the narrowest
+/// widths make equal vertices, which the page names —, a link a random stored position, every
+/// stored position used by a vertex; one page in three stores fewer positions than vertices.
+fn values(rng: &mut Rng, n: usize, triangles: usize, flags: u32, widest: bool) -> Page {
+    let indices = corners(rng, n, triangles.min(85));
+    let strips = strips_in_order(&indices);
+    let laid = strips.laid.len();
+    let positions = if rng.below(3) == 0 {
+        1 + rng.below(laid as u32) as usize
+    } else {
+        laid
+    };
+    let h = Header {
+        vertex_count: laid,
+        index_count: indices.len(),
+        flags,
+        position: position_grid(rng, widest),
+        uv: uv_ranges(rng, widest, flags),
+        color: color_range(rng, widest),
+        normal_precision: 1 + width(rng, widest, MAX_NORMAL_PRECISION - 1),
+        tangent_precision: width(rng, widest, MAX_TANGENT_PRECISION),
+        corner_bits: Spans::of(&strips.triangles).bits,
+        position_count: positions,
+        skin: crate::Skin::default(),
+        morphs: Vec::new(),
+    };
+    let mut field = |bits: u32, count: usize| -> Vec<u32> {
+        let mask = ((1u64 << bits) - 1) as u32;
+        (0..count).map(|_| rng.next() & mask).collect()
+    };
+    let streams = Streams {
+        corners: strips.triangles,
+        position: h.position.bits.map(|b| field(b, positions)),
+        normal: [h.normal_precision; 2].map(|b| {
+            if flags & FLAG_NORMAL != 0 {
+                field(b, laid)
+            } else {
+                Vec::new()
             }
-        }
-        assert!(same(&page(&mut rng, side * side, &indices, flags, false)).is_ok());
+        }),
+        uv: core::array::from_fn(|set| {
+            h.uv[set].bits.map(|b| {
+                if flags & UV_FLAGS[set] != 0 {
+                    field(b, laid)
+                } else {
+                    Vec::new()
+                }
+            })
+        }),
+        color: h.color.bits.map(|b| {
+            if flags & FLAG_COLOR != 0 {
+                field(b, laid)
+            } else {
+                Vec::new()
+            }
+        }),
+        ..Streams::default()
+    };
+    let links = if h.links_positions() {
+        (0..laid)
+            .map(|v| {
+                if v < positions {
+                    v as u32
+                } else {
+                    rng.below(positions as u32)
+                }
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    Page {
+        header: h,
+        streams: Streams { links, ..streams },
+        strip: strips.strip,
     }
 }
 
-#[test]
-fn ten_thousand_random_pages_and_their_corruptions_decode_the_same() {
-    let (mut rng, mut refused) = (Rng(GOLDEN_32), [0; 5]);
-    for i in 0..10_000 {
-        let n = 1 + rng.below(if i % 50 == 0 { 65_535 } else { 400 }) as usize;
-        let triangles = 1 + rng.below(300) as usize;
-        let indices = corners(&mut rng, n, triangles);
-        let flags = attributes(&mut rng);
-        let mut data = page(&mut rng, n, &indices, flags, false);
-        if i % 4 == 3 {
-            let at = rng.below(data.len() as u32) as usize;
-            data[at] ^= 1 << rng.below(8);
-        }
-        if let Err(cause) = same(&data) {
-            refused[cause as usize] += 1;
-        }
-    }
-    // The corruptions reach both late refusals, the block table and a corner out of range.
-    assert!(refused[PageError::Bounds as usize] > 0 && refused[PageError::Index as usize] > 0);
-}
-
-#[test]
-fn the_edge_cases_decode_the_same() {
-    let mut rng = Rng(7);
-    // The smallest page, then no triangle and no byte: refused alike.
-    assert!(same(&page(&mut rng, 1, &[0, 0, 0], 0, false)).is_ok());
-    assert_eq!(
-        same(&page(&mut rng, 1, &[], 0, false)),
-        Err(PageError::Bounds)
-    );
-    assert_eq!(same(&[]), Err(PageError::Header));
-    // Every field at its widest, on the finest grid and the farthest cells, and 65,535 vertices:
-    // 16-bit corners, and fields crossing words at every offset.
-    let widest: Vec<u32> = (0..65_535).chain([65_534, 0, 1]).collect();
-    assert!(same(&page(&mut rng, 65_535, &widest, ALL, true)).is_ok());
-    // A stream ending exactly on a word, then one bit past it.
-    for n in [32, 33] {
-        assert_eq!((n * MAX_BITS as usize).is_multiple_of(32), n == 32);
-        let indices = corners(&mut rng, n, 40);
-        assert!(same(&page(&mut rng, n, &indices, ALL, true)).is_ok());
-    }
-    // A precision past the format's, finer or coarser, never decodes: both decoders refuse the header.
-    for forged in [
-        (MAX_POSITION_PRECISION + 1) as i8,
-        (MIN_POSITION_PRECISION - 1) as i8,
-    ] {
-        let mut data = page(&mut rng, 3, &[0, 1, 2], 0, false);
-        data[23] = forged as u8;
-        assert_eq!(same(&data), Err(PageError::Bounds));
-    }
-}
+mod decodes;
+mod on_disk;

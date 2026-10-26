@@ -1,7 +1,7 @@
 // The image the engine drew, read back from the bench canvas's texture and written as a PNG: what
 // a run measured can be looked at, and two runs compared pixel for pixel.
 import { writeFileSync } from 'node:fs'
-import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
+import { encodePng } from '../../../packages/sdk-node/src/image/png.mts'
 import type { BenchGpu } from '../machine/device.ts'
 import { readTexture } from '../../../tests/kit/device/computeReadback.ts'
 

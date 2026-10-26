@@ -36,7 +36,7 @@ const MAX_PARTIAL_REGIONS = 1024
 const MAX_UPDATE_INDEX = 128
 
 /** Why a clipmap is composited whole, for the labels of its passes. */
-export type FullReason = '' | 'TooManyUpdateBounds' | 'RecacheForStreaming' | 'MeshStreaming'
+type FullReason = '' | 'TooManyUpdateBounds' | 'RecacheForStreaming' | 'MeshStreaming'
 
 /** One clipmap of one cache in one frame. */
 export interface ClipmapPlan {

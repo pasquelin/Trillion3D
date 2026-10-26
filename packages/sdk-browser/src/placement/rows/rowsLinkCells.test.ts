@@ -52,7 +52,7 @@ test('a row both a root and the blend pass read is linked: a mesh opaque and tra
     return Object.assign(root, { placement: { rows, index } })
   })
   const { rt } = runtime(new Object3D(), roots)
-  rt.lights.mobility.ensure(2, 2, (rank) => roots[rank].world.elements)
+  rt.lights.mobility.ensure(2, (rank) => roots[rank].world.elements)
   Object.assign(rt.blendState, { blendGpu: [{ placement: { rows, index: 1 } }] })
   rows.blended = true
   const linked: number[] = []

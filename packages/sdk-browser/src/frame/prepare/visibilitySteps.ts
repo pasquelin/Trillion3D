@@ -4,14 +4,15 @@ import { ensureWebgpuShadeBindings } from '../../gpu/bind/shadeBindings.ts'
 import type { createWebgpuVisibilityShaders } from '../../visibility/passes/shaders.ts'
 import { createWebgpuVisibilityRasterPipelines } from '../../visibility/passes/pipelines.ts'
 import { createWebgpuShadePipelines } from '../../visibility/passes/shadePipelines.ts'
-import { createShadeCache } from '../../visibility/passes/shadeCache.ts'
+import { voxelWpo } from '../../visibility/shader/wpoSets.ts'
 import { createShadeBins } from '../../materials/classes/shadeBins.ts'
-import { ensurePageTable } from '../render/pageTable.ts'
+import { pageTableBuffer } from '../render/pageTable.ts'
+import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
 import { SURFACE_BYTES_PER_PIXEL, SURFACE_FORMATS } from '../../materials/surface/surfaceBuffer.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { isCancelled } from '../../session/engine/common.ts'
 import { families } from '../../session/host/families.ts'
-import { blendShareTargets } from './asIsShareTarget.ts'
+import { wantsResponsive } from './responsiveTarget.ts'
 import { blendContext } from './contractLight.ts'
 
 type Shaders = Awaited<ReturnType<typeof createWebgpuVisibilityShaders>>
@@ -33,7 +34,7 @@ export async function buildBlendPipelines(
       rt.context.diagnosticGpuVariant,
       vis.writesFeedback,
       layout,
-      blendShareTargets(rt),
+      wantsResponsive(rt),
       blendContext(rt),
     )
   } catch (error) {
@@ -54,7 +55,7 @@ export async function prepareBlendPipelines(rt: WebgpuPagesRuntime, gpuDevice: G
 export async function prepareRasterPipelines(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
-  shaders: Shaders,
+  shaders: Pick<Shaders, 'visModule' | 'visBindGroupLayout'>,
   variant: Variant,
 ) {
   const { vis } = rt
@@ -64,6 +65,7 @@ export async function prepareRasterPipelines(
     shaders.visBindGroupLayout,
     variant,
     rt.setup.clipping,
+    voxelWpo(vis.rasters),
   ).catch((error: unknown) => {
     if (isCancelled(rt.signal)) throw error
     throw new Error(`WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE: ${String(error)}`)
@@ -86,9 +88,8 @@ export async function prepareShadeClasses(
 ) {
   const { vis, diag } = rt
   const classes = vis.shadeCensus!.keys
-  // The frame's cache first: the class pipelines' group binds its buffer.
-  vis.shadeCache ??= await createShadeCache(gpuDevice)
   vis.voxelSteps ??= createVoxelSteps(gpuDevice)
+  vis.shadeModule = shaders.shadeModule
   vis.shadeBins ??= await createShadeBins(gpuDevice)
   ;({ shadeBindGroupLayout: vis.shadeBindGroupLayout, shadeClasses: vis.shadeClasses } =
     await createWebgpuShadePipelines(
@@ -99,6 +100,7 @@ export async function prepareShadeClasses(
       vis.writesFeedback,
       undefined,
       vis.writesEmissiveAo,
+      () => vis.rasters,
     ))
   diag.engineDiagnostic('material-classes-ready', 'Resolve classes and their pipelines', {
     classes: classes.length,
@@ -107,7 +109,7 @@ export async function prepareShadeClasses(
   return classes
 }
 
-/** The page table and the shade bindings in place; the visibility pass refused by name without
+/** The decoded clusters' table and the shade bindings in place; the visibility pass refused by name without
  *  its texture, its bindings, its classes or its raster. */
 export async function bindShade(
   rt: WebgpuPagesRuntime,
@@ -116,8 +118,9 @@ export async function bindShade(
   classes: Awaited<ReturnType<typeof prepareShadeClasses>>,
 ) {
   const { vis, diag } = rt
-  // The row table at its one size, made by its one maker: the shade group binds it.
-  ensurePageTable(rt, gpuDevice)
+  // The table of decoded clusters, one record until the cut's list sizes it (`../render/visibleTables.ts`):
+  // the shade group binds it.
+  vis.pageTable ??= pageTableBuffer(gpuDevice, PAGE_INFO_STRIDE)
   ensureWebgpuShadeBindings(rt, gpuDevice)
   const ab = rt.context.feedbackTargetAB === true && (await families.diagnostics.load()) // a view's
   if (ab) await ab.prepareFeedbackAb(rt, gpuDevice, shaders.shadeModule, classes)

@@ -1,9 +1,8 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
-import { GLOBAL_DISTANCE_FIELD_CULL_GRID_FACTOR } from '../../../../sdk-core/src/lighting/globalDistanceField.ts'
 import { squaredDistanceBetweenBoxes } from './aabbWgsl.ts'
-import { CLIP_FLAG_PARENT, CONTROL } from './clipmapBlock.ts'
+import { CONTROL } from './clipmapBlock.ts'
 import { clipmapCommonWgsl } from './clipmapCommonWgsl.ts'
 import { meshFieldWgsl } from './meshFieldWgsl.ts'
 
@@ -22,14 +21,13 @@ import { meshFieldWgsl } from './meshFieldWgsl.ts'
  * The free list is made once (`initPageFreeList`: every page, the allocator at the pages' count);
  * after the update, `setupReturnArgs` sizes the return to it (and holds the allocator at 0 or more,
  * where requests ran past the end) and `returnToFreeList` appends the pages returned. The
- * `setup…Args` entries turn a count into the arguments of an indirect dispatch.
+ * `setup…Args` entries turn a count into the arguments of an indirect dispatch (the composition's, a group a
+ * eighth of a page, and the coverage's, a group a page).
  */
 
 const CONSTANTS = wgslConsts({
-  CULL_FACTOR: GLOBAL_DISTANCE_FIELD_CULL_GRID_FACTOR,
   CONTROL_COUNTERS: CONTROL.counters,
   COUNTERS_PER_CLIPMAP: CONTROL.countersPerClipmap,
-  FLAG_PARENT: CLIP_FLAG_PARENT,
 })
 
 /** The entries. */
@@ -69,8 +67,7 @@ fn nearestSurface(grid:vec3u,thread:u32)->f32{
  let centre=vec3f(grid)*clip.pageToPageScale+clip.pageToPageBias;
  let world=dfSubtractFromFloat(centre,translation);
  let influenceMax=clip.influenceRadius+clip.pageWorldRadius+GDF_PAGE_BORDER;
- let cell=grid/vec3u(CULL_FACTOR);
- let header=clip.cullHeader+((cell.z*clip.cullGrid.y+cell.y)*clip.cullGrid.x+cell.x)*2u;
+ let header=cullCellHeader(grid);
  let count=cullGrid[header];
  let start=cullGrid[header+1u];
  var nearest=influenceMax;
@@ -149,7 +146,9 @@ fn countersAt()->u32{return CONTROL_COUNTERS+clip.packed*COUNTERS_PER_CLIPMAP;}
  writeArgs(clip.args+3u,atomicLoad(&control[countersAt()+1u]));
 }
 @compute @workgroup_size(1) fn ${ALLOCATE_ENTRIES.composeArgs}(){
- writeArgs(clip.args+6u,atomicLoad(&control[countersAt()+2u])*GDF_PAGE_GROUPS);
+ let composed=atomicLoad(&control[countersAt()+2u]);
+ writeArgs(clip.args+6u,composed*GDF_PAGE_GROUPS);
+ writeArgs(clip.args+12u,composed);
 }
 @compute @workgroup_size(1) fn ${ALLOCATE_ENTRIES.returnArgs}(){
  writeArgs(clip.args+9u,(atomicLoad(&control[GDF_RETURN_ALLOCATOR])+${LANES - 1}u)/${LANES}u);

@@ -79,5 +79,6 @@ export const CONTROL = {
 } as const
 
 /** The words of a clipmap slot's dispatch arguments: the page tiles, the culling cells, the
- *  composition and the return of the free pages, three each. */
-export const ARGS_WORDS = 12
+ *  composition, the return of the free pages and the coverage and object grid of the pages composed (a group
+ *  a page), three each. */
+export const ARGS_WORDS = 15

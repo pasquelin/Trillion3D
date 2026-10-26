@@ -34,7 +34,9 @@ const firstDifference = (a: string, b: string) => {
  * another text is refused, naming the path by which each declaration came and the first line where
  * the texts differ, so a fragment parameterised by a provider needs no naming of its own; a
  * dependency cycle is refused too, both when the pipeline is described and never in a frame. One
- * visit per declaration and per edge; a path is joined only to be thrown.
+ * visit per declaration and per edge; a path is joined only to be thrown. A default (`weak`) is the
+ * exception to the refusal: met beside a declaration of its name that is not one, it gives way to it,
+ * in whichever order they are met, and stands where the program lists no other.
  */
 function ordered(decls: readonly WgslDecl[]) {
   const written = new Map<string, Step>()
@@ -51,10 +53,18 @@ function ordered(decls: readonly WgslDecl[]) {
     visited.add(decl)
     const key = keyOf(decl)
     const seen = written.get(key)
-    if (seen && seen.decl.text !== decl.text)
+    if (seen && seen.decl.text !== decl.text) {
+      // A default gives way to the declaration that replaces it, wherever it was met.
+      if (seen.decl.weak && !decl.weak) {
+        out[out.indexOf(seen.decl)] = decl
+        written.set(key, step)
+        return
+      }
+      if (decl.weak && !seen.decl.weak) return
       throw new Error(
         `WGSL '${decl.name}' declared twice: ${pathOf(seen)} and ${pathOf(step)} (${firstDifference(seen.decl.text, decl.text)})`,
       )
+    }
     if (!seen) {
       written.set(key, step)
       out.push(decl)
@@ -100,7 +110,8 @@ function directivesOf(text: string) {
     }
     if (c === '{' || c === '(') depth++
     else if (c === '}' || c === ')') depth--
-    if (!/\s/.test(c)) last = c
+    // Printable ASCII is never blank: the regex runs only on the rest.
+    if ((c > ' ' && c < '\x7f') || !/\s/.test(c)) last = c
     i++
   }
   return { found, rest: rest + text.slice(from) }

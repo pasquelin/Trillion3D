@@ -10,9 +10,11 @@ import {
   NODE_MIN,
   NODE_OPEN,
   NODE_SPHERE,
+  TREE_DRAW_FAR,
+  TREE_DRAW_NEAR,
 } from '../nodeLayout.ts'
 import { projectedError, type DagViewFrames } from './math.fixture.ts'
-import { outsideDrawDistances } from '../drawDistance.ts'
+import { outsideDrawDistances } from '../drawDistanceOracle.fixture.ts'
 import { REQUEST_CATEGORY, REQUEST_PRIORITY_MAX, REQUEST_PRIORITY_MIN } from '../request/request.ts'
 import { f32Bits } from '../../../../../math/src/float/bits.ts'
 import { clamp } from '../../../../../math/src/scalar/reals.ts'
@@ -142,22 +144,59 @@ export function dagTreeVerdict(
     )
   )
     return -1
+  // The distances its placements are drawn at, where they name some (a cell holds none).
+  const eye = [x, y, z]
+  if (
+    outsideGroupDrawDistance(
+      nodes[base + TREE_DRAW_NEAR],
+      nodes[base + TREE_DRAW_FAR],
+      eye.map((e, a) => nodes[lo + a] - e),
+      eye.map((e, a) => nodes[hi + a] - e),
+    )
+  )
+    return -1
   return ints[base + NODE_CHILD_COUNT]
 }
 
 /**
- * The kernel's verdict on a placement's draw distance (`outsideDrawDistance`,
- * `../shader/drawDistanceWgsl.ts`): whether the centre of its root's bounds, `centre` from the eye,
- * lies nearer than `near` or farther than `far`, both multiplied by `scale`. A `far` of 0 names
- * none: never out, whatever `near`.
+ * The kernel's verdict on the distances a placement is drawn at (`outsideDrawDistance`,
+ * `../shader/drawDistanceWgsl.ts`): whether the sphere of its root's bounds `lo`–`hi` (in the
+ * placement's space), at the pose `world` (column-major, in doubles) seen from `eye`, lies wholly
+ * out of `distance` times `scale` — the sphere's radius the box's half diagonal at the pose's
+ * greatest scale held to the half diagonal of the box the pose makes of it, none for one instance
+ * of an instanced mesh. None for a placement that names no distance.
  */
-export function outsideDrawDistance(
-  near: number,
-  far: number,
-  centre: ArrayLike<number>,
+export function outsideRootDrawDistance(
+  distance: { min: number; max: number; perInstance: boolean } | undefined,
+  world: ArrayLike<number>,
+  eye: readonly number[],
+  lo: ArrayLike<number>,
+  hi: ArrayLike<number>,
   scale = 1,
 ) {
-  return outsideDrawDistances(centre[0] ** 2 + centre[1] ** 2 + centre[2] ** 2, near, far, scale)
+  if (!distance) return false
+  const centre = [0, 1, 2].map((a) => 0.5 * (lo[a] + hi[a])),
+    half = [0, 1, 2].map((a) => 0.5 * (hi[a] - lo[a]))
+  const away = [0, 1, 2].map(
+    (i) =>
+      world[i] * centre[0] +
+      world[4 + i] * centre[1] +
+      world[8 + i] * centre[2] +
+      world[12 + i] -
+      eye[i],
+  )
+  let radius = 0
+  if (!distance.perInstance) {
+    const rows = [0, 1, 2].map((i) => world[i] ** 2 + world[4 + i] ** 2 + world[8 + i] ** 2),
+      extent = [0, 1, 2].map(
+        (i) =>
+          Math.abs(world[i]) * half[0] +
+          Math.abs(world[4 + i]) * half[1] +
+          Math.abs(world[8 + i]) * half[2],
+      )
+    radius = Math.min(Math.hypot(...half) * Math.sqrt(Math.max(...rows)), Math.hypot(...extent))
+  }
+  return outsideDrawDistances(Math.hypot(...away), radius, distance.min, distance.max, scale)
 }
 
 /**
@@ -190,29 +229,30 @@ export function outsideRootParent(
 }
 
 /**
- * The kernel's verdict on a group's draw distances (`outsideGroupDrawDistance`): whether no point
- * of the box `low`–`high`, from the eye, can lie within `near` and `far` — the box's centre's
- * distance, nearer or farther by the half diagonal. A `far` of 0 or less names none, and so do
- * squares that leave nothing between them. A cut in one pass (`twoPass` false) tests none.
+ * The kernel's verdict on a group's draw distances (`outsideGroupDrawDistance`): whether no
+ * placement of the box `low`–`high`, from the eye, can lie within `near` and `far` — the box's
+ * centre's distance, nearer or farther by twice the half diagonal: a point of the box and the
+ * sphere of a placement about it, which the clamp of `drawSphereRadius` holds within the half
+ * diagonal of its own box. The nearest is taken at the smaller of the two `scales` (the instances'
+ * and the objects' of their own), the farthest at the larger. A `far` of 0 or less names none, and
+ * so do distances that leave nothing between them. A cut in one pass (`twoPass` false) tests none.
  */
 export function outsideGroupDrawDistance(
   near: number,
   far: number,
   low: ArrayLike<number>,
   high: ArrayLike<number>,
-  scale = 1,
+  scales: readonly [number, number] = [1, 1],
   twoPass = true,
 ) {
-  if (!(far > 0) || !twoPass) return false
-  const nearSquared = (near * scale) ** 2,
-    farSquared = (far * scale) ** 2
-  if (nearSquared >= farSquared) return false
+  if (!(far > 0) || !twoPass || near >= far) return false
   const centre = [0, 1, 2].map((a) => 0.5 * (low[a] + high[a])),
-    radius = Math.hypot(...[0, 1, 2].map((a) => 0.5 * (high[a] - low[a])))
-  const reach = Math.hypot(...centre)
-  const nearest = Math.max(0, reach - radius),
-    farthest = reach + radius
-  return farthest * farthest < nearSquared || nearest * nearest > farSquared
+    slack = Math.hypot(...[0, 1, 2].map((a) => high[a] - low[a]))
+  const away = Math.hypot(...centre)
+  return (
+    outsideDrawDistances(away, slack, 0, far, Math.max(...scales)) ||
+    outsideDrawDistances(away, slack, near, 0, Math.min(...scales))
+  )
 }
 
 /** The distances a placement is drawn at, or a group's, as the words that hold them name them

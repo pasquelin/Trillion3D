@@ -51,7 +51,8 @@ page's own) keeps a mesh out.
 ## Bodies
 
 `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape, gravityScale,
-sensor, ccd, decorative, friction, restitution, damping }`.
+sensor, ccd, decorative, friction, restitution, damping, collision }`. `ccd` may be set again at any time
+(`mesh.physics.ccd = true`): the body's motion quality changes at the next step.
 
 - **Shape**, read from the geometry: a box, sphere, capsule or cylinder is that exact primitive
   (scaled); any other mesh its triangles when static, its convex hull (computed in the worker) when
@@ -79,20 +80,78 @@ radiusBottom }` tapers from its top's `radius` to `radiusBottom`, as
   carried `leave` events and a removed body's come before the merge, a soft body's after it. Any
   pool size gives the single thread's order (`contactThreads.test.ts`).
 
+## Collision channels and responses
+
+A body is one of 64 channels and answers each channel `ignore`, `overlap` or `block`. Two bodies meet
+by the lesser of what each answers to the other's channel: both block and they collide; the lesser an
+overlap and they pass through each other and report it (`enter` / `leave`, with `on(...)`); either
+ignores and they do not meet. The first eight channels are the engine's own (`worldStatic`,
+`worldDynamic`, `pawn`, `visibility`, `camera`, `physicsBody`, `vehicle`, `destructible`), then six
+reserved (`engineTrace1`..`6`) and fifty of the game's (`gameTrace1`..`50`); a channel is a name or
+its number, 0 to 63.
+
+`collision: { profile, objectType, responses, enabled }` says what a body is. A **profile** sets the
+object type, a response to every channel (the channels it does not name `block`) and where the body
+takes part: the engine's are `NoCollision`, `BlockAll`, `OverlapAll`, `BlockAllDynamic`,
+`OverlapAllDynamic`, `IgnoreOnlyPawn`, `OverlapOnlyPawn`, `Pawn`, `Spectator`, `CharacterMesh`,
+`PhysicsActor`, `Destructible`, `InvisibleWall`, `InvisibleWallDynamic`, `Trigger`, `Ragdoll`,
+`Vehicle` and `UI`. `responses` then changes channels over the profile, `objectType` the channel, and
+`enabled` (`'noCollision' | 'queryOnly' | 'physicsOnly' | 'queryAndPhysics'`) whether the body is
+simulated, queried, both or neither; a body that is not simulated is a sensor. Left out, a static body
+is `BlockAll`, a dynamic one `PhysicsActor`, a kinematic one `BlockAllDynamic`, a `sensor`
+`OverlapAllDynamic`, and `decorative` debris answers `block` to `worldStatic` and `ignore` to the
+rest. It is set when the body is made.
+
+```ts
+// A trigger that only the pawn sets off, and a crate on a channel of the game's own.
+door.physics = {
+  type: 'static',
+  sensor: true,
+  collision: { profile: 'Trigger', responses: { pawn: 'overlap', physicsBody: 'ignore' } },
+}
+crate.physics = { collision: { objectType: 'gameTrace1', responses: { pawn: 'overlap' } } }
+```
+
+## Overlap queries
+
+`await world.physics.overlap(shape, options)` asks what a `sphere`, `box` or `capsule` meets at
+`options.at` (turned by `rotation`), between two steps, as a body would: by `channel` (`{ objectType,
+responses }`, the visibility channel with every channel blocked by default) it meets a body by the
+rule above — the body blocks the query, or overlaps it — and by `objectTypes: [...]` it meets every
+body of those channels, each as a block. `mode` is `'multi'` (every body, the default), `'any'` (the
+first met) or `'blocking'` (the first that blocks); `ignore` names a body to pass through. A body that
+takes part in no query is never met. The answer is `{ hits: { object, blocking, material }[],
+blocking }`, the bodies in the order of their engine ids; with physics off it throws `PHYSICS_OFF`.
+
+```ts
+const { hits, blocking } = await world.physics.overlap(
+  { type: 'box', halfExtents: { x: 1, y: 1, z: 1 } },
+  { at: door.position, channel: { objectType: 'pawn' }, mode: 'multi' },
+)
+const anyCrate =
+  (
+    await world.physics.overlap(
+      { type: 'sphere', radius: 2 },
+      { at, objectTypes: ['physicsBody'], mode: 'any' },
+    )
+  ).hits.length > 0
+```
+
 ## Joints
 
 `joint.fixed | point | hinge | slider | distance | cone(a, b, options)` joins two bodies, or a body
 and the world (`b` is `null`), with the module's constraints; `world.physics.add(j)` and `remove(j)`
 put it in and out. It exists while both bodies are simulated, made again when one returns.
 
-| Option                                                        | Meaning                                                                                                                                               |
-| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `anchor`, `anchorB`                                           | where they connect (a distance: `anchor` the end on `a`, `anchorB` on `b`); a world point read when the joint is made, then kept in each body's frame |
-| `axis`                                                        | the hinge's pin, the slider's rail, the cone's middle; read and kept as `anchor`                                                                      |
-| `limits: { min, max }`                                        | radians for a hinge (−π to π), metres for a slider or a distance (default: its length), the half angle `max` for a cone                               |
-| `spring: { frequency, damping }`                              | makes the stop of a hinge, slider or distance soft.                                                                                                   |
-| `motor: { mode: 'velocity' \| 'position', target, maxForce }` | drives a hinge or slider, position measured from where the joint was made; `j.motor` changes it any time                                              |
-| `breakForce`                                                  | pull in newtons past which the joint breaks after a step: `j.broken` turns true, `j.on('break', fn)` is called, the bodies part                       |
+| Option                                                        | Meaning                                                                                                                                                                                        |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `anchor`, `anchorB`                                           | where they connect (a distance: `anchor` the end on `a`, `anchorB` on `b`); a world point read when the joint is made, then kept in each body's frame                                          |
+| `axis`                                                        | the hinge's pin, the slider's rail, the cone's middle; read and kept as `anchor`                                                                                                               |
+| `limits: { min, max }`                                        | radians for a hinge (−π to π), metres for a slider or a distance (default: its length), the half angle `max` for a cone                                                                        |
+| `spring: { frequency, damping }`                              | makes the stop of a hinge, slider or distance soft.                                                                                                                                            |
+| `motor: { mode: 'velocity' \| 'position', target, maxForce }` | drives a hinge or slider, position measured from where the joint was made; `j.motor` changes it any time                                                                                       |
+| `breakForce`                                                  | pull in newtons past which the joint breaks after a step: `j.broken` turns true, `j.on('break', fn)` is called, the bodies part                                                                |
+| `breakTorque`                                                 | torque in newton-metres past which the joint breaks, the same way: a pure twist or bend breaks it where no pull does (not on a point, a distance, a pulley, a gear or a rack, which hold none) |
 
 A tuning a kind lacks (a motor on a fixed joint) throws `RangeError`.
 
@@ -224,20 +283,13 @@ vertex on the module's soft bodies.
   per vertex).
 - **Divergence.** A body, soft or rigid, whose vertices or pose go non-finite sends none: it keeps
   its last finite one on screen and leaves the simulation with `PHYSICS_DIVERGED` (the mesh named).
-  A soft body has also diverged when its vertices go apart, the spread of their velocities, at
-  twice the speed of a fall from a hundred times its size for half a second, or when its bounds pass
-  three times their rest diagonal while one of its edges is pulled past five times its rest length
-  (a rope coiled at rest hangs out to its length with whole edges: no divergence). It stays in the
-  simulation: brought back at rest to the state it kept a quarter to half a second before (its rest
-  shape, at its pins or around its centre of mass, when it kept none), then calmed for 2 s, damped
-  so that it falls no faster than a quarter of its mean edge per step. The page counts it in
-  `world.physics.stats.softRecoveries` and hears a non-fatal `PHYSICS_DIVERGED` naming it, at most
-  once a second. The module finds a soft body's collision planes once per step for its five
-  substeps, so a fine cloth draped over a sharp edge or corner can still throw itself apart and be
-  brought back this way.
-- **Collisions.** Rigid bodies and the character collide with its vertices: the character is turned
-  aside or stopped, never pushing it; a rigid body much heavier than the skin can push between its
-  vertices; soft bodies pass through each other (the module collides them with rigid bodies only).
+  A soft body is judged on its vertices alone: one non-finite vertex and the body leaves, its joints
+  break, and the page hears a non-fatal `PHYSICS_DIVERGED` naming it. Nothing brings it back: a
+  body whose vertices fly apart but stay finite is left to the module, and a diverged one is made
+  again by the page (`mesh.physics = ...`) once it is back at a state that holds.
+- **Collisions.** Rigid bodies collide with its vertices; the character passes through the skin (its
+  controller collides with shapes only, not with soft vertices); a rigid body much heavier than
+  the skin can push between its vertices; soft bodies pass through each other (the module collides them with rigid bodies only).
   `on('contact' | 'enter' | 'leave')` works on either side, from the module's soft-body contact
   listener: the point is the mean of the touching vertices, the impulse estimated from their mean
   velocity and mass, a pair stays entered while both rest; a sensor reports without stopping it.
@@ -308,8 +360,9 @@ its tiles, and those of a node its collider is made from, leave. A kinematic one
 pushing what it meets (under a dynamic one, as that body carries its node); a dynamic one simulates,
 its node and what hangs under it drawn where the simulation puts them, that subtree's tiles leaving
 and ground streaming in around it; moved by the page with its model or node, it is put where the
-node is then drawn. In a partitioned model, whose cache numbers nodes otherwise, it is held
-kinematic and asleep where drawn. A shape the module cannot make at the body's scale is
+node is then drawn. In a partitioned model a body, or a static collider, is made when the cell
+that draws its node is placed and let go of when that cell leaves, as render and physics of one
+object stream together; the core's nodes are always there. A shape the module cannot make at the body's scale is
 `PHYSICS_FAILED` naming its node, which stays static ground; a body refused at a rescale is made
 again at another scale.
 
@@ -319,7 +372,9 @@ again at another scale.
 triangles (naming the model and the triangle's glTF `material`), a body on its shape.
 `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`, `capsule` with `halfHeight`
 and `radius`) sweeps that shape; `maxDistance` defaults to `camera.far`; `ignore` names a body to
-pass through, the asker's own. Without `exact` or `shape`, `world.raycast` asks the engine's GPU
+pass through, the asker's own; `channel` (`{ objectType, responses }`, the visibility channel with every
+channel blocked by default) makes it stop at what blocks that channel and pass through what overlaps or
+ignores it (a trigger, the pawn). Without `exact` or `shape`, `world.raycast` asks the engine's GPU
 ray query, on the triangles the world draws ([Picking](SDK.md#picking-moving-and-saving)). With
 physics off, an exact raycast throws `PHYSICS_OFF`.
 
@@ -327,3 +382,52 @@ physics off, an exact raycast throws `PHYSICS_OFF`.
 
 With physics on, `world.controls` `'character'` is the physics' own character: it pushes, rides and
 is pushed ([Camera controllers](SDK.md#camera-controllers)).
+
+### Movement modes
+
+The character moves in one of four modes, `body.mode`: `walking` on a floor, `falling` in the air,
+`swimming` where the water (`world.physics.water`) carries it — the centre of its capsule under the
+surface, `canSwim` — and `flying` while `flying` is set. Swimming and flying follow the engine's
+rules for a body in a fluid: the wish in three axes (the head's pitch, Space rising, C sinking)
+turns the velocity by the fluid's friction (`fluidFriction`, 0.3, half of it flying, scaled by the
+depth swimming), the fluid holds it back, the body's `maxAcceleration` (20.48 m/s²) adds up to
+`swimSpeed` (3 m/s) or `flySpeed` (6 m/s), `swimBraking` and `flyBraking` (0) slow it with no key, and a
+swimmer is lifted by `buoyancy` (1) times its depth in the water of its weight; a swimmer rising out of
+the water is slowed above a third of the swim speed, and has almost no wish upward near the surface.
+The velocity then is the move the body made.
+
+**Crouch.** With `canCrouch` (false by default) the crouch key (C) shrinks the capsule to
+`crouchedHeight` (0.8 m) on a floor or in the air, walks at `crouchedSpeed` (half the walk) and stands
+again only where the room is; `crouchKeepsBase` (false) keeps the capsule's base in place, else its
+centre, so the feet rise by half the difference. The eye stands at 1.8 times the half height of the
+crouched capsule. Walking and falling follow the engine's own movement model too (below).
+
+**Walking and falling.** On a floor the velocity turns toward the wish by `groundFriction` (8 per
+second), gathers `maxAcceleration` (20.48 m/s²) up to `walkSpeed` (6 m/s; `crouchedSpeed` crouched),
+and with no key is braked by the friction, doubled (`brakingFrictionFactor` 2), and
+`brakingDecelerationWalking` (20.48 m/s²), cut into sub-steps of `brakingSubStepTime` (1/33 s) and
+stopped dead under 0.1 m/s; the floor's own friction does not enter. In the air the same step runs
+with `fallingLateralFriction` (0) and `brakingDecelerationFalling` (0), so the sideways velocity is
+kept; the keys push with `airControl` (0.05) of their force, times `airControlBoostMultiplier` (2)
+while the sideways speed is under `airControlBoostVelocityThreshold` (0.25 m/s); gravity is added
+and the fall held to `terminalVelocity` (40 m/s), the body moving by the mean of the velocity before
+and after. A jump leaves at `jumpSpeed` (4.2 m/s, a 0.9 m apex on Earth). A tick is cut into
+sub-steps of at most `maxSimulationTimeStep` (0.05 s), `maxSimulationIterations` (8) at most, and a
+sub-step that crosses the apex ends on it, `maxJumpApexAttemptsPerSimulation` (2) times at most.
+`minAnalogWalkSpeed` (0) is the speed the weakest key push reaches.
+
+**Jumps.** A press reads once, at the start of the next step: it jumps if the body is not crouched
+and has made fewer than `jumpMaxCount` (1) jumps since it last landed — a body that walked off an
+edge has none, its first jump from the air is denied —, leaving at `jumpSpeed` at least. The press
+is then spent; with `jumpMaxHoldTime` (0) above zero it stays while the key is held and the jump
+keeps `jumpSpeed` as its least upward speed (`dontFallBelowJumpZVelocityDuringJump`, true) for that
+long, gravity pulling meanwhile (`applyGravityWhileJumping`, true). Landing gives the jumps back.
+
+```ts
+world.controls = 'character'
+world.controls.groundFriction = 4 // a slippery floor: turns and brakes more gently
+world.controls.airControl = 0.5 // steer a jump
+world.controls.jumpMaxCount = 2 // a double jump
+world.controls.canCrouch = true // C crouches
+world.controls.flying = true // C sinks, Space rises, the head steers
+```

@@ -4,7 +4,6 @@ import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { listen } from '../../../../sdk-core/src/world/observed.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { createFrameGateCore } from '../../frame/gate/gateCore.ts'
-import { createBlendScene } from '../../geometry/cluster/blendSceneRecord.ts'
 import { setWebgpuClearColor } from '../../frame/io/clearColor.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { createExplorerSceneApi } from '../../api/sceneApi.ts'
@@ -27,6 +26,7 @@ function wiredScene() {
     invalidate: () => calls.invalidate++,
     relight: () => {},
     schedule: () => calls.schedule++,
+    sky: () => {},
   })
   const written: (number | undefined)[] = []
   const session = {
@@ -109,12 +109,10 @@ test('the session writes the engine, the default colour for none', () => {
 
 test('WebGPU: the passes read the new colour, the frame is not held on the old one', () => {
   const gate = createFrameGateCore(1)
-  const scene = createBlendScene(0x000000, [])
-  const rt = { setup: { scene }, run: { clearColor: 0, gate } } as unknown as WebgpuPagesRuntime
+  const rt = { run: { clearColor: 0, gate } } as unknown as WebgpuPagesRuntime
   const { scene: moved, resources } = gate.revisions
   setWebgpuClearColor(rt, 0xffffff)
   assert.equal(rt.run.clearColor, 0xffffff)
-  assert.deepEqual(scene.background, { isColor: true, r: 1, g: 1, b: 1 })
   // The held frame is broken, and nothing is walked again: the scene revision stays.
   assert.equal(gate.revisions.scene, moved)
   assert.notEqual(gate.revisions.resources, resources)

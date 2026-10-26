@@ -9,7 +9,7 @@ import type { VsmFramePlan } from '../../../lighting/shadows/vsm/frameSetup.ts'
  * A frame is a cause when it can draw pages the image has not shown yet: an invalidation, a light
  * whose maps start uncached or were invalidated, the global resolution bias moved by the budget
  * feedback, a raster skipped. The maps are settled once a count read back from a frame at or after
- * the last cause says no page was drawn, and the transmission pool is not short.
+ * the last cause says no page was drawn.
  */
 export interface VsmSettle {
   /** Last frame that could draw pages not yet shown. */
@@ -80,8 +80,7 @@ export function landVsmStats(settle: VsmSettle, staging: GPUBuffer, rendered: nu
 const BLIND_FRAMES = 4
 
 /** True while the maps can still change what the image shows (see `VsmSettle`). */
-export function vsmUnsettled(settle: VsmSettle, countersOn: boolean, transmissionShort: boolean) {
-  if (transmissionShort) return true
+export function vsmUnsettled(settle: VsmSettle, countersOn: boolean) {
   if (!countersOn) return settle.frame - settle.causeFrame < BLIND_FRAMES
   return settle.landedFrame < settle.causeFrame || settle.landedRendered > 0
 }

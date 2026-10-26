@@ -8,36 +8,13 @@ import {
   DEFAULT_TEMPORAL_AA_LEVEL,
   TEMPORAL_AA_LEVELS,
 } from '../../../../sdk-core/src/contracts/compilerAbi.ts'
-import { RASTER_RULES } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
-import { STREAMING_RULES } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
-import { WORLD_STREAMING_RULES } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
-import type { RegistryRule } from './ruledSwitches.ts'
-import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
-import { DYNAMIC_RESOLUTION_RULES } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
-import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOptions.ts'
-import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
-import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import {
-  SKY_QUALITY_RULES,
-  SKY_QUALITY_RULES_BY_GROUP,
-} from '../../../../sdk-core/src/modules/sky/quality.ts'
-import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
-import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
-import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
-import { VOLUMETRIC_LIGHTMAP_RULES } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
-import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
-import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
-import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
-import { MOTION_BLUR_RULES } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
-import { DEPTH_OF_FIELD_RULES } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
-import { BLOOM_RULES } from '../../../../sdk-core/src/contracts/bloomRules.ts'
-import { GAUSSIAN_BLUR_RULES } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
-import { FILM_RULES } from '../../../../sdk-core/src/contracts/filmOptions.ts'
-import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
-import { TESSELLATION_RULES } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
-import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
-import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
-import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
+  SETTING_FAMILIES,
+  type FamilyRules,
+  type FamilyTable,
+  type RegistryRule,
+} from '../../../../sdk-core/src/runtime/settingFamilies.ts'
+import type { UnionToIntersection } from '../../../../sdk-core/src/runtime/joined.ts'
 import {
   createRenderSettings,
   type ChoiceSettingEntry,
@@ -72,40 +49,30 @@ function ruleEntry(rule: RegistryRule, quality: QualityGroup = 'viewDistance') {
   const range = rule.above ? ([Number.MIN_VALUE, rule.range[1]] as const) : rule.range
   return { kind: rule.kind, default: rule.default, range, ...group }
 }
+/** The entries of a family's rules `R`, each setting by its field. */
+type RuleEntries<R extends FamilyRules> = { [F in keyof R]: RuleEntry<R[F]['default']> }
 /** The entries of the settings of a contract's rules by field, each setting by its field. */
-const ruleEntries = <R extends Readonly<Record<string, RegistryRule>>>(
-  rules: R,
-  group?: QualityGroup,
-) =>
+const ruleEntries = <R extends FamilyRules>(rules: R, group?: QualityGroup) =>
   Object.fromEntries(
     Object.entries(rules).map(([field, rule]) => [field, ruleEntry(rule, group)]),
-  ) as unknown as { [F in keyof R]: RuleEntry<R[F]['default']> }
+  ) as unknown as RuleEntries<R>
 
-/** The rules of the settings declared by rule that belong to the view distance's group, by field:
- *  the cluster raster's, the geometry streaming's, the partition's streaming and the HLOD warm-up's,
- *  the cut's, the animation's, the shading's, the exposure's, the temporal pass's, the depth
- *  pyramid's and the tessellation's. The sky's quality settings (`SKY_QUALITY_RULES_BY_GROUP`) and
- *  the families written below with their group are in the groups the reference writes them in.
- *  Both the table below and `RULE_FIELDS` read these, so no table is listed twice. */
-const RULES = {
-  ...RASTER_RULES,
-  ...STREAMING_RULES,
-  ...WORLD_STREAMING_RULES,
-  ...CUT_RULES,
-  ...DYNAMIC_RESOLUTION_RULES,
-  ...ANIMATION_RULES,
-  ...SHADING_RULES,
-  ...EXPOSURE_RULES,
-  ...TEMPORAL_RULES,
-  ...HIZ_RULES,
-  ...LIGHT_FUNCTION_RULES,
-  ...VOLUMETRIC_LIGHTMAP_RULES,
-  ...GLOBAL_DISTANCE_FIELD_RULES,
-  ...DISTANCE_FIELD_OCCLUSION_RULES,
-  ...TESSELLATION_RULES,
+/** The entries of every family of `T` at once: all the settings of the table, each by its field. */
+type FamilyEntries<T extends FamilyTable> = UnionToIntersection<
+  { [N in keyof T]: RuleEntries<T[N]['rules']> }[keyof T]
+>
+/** The entries of the settings of every family of `table`, each in the quality group the family
+ *  names (`SettingFamily.group`), or, where it spreads over several, in the one each of its rules
+ *  belongs to (`SettingFamily.groups`). */
+function familyEntries<T extends FamilyTable>(table: T) {
+  const entries: Record<string, unknown> = {}
+  for (const { group, groups, rules } of Object.values(table))
+    for (const [named, own] of Object.entries(groups ?? { [group as QualityGroup]: rules }))
+      Object.assign(entries, ruleEntries(own as FamilyRules, named as QualityGroup))
+  return entries as FamilyEntries<T>
 }
 
-/** Every render setting of the engine, by name. The settings declared by rule (`RULES`) are read at
+/** Every render setting of the engine, by name. The settings declared by rule (`SETTING_FAMILIES`) are read at
  *  each frame, or at each update of the streaming, from the session's context; the view distance's
  *  levels write one of them, the scale of the objects' draw distances (`cutViewDistanceScale`), as
  *  the reference's scalability groups do, and no level writes the others. */
@@ -126,60 +93,25 @@ const WORLD_SETTINGS = {
     ...base('edgeSmoothing'),
   },
   bounce: flag(true, 'indirectLight'),
-  ...ruleEntries(RULES),
-  ...ruleEntries(SKY_QUALITY_RULES_BY_GROUP.effects, 'effects'),
-  ...ruleEntries(SKY_QUALITY_RULES_BY_GROUP.imageEffects, 'imageEffects'),
-  ...ruleEntries(SKY_QUALITY_RULES_BY_GROUP.indirectLight, 'indirectLight'),
-  // The sun's shadow distance, its far-shadow culling: the shadows' group, whose levels write the
-  // distance's scale (`quality.ts`).
-  ...ruleEntries(SHADOW_RULES, 'shadows'),
-  // The motion blur's quality, its gathers and passes: the image effects' group, whose levels
-  // write the quality and the half-resolution gather (`quality.ts`).
-  ...ruleEntries(MOTION_BLUR_RULES, 'imageEffects'),
-  // The depth of field's quality, gather, scatter and recombine settings: the image effects' group too,
-  // whose levels write the ones the reference's levels write (`quality.ts`).
-  ...ruleEntries(DEPTH_OF_FIELD_RULES, 'imageEffects'),
-  // The bloom's quality, cross, convolution resolution and two switches: the image effects' group
-  // too, whose levels write the quality and the resolution (`quality.ts`).
-  ...ruleEntries(BLOOM_RULES, 'imageEffects'),
-  // The Gaussian blur's fast threshold, sample scale and loop mode (the bloom's levels and the local
-  // exposure's blur): the image effects' group too, whose levels write the first two (`quality.ts`).
-  ...ruleEntries(GAUSSIAN_BLUR_RULES, 'imageEffects'),
-  // The film effects' settings: the image effects' group too, whose levels write the tonemapper's
-  // quality and the colour fringe's (`quality.ts`).
-  ...ruleEntries(FILM_RULES, 'imageEffects'),
-  // The volumetric fog's quality level and its eleven other settings: the shadows' group too,
-  // whose levels write the quality (`quality.ts`).
-  ...ruleEntries(VOLUMETRIC_FOG_RULES, 'shadows'),
-  // The screen probes' level and settings: the indirect light's group, whose levels write the
-  // probes' level (`quality.ts`).
-  ...ruleEntries(SCREEN_PROBE_RULES, 'indirectLight'),
-  // The screen-space ambient occlusion's settings: the image effects' group too, whose levels
-  // write its resolutions, ceiling, depth-pyramid climb and radius scale (`quality.ts`).
-  ...ruleEntries(AMBIENT_OCCLUSION_RULES, 'imageEffects'),
-  // The reflections' trace: the indirect light's group too; the reference's scalability rows write
-  // none of its settings, so no level does (`quality.ts`).
-  ...ruleEntries(REFLECTION_RULES, 'indirectLight'),
+  // Every family declared by rule (`SETTING_FAMILIES`), each in the quality group whose levels write it
+  // (`quality.ts`): the view distance's, the shadows', the image effects', the indirect light's, and the
+  // sky's over three.
+  ...familyEntries(SETTING_FAMILIES),
 } as const satisfies Readonly<Record<string, RenderSettingEntry>>
 
 /** The fields of every setting declared by rule: no quality level writes one unless its table
  *  lists it (`quality.ts`). */
-export const RULE_FIELDS: ReadonlySet<string> = new Set([
-  ...Object.keys(RULES),
-  ...Object.keys(SKY_QUALITY_RULES),
-  ...Object.keys(SHADOW_RULES),
-  ...Object.keys(VOLUMETRIC_FOG_RULES),
-  ...Object.keys(MOTION_BLUR_RULES),
-  ...Object.keys(DEPTH_OF_FIELD_RULES),
-  ...Object.keys(BLOOM_RULES),
-  ...Object.keys(GAUSSIAN_BLUR_RULES),
-  ...Object.keys(FILM_RULES),
-  ...Object.keys(SCREEN_PROBE_RULES),
-  ...Object.keys(AMBIENT_OCCLUSION_RULES),
-  ...Object.keys(REFLECTION_RULES),
-])
+export const RULE_FIELDS: ReadonlySet<string> = new Set(
+  Object.values(SETTING_FAMILIES).flatMap((family) => Object.keys(family.rules)),
+)
 
-/** A world's registry over the engine's settings. */
-export const createWorldSettings = () => createRenderSettings(WORLD_SETTINGS)
+/** A world's registry over the engine's settings; over the families of `table` where it is not the
+ *  engine's own (`SETTING_FAMILIES`). */
+export const createWorldSettings = (table: FamilyTable = SETTING_FAMILIES) =>
+  createRenderSettings(
+    table === SETTING_FAMILIES
+      ? WORLD_SETTINGS
+      : ({ ...WORLD_SETTINGS, ...familyEntries(table) } as unknown as typeof WORLD_SETTINGS),
+  )
 /** A world's settings registry. */
 export type WorldSettings = ReturnType<typeof createWorldSettings>

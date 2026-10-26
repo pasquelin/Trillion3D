@@ -3,9 +3,11 @@
 // quantized pages of `pointHeader.fixture.ts`, far from the origin — every row kind, plus a
 // double-sided opaque copy of each cutout row on its very triangles, so equal depths meet across
 // slots and, between rows of one geometry, within a slot. A model raster draws the slots in their
-// order and their rows in theirs, each fragment taking the visibility write (`VIS_WRITE_WGSL`), its
-// depth phase then its identifier phase: with the cut stage on every slot, then with the opaque
-// stage on each slot that holds no cutout row, the visibility buffer holds the same bits.
+// order and their rows in theirs, each fragment taking the visibility write (`visWriteWgsl`) — the
+// stage of a device with the 64-bit atomic maximum, its pair (identifier, depth key) a pixel —: with the
+// cut stage on every slot, then with the opaque stage on each slot that holds no cutout row, the
+// visibility buffer holds the same bits. The stage of a device without it writes its identifier and
+// depth key out, and the same footprint and test are its MASKED part.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Mat } from '../../materials/texture/shaderRunMatrix.fixture.ts'
@@ -13,18 +15,27 @@ import { functionsOf } from '../../materials/texture/shaderRule.fixture.ts'
 import type { Fn } from './triangleScene.fixture.ts'
 import { matrixWindingCw } from '../../../../math/src/matrix/orientation.ts'
 import { signedArea } from '../../../../../bench/oracles/browser/cpu-image/projection.ts'
-import { VIS_SHADER, visShader, visXrayShader } from './visWgsl.ts'
+import { visShader, visXrayShader } from './visWgsl.ts'
+import { VIS_SHADER } from './visShader.fixture.ts'
 import { visVoxelShader } from './visVoxelWgsl.ts'
 import * as F from '../types.ts'
 import { cameraViewProj, pages, stages, VIS_VS_NAMES, VIS_VS_SCOPE } from './pointHeader.fixture.ts'
 
+/** The raster's module on a device with the 64-bit atomic maximum: the one the model raster runs. */
+const WIDE_SHADER = visShader({ wide: true })
+
 test('the cutout footprint and test are the MASKED part of the stage alone', () => {
-  const stage = functionsOf(VIS_SHADER, ['vis_hiz_fs']).replace(/\s+/g, '')
-  const footprint = 'if(MASKED){gx=dpdx(in.tc.xy);gy=dpdy(in.tc.xy);}'
-  const keep = 'if(MASKED&&!maskKeep(page,in.tc.xy,in.tc.z,gx,gy)){return;}'
-  assert.ok(stage.includes(footprint) && stage.includes(keep))
-  const unmasked = stage.replace(footprint, '').replace(keep, '')
-  assert.ok(!unmasked.includes('dpdx') && !unmasked.includes('maskKeep'))
+  for (const [code, leave] of [
+    [WIDE_SHADER, 'return;'],
+    [VIS_SHADER, 'returnvisLeft();'],
+  ] as const) {
+    const stage = functionsOf(code, ['vis_hiz_fs']).replace(/\s+/g, '')
+    const footprint = 'if(MASKED){gx=dpdx(in.tc.xy);gy=dpdy(in.tc.xy);}'
+    const keep = `if(MASKED&&!maskKeep(page,in.tc.xy,in.tc.z,gx,gy)){${leave}}`
+    assert.ok(stage.includes(footprint) && stage.includes(keep))
+    const unmasked = stage.replace(footprint, '').replace(keep, '')
+    assert.ok(!unmasked.includes('dpdx') && !unmasked.includes('maskKeep'))
+  }
 })
 
 type Row = Record<string, unknown> & { flags: number; indexCount: number; world: Mat }
@@ -59,39 +70,50 @@ const binOf = (row: Row) =>
 
 const uni = { viewProj: cameraViewProj(1), viewport: [1280, 720] }
 Object.assign(uni, { pixelRatio: 1, indirect: 0, drawSlot: 0, clipPlane: [0, 0, 0, 0] })
-/** The visibility buffer the stages write: depth keys, then identifiers one screen further. */
+/** The visibility buffer the stages write: a pair a pixel, its identifier then its depth key, the 64-bit
+ *  word whose maximum `atomicStoreMax` takes (the depth in the high half). */
 const PIXELS = 1280 * 720
-const work = new Uint32Array(2 * PIXELS)
+const ids = new Uint32Array(PIXELS),
+  keys = new Uint32Array(PIXELS)
+const work = new Proxy({} as Record<string, number[]>, {
+  get: (_, at) => [ids[Number(at)], keys[Number(at)]],
+  set: (_, at, pair: number[]) => ((ids[Number(at)] = pair[0]), (keys[Number(at)] = pair[1]), true),
+})
+const atomicStoreMax = (
+  pointer: { get: () => number[]; set: (pair: number[]) => void },
+  pair: number[],
+) => {
+  const held = pointer.get()
+  if (pair[1] > held[1] || (pair[1] === held[1] && pair[0] > held[0])) pointer.set(pair)
+}
 const scope = {
-  ...{ uni, instances: [], slotOffsets: [0], pages: table, work, ...VIS_VS_SCOPE },
+  ...{ uni, instances: [], slotOffsets: [0], pages: table, work, atomicStoreMax, ...VIS_VS_SCOPE },
   ...{ dpdx: () => [0, 0], dpdy: () => [0, 0] },
   // A checker of alpha 0 and 1 over the UV: half of a mapped cutout row's pixels are cut.
   maskAlpha: (_map: number, uv: number[]) => (Math.floor(uv[0] * 6) + Math.floor(uv[1] * 6)) % 2,
 }
 const names = VIS_VS_NAMES.concat(['maskKeep', 'visKey', 'vis_hiz_fs'])
-/** The stage in each phase of the write (`ID_PHASE`), with its mask test (`MASKED`) or with it
- *  compiled out, the opaque twins' (`VIS_UNMASKED`). */
-const stageOf = (masked: boolean, ids: boolean) =>
-  stages(VIS_SHADER, names, { ...scope, MASKED: masked, ID_PHASE: ids })
-const cutStages = [stageOf(true, false), stageOf(true, true)],
-  opaqueStages = [stageOf(false, false), stageOf(false, true)]
+/** The stage with its mask test (`MASKED`) or with it compiled out, the opaque twins' (`VIS_UNMASKED`). */
+const stageOf = (masked: boolean) => stages(WIDE_SHADER, names, { ...scope, MASKED: masked })
+const cutStage = stageOf(true),
+  opaqueStage = stageOf(false)
 type Corner = { position: number[]; id: number; instance: number; tc: number[] }
 const corners = table.map((row, at) =>
-  Array.from({ length: row.indexCount }, (_, v) => cutStages[0].vis_vs(v, at) as Corner),
+  Array.from({ length: row.indexCount }, (_, v) => cutStage.vis_vs(v, at) as Corner),
 )
 
 const [W, H] = [96, 54]
 /** The visibility buffer of every slot, each drawn with the cut stage or, `opaqueSlots`, with the
- *  opaque one when it holds no cutout row: the depth phase over every slot, then the identifier
- *  phase. */
+ *  opaque one when it holds no cutout row. */
 function raster(opaqueSlots: boolean) {
-  work.fill(0)
+  ids.fill(0)
+  keys.fill(0)
   const seen = { ties: 0, discards: 0, opaque: 0, written: 0 }
-  for (const phase of [0, 1])
+  {
     for (const bin of [0, 1, 2]) {
       const rows = table.flatMap((row, at) => (binOf(row) === bin ? [at] : []))
       const opaque = opaqueSlots && rows.every((at) => !(table[at].flags & F.FLAG_MASK))
-      const stage = (opaque ? opaqueStages : cutStages)[phase]
+      const stage = opaque ? opaqueStage : cutStage
       for (const at of rows)
         for (let t = 0; t * 3 < table[at].indexCount; t++) {
           const v = corners[at].slice(t * 3, t * 3 + 3)
@@ -118,21 +140,25 @@ function raster(opaqueSlots: boolean) {
               const input = { ...v[0], position: [i + 0.5, j + 0.5, z, 1], tc }
               const pixel = j * 1280 + i
               if (opaque) seen.opaque++
-              if (phase === 0 && table[at].flags & F.FLAG_MASK) {
-                const keep = (cutStages[0].maskKeep as Fn)(table[at], tc, tc[2], [0, 0], [0, 0])
+              if (table[at].flags & F.FLAG_MASK) {
+                const keep = (cutStage.maskKeep as Fn)(table[at], tc, tc[2], [0, 0], [0, 0])
                 if (!keep) seen.discards++
               }
-              // A fragment at the final key of a pixel another one already named: a tie the
-              // identifier phase settles by its maximum.
+              // A fragment at the key of a pixel another one holds: a tie the maximum settles by
+              // identifier.
               const key = (stage.visKey as Fn)(z, 0)
-              if (phase === 1 && work[pixel] === key && work[PIXELS + pixel] !== 0) seen.ties++
-              const named = work[PIXELS + pixel]
+              if (keys[pixel] === key && ids[pixel] !== 0) seen.ties++
+              const named = ids[pixel]
               ;(stage.vis_hiz_fs as Fn)(input)
-              if (phase === 1 && work[PIXELS + pixel] !== named) seen.written++
+              if (ids[pixel] !== named) seen.written++
             }
         }
     }
-  return { image: work.slice(), seen }
+  }
+  const image = new Uint32Array(2 * PIXELS)
+  image.set(keys)
+  image.set(ids, PIXELS)
+  return { image, seen }
 }
 
 test('the opaque stage on slots without a cutout row writes the same visibility buffer', () => {
@@ -160,9 +186,9 @@ const clippedStage = (plane: number[], plain = false) => {
     viewProj: new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     clipPlane: plane,
   }
-  return stages(visShader({ clipping: plain ? undefined : 'pixel' }), names, {
+  return stages(visShader({ clipping: plain ? undefined : 'pixel', wide: true }), names, {
     ...{ ...scope, uni: clipped },
-    ...{ MASKED: false, ID_PHASE: false },
+    ...{ MASKED: false },
   })
 }
 
@@ -200,9 +226,10 @@ test('a device without clip distances leaves the pixel behind the plane, one pix
   const stage = clippedStage([0, 0, 0, 0]),
     corner = { ...corners[0][0], position: [10.5, 10.5, 0.5, 1] }
   const written = (clip: number) => {
-    work.fill(0)
+    ids.fill(0)
+    keys.fill(0)
     ;(stage.vis_hiz_fs as Fn)({ ...corner, clip })
-    return work.some((word) => word !== 0)
+    return keys.some((word) => word !== 0)
   }
   assert.equal(written(-0.001), false, 'behind the plane')
   assert.equal(written(0), true, 'on it')
@@ -210,8 +237,8 @@ test('a device without clip distances leaves the pixel behind the plane, one pix
 })
 
 test('a device that has clip distances compiles the builtin, one that has none tests the distance in the fragment stage, a view without a plane draws with a module that holds neither', () => {
-  const native = visShader({ clipping: 'distance' }),
-    pixel = visShader({ clipping: 'pixel' })
+  const native = visShader({ clipping: 'distance', wide: true }),
+    pixel = visShader({ clipping: 'pixel', wide: true })
   assert.ok(native.includes('enable clip_distances;'))
   assert.ok(
     native.indexOf('enable clip_distances;') < native.indexOf('struct VSOut'),
@@ -232,6 +259,10 @@ test('a device that has clip distances compiles the builtin, one that has none t
   )
   // The derivatives the cutout reads come before the pixel may leave: the quad still runs.
   assert.ok(pixel.indexOf('dpdx(in.tc.xy)') < pixel.indexOf('if(in.clip<0.0){return;}'))
+  // A device without the 64-bit word discards the pixel instead: its fragment returns an output.
+  const left = visShader({ clipping: 'pixel' })
+  assert.ok(left.includes('if(in.clip<0.0){return visLeft();}'))
+  assert.ok(left.indexOf('dpdx(in.tc.xy)') < left.indexOf('if(in.clip<0.0){return visLeft();}'))
   assert.ok(visXrayShader('pixel').includes('if(in.clip<0.0){discard;}'))
   assert.ok(
     !visXrayShader('distance').includes('in.clip<0.0') &&
@@ -244,15 +275,12 @@ test('a device that has clip distances compiles the builtin, one that has none t
 })
 
 test('a voxel hit behind the view’s plane is none: the plane is read in the brick’s cells, where the ray is', () => {
-  const code = visVoxelShader('pixel')
+  const code = visVoxelShader('pixel', undefined, true)
+  assert.ok(code.includes('out.plane=transpose(cells)*uni.clipPlane;'))
   assert.ok(
-    code.includes(
-      'out.plane=transpose(page.world*voxelCarry(page,brick)*voxelCells(page,brick))*uni.clipPlane;',
-    ),
-  )
-  assert.ok(
-    code.includes('let m=uni.viewProj*page.world*voxelCarry(page,brick)*voxelCells(page,brick);'),
-    'the matrix the ray is drawn by is the one it was, to the bit',
+    code.includes('let cells=page.world*voxelCarry(page,brick)*voxelCells(page,brick);') &&
+      code.includes('let m=uni.viewProj*cells;'),
+    'the matrix the ray is drawn by is the one the plane is read by, the brick’s cells carried',
   )
   // The module of a view without a plane holds none of it.
   for (const text of ['uni.clipPlane', 'in.plane', 'out.plane'])

@@ -10,7 +10,7 @@ import { LIGHT_SHAFT_MASK_FORMAT, lightShaftPassSizes, type LightShaftOrigin } f
  */
 
 /** A step of a chain. */
-export type LightShaftStep =
+type LightShaftStep =
   | {
       readonly kind: 'pass'
       readonly pass: LightShaftPass

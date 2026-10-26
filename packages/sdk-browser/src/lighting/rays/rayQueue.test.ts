@@ -55,13 +55,15 @@ function rig(
     recordShift: new Uint32Array(placements),
     recordCount: 1,
   }
-  const rows = { packedCount: 2, rowsRevision: 0, offsetOf: () => -1 }
   const rt = {
-    run: { lost: false, gpuSelection: { cutTables: () => tables } },
+    run: {
+      lost: false,
+      gpuSelection: { cutTables: () => tables, visible: buffer('visible'), visibleCap: 2 },
+    },
     gpu: { cache: { buffer: buffer('pool') } },
     vis: { pageTable: buffer('pages'), concatPos: buffer('positions'), zeroRows: buffer('zero') },
     layout: {
-      rows,
+      clusters: { offsetOf: () => -1 },
       selectionRoots,
       rootIndex: { revision: 0 },
       packedPages: [],

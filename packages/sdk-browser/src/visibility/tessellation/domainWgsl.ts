@@ -78,13 +78,15 @@ export const displacedClip = wgslFn(
 }`,
 )
 
-/** The density of each texture-coordinate set (`DISPLACEMENT_RECORD`'s `density`) at the object's
- *  `scale`: the units of the world one unit of the set covers; one where the compiler measured none. */
-export const setDensities = wgslFn(
-  'setDensities',
+/** The density of texture-coordinate set `set` (`DISPLACEMENT_RECORD`'s `density`, the first four sets,
+ *  and `densityHigh`, the others) at the object's `scale`: the units of the world one unit of the set
+ *  covers; one where the compiler measured none. */
+export const setDensity = wgslFn(
+  'setDensity',
   [],
-  `fn setDensities(density:vec4f,scale:f32)->vec4f{
- return select(vec4f(1.0),density,density>vec4f(0.0))*scale;
+  `fn setDensity(low:vec4f,high:vec4f,scale:f32,uvSet:u32)->f32{
+ let measured=select(low[uvSet&3u],high[uvSet&3u],uvSet>=4u);
+ return select(1.0,measured,measured>0.0)*scale;
 }`,
 )
 

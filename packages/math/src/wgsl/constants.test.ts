@@ -5,7 +5,6 @@ import {
   FAR_VALUE,
   FINITE_SENTINEL,
   FLOAT32_MIN_NORMAL,
-  GOLDEN_ANGLE,
   GOLDEN_U32,
   HALF_MAX,
   INFINITE_THRESHOLD,
@@ -14,7 +13,8 @@ import {
   RANGE_BOUND,
   SQRT2,
 } from './constants.ts'
-import { FINITE_SENTINEL as FINITE, FLOAT32_MAX, GOLDEN_FRACTION } from '../constants.ts'
+import { FINITE_SENTINEL as FINITE, FLOAT32_MAX } from '../constants.ts'
+import { GOLDEN_FRACTION } from '../goldenRatio.fixture.ts'
 
 /** The number a WGSL scalar constant's literal names, as the device reads it. */
 const literal = (text: string) => Number(/=(.+?)[uf]?;$/.exec(text)![1])
@@ -42,7 +42,6 @@ test('each new constant names the f32 of its value, the shaders’ hand-typed li
   const pairs = [
     [QUARTER_PI, Math.PI / 4, []],
     [SQRT2, Math.SQRT2, [String(Math.sqrt(2))]],
-    [GOLDEN_ANGLE, Math.PI * (3 - Math.sqrt(5)), ['2.39996323']],
     [FLOAT32_MIN_NORMAL, 2 ** -126, ['1.17549435e-38']],
     [HALF_MAX, 65504, ['65504.0']],
     [DIVISOR_FLOOR, 1e-20, ['1e-20']],

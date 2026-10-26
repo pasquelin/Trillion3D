@@ -7,6 +7,13 @@ import { packPlacementTree } from '../placement/placementTreePack.ts'
 import { allocatePacking, emptyShared, placeRoot, type Packing } from './packRoots.ts'
 import { packPlan, roomFor, type DagCapacity } from './packCapacity.ts'
 
+/** What a packing of `plan` holds: its pages, at least the room's, its nodes and placements. */
+const sizeOf = (plan: ReturnType<typeof packPlan>): DagCapacity => ({
+  pages: Math.max(plan.pages, plan.room?.pages ?? 0),
+  nodes: plan.nodes,
+  worlds: plan.worlds,
+})
+
 /**
  * Pack the cluster bands, their box records and the per-primitive culling nodes, at
  * `capacity` — exactly the roots' when none is given.
@@ -23,22 +30,15 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
   const shared = emptyShared()
   const plan = packPlan(roots, shared, capacity),
     { worldRoots, tree, room } = plan
-  const size: DagCapacity = {
-    pages: Math.max(plan.pages, room?.pages ?? 0),
-    nodes: plan.nodes,
-    worlds: plan.worlds,
-  }
+  const size = sizeOf(plan)
   // The table holds the placements' own nodes; the tree's live in its own (`../tree/treeTable.ts`).
   const p = allocatePacking({ ...size, nodes: plan.primitiveNodes }, shared),
     records = createRecordTable()
-  roots.forEach((root, w) =>
-    placeRoot(p, root, w, (culling, owner, nodeBase) =>
-      records.place(root.pages, culling.nodes, owner, nodeBase),
-    ),
-  )
+  placeRoots(p, roots, records)
   shared.records = records
   const worldSources = [...roots]
   if (tree) packPlacementTree({ ...p, worldSources }, tree)
+  const infoSlots = roomFor(p.live.infos, plan.room?.records, plan.room)
   const { clusters, coldWords, cold, linkBase, recordSlots } = recordTables(
     roots,
     p,
@@ -63,14 +63,17 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     worldCount: size.worlds,
     pageCount: size.pages,
     recordCount: recordSlots,
+    infoCount: infoSlots,
     primitiveNodeCount: plan.primitiveNodes,
     pageIndex: p.pageIndex,
     recordShift: p.recordShift,
+    infoShift: p.infoShift,
     rootCount: p.rootClusters,
     pageUrlOf: pageUrlReader(worldSources, p.cutLinks, p.pageIndex),
     cutLinks: p.cutLinks,
     live: p.live,
-    ...(p.rootParent && { rootParent: p.rootParent }),
+    parentNodes: p.parentNodes,
+    ...(p.parentNode && { parentNode: p.parentNode }),
     ...(room && { shared }),
     ...(tree && { placementTree: tree }),
     ...(worldRoots.length && {
@@ -79,6 +82,19 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
       }),
     }),
   }
+}
+
+/** Every root placed in `p`, its records shared with an earlier placement's where they match. */
+function placeRoots(
+  p: Packing,
+  roots: readonly DagRoot[],
+  records: ReturnType<typeof createRecordTable>,
+) {
+  roots.forEach((root, w) =>
+    placeRoot(p, root, w, (culling, owner, nodeBase) =>
+      records.place(root.pages, culling.nodes, owner, nodeBase),
+    ),
+  )
 }
 
 /**

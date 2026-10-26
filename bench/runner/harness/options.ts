@@ -1,6 +1,5 @@
 // Options, harness views, and server mounts for `bench.ts`.
-import { existsSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { MIB } from '../../../packages/math/src/constants.ts'
 import { FRAMES_PER_SEGMENT, VIEWS } from '../trajectory/poses.ts'
 import { ASSETS, applySceneFlag, sceneOf } from '../assets/scene.ts'
@@ -13,16 +12,6 @@ import { type Flags, parseArgs } from './flags.ts'
 import { ENGINES, equipSide } from './sideOptions.ts'
 import { temporalAntialiasingLevel } from '../../../packages/sdk-core/src/contracts/materialOptions.ts'
 
-/** An installed package directory, searched like Node searches: root upwards.
- *  A worktree without its own `node_modules` thus finds those of the main worktree. */
-function packageDir(root: string, name: string) {
-  for (let dir = root; ; dir = dirname(dir)) {
-    const candidate = join(dir, 'node_modules', name)
-    if (existsSync(candidate)) return candidate
-    if (dirname(dir) === dir) throw new Error(`package not found: ${name}`)
-  }
-}
-
 /**
  * What the harness server serves, and nothing else: browser dependencies, benchmark assets,
  * dist of each side and its cache if it has one. `resources` is the folder referenced by relative path
@@ -30,10 +19,8 @@ function packageDir(root: string, name: string) {
  */
 export function resolveMounts(root: string, sides: SideBase[], resources: string | null = null) {
   return [
-    { prefix: '/vendor/three/', dir: packageDir(root, 'three') },
-    // Modules imported by the page via URL: `series/cutPage.ts`, `witness/threeLights.ts`.
+    // Modules imported by the page via URL: `series/cutPage.ts`.
     { prefix: '/runner/', dir: join(root, 'bench/runner') },
-    { prefix: '/vendor/meshoptimizer/', dir: packageDir(root, 'meshoptimizer') },
     { prefix: '/benchmark-assets/', dir: ASSETS },
     ...(resources ? [{ prefix: '/assets/', dir: resources }] : []),
     ...sides.map((side) => ({ prefix: `/sdk/${side.name}/`, dir: side.dist })),

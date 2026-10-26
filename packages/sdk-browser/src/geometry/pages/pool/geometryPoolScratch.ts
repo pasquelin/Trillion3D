@@ -1,7 +1,7 @@
-import type { HostAttributes } from '../../../session/host/resources.ts'
 import { LAYOUT, type PoolList } from './geometryPoolLayout.ts'
+import type { Geometry } from '../../../../../sdk-core/src/world/geometry/geometry.ts'
 
-type List = HostAttributes[string]
+type List = Geometry['attributes'][string]
 /** Floats, grown to the largest write and kept: a steady frame allocates nothing. */
 let scratch = new Float32Array(0)
 
@@ -14,7 +14,7 @@ export const releaseScratch = () => {
 }
 
 /** Fills the scratch with vertices `from` to `from + n - 1` of list `name` of `a`: its floats. */
-export function fillScratch(a: HostAttributes, name: PoolList, from: number, n: number) {
+export function fillScratch(a: Geometry['attributes'], name: PoolList, from: number, n: number) {
   const { stride, parts } = LAYOUT[name]
   if (scratch.length < n * stride) scratch = new Float32Array(n * stride)
   let part = 0

@@ -55,6 +55,13 @@
  *   is built: each node of the assembly is a node of the scene under every node that places the
  *   mesh, carrying its part's mesh, whose pages are written once (`true`), or the mesh is its own
  *   triangles alone and the import report counts it (`false`, the default);
+ * - `maxMeshCards`, `meshCardMinDensity`, `meshCardNormalThreshold`: the cards the compiler finds
+ *   for the mesh (`meshCardsAbi.ts`) — boxes, each looking at the mesh along one of the six axis
+ *   directions, that cover its surface —: the most it keeps, a whole number from 0 to
+ *   `MAX_MESH_CARDS` (12, and 0 builds none), how much of its box's face a card's surfaces must
+ *   fill to be kept, a number from 0 to 1 (0.2), and how squarely a surface must face a card's
+ *   direction to be covered by it, the cosine of the angle between them, a number from 0 to 1
+ *   (0.25);
  * - `displacementMaps`, `displacementUvChannel`, `displacementEdgeSplit`: the height maps baked
  *   into the mesh's triangles before its clusters are built — `[]`, none, by default —, the set
  *   of texture coordinates they are read at (0) and how the tessellation shares the vertices it
@@ -165,23 +172,34 @@ export type MeshBuildSettings = {
    *  mesh's own triangles alone. @defaultValue false */
   allowAssemblies?: boolean
   /** Whether the mesh's signed distance field is built, for the distance-field occlusion and the
-   *  software ray tracing. @defaultValue false */
+   *  software ray tracing. @defaultValue true */
   distanceField?: boolean
   /** The mesh's distance field resolution scale, at least 0 (0 builds none): the voxels a unit of
    *  its size holds are the density times it. @defaultValue 1 */
   distanceFieldScale?: number
   /** Whether the field is built as if every triangle were two-sided. @defaultValue false */
   distanceFieldTwoSided?: boolean
-  /** The voxels a centimetre of a mesh of scale 1 holds, from 0.05 to 0.4. @defaultValue 0.2 */
+  /** The voxels a centimetre of a mesh of scale 1 holds, any finite number (the bricks are held
+   *  between 1 and what the maximum resolution allows). @defaultValue 0.2 */
   distanceFieldDensity?: number
   /** The most voxels along one axis a field holds, at least 1; a mesh of scale 1 or less holds
    *  half. @defaultValue 256 */
   distanceFieldMaxResolution?: number
+  /** The most cards the compiler keeps for the mesh, a whole number from 0 to `MAX_MESH_CARDS`: a
+   *  card is a box looking at the mesh along one of the six axis directions, and more cards cover
+   *  the surface better. 0 builds none. @defaultValue 12 */
+  maxMeshCards?: number
+  /** How much of its box's face the surfaces a card covers must fill for the card to be kept, a
+   *  number from 0 to 1. @defaultValue 0.2 */
+  meshCardMinDensity?: number
+  /** How squarely a surface must face a card's direction to be covered by it, the cosine of the
+   *  angle between them, a number from 0 to 1. @defaultValue 0.25 */
+  meshCardNormalThreshold?: number
   /** The height maps baked into the mesh's triangles — `{ texture: { index }, magnitude, center }`,
    *  the first the one read — when the mesh has one triangle primitive and a `trimmedError`.
    *  @defaultValue [] */
   displacementMaps?: readonly DisplacementMapWire[]
-  /** The set of texture coordinates the maps are read at, a whole number from 0 to 3.
+  /** The set of texture coordinates the maps are read at, a whole number from 0 to 7.
    *  @defaultValue 0 */
   displacementUvChannel?: number
   /** How the tessellation shares the vertex it adds on an edge: one for both sides unless a

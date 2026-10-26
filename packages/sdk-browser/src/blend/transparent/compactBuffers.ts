@@ -23,7 +23,12 @@ export function compactBuffers(device: GPUDevice, table: TransparentTable, buffe
   const groupCounts = make('Trillion3D transparent group counts', table.groupCount * 4)
   const groupOffsets = make('Trillion3D transparent group offsets', table.groupCount * 4)
   const instanceBuffer = make('Trillion3D transparent instances', table.capacity * 4)
-  const spanBuffer = make('Trillion3D transparent cluster spans', table.capacity * 16)
+  // Each entry's span (four words), then the identity word of each entry, four to an element of the
+  // buffer's `vec4u` view: one buffer, for the vertex stage reads both at the entry's rank and has no
+  // storage buffer to spare for a second. The rows are a multiple of four, so that the entry count is four
+  // fifths of the view's length (`clusterIdentity`, `../vertexReadsWgsl.ts`).
+  const rows = Math.ceil(table.capacity / 4) * 4
+  const spanBuffer = make('Trillion3D transparent cluster spans', rows * 20)
   // Occlusion verdict of each entry, written by the transparent Hi-Z test a little earlier in the
   // same submission. Zero before any image, and zero on an image without a pyramid: nothing is then
   // dropped from the table.
@@ -34,7 +39,6 @@ export function compactBuffers(device: GPUDevice, table: TransparentTable, buffe
     table.capacity * 4,
     storage | GPUBufferUsage.COPY_SRC,
   )
-  const diagnosticBuffer = make('Trillion3D transparent cluster identity', table.capacity * 4)
   const indirectBuffer = make(
     'Trillion3D transparent indirect',
     items * 16,
@@ -42,6 +46,7 @@ export function compactBuffers(device: GPUDevice, table: TransparentTable, buffe
   )
   return {
     capacity: table.capacity,
+    identityOffset: rows * 16,
     items,
     entriesBuf,
     itemRangesBuf,
@@ -51,7 +56,6 @@ export function compactBuffers(device: GPUDevice, table: TransparentTable, buffe
     instanceBuffer,
     spanBuffer,
     occludedBuffer,
-    diagnosticBuffer,
     indirectBuffer,
   }
 }

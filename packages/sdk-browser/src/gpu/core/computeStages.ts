@@ -60,15 +60,18 @@ export function askedComputeStage(
 
 /** Runs `stage` on `group`, over `x` × `y` workgroups, in the compute pass `pass`: the dispatches of
  *  one job — a transform's three passes, a kernel's preparation — share one pass, each seeing what the
- *  one before wrote. */
+ *  one before wrote; nothing while the stage is not compiled. */
 export function dispatchOn(
   pass: GPUComputePassEncoder,
-  stage: { get(): GPUComputePipeline },
+  stage: { get(): GPUComputePipeline | undefined },
   group: GPUBindGroup,
   x: number,
   y = 1,
 ) {
-  pass.setPipeline(stage.get())
+  const pipeline = stage.get()
+  // Not compiled: the step is skipped, the frame is held for it (`pipelinesCompiling`).
+  if (!pipeline) return
+  pass.setPipeline(pipeline)
   pass.setBindGroup(0, group)
   pass.dispatchWorkgroups(x, y)
 }
@@ -151,8 +154,8 @@ export function startedComputeStages<E extends string>(
   // A compiled stage never stops being one: once all are, the answer is kept.
   let all = false
   return {
-    /** The compiled pipeline of `stage`. */
-    pipelineOf: (stage: E) => stages.get(stage)!.get(),
+    /** The compiled pipeline of `stage`: read once every stage is `ready`. */
+    pipelineOf: (stage: E) => stages.get(stage)!.get()!,
     /** Whether every stage is compiled. */
     get ready() {
       if (all) return true
@@ -162,16 +165,21 @@ export function startedComputeStages<E extends string>(
   }
 }
 
-/** The kernel `entryPoint` of `code` on its own layout ('auto'), labelled `label`, prepared off the
- *  frame once a device. */
-export const autoKernel = (label: string, code: string, entryPoint: string) =>
+/** The kernel `entryPoint` of `code` on its own layout ('auto'), labelled `label`, its overrides
+ *  `constants`, prepared off the frame once a device. */
+export const autoKernel = (
+  label: string,
+  code: string,
+  entryPoint: string,
+  constants?: Record<string, number>,
+) =>
   oncePerDevice((device) =>
     preparedComputeStage(
       device,
       'auto',
       device.createShaderModule({ label, code }),
       entryPoint,
-      undefined,
+      constants,
       label,
     ),
   )

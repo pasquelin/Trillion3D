@@ -21,9 +21,9 @@ import {
   columnFrame,
   lightRun,
 } from '../../../../../bench/oracles/browser/gpuLightGridRunOracle.ts'
-import { NEAR, camera, pixelPoint, type Vec3 } from './tileCamera.fixture.ts'
+import { GRID_MAP, NEAR, camera, pixelPoint, type Vec3 } from './tileCamera.fixture.ts'
 import { GRID_BOUNDS_WGSL } from './boundsWgsl.ts'
-import { directLightingWgsl } from '../direct/lightingWgsl.ts'
+import { directLightingWgsl } from '../direct/lightLoop.fixture.ts'
 import { shaderFunctions, wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import { clamp, lerp } from '../../../../math/src/scalar/reals.ts'
@@ -110,16 +110,15 @@ test("the pass runs the oracle's constants and the resolve its slice", () => {
   assert.equal(W.NEWTON_STEPS, NEWTON_STEPS)
   assert.ok(!('RUN_FRONT' in W) && !('RUN_BACK' in W), 'the reference widens no depth')
   assert.ok(GRID_BOUNDS_WGSL.text.includes('let r=radius;'), 'the reference widens no range')
-  const { gridSlice: shipped } = shaderFunctions<{ gridSlice: (z: number) => number }>(
-    DIRECT_LIGHTING_WGSL,
-    ['gridSlice'],
-    {
-      ...wgslConstants(DIRECT_LIGHTING_WGSL),
-      log2: Math.log2,
-      clamp,
-    },
-  )
+  const { gridSlice: shipped } = shaderFunctions<{
+    gridSlice: (z: number, map: { x: number; y: number; z: number }) => number
+  }>(DIRECT_LIGHTING_WGSL, ['gridSlice'], {
+    ...wgslConstants(DIRECT_LIGHTING_WGSL),
+    log2: Math.log2,
+    clamp,
+  })
+  const [x, y, spread] = GRID_MAP
   for (const z of [1, 0.999, 0.5, 0.1, 1e-3, 1e-6, 0])
-    assert.equal(shipped(z), gridSlice(z), `depth ${z}`)
+    assert.equal(shipped(z, { x, y, z: spread }), gridSlice(z), `depth ${z}`)
   assert.equal(gridSlice(0), GRID.slices - 1, 'the background, the last slice')
 })

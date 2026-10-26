@@ -40,6 +40,8 @@ function markingWords(projection: ArrayLike<number>, perspective: boolean, size:
       view: buffer,
       directLights: buffer,
       tileLights: buffer,
+      lightGrid: buffer,
+      gridCells: 0,
       lightVsmIds: buffer,
       sunMapIds: buffer,
       sunMapCount: 0,
@@ -47,6 +49,7 @@ function markingWords(projection: ArrayLike<number>, perspective: boolean, size:
       viewSize: [size[0], size[1]],
       viewToClip: vsmForwardZViewToClip(projection),
       originShift: [0, 0, 0],
+      viewToShifted: new Float32Array(16),
     },
   })
   const params = new ArrayBuffer(1024)

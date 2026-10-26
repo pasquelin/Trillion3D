@@ -8,11 +8,17 @@ import { CLOUD_MATERIAL_WGSL } from './materialWgsl.ts'
  * frame (`frame`), the material (`cloudMaterialBindings`) and calls `cloudPointStart` once
  * for the pass's thread, with its layer (the base altitude and the thickness in kilometres and the
  * time in seconds) and the planet's radius in kilometres (`cloudPlanetKm`).
+ *
+ * A march reads a point in two steps, as the material's conservative density asks: `cloudProbeAt`
+ * gives its altitude in the layer and its layout, `cloudProbeDense` tells whether the density bound
+ * is above 0, and only then `cloudPointOf` reads the rest of the material. A point whose bound is
+ * zero costs the layout's four reads alone.
  */
 export const CLOUD_POINT_WGSL = wgslBlock(
   'CLOUD_POINT_WGSL',
   [CLOUD_MATERIAL_WGSL],
   `
+var<private> cloudOrigin:vec3f;
 var<private> cloudSceneEye:vec3f;
 var<private> cloudPlanetEye:vec3f;
 var<private> cloudBottomCm:f32;
@@ -20,10 +26,11 @@ var<private> cloudToNorm:f32;
 var<private> cloudTime:f32;
 /** The planet's radius, kilometres: the air's where the air is present, else the part's. */
 fn cloudPlanetKm(airPresent:bool,partKm:f32)->f32{return select(partKm,bottomRadius(),airPresent);}
-/** The eye in the scene and from the planet's centre, the layer's bottom over a planet of radius
- *  \`planetKm\` and the scale of its altitude, the time, and the material's own
- *  (\`cloudMaterialStart\`). */
+/** The eye in the scene and from the planet's centre (the origin the points are given from, until
+ *  \`cloudMoveOrigin\` moves it), the layer's bottom over a planet of radius \`planetKm\` and the scale of
+ *  its altitude, the time, and the material's own (\`cloudMaterialStart\`). */
 fn cloudPointStart(layer:vec3f,planetKm:f32){
+ cloudOrigin=frame.eye.xyz;
  cloudSceneEye=frame.eye.xyz*CLOUD_M_TO_CM;
  cloudPlanetEye=frame.camera.xyz*CM_PER_KM;
  cloudBottomCm=(planetKm+layer.x)*CM_PER_KM;
@@ -31,48 +38,71 @@ fn cloudPointStart(layer:vec3f,planetKm:f32){
  cloudTime=layer.z;
  cloudMaterialStart(layer.z);
 }
+/** Moves the origin the points are given from to \`origin\`, metres in the scene: the ray of a pixel
+ *  of an orthographic view starts at the pixel's own point, not at the eye. */
+fn cloudMoveOrigin(origin:vec3f){
+ cloudPlanetEye+=(origin-cloudOrigin)*CLOUD_M_TO_CM;
+ cloudSceneEye=origin*CLOUD_M_TO_CM;
+ cloudOrigin=origin;
+}
 struct CloudPoint{spot:CloudSample,norm:f32,}
-/** The material at the point \`rel\` centimetres from the eye, with its altitude in the layer. */
-fn cloudPointAt(rel:vec3f)->CloudPoint{
- var p:CloudPoint;
+/** A point of the layer before its material is read: its altitude in the layer and its layout,
+ *  what the conservative density is worked out from. */
+struct CloudProbe{site:CloudSite,norm:f32,}
+/** The point \`rel\` centimetres from the eye, probed: its altitude in the layer and its layout. */
+fn cloudProbeAt(rel:vec3f)->CloudProbe{
+ var p:CloudProbe;
  p.norm=saturate((length(cloudPlanetEye+rel)-cloudBottomCm)*cloudToNorm);
  let at=cloudSceneEye+rel;
- p.spot=cloudMaterialAt(vec3f(at.x,at.z,at.y),p.norm,rel,cloudTime);
+ p.site=cloudSiteAt(vec3f(at.x,at.z,at.y));
  return p;
-}`,
+}
+/** Whether the conservative density of a probed point is above 0: a medium may be there. A march
+ *  skips the point, and its material, where it is not. */
+fn cloudProbeDense(p:CloudProbe)->bool{return cloudConservativeDensity(p.site)>0.0;}
+/** The material of the probed point \`p\` at \`rel\` centimetres from the eye, with its altitude
+ *  in the layer. */
+fn cloudPointOf(p:CloudProbe,rel:vec3f)->CloudPoint{
+ var q:CloudPoint;
+ q.norm=p.norm;
+ q.spot=cloudMaterialAt(p.norm,rel,cloudTime,p.site);
+ return q;
+}
+/** The material at the point \`rel\` centimetres from the eye, with its altitude in the layer, for
+ *  a reader that has no density bound to test first. */
+fn cloudPointAt(rel:vec3f)->CloudPoint{return cloudPointOf(cloudProbeAt(rel),rel);}`,
 )
 
-/**
- * THE LIGHT OF ONE SAMPLE of the view tracing: what the lights of the air and the sky give the
- * point of the cloud a ray has reached, and what the point does to the ray.
- *
- * Lengths are centimetres, as the tracing works; the material's extinction is per metre. The
- * program that includes it declares the trace block (`cloudTrace`, `traceLayout.ts`), the air's
- * buffer and frame (`frame`, `directLights`), the material (`cloudMaterialBindings`) and the
- * transmittance table.
- *
- * - The scene's points are given as `rel`, centimetres from the eye along the scene's axes; the
- *   planet's centre is where the air puts it, so a point's altitude in the layer is its distance
- *   from that centre less the layer's bottom radius. The material reads the point with the scene's
- *   height as its third axis.
- * - A light is lit by the air's block: its illuminance outside the air, times the air's
- *   transmittance toward it at the ground, or, with the tint taken at each sample, outside the air
- *   and the air's transmittance toward it at the point; times the light's scattered luminance
- *   scale, nothing where the air's lights do not light the cloud. With no air the block holds the
- *   light's own illuminance and a transmittance of one.
- * - The sky light, where the distant sky light lights the cloud, is the mean radiance of the sky
- *   the air keeps for the haze (with no air, the sky light's own diffuse light: `cloudDistantSky`,
- *   `traceExtraWgsl.ts`), times the material's occlusion, or, where the material gives none, the
- *   gradient of the cloud's underside (`undersideSkyLoss`).
- * - Multiple scattering takes `count` orders; the order after another has its scattering, its
- *   extinction and its phase's share of the lobe each squared once more than the one before.
- * - The shadow toward a light is marched through the material from the point, its samples spread
- *   by their square along the ray; it ends where the ray leaves the layer.
- */
-export const CLOUD_LIGHT_WGSL = wgslBlock(
-  'CLOUD_LIGHT_WGSL',
-  [CLOUD_POINT_WGSL],
-  `
+/** The cloud's own shadow toward a light, marched through the material (the material's
+ *  `rayMarchVolumeShadow`, the default): the extinction of the material along `toward`. */
+const SHADOW_MARCH = `/** What the cloud lets through toward a light from the point \`rel\`, for each order: the extinction
+ *  of the material marched along \`toward\`, its samples spread by their square. */
+fn cloudShadow(rel:vec3f,toward:vec3f,o:CloudOctaves)->array<vec3f,3>{
+ var acc=array<vec3f,3>(vec3f(0.0),vec3f(0.0),vec3f(0.0));
+ let reach=cloudTrace.samples.z;
+ let each=cloudShadowEach;
+ var before=0.0;
+ for(var s=each;s<=1.00001;s+=each){
+  let after=s*s;
+  let share=after-before;
+  let at=rel+toward*(reach*(before+share*CLOUD_SHADOW_JITTER));
+  before=after;
+  let probe=cloudProbeAt(at);
+  if(!cloudProbeDense(probe)){continue;}
+  if(probe.norm<=0.0||probe.norm>=1.0){break;}
+  let there=cloudPointOf(probe,at);
+  for(var m=0u;m<o.count;m++){acc[m]+=there.spot.extinction*o.extinction[m]*share;}
+ }
+ var through:array<vec3f,3>;
+ for(var m=0u;m<o.count;m++){through[m]=exp(-acc[m]*(reach*CLOUD_CM_TO_M));}
+ return through;
+}`
+/** What the sample takes of the cloud's shadow toward light `k`, in the march's form and in the
+ *  form that reads the clouds' shadow map (`cloudMapShadow`, `traceExtraWgsl.ts`). */
+const SHADOW_OF_LIGHT = 'cloudShadow(rel,lights.list[k].toward,o)'
+const SHADOW_OF_LIGHT_FROM_MAP = 'cloudMapShadow(rel,k,o)'
+
+const LIGHT = `
 /** The shadow ray's samples sit mid-segment. */
 const CLOUD_SHADOW_JITTER:f32=0.5;
 /** The smallest extinction an integral divides by. */
@@ -135,26 +165,7 @@ fn cloudLights(dir:vec3f)->CloudLights{
  l.sky=cloudDistantSky()*f32(cloudTrace.switches.z);
  return l;
 }
-/** What the cloud lets through toward a light from the point \`rel\`, for each order: the extinction
- *  of the material marched along \`toward\`, its samples spread by their square. */
-fn cloudShadow(rel:vec3f,toward:vec3f,o:CloudOctaves)->array<vec3f,3>{
- var acc=array<vec3f,3>(vec3f(0.0),vec3f(0.0),vec3f(0.0));
- let reach=cloudTrace.samples.z;
- let each=cloudShadowEach;
- var before=0.0;
- for(var s=each;s<=1.00001;s+=each){
-  let after=s*s;
-  let share=after-before;
-  let there=cloudPointAt(rel+toward*(reach*(before+share*CLOUD_SHADOW_JITTER)));
-  before=after;
-  if(there.spot.conservativeDensity.x<=0.0){continue;}
-  if(there.norm<=0.0||there.norm>=1.0){break;}
-  for(var m=0u;m<o.count;m++){acc[m]+=there.spot.extinction*o.extinction[m]*share;}
- }
- var through:array<vec3f,3>;
- for(var m=0u;m<o.count;m++){through[m]=exp(-acc[m]*(reach*CLOUD_CM_TO_M));}
- return through;
-}
+${SHADOW_MARCH}
 /** A ray's running sums: the light gathered, what it still lets through, and the sums that give
  *  the mean distance of the cloud it met, weighted by what it let through. */
 struct CloudAccum{luminance:vec3f,transmittance:vec3f,tapSum:f32,tapWeights:f32,}
@@ -181,7 +192,7 @@ fn cloudShadowsToLights(rel:vec3f,air:array<vec3f,2>,lights:CloudLights,o:CloudO
   for(var m=0u;m<o.count;m++){toLight[0][m]*=opaque;}
  }
  for(var k=0u;k<lights.count;k++){
-  let shadow=cloudShadow(rel,lights.list[k].toward,o);
+  let shadow=${SHADOW_OF_LIGHT};
   for(var m=0u;m<o.count;m++){toLight[k][m]*=shadow[m];}
  }
  return toLight;
@@ -241,5 +252,49 @@ fn cloudSampleStep(rel:vec3f,t:f32,norm:f32,spot:CloudSample,lights:CloudLights,
   }
  }
 }
-`,
-)
+`
+
+/** The light's text for a trace that marches the cloud's shadow or reads the clouds' shadow maps. */
+const lightWgsl = (fromMap: boolean) =>
+  wgslBlock(
+    'CLOUD_LIGHT_WGSL',
+    [CLOUD_POINT_WGSL],
+    fromMap
+      ? LIGHT.replace(SHADOW_MARCH, '').replace(SHADOW_OF_LIGHT, SHADOW_OF_LIGHT_FROM_MAP)
+      : LIGHT,
+  )
+
+const MARCHED = lightWgsl(false)
+const FROM_MAP = lightWgsl(true)
+
+/**
+ * THE LIGHT OF ONE SAMPLE of the view tracing: what the lights of the air and the sky give the
+ * point of the cloud a ray has reached, and what the point does to the ray.
+ *
+ * Lengths are centimetres, as the tracing works; the material's extinction is per metre. The
+ * program that includes it declares the trace block (`cloudTrace`, `traceLayout.ts`), the air's
+ * buffer and frame (`frame`, `directLights`), the material (`cloudMaterialBindings`) and the
+ * transmittance table.
+ *
+ * - The scene's points are given as `rel`, centimetres from the eye along the scene's axes; the
+ *   planet's centre is where the air puts it, so a point's altitude in the layer is its distance
+ *   from that centre less the layer's bottom radius. The material reads the point with the scene's
+ *   height as its third axis.
+ * - A light is lit by the air's block: its illuminance outside the air, times the air's
+ *   transmittance toward it at the ground, or, with the tint taken at each sample, outside the air
+ *   and the air's transmittance toward it at the point; times the light's scattered luminance
+ *   scale, nothing where the air's lights do not light the cloud. With no air the block holds the
+ *   light's own illuminance and a transmittance of one.
+ * - The sky light, where the distant sky light lights the cloud, is the mean radiance of the sky
+ *   the air keeps for the haze (with no air, the sky light's own diffuse light: `cloudDistantSky`,
+ *   `traceExtraWgsl.ts`), times the material's occlusion, or, where the material gives none, the
+ *   gradient of the cloud's underside (`undersideSkyLoss`).
+ * - Multiple scattering takes `count` orders; the order after another has its scattering, its
+ *   extinction and its phase's share of the lobe each squared once more than the one before.
+ * - The shadow toward a light is marched through the material from the point, its samples spread
+ *   by their square along the ray; it ends where the ray leaves the layer. Where the material's
+ *   `rayMarchVolumeShadow` is off, nothing is marched: the shade is read from the clouds' shadow map
+ *   of the light (`cloudMapShadow`, `traceExtraWgsl.ts`); the program is made for the one or the
+ *   other (`fromMap`).
+ */
+export const cloudLightWgsl = (fromMap: boolean) => (fromMap ? FROM_MAP : MARCHED)

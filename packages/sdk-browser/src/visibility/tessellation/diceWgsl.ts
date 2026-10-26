@@ -1,3 +1,8 @@
+import { graphFrameWgsl } from '../shader/graphFrameWgsl.ts'
+import { NO_WPO, type WpoSet } from '../../materials/graph/wpoProgram.ts'
+import { materialTableWgsl } from '../../materials/table/materialWgsl.ts'
+import { wpoGraphWgsl } from '../shader/wpoGraphWgsl.ts'
+import { NO_MASKS, type MaskSet } from '../../materials/graph/maskProgram.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
@@ -15,15 +20,15 @@ import {
   normalAtlasWgsl,
 } from '../shader/pageWgsl.ts'
 import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from '../shader/pageGeometryWgsl.ts'
-import { maskUvWgsl } from '../shader/pageUvSetWgsl.ts'
+import { PAGE_UV_OR_FIRST_WGSL, maskUvWgsl } from '../shader/pageUvSetWgsl.ts'
 import { FLAG_MASK } from '../types.ts'
 import { MODE_DEPTH, MODE_ID } from '../raster/contract.ts'
 import { RASTER_TRI_WGSL } from '../raster/triWgsl.ts'
-import { VIS_WRITE_WGSL, pixelOffset } from '../raster/pixelWgsl.ts'
+import { pixelOffset, visWorkDeclaration, visWriteWgsl } from '../raster/pixelWgsl.ts'
 import { visPageIndex, visTriangle } from '../visWords.ts'
 import { TESS_BINDINGS, TESS_DECLARATIONS as D } from './bindings.ts'
 import { ARG_VISIBLE, MAX_PATTERN_VERTICES } from './contract.ts'
-import { DICE_CUTOUT_WGSL, DICE_PATCH_WGSL, DISPLACE_UV } from './diceSetupWgsl.ts'
+import { DICE_CUTOUT_WGSL, DICE_PATCH_WGSL } from './diceSetupWgsl.ts'
 import { displacedClip } from './domainWgsl.ts'
 import { PATTERN_WGSL } from './patchWgsl.ts'
 import { QUEUE_WGSL } from './queueWgsl.ts'
@@ -33,13 +38,14 @@ import { MAIN_VIEW_WGSL } from './viewWgsl.ts'
  * The visibility write of a micro-triangle's pixel: covered when none of its three edge constants
  * is negative, the depth key of its plane there, the identifier of the SOURCE triangle — the pixel
  * is shaded from the triangle it was diced from (`../shader/prismWgsl.ts`) — under the rule both
- * rasters write by (`VIS_WRITE_WGSL`). `RASTER_PIXEL_WGSL`'s without its cutout: a masked row's is
+ * rasters write by (`visWriteWgsl`). `RASTER_PIXEL_WGSL`'s without its cutout: a masked row's is
  * read at the vertices of its micro-triangles (`diceGroup`), where the pixels of one are all alike.
  */
-const MICRO_PIXEL = wgslBlock(
-  'MICRO_PIXEL_WGSL',
-  [RASTER_TRI_WGSL, VIS_WRITE_WGSL, pixelOffset, visTriangle],
-  `fn microPixel(t:Tri,pixel:vec2i,mode:u32){
+const microPixel = (wide: boolean) =>
+  wgslBlock(
+    `MICRO_PIXEL_WGSL(${wide ? 'wide' : 'split'})`,
+    [RASTER_TRI_WGSL, visWriteWgsl(wide), pixelOffset, visTriangle],
+    `fn microPixel(t:Tri,pixel:vec2i,mode:u32){
  let c=edgesAt(t,pixel);
  if(min(c.x,min(c.y,c.z))<0.0){return;}
  let page=pages[t.row];
@@ -52,22 +58,10 @@ const MICRO_PIXEL = wgslBlock(
 fn microTriangle(t:Tri,mode:u32){
  for(var y=t.minPixel.y;y<=t.maxPixel.y;y++){for(var x=t.minPixel.x;x<=t.maxPixel.x;x++){microPixel(t,vec2i(x,y),mode);}}
 }`,
-)
+  )
 
-/**
- * THE DICING of the visible patches, in the two modes of the raster (`MODE_DEPTH`, `MODE_ID`), a
- * group of `patchesPerGroup` patches that it takes one after another, its sixty-four threads a
- * patch's work: the source triangle's corners, normals and coordinates are read into the group's
- * memory; each thread then takes a vertex of the patch's pattern — a barycentric point of the
- * source triangle, its height read in the displacement's map at the level its micro-triangle's
- * size asks for, its clip position displaced by the fade of its depth (`displacedClip`) — until
- * every vertex is held on the subpixel grid; then each takes a triangle of the pattern, sets it up
- * (`setupSubpixel`, the rasters' own) and writes its pixels. A vertex behind the eye or in front of
- * the near plane drops the micro-triangles that use it; so does a vertex of a masked row the cutout
- * does not keep (`maskKeep`, at the vertex's own coordinate and alpha, read at the level the
- * micro-triangles' size asks for) — the cutout is judged at the vertices, never at the pixels.
- */
-const DICE = `${D.indices}
+/** The dicing's bindings, from the width of the visibility word. */
+const diceBindingsText = (wide: boolean) => `${D.indices}
 ${D.positions}
 ${D.pages}
 ${D.uniform}
@@ -76,9 +70,12 @@ ${D.tess}
 ${D.uvs}
 ${D.color}
 ${D.sampler}
-${D.work}
+${visWorkDeclaration(wide, TESS_BINDINGS.work)}
 ${tileDeclarations(TESS_BINDINGS.data, 'data')}
-var<workgroup> groupPatches:u32;
+`
+
+/** The group's memory. */
+const DICE_WORKGROUP_TEXT = `var<workgroup> groupPatches:u32;
 var<workgroup> baseCorner:array<vec3f,3>;
 var<workgroup> normalOf:array<vec3f,3>;
 var<workgroup> coordinate:array<vec2f,3>;
@@ -86,7 +83,10 @@ var<workgroup> cutoutUv:array<vec2f,3>;
 var<workgroup> cutoutAlpha:array<f32,3>;
 var<workgroup> verts:array<vec4f,${MAX_PATTERN_VERTICES}>;
 var<workgroup> usable:array<u32,${MAX_PATTERN_VERTICES}>;
-fn diceGroup(group:vec3u,lane:u32,n:vec3u,mode:u32){
+`
+
+/** The group's kernel and its two entry points. */
+const DICE_GROUP_TEXT = `fn diceGroup(group:vec3u,lane:u32,n:vec3u,mode:u32){
  let first=flatIndex(group,n,1u)*tu.patchesPerGroup;
  if(lane==0u){
   let visible=min(tw(tu.args+${ARG_VISIBLE}u),tu.maxVisible);
@@ -103,7 +103,7 @@ fn diceGroup(group:vec3u,lane:u32,n:vec3u,mode:u32){
   if(lane<3u){
    let corners=pageTriangle(page,h,visTriangle(piece.x));
    let v=select(select(corners.z,corners.y,lane==1u),corners.x,lane==0u);
-   baseCorner[lane]=pagePosition(page,h,v);normalOf[lane]=pageNormal(page,h,v);coordinate[lane]=displaceUv(page,h,v,rec.map.y);
+   baseCorner[lane]=pagePosition(page,h,v);normalOf[lane]=pageNormal(page,h,v);coordinate[lane]=pageUvOrFirst(page,h,v,rec.map.y);
    if(masked){cutoutUv[lane]=pageMaskUv(page,h,v);cutoutAlpha[lane]=pageMaskAlpha(page,h,v);}
   }
   workgroupBarrier();
@@ -135,10 +135,29 @@ fn diceGroup(group:vec3u,lane:u32,n:vec3u,mode:u32){
 @compute @workgroup_size(WORKGROUP_THREADS) fn tessDice${MODE_DEPTH}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_index) l:u32,@builtin(num_workgroups) n:vec3u){diceGroup(g,l,n,${MODE_DEPTH}u);}
 @compute @workgroup_size(WORKGROUP_THREADS) fn tessDice${MODE_ID}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_index) l:u32,@builtin(num_workgroups) n:vec3u){diceGroup(g,l,n,${MODE_ID}u);}`
 
+/**
+ * THE DICING of the visible patches, in the two modes of the raster (`MODE_DEPTH`, `MODE_ID`), a
+ * group of `patchesPerGroup` patches that it takes one after another, its sixty-four threads a
+ * patch's work: the source triangle's corners, normals and coordinates are read into the group's
+ * memory; each thread then takes a vertex of the patch's pattern — a barycentric point of the
+ * source triangle, its height read in the displacement's map at the level its micro-triangle's
+ * size asks for, its clip position displaced by the fade of its depth (`displacedClip`) — until
+ * every vertex is held on the subpixel grid; then each takes a triangle of the pattern, sets it up
+ * (`setupSubpixel`, the rasters' own) and writes its pixels. A vertex behind the eye or in front of
+ * the near plane drops the micro-triangles that use it; so does a vertex of a masked row the cutout
+ * does not keep (`maskKeep`, at the vertex's own coordinate and alpha, read at the level the
+ * micro-triangles' size asks for) — the cutout is judged at the vertices, never at the pixels.
+ */
+const dice = (wide: boolean) => `${diceBindingsText(wide)}${DICE_WORKGROUP_TEXT}${DICE_GROUP_TEXT}`
+
 /** The dicing's program: its entry points `tessDice0` (depth) and `tessDice1` (identifiers). It reads the
- *  data atlas the height map lives in, and the geometry of the pass's pages as the rasters do. */
-export const diceSource = () =>
-  wgslProgram(DICE, [
+ *  data atlas the height map lives in, and the geometry of the pass's pages as the rasters do. A surface
+ *  whose graph wires an `opacityMask` is cut at the vertices by the graph's mask (`masks`), a vertex it
+ *  does not keep dropping the micro-triangles that use it. With `wpo`, the corners of a patch's
+ *  triangle are where its surface's offset puts them (`pagePosition`), the patch diced on the moved
+ *  triangle. */
+export const diceSource = (masks: MaskSet = NO_MASKS, wpo: WpoSet = NO_WPO, wide = false) =>
+  wgslProgram(dice(wide), [
     PAGE_INFO_STRUCT_WGSL,
     VIS_UNIFORMS_WGSL,
     TILE_POOL_WGSL,
@@ -146,11 +165,12 @@ export const diceSource = () =>
     normalAtlasWgsl(TESS_BINDINGS.normals),
     PAGE_GEOMETRY_WGSL,
     PAGE_NORMAL_WGSL,
-    DISPLACE_UV,
+    PAGE_UV_OR_FIRST_WGSL,
     maskUvWgsl(TESS_BINDINGS.normals),
-    maskKeepWgsl(maskAlphaWgsl(false)),
+    maskKeepWgsl(maskAlphaWgsl(false), masks),
+    graphFrameWgsl(TESS_BINDINGS.frame),
     RASTER_TRI_WGSL,
-    MICRO_PIXEL,
+    microPixel(wide),
     QUEUE_WGSL,
     PATTERN_WGSL,
     DICE_PATCH_WGSL,
@@ -162,4 +182,5 @@ export const diceSource = () =>
     visPageIndex,
     visTriangle,
     displacedClip,
+    ...(wpo.programs.length ? [materialTableWgsl(wpo.table), wpoGraphWgsl(wpo)] : []),
   ])

@@ -51,3 +51,16 @@ test('createWorld takes the simulation range, and refuses one that is no distanc
   assert.equal(make(null).handle.simulationRange, null)
   assert.throws(() => make(0), RangeError)
 })
+
+test('createWorld takes the fixed step and the restitution threshold, and refuses the wrong ones', () => {
+  const make = (options: { step?: number; restitutionThreshold?: number }) => {
+    const runtime = { invalidate() {}, explorer: null }
+    const world = createWorldPhysics(runtime, new Group(), () => new Camera('perspective'), options)
+    world.handle.enabled = false
+  }
+  make({ step: 1 / 120, restitutionThreshold: 0 })
+  for (const wrong of [0, -1 / 60, NaN, Infinity])
+    assert.throws(() => make({ step: wrong }), RangeError)
+  for (const wrong of [-1, NaN, Infinity])
+    assert.throws(() => make({ restitutionThreshold: wrong }), RangeError)
+})

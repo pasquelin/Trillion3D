@@ -3,7 +3,7 @@ import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { HALF_MAX } from '../../../../../math/src/constants.ts'
 import { uvToNdc } from '../../../../../math/src/wgsl/projection.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
-import { FULLSCREEN_VERTEX } from '../../../lighting/deferred/shaders.ts'
+import { FULLSCREEN_VERTEX } from '../../../gpu/shader/fullscreenTriangle.ts'
 import { DITHER_WGSL } from '../../../post/taa/colorSpaceWgsl.ts'
 import { YCOCG_WGSL } from '../../../post/taa/ycocgWgsl.ts'
 
@@ -146,7 +146,7 @@ fn shaftPixel(base:vec2i,offset:vec2i)->vec4f{
  if(mixed.a>0.995){mixed.a=1.0;}
  let colour=min(vec4f(${wgslF32(HALF_MAX)}),-min(-fromPayload(mixed),vec4f(0.0)));
  let e=frameRandom(vec2i(position.xy),u32(view.slot)).x;
- return vec4f(ditherFloat(colour.rgb,e,view.quantization),colour.a);
+ return vec4f(ditherFloat(colour.rgb,e,vec3f(view.quantization)),colour.a);
 }
 `
 

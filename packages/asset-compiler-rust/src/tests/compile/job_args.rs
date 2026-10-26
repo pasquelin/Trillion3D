@@ -244,8 +244,7 @@ fn a_voxel_setting_of_the_wrong_kind_is_refused_by_name() {
     let g = json!({"meshes": [{"extras": {"voxelOpacity": 0}}]});
     let refused = MeshBuildOptions::read(None).expect("read").meshes(&g);
     assert!(refused
-        .err()
-        .expect("extras")
+        .expect_err("extras")
         .message
         .contains("voxelOpacity"));
 }

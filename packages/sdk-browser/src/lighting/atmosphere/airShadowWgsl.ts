@@ -16,7 +16,7 @@ import { AIR_BINDING } from './binding.ts'
  * place in the light buffer is in the atmosphere's block (`lightSlots`), whether it shades the air
  * in `lightFlags`. A light with no shadow, or beyond the maps, gives its full light.
  */
-const SHADOW = directShadowWgsl(0, {
+const SHADOW = directShadowWgsl({
   vsm: {
     pageTable: AIR_BINDING.pageTable,
     projectionData: AIR_BINDING.projectionData,

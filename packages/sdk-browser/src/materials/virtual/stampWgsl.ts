@@ -21,7 +21,8 @@ const TILE_ENTRY_INDEX_WGSL = wgslFn(
  * tile itself, or the finest resident ancestor its entry names while it streams (`page/pageTable.ts`)
  * — is used at `clock` (`slotUse.ts`). Its texture is the last whose level-0 first word is at or
  * before the entry's, by halves over the slots; its lane is its tail's tap (`tapOf`, the two
- * two-channel taps one lane). A zero entry reads the tail, pinned: nothing to stamp. The host
+ * two-channel taps one lane, the half-float tap the colour atlas's third, the one-channel taps
+ * the data atlas's third). A zero entry reads the tail, pinned: nothing to stamp. The host
  * binds `${k}Pages` (the table) and `${k}Use` (the places' words, atomic).
  */
 const stampWgsl = (k: 'color' | 'data') =>

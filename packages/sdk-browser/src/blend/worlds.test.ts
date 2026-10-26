@@ -8,7 +8,6 @@ import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../session/host/resources.ts'
 import { surfaceOf } from '../geometry/pages/surface.ts'
 import { createBlendCopyRecord } from '../geometry/cluster/blendCopyRecord.ts'
 import { hostWorldPlacements } from '../scene/host/world/placements.ts'
@@ -16,6 +15,7 @@ import { refreshBlendBounds, refreshBlendWorlds } from './worlds.ts'
 import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
 import type { BlendGpuItem } from './state.ts'
 import { drawSourceOf } from '../geometry/selection/drawSource.ts'
+import type { PageMesh } from '../geometry/pages/pageMesh.ts'
 
 /** A transparent item reduced to what the refresh reads: its matrix, box, geometry. The scene
  *  carries the parent from the start: that is the shape the engine indexes at prepare. */
@@ -34,7 +34,7 @@ function item(position: Vector3, cullable = true) {
     bounds: undefined,
     drawSource: { node: mesh },
     sourceGeometry: geometry,
-  } as unknown as BlendGpuItem & { drawSource: { node: HostMesh } }
+  } as unknown as BlendGpuItem & { drawSource: { node: PageMesh } }
   refreshBlendBounds(shaped)
   return Object.assign(shaped, { parent, worlds })
 }
@@ -49,7 +49,7 @@ test('the transparent copy reads the world matrix the engine holds, it keeps no 
     worlds.of(mesh).elements,
     'the sixteen numbers ARE the ones the engine holds: the container borrows them, it copies none',
   )
-  assert.equal(copy.userData.drawSource?.node, mesh)
+  assert.equal(copy.drawSource?.node, mesh)
   assert.equal(copy.renderOrder, 7)
   mesh.position.set(4, 5, 6)
   worlds.refresh()

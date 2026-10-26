@@ -54,12 +54,11 @@ async function appendNow(
     device = gpu.device
   if (!pools || !streamer || !device || run.lost)
     throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'no texture atlas is open to take it', {})
-  const { encoding } = pools,
-    coverage = kind === 'color' ? pools.coverage : undefined
+  const { encoding } = pools
   // Its chain, in the cache whose scene built it — a joined model's own —: the levels it baked.
   const atlasRank = kind === 'color' ? PREVIEW_ATLAS_COLOR : PREVIEW_ATLAS_DATA
   const chain = () => rt.context.textureCaches.chainOf(texture, atlasRank)
-  const [, entry] = tileCatalogue([texture], chain, encoding, coverage)
+  const [, entry] = tileCatalogue([texture], chain, encoding)
   const atlas = streamer[kind],
     taken = [...atlas.textures, entry]
   // What each lane takes, by the open's own rule, the new texture counted.

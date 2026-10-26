@@ -45,6 +45,9 @@ function placed(
     bundle: { url, offset },
     sha256,
     bytes,
+    // Resident in the pool at the page's place in its bundle, a word wider than on disk.
+    residentBytes: bytes + 8,
+    residentOffset: offset,
     ...(facts as {
       vertexCount: number
       indexCount: number

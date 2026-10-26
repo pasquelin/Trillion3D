@@ -1,15 +1,19 @@
+import {
+  EXTRAPOLATIONS,
+  INTERPOLATIONS,
+  TANGENT_MODES,
+  WEIGHT_MODES,
+} from '../contracts/exposureCurve.ts'
 import type { JsonSchemaProperty } from './types.ts'
 import { num } from './schemaParts.ts'
 
-const MODES = ['cycle', 'cycleWithOffset', 'oscillate', 'linear', 'constant', 'none']
-
 const extrapolation = (what: string): JsonSchemaProperty => ({
   type: 'string',
-  enum: MODES,
+  enum: [...EXTRAPOLATIONS],
   description: `What the curve does ${what} its keys; 'constant' (held) by default.`,
 })
 
-const keyObject: JsonSchemaProperty = {
+const keyObject: JsonSchemaProperty = /* @__PURE__ */ (() => ({
   type: 'object',
   description: 'A key with its settings.',
   properties: {
@@ -17,21 +21,29 @@ const keyObject: JsonSchemaProperty = {
     compensation: num('The stops added there.'),
     interpolation: {
       type: 'string',
-      enum: ['linear', 'constant', 'cubic'],
+      enum: [...INTERPOLATIONS],
       description: 'How the key runs to the next; linear by default.',
     },
     tangentMode: {
       type: 'string',
-      enum: ['auto', 'user', 'break', 'none', 'smartAuto'],
+      enum: [...TANGENT_MODES],
       description: "How the tangents are set; 'auto' by default.",
+    },
+    weightMode: {
+      type: 'string',
+      enum: [...WEIGHT_MODES],
+      description:
+        "Which tangents carry a weight, the length of the tangent's handle; 'none' by default.",
     },
     arriveTangent: num('The tangent arriving at the key.'),
     leaveTangent: num('The tangent leaving the key.'),
+    arriveWeight: num('The weight of the tangent arriving at the key; 0 by default.'),
+    leaveWeight: num('The weight of the tangent leaving the key; 0 by default.'),
   },
   required: ['ev', 'compensation'],
-}
+}))()
 
-const keys: JsonSchemaProperty = {
+const keys: JsonSchemaProperty = /* @__PURE__ */ (() => ({
   type: 'array',
   description: 'The keys, in any order.',
   items: {
@@ -47,7 +59,7 @@ const keys: JsonSchemaProperty = {
     ],
     description: 'A key.',
   },
-}
+}))()
 
 /** The schema of the explorer's `exposureCurve` option (`../contracts/exposureCurve.ts`). */
 export const exposureCurveProperty = (): JsonSchemaProperty => ({

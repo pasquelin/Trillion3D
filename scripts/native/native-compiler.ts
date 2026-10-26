@@ -11,7 +11,7 @@ import { compilerArguments } from '../../packages/sdk-node/src/compiler/argument
 import { DEFAULT_RAM_BUDGET_MB } from '../../packages/sdk-core/src/contracts/compilerAbi.ts'
 import type { HlodOptions } from '../../packages/sdk-core/src/contracts/hlodOptions.ts'
 import type { JobOptions } from '../../packages/sdk-core/src/contracts/jobOptions.ts'
-import { runChecked } from '../test/run.ts'
+import { runChecked } from '../check/run.ts'
 
 /** The triangle budget of a `full` cache, the one every measured scene uses. */
 export const TRIANGLE_BUDGET = '150000'

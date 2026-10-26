@@ -13,6 +13,7 @@ import {
   DFAO_UPSAMPLE_ONLY_WGSL,
 } from './historyWgsl.ts'
 import { DFAO_NORMALS_WGSL } from './normalsWgsl.ts'
+import { DFAO_PACK_WGSL } from './packWgsl.ts'
 import { DFAO_OBJECT_CULL_WGSL } from './scatterWgsl.ts'
 
 /** The key of the cone trace against the meshes' fields of a shape (`DFAO_SHADERS`). */
@@ -38,6 +39,7 @@ export const DFAO_SHADERS = {
   upsampleOnly: DFAO_UPSAMPLE_ONLY_WGSL,
   updateHistory: DFAO_UPDATE_HISTORY_WGSL,
   filterHistory: DFAO_FILTER_HISTORY_WGSL,
+  pack: DFAO_PACK_WGSL,
   cullObjects: DFAO_CULL_OBJECTS_WGSL,
   tileCones: DFAO_TILE_CONES_WGSL,
   startOffsets: DFAO_START_OFFSETS_WGSL,

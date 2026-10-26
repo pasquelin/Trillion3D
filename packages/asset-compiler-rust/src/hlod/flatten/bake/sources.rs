@@ -5,6 +5,7 @@
 //! space traced with those materials (`trace::surface::Traceable`, `pieces`).
 use super::gpu::Pages;
 use crate::plugins::image::DecodedImage;
+use crate::texture::binding::{sampler_wrap, texture_image};
 use crate::texture::{linear_to_srgb, preview_level_size, AtlasKind};
 use crate::trace::surface::material::{Surface, Texels};
 use serde_json::Value;
@@ -125,8 +126,8 @@ impl Library {
             let pairs: Vec<(u64, usize)> = (wanted.iter())
                 .filter(|(_, k)| *k == kind)
                 .filter_map(|&(texture, _)| {
-                    let image = g.pointer(&format!("/textures/{texture}/source"))?;
-                    Some((texture, image.as_u64()? as usize))
+                    let entry = g.pointer(&format!("/textures/{texture}"))?;
+                    Some((texture, texture_image(entry)? as usize))
                 })
                 .collect();
             let images: Vec<usize> = pairs.iter().map(|&(_, image)| image).collect();
@@ -146,7 +147,7 @@ impl Library {
         let surfaces = materials
             .iter()
             .map(|&id| {
-                let chain = |texture: Option<u64>, atlas: AtlasKind, _: bool| {
+                let chain = |texture: Option<u64>, atlas: AtlasKind| {
                     chains.get(&(texture?, atlas)).cloned()
                 };
                 (id, Surface::with(g, id, &chain))
@@ -191,16 +192,11 @@ impl Library {
 /// `wrapT` name, and its `doubleSided`.
 fn drawn_of(g: &Value, material: Option<&Value>) -> Drawn {
     let wrap = |pointer: &str, axis: &str| {
-        let texture = material
+        let index = material
             .and_then(|m| m.pointer(pointer))
             .and_then(Value::as_u64);
-        let sampler = texture
-            .and_then(|t| g.pointer(&format!("/textures/{t}/sampler")))
-            .and_then(Value::as_u64);
-        let mode = sampler
-            .and_then(|s| g.pointer(&format!("/samplers/{s}/{axis}")))
-            .and_then(Value::as_u64);
-        wrap_code(mode)
+        let texture = index.and_then(|t| g.pointer(&format!("/textures/{t}")));
+        wrap_code(texture.and_then(|texture| sampler_wrap(g, texture, axis)))
     };
     let modes = SLOTS.map(|(pointer, _)| [wrap(pointer, "wrapS"), wrap(pointer, "wrapT")]);
     Drawn {
@@ -233,7 +229,7 @@ fn texels_of(rgba: image::RgbaImage, kind: AtlasKind) -> Texels {
     let (w, h) = rgba.dimensions();
     // The levels the chain reduces; level 0, the image's own texels, moved in rather than copied
     // (`reduce::chain` borrows it).
-    let reduced: Vec<Option<Vec<u8>>> = crate::texture::reduce::chain(&rgba, kind)
+    let reduced: Vec<Option<Vec<u8>>> = crate::texture::reduce::chain(&rgba, &[], kind)
         .into_iter()
         .map(|bytes| match bytes {
             std::borrow::Cow::Owned(owned) => Some(owned),

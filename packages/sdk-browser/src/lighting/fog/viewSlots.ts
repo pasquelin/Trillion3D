@@ -1,7 +1,7 @@
 /**
  * THE FOG VOLUME'S READ-SIDE VIEW BLOCK, its slots: what every program that reads the volume —
- * the opaque resolve, the translucent layers, the sky — takes of the image the volume was built
- * for, eighteen `vec4f` in the light buffer behind the air's view block (`DirectLights.fogView`,
+ * the opaque lit passes, the translucent layers, the sky — takes of the image the volume was built
+ * for, twenty-one `vec4f` in the light buffer behind the air's view block (`DirectLights.fogView`,
  * `../atmosphere/layout.ts`), so that it costs no binding, the view's clip plane, which the
  * analytic fog reads where the volume is not built, among them. The volume's own passes read the whole frame
  * (`layout.ts`); this is the part a surface needs to find its cell.
@@ -50,9 +50,24 @@ export const FOG_VIEW_SLOT = {
   match: 16,
   /** The volume's particle colour, which the matched fog's light is multiplied by. */
   albedo: 17,
+  /** The height fog in this view: 1 in `x` where the view does not show it (its `inMainView` or
+   *  `inReflectionCaptures` off), else 0; then the sky light's scattering — its strength (`y`, 0
+   *  where it does not apply this image), its roughness (`z`) and the count of mips of the cube
+   *  (`w`), which the read takes the mip of the roughness from. */
+  heightFog: 18,
+  /** The sky light's colour, linear, the cube read for the fog is multiplied by. */
+  skyLightColour: 19,
+  /** The alpha holdout (`../../frame/prepare/alphaHoldout.ts`) as this view has it: 1 in `x` where
+   *  the height fog holds its light out (`SceneHeightFog.holdout`), else 0. */
+  holdout: 20,
 } as const
 
+/** How far above the base of a layer with a density the held observer's height may lie, metres, for
+ *  a view that looks out from its eye: 65 536 centimetres. The observer lane of an orthographic
+ *  view holds its height less it, and the shader adds it back (`fogObserverLimit`). */
+export const FOG_OBSERVER_REACH = 655.36
+
 /** `vec4f` slots of the block. */
-export const FOG_VIEW_SLOTS = 18
+export const FOG_VIEW_SLOTS = 21
 /** Floats of the block. */
 export const FOG_VIEW_FLOATS = FOG_VIEW_SLOTS * 4

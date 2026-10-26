@@ -1,12 +1,14 @@
 /**
- * THE SHADOW CHANGES STALE THE PREVIOUS FRAME'S PAGES (`castStale.ts`), in one pass over records of
- * one format: those the passes appended to the list (`../../casters/castChanges.ts`), never read
- * by the CPU, then the CPU's boxes of what no row says (`castBoxes.ts`), in their own buffer — the
- * list never grows for what the CPU holds. The CPU sends the maps that may hold cached pages, read
+ * THE SHADOW CHANGES STALE THE PREVIOUS FRAME'S PAGES (`castStale.ts`), in one pass over boxes of one
+ * format: those the diff of the instances' boxes appended to the list
+ * (`../../casters/castChanges.ts`), never read by the CPU, then the CPU's boxes of what no
+ * placement says (`castBoxes.ts`), in their own buffer — the list never grows for what the CPU
+ * holds. The CPU sends the maps that may hold cached pages, read
  * before the plan gives this frame its ids (`vsmCastMaps`), and its boxes; a one-thread kernel
  * sizes the stale's dispatch from the list's count and the boxes'. Once read, the list is emptied
  * in the same command buffer.
  */
+import type { ComputeRun } from '../../../../gpu/core/lazyComputePass.ts'
 import { consumedCasts, type CastChanges } from '../../casters/castChanges.ts'
 import { resized } from '../../../../../../math/src/sequence/resized.ts'
 import type { VsmCacheManager } from '../cacheManager.ts'
@@ -40,25 +42,33 @@ export function vsmCastMaps(
  * list `casts`' records then the CPU's `boxes`, over the previous frame's `maps` (`vsmCastMaps`) of
  * its `mapCount` maps, the list emptied once read. Nothing when neither changed; nothing
  * staled when the previous frame had no map or none may hold cached pages, the list emptied all
- * the same — no page holds what it names. Must run before the page carry. Returns the threads the
- * CPU's boxes take, the CPU's part of the dispatch the GPU sizes.
+ * the same — no page holds what it names. Must run before the page carry, the list emptied by
+ * `endCastInvalidation` after the pass. Returns the threads the
+ * CPU's boxes take, the CPU's part of the dispatch the GPU sizes. `hzb`: the pages are tested
+ * against the previous frame's pyramid (`shadowCacheInvalidateUseHzb`).
  */
 export function encodeCastInvalidation(
-  encoder: GPUCommandEncoder,
+  steps: ComputeRun,
   res: VsmResources,
   device: GPUDevice,
   mapCount: number,
   maps: Uint32Array | null,
   boxes: VsmCastBoxes | null,
   casts: CastChanges,
+  hzb: boolean,
 ) {
   const boxCount = boxes?.count ?? 0
   if (!casts.appended && !boxCount) return 0
   let threads = 0
   if (mapCount > 0 && maps) {
-    encodeCastStale(encoder, res, device, maps, boxes, casts.buffer)
+    encodeCastStale(steps, res, device, maps, boxes, casts.buffer, hzb)
     threads = boxCount * maps.length
   }
-  if (casts.appended) consumedCasts(casts, encoder)
   return threads
+}
+
+/** The list `casts` emptied once the stale that read it (`encodeCastInvalidation`) has run: after
+ *  the pass it dispatched in, in `encoder`. */
+export function endCastInvalidation(encoder: GPUCommandEncoder, casts: CastChanges) {
+  if (casts.appended) consumedCasts(casts, encoder)
 }

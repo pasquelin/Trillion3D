@@ -17,6 +17,8 @@ export type {
 } from '../saved/format.ts'
 
 export type { QualityResolution, WorldQualityOptions } from './quality.ts'
+export type { QualityHardware } from './qualityHardware.ts'
+export type { HardwareBenchmarkOptions } from './benchmarkSource.ts'
 export type { TemporalAntialiasingOption } from '../../../../sdk-core/src/contracts/materialOptions.ts'
 export { Scene } from './scene.ts'
 export { LoadedModel } from './models/loadedModel.ts'

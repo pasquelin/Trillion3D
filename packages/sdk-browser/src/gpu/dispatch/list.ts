@@ -9,6 +9,7 @@
  */
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
+import { oncePerDevice } from '../core/oncePerDevice.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from './grid.ts'
 
 /** Words of a list's head: the indirect dispatch's three and the count. */
@@ -20,6 +21,22 @@ const RESET = new Uint32Array([0, 0, 1, 0])
 /** A list's head set for an image: no entry yet, so nothing to dispatch. */
 export const resetList = (device: GPUDevice, list: GPUBuffer) =>
   device.queue.writeBuffer(list, 0, RESET)
+
+/** The head every list starts with, once a device: what `resetListIn` copies. */
+const headSource = oncePerDevice((device: GPUDevice) => {
+  const source = device.createBuffer({
+    label: 'Trillion3D list head',
+    size: RESET.byteLength,
+    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  })
+  device.queue.writeBuffer(source, 0, RESET)
+  return source
+})
+
+/** A list's head set for an image by the commands of `encoder`, at the point they stand: a copy,
+ *  not a write on the queue for each list. */
+export const resetListIn = (device: GPUDevice, encoder: GPUCommandEncoder, list: GPUBuffer) =>
+  encoder.copyBufferToBuffer(headSource(device), 0, list, 0, RESET.byteLength)
 
 /** Bytes of a list of `entries` entries of `words` words each. */
 export const listBytes = (entries: number, words: number) => (LIST_HEAD + entries * words) * 4

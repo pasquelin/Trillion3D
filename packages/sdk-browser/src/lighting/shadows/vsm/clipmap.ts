@@ -12,7 +12,12 @@
  * `multiplyMatrix4(out, A, B)` is A·B, B applied first; `transformAffinePoint` applies one to a point.
  */
 import { LIGHT_KIND } from '../../../../../sdk-core/src/scene/light/contracts.ts'
-import { SHADOW_DISTANCE_DEFAULT } from '../../../../../sdk-core/src/contracts/shadowOptions.ts'
+import {
+  LIGHT_SHADOW_FIELDS,
+  resolveLightShadow,
+  type LightShadow,
+} from '../../../../../sdk-core/src/contracts/lightShadowOptions.ts'
+import type { SunCascades } from '../../../../../sdk-core/src/contracts/sunCascades.ts'
 import { multiplyMatrix4, transposeMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { forwardOrthographicProjection } from '../../../../../math/src/projection/forwardZ.ts'
 import {
@@ -24,6 +29,7 @@ import {
   VSM_CM_PER_UNIT,
   VSM_LEVEL0_PAGES,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
+  VSM_MAP_FIRST_PERSON,
   VSM_MAP_COARSE,
   VSM_MAP_UNCACHED,
   VSM_MAP_COVERAGE,
@@ -33,13 +39,15 @@ import {
 import {
   VSM_DEFAULT_MAPS,
   vsmClipmapConfig,
+  vsmFirstPersonClipmapConfig,
   vsmLightMobility,
   vsmSunBias,
   type VsmClipmapConfig,
   type VsmMapSettings,
 } from './mapSettings.ts'
 import { vsmShadowMatrices, type VsmProjectionDataValues } from './projection/projectionData.ts'
-import type { VsmCacheManager, VsmLightCache } from './cacheManager.ts'
+import type { VsmCacheManager } from './cacheManager.ts'
+import type { VsmLightCache } from './lightCache.ts'
 
 /** Level radii a level's footprint spans: its corner offset is half of it. */
 const LEVEL_SPAN_RADII = 4
@@ -120,18 +128,28 @@ interface VsmDirectionalLightInput {
   id: string
   /** Propagation direction, from the sun toward the ground (the light's direction). */
   direction: ArrayLike<number>
+  /** Whether the light is `movable`: only a movable light takes the moving bias (`vsmLightMobility`). */
+  movable?: boolean
   /** The light's level bias, default 0. */
   levelBias?: number
   /** The light's texel dither scale, default 1. */
   ditherTexels?: number
   /** How far from the eye, in metres, its maps take every caster after the near-dependent edge and
    *  the view's settings have shaped it; 0 or absent, no limit. Carried in its maps' records
-   *  (`VsmProjectionDataValues.farShadowDistance`), no part of the cache key: the raster's test
+   *  (`VsmProjectionDataValues.farShadowEdge`), no part of the cache key: the raster's test
    *  reads it each frame. */
-  farShadowDistance?: number
-  /** The light's own shadow distance, in metres (`shadowDistanceOf`; absent, the default): part of
-   *  the cache key, as a light a new distance re-creates holds none of its cached pages. */
-  shadowDistance?: number
+  farShadowEdge?: number
+  /** The cascades the frame laid for it (`sunCascades`), the distance-field cascade among them: no
+   *  part of the cache key, read each frame by the cascade's passes
+   *  (`lighting/distanceField/shadow/`). */
+  cascades?: SunCascades
+  /** Whether this is the sun's first-person clipmap (`shadowFirstPersonClipmap`): its own levels, no
+   *  cache (drawn again each frame), its maps flagged (`VSM_MAP_FIRST_PERSON`) for the objects that stand
+   *  for a first-person one alone. Its `id` names it apart from the sun's own. */
+  firstPerson?: boolean
+  /** The light's own shadow settings (`LightShadow`; absent, the defaults): part of the cache key,
+   *  as a light that any of them re-creates holds none of its cached pages. */
+  shadow?: LightShadow
 }
 
 /** A level's data, outputs in metres. */
@@ -163,9 +181,13 @@ function vsmClipmapLevelRadiusCm(absoluteLevel: number) {
   return Math.fround(Math.pow(2, Math.fround(absoluteLevel + 1)))
 }
 
+/** The shadow settings of a light that names none: every default. */
+const DEFAULT_LIGHT_SHADOW = /* @__PURE__ */ resolveLightShadow({})
+/** The light shadow fields a clipmap's cache key holds: those that shape the maps, not the cascade's shadow amount. */
+const CACHE_FIELDS = /* @__PURE__ */ LIGHT_SHADOW_FIELDS.filter((field) => field !== 'shadowAmount')
 // The frame's scratch: what a clipmap computes before its cache entry is known, or reads once.
 const direction: [number, number, number] = [0, 0, 0],
-  cacheKey = { lightDirection: direction, firstLevel: 0, shadowDistance: 0 },
+  cacheKey = { lightDirection: direction, firstLevel: 0, shadow: [] as number[] },
   worldToLightRotation = new Float64Array(16),
   worldToLightView = new Float64Array(16),
   viewToWorldRotation = new Float64Array(16),
@@ -213,6 +235,115 @@ function clipmapScreenBias(camera: VsmCameraInput, viewport: VsmViewport, viewHa
   return Math.log2(Math.fround(texelsPerPixel * Math.fround(VSM_LEVEL0_TEXELS / screenWidthPx)))
 }
 
+/** The first level of a view: the settings', an orthographic view's own width raising it. */
+function firstLevelOf(config: VsmClipmapConfig, isOrthographic: boolean, viewHalfWidth: number) {
+  if (!isOrthographic) return config.firstLevel
+  const orthoFirstLevel = Math.floor(Math.log2(Math.fround(viewHalfWidth)))
+  return Math.max(Math.max(config.firstLevel, orthoFirstLevel), 0)
+}
+
+/** The light's cache entry told this frame's key — its first level and its own shadow settings —;
+ *  whether its clipmap moved. */
+function updateEntry(
+  cacheEntry: VsmLightCache,
+  light: VsmDirectionalLightInput,
+  firstLevel: number,
+  uncached: boolean,
+) {
+  cacheKey.firstLevel = firstLevel
+  const own = light.shadow ?? DEFAULT_LIGHT_SHADOW
+  for (let k = 0; k < CACHE_FIELDS.length; k++) cacheKey.shadow[k] = Number(own[CACHE_FIELDS[k]!])
+  return cacheEntry.updateClipmap(cacheKey, uncached)
+}
+
+/** The eye's place at the last level's snap, into `lastLevelSnap`: the origin the levels' corners
+ *  are counted from, in whole steps of that level. */
+function snapLastLevel(ox: number, oy: number, oz: number, lastLevel: number) {
+  transformAffinePoint(lastLevelSnap, worldToLightView, ox, oy, oz)
+  const lastLevelRadius = Math.trunc(vsmClipmapLevelRadiusCm(lastLevel)) // int
+  const ux = Math.floor(lastLevelSnap[0] / lastLevelRadius + 0.5),
+    uy = Math.floor(lastLevelSnap[1] / lastLevelRadius + 0.5)
+  lastLevelSnap[0] = ux * lastLevelRadius
+  lastLevelSnap[1] = uy * lastLevelRadius
+}
+
+/** Level `levelIndex` of `clipmap` (its first level `firstLevel`, the depth of its levels
+ *  `depthSpanRatio` times their radius): its snapped corner, its offset from the last level's, its
+ *  cache entry's depth range and its projection from metres. */
+function buildLevel(
+  clipmap: VsmClipmap,
+  levelIndex: number,
+  firstLevel: number,
+  depthSpanRatio: number,
+) {
+  const level = heldLevel(clipmap.levels, levelIndex)
+  const absoluteLevel = levelIndex + firstLevel
+  const levelRadiusCm = vsmClipmapLevelRadiusCm(absoluteLevel)
+  const halfWidthCm = 2 * levelRadiusCm
+  const snapCm = levelRadiusCm
+
+  const csx = Math.floor(eyeInLight[0] / snapCm + 0.5),
+    csy = Math.floor(eyeInLight[1] / snapCm + 0.5)
+  const snappedX = csx * snapCm,
+    snappedY = csy * snapCm
+  const cornerQuarters = level.cornerQuarters
+  cornerQuarters[0] = -Math.trunc(csx) + LEVEL_SPAN_RADII / 2
+  cornerQuarters[1] = Math.trunc(csy) + LEVEL_SPAN_RADII / 2
+  transformAffinePoint(swc, viewToWorldRotation, snappedX, snappedY, eyeInLight[2])
+
+  // The corner offset relative to the origin snapped at the last level, in whole snap steps.
+  const levelX = Math.trunc(-snappedX),
+    levelY = Math.trunc(snappedY)
+  const lastX = Math.trunc(-lastLevelSnap[0]),
+    lastY = Math.trunc(lastLevelSnap[1])
+  const bias = (LEVEL_SPAN_RADII / 2) * Math.trunc(snapCm)
+  level.cornerFromLast[0] = Math.trunc((levelX - lastX + bias) / snapCm) | 0
+  level.cornerFromLast[1] = Math.trunc((levelY - lastY + bias) / snapCm) | 0
+
+  const levelEntry = clipmap.cacheEntry.mapCaches[levelIndex]
+  let depthRadius = levelRadiusCm * depthSpanRatio
+  entryCell[0] = cornerQuarters[0] * (VSM_LEVEL0_PAGES >> 2)
+  entryCell[1] = cornerQuarters[1] * (VSM_LEVEL0_PAGES >> 2)
+
+  levelEntry.updateLevel(clipmap.cacheEntry, entryCell, levelRadiusCm, eyeInLight[2], depthRadius)
+  const eyeDepthShift = eyeInLight[2] - levelEntry.clipmap.depthCentre
+  depthRadius = levelEntry.clipmap.depthRadius
+
+  // The level's view-to-clip from metres; its depth offset 1 − zOffset·zScale is unitless,
+  // taken from the centimetre values themselves: the exact value, no unit round trip.
+  const zScale = 0.5 / depthRadius
+  const zOffset = depthRadius + eyeDepthShift
+  const viewToClip = forwardOrthographicProjection(
+    level.viewToClip,
+    halfWidthCm * VSM_UNIT_PER_CM,
+    halfWidthCm * VSM_UNIT_PER_CM,
+    zScale * VSM_CM_PER_UNIT,
+    zOffset * VSM_UNIT_PER_CM,
+  )
+  viewToClip[14] = 1 - zOffset * zScale
+
+  for (let k = 0; k < 3; k++) level.worldCentre[k] = swc[k] * VSM_UNIT_PER_CM
+}
+
+/** The light's bias: the view's, coarser while the light moves (`vsmLightMobility`). */
+function lightLevelBias(
+  cache: VsmCacheManager,
+  cacheEntry: VsmLightCache,
+  light: VsmDirectionalLightInput,
+  maps: VsmMapSettings,
+  moved: boolean,
+  screenBias: number,
+) {
+  const { shadows } = maps
+  const active = shadows.shadowLightActiveFrameCount
+  const mobility = light.firstPerson
+    ? 1
+    : light.movable
+      ? vsmLightMobility(cacheEntry, moved, maps.frame ?? cache.frameStamp, active)
+      : 0
+  return vsmSunBias(shadows, mobility, screenBias, light.levelBias ?? 0)
+}
+
 /**
  * Builds a clipmap: finds/updates the light's cache entry, builds
  * every level, runs the per-level cache test and stores each level's projection data in its cache
@@ -228,14 +359,13 @@ export function createVsmClipmap(
   maps: VsmMapSettings = VSM_DEFAULT_MAPS,
 ): VsmClipmap {
   const { shadows } = maps,
-    config = vsmClipmapConfig(shadows)
+    config = light.firstPerson ? vsmFirstPersonClipmapConfig(shadows) : vsmClipmapConfig(shadows)
   const lightDirection = normalizeVector3OrZero(direction, light.direction, VSM_MIN_DIRECTION_SQ)
   vsmWorldToLightRotation(worldToLightRotation, lightDirection)
   multiplyMatrix4(worldToLightView, VSM_FACE_MATRIX, worldToLightRotation)
   transposeMatrix4(viewToWorldRotation, worldToLightView)
 
   // Perspective or not, from the camera's own kind rather than M[3][3] < 1.
-  const isOrthographic = !camera.perspective
   const viewHalfWidth = 1 / projectionScaleX(camera)
   const screenBias = clipmapScreenBias(camera, viewport, viewHalfWidth)
 
@@ -245,24 +375,19 @@ export function createVsmClipmap(
     oy = camera.eye[1] * VSM_CM_PER_UNIT,
     oz = camera.eye[2] * VSM_CM_PER_UNIT
 
-  let firstLevel = config.firstLevel
-  if (isOrthographic) {
-    const orthoFirstLevel = Math.floor(Math.log2(Math.fround(viewHalfWidth)))
-    if (orthoFirstLevel > firstLevel) firstLevel = orthoFirstLevel
-    firstLevel = Math.max(firstLevel, 0)
-  }
+  const firstLevel = firstLevelOf(config, !camera.perspective, viewHalfWidth)
   const lastLevel = Math.max(firstLevel, config.lastLevel)
   const levelCount = lastLevel - firstLevel + 1
 
-  const uncached = !cache.cacheEnabled
   const cacheEntry = cache.lightEntryFor(light.id, levelCount, camera.viewId ?? '')
-  cacheKey.firstLevel = firstLevel
-  cacheKey.shadowDistance = light.shadowDistance ?? SHADOW_DISTANCE_DEFAULT
-  const moved = cacheEntry.updateClipmap(cacheKey, uncached)
-  // The light's bias: the view's, coarser while the light moves (`vsmLightMobility`).
-  const active = shadows.shadowLightActiveFrameCount
-  const mobility = vsmLightMobility(cacheEntry, moved, maps.frame ?? cache.frameStamp, active)
-  const levelBias = vsmSunBias(shadows, mobility, screenBias, light.levelBias ?? 0)
+  // A first-person clipmap keeps nothing from one frame to the next, and is biased as a moving light.
+  const moved = updateEntry(
+    cacheEntry,
+    light,
+    firstLevel,
+    !cache.cacheEnabled || !!light.firstPerson,
+  )
+  const levelBias = lightLevelBias(cache, cacheEntry, light, maps, moved, screenBias)
 
   const clipmap = heldClipmap(cacheEntry)
   clipmap.light = light
@@ -274,73 +399,28 @@ export function createVsmClipmap(
   clipmap.firstLevel = firstLevel
   clipmap.levelBias = levelBias
 
-  transformAffinePoint(lastLevelSnap, worldToLightView, ox, oy, oz)
-  {
-    const lastLevelRadius = Math.trunc(vsmClipmapLevelRadiusCm(lastLevel)) // int
-    const ux = Math.floor(lastLevelSnap[0] / lastLevelRadius + 0.5),
-      uy = Math.floor(lastLevelSnap[1] / lastLevelRadius + 0.5)
-    lastLevelSnap[0] = ux * lastLevelRadius
-    lastLevelSnap[1] = uy * lastLevelRadius
-  }
-
-  const depthSpanRatio = shadows.shadowClipmapZRangeScale
+  snapLastLevel(ox, oy, oz, lastLevel)
   transformAffinePoint(eyeInLight, worldToLightView, ox, oy, oz)
-  const levels = clipmap.levels
-  levels.length = Math.min(levels.length, levelCount)
-
-  for (let levelIndex = 0; levelIndex < levelCount; levelIndex++) {
-    const level = heldLevel(levels, levelIndex)
-    const absoluteLevel = levelIndex + firstLevel
-    const levelRadiusCm = vsmClipmapLevelRadiusCm(absoluteLevel)
-    const halfWidthCm = 2 * levelRadiusCm
-    const snapCm = levelRadiusCm
-
-    const csx = Math.floor(eyeInLight[0] / snapCm + 0.5),
-      csy = Math.floor(eyeInLight[1] / snapCm + 0.5)
-    const snappedX = csx * snapCm,
-      snappedY = csy * snapCm
-    const cornerQuarters = level.cornerQuarters
-    cornerQuarters[0] = -Math.trunc(csx) + LEVEL_SPAN_RADII / 2
-    cornerQuarters[1] = Math.trunc(csy) + LEVEL_SPAN_RADII / 2
-    transformAffinePoint(swc, viewToWorldRotation, snappedX, snappedY, eyeInLight[2])
-
-    // The corner offset relative to the origin snapped at the last level, in whole snap steps.
-    const levelX = Math.trunc(-snappedX),
-      levelY = Math.trunc(snappedY)
-    const lastX = Math.trunc(-lastLevelSnap[0]),
-      lastY = Math.trunc(lastLevelSnap[1])
-    const bias = (LEVEL_SPAN_RADII / 2) * Math.trunc(snapCm)
-    level.cornerFromLast[0] = Math.trunc((levelX - lastX + bias) / snapCm) | 0
-    level.cornerFromLast[1] = Math.trunc((levelY - lastY + bias) / snapCm) | 0
-
-    const levelEntry = cacheEntry.mapCaches[levelIndex]
-    let depthRadius = levelRadiusCm * depthSpanRatio
-    entryCell[0] = cornerQuarters[0] * (VSM_LEVEL0_PAGES >> 2)
-    entryCell[1] = cornerQuarters[1] * (VSM_LEVEL0_PAGES >> 2)
-
-    levelEntry.updateLevel(cacheEntry, entryCell, levelRadiusCm, eyeInLight[2], depthRadius)
-    const eyeDepthShift = eyeInLight[2] - levelEntry.clipmap.depthCentre
-    depthRadius = levelEntry.clipmap.depthRadius
-
-    // The level's view-to-clip from metres; its depth offset 1 − zOffset·zScale is unitless,
-    // taken from the centimetre values themselves: the exact value, no unit round trip.
-    const zScale = 0.5 / depthRadius
-    const zOffset = depthRadius + eyeDepthShift
-    const viewToClip = forwardOrthographicProjection(
-      level.viewToClip,
-      halfWidthCm * VSM_UNIT_PER_CM,
-      halfWidthCm * VSM_UNIT_PER_CM,
-      zScale * VSM_CM_PER_UNIT,
-      zOffset * VSM_UNIT_PER_CM,
-    )
-    viewToClip[14] = 1 - zOffset * zScale
-
-    for (let k = 0; k < 3; k++) level.worldCentre[k] = swc[k] * VSM_UNIT_PER_CM
-  }
-
+  clipmap.levels.length = Math.min(clipmap.levels.length, levelCount)
+  for (let levelIndex = 0; levelIndex < levelCount; levelIndex++)
+    buildLevel(clipmap, levelIndex, firstLevel, shadows.shadowClipmapZRangeScale)
   for (let i = 0; i < levelCount; i++)
     vsmClipmapProjectionData(clipmap, i, cacheEntry.mapCaches[i].projectionData, config)
   return clipmap
+}
+
+/**
+ * The square of the distance, in metres, past which a clipmap level draws no object's offset: the
+ * level is shown from far enough that the motion of an object whose offset stops nearer than its
+ * `lodBias` levels past the distance cannot be seen in it. Two to the power of twice the level less
+ * the bias and the light's resting `resolutionBias`, rounded up to a whole level — as the levels are
+ * powers of two, a change of the camera redraws no page for it —, the radius' centimetres taken to
+ * metres. An object evaluates its offset in the level while this does not pass its own square
+ * (`wpoAllowed`, `../../../visibility/shader/wpoGraphWgsl.ts`).
+ */
+function vsmWpoThreshold(absoluteLevel: number, lodBias: number, resolutionBias: number) {
+  const level = Math.ceil(absoluteLevel - lodBias - resolutionBias)
+  return Math.fround(Math.pow(2, 2 * level) * VSM_UNIT_PER_CM * VSM_UNIT_PER_CM)
 }
 
 /** The projection shader data, written into the record `out`. */
@@ -370,13 +450,21 @@ function vsmClipmapProjectionData(
       flags |= VSM_MAP_COARSE
   }
   flags |= VSM_MAP_COVERAGE
+  if (clipmap.light.firstPerson) flags |= VSM_MAP_FIRST_PERSON
   if (config.keepsDynamic) flags |= VSM_MAP_COARSE_KEEPS_DYNAMIC
   out.lightKind = LIGHT_KIND.directional
   out.lightRange = 0
-  out.farShadowDistance = clipmap.light.farShadowDistance ?? 0
+  out.farShadowEdge = clipmap.light.farShadowEdge ?? 0
   out.levelBias = clipmap.levelBias
   out.emitterSize = 0 // a directional light has no source radius
   out.mapLevel = mapLevel
+  out.wpoThreshold = config.wpoDisable
+    ? vsmWpoThreshold(
+        mapLevel,
+        config.wpoLodBias,
+        config.restingBias + (clipmap.light.levelBias ?? 0),
+      )
+    : 0
   out.levelsLeft = levelsAfterThis
   out.flags = flags
   out.ditherTexels = clipmap.light.ditherTexels ?? 1

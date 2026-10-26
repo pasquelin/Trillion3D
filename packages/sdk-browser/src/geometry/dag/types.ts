@@ -6,7 +6,7 @@ import type {
   ClusterStructureIndex,
   DrawDistance,
   RootParent,
-  RootProxy,
+  RootWorn,
 } from '../selection/types.ts'
 import type { CullingLinks } from '../cut/links.ts'
 import type { PlacementTree } from './placement/placementTree.ts'
@@ -14,7 +14,6 @@ import type { PackedWorld } from './worlds/worldLinks.ts'
 import type { HeldOpen } from './heldOpen.ts'
 import type { PlacementIndex } from '../selection/placements.ts'
 import type { createRecordTable } from './pack/packRecords.ts'
-import type { StructureTable } from './structureTable.ts'
 import { CULLING_STRIDE } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 
 /** Twenty words per node (`nodeLayout.ts`, `pack/packNodes.ts`): the manifest's box, ceiling,
@@ -37,7 +36,7 @@ export const CULL_MIN = 0,
   CULL_PAGE_COUNT = 15
 /** Words of a placement's row of `frames`, the host's words (`frameTable.ts`): nothing is derived
  *  into it (`shader/primitiveWgsl.ts`). */
-export const FRAME_ROW_WORDS = 14
+export const FRAME_ROW_WORDS = 10
 type DagCluster = {
   url: string
   /** Its quantized page: with `url`, the content key the pool holds it under
@@ -75,9 +74,8 @@ export type DagRoot = {
   /** Its primitive's culling hierarchy, with its upward links when the host derived them, shared
    *  by every placement of the primitive (`../cut/links.ts`). */
   culling?: { nodes: Float64Array; stride: number; links?: CullingLinks }
-  /** The proxy of its cut and the surface it wears, what a ray meets of it beyond the visible cut
-   *  (`ClusterRoot.proxy`): a run-time cut's alone. */
-  proxy?: RootProxy
+  /** The local box its placements' world boxes are made of (`ClusterRoot.localBox`). */
+  localBox?: Float64Array
   /** Group links: what the cut rule's residency is derived from (`../cut/readiness.ts`). */
   structure?: ClusterStructureIndex
   /** The world HLOD's alone (`geometry/hlod/worldHlod.ts`): each rank's HLOD cell, and each cell of the
@@ -113,7 +111,15 @@ export type DagPackShared = {
   depthsOf: Map<DagRoot['pages'], Uint8Array>
   firstOf: Map<
     DagRoot['pages'],
-    { pageBase: number; recordBase: number; nodes: Float64Array; rootClusters: number }
+    {
+      pageBase: number
+      recordBase: number
+      /** The first of the page array's cluster records (`info/clusterInfoLayout.ts`), one for each
+       *  page of the array, shared by every placement of it. */
+      infoBase: number
+      nodes: Float64Array
+      rootClusters: number
+    }
   >
   /** Per node array, where its nodes lie in the node table — one copy for every placement of
    *  the primitive — and the node owning each of its pages there. */
@@ -141,14 +147,19 @@ export type PackedDag = {
    *  in the low sixteen bits, the deformation reach as a half float above (`rootMark`) —, as
    *  `markWorld` last wrote it, else the root's mark. */
   mark: Uint32Array
-  /** Per placement, two floats — the distances it is drawn at (`DagRoot.drawDistance`): the
-   *  nearest, then the farthest, 0 for none (`writePrimitiveWords`). Made by the first placement
-   *  that names a farthest one: absent, none does and the cut tests no distance. */
+  /** Per placement, the distances it is drawn at (`DagRoot.drawDistance`, `DRAW_DISTANCE_STRIDE`
+   *  floats each, all 0 for none: `drawDistanceAt`). Made by the first placement that names some:
+   *  absent, none does and the cut tests no distance. */
   drawDistance?: Float32Array
-  /** Per placement, five floats — the error and the ball of the group that replaces its root
-   *  (`DagRoot.rootParent`): made by the first placement that names one, absent while none does
-   *  (`writePrimitiveWords`). */
-  rootParent?: Float32Array
+  /** Where the node of each distinct group above an instance's root lies in the node table
+   *  (`pack/packParents.ts`): the placements that read the same group share it. Kept by a packing
+   *  that keeps no `shared` too: a group already placed is found at run time
+   *  (`runtime/runtimeOps.ts`). */
+  parentNodes: Map<string, number>
+  /** Per placement, the node holding the error and the ball of the group that replaces its root
+   *  (`DagRoot.rootParent`, `pack/packParents.ts`), `NO_INDEX` for none: made by the first
+   *  placement that names one, absent while none does (`writePrimitiveWords`). */
+  parentNode?: Uint32Array
   /** Nodes of each stage, all primitives together: the upper bound of each pass's queue. Its
    *  LENGTH is the depth of the deepest hierarchy, hence the number of descent passes; a second
    *  field to restate it would only be state to keep in agreement. */
@@ -164,12 +175,16 @@ export type PackedDag = {
   pageCount: number
   /** The pages, nodes and placements its roots fill, from the first of each; the whole capacity
    *  when absent. */
-  live?: { pages: number; nodes: number; worlds: number; entries: number }
+  live?: { pages: number; nodes: number; worlds: number; entries: number; infos: number }
   /** What a later placement of a packed primitive reads to be appended in place
    *  (`appendDagRoots`): absent for a packing without room past its roots. */
   shared?: DagPackShared
   /** Unique records behind the `pageCount` pages, and the room kept for those a growth adds. */
   recordCount: number
+  /** The cluster records (`info/clusterInfoLayout.ts`) behind the pages — one for each page of each
+   *  distinct page array, which a source wearing another surface does not share with the records
+   *  of the cut —, and the room kept for those a growth adds. */
+  infoCount: number
   /** Nodes the primitives take, the room kept for a growth's included: the placement tree's follow. */
   primitiveNodeCount: number
   /** Each placement's first page, on the host alone: what names a page's placement
@@ -177,6 +192,8 @@ export type PackedDag = {
   pageIndex: PlacementIndex
   /** Per placement, what its page index adds to reach its record, as a wrapping u32. */
   recordShift: Uint32Array
+  /** Per placement, what its page index adds to reach its cluster record, as a wrapping u32. */
+  infoShift: Uint32Array
   rootCount: number
   /** The url of page `page`, read from its placement's shared records: none stored per page. */
   pageUrlOf(page: number): string | undefined
@@ -195,7 +212,4 @@ export type PackedDag = {
    *  most `levelSizes.length` and one at least. Set by the readiness that keeps the residency
    *  (`readiness.ts`): none until one does, every level then. */
   residentLevels?: () => number
-  /** The placements' group structures as the GPU reads them, each primitive's once
-   *  (`structureTable.ts`): made as the frame words name them. */
-  structures?: StructureTable
 }

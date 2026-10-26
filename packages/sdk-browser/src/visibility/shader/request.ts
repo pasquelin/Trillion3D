@@ -1,4 +1,5 @@
 import { SHADE_UNIFORM } from './uniformLayout.ts'
+import { PHYSICAL_MAP_FIELDS } from '../materialType.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { requestLoopFn } from '../../materials/virtual/requestWgsl.ts'
 
@@ -12,7 +13,7 @@ import { requestLoopFn } from '../../materials/virtual/requestWgsl.ts'
  * record's, `materialAt`), `TILE_REQUEST_WGSL` and the class overrides —
  * `HAS_UV`, `HAS_MASK`, `HAS_SAMPLING` and one per map (`materialClass.ts`) — before this block;
  * the triangle's corners and texture coordinates come from the resolve (`decodeTriangle`). A row
- * whose surface carries an anisotropic or clear-coat lobe (`physicalOn`) adds its four maps' picks
+ * whose surface carries an anisotropic, clear-coat or cloth lobe (`physicalOn`) adds its maps' picks
  * after the others, each read where its record says (`physicalRequest`, `physicalWgsl.ts`).
  */
 /** Words of the resolve uniform (`SHADE_UNIFORM`). */
@@ -45,7 +46,7 @@ ${requestLoopFn({
   word: 'uni.feedback',
   before:
     'let physical=HAS_PHYSICAL&&physicalOn;if(!(HAS_UV&&(ANY_MAP||m.subsurfaceMap!=0u||physical))){return 0u;}',
-  choices: 'MAP_CHOICES+1u+select(0u,1u,m.subsurfaceMap!=0u)+select(0u,4u,physical)',
+  choices: `MAP_CHOICES+1u+select(0u,1u,m.subsurfaceMap!=0u)+select(0u,${PHYSICAL_MAP_FIELDS.length}u,physical)`,
   pick: (p, missing) => `shadePick(${p},${missing},m)`,
 })}`,
 )

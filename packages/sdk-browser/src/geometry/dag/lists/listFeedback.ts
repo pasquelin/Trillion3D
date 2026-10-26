@@ -3,7 +3,7 @@ import { LIST_SETTINGS, type CutListCaps } from './cutListCaps.ts'
 /**
  * THE CUT'S OVERFLOW WARNINGS, kept as the reference keeps them. A cut past one of its lists' caps
  * drops what is past it — the nodes and their subtrees, the candidate clusters, the clusters drawn —
- * and draws what fits (`../shader/levelWgsl.ts`, `../shader/commitWgsl.ts`); its readback brings
+ * and draws what fits (`../shader/levelWgsl.ts`, `../shader/visibleWgsl.ts`); its readback brings
  * back what it asked of each list, counted past the cap (`ListPeaks`). Each list keeps its
  * HIGH-WATER MARK, the most any readback asked of it, under its cap or past it; a readback past the
  * cap whose peak raises the mark is said once, by its list, its peak over its cap, the mark and the
@@ -13,7 +13,7 @@ import { LIST_SETTINGS, type CutListCaps } from './cutListCaps.ts'
 
 /** What one cut asked of its lists, each the most one pass asked of it, as the reference reads its
  *  peaks: the nodes a pass opened, the candidate clusters it listed and the clusters it drew
- *  (`../shader/commitWgsl.ts`, `../uniforms.ts`, `parseDagOutput`). */
+ *  (`../shader/finishWgsl.ts`, `../uniforms.ts`, `parseDagOutput`). */
 export type ListPeaks = CutListCaps
 
 /** What a list's overflow says: the list, the peak the readback asked, the cap, the mark now and

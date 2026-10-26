@@ -1,5 +1,5 @@
 import { halfRound } from '../../../math/src/float/half.ts'
-import { clamp } from '../../../math/src/scalar/reals.ts'
+import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
 import {
   EXPOSURE_CURVE_MAX_EV,
   EXPOSURE_CURVE_MIN_EV,
@@ -20,7 +20,7 @@ const NO_COMPENSATION = 1
  * float. No curve bakes a table of ones. Written into `out` when given (its first
  * `EXPOSURE_CURVE_SAMPLES` words), else a new array.
  */
-export function bakeExposureCurve(
+function bakeExposureCurve(
   curve: ExposureCurve,
   out: Float32Array = new Float32Array(EXPOSURE_CURVE_SAMPLES),
 ) {
@@ -41,7 +41,7 @@ export function exposureCurveFactor(table: ArrayLike<number>, ev: number) {
   const at = clamp(((ev - EXPOSURE_CURVE_MIN_EV) * last) / span, 0, last)
   const below = Math.floor(at)
   const above = Math.min(below + 1, last)
-  return table[below] + (table[above] - table[below]) * (at - below)
+  return lerp(table[below], table[above], at - below)
 }
 
 /** The table of no curve: ones. */

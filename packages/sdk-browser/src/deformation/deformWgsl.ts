@@ -13,6 +13,7 @@ import {
   WORLD_BLOCK,
 } from './layout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { CLUSTER_HEADER_WGSL } from '../geometry/cluster/headerWgsl.ts'
@@ -26,7 +27,7 @@ import { WAVE_TERMS } from './waveTermsWgsl.ts'
 export type DeformRecordSource = { source: string; prefix: string }
 
 /** Where record `r`'s parts start: palette, morph weights, world matrices, waves. */
-export const DEFORM_AT_WGSL = wgslBlock(
+const DEFORM_AT_WGSL = wgslBlock(
   'DEFORM_AT_WGSL',
   [],
   'struct DeformAt{kinds:u32,joints:u32,targets:u32,waves:u32,palette:u32,weights:u32,world:u32,wave:u32,soft:u32,simulation:u32,}',
@@ -34,11 +35,11 @@ export const DEFORM_AT_WGSL = wgslBlock(
 
 /**
  * THE READS OF A DEFORMATION RECORD (`layout.ts`), written once for every storage a record lies in —
- * the passes' float pool (`positions`), the proxy's pose (`lighting/bounce/runtime/runtimePoseWgsl.ts`) —: a word of
+ * the passes' float pool (`positions`) —: a word of
  * it, joint `j` of the palette at `at` (`count` joints, the last one standing for a larger rank),
  * its three rows, and where the record's parts start (`DeformAt`), this frame's or the last one's.
  */
-export const deformRecordFns = ({
+const deformRecordFns = ({
   source,
   prefix,
 }: DeformRecordSource) => `fn ${prefix}Word(at:u32)->u32{return bitcast<u32>(${source}[at]);}
@@ -63,12 +64,12 @@ fn ${prefix}At(r:u32,previous:bool)->DeformAt{
 
 /**
  * THE BLEND OF A PALETTE'S JOINTS, written once for every vertex a record moves — a page's
- * (`deformSkin`), a proxy's corner (`lighting/bounce/runtime/runtimePoseWgsl.ts`) —: a point (`w` 1) or a direction
+ * (`deformSkin`) —: a point (`w` 1) or a direction
  * (`w` 0) carried by the weighed sum of its joints, renormalised by the weights' total, untouched
  * where they sum to none. `weight` and `joint` are the expressions of influence `k`'s weight and
  * joint, over the function's own `params`.
  */
-export const deformSkinFn = (
+const deformSkinFn = (
   { prefix }: DeformRecordSource,
   {
     name,
@@ -111,6 +112,7 @@ export const DEFORM_WGSL = wgslBlock(
     DEFORM_AT_WGSL,
     worldMatrix3,
     transformPoint,
+    unitOrZero,
     PAGE_INFO_STRUCT_WGSL,
     CLUSTER_HEADER_WGSL,
     clusterDecodeWgsl('indices'),
@@ -141,8 +143,14 @@ fn deformMatrix(at:u32)->mat4x4f{
   positions[at+8u],positions[at+9u],positions[at+10u],positions[at+11u],
   positions[at+12u],positions[at+13u],positions[at+14u],positions[at+15u]);
 }
-/** A vertex as the deformation leaves it: its point and its unit normal. */
-struct DeformedVertex{p:vec3f,n:vec3f,}
+/** A vertex as the deformation leaves it: its point, its unit normal and its unit tangent, zero where
+ *  the vertex has none. A partial result (the waves', the soft body's) holds no tangent. */
+struct DeformedVertex{p:vec3f,n:vec3f,t:vec3f,}
+/** Tangent \`t\` turned to lie across the normal \`n\`: what the tangent loses along it, made unit. */
+fn deformTangent(t:vec3f,n:vec3f)->vec3f{
+ let unit=unitOrZero(n);
+ return unitOrZero(t-dot(t,unit)*unit);
+}
 /** The trochoidal sum at the world point \`p\` (\`count\` waves from \`at\`), at this frame's phases
  *  or the last one's: in one walk, its displacement (\`p\`) and its unit normal (\`n\`). */
 fn deformWaves(at:u32,count:u32,p:vec3f,previous:bool)->DeformedVertex{
@@ -151,7 +159,7 @@ fn deformWaves(at:u32,count:u32,p:vec3f,previous:bool)->DeformedVertex{
   let b=at+i*${WAVE_FLOATS}u+select(0u,count*${WAVE_FLOATS}u,previous);
   ${WAVE_TERMS}
  }
- return DeformedVertex(d,normalize(n));
+ return DeformedVertex(d,normalize(n),vec3f(0.0));
 }
 fn deformVec(at:u32)->vec3f{return vec3f(positions[at],positions[at+1u],positions[at+2u]);}
 /** The soft body's share in one walk of the influences: its displacement of the point (\`p\`, this
@@ -164,35 +172,40 @@ fn deformSoft(a:DeformAt,h:ClusterHeader,page:PageInfo,vertex:u32,previous:bool)
   delta+=weight*(deformVec(start+select(0u,count,previous))-deformVec(start+count*2u));
   normal+=weight*deformVec(start+count*3u);
  }
- return DeformedVertex(delta,normal);
+ return DeformedVertex(delta,normal,vec3f(0.0));
 }
-/** Vertex \`vertex\` of the page, at rest point \`rest\` and rest normal \`normal\`, where its
- *  placement's deformation carries it this frame, or the last one with \`previous\`: the soft body
- *  or the targets move it, the joints carry it, the waves carry its world point and give the
- *  normal there, taken back to the page's frame. Untouched on a row with no record. */
-fn deformVertex(page:PageInfo,h:ClusterHeader,vertex:u32,rest:vec3f,normal:vec3f,previous:bool)->DeformedVertex{
- if(page.deform==0u){return DeformedVertex(rest,normal);}
+/** Vertex \`vertex\` of the page, at rest point \`rest\`, rest normal \`normal\` and rest tangent
+ *  \`tangent\` (zero for a page that stores none), where its placement's deformation carries it this
+ *  frame, or the last one with \`previous\`: the soft body or the targets move it, the joints carry
+ *  it, the waves carry its world point and give the normal there, taken back to the page's frame.
+ *  Wherever the normal changes by more than a rotation — the soft body's, the targets' sum made
+ *  unit, the waves' — the tangent is turned across the new normal (\`deformTangent\`); the joints
+ *  then carry both. Untouched on a row with no record. */
+fn deformVertex(page:PageInfo,h:ClusterHeader,vertex:u32,rest:vec3f,normal:vec3f,tangent:vec3f,previous:bool)->DeformedVertex{
+ if(page.deform==0u){return DeformedVertex(rest,normal,tangent);}
  let a=deformAt(page.deform-1u,previous);
- var p=rest;var n=normal;
- if((a.kinds&${KIND_SOFT}u)!=0u&&(h.flags&${FLAG_SOFT_SOURCE}u)!=0u){let s=deformSoft(a,h,page,vertex,previous);p+=s.p;n=s.n;}
+ var p=rest;var n=normal;var t=tangent;
+ if((a.kinds&${KIND_SOFT}u)!=0u&&(h.flags&${FLAG_SOFT_SOURCE}u)!=0u){let s=deformSoft(a,h,page,vertex,previous);p+=s.p;n=s.n;t=deformTangent(t,n);}
  if((a.kinds&${KIND_MORPH}u)!=0u){
-  for(var t=0u;t<min(a.targets,h.morphCount);t++){
-   let weight=positions[a.weights+t];
-   if(weight!=0.0){p+=weight*deformMorphValue(h,page,t,vertex,false);n+=weight*deformMorphValue(h,page,t,vertex,true);}
+  for(var k=0u;k<min(a.targets,h.morphCount);k++){
+   let weight=positions[a.weights+k];
+   if(weight!=0.0){p+=weight*deformMorphValue(h,page,k,vertex,false);n+=weight*deformMorphValue(h,page,k,vertex,true);}
   }
+  n=unitOrZero(n);t=deformTangent(t,n);
  }
  if((a.kinds&${KIND_SKIN}u)!=0u&&(h.flags&${FLAG_SKIN}u)!=0u){
   p=deformSkin(h,page,vertex,a.palette,a.joints,vec4f(p,1.0));n=deformSkin(h,page,vertex,a.palette,a.joints,vec4f(n,0.0));
+  t=deformSkin(h,page,vertex,a.palette,a.joints,vec4f(t,0.0));
  }
  if((a.kinds&${KIND_SKIN}u)!=0u&&(page.flags&${FLAG_VOXEL}u)!=0u){
   let joint=voxelJoint(page.pageOffset,vertex/${VOXEL_BRICK_CORNERS}u);
-  if(joint!=0xFFFFu){let m=deformJoint(a.palette,joint,a.joints);p=vec4f(p,1.0)*m;n=vec4f(n,0.0)*m;}
+  if(joint!=0xFFFFu){let m=deformJoint(a.palette,joint,a.joints);p=vec4f(p,1.0)*m;n=vec4f(n,0.0)*m;t=vec4f(t,0.0)*m;}
  }
  if((a.kinds&${KIND_WAVE}u)!=0u){
   let m=deformMatrix(a.world);let world=transformPoint(m,p);
   let w=deformWaves(a.wave,a.waves,world,previous);
-  p=transformPoint(deformMatrix(a.world+${WORLD_BLOCK.inverse}u),world+w.p);n=transpose(worldMatrix3(m))*w.n;
+  p=transformPoint(deformMatrix(a.world+${WORLD_BLOCK.inverse}u),world+w.p);n=transpose(worldMatrix3(m))*w.n;t=deformTangent(t,n);
  }
- return DeformedVertex(p,normalize(n));
+ return DeformedVertex(p,normalize(n),unitOrZero(t));
 }`,
 )

@@ -52,6 +52,20 @@ pub(super) fn decode(
     let decoded = reader(bytes, format, Some(max_alloc))
         .decode()
         .map_err(|_| "image-decode-failed")?;
+    // A sample stored at 16 bits keeps its precision beside the byte image it rounds to.
+    let color = decoded.color();
+    if color.bytes_per_pixel() == 2 * color.channel_count() {
+        let wide = decoded.into_rgba16();
+        let (width, height) = wide.dimensions();
+        let bytes = wide
+            .as_raw()
+            .iter()
+            .map(|&v| ((u32::from(v) + 128) / 257) as u8);
+        let rounded = image::RgbaImage::from_raw(width, height, bytes.collect())
+            .expect("a byte for each sample");
+        let image = ImageDecoded::new(DecodedImage::Rgba8(rounded), Transfer::Srgb);
+        return Ok(image.with_wide(wide.into_raw()));
+    }
     Ok(ImageDecoded::new(
         DecodedImage::Rgba8(decoded.into_rgba8()),
         Transfer::Srgb,

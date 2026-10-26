@@ -94,8 +94,8 @@ export interface PageStreamerOptions {
   /** Hears each step of every read. */
   onDiagnostic?: (diagnostic: EngineDiagnostic) => void
   /** Hears a read that fails, by its page's url: at its first failure in a row and when it is given
-   *  up; a read that landed is heard again at its next failure. */
-  onStalled?: (failure: { key: string; cause: unknown }) => void
+   *  up (`givenUp`); a read that landed is heard again at its next failure. */
+  onStalled?: (failure: { key: string; cause: unknown; givenUp: boolean }) => void
   /** How many times a read that failed is tried again before its page is given up, read at each
    *  failure (`streamingNumRetries`); negative, without end. `DEFAULT_STREAMING_NUM_RETRIES` by
    *  default. */
@@ -114,8 +114,8 @@ export type Job = {
   slot: number
   /** The range of a file it reads, when its page is one (`StreamPage.range`). */
   range?: StreamPage['range']
-  /** `waiting`: its last read failed and may pass, queued again once its wait ends
-   *  (`failures.ts`). */
+  /** `waiting`: its last read failed and its server asked a wait, queued again once it ends
+   *  (`failures.ts`); a read asked again at once is `queued` again as it fails. */
   state: 'queued' | 'active' | 'waiting'
   /** How many wait on it (`waitShared`). */
   askers: number

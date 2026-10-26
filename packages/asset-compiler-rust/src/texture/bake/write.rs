@@ -31,7 +31,7 @@ pub const LEVEL_WRITE_FAILED: &str = "texture-level-write-failed";
 pub fn level_path(sha256: &str, kind: AtlasKind, level: u32, format: &str) -> String {
     level_template()
         .replace("{sha}", sha256)
-        .replace("{kind}", &kind.name())
+        .replace("{kind}", kind.name())
         .replace("{level}", &level.to_string())
         .replace("{format}", format)
 }

@@ -53,10 +53,9 @@ function texturesOf(surface: PageSurface) {
   ].filter((entry): entry is readonly [Texture, 'color' | 'data'] => !!entry[0])
 }
 
-/** `surface`'s textures taken into the atlas, its coverage readers counted first: each reads its
- *  own cache's chain where it has one (`appendWebgpuTexture`). */
+/** `surface`'s textures taken into the atlas: each reads its own cache's chain where it has one
+ *  (`appendWebgpuTexture`). */
 export async function appendSurfaceTextures(rt: WebgpuPagesRuntime, surface: PageSurface) {
-  rt.setup.texturePools?.coverage.read(surface)
   for (const [texture, kind] of texturesOf(surface)) await appendWebgpuTexture(rt, texture, kind)
 }
 

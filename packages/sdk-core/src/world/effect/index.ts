@@ -40,7 +40,7 @@ export const effect = {
   depthOfField: (options?: DepthOfFieldOptions) => new DepthOfField(options),
   /**
    * The blur of a moving picture, on the resolved image, ahead of the other passes.
-   * @param options - `amount`, `max`, `targetFps`, `cameraMotion` and `perObjectSize`; the defaults when absent.
+   * @param options - `amount`, `max`, `targetFps` and `cameraMotion`; the defaults when absent.
    */
   motionBlur: (options?: MotionBlurOptions) => new MotionBlur(options),
   /**

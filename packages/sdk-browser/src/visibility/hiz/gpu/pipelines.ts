@@ -1,4 +1,4 @@
-import { HIZ_NEAREST_BUILD, HIZ_SHADER } from './shader.ts'
+import { HIZ_WITH_TRACE, HIZ_SHADER } from './shader.ts'
 import { HIZ_PRIMED_BINDING, HIZ_PRIMED_BYTES, HIZ_PRIMED_SHADER } from './primedWgsl.ts'
 import { hizBindEntries } from './bindEntries.ts'
 import { buildComputeStage, preparedComputeStage } from '../../../gpu/core/computeStages.ts'
@@ -9,7 +9,7 @@ import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import { HIZ_SLOT_WORDS } from './uniforms.ts'
 
 /**
- * The Hi-Z kernels — the build of each layer, one kernel specialized (`HIZ_NEAREST_BUILD`) —
+ * The Hi-Z kernels — the culling layer's build and the full build with the trace layers, one kernel specialized (`HIZ_WITH_TRACE`) —
  * compiled under one device validation scope, once a device: every pyramid of the device shares
  * them, so a pyramid made later compiles nothing.
  */
@@ -22,11 +22,11 @@ export const createHizPipelines = oncePerDevice((device) =>
     if (await shaderFailed(module)) return undefined
     const stage = (constants?: Record<string, number>) =>
       buildComputeStage(device, [layout], module, 'buildHiz', constants)
-    const [buildPipeline, nearestPipeline] = await Promise.all([
+    const [buildPipeline, fullPipeline] = await Promise.all([
       stage(),
-      stage({ [HIZ_NEAREST_BUILD]: 1 }),
+      stage({ [HIZ_WITH_TRACE]: 1 }),
     ])
-    return { layout, buildPipeline, nearestPipeline }
+    return { layout, buildPipeline, fullPipeline }
   }),
 )
 

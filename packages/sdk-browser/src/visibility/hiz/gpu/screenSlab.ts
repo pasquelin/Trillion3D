@@ -3,7 +3,8 @@ import { CENTIMETRES_PER_METRE } from '../../../../../sdk-core/src/page/format.t
 import { dotScalar3, length3 } from '../../../../../math/src/vector/vector.ts'
 
 /**
- * The geometry of a surface's thickness (`screenBack`) under the view-projection `m`
+ * The geometry of a surface's thickness (`screenBack`), written into the four words of `out` from `at` on (nothing is
+ * allocated: the staged view of a frame, `createReflectionViewWriter`, takes it straight), under the view-projection `m`
  * (column-major) of an image `height` pixels high, the eye at `eye` (the world `m` takes):
  * `[scale, y, z, perspective]`, a pixel `scale` wide at a unit clip `w` — 2 / (height · |row y of
  * the view-projection|), the projection's vertical scale. A clip depth is affine in the point,
@@ -14,21 +15,29 @@ import { dotScalar3, length3 } from '../../../../../math/src/vector/vector.ts'
  * of the eye's plane, the clip depth at the eye. A translation changes neither gradient: the
  * matrix of a shifted world, with the eye shifted likewise, gives the same words.
  */
-export function screenSlab(m: ArrayLike<number>, height: number, eye: ArrayLike<number>) {
+export function screenSlabInto(
+  out: { [index: number]: number },
+  at: number,
+  m: ArrayLike<number>,
+  height: number,
+  eye: ArrayLike<number>,
+) {
   const scale = 2 / (height * length3(m[1], m[5], m[9]))
+  out[at] = scale
   // The clip depth's gradient (row z: m[2], m[6], m[10]) and the clip w's (row w: m[3], m[7], m[11]).
   const perspective = m[3] !== 0 || m[7] !== 0 || m[11] !== 0
-  if (!perspective)
-    return [
-      scale,
-      dotScalar3(m[2], m[6], m[10], eye[0], eye[1], eye[2]) + m[14],
-      scale * length3(m[2], m[6], m[10]),
-      0,
-    ]
+  if (!perspective) {
+    out[at + 1] = dotScalar3(m[2], m[6], m[10], eye[0], eye[1], eye[2]) + m[14]
+    out[at + 2] = scale * length3(m[2], m[6], m[10])
+    out[at + 3] = 0
+    return
+  }
   const infinite =
     dotScalar3(m[2], m[6], m[10], m[3], m[7], m[11]) /
     dotScalar3(m[3], m[7], m[11], m[3], m[7], m[11])
-  return [scale, infinite, (m[14] - infinite * m[15]) / length3(m[3], m[7], m[11]), 1]
+  out[at + 1] = infinite
+  out[at + 2] = (m[14] - infinite * m[15]) / length3(m[3], m[7], m[11])
+  out[at + 3] = 1
 }
 
 /**

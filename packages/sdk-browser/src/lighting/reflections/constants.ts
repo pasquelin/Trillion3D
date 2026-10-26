@@ -1,4 +1,5 @@
-import { DEG2RAD } from '../../../../math/src/constants.ts'
+import { DEG2RAD, HALF_PI } from '../../../../math/src/constants.ts'
+import { CENTIMETRES_PER_METRE } from '../../../../sdk-core/src/page/format.ts'
 
 /**
  * The constants of the reflection's shaders, by the name they read, one table: the WGSL block is
@@ -8,15 +9,16 @@ import { DEG2RAD } from '../../../../math/src/constants.ts'
 export const REFLECTION_CONSTANTS = {
   /** The image border, a fraction of its height, over which a hit fades into the next stage. */
   REFLECTION_EDGE: 1 / 16,
-  /** The taps of a footprint along its long axis at most: past that ratio of its axes, the level
-   *  is the long axis's share of a tap. */
-  REFLECTION_TAPS: 5,
   /** The thickness of a surface the march assumes, in pixels of its footprint: a ray behind a
    *  pixel's surface by more passes behind it and goes on (a pole, a fence), by less is inside it
    *  and hits. The same thickness at every depth and under every projection (`screenBack`). The
-   *  planes' march (`hizTrace` `'planes'`) and the proxy's bound read it; the reference's walk takes
+   *  planes' march (`hizTrace` `'planes'`) reads it; the reference's walk takes
    *  a share of the surface's depth instead (`reflectionRelativeDepthThickness`). */
   REFLECTION_THICKNESS: 4,
+  /** The roughness of the top layer from which the history of a pixel traced at full resolution has all the images the
+   *  setting gives it: under it the history is lerped down to two images, a mirror's noise left to the temporal
+   *  anti-aliasing. */
+  REFLECTION_MIRROR_ROUGHNESS: 0.05,
   /** The weight under which a stage of the chain is not evaluated: 2⁻¹¹, under half a step of an
    *  8-bit channel of a radiance of one. */
   REFLECTION_EPSILON: 2 ** -11,
@@ -46,33 +48,45 @@ export const REFLECTION_CONSTANTS = {
    *  smooth sky — has a width near zero, against which any history moved across the whole window and
    *  counted for a quarter of its images, image after image. */
   REFLECTION_CLAMP_FLOOR: 0.1,
-  /** The floor of the reflections' normalised lengths (`ReflectionLobe.T`, a footprint's direction),
-   *  of a sum of upsample weights and of a hit's slab: under it, the value is none. Under math's
+  /** The floor of the reflections' normalised lengths, of a sum of upsample weights and of a hit's slab: under it, the value is none. Under math's
    *  `DIVISOR_FLOOR` (1e-20) on purpose: these values can fall between the two — an axis a hair
    *  off the reflection, a neighbour's faint weight, a slab at a far depth —, where 1e-20 would
    *  shorten the normalised vector or scale the weighted mean down instead of normalising it. */
   REFLECTION_FLOOR: 1e-30,
+  /** The unit of the global distance field in the engine's metre: a ray marched through the field is
+   *  carried to centimetres, and what it finds back. */
+  REFLECTION_CENTIMETRES: CENTIMETRES_PER_METRE,
+  /** The half voxels of the clipmap that holds the point the screen stopped knowing a ray at, by which the march
+   *  through the field begins before it: the surface expansion needs a start outside the surface. */
+  REFLECTION_PULLBACK: 4,
+  /** The factor of a march's step, drawn about 1 near a mirror between this and its reciprocal, and the cone angle
+   *  (π/256) from which it is no longer drawn. */
+  REFLECTION_STEP_DITHER: 0.95,
+  REFLECTION_STEP_DITHER_CONE: HALF_PI / 128,
+  /** The least angle of the cone of a ray, whatever its lobe's sampling density says. */
+  REFLECTION_MIN_CONE: 0.00001,
 } as const
 
 /**
  * The integer constants of the reflection's shaders, one table, printed as `u32` (`REFLECTION_COUNTS_WGSL`).
- * What a ray may spend — the screen march's iterations, the steps of its walk of each ring of the scene — is
- * not here: those are settings with the reference's defaults (`reflectionOptions.ts`), read from the view
- * (`ReflectionView.scene`).
+ * What a ray may spend — the screen march's iterations, the steps of its march through the global distance
+ * field (`GLOBAL_DISTANCE_FIELD_TRACE_MAX_STEPS`) — is not here: the first is a setting with the reference's default,
+ * read from the view (`ReflectionView.scene`), the second the field's block's.
  */
 export const REFLECTION_COUNTS = {
-  /** The bits of the view's flags (`ReflectionView.scene.w`, `reflectionOptions.ts`): the scene is traced, its first
-   *  metres in detail, the screen looked at again past the rings, the screen traced, the history accumulated, the
-   *  neighbours' rays read, the last filter run, a scene hit taking the lit image, the lighting fogged along its ray. */
+  /** The bits of the view's flags (`ReflectionView.scene.z`, `reflectionOptions.ts`): the scene is traced, the screen
+   *  looked at again past the field, the screen traced, the history accumulated, the neighbours' rays read, the
+   *  last filter run, a scene hit taking the lit image, the lighting fogged along its ray, a scene hit read on the finest
+   *  page of the cache. */
   REFLECTION_SCENE_TRACES: 1,
-  REFLECTION_DETAIL_TRACES: 2,
-  REFLECTION_DISTANT_TRACES: 4,
-  REFLECTION_SCREEN_TRACES: 8,
-  REFLECTION_TEMPORAL: 16,
-  REFLECTION_RECONSTRUCTION: 32,
-  REFLECTION_BILATERAL: 64,
-  REFLECTION_SCENE_COLOR: 128,
-  REFLECTION_HEIGHT_FOG: 256,
+  REFLECTION_DISTANT_TRACES: 2,
+  REFLECTION_SCREEN_TRACES: 4,
+  REFLECTION_TEMPORAL: 8,
+  REFLECTION_RECONSTRUCTION: 16,
+  REFLECTION_BILATERAL: 32,
+  REFLECTION_SCENE_COLOR: 64,
+  REFLECTION_HEIGHT_FOG: 128,
+  REFLECTION_HI_RES_SURFACE: 256,
 } as const
 
 /** Threads per side of a reflection workgroup: one pixel or one texel each. */

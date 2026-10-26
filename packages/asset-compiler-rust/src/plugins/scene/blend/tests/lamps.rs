@@ -112,23 +112,22 @@ fn the_four_blender_lamp_types_become_gltf_lights_with_their_native_emitter_radi
     let names = ["Ampoule", "Sun", "Projecteur", "Panneau"];
     let (lights, out) = converted(&lamps, &names);
     // Power in watts is spread over the sphere for a point and a spot, over the lambertian
-    // hemisphere for an area, and a sun's strength is already an illuminance; the 683 factor is
-    // the candela per watt per steradian. Products are written in the order the conversion stores
-    // them, the last decimal of a float depending on that order.
+    // hemisphere for an area, and a sun's strength is already an illuminance. Products are written
+    // in the order the conversion stores them, the last decimal of a float depending on that order.
     let sphere = 1.0 / (4.0 * std::f64::consts::PI);
     let disc = 1.0 / std::f64::consts::PI;
     assert_eq!(
         json!(lights),
         json!([
             {"name":"Ampoule","type":"point","color":[1.0,0.5,0.25],
-             "intensity":1000.0 * sphere * 683.0,"extras":{"emitterRadius":0.5}},
+             "intensity":1000.0 * sphere,"extras":{"emitterRadius":0.5}},
             {"name":"Sun","type":"directional","color":[1.0,1.0,1.0],
-             "intensity":6.0 * 683.0},
+             "intensity":6.0},
             {"name":"Projecteur","type":"spot","color":[1.0,1.0,1.0],
-             "intensity":100.0 * sphere * 683.0,"extras":{"emitterRadius":0.25},
+             "intensity":100.0 * sphere,"extras":{"emitterRadius":0.25},
              "spot":{"innerConeAngle":0.25,"outerConeAngle":0.5}},
             {"name":"Panneau","type":"point","color":[1.0,1.0,1.0],
-             "intensity":50.0 * disc * 683.0,"extras":{"emitterRadius":5.0}},
+             "intensity":50.0 * disc,"extras":{"emitterRadius":5.0}},
         ]),
         "lamps converted from the SDNA have changed"
     );

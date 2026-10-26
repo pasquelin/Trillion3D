@@ -15,6 +15,9 @@ export type WgslDecl = {
   readonly deps: readonly WgslDecl[]
   /** The declaration as the shader reads it; a fragment's declarations, as written. */
   readonly text: string
+  /** A default: a program that lists another declaration of the same name takes that one in its
+   *  place, and keeps this one only when it lists none (`wgslFn`'s `weak`). */
+  readonly weak?: true
 }
 
 /** Spliced into a template as text, a declaration would be written again by every fragment
@@ -31,6 +34,7 @@ const declare = (
   name: string,
   deps: readonly WgslDecl[],
   text: string,
+  weak?: true,
 ): WgslDecl =>
   Object.freeze(
     Object.assign(Object.create(DECLARATION) as WgslDecl, {
@@ -38,12 +42,19 @@ const declare = (
       kind,
       deps: Object.freeze([...deps]),
       text,
+      ...(weak && { weak }),
     }),
   )
 
-/** A WGSL function `name`, `text` its whole declaration (`fn name(...)->...{...}`). */
-export const wgslFn = (name: string, deps: readonly WgslDecl[], text: string) =>
-  declare('fn', name, deps, text)
+/** A WGSL function `name`, `text` its whole declaration (`fn name(...)->...{...}`). With `weak`, a
+ *  default: the function a fragment calls without knowing whether the program supplies its own, which
+ *  the program's declaration of the same name replaces (`assemble.ts`). */
+export const wgslFn = (
+  name: string,
+  deps: readonly WgslDecl[],
+  text: string,
+  options: { weak?: true } = {},
+) => declare('fn', name, deps, text, options.weak)
 
 /** A WGSL module-scope constant `name`, `text` its whole declaration (`const name=...;`). */
 export const wgslConst = (name: string, deps: readonly WgslDecl[], text: string) =>

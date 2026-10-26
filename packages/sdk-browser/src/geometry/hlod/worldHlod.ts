@@ -1,14 +1,18 @@
 /**
  * THE WORLD'S HLOD AS THE ONE CUT READS IT.
  *
- * The cook builds each HLOD cell's actor of the next layer up to its chain's top, one DAG per cell
- * and material
- * (`world-roots.dag`, docs/FORMAT.md, World HLOD). This module turns that world DAG into the
- * engine's own shape — one `DagRoot` with a single `ClusterStructureIndex` and one culling
- * hierarchy — so the existing cut (`geometry/cut/rule.ts`, the selection shader
+ * The cook builds each HLOD cell's actor of the next layer up to its chain's top, one mesh per cell
+ * and material (`world-roots.dag`, docs/FORMAT.md, World HLOD). This module turns that world DAG
+ * into the engine's own shape — one `DagRoot` with a single `ClusterStructureIndex` and one
+ * culling hierarchy — so the existing cut (`geometry/cut/rule.ts`, the selection shader
  * `geometry/dag/shader/shader.ts`) cuts it as any primitive, each cluster drawn only while its HLOD
  * cell draws its actor (`geometry/dag/worlds/worldLinks.ts`): no second selection path and no second BVH
  * (rule 7), its hierarchy the cook's.
+ *
+ * An actor built without a cluster DAG — a merged, approximated or simplified mesh by default —
+ * is its level 0 alone: every cluster a root, no group, every error 0. It is drawn as a plain mesh
+ * is, whole at every distance: `cellTopGroups` joins the roots of one cell into one group, so
+ * none is drawn while another is not resident and the cut finds nothing to refine in them.
  *
  * The world pages are world-space geometry (`worldRootsPage`): the root's world matrix is the
  * identity, and the pages' `min`/`max`/`sphere` are their own world-space bounds. The
@@ -29,6 +33,7 @@ import { cullingLinks } from '../cut/links.ts'
 import { IDENTITY_WORLD } from '../../session/host/matrixElements.ts'
 import type { worldRootPages } from './worldRootPages.ts'
 import { sphereUnion } from '../../../../math/src/geometry/sphere.ts'
+import { entryOf } from '../../../../math/src/sequence/counts.ts'
 
 /** The `clusters`, `groups` and `culling` hierarchy of a world-roots DAG. A group's `children` and
  *  `outputs` name clusters by rank, the rank of the hierarchy's order (`merge.rs`,
@@ -153,11 +158,8 @@ function cellTopGroups(
   }
   const kept: ClusterGroup[] = [],
     tops = new Map<number, { groups: ClusterGroup[]; alone: number[] }>()
-  const topOf = (cell: number) => {
-    let top = tops.get(cell)
-    if (!top) tops.set(cell, (top = { groups: [], alone: [] }))
-    return top
-  }
+  const newTop = () => ({ groups: [] as ClusterGroup[], alone: [] as number[] })
+  const topOf = (cell: number) => entryOf(tops, cell, newTop)
   for (const group of groups) {
     const cell = cellOf(group)
     if (cell < 0) kept.push(group)

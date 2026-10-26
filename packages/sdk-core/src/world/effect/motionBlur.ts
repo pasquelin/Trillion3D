@@ -57,14 +57,6 @@ export class MotionBlur extends EffectPass {
   set cameraMotion(value: boolean) {
     this.write({ cameraMotion: value })
   }
-  /** The smallest object, in percent of the screen, whose own motion is measured, for every pass
-   *  that reads it; 0 leaves none out. */
-  get perObjectSize() {
-    return this.held.perObjectSize
-  }
-  set perObjectSize(value: number) {
-    this.write({ perObjectSize: value })
-  }
   /** Nothing to blur at an amount or a longest streak of the least: the engine passes it by. */
   override get idle() {
     const { amount, max } = this.held

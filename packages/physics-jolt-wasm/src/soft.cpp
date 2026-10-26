@@ -224,7 +224,8 @@ bool written(const Soft &soft, const Body &body, size_t start) {
 bool addSoft(const uint32_t *w) {
   World &world = trillion::world();
   uint32_t engine = w[1], index = engine & INDEX_MASK;
-  if (index >= world.slots.size() || world.slots[index].used || world.slots[index].refused)
+  if (index >= world.slots.size() || world.slots[index].used || world.slots[index].refused ||
+      !filterOf(w[23]).defined)
     return (world.error = BAD_COMMAND, false);
   Ref<SoftBodySharedSettings> shared;
   if (!settingsOf(w, shared)) return false;
@@ -234,7 +235,7 @@ bool addSoft(const uint32_t *w) {
     world.refused.push_back(engine);
     return true;
   }
-  SoftBodyCreationSettings settings(shared, RVec3(vec3(w + 2)), quat(w + 5), MOVING);
+  SoftBodyCreationSettings settings(shared, RVec3(vec3(w + 2)), quat(w + 5), ObjectLayer(w[23]));
   // No bend stiffer than its solver resolves in a substep of the page's step (`SOFT_BEND_FLOOR`).
   floorBends(*shared, world.fixedStep / float(settings.mNumIterations));
   settings.mUserData = engine;

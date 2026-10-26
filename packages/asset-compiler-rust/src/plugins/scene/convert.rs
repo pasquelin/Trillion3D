@@ -17,6 +17,7 @@ use std::{
     path::{Path, PathBuf},
     sync::atomic::{AtomicBool, Ordering},
 };
+use trillion3d_page_codec::MAX_UV_SETS;
 
 const PROGRESS_INTERVAL_BYTES: u64 = 8 * 1024 * 1024;
 fn import_error(error: &ufbx::Error) -> CompilerError {
@@ -37,16 +38,20 @@ fn import_error(error: &ufbx::Error) -> CompilerError {
     )
 }
 
-/// Values of a corner — position, normal, uv, colour, and on a deformed mesh the file's vertex:
-/// thirteen words, zero when the attribute is missing. Two corners with the same bits are one
-/// vertex, whatever index the file gives them (`plugins::scene::corners`).
-const CORNER_VALUES: usize = 13;
+/// Values of a corner — position, normal, uv, colour, on a deformed mesh the file's vertex, then the
+/// texture sets past the first: twenty-seven words, zero when the attribute is missing. Two corners
+/// with the same bits are one vertex, whatever index the file gives them (`plugins::scene::corners`).
+const CORNER_VALUES: usize = 13 + 2 * (MAX_UV_SETS - 1);
 const CORNER_POSITION: std::ops::Range<usize> = 0..3;
 const CORNER_NORMAL: std::ops::Range<usize> = 3..6;
 const CORNER_UV: std::ops::Range<usize> = 6..8;
 const CORNER_COLOR: std::ops::Range<usize> = 8..12;
 /// The file's own vertex, on a deformed mesh: its bones and shape offsets are the vertex's.
 const CORNER_VERTEX: usize = 12;
+/// Where texture set `set`, from 1, lies among a corner's values.
+const fn corner_extra_uv(set: usize) -> std::ops::Range<usize> {
+    13 + 2 * (set - 1)..15 + 2 * (set - 1)
+}
 /// Binary of an intermediate scene under construction, shared with scene drivers
 /// that write their own glTF: one view per byte block, aligned to four.
 #[derive(Default)]

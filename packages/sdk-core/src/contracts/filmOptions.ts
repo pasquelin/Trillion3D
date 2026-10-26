@@ -1,7 +1,10 @@
 import {
   ANY_NUMBER as ANY,
+  atLeast,
   choiceSetting as choice,
   countSetting as count,
+  flagSetting as flag,
+  INT32_RANGE,
   integerSetting as integer,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
@@ -30,11 +33,16 @@ import { clamp } from '../../../math/src/scalar/reals.ts'
  *  is the `vignetteSize` and whose fall is `vignetteSoftness`. */
 export const VIGNETTE_TYPES = ['cosineFourthLaw', 'oval'] as const
 
+/** Where the held-out primitives' alpha is composed: before the depth of field, where the translucent
+ *  layers are drawn, or after it, with the rest of the post stages. */
+const HOLDOUT_LOCATIONS = ['beforeDepthOfField', 'afterDepthOfField'] as const
+
 /** The levels of the colour fringe's quality: none, or the fringe read with three samples. */
 const FRINGE_LEVELS = ['off', 'high'] as const
 
-/** The strongest sharpening the tonemapper takes. */
-const SHARPEN_MOST = 10
+/** The strongest sharpening the tonemapper takes: a scene's own (`SceneEnvironment.sharpness`) and
+ *  an override (`tonemapperSharpen`) are read from 0 to it. */
+export const SHARPEN_MOST = 10
 
 /**
  * The film settings by field, each with the reference's default.
@@ -81,10 +89,29 @@ const SHARPEN_MOST = 10
  *   scene's colour is multiplied by, the bloom's glow not.
  *
  * The dither adds a triangular noise of one step of the display's channel to the colour shown, so
- * that a smooth gradient does not band: `quantizationDitheringBits` (0): 0 takes the step from the
- * display — 1/255 for an 8-bit one —, a number of bits from 1 makes the step 1/(2^bits − 1); from
- * 24 bits the step is under what a single-precision colour holds, and no dither is drawn: the way
- * to switch it off, for images compared pixel for pixel.
+ * that a smooth gradient does not band: `quantizationDitheringBits` (0): 0 or less takes the step
+ * from the display — 1/255 for an 8-bit one —, a number of bits from 1, any whole number, makes the
+ * step 1/(2^bits − 1). The dither is always drawn, as the reference always draws it, with a new
+ * pattern each image; the step of 32 bits, 2.3e-10, is under what the display holds of a colour:
+ * the way to compare images pixel for pixel.
+ *
+ * The alpha channel: `propagateAlpha` (false). Off, the lit image's alpha carries nothing the post
+ * stages read — they take the colour as it is — and the image shown is opaque. On, the alpha is the
+ * share of the background the image leaves visible, an inverse opacity: 1 where nothing is drawn, 0
+ * on a surface, multiplied by the transmittance of the sky, the fog, the clouds and the translucent
+ * layers, carried through the temporal pass, the depth of field, the bloom and the tonemapper and
+ * written beside the colour, which is not multiplied by it.
+ *
+ * The alpha holdout punches holes in that alpha, for an image composed over a backplate:
+ * - `primitiveAlphaHoldout` (false): whether the engine supports it at all. It takes effect only
+ *   with `propagateAlpha` on (`alphaHoldoutOf`); a translucent layer then adds the share of the
+ *   background it holds out, and the translucent layers are drawn once more to accumulate it
+ *   (`packages/sdk-browser/src/blend/holdout.ts`);
+ * - `translucencyHoldoutLocation` (`'beforeDepthOfField'`): where the accumulated alpha is laid
+ *   over the image, before the depth of field or after it.
+ * What is held out is the scene's: a surface of blending `'alphaHoldout'`, and the `holdout` of the
+ * sky (`SceneAtmosphere.holdout`), of the clouds and of the height fog (`SceneHeightFog.holdout`),
+ * each off by default.
  */
 export const FILM_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -101,7 +128,7 @@ export const FILM_RULES = /* @__PURE__ */ (() =>
     nonNegative('chromaticAberration', 0),
     number('chromaticAberrationStartOffset', 0, [0, 1]),
     choice('chromaticAberrationQuality', 'high', FRINGE_LEVELS),
-    number('chromaticAberrationMax', -1, [-2, ANY[1]]),
+    number('chromaticAberrationMax', -1, atLeast(-2)),
     choice('vignetteType', 'cosineFourthLaw', VIGNETTE_TYPES),
     nonNegative('vignetteColorRed', 0),
     nonNegative('vignetteColorGreen', 0),
@@ -116,11 +143,19 @@ export const FILM_RULES = /* @__PURE__ */ (() =>
     nonNegative('sceneColorTintRed', 1),
     nonNegative('sceneColorTintGreen', 1),
     nonNegative('sceneColorTintBlue', 1),
-    integer('quantizationDitheringBits', 0, [0, 32]),
+    integer('quantizationDitheringBits', 0, INT32_RANGE),
+    flag('propagateAlpha', false),
+    flag('primitiveAlphaHoldout', false),
+    choice('translucencyHoldoutLocation', 'beforeDepthOfField', HOLDOUT_LOCATIONS),
   ] as const))()
+/** Whether the alpha holdout is in effect: the engine supports it and the image carries an alpha
+ *  channel (`primitiveAlphaHoldout`, `propagateAlpha`). */
+export const alphaHoldoutOf = (
+  film: Pick<FilmValues, 'propagateAlpha' | 'primitiveAlphaHoldout'>,
+) => film.propagateAlpha && film.primitiveAlphaHoldout
 /** The film setting `field` of a runtime's context (`contextReader`): its default where the
  *  context holds none. */
-export const readFilmSetting = contextReader(FILM_RULES)
+export const readFilmSetting = /* @__PURE__ */ contextReader(FILM_RULES)
 /** The field of one film setting. */
 export type FilmField = keyof typeof FILM_RULES
 /** The film settings as a host writes them, by their fields: each its value, or nothing for its
@@ -131,12 +166,13 @@ export type FilmValues = SettingValues<typeof FILM_RULES>
 
 /** What each quality level below the top writes of the film's settings, the reference's own
  *  levels: no vignette and no grain, and no fringe, at `smooth`; the vignette but no grain and no
- *  fringe at `balanced`; all three at `fine`, as at `max`, which writes nothing
+ *  fringe at `balanced`; all three at `fine` and at `cinematic`, as at `max`, which writes nothing
  *  (`runtime/qualityLevels.ts`). */
 export const FILM_PRESET_LEVELS = {
   smooth: { tonemapperQuality: 0, chromaticAberrationQuality: 'off' },
   balanced: { tonemapperQuality: 2, chromaticAberrationQuality: 'off' },
   fine: { tonemapperQuality: 5, chromaticAberrationQuality: 'high' },
+  cinematic: { tonemapperQuality: 5, chromaticAberrationQuality: 'high' },
 } as const
 
 /**

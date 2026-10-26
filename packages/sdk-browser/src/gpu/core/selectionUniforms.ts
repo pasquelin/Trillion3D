@@ -29,9 +29,12 @@ export type SelectionUniforms = {
   /** The culls the host turned off (`CULL_FRUSTUM_OFF`, `CULL_MIN_LOD_OFF`,
    *  `CULL_DRAW_DISTANCE_OFF`, `../../geometry/dag/shader/viewsWgsl.ts`); none when absent. */
   cullOff?: number
-  /** The scale every placement's draw distance is multiplied by (`cutViewDistanceScale`,
-   *  `../../geometry/dag/shader/drawDistanceWgsl.ts`); 1 when absent. */
+  /** The scale every draw distance of an instance of an instanced mesh is multiplied by
+   *  (`cutViewDistanceScale`, `../../geometry/dag/shader/drawDistanceWgsl.ts`); 1 when absent. */
   viewDistanceScale?: number
+  /** The scale the draw distances of an object of its own are multiplied by: the same, times the
+   *  field of view's (`primitiveDistanceFactor`); 1 when absent. */
+  primitiveDistanceScale?: number
   /** The view's clip plane in the render frame, `dot(xyz, p) + w` at least 0 drawn
    *  (`../../geometry/dag/shader/clipPlaneWgsl.ts`); all zero for none. */
   clipPlane: [number, number, number, number]
@@ -44,8 +47,17 @@ export type SelectionUniforms = {
   prevViewProj?: Float32Array
   prevDepthMap?: [number, number]
   prevSize?: [number, number]
-  /** The host's frame: the clock the rows' closure stamps a row's use with, and, for a cut whose
-   *  occlusion runs two passes, its identity — such a cut reads the pyramid of the image before,
-   *  and no two images cut on the same one (`../../geometry/dag/swap/swap.ts`). */
+  /** The host's frame: for a cut whose occlusion runs two passes, its identity — such a cut reads
+   *  the pyramid of the image before, and no two images cut on the same one. */
   frame?: number
+  /** What the cluster cull judges the rasters by (`../../geometry/dag/shader/visibleWgsl.ts`): the
+   *  software raster on, the view's pixels per unit at depth one over the threshold of
+   *  `hardwareRasterEdgePixels`, whether the frame tessellates the displaced surfaces, and the
+   *  span of the depth buckets — absent, none —. Absent, the software raster is off. */
+  raster?: {
+    software: boolean
+    hardwareEdge: number
+    tessellation: boolean
+    buckets?: { minZ: number; maxZ: number }
+  }
 }

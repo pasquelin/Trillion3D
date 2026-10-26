@@ -20,7 +20,7 @@ import {
 } from '../../../../../bench/oracles/browser/pageWorkNodeWorker.ts'
 
 /** A cell file of no node: the smallest task a worker reads whole. */
-const emptyCells = () => new TextEncoder().encode(JSON.stringify({ version: 3, nodes: [] }))
+const emptyCells = () => new TextEncoder().encode(JSON.stringify({ version: 4, nodes: [] }))
 
 function withCores<T>(n: number, run: () => Promise<T>) {
   const previous = Object.getOwnPropertyDescriptor(globalThis, 'navigator')

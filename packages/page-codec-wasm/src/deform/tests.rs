@@ -4,7 +4,7 @@ use super::*;
 use crate::bits::{ColorRange, PositionGrid, UvRange};
 use crate::triangles::{CornerCode, Spans};
 use crate::writer::BitWriter;
-use crate::{decode, Header, Layout, PageError, MAX_UV_SETS};
+use crate::{decode_resident, Header, Layout, PageError, MAX_UV_SETS, RESIDENT_VERSION};
 
 const N: usize = 3;
 
@@ -53,39 +53,54 @@ fn page(start_shift: usize) -> Vec<u8> {
             out.stream((0..N).map(|v| (v as f32 * 0.12345679).to_bits()), 32);
         }
     }
-    let words = h.words().into_iter().chain(out.words().iter().copied());
+    let words = h
+        .words(RESIDENT_VERSION)
+        .into_iter()
+        .chain(out.words().iter().copied());
     words.flat_map(u32::to_le_bytes).collect()
 }
 
 #[test]
 fn joints_weights_and_targets_decode_from_their_streams() {
-    let decoded = decode(&page(0), 1 << 24).expect("page");
+    let decoded = decode_resident(&page(0), 1 << 24).expect("page");
     assert_eq!(decoded.morph_targets, 2);
-    let skin = decoded.attribute(8).expect("joints");
+    let skin = decoded.attribute(12).expect("joints");
     // Vertex 1: joint fields 1, 2, 3, 0 on base 5; weights 128, 127, 0 and what they leave.
     assert_eq!(skin[4..8], [6.0, 7.0, 8.0, 5.0]);
-    let weights = decoded.attribute(9).expect("weights");
+    let weights = decoded.attribute(13).expect("weights");
     assert_eq!(weights[4..8], [0.5, 0.5, 0.0, 0.0]);
     // Vertex 0 stores 255 and 0, 0: its last weight is zero; vertex 2 stores 0, 100, 100: 55.
     assert_eq!(weights[3], 0.0);
     assert_eq!(weights[11], 0.5);
-    let morph = decoded.attribute(10).expect("targets");
+    let morph = decoded.attribute(14).expect("targets");
     assert_eq!(morph[24..30], [2.0 * 0.12345679; 6]);
     assert_eq!(morph[30], 2.0 * 0.12345679);
 }
 
 #[test]
 fn a_record_that_lies_or_is_not_announced_refuses_the_page() {
-    assert_eq!(decode(&page(1), 1 << 24).unwrap_err(), PageError::Bounds);
+    assert_eq!(
+        decode_resident(&page(1), 1 << 24).unwrap_err(),
+        PageError::Bounds
+    );
     let good = page(0);
     let mut unflagged = good.clone();
     unflagged[16] = 0; // word 4: no flag, records still there
-    assert_eq!(decode(&unflagged, 1 << 24).unwrap_err(), PageError::Bounds);
+    assert_eq!(
+        decode_resident(&unflagged, 1 << 24).unwrap_err(),
+        PageError::Bounds
+    );
     // Word 21's low byte: the joint width in six bits, then the two low bits of the target count.
     let mut none = good.clone();
     none[84] = 2; // no target, the flag still set
-    assert_eq!(decode(&none, 1 << 24).unwrap_err(), PageError::Bounds);
+    assert_eq!(
+        decode_resident(&none, 1 << 24).unwrap_err(),
+        PageError::Bounds
+    );
     let mut wide = good;
     wide[84] = 17 | 128; // a joint seventeen bits wide
-    assert_eq!(decode(&wide, 1 << 24).unwrap_err(), PageError::Bounds);
+    assert_eq!(
+        decode_resident(&wide, 1 << 24).unwrap_err(),
+        PageError::Bounds
+    );
 }

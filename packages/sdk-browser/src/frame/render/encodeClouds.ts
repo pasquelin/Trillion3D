@@ -2,7 +2,8 @@ import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { cloudSeparatesAir, type CloudPart } from '../../../../sdk-core/src/modules/sky/clouds.ts'
 import { cloudShadowOfLight } from '../../../../sdk-core/src/scene/light/lightCloudShadow.ts'
-import { cloudsInView, cloudSetupOf } from '../../modules/sky/clouds/cloudModes.ts'
+import { cloudsInView, cloudSetupOf, type CloudSetup } from '../../modules/sky/clouds/cloudModes.ts'
+import { shownHeightFog } from '../../../../sdk-core/src/scene/core/fog.ts'
 import { advanceCloudView } from '../../modules/sky/clouds/reconstruct.ts'
 import { cloudTraceKey } from '../../modules/sky/clouds/traceExtraLayout.ts'
 import { cloudHazeInSecondPass } from '../../modules/sky/clouds/traceOptions.ts'
@@ -13,6 +14,7 @@ import { cloudProgramsReady, encodeCloudView } from '../../modules/sky/clouds/vi
 import { createCloudViewGpu, disposeCloudView } from '../../modules/sky/clouds/viewTargets.ts'
 import { cloudShadowStandIn } from '../../lighting/atmosphere/cloudShadowStandIn.ts'
 import { skyLightReadOf } from './skyLightState.ts'
+import { fogHoldout, holdoutOn } from '../prepare/alphaHoldout.ts'
 import {
   vsmConsumerResources,
   vsmOrStandIns,
@@ -24,12 +26,14 @@ import { viewProj } from '../backend/helpers.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { airRequests, airShapeOfRuntime, atmosphereDeclared } from './airState.ts'
 import { writeAirlessFrame } from './airlessFrame.ts'
-import { encodeOpaqueHaze, encodeSky } from './encodeAtmosphere.ts'
+import { atmosphereHoldout, encodeOpaqueHaze, encodeSky } from './encodeAtmosphere.ts'
+import { encodeHeightFog } from './encodeHeightFog.ts'
 import { cloudShadowOf } from './encodeCloudShadow.ts'
 import { directTiles } from './encodeLights.ts'
 import { followSkyModule, skyStateOf, sunChannelOf } from './encodeCloudsSky.ts'
 import { requestSkyAir as askSkyLightAir } from './encodeSkyLight.ts'
 import { cloudTraceFrameOf } from './skyModuleGate.ts'
+import { fogReadOf } from './localFogGpu.ts'
 
 /**
  * THE CLOUDS IN THE VIEW'S IMAGE, drawn after the sky and the haze on the surfaces and before the
@@ -63,12 +67,24 @@ export function requestSkyAir(rt: WebgpuPagesRuntime, device: GPUDevice) {
 /** The clouds part this view draws, none where the module has none or keeps them out of the view. */
 function drawnPart(rt: WebgpuPagesRuntime): CloudPart | undefined {
   const part = skyStateOf(rt)?.sky?.clouds
-  return part && cloudsInView(part.settings, false) ? part : undefined
+  if (!part || !cloudsInView(part.settings, false)) return undefined
+  // Clouds that hold their light out (`alphaHole`) do so with the alpha holdout alone.
+  return part.settings.alphaHole && !holdoutOn(rt) ? withoutHole(part) : part
+}
+
+/** The part with its hole off, made once for a part (a part is replaced, never written). */
+const withoutHoleOf = new WeakMap<CloudPart, CloudPart>()
+function withoutHole(part: CloudPart) {
+  let made = withoutHoleOf.get(part)
+  if (!made)
+    withoutHoleOf.set(part, (made = { ...part, settings: { ...part.settings, alphaHole: false } }))
+  return made
 }
 
 /** Whether the clouds of the last image of this view change over time with nothing else moving: they
- *  drift with the wind, a storm flashes, and a cut leaves the rebuilding unfinished. A held frame
- *  would freeze them. */
+ *  drift with the wind by the world's clock — a paused world drifts none: the clock must have moved
+ *  since the last image drawn —, a storm flashes, and a cut leaves the rebuilding unfinished. A held
+ *  frame would freeze them. */
 export function cloudsMoved(rt: WebgpuPagesRuntime) {
   const view = rt.gpu.clouds
   if (!view?.last.drawn) return false
@@ -76,7 +92,8 @@ export function cloudsMoved(rt: WebgpuPagesRuntime) {
   if (!part) return false
   const { wind, stormAmount } = part.material
   const drifts = (wind[0] !== 0 || wind[1] !== 0 || wind[2] !== 0) && wind[3] !== 0
-  return drifts || stormAmount !== 0 || view.last.images < SETTLE_IMAGES
+  const clockMoved = rt.run.graphClocks.time !== view.last.time
+  return (drifts && clockMoved) || stormAmount !== 0 || view.last.images < SETTLE_IMAGES
 }
 
 /** What the clouds of this image stand on: `air`, the atmosphere's tables built this image (`air`
@@ -96,10 +113,8 @@ function imageOf(
   airless: boolean,
 ) {
   const { gpu, lights } = rt
-  const scales = [0, 1].map((index) => {
-    const light = lights.store.atmosphereLight(index)
-    return light ? cloudShadowOfLight(light).cloudScatteredLuminanceScale : WHITE
-  })
+  const first = lights.store.atmosphereLight(0),
+    second = lights.store.atmosphereLight(1)
   const tiles = directTiles()
   const image: CloudTraceImage = {
     inverseView: invertMatrix4(inverse, cam.viewProjection),
@@ -107,7 +122,10 @@ function imageOf(
     frameIndex: rt.run.frame,
     time,
     airPresent: !airless,
-    lightScales: [scales[0], scales[1]],
+    lightScales: [
+      first ? cloudShadowOfLight(first).cloudScatteredLuminanceScale : WHITE,
+      second ? cloudShadowOfLight(second).cloudScatteredLuminanceScale : WHITE,
+    ],
     viewProjection: viewProj,
     lightGridCells: [tiles[1], tiles[2]],
     sunShadowChannel: channel === NO_INDEX ? undefined : channel,
@@ -122,8 +140,9 @@ function viewOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /** Whether this image continues the view's last: not after a cut of the camera, a change of the
- *  sizes or of the images' kind, nor when the last image drew no cloud or left no reconstructed
- *  image to read. Counts the images since the cut. */
+ *  allocated size or of the images' kind, nor when the last image drew no cloud or left no
+ *  reconstructed image to read; a change of the drawn size alone keeps the history (each image
+ *  holds the part of its texture it filled). Counts the images since the cut. */
 function continues(rt: WebgpuPagesRuntime, key: string, rebuilds: boolean) {
   const view = rt.gpu.clouds!,
     { last, state } = view
@@ -134,6 +153,18 @@ function continues(rt: WebgpuPagesRuntime, key: string, rebuilds: boolean) {
   const continued = same && (!rebuilds || !!view.reconstructedAt(state.current))
   last.images = continued ? last.images + 1 : 1
   return continued
+}
+
+/** What the clouds of this image hold out of the alpha, where the alpha holdout is in effect: the clouds
+ *  themselves (`alphaHole`), or the haze of the air and the fog in front of them, which hold out
+ *  (`SceneAtmosphere.holdout`, `SceneHeightFog.holdout`). As the reference does it, for the clouds traced one
+ *  pixel to a pixel (the fourth mode) alone, and never for a direct trace. */
+function heldCloudsOf(rt: WebgpuPagesRuntime, part: CloudPart, setup: CloudSetup) {
+  if (!holdoutOn(rt) || setup.direct || setup.mode.index !== 3) return undefined
+  const { alphaHole: cloud } = part.settings
+  const sky = !!rt.gpu.atmosphere && atmosphereHoldout(rt)
+  const fog = fogHoldout(rt, shownHeightFog(rt.lights.store.environment?.fog))
+  return cloud || sky || fog ? { cloud } : undefined
 }
 
 /** The programs this image needs, compiled or asked, and the options their key says: none until
@@ -150,22 +181,24 @@ function programsOf(
   const setup = cloudSetupOf(part.quality, true, perspective)
   const maps = vsmOrStandIns(vsmConsumerResources(rt), deferred.placeholders)
   const first = lights.store.atmosphereLight(0)
-  const channel = sunChannelOf(rt, !!vsmConsumerResources(rt) && !!first?.castsShadow)
-  const frame = cloudTraceFrameOf(first, channel !== NO_INDEX, false, false, airless)
+  const channel = sunChannelOf(rt)
+  const frame = cloudTraceFrameOf(first, channel !== NO_INDEX, airless)
   const tiles = lights.tiles && directTiles()[0] > 0 ? lights.tiles : undefined
-  const asked = cloudTraceKey(part.quality, frame, setup)
-  const key = { ...asked, localLights: asked.localLights && !!tiles }
+  const asked = cloudTraceKey(part.quality, frame, setup, part.material)
+  const key = asked.localLights && !tiles ? { ...asked, localLights: false } : asked
   const shape = airless ? airShapeOfRuntime(rt) : gpu.atmosphere!.shape
   const programs = cloudViewProgramsOf(device, shape, (error) =>
     rt.diag.diagnosticFailure('cloud-program-failed', error),
   )
   const hazed = cloudHazeInSecondPass(part.quality, !airless)
-  if (!cloudProgramsReady(programs, setup, key, hazed)) return undefined
-  return { setup, maps, channel, key, programs, tiles }
+  const corners = part.quality.cloudEmptySpaceSkippingCorners
+  const held = heldCloudsOf(rt, part, setup)
+  if (!cloudProgramsReady(programs, setup, key, hazed, corners, held)) return undefined
+  return { setup, maps, channel, key, programs, tiles, held }
 }
 
-/** The sky where no surface was drawn and the haze on the surfaces (`air`: the image shows an
- *  atmosphere), then the clouds over them. */
+/** The sky where no surface was drawn (`air`: the image shows an atmosphere), the fog over the lit image
+ *  and the sky, the haze marched on the surfaces (`air` again), then the clouds over them. */
 export function encodeSkyAndClouds(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -173,10 +206,9 @@ export function encodeSkyAndClouds(
   cam: EngineCamera,
   air: boolean,
 ) {
-  if (air) {
-    encodeSky(rt, encoder)
-    encodeOpaqueHaze(rt, encoder)
-  }
+  if (air) encodeSky(rt, encoder)
+  encodeHeightFog(rt, encoder, air)
+  if (air) encodeOpaqueHaze(rt, encoder)
   encodeClouds(rt, device, encoder, cam, air)
 }
 
@@ -223,8 +255,9 @@ function frameOf(
   const view = viewOf(rt, device)
   const allocated = { width: gpu.allocatedSize[0], height: gpu.allocatedSize[1] }
   const size = { width: gpu.targetSize[0], height: gpu.targetSize[1] }
-  const sizes = `${allocated.width}x${allocated.height}|${size.width}x${size.height}`
-  const cut = !continues(rt, sizes, made.setup.mode.reconstructs)
+  const cut = !continues(rt, `${allocated.width}x${allocated.height}`, made.setup.mode.reconstructs)
+  // The clouds' shade this image: the maps built, or the stand-in that shades nothing.
+  const shade = cloudShadowOf(rt) ?? cloudShadowStandIn(device)
   return {
     device,
     encoder,
@@ -244,16 +277,19 @@ function frameOf(
     air: {
       lights: lights.buffer,
       ...air,
-      fog: gpu.fogVolume?.read ?? deferred.placeholders.fog,
+      fog: fogReadOf(rt) ?? deferred.placeholders.fog,
     },
     material: entries,
     noise: made.maps.noise,
     extra: {
+      startDistance: made.key.emptySpace ? view.emptySpaceTable.view : undefined,
       maps: made.key.opaqueShadow ? made.maps : undefined,
       tileLights: made.tiles?.buffer,
       skyLight: made.key.skyLight ? skyLightReadOf(rt) : undefined,
+      cloudShadow: made.key.volumeShadowMap ? shade : undefined,
     },
-    hazeMaps: { maps: made.maps, cloudShadow: cloudShadowOf(rt) ?? cloudShadowStandIn(device) },
+    hazeMaps: { maps: made.maps, cloudShadow: shade },
+    held: made.held,
   }
 }
 
@@ -273,10 +309,15 @@ function encodeClouds(
   const part = drawnPart(rt)
   const stands = cloudAirOf(rt, air)
   if (!part || !stands) return disposeCloudView(rt.gpu)
+  // What the translucent surfaces read of the clouds is this image's, left by its encoding.
+  if (rt.gpu.clouds) rt.gpu.clouds.shown = undefined
   const frame = frameOf(rt, device, encoder, cam, part, stands)
   if (frame) encodeCloudView(frame)
   const view = rt.gpu.clouds
   if (!view) return
   view.last.drawn = !!frame
-  if (frame) view.last.preExposure = preExposureOf(rt).now
+  if (frame) {
+    view.last.preExposure = preExposureOf(rt).now
+    view.last.time = rt.run.graphClocks.time
+  }
 }

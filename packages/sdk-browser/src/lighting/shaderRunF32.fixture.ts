@@ -25,6 +25,8 @@ export const F32_SCOPE = {
   },
   vec3f: vector(3, (x) => Math.fround(Number(x))),
   vec4f: vector(4, (x) => Math.fround(Number(x))),
+  // Two columns of three, the clear coat's diffuse and specular; zero without arguments.
+  mat2x3f: (a: Value = [0, 0, 0], b: Value = [0, 0, 0]) => [a, b],
   dot,
   cross: (a: Value, b: Value) => cross(num(a), num(b)),
   length: (v: Value) => Math.fround(Math.sqrt(dot(v, v))),

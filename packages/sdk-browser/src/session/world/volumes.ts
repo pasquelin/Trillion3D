@@ -3,6 +3,7 @@ import type { Material } from '../../../../sdk-core/src/world/material/material.
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { SceneFogVolume } from '../../../../sdk-core/src/scene/volume/contracts.ts'
+import { drawnCount } from '../../../../sdk-core/src/world/math/box3.ts'
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { isInstancedNode, isVolumeNode } from '../../scene/host/graph/kinds.ts'
 
@@ -33,7 +34,8 @@ function recordsOf(mesh: Mesh, ids: string[], refused: (mesh: Mesh, error: unkno
   if (box.min.x > box.max.x) return []
   mesh.updateWorldMatrix(true, false)
   try {
-    const material = (firstMaterial(mesh.material) as Material).volumeOutputs()
+    const worn = firstMaterial(mesh.material) as Material
+    const material = worn.volumeOutputs()
     const instanced = isInstancedNode(mesh)
     return ids.map((id, at) => {
       let matrix = mesh.matrixWorld.elements
@@ -48,6 +50,7 @@ function recordsOf(mesh: Mesh, ids: string[], refused: (mesh: Mesh, error: unkno
         boundsMin: [box.min.x, box.min.y, box.min.z] as const,
         boundsMax: [box.max.x, box.max.y, box.max.z] as const,
         material,
+        graph: worn.graph,
       }
     })
   } catch (error) {
@@ -109,5 +112,4 @@ export function createWorldVolumes(
 }
 
 /** How many objects `mesh` is in the volume: one, or one a placement an instanced mesh draws. */
-const placements = (mesh: Mesh) =>
-  isInstancedNode(mesh) ? Math.min(mesh.count, mesh.instanceMatrix.count) : 1
+const placements = (mesh: Mesh) => (isInstancedNode(mesh) ? drawnCount(mesh) : 1)

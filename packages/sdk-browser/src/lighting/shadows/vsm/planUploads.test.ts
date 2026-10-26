@@ -56,11 +56,11 @@
 // shader read, the cover size at word 12, two pad words before the mip offsets; `vsm.render.views`
 // no longer written by the CPU (`render/renderViewsWgsl.ts`), the render parameters carrying its bound.
 // Retaken when the raster took the voxel rows' four tiers beside the five of corners
-// (`VSM_RENDER_TIERS`, `render/renderParamsWgsl.ts`): each chunk's counters and indirect arguments
+// (`VSM_RENDER_SOFTWARE_BIN`, `render/renderParamsWgsl.ts`): each chunk's counters and indirect arguments
 // hold three words more per tier and their arguments seven (`chunks/chunkSizing.ts`): those
 // buffers are hashed at their new size and stride; every other buffer kept.
 // Retaken when a sun's far-shadow distance took a word of its own at the end of the projection record
-// (`farShadowDistance`, 304 bytes a map for 288; 0 where a light names none, as every map here): the
+// (`farShadowEdge`, 304 bytes a map for 288; 0 where a light names none, as every map here): the
 // projection buffers are hashed at their new size, each record's other words kept; the render
 // parameters' new far drop (`farDrop`) is 0 here, and the draw-distance scale they took beside it
 // (`viewDistanceScale`) is 1 where a frame holds no distance: that one word moves the chunk
@@ -78,6 +78,48 @@
 // (mode 2 only); the render parameters took a last word (the radius threshold, 0 where the scene
 // names none, as here) and the view uniform one of rays and steps, neither written in this plan.
 // A sun's records, its levels, depth range and coarse flags are the defaults': kept.
+// Retaken when the distant lights came (`shadowDistantLightMode`, 1 by default): seed 1's second and
+// third frames hold a local light whose map fits one page, its last mip alone and always marked,
+// drawn once and kept; with the mode off (0) the three frames read as before, bit for bit — 75eb8b6b,
+// d9baa1af, 76220f82 — and so do the three of seed 2, which holds no such light.
+// Retaken when a spot's map took the outer cone the lighting lights it by (`spotConesOf`), one cone
+// chain for both, without the extra rounding of the angle to an f32 the map alone had: the spot
+// records' matrices move by the f32 rounding of that angle in both seeds; no page, offset or other
+// buffer moves.
+// Retaken when the projection record gained the threshold of the world position offset
+// (`wpoThreshold`, a float at byte 292: the square of the distance past which a clipmap level shows no
+// motion, zero for a local light's map): the sun's levels write it in both seeds, and in them alone.
+// Retaken when the plan stopped making and writing the buffers of the pool's tile depths and of the
+// translucent casters' coloured shadow memory, and the uniform block lost the pool's page grid: 128
+// bytes for 144, the words from the page table's size on closed up by two; every other word and
+// buffer kept.
+// Retaken when the raster's chunks gave way to one cull and one raster a view pass, each map's view
+// selecting its own level of detail: the render parameters (`vsm.render.params`) lost the chunk
+// words and the main view's focal, near, projection kind and first two rotation rows, and took the
+// records' capacity; every other buffer written, hashed alone, is the same bit for bit in both seeds
+// and all three frames as before the change.
+// Retaken when the shadow maps took their occlusion culling: the projection records grew from 304 to
+// 400 bytes, the view the occlusion pyramid last held each map by appended (its previous id and table
+// origin in the former pad at 296, its clip matrix, depth terms and finest mip after), and the set
+// writes its pyramid build's cleared arguments once (`vsm.pyramidArgsInit`). With the record held at
+// 304 bytes, those words unwritten and the set made without the occlusion, the digests are the ones
+// before, bit for bit, in both seeds and all three frames: no other buffer moved.
+// Retaken when the shadow views took the camera's descent of the hierarchy (`traversal/`): the
+// render parameters lost the packed pages the casters ran a thread each over (`rowCount`) and took
+// the word the descent's listed pages start at (`listedBase`) in the placements' word, and the
+// descent's uniform block and indirect arguments (`vsm.descent.*`) are buffers the CPU now writes.
+// With those buffers left out of the digest and the two words written as before (5000 pages, one
+// placement), the digests are the ones before, bit for bit, in both seeds and all three frames.
+// Retaken when the descent's views became a map and a mip of it, as the packed views of the
+// reference are: the render parameters took the views the descent lists at most (`viewCap`), the
+// word that moves `vsm.render.params`.
+// Retaken when the shadow maps' tunables became view settings: the uniform block grew from 128 to 224
+// bytes (words 32 to 55: the trace's biases, ray lengths and counts, the page keeping, the slope and
+// plane caps, the dither and the one-pass light count, each the former constant or the reference's
+// default), the marking parameters from 128 to 240 bytes (page dilation, strides, back-face cull and
+// the first-person bias), a cast box took 16 words (its half-axes as a matrix and a view mask), the
+// render parameters a slot for each view pass, and the dynamic coarse pages' pixel threshold took the
+// reference's clustered-geometry default, 4 for 16 (word 13).
 import { mulberry32 } from '../../../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -85,14 +127,14 @@ import { planFrames, randomWorld } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    '75eb8b6beeae45ef727c8c4c58eefab6b3c22c9c9d2f4820a9bffe736be31888',
-    'd9baa1af0baa1c39ec22193e533f3fb8cc58bb14f0eefb9ab89bab4295e4b469',
-    '76220f82de6e5aaf39a57bb337b96e37997669c39e76cf580d16b3779bdcb75b',
+    '164579dde6ed233f1982b61ec4c265b8f59f4daf4fdcc0f2b8a3bb949c676324',
+    'bab9b6c1c28536b7de2d5f1f016d2fd51ef01f75ed462aad5bbfabbd1f4af14f',
+    '026ee3b35ecf196dd28471231c4ccdf695d30bbdae77df95151308ec2881dd96',
   ],
   2: [
-    '319be5fd7354fccf0dfb6402461b04bb676832663cf25cb7aca7450d7c8c12f2',
-    'fec1c40d919156a7a1704da0513050df13042b59363ee4d5ab7b23af1021c531',
-    '6c70d23a78f21bd72335696e564115b1b4964073359db777df8c567e4848263f',
+    '3adfa3d4311e53003bb12ff4bdb3939f4abe60a57b665dbf80d97ad70c5bce64',
+    '6c08f804126a4268e7337acd5db85badbce3501eaeba7ee15eab7235f954517d',
+    'c14cc3c1f9c456f089e05496eb494108ad4a261eaaf0cb5b6336b9129aaf24bb',
   ],
 }
 

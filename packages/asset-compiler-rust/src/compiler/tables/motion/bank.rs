@@ -5,8 +5,9 @@
 //! An instanced skinned object is a leaf node drawing, through a skin, a mesh with no morph target,
 //! which its settings name `skinnedInstance` (`ObjectSettings::node`). What it plays is a bake — a
 //! (skin, clip) sampled —, each pair sampled once whatever the objects playing it:
-//! `N = max(1, round(duration · ANIMATION_BANK_SAMPLE_RATE))` frames, frame `f` at
-//! `f / ANIMATION_BANK_SAMPLE_RATE` seconds (`Clip::frames`); at each, every node from the skin's
+//! `N = max(1, round(duration · rate))` frames, frame `f` at `f / rate` seconds (`Clip::frames`),
+//! the rate the clip's own (`rate.rs`: the first usual rate its duration fits, else
+//! `ANIMATION_BANK_SAMPLE_RATE`); at each, every node from the skin's
 //! frame down to each joint (`Chain`) takes its local pose — the sampled one where the clip moves
 //! it (`sample.rs`), its declared one otherwise —, and joint `j`'s transform `M_j` in the frame's
 //! space is the product of those from the frame down. Each `M_j` must be rigid — its linear part's
@@ -22,7 +23,8 @@
 //!
 //! The file is little-endian 4-byte words: the header (`ANIMATION_BANKS_HEADER_WORDS`: magic,
 //! version, bakes, items, the pool's floats); each bake (`ANIMATION_BANK_BAKE_WORDS`: joints,
-//! frames, the pool float its inverse binds start at, the one its keys start at); each item
+//! frames, the pool float its inverse binds start at, the one its keys start at, its rate in
+//! frames a second as `f32`); each item
 //! (`ANIMATION_BANK_ITEM_WORDS`: bake, flags — `ANIMATION_BANK_LOOPING` —, start position, play
 //! rate and screen size as `f32`, the low then the high corner of its bounds as `f32`, its
 //! published mesh); then the `f32` pool: per bake its inverse binds, the three rows of each joint's
@@ -32,9 +34,9 @@
 //! Its folder holds the stages: a skin's joints posed through a clip frame by frame, with the
 //! bounds of a plain skinned node (`poses.rs`); what an object may play (`select.rs`); the bakes,
 //! each sampled and kept once (`bakes.rs`); and the file's bytes (`encode.rs`).
-use super::super::graph::node_parents;
 use super::sample::Clip;
 use super::*;
+use crate::compiler::source::nodes::node_parents;
 use crate::compiler::validate::OPTIONS;
 use std::collections::btree_map::Entry;
 use trillion3d_math::geometry::aabb::grow_flat;
@@ -54,15 +56,15 @@ use select::{bankable, chosen, index, scaled};
 /// The animation banks' file, beside the scene tables.
 pub(crate) const ANIMATION_BANKS_FILE: &str = "animation-banks.bin";
 /// Version of the animation banks' file: one of another version is refused, never guessed.
-pub(crate) const ANIMATION_BANKS_VERSION: u32 = 1;
+pub(crate) const ANIMATION_BANKS_VERSION: u32 = 2;
 /// 'T','B','N','K' read as an unsigned 32-bit integer little-endian.
 pub(crate) const ANIMATION_BANKS_MAGIC: u32 = 0x4b4e4254;
 /// Header words of the animation banks' file: magic, version, the bakes, the items, and the
 /// floats of the pool.
 pub(crate) const ANIMATION_BANKS_HEADER_WORDS: usize = 5;
-/// Words of a bake: its joints, its frames, and the pool floats its inverse binds and its keys
-/// start at.
-pub(crate) const ANIMATION_BANK_BAKE_WORDS: usize = 4;
+/// Words of a bake: its joints, its frames, the pool floats its inverse binds and its keys start
+/// at, and its rate, the frames a second its keys are sampled at.
+pub(crate) const ANIMATION_BANK_BAKE_WORDS: usize = 5;
 /// Words of an item: its bake, its flags, its start position, play rate and screen size, its
 /// bounds' low then high corner, and its published mesh.
 pub(crate) const ANIMATION_BANK_ITEM_WORDS: usize = 12;
@@ -91,11 +93,12 @@ pub(crate) struct Banks {
     pub refused: Vec<(usize, String)>,
 }
 
-/// A bake as the file holds it: its joints, its frames, and its floats — the inverse binds, then
-/// the keys.
+/// A bake as the file holds it: its joints, its frames, the rate they are sampled at, and its
+/// floats — the inverse binds, then the keys.
 struct Bake {
     joints: usize,
     frames: usize,
+    rate: f64,
     floats: Vec<f32>,
 }
 
@@ -168,6 +171,10 @@ pub(crate) fn bake_banks(
             vacant.insert(Skin::read(g, bin, &parents, skin)?);
         }
         let read = &skins[&skin];
+        if read.joints.is_empty() {
+            banks.refused.push((node, "its skin has no joints".into()));
+            continue;
+        }
         let Some(clip) = chosen(node, &instance, animations, &read.joints)? else {
             banks
                 .refused

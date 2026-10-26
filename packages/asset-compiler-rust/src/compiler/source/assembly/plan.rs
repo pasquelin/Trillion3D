@@ -17,6 +17,31 @@ pub(crate) const INSTANCE_EXTRA: &str = "assemblyInstance";
 /// The key of a primitive's `extras` that marks one the load made only to carry an assembly's
 /// levels: its own triangle is a placeholder, never read.
 pub(crate) const TOP_EXTRA: &str = "assemblyTop";
+/// The reason the import report, a carrier's DAG report (`clusters.json`) and its progress event
+/// tell of groups of instances that climb nowhere: their instances draw down to their own roots.
+pub(crate) const NOT_MERGED: &str = "assembly-group-not-merged";
+/// The key of a mesh's `extras` that marks one drawn as a part of an assembly: the assembly's mesh,
+/// whose resolved settings it takes (`parts.rs`).
+pub(crate) const PART_EXTRA: &str = "assemblyPart";
+
+/// What the `extras` of the glTF object `value` — a mesh, a primitive, a node — hold under `key`.
+pub(crate) fn extra<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
+    value.get("extras")?.get(key)
+}
+
+/// The material primitive `p` names, none for a primitive that names none.
+pub(crate) fn material_of(p: &Value) -> Option<usize> {
+    let material = p.get("material").and_then(Value::as_u64);
+    material.map(|m| m as usize)
+}
+
+/// The assembly mesh the glTF mesh `mesh` is drawn as a part of (`PART_EXTRA`), none for a mesh
+/// that is not marked.
+pub(crate) fn part_of(mesh: &Value) -> Option<usize> {
+    extra(mesh, PART_EXTRA)?
+        .as_u64()
+        .map(|assembly| assembly as usize)
+}
 
 /// One instance that joins a carrier: its rank among the assembly's nodes, the primitive of its
 /// part it draws — mesh, primitive — and the transform it stands at, in the assembly's space.
@@ -60,7 +85,7 @@ impl AssemblyParents {
     /// of its part up to the last that has one — `null` for a primitive none replaces —, or `None`
     /// for a node that is no instance of an assembly or whose roots have no parent.
     pub(crate) fn of_node(&self, node: &Value) -> Option<Value> {
-        let instance = node.pointer(&format!("/extras/{INSTANCE_EXTRA}"))?;
+        let instance = extra(node, INSTANCE_EXTRA)?;
         let key = (
             instance.get("of")?.as_u64()? as usize,
             instance.get("at")?.as_u64()? as usize,
@@ -87,11 +112,6 @@ pub(crate) struct AssemblyPlan {
     pub parts: BTreeSet<(usize, usize)>,
 }
 
-/// The whole number `value` holds, `what` naming it in the refusal.
-fn whole(value: Option<&Value>, what: &str) -> Result<usize> {
-    required_index(value, what)
-}
-
 impl AssemblyPlan {
     /// The plan of the document `g` for the primitives `jobs` compile: a carrier is planned when
     /// its own primitive is compiled, an instance when the primitive of its part is.
@@ -100,22 +120,23 @@ impl AssemblyPlan {
         let nodes = values(g, "nodes")?;
         let mut plan = Self::default();
         for (mesh, source) in values(g, "meshes")?.iter().enumerate() {
-            let Some(built) = source.pointer(&format!("/extras/{BUILT_EXTRA}")) else {
+            let Some(built) = extra(source, BUILT_EXTRA) else {
                 continue;
             };
-            let first = whole(built.get("first"), "assemblyBuilt.first")?;
+            let first = required_index(built.get("first"), "assemblyBuilt.first")?;
             let carriers = built.get("carriers").and_then(Value::as_array);
             for carrier in carriers.into_iter().flatten() {
-                let primitive = whole(carrier.get("primitive"), "assemblyBuilt.primitive")?;
+                let primitive =
+                    required_index(carrier.get("primitive"), "assemblyBuilt.primitive")?;
                 if !compiled.contains(&(mesh, primitive)) {
                     continue;
                 }
                 let mut joined = Vec::new();
                 for pair in carrier["uses"].as_array().into_iter().flatten() {
-                    let at = whole(pair.get(0), "assemblyBuilt.uses")?;
-                    let drawn = whole(pair.get(1), "assemblyBuilt.uses")?;
+                    let at = required_index(pair.get(0), "assemblyBuilt.uses")?;
+                    let drawn = required_index(pair.get(1), "assemblyBuilt.uses")?;
                     let node = item(nodes, first + at, "node")?;
-                    let part = (whole(node.get("mesh"), "node.mesh")?, drawn);
+                    let part = (required_index(node.get("mesh"), "node.mesh")?, drawn);
                     if compiled.contains(&part) {
                         let matrix = local_matrix(node)?;
                         joined.push(Use { at, part, matrix });

@@ -6,6 +6,15 @@ import type { SessionParts } from './sessionParts.ts'
 import { engineIdOf } from '../simulatedIds.ts'
 import { drawnBySoft } from '../soft/softVertices.ts'
 
+/** A query posted to the worker (`post`, given its id) after the frame's commands: its answer. */
+async function ask(c: SessionParts, post: (id: number) => void) {
+  await c.started
+  c.link.flush()
+  const id = ++c.s.asked
+  post(id)
+  return new Promise<Uint32Array>((resolve) => c.casts.set(id, resolve))
+}
+
 /** What the world asks of a session between its frames: its clock, its water, the scene's changes,
  *  its queries and its end. */
 export function createSessionControls(c: SessionParts) {
@@ -41,13 +50,11 @@ export function createSessionControls(c: SessionParts) {
       followNode(node, bodies, writer, tiles, c.poses.follow, c.failed)
     },
     /** Scene queries (`CAST_WORDS` each), answered after the frame's commands: hits in order. */
-    async cast(queries: Uint32Array) {
-      await c.started
-      c.link.flush()
-      const id = ++s.asked
-      worker.postMessage({ type: 'cast', id, queries }, [queries.buffer])
-      return new Promise<Uint32Array>((resolve) => c.casts.set(id, resolve))
-    },
+    cast: (queries: Uint32Array) =>
+      ask(c, (id) => worker.postMessage({ type: 'cast', id, queries }, [queries.buffer])),
+    /** An overlap query (`OVERLAP_WORDS`), answered after the frame's commands: the bodies it meets. */
+    overlap: (query: Uint32Array) =>
+      ask(c, (id) => worker.postMessage({ type: 'overlap', id, query }, [query.buffer])),
     /** The model a tile body's engine id belongs to, or the mesh a body's names, or `null`. */
     objectOf: bodies.slots.objectOf,
     /** The engine id of `node`'s body; -1 while it is not simulated. */

@@ -4,6 +4,10 @@
 // tree's record table and the frame words are held in words (`treeTable.ts`, `../frameTable.ts`).
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import {
+  LEAF_DOUBLES,
+  LEAF_STRIDE_CONSTANT,
+  leafStride,
+  PARENT_LEAF,
   REACH_UNBOUNDED,
   treeNodeCount,
   TREE_SPAN,
@@ -18,16 +22,26 @@ import { NODE_MAX, NODE_MIN } from '../nodeLayout.ts'
 import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { mirrorKey } from '../../cut/adoption/denseKeys.ts'
 import { TREE_REFIT_WGSL } from './treeRefitWgsl.ts'
+import { TREE_LEAVES_WGSL } from '../../../placement/tree/treeLeavesWgsl.ts'
+import { NODE_TABLE } from '../nodeTable.ts'
 import {
   DOUBLE_HELPERS,
   pair,
   type Pair,
 } from '../../../placement/compose/composeDoubles.fixture.ts'
-import { DAG_NODE_FLOATS, FRAME_ROW_WORDS, type PackedDag } from '../types.ts'
+import { DAG_NODE_FLOATS, FRAME_ROW_WORDS, type DagRoot, type PackedDag } from '../types.ts'
 import { recordTable } from '../../../gpu/core/recordTexture.fixture.ts'
 import { TREE_TABLE } from './treeTable.ts'
-import { DRAW_FAR_WORD, DRAW_NEAR_WORD, FRAME_TABLE, MARK_WORD, ROOT_WORD } from '../frameTable.ts'
-import { f32Bits } from '../../../../../math/src/float/bits.ts'
+import {
+  DRAW_FAR_WORD,
+  DRAW_NEAR_WORD,
+  FRAME_TABLE,
+  MARK_WORD,
+  PARENT_WORD,
+  ROOT_WORD,
+} from '../frameTable.ts'
+import { f32Bits, fromF32Bits } from '../../../../../math/src/float/bits.ts'
+import { drawDistanceAt } from '../drawDistance.ts'
 
 /** `tree`'s record table as the host writes it: its nodes, then its order. */
 function treeTableOf(tree: PlacementTree) {
@@ -40,15 +54,18 @@ function treeTableOf(tree: PlacementTree) {
   return { table, words }
 }
 
-/** Each placement's frame words the refit reads: its root, its mark, the distances it is drawn at. */
+/** Each placement's frame words the refit and the leaves read: its root, its mark, the distances it
+ *  is drawn at, the node of the group above its root. */
 const frameWords = (dag: PackedDag) =>
   Array.from({ length: dag.worldSources.length * FRAME_ROW_WORDS }, (_, k) => {
     const w = Math.floor(k / FRAME_ROW_WORDS),
       at = k % FRAME_ROW_WORDS
     if (at === ROOT_WORD) return dag.rootNodes[w]
     if (at === MARK_WORD) return dag.mark[w]
-    if (at === DRAW_NEAR_WORD) return f32Bits(dag.drawDistance?.[2 * w] ?? 0)
-    return at === DRAW_FAR_WORD ? f32Bits(dag.drawDistance?.[2 * w + 1] ?? 0) : 0
+    if (at === PARENT_WORD) return dag.parentNode?.[w] ?? NO_INDEX
+    const distance = drawDistanceAt(dag.drawDistance, w)
+    if (at === DRAW_NEAR_WORD) return f32Bits(distance?.min ?? 0)
+    return at === DRAW_FAR_WORD ? f32Bits(distance?.max ?? 0) : 0
   })
 
 /** Every placement's leaf as the GPU writes it (`../../../placement/tree/treeLeavesWgsl.ts`, proven word
@@ -73,7 +90,7 @@ export function leafBoxes(dag: PackedDag) {
 }
 
 /** `dag`'s frame words as their record table holds them (`frameWords`). */
-export function frameTableOf(dag: PackedDag) {
+function frameTableOf(dag: PackedDag) {
   const count = dag.worldSources.length,
     table = recordTable(FRAME_TABLE, Math.max(1, count)),
     words = frameWords(dag)
@@ -82,10 +99,37 @@ export function frameTableOf(dag: PackedDag) {
   return table
 }
 
+/** The leaves the refit fits over as `members` holds them: the boxes (`leafBoxes`) alone, `PARENT_LEAF`
+ *  doubles a placement, where no `parents` is given (a cut whose packing names no group above any
+ *  root); else `LEAF_DOUBLES`, the parent leaf after each box — the words the leaves pass writes
+ *  (`PARENT_LEAF`: the centre, the radius, the error, a one) of the placements `parents` names,
+ *  zeros for any other. */
+function memberLeaves(dag: PackedDag, parents?: (w: number) => readonly number[] | undefined) {
+  const boxes = leafBoxes(dag),
+    count = dag.worldSources.length,
+    pairs: Pair[] = []
+  const bits = new Uint32Array(1),
+    floats = new Float32Array(bits.buffer)
+  const word = (value: number) => ((floats[0] = value), bits[0])
+  for (let w = 0; w < count; w++) {
+    for (let k = 0; k < PARENT_LEAF; k++) pairs.push(pair(boxes[w * 6 + k]) as Pair)
+    if (!parents) continue
+    const leaf = parents(w)
+    const [cx, cy, cz, radius, error] = leaf ?? [0, 0, 0, 0, 0]
+    pairs.push([word(cx), word(cy)], [word(cz), word(radius)], [word(error), leaf ? 1 : 0])
+  }
+  return pairs
+}
+
 /** Fits `groups` of `dag`'s tree and every node above them, in `tree.nodes`; every group by default.
  *  The leaves are the GPU's from the packing as it stands (`leafBoxes`), the marks and parks the
- *  packing's. Returns the nodes fitted. */
-export function refitTree(dag: PackedDag, groups?: Iterable<number>) {
+ *  packing's, the parent leaves those `parents` names (`memberLeaves`), the narrow kernel's where
+ *  none is given. Returns the nodes fitted. */
+export function refitTree(
+  dag: PackedDag,
+  groups?: Iterable<number>,
+  parents?: (w: number) => readonly number[] | undefined,
+) {
   const tree = dag.placementTree as PlacementTree
   const { table, words } = treeTableOf(tree)
   const params = { first: 0, count: 0, base: 0, live: tree.count } as Record<string, number>
@@ -101,7 +145,8 @@ export function refitTree(dag: PackedDag, groups?: Iterable<number>) {
       params,
       tree: table,
       frames: frameTableOf(dag),
-      members: Array.from(leafBoxes(dag), (v) => pair(v) as Pair),
+      members: memberLeaves(dag, parents),
+      [LEAF_STRIDE_CONSTANT]: leafStride(!!parents),
     },
   )
   const all = groups ?? Array.from({ length: tree.levels.at(-1)!.count }, (_, g) => g)
@@ -148,4 +193,47 @@ export function treeChange(dag: PackedDag, roots: readonly { world: { elements: 
   for (let k = 0; k < TREE_SPAN; k++) dag.rootNodes[tree.order[640 + k]] = NO_INDEX
   for (const w of [130, 200, 7000, tree.order[640]]) touched.add(w)
   return touched
+}
+
+/** The leaves the shipped leaves pass (`placement/tree/treeLeavesWgsl.ts`) writes over `roots`
+ *  packed as `dag`, `LEAF_DOUBLES` doubles each, or the box's six where the cut is not `parented`:
+ *  each placement's box and, after it, the ball and error of the group above its root. */
+export function leavesWritten(dag: PackedDag, roots: readonly DagRoot[], parented = true) {
+  const stride = leafStride(parented)
+  const members: Pair[] = Array.from({ length: roots.length * stride }, () => [0, 0])
+  // The cut's nodes as their record table holds them (`nodeTable.ts`).
+  const count = dag.nodes.length / DAG_NODE_FLOATS,
+    nodes = recordTable(NODE_TABLE, count),
+    words = new Uint32Array(dag.nodes.buffer, dag.nodes.byteOffset, dag.nodes.length)
+  for (let n = 0; n < count; n++)
+    nodes.set('Node', n, words.subarray(n * DAG_NODE_FLOATS, (n + 1) * DAG_NODE_FLOATS))
+  const run = shaderRun<{ writeLeaf(w: number): void }>(
+    TREE_LEAVES_WGSL,
+    [
+      ...DOUBLE_HELPERS,
+      ...['dLess', 'dMin', 'dMax', 'fromF32', 'carriedBox', 'nodesNode', 'nodesWord'],
+      ...['framesRow', 'framesWord', 'markReach', 'reachUnbounded', 'writeLeaf'],
+    ],
+    {
+      nodes,
+      worlds: roots.flatMap(({ world }) => Array.from(world.elements, (v) => pair(v))),
+      frames: frameTableOf(dag),
+      members,
+      [LEAF_STRIDE_CONSTANT]: stride,
+    },
+  )
+  for (let w = 0; w < roots.length; w++) run.writeLeaf(w)
+  return members
+}
+
+/** The parent leaf of placement `w` among the wide `members`: its ball's centre and radius, its
+ *  error, whether it names a group. */
+export function parentLeafOf(members: readonly Pair[], w: number) {
+  const at = w * LEAF_DOUBLES + PARENT_LEAF
+  return {
+    centre: [members[at][0], members[at][1], members[at + 1][0]].map(fromF32Bits),
+    radius: fromF32Bits(members[at + 1][1]),
+    error: fromF32Bits(members[at + 2][0]),
+    named: members[at + 2][1] === 1,
+  }
 }

@@ -13,7 +13,8 @@ import {
 } from './visWords.ts'
 import { VOXEL_BRICK_TRIANGLES, VOXEL_PAGE_BRICKS } from '../../../sdk-core/src/page/voxelPage.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { PATTERN_FLIP, patternIndex } from './tessellation/contract.ts'
+import { PATTERN_FLIP } from './tessellation/contract.ts'
+import { patternIndex } from './tessellation/patternIndex.fixture.ts'
 import * as P from './tessellation/patchWgsl.ts'
 import * as D from './tessellation/domainWgsl.ts'
 import { diceSource } from './tessellation/diceWgsl.ts'
@@ -193,16 +194,16 @@ type Domain = {
     viewProj: object,
   ): number[]
   uvDerivative(...args: unknown[]): number
-  setDensities(density: number[], scale: number): number[]
+  setDensity(low: number[], high: number[], scale: number, set: number): number
 }
 const domainRun = () =>
   shaderRun<Domain>(
     wgslBlock(
       'domainTest',
-      [D.fadeLine, D.pointDisplacement, D.displacedClip, D.setDensities, D.uvDerivative],
+      [D.fadeLine, D.pointDisplacement, D.displacedClip, D.setDensity, D.uvDerivative],
       '',
     ),
-    ['fadeLine', 'pointDisplacement', 'displacedClip', 'setDensities', 'uvDerivative'],
+    ['fadeLine', 'pointDisplacement', 'displacedClip', 'setDensity', 'uvDerivative'],
     {},
   )
 
@@ -264,7 +265,10 @@ test('the map is read at the level a micro-triangle’s edge asks, from the mate
   assert.equal(run.uvDerivative(8, 2, 100, 0.5, false), 1 / (2 * 100 * 0.5))
   assert.equal(run.uvDerivative(8, 4, 100, 0.5, true), run.uvDerivative(8, 2, 100, 0.5, true) / 2)
   // The density of each set at the object's scale; a set the compiler measured none of reads 1.
-  assert.deepEqual(run.setDensities([2, 0, 0.5, 8], 3), [6, 3, 1.5, 24])
+  assert.deepEqual(
+    [0, 1, 2, 3, 4, 5, 6, 7].map((set) => run.setDensity([2, 0, 0.5, 8], [0, 4, 0, 1], 3, set)),
+    [6, 3, 1.5, 24, 3, 12, 3, 3],
+  )
 })
 
 test('the dicing reads a masked row’s cutout at each vertex, at its set’s density, and drops the micro-triangles of a vertex it cuts', () => {
@@ -282,7 +286,7 @@ test('the dicing reads a masked row’s cutout at each vertex, at its set’s de
     /dicedKept\(page,d,view,at,mat3x2f\(cutoutUv\[0\],cutoutUv\[1\],cutoutUv\[2\]\)/,
   )
   const kept = functionsOf(code, ['dicedKept'])
-  assert.match(kept, /d\.density\[pageMaskSet\(page\)\]/)
+  assert.match(kept, /d\.maskDensity/)
   assert.match(kept, /maskKeep\(page,uv\*at\.b,dot\(alpha,at\.b\)/)
   // A vertex it does not keep is as one behind the camera: the micro-triangles that use it are not drawn.
   assert.match(dice, /usable\[v\]=select\(0u,1u,kept&&clip\.w>0\.0&&sub\.z<=1\.0\);/)

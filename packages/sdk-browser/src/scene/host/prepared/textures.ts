@@ -19,6 +19,73 @@ import type { PreparedSceneTables } from '../../../../../sdk-core/src/scene/core
 import type { TableDocument } from '../../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { Texture } from '../../../../../sdk-core/src/world/texture/texture.ts'
 
+type Made = Promise<Texture | null>
+
+/** The texture holding image `rank`: the first request owns it, later ones copy it. */
+function imageSources(images: (rank: number) => Promise<unknown>) {
+  const sources = new Map<number, Made>()
+  return (rank: number) => {
+    const held = sources.get(rank)
+    if (held) return held.then((texture) => texture?.clone() ?? null)
+    const made = images(rank).then((image) => {
+      if (image === null) return null
+      const texture = new Texture(image)
+      texture.colorSpace = 'linear'
+      return texture
+    })
+    sources.set(rank, made)
+    return made
+  }
+}
+
+/** `built` named and sampled as the table declares texture `rank`, which it now answers to. */
+function declare(
+  built: Texture,
+  declared: PreparedSceneTables['textures'][number],
+  image: TableDocument['images'][number],
+  rank: number,
+  ranks: Map<Texture, number>,
+) {
+  built.flipY = false
+  built.name = declared.name || image.name || ''
+  if (!built.name && image.uri !== null && !image.uri.startsWith('data:image/'))
+    built.name = image.uri
+  built.magFilter = TABLE_FILTERS[declared.magFilter]
+  built.minFilter = TABLE_FILTERS[declared.minFilter]
+  built.wrapS = declared.wrapS
+  built.wrapT = declared.wrapT
+  ranks.set(built, rank)
+  return built
+}
+
+/** The texture `slot` reads: a copy when it reads another coordinate set than the first, or a
+ *  transform that moves the coordinates; colour maps are sRGB. */
+function slotTexture(
+  texture: Texture,
+  slot: TableTextureSlot,
+  colour: boolean,
+  ranks: Map<Texture, number>,
+) {
+  const { transform, texCoord, slotTexCoord } = slot
+  const moved =
+    !!transform && (!!transform.offset || transform.rotation !== null || !!transform.scale)
+  // The loader's two steps: a slot naming another set than the first reads a copy of the
+  // texture; a transform that moves the coordinates, or names another set again, a copy of that.
+  if (slotTexCoord > 0 || moved || texCoord !== slotTexCoord) {
+    const rank = ranks.get(texture)
+    texture = texture.clone()
+    texture.channel = texCoord
+    if (transform?.offset) texture.offset.set(transform.offset[0], transform.offset[1])
+    if (transform && transform.rotation !== null) texture.rotation = transform.rotation
+    if (transform?.scale) texture.repeat.set(transform.scale[0], transform.scale[1])
+    // A copy made for the slot's own set answers to no rank, as the loader published none for
+    // it; a copy the transform alone made keeps its texture's, whatever set it then reads.
+    if (rank !== undefined && slotTexCoord === 0) ranks.set(texture, rank)
+  }
+  if (colour) texture.colorSpace = 'srgb'
+  return texture
+}
+
 /**
  * The textures of `tables` for the images of `document`: `slot` resolves a material's map slot
  * to its texture record, or `null` when its image could not be read.
@@ -31,22 +98,8 @@ export function preparedTextures(
    *  baked chain of a texture by in its cache (`materials/texture/textureCaches.ts`). */
   ranks: Map<Texture, number>,
 ) {
-  const sources = new Map<number, Promise<Texture | null>>()
-  const folded = new Map<string, Promise<Texture | null>>()
-
-  /** The texture holding image `rank`: the first request owns it, later ones copy it. */
-  const source = (rank: number) => {
-    const held = sources.get(rank)
-    if (held) return held.then((texture) => texture?.clone() ?? null)
-    const made = images(rank).then((image) => {
-      if (image === null) return null
-      const texture = new Texture(image)
-      texture.colorSpace = 'linear'
-      return texture
-    })
-    sources.set(rank, made)
-    return made
-  }
+  const source = imageSources(images)
+  const folded = new Map<string, Made>()
 
   const textureOf = (rank: number) => {
     const declared = tables.textures[rank]
@@ -58,44 +111,16 @@ export function preparedTextures(
     const key = `${origin}:${declared.sampler ?? undefined}`
     let texture = folded.get(key)
     if (!texture) {
-      texture = source(declared.image!).then((built) => {
-        if (!built) return null
-        built.flipY = false
-        built.name = declared.name || image.name || ''
-        if (!built.name && image.uri !== null && !image.uri.startsWith('data:image/'))
-          built.name = image.uri
-        built.magFilter = TABLE_FILTERS[declared.magFilter]
-        built.minFilter = TABLE_FILTERS[declared.minFilter]
-        built.wrapS = declared.wrapS
-        built.wrapT = declared.wrapT
-        ranks.set(built, rank)
-        return built
-      })
+      texture = source(declared.image!).then(
+        (built) => built && declare(built, declared, image, rank, ranks),
+      )
       folded.set(key, texture)
     }
     return texture
   }
 
   return async (slot: TableTextureSlot, colour: boolean) => {
-    let texture = await textureOf(slot.texture)
-    if (!texture) return null
-    const { transform, texCoord, slotTexCoord } = slot
-    const moved =
-      !!transform && (!!transform.offset || transform.rotation !== null || !!transform.scale)
-    // The loader's two steps: a slot naming another set than the first reads a copy of the
-    // texture; a transform that moves the coordinates, or names another set again, a copy of that.
-    if (slotTexCoord > 0 || moved || texCoord !== slotTexCoord) {
-      const rank = ranks.get(texture)
-      texture = texture.clone()
-      texture.channel = texCoord
-      if (transform?.offset) texture.offset.set(transform.offset[0], transform.offset[1])
-      if (transform && transform.rotation !== null) texture.rotation = transform.rotation
-      if (transform?.scale) texture.repeat.set(transform.scale[0], transform.scale[1])
-      // A copy made for the slot's own set answers to no rank, as the loader published none for
-      // it; a copy the transform alone made keeps its texture's, whatever set it then reads.
-      if (rank !== undefined && slotTexCoord === 0) ranks.set(texture, rank)
-    }
-    if (colour) texture.colorSpace = 'srgb'
-    return texture
+    const texture = await textureOf(slot.texture)
+    return texture && slotTexture(texture, slot, colour, ranks)
   }
 }

@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { frustumContainsPoint, frustumExcludesSphere, frustumPlanesFromMatrix } from './frustum.ts'
+import {
+  clipPlanesFromMatrix,
+  frustumContainsPoint,
+  frustumExcludesSphere,
+  frustumPlanesFromMatrix,
+} from './frustum.ts'
 import { HALTON_SWEEP, haltonSpan } from '../../sequence/sweep.fixture.ts'
 
 /** The six inward planes of the cube |x|, |y|, |z| ≤ 1, each `a, b, c, d`. */
@@ -28,6 +33,22 @@ test('frustumPlanesFromMatrix: unit normals, a scaled clip matrix gives the same
   assert.deepEqual([...planes.subarray(16, 20)], [0, 0, 1, 0])
   assert.equal(frustumContainsPoint(planes, 13 / 3, 0, 0.5), true)
   assert.equal(frustumContainsPoint(planes, 0, 0, -0.1), false)
+})
+
+test('frustumPlanesFromMatrix: a bound the matrix does not have is the plane every point passes', () => {
+  // An infinite far plane: the z row is (0, 0, 0, near), a zero normal. Stored (0, 0, 0, 1), not NaN:
+  // no reader needs a special case, and a matrix of NaN still gives NaN planes.
+  const m = new Float64Array(16)
+  m[0] = 1
+  m[5] = 1
+  m[11] = -1 // clip w = −z
+  m[14] = 0.1 // clip z = near, whatever the distance
+  const planes = new Float64Array(24)
+  frustumPlanesFromMatrix(planes, m)
+  assert.deepEqual([...planes.subarray(16, 20)], [0, 0, 0, 1])
+  const bad = new Float64Array(16).fill(NaN)
+  frustumPlanesFromMatrix(planes, bad)
+  assert.ok(planes.every(Number.isNaN))
 })
 
 test('the plane distance is signed and read at each plane: 1 − x to the face x = 1', () => {
@@ -60,5 +81,13 @@ test('frustumExcludesSphere: past a face by more than its radius, and the light-
         Math.max(Math.abs(x), Math.abs(y), Math.abs(z)) <= 1,
       `${i}`,
     )
+  }
+})
+
+test('a NaN or zero projection matrix yields NaN or infinite planes, without throwing', () => {
+  for (const m of [new Array(16).fill(NaN), new Array(16).fill(0)]) {
+    const output = new Float64Array(24)
+    assert.doesNotThrow(() => frustumPlanesFromMatrix(output, m))
+    assert.doesNotThrow(() => clipPlanesFromMatrix(output, m))
   }
 })

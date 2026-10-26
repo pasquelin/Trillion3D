@@ -1,13 +1,15 @@
 import type { CullView } from '../../render/cutFreeze.ts'
-import type { HostCamera } from '../../../camera/world.ts'
+import type { ViewCamera } from '../../../camera/world.ts'
 import type { DiagnosticMode } from '../../../../../sdk-core/src/runtime/diagnostics.ts'
 import type { PageRec } from '../../../geometry/selection/types.ts'
+import type { RankList } from '../../../geometry/cut/adoption/copyRanks.ts'
 import type { GpuSelection, SelectionUniforms } from '../../../gpu/core/selection.ts'
 import type { AsideCut } from '../../../gpu/core/aside.ts'
 import type { FrameGateCore } from '../../gate/gateCore.ts'
 import type { WebgpuBudgetState } from '../../../geometry/residency/budgetState.ts'
 import type { MovedWorlds } from '../../render/movedWorlds.ts'
 import type { DeviceGrant } from '../../../gpu/core/errorScope.ts'
+import type { GraphClocks } from '../../../materials/graph/clocks.ts'
 
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
  *  reads, and the occlusion history the next image inherits. */
@@ -32,7 +34,7 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   imageRevision: number
   diagnostic: DiagnosticMode
   diagnosticPixelError: number
-  lastCamera: HostCamera | undefined
+  lastCamera: ViewCamera | undefined
   gpuSelection: GpuSelection | undefined
   /** Hi-Z pyramid built this submission: the transparent test never strips another image's. */
   hizPyramidFresh: boolean
@@ -53,7 +55,7 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   renderPathLogged: boolean
   outputDiagnosticLogged: boolean
   noOccluderHistory: boolean
-  rowsSyncedFrame: number
+  clustersSyncedFrame: number
   /** The drawn view's cut uniforms: each view writes its own (`./view.ts`). */
   selectionUniforms: SelectionUniforms
   /** The main view's cull view while its cut is frozen, none while it follows the camera
@@ -69,15 +71,10 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   asideCut: AsideCut | undefined
   shown: PageRec[]
   /** The packed rank of each shown page, rank by rank: one record serves many placements. */
-  shownPacked: number[]
+  shownPacked: RankList
   desired: PageRec[]
   /** The packed rank of each desired page, rank by rank. */
-  desiredPacked: number[]
-  drawn: PageRec[]
-  /** The packed rank of each drawn page, rank by rank: what a per-instance reader of `drawn` reads. */
-  drawnPacked: number[]
-  /** True when `drawn` copies `shown` as-is; written only by the copies in `../helpers.ts`. */
-  drawnMirrorsShown: boolean
+  desiredPacked: RankList
   /** Pages the residency path had to touch this image; null before a GPU cut reported one. */
   pagesEntered: number | null
   pagesExited: number | null
@@ -109,6 +106,19 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** Image entry: revisions, view origin, reread of the source graph, walk of world matrices and
    *  held-image witness. See `../../gate/gateCore.ts`. */
   gate: FrameGateCore
+  /** The clocks a material graph reads, in seconds — the world's, which a pause holds, and the wall
+   *  clock —, taken once at the start of each image (`resetFrameCounters`, `takeGraphClocks`): the
+   *  opaque resolve, the transparent pass, the fog's voxelisation, the light functions' atlas and
+   *  the exposure of one image read one value. */
+  graphClocks: GraphClocks
+  /** The shading settings this image reads, once (`readShading`, `SHADING`,
+   *  `../../../materials/surface/pixelModel.ts`): the normal curvature's curve and the models' switches
+   *  (`irisNormal`, `clearCoatNormal`). Read at the image's start (`followModelSwitches`,
+   *  `../../prepare/lobesTarget.ts`); every uniform that carries them copies these words. */
+  shading: Float64Array
+  /** The shading words the last drawn image wrote in its uniform: a setting that turned since moves the
+   *  scene as a material written in place does (`followModelSwitches`). Unset before the first image. */
+  shadingDrawn?: Float64Array
   /** True when the current image was held and nothing more will be drawn unasked: no CPU step
    *  was executed, and no device answer in flight asks another — targets refused included. */
   frameHeld: boolean
@@ -123,6 +133,11 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** Images submitted whose GPU work the device has not finished: the loop draws no further one
    *  past `DAG_READBACK_SLOTS` of them (`../../loop/interactiveFrame.ts`, `skipsWebgpuFrame`). */
   gpuFramesInFlight: number
+  /** The device's answer for the main view's last submit, until the loop's feedback wait takes it. */
+  submittedDone: Promise<void> | undefined
+  /** The queue's submit count when `submittedDone` was asked: a later submit (a view drawn beside,
+   *  a capture, a readback) outruns it and the loop asks the device again. */
+  submittedAt: number | undefined
   /** A barrier converges the textures: every pixel publishes its image feedback. */
   textureConverging: boolean
   /** A pass of the image — opaque or blend — wrote the feedback target: something to reduce. */

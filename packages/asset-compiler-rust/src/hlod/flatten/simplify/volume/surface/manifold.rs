@@ -3,7 +3,8 @@
 //! test that keeps a block from merging into one region.
 use super::super::tree::{shift, Coord, Tree};
 use super::cases::COLLAPSIBLE;
-use super::cell::{sign_bits, CELL_CORNERS, CELL_EDGES};
+use super::cell::{sign_bits, CELL_EDGES};
+use crate::hlod::flatten::approximate::marching::CELL_CORNERS;
 
 /// A block's six faces by their corners, in the order they are tested: its lowest `z`, highest
 /// `x`, highest `z`, lowest `x`, lowest `y` and highest `y`.

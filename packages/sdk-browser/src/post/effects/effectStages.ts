@@ -62,6 +62,65 @@ function createEffectTargets(
   }
 }
 
+/** What the last `resolve` of a stage left: the passes it encoded, the half-size image the last
+ *  pass that drew wrote, and whether it was handed a pass that draws. */
+type ResolveState = { passes: number; holds: boolean; half: GPUTextureView | undefined }
+
+/** Resizes the kinds of the stage for `chain`, then draws its passes in order, each over the
+ *  image the one before left and given the view's settings of its kind; returns the last image. */
+function resolveChain(
+  kinds: MadeKinds,
+  settings: KindSettings,
+  stage: ReturnType<typeof createStage>,
+  stageKinds: ReturnType<typeof kindsAt>,
+  state: ResolveState,
+  encoder: GPUCommandEncoder,
+  chain: readonly EffectPass[],
+  input: GPUTextureView,
+  frame: ResolveFrame,
+) {
+  state.passes = 0
+  state.half = undefined
+  state.holds = chain.length > 0
+  countKinds(chain, stage.counts)
+  for (const kind of stageKinds) {
+    stage.nth[kind] = 0
+    kinds.made[kind]?.resize(frame.extent[0], frame.extent[1], stage.counts[kind])
+  }
+  let view = input
+  for (const pass of chain) {
+    const kind = kinds.made[pass.kind] as WebgpuResolveKind<EffectPass, unknown>
+    const values = settings.of(pass.kind, frame.session)
+    const next = kind.resolve(encoder, pass, stage.nth[pass.kind]++, view, frame, values)
+    // The image a pass left is its own, with the half-size image it wrote beside it, if any.
+    if (next !== view) state.half = kind.half
+    view = next
+    state.passes += kind.passes
+  }
+  return view
+}
+
+/** Sets up, ahead of the temporal pass, the first pass of `chain` whose kind flattens its motion
+ *  in the nearest velocity (`WebgpuResolveKind.fuse`), as `resolve` will draw it: what that
+ *  dispatch writes, none where no pass does or its kind is not made yet. The view's settings are
+ *  peeked, never consumed: `resolve` reads them for the image. */
+function fuseChain(
+  kinds: MadeKinds,
+  settings: KindSettings,
+  stage: ReturnType<typeof createStage>,
+  chain: readonly EffectPass[],
+  frame: ResolveFrame,
+) {
+  countKinds(chain, stage.counts)
+  for (const pass of chain) {
+    const kind = kinds.made[pass.kind] as WebgpuResolveKind<EffectPass, unknown> | undefined
+    if (!kind?.fuse) continue
+    kind.resize(frame.extent[0], frame.extent[1], stage.counts[pass.kind])
+    return kind.fuse(pass, frame, settings.peek(pass.kind, frame.session))
+  }
+  return undefined
+}
+
 /** The passes of a stage that runs on the lit image before the temporal pass, or on the image it
  *  resolved (`at`): the passes that draw (`KindSettings.drawn`), each kind sized for them (zero
  *  frees it), the passes drawn in order, each over the image the one before left and given the
@@ -69,40 +128,30 @@ function createEffectTargets(
 export function createResolveStage(kinds: MadeKinds, settings: KindSettings, at: PlanStage) {
   const stage = createStage()
   const stageKinds = kindsAt(at)
-  let passes = 0,
-    holds = false
+  const state: ResolveState = { passes: 0, holds: false, half: undefined }
   return {
     /** The render and compute passes the last `resolve` encoded. */
     get passes() {
-      return passes
+      return state.passes
+    },
+    /** The half-size image of the image the last `resolve` returned, where the last pass that drew
+     *  wrote one beside it (`WebgpuResolveKind.half`). */
+    get half() {
+      return state.half
     },
     /** Whether the stage holds anything: the last `resolve` was handed a pass that draws. */
     get holds() {
-      return holds
+      return state.holds
     },
     ready: (chain: readonly EffectPass[]) => kinds.ready(stage, chain),
-    resolve(
+    fuse: (chain: readonly EffectPass[], frame: ResolveFrame) =>
+      fuseChain(kinds, settings, stage, chain, frame),
+    resolve: (
       encoder: GPUCommandEncoder,
       chain: readonly EffectPass[],
       input: GPUTextureView,
       frame: ResolveFrame,
-    ) {
-      passes = 0
-      holds = chain.length > 0
-      countKinds(chain, stage.counts)
-      for (const kind of stageKinds) {
-        stage.nth[kind] = 0
-        kinds.made[kind]?.resize(frame.extent[0], frame.extent[1], stage.counts[kind])
-      }
-      let view = input
-      for (const pass of chain) {
-        const kind = kinds.made[pass.kind] as WebgpuResolveKind<EffectPass, unknown>
-        const values = settings.of(pass.kind, frame.session)
-        view = kind.resolve(encoder, pass, stage.nth[pass.kind]++, view, frame, values)
-        passes += kind.passes
-      }
-      return view
-    },
+    ) => resolveChain(kinds, settings, stage, stageKinds, state, encoder, chain, input, frame),
   }
 }
 

@@ -17,7 +17,7 @@ import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../../../materials/table
 import { createTextureCaches } from '../../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 
-/** Each drawn row's line flag and the width its surface's record holds, after one frame of
+/** Each drawn cluster's line flag and the width its surface's record holds, after one frame of
  *  `scene`: the records as the table last sent them up. */
 async function rowLineWidths(lineWidth: number | undefined) {
   installGpuGlobals()
@@ -35,7 +35,7 @@ async function rowLineWidths(lineWidth: number | undefined) {
     await backend.prepare()
     backend.render(camera())
     await backend.flush?.()
-    const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
+    const table = buffers.findLast((buffer) => buffer.label === 'Trillion3D decoded clusters')!
     const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
     const sent = materialRecordsSent(textureWrites).at(-1)!
     const records = new Float32Array(sent.data.buffer as ArrayBuffer)
@@ -57,9 +57,9 @@ async function rowLineWidths(lineWidth: number | undefined) {
   }
 }
 
-// A row says it draws a line (`FLAG_LINE`), and its surface's record carries the width its quads
+// A cluster says it draws a line (`FLAG_LINE`), and its surface's record carries the width its quads
 // widen to, zero on a surface that draws triangles.
-test("a line page's row names its surface's width, a triangle page's zero and no line", async () => {
+test("a line page's cluster names its surface's width, a triangle page's zero and no line", async () => {
   const lines = await rowLineWidths(2.5)
   assert.ok(lines.length > 0)
   for (const row of lines) assert.deepEqual(row, { line: true, width: 2.5 })

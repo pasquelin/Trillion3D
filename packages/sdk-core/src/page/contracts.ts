@@ -8,8 +8,10 @@ export interface GeometryPageFormat {
   /** Always `'quantized'`. */
   codec: 'quantized'
 }
-/** A quantized cluster page (`WGP3`): `bytes` is what a reader keeps resident,
- *  `uncompressedBytes` what its float decode occupies. */
+/** A quantized cluster page (`WGP3`): `bytes` is what it takes on disk and on the wire,
+ *  `residentBytes` what it takes in the geometry pool once installed — the install pass transcodes
+ *  the one into the other — and `residentOffset` where it lies in the place its streaming page
+ *  takes there, `uncompressedBytes` what its float decode occupies. */
 export interface GeometryPageDescriptor {
   /** Where it is read: for a page of a compile's container, its name in the page catalogue — the
    *  container's address and its offset there, `file#offset` (`geometryPageAddress`). */
@@ -20,8 +22,12 @@ export interface GeometryPageDescriptor {
   bundle?: { url: string; offset: number }
   /** Fingerprint of its bytes. */
   sha256: string
-  /** Its size. */
+  /** Its size on disk, the slice of its bundle a read takes. */
   bytes: number
+  /** Its size in the pool, resident: a multiple of four. */
+  residentBytes: number
+  /** Its first byte in the pool's place of its streaming page, resident: a multiple of four. */
+  residentOffset: number
   /** Vertices. */
   vertexCount: number
   /** Indices. */

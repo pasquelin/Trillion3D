@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { HostMesh } from '../../session/host/resources.ts'
+
 import type { PageRec, ClusterRoot } from '../../geometry/selection/types.ts'
 
 import type { BlendGpuItem } from '../state.ts'
@@ -14,10 +14,11 @@ import {
   CULL_STRIDE,
 } from '../../geometry/dag/types.ts'
 import { lcgMaskedRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
-const mesh = (name: string) => ({ name }) as unknown as HostMesh
+const mesh = (name: string) => ({ name }) as unknown as PageMesh
 // A placement is named by the world its root and its item read: here, one per mesh.
-const rec = (node: HostMesh, id: number, sourceOrder: number, transparent = true) =>
+const rec = (node: PageMesh, id: number, sourceOrder: number, transparent = true) =>
   ({
     id,
     sourceOrder,
@@ -48,8 +49,8 @@ function root(pages: PageRec[], leaves?: number[][]): ClusterRoot<PageRec> {
     culling: { nodes, stride: CULL_STRIDE },
   } as unknown as ClusterRoot<PageRec>
 }
-const item = (node: HostMesh | undefined, paged: boolean) =>
-  ({ drawSource: node && { node }, matrix: node, paged }) as unknown as BlendGpuItem
+const item = (node: PageMesh | undefined, paged: boolean, surface: object = { lit: true }) =>
+  ({ drawSource: node && { node }, matrix: node, paged, surface }) as unknown as BlendGpuItem
 
 /** A reproducible pseudo-random stream: the sweep below has to be the same on every run. */
 const stream = lcgMaskedRandom
@@ -109,12 +110,24 @@ test('the table is the source draw order, the culling walk separating equal rank
   assert.equal(table.maxVertexWords, 3)
 })
 
+test('the table counts the items lit from the translucency lighting volume as they join it', () => {
+  const [a, b] = [mesh('a'), mesh('b')]
+  const ra = root([rec(a, 0, 7)]),
+    rb = root([rec(b, 1, 2)])
+  const lit = { lit: true, translucencyLighting: 'volume', blending: 'normal' }
+  const table = createTransparentTable([ra], [...ra.pages, ...rb.pages], [item(a, true, lit)])
+  assert.equal(table.volumeReaders, 1)
+  table.append([rb], ra.pages.length, [item(b, true, { ...lit, translucencyLighting: 'forward' })])
+  assert.equal(table.volumeReaders, 1, 'a forward item reads none')
+  assert.equal(table.pagedItems.length, 2)
+})
+
 test('the compaction keeps the table order and nothing else, on every subset', () => {
   const next = stream(20260915)
   for (let trial = 0; trial < 150; trial++) {
     const roots: Array<ClusterRoot<PageRec>> = []
     const bases: number[] = []
-    const meshes: HostMesh[] = []
+    const meshes: PageMesh[] = []
     const packed: PageRec[] = []
     for (let m = 0; m < 3; m++) {
       const source = mesh(`m${m}`)

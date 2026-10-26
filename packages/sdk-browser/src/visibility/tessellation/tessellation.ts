@@ -1,6 +1,13 @@
-import { dispatchRows } from '../../gpu/dispatch/grid.ts'
+import { NO_RASTERS, type GraphRasters } from '../../materials/graph/graphRasters.ts'
 import type { GpuRasterInput } from '../raster/types.ts'
-import { MODE_DEPTH, RASTER_PASSES, RASTER_PASS_MAIN, type RasterPass } from '../raster/contract.ts'
+import {
+  LIST_TESS_DISPATCH,
+  MODE_DEPTH,
+  RASTER_PASSES,
+  RASTER_PASS_MAIN,
+  headerWord,
+  type RasterPass,
+} from '../raster/contract.ts'
 import {
   DISPATCH_DICE,
   DISPATCH_RESUME,
@@ -50,40 +57,75 @@ const NO_SIGHT = {
 type Programs = ReturnType<typeof createTessellationPrograms>
 type Groups = ReturnType<typeof createTessellationGroups>
 
-/** The seeding of `pass`, what the main pass's occlusion test hid taken up again when `resume`, the
- *  six levels of splitting each a plan and a split launched from the `dispatch` buffer, then the
- *  dicing's arguments, in `compute`, over `input`. */
-function encodeLevels(
+/** The pyramid each pass tests against, and whether it takes up what the main pass hid: set as the
+ *  pass begins; the stand-in where it tests none. */
+const standInPyramids = (resources: ReturnType<typeof createTessellationResources>) =>
+  RASTER_PASSES.map((): PassPyramid => ({
+    view: resources.standIn.pyramid,
+    levels: resources.standIn.levels,
+  }))
+
+/** The dicing of `pass`'s visible patches, in the rule of `mode`, launched from `dispatch`. */
+function encodeDice(
   compute: GPUComputePassEncoder,
   programs: Programs,
   groups: Groups,
   dispatch: GPUBuffer,
   input: GpuRasterInput,
   pass: RasterPass,
+  mode: number,
+) {
+  const dice = programs.dice[mode === MODE_DEPTH ? 0 : 1]!.get()
+  if (!dice) return
+  compute.setBindGroup(0, groups.of('dice', pass, input))
+  compute.setPipeline(dice)
+  compute.dispatchWorkgroupsIndirect(dispatch, (pass * PASS_DISPATCH_WORDS + DISPATCH_DICE) * 4)
+}
+
+/** The seeding of `pass` — a workgroup a cluster of the raster's list of tessellated clusters, which
+ *  `lists` holds —, what the main pass's occlusion test hid taken up again when `resume`, the six
+ *  levels of splitting each a plan and a split launched from the `dispatch` buffer, then the dicing's
+ *  arguments, in `compute`, over `input`. */
+function encodeLevels(
+  compute: GPUComputePassEncoder,
+  programs: Programs,
+  groups: Groups,
+  dispatch: GPUBuffer,
+  lists: GPUBuffer,
+  input: GpuRasterInput,
+  pass: RasterPass,
   resume: boolean,
 ) {
   const split = (pass * PASS_DISPATCH_WORDS + DISPATCH_SPLIT) * 4
-  const run = (program: 'plan' | 'split', stage: { get(): GPUComputePipeline }) => {
+  const run = (program: 'plan' | 'split', pipeline: GPUComputePipeline) => {
     compute.setBindGroup(0, groups.of(program, pass, input))
-    compute.setPipeline(stage.get())
+    compute.setPipeline(pipeline)
   }
+  const seed = programs.seed.get(),
+    plan = programs.plan.get(),
+    splitting = programs.split.get(),
+    visibleArgs = programs.visibleArgs.get(),
+    resumeArgs = resume ? programs.resumeArgs.get() : undefined,
+    resuming = resume ? programs.resume.get() : undefined
+  // The levels feed one another: none runs unless every program is compiled.
+  if (!seed || !plan || !splitting || !visibleArgs || (resume && !(resumeArgs && resuming))) return
   compute.setBindGroup(0, groups.of('seed', pass, input))
-  compute.setPipeline(programs.seed.get())
-  dispatchRows(compute, Math.max(1, input.pageRows))
-  if (resume) {
-    run('plan', programs.resumeArgs)
+  compute.setPipeline(seed)
+  compute.dispatchWorkgroupsIndirect(lists, (headerWord(pass) + LIST_TESS_DISPATCH) * 4)
+  if (resumeArgs && resuming) {
+    run('plan', resumeArgs)
     compute.dispatchWorkgroups(1)
     compute.setBindGroup(0, groups.of('seed', pass, input))
-    compute.setPipeline(programs.resume.get())
+    compute.setPipeline(resuming)
     compute.dispatchWorkgroupsIndirect(dispatch, (pass * PASS_DISPATCH_WORDS + DISPATCH_RESUME) * 4)
   }
   for (let level = 0; level < MAX_SPLIT_LEVELS; level++) {
-    run('plan', programs.plan)
+    run('plan', plan)
     compute.dispatchWorkgroups(1)
-    run('split', programs.split)
+    run('split', splitting)
     compute.dispatchWorkgroupsIndirect(dispatch, split)
   }
-  run('plan', programs.visibleArgs)
+  run('plan', visibleArgs)
   compute.dispatchWorkgroups(1)
 }
 
@@ -105,6 +147,7 @@ function uniformWriter(device: GPUDevice, resources: TessellationResources) {
       visible: layout.visible[chain]!,
       dispatch: chain * PASS_DISPATCH_WORDS,
       disp: layout.disp,
+      list: chain < RASTER_PASSES.length ? headerWord(chain as RasterPass) : 0,
     }
     writeTessellationUniform(floats, ints, view, settings, capacity, regions, sight)
     device.queue.writeBuffer(resources.uniforms[chain]!, 0, floats)
@@ -162,9 +205,9 @@ function shadowSide(resources: TessellationResources, write: ReturnType<typeof u
 }
 
 /**
- * THE TESSELLATION OF A FRAME'S DISPLACED SURFACES (`./`): the rows whose surface names a displacement
- * are left to it by the raster's split, and each pass of the cut turns their triangles into the
- * patches its displaced micro-triangles are written from.
+ * THE TESSELLATION OF A FRAME'S DISPLACED SURFACES (`./`): the clusters whose surface names a
+ * displacement are left to it by the cut (`VIS_TAG_TESSELLATED`) and listed by the bins, and each pass of
+ * the cut turns their triangles into the patches its displaced micro-triangles are written from.
  * - `begin` (before the pass's binning): the pass's uniform written, its state cleared;
  * - `encodeLevels` (inside the binning's compute pass): the seeding, the six levels of splitting, and
  *   the dicing's arguments;
@@ -177,19 +220,22 @@ function shadowSide(resources: TessellationResources, write: ReturnType<typeof u
 export function createTessellation(
   device: GPUDevice,
   work: GPUBuffer,
+  /** The raster's lists of clusters, read live: made again when the cut's room grows. */
+  lists: () => GPUBuffer,
   asked: TessellationCapacity,
   clipping = false,
+  rasters: GraphRasters = NO_RASTERS,
 ) {
   const resources = createTessellationResources(device, asked)
-  const programs = createTessellationPrograms(device, clipping)
-  /** The pyramid each pass tests against, and whether it takes up what the main pass hid: set as the
-   *  pass begins; the stand-in where it tests none. */
-  const pyramids: PassPyramid[] = RASTER_PASSES.map(() => ({
-    view: resources.standIn.pyramid,
-    levels: resources.standIn.levels,
-  }))
+  const programs = createTessellationPrograms(device, clipping, rasters)
+  const pyramids = standInPyramids(resources)
   const resumes = RASTER_PASSES.map(() => false)
-  const groups = createTessellationGroups(device, programs.layouts, { work, resources, pyramids })
+  const groups = createTessellationGroups(device, programs.layouts, {
+    work,
+    lists,
+    resources,
+    pyramids,
+  })
   const write = uniformWriter(device, resources)
   /** The frame's input, held from `begin` for the dicing of the same image. */
   let current: GpuRasterInput
@@ -208,18 +254,21 @@ export function createTessellation(
       encoder.clearBuffer(resources.tess, offset, size)
     },
     encodeLevels: (compute: GPUComputePassEncoder, pass: RasterPass) =>
-      encodeLevels(compute, programs, groups, resources.dispatch, current, pass, resumes[pass]!),
+      encodeLevels(
+        compute,
+        programs,
+        groups,
+        resources.dispatch,
+        lists(),
+        current,
+        pass,
+        resumes[pass]!,
+      ),
     /** The dispatches `encodeLevels` makes for `pass`. */
     levelDispatches: (pass: RasterPass) =>
       TESSELLATION_DISPATCHES + (resumes[pass] ? RESUME_DISPATCHES : 0),
-    encodeDice(compute: GPUComputePassEncoder, pass: RasterPass, mode: number) {
-      compute.setBindGroup(0, groups.of('dice', pass, current))
-      compute.setPipeline(programs.dice[mode === MODE_DEPTH ? 0 : 1]!.get())
-      compute.dispatchWorkgroupsIndirect(
-        resources.dispatch,
-        (pass * PASS_DISPATCH_WORDS + DISPATCH_DICE) * 4,
-      )
-    },
+    encodeDice: (compute: GPUComputePassEncoder, pass: RasterPass, mode: number) =>
+      encodeDice(compute, programs, groups, resources.dispatch, current, pass, mode),
     shadow: shadowSide(resources, write),
     dispose() {
       resources.dispose()

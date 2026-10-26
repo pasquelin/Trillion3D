@@ -29,11 +29,9 @@ test('a side takes its own render scale, then the campaign one, otherwise the di
   assert.equal(sideReport(own)[1].scale, 0.67)
   for (const wrong of ['0.4', '1.5', 'half'])
     assert.throws(() => equip('after', { 'scale-after': wrong }), /must be in \[0.5, 1\]/)
-  // A scale no image would be drawn at is refused, never reported: a witness, or no temporal resolve.
-  const flags = (entries: Record<string, string>) => new Map(Object.entries(entries))
+  // A scale no image would be drawn at is refused, never reported: no temporal resolve.
   assert.throws(
-    () => equipSide({ name: 'after' } as never, flags({ scale: '0.67' }), { engine: 'three-nu' }),
-    /needs the WebGPU engine/,
+    () => equip('after', { antialiasing: 'off', scale: '0.67' }),
+    /needs temporal antialiasing/,
   )
-  assert.throws(() => equip('after', { antialiasing: 'off', scale: '0.67' }), /needs the WebGPU/)
 })

@@ -1,4 +1,4 @@
-import { MODEL_FLAG } from '../materials/surface/surfaceModel.ts'
+import { MODEL_FLAG } from '../materials/surface/surfaceModelWord.ts'
 
 /** A light loop's sum, run as JavaScript: one colour. */
 export type Sum = (...args: unknown[]) => number[]
@@ -24,11 +24,11 @@ function shadedLightScope(
     ...K,
     directLights: { count, items },
     tileLights: [7, 7, ...[...Array(count).keys()].filter(() => r() < 0.7)],
+    pixelModel: 0,
+    sphereNoNewton: false,
+    clearCoatBottom: false,
     thinSubsurface: r() < 0.5 ? [0, 0, 0] : [u(0, 1), u(0, 1), u(0, 1)],
     surfaceModel: [MODEL_FLAG.physical, MODEL_FLAG.diffuse, MODEL_FLAG.toon][round % 3],
-    shadowReceiverOffset: [0, 0, 0],
-    shadowReceiverPlane: [0, 0, 0],
-    vsmBiasNormal: (vector: number[]) => vector,
     shadowFactor: (slice: number) => (slice < 0 ? 1 : shades[slice]),
     airTintOf: () => [1, 1, 1],
   }
@@ -56,7 +56,7 @@ export function randomLampScope(
       colorIntensity: [u(0, 1), u(0, 1), u(0, 1), u(0, 20)],
       directionCone: [u(-0.5, 0.5), -1, u(-0.5, 0.5), kind === K.KIND_SPOT ? 0.7 : -1],
       params: [kind, slot(kind, rank), 0, kind === K.KIND_SPOT ? 0.9 : 0],
-      shape: [u(0, 0.05), 0, 0, 0],
+      shape: [u(0, 0.05), 0, 1, 1],
       capsule: [0, 0, 0, 0],
     }
   })

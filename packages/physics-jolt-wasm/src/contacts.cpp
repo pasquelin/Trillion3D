@@ -5,6 +5,8 @@
 // pool of any size sends the single thread's events in the single thread's order.
 #include "contacts.h"
 
+#include <Jolt/Physics/Collision/EstimateCollisionResponse.h>
+
 #include <atomic>
 #include <memory>
 
@@ -67,13 +69,39 @@ void leaveAll(uint32_t engine) {
   }
 }
 
+namespace {
+
+/// Bodies that overlap by their filters (`filters.h`) pass through each other and report it: their
+/// contact is a sensor's, no collision response.
+void passThrough(const Body &a, const Body &b, ContactSettings &settings) {
+  if (takenLayers(a.GetObjectLayer(), b.GetObjectLayer()) == Meeting::Overlap)
+    settings.mIsSensor = true;
+}
+
+}  // namespace
+
+void Listener::OnContactPersisted(const Body &a, const Body &b, const ContactManifold &,
+                                  ContactSettings &settings) {
+  passThrough(a, b, settings);
+}
+
 void Listener::OnContactAdded(const Body &a, const Body &b, const ContactManifold &manifold,
                               ContactSettings &settings) {
+  passThrough(a, b, settings);
   uint32_t ia = uint32_t(a.GetUserData()), ib = uint32_t(b.GetUserData());
   if (!wantsEvents(ia) && !wantsEvents(ib)) return;
   Vec3 point = Vec3(manifold.GetWorldSpaceContactPointOn1(0));
   // Only a pair's first contact sends its impulse (`replayContacts`).
-  float impulse = manifoldImpulse(a, b, manifold, settings);
+  // Estimated before the solver runs, at the pair's friction and restitution, bounced back past
+  // the page's restitution speed, over the estimator's own iteration count.
+  // A pair that passes through exerts none.
+  float impulse = 0;
+  if (!settings.mIsSensor) {
+    CollisionEstimationResult estimate;
+    EstimateCollisionResponse(a, b, manifold, estimate, settings.mCombinedFriction,
+                              settings.mCombinedRestitution, world().restitutionSpeed);
+    for (float lambda : estimate.mContactImpulse) impulse += lambda;
+  }
   Float3 at;
   point.StoreFloat3(&at);
   deferContact({ContactRecord::ADDED, ia, ib, impulse, at, 0});

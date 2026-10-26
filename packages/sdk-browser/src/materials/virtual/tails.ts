@@ -1,15 +1,28 @@
 import type { TilePlace } from '../texture/tiles.ts'
-import type { PoolEncoding } from '../texture/blockFormats.ts'
+import type { PoolEncoding, PoolLane } from '../texture/blockFormats.ts'
 import type { TileTexture } from './tileTexture.ts'
 import type { WebgpuTilePageTable } from './page/pageTable.ts'
 import type { WebgpuTilePool } from './pool/pool.ts'
 import type { Lane } from './lanes.ts'
-import { writeRgbaLevel, writeTail } from './write.ts'
-import { writeBlocksLevel } from './writeBlocks.ts'
+import { texelLevelWriter, writeTail } from './write.ts'
+import { TEXEL_BYTES } from '../texture/floatTexels.ts'
+import { writeBc4Level, writeBlocksLevel } from './writeBlocks.ts'
 import { tailId } from './ids.ts'
 
 /** Fills a tail's pinned place `place` of `pool`. */
 export type TailWrite = (pool: WebgpuTilePool, place: TilePlace) => void
+
+/** The writer of a tail's levels into a pool of `lane`: texels, or compressed blocks. */
+function tailLevelWriter(encoding: PoolEncoding, lane: PoolLane) {
+  const kind = encoding.texelsOf(lane)
+  return lane === 'lossless'
+    ? texelLevelWriter(4)
+    : kind
+      ? texelLevelWriter(TEXEL_BYTES[kind])
+      : lane === 'two-channel' && encoding.channelPool === 'bc4'
+        ? writeBc4Level
+        : writeBlocksLevel
+}
 
 /**
  * THE ONE TAIL PIN of an atlas: a texture's tail takes a place of its lane's pool for good, held by
@@ -38,7 +51,7 @@ export function createTailPins(atlas: {
     lane.resident.set(id, index)
     const place = lane.pool.placeOf(index)
     write(lane.pool, place)
-    atlas.pages().setTail(slot, place, encoding.tapOf(textures[slot].lane))
+    atlas.pages().setTail(slot, place, textures[slot].tap)
   }
   /** Pins the tails of slots `from` to `to`; `fromHost` sets that of a texture with no tail in
    *  bytes. */
@@ -49,16 +62,23 @@ export function createTailPins(atlas: {
     to = textures.length,
   ) => {
     for (let slot = from; slot < to; slot++) {
-      const { layout, source, lane, retired } = textures[slot]
+      const { layout, source, lane, tap, retired } = textures[slot]
       if (retired) continue
       if (slot === 0 && atlas.fillWaits()) {
-        atlas.pages().setTail(0, { x: 0, y: 0, layer: 0 }, encoding.tapOf(lane))
+        atlas.pages().setTail(0, { x: 0, y: 0, layer: 0 }, tap)
         continue
       }
-      const bytes = source.kind === 'host' ? undefined : encoding.tailOf(source.tail, lane)
+      const bytes =
+        source.kind === 'host'
+          ? undefined
+          : encoding.tailOf(source.tail, lane, {
+              width: layout.width,
+              height: layout.height,
+              tail: layout.tail,
+            })
       pinTail(slot, (pool, place) => {
         if (!bytes) return fromHost(slot, place)
-        const write = lane === 'lossless' ? writeRgbaLevel : writeBlocksLevel
+        const write = tailLevelWriter(encoding, lane)
         const size: [number, number] = [layout.width, layout.height]
         writeTail(queue, pool.texture, place, size, layout.tail, bytes, write)
       })

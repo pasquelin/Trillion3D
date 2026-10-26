@@ -4,9 +4,10 @@ import type { PlacementRows } from './rows/rows.ts'
 import type { PlacementLink } from './compose/gpuCompose.ts'
 import type { DrawSource } from '../geometry/selection/drawSource.ts'
 import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
-import type { HostAttributes, HostMaterials } from '../session/host/resources.ts'
 import type { WorldCells } from '../geometry/dag/worlds/worldCells.ts'
 import type { TextureCache } from '../materials/texture/textureCaches.ts'
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
+import type { PageMaterials } from '../geometry/pages/pageMesh.ts'
 
 /** A range of one vertex list a dynamic geometry rewrote (#573): vertices `from` to
  *  `from + count - 1` of the host geometry's list `name`. */
@@ -95,14 +96,14 @@ export interface EngineSceneUpdates extends PlacementGrowth {
    *  row by its box, and stales what they shadowed, no table rebuilt. True when taken; false, the
    *  owner says it by name: those vertices are not drawn. */
   updateVertices(
-    attributes: HostAttributes,
+    attributes: Geometry['attributes'],
     ranges: readonly VertexRange[],
     box: Float64Array,
     reach: number,
     boxes?: Float64Array,
   ): boolean
   /** The bytes `updateVertices` sends the GPU for `ranges` (#573). */
-  vertexBytes(attributes: HostAttributes, ranges: readonly VertexRange[]): number
+  vertexBytes(attributes: Geometry['attributes'], ranges: readonly VertexRange[]): number
   /** The clear colour behind the scene, `0xrrggbb` (`EngineContext.clearColor`), read by the
    *  next frame: the held frame broken, nothing else walked. */
   setClearColor(hex: number): void
@@ -115,7 +116,7 @@ export interface EngineSceneUpdates extends PlacementGrowth {
   ): void
   /** The render scale asked in place (`EngineContext.renderScale`), drawn from the next frame, and
    *  the scale of the last image drawn. */
-  setRenderScale(scale: import('../frame/scale/renderScaleOption.ts').RenderScale): void
+  setRenderScale(scale: import('../frame/scale/renderScaleOption.ts').RenderScale | undefined): void
   renderScale(): number
   /** The interactive loop's frame cap asked in place (`EngineContext.maxFrameRate`). */
   setMaxFrameRate(rate: number): void
@@ -137,7 +138,7 @@ export interface EngineSceneUpdates extends PlacementGrowth {
    *  page draws was refused before (`materialClassRefusal`). */
   wearSurface(assignment: SurfaceAssignment): void
   /** Admit a runtime surface's maps through the engine's existing texture path. */
-  admitMaterial(surface: HostMaterials): Promise<void>
+  admitMaterial(surface: PageMaterials): Promise<void>
   /** Release an admitted material after its last assignment leaves. */
-  releaseMaterial(surface: HostMaterials): void
+  releaseMaterial(surface: PageMaterials): void
 }

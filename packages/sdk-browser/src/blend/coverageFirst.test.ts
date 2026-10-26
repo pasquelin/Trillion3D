@@ -30,17 +30,19 @@ test('the blend and transmissive stages take every derivative before their cover
     'blendGrads',
     'blendFragment',
     'fsBlendCoverage',
+    'fsBlendResponsive',
     'transmitFragment',
     'fsTransmitCoverage',
-    'fsDistortionCoverage',
+    'fsTransmitResponsive',
   ])
   for (const [stage, text] of [
     ['blendFragment', STAGES],
     ['fsBlendCoverage', STAGES],
+    ['fsBlendResponsive', STAGES],
     ['transmitFragment', STAGES],
+    ['fsTransmitResponsive', STAGES],
     ['fsTransmitCoverage', STAGES],
     ['fsDistortion', STAGES],
-    ['fsDistortionCoverage', STAGES],
     ...FRONTS.map((front) => ['fsFront', front]),
   ]) {
     const body = functionsOf(text, [stage]),
@@ -69,16 +71,15 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     'modelFlag',
     'blendLit',
     'blendToEye',
-    // The lobeless program's stand-ins: no record read, no lobe set, the whole base let through.
+    // The lobeless program's stand-ins: no record read, no lobe set, the surface's own reflectance.
     'blendPhysicalBegin',
     'blendLobes',
-    'lobeThrough',
+    'indirectF0',
     'litSurface',
     'ormRoughness',
     'ormMetalness',
     'ormOcclusion',
-    'roughnessWidened',
-    'normalFootprintVariance',
+    'normalCurvatureRoughness',
     'lobeRoughness',
     'bendNormal',
     'preExposed',
@@ -100,6 +101,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     forwardIndirect: () => [lit(), lit()],
     environmentLighting: lit,
     fogged: (rgb: number[]) => rgb,
+    blendFog: () => [0, 0, 0, 1],
     displayRoute: () => ({ keep: 1, tint: [1, 1, 1, 1], add: [0, 0, 0, 0] }),
     reflectionFrontOut: () => [0, 0, 0, 0],
     // The diagnostic palettes' lookups, never reached by a beauty item.
@@ -107,6 +109,9 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     diagnosticHlod: () => [0, 0, 0],
     uni: { camPos: [0, 0, 5, 1], viewport: [64, 64], eye: [0, 0, 5], preExposure: 1 },
     surfaceModel: 0,
+    pixelModel: 0,
+    sphereNoNewton: false,
+    clearCoatBottom: false,
     thinSubsurface: [0, 0, 0],
   }
   // `discard` demotes and goes on: counted, it runs as a helper would. The program of a scene
@@ -124,7 +129,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     bary: [1, 0, 0],
     color: [1, 1, 1, 1],
     alphaAo: [0.5, 1, ...dash],
-    material: facing << FACING_SHIFT,
+    words: [0, 0, facing << FACING_SHIFT],
     maps: [2, 3, 0, 4],
     pbr: [0.5, 0.25, 1, 1],
     emissive: [0, 0, 0, 0],

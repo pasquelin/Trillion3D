@@ -20,5 +20,9 @@ export function preparedPipelines<K, T>(
     *keys() {
       for (const { key } of held.values()) yield key
     },
+    /** Lets go of the pipelines `keep` refuses — it is given a pipeline's key and the `id` it was made under. */
+    prune(keep: (key: K, id: unknown) => boolean) {
+      for (const [at, { key }] of held) if (!keep(key, at)) held.delete(at)
+    },
   }
 }

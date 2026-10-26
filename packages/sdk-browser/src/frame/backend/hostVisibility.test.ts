@@ -48,8 +48,8 @@ test('the WebGPU path hides a compiled node the host hid, and draws it again onc
   }
 })
 
-// The same node's see-through parts and shadow: a hidden node vanishes entirely (#407).
-test('a host hide parks the root, hides its blend items and stales the shadow pages it covered', () => {
+// The same node's see-through parts: a hidden node vanishes entirely (#407).
+test('a host hide parks the root and hides its blend items', () => {
   const { blendState } = prepared()
   const group = new Group(),
     node = new Group(),
@@ -75,6 +75,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
         parkWorld: (rank: number, parked: boolean) => parks.push([rank, parked]),
         markWorld: (_: number, mark: number) => marks.push(mark),
         drawDistanceWorld: () => {},
+        rootParentWorld: () => true,
       },
       worldUploadRevision: 1,
       movedWorlds: createChangedRuns(),
@@ -85,7 +86,6 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
       selectionRoots: [root],
       rootIndex: { revision: 0 },
       worldUpdates: [],
-      rows: { tableEpoch: 0 },
     },
     timing: { worldCounts: {} },
     blendState,
@@ -99,12 +99,8 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.deepEqual(parks, [[0, true]])
   assert.equal(item.hidden, true, 'the blend item of the hidden node is hidden')
   assert.ok(!kept.hidden, 'another node keeps its blend item')
-  // The roots named to the rows pass since the last step, taken as its follow takes them: a root
-  // is listed once a follow (`deriveRootRows`).
-  const asked = () => [...(rt.rowWords?.roots.take() ?? [])]
-  assert.deepEqual(asked(), [0], 'its rows, derived again, stale its shadow pages')
   assert.deepEqual(changed, [], 'no box declared on the CPU')
-  assert.deepEqual(touched, [0], "its rows' words are written anew: the casters skip them")
+  assert.deepEqual(touched, [0], 'its mobility is told: the casters skip it')
   // The flip is noted on the item's key record, whose drawn bit the GPU verdict reads.
   const drawnBit = () => writeKeyRecords(blendState)[KEY_WORD.flags] & KEY_DRAWN
   assert.deepEqual(blendState.keyMoved, { from: 0, to: 0 }, 'its key record goes up')
@@ -114,7 +110,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
     KEY_DRAWN,
   )
   uploadWorlds(rt)
-  assert.deepEqual(asked(), [], 'a revision that changes nothing stales nothing')
+  assert.deepEqual(touched, [0], 'a revision that changes nothing tells nothing')
   group.visible = true
   uploadWorlds(rt)
   assert.deepEqual(parks, [
@@ -122,15 +118,13 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
     [0, false],
   ])
   assert.equal(item.hidden, false)
-  assert.deepEqual(asked(), [0], 'shown again, its shadow is drawn again')
   assert.deepEqual(touched, [0, 0])
   assert.deepEqual(blendState.keyMoved, { from: 0, to: 0 })
   assert.equal(drawnBit(), KEY_DRAWN)
-  // #456: a node set to cast no shadow leaves every light cut; its shadow pages are drawn again.
+  // #456: a node set to cast no shadow leaves every light cut.
   node.castShadow = false
   uploadWorlds(rt)
   assert.deepEqual(marks.slice(-1), [SHADOWLESS_ROOT])
-  assert.deepEqual(asked(), [0], 'its shadow is drawn again without it')
   assert.deepEqual(changed, [])
   // A node that casts far shadows marks its root so, beside the shadowless bit.
   node.castFarShadow = true

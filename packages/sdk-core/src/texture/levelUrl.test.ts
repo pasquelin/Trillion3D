@@ -9,15 +9,10 @@ test('a baked level is addressed by digest, atlas, rank and format, from the man
   assert.equal(textureLevelUrl(TEMPLATE, SHA, 0, 3, 'etc2'), `../../textures/${SHA}/srgb-3.etc2`)
   assert.equal(textureLevelUrl(TEMPLATE, SHA, 1, 0, 'bc7'), `../../textures/${SHA}/linear-0.bc7`)
   assert.equal(textureLevelUrl(TEMPLATE, SHA, 0, 2, 'astc'), `../../textures/${SHA}/srgb-2.astc`)
-  // The chain weighted by coverage is another file than the plain one of the same image.
+  // The half-float chain is another file than the 8-bit ones of the same image.
   assert.equal(
-    textureLevelUrl(TEMPLATE, SHA, 2, 3, 'bc7'),
-    `../../textures/${SHA}/srgb-coverage-3.bc7`,
-  )
-  // A coverage chain cut at byte 128 keeps its share of covered texels: its own files.
-  assert.equal(
-    textureLevelUrl(TEMPLATE, SHA, (128 << 8) | 2, 3, 'bc7'),
-    `../../textures/${SHA}/srgb-coverage-128-3.bc7`,
+    textureLevelUrl(TEMPLATE, SHA, 2, 3, 'rgba16f'),
+    `../../textures/${SHA}/hdr-3.rgba16f`,
   )
 })
 

@@ -4,15 +4,22 @@ import { rowFlags } from '../geometry/rows/surfaceRow.ts'
 import { materialWord, type MaterialTable } from '../materials/table/materialTable.ts'
 import { hasPhysicalLobes } from '../materials/surface/physicalLobes.ts'
 import { channelsOf } from '../materials/table/materialRecord.ts'
+import { altSetOf } from '../materials/graph/state.ts'
 import { isProgram, programOf } from '../materials/graph/surfaceProgram.ts'
 import { SURFACE_MAP_FIELDS } from '../visibility/materialType.ts'
-import { HISTORY_SHARE_MASK, HISTORY_SHARE_SHIFT } from '../visibility/types.ts'
-import type { HostAttributes } from '../session/host/resources.ts'
+import { RESPONSIVE_MASK, RESPONSIVE_SHIFT } from '../visibility/types.ts'
 import type { SessionDeformation } from '../deformation/session.ts'
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { rowCell, rowDrawnAs } from '../geometry/partition/rowCells.ts'
 import { drawnAsHlod, HLOD_INDEX } from '../diagnostic/colors.ts'
+import { objectOffsetRow, writeOffsetWords } from '../geometry/rows/page/offsetRow.ts'
+import { offsetSwitchesOf } from '../../../sdk-core/src/world/object/offsetSwitches.ts'
+import { readItemBox } from './worlds.ts'
+import { translucencyPassCode } from './translucencyPasses.ts'
+import { marksResponsive } from './responsive.ts'
+import { maskClipValue } from '../materials/graph/maskProgram.ts'
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 
 /**
  * Record of a transparent item: what a blend draw reads about IT, and nothing that depends on the
@@ -34,6 +41,15 @@ const BLEND_ITEM_FIELDS = [
   ['flags', 'u32'],
   ['deform', 'u32'],
   ['material', 'u32'],
+  // What the offset of its surface reads of its object (`../geometry/rows/page/offsetRow.ts`): the
+  // words a page row carries (`PageInfo.wpo` and the three beside it).
+  ['wpo', 'u32'],
+  ['wpoDisableSq', 'f32'],
+  ['wpoMost', 'f32'],
+  ['wpoCentre', 'vec3f'],
+  // The clip value of its surface's opacity mask: a layer under it marks its pixels responsive
+  // (`blendResponsive`).
+  ['opacityClip', 'f32'],
 ] as const
 const LAYOUT = fieldLayout('BlendItem', BLEND_ITEM_FIELDS)
 
@@ -50,17 +66,20 @@ export const ITEM_FLAGS_WORD = ITEM.flags
 type BlendAtlasTables = MaterialLayers & {
   deformation?: Pick<SessionDeformation, 'wordOfWorld'>
   materialTable: Pick<MaterialTable, 'surface'>
-  geometryBlocks?: ReadonlyMap<HostAttributes, GeometryBlock>
+  geometryBlocks?: ReadonlyMap<Geometry['attributes'], GeometryBlock>
 }
 
 /** The flag bits an item's record keeps of a page row's flags of its surface and its geometry
  *  (`rowFlags`), the bits above them — model, fog, sprite, line — being its record's to read; the
  *  vertex stage keeps the same below the view's (`vertexWgsl.ts`). */
 export const ITEM_FLAG_BITS = 0xffff
-/** Above them, read by the vertex stage alone, the four bits of its surface's history share code
- *  (`HISTORY_SHARE_SHIFT` of the row's flags), here from bit 16: the stage hands them to the
- *  fragments (`TRI_GIVEN_UP_SHIFT`), never into the flags it ORs the view's with. */
-export const ITEM_HISTORY_SHIFT = 16
+/** Above them, read by the vertex stage alone, the two bits of its surface's responsiveness code
+ *  (`RESPONSIVE_SHIFT` of the row's flags), here from bit 16: the stage hands them to the
+ *  fragments (`TRI_RESPONSIVE_SHIFT`), never into the flags it ORs the view's with. */
+export const ITEM_RESPONSIVE_SHIFT = 16
+/** Above them, read by the vertex stage alone, bit 18: the item's object is held out of the image's alpha
+ *  (`Object3D.holdout`), which its layers' holdout reads (`TRI_HOLDOUT_SHIFT`). */
+export const ITEM_HOLDOUT = 1 << 18
 /** Above them, read by the vertex stage alone, from bit 28: the HLOD index its placement draws as
  *  (`drawnAsHlod`, `none` itself) — its cell's HLOD 0 actor (`RowCell.proxy`), an instanced actor
  *  for a row of it (`RowCell.actor`) —, which the HLOD view colours (`diagnosticDrawnAs`), as a
@@ -77,18 +96,47 @@ export const itemHlodBits = ({ placement }: Pick<BlendGpuItem, 'placement'>) => 
 /** Whether the floats `item` reads carry a second UV set where `vertUv1` finds it: the float
  *  pool's, for a geometry its pages carry unquantized. A quantized page says so in its own
  *  header. */
-const floatSecondUv = (item: BlendGpuItem, blocks?: ReadonlyMap<HostAttributes, GeometryBlock>) =>
-  !!blocks?.get(item.sourceGeometry.attributes)?.hasExtraUv
+const floatSecondUv = (
+  item: BlendGpuItem,
+  blocks?: ReadonlyMap<Geometry['attributes'], GeometryBlock>,
+) => !!blocks?.get(item.sourceGeometry.attributes)?.hasExtraUv
 
 /** What an item's record says of the programs and targets it needs (`writeBlendItemRecord`): the
  *  lobed programs — its surface carries a lobe, or a map reading a UV set past the first —, and the
- *  history given up — its surface's history share code is not 0 (`blendShareTargets`). */
-export const ITEM_NEEDS = { lobed: 1, givesUp: 2 } as const
+ *  responsive target — its surface's responsiveness code is not 0 (`blendResponsiveTargets`) —, and from
+ *  `passShift` its pass of the image (`translucencyPassCode`). */
+export const ITEM_NEEDS = { lobed: 1, responsive: 2, passShift: 2 } as const
 
 /** Whether the graph a surface wears reads a texture set past the first. */
 const readsExtraUv = (mat: BlendGpuItem['surface']) => {
   const program = programOf(mat)
-  return isProgram(program) && program.compiled.uses.sets > 1
+  return isProgram(program) && altSetOf(program.compiled.uses.sets) !== 0
+}
+
+/** The node an item's object is: where its draw source names one, else its placement's. */
+const itemNode = (item: BlendGpuItem) =>
+  item.drawSource?.node ?? item.placement?.rows.sources?.[item.placement.index] ?? undefined
+
+/** Whether the item's object is held out of the image's alpha (`Object3D.holdout`). */
+const itemHeldOut = (item: BlendGpuItem) => offsetSwitchesOf(itemNode(item) ?? {}).holdout
+
+const itemBox = new Float64Array(6)
+/** The centre and the surface's facts of the item being written, refilled by each: a scene's records
+ *  allocate neither. */
+const itemCentre: [number, number, number] = [0, 0, 0]
+const itemFacts = { most: 0, always: false }
+
+/** The offset words of an item's object: its node's switches, the centre of its local box and what its
+ *  surface asks of the offset; the row's centre and facts are scratch, good until the next item's. */
+function itemOffsetRow(item: BlendGpuItem) {
+  const mat = item.surface,
+    node = itemNode(item)
+  itemCentre[0] = itemCentre[1] = itemCentre[2] = 0
+  if (readItemBox(item, itemBox, 0))
+    for (let a = 0; a < 3; a++) itemCentre[a] = (itemBox[a]! + itemBox[3 + a]!) / 2
+  itemFacts.most = Math.max(mat.maxWorldPositionOffset ?? 0, 0)
+  itemFacts.always = mat.alwaysEvaluateWorldPositionOffset === true
+  return objectOffsetRow(node, itemCentre, itemFacts)
 }
 
 /** Writes an item's record at its rank. `floats` and `ints` are two views of the same buffer.
@@ -113,14 +161,28 @@ export function writeBlendItemRecord(
   // What the table holds of its surface, written first where it moved: its record and summary.
   const seen = tables.materialTable.surface(mat, tables)
   const { flags } = rowFlags(seen.row, item.geometry, tables.textures)
-  const historyCode = (flags >>> HISTORY_SHARE_SHIFT) & HISTORY_SHARE_MASK
+  // The code its layers write into the responsive target (`marksResponsive`).
+  const responsiveCode = marksResponsive(mat) ? (flags >>> RESPONSIVE_SHIFT) & RESPONSIVE_MASK : 0
   ints[base + ITEM.flags] =
-    item.flags | (flags & ITEM_FLAG_BITS) | (historyCode << ITEM_HISTORY_SHIFT) | itemHlodBits(item)
+    item.flags |
+    (flags & ITEM_FLAG_BITS) |
+    (responsiveCode << ITEM_RESPONSIVE_SHIFT) |
+    (itemHeldOut(item) ? ITEM_HOLDOUT : 0) |
+    itemHlodBits(item)
   // The deformation record of its placement (`PageInfo.deform`), in the float pool that holds it.
   ints[base + ITEM.deform] = tables.deformation?.wordOfWorld(item.matrix) ?? 0
   // Its surface's record (`../materials/table/materialTable.ts`), the opaque rows' table.
   ints[base + ITEM.material] = materialWord(seen.rank, floatSecondUv(item, tables.geometryBlocks))
-  return (lobed ? ITEM_NEEDS.lobed : 0) | (historyCode ? ITEM_NEEDS.givesUp : 0)
+  const offset = itemOffsetRow(item)
+  writeOffsetWords(ints, floats, ITEM, base, seen.row, offset)
+  for (let a = 0; a < 3; a++) floats[base + ITEM.wpoCentre + a] = offset.centre[a]!
+  const pass = translucencyPassCode(mat.translucencyPass)
+  floats[base + ITEM.opacityClip] = maskClipValue(mat)
+  return (
+    (lobed ? ITEM_NEEDS.lobed : 0) |
+    (responsiveCode ? ITEM_NEEDS.responsive : 0) |
+    (pass << ITEM_NEEDS.passShift)
+  )
 }
 
 /** WGSL declaration of the record, made of its table (`BLEND_ITEM_FIELDS`). */

@@ -6,7 +6,8 @@ import { setWebgpuMemoryBudgets } from '../io/memory.ts'
 import { textureBytesBeside } from '../io/besidePools.ts'
 import { vertexBytesOf } from '../io/metrics.ts'
 import { taaTargetBytes } from '../../post/taa/historyTargets.ts'
-import { FILTER_HISTORY_BYTES_PER_PIXEL } from '../../post/taa/layers.ts'
+import { wantedShapeOf } from '../../post/taa/historyShape.ts'
+import { layerHistoryBytes } from '../../post/taa/layers.ts'
 import { DISPLAY_LAYER_BYTES_PER_PIXEL } from '../../blend/display/displayFilter.ts'
 import { frameExtraBytes, frameTargetAllocation } from './targetAllocation.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -42,16 +43,18 @@ function refreshTargetFunding(rt: WebgpuPagesRuntime, size: FrameSize) {
  */
 function frameMadeBytes(rt: WebgpuPagesRuntime, size: FrameSize) {
   const { gpu } = rt,
-    display = size.width * size.height,
     filters =
       rt.blendState.filtersDisplay &&
       keepsBeautyChain(rt.run.diagnostic) &&
       !rt.context.diagnosticGpuVariant
-  const history = !!gpu.temporal && taaWanted(gpu) && !rt.capture.capturing
+  const temporal = gpu.temporal
+  const history = !!temporal && taaWanted(gpu) && !rt.capture.capturing
+  const shape = history
+    ? wantedShapeOf(rt, temporal, gpu.temporalLevel, size.width, size.height)
+    : undefined
   return (
-    (history
-      ? taaTargetBytes(size) + (filters ? display * FILTER_HISTORY_BYTES_PER_PIXEL : 0)
-      : 0) + (filters ? size.renderWidth * size.renderHeight * DISPLAY_LAYER_BYTES_PER_PIXEL : 0)
+    (shape ? taaTargetBytes(size, shape) + (filters ? layerHistoryBytes(shape) : 0) : 0) +
+    (filters ? size.renderWidth * size.renderHeight * DISPLAY_LAYER_BYTES_PER_PIXEL : 0)
   )
 }
 
@@ -84,6 +87,36 @@ function frameShareBytes(rt: WebgpuPagesRuntime) {
 /** The bytes a pass holds in targets, none for a pass the image has not made. */
 const heldBytes = (pass: { readonly bytes: number } | undefined) => pass?.bytes ?? 0
 
+/** The bytes the image's effect passes hold in targets. */
+const heldEffectBytes = (gpu: WebgpuPagesRuntime['gpu']) =>
+  heldBytes(gpu.effects) +
+  heldBytes(gpu.finish) +
+  heldBytes(gpu.velocity) +
+  heldBytes(gpu.screenProbes) +
+  heldBytes(gpu.ambientOcclusion) +
+  heldBytes(gpu.deferred?.toneLut) +
+  heldBytes(gpu.lightShafts) +
+  heldBytes(gpu.clouds)
+
+/** The pools moved to the budgets admitted, if they differ from those in place. */
+function applyPools(
+  rt: WebgpuPagesRuntime,
+  pools: ReturnType<NonNullable<WebgpuPagesRuntime['context']['admitGpuMemory']>>,
+) {
+  // This call may run inside prepare itself: the host report's wait would await
+  // this very target grant. Admission only redistributes the existing tables.
+  const { setup, gpu } = rt
+  const record = () => {
+    rt.run.funding.ledgerBytes = gpuDeviceLedgerOf(gpu.device)?.bytes ?? 0
+  }
+  if (
+    pools.geometryPoolBytes !== setup.geometryPool.budgetBytes ||
+    pools.texturePoolBytes !== setup.texturePoolBudget
+  )
+    return setWebgpuMemoryBudgets(rt, pools, 'prepare-targets').then(record)
+  record()
+}
+
 export function fundFrameTargets(
   rt: WebgpuPagesRuntime,
   size: FrameSize,
@@ -102,15 +135,8 @@ export function fundFrameTargets(
   // asks of them before the pools (`vsmAskedBytes`).
   const shadowHeld = shadowHeldBytes(rt)
   const shadowPool = shadowHeld + vsmAskedBytes(rt, size.renderWidth, size.renderHeight)
-  const bounceProbes = bounce.probes ? 2 * bounce.probes.probeBytes : 0
-  const effectTargets =
-    heldBytes(gpu.effects) +
-    heldBytes(gpu.finish) +
-    heldBytes(gpu.velocity) +
-    heldBytes(gpu.screenProbes) +
-    heldBytes(gpu.ambientOcclusion) +
-    heldBytes(gpu.lightShafts) +
-    heldBytes(gpu.clouds)
+  const bounceProbes = bounce.probes ? bounce.probes.tableBytes : 0
+  const effectTargets = heldEffectBytes(gpu)
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot()
   if (ledger?.unknownFormats) throw new Error('GPU_BUDGET_UNKNOWN_FORMAT')
   // Auxiliary buffers, other views/captures and proxy resources are already live.
@@ -143,17 +169,7 @@ export function fundFrameTargets(
     textureMinimum,
     cutTables: cutHeld + rt.run.funding.cutAsked,
   })
-  // This call may run inside prepare itself: the host report's wait would await
-  // this very target grant. Admission only redistributes the existing tables.
-  const record = () => {
-    rt.run.funding.ledgerBytes = gpuDeviceLedgerOf(gpu.device)?.bytes ?? 0
-  }
-  if (
-    pools.geometryPoolBytes !== setup.geometryPool.budgetBytes ||
-    pools.texturePoolBytes !== setup.texturePoolBudget
-  )
-    return setWebgpuMemoryBudgets(rt, pools, 'prepare-targets').then(record)
-  record()
+  return applyPools(rt, pools)
 }
 
 /** The frame's size the cut's admission funds the targets at, written by `admitCutTables`. */

@@ -1,4 +1,5 @@
 import { blocksAcross, previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels.ts'
+import { PREVIEW_BLOCK_SIDE } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import {
   tailOffset,
   tileSpanEnd,
@@ -7,7 +8,6 @@ import {
   type TilePlace,
 } from '../texture/tiles.ts'
 import { TILE_BORDER, TILE_SIZE } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
-import { rgbaBytes } from '../texture/imageExtent.ts'
 
 /**
  * Gestures that post texels into a pool tile. Three sources, one draw: the tile receives its 128×128
@@ -50,6 +50,11 @@ export function tileRegion(levelWidth: number, levelHeight: number, tx: number, 
 /** Origin of a pool cell, in texels. */
 export const cellOrigin = (place: TilePlace) =>
   [place.x * TILE_PITCH, place.y * TILE_PITCH] as const
+/** Origin of a tile's `region` in its pool cell: the cell's origin, the region's offset and the layer. */
+export const regionOrigin = (place: TilePlace, region: TileRegion): GPUOrigin3D => {
+  const [ox, oy] = cellOrigin(place)
+  return [ox + region.dx, oy + region.dy, place.layer]
+}
 /** Origin of the `rank`-th queue level in its cell, border included. */
 const tailOrigin = (place: TilePlace, rank: number): GPUOrigin3D => [
   place.x * TILE_PITCH + TILE_BORDER + tailOffset(rank),
@@ -57,9 +62,9 @@ const tailOrigin = (place: TilePlace, rank: number): GPUOrigin3D => [
   place.layer,
 ]
 
-/** Writes RGBA8 texels at an origin of a texture: `width` × `height` of them, rows `pitch` texels
- *  apart — packed by default. */
-export function writeRgba(
+/** Writes texels at an origin of a texture: `width` × `height` of them, rows `pitch` texels apart
+ *  — packed by default —, each `texelBytes` bytes: RGBA8 by default. */
+export function writeTexels(
   queue: GPUQueue,
   texture: GPUTexture,
   origin: GPUOrigin3D,
@@ -67,29 +72,42 @@ export function writeRgba(
   width: number,
   height: number,
   pitch = width,
+  texelBytes = 4,
 ) {
   queue.writeTexture(
     { texture, origin },
     pixels as Uint8Array<ArrayBuffer>,
-    { bytesPerRow: pitch * 4, rowsPerImage: height },
+    { bytesPerRow: pitch * texelBytes, rowsPerImage: height },
     { width, height },
   )
 }
 
 /** Texels of a `width` wide surface decoded from whole blocks: its rows are whole blocks wide. */
-const decodedPitch = (width: number) => blocksAcross(width) * 4
+const decodedPitch = (width: number) => blocksAcross(width) * PREVIEW_BLOCK_SIDE
 
-/** A tile's record decoded to RGBA8 (`../texture/blockDecode.ts`): its region, to its cell. */
-export function writeTileDecoded(
+/** A tile's texels, `texelBytes` each: its region, to its cell — whole blocks wide when `decoded` (a
+ *  record unpacked by `blockDecode.ts`, `blockDecodeMore.ts` or `floatTexels.ts`), else rows exactly
+ *  its width (a half-float record, `../texture/tileRecords.ts`). */
+export function writeTileTexels(
   queue: GPUQueue,
   pool: GPUTexture,
   place: TilePlace,
   texels: Uint8Array,
   region: TileRegion,
+  texelBytes: number,
+  decoded = true,
 ) {
-  const [ox, oy] = cellOrigin(place)
-  const origin = [ox + region.dx, oy + region.dy, place.layer]
-  writeRgba(queue, pool, origin, texels, region.width, region.height, decodedPitch(region.width))
+  const { width, height } = region
+  writeTexels(
+    queue,
+    pool,
+    regionOrigin(place, region),
+    texels,
+    width,
+    height,
+    decoded ? decodedPitch(width) : width,
+    texelBytes,
+  )
 }
 
 export function copyTileFromTexture(
@@ -100,10 +118,9 @@ export function copyTileFromTexture(
   level: number,
   region: TileRegion,
 ) {
-  const [ox, oy] = cellOrigin(place)
   encoder.copyTextureToTexture(
     { texture: source, mipLevel: level, origin: [region.sx, region.sy, 0] },
-    { texture: pool, origin: [ox + region.dx, oy + region.dy, place.layer] },
+    { texture: pool, origin: regionOrigin(place, region) },
     [region.width, region.height, 1],
   )
 }
@@ -117,11 +134,14 @@ export type TailLevelWriter = (
   level: readonly [number, number],
 ) => void
 
-/** A lossless tail level: four bytes a texel, rows packed. */
-export const writeRgbaLevel: TailLevelWriter = (queue, pool, origin, pixels, [width, height]) => {
-  if (pixels.byteLength !== rgbaBytes(width, height)) throw new Error('TEXTURE_TAIL_BYTES')
-  writeRgba(queue, pool, origin, pixels, width, height)
-}
+/** A tail level of texels `texelBytes` each — one in the eight-bit channel pool, two or four in
+ *  the float channel pools, eight or sixteen in the half-float lane —, rows packed. */
+export const texelLevelWriter =
+  (texelBytes: number): TailLevelWriter =>
+  (queue, pool, origin, texels, [width, height]) => {
+    if (texels.byteLength !== width * height * texelBytes) throw new Error('TEXTURE_TAIL_BYTES')
+    writeTexels(queue, pool, origin, texels, width, height, width, texelBytes)
+  }
 
 /** Queue levels, from the first to 1×1, each at its place in the tile, by `writeLevel`. */
 export function writeTail(

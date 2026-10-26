@@ -9,7 +9,8 @@ import {
   SHADOW_RULES,
   type ShadowValues,
 } from '../../../../../sdk-core/src/contracts/shadowOptions.ts'
-import type { VsmLightCache } from './cacheManager.ts'
+import { noDofBias, type VsmDofBias } from './dofBias.ts'
+import type { VsmLightCache } from './lightCache.ts'
 
 /** The settings a setup reads when its host gives none: every default. */
 export const VSM_DEFAULT_SHADOWS: ShadowValues = Object.freeze(resolveSettings(SHADOW_RULES, {}))
@@ -19,10 +20,16 @@ export const VSM_DEFAULT_SHADOWS: ShadowValues = Object.freeze(resolveSettings(S
 export interface VsmMapSettings {
   readonly shadows: ShadowValues
   readonly frame?: number
+  /** The depth of field's bias on the maps' resolution, rewritten each frame (`frame/vsmDof.ts`). */
+  readonly dof: VsmDofBias
+  /** Whether the suns take a first-person clipmap this frame: `shadowFirstPersonClipmap` on and the
+   *  scene holding an object that stands for a first-person one; rewritten each frame
+   *  (`frame/vsmFarShadow.ts`). Absent, no. */
+  readonly firstPerson?: { active: boolean }
 }
 
 /** The settings of a setup whose host gives none. */
-export const VSM_DEFAULT_MAPS: VsmMapSettings = { shadows: VSM_DEFAULT_SHADOWS }
+export const VSM_DEFAULT_MAPS: VsmMapSettings = { shadows: VSM_DEFAULT_SHADOWS, dof: noDofBias() }
 
 /** The clipmap levels a sun's shadows take at most — from the first level to the last, the last
  *  never below the first; an orthographic view may start coarser. */
@@ -34,7 +41,7 @@ export const vsmSunLevels = ({ shadowClipmapFirstLevel, shadowClipmapLastLevel }
  * moves): `still` at 0, at 1 `moving` when that is the coarser, else `still` — a light that moves
  * never takes a finer bias than it rests at.
  */
-export const vsmMovingBias = (still: number, moving: number, factor: number) =>
+const vsmMovingBias = (still: number, moving: number, factor: number) =>
   still + factor * (Math.max(still, moving) - still)
 
 /** A sun's resolution bias at mobility `mobility` (`vsmLightMobility`): the settings' at rest and
@@ -63,7 +70,8 @@ const movedAt = new WeakMap<VsmLightCache, number>()
  * The mobility factor of a light, from 0 to 1, at scene frame `frame`: 1 the frame it was made or
  * `moved` — its direction, its position, its shape changed —, then falling to 0 over the next
  * `activeFrames` frames in equal steps (`shadowLightActiveFrameCount`), and 0 from there until it
- * moves again. Every light of the scene can move: none is fixed in place.
+ * moves again. Only a `movable` light asks it (`VsmLocalLightInput.movable`): a static or
+ * stationary one rests at the still bias from its first frame.
  */
 export function vsmLightMobility(
   entry: VsmLightCache,
@@ -85,11 +93,31 @@ export interface VsmClipmapConfig {
   coarseTo: number
   /** Whether the coarse pages keep their dynamic layer cached (`VSM_MAP_COARSE_KEEPS_DYNAMIC`). */
   keepsDynamic: boolean
+  /** Whether a level leaves out the offsets of the objects that stop theirs short of it
+   *  (`shadowClipmapWpoDisableDistance`), the levels it keeps them past the distance
+   *  (`shadowClipmapWpoDisableDistanceLodBias`), and the resolution bias the rule counts levels with:
+   *  the sun's at rest, with no screen term and no moving one, so that it does not vary with the view. */
+  wpoDisable: boolean
+  wpoLodBias: number
+  restingBias: number
 }
 
 /** The config of the clipmap being set up, rewritten by each `vsmClipmapConfig`. */
 const config: VsmClipmapConfig = {
   ...{ firstLevel: 0, lastLevel: 0, coarseFrom: -1, coarseTo: -1, keepsDynamic: false },
+  ...{ wpoDisable: false, wpoLodBias: 0, restingBias: 0 },
+}
+
+/** The config of a sun's first-person clipmap (`shadowFirstPersonClipmap`): the regular config with its
+ *  own level range and no coarse level; the one object rewritten, as `vsmClipmapConfig`'s. */
+export function vsmFirstPersonClipmapConfig(shadows: ShadowValues) {
+  vsmClipmapConfig(shadows)
+  config.firstLevel = shadows.shadowFirstPersonClipmapFirstLevel
+  config.lastLevel = shadows.shadowFirstPersonClipmapLastLevel
+  config.coarseFrom = -1
+  config.coarseTo = -1
+  config.keepsDynamic = false
+  return config
 }
 
 /** The clipmap config `shadows` ask, the one object rewritten: no coarse level when the marking is
@@ -101,5 +129,8 @@ export function vsmClipmapConfig(shadows: ShadowValues) {
   config.coarseFrom = marks === 0 ? -1 : shadows.shadowClipmapFirstCoarseLevel
   config.coarseTo = marks === 0 ? -1 : shadows.shadowClipmapLastCoarseLevel
   config.keepsDynamic = marks === 2
+  config.wpoDisable = shadows.shadowClipmapWpoDisableDistance
+  config.wpoLodBias = shadows.shadowClipmapWpoDisableDistanceLodBias
+  config.restingBias = shadows.shadowResolutionLodBiasDirectional
   return config
 }

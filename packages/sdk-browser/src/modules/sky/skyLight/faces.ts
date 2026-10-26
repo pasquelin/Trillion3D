@@ -1,3 +1,5 @@
+import { basisMatrix4 } from '../../../../../math/src/matrix/matrix4Trs.ts'
+import { dotVector3 } from '../../../../../math/src/vector/vector.ts'
 import { FACES, cubeToScene } from './layout.ts'
 
 /**
@@ -12,7 +14,7 @@ import { FACES, cubeToScene } from './layout.ts'
  */
 
 /** The nearest distance the capture sees, metres: five centimetres. */
-export const CAPTURE_NEAR_METRES = 0.05
+const CAPTURE_NEAR_METRES = 0.05
 
 /** The camera of face `face` standing at `eye` (scene metres). */
 export function faceCamera(face: number, eye: readonly number[]) {
@@ -20,15 +22,13 @@ export function faceCamera(face: number, eye: readonly number[]) {
   const f = cubeToScene(axes.forward),
     r = cubeToScene(axes.right),
     u = cubeToScene(axes.up)
-  const dot = (a: readonly number[], b: readonly number[]) =>
-    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
   const n = CAPTURE_NEAR_METRES
   // clip = (r·v, u·v, n, f·v) for v = point - eye.
   const rows = [
-    [r[0], r[1], r[2], -dot(r, eye)],
-    [u[0], u[1], u[2], -dot(u, eye)],
+    [r[0], r[1], r[2], -dotVector3(r, eye)],
+    [u[0], u[1], u[2], -dotVector3(u, eye)],
     [0, 0, 0, n],
-    [f[0], f[1], f[2], -dot(f, eye)],
+    [f[0], f[1], f[2], -dotVector3(f, eye)],
   ]
   const viewProj = new Float32Array(16)
   for (let col = 0; col < 4; col++)
@@ -46,23 +46,12 @@ export function faceCamera(face: number, eye: readonly number[]) {
     0,
   ])
   // The camera's world matrix, looking down its own -z, as the air's frame reads it.
-  const world = new Float32Array([
-    r[0],
-    r[1],
-    r[2],
-    0,
-    u[0],
-    u[1],
-    u[2],
-    0,
-    -f[0],
-    -f[1],
-    -f[2],
-    0,
-    eye[0],
-    eye[1],
-    eye[2],
-    1,
-  ])
+  const world = basisMatrix4(
+    new Float32Array(16),
+    r,
+    u,
+    f.map((c) => -c),
+    eye,
+  )
   return { viewProj, inverseViewProj, world }
 }

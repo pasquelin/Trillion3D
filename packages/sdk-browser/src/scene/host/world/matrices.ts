@@ -9,8 +9,7 @@ import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d
  * its frame pass (`placements.ts`). What remains here: a node's pose refused when one of its
  * numbers is not finite, and the HOST's scene brought up to date
  * for its own readers — replication (`../../replicateInstances.ts`) starts from the world
- * matrices it carries. The test `tests/integration/engine-without-three-math.test.ts` holds this
- * frontier.
+ * matrices it carries.
  */
 
 /** Whole subtree of `node` updated IN THE HOST SCENE, for its own readers. */

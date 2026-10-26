@@ -1,7 +1,7 @@
+import type { SettingOptions } from '../settingOptions.ts'
 import type { AdmitGpuMemory } from '../memory/activeMemory.ts'
 import type { TemporalAntialiasingLevel } from '../../../../sdk-core/src/contracts/compilerAbi.ts'
-import type { HostScene } from '../host/resources.ts'
-import type { HostCamera } from '../../camera/world.ts'
+import type { ViewCamera } from '../../camera/world.ts'
 import type {
   EngineCapabilities,
   ViewFrameMetrics,
@@ -9,9 +9,12 @@ import type {
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 import type { MeshDistanceField } from '../../../../sdk-core/src/lighting/distanceFieldFile.ts'
+import type { MeshCards } from '../../../../sdk-core/src/lighting/meshCardsFile.ts'
 import type { VolumetricLightmapData } from '../../../../sdk-core/src/lighting/volumetricLightmapFile.ts'
+import type { ReadLightmap } from '../../lighting/volumetricLightmap/fileLoad.ts'
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 import type { SceneFogVolumeStore } from '../../../../sdk-core/src/scene/volume/store.ts'
+import type { SceneLocalFogStore } from '../../../../sdk-core/src/scene/localFog/store.ts'
 import type { StageProfile } from '../../../../sdk-core/src/runtime/stageProfile.ts'
 import type { EngineDrawCounters, EngineMetrics } from '../../diagnostic/metricKeys.ts'
 import type { MemoryBudgets, MemoryBudgetsReport } from '../memory/pools.ts'
@@ -30,54 +33,19 @@ import type { PresentRect } from '../../gpu/core/presentAt.ts'
 import type { RenderScale } from '../../frame/scale/renderScaleOption.ts'
 import type { WebgpuViewOptions } from '../../frame/backend/state/persistentView.ts'
 import type { TextureCaches } from '../../materials/texture/textureCaches.ts'
-import type {
-  HlodWarmupOptions,
-  WorldStreamingOptions,
-} from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
-import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
-import type { DynamicResolutionOptions } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
-import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
-import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
-import type { ExposureCurveOptions } from '../../../../sdk-core/src/contracts/exposureCurve.ts'
-import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
-import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
-import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
-import type { LightFunctionOptions } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
-import type { VolumetricLightmapOptions } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
-import type { DistanceFieldOcclusionOptions } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
-import type { GlobalDistanceFieldOptions } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
-import type { ShadowOptions } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
-import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
-import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
-import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
-import type { GaussianBlurSettings } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
-import type { FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
-import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
-import type { SkyQualityOptions } from '../../../../sdk-core/src/modules/sky/quality.ts'
-import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
-import type { ReflectionOptions } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
-import type { VolumetricFogOptions } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
-import type { TessellationOptions } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
-import type { RasterOptions } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
-import type { StreamingOptions } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 import type { HdrViewsJob } from '../../frame/io/hdrCapture.ts'
 type ViewSize = { width: number; height: number }
 /** A view drawn beside the main one (`Engine.addView`). */
 export interface EngineView {
   /** Draws the view from `camera`, after the frame's main image; `index` names it in its
    *  metrics. */
-  render(camera: HostCamera, index: number): ViewFrameMetrics
+  render(camera: ViewCamera, index: number): ViewFrameMetrics
   /** Its drawing buffer's size, canvas pixels; or its rectangle of the main canvas. */
   resize(width: number, height: number, rect?: PresentRect): void
-  setRenderScale(scale: RenderScale): void
+  setRenderScale(scale: RenderScale | undefined): void
   setTemporalAntialiasing(level: TemporalAntialiasingLevel): void
   /** Leaves, its GPU resources released once the device answered what it asked. */
   release(): Promise<void>
-}
-/** What the host holds of the sky that the sky module does not (`Engine.applySky`). */
-export interface SkyHost {
-  /** The host's cube, for a sky light whose source is a specified cubemap. */
-  readonly cubemap?: GPUTexture
 }
 /** The engine: the WebGPU page raster (`../../frame/backend/pages.ts`), the session's one renderer.
  *  Every member is its own and required; a test's stand-in casts a partial one. */
@@ -90,24 +58,24 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   freezeCut(frozen: boolean): void
   /** The contract light store has changed: the next frame will reread it. */
   refreshSceneLights(): void
-  /** The store of the objects voxelised into the fog's volume has changed: the next frame will read it. */
+  /** The store of the objects voxelised into the fog's volume, or the one of the local fog volumes, has changed: the
+   *  next frame will read it. */
   refreshFogVolumes(): void
   /** The sky module's resolved parts for the engine to draw — the sky light's capture, the clouds
-   *  with their shadow maps — and what the host holds that the module does not; `undefined` when the
-   *  module is off, which releases what an earlier word made. Takes effect at the next frame. */
-  applySky(sky: ResolvedSky | undefined, host: SkyHost): void
+   *  with their shadow maps; `undefined` when the module is off, which releases what an earlier word
+   *  made. Takes effect at the next frame. */
+  applySky(sky: ResolvedSky | undefined): void
   /** Extra lighting facts: shadow support and a reason when absent. */
   lighting: { shadows: boolean; reason?: string }
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
   setMemoryBudgets(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>
   signal: AbortSignal // Aborted by its dispose or its session's: `prepare` then fails as cancelled.
   prepare(): Promise<void>
-  render(camera: HostCamera): void
+  render(camera: ViewCamera): void
   /** A view drawn beside the main one, from a camera of its own, into a canvas of its own or at a
    *  rectangle of the main one's (`../../frame/backend/state/persistentView.ts`). */
   addView(options: WebgpuViewOptions): Promise<EngineView>
   readonly overBudget: boolean
-  scene: HostScene
   /** Canvas the engine presented its image into when the host handed it none (`gpuCanvas`): a
    *  host composing elsewhere copies it. `undefined` when the engine draws on the host canvas, and
    *  withdrawn — canvas blanked — by a lost or disposed device before the next call raises
@@ -183,12 +151,12 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
    *  flush read when it is still current. */
   capture(): Promise<Uint8Array>
   /** The composed image of `camera` at a size of its own, drawn aside: nothing is presented. */
-  captureColorView(camera: HostCamera, size: ViewSize): Promise<Uint8Array>
+  captureColorView(camera: ViewCamera, size: ViewSize): Promise<Uint8Array>
   /** The lit linear HDR image of each camera of the job, drawn aside with its overrides and taken
    *  away by its copy: nothing is presented (`../../frame/io/hdrCapture.ts`). */
   captureHdrViews(job: HdrViewsJob): Promise<void>
   captureSurfaceView(
-    camera: HostCamera,
+    camera: ViewCamera,
     options: { width: number; height: number; signal?: AbortSignal },
   ): Promise<import('../../materials/surface/surfaceBuffer.ts').SurfaceCapture>
   dispose(): void | Promise<void> // A release that finishes later resolves when it has.
@@ -224,8 +192,14 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
  *  (`../../post/finish/frame.ts`);
  *  the film effects' (`../../../../sdk-core/src/contracts/filmOptions.ts`), written by `setFilm`,
  *  read at each image by the finishing (`../../post/finish/frame.ts`);
+ *  the colour grading's (`../../../../sdk-core/src/contracts/colorGradingOptions.ts`), written by
+ *  `setColorGrading`, read at each image by the tone table's baking (`../../post/finish/toneFrame.ts`);
  *  the volumetric fog's (`../../../../sdk-core/src/contracts/volumetricFogOptions.ts`), written by
  *  `setVolumetricFog`, read at each image by the fog volume (`../../frame/render/encodeFogVolume.ts`);
+ *  the translucency lighting volume's (`../../../../sdk-core/src/contracts/translucencyVolumeOptions.ts`), written by
+ *  `setTranslucencyVolume`, read at each image by the volume's injection (`../../lighting/translucency/frame.ts`);
+ *  the screen-space subsurface scattering's (`../../../../sdk-core/src/contracts/subsurfaceScatteringOptions.ts`), written by
+ *  `setSubsurfaceScattering`, read at each image by its passes (`../../lighting/subsurface/frame.ts`);
  *  the screen probes' (`../../../../sdk-core/src/bounce/screenProbeOptions.ts`), written by
  *  `setIndirectLight`, read at each image by the probes (`../../lighting/bounce/screen/frame.ts`);
  *  the reflections' trace's (`../../../../sdk-core/src/contracts/reflectionOptions.ts`), written by
@@ -239,42 +213,15 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
  *  the transparent clusters' test (`../../blend/transparent/occlusionHost.ts`);
  *  the light functions' (`../../../../sdk-core/src/contracts/lightFunctionOptions.ts`), written by
  *  `setLightFunction`, read at each image by the atlas (`../../lighting/lightFunction/frame.ts`);
- *  the software raster, on by default, and the projected edge in pixels from which a cluster is
- *  the hardware rasterizer's (`../../../../sdk-core/src/contracts/rasterOptions.ts`), written by
- *  `setSoftwareRaster` and `setHardwareRasterEdgePixels` and read each image by the cluster split
+ *  the software raster, on by default, the projected edge in pixels from which a cluster is
+ *  the hardware rasterizer's, and the ordering of its cutout clusters by depth bucket
+ *  (`../../../../sdk-core/src/contracts/rasterOptions.ts`), written by
+ *  `setSoftwareRaster`, `setHardwareRasterEdgePixels`, `setDepthBucketing`, `setDepthBucketsMinZ`
+ *  and `setDepthBucketsMaxZ` and read each image by the cluster split
  *  (`../../visibility/passes/uniforms.ts`); the geometry streaming's settings
  *  (`../../../../sdk-core/src/contracts/streamingOptions.ts`), written by `setStreaming` and read
  *  by each update of the streaming (`../../geometry/residency/queue.ts`). */
-export interface EngineContext
-  extends
-    WorldStreamingOptions,
-    HlodWarmupOptions,
-    CutOptions,
-    DynamicResolutionOptions,
-    AnimationOptions,
-    ShadingOptions,
-    ExposureOptions,
-    ExposureCurveOptions,
-    TemporalOptions,
-    HizOptions,
-    LightFunctionOptions,
-    VolumetricLightmapOptions,
-    GlobalDistanceFieldOptions,
-    DistanceFieldOcclusionOptions,
-    ShadowOptions,
-    MotionBlurSettings,
-    DepthOfFieldSettings,
-    BloomSettings,
-    GaussianBlurSettings,
-    FilmSettings,
-    VolumetricFogOptions,
-    TessellationOptions,
-    ScreenProbeOptions,
-    ReflectionOptions,
-    AmbientOcclusionOptions,
-    SkyQualityOptions,
-    RasterOptions,
-    StreamingOptions {
+export interface EngineContext extends SettingOptions {
   source: Object3D
   metadata: ClusterManifest
   indices: Map<string, Uint32Array>
@@ -301,6 +248,10 @@ export interface EngineContext
   /** Image pixels per CSS pixel, read each frame: the host's `pixelRatio`, which a resize may
    *  change. A line's `linewidth` counts CSS pixels, so a line keeps its look when the pixel ratio changes. */
   pixelRatio?: () => number
+  /** The world's time, in seconds, read at each image (`MeasuredWorldOptions.worldClock`): what the
+   *  automatic exposure adapts on, the difference between two images, and what the `time` of a
+   *  material graph reads (`materials/graph/clocks.ts`). Absent, the image clock. */
+  worldClock?: () => number
   gpuDevice?: GPUDevice
   gpuCanvas?: HTMLCanvasElement // a host canvas dedicated to the engine
   /** Texture-tile bytes and tile-copy CPU milliseconds admitted per frame; the rest waits. */
@@ -334,9 +285,14 @@ export interface EngineContext
   sceneLights?: SceneLightStore // the host's contract lights, shared by the session's engines
   /** The meshes' distance fields the cache carries (`distanceFields.bin`), none for a cache without. */
   distanceFields?: readonly MeshDistanceField[]
+  /** The cards the meshes keep (`meshCards.bin`), none for a cache whose meshes kept none. */
+  meshCards?: readonly MeshCards[]
   /** The scene's volumetric lightmap (`volumetric-lightmap.bin`), none for a cache whose job baked none. */
   volumetricLightmapData?: VolumetricLightmapData
+  /** Reads the bricks of one of its streaming cells (`readVolumetricLightmap`); none for a lightmap with all its bricks in its layers. */
+  readVolumetricLightmapCell?: ReadLightmap['readCell']
   sceneVolumes?: SceneFogVolumeStore // the objects voxelised into the fog's volume, shared likewise
+  sceneLocalFog?: SceneLocalFogStore // the local fog volumes, shared likewise
   importedLightIds?: string[] // imported light ids in cache order, set by `importedLights()`
   /** Bounced light, on by default (`false` turns it off); `bounceProbesPerFrame`, the probes a frame traces,
    *  those never traced first, a whole map each (the screen probes' level's budget where none is named, at most 768). */
@@ -349,8 +305,6 @@ export interface EngineContext
   drawConverged?: boolean
   /** DIAGNOSTIC variant kept by the host, checked (`../../diagnostic/gpuVariant.ts`); absent in production. */
   diagnosticGpuVariant?: import('../../diagnostic/gpuVariant.ts').DiagnosticGpuVariant
-  /** Reads the cache's resident-proxy object once, at the first lit frame; absent without one. */
-  readSceneProxy?: () => Promise<import('../../../../sdk-core/src/contracts/proxy.ts').SceneProxy>
   readPage?: (url: string) => Promise<Uint32Array> // Validated reader of a page not yet in memory.
   /** Catalogues the pages of a primitive added to the manifest after the open, before they are
    *  read (`PageQueue.admit`). */

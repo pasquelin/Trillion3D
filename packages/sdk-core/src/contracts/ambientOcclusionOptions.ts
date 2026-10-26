@@ -1,5 +1,12 @@
 import { CENTIMETRES_PER_METRE } from '../page/format.ts'
 import {
+  AMBIENT_OCCLUSION_HORIZON_RULES,
+  resolveHorizon,
+  type AmbientOcclusionMethod,
+  type HorizonSettings,
+} from './ambientOcclusionHorizon.ts'
+import {
+  atLeast,
   flagSetting as flag,
   integerSetting as integer,
   nonNegativeSetting as nonNegative,
@@ -20,10 +27,14 @@ import {
  *
  * Where it applies. The texture occludes what the base pass left in the picture and the sky light's
  * diffuse, the light that comes from all round and from nowhere in particular; never the declared lights,
- * which have their own shadows. It runs only where no screen probes light the pixels: the probes
- * carry their own short-range occlusion (`screenProbeShortRangeOcclusion`), and the two never meet,
- * unless `ambientOcclusionWithScreenProbes` is on and that occlusion is off, when it occludes the
- * probes' light and nothing else (`ambientOcclusionMode`).
+ * which have their own shadows. It runs only where no diffuse global illumination is on (the bounce
+ * off): with it on, the probes carry their own short-range occlusion (`screenProbeShortRangeOcclusion`),
+ * and the two never meet, unless `ambientOcclusionWithScreenProbes` is on and that occlusion is off, when it
+ * occludes the probes' light and nothing else (`ambientOcclusionMode`).
+ *
+ * The four settings the quality levels write (the resolutions, the ceiling, the climb and the radius scale) default to the row of
+ * the reference's default quality level — the fourth of its five, the one its engine starts at —, not to the value its own
+ * variable holds before any level is applied (a climb of 0.5): the top level of ours, `max`, then writes nothing.
  *
  * Lengths are in metres, the reference's centimetres over a hundred; a setting that is a share of the
  * depth (the bias) or of the image keeps its own number. Run-time settings, as `./settingRules.ts`
@@ -32,7 +43,6 @@ import {
 
 /** The reference's lengths are in centimetres: one metre of ours is this many. */
 const CM = CENTIMETRES_PER_METRE
-const NO_LIMIT = Number.MAX_VALUE
 
 /**
  * The settings by field, each with the reference's default:
@@ -61,28 +71,38 @@ const NO_LIMIT = Number.MAX_VALUE
  *   pyramid along the search; 0 always reads the finest;
  * - `ambientOcclusionRadiusScale` (1): a scale on the radius;
  * - `ambientOcclusionWithScreenProbes` (off): occlude the screen probes' light too, when their own
- *   short-range occlusion is off.
+ *   short-range occlusion is off;
+ * - `ambientOcclusionCompute` (0), 0 to 3: how the pass is made, 0 the pixel passes of the quality's resolutions; 1 to 3 the single
+ *   compute pass — one resolution, the normals the depth gives, no blur among a quad of pixels —, 2 and 3 naming an
+ *   asynchronous queue that the device lacks, so that all three make the same pass;
+ * - `ambientOcclusionComputeSmooth` (on): where the compute pass is made and the image does not accumulate in time, a
+ *   smoothing pass over its result (a box of four taps two texels apart), the noise's grid otherwise showing;
+ * - the method (`ambientOcclusionMethod`, `'disc'`) and the settings of the second, `'horizon'` (`ambientOcclusionHorizon…`):
+ *   `./ambientOcclusionHorizon.ts`.
  */
 export const AMBIENT_OCCLUSION_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('ambientOcclusion', true),
     number('ambientOcclusionIntensity', 0.5, [0, 1]),
     number('ambientOcclusionStaticFraction', 1, [0, 1]),
-    number('ambientOcclusionRadius', 200 / CM, [0.1 / CM, NO_LIMIT]),
+    number('ambientOcclusionRadius', 200 / CM, atLeast(0.1 / CM)),
     flag('ambientOcclusionRadiusInWorldSpace', false),
     nonNegative('ambientOcclusionFadeDistance', 8000 / CM),
     nonNegative('ambientOcclusionFadeRadius', 5000 / CM),
-    number('ambientOcclusionPower', 2, [0.1, NO_LIMIT]),
+    number('ambientOcclusionPower', 2, atLeast(0.1)),
     nonNegative('ambientOcclusionBias', 3),
-    number('ambientOcclusionQuality', 50, [0, NO_LIMIT]),
-    number('ambientOcclusionMipBlend', 0.6, [0.1, NO_LIMIT]),
-    number('ambientOcclusionMipScale', 1.7, [0.5, NO_LIMIT]),
+    number('ambientOcclusionQuality', 50, atLeast(0)),
+    number('ambientOcclusionMipBlend', 0.6, atLeast(0.1)),
+    number('ambientOcclusionMipScale', 1.7, atLeast(0.5)),
     nonNegative('ambientOcclusionMipThreshold', 0.01),
     integer('ambientOcclusionLevels', -1, [-1, 3]),
     number('ambientOcclusionMaxQuality', 100, [-100, 100]),
     number('ambientOcclusionMipLevelFactor', 0.4, [0, 100]),
     number('ambientOcclusionRadiusScale', 1, [0.1, 15]),
     flag('ambientOcclusionWithScreenProbes', false),
+    integer('ambientOcclusionCompute', 0, [0, 3]),
+    flag('ambientOcclusionComputeSmooth', true),
+    ...AMBIENT_OCCLUSION_HORIZON_RULES,
   ] as const))()
 /** The field of one setting of the ambient occlusion. */
 export type AmbientOcclusionField = keyof typeof AMBIENT_OCCLUSION_RULES
@@ -93,9 +113,10 @@ export type AmbientOcclusionValues = SettingValues<typeof AMBIENT_OCCLUSION_RULE
 
 /**
  * What each quality level below the top writes: the resolutions, the ceiling of the quality, how fast
- * the samples climb the depth pyramid and the scale of the radius — the reference's own four post-process
+ * the samples climb the depth pyramid and the scale of the radius — the reference's own five post-process
  * levels. `smooth` searches none (no occlusion), `balanced` and `fine` follow the quality at the
- * larger radius; `max` writes nothing, the defaults (`runtime/qualityLevels.ts`).
+ * larger radius; `max` writes nothing, the defaults (`runtime/qualityLevels.ts`); `cinematic` writes
+ * its fifth row, the defaults again with the horizon search's four directions.
  */
 export const AMBIENT_OCCLUSION_PRESET_LEVELS = {
   smooth: {
@@ -116,6 +137,13 @@ export const AMBIENT_OCCLUSION_PRESET_LEVELS = {
     ambientOcclusionMipLevelFactor: 0.6,
     ambientOcclusionRadiusScale: 1.5,
   },
+  cinematic: {
+    ambientOcclusionLevels: -1,
+    ambientOcclusionMaxQuality: 100,
+    ambientOcclusionMipLevelFactor: 0.4,
+    ambientOcclusionRadiusScale: 1,
+    ambientOcclusionHorizonAngles: 4,
+  },
 } as const
 
 /** The smallest radius that draws, in centimetres, once scaled: under it no occlusion is made. */
@@ -131,8 +159,11 @@ export interface AmbientOcclusionSettings {
   /** The radius, scaled, in centimetres, and whether it is the world's rather than the view's. */
   radiusCm: number
   radiusInWorldSpace: boolean
+  /** The distance, in centimetres, the occlusion has faded to nothing at, and the fade as a multiplier and an addend of the depth:
+   *  `saturate(depth · fadeMultiplier + fadeAddend)` is the share of the way to nothing (the fade radius held to a centimetre). */
   fadeDistanceCm: number
-  fadeRadiusCm: number
+  fadeMultiplier: number
+  fadeAddend: number
   power: number
   bias: number
   mipBlend: number
@@ -146,6 +177,13 @@ export interface AmbientOcclusionSettings {
   levels: number
   shaderQuality: number
   withScreenProbes: boolean
+  /** The method that finds the occlusion, and the horizon search's own numbers (`./ambientOcclusionHorizon.ts`). */
+  method: AmbientOcclusionMethod
+  horizon: HorizonSettings
+  /** Whether the pass is the compute pass (one resolution at most, the depth's normals), and whether it is smoothed in an
+   *  image that does not accumulate in time. */
+  compute: boolean
+  computeSmooth: boolean
 }
 
 /** The quality in percent: the setting under the ceiling; a negative ceiling names it, in absolute value. */
@@ -153,9 +191,13 @@ const ambientOcclusionQuality = (quality: number, maxQuality: number) =>
   maxQuality < 0 ? -maxQuality : Math.min(maxQuality, quality)
 
 /** The resolutions a quality searches: the setting (0 to 3) when it is not negative, else one more for each step
- *  of the quality over 35 and over 70. */
-const ambientOcclusionLevels = (levels: number, quality: number) =>
-  levels >= 0 ? levels : 1 + +(quality > 70) + +(quality > 35)
+ *  of the quality over 35 and over 70; the compute pass makes one at most, and one where the setting leaves it to the quality. */
+const ambientOcclusionLevels = (levels: number, quality: number, compute: boolean) =>
+  compute
+    ? Math.min(levels < 0 ? 1 : levels, 1)
+    : levels >= 0
+      ? levels
+      : 1 + +(quality > 70) + +(quality > 35)
 
 /** The samples' shape a quality picks, 0 (the fewest) to 4: one more for each step over 5, 25, 55 and 75. */
 const ambientOcclusionShaderQuality = (quality: number) =>
@@ -173,8 +215,12 @@ export function resolveAmbientOcclusion(values: AmbientOcclusionValues): Ambient
     values.ambientOcclusionQuality,
     values.ambientOcclusionMaxQuality,
   )
-  const levels = ambientOcclusionLevels(values.ambientOcclusionLevels, quality)
+  const compute = values.ambientOcclusionCompute > 0
+  const levels = ambientOcclusionLevels(values.ambientOcclusionLevels, quality, compute)
   const radiusCm = values.ambientOcclusionRadius * CM * values.ambientOcclusionRadiusScale
+  const fadeDistanceCm = values.ambientOcclusionFadeDistance * CM
+  const fadeRadiusCm = Math.max(1, values.ambientOcclusionFadeRadius * CM)
+  const fadeMultiplier = 1 / fadeRadiusCm
   return {
     enabled:
       values.ambientOcclusion &&
@@ -185,8 +231,9 @@ export function resolveAmbientOcclusion(values: AmbientOcclusionValues): Ambient
     staticFraction: values.ambientOcclusionStaticFraction,
     radiusCm,
     radiusInWorldSpace: values.ambientOcclusionRadiusInWorldSpace,
-    fadeDistanceCm: values.ambientOcclusionFadeDistance * CM,
-    fadeRadiusCm: values.ambientOcclusionFadeRadius * CM,
+    fadeDistanceCm,
+    fadeMultiplier,
+    fadeAddend: -(fadeDistanceCm - fadeRadiusCm) * fadeMultiplier,
     power: values.ambientOcclusionPower,
     bias: values.ambientOcclusionBias,
     mipBlend: values.ambientOcclusionMipBlend,
@@ -197,31 +244,37 @@ export function resolveAmbientOcclusion(values: AmbientOcclusionValues): Ambient
     levels,
     shaderQuality: ambientOcclusionShaderQuality(quality),
     withScreenProbes: values.ambientOcclusionWithScreenProbes,
+    method: values.ambientOcclusionMethod,
+    horizon: resolveHorizon(values),
+    compute,
+    computeSmooth: values.ambientOcclusionComputeSmooth,
   }
 }
 
-/** How an image applies the occlusion: `none`; `scene`, where no screen probes light it, to the
+/** How an image applies the occlusion: `none`; `scene`, where no global illumination is on, to the
  *  surfaces' emission and the sky light's diffuse; `probes`, to the probes' light. */
 export type AmbientOcclusionMode = 'none' | 'scene' | 'probes'
 
-/** What an image knows of its indirect light: whether the screen probes light its pixels, and the
- *  setting `screenProbeShortRangeOcclusion` as written (the occlusion's strength read apart). */
+/** What an image knows of its indirect light: whether the diffuse global illumination is on for it (the bounce asked: the
+ *  world's probes, and the screen probes over them, then light the pixels), and the setting `screenProbeShortRangeOcclusion` as
+ *  written (the occlusion's strength read apart). */
 export interface IndirectLightState {
-  probes: boolean
+  bounce: boolean
   shortRange: boolean
 }
 
 /**
- * Where, and whether, the image draws the occlusion. With no screen probes it is drawn for the
- * scene. With them it is drawn only when the host asks for it (`withScreenProbes`) and the probes' own
- * short-range occlusion is off — the one that replaces it —, and then it occludes their light alone.
- * Nothing is drawn when the settings draw nothing (`AmbientOcclusionSettings.enabled`).
+ * Where, and whether, the image draws the occlusion. With no diffuse global illumination (the bounce off, as the lowest
+ * quality level has it) it is drawn for the scene. With it on, at whatever level of the screen probes — the ones that read
+ * the world's probes under their short-range occlusion, and a level of none, included — the probes' own occlusion is the one
+ * there, and this is drawn only when the host asks for it (`withScreenProbes`) and that one is off, and then it occludes
+ * their light alone. Nothing is drawn when the settings draw nothing (`AmbientOcclusionSettings.enabled`).
  */
 export function ambientOcclusionMode(
   settings: Pick<AmbientOcclusionSettings, 'enabled' | 'withScreenProbes'>,
-  { probes, shortRange }: IndirectLightState,
+  { bounce, shortRange }: IndirectLightState,
 ): AmbientOcclusionMode {
   if (!settings.enabled) return 'none'
-  if (!probes) return 'scene'
+  if (!bounce) return 'scene'
   return settings.withScreenProbes && !shortRange ? 'probes' : 'none'
 }

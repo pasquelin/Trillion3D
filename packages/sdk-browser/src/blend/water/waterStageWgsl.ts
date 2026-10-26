@@ -1,0 +1,258 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { FLAG_DIAGNOSTIC_VIEW, FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
+import { declaredLightingSplitWgsl } from '../../lighting/direct/declaredLightingWgsl.ts'
+import { translucentMarksFrom } from '../../lighting/direct/shadowWgsl.ts'
+import { type ContractKey, variantLabel } from '../../lighting/deferred/contractCuts.ts'
+import { TRANSLUCENT_RECT_LIGHTS_DEFAULT, translucentLitKey } from '../shader.ts'
+import { fogFreeFlag, modelFlag } from '../../materials/surface/surfaceModelWord.ts'
+import { SURFACE_F0_WGSL } from '../../materials/surface/surfaceSpecular.ts'
+import { BLEND_TO_EYE_WGSL, blendSurfaceWgsl } from '../shaderSurface.ts'
+import { GRAPH_FLAG, blendGraphs } from '../graphWgsl.ts'
+import type { SurfaceProgram } from '../../materials/graph/surfaceProgram.ts'
+import { BLEND_PRE_EXPOSED_WGSL } from '../viewLayout.ts'
+import { NO_VERTEX_READS, cloudVertexText, type VertexReads } from '../cloudVertexText.ts'
+import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
+import { ENVIRONMENT_BRDF_WGSL } from '../../lighting/direct/environmentBrdfWgsl.ts'
+import { byteOf } from '../../../../math/src/wgsl/integer.ts'
+import { DFSH_MAX_LIGHTS, DFSH_NO_MASK_WORDS } from '../../lighting/distanceField/shadow/layout.ts'
+import { WATER_VOLUME_WGSL } from './waterVolumeWgsl.ts'
+import { WATER_REFLECTION_CODE } from './waterLayout.ts'
+
+/** The sun, reflection and far-shadow helpers of the water's shading: the forward sun's light, the
+ *  reflection by mode, the split sun and the distance-field factor. */
+const WATER_LIGHT_HELPERS_TEXT = `fn waterSunOf(P:vec3f,N:vec3f)->WaterSun{
+ var sun=WaterSun(vec3f(0.0),vec3f(0.0,1.0,0.0),1.0,vec3f(0.0));
+ let rank=directLights.forwardRank;
+ if(rank==0u){return sun;}
+ let index=rank-1u;
+ let light=directLights.items[index];
+ sun.toward=-light.directionCone.xyz;
+ var color=light.colorIntensity.rgb*lightFunctionOf(light.params.x,P)*airTintOf(index,light,P);
+ if(water.modes.z!=0u){color*=cloudShadowOnSurface(index,P);}
+ sun.illuminance=color*light.colorIntensity.w;
+ sun.shadow=select(1.0,shadowFactor(i32(light.params.y),light,P,N,true),castsShadow(light));
+ return sun;
+}
+fn waterReflection(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f,position:vec4f)->vec3f{
+ let mode=water.modes.x;
+ if(mode==${WATER_REFLECTION_CODE.disabled}u){return vec3f(0.0);}
+ if(mode==${WATER_REFLECTION_CODE.captures}u){return reflectionShare(forwardTrace(P,N,V,rough,position,false),f0,rough,N,V);}
+ return surfaceReflection(f0,rough,N,V,P,position);
+}
+struct WaterOut{@location(0) color:vec4f,@location(1) request:u32,@location(2) normal:vec4f,@location(3) specular:vec4f,@location(4) sun:vec4f,}
+const WATER_NONE=WaterOut(vec4f(0.0),0u,vec4f(0.0),vec4f(0.0),vec4f(0.0));
+// The forward directional light alone, lit as the walk of the lights lights it (\`sliceLightingSplit\`), for the
+// water that keeps its sun apart: the walk's sum less this, and this written beside.
+fn waterSunSplit(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->LightSplit{
+ let rank=directLights.forwardRank;
+ if(rank==0u){return LightSplit(vec3f(0.0),vec3f(0.0));}
+ let shading=lobeSurface(rgb,metal,rough,N,V);lobeView(shading);
+ return declaredLightSplit(rank-1u,rgb,metal,rough,N,V,P,ao,shading);
+}
+// The sun's distance-field shadow at pixel \`at\`, traced at the water's depth (\`waterFarMask\`): one where no mask was
+// made or the sun casts none; the least share a lane of the mask keeps, squared, as the lights read it.
+fn waterFarFactor(at:vec2i)->f32{
+ let rank=directLights.forwardRank;
+ if(rank==0u||arrayLength(&waterFarMask)<=${DFSH_NO_MASK_WORDS}u||waterFarMask[0]==0u){return 1.0;}
+ let light=directLights.items[rank-1u];
+ if(!castsShadow(light)){return 1.0;}
+ let channel=shadowSliceRecord(i32(light.params.y));
+ if(channel>=${DFSH_MAX_LIGHTS}u){return 1.0;}
+ let lane=f32(byteOf(waterFarMask[1u+u32(at.y)*waterFarMask[0]+u32(at.x)],channel))/255.0;
+ return lane*lane;
+}
+`
+
+/** The sun's shadow-map trace, held where the pass traces the sun. */
+const WATER_TRACE_WGSL = `// The sun's shadow-map trace at the water's surface \`P\` (the shading read the sun unshadowed, \`shadowSkipSun\`): one where the pass
+// does not filter, no sun or it casts none.
+fn waterTraceFactor(P:vec3f,N:vec3f)->f32{
+ let rank=directLights.forwardRank;
+ if(water.filters.x==0u||rank==0u){return 1.0;}
+ let light=directLights.items[rank-1u];
+ if(!castsShadow(light)||light.params.y<0.0){return 1.0;}
+ return vsmTraceFactor(shadowSliceRecord(i32(light.params.y)),P,N);
+}
+`
+
+/** The head of the water's fragment, up to its lit section. */
+const WATER_FRAGMENT_HEAD_TEXT = `fn waterFragment(in:VSOut,front:bool)->WaterOut{
+ let flags=in.ids.y;
+ // Every derivative wants uniform control flow: taken before the coverage test returns.
+ let deltas=fwidth(in.bary);
+ let surfaceDepth=dot(water.clipW,vec4f(in.view,1.0));
+ let slope=max(abs(dpdxFine(surfaceDepth)),abs(dpdyFine(surfaceDepth)));
+ let g=blendGrads(in);
+ let layer=blendLayer(in,front,g);
+ if(!layer.kept){discard;return WATER_NONE;}
+ let s=layer.s;
+ if((flags&${FLAG_DIAGNOSTIC_VIEW}u)!=0u){return WaterOut(blendDiagnosticOut(in,s,deltas).color,s.request,vec4f(0.0),vec4f(0.0),vec4f(0.0));}
+ let V=blendToEye(in);
+ let unlit=(flags&${FLAG_UNLIT_VIEW}u)!=0u;
+ let coverage=clamp(s.alpha,0.0,1.0);
+ var rgb=s.emissive;
+ var sunLuminance=vec3f(0.0);
+ // A held-out object's water is black and no water to the composite: nothing of it is lit.
+ let held=holdoutPrimitive(in);
+ if(!unlit&&!held){
+`
+
+/** What the water graph adds to the volume: its scattering, absorption and refraction. */
+const WATER_GRAPH_VOLUME_WGSL = ` if((g.graph.flags&${GRAPH_FLAG.water}u)!=0u){scatter=g.graph.scatter;absorb=g.graph.absorb;phaseG=g.graph.phaseG;colorScale=g.graph.colorScale;}
+  if((g.graph.flags&${GRAPH_FLAG.refraction}u)!=0u){graphIor=g.graph.refraction;}
+`
+
+/** The lit section of the water's fragment: the lights, the ambient light and the volume. */
+const waterLitWgsl = (
+  graphs: boolean,
+  marks: boolean,
+  sunTraced: boolean,
+) => `  surfaceModel=modelFlag(flags);${marks ? `\n  ${translucentMarksFrom('flags')}` : ''}${sunTraced ? '\n  shadowSkipSun=water.filters.x!=0u;' : ''}
+  ${graphs ? 'surfaceSpecular=s.specular;' : ''}
+  let f0=surfaceF0(s.rgb,s.metal);
+  var lit=declaredLightingSplit(s.rgb,s.metal,s.rough,s.N,V,in.view,s.ao,in.position.xy,in.position.z);
+  let separate=water.filters.y!=0u;
+  if(separate){
+   let sun=waterSunSplit(s.rgb,s.metal,s.rough,s.N,V,in.view,s.ao);
+   lit=LightSplit(max(lit.diffuse-sun.diffuse,vec3f(0.0)),max(lit.specular-sun.specular,vec3f(0.0)));
+   sunLuminance=coverage*sun.diffuse+sun.specular;
+  }
+  // The base material's diffuse, over the water, and what it takes of the ambient light.
+  let indirect=translucentGiIrradiance(in.view,s.N,false);
+  rgb+=coverage*(lit.diffuse+lambertDiffuse(s.rgb,s.metal,indirect,s.ao)+environmentLighting(s.rgb,s.metal,s.N,s.ao))+lit.specular;
+  let ambient=indirect+environmentIrradiance(s.N);
+  let fresnel=environmentBrdf(f0,s.rough,max(0.0,dot(s.N,V)));
+  var scatter=vec3f(0.0);var absorb=vec3f(0.0);var phaseG=0.0;var colorScale=vec3f(1.0);var graphIor=0.0;
+${graphs ? WATER_GRAPH_VOLUME_WGSL : ''}  let volume=waterVolume(in,surfaceDepth,slope,s.N,V,${graphs ? 's.specular' : '0.5'},graphIor,scatter,absorb,phaseG,colorScale,waterSunOf(in.view,s.N),ambient,fresnel,1.0-coverage,separate);
+  rgb+=volume.luminance;
+  sunLuminance+=volume.sunLuminance;
+ }
+`
+
+/** The fog, the surface the composite reads, and the entry `fsWater`. */
+const waterFragmentTailWgsl = (
+  shade: ReturnType<typeof cloudVertexText>,
+) => ` // Seen through the fog; the unlit view keeps what it emits.
+ if(!unlit&&!held&&!(${fogFreeFlag('flags')})){rgb=fogged(rgb,in.view,uni.eye.xyz,in.position.xy);${shade.apply}}
+ // What the composite reads of the water: its surface, and that there is water (specular alpha). The water
+ // is an opaque surface of the image: its alpha, the share of the background it leaves visible, is 0 — 1 and
+ // black where its object is held out (\`holdoutPrimitive\`), where it is no water for the composite either.
+ let f0=surfaceF0(s.rgb,s.metal);
+ return WaterOut(vec4f(select(preExposedClipped(rgb),vec3f(0.0),held),select(0.0,1.0,held)),s.request,vec4f(s.N,s.rough),vec4f(f0,select(1.0,0.0,unlit||held)),vec4f(preExposedClipped(sunLuminance),1.0));
+}
+@fragment fn fsWater(in:VSOut,@builtin(front_facing) front:bool)->WaterOut{${shade.entry}
+ return waterFragment(in,front);
+}
+`
+
+/** The reflection composite entry `fsWaterComposite`. */
+const waterCompositeWgsl = (
+  sunTraced: boolean,
+) => `// The reflection composite (\`fsWaterComposite\`), drawn over the water's tiles or the whole target: the
+// reflection of the water's surface — its normal, roughness and reflectance as the shading wrote
+// them —, weighed on its reflectance (\`surfaceReflection\`), faded in over the first 50 cm of water
+// above the scene (to hide the triangles at the shore), dimmed by the fog, added over the water, with the separated sun. A
+// pixel that is no water, or whose scene without the water is not behind it, draws nothing.
+@fragment fn fsWaterComposite(@builtin(position) position:vec4f)->@location(0) vec4f{
+ let size=uni.viewport;
+ let at=vec2i(position.xy);
+ let z=textureLoad(waterDepthTexture,at,0);
+ let surfaceDepth=waterLinearDepth(position.xy,size,z);
+ let slope=max(abs(dpdxFine(surfaceDepth)),abs(dpdyFine(surfaceDepth)));
+ let specular=textureLoad(waterSpecular,at,0);
+ if(specular.a<0.5||(uni.viewFlags&${FLAG_UNLIT_VIEW | FLAG_DIAGNOSTIC_VIEW}u)!=0u){discard;}
+ let surface=textureLoad(waterNormals,at,0);
+ let P=waterWorldAt(position.xy,size,surfaceDepth);
+ let V=normalize(uni.camPos.xyz-P*uni.camPos.w);
+ let behind=waterBehind(clamp(position.xy/size,water.bounds.xy,water.bounds.zw),surfaceDepth,slope);
+ let delta=(behind.depth-surfaceDepth)*WATER_CM;
+ if(delta<=0.0){discard;}
+ let reflection=waterReflection(specular.rgb,surface.w,normalize(surface.xyz),V,P,vec4f(position.xy,z,1.0));
+ let fog=fogOver(P,uni.eye.xyz,position.xy).a;
+ // The separated sun, multiplied by its distance-field shadow and its shadow-map trace at the water's depth.
+ let sun=textureLoad(waterSun,at,0).rgb*(waterFarFactor(at)*${sunTraced ? 'waterTraceFactor(P,normalize(surface.xyz))' : '1.0'}*fog);
+ return vec4f(preExposedClipped(reflection*(saturate(delta*0.02)*fog))+sun,1.0);
+}
+`
+
+/** The depth-only entry `fsWaterDepth`. */
+const waterDepthWgsl = (
+  shade: ReturnType<typeof cloudVertexText>,
+) => `// The water's depth alone (\`singleLayerWaterDepthPrepass\`): the fragments the shading keeps.
+@fragment fn fsWaterDepth(in:VSOut,@builtin(front_facing) front:bool){${shade.entry}
+ let g=blendGrads(in);
+ let base=blendBase(in,g);
+ if(!blendKeeps(in,base,front)){discard;}
+}
+`
+
+/**
+ * THE WATER'S FRAGMENT (`fsWater`), the colour of a pixel of single-layer water, written over the
+ * scene (no blend: the scene behind is read from its copy, `waterVolume`): the surface lit by the
+ * declared lights as a physical surface (its diffuse share under the coverage the base material has
+ * over the water, `s.alpha`, its specular share whole), its ambient light and emission, the volume
+ * (`waterVolume`, over the visibility the coverage leaves) and the fog over all; and writes the surface
+ * the reflection composite reads (`WaterOut`). The reflection is no part of it: no image-based light of the
+ * water is added here, the composite adds it (`fsWaterComposite`) from the transparents' front
+ * layer (`surfaceReflection`: the traced radiance where the water is the front surface of its pixel,
+ * else the field's), weighed on the surface's reflectance as every reflection is; `singleLayerWaterReflection`
+ * picks it (`water.modes.x`): none, the field alone (the captures and the sky), or the front layer. The sun of the volume is the
+ * forward directional light (`directLights.forwardRank`), its colour times its light function and
+ * the air's transmittance toward it, its shadow the shadow map's.
+ */
+const waterStage = (
+  graphs: boolean,
+  shade: ReturnType<typeof cloudVertexText>,
+  marks: boolean,
+  sunTraced: boolean,
+) =>
+  wgslBlock(
+    `WATER_STAGE_WGSL(${graphs}${shade.key}${marks ? ', surface shadow marks' : ''}${sunTraced ? ', traced sun' : ''})`,
+    [
+      WATER_VOLUME_WGSL,
+      ENVIRONMENT_BRDF_WGSL,
+      byteOf,
+      FULLSCREEN_VERTEX,
+      SURFACE_F0_WGSL,
+      BLEND_TO_EYE_WGSL,
+      BLEND_PRE_EXPOSED_WGSL,
+      modelFlag,
+    ],
+    WATER_LIGHT_HELPERS_TEXT +
+      (sunTraced ? WATER_TRACE_WGSL : '') +
+      WATER_FRAGMENT_HEAD_TEXT +
+      waterLitWgsl(graphs, marks, sunTraced) +
+      waterFragmentTailWgsl(shade) +
+      waterCompositeWgsl(sunTraced) +
+      waterDepthWgsl(shade),
+  )
+
+/**
+ * The water stage of the blend module of `key` (`../shader.ts`): `fsWater`, the water's fragment
+ * (`waterStage`), on the lights split as the transmissive layers' are, and the surface read as theirs
+ * (`blendSurfaceWgsl`). Only a scene with single-layer water holds it; the module's text is otherwise
+ * what it was.
+ */
+export const waterWgsl = (
+  key: Partial<ContractKey>,
+  graphs?: readonly SurfaceProgram[],
+  reads: VertexReads = NO_VERTEX_READS,
+  marks = false,
+  sunTraced = false,
+  translucentRectLights = TRANSLUCENT_RECT_LIGHTS_DEFAULT,
+) => {
+  const shade = cloudVertexText(reads)
+  const lit = translucentLitKey(key, translucentRectLights)
+  return wgslBlock(
+    `waterWgsl(${variantLabel(lit)}${graphs?.length ? ', graphs' : ''}${shade.key}${marks ? ', surface shadow marks' : ''}${sunTraced ? ', traced sun' : ''})`,
+    [
+      blendSurfaceWgsl(
+        !key.lobeless,
+        graphs?.length ? blendGraphs(graphs, !key.lobeless) : undefined,
+      ),
+      declaredLightingSplitWgsl(lit),
+      waterStage(!!graphs?.length, shade, marks, sunTraced),
+    ],
+    '',
+  )
+}

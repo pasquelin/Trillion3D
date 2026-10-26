@@ -1,5 +1,5 @@
 use crate::manifest_binary::*;
-use crate::texture::{AtlasKind, Layout, PreviewSource};
+use crate::texture::{preview_block_bytes, AtlasKind, Layout, PreviewSource};
 
 fn preview(texture: u32, width: u32, height: u32, fill: u8) -> TexturePreview {
     TexturePreview {
@@ -9,11 +9,10 @@ fn preview(texture: u32, width: u32, height: u32, fill: u8) -> TexturePreview {
         height,
         source: PreviewSource::Uri,
         sha256: std::iter::repeat_n('a', 64).collect(),
-        image_sha256: std::iter::repeat_n('b', 64).collect(),
         kind: AtlasKind::Color,
         first_level: preview_first_level(width, height),
         baked_levels: preview_first_level(width, height),
-        pixels: vec![fill; preview_pixel_bytes(width, height)],
+        pixels: vec![fill; preview_pixel_bytes(width, height, AtlasKind::Color)],
         layouts: [
             Some(Layout::Rgba),
             Some(Layout::TwoChannel),
@@ -149,18 +148,17 @@ fn encode_previews_rejects_a_decreasing_texture_index() {
     assert!(encode(&[preview(2, 4, 4, 1), preview(2, 4, 4, 1)]).is_err());
 }
 
-// A coverage chain is its texture's colour-atlas entry — before the data one, and never
-// beside a plain colour one, which the engine could not tell apart from it.
+// A texture's colour entry comes before its data one, and two entries of one atlas are refused.
 #[test]
-fn encode_previews_keeps_one_colour_entry_per_texture() {
+fn encode_previews_orders_one_entry_per_atlas_per_texture() {
     let with = |kind| TexturePreview {
         kind,
         ..preview(2, 4, 4, 1)
     };
-    use AtlasKind::{Color, Coverage, Data};
-    encode(&[with(Coverage(128)), with(Data)]).expect("coverage then data");
-    assert!(encode(&[with(Data), with(Coverage(128))]).is_err());
-    assert!(encode(&[with(Color), with(Coverage(128))]).is_err());
+    use AtlasKind::{Color, Data};
+    encode(&[with(Color), with(Data)]).expect("colour then data");
+    assert!(encode(&[with(Data), with(Color)]).is_err());
+    assert!(encode(&[with(Color), with(Color)]).is_err());
 }
 
 // Behavior 9 (g): more baked levels than tail leaves above it refused.

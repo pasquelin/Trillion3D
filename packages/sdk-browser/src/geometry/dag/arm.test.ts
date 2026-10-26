@@ -1,8 +1,8 @@
-// The cut's eleven indirect arguments are armed by a dispatch of its pass (`dagArm`), where eleven
-// copies of `work` to `dispatchArgs` would cut that pass. The shipped kernel runs over its eleven
+// The cut's seven indirect arguments are armed by a dispatch of its pass (`dagArm`), where seven
+// copies of `work` to `dispatchArgs` would cut that pass. The shipped kernel runs over its seven
 // lanes: each list's record holds what the copy of its two words gave the argument, z still one —
-// the drawn journal one workgroup at least —; and the kernel binds nothing of the selection's
-// group, so no dispatch reads an argument a group it uses binds writable.
+// the visible list and the descent queues one workgroup at least —; and the kernel binds nothing of
+// the selection's group, so no dispatch reads an argument a group it uses binds writable.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
@@ -10,37 +10,45 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { DAG_ARGS, DAG_ARGS_INITIAL, DAG_ARM_BINDING, DAG_ARM_WGSL } from './shader/armWgsl.ts'
 import { DAG_BINDINGS_WGSL, dagBindEntries } from './shader/bindings.ts'
-import { DAG_SELECTION_SHADER } from './shader/shader.ts'
+import { DAG_SELECTION_SHADER } from './shader/selectionShader.fixture.ts'
 import { buildDagArm, dagArmGroup, dagArmLayout } from './arm.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
+
+/** The kernel over `work`'s words, every lane run, the arguments it leaves. */
+function armed(layout: ReturnType<typeof dagWorkLayout>, work: number[]) {
+  const args = [...DAG_ARGS_INITIAL]
+  const { dagArm } = shaderRun<{ dagArm: (list: number) => void }>(DAG_ARM_WGSL, ['dagArm'], {
+    armWork: work,
+    armArgs: args,
+    VISIBLE_GROUPS: layout.visibleGroups,
+    CAND_GROUPS: layout.candGroups,
+    POST_NODE_GROUPS: layout.postNodeGroups,
+    POST_CLUSTER_GROUPS: layout.postClusterGroups,
+    QUEUE_GROUPS: layout.queueGroups,
+  })
+  for (let lane = 0; lane < 7; lane++) dagArm(lane)
+  return (offset: number) => args.slice(offset / 4, offset / 4 + 3)
+}
 
 test('each record holds the words the arming copy carried, z one', () => {
   for (const blockCount of [1, 7, 64]) {
     const layout = dagWorkLayout(blockCount)
     const r = lcgRandom(blockCount),
       work = Array.from({ length: layout.words }, () => Math.floor(r() * 2 ** 32))
-    const args = [...DAG_ARGS_INITIAL]
-    const { dagArm } = shaderRun<{ dagArm: (list: number) => void }>(DAG_ARM_WGSL, ['dagArm'], {
-      armWork: work,
-      armArgs: args,
-      DRAWN_GROUPS: layout.drawnGroups,
-      CAND_GROUPS: layout.candGroups,
-      LIVE_GROUPS: layout.liveGroups,
-      POST_NODE_GROUPS: layout.postNodeGroups,
-      POST_CLUSTER_GROUPS: layout.postClusterGroups,
-      LIST_GROUPS: layout.listGroups,
-    })
-    for (let lane = 0; lane < 11; lane++) dagArm(lane)
+    const record = armed(layout, work)
     // `copyBufferToBuffer(work, groups * 4, dispatchArgs, 0, 8)`: x and y, then the one z.
-    const copied = (groups: number) => [work[groups], work[groups + 1], 1]
-    const record = (offset: number) => args.slice(offset / 4, offset / 4 + 3)
-    assert.deepEqual(record(DAG_ARGS.drawn), copied(layout.drawnGroups), `${blockCount}: drawn`)
+    const copied = (groups: number, least = 0) => [
+      Math.max(work[groups], least),
+      Math.max(work[groups + 1], least),
+      1,
+    ]
+    assert.deepEqual(
+      record(DAG_ARGS.visible),
+      copied(layout.visibleGroups, 1),
+      `${blockCount}: visible`,
+    )
     assert.deepEqual(record(DAG_ARGS.cand), copied(layout.candGroups), `${blockCount}: cand`)
-    assert.deepEqual(record(DAG_ARGS.live), copied(layout.liveGroups), `${blockCount}: live`)
-    assert.deepEqual(record(DAG_ARGS.list0), copied(layout.listGroups), `${blockCount}: list 0`)
-    assert.deepEqual(record(DAG_ARGS.list1), copied(layout.listGroups + 2), `${blockCount}: list 1`)
-    assert.deepEqual(record(DAG_ARGS.restore), copied(layout.listGroups + 4), `${blockCount}: back`)
     assert.deepEqual(
       record(DAG_ARGS.postNodes),
       copied(layout.postNodeGroups),
@@ -51,20 +59,20 @@ test('each record holds the words the arming copy carried, z one', () => {
       copied(layout.postClusterGroups),
       `${blockCount}: held clusters`,
     )
+    DAG_ARGS.queues.forEach((queue, q) =>
+      assert.deepEqual(
+        record(queue),
+        copied(layout.queueGroups + 2 * q, 1),
+        `${blockCount}: queue ${q}`,
+      ),
+    )
   }
-  // An empty journal still arms one workgroup: its first thread saves the length it leaves.
-  const layout = dagWorkLayout(1),
-    args = [...DAG_ARGS_INITIAL]
-  const { dagArm } = shaderRun<{ dagArm: (list: number) => void }>(DAG_ARM_WGSL, ['dagArm'], {
-    armWork: new Array(layout.words).fill(0),
-    armArgs: args,
-    ...{ DRAWN_GROUPS: layout.drawnGroups, CAND_GROUPS: layout.candGroups },
-    ...{ LIVE_GROUPS: layout.liveGroups, LIST_GROUPS: layout.listGroups },
-    ...{ POST_NODE_GROUPS: layout.postNodeGroups, POST_CLUSTER_GROUPS: layout.postClusterGroups },
-  })
-  for (let lane = 0; lane < 11; lane++) dagArm(lane)
-  const record = (offset: number) => args.slice(offset / 4, offset / 4 + 3)
-  assert.deepEqual(record(DAG_ARGS.drawn), [1, 1, 1], 'the empty journal: one workgroup')
+  // An empty visible list and an empty queue still arm one workgroup: their first thread writes what
+  // an empty list leaves too, and clears the queue the level after next fills.
+  const layout = dagWorkLayout(1)
+  const record = armed(layout, new Array(layout.words).fill(0))
+  assert.deepEqual(record(DAG_ARGS.visible), [1, 1, 1], 'the empty visible list: one workgroup')
+  assert.deepEqual(record(DAG_ARGS.queues[0]), [1, 1, 1], 'an empty queue: one workgroup')
   assert.deepEqual(record(DAG_ARGS.cand), [0, 0, 1], 'an empty candidate list: none')
   assert.deepEqual(record(DAG_ARGS.postClusters), [0, 0, 1], 'an empty held list: none')
 })
@@ -92,12 +100,11 @@ test('the arming group binds the counts read-only and the arguments, nothing of 
     [
       'dagArm',
       {
-        DRAWN_GROUPS: dagWorkLayout(4).drawnGroups,
+        VISIBLE_GROUPS: dagWorkLayout(4).visibleGroups,
         CAND_GROUPS: dagWorkLayout(4).candGroups,
-        LIVE_GROUPS: dagWorkLayout(4).liveGroups,
         POST_NODE_GROUPS: dagWorkLayout(4).postNodeGroups,
         POST_CLUSTER_GROUPS: dagWorkLayout(4).postClusterGroups,
-        LIST_GROUPS: dagWorkLayout(4).listGroups,
+        QUEUE_GROUPS: dagWorkLayout(4).queueGroups,
       },
     ],
   )

@@ -6,6 +6,7 @@ import type { FrameInspection } from '../../diagnostic/inspection/types.ts'
 import { engineErrorOf } from '../../../../sdk-core/src/contracts/errorCodes.ts'
 import { familyRefusals } from '../host/families.ts'
 import { debugMode, setDebugMode } from '../host/debugMode.ts'
+import { joined } from '../../../../sdk-core/src/runtime/joined.ts'
 
 /** The modes a page may name: every diagnostic the engine offers. */
 const WORLD_MODES = Object.entries(DIAGNOSTICS).flatMap(([name, { available }]) =>
@@ -24,16 +25,7 @@ export function worldDiagnostic(
   invalidate: () => void = () => {},
 ) {
   if (debug) setDebugMode(true) // `WorldOptions.debug`
-  const state: DiagnosticState = {
-    explorer,
-    invalidate,
-    mode: 'beauty',
-    freeze: false,
-    awaiting: [],
-    sessions: 0,
-    error: null,
-    said: new Set(),
-  }
+  const state = newDiagnosticState(explorer, invalidate)
   const notices = createWorldNotices()
   // A family that could not load (`FAMILY_LOAD_FAILED`, `../host/families.ts`), named here.
   const refused = (cause: EngineError) => {
@@ -97,6 +89,20 @@ type DiagnosticState = {
   said: Set<string>
 }
 
+const newDiagnosticState = (
+  explorer: () => MeasuredWorld | null,
+  invalidate: () => void,
+): DiagnosticState => ({
+  explorer,
+  invalidate,
+  mode: 'beauty',
+  freeze: false,
+  awaiting: [],
+  sessions: 0,
+  error: null,
+  said: new Set(),
+})
+
 function warn({ said }: DiagnosticState, text: string) {
   if (said.has(text)) return
   said.add(text)
@@ -116,74 +122,81 @@ function put(state: DiagnosticState, session: MeasuredWorld, name: string) {
 
 /** `world.diagnostic` as the page reads and writes it. */
 function diagnosticHandle(state: DiagnosticState) {
-  return {
-    /** The view mode: `'beauty'` for the normal image, or a mode that shows how the engine works. */
-    get mode() {
-      return state.mode
+  return joined(
+    {
+      /** The view mode: `'beauty'` for the normal image, or a mode that shows how the engine works. */
+      get mode() {
+        return state.mode
+      },
+      set mode(next: string) {
+        if (!WORLD_MODES.includes(next)) {
+          warn(state, `unknown mode ${JSON.stringify(next)}; one of ${WORLD_MODES.join(', ')}`)
+          return
+        }
+        const session = state.explorer()
+        if (!session || put(state, session, next)) state.mode = next
+      },
+      /** The page's debug mode (`WorldOptions.debug`): the frames are filed into the CPU step
+       *  profile and the frame report only in it, from the next frame. */
+      get debug() {
+        return debugMode()
+      },
+      set debug(on: boolean) {
+        setDebugMode(on)
+      },
+      /** Whether the main view's cut is held at the camera it had when frozen: the image follows
+       *  the camera, the cut — its levels, its HLOD, its
+       *  frustum, its occlusion, its requests — does not (`../../frame/render/cutFreeze.ts`);
+       *  the `xray` view then shows from aside what it submitted. Kept for every session the world
+       *  opens. */
+      get freeze() {
+        return state.freeze
+      },
+      set freeze(frozen: boolean) {
+        state.freeze = frozen
+        state.explorer()?.freezeCut(frozen)
+        state.invalidate()
+      },
+      /** What the main view's next image computes, and where, in world metres: its cut's clusters
+       *  by level and state, the shadow pages each light maps, the reflections' rays, the lights
+       *  and both frustums (`FrameInspection`). Read once, after the next image, which it asks
+       *  for — asked before the world's session opened, the first image it draws; `null` once the
+       *  session closed or the world was disposed before. Nothing is kept or copied by any frame
+       *  until asked. */
+      inspect(): Promise<FrameInspection | null> {
+        const session = state.explorer()
+        const { awaiting } = state
+        const read = session
+          ? session.inspectFrame()
+          : awaiting
+            ? new Promise<FrameInspection | null>((answer) => awaiting.push(answer))
+            : Promise.resolve(null)
+        state.invalidate()
+        return read
+      },
     },
-    set mode(next: string) {
-      if (!WORLD_MODES.includes(next)) {
-        warn(state, `unknown mode ${JSON.stringify(next)}; one of ${WORLD_MODES.join(', ')}`)
-        return
-      }
-      const session = state.explorer()
-      if (!session || put(state, session, next)) state.mode = next
-    },
-    /** The page's debug mode (`WorldOptions.debug`): the frames are filed into the CPU step
-     *  profile and the frame report only in it, from the next frame. */
-    get debug() {
-      return debugMode()
-    },
-    set debug(on: boolean) {
-      setDebugMode(on)
-    },
-    /** Whether the main view's cut is held at the camera it had when frozen: the image follows
-     *  the camera, the cut — its levels, its HLOD, its
-     *  frustum, its occlusion, its requests — does not (`../../frame/render/cutFreeze.ts`);
-     *  the `xray` view then shows from aside what it submitted. Kept for every session the world
-     *  opens. */
-    get freeze() {
-      return state.freeze
-    },
-    set freeze(frozen: boolean) {
-      state.freeze = frozen
-      state.explorer()?.freezeCut(frozen)
-      state.invalidate()
-    },
-    /** What the main view's next image computes, and where, in world metres: its cut's clusters
-     *  by level and state, the shadow pages each light maps, the reflections' rays, the lights
-     *  and both frustums (`FrameInspection`). Read once, after the next image, which it asks
-     *  for — asked before the world's session opened, the first image it draws; `null` once the
-     *  session closed or the world was disposed before. Nothing is kept or copied by any frame
-     *  until asked. */
-    inspect(): Promise<FrameInspection | null> {
-      const session = state.explorer()
-      const { awaiting } = state
-      const read = session
-        ? session.inspectFrame()
-        : awaiting
-          ? new Promise<FrameInspection | null>((answer) => awaiting.push(answer))
-          : Promise.resolve(null)
-      state.invalidate()
-      return read
-    },
-    /** Sessions the world has opened so far: a change that reopens one shows here. */
-    get sessions() {
-      return state.sessions
-    },
-    /** Why the last session could not open, as a named engine error: its `code` is one of those
-     *  documented on `EngineError` (`WEBGPU_LOST` when WebGPU lost its device, `FAMILY_LOAD_FAILED`
-     *  when an optional family did not load, then too), or `SESSION_OPEN_FAILED` for a reason
-     *  without one. An `EngineError` of a documented code is
-     *  the one thrown; any other error is converted, and the error thrown is then in
-     *  `details.cause`. `null` from the start of each opening, and when nothing is tried. */
-    get error() {
-      return state.error
-    },
-    /** Every view mode the engine offers. */
-    get modes() {
-      const current = state.explorer()
-      return current ? Object.keys(current.diagnostics) : ['beauty']
-    },
-  }
+    diagnosticReads(state),
+  )
 }
+
+/** What `world.diagnostic` shows of the sessions, read only. */
+const diagnosticReads = (state: DiagnosticState) => ({
+  /** Sessions the world has opened so far: a change that reopens one shows here. */
+  get sessions() {
+    return state.sessions
+  },
+  /** Why the last session could not open, as a named engine error: its `code` is one of those
+   *  documented on `EngineError` (`WEBGPU_LOST` when WebGPU lost its device, `FAMILY_LOAD_FAILED`
+   *  when an optional family did not load, then too), or `SESSION_OPEN_FAILED` for a reason
+   *  without one. An `EngineError` of a documented code is
+   *  the one thrown; any other error is converted, and the error thrown is then in
+   *  `details.cause`. `null` from the start of each opening, and when nothing is tried. */
+  get error() {
+    return state.error
+  },
+  /** Every view mode the engine offers. */
+  get modes() {
+    const current = state.explorer()
+    return current ? Object.keys(current.diagnostics) : ['beauty']
+  },
+})

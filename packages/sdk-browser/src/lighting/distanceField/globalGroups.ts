@@ -1,3 +1,4 @@
+import { wholeBuffer } from '../../gpu/core/computeBindings.ts'
 import { CLIP_BLOCK } from './clipmapBlock.ts'
 import { CULL_BLOCK } from './cullWgsl.ts'
 import { MIP_BLOCK } from './mipWgsl.ts'
@@ -9,10 +10,90 @@ import type { GlobalResources } from './globalResources.ts'
  * resources are made again or the list of culled objects grows. The two caches differ in the
  * tables a pass names: the static one's own table; the movable one's own, the combined one the
  * programs read, and the static one under it. Where the cache has no table under it, a table of one
- * texel stands in the binding, read or written by no pass.
+ * texel stands in the binding, read or written by no pass. The page atlas is bound as the texture
+ * where the field keeps one (`textured`), else as the buffer.
  */
 
-const whole = (buffer: GPUBuffer) => ({ buffer })
+/** What the groups of one cache bind. */
+interface CacheBinds {
+  readonly device: GPUDevice
+  readonly layouts: GlobalPipelines['layouts']
+  readonly res: GlobalResources
+  readonly cache: 'static' | 'full'
+  readonly own: GPUTexture
+  readonly below: GPUTexture
+  readonly combined: GPUTexture | undefined
+  readonly clip: { buffer: GPUBuffer; size: number }
+  readonly atlas: GPUTextureView | GPUBufferBinding
+}
+
+const view = (texture: GPUTexture) => texture.createView({ dimension: '3d' })
+
+/** The groups of the allocation and of the composition. */
+function composeGroups(binds: CacheBinds) {
+  const { device, layouts, res, cache, own, below, combined, clip, atlas } = binds
+  const { tables } = res
+  return {
+    allocate: device.createBindGroup({
+      label: `Trillion3D global distance field allocation, ${cache}`,
+      layout: layouts.allocate,
+      entries: [
+        { binding: 0, resource: clip },
+        { binding: 1, resource: wholeBuffer(res.tiles) },
+        { binding: 2, resource: view(own) },
+        { binding: 3, resource: view(combined ?? tables.unusedWrite) },
+        { binding: 4, resource: view(below) },
+        { binding: 5, resource: wholeBuffer(res.control) },
+        { binding: 6, resource: wholeBuffer(res.lists) },
+        { binding: 7, resource: wholeBuffer(res.cull) },
+      ],
+    }),
+    compose: device.createBindGroup({
+      label: `Trillion3D global distance field composition, ${cache}`,
+      layout: layouts.compose,
+      entries: [
+        { binding: 0, resource: clip },
+        { binding: 1, resource: wholeBuffer(res.tiles) },
+        { binding: 2, resource: wholeBuffer(res.cull) },
+        { binding: 3, resource: atlas },
+        { binding: 4, resource: view(combined ?? own) },
+        { binding: 5, resource: view(below) },
+      ],
+    }),
+  }
+}
+
+/** The groups of the coverage and of the object grid. */
+function coverageGroups(binds: CacheBinds) {
+  const { device, layouts, res, cache, own, below, combined, clip, atlas } = binds
+  return {
+    coverage: device.createBindGroup({
+      label: `Trillion3D global distance field coverage, ${cache}`,
+      layout: layouts.coverage,
+      entries: [
+        { binding: 0, resource: clip },
+        { binding: 1, resource: wholeBuffer(res.tiles) },
+        { binding: 2, resource: wholeBuffer(res.cull) },
+        { binding: 3, resource: atlas },
+        { binding: 4, resource: view(below) },
+        { binding: 5, resource: view(combined ?? own) },
+        ...(res.textured ? [{ binding: 6, resource: wholeBuffer(res.atlas) }] : []),
+      ],
+    }),
+    objectGrid: device.createBindGroup({
+      label: `Trillion3D global distance field object grid, ${cache}`,
+      layout: layouts.objectGrid,
+      entries: [
+        { binding: 0, resource: clip },
+        { binding: 1, resource: wholeBuffer(res.tiles) },
+        { binding: 2, resource: wholeBuffer(res.cull) },
+        { binding: 3, resource: wholeBuffer(res.objectGrid) },
+        { binding: 4, resource: view(own) },
+        { binding: 5, resource: view(below) },
+      ],
+    }),
+  }
+}
 
 /** The groups of the passes of one cache. */
 function cacheGroups(
@@ -21,41 +102,19 @@ function cacheGroups(
   res: GlobalResources,
   cache: 'static' | 'full',
 ) {
-  const { layouts } = pipelines
   const { tables } = res
-  const own = cache === 'static' ? tables.static : tables.full
-  const below = cache === 'full' && tables.combined ? tables.static : tables.unusedRead
-  const combined = cache === 'full' && tables.combined ? tables.combined : undefined
-  const clip = { buffer: res.blocks, size: CLIP_BLOCK.words * 4 }
-  const view = (texture: GPUTexture) => texture.createView({ dimension: '3d' })
-  return {
-    allocate: device.createBindGroup({
-      label: `Trillion3D global distance field allocation, ${cache}`,
-      layout: layouts.allocate,
-      entries: [
-        { binding: 0, resource: clip },
-        { binding: 1, resource: whole(res.tiles) },
-        { binding: 2, resource: view(own) },
-        { binding: 3, resource: view(combined ?? tables.unusedWrite) },
-        { binding: 4, resource: view(below) },
-        { binding: 5, resource: whole(res.control) },
-        { binding: 6, resource: whole(res.lists) },
-        { binding: 7, resource: whole(res.cull) },
-      ],
-    }),
-    compose: device.createBindGroup({
-      label: `Trillion3D global distance field composition, ${cache}`,
-      layout: layouts.compose,
-      entries: [
-        { binding: 0, resource: clip },
-        { binding: 1, resource: whole(res.tiles) },
-        { binding: 2, resource: whole(res.cull) },
-        { binding: 3, resource: whole(res.atlas) },
-        { binding: 4, resource: view(combined ?? own) },
-        { binding: 5, resource: view(below) },
-      ],
-    }),
+  const binds: CacheBinds = {
+    device,
+    layouts: pipelines.layouts,
+    res,
+    cache,
+    own: cache === 'static' ? tables.static : tables.full,
+    below: cache === 'full' && tables.combined ? tables.static : tables.unusedRead,
+    combined: cache === 'full' && tables.combined ? tables.combined : undefined,
+    clip: { buffer: res.blocks, size: CLIP_BLOCK.words * 4 },
+    atlas: res.textured ? view(res.atlasTexture) : wholeBuffer(res.atlas),
   }
+  return { ...composeGroups(binds), ...coverageGroups(binds) }
 }
 
 /** The groups of the list passes: each binds, as its arguments, a buffer that none of its dispatches
@@ -68,9 +127,9 @@ function listGroups(device: GPUDevice, pipelines: GlobalPipelines, res: GlobalRe
       layout: pipelines.layouts.lists,
       entries: [
         { binding: 0, resource: clip },
-        { binding: 1, resource: whole(res.control) },
-        { binding: 2, resource: whole(res.lists) },
-        { binding: 3, resource: whole(args) },
+        { binding: 1, resource: wholeBuffer(res.control) },
+        { binding: 2, resource: wholeBuffer(res.lists) },
+        { binding: 3, resource: wholeBuffer(args) },
       ],
     })
   return {
@@ -83,7 +142,6 @@ function listGroups(device: GPUDevice, pipelines: GlobalPipelines, res: GlobalRe
 /** The mip's groups: the first reads the page tables and writes the mip, the next two alternate. */
 function mipGroups(device: GPUDevice, pipelines: GlobalPipelines, res: GlobalResources) {
   const block = { buffer: res.mipBlocks, size: MIP_BLOCK.words * 4 }
-  const view = (texture: GPUTexture) => texture.createView({ dimension: '3d' })
   const make = (from: GPUTexture, to: GPUTexture, label: string) =>
     device.createBindGroup({
       label,
@@ -91,9 +149,10 @@ function mipGroups(device: GPUDevice, pipelines: GlobalPipelines, res: GlobalRes
       entries: [
         { binding: 0, resource: block },
         { binding: 1, resource: view(res.read) },
-        { binding: 2, resource: whole(res.atlas) },
+        { binding: 2, resource: res.textured ? view(res.atlasTexture) : wholeBuffer(res.atlas) },
         { binding: 3, resource: view(from) },
         { binding: 4, resource: view(to) },
+        ...(res.textured ? [{ binding: 5, resource: res.atlasSampler }] : []),
       ],
     })
   return {
@@ -121,9 +180,9 @@ export function createGlobalGroups(
       layout: layouts.cull,
       entries: [
         { binding: 0, resource: { buffer: res.cullBlocks, size: CULL_BLOCK.words * 4 } },
-        { binding: 1, resource: whole(res.packed) },
-        { binding: 2, resource: whole(objects) },
-        { binding: 3, resource: whole(res.control) },
+        { binding: 1, resource: wholeBuffer(res.packed) },
+        { binding: 2, resource: wholeBuffer(objects) },
+        { binding: 3, resource: wholeBuffer(res.control) },
       ],
     }),
     tiles: device.createBindGroup({
@@ -131,9 +190,9 @@ export function createGlobalGroups(
       layout: layouts.tiles,
       entries: [
         { binding: 0, resource: clip },
-        { binding: 1, resource: whole(res.bounds) },
-        { binding: 2, resource: whole(res.tiles) },
-        { binding: 3, resource: whole(res.control) },
+        { binding: 1, resource: wholeBuffer(res.bounds) },
+        { binding: 2, resource: wholeBuffer(res.tiles) },
+        { binding: 3, resource: wholeBuffer(res.control) },
       ],
     }),
     grid: device.createBindGroup({
@@ -141,10 +200,10 @@ export function createGlobalGroups(
       layout: layouts.grid,
       entries: [
         { binding: 0, resource: clip },
-        { binding: 1, resource: whole(objects) },
-        { binding: 2, resource: whole(res.tiles) },
-        { binding: 3, resource: whole(res.control) },
-        { binding: 4, resource: whole(res.cull) },
+        { binding: 1, resource: wholeBuffer(objects) },
+        { binding: 2, resource: wholeBuffer(res.tiles) },
+        { binding: 3, resource: wholeBuffer(res.control) },
+        { binding: 4, resource: wholeBuffer(res.cull) },
       ],
     }),
     lists: listGroups(device, pipelines, res),

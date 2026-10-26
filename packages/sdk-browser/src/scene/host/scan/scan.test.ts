@@ -45,7 +45,7 @@ const WRITES: Array<{
   {
     name: 'light range and cone',
     node: 'light',
-    write: ({ light }) => void ((light.distance = 42), (light.angle = 0.1)),
+    write: ({ light }) => void ((light.distance = 42), (light.outerConeAngle = 0.1)),
   },
   {
     name: 'a light colour component',

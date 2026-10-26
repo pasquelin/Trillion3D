@@ -1,4 +1,5 @@
 import type { TilePlace } from '../../texture/tiles.ts'
+import { atlasKeyOf } from '../ids.ts'
 import type { PoolEncoding } from '../../texture/blockFormats.ts'
 import type { WebgpuTileAtlas } from '../atlas/atlasTypes.ts'
 import { heldLevelsOf, type HeldLevels, type LevelFailed } from '../../texture/heldLevels.ts'
@@ -34,8 +35,7 @@ type Sources = {
 }
 
 /** A working texture's key: its slot and atlas as one number, nothing built per copy. */
-const scratchId = (atlas: WebgpuTileAtlas, slot: number) =>
-  slot * 2 + (atlas.kind === 'color' ? 0 : 1)
+const scratchId = (atlas: WebgpuTileAtlas, slot: number) => atlasKeyOf(atlas.kind, slot)
 
 /** `use` on the working texture held, or on one built for it and freed after: never inside a
  *  pass — the textures built off the frame wait for the next pass. */
@@ -84,42 +84,12 @@ function copyTail(sources: Sources, atlas: WebgpuTileAtlas, slot: number, place:
   })
 }
 
-/** A host texture whose readers' coverage rule moved (#42): its mips reduced again, copied, one
- *  submit; false when its picture's size moved. */
-function reduceHost(sources: Sources, atlas: WebgpuTileAtlas, slot: number) {
-  if (!pictureFits(atlas.textures[slot])) return false
-  withScratch(sources, atlas, slot, (scratch) => {
-    const encoder = sources.device.createCommandEncoder({ label: 'Trillion3D live texture' })
-    scratch.reduce(encoder)
-    copyLiveTexture(encoder, atlas, slot, scratch.texture)
-    sources.device.queue.submit([encoder.finish()])
-  })
-  return true
-}
-
-/**
- * Where a tile's texels come from, and how they reach the pool of its lane: a cooked level decoded
- * by the browser, or a block tile's record as the file holds it, held in the page cache, or a
- * working texture built from the host image, which only the lossless lane receives. A tile whose
- * source is not yet in hand is not served; it will come back on the next feedback. A host texture's
- * tail takes the same path, one temporary working texture at a time.
- */
-export function createTileSources(options: SourcesOptions) {
-  const { device, counters, encoding, onFailure } = options
-  // The held-level read of each cache the atlases catalogue (`hold`): the session's own, a joined
-  // model's; and one of them per store, whose reads in flight and bytes are every cook's there.
-  const levels = new Set<HeldLevels>()
-  const stores = new Map<TextureLevelStore, HeldLevels>()
-  const failed: LevelFailed = (address, error) =>
-    onFailure(
-      `texture-level-read-failed ${address.sha256}/${address.atlas}/${address.level}`,
-      error,
-    )
-  const build: Build = (atlas, slot) => buildHostScratch(device, counters, atlas, slot)
-  const scratches = createScratches(device, build, options.onFailure)
-  const sources: Sources = { device, encoding, failed, build, scratches }
-  /** Level reads, decoded levels and their bytes, every cache's; none before a cache is held. */
-  const counts = {
+/** Level reads, decoded levels and their bytes, every cache's; none before a cache is held. */
+function heldCounts(
+  levels: ReadonlySet<HeldLevels>,
+  stores: ReadonlyMap<TextureLevelStore, HeldLevels>,
+) {
+  return {
     get inFlight() {
       let inFlight = 0
       for (const held of stores.values()) inFlight += held.inFlight
@@ -136,6 +106,58 @@ export function createTileSources(options: SourcesOptions) {
       return bytes
     },
   }
+}
+
+/** Who hears a level read fail: the failure reported with the address of the level. */
+const levelFailed =
+  (onFailure: (phase: string, error: unknown) => void): LevelFailed =>
+  (address, error) =>
+    onFailure(
+      `texture-level-read-failed ${address.sha256}/${address.atlas}/${address.level}`,
+      error,
+    )
+
+/** `texture`'s cache is read from: a chain baked past its tail, catalogued at open or appended. */
+function holdLevels(
+  levels: Set<HeldLevels>,
+  stores: Map<TextureLevelStore, HeldLevels>,
+  texture: TileTexture,
+) {
+  if (texture.source.kind !== 'baked') return
+  const { read } = texture.source,
+    held = heldLevelsOf(read)
+  levels.add(held)
+  if (!stores.has(read.store)) stores.set(read.store, held)
+}
+
+/** A host texture's new picture, copied again from its working texture (`refresh`); false when its
+ *  size moved. */
+function refreshHost(sources: Sources, atlas: WebgpuTileAtlas, slot: number) {
+  if (!pictureFits(atlas.textures[slot])) return false
+  sources.scratches.refresh(atlas, slot, scratchId(atlas, slot), (encoder, texture) =>
+    copyLiveTexture(encoder, atlas, slot, texture),
+  )
+  return true
+}
+
+/**
+ * Where a tile's texels come from, and how they reach the pool of its lane: a cooked level decoded
+ * by the browser, or a block tile's record as the file holds it, held in the page cache, or a
+ * working texture built from the host image, which only the lossless lane receives. A tile whose
+ * source is not yet in hand is not served; it will come back on the next feedback. A host texture's
+ * tail takes the same path, one temporary working texture at a time.
+ */
+export function createTileSources(options: SourcesOptions) {
+  const { device, counters, encoding, onFailure } = options
+  // The held-level read of each cache the atlases catalogue (`hold`): the session's own, a joined
+  // model's; and one of them per store, whose reads in flight and bytes are every cook's there.
+  const levels = new Set<HeldLevels>()
+  const stores = new Map<TextureLevelStore, HeldLevels>()
+  const failed = levelFailed(onFailure)
+  const build: Build = (atlas, slot) => buildHostScratch(device, counters, atlas, slot)
+  const scratches = createScratches(device, build, options.onFailure)
+  const sources: Sources = { device, encoding, failed, build, scratches }
+  const counts = heldCounts(levels, stores)
   return {
     release: (atlas: WebgpuTileAtlas, slot: number) => scratches.release(scratchId(atlas, slot)),
     /** The level reads of every cache held, counted together; none before one is. */
@@ -143,13 +165,7 @@ export function createTileSources(options: SourcesOptions) {
       return levels.size ? counts : undefined
     },
     /** `texture`'s cache is read from: a chain baked past its tail, catalogued at open or appended. */
-    hold(texture: TileTexture) {
-      if (texture.source.kind !== 'baked') return
-      const { read } = texture.source,
-        held = heldLevelsOf(read)
-      levels.add(held)
-      if (!stores.has(read.store)) stores.set(read.store, held)
-    },
+    hold: (texture: TileTexture) => holdLevels(levels, stores, texture),
     /** Who hears a level read of theirs fail. */
     failed,
     /** Serves a tile from its source (`Served`). */
@@ -165,14 +181,7 @@ export function createTileSources(options: SourcesOptions) {
      * whose picture never moves never gets here; one whose size moved is not copied — false —:
      * only a new session lays its tiles out again.
      */
-    refresh(atlas: WebgpuTileAtlas, slot: number) {
-      if (!pictureFits(atlas.textures[slot])) return false
-      scratches.refresh(atlas, slot, scratchId(atlas, slot), (encoder, texture) =>
-        copyLiveTexture(encoder, atlas, slot, texture),
-      )
-      return true
-    },
-    reduce: (atlas: WebgpuTileAtlas, slot: number) => reduceHost(sources, atlas, slot),
+    refresh: (atlas: WebgpuTileAtlas, slot: number) => refreshHost(sources, atlas, slot),
     /** Bytes the live textures' working textures hold, mips included, beside the pool. */
     get liveBytes() {
       return scratches.liveBytes

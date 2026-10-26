@@ -6,11 +6,13 @@ import { EXPOSURE_HISTOGRAM_BUCKETS } from '../../../../sdk-core/src/contracts/e
  *
  * The histogram of the log of a pixel's luminance is `EXPOSURE_HISTOGRAM_BUCKETS` buckets, each
  * two words: the weight in fixed point, the low word then the carry out of it (`WEIGHT_ONE` the
- * weight of one pixel), so the sum of a 4K image's rows never wraps. The exposure the pass leaves
+ * weight of one pixel), so the sum of a 4K image's rows never wraps. The basic method holds, in
+ * place of them, the four sums of each of its 256 lanes (`BASIC_LANES`), as float bits: the grid
+ * texels' weighted value, their weight, their value and their count. The exposure the pass leaves
  * is two `vec4f`: the exposure, the one the mean asks for, the mean luminance, the bias's
  * multiplier (the curve's factor in it); then the exposure over the pre-exposure the image was
- * written with, in `x`, and the local exposure's mean over the histogram, in `y` (1 where it does
- * not run).
+ * written with, in `x`, the local exposure's mean over the histogram, in `y` (1 where it does not
+ * run), and the log2 of the middle grey it pulls toward, in `z`.
  */
 
 /** The weight of one pixel in a bucket, in fixed point: 2^19, so a row of up to 8192 pixels fits a
@@ -18,8 +20,8 @@ import { EXPOSURE_HISTOGRAM_BUCKETS } from '../../../../sdk-core/src/contracts/e
 export const WEIGHT_ONE = 1 << 19
 /** Lanes of the measuring workgroup: one a bucket, which merge the row's counts. */
 export const METER_LANES = EXPOSURE_HISTOGRAM_BUCKETS
-/** Words of the histogram buffer: a bucket's weight, then its carry. */
-export const HISTOGRAM_WORDS = 2 * EXPOSURE_HISTOGRAM_BUCKETS
+/** Words of the histogram a bucket's weight and its carry take. */
+const HISTOGRAM_WORDS = 2 * EXPOSURE_HISTOGRAM_BUCKETS
 /** Bytes of the exposure the pass leaves, which the readback copies and the composition's view
  *  takes its scale from. */
 export const EXPOSURE_BYTES = 32
@@ -32,6 +34,25 @@ export const SHOWN_AT = 16
 /** The byte of the exposure buffer where the local exposure's mean sits, copied to the readback
  *  after the exposure's two words. */
 export const LOCAL_AT = SHOWN_AT + 4
+/** The byte of the exposure buffer where the log2 of the middle grey the local exposure pulls
+ *  toward sits: the one the update derived its mean from, which the finishing copies. */
+export const GREY_AT = SHOWN_AT + 8
+
+/** Lanes of the basic measure's one workgroup along a side: a square of them, each summing a
+ *  share of the grid's texels. */
+export const BASIC_SIDE = 16
+/** Lanes of that workgroup. */
+export const BASIC_LANES = BASIC_SIDE * BASIC_SIDE
+/** Words of the measure's buffer: the histogram's, or the four sums of each lane of the basic
+ *  method, whichever is more. */
+export const METER_WORDS = Math.max(HISTOGRAM_WORDS, 4 * BASIC_LANES)
+/** The lowest and the highest log luminance, in stops, the basic measure reads: each cell of its
+ *  grid is held between them. */
+export const BASIC_LOG_LOW = -10
+export const BASIC_LOG_HIGH = 20
+/** The lowest luminance the basic measure reads, under which a pixel is no darker: a pixel of no
+ *  light keeps its logarithm finite. */
+export const BASIC_LUMINANCE_MIN = 0.0001
 
 /**
  * The meter's uniform. `size` is the pixels of the image measured, then those of its
@@ -43,7 +64,9 @@ export const LOCAL_AT = SHOWN_AT + 4
  * the stops a second the exposure rises and falls, the distance in stops past which it moves
  * linearly, and the seconds since the last update; `response` the exponential multipliers of the
  * rise and the fall, the multiplier of the bias, and 1 where the exposure jumps to its target;
- * `image` the reciprocal of the pre-exposure the measured image holds its light multiplied by;
+ * `image` the reciprocal of the pre-exposure the measured image holds its light multiplied by,
+ * the saturation luminance the EV100s are read from (`exposureSaturationLuminance`), 1 where the
+ * method is the basic one and 1 where a metering mask weighs the pixels;
  * `local` the log2 of the middle grey the local exposure pulls toward (before the bias and the
  * curve), the highlights' and the shadows' contrast, and 1 where the local exposure runs (its
  * mean over the histogram is then left beside the exposure); `edges` its two thresholds and the

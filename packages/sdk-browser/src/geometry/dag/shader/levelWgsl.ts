@@ -2,6 +2,7 @@ import { wgslBlock, wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { HELD_BY_WORD, MARK_WORD, PAGE_BASE_WORD, ROOT_WORD } from '../frameTable.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
+import { CAMERA_DESCENT, type DescentShape } from './descentShape.ts'
 
 /**
  * Level-by-level descent of the cut hierarchy, and the subtree pruning it allows.
@@ -68,9 +69,8 @@ export const DAG_PAGE_BASE_OF_WGSL = wgslFn(
   `fn pageBaseOf(w:u32)->u32{return framesWord(w,${PAGE_BASE_WORD}u);}`,
 )
 
-export const DAG_LEVEL_WGSL = wgslBlock(
-  'DAG_LEVEL_WGSL',
-  [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX, DAG_MARK_OF_WGSL, DAG_PAGE_BASE_OF_WGSL],
+/** The level step: an entry of the level slot read, tested or opened. */
+const levelStepWgsl = (shape: DescentShape) =>
   `/** Index of the primitive's root node, deposited once and for all. */
 fn rootOf(w:u32)->u32{return framesWord(w,${ROOT_WORD}u);}
 /** The open counts placement \`w\` holds of its own (\`../heldOpen.ts\`): none, it reads its nodes'. */
@@ -92,19 +92,23 @@ fn levelStep(src:u32,s:u32){
  let at=queueEntry(src,s);
  let entry=flagAt(at);
  if(entry==NO_INDEX){return;}
- let w=flagAt(at+1u);
+ let w=flagAt(at+1u);${shape.views ? '\n descentView=flagAt(at+2u);' : ''}
  let index=entry&ENTRY_INDEX;let tests=(entry&ENTRY_TEST)!=0u;
  // Past the nodes, a member a kept group of the tree deposited; past the placements' own nodes, a
  // cell of the tree (\`placementTreeWgsl.ts\`).
- if(index>=views[0u].nodeCount){testMember(dst,index-views[0u].nodeCount);return;}
- if(hasTree()&&index>=views[0u].cellBase){
-  let t=index-views[0u].cellBase;
+ if(index>=cutView.nodeCount){testMember(dst,index-cutView.nodeCount);return;}
+ if(hasTree()&&index>=cutView.cellBase){
+  let t=index-cutView.cellBase;
   if(tests){testCell(dst,t);}else{openCell(dst,t);}
   return;
  }
  if(tests){testRoot(dst,w);}else{openNode(dst,index,w);}
 }
-/** Placement \`w\`'s root, tested as its instance: the view's filter (\`filteredOut\`), its draw
+`
+
+/** The tests of a placement's root and of a node, and the children held for the post pass. */
+const levelTestWgsl = (shape: DescentShape) =>
+  `/** Placement \`w\`'s root, tested as its instance: the view's filter (\`filteredOut\`), its draw
  *  distance (\`outsideDrawDistance\`), the group above its root (\`outsideRootParent\`), the view's
  *  clip plane (\`outsideClipPlane\`), its box in the frustum, then under the pyramid. Kept, it is accepted (\`acceptNode\`): no error of its
  *  own is compared, the root's children are. The previous pyramid alone hiding it, the instance is
@@ -130,7 +134,7 @@ fn openNode(dst:u32,index:u32,w:u32){
  for(var k=0u;k<node.childCount;k++){
   if(testNode(dst,node.firstChild+k,w)){held|=1u<<(k%32u);}
   if(held!=0u&&(k%32u==31u||k+1u==node.childCount)){
-   if(withinBudget(nodeTotalWord(CUT_POST),views[0u].nodeBudget,1u)!=0u){postNode(node.firstChild+k-k%32u,w,held);}
+   if(withinBudget(nodeTotalWord(CUT_POST),cutView.nodeBudget,1u)!=0u){postNode(node.firstChild+k-k%32u,w,held);}
    held=0u;
   }
  }
@@ -147,18 +151,26 @@ fn testNode(dst:u32,c:u32,w:u32)->bool{
  if(outsideClipPlane(w,node.minimum,node.maximum)){return false;}
  if(outsideFrustum(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return false;}
  let e=viewWorld(w);
- if(!subtreeNeeded(node,sphereEdges(node.sphere,e).x)){atomicAdd(&out.frustumRejected,1u);return false;}
+ if(!${shape.subtreeNeeded}){atomicAdd(&out.frustumRejected,1u);return false;}
  if(floorPrunes(openOf(w,c,node.open),node,e)){return false;}
  let sight=sightOf(node,w);
  if(sight==BOX_SEEN){acceptNode(dst,c,node,w);}
  return sight==BOX_OCCLUDED&&heldBack(node,w);
 }
-/** Whether a node's subtree is needed at the threshold: the error its clusters replace is seen
+`
+
+/** What the pyramid says of a node, and what a leaf kept requests and lists. */
+const levelLeafWgsl = (shape: DescentShape) =>
+  `${
+    shape.cameraSubtree
+      ? `/** Whether a node's subtree is needed at the threshold: the error its clusters replace is seen
  *  (\`errorShows\`), or none bounds it. A deformation moves no LOD ball: the rest pose's are read. */
 fn subtreeNeeded(node:CullNode,edge:f32)->bool{
  return node.maxParentError<0.0||errorShows(edge,node.maxParentError);
 }
-/** The pyramid's verdict on \`node\` of placement \`w\` once it passed its frustum (\`boxSight\`): a
+`
+      : ''
+  }/** The pyramid's verdict on \`node\` of placement \`w\` once it passed its frustum (\`boxSight\`): a
  *  placement no camera culls is always seen. */
 fn sightOf(node:CullNode,w:u32)->u32{
  if(unculledOf(w)){return BOX_SEEN;}
@@ -188,16 +200,30 @@ fn acceptNode(dst:u32,index:u32,node:CullNode,w:u32){
  *  its parent, whose finer group is not resident (\`childResident\`). */
 fn depositLeaf(node:CullNode,w:u32){
  let first=pageBaseOf(w)+node.firstPage;
- requestPage(first,node.pageCount,leafPriority(node,viewWorld(w)));
+ requestPage(first,node.pageCount,${shape.priority});
  if(leafLoaded(first,node.pageCount)){candAppend(first,node.pageCount,w);}
 }
-/** Queue \`q\`'s level, a thread an entry. Pass 0 is \`dagLevel0\` on queue 0: without a tree one root
+`
+
+/** The kernels of the levels, a thread an entry. */
+const levelEntriesWgsl = () =>
+  `/** Queue \`q\`'s level, a thread an entry. Pass 0 is \`dagLevel0\` on queue 0: without a tree one root
  *  per slot, with one its few entries (\`rootSlots\`); queue 0 reused deeper (level 3, 6…) alike. */
-@compute @workgroup_size(WORKGROUP_THREADS)
-fn dagLevel0(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,flatIndex(id,n,WORKGROUP_THREADS));}
-@compute @workgroup_size(WORKGROUP_THREADS)
-fn dagLevel1(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(1u,flatIndex(id,n,WORKGROUP_THREADS));}
-@compute @workgroup_size(WORKGROUP_THREADS)
-fn dagLevel2(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(2u,flatIndex(id,n,WORKGROUP_THREADS));}
-`,
-)
+${Array.from(
+  { length: LEVEL_QUEUES },
+  (_, q) => `@compute @workgroup_size(WORKGROUP_THREADS)
+fn dagLevel${q}(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(${q}u,flatIndex(id,n,WORKGROUP_THREADS));}`,
+).join('\n')}
+`
+
+/** The level descent of `shape` (`descentShape.ts`): the camera's cut's (`DAG_LEVEL_WGSL`), or a
+ *  views descent's, which reads each entry's view with it and tests a node's subtree by its views'
+ *  rule. */
+export const dagLevelWgsl = (shape: DescentShape) =>
+  wgslBlock(
+    shape.views ? 'DAG_LEVEL_VIEWS_WGSL' : 'DAG_LEVEL_WGSL',
+    [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX, DAG_MARK_OF_WGSL, DAG_PAGE_BASE_OF_WGSL],
+    levelStepWgsl(shape) + levelTestWgsl(shape) + levelLeafWgsl(shape) + levelEntriesWgsl(),
+  )
+
+export const DAG_LEVEL_WGSL = dagLevelWgsl(CAMERA_DESCENT)

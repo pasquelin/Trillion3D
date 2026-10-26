@@ -1,13 +1,11 @@
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { surfaceReflects } from '../../materials/surface/surfaceModel.ts'
 import { loadOnlyTarget } from '../../gpu/core/loadOnlyTarget.ts'
-import { SURFACE_PROBES_WGSL } from './field.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
 import { reflectionFrontWgsl } from './viewLayout.ts'
-import { REFLECTION_FIELD_OVER_WGSL } from './wgsl.ts'
-import { reflectionFieldLobesWgsl, reflectionWeighWgsl } from './weight.ts'
+import { reflectionEnvironmentLobesWgsl, reflectionWeighWgsl } from './weight.ts'
 
 /** How far a fragment's depth may lie from the front depth and still be that surface (`forwardTrace`):
  *  the two float depths' bit patterns at most this many last-place units apart — a relative 2⁻¹³ of
@@ -22,10 +20,10 @@ const FRONT_DEPTH_THRESHOLD = 1024
  * (`frontLayer.ts`). `forwardTrace` is what a fragment's lobes reflect: where it is the front surface
  * of its pixel — its depth the front pass's there, in an image whose trace answered the front —, the
  * radiance the trace's last pass wrote for that pixel, one load — the one chain, cached; anywhere else —
- * a surface behind the front, an image whose trace did not answer it —, the chain's last stage alone
- * (`reflectionFieldOf`): the probes and the environment through each lobe, only the front layer being
- * worth a traced ray, the layers behind it seen through it. No forward fragment
- * casts a ray: the proxy is the trace's alone, and the fragment stage keeps within the sixteen sampled
+ * a surface behind the front, an image whose trace did not answer it —, the environment through each lobe
+ * (`reflectionEnvironmentOf`), only the front layer being worth a traced ray, the layers behind it seen
+ * through it. No forward fragment
+ * casts a ray: the scene trace is the trace's alone, and the fragment stage keeps within the sixteen sampled
  * textures WebGPU guarantees. `surfaceReflection` is the blend's, weighed on the
  * reflectance `f0` as the opaque trace's is.
  */
@@ -34,7 +32,7 @@ const forwardReflectionWgsl = (group: number, lobes: boolean, traced: number) =>
     `forwardReflectionWgsl(${group}, ${lobes}, ${traced})`,
     [
       reflectionWeighWgsl(lobes),
-      reflectionFieldLobesWgsl(lobes),
+      reflectionEnvironmentLobesWgsl(lobes),
       reflectionFrontWgsl(group),
       surfaceReflects,
       FRONT_PACK_WGSL,
@@ -61,7 +59,7 @@ fn forwardFrontTraced(position:vec4f)->Reflected{
  *  \`V\`: the front's traced radiance where \`front\` lets it be the front surface and its depth is that one's. */
 fn forwardTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,position:vec4f,front:bool)->Reflected{
  if(forwardFront(position,front)){return forwardFrontTraced(position);}
- return reflectionFieldOf(P,N,V,rough);
+ return reflectionEnvironmentOf(N,V,rough);
 }
 fn surfaceReflection(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f,position:vec4f)->vec3f{
  if(!surfaceReflects(surfaceModel)){return vec3f(0.0);}
@@ -70,27 +68,21 @@ fn surfaceReflection(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f,position:vec4f)-
   )
 
 /**
- * A forward fragment's indirect light (`forwardIndirect`, the blend's): its bounce and its reflection
- * weighed on the reflectance `f0` (`surfaceReflection`), a column each. Where the reflection is the
- * field's base lobe — a fragment behind the front surface —, one gather of the probes answers both
- * (`surfaceProbesGathered`), on the same weights: the very sums of the two reads.
+ * A forward fragment's indirect light (`forwardIndirect`, the blend's): its diffuse bounce and its reflection weighed on the reflectance
+ * `f0` (`surfaceReflection`), a column each. The bounce is what the translucency volume holds at the fragment's point (`gi`:
+ * `translucentGiIrradiance`, one filtered fetch, the sky light's where no volume is made); the reflection is the front's traced radiance where the
+ * fragment is the front surface of its pixel, else the environment through its lobes. A fragment that `reflects` nothing (the
+ * caller's `blendUnreflecting`) takes no reflection at all: the trace is not read, the column is zero.
  */
-export const forwardIndirectWgsl = (group: number, lobes: boolean, traced: number) =>
+export const forwardIndirectWgsl = (group: number, lobes: boolean, traced: number, gi: WgslDecl) =>
   wgslBlock(
     `forwardIndirectWgsl(${group}, ${lobes}, ${traced})`,
-    [
-      forwardReflectionWgsl(group, lobes, traced),
-      SURFACE_PROBES_WGSL,
-      REFLECTION_FIELD_OVER_WGSL,
-      lambertDiffuse,
-    ],
-    `fn forwardIndirect(rgb:vec3f,metal:f32,f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f,position:vec4f,ao:f32)->mat2x3f{
- if(!surfaceReflects(surfaceModel)){return mat2x3f(bounceLighting(rgb,metal,N,P,ao),vec3f(0.0));}
- if(forwardFront(position,true)){
-  return mat2x3f(bounceLighting(rgb,metal,N,P,ao),reflectionShare(forwardFrontTraced(position),f0,rough,N,V));
- }
- let probes=surfaceProbesGathered(P,N,reflectionBaseLobe(N,V,rough));
- let seen=Reflected(reflectionFieldOver(probes[1],reflect(-V,N),rough),reflectionFieldCoat(P,V));
- return mat2x3f(lambertDiffuse(rgb,metal,indirectGathered(probes[0],N),ao),reflectionShare(seen,f0,rough,N,V));
+    [forwardReflectionWgsl(group, lobes, traced), gi, lambertDiffuse],
+    `fn forwardIndirect(rgb:vec3f,metal:f32,f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f,position:vec4f,ao:f32,reflects:bool)->mat2x3f{
+ let colour=clothDiffuse(rgb,metal);
+ let diffuse=lambertDiffuse(colour.rgb,colour.w,translucentGiIrradiance(P,N,translucentGiSingle),ao);
+ var reflection=vec3f(0.0);
+ if(reflects){reflection=surfaceReflection(f0,rough,N,V,P,position);}
+ return mat2x3f(diffuse,reflection);
 }`,
   )

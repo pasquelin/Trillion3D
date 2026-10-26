@@ -25,12 +25,10 @@ pub(crate) const ELEMENT_ARRAY_BUFFER: u32 = 34963;
 pub(crate) const REPEAT: u32 = 10497;
 pub(crate) const CLAMP_TO_EDGE: u32 = 33071;
 pub(crate) const MIRRORED_REPEAT: u32 = 33648;
-/// Sampler `magFilter` / `minFilter`: nearest, linear, and the four mipmapped minifications.
+/// Sampler `magFilter` / `minFilter`: nearest, linear, and the mipmapped minifications the engine names.
 pub(crate) const NEAREST: u32 = 9728;
 pub(crate) const LINEAR: u32 = 9729;
-pub(crate) const NEAREST_MIPMAP_NEAREST: u32 = 9984;
 pub(crate) const LINEAR_MIPMAP_NEAREST: u32 = 9985;
-pub(crate) const NEAREST_MIPMAP_LINEAR: u32 = 9986;
 pub(crate) const LINEAR_MIPMAP_LINEAR: u32 = 9987;
 /// The filtering a sampler that names none takes: linear magnification, linear between mipmaps.
 pub(crate) const DEFAULT_FILTER: [u32; 2] = [LINEAR, LINEAR_MIPMAP_LINEAR];

@@ -3,8 +3,8 @@ import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 import { GUARANTEED_WORKGROUP_BYTES } from '../../gpu/core/textureLimits.ts'
 
 /**
- * The convolution networks of the render-resolution analysis (`flickerWgsl.ts`,
- * `rejectionWgsl.ts`) run in workgroup memory, one workgroup per `width × height` render texels
+ * The convolution network of the thin geometry detection (`thinGeometryWgsl.ts`) runs in workgroup
+ * memory, one workgroup per `width × height` render texels
  * and the `border` texels around them its chain of 3×3 operators reads: a value at the tile's edge
  * after `n` operators depends on the texels `n` away. Each stage runs over the span of texels still
  * within `ring` of the tile — one fewer per operator —, so every texel written is exact, with no
@@ -135,10 +135,10 @@ fn putTriple(k:u32,stride:u32,u:vec3f,v:vec3f){
 const nineOperators = (type: string, suffix: string) => `
 fn min9${suffix}(n:array<${type},9>)->${type}{var t=n;var v=t[0];for(var k=1;k<9;k++){v=min(v,t[k]);}return v;}
 fn max9${suffix}(n:array<${type},9>)->${type}{var t=n;var v=t[0];for(var k=1;k<9;k++){v=max(v,t[k]);}return v;}
-fn blur9${suffix}(n:array<${type},9>)->${type}{
+fn sum9${suffix}(n:array<${type},9>,w:vec3f)->${type}{
  var t=n;
- let up=t[0]*0.5+t[1]+t[2]*0.5;let mid=t[3]*0.5+t[4]+t[5]*0.5;let down=t[6]*0.5+t[7]+t[8]*0.5;
- return (up*0.5+mid+down*0.5)*0.25;
+ let up=t[0]*w.x+t[1]*w.y+t[2]*w.z;let mid=t[3]*w.x+t[4]*w.y+t[5]*w.z;let down=t[6]*w.x+t[7]*w.y+t[8]*w.z;
+ return up*w.x+mid*w.y+down*w.z;
 }
 fn variation9${suffix}(n:array<${type},9>)->${type}{
  var t=n;var s=t[0];for(var k=1;k<9;k++){s+=t[k];}
@@ -159,7 +159,7 @@ fn median9${suffix}(n:array<${type},9>)->${type}{
  * The 3×3 operators on nine values, row-major from the upper left, for one value (`min9`), two
  * (`min9p`), a colour (`min9c`) and four (`min9q`), each channel alone:
  * - `min9`, `max9`;
- * - `blur9`, the binomial blur, `(1, 2, 1) ⊗ (1, 2, 1) / 16`;
+ * - `sum9`, the weighted sum, weights `w` across and down, as given: a sum of `w` is its gain;
  * - `variation9`, the total variation: the centre less the mean of the nine, scaled by 9/8;
  * - `median9`, the median of the three columns' medians bounded by the greatest of their minima and
  *   the least of their maxima: each column ordered first, then across.

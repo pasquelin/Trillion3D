@@ -36,20 +36,23 @@ pub(super) fn settled_crossing(
     None
 }
 
-/// Corner `i` of a cell, in cells from its least corner: the four of the face at `y = 0`, then
-/// the four above them.
+/// A cell's corners as steps in cells from its least corner, numbered as the sign bits and the
+/// tables number them: the four at the cell's `y` in turn — the least corner, `+x`, `+x+z`, `+z` —,
+/// then the four above them.
+pub(crate) const CELL_CORNERS: [[i32; 3]; 8] = [
+    [0, 0, 0],
+    [1, 0, 0],
+    [1, 0, 1],
+    [0, 0, 1],
+    [0, 1, 0],
+    [1, 1, 0],
+    [1, 1, 1],
+    [0, 1, 1],
+];
+
+/// Corner `i` of a cell, in cells from its least corner (`CELL_CORNERS`).
 pub(crate) fn corner_offset(corner: usize) -> [usize; 3] {
-    const CORNERS: [[usize; 3]; 8] = [
-        [0, 0, 0],
-        [1, 0, 0],
-        [1, 0, 1],
-        [0, 0, 1],
-        [0, 1, 0],
-        [1, 1, 0],
-        [1, 1, 1],
-        [0, 1, 1],
-    ];
-    CORNERS[corner]
+    CELL_CORNERS[corner].map(|step| step as usize)
 }
 
 /// The twelve edges of a cell as their corner pairs, each pair written least corner first — the

@@ -24,7 +24,7 @@ const light = (id: string, kind: 'point' | 'spot', position: number[], range: nu
     kind,
     position,
     range,
-    ...(kind === 'spot' ? { direction: [0, 0, -1], coneAngle: 0.6 } : {}),
+    ...(kind === 'spot' ? { direction: [0, 0, -1], outerConeAngle: 0.6 } : {}),
     color: [1, 1, 1],
     intensity: 1,
     castsShadow: true,
@@ -32,9 +32,10 @@ const light = (id: string, kind: 'point' | 'spot', position: number[], range: nu
 
 /** The sun, two spots lighting the quad the camera looks at, and `side`² point lamps 4 m apart
  *  behind the camera — out of its view, each within reach of nothing it sees. */
-function world(side: number, near = 0) {
+function world(side: number, near = 0, extra: SceneLight[] = []) {
   const lights = createSceneLightStore()
   lights.add(SUN)
+  for (const light of extra) lights.add(light)
   // Lamps a step before the quad: each face of each asks its finest mip but one, a quarter of a
   // page-table block (`tableBlocks.ts`).
   for (let i = 0; i < near; i++) lights.add(light(`near ${i}`, 'point', [i / near - 0.5, 0, 1], 3))
@@ -48,11 +49,16 @@ function world(side: number, near = 0) {
 
 /** The set a frame of `world(side)` holds: the lights it shadows, the bytes of its page table,
  *  marks and requests, and its mask's layers. */
-async function shadowSet(side: number, near = 0, settings: ShadowOptions = {}) {
+async function shadowSet(
+  side: number,
+  near = 0,
+  settings: ShadowOptions = {},
+  extra: SceneLight[] = [],
+) {
   installGpuGlobals()
   const gpu = fakeDevice({ ...BACKEND, limits: SHADOW_LIMITS })
   const { fixture, backend } = quadBackend(gpu.device, {
-    sceneLights: world(side, near),
+    sceneLights: world(side, near, extra),
     // A view wide enough that a lamp a step away asks its faces finer than one page, drawn at its
     // own size: the display's default fraction (about 0.58 here) would ask them a mip coarser.
     viewport: [2048, 2048],
@@ -67,10 +73,14 @@ async function shadowSet(side: number, near = 0, settings: ShadowOptions = {}) {
     }
     const live = <T extends { label?: string }>(made: T[], label: RegExp) =>
       made.filter((it) => !gpu.destroyed.includes(it) && label.test(it.label ?? ''))
+    const shadowed = backend.metrics().shadowVsmLights
+    assert.ok(typeof shadowed === 'number', 'the frame reports how many lights it shadows')
     return {
-      shadowed: backend.metrics().shadowVsmLights,
+      shadowed,
       tables: live(gpu.buffers, /^vsm\.page(Table|Marks|Requests)/).reduce((s, b) => s + b.size, 0),
-      maskLayers: live(gpu.textures, /^vsm\.engine\.shadowMask$/).map((t) => t.depthOrArrayLayers),
+      // The projection's masks, one of each pass: the suns' layers (a sun a layer) and the local lights' texture.
+      sunMaskLayers: live(gpu.textures, /^vsm\.engine\.sunMask$/).map((t) => t.depthOrArrayLayers),
+      localMasks: live(gpu.textures, /^vsm\.engine\.localMask$/).length,
     }
   } finally {
     disposeQuadRun(backend, fixture)
@@ -80,7 +90,10 @@ async function shadowSet(side: number, near = 0, settings: ShadowOptions = {}) {
 test('worlds of growing extent seen through the same view hold the same shadow set', async () => {
   const small = await shadowSet(2)
   assert.equal(small.shadowed, 3, 'the sun and both spots cast')
-  assert.ok(small.tables > 0 && small.maskLayers.length === 1, JSON.stringify(small))
+  assert.ok(
+    small.tables > 0 && small.sunMaskLayers.length === 1 && small.localMasks === 1,
+    JSON.stringify(small),
+  )
   for (const side of [8, 16]) assert.deepEqual(await shadowSet(side), small, `${side}² lamps`)
 })
 
@@ -99,4 +112,23 @@ test("a sun's tables follow the clipmap levels the settings ask, its maps all th
   const deep = await shadowSet(2, 0, { shadowClipmapFirstLevel: 0, shadowClipmapLastLevel: 30 })
   assert.equal(deep.shadowed, first.shadowed, 'the same lights cast')
   assert.ok(deep.tables > first.tables, `${deep.tables} > ${first.tables}: the tables follow`)
+})
+
+/** A rectangle a step before the quad, facing it, that casts a shadow. */
+const PANEL = {
+  ...{ id: 'panel', kind: 'rect', position: [0, 0, 1], range: 3, direction: [0, 0, -1] },
+  ...{ right: [1, 0, 0], size: [1, 1], color: [1, 1, 1], intensity: 1, castsShadow: true },
+} as SceneLight
+
+test('a rectangle that casts takes a shadow like a point light, unless the point-light gates say no', async () => {
+  const first = await shadowSet(2)
+  const panel = await shadowSet(2, 0, {}, [PANEL])
+  assert.equal(panel.shadowed, first.shadowed + 1, 'the rectangle casts beside the sun and spots')
+  for (const off of ['shadowPointLightShadows', 'shadowPointLightCubemaps'] as const)
+    assert.deepEqual(await shadowSet(2, 0, { [off]: false }, [PANEL]), first, off)
+  // The fade: a minimum resolution no light reaches takes every local light's shadow away.
+  const faded = await shadowSet(2, 0, { shadowMinResolution: 1e6, shadowFadeResolution: 2e6 }, [
+    PANEL,
+  ])
+  assert.equal(faded.shadowed, 1, 'only the sun is left')
 })

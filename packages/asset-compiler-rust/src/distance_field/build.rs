@@ -1,8 +1,10 @@
-//! A mesh's field built: the bricks of each mip measured in parallel, the ones holding a surface's
-//! band kept in the order of their cells, and each mip's indirection table naming where they are.
+//! A mesh's field built: the bricks of each mip measured on the GPU (`gpu.rs`) or, where it cannot,
+//! in parallel on the CPU, the ones holding a surface's band kept in the order of their cells, and
+//! each mip's indirection table naming where they are.
 use super::abi::DISTANCE_FIELD_MIPS;
 use super::brick::{brick, Brick, BRICK_VOXELS};
-use super::grid::Grid;
+use super::gpu;
+use super::grid::{Grid, MipGrid};
 use super::samples::directions;
 use super::scene::Scene;
 use super::DistanceFieldSettings;
@@ -38,10 +40,15 @@ pub(super) struct Field {
     pub high: [f64; 3],
     pub two_sided: bool,
     pub mips: Vec<Mip>,
+    /// Why its voxels were measured on the CPU rather than the GPU, none when on the GPU: told in
+    /// the stage's report, so a slower build is never silent.
+    pub on_cpu: Option<String>,
+    /// The voxels the GPU measured in doubt and the CPU measured again in double precision.
+    pub remeasured: usize,
 }
 
 /// The cell, `x` fastest, of rank `rank` in a grid of `bricks`.
-fn cell(rank: usize, bricks: [usize; 3]) -> [usize; 3] {
+pub(super) fn cell(rank: usize, bricks: [usize; 3]) -> [usize; 3] {
     [
         rank % bricks[0],
         (rank / bricks[0]) % bricks[1],
@@ -49,19 +56,38 @@ fn cell(rank: usize, bricks: [usize; 3]) -> [usize; 3] {
     ]
 }
 
-/// The field of `scene` at the grid its box and `settings` give.
-pub(super) fn build(scene: &Scene, settings: &DistanceFieldSettings) -> Field {
+/// The grid of `scene`'s box at `settings` and its mips' placements.
+pub(super) fn grids(scene: &Scene, settings: &DistanceFieldSettings) -> (Grid, Vec<MipGrid>) {
     let grid = Grid::of(scene.low, scene.high, settings, scene.mostly_two_sided);
-    let rays = directions();
     let mips = (0..DISTANCE_FIELD_MIPS)
-        .map(|index| {
-            let mip = grid.mip(index);
-            let cells = mip.bricks.iter().product::<usize>();
-            let measured: Vec<Brick> = (0..cells)
+        .map(|index| grid.mip(index))
+        .collect();
+    (grid, mips)
+}
+
+/// Every brick of every mip of `scene`, cell after cell, measured along `rays` on the CPU, in
+/// parallel.
+pub(super) fn on_cpu(scene: &Scene, mips: &[MipGrid], rays: &[[f64; 3]]) -> Vec<Vec<Brick>> {
+    (mips.iter())
+        .map(|mip| {
+            (0..mip.cells())
                 .into_par_iter()
-                .map(|rank| brick(scene, &mip, &rays, cell(rank, mip.bricks)))
-                .collect();
-            let (mut indirection, mut voxels) = (vec![NO_BRICK; cells], Vec::new());
+                .map(|rank| brick(scene, mip, rays, cell(rank, mip.bricks)))
+                .collect()
+        })
+        .collect()
+}
+
+/// The field of the mips `mips` of `grid`, their bricks `measured`: those holding a surface's
+/// band stored in the order of their cells.
+pub(super) fn assemble(
+    (grid, mips): (&Grid, &[MipGrid]),
+    measured: Vec<Vec<Brick>>,
+    two_sided: bool,
+) -> Field {
+    let mips = (mips.iter().zip(measured))
+        .map(|(mip, measured)| {
+            let (mut indirection, mut voxels) = (vec![NO_BRICK; measured.len()], Vec::new());
             let mut stored = 0u32;
             for (slot, measured) in indirection.iter_mut().zip(measured) {
                 if measured.stored() {
@@ -83,7 +109,26 @@ pub(super) fn build(scene: &Scene, settings: &DistanceFieldSettings) -> Field {
     Field {
         low: grid.low,
         high: grid.high,
-        two_sided: scene.mostly_two_sided,
+        two_sided,
         mips,
+        on_cpu: None,
+        remeasured: 0,
+    }
+}
+
+/// The field of `scene` at the grid its box and `settings` give: its voxels measured on the GPU,
+/// or on the CPU when the GPU cannot (no adapter, a scene past one binding, a failed batch) — the
+/// same field, byte for byte (`gpu.rs`), the reason told when it is the CPU's.
+pub(super) fn build(scene: &Scene, settings: &DistanceFieldSettings) -> Field {
+    let (grid, mips) = grids(scene, settings);
+    let rays = directions();
+    let (measured, reason, remeasured) = match gpu::measure(scene, &mips, &rays) {
+        Ok((measured, remeasured)) => (measured, None, remeasured),
+        Err(refused) => (on_cpu(scene, &mips, &rays), Some(refused.to_string()), 0),
+    };
+    Field {
+        on_cpu: reason,
+        remeasured,
+        ..assemble((&grid, &mips), measured, scene.mostly_two_sided)
     }
 }

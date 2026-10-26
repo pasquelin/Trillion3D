@@ -5,10 +5,9 @@ import { TREE_SPAN, type PlacementTree } from './placement/placementTree.ts'
  * — the deepest level (`levels − 1`) first, level 0 the root's —, each level's ids increasing. A level
  * holds the nodes touched at it and the parents (`above`) of those the level below holds, and, when
  * `own` names them, the nodes it always holds: a fit of a whole structure names its nodes by level,
- * the fit of a change names the groups the change touched. The placement tree's refit
- * (`refitLevels`) and a mesh's proxy pose (`lighting/bounce/runtime/runtimePoseLevels.ts`) fit their boxes by it.
+ * the fit of a change names the groups the change touched. The placement tree's refit (`refitLevels`) fits its boxes by it.
  */
-export function refitSchedule(
+function refitSchedule(
   levels: number,
   touched: Iterable<number>,
   above: (level: number, id: number) => number,

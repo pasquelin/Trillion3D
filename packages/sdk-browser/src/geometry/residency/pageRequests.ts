@@ -22,6 +22,8 @@ type Prefetch = {
   pages: readonly number[]
   left: number
   ranks: Uint32Array
+  /** The priority the asker gave, kept as it is; left out, the nearer the deadline the higher. */
+  priority?: number
 }
 
 /** What a request table reads of the catalogue's streaming pages. */
@@ -38,7 +40,7 @@ type Streaming = {
 
 /** The streaming pages requested in one update: each once, in the order first requested
  *  (`keys`, the first `count`), and beside each the record it was first requested by. */
-type RequestTable = {
+type RequestRecords = {
   /** Each requested streaming page's priority, a u32 held in an int's bits. */
   priority: ReturnType<typeof createSparseInts>
   /** The streaming pages a lift is in, so a hop back onto one ends it. */
@@ -49,14 +51,14 @@ type RequestTable = {
 }
 
 /** Streaming page `unit`, first requested by `rec`, joins the table. */
-function addUnit(t: RequestTable, unit: number, rec: PageRec) {
+function addUnit(t: RequestRecords, unit: number, rec: PageRec) {
   t.keys = resized(t.keys, t.count + 1)
   t.records[t.count] = rec
   t.keys[t.count++] = unit
 }
 
 /** `rec` requested at `asked`: its streaming page joins the table and is raised to `asked`. */
-function noteRecord(t: RequestTable, s: Streaming, rec: PageRec, asked: number) {
+function noteRecord(t: RequestRecords, s: Streaming, rec: PageRec, asked: number) {
   // A record without a page — a world cluster no surface wears — is no streaming page: it has
   // no bytes to wait for, and one started would hold every install behind it.
   if (!hasPage(rec)) return
@@ -71,7 +73,7 @@ function noteRecord(t: RequestTable, s: Streaming, rec: PageRec, asked: number) 
 /** The streaming pages `unit`, requested at `asked`, depends on, each raised to one above it, and
  *  theirs in turn, while a priority rises. The root cover is no request, and a hop back onto a
  *  streaming page the lift is in leaves it be. */
-function liftUnit(t: RequestTable, s: Streaming, unit: number, asked: number) {
+function liftUnit(t: RequestRecords, s: Streaming, unit: number, asked: number) {
   const above = asked + 1
   if (above > PRIORITY_MAX) return
   t.lifting.set(unit, 1)
@@ -92,7 +94,7 @@ function liftUnit(t: RequestTable, s: Streaming, unit: number, asked: number) {
 /** The table of one update's requests: `note` raises a page to the priority asked, `liftRequested`
  *  raises what every page asked depends on, a hop a streaming page. */
 function createRequestTable(s: Streaming) {
-  const t: RequestTable = {
+  const t: RequestRecords = {
     priority: createSparseInts(),
     lifting: createSparseInts(),
     keys: new Int32Array(64),
@@ -131,6 +133,69 @@ function createRequestTable(s: Streaming) {
   }
 }
 
+type RequestTable = ReturnType<typeof createRequestTable>
+
+/** The records the views' readbacks `cuts` ask for, each noted at its request's priority. */
+function noteCuts(
+  recordOf: (page: number) => PageRec | undefined,
+  table: RequestTable,
+  cuts: readonly GpuCut[],
+) {
+  for (const { result } of cuts) {
+    const { pages, counts, priorities } = result.requests
+    for (let i = 0; i < pages.length; i++) {
+      const asked = Math.max(1, priorities[i] >>> 0),
+        named = Math.max(1, counts[i] | 0)
+      for (let k = 0; k < named; k++) {
+        const rec = recordOf(pages[i] + k)
+        if (rec) table.note(rec, asked)
+      }
+    }
+  }
+}
+
+/** The prefetches noted, each one update nearer its deadline. */
+function notePrefetches(
+  recordOf: (page: number) => PageRec | undefined,
+  table: RequestTable,
+  prefetches: Prefetch[],
+) {
+  for (const ask of prefetches) {
+    const asked = ask.priority ?? REQUEST_PRIORITY_MAX - ask.left
+    ask.left--
+    ask.ranks.fill(asked)
+    for (const id of ask.pages) {
+      const rec = recordOf(id)
+      if (rec) table.note(rec, asked)
+    }
+  }
+}
+
+/** The requests of `cuts`, the readbacks of the update, the drawn capture's first, then the
+ *  prefetches' — each one update nearer its deadline, let go once there —, then what they
+ *  depend on. */
+function takeRequests(
+  recordOf: (page: number) => PageRec | undefined,
+  table: RequestTable,
+  closure: Pick<GroupClosure, 'closeOver'>,
+  prefetches: Prefetch[],
+  cuts: readonly GpuCut[],
+) {
+  table.clear()
+  noteCuts(recordOf, table, cuts)
+  notePrefetches(recordOf, table, prefetches)
+  for (const { result } of cuts) {
+    const { pages, priorities } = result.requests
+    closure.closeOver(pages, table.visit, priorities)
+  }
+  for (const ask of prefetches) closure.closeOver(ask.pages, table.visit, ask.ranks)
+  table.liftRequested()
+  // Those whose updates are spent let go, the others kept in their order, in place.
+  let kept = 0
+  for (const ask of prefetches) if (ask.left > 0) prefetches[kept++] = ask
+  prefetches.length = kept
+}
+
 /**
  * THE REQUESTS OF ONE UPDATE, by STREAMING PAGE — the unit the residency streams
  * (`./pageUnits.ts`) —: the streaming pages of the leaves the views' readbacks ask for — a request
@@ -151,18 +216,12 @@ function createRequestTable(s: Streaming) {
  * update's unique requests, what the pool's pressure reads (`./poolPressure.ts`). The tables follow
  * the requests, never the catalogue.
  */
-export function createPageRequests(options: {
-  packedPages: PageList
-  keyOf: (rec: PageRec) => number
-  /** The streaming pages of the catalogue: the one of a key, the keys and the records of one
-   *  (`./pageUnits.ts`). */
-  units: Pick<PageUnits, 'of' | 'keys' | 'records'>
-  /** The streaming pages a streaming page depends on (`./queueHold.ts`, `createUnitParents`). */
-  parents: (unit: number) => readonly number[]
-  /** True for a key of the root cover. */
-  covers: (key: number) => boolean
-  closure: Pick<GroupClosure, 'closeOver'>
-}) {
+export function createPageRequests(
+  options: Streaming & {
+    packedPages: PageList
+    closure: Pick<GroupClosure, 'closeOver'>
+  },
+) {
   const { closure } = options
   const { recordOf } = createPageCatalogue(options.packedPages)
   const table = createRequestTable(options)
@@ -172,46 +231,17 @@ export function createPageRequests(options: {
     /** The requests of `cuts`, the readbacks of the update, the drawn capture's first, then the
      *  prefetches' — each one update nearer its deadline, let go once there —, then what they
      *  depend on. */
-    take(cuts: readonly GpuCut[]) {
-      table.clear()
-      for (const { result } of cuts) {
-        const { pages, counts, priorities } = result.requests
-        for (let i = 0; i < pages.length; i++) {
-          const asked = Math.max(1, priorities[i] >>> 0),
-            named = Math.max(1, counts[i] | 0)
-          for (let k = 0; k < named; k++) {
-            const rec = recordOf(pages[i] + k)
-            if (rec) table.note(rec, asked)
-          }
-        }
-      }
-      for (const ask of prefetches) {
-        const asked = REQUEST_PRIORITY_MAX - ask.left
-        ask.left--
-        ask.ranks.fill(asked)
-        for (const id of ask.pages) {
-          const rec = recordOf(id)
-          if (rec) table.note(rec, asked)
-        }
-      }
-      for (const { result } of cuts) {
-        const { pages, priorities } = result.requests
-        closure.closeOver(pages, table.visit, priorities)
-      }
-      for (const ask of prefetches) closure.closeOver(ask.pages, table.visit, ask.ranks)
-      table.liftRequested()
-      // Those whose updates are spent let go, the others kept in their order, in place.
-      let kept = 0
-      for (const ask of prefetches) if (ask.left > 0) prefetches[kept++] = ask
-      prefetches.length = kept
-    },
+    take: (cuts: readonly GpuCut[]) => takeRequests(recordOf, table, closure, prefetches, cuts),
     /** Asks packed pages `pages` for the next `updates` updates — at least one, at most
      *  `PREFETCH_UPDATES_MAX` —, the asker drawing them after: each update at
      *  `REQUEST_PRIORITY_MAX` less the updates left, ahead of the views' requests, the nearer the
-     *  deadline the higher. */
-    prefetch(pages: readonly number[], updates: number) {
+     *  deadline the higher, or all at `priority` when the asker gives one (kept as it is, from 1 to
+     *  `REQUEST_PRIORITY_MAX`). */
+    prefetch(pages: readonly number[], updates: number, priority?: number) {
       const left = clamp(updates, 1, PREFETCH_UPDATES_MAX)
-      prefetches.push({ pages, left, ranks: new Uint32Array(pages.length) })
+      const given =
+        priority === undefined ? undefined : clamp(Math.floor(priority), 1, REQUEST_PRIORITY_MAX)
+      prefetches.push({ pages, left, ranks: new Uint32Array(pages.length), priority: given })
     },
     /** The streaming pages requested, in the order above: read up to `count`. */
     get keys() {

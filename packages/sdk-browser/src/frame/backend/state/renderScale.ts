@@ -1,13 +1,8 @@
 import { upscaleMipBias } from '../../../post/taa/jitter.ts'
 import { renderExtent, type RenderScaleBounds } from '../../scale/renderScaleOption.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { drawsLit, keepsBeautyChain } from '../../../visibility/shader/shadeMode.ts'
+import { drawsLit } from '../../../visibility/shader/shadeMode.ts'
 import { taaWanted } from './gpu.ts'
-
-/** Whether this image is the beauty one, its whole chain kept: the diagnostic view off, or a view
- *  of the lit image that keeps it (`keepsBeautyChain`), and no second-camera capture. */
-export const beautyImage = (rt: Pick<WebgpuPagesRuntime, 'run' | 'capture'>) =>
-  keepsBeautyChain(rt.run.diagnostic) && !rt.capture.capturing
 
 /** Whether this image is lit as the beauty one: the diagnostic view off or a view of the lit image
  *  (`drawsLit`), and no second-camera capture. */

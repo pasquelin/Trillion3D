@@ -47,6 +47,37 @@ export type Seat = { batch: Batch; row: number }
 /** A session that grows no buffer in place: a held batch seats on its free rows alone. */
 const GROWS_NONE: PlacementGrowth = { growsInPlace: () => false, growPlacements() {} }
 
+/** Seats the waiting meshes of the batches the session holds, growing full rows where the session
+ *  takes it (`grow`); one it does not take is said by name, once. Returns the batches grown. */
+function growHeldBatches(state: BatchState, seated: (mesh: Mesh) => void, grow?: PlacementGrowth) {
+  const { short } = state
+  return [...short].filter((batch) => {
+    if (!batch.rows) return false
+    const grown = fit(state, batch, seated, grow ?? GROWS_NONE)
+    if (grown === false && grow) refuse(state, batch, 'its rows cannot grow in place')
+    return !!grown
+  })
+}
+
+/** Hands the session the batches it was not opened with, each sized and seated first: it draws
+ *  their primitive from now on (`PlacementGrowth.addPlacements`), or refuses by name. Returns the
+ *  batches handed. */
+function joinBatches(state: BatchState, seated: (mesh: Mesh) => void, grow?: PlacementGrowth) {
+  const { short } = state
+  if (!grow?.addPlacements) return []
+  const joined = [...short].filter((batch) => !batch.rows)
+  for (const batch of joined) {
+    fit(state, batch, seated)
+    const done = grow.addPlacements!(batch, state.ranks.primitive(batch.cut)).then(
+      (reason) => reason && refuse(state, batch, reason),
+      (error: unknown) => refuse(state, batch, String(error)),
+    )
+    state.flights.add(done)
+    void done.finally(() => state.flights.delete(done))
+  }
+  return joined
+}
+
 export function createWorldBatches(
   touched: (batch: Batch, row: number) => void,
   wear: BatchWear,
@@ -72,33 +103,10 @@ export function createWorldBatches(
     batches,
     unseat: (mesh: Mesh) => unseat(state, mesh),
     seat: (mesh: Mesh, cut: Cut, entry: MaterialEntry) => seat(state, mesh, cut, entry),
-    /** Seats the waiting meshes of the batches the session holds, growing full rows where the
-     *  session takes it (`grow`); one it does not take is said by name, once. Returns the batches
-     *  grown. */
     growHeld: (seated: (mesh: Mesh) => void, grow?: PlacementGrowth) =>
-      [...short].filter((batch) => {
-        if (!batch.rows) return false
-        const grown = fit(state, batch, seated, grow ?? GROWS_NONE)
-        if (grown === false && grow) refuse(state, batch, 'its rows cannot grow in place')
-        return !!grown
-      }),
-    /** Hands the session the batches it was not opened with, each sized and seated first: it
-     *  draws their primitive from now on (`PlacementGrowth.addPlacements`), or refuses by name.
-     *  Returns the batches handed. */
-    join(seated: (mesh: Mesh) => void, grow?: PlacementGrowth) {
-      if (!grow?.addPlacements) return []
-      const joined = [...short].filter((batch) => !batch.rows)
-      for (const batch of joined) {
-        fit(state, batch, seated)
-        const done = grow.addPlacements!(batch, state.ranks.primitive(batch.cut)).then(
-          (reason) => reason && refuse(state, batch, reason),
-          (error: unknown) => refuse(state, batch, String(error)),
-        )
-        state.flights.add(done)
-        void done.finally(() => state.flights.delete(done))
-      }
-      return joined
-    },
+      growHeldBatches(state, seated, grow),
+    join: (seated: (mesh: Mesh) => void, grow?: PlacementGrowth) =>
+      joinBatches(state, seated, grow),
     /** Settles once the batches handed to the session have been taken or refused; none, nothing. */
     get flying() {
       return state.flights.size ? Promise.allSettled([...state.flights]) : undefined
@@ -170,7 +178,6 @@ function batchOf(state: BatchState, cut: Cut, entry: MaterialEntry, mesh: Mesh) 
         },
         // Casts as a shadow caster casts by default; each row's owner writes its own (`rows.casting`).
         casting: 0,
-        frustumCulled: true,
         get mesh() {
           return state.ranks.cut(cut)
         },

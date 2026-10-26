@@ -1,15 +1,20 @@
 import { EngineError } from '../contracts/cache.ts'
 import type { TexturePreview } from '../texture/previewContracts.ts'
-import { previewAtlasName, previewAtlasOf } from '../texture/previewFormat.ts'
+import { PREVIEW_BLOCK_BYTES, previewAtlasName, previewAtlasOf } from '../texture/previewFormat.ts'
 import { levelBlockBytes, type previewGeometry } from '../texture/previewLevels.ts'
 
 // The rules of one texture-preview entry that the reader (`binaryPreview.ts`) and the writer share.
 
-/** Byte length of each carried level in the pixel column and in a block column, tail order. */
-export function levelLengths(geometry: ReturnType<typeof previewGeometry>) {
+/** Byte length of each carried level in the pixel column — `texelBytes` a texel — and in a block
+ *  column, tail order. */
+export function levelLengths(
+  geometry: ReturnType<typeof previewGeometry>,
+  texelBytes = 4,
+  blockBytes = PREVIEW_BLOCK_BYTES,
+) {
   return {
-    rgba: geometry.sizes.map(([w, h]) => w * h * 4),
-    blocks: geometry.sizes.map(([w, h]) => levelBlockBytes(w, h)),
+    rgba: geometry.sizes.map(([w, h]) => w * h * texelBytes),
+    blocks: geometry.sizes.map(([w, h]) => levelBlockBytes(w, h, blockBytes)),
   }
 }
 
@@ -29,7 +34,7 @@ export function checkEntryHeader(
       entry,
       atlas,
     })
-  // Keyed by the atlas that samples the chain: one colour entry per texture, plain or coverage.
+  // Keyed by the atlas that samples the chain: one colour entry per texture, 8-bit or half-float.
   const key = texture * 2 + previewAtlasOf(atlas)
   if (!Number.isInteger(texture) || key <= previous)
     throw new EngineError(

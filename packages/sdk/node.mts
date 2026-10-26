@@ -11,9 +11,6 @@ export type {
   CompilationResult,
   CompilationSummary,
   CompilerEvent,
-  CutoutModel,
-  CutoutReviewOptions,
-  CutoutReviewSummary,
   PrepareOptions,
   ProgressPointer,
   ProgressStream,
@@ -25,6 +22,10 @@ export { CANCEL_GRACE_MS } from '../sdk-node/src/compiler/process.mts'
 export { COMPILER_LINE_LIMIT } from '../sdk-node/src/compiler/lines.mts'
 export { createBatchProgress, createTerminalProgress } from '../sdk-node/src/cli/progress.mts'
 export { createCompilationJob, prepare, prepareMany } from '../sdk-node/src/index.mts'
+export type {
+  DisplacementMapWire,
+  MeshDisplacementBakeSettingsWire,
+} from '../sdk-core/src/contracts/displacementBakeAbi.ts'
 export type {
   DrawDistanceWire,
   ObjectSettingsJobWire,
@@ -42,46 +43,51 @@ export type {
   HlodWireMatch,
   HlodWirePattern,
 } from '../sdk-core/src/contracts/hlodAbi.ts'
+export type {
+  HlodBuiltMeshWire,
+  HlodMeshBuildWire,
+  MeshAssemblySettingsWire,
+  MeshBuildSettingsWire,
+  MeshBuildWire,
+  MeshCardsSettingsWire,
+  MeshInputSettingsWire,
+  MeshVoxelSettingsWire,
+} from '../sdk-core/src/contracts/meshBuildAbi.ts'
 export { resolveHlod } from '../sdk-core/src/contracts/hlodOptions.ts'
 export type {
   HlodExpert,
-  HlodGroup,
-  HlodMatch,
   HlodOptions,
   HlodPattern,
   HlodSimple,
 } from '../sdk-core/src/contracts/hlodOptions.ts'
 export type { HlodExpertOf, HlodLayer, HlodWire } from '../sdk-core/src/contracts/hlodLayerAbi.ts'
 export type {
-  HlodMeshBuildWire,
-  MeshBuildSettingsWire,
-  MeshBuildWire,
-  MeshInputSettingsWire,
-  MeshVoxelSettingsWire,
-} from '../sdk-core/src/contracts/meshBuildAbi.ts'
+  LightmapBakeOption,
+  LightmapBakeSky,
+  LightmapBakeVolume,
+  LightmapBakeWire,
+} from '../sdk-core/src/contracts/lightmapBakeAbi.ts'
 export {
   resolveMaterials,
   resolveResponsive,
   resolveTemporalAntialiasing,
-  temporalAntialiasingShare,
+  responsiveLevel,
 } from '../sdk-core/src/contracts/materialOptions.ts'
 export type {
   MaterialSettings,
   MaterialsOption,
   ResponsiveOption,
+  ResponsiveSetting,
   TemporalAntialiasingOption,
-  TemporalAntialiasingShare,
 } from '../sdk-core/src/contracts/materialOptions.ts'
-export type {
-  MaterialSettingsWire,
-  TemporalAntialiasingLevel,
-} from '../sdk-core/src/contracts/materialAbi.ts'
+export type { MaterialSettingsWire } from '../sdk-core/src/contracts/materialAbi.ts'
 export { resolveMeshBuild } from '../sdk-core/src/contracts/meshBuildOptions.ts'
 export type {
   MeshBuildOption,
   MeshBuildRule,
   MeshBuildSettings,
 } from '../sdk-core/src/contracts/meshBuildOptions.ts'
+export type { MeshDistanceFieldSettingsWire } from '../sdk-core/src/contracts/distanceFieldAbi.ts'
 export type { NameMatch, NamePattern } from '../sdk-core/src/contracts/nameMatch.ts'
 export { resolveObjectSettings } from '../sdk-core/src/contracts/objectOptions.ts'
 export type {
@@ -110,4 +116,3 @@ export type { PartitionSchemeOption } from '../sdk-core/src/contracts/partitionO
 export { resolveCompilerExecutable } from '../sdk-node/src/compiler/executable.mts'
 export { resolveVoxelize } from '../sdk-core/src/contracts/voxelizeOptions.ts'
 export type { VoxelizeOption } from '../sdk-core/src/contracts/voxelizeOptions.ts'
-export { reviewCutouts } from '../sdk-node/src/cutout/review.mts'

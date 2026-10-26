@@ -24,7 +24,7 @@ test('a composed world survives the root tables growing', () => {
   // Root 1 is composed: its world is the GPU's, never the CPU's.
   parentOf[1] = 0
   const rt = {
-    layout: { selectionRoots, rows: { tableEpoch: 0 } },
+    layout: { selectionRoots },
     compose: { roots: 64, parentOf },
   } as never as Parameters<typeof sendRootWorlds>[0]
   sendRootWorlds(rt, device)
@@ -53,17 +53,16 @@ test('roots a cut took in place before they join are sent and listed for the roo
     device = fake.device as unknown as GPUDevice
   const growth = { roots: [at(3), at(4)], appended: 0 }
   const rt = {
-    layout: { selectionRoots: [at(1), at(2)], rows: { tableEpoch: 0 } },
+    layout: { selectionRoots: [at(1), at(2)] },
     growth,
   } as never as Parameters<typeof sendRootWorlds>[0]
   sendRootWorlds(rt, device)
   const held = rt.rootWorlds!
-  held.roots.whole = held.rows.whole = false
+  held.roots.whole = false
   // The running cut appends both in place (`startGrownCut`): their stretch is the pass's to write.
   growth.appended = 2
   sendRootWorlds(rt, device)
   assert.deepEqual(Array.from(held.roots.ranks.take()), [2, 3])
-  assert.equal(held.rows.ranks.count, 0, 'their rows wait for them to join')
   assert.deepEqual([held.sent, held.held], [2, 4])
   const words = new Uint32Array((held.worlds as unknown as { data: Uint8Array }).data.buffer),
     expected = new Uint32Array(ROOT_WORLD_WORDS)
@@ -75,18 +74,18 @@ test('roots a cut took in place before they join are sent and listed for the roo
   )
 })
 
-test('roots taken in place are not sent again when they join: their rows alone are named', () => {
+test('roots taken in place are not sent again when they join: the one the cut never took alone is', () => {
   const fake = fakeDevice(),
     device = fake.device as unknown as GPUDevice
   const growth = { roots: [at(3), at(4)], appended: 0 }
   const selectionRoots = [at(1), at(2)]
   const rt = {
-    layout: { selectionRoots, rows: { tableEpoch: 0 } },
+    layout: { selectionRoots },
     growth,
   } as never as Parameters<typeof sendRootWorlds>[0]
   sendRootWorlds(rt, device)
   const held = rt.rootWorlds!
-  held.roots.whole = held.rows.whole = false
+  held.roots.whole = false
   growth.appended = 2
   sendRootWorlds(rt, device)
   held.roots.ranks.clear()
@@ -102,5 +101,4 @@ test('roots taken in place are not sent again when they join: their rows alone a
     'the one the cut never took',
   )
   assert.deepEqual(Array.from(held.roots.ranks.take()), [4])
-  assert.deepEqual(Array.from(held.rows.ranks.take()), [2, 3, 4])
 })

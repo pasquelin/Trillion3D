@@ -42,12 +42,9 @@ test('the rejection is across the normal and leaves v along it', () => {
   }
 })
 
-test('the sine from the cosine is the sine of its angle; the floored one is 0 past ±1', () => {
-  for (let a = 0; a <= Math.PI; a += Math.PI / 64) {
-    nearRelative(run.sinFromCos(Math.cos(a)) as number, Math.sin(a), `floored ${a}`)
-    nearRelative(run.sinFromCosUnclamped(Math.cos(a)) as number, Math.sin(a), `unfloored ${a}`)
-  }
-  assert.equal(run.sinFromCos(1 + 2 ** -20), 0)
+test('the sine from the cosine is the sine of its angle, and none past ±1', () => {
+  for (let a = 0; a <= Math.PI; a += Math.PI / 64)
+    nearRelative(run.sinFromCosUnclamped(Math.cos(a)) as number, Math.sin(a), `${a}`)
   assert.ok(Number.isNaN(run.sinFromCosUnclamped(1 + 2 ** -20)))
 })
 

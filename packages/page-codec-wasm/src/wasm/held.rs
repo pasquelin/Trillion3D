@@ -1,6 +1,6 @@
 //! THE HAND-OFF of every answer whose size is known only once built — the page encoder's page
-//! (`encode.rs`), the clusters (`clusters.rs`), the culling hierarchy (`culling.rs`)
-//! and the proxy columns (`proxy.rs`): the builder leaves its bytes here (`hold`), the loader
+//! (`encode.rs`), the clusters (`clusters.rs`) and the culling hierarchy (`culling.rs`):
+//! the builder leaves its bytes here (`hold`), the loader
 //! copies them out of linear memory, `held_length` bytes from `held_at`, then lets them go
 //! (`held_free`). One answer is held at a time: a build replaces the one before. The loader's side
 //! is `takeHeld` (`packages/sdk-browser/src/wasm/wasmArena.ts`).

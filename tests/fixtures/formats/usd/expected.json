@@ -67,7 +67,7 @@
       "uri": "textures/checker.png"
     }
   ],
-  "manifestBinaryVersion": 18,
+  "manifestBinaryVersion": 21,
   "materials": [
     {
       "alphaMode": "BLEND",
@@ -141,7 +141,7 @@
   "notes": [],
   "plugin": {
     "name": "usd",
-    "version": "usd-openusd-0.7.0-gltf-8"
+    "version": "usd-openusd-0.7.0-gltf-9"
   },
   "primitives": 2,
   "rule": "The driver yields the composed scene and nothing else: polygons fan-triangulated, one primitive per material part, normals and primvars:st resolved by their interpolation, UsdPreviewSurface to pbrMetallicRoughness, and the layer's unit and up-axis carried by the scene root.",
@@ -155,11 +155,11 @@
   ],
   "scenePlugin": {
     "name": "usd",
-    "version": "usd-openusd-0.7.0-gltf-8"
+    "version": "usd-openusd-0.7.0-gltf-9"
   },
   "selectedNodes": 1,
   "selectedTriangles": 4,
-  "sidecarSha256": "b557d7dffccb59e668216688d72b75b7e6669bba36df18a8ec1f321e7345dc63",
+  "sidecarSha256": "bf37d83e63d7ac1a6c1c7d4a421247ec2403a617ba504be58bbd9e7ea5584364",
   "sourceTriangles": 4,
   "textures": [
     {

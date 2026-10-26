@@ -2,7 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
-import { VIS_SHADER } from './shader/visWgsl.ts'
+import { VIS_SHADER } from './shader/visShader.fixture.ts'
+import { visShader } from './shader/visWgsl.ts'
 import type { VisPage } from './types.ts'
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'
 import { camera, quadPages, centerId } from './buffer.fixture.ts'
@@ -40,10 +41,25 @@ test('vis shader instances pages from the page table', () => {
   assert.match(VIS_SHADER, /@group\(0\) @binding\(4\) var<uniform> uni/)
   assert.match(VIS_SHADER, /@group\(0\) @binding\(6\) var colorPool/)
   assert.match(VIS_SHADER, /fn maskKeep/)
-  // The fragment writes no attachment: a cut pixel returns before `visWrite`, it discards nothing.
-  assert.match(VIS_SHADER, /if\(MASKED&&!maskKeep\(page,in\.tc\.xy,in\.tc\.z,gx,gy\)\)\{return;\}/)
-  assert.match(VIS_SHADER, /visWrite\(offset,key,in\.id,ID_PHASE\);/)
-  assert.doesNotMatch(VIS_SHADER, /discard;/)
+  // Without the 64-bit word the fragment writes the identifier and the depth key out: a cut pixel is
+  // discarded, the hardware depth test keeps the nearest of the rest.
+  assert.match(
+    VIS_SHADER,
+    /if\(MASKED&&!maskKeep\(page,in\.tc\.xy,in\.tc\.z,gx,gy\)\)\{return visLeft\(\);\}/,
+  )
+  assert.match(
+    VIS_SHADER,
+    /return VisOut\(in\.id,bitcast<f32>\(visKey\(in\.position\.z,page\.depthBias\)\)\);/,
+  )
+  // With it the fragment writes no attachment: a cut pixel returns before `visWrite`, it discards
+  // nothing, and the pair is taken in once.
+  const wide = visShader({ wide: true })
+  assert.match(wide, /if\(MASKED&&!maskKeep\(page,in\.tc\.xy,in\.tc\.z,gx,gy\)\)\{return;\}/)
+  assert.match(
+    wide,
+    /visWrite\(pixelOffset\(vec2u\(in\.position\.xy\)\),visKey\(in\.position\.z,page\.depthBias\),in\.id,false\);/,
+  )
+  assert.doesNotMatch(wide, /discard;/)
   assert.match(VIS_SHADER, /textureSampleLevel/)
   assert.doesNotMatch(VIS_SHADER, /textureSample\s*\(/)
   assert.doesNotMatch(VIS_SHADER, /@group\(0\) @binding\(2\) var<uniform>/)
@@ -99,11 +115,15 @@ test('MASK alpha-test punches a visbuffer hole before shading', () => {
 })
 
 test('standard-material irradiance matches the reference linear capture without an invented environment', () => {
-  // Captured from a reference render on the same quad/lights, before display tone mapping.
+  // Captured from a reference render on the same quad/lights, before display tone mapping, but for
+  // the metal row: the specular visibility is the approximated joint Smith term (`jointHalf`,
+  // `standardLighting.ts`; the reference's joint Smith approximation), which
+  // lowers a metal at roughness 0.5 from the 52 an earlier capture read — a competitor's
+  // value, no bound — to the 49 this term gives on the quad.
   for (const [color, metalness, roughness, expected] of [
     [0xffffff, 0, 1, [227, 228, 229]],
     [0x808080, 0, 1, [115, 115, 116]],
-    [0x808080, 1, 0.5, [52, 52, 52]],
+    [0x808080, 1, 0.5, [49, 49, 49]],
     [0x993322, 0, 0.5, [137, 50, 37]],
   ] as const) {
     const material = G.standardSurface({ color, metalness, roughness })

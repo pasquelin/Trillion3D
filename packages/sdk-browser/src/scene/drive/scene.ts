@@ -1,4 +1,5 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
+import { sum } from '../../../../math/src/scalar/quantile.ts'
 import { meshes } from '../meshes.ts'
 import { assertFiniteTransform } from '../host/world/matrices.ts'
 import { replicateInstances } from '../replicateInstances.ts'
@@ -161,7 +162,7 @@ function reportPrepared(
     kind: 'preparation',
     scope,
     nodes: tables.nodes.length,
-    placements: [...(tables.partition?.totals.values() ?? [])].reduce((sum, n) => sum + n, 0),
+    placements: sum([...(tables.partition?.totals.values() ?? [])]),
     materials: tables.materials.length,
     textures,
     bytes,
@@ -193,6 +194,55 @@ async function replicated(
   instances?.release()
   boundsLot?.release()
   return copied
+}
+
+/** What `loadPreparedScene` hands back: the scene, replicated as the options ask, and what is
+ *  read of its cache. */
+function loadedScene(parts: {
+  built: Built['built']
+  source: Object3D
+  banks: Awaited<ReturnType<typeof readBanks>>
+  worldRoots: Built['worldRoots']
+  replicas: number
+  metadata: ClusterManifest
+  base: string
+  partitions: ReturnType<typeof partitionsOf>
+  framingLot: Awaited<ReturnType<typeof hostBoundsLot>>
+}) {
+  const { built, source, banks, worldRoots, replicas, metadata, base, partitions, framingLot } =
+    parts
+  const { associations, ranks } = built
+  return {
+    /** The root of the scene's nodes, replicated as the options ask. */
+    source,
+    /** The meshes and primitives each node of the scene stands for, by node. */
+    associations,
+    /** What the scene draws, one source for each drawn node in the graph's order. */
+    draws: graphDraws(source, associations),
+    /** The cache the scene's textures come from: the glTF rank of each, the manifest naming
+     *  their chains and the folder its levels are read against (`materials/texture/textureCaches.ts`). */
+    textureCaches: [{ ranks, metadata, base }],
+    /** The lot the camera framing takes the scene's bounds in, `null` when no node is bounded;
+     *  the caller returns it. */
+    framingLot,
+    /** The cells a partitioned scene is read by, none when the scene is not partitioned. */
+    partitions,
+    /** The clips the file plays (#357). */
+    clips: built.clips,
+    /** The animation banks its instanced skinned objects play, with their clock; `null` for a
+     *  scene with none. */
+    banks,
+    /** The world roots the scene holds, bound to each session's queue and counted in its CPU
+     *  budget. */
+    worldRoots: worldRoots ? [worldRoots] : [],
+    /** Each glTF node's host node, by its source index — a partition renumbers the table, and a
+     *  node a cell places in its stead has none —; none when the scene is replicated: replicas copy
+     *  it. */
+    nodes: replicas > 1 ? null : built.sourced,
+    /** The source ranks of the animated nodes the core keeps whose mesh a cell draws
+     *  (`TableNode.streamed`): with the ranks `nodes` holds none for, the nodes the cells draw. */
+    streams: built.streams,
+  }
 }
 
 /** Builds the scene a cache prepared: its tables and its animation banks, read together, then the
@@ -231,31 +281,8 @@ export async function loadPreparedScene(
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await hostBoundsLot(source)
-  return {
-    /** The root of the scene's nodes, replicated as the options ask. */
-    source,
-    /** The meshes and primitives each node of the scene stands for, by node. */
-    associations,
-    /** What the scene draws, one source for each drawn node in the graph's order. */
-    draws: graphDraws(source, associations),
-    /** The cache the scene's textures come from: the glTF rank of each, the manifest naming
-     *  their chains and the folder its levels are read against (`materials/texture/textureCaches.ts`). */
-    textureCaches: [{ ranks, metadata, base }],
-    /** The lot the camera framing takes the scene's bounds in, `null` when no node is bounded;
-     *  the caller returns it. */
-    framingLot,
-    /** The cells a partitioned scene is read by, none when the scene is not partitioned. */
-    partitions,
-    /** The clips the file plays (#357). */
-    clips: built.clips,
-    /** The animation banks its instanced skinned objects play, with their clock; `null` for a
-     *  scene with none. */
-    banks,
-    /** The world roots the scene holds, bound to each session's queue and counted in its CPU
-     *  budget. */
-    worldRoots: worldRoots ? [worldRoots] : [],
-    /** Each glTF node's host node, by its index; none when the scene is partitioned or replicated: a
-     *  partition renumbers the table, replicas copy it. */
-    nodes: tables.partition || replicas > 1 ? null : built.nodes,
-  }
+  return loadedScene({
+    ...{ built, source, banks, worldRoots, replicas },
+    ...{ metadata, base, partitions, framingLot },
+  })
 }

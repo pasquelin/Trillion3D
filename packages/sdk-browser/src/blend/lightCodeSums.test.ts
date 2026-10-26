@@ -16,25 +16,26 @@ import { blendShader } from './shader.ts'
 import { randomLampScope, type Sum } from './shadedLightScope.fixture.ts'
 import type { ContractKey } from '../lighting/deferred/contractCuts.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
-import { LIGHT_SETTINGS } from '../../../sdk-core/src/scene/light/contracts.ts'
+import { TRANSLUCENT_SHADOW_DEFAULT } from '../lighting/direct/shadowWgsl.ts'
 
-/** What the shadow read does for a light with no slot: no transmission, a factor of one. */
-const NO_SLOT =
-  /fn shadowFactor\([^)]*\)->f32\{\n shadowTransmission=vec3f\(1\.0\);\n if\(slice<0\)\{return 1\.0;\}/
+/** What the shadow read does for a light with no slot: a factor of one. */
+const NO_SLOT = /fn shadowFactor\([^)]*\)->f32\{\n if\(slice<0\)\{return 1\.0;\}/
 
 /** The pass's program at a key, and the loop it walks its lights with. */
 const PASSES = {
   blend: {
     // The programs of a scene without lobes; the lobed ones sum as they do (`lobedSums.test.ts`).
-    text: (key: Partial<ContractKey>) => blendShader({ ...key, lobeless: true }),
+    // With the rectangle code a key keeps (`translucentRectLights`, off by default).
+    text: (key: Partial<ContractKey>) =>
+      blendShader({ ...key, lobeless: true }, { translucentRectLights: true }),
     loop: ['sliceLighting', 'declaredLight'],
   },
 }
 /** The keys a scene can have: each cut alone, and together where they can be (`contractKey`). */
 /** A key whose one cut is the local lights' shadow code, which a translucent program holds only
- *  under `translucentLocalShadows` (`directShadowWgsl`): without it, nothing is left to cut. */
+ *  under `shadowTranslucentLocalLights` (`directShadowWgsl`): without it, nothing is left to cut. */
 const cutsNothing = (key: Partial<ContractKey>) =>
-  !LIGHT_SETTINGS.translucentLocalShadows &&
+  !TRANSLUCENT_SHADOW_DEFAULT.localShadows &&
   !!key.localless &&
   !key.rectless &&
   !key.unshadowed &&
@@ -67,15 +68,8 @@ test('each forward variant sums what the program with every code path sums, bit 
           !key.unshadowed && !(kind === K.KIND_SUN ? key.sunless : key.localless)
         // A slot where the key keeps the shadow code of the light's kind; none where it drops it.
         const slot = (kind: number, rank: number) => (kept(kind) && rank % 2 ? rank : -1)
-        const { count, P, items, normal: N, scope: shared } = randomLampScope(r, u, K, round, slot)
-        const scope = {
-          ...F32_SCOPE,
-          ...shared,
-          // A slot's read is the light's own; with none, the shipped read's one (`NO_SLOT`).
-          shadowTransmission: items.some((item) => item.params[1] >= 0)
-            ? [0.9, 0.7, 0.5]
-            : [1, 1, 1],
-        }
+        const { count, P, normal: N, scope: shared } = randomLampScope(r, u, K, round, slot)
+        const scope = { ...F32_SCOPE, ...shared }
         const surface = [[u(0, 1), u(0, 1), u(0, 1)], u(0, 1), u(0.06, 1), N, [0.6, 0.8, 0], P, 1]
         const sum = (text: string, slice: number[]) =>
           shaderRun<Record<string, Sum>>(text, pass.loop, scope)[pass.loop[0]](...surface, slice)
@@ -96,4 +90,22 @@ test('each forward variant sums what the program with every code path sums, bit 
     }
   }
   assert.ok(lit > sums * 0.6, `${lit} of ${sums} sums lit`)
+})
+
+test('a rectangle light is lit as a rectangle only where the project switch says: the program holds no rectangle code without it', () => {
+  const lobeless = { lobeless: true }
+  const off = blendShader(lobeless)
+  assert.equal(
+    off,
+    blendShader({ ...lobeless, rectless: true }),
+    'off by default: as a scene with none',
+  )
+  assert.equal(off, blendShader(lobeless, { translucentRectLights: false }))
+  const on = blendShader(lobeless, { translucentRectLights: true })
+  assert.notEqual(on, off)
+  assert.equal(
+    blendShader({ ...lobeless, rectless: true }, { translucentRectLights: true }),
+    off,
+    'a scene with none holds none either way',
+  )
 })

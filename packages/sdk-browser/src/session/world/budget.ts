@@ -1,4 +1,5 @@
 import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { joined } from '../../../../sdk-core/src/runtime/joined.ts'
 import { microtaskOnce } from '../../../../sdk-core/src/runtime/microtaskOnce.ts'
 import type { PhysicsBudget } from '../../../../sdk-core/src/physics/options.ts'
 import type { ActiveGpuMemory } from '../memory/activeMemory.ts'
@@ -55,6 +56,10 @@ const splitOf = (pools: Pools, at: Partial<Pools> & { active?: ActiveGpuMemory }
  * room runs short, never under their floors, and come back up to that grant; only a pool the page
  * asks (`world.budget`) may pass it. The default total needs no such hold: it funds the frame at
  * full resolution before the pools (`defaultGpuBudget`), which stay at their defaults.
+ * What the session allocates is held to the total the page set and to none else (`limit`): the
+ * default total divides the pools and refuses nothing, for the passes make their targets in the
+ * middle of a frame, after the last funding, and a total that followed what the session holds would
+ * always be late for the next one.
  */
 export function sessionPools(pools: Pools) {
   let granted: { geometryPoolBytes: number; texturePoolBytes: number } | undefined
@@ -94,46 +99,21 @@ export function sessionPools(pools: Pools) {
         if (pools.gpu !== undefined) granted ??= admitted
         return admitted
       },
-      { limit: () => gpuOf(pools) },
+      { limit: () => pools.gpu },
     ),
   }
 }
 
-/**
- * `world.budget`: one GPU total and one CPU total, split across the pools by a fixed rule
- * (`splitMemoryBudget`), and the pools themselves, as properties. A pool write is clamped to its
- * ceiling and to what the GPU total leaves it, then applied with the session's `setMemoryBudgets`;
- * two writes before the next frame make one rebalance. A read is what the last frame held, or what
- * was asked before the first.
- */
-export function worldBudget(
+type Split = ReturnType<typeof splitOf>
+type PoolKey = 'geometryPool' | 'texturePool'
+
+/** The totals of `world.budget`: the physics envelopes, the GPU and CPU totals, the canvas, and the
+ *  split of the totals. */
+function budgetTotals(
   pools: Pools,
-  session: { readonly explorer: MeasuredWorld | null },
-  frames: { readonly last: FrameMetrics | null },
   physics: PhysicsBudget,
+  redraw: (gpu: number, canvas?: BudgetCanvas) => void,
 ) {
-  const { schedule: rebalance } = microtaskOnce(
-    () =>
-      void session.explorer?.setMemoryBudgets({
-        geometryPoolBytes: pools.geometryPool,
-        texturePoolBytes: pools.texturePool,
-      }),
-  )
-  // What the last frame published, `null` or `undefined` when it held no such pool.
-  const held = (key: 'geometryPoolBytes' | 'texturePoolBytes') => frames.last?.[key]
-  const split = () => splitOf(pools)
-  /** What the GPU total leaves a pool beside the fixed shares and the other pool as asked. */
-  const room = (other: 'geometryPool' | 'texturePool', ceiling: number) => {
-    const shares = split()
-    return clamp(gpuOf(pools) - shares.fixed - (pools[other] ?? shares[other]), 1, ceiling)
-  }
-  /** Redraws both pools by the split of `gpu` on `canvas`; a refused total changes nothing. */
-  const redraw = (gpu: number, canvas = pools.canvas) => {
-    const shares = splitOf(pools, { gpu, canvas })
-    pools.geometryPool = shares.geometryPool
-    pools.texturePool = shares.texturePool
-    rebalance()
-  }
   return {
     /** The physics envelopes (bodies, decorative bodies, memory), read once when the physics
      *  starts; exceeding one raises `PHYSICS_BUDGET`. */
@@ -144,7 +124,9 @@ export function worldBudget(
      *  read from the machine. Unset, the default total (`defaultGpuBudget`): the fixed shares, the
      *  frame's targets at full resolution on the canvas drawn once a session holds them, then the
      *  two pools at their defaults — the frame at rest is never drawn below the display for want
-     *  of memory. Set, the page's total holds: past it, the frame is drawn one eighth lower. */
+     *  of memory, and no allocation is refused for the total, which only divides the pools. Set,
+     *  the page's total is the ceiling on what the world allocates: past it, the frame is drawn
+     *  one eighth lower. */
     get gpu() {
       return gpuOf(pools)
     },
@@ -176,6 +158,21 @@ export function worldBudget(
       pools.cpu = bytes
       pools.pageCache.resize(pageCache)
     },
+  }
+}
+
+/** The pools of `world.budget` and their ceilings: a write is clamped to its ceiling and to what
+ *  the GPU total leaves it, and makes one rebalance. */
+function budgetPools(
+  pools: Pools,
+  frames: { readonly last: FrameMetrics | null },
+  rebalance: () => void,
+  split: () => Split,
+  room: (other: PoolKey, ceiling: number) => number,
+) {
+  // What the last frame published, `null` or `undefined` when it held no such pool.
+  const held = (key: 'geometryPoolBytes' | 'texturePoolBytes') => frames.last?.[key]
+  return {
     /** How the two totals are shared: the shadow pool and the bounce probes at their largest, the
      *  effect chain's targets on the declared `canvas`, then half each to the geometry and texture
      *  pools, capped at their ceilings; the decoded-page cache takes the whole CPU total,
@@ -211,4 +208,43 @@ export function worldBudget(
       rebalance()
     },
   }
+}
+
+/**
+ * `world.budget`: one GPU total and one CPU total, split across the pools by a fixed rule
+ * (`splitMemoryBudget`), and the pools themselves, as properties. A pool write is clamped to its
+ * ceiling and to what the GPU total leaves it, then applied with the session's `setMemoryBudgets`;
+ * two writes before the next frame make one rebalance. A read is what the last frame held, or what
+ * was asked before the first.
+ */
+export function worldBudget(
+  pools: Pools,
+  session: { readonly explorer: MeasuredWorld | null },
+  frames: { readonly last: FrameMetrics | null },
+  physics: PhysicsBudget,
+) {
+  const { schedule: rebalance } = microtaskOnce(
+    () =>
+      void session.explorer?.setMemoryBudgets({
+        geometryPoolBytes: pools.geometryPool,
+        texturePoolBytes: pools.texturePool,
+      }),
+  )
+  const split = () => splitOf(pools)
+  /** What the GPU total leaves a pool beside the fixed shares and the other pool as asked. */
+  const room = (other: PoolKey, ceiling: number) => {
+    const shares = split()
+    return clamp(gpuOf(pools) - shares.fixed - (pools[other] ?? shares[other]), 1, ceiling)
+  }
+  /** Redraws both pools by the split of `gpu` on `canvas`; a refused total changes nothing. */
+  const redraw = (gpu: number, canvas = pools.canvas) => {
+    const shares = splitOf(pools, { gpu, canvas })
+    pools.geometryPool = shares.geometryPool
+    pools.texturePool = shares.texturePool
+    rebalance()
+  }
+  return joined(
+    budgetTotals(pools, physics, redraw),
+    budgetPools(pools, frames, rebalance, split, room),
+  )
 }

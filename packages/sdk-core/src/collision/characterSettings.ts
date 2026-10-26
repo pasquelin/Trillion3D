@@ -1,72 +1,43 @@
-import { GRAVITY_PRESETS, PHYSICS_MATERIALS } from '../physics/options.ts'
 import type { CharacterEvents, CharacterInput } from './characterDrive.ts'
-import { QUARTER_PI } from '../../../math/src/constants.ts'
+import { MOVEMENT_DEFAULTS, type CharacterMovementSettings } from './characterMovement.ts'
+import type { CharacterMode } from './characterModes.ts'
 
 /**
- * THE BODY A CHARACTER STARTS WITH: an adult human, every number read from that human or
- * declared as a game's choice, never tuned on a scene. Lengths in metres, times in seconds,
- * speeds in metres per second, angles in radians.
+ * THE BODY A CHARACTER STARTS WITH: the engine's own character, every number its default unless
+ * said declared. Lengths in metres, times in seconds, speeds in metres per second, angles in radians.
  *
- * - STATURE 1.75 m, declared: stands for an adult's standing height, the body a level is drawn
- *   for; every body length below is a declared ratio of it, the share of the stature that the eye,
- *   the shoulders and the knee stand at. Sensitivity: every length is linear in it. The capsule,
- *   feet to head, stops under a ceiling lower than the stature, the eye sits at
- *   0.936 of it, and the step height decides which ledges are climbed: 10 % taller climbs 0.55 m.
- * - EYE HEIGHT 0.936 × stature = 1.64 m, declared: 0.936 stands for the share of the stature the
- *   eyes stand at, 0.11 m under the top of the head. Sensitivity: linear, the camera rides at
- *   that height; a hundredth of the ratio moves it 1.75 cm.
- * - RADIUS 0.259 / 2 × stature = 0.23 m, declared: 0.259 stands for the share of the stature the
- *   shoulders span, the widest the body is, and the radius is half of it. Sensitivity: linear,
- *   the narrowest gap the body passes is twice the radius, 0.45 m.
- * - STEP HEIGHT 0.285 × stature = 0.50 m, declared: 0.285 stands for the share of the stature the
- *   knee stands at, the highest ledge a walker climbs in one stride, without a jump. A higher one
- *   is a wall. Sensitivity: linear, a hundredth of the ratio moves that limit 1.75 cm.
- * - WALK 3.5 m/s, declared: stands for a relaxed jog, the pace a body crosses a level at; a
- *   walking pace crosses a level too slowly to play. Sensitivity: the time to cross a distance is
- *   inverse in it, the reach of a jump and of a late press (COYOTE TIME) linear, the glide to a
- *   stop `v² / (2 μ g)` quadratic.
- * - SPRINT 6.5 m/s, declared: stands for the top running speed of an adult who does not train to
- *   run. Sensitivity: as WALK's; a sprint carries a jump 3.7 m and glides 2.7 m to a stop on
- *   stone.
- * - GRAVITY the standard 9.80665 m/s², on the way up.
- * - JUMP an apex of 0.5 m, declared: stands for the height an adult's legs throw the body from
- *   standing. The launch speed is `sqrt(2 g h)` = 3.13 m/s, the apex is reached in 0.32 s, and a
- *   jog carries a jump about 2 m, a sprint about 3.7 m. Sensitivity: the launch speed, the air
- *   time and so the length of a jump go as `sqrt(h)`; a quarter higher is 12 % longer.
- * - FALL GRAVITY 1.6 g, a game's choice, declared: a body that falls as slowly as it rose
- *   floats on a screen, where no leg feels the push, and a heavier fall is the usual answer of
- *   game design. The fall from 0.5 m then takes
- *   0.25 s and a jump 0.57 s in the air. Sensitivity: the air time is `t_up (1 + 1 / sqrt(r))`
- *   for a ratio `r`, 0.64 s at 1 and 0.55 s at 2.
- * - MAX SLOPE atan(1) = 45°: a rubber sole's static friction on dry stone is about 1, and the
- *   steepest slope a foot holds on is the angle whose tangent is that coefficient.
- * - FLOOR FRICTION: a sole pushes on its floor with at most the friction coefficient times the
- *   body's weight, so no leg changes the body's ground speed faster than `μ g`. The sole is
- *   rubber (`PHYSICS_MATERIALS.rubber`, 0.9), and `μ` is its friction combined with the floor's
- *   by the physics backend's rule, their geometric mean (`gripOf`). With physics the floor is the
- *   body the feet stand on, its material's matter (`physicsMatterOf`); without, it is declared
- *   stone (0.7), the usual floor of a level: `μ` = 0.79. A jog then glides `v² / (2 μ g)` to a
- *   stop, 0.79 m on stone and 3.8 m on ice (0.16), and gathers its pace in `v / (μ g)`, 0.45 s on
- *   stone and 2.2 s on ice; a sprint glides 2.7 m on stone, as a sprinter needs metres to stop.
- * - RESPONSE and STOP 0.12 s, declared: stands for the legs' own answer, the time they take to
- *   close 95 % of the gap to the wished speed, bounded by the floor's friction above; it is held
- *   near the 0.1 s a human reads as instantaneous, past which a screen's answer feels like lag.
- *   Sensitivity: the friction's push starts on the
- *   first tick whatever these times; they shape only the last few centimetres of a stop or a
- *   start, below `μ g × time / 3` (0.31 m/s on stone), where the gap closes exponentially and the
- *   body comes to rest without a jerk. A longer time is a gentler leg than the floor allows, and
- *   wins; no time beats the floor.
- * - AIR CONTROL 0.05 of the legs' rate on the ground (`responseTime`), a game's choice,
- *   declared: a body in the air cannot push on anything, and 0 is the physical answer; a little
- *   steering lets a player correct a jump without flying. No floor bounds it, so it stays keyed
- *   to the legs, not to the friction's slower start: every jump flies as it did before.
- *   Sensitivity: a key held through a flight of `t` seconds closes `1 - exp(-3 a t / response)`
- *   of the gap to the wished speed, 50 % over a jump.
- * - COYOTE TIME and JUMP BUFFER 0.1 s, declared: stands for the spread of a human's timing of a
- *   key press against what the screen shows. A press that late after leaving a floor, or that
- *   early before reaching one, is still meant for it (`characterDrive.ts`). Sensitivity: linear,
- *   the reach past an edge from which a press still jumps is speed × time, 0.35 m at a jog and
- *   0.65 m at a sprint.
+ * - CAPSULE radius 0.34 m and half height 0.88 m (height 1.76 m), the engine's default capsule. The
+ *   narrowest gap the body passes is twice the radius, 0.68 m.
+ * - EYE HEIGHT 1.52 m above the feet: the engine's eye stands 0.64 m above the capsule's centre.
+ * - STEP HEIGHT 0.45 m, the engine's default: the highest ledge climbed in one stride, without a
+ *   jump. A higher one is a wall.
+ * - MAX SLOPE acos(0.71) = 44.765°, the engine's default walkable floor (a floor normal's height of
+ *   0.71): the steepest slope stood on.
+ * - WALK 6 m/s, the engine's default (600 cm/s): the top speed on foot, crouched half of it. The time
+ *   to cross a distance is inverse in it, the reach of a jump linear.
+ * - GRAVITY SCALE 1: the body feels the world's gravity (`world.physics.gravity`, 9.80665 m/s² on
+ *   Earth) as it is, rising and falling alike; a game lightens or heavies the body alone with
+ *   another scale (0 floats it). Sensitivity: the rise, the apex of a given launch speed and the
+ *   air time are inverse in it.
+ * - TERMINAL VELOCITY 40 m/s, the engine's default: the fastest a body falls.
+ * - JUMP 4.2 m/s, the engine's default (420 cm/s): the upward speed a jump starts with, never
+ *   lowering a speed already higher. Under Earth's gravity the apex is 0.9 m, reached in 0.43 s.
+ *   Sensitivity: the apex goes as the square of it, the air time linearly.
+ * - GROUND MOVEMENT, the engine's own model (`characterMovement.ts`, `characterDrive.ts`): on a
+ *   floor the velocity turns toward the wish by `groundFriction` (8 per second), gathers
+ *   `maxAcceleration` (20.48 m/s²) up to the top speed, and with no key is braked by the friction
+ *   (doubled, `brakingFrictionFactor`) and a constant `brakingDecelerationWalking` (20.48 m/s²), a
+ *   stop dead under 0.1 m/s. A jog of 6 m/s stops in about 0.25 s, 0.6 m. The floor's own friction
+ *   does not enter. In the air the same step runs with `fallingLateralFriction` (0) and
+ *   `brakingDecelerationFalling` (0), so the sideways velocity is kept, and the wish pushes with
+ *   `airControl` of its force.
+ * - AIR CONTROL 0.05, the engine's default: the share of the wish's push a body in the air has,
+ *   boosted by `airControlBoostMultiplier` (2) while its sideways speed is under 0.25 m/s, so a
+ *   jump from rest can be steered. 0 is ballistic.
+ * - JUMPS 1 (`jumpMaxCount`) of hold time 0 (`jumpMaxHoldTime`), the engine's defaults: a press jumps at
+ *   most once before the next landing, from a floor only — a body that walked off an edge has no
+ *   jump —, and is consumed by the step that reads it; with a hold time the jump speed is kept
+ *   while the key is held.
  * - HEAD BOB 0.035 m, declared: stands for half the rise and fall of the body's centre of mass,
  *   which the head follows, in one step of a jog; the eye travels it above and below its height,
  *   once a step at the running cadence (`characterEye.ts`). Sensitivity: linear, the eye's travel
@@ -77,9 +48,8 @@ import { QUARTER_PI } from '../../../math/src/constants.ts'
  *   eye make a screen show less than the hips travel, and no measurement in this repository
  *   fixes how much: a jump dips the eye about 9 cm, a 2 m fall 18 cm. Sensitivity: the depth is
  *   linear in the value.
- * - MASS 80 kg, declared: stands for an adult man's body mass, the weight the body presses on
- *   what it stands on. Sensitivity: that weight is linear in it, `mass × g` = 785 N. Physics
- *   backend only.
+ * - MASS 100 kg, the engine's default: the weight the body presses on what it stands on, `mass × g` =
+ *   981 N. Physics backend only.
  * - PUSH STRENGTH 250 N, declared: stands for the horizontal force an adult man sustains pushing
  *   a load at shoulder height. Sensitivity: linear; a crate lighter than that force's worth of
  *   friction slides, a heavier one stays: `250 / (μ g)`, 36 kg where the crate's combined friction
@@ -87,60 +57,60 @@ import { QUARTER_PI } from '../../../math/src/constants.ts'
  */
 
 /** What a character body reads on every tick; the controller publishes it as its settings. */
-export interface CharacterSettings {
-  /** Character only: metres per second on foot; 3.5 by default, a jog. */
+export interface CharacterSettings extends CharacterMovementSettings {
+  /** Character only: metres per second on foot; 6 by default. */
   walkSpeed: number
-  /** Character only: metres per second with Shift held; 6.5 by default, an untrained adult's top speed. */
-  sprintSpeed: number
-  /** Character only: upward speed a jump starts with, m/s; `sqrt(2 g h)` reaches `h`, 0.5 m by default, a standing jump. */
+  /** Character only: upward speed a jump starts with, m/s; 4.2 by default (a 0.9 m apex on Earth). */
   jumpSpeed: number
-  /** Character only: downward acceleration while rising, m/s²; 9.80665 by default. */
-  gravity: number
-  /** Character only: downward acceleration while falling, m/s²; 1.6 g by default, so a jump does not float. */
-  fallGravity: number
-  /** Character only: how fast the keys steer in the air, as a fraction of the ground start; 0.05 by default, 0 is ballistic. */
+  /** Character only: the share of the world's gravity (`world.physics.gravity`) the body feels; 1 by default, 0 is weightless. */
+  gravityScale: number
+  /** Character only: the share of the keys' push a body in the air has; 0.05 by default, 0 is ballistic. */
   airControl: number
-  /** Character only: seconds the legs take to reach 95 % of the wished speed on the ground; 0.12 by
-   *  default. The floor's friction bounds the start first: a sole pushes at most `μ g`, `μ` a
-   *  rubber sole's grip on the floor's `material.physics` (stone until the physics names one), so a jog is
-   *  reached in 0.45 s on stone and 2.2 s on ice. */
-  responseTime: number
-  /** Character only: seconds the legs take to lose 95 % of the speed once no key is held, on the
-   *  ground; 0.12 by default. The floor's friction bounds the stop first: a jog glides
-   *  `v² / (2 μ g)`, 0.8 m on stone and 3.8 m on ice; a longer time brakes more gently. */
-  stopTime: number
-  /** Character only: radius of the body, metres; half a shoulder breadth (0.23 m) by default. */
+  /** Character only: radius of the body, metres; 0.34 by default. */
   capsuleRadius: number
-  /** Character only: height of the body, metres; 1.75 by default. */
+  /** Character only: height of the body, metres; 1.76 by default. */
   capsuleHeight: number
-  /** Character only: height of the camera above the feet, metres; 1.64 by default. */
+  /** Character only: height of the camera above the feet, metres; 1.52 by default. */
   eyeHeight: number
-  /** Character only: highest ledge climbed without a jump, metres; the knee height (0.5 m) by default. */
+  /** Character only: highest ledge climbed without a jump, metres; 0.45 by default. */
   stepHeight: number
-  /** Character only: steepest floor stood on, radians from level; 45° by default. */
+  /** Character only: steepest floor stood on, radians from level; acos(0.71), 44.765°, by default. */
   maxSlope: number
-  /** Character only: seconds after walking off an edge a jump is still granted; 0.1 by default. */
-  coyoteTime: number
-  /** Character only: seconds a jump pressed before landing is kept for the landing; 0.1 by default. */
-  jumpBuffer: number
   /** Character only: metres the eye rises and falls each step at a jog; 0.035 by default, 0 keeps it level. */
   headBob: number
   /** Character only: seconds from touch-down to the lowest point of the eye's landing dip, as deep as the impact is fast; 0.06 by default, 0 turns it off. */
   landingDip: number
-  /** Character only, with physics: kilograms the body presses on what it stands on; 80 by default. */
+  /** Character only, with physics: kilograms the body presses on what it stands on; 100 by default. */
   mass: number
   /** Character only, with physics: newtons the body pushes bodies with; 250 by default, an adult's sustained push. */
   pushStrength: number
+  /** Character only, with physics: whether the crouch key shrinks the body; false by default. */
+  canCrouch: boolean
+  /** Character only: total height of the body crouched, metres; 0.8 by default (a half height of 0.4 m). It never goes under the body's width. */
+  crouchedHeight: number
+  /** Character only: metres per second on foot crouched; half the walk speed by default. */
+  crouchedSpeed: number
+  /** Character only: whether a crouch keeps the body's base where it was (else its centre, and the feet rise); false by default. */
+  crouchKeepsBase: boolean
+  /** Character only: whether water carries the body, which then swims; true by default. */
+  canSwim: boolean
+  /** Character only: top speed swimming, metres per second; 3 by default. */
+  swimSpeed: number
+  /** Character only: top speed flying, metres per second; 6 by default. */
+  flySpeed: number
+  /** Character only: whether the body flies, free of gravity; false by default. Setting it false again lets the body fall. */
+  flying: boolean
+  /** Character only: the share of its weight the water lifts a fully submerged body by; 1 by default, a body that floats in place. */
+  buoyancy: number
+  /** Character only: the friction of the fluid a body swims or flies through, per second; 0.3 by default. */
+  fluidFriction: number
+  /** Character only: metres per second squared the body gathers speed by on a floor, in the air, swimming and flying; 20.48 by default. */
+  maxAcceleration: number
+  /** Character only: metres per second squared the body brakes by swimming with no key held, on top of the water's friction; 0 by default. */
+  swimBraking: number
+  /** Character only: the same flying; 0 by default. */
+  flyBraking: number
 }
-
-/** The friction of a rubber sole, what a character's feet grip with (see FLOOR FRICTION). */
-export const SOLE_FRICTION = PHYSICS_MATERIALS.rubber.friction
-/** The friction of the floor a drive stands on until the physics names one: stone. */
-export const DECLARED_FLOOR = PHYSICS_MATERIALS.stone.friction
-
-const STATURE = 1.75,
-  GRAVITY = GRAVITY_PRESETS.earth,
-  JUMP_APEX = 0.5
 
 /** Steps per second of a running human, both feet counted, declared: 170 a minute stands for the
  *  cadence a relaxed runner keeps of its own accord. Runners go faster mostly by longer strides,
@@ -148,6 +118,11 @@ const STATURE = 1.75,
  *  linear in it, one rise and fall a step, 2.83 Hz at the walk speed and above, in proportion to
  *  the speed below (`characterEye.ts`). */
 export const RUN_CADENCE = 170 / 60
+
+/** The downward pull on a body, m/s²: the world's gravity along the vertical, `worldY` its y
+ *  component, times the body's `gravityScale`; none from a gravity that points up. */
+export const characterGravity = (worldY: number, gravityScale: number) =>
+  Math.max(0, -worldY * gravityScale)
 
 /** The settings that shape the body a physics backend holds: a change makes it again. */
 export const RESHAPING = [
@@ -157,28 +132,47 @@ export const RESHAPING = [
   'stepHeight',
   'mass',
   'pushStrength',
+  'crouchedHeight',
+  'crouchKeepsBase',
 ] as const satisfies readonly (keyof CharacterSettings)[]
 
+/** The engine's defaults the body is built from: the walk speed, the capsule's half height and the
+ *  eye's height over its centre. */
+const WALK_SPEED = 6,
+  HALF_HEIGHT = 0.88,
+  EYE_ABOVE_CENTRE = 0.64
+
 export const HUMAN_BODY: Readonly<CharacterSettings> = Object.freeze({
-  walkSpeed: 3.5,
-  sprintSpeed: 6.5,
-  jumpSpeed: Math.sqrt(2 * GRAVITY * JUMP_APEX),
-  gravity: GRAVITY,
-  fallGravity: 1.6 * GRAVITY,
+  ...MOVEMENT_DEFAULTS,
+  walkSpeed: WALK_SPEED,
+  jumpSpeed: 4.2,
+  gravityScale: 1,
   airControl: 0.05,
-  capsuleRadius: (0.259 / 2) * STATURE,
-  capsuleHeight: STATURE,
-  eyeHeight: 0.936 * STATURE,
-  stepHeight: 0.285 * STATURE,
-  maxSlope: QUARTER_PI,
-  responseTime: 0.12,
-  stopTime: 0.12,
-  coyoteTime: 0.1,
-  jumpBuffer: 0.1,
+  capsuleRadius: 0.34,
+  capsuleHeight: 2 * HALF_HEIGHT,
+  eyeHeight: HALF_HEIGHT + EYE_ABOVE_CENTRE,
+  stepHeight: 0.45,
+  maxSlope: Math.acos(0.71),
   headBob: 0.035,
   landingDip: 0.06,
-  mass: 80,
+  mass: 100,
   pushStrength: 250,
+  // The movement modes' numbers are the engine's defaults: a crouch to a 0.4 m half height at
+  // half the walk, a swim of 3 m/s and a flight of 6 m/s through a fluid of friction 0.3, the
+  // water lifting by the whole weight, 20.48 m/s² of acceleration and no braking of its own.
+  canCrouch: false,
+  crouchedHeight: 0.8,
+  crouchedSpeed: 0.5 * WALK_SPEED,
+  crouchKeepsBase: false,
+  canSwim: true,
+  swimSpeed: 3,
+  flySpeed: 6,
+  flying: false,
+  buoyancy: 1,
+  fluidFriction: 0.3,
+  maxAcceleration: 20.48,
+  swimBraking: 0,
+  flyBraking: 0,
 })
 
 /** What a character's controller drives: the body the world's physics makes to meet the world. */
@@ -188,6 +182,10 @@ export interface CharacterBody {
   /** Metres per second. */
   readonly velocity: Float64Array
   readonly onGround: boolean
+  /** How the body moves now; a body with no physics only stands. */
+  readonly mode?: CharacterMode
+  /** Whether the body is crouched. */
+  readonly crouched?: boolean
   place(x: number, y: number, z: number): void
   pressJump(): void
   advance(delta: number, input: CharacterInput, events?: CharacterEvents): Float64Array

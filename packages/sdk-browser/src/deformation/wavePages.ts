@@ -1,4 +1,4 @@
-import { BOX_VALUES, boxUnion } from '../../../math/src/geometry/box.ts'
+import { BOX_VALUES, boxUnionBox } from '../../../math/src/geometry/box.ts'
 import { encloseTransform, ROUND, widenBox } from '../../../math/src/geometry/boxEnclosure.ts'
 import { appendTo } from '../../../math/src/sequence/counts.ts'
 import type { Waves } from '../../../sdk-core/src/fluids/waves.ts'
@@ -114,7 +114,7 @@ function writeGroup(
       inverse = model ? frame.waveInverse(entry, e) : e
     for (let k = 0, at = 0; k < pages.length; k++, at += BOX_VALUES) {
       if (!pageBox(pages[k], e, inverse, model, count)) return false
-      if (n) boxUnion(boxes, at, local[0], local[1], local[2], local[3], local[4], local[5])
+      if (n) boxUnionBox(boxes, at, local)
       else boxes.set(local, at)
     }
   }

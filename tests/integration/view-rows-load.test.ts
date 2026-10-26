@@ -8,13 +8,12 @@
 // The GPU cut draws it now, its rows a cache of what it draws and asks for (#1483). The cap sits
 // between.
 import test from 'node:test'
-import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { aerialScene } from '../../bench/runner/scenes/aerial.ts'
-import { compiler } from './world-partition.fixture.ts'
+import { compiler, runCompiler } from './world-partition.fixture.ts'
 import { assertOpensUnderCap } from './view-rows-load.fixture.ts'
 
 /** The renderer's memory cap, in MB: under the per-placement rows' peak. */
@@ -37,7 +36,7 @@ async function cookedAerial(root: string) {
     '../../../../source/',
     'qem-endpoints',
   ]
-  execFileSync(compiler, args, { cwd: root, stdio: 'ignore' })
+  await runCompiler(root, args)
   return join(root, 'cache/native/full/manifest.json')
 }
 

@@ -19,7 +19,6 @@ fn primitive(
 ) -> (Value, Vec<(PathBuf, Vec<u8>)>) {
     let mut o = crate::tests::fixtures::options_in(root);
     o.simplification = "qem-endpoints".into();
-    let demand = crate::proxy::cut::cut_demand(None, 4096, triangles.len() / 3, 0);
     let encode = |slice: &[u32], pos: &[f32], carried: &[&_], _: &[u32], grid| {
         let none = Default::default();
         crate::compiler::pages::record::encode_page(slice, (pos, carried), (&none, &[]), grid)
@@ -29,12 +28,12 @@ fn primitive(
             &o,
             (pos, &[], triangles),
             DagInputs {
-                proxy_demand: demand,
                 taken: None,
                 shaping: crate::dag::MeshShaping::default(),
                 root_pages: 1,
                 precision: Default::default(),
                 scale: None,
+                exact: false,
             },
             Assembly::default(),
             &encode,

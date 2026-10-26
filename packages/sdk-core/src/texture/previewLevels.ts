@@ -39,18 +39,19 @@ export const blocksAcross = (texels: number) => ceilDiv(texels, PREVIEW_BLOCK_SI
 
 /** Bytes of a `width`×`height` level once block-compressed: whole 4×4 blocks of sixteen bytes,
  *  a side that is not a multiple of four padded by its edge — the same in both block formats. */
-export function levelBlockBytes(width: number, height: number) {
-  return blocksAcross(width) * blocksAcross(height) * PREVIEW_BLOCK_BYTES
+export function levelBlockBytes(width: number, height: number, blockBytes = PREVIEW_BLOCK_BYTES) {
+  return blocksAcross(width) * blocksAcross(height) * blockBytes
 }
 
 /**
  * Full geometry of an entry: its first carried level, their count, the dimensions of each,
- * their RGBA8 bytes and their block-compressed bytes. All of it is deduced from the same two
+ * their bytes at `texelBytes` a texel (`previewTexelBytes`, four in RGBA8) and their
+ * block-compressed bytes. All of it is deduced from the same two
  * bounds in one walk. Asking for them one by one would recompute `previewFirstLevel` three
  * times and `previewLastLevel` twice for the same dimensions, and `previewFirstLevel` loops up
  * to thirty-one times.
  */
-export function previewGeometry(width: number, height: number) {
+export function previewGeometry(width: number, height: number, texelBytes = 4) {
   const firstLevel = previewFirstLevel(width, height),
     lastLevel = previewLastLevel(width, height)
   const sizes: [number, number][] = []
@@ -59,7 +60,7 @@ export function previewGeometry(width: number, height: number) {
   for (let level = firstLevel; level <= lastLevel; level++) {
     const size = previewLevelSize(width, height, level)
     sizes.push(size)
-    pixelBytes += size[0] * size[1] * 4
+    pixelBytes += size[0] * size[1] * texelBytes
     blockBytes += levelBlockBytes(...size)
   }
   return { firstLevel, levelCount: lastLevel - firstLevel + 1, sizes, pixelBytes, blockBytes }

@@ -25,7 +25,9 @@ use crate::plugins::image::blocks::{blocks_of, surface_bytes};
 
 mod astc;
 mod astc_la;
+mod bc4;
 mod bc5;
+mod bc6h;
 mod channel;
 pub mod decode;
 mod eac;
@@ -33,10 +35,19 @@ pub(crate) mod eac_modifiers;
 mod etc2;
 mod etc2_planar;
 mod fit;
+mod gray;
 mod ise;
+mod layout;
 pub mod quality;
 #[cfg(test)]
 mod tests;
+mod texels;
+
+pub use bc4::encode_level as encode_one_channel;
+pub use bc6h::encode_level as encode_hdr;
+pub use gray::encode_level as encode_channel;
+pub use layout::Layout;
+pub use texels::encode_texels;
 
 /// Bytes of one compressed block, in every format.
 pub const BLOCK_BYTES: usize = 16;
@@ -78,45 +89,34 @@ impl BlockFormat {
         match (self, layout) {
             (Self::Bc7, Layout::Rgba) => "bc7",
             (Self::Bc7, Layout::TwoChannel) => "bc5",
+            (Self::Bc7, Layout::Hdr) => "bc6h",
+            (Self::Bc7, Layout::OneChannel) => "bc4",
+            (Self::Bc7, Layout::Gray) => "g8",
+            (Self::Bc7, Layout::Displacement) => "a8",
+            (Self::Bc7, Layout::Float32) => "rgba32f",
+            (Self::Bc7, Layout::SingleFloat) => "r32f",
+            (Self::Bc7, Layout::HalfSingle) => "r16f",
             (Self::Astc, Layout::Rgba) => "astc",
             (Self::Astc, Layout::TwoChannel) => "astc-la",
             (Self::Etc2, Layout::Rgba) => "etc2",
             (Self::Etc2, Layout::TwoChannel) => "eac-rg",
+            // Only BC holds the explicit settings' chains: the others are never written.
+            (
+                Self::Astc | Self::Etc2,
+                Layout::Hdr
+                | Layout::OneChannel
+                | Layout::Gray
+                | Layout::Displacement
+                | Layout::Float32
+                | Layout::SingleFloat
+                | Layout::HalfSingle,
+            ) => "none",
         }
     }
-}
-
-/// How a chain's texels are laid out in a family's blocks. What a sidecar
-/// entry says of each family is `Option<Layout>`: `None` is a lossless chain,
-/// no blocks written.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Layout {
-    Rgba,
-    TwoChannel,
-}
-impl Layout {
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::Rgba => "rgba",
-            Self::TwoChannel => "two-channel",
-        }
-    }
-    /// The word a sidecar entry carries: 0 lossless, then the layouts.
-    pub fn word(layout: Option<Layout>) -> u32 {
-        match layout {
-            None => 0,
-            Some(Self::Rgba) => 1,
-            Some(Self::TwoChannel) => 2,
-        }
-    }
-    /// The inverse: `Some(layout or lossless)`, `None` for a word no layout owns.
-    pub fn from_word(word: u32) -> Option<Option<Layout>> {
-        match word {
-            0 => Some(None),
-            1 => Some(Some(Self::Rgba)),
-            2 => Some(Some(Self::TwoChannel)),
-            _ => None,
-        }
+    /// Whether the family has a codec for `layout`: the explicit settings' layouts (`Layout::Hdr`,
+    /// `Layout::OneChannel`) are BC's alone.
+    pub const fn holds(self, layout: Layout) -> bool {
+        matches!(self, Self::Bc7) || layout.gated()
     }
 }
 
@@ -184,10 +184,15 @@ pub enum Ladder {
     Light,
 }
 
-/// Compressed bytes of a `width` × `height` level: the one 4 × 4 block surface count
-/// (`surface_bytes`) at `BLOCK_BYTES` a block.
+/// Compressed bytes of a `width` × `height` level in `layout`: the one 4 × 4 block surface count
+/// (`surface_bytes`) at the layout's bytes a block.
+pub fn layout_block_bytes(width: u32, height: u32, layout: Layout) -> usize {
+    surface_bytes(width, height, layout.block_bytes() as u64) as usize
+}
+
+/// The same for the layouts of sixteen-byte blocks, which is every one the gate writes.
 pub fn level_block_bytes(width: u32, height: u32) -> usize {
-    surface_bytes(width, height, BLOCK_BYTES as u64) as usize
+    layout_block_bytes(width, height, Layout::Rgba)
 }
 
 /// Compresses one block in BC7 by `block_compression`, at `effort`: a block whose every alpha is
@@ -244,6 +249,7 @@ pub(super) fn encode_block(
             block[8..].copy_from_slice(&y);
             block
         }
+        _ => unreachable!("the explicit layouts are written beside the gate"),
     }
 }
 

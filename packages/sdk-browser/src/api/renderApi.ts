@@ -14,7 +14,7 @@ export function createExplorerRenderApi({ check, engine }: Inputs) {
       engine.setTemporalAntialiasing(level)
     },
     /** The engine's render scale from the next frame. */
-    setRenderScale(scale: RenderScale) {
+    setRenderScale(scale: RenderScale | undefined) {
       check()
       engine.setRenderScale(scale)
     },

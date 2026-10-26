@@ -204,37 +204,47 @@ export function dofSteps(
 const run = (pass: GPUComputePassEncoder, { pipeline, group, across, down }: Step) =>
   dispatchOn(pass, pipeline, group, across, down)
 
+const PASS: GPUComputePassDescriptor = { label: DEPTH_OF_FIELD_PASS }
+/** The sprites' render pass, its one attachment's view rewritten in place for each layer. */
+const spriteTarget = { loadOp: 'load', storeOp: 'store' } as GPURenderPassColorAttachment
+const SPRITE_PASS: GPURenderPassDescriptor = {
+  label: DEPTH_OF_FIELD_PASS,
+  colorAttachments: [spriteTarget],
+}
+
 /**
  * Encodes one image's depth of field: the draw's arguments cleared; the compute pass of the setup, the
  * tiles, the reduction, the tables and every layer's gather and post-filter; one render pass a layer
  * that scatters, its sprites drawn additively over the layer's colour by the arguments the reduction
- * counted; the recombine's compute pass. Returns the passes encoded.
+ * counted; the recombine's compute pass, composing the translucency `layers` the image is
+ * composed with (`translucencyLayers.ts`). Returns the passes encoded.
  */
 export function encodeDof(
   encoder: GPUCommandEncoder,
   steps: DofSteps,
   drawArguments: GPUBuffer,
   viewport: readonly [number, number],
+  layers: GPUBindGroup,
 ) {
-  const label = { label: DEPTH_OF_FIELD_PASS }
   let passes = 1
   if (steps.sprites.length) encoder.clearBuffer(drawArguments)
-  const compute = encoder.beginComputePass(label)
+  const compute = encoder.beginComputePass(PASS)
   for (const step of steps.before) run(compute, step)
   compute.end()
   for (const sprite of steps.sprites) {
-    const pass = encoder.beginRenderPass({
-      ...label,
-      colorAttachments: [{ view: sprite.target, loadOp: 'load', storeOp: 'store' }],
-    })
+    const pipeline = sprite.pipeline.get()
+    if (!pipeline) continue
+    spriteTarget.view = sprite.target
+    const pass = encoder.beginRenderPass(SPRITE_PASS)
     pass.setViewport(0, 0, viewport[0], viewport[1], 0, 1)
-    pass.setPipeline(sprite.pipeline.get())
+    pass.setPipeline(pipeline)
     pass.setBindGroup(0, sprite.group)
     pass.drawIndirect(drawArguments, sprite.slot * DRAW_ARGUMENT_WORDS * 4)
     pass.end()
     passes++
   }
-  const last = encoder.beginComputePass(label)
+  const last = encoder.beginComputePass(PASS)
+  last.setBindGroup(1, layers)
   run(last, steps.recombine)
   last.end()
   return passes + 1

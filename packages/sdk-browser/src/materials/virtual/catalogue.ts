@@ -1,8 +1,7 @@
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { previewIsWhole } from '../../../../sdk-core/src/texture/previewLevels.ts'
-import { WHITE_TAIL, type PoolEncoding } from '../texture/blockFormats.ts'
+import type { PoolEncoding } from '../texture/blockFormats.ts'
 import type { BakedChain } from '../texture/textureCaches.ts'
-import type { CoverageReaders } from '../texture/coverage.ts'
 import { tileLayout } from '../texture/tiles.ts'
 import { sourceSize } from '../texture/pictureSize.ts'
 import type { TileTexture } from './tileTexture.ts'
@@ -18,15 +17,12 @@ import type { TileTexture } from './tileTexture.ts'
  * the loader and no level the compiler baked is regenerated. The host texture is the
  * source only where the cache carries no whole chain — an image the cook skipped, texels the
  * page itself built —; then in the lossless lane, the only one a host image can fill. Slot 0 is a
- * white texel, what a material without a map reads. A hosted texture every reader of which takes
- * its alpha for coverage (`coverage`, the colour census's readers) reduces its mips weighted by
- * alpha, as the compiler bakes its chain.
+ * white texel, what a material without a map reads.
  */
 export function tileCatalogue(
   maps: readonly Texture[],
   chainFor: (index: number) => BakedChain | undefined,
   encoding: PoolEncoding,
-  coverage?: CoverageReaders,
 ): TileTexture[] {
   const textures = maps.map((map, index): TileTexture => {
     const found = chainFor(index)
@@ -43,6 +39,10 @@ export function tileCatalogue(
         layout,
         texture: map,
         lane: encoding.laneOf(chain),
+        tap: encoding.tapOf(
+          encoding.laneOf(chain),
+          encoding.block && chain.layouts[encoding.block],
+        ),
         // Levels past the tail of a whole chain are filed: its cache's reader is there.
         source:
           layout.tail === 0 || !read
@@ -55,7 +55,8 @@ export function tileCatalogue(
       layout: tileLayout(width, height),
       texture: map,
       lane: 'lossless',
-      source: { kind: 'host', map, coverage },
+      tap: encoding.tapOf('lossless'),
+      source: { kind: 'host', map },
     }
   })
   // The fill takes a lane the textures already open, so its one texel costs no layer of its
@@ -63,12 +64,14 @@ export function tileCatalogue(
   // lossless one of a host-image scene, the two-channel one of an atlas of normal maps —, and
   // the cheaper block lane only when the atlas has no texture at all.
   const open = new Set(textures.map((texture) => texture.lane))
+  const fillIn = open.has(encoding.fillLane)
+    ? encoding.fillLane
+    : (open.values().next().value ?? encoding.fillLane)
   const fill: TileTexture = {
     layout: tileLayout(1, 1),
-    lane: open.has(encoding.fillLane)
-      ? encoding.fillLane
-      : (open.values().next().value ?? encoding.fillLane),
-    source: { kind: 'bytes', tail: WHITE_TAIL },
+    lane: fillIn,
+    tap: encoding.tapOf(fillIn),
+    source: { kind: 'bytes', tail: encoding.whiteOf(fillIn) },
   }
   return [fill, ...textures]
 }

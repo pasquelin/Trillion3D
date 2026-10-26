@@ -21,19 +21,13 @@ export function wantsEmissiveAo(rt: WebgpuPagesRuntime) {
 
 /**
  * Before an image's resolve: the classes in place write the layer once a surface came to emit or
- * occlude — switched at the frame entry the census heard it, compiled (`../loop/framePipelines.ts`);
- * a row that shows one no announced change brought (`emissiveAoShown`) switches them here, each
- * compiled at its first draw. The drawn view's surfaces then get the layer in place of its stand-in,
- * the other targets kept. The image that first draws the surface writes its emission: none is drawn
- * without it.
+ * occlude — switched at the frame entry the census heard it, or a row showed one
+ * (`emissiveAoShown`), compiled (`../loop/framePipelines.ts`). The drawn view's surfaces then get the
+ * layer in place of its stand-in, the other targets kept.
  */
 export function followEmissiveAo(rt: WebgpuPagesRuntime) {
-  const { vis, gpu } = rt
-  if (vis.emissiveAoShown && !vis.writesEmissiveAo && vis.shadeClasses) {
-    vis.shadeClasses = vis.shadeClasses.withEmissiveAo()
-    vis.writesEmissiveAo = true
-  }
-  const surfaces = gpu.surfaces
+  const { vis, gpu } = rt,
+    surfaces = gpu.surfaces
   if (!vis.writesEmissiveAo || !surfaces || surfaces.hasEmissiveAo || !gpu.device) return
   swapSurfaces(gpu, surfaces, withEmissiveAo(gpu.device, surfaces))
 }

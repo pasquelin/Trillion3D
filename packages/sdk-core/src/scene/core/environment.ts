@@ -22,27 +22,19 @@ import {
   resolveExposure,
   type SceneExposure,
 } from '../../contracts/exposureOptions.ts'
-import { finite, packFog, validateSceneFog, type SceneFog } from './fog.ts'
+import { SHARPEN_MOST } from '../../contracts/filmOptions.ts'
+import { isFiniteNumber } from '../../../../math/src/scalar/reals.ts'
+import { packFog, validateSceneFog, type SceneFog } from './fog.ts'
 import { validateSceneAtmosphere, type ResolvedAtmosphere } from './atmosphere.ts'
 
-/** The curves that bring scene radiance into the display range, by the rank shaders read. */
+/** The curves that bring scene radiance into the display range, by the rank shaders read: none,
+ *  and the film's own response, whose method — the film curve or the standard output transform of
+ *  the film industry's colour system — is the colour grading's (`tonemappingMethod`). */
 export const TONE_MAPPING_RANK = {
   /** No curve. */
   none: 0,
-  /** Exposure, then cut off. */
-  linear: 1,
-  /** A smooth squeeze. */
-  reinhard: 2,
-  /** The film look. */
-  cineon: 3,
-  /** The film industry's curve. */
-  aces: 4,
-  /** Natural colours in bright light. */
-  agx: 5,
-  /** The least colour change. */
-  neutral: 6,
   /** A film's own response: a toe, a straight run and a shoulder, in a wide gamut. */
-  filmic: 7,
+  filmic: 1,
 } as const
 /** The name of a display curve the engine knows. */
 export type SceneToneMapping = keyof typeof TONE_MAPPING_RANK
@@ -57,8 +49,7 @@ export const environmentExposure = (
 export const environmentCurve = (environment: { toneMapping?: SceneToneMapping } | undefined) =>
   TONE_MAPPING_RANK[environment?.toneMapping ?? DEFAULT_TONE_MAPPING]
 
-/** The sharpening of a scene that declares none: AMD's contrast-adaptive sharpening at this
- *  strength, measured on distant sub-pixel window grids to add no shimmer (#1527). */
+/** The sharpening of a scene that declares none: 0, off. */
 export const DEFAULT_SHARPNESS = 0
 /** The sharpening strength a scene's environment declares, or the default where it declares none. */
 export const environmentSharpness = (environment: { sharpness?: number } | undefined) =>
@@ -83,7 +74,8 @@ export interface SceneEnvironment {
   /** The display curve; `DEFAULT_TONE_MAPPING` when absent. */
   toneMapping?: SceneToneMapping
   /** The tonemapper's sharpening, before the curve — it restores the edges the temporal resolve
-   *  softens —, from 0 (none, the image as composed) to 1; `DEFAULT_SHARPNESS` when absent. */
+   *  softens —, from 0 (none, the image as composed) to `SHARPEN_MOST`, 10, 1 being a unit-gain
+   *  Laplacian; `DEFAULT_SHARPNESS` when absent. */
   sharpness?: number
   /** The vignette, after the exposure and before the curve: the image darkens toward its corners,
    *  as the cosine-fourth law of a lens does, from 0 (none) up; `DEFAULT_VIGNETTE` when absent. */
@@ -202,14 +194,18 @@ export function validateSceneEnvironment(environment: SceneEnvironment): SceneEn
   if (environment?.atmosphere !== undefined)
     validated.atmosphere = validateSceneAtmosphere(environment.atmosphere)
   if (sharpness !== undefined) {
-    if (!finite(sharpness) || sharpness < 0 || sharpness > 1)
-      throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'sharpness must be in [0, 1]', {
-        sharpness,
-      })
+    if (!isFiniteNumber(sharpness) || sharpness < 0 || sharpness > SHARPEN_MOST)
+      throw new EngineError(
+        'INVALID_SCENE_ENVIRONMENT',
+        `sharpness must be in [0, ${SHARPEN_MOST}]`,
+        {
+          sharpness,
+        },
+      )
     validated.sharpness = sharpness
   }
   if (vignette !== undefined) {
-    if (!finite(vignette) || vignette < 0)
+    if (!isFiniteNumber(vignette) || vignette < 0)
       throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'vignette must be 0 or more', { vignette })
     validated.vignette = vignette
   }
@@ -221,7 +217,7 @@ export function validateSceneEnvironment(environment: SceneEnvironment): SceneEn
     validated.toneMapping = toneMapping
   }
   if (irradiance !== undefined) {
-    if (irradiance.length !== ENVIRONMENT_COEFFICIENTS * 3 || !irradiance.every(finite))
+    if (irradiance.length !== ENVIRONMENT_COEFFICIENTS * 3 || !irradiance.every(isFiniteNumber))
       throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'irradiance expects 27 finite numbers', {
         length: irradiance.length,
       })

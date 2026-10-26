@@ -1,7 +1,13 @@
-import { DEG2RAD } from '../../../../math/src/constants.ts'
-import { shadowDistanceOf } from '../../contracts/shadowOptions.ts'
-import { LIGHT_SETTINGS } from '../../scene/light/contracts.ts'
-import { DEFAULT_TEMPERATURE_KELVIN } from '../../scene/light/fields.ts'
+import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
+import { LIGHT_SETTINGS, type SceneLight } from '../../scene/light/contracts.ts'
+import {
+  DEFAULT_INNER_CONE_ANGLE,
+  DEFAULT_OUTER_CONE_ANGLE,
+  DEFAULT_TEMPERATURE_KELVIN,
+  defaultIntensityOf,
+} from '../../scene/light/fields.ts'
+import { listen, type Observed } from '../observed.ts'
+import type { Light } from './light.ts'
 import type { LightParameters } from './lightParameters.ts'
 
 /** The numbers a light carries, each a property whose write reaches the world at once. */
@@ -9,37 +15,167 @@ export const NUMBERS = [
   'intensity',
   'distance',
   'decay',
-  'angle',
-  'penumbra',
+  'innerConeAngle',
+  'outerConeAngle',
   'width',
   'height',
   'radius',
   'tubeLength',
   'softRadius',
   'angularRadius',
-  'shadowDistance',
   'fogScattering',
+  'shadowResolutionScale',
   'temperatureKelvin',
+  'forwardShadingPriority',
+  'radialExponent',
+  'diffuseShare',
+  'specularShare',
 ] as const
 export type LightNumber = (typeof NUMBERS)[number]
+
+/** The kinds of a light the store holds, by the core kind they are: the rest have no unit. */
+const STORE_KINDS: Record<string, SceneLight['kind']> = {
+  point: 'point',
+  spot: 'spot',
+  directional: 'directional',
+  rectArea: 'rect',
+}
+
+/** The store's kind of a light of core `kind`, none for a kind the store does not hold. */
+export const storeKindOf = (kind: string): SceneLight['kind'] | undefined => STORE_KINDS[kind]
+
+/** A rectangle light's side, in metres, when it names none: 64 cm. */
+const RECT_SIDE = 0.64
+
+/** The intensity a light of `kind` starts with where `p` names none: the store's default for its
+ *  kind, unit and shape (`defaultIntensityOf`), 1 for a kind the store does not hold. */
+function initialIntensity(kind: string, p: LightParameters) {
+  const stored = storeKindOf(kind)
+  if (!stored) return 1
+  return defaultIntensityOf({
+    kind: stored,
+    intensityUnits: p.intensityUnits,
+    outerConeAngle: p.outerConeAngle,
+    innerConeAngle: p.innerConeAngle,
+    inverseSquared: p.inverseSquared,
+    emitterRadius: p.radius,
+    emitterLength: p.tubeLength,
+    size: [p.width ?? RECT_SIDE, p.height ?? RECT_SIDE],
+  })
+}
 
 /** The numbers a light of `kind` starts with: the parameters' or the defaults. */
 export function initialNumbers(kind: string, p: LightParameters): Record<LightNumber, number> {
   return {
-    intensity: p.intensity ?? 1,
+    intensity: p.intensity ?? initialIntensity(kind, p),
     distance: p.distance ?? 0,
     decay: p.decay ?? 2,
-    angle: p.angle ?? 60 * DEG2RAD,
-    penumbra: p.penumbra ?? 0,
-    width: p.width ?? 10,
-    height: p.height ?? 10,
+    innerConeAngle: p.innerConeAngle ?? DEFAULT_INNER_CONE_ANGLE,
+    outerConeAngle: p.outerConeAngle ?? DEFAULT_OUTER_CONE_ANGLE,
+    width: p.width ?? RECT_SIDE,
+    height: p.height ?? RECT_SIDE,
     radius: p.radius ?? 0,
     tubeLength: p.tubeLength ?? 0,
     softRadius: p.softRadius ?? 0,
     angularRadius:
       p.angularRadius ?? (kind === 'directional' ? LIGHT_SETTINGS.sunAngularRadius : 0),
-    shadowDistance: kind === 'directional' ? shadowDistanceOf(p.shadowDistance) : 0,
     fogScattering: p.fogScattering ?? 1,
+    shadowResolutionScale: p.shadowResolutionScale ?? 1,
     temperatureKelvin: p.temperatureKelvin ?? DEFAULT_TEMPERATURE_KELVIN,
+    forwardShadingPriority: p.forwardShadingPriority ?? 0,
+    radialExponent: p.radialExponent ?? LIGHT_SETTINGS.radialExponent,
+    diffuseShare: p.diffuseShare ?? 1,
+    specularShare: p.specularShare ?? 1,
+  }
+}
+
+/** A write to one of `light`'s settings: noted on the light, and told to the world. */
+export function lightChanged(light: Light) {
+  noteNodeWrite(light)
+  light._link?.content(light)
+}
+
+/** Defines each of `names` as an accessor of `proto` over the values `valuesOf` gives for a light:
+ *  a write is noted on the light and reaches the world at once. */
+export function defineWritable<Name extends string, Value>(
+  proto: Light,
+  names: readonly Name[],
+  valuesOf: (light: Light) => Record<Name, Value>,
+) {
+  for (const name of names)
+    Object.defineProperty(proto, name, {
+      get(this: Light) {
+        return valuesOf(this)[name]
+      },
+      set(this: Light, value: Value) {
+        valuesOf(this)[name] = value
+        lightChanged(this)
+      },
+    })
+}
+
+/** A number or a flag a light setting holds. */
+type Scalar = number | boolean
+
+/**
+ * A group of light settings that are plain numbers and flags, `names` each at its default in
+ * `defaults`: the values a light holds (`fresh`), the ones a page names written into them (`take`),
+ * the ones that differ from their default (`differing`) and the ones a record holds
+ * (`fromRecord`), by field.
+ */
+export function scalarGroup<Name extends string>(
+  names: readonly Name[],
+  defaults: Readonly<Record<Name, Scalar>>,
+) {
+  return {
+    /** The values of a light that sets none. */
+    fresh: () =>
+      Object.fromEntries(names.map((name) => [name, defaults[name]])) as Record<Name, Scalar>,
+    /** Writes into `values` each setting `parameters` names. */
+    take(values: Record<Name, Scalar>, parameters: object) {
+      const named = parameters as Record<string, Scalar | undefined>
+      for (const name of names) {
+        const value = named[name]
+        if (value !== undefined) values[name] = value
+      }
+    },
+    /** The values that differ from their default, but those `skip` names. */
+    differing(values: Record<Name, Scalar>, skip?: (name: Name) => boolean) {
+      const out: Record<string, Scalar> = {}
+      for (const name of names)
+        if (values[name] !== defaults[name] && !skip?.(name)) out[name] = values[name]
+      return out
+    },
+    /** The settings of `record`, undefined where it holds none. */
+    fromRecord(record: SceneLight): Record<string, Scalar | undefined> {
+      const from = record as unknown as Record<string, Scalar | undefined>
+      return Object.fromEntries(names.map((name) => [name, from[name]]))
+    },
+  }
+}
+
+/**
+ * What a group of settings holds for the lights that set any: few lights do, so a map and not
+ * fields each light would carry. A light's state is made (`make`) at its first use (`of`); a write
+ * to one of the `observed` values it holds reaches the world as a write to the light.
+ */
+export function lightStates<State>(
+  make: () => State,
+  observed: (state: State) => readonly Observed[],
+) {
+  const states = new WeakMap<Light, State>()
+  return {
+    /** The state of `light`, none for a light that never used one. */
+    peek: (light: Light) => states.get(light),
+    /** The state of `light`, made at its first use. */
+    of: (light: Light) => {
+      let state = states.get(light)
+      if (!state) {
+        state = make()
+        states.set(light, state)
+        for (const value of observed(state)) listen(value, () => lightChanged(light))
+      }
+      return state
+    },
   }
 }

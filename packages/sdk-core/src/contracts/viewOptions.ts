@@ -1,5 +1,6 @@
+import { isFiniteNumber } from '../../../math/src/scalar/reals.ts'
 import { refusal, type Refuse } from './nameMatch.ts'
-import { writeNormalizedVector3 } from '../../../math/src/vector/vector.ts'
+import { dotVector3, writeNormalizedVector3 } from '../../../math/src/vector/vector.ts'
 import { readVec3, type Vec3Like } from '../../../math/src/vector/vec3Input.ts'
 
 /**
@@ -14,8 +15,8 @@ import { readVec3, type Vec3Like } from '../../../math/src/vector/vec3Input.ts'
  * only where the world was made with the project switch `cutClipPlane` on (`./cutOptions.ts`), read
  * once when the session opens, as the reference's read-only project switch is, off by default;
  * then the cut culls what lies wholly behind it, every pass that draws the scene's geometry cuts
- * what straddles it, and the fog starts at it. A view with a plane draws without temporal jitter
- * (`ViewSet.jitters`), as the reference's capture does. Shadows are not clipped: the light's views
+ * what straddles it, and the fog starts at it. A view with a plane is jittered like every other
+ * projective view: the cut is tested in the world, not in the pixel the jitter moves. Shadows are not clipped: the light's views
  * carry none.
  *
  * THE LISTS are empty by default: nothing is filtered. `hidden` names objects the view does not
@@ -26,7 +27,7 @@ import { readVec3, type Vec3Like } from '../../../math/src/vector/vec3Input.ts'
  */
 
 /** A point or a direction, as a page writes it: `[x, y, z]` or anything with those three fields. */
-export type ClipPlaneVector = Vec3Like
+type ClipPlaneVector = Vec3Like
 
 /** A plane that clips a view: what a page writes (`Camera.clipPlane`). */
 export interface ClipPlane {
@@ -44,14 +45,14 @@ export type ClipPlaneValues = readonly [number, number, number, number]
 /** No plane: the value of a view that clips nothing. */
 export const NO_CLIP_PLANE: ClipPlaneValues = Object.freeze([0, 0, 0, 0]) as ClipPlaneValues
 /** The plane's point when the page names none. */
-export const DEFAULT_CLIP_PLANE_BASE: readonly [number, number, number] = [0, 0, 0]
+const DEFAULT_CLIP_PLANE_BASE: readonly [number, number, number] = [0, 0, 0]
 /** The plane's normal when the page names none. */
-export const DEFAULT_CLIP_PLANE_NORMAL: readonly [number, number, number] = [0, 1, 0]
+const DEFAULT_CLIP_PLANE_NORMAL: readonly [number, number, number] = [0, 1, 0]
 
 /** Three finite numbers of `value`, or the refusal `refuse` says. */
 function triple(value: ClipPlaneVector, what: string, refuse: Refuse): [number, number, number] {
   const read = readVec3(value)
-  if (read.some((n) => typeof n !== 'number' || !Number.isFinite(n)))
+  if (!read.every(isFiniteNumber))
     return refuse(`${what} must be three finite numbers, got ${JSON.stringify(value)}`)
   return read
 }
@@ -73,7 +74,7 @@ export function resolveClipPlane(option?: ClipPlane | false | null): ClipPlaneVa
   writeNormalizedVector3(unit, 0, normal[0], normal[1], normal[2])
   // A zero normal stays zero through the normalisation: it names no plane.
   if (unit[0] === 0 && unit[1] === 0 && unit[2] === 0) return NO_CLIP_PLANE
-  return [unit[0], unit[1], unit[2], unit[0] * base[0] + unit[1] * base[1] + unit[2] * base[2]]
+  return [unit[0], unit[1], unit[2], dotVector3(unit, base)]
 }
 
 /** Whether `values` names a plane: a normal that is not zero. */

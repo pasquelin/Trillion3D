@@ -35,7 +35,7 @@ export const KERNEL_TILE = 8
  * THE KERNEL, PREPARED FOR THE TRANSFORM, three passes of one thread to a texel:
  * - `holdKernel` holds each texel to [0, `limit`] per channel — the centre's peak is cut to the haze
  *   around it, which is all the glow spreads — and gives the alpha the blue: the image's own alpha is
- *   a coverage, which the kernel's does not spread;
+ *   carried beside its colour, which the kernel's does not spread;
  * - `halveKernel` brings the kernel down to half its side, each texel the mean of four bilinear reads
  *   a little out along the diagonals — 0.7 texel of the level above, a reading of its own, not the
  *   downsample filters' (`halveWide`), which it must not be unified with —, so a kernel much larger

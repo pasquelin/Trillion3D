@@ -2,6 +2,8 @@
 //! numbers, the Halton sequence that jitters a probe, and the Morton codes that seed them. Every
 //! number is an integer operation, so a bake reproduces on any host.
 
+use trillion3d_page_codec::partition::spread;
+
 /// The hash that spreads a position's bits (an avalanche hash; the sequence's per-position seed).
 pub fn strong_hash(mut x: u32) -> u32 {
     x ^= x >> 16;
@@ -23,19 +25,10 @@ pub fn halton(mut index: u32, base: u32) -> f64 {
     f64::from(result)
 }
 
-/// The bits of `x` spread two apart (ten bits in, thirty out).
-pub fn morton_spread(mut x: u32) -> u32 {
-    x &= 0x0000_03ff;
-    x = (x ^ (x << 16)) & 0xff00_00ff;
-    x = (x ^ (x << 8)) & 0x0300_f00f;
-    x = (x ^ (x << 4)) & 0x030c_30c3;
-    (x ^ (x << 2)) & 0x0924_9249
-}
-
 /// The probe's Morton index, which indexes its jitter: eight bits a side, the third axis shifted
 /// like the second.
 pub fn probe_morton(cell: [i64; 3]) -> u32 {
-    let bits = |axis: usize| morton_spread((cell[axis] & 0xff) as u32);
+    let bits = |axis: usize| spread((cell[axis] & 0xff) as u32);
     bits(0) | (bits(1) << 1) | (bits(2) << 1)
 }
 

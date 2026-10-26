@@ -17,10 +17,10 @@ import { isAssignment, type AlphaChange } from '../../placement/engineSceneUpdat
 export const pagesBlend = (primitive: { pass?: string }, surface: BlendedSurface) =>
   primitive.pass === 'clustered-blend' || surfaceBlends(surface)
 
-type BlendedSurface = { transparent: boolean; transmission: number }
-/** Whether a surface is drawn blended: transparent, or transmitting. */
+type BlendedSurface = { transparent: boolean; transmission: number; water?: boolean }
+/** Whether a surface is drawn blended: transparent, transmitting, or single-layer water. */
 export const surfaceBlends = (surface: BlendedSurface) =>
-  surface.transparent || surface.transmission > 0
+  surface.transparent || surface.transmission > 0 || surface.water === true
 /** Whether the transparent pass draws pages of `root`: a blended root's every page, or the
  *  blended pages of a root that mixes them with opaque ones (`ClusterRoot.mixed`). */
 export const rootBlends = (root: {

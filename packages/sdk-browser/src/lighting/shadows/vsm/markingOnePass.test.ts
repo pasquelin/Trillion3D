@@ -10,13 +10,20 @@ import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts
 import { replayWrites } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { createVsmMarking, VSM_PER_PAGE_BIN_COUNT, vsmMarkingBytes } from './markingPass.ts'
 import {
+  VSM_FRONT_DEPTH_BINDING,
   vsmCoarseMarkingWgsl,
   vsmMarkingClears,
+  vsmPixelPageMarkingWgsl,
   vsmResetPageTableWgsl,
   type VsmClearTarget,
 } from './markingWgsl.ts'
+import { markingFrontLayer, newFrontSeen, newMarkingFront } from './frame/vsmFrontLayer.ts'
+import { beginCamera } from '../../../frame/backend/state/previousCamera.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
+import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { createVsmResources } from './resources.ts'
 import { vsmLayout } from './layout.ts'
+import { pipelinesSettled } from '../../deferred/compileLedger.ts'
 
 const TARGETS: VsmClearTarget[] = ['pageRequests', 'pageTable', 'pageMarks', 'receiverCover']
 
@@ -62,7 +69,7 @@ test('the clears by the maps they walk: every map’s tables, a receiver cover b
   assert.deepEqual(at('none'), { all: TARGETS.slice(0, 3), directionalOnly: [] })
 })
 
-test('the marking records into the pass it is given: its clears, rects and coarse pages in order', () => {
+test('the marking records into the pass it is given: its clears, rects and coarse pages in order', async () => {
   const { device } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
   const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
   const marking = createVsmMarking(device, res)
@@ -75,7 +82,7 @@ test('the marking records into the pass it is given: its clears, rects and coars
   } as unknown as GPUComputePassEncoder
   const bin = { offset: 0, count: 1 },
     none = { offset: 0, count: 0 }
-  marking.encode(pass, {
+  const frame = {
     mapCount: 1,
     perspective: true,
     perPage: {
@@ -83,7 +90,11 @@ test('the marking records into the pass it is given: its clears, rects and coars
       all: [bin, none, none, none],
       directionalOnly: [bin, none, none, none],
     },
-  })
+  }
+  marking.encode(pass, frame)
+  await pipelinesSettled(device)
+  steps.length = 0
+  marking.encode(pass, frame)
   const clears = vsmMarkingClears(res.layout)
   assert.deepEqual(steps, [
     ...['vsmClearPageTables', 'dispatch'],
@@ -92,7 +103,7 @@ test('the marking records into the pass it is given: its clears, rects and coars
   ])
 })
 
-test('a device aligning at 512 lays the per-page slots 512 bytes apart', () => {
+test('a device aligning at 512 lays the per-page slots 512 bytes apart', async () => {
   const fake = fakeDevice({
     limits: { maxStorageBufferBindingSize: 1 << 27, minUniformBufferOffsetAlignment: 512 },
   })
@@ -108,11 +119,15 @@ test('a device aligning at 512 lays the per-page slots 512 bytes apart', () => {
     end() {},
   } as unknown as GPUComputePassEncoder
   const bins = [3, 2, 1, 4].map((count, b) => ({ offset: 2 * b, count }))
-  marking.encode(pass, {
+  const frame = {
     mapCount: 1,
     perspective: true,
     perPage: { ids: new Uint32Array(20), all: bins, directionalOnly: bins },
-  })
+  }
+  marking.encode(pass, frame)
+  await pipelinesSettled(device)
+  offsets.length = 0
+  marking.encode(pass, frame)
   const perPage = fake.buffers.find((b) => b.label === 'vsm.marking.perPage')!
   const params = fake.buffers.find((b) => b.label === 'vsm.marking.params')!
   assert.equal(perPage.size, 2 * VSM_PER_PAGE_BIN_COUNT * 512)
@@ -141,11 +156,10 @@ test('the frame opens the marking pass: the dirty flags cleared before it, the a
   const at = (text: string) => encode.indexOf(text)
   const order = [
     'encoder.clearBuffer(res.rasterMarks)',
-    'const marking = encoder.beginComputePass(MARKING_PASS)',
+    'const marking = steps.pass(MARKING_PASS)',
     'encodeVsmPageCarry(marking, res, pmFrame)',
     'vsm.marking.encode(marking, markingFrame)',
-    'marking.end()',
-    'encodeVsmPageMapping(encoder, res, pmFrame)',
+    'encodeVsmPageMapping(steps, res, pmFrame)',
   ].map(at)
   assert.ok(
     order.every((k, i) => k > 0 && (i === 0 || k > order[i - 1])),
@@ -161,4 +175,75 @@ test("a local map asks its last mip's page where its record says coarse, a one-p
   assert.ok(code.includes('if(pd.lightKind==LIGHT_KIND_DIRECTIONAL){'), 'the sun branch')
   assert.ok(local.startsWith(branch), 'the local branch: flagged, or a one-page light')
   assert.ok(local.includes('vsmTableEntryOf(handle,VSM_MIPS-1u,vec2u(0u,0u))'), 'its last mip')
+})
+
+test('the pixel pass marks the translucent front layer in a program of its own, before an unlit pixel leaves', () => {
+  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
+  const plain = vsmPixelPageMarkingWgsl(layout),
+    front = vsmPixelPageMarkingWgsl(layout, true)
+  for (const name of ['frontDepth', 'vsmMarkTranslucent', 'clipToFramebuffer'])
+    assert.ok(!plain.includes(name), `the plain program has no ${name}`)
+  assert.ok(
+    front.includes(
+      `@group(1) @binding(${VSM_FRONT_DEPTH_BINDING}) var frontDepth:texture_2d_array<f32>;`,
+    ),
+  )
+  const kernel = front.slice(front.indexOf('fn vsmMarkPagesFromPixels'))
+  const marks = kernel.indexOf('vsmMarkTranslucent(svPosition,shiftedPosition,marginSide);')
+  assert.ok(marks > 0 && kernel.indexOf('if(!lit){return;}') > marks, 'the surface first')
+  assert.ok(kernel.indexOf('textureLoad(normalRough') > kernel.indexOf('if(!lit){return;}'))
+  // Every sun's clipmap, the pixel's page dilation, no bias, a point behind the old camera or out of its layer skipped.
+  const mark = front.slice(front.indexOf('fn vsmMarkTranslucent'), front.indexOf('@compute'))
+  assert.ok(
+    mark.includes(
+      'vsmMarkPageDirectional(vsmHandleFromId(vsmDirectionalLightIds[index]),position,hasMargin,marginOffset,0.0,-10000);',
+    ),
+  )
+  assert.ok(mark.includes('if(!(previous.w>0.0)){return;}'))
+  assert.ok(mark.includes('if(!(frontZ>0.0)){return;}'))
+})
+
+test('the marking reads the front layer of the image drawn just before it, and only that', () => {
+  const view = {} as GPUTextureView
+  const rt = {
+    gpu: { targetSize: [64, 32], reflection: { front: { drawn: 0 } } },
+    views: { active: {} },
+    vis: { gpuHiz: { depth: () => ({ resources: [view] }) } },
+    run: { frame: 0 },
+    setup: { translucentShadow: { quality: 1 } },
+  } as unknown as WebgpuPagesRuntime
+  const seen = newFrontSeen(),
+    held = newMarkingFront()
+  const camera = (x: number) =>
+    ({
+      viewProjection: Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1]),
+      eye: Float64Array.from([10, 0, 0]),
+    }) as unknown as EngineCamera
+  /** One image drawn: its camera begun, the marking run for it unless `skipped`. */
+  const image = (frame: number, x: number, skipped = false) => {
+    ;(rt.run as { frame: number }).frame = frame
+    const cam = camera(x)
+    beginCamera(rt, cam)
+    return skipped ? undefined : markingFrontLayer(rt, cam, seen, held)
+  }
+  const frontPass = (frame: number) =>
+    void ((rt.gpu.reflection!.front as { drawn: number }).drawn = frame)
+  // The first image has no image before it; its front pass draws.
+  assert.equal(image(5, 1), undefined)
+  frontPass(5)
+  // The next one reads that layer, with the camera of the image that drew it, at that eye.
+  assert.equal(image(6, 2), held)
+  assert.equal(held.depth, view)
+  assert.deepEqual([...held.size], [64, 32])
+  assert.equal(held.previousViewProjection[12], 10 + 1)
+  // An image that drew no front pass leaves the layer stale: the next reads nothing.
+  assert.equal(image(7, 3), undefined)
+  // An image drawn between, with no marking, breaks the chain.
+  frontPass(7)
+  image(8, 4, true)
+  assert.equal(image(9, 5), undefined)
+  // The project switch at 0 reads none.
+  frontPass(9)
+  ;(rt.setup as { translucentShadow: { quality: number } }).translucentShadow.quality = 0
+  assert.equal(image(10, 6), undefined)
 })

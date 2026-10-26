@@ -38,8 +38,9 @@ using trillion::sinCos;
 std::vector<Wave> waves;
 std::vector<uint32_t> planes;
 
-/// The former `surface.ts` `wavePatch` (frozen in `waterPlanes.test.ts`): the points the rest square `(px ± hx, pz ± hz)` is carried to, into
-/// `corners` ((−,−), (+,−), (−,+), (+,+)), and the height of its centre, returned.
+/// The points the rest square `(px ± hx, pz ± hz)` is carried to, into `corners` ((−,−), (+,−),
+/// (−,+), (+,+)), and the height of its centre, returned (`waterPlanes.test.ts` holds the model it
+/// is proved against).
 double patch(uint32_t count, double px, double pz, double hx, double hz, double corners[12]) {
   double y = 0;
   for (int k = 0; k < 12; k++) corners[k] = 0;

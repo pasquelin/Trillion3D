@@ -1,5 +1,6 @@
 //! The raster and the rasterisation of a triangle.
 use super::{Run, Segment};
+use crate::support::digest::digest_words;
 
 /// The texels a chart's raster uses, all the layout reads of it: its size and the runs of each
 /// row and column, the rows and the columns by longest run first. Kept apart from the raster's
@@ -15,14 +16,14 @@ pub(crate) struct Footprint {
 }
 
 impl Footprint {
-    /// What identifies the raster, in `key`: each row's count of segments, then its segments'
-    /// starts and lengths, row after row — two rasters laid alike have one key.
-    pub(crate) fn key(&self, key: &mut Vec<u32>) {
-        key.clear();
-        for row in &self.rows {
-            key.push(row.segments.len() as u32);
-            key.extend(row.segments.iter().flat_map(|s| [s.start, s.length]));
-        }
+    /// What identifies the raster, 128 bits of the digest of its rows' segments — each row's count
+    /// of segments, then its segments' starts and lengths, row after row —: two rasters laid alike
+    /// have one, and the key a map keeps is sixteen bytes whatever the raster's size.
+    pub(crate) fn digest(&self) -> u128 {
+        digest_words(self.rows.iter().flat_map(|row| {
+            let count = std::iter::once(row.segments.len() as u32);
+            count.chain(row.segments.iter().flat_map(|s| [s.start, s.length]))
+        }))
     }
 }
 
@@ -221,5 +222,14 @@ mod tests {
         // The segments are made again from the bits.
         assert_eq!(raster.used.rows[0].segments.len(), 1);
         assert_eq!(raster.used.rows[1].segments.len(), 2);
+    }
+
+    #[test]
+    fn rasters_laid_alike_have_one_digest_and_rasters_unlike_have_two() {
+        let a = raster_of(&[(0, 0), (1, 0), (0, 1)]);
+        let alike = raster_of(&[(0, 0), (1, 0), (0, 1)]);
+        let unlike = raster_of(&[(0, 0), (2, 0), (0, 1)]);
+        assert_eq!(a.used.digest(), alike.used.digest());
+        assert_ne!(a.used.digest(), unlike.used.digest());
     }
 }

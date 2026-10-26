@@ -24,7 +24,8 @@ import {
  *
  * A view that renders no cloud target (`cloudRenderTarget` off, an orthographic view) is traced
  * directly (`CloudSetup.direct`): one ray for each view pixel, with no history and no enlarging, the
- * result laid over the lit image as the trace writes it (`directCompose`). It takes none of the
+ * result laid over the lit image as the trace writes it (`directCompose`). An orthographic view's
+ * rays leave the pixel's own point on the near plane (`cloudViewRay`, `traceMarchWgsl.ts`). It takes none of the
  * four modes: the setting `cloudTraceSize` names a mode of the cloud target alone.
  */
 
@@ -153,6 +154,10 @@ export interface CloudSetup {
   readonly boxConstraint: boolean
   /** The fog is laid on the clouds late, by the composition, not in the trace. */
   readonly lateFog: boolean
+  /** The translucent surfaces read the cloud image with the fog laid on it, an image the
+   *  reconstruction's pass writes beside it (`cloudFogLateOnTranslucent`): only with the fog laid
+   *  late, which the image would otherwise lack. */
+  readonly lateFogOnTranslucent: boolean
 }
 
 /** The settings a setup reads. */
@@ -163,6 +168,7 @@ export type CloudSetupSettings = Pick<
   | 'cloudUpsampling'
   | 'cloudReprojectionBoxConstraint'
   | 'cloudFogLate'
+  | 'cloudFogLateOnTranslucent'
   | 'cloudRenderTarget'
 >
 
@@ -202,6 +208,8 @@ export function cloudSetupOf(
     upsampling: forced ? NEAREST_DEPTH : asked,
     boxConstraint: settings.cloudReprojectionBoxConstraint,
     lateFog: settings.cloudFogLate && mode.lateFog,
+    lateFogOnTranslucent:
+      settings.cloudFogLate && settings.cloudFogLateOnTranslucent && mode.lateFog,
   }
 }
 
@@ -239,13 +247,17 @@ const inverseScale = (setup: CloudSetup) => roundHalfUp(1 / setup.scale)
 export const tracedToView = (setup: CloudSetup) =>
   inverseScale(setup) * setup.mode.reconstructDownsample * setup.mode.traceDownsample
 
+/** How many view pixels a texel of the depth image the tracing reads stands for, per axis: the
+ *  scene's own depth (the quarter-to-full and full traces, a direct trace) is the view's size, the
+ *  image that holds it for the others half of it. */
+export const depthSourceDownsample = (setup: CloudSetup) => (setup.depth === 'scene' ? 1 : 2)
+
 /**
  * How many texels of the scene's depth image a traced texel stands for, per axis: the image that
  * holds the depth at half the view's size takes half the factor. The texel the image traces is
  * then the one its block's pixel (`traceOffset`) names, added whole.
  */
-export const depthScale = (setup: CloudSetup) =>
-  setup.depth === 'scene' ? tracedToView(setup) : tracedToView(setup) / 2
+export const depthScale = (setup: CloudSetup) => tracedToView(setup) / depthSourceDownsample(setup)
 
 /** The next image's rank in the cycle: it restarts at a camera cut, and the first image after a
  *  cut is rank 1. */
@@ -271,11 +283,3 @@ export const cloudsInView = (
   settings: { readonly inMainView: boolean; readonly inSkyCapture: boolean },
   skyCapture: boolean,
 ) => (skyCapture ? settings.inSkyCapture : settings.inMainView)
-
-/** Whether the late fog is also given to the clouds the translucent surfaces read: the late fog
- *  is on (`CloudSetup.lateFog`), `cloudFogLateOnTranslucent` is on, and the scene has a height fog. */
-export const cloudFogLateOnTranslucent = (
-  setup: Pick<CloudSetup, 'lateFog'>,
-  quality: Pick<SkyQualityValues, 'cloudFogLateOnTranslucent'>,
-  fogInScene: boolean,
-) => setup.lateFog && quality.cloudFogLateOnTranslucent && fogInScene

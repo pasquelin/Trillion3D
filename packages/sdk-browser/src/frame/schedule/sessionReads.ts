@@ -1,8 +1,8 @@
 import type { Engine } from '../../session/engine/types.ts'
-import type { HostCamera } from '../../camera/world.ts'
+import type { ViewCamera } from '../../camera/world.ts'
 
 /** What the session reads of its engine directly: its images. */
-export function engineReads(engine: Engine, check: () => void, camera: HostCamera) {
+export function engineReads(engine: Engine, check: () => void, camera: ViewCamera) {
   return {
     /** The session's current image, bottom row first, at the canvas's size: the engine reads its
      *  GPU image back itself — the one its last flush read when it is still current, else one

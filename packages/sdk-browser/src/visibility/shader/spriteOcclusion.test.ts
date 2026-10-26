@@ -4,7 +4,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import { Scene } from '../../session/world/scene.ts'
 import type { HizPage } from '../hiz/types.ts'
 import { countUnoccluded, createHizCounts } from '../hiz/unoccluded.fixture.ts'
 import { cameraAt } from '../../../../../tests/fixtures/hiz.ts'
@@ -23,6 +22,7 @@ import { blendVerdictCpu } from '../../blend/verdict/verdict.fixture.ts'
 import { surfaceOf } from '../../geometry/pages/surface.ts'
 import { identityRoots } from '../../geometry/selection/placements.fixture.ts'
 import { buildHizPyramid } from '../../../../../bench/oracles/browser/hizPyramid.ts'
+import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { createChangedRuns } from '../../geometry/residency/ranges.ts'
 
 const sprite = (sizeAttenuation: boolean) => ({ rotation: 0, sizeAttenuation })
@@ -49,7 +49,7 @@ test('the CPU Hi-Z test keeps a constant-size sprite whose box a nearer surface 
   assert.deepEqual(kept, [constant], 'the attenuated sprite is rejected as before')
 })
 
-test('the transparent occlusion test rejects no entry a constant-size sprite holds', () => {
+test('the transparent occlusion test rejects no entry a constant-size sprite holds', async () => {
   const page = (sizeAttenuation: boolean) => ({
     min: [0, 0, 0],
     max: [1, 1, 1],
@@ -73,13 +73,16 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
     },
     gpu: { device },
     layout: {
-      rows: { tableEpoch: 0 },
+      clusters: { infoEpoch: 0 },
       packedPages: pages,
       recordOf: (packed: number) => pages[packed],
       selectionRoots: identityRoots(),
       placement: identityRoots().placement,
     },
   } as unknown as WebgpuPagesRuntime
+  // The first image asks the kernel and derives nothing; the next derives the corners.
+  refreshTransparentCorners(rt, device.createCommandEncoder())
+  await pipelinesSettled(device, true)
   refreshTransparentCorners(rt, device.createCommandEncoder())
   // Odd entries hold the constant-size sprite: bits 1, 3, …, 33.
   assert.deepEqual(Array.from(occlusion.unculledBits), [0xaaaaaaaa, 0b10])
@@ -100,7 +103,7 @@ test('a constant-size sprite blend item has no box, and the frustum keeps it in 
     return Object.assign(G.mesh(geometry, material), { surface: surfaceOf(material) })
   }
   const copies = [copy(false), copy(true)]
-  prepareWebgpuBlend(copies, blendState, new Scene())
+  prepareWebgpuBlend(copies, blendState)
   assert.deepEqual(
     blendState.blendGpu.map((item) => item.bounds === undefined),
     [true, false],

@@ -27,18 +27,17 @@ export function dropHistory(device: GPUDevice, held: Held) {
 /**
  * Makes the images the setup of `plan` is accumulated in — given back where the plan does not, made
  * again where their size moved: the history is then none — and says whether the history describes the
- * last image. It is spent: this image's own is written after it (`markDrawn`).
+ * last image. An image drawn replaces it (`markDrawn`); one not drawn, a pipeline not compiled,
+ * leaves it.
  */
-export function takeHistory(device: GPUDevice, held: Held, plan: DofPlan) {
+export function fitHistory(device: GPUDevice, held: Held, plan: DofPlan) {
   const key = plan.temporal && !plan.idle ? `${plan.preBuffer}` : ''
   if (key !== held.stableKey) {
     dropHistory(device, held)
     if (key) held.stable = makeHistory(device, plan)
     held.stableKey = key
   }
-  const had = held.history
-  held.history = false
-  return had
+  return held.history
 }
 
 /** The image of `plan` was encoded: its setup, where it is accumulated, is the history of the next, in

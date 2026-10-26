@@ -9,8 +9,7 @@ import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
 import { graphDraws } from './drawSource.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import type { ViewSet } from '../../../../sdk-core/src/world/camera/viewSet.ts'
-import { NO_CLIP_PLANE } from '../../../../sdk-core/src/contracts/viewOptions.ts'
+import { NO_VIEW_SET, type ViewSet } from '../../../../sdk-core/src/world/camera/viewSet.ts'
 import { appendRootsUnder } from '../../frame/render/movedNode.ts'
 import { createViewFilter } from './viewFilter.ts'
 
@@ -109,7 +108,7 @@ function scene() {
   const under = (node: Object3D, out: number[], at: number) =>
     appendRootsUnder(layout as never, node, out, at)
   const set = (hidden: Object3D[], showOnly: Object3D[] | null = null): ViewSet => ({
-    clipPlane: NO_CLIP_PLANE,
+    ...NO_VIEW_SET,
     hidden,
     showOnly,
   })

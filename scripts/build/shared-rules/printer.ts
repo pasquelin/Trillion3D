@@ -36,7 +36,7 @@ export const unsupported = (node: ts.Node): never => {
 }
 
 /** `camelCase` as `snake_case`. */
-export const snake = (name: string) => name.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)
+const snake = (name: string) => name.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)
 /** `camelCase` as `SCREAMING_CASE`: `triangleBudget` is `TRIANGLE_BUDGET`. */
 export const upper = (name: string) => snake(name).toUpperCase()
 

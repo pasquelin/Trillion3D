@@ -76,18 +76,19 @@ async function expandKernels(device: GPUDevice) {
   }
 }
 
-/** The compiled kernels on `buffers`. Without a paged primitive there is neither a count nor a
- *  cluster list to read: the kernels never touch those two bindings, and `draws` fills them — the
- *  same group cannot stay empty. */
-export function bindKernels(
+type Shared = { counts: GPUBuffer | undefined; clusters: GPUBuffer | undefined }
+type Outputs = { expanded: GPUBuffer; args: GPUBuffer }
+
+/** The expansion kernel bound to `buffers`, the counts it reads and the shared `outputs`. */
+function expansionKernel(
   device: GPUDevice,
   kernels: BlendKernels,
   buffers: ExpandBuffers,
-  shared: { counts: GPUBuffer | undefined; clusters: GPUBuffer | undefined },
-  outputs: { expanded: GPUBuffer; args: GPUBuffer },
-) {
-  const counts = shared.counts ?? buffers.draws
-  const expansion: Kernel = {
+  counts: GPUBuffer,
+  clusters: GPUBuffer | undefined,
+  outputs: Outputs,
+): Kernel {
+  return {
     group: device.createBindGroup({
       layout: kernels.expandLayout,
       entries: namedEntries(EXPAND_BINDING, {
@@ -96,7 +97,7 @@ export function bindKernels(
         keep: { buffer: buffers.keep },
         draws: { buffer: buffers.draws },
         counts: { buffer: counts },
-        clusters: { buffer: shared.clusters ?? buffers.draws },
+        clusters: { buffer: clusters ?? buffers.draws },
         scratch: { buffer: buffers.scratch },
         expanded: { buffer: outputs.expanded },
         args: { buffer: outputs.args },
@@ -104,7 +105,11 @@ export function bindKernels(
     }),
     pipelines: BLEND_EXPAND_ENTRIES.map((entry) => kernels.expandStages[entry]),
   }
-  const order: Kernel = {
+}
+
+/** The order kernel bound to `buffers`. */
+function orderKernel(device: GPUDevice, kernels: BlendKernels, buffers: ExpandBuffers): Kernel {
+  return {
     group: device.createBindGroup({
       layout: kernels.orderLayout,
       entries: namedEntries(ORDER_BINDING, {
@@ -118,6 +123,15 @@ export function bindKernels(
     }),
     pipelines: BLEND_ORDER_ENTRIES.map((entry) => kernels.orderStages[entry]),
   }
+}
+
+/** The verdict kernel on `buffers` and the `counts` it reads, its group made per cut. */
+function verdictKernel(
+  device: GPUDevice,
+  kernels: BlendKernels,
+  buffers: ExpandBuffers,
+  counts: GPUBuffer,
+) {
   const verdictEntries = (cells: GPUTextureView) =>
     namedEntries(VERDICT_BINDING, {
       keyed: { buffer: buffers.keyed },
@@ -129,7 +143,7 @@ export function bindKernels(
       cells,
     })
   let held: { cells: GPUTextureView; group: GPUBindGroup } | undefined
-  const verdict = {
+  return {
     pipelines: VERDICT_ENTRIES.map((entry) => kernels.verdictStages[entry]),
     /** Its group on the cut's cold words `cells` (`GpuSelection.cellStates`), made again only
      *  when another cut holds them. */
@@ -145,5 +159,22 @@ export function bindKernels(
       return held.group
     },
   }
-  return { order, expansion, verdict }
+}
+
+/** The compiled kernels on `buffers`. Without a paged primitive there is neither a count nor a
+ *  cluster list to read: the kernels never touch those two bindings, and `draws` fills them — the
+ *  same group cannot stay empty. */
+export function bindKernels(
+  device: GPUDevice,
+  kernels: BlendKernels,
+  buffers: ExpandBuffers,
+  shared: Shared,
+  outputs: Outputs,
+) {
+  const counts = shared.counts ?? buffers.draws
+  return {
+    expansion: expansionKernel(device, kernels, buffers, counts, shared.clusters, outputs),
+    order: orderKernel(device, kernels, buffers),
+    verdict: verdictKernel(device, kernels, buffers, counts),
+  }
 }

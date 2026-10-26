@@ -26,7 +26,6 @@ function flushState(adopts?: () => boolean, armed = true) {
     coverageBudgetLimited: false,
     coverageBudgetEvent: undefined,
     shown: [],
-    drawn: [],
     desired: [],
     pendingScratch: [],
     selectedTriangles: 0,
@@ -47,7 +46,9 @@ function flushState(adopts?: () => boolean, armed = true) {
       displayTexture: undefined,
       displaySize: [8, 8],
     },
-    vis: { textureJobs: [] },
+    // No displaced surface: the frame entry asks no tessellated program of the velocity stage
+    // (`askVelocity`).
+    vis: { textureJobs: [], materialTable: { displaced: { count: 0 } } },
     // No root and no caster row: the frame entry asks no roots' or rows' pass.
     layout: { rows: {}, selectionRoots: [], rootIndex: { revision: 0 } },
     capture: { capturing: false, capturePending: undefined },

@@ -1,6 +1,5 @@
 import { madeTextureBytes } from '../../gpu/core/textureBytes.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
-import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { DOWNSAMPLE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import {
   createDownsampleChain,
@@ -11,15 +10,20 @@ import {
 } from './downsampleChain.ts'
 import { filterPrograms } from './filterPrograms.ts'
 import { fullscreenDraw } from './fullscreenDraw.ts'
-import { halfSize } from './levelSizes.ts'
+import { HALF_IMAGE_FORMAT, halfSize } from './levelSizes.ts'
 
 /** The scene's half-size image and its levels (`createSceneChain`). */
 export type SceneChain = ReturnType<typeof createSceneChain>
 
 /**
- * THE HALF-SIZE IMAGE OF A FRAME'S INPUT: each of its texels one bilinear read at the centre of
- * the four it covers, their mean. The images the input alternates between — the temporal resolve's
- * two histories — each keep their group: a frame makes none.
+ * THE HALF-SIZE IMAGE OF A FRAME'S INPUT, drawn only for an input no pass wrote it beside — the
+ * temporal pass writes it with the image it resolves, the motion blur with the image it leaves
+ * (`begin`'s `made`): the lit image the temporal pass is off for, or a device that binds too few
+ * storage textures to write it, or any image where the quality asks the chain for it
+ * (`temporalDownsampleQuality`, `begin`'s `wide`). Each of its texels one bilinear read at the
+ * centre of the four it covers, their mean (`halve`), or, wide, the mean of four such reads, one
+ * texel out along each diagonal (`halveWide`). The images the input alternates between each keep
+ * their group: a frame makes none.
  */
 function createHalfImage(device: GPUDevice) {
   const programs = filterPrograms(device)
@@ -36,14 +40,22 @@ function createHalfImage(device: GPUDevice) {
     get bytes() {
       return half ? madeTextureBytes(half.texture) : 0
     },
-    /** Draws the half-size image of `input`, `width × height` texels, made at the first draw. */
-    encode(encoder: GPUCommandEncoder, input: GPUTextureView, width: number, height: number) {
+    /** Draws the half-size image of `input`, `width × height` texels, made at the first draw, with
+     *  the wide filter where `wide`. */
+    encode(
+      encoder: GPUCommandEncoder,
+      input: GPUTextureView,
+      width: number,
+      height: number,
+      wide: boolean,
+    ) {
       half ??= downsampleLevel(device, DOWNSAMPLE_PASS, halfSize(width, height), [width, height])
       inputs.next[0] = input
       inputs.next[1] = half.uniform
       if (inputs.moved())
         groups[inputs.slot] = downsampleGroup(device, programs, input, half.uniform)
-      draw(encoder, half.view, programs.pipeline('halve', HDR_FORMAT).get(), groups[inputs.slot])
+      const pipeline = programs.pipeline(wide ? 'halveWide' : 'halve', HALF_IMAGE_FORMAT).get()
+      draw(encoder, half.view, pipeline, groups[inputs.slot])
     },
     release() {
       if (half) retireLevel(device, half)
@@ -54,9 +66,56 @@ function createHalfImage(device: GPUDevice) {
   }
 }
 
+/** What `createSceneChain` keeps between calls: the size of the last image, the levels asked for
+ *  and drawn, and the frame's encoder, image and half-size image, rewritten in place by `begin`:
+ *  a frame allocates none. */
+type ChainState = {
+  sized: readonly number[]
+  asked: number
+  drawn: number
+  halved: [number, number]
+  encoder?: GPUCommandEncoder
+  input?: GPUTextureView
+  half?: GPUTextureView
+  wide: boolean
+}
+
+/** Frees the half-size image and the levels. */
+function releaseChain(
+  state: ChainState,
+  half: ReturnType<typeof createHalfImage>,
+  chain: ReturnType<typeof createDownsampleChain>,
+) {
+  half.release()
+  chain.dispose()
+  state.asked = 1
+}
+
+/** Draws the levels up to `count − 1` not drawn yet this frame, the half-size image first. */
+function drawLevels(
+  state: ChainState,
+  half: ReturnType<typeof createHalfImage>,
+  chain: ReturnType<typeof createDownsampleChain>,
+  count: number,
+) {
+  if (!state.encoder || count <= state.drawn) return
+  const { encoder, input } = state as { encoder: GPUCommandEncoder; input: GPUTextureView }
+  const [width, height] = state.sized
+  state.asked = Math.max(state.asked, count)
+  halfSize(width, height, state.halved)
+  chain.resize(state.halved[0], state.halved[1], state.asked)
+  if (!state.drawn) {
+    if (!state.half) half.encode(encoder, input, width, height, state.wide)
+    state.drawn = 1
+  }
+  chain.encode(encoder, (state.half ?? half.view)!, count, state.drawn)
+  state.drawn = count
+}
+
 /**
  * THE SCENE AT HALF SIZE AND ITS LEVELS: the image a frame composes, brought down to a quarter of
- * its pixels (`createHalfImage`) and then a chain of ever smaller levels (`createDownsampleChain`).
+ * its pixels — by the pass that last wrote it, else `createHalfImage` — and then a chain of ever
+ * smaller levels (`createDownsampleChain`).
  * The local exposure reads the half-size image and the fifth level, the bloom the half-size image
  * and, where it needs no setup, all six. `begin` takes the frame's image; `need` draws the levels a
  * reader asks for, each once however many ask, so the readers share every pass.
@@ -64,20 +123,11 @@ function createHalfImage(device: GPUDevice) {
 export function createSceneChain(device: GPUDevice) {
   const chain = createDownsampleChain(device, DOWNSAMPLE_PASS)
   const half = createHalfImage(device)
-  let sized: readonly number[] = [0, 0],
-    asked = 1,
-    drawn = 0
-  // The frame's encoder and image, rewritten in place by `begin`: a frame allocates none.
-  const frame = {} as { encoder?: GPUCommandEncoder; input?: GPUTextureView }
-  const halved: [number, number] = [0, 0]
-  const release = () => {
-    half.release()
-    chain.dispose()
-    asked = 1
-  }
+  const state: ChainState = { sized: [0, 0], asked: 1, drawn: 0, halved: [0, 0], wide: false }
+  const release = () => releaseChain(state, half, chain)
   return {
     /** The image of level `at`: 0 the half-size image, then each half of the one before. */
-    view: (at: number) => (at ? chain.view(at) : half.view),
+    view: (at: number) => (at ? chain.view(at) : (state.half ?? half.view)),
     /** The size of level `at`. */
     size: (at: number) => chain.size(at),
     /** Bytes of the half-size image and the levels made. */
@@ -86,35 +136,33 @@ export function createSceneChain(device: GPUDevice) {
     },
     /** The size, width then height, of the image the last `begin` took. */
     get imageSize(): readonly number[] {
-      return sized
+      return state.sized
     },
-    /** Takes the frame's image `input` of `width × height` texels, nothing drawn yet: the levels
-     *  of the last frame are forgotten, and a new size makes them again. */
-    begin(encoder: GPUCommandEncoder, input: GPUTextureView, width: number, height: number) {
-      if (sized[0] !== width || sized[1] !== height) {
+    /** Takes the frame's image `input` of `width × height` texels and, where a pass wrote it
+     *  beside it, its half-size image `made`, nothing drawn yet — the half-size image the chain
+     *  draws is the wide one where `wide` —: the levels of the last frame are forgotten, and a new
+     *  size makes them again. */
+    begin(
+      encoder: GPUCommandEncoder,
+      input: GPUTextureView,
+      width: number,
+      height: number,
+      made?: GPUTextureView,
+      wide = false,
+    ) {
+      if (state.sized[0] !== width || state.sized[1] !== height) {
         release()
-        sized = [width, height]
+        state.sized = [width, height]
       }
-      frame.encoder = encoder
-      frame.input = input
-      drawn = 0
+      state.encoder = encoder
+      state.input = input
+      state.half = made
+      state.wide = wide
+      state.drawn = 0
     },
     /** Draws the levels up to `count − 1` not drawn yet this frame, the half-size image first:
      *  `count` levels in all, 1 the half-size image alone. */
-    need(count: number) {
-      if (!frame.encoder || count <= drawn) return
-      const { encoder, input } = frame as { encoder: GPUCommandEncoder; input: GPUTextureView }
-      const [width, height] = sized
-      asked = Math.max(asked, count)
-      halfSize(width, height, halved)
-      chain.resize(halved[0], halved[1], asked)
-      if (!drawn) {
-        half.encode(encoder, input, width, height)
-        drawn = 1
-      }
-      chain.encode(encoder, half.view!, count, drawn)
-      drawn = count
-    },
+    need: (count: number) => drawLevels(state, half, chain, count),
     dispose: release,
   }
 }

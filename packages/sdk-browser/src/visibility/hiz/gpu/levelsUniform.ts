@@ -13,7 +13,8 @@ export const HIZ_LEVELS_PLANES_WORD = HIZ_LEVELS.at.count + 3
  *  width and height, and the first index of its finished depth's farthest bound (`hizRoute`);
  *  then the count of levels, whether this image wrote level 0's front layer
  *  (`HIZ_LEVELS_FRONT_WORD`, `HIZ_FOLD_WGSL`), and `upper`, by which a coarser level's bounds of
- *  two layers lie apart: the culling layer's lies one `upper` before the nearest's (`hizMip`);
+ *  two layers lie apart: the culling layer's lies one `upper` before the nearest's (`hizMip`; the
+ *  culling layer has no level 0, whose entry names only the nearest layer's);
  *  the fourth word, the planes word (`HIZ_LEVELS_PLANES_WORD`), is left to the host. */
 export function hizLevelWords(
   sizes: Array<[number, number]>,

@@ -157,7 +157,11 @@ function writeRecord(r: Records, i: number, entry: Deformed) {
   return most
 }
 
-/** This frame's records, the last frame's kept beside them (`DeformationFrame.update`). */
+/**
+ * This frame's records, the last frame's kept beside them (`DeformationFrame.update`). Returns
+ * whether records need uploading, including the first pose and the previous pose settling after
+ * movement stops. `frame` takes the answers `pending` noted for it.
+ */
 function updateRecords(r: Records, frame: number | undefined) {
   if (frame === undefined || r.knownFor !== frame) r.known.fill(0)
   let changed = r.first
@@ -175,6 +179,36 @@ function updateRecords(r: Records, frame: number | undefined) {
   r.first = false
   if (changed) r.revision++
   return changed
+}
+
+/** For placement `i` whose record holds waves alone — no joint, target or soft source —, the
+ *  waves that carry it this frame, or `null` while it is drawn at rest; `undefined` for any
+ *  other placement (`wavePages.ts`). */
+function wavesAloneOf(r: Records, i: number) {
+  const entry = r.placed[i],
+    shape = entry?.shape
+  if (!shape?.waves || shape.joints || shape.targets || shape.soft) return undefined
+  return r.words[r.bases[i] - 1] & KIND_WAVE ? (entry!.mesh.waves?.waveModel ?? null) : null
+}
+
+/** Whether the next frame's records differ from this one's, or this one moved from the last:
+ *  a frame that cannot be held, nor count as quiet. The answers are noted for `frame`'s
+ *  `update` (`staleOnce`); without one, none is. */
+function pendingRecords(r: Records, frame?: number) {
+  r.known.fill(0)
+  r.knownFor = frame ?? -1
+  for (let i = 0; i < r.placed.length; i++) {
+    const entry = r.placed[i]
+    if (entry && (r.moving[i] === 1 || staleOnce(r, i, entry))) return true
+  }
+  return false
+}
+
+/** Drops the answers `pending` noted: an input they read moved since — the host walked the
+ *  scene and rewrote the worlds a record compares (`uploadWorlds`) —, so `update` reads it again. */
+function forgetKnown(r: Records) {
+  r.known.fill(0)
+  r.knownFor = -1
 }
 
 /**
@@ -230,42 +264,13 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[] = []
     get dirty() {
       return r.dirty
     },
-    /** For placement `i` whose record holds waves alone — no joint, target or soft source —, the
-     *  waves that carry it this frame, or `null` while it is drawn at rest; `undefined` for any
-     *  other placement (`wavePages.ts`). */
-    wavesAlone(i: number) {
-      const entry = r.placed[i],
-        shape = entry?.shape
-      if (!shape?.waves || shape.joints || shape.targets || shape.soft) return undefined
-      return r.words[r.bases[i] - 1] & KIND_WAVE ? (entry!.mesh.waves?.waveModel ?? null) : null
-    },
+    wavesAlone: (i: number) => wavesAloneOf(r, i),
     /** How many waves placement `i`'s record draws: its count when the session opened. */
     drawnWaves: (i: number) => r.placed[i]?.shape.waves ?? 0,
     /** Wave placement `i`'s world `elements` inverted, as its record holds it (`heldInverse`). */
     waveInverse: (i: number, elements: ArrayLike<number>) => heldInverse(r.waveHeld[i]!, elements),
-    /** Whether the next frame's records differ from this one's, or this one moved from the last:
-     *  a frame that cannot be held, nor count as quiet. The answers are noted for `frame`'s
-     *  `update` (`staleOnce`); without one, none is. */
-    pending(frame?: number) {
-      r.known.fill(0)
-      r.knownFor = frame ?? -1
-      for (let i = 0; i < r.placed.length; i++) {
-        const entry = r.placed[i]
-        if (entry && (r.moving[i] === 1 || staleOnce(r, i, entry))) return true
-      }
-      return false
-    },
-    /** Drops the answers `pending` noted: an input they read moved since — the host walked the
-     *  scene and rewrote the worlds a record compares (`uploadWorlds`) —, so `update` reads it again. */
-    forget() {
-      r.known.fill(0)
-      r.knownFor = -1
-    },
-    /**
-     * This frame's records, the last frame's kept beside them. Returns whether records need
-     * uploading, including the first pose and the previous pose settling after movement stops.
-     * `frame` takes the answers `pending` noted for it.
-     */
+    pending: (frame?: number) => pendingRecords(r, frame),
+    forget: () => forgetKnown(r),
     update: (frame?: number) => updateRecords(r, frame),
   }
 }

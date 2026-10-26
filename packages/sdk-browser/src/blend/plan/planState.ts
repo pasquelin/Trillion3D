@@ -1,4 +1,5 @@
 import { planRegion } from './planLayout.ts'
+import { viewState } from '../expand/expansionViews.ts'
 import { FRUSTUM_PLANE_VALUES } from '../../../../math/src/geometry/frustum/frustum.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { BlendExpand } from '../expand/expand.ts'
@@ -18,8 +19,9 @@ export function planState() {
      *  paged cluster — the stride of every shared run. */
     vertexShift: 2,
     maxVertexWords: 3,
-    /** Instances the scene can expand. */
+    /** Instances the scene can expand in one view, and the blocks of the instance list the buffer holds (`instanceBlocks`). */
     instanceCapacity: 1,
+    instanceBlocks: 1,
     /** Plan entries the pass can carry at most, and the region it occupies in the plan and
      *  argument buffers (`planLayout.ts`). */
     maxPlanEntries: 1,
@@ -29,6 +31,8 @@ export function planState() {
     verdictEpoch: 0,
     /** The frustum planes the last verdict judged with. */
     judgedPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),
+    /** The expansion's views and the draws' (`../expand/expansionViews.ts`). */
+    ...viewState(),
   }
 }
 
@@ -39,9 +43,17 @@ export function planTotals() {
     filtersDisplay: false,
     /** The blending modes the plan draws, built with it: what a later change must compile for. */
     planModes: [] as Blending[],
+    /** The blend variants — a mode in a lighting program — the plan draws (`variantOf`), built with it: what a later change must compile for. */
+    planVariants: [] as number[],
     /** A transmissive item of the plan refracts (`refracts`): the distortion is drawn
      *  (`../distortion.ts`), built with the plan. */
     refracts: false,
+    /** A transmissive item of the plan may transmit some channels more than others (`chromaRank`): the
+     *  dual blend and the modulation pass draw, built with the plan. */
+    chromatic: false,
+    /** An item of the plan is single-layer water (`WATER_BASE`): the water pass is drawn
+     *  (`water/waterPass.ts`), built with the plan. */
+    water: false,
     /** Bind group ALL items share, by identity slot. */
     sharedGroups: [] as (GPUBindGroup | undefined)[],
   }

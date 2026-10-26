@@ -36,13 +36,14 @@ function waterScene() {
     uploadPlan: () => {},
     uploadKeys: (first: number) => keys.push(first),
     uploadFrame: () => {},
+    uploadView: () => {},
     clearVerdict: () => {},
     judge: () => {},
     encode: () => {},
     readCounts: () => {},
   } as never
   blendState.itemBuffer = {} as GPUBuffer
-  const rt = { blendState, gpu: {}, run: {} } as unknown as WebgpuPagesRuntime
+  const rt = { blendState, gpu: {}, run: {}, context: {} } as unknown as WebgpuPagesRuntime
   const encoder = { beginComputePass: () => ({ end: () => {} }) } as unknown as GPUCommandEncoder
   /** One image: whether it draws the distortion, or stays quiet. */
   const image = () => {

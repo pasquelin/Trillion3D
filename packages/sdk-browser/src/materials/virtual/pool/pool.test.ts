@@ -86,6 +86,19 @@ test('the victims are the places of the GPU queue in order; a place freed or tak
   assert.equal(pool.victim(), undefined, 'the queue is spent')
 })
 
+test('the idle places are every place the queue ranked, the ones behind its burst included', () => {
+  const { device } = fakeDevice()
+  const pool = createWebgpuTilePool(device, { ...rgba, layers: 1 })
+  const [a, b, c] = [1, 2, 3].map((key) => pool.acquire(key)!)
+  // The count word says 7 places ranked; the queue lists the three of its burst.
+  pool.follow(Uint32Array.from([7, a, b, c]), pool.arrivals)
+  assert.equal(pool.victims(), 3, 'the listed')
+  assert.equal(pool.idle(), 7, 'all the ranked')
+  assert.equal(pool.victim(), a)
+  assert.equal(pool.victims(), 2)
+  assert.equal(pool.idle(), 6, 'the one taken is no longer idle')
+})
+
 test('random takes, returns and queues: a victim is always listed, held, and arrived before the cut', () => {
   for (let seed = 1; seed <= 40; seed++) {
     const next = lcgRandom(seed)

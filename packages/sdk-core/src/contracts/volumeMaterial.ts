@@ -23,10 +23,6 @@ export const VOLUME_OUTPUT_LIMIT = 65000
 /** The share of the fog's distance past which a voxelised object fades out: it is full up to 0.6 of
  *  it, and gone at the distance itself, by the cube of a linear ramp. */
 export const VOLUME_FADE_START = 0.6
-/** The scale the authored numbers cross to a cell's units. They are written per metre; the engines
- *  that fixed the domain keep their cells per centimetre and scale by 1 / 100, ours are per metre
- *  and scale by 1: `VOLUME_UNIT_SCALE` is their factor times the centimetres in a metre. */
-export const VOLUME_UNIT_SCALE = (1 / 100) * 100
 
 /** The outputs of a volume material, as a host writes them; every field is optional. */
 export interface VolumeMaterialOptions {
@@ -53,8 +49,8 @@ export interface VolumeMaterial {
 }
 
 /** The defaults of a volume material's outputs. */
-export const VOLUME_MATERIAL_DEFAULTS = {
-  albedo: [1, 1, 1],
+const VOLUME_MATERIAL_DEFAULTS = {
+  albedo: [0, 0, 0],
   extinction: 0,
   emissive: [0, 0, 0],
   emissiveOnly: false,

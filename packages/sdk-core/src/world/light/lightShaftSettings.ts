@@ -1,10 +1,9 @@
-import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
 import type { SceneLight } from '../../scene/light/contracts.ts'
 import { resolveLightShaftLight } from '../../modules/sky/lightShafts.ts'
 import { Color, type ColorInput } from '../math/color.ts'
 import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts'
-import { listen } from '../observed.ts'
 import type { Light } from './light.ts'
+import { defineWritable, lightStates, scalarGroup } from './lightNumbers.ts'
 
 /** What a page may pass to a light about its light shafts (`SceneLight.shaft*`). */
 export interface LightShaftParameters {
@@ -80,32 +79,23 @@ interface State {
   readonly direction: Vector3
   readonly tint: Color
 }
-const STATES = new WeakMap<Light, State>()
-
-const changed = (light: Light) => {
-  noteNodeWrite(light)
-  light._link?.content(light)
-}
-
-function stateOf(light: Light): State {
-  let state = STATES.get(light)
-  if (!state) {
+const GROUP = scalarGroup(SCALARS, DEFAULTS)
+const STATES = lightStates<State>(
+  () => {
     const [x, y, z] = DEFAULTS.shaftOverrideDirection
-    state = {
-      values: Object.fromEntries(SCALARS.map((name) => [name, DEFAULTS[name]])) as State['values'],
+    return {
+      values: GROUP.fresh(),
       direction: new Vector3(x, y, z),
       tint: new Color(DEFAULTS.shaftBloomTint as [number, number, number]),
     }
-    STATES.set(light, state)
-    listen(state.direction, () => changed(light))
-    listen(state.tint, () => changed(light))
-  }
-  return state
-}
+  },
+  (state) => [state.direction, state.tint],
+)
+const stateOf = STATES.of
 
 /** Gives `light` the shaft settings `p` names; the others stay at their defaults. */
 export function take(light: Light, p: LightShaftParameters) {
-  for (const name of SCALARS) if (p[name] !== undefined) stateOf(light).values[name] = p[name]
+  GROUP.take(stateOf(light).values, p)
   if (p.shaftOverrideDirection) stateOf(light).direction.set(...readVec3(p.shaftOverrideDirection))
   if (p.shaftBloomTint !== undefined) stateOf(light).tint.set(p.shaftBloomTint)
 }
@@ -122,13 +112,13 @@ export function copy(light: Light, source: Light) {
 /** The shaft settings of `light` that differ from their default, by field; the occlusion and the
  *  override direction, a directional light's alone. Empty for a light that sets none. */
 export function settingsSet(light: Light): LightShaftParameters {
-  const state = STATES.get(light)
+  const state = STATES.peek(light)
   if (!state) return {}
   const directional = light.kind === 'directional'
-  const out: Record<string, unknown> = {}
-  for (const name of SCALARS)
-    if (state.values[name] !== DEFAULTS[name] && (directional || !DIRECTIONAL_ONLY.has(name)))
-      out[name] = state.values[name]
+  const out: Record<string, unknown> = GROUP.differing(
+    state.values,
+    (name) => !directional && DIRECTIONAL_ONLY.has(name),
+  )
   const differs = (now: number[], by: readonly number[]) => now.some((v, i) => v !== by[i])
   const direction = state.direction.toArray()
   if (directional && differs(direction, DEFAULTS.shaftOverrideDirection))
@@ -138,33 +128,21 @@ export function settingsSet(light: Light): LightShaftParameters {
   return out
 }
 
-/** Writes into `record` each shaft setting of `light` that differs from its default. */
-export function record(light: Light, into: SceneLight) {
-  Object.assign(into, settingsSet(light))
-}
-
 /** The shaft settings a record holds, as the parameters of a light. */
 export function fromRecord(record: SceneLight): LightShaftParameters {
   const { shaftOverrideDirection, shaftBloomTint } = record
-  const from = record as unknown as Record<string, number | boolean | undefined>
-  const out: Record<string, unknown> = { shaftOverrideDirection, shaftBloomTint }
-  for (const name of SCALARS) out[name] = from[name]
+  const out: Record<string, unknown> = {
+    shaftOverrideDirection,
+    shaftBloomTint,
+    ...GROUP.fromRecord(record),
+  }
   return out
 }
 
 /** Defines the shaft settings as accessors of `proto`: a write is noted on the light and reaches
  *  the world at once. */
 export function define(proto: Light) {
-  for (const name of SCALARS)
-    Object.defineProperty(proto, name, {
-      get(this: Light) {
-        return stateOf(this).values[name]
-      },
-      set(this: Light, value: number | boolean) {
-        stateOf(this).values[name] = value
-        changed(this)
-      },
-    })
+  defineWritable(proto, SCALARS, (light) => stateOf(light).values)
   Object.defineProperty(proto, 'shaftOverrideDirection', {
     get(this: Light) {
       return stateOf(this).direction

@@ -143,19 +143,28 @@ pub fn decode_morphs(words: &[u32], morphs: &[Morph], out: &mut [u32]) {
 #[cfg(test)]
 mod tests;
 
-/// The raw deformation streams must remain finite before any GPU reads the admitted page.
-pub fn finite(data: &[u8], h: &crate::Header, layout: &crate::Layout) -> bool {
+/// The raw deformation streams must remain finite before any GPU reads the admitted page. `words`
+/// are the page's skin and morph words, counted from the first of the skin's (`Streams::deform`).
+pub fn finite(words: &[u32], h: &crate::Header, layout: &crate::Layout) -> bool {
     let n = h.vertex_count;
     if h.flags & FLAG_SKIN != 0 {
-        let start = layout.skin + h.skin.influences * stream_words(n, h.skin.bits);
-        if !le_words(&data[start * 4..(start + h.skin.influences * n) * 4]).all(|w| {
-            let f = f32::from_bits(w);
-            f.is_finite() && f >= 0.0
-        }) {
+        let start = h.skin.influences * stream_words(n, h.skin.bits);
+        let finite = words
+            .get(start..start + h.skin.influences * n)
+            .is_some_and(|weights| {
+                weights.iter().all(|&w| {
+                    let f = f32::from_bits(w);
+                    f.is_finite() && f >= 0.0
+                })
+            });
+        if !finite {
             return false;
         }
     }
     h.morphs.iter().all(|m| {
-        le_words(&data[m.start * 4..(m.start + 6 * n) * 4]).all(|w| f32::from_bits(w).is_finite())
+        let start = m.start.saturating_sub(layout.skin);
+        words
+            .get(start..start + 6 * n)
+            .is_some_and(|run| run.iter().all(|&w| f32::from_bits(w).is_finite()))
     })
 }

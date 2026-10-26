@@ -1,5 +1,5 @@
 use super::blocks::quality::Channels;
-use super::coverage::Cut;
+use super::cut::Cut;
 use super::reduce::AtlasKind;
 use super::*;
 use crate::compiler::materials::AlphaMode;
@@ -64,13 +64,10 @@ impl Role {
             Self::Displacement => crate::compiler::tables::displacement::height_map(material),
         }
     }
-    /// The chain the role asks for: the one role whose alpha the shader reads for
-    /// coverage — the base colour of a BLEND material, or of a MASK one that cuts —
-    /// takes the chain weighted by that alpha, at the material's cutoff byte.
-    fn kind(self, coverage: Option<u8>) -> AtlasKind {
-        match (self, coverage) {
-            (Self::BaseColor, Some(cutoff)) => AtlasKind::Coverage(cutoff),
-            (Self::BaseColor | Self::Emissive, _) => AtlasKind::Color,
+    /// The atlas the role is read from.
+    fn kind(self) -> AtlasKind {
+        match self {
+            Self::BaseColor | Self::Emissive => AtlasKind::Color,
             _ => AtlasKind::Data,
         }
     }
@@ -99,9 +96,7 @@ const ROLES: [Role; 6] = [
 /// height map of a displaced material in the data atlas. The base colour of a
 /// cutout material and the emissive of another
 /// are one entry: the atlas does not know the binding, and neither does the mip
-/// chain — the entry reads both roles' channels and every cutoff. Its chain is
-/// `Coverage` only while every reader asks for it: one opaque or emissive reader
-/// and it is the plain `Color` chain, which draws that reader as written. `used` are the
+/// chain — the entry reads both roles' channels and every cutoff. `used` are the
 /// materials of the compiled meshes (`used_materials`).
 pub(super) fn atlas_textures(g: &Value, used: &BTreeSet<usize>) -> Vec<AtlasTexture> {
     let Some(materials) = g.get("materials").and_then(Value::as_array) else {
@@ -114,22 +109,17 @@ pub(super) fn atlas_textures(g: &Value, used: &BTreeSet<usize>) -> Vec<AtlasText
         };
         let mode = AlphaMode::of(material);
         let opaque = mode == AlphaMode::Opaque;
-        // Only BLEND and a cutting MASK take coverage (`coverage_cutoff`); the others keep the
-        // plain chain, the RGB under alpha 0 included.
         let cut = match mode {
-            AlphaMode::Mask(cutoff) => Some(super::coverage::material_cut(material, cutoff as f32)),
+            AlphaMode::Mask(cutoff) => Some(super::cut::material_cut(material, cutoff as f32)),
             _ => None,
         };
-        let coverage = crate::compiler::materials::coverage_cutoff(material)
-            .map(|_| cut.map_or(0, |(c, f)| super::coverage::cutoff_byte(c, f)));
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {
                 continue;
             };
-            let kind = role.kind(coverage);
-            let atlas = kind.atlas();
+            let kind = role.kind();
             let entry = wanted
-                .entry((texture, atlas))
+                .entry((texture, kind))
                 .or_insert_with(|| AtlasTexture {
                     texture,
                     kind,
@@ -137,17 +127,6 @@ pub(super) fn atlas_textures(g: &Value, used: &BTreeSet<usize>) -> Vec<AtlasText
                     normal_only: true,
                     cutoffs: Vec::new(),
                 });
-            match (entry.kind, kind) {
-                // Coverage readers share one chain, cut at the lowest of their cutoffs, so
-                // the most texels any of them keeps hold their share at every level; a
-                // blended one (0) keeps the median alone, whose mean alpha it draws.
-                (AtlasKind::Coverage(mine), AtlasKind::Coverage(theirs)) => {
-                    entry.kind = AtlasKind::Coverage(mine.min(theirs));
-                }
-                // Readers that disagree on coverage share the plain chain.
-                (mine, theirs) if mine != theirs => entry.kind = atlas,
-                _ => {}
-            }
             let cutoffs: Vec<Cut> = cut
                 .filter(|_| role == Role::BaseColor)
                 .into_iter()
@@ -172,7 +151,7 @@ pub(crate) fn texture_index(reference: Option<&Value>) -> Option<usize> {
 }
 
 /// Materials that compiled meshes actually use, without duplicates: read once per compilation,
-/// for the cutout candidates, the image fingerprints and the atlas textures.
+/// for the image fingerprints and the atlas textures.
 pub(crate) fn used_materials(g: &Value, meshes: &BTreeSet<usize>) -> Result<BTreeSet<usize>> {
     let Some(mesh_values) = g.get("meshes").and_then(Value::as_array) else {
         return Ok(BTreeSet::new());

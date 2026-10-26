@@ -1,18 +1,25 @@
 // The pool's texels page by page (`vsmPoolTexelIndexWgsl`), by its TS mirror: every texel of a
-// slice has a word of its own, page k filling [k·16384, (k+1)·16384), at 128 pages a row; each
-// texel stays in the window its page row was in (`poolWindowSizes`); and the one accessor — the
-// passes' (`vsmBindingsWgsl`) and the forward readers' (`directShadowWgsl`), on a slice of one
-// window or split in eight — reads the mirror's word in the mirror's window.
+// slice has a word of its own, page k filling [k·16384, (k+1)·16384), at 128 pages a row, in the
+// one buffer a slice is (`poolSliceBytes`); and the one accessor — the passes'
+// (`vsmBindingsWgsl`) and the forward readers' (`directShadowWgsl`) — reads the mirror's word in
+// the buffer of its slice.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { functionsOf } from '../../../materials/texture/shaderRule.fixture.ts'
-import { vsmBindingsWgsl } from './resources.ts'
+import {
+  createVsmResources,
+  vsmBindGroupEntries,
+  vsmBindGroupLayoutEntries,
+  vsmBindingsWgsl,
+} from './resources.ts'
 import { directShadowWgsl } from '../../direct/shadowWgsl.ts'
 import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS } from './constants.ts'
 import { vsmLayout, type VsmLayout } from './layout.ts'
-import { poolWindowSizes, VSM_POOL_WINDOW_SHIFT } from './layoutBytes.ts'
+import { poolSliceBytes } from './layoutBytes.ts'
 import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { limitOf, stageBindingCounts } from '../../../../../../tests/kit/fakeDevice/limitRules.ts'
 
 /** The TS mirror of `vsmPoolTexelIndexWgsl`. */
 function vsmPoolTexelIndex(layout: VsmLayout, x: number, y: number) {
@@ -23,19 +30,20 @@ function vsmPoolTexelIndex(layout: VsmLayout, x: number, y: number) {
 }
 
 const PAGE_WORDS = VSM_PAGE_TEXELS * VSM_PAGE_TEXELS
-/** Layouts of 128 pages a row, 4, 8 and 16 rows — the engine's — then 128 rows, eight windows. */
-const LAYOUTS = [512, 1024, 2048, 16384].map((poolPages) =>
+/** Layouts of 128 pages a row, 4, 8, 16, 32 and 64 rows — the engine's levels. */
+const LAYOUTS = [512, 1024, 2048, 4096, 8192].map((poolPages) =>
   vsmLayout({ fullMapCapacity: 7, poolPages }),
 )
 
 test('every texel of a slice has a word of its own, page k filling [k·16384, (k+1)·16384)', () => {
   assert.deepEqual(
-    LAYOUTS.map((l) => [l.poolPagesXY[0], poolWindowSizes(l).length]),
+    LAYOUTS.map((l) => [l.poolPagesXY[0], poolSliceBytes(l) / 2 ** 20]),
     [
-      [128, 1],
-      [128, 1],
-      [128, 1],
-      [128, 8],
+      [128, 32],
+      [128, 64],
+      [128, 128],
+      [128, 256],
+      [128, 512],
     ],
   )
   for (const layout of LAYOUTS.slice(0, 2)) {
@@ -52,52 +60,33 @@ test('every texel of a slice has a word of its own, page k filling [k·16384, (k
   }
 })
 
-test('a texel stays in the window its page row was in, every window but the last whole', () => {
-  for (const layout of LAYOUTS) {
-    const width = layout.poolTexelsXY[0],
-      sizes = poolWindowSizes(layout)
-    for (let y = 0; y < layout.poolTexelsXY[1]; y += 3)
-      for (let x = 0; x < width; x += 5) {
-        const word = vsmPoolTexelIndex(layout, x, y),
-          window = word >>> VSM_POOL_WINDOW_SHIFT
-        assert.equal(window, (y * width + x) >>> VSM_POOL_WINDOW_SHIFT, `(${x}, ${y})`)
-        assert.ok(4 * (word - window * 2 ** VSM_POOL_WINDOW_SHIFT) < sizes[window])
-      }
-  }
+test('the words of the largest slice stay in its one buffer', () => {
+  const layout = LAYOUTS[LAYOUTS.length - 1],
+    [width, height] = layout.poolTexelsXY
+  assert.equal(vsmPoolTexelIndex(layout, width - 1, height - 1), poolSliceBytes(layout) / 4 - 1)
 })
 
-/** The window an accessor's switch reads at case k, from its text: \`[slice, window]\`. */
-function casesOf(text: string) {
-  return [...text.matchAll(/case (\d+)u:\{return vsmPool(\d+)_(\d+)\[i\];\}/g)].map((m) => [
+/** The slice an accessor's switch reads at case k, from its text. */
+const casesOf = (text: string) =>
+  [...text.matchAll(/case (\d+)u:\{return vsmPool(\d+)\[i\];\}/g)].map((m) => [
     Number(m[1]),
     Number(m[2]),
-    Number(m[3]),
   ])
-}
 
-test('the passes and the forward readers read the mirror’s word in its window', () => {
-  const forward = functionsOf(wgslModule(directShadowWgsl(20)), ['vsmPoolLoad'])
+test('the passes and the forward readers read the mirror’s word in its slice', () => {
+  const forward = functionsOf(wgslModule(directShadowWgsl()), ['vsmPoolLoad'])
   for (const layout of LAYOUTS) {
-    const windows = poolWindowSizes(layout).length
     const specs = [{ resource: 'pagePool', binding: 0, access: 'read_write' }] as const
     const passes = vsmBindingsWgsl(0, specs, layout)
     const load = functionsOf(passes, ['vsmPoolLoad'])
-    // The case a texel takes is its slice's windows, then its own: case k reads slice ⌊k / W⌋'s
-    // window k mod W, every one once.
-    assert.deepEqual(
-      casesOf(load),
-      Array.from({ length: 2 * windows }, (_, k) => [k, Math.floor(k / windows), k % windows]),
-    )
-    assert.match(
-      load,
-      windows === 1
-        ? /let i=vsmPoolTexelIndex\(t\);\n switch\(slice\)\{/
-        : new RegExp(
-            `let l=vsmPoolTexelIndex\\(t\\);\\n let i=l&${2 ** VSM_POOL_WINDOW_SHIFT - 1}u;\\n switch\\(slice\\*${windows}u\\+\\(l>>${VSM_POOL_WINDOW_SHIFT}u\\)\\)\\{`,
-          ),
-    )
-    // A forward reader reads the first slice as the passes do, its one window at the word itself.
-    if (windows === 1) assert.equal(forward, load.replace(/\n case 1u:\{[^\n]*\}/, ''))
+    // Case k reads slice k's buffer, every slice once, at the texel's word.
+    assert.deepEqual(casesOf(load), [
+      [0, 0],
+      [1, 1],
+    ])
+    assert.match(load, /let i=vsmPoolTexelIndex\(t\);\n switch\(slice\)\{/)
+    // A forward reader reads the first slice as the passes do.
+    assert.equal(forward, load.replace(/\n case 1u:\{[^\n]*\}/, ''))
     const words = shaderRun<{ vsmPoolTexelIndex: (t: number[]) => number }>(
       passes,
       ['vsmPoolTexelIndex'],
@@ -109,5 +98,29 @@ test('the passes and the forward readers read the mirror’s word in its window'
         y = k < 4 ? [0, 127, 128, height - 1][k] : (k * 104729) % height
       assert.equal(words([x, y]), vsmPoolTexelIndex(layout, x, y), `(${x}, ${y})`)
     }
+  }
+})
+
+test('the pool binds one storage buffer a slice at every level, within the default stage limits', () => {
+  // A forward reader — the blends, whose fragment stage holds the eight storage buffers — reads the
+  // first slice in one binding, the passes of the shadows bind both slices, two: a pool past a
+  // device's binding is a smaller pool (`vsmPoolPagesBound`), never a second binding.
+  const forward = [{ resource: 'pagePool', binding: 0, slices: 1 }] as const
+  const passes = [{ resource: 'pagePool', binding: 0, access: 'read_write' }] as const
+  for (const poolPages of [512, 2048, 4096, 8192]) {
+    const res = createVsmResources(fakeDevice().device, { fullMapCapacity: 7, poolPages })
+    for (const [specs, bound] of [
+      [forward, 1],
+      [passes, 2],
+    ] as const) {
+      assert.equal(vsmBindGroupEntries(res, specs).length, bound, `${poolPages} pages`)
+      const entries = vsmBindGroupLayoutEntries(specs, GPUShaderStage.COMPUTE)
+      assert.equal(entries.length, bound)
+      for (const { limit, count } of stageBindingCounts({
+        bindGroupLayouts: [{ entries }] as never,
+      }))
+        assert.ok(count <= limitOf(limit), `${poolPages} pages: ${count} ${limit}`)
+    }
+    res.destroy()
   }
 })

@@ -40,6 +40,11 @@ export const MESH_BUILD_OBJECTS = 'objects'
 export const MAX_ALWAYS_RESIDENT_KIB = 0xffffffff
 /** The most rays a voxel casts (`voxelRays`): a larger count casts this many. */
 export const MAX_VOXEL_RAYS = 1024
+/** The most cards a mesh may keep (`maxMeshCards`): 32, the one lookup mask of a card each direction
+ *  the runtime reads a mesh's cards by holds (`MAX_CARDS_PER_MESH`, `lighting/surfaceCache`). The
+ *  reference's setting names no bound of its own, but its mask is the same width, so a count past
+ *  it names cards nothing reads and would drop the last directions' (the walls and the roofs). */
+export const MAX_MESH_CARDS = 32
 /** Rays are cast in packets of this many: a count past 1 is rounded up to a whole packet. */
 export const VOXEL_RAY_PACKET = 16
 /** A voxel no ray hit is sampled again a level up only when fewer rays than this were cast: with
@@ -108,13 +113,22 @@ export const VOXEL_REMEMBER_BELOW_RAYS = 32
  *    the fit's two widths, a mirror 0 and a sphere of normals one half; the shading still
  *    roughens with the length of their mean. Or its normal is the direction of their mean alone,
  *    the spread dropped and no ratio kept (`false`).
- *  - `voxelOpacity`: whether a voxel's record carries its coverage as its opacity (`true`), no
- *    coverage handed over to its neighbours, every voxel a ray hit kept; or none, the coverage
- *    handed over until no more voxels are left than it sums to (`false`, the default). The
- *    reference only gives that opacity to a material as the vertex colour and draws no voxel by
- *    it; the engine does not either.
+ *  - `voxelOpacity`: whether the coverage stays with its voxels (`true`), none handed over to the
+ *    neighbours of a voxel dropped, every voxel a ray hit kept; or the coverage is handed over
+ *    until no more voxels are left than it sums to (`false`, the default). The reference also
+ *    writes the coverage into the voxel's vertex colour for a material to read; the engine keeps
+ *    no such record.
  *  - the distance field's settings (`distanceFieldAbi.ts`): `distanceField`, `distanceFieldScale`,
  *    `distanceFieldTwoSided`, `distanceFieldDensity`, `distanceFieldMaxResolution`.
+ *  - `maxMeshCards`: the most cards the compiler keeps for a mesh, a whole number from 0 to
+ *    `MAX_MESH_CARDS`, by default 12. A card is a box looking at the mesh along one of the six axis
+ *    directions (`meshCardsAbi.ts`); more cards cover its surface better and cost more when it is
+ *    drawn into the surface cache. 0 builds none for the mesh.
+ *  - `meshCardMinDensity`: how much of its box's face the surfaces a card covers must fill for the
+ *    card to be kept, a number from 0 to 1: 0.2. Changing it rebuilds every mesh's cards.
+ *  - `meshCardNormalThreshold`: how squarely a surface must face a card's direction to be covered
+ *    by it, the cosine of the angle between them, a number from 0 to 1: 0.25. Changing it rebuilds
+ *    every mesh's cards.
  *  - the baked displacement's settings (`displacementBakeAbi.ts`): `displacementMaps`,
  *    `displacementUvChannel`, `displacementEdgeSplit`, which bake a height map into a mesh that
  *    names a `trimmedError` too.
@@ -147,6 +161,9 @@ export const MESH_BUILD_RULES = /* @__PURE__ */ (() =>
     flagSetting('voxelOpacity', false),
     flagSetting('allowAssemblies', false),
     ...Object.values(DISTANCE_FIELD_RULES),
+    integerSetting('maxMeshCards', 12, [0, MAX_MESH_CARDS]),
+    numberSetting('meshCardMinDensity', 0.2, [0, 1]),
+    numberSetting('meshCardNormalThreshold', 0.25, [0, 1]),
     ...Object.values(DISPLACEMENT_BAKE_RULES),
   ]))()
 /** The precision of a mesh's position grid, a whole number from `MIN_POSITION_PRECISION` to
@@ -165,32 +182,36 @@ export const NORMAL_PRECISION_SETTING = 'normalPrecision'
 export const TANGENT_PRECISION_SETTING = 'tangentPrecision'
 /** The settings a mesh's build reads, `meshBuild` and each of its rules naming any of them: the
  *  fields of `MESH_BUILD_RULES` in order, then the three precisions. */
-export const MESH_BUILD_SETTINGS = [
-  'storedTangents',
-  'keptTriangles',
-  'trimmedError',
-  'dropNearCollapsed',
-  'alwaysResidentKib',
-  'recomputeNormals',
-  'recomputeTangents',
-  'useMikkTSpace',
-  'computeWeightedNormals',
-  'skinnedWeldPosition',
-  'skinnedWeldNormal',
-  'skinnedWeldTexture',
-  'voxelRays',
-  'voxelLevel',
-  'voxelBackUp',
-  'voxelSeparable',
-  'voxelNdf',
-  'voxelOpacity',
-  'allowAssemblies',
-  ...DISTANCE_FIELD_SETTINGS,
-  ...DISPLACEMENT_BAKE_SETTINGS,
-  POSITION_PRECISION_SETTING,
-  NORMAL_PRECISION_SETTING,
-  TANGENT_PRECISION_SETTING,
-] as const satisfies readonly (keyof MeshBuildSettingsWire)[]
+export const MESH_BUILD_SETTINGS = /* @__PURE__ */ (() =>
+  [
+    'storedTangents',
+    'keptTriangles',
+    'trimmedError',
+    'dropNearCollapsed',
+    'alwaysResidentKib',
+    'recomputeNormals',
+    'recomputeTangents',
+    'useMikkTSpace',
+    'computeWeightedNormals',
+    'skinnedWeldPosition',
+    'skinnedWeldNormal',
+    'skinnedWeldTexture',
+    'voxelRays',
+    'voxelLevel',
+    'voxelBackUp',
+    'voxelSeparable',
+    'voxelNdf',
+    'voxelOpacity',
+    'allowAssemblies',
+    ...DISTANCE_FIELD_SETTINGS,
+    'maxMeshCards',
+    'meshCardMinDensity',
+    'meshCardNormalThreshold',
+    ...DISPLACEMENT_BAKE_SETTINGS,
+    POSITION_PRECISION_SETTING,
+    NORMAL_PRECISION_SETTING,
+    TANGENT_PRECISION_SETTING,
+  ] as const satisfies readonly (keyof MeshBuildSettingsWire)[])()
 
 /** How a mesh's source is read as the compiler reads it, each left out when not named: never an
  *  HLOD layer's, whose builders keep the frames they make. */
@@ -218,11 +239,19 @@ export type MeshVoxelSettingsWire = {
 export type MeshAssemblySettingsWire = {
   allowAssemblies?: boolean
 }
+/** The mesh cards' settings as the compiler reads them, each left out when not named: never an
+ *  HLOD layer's, whose cells' cards are built at the scene's. */
+export type MeshCardsSettingsWire = {
+  maxMeshCards?: number
+  meshCardMinDensity?: number
+  meshCardNormalThreshold?: number
+}
 /** One source's mesh build settings as the compiler reads them, each left out when not named. */
 export type MeshBuildSettingsWire = MeshInputSettingsWire &
   MeshVoxelSettingsWire &
   MeshAssemblySettingsWire &
   MeshDistanceFieldSettingsWire &
+  MeshCardsSettingsWire &
   MeshDisplacementBakeSettingsWire & {
     storedTangents?: boolean
     keptTriangles?: number
@@ -283,6 +312,7 @@ export type HlodBuiltMeshWire = Omit<
   | keyof MeshInputSettingsWire
   | keyof MeshVoxelSettingsWire
   | keyof MeshAssemblySettingsWire
+  | keyof MeshCardsSettingsWire
   | keyof MeshDisplacementBakeSettingsWire
 > & {
   shapePreservation?: HlodShapePreservation

@@ -19,7 +19,7 @@ test('a lamp a scene file declares is the core light, a sun or a spot aiming dow
     position: [0, 2, 0],
     direction: [0, 0, -1],
     range: 9,
-    coneAngle: 0.5,
+    outerConeAngle: 0.5,
   })
   const point = lightFromRecord({
     id: 'bulb',

@@ -5,7 +5,7 @@
 // truncated or missing sample deposits nothing.
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/contracts/metrics.ts'
 import { VSM_PASS_PREFIX } from '../../../packages/sdk-browser/src/diagnostic/stage/passLabels.ts'
-import { CPU_STEP_STAGES } from '../../../packages/sdk-browser/src/frame/render/cpuStepTable.ts'
+import { CPU_STEP_STAGES } from '../../../packages/sdk-browser/src/diagnostic/stage/cpuStepTable.ts'
 
 /** Deposits `ms` onto the stage named `stage`. */
 export type StageNameAdd = (stage: string, ms: number) => void
@@ -13,12 +13,14 @@ export type StageNameAdd = (stage: string, ms: number) => void
 // Stage of each label.
 const STAGE_OF: Record<string, string> = {
   'Trillion3D DAG selection': 'selection',
-  'Trillion3D partition': 'partition',
+  'Trillion3D raster binning': 'geometry',
   'Trillion3D HiZ': 'hiZ',
   'Trillion3D material surfaces v1': 'geometry',
   'Trillion3D light tiles v1': 'lightLists',
   'Trillion3D bounce v1': 'bounce',
-  'Trillion3D deferred lighting': 'lighting',
+  'Trillion3D tile classification': 'lighting',
+  'Trillion3D surface colour': 'lighting',
+  'Trillion3D height fog': 'lighting',
   'Trillion3D HDR composition + present': 'present',
 }
 

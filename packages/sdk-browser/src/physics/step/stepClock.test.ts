@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../../sdk-core/src/physics/options.ts'
-import { createStepClock, physicsStep } from './stepClock.ts'
+import { createStepClock } from './stepClock.ts'
 
 /** The steps each frame of `deltas` (seconds) owes on a fresh clock of `step`. */
 const owed = (deltas: number[], step = PHYSICS_STEP) => {
@@ -73,8 +73,6 @@ test('a clock held at a step waits there, the time beyond dropped, never run bac
   assert.equal(clock.frame(PHYSICS_STEP / 2, 4), 1, 'freed, it runs on from where it waited')
 })
 
-test('the fixed step is 1/60 s unless the address names another rate', () => {
-  // Node has no address: the default, read once and held.
-  assert.equal(physicsStep(), PHYSICS_STEP)
+test('the clock owes steps of the step it is given', () => {
   assert.deepEqual(owed([1 / 60, 1 / 60], 1 / 120), [2, 2], 'at 120 Hz, two steps a 60 Hz frame')
 })

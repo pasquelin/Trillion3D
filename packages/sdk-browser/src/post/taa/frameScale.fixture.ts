@@ -4,8 +4,7 @@ import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { beginTaaFrame } from './frame.ts'
 import { type RenderScale } from '../../frame/scale/renderScaleOption.ts'
 import { createTaaFrameState } from './frameState.ts'
-import { createScaleControl } from '../../frame/scale/scaleControl.ts'
-import { lowered } from '../../frame/scale/scaleFit.fixture.ts'
+import { lowered, refreshControl } from '../../frame/scale/scaleFit.fixture.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 
@@ -14,7 +13,7 @@ const clock = { now: 0, frame: 0 }
 /** A view drawn under the bounds {0.5; 1}, its controller dropped to about 0.6 by a 20 ms frame
  *  at 120 Hz; or under `option`, on `display`. */
 export function runtime(option: RenderScale = { min: 0.5, max: 1 }, display = DISPLAY) {
-  const scale = createScaleControl(option),
+  const scale = refreshControl(option),
     revisions = { scene: 0, view: 0, resources: 0 }
   lowered(scale, 20, clock)
   const rt = {

@@ -8,10 +8,10 @@ import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 /** The shared group of the identity the last `voidStaleBlendGroups` named. */
 const sharedGroup = ({ identity, sharedGroups }: WebgpuBlendState) => sharedGroups[identity.slot]
 
-test('blend identity follows the shadow pool independently of transmittance', () => {
+test('blend identity follows the shadow pool', () => {
   const blendState = createWebgpuBlendState()
   const rt = { gpu: {}, vis: { materialTable: {} }, blendState } as unknown as WebgpuPagesRuntime
-  const lighting = { shadowTransmittance: {}, shadowPool: {} } as BlendLighting
+  const lighting = { shadowPool: {} } as BlendLighting
   voidStaleBlendGroups(rt, lighting)
   const group = {} as GPUBindGroup
   blendState.sharedGroups[blendState.identity.slot] = group

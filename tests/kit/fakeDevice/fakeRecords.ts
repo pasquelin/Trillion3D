@@ -147,17 +147,17 @@ export type FakeDeviceOptions = {
   features?: readonly GPUFeatureName[]
   /** The DAG the selection kernels the device runs read when the session uploads none. */
   packed?: PackedDag
-  /** A render pipeline whose first target is `r32uint` is refused (`NO_R32UINT`). */
-  rejectR32?: boolean
   /** The first visibility pass is refused at its beginning (`VIS_FAIL`). */
   failVisPass?: boolean
-  /** The transparent compaction's pipeline is refused (`NO_COMPACT`). */
-  failCompact?: boolean
+  /** The visibility bins' scatter pipeline is refused (`NO_BINS`). */
+  failBins?: boolean
   /** Every shader module reports a compilation error. */
   failCompile?: boolean
   /** An encoder's copies, clears and kernels run when its command buffer is submitted, as on a GPU;
    *  one never submitted runs nothing. Otherwise they run as they are encoded. */
   deferred?: boolean
+  /** Its encoders answer as the timed ones do (`isTimed`): a pass for each step of a run. */
+  timed?: boolean
   /** A test's own double of the kernel `entryPoint` dispatched with group `bind`, called as it is
    *  encoded: the work it returns runs in the kit's double's place, none for the kit's own. */
   kernel?: (
@@ -172,4 +172,11 @@ export type FakeDeviceOptions = {
 export const BACKEND: FakeDeviceOptions = {
   limits: { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
   asyncPipelines: false,
+}
+
+/** The program the fake device kept of a shader module it made (`createShaderModule`). */
+export function moduleCode(module: GPUShaderModule): string {
+  const code: unknown = Reflect.get(module, 'code')
+  if (typeof code !== 'string') throw new Error('a shader module the fake device did not make')
+  return code
 }

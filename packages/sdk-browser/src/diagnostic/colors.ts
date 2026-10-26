@@ -1,5 +1,5 @@
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { wgslVec3 } from '../../../math/src/wgsl/number.ts'
 import { luminance } from '../../../math/src/wgsl/color.ts'
 import { toHalf } from '../../../math/src/float/half.ts'
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts'
@@ -27,7 +27,6 @@ export const packDiagnosticWord = (level: number, hlod: number, lodError: number
   0
 
 type Rgb = readonly [number, number, number]
-const vec3 = (c: Rgb) => `vec3f(${c.map(wgslF32).join(',')})`
 
 /** One solid colour per DAG level (`levelDiagnostic`), level 0 the full detail — white, red, green,
  *  blue, yellow, fuchsia, cyan, purple: saturated hues far apart, adjacent levels never alike —, the last for every level past it. */
@@ -62,6 +61,18 @@ const HLOD_COLORS: readonly Rgb[] = [
   [0, 1, 1],
   [0.5, 0.5, 0.5],
 ]
+/** A diagnostic word with its HLOD index as `drawnAsHlod` gives it for a placement drawn as the
+ *  HLOD index `drawn` — `none` drawn as itself: what the decode of a drawn cluster
+ *  (`../visibility/decode/decodeWgsl.ts`) and the transparent items' vertex stage apply. */
+export const DIAGNOSTIC_DRAWN_AS_WGSL = wgslFn(
+  'diagnosticDrawnAs',
+  [],
+  `fn diagnosticDrawnAs(word:u32,drawn:u32)->u32{
+ let at=${DIAGNOSTIC_WORD.hlodMask}u<<${DIAGNOSTIC_WORD.hlodShift}u;
+ if(drawn==${HLOD_INDEX.none}u||(word&at)!=${HLOD_INDEX.none}u<<${DIAGNOSTIC_WORD.hlodShift}u){return word;}
+ return (word&~at)|(min(drawn,${DIAGNOSTIC_WORD.hlodMask}u)<<${DIAGNOSTIC_WORD.hlodShift}u);
+}`,
+)
 /** The wireframe's colour of a primitive, by its mobility: cyan when still, magenta when it
  *  moves, so what the scene moves reads apart from what stands. */
 const WIRE_COLORS = { still: [0, 1, 1], movable: [1, 0, 1] } as const
@@ -70,7 +81,7 @@ const WIRE_COLORS = { still: [0, 1, 1], movable: [1, 0, 1] } as const
 export const DIAGNOSTIC_WIRE_WGSL = wgslBlock(
   'DIAGNOSTIC_WIRE_WGSL',
   [],
-  `fn diagnosticWireColor(movable:bool)->vec3f{return select(${vec3(WIRE_COLORS.still)},${vec3(WIRE_COLORS.movable)},movable);}`,
+  `fn diagnosticWireColor(movable:bool)->vec3f{return select(${wgslVec3(WIRE_COLORS.still)},${wgslVec3(WIRE_COLORS.movable)},movable);}`,
 )
 
 const V = DIAGNOSTIC_VIEWS
@@ -89,18 +100,11 @@ const V = DIAGNOSTIC_VIEWS
  *  colour and any other pixel grey by its brightness. */
 export const DIAGNOSTIC_PALETTE_WGSL = wgslBlock(
   'DIAGNOSTIC_PALETTE_WGSL',
-  [luminance, TRIANGLE_PALETTE_WGSL, DIAGNOSTIC_WIRE_WGSL],
-  `const DIAGNOSTIC_LEVEL_COLORS=array<vec3f,${LEVEL_COLORS.length}>(${LEVEL_COLORS.map(vec3).join(',')});
-const DIAGNOSTIC_HLOD_COLORS=array<vec3f,${HLOD_COLORS.length}>(${HLOD_COLORS.map(vec3).join(',')});
+  [luminance, TRIANGLE_PALETTE_WGSL, DIAGNOSTIC_WIRE_WGSL, DIAGNOSTIC_DRAWN_AS_WGSL],
+  `const DIAGNOSTIC_LEVEL_COLORS=array<vec3f,${LEVEL_COLORS.length}>(${LEVEL_COLORS.map(wgslVec3).join(',')});
+const DIAGNOSTIC_HLOD_COLORS=array<vec3f,${HLOD_COLORS.length}>(${HLOD_COLORS.map(wgslVec3).join(',')});
 fn diagnosticFlat()->vec3f{return vec3f(0.204,0.827,0.6);}
 fn diagnosticLevel(level:u32)->vec3f{return DIAGNOSTIC_LEVEL_COLORS[min(level,${LEVEL_COLORS.length - 1}u)];}
-/** \`word\` with its HLOD index as \`drawnAsHlod\` gives it for a placement drawn as the HLOD index
- *  \`drawn\` — \`none\` drawn as itself. */
-fn diagnosticDrawnAs(word:u32,drawn:u32)->u32{
- let at=${DIAGNOSTIC_WORD.hlodMask}u<<${DIAGNOSTIC_WORD.hlodShift}u;
- if(drawn==${HLOD_INDEX.none}u||(word&at)!=${HLOD_INDEX.none}u<<${DIAGNOSTIC_WORD.hlodShift}u){return word;}
- return (word&~at)|(min(drawn,${DIAGNOSTIC_WORD.hlodMask}u)<<${DIAGNOSTIC_WORD.hlodShift}u);
-}
 fn diagnosticHlod(index:u32)->vec3f{return DIAGNOSTIC_HLOD_COLORS[min(index,${HLOD_COLORS.length - 1}u)];}
 fn diagnosticDebugColor(color:vec3f,base:vec3f)->vec3f{return color*(0.05+0.95*luminance(base));}
 fn diagnosticError(ratio:f32)->vec3f{return vec3f(ratio,1.0-ratio,0.12);}

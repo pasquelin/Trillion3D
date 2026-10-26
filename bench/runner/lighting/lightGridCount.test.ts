@@ -11,7 +11,7 @@ import {
   gbufferAccesses,
   lightingModel,
 } from './lightGridCount.ts'
-import { contractSurfaceBody } from '../../../packages/sdk-browser/src/lighting/deferred/surfaceWgsl.ts'
+import { litPassShaders } from '../../../packages/sdk-browser/src/gpu/core/shaderTexts.fixture.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../../packages/sdk-browser/src/materials/surface/surfaceEmission.ts'
 
 test('the cell lists hold every light that reaches a pixel, and few more', () => {
@@ -21,7 +21,10 @@ test('the cell lists hold every light that reaches a pixel, and few more', () =>
   const { listed, reach, missed, work } = countGrid(view, atriumDepth(view), lights)
   assert.equal(missed, 0)
   assert.ok(reach > 0 && listed >= reach, `${listed} listed, ${reach} reaching`)
-  assert.ok(listed < 1.6 * reach, `${listed / reach} listed per reaching`)
+  // The grid is 32 slices at a distribution of 4.05 (`LIGHT_SETTINGS.gridSlices`, `gridDepthDistribution`),
+  // coarser than the 256 slices it replaced: this scene (far 5000 m, 200 lamps) measures 2.73 lights
+  // listed per reaching light, so the bound is 2.8.
+  assert.ok(listed < 2.8 * reach, `${listed / reach} listed per reaching`)
   assert.equal(work.columnTests, work.columns * lights.length, 'each light once a column')
   assert.ok(work.solves < work.columnTests / 4, `${work.solves} runs solved`)
 })
@@ -40,8 +43,8 @@ test('the model prices the pass by its tests and entries, the resolve by its lig
   assert.ok(Math.abs(r.pairNs - 0.2) < 1e-3, "develop's 1.21 ms over its 6.048 million pairs")
 })
 
-test("the model's G-buffer accesses are the resolve's: the emission's texel under its bit alone", () => {
-  const body = contractSurfaceBody(false).text
+test("the model's G-buffer accesses are a light pass's: the emission's texel under its bit alone", () => {
+  const body = litPassShaders(false).sun
   // Each target's read: the flags the words' first layer, the base colour and the normal the
   // colours' first two layers (`surfaceBuffer.ts`), the depth its own.
   const reads = {

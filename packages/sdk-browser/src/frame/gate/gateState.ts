@@ -3,7 +3,7 @@ import { trackViewCamera } from '../view/viewCamera.ts'
 import { createViewHold, type ViewHold } from '../view/viewRevision.ts'
 import { createHostSceneWatch } from '../../scene/host/scan/watch.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
-import { readCameraWorld, type HostCamera } from '../../camera/world.ts'
+import { readCameraWorld, type ViewCamera } from '../../camera/world.ts'
 import { DEFAULT_PIXEL_ERROR } from '../../../../sdk-core/src/lod/policy.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { readScene, type FrameGateSources, type HostWrite } from './gateScene.ts'
@@ -59,15 +59,14 @@ export function useViewHold(core: GateState, next: ViewHold | undefined) {
   return from
 }
 
-/** This frame's view: the engine camera, the viewport when known, the quality threshold. */
-export type ViewRead = [
+/** Rereads this frame's view: the engine camera, the viewport when known, the quality threshold;
+ *  returns true if any of its numbers moved. */
+export function viewChanged(
+  core: GateState,
   view: EngineCamera,
   viewport: readonly [number, number] | undefined,
   error: number,
-]
-
-/** Rereads this frame's view; returns true if any of its numbers moved. */
-export function viewChanged(core: GateState, ...[view, viewport, error]: ViewRead) {
+) {
   return core.own.fingerprint.read(
     core.revisions,
     view,
@@ -79,18 +78,6 @@ export function viewChanged(core: GateState, ...[view, viewport, error]: ViewRea
 
 export const held = ({ own, revisions }: GateState) => own.hold.stable && own.hold.same(revisions)
 
-/** What frame entry reads: the quality threshold (`pixelError`, `DEFAULT_PIXEL_ERROR` when the host
- *  names none), the host camera, the viewport, the source graph and what to reread of it, and the
- *  aspect ratio the image is drawn at when a second view renders aside at its own. */
-export type FrameEntry = [
-  context: { pixelError?: number },
-  camera: HostCamera,
-  viewport: readonly [number, number] | undefined,
-  source: Object3D,
-  drawn: FrameGateSources,
-  aspect?: number,
-]
-
 /**
  * Frame entry, in the order every engine follows, and which carries the hold verdict.
  *
@@ -99,9 +86,21 @@ export type FrameEntry = [
  * (contract and guarantees: `../../camera/world.ts`). Finally the host may write the source graph
  * without going through the engine: the reread is what announces it, and it precedes the hold
  * decision.
+ *
+ * It reads the quality threshold (`pixelError`, `DEFAULT_PIXEL_ERROR` when the host names none),
+ * the host camera, the viewport, the source graph and what to reread of it, and the aspect ratio
+ * the image is drawn at when a second view renders aside at its own.
  */
-export function enterFrame(core: GateState, cam: EngineCamera, ...entry: FrameEntry) {
-  const [context, camera, viewport, source, drawn, aspect] = entry
+export function enterFrame(
+  core: GateState,
+  cam: EngineCamera,
+  context: { pixelError?: number },
+  camera: ViewCamera,
+  viewport: readonly [number, number] | undefined,
+  source: Object3D,
+  drawn: FrameGateSources,
+  aspect?: number,
+) {
   readCameraWorld(cam, camera, aspect)
   if (trackViewCamera(core.own, camera, cam, viewport?.[0] ?? -1, viewport?.[1] ?? -1))
     bumpView(core.revisions)

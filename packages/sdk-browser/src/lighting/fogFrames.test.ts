@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { unsettledMask, unsettledReasons } from '../frame/loop/unsettled.ts'
 import { FOG_MATCH_GLOW_SCALE, FOG_VOLUME_FRAME_AT, historyHorizon } from './fog/layout.ts'
 import { validateSceneAtmosphere } from '../../../sdk-core/src/scene/core/atmosphere.ts'
+import type { SceneVolumetricFog } from '../../../sdk-core/src/scene/core/fogVolumetric.ts'
 import { awayCamera } from '../frame/backend/drawnQuad.fixture.ts'
 import { renderWebgpuPages } from '../frame/render/render.ts'
 import { flushWebgpuPages } from '../frame/render/flush.ts'
@@ -15,7 +16,12 @@ import { createWebgpuView } from '../frame/backend/state/view.ts'
 import { releaseWebgpuView, useWebgpuView } from '../frame/backend/state/viewSwitch.ts'
 import { LIGHT_BUFFER_AT } from '../frame/backend/state/lightBufferLayout.ts'
 import { FOG_VIEW_FLOATS, FOG_VIEW_SLOT } from './fog/viewSlots.ts'
-import { HIZ_PASS, LIGHT_TILES_PASS, REFLECTION_PASS } from '../diagnostic/stage/passLabels.ts'
+import {
+  LIGHT_TILES_PASS,
+  RASTER_OCCLUDER_DEPTH_PASS,
+  RASTER_TESTED_DEPTH_PASS,
+  RASTER_DEPTH_EXPORT_PASS,
+} from '../diagnostic/stage/passLabels.ts'
 import { FOG_PASS, LIGHTING_PASS, litFrames } from './fogFrames.fixture.ts'
 
 test('a frame with the volumetric fog on builds the volume between the light lists and the lighting, its three passes in order', async () => {
@@ -27,9 +33,14 @@ test('a frame with the volumetric fog on builds the volume between the light lis
   assert.equal(frame.filter((command) => command === FOG_PASS).length, 1, 'one compute pass')
   // Its furthest depth reads the pyramid of this very image: the raster's last build (the culling
   // layer, rebuilt after the rest pass) and the finished depth's layers (the depth pass of the
-  // reflections) both come before it.
-  const built = frame.lastIndexOf(`compute ${HIZ_PASS}`)
-  const finished = frame.indexOf(`compute ${REFLECTION_PASS}`)
+  // reflections, in a frame whose transparents fold; else the raster's depth export run) both come
+  // before it.
+  // (the pyramid follows the raster's software depth, in the one compute pass that names it)
+  const built = Math.max(
+    frame.lastIndexOf(`compute ${RASTER_OCCLUDER_DEPTH_PASS}`),
+    frame.lastIndexOf(`compute ${RASTER_TESTED_DEPTH_PASS}`),
+  )
+  const finished = frame.indexOf(`render ${RASTER_DEPTH_EXPORT_PASS}`)
   assert.ok(built >= 0 && built < finished && finished < fog, 'after the pyramid is built')
   const entries = gpu.dispatches.map((d) => d.entryPoint)
   const first = entries.indexOf('furthestMain')
@@ -94,19 +105,21 @@ test('the volume tells the surfaces it was built in the light buffer: the view b
 test('each view holds its own volume and history: a released view lets its own go, the main view keeps its', async () => {
   const { rt, draw } = await litFrames({ baseDensity: 0.01, volumetric: true })
   await draw()
-  const main = rt.gpu.fogVolume
+  // Read afresh: an assertion on `rt.gpu.fogVolume` would narrow the property across the views.
+  const volume = () => rt.gpu.fogVolume
+  const main = volume()
   assert.ok(main?.gpu)
   const side = createWebgpuView(16, 16)
   useWebgpuView(rt, side)
-  assert.equal(rt.gpu.fogVolume, undefined, 'the side view has none yet')
+  assert.equal(volume(), undefined, 'the side view has none yet')
   for (let i = 0; i < 6; i++) {
     renderWebgpuPages(rt, awayCamera())
     await flushWebgpuPages(rt)
   }
-  assert.ok(rt.gpu.fogVolume?.gpu && rt.gpu.fogVolume !== main, 'a volume of its own')
+  assert.ok(volume()?.gpu && volume() !== main, 'a volume of its own')
   releaseWebgpuView(rt, side)
   assert.equal(side.gpu.fogVolume, undefined, 'released with the view')
-  assert.equal(rt.gpu.fogVolume, main, 'the main view finds its own back')
+  assert.equal(volume(), main, 'the main view finds its own back')
 })
 
 test('a scene that drops its fog lets its volume go', async () => {
@@ -157,7 +170,11 @@ test('a scene with an atmosphere and no fog still gets the fog’s switches: the
 })
 
 test('a fog made to match the volume tells its glow, its phase and its particles to the programs, and the volume reads the glow in the fog’s unit', async () => {
-  const volumetric = { glow: [100, 0, 50], anisotropy: 0.3, particleColor: [0.5, 0.6, 0.7] }
+  const volumetric: SceneVolumetricFog = {
+    glow: [100, 0, 50],
+    anisotropy: 0.3,
+    particleColor: [0.5, 0.6, 0.7],
+  }
   const { rt, gpu, draw } = await litFrames(
     { baseDensity: 0.01, volumetric },
     { fogMatchesVolume: true },

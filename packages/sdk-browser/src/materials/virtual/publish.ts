@@ -29,6 +29,9 @@ export function createTilePublish(
       size: [number, number],
       every: boolean,
     ) {
+      // The reduction and its gather stamp the places the ranking and the readback follow: none
+      // runs, nor the clock moves, while one is not compiled.
+      if (target && !reduce.ready()) return
       if (target) reduce.encode(encoder, target, feedback, size, feedback.phaseWord(every), stamp)
       // A queue rides the feedback's readback: none is cut when no buffer is free to carry it.
       const cut = feedback.available()

@@ -1,5 +1,5 @@
 import { MIB } from '../../../../math/src/constants.ts'
-import { mean, quantileOf } from '../../../../math/src/scalar/quantile.ts'
+import { mean, quantileOf, sum } from '../../../../math/src/scalar/quantile.ts'
 import { clamp, saturate } from '../../../../math/src/scalar/reals.ts'
 import type { FrameMetrics } from '../../contracts/metrics.ts'
 import { frameStatistics } from '../../runtime/stats.ts'
@@ -207,7 +207,6 @@ export const CADENCE_BUCKETS = 5
 /** The GPU stage key of a pass no declaration names. */
 export const UNCLASSIFIED = 'unclassified'
 
-const sum = (values: readonly number[]) => values.reduce((total, v) => total + v, 0)
 const share = (value: number | null, total: number | null) =>
   value === null || total === null || !(total > 0) ? null : saturate(value / total)
 const mib = (bytes: number | null | undefined) => (typeof bytes === 'number' ? bytes / MIB : null)

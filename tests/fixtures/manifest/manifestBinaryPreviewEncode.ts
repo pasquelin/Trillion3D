@@ -18,7 +18,9 @@ import {
   PREVIEW_BAKED_LEVELS,
   PREVIEW_BLOCK_FORMATS,
   PREVIEW_LAYOUTS,
-  PREVIEW_LAYOUT_NAMES,
+  PREVIEW_STORED_LAYOUTS,
+  previewLayoutBlockBytes,
+  previewTexelBytes,
 } from '../../../packages/sdk-core/src/texture/previewFormat.ts'
 import { writeSha } from './manifestBinaryEncodeChecks.ts'
 import {
@@ -50,7 +52,8 @@ export function encodePreviewColumns(previews: readonly TexturePreview[], view: 
   let previous = -1,
     offset = 0
   previews.forEach((preview, entry) => {
-    const expected = previewGeometry(preview.width, preview.height)
+    const texelBytes = previewTexelBytes(preview.atlas)
+    const expected = previewGeometry(preview.width, preview.height, texelBytes)
     previous = checkEntryHeader(entry, preview, previous, expected.firstLevel)
     const base = entry * PREVIEW_WORDS
     words[base + PREVIEW_TEXTURE] = preview.texture
@@ -67,7 +70,7 @@ export function encodePreviewColumns(previews: readonly TexturePreview[], view: 
     words[base + PREVIEW_ATLAS] = preview.atlas
     words[base + PREVIEW_BAKED_LEVELS] = preview.bakedLevels
     PREVIEW_BLOCK_FORMATS.forEach((name, family) => {
-      words[base + PREVIEW_LAYOUTS + family] = PREVIEW_LAYOUT_NAMES.indexOf(preview.layouts[name])
+      words[base + PREVIEW_LAYOUTS + family] = PREVIEW_STORED_LAYOUTS.indexOf(preview.layouts[name])
     })
     writeSha(sha, entry, preview.sha256)
     const check = (source: Uint8Array | undefined, length: number, index: number, kind: string) => {
@@ -81,7 +84,7 @@ export function encodePreviewColumns(previews: readonly TexturePreview[], view: 
         })
       return source
     }
-    const lengths = levelLengths(expected)
+    const lengths = levelLengths(expected, texelBytes)
     lengths.rgba.forEach((length, index) => {
       pixels.set(check(preview.levels[index], length, index, 'rgba8'), offset)
       offset += length
@@ -95,7 +98,12 @@ export function encodePreviewColumns(previews: readonly TexturePreview[], view: 
           })
         continue
       }
-      lengths.blocks.forEach((length, index) => {
+      const blockLengths = levelLengths(
+        expected,
+        texelBytes,
+        previewLayoutBlockBytes(preview.layouts[name]),
+      )
+      blockLengths.blocks.forEach((length, index) => {
         columns[name].set(check(preview.blocks[name][index], length, index, name), blocksAt[name])
         blocksAt[name] += length
       })

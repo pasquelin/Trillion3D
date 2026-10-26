@@ -22,10 +22,15 @@ import type { RecordLayout } from '../../gpu/core/recordLayout.ts'
  * in the quad's order (top-left, top-right, bottom-left, bottom-right), one where that pixel is the
  * bin's.
  *
- * Two record tables hold them (`r32uint` words read by `textureLoad`, whatever the image's size):
- * the head (`SHADE_BINS_TABLE`) — the class word of each class key, then each bin's element count,
- * first word and mode, then the layers the classes store the surfaces in (`SHADE_BIN_LAYERS`) —,
- * and the elements (`SHADE_BIN_ELEMENTS_TABLE`), a run of words a bin.
+ * Two record tables and a buffer hold them (`r32uint` words read by `textureLoad`, whatever the
+ * image's size): the head (`SHADE_BINS_TABLE`) — the class word of each class key, then the layers
+ * the classes store the surfaces in (`SHADE_BIN_LAYERS`) —, the elements
+ * (`SHADE_BIN_ELEMENTS_TABLE`), a run of words a bin, and each bin's meta (`SHADE_BIN_META_WORDS`),
+ * one `vec4u` of a read-only storage buffer: a shading dispatch reads its bin in one load.
+ *
+ * The export of the visibility buffer (`../raster/exportWgsl.ts`) writes each pixel's shading mask
+ * once (`packShadingMask`): its bin and the bin's mode, which the bins' kernels read in place of the
+ * identifier, the page table and the head.
  */
 /** Lanes of a binning workgroup and of a class's shading workgroup: a group shades this many lanes. */
 export const SHADE_BIN_GROUP = 64
@@ -39,15 +44,22 @@ const SHADE_BIN_MASK_SHIFT = 2 * SHADE_BIN_PIXEL_BITS
 export const SHADE_BIN_QUAD = 0x80000000
 /** The class word of a key the image holds no pixel of, as the host writes it. */
 export const SHADE_BIN_NONE = 0xffffffff
-/** Word of the first bin's element count, past the class word of every class key. */
-export const SHADE_BIN_META = MATERIAL_CLASS_KEYS
-/** Words of a bin in the head: its element count, its first word among the elements, its mode —
- *  one for quads, which the host writes. */
-export const SHADE_BIN_META_WORDS = 3
-/** Word of the surfaces' layers (`SurfaceBuffer.layers`), past every bin's. */
-export const SHADE_BIN_LAYERS = SHADE_BIN_META + SHADE_BIN_META_WORDS * MATERIAL_CLASS_KEYS
-/** Words of the head. */
+/** Word of the surfaces' layers (`SurfaceBuffer.layers`), past the class word of every class key. */
+export const SHADE_BIN_LAYERS = MATERIAL_CLASS_KEYS
+/** Words of the head: a class word a class key, then the surfaces' layers. */
 export const SHADE_BIN_HEAD_WORDS = SHADE_BIN_LAYERS + 1
+/** Words of a bin's meta, one `vec4u`: its element count, its first word among the elements, its
+ *  flags (`SHADE_BIN_META_QUADS`), a spare. */
+export const SHADE_BIN_META_WORDS = 4
+/** The flag of a bin's meta whose elements are quads, which the host writes. */
+export const SHADE_BIN_META_QUADS = 1
+/** Bits of the bin in a shading mask (`packShadingMask`), at `SHADING_MASK_BIN_SHIFT`: the most
+ *  bins an image holds. */
+export const SHADING_MASK_BIN_BITS = 14
+const SHADING_MASK_BIN_SHIFT = 4
+/** A shading mask's bit 0 is set where a pixel has a bin, its bit `SHADING_MASK_QUADS_SHIFT` where
+ *  the bin holds quads. */
+const SHADING_MASK_QUADS_SHIFT = 18
 /** Words of a bin's indirect dispatch: its workgroups in x, in y, in z. */
 export const SHADE_BIN_ARGS = 3
 /** Words of a quad element, and the lanes of a bin of quads a quad takes: a quad's four pixels. */
@@ -77,8 +89,10 @@ const SHADE_BINS_CONSTANTS_WGSL = wgslBlock(
     SHADE_BIN_MASK_SHIFT,
     SHADE_BIN_QUAD,
     SHADE_BIN_NONE,
-    SHADE_BIN_META,
-    SHADE_BIN_META_WORDS,
+    SHADE_BIN_META_QUADS,
+    SHADING_MASK_BIN_BITS,
+    SHADING_MASK_BIN_SHIFT,
+    SHADING_MASK_QUADS_SHIFT,
     SHADE_BIN_LAYERS,
     SHADE_BIN_ARGS,
     SHADE_BIN_QUAD_WORDS,
@@ -87,18 +101,51 @@ const SHADE_BINS_CONSTANTS_WGSL = wgslBlock(
 )
 
 /**
- * The bins' head bound at `at` (`binsWord`, `binsWordStore` where it writes it), and its reads: the
- * class word of a class key (`binOfClass`), a bin's element count and first word (`binRange`). The
- * one layout of the head, for the kernels that write it and the classes that read it.
+ * The bins' head bound at `at` (`binsWord`, `binsWordStore` where it writes it), and its read: the
+ * class word of a class key (`binOfClass`). The one layout of the head, for the export that packs
+ * the shading masks and the classes that read the layers.
  */
 export const shadeBinsWgsl = (at: Omit<RecordBinding, 'name'>) =>
   wgslBlock(
     `shadeBinsWgsl(${at.group}, ${at.binding}, ${at.access})`,
     [SHADE_BINS_CONSTANTS_WGSL, recordTextureWgsl(SHADE_BINS_TABLE, { name: 'bins', ...at })],
-    `fn binOfClass(key:u32)->u32{return binsWord(key,0u).x;}
-/** Bin \`bin\`'s element count, then the place of its first word among the elements. */
-fn binRange(bin:u32)->vec2u{let m=SHADE_BIN_META+SHADE_BIN_META_WORDS*bin;return vec2u(binsWord(m,0u).x,binsWord(m+1u,0u).x);}`,
+    `fn binOfClass(key:u32)->u32{return binsWord(key,0u).x;}`,
   )
+
+/**
+ * The bins' meta bound at `at` (`binMeta`, one `vec4u` a bin) and `binRange`: bin `bin`'s element
+ * count, then the place of its first word among the elements.
+ */
+export const shadeBinMetaWgsl = (at: {
+  group: number
+  binding: number
+  access: 'read' | 'read_write'
+}) =>
+  wgslBlock(
+    `shadeBinMetaWgsl(${at.group}, ${at.binding}, ${at.access})`,
+    [SHADE_BINS_CONSTANTS_WGSL],
+    `@group(${at.group}) @binding(${at.binding}) var<storage,${at.access}> binMeta:array<vec4u>;
+fn binRange(bin:u32)->vec2u{return binMeta[bin].xy;}`,
+  )
+
+/**
+ * A pixel's shading mask, the export's word per pixel (`r32uint`): bit 0 set where the pixel
+ * has a bin, the bin above it, then the bin's mode. Zero is a pixel with none: the background, a
+ * pixel past the image, a class without a bin this image.
+ */
+export const SHADING_MASK_WGSL = wgslBlock(
+  'SHADING_MASK_WGSL',
+  [SHADE_BINS_CONSTANTS_WGSL],
+  `/** The mask of a pixel of class word \`word\` (\`binOfClass\`, \`SHADE_BIN_NONE\` for none). */
+fn packShadingMask(word:u32)->u32{
+ if(word==SHADE_BIN_NONE){return 0u;}
+ return 1u|((word&~SHADE_BIN_QUAD)<<SHADING_MASK_BIN_SHIFT)|select(0u,1u<<SHADING_MASK_QUADS_SHIFT,(word&SHADE_BIN_QUAD)!=0u);
+}
+/** The four pixels' masks: which have a bin, which bin, and whether the bin holds quads. */
+fn maskPixels(masks:vec4u)->vec4<bool>{return (masks&vec4u(1u))!=vec4u(0u);}
+fn maskBinsOf(masks:vec4u)->vec4i{return vec4i((masks>>vec4u(SHADING_MASK_BIN_SHIFT))&vec4u((1u<<SHADING_MASK_BIN_BITS)-1u));}
+fn maskQuads(masks:vec4u)->vec4<bool>{return (masks&vec4u(1u<<SHADING_MASK_QUADS_SHIFT))!=vec4u(0u);}`,
+)
 
 /** The bins' elements bound at `at` (`elementsWord`, `elementsWordStore` where it writes them), and
  *  an element's first word packed — a pixel, its write mask — and unpacked. */
@@ -115,7 +162,7 @@ fn unpackBinPixel(word:u32)->vec2u{let side=(1u<<SHADE_BIN_PIXEL_BITS)-1u;return
 
 /**
  * A class's elements, as its shading reads them (`shadeEntryWgsl.ts`): the head at group 1, binding
- * `binding`, the elements at the next, read by load. `binnedPixel` is the pixel lane `lane` of
+ * `binding`, the elements at the next, read by load, the meta at the one after. `binnedPixel` is the pixel lane `lane` of
  * workgroup `group` of the class's dispatch shades, and its write mask: a pixel element is a lane —
  * `group · SHADE_BIN_GROUP + lane`, the workgroups in rows —, a quad four lanes in a row, one a pixel
  * of the quad with its own nibble of the mask; `SHADE_BIN_NONE` in every lane past the bin's last.
@@ -129,6 +176,7 @@ export const shadeBinReadWgsl = (binding: number) =>
     [
       shadeBinsWgsl({ group: 1, binding, access: 'read' }),
       shadeBinElementsWgsl({ group: 1, binding: binding + 1, access: 'read' }),
+      shadeBinMetaWgsl({ group: 1, binding: binding + 2, access: 'read' }),
       MATERIAL_CLASS_WGSL,
       FLAT_INDEX_WGSL,
     ],

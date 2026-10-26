@@ -1,10 +1,10 @@
 import type { StatsReport, StatsParts } from '../../../../sdk-core/src/modules/stats/report.ts'
 import type { StatsWords } from '../../../../sdk-core/src/modules/stats/words.ts'
 import type { StatsCorner } from './panel/layout.ts'
+export type { StatsCorner } from './panel/layout.ts'
 import { collectStats, type StatsSource } from './collect.ts'
 
 export type { StatsSource } from './collect.ts'
-export type { StatsCorner } from './panel/layout.ts'
 
 /** A running stats module. */
 export interface StatsHandle {

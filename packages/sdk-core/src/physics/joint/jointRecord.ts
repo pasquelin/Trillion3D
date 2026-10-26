@@ -11,6 +11,7 @@ export interface JointRecord {
   /** `MOTOR` mode, target, max force (0: no bound) and a six-DOF's axis (0 to 5). */
   motor: { mode: number; target: number; maxForce: number; axis: number }
   /** Newtons past which it breaks; 0 never. */ breakForce: number
+  /** N·m of torque past which it breaks; 0 never. */ breakTorque: number
   /** The kind's own words (`../layout.ts` JOINT): an advanced joint's swing, axes, track, wheels or
    *  ratio; none for the others. */
   extra: readonly number[]

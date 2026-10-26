@@ -29,6 +29,8 @@ function overBudgetEngine(slots: number) {
   const image = () => {
     world.delta.apply(cut)
     world.cut()
+    // The image draws the cut it asked: pages above the finest level among them.
+    world.sets.applyDrawn(world.delta)
     cutPending.apply()
     admitGpuCut(rt)
     // The streaming's slots, the pool's beyond the pinned cover (`streamingSlots`).

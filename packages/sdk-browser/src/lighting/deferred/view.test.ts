@@ -5,8 +5,11 @@ import { VIEW_LAYOUT } from './worldAtWgsl.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { AMBIENT_OCCLUSION_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { encodeAmbientOcclusion } from '../ao/frame.ts'
-import type { EngineCamera } from '../../camera/engineCamera.ts'
-import { probesRuntime } from './screenProbesRuntime.fixture.ts'
+import { occlusionRuntime } from '../ao/occlusion.fixture.ts'
+import { createDeferredLighting } from './deferred.ts'
+import { gpuHarness } from './contractLighting.fixture.ts'
+import { FULL_CONTRACT } from './contractCuts.ts'
+import { SURFACE_COLOUR_PASS, TILE_CLASSIFICATION_PASS } from '../../diagnostic/stage/passLabels.ts'
 
 // A frame drawn below the display without the temporal resolve was composed pixel for pixel: the
 // composition reads where each display pixel falls in the image drawn (`composeSource`).
@@ -25,40 +28,13 @@ test('the source words are its ratio to the display and its last pixel, written 
   assert.equal(written().length, 1, 'the same source writes nothing')
 })
 
-/** The frames of a view whose pixels no screen probes light (the level `off`), drawn until the occlusion's programs have compiled. */
-async function occlusionRuntime(options: Record<string, unknown> = { screenProbes: 'off' }) {
-  const made = await probesRuntime(options)
-  const projection = new Float64Array(16),
-    world = new Float64Array(16)
-  projection[0] = projection[5] = 1.7
-  world[0] = world[5] = world[10] = world[15] = 1
-  const camera = { projection, world, near: 0.1, far: 1000 } as unknown as EngineCamera
-  Object.assign(camera, { perspective: 1 })
-  const encode = async () => {
-    for (let waited = 0; waited < 100; waited++) {
-      const before = made.h.draws.length
-      encodeAmbientOcclusion(made.rt, made.h.encoder, camera)
-      if (made.h.draws.length > before) return made.h
-      await new Promise((done) => setImmediate(done))
-    }
-    throw new Error('the occlusion never drew')
-  }
-  /** The mode and the share the lighting was last told: the two words of the view uniform's `views`. */
-  const applied = () => {
-    const last = made.h.writes.filter((w) => w.offset === (VIEW_LAYOUT.at.views + 1) * 4).at(-1)
-    return last ? [...new Float32Array(last.data as ArrayLike<number>)] : []
-  }
-  const labels = () => made.h.draws.map((d) => String(d.pipeline.label).split(' ').at(-1))
-  return { ...made, camera, encode, applied, labels }
-}
-
-test('where no screen probes light the image, the occlusion draws its passes in order and tells the lighting how to apply it', async () => {
+test('where no global illumination is on, the occlusion draws its passes in order and tells the lighting how to apply it', async () => {
   const { h, rt, encode, applied, labels } = await occlusionRuntime()
   await encode()
   // The default quality: two resolutions, the shader quality 2 — the setup, the search at the half, the last pass.
   assert.deepEqual(labels(), ['setup', '2sn', '2fu'])
   assert.deepEqual(
-    h.passDescriptors.slice(-3).map((pass) => pass.label),
+    h.passDescriptors.slice(-3).map((pass) => pass?.label),
     Array(3).fill(AMBIENT_OCCLUSION_PASS),
   )
   assert.deepEqual(
@@ -86,36 +62,131 @@ test('where no screen probes light the image, the occlusion draws its passes in 
   )
 })
 
-test('with the screen probes on, the occlusion draws nothing and holds nothing; asked, and their own off, it draws over their light', async () => {
-  const probes = await occlusionRuntime({}),
-    textures = probes.h.textures.length
-  encodeAmbientOcclusion(probes.rt, probes.h.encoder, probes.camera)
-  assert.deepEqual([probes.h.draws.length, probes.h.textures.length - textures], [0, 0])
+test('with the bounce on, at any level of the screen probes, the occlusion draws nothing and holds nothing; asked, and their own off, it draws over their light', async () => {
+  // The bounce on is the global illumination on: the probes' own short-range occlusion is the one there, at the level `off` of the
+  // screen probes too, and at the lowest that lights, which reads the world's probes.
+  for (const screenProbes of ['high', 'off', 'low']) {
+    const probes = await occlusionRuntime({ screenProbes }, true),
+      textures = probes.h.textures.length
+    encodeAmbientOcclusion(probes.rt, probes.h.encoder, probes.camera)
+    assert.deepEqual(
+      [probes.h.draws.length, probes.h.textures.length - textures],
+      [0, 0],
+      screenProbes,
+    )
+  }
   // Asked, with their occlusion still on: still none. Asked, and theirs off: over their light, at their strength.
-  const both = await occlusionRuntime({ ambientOcclusionWithScreenProbes: true })
+  const both = await occlusionRuntime({ ambientOcclusionWithScreenProbes: true }, true)
   encodeAmbientOcclusion(both.rt, both.h.encoder, both.camera)
   assert.equal(both.h.draws.length, 0)
-  const over = await occlusionRuntime({
-    ambientOcclusionWithScreenProbes: true,
-    screenProbeShortRangeOcclusion: false,
-    screenProbeOcclusionIntensity: 0.6,
-  })
+  const over = await occlusionRuntime(
+    {
+      ambientOcclusionWithScreenProbes: true,
+      screenProbeShortRangeOcclusion: false,
+      screenProbeOcclusionIntensity: 0.6,
+    },
+    true,
+  )
   await over.encode()
   assert.deepEqual(over.applied(), [2, Math.fround(0.6)])
+  // With the bounce off the occlusion draws for the scene, whatever level the screen probes are set at.
+  const scene = await occlusionRuntime({ screenProbes: 'high' })
+  await scene.encode()
+  assert.deepEqual(scene.applied(), [1, 1])
 })
 
 test('the occlusion draws as many resolutions as its settings ask, and gives its textures back when it draws none', async () => {
-  const one = await occlusionRuntime({ screenProbes: 'off', ambientOcclusionLevels: 1 })
+  const one = await occlusionRuntime({ ambientOcclusionLevels: 1 })
   await one.encode()
-  assert.deepEqual(one.labels(), ['setup', '2fn'], 'the half-size depth map, the last pass')
-  const three = await occlusionRuntime({ screenProbes: 'off', ambientOcclusionQuality: 90 })
+  assert.deepEqual(one.labels(), ['2fn'], 'the last pass alone: the taps read the depth pyramid')
+  const three = await occlusionRuntime({ ambientOcclusionQuality: 90 })
   await three.encode()
   // Setups of the half and the quarter, their searches, and the last pass: shader quality 4, the six-point set.
   assert.deepEqual(three.labels(), ['setup', 'setup', '4sn', '4su', '4fu'])
   const draws = three.h.draws.length
-  three.rt.context.ambientOcclusionIntensity = 0
+  Object.assign(three.rt.context, { ambientOcclusionIntensity: 0 })
   encodeAmbientOcclusion(three.rt, three.h.encoder, three.camera)
   assert.equal(three.h.draws.length, draws, 'no pass')
   assert.equal(three.rt.gpu.ambientOcclusion!.bytes, 0, 'no byte')
   assert.deepEqual(three.applied(), [0, 0], 'the lighting applies none')
+})
+
+test('the compute pass draws one resolution and smooths it, unless the image accumulates in time', async () => {
+  const run = await occlusionRuntime({ ambientOcclusionCompute: 1 })
+  await run.encode()
+  assert.deepEqual(
+    run.labels(),
+    ['2fnd', 'smooth'],
+    'the depth’s normals; the smoothing a pass of its own',
+  )
+  const accumulating = await occlusionRuntime({ ambientOcclusionCompute: 1 })
+  accumulating.rt.gpu.temporal = { frame: { active: true, stochasticSample: 0 } } as never
+  await accumulating.encode()
+  assert.deepEqual(accumulating.labels(), ['2fnd'], 'the temporal pass smooths it already')
+})
+
+test('the occlusion keeps its bind groups for the resources a view meets, two inputs taking turns included', async () => {
+  const run = await occlusionRuntime()
+  await run.encode()
+  const made = () =>
+    run.h.bindGroups.filter((group) => String(group.label).includes('ambient occlusion')).length
+  const first = made()
+  assert.equal(first, 3, 'a group a pass')
+  await run.encode()
+  await run.encode()
+  assert.equal(made(), first, 'the same resources: no group made again')
+  // The normals taking turns between two textures: a second set for the second, none more however many images follow.
+  const views = run.rt.gpu.surfaces!.views()
+  const turns = [views, [views[0], run.h.view(), views[2], views[3]]]
+  for (let image = 0; image < 6; image++) {
+    run.rt.gpu.surfaces!.views = () => turns[image % 2]
+    encodeAmbientOcclusion(run.rt, run.h.encoder, run.camera)
+  }
+  assert.equal(made(), first + 3)
+})
+
+test('a lit frame draws its passes in order: classification, then one render pass of the colour, the sun, the local lights and the indirect light, each light draw once for each class of tile', async () => {
+  const h = gpuHarness(),
+    lighting = await createDeferredLighting(h.device, undefined, {
+      precompile: true,
+      bounce: false,
+      key: { ...FULL_CONTRACT, lobeless: true },
+    })
+  const hdr = h.view(),
+    depth = h.view()
+  const frame = () => {
+    lighting.bind(h.surface, depth, hdr, true, { lights: {} as GPUBuffer })
+    return lighting.light(h.encoder, hdr)
+  }
+  frame()
+  await lighting.settle()
+  const first = h.passDescriptors.length
+  const made = frame()
+  assert.deepEqual(
+    h.passDescriptors.slice(first).map((pass) => pass?.label),
+    [TILE_CLASSIFICATION_PASS, SURFACE_COLOUR_PASS],
+    'the lit image is one render pass',
+  )
+  assert.equal(made, 1 + 3 * 3, 'the colour draw, and the three light draws over three classes')
+  assert.deepEqual(
+    h.draws.slice(-9).map(({ pipeline }) => (pipeline as { label?: string }).label),
+    ['SUN', 'LOCAL', 'INDIRECT'].flatMap((pass) =>
+      ['SIMPLE', 'SINGLE', 'COMPLEX'].map((tileClass) => `DIRECT_${pass}_${tileClass}`),
+    ),
+  )
+  // A scene with no sun draws no sun's draws, one with no local light no local lights' draws.
+  const passes = (direct: { suns?: number; locals?: number }) => {
+    const before = h.draws.length
+    lighting.bind(h.surface, depth, hdr, true, { lights: {} as GPUBuffer, ...direct })
+    lighting.light(h.encoder, hdr)
+    return h.draws.slice(before).map(({ pipeline }) => (pipeline as { label?: string }).label)
+  }
+  const kinds = (direct: { suns?: number; locals?: number }) =>
+    new Set(passes(direct).map((label) => label?.split('_')[1]))
+  assert.ok(!kinds({ suns: 0, locals: 2 }).has('SUN'))
+  assert.ok(kinds({ suns: 0, locals: 2 }).has('LOCAL'))
+  assert.ok(!kinds({ suns: 1, locals: 0 }).has('LOCAL'))
+  assert.ok(kinds({ suns: 1, locals: 0 }).has('SUN'))
+  assert.deepEqual([...kinds({ suns: 0, locals: 0 })].filter(Boolean), ['INDIRECT'])
+  lighting.dispose()
 })

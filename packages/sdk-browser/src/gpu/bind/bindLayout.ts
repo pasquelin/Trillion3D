@@ -10,13 +10,18 @@ import { computeBufferEntry, computeTextureEntry } from '../core/computeBindings
  * once, never on one alone — the defect merging lots 1 and 2 cost.
  */
 
-/** Four bindings of a virtual-texture atlas from `base`: one pool per lane, in
- *  `PREVIEW_LAYOUT_NAMES` order, then its page table. */
-const atlasBindings = (base: number) => ({
+/** The bindings of a virtual-texture atlas: one pool per lane, in `PREVIEW_LAYOUT_NAMES` order, then
+ *  its page table. */
+export interface AtlasBindings {
+  readonly lanes: readonly number[]
+  readonly pages: number
+}
+
+/** Four bindings of a virtual-texture atlas from `base`. */
+const atlasBindings = (base: number): AtlasBindings => ({
   lanes: PREVIEW_LAYOUT_NAMES.map((_, index) => base + index),
   pages: base + PREVIEW_LAYOUT_NAMES.length,
 })
-export type AtlasBindings = ReturnType<typeof atlasBindings>
 
 /** The layout entries of an atlas's lanes and page table, seen by `visibility`. */
 export const atlasLayoutEntries = (
@@ -55,9 +60,14 @@ export const VIS_BINDINGS = {
   /** The surfaces' records (`../../materials/table/materialTable.ts`): a row's cutout and shape. */
   material: 13,
   /** The float pool's normal atlas, whose tail holds a float geometry's second UV set (`vertUv1`):
-   *  what a row's cutout reads its base map at (`pageMaskUv`), in every raster and the shadow's
-   *  transmittance. */
+   *  what a row's cutout reads its base map at (`pageMaskUv`), in every raster. */
   normals: 14,
+  /** The graph frame (`../../visibility/shader/graphFrameWgsl.ts`): the clocks and the camera of the
+   *  image, which a cutout and an offset read; seen by every stage that cuts or places a vertex. */
+  frame: 15,
+  /** The engine's blue noise, read by load (`../noise/blueNoiseWgsl.ts`, `loadOnly`): what a dithered
+   *  cutout is cut by in a fragment stage or the software raster (`maskDitherWgsl`). */
+  noise: 16,
 }
 
 export const SHADE_BINDINGS = {
@@ -71,14 +81,14 @@ export const SHADE_BINDINGS = {
   sampler: 10,
   uniform: 11,
   data: atlasBindings(12),
-  /** What the frame's compute passes composed for the resolve (`shadeCacheWgsl.ts`). */
-  shadeCache: 19,
   /** The surfaces' records (`../../materials/table/materialTable.ts`). */
   material: 20,
   /** The lobes target the resolve writes and the lighting reads (`../../materials/surface/physicalLobes.ts`). */
   lobes: 21,
   /** The voxel trace's counters, which the voxel classes alone write (`voxelStepsWgsl.ts`). */
   voxelSteps: 22,
+  /** The graph frame (`VIS_BINDINGS.frame`), which an offset places a vertex by. */
+  frame: 23,
 }
 
 export const BLEND_BINDINGS = {
@@ -92,18 +102,17 @@ export const BLEND_BINDINGS = {
   normals: 13,
   /** Declared contract lights, the very ones the opaque resolve rereads (P6). */
   directLights: 14,
-  clusterDiagnostic: 15,
   /** Instance list the plan expansion wrote: two words per instance, the item that carries it
    *  and what it draws (`../../blend/expand/expandWgsl.ts`). */
   planInstances: 16,
+  /** Each cluster's span in the cache (four words), then, after the spans, the cluster's identity word the diagnostic
+   *  views colour it by: one buffer, the vertex stage's eighth and last storage buffer with the lists of the local fog
+   *  volumes (`fogTiles`). */
   clusterSpans: 17,
   /** The virtual shadow maps' page table, projection data and uniforms (`BLEND_VSM_BINDINGS`). */
   shadowData: 18,
   shadowAtlas: 19,
   shadowSampler: 20,
-  /** Probe grid and their coefficients: the opaque irradiance, with no extra pass. */
-  bounceGrid: 21,
-  probes: 22,
   /** Per-tile light lists, the very ones the opaque resolve reads: the blend pass reads its own
    *  depth slice there, from the near plane to the opaque background. */
   tileLights: 23,
@@ -114,9 +123,7 @@ export const BLEND_BINDINGS = {
    *  the six maps and their factors. They do not depend on the frame, so a draw has no
    *  dynamic offset or a bind group of its own. */
   items: 25,
-  /** The translucent casters' transmission atlas, then the virtual shadow maps' pool
-   *  (`BLEND_VSM_BINDINGS`). */
-  shadowTransmittance: 26,
+  /** The virtual shadow maps' pool (`BLEND_VSM_BINDINGS`). */
   shadowPool: 27,
   /** The surfaces' records, the opaque resolve's own table (`../../materials/table/materialTable.ts`). */
   material: 28,
@@ -131,20 +138,38 @@ export const BLEND_BINDINGS = {
   fogSampler: 33,
   /** What the light functions are read from (`BLEND_LIGHT_FUNCTION_BINDINGS`): the atlas and its
    *  table, one texture of words read by load — a read-only storage texture, as the other load-only
-   *  targets: the stage's last storage texture of four. */
+   *  targets: the stage's third storage texture (the translucency volume's is the fourth and last). */
   lightFunctionAtlas: 34,
+  /** The lists of the local fog volumes over each tile of the view (`BLEND_FOG_BINDINGS`,
+   *  `fogTilesWgsl`, `../../lighting/fog/localWgsl.ts`): a read-only storage buffer of words, the fragment stage's
+   *  eighth and last of the eight WebGPU guarantees, and read by the vertex stage too (which holds eight). Past the three of the clouds' shade
+   *  (`BLEND_CLOUD_SHADE_BINDINGS`) that follow the light functions'. */
+  fogTiles: 38,
+  /** The graph frame (`VIS_BINDINGS.frame`), past the clouds' image (`BLEND_CLOUD_FOG_BINDINGS`). */
+  frame: 46,
+  /** The translucency lighting volume the surfaces lit from it read (`../../lighting/translucency/readWgsl.ts`): one sampled 3D
+   *  texture of half floats, the ambient and the directional light of its two cascades stacked along the depth, read through the
+   *  trilinear sampler of the translucency global illumination volume (`translucencyGiSampler`). It takes the sampled textures the
+   *  forward programs' reflection group no longer binds (`reflectionForwardLayout`: the depth pyramid's two and the lit image). */
+  translucencyVolume: 47,
+  /** The translucency global illumination volume the see-through surfaces read their indirect light from
+   *  (`../../lighting/translucencyGi/readWgsl.ts`): a sampled 3D texture, its ambient light in the first half of its depth and its
+   *  directional light in the second, and the trilinear sampler it is read through. It takes the sampled texture the world's
+   *  probes' atlas held, which a surface no longer gathers. */
+  translucencyGi: 21,
+  translucencyGiSampler: 22,
 }
 
 /**
  * The software raster lives entirely in the compute stage, where WebGPU guarantees only eight
- * storage buffers: the image and the triangle lists therefore share one buffer, `work`, the
- * image first and the lists right after it. One binding less, and the count holds. Its binning
- * binds a layout of its own (`../../visibility/raster/binWgsl.ts`).
+ * storage buffers: it binds seven — the geometry's three and its UVs, the colour atlas's page
+ * table, the visibility buffer `work` and the pass's list of clusters `lists`.
  */
 export const SMALL_BINDINGS = {
   indices: 0,
   positions: 1,
   pages: 2,
+  lists: 3,
   uniform: 4,
   uvs: 5,
   color: atlasBindings(6),
@@ -154,6 +179,9 @@ export const SMALL_BINDINGS = {
   material: VIS_BINDINGS.material,
   /** The visibility raster's number: the cutout's coordinate (`pageMaskUv`) reads it there in both. */
   normals: VIS_BINDINGS.normals,
+  /** The visibility raster's numbers: the graph frame and the blue noise a cutout reads there in both. */
+  frame: VIS_BINDINGS.frame,
+  noise: VIS_BINDINGS.noise,
 }
 
 /** The virtual shadow maps a transparent samples (`vsmConsumerWgsl`): on the records', atlas,
@@ -172,6 +200,7 @@ export const BLEND_FOG_BINDINGS = {
   sampler: BLEND_BINDINGS.fogSampler,
   cubemap: BLEND_BINDINGS.fogCubemap,
   volume: BLEND_BINDINGS.fogVolume,
+  tiles: BLEND_BINDINGS.fogTiles,
   translucent: true,
 }
 /** Where a transparent's fragment reads the light functions (`lightFunctionReadWgsl`), in group 0, and
@@ -182,8 +211,34 @@ export const BLEND_LIGHT_FUNCTION_BINDINGS = {
   eye: 'uni.eye',
   storage: true,
 }
-/** What a transparent's fragment traces its shadow with (`directShadowWgsl`): the blue noise and the
- *  translucent casters' memory are read-only storage textures, read by load (`loadOnly`). */
+/** Where a transparent's vertex stage reads the clouds' shade of the forward directional light
+ *  (`cloudShadowReadWgsl`, per vertex), in group 0, after the light functions' atlas: the block, the
+ *  one map and the sampler it is read through, read by the vertex stage alone, in every layout
+ *  (`blendLayoutEntries`), the stand-in that shades nothing bound where no program reads it
+ *  (`../../blend/cloudVertex.ts`). */
+export const BLEND_CLOUD_SHADE_BINDINGS = {
+  group: 0,
+  block: BLEND_BINDINGS.lightFunctionAtlas + 1,
+  map0: BLEND_BINDINGS.lightFunctionAtlas + 2,
+  sampler: BLEND_BINDINGS.lightFunctionAtlas + 3,
+  perVertex: true,
+} as const
+/** Where a transparent's vertex stage reads the clouds for the surfaces whose material has `cloudFog`
+ *  (`../../modules/sky/clouds/translucentRead.ts`, per vertex), in group 0, past the fog's lists of
+ *  tiles and the clouds' shade: the block, the cloud image's colour and its depth (kilometres in
+ *  `x`) and the sampler the colour is read through; read by the vertex stage alone, in every layout
+ *  (`blendLayoutEntries`), the stand-in that clears the layer bound where no program reads it
+ *  (`../../blend/cloudVertex.ts`). The fragment stage has no room for the image: its sixteen sampled
+ *  textures and eight storage buffers are spent. */
+export const BLEND_CLOUD_FOG_BINDINGS = {
+  group: 0,
+  block: BLEND_BINDINGS.lightFunctionAtlas + 8,
+  colour: BLEND_BINDINGS.lightFunctionAtlas + 9,
+  depth: BLEND_BINDINGS.lightFunctionAtlas + 10,
+  sampler: BLEND_BINDINGS.lightFunctionAtlas + 11,
+} as const
+/** What a transparent's fragment traces its shadow with (`directShadowWgsl`): the blue noise is a
+ *  read-only storage texture, read by load (`loadOnly`). */
 export const BLEND_TRACE_BINDINGS = {
   view: BLEND_BINDINGS.shadowView,
   noise: BLEND_BINDINGS.shadowNoise,

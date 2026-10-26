@@ -1,6 +1,7 @@
 // The shadow projection on the kit's device, as the projection proofs encode it: one device of a
 // 2²⁷-byte binding, its shadow resources, the frame's inputs as views nothing reads, and the view
-// uniform the pass uploads.
+// uniform the passes upload.
+import { ComputeRun } from '../../../../gpu/core/lazyComputePass.ts'
 import { fakeDevice } from '../../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createVsmResources } from '../resources.ts'
 import {
@@ -24,13 +25,20 @@ export function projectionKit() {
   const fake = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
   const res = createVsmResources(fake.device, { fullMapCapacity: 63, poolPages: 256 })
   const view = {} as GPUTextureView
+  const buffer = () =>
+    fake.device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM })
   const source = {
     depth: view,
     normalRough: view,
     flags: view,
-    receiver: view,
+    subsurface: view,
+    lobes: view,
+    deferredView: buffer(),
+    directLights: buffer(),
+    tileLights: buffer(),
+    gridCells: 64,
   }
-  const target = { view, tilesView: view }
+  const target = { suns: view, locals: view, localFormat: 'rg32uint' as const, lightGrid: buffer() }
   const encoder = fake.device.createCommandEncoder()
   const project = (lights: VsmProjectionLight[], frame: Partial<Frame> = {}) => {
     const context: Frame = {
@@ -41,7 +49,9 @@ export function projectionKit() {
       lights,
     }
     writeVsmProjectionFrame(res, context)
-    encodeVirtualShadowProjection(encoder, res, context, source, target)
+    const steps = new ComputeRun().begin(encoder)
+    encodeVirtualShadowProjection(steps, res, context, source, target)
+    steps.end()
   }
   const upload = () => fake.writes.findLast((w) => w.buffer.label === 'vsm.projection.view')
   return { ...fake, res, encoder, project, upload }

@@ -6,7 +6,6 @@ import { pageHomes } from '../../geometry/pages/pool/homes.ts'
 import type { EngineContext } from '../../session/engine/types.ts'
 import type { WebgpuDiagnosticChannel } from '../io/diagnostics.ts'
 import { RequestStamps } from '../../geometry/selection/requests.ts'
-import { createBlendScene } from '../../geometry/cluster/blendSceneRecord.ts'
 import { createHostRankDelta } from '../../geometry/streaming/hostRanks.ts'
 import { RASTER_BACKGROUND } from '../../geometry/pages/raster.ts'
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../../../sdk-core/src/contracts/poolBudgets.ts'
@@ -20,6 +19,10 @@ import { DEFAULT_PIXEL_RATIO } from '../../session/engine/common.ts'
 import { bootstrapFields, setupPages } from './setupCatalogue.ts'
 import { DAG_CLUSTER_TRIANGLES } from '../../../../sdk-core/src/page/format.ts'
 import { clippingFor } from '../../gpu/core/clipDistances.ts'
+import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
+import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
+import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
+import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
 
 /** The corners of the widest cluster the format holds. */
 const CLUSTER_MAX_CORNERS = 3 * DAG_CLUSTER_TRIANGLES
@@ -28,10 +31,40 @@ export type WebgpuDiagnostics = WebgpuDiagnosticChannel & {
 }
 export type WebgpuPagesSetup = ReturnType<typeof createWebgpuPagesSetup>
 
+/** The project switches the session reads once, here: its programs are made with them. */
+function projectSwitches(context: EngineContext) {
+  return {
+    /** How every program of the session cuts at a view's clip plane, none while the project switch
+     *  `cutClipPlane` is off: read once, here, as the reference's read-only switch is
+     *  (`../../gpu/core/clipDistances.ts`). */
+    clipping: clippingFor(context),
+    /** Whether every program that lays the fog holds the local fog volumes' code, the project switch
+     *  `localFogVolumeSupport` (on by default): read once, here, as `clipping` is; off, no program holds
+     *  any of it and no pass, buffer or block is made for the volumes (`../render/encodeLocalFog.ts`). */
+    localFog: readSetting(VOLUMETRIC_FOG_RULES, context, 'localFogVolumeSupport'),
+    /** How the translucent surfaces read a light's shadow, the project switches
+     *  `shadowTranslucentQuality` (0, one sample) and `shadowTranslucentLocalLights` (off, the sun's
+     *  shadow alone): read once, here, as `localFog` is; the translucent programs are made with them
+     *  (`../../blend/pipelines.ts`). */
+    translucentShadow: {
+      quality: readSetting(SHADOW_RULES, context, 'shadowTranslucentQuality'),
+      localShadows: readSetting(SHADOW_RULES, context, 'shadowTranslucentLocalLights'),
+    },
+    /** Whether the reflections' trace counts its rays, the project switch `reflectionStatistics` (off): read once, here, as
+     *  `translucentShadow` is, for the trace's kernels are compiled with the counting or without it
+     *  (`../../lighting/reflections/reflectionPipelines.ts`). */
+    reflectionStatistics: readSetting(REFLECTION_RULES, context, 'reflectionStatistics'),
+    /** Whether the translucent surfaces light a rectangle light as a rectangle, the project switch
+     *  `translucentRectLights` (off, a point light at its centre): read once, here, as
+     *  `translucentShadow` is (`../../blend/pipelines.ts`). */
+    translucentRectLights: readSetting(SHADOW_RULES, context, 'translucentRectLights'),
+  }
+}
+
 /** Everything the engine derives once from the session's context: the page catalogue, its
- *  bootstrap cover, the request index, the slot budget and the scene the forward copies live in. */
+ *  bootstrap cover, the request index and the slot budget. */
 export function createWebgpuPagesSetup(context: EngineContext, diag: WebgpuDiagnostics) {
-  const clearColor = announceClearColor(context, diag)
+  announceClearColor(context, diag)
   const pages = setupPages(context, diag)
   const { requests, requestUrls, blendCopies } = pages
   const slots = setupSlots(context, diag, pages)
@@ -43,10 +76,7 @@ export function createWebgpuPagesSetup(context: EngineContext, diag: WebgpuDiagn
     // Rows, roots and transparent copies carry the matrices.
     worlds: pages.worlds,
     viewport: context.viewport ?? [1, 1],
-    /** How every program of the session cuts at a view's clip plane, none while the project switch
-     *  `cutClipPlane` is off: read once, here, as the reference's read-only switch is
-     *  (`../../gpu/core/clipDistances.ts`). */
-    clipping: clippingFor(context),
+    ...projectSwitches(context),
     pixelRatio: context.pixelRatio ?? (() => DEFAULT_PIXEL_RATIO),
     roots: pages.roots,
     /** What collected the roots, which collects a source added later (`addPlacements`). */
@@ -66,15 +96,11 @@ export function createWebgpuPagesSetup(context: EngineContext, diag: WebgpuDiagn
     requests,
     // What the host pins, held from one image to the next and published as a rank delta.
     hostRanks: createHostRankDelta(requestUrls.length, requestUrls),
-    // The slots the tables sized by drawable page are sized for: the starting pool's, then each
-    // larger pool they grew for (`growTables.ts`).
-    cap: geometry.pool.slots,
-    scene: createBlendScene(clearColor, blendCopies),
     ...slotFields(slots, context),
     // The two pools as they are held; `setMemoryBudgets` replaces them with another drawn from the
     // same rule, `slots` follows.
     geometryPool: geometry.pool,
-    // The same pool for another budget: above `cap`, the tables grow first (`io/memory.ts`).
+    // The same pool for another budget (`io/memory.ts`).
     geometryPoolFor: geometry.poolFor,
     texturePoolBudget: context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET,
     /** The family, the encoding and the lane pools, set by prepare; `setMemoryBudgets` redraws. */
@@ -100,7 +126,6 @@ function announceClearColor(context: EngineContext, diag: WebgpuDiagnostics) {
     'Background colour received by Trillion3D WebGPU',
     inputColor,
   )
-  return clearColor
 }
 
 /** What a pool slot holds, how wide it is, the corner count every page draw is bounded by, and
@@ -132,8 +157,7 @@ function setupSlots(
   // The engine's two fixed pools, in bytes: what does not fit renders coarser, the root pages held
   // beside the geometry pool's streaming slots, in the grains of its root region, which grows as
   // HLOD cells hold theirs (`rootRegionOf`). Image targets, themselves, follow resolution with no
-  // ceiling. Tables sized by drawable page start at the pool, and grow in place past it
-  // (`growTables.ts`).
+  // ceiling.
   const { maxResidentPages, gpuDevice } = context
   const limits = gpuDevice?.limits,
     homeBytes = homes?.bytes,

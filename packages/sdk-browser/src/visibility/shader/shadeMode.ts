@@ -36,18 +36,17 @@ export const diagnosticReads = (mode: DiagnosticMode) => viewOf(mode)?.reads
  * THE VIEWS OF THE LIT IMAGE: drawn through the normal pipeline — the resolve at code zero, the
  * lighting, the temporal pass — and shown by a step of it rather than painted by `diagnosticColor`.
  * `light` is the term the lighting program outputs in place of the lit surface (`view.views.x`,
- * `../../lighting/deferred/surfaceWgsl.ts`): 1 the reflection alone, 2 the shadowed lights'
+ * `../../lighting/deferred/litSurfaceWgsl.ts`): 1 the reflection alone, 2 the shadowed lights'
  * visibility, 3 the lighting on a white surface; 0 the lit surface itself. `chain`, whether the
  * image keeps the rest of the beauty chain — effects, particles, display layers — which a view of
  * one lighting term leaves out, so that nothing but that term reaches the screen. `raw`, whether it
  * is shown in raw values, no display curve: a measure in grey. `taa`, what the temporal resolve
  * outputs in place of the accumulated colour (`view.params.w`, `../../post/taa/resolveWgsl.ts`): 1 the
  * image it receives, at the render pixel each display pixel falls in, 2 the shading rejection it
- * applies, 3 the history validity it holds after its update, 4 to 8 the analysis views — the
+ * applies, 3 the history validity it holds after its update, 4 to 9 the analysis views — the
  * flicker measure, the shading rejection, the reprojection, the motion, the thin geometry, three
- * factors each in red, green and blue (`FIRST_ANALYSIS_VIEW`, `../../post/taa/rejectionWgsl.ts`), 9 the
- * most of its history each pixel's material keeps, as grey (`MATERIAL_HISTORY_VIEW`); 0 the
- * accumulated colour itself.
+ * factors each in red, green and blue, and the responsiveness each pixel carries, as grey
+ * (`FIRST_ANALYSIS_VIEW`, `../../post/taa/rejectionWgsl.ts`); 0 the accumulated colour itself.
  */
 const LIT_VIEWS = {
   'frame-difference': { light: 0, chain: true },
@@ -78,6 +77,10 @@ export const keepsBeautyChain = (mode: DiagnosticMode) => mode === 'beauty' || !
 
 /** The lighting term `mode` shows in place of the lit surface (`LIT_VIEWS`), zero for none. */
 export const lightViewCode = (mode: DiagnosticMode) => litOf(mode)?.light ?? 0
+
+/** The view of the irradiance the probes bounced, alone, raw: the host asks for it (`lightingView`
+ *  `'bounce'`, no diagnostic mode) and the frame is lit with the program that reads the probes. */
+export const BOUNCE_LIGHT_VIEW = 4
 
 /** Whether `mode` is shown in raw values: a view the resolve paints, or a lit view that measures
  *  (`LIT_VIEWS`). */

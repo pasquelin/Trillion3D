@@ -15,6 +15,13 @@
 // (`boxCullTables.fixture.ts`): the single-page maps were what made a case write. Retaken once
 // more on the shipped text, the digest above never having reproduced from the commit that took it:
 // the same one on every commit since, the working tree's changes leaving it as it was.
+// Retaken when the stale became the reference's oriented-box invalidation: the box carries its half
+// axes (a diagonal matrix here, the world's axes) and the views it stales, and is carried to clip
+// space as a unit box through them; a map of one page (the finest mip the last) has that page's static
+// layer staled and is done; the hierarchical test looks for fine pages by the detail test alone, the
+// page test adding the fine bit only for a mover's box in a map whose coarse pages keep their dynamic
+// layer. Reverting any one of those three alone gives a third digest, all three together the digest
+// of before; the pages of the pyramid test are left out (occlusion off).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslConstants } from '../../../../materials/texture/shaderRule.fixture.ts'
@@ -25,11 +32,11 @@ import { bitsDigest, inputs } from '../bitsDigest.fixture.ts'
 import { vsmLayout } from '../layout.ts'
 import { LIGHT_KIND } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 
-const INVALIDATION = castInvalidationWgsl(vsmLayout({ fullMapCapacity: 63 }))
+const INVALIDATION = castInvalidationWgsl(vsmLayout({ fullMapCapacity: 63, occlusion: false }))
 const LOCAL_KINDS = [LIGHT_KIND.point, LIGHT_KIND.spot, LIGHT_KIND.rect]
 const CASES = 12000
 /** The digest of every case's writes (`bitsDigest`). */
-const GOLDEN = 'e0a4b09f2a98138b1c8632d993da2804c0d46bd1b42e2ca2bd157d107089f0e3'
+const GOLDEN = 'f2099b9fc8b11818a59a31544424c196e362b4793e2bf137462ec4cd38602e92'
 const HELPERS = [
   ...['vsmStaleBoxPages', 'vsmTouchesMappedPage', 'vsmMarksMatch'],
   ...['vsmLevelHoldingRect', 'vsmClipRadius', 'vsmCachesAsStatic'],
@@ -88,17 +95,31 @@ test("an instance's pages are invalidated as the golden holds: the same writes i
       finestMip: d.int(0, 7),
       coarseDynamicCached: d.bool(),
       levelShapeCutoffSq: d.f(),
+      viewSlot: 0,
     }
     // A change's box: its centre, its half extent along the world's axes — finite, as a record's
     // is: past f32 math the list holds the unbounded box (`UNBOUNDED_EXTENT`).
     const centre = near(3),
       dynamic = d.bool(),
       extent = near(3).map((x) => (Number.isFinite(x) ? Math.abs(x) : UNBOUNDED_EXTENT))
-    const inst = { centre, flags: dynamic ? VSM_BOX_MOVING : 0, extent }
+    // Along the world's axes: the half axes are the extent on the diagonal.
+    const inst = {
+      centre,
+      flags: dynamic ? VSM_BOX_MOVING : 0,
+      axisX: [extent[0], 0, 0],
+      axisY: [0, extent[1], 0],
+      axisZ: [0, 0, extent[2]],
+      views: 0xffffffff,
+    }
     const now = use(tables(k, inputs(k)))
     is.vsmStaleBoxPages(pd, inst)
     digest.add(now.writes)
     writing += Number(now.writes.some((entry) => typeof entry[0] === 'number'))
+    // A map that uses the receiver cover draws its dynamic layer again each frame: a box of casters
+    // already moving writes nothing in it, whatever the light and the box.
+    const covered = use(tables(k, inputs(k)))
+    is.vsmStaleBoxPages({ ...pd, useCover: true }, { ...inst, flags: VSM_BOX_MOVING })
+    assert.deepEqual(covered.writes, [], `case ${k}`)
   }
   assert.equal(digest.hex(), GOLDEN)
   assert.ok(writing > CASES / 25, `${writing} cases write`)

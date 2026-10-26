@@ -19,9 +19,13 @@ import type { AnimationBanks } from '../../../../sdk-core/src/scene/core/animati
 import type { MatrixElements } from '../../session/host/matrixElements.ts'
 import type { DrawDistance, RootParent } from '../../geometry/selection/types.ts'
 import type { ChangedRuns } from '../../geometry/residency/ranges.ts'
+import {
+  DRAW_DISTANCE_STRIDE,
+  drawDistanceAt,
+  writeDrawDistanceAt,
+} from '../../geometry/dag/drawDistance.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
-import { ROOT_PARENT_WORDS, writeRootParent } from '../../geometry/dag/frameTable.ts'
 
 /** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {
@@ -72,9 +76,10 @@ export type PlacementRows = {
   /** Per row, the item of `banks` it plays — the GPU poses it from that track —, -1 for none: a
    *  column of its own, absent until a cell places an instanced skinned object; kept by a growth. */
   tracks?: Int32Array
-  /** Per row, the nearest then the farthest distance it is drawn at (`CellNode.drawDistance`), 0
-   *  and 0 for none: a column of its own, absent until a cell places an object that names one;
-   *  kept by a growth, cleared where a row is parked. */
+  /** Per row, the nearest and the farthest distance it is drawn at and 1 where it is one instance
+   *  of an instanced mesh (`CellNode.drawDistance`, `DRAW_DISTANCE_STRIDE`), all 0 for none: a
+   *  column of its own, absent until a cell places an object that names one; kept by a growth,
+   *  cleared where a row is parked. */
   drawDistance?: Float32Array
   /** Per row, 1 when a view's primed depth draws it (`CellNode.farField`): a column of its own,
    *  absent until a cell places an object that sets it; kept by a growth. */
@@ -84,6 +89,37 @@ export type PlacementRows = {
    *  the radius 0 for none: a column of its own, absent until a cell places an instance; kept by a
    *  growth, cleared where a row is parked. */
   rootParent?: Float32Array
+}
+
+/** The values a row of the `rootParent` column takes: the error and the ball of a group. */
+const ROOT_PARENT_STRIDE = 5
+
+/** The optional columns of `PlacementRows`, one definition each: the values a row takes, `stride`,
+ *  and how a column of `length` values — `stride` for each row — is made, every row unset: -1 for a
+ *  track, 0 for the others. A column is made by the first row that names a value (`rowColumn`) and
+ *  kept by a growth (`growPlacementRows`); each reader reads it where it lies, `undefined` meaning
+ *  every row unset. */
+const ROW_COLUMN_KINDS = {
+  tracks: { stride: 1, make: (length: number) => new Int32Array(length).fill(-1) },
+  drawDistance: {
+    stride: DRAW_DISTANCE_STRIDE,
+    make: (length: number) => new Float32Array(length),
+  },
+  farField: { stride: 1, make: (length: number) => new Uint8Array(length) },
+  rootParent: { stride: ROOT_PARENT_STRIDE, make: (length: number) => new Float32Array(length) },
+} as const
+const ROW_COLUMNS = Object.keys(ROW_COLUMN_KINDS) as (keyof typeof ROW_COLUMN_KINDS)[]
+type RowColumnName = keyof typeof ROW_COLUMN_KINDS
+
+/** Column `name` of `rows`, made at the rows' capacity, every row unset, when no row named a value
+ *  before. */
+export function rowColumn<K extends RowColumnName>(rows: PlacementRows, name: K) {
+  const held = rows[name]
+  if (held) return held as NonNullable<PlacementRows[K]>
+  const { stride, make } = ROW_COLUMN_KINDS[name],
+    made = make(stride * rows.capacity)
+  Object.assign(rows, { [name]: made })
+  return made as NonNullable<PlacementRows[K]>
 }
 
 export function createPlacementRows(capacity: number): PlacementRows {
@@ -111,21 +147,9 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
     rows.cells = before.cells?.slice()
     rows.cellsMoved = before.cellsMoved
     rows.banks = before.banks
-    if (before.tracks) {
-      rows.tracks = new Int32Array(rows.capacity).fill(-1)
-      rows.tracks.set(before.tracks)
-    }
-    if (before.drawDistance) {
-      rows.drawDistance = new Float32Array(2 * rows.capacity)
-      rows.drawDistance.set(before.drawDistance)
-    }
-    if (before.farField) {
-      rows.farField = new Uint8Array(rows.capacity)
-      rows.farField.set(before.farField)
-    }
-    if (before.rootParent) {
-      rows.rootParent = new Float32Array(ROOT_PARENT_WORDS * rows.capacity)
-      rows.rootParent.set(before.rootParent)
+    for (const name of ROW_COLUMNS) {
+      const held = before[name]
+      if (held) rowColumn(rows, name).set(held)
     }
   }
   return rows
@@ -161,10 +185,19 @@ export const rowParked = (placement: PlacementOf | undefined) =>
 /** How `placement`'s row casts, as its mesh says (`nodeCasting`). */
 export const rowCasting = (placement: PlacementOf) => placement.rows.casting[placement.index]
 
-/** The distances `placement`'s row is drawn at, none for a row that names no farthest one. */
-export function rowDrawDistance({ rows, index }: PlacementOf): DrawDistance | undefined {
-  const far = rows.drawDistance?.[2 * index + 1] ?? 0
-  return far > 0 ? { min: rows.drawDistance![2 * index], max: far } : undefined
+/** The distances `placement`'s row is drawn at, none for a row that names none. */
+export const rowDrawDistance = ({ rows, index }: PlacementOf) =>
+  drawDistanceAt(rows.drawDistance, index)
+
+/** Row `row` of `rows` is drawn at `distance` from now on, at every distance for `undefined`; the
+ *  column is made by the first row that names one. */
+export function seatDrawDistance(
+  rows: PlacementRows,
+  row: number,
+  distance: DrawDistance | undefined,
+) {
+  const column = distance ? rowColumn(rows, 'drawDistance') : rows.drawDistance
+  if (column) writeDrawDistanceAt(column, row, distance)
 }
 
 /** The group that replaces the root of `placement`'s row, none for a row whose node is no instance
@@ -172,7 +205,7 @@ export function rowDrawDistance({ rows, index }: PlacementOf): DrawDistance | un
  *  one), so a column's zero radius names none. */
 export function rowRootParent({ rows, index }: PlacementOf): RootParent | undefined {
   const column = rows.rootParent,
-    at = ROOT_PARENT_WORDS * index
+    at = ROOT_PARENT_STRIDE * index
   if (!column || !(column[at + 4] > 0)) return undefined
   const sphere = [column[at + 1], column[at + 2], column[at + 3], column[at + 4]] as const
   return { error: column[at], sphere }
@@ -186,8 +219,11 @@ export const sameRootParent = (a: RootParent | undefined, b: RootParent | undefi
 /** Row `row` of `rows` is an instance of an assembly whose root's group is `parent` from now on,
  *  none for any other row; the column is made by the first row that names one. */
 export function seatRootParent(rows: PlacementRows, row: number, parent: RootParent | undefined) {
-  if (parent) rows.rootParent ??= new Float32Array(ROOT_PARENT_WORDS * rows.capacity)
-  if (rows.rootParent) writeRootParent(rows.rootParent, row, parent)
+  const column = parent ? rowColumn(rows, 'rootParent') : rows.rootParent
+  if (!column) return
+  const at = ROOT_PARENT_STRIDE * row
+  column[at] = parent?.error ?? 0
+  for (let k = 0; k < 4; k++) column[at + 1 + k] = parent?.sphere[k] ?? 0
 }
 
 /** How many times a row's far-field flag changed: what the primed draw's set is read again by
@@ -198,8 +234,7 @@ export const rowFarFieldMoves = () => farFieldMoves
 /** Row `row` of `rows` is a far-field row or not from now on; the column is made by the first row
  *  that is one. */
 export function seatFarField(rows: PlacementRows, row: number, farField: boolean) {
-  if (farField) rows.farField ??= new Uint8Array(rows.capacity)
-  const held = rows.farField
+  const held = farField ? rowColumn(rows, 'farField') : rows.farField
   if (!held || held[row] === (farField ? 1 : 0)) return
   held[row] = farField ? 1 : 0
   farFieldMoves++

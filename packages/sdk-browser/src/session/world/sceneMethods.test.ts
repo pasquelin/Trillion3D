@@ -59,3 +59,26 @@ test('the sky module is off and empty until a source switches it on, and the pag
   modules.dispose()
   assert.equal(modules.sky, NO_SKY)
 })
+
+test('the sky light part holds a specified cubemap and its blend as data, refused when malformed', () => {
+  const texels = new Float32Array(6 * 2 * 2 * 3).fill(0.5)
+  const cube = { size: 2, texels }
+  const modules = createWorldModules({ canvas: {} as never, changed: () => {} })
+  const light = { realTimeCapture: false, sourceType: 'specifiedCubemap' }
+  modules.scene({
+    skyLight: { ...light, cubemap: cube, cubemapBlend: { destination: cube, fraction: 0.25 } },
+  })
+  const part = modules.sky.resolved!.skyLight!
+  assert.equal(part.cubemap!.texels, texels, 'the data is kept, not copied')
+  assert.deepEqual([part.cubemapBlend!.fraction, part.cubemapBlend!.destination.size], [0.25, 2])
+  modules.scene({ skyLight: light })
+  assert.equal(modules.sky.resolved!.skyLight!.cubemap, undefined, 'none unless given')
+  const scene = new Scene()
+  scene._link = { sky: () => {} } as never
+  const refused = (skyLight: Readonly<Record<string, unknown>>) => () => (scene.sky = { skyLight })
+  assert.throws(refused({ cubemap: { size: 2, texels: [1] } }), /texels expects 72 numbers/)
+  assert.throws(refused({ cubemap: { size: 0, texels } }), /size must be a whole number/)
+  assert.throws(refused({ cubemap: { size: 2, texels: texels.map(() => -1) } }), /finite numbers/)
+  assert.throws(refused({ cubemapBlend: { destination: cube } }), /fraction must be a finite/)
+  assert.throws(refused({ cubemapBlend: { destination: { size: 2 }, fraction: 1 } }), /destination/)
+})

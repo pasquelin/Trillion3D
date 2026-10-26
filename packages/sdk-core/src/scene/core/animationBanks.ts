@@ -1,8 +1,8 @@
 /**
  * THE SCENE'S ANIMATION BANKS (`animation-banks.bin`,
  * `packages/asset-compiler-rust/src/compiler/tables/motion/bank.rs`): the clips its instanced skinned
- * objects play on the GPU, each sampled once by the compiler. A BAKE is one skin's clip at
- * `ANIMATION_BANK_SAMPLE_RATE` frames a second: each joint's inverse bind matrix as the three rows
+ * objects play on the GPU, each sampled once by the compiler. A BAKE is one skin's clip at its own
+ * rate, in frames a second (`BankBake.rate`): each joint's inverse bind matrix as the three rows
  * of its affine part, and for each frame each joint's transform in the skin's frame — the node its
  * top joints hang under —, its translation then its rotation (`ANIMATION_BANK_KEY_FLOATS`). An ITEM
  * is what an object plays: a bake on a mesh, whether its track loops, the second it starts from,
@@ -25,13 +25,14 @@ import {
 } from '../../contracts/writtenFormats.ts'
 import type { BankClock } from '../../world/animation/bankClock.ts'
 
-/** One skin's clip, sampled: its joints, its frames, and where its inverse binds and its keys
- *  start in the pool, in floats. */
+/** One skin's clip, sampled: its joints, its frames, where its inverse binds and its keys start
+ *  in the pool, in floats, and the rate its keys are sampled at, in frames a second. */
 export type BankBake = {
   readonly joints: number
   readonly frames: number
   readonly inverseAt: number
   readonly keysAt: number
+  readonly rate: number
 }
 
 /** What an object plays: its bake, whether its track loops, the second it starts from, its play
@@ -130,13 +131,16 @@ export function decodeAnimationBanks(bytes: ArrayBuffer, url = 'animation banks'
   const bakes = Array.from({ length: bakeCount }, (_, b): BankBake => {
     const at = bakesAt + b * ANIMATION_BANK_BAKE_WORDS
     const [joints, frames, inverseAt, keysAt] = words.subarray(at, at + ANIMATION_BANK_BAKE_WORDS)
+    const rate = floats[at + 4]
     const fits =
       joints > 0 &&
       frames > 0 &&
+      rate > 0 &&
+      Number.isFinite(rate) &&
       inverseAt + joints * ANIMATION_BANK_INVERSE_FLOATS <= poolFloats &&
       keysAt + frames * joints * ANIMATION_BANK_KEY_FLOATS <= poolFloats
     if (!fits) throw invalid(url, `bake ${b} names floats the pool does not hold`, { bake: b })
-    return { joints, frames, inverseAt, keysAt }
+    return { joints, frames, inverseAt, keysAt, rate }
   })
   const items = Array.from({ length: itemCount }, (_, i): BankItem => {
     const at = itemsAt + i * ANIMATION_BANK_ITEM_WORDS

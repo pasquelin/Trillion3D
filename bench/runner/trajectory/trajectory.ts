@@ -4,11 +4,11 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
 import { launchChrome } from '../harness/chrome.ts'
 import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts'
-import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
+import { encodePng } from '../../../packages/sdk-node/src/image/png.mts'
 import { fingerprintBuild } from '../../../scripts/build/write-build-provenance.ts'
 import { assetIdentity } from '../report/provenance.ts'
 import { readOptions, resolveMounts } from '../harness/options.ts'
-import { equipSide, isEngine, resolveCache, sideReport } from '../harness/sideOptions.ts'
+import { equipSide, resolveCache, sideReport } from '../harness/sideOptions.ts'
 import { sdkEntryUrl, isDist } from '../harness/dists.ts'
 import { ASSETS, DEFAULT_SCENE, sceneDerived, sceneOf } from '../assets/scene.ts'
 import { PATH_POSES, PATH_VERSION, poseAt, trajectoryPoses } from './poses.ts'
@@ -43,7 +43,7 @@ async function main() {
     flags.set(`cache-${name}`, cache)
     const side = equipSide({ name, dist, from: 'folder' }, flags, settings)
     side.manifestUrl = `/cache/${name}/native/full/manifest.json`
-    if (!isEngine(side.engine) || side.variant)
+    if (side.variant)
       throw new Error('trajectory requires the standard WebGPU engine on both sides')
     if (!isDist(dist)) throw new Error(`built SDK missing: ${dist}`)
     return side

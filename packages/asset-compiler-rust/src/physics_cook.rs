@@ -18,11 +18,13 @@ use trillion3d_page_codec::culling::CullingNode;
 
 pub(crate) mod cut;
 mod declared;
+pub(crate) use declared::declared_motion;
 pub(crate) mod hausdorff;
 mod height;
 mod hull;
 mod mass;
 mod pieces;
+mod rules;
 mod soft;
 pub(crate) use soft::declared_soft;
 mod soft_record;
@@ -31,14 +33,17 @@ mod stage;
 mod tests;
 mod voronoi;
 
+use rules::SOFT_VERTEX_WORDS;
+
 pub(crate) use cut::TILE_TRIANGLES;
 pub(crate) use stage::stage_physics;
 
 /// The stage contract: its name and version, which enter `physics.json` and the cache key. Version
 /// 11 cuts its tiles along the culling hierarchy of group parts (`cut.rs`), whose subtrees own no
-/// one rank range: the tiles differ from a version-10 cook's.
+/// one rank range: the tiles differ from a version-10 cook's. Version 12 reckons a soft volume's
+/// default pressure at the 9.8 m/s2 pull.
 pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
-pub const PHYSICS_COOK_VERSION: u32 = 11;
+pub const PHYSICS_COOK_VERSION: u32 = 12;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 2;
 /// Version of a `physics.json` whose bodies carry pieces (`pieces.rs`): a reader of format 2 alone
@@ -48,9 +53,6 @@ pub const PIECES_FORMAT_VERSION: u32 = 3;
 pub const JOLT_COMMIT: &str = env!("JOLT_COMMIT");
 /// Name of the product beside the manifest.
 pub const PHYSICS_FILE: &str = "physics.json";
-/// Words of each soft body vertex, `x, y, z, mass`: the worker's and the builder's stride
-/// (`SOFT_VERTEX_WORDS`, `packages/physics-jolt-wasm/src/layout.h`).
-const SOFT_VERTEX_WORDS: usize = 4;
 
 /// The collision of one primitive (`cut::cook_primitive`), or `{"refused": reason}` when the engine
 /// refuses one of its shapes: that primitive collides with nothing, and `physics.json`'s report

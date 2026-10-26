@@ -65,3 +65,10 @@ export const luminance = wgslFn(
   [],
   `fn luminance(c:vec3f)->f32{return dot(c,vec3f(${SRGB_LUMINANCE.join(',')}));}`,
 )
+
+/** The mean of a colour's three channels: the grey a transmittance or a modulation is read as, with no weight of the eye's. */
+export const greyMean = wgslFn(
+  'greyMean',
+  [],
+  'fn greyMean(c:vec3f)->f32{return dot(c,vec3f(1.0/3.0));}',
+)

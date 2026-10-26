@@ -1,13 +1,22 @@
 // The steps of the frame's shadow-map plan (`vsmPlan.ts`, `planVsmFrame`): the set held for the
-// frame's lights, the casters' residency followed, and the lights' mask channels.
+// frame's lights, the casters' residency followed, and the lights' projection records.
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import type { planVirtualShadowFrame, VsmFrameLight } from '../frameSetup.ts'
 import { noteResidenceChange } from '../../casters/bounds.ts'
-import { castsBound } from '../../../../placement/rows/rowWordsGpu.ts'
-import { fullMapsFor, sunMapsFor } from './vsmLightMaps.ts'
+import { shadowsFollowCells } from '../../casters/followChanges.ts'
+import {
+  fullMapsFor,
+  sunMapsFor,
+  vsmDynamicHzbAsked,
+  vsmOcclusionAsked,
+  vsmPoolAsked,
+} from './vsmLightMaps.ts'
 import { grantEngineVsm } from './vsmGrant.ts'
 import { growEngineVsm, regrowEngineVsm } from './vsmRegrow.ts'
 import { reserveProjection } from './vsmBeside.ts'
+import { shadowSliceOf } from '../../../direct/shadowSlice.ts'
+import { VSM_MIPS } from '../constants.ts'
+import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../projection/projectionView.ts'
 
 type Lights = WebgpuPagesRuntime['lights']
 type Vsm = NonNullable<Lights['vsm']>
@@ -21,44 +30,65 @@ export function heldVsm(rt: WebgpuPagesRuntime, device: GPUDevice, list: VsmFram
   let vsm = rt.lights.vsm
   const wanted = fullMapsFor(list)
   const short = !!vsm && (vsm.res.layout.fullMapCapacity < wanted || vsm.sunMaps < sunMapsFor(list))
-  if (!vsm || (short && !growEngineVsm(device, list, vsm, wanted)))
+  // The occlusion culling turned on or off: the set made again with its pyramid or without, its
+  // pages drawn again.
+  const occlusionMoved =
+    !!vsm &&
+    (vsm.res.layout.occlusion !== vsmOcclusionAsked(rt) ||
+      vsm.res.layout.hzbLayers > 1 !== (vsmDynamicHzbAsked(rt) && vsm.res.layout.staticSlice === 1))
+  // The pool size the setting asks moved: the pool is made again and its pages dropped, as the
+  // reference makes a pool whose size changed again.
+  const poolMoved = !!vsm && vsm.poolAsked !== vsmPoolAsked(rt)
+  if (!vsm || occlusionMoved || poolMoved || (short && !growEngineVsm(device, list, vsm, wanted)))
     vsm = grantEngineVsm(rt, device, list, wanted)
   else if (!short) vsm = regrowEngineVsm(rt, device, list, vsm)
   return vsm && reserveProjection(rt, device, vsm, list) ? vsm : undefined
 }
 
-/** The casters' residency changes since the last frame; the placements come to rest are their rows'
- *  (`../../../../frame/render/encodeDraws.ts`, `followShadowRows`). While the rows pass derives the shadow changes
- *  (`castsBound`), it alone appends a caster row's arrival and departure (`castRow`): the flags are
- *  followed, no box declared twice. Before — no change list made yet — a cluster that entered or
- *  left is declared here, its box joining the change list at once. */
+/** The casters' residency changes since the last frame, and the world's cells that switched between
+ *  their placements and their HLOD actors: a cluster that entered or left residency, or whose cell
+ *  now draws it or no longer does, is declared here, its box joining the change list at once (a
+ *  cluster is no instance: the diff of the instances' boxes, `castDiff.ts`, never sees it). The
+ *  placements that moved, came or went are the diff's (`followRoots`). */
 export function followCasters(rt: WebgpuPagesRuntime) {
   const { lights } = rt
-  const { rows, recordOf, selectionRoots, placement } = rt.layout
-  const rowsCast = castsBound(rt)
-  lights.residence.flush(rows.residency, (page) => {
-    if (!rowsCast)
-      noteResidenceChange(lights, selectionRoots, placement, page, recordOf(page)!, undefined, true)
-  })
+  const { clusters, recordOf, selectionRoots, placement } = rt.layout
+  lights.residence.flush(clusters.residency, (page) =>
+    noteResidenceChange(lights, selectionRoots, placement, page, recordOf(page)!, undefined, true),
+  )
+  shadowsFollowCells(rt)
 }
 
-/** Mask channels, in the plan's light order; every other light reads no shadow. */
+/** The projection record of each shadowed light, in the plan's light order (`plan.projected`): the
+ *  suns' first, their rank their layer in the suns' mask; every other light reads no shadow. */
 export function assignChannels(
   store: Lights['store'],
   vsm: Vsm,
   plan: ReturnType<typeof planVirtualShadowFrame>,
 ) {
   channels.clear()
-  for (let k = 0; k < plan.lights.length; k++) channels.set(plan.lights[k].id, k)
+  const records = Math.min(plan.projected.length, VSM_PROJECTION_MAX_PASS_LIGHTS)
+  for (let k = 0; k < records; k++) channels.set(plan.projected[k].id, k)
   // i32 words on the GPU: −1 (no map) is 0xFFFFFFFF.
   if (vsm.lightIdsData.length < store.count) vsm.lightIdsData = new Uint32Array(store.count * 2)
   vsm.lightIdsData.fill(0xffffffff)
   for (let slot = 0; slot < store.count; slot++) {
     const id = store.ids[slot],
       k = channels.get(id)
-    // `params.y` = first VSM id · 64 + mask channel (`directShadowWgsl`); past 64 shadowed
-    // lights a light reads no shadow.
-    store.assignSlice(slot, k !== undefined && k < 64 ? plan.lights[k].firstId * 64 + k : -1)
-    if (k !== undefined) vsm.lightIdsData[slot] = plan.lights[k].firstId
+    // `params.y` = the record's rank and the light's two flags (`shadowSliceOf`).
+    if (k === undefined) {
+      store.assignSlice(slot, -1)
+      continue
+    }
+    const light = plan.projected[k]
+    store.assignSlice(
+      slot,
+      shadowSliceOf(
+        k,
+        light.kind === 'directional',
+        light.entry.mapCaches[0].projectionData.finestMip >= VSM_MIPS - 1,
+      ),
+    )
+    vsm.lightIdsData[slot] = light.firstId
   }
 }

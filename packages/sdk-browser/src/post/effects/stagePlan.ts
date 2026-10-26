@@ -1,7 +1,7 @@
 import type { EffectPass, EffectStage } from '../../../../sdk-core/src/world/effect/chain.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { showsRaw } from '../../visibility/shader/shadeMode.ts'
-import { wanted as finishWanted } from '../finish/frame.ts'
+import { wanted as finishWanted } from '../finish/wanted.ts'
 import { KIND_RULES } from './kindRules.ts'
 import { readsMotion } from './kindSettings.ts'
 
@@ -50,17 +50,6 @@ export function askEffectPrograms(rt: WebgpuPagesRuntime, device: GPUDevice) {
       KIND_RULES[pass.kind].ask as
         ((pass: EffectPass, ...rest: [GPUDevice, typeof rt]) => void) | undefined
     )?.(pass, device, rt)
-}
-
-/** The smallest object, in percent of the screen, whose own motion the view's passes measure
- *  (`KIND_RULES[kind].objectSize`): the first pass of the chain's that names one, drawing or not —
- *  the view's setting —; 0, which leaves none out, where the chain holds none. */
-export function perObjectSizeOf(rt: WebgpuPagesRuntime) {
-  for (const pass of rt.context.effects?.passes ?? []) {
-    const size = KIND_RULES[pass.kind].objectSize as ((pass: EffectPass) => number) | undefined
-    if (size) return size(pass)
-  }
-  return 0
 }
 
 /** Whether the image can show the chain's passes on the lit and the resolved image: a finished one

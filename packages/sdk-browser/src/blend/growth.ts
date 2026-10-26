@@ -32,7 +32,15 @@ import { createTransparentCompaction } from './transparent/compact.ts'
 import { updateTransparentSpan } from './transparent/spans.ts'
 import { buildBlendPipelines } from '../frame/prepare/visibilitySteps.ts'
 import { prepareWebgpuBlend } from './prepare.ts'
-import { graphProgramsOf } from './pipelines.ts'
+import { graphProgramsOf } from './graphWgsl.ts'
+import {
+  cloudFogOf,
+  fogVertexOf,
+  coversTranslucentShadow,
+  translucentShadowOf,
+} from './pipelines.ts'
+import { translucencyVolumeOf } from '../materials/surface/blendLightSource.ts'
+import { readSingleLayerWaterSetting } from '../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
 import { composeItems } from '../placement/compose/gpuCompose.ts'
 import { mountBlendResources, prepareBlendKernels } from './resources.ts'
 
@@ -43,6 +51,30 @@ export function blendRefusal(rt: WebgpuPagesRuntime) {
 }
 
 const transmits = (copy: BlendCopy) => copy.surface.transmission > 0
+
+/** What the blend's programs are built over for the copies a session gains: the items it holds, and
+ *  theirs. */
+const itemsOf = (rt: WebgpuPagesRuntime, copies: readonly BlendCopy[]) => [
+  ...rt.blendState.blendGpu,
+  ...copies.map((copy) => ({ surface: copy.surface, transmissive: transmits(copy) })),
+]
+
+/** The blend programs built again over `items`, in the feedback variant in place when they land: one
+ *  swapped meanwhile — a texture came or went (`followFeedback`) — builds them again, or their
+ *  pipelines would not match the pass. None when the device refuses them. */
+async function buildGranted(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  items: ReturnType<typeof itemsOf>,
+) {
+  const { vis } = rt
+  let built: Awaited<ReturnType<typeof buildBlendPipelines>>, feedback: boolean
+  do {
+    feedback = vis.writesFeedback
+    built = await buildBlendPipelines(rt, device, items, vis.blendBindGroupLayout)
+  } while (built && feedback !== vis.writesFeedback)
+  return built
+}
 
 /**
  * The transmissive stages of a session opened without a transmissive surface, made for the first
@@ -56,18 +88,8 @@ async function grantTransmission(
   device: GPUDevice,
   copies: readonly BlendCopy[],
 ) {
-  const { vis, blendState } = rt,
-    items = [
-      ...blendState.blendGpu,
-      ...copies.map((copy) => ({ surface: copy.surface, transmissive: transmits(copy) })),
-    ]
-  // Built in the feedback variant in place when it lands: one swapped meanwhile — a texture came
-  // or went (`followFeedback`) — builds it again, or its pipelines would not match the pass.
-  let built: Awaited<ReturnType<typeof buildBlendPipelines>>, feedback: boolean
-  do {
-    feedback = vis.writesFeedback
-    built = await buildBlendPipelines(rt, device, items, vis.blendBindGroupLayout)
-  } while (built && feedback !== vis.writesFeedback)
+  const { vis } = rt
+  const built = await buildGranted(rt, device, itemsOf(rt, copies))
   if (!built?.blendPipelines.transmission) return false
   // Granted meanwhile by another source: those stages stay.
   if (vis.blendPipelines?.transmission) return true
@@ -79,6 +101,12 @@ async function grantTransmission(
  * The blend programs of a session that holds none of the graphs the copies wear, made again with
  * theirs in their modules (`graphProgramsOf`), as the transmissive stages are granted: the programs
  * a graph's functions are in are compiled for the graphs of the items the session was opened with.
+ * So are those of a session whose programs do not read the clouds per vertex, when a copy wears a
+ * material that receives the clouds in its fog (`cloudFogOf`); those that do not lay the fog per vertex, when a
+ * copy wears a surface whose fog is (`fogVertexOf`); those that do not read the
+ * translucency lighting volume, when a copy wears a material lit from it (`translucencyVolumeOf`); those
+ * without the single-layer water's stage, when a copy wears a water material; and those
+ * whose code of the shadows a surface reads lacks what a copy asks (`coversTranslucentShadow`).
  * False when the device refuses the programs.
  */
 async function grantGraphs(
@@ -86,18 +114,26 @@ async function grantGraphs(
   device: GPUDevice,
   copies: readonly BlendCopy[],
 ) {
-  const { vis, blendState } = rt,
-    items = [
-      ...blendState.blendGpu,
-      ...copies.map((copy) => ({ surface: copy.surface, transmissive: transmits(copy) })),
-    ],
+  const { vis } = rt,
+    items = itemsOf(rt, copies),
     held = new Set(vis.blendPipelines?.graphs)
-  if (graphProgramsOf(items).every((program) => held.has(program.id))) return true
-  let built: Awaited<ReturnType<typeof buildBlendPipelines>>, feedback: boolean
-  do {
-    feedback = vis.writesFeedback
-    built = await buildBlendPipelines(rt, device, items, vis.blendBindGroupLayout)
-  } while (built && feedback !== vis.writesFeedback)
+  const reads = vis.blendPipelines?.reads
+  if (
+    graphProgramsOf(items).every((program) => held.has(program.id)) &&
+    (!!reads?.clouds || !cloudFogOf(items)) &&
+    (!!reads?.fog || !fogVertexOf(items)) &&
+    (!!vis.blendPipelines?.translucencyVolume || !translucencyVolumeOf(items)) &&
+    (!!vis.blendPipelines?.water || !items.some((item) => item.surface.water)) &&
+    coversTranslucentShadow(
+      vis.blendPipelines?.translucentShadow,
+      translucentShadowOf(
+        items,
+        readSingleLayerWaterSetting(rt, 'singleLayerWaterShadersSupportVsmFiltering'),
+      ),
+    )
+  )
+    return true
+  const built = await buildGranted(rt, device, items)
   if (!built) return false
   vis.blendPipelines = built.blendPipelines
   return true
@@ -171,9 +207,9 @@ export function growBlend(
   roots: readonly ClusterRoot<PageRec>[],
   base: number,
 ) {
-  const { blendState, setup } = rt,
+  const { blendState } = rt,
     held = blendState.blendGpu.length
-  blendState.transmissive = prepareWebgpuBlend(copies, blendState, setup.scene)
+  blendState.transmissive = prepareWebgpuBlend(copies, blendState)
   const added = blendState.blendGpu.slice(held)
   // An item made on a row a parent composes reads it composed from its first image.
   composeItems(rt, added)
@@ -185,7 +221,7 @@ export function growBlend(
     // pool, as the arrival of a page would give it.
     for (let entry = first; entry < table.length; entry++) {
       const page = table.pageOfEntry[entry]
-      if (page >= 0) updateTransparentSpan(rt, page, rt.layout.rows.offsetOf(page))
+      if (page >= 0) updateTransparentSpan(rt, page, rt.layout.clusters.offsetOf(page))
     }
     blendState.compaction?.grow()
     // The identity of the entries it gained is written at the next diagnostic image.

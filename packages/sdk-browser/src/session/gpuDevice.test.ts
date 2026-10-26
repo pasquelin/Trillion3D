@@ -80,6 +80,23 @@ test('the device asks the sampled textures a stage binds: the guaranteed 16, wha
   }
 })
 
+// The shadow maps' masked patches bind nine storage buffers in the vertex stage: the device asks the
+// adapter's own count of them, as of the storage buffers a stage, and asks none from an adapter that
+// has no such limit.
+test("the device asks the adapter's own storage buffers a vertex stage, where it has the limit", async () => {
+  for (const offered of [16, 9, 8]) {
+    const { adapter, limitsAsked } = adapterOffering([], {
+      maxStorageBuffersPerShaderStage: 16,
+      maxStorageBuffersInVertexStage: offered,
+    })
+    await requestExplorerDevice(adapter, [])
+    assert.equal(limitsAsked[0].maxStorageBuffersInVertexStage, offered)
+  }
+  const { adapter, limitsAsked } = adapterOffering([], { maxStorageBuffersPerShaderStage: 16 })
+  await requestExplorerDevice(adapter, [])
+  assert.equal('maxStorageBuffersInVertexStage' in limitsAsked[0], false)
+})
+
 test('the session says which optional features its WebGPU device was granted', async () => {
   const said: [string, Record<string, unknown> | undefined][] = []
   const session = {

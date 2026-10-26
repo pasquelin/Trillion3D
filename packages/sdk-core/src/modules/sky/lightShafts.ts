@@ -5,7 +5,6 @@ import {
   numberSetting as number,
   resolveSettings,
   rulesOf,
-  type SettingOptions,
   type SettingValues,
   vectorSetting as vector,
 } from '../../contracts/settingRules.ts'
@@ -56,7 +55,6 @@ export const LIGHT_SHAFT_LIGHT_RULES = /* @__PURE__ */ (() =>
     vector('shaftBloomTint', [1, 1, 1]),
   ] as const))()
 
-export type LightShaftLightOptions = SettingOptions<typeof LIGHT_SHAFT_LIGHT_RULES>
 export type LightShaftLight = SettingValues<typeof LIGHT_SHAFT_LIGHT_RULES>
 
 /** The light's settings, each its default when the fields hold none.

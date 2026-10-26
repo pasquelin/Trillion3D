@@ -241,12 +241,20 @@
       "action": "Export the model again with standard accessor types (`SCALAR`, `VEC2`, `VEC3`, `VEC4`, `MAT4`)."
     },
     {
-      "id": "T3D-E032",
-      "code": "UNSUPPORTED_PRIMITIVE",
+      "id": "T3D-E103",
+      "code": "UNSUPPORTED_VERSION",
       "level": "error",
-      "message": "A glTF primitive is not made of triangles.",
-      "cause": "A primitive `mode` other than triangles (points, lines, strips or fans the reader does not expand).",
-      "action": "Triangulate the mesh in its authoring tool; points and lines are not drawn."
+      "message": "The glTF document is of a version the reader does not take.",
+      "cause": "An `asset.minVersion` above 2.0, or an `asset.version` below 2.0 with no `minVersion`.",
+      "action": "Export the model again as glTF 2.0."
+    },
+    {
+      "id": "T3D-E104",
+      "code": "UNSUPPORTED_EXTENSION",
+      "level": "error",
+      "message": "The glTF document requires an extension no reader implements.",
+      "cause": "An `extensionsRequired` entry outside the extensions the compiler reads; the message names them. An extension only used, not required, is counted in the import report instead.",
+      "action": "Export the model again without that extension, or with it listed in `extensionsUsed` alone."
     },
     {
       "id": "T3D-E033",
@@ -261,8 +269,8 @@
       "code": "NONFINITE_POSITION",
       "level": "error",
       "message": "A vertex position is not a finite number.",
-      "cause": "A position component that is NaN or infinite; no bounds or clusters can be built from it.",
-      "action": "Clean the mesh in its authoring tool (remove NaN or infinite vertices) and export again."
+      "cause": "A position component that is NaN or infinite, in the source or once a spline bent the mesh (the message names the node); no bounds or clusters can be built from it.",
+      "action": "Clean the mesh in its authoring tool (remove NaN or infinite vertices) and export again; for a spline mesh, give the curve a direction at both ends."
     },
     {
       "id": "T3D-E035",
@@ -321,11 +329,11 @@
       "action": "Split the mesh, or scale its UVs or attributes down to a smaller range, then compile again."
     },
     {
-      "id": "T3D-E042",
-      "code": "PAGE_VERTEX_LIMIT",
+      "id": "T3D-E102",
+      "code": "PAGE_SIZE_LIMIT",
       "level": "error",
-      "message": "A geometry page holds more than 65,535 vertices.",
-      "cause": "A page past the 16-bit vertex index its format uses.",
+      "message": "A geometry page holds more than 128 triangles or 256 vertices.",
+      "cause": "A cluster past the bounds of one page: the install pass transcodes a page in one workgroup, in shared memory sized for them.",
       "action": "Report it as a compiler bug, with the model if you can share it."
     },
     {
@@ -359,14 +367,6 @@
       "message": "The physics shape of a primitive could not be built.",
       "cause": "The native physics cook refused a primitive's collision or soft-body shape.",
       "action": "Check the mesh for degenerate or non-manifold parts, clean it, and compile again."
-    },
-    {
-      "id": "T3D-E049",
-      "code": "INVALID_CUTOUT_DECISIONS",
-      "level": "error",
-      "message": "The cutout answer sheet in the cache folder is invalid.",
-      "cause": "An answer sheet whose JSON, version or entries do not read back.",
-      "action": "Fix or delete the answer sheet (`decoupes.json`), then compile again."
     },
     {
       "id": "T3D-E050",
@@ -482,11 +482,11 @@
     },
     {
       "id": "T3D-W008",
-      "code": "light-non-positive-intensity",
+      "code": "light-negative-intensity",
       "level": "warn",
-      "message": "A light's intensity is zero, negative or not a number, so it is left out.",
-      "cause": "Intensity zero, negative or non-finite",
-      "action": "Give the light a positive intensity."
+      "message": "A light's intensity is negative or not a number, so it is left out.",
+      "cause": "Intensity negative or non-finite",
+      "action": "Give the light an intensity of zero or more."
     },
     {
       "id": "T3D-W009",
@@ -495,14 +495,6 @@
       "message": "A spot or directional light has a transform that collapses its direction, so it is left out.",
       "cause": "A `spot` or `directional` lamp whose node transform collapses its −Z axis",
       "action": "Fix the light's rotation and scale in the authoring tool."
-    },
-    {
-      "id": "T3D-I001",
-      "code": "light-emitter-radius-derived",
-      "level": "info",
-      "message": "A light's emitter radius was measured on its emissive body rather than read from the file.",
-      "cause": "Counted, not rejected: `emitterRadius` measured on the emissive body bound to the lamp, not read from the source",
-      "action": "Nothing to do; declare the radius in the file to choose it yourself."
     },
     {
       "id": "T3D-W010",
@@ -901,8 +893,16 @@
       "code": "image-depth-unsupported",
       "level": "warn",
       "message": "A texture with more than 8 bits per channel was refused, so it falls back to white.",
-      "cause": "A bit depth the `Rgba8` contract cannot carry (PNG or TIFF 16 bits per channel, DDS 16-bit codecs); refused before decoding rather than narrowed to 8 bits",
-      "action": "Save the texture at 8 bits per channel."
+      "cause": "A bit depth the `Rgba8` contract cannot carry (TIFF 16 bits per channel, DDS 16-bit codecs); refused before decoding rather than narrowed to 8 bits",
+      "action": "Save the texture at 8 bits per channel, or as a 16-bit PNG."
+    },
+    {
+      "id": "T3D-W221",
+      "code": "image-depth-reduced",
+      "level": "warn",
+      "message": "A 16-bit texture is stored at 8 bits per channel, rounded once at the end of its mip chain.",
+      "cause": "A PNG at 16 bits per channel: its mip chain is reduced from the 16-bit samples, but the atlases are `rgba8unorm` or blocks of at most eight bits, so every level is rounded to 8 bits when it is written",
+      "action": "Nothing to do unless the extra precision matters; keep the source for it."
     },
     {
       "id": "T3D-W051",
@@ -914,11 +914,11 @@
     },
     {
       "id": "T3D-W052",
-      "code": "image-float-unsupported",
+      "code": "image-float-data-unsupported",
       "level": "warn",
-      "message": "A floating-point image (OpenEXR or HDR) was used where an 8-bit image is expected.",
-      "cause": "The `RgbaF32` variant (OpenEXR, Radiance HDR) returned to an `Rgba8`-only consumer (the RGBA8 sRGB previews); refused by name rather than tone-mapped",
-      "action": "Convert the texture to an 8-bit PNG."
+      "message": "A floating-point image (OpenEXR or HDR) read as a metal-roughness, normal, occlusion or height map was not baked.",
+      "cause": "The `RgbaF32` variant (OpenEXR, Radiance HDR) is baked in the half-float atlas, which only the base colour and the emissive map read; the data atlas holds 8-bit maps, and tone-mapping the image into them would be a loss the source did not have",
+      "action": "Use the texture as a base colour or an emissive map, or convert it to an 8-bit PNG for the other slots."
     },
     {
       "id": "T3D-W053",
@@ -2177,6 +2177,54 @@
       "action": "Add the object inside the prefab itself."
     },
     {
+      "id": "T3D-W218",
+      "code": "assembly-group-not-merged",
+      "level": "warn",
+      "message": "A group of an assembly's instances climbs into no levels above them, so each draws down to its own detail.",
+      "cause": "Instances of one material and one set of attributes that no primitive of the assembly's mesh carries, and too few to be given one (a group of one), or whose parts' roots carry other attributes than the primitive that was to carry them; the import report counts the groups, the DAG report and the progress event of a carrier the instances",
+      "action": "Give the assembly's mesh a primitive of that material and those attributes, or place the part at least twice, so that its instances are merged into coarser levels far away."
+    },
+    {
+      "id": "T3D-W220",
+      "code": "assembly-not-built",
+      "level": "warn",
+      "message": "A mesh that names an assembly is drawn as its own triangles alone, because assemblies are not allowed for it.",
+      "cause": "A mesh whose `extras.assembly` names parts and nodes, in a job whose `allowAssemblies` setting for the mesh is off, which is the default; the assembly is left unread and the import report counts the meshes",
+      "action": "Turn `allowAssemblies` on for the mesh, in the job's `meshBuild` or in the mesh's extras, to build its assembly."
+    },
+    {
+      "id": "T3D-W219",
+      "code": "light-shadow-distance-invalid",
+      "level": "warn",
+      "message": "A sun's shadow distance is not usable, so it is omitted and the light kept at the default.",
+      "cause": "A directional light's `shadowDistance` extra that is neither a finite number of metres of at least 0, `true` nor `false`; the field is omitted, the light kept",
+      "action": "Give the light a distance in metres of at least 0, `false` for none, or leave `shadowDistance` out for the default."
+    },
+    {
+      "id": "T3D-W222",
+      "code": "RESPONSIVE_EXTRA_IGNORED",
+      "level": "warn",
+      "message": "A material's responsiveness extra is not usable, so the material keeps the default level.",
+      "cause": "A material's `extras.responsive` that names no responsiveness level; the extra is left unread and the report names the material",
+      "action": "Give the material one of the responsiveness levels, or leave the extra out for the default."
+    },
+    {
+      "id": "T3D-W223",
+      "code": "texture-compression-unknown",
+      "level": "warn",
+      "message": "A texture's compression setting names no known setting, so the texture is cooked with the default one.",
+      "cause": "A texture setting whose compression name is not in the list; the texture is cooked as `default`",
+      "action": "Use one of the listed compression settings, or leave the setting out for the default."
+    },
+    {
+      "id": "T3D-W224",
+      "code": "texture-compression-float-data-unsupported",
+      "level": "warn",
+      "message": "A data map cannot be cooked as floating point, so the texture is cooked with the default setting.",
+      "cause": "A texture setting that asks a data map (not a colour) for a floating-point compression; the texture is cooked as `default`",
+      "action": "Ask a floating-point compression only for a colour texture, or give the data map another setting."
+    },
+    {
       "id": "T3D-I015",
       "code": "unity-prefab-modification-ignored",
       "level": "info",
@@ -2257,20 +2305,12 @@
       "action": "Fix what the warnings say, or run without `--strict`."
     },
     {
-      "id": "T3D-E088",
-      "code": "CUTOUT_SHEET_INVALID",
-      "level": "error",
-      "message": "The cutout answer sheet is not one this version reads.",
-      "cause": "The sheet file is not an answer sheet, or declares another version.",
-      "action": "Delete the answer sheet in the cache folder and compile again to write a new one."
-    },
-    {
       "id": "T3D-E089",
       "code": "PNG_UNSUPPORTED",
       "level": "error",
       "message": "A PNG image is not a whole 8-bit, non-interlaced file of a colour type the reader takes.",
-      "cause": "The Node adapter's PNG reader (cutout previews, reference images, the bench's textures) reads 8-bit grey, grey with alpha, RGB, palette and RGBA, non-interlaced PNG files only, every row present.",
-      "action": "Save the image again as 8-bit RGBA without interlacing; for a cutout preview, delete the cache folder's cutout previews and compile again."
+      "cause": "The Node adapter's PNG reader (reference images, the bench's textures) reads 8-bit grey, grey with alpha, RGB, palette and RGBA, non-interlaced PNG files only, every row present.",
+      "action": "Save the image again as 8-bit RGBA without interlacing."
     },
     {
       "id": "T3D-E090",
@@ -2359,6 +2399,38 @@
       "message": "The volumetric lightmap could not be encoded.",
       "cause": "The baked bricks do not fit the lightmap's layout: an atlas that is not whole padded bricks, an empty volume or a layout past a byte, bounds that are not a box; the message names which.",
       "action": "Report it as a compiler bug, with the model if you can share it."
+    },
+    {
+      "id": "T3D-E101",
+      "code": "NONFINITE_ATTRIBUTE",
+      "level": "error",
+      "message": "A vertex attribute is not a finite number.",
+      "cause": "A normal, tangent, texture coordinate or colour component that is NaN or infinite, in the source or once a spline bent the mesh (the message names the attribute, and the node for a spline).",
+      "action": "Clean the mesh in its authoring tool (remove NaN or infinite values) and export again."
+    },
+    {
+      "id": "T3D-W225",
+      "code": "gltf-specular-color-not-drawn",
+      "level": "warn",
+      "message": "A material's specular colour is not drawn.",
+      "cause": "A glTF material declares `KHR_materials_specular` with a `specularColorFactor` other than white or a `specularColorTexture`; the engine's dielectric reflectance takes no colour, so the file keeps it and the image does not show it.",
+      "action": "Bake the tint into the base colour, or accept the neutral reflection of the dielectric."
+    },
+    {
+      "id": "T3D-W226",
+      "code": "gltf-iridescence-not-drawn",
+      "level": "warn",
+      "message": "A material's iridescence is not drawn.",
+      "cause": "A glTF material declares `KHR_materials_iridescence` with a factor above zero or a texture; the engine has no thin-film lobe, so the file keeps the values and the image does not show them.",
+      "action": "Bake the colour shift into the base colour, or accept the plain surface."
+    },
+    {
+      "id": "T3D-W227",
+      "code": "gltf-sheen-dropped",
+      "level": "warn",
+      "message": "A material's sheen was dropped because its coat or its transmission takes the surface first.",
+      "cause": "A glTF material declares `KHR_materials_sheen` beside `KHR_materials_clearcoat` or `KHR_materials_transmission`: the surface has one shading model, and the transmission, then the coat, win over the cloth.",
+      "action": "Keep either the sheen or the coat and the transmission on one material."
     }
   ]
 }

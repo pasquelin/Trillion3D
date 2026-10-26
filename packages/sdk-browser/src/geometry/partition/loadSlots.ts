@@ -5,7 +5,8 @@
  * At most `maxLoadingCells` load at once, none held back when it is 0 or less: one wished keeps
  * loading while its reads are not done — an HLOD cell's actors', the actors always loaded of a
  * level —, or while a file of an HLOD 0 cell is not placed, and the next in order starts as one
- * ends; the initial load holds none back. Each cell that starts takes a turn, and its reads ask by
+ * ends; the initial load holds none back, nor does a load that blocks on slow streaming
+ * (`slowStreaming.ts`). Each cell that starts takes a turn, and its reads ask by
  * it (`priorityOf`): files and HLOD actors alike, in that one order. The cells not started are
  * ranked again at each frame; one loading keeps its turn, its reads, asked as it started, staying
  * where they were asked.
@@ -21,8 +22,8 @@ import { loadsBefore, type LoadingCell } from './loadOrder.ts'
  * The cells loading at once under `streaming` for a partition of `scheme`: each frame (`admit`),
  * of the cells wished and not loaded, those loading go on, and the next in load order
  * (`loadsBefore`) start while room is left — `maxLoadingCells` less the cells loading, none held
- * back during the initial load nor when `maxLoadingCells` is 0 or less. A cell always loaded
- * starts only while room is left, and takes none. A cell left without a slot is `queued`: the
+ * back during the initial load, while a load blocks, nor when `maxLoadingCells` is 0 or less. A
+ * cell always loaded starts only while room is left, and takes none. A cell left without a slot is `queued`: the
  * frame asks to be run again. The cells loading are kept in the order they started (`loading`),
  * each with the turn it took (`priorityOf`): the reads of each are asked by it, the queue serving
  * them in that order.
@@ -35,15 +36,16 @@ export function createLoadSlots(streaming: WorldStreaming, scheme: PartitionSche
   const order = loadsBefore(streaming, scheme)
   return {
     /** The frame's cells `waiting` — wished, not loaded —, loading or not, sorted in place;
-     *  `initial`, the initial load, holds none back. A cell no longer waiting — loaded, or wished
-     *  no more — frees its slot. */
-    admit(waiting: LoadingCell[], initial: boolean) {
+     *  `unbounded`, the initial load or a load that blocks, holds none back. A cell no longer
+     *  waiting — loaded, or wished no more — frees its slot. */
+    admit(waiting: LoadingCell[], unbounded: boolean) {
       wished.clear()
       for (const cell of waiting) wished.add(cell.key)
       for (const key of loading.keys()) if (!wished.has(key)) loading.delete(key)
       // The turns count from none again once nothing loads: the reads asked by one are done.
       if (!loading.size) turns = 0
-      const limit = initial || streaming.maxLoadingCells <= 0 ? Infinity : streaming.maxLoadingCells
+      const limit =
+        unbounded || streaming.maxLoadingCells <= 0 ? Infinity : streaming.maxLoadingCells
       let room = limit - loading.size
       if (room <= 0) return
       waiting.sort(order)

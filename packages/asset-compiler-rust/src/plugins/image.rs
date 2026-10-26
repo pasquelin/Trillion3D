@@ -65,6 +65,12 @@ pub(super) fn word(bytes: &[u8], at: usize) -> u32 {
         .expect("a header field inside the length that was checked")
 }
 
+/// Bytes the floating-point mip chain of an image of `pixels` texels holds beyond its decoded
+/// pixels (`texture/hdr.rs`), for the drivers of the wide formats.
+fn wide_chain_bytes(pixels: usize) -> usize {
+    pixels.saturating_mul(crate::texture::hdr::CHAIN_BYTES_PER_PIXEL)
+}
+
 /// Bytes of a `width` × `height` surface of uncompressed pixels, `per_pixel` bytes each.
 /// `saturating_mul` keeps a lying dimension honest, where an overflowing multiply would let it
 /// through: absurd dimensions give an absurd need, hence a refusal.
@@ -119,6 +125,12 @@ pub trait ImageDecoder: Plugin + Sync {
         let extension = self.extensions().first().ok_or("image-format-unknown")?;
         let format = image::ImageFormat::from_extension(extension).ok_or("image-format-unknown")?;
         crate_image::dimensions(bytes, format, None)
+    }
+    /// Bytes the mip chain of this image holds beyond the decoded pixels, in floating point
+    /// (`texture/hdr.rs`, `reduce::chain_wide`), for an image of `pixels` texels: what admission
+    /// adds to its working set. None for an image stored at eight bits or fewer.
+    fn chain_bytes(&self, _bytes: &[u8], _pixels: usize) -> usize {
+        0
     }
     /// Expanded container payload held alongside pixels, before any codec runs.
     fn expanded_payload_bytes(&self, _bytes: &[u8]) -> std::result::Result<usize, &'static str> {

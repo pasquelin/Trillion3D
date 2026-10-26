@@ -29,12 +29,9 @@ export const VIEW_RUN_KEYS = [
   'lastCamera',
   'desired',
   'shown',
-  'drawn',
-  // The packed rank of each page of the three lists above, parallel to them.
+  // The packed rank of each page of the two lists above, parallel to them.
   'desiredPacked',
   'shownPacked',
-  'drawnPacked',
-  'drawnMirrorsShown',
   'noOccluderHistory',
   'cutHeld',
   'gpuMetricsReady',
@@ -60,9 +57,11 @@ export const TARGET_GPU_KEYS = [
   'hdrView',
   'displayTexture',
   'displayView',
+  'canvasOnly',
   'feedbackTexture',
   'feedbackView',
   'backdrop',
+  'translucency',
   'reflection',
   'surfaces',
   'targetSize',
@@ -89,8 +88,15 @@ export const VIEW_GPU_KEYS = [
   'velocity',
   'screenProbes',
   'ambientOcclusion',
+  'subsurface',
   // The fog's volume and its history, which follow the camera of the view that built them.
   'fogVolume',
+  // The translucency lighting volume and its history, which follow the camera of the view that built them.
+  'translucencyVolume',
+  // The translucency global illumination volume and its history, which follow the camera of the view that built them.
+  'translucencyGi',
+  // The lists of the local fog volumes, made for the view's tiles.
+  'localFog',
   // The light shafts' histories, which follow the camera of the view that drew them.
   'lightShafts',
   // The canvas the view presents into: the main view's, or one of its own (`./persistentView.ts`).

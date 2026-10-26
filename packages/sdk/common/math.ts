@@ -55,6 +55,7 @@ export {
   frustumFarPlane,
   frustumPlanesFromMatrix,
 } from '../../math/src/geometry/frustum/frustum.ts'
+export type { ColorInput } from '../../sdk-core/src/world/math/color.ts'
 export { composeMatrix4, composeMatrix4Batch } from '../../math/src/matrix/matrix4Compose.ts'
 export {
   copyMatrix4,
@@ -113,3 +114,5 @@ export {
   transformPointsBatch,
   transformPointsByMatricesBatch,
 } from '../../math/src/batch/points.ts'
+export type { Vec3Input } from '../../sdk-core/src/world/math/vector3.ts'
+export type { XYZLike } from '../../sdk-core/src/world/math/likes.ts'

@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { createGraphFrame } from '../../frame/render/graphFrame.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { ensureWebgpuVisibilityBindings } from './bindings.ts'
 import { ensureWebgpuShadeBindings } from '../../gpu/bind/shadeBindings.ts'
@@ -24,7 +25,6 @@ function mount() {
     pageTable: {},
     visUniform: {},
     shadeUniform: {},
-    shadeCache: { buffer: {} },
     voxelSteps: { buffer: {} },
     zeroRows: {},
     textures: { color: { views, pages }, data: { views: dataViews, pages } },
@@ -34,12 +34,13 @@ function mount() {
     visIdentity: createWebgpuBindIdentity(),
     shadeIdentity: createWebgpuBindIdentity(),
     materialTable: createMaterialTable(),
+    graphFrame: createGraphFrame(),
   }
   // The device the visibility groups send the material records up with, before they name them.
   const gpu = {
     device,
     cache: { buffer: {} },
-    surfaces: { subsurfaceView: {}, receiverView: {}, lobesView: {} },
+    surfaces: { subsurfaceView: {}, lobesView: {} },
   }
   const rt = { vis, gpu, run: {} } as unknown as WebgpuPagesRuntime
   const ensure = () => {
@@ -99,10 +100,10 @@ test('atlas entries alone govern table and individual lane invalidation; stable 
   )
 })
 
-test('indirect groups follow buffer changes inside the same draw owner', () => {
+test('indirect groups follow buffer changes inside the same bins', () => {
   const { rt, device, ensure } = mount()
-  const draw = { instanceBuffer: {}, groupsBuffer: {} }
-  Object.assign(rt.vis, { gpuDraw: draw })
+  const draw = { instanceBuffer: {}, slotOffsetBuffer: {} }
+  Object.assign(rt.vis, { gpuBins: draw })
   ensure()
   const first = visGroupFor(rt, device, 0)
   assert.equal(visGroupFor(rt, device, 0), first)
@@ -110,7 +111,7 @@ test('indirect groups follow buffer changes inside the same draw owner', () => {
   ensure()
   const second = visGroupFor(rt, device, 0)
   assert.notEqual(second, first)
-  draw.groupsBuffer = {}
+  draw.slotOffsetBuffer = {}
   ensure()
   assert.notEqual(visGroupFor(rt, device, 0), second)
 })

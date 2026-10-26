@@ -6,6 +6,7 @@ import { traceGpuCutFrame, traceGpuCutWaiting } from './gpuCutTrace.ts'
 import { submitColorCopy } from './encoder.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { createResidentSurfaces } from '../../geometry/clusters/surfaces.ts'
 
 /** The runtime slice the trace sites read, counting the records they emit. */
 function runtime(traceEnabled: boolean) {
@@ -18,14 +19,14 @@ function runtime(traceEnabled: boolean) {
         if (typeof details === 'function') details()
       },
     },
-    run: { frame: 1, imageRevision: 0, desired: [], drawn: [], shown: [], gpuDrawCalls: 0 },
+    run: { frame: 1, imageRevision: 0, desired: [], shown: [], gpuDrawCalls: 0 },
     setup: {
       tracking: { traceSet: () => ({}), traceRecs: () => ({}) },
       bootstrap: [],
       bootstrapKey: new Uint8Array(64),
       slots: 4,
     },
-    layout: { rows: { packedRecs: [], packedCount: 0, candidateCount: 0 } },
+    layout: { clusters: { surfaces: createResidentSurfaces(), candidateCount: 0 } },
     services: {
       residency: { items: [], job: null },
       bootstrapState: { ready: true },

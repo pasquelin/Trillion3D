@@ -1,4 +1,4 @@
-import { standInTexture } from '../../gpu/core/standInTexture.ts'
+import { standInTexture } from '../../gpu/core/standIns.ts'
 import { ATLAS_TEXTURE_FORMAT } from './layout.ts'
 
 /**

@@ -63,15 +63,11 @@ fn linked_images(
 /// Cache key: identity of the source, of the resources it consumes, and the
 /// options that decide the product. A consumer that reuses by this key finds the
 /// same bytes. `image_root` is the root where relative image URIs resolve, named
-/// by the router; `shas` the fingerprint of each image. `cutouts` is what an answer has REALLY changed in the scene:
-/// bindings reclassified as cutout, which change how their primitives are ranked
-/// and therefore the product bytes. An answer with no effect — "glass", refusal,
-/// a texture the scene does not use — does not move the key.
+/// by the router; `shas` the fingerprint of each image.
 pub(crate) fn cache_key(
     o: &Options,
     loaded: &RuntimeSource,
     (image_root, shas): (&Path, &crate::texture::source::ImageShas),
-    cutouts: &[Value],
 ) -> Result<String> {
     let source = hash(&serde_json::to_vec(&stable(&loaded.manifest))?);
     let images = linked_images(&loaded.g, image_root, shas);
@@ -83,7 +79,7 @@ pub(crate) fn cache_key(
         "resourceBase":o.resource_base,"simplification":o.simplification,
         "textureFormats":o.texture_formats.iter().map(|f| f.name()).collect::<Vec<_>>(),
         "hlod":o.hlod.as_ref().map_or(Value::Null, |hlod| hlod.named.clone()),
-        "errorModel":DAG_ERROR_MODEL,"cutouts":cutouts,
+        "errorModel":DAG_ERROR_MODEL,
     });
     // The material settings, only when the job names some: a job naming none keeps its key.
     if let Some(named) = o

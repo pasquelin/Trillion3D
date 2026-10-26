@@ -9,10 +9,10 @@ import { locationOf, type PageLocations } from '../selection/placements.ts'
 import type { PageSurface } from './surface.ts'
 import { rasterTriangle, type RasterTarget } from './rasterFill.fixture.ts'
 import { RASTER_BACKGROUND } from './raster.ts'
-import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts'
+import { resolveCameraWorld, type ViewCamera } from '../../camera/world.ts'
 
 /** A host camera with the projection it composed itself, in its own depth convention. */
-type ProjectedCamera = HostCamera & { readonly projectionMatrix: MatrixElements }
+type ProjectedCamera = ViewCamera & { readonly projectionMatrix: MatrixElements }
 
 /** Opaque image used before the first WebGPU readback and after every resize. */
 export function opaqueBackgroundRgba(

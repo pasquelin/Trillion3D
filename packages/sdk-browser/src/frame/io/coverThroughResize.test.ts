@@ -1,13 +1,13 @@
-// #1483: a pool resized under a view whose rows are full copies the root cover elsewhere; its rows
-// follow the copy at once, so the cover never leaves residency and no image goes empty while the
-// cut asks for, and the table grows to, the finer clusters.
+// #1483: a pool resized under a view copies the root cover elsewhere; its records follow the copy at
+// once, so the cover never leaves residency and no image goes empty while the cut asks for the
+// finer clusters.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setWebgpuMemoryBudgets } from './memory.ts'
 import { coarseSession } from './memoryGrowth.fixture.ts'
 import { createPageCatalogue } from '../../geometry/selection/catalogue.ts'
 
-test('the root cover draws through a pool resize and the row growth that follows', async () => {
+test('the root cover draws through a pool resize and the growth that follows', async () => {
   const { rt, draw, drawn, dispose } = await coarseSession()
   try {
     const { layout } = rt
@@ -23,11 +23,10 @@ test('the root cover draws through a pool resize and the row growth that follows
       'the cover is in the catalogue',
     )
     assert.deepEqual(drawn(), ['3'])
-    layout.viewRows = 1
     await setWebgpuMemoryBudgets(rt, { geometryPoolBytes: 1 << 20 })
     await draw(1)
-    const flags = () => cover.map((page) => layout.rows.residentFlag(page))
-    assert.deepEqual(flags(), [1], 'the cover stays resident, its row at its new place')
+    const flags = () => cover.map((page) => layout.clusters.residentFlag(page))
+    assert.deepEqual(flags(), [1], 'the cover stays resident, its record at its new place')
     assert.ok(drawn().length > 0, 'the first image after the resize draws')
     for (let image = 1; image < 4; image++) {
       await draw(1)
@@ -35,7 +34,7 @@ test('the root cover draws through a pool resize and the row growth that follows
     }
     await layout.growing
     await draw(2)
-    assert.deepEqual(drawn().sort(), ['0', '1'], 'the finer clusters, each on its row')
+    assert.deepEqual(drawn().sort(), ['0', '1'], 'the finer clusters')
   } finally {
     dispose()
   }

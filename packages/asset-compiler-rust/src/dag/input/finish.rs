@@ -15,9 +15,7 @@ use super::{Built, FORWARD, UP};
 use crate::dag::{DagAttributes, Grown};
 use crate::simplify::{Attribute as Weighed, Corrected, Role};
 use trillion3d_page_codec::encode::Attribute;
-use trillion3d_page_codec::{
-    FLAG_COLOR, FLAG_NORMAL, FLAG_SKIN, FLAG_TANGENT, FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3,
-};
+use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_SKIN, FLAG_TANGENT, UV_MASK};
 
 /// The largest position coordinate the build keeps, in metres: ten million kilometres.
 const MOST_COORDINATE: f32 = 1e10;
@@ -104,7 +102,7 @@ fn hold(positions: &mut [f32], carried: &mut [Attribute]) {
                 FLAG_COLOR => v
                     .iter_mut()
                     .for_each(|c| *c = within_or(*c, (0.0, 1.0), 1.0)),
-                FLAG_UV | FLAG_UV1 | FLAG_UV2 | FLAG_UV3 => {
+                flag if flag & UV_MASK != 0 => {
                     v.iter_mut().for_each(|c| *c = within_or(*c, range, 0.0))
                 }
                 FLAG_SKIN => v

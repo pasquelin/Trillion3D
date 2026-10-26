@@ -1,10 +1,5 @@
-//! Diffuse albedo of a glTF material, in linear, shared by the proxy and the oracle.
-//!
-//! Both read the same material and must draw exactly the same colour from it: if
-//! one counted metal and the other did not, the oracle comparison would measure
-//! two material reads instead of light transport. Only a texture average separates
-//! them — the proxy reads it in the preview the compiler already reduced, the
-//! oracle remakes it on the source image — and the caller supplies it.
+//! Diffuse albedo of a glTF material, in linear, as the oracle reads it: the material's
+//! factors times the mean of its base-colour texture, which the caller supplies.
 use crate::compiler::materials::MaterialFactors;
 use serde_json::Value;
 use std::collections::BTreeMap;

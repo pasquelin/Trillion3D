@@ -11,7 +11,7 @@ import { multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { clampLowWins } from '../../../../../math/src/scalar/reals.ts'
 import type { VsmFrameLight } from './frameSetup.ts'
 
-/** Relative room above what the lighting's f32 range test (`directIncidence`, `distance>=range`)
+/** Relative room above what the lighting's f32 range test (`lampReach`, `distance>=range`)
  *  and the light's f32 position round: a few roundings of 2⁻²⁴ each, far below 2⁻¹⁶. */
 const F32_ROOM = 2 ** -16
 const seenClip = new Float64Array(16)
@@ -39,7 +39,7 @@ export function vsmSeenPlanes(
 
 /** Whether a point within `planes` (`vsmSeenPlanes`) can be in reach of `light`: always for a
  *  sun; for a local light, unless its sphere lies wholly behind one plane. The lighting gives a
- *  point out of range exactly zero before any shadow read (`directIncidence`). */
+ *  point out of range exactly zero before any shadow read (`lampSeen`). */
 export function vsmLightSeen(light: SceneLight, planes: Float64Array) {
   if (light.kind === 'directional' || !light.position || !light.range) return true
   const [x, y, z] = light.position
@@ -48,7 +48,7 @@ export function vsmLightSeen(light: SceneLight, planes: Float64Array) {
   return !frustumExcludesSphere(planes, x, y, z, reach)
 }
 
-/** Whether the frame shadows `l`: it casts, and a lit point of the frame is in reach of it
- *  (`vsmLightSeen`). What the maps, their tables and the mask are sized by: the view's lights,
+/** Whether the frame shadows `l`: it casts, a lit point of the frame is in reach of it
+ *  (`vsmLightSeen`) and, a local light, its gates let it (`vsmLocalShadowGate`). What the maps, their tables and the mask are sized by: the view's lights,
  *  never the world's. */
 export const vsmShadowed = (l: VsmFrameLight) => l.light.castsShadow && (l.visible ?? true)

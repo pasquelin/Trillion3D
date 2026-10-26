@@ -5,13 +5,15 @@
 //!   packages/sdk-core/src/contracts/hlodApproximationAbi.ts
 //!   packages/sdk-core/src/contracts/hlodLayerAbi.ts
 //!   packages/sdk-core/src/contracts/materialAbi.ts
-//!   packages/sdk-core/src/contracts/meshBuildAbi.ts
-//!   packages/sdk-core/src/contracts/objectAbi.ts
 //!   packages/sdk-core/src/contracts/partitionAbi.ts
-//!   packages/sdk-core/src/contracts/partitionGridOptions.ts
+//!   packages/sdk-core/src/contracts/partitionGridRules.ts
 //!   packages/sdk-core/src/contracts/partitionOptions.ts
 //!   packages/sdk-core/src/lod/policy.ts
+//!   packages/sdk-core/src/scene/light/contracts.ts
 //! Edit the source, then run `pnpm run generate:shared-rules`.
+
+mod meshes;
+pub use meshes::*;
 
 /// Cache format this compiler writes (`base.ts` documents each format's change).
 pub const FORMAT_VERSION: u32 = 11;
@@ -28,6 +30,11 @@ pub const MIN_RAM_BUDGET_MB: usize = 64;
 /// The screen error, in pixels, a view's cut is held to when its host names none: the distance
 /// at which a cut draws a cluster.
 pub const DEFAULT_PIXEL_ERROR: f64 = 1.0;
+/// The widest half-angle of a spot's cone and the least gap of its outer cone over its inner one,
+/// in radians: the engine's own (`SceneLight` contract, `LIGHT_SETTINGS`), as the baked
+/// lights and the runtime read them.
+pub const SPOT_CONE_LIMIT: f64 = 1.551597705022959;
+pub const SPOT_CONE_GAP: f64 = 0.001;
 /// The scopes a job may name.
 pub const SCOPES: [&str; 2] = ["slice", "full"];
 /// How meshes may be simplified; the first is the default.
@@ -111,22 +118,17 @@ pub const TEMPORAL_AA_OPTION: &str = "--temporal-antialiasing=";
 pub const TEMPORAL_AA_LEVELS: [&str; 5] = ["off", "low", "medium", "high", "max"];
 pub const DEFAULT_TEMPORAL_AA_LEVEL: &str = "max";
 /// The job fields naming the responsive objects and setting materials by name, the command
-/// line's flags holding them as JSON, the keys of a glTF material's `extras` naming its history
-/// share and asking for a responsive history, the named history shares, and the settings a
-/// material may name.
+/// line's flags holding them as JSON, the key of a glTF material's `extras` naming its
+/// responsiveness, the levels of a material's responsiveness, `off` first, and the one `true`
+/// names, and the settings a material may name.
 pub const RESPONSIVE_FIELD: &str = "responsive";
 pub const RESPONSIVE_OPTION: &str = "--responsive=";
 pub const MATERIALS_FIELD: &str = "materials";
 pub const MATERIALS_OPTION: &str = "--materials=";
 pub const RESPONSIVE_EXTRA: &str = "responsive";
-pub const TEMPORAL_AA_EXTRA: &str = "temporalAntialiasing";
-pub const TEMPORAL_AA_SHARES: [(&str, f64); 4] = [
-    ("normal", 1.00),
-    ("responsive", 0.75),
-    ("soft", 0.50),
-    ("off", 0.00),
-];
-pub const MATERIAL_SETTINGS: [&str; 2] = ["temporalAntialiasing", "responsive"];
+pub const RESPONSIVE_LEVELS: [&str; 3] = ["off", "medium", "full"];
+pub const DEFAULT_RESPONSIVE_LEVEL: &str = "full";
+pub const MATERIAL_SETTINGS: [&str; 1] = ["responsive"];
 /// The job field naming the voxelized objects, the command line's flag holding it as JSON, and the
 /// key of a glTF mesh's `extras` asking for voxels.
 pub const VOXELIZE_FIELD: &str = "voxelize";
@@ -147,7 +149,7 @@ pub const DEFAULT_DISPLACEMENT_FADE_END: f64 = 1.0;
 /// priority may be.
 pub const PARTITION_GRID_FIELD: &str = "partitionGrid";
 pub const PARTITION_GRID_OPTION: &str = "--partition-grid=";
-pub const PARTITION_GRID_SETTINGS: [&str; 11] = [
+pub const PARTITION_GRID_SETTINGS: [&str; 12] = [
     "cellSize",
     "loadingRange",
     "priority",
@@ -156,6 +158,7 @@ pub const PARTITION_GRID_SETTINGS: [&str; 11] = [
     "streamBounds",
     "flat",
     "hlodGrids",
+    "hlodLayers",
     "nestedLevels",
     "pullCoarser",
     "smallByCentre",
@@ -166,8 +169,7 @@ pub const DEFAULT_PARTITION_PRIORITY: u32 = 0;
 pub const MAX_PARTITION_PRIORITY: u32 = 4294967295;
 pub const DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING: bool = false;
 /// The job field naming several streaming grids, the command line's flag holding it as JSON, the
-/// key of a grid's name in it, the characters it may not hold and the first grid's name when it
-/// names none, the reference's.
+/// key of a grid's name, the characters it may not hold, and the first grid's default name.
 pub const PARTITION_GRIDS_FIELD: &str = "partitionGrids";
 pub const PARTITION_GRIDS_OPTION: &str = "--partition-grids=";
 pub const PARTITION_GRID_NAME_KEY: &str = "name";
@@ -181,156 +183,12 @@ pub const PARTITION_SCHEMES: [&str; 2] = ["hashSet", "spatialHash"];
 pub const DEFAULT_PARTITION_SCHEME: &str = "hashSet";
 /// Each scheme's own settings of the main grid, the bounds a loose cell may stream by, an HLOD
 /// level's grid settings, and the defaults of a world the reference creates.
-pub const HASH_SET_GRID_SETTINGS: [&str; 3] = ["streamBounds", "flat", "hlodGrids"];
+pub const HASH_SET_GRID_SETTINGS: [&str; 4] = ["streamBounds", "flat", "hlodGrids", "hlodLayers"];
 pub const SPATIAL_HASH_GRID_SETTINGS: [&str; 3] = ["nestedLevels", "pullCoarser", "smallByCentre"];
 pub const PARTITION_STREAM_BOUNDS: [&str; 3] = ["content", "cell", "clipped"];
-pub const DEFAULT_PARTITION_STREAM_BOUNDS: &str = "content";
+pub const DEFAULT_PARTITION_STREAM_BOUNDS: &str = "clipped";
 pub const DEFAULT_PARTITION_FLAT: bool = true;
 pub const PARTITION_HLOD_GRID_SETTINGS: [&str; 2] = ["cellSize", "loadingRange"];
-pub const DEFAULT_PARTITION_NESTED_LEVELS: bool = false;
-pub const DEFAULT_PARTITION_PULL_COARSER: bool = false;
+pub const DEFAULT_PARTITION_NESTED_LEVELS: bool = true;
+pub const DEFAULT_PARTITION_PULL_COARSER: bool = true;
 pub const DEFAULT_PARTITION_SMALL_BY_CENTRE: bool = true;
-/// The job field setting how each mesh is built, the command line's flag holding it as JSON, the
-/// key of its rules by object, its settings — each also the key of a glTF mesh's `extras` naming
-/// it — and their defaults, the reference's.
-pub const MESH_BUILD_FIELD: &str = "meshBuild";
-pub const MESH_BUILD_OPTION: &str = "--mesh-build=";
-pub const MESH_BUILD_OBJECTS: &str = "objects";
-pub const STORED_TANGENTS_SETTING: &str = "storedTangents";
-pub const KEPT_TRIANGLES_SETTING: &str = "keptTriangles";
-pub const TRIMMED_ERROR_SETTING: &str = "trimmedError";
-pub const DROP_NEAR_COLLAPSED_SETTING: &str = "dropNearCollapsed";
-pub const ALWAYS_RESIDENT_SETTING: &str = "alwaysResidentKib";
-pub const RECOMPUTE_NORMALS_SETTING: &str = "recomputeNormals";
-pub const RECOMPUTE_TANGENTS_SETTING: &str = "recomputeTangents";
-pub const MIKK_TSPACE_SETTING: &str = "useMikkTSpace";
-pub const WEIGHTED_NORMALS_SETTING: &str = "computeWeightedNormals";
-pub const SKINNED_WELD_POSITION_SETTING: &str = "skinnedWeldPosition";
-pub const SKINNED_WELD_NORMAL_SETTING: &str = "skinnedWeldNormal";
-pub const SKINNED_WELD_TEXTURE_SETTING: &str = "skinnedWeldTexture";
-pub const VOXEL_RAYS_SETTING: &str = "voxelRays";
-pub const VOXEL_LEVEL_SETTING: &str = "voxelLevel";
-pub const VOXEL_BACK_UP_SETTING: &str = "voxelBackUp";
-pub const VOXEL_SEPARABLE_SETTING: &str = "voxelSeparable";
-pub const VOXEL_NDF_SETTING: &str = "voxelNdf";
-pub const VOXEL_OPACITY_SETTING: &str = "voxelOpacity";
-pub const ALLOW_ASSEMBLIES_SETTING: &str = "allowAssemblies";
-pub const POSITION_PRECISION_SETTING: &str = "positionPrecision";
-pub const NORMAL_PRECISION_SETTING: &str = "normalPrecision";
-pub const TANGENT_PRECISION_SETTING: &str = "tangentPrecision";
-pub const MESH_BUILD_SETTINGS: [&str; 30] = [
-    "storedTangents",
-    "keptTriangles",
-    "trimmedError",
-    "dropNearCollapsed",
-    "alwaysResidentKib",
-    "recomputeNormals",
-    "recomputeTangents",
-    "useMikkTSpace",
-    "computeWeightedNormals",
-    "skinnedWeldPosition",
-    "skinnedWeldNormal",
-    "skinnedWeldTexture",
-    "voxelRays",
-    "voxelLevel",
-    "voxelBackUp",
-    "voxelSeparable",
-    "voxelNdf",
-    "voxelOpacity",
-    "allowAssemblies",
-    "distanceField",
-    "distanceFieldScale",
-    "distanceFieldTwoSided",
-    "distanceFieldDensity",
-    "distanceFieldMaxResolution",
-    "displacementMaps",
-    "displacementUvChannel",
-    "displacementEdgeSplit",
-    "positionPrecision",
-    "normalPrecision",
-    "tangentPrecision",
-];
-pub const DEFAULT_STORED_TANGENTS: bool = false;
-pub const DEFAULT_KEPT_TRIANGLES: f64 = 1.0;
-pub const DEFAULT_TRIMMED_ERROR: f64 = 0.0;
-pub const DEFAULT_DROP_NEAR_COLLAPSED: bool = false;
-pub const DEFAULT_ALWAYS_RESIDENT_KIB: u32 = 0;
-pub const MAX_ALWAYS_RESIDENT_KIB: u32 = 4294967295;
-pub const DEFAULT_RECOMPUTE_NORMALS: bool = true;
-pub const DEFAULT_RECOMPUTE_TANGENTS: bool = true;
-pub const DEFAULT_MIKK_TSPACE: bool = true;
-pub const DEFAULT_WEIGHTED_NORMALS: bool = false;
-pub const DEFAULT_SKINNED_WELD_POSITION: f64 = 2e-7;
-pub const DEFAULT_SKINNED_WELD_NORMAL: f64 = 0.00002;
-pub const DEFAULT_SKINNED_WELD_TEXTURE: f64 = 0.0009765625;
-/// How a voxelized mesh's voxels are sampled: the defaults, the reference's, and the rays a voxel
-/// casts at most, the packet they are cast in, and the count below which a voxel no ray hit is
-/// sampled again a level up.
-pub const DEFAULT_VOXEL_RAYS: u32 = 64;
-pub const DEFAULT_VOXEL_LEVEL: i32 = 0;
-pub const DEFAULT_VOXEL_BACK_UP: f64 = 0.0;
-pub const DEFAULT_VOXEL_SEPARABLE: bool = false;
-pub const DEFAULT_VOXEL_NDF: bool = true;
-pub const DEFAULT_VOXEL_OPACITY: bool = false;
-pub const DEFAULT_ALLOW_ASSEMBLIES: bool = false;
-pub const MAX_VOXEL_RAYS: u32 = 1024;
-pub const VOXEL_RAY_PACKET: u32 = 16;
-pub const VOXEL_REMEMBER_BELOW_RAYS: u32 = 32;
-/// How a mesh keeps its shape as its DAG is built — the keys of a glTF mesh's `extras` bounding
-/// its edges and holding its texture coordinates, and their defaults, the reference's —, and the
-/// settings a merged HLOD layer's `meshBuild` names for its actors' meshes, with the shapes it
-/// may keep.
-pub const EDGE_LENGTH_SETTING: &str = "edgeLengthBound";
-pub const HOLD_TEXTURE_SETTING: &str = "holdTextureCoordinates";
-pub const DEFAULT_EDGE_LENGTH_BOUND: f64 = 0.0;
-pub const DEFAULT_HOLD_TEXTURE: bool = false;
-pub const HLOD_MESH_BUILD_SETTINGS: [&str; 7] = [
-    "keptTriangles",
-    "trimmedError",
-    "dropNearCollapsed",
-    "alwaysResidentKib",
-    "shapePreservation",
-    "edgeLengthBound",
-    "holdTextureCoordinates",
-];
-pub const HLOD_SHAPE_PRESERVATIONS: [&str; 2] = ["none", "area"];
-pub const DEFAULT_SHAPE_PRESERVATION: &str = "none";
-/// The object settings' job field, flag, rules key, settings (each a glTF node's `extras` key),
-/// skinned-instance settings, mobilities, defaults (the reference's) and bank frame rate.
-pub const OBJECT_SETTINGS_FIELD: &str = "objectSettings";
-pub const OBJECT_SETTINGS_OPTION: &str = "--object-settings=";
-pub const OBJECT_SETTINGS_OBJECTS: &str = "objects";
-pub const SPATIALLY_LOADED_SETTING: &str = "spatiallyLoaded";
-pub const SKINNED_INSTANCE_SETTING: &str = "skinnedInstance";
-pub const RUNTIME_GRID_SETTING: &str = "runtimeGrid";
-pub const FAR_FIELD_SETTING: &str = "farField";
-pub const DEFAULT_FAR_FIELD: bool = false;
-pub const DRAW_DISTANCE_SETTING: &str = "drawDistance";
-pub const DRAW_DISTANCE_SETTINGS: [&str; 2] = ["min", "max"];
-pub const DEFAULT_DRAW_DISTANCE_MIN: f64 = 0.0;
-pub const DEFAULT_DRAW_DISTANCE_MAX: f64 = 0.0;
-pub const OBJECT_SETTINGS: [&str; 5] = [
-    "spatiallyLoaded",
-    "skinnedInstance",
-    "drawDistance",
-    "runtimeGrid",
-    "farField",
-];
-pub const SKINNED_INSTANCE_SETTINGS: [&str; 7] = [
-    "clip",
-    "looping",
-    "playRate",
-    "position",
-    "boundsScale",
-    "animationMinScreenSize",
-    "mobility",
-];
-pub const OBJECT_MOBILITIES: [&str; 3] = ["static", "stationary", "movable"];
-pub const DEFAULT_SPATIALLY_LOADED: bool = true;
-pub const DEFAULT_BANK_LOOPING: bool = true;
-pub const DEFAULT_BANK_PLAY_RATE: f64 = 1.0;
-pub const DEFAULT_BANK_POSITION: f64 = 0.0;
-pub const DEFAULT_BANK_BOUNDS_SCALE: f64 = 1.0;
-pub const DEFAULT_OBJECT_ANIMATION_MIN_SCREEN_SIZE: f64 = 0.0;
-pub const DEFAULT_OBJECT_MOBILITY: &str = "movable";
-pub const ANIMATION_BANK_SAMPLE_RATE: f64 = 30.0;

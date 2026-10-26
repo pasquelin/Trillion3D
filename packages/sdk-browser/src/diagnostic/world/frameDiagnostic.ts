@@ -1,5 +1,5 @@
 import { createEngineCamera } from '../../camera/engineCamera.ts'
-import { readCameraWorld, type HostCamera } from '../../camera/world.ts'
+import { readCameraWorld, type ViewCamera } from '../../camera/world.ts'
 import type { AssetScope } from '../../../../sdk-core/src/contracts/base.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import type { Engine } from '../../session/engine/types.ts'
@@ -11,7 +11,7 @@ import type { ExplorerEmitters } from '../../session/session.ts'
 type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   diagnosticChannel: ReturnType<typeof createDiagnosticChannel>
   engine: Engine
-  camera: HostCamera
+  camera: ViewCamera
   /** Target the host rereads between two poses. Read by its three numbers: the trace does not
    *  have to name a host-library compute type to publish a point. */
   lookAtTarget: { x: number; y: number; z: number }

@@ -1,4 +1,7 @@
-import type { Trillion3dTool } from './types.ts'
+import type { JsonSchemaProperty, Trillion3dTool } from './types.ts'
+import { lightShaftProperties } from './lightShaftSchema.ts'
+import { DEFAULT_LIGHT_MOBILITY, LIGHT_MOBILITY } from '../scene/light/contracts.ts'
+import { DEFAULT_TEMPERATURE_KELVIN } from '../scene/light/fields.ts'
 import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts'
 import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts'
 import { LEAST_POOL_BUDGET } from '../contracts/poolBudgets.ts'
@@ -17,16 +20,23 @@ import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
 import { VOLUMETRIC_LIGHTMAP_RULES } from '../contracts/volumetricLightmapOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../contracts/distanceFieldOcclusionOptions.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../contracts/globalDistanceFieldOptions.ts'
-import { SHADOW_DISTANCE_DEFAULT, SHADOW_RULES } from '../contracts/shadowOptions.ts'
+import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
+import { lightProperties } from './lightLampSchema.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
 import { BLOOM_RULES } from '../contracts/bloomRules.ts'
 import { GAUSSIAN_BLUR_RULES } from '../contracts/gaussianBlurRules.ts'
 import { FILM_RULES } from '../contracts/filmOptions.ts'
+import { COLOR_GRADING_RULES } from '../contracts/colorGradingOptions.ts'
+import { SUBSURFACE_SCATTERING_RULES } from '../contracts/subsurfaceScatteringOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
+import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.ts'
+import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
+import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
 import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
+import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 import { SKY_QUALITY_RULES } from '../modules/sky/quality.ts'
 
@@ -55,10 +65,181 @@ const AVAILABLE_DIAGNOSTICS = /* @__PURE__ */ (Object.keys(DIAGNOSTICS) as Diagn
   (mode) => DIAGNOSTICS[mode].available,
 )
 
-/**
- * Complete catalog of tools and runtime functions available to control Trillion3D from an LLM.
- */
-export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
+/** The identity, colour, placement and reach of a light. */
+const lightBasicProperties = (): Record<string, JsonSchemaProperty> => ({
+  id: { type: 'string', description: 'Unique identifier for the light.' },
+  kind: {
+    type: 'string',
+    enum: ['point', 'spot', 'directional'],
+    description: 'Light emitter type.',
+  },
+  color: {
+    type: 'array',
+    items: {
+      type: 'number',
+      minimum: 0,
+      maximum: 1,
+      description: 'Normalized linear RGB component.',
+    },
+    description: 'Linear RGB color [R, G, B] between 0 and 1.',
+  },
+  intensity: {
+    type: 'number',
+    description:
+      'Light intensity: lux for a directional, a number in intensityUnits for a point and a spot. At least 0, but any number in ev while inverseSquared is on (2 to that power candelas). Absent, 10 lux for a directional, and for a point or a spot 5000 unitless, the light of 8 candelas written in its unit: an ev of 3, 8 candelas over the source area in nits.',
+  },
+  position: {
+    type: 'array',
+    items: { type: 'number', description: 'Spatial coordinate in meters.' },
+    description:
+      'Position [X, Y, Z] in meters (required for point and spot; forbidden for directional).',
+  },
+  direction: {
+    type: 'array',
+    items: { type: 'number', description: 'Normalized vector component.' },
+    description: 'Propagation direction [X, Y, Z] (required for spot and directional).',
+  },
+  range: {
+    type: 'number',
+    minimum: 0.1,
+    description: 'Maximum reach in meters (point and spot).',
+  },
+  outerConeAngle: {
+    type: 'number',
+    minimum: 0.01,
+    // The engine refuses a half-angle of π/2 or more (`scene/light/validate.ts`); an inclusive
+    // bound below π/2 keeps to the subset every provider reads (no `exclusiveMaximum`).
+    maximum: 1.57,
+    description:
+      'Half-angle in radians of the outer cone, where the light fades to nothing (spot).',
+  },
+  castsShadow: {
+    type: 'boolean',
+    default: false,
+    description: 'Enables virtual shadow map casting.',
+  },
+})
+
+/** What a light does to shadows, fog and baking. */
+const lightFogAndShadowProperties = (): Record<string, JsonSchemaProperty> => ({
+  fogScattering: {
+    type: 'number',
+    minimum: 0,
+    default: 1,
+    description:
+      'How much of this light the volumetric fog and the clouds scatter, a factor on its colour there; 0 leaves it out of both. It does not change the light on surfaces.',
+  },
+  shadowResolutionScale: {
+    type: 'number',
+    minimum: 0,
+    default: 1,
+    description:
+      "A factor on the resolution this light's shadow is given (point, spot and rectangle lights): it decides whether the light takes a shadow and how it fades with its size on the screen; 0 takes the shadow away.",
+  },
+  shadowsFog: {
+    type: 'boolean',
+    description:
+      "Whether this light's shadow also shadows the volumetric fog (it must cast shadows). True by default for a directional light, false for any other.",
+  },
+  mobility: {
+    type: 'string',
+    enum: [...LIGHT_MOBILITY],
+    default: DEFAULT_LIGHT_MOBILITY,
+    description:
+      "How this light is meant to move and be lit: 'static' (baked into the lightmaps; it neither moves nor changes and casts no dynamic shadow), 'stationary' (it does not move, its colour and intensity may change; the default, every light kind's) or 'movable' (fully dynamic).",
+  },
+  transmission: {
+    type: 'boolean',
+    default: false,
+    description:
+      "Whether this light shines through the subsurface-profile surfaces it shadows (the light that crosses their thickness: ears, fingers, wax). It takes effect only for a 'movable' light that casts shadows.",
+  },
+})
+
+/** The black body colour of a light and its sun disk tint. */
+const lightColourProperties = (): Record<string, JsonSchemaProperty> => ({
+  useTemperature: {
+    type: 'boolean',
+    default: false,
+    description:
+      "Whether this light's colour is multiplied by the colour of a black body at temperatureKelvin.",
+  },
+  temperatureKelvin: {
+    type: 'number',
+    default: DEFAULT_TEMPERATURE_KELVIN,
+    description:
+      'The black body temperature in kelvin that useTemperature takes the colour of, read between 1000 and 15000; 6500 is white.',
+  },
+  sunDiskTint: {
+    type: 'array',
+    items: { type: 'number', minimum: 0, description: 'Linear RGB component.' },
+    description:
+      "Directional only: a linear RGB colour [R, G, B] the sun's disk in the sky is multiplied by, never the light it gives; white by default.",
+  },
+})
+
+/** What only a directional light sets. */
+const lightDirectionalProperties = (): Record<string, JsonSchemaProperty> => ({
+  shadowsAir: {
+    type: 'boolean',
+    default: false,
+    description:
+      "Directional only: whether this light's shadow also shades the atmosphere (the haze and the sky's march read it along their rays); it must cast shadows.",
+  },
+  transmittancePerPixel: {
+    type: 'boolean',
+    default: false,
+    description:
+      "Directional only: whether the atmosphere's transmittance toward this light is read for each surface point and not once at the ground.",
+  },
+  forwardShadingPriority: {
+    type: 'integer',
+    minimum: 0,
+    default: 0,
+    description:
+      "Directional only: this light's priority for the one directional light the translucent surfaces' cloud shade and the volumetric fog take. The highest priority is chosen; of equal priorities the light whose colour times intensity is greatest, the first added of equals.",
+  },
+  angularRadius: {
+    type: 'number',
+    minimum: 0,
+    // The engine refuses a half-angle of π/2 or more (`scene/light/validate.ts`).
+    maximum: 1.57,
+    description:
+      "Directional only: the angular radius of the light's disk, in radians, which sizes its soft shadow; absent, an ideal point source with hard shadows.",
+  },
+})
+
+/** The source a point or spot light is, and the atmosphere light a directional one is a candidate for. */
+const lightEmitterProperties = (): Record<string, JsonSchemaProperty> => ({
+  emitterRadius: {
+    type: 'number',
+    exclusiveMinimum: 0,
+    description:
+      "Point and spot only: the radius, in meters, of the envelope that holds the source, strictly less than the range. It is the light's source size: it sets how soft its shadow is and how the lamp lights a surface, and fragments within it cast no shadow; absent, a point.",
+  },
+  emitterLength: {
+    type: 'number',
+    exclusiveMinimum: 0,
+    description:
+      'Point and spot only: the length, in meters, of the tube the source is (a capsule with its emitterRadius), centred on the light, along emitterAxis; absent, a sphere or a point.',
+  },
+  emitterSoftRadius: {
+    type: 'number',
+    exclusiveMinimum: 0,
+    description:
+      'Point and spot only: the soft radius, in meters, that widens the highlight the source leaves without lighting more of the surface, strictly less than the range; absent, none.',
+  },
+  atmosphereSunIndex: {
+    type: 'integer',
+    enum: [0, 1],
+    default: 0,
+    description:
+      "Directional only: which of the atmosphere's two lights (a sun and a moon, or two suns) this light is a candidate for; of the candidates of an index the brightest is held for it.",
+  },
+})
+
+/** The explorer, the compiler and the memory budgets. */
+const SESSION_TOOLS: Trillion3dTool[] = [
   {
     name: 'trillion3d_create_explorer',
     description: 'Initializes the Trillion3D explorer with specified rendering options.',
@@ -91,6 +272,10 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
       additionalProperties: false,
     },
   },
+]
+
+/** The geometric error and the temporal antialiasing. */
+const QUALITY_TOOLS: Trillion3dTool[] = [
   {
     name: 'trillion3d_set_lod_error',
     description:
@@ -125,6 +310,10 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
       additionalProperties: false,
     },
   },
+]
+
+/** The settings of the raster, the streaming, the cut, the resolution and the animation. */
+const VISIBILITY_SETTING_TOOLS: Trillion3dTool[] = [
   /* @__PURE__ */ settingTool(
     'trillion3d_set_raster',
     'Chooses which rasterizer draws each cluster from the next frame: the compute (software) raster for clusters whose edges project small, the hardware rasterizer for the others.',
@@ -155,9 +344,13 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
     "Changes from the next frame the animation the GPU plays: the screen size under which an instanced skinned object stops animating and is drawn in its rest pose, whether the animation banks' tracks blend their two nearest keys, and the scale of the world's seconds they advance by.",
     ANIMATION_RULES,
   ),
+]
+
+/** The settings of the shading, the exposure, the temporal pass, the Hi-Z, the light functions, the volumetric lightmap, the distance fields and the shadows. */
+const SHADING_SETTING_TOOLS: Trillion3dTool[] = [
   /* @__PURE__ */ settingTool(
     'trillion3d_set_shading',
-    "Changes from the next frame how the material pass bins each material's pixels before shading them: by pixel or by 2 × 2 quad, or as each material's shading asks. The image is the same in each mode.",
+    "Changes from the next frame how the material pass bins each material's pixels before shading them (by pixel or by 2 × 2 quad, or as each material's shading asks: the image is the same in each mode), and how a surface that carries a clear coat is shaded: as one slab a pixel, the coat merged into the base (the default), or with the coat a layer of its own.",
     SHADING_RULES,
   ),
   /* @__PURE__ */ settingTool(
@@ -200,6 +393,10 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
     "Changes from the next frame how a directional light's shadow maps take their casters by distance: the factor on every light's shadow distance, whether the casters past that distance are left out, and whether that test reaches every caster or the world's merged far-field shells alone, and whether the lights whose maps would pass what one pass of the shadow raster lists are drawn in several passes. It also sets the shadow maps' own: the sun clipmap's levels and depth range, the coarse pages, the resolution biases at rest and while a light moves, the size under which a caster is left out of a map redrawn whole, the rays and steps of a shadow trace, and the page pool.",
     SHADOW_RULES,
   ),
+]
+
+/** The settings of the post effects. */
+const POST_SETTING_TOOLS: Trillion3dTool[] = [
   /* @__PURE__ */ settingTool(
     'trillion3d_set_motion_blur',
     "Changes from the next frame how the motion blur is drawn: its quality — the samples a pixel gathers along its streak, off for none —, whether a long streak is gathered at half the resolution, whether its samples read the half-resolution image, whether the blur runs twice, and whether the largest motion of each tile is spread by drawing it. The strength, the longest streak and the frame rate are the effect's.",
@@ -227,17 +424,46 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_film',
-    "Changes from the next frame the film effects of the display finishing: the film grain (off by default) with its shares in the dark, middle and bright pixels, its size and its repeat; the colour fringe toward the corners (off by default), its start, quality and cap; the vignette's shape, colour, centre, size and softness (its strength is the scene's); the tonemapper's quality, which gates the vignette and the grain, its sharpening, and the scene's tint; and the dither that hides the display's steps, on by default (24 bits or more switches it off).",
+    "Changes from the next frame the film effects of the display finishing: the film grain (off by default) with its shares in the dark, middle and bright pixels, its size and its repeat; the colour fringe toward the corners (off by default), its start, quality and cap; the vignette's shape, colour, centre, size and softness (its strength is the scene's); the tonemapper's quality, which gates the vignette and the grain, its sharpening, and the scene's tint; and the dither that hides the display's steps, always drawn (32 bits make its step too small to show).",
     FILM_RULES,
   ),
   /* @__PURE__ */ settingTool(
+    'trillion3d_set_color_grading',
+    "Changes from the next frame how the display turns light into colour: the method of the scene's filmic curve (the film curve, or the standard output transform of the film industry's colour system, with its version, the multiplier of its light and the first version's gamut compression); the film curve's own settings (slope, toe, shoulder, black and white clips, the blue correction, the expansion of a bright colour's gamut and the curve's amount); the white balance (temperature, tint and how they are read); the colour grade for all the light and for its dark, middle and bright parts (each applied over the whole light's), and where those parts end — each of its five operations has a red, a green, a blue and a master number, the master one applying to the three together: saturation pulls the colour toward its luminance (1 leaves it, 0 takes it to its luminance), contrast raises it to a power around middle grey (1 leaves it), gamma raises it to the power 1 over the number (1 leaves it), gain multiplies it (1 leaves it) and offset adds to it (0 leaves it); the correction of the colour the curve gives; the display's gamma and its transfer; and the tone table the whole is baked into (its size and how a light addresses it). The defaults leave the colour as the film curve gives it.",
+    COLOR_GRADING_RULES,
+  ),
+]
+
+/** The settings of the fog, the translucency, the water, the sky, the indirect light and the occlusion. */
+const MEDIUM_SETTING_TOOLS: Trillion3dTool[] = [
+  /* @__PURE__ */ settingTool(
     'trillion3d_set_volumetric_fog',
-    "Changes from the next frame how the fog's volume is drawn where the sky module's height fog turns it on (scene.sky heightFog.volumetric): its quality — the cells' size and depth, off for none —, how a surface filters it, how the volume of the image before is blended in, and the tuning of its lighting samples.",
+    "Changes from the next frame how the fog's volume is drawn where the sky module's height fog turns it on (scene.sky heightFog.volumetric): its quality — the cells' size and depth, off for none —, how a surface filters it, how the volume of the image before is blended in, and the tuning of its lighting samples — and how the local fog volumes (addLocalFogVolume) are drawn: whether at all, whether voxelised into the volume, the most extinction they give it, their start distance, how many a view draws, the size of the screen tiles they are culled by and whether the depth pyramid culls them too, and whether translucent surfaces are fogged by them.",
     VOLUMETRIC_FOG_RULES,
   ),
   /* @__PURE__ */ settingTool(
+    'trillion3d_set_translucency_volume',
+    "Changes from the next frame how the translucency lighting volume is made — the field of light round the camera, in two nested cascades of cells, that the see-through surfaces whose material sets translucencyLighting to 'volume', 'volumetric' or 'volumetricNonDirectional' read in place of lighting each pixel by every light: whether it is made, the cells a side of each cascade and the distances they end at, whether the cells are blurred in space or blended with the image before, a noise on the point a surface reads it at and how the cascades follow the camera's field of view. A surface lit 'forward' (what a transmissive surface imported from a scene file is given), or drawn in a mode other than normal or additive, or of a shading model other than the default lit and the thin subsurface, never reads it (a volume mode lights them with no declared light); the default of a material made in code is 'volumetricNonDirectional'.",
+    TRANSLUCENCY_VOLUME_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_translucency_gi',
+    "Changes from the next frame how the indirect light of the see-through surfaces (blend, water, transmission) is made: a grid of cells fitted to the view, traced each image through the distance field and the radiance cache, filtered in space and time, and read by a surface with one fetch. Whether it is made, the cells' pixel size and depth distribution, the end distance, the cones a cell traces, the brightest cone, the spatial filter, the temporal reprojection and its history weight, and the radiance cache read and its clipmap bias. Off, those surfaces take the sky light irradiance alone.",
+    TRANSLUCENCY_GI_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_subsurface_scattering',
+    "Changes from the next frame how the diffuse light of the surfaces that use the subsurface-profile shading model is spread over their neighbours in the lit image: whether it is, the scale of every profile's radius, whether it runs at half the image's size (and then with the separable passes), the sampled scattering's count of samples, its profile cache, its weighing of a sample by depth or by depth and normal, the separable passes' samples, the quality of the recombine and the checkerboard the lit image holds the light in. Each setting's default is the reference's fourth level; the quality presets write the lower ones.",
+    SUBSURFACE_SCATTERING_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_single_layer_water',
+    'Changes from the next frame how the single-layer water is drawn — the surfaces whose material graph wires scatteringCoefficients, absorptionCoefficients, phaseG or colorScaleBehindWater: whether it is drawn, the technique and the downsampling, filtering and denoising of its reflections, the downsampling and the cullings of the refraction of the scene behind it, the shadows of the sun on its volume and the passes and tiles it is drawn with.',
+    SINGLE_LAYER_WATER_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
     'trillion3d_set_sky_quality',
-    "Changes from the next frame how the sky is drawn: the atmosphere's switches, its samples and their caps, the sizes of its tables and of the haze volume it hazes the distance with, whether a light's shadow shades the air, the clouds' tracing and shadows, the light shafts and the sky light's capture. Each setting's default is the reference's top level; the quality presets write the lower ones.",
+    "Changes from the next frame how the sky is drawn: the atmosphere's switches, its samples and their caps, the sizes of its tables and of the haze volume it hazes the distance with, whether a light's shadow shades the air, the clouds' tracing and shadows, the light shafts and the sky light's capture. Each setting's default is the reference's fourth level; the quality presets write the lower ones, and 'cinematic' the fifth.",
     SKY_QUALITY_RULES,
   ),
   /* @__PURE__ */ settingTool(
@@ -251,162 +477,38 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
     REFLECTION_RULES,
   ),
   /* @__PURE__ */ settingTool(
+    'trillion3d_set_surface_cache',
+    "Changes from the next frame how the surface cache of the meshes' cards is kept: the atlas that holds their captured surface (its side, a factor on its pages and on the cards' resolutions), which resolution a card is kept at by its size and distance (the texel density, its limits, the least resolution, the scene's detail, the capture margin), when a mesh gets cards, how many cards an image captures, adds and removes, the share spent capturing pages again, how long a finer page stays unread, whether cards copy the capture of one another, and how the rays' feedback requests finer pages (its tile, level bias, least hits and number of pages). A scene whose meshes built no cards is not touched.",
+    SURFACE_CACHE_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
     'trillion3d_set_ambient_occlusion',
-    "Changes from the next frame the screen-space ambient occlusion: the contact shadow a crease or a corner casts on the light that comes from all round, found in the depth the image drew. Its intensity (0 is off), radius, fade distance, power and bias, its quality — the resolutions it searches at and the samples a pixel takes — and whether it also occludes the screen probes' light. It applies where no screen probes light the pixels.",
+    "Changes from the next frame the screen-space ambient occlusion: the contact shadow a crease or a corner casts on the light that comes from all round, found in the depth the image drew. Its intensity (0 is off), radius, fade distance, power and bias, its quality — the resolutions it searches at and the samples a pixel takes —, the method that finds it (the disc search, or the horizon search with its own radius, directions and filters), the compute pass, and whether it also occludes the screen probes' light. It applies where the bounce (the global illumination) is off.",
     AMBIENT_OCCLUSION_RULES,
   ),
+]
+
+/** Every field of a light the add tool takes. Called as one pure call, for a spread of a call is not
+ *  dropped from a bundle that never reads the tools. */
+const lightToolProperties = (): Record<string, JsonSchemaProperty> => ({
+  ...lightBasicProperties(),
+  ...lightFogAndShadowProperties(),
+  ...lightColourProperties(),
+  ...lightShaftProperties(),
+  ...lightDirectionalProperties(),
+  ...lightEmitterProperties(),
+  ...lightProperties(),
+})
+
+/** The tools that add and remove a light. */
+const LIGHT_TOOLS: Trillion3dTool[] = [
   {
     name: 'trillion3d_add_light',
     description: 'Adds a punctual point light, spot light, or directional sunlight into the scene.',
     parameters: {
       type: 'object',
-      properties: {
-        id: { type: 'string', description: 'Unique identifier for the light.' },
-        kind: {
-          type: 'string',
-          enum: ['point', 'spot', 'directional'],
-          description: 'Light emitter type.',
-        },
-        color: {
-          type: 'array',
-          items: {
-            type: 'number',
-            minimum: 0,
-            maximum: 1,
-            description: 'Normalized linear RGB component.',
-          },
-          description: 'Linear RGB color [R, G, B] between 0 and 1.',
-        },
-        intensity: { type: 'number', minimum: 0, description: 'Radiometric light intensity.' },
-        position: {
-          type: 'array',
-          items: { type: 'number', description: 'Spatial coordinate in meters.' },
-          description:
-            'Position [X, Y, Z] in meters (required for point and spot; forbidden for directional).',
-        },
-        direction: {
-          type: 'array',
-          items: { type: 'number', description: 'Normalized vector component.' },
-          description: 'Propagation direction [X, Y, Z] (required for spot and directional).',
-        },
-        range: {
-          type: 'number',
-          minimum: 0.1,
-          description: 'Maximum reach in meters (point and spot).',
-        },
-        coneAngle: {
-          type: 'number',
-          minimum: 0.01,
-          // The engine refuses a half-angle of π/2 or more (`scene/light/validate.ts`); an inclusive
-          // bound below π/2 keeps to the subset every provider reads (no `exclusiveMaximum`).
-          maximum: 1.57,
-          description: 'Half-angle beam spread in radians (spot).',
-        },
-        castsShadow: {
-          type: 'boolean',
-          default: false,
-          description: 'Enables virtual shadow map casting.',
-        },
-        fogScattering: {
-          type: 'number',
-          minimum: 0,
-          default: 1,
-          description:
-            'How much of this light the volumetric fog and the clouds scatter, a factor on its colour there; 0 leaves it out of both. It does not change the light on surfaces.',
-        },
-        shadowsFog: {
-          type: 'boolean',
-          description:
-            "Whether this light's shadow also shadows the volumetric fog (it must cast shadows). True by default for a directional light, false for any other.",
-        },
-        useTemperature: {
-          type: 'boolean',
-          default: false,
-          description:
-            "Whether this light's colour is multiplied by the colour of a black body at temperatureKelvin.",
-        },
-        temperatureKelvin: {
-          type: 'number',
-          default: 6500,
-          description:
-            'The black body temperature in kelvin that useTemperature takes the colour of, read between 1000 and 15000; 6500 is white.',
-        },
-        sunDiskTint: {
-          type: 'array',
-          items: { type: 'number', minimum: 0, description: 'Linear RGB component.' },
-          description:
-            "Directional only: a linear RGB colour [R, G, B] the sun's disk in the sky is multiplied by, never the light it gives; white by default.",
-        },
-        shaftOcclusion: {
-          type: 'boolean',
-          default: false,
-          description:
-            "Directional only: whether this light darkens the fog's inscattering where the scene hides it (light shafts).",
-        },
-        shaftOcclusionDarkness: {
-          type: 'number',
-          default: 0.05,
-          description: 'Directional only: what a shaft occlusion of 0 maps to; 1 darkens nothing.',
-        },
-        shaftOcclusionDepthRange: {
-          type: 'number',
-          default: 1000,
-          description:
-            'Directional only: everything closer to the eye than this distance, in metres, occludes the shafts.',
-        },
-        shaftOverrideDirection: {
-          type: 'array',
-          items: { type: 'number', description: 'Direction component.' },
-          description:
-            "Directional only: a direction [x, y, z] the shafts come from instead of the light's own; zero, the default, keeps the light's.",
-        },
-        shaftBloom: {
-          type: 'boolean',
-          default: false,
-          description: 'Whether this light adds a bloom around itself (light shafts).',
-        },
-        shaftBloomScale: {
-          type: 'number',
-          default: 0.2,
-          description: 'The factor on the colour the shaft bloom adds.',
-        },
-        shaftBloomThreshold: {
-          type: 'number',
-          default: 0,
-          description: 'The brightness the image must pass, after exposure, to bloom.',
-        },
-        shaftBloomMaxBrightness: {
-          type: 'number',
-          default: 100,
-          description: 'A brightness above it, after exposure, is brought down to it.',
-        },
-        shaftBloomTint: {
-          type: 'array',
-          items: { type: 'number', minimum: 0, description: 'Linear RGB component.' },
-          description:
-            "A linear RGB colour [R, G, B] the shaft bloom's colour is multiplied by; white by default.",
-        },
-        shadowsAir: {
-          type: 'boolean',
-          default: false,
-          description:
-            "Directional only: whether this light's shadow also shades the atmosphere (the haze and the sky's march read it along their rays); it must cast shadows.",
-        },
-        transmittancePerPixel: {
-          type: 'boolean',
-          default: false,
-          description:
-            "Directional only: whether the atmosphere's transmittance toward this light is read for each surface point and not once at the ground.",
-        },
-        shadowDistance: {
-          type: 'number',
-          minimum: 0,
-          default: SHADOW_DISTANCE_DEFAULT,
-          description:
-            "Directional only: how far from the eye, in meters, its shadows are asked to reach (the far-shadow test's edge lies a little farther, 427 m at 400). Past the edge a caster that does not set castFarShadow is left out: by default only the merged far-field shells of the world's coarser levels, every caster when the view's farShadowCullsAllMeshes is true. 0 leaves none out.",
-        },
-      },
-      required: ['id', 'kind', 'color', 'intensity'],
+      properties: /* @__PURE__ */ lightToolProperties(),
+      required: ['id', 'kind', 'color'],
       additionalProperties: false,
     },
   },
@@ -422,6 +524,10 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
       additionalProperties: false,
     },
   },
+]
+
+/** The tools that show a diagnostic view and read the metrics. */
+const INSPECTION_TOOLS: Trillion3dTool[] = [
   {
     name: 'trillion3d_set_diagnostic',
     description:
@@ -450,3 +556,17 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
     },
   },
 ]
+
+/**
+ * Complete catalog of tools and runtime functions available to control Trillion3D from an LLM.
+ */
+export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = /* @__PURE__ */ (() => [
+  ...SESSION_TOOLS,
+  ...QUALITY_TOOLS,
+  ...VISIBILITY_SETTING_TOOLS,
+  ...SHADING_SETTING_TOOLS,
+  ...POST_SETTING_TOOLS,
+  ...MEDIUM_SETTING_TOOLS,
+  ...LIGHT_TOOLS,
+  ...INSPECTION_TOOLS,
+])()

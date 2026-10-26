@@ -1,7 +1,6 @@
 // The GPU proofs on the bench: every `*.gpu.ts` under `tests/gpu/`, one by one, on Dawn in Node
 // (`tests/kit/device/onDawn.ts`) under the machine's bench lock — never beside a measurement. With
-// `--chrome`, every `*.chrome.ts`: what Dawn does not have — a browser's own surface, the witness
-// library's renderer — proved in the system Chrome (`tests/kit/device/onChrome.ts`), the recette's
+// `--chrome`, every `*.chrome.ts`: what Dawn does not have — a browser's own surface — proved in the system Chrome (`tests/kit/device/onChrome.ts`), the recette's
 // run alone, never a merge's. Paths are resolved from the repository root, never from
 // the current directory: the command gives the same result wherever it is launched from.
 //
@@ -13,7 +12,7 @@
 // out loud, never in silence.
 import { spawnSync } from 'node:child_process'
 import { join, relative } from 'node:path'
-import { isUnitTest } from '../../scripts/test/unit-tests.ts'
+import { isUnitTest } from '../../scripts/check/unit-tests.ts'
 import { entryPath, underNodeTest } from '../core/entryPoint.ts'
 import { LOCK_OWNER, takeBenchLock } from './runs/lock.ts'
 import { REPOSITORY_ROOT, filesUnder, posixPath } from '../../scripts/git/repository-files.ts'

@@ -3,7 +3,7 @@
 //! stream on, or none for actors always loaded, and the layer its cells' actors are built by — and
 //! how each placed
 //! object is assigned to one layer at most, once (`Hlod::assigned`): the mark its node's `extras`
-//! carries (`HLOD_MARK`, a layer's name or a word `marks` gives one), else the first rule that
+//! carries (`HLOD_MARK`, a layer's name), else the first rule that
 //! matches it, else the default layer if one is named. An object none names has no layer: it
 //! enters no HLOD actor, streamed in its cell and drawn while loaded, nothing standing for it
 //! beyond — as one whose `extras` say `hlodInclude: false` (`HLOD_INCLUDE_MARK`), whatever a
@@ -12,7 +12,8 @@
 //! Read and checked here in one pass — names and parents resolved, each builder's settings
 //! admitted and defaulted, patterns compiled, the layers formed into chains —; what does not read
 //! is the job's refusal (`INVALID_OPTIONS`, `validate_compile_options`), never the batch's.
-//! Reading the layers and marks lives in `parse`, the chains and assignment in `chains`.
+//! Reading a layer lives in `layer`, the marks and the option in `parse`, the chains and assignment
+//! in `chains`.
 use crate::compiler::args::name_match::NameMatch;
 use crate::compiler::args::*;
 use crate::*;
@@ -20,9 +21,11 @@ mod approximation;
 mod chains;
 mod fields;
 mod instancing;
+mod layer;
 mod merging;
 mod meshes;
 mod parse;
+mod settings;
 mod simplifying;
 mod translucency;
 pub use approximation::{
@@ -42,7 +45,7 @@ pub use translucency::HlodTranslucency;
 pub enum HlodBuilder {
     /// The objects themselves, instanced: at HLOD 0 their own cell rows, above it each their
     /// source mesh placed, drawn by the cut of its own cluster DAG. A layer asking for no cluster
-    /// DAG (`disallowClusterDag`) is read as a `merge` layer (`options/parse.rs`, `layer`).
+    /// DAG (`disallowClusterDag`) is read as a `merge` layer (`options/layer.rs`, `layer`).
     Instanced,
     /// One closed shell per cell wearing a flattened material.
     Approximate,
@@ -84,77 +87,30 @@ impl HlodBuilder {
     /// whether that mesh gets a cluster DAG (`clusterDag`, false by default) — an instanced layer
     /// whether its objects keep their own (`disallowClusterDag`, false by default), or, disallowing
     /// it, are drawn at the last LOD of their meshes
-    /// (`parse::layer`) — and, baking an atlas, how a translucent source shows in it
+    /// (`layer::layer`) — and, baking an atlas, how a translucent source shows in it
     /// (`translucency`, `options/translucency.rs`); an approximated or simplified layer, what its
     /// atlas holds where it holds no chart's value (`emptyTexels`); a merged or simplified layer,
     /// how its actors' meshes are built (`meshBuild`, `options/meshes.rs`), as the reference reads
-    /// it from those layers alone. A voxel layer names that alone, how its voxels are sampled:
+    /// it from those layers alone; an approximated, merged or simplified layer whether the mesh of
+    /// each actor gets a distance field (`allowDistanceField`, `allows_distance_field`). A voxel
+    /// layer names `meshBuild` alone, how its voxels are sampled:
     /// they are as fine as the cut's pixel error asks where each level is drawn, its levels its
     /// bricks'.
     fn settings(self) -> &'static [&'static str] {
         match self {
-            Self::Instanced => &[
-                "sizeFilter",
-                "minExtent",
-                "minArea",
-                "minVolume",
-                "disallowClusterDag",
-            ],
+            Self::Instanced => settings::INSTANCED,
             Self::Voxel => &["meshBuild"],
-            Self::Approximate => &[
-                "accuracy",
-                "deviation",
-                "textureSize",
-                "textureSizing",
-                "texelsPerMetre",
-                "atlasScreenSize",
-                "mapSizes",
-                "approximation",
-                "clusterDag",
-                "translucency",
-                "emptyTexels",
-            ],
-            Self::Merge => &[
-                "lodSelection",
-                "lodScreenSize",
-                "collapseEquivalentMaterials",
-                "mergeMaterials",
-                "bakeVertexColors",
-                "textureSize",
-                "textureSizing",
-                "texelsPerMetre",
-                "atlasScreenSize",
-                "mapSizes",
-                "atlasGutter",
-                "binByTextureSize",
-                "bakeOnMesh",
-                "reuseLightmapUVs",
-                "uvMethod",
-                "allowDoubleSided",
-                "maps",
-                "translucency",
-                "clusterDag",
-                "meshBuild",
-            ],
-            Self::Simplify => &[
-                "simplification",
-                "textureSize",
-                "textureSizing",
-                "texelsPerMetre",
-                "atlasScreenSize",
-                "mapSizes",
-                "atlasGutter",
-                "allowDoubleSided",
-                "maps",
-                "reuseLightmapUVs",
-                "groupIdenticalMeshes",
-                "allowVertexColors",
-                "translucency",
-                "emptyTexels",
-                "clusterDag",
-                "meshBuild",
-            ],
+            Self::Approximate => settings::APPROXIMATE,
+            Self::Merge => settings::MERGE,
+            Self::Simplify => settings::SIMPLIFY,
         }
+    }
+
+    /// Whether the actors a layer of it builds get a distance field unless the layer says
+    /// (`allowDistanceField`), as the reference's builders' settings default it: an approximated
+    /// layer's mesh gets one, a merged or simplified layer's none.
+    pub(crate) fn allows_distance_field(self) -> bool {
+        matches!(self, Self::Approximate)
     }
 }
 
@@ -198,7 +154,7 @@ pub struct HlodLayer {
     /// An approximated layer's other settings (`approximation`), each defaulted.
     pub approximation: HlodApproximation,
     /// A merged layer's LOD of each source (`lodSelection`); `Lowest` for an instanced layer
-    /// asking for no cluster DAG, read as a merged layer (`parse::layer`).
+    /// asking for no cluster DAG, read as a merged layer (`layer::layer`).
     pub lod_selection: HlodLodSelection,
     /// Whether a merged layer merges its materials into one atlas (`mergeMaterials`, false by
     /// default).
@@ -214,12 +170,17 @@ pub struct HlodLayer {
     /// by default); not, the mesh alone, one level drawn whole at every distance. An instanced
     /// layer builds no mesh while it is true — its objects keep their own DAG, unless it
     /// disallows it (`disallowClusterDag`): it is then a merged layer taking each object's fallback
-    /// (`parse::layer`).
+    /// (`layer::layer`).
     pub cluster_dag: bool,
     /// How the mesh of each actor it builds is built, and the root pages its cell holds
     /// (`meshBuild`, `options/meshes.rs`): a merged or simplified layer's as it names it, every
     /// other's the defaults.
     pub mesh_build: HlodMeshBuild,
+    /// Whether the mesh of each actor it builds — approximated, merged or simplified — gets a
+    /// distance field (`allowDistanceField`): true by default for an approximated layer, false for
+    /// a merged or simplified one (`HlodBuilder::allows_distance_field`); an instanced layer's
+    /// objects draw their own meshes' fields, a voxel layer builds no triangles.
+    pub allow_distance_field: bool,
     /// Whether the actors it builds stream on a grid of their own (`spatiallyLoaded`, true by
     /// default); not, they are always loaded and nothing is built of them — the parent it names is
     /// let go (`Hlod::chains`) —: its chain's top.
@@ -240,14 +201,13 @@ pub struct HlodAssign {
 }
 
 /// A job's HLOD: its layers — none for a job naming no HLOD —, its rules, the rank of the layer of
-/// an object no rule matches, if any, the layer each mark word names beside the layers' own names,
-/// and what named it, its cache identity. The default is a job naming no HLOD.
+/// an object no rule matches, if any, and what named it, its cache identity. The default is a job
+/// naming no HLOD.
 #[derive(Clone, Debug, Default)]
 pub struct Hlod {
     pub layers: Vec<HlodLayer>,
     pub assign: Vec<HlodAssign>,
     pub default: Option<usize>,
-    marks: Vec<(String, usize)>,
     pub named: Value,
     /// The parents the layers lost (`chains`), each told to the job as a warning.
     pub dropped: Vec<String>,
@@ -271,4 +231,4 @@ const LAYER_FIELDS: [&str; 6] = [
     "loadingRange",
 ];
 const ASSIGN_FIELDS: [&str; 2] = ["match", "layer"];
-const HLOD_FIELDS: [&str; 4] = ["layers", "assign", "default", "marks"];
+const HLOD_FIELDS: [&str; 3] = ["layers", "assign", "default"];

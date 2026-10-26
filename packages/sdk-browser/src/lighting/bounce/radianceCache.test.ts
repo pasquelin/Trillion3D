@@ -10,6 +10,7 @@ import {
   cacheTilesEntries,
   cacheTraceEntries,
 } from './cache/cacheBindings.ts'
+import { reachedBindings } from './reachedBindings.fixture.ts'
 import { CACHE_FILTER_PROGRAM } from './cache/cacheFilterWgsl.ts'
 import { CACHE_MIPS_PROGRAM } from './cache/cacheMipsWgsl.ts'
 import { CACHE_WORDS_WGSL } from './cache/cacheWordsWgsl.ts'
@@ -43,11 +44,16 @@ test('every kernel of the radiance cache is a module a device takes: its names d
     const names = topLevelNames(code)
     assert.equal(new Set(names).size, names.length, name)
     const declared = [...code.matchAll(/@group\(0\)\s*@binding\((\d+)\)/g)].map((m) => +m[1])
-    assert.deepEqual(
-      declared.sort((a, b) => a - b),
-      entries.map((entry) => entry.binding).sort((a, b) => a - b),
-      name,
+    const held = entries.map((entry) => entry.binding)
+    assert.ok(
+      held.every((binding) => declared.includes(binding)),
+      `${name}: its layout's bindings are declared`,
     )
+    for (const [binding, variable] of reachedBindings(code, points))
+      assert.ok(
+        held.includes(binding),
+        `${name} reaches ${variable} (${binding}), its layout holds none`,
+      )
     for (const point of points) assert.ok(code.includes(`fn ${point}(`), `${name} ${point}`)
   }
 })
@@ -88,7 +94,7 @@ test('a ray’s end keeps its distance in a half float, whether it met a surface
   }>(
     wgslModule(bounceBindingsWgsl(0, 0, 1), CACHE_WORDS_WGSL),
     ['cacheDepthWord', 'cacheDepthOf', 'cacheHitIs', 'cacheSkyOf', 'cacheTileOf', 'cacheCoverage'],
-    { bounce: { counts: [48, 4, 110592, 16384], levels }, probes: {} },
+    { bounce: { counts: [48, 4, 110592, 16384], levels }, cellTable: {} },
   )
   const word = kit.cacheDepthWord(12.5, true, 0.5)
   assert.deepEqual([kit.cacheDepthOf(word), kit.cacheHitIs(word)], [12.5, true])
@@ -136,7 +142,7 @@ test('the tiles of a probe: a level a whole map, the pixels’ lobes refining th
       cacheTiles: tiles,
       arrayLength: () => 1e6,
       bounce: {},
-      probes: {},
+      cellTable: {},
     })
     const lanes = (run: (lane: number) => void) => {
       for (let lane = 0; lane < 64; lane++) run(lane)
@@ -197,7 +203,7 @@ test('a neighbour’s light weighs in the filter by the angle its ray makes seen
     }>(CACHE_FILTER_PROGRAM, ['cacheNeighbourWeight'], {
       cache: { size: [res, 0, 0, 1], distances: [0, 0, 0, 0.2], eye: [0, 0, 0, 0] },
       bounce: oneLevel(),
-      probes: {},
+      cellTable: {},
       // The neighbour on +x holds slot 2 (plus one), at the next cell's centre.
       neighbourSlot: [0, 2, 0, 0, 0, 0],
       neighbourCentre: [

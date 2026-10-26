@@ -1,6 +1,6 @@
-// The pool-wide passes — the page management's (`run`) and the transmission's clear — dispatch
-// a group per run of pool pages in one row, never in rows: their bound under one dimension's
-// groups comes from the largest pool a page table entry can address, read from the packing.
+// The pool-wide passes — the page management's (`run`) — dispatch a group per run of pool pages in
+// one row, never in rows: their bound under one dimension's groups comes from the largest pool a
+// page table entry can address, read from the packing.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
@@ -12,7 +12,6 @@ import {
   VSM_TABLE_ROW_WIDTH,
 } from './constants.ts'
 import { VSM_PAGE_ADDRESS_WGSL } from './pageTableWgsl.ts'
-import { VSM_TRANSMISSION_PAGE_GROUP } from './transmission/transmissionShared.ts'
 import { vsmLayout } from './layout.ts'
 
 test('the largest pool an entry addresses fits one row of every pool-wide dispatch', () => {
@@ -24,6 +23,5 @@ test('the largest pool an entry addresses fits one row of every pool-wide dispat
   assert.ok(perRow <= 2 ** rowShift, 'a row of pages within its column bits')
   const { poolPages } = vsmLayout({ fullMapCapacity: 63, poolPages: rows * perRow })
   assert.equal(poolPages, 2 ** 17)
-  for (const group of [VSM_GROUP_WIDTH, VSM_TRANSMISSION_PAGE_GROUP])
-    assert.ok(ceilDiv(poolPages, group) <= groupWidth(), `${group} pages a group`)
+  assert.ok(ceilDiv(poolPages, VSM_GROUP_WIDTH) <= groupWidth(), `${VSM_GROUP_WIDTH} pages a group`)
 })

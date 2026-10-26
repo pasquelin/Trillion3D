@@ -20,6 +20,7 @@ import {
 } from '../../../../sdk-core/src/page/contracts.ts'
 import { refuseWorldRoots } from '../../../../sdk-core/src/manifest/worldRoots.ts'
 import { halfNearest } from '../../../../math/src/float/half.ts'
+import { parentErrorOf } from '../selection/helpers.ts'
 import { appendTo } from '../../../../math/src/sequence/counts.ts'
 
 /** The place a cluster without a page names, bundle and offset (`dag_records.rs`, `nullable`). */
@@ -66,7 +67,7 @@ export function worldRootPages(
       refuseWorldRoots(`cluster ${rank} bundle ${bundle}`)
     if (cell >= actorLevels.length) refuseWorldRoots(`cluster ${rank} HLOD cell ${cell}`)
     const holder = located && rootPages.has(bundle)
-    if (cut.parentError === null) roots.push(rank)
+    if (parentErrorOf(cut) === null) roots.push(rank)
     if (holder) appendTo(held, bundle, rank)
     hlod[rank] = cell
     bundleOf[rank] = located ? bundle : -1

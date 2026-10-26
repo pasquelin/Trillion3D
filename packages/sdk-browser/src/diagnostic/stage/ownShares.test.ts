@@ -2,25 +2,25 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { addGpuPasses, directLightTimings } from './mapping.ts'
 import { WEBGPU_STAGES } from './passDeclaration.ts'
-import { DEFERRED_LIGHTING_PASS, VSM_PASS_PREFIX } from './passLabels.ts'
+import { SURFACE_COLOUR_PASS, VSM_PASS_PREFIX } from './passLabels.ts'
 import { referenceDirectLightTimings } from '../../../../../bench/oracles/browser/stage-profile.ts'
 import { summarizeTimestamps } from '../../gpu/timing/sample.ts'
 import { gpuPassBlockTotals } from '../../gpu/core/passBlocks.ts'
 import { vsmFrameMetrics } from '../../lighting/shadows/vsm/frame/vsmStats.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 
-// A tiled GPU reports each pass's whole span, and spans overlap: the transmission's three passes
-// each span most of a 36 ms image (a device clock never reads zero: the image begins at 1 ms).
+// A tiled GPU reports each pass's whole span, and spans overlap: three projection passes each span
+// most of a 36 ms image (a device clock never reads zero: the image begins at 1 ms).
 // Every total reads the passes' own shares, so no stage, shadow stage or block passes the image,
 // and the stages together are the image.
 test('overlapping spans count once: no stage, shadow stage or block total passes the image', () => {
   const ms = (value: number) => BigInt(value * 1e6)
   const timed: [string, number, number][] = [
     [`${VSM_PASS_PREFIX}render.cull 0`, 1, 9],
-    [`${VSM_PASS_PREFIX}transmission.clear`, 3, 31],
-    [`${VSM_PASS_PREFIX}transmission.bin`, 5, 34],
-    [`${VSM_PASS_PREFIX}transmission.resolve`, 7, 35],
-    [DEFERRED_LIGHTING_PASS, 6, 37],
+    [`${VSM_PASS_PREFIX}projection 0`, 3, 31],
+    [`${VSM_PASS_PREFIX}projection 1`, 5, 34],
+    [`${VSM_PASS_PREFIX}projection 2`, 7, 35],
+    [SURFACE_COLOUR_PASS, 6, 37],
   ]
   const entries = timed.map(([name], i) => ({ slot: i * 2, name, part: 0 }))
   const values = new BigUint64Array(timed.flatMap(([, begin, end]) => [ms(begin), ms(end)]))
@@ -31,7 +31,7 @@ test('overlapping spans count once: no stage, shadow stage or block total passes
   assert.ok(spans > 3 * image, `the spans overlap: ${spans} ms added up`)
   const rt = { lights: { memory: { bias: 0 } } } as unknown as WebgpuPagesRuntime
   const shadows = vsmFrameMetrics(rt, s)
-  assert.equal(shadows.shadowVsmTransmissionMs, 26, 'what the transmission adds past the cull')
+  assert.equal(shadows.shadowVsmProjectionMs, 26, 'what the projection adds past the cull')
   const stages: [string, number][] = []
   addGpuPasses(s, (at, total) => void stages.push([WEBGPU_STAGES[at], total]))
   const blocks = gpuPassBlockTotals(s),

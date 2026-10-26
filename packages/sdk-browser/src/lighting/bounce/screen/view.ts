@@ -1,13 +1,12 @@
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
-import { constructGpuResources } from '../../../gpu/core/errorScope.ts'
 import { ledgerAdmitted } from '../../../gpu/core/deviceLedger.ts'
 import { retire } from '../../../gpu/core/frameRetire.ts'
+import { gpuAllocator } from '../../../gpu/core/resourceAllocator.ts'
 import { createScreenProbeGroups } from './groups.ts'
 import type { ScreenProbeKernels } from './kernels.ts'
 import { createScreenProbeParams } from './params.ts'
 import {
   createScreenProbeResources,
-  gpuAllocator,
   screenProbeBytes,
   type ScreenProbeResources,
 } from './resources.ts'
@@ -67,6 +66,7 @@ function settingsKeyOf(settings: ScreenProbeSettings) {
         settings.gatherResolution,
         settings.irradianceFormat,
         settings.occlusionDownsample,
+        settings.bentNormal,
       ].join('|')),
     )
   return key
@@ -90,10 +90,8 @@ function makeView(
   settings: ScreenProbeSettings,
   capacity: ScreenProbeGeometry,
 ): ScreenProbeView {
-  const allocator = gpuAllocator(device)
-  const resources = constructGpuResources(device, () =>
-    createScreenProbeResources(allocator, capacity, settings),
-  )
+  const allocator = gpuAllocator(device, 'Trillion3D screen probes')
+  const resources = createScreenProbeResources(allocator, capacity, settings)
   device.queue.writeBuffer(resources.listHead, 0, new Uint32Array([0, 0, 1, 0]))
   const bytes = allocator.bytes()
   return {
@@ -116,7 +114,7 @@ function makeView(
  * THE VIEW'S SCREEN PROBES at `size`, the size its targets are made at — never the size an image is drawn at in them, which a render
  * scale moves without remaking a thing —: the one it holds while it was made for these settings and this size, else made, the old
  * one given back. Made where the device's budget leaves room (`ledgerAdmitted`, the bytes the old one gives back credited), the tile
- * raised until the atlas fits the device's textures; none where it does not, and the reason: the pixels then read the world's probes.
+ * raised until the atlas fits the device's textures; none where it does not, and the reason: the pixels then take the sky light's irradiance.
  */
 export function ensureScreenProbeView(
   held: ScreenProbeView | undefined,
@@ -137,15 +135,11 @@ export function ensureScreenProbeView(
     settings,
     device.limits?.maxTextureDimension2D,
   )
-  try {
-    const { value, why } = ledgerAdmitted(device, {
-      replaced: held?.bytes ?? 0,
-      asked: screenProbeBytes(capacity, settings),
-      what: 'the screen probes',
-      make: () => makeView(device, size, settings, capacity),
-    })
-    return { view: value, why }
-  } finally {
-    held?.dispose()
-  }
+  const { value, why } = ledgerAdmitted(device, {
+    held,
+    asked: screenProbeBytes(capacity, settings),
+    what: 'the screen probes',
+    make: () => makeView(device, size, settings, capacity),
+  })
+  return { view: value, why }
 }

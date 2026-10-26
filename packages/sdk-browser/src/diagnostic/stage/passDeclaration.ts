@@ -14,12 +14,12 @@ export const WEBGPU_STAGES = [
   'hostPages',
   'uploads',
   'textures',
-  'partition',
   'encode',
   'submit',
   'hiZ',
   'geometry',
   'coplanar',
+  'surfaceCache',
   'shadows',
   'lightLists',
   'bounce',
@@ -35,7 +35,7 @@ export type WebgpuStage = (typeof WEBGPU_STAGES)[number]
 
 /**
  * The two blocks of a frame that can be set against a published profile, and nothing else.
- * `visibility` is building the visibility buffer: selection, partition, Hi-Z and raster.
+ * `visibility` is building the visibility buffer: selection, Hi-Z and raster.
  * `materials` is writing surfaces from that buffer. Everything else is `other`: shadows, light
  * lists, bounce, transparents, deferred lighting and present — putting any of those in a block
  * would inflate a comparison instead of serving it, so they stay outside AND named, each pass

@@ -3,10 +3,13 @@ import { FLAG_HAS_COLOR, FLAG_HAS_MAP, FLAG_MASK, FLAG_SAMPLED } from '../types.
 import { PAGE_INFO } from '../pageInfo.ts'
 import { VIS_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 import { floatAtlasWgsl } from '../../gpu/core/floatAtlas.ts'
-import { INSTANCE_WORD_WGSL } from '../draw/contract.ts'
+import { INSTANCE_WORD_WGSL } from '../bins/contract.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LINE_DASH_WGSL } from './lineWgsl.ts'
 import { materialTableWgsl } from '../../materials/table/materialWgsl.ts'
+import { NO_MASKS, masksKey, type MaskSet } from '../../materials/graph/maskProgram.ts'
+import { graphHeightWgsl } from '../tessellation/heightWgsl.ts'
+import { maskDitherWgsl, maskGraphWgsl } from './maskGraphWgsl.ts'
 
 /**
  * Geometry of a page as the GPU reads it: the description of a cluster, the uniform of its draw
@@ -120,28 +123,57 @@ export const normalAtlasWgsl = (binding: number) =>
  * it, so two variants never share a name. The host shader declares `uvs`, the colour pool and its
  * page table.
  */
-export const maskKeepWgsl = (maskAlpha: WgslDecl) =>
-  wgslBlock(
-    `maskKeepWgsl(${maskAlpha.name})`,
-    [maskAlpha, LINE_DASH_WGSL, materialTableWgsl(VIS_BINDINGS.material)],
-    `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{
+export const maskKeepWgsl = (maskAlpha: WgslDecl, masks: MaskSet = NO_MASKS) => {
+  const graphs = masks.programs.length > 0,
+    dither = masks.noise !== undefined
+  const key = masksKey(masks)
+  const name = `maskKeepWgsl(${maskAlpha.name}${key ? `, ${key}` : ''})`
+  const deps = [maskAlpha, LINE_DASH_WGSL, materialTableWgsl(VIS_BINDINGS.material)]
+  if (graphs) deps.push(maskGraphWgsl(masks))
+  // A graph that displaces is read where the dicing reads a height (`diceHeight`).
+  if (masks.programs.some((program) => program.displaces)) deps.push(graphHeightWgsl)
+  if (dither) deps.push(maskDitherWgsl(masks))
+  return wgslBlock(name, deps, maskKeepText(graphs, dither))
+}
+
+/** The test of `maskKeepWgsl`: a surface that wears a graph is cut by the graph's mask
+ *  (`maskGraphWgsl.ts`) before the map's alpha is looked at (`graphs`); a surface that asks for a
+ *  dither (`dither`) is cut at its value plus the blue noise (`maskDithered`). In a module that does
+ *  either, `maskKeepAt` is the test given the pixel the dither needs (a raster that knows it) and
+ *  `maskKeep` the one without. */
+const maskKeepText = (graphs: boolean, dither: boolean) => {
+  // The test of an alpha against the surface's threshold, and of a graph's value (its mask less the clip).
+  const alphaTest = (value: string) =>
+    dither ? `maskDithered(m,${value}-m.cut,pixel)>=0.0` : `${value}>=m.cut`
+  const graphTest = (value: string) =>
+    dither ? `maskDithered(m,${value},pixel)>=0.0` : `${value}>=0.0`
+  return `fn ${
+    graphs || dither
+      ? 'maskKeepAt(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f,pixel:vec2f)'
+      : 'maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)'
+  }->bool{
  if((page.flags&${FLAG_MASK}u)==0u){return true;}
  let m=materialAt(page.material);
  // A dashed line's gap (\`lineDash\`): its distance along the line rides the first coordinate.
  // Without an alpha test, its threshold is zero and the gaps are all it cuts.
  if(!lineDash(uv.x,m.dash)){return false;}
- if(m.cut<=0.0){return true;}
+${graphs ? ` if(m.graph!=0u){return ${graphTest('maskGraphValue(m,uv,ddx,ddy)')};}\n` : ''} if(m.cut<=0.0){return true;}
  let coverage=saturate(m.opacity);
  // A row that reads no colour is cut by its base map alone, never by an interpolated one, which
  // need not round back to one exactly. Without a map, its opacity still cuts it.
  let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;
- if((page.flags&${FLAG_HAS_MAP}u)==0u){return select(1.0,vertexAlpha,coloured)*coverage>=m.cut;}
+ if((page.flags&${FLAG_HAS_MAP}u)==0u){return ${alphaTest('select(1.0,vertexAlpha,coloured)*coverage')};}
  // Levels of the chain take the MEDIAN of alpha, never its mean: a coarse texel passes the
  // threshold when half of what it covers passed it, so threshold coverage crosses the levels and
  // the cutout stays right at every level. A mean, itself, made the silhouette grow level after
  // level and made the quad opaque during loading.
  var alpha=maskAlpha(m.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u)*coverage;
  if(coloured){alpha*=vertexAlpha;}
- return alpha>=m.cut;
-}`,
-  )
+ return ${alphaTest('alpha')};
+}${
+    graphs || dither
+      ? `
+fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{return maskKeepAt(page,uv,vertexAlpha,ddx,ddy,vec2f(-1.0));}`
+      : ''
+  }`
+}

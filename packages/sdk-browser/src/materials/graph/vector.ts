@@ -5,32 +5,67 @@ import {
   vectorType,
   widthOf,
   describeType,
+  assertNumeric,
 } from '../../../../sdk-core/src/world/material/graph/valueType.ts'
+import { fract } from '../../../../math/src/scalar/reals.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import type { Emitter } from './emitter.ts'
-import { crossOf, dotOf, each, lengthOf } from './fold.ts'
+import { crossOf, dotOf, each, lengthOf, normalizedOf, single } from './fold.ts'
 import { coerce, constantOf, isConstantOf, splat, type Value } from './value.ts'
 
-/** A function applied to each component: its shader name and its value on a number. */
+/** A function applied to each component: its shader name, its value on a number and, where the
+ *  shader has no function of that name, the code that writes it (given whether the operand is the
+ *  same at every pixel). */
 export interface ComponentFunction {
   readonly name: string
   readonly of: (x: number) => number
+  readonly code?: (operand: string, uniform: boolean) => string
 }
 
-/** The functions of one component that keep the type of their input. */
+const LOG10_OF_2 = wgslF32(Math.log10(2))
+const LN_10_RECIPROCAL = single(1 / single(Math.log(10)))
+
+/** The functions of one component that keep the type of their input. The rounding of a value the
+ *  pixels share goes up at a half, as a sum with a half and a floor do; that of one that varies goes
+ *  to the even whole number, as the shader's own does. */
 export const COMPONENT_FUNCTIONS = {
   abs: { name: 'abs', of: Math.abs },
   floor: { name: 'floor', of: Math.floor },
   ceil: { name: 'ceil', of: Math.ceil },
-  frac: { name: 'fract', of: (x: number) => x - Math.floor(x) },
+  frac: { name: 'fract', of: fract },
   sine: { name: 'sin', of: Math.sin },
   cosine: { name: 'cos', of: Math.cos },
+  tangent: { name: 'tan', of: Math.tan },
+  sqrt: { name: 'sqrt', of: Math.sqrt },
+  exp: { name: 'exp', of: Math.exp },
+  exp2: { name: 'exp2', of: (x) => 2 ** x },
+  log: { name: 'log', of: Math.log },
+  log2: { name: 'log2', of: Math.log2 },
+  log10: {
+    name: 'log10',
+    of: (x) => single(Math.log(x)) * LN_10_RECIPROCAL,
+    code: (x) => `(log2(${x})*${LOG10_OF_2})`,
+  },
+  sign: { name: 'sign', of: (x) => (x > 0 ? 1 : x < 0 ? -1 : 0) },
+  round: {
+    name: 'round',
+    of: (x) => Math.floor(single(x + 0.5)),
+    code: (x, uniform) => (uniform ? `floor(${x}+0.5)` : `round(${x})`),
+  },
 } as const satisfies Record<string, ComponentFunction>
 
-/** `fn` of each component of `x`, written as code unless `x` is a constant. */
+/** `fn` of each component of `x`, written as code unless `x` is a constant; a constant that has no
+ *  finite value in it (the root of a negative number, the logarithm of zero) is refused, as no
+ *  shader literal and no constant expression holds one. */
 export function componentwise(e: Emitter, fn: ComponentFunction, x: Value): Value {
-  if (!isNumeric(x.type)) throw graphError(`${fn.name} of a ${describeType(x.type)}`)
-  if (x.constant) return constantOf(x.type, each(x.constant, fn.of))
-  return e.local(x.type, `${fn.name}(${x.code})`)
+  assertNumeric(x.type, fn.name)
+  if (x.constant) {
+    const folded = each(x.constant, fn.of)
+    if (!folded.every(Number.isFinite))
+      throw graphError(`${fn.name} of ${x.constant.join(', ')} has no finite value`)
+    return constantOf(x.type, folded)
+  }
+  return e.local(x.type, fn.code?.(x.code, e.uniform(x)) ?? `${fn.name}(${x.code})`)
 }
 
 /** The dot product: the narrower operand is made the width of the other (a scalar repeated, a
@@ -59,25 +94,23 @@ export function cross(e: Emitter, a: Value, b: Value): Value {
   return e.local('f3', `cross(${ca.code},${cb.code})`)
 }
 
-/** `x` scaled to length 1. */
+/** `x` scaled to length 1, by a plain normalisation on every path: a zero vector is not a number. A
+ *  scalar is divided by its magnitude (its sign), the shader having no scalar normalisation. A constant
+ *  that does not fold to a finite number is left to the shader. */
 export function normalize(e: Emitter, x: Value): Value {
-  if (!isNumeric(x.type)) throw graphError(`normalize of a ${describeType(x.type)}`)
+  assertNumeric(x.type, 'normalize')
   if (x.constant) {
-    const length = lengthOf(x.constant)
-    return constantOf(
-      x.type,
-      each(x.constant, (v) => v / length),
-    )
+    const folded = normalizedOf(x.constant)
+    if (folded.every(Number.isFinite)) return constantOf(x.type, folded)
   }
-  return e.local(
-    x.type,
-    widthOf(x.type) === 1 ? `(${x.code}/abs(${x.code}))` : `normalize(${x.code})`,
-  )
+  const operand = x.constant ? e.local(x.type, x.code) : x
+  if (widthOf(x.type) === 1) return e.local(x.type, `(${operand.code}/abs(${operand.code}))`)
+  return e.local(x.type, `normalize(${operand.code})`)
 }
 
 /** The length of `x`. */
 export function length(e: Emitter, x: Value): Value {
-  if (!isNumeric(x.type)) throw graphError(`length of a ${describeType(x.type)}`)
+  assertNumeric(x.type, 'length')
   if (x.constant) return constantOf('flex', [lengthOf(x.constant)])
   return e.local('flex', `length(${x.code})`)
 }

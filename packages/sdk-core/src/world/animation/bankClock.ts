@@ -4,8 +4,8 @@
  * Every instance of one item is in one pose. A track starts at its item's second and advances by
  * its play rate times the world's seconds times `timeScale` (the run-time setting
  * `animationBankTimeScale`, written by the session that draws it); a looping track wraps into its
- * length, another holds at its ends. Its length is its bake's frames less one over the sample rate:
- * the last key is where it ends.
+ * length, another holds at its ends. Its length is its bake's frames less one over its rate: the
+ * last key is where it ends.
  *
  * The step order is the reference's: a frame draws the second the track held when the frame began,
  * then the track advances by that frame's seconds — so each step first takes the pending second
@@ -14,7 +14,6 @@
  * clips (`advanceMixers`): once a world step for each clock one of whose owners — the roots it plays
  * under — the world's scene holds. A clock whose owners are all gone leaves the registry.
  */
-import { ANIMATION_BANK_SAMPLE_RATE } from '../../contracts/compilerAbi.ts'
 import type { DecodedBanks } from '../../scene/core/animationBanks.ts'
 import type { Object3D } from '../object/object3d.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
@@ -54,10 +53,10 @@ function wrapped(position: number, length: number, looping: boolean) {
 /** The clock of `banks`' items, each at its item's second. */
 export function createBankClock(banks: DecodedBanks): BankClock {
   const count = banks.items.length
-  const lengths = Float64Array.from(
-    banks.items,
-    (item) => (banks.bakes[item.bake].frames - 1) / ANIMATION_BANK_SAMPLE_RATE,
-  )
+  const lengths = Float64Array.from(banks.items, (item) => {
+    const { frames, rate } = banks.bakes[item.bake]
+    return (frames - 1) / rate
+  })
   const start = Float64Array.from(banks.items, (item) => item.position)
   const next = start.slice()
   const clock: BankClock = {

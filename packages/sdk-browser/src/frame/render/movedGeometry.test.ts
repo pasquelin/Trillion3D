@@ -1,23 +1,21 @@
 // On WebGPU, a dynamic geometry's rewrite hands its roots how far a vertex lies from where its
 // pages are bounded, and each page's box where its vertices are (`noteRewritten`). Its roots hold
 // that reach as a deformation's — the GPU cut by its mark —, this rewrite's, not the farthest ever;
-// each page's record holds its box (`PageRec.moved`), which its row's sphere and corners read, and
-// only the rows whose bounds changed travel again.
+// each page's record holds its box (`PageRec.moved`), which its shadow sphere and its transparent
+// entries' corners read, and only the entries whose bounds changed travel again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { noteRewritten } from './movedGeometry.ts'
 import { runtime, scene, selectionRoot } from '../../gpu/core/transformShear.fixture.ts'
 import { rootMark } from '../../deformation/halfFloat.ts'
 import { growClusterBox } from '../../lighting/shadows/casters/spheres.ts'
-import { ROW_LOD_FLOATS } from '../../lighting/shadows/casters/rowLodWords.ts'
-import { writeRowLod } from '../../lighting/shadows/casters/rowLodWords.fixture.ts'
 import type { ClusterRoot, PageRec } from '../../geometry/selection/types.ts'
 
 const box = (...values: number[]) => Float64Array.from(values)
 const EMPTY = box(Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity)
 
 /** Dynamic roots drawing one geometry, each page bounded by a unit box at rest along x, `shared`
- *  roots on the same records; their rows, page by page, the marked ones in `marked`. */
+ *  roots on the same records. */
 function dynamicRoots(pages = 1, shared = 1, transparent = false) {
   const { source, mesh, worlds } = scene('sea'),
     attributes = {}
@@ -39,22 +37,11 @@ function dynamicRoots(pages = 1, shared = 1, transparent = false) {
       packedBase: n * pages,
     }),
   )
-  const { rt, run, motions, layout } = runtime(source, roots, worlds)
-  const rows = pages * shared,
-    marked: number[] = [],
-    each = Int32Array.from({ length: rows }, (_, i) => i)
-  Object.assign(layout.rows, {
-    pageTableFloats: new Float32Array(rows * 64),
-    rowOf: (page: number) => each[page] ?? -1,
-    blendRowOf: (page: number) => each[page] ?? -1,
-    packedPageIndex: each,
-    packedCount: rows,
-    markRowWords: (row: number) => void marked.push(row),
-  })
-  rt.lights.mobility.ensure(shared, shared, (rank) => roots[rank].world.elements)
+  const { rt, run, motions } = runtime(source, roots, worlds)
+  rt.lights.mobility.ensure(shared, (rank) => roots[rank].world.elements)
   const marks: number[] = []
   run.gpuSelection = { markWorld: (_: number, mark: number) => marks.push(mark) } as never
-  return { rt, roots, records, attributes, marks, motions, marked }
+  return { rt, roots, records, attributes, marks, motions }
 }
 
 test("a rewrite's reach is held by its roots and marked for the GPU cut: this rewrite's", () => {
@@ -80,8 +67,8 @@ test("a new session's roots hear the reach and boxes alone: an empty box moves a
   assert.equal(rt.lights.mobility.moves(0), false, 'the root is not moved by hearing it')
 })
 
-test('only the rows and transparent entries whose box moved travel again, on every placement', () => {
-  const { rt, records, attributes, marked } = dynamicRoots(3, 2, true)
+test('only the transparent entries whose box moved travel again, on every placement', () => {
+  const { rt, records, attributes } = dynamicRoots(3, 2, true)
   const moved = { from: Infinity, to: -1 }
   Object.assign(rt.blendState, {
     occlusionEpoch: 7,
@@ -90,32 +77,18 @@ test('only the rows and transparent entries whose box moved travel again, on eve
   })
   const boxes = box(0, 0, 0, 1, 1, 1, 1, 0, 0, 2, 1, 1, 2, 0, 0, 3, 1, 1)
   noteRewritten(rt, attributes, EMPTY, 0, boxes)
-  assert.deepEqual(marked, [0, 1, 2, 3, 4, 5], 'first heard: every row')
   assert.deepEqual(moved, { from: 10, to: 22 })
-  ;[marked.length, moved.from, moved.to] = [0, Infinity, -1]
-  // Page 1 lifted by a quarter: its box moves, the reach with it, which no row reads.
+  ;[moved.from, moved.to] = [Infinity, -1]
+  // Page 1 lifted by a quarter: its box moves, the reach with it.
   boxes.set([1, 0, 0.25, 2, 1, 1.25], 6)
   noteRewritten(rt, attributes, box(1, 0, 0, 2, 1, 1.25), 0.25, boxes)
-  assert.deepEqual(marked, [1, 4], "page 1's row on each placement, no other")
   assert.deepEqual(records[1].moved, { min: [1, 0, 0.25], max: [2, 1, 1.25] })
   assert.deepEqual(moved, { from: 11, to: 21 }, 'its transparent entries alone are sent again')
   assert.equal(rt.blendState.occlusionEpoch, 7, 'the whole transparent table is not')
-  marked.length = 0
+  moved.from = Infinity
+  moved.to = -1
   noteRewritten(rt, attributes, EMPTY, 0.25, boxes)
-  assert.deepEqual(marked, [], 'nothing moved, nothing travels')
-})
-
-test("a moved row's level-of-detail sphere is its box's, which no reach grows", () => {
-  const { roots, records } = dynamicRoots()
-  Object.assign(records[0], { sphere: [0.5, 0.5, 0.5, 0.9], lodError: 0, level: 0 })
-  records[0].moved = { min: [0, 0, 6], max: [1, 1, 7] }
-  roots[0].reach = 6
-  const out = new Float32Array(ROW_LOD_FLOATS)
-  writeRowLod(out, 0, records[0], roots[0])
-  const e = roots[0].world.elements
-  assert.equal(out[0] + out[8], 0.5 + e[12])
-  assert.equal(out[2] + out[10], 6.5 + e[14], 'centred where its vertices are')
-  assert.equal(out[16], Math.fround(Math.sqrt(3) / 2), 'its box’s radius, no reach')
+  assert.deepEqual(moved, { from: Infinity, to: -1 }, 'nothing moved, nothing travels')
 })
 
 test("a row's shadow sphere is its page's box where its vertices are, not its rest box and reach", () => {

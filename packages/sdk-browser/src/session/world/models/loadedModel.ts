@@ -92,6 +92,8 @@ export class LoadedModel extends Object3D {
   #worldRoots: readonly WorldRootsHold[] = []
   /** Its partitions' placements, for a model placed again (`modelPartitions`). */
   #partitions: ExplorerScene['partitions'] | undefined
+  /** What its cells draw (`_cells`), made on first ask. */
+  #cells: { readonly changes: number; holds(node: number): boolean } | null | undefined
   /** The model its record was read for, if it was placed from it (`placeModel`). */
   #first: LoadedModel | undefined
   /** The lights its source file carried, as read: each placement makes its own nodes of them. */
@@ -154,12 +156,43 @@ export class LoadedModel extends Object3D {
     return graph ? this.nodeOf(graph) : super.getObjectByName(name)
   }
   /** The scene node of source node `index` (`nodeOf`), the nodes below it and its radius
-   *  (`graphSubtree`): what the physics moves a body's node by. `null` where the cache numbers
-   *  its nodes otherwise than the source (a partitioned scene). */
+   *  (`graphSubtree`): what the physics moves a body's node by. `null` for a node a partition's
+   *  cell places in its stead — a body's, which moves its node, is kept by the core —, past the
+   *  source, or in a replicated scene. */
   _nodeAt(index: number) {
-    const nodes = this.record.scene.nodes
-    if (!nodes?.[index]) return null
-    return { node: this.nodeOf(nodes[index]), ...graphSubtree(nodes, index) }
+    const graph = this._graphNodeAt(index)
+    if (!graph) return null
+    return { node: this.nodeOf(graph), ...graphSubtree(this.record.scene.nodes!, index) }
+  }
+  /** The graph node of source node `index`, as its loader built it: the one reading of the
+   *  record's nodes by source rank. `null` as for `_nodeAt`. */
+  _graphNodeAt(index: number): Object3D | null {
+    return this.record.scene.nodes?.[index] ?? null
+  }
+  /** What the cells that draw this model draw now, as the physics reads it: how many times the set
+   *  of source nodes they draw moved (`changes`), and whether they hold source node `node`
+   *  (`holds`) — no cell draws it, the core does or it draws nothing, or a placed cell draws it as
+   *  itself. A body or a collider is made with the cell that draws its node and let go of with it.
+   *  `null` for a model no cell draws. */
+  _cells() {
+    if (this.#cells !== undefined) return this.#cells
+    const partitions = modelPartitions(this)
+    if (!partitions.length) return (this.#cells = null)
+    const { streams } = this.record.scene
+    // Drawn by a cell: the node is no core node, or the core keeps it for its cell's row.
+    const cellDrawn = (node: number) => !this._graphNodeAt(node) || streams.has(node)
+    return (this.#cells = {
+      get changes() {
+        let moves = 0
+        for (const { draws } of partitions) moves += draws.changes
+        return moves
+      },
+      holds(node: number) {
+        if (!cellDrawn(node)) return true
+        for (const { draws } of partitions) if (draws.drawn(node)) return true
+        return false
+      },
+    })
   }
   /** Every model of `record` — the one its manifest was read for (`loadModel`), each placement of
    *  it since (`placeModel`) — owns its scene's bank clock, when it has banks: their tracks advance
@@ -188,6 +221,14 @@ export class LoadedModel extends Object3D {
   }
 }
 
+/** The meter that tells `onProgress` the bytes read against the files planned; none without it. */
+const progressMeter = (onProgress?: (event: JobProgress) => void) =>
+  onProgress
+    ? byteMeter((completed, total) =>
+        onProgress({ phase: 'bytes', completed, total, message: `${completed} of ${total} bytes` }),
+      )
+    : unmetered
+
 /**
  * Reads a compiled model — its manifest, then its source graph (`loadPreparedScene`) — for a world.
  * The images whose levels its cache baked whole are left unread: every session that draws the model
@@ -207,11 +248,7 @@ export async function loadModel(
   },
 ): Promise<LoadedModel> {
   const { signal, onProgress } = options
-  const meter = onProgress
-    ? byteMeter((completed, total) =>
-        onProgress({ phase: 'bytes', completed, total, message: `${completed} of ${total} bytes` }),
-      )
-    : unmetered
+  const meter = progressMeter(onProgress)
   // A scope the page named is enforced; none named, the model is read at the one its pointer
   // declares (`loadClusterManifest`).
   const loaded = await loadClusterManifest(manifestUrl, options.scope, signal, meter)

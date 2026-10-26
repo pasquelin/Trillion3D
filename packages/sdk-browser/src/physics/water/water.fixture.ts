@@ -1,6 +1,11 @@
 import type { WaterSpec } from '../../../../sdk-core/src/fluids/buoyancy.ts'
 import { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
-import { LAYER, MOTION, POSE_WORDS, SHAPE } from '../../../../sdk-core/src/physics/layout.ts'
+import {
+  BUILT_IN_FILTER,
+  MOTION,
+  POSE_WORDS,
+  SHAPE,
+} from '../../../../sdk-core/src/physics/layout.ts'
 import type { BodyRecord, CompoundPart } from '../../../../sdk-core/src/physics/bodyRecord.ts'
 import type { JoltModule } from '../joltModule.ts'
 import { createWaterStep } from './water.ts'
@@ -16,7 +21,7 @@ export function floater(
   return {
     id: id | (1 << 24),
     motion: MOTION.dynamic,
-    layer: LAYER.moving,
+    filter: BUILT_IN_FILTER.moving,
     flags: 0,
     position,
     quaternion: TURN,

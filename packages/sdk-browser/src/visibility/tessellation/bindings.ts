@@ -1,5 +1,6 @@
 import { atlasLayoutEntries, VIS_BINDINGS, type AtlasBindings } from '../../gpu/bind/bindLayout.ts'
 import { tileDeclarations } from '../../materials/virtual/wgsl.ts'
+import { graphFrameEntry } from '../shader/graphFrameWgsl.ts'
 import {
   COMPUTE,
   computeBufferEntry,
@@ -29,7 +30,7 @@ export const TESS_BINDINGS = {
   uvs: VIS_BINDINGS.uv,
   color: VIS_BINDINGS.color,
   sampler: VIS_BINDINGS.sampler,
-  mask: 11,
+  lists: 11,
   tess: 12,
   material: VIS_BINDINGS.material,
   normals: VIS_BINDINGS.normals,
@@ -39,6 +40,8 @@ export const TESS_BINDINGS = {
   pyramid: 21,
   levels: 22,
   occluded: 23,
+  /** The graph frame (`../shader/graphFrameWgsl.ts`) the dicing's cutouts and offsets read. */
+  frame: 24,
 } as const
 
 const B = TESS_BINDINGS
@@ -53,12 +56,11 @@ export const TESS_DECLARATIONS = {
   pages: storage(B.pages, 'pages', 'array<PageInfo>'),
   uniform: `@group(0) @binding(${B.uniform}) var<uniform> uni:Uniforms;`,
   tessUniform: `@group(0) @binding(${B.tessUniform}) var<uniform> tu:TessUni;`,
-  mask: storage(B.mask, 'selectionMask', 'array<u32>'),
+  lists: storage(B.lists, 'lists', 'array<u32>'),
   tess: storage(B.tess, 'tess', 'array<atomic<u32>>', 'read_write'),
   uvs: storage(B.uvs, 'uvs', 'array<f32>'),
   color: tileDeclarations(B.color, 'color'),
   sampler: `@group(0) @binding(${B.sampler}) var mapsSampler:sampler;`,
-  work: storage(B.work, 'work', 'array<atomic<u32>>', 'read_write'),
   dispatch: storage(B.dispatch, 'dispatch', 'array<u32>', 'read_write'),
   /** The Hi-Z pyramid and its levels uniform, which the occlusion test of the patches reads
    *  (`PYRAMID_BOX_WGSL`), and the patches the main pass hid: written by the splitting, read by the
@@ -87,11 +89,30 @@ export type TessProgram =
 export type TessBinding = keyof typeof TESS_BINDINGS | 'occludedRead' | 'tessRead'
 
 /** What each of the tessellation's programs binds, in its own layout: a program binds the least it
- *  reads, so the dicing's eight storage buffers — what the poorest device holds — are the most any
- *  binds, and the kernels the arguments launch (`split`, `dice`) bind no buffer they are launched
- *  from. */
+ *  reads, so the eight storage buffers of the seeding and the dicing — what the poorest device
+ *  holds — are the most any binds, and the kernels the arguments launch (`split`, `dice`) bind no
+ *  buffer they are launched from. */
 export const TESS_PROGRAMS: Record<TessProgram, readonly TessBinding[]> = {
-  seed: ['indices', 'positions', 'pages', 'uniform', 'tessUniform', 'mask', 'tess', 'occludedRead'],
+  // The seeding, the splitting and the dicing place a patch's corners alike, by the surface's offset
+  // (`wpoSets.ts`): each binds what an offset reads — the geometry's UVs, the colour atlas and its
+  // sampler, the surfaces' records and the normal atlas, the graph frame — whichever offsets the
+  // session holds, so that its layout is the same for all.
+  seed: [
+    'indices',
+    'positions',
+    'pages',
+    'uniform',
+    'tessUniform',
+    'lists',
+    'tess',
+    'occludedRead',
+    'uvs',
+    'color',
+    'material',
+    'normals',
+    'sampler',
+    'frame',
+  ],
   plan: ['tessUniform', 'tess', 'dispatch'],
   split: [
     'indices',
@@ -104,6 +125,11 @@ export const TESS_PROGRAMS: Record<TessProgram, readonly TessBinding[]> = {
     'pyramid',
     'levels',
     'occluded',
+    'uvs',
+    'color',
+    'material',
+    'sampler',
+    'frame',
   ],
   dice: [
     'indices',
@@ -119,13 +145,26 @@ export const TESS_PROGRAMS: Record<TessProgram, readonly TessBinding[]> = {
     'data',
     'sampler',
     'work',
+    'frame',
   ],
   // The shadow maps' programs read the pairs of the chunk and the projections in groups of their
   // own; here is what they bind of the tessellation. The vertex stage binds, besides the page
   // group's four storage buffers and the pairs' and the projections', two: `tess` and the data
   // atlas's page table — the eight any device holds.
   shadowSeed: ['indices', 'positions', 'pages', 'tessUniform', 'tess'],
-  shadowSplit: ['indices', 'positions', 'pages', 'tessUniform', 'tess', 'normals'],
+  // The shadow maps' splitting reads the offsets that read no texture alone: its stage already binds
+  // eight storage buffers with the UVs, the colour atlas's page table would be a ninth.
+  shadowSplit: [
+    'indices',
+    'positions',
+    'pages',
+    'tessUniform',
+    'tess',
+    'normals',
+    'uvs',
+    'material',
+    'frame',
+  ],
   shadowRaster: ['tessUniform', 'tessRead', 'data', 'sampler'],
   // With the colour atlas, which a masked row's cutout reads: a ninth storage buffer in the vertex
   // stage, on a device that grants it (`vsmMaskedPatches`).
@@ -140,7 +179,7 @@ const LAYOUT: Record<TessBinding, GPUBindGroupLayoutEntry[]> = {
   pages: buffer(B.pages, 'read-only-storage'),
   uniform: buffer(B.uniform, 'uniform'),
   tessUniform: buffer(B.tessUniform, 'uniform'),
-  mask: buffer(B.mask, 'read-only-storage'),
+  lists: buffer(B.lists, 'read-only-storage'),
   tess: buffer(B.tess, 'storage'),
   tessRead: buffer(B.tess, 'read-only-storage'),
   uvs: buffer(B.uvs, 'read-only-storage'),
@@ -156,6 +195,7 @@ const LAYOUT: Record<TessBinding, GPUBindGroupLayoutEntry[]> = {
   levels: [computeUniformEntry(B.levels)],
   occluded: buffer(B.occluded, 'storage'),
   occludedRead: buffer(B.occluded, 'read-only-storage'),
+  frame: [graphFrameEntry(B.frame, COMPUTE)],
 }
 
 /** The layout entries of `program`'s group, seen by the compute stage or by `visibility`. */

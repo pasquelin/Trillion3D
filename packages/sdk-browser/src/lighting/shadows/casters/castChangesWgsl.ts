@@ -1,33 +1,40 @@
 /**
- * ONE RECORD APPENDED TO THE SHADOW CHANGES (`castChanges.ts`), by the pass that knows a caster
- * changed: the rows pass (`../../../placement/rows/rowCastWgsl.ts`), for a row it derives again and for one
- * the CPU names for a change where it stands. Its host binds the list as
+ * ONE RECORD APPENDED TO THE SHADOW CHANGES (`castChanges.ts`), by the pass that knows a placement
+ * changed: the diff of the instances' boxes (`castDiffWgsl.ts`). Its host binds the list as
  * `castChanges:array<atomic<u32>>`. A record is taken by one atomic add on the header's count; one
  * asked past the list sets the header's overflow flag and is not written.
  */
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { CAST_HEADER_WORDS, CAST_RECORD_WORDS } from './castChanges.ts'
 
-/** The smallest half extent a record holds: the box of a point keeps the sign that says whether its
- *  casters move. Any box may be larger than its casters, never smaller. */
-const CAST_MIN_EXTENT = 2 ** -40
-
-/** `emitCast(centre, extent, moving)`: the box of half extent `extent` about `centre` appended, its
- *  extent negative when its casters were moving before and after the change. */
+/** `emitCast(centre, axisX, axisY, axisZ, moving, views)`: the oriented box of centre `centre` and half
+ *  axes `axisX`, `axisY`, `axisZ` appended, its sign negative when its casters were moving before and
+ *  after the change, `views` the bits of the views whose maps it stales (`ALL_VIEWS` for a change every
+ *  view sees). */
 export const CAST_EMIT_WGSL = wgslBlock(
   'CAST_EMIT_WGSL',
   [],
   `
-const CAST_MIN_EXTENT:f32=${wgslF32(CAST_MIN_EXTENT)};
-fn emitCast(centre:vec3f,extent:f32,moving:bool){
+const ALL_VIEWS:u32=0xffffffffu;
+fn emitCast(centre:vec3f,axisX:vec3f,axisY:vec3f,axisZ:vec3f,moving:bool,views:u32){
  let k=atomicAdd(&castChanges[0],1u);
  let at=${CAST_HEADER_WORDS}u+k*${CAST_RECORD_WORDS}u;
  if(at+${CAST_RECORD_WORDS}u>arrayLength(&castChanges)){atomicStore(&castChanges[1],1u);return;}
- let e=max(extent,CAST_MIN_EXTENT);
  atomicStore(&castChanges[at],bitcast<u32>(centre.x));
  atomicStore(&castChanges[at+1u],bitcast<u32>(centre.y));
  atomicStore(&castChanges[at+2u],bitcast<u32>(centre.z));
- atomicStore(&castChanges[at+3u],bitcast<u32>(select(e,-e,moving)));
+ atomicStore(&castChanges[at+3u],bitcast<u32>(select(1.0,-1.0,moving)));
+ atomicStore(&castChanges[at+4u],bitcast<u32>(axisX.x));
+ atomicStore(&castChanges[at+5u],bitcast<u32>(axisX.y));
+ atomicStore(&castChanges[at+6u],bitcast<u32>(axisX.z));
+ atomicStore(&castChanges[at+7u],views);
+ atomicStore(&castChanges[at+8u],bitcast<u32>(axisY.x));
+ atomicStore(&castChanges[at+9u],bitcast<u32>(axisY.y));
+ atomicStore(&castChanges[at+10u],bitcast<u32>(axisY.z));
+ atomicStore(&castChanges[at+11u],0u);
+ atomicStore(&castChanges[at+12u],bitcast<u32>(axisZ.x));
+ atomicStore(&castChanges[at+13u],bitcast<u32>(axisZ.y));
+ atomicStore(&castChanges[at+14u],bitcast<u32>(axisZ.z));
+ atomicStore(&castChanges[at+15u],0u);
 }`,
 )

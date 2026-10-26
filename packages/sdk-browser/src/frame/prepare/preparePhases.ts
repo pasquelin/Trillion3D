@@ -29,12 +29,12 @@ export async function prepareGeometryAndBlend(
   step: PrepareStep,
 ) {
   const { gpu, diag, blendState } = rt,
-    { allPages, blendCopies, scene } = rt.setup,
-    { packedPages, selectionRoots, rows } = rt.layout
+    { allPages, blendCopies } = rt.setup,
+    { packedPages, selectionRoots, clusters } = rt.layout
   // Only a cluster no quantized page covers reads its primitive's vertices, from the float vertex
-  // pool (`../../geometry/pages/pool/geometryPool.ts`): they are loaded, and rank sync starts over from them.
+  // pool (`../../geometry/pages/pool/geometryPool.ts`): they are loaded, and the clusters' records are written again from them.
   await loadUnpaged(allPages)
-  rows.rowsRevision++
+  clusters.infoEpoch++
   // 16 bytes: it also stands in for the cluster spans (`array<vec4u>`) of a scene without them.
   gpu.zeroUv = gpuDevice.createBuffer({
     label: 'Trillion3D zero words',
@@ -42,7 +42,7 @@ export async function prepareGeometryAndBlend(
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   gpuDevice.queue.writeBuffer(gpu.zeroUv, 0, new Float32Array([0, 0, 0, 0]))
-  blendState.transmissive = prepareWebgpuBlend(blendCopies, blendState, scene)
+  blendState.transmissive = prepareWebgpuBlend(blendCopies, blendState)
   // The transparent draw order is the scene's, settled here once: an image only picks survivors.
   const table = createTransparentTable(selectionRoots, packedPages, blendState.blendGpu)
   blendState.table = table
@@ -131,7 +131,6 @@ export async function finishPreparation(
     directLightTiles: !!rt.lights.tiles,
     shadowRaster: !!rt.lights.pageLayout,
     shadowUnavailable: rt.lights.shadowReason,
-    bounceProxy: !!context.readSceneProxy,
     bounceWanted: rt.bounce.wanted,
     imageReadbackDuringRender: false,
     gpuSelection: !!run.gpuSelection,

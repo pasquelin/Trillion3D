@@ -41,19 +41,16 @@ type Inputs = {
   banks?: AnimationBanks | null
 }
 
-/** The scene, the mesh and primitive ranks each drawn host mesh answers to, the rank each host
- *  texture answers to, and how many images the cache spared. */
-export async function buildPreparedScene(inputs: Inputs) {
-  const { tables, metadata, base, signal, track, banks } = inputs
-  const meter = inputs.meter ?? unmetered
-  const { document, documentUrl, bufferUrl } = sceneDocument(tables, base)
-  // Each view of the binary is read by its own range on the first need of a host vertex or an
-  // embedded image: the binary holds the whole source, most of which the cache's pages already
-  // carry, and a session reads only the views it needs. Read while the scene is built (an embedded
-  // image a surface samples), a view joins the load's progress, byte count and signal; read after,
-  // none of them: an aborted or timed-out load signal must not refuse every later read.
+/** The scene document's binary, read by ranges. Each view of it is read by its own range on the
+ *  first need of a host vertex or an embedded image: the binary holds the whole source, most of
+ *  which the cache's pages already carry, and a session reads only the views it needs. Read while
+ *  the scene is built (an embedded image a surface samples), a view joins the load's progress,
+ *  byte count and signal; read after (`done`), none of them: an aborted or timed-out load signal
+ *  must not refuse every later read. */
+function sceneBinary(inputs: Inputs, bufferUrl: string | null, meter: ByteMeter) {
+  const { signal, track } = inputs
   let building = true
-  const binary = {
+  return {
     range(offset: number, length: number) {
       if (!bufferUrl)
         return Promise.reject(
@@ -62,7 +59,19 @@ export async function buildPreparedScene(inputs: Inputs) {
       if (!building) return inputs.readRange(bufferUrl, offset, length)
       return track(bufferUrl, inputs.readRange(bufferUrl, offset, length, { meter, signal }))
     },
+    done() {
+      building = false
+    },
   }
+}
+
+/** The scene, the mesh and primitive ranks each drawn host mesh answers to, the rank each host
+ *  texture answers to, and how many images the cache spared. */
+export async function buildPreparedScene(inputs: Inputs) {
+  const { tables, metadata, base, signal, track, banks } = inputs
+  const meter = inputs.meter ?? unmetered
+  const { document, documentUrl, bufferUrl } = sceneDocument(tables, base)
+  const binary = sceneBinary(inputs, bufferUrl, meter)
   const skipped = bakedImages(metadata, document.images.length)
   const images = preparedImages({ document, documentUrl, binary, skipped, signal, track, meter })
   const ranks = new Map<Texture, number>()
@@ -72,6 +81,8 @@ export async function buildPreparedScene(inputs: Inputs) {
     scene,
     ranks: meshes,
     nodes,
+    sourced,
+    streams,
     placed,
     streamed,
     clips,
@@ -82,9 +93,7 @@ export async function buildPreparedScene(inputs: Inputs) {
     materialOf,
     clothOf: clothPrimitives(metadata),
     banks,
-  }).finally(() => {
-    building = false
-  })
+  }).finally(binary.done)
   signal?.throwIfAborted()
   const source: Object3D = scene
   const associations: DrawAssociations = meshes
@@ -94,6 +103,10 @@ export async function buildPreparedScene(inputs: Inputs) {
     ranks,
     bakedImages: skipped.size,
     nodes,
+    /** The host node of each source node the core keeps, by its source rank. */
+    sourced,
+    /** The source ranks of those whose mesh a cell draws (`TableNode.streamed`). */
+    streams,
     placed,
     /** The meshes each streamed node draws, by primitive: what its cell's row reads. */
     streamed,

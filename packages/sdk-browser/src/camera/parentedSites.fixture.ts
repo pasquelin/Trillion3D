@@ -15,7 +15,7 @@ import type { HizPage } from '../visibility/hiz/types.ts'
 import { dagFixture } from '../geometry/selection/dag.fixture.ts'
 import { engineSites, type Site } from './parentedEngineSites.fixture.ts'
 import { createEngineCamera } from './engineCamera.ts'
-import { readCameraWorld, type HostCamera } from './world.ts'
+import { readCameraWorld, type ViewCamera } from './world.ts'
 import { identityRoots } from '../geometry/selection/placements.fixture.ts'
 import { rasterVisibility } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { graphDraws } from '../geometry/selection/drawSource.ts'
@@ -25,7 +25,7 @@ const VIEWPORT: [number, number] = [1280, 720],
 const list = (values: ArrayLike<number>): number[] => Array.from(values)
 /** What a frame input does: the host camera copied into the engine's. Each site remakes it for
  *  itself, like a lone caller. */
-const engine = (camera: HostCamera) => readCameraWorld(createEngineCamera(), camera)
+const engine = (camera: ViewCamera) => readCameraWorld(createEngineCamera(), camera)
 
 /** A page as the Hi-Z and visbuffer sites both need it. */
 type VisHizPage = VisPage & HizPage
@@ -60,7 +60,7 @@ function dagPages(): { roots: ReturnType<typeof collectClusterPages>['roots']; v
 const pureSites: Site[] = [
   {
     name: 'cameraSelectionUniforms (GPU selection)',
-    measure: (_state, camera: HostCamera) => {
+    measure: (_state, camera: ViewCamera) => {
       const u = cameraSelectionUniforms(engine(camera), 1, VIEWPORT)
       return {
         view: list(u.view),
@@ -72,7 +72,7 @@ const pureSites: Site[] = [
   {
     name: 'selectVisiblePages (CPU cut)',
     create: dagPages,
-    measure: (state, camera: HostCamera) => {
+    measure: (state, camera: ViewCamera) => {
       const { roots } = state as ReturnType<typeof dagPages>
       return [0, 3.5].map((pixelError) => {
         const cut = selectVisiblePages(roots, engine(camera), { pixelError, viewport: VIEWPORT })
@@ -83,7 +83,7 @@ const pureSites: Site[] = [
   {
     name: 'projectBoxesFlat (Hi-Z, rectangles)',
     create: dagPages,
-    measure: (state, camera: HostCamera) => {
+    measure: (state, camera: ViewCamera) => {
       const { vis } = state as ReturnType<typeof dagPages>
       const bounds = boundsFor(vis.length)
       projectBoxesFlat(vis, identityRoots(), vis.length, engine(camera), VIEWPORT, bounds)
@@ -93,7 +93,7 @@ const pureSites: Site[] = [
   {
     name: 'rasterVisibility + visibilityDepth + shadeVisibility (lit CPU raster)',
     create: dagPages,
-    measure: (state, camera: HostCamera) => {
+    measure: (state, camera: ViewCamera) => {
       const { vis } = state as ReturnType<typeof dagPages>
       const view = engine(camera)
       const { ids } = rasterVisibility(vis, identityRoots(), view, RASTER)
@@ -121,7 +121,7 @@ const apply = (m: ArrayLike<number>, [x, y, z]: number[]): number[] => [
  * of the same point. Non-zero as soon as the published position is not that of the view — an
  * unwalked rig, for example: it is now what carries the camera move.
  */
-export function renderFrameResidual(camera: HostCamera): number {
+export function renderFrameResidual(camera: ViewCamera): number {
   const cam = engine(camera),
     u = cameraSelectionUniforms(cam, 1, VIEWPORT)
   const probe = [12, -7, 31]

@@ -1,7 +1,7 @@
 // The SDK's source entries are public; the GPU proofs run on the bench, outside pnpm test.
 // `pageWorker.ts` and `pageIntegrationWorker.ts` are worker entry points: the pool and the
-// integration lane load them by URL, never by import; so does the physics session,
-// `physicsWorker.ts`.
+// integration lane load them by URL, never by import; so do the physics session,
+// `physicsWorker.ts`, and the hardware benchmark, `benchmarkWorker.ts`.
 import type { KnipConfig } from 'knip'
 
 const config: KnipConfig = {
@@ -14,9 +14,15 @@ const config: KnipConfig = {
         'bench/kit/index.ts',
         // The report format the site reads from a pinned engine checkout: a public contract.
         'bench/kit/report/*.ts',
+        // What the site's examples kit imports from the same checkout (`site/examples/kit/*.ts`):
+        // the maths it seeds and turns with, and the stats module's corner and source types.
+        'packages/math/src/scalar/reals.ts',
+        'packages/math/src/constants.ts',
+        'packages/sdk-browser/src/modules/stats/index.ts',
         'packages/sdk-browser/src/geometry/work/pageWorker.ts',
         'packages/sdk-browser/src/geometry/integration/pageIntegrationWorker.ts',
         'packages/sdk-browser/src/physics/physicsWorker.ts',
+        'packages/sdk-browser/src/session/world/benchmarkWorker.ts',
         // The public API's source (`scripts/sdkApi/sdk-api-model.ts`, `ENTRIES`): the facade below is
         // generated from these three entries, so every name they export is public.
         'packages/sdk-core/src/index.ts',
@@ -59,12 +65,9 @@ const config: KnipConfig = {
         'bench/runner/references/referencePage.ts',
         'bench/runner/trajectory/trajectoryPage.ts',
         'bench/runner/trajectory/poses.ts',
-        'bench/runner/witness/threeBarePage.ts',
-        'bench/runner/witness/threeLodPage.ts',
         'bench/runner/harness/measurePage.ts',
         'bench/runner/fluids/fluidsPage.ts',
         // Recette imports these measurement/reference modules by URL (bench/runner/README.md).
-        'bench/runner/witness/deformationWitness.ts',
         'bench/runner/gaze/gazeNetworkPage.ts',
         'bench/runner/harness/limits.ts',
         'bench/runner/screenError/screenErrorPage.ts',
@@ -99,20 +102,11 @@ const config: KnipConfig = {
       },
       // Rust and its formatter, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as
       // one) are platform tools. The tap runner is a Stryker plugin, loaded by name
-      // (`scripts/test/test-mutation.ts`).
+      // (`scripts/check/mutation.ts`).
       ignoreDependencies: ['@stryker-mutator/tap-runner'],
       // `ioreg` and `sips`: macOS's own, the GPU bench reads how busy other programs keep the GPU
       // and decodes the images its pages load.
-      ignoreBinaries: [
-        'rustc',
-        'rustfmt',
-        'emcmake',
-        'cmake',
-        'em-config',
-        /^c\+\+$/,
-        'ioreg',
-        'sips',
-      ],
+      ignoreBinaries: ['rustfmt', /^c\+\+$/, 'ioreg', 'sips'],
     },
   },
 }

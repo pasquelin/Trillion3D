@@ -11,13 +11,23 @@ export const rustSource = (path: string) => readFileSync(join(REPOSITORY_ROOT, p
 /** A `pub const` of a Rust module: its name, its value and its leading documentation. */
 export type RustConstant = { name: string; value: number; doc: string[]; scope: string[] }
 
-/** The value of the integer expression `text`, its names read from `known`. */
+/** The bounds of the integer types up to 32 bits a constant may name (`u32::MAX`): exact numbers. */
+const BOUNDS = new Map(
+  [8, 16, 32].flatMap((bits) => [
+    [`u${bits}::MIN`, 0],
+    [`u${bits}::MAX`, 2 ** bits - 1],
+    [`i${bits}::MIN`, -(2 ** (bits - 1))],
+    [`i${bits}::MAX`, 2 ** (bits - 1) - 1],
+  ]),
+)
+
+/** The value of the integer expression `text`, its names read from `known` and `BOUNDS`. */
 function evaluate(text: string, known: ReadonlyMap<string, number>): number {
   const source = text
     .replace(/\s+as\s+\w+/g, '')
     .replace(/0x[0-9a-fA-F_]+/g, (hex) => hex.replaceAll('_', ''))
     .replace(/(?<=\d)_(?=\d)/g, '')
-  const tokens = source.match(/0x[0-9a-fA-F]+|\d+|[A-Za-z_]\w*|<<|[-+*()]/g) ?? []
+  const tokens = source.match(/0x[0-9a-fA-F]+|\d+|[A-Za-z_]\w*(?:::[A-Z]+)?|<<|[-+*()]/g) ?? []
   let at = 0
   const sum = (): number => {
     let value = product()
@@ -50,7 +60,7 @@ function evaluate(text: string, known: ReadonlyMap<string, number>): number {
     }
     if (token === '-') return -atom()
     if (/^(0x)?\d/.test(token)) return Number(token)
-    const named = known.get(token)
+    const named = known.get(token) ?? BOUNDS.get(token)
     if (named === undefined) throw new Error(`Rust constant '${text}' names unknown '${token}'`)
     return named
   }
@@ -94,14 +104,4 @@ export function rustConstants(path: string, known = new Map<string, number>()) {
     }
   }
   return found
-}
-
-/** The `pub const` string `name` of the Rust file at `path`, with its leading documentation. */
-export function rustString(path: string, name: string) {
-  const pattern = new RegExp(`^pub(?:\\(crate\\))? const ${name}: &str = "([^"]*)";$`)
-  for (const { text, doc } of documentedLines(path)) {
-    const found = pattern.exec(text)
-    if (found) return { name, value: found[1], doc }
-  }
-  throw new Error(`${path}: no string constant '${name}'`)
 }

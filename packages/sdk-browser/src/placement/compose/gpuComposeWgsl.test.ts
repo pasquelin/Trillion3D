@@ -1,7 +1,8 @@
 // The composition the GPU runs for a linked placement (`gpuComposeWgsl.ts`) gives the CPU's words
 // to the bit: the transform tree's double product (`multiplyMatrix4`), rounded as a `Float32Array`
-// stores it, the translation brought to the eye by the double subtraction first
-// (`worldToRenderOrigin`). Generated hierarchies: rotations, uneven and negative scales, shears,
+// stores it — by the decode of the clusters' records, which writes the world's words —, the
+// translation brought to the eye by the double subtraction first (`worldToRenderOrigin`), as the
+// cut does. Generated hierarchies: rotations, uneven and negative scales, shears,
 // translations far from the origin, an eye far from it too.
 import { f32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
@@ -11,25 +12,27 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { worldToRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { COMPOSE_WORLDS_WGSL } from './gpuComposeWgsl.ts'
-import { DERIVE_ROWS_WGSL } from '../rows/rowWordsWgsl.ts'
+import { decodeSource } from '../../visibility/decode/decodeWgsl.ts'
+import { DAG_SELECTION_SHADER } from '../../geometry/dag/shader/selectionShader.fixture.ts'
 import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
 import { FLOAT32_MAX } from '../../../../math/src/constants.ts'
 
 /** The parent's and the local matrix's doubles the shipped `composed` reads, one case at a time:
- *  the worlds pass's product, and the rows pass's rounding of a double to a word. */
+ *  the worlds pass's product, the decode's rounding of a double to a word, and the cut's, which
+ *  brings the translation to the eye first. */
 const parents: Pair[] = [],
   locals: Pair[] = []
-const product = shaderRun<{
+const compose = shaderRun<{
   composed(parentAt: number, localAt: number, k: number): Pair
 }>(COMPOSE_WORLDS_WGSL, [...DOUBLE_HELPERS.filter((name) => name !== 'dSub'), 'composed'], {
   parents,
   locals,
 })
-const rounding = shaderRun<{
+const decode = shaderRun<{ toF32(a: Pair): number }>(decodeSource(), ['toF32'], {})
+const cut = shaderRun<{
   toF32(a: Pair): number
   dSub(a: Pair, b: Pair): Pair
-}>(DERIVE_ROWS_WGSL, [...DOUBLE_HELPERS, 'toF32'], {})
-const run = { ...rounding, composed: product.composed }
+}>(DAG_SELECTION_SHADER, ['toF32', 'dSub'], {})
 
 test('a double rounds to single precision as a Float32Array stores it', () => {
   const next = lcgRandom(3)
@@ -38,8 +41,9 @@ test('a double rounds to single precision as a Float32Array stores it', () => {
   values.push(Infinity, -Infinity, 1 + 2 ** -24, 1 + 3 * 2 ** -24, 1 + 2 ** -24 + 2 ** -52)
   for (let i = 0; i < 4000; i++) values.push((next() - 0.5) * 10 ** Math.floor(next() * 90 - 45))
   for (let i = 0; i < 400; i++) values.push((next() - 0.5) * 2 ** -126 * 8)
-  for (const value of values) assert.equal(run.toF32(pair(value)) >>> 0, f32Bits(value), `${value}`)
-  assert.equal(run.toF32(pair(NaN)) >>> 0, 0x7fc00000)
+  for (const value of values)
+    assert.equal(decode.toF32(pair(value)) >>> 0, f32Bits(value), `${value}`)
+  assert.equal(decode.toF32(pair(NaN)) >>> 0, 0x7fc00000)
 })
 
 test('parent · local, at the eye, is the CPU world word for word, near and far from the origin', () => {
@@ -61,10 +65,10 @@ test('parent · local, at the eye, is the CPU world word for word, near and far 
     parents.splice(0, 16, ...Array.from(parent, pair))
     locals.splice(0, 16, ...Array.from(local, pair))
     for (let k = 0; k < 16; k++) {
-      const value = run.composed(0, 0, k)
-      assert.equal(run.toF32(value) >>> 0, f32Bits(rows[k]), `row word ${k}, case ${i}`)
-      const brought = k >= 12 && k < 15 ? run.dSub(value, pair(eye[k - 12])) : value
-      assert.equal(run.toF32(brought) >>> 0, f32Bits(atEye[k]), `cut word ${k}, case ${i}`)
+      const value = compose.composed(0, 0, k)
+      assert.equal(decode.toF32(value) >>> 0, f32Bits(rows[k]), `row word ${k}, case ${i}`)
+      const brought = k >= 12 && k < 15 ? cut.dSub(value, pair(eye[k - 12])) : value
+      assert.equal(cut.toF32(brought) >>> 0, f32Bits(atEye[k]), `cut word ${k}, case ${i}`)
     }
   }
 })

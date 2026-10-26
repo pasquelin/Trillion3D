@@ -1,12 +1,12 @@
 import { moveRootRows } from '../frame/render/movedRoot.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { followPlacementRows, MOVE_NONE, rootRankOfRow } from './update.ts'
-import { deriveRootRows } from './rows/rowWords.ts'
 import { takeCellsMoved } from '../geometry/partition/rowCells.ts'
 import type { PlacementRows } from './rows/rows.ts'
 import { linkWorldCell, waitWorldRow } from '../frame/prepare/worldRoot.ts'
 import { rootMark } from '../deformation/halfFloat.ts'
 import type { DrawDistance, RootParent } from '../geometry/selection/types.ts'
+import { askNodeRoom } from './growth/growthOf.ts'
 
 /** Hands a root that was parked or taken, or began or stopped casting, or is drawn at other
  *  distances, or has another group above its root, to the GPU cut. */
@@ -25,11 +25,9 @@ export const flipWorld =
     rt.run.gpuSelection?.parkWorld(rank, !!root.parked)
     rt.run.gpuSelection?.markWorld(rank, rootMark(root))
     rt.run.gpuSelection?.drawDistanceWorld(rank, root.drawDistance)
-    rt.run.gpuSelection?.rootParentWorld?.(rank, root.rootParent)
-    // Its rows' words say whether it casts (`MOBILITY_SHADOWLESS`): the caster passes skip them,
-    // and its rows, derived again, stale the pages it left or entered (`rows/rowCastWgsl.ts`).
+    if (rt.run.gpuSelection?.rootParentWorld(rank, root.rootParent) === false) askNodeRoom(rt)
+    // Whether it casts (`MOBILITY_SHADOWLESS`) is its mobility's: the caster passes skip it.
     rt.lights.mobility.touch(rank)
-    deriveRootRows(rt, rank)
     // A row parked or taken lies in its cell, or in none, from now on (`worldRoot.ts`).
     linkWorldCell(rt, rank)
   }
@@ -54,10 +52,9 @@ export function updateWebgpuPlacements(
 ) {
   const { run, layout, lights } = rt,
     { mobility } = lights
-  // Each moved root's rows stale the pages they left and entered, its moving casters only once it
-  // was moving already (`../lighting/shadows/casters/mobility.ts`): the rows pass derives them, row by row
-  // (`rows/rowCastWgsl.ts`); a root shown or hidden, or turned to cast or not, in place, the same
-  // (`flipWorld`).
+  // Each moved root's pose is the mobility's to weigh: a moving caster only once it was moving
+  // already (`../lighting/shadows/casters/mobility.ts`); a root shown or hidden, or turned to cast
+  // or not, in place, is handed on by `flipWorld`.
   const moved = followPlacementRows(
     layout.selectionRoots,
     rows,
@@ -65,15 +62,13 @@ export function updateWebgpuPlacements(
     to,
     flipWorld(rt),
     (rank, world) => {
-      // Weighed once: a pose that moved is taken as a move, its root named to the rows pass; one
-      // within a float32 step — a parked body posed again — is none: its rows follow the world
-      // sent, each appending what its own words changed (`rows/rowCastWgsl.ts`).
+      // Weighed once: a pose that moved is taken as a move; one within a float32 step — a parked
+      // body posed again — is none: the world sent is the one drawn.
       const move = !mobility.poseOf(rank)
         ? mobility.move(rank, world)
         : mobility.holds(rank, world, layout.selectionRoots[rank]?.localBox)
           ? MOVE_NONE
           : mobility.move(rank, world, true)
-      if (move !== MOVE_NONE) deriveRootRows(rt, rank)
       return move
     },
     (rank) => moveRootRows(rt, layout.selectionRoots[rank], rank),

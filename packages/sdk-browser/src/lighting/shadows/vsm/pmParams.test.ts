@@ -1,5 +1,6 @@
 // The page management parameters: the constant `VSM_PM_PARAMS_BYTES` is the size of the WGSL struct
 // `VsmPmParams` the kernels read, and the host writes no word beyond it, in any slot.
+import { ComputeRun } from '../../../gpu/core/lazyComputePass.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -18,6 +19,7 @@ import {
   vsmPhysicalPageKernels,
 } from './physicalPagesWgsl.ts'
 import { VSM_PER_PAGE_BIN_COUNT } from './markingPass.ts'
+import { pipelinesSettled } from '../../deferred/compileLedger.ts'
 import { createVsmResources } from './resources.ts'
 import { wgslStructLayout } from './wgslStructLayout.fixture.ts'
 import { vsmLayout } from './layout.ts'
@@ -68,7 +70,7 @@ test('the guard fails when a field is added to the struct, or its size drifts', 
 
 /** The three encoders run on a device aligning uniform offsets at `alignment`, the cache valid and
  *  not, stats and not, over per-page bins: its records, and each group set with its dynamic offset. */
-function encodeAll(alignment = 256) {
+async function encodeAll(alignment = 256) {
   const fake = fakeDevice({
     limits: {
       maxStorageBuffersPerShaderStage: 10,
@@ -77,7 +79,8 @@ function encodeAll(alignment = 256) {
     },
   })
   const encoder = fake.device.createCommandEncoder(),
-    pass = encoder.beginComputePass()
+    pass = encoder.beginComputePass(),
+    steps = new ComputeRun().begin(encoder)
   const res = createVsmResources(fake.device, { ...options, poolPages: 256 })
   const perPageBins = [3, 2, 1, 4].map((count, b) => ({ offset: 2 * b, count }))
   const writes: { offset: number; words: number[] }[] = []
@@ -103,8 +106,10 @@ function encodeAll(alignment = 256) {
       }
       for (let again = 0; again < 2; again++) {
         counted(() => encodeVsmPageCarry(pass, res, frame))
-        counted(() => encodeVsmPageMapping(encoder, res, frame))
-        counted(() => encodeVsmAfterRaster(encoder, res, frame))
+        counted(() => encodeVsmPageMapping(steps, res, frame))
+        counted(() => encodeVsmAfterRaster(steps, res, frame))
+        // The pipelines they asked are compiled before the next call.
+        await pipelinesSettled(fake.device)
       }
       for (const w of fake.writes.splice(0)) {
         if ((w.buffer as unknown as { label: string }).label !== 'vsm.pm.params') continue
@@ -125,10 +130,10 @@ function encodeAll(alignment = 256) {
 }
 
 /** The parameter buffer's writes over the three encoders, the cache valid and not. */
-const parameterWrites = () => encodeAll().writes
+const parameterWrites = async () => (await encodeAll()).writes
 
-test('the writes to the parameter slots stay within the struct’s 2 words', () => {
-  const writes = parameterWrites()
+test('the writes to the parameter slots stay within the struct’s 2 words', async () => {
+  const writes = await parameterWrites()
   assert.ok(writes.length >= 8, 'every slot is written, cache valid and not')
   assert.ok(
     writes.some(({ words }) => words.some((w) => w !== 0)),
@@ -137,8 +142,8 @@ test('the writes to the parameter slots stay within the struct’s 2 words', () 
   assertWithinWords(writes, VSM_PM_PARAMS_BYTES / 4)
 })
 
-test('a device aligning at 512 lays the parameter and per-page slots 512 bytes apart', () => {
-  const { fake, bound, writes } = encodeAll(512)
+test('a device aligning at 512 lays the parameter and per-page slots 512 bytes apart', async () => {
+  const { fake, bound, writes } = await encodeAll(512)
   const size = (label: string) => fake.buffers.find((b) => b.label === label)!.size
   assert.equal(size('vsm.pm.params'), 2 * 512)
   assert.equal(size('vsm.pm.perPage'), VSM_PER_PAGE_BIN_COUNT * 512)
@@ -155,16 +160,16 @@ test('a device aligning at 512 lays the parameter and per-page slots 512 bytes a
   assert.deepEqual(at(VSM_PM_GROUP_PER_PAGE), [0, 512, 1024, 1536])
 })
 
-test('at 256 bytes a call writes its parameter slot once, as the whole slot went, and a frame the same nothing', () => {
+test('at 256 bytes a call writes its parameter slot once, as the whole slot went, and a frame the same nothing', async () => {
   // Develop wrote each call's slot whole: one write. Each context is made for its frame: the
   // first frame writes the carry's and the mapping's slots once, the same frame again nothing.
-  const { perCall } = encodeAll()
+  const { perCall } = await encodeAll()
   assert.deepEqual(perCall, Array(4).fill([1, 1, 0, 0, 0, 0]).flat())
 })
 
-test('the guard fails when a word beyond the struct is written', () => {
+test('the guard fails when a word beyond the struct is written', async () => {
   // Each slot's 2 words — a write sends only those that changed —, spilled 2 words past them.
-  const spilled = parameterWrites().map(({ offset }) => {
+  const spilled = (await parameterWrites()).map(({ offset }) => {
     const slot = offset & ~255
     return { offset: slot, words: [7, 1, 0, 1] }
   })

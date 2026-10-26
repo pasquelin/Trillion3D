@@ -3,13 +3,20 @@ import { materialsAndTangentsCount } from '../io/catalogue.ts'
 import type { takeMaterialTextures } from './textures.ts'
 import { tileCatalogue } from '../../materials/virtual/catalogue.ts'
 import { createWebgpuTileStreamer } from '../../materials/virtual/streamer/streamer.ts'
-import { chooseBlockFormat, poolEncoding } from '../../materials/texture/blockFormats.ts'
+import {
+  chooseBlockFormat,
+  hdr32Of,
+  hdrBlocksOf,
+  channelPoolOf,
+  poolEncoding,
+} from '../../materials/texture/blockFormats.ts'
 import type { TexturePool } from '../../geometry/residency/memoryBudgets.ts'
-import { shadowsFollowTextures } from './lightResources.ts'
+import { shadowsFollowTextures } from '../../lighting/shadows/casters/followChanges.ts'
 import { catalogueReport, pageTablesReport } from './textureCensus.ts'
 import {
   PREVIEW_ATLAS_COLOR,
   PREVIEW_ATLAS_DATA,
+  PREVIEW_STORED_FORMAT,
 } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import {
   PREVIEW_BASE,
@@ -38,18 +45,34 @@ export function reportTextureNeeds(rt: WebgpuPagesRuntime, { maps, dataMaps }: C
 export function textureCatalogues(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
-  { maps, dataMaps, coverage }: Census,
+  { maps, dataMaps }: Census,
 ) {
   const caches = rt.context.textureCaches
   // The family is settled here, the chains in hand: the one the device samples AND the caches
   // hold kept chains in — a device with both features takes the family the cook wrote.
   const { textureCompression } = rt.context
   const choice = chooseBlockFormat(gpuDevice.features, caches.previews, textureCompression)
-  const encoding = poolEncoding(choice.block)
+  // 32-bit float textures are held as such where the device filters them, else in 16 bits, said once.
+  const filterable = gpuDevice.features.has('float32-filterable')
+  const encoding = poolEncoding(
+    choice.block,
+    hdrBlocksOf(choice.block, caches.previews),
+    channelPoolOf(choice.block, caches.previews, filterable),
+    hdr32Of(caches.previews, filterable),
+  )
+  const exact = caches.previews.filter((preview) =>
+    ['float32', 'single-float'].includes(preview.layouts[PREVIEW_STORED_FORMAT]),
+  )
+  if (exact.length && !filterable)
+    rt.diag.engineDiagnostic(
+      'material-textures-float32-unfiltered',
+      '32-bit float textures held in 16 bits: the device lacks float32-filterable',
+      { textures: exact.length },
+    )
   // Each record's chain, in the cache whose scene built it, with that cache's reader.
   const chainOf = (atlas: number, list: typeof maps) => (index: number) =>
     caches.chainOf(list[index], atlas)
-  const color = tileCatalogue(maps, chainOf(PREVIEW_ATLAS_COLOR, maps), encoding, coverage)
+  const color = tileCatalogue(maps, chainOf(PREVIEW_ATLAS_COLOR, maps), encoding)
   const data = tileCatalogue(dataMaps, chainOf(PREVIEW_ATLAS_DATA, dataMaps), encoding)
   return { choice, encoding, color, data }
 }
@@ -77,7 +100,7 @@ export function tileStreamerFor(
         // texture's sampling moved, and the shadow of the cutout foliage that reads them follows —
         // once per pump.
         rt.run.gate.resourcesChanged()
-        shadowsFollowTextures(rt, rt.layout.rows, slots, rt.vis.mapLayer)
+        shadowsFollowTextures(rt, slots)
       },
     })
 }

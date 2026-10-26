@@ -1,6 +1,8 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { safeRcp } from '../../../../math/src/wgsl/reals.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { LAMP_WGSL } from './lampSeenWgsl.ts'
+import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
 
 /**
  * A LAMP OF SIZE'S HIGHLIGHT: what its shape does to the specular lobe, on top of the cosine and the
@@ -20,12 +22,18 @@ import { LAMP_WGSL } from './lampSeenWgsl.ts'
  *   vector irradiance), the distribution and Fresnel the moved half vector.
  *
  * The lobe is `lobeSum`, as the standard and anisotropic lobes' are: its diffuse share and its
- * specular one, the Smith joint visibility.
+ * specular one, the Smith joint visibility's blend (`jointHalf`).
+ *
+ * Where an inverse or a root has nothing to give — a lamp's own centre, a reflection ray that
+ * leaves the half vector nothing to turn on, two ends of a tube seen opposite — its value is
+ * nothing (`safeRcp`, `safeInverseSqrt`), the finite one the lobe takes there.
  */
 export const LAMP_LOBE_WGSL = wgslBlock(
   'LAMP_LOBE_WGSL',
-  [STANDARD_LIGHTING_WGSL, LAMP_WGSL],
+  [STANDARD_LIGHTING_WGSL, LAMP_WGSL, safeRcp, SHADING_MODEL_STATE_WGSL],
   `
+/** One over the root of \`x\`, nothing where it is nothing or below. */
+fn safeInverseSqrt(x:f32)->f32{return safeRcp(sqrt(max(x,0.0)));}
 /** Where a lamp's highlight comes from: the unit direction \`toward\` the nearest point of it to the
  *  reflection, the source's radius and soft radius over the distance to it. */
 struct Look{toward:vec3f,reach:f32,soft:f32,}
@@ -41,7 +49,7 @@ fn lineClosest(p0:vec3f,line:vec3f,R:vec3f)->vec3f{
 fn capsuleLook(offset:vec3f,halfAxis:vec3f,radius:f32,soft:f32,N:vec3f,V:vec3f)->Look{
  var to=offset;
  if(any(halfAxis!=vec3f(0.0))){to=lineClosest(offset-halfAxis,2.0*halfAxis,2.0*dot(N,V)*N-V);}
- let inv=inverseSqrt(max(dot(to,to),1e-12));
+ let inv=safeRcp(length(to));
  return Look(to*inv,radius*inv,soft*inv);
 }
 /** The lobe's α² widened by a source of sine \`s\` at half-vector cosine \`VoH\`. */
@@ -54,8 +62,13 @@ fn lobeEnergy(a2:f32,VoH:f32,sine:f32,softSine:f32,lineCos:f32)->vec2f{
  var sphere=a;var energy=1.0;
  if(sine>0.0){sphere=widerAlpha2(a,sine,VoH);energy=a/sphere;}
  if(lineCos<1.0){
-  let lineTan=sqrt((1.0001-lineCos)/max(1.0+lineCos,1e-6));
-  energy*=sqrt(sphere/max(widerAlpha2(sphere,lineTan,VoH),1e-5));
+  // Seen opposite (\`lineCos\` −1) the tube subtends a half turn: the widening is without bound and
+  // the lobe's energy nothing.
+  let opposite=1.0+lineCos;
+  if(opposite>0.0){
+   let lineTan=sqrt((1.0001-lineCos)/opposite);
+   energy*=sqrt(sphere/max(widerAlpha2(sphere,lineTan,VoH),1e-5));
+  }else{energy=0.0;}
  }
  return vec2f(a,energy);
 }
@@ -64,54 +77,72 @@ fn lobeEnergy(a2:f32,VoH:f32,sine:f32,softSine:f32,lineCos:f32)->vec2f{
  *  inside it (the half vector the normal's, the view's cosine N·V), else its edge nearest it,
  *  placed by one Newton step on the direction around the disk. \`NoL\`, \`NoV\`, \`VoL\` are the dots of
  *  the normal, the light and the view. */
-fn sphereHalfCosines(NoL:f32,NoV:f32,VoL:f32,sine:f32)->vec2f{
+fn sphereMoved(NoL:f32,NoV:f32,VoL:f32,sine:f32)->vec4f{
  let cosAlpha=sqrt(1.0-sine*sine);
  let RoL=2.0*NoL*NoV-VoL;
- if(RoL>=cosAlpha){return vec2f(1.0,abs(NoV));}
- let rInvLengthT=sine*inverseSqrt(max(1.0-RoL*RoL,1e-12));
+ if(RoL>=cosAlpha){return vec4f(NoL,VoL,1.0,abs(NoV));}
+ let rInvLengthT=sine*safeInverseSqrt(1.0-RoL*RoL);
  var NoTr=rInvLengthT*(NoV-RoL*NoL);
  var VoTr=rInvLengthT*(2.0*NoV*NoV-1.0-RoL*VoL);
- let NxLoV=sqrt(saturate(1.0-NoL*NoL-NoV*NoV-VoL*VoL+2.0*NoL*NoV*VoL));
- let NoBr=rInvLengthT*NxLoV;
- let VoBr=rInvLengthT*NxLoV*2.0*NoV;
- let NoLVTr=NoL*cosAlpha+NoV+NoTr;
- let VoLVTr=VoL*cosAlpha+1.0+VoTr;
- let p=NoBr*VoLVTr;
- let q=NoLVTr*VoLVTr;
- let r=VoBr*NoLVTr;
- let xNum=q*(-0.5*p+0.25*VoBr*NoLVTr);
- let xDenom=p*p+r*(r-2.0*p)+NoLVTr*((NoL*cosAlpha+NoV)*VoLVTr*VoLVTr+q*(-0.5*(VoLVTr+VoL*cosAlpha)-0.5));
- let twoX1=2.0*xNum/max(xDenom*xDenom+xNum*xNum,1e-20);
- let sinTheta=twoX1*xDenom;
- let cosTheta=1.0-twoX1*xNum;
- NoTr=cosTheta*NoTr+sinTheta*NoBr;
- VoTr=cosTheta*VoTr+sinTheta*VoBr;
+ // The eye's specular lobe and a coat over a bottom normal move the half-vector without the Newton step.
+ if(!sphereNoNewton){
+  let NxLoV=sqrt(saturate(1.0-NoL*NoL-NoV*NoV-VoL*VoL+2.0*NoL*NoV*VoL));
+  let NoBr=rInvLengthT*NxLoV;
+  let VoBr=rInvLengthT*NxLoV*2.0*NoV;
+  let NoLVTr=NoL*cosAlpha+NoV+NoTr;
+  let VoLVTr=VoL*cosAlpha+1.0+VoTr;
+  let p=NoBr*VoLVTr;
+  let q=NoLVTr*VoLVTr;
+  let r=VoBr*NoLVTr;
+  let xNum=q*(-0.5*p+0.25*VoBr*NoLVTr);
+  let xDenom=p*p+r*(r-2.0*p)+NoLVTr*((NoL*cosAlpha+NoV)*VoLVTr*VoLVTr+q*(-0.5*(VoLVTr+VoL*cosAlpha)-0.5));
+  let twoX1=2.0*xNum*safeRcp(xDenom*xDenom+xNum*xNum);
+  let sinTheta=twoX1*xDenom;
+  let cosTheta=1.0-twoX1*xNum;
+  NoTr=cosTheta*NoTr+sinTheta*NoBr;
+  VoTr=cosTheta*VoTr+sinTheta*VoBr;
+ }
  let moved=clamp(VoL*cosAlpha+VoTr,-1.0,1.0);
- let invLenH=inverseSqrt(max(2.0+2.0*moved,1e-12));
- return vec2f(saturate((NoL*cosAlpha+NoTr+NoV)*invLenH),saturate(invLenH+invLenH*moved));
+ let invLenH=safeInverseSqrt(2.0+2.0*moved);
+ let movedNoL=NoL*cosAlpha+NoTr;
+ return vec4f(movedNoL,moved,saturate((movedNoL+NoV)*invLenH),saturate(invLenH+invLenH*moved));
+}
+/** The half-vector's cosines of \`sphereMoved\` alone. */
+fn sphereHalfCosines(NoL:f32,NoV:f32,VoL:f32,sine:f32)->vec2f{return sphereMoved(NoL,NoV,VoL,sine).zw;}
+/** The half-vector of a lamp's look on the surface \`s\` of normal N seen along V, as \`lampLobe\` and
+ *  the cloth lobe take it: its cosines with the normal (\`x\`) and the view (\`y\`), moved toward
+ *  the nearest a sphere lets it get (\`sphereHalfCosines\`), and the sphere's sine (\`z\`), the
+ *  lamp's radius over its distance, narrowed by the lobe's width. */
+fn lampHalf(s:LobeSurface,N:vec3f,V:vec3f,look:Look)->vec3f{
+ let NoL=dot(N,look.toward);let NoV=dot(N,V);let VoL=dot(V,look.toward);
+ let invLenH=safeInverseSqrt(2.0+2.0*VoL);
+ var NoH=saturate((NoL+NoV)*invLenH);var VoH=saturate(invLenH+invLenH*VoL);
+ let sine=saturate(look.reach*(1.0-s.alpha));
+ if(sine>0.0){let moved=sphereHalfCosines(NoL,NoV,VoL,sine);NoH=moved.x;VoH=moved.y;}
+ return vec3f(NoH,VoH,sine);
 }
 /** A surface's lobe lit by a lamp of size, on the surface \`s\` of normal N seen along V: the lamp's
  *  \`look\`, the \`cosine\` it takes light by and the tube's \`lineCos\`, \`energy\` the light's intensity
  *  through its falloff and shadow. Diffuse and specular, before the colour. */
 fn lampLobe(s:LobeSurface,N:vec3f,V:vec3f,look:Look,cosine:f32,lineCos:f32,energy:f32)->vec3f{
- let NoL=dot(N,look.toward);let NoV=dot(N,V);let VoL=dot(V,look.toward);
- let invLenH=inverseSqrt(max(2.0+2.0*VoL,1e-12));
- var NoH=saturate((NoL+NoV)*invLenH);var VoH=saturate(invLenH+invLenH*VoL);
- let sine=saturate(look.reach*(1.0-sqrt(s.alpha2)));
- if(sine>0.0){let moved=sphereHalfCosines(NoL,NoV,VoL,sine);NoH=moved.x;VoH=moved.y;}
+ return lampLobeWith(lampHalf(s,N,V,look),s,look,cosine,lineCos,energy);
+}
+/** \`lampLobe\` of the lamp's half-vector \`h\` (\`lampHalf\`), which a caller that needs it too takes once. */
+fn lampLobeWith(h:vec3f,s:LobeSurface,look:Look,cosine:f32,lineCos:f32,energy:f32)->vec3f{
+ let NoH=h.x;let VoH=h.y;let sine=h.z;
  let wide=lobeEnergy(s.alpha2,VoH,sine,saturate(look.soft),lineCos);
  var t=s;
- t.alpha2=wide.x;t.rest=1.0-wide.x;t.viewG=sqrt(s.NdotV*s.NdotV*t.rest+t.alpha2);
+ t.alpha2=wide.x;t.alpha=sqrt(wide.x);t.viewG=jointHalf(s.NdotV,t.alpha);
  let D=ggxDistribution(t.alpha2,NoH,max(1.0-NoH*NoH,0.0))*wide.y;
  let gV=cosine*t.viewG;
- let gL=s.NdotV*sqrt(cosine*cosine*t.rest+t.alpha2);
+ let gL=s.NdotV*jointHalf(cosine,t.alpha);
  return lobeSum(t,D,gV,gL,VoH,energy*cosine);
 }`,
 )
 
 /**
- * A pixel's light from a lamp of size, in full: the base lobe and, under a coat, the coat's own,
- * the hooks `baseLampLobe` and `coatLampLobe` the block that lists this one declares
+ * A pixel's light from a lamp of size, in full: the base lobe, or under a coat the coat model's, the hooks
+ * `baseLampLobe`, `hasCoat` and `coatedLamp` the block that lists this one declares
  * (`lobesWgsl.ts`: the lobed one, or the lobeless one's plain lobe and no coat) — the lamp of no size
  * is `surfaceLight`'s (`standardLighting.ts`). `lampLight` is the one call of both.
  */
@@ -122,6 +153,26 @@ export const LAMP_SURFACE_LIGHT_WGSL = wgslBlock(
 fn lampLight(s:LobeSurface,N:vec3f,V:vec3f,light:DirectLight,P:vec3f,lamp:Lamp,energy:f32)->vec3f{
  if(!lamp.capsule){return surfaceLight(s,N,V,vec4f(lamp.toward,energy));}
  let look=capsuleLook(light.positionRange.xyz-P,light.capsule.xyz,light.shape.x,light.capsule.w,N,V);
- return baseLampLobe(s,N,V,look,lamp,energy)*lobeThrough()+coatLampLobe(V,look,lamp,energy);
+ if(hasCoat()){
+  let coated=coatedLamp(s,N,V,look,lamp,energy);
+  return coated[0]+coated[1];
+ }
+ return baseLampLobe(s,N,V,look,lamp,energy);
+}
+/** The same in its two shares (\`lampLightSplit\`), \`share.x\` of the diffuse light and \`share.y\` of the specular. */
+fn lampLightShares(s:LobeSurface,N:vec3f,V:vec3f,light:DirectLight,P:vec3f,lamp:Lamp,energy:f32,share:vec2f)->vec3f{
+ let split=lampLightSplit(s,N,V,light,P,lamp,energy);
+ return split[0]*share.x+split[1]*share.y;
+}
+/** A light's diffuse (column 0) and specular (column 1) on the surface: the albedo times the lamp's cosine, and
+ *  what the surface with no diffuse albedo gives (\`lampLight\`); under a coat the coat model's two terms. */
+fn lampLightSplit(s:LobeSurface,N:vec3f,V:vec3f,light:DirectLight,P:vec3f,lamp:Lamp,energy:f32)->mat2x3f{
+ if(hasCoat()){
+  if(!lamp.capsule){return coatedPoint(s,N,V,lamp.toward,energy);}
+  return coatedLamp(s,N,V,capsuleLook(light.positionRange.xyz-P,light.capsule.xyz,light.shape.x,light.capsule.w,N,V),lamp,energy);
+ }
+ var specularOnly=s;
+ specularOnly.diffuse=vec3f(0.0);
+ return mat2x3f(s.diffuse*(energy*lamp.cosine),lampLight(specularOnly,N,V,light,P,lamp,energy));
 }`,
 )

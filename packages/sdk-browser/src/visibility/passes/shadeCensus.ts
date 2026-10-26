@@ -1,4 +1,3 @@
-import type { HostAttributes } from '../../session/host/resources.ts'
 import type { PageRec } from '../../geometry/selection/types.ts'
 import type { PageSurface } from '../../geometry/pages/surface.ts'
 import { surfaceEmitsOrOccludes } from '../../materials/surface/surfaceEmission.ts'
@@ -9,6 +8,8 @@ import {
   type MaterialLayers,
 } from '../../geometry/rows/page/pageRowMaterial.ts'
 import { emptySurfaceRow, rowFlags, surfaceRow } from '../../geometry/rows/surfaceRow.ts'
+import type { GraphSurface } from '../../materials/graph/surfaceProgram.ts'
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 
 /** What a resolve class reads of a row's geometry (`rowFlags`): the attributes its block holds
  *  — uv, normal, tangent, colour —, one bit each. */
@@ -34,7 +35,7 @@ function blockOf(bits: number, block: GeometryBlock) {
  *  two and of the atlases alone. */
 function wornSurfaces(
   allPages: readonly PageRec[],
-  geometryBlocks: ReadonlyMap<HostAttributes, GeometryBlock>,
+  geometryBlocks: ReadonlyMap<Geometry['attributes'], GeometryBlock>,
 ) {
   const worn = new Map<PageSurface, number>(),
     block = emptyGeometryBlock()
@@ -88,7 +89,7 @@ function emitting(worn: ReadonlyMap<PageSurface, number>) {
  */
 export function createShadeCensus(
   allPages: readonly PageRec[],
-  geometryBlocks: ReadonlyMap<HostAttributes, GeometryBlock>,
+  geometryBlocks: ReadonlyMap<Geometry['attributes'], GeometryBlock>,
   layers: MaterialLayers,
 ) {
   const seen = new Set<number>(),
@@ -108,6 +109,11 @@ export function createShadeCensus(
     /** Whether a surface of the last census can emit or occlude. */
     get emits() {
       return emits
+    },
+    /** The surfaces the last census counted as worn: what their graphs' cutouts and offsets are read
+     *  from (`graphRastersOf`). */
+    get surfaces(): Iterable<GraphSurface> {
+      return worn.keys()
     },
     /** What a class reads moved: a surface's values or a map's filter rule; `wearing`, drawables
      *  now wear other surfaces. */

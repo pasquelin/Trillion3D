@@ -2,7 +2,7 @@
  * What a compile option names objects by on what the glTF already carries — a node's name, its
  * mesh's, one of its materials', values of its `extras` —, and the one reading that turns a
  * host's form into the compiler's (`HlodWirePattern`, `HlodMatchOf` in `hlodAbi.ts`): the HLOD
- * groups and rules (`hlodOptions.ts`) and the responsive objects (`materialOptions.ts`) read it.
+ * rules (`hlodOptions.ts`) and the responsive objects (`materialOptions.ts`) read it.
  */
 import type { HlodMatchOf, HlodWireMatch, HlodWirePattern } from './hlodAbi.ts'
 
@@ -125,6 +125,13 @@ export function jsonJobOption<K extends string, O, W>(
     },
   }
 }
+
+/** The resolver of the option `name` that is a match on objects: `undefined` for none, else the
+ *  match as the compiler reads it (`wireMatch`). */
+export const matchResolver =
+  <O>(name: string) =>
+  (option?: O | null): HlodWireMatch | undefined =>
+    option === undefined || option === null ? undefined : wireMatch(option, name, refusal(name))
 
 /** A match as the compiler reads it: a pattern is a node's name; an object holds only the match's
  *  fields — the compiler refuses one naming none. */

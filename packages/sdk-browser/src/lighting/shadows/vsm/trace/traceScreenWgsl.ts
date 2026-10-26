@@ -29,8 +29,8 @@ fn vsmScreenRayStart(rayOrigin:vec3f)->VsmScreenStart{
  *  skipped (one off the image reads its edge pixel, as a clamped sampler would); the first
  *  sample behind the depth ends the segment a step and a half back (declared: the map segment starts
  *  at the surface, never behind it), else the segment is the whole length. A transparent surface is
- *  no occluder here: the maps' transmission is its shadow. The map's segment starts where the
- *  screen's stopped. */
+ *  no occluder here: the opaque depth does not hold it, and the maps hold none of it (it casts no
+ *  shadow of its own). The map's segment starts where the screen's stopped. */
 fn vsmScreenRayFrom(s:VsmScreenStart,rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,dither:f32)->f32{
  let size=vsmView.viewPixels.xy;
  let c1=vsmView.shiftedToClip*vec4f(rayOrigin+rayDirection*rayLength,1.0);

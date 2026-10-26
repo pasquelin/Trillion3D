@@ -1,101 +1,172 @@
 import {
   DEFERRED_BINDINGS,
   DEFERRED_CLOUD_SHADOW_BINDINGS,
-  DEFERRED_FOG_BINDINGS,
-  DEFERRED_LIGHT_FUNCTION_BINDINGS,
   DEFERRED_SKY_LIGHT_BINDINGS,
 } from './bindings.ts'
 import { cloudShadowLayoutEntries } from '../atmosphere/cloudShadowRead.ts'
 import { skyLightReadLayoutEntries } from '../../modules/sky/skyLight/read.ts'
 import { lightFunctionLayoutEntry } from '../lightFunction/bindings.ts'
-import { fogReadLayoutEntries } from '../fog/read.ts'
 import { SUBSURFACE_TARGET } from '../../materials/surface/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../materials/surface/physicalLobes.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
-import { MASK_TILES_TARGET } from '../direct/shadowTraceWgsl.ts'
+import { VSM_SUN_MASK_FORMAT } from '../shadows/vsm/projection/maskFormat.ts'
 import { REFLECTION_TARGET } from '../reflections/weight.ts'
-import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeStorageTextureEntry,
+  computeTextureEntry,
+} from '../../gpu/core/computeBindings.ts'
+import { fogReadLayoutEntries } from '../fog/read.ts'
+import { FOG_PASS_BINDINGS } from '../fog/fogPassWgsl.ts'
 
 /**
- * Bindings of the deferred pass. The unlit view stops at the surfaces and the uniform; the contract
- * program adds the declared lights, their per-tile lists and the shadow mask the projection traced; the
- * bounce one adds the probe grid. None of the three reads a light written in the scene: there is
- * none left.
+ * THE LAYOUTS OF THE LIGHTING'S PASSES, one for each: a pass binds what it reads and nothing else,
+ * each at its number in `DEFERRED_BINDINGS`, so that the sixteen sampled textures, the eight storage
+ * buffers and the four storage textures a stage is guaranteed (`gpu/core/stageLimits.test.ts`) are
+ * spent pass by pass, not by the sum of them all. A pass of the tiles (`tilePass.ts`) reads the view in
+ * its vertex stage too, and the tile lists there alone. The passes of one frame are described
+ * where they are made (`litProgram.ts`, `colourPass.ts`, `../fog/fogPass.ts`).
  */
-export function deferredLayoutEntries(direct: boolean, bounce = false) {
-  const fragment = GPUShaderStage.FRAGMENT
-  const entries: GPUBindGroupLayoutEntry[] = [
-    computeTextureEntry(DEFERRED_BINDINGS.colours, 'unfilterable-float', '2d-array', fragment),
-    computeTextureEntry(DEFERRED_BINDINGS.emissiveAo, 'unfilterable-float', '2d', fragment),
+/** `GPUShaderStage.VERTEX` and `.FRAGMENT`, written in the clear: the layouts are also read from Node, without that global. */
+const vertex = 1
+const fragment = 2
+
+/** The surface's layers and the scene's depth: what a pass reads of the pixel it lights. */
+const pixelEntries = (): GPUBindGroupLayoutEntry[] => [
+  computeTextureEntry(DEFERRED_BINDINGS.colours, 'unfilterable-float', '2d-array', fragment),
+  computeTextureEntry(DEFERRED_BINDINGS.emissiveAo, 'unfilterable-float', '2d', fragment),
+  computeTextureEntry(DEFERRED_BINDINGS.words, 'uint', '2d-array', fragment),
+  computeTextureEntry(DEFERRED_BINDINGS.depth, 'depth', '2d', fragment),
+]
+
+/** The view's uniform and the tile lists a pass of the tiles draws from. */
+const tileEntries = (): GPUBindGroupLayoutEntry[] => [
+  computeBufferEntry(DEFERRED_BINDINGS.view, 'uniform', vertex | fragment),
+  computeBufferEntry(DEFERRED_BINDINGS.tileList, 'read-only-storage', vertex),
+]
+
+/** The target classes whose pixels may be thin or carry lobes read (`CLASS_CUTS`): the thin
+ *  transmission's, the lobes'; read-only storage textures, none of the sixteen sampled ones spent. */
+const surfaceTargets = (lobes: boolean): GPUBindGroupLayoutEntry[] => [
+  SUBSURFACE_TARGET.layoutEntry(),
+  ...(lobes ? [PHYSICAL_LOBES_TARGET.layoutEntry()] : []),
+]
+
+/** What a pass of direct light reads of the shadows and the light functions: the frame's suns' mask (a read-only
+ *  storage texture: the lit pass has no sampled texture to spare), the light functions' atlas. */
+const shadowEntries = (): GPUBindGroupLayoutEntry[] => [
+  computeStorageTextureEntry(
+    CONTRACT_SHADOW_BINDINGS.vsmSunMask,
+    VSM_SUN_MASK_FORMAT,
+    'read-only',
+    '2d-array',
+    fragment,
+  ),
+  lightFunctionLayoutEntry(DEFERRED_BINDINGS.lightFunctionAtlas, fragment),
+]
+
+/** What the local lights' pass reads of the shadows beside it: the local lights' mask, the shadowed lights'
+ *  grid its lanes are found in, and the maps a light past the mask's lanes is read from
+ *  (`vsmSampleMapLocal`): the shadow uniforms, page table, projection data and pool, and the projection's
+ *  view. */
+const localMaskEntries = (): GPUBindGroupLayoutEntry[] => [
+  computeTextureEntry(CONTRACT_SHADOW_BINDINGS.vsmMask, 'uint', '2d', fragment),
+  computeBufferEntry(DEFERRED_BINDINGS.vsmLightGrid, 'read-only-storage', fragment),
+  computeBufferEntry(DEFERRED_BINDINGS.vsmUniforms, 'uniform', fragment),
+  computeBufferEntry(DEFERRED_BINDINGS.vsmPageTable, 'read-only-storage', fragment),
+  computeBufferEntry(DEFERRED_BINDINGS.vsmProjectionData, 'read-only-storage', fragment),
+  computeBufferEntry(DEFERRED_BINDINGS.vsmPool, 'read-only-storage', fragment),
+  computeBufferEntry(DEFERRED_BINDINGS.vsmView, 'uniform', fragment),
+]
+
+/** The light buffer. */
+const lightsEntry = () =>
+  computeBufferEntry(DEFERRED_BINDINGS.lights, 'read-only-storage', fragment)
+
+/** The surface colour pass: the surface's layers, the view, and the ambient occlusion its emission
+ *  goes under. */
+export const colourLayoutEntries = (): GPUBindGroupLayoutEntry[] => [
+  ...pixelEntries().filter((entry) => entry.binding !== DEFERRED_BINDINGS.depth),
+  computeBufferEntry(DEFERRED_BINDINGS.view, 'uniform', fragment),
+  computeTextureEntry(DEFERRED_BINDINGS.ambientOcclusion, 'unfilterable-float', '2d', fragment),
+]
+
+/** The unlit view's pass: the surface's layers and the view. */
+export const unlitLayoutEntries = (): GPUBindGroupLayoutEntry[] => [
+  ...pixelEntries().filter((entry) => entry.binding !== DEFERRED_BINDINGS.depth),
+  computeBufferEntry(DEFERRED_BINDINGS.view, 'uniform', fragment),
+]
+
+/** The sun's pass: the light buffer and the ranks of the directional lights in it, the shadows and the
+ *  sun's distance-field shadow, the clouds' shade. */
+export const sunLayoutEntries = (lobes: boolean): GPUBindGroupLayoutEntry[] => [
+  ...pixelEntries(),
+  ...tileEntries(),
+  lightsEntry(),
+  computeBufferEntry(DEFERRED_BINDINGS.sunRanks, 'read-only-storage', fragment),
+  ...shadowEntries(),
+  computeBufferEntry(DEFERRED_BINDINGS.farShadowMask, 'read-only-storage', fragment),
+  ...cloudShadowLayoutEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, fragment),
+  ...surfaceTargets(lobes),
+]
+
+/** The local lights' pass: the light buffer and the grid's lists, the shadows, and the sun's
+ *  distance-field shadow, which only the view of the shadows reads. */
+export const localLayoutEntries = (lobes: boolean): GPUBindGroupLayoutEntry[] => [
+  ...pixelEntries(),
+  ...tileEntries(),
+  lightsEntry(),
+  computeBufferEntry(DEFERRED_BINDINGS.tiles, 'read-only-storage', fragment),
+  ...shadowEntries(),
+  ...localMaskEntries(),
+  computeBufferEntry(DEFERRED_BINDINGS.farShadowMask, 'read-only-storage', fragment),
+  ...surfaceTargets(lobes),
+]
+
+/**
+ * The indirect pass: the light buffer (the environment's light), the ambient occlusion, the light the
+ * volumetric lightmap gives the pixels, the reflection the trace wrote, the sky light's cubes and harmonics. The bounce program adds the probe grid, its atlas
+ * and what the screen probes left of the pixels' indirect light — a sampled texture of words read by
+ * load —; the program that applies the sky light's distance-field occlusion adds the bent normals,
+ * packed in a buffer, and the uniform that describes them.
+ */
+export const indirectLayoutEntries = ({
+  bounce,
+  skyShadowing,
+  lobes,
+}: {
+  bounce: boolean
+  skyShadowing: boolean
+  lobes: boolean
+}): GPUBindGroupLayoutEntry[] => [
+  ...pixelEntries(),
+  ...tileEntries(),
+  lightsEntry(),
+  computeTextureEntry(DEFERRED_BINDINGS.ambientOcclusion, 'unfilterable-float', '2d', fragment),
+  computeTextureEntry(DEFERRED_BINDINGS.volumetricLight, 'unfilterable-float', '2d', fragment),
+  REFLECTION_TARGET.layoutEntry(),
+  ...skyLightReadLayoutEntries(DEFERRED_SKY_LIGHT_BINDINGS, fragment),
+  ...(bounce
+    ? [computeTextureEntry(DEFERRED_BINDINGS.screenIndirect, 'uint', '2d', fragment)]
+    : []),
+  ...(skyShadowing
+    ? [
+        computeBufferEntry(DEFERRED_BINDINGS.dfaoBent, 'read-only-storage', fragment),
+        computeBufferEntry(DEFERRED_BINDINGS.dfaoRead, 'uniform', fragment),
+      ]
+    : []),
+  ...surfaceTargets(lobes),
+]
+
+/** The fog pass's layout: the surface's flags and the depth, the view, the light buffer, the fog's cubemap,
+ *  volume, light shafts' mask, local fog volumes' lists and sampler, and the haze's volume. */
+export function heightFogLayoutEntries(localFog: boolean): GPUBindGroupLayoutEntry[] {
+  return [
     computeTextureEntry(DEFERRED_BINDINGS.words, 'uint', '2d-array', fragment),
     computeTextureEntry(DEFERRED_BINDINGS.depth, 'depth', '2d', fragment),
     computeBufferEntry(DEFERRED_BINDINGS.view, 'uniform', fragment),
-  ]
-  if (direct)
-    entries.push(
-      ...contractLayoutEntries(fragment),
-      ...maskLayoutEntries(fragment),
-      ...resolveLayoutEntries(fragment),
-    )
-  // Probe grid and their coefficients: bound only by the bounce program, so a session without
-  // bounce keeps exactly the previous layout. The coefficients are an atlas (`atlas.ts`): no
-  // storage buffer of the eight. The screen probes' result, which the pixels read their indirect
-  // light from (`../bounce/screen/indirectWgsl.ts`), is a sampled texture of words read by load: the
-  // fifth read-only storage texture of a stage would pass the four a default device holds.
-  if (bounce)
-    entries.push(
-      computeBufferEntry(DEFERRED_BINDINGS.bounceGrid, 'uniform', fragment),
-      computeTextureEntry(DEFERRED_BINDINGS.probes, 'unfilterable-float', '2d-array', fragment),
-      computeTextureEntry(DEFERRED_BINDINGS.screenIndirect, 'uint', '2d', fragment),
-    )
-  return entries
-}
-
-/** What a contract program adds to the deferred layout: the declared lights, their per-tile lists
- *  and the shadow mask, and the fog's resources. */
-function contractLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
-  return [
     computeBufferEntry(DEFERRED_BINDINGS.lights, 'read-only-storage', fragment),
-    computeBufferEntry(DEFERRED_BINDINGS.tiles, 'read-only-storage', fragment),
-    // The light functions: their atlas, and the table of the entries the lights read.
-    lightFunctionLayoutEntry(DEFERRED_LIGHT_FUNCTION_BINDINGS.atlas, fragment),
-    // The shadow mask (`vsmMaskFactor`): the opaque resolve's.
-    computeTextureEntry(CONTRACT_SHADOW_BINDINGS.transmittance, 'uint', '2d-array', fragment),
-    // The fog's cubemap, volume and frame, which the fog laid over the lit sum reads.
-    ...fogReadLayoutEntries(DEFERRED_FOG_BINDINGS, fragment),
-    // The sky light's cubes and harmonics, and the clouds' shade of the lights.
-    ...skyLightReadLayoutEntries(DEFERRED_SKY_LIGHT_BINDINGS, fragment),
-    ...cloudShadowLayoutEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, fragment),
-  ]
-}
-
-/** What a mask read takes beside the mask, the opaque resolve's: the mask's transmission and its
- *  tile words (a read-only storage texture). */
-function maskLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
-  return [
-    computeTextureEntry(
-      DEFERRED_BINDINGS.transmissionResolve,
-      'unfilterable-float',
-      '2d-array',
-      fragment,
-    ),
-    MASK_TILES_TARGET.layoutEntry(),
-  ]
-}
-
-/**
- * The subsurface, lobes and the reflection: only the opaque resolve. The
- * subsurface and the lobes, targets read by load alone, are read-only storage textures: the widest
- * program, with bounce, stays within the sixteen sampled textures WebGPU guarantees a stage.
- */
-function resolveLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
-  return [
-    SUBSURFACE_TARGET.layoutEntry(),
-    // The anisotropic and clear-coat lobes (`../../materials/surface/physicalLobes.ts`).
-    PHYSICAL_LOBES_TARGET.layoutEntry(),
-    // The share of the radiance the reflection trace wrote (`../reflections/trace/trace.ts`).
-    REFLECTION_TARGET.layoutEntry(),
-    // The ambient occlusion the image drew, or its stand-in (`../ao/frame.ts`).
-    computeTextureEntry(DEFERRED_BINDINGS.ambientOcclusion, 'unfilterable-float', '2d', fragment),
+    ...fogReadLayoutEntries(FOG_PASS_BINDINGS(localFog), fragment),
+    computeTextureEntry(DEFERRED_BINDINGS.hazeVolume, 'float', '3d', fragment),
   ]
 }

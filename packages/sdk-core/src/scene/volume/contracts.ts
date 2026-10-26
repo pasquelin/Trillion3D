@@ -19,7 +19,7 @@ import {
  */
 
 /** The shapes an object may cover the cells with. */
-export const FOG_VOLUME_SHAPES = ['box', 'sphere'] as const
+const FOG_VOLUME_SHAPES = ['box', 'sphere'] as const
 /** How an object covers the cells. */
 type FogVolumeShape = (typeof FOG_VOLUME_SHAPES)[number]
 /** What a vector of three numbers is. */

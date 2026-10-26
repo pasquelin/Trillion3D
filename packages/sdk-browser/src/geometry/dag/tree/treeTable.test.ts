@@ -12,6 +12,21 @@ import { appendDagRoots } from '../pack/packAppend.ts'
 import { treeNodeCount, TREE_SPAN } from '../placement/placementTree.ts'
 import { createTreeTable, TREE_TABLE } from './treeTable.ts'
 import { DAG_NODE_FLOATS } from '../types.ts'
+import {
+  NODE_CHILD_COUNT,
+  NODE_FIRST_CHILD,
+  NODE_FLOOR,
+  NODE_KIND,
+  NODE_MAX,
+  NODE_MIN,
+  NODE_WORLD,
+  PARENT_ERROR,
+  PARENT_SPHERE,
+  TREE_DRAW_FAR,
+  TREE_DRAW_NEAR,
+  TREE_PARENT_ERROR,
+  TREE_PARENT_SPHERE,
+} from '../nodeLayout.ts'
 import { recordTable } from '../../../gpu/core/recordTexture.fixture.ts'
 import { mirrorKey } from '../../cut/adoption/denseKeys.ts'
 import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
@@ -87,4 +102,23 @@ test('a mark that moves the list writes the places it moved alone', () => {
   table.writeAlways()
   const words = held(table, treeNodeCount(tree)).get('Always', 0)
   assert.deepEqual(Array.from(words.subarray(0, 2)), [70, 900])
+})
+
+// A node of the table means what its kind says: a group of the tree holds its box, its links, the
+// distances its placements are drawn at and, in words of their own, the world ball of its instances'
+// parent groups and their greatest error; a record of one group above an instance's root holds its
+// error and ball and its kind. No two of these share a word in the node they lie in.
+test('the words a tree group and a parent record hold their ball and error in are no other word of their kind', () => {
+  const span = (from: number, count: number) => Array.from({ length: count }, (_, k) => from + k)
+  const group = [
+    ...span(NODE_MIN, 3),
+    ...span(NODE_MAX, 3),
+    ...[NODE_FIRST_CHILD, NODE_CHILD_COUNT, NODE_WORLD, NODE_FLOOR, NODE_KIND],
+    ...[TREE_DRAW_NEAR, TREE_DRAW_FAR],
+  ]
+  const ball = [TREE_PARENT_ERROR, ...span(TREE_PARENT_SPHERE, 4)]
+  assert.equal(new Set([...group, ...ball]).size, group.length + ball.length)
+  const record = [PARENT_ERROR, ...span(PARENT_SPHERE, 4)]
+  assert.ok(!record.includes(NODE_KIND), 'the kind of a record is its own word')
+  for (const word of [...group, ...ball, ...record]) assert.ok(word < DAG_NODE_FLOATS)
 })

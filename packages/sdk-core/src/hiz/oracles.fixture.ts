@@ -15,11 +15,28 @@
  */
 export const HIZ_NOTHING = Number.NEGATIVE_INFINITY
 
+/** The pixels `[first, end)` a cell of `level` holds over an image `size` pixels across: its
+ *  `2^level` block clipped to the image, and, as the first level's gather takes the image's last
+ *  two pixels, the cell of that last square also the one before it. The one rule of a cell's start. */
+export function hizCellSpan(cell: number, level: number, size: number): [number, number] {
+  return [
+    Math.min(cell * 2 ** level, Math.max(size, 2) - 2),
+    Math.min((cell + 1) * 2 ** level, size),
+  ]
+}
+
+/** The first texel of the square of the cell `cell` over `size` texels: `2·cell`, or, where `gather`
+ *  (the first level's 2×2 gather, which never reads past the image), the start of the cell's span
+ *  (`hizCellSpan`), one texel back where the last square would be a half one. */
+export const hizSquareStart = (cell: number, size: number, gather: boolean) =>
+  gather ? hizCellSpan(cell, 1, size)[0] : 2 * cell
+
 /** One ceil-2×2 reduction of `depth` by `bound`, each square's texels in reading order. */
 function reduceCeil(
   depth: readonly (readonly number[])[],
   bound: (a: number, b: number) => number,
   start: number,
+  gather: boolean,
 ): number[][] {
   const height = depth.length
   const width = height > 0 ? depth[0].length : 0
@@ -27,9 +44,11 @@ function reduceCeil(
     throw new Error('Empty or non-rectangular image')
   }
   const result: number[][] = []
-  for (let startRow = 0; startRow < height; startRow += 2) {
+  for (let cy = 0; 2 * cy < height; cy++) {
+    const startRow = hizSquareStart(cy, height, gather)
     const row: number[] = []
-    for (let startCol = 0; startCol < width; startCol += 2) {
+    for (let cx = 0; 2 * cx < width; cx++) {
+      const startCol = hizSquareStart(cx, width, gather)
       let candidate = start
       for (let r = startRow; r < Math.min(startRow + 2, height); r++) {
         for (let c = startCol; c < Math.min(startCol + 2, width); c++) {
@@ -43,24 +62,26 @@ function reduceCeil(
   return result
 }
 
-/** Conservative Hi-Z pyramid reduction: FARTHEST depth of a 2×2 quad (minimum value in reversed depth). */
-export const hizReduceCeil = (depth: readonly (readonly number[])[]) =>
-  reduceCeil(depth, Math.min, Infinity)
+/** Conservative Hi-Z pyramid reduction: FARTHEST depth of a 2×2 quad (minimum value in reversed
+ *  depth). `gather` is the first level's, read from the depth itself: the last odd column or row
+ *  takes the image's last two texels, not one. */
+export const hizReduceCeil = (depth: readonly (readonly number[])[], gather = false) =>
+  reduceCeil(depth, Math.min, Infinity, gather)
 
 /** The nearest layer's reduction: NEAREST depth of a 2×2 quad (maximum value in reversed depth),
  *  what a ray in front of a cell passes everything under. */
-export const hizReduceNearestCeil = (depth: readonly (readonly number[])[]) =>
-  reduceCeil(depth, Math.max, -Infinity)
+export const hizReduceNearestCeil = (depth: readonly (readonly number[])[], gather = false) =>
+  reduceCeil(depth, Math.max, -Infinity, gather)
 
-/** Full ceil-2×2 pyramid by `reduce` (the farthest by default). Level 0 is the source depth; the
- *  last level is 1×1. */
+/** Full ceil-2×2 pyramid by `reduce` (the farthest by default). Level 0 is the source depth, level
+ *  1 its `gather` reduction; the last level is 1×1. */
 export function hizBuildPyramid(
   depth: readonly (readonly number[])[],
-  reduce = hizReduceCeil,
+  reduce: (depth: readonly (readonly number[])[], gather?: boolean) => number[][] = hizReduceCeil,
 ): number[][][] {
   const levels: number[][][] = [depth.map((row) => [...row])]
   while (levels[levels.length - 1].length > 1 || levels[levels.length - 1][0].length > 1) {
-    levels.push(reduce(levels[levels.length - 1]))
+    levels.push(reduce(levels[levels.length - 1], levels.length === 1))
   }
   return levels
 }

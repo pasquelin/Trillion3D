@@ -1,3 +1,4 @@
+import { postSamplers } from '../../../gpu/core/postSamplers.ts'
 import { depthScale, CAPTURE_CLOUD_SETUP } from '../clouds/cloudModes.ts'
 import { CLOUD_FORMAT } from '../clouds/reconstructLayout.ts'
 import { CLOUD_DEPTH_RANGE_FORMAT } from '../clouds/traceWgsl.ts'
@@ -103,23 +104,28 @@ interface GroupSources {
 function createGroups(device: GPUDevice, pipelines: SkyLightPipelines, over: GroupSources) {
   const { mips, captured, filtered, filteredCubes, blocks, harmonics } = over
   const { layouts } = pipelines
-  const cloudSampler = device.createSampler({
-    label: 'Trillion3D sky light clouds',
-    magFilter: 'linear',
-    minFilter: 'linear',
-    addressModeU: 'clamp-to-edge',
-    addressModeV: 'clamp-to-edge',
-  })
-  const nearest = device.createSampler({
-    label: 'Trillion3D sky light cube',
-    magFilter: 'nearest',
-    minFilter: 'nearest',
-    mipmapFilter: 'nearest',
-  })
+  const { clamped: bilinear, point: nearest } = postSamplers(device)
   const filterBlock = { buffer: blocks.filter, size: 16 }
   const filterGroup = (source: GPUTextureView, output: GPUTextureView) =>
     filterBindGroup(device, layouts.filter, filterBlock, source, nearest, output)
   const capturedCube = wholeCube(captured)
+  const irradianceGroup = (source: GPUTextureView, sampler: GPUSampler, set: number) =>
+    device.createBindGroup({
+      layout: layouts.irradiance,
+      entries: [
+        { binding: 0, resource: { buffer: blocks.irradiance } },
+        { binding: 1, resource: source },
+        { binding: 2, resource: sampler },
+        {
+          binding: 3,
+          resource: {
+            buffer: harmonics,
+            offset: set * HARMONICS_SET_BYTES,
+            size: IRRADIANCE_VECTORS * 16,
+          },
+        },
+      ],
+    })
   const range = Array.from({ length: mips }, (_, mip) => mip)
   return {
     /** The clouds of a face, read bilinearly by the composition. */
@@ -127,7 +133,7 @@ function createGroups(device: GPUDevice, pipelines: SkyLightPipelines, over: Gro
       layout: layouts.clouds,
       entries: [
         { binding: 0, resource: over.clouds },
-        { binding: 1, resource: cloudSampler },
+        { binding: 1, resource: bilinear },
       ],
     }),
     /** Mip `m` from mip `m - 1` of the captured cube (none for the top mip). */
@@ -140,25 +146,10 @@ function createGroups(device: GPUDevice, pipelines: SkyLightPipelines, over: Gro
     convolve: [0, 1].map((cube) =>
       range.map((mip) => filterGroup(capturedCube, storageMip(filtered, mip, cube))),
     ),
-    /** The harmonics from filtered cube `w`. */
-    irradiance: filteredCubes.map((view, w) =>
-      device.createBindGroup({
-        layout: layouts.irradiance,
-        entries: [
-          { binding: 0, resource: { buffer: blocks.irradiance } },
-          { binding: 1, resource: view },
-          { binding: 2, resource: nearest },
-          {
-            binding: 3,
-            resource: {
-              buffer: harmonics,
-              offset: w * HARMONICS_SET_BYTES,
-              size: IRRADIANCE_VECTORS * 16,
-            },
-          },
-        ],
-      }),
-    ),
+    /** The harmonics set `w` from filtered cube `w`, one texel at a time. */
+    irradiance: filteredCubes.map((view, w) => irradianceGroup(view, nearest, w)),
+    /** The harmonics set `w` from the captured cube's mips, read bilinearly. */
+    capturedIrradiance: [0, 1].map((w) => irradianceGroup(capturedCube, bilinear, w)),
   }
 }
 

@@ -1,29 +1,38 @@
-//! A decoded image, its baked chains and its written files. This module knows
-//! what it decodes and where it writes it; it does not know what a cutout is, and
-//! receives the list of textures to measure.
+//! A decoded image, its baked chains and its written files.
+mod gated;
+mod half;
+mod single;
 pub(crate) mod write;
-use super::blocks::{BlockFormat, Ladder, Layout, FAMILIES};
+use super::blocks::{Ladder, Layout, FAMILIES};
 use super::collect::AtlasTexture;
-use super::gate::{cook_chain, Cooked, Gate, GateSheet};
+use super::gate::Gate;
 use super::reduce::AtlasKind;
+use super::setting::{Compression, Route, FLOAT_DATA};
 use super::*;
 use crate::plugins::image::DecodedImage;
-use rayon::prelude::*;
+use std::borrow::Cow;
+
+/// What a decoded byte image brings to its cook: its pixels, the levels its file stores below
+/// them, the 16-bit samples the pixels were rounded from — when the file has them —, the
+/// fingerprint of its bytes and where they were read from.
+pub(crate) type DecodedSource<'a> = (
+    &'a image::RgbaImage,
+    &'a [Vec<u8>],
+    Option<&'a [u16]>,
+    &'a str,
+    PreviewSource,
+);
 
 /// What an image yields once baked: one entry per (texture, atlas) that reads it.
+#[derive(Default)]
 pub(crate) struct Baked {
     pub previews: Vec<TexturePreview>,
-    /// Alpha shape, measured once, yielded for EVERY candidate texture that reads
-    /// the image: the cutout sheet weighs by texture, and a texture without a
-    /// measurement is not a candidate.
-    pub shapes: Vec<(usize, crate::cutout::AlphaShape)>,
     /// One gate decision per (atlas, family) the image was cooked in.
     pub gates: Vec<Gate>,
     pub notes: Vec<&'static str>,
 }
 
-/// Decodes an image, measures its alpha if a texture asks, bakes one chain per
-/// atlas that reads it, writes the levels above the sidecar tail in every family
+/// Decodes an image, bakes one chain per atlas that reads it, writes the levels above the sidecar tail in every family
 /// that keeps them. A failure holds for every texture of the image, and the
 /// report counts them all.
 pub(super) fn one_image(
@@ -47,46 +56,48 @@ pub(super) fn one_image(
         Ok((source, provenance, sha256.to_owned()))
     });
     let (source, provenance, sha256) = read.map_err(fail)?;
-    let (decoded, notes) = match source.image {
-        DecodedImage::Rgba8(pixels) => (pixels, source.notes),
-        // A chain is RGBA8, the exact atlas format. Feeding a floating image
-        // into it would need a tone map, a loss the source did not have: the
-        // texture is named in the report and has no chain, never clipped.
-        DecodedImage::RgbaF32 { .. } => return Err(fail("image-float-unsupported")),
-    };
-    // Alpha measurement reads the FULL-RESOLUTION image: the width of a softened
-    // edge is counted in source pixels, and a reduced level would divide it by
-    // its scale. The cutout step stored the shape of every candidate no answer names
-    // (`cutout::apply`); an answered one, whose verdict needed none, is measured here, in the
-    // decode the bake takes anyway, once for every candidate texture that cites it.
-    let candidates: Vec<usize> = readers
+    // A floating image is no byte image: its chain stays in floating point, in the half-float
+    // atlas (`hdr.rs`), its own cook (`half::cook`).
+    let mut unknown = false;
+    let routed: Vec<(&AtlasTexture, Route)> = readers
         .iter()
-        .filter(|r| inputs.to_measure.contains(&r.texture))
-        .map(|r| r.texture)
-        .collect();
-    let shapes = if candidates.is_empty() {
-        Vec::new()
-    } else {
-        let shape = inputs
-            .measurements
-            .known(&sha256)
-            .cloned()
-            .unwrap_or_else(|| {
-                let _t =
-                    crate::support::perf::Timer::new(crate::support::perf::Phase::TextureAlpha);
-                crate::cutout::measure(&decoded)
+        .map(|reader| {
+            let setting = Compression::of(inputs.g, reader.texture).unwrap_or_else(|_| {
+                unknown = true;
+                Compression::Default
             });
-        candidates.into_iter().map(|t| (t, shape.clone())).collect()
-    };
-    let mut baked = cook_decoded(
-        inputs.o,
-        (&decoded, &sha256, provenance),
-        (image_index, Ladder::Full),
-        readers,
-    )
+            (reader, setting.route())
+        })
+        .collect();
+    let mut baked = match source.image {
+        DecodedImage::Rgba8(pixels) => cook_routed(
+            inputs.o,
+            (
+                &pixels,
+                &source.mips,
+                source.wide.as_deref(),
+                &sha256,
+                provenance,
+            ),
+            (image_index, Ladder::Full),
+            &routed,
+        ),
+        DecodedImage::RgbaF32 {
+            width,
+            height,
+            data,
+        } => half::cook_float(
+            inputs.o,
+            (width, height, &data),
+            (&sha256, provenance, image_index),
+            &routed,
+        ),
+    }
     .map_err(fail)?;
-    baked.shapes = shapes;
-    for note in notes {
+    if unknown {
+        baked.notes.push(super::setting::UNKNOWN);
+    }
+    for note in source.notes {
         if !baked.notes.contains(&note) {
             baked.notes.push(note);
         }
@@ -94,115 +105,165 @@ pub(super) fn one_image(
     Ok(baked)
 }
 
-/// The chains of a decoded image `decoded` — its bytes' fingerprint `sha256`, read from
+/// The chains of a decoded image `decoded` — its `stored` levels, the 16-bit samples `wide` it was
+/// rounded from when the file stores them, its bytes' fingerprint `sha256`, read from
 /// `provenance` — for every (texture, atlas) of `readers`, one chain per kind, each cooked in every
 /// family the job asks for and its levels above the tail written under the chain's key
 /// (`GateSheet::key`), its BC7 chains climbing `ladder`: the one bake of a source image
 /// (`Ladder::Full`) and of an image the compiler draws itself (the HLOD atlases, `hlod/flatten`,
-/// `Ladder::Light`).
+/// `Ladder::Light`), whose textures carry the default setting.
 pub(crate) fn cook_decoded(
     o: &Options,
-    (decoded, sha256, provenance): (&image::RgbaImage, &str, PreviewSource),
-    (image_index, ladder): (usize, Ladder),
+    source: DecodedSource<'_>,
+    ids: (usize, Ladder),
     readers: &[AtlasTexture],
 ) -> std::result::Result<Baked, &'static str> {
-    let mut notes: Vec<&'static str> = Vec::new();
-    let size = (decoded.width(), decoded.height());
-    let first_level = preview_first_level(size.0, size.1);
-    let mut previews = Vec::with_capacity(readers.len());
-    let mut gates = Vec::new();
-    let mut note = |name| {
-        if !notes.contains(&name) {
-            notes.push(name);
-        }
-    };
-    // A coverage chain whose alpha never varies is the plain chain byte for byte —
-    // `halve` weighs only four alphas that differ, and every level's median already
-    // keeps level 0's coverage —: its readers take the plain one,
-    // one chain baked instead of two identical ones.
-    // Scanned only when a reader asks for coverage: an opaque image never exits early.
-    let flat = readers
+    let routed: Vec<_> = readers
         .iter()
-        .any(|r| matches!(r.kind, AtlasKind::Coverage(_)))
-        && {
-            let mut alphas = decoded.pixels().map(|p| p[3]);
-            let first = alphas.next();
-            alphas.all(|a| Some(a) == first)
-        };
-    // Each texture keeps its own cutoff: textures of one image cut at two cutoffs, or
-    // one of them blended, bake one chain each.
-    let kind_of = |r: &AtlasTexture| if flat { r.kind.atlas() } else { r.kind };
-    let mut chains: BTreeMap<AtlasKind, Vec<&AtlasTexture>> = BTreeMap::new();
-    for reader in readers {
-        chains.entry(kind_of(reader)).or_default().push(reader);
+        .map(|reader| (reader, Route::Gated(None)))
+        .collect();
+    cook_routed(o, source, ids, &routed)
+}
+
+/// What every chain of one decoded image shares: the image, its fingerprint, where it was read
+/// from, and the level it is carried from.
+pub(super) struct Source<'a> {
+    pub o: &'a Options,
+    pub decoded: &'a image::RgbaImage,
+    pub stored: &'a [Vec<u8>],
+    pub wide: Option<&'a [u16]>,
+    pub sha256: &'a str,
+    pub provenance: PreviewSource,
+    pub image_index: usize,
+    pub size: (u32, u32),
+    pub first_level: u32,
+}
+
+impl Source<'_> {
+    /// The entire RGBA8 mip chain of the image for `kind`'s atlas (`reduce::chain`).
+    pub fn chain(&self, kind: AtlasKind) -> Vec<Cow<'_, [u8]>> {
+        let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::TextureBake);
+        match self.wide {
+            Some(wide) => reduce::chain_wide(self.decoded, wide, kind),
+            None => reduce::chain(self.decoded, self.stored, kind),
+        }
     }
-    for (kind, of_kind) in chains {
-        let levels = {
-            let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::TextureBake);
-            reduce::chain(decoded, kind)
-        };
-        let pixels = reduce::tail(&levels, first_level);
-        let sheet = GateSheet::of(&of_kind, ladder);
-        let key = sheet.key(sha256);
-        let mut layouts: [Option<Layout>; FAMILIES] = [None; FAMILIES];
-        let mut blocks: [Vec<u8>; FAMILIES] = Default::default();
-        let cook =
-            |format, files| cook_chain(o, (&key, kind), format, &sheet, &levels, size, files);
-        // The stored family first, when the job cooks any — it keeps every chain it measures —: a
-        // chain whose stored files did not write has no level file, in any family. The others then cook side by side, their
-        // decisions gathered in the job's order.
-        let (stored, others) = match o.texture_formats.split_first() {
-            Some((&stored, others)) => (Some(stored), others),
-            None => (None, &[][..]),
-        };
-        debug_assert!(stored.is_none_or(|format| format == BlockFormat::STORED));
-        let first = stored.map(|format| cook(format, true));
-        let files = matches!(first, Some((_, Cooked::Kept(_))));
-        let others: Vec<(Gate, Cooked)> = others
-            .par_iter()
-            .map(|&format| cook(format, files))
-            .collect();
-        for (gate, cooked) in first.into_iter().chain(others) {
-            match cooked {
-                Cooked::Kept(tail) => {
-                    layouts[gate.format.index()] = Some(sheet.layout);
-                    blocks[gate.format.index()] = tail;
-                }
-                Cooked::Refused => {}
-                Cooked::Failed(failure) => note(failure),
+
+    /// The sidecar entry of `texture` for the chain `key` of `kind`, its `pixels` tail, the layouts
+    /// it was kept in and their `blocks`, `baked_levels` of its levels written as files.
+    pub fn entry(
+        &self,
+        texture: usize,
+        (key, kind): (&str, AtlasKind),
+        baked_levels: u32,
+        (pixels, layouts, blocks): (&[u8], [Option<Layout>; FAMILIES], &[Vec<u8>; FAMILIES]),
+    ) -> std::result::Result<TexturePreview, &'static str> {
+        Ok(TexturePreview {
+            texture: u32::try_from(texture).map_err(|_| "texture-out-of-bounds")?,
+            image: u32::try_from(self.image_index).map_err(|_| "image-out-of-bounds")?,
+            width: self.size.0,
+            height: self.size.1,
+            source: self.provenance,
+            sha256: key.to_string(),
+            kind,
+            first_level: self.first_level,
+            baked_levels,
+            pixels: pixels.to_vec(),
+            layouts,
+            blocks: blocks.clone(),
+        })
+    }
+}
+
+/// The chains of `readers`, each texture with the cook its setting asks for (`setting.rs`): one
+/// chain per atlas and cook, the textures that share both sharing the chain.
+fn cook_routed(
+    o: &Options,
+    (decoded, stored, wide, sha256, provenance): DecodedSource<'_>,
+    (image_index, ladder): (usize, Ladder),
+    readers: &[(&AtlasTexture, Route)],
+) -> std::result::Result<Baked, &'static str> {
+    let size = (decoded.width(), decoded.height());
+    let source = Source {
+        o,
+        decoded,
+        stored,
+        wide,
+        sha256,
+        provenance,
+        image_index,
+        size,
+        first_level: preview_first_level(size.0, size.1),
+    };
+    let mut baked = Baked {
+        previews: Vec::with_capacity(readers.len()),
+        ..Baked::default()
+    };
+    let mut chains: BTreeMap<(AtlasKind, Route), Vec<&AtlasTexture>> = BTreeMap::new();
+    for &(reader, route) in readers {
+        // The half-float atlas holds colours alone: a data map asking for floating point is cooked
+        // as the default.
+        let route = match (route, reader.kind) {
+            // One floating-point channel is a data map's; a colour map holds it as half-float RGBA.
+            (Route::SingleFloat | Route::HalfSingle, AtlasKind::Color) => Route::Float,
+            (Route::SingleFloat | Route::HalfSingle, _) => route,
+            // The half-float atlas holds colours alone.
+            (route, kind) if route.is_float() && kind != AtlasKind::Color => {
+                baked.add_note(FLOAT_DATA);
+                Route::Gated(None)
             }
-            gates.push(gate);
-        }
-        // The levels above the tail are the stored family's files: one that does not write —
-        // full disk, forbidden folder — does not cost the tail, the entry comes out without a
-        // baked level, the engine loads the source image, and the report says so.
-        let baked_levels = if layouts[BlockFormat::STORED.index()].is_some() {
-            first_level
-        } else {
-            0
+            (route, _) => route,
         };
-        for reader in of_kind {
-            previews.push(TexturePreview {
-                texture: u32::try_from(reader.texture).map_err(|_| "texture-out-of-bounds")?,
-                image: u32::try_from(image_index).map_err(|_| "image-out-of-bounds")?,
-                width: size.0,
-                height: size.1,
-                source: provenance,
-                sha256: key.clone(),
-                image_sha256: sha256.to_owned(),
-                kind,
-                first_level,
-                baked_levels,
-                pixels: pixels.clone(),
-                layouts,
-                blocks: blocks.clone(),
-            });
+        chains.entry((reader.kind, route)).or_default().push(reader);
+    }
+    let mut floats = None;
+    for ((kind, route), of_kind) in chains {
+        let part = match route {
+            Route::Gated(layout) => gated::cook(&source, kind, &of_kind, (ladder, layout))?,
+            Route::OneChannel => single::cook_one_channel(&source, kind, &of_kind)?,
+            Route::Gray => single::cook_channel(&source, kind, &of_kind, Layout::Gray)?,
+            Route::Displacement => {
+                single::cook_channel(&source, kind, &of_kind, Layout::Displacement)?
+            }
+            Route::Lossless => single::cook_lossless(&source, kind, &of_kind)?,
+            Route::Float | Route::FloatBlocks => {
+                let data = floats.get_or_insert_with(|| half::from_bytes(decoded));
+                half::cook(
+                    o,
+                    (size.0, size.1, data),
+                    (sha256, provenance, image_index),
+                    &of_kind,
+                    route == Route::FloatBlocks,
+                )?
+            }
+            Route::Float32 | Route::SingleFloat | Route::HalfSingle => {
+                let data = floats.get_or_insert_with(|| half::from_bytes(decoded));
+                half::cook_exact(
+                    o,
+                    (size.0, size.1, data),
+                    (sha256, provenance, image_index),
+                    (&of_kind, kind),
+                    route,
+                )?
+            }
+        };
+        baked.absorb(part);
+    }
+    Ok(baked)
+}
+
+impl Baked {
+    pub(super) fn add_note(&mut self, note: &'static str) {
+        if !self.notes.contains(&note) {
+            self.notes.push(note);
         }
     }
-    Ok(Baked {
-        previews,
-        shapes: Vec::new(),
-        gates,
-        notes,
-    })
+    /// Joins the chains of another route.
+    fn absorb(&mut self, part: Baked) {
+        self.previews.extend(part.previews);
+        self.gates.extend(part.gates);
+        for note in part.notes {
+            self.add_note(note);
+        }
+    }
 }

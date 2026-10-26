@@ -245,6 +245,10 @@ test('the default height fog: the declared defaults, converted, against the inte
     skyContribution: [1, 1, 1],
     second: { baseDensity: 0, falloff: 0.02, heightShift: 0 },
     horizontalLimit: 0,
+    inMainView: true,
+    inSkyCapture: true,
+    ...{ inReflectionCaptures: true, holdout: false },
+    skyLightScattering: { strength: 0, roughness: 0.15 },
   }
   const eye: V3 = [0, 2, 0]
   for (const P of points([500, 2, 0, 2000, 30, 100, 0, 300, 40]))
@@ -270,7 +274,7 @@ test('no fog: the shader hands the lit colour back as it is, the block all zero'
  *  sizes the light buffer holds. */
 function offsetsOf(text: string, name: string) {
   const body = new RegExp(`struct ${name}\\{([^}]*)\\}`).exec(text)![1]
-  const size: Record<string, number> = { vec4f: 16, vec2u: 8, DirectLight: 80 }
+  const size: Record<string, number> = { vec4f: 16, vec2u: 8, u32: 4, DirectLight: 80 }
   const at: Record<string, number> = {}
   let offset = 0
   for (const [, member, , type, count] of body.matchAll(/(\w+):(u32|array<(\w+),?(\d*)>)/g)) {
@@ -285,15 +289,12 @@ test('the light buffer’s regions sit where the lighting, the air’s programs 
   const air = offsetsOf(AIR_BUFFER_STRUCT, 'AirBuffer')
   assert.equal(lights.atmosphere, LIGHT_BUFFER_AT.atmosphere)
   assert.equal(lights.fogView, LIGHT_BUFFER_AT.fogView)
+  assert.equal(lights.localFog, LIGHT_BUFFER_AT.localFog)
   assert.equal(lights.ltc, LIGHT_BUFFER_AT.ltc)
+  assert.equal(lights.skin, LIGHT_BUFFER_AT.skin)
   assert.equal(lights.items, LIGHT_BUFFER_AT.items)
-  // The air's programs read the front of the same bytes, by the same names — the fog and the sky's
-  // block the sky's draw reads the fog through —, its block, the view's, the haze volume and the
-  // sky by direction, which they write.
-  assert.equal(air.fog, lights.fog)
-  assert.equal(air.atmosphere, lights.atmosphere)
-  assert.equal(air.atmosphereView, lights.atmosphereView)
-  assert.equal(air.fogView, lights.fogView)
-  assert.equal(air.aerial, lights.aerial)
-  assert.equal(air.skyRays, lights.skyRays)
+  // The air's programs read the front of the same bytes, by the same names: the fog, the air's block
+  // and view, the fog volume's, the haze volume, the published transmittance, the local fog volumes'.
+  for (const member of Object.keys(air).filter((name) => name !== 'lead'))
+    assert.equal(air[member], lights[member], member)
 })

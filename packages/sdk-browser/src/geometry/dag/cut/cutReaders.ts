@@ -2,16 +2,8 @@ import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import type { DagCutLinks } from '../types.ts'
 import type { DagReadTables } from '../shader/bindings.ts'
 import type { DagResources } from '../resources.ts'
-import type { ProxyInstances } from '../proxy/proxyInstances.ts'
-
-/** What a program reads the proxy through (`../proxy/proxyInstances.ts`): its buffer, and the cut's record
- *  tables, read where they lie — the placements' records, the worlds it places its meshes by and its
- *  instances (`../worlds/worldTable.ts`), and the placement tree its rays walk (`../tree/treeTable.ts`). */
-export type ProxyResources = {
-  readonly buffer: GPUBuffer
-  readonly worlds: GPUTextureView
-  readonly tree: GPUTextureView
-}
+import { levelsDispatched } from '../encode.ts'
+import { instanceEntries, queueZeroEntries } from '../flagSections.ts'
 
 /**
  * What a pass beside the cut reads of its tables where they lie (`../../../lighting/rays/rayQuery.ts`):
@@ -22,6 +14,10 @@ export type ProxyResources = {
  */
 export type CutTables = {
   views: DagReadTables
+  /** The clusters' hot records and the cold words (residency bits, cold records) the cut rule reads
+   *  (`../cut/cutTables.ts`): what the shadow casters judge a cluster by, as the cut does. */
+  clusters: GPUTextureView
+  cold: GPUTextureView
   treeRoot: number
   placements: number
   /** Each placement's first page and group links, its record shift, and the records the packing
@@ -29,47 +25,61 @@ export type CutTables = {
   cutLinks: readonly DagCutLinks[]
   recordShift: Uint32Array
   recordCount: number
+  /** What a page's index adds to reach its cluster record (`../info/clusterInfoLayout.ts`), and the
+   *  records the packing holds room for. */
+  infoShift: Uint32Array
+  infoCount: number
+  /** What a descent over other views reads of the cut (`../shader/descentShape.ts`,
+   *  `../../../lighting/shadows/vsm/traversal/`): the main view's uniform block as its last cut wrote
+   *  it (`../viewLayout.ts`), the levels its descent dispatches (`../encode.ts`), the entries of
+   *  queue 0 a view opens and those no node budget bounds (`../flagSections.ts`,
+   *  `queueZeroEntries`, `instanceEntries`), the blocks of its pages' masks
+   *  (`../shader/blendMaskWgsl.ts`) and the ranks its readout holds. */
+  descent: {
+    block: Uint32Array
+    levels: number
+    rootSlots: number
+    entries: number
+    blockCount: number
+    listCap: number
+  }
 }
 
 /** The tables of `resources` as a pass beside the cut reads them (`CutTables`), as they stand now:
  *  each view the one a growth made last (`RecordTexture.hold`). */
-const cutTablesOf = ({ cutTables, frames, treeTable, packed }: DagResources): CutTables => ({
-  views: {
-    nodes: cutTables.nodes.view,
-    frames: frames.rows.view,
-    worlds: frames.worlds.view,
-    tree: treeTable.view,
-  },
-  treeRoot: packed.placementTree ? 0 : NO_INDEX,
-  placements: packed.live?.worlds ?? packed.worldCount,
-  cutLinks: packed.cutLinks,
-  recordShift: packed.recordShift,
-  recordCount: packed.recordCount,
-})
-
-/**
- * What the passes beside a camera cut read of it (`GpuSelection`): its tables (`cutTables`) and the
- * proxy (`proxy`), each read again at every call, none once `live` says it is released — a proxy
- * none until a placement wears one, made again when its buffer or the records it reads are.
- */
-export function cutReaders(
-  { resources, proxies }: { resources: DagResources; proxies: ProxyInstances },
-  live: () => boolean,
-) {
-  let proxy: ProxyResources | undefined
+const cutTablesOf = (resources: DagResources): CutTables => {
+  const { cutTables, frames, treeTable, packed } = resources
   return {
-    cutTables: () => (live() ? cutTablesOf(resources) : undefined),
-    proxy() {
-      const buffer = live() ? proxies.buffer() : undefined,
-        worlds = resources.frames.worlds.view
-      if (!buffer) return undefined
-      if (proxy?.buffer !== buffer || proxy.worlds !== worlds)
-        proxy = {
-          buffer,
-          worlds,
-          tree: resources.treeTable.view,
-        }
-      return proxy
+    views: {
+      nodes: cutTables.nodes.view,
+      frames: frames.rows.view,
+      worlds: frames.worlds.view,
+      tree: treeTable.view,
+    },
+    clusters: cutTables.clusters.view,
+    cold: cutTables.cold.view,
+    treeRoot: packed.placementTree ? 0 : NO_INDEX,
+    placements: packed.live?.worlds ?? packed.worldCount,
+    cutLinks: packed.cutLinks,
+    recordShift: packed.recordShift,
+    recordCount: packed.recordCount,
+    infoShift: packed.infoShift,
+    infoCount: packed.infoCount,
+    descent: {
+      block: new Uint32Array(resources.uniformData.buffer),
+      levels: levelsDispatched(resources),
+      rootSlots: queueZeroEntries(packed),
+      entries: instanceEntries(packed),
+      blockCount: resources.blockCount,
+      listCap: resources.listCap,
     },
   }
+}
+
+/**
+ * What the passes beside a camera cut read of it (`GpuSelection`): its tables (`cutTables`), read again at each call, none once
+ * `live` says it is released.
+ */
+export function cutReaders({ resources }: { resources: DagResources }, live: () => boolean) {
+  return { cutTables: () => (live() ? cutTablesOf(resources) : undefined) }
 }

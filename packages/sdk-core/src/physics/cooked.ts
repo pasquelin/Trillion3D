@@ -59,7 +59,7 @@ export interface CookedSoftBody extends Omit<CookedInstance, 'collider'> {
   /** The options the node declares, read by the page as `obj.physics` reads them. */
   physics: PhysicsOption
   /** The settings object, beside the manifest. */
-  settings: Omit<CookedTile, 'triangles' | 'bounds'>
+  settings: CookedObject
   /** Simulated vertices, what it counts against `budget.physics.softVertices`. */
   vertices: number
   /** The gas's pressure at rest, Pa; 0 without gas. */
@@ -67,6 +67,10 @@ export interface CookedSoftBody extends Omit<CookedInstance, 'collider'> {
   /** Versioned simulation-space source used by pages flagged SOFT_SOURCE (format 6). */
   render?: { version: 1; positions: number[]; indices: number[] }
 }
+
+/** A cooked object beside the manifest, as a tile is but for its triangles and bounds: a hull's or
+ *  a soft body's settings. */
+type CookedObject = Omit<CookedTile, 'triangles' | 'bounds'>
 
 /** The motion a node declares (`KHR_physics_rigid_bodies`), as `physics.json` carries it. */
 interface DeclaredMotion {
@@ -98,7 +102,7 @@ export interface CookedMass {
 
 /** A shapeless body's convex hull, cooked at unit scale in its frame: a SHA-addressed object, and
  *  a dynamic body's mass. */
-type CookedHull = Omit<CookedTile, 'triangles' | 'bounds'> & {
+type CookedHull = CookedObject & {
   type: 'cooked'
   mass?: CookedMass
 }

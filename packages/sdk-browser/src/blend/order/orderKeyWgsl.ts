@@ -1,6 +1,7 @@
 import { KEYED_WGSL } from '../keyLayout.ts'
 import { FRAME_HEAD_WGSL } from '../frame/frameHead.ts'
 import { dAdd, dDot3, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
+import { D_HALF } from '../../../../math/src/wgsl/doubleConstants.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -10,9 +11,9 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const ORDER_KEY_WGSL = wgslBlock(
   'ORDER_KEY_WGSL',
-  [dAdd, dSub, dMul, dDot3, KEYED_WGSL, FRAME_HEAD_WGSL],
+  [dAdd, dSub, dMul, dDot3, D_HALF, KEYED_WGSL, FRAME_HEAD_WGSL],
   `/** One axis of the eye-to-box-centre gap: each bound brought to the eye, then the two averaged. */
-fn boxAxis(low:vec2u,high:vec2u,eye:vec2u)->vec2u{return dMul(dAdd(dSub(low,eye),dSub(high,eye)),vec2u(0x3fe00000u,0u));}
+fn boxAxis(low:vec2u,high:vec2u,eye:vec2u)->vec2u{return dMul(dAdd(dSub(low,eye),dSub(high,eye)),D_HALF);}
 /**
  * An item's key, as \`eyeKey\` computes it on the CPU (\`order.ts\`): the square of the distance from
  * the eye to its world box centre, its world origin without a box: the CPU's to the bit, so an own

@@ -4,7 +4,7 @@
 pub(crate) mod deform;
 #[cfg(test)]
 pub(crate) mod tests;
-use crate::dag::DagCluster;
+use crate::dag::{DagCluster, NO_SOURCE_RANK};
 use crate::*;
 use trillion3d_page_codec::bits::grid::PageGrid;
 pub(crate) use trillion3d_page_codec::encode::deformation::{Deformation, MorphTarget};
@@ -76,7 +76,7 @@ pub(crate) fn page_attributes(
         attributes.push(encode::Attribute {
             flag,
             width: a.width,
-            values: a.collect_f32()?,
+            values: a.collect_f32_of(name)?,
         });
     }
     Ok(attributes)
@@ -113,11 +113,13 @@ pub(crate) fn encode_page(
     let record = geometry_record(&encoded, slice.len());
     Ok((record, encoded.bytes))
 }
-/// The `geometry` object of a page record: the packed page's facts. Where it lies is its page's
-/// bundle (`stream`, `streamOffset`), whose digest proves it.
+/// The `geometry` object of a page record: the packed page's facts — its bytes on disk, the bytes
+/// it takes in the pool once installed, its counts and flags, what it decodes to. Where it lies on
+/// disk is its page's bundle (`stream`, `streamOffset`), whose digest proves it; where it lies in
+/// the pool is `residentOffset`, which `dag_pages` adds once the bundle is laid.
 pub(crate) fn geometry_record(page: &encode::Encoded, indices: usize) -> Value {
     let header = &page.header;
-    json!({"bytes":page.bytes.len(),"vertexCount":header.vertex_count,"indexCount":indices,"flags":header.flags,"uncompressedBytes":header.decoded_bytes()})
+    json!({"bytes":page.bytes.len(),"residentBytes":header.resident_bytes(),"vertexCount":header.vertex_count,"indexCount":indices,"flags":header.flags,"uncompressedBytes":header.decoded_bytes()})
 }
 /// The manifest record of the page at culling `rank`: its bounds and its packed `geometry`, the
 /// one thing a runtime reads of it; its bundle joins it once packed.
@@ -131,11 +133,18 @@ pub(crate) fn page_record(
         true => value(cluster),
         false => Value::Null,
     };
-    json!({"id":rank,"count":cluster.indices.len(),"start":cluster.source_rank as usize*3,"min":min,"max":max,
+    let mut record = json!({"id":rank,"count":cluster.indices.len(),"min":min,"max":max,
         "role":if cluster.level==0{"exact"}else{"coarse"},
         "geometry":geometry,"level":cluster.level,"lodError":cluster.lod_error,"sphere":cluster.sphere,
         "parentError":parent(|c|json!(c.parent_error)),
         "parentSphere":parent(|c|json!(c.parent_sphere)),
         "group":cluster.group.map_or(Value::Null,|index|json!(index)),
-        "source":cluster.source.map_or(Value::Null,|index|json!(index))})
+        "source":cluster.source.map_or(Value::Null,|index|json!(index))});
+    // Its first source corner, when it descends from a triangle of the source: a cluster that
+    // descends from none — an instance's root, the levels above instances alone — has no `start`,
+    // as the manifest reads an absent one, and a runtime orders its page by its rank.
+    if cluster.source_rank != NO_SOURCE_RANK {
+        record["start"] = json!(cluster.source_rank as usize * 3);
+    }
+    record
 }

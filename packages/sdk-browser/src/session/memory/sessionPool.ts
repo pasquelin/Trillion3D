@@ -3,10 +3,10 @@ import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../../../sdk-core/src/contracts
 
 /**
  * The geometry pool a session starts with (`budgetBytes`, the default when the host names none),
- * and the rule that redraws it mid-session (`setMemoryBudgets`) with no ceiling: the drawable-page
- * tables are sized for the first, and grow in place for a larger one (`growTables.ts`). `shape`, the
- * catalogue the rule reads, is read at each draw: the pages a source added to the session brings
- * (`growCatalogue`) change it in place.
+ * and the rule that redraws it mid-session (`setMemoryBudgets`) with no ceiling: the cache is
+ * laid out for the first, and drawn again in place for a larger one (`setGeometryBudget`,
+ * `../../frame/io/memory.ts`). `shape`, the catalogue the rule reads, is read at each draw: the
+ * pages a source added to the session brings (`growCatalogue`) change it in place.
  */
 export function sessionGeometryPool(
   options: Omit<Parameters<typeof geometryPoolFor>[0], 'budgetBytes'>,

@@ -9,6 +9,7 @@ import assert from 'node:assert/strict'
 import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
+import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { enginePose, resolveCameraWorld } from './world.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
 import { createFrameGateCore } from '../frame/gate/gateCore.ts'
@@ -89,7 +90,7 @@ test('boundary: the held-frame gate sees a rig move that the host has not walked
   const source = new Object3D()
   const rig = creeRig()
   const viewport: [number, number] = [800, 600]
-  /** A frame of a host-library-rendered engine, reduced to what pose decides there. */
+  /** A frame of the engine, reduced to what pose decides there. */
   const image = () => {
     resolveCameraWorld(rig.camera)
     gate.viewChanged(engineCamera(rig.camera), viewport, 1)
@@ -161,16 +162,18 @@ test('boundary: the engine camera reads the host camera’s plane and lists, or 
   assert.equal(engineCamera(bare).viewSet, NO_VIEW_SET)
 })
 
-test('boundary: NaN in the world matrix never reads as a still view', () => {
+test('boundary: NaN in the world matrix is a view change, then the identity view held still', () => {
   const { camera } = sousRig(POSES_PARENT[1] as Pose)
   const gate = createFrameGateCore(1)
   const drawn = () => gate.viewChanged(engineCamera(camera), VIEWPORT, 1)
   drawn()
-  // A NaN enters through the local pose: the engine camera inverts the world matrix.
+  // A NaN enters through the local pose: the engine camera has no inverse of the world matrix,
+  // and draws from the origin, the same view every frame after the change.
   camera.position.x = NaN
   camera.updateMatrixWorld(true)
   assert.equal(drawn(), true)
-  assert.equal(drawn(), true, 'NaN never compares equal to itself')
+  assert.deepEqual([...engineCamera(camera).view], [...IDENTITY_MATRIX4])
+  assert.equal(drawn(), false, 'the view it fell to does not move')
 })
 
 /** A uniforms read copied at once: the work buffer is shared between two calls. */

@@ -13,11 +13,12 @@ export type {
   SceneToneMapping,
 } from '../../sdk-core/src/scene/core/environment.ts'
 export type { AlphaMode, LinearRgb, Material, Side } from '../../sdk-core/src/contracts/material.ts'
-export { assertSceneProxy, decodeSceneProxy } from '../../sdk-core/src/scene/core/proxy.ts'
 export type {
+  AmbientOcclusionFrameMetrics,
   BounceFrameMetrics,
   ScreenProbeFrameMetrics,
   ShadowFrameMetrics,
+  ToneTableFrameMetrics,
 } from '../../sdk-core/src/contracts/shadowMetrics.ts'
 export { createSafetyPolicy } from '../../sdk-core/src/runtime/safety/safety.ts'
 export type {
@@ -26,33 +27,23 @@ export type {
   SafetyConfig,
   SafetyDecision,
 } from '../../sdk-core/src/runtime/safety/safety.ts'
+export type { CharacterMode } from '../../sdk-core/src/collision/characterModes.ts'
+export type { ClipPlane, ClipPlaneValues } from '../../sdk-core/src/contracts/viewOptions.ts'
 export {
   clusterErrorAtDepth,
   clusterErrorPixels,
   screenErrorBound,
 } from '../../sdk-core/src/lod/screenErrorBound.ts'
+export type {
+  CollisionEnabled,
+  CollisionOptions,
+} from '../../sdk-core/src/physics/collisionChannels.ts'
 export type { ColorSpace } from '../../sdk-core/src/world/constants/index.ts'
 export { createJob } from '../../sdk-core/src/runtime/jobs/jobs.ts'
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/runtime/jobs/jobs.ts'
 export { createModuleManager } from '../../sdk-core/src/modules/manager.ts'
 export type { ModuleHooks, ModuleManager } from '../../sdk-core/src/modules/manager.ts'
 export { createSceneRoot, SceneRoot } from '../../sdk-core/src/scene/core/root.ts'
-export {
-  CUTOUT_SHEET_FILE,
-  CUTOUT_SHEET_VERSION,
-  MANIFEST_BINARY_MAGIC,
-  MANIFEST_BINARY_VERSION,
-  PREVIEW_BASE,
-  PROXY_CHILD_WORDS,
-  PROXY_CHILDREN,
-  PROXY_NODE_FLOATS,
-  PROXY_NODE_WORDS,
-  PROXY_TRIANGLE_FLOATS,
-  SCENE_PROXY_HEADER_WORDS,
-  SCENE_PROXY_MAGIC,
-  SCENE_PROXY_VERSION,
-  TEXTURE_PREVIEW_VERSION,
-} from '../../sdk-core/src/contracts/writtenFormats.ts'
 export type {
   DagReport,
   DagStall,
@@ -83,18 +74,43 @@ export {
   MAX_DEPTH_LAYER,
   TRANSPARENT_DEPTH_LAYER,
 } from '../../sdk-core/src/lod/depthLayer.ts'
+export type {
+  DisplacementWire,
+  TemporalAntialiasingLevel,
+} from '../../sdk-core/src/contracts/materialAbi.ts'
 export type { DrawDistanceSettings } from '../../sdk-core/src/contracts/objectOptions.ts'
+export type {
+  ExposureCurveExtrapolation,
+  ExposureCurveInterpolation,
+  ExposureCurveKeyObject,
+  ExposureCurveKeyOption,
+  ExposureCurveObject,
+  ExposureCurveOption,
+  ExposureCurveTangentMode,
+  ExposureCurveWeightMode,
+} from '../../sdk-core/src/contracts/exposureCurve.ts'
 export { geometryPageAddress, streamBundleAddress } from '../../sdk-core/src/page/contracts.ts'
 export type {
   GeometryPageDescriptor,
   GeometryPageFormat,
 } from '../../sdk-core/src/page/contracts.ts'
 export type { GpuMemoryFrameMetrics } from '../../sdk-core/src/contracts/gpuMemory.ts'
+export type { HardwareBenchmarkResult } from '../../sdk-core/src/runtime/hardwareBenchmark.ts'
+export type { HostImage } from '../../sdk-core/src/contracts/hostImage.ts'
+export type { LightCloudShadowParameters } from '../../sdk-core/src/world/light/lightCloudShadowSettings.ts'
+export type { LightShaftParameters } from '../../sdk-core/src/world/light/lightShaftSettings.ts'
 export { LOD_QUALITY, lodQuality } from '../../sdk-core/src/lod/policy.ts'
 export type { LodQualityId } from '../../sdk-core/src/lod/policy.ts'
+export {
+  MANIFEST_BINARY_MAGIC,
+  MANIFEST_BINARY_VERSION,
+  PREVIEW_BASE,
+  TEXTURE_PREVIEW_VERSION,
+} from '../../sdk-core/src/contracts/writtenFormats.ts'
+export type { MaterialShadingModel } from '../../sdk-core/src/world/material/shadingModel.ts'
 export type {
   ReflectionFrameMetrics,
-  ReflectionProxyEnded,
+  ReflectionSceneEnded,
 } from '../../sdk-core/src/contracts/reflectionMetrics.ts'
 export type { RenderSettingSource } from '../../sdk-core/src/runtime/renderSettings.ts'
 export type {
@@ -110,12 +126,18 @@ export type {
   SceneLinearFog,
 } from '../../sdk-core/src/scene/core/fog.ts'
 export type { SceneExposure } from '../../sdk-core/src/contracts/exposureOptions.ts'
+export type { SceneFogCubemap } from '../../sdk-core/src/scene/core/fogCubemap.ts'
 export type {
   SceneFogDirectional,
   SceneHeightFog,
+  SceneSkyLightScattering,
 } from '../../sdk-core/src/scene/core/fogHeight.ts'
 export { SceneNode } from '../../sdk-core/src/scene/core/node.ts'
+export type { SceneSecondLayer } from '../../sdk-core/src/scene/core/fogSecond.ts'
+export type { SceneVolumetricFog } from '../../sdk-core/src/scene/core/fogVolumetric.ts'
+export type { ShadowCacheInvalidation } from '../../sdk-core/src/world/object/offsetSwitches.ts'
 export type { SoftBodyType } from '../../sdk-core/src/physics/soft/soft.ts'
+export type { SurfaceCacheFrameMetrics } from '../../sdk-core/src/contracts/surfaceCacheMetrics.ts'
 export {
   TABLE_FILTERS,
   TABLE_FLAGS,
@@ -131,3 +153,4 @@ export type {
   TableTextureSlot,
 } from '../../sdk-core/src/scene/core/tableSurfaces.ts'
 export type { TablePage, TableSlot } from '../../sdk-core/src/scene/core/tablePages.ts'
+export type { VolumeMaterial } from '../../sdk-core/src/contracts/volumeMaterial.ts'

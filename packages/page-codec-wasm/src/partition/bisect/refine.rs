@@ -11,6 +11,30 @@ pub(super) fn side_bounds(balance: &Balance, total: i64) -> (i64, i64) {
     (most, least)
 }
 
+/// One try of a cut: the sides `side` of `graph` balanced and refined in `count` passes, kept in
+/// `best` where they cut less than the least so far. Whether they cut nothing, so that no later
+/// try can do better.
+pub(super) fn keep_least(
+    graph: &Level,
+    side: Vec<u8>,
+    (balance, count): (&Balance, usize),
+    work: &mut Work,
+    random: &mut Draws,
+    best: &mut Option<(i64, Vec<u8>)>,
+) -> bool {
+    let mut cut = Cut::of(graph, side);
+    balance_cut(graph, &mut cut, balance, work, random);
+    passes(graph, &mut cut, balance, count, work, random);
+    let better = best
+        .as_ref()
+        .is_none_or(|(least_cut, _)| cut.cut < *least_cut);
+    let done = better && cut.cut == 0;
+    if better {
+        *best = Some((cut.cut, cut.side));
+    }
+    done
+}
+
 /// The cut of a graph with no link: the first try everything on side 1, each other a shuffled
 /// run of vertices moved to side 0 while it stays under its weight with the tolerance; each
 /// balanced and refined (`PASSES_UNLINKED`), the least kept, the first on a tie.
@@ -40,18 +64,15 @@ pub(super) fn random_cut(
                 }
             }
         }
-        let mut cut = Cut::of(graph, side);
-        balance_cut(graph, &mut cut, balance, work, random);
-        passes(graph, &mut cut, balance, PASSES_UNLINKED, work, random);
-        if best
-            .as_ref()
-            .is_none_or(|(least_cut, _)| cut.cut < *least_cut)
-        {
-            let done = cut.cut == 0;
-            best = Some((cut.cut, cut.side));
-            if done {
-                break;
-            }
+        if keep_least(
+            graph,
+            side,
+            (balance, PASSES_UNLINKED),
+            work,
+            random,
+            &mut best,
+        ) {
+            break;
         }
     }
     best.expect("one try").1
@@ -88,7 +109,7 @@ pub(super) fn refine(
 /// its target; only vertices no heavier than the imbalance move, each once. Skipped when the cut
 /// is within the tolerance, or within three mean vertex weights of the target. With a boundary,
 /// only boundary vertices move; without, any.
-pub(super) fn balance_cut(
+fn balance_cut(
     graph: &Level,
     cut: &mut Cut,
     balance: &Balance,

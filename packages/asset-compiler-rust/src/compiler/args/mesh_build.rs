@@ -7,8 +7,8 @@
 //! by area and angle, and the tolerances of its skinned weld, and the precisions of its pages' grid
 //! (`Precision`): the cells of its positions, the bits of its normals and of its tangents' angle,
 //! how its voxels are sampled when it is drawn as voxels far away (`voxels.rs`), how its distance
-//! field is built (`distance_field.rs`), the displacement baked into its triangles
-//! (`displacement.rs`), and whether
+//! field is built (`distance_field.rs`), the cards found for it (`cards.rs`), the displacement
+//! baked into its triangles (`displacement.rs`), and whether
 //! the assembly its `extras` name is built (`ALLOW_ASSEMBLIES_SETTING`, `source/assembly.rs`).
 //! For each setting of a mesh, the first that names it:
 //! 1. the first rule of `meshBuild.objects` whose match names one of its objects — a node of the
@@ -17,16 +17,22 @@
 //! 3. its own `extras` under the setting's name;
 //! 4. the default, the reference's.
 //!
+//! A mesh drawn as a part of an assembly (`source/assembly/parts.rs`) takes, above all of them, the
+//! tangents and the voxel settings its assembly mesh resolved.
+//!
 //! A job naming no `meshBuild` compiles as before, its cache key unchanged. Read and checked here
 //! once; what does not read is the job's refusal (`INVALID_OPTIONS`, `validate_compile_options`),
 //! never the batch's — a mesh's `extras` setting that does not read included, when the meshes are
 //! resolved.
-use super::name_match::{present, read_rules, NameMatch, NodeNames};
+use super::name_match::{NodeNames, Rules};
 use super::reader::Reader;
 use super::*;
+use crate::compiler::source::assembly::parts::inherit_builds;
+mod cards;
 mod displacement;
 mod distance_field;
 mod voxels;
+use cards::NamedCards;
 use displacement::NamedDisplacement;
 use distance_field::NamedDistanceField;
 use trillion3d_page_codec::bits::grid::Precision;
@@ -63,6 +69,9 @@ pub(crate) struct MeshBuild {
     /// `distanceFieldScale`, `distanceFieldTwoSided`, `distanceFieldDensity`,
     /// `distanceFieldMaxResolution`).
     pub distance_field: crate::distance_field::DistanceFieldSettings,
+    /// How its cards are found (`card_representation::CardSettings`: `maxMeshCards`,
+    /// `meshCardMinDensity`, `meshCardNormalThreshold`).
+    pub cards: crate::card_representation::CardSettings,
     /// The displacement baked into its triangles (`displace::DisplacementSettings`:
     /// `displacementMaps`, `displacementUvChannel`, `displacementEdgeSplit`), none by default.
     pub displacement: crate::displace::DisplacementSettings,
@@ -90,6 +99,7 @@ struct Named {
     tangent_precision: Option<i32>,
     voxels: NamedVoxels,
     distance_field: NamedDistanceField,
+    cards: NamedCards,
     displacement: NamedDisplacement,
     allow_assemblies: Option<bool>,
 }
@@ -137,6 +147,7 @@ impl Named {
             )?,
             voxels: NamedVoxels::of(&read)?,
             distance_field: NamedDistanceField::of(&read)?,
+            cards: NamedCards::of(&read)?,
             displacement: NamedDisplacement::of(&read)?,
             allow_assemblies: read.boolean(ALLOW_ASSEMBLIES_SETTING)?,
         })
@@ -162,6 +173,7 @@ impl Named {
             tangent_precision: self.tangent_precision.or(lower.tangent_precision),
             voxels: self.voxels.or(lower.voxels),
             distance_field: self.distance_field.or(lower.distance_field),
+            cards: self.cards.or(lower.cards),
             displacement: self.displacement.or(lower.displacement),
             allow_assemblies: self.allow_assemblies.or(lower.allow_assemblies),
         }
@@ -203,6 +215,7 @@ impl Named {
             },
             voxels: self.voxels.resolved(),
             distance_field: self.distance_field.resolved(),
+            cards: self.cards.resolved(),
             displacement: self.displacement.resolved(),
             allow_assemblies: self.allow_assemblies.unwrap_or(DEFAULT_ALLOW_ASSEMBLIES),
         }
@@ -220,35 +233,23 @@ pub(crate) fn mesh_build_of(map: &Map<String, Value>, what: &str) -> Result<Mesh
 /// identity; none for none.
 #[derive(Clone, Debug, Default)]
 pub struct MeshBuildOptions {
-    scene: Named,
-    objects: Vec<(NameMatch, Named)>,
-    identity: Option<Value>,
+    rules: Rules<Named>,
 }
 
 impl MeshBuildOptions {
     /// The settings the job's `meshBuild` field names, none for none; `Err` with the job's refusal
     /// when they do not read.
     pub fn read(value: Option<&Value>) -> std::result::Result<Self, String> {
-        Self::parse(value).map_err(|e| e.message)
-    }
-
-    fn parse(value: Option<&Value>) -> Result<Self> {
-        let Some(value) = present(value) else {
-            return Ok(Self::default());
-        };
         let settings: &[&str] = &MESH_BUILD_SETTINGS;
         let names = (MESH_BUILD_FIELD, settings, MESH_BUILD_OBJECTS);
-        let (scene, objects) = read_rules(value, names, Named::of)?;
-        Ok(Self {
-            scene,
-            objects,
-            identity: Some(value.clone()),
-        })
+        Rules::read(value, names, Named::of)
+            .map(|rules| Self { rules })
+            .map_err(|e| e.message)
     }
 
     /// What named the settings, for the cache key: `None` when the job names none.
     pub fn identity(&self) -> Option<&Value> {
-        self.identity.as_ref()
+        self.rules.identity()
     }
 
     /// The build settings of each source mesh of `g`, by its rank, by the precedence the module
@@ -265,14 +266,14 @@ impl MeshBuildOptions {
                 drawn.push(node);
             }
         }
-        (meshes.iter().zip(&nodes_of).enumerate())
+        let mut builds: Vec<MeshBuild> = (meshes.iter().zip(&nodes_of).enumerate())
             .map(|(rank, (mesh, nodes))| {
                 // Without a rule no object is named: no node's names are read.
-                let names: Vec<NodeNames> = match self.objects.is_empty() {
+                let names: Vec<NodeNames> = match self.rules.objects.is_empty() {
                     true => Vec::new(),
                     false => nodes.iter().map(|&n| NodeNames::of(g, n)).collect(),
                 };
-                let ruled = (self.objects.iter())
+                let ruled = (self.rules.objects.iter())
                     .filter(|(matcher, _)| names.iter().any(|n| matcher.matches(n)))
                     .fold(Named::default(), |named, (_, rule)| named.or(rule.clone()));
                 let own = match mesh.get("extras").and_then(Value::as_object) {
@@ -281,8 +282,10 @@ impl MeshBuildOptions {
                     }
                     _ => Named::default(),
                 };
-                Ok(ruled.or(self.scene.clone()).or(own).resolved())
+                Ok(ruled.or(self.rules.scene.clone()).or(own).resolved())
             })
-            .collect()
+            .collect::<Result<_>>()?;
+        inherit_builds(meshes, &mut builds);
+        Ok(builds)
     }
 }

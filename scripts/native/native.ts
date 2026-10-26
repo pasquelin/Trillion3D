@@ -1,10 +1,10 @@
 // The cargo commands of every crate of `native-crates.ts`, in its order, each with the crate's
 // flags; the first failure stops the run. `node scripts/native/native.ts test|lint|fmt|fmt-check|golden`
 // (`pnpm run test:native`, `lint:native`, `format`, `format:check`, `golden:write`), and
-// `golden-check`, which `../test/check-changed.ts` runs; crate folders named after the command run those
+// `golden-check`, which `../check/check-changed.ts` runs; crate folders named after the command run those
 // crates alone.
 import { NATIVE_CRATES, type NativeCrate } from './native-crates.ts'
-import { run } from '../test/run.ts'
+import { run } from '../check/run.ts'
 
 const features = (crate: NativeCrate) => (crate.allFeatures ? ['--all-features'] : [])
 const manifest = (crate: NativeCrate) => ['--manifest-path', `${crate.path}/Cargo.toml`]

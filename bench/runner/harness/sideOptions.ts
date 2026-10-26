@@ -8,26 +8,21 @@ import { MIN_RENDER_SCALE } from '../../../packages/sdk-browser/src/frame/scale/
 import { WEBGPU_ENGINE_ID } from '../../../packages/sdk-browser/src/session/engine/factory.ts'
 
 // Benchmark Chromium flags: unbridled background rendering, enabled GPU benchmarking, WebGPU enabled.
-const BASE_FLAGS = [
+const WEBGPU_FLAGS = [
   '--disable-backgrounding-occluded-windows',
   '--disable-renderer-backgrounding',
   '--disable-background-timer-throttling',
   '--enable-gpu-benchmarking',
+  '--enable-unsafe-webgpu',
 ]
-const WEBGPU_FLAGS = [...BASE_FLAGS, '--enable-unsafe-webgpu']
 
 /** One engine the harness knows how to measure: its backend factory, Chromium flags, and page. */
 export interface EngineDescriptor {
-  backend: string | null
+  backend: string
   id: string
   flags: string[]
   page: string
-  source: 'cache' | 'gltf'
 }
-
-/** Whether `engine` is the engine itself, which draws a scene built through the public API, and
- *  not a witness. */
-export const isEngine = (engine: EngineDescriptor) => engine.id === WEBGPU_ENGINE_ID
 
 /**
  * A side ready to run: `equipSide` turns a `SideBase` into one of these by filling `engine`,
@@ -42,31 +37,13 @@ export interface Side extends SideBase {
   renderScale: number | null
 }
 
-// `page` is the module served under `/runner/` whose `measureView` plays the series;
-// `source` indicates what the page loads: compiled cache (`cache`) or source glTF from assets (`gltf`).
+// `page` is the module served under `/runner/` whose `measureView` plays the series.
 export const ENGINES: Record<string, EngineDescriptor> = {
   webgpu: {
     backend: 'webgpuPagesEngine',
     id: WEBGPU_ENGINE_ID,
     flags: WEBGPU_FLAGS,
     page: 'lighting/lightingPage.ts',
-    source: 'cache',
-  },
-  // Raw Three.js witness: no SDK, raw glTF rendered by Three alone (`witness/threeBarePage.ts`).
-  'three-nu': {
-    backend: null,
-    id: 'three-nu',
-    flags: BASE_FLAGS,
-    page: 'witness/threeBarePage.ts',
-    source: 'gltf',
-  },
-  // Three.js witness with levels of detail: raw Three plus `THREE.LOD` per mesh (`witness/threeLodPage.ts`).
-  'three-lod': {
-    backend: null,
-    id: 'three-lod',
-    flags: BASE_FLAGS,
-    page: 'witness/threeLodPage.ts',
-    source: 'gltf',
   },
 }
 
@@ -89,22 +66,22 @@ export function equipSide(
     'astc',
     'none',
   ]) as TextureCompression | null
-  equipped.renderScale = scaleOf(flags, side.name, equipped.engine)
+  equipped.renderScale = scaleOf(flags, side.name)
   return equipped
 }
 
 /** A side's render scale: `--scale-<side>`, otherwise `--scale`, in the engine's
- *  [MIN_RENDER_SCALE, 1]; `null` without. Below one only where the WebGPU temporal resolve
- *  reconstructs the frame: elsewhere the engine draws the display and the report would name a
- *  scale no image was drawn at. */
-function scaleOf(flags: Map<string, string>, name: string, engine: EngineDescriptor) {
+ *  [MIN_RENDER_SCALE, 1]; `null` without. Below one only where the temporal resolve reconstructs
+ *  the frame: without it the engine draws the display and the report would name a scale no image
+ *  was drawn at. */
+function scaleOf(flags: Map<string, string>, name: string) {
   const value = sideFlag(flags, name, 'scale')
   if (value === null) return null
   const scale = Number(value)
   if (!(scale >= MIN_RENDER_SCALE && scale <= 1))
     throw new Error(`--scale-${name} must be in [${MIN_RENDER_SCALE}, 1]`)
-  if (scale < 1 && (!isEngine(engine) || flags.get('antialiasing') === 'off'))
-    throw new Error(`--scale-${name} below 1 needs the WebGPU engine and temporal antialiasing on`)
+  if (scale < 1 && flags.get('antialiasing') === 'off')
+    throw new Error(`--scale-${name} below 1 needs temporal antialiasing on`)
   return scale
 }
 

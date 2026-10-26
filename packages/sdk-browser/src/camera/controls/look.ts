@@ -101,6 +101,43 @@ export const headLock = (head: () => Pick<PersonHead, 'locked' | 'lock' | 'unloc
   unlock: () => head().unlock(),
 })
 
+/** The head's two angles, and how a look turns them into an orientation. */
+function createHeadAngles(pose: ControlPose, settings: HeadSettings) {
+  const read = new Float64Array(4),
+    written = new Float64Array(4),
+    forward = new Float64Array(3),
+    turned = new Float64Array(2),
+    angles = new Float64Array(3)
+  let pitch = 0,
+    yaw = 0
+  return {
+    // The head keeps its own two angles, but a host that re-poses the camera must be obeyed:
+    // an orientation that is not the one last written is read back into yaw and pitch.
+    sample() {
+      pose.readOrientation(read)
+      if (sameValues(read, written)) return
+      rotateByQuaternion(forward, read, 0, 0, -1)
+      // The elevation of the forward axis, by its height over its horizontal length: blind to the
+      // length a quaternion off unit length gives it, and as well conditioned at the poles as at the
+      // horizon, where the arc sine of the height alone loses half its digits.
+      directionYawPitch(turned, forward[0], forward[1], forward[2])
+      yaw = turned[0]
+      pitch = turned[1]
+    },
+    /** Applies the `looked` pitch and yaw and writes the head's orientation into `orientation`;
+     *  returns the yaw. */
+    turn(looked: Float64Array, orientation: Float64Array) {
+      yaw += looked[0]
+      pitch = clampCompare(pitch + looked[1], settings.minPitch, settings.maxPitch)
+      angles[1] = yaw
+      angles[2] = HALF_PI + pitch
+      orbitOrientation(orientation, angles)
+      written.set(orientation)
+      return yaw
+    },
+  }
+}
+
 export function createHead(
   pose: ControlPose,
   surface: HTMLElement,
@@ -108,27 +145,8 @@ export function createHead(
   settings: HeadSettings,
 ) {
   const owner = surface.ownerDocument
-  const read = new Float64Array(4),
-    written = new Float64Array(4),
-    forward = new Float64Array(3),
-    turned = new Float64Array(2),
-    angles = new Float64Array(3),
-    looked = new Float64Array(2)
-  let pitch = 0,
-    yaw = 0
-  // The head keeps its own two angles, but a host that re-poses the camera must be obeyed:
-  // an orientation that is not the one last written is read back into yaw and pitch.
-  const sample = () => {
-    pose.readOrientation(read)
-    if (sameValues(read, written)) return
-    rotateByQuaternion(forward, read, 0, 0, -1)
-    // The elevation of the forward axis, by its height over its horizontal length: blind to the
-    // length a quaternion off unit length gives it, and as well conditioned at the poles as at the
-    // horizon, where the arc sine of the height alone loses half its digits.
-    directionYawPitch(turned, forward[0], forward[1], forward[2])
-    yaw = turned[0]
-    pitch = turned[1]
-  }
+  const looked = new Float64Array(2)
+  const angles = createHeadAngles(pose, settings)
   const head = {
     locked: () => owner.pointerLockElement === surface,
     // A refused lock (asked too soon after Escape, or from a detached surface) is not an error:
@@ -140,15 +158,9 @@ export function createHead(
      * `orientation`; returns the yaw, in radians from -Z towards -X, that a walk follows.
      */
     turn(orientation: Float64Array) {
-      sample()
+      angles.sample()
       look.take(looked)
-      yaw += looked[0]
-      pitch = clampCompare(pitch + looked[1], settings.minPitch, settings.maxPitch)
-      angles[1] = yaw
-      angles[2] = HALF_PI + pitch
-      orbitOrientation(orientation, angles)
-      written.set(orientation)
-      return yaw
+      return angles.turn(looked, orientation)
     },
   }
   // The first move a browser reports once the lock is granted may carry the cursor's whole jump

@@ -45,7 +45,7 @@ test('a world at rest takes no step, and says so once to a page that woke it', a
   assert.equal(posted().length, 1)
   // Keys that move nothing, then a frame long after: the rest is told once, at the page's step,
   // after one more of the page's waking messages.
-  receive({ type: 'input', input: { wishX: 0, wishZ: 0, sprint: false }, jumps: 0 })
+  receive({ type: 'input', input: { wishX: 0, wishZ: 0 }, jumps: 0 })
   receive({ type: 'advance', to: 90, steps: 2 })
   receive({ type: 'advance', to: 91, steps: 1 })
   assert.deepEqual(posted().slice(1), [{ type: 'rest', step: 90, heard: heard + 1 }])

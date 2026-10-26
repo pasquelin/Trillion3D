@@ -1,17 +1,22 @@
-import type { HostCamera } from '../../camera/world.ts'
+import type { ViewCamera } from '../../camera/world.ts'
 import {
   prepareSurfaceRewrite,
   releaseSurfaceRewrite,
 } from '../../lighting/deferred/surfaceOverride.ts'
 import { rewritesSurfaces, type ViewOverrides } from '../backend/state/viewOverrides.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-import { captureAside, drawResidentCut, renderForCapture } from './captureAside.ts'
+import {
+  assertCaptureReady,
+  captureAside,
+  drawResidentCut,
+  renderForCapture,
+} from './captureAside.ts'
 
 /** What `captureHdrViews` draws: the cameras, one image each, square, `size` pixels a side, with
  *  the overrides of the views, and what takes each lit image away. */
 export interface HdrViewsJob {
   readonly size: number
-  readonly cameras: readonly HostCamera[]
+  readonly cameras: readonly ViewCamera[]
   readonly overrides: ViewOverrides
   /** Encodes what takes the lit image of camera `at` — linear HDR, level 0 of the HDR target, no
    *  exposure, no effect, no tone curve — to its place: `drawn` is the size drawn in it, of the
@@ -33,12 +38,7 @@ export interface HdrViewsJob {
  * view's targets, cut and history are left as they were.
  */
 export async function captureHdrViews(rt: WebgpuPagesRuntime, job: HdrViewsJob) {
-  const { run, capture, gpu } = rt,
-    device = gpu.device
-  if (capture.capturing || capture.surfaceCapture)
-    throw new Error('SURFACE_CAPTURE_BUSY: dispose the previous capture first')
-  const main = run.lastCamera
-  if (run.lost || !device || !main) throw new Error('CAPTURE_NOT_READY')
+  const { device, main } = assertCaptureReady(rt)
   if (rewritesSurfaces(job.overrides)) await prepareSurfaceRewrite(device)
   const size = { width: job.size, height: job.size }
   try {

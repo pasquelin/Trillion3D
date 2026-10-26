@@ -1,19 +1,38 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { POOL_SORT_WGSL, poolSortWordsWgsl } from '../../gpu/sort/sortWgsl.ts'
 import { POOL_SORT_WORDS } from '../../gpu/sort/sortWords.ts'
-import { EVICT_IN_USE } from '../../gpu/sort/rank.ts'
 import { TILE_PLACE_WORD_WGSL, TILE_UNRANKED } from './slotUse.ts'
 
 /** The most victims a tile pool's queue names: more places than a pass serves before the next
- *  queue comes back. */
+ *  queue comes back. The queue's count says every idle place, the burst or not. */
 export const TILE_BURST = 1024
+
+/** The clocks a tile's use protects its place for: a place no pixel read in the last
+ *  `TILE_PROTECTED` clocks is in use, never listed. Pixels stamp the places they read at a sparse
+ *  sample (`reduceWgsl.ts`), so a place still read may go unstamped for a few images. */
+export const TILE_PROTECTED = 16
+
+/** The age step of a place `age` clocks old, `TILE_PROTECTED` or more (`poolInUse` keeps the others
+ *  out of the rank): one a clock past the protection, the least recently read leaving first,
+ *  exactly, over the steps the rank holds (`../../gpu/sort/rank.ts`), those older all sharing the
+ *  last. */
+const TILE_AGE_STEP_WGSL = wgslFn(
+  'poolAgeStep',
+  [],
+  `fn poolAgeStep(age:u32)->u32{return age-${TILE_PROTECTED - 1}u;}`,
+)
 
 /**
  * A tile pool's victim queue (#1527): the pool sort (`../../gpu/sort/sortWgsl.ts`) over the places
  * of one lane of an atlas (`slotUse.ts`), each ranked on its age — the clock less the last clock a
  * pixel read it — and its level, the finer first. A free or pinned place, or one read less than
- * `EVICT_IN_USE` clocks ago, is never listed. The queue lands at `queueAt` in `queues`: its count,
- * then at most `TILE_BURST` places. One dispatch set a lane, its uniform at a dynamic offset.
+ * `TILE_PROTECTED` clocks ago, is never listed. Its age step is the count of clocks past the
+ * protection (`TILE_AGE_STEP_WGSL`): the least recently read leaves first, exactly, over the 31
+ * clocks that follow the protection, those older all sharing the last step. The queue lands at
+ * `queueAt` in `queues`: its count, every place ranked, past the burst the queue lists (the pool's
+ * idle share counts them all), then at most `TILE_BURST` places. One dispatch set a lane, its
+ * uniform at a dynamic offset.
  */
 export const TILE_SORT_WGSL = wgslProgram(
   `struct TileSortUni{base:u32,slots:u32,clock:u32,queueAt:u32,}
@@ -28,14 +47,15 @@ fn poolSlotAge(j:u32)->u32{
  return sortUni.clock-min(placeUse[at],sortUni.clock);
 }
 fn poolSlotTier(j:u32)->u32{return placeUse[tilePlaceWord(sortUni.base,j)+1u];}
-fn poolInUse()->u32{return ${EVICT_IN_USE}u;}
+fn poolInUse()->u32{return ${TILE_PROTECTED}u;}
 fn poolBurst()->u32{return ${TILE_BURST}u;}
-fn poolPlaced(total:u32){queues[sortUni.queueAt]=min(total,${TILE_BURST}u);}
+fn poolPlaced(total:u32){queues[sortUni.queueAt]=total;}
 fn poolEmit(at:u32,j:u32){queues[sortUni.queueAt+1u+at]=j;}
 `,
   [
     POOL_SORT_WGSL,
     TILE_PLACE_WORD_WGSL,
+    TILE_AGE_STEP_WGSL,
     poolSortWordsWgsl(
       'sortWords',
       (i) => i,

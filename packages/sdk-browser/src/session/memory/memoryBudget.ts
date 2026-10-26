@@ -48,8 +48,8 @@ const NOTHING_HELD: ActiveGpuMemory = Object.freeze({
  * `admittedPools`). The frame at full resolution is thus never what the pools leave: it is funded
  * before them, on any canvas, and follows it; so is what else is live beside them past that share
  * (`ActiveGpuMemory.frameTargets`): the total by default never falls under what the session holds,
- * so no allocation of its frames is refused for it, and the pools stay at their defaults. Only a
- * total the page sets presses them.
+ * so the pools stay at their defaults. It divides the pools and is never a ceiling on what the
+ * session allocates (`sessionPools`): only a total the page sets presses the pools, and refuses.
  */
 export function defaultGpuBudget(
   canvas: BudgetCanvas = DEFAULT_BUDGET_CANVAS,
@@ -69,8 +69,8 @@ export function defaultGpuBudget(
 /**
  * One memory budget, split by a fixed rule — never by what the machine says it has:
  * - GPU: the shadows first (`SHADOW_POOL_BYTES`), what the virtual shadow maps of one sun take at
- *   the default pool — their buffers, the raster's lists at their ceiling and the first
- *   transmission atlas; then the bounce probes at their largest
+ *   the default pool — their buffers and the raster's lists at their ceiling; then the bounce
+ *   probes at their largest
  *   (`BOUNCE_PROBE_BYTES`), then the effect chain's targets on the declared `canvas`
  *   (`effectTargetReserve`, 3840 × 2160 by default); the rest in two halves, the geometry pool
  *   and the texture pool, each no larger than its ceiling. The three fixed shares never shrink: a total under them is

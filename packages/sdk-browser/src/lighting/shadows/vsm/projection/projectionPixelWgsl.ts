@@ -2,8 +2,8 @@
  * The projection's per-pixel pieces (`projectionWgsl.ts`): the votes of a group's 32-pixel halves,
  * a pixel's reconstruction from the depth, and the opaque surfaces' pieces of it.
  */
-import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../../../../materials/surface/surfaceModel.ts'
-import { SUBSURFACE_FLAG } from '../../../../materials/surface/subsurface.ts'
+import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../../../../materials/surface/surfaceModelWord.ts'
+import { PHYSICAL_SURFACE_FLAG } from '../../../../materials/surface/physicalLobes.ts'
 
 /** A projection group's half, which votes as one: its lanes (32, Z-order indices 0-31, 32-63) and
  *  their log2. */
@@ -59,25 +59,28 @@ fn vsmPixelToShifted(sv:vec4f)->vec3f{
 }
 `
 
-/** The opaque surfaces' pieces of a pixel (`vsmPixelOf`): the shading info from the surface
- *  buffers — `valid` where a light can shade it: in the view rect, a lit surface model —, and the
- *  engine's shadow receiver (`receiverTargetWgsl.ts`): the pixel's
- *  point on the surface its vertex normals describe, and the biases on the triangle's plane turned
- *  to the side the shading normal faces (`vsmBiasNormal`). */
+/** The opaque surfaces' piece of a pixel (`vsmPixelOf`): the shading info from the surface
+ *  buffers — `valid` where a light can shade it: in the view rect, a lit surface model —, whose
+ *  normal the normal bias and the receiver's depth slope follow. A pixel is clear-coated where its
+ *  coat factor of its lobes texel is above zero
+ *  (\`packedCoat\`; a cloth's texel holds none), the closest per-pixel form of the clear-coat shading
+ *  model, whose pixels the projection does not back-face cull. */
 export const VSM_PROJECTION_OPAQUE_WGSL = /* wgsl */ `
+fn vsmCoatedAt(coord:vec2u,flag:u32)->bool{
+ return (flag&${PHYSICAL_SURFACE_FLAG}u)!=0u&&packedCoat(textureLoad(vsmLobes,coord)).x>0.0;
+}
 fn vsmSurfaceOf(coord:vec2u,inRect:bool,normal:vec3f)->VsmSurfaceInfo{
  let flag=textureLoad(vsmFlags,coord,0).r;
  let model=flag&${SURFACE_MODEL_MASK}u;
  var r:VsmSurfaceInfo;
  r.valid=inRect&&!(model<=1u||model==${AS_IS_FLAG}u);
- r.subsurface=(flag&${SUBSURFACE_FLAG}u)!=0u;
+ r.subsurface=vsmSubsurfaceModel(flag);
+ r.coated=vsmCoatedAt(coord,flag);
+ // A receiver that lets light through its shadow: its opacity, at most 0.99 — it never stops the light
+ // whole —, the thin transmission's or the skin's, both in the target's alpha.
+ r.opacity=select(-1.0,min(textureLoad(subsurfaceColor,vec2i(coord)).a,0.99),vsmTransmitsShadow(flag));
+ r.firstPerson=isFirstPerson(flag);
  if(r.valid){r.worldNormal=normalize(normal);}
- r.biasNormal=r.worldNormal;
  return r;
-}
-fn vsmOnReceiver(p:ptr<function,VsmPixel>,texel:vec2u){
- let receiver=shadowReceiverOf(texel);
- (*p).shifted+=receiver.offset;
- (*p).info.biasNormal=vsmBiasNormal((*p).info.worldNormal,receiver.plane);
 }
 `

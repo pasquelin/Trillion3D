@@ -1,15 +1,9 @@
-// The rows pass, the compose worlds pass, the root boxes pass and the entries pass a fake device
-// runs: the shipped WGSL itself, run in JavaScript (`shaderRun`), over the buffers the dispatch
-// binds — every word a row's world decides is then the GPU's, as a session on a device writes it.
+// The compose worlds pass, the root boxes pass and the entries pass a fake device runs: the shipped
+// WGSL itself, run in JavaScript (`shaderRun`), over the buffers the dispatch binds — every word a
+// placement's world decides is then the GPU's, as a session on a device writes it.
 // Each run names its entry function alone: `shaderRun` reaches every function it calls, so a
 // helper the engine renames or drops is never named here.
 import { shaderRun } from '../../../packages/sdk-browser/src/materials/texture/shaderRun.fixture.ts'
-import {
-  DERIVE_ROWS_ENTRY,
-  DERIVE_ROWS_WGSL,
-  ROW_NAMED,
-  ROW_STALES,
-} from '../../../packages/sdk-browser/src/placement/rows/rowWordsWgsl.ts'
 import {
   COMPOSE_WORLDS_ENTRY,
   COMPOSE_WORLDS_WGSL,
@@ -26,38 +20,9 @@ import {
   ENTRY_CORNERS_WGSL,
 } from '../../../packages/sdk-browser/src/blend/transparent/entryCornersWgsl.ts'
 import type { ComputeBind } from './fakeCompute.ts'
-import { boundFloats, boundResource, boundWords, vectors } from './fakeBuffers.ts'
+import { boundResource, boundWords, vectors } from './fakeBuffers.ts'
 
 const arrayLength = (ref: { get(): { length: number } }) => ref.get().length
-
-/** Replays a dispatch of the rows pass (`DERIVE_ROWS_WGSL`): every row its list names, or every
- *  row of the table, each appending its shadow change, a listed row marked staled appending the box
- *  of the sphere it holds first. */
-function simulateDeriveRows(bind: ComputeBind) {
-  const [rootCount, parts, listed, all] = boundWords(bind.entries, 0)
-  const run = shaderRun<{ deriveRow(row: number, stale: boolean): void }>(
-    DERIVE_ROWS_WGSL,
-    ['deriveRow'],
-    {
-      arrayLength,
-      params: { rootCount, parts, listed, all },
-      rootWorlds: vectors(2, boundWords(bind.entries, 1)),
-      table: boundWords(bind.entries, 2),
-      spheres: boundFloats(bind.entries, 3),
-      inputs: vectors(2, boundWords(bind.entries, 4)),
-      rootBoxes: vectors(2, boundWords(bind.entries, 5)),
-      lods: boundWords(bind.entries, 6),
-      mobility: boundWords(bind.entries, 8),
-      castChanges: boundWords(bind.entries, 9),
-    },
-  )
-  const list = boundWords(bind.entries, 7)
-  for (let j = 0; j < listed; j++) {
-    const named = all ? j : list[j]
-    const stale = !all && (named & ROW_STALES) !== 0
-    run.deriveRow(named & ROW_NAMED, stale)
-  }
-}
 
 /** Replays a dispatch of the compose worlds pass (`COMPOSE_WORLDS_WGSL`): each listed root a parent
  *  composes, its world. */
@@ -114,10 +79,9 @@ function simulateEntryCorners(bind: ComputeBind) {
   for (let j = 0; j < listed; j++) run.deriveEntry(all ? j : list[j])
 }
 
-/** The replay of the kernel `entryPoint` names: the rows pass, the worlds pass, the root boxes pass
- *  or the entries'. */
+/** The replay of the kernel `entryPoint` names: the worlds pass, the root boxes pass or the
+ *  entries'. */
 export const ROW_STAGES: Record<string, (bind: ComputeBind) => void> = {
-  [DERIVE_ROWS_ENTRY]: simulateDeriveRows,
   [COMPOSE_WORLDS_ENTRY]: simulateComposeWorlds,
   [ROOT_BOXES_ENTRY]: simulateRootBoxes,
   [ENTRY_CORNERS_ENTRY]: simulateEntryCorners,

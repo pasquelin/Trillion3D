@@ -389,6 +389,26 @@ function pixelsOfDrift(hold: Hold, root: Object3D, view: HoldView) {
   return pixelsOf(drift.moved, root, hold.reach!.radius, view)
 }
 
+/** The nine entries of a world matrix's linear part, the only ones `maxStretch` reads. */
+const LINEAR_ENTRIES = [0, 1, 2, 4, 5, 6, 8, 9, 10]
+/** Per parent, the linear entries its stretch was last taken from and that stretch. */
+const parentStretches = new WeakMap<Object3D, { linear: Float64Array; stretch: number }>()
+
+/** `maxStretch` of `parent`'s world, taken again only when one of its linear entries changed
+ *  (`Object.is`: the same bits give the same stretch). */
+function parentStretch(parent: Object3D) {
+  const m = parent.matrixWorld.elements
+  let memo = parentStretches.get(parent)
+  if (memo) {
+    let same = true
+    for (let k = 0; same && k < LINEAR_ENTRIES.length; k++)
+      same = Object.is(memo.linear[k], m[LINEAR_ENTRIES[k]])
+    if (same) return memo.stretch
+  } else parentStretches.set(parent, (memo = { linear: new Float64Array(9), stretch: 0 }))
+  for (let k = 0; k < LINEAR_ENTRIES.length; k++) memo.linear[k] = m[LINEAR_ENTRIES[k]]
+  return (memo.stretch = maxStretch(m))
+}
+
 /** `moved` metres, in the frame of `root`'s parent, as pixels at `view` (`screenErrorBound`, the
  *  cluster cut's certified bound): anywhere in the ball of `radius` about `root`'s origin as the
  *  last frame placed it, the parent stretching lengths by its largest singular value (`maxStretch`,
@@ -401,7 +421,7 @@ function pixelsOf(moved: number, root: Object3D, radius: number, view: HoldView)
     z = m[14] - view.eye[2],
     depth = dotVector3Xyz(view.forward, x, y, z),
     lateral = Math.sqrt(Math.max(0, dotScalar3(x, y, z, x, y, z) - depth * depth))
-  const stretch = root.parent ? maxStretch(root.parent.matrixWorld.elements) : 1
+  const stretch = root.parent ? parentStretch(root.parent) : 1
   const pixels = screenErrorBound(
     moved,
     stretch,

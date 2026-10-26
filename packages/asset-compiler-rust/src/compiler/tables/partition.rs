@@ -1,8 +1,9 @@
 //! The world partition of the node table: every object of the scene — a node drawing a mesh,
 //! shown, carrying no camera — is spatially loaded unless its settings say otherwise
 //! (`ObjectSettings`, `spatiallyLoaded`): its cell draws it, and the runtime streams that cell by
-//! distance to its camera. Which nodes may stream, how their cells draw them, and the batches the
-//! objects attached under one another stream in are `candidates.rs`'s.
+//! distance to its camera — its body in `physics.json`, when it has one, with it. Which nodes may
+//! stream, how their cells draw them, and the batches the objects attached under one another
+//! stream in are `candidates.rs`'s.
 //!
 //! An object that moves, itself or through a node above it, takes no HLOD layer — past its cell's
 //! range nothing stands for it —, nor does an instanced skinned object its mobility lets move. What
@@ -25,10 +26,9 @@
 //! world bounds its grid cell streams by and its HLOD 0 cell's — on `hashSet`'s loose grids the
 //! box around their content, on `spatialHash`'s their squares —, which the runtime tests against
 //! those grids' loading ranges, written in the root with every grid and the scheme (`write.rs`);
-//! the chain itself is the world HLOD's table's (`hlod/chain.rs`). A scene with no placed
-//! node — or whose job turns the streaming off — is not partitioned: its table is the one it was,
-//! all of it always there. The cells' records are paged (`pages.rs`): the core keeps a root of
-//! fixed size.
+//! the chain itself is the world HLOD's table's (`hlod/chain.rs`). A scene with no placed node —
+//! or whose job turns the streaming off — is not partitioned: its table is the one it was, all of
+//! it always there. The cells' records are paged (`pages.rs`): the core keeps a root of fixed size.
 use super::*;
 use crate::compiler::source::node_transform::Mat4;
 
@@ -37,17 +37,21 @@ mod candidates;
 pub(crate) mod grid;
 mod kept;
 pub(crate) mod loose;
+mod members;
 pub(crate) mod pages;
+mod placing;
 mod scene;
 pub(crate) mod split;
 pub(crate) mod square;
 mod write;
 use super::motion::bank::Banks;
+use super::staging::fallback_meshes;
 pub(crate) use crate::hlod::cells::{hlod_cells, streams_in_cell, HlodNode};
 pub(crate) use crate::hlod::grids::Grids;
 use candidates::{gather, Candidate, Gathered, Row};
 use grid::Coord;
 use kept::{core_nodes, core_ranks, hang_banks};
+pub(crate) use members::CellMembers;
 use pages::MeshSlots;
 use scene::hierarchy;
 pub(crate) use split::{grid_cells, main_cells, GridCell, Placed, Region};
@@ -64,31 +68,7 @@ type InputScene<'a> = (&'a Value, &'a [u8], &'a [Option<Box6>]);
 /// (`pages::GRIDS_CELL_PAGES`); `docs/FORMAT.md` (World partition) tells what each changed.
 const PARTITION_VERSION: u32 = 13;
 /// Version of a cell file; what each version changed is told in `docs/FORMAT.md` (World partition).
-const CELL_VERSION: u32 = 3;
-
-/// The published nodes each cell file places, by file rank — an animated object of the core its
-/// cell draws among them —; each file's HLOD 0 cell — none for objects in no layer —, and the whole
-/// chain of HLOD cells, those first (`hlod/cells.rs`): what the world's HLOD layers are built over
-/// (`hlod/chain.rs`). `banked`, the instanced skinned objects the cells place, each with its
-/// item and skin frame: their rows play their track; one marked `hlodInstance` stands above. With
-/// them, the compile's warnings: each placed node whose mark won over a rule naming another
-/// layer — its node, the mark's layer and the rule's (`Assigned`) —; each node marked that no HLOD
-/// takes — it moves, itself or through a node above it, or is not spatially loaded or in a batch
-/// with one that is not, hidden, held whole by no cell below a grid's top, or turned away by its
-/// layer's size filter —; each node its settings make an instanced skinned object that stays a
-/// plain skinned one, with why (`bank_warnings`: the bake's refusals, `Banks::refused`, then the
-/// partition's); and each batch root whose `runtimeGrid` no grid bears (`unknown_grids`).
-#[derive(Default)]
-pub(crate) struct CellMembers {
-    pub nodes: Vec<Vec<usize>>,
-    pub hlod: Vec<Option<usize>>,
-    pub tree: Vec<HlodNode>,
-    pub banked: BTreeMap<usize, (usize, Option<usize>)>,
-    pub overruled: Vec<(usize, usize, usize)>,
-    pub unplaced: Vec<usize>,
-    pub bank_warnings: Vec<(usize, String)>,
-    pub unknown_grids: Vec<(usize, String)>,
-}
+const CELL_VERSION: u32 = 4;
 
 /// The box of the HLOD 0 actor of each layer in each main cell, by main grid, cell and layer: the
 /// box around the world boxes of the `candidates` the layer takes (`assigned`) there, in the cell
@@ -292,7 +272,12 @@ pub(crate) fn partition(
         nodes,
         roots,
         cells: members.nodes.len(),
-        partition: write_cells((&cells, &tree_of), (&tree, &grids, grid), mesh_pages, files)?,
+        partition: write_cells(
+            (&cells, &tree_of),
+            (&tree, &grids, grid),
+            (mesh_pages, &fallback_meshes(g).collect::<Vec<_>>()),
+            files,
+        )?,
         rank,
     });
     members.tree = tree;

@@ -5,7 +5,6 @@ import { sameRange } from '../../../../../math/src/matrix/matrixElements.ts'
 import { createPageCatalogue, type PageList } from '../../selection/catalogue.ts'
 import type { HeldList } from './heldList.ts'
 import { applyHashed } from './hashedDifference.ts'
-import { applyClaimed } from './claimedDifference.ts'
 
 /**
  * Published difference, and what can be asked of it.
@@ -37,15 +36,13 @@ export type CutDelta = {
   has(id: number): boolean
   /** The held id sequence, in the order `pages` was written: the packed ranks a reader
    *  of a record list needs to name its instances' placements. */
-  readonly ids: ArrayLike<number>
+  readonly ids: Int32Array
   /** Reports no difference: the cut is the one already held, records included. */
   hold(): void
   /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. A
    *  reused list is passed whole with its `count`, so only the live ranks are read and no stale
-   *  tail is walked. The main cut passes the ranks its readback claims for them in the last list it
-   *  applied (`claims`, `./claimedDifference.ts`); a list without them — the first readback, a view
-   *  drawn aside — is marked id by id (`./hashedDifference.ts`). The same difference either way. */
-  apply(ids: ArrayLike<number>, count?: number, claims?: Uint32Array): void
+   *  tail is walked: each id is marked in turn (`./hashedDifference.ts`). */
+  apply(ids: ArrayLike<number>, count?: number): void
   /**
    * The same difference, published by a list that names its records instead of their ranks — the
    * bootstrap cover before the first readback. `rankOf` resolves each record's first packed rank; a record it does not hold yields
@@ -72,11 +69,10 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  * loses its mark, and the lists grow to the longest cut seen, then are rewritten in place. A frame
  * that adopts the shown list it already holds writes nothing at all.
  *
- * The main cut arrives there by its ids and the ranks its readback claims for them (`apply` with
- * claims), a view drawn aside by its ids alone (`apply`), the bootstrap cover by its records
- * (`adoptRecords`): one contract, and readers do not know which one decides. A list of ids that
- * names no record — the row demand's (`../../rows/demand/rowDemand.ts`), a plan's pins — passes no
- * `packedPages`: every id it names is listed, and its marks follow what it holds as the cut's do.
+ * A cut arrives there by its ids (`apply`), the bootstrap cover by its records (`adoptRecords`):
+ * one contract, and readers do not know which one decides. A list of ids that names no record — a
+ * plan's pins — passes no `packedPages`: every id it names is listed, and its marks follow what it
+ * holds as the cut's do.
  */
 export function createCutDelta(packedPages?: PageList, pages?: PageRec[]): CutDelta {
   /** Page ranks of a record list. Emptied then filled by push, never grown by its length: an array
@@ -94,30 +90,25 @@ export function createCutDelta(packedPages?: PageList, pages?: PageRec[]): CutDe
     next: new Int32Array(8),
     published: new Int32Array(8),
     publishedCount: -1,
-    rawRank: new Uint32Array(0),
-    rawToHeld: false,
     entered: new Int32Array(8),
     enteredCount: 0,
     exited: new Int32Array(8),
     exitedCount: 0,
     changed: true,
-    named: new Uint32Array(8),
-    before: [],
     has: (id: number) => delta.mark.get(id) === delta.epoch,
     /** Bytes of the marks and the lists, all sized by the longest cut seen. */
     get hostBytes() {
       return heldBytes(delta)
     },
     hold: () => holdDelta(delta),
-    apply: (ids: ArrayLike<number>, count = ids.length, claims?: Uint32Array) =>
-      applyDelta(delta, ids, count, claims),
+    apply: (ids: ArrayLike<number>, count = ids.length) => applyDelta(delta, ids, count),
     adoptRecords(records: readonly PageRec[], rankOf: (rec: PageRec) => number) {
       recordIds.length = 0
       for (let i = 0; i < records.length; i++) {
         const id = rankOf(records[i])
         if (id >= 0) recordIds.push(id)
       }
-      applyDelta(delta, recordIds, recordIds.length, undefined)
+      applyDelta(delta, recordIds, recordIds.length)
     },
   }
   return delta
@@ -131,7 +122,6 @@ function heldBytes(delta: HeldDelta) {
     delta.ids.byteLength +
     delta.next.byteLength +
     delta.published.byteLength +
-    delta.rawRank.byteLength +
     delta.entered.byteLength +
     delta.exited.byteLength
   )
@@ -153,18 +143,13 @@ function holdDelta(delta: HeldDelta) {
   delta.exitedCount = 0
 }
 
-function applyDelta(
-  delta: HeldDelta,
-  ids: ArrayLike<number>,
-  count: number,
-  claims: Uint32Array | undefined,
-) {
+function applyDelta(delta: HeldDelta, ids: ArrayLike<number>, count: number) {
   // A new shown list that republishes the same sequence describes the cut already held: it is
   // held, and not one of the fifteen thousand records is rewritten: one integer pass, no write.
   if (count === delta.publishedCount && sameRange(delta.published, ids, count))
     return holdDelta(delta)
   growFor(delta, count)
-  const next = claims ? applyClaimed(delta, ids, count, claims) : applyHashed(delta, ids, count)
+  const next = applyHashed(delta, ids, count)
   delta.publishedCount = count
   // The next list becomes the held one.
   const swap = delta.ids

@@ -34,9 +34,9 @@ export const page = {
    * `priority`, over `p.cache`, the host cache its owner shares with every reader
    * (`createPageCache`). Each page is checked against its size and fingerprint as it lands, then by
    * the geometry page format's own gate (`checkGeometryPage`, the engine's source's too:
-   * `frame/backend/readPage.ts`) before it is handed on: a GPU page pool uploads its words as they
-   * are. The gate is the page decoder's chunk, downloaded beside the first read. `dispose` cancels
-   * its reads; the cache stays its owner's.
+   * `frame/backend/readPage.ts`) before it is handed on: a GPU page pool installs the page, a
+   * pass transcoding its words into the pool. The gate is the page decoder's chunk, downloaded
+   * beside the first read. `dispose` cancels its reads; the cache stays its owner's.
    * @param baseUrl - The address pages are read against.
    * @param p - The pages it may read, and the host cache it reads through.
    */
@@ -78,7 +78,9 @@ export const page = {
   createCache: createGpuPageCache,
   /**
    * Unpacks one compressed geometry page into triangles and vertices, once the decoder's chunk
-   * has arrived (`FAMILY_LOAD_FAILED` when it cannot).
+   * has arrived (`FAMILY_LOAD_FAILED` when it cannot). A page of a compiled cache may name vertices
+   * of other clusters, which only the pool that holds them can give: decoded alone it is refused
+   * (`GEOMETRY_PAGE_REFS`); a page the run-time cut makes never names another cluster's.
    * @param bytes - The compressed page.
    */
   decode: async (bytes: ArrayBuffer | Uint8Array) =>

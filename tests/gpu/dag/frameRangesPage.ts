@@ -1,9 +1,10 @@
 // The engine's real cut (`createDagResources`, `encodeDagKernels`) on the device the engine opens
-// (`requestExplorerDevice`), once whole and once through that same device reporting a binding two
-// thirds of the placements' frame words hold (`FRAME_ROW_WORDS`): every table past the binding —
-// the frame words, the clusters, the nodes, the cold words, the flags, the worlds, the tree — is a
-// record table (`cutTables.ts`), bound once whatever the binding, the stage two storage buffers.
-// Only the capacity the cut reads changes; the device underneath is the same.
+// (`requestExplorerDevice`), once whole and once through that same device reporting a binding that
+// holds the largest buffer the cut binds and no more (`cameraCutBuffers`): every table past the
+// binding — the frame words, the clusters, the nodes, the cold words, the flags, the worlds, the
+// tree — is a record table (`cutTables.ts`), bound once whatever the binding, the stage five
+// storage buffers (the readout, `work`, the visible clusters, their records and edges). Only the
+// capacity the cut reads changes; the device underneath is the same.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { createDagResources } from '../../../packages/sdk-browser/src/geometry/dag/resources.ts'
@@ -12,7 +13,7 @@ import {
   writeDagUniforms,
   parseDagOutput,
 } from '../../../packages/sdk-browser/src/geometry/dag/uniforms.ts'
-import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
+import { cameraCutBuffers } from '../../../packages/sdk-browser/src/geometry/dag/bufferTable.ts'
 import { dagDeviceRefusal } from '../../../packages/sdk-browser/src/geometry/dag/deviceRefusal.ts'
 import { dagBindEntries } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.ts'
 import { selectionListCap } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
@@ -27,12 +28,10 @@ import { residentAll } from '../../../packages/sdk-browser/src/geometry/dag/resi
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { reporting } from '../../kit/device/reportingDevice.ts'
 import { sceneView } from './cutScene.ts'
-import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { writeHostStretches } from '../../../packages/sdk-browser/src/geometry/dag/hostStretches.fixture.ts'
 
 /** Placements of a small pyramid, ten abreast, row behind row: the first half behind the camera,
- *  the second before it, its outer columns past the frustum's sides; the binding holds the frame
- *  words of the half behind and a third of the half before. */
+ *  the second before it, its outer columns past the frustum's sides. */
 const PLACEMENTS = 600
 const poses = Array.from({ length: PLACEMENTS }, (_, k) =>
   new Matrix4().makeTranslation(
@@ -50,7 +49,8 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
   if (!gpu) throw new Error('WebGPU must be available')
   const { device, errors } = gpu
   const { packed, uniforms } = sceneView(2, 2, poses)
-  const lying = reporting(device, ceilDiv(2 * packed.worldCount, 3) * FRAME_ROW_WORDS * 4)
+  const largest = Math.max(...Object.values(cameraCutBuffers(packed).rows).map((row) => row.size))
+  const lying = reporting(device, largest)
   const refusal = dagDeviceRefusal(lying.limits, packed)
   const cut = async (target: GPUDevice) => {
     // The readout keeps the catalogue's cap on both devices: a list sized from the reported
@@ -71,7 +71,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
     const at = cutTablesAt(resources)
     for (const pixelError of pixelErrors) {
       const block = new Float32Array(DAG_UNIFORM_BYTES / 4)
-      writeDagUniforms(block, packed, { ...uniforms, pixelError }, resources.listCap, undefined, at)
+      writeDagUniforms(block, packed, { ...uniforms, pixelError }, resources.listCap, at)
       device.queue.writeBuffer(resources.uniforms, 0, block)
       const encoder = device.createCommandEncoder()
       encodeDagKernels(encoder, resources)

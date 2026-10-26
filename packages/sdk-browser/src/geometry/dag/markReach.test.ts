@@ -12,9 +12,24 @@ import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.t
 import { kernelUniforms, packed } from './selection/selectionHelpers.fixture.ts'
 import { primitiveFrameWords, primitiveWordAt } from './worlds/worlds.ts'
 import { rootMark } from '../../deformation/halfFloat.ts'
-import { SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
+import {
+  CACHE_STATIC_ROOT,
+  FAR_SHADOW_ROOT,
+  HIDDEN_SHADOW_ROOT,
+  MARK_BITS,
+  nodeCasting,
+  SHADOWLESS_ROOT,
+  WORLD_SPACE_ROOT,
+} from '../../visibility/shader/castingMark.ts'
+import { CASTS_NO_SHADOW, SPRITE_UNCULLED, spriteMark } from '../../visibility/shader/spriteWgsl.ts'
+import { WORLD_ROOT_MARK } from './worlds/worldLinks.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
-import { MARK_WORD } from './frameTable.ts'
+import {
+  DRAW_DISTANCE_MARK,
+  DRAW_INSTANCE_MARK,
+  MARK_WORD,
+  ROOT_PARENT_MARK,
+} from './frameTable.ts'
 
 test('a reach written again or moved keeps the cut in hand, and the frame words keep the reach', async () => {
   installGpuGlobals()
@@ -48,4 +63,31 @@ test('a reach written again or moved keeps the cut in hand, and the frame words 
   assert.equal(selection.peek(), null, 'another mark is another cut')
   selection.dispose()
   fixture.geometry.dispose()
+})
+
+// The mark's bits are named once: each is one bit below the reach, no two alike, and every home of
+// a bit — the sprite's, the casting bits, the draw distance's and its instance's, the world DAG's,
+// the assembly parent's — holds the table's value, the table's every bit having a home.
+test('no two bits of the mark are alike, whoever reads them', () => {
+  const bits = Object.values(MARK_BITS)
+  assert.equal(new Set(bits).size, bits.length, 'no two alike')
+  for (const bit of bits)
+    assert.ok(Number.isInteger(Math.log2(bit)) && bit < 1 << 16, `${bit}: a bit below the reach`)
+  const homes = {
+    sprite: spriteMark({ sprite: { sizeAttenuation: true } } as never),
+    spriteNeverCulled: SPRITE_UNCULLED,
+    shadowless: SHADOWLESS_ROOT,
+    drawDistance: DRAW_DISTANCE_MARK,
+    worldRoot: WORLD_ROOT_MARK,
+    farShadow: FAR_SHADOW_ROOT,
+    farTest: nodeCasting({ castShadow: true, farShadowTest: true }),
+    farSkip: nodeCasting({ castShadow: true, farShadowTest: false }),
+    rootParent: ROOT_PARENT_MARK,
+    drawInstance: DRAW_INSTANCE_MARK,
+    cacheStatic: CACHE_STATIC_ROOT,
+    worldSpaceRepresentation: WORLD_SPACE_ROOT,
+    hiddenShadow: HIDDEN_SHADOW_ROOT,
+  }
+  assert.deepEqual(homes, MARK_BITS, 'a home for every bit of the table, its value')
+  assert.equal(CASTS_NO_SHADOW, MARK_BITS.sprite | MARK_BITS.shadowless)
 })

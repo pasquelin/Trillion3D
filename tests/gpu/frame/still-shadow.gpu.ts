@@ -1,8 +1,9 @@
-// A still view under a shadowed sun draws the same image frame after frame when nothing
-// accumulates (`temporalAntialiasing: false`, `facingWorld.ts`): the shadow rays' noise turns with
-// the temporal accumulation's phase (`stochasticPhase`), not with the frame counter, so no lit pixel
-// changes from one frame to the next — a changing one is a flicker, and no hash of the lit image
-// could settle on it.
+// A still view under a shadowed sun, once settled, shows the same image frame after frame when
+// nothing accumulates (`temporalAntialiasing: false`, `facingWorld.ts`): the shadow rays' noise
+// turns with the temporal accumulation's phase (`stochasticPhase`), not with the frame counter, and
+// the light the surface cache settles stops moving — a changing pixel is a flicker, and no hash of
+// the lit image could settle on it. Until it settles the image does change, as the reference's:
+// the cache's light converges, and the display's dither follows the number of each image drawn.
 //
 //   node bench/dawn/proofs.ts tests/gpu/frame/still-shadow.gpu.ts
 import test from 'node:test'
@@ -11,15 +12,17 @@ import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { animationFrame } from '../../kit/device/frame.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import { FACING, openFacingWorld } from './facingWorld.ts'
+import { FACING, FIXED_EXPOSURE, openFacingWorld } from './facingWorld.ts'
+import { settle } from '../world/proofWorld.ts'
 
 const FRAMES = 24
 
-/** The captured image of each of `FRAMES` frames of the shadowed sun on a still view. */
+/** The captured image of each of `FRAMES` frames of the shadowed sun on a still view, settled. */
 async function frames() {
-  const world = await openFacingWorld('three-stack')
+  const world = await openFacingWorld('three-stack', FIXED_EXPOSURE)
   try {
     world.addLight(SUN)
+    if ((await settle(world, FACING)) === null) throw new Error('the lit view never settled')
     const images: Uint8Array[] = []
     for (let i = 0; i < FRAMES; i++) {
       await animationFrame()

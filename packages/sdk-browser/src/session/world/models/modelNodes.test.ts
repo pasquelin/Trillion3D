@@ -106,6 +106,50 @@ test('a source node is reached by its index, with the indices below it; none whi
   assert.equal(found.node, model.getObjectByName('turbine'), 'the node a name finds')
   assert.deepEqual([found.indices, found.radius], [[0, 1], 0], 'its rotor below; nothing drawn')
   assert.equal(model._nodeAt(7), null)
-  ;(model.record.scene as { nodes: unknown }).nodes = null
-  assert.equal(model._nodeAt(0), null, 'a partitioned cache numbers its nodes otherwise')
+  // Was: a partitioned cache gave no nodes at all. Its nodes now come by source rank, a hole
+  // where a cell places one in the core's stead: the others are still found, the hole is not.
+  const scene = model.record.scene as { nodes: Object3D[] | null }
+  const holed = [...scene.nodes!]
+  delete holed[2]
+  scene.nodes = holed
+  assert.equal(model._nodeAt(2), null, 'a node a cell places has no node of its own')
+  assert.deepEqual(model._nodeAt(0)!.indices, [0, 1], 'beside a hole, the subtree still read')
+  scene.nodes = null
+  assert.equal(model._nodeAt(0), null, 'a replicated scene numbers its nodes otherwise')
+})
+
+test('the cells of a model hold a node while no cell draws it, or one has placed it', () => {
+  const { model, turbine, rotor } = compiledModel()
+  const scene = model.record.scene as unknown as {
+    nodes: Object3D[]
+    streams: Set<number>
+    partitions: object[]
+  }
+  const alone = compiledModel().model
+  ;(alone.record.scene as unknown as { partitions: object[] }).partitions = []
+  assert.equal(alone._cells(), null, 'no cell draws a model with no partition')
+  // The partition draws source node 1 from the rotor the core keeps for its row (`streams`), and
+  // node 2, the crane, in the core's stead: no core node.
+  let moves = 0
+  const placed = new Set<number>()
+  const draws = {
+    drawn: (node: number) => placed.has(node),
+    get changes() {
+      return moves
+    },
+  }
+  scene.partitions = [{ draws }]
+  scene.streams = new Set([1])
+  delete scene.nodes[2]
+  assert.equal(model._graphNodeAt(0), turbine)
+  assert.equal(model._graphNodeAt(1), rotor)
+  assert.equal(model._graphNodeAt(2), null, 'a node a cell places has no graph node')
+  const cells = model._cells()!
+  assert.equal(model._cells(), cells, 'one reading')
+  const held = () => [0, 1, 2, 9].map(cells.holds)
+  assert.deepEqual(held(), [true, false, false, false], 'node 0, the core’s, is held')
+  placed.add(1)
+  placed.add(9)
+  moves++
+  assert.deepEqual([held(), cells.changes], [[true, true, false, true], 1])
 })

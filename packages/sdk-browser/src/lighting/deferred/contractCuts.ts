@@ -11,11 +11,11 @@ export type ContractKey = {
   sunless: boolean
   localless: boolean
   /** No surface the pass lights carries an anisotropic or clear-coat lobe: no lobe code
-   *  (`../direct/lobesWgsl.ts`) — the opaque resolve's surfaces, the translucent items. */
+   *  (`../direct/lobesWgsl.ts`) — the opaque lit passes' surfaces, the translucent items. */
   lobeless: boolean
 }
 
-/** The passes whose programs are keyed on a `ContractKey`: the opaque resolve's, and the forward
+/** The passes whose programs are keyed on a `ContractKey`: the opaque lit passes', and the forward
  *  one (`contractVariants.ts`). */
 export type LitPass = 'opaque' | 'blend'
 type Cut = Exclude<keyof ContractKey, 'narrow'>

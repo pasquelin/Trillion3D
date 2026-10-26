@@ -5,14 +5,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import { Scene } from '../../session/world/scene.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { written, type FakeWrite } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { prepareWebgpuGeometry } from '../../geometry/pages/pool/geometryPrepare.ts'
 import { VERTEX_COLOR_WGSL } from './vertexColors.ts'
 import type { PageRec } from '../../geometry/selection/types.ts'
 import type { GeometryBlock } from '../../geometry/rows/page/pageRowMaterial.ts'
-import type { HostAttributes } from '../../session/host/resources.ts'
 import { surfaceOf } from '../../geometry/pages/surface.ts'
 import { FLAG_HAS_COLOR } from '../../visibility/types.ts'
 import { prepareWebgpuBlend } from '../../blend/prepare.ts'
@@ -39,7 +37,7 @@ function triangleGeometry(colour?: number[], itemSize = 3, uv = true) {
   return geometry
 }
 const triangle = (colour?: number[], itemSize = 3, uv = true) =>
-  triangleGeometry(colour, itemSize, uv).attributes as HostAttributes
+  triangleGeometry(colour, itemSize, uv).attributes as Geometry['attributes']
 
 test('the shader finds the colour tail from the buffer length, as the test mirror does', () => {
   assert.match(wgslSource(VERTEX_COLOR_WGSL), /let i=arrayLength\(&uvs\)\/6u\*2u\+id\*4u;/)
@@ -50,7 +48,7 @@ test('the source geometry of a scene carries its vertex colours at the tail of i
   const plain = triangle(),
     coloured = triangle([1, 0, 0, 0, 1, 0, 0, 0.5, 1])
   const pages = [{ attributes: plain }, { attributes: coloured }] as PageRec[]
-  const blocks = new Map<HostAttributes, GeometryBlock>()
+  const blocks = new Map<Geometry['attributes'], GeometryBlock>()
   prepareWebgpuGeometry(device, pages, blocks)
   const uvs = floats(writes[1])
   assert.equal(uvs.length, 6 * 6)
@@ -81,7 +79,7 @@ test('a transparent item multiplies its colour by the vertex colour when its mat
   }
   const red = [1, 0, 0, 1, 0, 0, 1, 0, 0]
   const copies = [copy(true, red), copy(false, red), copy(true)]
-  prepareWebgpuBlend(copies, blendState, new Scene())
+  prepareWebgpuBlend(copies, blendState)
   // An item's flags are its page row's, as its record writer derives them (`rowFlags`): the
   // material's ask over the colours its geometry carries.
   const tables = { mapLayer: new Map(), dataLayer: new Map(), materialTable: createMaterialTable() }

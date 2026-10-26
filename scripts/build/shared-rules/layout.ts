@@ -2,6 +2,7 @@
 // and the word counts of the command, pose and event buffers, into the physics module's C++ header.
 import * as layout from '../../../packages/sdk-core/src/physics/layout.ts'
 import { NO_INDEX } from '../../../packages/math/src/constants.ts'
+import { GRAVITY_PRESETS, SHAPE_DENSITY } from '../../../packages/sdk-core/src/physics/options.ts'
 import {
   SOFT_STATE_WORDS,
   SOFT_VERTEX_WORDS,
@@ -18,10 +19,11 @@ import {
   WHEEL_WORDS,
 } from '../../../packages/sdk-core/src/physics/vehicle/vehicleLayout.ts'
 import { upper } from './printer.ts'
-import { header } from './statements.ts'
+import { float, header } from './statements.ts'
 
 const SOURCES = [
   'packages/sdk-core/src/physics/layout.ts',
+  'packages/sdk-core/src/physics/options.ts',
   'packages/sdk-core/src/physics/soft/softLayout.ts',
   'packages/sdk-core/src/physics/vehicle/vehicleLayout.ts',
 ]
@@ -30,8 +32,12 @@ const SOURCES = [
 const COUNTS = {
   ADD_WORDS: layout.ADD_WORDS,
   PART_WORDS: layout.PART_WORDS,
+  FILTER_WORDS: layout.FILTER_WORDS,
+  MAX_FILTERS: layout.MAX_FILTERS,
   CAST_WORDS: layout.CAST_WORDS,
   HIT_WORDS: layout.HIT_WORDS,
+  OVERLAP_WORDS: layout.OVERLAP_WORDS,
+  OVERLAP_HIT_WORDS: layout.OVERLAP_HIT_WORDS,
   RESTORE_WORDS: layout.RESTORE_WORDS,
   RELEASE_WORDS: layout.RELEASE_WORDS,
   JOINT_WORDS: layout.JOINT_WORDS,
@@ -86,6 +92,13 @@ enum ShapeKind : uint32_t { ${named(layout.SHAPE).join(', ')} };
 /// (layout.ts FLAG).
 enum Flag : uint32_t { ${named(layout.FLAG).join(', ')} };
 
+/// The bits of a FILTER's switches (layout.ts FILTER_BIT).
+enum FilterBit : uint32_t { ${named(layout.FILTER_BIT, 'FILTER_').join(', ')} };
+
+/// What an overlap query asks (layout.ts OVERLAP) and the flag of a hit (layout.ts OVERLAP_HIT).
+enum OverlapMode : uint32_t { ${named(layout.OVERLAP, 'OVERLAP_').join(', ')} };
+enum OverlapHit : uint32_t { ${named(layout.OVERLAP_HIT, 'OVERLAP_HIT_').join(', ')} };
+
 /// Joint kinds of the JOINT command (layout.ts JOINT).
 enum JointKind : uint32_t { ${named(layout.JOINT).join(', ')} };
 
@@ -113,6 +126,14 @@ constexpr uint32_t MISS = ${NO_INDEX}u;
 /// Words of each command, record and table, and the vehicle tables' sizes (layout.ts,
 /// softLayout.ts, vehicleLayout.ts).
 ${counts.join('\n')}
+
+/// kg/m³ every shape is built with; a body's mass is set from the density or the mass it declares
+/// (options.ts SHAPE_DENSITY).
+constexpr float SHAPE_DENSITY = ${float(SHAPE_DENSITY)}f;
+
+/// m/s² of Earth's pull, the least a soft body or a brake is held against (options.ts
+/// GRAVITY_PRESETS.earth).
+constexpr float STANDARD_GRAVITY = ${float(GRAVITY_PRESETS.earth)}f;
 
 }  // namespace trillion
 `

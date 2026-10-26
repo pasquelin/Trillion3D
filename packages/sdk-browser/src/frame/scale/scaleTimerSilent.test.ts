@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createScaleControl } from './scaleControl.ts'
-import { simulate } from './scaleFit.fixture.ts'
+import { refreshControl, simulate } from './scaleFit.fixture.ts'
 import { HISTORY } from './scaleTargets.ts'
 
 // A timer that answers but whose samples carry no time was stepped on neither the times nor
@@ -9,7 +8,7 @@ import { HISTORY } from './scaleTargets.ts'
 /** The scale of each of `frames` images of a timed device, each 40·s² ms at scale `s`, its GPU
  *  sample arriving two images late with `measured(ms)` as its time. */
 function silent(frames: number, measured: (ms: number) => number | null) {
-  return simulate(createScaleControl('auto'), frames, { gpu: (s) => 40 * s * s, measured }).scales
+  return simulate(refreshControl('auto'), frames, { gpu: (s) => 40 * s * s, measured }).scales
 }
 
 /** The first image drawn at the floor, within `frames` of `scales`, and none after it at 1. */

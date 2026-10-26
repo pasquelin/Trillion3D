@@ -9,7 +9,13 @@ import { hizDepthEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { globalReadLayoutEntries } from '../distanceField/view.ts'
 import { lightFunctionLayoutEntry } from '../lightFunction/bindings.ts'
 import { volumetricLightmapLayoutEntries } from '../volumetricLightmap/textures.ts'
-import { FOG_BINDING, FOG_PROGRAM_BINDINGS, type FogProgramName } from './bindings.ts'
+import {
+  FOG_BINDING,
+  FOG_GRAPH_BINDINGS,
+  FOG_PROGRAM_BINDINGS,
+  type FogBindings,
+  type FogProgramName,
+} from './bindings.ts'
 import { FOG_STATIC_FORMAT } from './layout.ts'
 import { FOG_VOLUME_FORMAT } from './read.ts'
 
@@ -73,10 +79,30 @@ const ENTRY: Record<
     '3d',
   ),
   staticIn: computeStorageTextureEntry(FOG_BINDING.staticIn, FOG_STATIC_FORMAT, 'read-only', '3d'),
+  graphValues: computeBufferEntry(FOG_BINDING.graphValues, 'read-only-storage'),
+  graphPool0: computeTextureEntry(FOG_BINDING.graphPool0, 'float', '2d-array'),
+  graphPool1: computeTextureEntry(FOG_BINDING.graphPool1, 'float', '2d-array'),
+  graphPool2: computeTextureEntry(FOG_BINDING.graphPool2, 'float', '2d-array'),
+  graphPages: computeBufferEntry(FOG_BINDING.graphPages, 'read-only-storage'),
+  graphSampler: computeSamplerEntry(FOG_BINDING.graphSampler),
+  localTiles: computeBufferEntry(FOG_BINDING.localTiles, 'read-only-storage'),
 }
 
-/** The layout of a program: the entries of what it binds. The pyramid's three, the field's four and the
- *  lightmap's twelve are made where a program names them. */
+/** The layout of the voxelisation of objects that wear a graph: the plain voxelisation's entries,
+ *  then the graphs' (`FOG_GRAPH_BINDINGS`). */
+export const graphLayoutEntries = (textured: boolean) => [
+  ...layoutEntries('voxelize'),
+  ...entriesOf(FOG_GRAPH_BINDINGS[textured ? 'textured' : 'values']),
+]
+
+/** The entries of the bindings `names` holds, none of the made-where-named kinds. */
+const entriesOf = (names: FogBindings) =>
+  (Object.keys(names) as Exclude<keyof typeof FOG_BINDING, 'hiz' | 'field' | 'lightmap'>[]).map(
+    (n) => ENTRY[n],
+  )
+
+/** The layout of a program: the entries of what it binds. The pyramid's three, the field's six and the
+ *  lightmap's eleven are made where a program names them. */
 export const layoutEntries = (name: FogProgramName) =>
   (Object.keys(FOG_PROGRAM_BINDINGS[name]) as (keyof typeof FOG_BINDING)[]).flatMap((n) =>
     n === 'hiz'

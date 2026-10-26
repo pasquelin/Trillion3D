@@ -21,6 +21,7 @@ pub(super) fn gather<'a>(
     cells: &CellMembers,
     (nodes, source): (&[Value], &Value),
     (primitives, covers, placement): (&[Value], &'a [SourceCover], &Placement),
+    fallbacks: &BTreeMap<u64, u64>,
 ) -> Result<Vec<Instance<'a>>> {
     let Placement { world, by_mesh } = placement;
     let mut instances = Vec::new();
@@ -50,6 +51,7 @@ pub(super) fn gather<'a>(
                     node,
                     mesh,
                     track,
+                    fallback: fallbacks.get(&mesh).copied().filter(|_| track.is_none()),
                 });
             }
         }

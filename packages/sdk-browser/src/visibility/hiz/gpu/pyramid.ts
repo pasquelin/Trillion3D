@@ -21,7 +21,7 @@ export const level0LayerBytes = (width: number, height: number) =>
   width * height * texelBytesOf(HIZ_LEVEL0_FORMAT)
 
 /** Bytes one view's pyramid holds at `width × height` (`allocPyramid`) without the front layer:
- *  its level 0's opaque depth, and its three layers of packed mips. */
+ *  its level 0's opaque depth, and its two slices of packed mips. */
 export const pyramidHeldBytes = (width: number, height: number) =>
   level0LayerBytes(width, height) + hizTextureBytes(pyramidBytes(width, height))
 
@@ -30,8 +30,8 @@ const TILE = 2 * HIZ_BUILD_SIDE
 
 /**
  * The build passes of the pyramid, as dispatches of the open compute `pass`, by
- * `buildPipeline` — the culling layer's, or the nearest's with the finished depth's farthest
- * (`HIZ_NEAREST_BUILD`):
+ * `buildPipeline` — the culling layer's, or the full build's with the trace layers
+ * (`HIZ_WITH_TRACE`):
  * consecutive dispatches inside a pass already see each other's writes. Build pass `i` reads
  * uniform slot `i`, bound at `slots[i]` (`UniformSlots.offset`).
  */
@@ -76,7 +76,7 @@ export type Pyramid = HizPyramid & {
   level0: GPUTexture
   level0View: GPUTextureView
   depthView: GPUTextureView
-  /** The three layers of packed mips (`pyramidTexture.ts`), and their one view: written by the
+  /** The two slices of packed mips (`pyramidTexture.ts`), and their one view: written by the
    *  build as storage, read by the others as a texture. */
   pyramid: GPUTexture
   pyramidView: GPUTextureView

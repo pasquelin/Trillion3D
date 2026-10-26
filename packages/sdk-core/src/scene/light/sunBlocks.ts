@@ -4,6 +4,7 @@ import type { Rgb } from '../core/atmosphereOptics.ts'
 import { createAtmosphereBlock, createSunHold } from './atmosphereSun.ts'
 import type { SceneLight } from './contracts.ts'
 import { LIGHT_FIELD, baseOf } from './fields.ts'
+import { createForwardHeader } from './forwardLight.ts'
 import { packFogSun } from './fogSun.ts'
 
 /** What the sun's blocks read of the light store, and how they write a light into it. */
@@ -14,14 +15,16 @@ type SunSources = {
   /** A light's rank, the order of adding (`lightRanks.ts`): what settles equals. */
   rankOf: (id: string) => number
   /** The packed lights: a new array when the table grows. */
-  packed: () => Float32Array
+  packed: () => Float32Array<ArrayBuffer>
+  /** The buffer's header, over the packed lights' first words: a new view when the table grows. */
+  header: () => Uint32Array<ArrayBuffer>
   /** The scene's environment, none until it is set. */
   environment: () => SceneEnvironment | undefined
   /** The air the lights go through: the environment's atmosphere, none where it is off
    *  (`SceneLightStore.setAirOn`). */
   atmosphere: () => ResolvedAtmosphere | undefined
   /** The environment's block, which holds the fog's sun. */
-  environmentPacked: Float32Array
+  environmentPacked: Float32Array<ArrayBuffer>
   /** Writes a light's declared fields into its slot. */
   write: (slot: number, light: SceneLight) => void
 }
@@ -40,12 +43,14 @@ function tintSlot(packed: Float32Array, slot: number, tint: Rgb) {
  * THE COLOUR OF EACH LIGHT OF THE AIR THROUGH IT: the atmosphere's block written again and the
  * packed colour of each light held multiplied by the air's transmittance toward it, where there is
  * air. The lights tinted are kept, by index of the air, to be written again as declared when they
- * are no longer held, or the air is gone.
+ * are no longer held, or the air is gone. With no air the block holds the lights of the air only
+ * where `airless` says (the clouds light a medium by them).
  */
 function createTints(
   sources: SunSources,
   air: ReturnType<typeof createAtmosphereBlock>,
   hold: ReturnType<typeof createSunHold>,
+  airless: () => boolean,
 ) {
   const { records, indexOf, write } = sources
   let tinted: (string | undefined)[] = []
@@ -62,10 +67,11 @@ function createTints(
         if (previous !== undefined) write(previous, heldBy(records, id)!)
       }
       tinted = atmosphere ? [...hold.suns] : []
+      const lit = !!atmosphere || airless()
       air.update(
         atmosphere,
-        hold.suns.map((id) => heldBy(records, id)),
-        hold.suns.map((id) => heldBy(indexOf, id)),
+        hold.suns.map((id) => (lit ? heldBy(records, id) : undefined)),
+        hold.suns.map((id) => (lit ? heldBy(indexOf, id) : undefined)),
       )
       const packed = sources.packed()
       tinted.forEach((id, index) => {
@@ -81,53 +87,64 @@ function createTints(
  * through the air (`atmosphereSun.ts`), and the fog's sun in the environment's block
  * (`fogSun.ts`). The lights are held as lights are added, changed and removed, air or none; both
  * blocks are written again where a directional light or the environment changed — the atmosphere's
- * holds the lights of the air even with no air (`packAtmosphere`), the clouds read them there.
+ * holds the lights of the air even with no air (`packAtmosphere`), the clouds read them there. The
+ * directional light the forward readers take (`forwardLight.ts`) is chosen beside them.
  */
 export function createSunBlocks(sources: SunSources) {
   const { records, environmentPacked } = sources
   const air = createAtmosphereBlock()
   const hold = createSunHold(sources.ids, records, sources.rankOf)
-  const tints = createTints(sources, air, hold)
-  /** Writes the fog's sun into the environment's block. */
-  const applyFogSun = () => {
-    if (sources.environment()?.fog) packFogSun(heldBy(records, hold.fogSun), environmentPacked)
-  }
-  /** The sun may have changed: the blocks follow. */
+  let airless = false
+  const tints = createTints(sources, air, hold, () => airless)
+  const forward = createForwardHeader(sources)
+  /** The sun may have changed: the atmosphere's block and the fog's sun in the environment's follow. */
   const settle = () => {
     tints.apply()
-    applyFogSun()
+    if (sources.environment()?.fog) packFogSun(heldBy(records, hold.fogSun), environmentPacked)
   }
   return {
     /** The atmosphere's block as the GPU reads it, and its versions. */
     air,
-    /** The slot of the light the fog scatters — the volume's sun as the analytic fog's lobe —, −1
-     *  where there is none. */
-    get fogSunSlot() {
-      return heldBy(sources.indexOf, hold.fogSun) ?? -1
-    },
     /** The record of the light held for the air's light `index` (0 or 1), none where there is none. */
     held: (index: number) => heldBy(records, hold.suns[index]),
+    /** The slot of the directional light the forward readers take (`forwardLight.ts`), −1 without
+     *  one. */
+    get forwardSlot() {
+      return forward.slot
+    },
+    /** Whether the block holds the lights of the air where there is no air: off until the clouds
+     *  ask (`SceneLightStore.setAirlessSuns`). False where it was as asked. */
+    setAirless(on: boolean) {
+      if (on === airless) return false
+      airless = on
+      tints.apply()
+      return true
+    },
     /** A light was added, held in the store. */
     added(light: SceneLight) {
       hold.added(light)
-      if (light.kind === 'directional') settle()
+      if (light.kind !== 'directional') return
+      forward.changed()
+      settle()
     },
     /** A light was changed (`previous` as it was, `next` held now). */
     changed(previous: SceneLight, next: SceneLight) {
       hold.changed(next)
-      if (previous.kind === 'directional' || next.kind === 'directional') settle()
+      if (previous.kind !== 'directional' && next.kind !== 'directional') return
+      forward.changed()
+      settle()
     },
     /** A light was removed from the store. */
     removed(light: SceneLight) {
       hold.removed(light.id)
+      // The slots moved, the forward light's perhaps among them.
+      if (light.kind === 'directional') forward.changed()
+      else forward.moved()
       // A light that moved into the tinted slot overwrote its tint.
       if (light.kind === 'directional' || tints.any) settle()
     },
     /** The environment was set: the atmosphere follows where it is or was the sun's, the fog's sun
      *  always. */
-    environmentChanged() {
-      tints.apply()
-      applyFogSun()
-    },
+    environmentChanged: settle,
   }
 }

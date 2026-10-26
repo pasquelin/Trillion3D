@@ -17,6 +17,14 @@ fn reuses_materials(layer: &HlodLayer) -> bool {
     }
 }
 
+impl HlodLayer {
+    /// Whether the layer disallows its objects' cluster DAG: an instanced layer, which stands them
+    /// on fallback meshes.
+    pub fn takes_fallback(&self) -> bool {
+        self.builder == HlodBuilder::Instanced && !self.cluster_dag
+    }
+}
+
 impl Hlod {
     /// Whether the layers form chains (`parse`), as the reference keeps them: a layer whose parent
     /// closes a cycle, or wears its sources' own materials above a layer whose actors wear
@@ -144,6 +152,18 @@ impl Hlod {
         Ok(meshes)
     }
 
+    /// Whether any layer stands its objects on fallback meshes (`compiler/source/fallback.rs`),
+    /// that is, takes them (`HlodLayer::takes_fallback`).
+    pub fn has_fallback_layer(&self) -> bool {
+        self.layers.iter().any(HlodLayer::takes_fallback)
+    }
+
+    /// Whether the actors of the chain from `layer` up draw their objects on fallback meshes: an
+    /// instanced layer without a cluster DAG, its own or one above.
+    pub fn takes_fallback(&self, layer: Option<usize>) -> bool {
+        (layer.into_iter().chain(self.ancestors(layer))).any(|l| self.layers[l].takes_fallback())
+    }
+
     /// The layers above `layer`, its parent first, up its chain: one per step, never more than
     /// there are layers — the chains were checked free of cycles (`chains`), and the bound keeps
     /// the walk finite even past that check.
@@ -170,11 +190,11 @@ impl Hlod {
     }
 
     /// Published node `node` of `g`'s assignment, the one every stage reads (`Assigned`): the
-    /// layer its mark names — a word of `marks`, else a layer's name —, else that of the first rule
-    /// its name, its mesh's, its primitives' materials' or its `extras` match, else the default;
+    /// layer its mark names, a layer's name, else that of the first rule its name, its mesh's, its
+    /// primitives' materials' or its `extras` match, else the default;
     /// none for no layer — its object enters no HLOD actor —, which a node whose `extras` say
     /// `hlodInclude: false` has whatever the rest gives it. `Err` when the mark is not a text,
-    /// names neither, or marks an object of a job naming no HLOD, or when `hlodInclude` is not a
+    /// names no layer, or marks an object of a job naming no HLOD, or when `hlodInclude` is not a
     /// switch.
     pub fn assigned(&self, g: &Value, node: usize) -> Result<Assigned> {
         let included = included(g, node)?;
@@ -191,15 +211,11 @@ impl Hlod {
                          levels at least"
                     )));
                 }
-                let by_word = self.marks.iter().find(|(w, _)| w == word).map(|&(_, l)| l);
-                let by_name = self.layers.iter().position(|l| l.name == word);
-                by_word.or(by_name).ok_or_else(|| {
-                    let words: Vec<&str> = (self.marks.iter().map(|(w, _)| w.as_str()))
-                        .chain(self.layers.iter().map(|l| l.name.as_str()))
-                        .collect();
+                (self.layers.iter().position(|l| l.name == word)).ok_or_else(|| {
+                    let names: Vec<&str> = self.layers.iter().map(|l| l.name.as_str()).collect();
                     OPTIONS.bad(format!(
                         "{what} marks {word}, which is none of {}",
-                        words.join(", ")
+                        names.join(", ")
                     ))
                 })
             })

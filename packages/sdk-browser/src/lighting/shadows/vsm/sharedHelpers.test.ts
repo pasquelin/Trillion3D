@@ -27,7 +27,7 @@ test('one text of each shared helper, in every pass that declares it', () => {
     assert.equal(wgslSource(VSM_PROJECTION_DATA_WGSL).split(`fn ${name}(`).length, 2, name)
   const texts: Record<string, string> = {
     ...vsmVariants(),
-    BLENDED_READ: wgslModule(directShadowWgsl(18)),
+    BLENDED_READ: wgslModule(directShadowWgsl()),
   }
   for (const [module, code] of Object.entries(texts)) {
     for (const name of SHARED)
@@ -40,7 +40,7 @@ test('one text of each shared helper, in every pass that declares it', () => {
   }
   // The marking reads its own view's words, the projection its own.
   const marking = texts.VSM_MARKING_PIXELS,
-    projection = texts.VSM_PROJECTION
+    projection = texts.VSM_PROJECTION_SUNS
   assert.ok(marking.includes('vsmViewDepthOfDeviceZ(deviceZ,vsmMarking.depthFromDeviceZ)'))
   assert.ok(projection.includes('vsmViewDepthOfDeviceZ(deviceZ,vsmView.depthFromDeviceZ)'))
   assert.ok(marking.includes(',vsmMarking.viewToClip,vec2f(vsmMarking.viewSize))'))

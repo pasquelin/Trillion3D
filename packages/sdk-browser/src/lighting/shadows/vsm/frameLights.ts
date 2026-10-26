@@ -4,6 +4,8 @@
  * referenced.
  */
 import type { SceneLight } from '../../../../../sdk-core/src/scene/light/contracts.ts'
+import { mobilityOf, spotConesOf } from '../../../../../sdk-core/src/scene/light/fields.ts'
+import { shadowOfLight } from '../../../../../sdk-core/src/scene/light/lightShadow.ts'
 import {
   createVsmClipmap,
   type VsmCameraInput,
@@ -16,7 +18,7 @@ import {
   type VsmLocalLightInput,
   type VsmLocalLightSetup,
 } from './localLight.ts'
-import type { VsmLightCache } from './cacheManager.ts'
+import type { VsmLightCache } from './lightCache.ts'
 import type { VsmMapIds } from './mapIds.ts'
 import type { VsmFrameState } from './frameState.ts'
 import type { VsmFrameLight, VsmLightAllocation } from './frameSetup.ts'
@@ -31,9 +33,14 @@ const setups: VsmLocalLightSetup[] = []
 const allocationScratch: VsmLightAllocation[] = []
 const allocationRecords: VsmLightAllocation[] = []
 const lightIds = { ids: undefined as unknown as VsmMapIds, allocations: allocationScratch }
-// The local lights' input and views, rewritten for each light: the setup keeps neither.
+// The local lights' input and views, rewritten for each light: the setup keeps neither. One input a
+// kind, each holding what its kind's maps are cut by.
 const localViews: ReturnType<typeof vsmLocalViewData>[] = []
-const localInput: VsmLocalLightInput = { id: '', kind: 'point', position: [], range: 0 }
+const common = { id: '', position: [] as ArrayLike<number>, range: 0, movable: false }
+const pointInput = { ...common, kind: 'point' as const }
+const axis = [] as ArrayLike<number>
+const spotInput = { ...common, kind: 'spot' as const, direction: axis, outerCone: 0 }
+const rectInput = { ...common, kind: 'rect' as const, direction: axis, right: axis }
 /** The frame's shadowed local lights, nearest the eye first. */
 const nearFirst: SceneLight[] = []
 
@@ -52,6 +59,7 @@ function allocation(
   record.entry = entry
   record.clipmap = clipmap
   record.local = local
+  record.firstPerson = clipmap?.light.firstPerson === true
   allocationScratch.push(record)
 }
 
@@ -62,13 +70,19 @@ function setupDirectionalLights(
   camera: VsmCameraInput,
   viewport: VsmViewport,
 ) {
-  for (const { light, farShadowDistance } of casting) {
+  for (const { light, farShadowEdge, cascades } of casting) {
     if (light.kind !== 'directional' || !light.direction) continue
     const clipmap = createVsmClipmap(
       state.cache,
       {
-        ...{ id: light.id, direction: light.direction, farShadowDistance },
-        shadowDistance: light.shadowDistance,
+        ...{
+          id: light.id,
+          direction: light.direction,
+          farShadowEdge,
+          cascades,
+          movable: mobilityOf(light) === 'movable',
+        },
+        shadow: shadowOfLight(light),
       },
       camera,
       viewport,
@@ -76,7 +90,41 @@ function setupDirectionalLights(
     )
     suns.push(light)
     clipmaps.push(clipmap)
+    // The sun's second clipmap, for the objects that stand for a first-person one (`firstPerson`).
+    if (state.maps.firstPerson?.active) {
+      const own = { id: `${light.id}#firstPerson`, direction: light.direction, farShadowEdge }
+      suns.push(light)
+      clipmaps.push(
+        createVsmClipmap(
+          state.cache,
+          { ...own, cascades, shadow: shadowOfLight(light), firstPerson: true },
+          camera,
+          viewport,
+          state.maps,
+        ),
+      )
+    }
   }
+}
+
+/** `light` as its kind's setup input, rewritten in place: a spot's map is as wide as the outer cone it
+ *  is lit by. */
+function localInputOf(light: SceneLight): VsmLocalLightInput {
+  const input: VsmLocalLightInput =
+    light.kind === 'spot' ? spotInput : light.kind === 'rect' ? rectInput : pointInput
+  input.id = light.id
+  input.position = light.position!
+  input.range = light.range!
+  input.movable = mobilityOf(light) === 'movable'
+  input.emitterEnvelope = light.emitterRadius
+  if (input.kind === 'spot') {
+    input.direction = light.direction!
+    input.outerCone = spotConesOf(light)[1]
+  } else if (input.kind === 'rect') {
+    input.direction = light.direction!
+    input.right = light.right!
+  }
+  return input
 }
 
 /** The local lights' shadows: one setup each, into `locals` and `setups`; the views made once a frame
@@ -98,20 +146,9 @@ function setupLocalLights(
   }
   nearFirst.sort((a, b) => distanceSq(a) - distanceSq(b))
   for (const light of nearFirst) {
-    if ((light.kind !== 'point' && light.kind !== 'spot') || !light.position || !light.range)
-      continue
+    if (light.kind === 'directional' || !light.position || !light.range) continue
     if (!localViews.length) localViews.push(vsmLocalViewData(camera, viewport))
-    const input = localInput
-    input.id = light.id
-    input.kind = light.kind
-    input.position = light.position
-    input.direction = light.direction
-    input.range = light.range
-    input.coneAngle = light.coneAngle
-    input.innerConeAngle =
-      light.coneAngle !== undefined ? light.coneAngle * (1 - (light.penumbra ?? 1)) : undefined
-    input.sourceRadius = light.emitterRadius
-    const setup = addVsmLocalLightShadow(state.cache, input, localViews, state.maps)
+    const setup = addVsmLocalLightShadow(state.cache, localInputOf(light), localViews, state.maps)
     locals.push(light)
     setups.push(setup)
   }
@@ -119,13 +156,14 @@ function setupLocalLights(
 
 /** The id allocation: directional, local, then unreferenced entries, within the set's map slots: a
  *  light past them — the farthest, the local lights coming nearest first — casts no shadow this
- *  frame, its entry dropped; the others keep theirs. */
+ *  frame, its entry dropped and its maps counted (`refusedMaps`) for the slots to grow; the others keep theirs. */
 function allocateLightIds(state: VsmFrameState) {
   const ids = state.ids.reset(state.resources.layout.mapSlots)
   allocationScratch.length = 0
   for (let i = 0; i < suns.length; i++) {
     const entry = clipmaps[i].cacheEntry
     if (!ids.fits(entry.mapCaches.length)) {
+      ids.refuse(entry.mapCaches.length)
       state.cache.entries.delete(entry.key)
       continue
     }
@@ -136,6 +174,7 @@ function allocateLightIds(state: VsmFrameState) {
     const setup = setups[i],
       entry = setup.cacheEntry
     if (!ids.fits(entry.mapCaches.length)) {
+      ids.refuse(entry.mapCaches.length)
       state.cache.entries.delete(entry.key)
       continue
     }

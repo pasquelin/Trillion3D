@@ -41,6 +41,7 @@ const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
   'bc3-rgba-unorm': 16,
   'bc3-rgba-unorm-srgb': 16,
   'bc5-rg-unorm': 16,
+  'bc6h-rgb-ufloat': 16,
   'bc7-rgba-unorm': 16,
   'bc7-rgba-unorm-srgb': 16,
   'astc-4x4-unorm': 16,
@@ -99,3 +100,10 @@ export const madeTextureBytes = (texture: GPUTexture) =>
     sampleCount: texture.sampleCount,
     dimension: texture.dimension,
   }) ?? 0
+
+/** Bytes of the textures (`madeTextureBytes`) and buffers (their size) in `made`. */
+export const madeBytesOf = (made: Iterable<GPUTexture | GPUBuffer>) => {
+  let bytes = 0
+  for (const item of made) bytes += 'width' in item ? madeTextureBytes(item) : item.size
+  return bytes
+}

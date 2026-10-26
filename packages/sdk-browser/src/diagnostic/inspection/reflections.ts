@@ -9,10 +9,13 @@ import {
   writeNormalizedVector3,
 } from '../../../../math/src/vector/vector.ts'
 import { autoKernel } from '../../gpu/core/computeStages.ts'
+import { WORKGROUP_THREADS, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import type { ReflectionGrids } from '../../lighting/reflections/grids.ts'
 import { type InspectedView, unprojectInto, viewForward } from './camera.ts'
 import { INSPECTION_REFLECTION_CAP, type InspectedReflections } from './types.ts'
+
+const PASS: GPUComputePassDescriptor = { label: 'Trillion3D inspection reflections' }
 
 /** Floats a sample takes: the ray's direction and distance, then its texel, depth and validity. */
 const SAMPLE_FLOATS = 8
@@ -31,7 +34,7 @@ const SAMPLES_WGSL = wgslProgram(
 @group(0) @binding(2) var rays:texture_2d<u32>;
 @group(0) @binding(3) var<storage,read_write> samples:array<vec4f>;
 @group(0) @binding(4) var<uniform> grid:vec4u;
-@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id:vec3u){
+@compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;
  if(i>=grid.z){return;}
  let t=min(vec2u(i%grid.y,i/grid.y)*grid.x,textureDimensions(rays)-1u);
@@ -44,7 +47,7 @@ const SAMPLES_WGSL = wgslProgram(
  samples[2u*i]=vec4f(d,unpack2x16float(f&0x7fffu).x);
  samples[2u*i+1u]=vec4f(vec2f(t),depth,select(0.0,1.0,valid));
 }`,
-  [octDecode],
+  [octDecode, WORKGROUP_THREADS_WGSL],
 )
 const samplesKernel = autoKernel('Trillion3D inspection reflections', SAMPLES_WGSL, 'main')
 
@@ -88,27 +91,48 @@ export function encodeReflectionSamples(
     new Uint32Array([grid.stride, grid.columns, grid.count, block]),
   )
   const pipeline = samplesKernel(device).get()
-  const group = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
-    entries: sequentialEntries([
-      grids.history[parity],
-      grids.fresh,
-      grids.rays,
-      { buffer: samples },
-      { buffer: uniform },
-    ]),
-  })
-  const pass = encoder.beginComputePass({ label: 'Trillion3D inspection reflections' })
-  pass.setPipeline(pipeline)
-  pass.setBindGroup(0, group)
-  pass.dispatchWorkgroups(ceilDiv(grid.count, 64))
-  pass.end()
+  if (pipeline) {
+    const group = device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(0),
+      entries: sequentialEntries([
+        grids.history[parity],
+        grids.fresh,
+        grids.rays,
+        { buffer: samples },
+        { buffer: uniform },
+      ]),
+    })
+    const pass = encoder.beginComputePass(PASS)
+    pass.setPipeline(pipeline)
+    pass.setBindGroup(0, group)
+    pass.dispatchWorkgroups(ceilDiv(grid.count, WORKGROUP_THREADS))
+    pass.end()
+  }
   return { samples, destroy: () => (samples.destroy(), uniform.destroy()) }
 }
 
 /** Whether clip point `clip` lies outside the view: behind the eye or past an edge. */
 const outsideView = (clip: Float64Array) =>
   clip[3] <= 0 || Math.abs(clip[0]) > clip[3] || Math.abs(clip[1]) > clip[3]
+
+/** Whether the ray at `at` of `samples`, leaving `point` as far as `distance`, ends outside the view. */
+function leavesView(
+  clip: Float64Array,
+  view: InspectedView,
+  point: Float64Array,
+  samples: Float32Array,
+  at: number,
+  distance: number,
+) {
+  transformHomogeneousPoint(
+    clip,
+    view.viewProjection,
+    point[0] + samples[at] * distance,
+    point[1] + samples[at + 1] * distance,
+    point[2] + samples[at + 2] * distance,
+  )
+  return outsideView(clip)
+}
 
 /**
  * The rays of `samples` (`SAMPLE_FLOATS` each) placed in the world: a texel's ray leaves its
@@ -156,17 +180,7 @@ export function decodeReflections(
     // Back against the view: behind the image plane, where no pixel of it can answer.
     if (ahead < 0) towardCamera++
     if (distance === Infinity) missed++
-    else {
-      const d = distance
-      transformHomogeneousPoint(
-        clip,
-        view.viewProjection,
-        point[0] + samples[at] * d,
-        point[1] + samples[at + 1] * d,
-        point[2] + samples[at + 2] * d,
-      )
-      if (outsideView(clip)) offView++
-    }
+    else if (leavesView(clip, view, point, samples, at, distance)) offView++
   }
   return {
     count: distances.length,

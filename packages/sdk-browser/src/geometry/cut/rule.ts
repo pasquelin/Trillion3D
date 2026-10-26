@@ -21,8 +21,8 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  * already made them passes their results; its CPU model is `./rule.fixture.ts`.
  */
 
-/** The rule in WGSL, for the kernel that draws (`dagMask`): `drawsCompared` on the two comparisons
- *  the cut makes, the form a camera's `dagMask` calls on the bits `dagWanted` kept this frame. */
+/** The rule in WGSL, for the kernel that culls (`dagWanted`): `drawsCompared` on the two comparisons
+ *  the cut makes, the form `dagWanted` calls on the bits it kept this frame. */
 export const CUT_RULE_WGSL = wgslBlock(
   'CUT_RULE_WGSL',
   [],

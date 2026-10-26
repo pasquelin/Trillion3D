@@ -13,9 +13,10 @@ import {
  * The distance-field sky occlusion of a view (`packages/sdk-browser/src/lighting/distanceField/ao/`): how much of
  * the sky each pixel's surface sees, found by tracing nine cones over its hemisphere against the global distance
  * field (`./globalDistanceFieldOptions.ts`) and, near the pixel, against the meshes' own fields; the cones'
- * unoccluded directions sum to a bent normal, which the sky light's diffuse and specular light is taken along
- * (`modules/sky/skyLight/occlusionWgsl.ts`). It is drawn when the sky light is dynamic, casts shadows, and no
- * screen probes light the pixels (the probes carry the sky's visibility themselves). The light's own settings
+ * unoccluded directions sum to a bent normal, which the sky light's diffuse light is read along and its specular light is
+ * occluded by (the indirect light's pass: `lighting/deferred/indirectPassWgsl.ts`). It is drawn when the sky light is dynamic,
+ * casts shadows, and the bounce is off (with it on, its probes carry the sky and the screen probes its visibility). The
+ * light's own settings
  * (`modules/sky/skyLight.ts`: the distance, contrast, exponent, minimum, tint and combine mode) shape what it makes
  * of the bent normal. Each setting is the reference's console variable of the name in the parentheses, with its
  * default; lengths are in the reference's unit, the centimetre, as the sky light's.

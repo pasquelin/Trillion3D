@@ -1,13 +1,13 @@
 // The formats the compiler writes and the runtime reads, printed for the runtime
 // (`../generate-shared-rules.ts`): the Rust compiler owns the version, the magic and the layout
-// numbers of the manifest's binary, the resident proxy, the cutout answer sheet, the voxel
+// numbers of the manifest's binary, the voxel
 // section, the world roots' products and the animation banks, and
 // `packages/sdk-core/src/contracts/writtenFormats.ts` carries them to the readers, which re-export
 // the ones their module is the home of.
 import { posix } from 'node:path'
 import { REPOSITORY_ROOT } from '../../git/repository-files.ts'
 import { comment, header } from './statements.ts'
-import { type RustConstant, rustConstants, rustString } from './rust.ts'
+import { type RustConstant, rustConstants } from './rust.ts'
 import { git } from '../../git/git-paths.ts'
 
 const COMPILER = 'packages/asset-compiler-rust/src'
@@ -21,24 +21,11 @@ const WRITTEN: readonly (readonly [string, readonly (string | readonly [string, 
     'manifest_binary/version.rs',
     ['MANIFEST_BINARY_VERSION', 'MANIFEST_BINARY_MAGIC', 'MANIFEST_BINARY_HEADER_WORDS'],
   ],
-  ['proxy.rs', ['SCENE_PROXY_VERSION', 'SCENE_PROXY_MAGIC', 'SCENE_PROXY_HEADER_WORDS']],
-  [
-    '../../page-codec-wasm/src/proxy.rs',
-    [
-      'PROXY_TRIANGLE_FLOATS',
-      'PROXY_NODE_FLOATS',
-      'PROXY_CHILDREN',
-      'PROXY_CHILD_WORDS',
-      'PROXY_NODE_WORDS',
-    ],
-  ],
-  ['../../page-codec-wasm/src/wasm/proxy.rs', ['PROXY_META_WORDS']],
   [
     '../../page-codec-wasm/src/culling.rs',
     ['CULLING_FANOUT', 'CULLING_STRIDE', 'CULLING_RECORD_FLOATS'],
   ],
   ['../../page-codec-wasm/src/wasm/clusters.rs', ['CLUSTER_SPATIAL', 'CLUSTER_ORDERED']],
-  ['cutout.rs', [['SHEET_VERSION', 'CUTOUT_SHEET_VERSION']]],
   ['voxel.rs', ['VOXEL_VERSION']],
   [
     'voxel/bricks.rs',
@@ -69,6 +56,10 @@ const WRITTEN: readonly (readonly [string, readonly (string | readonly [string, 
       'VOLUMETRIC_LIGHTMAP_LAYER_WORDS',
       'VOLUMETRIC_LIGHTMAP_HEADER_WORDS',
       'VOLUMETRIC_LIGHTMAP_MAX_LAYOUT',
+      'VOLUMETRIC_LIGHTMAP_FIRST_VERSION',
+      'VOLUMETRIC_LIGHTMAP_CELL_HEADER_WORDS',
+      'VOLUMETRIC_LIGHTMAP_CELL_RECORD_WORDS',
+      'VOLUMETRIC_LIGHTMAP_CELL_TEXELS',
     ],
   ],
   ['hlod/chain.rs', ['WORLD_ROOTS_VERSION']],
@@ -125,8 +116,6 @@ export function writtenFormatsTs() {
       return `${docOf(found.doc)}export const ${name} = ${value}`
     })
   })
-  const sheet = rustString(`${COMPILER}/cutout.rs`, 'DECISIONS_FILE')
-  declarations.push(`${docOf(sheet.doc)}export const CUTOUT_SHEET_FILE = '${sheet.value}'`)
   declarations.push(`${docOf(joltDoc)}export const JOLT_COMMIT = '${joltCommit()}'`)
   return `${header(files, '//')}
 ${declarations.join('\n\n')}

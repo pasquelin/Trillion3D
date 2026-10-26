@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
+import { sum } from '../../../../../math/src/scalar/quantile.ts'
 
 /**
  * THE MIP CHAIN OF A CLOUD TEXTURE, level by level: each level is made from the one above it, by one
@@ -16,21 +17,20 @@ import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
  */
 
 /** The filters, by the import setting each stands for. */
-export const MIP_FILTERS = ['average', 'blur1'] as const
-export type MipFilter = (typeof MIP_FILTERS)[number]
+export type MipFilter = 'average' | 'blur1'
 
 /** Taps of the blur's kernel, a side, and its variance. */
 const BLUR_TAPS = 4
 const BLUR_VARIANCE = 2
 
 /** The blur's one-dimensional weights: a normal law centred between the middle taps, normalised. */
-export const blurWeights = () => {
+const blurWeights = () => {
   const centre = BLUR_TAPS / 2 - 0.5
   const raw = Array.from({ length: BLUR_TAPS }, (_, tap) =>
     Math.exp(-((tap - centre) ** 2) / (2 * BLUR_VARIANCE)),
   )
-  const sum = raw.reduce((a, b) => a + b, 0)
-  return raw.map((weight) => weight / sum)
+  const total = sum(raw)
+  return raw.map((weight) => weight / total)
 }
 
 /** Texels a thread group covers along each axis. */

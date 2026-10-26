@@ -2,10 +2,11 @@ import type {
   CharacterBody,
   CharacterSettings,
 } from '../../../../sdk-core/src/collision/characterSettings.ts'
+import { GRAVITY_PRESETS } from '../../../../sdk-core/src/physics/options.ts'
 import type { CharacterSource } from './controls/controlTargets.ts'
 
 /** A physics body reduced to what the controller reads: an endless floor at y = 0, a walk at
- *  the wished speed, a jump at `jumpSpeed`, a fall under `gravity`. */
+ *  the wished speed, a jump at `jumpSpeed`, a fall under Earth's gravity times `gravityScale`. */
 function floorBody(settings: CharacterSettings): CharacterBody {
   const feet = new Float64Array(3),
     velocity = new Float64Array(3)
@@ -29,12 +30,12 @@ function floorBody(settings: CharacterSettings): CharacterBody {
       jumped = true
     },
     advance(delta, input, events) {
-      const speed = input.sprint ? settings.sprintSpeed : settings.walkSpeed
+      const speed = settings.walkSpeed
       velocity[0] = input.wishX * speed
       velocity[2] = input.wishZ * speed
       if (jumped) events?.onJump?.()
       jumped = false
-      if (!grounded) velocity[1] -= settings.gravity * delta
+      if (!grounded) velocity[1] -= GRAVITY_PRESETS.earth * settings.gravityScale * delta
       for (let k = 0; k < 3; k++) feet[k] += velocity[k] * delta
       grounded = feet[1] <= 0 && velocity[1] <= 0
       if (grounded) [feet[1], velocity[1]] = [0, 0]

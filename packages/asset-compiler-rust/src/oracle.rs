@@ -31,8 +31,6 @@ pub const ORACLE_VERSION: u32 = 1;
 pub const KIND_POINT: u8 = 0;
 pub const KIND_SPOT: u8 = 1;
 pub const KIND_SUN: u8 = 2;
-/// Width of a spotlight cone's softened edge, in cosine: the same as in the shader.
-pub const SPOT_EDGE: f64 = 0.02;
 
 /// A declared light, as the host declares it to the engine.
 pub struct OracleLight {
@@ -42,7 +40,10 @@ pub struct OracleLight {
     pub color: [f64; 3],
     pub intensity: f64,
     pub range: f64,
+    /// A spot's cosines at its outer and its inner cone: its fade is the square of a ramp from one
+    /// to the other, as the shader's.
     pub cos_cone: f64,
+    pub cos_inner: f64,
     pub casts_shadow: bool,
 }
 

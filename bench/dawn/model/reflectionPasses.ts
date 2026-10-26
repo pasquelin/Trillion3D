@@ -1,10 +1,9 @@
 // The reflections' passes of the frame model (`passes.ts`): the depth pyramids, the screen trace,
-// the scene trace, the denoise and the radiance pyramid, each a formula in what the frame holds — its
+// the scene trace and the denoise, each a formula in what the frame holds — its
 // `reflecting` share the pixels a lobe of which traces, at the default level's blocks (`REFLECTION_LEVEL_KNOBS`),
 // a lower bound of a frame whose rough pixels read the field alone in the last pass. Pure.
 import {
   REFLECTION_PASS,
-  REFLECTION_RADIANCE_PASS,
   REFLECTION_TRACE_PASS,
   REFLECTION_SCENE_PASS,
   REFLECTION_DENOISE_PASS,
@@ -26,13 +25,12 @@ export const REFLECTION_PASSES: K.PassModel[] = [
   },
   {
     label: passKey(REFLECTION_TRACE_PASS),
-    formula: `P flags classified, a reflecting pixel's roughness beside; P·reflecting/${K.TRACE_SHARE} lobe rays marched on the screen (a pixel of each block), each ${K.TRACE_LOADS} + ${K.MARCH_ITERATIONS} iterations × ${K.MARCH_FETCHES} + ${K.HIT_LOADS} loads and ${K.HIT_TAPS} filtered taps, ${K.GRID_BYTES} + ${K.RAY_BYTES} B written — 16 iterations on average, 35 at p99`,
+    formula: `P flags classified, a reflecting pixel's roughness beside; P·reflecting/${K.TRACE_SHARE} lobe rays marched on the screen (a pixel of each block), each ${K.TRACE_LOADS} + ${K.MARCH_ITERATIONS} iterations × ${K.MARCH_FETCHES} + ${K.HIT_LOADS} loads, ${K.GRID_BYTES} + ${K.RAY_BYTES} B written — 16 iterations on average, 35 at p99`,
     work: (f) => ({
       texels:
         f.P +
         ((f.P * f.reflecting) / K.TRACE_SHARE) *
           (K.TRACE_LOADS + K.MARCH_ITERATIONS * K.MARCH_FETCHES + K.HIT_LOADS),
-      filtered: ((f.P * f.reflecting) / K.TRACE_SHARE) * K.HIT_TAPS,
       bytes: ((K.GRID_BYTES + K.RAY_BYTES) * f.P * f.reflecting) / K.TRACE_SHARE,
       passes: 1,
     }),
@@ -40,12 +38,12 @@ export const REFLECTION_PASSES: K.PassModel[] = [
       K.engine('lighting/reflections/trace/traceEncode.ts', 'encodeReflectionTrace'),
       K.engine('lighting/reflections/tiles.ts', 'REFLECTION_CLASSIFY_WGSL'),
       K.engine('visibility/hiz/gpu/screenMarch.ts', 'SCREEN_MARCH_WGSL'),
-      K.engine('lighting/reflections/trace/trace.ts', 'REFLECTION_TRACE_SHADER'),
+      K.engine('lighting/reflections/trace/trace.ts', 'reflectionTraceShader'),
     ],
   },
   {
     label: passKey(REFLECTION_SCENE_PASS),
-    formula: `at most P·reflecting/${K.TRACE_SHARE} rays the screen left, each ${K.SCENE_LOADS} loads and its ${K.GRID_BYTES} B entry read, ${K.GRID_BYTES} B written; the proxy walk unmodelled: a lower bound`,
+    formula: `at most P·reflecting/${K.TRACE_SHARE} rays the screen left, each ${K.SCENE_LOADS} loads and its ${K.GRID_BYTES} B entry read, ${K.GRID_BYTES} B written; the march's steps and the cache read unmodelled: a lower bound`,
     work: (f) => ({
       texels: ((f.P * f.reflecting) / K.TRACE_SHARE) * K.SCENE_LOADS,
       bytes: (2 * K.GRID_BYTES * f.P * f.reflecting) / K.TRACE_SHARE,
@@ -53,8 +51,9 @@ export const REFLECTION_PASSES: K.PassModel[] = [
     }),
     sources: [
       K.engine('lighting/reflections/trace/traceEncode.ts', 'encodeReflectionTrace'),
-      K.engine('lighting/reflections/proxy.ts', 'REFLECTION_PROXY_WGSL'),
-      K.engine('lighting/reflections/trace/trace.ts', 'REFLECTION_TRACE_SHADER'),
+      K.engine('lighting/reflections/sceneTrace.ts', 'REFLECTION_SCENE_TRACE_WGSL'),
+      K.engine('lighting/surfaceCache/hitWgsl.ts', 'surfaceHitWgsl'),
+      K.engine('lighting/reflections/trace/trace.ts', 'reflectionTraceShader'),
     ],
   },
   {
@@ -71,21 +70,7 @@ export const REFLECTION_PASSES: K.PassModel[] = [
     }),
     sources: [
       K.engine('lighting/reflections/trace/traceEncode.ts', 'encodeReflectionTrace'),
-      K.engine('lighting/reflections/trace/trace.ts', 'REFLECTION_TRACE_SHADER'),
-    ],
-  },
-  {
-    label: passKey(REFLECTION_RADIANCE_PASS),
-    formula: `P texels read (${K.RADIANCE_BYTES} B each) and written as level 0, the coarser levels beside (Σ levels); ${K.RADIANCE_TAPS} filtered taps a texel of the odd levels over a ${K.RADIANCE_HALO.toFixed(2)}× halo`,
-    work: (f) => ({
-      texels: f.P,
-      filtered: K.RADIANCE_TAPS * K.RADIANCE_HALO * K.oddLevelTexels(f.P),
-      bytes: K.RADIANCE_BYTES * (2 * f.P + K.coarserTexels(f.P)),
-      passes: 1,
-    }),
-    sources: [
-      K.engine('lighting/reflections/frame.ts', 'encodeReflectionRadiance'),
-      K.engine('lighting/reflections/radiance/radianceWgsl.ts', 'RADIANCE_SHADER'),
+      K.engine('lighting/reflections/trace/trace.ts', 'reflectionTraceShader'),
     ],
   },
 ]

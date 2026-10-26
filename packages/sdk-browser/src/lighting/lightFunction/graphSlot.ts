@@ -4,8 +4,10 @@ import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import type { MaterialGraph } from '../../../../sdk-core/src/world/material/graph/api.ts'
 import { compileGraph, type CompiledGraph } from '../../materials/graph/compile.ts'
+import type { GraphClocks } from '../../materials/graph/clocks.ts'
 import { fallbackOf } from '../../materials/graph/program.ts'
-import { FULLSCREEN_XY } from '../../gpu/shader/fullscreenTriangle.ts'
+import { compileKept, isRefusal, type GraphRefusal } from '../../materials/graph/kept.ts'
+import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
 import {
   SHADOW_TILE_POOL_WGSL,
   colorSampleWgsl,
@@ -14,8 +16,8 @@ import {
 import { MAP_BINDINGS, MAP_SAMPLER_BINDING } from './mapBindings.ts'
 import { packSlotColour, type AtlasFormat } from './renderWgsl.ts'
 
-/** The bytes before a graph's values in a slot's parameters: the time in seconds, twice (the
- *  game's and the real one are one clock here), and padding. */
+/** The bytes before a graph's values in a slot's parameters: the world's time in seconds and the
+ *  wall clock's (`GraphClocks`), and padding. */
 const HEAD_BYTES = 16
 const SAMPLE = colorSampleWgsl(SHADOW_TILE_POOL_WGSL)
 
@@ -31,44 +33,33 @@ export interface GraphSlot {
   readonly textured: boolean
 }
 
-/** A graph the atlas could not compile, with the error's words. */
-export interface GraphRefusal {
-  readonly error: string
-}
-
-const cache = new WeakMap<Material, { version: number; slot: GraphSlot | GraphRefusal }>()
-
-/** The graph of `material`, compiled for the atlas once per version of the material (a light
+/** The graph of `material`, compiled for the atlas once for each shape of the graph (a light
  *  function has no world position, so the compile refuses a node that reads one); none for a
- *  material with no graph; a refusal, naming the node, for a graph that does not compile. */
+ *  material with no graph; a refusal, naming the node, for a graph that does not compile — named by
+ *  the frame that asks it (`nameRefusal`, `frame.ts`), not with the surfaces'. */
 export function graphSlotOf(material: Material): GraphSlot | GraphRefusal | undefined {
   const graph = material.graph as MaterialGraph | undefined
   if (!graph) return undefined
-  const kept = cache.get(material)
-  if (kept?.version === material.version) return kept.slot
-  let slot: GraphSlot | GraphRefusal
-  try {
-    const compiled = compileGraph(graph, {
-      sample: SAMPLE,
-      derivatives: 'screen',
-    })
-    slot = {
-      compiled,
-      bytes: HEAD_BYTES + compiled.slots.bytes,
-      animated: compiled.uses.time,
-      textured: compiled.uses.textures,
-    }
-  } catch (error) {
-    slot = { error: error instanceof Error ? error.message : String(error) }
-  }
-  cache.set(material, { version: material.version, slot })
-  return slot
+  return compileKept(
+    graph,
+    'atlas',
+    () => {
+      const compiled = compileGraph(graph, { sample: SAMPLE, derivatives: 'screen' })
+      return {
+        compiled,
+        bytes: HEAD_BYTES + compiled.slots.bytes,
+        animated: compiled.uses.time,
+        textured: compiled.uses.textures,
+      }
+    },
+    false,
+  )
 }
 
 /** The compiled slot of `material`, none where it has no graph or its graph is refused. */
 export const usableGraphSlot = (material: Material) => {
   const slot = graphSlotOf(material)
-  return slot && 'compiled' in slot ? slot : undefined
+  return slot && !isRefusal(slot) ? slot : undefined
 }
 
 /** The textures a material's slot reads: those of its graph, else its emissive map. */
@@ -91,7 +82,6 @@ export function graphSlotWgsl(slot: number, format: AtlasFormat, g: GraphSlot) {
   const text = `struct Given{head:vec4f,values:MgValues,}
 @group(0) @binding(0) var<uniform> given:Given;
 ${g.textured ? `${tileDeclarations(MAP_BINDINGS, 'color')}\n@group(0) @binding(${MAP_SAMPLER_BINDING}) var mapsSampler:sampler;` : ''}
-@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY},0.0,1.0);}
 @fragment fn slotTexel(@builtin(position) at:vec4f)->@location(0) vec4u{
  let size=${wgslF32(slot)};
  let corner=floor(at.xy/size)*size;
@@ -103,18 +93,20 @@ ${g.textured ? `${tileDeclarations(MAP_BINDINGS, 'color')}\n@group(0) @binding($
  let graph_colour=${colour};
  ${packSlotColour(format, 'graph_colour')}
 }`
-  return wgslProgram(text, [g.compiled.wgsl])
+  return wgslProgram(text, [g.compiled.wgsl, FULLSCREEN_VERTEX])
 }
 
-/** Writes a slot's parameters into `out` at `offset`: the time, then the graph's values, each
- *  texture at the slot `slotOf` gives it. False while a texture has none. */
+/** Writes a slot's parameters into `out` at `offset`: the world's time and the wall clock's, then
+ *  the graph's values, each texture at the slot `slotOf` gives it. False while a texture has none. */
 export function writeGraphSlot(
   g: GraphSlot,
   material: Material,
   out: ArrayBuffer,
-  seconds: number,
+  clocks: GraphClocks,
   slotOf: (texture: Texture) => number | undefined,
 ) {
-  new Float32Array(out, 0, 2).fill(seconds)
+  const head = new Float32Array(out, 0, 2)
+  head[0] = clocks.time
+  head[1] = clocks.realTime
   return g.compiled.slots.fill(material.graph as MaterialGraph, out, HEAD_BYTES, slotOf)
 }

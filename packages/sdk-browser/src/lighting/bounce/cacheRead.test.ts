@@ -6,13 +6,14 @@ import { f32Bits } from '../../../../math/src/float/bits.ts'
 import { ATLAS_CALLS, CORNER_CELLS, cellProbes, oneLevel } from './atlas.fixture.ts'
 import { bounceBindingsWgsl } from './gridWgsl.ts'
 import { CACHE_WORDS_WGSL } from './cache/cacheWordsWgsl.ts'
-import { spCacheRead } from './screen/cacheReadWgsl.ts'
+import { spCacheRead, type CacheGatherScope } from './screen/cacheReadWgsl.ts'
 import { scatterShader } from './screen/cacheScatterWgsl.ts'
 import { SCREEN_PROBE_CONSTANTS } from '../../../../sdk-core/src/bounce/screenProbeLevels.ts'
 import { SCREEN_PROBE_FLAGS } from './screen/screenProbeLayout.ts'
 import { packLight } from '../../gpu/core/smallFloatWgsl.ts'
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { spCommon } from './screen/commonWgsl.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 
@@ -22,7 +23,7 @@ function wordKits() {
     words: shaderRun<{ cacheDepthWord: (distance: number, hit: boolean, sky: number) => number }>(
       wgslModule(bounceBindingsWgsl(0, 0, 1), CACHE_WORDS_WGSL),
       ['cacheDepthWord'],
-      { bounce: {}, probes: {} },
+      { bounce: {}, cellTable: {} },
     ),
     light: shaderRun<{ packLight: (c: number[]) => number }>(
       wgslModule(packLight),
@@ -35,7 +36,12 @@ function wordKits() {
 /** The world's probes round the point `(0.3, 0.4, 0.2)` of the finest level — the cells of the cube beside it, a slot each —,
  *  their tables and tags made, and the cache's maps simulated: every texel of the final map of probe `k` the light `(k + 1, 0, 0)`,
  *  the raw ones a ray that went `20` metres, `sky` of it left the scene. `valid` names the probes whose tag is made. */
-function cacheScene(valid: boolean[], mips: number, sky = 0) {
+function cacheScene(
+  valid: boolean[],
+  mips: number,
+  sky = 0,
+  scope: CacheGatherScope = 'workgroup',
+) {
   const cache = { res: 16, side: 48, pool: BOUNCE_SETTINGS.probePool }
   const atlas = cellProbes(CORNER_CELLS)
   const { words, light } = wordKits()
@@ -55,11 +61,11 @@ function cacheScene(valid: boolean[], mips: number, sky = 0) {
   }
   const rawMap = { load: () => [0, words.cacheDepthWord(20, true, sky), 0, 0] }
   const skyMap = { load: () => [sky, 0, 0, 0] }
-  const run = (flags: number, size: number) => {
-    const scope = {
+  const run = (flags: number, size: number, copy = false, bias = 0) => {
+    const globals = {
       bounce: oneLevel(cache.side),
       sp: { cache: [1.5, cache.res, mips, 0], mode: [0, 0, flags, 0], spatial: [0, 0, 0, 200] },
-      probes: atlas,
+      cellTable: atlas,
       cacheFinal: finalMap,
       cacheRaw: rawMap,
       cacheSky: skyMap,
@@ -68,10 +74,12 @@ function cacheScene(valid: boolean[], mips: number, sky = 0) {
       skyLightApplied: () => true,
       skyLightRay: () => [2, 3, 4],
       directLights: { atmosphere: Array.from({ length: 4 }, () => [0, 0, 0, 0]) },
-      cacheCorner: Array<number>(8).fill(0),
-      cachePlace: Array.from({ length: 8 }, () => [0, 0, 0]),
-      cacheAlpha: [0, 0, 0],
-      cacheLevelHeld: 0,
+      cacheNow: {
+        corner: Array<number>(8).fill(0),
+        place: Array.from({ length: 8 }, () => [0, 0, 0]),
+        alpha: [0, 0, 0],
+        levelHeld: 0,
+      },
       textureLoad: (t: unknown, at: number[], a: number, b?: number) =>
         t === atlas
           ? ATLAS_CALLS.textureLoad(atlas, at, a)
@@ -79,18 +87,40 @@ function cacheScene(valid: boolean[], mips: number, sky = 0) {
     }
     const kit = shaderRun<{
       spCacheGather: (P: number[], lane: number) => void
+      spCacheGatherOwn: (P: number[]) => void
+      spCacheGatherOwnBiased: (P: number[], bias: number) => void
+      spCacheCopy: () => void
       spCacheSample: (
         P: number[],
         d: number[],
         size: number,
       ) => { radiance: number[]; distance: number; sky: number }
     }>(
-      wgslModule(bounceBindingsWgsl(0, 0, 1), spCommon([4, 2]), spCacheRead(2, 3, 4, 5)),
-      ['spCacheGather', 'spCacheSample'],
-      scope,
+      wgslModule(
+        bounceBindingsWgsl(0, 0, 1),
+        spCommon([4, 2]),
+        spCacheRead(2, 3, 4, 5, scope),
+        // A pass that shares the gather among threads copies the whole struct and back.
+        wgslBlock(
+          'cacheCopyTest',
+          [],
+          'fn spCacheCopy(){let held=cacheNow;cacheNow=CacheGathered();cacheNow=held;}',
+        ),
+      ),
+      [
+        ...(scope === 'workgroup'
+          ? ['spCacheGather']
+          : ['spCacheGatherOwn', 'spCacheGatherOwnBiased']),
+        'spCacheCopy',
+        'spCacheSample',
+      ],
+      globals,
     )
     const P = [0.3, 0.4, 0.2]
-    for (let lane = 0; lane < 8; lane++) kit.spCacheGather(P, lane)
+    if (scope === 'workgroup') for (let lane = 0; lane < 8; lane++) kit.spCacheGather(P, lane)
+    else if (bias) kit.spCacheGatherOwnBiased(P, bias)
+    else kit.spCacheGatherOwn(P)
+    if (copy) kit.spCacheCopy()
     loads.length = 0
     return { sample: kit.spCacheSample(P, [0, 0, 1], size), loads: [...loads] }
   }
@@ -122,6 +152,32 @@ test('a ray reads the cache by the eight probes round its point, each at its tri
   )
 })
 
+test('a thread gathering the probes for its own ray (private scope) samples the same as the workgroup scope, and the whole-struct copy round-trips', () => {
+  const all = Array(8).fill(true)
+  const partial = [true, true, false, true, true, true, true, true]
+  for (const [valid, sky] of [
+    [all, 0],
+    [partial, 0],
+    [all, 0.5],
+  ] as const) {
+    const flags = sky ? SCREEN_PROBE_FLAGS.cacheSky : 0
+    const shared = cacheScene([...valid], 3, sky).run(flags, 8)
+    const own = cacheScene([...valid], 3, sky, 'private').run(flags, 8)
+    assert.deepEqual(own.sample, shared.sample)
+    assert.deepEqual(own.loads, shared.loads)
+    assert.deepEqual(
+      cacheScene([...valid], 3, sky, 'private').run(flags, 8, true).sample,
+      shared.sample,
+    )
+  }
+})
+
+test('the biased private gather clamps to the coarsest level: on a cache of one level it gathers as the unbiased one', () => {
+  const plain = cacheScene(Array(8).fill(true), 3, 0, 'private').run(0, 8, false, 0).sample
+  const biased = cacheScene(Array(8).fill(true), 3, 0, 'private').run(0, 8, false, 2).sample
+  assert.deepEqual(biased, plain)
+})
+
 test('a screen probe adds the mean of the cosine lobes it stands for to the eight probes of the cache round its point, in fixed point, with a count of one; none where no probe holds the cell, and none for a probe on no surface', () => {
   const scale = SCREEN_PROBE_CONSTANTS.radiancePdfScale
   const brdf = Array.from({ length: 9 }, (_, k) => 0.1 * (k + 1) * (k % 2 ? -1 : 1))
@@ -134,7 +190,7 @@ test('a screen probe adds the mean of the cosine lobes it stands for to the eigh
     }>(scatterShader([4, 2]), ['scatterPdf'], {
       sp: { grid: [1, 1, 1, 0], counts: [0, 1, 0, 0], mode: [0, 0, 0, 0] },
       bounce: oneLevel(),
-      probes: atlas,
+      cellTable: atlas,
       probeInfo: { load: () => [0.3, 0.4, 0.2, depth] },
       probeNormal: { load: () => [0, 0, 1, 0] },
       probeCounts: [0],

@@ -2,9 +2,9 @@
 // the CPU oracle of the law, and the shipped shader text (the fog over no resources, or the fog over the
 // resources a test names) run as shipped (`shaderRun`) on the fog block `packEnvironment` writes,
 // so a shader edit is what a test sees.
-import { fogWgsl } from './fogShader.ts'
-import { fogResourcesWgsl } from './fog/readWgsl.ts'
+import { fogBlockOf } from './fog/readWgsl.ts'
 import { FOG_VIEW_SLOTS } from './fog/viewSlots.ts'
+import { LOCAL_FOG_SLOTS } from './fog/localLayout.ts'
 import { AIR_BUFFER_STRUCT, VIEW_SLOT } from './atmosphere/layout.ts'
 import {
   packEnvironment,
@@ -41,7 +41,7 @@ export const points = (flat: number[]) =>
   Array.from({ length: flat.length / 3 }, (_, i) => flat.slice(3 * i, 3 * i + 3) as V3)
 
 /** The oracle: the fog law at `P` seen from `eye`, the optical depth summed over 20 000 steps. */
-export function oracle(fog: OldFog, eye: V3, P: V3) {
+function oracle(fog: OldFog, eye: V3, P: V3) {
   const d = distanceVector3(P, eye)
   if ('near' in fog) return saturate((fog.far - d) / (fog.far - fog.near))
   const { density, heightFalloff = 0, baseHeight = 0 } = fog
@@ -60,12 +60,17 @@ export interface Scene {
   /** The air: its sky's radiance, the sun's illuminance on the ground, and a second light's — its
    *  direction toward it and its illuminance on the ground. */
   air?: { sky: V3; ground: V3; second?: { toward: V3; ground: V3 } }
-  /** What the program binds past the light buffer: the declaration that answers the cubemap and the
-   *  volume, and the names it reads in the scope (a fake texture, a fake uniform). */
-  resources?: { decl: WgslDecl; scope: object }
+  /** What the program binds past the light buffer: the fog's module over the declaration that answers
+   *  the cubemap and the volume (`fogBlockOf`), and the names it reads in the scope (a fake texture, a fake uniform). */
+  resources?: { block: WgslDecl; scope: object }
   /** The volume's view block in the light buffer (`directLights.fogView`, `FOG_VIEW_SLOT`): the
    *  `vec4f` slots a surface reads its cell from; zero where none. */
   fogView?: number[][]
+  /** The local fog volumes' block in the light buffer (`directLights.localFog`, `LOCAL_FOG_SLOT`): zero
+   *  where none. */
+  localFog?: number[][]
+  /** The words of the tiles' lists (`localFogTiles`, a binding of its own): none where the view is not tiled. */
+  localFogTiles?: number[]
 }
 /** The functions `names` of the shipped fog text run on the contract buffer's fog block, as
  *  `packEnvironment` writes it; without an `air` the atmosphere's blocks are all zero. */
@@ -75,7 +80,14 @@ export function fogRun<T>(fog: SceneFog | undefined, names: string[], scene: Sce
   const block = Array.from({ length: FOG_SLOTS }, (_, k) =>
     Array.from(packed.subarray(at + 4 * k, at + 4 * k + 4)),
   )
-  const { sun, air, resources, fogView = zeroSlots(FOG_VIEW_SLOTS) } = scene
+  const {
+    sun,
+    air,
+    resources,
+    fogView = zeroSlots(FOG_VIEW_SLOTS),
+    localFog = zeroSlots(LOCAL_FOG_SLOTS),
+    localFogTiles = [],
+  } = scene
   if (sun) block[FOG_SLOT.sun] = [...sun.toward, sun.luminance]
   const atmosphere = Array.from({ length: ATMOSPHERE_SLOTS }, () => [0, 0, 0, 0])
   // The view's block as the light buffer declares it.
@@ -93,24 +105,35 @@ export function fogRun<T>(fog: SceneFog | undefined, names: string[], scene: Sce
       atmosphere[ATMOSPHERE_SLOT.secondTransmittance] = [1, 1, 1, 0]
     }
   }
-  return shaderRun<T>(
-    resources ? fogWgsl(resources.decl) : fogWgsl(fogResourcesWgsl({ group: 0 })),
-    names,
-    {
-      directLights: { fog: block, atmosphere, atmosphereView: view, fogView },
-      ...resources?.scope,
+  return shaderRun<T>(resources ? resources.block : fogBlockOf({ group: 0 }), names, {
+    directLights: {
+      fog: block,
+      atmosphere,
+      atmosphereView: view,
+      fogView,
+      localFog,
     },
-  )
+    localFogTiles,
+    ...resources?.scope,
+  })
 }
 
-/** The WGSL `fogged` of `rgb` at `P` seen from `eye` (`fogRun`). */
-export function wgslFogged(fog: SceneFog | undefined, rgb: V3, P: V3, eye: V3, scene: Scene = {}) {
-  const { fogged } = fogRun<{ fogged: (rgb: V3, P: V3, eye: V3) => number[] }>(
+/** The WGSL `fogged` of `rgb` at `P` seen from `eye` (`fogRun`), in the pixel `pixel` (the view's corner
+ *  by default: the fog this runs on holds no local fog volume). */
+export function wgslFogged(
+  fog: SceneFog | undefined,
+  rgb: V3,
+  P: V3,
+  eye: V3,
+  scene: Scene = {},
+  pixel = [0, 0],
+) {
+  const { fogged } = fogRun<{ fogged: (rgb: V3, P: V3, eye: V3, pixel: number[]) => number[] }>(
     fog,
     ['fogged'],
     scene,
   )
-  return fogged(rgb, P, eye)
+  return fogged(rgb, P, eye, pixel)
 }
 
 export const RGB: V3 = [0.8, 0.3, 0.1]
@@ -140,6 +163,11 @@ export const HEIGHT: ResolvedHeightFog = {
   skyContribution: [1, 0.5, 0.25],
   second: { baseDensity: 0, falloff: 0.02, heightShift: 0 },
   horizontalLimit: 0,
+  inMainView: true,
+  inSkyCapture: true,
+  inReflectionCaptures: true,
+  holdout: false,
+  skyLightScattering: { strength: 0, roughness: 0.15 },
 }
 export const SUN = { toward: [0.6, 0.8, 0] as V3, luminance: 5 }
 

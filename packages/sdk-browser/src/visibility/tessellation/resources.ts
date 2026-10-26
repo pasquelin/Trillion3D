@@ -1,4 +1,6 @@
 import type { DisplacementRecords } from '../../materials/table/displacementRecord.ts'
+import { standInTexture } from '../../gpu/core/standIns.ts'
+import { storageBufferCap } from '../../session/memory/pools.ts'
 import { HIZ_LEVELS } from '../hiz/gpu/pyramidTexture.ts'
 import { PASS_ARG_WORDS, PASS_DISPATCH_WORDS, PATCH_WORDS, TABLE_DATA_WORD } from './contract.ts'
 import { buildTessellationTable } from './table/build.ts'
@@ -28,12 +30,7 @@ let table: ReturnType<typeof buildTessellationTable> | undefined
 /** What a pass that tests no pyramid binds: a texel and a levels uniform that holds no level, which
  *  `pyramidShows` answers as it answers a level past the pyramid's. */
 function standInPyramid(device: GPUDevice) {
-  const texture = device.createTexture({
-    label: 'Trillion3D tessellation stand-in pyramid',
-    size: [1, 1, 1],
-    format: 'r32uint',
-    usage: GPUTextureUsage.TEXTURE_BINDING,
-  })
+  const texture = standInTexture(device, 'Trillion3D tessellation stand-in pyramid', 'r32uint')
   const levels = device.createBuffer({
     label: 'Trillion3D tessellation stand-in levels',
     size: HIZ_LEVELS.words * 4,
@@ -101,7 +98,7 @@ function occludedStore(device: GPUDevice, capacity: number) {
 export function createTessellationResources(device: GPUDevice, asked: TessellationCapacity) {
   table ??= buildTessellationTable()
   const tableWords = TABLE_DATA_WORD + table.data.length
-  const limit = Math.min(device.limits.maxStorageBufferBindingSize, device.limits.maxBufferSize)
+  const limit = storageBufferCap(device.limits)
   const capacity = fitCapacity(limit, tableWords, asked)
   const layout = tessLayout(tableWords, capacity.records, capacity.candidate, capacity.visible)
   const tess = device.createBuffer({

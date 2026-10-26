@@ -9,7 +9,9 @@
 //!   inside a level, and the indirection volume, each texel naming the finest brick over it.
 use super::sampling::Vec3;
 use super::settings::{BakeSettings, BRICK_SIZE};
+use super::store::Store;
 use super::voxelize::{voxelize, Cube};
+use crate::volumetric_lightmap::format::VOLUMETRIC_LIGHTMAP_MAX_LAYOUT;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 /// A cell of a voxel volume that holds no brick.
@@ -18,8 +20,6 @@ pub const NOT_ALLOCATED: u8 = 0;
 pub const ALLOCATED: u8 = 1;
 /// A finest cell inside the importance boxes the geometry has not touched.
 pub const IN_IMPORTANCE: u8 = 3;
-/// Bricks along one side of the atlas's layout at most.
-pub const LAYOUT_SIDE: u32 = 256;
 /// Texels along a padded brick's side.
 pub const PADDED: u32 = BRICK_SIZE + 1;
 
@@ -31,6 +31,7 @@ pub struct Brick {
 }
 
 /// A level's voxel volume: its size and, for each cell, its brick's rank plus one (0: none).
+#[derive(Clone)]
 pub struct Level {
     pub dims: [u32; 3],
     pub cells: Vec<u32>,
@@ -70,21 +71,46 @@ fn morton(v: u32) -> u64 {
     (x | (x << 2)) & 0x1249_2492_4924_9249
 }
 
-/// A brick's place in the layout of `LAYOUT_SIDE` bricks a side, from its rank.
+/// A brick's place in the layout of `VOLUMETRIC_LIGHTMAP_MAX_LAYOUT` bricks a side, from its rank.
 pub fn layout_position(rank: u32) -> [u32; 3] {
     [
-        rank % LAYOUT_SIDE,
-        (rank / LAYOUT_SIDE) % LAYOUT_SIDE,
-        rank / LAYOUT_SIDE / LAYOUT_SIDE,
+        rank % VOLUMETRIC_LIGHTMAP_MAX_LAYOUT,
+        (rank / VOLUMETRIC_LIGHTMAP_MAX_LAYOUT) % VOLUMETRIC_LIGHTMAP_MAX_LAYOUT,
+        rank / VOLUMETRIC_LIGHTMAP_MAX_LAYOUT / VOLUMETRIC_LIGHTMAP_MAX_LAYOUT,
     ]
 }
 
+/// The atlas texel where the padded brick of rank `rank` starts.
+pub fn brick_origin(rank: usize) -> [usize; 3] {
+    layout_position(rank as u32).map(|p| (p * PADDED) as usize)
+}
+
+/// The texel `inside` of the brick that starts at `origin` (`brick_origin`).
+pub fn texel_in(store: &Store, origin: [usize; 3], inside: [u32; 3]) -> usize {
+    store.index(std::array::from_fn(|a| origin[a] + inside[a] as usize))
+}
+
+/// The texel `inside` of the padded brick of rank `rank`.
+pub fn texel_index(store: &Store, rank: usize, inside: [u32; 3]) -> usize {
+    texel_in(store, brick_origin(rank), inside)
+}
+
+/// The place `k` names in a cube of `side` texels, x then y then z.
+pub fn unflatten(k: u32, side: u32) -> [u32; 3] {
+    [k % side, (k / side) % side, k / side / side]
+}
+
+/// Calls `visit` with every place of a padded brick, x then y then z.
+pub fn each_texel(mut visit: impl FnMut([u32; 3])) {
+    (0..PADDED.pow(3)).for_each(|k| visit(unflatten(k, PADDED)));
+}
+
 /// The bricks the atlas holds along each side for `count` bricks.
-fn layout_dimensions(count: u32) -> [u32; 3] {
+pub(super) fn layout_dimensions(count: u32) -> [u32; 3] {
     let mut left = count;
     let mut dims = [0; 3];
     for side in &mut dims {
-        *side = left.min(LAYOUT_SIDE);
+        *side = left.min(VOLUMETRIC_LIGHTMAP_MAX_LAYOUT);
         left = left.div_ceil(*side);
     }
     dims
@@ -170,6 +196,18 @@ fn grid(low: Vec3, high: Vec3, settings: &BakeSettings) -> (Vec3, [u32; 3], Vec3
 }
 
 impl Layout {
+    /// Whether the brick of rank `rank` is of the finest level.
+    pub fn is_finest(&self, rank: usize) -> bool {
+        self.bricks[rank].span == 1
+    }
+
+    /// The ranks of the finest level's bricks.
+    pub fn finest(&self) -> Vec<usize> {
+        (0..self.bricks.len())
+            .filter(|&r| self.is_finest(r))
+            .collect()
+    }
+
     /// The layout of the importance boxes, none when the geometry asks for no brick.
     pub fn build(
         settings: &BakeSettings,
@@ -190,7 +228,7 @@ impl Layout {
             return None;
         }
         let layout_dims = layout_dimensions(bricks.len() as u32);
-        let indirection = splat(dims, &levels, &bricks);
+        let indirection = super::indirection::splat(dims, &levels, &bricks);
         Some(Self {
             volume_min,
             volume_size,
@@ -242,31 +280,4 @@ fn rank_bricks(volumes: Vec<(Vec<u8>, [u32; 3])>) -> (Vec<Level>, Vec<Brick>) {
         })
         .collect();
     (levels, bricks)
-}
-
-/// The indirection volume: each texel names the finest brick over it, coarse levels first so a
-/// finer one overwrites.
-fn splat(dims: [u32; 3], levels: &[Level], bricks: &[Brick]) -> Vec<[u8; 4]> {
-    let mut texels = vec![[0u8; 4]; dims.iter().map(|&d| d as usize).product()];
-    for (level, volume) in levels.iter().enumerate().rev() {
-        let span = BRICK_SIZE.pow(level as u32);
-        for z in 0..dims[2] {
-            for y in 0..dims[1] {
-                for x in 0..dims[0] {
-                    let cell = [x / span, y / span, z / span];
-                    let rank = volume.cells[index(volume.dims, cell)];
-                    if rank != 0 {
-                        let at = layout_position(rank - 1);
-                        texels[index(dims, [x, y, z])] = [
-                            at[0] as u8,
-                            at[1] as u8,
-                            at[2] as u8,
-                            bricks[rank as usize - 1].span as u8,
-                        ];
-                    }
-                }
-            }
-        }
-    }
-    texels
 }

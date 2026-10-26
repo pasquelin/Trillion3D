@@ -1,4 +1,4 @@
-import { FULLSCREEN_VERTEX } from '../../../lighting/deferred/shaders.ts'
+import { FULLSCREEN_VERTEX } from '../../../gpu/shader/fullscreenTriangle.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../visibility/shader/pageWgsl.ts'
 import { visPageIndex, visRowIn } from '../../../visibility/visWords.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'

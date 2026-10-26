@@ -23,16 +23,20 @@ fn neighbours(x: usize, y: usize, side: usize) -> [Option<usize>; 4] {
     ]
 }
 
+/// The texel `at` of a grid `side` texels square whose valid texels `valid` marks, as a texel of a
+/// ring: with which of its neighbours are valid, none where it has none.
+fn rim(at: usize, side: usize, valid: &[bool]) -> Option<Rim> {
+    let near = neighbours(at % side, at / side, side);
+    let around = near.map(|n| n.is_some_and(|n| valid[n]));
+    around.contains(&true).then_some((at, around))
+}
+
 /// The next ring of a grid `side` texels square whose valid texels `valid` marks (module doc).
 pub(super) fn ring(valid: &[bool], side: usize) -> Vec<Rim> {
     (0..side * side)
         .into_par_iter()
         .filter(|&at| !valid[at])
-        .filter_map(|at| {
-            let near = neighbours(at % side, at / side, side);
-            let around = near.map(|n| n.is_some_and(|n| valid[n]));
-            around.contains(&true).then_some((at, around))
-        })
+        .filter_map(|at| rim(at, side, valid))
         .collect()
 }
 
@@ -51,11 +55,7 @@ pub(super) fn next_ring(valid: &[bool], side: usize, ring: &[Rim]) -> Vec<Rim> {
     found.dedup();
     found
         .into_par_iter()
-        .filter_map(|at| {
-            let near = neighbours(at % side, at / side, side);
-            let around = near.map(|n| n.is_some_and(|n| valid[n]));
-            around.contains(&true).then_some((at, around))
-        })
+        .filter_map(|at| rim(at, side, valid))
         .collect()
 }
 

@@ -10,13 +10,9 @@
  * A 32-pixel half of a compute projection group votes (`vsmVoteAllTrue`) to stop its rays early
  * (`rayCountStatement`); a fragment's trace (`lone`): a sun's traces every ray, a local light's
  * votes over its subgroup, or on the lane's own value without subgroups. A ray is marched from its
- * far end to its start (`vsmMarch`); the projection's first ray is first tested against the pages'
- * tile depths (`vsmRayMisses`), a proof that spares a scattered pool read (WebGPU has no texture
- * atomics: `traceRayWgsl.ts`), and marched only where
- * it fails; a fragment's host binds no tile depths. Where the host binds the translucent casters'
- * memory, each missed ray multiplies the panes it crosses (`vsmRayThrough`), averaged over the missed
- * rays: the colour of the light that passes, on the very rays the opaque share counts. Reads the view `vsmView` the host declares, the
- * pages of `pool` (`vsmPoolLoad`) and the blue noise `noise` declares (`blueNoiseVec2`).
+ * far end to its start (`vsmMarch`), over the pool's stored depths read directly. Reads the view
+ * `vsmView` the host declares, the pages of `pool` (`vsmPoolLoad`) and the blue noise `noise` declares
+ * (`blueNoiseVec2`).
  * World unit = metre; a literal in centimetres is converted with `VSM_UNIT_PER_CM`.
  */
 import { VSM_PROJECTION_LIGHT_STRUCT } from '../projection/projectionView.ts'
@@ -31,13 +27,10 @@ import {
   vsmRayNoiseWgsl,
 } from './traceCommonWgsl.ts'
 import { vsmTraceMapWgsl } from './traceMapWgsl.ts'
-import { vsmRayMissesWgsl, vsmTraceRayWgsl } from './traceRayWgsl.ts'
+import { vsmTraceRayWgsl } from './traceRayWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
-import { wgslF32 } from '../../../../../../math/src/wgsl/number.ts'
-import { NO_INDEX } from '../../../../../../math/src/constants.ts'
 import { transformPoint } from '../../../../../../math/src/wgsl/projection.ts'
 import { vsmScreenSegmentWgsl } from './traceScreenWgsl.ts'
-import { vsmTransmissionRayWgsl } from '../transmission/transmissionRayWgsl.ts'
 import {
   Frame3,
   frameAround,
@@ -91,90 +84,13 @@ export interface VsmTraceHost {
   /** A fragment's device grants subgroups: its local lights vote over its subgroup
    *  (`vsmLoneVoteWgsl`). */
   subgroups?: boolean
-  /** The translucent casters' memory block (`vsmTransmissionReadWgsl`): each missed ray then
-   *  multiplies the panes it crosses (`vsmRayThrough`). */
-  transmission?: WgslDecl
   /** The kinds of light it traces by default (`vsmTraceLightWgsl`), both unless given. */
   kinds?: number
 }
 
-/** A ray's direction and start (\`noise4\`, \`dir\`, \`start\`, \`reach\`), from ray \`i\`'s blue noise: the
- *  march's, and the panes' walk after it (\`THROUGH\`), the same ray. */
-const RAY_SETUP = /* wgsl */ `   let noise4=vsmRayNoise4(pixel.pos,vsmView.frameIndex,i,rayCap);
-   let dir=vsmConeDirection(basis,s,noise4.xy);
-   // The start, within the dither square across the light, moved along the light onto the
-   // receiver's plane (its slope in the light's frame), never more than the cap.
-   var start=lightMap.pInMap;
-   if(ditherWorld>0.0){
-    let offset=(noise4.zw-0.5)*ditherWorld;
-    start+=outOfFrame(vec3f(offset,min(ditherCap,2.0*max(0.0,dot(frameDepthSlope,offset)))),basis);
-   }
-   let reach=select(lightReach*vsmLocalRayReach(dot(dir,axis)),lightReach,directional);`
-
-/** What the panes let through along the missed rays, averaged over them, after the march — none of
- *  its registers held while they are walked: the hull every ray lies in (its starts' dither square
- *  about the start, its cone's width at its reach about the far end) asks first which maps hold
- *  panes under it (\`vsmTPanedMaps\`), once; where
- *  one does, each missed ray (\`missed\`, bit i) is set up again and walked (\`vsmRayThrough\`). */
-const THROUGH = /* wgsl */ `  if(missed!=0u){
-   let spread=ditherWorld*${wgslF32(Math.SQRT1_2)}+ditherCap;
-   let span=select(0.75*lightReach,lightReach,directional);
-   let far=lightMap.pInMap+axis*span;
-   let wide=spread+2.0*span*s;
-   // One page cache for the hull and every ray walked after it: the same pages, read once.
-   var pages:VsmTPages;pages.cache.map=${NO_INDEX}u;
-   let paned=vsmTPanedMaps(&pages,light,lightMap,lightMap.pInMap,spread,far,wide);
-   if(paned!=0u){
-    var through=vec3f(0.0);
-    for(var i=0u;i<rayCap;i++){
-     if((missed&(1u<<i))==0u){continue;}
-${RAY_SETUP}
-     through+=vsmRayThrough(&pages,light,lightMap,start,start+dir*reach,paned);
-    }
-    result.through=through/f32(countOneBits(missed));
-   }
-  }
-`
-
-/** `vsmTraceLight`: light `light`'s share at receiver `pixel`, from the point `P` its normal bias
- *  moved it to. A ray's first segment is the screen's (`vsmScreenRayFrom`): its map segment starts
- *  where the image's depth says it stays unoccluded; it darkens nothing itself. A thin-subsurface
- *  receiver has no screen segment: its rays start the segment's length along. */
-export const vsmTraceWgsl = ({
-  pool,
-  noise,
-  hiz,
-  lone,
-  subgroups = false,
-  transmission,
-  kinds = VSM_TRACE_KINDS_BOTH,
-}: VsmTraceHost) =>
-  wgslBlock(
-    `vsmTraceWgsl(${hiz.join(', ')}, ${lone}, ${subgroups}, ${transmission?.name ?? null}, ${kinds})`,
-    [
-      VSM_CONSTANTS_WGSL,
-      Frame3,
-      frameAround,
-      intoFrame,
-      outOfFrame,
-      VSM_HANDLE_WGSL,
-      VSM_PAGE_ADDRESS_WGSL,
-      VSM_PROJECTION_DATA_WGSL,
-      vsmTraceLightWgsl(kinds),
-      VSM_TRACE_COMMON_WGSL,
-      VSM_TRACE_RESULT_WGSL,
-      transformPoint,
-      vsmScreenSegmentWgsl(hiz),
-      vsmTraceMapWgsl(pool),
-      vsmTraceRayWgsl(pool),
-      vsmRayNoiseWgsl(noise),
-      ...(lone ? [vsmLoneVoteWgsl(subgroups)] : [vsmRayMissesWgsl(pool)]),
-      ...(transmission ? [vsmTransmissionRayWgsl(pool, transmission)] : []),
-    ],
-    `/** 'participating' = the lane takes part in the group's votes and traces. */
-fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,receiver:VsmReceiver,participating:bool)->VsmTraceResult{
+const traceLightSetupText = /* wgsl */ `fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,receiver:VsmReceiver,participating:bool)->VsmTraceResult{
  let P=receiver.P;
- let n=pixel.info.biasNormal;
+ let n=pixel.info.worldNormal;
  let directional=vsmLightIsDirectional(light);
  let toLight=light.shiftedPosition-P;
  let dist=length(toLight);
@@ -192,8 +108,9 @@ fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,receiver:VsmReceiver,pa
  var stepCount=i32(select(vsmView.traceRays.w,vsmView.traceRays.z,directional));
  var frameDepthSlope=vec2f(0.0);
  var ditherWorld=0.0;
- var ditherCap=0.0;
- var planeBias=0.0;
+ var ditherUv=0.0;
+ var uvDepthSlope=vec2f(0.0);
+ var biasCap=0.0;
  var lightReach=0.0;
  var startOffset=pixel.screenRayWorld;
  if(traced){
@@ -204,23 +121,31 @@ fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,receiver:VsmReceiver,pa
   let pInMap=lightMap.pInMap;
   let viewPosition=transformPoint(vsmView.shiftedToView,P);
   // A sun's ray reaches a share of the receiver's distance to the eye, a local one its light.
-  lightReach=select(dist,VSM_TRACE_REACH_SUN*length(viewPosition),directional);
+  lightReach=select(dist,vsm.traceReachSun*length(viewPosition),directional);
   // The light's disk as the receiver sees it: a sun's sine of its angular radius, a local light's
   // emitter over its distance. A point source's rays all meet the map in one texel: one sample.
   s=select(min(light.sourceRadius/dist,1.0),light.sourceRadius,directional);
   if(single){s=0.0;}
+  // A sun's disk grows as its subsurface receiver's opacity falls, to emulate the light's diffusion
+  // in the material (\`vsm.subsurfaceMinSourceRadius\`, a sun alone).
+  if(directional&&!single&&pixel.info.opacity>=0.0){s=max(s,(1.0-pixel.info.opacity)*vsm.subsurfaceMinSourceRadius);}
   if(s==0.0){stepCount=0;}
   basis=frameAround(axis);
   let normalInFrame=intoFrame(basis,n);
   frameDepthSlope=-normalInFrame.xy/normalInFrame.z;
-  let uvDepthSlope=vsmDepthGradientUv(pd,pInMap,n);
-  let texel=vsmReceiverPixelSize(pd,pixel.sceneDepth);
-  ditherWorld=select(VSM_TRACE_DITHER*pd.ditherTexels*texel,0.0,single);
-  ditherCap=VSM_TRACE_PLANE_BIAS_CAP*ditherWorld;
-  let texelUv=1.0/f32(select(vsmTexelsAtLevel(lightMap.mip),VSM_LEVEL0_TEXELS,lightMap.clipmap));
-  planeBias=vsmPlaneBias(uvDepthSlope,texelUv,VSM_TRACE_PLANE_BIAS_CAP*texel*vsmDepthPerDistance(pd,lightMap.mapPoint.w));
- }
+  uvDepthSlope=vsmDepthGradientUv(pd,pInMap,n);
+  if(directional){
+   ditherUv=select(vsmSunDitherUv(pd,length(viewPosition)),0.0,single);
+  }else{
+   let texel=vsmReceiverPixelSize(pd,pixel.sceneDepth);
+   ditherWorld=select(vsm.traceDitherLocal*pd.ditherTexels*texel,0.0,single);
+   biasCap=vsmLocalBiasCap(lightMap,texel,single);
+  }
+ }`
+
+const traceLightRaysText = (lone: boolean) => /* wgsl */ `
  var missed=0u;
+ var occluderSum=0.0;
  let rayCap=max(rays,1u);
  var stopped=false;
  var stopIndex=0u;
@@ -228,24 +153,81 @@ fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,receiver:VsmReceiver,pa
   let running=traced&&!stopped;
   var hit=false;
   if(running){
-${RAY_SETUP}
-   // The 1e-6 is centimetres.
-   let t0=min(startOffset,reach-1e-6*${VSM_UNIT_PER_CM});
+   let noise4=vsmRayNoise4(pixel.pos,vsmView.frameIndex,i,rayCap);
+   let dir=vsmConeDirection(basis,s,noise4.xy);
+   // The start, within the dither square across the light. A local ray's is moved along the light
+   // onto the receiver's plane (its slope in the light's frame), never more than the cap, in the
+   // world; a sun ray's is moved in the map's UV once projected, and biased (\`vsmSunDitherBias\`).
+   var start=lightMap.pInMap;
+   var uvOffset=vec2f(0.0);
+   if(directional){
+    uvOffset=(noise4.zw-0.5)*ditherUv;
+   }else if(ditherWorld>0.0){
+    let square=(noise4.zw-0.5)*ditherWorld;
+    let lift=min(vsm.tracePlaneBiasCap*ditherWorld,vsmPlaneLift(frameDepthSlope,square));
+    start+=outOfFrame(vec3f(square,lift),basis);
+   }
+   let reach=select(lightReach*vsmLocalRayReach(dot(dir,axis)),lightReach,directional);
+   // A sun's ray runs its whole reach from where its screen segment stopped; a local ray's ends at
+   // its light's share (its start held under the reach, the 1e-6 in centimetres).
+   let t0=select(min(startOffset,reach-1e-6*${VSM_UNIT_PER_CM}),startOffset,directional);
    let rayStart=start+dir*t0;
-   var ray=vsmRayBegin(light,lightMap,start,rayStart,start+dir*reach,planeBias);
-   let jitter=vsmRayJitter(pixel.noise,i);
-   // The projection proves its first ray alone (\`vsmRayMisses\`): a later one runs in a half where a
-   // lane hit, whose march its lanes wait for, so a proof would save nothing.
-   ${lone ? 'hit=vsmMarch(&ray,stepCount,jitter);' : 'hit=!(i==0u&&vsmRayMisses(&ray,stepCount,jitter))&&vsmMarch(&ray,stepCount,jitter);'}
-   if(!hit){missed|=1u<<i;}
+   let rayEnd=select(start+dir*reach,rayStart+dir*reach,directional);
+   var bias=0.0;
+   if(!directional){bias=vsmLocalPlaneBias(lightMap,rayStart,uvDepthSlope,biasCap);}
+   else if(single){bias=vsmSunTapBias(lightMap,uvDepthSlope);}
+   else{bias=vsmSunDitherBias(lightMap,uvOffset,t0,uvDepthSlope);}
+   var ray=vsmRayBegin(light,lightMap,rayStart,rayEnd,bias,uvOffset);
+   var hitDepth=0.0;
+   hit=vsmMarch(&ray,stepCount,vsmRayJitter(pixel.noise,i),&hitDepth);
+   if(hit){occluderSum+=vsmRayOccluderDistance(&ray,hitDepth,length(rayStart));}
+   else{missed|=1u<<i;}
   }
 ${rayCountStatement(lone)} }
  if(traced){
   let rayCount=select(rayCap,min(stopIndex+1u,rayCap),stopped);
-  result.shadowFactor=f32(countOneBits(missed))/f32(rayCount);
+  let missCount=countOneBits(missed);
+  result.shadowFactor=f32(missCount)/f32(rayCount);
   result.rayCount=rayCount;
-${transmission ? THROUGH : ''} }
+  result.occluderDistance=occluderSum/f32(max(1u,rayCount-missCount));
+ }
  return result;
-}
+}`
+
+/** `vsmTraceLight`: light `light`'s share at receiver `pixel`, from the point `P` its normal bias
+ *  moved it to. A ray's first segment is the screen's (`vsmScreenRayFrom`): its map segment starts
+ *  where the image's depth says it stays unoccluded; it darkens nothing itself. A thin-subsurface
+ *  receiver has no screen segment: its rays start the segment's length along. */
+export const vsmTraceWgsl = ({
+  pool,
+  noise,
+  hiz,
+  lone,
+  subgroups = false,
+  kinds = VSM_TRACE_KINDS_BOTH,
+}: VsmTraceHost) =>
+  wgslBlock(
+    `vsmTraceWgsl(${hiz.join(', ')}, ${lone}, ${subgroups}, ${kinds})`,
+    [
+      VSM_CONSTANTS_WGSL,
+      Frame3,
+      frameAround,
+      intoFrame,
+      outOfFrame,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      vsmTraceLightWgsl(kinds),
+      VSM_TRACE_COMMON_WGSL,
+      VSM_TRACE_RESULT_WGSL,
+      transformPoint,
+      vsmScreenSegmentWgsl(hiz),
+      vsmTraceMapWgsl(pool),
+      vsmTraceRayWgsl(pool),
+      vsmRayNoiseWgsl(noise),
+      ...(lone ? [vsmLoneVoteWgsl(subgroups)] : []),
+    ],
+    `/** 'participating' = the lane takes part in the group's votes and traces. */
+${traceLightSetupText}${traceLightRaysText(lone)}
 `,
   )

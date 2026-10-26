@@ -32,7 +32,7 @@ const GRID_FLAT_UNLIKE: u32 = 4;
 pub(super) fn write_cells(
     (cells, tree): (&[GridCell], &Region),
     (hlod, grids, partition): (&[HlodNode], &Grids, &crate::PartitionGrid),
-    mesh_pages: &MeshSlots,
+    (mesh_pages, unplaced): (&MeshSlots, &[u64]),
     (directory, pool): (&Path, &rayon::ThreadPool),
 ) -> Result<Value> {
     // Every cell file in the tree's order, `rank` its place: each is written apart, on the job's
@@ -53,6 +53,13 @@ pub(super) fn write_cells(
         &CELL_PAGES
     };
     let mut root = write_pages(kind, tree, &records, &bounds, mesh_pages, directory)?;
+    // The meshes only actors place are listed with no node (`unplaced_rows`).
+    let listed = (root["meshes"].as_array_mut()).expect("the root lists its meshes");
+    listed.extend(
+        super::pages::unplaced_rows(unplaced)
+            .into_iter()
+            .map(Value::from),
+    );
     // The HLOD 0 cells' count, in eight hexadecimal digits too.
     let leaves = hlod.iter().filter(|node| node.level == 0).count();
     let (listed, coarser) = grid_words(cells, hlod, grids);

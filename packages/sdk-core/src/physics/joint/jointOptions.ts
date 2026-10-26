@@ -78,4 +78,7 @@ export interface JointOptions {
   /** Newtons of pull past which the joint breaks (N·m of torque between a gear's or a rack's
    *  teeth); left out, never. */
   breakForce?: number
+  /** N·m of torque past which the joint breaks, a pure twist or bend included (a point, a
+   *  distance, a pulley, a gear and a rack and pinion hold none); left out, never. */
+  breakTorque?: number
 }

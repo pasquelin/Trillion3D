@@ -2,7 +2,6 @@ import { atlasEntries } from '../../gpu/bind/bindEntries.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { VIS_UNIFORM_BYTES } from '../../gpu/bind/bindLayout.ts'
 import { bufferEntry, resourceEntry } from '../../gpu/bind/liveEntries.ts'
-import { RASTER_PASS_POST } from '../raster/contract.ts'
 import type { GpuRasterInput } from '../raster/types.ts'
 import {
   TESS_BINDINGS as B,
@@ -17,30 +16,30 @@ import type { TessellationResources } from './resources.ts'
 export type PassPyramid = { view: GPUTextureView; levels: GPUBuffer }
 
 /** What the groups name of the frame: the geometry, the page table and the atlas, which every
- *  program reads — and, of the cut's, the visibility uniform, the cut's masks and the surfaces'
- *  records. The shadow maps' programs read the geometry alone. */
+ *  program reads — and, of the cut's, the visibility uniform and the surfaces' records. The shadow
+ *  maps' programs read the geometry alone. */
 export type TessInput = Pick<
   GpuRasterInput,
   'indices' | 'positions' | 'pages' | 'uvs' | 'normals' | 'textures' | 'sampler'
 > &
-  Partial<Pick<GpuRasterInput, 'uniform' | 'postUniformOffset' | 'selection' | 'material'>>
+  Partial<Pick<GpuRasterInput, 'uniform' | 'material' | 'frame'>>
 
 /** What the groups name that is not the frame's: the raster's `work` buffer and the pyramid each pass
  *  tests against, which the cut's programs read, and the tessellation's own buffers. */
 type Owned = {
   work?: GPUBuffer
+  /** The raster's lists of clusters, which the seeding reads the tessellated ones off. */
+  lists?: () => GPUBuffer
   resources: Pick<TessellationResources, 'tess' | 'dispatch' | 'uniforms' | 'occluded'>
   pyramids?: PassPyramid[]
 }
 
-/** The entries a binding of `pass` names, read live from the frame (`current`) and from what the
- *  tessellation owns. */
-function bindingEntries(
+/** The entries of a binding the frame's input names, read live from it (`current`); none for a
+ *  binding the tessellation owns. */
+function frameEntries(
   name: TessBinding,
-  pass: number,
   current: () => TessInput,
-  { work, resources, pyramids }: Owned,
-): GPUBindGroupEntry[] {
+): GPUBindGroupEntry[] | undefined {
   switch (name) {
     case 'indices':
       return [bufferEntry(B.indices, () => current().indices)]
@@ -53,19 +52,10 @@ function bindingEntries(
         bufferEntry(
           B.uniform,
           () => current().uniform,
-          () => (pass === RASTER_PASS_POST ? current().postUniformOffset : 0),
+          undefined,
           () => VIS_UNIFORM_BYTES,
         ),
       ]
-    case 'tessUniform':
-      return [bufferEntry(B.tessUniform, () => resources.uniforms[pass])]
-    // Without a cut's selection the image reads no mask (`uni.selectionEnabled`): any read-only
-    // `array<u32>` binds, as the binning's does.
-    case 'mask':
-      return [bufferEntry(B.mask, () => current().selection?.maskBuffer ?? current().indices)]
-    case 'tess':
-    case 'tessRead':
-      return [bufferEntry(B.tess, () => resources.tess)]
     case 'uvs':
       return [bufferEntry(B.uvs, () => current().uvs)]
     case 'color':
@@ -78,6 +68,27 @@ function bindingEntries(
       return atlasEntries(B.data, () => current().textures.data)
     case 'sampler':
       return [resourceEntry(B.sampler, () => current().sampler)]
+    case 'frame':
+      return [bufferEntry(B.frame, () => current().frame)]
+    default:
+      return undefined
+  }
+}
+
+/** The entries of a binding of `pass` the tessellation owns. */
+function ownedEntries(
+  name: TessBinding,
+  pass: number,
+  { work, lists, resources, pyramids }: Owned,
+): GPUBindGroupEntry[] {
+  switch (name) {
+    case 'tessUniform':
+      return [bufferEntry(B.tessUniform, () => resources.uniforms[pass])]
+    case 'lists':
+      return [bufferEntry(B.lists, lists!)]
+    case 'tess':
+    case 'tessRead':
+      return [bufferEntry(B.tess, () => resources.tess)]
     case 'work':
       return [bufferEntry(B.work, () => work)]
     case 'dispatch':
@@ -89,7 +100,20 @@ function bindingEntries(
     case 'occluded':
     case 'occludedRead':
       return [bufferEntry(B.occluded, () => resources.occluded)]
+    default:
+      throw new Error('TESSELLATION_BINDING_UNKNOWN')
   }
+}
+
+/** The entries a binding of `pass` names, read live from the frame (`current`) and from what the
+ *  tessellation owns. */
+function bindingEntries(
+  name: TessBinding,
+  pass: number,
+  current: () => TessInput,
+  owned: Owned,
+): GPUBindGroupEntry[] {
+  return frameEntries(name, current) ?? ownedEntries(name, pass, owned)
 }
 
 /**

@@ -45,7 +45,7 @@ export function worldView(parts: WorldParts) {
       runtime.displayChanged()
     },
     /** The tonemapper's sharpening, before the curve, so it sharpens linear light: 0 none,
-     *  up to 1 (`SceneEnvironment.sharpness`). */
+     *  up to 10 (`SceneEnvironment.sharpness`). */
     get sharpness() {
       return state.sharpness
     },

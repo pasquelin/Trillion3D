@@ -2,7 +2,10 @@
  *  them (`asset-compiler-rust/src/manifest_binary/page.rs`). */
 import { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts'
 import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
-import { PREVIEW_BLOCK_FORMATS } from '../../../packages/sdk-core/src/texture/previewFormat.ts'
+import {
+  PREVIEW_BLOCK_FORMATS,
+  previewTexelBytes,
+} from '../../../packages/sdk-core/src/texture/previewFormat.ts'
 import type { Counts } from '../../../packages/sdk-core/src/manifest/binaryLayout.ts'
 import type { SlimPrimitiveBinary } from '../../../packages/sdk-core/src/manifest/binaryTypes.ts'
 import { MAX_DEPTH_LAYER } from '../../../packages/sdk-core/src/lod/depthLayer.ts'
@@ -44,7 +47,9 @@ export function countManifest(manifest: ClusterManifest): Counts {
     bundleDependencies: 0,
     previews: previews.length,
     previewBytes: previews.reduce(
-      (bytes, preview) => bytes + previewGeometry(preview.width, preview.height).pixelBytes,
+      (bytes, preview) =>
+        bytes +
+        previewGeometry(preview.width, preview.height, previewTexelBytes(preview.atlas)).pixelBytes,
       0,
     ),
     previewBlockBytes: { bc7: 0, astc: 0, etc2: 0 },

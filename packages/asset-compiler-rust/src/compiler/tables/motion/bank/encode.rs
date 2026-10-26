@@ -34,6 +34,7 @@ pub(super) fn encode(bakes: &[Bake], items: &[Item]) -> Result<Vec<u8>> {
             word(bake.frames)?,
             word(at)?,
             word(keys)?,
+            float(bake.rate),
         ]);
         at += bake.floats.len();
     }
@@ -55,4 +56,29 @@ pub(super) fn encode(bakes: &[Bake], items: &[Item]) -> Result<Vec<u8>> {
             .flat_map(|bake| bake.floats.iter().map(|value| value.to_bits())),
     );
     Ok(words.iter().flat_map(|value| value.to_le_bytes()).collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Behaviour: a bake's record ends with its rate, as an `f32`, and the file says its version.
+    #[test]
+    fn a_bake_record_holds_its_rate() {
+        let bake = Bake {
+            joints: 1,
+            frames: 2,
+            rate: 23.976024,
+            floats: vec![0.0; ANIMATION_BANK_INVERSE_FLOATS + 2 * ANIMATION_BANK_KEY_FLOATS],
+        };
+        let bytes = encode(&[bake], &[]).expect("encode");
+        let words: Vec<u32> = (bytes.chunks_exact(4))
+            .map(|word| u32::from_le_bytes([word[0], word[1], word[2], word[3]]))
+            .collect();
+        let head = ANIMATION_BANKS_HEADER_WORDS;
+        assert_eq!(words[1], ANIMATION_BANKS_VERSION);
+        assert_eq!(words[head..head + ANIMATION_BANK_BAKE_WORDS][..2], [1, 2]);
+        assert_eq!(f32::from_bits(words[head + 4]), 23.976024);
+        assert_eq!(words.len(), head + ANIMATION_BANK_BAKE_WORDS + 12 + 14);
+    }
 }

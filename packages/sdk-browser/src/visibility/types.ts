@@ -1,11 +1,11 @@
-import type { HostAttributes } from '../session/host/resources.ts'
 import type { PageSurface } from '../geometry/pages/surface.ts'
 import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import { VIS_MAX_PAGE_TRIANGLES, VIS_PAGE_ROWS } from './visWords.ts'
 import { PAGE_INFO } from './pageInfo.ts'
 import { rgbaBytes } from '../materials/texture/imageExtent.ts'
 import { wgslFn } from '../../../math/src/wgsl/decl.ts'
-import { saturate } from '../../../math/src/scalar/reals.ts'
+import type { ResponsiveLevel } from '../../../sdk-core/src/contracts/materialAbi.ts'
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 /** Largest addressable page count: the rows an identifier names (`VIS_PAGE_ROWS`). */
 export const VIS_MAX_PAGES = VIS_PAGE_ROWS
 /** Rejects a page the identifier cannot address, naming the page so a bad cache is actionable. */
@@ -26,6 +26,12 @@ export const ROW_WORDS = PAGE_INFO.words,
  *  surface's record (`../materials/table/materialTable.ts`). */
 export const MATERIAL_SECOND_UV = 0x80000000,
   MATERIAL_RANK_MASK = 0x7fffffff
+/** The bits of a row's offset word (`PageInfo.wpo`): the row's vertices are moved by its surface's
+ *  `worldPositionOffset`, the temporal pass reprojects them by where they were, and the distance
+ *  past which its object's offset stops does not stop it (its surface always evaluates). */
+export const WPO_ROW_MOVES = 1,
+  WPO_ROW_VELOCITY = 2,
+  WPO_ROW_ALWAYS = 4
 /** The address bits of `PageInfo.deformOutput`: the results' first word in the float pool plus
  *  one, wherever their source lies (`../deformation/outputs.ts`). */
 export const DEFORM_ADDRESS = 0x3fffffff
@@ -64,9 +70,6 @@ export const FLAG_LIT = 1,
   /** The material reads its vertex colours and the geometry carries some: the base colour is
    *  multiplied by the interpolated vertex colour, as the forward path does. */
   FLAG_HAS_COLOR = 32768,
-  /** A blended cluster's shadow-only row (`../geometry/rows/blendCasters.ts`): no depth, only the
-   *  transmittance of its surface's coverage (`../lighting/shadows/transmittanceWgsl.ts`). */
-  FLAG_BLEND_CASTER = 65536,
   /** The row's surface is displaced and its height map is in the atlas
    *  (`SurfaceDisplacement`): the tessellation draws its triangles diced and pushed along their
    *  normals, where `tessellation` is on, and every raster leaves them to it
@@ -80,9 +83,11 @@ export const FLAG_LIT = 1,
    *  `FLAG_DIAGNOSTIC_VIEW`, which is a frame flag of the blend pass: a blend item keeps only the low sixteen
    *  bits of a row's (`ITEM_FLAG_BITS`), so the two never meet. */
   FLAG_DISTANCE_FIELD = 0x40000000
-/** Beside it, which view: its code (`DIAGNOSTIC_VIEWS`, `shader/shadeMode.ts`) in the frame flags'
- *  four bits from here, which the transparent pass reads as the resolve reads `uni.mode`: above
- *  every flag a blend item carries (`ITEM_FLAG_BITS`), which the frame flags are OR'd with. */
+/** Beside it, which view: its code (`DIAGNOSTIC_VIEWS`, `shader/shadeMode.ts`) in the four bits of the
+ *  transparent pass's uniform flags (`uni.viewFlags`) from here, which the pass reads as the resolve reads
+ *  `uni.mode`. Those bits (25-28) are the pixel model's in a blend item's own flags
+ *  (`PIXEL_MODEL_SHIFT`), so the code never travels there: the vertex stage leaves it out of the item's
+ *  flags it hands on. */
 export const DIAGNOSTIC_CODE_SHIFT = 25,
   DIAGNOSTIC_CODE_MASK = 15
 /** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass (#573);
@@ -91,41 +96,66 @@ export const DIAGNOSTIC_CODE_SHIFT = 25,
 export const FLAG_FOG_FREE = 1 << 20,
   FLAG_DYNAMIC = 1 << 21,
   FLAG_SPRITE = 1 << 22,
+  /** The row's surface wires a `pixelDepthOffset` (`../materials/graph/pdoProgram.ts`): the visibility
+   *  rasters evaluate it at each pixel the row covers and write that depth in place of the plane's.
+   *  A row that has it is a cutout row too (`FLAG_MASK`), which reads its coordinate for it; the
+   *  opaque passes alone read this bit, a blend item's flags never reach it
+   *  (`ITEM_FLAG_BITS`). */
+  FLAG_DEPTH_OFFSET = 1 << 27,
   FLAG_LINE = 1 << 23,
-  /** The texture set a row's base map reads (glTF's `texCoord`, `Texture.channel`, 0 to 3), in two
-   *  flags: its low bit here, its high bit at `FLAG_MAP_UV_HIGH`: what every vertex stage hands
-   *  its cutout and transmittance (`pageMaskUv`, `shader/pageUvSetWgsl.ts`). Row flags alone: a
-   *  blend item reads its record's `channels`. */
+  /** A row of a held-out placement (`PLACEMENT_HOLDOUT`): where the alpha holdout is in effect the resolve draws its
+   *  pixels black, lit by nothing, and marks them in the surface flags (`HOLDOUT_SURFACE_FLAG`). A row's bit alone: a
+   *  blend item keeps only the low sixteen (`ITEM_HOLDOUT`). */
+  FLAG_HOLDOUT = 1 << 28,
+  /** The texture set a row's base map reads (glTF's `texCoord`, `Texture.channel`, 0 to 7), in
+   *  three flags: its low bit here, its middle bit at `FLAG_MAP_UV_HIGH`, its top bit at
+   *  `FLAG_MAP_UV_TOP`: what every vertex stage hands its cutout and transmittance (`pageMaskUv`,
+   *  `shader/pageUvSetWgsl.ts`). Row flags alone: a blend item reads its record's `channels`. */
   FLAG_MAP_UV_LOW = 1 << 24,
-  FLAG_MAP_UV_HIGH = 1 << 29
-/** The four bits from here of a row's flags: the most of its history the temporal anti-aliasing
- *  keeps on its surface's pixels (`VisMaterial`'s `historyShare`), as its code
- *  (`historyShareCode`). The opaque passes carry it as they carry a pixel animation, and the
- *  history update caps the history's share by it (`../post/taa/resolveWgsl.ts`); a blend item carries
- *  it in its record's own bits (`ITEM_HISTORY_SHIFT`), its layers writing what they give up of the
- *  history into a target of their own (`GIVEN_UP_TARGET`). The blend pass's frame flags hold their
- *  diagnostic code at these bits, a word a row's flags reach through `ITEM_FLAG_BITS` alone, its
- *  low sixteen bits. Bits 17 to 19 are the surface model's (`MODEL_SHIFT`), 20 to 24 the flags
- *  above, 29 the base map's high texture-set bit, 31 free. */
-export const HISTORY_SHARE_SHIFT = 25,
-  HISTORY_SHARE_MASK = 15
-/** The code's steps: a share is a whole number of twelfths of history, so 1, 0.75, 0.5, 0.25 and 0
- *  are exact; code 0 the whole history, the engine's own blend, `HISTORY_SHARE_STEPS` none. */
-const HISTORY_SHARE_STEPS = 12
-/** The history share's code (`HISTORY_SHARE_SHIFT`), the nearest twelfth of what it gives up. */
-export const historyShareCode = (share = 1) =>
-  Math.round((1 - saturate(share)) * HISTORY_SHARE_STEPS)
-/** What a history share code gives up of the history, in [0, 1] (`historyShareCode` undone): the
- *  one decode the history update (`../post/taa/resolveWgsl.ts`) and the transparents
- *  (`../blend/vertexReadsWgsl.ts`) read. */
-export const HISTORY_GIVEN_UP_WGSL = wgslFn(
-  'historyGivenUp',
+  FLAG_MAP_UV_HIGH = 1 << 29,
+  FLAG_MAP_UV_TOP = 1 << 16
+/** The two bits from here of a row's flags: the temporal responsiveness of its surface
+ *  (`VisMaterial`'s `responsive`), as its code (`responsiveCode`). The opaque passes carry it as
+ *  they carry a pixel animation, the velocity stage writing it into the flags of its pixels
+ *  (`../post/taa/surfaceVelocityWgsl.ts`); a blend item carries it in its record's own bits
+ *  (`ITEM_RESPONSIVE_SHIFT`), its layers writing it into a target of their own
+ *  (`RESPONSIVE_TARGET`). The blend pass's frame flags hold their diagnostic code at these bits, a
+ *  word a row's flags reach through `ITEM_FLAG_BITS` alone, its low sixteen bits. Bit 16 is the
+ *  base map's top texture-set bit, bits 17 to 19 the surface model's (`MODEL_SHIFT`), 20 to 24 the
+ *  flags above, 29 the base map's middle texture-set bit. */
+export const RESPONSIVE_SHIFT = 25,
+  RESPONSIVE_MASK = 3
+/** The bits of a responsiveness code: the pixel is read as a pixel animation (its motion vector is
+ *  no guide to its detail), and its history restarts. */
+export const RESPONSIVE_ANIMATED = 1,
+  RESPONSIVE_RESTARTS = 2
+/** The code of each level (`RESPONSIVE_LEVELS`): `off` none, `medium` a pixel animation, `full` a
+ *  pixel animation whose history restarts. */
+const RESPONSIVE_CODES: Readonly<Record<ResponsiveLevel, number>> = {
+  off: 0,
+  medium: RESPONSIVE_ANIMATED,
+  full: RESPONSIVE_ANIMATED | RESPONSIVE_RESTARTS,
+}
+/** The responsiveness code of `level` (`RESPONSIVE_SHIFT`); none, `off`. */
+export const responsiveCode = (level: ResponsiveLevel = 'off') => RESPONSIVE_CODES[level]
+/** What a layer of responsiveness code `code` writes into the responsive target
+ *  (`RESPONSIVE_TARGET`) where it covers a pixel: the code in thirds, so the 8-bit unorm channel
+ *  holds the three codes exactly and the largest of the layers' keeps every bit any of them has
+ *  (the codes' union is their largest). */
+export const RESPONSIVE_MARK_WGSL = wgslFn(
+  'responsiveMark',
   [],
-  `fn historyGivenUp(code:u32)->f32{return f32(code&${HISTORY_SHARE_MASK}u)/${HISTORY_SHARE_STEPS}.0;}`,
+  `fn responsiveMark(code:u32)->f32{return f32(code&${RESPONSIVE_MASK}u)/${RESPONSIVE_MASK}.0;}`,
+)
+/** The code a pixel's mark holds (`RESPONSIVE_MARK_WGSL` undone). */
+export const MARKED_RESPONSIVE_WGSL = wgslFn(
+  'markedResponsive',
+  [],
+  `fn markedResponsive(mark:f32)->u32{return u32(round(mark*${RESPONSIVE_MASK}.0));}`,
 )
 export type VisPage = {
   array: Uint32Array
-  attributes: HostAttributes
+  attributes: Geometry['attributes']
   /** The engine's surface record, read once at the boundary (`../geometry/pages/surface.ts`). */
   material: PageSurface
   clusterId?: string

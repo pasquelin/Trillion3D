@@ -1,8 +1,8 @@
 // The pre-commit hook's formatting (`scripts/git/hooks/pre-commit.ts`): the staged files `format:check`
 // reads are written formatted and staged again, so a commit never carries a format the CI refuses.
-import { formatPattern } from '../test/changed-steps.ts'
+import { formatPattern } from '../check/changed-steps.ts'
 import { NATIVE_CRATES } from '../native/native-crates.ts'
-import { runChecked } from '../test/run.ts'
+import { runChecked } from '../check/run.ts'
 import { git } from '../git/git-paths.ts'
 
 const paths = (...args: string[]) =>

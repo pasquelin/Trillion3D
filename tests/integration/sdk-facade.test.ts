@@ -74,10 +74,9 @@ test('generated inventory and explicit facade files are current', async () => {
   // governor either: the batches run their WebAssembly kernels alone, and no JavaScript twin of the
   // two (boxTransformBatch, multiplyMatrix4Batch, boxTransformUnionBatch) stands beside them; nor a
   // second page source beside the streaming (httpPageSource): `page.httpSource` reads through a
-  // streamer. The run-time proxy a placement
-  // wears carries its deformation (CutDeformation, CORNER_INFLUENCES). The bounce publishes its
+  // streamer. The bounce publishes its
   // frame metrics (BounceFrameMetrics) and its count of probes traced an image (resolveProbesPerFrame,
-  // BOUNCE_PROBE_QUEUE); the reflections publish theirs (ReflectionFrameMetrics, ReflectionProxyEnded); no time servo (createProxyBudget) nor world-sized cascades
+  // BOUNCE_PROBE_QUEUE); the reflections publish theirs (ReflectionFrameMetrics, ReflectionSceneEnded); no time servo (createProxyBudget) nor world-sized cascades
   // (createBounceCascades) stand beside it. A mesh wears the one surface record its material declared
   // (PageSurface, its SurfaceFamily, its three parts VisMaterial, SurfaceFacts and Releasable, and declareSurface with its SurfaceDeclaration to make one), which holds the core's texture record: the host surface and
   // texture copies (GraphSurface, GraphTexture, HostMaterial, HostTexture), the host's side word
@@ -135,8 +134,31 @@ test('generated inventory and explicit facade files are current', async () => {
   // their rules, their options and the distance a light names (SHADOW_RULES, ShadowOptions,
   // ShadowDistanceOption, SHADOW_DISTANCE_DEFAULT). The motion blur
   // (MotionBlur, MotionBlurOptions, ResolvedMotionBlur) and the screen probes' frame metrics
-  // (ScreenProbeFrameMetrics) leave with the barrels of their families.
-  assert.equal(inventory.exports.length, 825)
+  // (ScreenProbeFrameMetrics) leave with the barrels of their families. The pool of probes is on
+  // the GPU, and the four names of its CPU twin with it (createProbePool, ProbePool, ProbeEmit, TableEmit).
+  // The cutout review and its sheet (CutoutModel, CutoutReviewOptions, CutoutReviewSummary,
+  // reviewCutouts, CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION), the HLOD groups (HlodGroup, HlodMatch) and
+  // the report of the tables' growth (TableGrowthReport) left with their mechanisms; the translucent
+  // lighting names (translucencyLighting, TranslucencyLighting), the lights' shadow options
+  // (LIGHT_SHADOW_RULES, LightShadowOptions), the metrics of the ambient occlusion, the tone table and
+  // the surface cache (AmbientOcclusionFrameMetrics, ToneTableFrameMetrics, SurfaceCacheFrameMetrics)
+  // are public. The names a public signature hands a caller are public too: the fog's cube map,
+  // second layer, sky light scattering and volume (SceneFogCubemap, SceneSecondLayer,
+  // SceneSkyLightScattering, SceneVolumetricFog), a displacement (DisplacementWire,
+  // SurfaceDisplacement), the clip planes, the collision options, the exposure curve's parts, the
+  // material graph's nodes, pins and options, the view set, the light's cloud shadow and shaft
+  // parameters, the world's image and scene settings, and the compiler job's mesh, lightmap and
+  // displacement wire forms. The particle emitters (ParticleHandle, ParticleEmitterSpec,
+  // ParticleSpawn, ParticleRange, ParticleBlend) and the character modes (CharacterMode) are public too.
+  // So are the names the material and texture signatures hand a caller: the shading model
+  // (MaterialShadingModel), the subsurface profile and its implementation (SubsurfaceProfile,
+  // SubsurfaceImplementation) and a texel's kind (TexelKind). The second description of the
+  // engine's own objects as a host library's shapes left with that layer (HostAttribute,
+  // HostAttributes, HostBox, HostColour, HostDisposable, HostMaterials, HostMesh, HostNodeMatrix,
+  // HostRotation, HostScene, HostVector, ControlVector); the camera a view is drawn from is the core's
+  // (ViewCamera, for HostCamera), and the meshes a page draws and the colour a surface declares are
+  // named in the engine's words (PageMesh, PageMaterials, SurfaceColour).
+  assert.equal(inventory.exports.length, 875)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

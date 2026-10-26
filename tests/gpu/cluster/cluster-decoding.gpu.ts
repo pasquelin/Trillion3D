@@ -9,7 +9,10 @@
 // JavaScript.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { decodeGeometryPage } from '../../../packages/sdk-browser/src/geometry/codec/geometryPage.ts'
+import {
+  decodeGeometryPage,
+  residentGeometryPage,
+} from '../../../packages/sdk-browser/src/geometry/codec/geometryPage.ts'
 import { encodePage } from '../../../packages/sdk-browser/src/geometry/codec/encodePage.fixture.ts'
 import type {
   PageAttribute,
@@ -19,13 +22,14 @@ import { ringMesh } from '../../../packages/sdk-browser/src/geometry/codec/ringM
 import { crossVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { decodeOnGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodingKernel.ts'
 
-/** A ring page of `triangles` at `precision`, flat-shaded or not, with the SDK module's decode. */
+/** A ring page of `triangles` at `precision`, flat-shaded or not, with the SDK module's decode and
+ *  the resident page the install pass writes, which the kernel reads. */
 function page(triangles: number, precision: number, flat = false) {
   const ring = ringMesh(triangles, precision, 4, 4)
   const { encoded, indices } = flat ? flatShaded(ring, precision) : ring
   const decoded = decodeGeometryPage(encoded.data)
   return {
-    bytes: encoded.data,
+    bytes: residentGeometryPage(encoded.data),
     vertexCount: decoded.vertexCount,
     indexCount: indices.length,
     decoded,

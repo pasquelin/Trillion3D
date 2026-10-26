@@ -1,58 +1,114 @@
 /**
- * The proof that the prepared scene built from the cache tables is the scene the host loader built
- * from the compiled document: on every cache the repository compiles, the drawn document
- * (`source.gltf`) is walked on both sides and must agree on every object, pose, name, geometry
- * byte, bound, surface field and sampler the engine or a host renderer reads — lamps aside, which
- * `lights.json` carries. The prepared scene is the engine's own graph: it is compared twice — field
- * by field on what the engine reads of it, and whole through the host-library copy of the graph.
+ * The proof that the prepared scene built from the cache tables is the scene the compiled document
+ * (`source.gltf`) describes: on every cache the repository compiles, the document's JSON is walked
+ * on its own — nodes in depth-first order, each mesh node expanded into its primitives — and the
+ * prepared scene's drawn meshes must agree with it one for one: the rank of the mesh and primitive
+ * each draws, its vertex count and, where it is not instanced, its world matrix. Lamps
+ * are left aside: `lights.json` carries them.
  *
- * The loader is the witness here and only here, to prove it has nothing left to read. Images are
- * decoded by a stand-in answering the size of the bytes given, so both sides compare the same files.
+ * Images are decoded by a stand-in answering the size of the bytes given.
  */
 import { fileRanges } from './binary.fixture.ts'
-import test from 'node:test'
+import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import type { ClusterManifest } from '../../../../../sdk-core/src/contracts/geometry.ts'
 import { assertSceneTables } from '../../../../../sdk-core/src/scene/core/tableContracts.ts'
-import { buildPreparedScene } from './build.ts'
-import { SCENE_FILE } from '../../tables.ts'
-import { threeGraph } from '../../../../../../bench/witnesses/three/fromGraphNodes.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
+import { composeMatrix4 } from '../../../../../math/src/matrix/matrix4Compose.ts'
+import { multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
+import { sceneCacheFiles } from '../../../../../../tests/kit/scenes/caches.ts'
+import { readJson } from '../../../../../../scripts/git/repository-files.ts'
+import { buildPreparedScene } from './build.ts'
+import { decodingImages } from './decodedImages.fixture.ts'
+import { SCENE_FILE } from '../../tables.ts'
 import { meshes } from '../../meshes.ts'
-import {
-  caches,
-  describe,
-  describeShape,
-  serveFiles,
-  type Ranks,
-} from '../../../../../../bench/witnesses/three/parity/browser/host/prepared/scenes.fixture.ts'
 
-/** The document without its lamps: the prepared scene hangs none, `lights.json` alone carries
- *  them (`lighting/importedLights.ts`), so the loader is asked for the same graph without them. */
-function withoutLamps(text: string) {
-  const document = JSON.parse(text)
-  delete document.extensions?.KHR_lights_punctual
-  for (const node of document.nodes ?? []) delete node.extensions?.KHR_lights_punctual
-  return JSON.stringify(document)
+const repository = new URL('../../../../../../', import.meta.url)
+
+/** Every compiled scene cache: the key folder its pointer names. */
+async function caches() {
+  const found: URL[] = []
+  for (const file of await sceneCacheFiles('manifest.json')) {
+    const pointer = new URL(file, repository)
+    const { url } = readJson(pointer) as { url: string }
+    found.push(new URL('./', new URL(url, pointer)))
+  }
+  return found
 }
 
-async function witness(folder: URL) {
-  const text = withoutLamps(await readFile(new URL(SCENE_FILE, folder), 'utf8'))
-  const gltf = await new GLTFLoader().parseAsync(text, folder.href)
-  // The engine's mesh casts unless it says otherwise (#456); the loader's keeps `false`.
-  gltf.scene.traverse((node) => {
-    if ((node as { isMesh?: boolean }).isMesh) node.castShadow = true
+/** Files served from disk, and images decoded to the size of their bytes. */
+function serveFiles(t: TestContext) {
+  const browserFetch = globalThis.fetch
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    const url = input instanceof Request ? input.url : String(input)
+    if (url.startsWith('blob:')) return browserFetch(input)
+    return new Response(await readFile(fileURLToPath(url)))
   })
-  const associations = gltf.parser.associations as Map<object, ReturnType<Ranks>>
-  const ranks: Ranks = (object) => associations.get(object)
-  return { shape: describeShape(gltf.scene, ranks), whole: describe(gltf.scene, () => undefined) }
+  decodingImages(t)
 }
 
-async function prepared(folder: URL, written?: unknown) {
-  const file = written ?? JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8'))
+type Node = {
+  mesh?: number
+  children?: number[]
+  matrix?: number[]
+  translation?: number[]
+  rotation?: number[]
+  scale?: number[]
+  extensions?: Record<string, unknown>
+}
+type Document = {
+  scene?: number
+  scenes: { nodes?: number[] }[]
+  nodes: Node[]
+  meshes: { primitives: { attributes: { POSITION?: number } }[] }[]
+  accessors: { count: number }[]
+}
+
+/** What the document says one drawn mesh is: its rank, its vertex count and its world matrix. */
+interface Expected {
+  mesh: number
+  primitive: number
+  vertices: number | null
+  world: Float64Array | null
+}
+
+/** The document's drawn meshes, nodes depth first, a mesh node's primitives in order. */
+function expectedDraws(document: Document) {
+  const out: Expected[] = []
+  const visit = (index: number, parent: Float64Array) => {
+    const node = document.nodes[index]
+    const local = node.matrix
+      ? Float64Array.from(node.matrix)
+      : composeMatrix4(
+          new Float64Array(16),
+          node.translation ?? [0, 0, 0],
+          node.rotation ?? [0, 0, 0, 1],
+          node.scale ?? [1, 1, 1],
+        )
+    const world = multiplyMatrix4(new Float64Array(16), parent, local)
+    if (node.mesh !== undefined)
+      document.meshes[node.mesh].primitives.forEach((primitive, p) => {
+        const position = primitive.attributes.POSITION
+        out.push({
+          mesh: node.mesh!,
+          primitive: p,
+          vertices: position === undefined ? null : document.accessors[position].count,
+          // An instanced node places its mesh at each of its own matrices.
+          world: node.extensions?.EXT_mesh_gpu_instancing ? null : world,
+        })
+      })
+    for (const child of node.children ?? []) visit(child, world)
+  }
+  const identity = composeMatrix4(new Float64Array(16), [0, 0, 0], [0, 0, 0, 1], [1, 1, 1])
+  for (const root of document.scenes[document.scene ?? 0].nodes ?? []) visit(root, identity)
+  return out
+}
+
+/** The prepared scene's drawn meshes, each with the rank it was built from. */
+async function preparedDraws(folder: URL) {
+  const file = JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8'))
   // The caches compared here have no partition (`partition.test.ts` reads those).
   const tables = { ...assertSceneTables(file), partition: null }
   const built = await buildPreparedScene({
@@ -64,41 +120,44 @@ async function prepared(folder: URL, written?: unknown) {
     signal: undefined,
     track: (_resource, read) => read,
   })
-  const drawn = built.associations as Map<object, ReturnType<Ranks>>
-  const textures = built.ranks as Map<object, number>
-  const ranks: Ranks = (object) =>
-    textures.has(object) ? { textures: textures.get(object) } : drawn.get(object)
+  const ranks = built.associations as Map<object, { meshes?: number; primitives?: number }>
   const source = built.source as unknown as Object3D
+  const drawn = meshes(source)
   // Its host vertices, each geometry once (`Geometry.loadVertices`), which no session fetches.
-  const geometries = new Set(meshes(source).map((mesh) => mesh.geometry))
-  await Promise.all(Array.from(geometries, (geometry) => geometry.loadVertices()))
-  return {
-    shape: describeShape(source, ranks),
-    whole: describe(threeGraph(source), () => undefined),
-  }
+  await Promise.all(
+    Array.from(new Set(drawn.map((mesh) => mesh.geometry)), (g) => g.loadVertices()),
+  )
+  source.updateMatrixWorld(true)
+  return drawn.map((mesh) => ({
+    mesh: ranks.get(mesh)?.meshes,
+    primitive: ranks.get(mesh)?.primitives ?? 0,
+    vertices: mesh.geometry.attributes.position?.count ?? null,
+    world: 'isInstancedMesh' in mesh && mesh.isInstancedMesh ? null : mesh.matrixWorld.elements,
+  }))
 }
 
-test('the scene built from the tables is the scene the loader built, on every compiled cache', async (t) => {
+test('the scene built from the tables is the scene the document describes, on every compiled cache', async (t) => {
   serveFiles(t)
   const folders = await caches()
-  // Every pointer the fixture scenes hold names one cache folder, and the fixtures hold some.
-  const { glob } = await import('node:fs/promises')
-  const held: string[] = []
-  for await (const pointer of glob('tests/fixtures/scenes/*/cache{,-*}/native/full/manifest.json', {
-    cwd: fileURLToPath(new URL('../../../../../../', import.meta.url)),
-  }))
-    held.push(pointer)
-  assert.ok(held.length > 0, 'the fixture scenes hold compiled caches')
-  assert.equal(folders.length, held.length, 'every compiled cache the fixtures hold is found')
+  assert.ok(folders.length > 0, 'the fixture scenes hold compiled caches')
   for (const folder of folders) {
     // A partitioned cache draws its placements from rows, not nodes: `partition.test.ts` proves
-    // them against the loader's.
+    // them.
     const tables = JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8'))
     if (tables.partition) continue
-    assert.deepEqual(
-      await prepared(folder),
-      await witness(folder),
-      `${fileURLToPath(folder)}${SCENE_FILE}`,
-    )
+    const label = `${fileURLToPath(folder)}${SCENE_FILE}`
+    const document = JSON.parse(await readFile(new URL(SCENE_FILE, folder), 'utf8')) as Document
+    const expected = expectedDraws(document)
+    const actual = await preparedDraws(folder)
+    assert.equal(actual.length, expected.length, `${label}: drawn meshes`)
+    expected.forEach((want, i) => {
+      const got = actual[i]
+      assert.equal(got.mesh, want.mesh, `${label} #${i}: mesh rank`)
+      assert.equal(got.primitive, want.primitive, `${label} #${i}: primitive rank`)
+      assert.equal(got.vertices, want.vertices, `${label} #${i}: vertex count`)
+      if (want.world && got.world)
+        for (let k = 0; k < 16; k++)
+          assert.ok(Math.abs(got.world[k] - want.world[k]) <= 1e-6, `${label} #${i}: world[${k}]`)
+    })
   }
 })

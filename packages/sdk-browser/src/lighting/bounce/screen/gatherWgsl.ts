@@ -1,7 +1,7 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
-import { TWO_PI } from '../../../../../math/src/wgsl/constants.ts'
+import { HALF_MAX, TWO_PI } from '../../../../../math/src/wgsl/constants.ts'
 import { irradianceShader } from '../../../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { IRRADIANCE_PROBE_SIDE } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
 import { unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
@@ -99,9 +99,8 @@ fn spCompositeRay(atlas:vec2u,index:u32,t:vec2u){
  */
 const SP_COMPOSITE = wgslBlock(
   'SP_COMPOSITE',
-  [SP_COMPOSITE_RAY],
-  `const SP_MAX_HIT:f32=65504.0;
-@group(0) @binding(${C.gather}) var gatherOut:texture_storage_2d<${F.gather},write>;
+  [SP_COMPOSITE_RAY, HALF_MAX],
+  `@group(0) @binding(${C.gather}) var gatherOut:texture_storage_2d<${F.gather},write>;
 @group(0) @binding(${C.moving}) var<storage,read_write> probeMoving:array<f32>;
 @compute @workgroup_size(SP_TRACE,SP_TRACE)
 fn composite(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -110,7 +109,7 @@ fn composite(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index)
  let t=vec2u(lane%SP_TRACE,lane/SP_TRACE);
  if(lane<SP_TEXELS){
   for(var word=0u;word<${ACCUMULATED - 1}u;word++){atomicStore(&accumulated[lane*${ACCUMULATED}u+word],0u);}
-  atomicStore(&accumulated[lane*${ACCUMULATED}u+${ACCUMULATED - 1}u],bitcast<u32>(SP_MAX_HIT));
+  atomicStore(&accumulated[lane*${ACCUMULATED}u+${ACCUMULATED - 1}u],bitcast<u32>(HALF_MAX));
  }
  if(lane==0u){atomicStore(&movingWeight,0u);}
  workgroupBarrier();
@@ -118,7 +117,7 @@ fn composite(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index)
  if(valid){spCompositeRay(atlas,index,t);}
  workgroupBarrier();
  if(lane<SP_TEXELS){
-  var out=vec4f(0.0,0.0,0.0,SP_MAX_HIT);
+  var out=vec4f(0.0,0.0,0.0,HALF_MAX);
   if(valid){
    let base=lane*${ACCUMULATED}u;
    let unscale=sp.weights.w*(f32(SP_RAYS)/4294967295.0);

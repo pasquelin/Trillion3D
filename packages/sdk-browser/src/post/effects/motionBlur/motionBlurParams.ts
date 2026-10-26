@@ -30,6 +30,12 @@ export interface MotionBlurInput {
   timeScale: number
   /** Whether the samples may read the half-size image: the setting's where left out. */
   halfInput?: boolean
+  /** Whether the filter writes the half-size image beside the blurred one, which the scene's chain
+   *  reads: the last blur of the chain's, where its image lies in textures of its own size. */
+  half?: boolean
+  /** The size of the textures of the layers drawn after the motion blur, which the filter lays over
+   *  the image it writes: the last pass of the last blur of the chain, where there are some. */
+  layers?: readonly number[]
 }
 
 /**
@@ -54,7 +60,9 @@ export const spreadsByDrawing = (max: number, scatter: boolean, width: number) =
  * - the samples a pixel takes at most, whether a tile whose motion is longer than that many pixels
  *   is gathered at half the resolution, whether the samples may read the half-size image
  *   (`halfInput`: the setting's, but for the second pass of a separable blur, whose input has no
- *   half-size image), and whether the camera's motion is taken out.
+ *   half-size image), and whether the camera's motion is taken out;
+ * - whether the filter writes the half-size image beside the blurred one (`half`), and whether it
+ *   lays the layers drawn after the blur over it, where those lie (`layers`).
  */
 export function writeMotionBlurParams(
   into: Float32Array,
@@ -66,27 +74,36 @@ export function writeMotionBlurParams(
     grid,
     timeScale,
     halfInput = settings.motionBlurHalfResInput,
+    half = false,
+    layers,
   }: MotionBlurInput,
 ) {
   const [width, height] = image
   const quality = settings.motionBlurQuality
   const samples = quality === 'off' ? 0 : MOTION_BLUR_SAMPLES[quality]
   const scale = timeScale * effectiveAmount(blur, settings) * 0.5
-  into.set([width, height, 1 / width, 1 / height], AT.color)
-  into.set(
-    [
-      width * 0.5 * scale,
-      -height * 0.5 * scale,
-      width * 0.5 * (effectiveMax(blur, settings) / 100),
-      (1 / FLATTEN_TILE) * (grid[0] / width),
-    ],
-    AT.scale,
-  )
-  ints.set(
-    [flattenTiles(grid[0]), flattenTiles(grid[1]), filterTiles(width), filterTiles(height)],
-    AT.tiles,
-  )
-  const knobs = [settings.motionBlurHalfResGather, halfInput, !blur.cameraMotion]
-  into.set([samples, ...knobs.map(Number)], AT.knobs)
-  into.set([grid[0], grid[1]], AT.grid)
+  into[AT.color] = width
+  into[AT.color + 1] = height
+  into[AT.color + 2] = 1 / width
+  into[AT.color + 3] = 1 / height
+  into[AT.scale] = width * 0.5 * scale
+  into[AT.scale + 1] = -height * 0.5 * scale
+  into[AT.scale + 2] = width * 0.5 * (effectiveMax(blur, settings) / 100)
+  into[AT.scale + 3] = (1 / FLATTEN_TILE) * (grid[0] / width)
+  ints[AT.tiles] = flattenTiles(grid[0])
+  ints[AT.tiles + 1] = flattenTiles(grid[1])
+  ints[AT.tiles + 2] = filterTiles(width)
+  ints[AT.tiles + 3] = filterTiles(height)
+  into[AT.knobs] = samples
+  into[AT.knobs + 1] = Number(settings.motionBlurHalfResGather)
+  into[AT.knobs + 2] = Number(halfInput)
+  into[AT.knobs + 3] = Number(!blur.cameraMotion)
+  into[AT.grid] = grid[0]
+  into[AT.grid + 1] = grid[1]
+  into[AT.outputs] = half ? 1 : 0
+  into[AT.outputs + 1] = layers ? 1 : 0
+  into[AT.layers] = layers ? 1 / layers[0] : 0
+  into[AT.layers + 1] = layers ? 1 / layers[1] : 0
+  into[AT.layers + 2] = layers ? (grid[0] - 0.5) / layers[0] : 0
+  into[AT.layers + 3] = layers ? (grid[1] - 0.5) / layers[1] : 0
 }

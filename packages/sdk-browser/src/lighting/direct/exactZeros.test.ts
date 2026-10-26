@@ -12,17 +12,17 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
-import { MODEL_FLAG } from '../../materials/surface/surfaceModel.ts'
+import { MODEL_FLAG } from '../../materials/surface/surfaceModelWord.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
-import { directLightingWgsl } from './lightingWgsl.ts'
+import { directLightingWgsl } from './lightLoop.fixture.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Sum = (...args: unknown[]) => number[]
 const GUARDED =
-  /var transmitted=vec3f\(0\.0\);\n if\(thinSurface\(\)\)\{transmitted=(lambertDiffuse\(thinSubsurface,[^;]*\));\}/
-const EARLY = /\n if\(NdotL==0\.0&&coatNdotL==0\.0\)\{return vec3f\(0\.0\);\}/
+  /var transmitted=vec3f\(0\.0\);\n if\(thinSurface\(\)\)\{transmitted=(thinSubsurface\*[^;]*);\}/
+const EARLY = /\n if\(NdotL==0\.0\)\{return vec3f\(0\.0\);\}/
 /** Develop's text: the thin skip, the early zero, or both undone. */
 const UNDO = {
   thin: (text: string) => text.replace(GUARDED, 'let transmitted=$1;'),
@@ -52,7 +52,7 @@ test('the skipped thin transmission and back-facing lobes keep every sum, bit fo
           colorIntensity: [u(0, 1), u(0, 1), u(0, 1), u(0, 20)],
           directionCone: [0, -1, 0, rank % 3 ? -1 : 0.7],
           params: [rank % 3 ? 0 : K.KIND_SPOT, -1, 0, rank % 3 ? 0 : 0.9],
-          shape: [0, 0, 0, 0],
+          shape: [0, 0, 1, 1],
           capsule: [0, 0, 0, 0],
         }))
         const n = [u(-1, 1), u(-1, 1), u(-1, 1)],
@@ -67,12 +67,11 @@ test('the skipped thin transmission and back-facing lobes keep every sum, bit fo
           ...K,
           directLights: { count, items },
           tileLights: [],
+          pixelModel: 0,
+          sphereNoNewton: false,
+          clearCoatBottom: false,
           thinSubsurface: thin,
           surfaceModel: [2, MODEL_FLAG.diffuse, MODEL_FLAG.toon][Math.floor(round / 3) % 3],
-          shadowReceiverOffset: [0, 0, 0],
-          shadowReceiverPlane: [0, 0, 0],
-          vsmBiasNormal: (normal: number[]) => normal,
-          shadowTransmission: [1, 1, 1],
           shadowFactor: () => 1,
           airTintOf: () => [1, 1, 1],
           cloudShadowOnSurface: () => 1,

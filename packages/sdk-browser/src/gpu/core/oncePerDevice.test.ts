@@ -13,13 +13,7 @@ import {
 } from '../../../../math/src/sequence/noiseSpectrum.fixture.ts'
 import { blueNoiseFile } from '../noise/blueNoise.fixture.ts'
 import { BLUE_NOISE_BYTES, BLUE_NOISE_PIXELS } from '../noise/blueNoiseSource.ts'
-import {
-  BLUE_NOISE_FORMAT,
-  BLUE_NOISE_TEXTURE_BYTES,
-  blueNoiseNow,
-  blueNoiseTextures,
-  createBlueNoiseTextures,
-} from '../noise/blueNoiseTextures.ts'
+import { BLUE_NOISE_FORMAT, blueNoiseNow, blueNoiseTextures } from '../noise/blueNoiseTextures.ts'
 import { blueNoiseWgsl } from '../noise/blueNoiseWgsl.ts'
 
 test('a device keeps what was made, never a failed build', async () => {
@@ -70,14 +64,15 @@ test('the blue noise file holds the two masks: the scalar one each value as ofte
 
 test('the blue noise is one texture of 128 by 8192 texels, a mask frame after frame: the scalar mask in the red channel, the vector mask in the green and the blue', () => {
   const gpu = fakeDevice()
-  const made = createBlueNoiseTextures(gpu.device, blueNoiseFile)
+  // The file was read by the kit, as the host would: the device makes its textures at the first ask.
+  const made = blueNoiseNow(gpu.device)!
   assert.deepEqual(
     gpu.textures.map(({ format, width, height }) => [format, width, height]),
     [[BLUE_NOISE_FORMAT, 128, 8192]],
   )
   assert.equal(gpu.textureWrites.length, 1)
   const [{ layout, data }] = gpu.textureWrites
-  assert.deepEqual([layout.bytesPerRow, data.length], [512, BLUE_NOISE_TEXTURE_BYTES])
+  assert.deepEqual([layout.bytesPerRow, data.length], [512, BLUE_NOISE_PIXELS * 4])
   for (const pixel of [0, 1, 777, 128 * 128 * 64 - 1])
     assert.deepEqual(
       Array.from(data.slice(4 * pixel, 4 * pixel + 4)),

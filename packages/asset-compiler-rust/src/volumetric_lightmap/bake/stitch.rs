@@ -6,26 +6,8 @@
 //!    them;
 //! 3. the border where a fine brick meets a coarser one is replaced by the coarse brick's light,
 //!    filtered, in as many passes as there are levels to cross.
-use super::layout::{index, layout_position, Layout, PADDED};
-use super::store::{accumulate, scaled, Store, Texel};
-
-/// A texel of a padded brick, by the brick's rank and the texel's place in it (0..5 a side).
-fn texel_at(store: &Store, rank: usize, inside: [u32; 3]) -> usize {
-    let place = layout_position(rank as u32);
-    store.index(std::array::from_fn(|a| {
-        (place[a] * PADDED + inside[a]) as usize
-    }))
-}
-
-fn each_texel(mut visit: impl FnMut([u32; 3])) {
-    for z in 0..PADDED {
-        for y in 0..PADDED {
-            for x in 0..PADDED {
-                visit([x, y, z]);
-            }
-        }
-    }
-}
+use super::layout::{brick_origin, each_texel, index, texel_in, texel_index, Layout, PADDED};
+use super::store::{accumulate, scaled, Store, Texel, TEXEL_FLOATS};
 
 /// Step 1, for the bricks of one level.
 fn copy_padding(layout: &Layout, store: &mut Store, level: usize) {
@@ -37,6 +19,7 @@ fn copy_padding(layout: &Layout, store: &mut Store, level: usize) {
         .enumerate()
         .filter(|(_, b)| b.span == span)
     {
+        let origin = brick_origin(rank);
         each_texel(|inside| {
             let cell: [u32; 3] = std::array::from_fn(|a| brick.position[a] * 4 + inside[a]);
             let neighbour = cell.map(|c| c / 4);
@@ -47,8 +30,8 @@ fn copy_padding(layout: &Layout, store: &mut Store, level: usize) {
             if held == 0 {
                 return;
             }
-            let source = texel_at(store, held as usize - 1, cell.map(|c| c % 4));
-            let target = texel_at(store, rank, inside);
+            let source = texel_index(store, held as usize - 1, cell.map(|c| c % 4));
+            let target = texel_in(store, origin, inside);
             store.copy(source, target);
         });
     }
@@ -84,7 +67,7 @@ fn lookup(layout: &Layout, uvw: [f64; 3]) -> Option<Lookup> {
 fn dilate(layout: &Layout, store: &Store, (cell, span): ([i64; 3], u32)) -> Texel {
     let uvw: [f64; 3] = cell.map(|c| (c * i64::from(span)) as f64 / 4.0);
     let step = lookup(layout, uvw).map_or(span, |l| l.span);
-    let mut sum = [0.0f32; 28];
+    let mut sum = [0.0f32; TEXEL_FLOATS];
     let mut weight = 0.0f32;
     for k in 0..27 {
         let d = [k % 3, (k / 3) % 3, k / 9].map(|v| v as f64 - 1.0);
@@ -106,8 +89,9 @@ fn dilate(layout: &Layout, store: &Store, (cell, span): ([i64; 3], u32)) -> Texe
 /// Step 2.
 fn fill_invalid(layout: &Layout, store: &mut Store) {
     for (rank, brick) in layout.bricks.iter().enumerate() {
+        let origin = brick_origin(rank);
         each_texel(|inside| {
-            let target = texel_at(store, rank, inside);
+            let target = texel_in(store, origin, inside);
             if store.valid[target] == 0 {
                 let cell = std::array::from_fn(|a| {
                     i64::from(brick.position[a]) * 4 + i64::from(inside[a])
@@ -123,7 +107,7 @@ fn fill_invalid(layout: &Layout, store: &mut Store) {
 fn trilinear(store: &Store, uvw: [f64; 3]) -> Texel {
     let base = uvw.map(|v| v as usize);
     let part = std::array::from_fn::<f64, 3, _>(|a| uvw[a].fract());
-    let mut sum = [0.0f32; 28];
+    let mut sum = [0.0f32; TEXEL_FLOATS];
     for k in 0..8usize {
         let corner = [k & 1, (k >> 1) & 1, k >> 2];
         let weight: f64 = (0..3)
@@ -148,6 +132,7 @@ fn trilinear(store: &Store, uvw: [f64; 3]) -> Texel {
 fn stitch_border(layout: &Layout, store: &mut Store) {
     let dims = layout.indirection_dims;
     for (rank, brick) in layout.bricks.iter().enumerate() {
+        let start = brick_origin(rank);
         each_texel(|inside| {
             let cell: [f64; 3] = std::array::from_fn(|a| {
                 f64::from((brick.position[a] * 4 + inside[a]) * brick.span) / 4.0
@@ -173,7 +158,7 @@ fn stitch_border(layout: &Layout, store: &mut Store) {
                         + ((cell[a] - origin[a]) / span).clamp(0.0, 1.0) * 4.0
                 });
                 let light = trilinear(store, uvw);
-                let target = texel_at(store, rank, inside);
+                let target = texel_in(store, start, inside);
                 store.write(target, &light);
             }
         });

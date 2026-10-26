@@ -20,14 +20,89 @@ import type { TreeTable } from './treeTable.ts'
  *  node box, grown by its reach, carried by the world the GPU holds of it. `encode` writes into
  *  `members` the leaves of the `count` placements `ranks` names — every placement's when `whole` —
  *  and of every root a parent composes; nothing is written, and nothing fits, until it is `ready`:
- *  every world it reads on the GPU. */
+ *  every world it reads on the GPU. A leaf holds the ball of the group above its root only where
+ *  the cut's packing named some (`parented`, `leafStride`). */
 export type TreeLeaves = {
-  ready(): boolean
+  /** Whether it can write: the worlds on the GPU and the leaves kernel of that width compiled
+   *  (asked now where not). */
+  ready(parented: boolean): boolean
   encode(
     encoder: GPUCommandEncoder,
-    tables: { members: GPUBuffer; nodes: GPUTextureView; frames: GPUTextureView },
+    tables: {
+      members: GPUBuffer
+      nodes: GPUTextureView
+      frames: GPUTextureView
+      parented: boolean
+    },
     named: { ranks: Int32Array<ArrayBuffer>; count: number; whole: boolean },
   ): void
+}
+
+type Tree = NonNullable<PackedDag['placementTree']>
+
+/** What a sync fits: the tree and its refit, the writer of leaves, the tables the leaves read,
+ *  what moved since the tree was last read, each placement once, the groups a composition moved
+ *  (fitted once, before the next cut reads the tree; the first cut fits every group: the tree
+ *  packs open (`packPlacementTree`), the refit is the one fit there is), the placements whose leaf
+ *  is written, ascending — one scratch for every sync — and whether the first fit writes every
+ *  leaf. */
+type Fit = {
+  device: GPUDevice
+  tree: Tree
+  refit: ReturnType<typeof createTreeRefit>
+  leaves: TreeLeaves | undefined
+  nodes: GPUTextureView
+  frames: GPUTextureView
+  dirty: ReturnType<typeof createChangedRuns>
+  groups: Set<number>
+  written: Int32Array<ArrayBuffer>
+  whole: boolean
+}
+
+/** What moved fitted again, its leaves written first, in a command buffer of its own. */
+function fitMoved(f: Fit) {
+  const { tree, groups } = f
+  const placements = f.dirty.count ? f.dirty.take() : undefined
+  if (!placements?.length && !groups.size) return
+  const fit = new Set(groups)
+  groups.clear()
+  let count = 0
+  if (placements) f.written = resized(f.written, placements.length)
+  for (const w of placements ?? []) {
+    if (tree.slot[w] === NO_INDEX) continue
+    fit.add(Math.floor(tree.slot[w] / TREE_SPAN))
+    f.written[count++] = w
+  }
+  const encoder = f.device.createCommandEncoder({ label: 'Trillion3D placement tree refit' })
+  f.leaves!.encode(
+    encoder,
+    { members: f.refit.members, nodes: f.nodes, frames: f.frames, parented: f.refit.parented },
+    { ranks: f.written, count, whole: f.whole },
+  )
+  f.whole = false
+  f.refit.run(encoder, fit)
+  f.device.queue.submit([encoder.finish()])
+}
+
+/** Placement `w`'s group fits again at the next cut: parked or taken back, posed by a send,
+ *  appended, or composed on the GPU by a parent from now on or no longer. */
+function touchPlacement(f: Fit, w: number) {
+  if (w < f.tree.slot.length) f.dirty.mark(w)
+}
+
+/** Placement `w`, whose mark is now `mark`, moved from `before`. */
+function markPlacement(f: Fit, mark: number, w: number, before: number) {
+  const { tree } = f
+  if (!treeMarkMoved(before, mark)) return
+  touchPlacement(f, w)
+  if (w < tree.slot.length && tree.slot[w] !== NO_INDEX)
+    mirrorKey(tree.always, w, drawnAlways(mark))
+}
+
+/** The member group of placement `w`, none outside the tree. */
+function groupOfPlacement(tree: Tree, w: number) {
+  const slot = w < tree.slot.length ? tree.slot[w] : NO_INDEX
+  return slot === NO_INDEX ? -1 : Math.floor(slot / TREE_SPAN)
 }
 
 /** The follower of `packed`'s tree on `resources`; none without a tree. A member of the run
@@ -45,53 +120,39 @@ export function createTreeFollower(
 ) {
   const { device, packed, treeTable } = resources,
     tree = packed.placementTree,
-    frames = resources.frames.rows.view,
-    nodes = resources.cutTables.nodes.view
+    frames = resources.frames.rows.view
   if (!tree) return undefined
   const refit = createTreeRefit(device, packed, tree, { tree: treeTable.view, frames })
-  // What moved since the tree was last read, each placement once, and the groups a composition
-  // moved: fitted once, before the next cut reads the tree.
-  // The first cut fits every group: the tree packs open (`packPlacementTree`), the refit is the
-  // one fit there is.
-  const dirty = createChangedRuns(),
-    groups = new Set<number>(
-      tree.levels.at(-1)!.count
-        ? Array.from({ length: tree.levels.at(-1)!.count }, (_, g) => g)
-        : [],
-    )
-  // The placements whose leaf is written, ascending: one scratch for every sync. The first fit
-  // writes every leaf.
-  let written = new Int32Array(8),
-    whole = true
-  /** Placement `w`'s group fits again at the next cut: parked or taken back, posed by a send,
-   *  appended, or composed on the GPU by a parent from now on or no longer. */
-  const touch = (w: number) => {
-    if (w < tree.slot.length) dirty.mark(w)
+  const fitting: Fit = {
+    device,
+    tree,
+    refit,
+    leaves,
+    nodes: resources.cutTables.nodes.view,
+    frames,
+    dirty: createChangedRuns(),
+    groups: new Set<number>(Array.from({ length: tree.levels.at(-1)!.count }, (_, g) => g)),
+    written: new Int32Array(8),
+    whole: true,
   }
+  const touch = (w: number) => touchPlacement(fitting, w)
   return {
+    /** Whether the leaves hold the balls of the groups above instances' roots (`leafStride`). */
+    parented: refit.parented,
     touch,
     /** Placement `w`'s mark moved from `before`: its leaf fits again where its reach moved, and it
      *  joins or leaves the members drawn whatever the view (`drawnAlways`). */
-    marked(w: number, before: number) {
-      const mark = packed.mark[w]
-      if (!treeMarkMoved(before, mark)) return
-      touch(w)
-      if (w < tree.slot.length && tree.slot[w] !== NO_INDEX)
-        mirrorKey(tree.always, w, drawnAlways(mark))
-    },
+    marked: (w: number, before: number) => markPlacement(fitting, packed.mark[w], w, before),
     /** The poses a send moved (`updateWorlds`), a host walk's as a call's. */
     moved(ranks: ArrayLike<number>) {
       for (let k = 0; k < ranks.length; k++) touch(ranks[k])
     },
     /** The member group of placement `w`, none outside the tree: what a composition names the
      *  groups of the roots a parent moves by. */
-    groupOf(w: number) {
-      const slot = w < tree.slot.length ? tree.slot[w] : NO_INDEX
-      return slot === NO_INDEX ? -1 : Math.floor(slot / TREE_SPAN)
-    },
+    groupOf: (w: number) => groupOfPlacement(tree, w),
     /** The groups `named` fit again: those of the roots a parent composed, which moved with it. */
     groupsMoved(named: ArrayLike<number>) {
-      for (let k = 0; k < named.length; k++) groups.add(named[k])
+      for (let k = 0; k < named.length; k++) fitting.groups.add(named[k])
     },
     /** Before every cut on the tables, the main view's or one aside: what moved fitted again, its
      *  leaves written first, in a command buffer of its own that the cut's follows. Without a
@@ -100,27 +161,11 @@ export function createTreeFollower(
     sync() {
       // The members drawn whatever the view, their places moved since sent.
       treeTable.writeAlways()
-      if (!leaves?.ready()) return
-      const placements = dirty.count ? dirty.take() : undefined
-      if (!placements?.length && !groups.size) return
-      const fit = new Set(groups)
-      groups.clear()
-      let count = 0
-      if (placements) written = resized(written, placements.length)
-      for (const w of placements ?? []) {
-        if (tree.slot[w] === NO_INDEX) continue
-        fit.add(Math.floor(tree.slot[w] / TREE_SPAN))
-        written[count++] = w
+      // Both kernels asked, then both needed: a fit that takes what moved runs its two steps.
+      if (leaves) {
+        const written = leaves.ready(refit.parented)
+        if (refit.ready() && written) fitMoved(fitting)
       }
-      const encoder = device.createCommandEncoder({ label: 'Trillion3D placement tree refit' })
-      leaves.encode(
-        encoder,
-        { members: refit.members, nodes, frames },
-        { ranks: written, count, whole },
-      )
-      whole = false
-      refit.run(encoder, fit)
-      device.queue.submit([encoder.finish()])
     },
     dispose: refit.dispose,
   }

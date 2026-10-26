@@ -8,6 +8,7 @@
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import { cross, dot } from '../../../tests/gpu/math/f32Vec3.ts'
 import { DEPTH_NEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts'
+import { GRID_MAP } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 
 export type Vec3 = [number, number, number]
 export type TileView = {
@@ -19,12 +20,13 @@ export type TileView = {
   depthRows: ArrayLike<number>
 }
 export type Plane = { n: Vec3; w: number }
-/** The grid's cell side in pixels, its slices, and its slices per doubling of the view depth. */
-export type Grid = { cell: number; slices: number; perOctave: number }
+/** The grid's cell side in pixels, its slices, and its slice map: `near · B`, `O` and `S` of the
+ *  slice `log2(depth · B + O) · S`. */
+export type Grid = { cell: number; slices: number; map: Vec3 }
 export const GRID: Grid = {
   cell: LIGHT_SETTINGS.tileSize,
   slices: LIGHT_SETTINGS.gridSlices,
-  perOctave: LIGHT_SETTINGS.gridSlicesPerOctave,
+  map: GRID_MAP,
 }
 
 const map = (g: (a: number) => number): Vec3 => [g(0), g(1), g(2)]
@@ -47,14 +49,13 @@ function unproject(m: ArrayLike<number>, x: number, y: number, z: number): Vec3 
   return map((r) => Math.fround(row(r) / w))
 }
 
-/** `gridSlice`: the slice of a pixel of depth `z`, `perOctave` a doubling of its view depth. */
-export const gridSlice = (z: number, grid = GRID) =>
-  Math.trunc(
-    Math.min(
-      Math.max(Math.fround(-Math.fround(Math.log2(Math.max(z, 1e-30))) * grid.perOctave), 0),
-      grid.slices - 1,
-    ),
-  )
+/** `gridSlice`: the slice of a pixel of reverse-Z depth `z` by the grid's slice map. */
+export const gridSlice = (z: number, grid = GRID) => {
+  const [scale, offset, spread] = grid.map
+  const scaled = Math.fround(Math.fround(scale / Math.max(z, 1e-30)) + offset)
+  const slice = Math.fround(Math.fround(Math.log2(Math.max(scaled, 1))) * spread)
+  return Math.trunc(Math.min(Math.max(slice, 0), grid.slices - 1))
+}
 
 /** `cellCorner`: a column's corner — bit 0 the right edge, bit 1 the bottom — at depth `z`. */
 export function cellCorner(

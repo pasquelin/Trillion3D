@@ -5,14 +5,12 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
-import { minChannel } from '../../../../math/src/wgsl/sampling.ts'
 import { linearToSrgb as linearToSrgbTs } from '../../../../math/src/color/color.ts'
 
 type V = number[]
 const run = shaderRun<{
   linearToSrgb: (c: V) => V
-  minChannel: (c: V) => number
-}>(wgslModule(linearToSrgb, minChannel), ['linearToSrgb', 'minChannel'], {})
+}>(wgslModule(linearToSrgb), ['linearToSrgb'], {})
 
 /** The exponent the encode's text writes. */
 const EXPONENT = Number(/vec3f\(([\d.]+)\)\)-0\.055/.exec(linearToSrgb.text)?.[1])
@@ -32,9 +30,4 @@ test('the sRGB encode is the processor one, both branches, a negative linear', (
       c > 0.0031308 ? 1.055 * c ** (1 / 2.4) * Math.abs(Math.log(c) * (1 / 2.4 - EXPONENT)) : 0
     assert.ok(Math.abs(r - linearToSrgbTs(c)) <= exponentGap + 2e-9, `${c}: ${r}`)
   }
-})
-
-test('the least channel', () => {
-  assert.equal(run.minChannel([0.3, -2, 5]), -2)
-  assert.equal(run.minChannel([4, 3, 9]), 3)
 })

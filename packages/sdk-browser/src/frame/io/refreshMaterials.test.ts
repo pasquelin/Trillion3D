@@ -1,11 +1,10 @@
 // A surface the host rewrites in place (`setMaterial`) reaches its one record in the material table
-// at the values refresh, which its rows and items name: an opaque one's colour writes that record
-// alone, no row; a move between opaque and masked writes its rows again.
+// at the values refresh, which its clusters and items name: an opaque one's colour writes that
+// record alone, no cluster record; a move between opaque and masked writes its clusters' records
+// again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { webgpuPagesEngine } from '../backend/pages.ts'
-import { refreshWebgpuMaterials } from './refreshMaterials.ts'
 import {
   FLAG_MASK,
   MATERIAL_RANK_MASK,
@@ -19,11 +18,8 @@ import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.t
 import { BACKEND, writtenBytes } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { quadScene, camera } from '../backend/testScenes.fixture.ts'
-import { surfaceOf } from '../../geometry/pages/surface.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { surfaceWritten } from '../../geometry/pages/surfaceWrites.ts'
-import { ROW_NAMED, ROW_STALES } from '../../placement/rows/rowWordsWgsl.ts'
-import { targetsTaken } from '../../placement/rows/rowTargets.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
@@ -70,8 +66,8 @@ test('a blended surface rewritten in place reaches its record at the values refr
 })
 
 // A colour is a value of the record alone: the table writes the surface's one record (ten texels),
-// and the rows that name it, which hold none of its values, are not written again.
-test('an opaque colour rewritten in place writes its one record and no row', async () => {
+// and the decoded clusters that name it, which hold none of its values, are written by no host.
+test('an opaque colour rewritten in place writes its one record and no cluster', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
     { device, writes, textureWrites } = fakeDevice(BACKEND)
@@ -82,7 +78,8 @@ test('an opaque colour rewritten in place writes its one record and no row', asy
     maxResidentPages: 4,
     viewport: [32, 32],
   })
-  const rowWrites = () => writes.filter((w) => w.buffer.label === 'Trillion3D page table').length
+  const rowWrites = () =>
+    writes.filter((w) => w.buffer.label === 'Trillion3D decoded clusters').length
   try {
     await backend.prepare()
     backend.render(camera())
@@ -93,7 +90,7 @@ test('an opaque colour rewritten in place writes its one record and no row', asy
     surfaceWritten(fixture.material)
     backend.refreshMaterials?.(true)
     backend.render(camera())
-    assert.equal(rowWrites(), rows, 'no row written')
+    assert.equal(rowWrites(), rows, 'no cluster written')
     const sent = materialRecordsSent(textureWrites.slice(records))
     assert.equal(sent.length, 1, 'one write of the table')
     assert.deepEqual(sent[0].size, [MATERIAL_RECORD_WORDS / 4, 1, 1], 'of one record, one layer')
@@ -105,8 +102,8 @@ test('an opaque colour rewritten in place writes its one record and no row', asy
 })
 
 // A material moved between opaque and masked inside the session: the visibility passes
-// draw both, told apart by the row's cutout flag.
-test('an opaque surface turned masked cuts every row of its material', async () => {
+// draw both, told apart by the cluster's cutout flag.
+test('an opaque surface turned masked cuts every cluster of its material', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
     { device, buffers } = fakeDevice(BACKEND)
@@ -118,11 +115,11 @@ test('an opaque surface turned masked cuts every row of its material', async () 
     viewport: [32, 32],
   })
   const masked = () => {
-    const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
+    const table = buffers.findLast((buffer) => buffer.label === 'Trillion3D decoded clusters')!
     const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
     const rows = Array.from({ length: table.size / PAGE_INFO_STRIDE }, (_, row) => row * ROW_WORDS)
     const drawn = rows.filter((base) => ints[base + PAGE_INFO.at.indexCount] > 0)
-    assert.ok(drawn.length, 'the quad has rows')
+    assert.ok(drawn.length, 'the quad has clusters')
     return drawn.every((base) => (ints[base + PAGE_INFO.at.flags] & FLAG_MASK) !== 0)
   }
   try {
@@ -135,61 +132,10 @@ test('an opaque surface turned masked cuts every row of its material', async () 
     // The masked class is asked at the next frame entry, the image held until it compiled.
     backend.render(camera())
     await backend.flush()
-    assert.equal(masked(), true, 'every row of the material cuts at its cutoff')
+    assert.equal(masked(), true, 'every cluster of the material cuts at its cutoff')
   } finally {
     backend.dispose()
     fixture.geometry.dispose()
     fixture.material.dispose()
   }
-})
-
-// A cutoff moved in place under a casting light drew a few shadowed pixels off the image of a
-// session opened on it: its redrawn shadow pages land in other pool slots, and a shadow read
-// depended on the slot. Read texel-exact wherever a page lies, they draw that session's
-// image: the move is taken in place, the shadow over its rows drawn again — its row named to the
-// rows pass, which stales the box of the sphere it holds (`ROW_STALES`, `staleRow`). No box is
-// made on the CPU.
-test('an alpha move is taken in place under a casting light, the shadow over its rows drawn again', () => {
-  const { material } = quadScene()
-  const worlds: number[][] = []
-  const staled = ({ targets, count } = runtime.rowWords!) =>
-    [...targets.subarray(0, count)].filter((word) => word & ROW_STALES).map((w) => w & ROW_NAMED)
-  const cutout = {
-    material: surfaceOf(material),
-    min: [-1, -1, 0],
-    max: [1, 1, 0],
-  }
-  const runtime = {
-    lights: {
-      store: { count: 1 },
-      casts: {},
-      mobility: { moves: () => false },
-      changes: { worldChanged: (min: number[], max: number[]) => worlds.push([...min, ...max]) },
-    },
-    layout: {
-      rows: {
-        tableEpoch: 1,
-        rowCount: 1,
-        blendFirst: 1,
-        casterSlots: 1,
-        pageTableInts: new Uint32Array(ROW_WORDS),
-        packedRecs: [cutout],
-        packedPageIndex: new Int32Array([0]),
-      },
-      selectionRoots: [{ world: new Matrix4() }],
-      placement: {
-        baseOfRoot: Int32Array.from([0]),
-        packedCount: 1,
-      },
-    },
-    run: { gate: { movedInPlace() {} } },
-    vis: {},
-  } as unknown as Parameters<typeof refreshWebgpuMaterials>[0]
-  const alpha = { surfaces: [material], from: 'mask', to: 'mask' } as const
-  assert.equal(refreshWebgpuMaterials(runtime, true, alpha), true, 'no new session')
-  assert.deepEqual(staled(), [0], 'the shadow pages over the cutout drawn again')
-  assert.equal(worlds.length, 0, 'from the sphere the GPU holds: no box made on the CPU')
-  targetsTaken(runtime.rowWords!, {} as GPUCommandEncoder)
-  assert.equal(refreshWebgpuMaterials(runtime, true), true, 'values alone stay in place')
-  assert.deepEqual([staled(), worlds.length], [[], 0], 'and stale no shadow')
 })

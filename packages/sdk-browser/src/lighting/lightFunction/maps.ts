@@ -3,9 +3,9 @@ import type { Material } from '../../../../sdk-core/src/world/material/material.
 import { atlasLayoutEntries } from '../../gpu/bind/bindLayout.ts'
 import { MAP_BINDINGS, MAP_SAMPLER_BINDING } from './mapBindings.ts'
 import { lightFunctionTextures } from './graphSlot.ts'
+import { refusalText } from '../../materials/graph/kept.ts'
 import { length2 } from '../../../../math/src/vector/vector.ts'
 import { appendWebgpuTexture } from '../../frame/io/appendTexture.ts'
-import { surfaceOf } from '../../geometry/pages/surface.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 
 /** The layout entries of the colour atlas a mapped program reads, and its sampler. */
@@ -32,25 +32,35 @@ export interface LightFunctionMaps {
 /** The textures being taken into the atlas, per runtime, and those it refused. */
 const joining = new WeakMap<object, { pending: Set<Texture>; refused: WeakSet<Texture> }>()
 
-/** The map of `material`, taken into the colour atlas of the materials like a created material's
- *  (`appendWebgpuTexture`), within its texture budget: the append runs once, the slot is there
- *  from a later image. A refusal is named by the runtime's diagnostics and not tried again. */
-function join(rt: WebgpuPagesRuntime, material: Material, texture: Texture) {
+/** How a refusal of a texture to join the atlas is named (`engineDiagnostic`). */
+interface Refusal {
+  readonly code: string
+  readonly message: string
+}
+const LIGHT_FUNCTION_REFUSAL: Refusal = {
+  code: 'light-function-texture-refused',
+  message: 'A light function map was refused',
+}
+
+/** A texture of a light function or of a graph, taken into the colour atlas of the
+ *  materials like a created material's (`appendWebgpuTexture`), within its texture budget: the append
+ *  runs once, the slot is there from a later image. A refusal is named by the runtime's diagnostics
+ *  (`refusal`) and not tried again. */
+export function joinTexture(
+  rt: WebgpuPagesRuntime,
+  texture: Texture,
+  refusal = LIGHT_FUNCTION_REFUSAL,
+) {
   let state = joining.get(rt)
   if (!state) joining.set(rt, (state = { pending: new Set(), refused: new WeakSet() }))
   if (state.pending.has(texture) || state.refused.has(texture)) return
   state.pending.add(texture)
-  rt.setup.texturePools?.coverage.read(surfaceOf(material as never))
   appendWebgpuTexture(rt, texture, 'color')
     .catch((error: unknown) => {
       state.refused.add(texture)
-      rt.diag.engineDiagnostic(
-        'light-function-texture-refused',
-        'A light function map was refused',
-        {
-          reason: error instanceof Error ? error.message : String(error),
-        },
-      )
+      rt.diag.engineDiagnostic(refusal.code, refusal.message, {
+        reason: refusalText(error),
+      })
     })
     .finally(() => state.pending.delete(texture))
 }
@@ -66,12 +76,12 @@ const pixelsShown = (texture: Texture, slot: number) => {
  * its slot shows: each joined the colour atlas and its tiles of that level are resident (`warm`,
  * which asks the missing ones beside the feedback). True for a material with none.
  */
-export function mapWarm(rt: WebgpuPagesRuntime, material: Material, slot: number) {
+function mapWarm(rt: WebgpuPagesRuntime, material: Material, slot: number) {
   let warm = true
   for (const texture of lightFunctionTextures(material)) {
     const place = rt.vis.mapLayer.get(texture)
     if (place === undefined) {
-      join(rt, material, texture)
+      joinTexture(rt, texture)
       warm = false
     } else {
       const ready = rt.vis.textures?.warm('color', place, pixelsShown(texture, slot), rt.run.frame)

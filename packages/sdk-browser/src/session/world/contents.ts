@@ -27,30 +27,8 @@ type Resolved = { cut: Cut; entry: MaterialEntry } | null
  * take is said by name (`noticeRefused`): the scene never asks for an opening.
  */
 export function createWorldContents(scene: Object3D, notices: WorldNotices) {
-  const cuts = createWorldCuts(notices),
-    materials = createWorldMaterials(),
-    poses = createWorldPoses()
-  const ranks = createWorldRanks()
-  const refused = (what: string, reason: string) => noticeRefused(notices, what, reason)
-  const worldModels = createWorldModels(ranks)
-  const state: ContentsState = {
-    ...{ scene, notices, cuts, materials, poses, ranks },
-    models: worldModels,
-    batches: createWorldBatches(
-      poses.touch,
-      (entry, cut, twoSided) => materials.surfaceOf(entry, cut.drawn, twoSided),
-      ranks,
-      refused,
-    ),
-    members: createWorldMembers(scene),
-    joins: createModelJoins({ scene, models: worldModels, poses, refused }),
-    resolved: new Map(),
-    stale: new Set(),
-    unseated: new Set(),
-    held: new Set(),
-    seatEpoch: 0,
-  }
-  const { batches, members, stale } = state
+  const state = newContentsState(scene, notices)
+  const { cuts, materials, poses, batches, members, stale } = state
   return {
     cuts,
     /** The row each seated mesh holds. */
@@ -113,6 +91,34 @@ type ContentsState = {
   held: Set<Cut>
   /** Moves whenever a seat may have changed (`SceneLink.seatEpoch`). */
   seatEpoch: number
+}
+
+/** The state of a world's contents: the cuts, materials, poses and ranks, and the batches, members
+ *  and joins built over them. */
+function newContentsState(scene: Object3D, notices: WorldNotices): ContentsState {
+  const cuts = createWorldCuts(notices),
+    materials = createWorldMaterials(),
+    poses = createWorldPoses()
+  const ranks = createWorldRanks()
+  const refused = (what: string, reason: string) => noticeRefused(notices, what, reason)
+  const worldModels = createWorldModels(ranks)
+  return {
+    ...{ scene, notices, cuts, materials, poses, ranks },
+    models: worldModels,
+    batches: createWorldBatches(
+      poses.touch,
+      (entry, cut, twoSided) => materials.surfaceOf(entry, cut.drawn, twoSided),
+      ranks,
+      refused,
+    ),
+    members: createWorldMembers(scene),
+    joins: createModelJoins({ scene, models: worldModels, poses, refused }),
+    resolved: new Map(),
+    stale: new Set(),
+    unseated: new Set(),
+    held: new Set(),
+    seatEpoch: 0,
+  }
 }
 
 function forget(state: ContentsState, mesh: Mesh) {

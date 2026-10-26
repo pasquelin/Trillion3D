@@ -1,7 +1,10 @@
+import { LIGHT_FUNCTION_ATLAS_PASS } from '../../diagnostic/stage/passLabels.ts'
+import { retire } from '../../gpu/core/frameRetire.ts'
 import { alignUp } from '../../../../math/src/scalar/integers.ts'
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import type { AtlasFormat } from './renderWgsl.ts'
 import type { LightFunctionMaps } from './maps.ts'
+import type { GraphClocks } from '../../materials/graph/clocks.ts'
 import { lightFunctionTextures, usableGraphSlot, writeGraphSlot } from './graphSlot.ts'
 import {
   createSlotPrograms,
@@ -36,7 +39,8 @@ interface Atlas {
   readonly programs: SlotPrograms
   readonly drawn: Map<number, Drawn>
   readonly align: number
-  readonly start: number
+  /** The clocks the graphs of its slots read: the image's (`WebgpuRun.graphClocks`). */
+  readonly clocks: GraphClocks
   given?: GPUBuffer
   givenSlots: number
   stride: number
@@ -48,7 +52,7 @@ interface Atlas {
 function fitGiven(atlas: Atlas, count: number, bytes: number) {
   const needed = alignUp(Math.max(bytes, GIVEN_BYTES), atlas.align)
   if (atlas.given && count <= atlas.givenSlots && needed <= atlas.stride) return
-  atlas.given?.destroy()
+  if (atlas.given) retire(atlas.device, atlas.given)
   atlas.givenSlots = count
   atlas.stride = Math.max(atlas.stride, needed)
   atlas.given = atlas.device.createBuffer({
@@ -106,15 +110,14 @@ function drawSlot(
   const { material, x, y } = plan.slots[index]
   const graph = usableGraphSlot(material)
   const group = groupOf(graph?.bytes ?? GIVEN_BYTES, places.length > 0)
-  const program = programOf(atlas.programs, material, at, format)
-  if (!group || !program.ready) {
+  const pipeline = programOf(atlas.programs, material, at, format).get()
+  if (!group || !pipeline) {
     atlas.waiting = true
     return
   }
   const data = new ArrayBuffer(atlas.stride)
   if (graph) {
-    const seconds = (performance.now() - atlas.start) / 1000
-    if (!writeGraphSlot(graph, material, data, seconds, maps.slotOf)) {
+    if (!writeGraphSlot(graph, material, data, atlas.clocks, maps.slotOf)) {
       atlas.waiting = true
       return
     }
@@ -129,7 +132,7 @@ function drawSlot(
     0,
     graph?.bytes ?? GIVEN_BYTES,
   )
-  pass.setPipeline(program.get())
+  pass.setPipeline(pipeline)
   pass.setBindGroup(0, group, [index * atlas.stride])
   const [px, py] = [x * at.slot, y * at.slot]
   pass.setViewport(px, py, at.slot, at.slot, 0, 1)
@@ -180,6 +183,7 @@ function encodeAtlas(
   fitGiven(atlas, plan.slots.length, widest)
   const groupOf = groupsOf(atlas, maps)
   const pass = encoder.beginRenderPass({
+    label: LIGHT_FUNCTION_ATLAS_PASS,
     colorAttachments: [{ view, loadOp: 'load', storeOp: 'store' }],
   })
   for (const slot of due) drawSlot(atlas, pass, plan, at, format, maps, slot, groupOf)
@@ -191,9 +195,10 @@ function encodeAtlas(
  * THE LIGHT FUNCTION ATLAS: one texture of slots in a square, one slot a material, drawn by the
  * material's own program — its graph's emission, else its colour and map — when it is new, has been
  * written, has a texture not yet read at the detail its slot shows, or reads the time; below the
- * slots, the table of entries, written when the plan changes (`layout.ts`). The frame reads `view`.
+ * slots, the table of entries, written when the plan changes (`layout.ts`). The frame reads `view`;
+ * the graphs of the slots read the image's `clocks`.
  */
-export function createLightFunctionAtlas(device: GPUDevice) {
+export function createLightFunctionAtlas(device: GPUDevice, clocks: GraphClocks) {
   const align = device.limits.minUniformBufferOffsetAlignment
   const atlas: Atlas = {
     device,
@@ -201,7 +206,7 @@ export function createLightFunctionAtlas(device: GPUDevice) {
     programs: createSlotPrograms(device),
     drawn: new Map(),
     align,
-    start: performance.now(),
+    clocks,
     givenSlots: 0,
     stride: Math.max(GIVEN_BYTES, align),
     changes: 0,

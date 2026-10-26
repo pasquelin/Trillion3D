@@ -52,6 +52,83 @@ fn manifest_of(
     }
 }
 
+/// The glTF extensions a source may require: every one a reader of the compiler implements.
+const IMPLEMENTED_EXTENSIONS: &[&str] = &[
+    "KHR_lights_punctual",
+    "KHR_materials_anisotropy",
+    "KHR_materials_clearcoat",
+    "KHR_materials_dispersion",
+    "KHR_materials_emissive_strength",
+    "KHR_materials_ior",
+    "KHR_materials_iridescence",
+    "KHR_materials_sheen",
+    "KHR_materials_specular",
+    "KHR_materials_transmission",
+    "KHR_materials_unlit",
+    "KHR_materials_volume",
+    "KHR_mesh_quantization",
+    "KHR_draco_mesh_compression",
+    "KHR_implicit_shapes",
+    "KHR_node_visibility",
+    "KHR_physics_rigid_bodies",
+    "KHR_texture_transform",
+    "EXT_materials_bump",
+    "EXT_mesh_gpu_instancing",
+    "EXT_meshopt_compression",
+    "EXT_texture_avif",
+    "EXT_texture_webp",
+];
+
+/// The names `g` lists under `key` that no reader implements.
+fn unimplemented_extensions<'a>(g: &'a Value, key: &str) -> Vec<&'a str> {
+    let listed = g.get(key).and_then(Value::as_array);
+    (listed.into_iter().flatten())
+        .filter_map(Value::as_str)
+        .filter(|name| !IMPLEMENTED_EXTENSIONS.contains(name))
+        .collect()
+}
+
+/// The reason an extension used and not implemented is counted under in the import report.
+const EXTENSION_NOT_IMPLEMENTED: &str = "extension-not-implemented";
+
+/// A version number as glTF writes it, a string or a number.
+fn version_of(value: Option<&Value>) -> Option<f64> {
+    match value? {
+        Value::String(text) => text.parse().ok(),
+        other => other.as_f64(),
+    }
+}
+
+/// Refuses a document of glTF version above 2.x or one that requires an extension no reader
+/// implements; returns how many extensions it uses that none implements, which it may do without.
+fn check_requirements(g: &Value) -> Result<usize> {
+    let asset = g.get("asset");
+    if let Some(min) = version_of(asset.and_then(|a| a.get("minVersion"))) {
+        if min > 2.0 {
+            return Err(CompilerError::new(
+                "UNSUPPORTED_VERSION",
+                "This importer supports glTF version 2.0 (or compatible) assets",
+            ));
+        }
+    } else if version_of(asset.and_then(|a| a.get("version"))).is_some_and(|v| v < 2.0) {
+        return Err(CompilerError::new(
+            "UNSUPPORTED_VERSION",
+            "This importer supports glTF asset version 2.0 or later",
+        ));
+    }
+    let required = unimplemented_extensions(g, "extensionsRequired");
+    if !required.is_empty() {
+        return Err(CompilerError::new(
+            "UNSUPPORTED_EXTENSION",
+            format!(
+                "Not all required extensions are supported. (Unsupported extensions: {})",
+                required.join(", ")
+            ),
+        ));
+    }
+    Ok(unimplemented_extensions(g, "extensionsUsed").len())
+}
+
 pub(crate) fn load_model_file(
     dir: &Path,
     name: &str,
@@ -77,6 +154,7 @@ pub(crate) fn load_model_file(
         sidecars,
         json_bytes: g_bytes_len,
     } = read_document(dir, file_bytes, declared.as_ref())?;
+    let skipped_extensions = check_requirements(&g)?;
     let binary = crate::compiler::source::load::compressed::meshopt_views(
         &mut g,
         binary,
@@ -86,6 +164,8 @@ pub(crate) fn load_model_file(
     flatten_buffer_views(&mut g, &offsets, binary.bytes().len())?;
     let binary =
         crate::compiler::source::load::compressed::draco_primitives(&mut g, binary, budget)?;
+    let (binary, left_out) =
+        crate::compiler::source::primitive_modes::triangulate_primitives(&mut g, binary, budget)?;
     expand_gpu_instances(&mut g, binary.bytes())?;
     let (binary, bent) =
         crate::compiler::source::spline::bend_spline_meshes(&mut g, binary, budget)?;
@@ -96,7 +176,18 @@ pub(crate) fn load_model_file(
         (Binary::Mapped(_), [(_, digest)]) => digest.clone(),
         _ => hash(binary.bytes()),
     };
-    let manifest = manifest_of(declared, &g, (name, &source_hash, &sidecars))?;
+    let mut manifest = manifest_of(declared, &g, (name, &source_hash, &sidecars))?;
+    for (reason, count) in [
+        (
+            crate::compiler::source::primitive_modes::NOT_IMPORTED,
+            left_out,
+        ),
+        (EXTENSION_NOT_IMPLEMENTED, skipped_extensions),
+    ] {
+        if count > 0 {
+            crate::compiler::source::assembly::tell(&mut manifest, reason, count);
+        }
+    }
     Ok(RuntimeSource {
         manifest,
         g,

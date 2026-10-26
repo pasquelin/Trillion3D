@@ -96,6 +96,13 @@ fn perspective_slope_is_the_tangent_of_the_half_field() {
 }
 
 #[test]
+fn perspective_slope_reads_a_field_under_a_thousandth_of_a_degree_as_that() {
+    for fov in [0.0, -30.0, 1e-9, f64::NAN] {
+        assert_eq!(perspective_slope(fov), perspective_slope(0.001));
+    }
+}
+
+#[test]
 fn hermite_follows_values_and_tangents() {
     let basis = hermite_basis(0.5);
     assert_eq!(hermite(basis, 2.0, [1.0, 0.0, 3.0, 0.0]), 2.0);

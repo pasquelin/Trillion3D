@@ -1,12 +1,11 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/page/contracts.ts'
-import type { HostAttributes } from '../../session/host/resources.ts'
 import type { DrawSource } from './drawSource.ts'
 import type { PageSurface } from '../pages/surface.ts'
-import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import type { DrawDistanceSettings } from '../../../../sdk-core/src/contracts/objectOptions.ts'
 import type { MatrixElements } from '../../session/host/matrixElements.ts'
 import type { CullingLinks } from '../cut/links.ts'
 import type { PlacementOf } from '../../placement/rows/rows.ts'
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 
 /** The box a dynamic page's vertices are in this frame (#573), local: its least then greatest
  *  corner (`../../session/world/pageMotion.ts`). */
@@ -20,7 +19,7 @@ export type MovedBox = { readonly min: number[]; readonly max: number[] }
 export type DeformationOutput = {
   from: number
   count: number
-  pool?: { attributes: HostAttributes; world?: MatrixElements }
+  pool?: { attributes: Geometry['attributes']; world?: MatrixElements }
   shared?: true
 }
 
@@ -71,7 +70,7 @@ export type PageRec = {
   /** Coplanar depth layer, 0 for every cluster the compiler left alone. Always present, never
    *  undefined, so a page record keeps one shape through the selection loop. */
   depthLayer: number
-  attributes: HostAttributes
+  attributes: Geometry['attributes']
   /** The engine's own record of the surface this cluster wears (`../pages/surface.ts`). Every reader
    *  on the way to the image takes it from here and nothing else. */
   material: PageSurface
@@ -117,12 +116,12 @@ export type ClusterStructureIndex = {
  * its flat culling hierarchy and its group links. There is no tree — every cluster carries its own
  * screen-error band, and the hierarchy is only a traversal accelerator.
  */
-/** The primitive a root's mesh is drawn from, which holds its proxy once it has one (a cut's at its making,
- *  a compiled mesh's when the cache object arrives), and the surface its placement wears (`ClusterRoot.proxy`). */
-export type RootProxy = { primitive: { runtimeProxy?: RuntimeCutProxy }; surface: PageSurface }
-/** The distances a root is drawn at, from the eye to the centre of its bounds, in the scene's
- *  units: not drawn nearer than `min`, nor farther than `max`, which is above 0 — a root that names
- *  no farthest distance carries none. */
+/** The surface a root's placement wears (`ClusterRoot.worn`), which the surface cache's cards are captured with. */
+export type RootWorn = { surface: PageSurface }
+/** The distances a root is drawn at, from the eye, in the scene's units: not drawn when the sphere
+ *  of its bounds is wholly nearer than `min` or wholly farther than `max` — or, for a `perInstance`
+ *  root, its bounds' centre —, a `max` of 0 naming none of its end. A root that names no distance
+ *  carries none: `max` above 0, or `min` above 0 for a root that is no instance. */
 export type DrawDistance = Readonly<Required<DrawDistanceSettings>>
 /** The group that replaces the root of a placement that is an instance of an assembly — the levels
  *  above the instances' roots (`../dag/shader/rootParentWgsl.ts`) —: its error and the ball it is
@@ -200,13 +199,14 @@ export type ClusterRoot<T> = {
   /** How far its primitive's deformation can move a vertex from rest (`Primitive.deformation`),
    *  absent on one that does not deform (#357). */
   deformation?: { joints: number[]; targets: number[]; softVertices?: number }
-  /** How far its deformation moves a vertex this frame, in its units: every cut grows its bounds
-   *  by it (`../../deformation/frame.ts`); absent or zero at rest. */
+  /** How far its deformation moves a vertex this frame, in its units (`../../deformation/frame.ts`),
+   *  and how far its surfaces' offsets may (`../../frame/render/offsetReach.ts`): absent or zero at
+   *  rest. Their sum is `reach`, which every cut grows its bounds by (`holdReach`). */
+  deformReach?: number
+  offsetReach?: number
   reach?: number
-  /** What a ray can meet of it beyond the visible cut: the proxy of its primitive's mesh — built where the
-   *  world cut it (`geometry/runtime/runtimeProxy.ts`), or read from the cache (`proxy.bin`) —, and the surface it
-   *  wears (`../../lighting/bounce/runtime/runtimeLayout.ts`). */
-  proxy?: RootProxy
+  /** The surface its placement wears. */
+  worn?: RootWorn
   /** Winding of `world` and the world version (`worldAt`) it was taken at
    *  (`frame/render/winding.ts`). */
   windingCw?: boolean

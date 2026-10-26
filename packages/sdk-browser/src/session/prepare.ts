@@ -17,7 +17,7 @@ import { createFrameBudget } from '../geometry/integration/frameBudget.ts'
 import { sessionFamilies } from './familyUse.ts'
 import { loadEngine, webgpuEngine } from './engine/factory.ts'
 import type { ExplorerSession } from './session.ts'
-import type { HostCamera } from '../camera/world.ts'
+import type { ViewCamera } from '../camera/world.ts'
 
 /** What a session owns as it opens, released by whoever ends it: by its failure path before the
  *  runtime exists (`explorer.ts`), by the runtime's disposal after. */
@@ -44,7 +44,7 @@ export type ExplorerSource = {
   scene: Omit<ExplorerScene, 'associations'>
   /** Puts the session's camera where the page draws from, before anything is read for it: a
    *  partitioned scene reads and sizes its cells for that camera, not the framing one. */
-  placeCamera?: (camera: HostCamera) => void
+  placeCamera?: (camera: ViewCamera) => void
   /** Moves a node of the page's own scene by name, when the session draws a world built in code
    *  (`world/runtime.ts`): its engines hold that scene as rows, not as named nodes. */
   moveNamed?: (nodeName: string, matrix: Float32Array) => void
@@ -63,12 +63,15 @@ export type Inputs = {
 /** What `prepareExplorer` resolves to: a session's prepared engine and streams. */
 export type PreparedExplorer = Awaited<ReturnType<typeof prepareExplorer>>
 
+/** The scene the opening loaded (`sessionScene`). */
+type LoadedScene = Awaited<ReturnType<typeof sessionScene>>
+
 /** The camera the first view is framed with, placed, and the first view primed through it. Framing
  *  replays the buffer reserved at load, then returns it: it is its last reader. */
 async function frameFirstView(
   session: ExplorerSession,
   inputs: Inputs,
-  loadedScene: Awaited<ReturnType<typeof sessionScene>>,
+  loadedScene: LoadedScene,
   pageSources: ExplorerPageSources,
 ) {
   const { canvas, options } = session
@@ -84,9 +87,64 @@ async function frameFirstView(
   return cameraState
 }
 
+/** What the opening hands the session: the scene it loaded, the engine built over it, the
+ *  capabilities of the machine and the camera the first view was framed by. */
+function preparedExplorer(
+  loadedScene: LoadedScene,
+  pageSources: Parameters<typeof prepareExplorerEngine>[1]['pageSources'],
+  capabilities: Awaited<ReturnType<typeof probeExplorerCapabilities>>['capabilities'],
+  built: Pick<
+    Awaited<ReturnType<typeof prepareExplorerEngine>>,
+    'viewport' | 'context' | 'engine' | 'hostBytes'
+  >,
+  frameBudget: ReturnType<typeof createFrameBudget>,
+  cameraState: Awaited<ReturnType<typeof frameFirstView>>,
+) {
+  const { viewport, context, engine, hostBytes } = built
+  return {
+    source: loadedScene.source,
+    partitions: loadedScene.partitions,
+    pageSources,
+    capabilities,
+    viewport,
+    context,
+    /** The world roots the engine's host tables count (`hostBytes`): a model joining adds its own. */
+    worldRoots: loadedScene.worldRoots,
+    frameBudget,
+    engine,
+    /** The CPU bytes the engine's host tables and the world roots hold now, which each frame
+     *  reserves off the page cache (`streamer.reserve`). */
+    hostBytes,
+    ...cameraState,
+  }
+}
+
+/** The pages' sources, opened on the queue the opening owns; `retries` reads the streaming tries. */
+function openPageSources(
+  session: ExplorerSession,
+  inputs: Inputs,
+  live: AbortSignal,
+  retries: () => number,
+) {
+  const { options, metadata, diagnosticChannel } = session
+  const { base, resources, progress } = inputs
+  return openExplorerPageSources(
+    metadata,
+    options,
+    base,
+    live,
+    () => resources.engine,
+    diagnosticChannel,
+    progress,
+    (detail, failedPages, givenUp) =>
+      streamFailed(session, resources.engine, { failedPages, givenUp }, detail),
+    retries,
+  )
+}
+
 export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) {
-  const { options, metadata, signal, diagnosticChannel } = session
-  const { manifestUrl, metadataUrl, base, resources, progress } = inputs
+  const { options, signal, diagnosticChannel } = session
+  const { manifestUrl, metadataUrl, base, resources } = inputs
   // The optional families the first frame draws with load beside the scene (#1353).
   const families = sessionFamilies(options, diagnosticChannel.enabled)
   // The machine is read before the scene: a browser that grants no WebGPU device is refused by
@@ -105,16 +163,8 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   // The streaming settings the queue reads its tries again from: the session's options till its
   // engine is built, then the engine's context, which `explorer.setStreaming` writes.
   let streaming: StreamingOptions = options
-  const opening = openExplorerPageSources(
-    metadata,
-    options,
-    base,
-    live,
-    () => resources.engine,
-    diagnosticChannel,
-    progress,
-    (detail, failedPages) => streamFailed(session, resources.engine, failedPages, detail),
-    () => readSetting(STREAMING_RULES, streaming, 'streamingNumRetries'),
+  const opening = openPageSources(session, inputs, live, () =>
+    readSetting(STREAMING_RULES, streaming, 'streamingNumRetries'),
   )
   resources.streamer = opening.streamer
   const [pageSources, loadedScene] = await Promise.all([
@@ -140,20 +190,12 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   resources.engine = engine
   streaming = context
   await families
-  return {
-    source,
-    partitions: loadedScene.partitions,
+  return preparedExplorer(
+    loadedScene,
     pageSources,
     capabilities,
-    viewport,
-    context,
-    /** The world roots the engine's host tables count (`hostBytes`): a model joining adds its own. */
-    worldRoots: loadedScene.worldRoots,
+    { viewport, context, engine, hostBytes },
     frameBudget,
-    engine,
-    /** The CPU bytes the engine's host tables and the world roots hold now, which each frame
-     *  reserves off the page cache (`streamer.reserve`). */
-    hostBytes,
-    ...cameraState,
-  }
+    cameraState,
+  )
 }

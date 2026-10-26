@@ -5,7 +5,12 @@ import {
   type PassFiling,
   type WebgpuStage,
 } from './passDeclaration.ts'
-import { ENGINE_PASSES, VSM_PASSES } from './passLabels.ts'
+import {
+  ENGINE_PASSES,
+  MATERIAL_DETAIL_FAMILIES,
+  OTHER_PASS_FAMILIES,
+  VSM_PASSES,
+} from './passLabels.ts'
 import { MIPS_PASSES } from '../../materials/texture/mipsPass.ts'
 import { DEFORMATION_PASSES } from '../../deformation/pass.ts'
 
@@ -32,7 +37,12 @@ const rowOf = ({ stage, block }: PassFiling): PassRow =>
   Object.freeze({ stage, at: WEBGPU_STAGES.indexOf(stage), block })
 
 const ROWS = new Map(DECLARED_PASSES.map((pass) => [pass.label, rowOf(pass)]))
-const FAMILIES = [VSM_PASSES].map((family) => ({ prefix: family.prefix, row: rowOf(family) }))
+const FAMILIES = [VSM_PASSES, ...MATERIAL_DETAIL_FAMILIES, ...OTHER_PASS_FAMILIES].map(
+  (family) => ({
+    prefix: family.prefix,
+    row: rowOf(family),
+  }),
+)
 /** The row each undeclared label read so far took by prefix, `null` for none: a frame's chunked
  *  labels come back every frame. Emptied past `FOUND_LABELS`, so no run of labels grows it. */
 const found = new Map<string, PassRow | null>()

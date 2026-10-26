@@ -42,6 +42,21 @@ test('buffers and every texture mip are admitted before device creation against 
   assert.equal(gpu.destroyed.includes(previous), false)
 })
 
+test('a limit that answers none admits every allocation, and the room is unbounded', () => {
+  const gpu = fakeDevice()
+  const ceiling: { bytes?: number } = {}
+  const ledger = installGpuDeviceLedger(gpu.device, { limit: () => ceiling.bytes })
+  gpu.device.createBuffer({ size: 2 ** 20, usage: GPUBufferUsage.STORAGE })
+  assert.equal(ledger.room, Infinity)
+  assert.equal(ledger.refusal, undefined)
+  ceiling.bytes = 2 ** 20
+  assert.equal(ledger.room, 0)
+  assert.throws(
+    () => gpu.device.createBuffer({ size: 1, usage: GPUBufferUsage.STORAGE }),
+    /GPU_BUDGET_EXCEEDED/,
+  )
+})
+
 test('shared caches and two view targets count once; another session has its own share', async () => {
   const gpu = fakeDevice()
   const base = installGpuDeviceLedger(gpu.device, { counts: namesNoSession })

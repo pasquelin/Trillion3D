@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { f0Of } from '../../../../math/src/wgsl/lighting.ts'
+import { SURFACE_F0_WGSL, specularOfFlags } from '../../materials/surface/surfaceSpecular.ts'
 import { surfaceReflects } from '../../materials/surface/surfaceModel.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { REFLECTION_SIDE } from './constants.ts'
@@ -12,25 +12,28 @@ import { REFLECTION_TEMPORAL_WGSL } from './temporalWgsl.ts'
 import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
 import {
   REFLECTION_PROBES_LEFT_WGSL,
-  reflectionFieldLobesWgsl,
+  reflectionEnvironmentLobesWgsl,
   reflectionWeighWgsl,
 } from './weight.ts'
 
 /** What the pixel `own` at `coord` of the surface `layer` reflects (`Reflected`, its value `seen`):
  *  over a resolve tile, the lobe it traces from its history where it holds one (`bilateralSeen`); over
- *  a clear tile, the field alone (`bilateralField`). */
+ *  a clear tile, the environment alone (`bilateralField`). */
 const SEEN = {
   resolve: (layer: number) => `let seen=bilateralSeen(coord,own,${layer}u);`,
   clear: (layer: number) => `let seen=bilateralField(own,${layer}u);`,
 } as const
 
 /** What a surface writes of what it reflects: the opaque one weighed on its own reflectance into the
- *  reflection target the resolve reads — flagged where it left its base lobe's probes to the resolve
- *  (`REFLECTION_PROBES_LEFT`) —, the front one where the forward fragments read it. */
+ *  reflection target the resolve reads, its base lobe's share in layer 0 and its coat's in layer 1 (the specular occlusion reaches the first alone) — flagged where it left its base lobe's rough light to the screen probes
+ *  (`REFLECTION_PROBES_LEFT`), else the share a ray answers of the lobe it traces (`reflectionTraceShare`), the rest being theirs
+ *  (`reflectionLeftShare`) —, the front one where the forward fragments read it. */
 const WRITE = [
   `let base=textureLoad(traceBase,coord,0);
-  let share=reflectionShare(seen,f0Of(base.rgb,base.a),own.rough,own.N,own.V);
-  textureStore(reflectionOut,coord,vec4f(share,select(1.0,REFLECTION_PROBES_LEFT,bilateralProbesLeft)));`,
+  setLobeBase(base.rgb,base.a,own.rough);
+  let share=reflectionBaseShare(seen,indirectF0(base.rgb,base.a),own.rough,own.N,own.V);
+  textureStore(reflectionOut,coord,0,vec4f(share,select(reflectionTraceShare(lobeAlpha(own.top)),REFLECTION_PROBES_LEFT,bilateralProbesLeft)));
+  textureStore(reflectionOut,coord,1,vec4f(reflectionCoatShare(seen,own.V),0.0));`,
   'textureStore(frontOut,coord,vec4u(frontPack(seen.base),frontPack(seen.coat),0u,0u));',
 ] as const
 
@@ -57,6 +60,7 @@ fn ${name}(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups:vec
  ${BEFORE[kind]}
  let flags=surfaceFlagsAt(coord);
  if(!surfaceReflects(flags)){return;}
+ surfaceSpecular=specularOfFlags(flags);
  let own=reflectingPixelAt(${layer}u,coord,flags);
  ${SEEN[kind](layer)}
  ${WRITE[layer]}
@@ -73,13 +77,12 @@ const BILATERAL_ENTRIES = [
  * THE LAST PASS, a thread a pixel, over each of two lists the classification writes (`tiles.ts`): the
  * resolve tiles (`bilateralOpaque`, `bilateralFront`) and the clear ones (`clearOpaque`, `clearFront`),
  * whose kernel first empties the resolved pixel and the history, before any resolve reads them — the
- * field alone there, apart from the history's heavy kernel. A pixel whose lobe traces nothing reads
- * the probes' field through its lobes (`bilateralField`), at every pixel: a rough lobe's reflection is
- * so blurred that the probes' smooth field answers it, the same every image — no history, no filter.
- * The opaque surface's base lobe takes the surroundings alone here and leaves its probes to the opaque
- * resolve, which gathers them in the one read of its bounce (`resolvedIndirect`,
- * `REFLECTION_PROBES_LEFT`), its diffuse and rough specular from the probes in one pass; the front's,
- * which the forward fragments read as it is, the field whole.
+ * environment alone there, apart from the history's heavy kernel. A pixel whose lobe traces nothing reads
+ * the environment through its lobes (`bilateralField`), at every pixel: a rough lobe's reflection is
+ * so blurred that a smooth one answers it, the same every image — no history, no filter.
+ * The opaque surface takes the surroundings alone here, base lobe and coat, and leaves its rough light
+ * to the opaque resolve, which adds the screen probes' (`resolvedIndirect`, `REFLECTION_PROBES_LEFT`);
+ * the front's, which the forward fragments read as it is, the environment through its lobes whole.
  *
  * A pixel with a history (`bilateralIn`, this image's accumulation, a texel a pixel) reads its own, and
  * where it is short or still noisy, the spatial filter: its disocclusion, one minus its count over
@@ -94,8 +97,8 @@ const BILATERAL_ENTRIES = [
  * keeps its own. The same rule for every pixel, in the denoiser's space (`reflectionDenoised`).
  *
  * What the history holds is the lobe the pixel traces (`reflectingPixelAt`'s top): under a clear coat,
- * the coat's, its base the probes' field (`bilateralFieldBase`): the coat is the sharper lobe, the
- * base under it rough enough for the probes; elsewhere the base's.
+ * the coat's, its base the environment (`bilateralFieldBase`): the coat is the sharper lobe, the
+ * base under it rough enough for the environment; elsewhere the base's.
  *
  * It writes the surface's answer: the opaque one weighs it on the pixel's own reflectance, normal,
  * roughness and lobes (`reflectionShare`) — a surface's texture detail is the pixel's — into the
@@ -113,15 +116,16 @@ export const REFLECTION_BILATERAL_WGSL = wgslBlock(
     REFLECTION_RESOLVE_WGSL,
     REFLECTION_TEMPORAL_WGSL,
     reflectionWeighWgsl(true),
-    reflectionFieldLobesWgsl(true),
+    reflectionEnvironmentLobesWgsl(true),
     FRONT_PACK_WGSL,
     surfaceReflects,
-    f0Of,
+    SURFACE_F0_WGSL,
+    specularOfFlags,
     REFLECTION_PROBES_LEFT_WGSL,
   ],
   `@group(0) @binding(${B.bilateralIn}) var bilateralIn:texture_2d<u32>;
 @group(0) @binding(${B.base}) var traceBase:texture_2d<f32>;
-@group(0) @binding(${B.target}) var reflectionOut:texture_storage_2d<${HDR_FORMAT},write>;
+@group(0) @binding(${B.target}) var reflectionOut:texture_storage_2d_array<${HDR_FORMAT},write>;
 @group(0) @binding(${B.frontTarget}) var frontOut:texture_storage_2d<${FRONT_TRACED_FORMAT},write>;
 /** The linear depth (\`surfaceLinearDepth\`) of a depth \`z\` of the view, straight from the projection:
  *  under a perspective \`z = A + B / w\` (\`ReflectionView.slab\`: \`A\` its \`y\`), \`B\` the pixel's own
@@ -169,21 +173,29 @@ fn bilateralTop(coord:vec2i,own:ReflectingPixel,held:vec4u,layer:u32)->vec3f{
  }
  return reflectionLinear(sum/total);
 }
-/** Whether this pixel's opaque answer left its base lobe's probes to the opaque resolve. */
+/** Whether this pixel's opaque answer left its base lobe's rough light to the opaque resolve. */
 var<private> bilateralProbesLeft:bool=false;
-/** What the base lobe of \`own\`, on the surface \`layer\`, reads of the field: the opaque one the
- *  surroundings alone, its probes left to the opaque resolve (\`REFLECTION_PROBES_LEFT\`); the front one
- *  the field whole, which the forward fragments read as it is. */
+/** What the base lobe of \`own\`, on the surface \`layer\`, reads of the environment: the opaque one the
+ *  surroundings alone, its rough light left to the screen probes the opaque resolve reads (\`REFLECTION_PROBES_LEFT\`); the front one
+ *  the environment through its lobe, which the forward fragments read as it is. */
 fn bilateralFieldBase(own:ReflectingPixel,layer:u32)->vec3f{
  if(layer==0u){bilateralProbesLeft=true;return reflectionEnvironment(reflect(-own.V,own.N),own.rough);}
- return reflectionFieldBase(own.P,own.N,own.V,own.rough);
+ return reflectionEnvironmentOf(own.N,own.V,own.rough).base;
 }
-/** What \`own\`'s lobes reflect of the field alone: its base lobe's (\`bilateralFieldBase\`) and its coat's. */
+/** What the coat of \`own\` reflects of the environment alone: on the front surface through the coat's lobe,
+ *  on the opaque one the surroundings alone — its rough light, the screen probes', is added by the opaque resolve
+ *  (\`resolvedIndirect\`, flagged \`REFLECTION_PROBES_LEFT\`). */
+fn bilateralFieldCoat(own:ReflectingPixel,layer:u32)->vec3f{
+ if(layer==1u){return reflectionEnvironmentOf(own.N,own.V,own.rough).coat;}
+ if(!(lobes.on&&lobes.coat>0.0)){return vec3f(0.0);}
+ return reflectionEnvironment(reflect(-own.V,lobes.coatN),lobeRoughness(lobes.coatRough));
+}
+/** What \`own\`'s lobes reflect of the environment alone: its base lobe's (\`bilateralFieldBase\`) and its coat's. */
 fn bilateralField(own:ReflectingPixel,layer:u32)->Reflected{
- return Reflected(bilateralFieldBase(own,layer),reflectionFieldCoat(own.P,own.V));
+ return Reflected(bilateralFieldBase(own,layer),bilateralFieldCoat(own,layer));
 }
 /** What the pixel \`own\` at \`coord\` reflects: the lobe it traces from its history where it holds one,
- *  through the field where it does not; under a clear coat, the base lobe through the field. */
+ *  through the environment where it does not; under a clear coat, the base lobe through the environment. */
 fn bilateralSeen(coord:vec2i,own:ReflectingPixel,layer:u32)->Reflected{
  let held=textureLoad(bilateralIn,coord,0);
  if(!historyValid(held)){return bilateralField(own,layer);}

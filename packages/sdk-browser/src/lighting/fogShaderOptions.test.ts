@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { subtract, unit } from '../../../math/src/vector/vectorTuple.ts'
 import { FOG_VIEW_SLOT, FOG_VIEW_SLOTS } from './fog/viewSlots.ts'
 import type { ResolvedHeightFog } from '../../../sdk-core/src/scene/core/fogHeight.ts'
-import { fogResourcesWgsl } from './fog/readWgsl.ts'
+import { fogBlockOf } from './fog/readWgsl.ts'
 import { phase } from './fogVolumeRun.fixture.ts'
 import {
   HEIGHT,
@@ -85,7 +85,7 @@ test('an atmosphere that does not add to the fog leaves it its own colour and it
       sun: SUN,
       air: AIR,
       resources: {
-        decl: fogResourcesWgsl({ group: 0 }),
+        block: fogBlockOf({ group: 0 }),
         scope: { aerialPerspective: () => haze },
       },
       ...scene,

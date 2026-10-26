@@ -11,28 +11,20 @@ import { pixelScale } from '../../../../math/src/projection/camera.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { writeSelectionPlanes, writeSelectionProjection } from './selectionProjection.ts'
 import type { AsideCut } from './aside.ts'
+import type { RecordTexture } from './recordTexture.ts'
 import type { CutPyramid } from '../../geometry/dag/occlusion.ts'
 import type { DagRoot } from '../../geometry/dag/types.ts'
 import type { DrawDistance, RootParent } from '../../geometry/selection/types.ts'
 import type { CellLink, WorldCells } from '../../geometry/dag/worlds/worldCells.ts'
-import type { PoseHost } from '../../geometry/dag/proxy/proxyInstances.ts'
-import type { ProxyBoxes } from '../../lighting/bounce/probes/probeSync.ts'
-import type { CutTables, ProxyResources } from '../../geometry/dag/cut/cutReaders.ts'
+import type { PlacementBoxes } from '../../geometry/dag/placement/placementBoxes.ts'
+import type { CutTables } from '../../geometry/dag/cut/cutReaders.ts'
 import type { CutListCaps } from '../../geometry/dag/lists/cutListCaps.ts'
 import type { SelectionUniforms } from './selectionUniforms.ts'
 
 export type { SelectionUniforms }
 
-/**
- * A resident cut's two lists — the camera's requested pages, the drawn pages — as the ranks the
- * readback in hand claims for them in the list the host adopted last
- * (`../../geometry/dag/differenceChain.ts`): for rank `s`, the rank its page holds there,
- * `NO_INDEX` for a page one of the snapshots since did not hold. Claims, checked against the list
- * held before they are believed.
- */
-export type CutClaims = { asked: Uint32Array; drawn: Uint32Array }
-/** Each packed page's residency flag as the host's row cache sets it, what the cut reads: at the
- *  pages a change names, every page at a rebuild (`../../geometry/rows/page/pageState.ts`). */
+/** Each packed page's residency flag as the host's cluster residency sets it, what the cut reads: at
+ *  the pages a change names, every page at a rebuild (`../../geometry/clusters/pageState.ts`). */
 export type PageResidency = { readonly length: number; flag(page: number): number }
 /** The cut's requests, one per leaf it keeps and sees, in the order its threads asked them: the
  *  leaf's first packed page, how many pages it names from there — one group's, which may lie in
@@ -77,14 +69,31 @@ type Visit = (page: number) => void
 /** Told `true` when the shared command buffer reached the queue, `false` when the image dropped it. */
 export type SelectionSubmission = (submitted: boolean) => void
 export type GpuSelection = {
+  /** The cut's `work`, which holds the masks of the BLENDED clusters it draws, a bit a packed page
+   *  (`../../geometry/dag/shader/blendMaskWgsl.ts`): the blended pass reads them where
+   *  they lie. The clusters the visibility rasters draw are `visible`. */
   readonly maskBuffer: GPUBuffer
   /** The u32 word of `maskBuffer` the FRAME mask starts at: bit `p & 31` of word `p >> 5` is packed
-   *  page `p`. Read before `encodePost`, it holds the main pass's draws; after it, those of both
-   *  passes — what every later reader of the image takes. */
+   *  page `p`, a blended cluster both passes of the cut draw. */
   readonly maskOffset: number
-  /** The u32 word of `maskBuffer` the POST mask starts at, laid out as the frame mask: the clusters
-   *  the post pass alone draws, in the image whose `encodePost` said there was one. */
+  /** The u32 word of `maskBuffer` the POST mask starts at, laid out as the frame mask: the blended
+   *  clusters the post pass alone draws, in the image whose `encodePost` said there was one. */
   readonly postMaskOffset: number
+  /** The list of visible clusters the cut writes (`../../geometry/dag/visible/layout.ts`), the one
+   *  buffer the decode, the bins and the rasters read of it: its counts in its header, its records
+   *  behind. */
+  readonly visible: GPUBuffer
+  /** The records `visible` holds room for, followed as the cut's demand moves it
+   *  (`../../geometry/dag/visible/visibleGrowth.ts`). */
+  readonly visibleCap: number
+  /** The cluster records the cut reads (`../../geometry/dag/info/clusterInfoLayout.ts`), one for each
+   *  page of each distinct page array its packing holds, and the longest edge of each cluster, one
+   *  float a record, zero until measured (`../../geometry/dag/info/measureWgsl.ts`): the host writes
+   *  the first as pages land (`../../geometry/clusters/clusterResidency.ts`), the GPU the second. */
+  readonly info: GPUBuffer
+  readonly edges: GPUBuffer
+  /** What a packed page's index adds to reach its cluster record, by placement (`PackedDag.infoShift`). */
+  readonly infoShift: Uint32Array
   /** The pages its roots hold, the ones appended included (`appendRoots`). */
   readonly pageCount: number
   /** The placements its tables are laid out for: `updateWorlds` takes sixteen floats each. */
@@ -116,18 +125,31 @@ export type GpuSelection = {
    *  writes the stretch into and the tree's leaves read (`../../placement/roots/rootBoxes.ts`). */
   readonly frames: GPUTextureView
   /** The cut's records, one table (`../../geometry/dag/worlds/worldTable.ts`): what the
-   *  composition writes and the proxy's rays read (`../../lighting/bounce/runtime/runtimeSceneWgsl.ts`). A new view
+   *  composition writes and the ray query reads (`../../lighting/rays/rayQueryWgsl.ts`). A new view
    *  once the proxy's copies grow it: read at each use. */
   readonly worlds: GPUTextureView
+  /** The poses the previous image drew (`../../geometry/dag/previousPoses.ts`, the worlds' layout): what
+   *  the shadow raster's first occlusion cull tests a caster at. A new view once the table grows: read at
+   *  each use. */
+  readonly previous: GPUTextureView
   /** The poses the host holds: every placement's, as a walk wrote them — any may have moved —,
    *  or, `named` given, those it lists, increasing, the placements a call moved: those alone are
    *  compared and sent. The placements whose pose moved — the words a cut reads, or the exact
    *  translation —, increasing, a view the next call overwrites: what the placement tree follows
    *  (`../../geometry/dag/tree/treeFollow.ts`). Advances `worldRevision` when one moved. */
   updateWorlds(worlds: Float32Array, named?: Int32Array): Int32Array
-  /** The poses the last frame drew kept for its views' next main passes, before the frame that
-   *  calls it sends one (`../../geometry/dag/previousPoses.ts`). */
+  /** The poses the last drawn frame drew kept for its views' next main passes and velocities, before
+   *  the frame that calls it sends one (`../../geometry/dag/previousPoses.ts`). */
   keepPoses(): void
+  /** A view of this frame is drawn at the poses the worlds hold: the next frame keeps them. */
+  posesDrawn(): void
+  /** Whether a pose moved since the kept poses were copied. */
+  readonly posesMoving: boolean
+  /** The kept poses' table and the placements it holds (`../../geometry/dag/previousPoses.ts`). */
+  readonly poses: { readonly table: RecordTexture; readonly count: number }
+  /** The poses `older`, the cut this one replaces, kept of the placements both hold, taken as this
+   *  cut's: the velocity measures from the poses the last drawn frame drew across the swap. */
+  keepPosesOf(older: GpuSelection): void
   /** Placement `world` is posed on the GPU by its parent from now on, or no longer
    *  (`../../placement/compose/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
    *  host holds is written again over the one its parent composed. */
@@ -135,6 +157,9 @@ export type GpuSelection = {
   /** Whether its cut follows a placement tree (`../../geometry/dag/tree/treeFollow.ts`): what the kernel writing
    *  the tree's leaves is asked for before a frame binds it (`../../placement/roots/rootPasses.ts`). */
   readonly treeFollowed: boolean
+  /** Whether the leaves of that tree hold the balls of the groups above instances' roots, its
+   *  packing naming some when the cut was made: which kernel of the leaves is asked for. */
+  readonly treeParented: boolean
   /** The member group of placement `world` in the placement tree, -1 outside it: what a
    *  composition names the groups of the roots a parent moves by. */
   groupOf(world: number): number
@@ -160,24 +185,14 @@ export type GpuSelection = {
    *  when they do not fit, or while it is `growing`: the caller makes a cut over every root, at a
    *  grown capacity, unless it waits for the growth to end. */
   appendRoots(roots: readonly DagRoot[]): boolean
-  /** The row cache now holds `rows` rows: the open counts placements hold follow it
-   *  (`../../geometry/dag/queueGrowth.ts`), grown before the next cut. */
-  followRows?(rows: number): void
-  /** What a program reads the proxy through (`ProxyResources`): none until a placement wears one. */
-  proxy(): ProxyResources | undefined
   /** Its tables as a pass beside the cut reads them (`../../geometry/dag/cut/cutReaders.ts`), read again at each
    *  call: a growth lays them out anew. None once released. */
   cutTables(): CutTables | undefined
-  /** Bytes the CPU keeps for the proxy (`../../geometry/dag/proxy/proxyInstances.ts`): the streamer's reservation counts them. */
-  readonly proxyHostBytes: number
-  /** The deformed placements' copies of their meshes' proxies posed by the records of the frame, before the
-   *  first program of the image that traces them (`../../geometry/dag/proxy/proxyPose.ts`). */
-  proxyPose(encoder: GPUCommandEncoder, host: PoseHost): void
-  /** The compiled meshes' proxies arrived: every placement wears what its primitive holds now. */
-  proxyArrived(): void
-  /** The world boxes of the placements that wear a proxy, the runs of those new or moved since the last
-   *  call, and their extent (`../../lighting/bounce/probes/probeSync.ts`). */
-  proxyBoxes(): ProxyBoxes
+  /** Bytes the CPU keeps for the placements' boxes (`placementBoxes`): the streamer's reservation counts them. */
+  readonly placementBoxesBytes: number
+  /** The world boxes of the placements, the runs of those new or moved since the last call, and their extent
+   *  (`../../geometry/dag/placement/placementBoxes.ts`, followed by `../../lighting/bounce/probes/probeSync.ts`). */
+  placementBoxes(): PlacementBoxes
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void
   /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `rootMark`). */
@@ -186,15 +201,15 @@ export type GpuSelection = {
    *  (`ClusterRoot.drawDistance`). */
   drawDistanceWorld(world: number, distance: DrawDistance | undefined): void
   /** Placement `world` is an instance of an assembly whose root's group is `parent` from now on,
-   *  none when it is no instance (`ClusterRoot.rootParent`). */
-  rootParentWorld?(world: number, parent: RootParent | undefined): void
-  /** Whether a placement the cut holds names a farthest draw distance: the casters and the rays
-   *  take the draw distances only then. */
+   *  none when it is no instance (`ClusterRoot.rootParent`). False when the cut cannot take the
+   *  group — the leaves of its placement tree hold no ball, its packing having named none
+   *  (`geometry/dag/pack/packParents.ts`, `takesParents`), or the group is new and its node table
+   *  has no room for the node that holds it: the placement opens whatever the group says until a
+   *  cut that can is made (`placement/growth/grownCutStart.ts`). */
+  rootParentWorld(world: number, parent: RootParent | undefined): boolean
+  /** Whether a placement the cut holds names a draw distance: the casters and the rays take the
+   *  draw distances only then. */
   readonly drawDistances: boolean
-  /** The rays' scene holds no placement out of its draw distances from `eye`, the main view's,
-   *  scaled by `scale` (`cutViewDistanceScale`), whose draw distance the cull turns off when
-   *  `undefined` (`../../geometry/dag/proxy/proxyInstances.ts`, `distance`). */
-  proxyDistance(eye: ArrayLike<number>, scale: number | undefined): void
   /** The bits of a view's filter (`SelectionUniforms.filter`) held in the cut's `work`, where its
    *  kernels and the sun's casters read them: the buffer and the word they start at, or none for
    *  a view that filters none (`../../geometry/dag/viewFilterRegion.ts`). */
@@ -217,8 +232,8 @@ export type GpuSelection = {
   /** The cut rule's `resident(c)` of `page`, then `resident(childGroup(c))` (`geometry/cut/rule.ts`). */
   isReady(page: number): boolean
   isChildReady(page: number): boolean
-  /** The next dispatch cuts again and reads its cut back: what a row the row cache's queue waits
-   *  for asks (`../../geometry/rows/rowOrder.ts`). */
+  /** The next dispatch reads its cut back: the main view's readback in hand stands on no residency
+   *  any more. */
   recut(): void
   /** Encodes the selection. Given `shared`, the caller owns the command buffer and calls the
    *  settlement back, `true` once it is queued, `false` if dropped: no readback before `true`. A
@@ -238,10 +253,6 @@ export type GpuSelection = {
   /** A cut for a view drawn beside the main one, on these tables (`../../geometry/dag/aside.ts`);
    *  `primed`, the primed pyramid's, which feeds no streaming. */
   aside(primed?: boolean): AsideCut
-  /** The host adopts `cut`, the readback in hand: the ranks it claims in the list the host held,
-   *  valid until the next readback lands — none when the host held no GPU list —; the readbacks
-   *  after it claim theirs in its lists. Nothing for any other cut. */
-  adopt(cut: GpuCut): CutClaims | undefined
   /** True once released: a released selection dispatches and drains nothing more. */
   failed(): boolean
   /** Settled once the readbacks in flight have landed, nothing grown or cut again: the first

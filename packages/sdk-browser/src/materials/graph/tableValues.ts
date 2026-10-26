@@ -3,7 +3,7 @@ import { materialTableWgsl } from '../table/materialWgsl.ts'
 import { MATERIAL_RECORD_TEXELS } from '../table/materialLayout.ts'
 import type { CompiledGraph } from './compile.ts'
 
-/** The texel `t` of the table's texels, ten to a record's place: the first of a graph's values
+/** The texel `t` of the table's texels, eleven to a record's place: the first of a graph's values
  *  and those after it (`../table/graphRecord.ts`). */
 const texelOf = (suffix: string) => `mgTexel${suffix}`
 
@@ -16,7 +16,7 @@ const texelOf = (suffix: string) => `mgTexel${suffix}`
 export const graphLoadWgsl = (g: CompiledGraph, binding: number) => {
   const vectors = Math.max(g.slots.vectors.length, 1)
   return wgslBlock(
-    `materialGraphLoad(${g.hash},${binding})`,
+    `materialGraphLoad(${g.hash}${g.suffix},${binding})`,
     [g.wgsl, materialTableWgsl(binding)],
     `fn ${texelOf(g.suffix)}(t:u32)->vec4u{return materialTableRecord(t/${MATERIAL_RECORD_TEXELS}u,t%${MATERIAL_RECORD_TEXELS}u);}
 fn mgLoad${g.suffix}(first:u32)->${g.values}{

@@ -19,7 +19,7 @@ import type { RootsOnGpu } from '../runtime/runtimeOps.ts'
 import { dagDeviceRefusal } from '../deviceRefusal.ts'
 import { cutHeldSlots } from '../lists/listCap.ts'
 import type { CutAdmission } from '../cut/cutBuffers.ts'
-import type { DagResources, ListNote, RowCutPass } from '../resources.ts'
+import type { ListNote } from '../resources.ts'
 import type { CutListCaps } from '../lists/cutListCaps.ts'
 import { requestBounds, type RequestBounds } from '../lists/requestSize.ts'
 
@@ -32,7 +32,7 @@ type GpuDagSelectionOptions = {
    *  them (`RootsOnGpu`): the stretch's one writer — a cut without it projects every cluster to
    *  nothing —, so never optional. */
   roots: RootsOnGpu
-  /** The rows the session's row cache holds: the open counts placements hold follow them. */
+  /** The clusters the visible list holds room for: the open counts placements hold follow them. */
   rows?: number
   /** The most its tables may hold (`../../../session/memory/cutTableBytes.ts`): past it, refused. */
   share?: number
@@ -42,8 +42,6 @@ type GpuDagSelectionOptions = {
   progress?: CutProgress
   /** Told what each sub-step took once the making is over, made or refused. */
   timed?: (steps: ReturnType<CutSteps['end']>) => void
-  /** The row cache's pass on the cut, made over its resources (`RowCutPass`). */
-  rowPass?: (cut: DagResources) => RowCutPass
   /** The caps its lists are laid out for, the session's settings (`../lists/cutListCaps.ts`);
    *  the reference's defaults when absent. */
   lists?: CutListCaps
@@ -97,7 +95,6 @@ export async function createGpuDagSelection(
     options.onRefused?.(`camera cut creation failed: ${why}`, { why })
     return undefined
   }
-  resources.rowPass = options.rowPass?.(resources)
   resources.listNote = options.onListNote
   return createDagRuntime(resources, options.roots)
 }

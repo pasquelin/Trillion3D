@@ -16,16 +16,17 @@ import { createWorldPoses } from './poses/poses.ts'
 import { modelNode, writeModelNode } from './models/modelNodes.ts'
 import { createWorldModels } from './models/models.ts'
 import { loadedModel } from './models/models.fixture.ts'
+import { SCENE_FORMAT_VERSION } from '../saved/format.ts'
 import { createWorldRanks } from './ranks.ts'
 import { FAR_SHADOW_ROOT, SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
 import type { Seat } from './batches.ts'
 import { Scene } from './scene.ts'
 
-test('a mesh casts by default, a light and a group do not, and a clone keeps the flag', () => {
+test('a mesh and a light cast by default, a group does not, and a clone keeps the flag', () => {
   const mesh = object.mesh(geometry.box(1, 1, 1))
   assert.deepEqual(
     [mesh.castShadow, light.directional().castShadow, object.group().castShadow],
-    [true, false, false],
+    [true, true, false],
   )
   mesh.castShadow = false
   assert.equal(mesh.clone().castShadow, false)
@@ -136,10 +137,11 @@ test('a version 2 file saved before the far flag loads, every mesh casting none 
   box.castFarShadow = true
   scene.add(box)
   const saved = scene.toJSON()
-  assert.equal(saved.formatVersion, 3)
-  // The file as it was saved before the field: no node names it.
+  assert.equal(saved.formatVersion, SCENE_FORMAT_VERSION)
+  // The file as it was saved before the field: version 2, no node names it.
   const old = {
     ...saved,
+    formatVersion: 2,
     children: saved.children.map((node) => {
       const before: Record<string, unknown> = { ...node }
       delete before.castFarShadow

@@ -14,7 +14,7 @@ import { animationFrame } from '../../kit/device/frame.ts'
 import { canvasImage } from '../../kit/device/patternImage.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { settle } from '../world/proofWorld.ts'
-import { FACING, openFacingWorld } from './facingWorld.ts'
+import { FACING, FIXED_EXPOSURE, openFacingWorld } from './facingWorld.ts'
 
 /** One case: the settled frame's canvas and capture, then each held frame's, and whether each
  *  of those frames was held. */
@@ -40,7 +40,7 @@ async function heldCase(world: Awaited<ReturnType<typeof openFacingWorld>>, lit:
 }
 
 async function cases() {
-  const world = await openFacingWorld('three-stack')
+  const world = await openFacingWorld('three-stack', FIXED_EXPOSURE)
   try {
     const unlit = await heldCase(world, false)
     return [unlit, await heldCase(world, true)]

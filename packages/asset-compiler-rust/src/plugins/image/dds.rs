@@ -8,11 +8,11 @@
 //! **Decoding is a fallback, not the destination.** The repository rule is that a texture
 //! received already compressed for the GPU keeps its compressed blocks on the GPU when the
 //! machine accepts them. This batch does not build that chain — transport, atlas and GPU are
-//! another job. `DecodedImage` currently has two variants, `Rgba8` and `RgbaF32`
-//! (`image-plugin-2`), and this driver only returns the first. What will need adding, exactly:
-//! a third variant `DecodedImage::Blocks { codec, width, height, data }`, a `match` at the
-//! consumer (`src/texture.rs:134`, today `Rgba8` read and `RgbaF32` refused by
-//! `image-float-unsupported`) that asks for it explicitly, and a driver that returns it. The
+//! another job. `DecodedImage` currently has two variants, `Rgba8` and `RgbaF32`, and this driver
+//! only returns the first. What will need adding, exactly: a third variant
+//! `DecodedImage::Blocks { codec, width, height, data }`, a `match` at the consumer
+//! (`texture/bake.rs`, today `Rgba8` cooked in the byte atlases and `RgbaF32` in the half-float
+//! one) that asks for it explicitly, and a driver that returns it. The
 //! driver is already split for that: `codec` names the codec and its block geometry, `header`
 //! returns the surface and the offset of its raw bytes, `blocks` is only the reconstruction —
 //! the only part meant to be the fallback. BC6H (float HDR) therefore does not wait on
@@ -52,11 +52,12 @@ impl Plugin for Dds {
     fn name(&self) -> &'static str {
         "dds"
     }
-    /// The suffix names the transfer function carried through to the output. It was added with
-    /// it, because the version enters the cache identity: an entry written when every surface
-    /// was returned as sRGB carries a preview decoded twice.
+    /// The suffixes name what is carried through to the output: the transfer function and the
+    /// stored levels. They were added with them, because the version enters the cache identity:
+    /// an entry written when every surface was returned as sRGB, or its levels regenerated,
+    /// carries a preview decoded twice.
     fn version(&self) -> &'static str {
-        "dds-texture2ddecoder-0.1.2-transfert"
+        "dds-texture2ddecoder-0.1.2-transfert-mips"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["dds"]
@@ -76,15 +77,15 @@ impl ImageDecoder for Dds {
         let surface = header::parse(bytes)?;
         Ok((surface.width, surface.height))
     }
-    /// Only level 0 is consumed; the announced mip chain is counted and must fit in the file —
-    /// a DDS that promises nine levels and carries only two is truncated, not half-good.
+    /// Every stored level is read, the announced chain must fit in the file — a DDS that
+    /// promises nine levels and carries only two is truncated, not half-good.
     fn decode(
         &self,
         bytes: &[u8],
         max_alloc: u64,
     ) -> std::result::Result<ImageDecoded, &'static str> {
         let surface = header::parse(bytes)?;
-        let image = blocks::decode(&surface, bytes, max_alloc)?;
-        Ok(ImageDecoded::new(image, surface.transfer))
+        let (image, mips) = blocks::decode(&surface, bytes, max_alloc)?;
+        Ok(ImageDecoded::new(image, surface.transfer).with_mips(mips))
     }
 }

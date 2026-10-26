@@ -1,5 +1,6 @@
+import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
-import { FULLSCREEN_XY } from '../../../gpu/shader/fullscreenTriangle.ts'
+import { FULLSCREEN_VERTEX } from '../../../gpu/shader/fullscreenTriangle.ts'
 
 /** The downsample's uniform: how many source pixels a pixel written stands for along each axis
  *  (the source's texture size over the written one's), and the source's bounds, the first and the
@@ -57,15 +58,17 @@ const FRAGMENT_CHECKERBOARD = `
  * and the lowest elsewhere: the half-size depth of the traces that keep no range.
  */
 const program = (pass: DepthRangePass) =>
-  `${DEPTH_RANGE_VIEW.wgsl}
+  wgslProgram(
+    `${DEPTH_RANGE_VIEW.wgsl}
 @group(0) @binding(${B.view}) var<uniform> view:DepthRangeView;
 @group(0) @binding(${B.source}) var source:${pass === 'range' ? 'texture_2d<f32>' : 'texture_depth_2d'};
-@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY},0.0,1.0);}
 fn sourceRange(at:vec2i)->vec2f{
  let c=clamp(at,view.source.xy,view.source.zw);
 ${pass === 'range' ? ' return textureLoad(source,c,0).xy;' : ' let z=textureLoad(source,c,0);\n return vec2f(z,z);'}
 }${pass === 'checkerboard' ? FRAGMENT_CHECKERBOARD : FRAGMENT_RANGE}
-`
+`,
+    [FULLSCREEN_VERTEX],
+  )
 
 const programs: Partial<Record<DepthRangePass, string>> = {}
 

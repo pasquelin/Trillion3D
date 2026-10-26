@@ -1,8 +1,7 @@
 use super::*;
 
 /// `inspect` over the source bytes of an image, borrowed, and where they come from, the named
-/// view as `source.gltf` publishes it. Provenance is the only part that needs the view map: the
-/// rest also serves the cutout step, which only has the input scene.
+/// view as `source.gltf` publishes it.
 pub(super) fn image_bytes<T>(
     inputs: &PreviewInputs<'_>,
     image: &Value,
@@ -74,8 +73,8 @@ pub(crate) fn with_image_bytes<T>(
 }
 
 /// The fingerprint of each image the compilation reads, by image index, taken once before any
-/// step reads it: the cache key names the linked ones (`compiler::cache::identity`), the cutout step
-/// answers by it, the bake addresses its files by it. Every image the scene cites by URI is in —
+/// step reads it: the cache key names the linked ones (`compiler::cache::identity`), the bake
+/// addresses its files by it. Every image the scene cites by URI is in —
 /// identity covers an unused one too, absent or not —, and every image an atlas texture of a used
 /// material reads. `None` is an image whose bytes do not read, or one no step reads.
 pub(crate) struct ImageShas(Vec<Option<String>>);
@@ -99,10 +98,10 @@ impl ImageShas {
         let textures = g.get("textures").and_then(Value::as_array);
         let read: BTreeSet<usize> = super::collect::atlas_textures(g, used_materials)
             .iter()
-            .filter_map(|entry| textures?.get(entry.texture)?.get("source")?.as_u64())
+            .filter_map(|entry| super::binding::texture_image(textures?.get(entry.texture)?))
             .map(|image| image as usize)
             .collect();
-        let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::CutoutScan);
+        let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::ImageHash);
         Self(
             images
                 .par_iter()

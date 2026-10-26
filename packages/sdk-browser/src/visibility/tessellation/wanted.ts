@@ -1,5 +1,4 @@
-import { TESSELLATION_RULES } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
-import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { readTessellationSetting } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { WebgpuTileStreamer } from '../../materials/virtual/streamer/streamer.ts'
 import type { TessellationInput } from './input.ts'
@@ -7,24 +6,20 @@ import { recordRoom, type TessellationCapacity } from './uniform.ts'
 import { warmDisplacements } from './warm.ts'
 import { cutPyramid, previousPyramid } from '../../frame/render/pyramidSources.ts'
 
-/** The tessellation's setting `field` the session holds (`tessellationOptions.ts`), read at each
- *  image. */
-export const tessellationSetting = contextReader(TESSELLATION_RULES)
-
 /**
  * Whether the image tessellates: the setting is on and the scene holds a surface that is displaced
  * (`materialTable.displaced`). Otherwise nothing of the tessellation is allocated, bound or drawn,
  * and the visibility uniform's `tessellation` word is zero (`../passes/uniforms.ts`).
  */
 export const tessellationWanted = (rt: WebgpuPagesRuntime) =>
-  tessellationSetting(rt, 'tessellation') && rt.vis.materialTable.displaced.count > 0
+  readTessellationSetting(rt, 'tessellation') && rt.vis.materialTable.displaced.count > 0
 
 /** The capacity the settings name and the room the displaced surfaces' records need, in a record held
  *  from one image to the next. */
 const asked: TessellationCapacity = { candidate: 0, visible: 0, records: 0 }
 export function tessellationAsked(rt: WebgpuPagesRuntime) {
-  asked.candidate = tessellationSetting(rt, 'tessellationMaxCandidatePatches')
-  asked.visible = tessellationSetting(rt, 'tessellationMaxVisiblePatches')
+  asked.candidate = readTessellationSetting(rt, 'tessellationMaxCandidatePatches')
+  asked.visible = readTessellationSetting(rt, 'tessellationMaxVisiblePatches')
   asked.records = recordRoom(rt.vis.materialTable.displaced.ints.length)
   return asked
 }
@@ -66,8 +61,8 @@ export function tessellationInput(
   view.projection = rt.run.gate.cam.projection[5]!
   view.height = size[1]!
   view.threshold = rt.run.selectionUniforms.pixelError
-  settings.tessellationDicingRate = tessellationSetting(rt, 'tessellationDicingRate')
-  settings.tessellationMaxPatchesPerGroup = tessellationSetting(
+  settings.tessellationDicingRate = readTessellationSetting(rt, 'tessellationDicingRate')
+  settings.tessellationMaxPatchesPerGroup = readTessellationSetting(
     rt,
     'tessellationMaxPatchesPerGroup',
   )

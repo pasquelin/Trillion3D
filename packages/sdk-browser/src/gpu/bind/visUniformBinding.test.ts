@@ -25,6 +25,8 @@ test('every group that binds the visibility uniform spans the whole struct', () 
     uniform: buffer,
     material: {} as GPUTextureView,
     normals: {} as GPUTextureView,
+    frame: buffer,
+    noise: {} as GPUTextureView,
   }
   const vis = visBindEntries({
     ...shared,
@@ -43,6 +45,7 @@ test('every group that binds the visibility uniform spans the whole struct', () 
     pages: buffer,
     uvs: buffer,
     work: buffer,
+    lists: buffer,
   })
   assert.equal(sizeAt(vis, VIS_BINDINGS.uniform), VIS_UNIFORM_BYTES)
   assert.equal(sizeAt(small, SMALL_BINDINGS.uniform), VIS_UNIFORM_BYTES)
@@ -76,11 +79,12 @@ test('the uniform size covers its members, laid out as WGSL lays them, rounded t
     const [bytes, align] = MEMBERS[type as keyof typeof MEMBERS]
     end = alignUp(end, align) + bytes
   }
-  // The cluster split's words — whether any cluster is the software raster's — then the view's
-  // clip plane and whether the split routes what reaches behind it (`clipPlane`, `clipRoute`).
+  // Whether the frame tessellates, then the view's clip plane and whether the cut culls by it
+  // (`clipPlane`, `clipRoute`), the view's focal scales and the depth an orthographic view spans
+  // (`focal`, `depthSpan`), then the rows the page table holds (`pageCount`).
   assert.match(
     source,
-    /hardwareEdge:f32,softwareRaster:u32,(\w+:u32,)*clipPlane:vec4f,clipRoute:u32,\}$/,
+    /tessellation:u32,clipPlane:vec4f,clipRoute:u32,focal:vec2f,depthSpan:f32,pageCount:u32,\}$/,
   )
   assert.equal(VIS_UNIFORM_BYTES, alignUp(end, 16))
 })

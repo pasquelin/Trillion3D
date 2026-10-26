@@ -37,10 +37,10 @@ export const waterSurface = (transmission: number, thickness: number) =>
   })
 
 /** The colour bytes per sample the transparents' pass writes at most, from its own targets — the
- *  lit colour, the request, the share, the display layers and the history given up —: the limit a device must grant for
+ *  lit colour, the request, the display layers and the responsiveness —: the limit a device must grant for
  *  a transmissive layer to draw. */
 export const WATER_ATTACHMENT_BYTES = colorBytesPerSample(
-  blendTargets('normal', GPUColorWrite.ALL, true, true, 2).map((target) => target?.format),
+  blendTargets('normal', GPUColorWrite.ALL, true, true).map((target) => target?.format),
 )
 
 interface GroundSpec {

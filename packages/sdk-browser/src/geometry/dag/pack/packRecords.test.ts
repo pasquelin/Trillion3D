@@ -5,7 +5,6 @@
 // Both packings must select, draw and count exactly the same pages, pose after pose.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { asHostLibrary } from '../../../session/host/resources.ts'
 import * as G from '../../../scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from './pack.ts'
@@ -35,7 +34,7 @@ function placedRoots() {
     Array.from({ length: PLACEMENTS }, () => new Matrix4()),
   )
   roots.forEach((root, w) => {
-    const world = asHostLibrary<Matrix4>(root.world)
+    const world = root.world as unknown as Matrix4
     world.makeRotationY(w * 0.4)
     world.setPosition((w % 4) * 5 - 7.5, Math.floor(w / 4) * 4 - 4, -w * 0.5)
   })

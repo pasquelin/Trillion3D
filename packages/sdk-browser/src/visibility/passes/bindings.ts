@@ -1,6 +1,7 @@
 import { uniformStride } from '../../session/memory/pools.ts'
 import { visBindEntries, type VisBindResources } from '../../gpu/bind/bindEntries.ts'
 import { liveResources } from '../../gpu/bind/liveEntries.ts'
+import { noiseViewOn } from '../../gpu/noise/blueNoiseTextures.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 
 export function visibilityEntries(rt: WebgpuPagesRuntime, slot = -1) {
@@ -15,10 +16,12 @@ export function visibilityEntries(rt: WebgpuPagesRuntime, slot = -1) {
       uniformOffset: () => (slot + 1) * uniformStride(rt.gpu.device?.limits),
       textures: () => rt.vis.textures,
       sampler: () => rt.vis.mapsSampler,
-      instances: () => (slot < 0 ? rt.vis.zeroRows : rt.vis.gpuDraw?.instanceBuffer),
-      slotOffsets: () => (slot < 0 ? rt.vis.zeroRows : rt.vis.gpuDraw?.groupsBuffer),
+      instances: () => (slot < 0 ? rt.vis.zeroRows : rt.vis.gpuBins?.instanceBuffer),
+      slotOffsets: () => (slot < 0 ? rt.vis.zeroRows : rt.vis.gpuBins?.slotOffsetBuffer),
       material: () => rt.vis.materialTable.view,
       normals: () => rt.vis.concatNrm,
+      frame: () => rt.gpu.device && rt.vis.graphFrame.bufferOn(rt.gpu.device),
+      noise: () => rt.gpu.device && noiseViewOn(rt.gpu.device),
     }),
   )
 }
@@ -39,7 +42,7 @@ function voidStaleVisibilityGroups(rt: WebgpuPagesRuntime) {
  *  moved resource are voided, made again by the passes that bind them (`visGroup.ts`); the
  *  raster's own groups follow theirs (`../raster/bindings.ts`). */
 export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime) {
-  // The records the rows wrote go up before a group names their texture.
+  // The records of the surfaces go up before a group names their texture.
   const { materialTable } = rt.vis,
     device = rt.gpu.device
   if (device) materialTable.viewFor(device)

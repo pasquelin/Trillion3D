@@ -1,3 +1,4 @@
+import { FRUSTUM_PLANE_VALUES } from './frustum.ts'
 /**
  * An axis-aligned box against the six planes of a frustum (see `frustum.ts`).
  *
@@ -14,6 +15,23 @@
  * (`box.test.ts`).
  */
 
+/** The distance of the box corner most forward along the plane `(a, b, c, d)`: negative when that
+ *  corner is behind it. */
+function leadingDistance(
+  a: number,
+  b: number,
+  c: number,
+  d: number,
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+) {
+  return a * (a > 0 ? maxX : minX) + b * (b > 0 ? maxY : minY) + c * (c > 0 ? maxZ : minZ) + d
+}
+
 /** True when the box is entirely outside the frustum: a plane leaves all its corners behind. */
 export function frustumExcludesBox(
   planes: Float64Array,
@@ -24,13 +42,12 @@ export function frustumExcludesBox(
   maxY: number,
   maxZ: number,
 ) {
-  for (let p = 0; p < 24; p += 4) {
+  for (let p = 0; p < FRUSTUM_PLANE_VALUES; p += 4) {
     const a = planes[p],
       b = planes[p + 1],
       c = planes[p + 2],
       d = planes[p + 3]
-    if (a * (a > 0 ? maxX : minX) + b * (b > 0 ? maxY : minY) + c * (c > 0 ? maxZ : minZ) + d < 0)
-      return true
+    if (leadingDistance(a, b, c, d, minX, minY, minZ, maxX, maxY, maxZ) < 0) return true
   }
   return false
 }
@@ -39,8 +56,8 @@ export function frustumExcludesBox(
  * The box against the frustum in three states: 0 outside, 1 straddling, 2 entirely inside. A
  * subtree entirely inside saves a test at every box underneath it.
  *
- * Two passes: the first only rejects; the second, on the most trailing corner, only serves
- * to distinguish "straddling" from "inside" and stops at the first plane crossed.
+ * One pass over the planes: the most forward corner rejects at the first plane that leaves it
+ * behind; the most trailing corner (bounds swapped) behind a plane means the box crosses it.
  */
 export function frustumClipBox(
   planes: Float64Array,
@@ -51,7 +68,15 @@ export function frustumClipBox(
   maxY: number,
   maxZ: number,
 ) {
-  if (frustumExcludesBox(planes, minX, minY, minZ, maxX, maxY, maxZ)) return 0
-  // Bounds swapped: the most trailing corner behind a plane means the box crosses it.
-  return frustumExcludesBox(planes, maxX, maxY, maxZ, minX, minY, minZ) ? 1 : 2
+  let straddles = false
+  for (let p = 0; p < FRUSTUM_PLANE_VALUES; p += 4) {
+    const a = planes[p],
+      b = planes[p + 1],
+      c = planes[p + 2],
+      d = planes[p + 3]
+    if (leadingDistance(a, b, c, d, minX, minY, minZ, maxX, maxY, maxZ) < 0) return 0
+    if (!straddles && leadingDistance(a, b, c, d, maxX, maxY, maxZ, minX, minY, minZ) < 0)
+      straddles = true
+  }
+  return straddles ? 1 : 2
 }

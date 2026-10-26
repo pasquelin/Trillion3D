@@ -74,7 +74,8 @@ test('the settings shape the sun clipmap: its levels, depth range and coarse pag
 test('a moving sun reads the moving bias, back to its own over the active frames', () => {
   const cache = new VsmCacheManager(),
     eye = [0, 0, 0]
-  const bias = (frameNumber: number, light = SUN) => {
+  const moves = { ...SUN, movable: true }
+  const bias = (frameNumber: number, light = moves) => {
     const maps = mapsOf(
       { shadowResolutionLodBiasDirectional: 0, shadowResolutionLodBiasDirectionalMoving: 2 },
       frameNumber,
@@ -87,7 +88,7 @@ test('a moving sun reads the moving bias, back to its own over the active frames
     [0, 5, 9, 10, 20].map((f) => bias(f)),
     [5, 4, Math.fround(3.2), 3, 3],
   )
-  const turned = { ...SUN, direction: [0.1, -0.9, 0.2] }
+  const turned = { ...moves, direction: [0.1, -0.9, 0.2] }
   assert.equal(bias(21, turned), 5, 'turned: moving again')
   assert.equal(bias(26, turned), 4, 'half way back')
 })
@@ -155,7 +156,7 @@ test("the display's floor is the sun's alone: a local light keeps the drawn size
     position: [0, 3, -20],
     direction: [0, -1, 0],
     range: 6,
-    coneAngle: 0.6,
+    outerCone: 0.601,
   }
   // A light just made reads its moving bias; the floor is judged at the bias it rests at.
   const still = mapsOf({ shadowResolutionLodBiasLocalMoving: 0 })
@@ -175,7 +176,7 @@ test("a local light reads the moving bias as the sun does, and marks its last mi
   const views = [vsmLocalViewData(camera, { width: 1024, height: 768 })]
   const spot = {
     ...{ id: 'spot', kind: 'spot' as const, position: [0, 3, -20], direction: [0, -1, 0] },
-    ...{ range: 6, coneAngle: 0.6 },
+    ...{ range: 6, outerCone: 0.601, movable: true },
   }
   const cache = new VsmCacheManager()
   const mip = (frameNumber: number, changes = {}) =>
@@ -192,7 +193,7 @@ test("a local light reads the moving bias as the sun does, and marks its last mi
       new VsmCacheManager(),
       spot,
       views,
-      mapsOf({ shadowMarkCoarsePagesLocal: mode }),
+      mapsOf({ shadowMarkCoarsePagesLocal: mode, shadowDistantLightMode: 0 }),
     ).cacheEntry.mapCaches[0].projectionData.flags
   assert.deepEqual(
     [0, 1, 2].map((mode) => [
@@ -205,4 +206,25 @@ test("a local light reads the moving bias as the sun does, and marks its last mi
       [true, true],
     ],
   )
+})
+
+// An object that names a distance past which its offset stops is moved in the levels whose threshold
+// (`wpoThreshold`, the square of the distance in map units) it does not pass: it grows four times for a
+// level, the bias holds it back by whole levels, and the setting off leaves no threshold.
+test('each level of the sun’s clipmap says the distance past which it shows no motion, the setting and its bias moving it', () => {
+  const thresholds = (changes: Parameters<typeof mapsOf>[0] = {}) =>
+    frame(new VsmCacheManager(), [0, 0, 0], 1024, mapsOf(changes)).cacheEntry.mapCaches.map(
+      (map) => map.projectionData.wpoThreshold,
+    )
+  const held = thresholds()
+  assert.ok(held.every((value) => value > 0))
+  for (let level = 1; level < held.length; level++)
+    assert.equal(held[level] / held[level - 1], 4, `level ${level}: twice the distance, squared`)
+  const lowered = thresholds({ shadowClipmapWpoDisableDistanceLodBias: 0 })
+  assert.equal(
+    lowered[0] / held[0],
+    2 ** 6,
+    'the bias of 3 holds it back by three levels (a distance 8×)',
+  )
+  assert.ok(thresholds({ shadowClipmapWpoDisableDistance: false }).every((value) => value === 0))
 })

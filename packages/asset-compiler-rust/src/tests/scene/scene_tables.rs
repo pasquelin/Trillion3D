@@ -6,10 +6,11 @@
 //! outside this crate. Each case names the glTF field it comes from, so what the table claims can
 //! be traced back to the specification it is read from.
 use super::*;
+use crate::compiler::tables::uv_density::UV_SETS;
 use crate::tests::cache::reuse::compile_with_events;
 
 /// Cube corners on the fixture triangle's accessor, so a world box has something to grow from.
-fn with_bounds(gltf: &mut Value) {
+pub(in crate::tests) fn with_bounds(gltf: &mut Value) {
     gltf["accessors"][0]["min"] = json!([0.0, 0.0, 0.0]);
     gltf["accessors"][0]["max"] = json!([1.0, 1.0, 0.0]);
 }
@@ -174,33 +175,44 @@ fn the_format_number_is_raised_and_an_earlier_cache_is_refused_by_it() {
 fn an_object_naming_a_draw_distance_carries_it_in_its_core_node_or_its_cell_row() {
     // Provenance: the job's `objectSettings.drawDistance`, read like every object setting. "left"
     // streams in a cell row; "right" is always loaded, so the core keeps it; "behind" names a
-    // nearest distance alone and "zero" a farthest of 0 — no farthest, no distance, as `false`
-    // says —, "plain" names none.
+    // nearest distance alone — a distance for an object of its own —, "far" a nearest distance
+    // alone for one instance of an instanced mesh and "zero" distances of 0: none, as `false`
+    // says; "near" names a farthest distance for an instance, "plain" names none.
     let (_root, mut options) = fixture();
     let mut gltf = read_gltf(&options);
     with_bounds(&mut gltf);
     gltf["scenes"] = json!([{"nodes": [0]}]);
     gltf["nodes"] = json!([
-        {"name": "root", "children": [1, 2, 3, 4, 5]},
+        {"name": "root", "children": [1, 2, 3, 4, 5, 6, 7]},
         {"name": "left", "mesh": 0},
         {"name": "right", "mesh": 0},
         {"name": "behind", "mesh": 0},
         {"name": "plain", "mesh": 0},
         {"name": "zero", "mesh": 0},
+        {"name": "far", "mesh": 0},
+        {"name": "near", "mesh": 0},
     ]);
     write_gltf(&options, &gltf, None);
     options.object_settings = crate::ObjectSettings::read(Some(&json!({"objects": [
         {"match": "left", "drawDistance": {"min": 5.0, "max": 120.0}},
         {"match": "right", "spatiallyLoaded": false, "drawDistance": {"max": 30.0}},
         {"match": "behind", "drawDistance": {"min": 5.0}},
-        {"match": "zero", "drawDistance": {"min": 5.0, "max": 0.0}},
+        {"match": "zero", "drawDistance": {"min": 0.0, "max": 0.0}},
+        {"match": "far", "drawDistance": {"min": 5.0, "perInstance": true}},
+        {"match": "near", "drawDistance": {"max": 40.0, "perInstance": true}},
     ]})));
     let (_options, tables, directory) = partition::compiled_full(options);
+    assert_core_distances(&tables);
+    assert_cell_distances(&directory);
+}
+
+/// The core table names a draw distance for "right" alone: it is always loaded, the others stream.
+fn assert_core_distances(tables: &Value) {
     let core = tables["nodes"].as_array().expect("nodes");
     let named = core.iter().find(|node| node["name"] == json!("right"));
     assert_eq!(
         named.map(|node| node["drawDistance"].clone()),
-        Some(json!({"min": 0.0, "max": 30.0})),
+        Some(json!({"min": 0.0, "max": 30.0, "perInstance": false})),
         "{tables}"
     );
     assert_eq!(
@@ -210,16 +222,32 @@ fn an_object_naming_a_draw_distance_carries_it_in_its_core_node_or_its_cell_row(
         1,
         "no other core node names one: {tables}"
     );
-    let rows = partition::cell_nodes(&directory);
+}
+
+/// The cell rows carry the distances of "left", "zero" and "near"; an instance's nearest alone is
+/// none.
+fn assert_cell_distances(directory: &Path) {
+    let rows = partition::cell_nodes(directory);
     let drawn: Vec<_> = (rows.iter())
         .filter_map(|row| row.get("drawDistance"))
         .collect();
-    assert_eq!(drawn, [&json!({"min": 5.0, "max": 120.0})], "{rows:?}");
+    for expected in [
+        json!({"min": 5.0, "max": 120.0, "perInstance": false}),
+        json!({"min": 5.0, "max": 0.0, "perInstance": false}),
+        json!({"min": 0.0, "max": 40.0, "perInstance": true}),
+    ] {
+        assert!(drawn.contains(&&expected), "{expected} in {rows:?}");
+    }
+    assert_eq!(
+        drawn.len(),
+        3,
+        "an instance's nearest alone is none: {rows:?}"
+    );
 }
 
 /// `count` unit right triangles side by side, each covering `covered` in the texture coordinate of
 /// set 0 (twice its area): the positions, the indices and the sets of a primitive that has one.
-fn stretched(count: usize, covered: f32) -> (Vec<f32>, Vec<u32>, [Option<Vec<f32>>; 4]) {
+fn stretched(count: usize, covered: f32) -> (Vec<f32>, Vec<u32>, [Option<Vec<f32>>; UV_SETS]) {
     let (mut positions, mut uv) = (Vec::new(), Vec::new());
     for i in 0..count {
         let x = 2.0 * i as f32;
@@ -227,7 +255,9 @@ fn stretched(count: usize, covered: f32) -> (Vec<f32>, Vec<u32>, [Option<Vec<f32
         uv.extend([0.0, 0.0, covered.sqrt(), 0.0, 0.0, covered.sqrt()]);
     }
     let indices = (0..3 * count as u32).collect();
-    (positions, indices, [Some(uv), None, None, None])
+    let mut sets = [const { None }; UV_SETS];
+    sets[0] = Some(uv);
+    (positions, indices, sets)
 }
 
 #[test]
@@ -247,16 +277,22 @@ fn a_displaced_materials_uv_density_is_the_trimmed_weighted_mean_over_its_triang
         .extend(last_set[0].as_ref().expect("set"));
     let mut one = Density::default();
     one.add(&positions, &indices, &sets);
-    assert_eq!(one.per_set(), Some([2.0, 0.0, 0.0, 0.0]));
+    assert_eq!(
+        one.per_set(),
+        Some([2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    );
     // Another primitive of the same material adds its weight before the division: the density is
     // the mean of both, a set no triangle measures staying 0.
     let (positions, indices, sets) = stretched(10, 0.0625);
     let mut both = one;
     both.add(&positions, &indices, &sets);
-    assert_eq!(both.per_set(), Some([3.0, 0.0, 0.0, 0.0]));
+    assert_eq!(
+        both.per_set(),
+        Some([3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    );
     // A primitive with no coordinates, or whose triangles cover nothing of them, measures nothing.
     let mut none = Density::default();
-    none.add(&positions, &indices, &[None, None, None, None]);
+    none.add(&positions, &indices, &[const { None }; UV_SETS]);
     none.add(&positions, &indices, &stretched(10, 0.0).2);
     assert_eq!(none.per_set(), None);
 }

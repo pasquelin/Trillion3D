@@ -1,23 +1,15 @@
-import type {
-  HlodWarmupOptions,
-  WorldStreamingOptions,
-} from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
-import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
-import type { DynamicResolutionOptions } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
-import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
-import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
-import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
-import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
-import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
-import type { LightFunctionOptions } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
-import type { VolumetricLightmapOptions } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
-import type { GlobalDistanceFieldOptions } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
-import type { DistanceFieldOcclusionOptions } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
-import type { worldFamilies } from './ruledSwitches.ts'
+import {
+  memberOf,
+  SETTING_FAMILIES,
+  type FamilyTable,
+} from '../../../../sdk-core/src/runtime/settingFamilies.ts'
+import type { WorldFamilies } from './ruledSwitches.ts'
+import type { WorldImageSettings } from './worldImageTypes.ts'
+import type { WorldSceneSettings } from './worldSceneTypes.ts'
 
-type Families = ReturnType<typeof worldFamilies>
+type Families = WorldFamilies
 
-/** The software raster's two settings and the rasterizer's and geometry streaming's families by
+/** The cluster raster's five settings and the rasterizer's and geometry streaming's families by
  *  rule: read, their settings resolved over the page and the preset, by field — what a session
  *  opens with — (`ruledSwitches`). */
 export function rasterAccessors(families: Families) {
@@ -39,6 +31,31 @@ export function rasterAccessors(families: Families) {
     set hardwareRasterEdgePixels(option: number | null | undefined) {
       families.raster.set({ hardwareRasterEdgePixels: option })
     },
+    /** Whether the software raster's cutout clusters are ordered by depth bucket, resolved over the
+     *  page and the preset. */
+    get depthBucketing(): boolean {
+      return families.raster.get('depthBucketing')
+    },
+    /** The page's depth bucketing; `undefined` or `null` gives the setting back to the preset. */
+    set depthBucketing(option: boolean | null | undefined) {
+      families.raster.set({ depthBucketing: option })
+    },
+    /** The depth in metres the buckets start at, resolved over the page and the preset. */
+    get depthBucketsMinZ(): number {
+      return families.raster.get('depthBucketsMinZ')
+    },
+    /** The page's first bucket depth; `undefined` or `null` gives the setting back to the preset. */
+    set depthBucketsMinZ(option: number | null | undefined) {
+      families.raster.set({ depthBucketsMinZ: option })
+    },
+    /** The depth in metres the buckets end at, resolved over the page and the preset. */
+    get depthBucketsMaxZ(): number {
+      return families.raster.get('depthBucketsMaxZ')
+    },
+    /** The page's last bucket depth; `undefined` or `null` gives the setting back to the preset. */
+    set depthBucketsMaxZ(option: number | null | undefined) {
+      families.raster.set({ depthBucketsMaxZ: option })
+    },
     // Each family by rule: read, its settings resolved over the page and the preset, by field —
     // what a session opens with —; written, the page's settings the options name (`ruledSwitches`).
     get raster() {
@@ -50,81 +67,28 @@ export function rasterAccessors(families: Families) {
   }
 }
 
-/** The other families by rule: read, their settings resolved over the page and the preset, by
- *  field; written, the page's settings the options name (`ruledSwitches`). */
-export function ruledAccessors(families: Families) {
-  return {
-    get worldStreaming() {
-      return families.worldStreaming.values()
-    },
-    set worldStreaming(options: WorldStreamingOptions & HlodWarmupOptions) {
-      families.worldStreaming.set(options)
-    },
-    get cut() {
-      return families.cut.values()
-    },
-    set cut(options: CutOptions) {
-      families.cut.set(options)
-    },
-    get dynamicResolution() {
-      return families.dynamicResolution.values()
-    },
-    set dynamicResolution(options: DynamicResolutionOptions) {
-      families.dynamicResolution.set(options)
-    },
-    get animation() {
-      return families.animation.values()
-    },
-    set animation(options: AnimationOptions) {
-      families.animation.set(options)
-    },
-    get shading() {
-      return families.shading.values()
-    },
-    set shading(options: ShadingOptions) {
-      families.shading.set(options)
-    },
-    get exposureSettings() {
-      return families.exposure.values()
-    },
-    set exposureSettings(options: ExposureOptions) {
-      families.exposure.set(options)
-    },
-    get temporal() {
-      return families.temporal.values()
-    },
-    set temporal(options: TemporalOptions) {
-      families.temporal.set(options)
-    },
-    get hiz() {
-      return families.hiz.values()
-    },
-    set hiz(options: HizOptions) {
-      families.hiz.set(options)
-    },
-    get lightFunction() {
-      return families.lightFunction.values()
-    },
-    set lightFunction(options: LightFunctionOptions) {
-      families.lightFunction.set(options)
-    },
-    get volumetricLightmap() {
-      return families.volumetricLightmap.values()
-    },
-    set volumetricLightmap(options: VolumetricLightmapOptions) {
-      families.volumetricLightmap.set(options)
-    },
-    get globalDistanceField() {
-      return families.globalDistanceField.values()
-    },
-    set globalDistanceField(options: GlobalDistanceFieldOptions) {
-      families.globalDistanceField.set(options)
-    },
-    get distanceFieldOcclusion() {
-      return families.distanceFieldOcclusion.values()
-    },
-    set distanceFieldOcclusion(options: DistanceFieldOcclusionOptions) {
-      families.distanceFieldOcclusion.set(options)
-    },
+/** The families by rule the world carries (`SETTING_FAMILIES`, each row's `world`): read, their
+ *  settings resolved over the page and the preset, by field; written, the page's settings the
+ *  options name (`ruledSwitches`). One accessor for each row of `table`, defined as an accessor and
+ *  typed as the world's own (`WorldSceneSettings`, `WorldImageSettings`), whose documentation says
+ *  what each family is. The raster and the geometry streaming are `rasterAccessors`'. */
+export function ruledAccessors(
+  families: Families,
+  table: FamilyTable = SETTING_FAMILIES,
+): WorldSceneSettings & WorldImageSettings {
+  const byName = families as unknown as Record<
+    string,
+    { values(): unknown; set(options: unknown): void }
+  >
+  const accessors = {}
+  for (const [name, family] of Object.entries(table)) {
+    if (!family.world) continue
+    Object.defineProperty(accessors, memberOf(name, table), {
+      enumerable: true,
+      configurable: true,
+      get: () => byName[name].values(),
+      set: (options: unknown) => byName[name].set(options),
+    })
   }
+  return accessors as WorldSceneSettings & WorldImageSettings
 }

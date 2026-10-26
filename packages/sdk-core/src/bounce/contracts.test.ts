@@ -3,20 +3,8 @@ import assert from 'node:assert/strict'
 import { BOUNCE_PROBE_QUEUE, BOUNCE_SETTINGS, resolveProbesPerFrame } from './contracts.ts'
 import { DEFAULT_SCREEN_PROBE_LEVEL, SCREEN_PROBE_LEVEL_KNOBS } from './screenProbeLevels.ts'
 import { screenProbeSettings } from './screenProbeOptions.fixture.ts'
-import {
-  REFLECTION_RULES,
-  REFLECTION_TESTS_PER_STEP,
-  REFLECTION_WORK_PER_STEP,
-  resolveReflections,
-} from '../contracts/reflectionOptions.ts'
-import { resolveSettings } from '../contracts/settingRules.ts'
-
-test('a frame queues as many probes as the ray ceiling holds, and no more', () => {
-  const { raysPerProbe, raysPerFrame } = BOUNCE_SETTINGS
-  assert.ok(Number.isInteger(BOUNCE_PROBE_QUEUE) && BOUNCE_PROBE_QUEUE >= 1)
-  assert.ok(BOUNCE_PROBE_QUEUE * raysPerProbe <= raysPerFrame, 'within the ceiling')
-  assert.ok((BOUNCE_PROBE_QUEUE + 1) * raysPerProbe > raysPerFrame, 'one more would pass it')
-})
+import { REFLECTION_RULES, resolveReflections } from '../contracts/reflectionOptions.ts'
+import { resolveSettings, type SettingRule } from '../contracts/settingRules.ts'
 
 test('the probes a frame traces: the default when none is asked, a whole count within the queue otherwise', () => {
   assert.equal(resolveProbesPerFrame(undefined), BOUNCE_SETTINGS.probesPerFrame)
@@ -36,47 +24,28 @@ test('the probes a frame traces: the default when none is asked, a whole count w
 const reflections = (options: object) =>
   resolveReflections(resolveSettings(REFLECTION_RULES, options), screenProbeSettings(options))
 
-test('the reflections trace with the reference’s budgets: 50 screen iterations, 256 steps a ring, a step the probes’ ray over the reference’s longest', () => {
+test('the reflections trace with the reference’s budgets: 50 screen iterations, a far trace of 16 steps and 2 000 m, the scene marched through the field', () => {
   const values = resolveSettings(REFLECTION_RULES, {})
   assert.equal(values.reflectionScreenSteps, 50)
-  assert.equal(values.reflectionRingSteps, 256)
-  assert.equal(values.reflectionDetailSteps, 64)
   assert.equal(values.reflectionDistantScreenSteps, 16)
   assert.equal(values.reflectionDistantScreenDistance, 2000)
-  assert.deepEqual(
-    [values.reflectionMeshTraces, values.reflectionDistantScreenTraces],
-    [true, true],
-  )
-  // The reference's longest ray is four rings of 256 steps; the probes' ray holds `probeRayWork` units
-  // and `probeRayTriangles` tests for it, so one step is four units of work and one test, a ring 1024 and 256:
-  // pinned here, so that a retune of the probes' budget moves no reflection unseen.
-  assert.equal(BOUNCE_SETTINGS.cascadeLevels, 4)
-  assert.equal(4 * 256 * REFLECTION_WORK_PER_STEP, BOUNCE_SETTINGS.probeRayWork)
-  assert.equal(4 * 256 * REFLECTION_TESTS_PER_STEP, BOUNCE_SETTINGS.probeRayTriangles)
+  assert.equal(values.reflectionDistantScreenTraces, true)
+  // The scene trace is the screen probes' switch, and marches the field wherever the level traces.
   const settings = reflections({})
-  assert.deepEqual([REFLECTION_WORK_PER_STEP, REFLECTION_TESTS_PER_STEP], [4, 1])
-  assert.deepEqual([settings.ringWork, settings.ringTests], [1024, 256])
-  assert.deepEqual([settings.detailWork, settings.detailTests], [256, 64])
-  assert.deepEqual(reflections({ reflectionRingSteps: 1 }).ringWork, 4)
-  // The detail window is the reference's own switch ANDed with the project's, off by default: the screen probes'
-  // detail trace, which a level may forbid; the scene trace is the screen probes' switch.
-  assert.deepEqual([settings.meshTraces, settings.sceneTraces], [false, true])
-  assert.equal(reflections({ screenProbeMeshTraces: true }).meshTraces, true)
-  assert.equal(
-    reflections({ screenProbeMeshTraces: true, reflectionMeshTraces: false }).meshTraces,
-    false,
-  )
-  assert.equal(reflections({ screenProbeMeshTraces: true, screenProbes: 'high' }).meshTraces, false)
-  assert.equal(reflections({ screenProbeSceneTraces: false }).sceneTraces, false)
+  assert.deepEqual([settings.sceneTraces, settings.marchesField], [true, true])
   assert.deepEqual(
-    [settings.meshDistance, settings.meshEndDistance, settings.surfaceBias],
-    [1.8, 40, 0.05],
+    [
+      reflections({ screenProbeSceneTraces: false }).sceneTraces,
+      reflections({ screenProbeSceneTraces: false }).marchesField,
+    ],
+    [false, false],
   )
+  assert.equal(reflections({ reflectionQuality: 'off' }).marchesField, false)
+  assert.equal(settings.surfaceBias, 0.05)
+  // A host that checks no types may write any value to any setting: the rules, read by their kind alone.
+  const anyRules: Readonly<Record<string, SettingRule>> = REFLECTION_RULES
   for (const refused of [
     { reflectionScreenSteps: 0 },
-    { reflectionRingSteps: 0 },
-    { reflectionRingSteps: 2.5 },
-    { reflectionDetailSteps: 0 },
     { reflectionDistantScreenSteps: 0 },
     { reflectionDistantScreenDistance: 0 },
     { reflectionQuality: 'ultra ' },
@@ -86,14 +55,9 @@ test('the reflections trace with the reference’s budgets: 50 screen iterations
     { reflectionBilateralDisocclusionFrames: 0 },
     { reflectionMaxRayIntensity: 0 },
   ])
-    assert.throws(
-      () => resolveSettings(REFLECTION_RULES, refused),
-      TypeError,
-      JSON.stringify(refused),
-    )
+    assert.throws(() => resolveSettings(anyRules, refused), TypeError, JSON.stringify(refused))
   // The iterations have no upper bound: the reference takes any count.
   assert.equal(reflections({ reflectionScreenSteps: 300 }).screenSteps, 300)
-  assert.equal(reflections({ reflectionRingSteps: 5000 }).ringWork, 20000)
   assert.equal(reflections({ reflectionDistantScreenSteps: 1000 }).distantSteps, 1000)
 })
 
@@ -118,6 +82,15 @@ test('the reflections have the reference’s levels: off, then the rows high, ul
   assert.deepEqual(rows({ reflectionQuality: false }).slice(0, 2), ['off', false])
   assert.equal(reflections({ reflectionQuality: 'off' }).maxRoughness, 0)
   assert.equal(reflections({}).maxRoughness, 0.4)
+  // The transparents' front layer is the reference's project setting, off by default: never at the high level, at the
+  // cinematic level whatever the project says, at the default level only where the project asks for it.
+  const front = (options: object) => reflections(options).frontLayer
+  assert.equal(front({}), false)
+  assert.equal(front({ reflectionFrontLayer: true }), true)
+  assert.equal(front({ reflectionQuality: 'high', reflectionFrontLayer: true }), false)
+  assert.equal(front({ reflectionQuality: 'cinematic' }), true)
+  assert.equal(front({ reflectionQuality: 'cinematic', reflectionFrontLayer: false }), true)
+  assert.equal(front({ reflectionQuality: 'off', reflectionFrontLayer: true }), false)
   // The far trace needs the screen trace; the lit image of a scene hit needs it unless asked for always.
   const flags = (options: object) => {
     const s = reflections(options)

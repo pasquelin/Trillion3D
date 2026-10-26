@@ -61,12 +61,7 @@ export function viewOf(pose: CameraPose, width: number, height: number) {
     pose.near,
     1,
   )
-  const frame = updateCameraFrame(
-    createCameraFrame(),
-    projection,
-    tree.worldViews[node].slice(),
-    pose.far,
-  )
+  const frame = updateCameraFrame(createCameraFrame(), projection, tree.worldViews[node].slice())
   const focal = focalPixels(projection, width, height)
   return { frame, eye: pose.position, near: pose.near, focal }
 }

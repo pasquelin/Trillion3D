@@ -35,7 +35,7 @@ import {
 export type { BloomTint } from './bloomFields.ts'
 
 /** The ways to make the glow: a sum of Gaussian blurs, or a convolution with a kernel. */
-export const BLOOM_METHODS = ['gaussian', 'convolution'] as const
+const BLOOM_METHODS = ['gaussian', 'convolution'] as const
 /** A way to make the glow. */
 export type BloomMethod = (typeof BLOOM_METHODS)[number]
 

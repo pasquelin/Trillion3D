@@ -39,13 +39,16 @@ export const POOL_LANES_WGSL = wgslConst('POOL_LANES', [], wgslConsts({ POOL_LAN
  */
 export function encodePoolSort(
   pass: GPUComputePassEncoder,
-  pipelineOf: (stage: PoolSortStage) => GPUComputePipeline,
+  pipelineOf: (stage: PoolSortStage) => GPUComputePipeline | undefined,
   slots: number,
   width: number,
 ) {
   const groups = workgroupCount(slots, POOL_LANES)
   for (const stage of POOL_SORT_STAGES) {
-    pass.setPipeline(pipelineOf(stage))
+    const pipeline = pipelineOf(stage)
+    // Not compiled: the sort is skipped, the frame is held for it (`pipelinesCompiling`).
+    if (!pipeline) return
+    pass.setPipeline(pipeline)
     if (ONE_WORKGROUP.has(stage)) pass.dispatchWorkgroups(1)
     else dispatchRows(pass, groups, 1, width)
   }

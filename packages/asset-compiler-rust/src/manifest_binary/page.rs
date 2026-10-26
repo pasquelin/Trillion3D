@@ -12,7 +12,8 @@ pub(super) const FLAG_PARENT_SPHERE_SET: u32 = 128;
 pub(super) const FLAG_GROUP: u32 = 256;
 pub(super) const FLAG_SOURCE: u32 = 512;
 
-/// Writes `page`'s row of every page column: its geometry lies at `streamOffset` of its bundle.
+/// Writes `page`'s row of every page column: its geometry lies at `streamOffset` of its bundle on
+/// disk and at `geometry.residentOffset` of its place in the pool.
 pub(super) fn encode_page(page: &Value, columns: &mut [Column]) -> Result<()> {
     let item = MANIFEST.object(page, "page")?;
     vector_into(item.get("min"), 3, "page.min", &mut columns[PAGE_BOUNDS])?;
@@ -123,6 +124,8 @@ pub(super) fn encode_page(page: &Value, columns: &mut [Column]) -> Result<()> {
         ("indexCount", "page.geometry.indexCount"),
         ("flags", "page.geometry.flags"),
         ("uncompressedBytes", "page.geometry.uncompressedBytes"),
+        ("residentBytes", "page.geometry.residentBytes"),
+        ("residentOffset", "page.geometry.residentOffset"),
     ] {
         columns[GEOMETRY_U32].u32(as_u32(MANIFEST.integer(geometry.get(key), label)?, label)?);
     }

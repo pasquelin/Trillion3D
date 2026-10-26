@@ -5,7 +5,9 @@
 //! stores one position per vertex and no link. Either way a vertex decodes to the same
 //! floats: the link only says where its position lies.
 
-use crate::bits::{bits_for, le_words, stream_words, BitReader};
+use crate::bits::{bits_for, BitReader};
+#[cfg(test)]
+use crate::bits::{le_words, stream_words};
 use crate::{Header, Layout};
 
 impl Header {
@@ -20,9 +22,11 @@ impl Header {
     }
 }
 
-/// Every link names a stored position — the gate a reader that decodes in place relies on, as
-/// for the block records. `body` is the page after its header, the layout already matched to it;
-/// the link stream is read by the decoder's own `BitReader`.
+/// Every link names a stored position — what the test-only reading of a resident page
+/// (`Header::parse_resident`) checks; the gate of a page on disk reads the links itself
+/// (`disk::read_raw`). `body` is the page after its header, the layout already matched to it; the
+/// link stream is read by the decoder's own `BitReader`.
+#[cfg(test)]
 pub(crate) fn links_fit(body: &[u8], layout: &Layout, h: &Header) -> bool {
     if !h.links_positions() {
         return true;

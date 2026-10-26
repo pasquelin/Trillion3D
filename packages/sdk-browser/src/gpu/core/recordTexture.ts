@@ -19,6 +19,165 @@ export type TextureMaker = (
   old?: GPUTexture,
 ) => GPUTexture
 
+/** A record table's texture and what it holds: its extent, bytes, array view and capacity. */
+type RecordTable = {
+  texture: GPUTexture
+  size: [number, number, number]
+  held: number
+  view: GPUTextureView
+  capacity: number
+}
+
+/** The texture of `count` records, made by `make` in place of `old` when it replaces one. */
+const recordTableMaker =
+  (layout: RecordLayout, usage: GPUTextureUsageFlags, bytes: number, make: TextureMaker) =>
+  (count: number, old?: GPUTexture): RecordTable => {
+    const size = recordExtent(layout, count),
+      held = size[0] * size[1] * size[2] * bytes
+    const texture = make({ label: layout.label, size, format: layout.format, usage }, held, old)
+    return { texture, size, held, view: arrayView(texture), capacity: heldRecords(layout, size) }
+  }
+
+/** The host's writes of a record table's texels: one write's descriptors are held and filled again
+ *  at each piece, the queue reads them when called, so a write allocates nothing. */
+function recordWriter(
+  device: GPUDevice,
+  layout: RecordLayout,
+  bytes: number,
+  holder: { table: RecordTable },
+) {
+  const origin = [0, 0, 0],
+    extent = [0, 0, 1],
+    destination: GPUTexelCopyTextureInfo = { texture: holder.table.texture, origin },
+    source: GPUTexelCopyBufferLayout = { offset: 0, bytesPerRow: 0 },
+    none = new ArrayBuffer(0),
+    sending = { data: none, dataOffset: 0, first: 0 }
+  const send: PieceVisit = (x, y, layer, width, rows, first) => {
+    origin[0] = x
+    origin[1] = y
+    origin[2] = layer
+    extent[0] = width
+    extent[1] = rows
+    source.offset = sending.dataOffset + (first - sending.first) * bytes
+    device.queue.writeTexture(destination, sending.data, source, extent)
+  }
+  /** Texels `[first, first + count)` of field `field` (`texelPieces`), `data` holding them from
+   *  `dataOffset` bytes, one after the other. */
+  const writeTexels = (
+    field: string,
+    first: number,
+    count: number,
+    data: ArrayBuffer,
+    dataOffset: number,
+  ) => {
+    destination.texture = holder.table.texture
+    source.bytesPerRow = (layout.fields[field] << layout.rowShift) * bytes
+    sending.data = data
+    sending.dataOffset = dataOffset
+    sending.first = first
+    texelPieces(layout, field, first, count, send)
+    // The caller's bytes are not held past its write.
+    sending.data = none
+  }
+  /** Field `field` of the `count` records from `first`, `data` holding them from `dataOffset`
+   *  bytes, each record's field after the other. */
+  const write = (
+    field: string,
+    first: number,
+    count: number,
+    data: ArrayBuffer,
+    dataOffset: number,
+  ) => {
+    const texels = layout.fields[field]
+    writeTexels(field, first * texels, count * texels, data, dataOffset)
+  }
+  return { write, writeTexels }
+}
+
+/** The copies of a record table's texels (`copyTexels`): one copy's descriptors are held and filled
+ *  again at each piece like a write's, the encoder reads them when called. */
+function recordCopier(layout: RecordLayout, holder: { table: RecordTable }) {
+  const origin = [0, 0, 0],
+    extent = [0, 0, 1],
+    copyFrom: GPUTexelCopyTextureInfo = { texture: holder.table.texture, origin },
+    copyTo: GPUTexelCopyTextureInfo = { texture: holder.table.texture, origin }
+  let copying: GPUCommandEncoder | undefined
+  const copyPiece: PieceVisit = (x, y, layer, width, rows) => {
+    origin[0] = x
+    origin[1] = y
+    origin[2] = layer
+    extent[0] = width
+    extent[1] = rows
+    copying!.copyTextureToTexture(copyFrom, copyTo, extent)
+  }
+  /** Texels `[from, from + count)` of field `field` copied, in `encoder`, to texels from `at` of
+   *  the same field of `to`, a table of the same layout: a row's run a copy — the same texels
+   *  (`from === at`) the rectangles of a write (`texelPieces`), whole rows in one. */
+  return (
+    encoder: GPUCommandEncoder,
+    to: { texture: GPUTexture },
+    field: string,
+    from: number,
+    at: number,
+    count: number,
+  ) => {
+    const { table } = holder
+    if (from === at) {
+      copyFrom.texture = table.texture
+      copyTo.texture = to.texture
+      copying = encoder
+      texelPieces(layout, field, from, count, copyPiece)
+      copying = undefined
+      return
+    }
+    for (let t = 0; t < count;) {
+      const source = texelAt(layout, field, from + t),
+        target = texelAt(layout, field, at + t),
+        width = Math.min(count - t, source.left, target.left)
+      encoder.copyTextureToTexture(
+        { texture: table.texture, origin: source.origin },
+        { texture: to.texture, origin: target.origin },
+        [width, 1, 1],
+      )
+      t += width
+    }
+  }
+}
+
+/**
+ * A table that holds `wanted` records: this one, or one made larger — twice the last at
+ * least, so a growth costs a constant a record —, its records copied once on the GPU and the
+ * texture replaced retired, by the one growth's release (`grownByCopy`, whose order it
+ * keeps). Whether it holds them: a growth its maker refuses keeps the table it had.
+ */
+function holdRecords(
+  device: GPUDevice,
+  layout: RecordLayout,
+  holder: { table: RecordTable },
+  made: ReturnType<typeof recordTableMaker>,
+  wanted: number,
+) {
+  if (wanted <= holder.table.capacity) return true
+  const old = holder.table
+  try {
+    holder.table = made(grownLength(old.capacity, wanted), old.texture)
+  } catch {
+    return false
+  }
+  grownByCopy(
+    device,
+    [old.texture],
+    (encoder) =>
+      encoder.copyTextureToTexture(
+        { texture: old.texture },
+        { texture: holder.table.texture },
+        old.size,
+      ),
+    `${layout.label} growth`,
+  )
+  return true
+}
+
 /**
  * A record table made on `device` for `records` records — none still a row's worth —: its texture
  * and the view every pass binds (`2d-array`, whatever its layers), and the writes of the host — a
@@ -42,88 +201,23 @@ export function createRecordTexture(
   make: TextureMaker = (descriptor) => device.createTexture(descriptor),
 ) {
   const bytes = texelBytesOf(layout.format)
-  /** The texture of `count` records, made by `make` in place of `old` when it replaces one. */
-  const made = (count: number, old?: GPUTexture) => {
-    const size = recordExtent(layout, count),
-      held = size[0] * size[1] * size[2] * bytes
-    const texture = make({ label: layout.label, size, format: layout.format, usage }, held, old)
-    return { texture, size, held, view: arrayView(texture), capacity: heldRecords(layout, size) }
-  }
-  let table = made(records)
-  /** One write's descriptors, held and filled again at each piece: the queue reads them when called,
-   *  so a write allocates nothing. */
-  const origin = [0, 0, 0],
-    extent = [0, 0, 1],
-    destination: GPUTexelCopyTextureInfo = { texture: table.texture, origin },
-    source: GPUTexelCopyBufferLayout = { offset: 0, bytesPerRow: 0 },
-    none = new ArrayBuffer(0),
-    sending = { data: none, dataOffset: 0, first: 0 }
-  const send: PieceVisit = (x, y, layer, width, rows, first) => {
-    origin[0] = x
-    origin[1] = y
-    origin[2] = layer
-    extent[0] = width
-    extent[1] = rows
-    source.offset = sending.dataOffset + (first - sending.first) * bytes
-    device.queue.writeTexture(destination, sending.data, source, extent)
-  }
-  /** Texels `[first, first + count)` of field `field` (`texelPieces`), `data` holding them from
-   *  `dataOffset` bytes, one after the other. */
-  const writeTexels = (
-    field: string,
-    first: number,
-    count: number,
-    data: ArrayBuffer,
-    dataOffset: number,
-  ) => {
-    destination.texture = table.texture
-    source.bytesPerRow = (layout.fields[field] << layout.rowShift) * bytes
-    sending.data = data
-    sending.dataOffset = dataOffset
-    sending.first = first
-    texelPieces(layout, field, first, count, send)
-    // The caller's bytes are not held past its write.
-    sending.data = none
-  }
-  /** One copy's descriptors (`copyTexels`), held and filled again at each piece like a write's:
-   *  the encoder reads them when called. */
-  const copyFrom: GPUTexelCopyTextureInfo = { texture: table.texture, origin },
-    copyTo: GPUTexelCopyTextureInfo = { texture: table.texture, origin }
-  let copying: GPUCommandEncoder | undefined
-  const copyPiece: PieceVisit = (x, y, layer, width, rows) => {
-    origin[0] = x
-    origin[1] = y
-    origin[2] = layer
-    extent[0] = width
-    extent[1] = rows
-    copying!.copyTextureToTexture(copyFrom, copyTo, extent)
-  }
-  /** Field `field` of the `count` records from `first`, `data` holding them from `dataOffset`
-   *  bytes, each record's field after the other. */
-  const write = (
-    field: string,
-    first: number,
-    count: number,
-    data: ArrayBuffer,
-    dataOffset: number,
-  ) => {
-    const texels = layout.fields[field]
-    writeTexels(field, first * texels, count * texels, data, dataOffset)
-  }
+  const made = recordTableMaker(layout, usage, bytes, make)
+  const holder = { table: made(records) }
+  const { write, writeTexels } = recordWriter(device, layout, bytes, holder)
   return {
     get texture() {
-      return table.texture
+      return holder.table.texture
     },
     get view() {
-      return table.view
+      return holder.table.view
     },
     /** Bytes the texture holds. */
     get bytes() {
-      return table.held
+      return holder.table.held
     },
     /** The records it holds: at least as many as asked, its last row's whole. */
     get capacity() {
-      return table.capacity
+      return holder.table.capacity
     },
     write,
     writeTexels,
@@ -133,65 +227,9 @@ export function createRecordTexture(
       return (offset: number, data: ArrayBuffer, dataOffset: number, size: number) =>
         writeTexels(field, offset / bytes, size / bytes, data, dataOffset)
     },
-    /**
-     * A table that holds `wanted` records: this one, or one made larger — twice the last at
-     * least, so a growth costs a constant a record —, its records copied once on the GPU and the
-     * texture replaced retired, by the one growth's release (`grownByCopy`, whose order it
-     * keeps). Whether it holds them: a growth its maker refuses keeps the table it had.
-     */
-    hold(wanted: number) {
-      if (wanted <= table.capacity) return true
-      const old = table
-      try {
-        table = made(grownLength(old.capacity, wanted), old.texture)
-      } catch {
-        return false
-      }
-      grownByCopy(
-        device,
-        [old.texture],
-        (encoder) =>
-          encoder.copyTextureToTexture(
-            { texture: old.texture },
-            { texture: table.texture },
-            old.size,
-          ),
-        `${layout.label} growth`,
-      )
-      return true
-    },
-    /** Texels `[from, from + count)` of field `field` copied, in `encoder`, to texels from `at` of
-     *  the same field of `to`, a table of the same layout: a row's run a copy — the same texels
-     *  (`from === at`) the rectangles of a write (`texelPieces`), whole rows in one. */
-    copyTexels(
-      encoder: GPUCommandEncoder,
-      to: { texture: GPUTexture },
-      field: string,
-      from: number,
-      at: number,
-      count: number,
-    ) {
-      if (from === at) {
-        copyFrom.texture = table.texture
-        copyTo.texture = to.texture
-        copying = encoder
-        texelPieces(layout, field, from, count, copyPiece)
-        copying = undefined
-        return
-      }
-      for (let t = 0; t < count;) {
-        const source = texelAt(layout, field, from + t),
-          target = texelAt(layout, field, at + t),
-          width = Math.min(count - t, source.left, target.left)
-        encoder.copyTextureToTexture(
-          { texture: table.texture, origin: source.origin },
-          { texture: to.texture, origin: target.origin },
-          [width, 1, 1],
-        )
-        t += width
-      }
-    },
-    destroy: () => table.texture.destroy(),
+    hold: (wanted: number) => holdRecords(device, layout, holder, made, wanted),
+    copyTexels: recordCopier(layout, holder),
+    destroy: () => holder.table.texture.destroy(),
   }
 }
 export type RecordTexture = ReturnType<typeof createRecordTexture>

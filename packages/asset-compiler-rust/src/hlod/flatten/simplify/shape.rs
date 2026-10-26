@@ -150,3 +150,41 @@ pub(super) fn shaped(
         ms,
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Behaviour: sources whose bounds have a side of no length — a flat quad — are shaped over
+    // the narrow band their field holds around them, as any others.
+    #[test]
+    fn a_flat_source_is_shaped_like_any_other() {
+        let positions = vec![
+            [0.0, 0.0, 0.0],
+            [200.0, 0.0, 0.0],
+            [200.0, 200.0, 0.0],
+            [0.0, 200.0, 0.0],
+        ];
+        let sources = Sources {
+            normals: vec![[0.0, 0.0, 1.0]; 4],
+            colours: vec![[1.0; 4]; 4],
+            triangles: vec![[0, 1, 2], [0, 2, 3]],
+            laid: vec![[[0.0; 2]; 3]; 2],
+            sets: vec![0; 2],
+            low: [0.0; 3],
+            high: [200.0, 200.0, 0.0],
+            positions,
+        };
+        let pixels = 100;
+        let voxel = super::super::resolution::voxel(pixels, sources.major_axis(), None);
+        let cancelled = AtomicBool::new(false);
+        let shaped = shaped(
+            &sources,
+            (voxel, pixels),
+            &HlodSimplifying::default(),
+            &cancelled,
+        );
+        let shaped = shaped.expect("not cancelled").ok().expect("a surface");
+        assert!(!shaped.proxy.indices.is_empty());
+    }
+}

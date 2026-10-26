@@ -10,12 +10,26 @@ import {
 } from '../../materials/virtual/wgsl.ts'
 import { VIS_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 import { maskUvWgsl } from './pageUvSetWgsl.ts'
-import { VIS_WRITE_WGSL, pixelOffset } from '../raster/pixelWgsl.ts'
+import {
+  NO_MASKS,
+  maskKnowsPixel,
+  maskMovesDepth,
+  type MaskSet,
+} from '../../materials/graph/maskProgram.ts'
+import { NO_WPO, type WpoSet } from '../../materials/graph/wpoProgram.ts'
+import { wpoGraphWgsl } from './wpoGraphWgsl.ts'
+import {
+  OFFSET_DEPTH_WGSL,
+  VIS_KEY_WGSL,
+  pixelOffset,
+  visWorkDeclaration,
+  visWriteWgsl,
+} from '../raster/pixelWgsl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { cornerBarycentric, wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
 import { DIAGNOSTIC_WIRE_WGSL } from '../../diagnostic/colors.ts'
-import { FLAG_DYNAMIC, FLAG_MASK } from '../types.ts'
+import { FLAG_DEPTH_OFFSET, FLAG_DYNAMIC, FLAG_MASK } from '../types.ts'
 import { visTriangle } from '../visWords.ts'
 import { planeDistance } from '../../../../math/src/wgsl/geometry.ts'
 import {
@@ -27,19 +41,31 @@ import {
 } from '../../gpu/core/clipDistances.ts'
 
 /** The raster's one fragment stage, the override that compiles its mask test out for a slot
- *  that holds no cutout row (`MASKED` false), the opaque twins' constants, and the one that makes
- *  it the identifier phase of the visibility write (`ID_PHASE`, `../passes/pipelines.ts`). */
+ *  that holds no cutout row (`MASKED` false), and the opaque twins' constants
+ *  (`../passes/pipelines.ts`). */
 export const VIS_FRAGMENT = 'vis_hiz_fs'
 export const VIS_UNMASKED = { MASKED: 0 }
-export const VIS_ID_PHASE = 'ID_PHASE'
 
-/** The hardware raster's second group: the visibility buffer both rasters write
- *  (`../raster/bindings.ts`, `hardwareWorkLayout`). */
-export const VIS_WORK_BINDING = `@group(1) @binding(0) var<storage,read_write> work:array<atomic<u32>>;`
+/** The hardware raster's second group, on a device with the 64-bit atomic maximum: the visibility
+ *  buffer both rasters write (`../raster/bindings.ts`, `hardwareWorkLayout`). */
+const VIS_WORK_BINDING = visWorkDeclaration(true, 0, 1)
+/** The work buffer's binding in a module whose fragments write it (`wide`), none in one that writes an attachment. */
+export const hardwareWorkBinding = (wide: boolean) => (wide ? VIS_WORK_BINDING : '')
+
+/** What the hardware raster's fragment writes on a device without the 64-bit word: the identifier
+ *  into its colour attachment and the depth key as the fragment's depth, the hardware depth test
+ *  keeping the nearest (`../passes/pipelines.ts`). */
+export const VIS_OUT_WGSL = wgslBlock(
+  'VIS_OUT_WGSL',
+  [],
+  `struct VisOut{@location(0) id:u32,@builtin(frag_depth) depth:f32,}
+/** A fragment that leaves: discarded, its output never written. */
+fn visLeft()->VisOut{discard;return VisOut(0u,0.0);}`,
+)
 
 /** The members of the raster's vertex output, as the struct both stages share (`VSOut`). */
 const VIS_MEMBERS = [
-  '@builtin(position) @invariant position:vec4f',
+  '@builtin(position) position:vec4f',
   '@location(0) @interpolate(flat) id:u32',
   '@location(1) @interpolate(flat) instance:u32',
   '@location(2) tc:vec3f',
@@ -129,20 +155,74 @@ ${visClipTest(clipping, 'discard;')} let coverage=wireframeEdge(in.tc,max(fwidth
 `,
   )
 
+/** The raster's fragment stage: the cutout's footprint taken while every lane of the quad still
+ *  runs; the pixel behind the view's plane leaves (`visClipTest`); the cutout test, compiled out for
+ *  a slot that holds no cutout row (`MASKED`); then the pair into the buffer's word (`wide`) or the
+ *  identifier and the depth key out. */
+const visFragment = (
+  wide: boolean,
+  clipping: Clipping | undefined,
+  graphPixel: boolean,
+  moves: boolean,
+) => {
+  const keep = graphPixel
+    ? 'maskKeepAt(page,in.tc.xy,in.tc.z,gx,gy,in.position.xy)'
+    : 'maskKeep(page,in.tc.xy,in.tc.z,gx,gy)'
+  const head = ` var gx=vec2f(0.0);var gy=vec2f(0.0);
+ if(MASKED){gx=dpdx(in.tc.xy);gy=dpdy(in.tc.xy);}
+`
+  // The depth the fragment is written at: its own, or, a row whose surface wires a `pixelDepthOffset`,
+  // the one that output moves it to (`offsetDepth`), its clip w the reciprocal of the fragment's w.
+  const depth = moves
+    ? ` var z=in.position.z;
+ if(MASKED&&(page.flags&${FLAG_DEPTH_OFFSET}u)!=0u){
+  z=offsetDepth(z,1.0/in.position.w,depthOffsetValue(materialAt(page.material),in.tc.xy,gx,gy),in.position.xy);
+ }
+`
+    : ''
+  const z = moves ? 'z' : 'in.position.z'
+  if (wide)
+    return `@fragment fn ${VIS_FRAGMENT}(in:VSOut){
+${head}${visClipTest(clipping, 'return;')} let page=pages[in.instance];
+ if(MASKED&&!${keep}){return;}
+${depth} visWrite(pixelOffset(vec2u(in.position.xy)),visKey(${z},page.depthBias),in.id,false);
+}`
+  return `@fragment fn ${VIS_FRAGMENT}(in:VSOut)->VisOut{
+${head}${visClipTest(clipping, 'return visLeft();')} let page=pages[in.instance];
+ if(MASKED&&!${keep}){return visLeft();}
+${depth} return VisOut(in.id,bitcast<f32>(visKey(${z},page.depthBias)));
+}`
+}
+
 /**
- * Hardware raster of the visibility buffer, for the clusters the split leaves it (`binWgsl.ts`):
+ * Hardware raster of the visibility buffer, for the clusters the cut's cull leaves it (`rasteredInHardware`, `../../geometry/dag/shader/visibleWgsl.ts`):
  * those that cross a clip plane, whose edges project at the hardware threshold or more, and the
- * lines, sprites and voxel bricks. Its fragments write no attachment: each takes the visibility
- * write both rasters share (`VIS_WRITE_WGSL`) into `work`, at its depth plus its row's coplanar
- * units, the depth phase or the identifier phase as `ID_PHASE` says — the same slots drawn twice,
- * the second time once every depth of the image is down. The two phases compute the same position
- * (`@invariant`), so a fragment meets the key it wrote.
+ * lines, sprites and voxel bricks. Each triangle is drawn once.
+ * - **With the 64-bit atomic maximum** (`wide`) its fragments write no attachment: each takes the
+ *   visibility write both rasters share (`visWriteWgsl`) into `work`, its pair — the identifier and
+ *   the depth plus its row's coplanar units — taken in by the maximum.
+ * - **Without it** the fragments write a colour attachment, their identifier, and the fragment's
+ *   depth, the depth key (`VIS_OUT_WGSL`): the hardware depth test keeps the nearest, and the
+ *   export merges the two rasters (`../raster/exportWgsl.ts`).
+ * With `wpo`, a row whose surface wires a `worldPositionOffset` has each vertex moved by it
+ * (`pagePosition`, `wpoGraphWgsl.ts`); with `masks`, one that wires a `pixelDepthOffset` has each
+ * fragment written at the depth that output gives it (`offsetDepth`, `../raster/pixelWgsl.ts`).
  */
 export const visShader = ({
   diagnostic,
   clipping,
-}: { diagnostic?: WgslDecl; clipping?: Clipping } = {}) =>
-  wgslProgram(
+  masks = NO_MASKS,
+  wpo = NO_WPO,
+  wide = false,
+}: {
+  diagnostic?: WgslDecl
+  clipping?: Clipping
+  masks?: MaskSet
+  wpo?: WpoSet
+  wide?: boolean
+} = {}) => {
+  const moves = maskMovesDepth(masks)
+  return wgslProgram(
     `${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
@@ -150,7 +230,7 @@ ${PAGE_BINDING.uniforms}
 ${materialDeclarations()}
 ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
-${VIS_WORK_BINDING}
+${hardwareWorkBinding(wide)}
 // \`tc\` is the UV and, on a masked row, the vertex alpha of its cutout: one interpolant, as the UV
 // alone was.
 ${visOut(clipping)}
@@ -159,18 +239,7 @@ ${visRasterVertex(clipping)}
 // every pixel of such a row, so the pipeline's constant removes the page read and the cutout
 // before the stage is compiled. One text, the mask test present only where a row can cut.
 override MASKED:bool=true;
-override ${VIS_ID_PHASE}:bool=false;
-@fragment fn ${VIS_FRAGMENT}(in:VSOut){
- // The cutout's footprint, taken while every lane of the quad still runs.
- var gx=vec2f(0.0);var gy=vec2f(0.0);
- if(MASKED){gx=dpdx(in.tc.xy);gy=dpdy(in.tc.xy);}
-${visClipTest(clipping, 'return;')} let page=pages[in.instance];
- let offset=pixelOffset(vec2u(in.position.xy));
- let key=visKey(in.position.z,page.depthBias);
- if(!visPasses(offset,key,${VIS_ID_PHASE})){return;}
- if(MASKED&&!maskKeep(page,in.tc.xy,in.tc.z,gx,gy)){return;}
- visWrite(offset,key,in.id,${VIS_ID_PHASE});
-}
+${visFragment(wide, clipping, maskKnowsPixel(masks), moves)}
 `,
     [
       PAGE_INFO_WGSL,
@@ -179,22 +248,19 @@ ${visClipTest(clipping, 'return;')} let page=pages[in.instance];
       PAGE_LOOKUP_WGSL,
       PAGE_SHAPE_WGSL,
       materialTableWgsl(VIS_BINDINGS.material),
-      maskKeepWgsl(maskAlphaWgsl(false)),
+      maskKeepWgsl(maskAlphaWgsl(false), masks),
       PAGE_GEOMETRY_WGSL,
       maskUvWgsl(VIS_BINDINGS.normals),
-      VIS_WRITE_WGSL,
-      pixelOffset,
+      ...(wide ? [visWriteWgsl(true), pixelOffset] : [VIS_KEY_WGSL, VIS_OUT_WGSL]),
       visTriangle,
       ...clipDirective(clipping),
       ...(clipping ? [planeDistance] : []),
       ...(diagnostic ? [diagnostic] : []),
+      ...(moves ? [OFFSET_DEPTH_WGSL] : []),
+      ...(wpo.programs.length ? [wpoGraphWgsl(wpo)] : []),
     ],
   )
-
-/** The raster's module without a diagnostic stage and without a cut at the view's plane: what a view
- *  with no plane draws with, and the text every audit reads; a view with one draws with its twin,
- *  `visShader({ clipping })`. */
-export const VIS_SHADER = visShader()
+}
 
 /** The x-ray pass's module: the raster's, with its x-ray stages (`visXrayWgsl`), assembled at
  *  its first use only, once for each way to cut at the plane, or none. */

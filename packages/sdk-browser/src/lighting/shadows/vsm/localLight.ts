@@ -1,12 +1,10 @@
 import { LIGHT_KIND } from '../../../../../sdk-core/src/scene/light/contracts.ts'
 import {
-  VSM_LOCAL_NEAR_PLANE,
   VSM_MIPS,
   VSM_MAP_COARSE,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
   VSM_MAP_UNCACHED,
   VSM_MAP_COVERAGE,
-  VSM_UNIT_PER_CM,
   VSM_LEVEL0_TEXELS,
   vsmLocalMipLevel,
 } from './constants.ts'
@@ -18,48 +16,53 @@ import {
   type VsmMapSettings,
 } from './mapSettings.ts'
 import { vsmMapsOf } from './mapViews.ts'
-import { clampedOuterConeAngle, POINT_FACE_VIEWS } from './localFaces.ts'
-import { multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
-import type { VsmCacheManager, VsmLightCache } from './cacheManager.ts'
 import {
-  VSM_FACE_MATRIX,
-  VSM_MIN_DIRECTION_SQ,
-  vsmWorldToLightRotation,
-  type VsmCameraInput,
-  type VsmViewport,
-} from './clipmap.ts'
-import { QUARTER_PI } from '../../../../../math/src/constants.ts'
-import { focalScale } from '../../../../../math/src/projection/camera.ts'
-import { forwardPerspectiveProjection } from '../../../../../math/src/projection/forwardZ.ts'
-import {
-  normalizeVector3OrZero,
-  transformAffinePoint,
-  transformPointRow,
-} from '../../../../../math/src/vector/vector.ts'
+  cubeFaceProjection,
+  localWorldToLight,
+  POINT_FACE_VIEWS,
+  spotMapProjection,
+} from './localFaces.ts'
+import { vsmDistantOf } from './distantLights.ts'
+import type { VsmCacheManager } from './cacheManager.ts'
+import type { VsmLightCache } from './lightCache.ts'
+import type { VsmCameraInput, VsmViewport } from './clipmap.ts'
+import { transformPointRow } from '../../../../../math/src/vector/vector.ts'
 
-/** The nearest depth a local light's casters take: 0.1 cm. */
-const VSM_LOCAL_MIN_LIGHT_W = 0.1 * VSM_UNIT_PER_CM
-
-/** A point or spot light as the setup reads it (metres, world). */
-export interface VsmLocalLightInput {
+/** What every local light's setup reads (metres, world). */
+interface VsmLocalLightCommon {
   /** Scene light id (of the cache key). */
   id: string
-  kind: 'point' | 'spot'
   /** World position, double. */
   position: ArrayLike<number>
-  /** Spot axis. */
-  direction?: ArrayLike<number>
   /** Attenuation radius. */
   range: number
-  /** Spot outer cone half-angle, radians. */
-  coneAngle?: number
-  /** Spot inner cone half-angle, radians (default 0). */
-  innerConeAngle?: number
-  /** Source radius (point/spot), metres; default 0. */
-  sourceRadius?: number
+  /** The radius, metres, of the envelope of a point or spot's source, whose casters the raster
+   *  leaves out of the light's maps (`emitterRadius`); default 0, a rectangle's too. */
+  emitterEnvelope?: number
+  /** Whether the light is `movable`: only a movable light takes the moving bias (`vsmLightMobility`);
+   *  a static or stationary light never moves, so its maps rest at the still bias from its first frame. */
+  movable?: boolean
   levelBias?: number
   ditherTexels?: number
 }
+
+/** A point light, a spot or a rectangle as the setup reads it: each kind holds what its maps are
+ *  cut by — a spot its axis and the outer cone its map is as wide as (`spotConesOf`, the one it is
+ *  lit by), a rectangle its face normal and its unit width axis perpendicular to it. */
+export type VsmLocalLightInput =
+  | (VsmLocalLightCommon & { kind: 'point' })
+  | (VsmLocalLightCommon & {
+      kind: 'spot'
+      /** The spot's axis. */
+      direction: ArrayLike<number>
+      /** The outer cone half-angle, radians. */
+      outerCone: number
+    })
+  | (VsmLocalLightCommon & {
+      kind: 'rect'
+      direction: ArrayLike<number>
+      right: ArrayLike<number>
+    })
 
 /** The data of one map view. */
 interface VsmLocalViewData {
@@ -135,118 +138,58 @@ function finestMipNeeded(
 
 // The frame's scratch: what a light computes before its cache entry is known (the entry copies
 // its key when it changes), and its maps' rendering matrices, copied into each map's own record.
-const X_AXIS = [1, 0, 0],
-  direction: [number, number, number] = [0, 0, 0],
+const direction: [number, number, number] = [0, 0, 0],
   preShadow: [number, number, number] = [0, 0, 0],
-  shape: [number, number, number] = [0, 0, 0],
+  shape: [number, number, number, number] = [0, 0, 0, 0],
   worldToLight = new Float64Array(16),
   localKey = { worldToLight, lightOriginShift: preShadow, shape },
   spotView = new Float64Array(16),
-  spotCentre = new Float64Array(3),
   viewToClip = new Float64Array(16)
 
-/**
- * Sets up a local light's shadow: finds/updates the light's cache entry, computes the finest mip level, and
- * refreshes the cached projection data of each of its maps. The setup returned is the one the
- * entry keeps (`VsmLightCache.localSetup`): the next frame of the same light rewrites it. Its
- * resolution bias and its coarse pages are the settings' (`maps`).
- */
-export function addVsmLocalLightShadow(
-  cache: VsmCacheManager,
-  light: VsmLocalLightInput,
-  views: readonly VsmLocalViewData[],
-  maps: VsmMapSettings = VSM_DEFAULT_MAPS,
-): VsmLocalLightSetup {
-  const isSpot = light.kind === 'spot'
-  const radius = light.range
-  const origin = light.position
-  for (let k = 0; k < 3; k++) preShadow[k] = -origin[k]
-
-  // Light rotation (the world-to-light rotation, no translation): a spot's X axis is its direction; a
-  // point light's faces are world-aligned and its rotation is the identity.
-  if (isSpot) normalizeVector3OrZero(direction, light.direction ?? X_AXIS, VSM_MIN_DIRECTION_SQ)
-  else {
-    direction[0] = 1
-    direction[1] = direction[2] = 0
+/** The light's rotation and its maps' projection into the scratch, and the outer cone of a spot's
+ *  map (0 for the cube of a point light or a rectangle). */
+function localProjection(light: VsmLocalLightInput) {
+  localWorldToLight(worldToLight, direction, light)
+  if (light.kind !== 'spot') {
+    cubeFaceProjection(viewToClip, light.range)
+    return 0
   }
-  vsmWorldToLightRotation(worldToLight, direction)
+  spotMapProjection(spotView, viewToClip, worldToLight, direction, light.range, light.outerCone)
+  return light.outerCone
+}
 
-  // Shadow projections (metres): the spot's map, or the six cube faces
-  // of one projection (`POINT_FACE_VIEWS`).
-  let outerCone = 0
-  if (isSpot) {
-    outerCone = clampedOuterConeAngle(light.innerConeAngle ?? 0, light.coneAngle ?? QUARTER_PI)
-    const cosOuter = Math.fround(Math.cos(outerCone)),
-      sinOuter = Math.fround(Math.sin(outerCone)),
-      invTanOuter = Math.fround(focalScale(outerCone))
-    // The bounding sphere of the cone, relative to the light: past a half angle of 45° (cos² = 1/2)
-    // the sphere through the cap's rim, its centre on the axis at the rim's foot; below, the
-    // sphere through the light and the rim.
-    let sphereOffset: number, sphereRadius: number
-    if (cosOuter < Math.fround(Math.SQRT1_2)) {
-      sphereOffset = radius * cosOuter
-      sphereRadius = radius * sinOuter
-    } else {
-      sphereRadius = radius / (2 * cosOuter)
-      sphereOffset = sphereRadius
-    }
-    multiplyMatrix4(spotView, VSM_FACE_MATRIX, worldToLight)
-    const c = transformAffinePoint(
-      spotCentre,
-      spotView,
-      direction[0] * sphereOffset,
-      direction[1] * sphereOffset,
-      direction[2] * sphereOffset,
-    )
-    let depthFar = Math.fround(c[2] + sphereRadius)
-    const depthNear = Math.fround(Math.max(depthFar - sphereRadius * 2, VSM_LOCAL_MIN_LIGHT_W))
-    depthFar = Math.fround(Math.min(depthFar, radius))
-    // The outer scale (no border at 16384²), between the nearest and farthest caster depths.
-    forwardPerspectiveProjection(viewToClip, invTanOuter, depthNear, depthFar)
-  } else
-    forwardPerspectiveProjection(
-      viewToClip,
-      focalScale(Math.fround(QUARTER_PI)),
-      VSM_LOCAL_NEAR_PLANE,
-      radius,
-    )
-  const projectionScale = viewToClip[0]
+/** The flags of a local light's maps: uncached, covered, its last mip's page marked unless the view
+ *  turns local coarse pages off (mode 0) — a distant light's always — and, in mode 2, kept with its
+ *  dynamic layer cached. */
+function localFlags(entry: VsmLightCache, marks: number, distant: boolean) {
+  let flags = entry.isUncached ? VSM_MAP_UNCACHED : 0
+  flags |= entry.useCover ? VSM_MAP_COVERAGE : 0
+  flags |= marks === 0 && !distant ? 0 : VSM_MAP_COARSE
+  return flags | (marks === 2 ? VSM_MAP_COARSE_KEEPS_DYNAMIC : 0)
+}
 
-  const numMaps = vsmMapsOf(light.kind)
-  const cacheEntry = cache.lightEntryFor(light.id, numMaps)
+/** What a light writes into each of its maps' records, beside the matrices. */
+interface MapFields {
+  radius: number
+  levelBias: number
+  flags: number
+  finestMip: number
+}
 
-  const forceInvalidate = !cache.cacheEnabled
+/** The fields of the light being set up, rewritten by each. */
+const mapFields: MapFields = { radius: 0, levelBias: 0, flags: 0, finestMip: 0 }
 
-  shape[0] = isSpot ? 1 : 0
-  shape[1] = radius
-  shape[2] = outerCone
-  const moved = cacheEntry.updateLocal(localKey, forceInvalidate)
-
-  // The light's bias: the view's, coarser while the light moves (`vsmLightMobility`), its own added.
-  const { shadows } = maps
-  const frame = maps.frame ?? cache.frameStamp
-  const mobility = vsmLightMobility(cacheEntry, moved, frame, shadows.shadowLightActiveFrameCount)
-  const localLevelBias = vsmLocalBias(shadows, mobility, light.levelBias ?? 0)
-  const finestMip = finestMipNeeded(views, origin, radius, projectionScale, localLevelBias, cache)
-
-  let flags = cacheEntry.isUncached ? VSM_MAP_UNCACHED : 0
-  flags |= cacheEntry.useCover ? VSM_MAP_COVERAGE : 0
-  // The last mip's page is marked unless the view turns local coarse pages off (mode 0); in mode 2
-  // it keeps its dynamic layer cached.
-  const marks = shadows.shadowMarkCoarsePagesLocal
-  flags |= marks === 0 ? 0 : VSM_MAP_COARSE
-  flags |= marks === 2 ? VSM_MAP_COARSE_KEEPS_DYNAMIC : 0
-
-  // Matrices only change when something invalidated the light rewritten then
-  // alone, into each map's own record.
-  const updateMatrices = cacheEntry.isInvalidated()
-  for (let index = 0; index < numMaps; index++) {
-    const entry = cacheEntry.mapCaches[index]
-    entry.update(cacheEntry)
-    const data = entry.projectionData
+/** Each map's record of a light: its projection matrices, rewritten only when something
+ *  invalidated the light, then the fields of the light. */
+function writeMapRecords(entry: VsmLightCache, light: VsmLocalLightInput, fields: MapFields) {
+  const updateMatrices = entry.isInvalidated()
+  for (let index = 0; index < entry.mapCaches.length; index++) {
+    const map = entry.mapCaches[index]
+    map.update(entry)
+    const data = map.projectionData
     if (updateMatrices) {
       // The local light's projection matrices.
-      const shiftedToView = isSpot ? spotView : POINT_FACE_VIEWS[index]
+      const shiftedToView = light.kind === 'spot' ? spotView : POINT_FACE_VIEWS[index]
       data.lightViewToClip.set(viewToClip)
       vsmShadowMatrices(data, shiftedToView, viewToClip)
       for (let k = 0; k < 3; k++) {
@@ -256,14 +199,64 @@ export function addVsmLocalLightShadow(
       data.mapLevel = 0
       data.levelsLeft = -1
     }
-    data.lightKind = isSpot ? LIGHT_KIND.spot : LIGHT_KIND.point
-    data.emitterSize = light.sourceRadius ?? 0
-    data.lightRange = radius
+    data.lightKind = LIGHT_KIND[light.kind]
+    data.emitterSize = light.emitterEnvelope ?? 0
+    data.lightRange = fields.radius
     data.ditherTexels = light.ditherTexels ?? 1
-    data.levelBias = localLevelBias
-    data.flags = flags
-    data.finestMip = finestMip
+    data.levelBias = fields.levelBias
+    data.flags = fields.flags
+    data.finestMip = fields.finestMip
   }
+}
+
+/**
+ * Sets up a local light's shadow: finds/updates the light's cache entry, computes the finest mip level, and
+ * refreshes the cached projection data of each of its maps. The setup returned is the one the
+ * entry keeps (`VsmLightCache.localSetup`): the next frame of the same light rewrites it. Its
+ * resolution bias and its coarse pages are the settings' (`maps`); a distant light
+ * (`vsmDistantOf`) takes the last mip alone, and is drawn again only on its turn
+ * (`scheduleDistantUpdates`) or where its key changed.
+ */
+export function addVsmLocalLightShadow(
+  cache: VsmCacheManager,
+  light: VsmLocalLightInput,
+  views: readonly VsmLocalViewData[],
+  maps: VsmMapSettings = VSM_DEFAULT_MAPS,
+): VsmLocalLightSetup {
+  const radius = light.range
+  const origin = light.position
+  for (let k = 0; k < 3; k++) preShadow[k] = -origin[k]
+  const outerCone = localProjection(light)
+  const numMaps = vsmMapsOf(light.kind)
+  const cacheEntry = cache.lightEntryFor(light.id, numMaps)
+
+  shape[0] = light.kind === 'spot' ? 1 : 0
+  shape[1] = radius
+  shape[2] = outerCone
+  // The light's bias: the view's, coarser while the light moves (`vsmLightMobility`), its own added.
+  const { shadows } = maps
+  const frame = maps.frame ?? cache.frameStamp
+  // Moved: the light's own key changed, whether it is distant left as the entry holds it.
+  shape[3] = cacheEntry.distant ? 1 : 0
+  const moved = cacheEntry.localKeyChanged(localKey)
+  const mobility = light.movable
+    ? vsmLightMobility(cacheEntry, moved, frame, shadows.shadowLightActiveFrameCount)
+    : 0
+  const localLevelBias = vsmLocalBias(shadows, mobility, light.levelBias ?? 0)
+  const needed = finestMipNeeded(views, origin, radius, viewToClip[0], localLevelBias, cache)
+  const distant = vsmDistantOf(shadows.shadowDistantLightMode, needed)
+  const finestMip = distant ? VSM_MIPS - 1 : needed
+  shape[3] = distant ? 1 : 0
+  cacheEntry.updateLocal(localKey, !cache.cacheEnabled)
+  // Its turn in the schedule: drawn again, its pages not carried (`VsmMapCache.update`).
+  if (distant && cacheEntry.scheduledFrame === cache.frameStamp) cacheEntry.invalidate()
+
+  const flags = localFlags(cacheEntry, shadows.shadowMarkCoarsePagesLocal, distant)
+  mapFields.radius = radius
+  mapFields.levelBias = localLevelBias
+  mapFields.flags = flags
+  mapFields.finestMip = finestMip
+  writeMapRecords(cacheEntry, light, mapFields)
 
   const setup = (cacheEntry.localSetup ??= { cacheEntry, finestMip })
   setup.finestMip = finestMip

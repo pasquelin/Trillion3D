@@ -13,8 +13,10 @@
 //! Held to the source order (`keep_order`: the paint order of a blended surface, the coplanar
 //! layer of lines and sprites), the cut is the rank of least cost along that order among those
 //! that leave each side whole clusters: every cluster is a run of consecutive triangles in their
-//! source order, as few as the caps allow, and a run that would reach across the mesh is cut where
-//! it jumps. The result is the same on every build.
+//! source order, as few as the caps allow — the vertex cap counting the vertices the strips lay
+//! in that order (`strip::laid_in_order`), a vertex out of a strip's window laid again —, and a
+//! run that would reach across the mesh is cut where it jumps. The result is the same on every
+//! build.
 mod cut;
 mod links;
 pub mod strip;
@@ -25,6 +27,7 @@ use crate::partition::{Fork, Partitioner, Serial};
 use crate::split::centres_and_boxes;
 use cut::cut_in_order;
 pub use links::{Linking, Links};
+use strip::laid_in_order;
 use trillion3d_math::geometry::aabb::aabb_of_f32;
 use trillion3d_math::geometry::triangle::next_corner;
 use trillion3d_math::join::{GreatestRoot, Join};
@@ -42,7 +45,7 @@ fn point(positions: &[f32], v: u32) -> [f64; 3] {
     point_checked(positions, v).unwrap_or([f64::NAN; 3])
 }
 
-/// The most triangles and distinct vertices one cluster holds: the compiler's
+/// The most triangles and vertices laid one cluster holds: the compiler's
 /// `DAG_CLUSTER_TRIANGLES` and `DAG_CLUSTER_VERTICES`, which the run-time cut reads too.
 #[derive(Clone, Copy, Debug)]
 pub struct Caps {
@@ -219,16 +222,12 @@ fn cluster_in_order(positions: &[f32], indices: &[u32], caps: Caps) -> Clustered
     let (_, boxes) = centres_and_boxes(triangles.map(|t| t.map(|v| point(positions, v))));
     // Each corner's vertex numbered among those the triangles use, by first use: a cluster of a
     // large buffer's region costs its own size, never the buffer's.
-    let (used, corners) = first_use(indices.iter().copied());
-    let mut marks = Marks {
-        corners: &corners,
-        stamp: vec![0u32; used.len()],
-        generation: 0,
-    };
+    let (_, corners) = first_use(indices.iter().copied());
+    let marks = Marks { corners: &corners };
     let order: Vec<usize> = (0..count).collect();
     let (mut out, mut ends) = (Vec::with_capacity(indices.len()), Vec::new());
-    // Each part with its count of distinct vertices, measured once: by the cut that made it.
-    let held = marks.distinct(&order);
+    // Each part with its count of vertices laid, measured once: by the cut that made it.
+    let held = marks.laid(&order);
     let mut stack = vec![(0usize, count, held)];
     while let Some((from, to, held)) = stack.pop() {
         let n = to - from;
@@ -244,35 +243,26 @@ fn cluster_in_order(positions: &[f32], indices: &[u32], caps: Caps) -> Clustered
             .max(held.div_ceil(caps.vertices))
             .max(2);
         let at = cut_in_order(slice, &boxes, n.div_ceil(k));
-        let (left, right) = (marks.distinct(&slice[..at]), marks.distinct(&slice[at..]));
+        let (left, right) = (marks.laid(&slice[..at]), marks.laid(&slice[at..]));
         stack.push((from + at, to, right));
         stack.push((from, from + at, left));
     }
     Clustered { indices: out, ends }
 }
 
-/// The distinct vertices of triangles, by a stamp per vertex: counting a part costs its own size.
+/// The vertices the strips lay for triangles, laid in the order given: counting a part costs its
+/// own size.
 struct Marks<'c> {
     /// Three vertices a triangle, numbered among those the triangles use.
     corners: &'c [u32],
-    stamp: Vec<u32>,
-    generation: u32,
 }
 impl Marks<'_> {
-    /// The distinct vertices of the triangles of `part`.
-    fn distinct(&mut self, part: &[usize]) -> usize {
-        self.generation += 1;
-        let mut n = 0;
-        for &t in part {
-            for &v in &self.corners[t * 3..t * 3 + 3] {
-                let mark = &mut self.stamp[v as usize];
-                if *mark != self.generation {
-                    *mark = self.generation;
-                    n += 1;
-                }
-            }
-        }
-        n
+    /// The vertices the strips lay for the triangles of `part`, in its order.
+    fn laid(&self, part: &[usize]) -> usize {
+        let corners: Vec<u32> = (part.iter())
+            .flat_map(|&t| self.corners[t * 3..t * 3 + 3].iter().copied())
+            .collect();
+        laid_in_order(&corners)
     }
 }
 

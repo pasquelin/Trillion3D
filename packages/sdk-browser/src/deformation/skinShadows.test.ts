@@ -30,18 +30,9 @@ test('a still rig turned static, its palette held, stales its shadows the frame 
     count = counted(mesh.skeleton)
   const rec = { min: [-1, -1, -1], max: [1, 2, 1] } as unknown as PageRec
   const box = () => new Float64Array([-1, -1, -1, 1, 2, 1])
-  const { rt, changed: staled } = deformationRuntime(
-    world,
-    frame,
-    [{ world, pages: [rec], reach: 0, packedBase: 0, localBox: box(), worldBox: box() }],
-    {
-      pageTableFloats: new Float32Array(64),
-      packedCount: 1,
-      rowOf: (page: number) => [0][page] ?? -1,
-      packedPageIndex: [0],
-      markRowWords() {},
-    },
-  )
+  const { rt, changed: staled } = deformationRuntime(world, frame, [
+    { world, pages: [rec], reach: 0, packedBase: 0, localBox: box(), worldBox: box() },
+  ])
   const camera = { projection: world.elements } as EngineCamera
   const at = recordLayout(placed.shape).palette + PALETTE_FLOATS
   updateWebgpuDeformation(rt, camera)

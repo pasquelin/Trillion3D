@@ -37,7 +37,7 @@ fn exact_page() -> Value {
 }
 /// A page's geometry facts.
 fn geometry() -> Value {
-    json!({"bytes":32,"vertexCount":8,"indexCount":12,"flags":1,"uncompressedBytes":128})
+    json!({"bytes":32,"vertexCount":8,"indexCount":12,"flags":1,"uncompressedBytes":128,"residentBytes":40,"residentOffset":0})
 }
 fn coarse_page() -> Value {
     let mut page = json!({"id":1,"count":12,"start":0,"min":[0.,0.,0.],"max":[1.,1.,1.],"role":"coarse","level":1});
@@ -86,7 +86,7 @@ fn columns_declare_their_own_offsets_and_lengths() {
     }
     // Two pages, six bounds each, eight bytes a number.
     assert_eq!(read(PAGE_BOUNDS).1, 2 * 6 * 8);
-    assert_eq!(read(GEOMETRY_U32).1, 2 * 5 * 4);
+    assert_eq!(read(GEOMETRY_U32).1, 2 * 7 * 4);
     assert_eq!(read(BUNDLE_SHA).1, 64);
     assert_eq!(
         read(CULLING_NODES).1,

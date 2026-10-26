@@ -148,7 +148,8 @@ fn defects_with_a_vertex_moved(
     moved[source[0] as usize * 3 + 1] += up;
     let encoded =
         trillion3d_page_codec::encode::encode(&source, &moved, &[], grid).expect("encode");
-    read[at] = page_corners(&encoded.bytes, &Source::new(positions, None));
+    let decoded = trillion3d_page_codec::decode(&encoded.bytes, usize::MAX).expect("decode");
+    read[at] = page_corners((&encoded.bytes, &decoded), &Source::new(positions, None));
     cooked_page_defects(read, primitive, positions)
 }
 

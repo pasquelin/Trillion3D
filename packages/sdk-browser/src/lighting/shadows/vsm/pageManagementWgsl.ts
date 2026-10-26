@@ -49,31 +49,7 @@ fn vsmFoldMask4x4(mask4x4:u32,oddCell:vec2u)->u32{
 `,
 )
 
-/** Builds the hierarchical page marks, one thread per physical page. */
-function pageFlagPyramid(layout: VsmLayout): VsmPmKernel {
-  const specs: VsmBindingSpec[] = [
-    { resource: 'uniforms', binding: 0 },
-    { resource: 'poolPageInfo', binding: 1 },
-    { resource: 'projectionData', binding: 2 },
-    { resource: 'pageMarks', binding: 3, access: 'atomic' },
-    { resource: 'receiverCover', binding: 4, access: 'atomic' },
-    { resource: 'staleRects', binding: 5, access: 'atomic' },
-    { resource: 'mappedRects', binding: 6, access: 'atomic' },
-  ]
-  const body = wgslBlock(
-    'pageFlagPyramid',
-    [
-      VSM_MIP_MASK_WGSL,
-      VSM_CONSTANTS_WGSL,
-      VSM_STALE_RECT_INDEX_WGSL,
-      VSM_HANDLE_WGSL,
-      VSM_PAGE_ADDRESS_WGSL,
-      VSM_TABLE_ORIGIN_WGSL,
-      VSM_PROJECTION_DATA_READ_WGSL,
-      VSM_COVER_GATHER_WGSL,
-    ],
-    `
-/** True when this hierarchical texel already held Flag (someone else continues). */
+const flagPyramidHeadText = /* wgsl */ `/** True when this hierarchical texel already held Flag (someone else continues). */
 fn pmOrMarkAtLevel(flag:u32,entryCell:VsmTableCell,pyramidLevel:u32)->bool{
  let pyramidTexel=entryCell.tableXY>>vec2u(pyramidLevel);
  let heldBefore=vsmPageMarksOr(vsmPageMarkIndex(pyramidTexel,pyramidLevel),flag);
@@ -105,7 +81,9 @@ fn vsmPageFlagPyramid(@builtin(global_invocation_id) id:vec3u){
   atomicMin(&vsmStaleRects[s+1u],pageAddress.y);
   atomicMax(&vsmStaleRects[s+2u],pageAddress.x);
   atomicMax(&vsmStaleRects[s+3u],pageAddress.y);
- }
+ }`
+
+const flagPyramidCoverText = /* wgsl */ `
  // H levels over each page-table mip; level 0 of this hierarchy is the page-table mip itself.
  // Up to the first level that already held the flag: another page carries it on from there.
  let levelsAbove=min(VSM_MIPS-mipLevel,6u);
@@ -129,33 +107,39 @@ fn vsmPageFlagPyramid(@builtin(global_invocation_id) id:vec3u){
    _=vsmReceiverCoverOr(vsmCoverIndex(coverCell,mip),mask4x4);
   }
  }
-}
+}`
+
+/** Builds the hierarchical page marks, one thread per physical page. */
+function pageFlagPyramid(layout: VsmLayout): VsmPmKernel {
+  const specs: VsmBindingSpec[] = [
+    { resource: 'uniforms', binding: 0 },
+    { resource: 'poolPageInfo', binding: 1 },
+    { resource: 'projectionData', binding: 2 },
+    { resource: 'pageMarks', binding: 3, access: 'atomic' },
+    { resource: 'receiverCover', binding: 4, access: 'atomic' },
+    { resource: 'staleRects', binding: 5, access: 'atomic' },
+    { resource: 'mappedRects', binding: 6, access: 'atomic' },
+  ]
+  const body = wgslBlock(
+    'pageFlagPyramid',
+    [
+      VSM_MIP_MASK_WGSL,
+      VSM_CONSTANTS_WGSL,
+      VSM_STALE_RECT_INDEX_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_COVER_GATHER_WGSL,
+    ],
+    `
+${flagPyramidHeadText}${flagPyramidCoverText}
 `,
   )
   return vsmPmKernel(layout, 'PageFlagPyramid', specs, body)
 }
 
-/** The mapped mip propagator, per-page dispatch. */
-function fillCoarserFallbacks(layout: VsmLayout): VsmPmKernel {
-  const specs: VsmBindingSpec[] = [
-    { resource: 'uniforms', binding: 0 },
-    { resource: 'pageTable', binding: 1, access: 'read_write' },
-    { resource: 'projectionData', binding: 2 },
-  ]
-  const g = VSM_PER_PAGE_GROUP_XY
-  const body = wgslBlock(
-    'fillCoarserFallbacks',
-    [
-      VSM_CONSTANTS_WGSL,
-      VSM_HANDLE_WGSL,
-      VSM_PAGE_ADDRESS_WGSL,
-      VSM_TABLE_ORIGIN_WGSL,
-      VSM_PROJECTION_DATA_WGSL,
-      VSM_PROJECTION_DATA_READ_WGSL,
-      VSM_PER_PAGE_DISPATCH_WGSL,
-    ],
-    `
-fn pmFallbacksDirectional(setup:VsmMapWalk,projectionData:VsmProjectionData){
+const fallbacksDirectionalText = /* wgsl */ `fn pmFallbacksDirectional(setup:VsmMapWalk,projectionData:VsmProjectionData){
  let loopEnd=vsmPagesAcross(0u);
  for(var pageY=setup.walkStart.y;pageY<loopEnd;pageY+=setup.walkStep){
   for(var pageX=setup.walkStart.x;pageX<loopEnd;pageX+=setup.walkStep){
@@ -184,7 +168,9 @@ fn pmFallbacksDirectional(setup:VsmMapWalk,projectionData:VsmProjectionData){
    }
   }
  }
-}
+}`
+
+const fallbacksLocalText = (g: number) => /* wgsl */ `
 fn pmFallbacksLocal(setup:VsmMapWalk){
  let minLevel=i32(setup.firstMip);
  let loopEnd=vsmPagesAcross(setup.firstMip);
@@ -223,7 +209,29 @@ fn vsmFillCoarserFallbacks(@builtin(global_invocation_id) dispatchThreadId:vec3u
  }else{
   pmFallbacksLocal(setup);
  }
-}
+}`
+
+/** The mapped mip propagator, per-page dispatch. */
+function fillCoarserFallbacks(layout: VsmLayout): VsmPmKernel {
+  const specs: VsmBindingSpec[] = [
+    { resource: 'uniforms', binding: 0 },
+    { resource: 'pageTable', binding: 1, access: 'read_write' },
+    { resource: 'projectionData', binding: 2 },
+  ]
+  const g = VSM_PER_PAGE_GROUP_XY
+  const body = wgslBlock(
+    'fillCoarserFallbacks',
+    [
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_PER_PAGE_DISPATCH_WGSL,
+    ],
+    `
+${fallbacksDirectionalText}${fallbacksLocalText(g)}
 `,
   )
   return vsmPmKernel(layout, 'FillCoarserFallbacks', specs, body, { perPage: true })

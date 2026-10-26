@@ -1,5 +1,6 @@
 // Setup of the GPU-cut resume bench, split from its cases so neither file exceeds the line
 // limit. Cases live in `resume.test.ts`.
+import { createPresentClasses } from '../../../gpu/core/presentClasses.ts'
 import { IDENTITY_MATRIX4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { renderGpuCut } from '../../../frame/render/gpuCut.ts'
@@ -33,8 +34,7 @@ export function banc(panne?: 'envoi') {
     transparent: false,
   } as unknown as PageRec & { array?: Uint32Array }
   const comptes = { queue: 0, sync: 0, residence: 0, envois: 0, attentes: 0, disposes: 0 }
-  // What the rays' scene was told of the draw distances at each image: the main eye, the scale.
-  const proxied: [number[], number | undefined][] = []
+  // What the rays' scene was told of the draw distances at each image: the main eye, the view.
   const codes: string[] = []
   const residentFlags = new Uint32Array(1)
   const bootstrapState = { ready: false }
@@ -58,8 +58,6 @@ export function banc(panne?: 'envoi') {
     worldRevision: 0,
     // The lists' caps the session's settings give the cut: this bench's selection has no lists.
     holdLists() {},
-    proxyDistance: (eye: ArrayLike<number>, scale: number | undefined) =>
-      void proxied.push([Array.from(eye), scale]),
     updateResidency(flags: PageResidency) {
       comptes.residence++
       const change = vueResidence !== flags.flag(0)
@@ -97,11 +95,7 @@ export function banc(panne?: 'envoi') {
     uniforms,
     selection: () => selection,
   })
-  const rows = {
-    // Already set: `ensurePageTable` has no device to ask on this bench.
-    pageTableFloats: new Float32Array(4),
-    rowsDenied: 0,
-    packedCount: 0,
+  const clusters = {
     candidateCount: 1,
     residency: { length: 1, flag: (page: number) => residentFlags[page] },
     residencyChanges: undefined,
@@ -123,7 +117,7 @@ export function banc(panne?: 'envoi') {
       imageRevision: 1,
       clearColor: 0,
     },
-    gpu: { device: fakeDevice().device, cache: {} },
+    gpu: { device: fakeDevice().device, cache: {}, targetSize: VIEWPORT },
     capabilities: { unsupported: [] },
     views: { main: mainView, active: mainView },
     diag: {
@@ -139,9 +133,9 @@ export function banc(panne?: 'envoi') {
     context: {},
     // No light cut ran.
     lights: {},
-    // No texture streams: the residency stream pumps no tile.
-    vis: {},
-    layout: { rows, drawSlots: 4, selectionRoots: [] },
+    // No texture streams: the residency stream pumps no tile; no displaced surface.
+    vis: { materialTable: { displaced: { count: 0 } }, presentClasses: createPresentClasses() },
+    layout: { clusters, selectionRoots: [] },
     setup: { viewport: VIEWPORT, slots: 10 },
     timing: { marks: {} },
     services: {
@@ -156,8 +150,7 @@ export function banc(panne?: 'envoi') {
         comptes.queue++
       },
       followCut: () => {},
-      blendCasters: { asked: 0, used: 0 },
-      syncRows: () => {
+      syncClusters: () => {
         comptes.sync++
         // Residency follows the bytes: a decoded page becomes resident for selection.
         residentFlags[0] = page.array ? 1 : 0
@@ -169,7 +162,6 @@ export function banc(panne?: 'envoi') {
   return {
     camera,
     comptes,
-    proxied,
     codes,
     shown,
     desired,

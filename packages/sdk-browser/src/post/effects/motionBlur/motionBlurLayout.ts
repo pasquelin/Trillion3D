@@ -3,6 +3,7 @@ import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { listBytes } from '../../../gpu/dispatch/list.ts'
 import { textureBytesOf } from '../../../gpu/core/textureBytes.ts'
 import { HDR_FORMAT } from '../../../scene/targetFormats.ts'
+import { HALF_IMAGE_FORMAT, halfSize } from '../../filters/levelSizes.ts'
 
 /**
  * What the motion blur's passes agree on, with no shader text (the byte rules read it without the
@@ -47,12 +48,30 @@ export const BASE_VARIANT: BlurVariant = { directions: 1, flat: 'packed' }
 /** Whether two variants are the same. */
 export const sameVariant = (a: BlurVariant, b: BlurVariant) =>
   a.directions === b.directions && a.flat === b.flat
+/**
+ * What the blur hands the temporal pass's nearest velocity to flatten the motion into, in place of
+ * its own flattening pass (`velocityShader`, `flattenWgsl.ts`): the variant it is made for, the blur's
+ * uniform, the flattened motion and the tile ranges (with two directions, the second largest motions')
+ * to write, and `token`, which says for which image the blur set itself up (the count of the images
+ * it was asked for). `written` is set by the temporal pass once its dispatch wrote them: the blur
+ * then skips its flattening.
+ */
+export interface FusedFlatten {
+  variant: BlurVariant
+  params: GPUBuffer
+  flat: GPUTextureView
+  tiles: GPUTextureView
+  tilesSecond: GPUTextureView | undefined
+  token: number
+  written: boolean
+}
 /** The range of each tile: its smallest motion and its largest, in pixels; with two directions
  *  beside it, in an image of the same format, the second largest in its first two channels. */
 export const TILE_FORMAT: GPUTextureFormat = 'rgba16float'
 /** The spread tiles are drawn with, ordered by the length of their motion. */
 export const TILE_DEPTH_FORMAT: GPUTextureFormat = 'depth32float'
-/** The blurred image: the format of the effect chain's images. */
+/** The blurred image: the format of the effect chain's images. The half-size image the filter
+ *  writes beside it where the scene's chain reads it (`MotionBlurInput.half`) is `HALF_IMAGE_FORMAT`. */
 export const OUTPUT_FORMAT = HDR_FORMAT
 
 /** The channels a draw of the spread writes (`GPUColorWrite`): all four, or the blue and the alpha
@@ -92,6 +111,13 @@ export const MOTION_BLUR_PARAMS = fieldLayout('MotionBlurParams', [
   ['knobs', 'vec4f'],
   // The grid the motion was measured on, this image's render grid: width, height.
   ['grid', 'vec2f'],
+  // What the filter writes beside the blurred image: whether the half-size image (x, 0 or 1) the
+  // scene's chain reads, and whether the pass lays the layers drawn after the motion blur over the
+  // image it writes (y, 0 or 1).
+  ['outputs', 'vec2f'],
+  // Where those layers lie: the inverse of the size of their textures (x, y) and, in their
+  // coordinates, the last texel centre drawn (z, w).
+  ['layers', 'vec4f'],
 ] as const)
 /** Bytes of the uniform. */
 export const MOTION_BLUR_PARAMS_BYTES = MOTION_BLUR_PARAMS.words * 4
@@ -109,14 +135,15 @@ export const classEntries = (width: number, height: number) =>
 /** Bytes of what a `width × height` image holds while it is blurred, the pass's textures and
  *  buffers at the images' own size — the motion's grid never larger than the display's —: the
  *  blurred image, the flattened motion, the tiles' two ranges and the drawn spread's depth, the
- *  lists, the uniform. A second pass of the blur adds an image (`separable`), counted where it
- *  is made. */
+ *  lists, the uniform, and the half-size image the filter writes beside the blurred one. A second
+ *  pass of the blur adds an image (`separable`), counted where it is made. */
 export function motionBlurBytes(width: number, height: number) {
   const tile = [flattenTiles(width), flattenTiles(height)] as const
   const bytes = (size: readonly [number, number], format: GPUTextureFormat) =>
     textureBytesOf({ size, format }) ?? 0
   return (
     bytes([width, height], OUTPUT_FORMAT) +
+    bytes(halfSize(width, height), HALF_IMAGE_FORMAT) +
     bytes([width, height], FLAT_FORMS[BASE_VARIANT.flat].format) +
     2 * bytes(tile, TILE_FORMAT) +
     bytes(tile, TILE_DEPTH_FORMAT) +

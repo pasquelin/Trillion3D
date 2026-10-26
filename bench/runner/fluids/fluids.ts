@@ -16,9 +16,9 @@ import type {
 } from '../../../packages/sdk-core/src/physics/options.ts'
 import { OCEAN } from '../../../packages/sdk-core/src/fluids/waves.fixture.ts'
 import { floatingBodies } from '../../../packages/sdk-browser/src/physics/water/water.fixture.ts'
-import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
+import { encodePng } from '../../../packages/sdk-node/src/image/png.mts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
-import { isEngine, type Side } from '../harness/sideOptions.ts'
+import type { Side } from '../harness/sideOptions.ts'
 import { sdkEntryUrl } from '../harness/dists.ts'
 import { withGpuIncidents } from '../series/seriesPage.ts'
 import type { BenchSettings } from '../harness/benchSettings.ts'
@@ -67,7 +67,6 @@ export type FluidsScene = ReturnType<typeof fluidsScene>
 
 /** What one side sends into the page: the bench settings are plain data, sent whole. */
 function fluidsPayload(side: Side, settings: BenchSettings, scene: FluidsScene) {
-  if (!isEngine(side.engine)) throw new Error('--scene fluids draws on --engine webgpu only')
   return {
     side: side.name,
     sdkUrl: sdkEntryUrl(side),

@@ -8,6 +8,9 @@ const mapRead = () => (globalThis as { GPUMapMode?: { READ: number } }).GPUMapMo
 const mapStaging = (buffer: GPUBuffer, offset?: number, size?: number) =>
   Promise.resolve(buffer.mapAsync(mapRead(), offset, size))
 
+/** What `settled` answers while nothing flies: shared, no promise is made for it. */
+const SETTLED: Promise<void> = Promise.resolve()
+
 /** A staging buffer of `bytes` bytes under `label`: a copy lands in it, and it maps for reading. */
 const createStaging = (device: Pick<GPUDevice, 'createBuffer'>, label: string, bytes: number) =>
   device.createBuffer({
@@ -61,6 +64,91 @@ export interface ReadbackRing<T = number> {
   destroy(): void
 }
 
+type RingOptions<T> = {
+  label: string
+  bytes: number
+  count: number
+  eager?: boolean
+  chain?: (read: () => Promise<void>, tag: T) => void
+}
+
+/** What a ring's mappings share: whether it is destroyed, and the mappings in flight. */
+type RingState = { destroyed: boolean; flying: number }
+
+/** The buffers of a ring: the free ones, all made, how a mapping lands, and how a free buffer of a
+ *  size is found or made. */
+function createStagingPool<T>(
+  device: Pick<GPUDevice, 'createBuffer'>,
+  options: RingOptions<T>,
+  read: (mapped: ArrayBuffer, staging: GPUBuffer, tag: T) => void,
+) {
+  const free: Staging<T>[] = [],
+    all: Staging<T>[] = [],
+    waiting: Array<() => void> = [],
+    state: RingState = { destroyed: false, flying: 0 }
+  const landed = () => {
+    if (--state.flying > 0) return
+    releaseAll(waiting)
+  }
+  const make = (bytes: number) => {
+    let buffer: GPUBuffer
+    try {
+      buffer = createStaging(device, options.label, bytes)
+    } catch {
+      // Refused — the budget, the device —: this take gets none, the next asks again.
+      return undefined
+    }
+    const staging: Staging<T> = {
+      buffer,
+      tag: undefined as T,
+      mapped() {
+        if (state.destroyed) return landed()
+        try {
+          read(buffer.getMappedRange(), buffer, staging.tag)
+        } finally {
+          buffer.unmap()
+          free.push(staging)
+          landed()
+        }
+      },
+      failed() {
+        if (!state.destroyed) free.push(staging)
+        landed()
+      },
+    }
+    all.push(staging)
+    return staging
+  }
+  const room = () => !state.destroyed && all.length < options.count
+  /** A free buffer of `bytes` at least: one held, made again when too small, or a new one. */
+  const freeOf = (bytes: number) => {
+    const staging = free.pop()
+    if (!staging) return room() ? make(bytes) : undefined
+    if (staging.buffer.size >= bytes) return staging
+    all.splice(all.indexOf(staging), 1)
+    staging.buffer.destroy()
+    return make(bytes)
+  }
+  if (options.eager) {
+    for (let k = 0; k < options.count && room(); k++) make(options.bytes)
+    // Taken in the order made; each one read is the next taken.
+    free.push(...all.slice().reverse())
+  }
+  return { free, all, waiting, state, landed, room, freeOf }
+}
+
+/** The chained read of `staging`: mapped behind the caller's work, read, given back. */
+async function mapThenRead<T>(state: RingState, landed: () => void, staging: Staging<T>) {
+  if (state.destroyed) return landed()
+  try {
+    await mapStaging(staging.buffer)
+  } catch (cause) {
+    staging.failed()
+    throw new ReadbackRefused('READBACK_MAP_REFUSED', { cause })
+  }
+  staging.mapped()
+}
+
 /**
  * THE ONE RING OF STAGING BUFFERS a counter, a status word, a cut's lists or an image's timestamps
  * come back through a few frames late: a frame `take`s one, copies into it, and once its encoder is
@@ -77,82 +165,22 @@ export interface ReadbackRing<T = number> {
  */
 export function createReadbackRing<T = number>(
   device: Pick<GPUDevice, 'createBuffer'>,
-  options: {
-    label: string
-    bytes: number
-    count: number
-    eager?: boolean
-    chain?: (read: () => Promise<void>, tag: T) => void
-  },
+  options: RingOptions<T>,
   read: (mapped: ArrayBuffer, staging: GPUBuffer, tag: T) => void,
 ): ReadbackRing<T> {
-  const free: Staging<T>[] = [],
-    pending: Staging<T>[] = [],
-    all: Staging<T>[] = []
+  const { free, all, waiting, state, landed, room, freeOf } = createStagingPool(
+    device,
+    options,
+    read,
+  )
+  const pending: Staging<T>[] = []
   const { chain } = options
-  let destroyed = false,
-    flying = 0
-  const waiting: Array<() => void> = []
-  const landed = () => {
-    if (--flying > 0) return
-    releaseAll(waiting)
-  }
-  const make = (bytes: number) => {
-    let buffer: GPUBuffer
-    try {
-      buffer = createStaging(device, options.label, bytes)
-    } catch {
-      // Refused — the budget, the device —: this take gets none, the next asks again.
-      return undefined
-    }
-    const staging: Staging<T> = {
-      buffer,
-      tag: undefined as T,
-      mapped() {
-        if (destroyed) return landed()
-        try {
-          read(buffer.getMappedRange(), buffer, staging.tag)
-        } finally {
-          buffer.unmap()
-          free.push(staging)
-          landed()
-        }
-      },
-      failed() {
-        if (!destroyed) free.push(staging)
-        landed()
-      },
-    }
-    all.push(staging)
-    return staging
-  }
-  const room = () => !destroyed && all.length < options.count
-  /** A free buffer of `bytes` at least: one held, made again when too small, or a new one. */
-  const freeOf = (bytes: number) => {
-    const staging = free.pop()
-    if (!staging) return room() ? make(bytes) : undefined
-    if (staging.buffer.size >= bytes) return staging
-    all.splice(all.indexOf(staging), 1)
-    staging.buffer.destroy()
-    return make(bytes)
-  }
-  /** The chained read of `staging`: mapped behind the caller's work, read, given back. */
-  const mapThenRead = async (staging: Staging<T>) => {
-    if (destroyed) return landed()
-    try {
-      await mapStaging(staging.buffer)
-    } catch (cause) {
-      staging.failed()
-      throw new ReadbackRefused('READBACK_MAP_REFUSED', { cause })
-    }
-    staging.mapped()
-  }
   const map = (staging: Staging<T>) => {
-    flying++
-    if (chain) chain(() => mapThenRead(staging), staging.tag)
+    state.flying++
+    if (chain) chain(() => mapThenRead(state, landed, staging), staging.tag)
     else staging.buffer.mapAsync(mapRead()).then(staging.mapped, staging.failed)
   }
-  const back = (staging: Staging<T>) => void (destroyed || free.push(staging))
+  const back = (staging: Staging<T>) => void (state.destroyed || free.push(staging))
   /** Settles the taken buffers — `buffer` alone, else all — by `act`, in the order taken. */
   const settle = (buffer: GPUBuffer | undefined, act: (staging: Staging<T>) => void) => {
     let kept = 0
@@ -160,14 +188,9 @@ export function createReadbackRing<T = number>(
       if (buffer && staging.buffer !== buffer) pending[kept++] = staging
       else act(staging)
   }
-  if (options.eager) {
-    for (let k = 0; k < options.count && room(); k++) make(options.bytes)
-    // Taken in the order made; each one read is the next taken.
-    free.push(...all.slice().reverse())
-  }
   return {
     take(tag, bytes = options.bytes) {
-      if (destroyed) return undefined
+      if (state.destroyed) return undefined
       const last = chain ? undefined : pending.pop()
       if (last && last.buffer.size >= bytes) {
         last.tag = tag as T
@@ -181,8 +204,9 @@ export function createReadbackRing<T = number>(
       pending.push(staging)
       return staging.buffer
     },
-    available: () => !destroyed && ((!chain && pending.length > 0) || free.length > 0 || room()),
-    held: () => pending.length + flying,
+    available: () =>
+      !state.destroyed && ((!chain && pending.length > 0) || free.length > 0 || room()),
+    held: () => pending.length + state.flying,
     pending: () => pending.length,
     get bytes() {
       return all.reduce((sum, staging) => sum + staging.buffer.size, 0)
@@ -190,9 +214,9 @@ export function createReadbackRing<T = number>(
     submitted: (buffer) => settle(buffer, map),
     dropped: (buffer) => settle(buffer, back),
     settled: () =>
-      flying > 0 ? new Promise<void>((resolve) => waiting.push(resolve)) : Promise.resolve(),
+      state.flying > 0 ? new Promise<void>((resolve) => waiting.push(resolve)) : SETTLED,
     destroy() {
-      destroyed = true
+      state.destroyed = true
       for (const staging of all) staging.buffer.destroy()
       all.length = free.length = pending.length = 0
     },

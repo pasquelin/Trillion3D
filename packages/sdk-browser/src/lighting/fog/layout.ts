@@ -17,7 +17,7 @@ import { halton } from '../../../../math/src/sequence/halton.ts'
 
 /** How far past the near plane the first slice starts, metres: 9.5 centimetres of the engines that
  *  fixed the grid, so that no resolution is spent right in front of the camera. */
-export const FIRST_SLICE_MARGIN = 0.095
+const FIRST_SLICE_MARGIN = 0.095
 /** What is added to the depth buffer's reciprocal depth before it is inverted, per metre: 10⁻¹³ per
  *  centimetre, so that a pixel no surface drew (depth 0, reversed) converts to `1 / FOG_DEPTH_FUDGE`
  *  metres — 10¹¹ — and not to a division by zero. */
@@ -28,7 +28,8 @@ const SETTLED_ERROR = 1 / 256
 
 /** How much more light the volume's glow gives where the fog is made to match the volume
  *  (`fogMatchesVolume`): the glow is then read in the unit of the fog's own colour, 10 000 times what
- *  it is otherwise. */
+ *  it is otherwise, and follows the density of the medium (`fogMedium`, `./gridWgsl.ts`): the light
+ *  per centimetre of the fog's colour times the density per centimetre. */
 export const FOG_MATCH_GLOW_SCALE = 10000
 
 /** The images a still view takes to make its volume whole: each blends the history in by the share
@@ -99,7 +100,7 @@ export const volumeUvMax = (width: number, height: number, grid: FogGrid) => {
  *  the mean of the samples' baked light reaches the scatter as the scatter would have summed it. */
 export const FOG_STATIC_FORMAT = 'rgba32float' as const satisfies GPUTextureFormat
 /** How many lighting samples a cell takes where the volume holds no history: 16 is the most. */
-export const MAX_REBUILD_SAMPLES = 16
+const MAX_REBUILD_SAMPLES = 16
 /** The offsets within a cell the lighting samples are taken at, one per sample, as the images pass,
  *  written into `out` from its word `at`: the first this image's Halton point, the others the points
  *  of the images before — so that a cell whose history is missing averages what the history would

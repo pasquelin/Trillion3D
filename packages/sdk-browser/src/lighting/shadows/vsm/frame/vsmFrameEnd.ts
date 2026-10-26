@@ -5,7 +5,7 @@ import { finishVirtualShadowFrame } from '../frameSetup.ts'
 import { keepVsmFrame } from '../pageManagementEncode.ts'
 import { noteVsmFrame, stampVsmStats } from '../../../../frame/backend/state/vsmSettle.ts'
 import type { EngineVsm } from './engineVsm.ts'
-import { rowBinsSubmitted } from '../rows/rowBinsGpu.ts'
+import { vsmDescentRequestsSubmitted } from '../traversal/requests.ts'
 
 /** Frame end: the feedback copy, the rendered marks and the frame data extraction (the frame's buffers become
  *  the previous frame's). */
@@ -17,7 +17,7 @@ export function finishVsmFrame(rt: WebgpuPagesRuntime, encoder: GPUCommandEncode
   if (!vsm || !plan) return
   vsm.plan = undefined
   const hasData = plan.projectionCount > 0
-  if (hasData) vsm.feedback.encode(encoder, vsm.res.feedback)
+  if (hasData) vsm.feedback.encode(encoder, vsm.res.feedback, vsm.res.stats)
   if (hasData && vsm.countersOn) {
     const staging = vsm.statsReadback.take()
     if (staging) {
@@ -38,16 +38,15 @@ export function finishVsmFrame(rt: WebgpuPagesRuntime, encoder: GPUCommandEncode
   vsm.renderedPlan = undefined
   keepVsmFrame(vsm.res, { mapsGranted: hasData })
   vsm.stats.freePages = vsm.state.cache.lastFreePages ?? 0
+  vsm.overflow.drain((line) => rt.diag.engineDiagnostic('shadow-overflow', line, {}))
 }
 
-/** After the frame's submit: the feedback, counters and row histogram copies map, and land a few
- *  frames late. */
+/** After the frame's submit: the feedback, counters and shadow views' requests
+ *  copies map, and land a few frames late. */
 export function vsmSubmitted(rt: { lights: { vsm?: EngineVsm } }) {
   const vsm = rt.lights.vsm
   if (!vsm) return
   vsm.feedback.afterSubmit()
-  vsm.transmission?.afterSubmit()
   vsm.statsReadback.submitted()
-  rowBinsSubmitted(vsm.res.render?.rowBound)
-  rowBinsSubmitted(vsm.transmission?.context?.rowBound)
+  vsmDescentRequestsSubmitted(vsm.res)
 }

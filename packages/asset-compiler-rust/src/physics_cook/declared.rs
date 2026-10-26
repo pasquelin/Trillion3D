@@ -40,6 +40,13 @@ pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
     matter
 }
 
+/// Whether `node` declares a moving rigid body, kinematic or dynamic: one that declares none is
+/// static ground.
+pub(crate) fn declared_motion(node: &Value) -> bool {
+    node.pointer("/extensions/KHR_physics_rigid_bodies/motion")
+        .is_some()
+}
+
 /// The `physics.json` entry of the body node `index` of `nodes` declares, placed by its `world`
 /// matrix: its `motion` as declared, its matter, pose and shape — the `KHR_implicit_shapes` shape
 /// its collider names, as declared; else the cooked hull of the mesh its collider names (its own
@@ -145,14 +152,13 @@ pub(super) fn declared_bodies(
 ) -> Result<(Vec<Value>, Vec<Value>)> {
     let nodes = values(source.0, "nodes")?;
     let (mut bodies, mut refusals, mut cooked) = (Vec::new(), Vec::new(), BTreeMap::new());
-    let moving = |i: &&usize| nodes[**i].pointer("/extensions/KHR_physics_rigid_bodies/motion");
     let (reached, hidden) = scene_nodes(source.0)?;
     let drawn = |i: &&usize| {
         !hidden.contains(*i) && (nodes[**i].get("mesh").is_none() || shown.contains(*i))
     };
     for &index in reached
         .difference(soft)
-        .filter(|i| moving(i).is_some() && drawn(i))
+        .filter(|i| declared_motion(&nodes[**i]) && drawn(i))
     {
         match body(o, source, nodes, (index, world), &mut cooked) {
             Ok(entry) => bodies.push(entry),

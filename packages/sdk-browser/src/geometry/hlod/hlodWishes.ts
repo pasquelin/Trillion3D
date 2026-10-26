@@ -18,6 +18,7 @@ import type { HlodPulls } from './hlodPulls.ts'
 import type { StreamingSource } from '../partition/source.ts'
 import type { PartitionGrid } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import { keepNumbers } from '../../../../math/src/vector/vector.ts'
+import { entryOf } from '../../../../math/src/sequence/counts.ts'
 
 /** What a measure flags and tells: the cells wished (`wished`: 1 wished, 2 kept, 3 entering at a
  *  measure) and started, and a cell that enters or leaves told to `tell`, one that leaves with its
@@ -28,6 +29,8 @@ type WishedCells = {
   tell(cell: number): void
   weighChildren(cell: number): void
 }
+
+const newPair = (): [number[], number[]] => [[], []]
 
 /** The cells of `before` that no longer meet the view — wished before, not met now (`wished` still
  *  1): unwished, the turn of one that started lost, each told again. */
@@ -88,8 +91,7 @@ export function createWishes(
       seenShape = source.revision
       if (eyeStood && shapeStood && !source.turns()) return
       for (const grid of buckets.grids()) {
-        let pair = lists.get(grid)
-        if (!pair) lists.set(grid, (pair = [[], []]))
+        const pair = entryOf(lists, grid, newPair)
         const [before, now] = pair
         now.length = 0
         meeting = now

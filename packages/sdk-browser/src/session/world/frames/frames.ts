@@ -55,6 +55,7 @@ export function createWorldFrames() {
     early: new Set(),
     grid: createFrameGrid(),
     start: frameStart(),
+    seconds: 0,
     frame: 0,
     last: null,
     pace: createLoopPace(),
@@ -67,6 +68,11 @@ export function createWorldFrames() {
     get last() {
       return state.last
     },
+    /** The world's time, in seconds: every interval the steps integrated since the world began,
+     *  each bounded after a pause (`advance`) — the clock the clips and the controllers run on, so
+     *  what reads its difference between two images sees the seconds the world lived, never a
+     *  pause or a hitch of the loop. 0 before the first step. */
+    clock: () => state.seconds,
     /** Seconds since the last step ahead of a frame, on the display's grid while it holds one
      *  (`frameGrid.ts`), bounded after a pause: what a controller integrates; the step is
      *  taken now. A display frame stepped again advances nothing. */
@@ -99,6 +105,8 @@ type FramesState = {
   early: Set<(frame: BeforeFrameInfo) => void>
   grid: ReturnType<typeof createFrameGrid>
   start: number
+  /** The seconds every step integrated so far (`createWorldFrames().clock`). */
+  seconds: number
   frame: number
   last: FrameMetrics | null
   pace: ReturnType<typeof createLoopPace>
@@ -110,7 +118,8 @@ type FramesState = {
 }
 
 /** The controllers integrate from one step to the next, so each frame's render time is lived. */
-function advance({ grid, pace, steps }: FramesState) {
+function advance(state: FramesState) {
+  const { grid, pace, steps } = state
   grid.frame(frameStart())
   // The first frame of all spans nothing; one after a pause, one running interval (`loopPace.ts`):
   // a held key, a cruising camera or a playing clip never leaps over the time the loop slept.
@@ -119,6 +128,7 @@ function advance({ grid, pace, steps }: FramesState) {
   steps.first = false
   steps.taken = true
   steps.since += seconds
+  state.seconds += seconds
   return seconds
 }
 

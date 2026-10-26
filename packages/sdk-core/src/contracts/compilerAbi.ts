@@ -18,6 +18,7 @@ export * from './hlodLayerAbi.ts'
 export * from './materialAbi.ts'
 export * from './distanceFieldAbi.ts'
 export * from './meshBuildAbi.ts'
+export * from './meshCardsAbi.ts'
 export * from './objectAbi.ts'
 export * from './partitionAbi.ts'
 

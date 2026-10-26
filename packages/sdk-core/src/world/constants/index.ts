@@ -40,8 +40,6 @@ export const filter = Object.freeze({
 
 /** How a surface composes over what is behind it. */
 export const blending = Object.freeze({
-  /** No mixing: the surface covers what is behind. */
-  none: 'none',
   /** Mixes by opacity, like tinted glass. */
   normal: 'normal',
   /** Adds its light to what is behind, like fire. */
@@ -50,6 +48,54 @@ export const blending = Object.freeze({
   subtractive: 'subtractive',
   /** Multiplies what is behind by its colour, like a filter. */
   multiply: 'multiply',
+  /** Mixes like `normal`, its colour already multiplied by its opacity: the colour is added as it
+   *  is and the opacity only lets less of what is behind through. */
+  alphaComposite: 'alphaComposite',
+  /** Holds out what is behind by its opacity and adds no colour of its own: a matte that cuts the
+   *  translucent surfaces behind it away from the image. */
+  alphaHoldout: 'alphaHoldout',
+} as const)
+
+/** How a see-through surface is lit by the lights that reach it (`Material.translucencyLighting`). */
+export const translucencyLighting = Object.freeze({
+  /** Every light is evaluated for the pixel, as it is for an opaque surface: the lights' highlights
+   *  and the surface's reflection with them, each light's shadow read at the pixel. The most exact,
+   *  and the most expensive; what a transmissive or thin see-through surface imported from a scene file is
+   *  given. */
+  forward: 'forward',
+  /** The light is read from the translucency lighting volume, a blurred field of the light around
+   *  the camera: the surface's normal weighs it, so a pane has a lit side and a dark one; the
+   *  surface's reflection stays, the lights' highlights go. Cheap per pixel; the volume reaches a
+   *  limited distance. What a blended surface imported from a scene file is given, unless it transmits. */
+  volume: 'volume',
+  /** The surface is a medium lit from the volume, its normal weighing the light (smoke, dust, a
+   *  cloud of particles): no highlight, no reflection. */
+  volumetric: 'volumetric',
+  /** The surface is a medium lit from the volume with no direction: the ambient term of the
+   *  light alone, whatever the normal. The cheapest; the default of a material made in code. */
+  volumetricNonDirectional: 'volumetricNonDirectional',
+} as const)
+
+/** The lighting of a see-through surface of a material made in code, which names none. */
+export const DEFAULT_TRANSLUCENCY_LIGHTING = translucencyLighting.volumetricNonDirectional
+
+/** The lighting a scene file's material is given: a surface that transmits (a transmission, a thin
+ *  translucent one) is lit light by light in its own fragment, any other blended one is read, as a
+ *  surface, from the translucency lighting volume. */
+export const importedTranslucencyLighting = (transmits: boolean) =>
+  transmits ? translucencyLighting.forward : translucencyLighting.volume
+
+/** Which pass of the image a see-through surface is drawn in (`Material.translucencyPass`,
+ *  `ParticlePoolSpec.translucencyPass`). */
+export const translucencyPass = Object.freeze({
+  /** Drawn into the scene before the depth of field, which blurs it with the scene it lies in. */
+  beforeDepthOfField: 'beforeDepthOfField',
+  /** Drawn apart and laid over the image once the depth of field has read it, so that no blur
+   *  reaches it; the default. */
+  afterDepthOfField: 'afterDepthOfField',
+  /** Drawn apart and laid over the image after the temporal anti-aliasing and the motion blur have
+   *  read it, so that neither smears it: it stays as sharp as it was drawn. */
+  afterMotionBlur: 'afterMotionBlur',
 } as const)
 
 /** How texels are encoded: a colour map carries the sRGB curve, a data map does not. */
@@ -65,14 +111,10 @@ export const colorSpace = Object.freeze({
 /**
  * The curve that brings scene radiance into the display range: every curve the engine ranks.
  * @property none - No curve: bright light is simply cut off at white.
- * @property linear - Scales the light by the exposure, then cuts off at white.
- * @property reinhard - Squeezes bright light smoothly toward white.
- * @property cineon - The look of cinema film.
- * @property aces - The film industry's standard curve.
- * @property agx - Keeps colours natural even in very bright light.
- * @property neutral - Changes colours as little as it can.
  * @property filmic - A film's own response, in a wide gamut: a toe, a straight run and a
- *   shoulder, a touch of desaturation at both ends. The world's default.
+ *   shoulder, a touch of desaturation at both ends; its method is the colour grading's
+ *   (`tonemappingMethod`: the film curve, or the standard output transform of the film
+ *   industry's colour system). The world's default.
  */
 export const toneMapping = Object.freeze(
   Object.fromEntries(Object.keys(TONE_MAPPING_RANK).map((name) => [name, name])) as {
@@ -88,6 +130,10 @@ export type Wrap = (typeof wrap)[keyof typeof wrap]
 export type Filter = (typeof filter)[keyof typeof filter]
 /** How a surface mixes with what is behind it, by name. */
 export type Blending = (typeof blending)[keyof typeof blending]
+/** How a see-through surface is lit: `'forward'`, `'volume'`, `'volumetric'` or `'volumetricNonDirectional'`. */
+export type TranslucencyLighting = (typeof translucencyLighting)[keyof typeof translucencyLighting]
+/** Which pass of the image a see-through surface is drawn in: `'beforeDepthOfField'`, `'afterDepthOfField'` or `'afterMotionBlur'`. */
+export type TranslucencyPass = (typeof translucencyPass)[keyof typeof translucencyPass]
 /** How a texture's numbers are read: as colours with the sRGB curve, or plain. */
 export type ColorSpace = (typeof colorSpace)[keyof typeof colorSpace]
 /** The name of a curve that turns scene light into screen colours. */

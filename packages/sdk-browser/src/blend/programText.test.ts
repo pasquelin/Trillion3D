@@ -15,18 +15,39 @@ import { blendFrontShader } from './frontStageWgsl.ts'
 import { material } from '../../../sdk-core/src/world/material/index.ts'
 import { Texture as WorldTexture } from '../../../sdk-core/src/world/texture/texture.ts'
 import { isProgram, programOf } from '../materials/graph/surfaceProgram.ts'
+import { GRAPH_SHADING_MODELS } from '../../../sdk-core/src/world/material/graph/outputs.ts'
+import { PIXEL_MODEL } from '../materials/surface/pixelModel.ts'
+import { LIGHTLESS_MODEL } from '../materials/surface/translucencyLighting.ts'
+import { FLAG_LIT } from '../visibility/types.ts'
+import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 
-// Retaken when the vertex came to pass the item's history share code above the triangle's rank
-// (`TRI_GIVEN_UP_SHIFT`), the page reads drew a voxel row's bricks as boxes (`voxelWgsl.ts`), and
+// Retaken when the vertex came to pass the item's responsiveness code above the triangle's rank
+// (`TRI_RESPONSIVE_SHIFT`), the page reads drew a voxel row's bricks as boxes (`voxelWgsl.ts`), and
 // the lobed vertex took the one texture set past the first its maps name (`channelsAlt`), the view
-// came to hold the pre-exposure every light is written multiplied by (`preExposure`), and a view with
-// a plane draws with a module of its own (`clipping`): its text holds no clipping code.
-const VERTEX = 'e2ba8300621ede614f51709a2e74dd74976ac408a35d5df8936d50d45fd53566'
-// Retaken when the blend module took that vertex, the per-material history share it writes for
-// the temporal pass where its material gives the history up, and the stored tangents' frame in a
+// came to hold the pre-exposure every light is written multiplied by (`preExposure`), a view with a
+// plane draws with a module of its own (`clipping`), and the record came to carry its graph's word,
+// neutral for a graph's surface.
+// and the view gained the wall clock beside the world's time (`realTime`, `materials/graph/clocks.ts`),
+// and then a copy of the tone table's baking words (`bake`, `viewLayout.ts`), which the layers drawn on display values show their
+// colour through, and then the light buffer lost its sky table by direction (`LIGHT_AIR_MEMBERS`), the sky
+// read of a point answering the sky light's cube alone (`skyRadianceAt`), and then the item flags gained
+// the marks of the shadow reads a surface asks for itself (`translucentMarksFrom`, `vertexWgsl.ts`), and then
+// the item flags gained the two bits that say how its surface is lit (`translucencyLightingFlags`,
+// `lighting/translucency/modeWgsl.ts`), and then the stage left an item of the other pass of the image
+// out of the draw (`otherPass`, the item's and the view's `translucencyPass`), its argument renamed off the
+// language's reserved word `pass`,
+// and then the code shrank to the two bits of the responsiveness (`RESPONSIVE_MASK`), and then a map's
+// texture set took three bits of the channels word, the eight sets a page carries (`MAP_CHANNEL_BITS`), and then the record gained an
+// eye's distance of the iris (`irisDistance`).
+// The object's holdout bit joined the triangle word (`TRI_HOLDOUT_SHIFT`).
+// The view joined the translucency global illumination volume's grid and slices' law (`giGrid`, `giZ`).
+// The vertex stage no longer leaves an item of another pass out (`otherPass`, the view's `translucencyPass` and the item's are gone): each draw expands its own items alone (`expand/expansionViews.ts`).
+const VERTEX = 'cb30846adb070ab9fa93689bbbd0a1ea2957858ef121ecf62c42fb7d70560fda'
+// Retaken when the blend module took that vertex, the per-material responsiveness it writes for
+// the temporal pass where its material asks one, and the stored tangents' frame in a
 // module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both, and then the
-// sky: the probes carry the sky light's diffuse light (`indirectGathered`, `environmentSky`), the
-// reflections' environment reads the sky by direction (`reflectionEnvironment`), and then the fog
+// sky: the surfaces read the sky light's diffuse light (`environmentSky`, then the volume's fade to it,
+// `translucentSky`), the reflections' environment reads the sky by direction (`reflectionEnvironment`), and then the fog
 // took the height law's fields: its block grew to six `vec4`, its text to the law's steps, and then
 // a probe that holds no light yet leaves its share of a point unanswered (`probeFieldWgsl`), the
 // indirect light of a point is one fragment (`indirectWgsl.ts`), and then that share goes to the sky
@@ -49,8 +70,69 @@ const VERTEX = 'e2ba8300621ede614f51709a2e74dd74976ac408a35d5df8936d50d45fd53566
 // started its ray at the view's clip plane (`heightFogAlong`, the plane in the fog's view block), and
 // then took the fog's switches, its lobe and its observer from that block, and a light record its
 // share in the volume (`DirectLight.volume`), and then the reflections' field stage held a ray's answer to a ceiling
-// (`reflectionClampRay`) and read the trace's settings from the view (`reflectionView.lobe`, `.taps`, `.denoise`).
-const BLEND = 'dc960cb1edde5f3a8232bc28b40ce15f12458bd6394d5a52ae9bfa632f05b20a'
+// (`reflectionClampRay`) and read the trace's settings from the view (`reflectionView.lobe`, `.taps`, `.denoise`),
+// and then the record gained its graph's word, the view the clock, the lighting a per-pixel
+// reflectance (`surfaceF0`), a graph's anisotropy its law, and then the film curve's numbers came to be a structure its functions read (`Film`, `filmicFromAp1`),
+// and then the sky light's first terms came to be read apart from its colour (`skyHarmonicsSimple`),
+// and the view gained the wall clock beside the world's time (`realTime`, `materials/graph/clocks.ts`).
+// and the fog's composition came to be a module of its own (`fogCompose.ts`), the volume's law one function (`fog/lawWgsl.ts`)
+// and the light buffer a block of the local fog volumes (`localFog`),
+// and then the display route ran the baking's chain on the view's copy of its words (`displayRoute`, `lighting/toneBakeWgsl.ts`: the
+// white balance, the grade, the film curve or the standard output transform with its hue tables, the transfer), where it had evaluated
+// the film curve at its defaults, and then the reach table's weight at the hue's wrap became the distance past the lower entry
+// (`acesReachAt`), and then the air's block took a twentieth slot, the planet's place on the ground
+// plane (`ATMOSPHERE_SLOT.planetPlace`), which the light buffer's struct counts, and then the sun's far-shadow distance in the
+// shadow maps' projection record became its edge (`farShadowEdge`, `sunCascades`), and then the
+// haze's read took the volume's kind and an orthographic view's distance along its direction
+// (`viewHazeFunction`, `VIEW_SLOT.ortho`), and then every page position came to call the offset of its row's
+// surface (`pageWpoLocal`, `PageInfo.wpo`: a default of none, `wpoGraphWgsl.ts` the real one),
+// and then the display route's chain gained the standard output transform's first version
+// (`aces13Display`, `lighting/aces/aces13Wgsl.ts`), the glow's measures the two curves share (`RRT_MEASURES_WGSL`) and
+// the table's range cut before the transform, and the display value read through the finite and storable cuts (`storableWgsl.ts`),
+// and then the graphs' frame (the clocks and the camera of the image, one uniform: `graphFrameWgsl.ts`) replaced the clocks the
+// table kept, an item carried the words of its object's offset (`wpoDisableSq`, `wpoCentre`, `wpoMost`), and the page geometry's
+// offset became `pageOffset`, a brick of voxels taking the offset at the centre of its box, and then the light
+// buffer lost its sky table by direction, and the fog's observer reach came to be written from the
+// constant the view block is written with (`FOG_OBSERVER_REACH`), and then the height fog came to
+// ask the view whether it shows it (`heightFogShown`) and the sky light to light it
+// (`fogSkyLightStrength`, `fogSkyLightColour`, `heightFogLaw`), and then the coloured shadow of the
+// translucent casters left the module (the transmittance binding and its reads), a rectangle light
+// came to be lit as a point light unless the project switch `translucentRectLights` holds, and the
+// surfaces' own shadow reads (`translucentMarksFrom`) were laid in the shadow code, and then the view
+// gained the translucency lighting volume's boxes (`BlendView.volumeCorner`), the layer's surface was
+// set apart from its lights (`blendLightsSet`) and the layout one more storage texture, the volume,
+// and then the view gained the depth of field's split and the pass's side of it, and then the layer
+// wrote its responsiveness mark where it covers a pixel (`blendResponsive`) in place of a share at its coverage,
+// and then a graph's context took the direction an orthographic view looks along (`mgViewForward`), and then the
+// as-is share lost its second channel: a layer's share output is written 0, and the particles' and the transmissive
+// layers' reactive outputs left the module, and then the as-is share left it: a debug view's as-is pixels are
+// composed from the surfaces after the temporal pass, the display layers and the responsiveness one location
+// down, and then the stage's `otherPass` took an argument that is no reserved word, and then the
+// view named a set of passes it draws (`otherPass` tests a bit of it, three passes) and the item carried
+// the clip value of its surface's opacity mask, which the responsiveness mark is windowed by.
+// The responsiveness left the colour pass for a pass of its own (`fsBlendResponsive`).
+// The shading models a graph picks per pixel joined the light term and the lobes' hooks (skin, hair, eye), and then the preintegrated
+// environment BRDF replaced the split-sum weight of every reflection, the subsurface profile joined the models and the pow5 of the Fresnel.
+// Retaken last, once every blend change of the day was in (the ACES and film tone chain, the local fog, the clear coat and cloth lobes, the
+// environment BRDF, the sky reads, the shadow reads, the profile and thin subsurface models): each added declaration traces to one of them.
+// The alpha holdout joined: its accumulation stage (`fsBlendHoldout`, `holdoutOut`) and the fog's transmittance it reads (`fogThrough`, `fogHeld`).
+// The fog went per blend mode (`foggedBy`, `fogThrough`), the layer's hdr writes black for a held-out primitive (`holdoutPrimitive`, the view's `holdout` word).
+// The holdout stage flattened to one covers/held/seen ladder (`fsBlendHoldout`), the modulating layers' fog squared in one helper
+// (`fogThroughModulating`), the inscattering share a function (`inscatterShare`), the fog opt-out and the mode tests one predicate each.
+// The fog of a blended surface went per vertex (`fogLaidFar`, `fogLocalVertex`, `blendFog`, `fogVolumeOver`, the layer in one extra, the per-pixel mark in the triangle word) and the material record gained `fogPerPixel`; a program whose surfaces all take their fog per pixel holds none of its lanes; the cluster identity words moved behind the spans (`clusterIdentity`); the volume lights the translucent and additive layers alone (`blendLightsOf`).
+// The see-through surfaces' indirect light became one fetch of the translucency global illumination volume (`translucentGiWgsl`) in place of a gather of the
+// world's probes, their reflection behind the front surface the environment alone (`reflectionEnvironmentOf`).
+// The volume's read drew the sky only where its fade leaves room for it, shared the harmonics' irradiance with the translucency lighting volume
+// (`tvIrradiance`), and left the surfaces to give back its irradiance themselves (`lambertDiffuse`: the water reads it once).
+// Retaken when the layer's light came to follow its material's lighting mode alone (`blendLightsOf`: forward, else none or the volume's), the plain module declaring the mode's codes, and its fog's text a fog-free thin layer reads no fog in.
+// The vertex stage carries the shading model in the flags (`blendShadingFlags`: the unlit one clears the lit flag and the base colour, the others leave their pixel model for the hair's reflection, `blendUnreflecting`), the lightless lane a function (`lightlessLane`), and the local fog's vertex lost its second count guard.
+// Retaken when the shading model's flags came from one rule (`shadingFlagsOfNumber`, `shadingNumberOfModel`) and a medium from `translucencyMedium`.
+// The item's flags lost the diagnostic view's code (its bits are the pixel model's; the fragment reads the code from `uni.viewFlags`), a
+// fragment that reflects nothing (a hair, a medium) takes no reflection (`forwardIndirect`'s `reflects`), and `blendLightsOf` takes the flags.
+// The fragment took the lighting program a pipeline constant (`BLEND_LIGHTING`, `blendLightsOf`), the unlit one closing the lit path, and the vertex stage lost `otherPass`.
+// The reflection lobe lost its probe bands and long axis (`reflectionLobeOf`), the environment alone standing for the probes' field.
+// The standard material's Fresnel took the specular grazing value (`specularF90`, `fresnelSchlick(f0,f90,cosine)`) and the split sum its F90 (`math/src/wgsl/lighting.ts`).
+const BLEND = '6715b99327fc166de0e3f7a9bea962d3a8ca2265525d6384ba83cfd67c27be08'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */
@@ -176,7 +258,7 @@ function translucentProgram() {
   graph.output('baseColor', graph.channel(read, 'rgb'))
   graph.output('opacity', graph.channel(read, 'a'))
   graph.output('normal', graph.constant(0, 0, 1))
-  const program = programOf({ graph, transparent: true, alphaTest: 0 })
+  const program = programOf({ graph, transparent: true })
   assert.ok(isProgram(program), 'the graph compiles')
   return program
 }
@@ -188,13 +270,16 @@ test('a blend module holds the code of a graph only where an item wears one', ()
   const program = translucentProgram()
   const text = blendShader({}, { graphs: [program] })
   // The program's own functions, the switch that picks them by the id its values carry, and the
-  // derivatives it takes among the quad's, hoisted above the declarations.
-  assert.match(text, /^diagnostic\(off,derivative_uniformity\);/)
+  // derivatives they take among the quad's: each said where it is taken, the module's other
+  // functions keeping the uniformity check.
+  assert.doesNotMatch(text, /^diagnostic\(off,/m)
+  assert.match(text, /@diagnostic\(off,derivative_uniformity\) fn blendGraphEval\(in:VSOut\)/)
+  assert.match(text, /@diagnostic\(off,derivative_uniformity\) fn blendGraph_\w+\(in:VSOut/)
   assert.match(text, new RegExp(`case ${program.id}u:\\{return blendGraph_\\w+\\(in,first\\);\\}`))
   // Evaluated once, with the fragment's screen derivatives, before any of its tests.
   assert.match(
     text,
-    /fn blendGrads\(in:VSOut\)->BlendGrads\{return BlendGrads\(dpdx\(in\.uv\.xy\)[^]*,blendGraphEval\(in\)\);\}/,
+    /fn blendGrads\(in:VSOut\)->BlendGrads\{let unitNormal=unitOrZero\(in\.normal\.xyz\);return BlendGrads\(dpdx\(in\.uv\.xy\)[^]*,blendGraphEval\(in\)\);\}/,
   )
   assert.match(
     text,
@@ -202,9 +287,8 @@ test('a blend module holds the code of a graph only where an item wears one', ()
   )
   // Its textures' footprints come from the contexts beside, which the screen derivatives give.
   assert.match(text, /mgNeighbour\[0\]\.uvs=array<vec2f,8>\(in\.uv\.xy\+dpdx\(in\.uv\.xy\)/)
-  // The item's factors and maps neutral in the vertex stage, so that the fragment's read is the graph's.
-  const vertex = wgslModule(blendVertexWgsl(true, undefined, true))
-  assert.match(vertex, /if\(m\.graph!=0u\)\{\s*out\.color=vec4f\(1\.0\);out\.ids\.x=0u;/)
+  // Its two clocks are the view's: the world's time, and the wall clock, which a pause leaves running.
+  assert.match(text, /ctx\.time=uni\.time;ctx\.realTime=uni\.realTime;/)
 })
 
 test('the stages of one module list one blend surface, with the graphs or without', () => {
@@ -216,4 +300,78 @@ test('the stages of one module list one blend surface, with the graphs or withou
   const front = blendFrontShader(1, undefined, programs)
   assert.equal(front.match(/fn blendGraphEval\(/g)?.length, 1)
   assert.doesNotMatch(blendFrontShader(1), /blendGraphEval/)
+})
+
+/** The program a translucent surface's graph compiles to when it picks its shading model per pixel. */
+function modelProgram(model: number) {
+  const graph = material.graph('surface')
+  graph.output('baseColor', graph.constant(0.8, 0.5, 0.2))
+  graph.output('emissive', graph.constant(0.3, 0.2, 0.1))
+  graph.output('opacity', graph.constant(0.5))
+  graph.output('shadingModel', graph.constant(model))
+  const program = programOf({ graph, transparent: true })
+  assert.ok(isProgram(program), 'the graph compiles')
+  return program
+}
+
+test('a graph that picks its shading model per pixel gives the blend fragment and the front stage the item flags that model makes', () => {
+  const program = modelProgram(GRAPH_SHADING_MODELS.hair)
+  const text = blendShader({}, { graphs: [program] })
+  assert.match(text, /out\.model=i32\(round\(mgShadingModel\w*\(ctx,g\)\)\);out\.flags\|=64u;/)
+  assert.match(
+    text,
+    /if\(out\.model==0\)\{out\.rgb=[^;]*;out\.emissive=vec3f\(0\.0\);out\.metal=0\.0;out\.ao=1\.0;\}/,
+  )
+  assert.match(text, /let flags=blendGraphFlags\(in\.ids\.y,g\.graph\);/)
+  assert.match(
+    blendFrontShader(1, undefined, [program]),
+    /frontReflects\(blendGraphFlags\(in\.ids\.y,g\.graph\)\)/,
+  )
+  // A module whose graphs pick none keeps the item's flags whole, and the blend without graphs reads its own.
+  const plain = blendShader({}, { graphs: [translucentProgram()] })
+  assert.match(plain, /fn blendGraphFlags\(flags:u32,g:BlendGraph\)->u32\{return flags;\}/)
+  assert.match(blendShader({}), /let flags=in\.ids\.y;/)
+})
+
+test('the flags a per-pixel shading model makes follow the rules of the record’s: unlit unlit, the hair reflects nothing, the volume lights the default lit and the thin subsurface alone', () => {
+  const run = (model: number, flags: number) =>
+    shaderRun<{ blendGraphFlags: (flags: number, g: object) => number }>(
+      blendShader({}, { graphs: [modelProgram(model)] }),
+      ['blendGraphFlags'],
+      {},
+    ).blendGraphFlags(flags, { flags: 64, model })
+  const LIT = FLAG_LIT
+  const pixel = (flags: number) => (flags >>> 25) & 15
+  const lane = (flags: number) => (flags >>> 17) & 7
+  const base = (LIT | (3 << 25)) >>> 0 // lit, a stale pixel model number in its bits
+  assert.equal(run(GRAPH_SHADING_MODELS.unlit, base) & LIT, 0)
+  assert.equal(pixel(run(GRAPH_SHADING_MODELS.hair, base)), PIXEL_MODEL.hair)
+  assert.equal(
+    pixel(run(GRAPH_SHADING_MODELS.defaultLit, base)),
+    0,
+    'the default clears the stale number',
+  )
+  assert.equal(pixel(run(GRAPH_SHADING_MODELS.subsurface, base)), PIXEL_MODEL.subsurface)
+  for (const [name, model] of Object.entries(GRAPH_SHADING_MODELS)) {
+    const lit =
+      model === GRAPH_SHADING_MODELS.defaultLit || model === GRAPH_SHADING_MODELS.subsurface
+    if (model === GRAPH_SHADING_MODELS.unlit) continue
+    assert.equal(
+      lane(run(model, base)) === LIGHTLESS_MODEL,
+      !lit,
+      `${name}: lightless lane unless the volume lights it`,
+    )
+    // A model the volume lights brings the record's lightless lane back to the standard one; the others keep it.
+    assert.equal(
+      lane(run(model, base | (LIGHTLESS_MODEL << 17))),
+      lit ? 0 : LIGHTLESS_MODEL,
+      `${name}: the lightless lane follows the pixel's model`,
+    )
+    // A surface of another model keeps its lane.
+    assert.equal(
+      lane(run(model, base | (6 << 17))),
+      6,
+      `${name}: the shadow catcher keeps its lane`,
+    )
+  }
 })

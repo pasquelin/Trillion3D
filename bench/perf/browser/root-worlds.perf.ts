@@ -3,7 +3,6 @@
 // reading its translations at its own eye on the GPU —, timed on a nanosecond clock where the engine's
 // own `worldMs` bound reads on a 0.1 ms one. This is the measurement a WebAssembly kernel is gated
 // on: a loop under 0.1 ms per image keeps its JavaScript form.
-import * as THREE from 'three'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
 import { rootWorlds } from '../../../packages/sdk-browser/src/geometry/dag/pack/packWorlds.ts'
@@ -15,7 +14,7 @@ const ROOTS = 2479
 // Only `.world.elements` is read here: a fresh, empty-page root, built once outside the timed
 // loops below.
 const roots: DagRoot[] = Array.from({ length: ROOTS }, (_, i) => ({
-  world: new THREE.Matrix4().fromArray([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, i, i * 2, i * 3, 1]),
+  world: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, i, i * 2, i * 3, 1] },
   pages: [],
 }))
 const worlds = new Float32Array(ROOTS * 16)

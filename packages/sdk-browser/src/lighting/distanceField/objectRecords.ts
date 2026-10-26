@@ -1,3 +1,4 @@
+import { splitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
 import { inverse3 } from '../../../../math/src/matrix/matrix3.ts'
 import { boxTransform } from '../../../../math/src/geometry/box.ts'
@@ -63,11 +64,6 @@ export function objectWorldBox(
   return out
 }
 
-const split = (x: number) => {
-  const high = Math.fround(x)
-  return [high, Math.fround(x - high)] as const
-}
-
 /** `m · v`, `m` by column. */
 const apply3 = (m: readonly number[], v: readonly number[]) =>
   [0, 1, 2].map((r) => m[r] * v[0] + m[3 + r] * v[1] + m[6 + r] * v[2])
@@ -78,7 +74,7 @@ function worldBounds(source: ObjectSource) {
   const box = objectWorldBox(new Float64Array(6), source.world, source.field)
   const centre = [0, 1, 2].map((k) => 0.5 * (box[k] + box[3 + k]))
   const extent = [0, 1, 2].map((k) => 0.5 * (box[3 + k] - box[k]))
-  return { centre, extent, parts: centre.map(split) }
+  return { centre, extent, parts: centre.map(splitDouble) }
 }
 
 /** The transforms of the placement, relative to `high`, the high part of its centre: the world to
@@ -150,7 +146,8 @@ export function writeObjectRecord(
   data.f32.set([...transforms.extent, expand], d + 16)
   const draw = source.drawDistance
   data.f32[d + 20] = draw ? (draw.min * CM) ** 2 : 0
-  data.f32[d + 21] = draw ? (draw.max * CM) ** 2 : Infinity
+  // A distance with no farthest end (`max` 0: the nearest alone) culls nothing far.
+  data.f32[d + 21] = draw && draw.max > 0 ? (draw.max * CM) ** 2 : Infinity
   data.f32[d + 22] = 0
   data.u32[d + 23] = source.instance
   transforms.volumeToWorld.forEach((row, k) => data.f32.set(row, d + 24 + 4 * k))

@@ -17,8 +17,11 @@ import { crossVector3 } from '../../../../../../math/src/vector/vector.ts'
 
 export type Draw = ReturnType<typeof inputs>
 const LAYOUT = vsmLayout({ fullMapCapacity: 63 })
-/** The two shipped modules the shared box cull is compiled into, on the one layout. */
-export const INVALIDATION = castInvalidationWgsl(LAYOUT),
+/** The two shipped modules the shared box cull is compiled into: the invalidation's without the pyramid
+ *  it tests pages against, whose golden holds the pages the boxes touch. */
+export const INVALIDATION = castInvalidationWgsl(
+    vsmLayout({ fullMapCapacity: 63, occlusion: false }),
+  ),
   RENDER = vsmRenderCullWgsl(LAYOUT)
 type Fn = (...args: unknown[]) => unknown
 type Offset = { tableXY: number[] }

@@ -1,9 +1,7 @@
+import { MAX_10_BIT_FLOAT } from '../../../../../math/src/constants.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import {
-  LARGEST_SMALL_FLOAT as MOST_10_BIT,
-  MOST_11_BIT,
-} from '../../../post/taa/colorSpaceWgsl.ts'
+import { MOST_11_BIT } from '../../../post/taa/colorSpaceWgsl.ts'
 import { airProgram, type AirBindings } from '../../../lighting/atmosphere/programs.ts'
 import { cloudMaterialBindings } from './materialWgsl.ts'
 import {
@@ -40,7 +38,7 @@ fn cloudShadowRoundTo(x:f32,mantissaBits:i32,most:f32)->f32{
  return min(round(v/step)*step,most);
 }
 fn cloudShadowStore(v:vec3f)->vec4f{
- return vec4f(cloudShadowRoundTo(v.x,6,${MOST_11_BIT}.0),cloudShadowRoundTo(v.y,6,${MOST_11_BIT}.0),cloudShadowRoundTo(v.z,5,${MOST_10_BIT}.0),0.0);
+ return vec4f(cloudShadowRoundTo(v.x,6,${MOST_11_BIT}.0),cloudShadowRoundTo(v.y,6,${MOST_11_BIT}.0),cloudShadowRoundTo(v.z,5,${MAX_10_BIT_FLOAT}.0),0.0);
 }`,
 )
 
@@ -146,8 +144,10 @@ fn shadowTrace(p:vec2u)->vec3f{
  for(var s=0.5;s<count;s+=1.0){
   let along=s*inverseCount;
   shadowFootprint(ray,qx,qy,along);
-  let spot=cloudPointAt(shadowSpot(ray,along)).spot;
-  if(spot.conservativeDensity.x<=0.0){continue;}
+  let at=shadowSpot(ray,along);
+  let probe=cloudProbeAt(at);
+  if(!cloudProbeDense(probe)){continue;}
+  let spot=cloudPointOf(probe,at).spot;
   let present=any(spot.extinction>vec3f(0.0));
   nearest=select(nearest,min(nearest,ray.span*along),present);
   extinctionSum+=spot.extinction;

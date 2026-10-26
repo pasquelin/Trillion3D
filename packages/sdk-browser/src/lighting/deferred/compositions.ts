@@ -4,33 +4,47 @@ import { DISPLAY_FORMAT } from '../../scene/targetFormats.ts'
 import type { ComposeInput } from './shaders.ts'
 import { makeFullscreenPipeline } from './fullscreen.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
+import { toneReadEntries } from '../toneLutRead.ts'
+import { CANVAS_FORMAT } from '../../gpu/core/canvasFormat.ts'
 
-const INPUTS = ['still', 'accumulated', 'flagless'] as const satisfies readonly ComposeInput[]
-/** A program's composition texts, one per input it reads the as-is share from (`AS_IS_READ`):
+const INPUTS = ['asIs', 'flagless'] as const satisfies readonly ComposeInput[]
+/** A program's composition texts, one per input — reading a debug view's as-is pixels or none:
  *  plain, and — a lit program's — finishing the image (`../../post/finish/finishWgsl.ts`). */
 export type CompositionSources = {
   plain: Record<ComposeInput, string>
   finish?: Record<ComposeInput, string>
+  /** Whether the compositions read the tone table (`../toneLut.ts`): the lit program's. */
+  lut?: boolean
 }
 
-/** Each input's layout: the image and the view, then the share read beside them — none for a
- *  flagless frame. */
-function compositionLayouts(device: GPUDevice): Record<ComposeInput, GPUBindGroupLayout> {
+/** Each input's layout: the image and the view, then the surface flags and base colour a debug
+ *  view's as-is pixels are read from (`AS_IS_PIXEL`) — none for a flagless frame —, then the tone
+ *  table, its sampler and its reading uniform where `lut` says the composition reads them. */
+function compositionLayouts(
+  device: GPUDevice,
+  lut: boolean,
+): Record<ComposeInput, GPUBindGroupLayout> {
   const fragment = GPUShaderStage.FRAGMENT
-  const layout = (share?: GPUTextureSampleType) =>
+  const layout = (asIs: boolean) =>
     device.createBindGroupLayout({
       entries: [
         computeTextureEntry(0, 'unfilterable-float', '2d', fragment),
         computeBufferEntry(1, 'uniform', fragment),
-        ...(share ? [computeTextureEntry(2, share, '2d', fragment)] : []),
+        ...(asIs
+          ? [
+              computeTextureEntry(2, 'uint', '2d', fragment),
+              computeTextureEntry(3, 'unfilterable-float', '2d', fragment),
+            ]
+          : []),
+        ...(lut ? toneReadEntries(asIs ? 4 : 2, fragment) : []),
       ],
     })
-  return { still: layout('uint'), accumulated: layout('unfilterable-float'), flagless: layout() }
+  return { asIs: layout(true), flagless: layout(false) }
 }
 
 /**
- * A program's composition pipelines, one per input (the flagless ones for a frame that reads no
- * as-is share): the plain ones, compiled with it, and those that finish the image — its local
+ * A program's composition pipelines, one per input (the flagless ones for a frame that holds no
+ * as-is pixel): the plain ones, compiled with it, and those that finish the image — its local
  * exposure, the bloom's glow, its vignette —, compiled off the frame at the first that asks for
  * them (`composesFinish`) — a view that finishes nothing never pays for them.
  */
@@ -39,7 +53,7 @@ export async function createCompositions(
   sources: CompositionSources,
   label: string,
 ) {
-  const layouts = compositionLayouts(device)
+  const layouts = compositionLayouts(device, !!sources.lut)
   const display = { format: DISPLAY_FORMAT }
   /** One input's composition: into the capture target, or into it and the canvas at once. */
   const compile = async (input: ComposeInput, finish = false) => {
@@ -51,18 +65,31 @@ export async function createCompositions(
       makeFullscreenPipeline(device, module, groups, 'compose', [display]),
       makeFullscreenPipeline(device, module, groups, 'composePresent', [
         display,
-        { format: 'bgra8unorm' },
+        { format: CANVAS_FORMAT },
       ]),
     ])
-    return { draw, present }
+    // The canvas alone, for a frame whose display colour nothing reads: compiled at the first that
+    // asks, and the frame composes both until it has landed.
+    let canvas: GPURenderPipeline | undefined, building: Promise<void> | undefined
+    return {
+      draw,
+      present,
+      get canvas() {
+        building ??= makeFullscreenPipeline(device, module, groups, 'compose', [
+          { format: CANVAS_FORMAT },
+        ]).then(
+          (made) => void (canvas = made),
+          () => undefined,
+        )
+        return canvas
+      },
+    }
   }
   type Pipelines = Awaited<ReturnType<typeof compile>>
   /** Every input's pipelines at once, so a frame switching inputs compiles nothing. */
   const compileAll = async (finish = false) => {
-    const [still, accumulated, flagless] = await Promise.all(
-      INPUTS.map((input) => compile(input, finish)),
-    )
-    return { still, accumulated, flagless }
+    const [asIs, flagless] = await Promise.all(INPUTS.map((input) => compile(input, finish)))
+    return { asIs, flagless }
   }
   const plain = await compileAll()
   let finished: Record<ComposeInput, Pipelines> | undefined, finishing: Promise<void> | undefined

@@ -1,5 +1,5 @@
-// A page read that fails reaches the host once, from the read layer (`onStalled`, `streamFailed`):
-// the background batch that asked it reports nothing more.
+// A page read that fails reaches the host from the read layer alone (`onStalled`, `streamFailed`), at
+// its first failure and when it is given up: the background batch that asked it reports nothing more.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { Engine } from '../../session/engine/types.ts'
@@ -8,7 +8,7 @@ import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 import type { ExplorerSession } from '../../session/session.ts'
 import { createExplorerStreaming } from './streaming.ts'
 
-test('a page the server refuses for good is told to the host once: never again by its batch', async (t) => {
+test('a page the server refuses is told to the host at its first failure and when given up: never again by its batch', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => new Response('', { status: 404 }))
   const events: unknown[] = []
   const session = {
@@ -21,7 +21,7 @@ test('a page the server refuses for good is told to the host once: never again b
     'http://cache/',
     {
       cache: createPageCache(),
-      onStalled: () => void events.push('stalled'), // the read layer's one report
+      onStalled: () => void events.push('stalled'), // the read layer's reports
     },
   )
   t.after(() => streamer.dispose())
@@ -32,6 +32,10 @@ test('a page the server refuses for good is told to the host once: never again b
   })
   streaming.ask(['gone.bin'])
   await streaming.pending()
-  assert.deepEqual(events, ['stalled'], 'the batch keeps its failure for its owner alone')
+  assert.deepEqual(
+    events,
+    ['stalled', 'stalled'],
+    'the batch keeps its failure for its owner alone',
+  )
   assert.match(String(streaming.error), /PAGE_STREAM_FAILED/)
 })

@@ -4,7 +4,6 @@ import { triangleGeometry } from '../../session/engine/pagesEngineScenes.fixture
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { compareImages } from '../../../../sdk-core/src/runtime/compareImages.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { webgpuPagesEngine } from './pages.ts'
@@ -26,6 +25,7 @@ import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-im
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', async () => {
   installGpuGlobals()
@@ -122,7 +122,7 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
   backend.render(cam)
   await backend.flush()
   backend.render(cam)
-  const mesh = source.children[0] as HostMesh
+  const mesh = source.children[0] as PageMesh
   const pages = [
     {
       array: indices.get('0')!,

@@ -115,18 +115,30 @@ fn coversCentre(r:vec4i)->bool{return all(r.zw>=r.xy);}
  * the previous image drew (`placedBefore`, `../previousPoses.ts`) against the previous image's; a
  * cell of the placement tree is a world box, in the render frame now and before.
  */
-export const DAG_OCCLUSION_WGSL = wgslBlock(
-  'DAG_OCCLUSION_WGSL',
-  [PYRAMID_BOX_WGSL, NO_INDEX],
-  `@group(${OCCLUSION_GROUP}) @binding(${OCCLUSION_BINDING.pyramid}) var hizPyramid:texture_2d_array<u32>;
-@group(${OCCLUSION_GROUP}) @binding(${OCCLUSION_BINDING.levels}) var<uniform> hizLevels:HizLevels;
-${wgslConsts({ OCCLUSION_TWO_PASS, CUT_MAIN, CUT_POST, BOX_CULLED, BOX_SEEN, BOX_OCCLUDED })}
-/** \`clipBoxOf\` under the cut's view: its projection's weight. */
-fn clipBox(c:vec3f,e:vec3f,m:mat4x4f,depth:vec2f)->ClipBox{return clipBoxOf(c,e,m,depth,views[0u].perspective>0.0);}
-/** The cut's pass, which the main pass's prepare and the post pass's open write (\`dagPrepare\`,
+/** The occlusion's text: with the camera's pyramid (`pyramid`), the cut's (`DAG_OCCLUSION_WGSL`);
+ *  without, the passes and verdicts alone, which a views descent tests its own way. */
+function dagOcclusionWgsl(pyramid: boolean) {
+  return wgslBlock(
+    pyramid ? 'DAG_OCCLUSION_WGSL' : 'DAG_CUT_PASS_WGSL',
+    pyramid ? [PYRAMID_BOX_WGSL, NO_INDEX] : [],
+    `${pyramid ? PYRAMID_BINDINGS : ''}${wgslConsts({ OCCLUSION_TWO_PASS, CUT_MAIN, CUT_POST, BOX_CULLED, BOX_SEEN, BOX_OCCLUDED })}
+${pyramid ? PYRAMID_CLIP : ''}/** The cut's pass, which the main pass's prepare and the post pass's open write (\`dagPrepare\`,
  *  \`dagPostPrepare\`). */
 fn cutPass()->u32{return atomicLoad(&work[passWord()]);}
-/** The render frame's own pose: a cell of the placement tree is a world box, already there. */
+${pyramid ? PYRAMID_SIGHT : ''}`,
+  )
+}
+
+/** The camera pyramid's bindings (`DAG_OCCLUSION_WGSL`). */
+const PYRAMID_BINDINGS = `@group(${OCCLUSION_GROUP}) @binding(${OCCLUSION_BINDING.pyramid}) var hizPyramid:texture_2d_array<u32>;
+@group(${OCCLUSION_GROUP}) @binding(${OCCLUSION_BINDING.levels}) var<uniform> hizLevels:HizLevels;
+`
+/** The cut's clip box (`DAG_OCCLUSION_WGSL`). */
+const PYRAMID_CLIP = `/** \`clipBoxOf\` under the cut's view: its projection's weight. */
+fn clipBox(c:vec3f,e:vec3f,m:mat4x4f,depth:vec2f)->ClipBox{return clipBoxOf(c,e,m,depth,cutView.perspective>0.0);}
+`
+/** The camera's verdict on a box (`DAG_OCCLUSION_WGSL`). */
+const PYRAMID_SIGHT = `/** The render frame's own pose: a cell of the placement tree is a world box, already there. */
 const RENDER_FRAME=mat4x4f(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
 /** The pose at the eye of the space a box of placement \`w\` lies in — the render frame for
  *  \`NO_INDEX\`, a cell of the tree —: now, and as the previous image drew it. */
@@ -137,20 +149,25 @@ fn poseBefore(w:u32)->mat4x4f{if(w==NO_INDEX){return RENDER_FRAME;}return placed
  *  matrix, at its pose before under the previous image's (\`poseNow\`, \`poseBefore\`). */
 fn boxSight(lo:vec3f,hi:vec3f,w:u32)->u32{
  let c=0.5*(lo+hi);let e=0.5*(hi-lo)+vec3f(deformReach);
- let size=views[0u].viewSize;
- let now=clipBox(c,e,views[0u].viewProj*poseNow(w),views[0u].depthMap);
+ let size=cutView.viewSize;
+ let now=clipBox(c,e,cutView.viewProj*poseNow(w),cutView.depthMap);
  let rect=centreRect(now.lo.xy,now.hi.xy,size);
  if(!coversCentre(rect)){return BOX_CULLED;}
- let mode=views[0u].occlusion;
+ let mode=cutView.occlusion;
  if((mode&OCCLUSION_TWO_PASS)==0u){return BOX_SEEN;}
  if(cutPass()==CUT_POST){
   if(!now.crossesNear&&!pyramidShows(rect,now.hi.z)){return BOX_CULLED;}
   return BOX_SEEN;
  }
- let before=clipBox(c,e,views[0u].prevViewProj*poseBefore(w),views[0u].prevDepthMap);
+ let before=clipBox(c,e,cutView.prevViewProj*poseBefore(w),cutView.prevDepthMap);
  if(!before.inside||before.crossesNear){return BOX_SEEN;}
- if(pyramidShows(centreRect(before.lo.xy,before.hi.xy,views[0u].prevSize),before.hi.z)){return BOX_SEEN;}
+ if(pyramidShows(centreRect(before.lo.xy,before.hi.xy,cutView.prevSize),before.hi.z)){return BOX_SEEN;}
  return BOX_OCCLUDED;
 }
-`,
-)
+`
+
+/** The passes and the verdicts of a views descent (`./descentShape.ts`): its views test their own
+ *  sight. */
+export const DAG_CUT_PASS_WGSL = dagOcclusionWgsl(false)
+
+export const DAG_OCCLUSION_WGSL = dagOcclusionWgsl(true)

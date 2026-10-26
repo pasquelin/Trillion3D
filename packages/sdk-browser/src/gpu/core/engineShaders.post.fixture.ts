@@ -19,7 +19,9 @@ import { dofRecombineShader } from '../../post/effects/depthOfField/dofRecombine
 import { DOWNSAMPLE_WGSL } from '../../post/filters/downsampleWgsl.ts'
 import { GAUSSIAN_WGSL } from '../../post/filters/gaussianWgsl.ts'
 import { GRID_WGSL, LOG_LIGHT_WGSL } from '../../post/finish/localWgsl.ts'
+import { BASIC_SETUP_WGSL } from '../../post/exposure/basicWgsl.ts'
 import { ADAPT_WGSL, MEASURE_WGSL } from '../../post/exposure/meterWgsl.ts'
+import { toneBakeShader } from '../../lighting/toneBakeWgsl.ts'
 
 export const POST_SHADERS: Record<string, string> = {
   // The depth of field's passes (`../../post/effects/depthOfField/`), each at its pipeline constants' defaults.
@@ -49,5 +51,9 @@ export const POST_SHADERS: Record<string, string> = {
   GRID_WGSL,
   LOG_LIGHT_WGSL,
   MEASURE_WGSL,
+  BASIC_SETUP_WGSL,
   ADAPT_WGSL,
+  // The tone table's baking (`../../lighting/toneLut.ts`), in the half float and in the packed format.
+  TONE_BAKE_HALF: toneBakeShader('rgba16float'),
+  TONE_BAKE_PACKED: toneBakeShader('rgb10a2unorm'),
 }

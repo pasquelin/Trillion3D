@@ -1,7 +1,8 @@
 import { Vector3 } from '../world/math/vector3.ts'
 import { listen } from '../world/observed.ts'
 import type { Object3D } from '../world/object/object3d.ts'
-import { DAMPING } from './layout.ts'
+import type { CollisionOptions } from './collisionChannels.ts'
+import { ANGULAR_DAMPING, LINEAR_DAMPING } from './layout.ts'
 import type { PhysicsBodyOptions, PhysicsOption, PhysicsShape, PhysicsType } from './options.ts'
 import { SOFT_DAMPING, softOf, type SoftBodyType, type SoftSettings } from './soft/soft.ts'
 
@@ -10,9 +11,9 @@ export interface ContactEvent {
   /** The object touched, the camera when the character touched it; `null` once it has left the
    *  scene. */
   other: Object3D | null
-  /** N·s: the approach speed along the normal times the pair's reduced mass, estimated before
-   *  the solver runs (a soft body's side: its mean velocity, and the mass of its vertices that
-   *  touched); 0 on `leave`, and between a soft body and a sensor. */
+  /** N·s: the normal impulse of the pair's contact points, estimated before the solver runs from
+   *  the bodies' velocities, masses and inertias (a soft body's side: its mean velocity, and the
+   *  mass of its vertices that touched); 0 on `leave`, and between a soft body and a sensor. */
   impulse: number
   /** The contact point, world frame (a soft body's: the mean of its vertices that touched, its
    *  centre for a sensor); the origin on `leave`. */
@@ -33,8 +34,8 @@ export interface PhysicsHost {
   impulse(body: ObjectPhysics, x: number, y: number, z: number): void
   /** The body was woken. */
   wake(body: ObjectPhysics): void
-  /** Whether contact events are wanted changed. */
-  listened(body: ObjectPhysics): void
+  /** A flag of the body changed (contact events wanted, continuous collision): its flags are sent again. */
+  flagged(body: ObjectPhysics): void
 }
 
 /**
@@ -48,7 +49,8 @@ export class ObjectPhysics {
   readonly soft: Readonly<SoftSettings> | null
   /** The declared shape, when one was. */ readonly shape?: PhysicsShape
   /** Whether the body only reports contacts. */ readonly sensor: boolean
-  /** Whether continuous collision is on. */ readonly ccd: boolean
+  /** What the body is to the others, when it declares it (`PhysicsBodyOptions.collision`). */
+  readonly collision?: Readonly<CollisionOptions>
   /** Whether the body is decorative debris. */ readonly decorative: boolean
   /** The share of its speed lost per second by itself, linear and angular (`dv/dt = −c·v`); a
    *  soft body that declares none, `SOFT_DAMPING`. */
@@ -57,6 +59,7 @@ export class ObjectPhysics {
   private _asleep = false
   /** The tick the velocity was last read from. */
   private _seen = 0
+  private _ccd: boolean
   private _mass: number | undefined
   private _gravityScale: number
   private _friction: number | undefined
@@ -81,10 +84,11 @@ export class ObjectPhysics {
     this.type = this.soft?.type ?? o.type ?? 'dynamic'
     this.shape = o.shape
     this.sensor = o.sensor ?? false
-    this.ccd = o.ccd ?? false
+    this.collision = o.collision
+    this._ccd = o.ccd ?? false
     this.decorative = o.decorative ?? false
-    const still = this.soft ? SOFT_DAMPING : DAMPING
-    const { linear = still, angular = DAMPING } = o.damping ?? {}
+    const still = this.soft ? SOFT_DAMPING : LINEAR_DAMPING
+    const { linear = still, angular = ANGULAR_DAMPING } = o.damping ?? {}
     if (!(linear >= 0 && angular >= 0))
       throw new RangeError(`A body's damping is 0 and up: ${linear} linear, ${angular} angular.`)
     this.damping = { linear, angular }
@@ -125,6 +129,17 @@ export class ObjectPhysics {
     this.read()
     this._host = this._state = null
     this._index = -1
+  }
+  /** Whether continuous collision is on: a moving body does not tunnel through thin shapes. */
+  get ccd() {
+    return this._ccd
+  }
+  set ccd(on: boolean) {
+    if (on === this._ccd) return
+    if (this.soft)
+      throw new RangeError('A soft body has no continuous collision (its vertices do not turn).')
+    this._ccd = on
+    this._host?.flagged(this)
   }
   /** Mass in kilograms; `undefined` takes the material's density times the volume. */
   get mass() {
@@ -177,10 +192,10 @@ export class ObjectPhysics {
     let set = this.handlers.get(event)
     if (!set) this.handlers.set(event, (set = new Set()))
     set.add(handler)
-    if (!wanted) this._host?.listened(this)
+    if (!wanted) this._host?.flagged(this)
     return () => {
       set.delete(handler)
-      if (!this.listens) this._host?.listened(this)
+      if (!this.listens) this._host?.flagged(this)
     }
   }
   /** Whether any contact handler is set. */

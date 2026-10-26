@@ -91,9 +91,10 @@ test('the expansion kernel writes what its CPU model writes, word for word', asy
     const gpu = await expandOnGpu({
       uniform: blendExpandUniform(
         new Uint32Array(UNI_WORDS),
-        { entries: input.order.length, runs: input.runCount, instanceBase: input.base.instances },
-        { order: 0, runs: input.order.length, args: input.base.args },
+        { entries: input.order.length, runs: input.runCount },
+        { order: 0, runs: input.order.length },
         { maxVertexWords: VERTEX_WORDS, vertexShift: 6 },
+        { exclude: 0, require: 0, instanceBase: input.base.instances, argsBase: input.base.args },
       ),
       plan: Uint32Array.of(...input.order, ...input.runs.subarray(0, input.runCount * RUN_WORDS)),
       entries: input.order.length,

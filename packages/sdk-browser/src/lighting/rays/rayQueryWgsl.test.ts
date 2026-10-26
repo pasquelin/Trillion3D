@@ -1,6 +1,7 @@
 // The ray query's shipped WGSL run as JavaScript (`shaderRun`): a ray's filter admits the placements
 // its sorted list names, or every other one, as its include bit asks; the deformation index answers
-// each deformed page with its results' word and its row's base, and zeros for any other; the trace
+// each deformed page with its results' word and its cluster's base, and zeros for any other, and is
+// made of the records the frame's decode wrote alone; the trace
 // reads the cut's nodes, frame words, worlds and placement tree in the culling's record tables, at
 // the culling's bindings, beside three storage buffers of its own whatever the world's size.
 import test from 'node:test'
@@ -9,7 +10,8 @@ import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { RAY_QUERY_WGSL } from './rayQueryWgsl.ts'
 import { dagBindingOf } from '../../geometry/dag/shader/bindings.fixture.ts'
 import { FILTER_INCLUDE } from './rayRecord.ts'
-import { DEFORM_SLOT_WORDS } from './deformIndexWgsl.ts'
+import { DEFORM_INDEX_SHADER, DEFORM_SLOT_WORDS } from './deformIndexWgsl.ts'
+import { VIS_HW, VIS_SW } from '../../geometry/dag/visible/layout.fixture.ts'
 
 const params = { filterWord: 10, hashWord: 32, hashMask: 15 }
 const query = new Array<number>(128).fill(0)
@@ -53,6 +55,27 @@ test('the deformation index answers each deformed page, and zeros for any other'
   }
   for (const [page, words] of deformed) assert.deepEqual([...run.deformedOf(page)], words)
   assert.deepEqual([...run.deformedOf(8)], [0, 0], 'a page nothing deformed')
+})
+
+test("the deformation index reads the records the decode wrote: the software ones from the table's bottom, the hardware ones from its top", () => {
+  // Room for ten records, three software and two hardware ones: 0 to 2 and 8 to 9.
+  const visible = new Array<number>(16).fill(0)
+  const written = (counts: [number, number], rows = 10) => {
+    visible[VIS_SW] = counts[0]
+    visible[VIS_HW] = counts[1]
+    const { clusterWritten } = shaderRun<{ clusterWritten(i: number): boolean }>(
+      DEFORM_INDEX_SHADER,
+      ['clusterWritten'],
+      { params: { rows }, visible },
+    )
+    return Array.from({ length: rows }, (_, i) => clusterWritten(i))
+  }
+  const only = (...at: number[]) => Array.from({ length: 10 }, (_, i) => at.includes(i))
+  assert.deepEqual(written([3, 2]), only(0, 1, 2, 8, 9))
+  assert.deepEqual(written([0, 0]), only(), 'an empty list holds none of the table')
+  // Counted past the room too: the software ones take what there is, the hardware ones the rest.
+  assert.deepEqual(written([99, 4]), only(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+  assert.deepEqual(written([6, 99]), only(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
 })
 
 test("the trace reads the cut's record tables at the culling's bindings, whatever the world", () => {

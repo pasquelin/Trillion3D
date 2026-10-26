@@ -15,29 +15,13 @@ import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 import { pow2FromExponent } from '../../../../../../math/src/wgsl/integer.ts'
 
-/**
- * Clipmap levels are computed in centimetres (`VSM_CM_PER_UNIT`): the
- * level of a distance d is 0.5·log2(d²) with d in cm.
- */
-export const vsmProjectionSampleWgsl = (pool: WgslDecl) =>
-  wgslBlock(
-    'VSM_PROJECTION_SAMPLE_WGSL',
-    [
-      pool,
-      VSM_CONSTANTS_WGSL,
-      VSM_HANDLE_WGSL,
-      VSM_PAGE_ADDRESS_WGSL,
-      VSM_PAGE_LOOKUP_WGSL,
-      VSM_TABLE_ORIGIN_WGSL,
-      VSM_PROJECTION_DATA_WGSL,
-      pow2FromExponent,
-    ],
-    `
-/** The biased level of a distance, without a depth-of-field bias. A clipmap's levels all carry its
- *  one resolution bias (\`vsmClipmapProjectionData\`, \`clipmapBias.test.ts\`), the base level's among them,
- *  which the base record already holds. */
-fn vsmSampledLevel(base:VsmProjectionData,distSqToOrigin:f32)->f32{
- return vsmLevelOfDistanceSq(distSqToOrigin)+base.levelBias;
+const sampleLevelText = /* wgsl */ `/** The biased level of a distance at a view depth, with the depth of field's bias (none for a negative
+ *  depth). A clipmap's levels all carry its one resolution bias (\`vsmClipmapProjectionData\`,
+ *  \`clipmapBias.test.ts\`), the base level's among them, which the base record already holds. */
+fn vsmSampledLevel(base:VsmProjectionData,distSqToOrigin:f32,sceneDepth:f32)->f32{
+ var level=vsmLevelOfDistanceSq(distSqToOrigin);
+ if(sceneDepth>=0.0){level+=vsmDofResolutionBias(sceneDepth);}
+ return level+base.levelBias;
 }
 struct VsmMapRead{
  depth:f32,
@@ -69,7 +53,9 @@ fn vsmReadAt(h:VsmHandle,page:VsmLocalPage)->VsmMapRead{
  }
  return r;
 }
-struct VsmLevelToLevel{scale:f32,bias:vec3f,depthInverse:f32,}
+struct VsmLevelToLevel{scale:f32,bias:vec3f,depthInverse:f32,}`
+
+const sampleTransformText = /* wgsl */ `
 /** The UV/depth transform from level h to level h + levelOffset. */
 fn vsmLevelToLevelOf(h:VsmHandle,levelOffset:i32)->VsmLevelToLevel{
  // The two levels' fields it reads, not their whole records: a fallback sample of a ray reads them.
@@ -118,7 +104,9 @@ fn vsmClipmapPage(h:VsmHandle,levelZeroPage:vec2u)->VsmClipmapPage{
   p.levelEntry=vsmTableWord(vsmTableEntryOf(p.levelHandle,0u,vPage));
  }
  return p;
-}
+}`
+
+const sampleClipmapTexelText = /* wgsl */ `
 /** The texel \`vsmReadClipmapPage\` reads at a UV of the page \`page\` of level h (\`vsmClipmapPage\`):
  *  where its coarser-level count falls back to a coarser level, that level's texel, clamped to its page, and
  *  the bias and inverse scale its raw depth takes to h's (\`vsmClipmapTexelDepth\`). \`valid\`: the
@@ -157,7 +145,9 @@ fn vsmClipmapTexel(h:VsmHandle,page:VsmClipmapPage,mapUvAt:vec2f)->VsmClipmapTex
   }
  }
  return r;
-}
+}`
+
+const sampleClipmapText = /* wgsl */ `
 /** A raw pool depth of \`t\`'s level as the sampled level reads it: (raw − bias)·inverse, which no
  *  greater raw depth makes smaller (rounding is monotonic, the inverse positive). */
 fn vsmClipmapTexelDepth(t:VsmClipmapTexel,raw:f32)->f32{return (raw-t.depthLevelBias)*t.depthLevelInverse;}
@@ -176,6 +166,26 @@ fn vsmReadClipmapPage(h:VsmHandle,page:VsmClipmapPage,mapUvAt:vec2f)->VsmMapRead
   r.valid=true;
  }
  return r;
-}
+}`
+
+/**
+ * Clipmap levels are computed in centimetres (`VSM_CM_PER_UNIT`): the
+ * level of a distance d is 0.5·log2(d²) with d in cm.
+ */
+export const vsmProjectionSampleWgsl = (pool: WgslDecl) =>
+  wgslBlock(
+    'VSM_PROJECTION_SAMPLE_WGSL',
+    [
+      pool,
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PAGE_LOOKUP_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      pow2FromExponent,
+    ],
+    `
+${sampleLevelText}${sampleTransformText}${sampleClipmapTexelText}${sampleClipmapText}
 `,
   )

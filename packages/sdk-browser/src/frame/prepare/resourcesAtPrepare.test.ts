@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { webgpuPagesEngine } from '../backend/pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
@@ -11,6 +10,7 @@ import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import type { Engine } from '../../session/engine/types.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 test('trace failure diagnostics retain bounded stack and cause context', async () => {
   installGpuGlobals()
@@ -57,7 +57,7 @@ test('texture queues are pinned at prepare, and a texture that fits in its queue
     roughnessMap: rough,
     emissiveMap: emissive,
   })
-  const mesh = fixture.source.children[0] as HostMesh
+  const mesh = fixture.source.children[0] as PageMesh
   mesh.material = material
   const backend = webgpuPagesEngine({
     textureCaches: createTextureCaches(createPageCache()),
@@ -125,10 +125,10 @@ test('vis pipeline layout stores the page table at binding 2', async () => {
   fixture.material.dispose()
 })
 
-// The indirect slots instance every packed row of the page table: their counts are the GPU's. A row
-// is drawn by the main pass, then by the identifiers pass over everything drawn
-// (`encodeWebgpuVisibilityPasses`); the post pass draws what the main pass's pyramid hid: none here.
-test('vis draws instance each packed page from the page table', async () => {
+// The indirect slots instance every visible cluster: their counts are the GPU's (`bins.ts`). A
+// cluster is drawn by the main pass (`encodeWebgpuVisibilityPasses`); the post pass draws what the
+// main pass's pyramid hid: none here.
+test('vis draws instance each visible cluster', async () => {
   installGpuGlobals()
   const { device, draws } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device)
@@ -140,8 +140,8 @@ test('vis draws instance each packed page from the page table', async () => {
   const image = draws.slice(before).filter((draw) => draw.indirect && draw.entryPoint === 'vis_vs')
   assert.equal(
     image.reduce((rows, draw) => rows + (draw.instanceCount ?? 0), 0),
-    2 * 2,
-    'both packed rows, instanced by the slots of the main pass and of the identifiers pass',
+    2,
+    'both clusters, instanced by the slots of the main pass',
   )
   backend.dispose()
   fixture.geometry.dispose()

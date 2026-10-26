@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createCellBoxes } from './boxes.ts'
 import { openAll, paged } from './paged.fixture.ts'
 import { createCellIndex } from './cellIndex.ts'
 import { createCellPlan } from './plan.ts'
-import { boxDistance } from './reach.ts'
-import { inCellFrame } from './reach.ts'
+import { boxDistance, directionInCellFrame, inCellFrame, vectorInCellFrame } from './reach.ts'
+import { createCellView } from './cellView.ts'
 import { loadsBefore, type LoadingCell } from './loadOrder.ts'
 import { createLoadSlots } from './loadSlots.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
@@ -69,6 +69,43 @@ test('a sheared root reads every cell the world reach holds, by its least singul
   })
 })
 
+test('a root that scales stretches a vector as it does and keeps a direction unit', () => {
+  // The root at a hundredth: a distance of the world is a hundred times longer in the cells' frame.
+  const hundredth = [0.01, 0, 0, 0, 0, 0.01, 0, 0, 0, 0, 0.01, 0, 5, 0, 0, 1]
+  const near = (got: number[], want: number[]) =>
+    assert.ok(
+      got.every((value, at) => Math.abs(value - want[at]) < 1e-9),
+      `${got} vs ${want}`,
+    )
+  near(vectorInCellFrame(hundredth, [1.5, 0, -2]), [150, 0, -200])
+  near(directionInCellFrame(hundredth, [3, 0, 4]), [0.6, 0, 0.8])
+  const flat = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+  assert.deepEqual(vectorInCellFrame(flat, [1, 1, 1]), [0, 0, 0], 'a flattened root: none')
+  assert.deepEqual(directionInCellFrame(flat, [1, 1, 1]), [0, 0, 0])
+})
+
+test('the view measures its velocity in the world and counts the moves of its frame', () => {
+  const root = new Group()
+  root.scale.set(0.01, 0.01, 0.01)
+  const boxes = { refresh() {}, stretch: new Map(), moves: 0 }
+  const partition = { cube: 1, hlod: { grids: [] } } as never
+  const view = createCellView(root, {}, boxes, partition, {} as never, [])
+  const axis = [0, 0, -1],
+    up = [0, 1, 0]
+  assert.deepEqual([...view([0, 0, 0], axis, up, 10).velocity], [0, 0, 0], 'seen the first time')
+  // 1.5 m of the world in 16 ms is 150 units of the cells' frame: past 100 there, not in the world.
+  const [along] = view([1.5, 0, 0], axis, up, 10.016).velocity
+  assert.ok(Math.abs(along - 9375) < 1e-6, `${along} units a second in the cells' frame`)
+  // A jump of 150 m of the world is a teleport, the average starts again.
+  assert.deepEqual([...view([151.5, 0, 0], axis, up, 10.032).velocity], [0, 0, 0], 'a jump')
+  const moves = view([151.5, 0, 0], axis, up, 10.048).moves
+  assert.equal(view([151.5, 0, 0], axis, up, 10.064).moves, moves, 'a frame that stands')
+  root.position.x = 5
+  assert.equal(view([151.5, 0, 0], axis, up, 10.08).moves, moves + 1, 'the scene root moved')
+  boxes.moves = 3
+  assert.equal(view([151.5, 0, 0], axis, up, 10.096).moves, moves + 4, 'and a core parent did')
+})
+
 test('the distance to a cell is the distance to its box', () => {
   assert.equal(boxDistance([0, 0, 0, 1, 1, 1], [0.5, 0.5, 0.5]), 0, 'inside')
   // In 2D, glTF's up dropped: a grid's range is a ground distance, a height never unloads a cell.
@@ -100,16 +137,16 @@ test('a placed file kept only while its HLOD 0 cell is visible is counted, a rep
   const eye = [0, 0.5, 0.5]
   const { plan, grids, placed } = planBoxes([cell(3), cell(200)], eye, 20, new Set([0, 1]))
   const seen = plan.plan(eye, grids, placed, undefined, { visible: () => true })
-  assert.deepEqual([[...seen.leave], seen.holding], [[], 1])
+  assert.deepEqual([[...seen.leave], seen.holds.length], [[], 1])
   const gone = plan.plan(eye, grids, placed, undefined, { visible: () => false })
-  assert.deepEqual([[...gone.leave], gone.holding], [[1], 0])
+  assert.deepEqual([[...gone.leave], gone.holds.length], [[1], 0])
   // A frame that makes no plan goes on with the last one, what leaves and what waits emptied.
   gone.waiting.push({ key: 5, extent: 1, level: 0, priority: 0, distance: 0, raw: 0 })
   const same = plan.replay()
   assert.equal(same, gone)
-  assert.deepEqual([same.leave.length, same.waiting.length, same.holding], [0, 0, 0])
+  assert.deepEqual([same.leave.length, same.waiting.length, same.holds.length], [0, 0, 0])
   assert.deepEqual([...plan.plan(eye, grids, placed, undefined, { visible: () => true }).leave], [])
-  assert.equal(plan.replay().holding, 1, 'what the last plan held, it holds')
+  assert.equal(plan.replay().holds.length, 1, 'what the last plan held, it holds')
 })
 
 test('the cells load coarse first, then by priority, then nearest, a tie by the lower key', () => {
@@ -245,4 +282,19 @@ test('a cell file is weighed against the blocking flag and the range of its own 
     },
   )
   assert.equal(quiet.weigh([0, 0, 0], wished, false).size, 0)
+  // A radius under the reference's tolerance (1e-10 m, the shape's own) gives the largest ratio, so
+  // the cell never blocks; over it, a cell the eye stands in does, however small the radius.
+  const tiny = (range: number) => {
+    const sized = [grid(range, true)],
+      view = createStreamingSource(resolveWorldStreaming({}), {
+        scheme: 'hashSet',
+        hlod: { grids: sized },
+      })
+    const own = createSlowStreaming(resolveWorldStreaming({}), 'hashSet', sized, view, {
+      shown: () => false,
+      mainOf: () => 0,
+    })
+    return own.weigh([0, 0, 0], new Map([[7, [-1, -1, -1, 1, 1, 1]]]), false).size
+  }
+  assert.deepEqual([tiny(5e-11), tiny(5e-10)], [0, 1])
 })

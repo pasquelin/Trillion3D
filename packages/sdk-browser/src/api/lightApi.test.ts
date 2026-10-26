@@ -21,7 +21,7 @@ const LAMP: SceneLight = {
   color: [1, 0.5, 0.25],
   intensity: 4,
   range: 10,
-  coneAngle: 0.5,
+  outerConeAngle: 0.5,
   castsShadow: true,
 }
 

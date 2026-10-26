@@ -8,11 +8,9 @@ import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { dagLevel } from '../../session/engine/pagesEngine.fixture.ts'
 import { quadScene, camera, flushedImage } from './testScenes.fixture.ts'
-import { coarseQuadScene, twoCoarseQuadsScene } from './coarseQuads.fixture.ts'
-import { deepQuadScene } from './deepQuad.fixture.ts'
+import { coarseQuadScene, deepCoarseQuadsEngine } from './coarseQuads.fixture.ts'
 import { settledImage } from './settledImage.fixture.ts'
-import type { ClusterManifest, Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
-import { DEFAULT_SCOPE } from '../../../../sdk-core/src/contracts/base.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { Engine } from '../../session/engine/types.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
@@ -20,30 +18,8 @@ import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 test('a host drop deferred for coverage is applied once the pool gives the page its slot to another', async () => {
   installGpuGlobals()
-  const { device } = fakeDevice(BACKEND),
-    fixture = twoCoarseQuadsScene(deepQuadScene)
-  // `twoCoarseQuadsScene` narrows its pages to their url in its type alone: the page objects keep
-  // every field at runtime, and the manifest is read no further than its primitives.
-  const metadata: ClusterManifest = {
-    formatVersion: 0,
-    status: 'ready',
-    key: 'test-two-coarse-quads',
-    scope: DEFAULT_SCOPE,
-    sourceTriangles: 0,
-    selectedTriangles: 0,
-    selectedNodes: 0,
-    totalNodes: 0,
-    primitives: fixture.metadata.primitives as Primitive[],
-  }
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
-    ...fixture,
-    metadata,
-    gpuDevice: device,
-    // Two streaming slots beside the two roots' grains: a jump between the quads recycles them.
-    maxResidentPages: 3,
-    viewport: [32, 32],
-  }) as Engine
+  const { device } = fakeDevice(BACKEND)
+  const { fixture, backend } = deepCoarseQuadsEngine(device)
   const cam = camera()
   const settle = async (x: number) => {
     cam.position.set(x, 0, 5)
@@ -178,7 +154,7 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
       backend.render(cam)
       // Selection of the CURRENT IMAGE, read in its mask: that is what the indirect commands consume
       // as instances, without waiting for a past image's sample.
-      assert.equal(drawnPageIds(buffers, packed).length, target ? 0 : 2)
+      assert.equal(drawnPageIds(buffers).length, target ? 0 : 2)
       await backend.flush()
     }
     assert.ok(events.some((event) => event.phase === 'gpu-selection-current-frame'))

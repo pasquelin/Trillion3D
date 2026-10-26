@@ -8,7 +8,7 @@
   },
   "case": "A quad whose base colour is rgb-raw.psd, a flattened 4 × 2 Photoshop composite in eight-bit RGB with a raw surface, compiled by the common harness.",
   "formatVersion": 11,
-  "manifestBinaryVersion": 18,
+  "manifestBinaryVersion": 21,
   "previews": [
     {
       "atlas": 0,
@@ -118,11 +118,11 @@
       "psnrDb": 48.0
     },
     "skipped": {},
-    "version": 10
+    "version": 12
   },
   "rule": "A flattened composite of eight bits per channel enters progressive previews like any other RGBA8 source: the lossless tail of its mip chain is produced, no reason is carried in the report, and the pixels are those the file already carried — never recomposed layers.",
   "textures": {
-    "url": "../../textures/v10/{sha}/{kind}-{level}.{format}",
-    "version": 10
+    "url": "../../textures/v12/{sha}/{kind}-{level}.{format}",
+    "version": 12
   }
 }

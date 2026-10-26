@@ -7,7 +7,7 @@ use trillion3d_math::matrix::linear::max_stretch;
 use trillion3d_math::matrix::transform_point;
 
 /// Where the scene places what it compiled, computed once for every stage that places — the
-/// depth layers, the proxy, the lights, the partition, the world roots and the
+/// depth layers, the lights, the partition, the world roots and the
 /// physics —: each walked the hierarchy, and swept the primitives, on its own.
 pub struct Placement {
     /// World transform of every node, by node index (`compiler::source::node_transform::world_matrices`). The

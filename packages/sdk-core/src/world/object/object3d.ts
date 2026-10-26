@@ -11,6 +11,7 @@ import { Quaternion } from '../math/quaternion.ts'
 import { Matrix4 } from '../math/matrix4.ts'
 import type { Box3 } from '../math/box3.ts'
 import type { SceneLink } from './sceneLink.ts'
+import { defineOffsetSwitches, type ShadowCacheInvalidation } from './offsetSwitches.ts'
 
 /** Scratch values of the pose methods below — the world reads too: none of them allocates. */
 const aim = new Vector3(),
@@ -29,9 +30,7 @@ export class Object3D extends TransformNode {
   /** How the node is turned, as a quaternion. */ readonly quaternion = new Quaternion()
   /** How the node is stretched on each axis. */ readonly scale = new Vector3(1, 1, 1)
   /** Which way is up for `lookAt`. */ readonly up = new Vector3(0, 1, 0)
-  /** Whether shadows fall on the node. */ receiveShadow = false
   /** Drawing order among see-through things. */ renderOrder = 0
-  /** Whether a renderer may skip it outside the view. */ frustumCulled = true
   /** Free room for the page's own data. */ userData: Record<string, unknown> = {}
   private _linkedTo: SceneLink | null = null
   constructor() {
@@ -78,8 +77,7 @@ export class Object3D extends TransformNode {
    *  unless it is set `true`; `false` by default, on every node. By default the test reaches the
    *  world's merged far-field shells alone, and every caster with the view's
    *  `farShadowCullsAllMeshes`. Read with `castShadow`: a node that casts none casts none far. A
-   *  compiled object, drawn from the compiled world, has no per-object setting of its own yet: its
-   *  shells follow the view's setting. */
+   *  compiled object takes the job's `castFarShadow` of its object settings. */
   get castFarShadow() {
     return this._castFarShadow
   }
@@ -93,8 +91,8 @@ export class Object3D extends TransformNode {
   /** Whether the node is a far-field object: one the primed depth pyramid draws
    *  (`hizPrime`, `hizPrimeFarFieldOnly`), a coarse, small draw of the flagged objects that the cut's
    *  main pass tests against when the view has no pyramid of the image before; `false` by default,
-   *  on every node. It changes nothing of the image drawn. A compiled object, drawn from the
-   *  compiled world, has no per-object setting of its own yet. */
+   *  on every node. It changes nothing of the image drawn. A compiled object takes the job's
+   *  `farField` of its object settings. */
   get farField() {
     return this._farField
   }
@@ -103,12 +101,38 @@ export class Object3D extends TransformNode {
     noteNodeWrite(this)
     this._farField = value
   }
+  /** Whether the object's surfaces evaluate their `worldPositionOffset`; `true` by default. */
+  declare evaluateWorldPositionOffset: boolean
+  /** Metres from the camera to the centre of the object's bounds past which its offset stops; `0`, never. */
+  declare worldPositionOffsetDisableDistance: number
+  /** Whether the offset is a motion for the temporal antialiasing and the motion blur; `true` by default. */
+  declare worldPositionOffsetWritesVelocity: boolean
+  /** How its shadows are kept while its offset moves it: `auto`, `always`, `rigid` or `static`. */
+  declare shadowCacheInvalidation: ShadowCacheInvalidation
+  /** Whether the object is drawn as a first-person one (the hands and the weapon of a player): it
+   *  casts no dynamic shadow of its own, and its pixels wear the first-person mark the shadows treat
+   *  apart; `false` by default, and never with `firstPersonWorldSpaceRepresentation`. */
+  declare firstPerson: boolean
+  /** Whether the object stands, in the world, for a first-person one (the body of the player): the
+   *  owner's view does not see it, and it casts its shadow into the first-person clipmap of the suns
+   *  (`shadowFirstPersonClipmap`), apart from the regular maps, and the view that owns it (the main
+   *  camera's) does not draw it; `false` by default, and never with `firstPerson`. */
+  declare firstPersonWorldSpaceRepresentation: boolean
+  /** Whether the object goes on casting its shadows while it is hidden (`visible = false`, or under
+   *  a hidden node): no view draws it, the shadow maps do; `false` by default, and read only for an
+   *  object that casts shadows and is no `firstPersonWorldSpaceRepresentation`. */
+  declare castHiddenShadow: boolean
+  /** Whether the object is held out of the image's alpha: with the alpha holdout in effect
+   *  (`primitiveAlphaHoldout`, `propagateAlpha`) its pixels draw black, lit by nothing, and punch a hole
+   *  in it; `false` by default. */
+  declare holdout: boolean
   private _farShadowTest: boolean | null = null
   /** Whether a directional light's far-shadow test reaches the node: `true`, a caster the test
    *  leaves out past the light's far-shadow edge unless it sets `castFarShadow`, however the view
    *  is set; `false`, the test never leaves it out; `null`, the default, the view's rule decides —
    *  the world's merged far-field shells alone, or every caster with `farShadowCullsAllMeshes`.
-   *  A compiled object, drawn from the compiled world, has no per-object setting of its own yet. */
+   *  A compiled object takes the job's `farShadowTest` of its object settings, which a value set
+   *  here overrides. */
   get farShadowTest() {
     return this._farShadowTest
   }
@@ -267,6 +291,8 @@ export class Object3D extends TransformNode {
     return null
   }
 }
+
+defineOffsetSwitches(Object3D.prototype)
 
 /** A node that only groups others. */
 export class Group extends Object3D {

@@ -13,8 +13,8 @@ pub const DEFAULT_DISTANCE_FIELD_SCALE: f64 = 1.0;
 pub const DEFAULT_DISTANCE_FIELD_TWO_SIDED: bool = false;
 pub const DEFAULT_DISTANCE_FIELD_DENSITY: f64 = 0.2;
 pub const DEFAULT_DISTANCE_FIELD_MAX_RESOLUTION: u32 = 256;
-/// The range of the density.
-pub const DISTANCE_FIELD_DENSITY_RANGE: (f64, f64) = (0.05, 0.4);
+/// The range of the density: any finite number.
+pub const DISTANCE_FIELD_DENSITY_RANGE: (f64, f64) = (f64::MIN, f64::MAX);
 /// The reference's length unit per metre, the brick, the band, the mips and the magic of
 /// `distanceFields.bin`.
 pub const DISTANCE_FIELD_UNITS_PER_METRE: f64 = 100.0;
@@ -26,7 +26,9 @@ pub const DISTANCE_FIELD_OBJECT_BORDER: usize = 1;
 pub const DISTANCE_FIELD_MAX_INDIRECTION: usize = 1024;
 pub const DISTANCE_FIELD_FILE: &str = "distanceFields.bin";
 pub const DISTANCE_FIELD_MAGIC: u32 = 1178874708;
-pub const DISTANCE_FIELD_VERSION: u32 = 1;
+pub const DISTANCE_FIELD_VERSION: u32 = 2;
 pub const DISTANCE_FIELD_HEAD_BYTES: usize = 16;
 pub const DISTANCE_FIELD_MESH_BYTES: usize = 200;
+pub const DISTANCE_FIELD_FLAG_TWO_SIDED: u32 = 1;
+pub const DISTANCE_FIELD_FLAG_HLOD_CELL: u32 = 2;
 pub const DISTANCE_FIELD_MIP_BYTES: usize = 56;

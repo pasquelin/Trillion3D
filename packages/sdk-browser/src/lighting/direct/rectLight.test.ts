@@ -15,6 +15,7 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { dotVector3 } from '../../../../math/src/vector/vector.ts'
 import { cross, unit } from '../../../../math/src/vector/vectorTuple.ts'
+import { splitSumTerm } from '../../../../math/src/wgsl/lighting.ts'
 
 type V = number[]
 type V3 = [number, number, number]
@@ -24,9 +25,19 @@ const shader = shaderRun<{
   polygonFormFactor: (a: V, b: V, c: V, d: V, up: V) => V
   ltcCorner: (q: V, T1: V, T2: V, N: V, m: V) => V
   rectFormOf: (view: View) => number
+  rectIrradianceOf: (view: View, N: V) => V
 }>(
   wgslModule(RECT_SURFACE_LIGHT_WGSL),
-  ['rectView', 'polygonFormFactor', 'rectEdge', 'cutEdge', 'ltcCorner', 'faceNormal', 'rectFormOf'],
+  [
+    'rectView',
+    'polygonFormFactor',
+    'rectEdge',
+    'cutEdge',
+    'ltcCorner',
+    'faceNormal',
+    'rectFormOf',
+    'rectIrradianceOf',
+  ],
   {
     ...F32_SCOPE,
     rangeWindow: () => 1,
@@ -221,5 +232,61 @@ test('a rectangle’s integral with no normal is its projected solid angle, the 
   // Far away it is the area over the squared distance.
   near1(shader.rectFormOf(view(1, 500)), 1 / 500 ** 2, 1e-4, 'far')
 })
+test('a rectangle’s diffuse is its whole form factor under the cosine wrapped about the horizon of a sphere of its solid angle', () => {
+  let wrapped = 0
+  for (let i = 0; i < 300; i++) {
+    const { corners, quad, toward } = light(0.3 + 3 * random(), 0.1 + random())
+    // The whole polygon's vector form factor in f64, facing the polygon: its length half the
+    // irradiance of a face turned to it, its direction the mean direction of the light.
+    const sum = [0, 0, 0]
+    corners.forEach((p, k) => {
+      const [q, c] = [corners[(k + 1) % 4], cross(p as V3, corners[(k + 1) % 4] as V3)]
+      const angle = Math.atan2(Math.hypot(...c), dotVector3(p, q)) / Math.hypot(...c)
+      c.forEach((x, m) => (sum[m] += x * angle))
+    })
+    const side = dotVector3(sum, toward) < 0 ? -1 : 1
+    const mean = unit(sum.map((x) => x * side) as V3)
+    const irradiance = 0.5 * Math.hypot(...sum)
+    const sinSq = irradiance / Math.PI
+    const wrap = (cosine: number) => {
+      const s = Math.sqrt(sinSq)
+      return cosine < s ? (s + Math.max(cosine, -s)) ** 2 / (4 * s) : cosine
+    }
+    const view: View = { a: quad[0], b: quad[1], c: quad[2], d: quad[3], window: 1 }
+    // Facing it, on the horizon through its centre, away from it, and any way.
+    const level = unit(cross(mean, sphere()))
+    for (const N of [mean, level, mean.map((x) => -x), sphere()] as V3[]) {
+      const [x, y, z, e] = shader.rectIrradianceOf(view, N)
+      const want = irradiance * Math.max(wrap(dotVector3(N, mean)), 0)
+      assert.ok(Math.abs(e - want) <= 1e-4 * irradiance, `${e} against ${want}`)
+      assert.ok(Math.hypot(x - mean[0], y - mean[1], z - mean[2]) < 1e-4, 'the mean direction')
+      // Wound the other way, the same light.
+      const back = shader.rectIrradianceOf(
+        { ...view, a: quad[3], b: quad[2], c: quad[1], d: quad[0] },
+        N,
+      )
+      assert.ok(
+        back.every((v, k) => Math.abs(v - [x, y, z, e][k]) < 1e-5),
+        'the other winding',
+      )
+      wrapped += Number(dotVector3(N, mean) < Math.sqrt(sinSq) && e > 0)
+    }
+  }
+  assert.ok(wrapped > 100, `${wrapped} at the horizon's wrap`)
+})
 const near1 = (got: number, want: number, relative: number, label: string) =>
   assert.ok(Math.abs(got - want) <= relative * want, `${label}: ${got} against ${want}`)
+
+test('a lobe on a specular under 2% keeps its Fresnel share dimmed with it, as the light’s own term', () => {
+  const { splitSumTerm: term } = shaderRun<{ splitSumTerm: (f0: V, t: V) => V }>(
+    wgslModule(splitSumTerm),
+    ['splitSumTerm'],
+    {},
+  )
+  const [magnitude, share] = [0.8, 0.3].map(Math.fround)
+  for (const f0 of [0.01, 0.3]) {
+    const f90 = Math.min(50 * f0, 1)
+    const got = term([f0, f0, f0].map(Math.fround), [magnitude, share, 0, 0])
+    for (const x of got) assert.ok(Math.abs(x - (f0 * magnitude + (f90 - f0) * share)) < 1e-6)
+  }
+})

@@ -2,6 +2,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import type { CanvasPoint } from '../../session/world/raycast.ts'
 import type { TransformHost } from './transform.ts'
 import type { TransformHandle } from './transformMath.ts'
+import { sameWords } from '../../gpu/core/sameWords.ts'
 
 /** The words of what an answer was asked under: the camera's world matrix, then the handles'. */
 const VIEW_WORDS = 32
@@ -65,7 +66,7 @@ export function hoverQuery(
     follow() {
       if (!last) return false
       viewOf(host, root, now)
-      if (now.every((word, k) => word === asked[k])) return false
+      if (sameWords(now, asked)) return false
       ask(last)
       return true
     },

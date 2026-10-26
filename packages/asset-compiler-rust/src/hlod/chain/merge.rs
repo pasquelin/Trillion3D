@@ -95,7 +95,7 @@ impl WorldDag {
     /// name runs of those ranks. The assignment is kept, by rank, for `pack_world`.
     pub(super) fn in_culling_order(&mut self, chain: (&[HlodNode], &crate::Hlod)) -> Result<()> {
         let assigned = with_world_laying(self, chain, |laying| {
-            let size = |slot: usize| self.pages[slot].bytes.len();
+            let size = |slot: usize| self.pages[slot].resident_bytes;
             assign_pages((&self.clusters, &self.groups), laying, &size)
         })?;
         let order = paged_order(&assigned);
@@ -115,9 +115,11 @@ impl WorldDag {
             .map(|page| page.iter().map(|&slot| rank_of[slot]).collect())
             .collect();
         let page_of = order.iter().map(|&slot| assigned.page_of[slot]).collect();
+        let size = order.iter().map(|&slot| assigned.size[slot]).collect();
         self.assigned = Some(Assignment {
             pages,
             page_of,
+            size,
             ..assigned
         });
         self.culling = nodes;

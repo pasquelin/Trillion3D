@@ -20,7 +20,8 @@
 //! A file outside the subset lets the engine fall back to white; it is never guessed or
 //! approximated.
 use super::{
-    budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin, Transfer, FLOAT_PIXEL_BYTES,
+    budget, wide_chain_bytes, DecodedImage, ImageDecoded, ImageDecoder, Plugin, Transfer,
+    FLOAT_PIXEL_BYTES,
 };
 use ::exr::math::Vec2;
 use ::exr::meta::attribute::SampleType;
@@ -82,6 +83,9 @@ impl ImageDecoder for Exr {
     }
     fn dimensions(&self, bytes: &[u8]) -> std::result::Result<(u32, u32), &'static str> {
         subset(bytes, u64::MAX)
+    }
+    fn chain_bytes(&self, _bytes: &[u8], pixels: usize) -> usize {
+        wide_chain_bytes(pixels)
     }
     /// The header first, the pixels next: a file outside the subset never reaches the decoder,
     /// and the size is known — hence the ceiling applied — before any allocation.

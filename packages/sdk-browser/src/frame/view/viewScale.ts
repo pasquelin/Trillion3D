@@ -30,7 +30,10 @@ export type ViewScale = Pick<
  * Its targets are made at its bounds' maximum and never capped: a size the budget refuses is asked
  * again after the device's wait (`../../gpu/core/refusal.ts`), the frames drawing what they hold.
  */
-export function createViewScale(option: RenderScale, world: Pick<ScaleControl, 'wanted'>) {
+export function createViewScale(
+  option: RenderScale | undefined,
+  world: Pick<ScaleControl, 'wanted'>,
+) {
   let asked = option,
     pixels = 0,
     bounds = renderScaleBounds(option, 0),
@@ -54,7 +57,7 @@ export function createViewScale(option: RenderScale, world: Pick<ScaleControl, '
       scale.steered = steered
     },
     /** Another scale, from the next image. */
-    set(next: RenderScale) {
+    set(next: RenderScale | undefined) {
       asked = next
       bounds = renderScaleBounds(next, pixels)
       refusal = undefined

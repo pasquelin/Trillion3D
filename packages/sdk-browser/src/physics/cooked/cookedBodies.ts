@@ -1,5 +1,6 @@
 import type { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
-import { BODY_INDEX, FLAG, LAYER, MOTION } from '../../../../sdk-core/src/physics/layout.ts'
+import { BODY_INDEX, FLAG, MOTION } from '../../../../sdk-core/src/physics/layout.ts'
+import { bodyCollision } from '../../../../sdk-core/src/physics/collisionChannels.ts'
 import { declaredMass, declaredShape } from '../../../../sdk-core/src/physics/declared.ts'
 import { physicsMatterOf } from '../../../../sdk-core/src/physics/matter.ts'
 import type { CookedBody } from '../../../../sdk-core/src/physics/cooked.ts'
@@ -9,9 +10,8 @@ import { resolveCameraWorld } from '../../camera/world.ts'
 import { worldPoseOf } from '../bodies/bodyFrame.ts'
 import { bodyNodes, countNodes, type BodyNodes } from '../bodies/bodyNodes.ts'
 import { carriedFrom, driveCarried, type Carried } from '../bodies/carriedBodies.ts'
-import { createOpenings } from '../modelOpenings.ts'
-import { followModel } from './cookedMoved.ts'
-import { fits } from '../soft/softBodies.ts'
+import { createOpenings, Starts } from '../modelOpenings.ts'
+import { fits, followModel } from './cookedMoved.ts'
 import {
   cookedHull,
   holdObjects,
@@ -36,74 +36,71 @@ export type CookedMadeBody = {
   carried?: Carried
 }
 /** A declared body a rescale refused: its entry, the world scale it was at. */
-export type Refused = Pick<CookedMadeBody, 'body' | 'scale'>
+type Refused = Pick<CookedMadeBody, 'body' | 'scale'>
 
-/**
- * The rigid bodies the compiled models in a scene declare (`physics.json` `bodies`), each one a
- * body of its model's (`../bodies/bodySlots.ts`): its declared shape in the module's terms, or its cooked hull
- * fetched and restored — nothing built on the page —, with its declared mass over its cooked one
- * (`declaredMass`), counted against `budget.physics`. A kinematic body follows its model, or,
- * inside a dynamic body's subtree, its node as that body carries it (`../bodies/carriedBodies.ts`). A
- * dynamic one simulates, and its poses move its node (`../poses.ts`), which loads tiles as a mover
- * (`moversOf`); held kinematic where its node is drawn when its model numbers its nodes otherwise
- * than the source (`Model._nodeAt`). A body made, the static instances of its node and of the
- * node its collider names (`colliderNode`) leave (`holds`) — a dynamic one's whole subtree's,
- * which moves with it —: no collider is doubled.
- */
-export function createCookedBodies(parts: CookedParts) {
-  const { writer, bodies, shapes, invalidate, failed } = parts
-  /** Each open model's opening: the nodes its bodies stand for (`../bodies/bodyNodes.ts`), its bodies
-   *  made, those a rescale refused with the scale it was at, the hulls they are built on — held,
-   *  and restored while held (`cookedObjects.ts`) —, and the signal its leaving aborts its reads
-   *  by. */
-  type Opening = BodyNodes & {
-    made: CookedMadeBody[]
-    refused: Refused[]
-    hulls: HeldObjects
-    signal: AbortSignal
-  }
-  const held = createOpenings<Opening>(bodies.release, (opening) => letGoAll(shapes, opening.hulls))
-  /** `body` made where its model places it now — a dynamic or carried one where its node is
-   *  drawn —, on its restored hull; throws, nothing held, for a shape the scale bends or a body
-   *  past the budget. */
-  function make(model: Model, opening: Opening, body: CookedBody) {
-    const placed = tilePose({ model, instance: body })
-    const { scale } = placed
-    const resolved = declaredShape(body, scale)
-    const at = opening.moving.get(body)
-    const follows = opening.carried.get(body)
-    const size = [scale.x, scale.y, scale.z]
-    // Its radius is in its parent's frame: scaled by that parent's world scale.
-    const parent = at && resolveCameraWorld(at.node.parent ?? model).matrixWorld
-    const moves = at
-      ? { node: at.node, reach: at.radius * parent!.getMaxScaleOnAxis(), scale: size }
-      : null
-    const drawn = at?.node ?? follows
-    const { position, quaternion } = drawn ? worldPoseOf(drawn) : placed
-    const hull = hullOf(opening.hulls, body)
-    const made: CookedMadeBody = { body, scale: size, id: -1, moves }
-    made.id = bodies.claim(resolved.triangles * TRIANGLE_BYTES, 0, { model, body: made })
-    const matter = physicsMatterOf(body)
-    const moving = !!moves
-    if (follows) made.carried = carriedFrom(follows, position, quaternion)
-    writer.add({
-      ...{ id: made.id, motion: moving ? MOTION.dynamic : MOTION.kinematic },
-      ...{ layer: LAYER.moving, shape: resolved.shape, position, quaternion },
-      // Held or kinematic, it is added asleep: it stands still until its model moves it.
-      flags: moving ? 0 : FLAG.asleep,
-      ...{ size: resolved.size, ...declaredMass(body, scale), density: matter.density },
-      ...{ friction: matter.friction, restitution: matter.restitution },
-      ...{ gravityScale: body.motion.gravityFactor ?? 1, indices: hull && [hull.handle] },
-    })
-    invalidate()
-    return made
-  }
-  async function add(model: Model, opening: Opening, body: CookedBody) {
+/** Each open model's opening: the nodes its bodies stand for (`../bodies/bodyNodes.ts`), the
+ *  bodies it declares and their starts, its bodies made, those a rescale refused with the scale
+ *  it was at, the hulls they are built on — held, and restored while held (`cookedObjects.ts`) —,
+ *  and the signal its leaving aborts its reads by. */
+type Opening = BodyNodes & {
+  declared: readonly CookedBody[]
+  starts: Starts<CookedBody>
+  made: CookedMadeBody[]
+  refused: Refused[]
+  hulls: HeldObjects
+  signal: AbortSignal
+}
+type HeldOpenings = ReturnType<typeof createOpenings<CookedBody, Opening>>
+
+/** `body` made where its model places it now — a dynamic or carried one where its node is
+ *  drawn —, on its restored hull; throws, nothing held, for a shape the scale bends or a body
+ *  past the budget. */
+function makeCooked(parts: CookedParts, model: Model, opening: Opening, body: CookedBody) {
+  const { writer, bodies, invalidate } = parts
+  const placed = tilePose({ model, instance: body })
+  const { scale } = placed
+  const resolved = declaredShape(body, scale)
+  const at = opening.moving.get(body)
+  const follows = opening.carried.get(body)
+  const size = [scale.x, scale.y, scale.z]
+  // Its radius is in its parent's frame: scaled by that parent's world scale.
+  const parent = at && resolveCameraWorld(at.node.parent ?? model).matrixWorld
+  const moves = at
+    ? { node: at.node, reach: at.radius * parent!.getMaxScaleOnAxis(), scale: size }
+    : null
+  const drawn = at?.node ?? follows
+  const { position, quaternion } = drawn ? worldPoseOf(drawn) : placed
+  const hull = hullOf(opening.hulls, body)
+  const made: CookedMadeBody = { body, scale: size, id: -1, moves }
+  made.id = bodies.claim(resolved.triangles * TRIANGLE_BYTES, 0, { model, body: made })
+  const matter = physicsMatterOf(body)
+  const moving = !!moves
+  const filter = writer.filter(bodyCollision({ type: moving ? 'dynamic' : 'kinematic' }), false)
+  if (follows) made.carried = carriedFrom(follows, position, quaternion)
+  writer.add({
+    ...{ id: made.id, motion: moving ? MOTION.dynamic : MOTION.kinematic },
+    ...{ filter, shape: resolved.shape, position, quaternion },
+    // Held or kinematic, it is added asleep: it stands still until its model moves it.
+    flags: moving ? 0 : FLAG.asleep,
+    ...{ size: resolved.size, ...declaredMass(body, scale), density: matter.density },
+    ...{ friction: matter.friction, restitution: matter.restitution },
+    ...{ gravityScale: body.motion.gravityFactor ?? 1, indices: hull && [hull.handle] },
+  })
+  invalidate()
+  return made
+}
+
+/** How a body starts, is refused and is made again at another scale, for the openings `held`. */
+function createCookedLifecycle(parts: CookedParts, held: HeldOpenings) {
+  const { shapes, failed } = parts
+  async function add(model: Model, opening: Opening, body: CookedBody, token: object) {
     const hull = hullOf(opening.hulls, body)
     // Read and restored by the first body that needs it, of this opening or another; refused
     // there, reported by the registry, the body is refused too.
-    if (hull && !(await shapes.restored(hull))) return refuse(opening, body)
-    if (held.current(model, opening)) opening.made.push(make(model, opening, body))
+    if (hull && !(await shapes.restored(hull))) return forsake(opening, body, token)
+    // Its model, or its cells, let go of it meanwhile: none is made.
+    if (held.current(model, opening) && opening.starts.stands(body, token))
+      opening.made.push(makeCooked(parts, model, opening, body))
   }
   /** `body` refused — but for a read its model let go of —: its nodes static ground again, and
    *  its `error` reported, if any. */
@@ -112,8 +109,18 @@ export function createCookedBodies(parts: CookedParts) {
     countNodes(opening, body, -1)
     if (error !== undefined) failed(error as EngineError)
   }
-  const start = (model: Model, opening: Opening, body: CookedBody) =>
-    void add(model, opening, body).catch((error) => refuse(opening, body, error))
+  /** `body`, of the start `token`, refused for good — its hull, its shape or the budget —: out
+   *  until its model opens again, unless its cells let go of that start meanwhile. */
+  function forsake(opening: Opening, body: CookedBody, token: object, error?: unknown) {
+    if (opening.starts.forsakeIf(body, token)) refuse(opening, body, error)
+  }
+  const start = (model: Model, opening: Opening, body: CookedBody) => {
+    const token = opening.starts.begin(body)
+    void add(model, opening, body, token).catch((error) => forsake(opening, body, token, error))
+  }
+  /** `body` let go of with its cells while refused a scale: its nodes expected again as before. */
+  const unrefused = (opening: Opening, body: CookedBody) => countNodes(opening, body, 1)
+  const stream = (model: Model) => held.stream(model, start, unrefused)
   /** `body` made again at `model`'s `scale` now, kept in `opening`; refused there, it waits in
    *  its `refused` list for another scale. One refused before stands for its nodes again. */
   function remake(
@@ -125,22 +132,87 @@ export function createCookedBodies(parts: CookedParts) {
   ) {
     if (refused) countNodes(opening, body, 1)
     try {
-      return make(model, opening, body)
+      return makeCooked(parts, model, opening, body)
     } catch (error) {
       opening.refused.push({ body, scale })
       refuse(opening, body, error)
       return null
     }
   }
+  return { stream, remake }
+}
+
+/** A model moved: its bodies follow it (`followModel`) — a carried one driven where its
+ *  node is, any other kinematic one where its model puts it. */
+function followCooked(
+  parts: CookedParts,
+  opening: Opening,
+  model: Model,
+  remake: ReturnType<typeof createCookedLifecycle>['remake'],
+) {
+  const { writer, bodies } = parts
+  followModel<CookedMadeBody, Refused>(model, {
+    ...{ made: opening.made, refused: opening.refused },
+    entry: (one) => one.body,
+    madeAt: (one) => one.scale,
+    // It carries nothing: it leaves before it is made again, so a rescale needs no slot past
+    // the budget; refused at a scale, tried again at any other.
+    remake(one, scale) {
+      bodies.release(one.id & BODY_INDEX)
+      return remake(model, opening, one, scale, false)
+    },
+    tries: (one, scale) => !fits(scale, one.scale),
+    retry: (one, scale) => remake(model, opening, one, scale, true),
+    place(one, { position, quaternion }) {
+      const slot = one.id & BODY_INDEX
+      if (one.carried) driveCarried(writer, one.carried, slot)
+      else if (!one.moves) writer.moveKinematic(slot, position, quaternion)
+    },
+  })
+}
+
+/**
+ * The rigid bodies the compiled models in a scene declare (`physics.json` `bodies`), each one a
+ * body of its model's (`../bodies/bodySlots.ts`): its declared shape in the module's terms, or its cooked hull
+ * fetched and restored — nothing built on the page —, with its declared mass over its cooked one
+ * (`declaredMass`), counted against `budget.physics`. A body is made when the cells that draw its
+ * node are placed and let go of when they leave (`stream`); one whose node the core draws, or that
+ * draws nothing, is made as its model opens. A kinematic body follows its model, or,
+ * inside a dynamic body's subtree, its node as that body carries it (`../bodies/carriedBodies.ts`). A
+ * dynamic one simulates, and its poses move its node (`../poses.ts`), which loads tiles as a mover
+ * (`moversOf`); held kinematic where its node is drawn when its model numbers its nodes otherwise
+ * than the source (`Model._nodeAt`). A body made, the static instances of its node and of the
+ * node its collider names (`colliderNode`) leave (`holds`) — a dynamic one's whole subtree's,
+ * which moves with it —: no collider is doubled.
+ */
+export function createCookedBodies(parts: CookedParts) {
+  const { writer, bodies, shapes } = parts
+  const held = createOpenings<CookedBody, Opening>(
+    bodies.release,
+    (opening) => letGoAll(shapes, opening.hulls),
+    (one) => one.body,
+  )
+  const { stream, remake } = createCookedLifecycle(parts, held)
   return {
     /** Makes the bodies `model` declares, read until `signal` aborts, the last opening's out. */
     open(model: Model, declared: readonly CookedBody[], signal: AbortSignal) {
       const nodes = bodyNodes(model, declared)
       const hulls = holdObjects(shapes, model, 'hull', declared.map(cookedHull))
-      const opening: Opening = { ...nodes, made: [], refused: [], hulls, signal }
+      const opening: Opening = {
+        ...nodes,
+        declared,
+        hulls,
+        signal,
+        starts: new Starts<CookedBody>(),
+        made: [],
+        refused: [],
+      }
       held.open(model, opening)
-      for (const body of declared) start(model, opening, body)
+      stream(model)
     },
+    /** The cells of `model` drew something else since the last look: the bodies of its nodes
+     *  they hold are made, the others let go of. */
+    stream,
     forget: held.forget,
     /** Whether node `node` of `model` has its body, made or on its way: its tiles then leave. */
     holds: (model: Model, node: number) => held.get(model)?.nodes.has(node) ?? false,
@@ -151,35 +223,17 @@ export function createCookedBodies(parts: CookedParts) {
           for (const one of made)
             if (one.carried) driveCarried(writer, one.carried, one.id & BODY_INDEX)
     },
-    /** A model moved: its bodies follow it (`followModel`) — a carried one driven where its
-     *  node is, any other kinematic one where its model puts it. */
     moved(model: Model) {
       const opening = held.get(model)
-      if (!opening) return
-      followModel<CookedMadeBody, Refused>(model, {
-        ...{ made: opening.made, refused: opening.refused },
-        entry: (one) => one.body,
-        madeAt: (one) => one.scale,
-        // It carries nothing: it leaves before it is made again, so a rescale needs no slot past
-        // the budget; refused at a scale, tried again at any other.
-        remake(one, scale) {
-          bodies.release(one.id & BODY_INDEX)
-          return remake(model, opening, one, scale, false)
-        },
-        tries: (one, scale) => !fits(scale, one.scale),
-        retry: (one, scale) => remake(model, opening, one, scale, true),
-        place(one, { position, quaternion }) {
-          const slot = one.id & BODY_INDEX
-          if (one.carried) driveCarried(writer, one.carried, slot)
-          else if (!one.moves) writer.moveKinematic(slot, position, quaternion)
-        },
-      })
+      if (opening) followCooked(parts, opening, model, remake)
     },
     /** The worker refused `body`'s shape: out, its node static ground again, until its model
      *  opens again. */
     refused({ model, body }: { model: Model; body: CookedMadeBody }) {
       const opening = held.drop(model, body)
-      if (opening) countNodes(opening, body.body, -1)
+      if (!opening) return
+      opening.starts.forsake(body.body)
+      countNodes(opening, body.body, -1)
     },
   }
 }

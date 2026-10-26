@@ -7,13 +7,14 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { composeGroup, type HeldGroup } from '../../gpu/bind/bindIdentity.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { everyComposed, oweComposed, type ComposeState } from './gpuComposeState.ts'
+import { chainReady } from '../../lighting/deferred/fullscreen.ts'
 import { composeKernels, frameParents } from './gpuComposeFrame.ts'
 import { writePassParams } from '../../gpu/core/passParams.ts'
 import { FRAME_LIST, type ComposeGpu } from './gpuComposeGpu.ts'
 import type { OpenPass } from '../../gpu/core/lazyComputePass.ts'
 import { rootEntries, worldEntries } from './gpuComposeEntries.ts'
 import { dispatchGroup, sendWords } from '../roots/rootListPass.ts'
-import { isEmpty, takeMoved } from '../roots/rootMoves.ts'
+import { takeMoved } from '../roots/rootMoves.ts'
 
 /** `pipeline` over `held`'s group, a thread each of the `listed` roots, into the roots' pass. */
 function dispatchListed(
@@ -37,12 +38,13 @@ function sendFrame(device: GPUDevice, gpu: ComposeGpu, state: ComposeState, rank
 }
 
 /**
- * The linked roots' composed worlds, then their cut worlds, before the cut kernel reads them, and
- * the motion buffer the frame's motion pass writes (`composedMotionPass.ts`): a thread each of the
- * roots the frame composes again (`ComposeState.composed`), taken into the frame's list and owed to
- * the passes that derive from them later (`oweComposed`) — every composed root listed once a group
- * was bound anew, and owed once the worlds' was —, and nothing on a frame where nothing they read or write moved — no parent, no
- * link, and their motion settled (`encodeComposedMotion`). Into the roots' one compute pass
+ * The linked roots' composed worlds, then their cut worlds, before the cut kernel reads them: a
+ * thread each of the roots the frame composes again (`ComposeState.composed`), taken into the frame's
+ * list and owed to the passes that derive from them later (`oweComposed`) — every composed root
+ * listed once a group was bound anew, and owed once the worlds' was —, and nothing on a frame where
+ * nothing they read or write moved — no parent, no link. Their poses moved name them to the poses the
+ * next drawn frame keeps (`worldsMovedOnGpu`, `../../geometry/dag/previousPoses.ts`), from which the
+ * velocity measures their motion. Into the roots' one compute pass
  * `open`, opened by the first that runs (`../../gpu/core/lazyComputePass.ts`). Whether the worlds
  * were composed anew: the root boxes pass derives the frame's composed roots' boxes from them.
  */
@@ -51,11 +53,15 @@ export function encodeComposedRoots(rt: WebgpuPagesRuntime, device: GPUDevice, o
     gpu = frameParents(rt, device)
   // The worlds both read are the roots' double worlds (`../roots/rootWorlds.ts`), sent with the frame's rows.
   if (!state || !gpu?.parents || !rt.rootWorlds?.worlds || !state.rankList.count) return false
+  // Both kernels, or neither: a worlds pass without its roots pass leaves the cut's worlds behind.
+  const worldsKernel = composeKernels.worlds(device),
+    rootsKernel = composeKernels.roots(device)
+  if (!chainReady(worldsKernel, rt.run.gpuSelection ? rootsKernel : undefined)) return false
+  const worlds = worldsKernel.get()!
   const fresh = state.composedAt !== state.ranAt.worlds
   // The one parameters the worlds and roots passes read, made before their groups bind them, and
   // the groups, before the list is taken: one list a frame.
   writePassParams(device, gpu.params, state.roots, state.frameCount)
-  const worlds = composeKernels.worlds(device).get()
   gpu.worldsGroup.identity.entries[0] ??= worldEntries(rt, gpu)
   const worldsBound = composeGroup(device, gpu.worldsGroup, worlds)
   const roots = rootsGroup(rt, device, gpu)
@@ -85,7 +91,7 @@ export function encodeComposedRoots(rt: WebgpuPagesRuntime, device: GPUDevice, o
 function rootsGroup(rt: WebgpuPagesRuntime, device: GPUDevice, gpu: ComposeGpu) {
   const selection = rt.run.gpuSelection
   if (!selection) return undefined
-  const pipeline = composeKernels.roots(device).get(),
+  const pipeline = composeKernels.roots(device).get()!,
     held = gpu.rootGroup
   gpu.frame.worlds = selection.worlds
   held.identity.entries[0] ??= rootEntries(rt, gpu)
@@ -111,26 +117,12 @@ function encodeRootsPass(
   // write does, and the dispatch that follows in this command buffer cuts again under them.
   if (state.moving && state.frameCount)
     selection.worldsMovedOnGpu(state.frameRanks.subarray(0, state.frameCount))
-  const velocity = rt.gpu.velocity
-  const motionBuffer = velocity?.active ? velocity.motion.buffer : undefined
-  // A motion buffer bound anew holds rows the motion pass never wrote, and no reference it took:
-  // every composed root is owed both.
-  const { reference, motion } = state.owed
-  if (motionBuffer !== state.ranAt.motion) reference.whole = motion.whole = true
-  // Every word this pass writes is the one it wrote last, unless what it reads moved, its group
-  // was bound anew — another cut's worlds —, or the motion is not settled — a root still owes its
-  // reference or its motion row —: a still view of a composed scene costs no pass. A host write
-  // of a composed root's world names it to the next composition
+  // Every word this pass writes is the one it wrote last, unless what it reads moved or its group
+  // was bound anew — another cut's worlds —: a still view of a composed scene costs no pass. A host
+  // write of a composed root's world names it to the next composition
   // (`../../frame/render/worldUpload.ts`).
   const fresh = state.composedAt !== state.ranAt.roots
-  const motionSettled = !motionBuffer || (isEmpty(reference) && isEmpty(motion))
-  if (!fresh && !bound && motionSettled && motionBuffer === state.ranAt.motion) return
+  if (!fresh && !bound) return
   state.ranAt.roots = state.composedAt
-  state.ranAt.motion = motionBuffer
-  // The motion this frame's motion pass writes once the temporal pass decided it, in the image's
-  // own command buffer (`composedMotionPass.ts`): this one is submitted before the decision.
-  state.motionBound = motionBuffer
-  // A pass run for the motion alone rewrites no world.
-  if ((fresh || bound) && state.frameCount)
-    dispatchListed(rt, open, pipeline, gpu.rootGroup, state.frameCount)
+  if (state.frameCount) dispatchListed(rt, open, pipeline, gpu.rootGroup, state.frameCount)
 }

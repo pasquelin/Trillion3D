@@ -8,8 +8,9 @@
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { Engine } from '../../session/engine/types.ts'
 import type { FrameBudget } from '../../geometry/integration/frameBudget.ts'
-import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts'
+import { resolveCameraWorld, type ViewCamera } from '../../camera/world.ts'
 import { writeNormalizedVector3 } from '../../../../math/src/vector/vector.ts'
+import { sum } from '../../../../math/src/scalar/quantile.ts'
 import type { PartitionCells } from '../../geometry/partition/cells.ts'
 import type { PageStreaming } from '../../geometry/streaming/pageStreamer.ts'
 import { patientTask } from '../../geometry/work/host.ts'
@@ -23,7 +24,7 @@ import type { WorldStreaming } from '../../../../sdk-core/src/contracts/worldStr
  *  source's axis the cells are sorted by, weighed by their distance and their angle to it; and its
  *  up, unit, its `y`: where a view looking straight down heads. */
 function viewOf(
-  camera: HostCamera,
+  camera: ViewCamera,
   view = { eye: new Float64Array(3), axis: new Float64Array(3), up: new Float64Array(3) },
 ) {
   const elements = resolveCameraWorld(camera).matrixWorld.elements
@@ -60,7 +61,7 @@ async function decodePage(bytes: Uint8Array, url: string): Promise<PageBody> {
  */
 export async function primePartitions(
   partitions: readonly PartitionCells[],
-  camera: HostCamera,
+  camera: ViewCamera,
   streamer: PageStreaming,
   owned: boolean,
   signal?: AbortSignal,
@@ -77,13 +78,13 @@ export async function primePartitions(
     streaming,
   }
   const bytes = await Promise.all(partitions.map((cells) => cells.prime(eye, io, owned)))
-  return bytes.reduce((sum, value) => sum + value, 0)
+  return sum(bytes)
 }
 
 type Inputs = {
   partitions: readonly PartitionCells[]
   streamer: PageStreaming
-  camera: HostCamera
+  camera: ViewCamera
   engine: Engine
   /** The session's one integration budget per frame (`EngineContext.frameBudget`): cells spend
    *  from it before the arrival drain and the engine's row records spend the rest. */
@@ -97,19 +98,82 @@ type Inputs = {
   streaming?: () => WorldStreaming
 }
 
+/** `cells` are followed from the next frame, placed for the view by `primePartitions` first. */
+function followCells(partitions: PartitionCells[], cells: readonly PartitionCells[]) {
+  for (const one of cells) if (!partitions.includes(one)) partitions.push(one)
+}
+
+/** `cells` are followed no more: each gives its rows and its holds back. */
+function leaveCells(
+  partitions: PartitionCells[],
+  cells: readonly PartitionCells[],
+  update: (...range: Parameters<Engine['updatePlacements']>) => void,
+) {
+  for (const one of cells) {
+    const at = partitions.indexOf(one)
+    if (at < 0) continue
+    partitions.splice(at, 1)
+    one.close({ update })
+  }
+}
+
+type CellIo = Parameters<PartitionCells['frame']>[1]
+
+/** The io of `cells`: what its frames read the streamer and the engine by. */
+function cellIo(
+  cells: PartitionCells,
+  deps: {
+    inputs: Inputs
+    request: (urls: readonly string[], priority?: number) => void
+    update: (...range: Parameters<Engine['updatePlacements']>) => void
+  },
+): CellIo {
+  const { inputs, request, update } = deps
+  const { streamer, engine: backend, renew } = inputs
+  return {
+    bytes: (url: string) => streamer.getBytes(url),
+    decode: decodeCell,
+    decodePage,
+    failed: (url: string) => streamer.failed(url),
+    request,
+    admit: streamer.admit,
+    forget: streamer.forget,
+    update,
+    grow: backend,
+    compose: (parent, world, links, whole) =>
+      backend.composePlacements(parent, world, links, whole),
+    outgrown: renew,
+    // While the cut packs this partition's world DAG, it draws each HLOD cell as the cells
+    // tell it.
+    get world() {
+      return backend.worldCells(cells.world)
+    },
+    get streaming() {
+      return inputs.streaming?.()
+    },
+    get initialLoad() {
+      return backend.initialLoad()
+    },
+    // What the view's velocity is measured by, seconds.
+    get time() {
+      return performance.now() / 1000
+    },
+  }
+}
+
 /**
  * The step a frame runs before it draws, over the partitions the session follows: those it was
  * opened with, and those that join it (`follow`) or leave it (`leave`) while it runs. Its
  * `pending` settles once the pages and cells the last frame asked for within reach are read, those
  * it handed to the page worker pool decoded, and the next of the cells' holds on its way landed,
  * true while one of them waits for a frame to place it, or a decode or a hold landed: a still
- * camera is drawn again until they all are. A read that failed and may pass stays on its way till
- * it lands (`../../geometry/streaming/failures.ts`): nothing else wakes the loop for it. Whether
+ * camera is drawn again until they all are. A read that failed and is asked again stays on its way
+ * till it lands (`../../geometry/streaming/failures.ts`): nothing else wakes the loop for it. Whether
  * a partition's load blocks on slow streaming is told to the engine as it moves
  * (`Engine.streamingBlocks`).
  */
 export function createPartitionFrame(inputs: Inputs) {
-  const { streamer, camera, engine: backend, renew, budget } = inputs
+  const { streamer, camera, engine: backend, budget } = inputs
   const partitions = [...inputs.partitions]
   const asks = createViewAsks(streamer)
   let reads: Promise<void>[] = [],
@@ -131,50 +195,12 @@ export function createPartitionFrame(inputs: Inputs) {
   }
   const update = (...range: Parameters<Engine['updatePlacements']>) =>
     backend.updatePlacements(...range)
-  const bytes = (url: string) => streamer.getBytes(url),
-    failed = (url: string) => streamer.failed(url)
-  const compose: Parameters<PartitionCells['frame']>[1]['compose'] = (
-    parent,
-    world,
-    links,
-    whole,
-  ) => backend.composePlacements(parent, world, links, whole)
   /** Each partition's io, made once: its world cells read anew each frame, a cut made again lending
    *  its own. */
-  const ios = new WeakMap<PartitionCells, Parameters<PartitionCells['frame']>[1]>()
+  const ios = new WeakMap<PartitionCells, CellIo>()
   const io = (cells: PartitionCells) => {
     let own = ios.get(cells)
-    if (!own) {
-      own = {
-        bytes,
-        decode: decodeCell,
-        decodePage,
-        failed,
-        request,
-        admit: streamer.admit,
-        forget: streamer.forget,
-        update,
-        grow: backend,
-        compose,
-        outgrown: renew,
-        // While the cut packs this partition's world DAG, it draws each HLOD cell as the cells
-        // tell it.
-        get world() {
-          return backend.worldCells(cells.world)
-        },
-        get streaming() {
-          return inputs.streaming?.()
-        },
-        get initialLoad() {
-          return backend.initialLoad()
-        },
-        // What the view's velocity is measured by, seconds.
-        get time() {
-          return performance.now() / 1000
-        },
-      }
-      ios.set(cells, own)
-    }
+    if (!own) ios.set(cells, (own = cellIo(cells, { inputs, request, update })))
     return own
   }
   const seen = viewOf(camera)
@@ -197,18 +223,9 @@ export function createPartitionFrame(inputs: Inputs) {
   }
   return Object.assign(step, {
     pending,
-    /** `cells` are followed from the next frame, placed for the view by `primePartitions` first. */
-    follow(cells: readonly PartitionCells[]) {
-      for (const one of cells) if (!partitions.includes(one)) partitions.push(one)
-    },
-    /** `cells` are followed no more: each gives its rows and its holds back. */
+    follow: (cells: readonly PartitionCells[]) => followCells(partitions, cells),
     leave(cells: readonly PartitionCells[]) {
-      for (const one of cells) {
-        const at = partitions.indexOf(one)
-        if (at < 0) continue
-        partitions.splice(at, 1)
-        one.close({ update })
-      }
+      leaveCells(partitions, cells, update)
       asks.end()
     },
   })

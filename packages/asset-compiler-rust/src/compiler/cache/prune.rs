@@ -8,7 +8,7 @@ use scratch::remove_scratch;
 /// lists: each `{url, sha256}` `store_descriptor` wrote, known by its object URL (the geometry
 /// containers, the physics shapes), and each shape the manifest's `physics`
 /// lists by digest. The one rule of what a manifest keeps, for prune and the reuse proof alike: a
-/// bundle's digest in `streams`, the proxy's and a sidecar's name no object.
+/// bundle's digest in `streams`, a sidecar's name no object.
 pub(crate) fn object_descriptors(json: &Value) -> Vec<&Value> {
     fn walk<'a>(value: &'a Value, into: &mut Vec<&'a Value>) {
         match value {
@@ -156,6 +156,7 @@ pub(crate) fn prune_cache(
         }
     }
     remove_scratch(&o.cache)?;
+    crate::support::derived::prune(&o.cache)?;
     let mut removed_objects = 0usize;
     let mut removed_bytes = 0u64;
     let mut kept_objects = 0usize;

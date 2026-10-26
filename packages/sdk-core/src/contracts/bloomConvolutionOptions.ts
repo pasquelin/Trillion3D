@@ -1,3 +1,4 @@
+import { isImageSize } from '../../../math/src/scalar/integers.ts'
 import { refusal } from './nameMatch.ts'
 import {
   ANY_NUMBER,
@@ -86,8 +87,11 @@ export interface ResolvedBloomConvolution extends SettingValues<typeof BLOOM_CON
 function resolveKernel(kernel: BloomKernelImage | null | undefined) {
   if (kernel === undefined || kernel === null) return undefined
   const { width, height, pixels } = kernel
-  const sized = Number.isInteger(width) && Number.isInteger(height) && width > 0 && height > 0
-  if (!sized || !(pixels instanceof Float32Array) || pixels.length !== 4 * width * height)
+  if (
+    !isImageSize(width, height) ||
+    !(pixels instanceof Float32Array) ||
+    pixels.length !== 4 * width * height
+  )
     return refusal('bloom')(
       'convolution.kernel must be { width, height, pixels }, pixels a Float32Array of 4 × width × height values',
     )

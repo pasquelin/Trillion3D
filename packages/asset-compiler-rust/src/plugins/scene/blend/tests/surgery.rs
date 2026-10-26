@@ -152,6 +152,27 @@ pub(super) fn with_stray_object(name: &[u8]) -> Vec<u8> {
     bytes
 }
 
+/// The fixture whose active scene declares `scale_length` over a unit system of `system`.
+pub(super) fn with_unit(scale_length: f32, system: u8) -> Vec<u8> {
+    let mut bytes = fixture();
+    let (scale_at, system_at) = {
+        let file = BlendFile::open(&bytes, RAM_BUDGET).expect("the fixture");
+        let global = file
+            .of(*b"GLOB")
+            .next()
+            .and_then(|block| file.view(block))
+            .expect("the global block");
+        let scene = global.follow("curscene").expect("the active scene").old;
+        (
+            field(&file, scene, &["unit", "scale_length"]),
+            field(&file, scene, &["unit", "system"]),
+        )
+    };
+    put(&mut bytes, scale_at, &scale_length.to_le_bytes());
+    put(&mut bytes, system_at, &[system]);
+    bytes
+}
+
 /// The fixture whose first mesh's `sharp_face` attribute becomes a `sharp_edge`: same store,
 /// same value block, only the name and the domain are rewritten — through the file's SDNA, as
 /// everywhere here. `hard` says whether the edges thus marked all are, or none.

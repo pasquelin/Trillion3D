@@ -14,10 +14,11 @@ export type VsmTraceCounts = Pick<
   | 'shadowSamplesPerRayLocal'
 >
 
-/** Lights per dispatch: the frame's shadowed lights (`assignSlice`'s 64 channels). */
-export const VSM_PROJECTION_MAX_PASS_LIGHTS = 64
+/** The records of the view uniform: the frame's shadowed lights, a uniform of 48 bytes a light kept
+ *  under the 64 KiB a device binds (`assignChannels`). */
+export const VSM_PROJECTION_MAX_PASS_LIGHTS = 1024
 
-/** A light of the pass: `radius` and `cosCone` are the lighting's range and cone
+/** A light of the pass (`firstPersonMapId`: the first map of its sun's first-person clipmap, −1 for none): `radius` and `cosCone` are the lighting's range and cone
  *  (`localLightReaches`, −2 for any light but a spot), `direction` points towards the light. */
 const LIGHT = fieldLayout('VsmProjectionLight', [
   ['shiftedPosition', 'vec3f'],
@@ -27,10 +28,11 @@ const LIGHT = fieldLayout('VsmProjectionLight', [
   ['cosCone', 'f32'],
   ['mapId', 'i32'],
   ['kind', 'u32'],
+  ['firstPersonMapId', 'i32'],
 ] as const)
 
 /** The view (view space +Z forward, reverse-Z, matrices column-major as the engine's) before its
- *  lights. `originShiftHigh`/`Low` are the camera shift split into two floats; `traceRays` the rays
+ *  lights; \`lightCount\` the records, the suns' first (\`sunCount\` of them). `originShiftHigh`/`Low` are the camera shift split into two floats; `traceRays` the rays
  *  a trace takes and the steps of each, a sun's then a local light's (`shadowRayCountDirectional`,
  *  `shadowRayCountLocal`, `shadowSamplesPerRayDirectional`, `shadowSamplesPerRayLocal`). */
 const VIEW = fieldLayout('VsmProjectionView', [
@@ -45,6 +47,7 @@ const VIEW = fieldLayout('VsmProjectionView', [
   ['shiftedEye', 'vec3f'],
   ['lightCount', 'u32'],
   ['viewForward', 'vec3f'],
+  ['sunCount', 'u32'],
   ['depthFromDeviceZ', 'vec4f'],
   ['screenRayScale', 'vec4f'],
   ['halfFovTangents', 'vec4f'],

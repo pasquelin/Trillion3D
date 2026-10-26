@@ -8,18 +8,15 @@ import assert from 'node:assert/strict'
 import { composeWebgpuPlacements } from './gpuCompose.ts'
 import { askComposedPlacements } from './gpuComposeFrame.ts'
 import { pipelinesCompiling, pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
-import { encodeComposedMotion } from './composedMotionPass.ts'
-import { COMPOSE_MOTION_ENTRY, MOTION_SCAN } from './composedMotionWgsl.ts'
-import { COMPOSE_ROOTS_WGSL } from './gpuComposeWgsl.ts'
-import { COMPOSE_MOTION_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { session, turn } from './composeSession.fixture.ts'
 
-test("a parent's turn advances the cut's world revision on the frame it moved, and only then", () => {
-  const { rt, rows, frame } = session()
+test("a parent's turn advances the cut's world revision on the frame it moved, and only then", async () => {
+  const { rt, rows, frame, ready } = session()
   const parent = {},
     local = turn(0.4)
   const links = [0, 1].map((index) => ({ rows, index, local }))
   composeWebgpuPlacements(rt, parent, turn(0), links, true)
+  await ready()
   assert.equal(frame(), 1, 'the link frame: the links went up, the cut is told')
   assert.equal(frame(), 1, 'a still parent moves nothing')
   composeWebgpuPlacements(rt, parent, turn(0.1), [], false)
@@ -32,11 +29,12 @@ test("a parent's turn advances the cut's world revision on the frame it moved, a
   assert.equal(frame(), 3, 'the same world sent again moves nothing')
 })
 
-test('a parent unlinked and linked anew starts from its new world: no motion from its old one', () => {
-  const { rt, rows, frame } = session()
+test('a parent unlinked and linked anew starts from its new world: no motion from its old one', async () => {
+  const { rt, rows, frame, ready } = session()
   const parent = {},
     links = [0, 1].map((index) => ({ rows, index, local: turn(0) }))
   composeWebgpuPlacements(rt, parent, turn(0), links, true)
+  await ready()
   const linked = frame()
   composeWebgpuPlacements(rt, parent, turn(0), [], true)
   assert.deepEqual([...rt.compose!.parentOf], [NO_INDEX, NO_INDEX])
@@ -57,18 +55,21 @@ test('the compose kernels are asked once a parent links rows, the frames held un
   await pipelinesSettled(device, true)
   assert.equal(pipelinesCompiling(device), false)
   frame()
+  // Two kernels since the velocity reads the linked roots' motion from the kept poses
+  // (`previousPoses.ts`): the motion pass is gone.
   assert.deepEqual(
     compiled,
-    { sync: 0, async: 3 },
-    'the worlds, roots and motion kernels, off the frame, once',
+    { sync: 0, async: 2 },
+    'the worlds and roots kernels, off the frame, once',
   )
 })
 
-test('the compose passes make their groups once, then only when a buffer one names is replaced', () => {
-  const { rt, rows, frame, device, bindGroups } = session()
+test('the compose passes make their groups once, then only when a buffer one names is replaced', async () => {
+  const { rt, rows, frame, ready, device, bindGroups } = session()
   const parent = {},
     links = [0, 1].map((index) => ({ rows, index, local: turn(0) }))
   composeWebgpuPlacements(rt, parent, turn(0), links, true)
+  await ready()
   const image = () => (frame(), bindGroups.length)
   const made = image()
   assert.equal(image(), made, 'a still frame makes no group')
@@ -86,97 +87,14 @@ test('the compose passes make their groups once, then only when a buffer one nam
   assert.equal(image(), made + 2)
 })
 
-test("the linked roots' motion is decided before the image's motion pass reads it, never in the roots' command buffer", () => {
-  const { rt, rows, frame, device, writes } = session()
-  const motionBuffer = device.createBuffer({
-    size: 128,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  const held = new Float64Array(turn(0.25))
-  ;(rt.gpu as { velocity?: unknown }).velocity = {
-    active: true,
-    motion: { buffer: motionBuffer, poseOf: () => held },
-  }
-  const local = turn(0.4)
-  composeWebgpuPlacements(rt, {}, turn(0), [{ rows, index: 1, local }], true)
-  writes.length = 0
-  frame()
-  const label = (write: (typeof writes)[number]) => (write.buffer as { label?: string }).label
-  // The root linked now starts from the pose the CPU motion last accumulated it at.
-  const seed = writes.find((write) => label(write) === 'Trillion3D composed previous worlds')
-  assert.equal(seed?.offset, 64)
-  assert.deepEqual([...(seed!.data as Float32Array)], [...Float32Array.from(held)])
-  const modes = () =>
-    writes
-      .filter((write) => label(write) === 'Trillion3D composed motion mode')
-      .map((write) => (write.data as Uint32Array)[0])
-  assert.deepEqual(modes(), [], 'the roots pass, submitted before the decision, reads no mode')
-  assert.equal(COMPOSE_ROOTS_WGSL.includes('motionMode'), false)
-  // The image's encoder, recording each pass's label and the entry point it dispatches.
-  const encoded: string[] = []
-  const image = {
-    beginComputePass: (descriptor: GPUComputePassDescriptor) => {
-      encoded.push(descriptor.label!)
-      let entry = ''
-      return {
-        setPipeline: (pipeline: { entryPoint: string }) => void (entry = pipeline.entryPoint),
-        setBindGroup() {},
-        dispatchWorkgroups: () => void encoded.push(entry),
-        end() {},
-      }
-    },
-  } as unknown as GPUCommandEncoder
-  encodeComposedMotion(rt, device, image, [1, 2, 3], true, true)
-  assert.deepEqual(modes(), [MOTION_SCAN], 'the decision, before the image is submitted')
-  assert.deepEqual(
-    encoded,
-    [COMPOSE_MOTION_PASS, COMPOSE_MOTION_ENTRY],
-    "the motion, in the image's command buffer",
-  )
-  // A motion buffer the roots pass did not bind is never decided nor written.
-  ;(rt.gpu as { velocity: { motion: { buffer: unknown } } }).velocity.motion.buffer = {}
-  encodeComposedMotion(rt, device, image, [1, 2, 3], true, true)
-  assert.equal(modes().length, 1)
-  assert.equal(encoded.length, 2)
-})
-
-test('a whole link set sent again keeps the motion pose of the roots it already held', () => {
-  const { rt, rows, frame, writes } = session()
-  const parent = {},
-    links = [0, 1].map((index) => ({ rows, index, local: turn(0.4) }))
-  const seeded = () =>
-    writes
-      .filter(
-        (write) =>
-          (write.buffer as { label?: string }).label === 'Trillion3D composed previous worlds',
-      )
-      .map((write) => write.offset / 64)
-  composeWebgpuPlacements(rt, parent, turn(0), links, true)
-  frame()
-  assert.deepEqual(seeded(), [0, 1], 'both linked now: both start from their CPU pose')
-  writes.length = 0
-  composeWebgpuPlacements(rt, parent, turn(0.1), links, true)
-  frame()
-  assert.deepEqual(seeded(), [], 'held already: the GPU keeps the pose it accumulated')
-  assert.deepEqual([...rt.compose!.ranksOf[0]], [0, 1])
-  composeWebgpuPlacements(rt, parent, turn(0.1), links.slice(1), true)
-  assert.deepEqual(
-    [...rt.compose!.parentOf],
-    [NO_INDEX, 0],
-    'root 0 left the set: the CPU writes it',
-  )
-  composeWebgpuPlacements(rt, parent, turn(0.1), links, true)
-  frame()
-  assert.deepEqual(seeded(), [0], 'root 0 linked anew starts from its CPU pose again')
-})
-
-test('a link or a parent that moves sends its own words alone, never the whole tables', () => {
-  const { rt, rows, frame, writes } = session()
+test('a link or a parent that moves sends its own words alone, never the whole tables', async () => {
+  const { rt, rows, frame, ready, writes } = session()
   const a = {},
     b = {},
     link = (local: number[]) => [{ rows, index: 1, local }]
   composeWebgpuPlacements(rt, a, turn(0), [{ rows, index: 0, local: turn(0.4) }], true)
   composeWebgpuPlacements(rt, b, turn(1), link(turn(0.4)), true)
+  await ready()
   frame()
   const sent = (label: string) =>
     writes

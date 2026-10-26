@@ -21,6 +21,19 @@ export {
   type PhysicsBudget,
 } from './options.ts'
 export {
+  channelIndex,
+  channelsMeet,
+  COLLISION_CHANNELS,
+  COLLISION_PROFILES,
+  defaultProfile,
+  resolveCollision,
+  RESPONSE,
+  type CollisionChannel,
+  type CollisionProfileName,
+  type CollisionResponse,
+  type ResolvedCollision,
+} from './collisionChannels.ts'
+export {
   SOFT_AREAL_DENSITY,
   SOFT_LINEAR_DENSITY,
   SOFT_FOOTPRINT,

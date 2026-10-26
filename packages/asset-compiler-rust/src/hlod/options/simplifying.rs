@@ -176,7 +176,7 @@ fn colour(map: &Map<String, Value>, key: &str, what: &str) -> Result<Option<[u8;
 
 /// The simplified layer settings of `map` (`what` naming the layer): its `simplification` object's
 /// and its atlas's, every other left out defaulted; the translucency and the empty texels are the
-/// layer's own (`parse::layer`).
+/// layer's own (`layer::layer`).
 pub(super) fn simplifying(map: &Map<String, Value>, what: &str) -> Result<HlodSimplifying> {
     let mut read = HlodSimplifying {
         sizing: atlas_sizing(map, what, SIMPLIFY_SIZING)?,

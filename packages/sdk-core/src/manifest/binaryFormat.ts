@@ -62,7 +62,7 @@ export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8'
  * @property pageError - Each page's error and its replacement's.
  * @property pageInt - Each page's signed numbers.
  * @property pageU32 - Each page's counts.
- * @property geometryU32 - Each geometry page's counts.
+ * @property geometryU32 - Each geometry page's counts and its size and place in the pool.
  * @property cullingNodes - The culling trees' nodes.
  * @property groupLevel - Each group's level.
  * @property groupError - Each group's error.
@@ -122,7 +122,7 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   pageError: 2,
   pageInt: 8,
   pageU32: 1,
-  geometryU32: 5,
+  geometryU32: 7,
   cullingNodes: CULLING_STRIDE,
   groupLevel: 1,
   groupError: 1,
@@ -158,12 +158,16 @@ export const INT_ID = 0,
   INT_STREAM_OFFSET = 5,
   INT_COUNT = 6,
   INT_START = 7
-/** `geometryU32` slots: the page's facts. */
+/** `geometryU32` slots: the page's facts — its bytes on disk, its counts and flags, what it
+ *  decodes to, the bytes it takes in the pool once installed and where it lies in its streaming
+ *  page's place there. */
 export const GEOMETRY_BYTES = 0,
   GEOMETRY_VERTICES = 1,
   GEOMETRY_INDICES = 2,
   GEOMETRY_FLAGS = 3,
-  GEOMETRY_UNCOMPRESSED = 4
+  GEOMETRY_UNCOMPRESSED = 4,
+  GEOMETRY_RESIDENT_BYTES = 5,
+  GEOMETRY_RESIDENT_OFFSET = 6
 /** `bundleU32` slots: its container's rank in the manifest's `geometryFiles`, its offset there,
  *  its size and its cluster count. */
 export const BUNDLE_FILE = 0,

@@ -11,16 +11,14 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { encodeDistanceFieldOcclusion } from '../../lighting/distanceField/ao/frame.ts'
 import type { DfaoImage } from '../../lighting/distanceField/ao/params.ts'
 import { writeDfaoRead } from '../../lighting/distanceField/ao/readWgsl.ts'
-import {
-  releaseSkyOcclusion,
-  type SkyOcclusionState,
-} from '../../lighting/distanceField/ao/state.ts'
+import { releaseSkyOcclusion } from '../../lighting/distanceField/ao/state.ts'
 import type { DistanceFieldScene } from '../../lighting/distanceField/scene.ts'
 import { NO_SKY_LIGHT_OCCLUSION } from '../../modules/sky/skyLight/read.ts'
 import { screenProbesCast } from '../../lighting/bounce/screen/cast.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-import { wantsContractLighting } from '../prepare/contractLight.ts'
+import { cameraSeen, previousCameraOf, type CameraImage } from '../backend/state/previousCamera.ts'
+import { wantsContractLighting } from '../prepare/lit.ts'
 
 /** What the gates hand: the distance fields, the sky light and the occlusion's settings. */
 interface SkyOcclusionGate {
@@ -32,7 +30,7 @@ interface SkyOcclusionGate {
 const values = {} as DistanceFieldOcclusionValues
 
 /**
- * WHETHER THE SKY LIGHT IS OCCLUDED BY THE DISTANCE FIELDS THIS IMAGE, the reference's gate: the view is the main one
+ * WHETHER THE SKY LIGHT IS OCCLUDED BY THE DISTANCE FIELDS THIS IMAGE, the gate: the view is the main one
  * (a capture's views are no reflection capture's and the field follows the main camera), its lighting and sky light
  * are on, no screen probes light the pixels, the sky light is dynamic (movable) and casts shadows, the occlusion is
  * allowed (`distanceFieldOcclusion` and a quality of 1 or more) and the scene has distance-field objects. With
@@ -98,14 +96,14 @@ function sourcesOf(rt: WebgpuPagesRuntime) {
 function describe(
   rt: WebgpuPagesRuntime,
   cam: EngineCamera,
-  state: SkyOcclusionState,
+  before: CameraImage | undefined,
   velocity: boolean,
 ) {
   const { gpu } = rt
   image.view = gpu.targetSize
   image.extent = gpu.allocatedSize
   image.viewProjection = cam.viewProjection
-  image.previousViewProjection = state.hasPrevious ? state.previous : cam.viewProjection
+  image.previousViewProjection = before?.viewProjection ?? cam.viewProjection
   image.world = cam.world
   image.projection = cam.projection
   image.near = cam.near
@@ -118,10 +116,12 @@ function describe(
 }
 
 /**
- * THE SKY LIGHT'S DISTANCE-FIELD OCCLUSION OF THE IMAGE, drawn where the reference's gate holds (`skyOcclusionGate`),
- * after the distance fields' update (`encodeDistanceFields`) and the depth pyramid the image built, before the lighting
- * that reads it. It leaves its texture, the read uniform and how the light applies it on the state
- * (`DistanceFieldFrameState.occlusion`); none, and the resources given back, where the gate fails.
+ * THE SKY LIGHT'S DISTANCE-FIELD OCCLUSION OF THE IMAGE, drawn where its gate holds (`skyOcclusionGate`) and no
+ * bounce lights the pixels — the bounce program's probes carry the sky themselves, its program applies no occlusion —, after
+ * the distance fields' update (`encodeDistanceFields`) and the depth pyramid the image built, before the sky light's read
+ * uniform (`encodeSkyLight`) and the lighting that read it. It leaves the buffers the lit pass reads the image from, their
+ * uniform and how the light applies it on the state (`DistanceFieldFrameState.occlusion`); none, and the resources given
+ * back, where the gate fails.
  */
 export function encodeSkyOcclusion(
   rt: WebgpuPagesRuntime,
@@ -130,16 +130,19 @@ export function encodeSkyOcclusion(
 ) {
   const state = rt.distanceFields?.occlusion
   if (!state) return
-  state.output = undefined
+  state.read = undefined
   state.use = NO_SKY_LIGHT_OCCLUSION
-  const gate = skyOcclusionGate(rt, false)
+  const gate = rt.bounce.wanted ? undefined : skyOcclusionGate(rt, false)
   const sources = gate && sourcesOf(rt)
   if (!gate || !sources) return releaseSkyOcclusion(state)
   const { scene, part, settings } = gate
-  const cut = rt.run.gate.temporalRevision !== state.revision
+  // The camera the history's image was drawn with: the view's, where that image is the one before; a history that skipped an
+  // image holds none and starts again, as after a cut.
+  const before = cameraSeen(previousCameraOf(rt), state.seen)
+  const cut = rt.run.gate.temporalRevision !== state.revision || !before
   state.revision = rt.run.gate.temporalRevision
-  const drawn = describe(rt, cam, state, !!sources.vectors)
-  state.output = encodeDistanceFieldOcclusion(state.dfao, sources.device, encoder, {
+  const drawn = describe(rt, cam, before, !!sources.vectors)
+  const view = encodeDistanceFieldOcclusion(state.dfao, sources.device, encoder, {
     depth: sources.depth,
     surfaceNormals: sources.normals,
     vectors: sources.vectors,
@@ -150,10 +153,11 @@ export function encodeSkyOcclusion(
     distances: occlusionDistances(rt.distanceFields!.settings, part.light.occlusionMaxDistance),
     historyCut: cut,
   })
-  state.previous.set(cam.viewProjection)
-  state.hasPrevious = true
-  if (!state.output) return
-  writeDfaoRead(state.dfaoRead, drawn.extent, drawn.view, settings)
+  state.seen = rt.run.frame
+  if (!view) return
+  writeDfaoRead(state.dfaoRead, drawn, settings)
+  sources.device.queue.writeBuffer(view.readParams, 0, state.dfaoRead)
+  state.read = { bent: view.packed, params: view.readParams }
   state.use = {
     applied: true,
     specularMode: settings.specularMode,

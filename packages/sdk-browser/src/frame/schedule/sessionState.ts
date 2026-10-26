@@ -1,13 +1,13 @@
+import type { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import type { CameraPose } from '../../../../sdk-core/src/contracts/base.ts'
 import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 import type { PreparedExplorer } from '../../session/prepare.ts'
-import type { HostCamera } from '../../camera/world.ts'
-import type { ControlVector } from '../../camera/controls/types.ts'
+import type { ViewCamera } from '../../camera/world.ts'
 
 /** Puts `camera` on `pose`: its position, optics and aim (`target`, written with the pose's
  *  point), its matrices composed. The one way a session's camera, or a view of its own, takes a
  *  pose. */
-export function poseCamera(camera: HostCamera, pose: CameraPose, target: ControlVector) {
+export function poseCamera(camera: ViewCamera, pose: CameraPose, target: Vector3) {
   camera.position.fromArray(pose.position)
   camera.fov = pose.fov
   camera.near = pose.near

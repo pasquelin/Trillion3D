@@ -11,25 +11,27 @@
 //!   HLOD as a leaf's does;
 //! - an instanced skinned object (`motion/bank.rs`, `Banked`) leaves the table: its cell places its
 //!   mesh at no pose under its skin's frame, playing its item of the scene's animation banks;
-//! - an animated object — skinned, morphed, moved by a clip, or a skin's joint — stays in the
-//!   core, where its clips, its skin and the page's own code name it by rank: its node says it
-//!   streams (`"streamed"`), and its cell draws a row of its mesh under that node at no pose, the
-//!   node's own host mesh that row's animation source.
+//! - an animated object — skinned, morphed, moved by a clip, a skin's joint, or moved or bent by
+//!   the cooked physics (`Placing::simulated`) — stays in the core, where its clips, its skin, its
+//!   body and the page's own code name it: its node says it streams (`"streamed"`), and its cell
+//!   draws a row of its mesh under that node at no pose, the node's own host mesh that row's
+//!   animation source. The runtime makes its body when that cell is placed and lets it go when the
+//!   cell leaves: its render and its physics stream together, in its cell.
+//!
+//! Every row names the source node it draws (`"sourceNode"`, eight hexadecimal digits, as the core
+//! does): what `physics.json` names a body or a collider by.
 //!
 //! Objects attached under one another stream together, as the reference keeps an actor with the
 //! actors attached under it: the topmost object above a node and every object under it make one
 //! batch, placed in one cell by the box around their world boxes (`Gathered::batches`); a batch
 //! one object of which is not spatially loaded is always loaded whole, in the core. A node drawing
 //! no mesh is a frame objects hang from, not an object: it joins no batch.
-use super::boxes::{carried, grown, mesh_boxes, morphing};
-use super::scene::{batch_roots, named, still_nodes};
+use super::boxes::grown;
+use super::placing::Placing;
+use super::scene::batch_roots;
 use super::split::assign_grids;
 use super::*;
 use crate::compiler::args::objects::DrawDistance;
-use crate::compiler::source::node_transform::local_matrix;
-use crate::compiler::tables::motion::{bank::animated_bounds, moved};
-use trillion3d_math::geometry::box_transform::box_transform;
-use trillion3d_math::matrix::IDENTITY;
 
 /// How a cell draws a node it holds: its mesh at the node's declared pose under its nearest core
 /// node (`Posed`); its mesh at no pose under its own core node, which the core keeps for the nodes
@@ -57,8 +59,9 @@ impl Row {
 /// box in the frame of the core node its row hangs under, whether it may take an HLOD layer —
 /// nothing moves it, itself or through a node above it, and an instanced skinned object's mobility
 /// keeps it still —, the root of its batch, the main grid it streams on (`assign_grids`), and the
-/// distances it is drawn at, when its settings name any (`DrawDistance`), and whether a view's
-/// primed depth draws it (`far_field`).
+/// distances it is drawn at, when its settings name any (`DrawDistance`), whether a view's primed
+/// depth draws it (`far_field`), whether it casts far shadows (`cast_far_shadow`) and whether a
+/// sun's far-shadow test reaches it (`far_shadow_test`).
 pub(super) struct Candidate {
     pub node: usize,
     pub mesh: usize,
@@ -70,13 +73,15 @@ pub(super) struct Candidate {
     pub grid: usize,
     pub draw_distance: Option<DrawDistance>,
     pub far_field: bool,
+    pub cast_far_shadow: bool,
+    pub far_shadow_test: Option<bool>,
 }
 
 impl Candidate {
     /// The core node its row hangs under — `parent` giving each node's parent in `table`, `rank`
-    /// each node's rank in the core —, and the row its cell writes: a pose only where the node
-    /// declares one, the distances it is drawn at only where its settings name them, the parents of
-    /// its part's roots only for an instance of an assembly (`rootParents`).
+    /// each node's rank in the core —, and the row its cell writes: the source node it draws, a pose
+    /// only where the node declares one, the distances it is drawn at only where its settings name
+    /// them, the parents of its part's roots only for an instance of an assembly (`rootParents`).
     pub(super) fn entry(
         &self,
         table: &[Value],
@@ -106,11 +111,19 @@ impl Candidate {
                 json!({"parent": rank[id], "mesh": mesh, "source": true}),
             ),
         };
+        let source = u32::try_from(id).expect("a published node rank fits u32");
+        entry["sourceNode"] = json!(format!("{source:08x}"));
         if let Some(distance) = &self.draw_distance {
             entry["drawDistance"] = distance.entry();
         }
         if self.far_field {
             entry["farField"] = json!(true);
+        }
+        if self.cast_far_shadow {
+            entry["castFarShadow"] = json!(true);
+        }
+        if let Some(test) = self.far_shadow_test {
+            entry["farShadowTest"] = json!(test);
         }
         // An instance of an assembly: what replaces the roots of its part's primitives.
         if let Some(roots) = table[id].get("rootParents") {
@@ -133,6 +146,74 @@ pub(super) struct Gathered {
     pub unknown_grids: Vec<(usize, String)>,
 }
 
+/// What `gather` has found of the objects so far: the candidates, the instanced skinned objects
+/// and the reasons the others stay plain, the batches an object not spatially loaded pins, and the
+/// grid each batch root names.
+#[derive(Default)]
+struct Found {
+    candidates: Vec<Candidate>,
+    bankable: Vec<(usize, usize, Option<usize>)>,
+    bank_warnings: Vec<(usize, String)>,
+    pinned: BTreeSet<usize>,
+    named_grids: BTreeMap<usize, String>,
+}
+
+impl Found {
+    /// Object `id` of `scene` found, its batch rooted at `roots[id]`. `banks` say which objects are
+    /// instanced skinned ones, `objects` which are spatially loaded and on which grid; `grid` is the
+    /// job's: with the streaming off an object is none but a bank's.
+    fn visit(
+        &mut self,
+        id: usize,
+        (scene, roots): (&mut Placing<'_>, &[Option<usize>]),
+        (g, grid, objects, banks): (
+            &Value,
+            &crate::PartitionGrid,
+            &crate::ObjectSettings,
+            &Banks,
+        ),
+    ) -> Result<()> {
+        let mut bank = banks.objects.get(&id);
+        if let Some(why) = bank.and_then(|banked| scene.unbankable(id, banked.frame)) {
+            self.bank_warnings.push((id, why.to_string()));
+            bank = None;
+        }
+        self.bankable
+            .extend(bank.map(|banked| (id, banked.item, banked.frame)));
+        if !grid.streams {
+            return Ok(());
+        }
+        let batch = roots[id].expect("an object is its batch's or under its root");
+        let setting = objects.node(g, id)?;
+        if !setting.spatially_loaded {
+            self.pinned.insert(batch);
+            return Ok(());
+        }
+        if id == batch {
+            let named = setting.runtime_grid.map(|name| (batch, name));
+            self.named_grids.extend(named);
+        }
+        let Some(placed) = scene.place(id, bank)? else {
+            return Ok(());
+        };
+        self.candidates.push(Candidate {
+            node: id,
+            mesh: scene.mesh_of(id),
+            row: placed.row,
+            world: placed.world,
+            local: placed.local,
+            still: placed.still,
+            batch,
+            grid: 0,
+            draw_distance: setting.draw_distance,
+            far_field: setting.far_field,
+            cast_far_shadow: setting.cast_far_shadow,
+            far_shadow_test: setting.far_shadow_test,
+        });
+        Ok(())
+    }
+}
+
 /// The candidates of `table` (`Gathered`), its nodes' `parent`s and whether the scene reaches each
 /// (`reached`) given: none with the streaming off (`PartitionGrid::streams`). `objects` says which
 /// objects are spatially loaded; `banks`, the instanced skinned objects and the items they play;
@@ -141,137 +222,28 @@ pub(super) struct Gathered {
 pub(super) fn gather(
     (g, worlds): (&Value, &[Mat4]),
     (grid, objects, banks): (&crate::PartitionGrid, &crate::ObjectSettings, &Banks),
-    (source, bin, source_boxes): (&Value, &[u8], &[Option<Box6>]),
+    source: (&Value, &[u8], &[Option<Box6>]),
     table: &[Value],
     (parent, reached): (&[Option<usize>], &[bool]),
 ) -> Result<Gathered> {
-    let gltf_nodes = values(g, "nodes")?;
-    let (boxes, morphs) = (mesh_boxes(g), morphing(g));
-    let (moved, named) = (moved(g), named(g));
-    // A cell's row says no visibility: a node a hidden node hides is read with the core.
-    let (_, hidden) = crate::compiler::source::nodes::scene_nodes(g)?;
-    let shown = |id: usize| reached[id] && !hidden.contains(&id);
-    // A camera holds its node in the core; a lamp does not: `lights.json` places it, in world
-    // space.
-    let object =
-        |id: usize| table[id]["mesh"].is_u64() && shown(id) && table[id]["camera"].is_null();
-    // Whether a node keeps its declared pose, and every node above it does: a box written from
-    // those poses stays where it is, and an HLOD built of it stands where the object does.
-    let still_of = still_nodes(parent, &moved);
-    let still = |id: usize| still_of[id];
-    // A skin frame's world, the scene root's when the skin has none.
-    let world_of = |frame: Option<usize>| frame.map_or(IDENTITY, |f| worlds[f]);
-    let boxed = |bounds: &Box6, matrix: &Mat4| {
-        let mut out = EMPTY_FLAT;
-        box_transform(&mut out, bounds, matrix);
-        out
+    let mut scene = Placing::of(g, (table, worlds), (parent, reached), source)?;
+    let roots = batch_roots(parent, |id| scene.object(id));
+    let mut found = Found {
+        bank_warnings: banks.refused.clone(),
+        ..Found::default()
     };
-    // Why an object its settings make an instanced skinned one stays a plain skinned one: a skin
-    // or a clip names its node by its core rank, or the frame it would hang under would hide it.
-    let unbankable = |id: usize, frame: Option<usize>| {
-        if named.contains(&id) {
-            Some("a skin names its node as a joint")
-        } else if moved.contains(&id) {
-            Some("a clip moves its node")
-        } else if frame.is_some_and(|f| !shown(f)) {
-            Some("its skin's frame is hidden or outside the scene")
-        } else {
-            None
+    for id in 0..table.len() {
+        if scene.object(id) {
+            found.visit(id, (&mut scene, &roots), (g, grid, objects, banks))?;
         }
-    };
-    let roots = batch_roots(parent, object);
-    let mut bank_warnings = banks.refused.clone();
-    // The input scene's hierarchy, read by the first plain skinned object that needs it.
-    let mut source_parents = None;
-    let (mut bankable, mut candidates, mut pinned) = (Vec::new(), Vec::new(), BTreeSet::new());
-    // The grid each batch root names.
-    let mut named_grids = BTreeMap::new();
-    for id in (0..table.len()).filter(|&id| object(id)) {
-        let node = &table[id];
-        let mesh = node["mesh"].as_u64().expect("an object's mesh") as usize;
-        let mut bank = banks.objects.get(&id);
-        if let Some(why) = bank.and_then(|banked| unbankable(id, banked.frame)) {
-            bank_warnings.push((id, why.to_string()));
-            bank = None;
-        }
-        bankable.extend(bank.map(|banked| (id, banked.item, banked.frame)));
-        if !grid.streams {
-            continue;
-        }
-        let batch = roots[id].expect("an object is its batch's or under its root");
-        let setting = objects.node(g, id)?;
-        if !setting.spatially_loaded {
-            pinned.insert(batch);
-            continue;
-        }
-        if id == batch {
-            named_grids.extend(setting.runtime_grid.map(|name| (batch, name)));
-        }
-        let mesh_box = boxes.get(mesh).copied().flatten();
-        let animated = !node["skin"].is_null()
-            || morphs.get(mesh) == Some(&true)
-            || !node["weights"].is_null()
-            || moved.contains(&id)
-            || named.contains(&id);
-        let leaf = node["children"].as_array().is_some_and(Vec::is_empty);
-        let (row, world, local, still) = match bank {
-            // At its skin's frame, bounded by its item's sampled bounds; an HLOD layer only when
-            // its mobility keeps it still and nothing moves its frame (`Banked::hlod`).
-            Some(banked) => (
-                Row::Track {
-                    item: banked.item,
-                    frame: banked.frame,
-                },
-                boxed(&banked.bounds, &world_of(banked.frame)),
-                banked.bounds,
-                banked.hlod,
-            ),
-            // Drawn from its own node: a skinned one bounded by its clips' bounds at its skin
-            // frame's world, carried into its node's frame — where its palette draws it —, any
-            // other by its mesh's box, morph targets' offsets included. Never an HLOD layer.
-            None if animated => {
-                let (world, local) = if node["skin"].is_null() {
-                    let Some(mesh_box) = mesh_box else { continue };
-                    (boxed(&mesh_box, &worlds[id]), mesh_box)
-                } else {
-                    let swept =
-                        animated_bounds(source, bin, id, (source_boxes, &mut source_parents))?;
-                    let Some((frame, bounds)) = swept else {
-                        continue;
-                    };
-                    let from = world_of(frame);
-                    let Some(local) = carried(&bounds, &from, &worlds[id]) else {
-                        continue;
-                    };
-                    (boxed(&bounds, &from), local)
-                };
-                (Row::Source, world, local, false)
-            }
-            // At its declared pose under its nearest core node, which may move: then no layer.
-            None if leaf => {
-                let Some(mesh_box) = mesh_box else { continue };
-                let local = boxed(&mesh_box, &local_matrix(&gltf_nodes[id])?);
-                (Row::Posed, boxed(&mesh_box, &worlds[id]), local, still(id))
-            }
-            // Under its own node, kept in the core for the nodes under it.
-            None => {
-                let Some(mesh_box) = mesh_box else { continue };
-                (Row::Own, boxed(&mesh_box, &worlds[id]), mesh_box, still(id))
-            }
-        };
-        candidates.push(Candidate {
-            node: id,
-            mesh,
-            row,
-            world,
-            local,
-            still,
-            batch,
-            grid: 0,
-            draw_distance: setting.draw_distance,
-            far_field: setting.far_field,
-        });
     }
+    let Found {
+        mut candidates,
+        bankable,
+        bank_warnings,
+        pinned,
+        named_grids,
+    } = found;
     candidates.retain(|c| !pinned.contains(&c.batch));
     let unknown_grids = assign_grids(&mut candidates, &named_grids, grid);
     let mut batches = BTreeMap::new();

@@ -1,5 +1,5 @@
-import { FINE_SPAN, MAX_SPAN, SUBPIXEL_SAMPLES, TILE } from './contract.ts'
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { MAX_SPAN, SUBPIXEL_SAMPLES } from './contract.ts'
+import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { FLAG_BACK, FLAG_DOUBLE } from '../types.ts'
 import { PAGE_POINTS_WGSL } from '../shader/pageGeometryWgsl.ts'
@@ -7,9 +7,9 @@ import { PAGE_POINTS_WGSL } from '../shader/pageGeometryWgsl.ts'
 const S = SUBPIXEL_SAMPLES
 
 /**
- * The software raster's triangle setup, and the only writing of it: binning sets each triangle up
- * once to class it, the raster passes set the survivors up again from the same inputs and the same
- * operations, so the box a triangle was classed on is the one it is rastered on.
+ * The software raster's triangle setup, and the only writing of it: the cluster raster sets each
+ * of its triangles up from the corners it holds (`clusterWgsl.ts`), the tessellation each of its
+ * micro-triangles (`../tessellation/diceWgsl.ts`).
  *
  * The setup is the hardware rasterizers' own rule, step for step:
  * - **The vertices are snapped** to a grid of `SUBPIXEL_SAMPLES` samples a pixel side, rounded to
@@ -23,17 +23,25 @@ const S = SUBPIXEL_SAMPLES
  *   so two triangles sharing an edge never both cover, nor both miss, a pixel.
  * - **Depth is the plane of the three snapped depths**, and the weights' per-pixel steps (`dx`,
  *   `dy`) are its screen derivatives, the masked cutout's footprint.
- * A software row never crosses the near plane (`binWgsl.ts`): no vertex here has to be clipped.
+ * A software cluster never crosses the near plane (`rasteredInHardware`, `../../geometry/dag/shader/visibleWgsl.ts`): no vertex here has to be clipped.
+ *
+ * The frame is the raster's (`rasterViewport`): the camera's viewport by default, the window of a
+ * shadow map's page where the shadow raster sets its triangles up
+ * (`../../lighting/shadows/vsm/render/renderSoftwareWgsl.ts`), its own declaration in place of the
+ * default. So is the widest box a triangle keeps (`rasterSpan`, `MAX_SPAN` by default): the raster of
+ * the surface cache's cards draws a whole page, up to 128 pixels, in software
+ * (`../../lighting/surfaceCache/capture/cardRasterWgsl.ts`).
  */
 export const RASTER_TRI_WGSL = wgslBlock(
   'RASTER_TRI_WGSL',
-  [PAGE_POINTS_WGSL, worldMatrix3],
+  [
+    PAGE_POINTS_WGSL,
+    wgslFn('rasterViewport', [], 'fn rasterViewport()->vec2f{return uni.viewport;}', {
+      weak: true,
+    }),
+    wgslFn('rasterSpan', [], `fn rasterSpan()->i32{return ${MAX_SPAN};}`, { weak: true }),
+  ],
   `
-// The \`viewProj * world\` product and the linear-part determinant depend only on the page: binning
-// computes them once for the page's triangles, the raster passes per triangle — the same operands
-// in the same order, the same floats.
-fn pageTransform(page:PageInfo)->mat4x4f{return uni.viewProj*page.world;}
-fn pageWinding(page:PageInfo)->f32{return determinant(worldMatrix3(page.world));}
 /** A set-up triangle: its inclusive pixel box, its turned edges, the edge constants at the box's
  *  first pixel centre in pixels, its depth plane, \`1/w\` at its corners, the weights' steps, the
  *  cutout coordinate and vertex alpha at its corners (a masked row's), and what names it. */
@@ -44,24 +52,12 @@ struct Tri{minPixel:vec2i,maxPixel:vec2i,e01:vec2f,e12:vec2f,e20:vec2f,
  *  its device depth, and its \`1/w\`. */
 fn subpixelOf(clip:vec4f)->vec4f{
  let s=vec4f(clip.xyz,1.0)/clip.w;
- let scale=vec2f(0.5,-0.5)*uni.viewport*${S}.0;
- let bias=0.5*uni.viewport*${S}.0+0.5;
+ let scale=vec2f(0.5,-0.5)*rasterViewport()*${S}.0;
+ let bias=0.5*rasterViewport()*${S}.0+0.5;
  return vec4f(floor(s.xy*scale+bias),s.z,s.w);
 }
 /** The fill rule's share of edge \`e\`: one subpixel unit unless it is a top or a left edge. */
 fn fillNudge(e:vec2f)->f32{return saturate(e.y+saturate(1.0-e.x));}
-/** Triangle \`triangle\` of row \`row\` (\`page\`, its header \`h\`) under \`vp\`, the page's
- *  \`viewProj*world\`, \`det\` the determinant of its world's linear part; \`ok\` zero when it
- *  covers no pixel of the frame or faces away. */
-fn setupTriangle(row:u32,page:PageInfo,h:ClusterHeader,triangle:u32,vp:mat4x4f,det:f32)->Tri{
- var t:Tri;t.ok=0u;t.row=row;t.triangle=triangle;
- if(triangle*3u+2u>=page.indexCount){return t;}
- t.corners=pageTriangle(page,h,triangle);
- let s0=subpixelOf(vp*vec4f(pagePosition(page,h,t.corners.x),1.0));
- let s1=subpixelOf(vp*vec4f(pagePosition(page,h,t.corners.y),1.0));
- let s2=subpixelOf(vp*vec4f(pagePosition(page,h,t.corners.z),1.0));
- return setupSubpixel(t,page,det,s0,s1,s2);
-}
 /** Triangle \`start\` — its row and triangle named, its corners where it has them — of \`page\`,
  *  set up from its three corners already on the subpixel grid (\`subpixelOf\`), \`det\` the
  *  determinant of its world's linear part: the rest of the setup, which the tessellation's
@@ -78,8 +74,8 @@ fn setupSubpixel(start:Tri,page:PageInfo,det:f32,s0:vec4f,s1:vec4f,s2:vec4f)->Tr
  if(area>0.0){e01=-e01;e12=-e12;e20=-e20;}
  let lo=min(s0.xy,min(s1.xy,s2.xy));let hi=max(s0.xy,max(s1.xy,s2.xy));
  t.minPixel=max(vec2i(floor((lo+${S / 2 - 1}.0)*(1.0/${S}.0))),vec2i(0));
- t.maxPixel=min(vec2i(floor((hi-${S / 2 + 1}.0)*(1.0/${S}.0))),vec2i(uni.viewport)-vec2i(1));
- t.maxPixel=min(t.maxPixel,t.minPixel+vec2i(${MAX_SPAN}));
+ t.maxPixel=min(vec2i(floor((hi-${S / 2 + 1}.0)*(1.0/${S}.0))),vec2i(rasterViewport())-vec2i(1));
+ t.maxPixel=min(t.maxPixel,t.minPixel+vec2i(rasterSpan()));
  if(any(t.minPixel>t.maxPixel)){return t;}
  let base=vec2f(t.minPixel)*${S}.0+${S / 2}.0;
  let v0=s0.xy-base;let v1=s1.xy-base;let v2=s2.xy-base;
@@ -100,15 +96,23 @@ fn edgesAt(t:Tri,pixel:vec2i)->vec3f{
  let d=vec2f(pixel-t.minPixel);
  return t.c+vec3f(t.e12.x,t.e20.x,t.e01.x)*d.y-vec3f(t.e12.y,t.e20.y,t.e01.y)*d.x;
 }
-/** Size class of a set-up box: the tile a thread group covers at once. */
-fn triClass(t:Tri)->u32{
- let span=max(t.maxPixel.x-t.minPixel.x,t.maxPixel.y-t.minPixel.y);
- if(span<=${FINE_SPAN}){return 0u;}
- if(span<=${TILE - 1}){return 1u;}
- return 2u;
+/** A masked row's cutout at edge constants \`c\`: the corners' coordinate and alpha (\`ua\`, \`ub\`,
+ *  \`uc\`) at the perspective-correct weights — the edge constants by the corners' \`1/w\`,
+ *  normalised — and its footprint, their screen steps. */
+struct TriCutout{at:vec3f,ddx:vec2f,ddy:vec2f,}
+fn triCutout(t:Tri,c:vec3f)->TriCutout{
+ let w=c*t.invW;let uvw=w*(1.0/(w.x+w.y+w.z));
+ return TriCutout(t.ua*uvw.x+t.ub*uvw.y+t.uc*uvw.z,(t.ua*t.dx.x+t.ub*t.dx.y+t.uc*t.dx.z).xy,(t.ua*t.dy.x+t.ub*t.dy.y+t.uc*t.dy.z).xy);
 }
-/** Eight-pixel tiles a box covers, in columns then in rows. */
-fn tileCols(t:Tri)->u32{return u32(t.maxPixel.x-t.minPixel.x)/${TILE}u+1u;}
-fn tileRows(t:Tri)->u32{return u32(t.maxPixel.y-t.minPixel.y)/${TILE}u+1u;}
 `,
+)
+
+/** The camera's product of a page's world by its view-projection and the linear-part determinant,
+ *  which depend only on the page: a cluster's group computes them once for its triangles
+ *  (`clusterWgsl.ts`). */
+export const RASTER_PAGE_TRANSFORM_WGSL = wgslBlock(
+  'RASTER_PAGE_TRANSFORM_WGSL',
+  [worldMatrix3],
+  `fn pageTransform(page:PageInfo)->mat4x4f{return uni.viewProj*page.world;}
+fn pageWinding(page:PageInfo)->f32{return determinant(worldMatrix3(page.world));}`,
 )

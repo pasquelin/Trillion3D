@@ -9,7 +9,6 @@
 //! the engine reads instead.
 use super::{Atlas, Coverage, MASK_CUTOFF, METALLIC, ROUGHNESS};
 use crate::texture::collect::AtlasTexture;
-use crate::texture::coverage::cutoff_byte;
 use crate::texture::{AtlasKind, Ladder, PreviewSource, TexturePreview};
 use crate::{Options, Result};
 use image::ImageEncoder;
@@ -50,17 +49,13 @@ impl Role {
     }
     /// The atlas the engine keeps it in and the channels its shader reads
     /// (`texture::collect`'s roles), a metal-roughness map's first channel too where it holds the
-    /// specular, a base colour's alpha too — its chain weighted by that alpha, cut at the mask's
-    /// cutoff where it holds a mask — where it holds the opacity or the mask (`Reading`).
+    /// specular, a base colour's alpha too — cut at the mask's cutoff where it holds a mask —
+    /// where it holds the opacity or the mask (`Reading`).
     fn reader(self, reading: Reading) -> AtlasTexture {
         let Reading { specular, coverage } = reading;
         let all = [true; 4];
         let (kind, channels, normal_only) = match (self, coverage) {
-            (Self::Base, Coverage::Blend) => (AtlasKind::Coverage(0), all, false),
-            (Self::Base, Coverage::Mask) => {
-                let cutoff = cutoff_byte(MASK_CUTOFF as f32, 1.0);
-                (AtlasKind::Coverage(cutoff), all, false)
-            }
+            (Self::Base, Coverage::Blend | Coverage::Mask) => (AtlasKind::Color, all, false),
             (Self::Base | Self::Emission, _) => {
                 (AtlasKind::Color, [true, true, true, false], false)
             }
@@ -169,7 +164,7 @@ fn cooked(
         .ok_or_else(|| crate::CompilerError::new("HLOD_ATLAS", "atlas size"))?;
     let baked = crate::texture::bake::cook_decoded(
         o,
-        (&decoded, &sha256, PreviewSource::Uri),
+        (&decoded, &[], None, &sha256, PreviewSource::Uri),
         (0, Ladder::Light),
         &[role.reader(reading)],
     )

@@ -4,12 +4,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { forwardIndirectWgsl } from './forward.ts'
 import { reflectionStagesWgsl } from './wgsl.ts'
-import { REFLECTION_TRACE_SHADER } from './trace/trace.ts'
+import { reflectionTraceShader } from './trace/trace.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import type { Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
+
+const TRACE_SHADER = reflectionTraceShader(false)
 
 /** The accumulation's packer of a front texel's word (`frontPack`). */
 const { frontPack: pack } = shaderRun<{ frontPack: (c: Vec3) => number }>(
@@ -19,6 +22,13 @@ const { frontPack: pack } = shaderRun<{ frontPack: (c: Vec3) => number }>(
 )
 
 type Reflected = { base: Vec3; coat: Vec3 }
+
+/** The translucency volume's read, which the forward program lists and these tests do not run. */
+const GI_STUB = wgslBlock(
+  'GI_STUB',
+  [],
+  'fn translucentGiIrradiance(P:vec3f,N:vec3f,single:bool)->vec3f{return vec3f(0.0);}\nvar<private> translucentGiSingle:bool=false;',
+)
 
 /** `forwardTrace` of the shipped forward program (`forwardIndirectWgsl`), over a front texel `texel`
  *  and a front depth `depth` at every pixel, `answered` whether this image's trace answered the
@@ -35,20 +45,20 @@ function forward(texel: number[], depth: number, answered = true) {
       front: boolean,
     ) => Reflected
   }>(
-    wgslModule(forwardIndirectWgsl(1, false, 24)),
+    wgslModule(forwardIndirectWgsl(1, false, 24, GI_STUB)),
     ['forwardTrace', 'frontUnpack', 'reflectionFrontTraced', 'reflectionFrontDepth'],
     {
       frontTraced: { load: () => texel },
       reflectionFront: { load: () => [depth, 0, 0, 0] },
       reflectionView: { front: [answered ? 1 : 0, 0, 0, 0] },
-      reflectionField: () => field,
+      reflectionEnvironmentOf: () => ({ base: field, coat: [0, 0, 0] }),
     },
   )
   return (z: number, front = true) =>
     run.forwardTrace([0, 0, 0], [0, 0, 1], [0, 0, 1], 0.1, [3.5, 4.5, z, 1], front)
 }
 
-test('a fragment at the front depth reads the trace’s radiance; any other, the field', () => {
+test('a fragment at the front depth reads the trace’s radiance; any other, the environment', () => {
   const z = 0.25
   const texel = [pack([1, 2, 4]), pack([0.5, 0, 0]), 0, 0]
   const read = forward(texel, z)
@@ -64,23 +74,30 @@ test('a fragment at the front depth reads the trace’s radiance; any other, the
   assert.deepEqual(forward(texel, z, false)(z).base, [7, 7, 7])
 })
 
-test('one chain: only the trace walks the proxy and samples a lobe; a forward program reads its answer', () => {
-  const forwardText = wgslModule(forwardIndirectWgsl(1, true, 24))
-  for (const name of ['rtRadiance', 'rtProxy', 'reflectionProxied', 'reflectionSampleDirection'])
+test('one chain: only the trace marches the field and samples a lobe; a forward program reads its answer', () => {
+  const forwardText = wgslModule(forwardIndirectWgsl(1, true, 24, GI_STUB))
+  for (const name of [
+    'rtRadiance',
+    'rtProxy',
+    'scSampleMeshCards',
+    'gdfTrace',
+    'reflectionSceneTrace',
+    'reflectionSampleDirection',
+  ])
     assert.doesNotMatch(forwardText, new RegExp(`\\b${name}\\b`), name)
-  assert.match(wgslModule(reflectionStagesWgsl(1)), /\breflectionProxied\b/)
+  assert.match(wgslModule(reflectionStagesWgsl(1)), /\breflectionSceneTrace\b/)
   // The front surface is traced, resolved and accumulated as the opaque one by the same kernels on its own
   // layer (the pipeline's, `createTraceStages`) — a pixel a thread of a listed tile, the scene stage a
   // thread a ray the screen left —, and its last pass writes its radiance where the forward fragments
   // read it.
   for (const kernel of [
-    'override REFLECTION_LAYER:u32;',
+    'override REFLECTION_LAYER:u32=0u;',
     'left=traceScreenTexel(id,REFLECTION_LAYER);',
     'let own=reflectingPixelAt(REFLECTION_LAYER,coord,surfaceFlagsAt(coord));',
     'textureStore(resolvedOut,id,resolvePixel(vec2i(id),REFLECTION_LAYER));',
     'textureStore(historyOut,id,temporalPixel(vec2i(id),local.xy,REFLECTION_LAYER));',
     'let own=reflectingPixelAt(1u,coord,flags);',
   ])
-    assert.ok(REFLECTION_TRACE_SHADER.includes(kernel), kernel)
-  assert.ok(REFLECTION_TRACE_SHADER.includes('textureStore(frontOut,coord,'))
+    assert.ok(TRACE_SHADER.includes(kernel), kernel)
+  assert.ok(TRACE_SHADER.includes('textureStore(frontOut,coord,'))
 })

@@ -127,4 +127,26 @@ float jointPull(Constraint *c, uint32_t kind) {
   }
 }
 
+float jointTwist(Constraint *c, uint32_t kind) {
+  switch (kind) {
+    case FIXED: return static_cast<FixedConstraint *>(c)->GetTotalLambdaRotation().Length();
+    case HINGE: {
+      auto *hinge = static_cast<HingeConstraint *>(c);
+      return hinge->GetTotalLambdaRotation().Length() + std::abs(hinge->GetTotalLambdaRotationLimits());
+    }
+    case SLIDER: return static_cast<SliderConstraint *>(c)->GetTotalLambdaRotation().Length();
+    case CONE: return std::abs(static_cast<ConeConstraint *>(c)->GetTotalLambdaRotation());
+    case SWING_TWIST: {
+      auto *joint = static_cast<SwingTwistConstraint *>(c);
+      return Vec3(joint->GetTotalLambdaTwist(), joint->GetTotalLambdaSwingY(), joint->GetTotalLambdaSwingZ()).Length();
+    }
+    case SIX_DOF: return static_cast<SixDOFConstraint *>(c)->GetTotalLambdaRotation().Length();
+    case PATH: {
+      PathConstraint *path = &pathOf(c);
+      return path->GetTotalLambdaRotation().Length() + path->GetTotalLambdaRotationHinge().Length();
+    }
+    default: return 0;  // a point, a distance and a pulley turn freely; a gear's and a rack's lambda is their torque (`jointPull`)
+  }
+}
+
 }  // namespace trillion

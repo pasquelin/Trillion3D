@@ -1,4 +1,5 @@
 import { refusal } from './nameMatch.ts'
+import { isFiniteNumber } from '../../../math/src/scalar/reals.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 
 /**
@@ -23,7 +24,7 @@ import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
  * `null` its default, anything else refused with a `TypeError` naming the field and the values it
  * takes.
  *
- * RUN-TIME SETTINGS. The eight families listed first are the engine's own, read again at each frame,
+ * RUN-TIME SETTINGS. The families this reads are the engine's own, read again at each frame,
  * or at each update of the streaming: no compiler job names them, so no manifest carries them and
  * no cache key holds them. Only the cut's view distance scale has quality levels
  * (`VIEW_DISTANCE_SCALE_LEVELS`): the scalability groups of the reference leave every other one at
@@ -40,8 +41,9 @@ export type SettingRange = readonly [number, number]
 /** One setting: its kind — the render settings' (`../runtime/renderSettings.ts`) —, its field, its
  *  default — the reference's — and, a number, its range; a choice, the names it takes. A number
  *  `above` its range's start excludes it, `excluding` takes one value out of its range (zero, where
- *  a quotient would divide by it), and `takes` says in words what it takes where the range does
- *  not. */
+ *  a quotient would divide by it), `distance` makes it a distance in metres that also takes `true`,
+ *  its default, and `false`, none (0: `distanceSetting`), and `takes` says in words what it takes
+ *  where the range does not. */
 export type SettingRule =
   | { readonly kind: 'flag'; readonly field: string; readonly default: boolean }
   | {
@@ -51,6 +53,7 @@ export type SettingRule =
       readonly range: SettingRange
       readonly above?: true
       readonly excluding?: number
+      readonly distance?: true
       readonly takes?: string
     }
   | {
@@ -61,7 +64,7 @@ export type SettingRule =
     }
   | { readonly kind: 'vector'; readonly field: string; readonly default: readonly number[] }
 /** Settings by a name: the one their reader gives them, or their field. */
-type SettingRules = Readonly<Record<string, SettingRule>>
+export type SettingRules = Readonly<Record<string, SettingRule>>
 /** The values of `T`'s settings, by the names `T` gives them, every one named. */
 export type SettingValues<T extends SettingRules> = { -readonly [K in keyof T]: T[K]['default'] }
 /** `T`'s rules by their field. */
@@ -76,20 +79,26 @@ type LevelSwitch<R> = R extends {
 }
   ? boolean
   : never
+/** What a DISTANCE rule (`distanceSetting`) takes besides its metres: a switch, `true` its default
+ *  distance, `false` none, 0; none for any other. */
+type DistanceSwitch<R> = R extends { readonly distance: true } ? boolean : never
 /** The settings of the rules by field `R` as a host writes them: each its value, or nothing for its
  *  default. */
 export type SettingOptions<R extends SettingRules> = {
-  [F in keyof R]?: R[F]['default'] | LevelSwitch<R[F]> | null
+  [F in keyof R]?: R[F]['default'] | LevelSwitch<R[F]> | DistanceSwitch<R[F]> | null
 }
 /** The settings of the rules `T` — by any names — as a host writes them, by their fields. */
 type FieldOptions<T extends SettingRules> = {
-  [K in keyof T as T[K]['field']]?: T[K]['default'] | LevelSwitch<T[K]> | null
+  [K in keyof T as T[K]['field']]?:
+    T[K]['default'] | LevelSwitch<T[K]> | DistanceSwitch<T[K]> | null
 }
 
 /** Any finite number. */
 export const ANY_NUMBER: SettingRange = [-1.7976931348623157e308, 1.7976931348623157e308]
 /** Any whole number a signed 32-bit word holds. */
-export const INT32_RANGE: SettingRange = [-2147483648, 2147483647]
+/** The largest 32-bit signed whole number, a constant of its own: a bundle drops what reads only it. */
+export const INT32_MAX = 2147483647
+export const INT32_RANGE: SettingRange = [-2147483648, INT32_MAX]
 
 /** The range of a finite number from `low` up. */
 export const atLeast = (low: number): SettingRange => [low, ANY_NUMBER[1]]
@@ -103,8 +112,8 @@ export const numberSetting = <F extends string>(field: F, value: number, range: 
 /** A whole number of field `field`, default `value`, within `range`. */
 export const integerSetting = <F extends string>(field: F, value: number, range: SettingRange) =>
   ({ kind: 'int', field, default: value, range }) as const
-/** The range of a finite number of at least zero (`Number.MAX_VALUE`, as `ANY_NUMBER`'s). */
-const FROM_ZERO: SettingRange = [0, 1.7976931348623157e308]
+/** The range of a finite number of at least zero. */
+const FROM_ZERO = /* @__PURE__ */ atLeast(0)
 /** A number of field `field` and default `value`, whole when `kind` is `int`, within `range` —
  *  its start excluded when `above` —, `takes` its words: the one builder of the settings below. */
 const bounded = <F extends string, K extends 'int' | 'float'>(
@@ -122,8 +131,24 @@ export const nonZeroSetting = <F extends string>(field: F, value: number, takes:
   excluding: 0,
 })
 /** A finite number above zero of field `field` and default `value`, `takes` its words. */
-export const positiveSetting = <F extends string>(field: F, value: number, takes: string) =>
-  bounded('float', field, value, FROM_ZERO, takes, true)
+export const positiveSetting = <F extends string>(
+  field: F,
+  value: number,
+  takes = 'a finite number above 0',
+) => bounded('float', field, value, FROM_ZERO, takes, true)
+/** A distance in metres of field `field` and default `value`: a finite number of at least 0, which
+ *  also takes `true`, the default, and `false`, none (0), the way a light's shadow distance is
+ *  written. */
+export const distanceSetting = <F extends string>(field: F, value: number) => ({
+  ...bounded(
+    'float',
+    field,
+    value,
+    FROM_ZERO,
+    'a finite number of metres of at least 0, true or false',
+  ),
+  distance: true as const,
+})
 /** A finite number of at least zero of field `field` and default `value`. */
 export const nonNegativeSetting = <F extends string>(field: F, value: number) =>
   bounded('float', field, value, FROM_ZERO, 'a finite number of at least 0')
@@ -154,6 +179,10 @@ export const rulesOf = <const T extends readonly SettingRule[]>(rules: T) =>
     readonly [R in T[number] as R['field']]: R
   }
 
+/** The fields of the rules `rules`, in order. */
+export const ruleFields = <T extends SettingRules>(rules: T) =>
+  Object.keys(rules) as readonly (keyof T & string)[]
+
 /** Whether `rule` is a level rule: a choice whose first name is `'off'` (`LevelSwitch`). */
 const isLevelRule = (rule: SettingRule) => rule.kind === 'choice' && rule.choices[0] === 'off'
 
@@ -171,20 +200,39 @@ export function settingTakes(rule: SettingRule) {
 
 /**
  * The value `option` names of the setting `rule`: one it takes as itself, `undefined` or `null`
- * its default; for a level rule (`LevelSwitch`) `true` too is its default and `false` is `'off'`.
- * The one reading of every setting declared by rule.
+ * its default; for a level rule (`LevelSwitch`) `true` too is its default and `false` is `'off'`;
+ * for a distance rule (`DistanceSwitch`) `true` is its default and `false` is 0. The one reading of
+ * every setting declared by rule.
  * @throws TypeError naming the field and the values it takes when it is none of them.
  */
 export function resolveSetting<R extends SettingRule>(
   rule: R,
-  option?: R['default'] | LevelSwitch<R> | null,
+  option?: R['default'] | LevelSwitch<R> | DistanceSwitch<R> | null,
 ): R['default'] {
   if (option === undefined || option === null) return rule.default
   if (typeof option === 'boolean' && isLevelRule(rule))
     return (option ? rule.default : 'off') as R['default']
+  if (typeof option === 'boolean' && rule.kind === 'float' && rule.distance)
+    return (option ? rule.default : 0) as R['default']
   if (!settingFits(rule, option))
     refusal(rule.field)(`must be ${settingTakes(rule)}, got ${String(option)}`)
   return Array.isArray(option) ? ([...option] as R['default']) : (option as R['default'])
+}
+
+/** The settings of the fields of `rules` that `named` holds, each resolved by its rule
+ *  (`resolveSetting`, which refuses one the rule does not take, naming the field); a field left out
+ *  or `null` is left out of the result. */
+export function resolveNamed(
+  rules: Readonly<Record<string, SettingRule>>,
+  named: Record<string, unknown>,
+) {
+  const wire: Record<string, unknown> = {}
+  for (const field of Object.keys(rules)) {
+    const value = named[field]
+    if (value !== undefined && value !== null)
+      wire[field] = resolveSetting(rules[field], value as never)
+  }
+  return wire
 }
 
 /** Whether `value` is one `rule` takes: a switch a boolean, a number a finite one in its range,
@@ -194,14 +242,11 @@ export function settingFits(rule: SettingRule, value: unknown) {
   if (rule.kind === 'choice') return typeof value === 'string' && rule.choices.includes(value)
   if (rule.kind === 'vector')
     return (
-      Array.isArray(value) &&
-      value.length === rule.default.length &&
-      value.every((part) => typeof part === 'number' && Number.isFinite(part))
+      Array.isArray(value) && value.length === rule.default.length && value.every(isFiniteNumber)
     )
   const [low, high] = rule.range
   return (
-    typeof value === 'number' &&
-    Number.isFinite(value) &&
+    isFiniteNumber(value) &&
     (rule.kind === 'float' || Number.isInteger(value)) &&
     (rule.above ? value > low : value >= low) &&
     value <= high &&
@@ -249,12 +294,35 @@ export const settingWriter =
   <F extends keyof R>(field: F, option: SettingOptions<R>[F]) => {
     before?.()
     writeSetting(rules, options, field, option)
+    settingsWritten()
   }
 
+/** Moves at every write of a tracked context's settings: what a stamped reading is held against. */
+let settingsEpoch = 0
+/** The contexts whose every write moves `settingsEpoch` (`trackSettings`). */
+const tracked = new WeakSet<object>()
+/** Names that a write of the settings of a context was made: the epoch moves, stamped readings of
+ *  a tracked context are read again. Every writer of a tracked context calls it after its write. */
+export const settingsWritten = () => void settingsEpoch++
+/**
+ * Marks `options` as a context whose settings are written only through `settingWriter` or a writer
+ * that calls `settingsWritten`: `resolveSettingsStamped` then reads a rest of them once. Hand it the
+ * one context the session writes; an object written by any other means must not be tracked.
+ */
+export const trackSettings = <T extends object>(options: T) => (tracked.add(options), options)
+
+/** The revision of the settings `options` hold: moves at every write when `options` is tracked
+ *  (`trackSettings`), `NaN` — equal to no other — when it is not. What a derived value is held against. */
+export const settingsRevision = (options: object) => (tracked.has(options) ? settingsEpoch : NaN)
+
+/** What a stamped object was last read from: its rules, its options and the epoch. */
+type Stamp = { rules: SettingRules | undefined; options: object | undefined; epoch: number }
+const stamps = new WeakMap<object, Stamp>()
+
 /** One setting's value, whatever its kind. */
-type SettingValue = boolean | number | string | readonly number[]
+export type SettingValue = boolean | number | string | readonly number[]
 /** Whether two values of one setting are the same: a vector by its parts. */
-const sameValue = (a: SettingValue, b: SettingValue) =>
+export const sameValue = (a: SettingValue, b: SettingValue) =>
   a === b || (typeof a === 'object' && typeof b === 'object' && sameValues(a, b))
 
 /** Each group's rules in their order, read once: a frame's reading allocates no list. */
@@ -276,6 +344,42 @@ export function resolveSettingsInto<T extends SettingRules>(
   const held = options as Readonly<Record<string, SettingValue | null | undefined>>
   const out = into as Record<string, SettingValue>
   for (const [name, rule] of namedRules(rules)) out[name] = resolveSetting(rule, held[rule.field])
+  return into
+}
+
+/** Whether `into` was read now by `resolveSettingsStamped`. */
+function readStamped<T extends SettingRules>(
+  rules: T,
+  options: FieldOptions<T>,
+  into: SettingValues<T>,
+) {
+  let stamp = stamps.get(into)
+  if (stamp?.rules === rules && stamp.options === options && stamp.epoch === settingsEpoch)
+    return false
+  // `into` is about to be overwritten: no stamp may vouch for it until it is read whole (a refusal
+  // midway, or a reading of a context not tracked, leaves it as no stamped reading).
+  if (stamp) stamp.epoch = NaN
+  resolveSettingsInto(rules, options, into)
+  if (!tracked.has(options)) return true
+  if (stamp) {
+    stamp.rules = rules
+    stamp.options = options
+    stamp.epoch = settingsEpoch
+  } else stamps.set(into, { rules, options, epoch: settingsEpoch })
+  return true
+}
+
+/**
+ * `resolveSettingsInto` that reads again only when a write (`settingsWritten`) came since `into`
+ * was last read from these rules and this tracked context. `into` is the reader's own and nothing
+ * else writes it. An options object not tracked (`trackSettings`) is always read.
+ */
+export function resolveSettingsStamped<T extends SettingRules>(
+  rules: T,
+  options: FieldOptions<T>,
+  into: SettingValues<T>,
+) {
+  readStamped(rules, options, into)
   return into
 }
 
@@ -315,14 +419,14 @@ export function settingsWatch<T extends SettingRules>(rules: T) {
     moved: false,
     /** The settings `options` hold, resolved into one object that the next reading overwrites. */
     read(options: FieldOptions<T>) {
-      resolveSettingsInto(rules, options, now)
-      watch.moved = !used || settingsDiffer(rules, used, now)
+      const fresh = readStamped(rules, options, now)
+      watch.moved = !used || (fresh && settingsDiffer(rules, used, now))
       if (watch.moved) used = { ...now }
       return now
     },
     /** The settings `options` hold, resolved into an object the next peek overwrites; `moved` and
      *  what the watch compares to are untouched. */
-    peek: (options: FieldOptions<T>) => resolveSettingsInto(rules, options, apart),
+    peek: (options: FieldOptions<T>) => resolveSettingsStamped(rules, options, apart),
   }
   return watch
 }

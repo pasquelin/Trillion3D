@@ -1,16 +1,24 @@
 // A written range of placement rows moves only what moved in it. The world hands each instance
 // buffer's written span once (`session/world/poses/poses.ts`): a row of it left where it stands — a
 // still mesh between two written ones, a sleeping wheel posed again in place — is no move. The
-// shadow pages a moved root left and entered are its rows' to stale on the GPU (`rows/rowCastWgsl.ts`):
-// the follow declares no box, it only says which roots moved, flipped, or turned moving.
+// follow declares no box, it only says which roots moved, flipped, or turned moving.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { boxTransform } from '../../../math/src/geometry/box.ts'
 import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { createShadowMobility } from '../lighting/shadows/casters/mobility.ts'
-import { createPlacementRows, placementWorld, seatRootParent } from './rows/rows.ts'
+import {
+  createPlacementRows,
+  placementWorld,
+  seatDrawDistance,
+  seatRootParent,
+} from './rows/rows.ts'
 import { followPlacementRows } from './update.ts'
+import type { ClusterRoot } from '../geometry/selection/types.ts'
 import { FAR_SHADOW_ROOT, SHADOWLESS_ROOT } from '../visibility/shader/castingMark.ts'
+
+/** What a flip reads of the root it is handed: its mark, its distances and its parent. */
+type Flipped = Pick<ClusterRoot<unknown>, 'mark' | 'drawDistance' | 'rootParent'>
 
 /** A small caster, the ground under it, a box far off: local boxes, placed at the origin. */
 const BOXES = [
@@ -33,9 +41,9 @@ function placed() {
     return { pages: [], world, localBox, worldBox, placement: { rows, index } }
   })
   const mobility = createShadowMobility()
-  mobility.ensure(roots.length, 1, (rank) => roots[rank].world.elements)
+  mobility.ensure(roots.length, (rank) => roots[rank].world.elements)
   const followed: number[] = []
-  const write = (moves: number[][], flip?: (rank: number, root: { mark?: number }) => void) => {
+  const write = (moves: number[][], flip?: (rank: number, root: Flipped) => void) => {
     for (const [index, x] of moves) rows.matrices[index * 16 + 12] = x
     followed.length = 0
     const last = BOXES.length - 1
@@ -110,13 +118,17 @@ test('a row that names other draw distances hands its root the distances it name
     seen: [number, unknown][] = []
   const flip = (rank: number, root: { drawDistance?: unknown }) =>
     seen.push([rank, root.drawDistance])
-  rows.drawDistance = new Float32Array(2 * BOXES.length)
-  rows.drawDistance.set([2, 50], 2)
+  seatDrawDistance(rows, 1, { min: 2, max: 50, perInstance: false })
   assert.equal(write([], flip), true, 'a distance named: the root is flipped')
-  assert.deepEqual(seen, [[1, { min: 2, max: 50 }]])
+  assert.deepEqual(seen, [[1, { min: 2, max: 50, perInstance: false }]])
   seen.length = 0
   assert.equal(write([], flip), false, 'written again unchanged: nothing')
-  rows.drawDistance.set([0, 0], 2)
+  // A nearest alone is a distance of an object of its own: the root is flipped for it too.
+  seatDrawDistance(rows, 1, { min: 4, max: 0, perInstance: false })
+  assert.equal(write([], flip), true, 'a nearest alone')
+  assert.deepEqual(seen, [[1, { min: 4, max: 0, perInstance: false }]])
+  seen.length = 0
+  seatDrawDistance(rows, 1, undefined)
   assert.equal(write([], flip), true, 'the distance taken back')
   assert.deepEqual(seen, [[1, undefined]])
   assert.equal(mobility.moves(1), false, 'no distance makes a root move')

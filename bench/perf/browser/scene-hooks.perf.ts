@@ -4,10 +4,10 @@
 // gives the spread (A/A). The watch's per-frame read over the same nodes is measured on its own.
 import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../../packages/sdk-browser/src/session/host/resources.ts'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
 import { createHostSceneWatch } from '../../../packages/sdk-browser/src/scene/host/scan/watch.ts'
+import type { PageMesh } from '../../../packages/sdk-browser/src/geometry/pages/pageMesh.ts'
 
 const NODES = 20000
 const GROUPS = 200
@@ -46,7 +46,7 @@ function hooked() {
 }
 
 /** The world matrices of one mesh in two hundred, after a forced walk of the whole graph. */
-function walk({ root, meshes }: { root: Group; meshes: HostMesh[] }) {
+function walk({ root, meshes }: { root: Group; meshes: PageMesh[] }) {
   root.updateMatrixWorld(true)
   const sample = new Float64Array((meshes.length / 200) * 16)
   for (let i = 0; i < meshes.length; i += 200)

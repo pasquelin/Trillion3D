@@ -19,7 +19,7 @@ async function walkInto(
   const jolt = await softWorld()
   settle(jolt, addSoft(jolt, geometry, options, position, { quaternion }), 1)
   const driver = standCharacter(jolt, new Uint32Array(0), [0, 0, 0])
-  driver.press({ wishX: 1, wishZ: 0, sprint: false }, 0)
+  driver.press({ wishX: 1, wishZ: 0 }, 0)
   const feet: [number, number][] = []
   for (let t = 0; t < 3; t += PHYSICS_STEP) {
     jolt.step(driver.command(PHYSICS_STEP, jolt.active() > 0), PHYSICS_STEP)

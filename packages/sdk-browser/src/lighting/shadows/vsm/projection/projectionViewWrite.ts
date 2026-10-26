@@ -83,7 +83,7 @@ function viewMatrices(camera: ViewInputs['camera']) {
 
 /** The view's header from the matrices of `scratch` (`viewMatrices`), its light `count` included,
  *  the screen's words after it (`writeScreenWords`). */
-function writeViewHeader(view: ViewWords, inputs: ViewInputs, count: number) {
+function writeViewHeader(view: ViewWords, inputs: ViewInputs, count: number, suns: number) {
   const { f, u } = view,
     s = scratch,
     eye = s.viewInverse,
@@ -107,6 +107,7 @@ function writeViewHeader(view: ViewWords, inputs: ViewInputs, count: number) {
   u[VSM_PROJECTION_VIEW_WORD.isOrtho] = perspective ? 0 : 1
   for (let k = 0; k < 3; k++) f[VSM_PROJECTION_VIEW_WORD.shiftedEye + k] = eye[12 + k] + shift[k]
   u[VSM_PROJECTION_VIEW_WORD.lightCount] = count
+  u[VSM_PROJECTION_VIEW_WORD.sunCount] = suns
   // The view's forward axis: its +Z (row 2 of shiftedToView).
   f[VSM_PROJECTION_VIEW_WORD.viewForward] = s.shiftedToView[2]
   f[VSM_PROJECTION_VIEW_WORD.viewForward + 1] = s.shiftedToView[6]
@@ -172,9 +173,10 @@ function writeLightRecord(
   f[o + L.cosCone] = light.type === 'spot' ? Math.cos(light.coneAngle) : NO_CONE
   i[o + L.mapId] = light.mapId | 0
   u[o + L.kind] = KIND[light.type]
+  i[o + L.firstPersonMapId] = light.firstPersonMapId ?? -1
 }
 
-/** Writes `VsmProjectionView` for these inputs and ≤ 64 lights into its staging words: its header
+/** Writes `VsmProjectionView` for these inputs and the lights, the suns first into its staging words: its header
  *  and the lights' records, the shader reading no record past its light count; returns the bytes
  *  written. */
 export function writeVsmProjectionView(
@@ -186,7 +188,9 @@ export function writeVsmProjectionView(
     words = VSM_PROJECTION_HEADER_WORDS + VSM_PROJECTION_LIGHT_WORDS * count
   view.f.fill(0, 0, words)
   viewMatrices(inputs.camera)
-  writeViewHeader(view, inputs, count)
+  let suns = 0
+  while (suns < count && lights[suns].type === 'directional') suns++
+  writeViewHeader(view, inputs, count, suns)
   for (let k = 0; k < count; k++)
     writeLightRecord(
       view,

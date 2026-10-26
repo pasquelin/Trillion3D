@@ -4,11 +4,9 @@ import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { pagesBounds } from './pagesBounds.ts'
 import { emptyWorldBox } from '../host/world/bounds.ts'
 import { createPlacementRows } from '../../placement/rows/rows.ts'
-import { asHostLibrary } from '../../session/host/resources.ts'
 import { indexManifestPages, indexManifestBundles } from '../manifestPageIndex.ts'
 import {
   referenceIndexManifestPages,
@@ -19,11 +17,12 @@ import type {
   Page,
   Primitive,
 } from '../../../../sdk-core/src/contracts/geometry.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 // Three manifest reads go from a `find` or `flatMap` per mesh/page to a single indexed walk.
 // `indexManifestPages`/`indexManifestBundles` (../../scene/manifestPageIndex.ts) and `pagesBounds`
 // (./pagesBounds.ts, via `primitiveFinder`) must return exactly what the four `flatMap`s and the
-// `find` return. The oracles are copied as-is in `bench/oracles/browser/bounds-and-index.ts`.
+// `find` return. The oracles are copied as-is in `bench/oracles/browser/manifest-index.ts`.
 function pageDe(id: number, url: string, geometryUrl?: string): Page {
   const page = { id, url, sha256: url, bytes: 8, count: 3, min: [0, 0, 0], max: [1, 1, 1] } as Page
   if (geometryUrl)
@@ -85,12 +84,12 @@ test('pagesBounds boxes the exact page at the mesh position, a « coarse » page
   const metadata = {
     primitives: [{ mesh: 0, primitive: 0, pages: [exact, grossiere] }],
   } as unknown as ClusterManifest
-  const associations = new Map<HostMesh, { meshes: number; primitives: number }>([
+  const associations = new Map<PageMesh, { meshes: number; primitives: number }>([
     [meshFound, { meshes: 0, primitives: 0 }],
   ])
-  const manques: HostMesh[] = []
+  const manques: PageMesh[] = []
   const actual = pagesBounds(source, associations, metadata, (m) =>
-    manques.push(asHostLibrary<HostMesh>(m)),
+    manques.push(m as unknown as PageMesh),
   )
   assert.deepEqual(Array.from(actual), [2, 0, 0, 3, 1, 1])
   assert.deepEqual(manques, [meshMissing])
@@ -125,10 +124,10 @@ function hostileScene(nanShift: boolean) {
       { mesh: 1, primitive: 0, pages: [page] },
     ],
   } as unknown as ClusterManifest
-  const boxOf = (mesh: HostMesh, manifestMesh: number) =>
+  const boxOf = (mesh: PageMesh, manifestMesh: number) =>
     pagesBounds(
       source,
-      new Map<HostMesh, { meshes: number; primitives: number }>([
+      new Map<PageMesh, { meshes: number; primitives: number }>([
         [mesh, { meshes: manifestMesh, primitives: 0 }],
       ]),
       metadata,
@@ -165,7 +164,7 @@ test('pagesBounds reuses the `into` output instead of allocating one per page', 
     return p
   })
   const metadata = { primitives: [{ mesh: 0, primitive: 0, pages }] } as unknown as ClusterManifest
-  const associations = new Map<HostMesh, { meshes: number; primitives: number }>([
+  const associations = new Map<PageMesh, { meshes: number; primitives: number }>([
     [mesh, { meshes: 0, primitives: 0 }],
   ])
   const into = emptyWorldBox()

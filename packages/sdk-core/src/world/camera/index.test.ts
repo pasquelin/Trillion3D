@@ -117,15 +117,13 @@ test('a clip plane is the point it passes through and the unit normal of the sid
     assert.throws(() => (eye.clipPlane = bad as never), /clipPlane: /)
 })
 
-test('a view that has a plane is drawn without temporal jitter, the set saying so where it is made', () => {
+test('a list written leaves the plane of the set as it was', () => {
   const eye = camera.perspective()
-  assert.equal(eye._viewSet.jitters, true)
   eye.clipPlane = { base: [0, 3, 0] }
-  assert.equal(eye._viewSet.jitters, false)
+  const plane = eye._viewSet.clipPlane
   eye.hidden = []
-  assert.equal(eye._viewSet.jitters, false, 'a list written leaves it as the plane says')
+  assert.equal(eye._viewSet.clipPlane, plane)
   eye.clipPlane = null
-  assert.equal(eye._viewSet.jitters, true)
   assert.equal(eye._viewSet.hidden.length, 0)
 })
 

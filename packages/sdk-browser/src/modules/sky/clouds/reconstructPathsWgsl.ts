@@ -1,6 +1,7 @@
 /**
- * THE RECONSTRUCTION'S PATHS, each the body of `reconstructMain` for one kind of image (the program
- * that holds it, `reconstructWgsl.ts`, declares what they read and write, and `reproject`):
+ * THE RECONSTRUCTION'S PATHS, each the body of `reconstructPixel`, which `reconstructMain` writes
+ * for one kind of image (the program that holds it, `reconstructWgsl.ts`, declares what they read
+ * and write, and `reproject`):
  * - `MIN_MAX_PATH`: the history with two surfaces (mode 0), the colour, the secondary colour and
  *   the depth written;
  * - `plainPath`: the history with one surface (mode 0 without two surfaces), the colour and the
@@ -21,7 +22,7 @@ const HISTORY_EDGE_KM = 1
  *  new one where the closest depths of the two differ by more than a kilometre, an empty cloud at
  *  1000 km where anything it read is not finite; else the traced image read bilinearly. */
 export const MIN_MAX_PATH = `
-@fragment fn reconstructMain(@builtin(position) position:vec4f)->Reconstructed{
+fn reconstructPixel(position:vec4f)->Reconstructed{
  let screenUv=position.xy*view.destination.zw;
  let r=reproject(position.xy);
  let fresh=Taps(loadBounded(tracedColour,view.traced,r.cell),loadBounded(tracedSecondary,view.traced,r.cell),fixupDepth(depthData(r.depth)));
@@ -101,7 +102,7 @@ const BOX_CONSTRAINT = `
  *  history's depth is off the pixel's own by a tenth of it (`halfDepth` giving the pixel's), held
  *  to the box if asked; else the traced image read bilinearly. */
 export const plainPath = (boxConstraint: boolean) => `${PLAIN_OUT}${PIXEL_DISTANCE}${NEIGHBOURS}
-@fragment fn reconstructMain(@builtin(position) position:vec4f)->Reconstructed{
+fn reconstructPixel(position:vec4f)->Reconstructed{
  let screenUv=position.xy*view.destination.zw;
  let r=reproject(position.xy);
  let freshColour=loadBounded(tracedColour,view.traced,r.cell);
@@ -138,7 +139,7 @@ export const plainPath = (boxConstraint: boolean) => `${PLAIN_OUT}${PIXEL_DISTAN
  *  reprojected one, else the traced image read bilinearly, shifted so that the pixels traced now
  *  line up with the centres of their traced texels. */
 export const MODE2_PATH = (downsample: number) => `${PLAIN_OUT}
-@fragment fn reconstructMain(@builtin(position) position:vec4f)->Reconstructed{
+fn reconstructPixel(position:vec4f)->Reconstructed{
  let screenUv=position.xy*view.destination.zw;
  let r=reproject(position.xy);
  if(r.tracedNow){return plainOut(loadBounded(tracedColour,view.traced,r.cell),depthData(r.depth));}
@@ -153,13 +154,13 @@ export const MODE2_PATH = (downsample: number) => `${PLAIN_OUT}
 export const firstPath = (minMax: boolean) =>
   minMax
     ? `
-@fragment fn reconstructMain(@builtin(position) position:vec4f)->Reconstructed{
+fn reconstructPixel(position:vec4f)->Reconstructed{
  let screenUv=position.xy*view.destination.zw;
  return Reconstructed(sampleTraced(tracedColour,screenUv),sampleTraced(tracedSecondary,screenUv),sampleTraced(tracedDepth,screenUv));
 }
 `
     : `${PLAIN_OUT}
-@fragment fn reconstructMain(@builtin(position) position:vec4f)->Reconstructed{
+fn reconstructPixel(position:vec4f)->Reconstructed{
  let screenUv=position.xy*view.destination.zw;
  return plainOut(sampleTraced(tracedColour,screenUv),depthData(sampleTraced(tracedDepth,screenUv)));
 }

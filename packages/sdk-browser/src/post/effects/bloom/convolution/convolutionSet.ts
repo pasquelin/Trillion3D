@@ -4,6 +4,7 @@ import { createWebgpuBindIdentity } from '../../../../gpu/bind/bindIdentity.ts'
 import { retire } from '../../../../gpu/core/frameRetire.ts'
 import { namedGroup } from '../../../../gpu/core/computeBindings.ts'
 import { dispatchOn } from '../../../../gpu/core/computeStages.ts'
+import { chainReady } from '../../../../lighting/deferred/fullscreen.ts'
 import { sameValues } from '../../../../../../math/src/matrix/matrixElements.ts'
 import { uniformBlock, type UniformBlock } from '../../../../gpu/core/uniformBlock.ts'
 import { BLOOM_PASS } from '../../../../diagnostic/stage/passLabels.ts'
@@ -22,6 +23,8 @@ import type { ConvolutionTargets } from './convolutionTargets.ts'
 import { applyConstants, type ApplyConstants, type KernelStats, type Vec4 } from './kernelStats.ts'
 import { planConvolution, type ConvolutionPlan } from './plan.ts'
 import { writeTransformWords } from './transformShape.ts'
+
+const PASS: GPUComputePassDescriptor = { label: BLOOM_PASS }
 
 /** What a convolution leaves for the composition: the glow, what the image keeps of its own light —
  *  its colour times this, the rest having moved to the glow — and the passes encoded. */
@@ -215,7 +218,7 @@ function createTransformPass(device: GPUDevice, programs: Programs, targets: Con
           glow,
           twiddles,
         })
-      const pass = encoder.beginComputePass({ label: BLOOM_PASS })
+      const pass = encoder.beginComputePass(PASS)
       dispatchOn(pass, transform.forwardRows, groups[0], shape.lines)
       dispatchOn(pass, transform.convolveColumns, groups[1], shape.columns)
       dispatchOn(pass, transform.inverseRows, groups[2], shape.lines)
@@ -261,9 +264,15 @@ export function createConvolution(device: GPUDevice, targets: ConvolutionTargets
       const conv = bloom.convolution
       const plan = planFor(post.scene.imageSize, settings.bloomScreenPercentage, conv)
       // The transform's programs for this plan's line: asked at the first sight of a size, the frames held
-      // on them and the kind's `arriving` told; nothing is drawn meanwhile.
+      // on them and the kind's `arriving` told. The kernel's, the input's and the transform's run
+      // whole or not at all, nothing drawn meanwhile: a kernel made by a missing program would be kept.
       const line = programs.transforms.of(transformLineOf(plan))
-      if (!line.ready) return undefined
+      const chain = [
+        ...Object.values(programs.kernel),
+        programs.input,
+        ...Object.values(line.stages),
+      ]
+      if (!chainReady(...chain)) return undefined
       // The method requires the kernel (`resolveBloom`).
       const spectrum = kernel.ensure(encoder, plan, conv.kernel!, settings.bloomCacheKernel)
       if (!spectrum.buffer) return undefined

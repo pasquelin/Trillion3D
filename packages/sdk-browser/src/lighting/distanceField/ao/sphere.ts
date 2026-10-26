@@ -3,7 +3,7 @@ import { TAU } from '../../../../../math/src/constants.ts'
 import { BOUNDING_SPHERE_RINGS } from './cones.ts'
 
 /** The sides of the low-poly sphere that bounds a mesh (`stencilSphere`). */
-export const BOUNDING_SPHERE_SIDES = 4
+const BOUNDING_SPHERE_SIDES = 4
 
 /**
  * THE LOW-POLY SPHERE a mesh's bounds are drawn as (`dfaoObjectCullVs`): a unit sphere of `BOUNDING_SPHERE_SIDES`

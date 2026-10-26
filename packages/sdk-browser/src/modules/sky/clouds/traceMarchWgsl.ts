@@ -19,15 +19,30 @@ fn cloudNdc(p:vec2u)->vec2f{
 /** The point at device depth \`z\` on the ray of \`ndc\`. */
 fn cloudUnproject(ndc:vec2f,z:f32)->vec3f{
  return unprojectPoint(cloudTrace.inverseView,vec3f(ndc,z));
+}
+/** A ray in the scene: its origin in metres and its unit direction. */
+struct CloudViewRay{origin:vec3f,dir:vec3f,}
+/** The ray of the pixel of \`ndc\`. A perspective view's leaves the eye and passes through the pixel.
+ *  An orthographic view's (\`frame.eye.w\` 0) leaves the pixel's own point on the near plane (device
+ *  depth 1) and runs along the view's direction, the same for every pixel. */
+fn cloudViewRay(ndc:vec2f)->CloudViewRay{
+ var ray:CloudViewRay;
+ ray.origin=frame.eye.xyz;
+ if(frame.eye.w==0.0){ray.origin=cloudUnproject(ndc,1.0);}
+ ray.dir=normalize(cloudUnproject(ndc,0.5)-ray.origin);
+ return ray;
 }`,
 )
 
 /** The ray's shell: its entry and exit of the layer. */
 export const CLOUD_SHELL_WGSL = `
+/** The radius of the layer's bottom and of its top, kilometres from the planet's centre. */
+fn cloudBottomKm()->f32{return cloudPlanetKm(cloudTrace.counts.w==1u,cloudTrace.sky.x)+cloudTrace.layer.x;}
+fn cloudTopKm()->f32{return cloudBottomKm()+cloudTrace.layer.y;}
 /** The ray's entry and exit of the layer, in centimetres; false where it never meets the shell. */
 fn cloudShell(r:ptr<function,CloudRay>)->bool{
- let bottom=cloudPlanetKm(cloudTrace.counts.w==1u,cloudTrace.sky.x)+cloudTrace.layer.x;
- let tTop=raySphere((*r).origin,(*r).dir,bottom+cloudTrace.layer.y);
+ let bottom=cloudBottomKm();
+ let tTop=raySphere((*r).origin,(*r).dir,cloudTopKm());
  let tBottom=raySphere((*r).origin,(*r).dir,bottom);
  (*r).tTop=tTop;
  (*r).tBottom=tBottom;
@@ -69,7 +84,7 @@ fn cloudMaxDistance(r:ptr<function,CloudRay>,depthCm:f32)->bool{
 fn cloudMeanDepth(a:CloudAccum,noCloud:f32)->f32{
  return select(a.tapSum/max(0.0000000001,a.tapWeights),noCloud,a.tapWeights==0.0);
 }
-/** The haze on the cloud at \`there\`, \`depthCm\` along \`dir\` from the eye: in a capture, the one
+/** The haze on the cloud at \`there\`, \`depthCm\` along \`dir\` from the ray's origin: in a capture, the one
  *  around the capture's place; else, with a start for the Mie or the Rayleigh scattering past 0, the
  *  two volumes read apart, each from the larger of the air's start and its own, the light summed
  *  and the transmittances multiplied; else the view's volume. */
@@ -84,14 +99,16 @@ fn cloudAir(there:vec3f,eye:vec3f,dir:vec3f,depthCm:f32)->vec4f{
  }
  return aerialPerspective(there,eye);
 }
-/** The ray's luminance with the haze of the air laid over it, then the fog of the scene where the
- *  trace lays it (the late fog off: on the pixels the ray met cloud on, or on every pixel), at its
- *  mean distance \`meanDepth\` (\`cloudMeanDepth\`), and its transmittance, the grey of the three
- *  channels' mean, nothing under the opacity limit. */
-fn cloudFinish(a:CloudAccum,meanDepth:f32,dir:vec3f)->vec4f{
+/** The ray's luminance, none where the clouds are a hole in the alpha (\`alphaHole\`), with the haze of
+ *  the air laid over it, then the fog of the scene where the trace lays it (the late fog off: on the
+ *  pixels the ray met cloud on, or on every pixel), at its
+ *  mean distance \`meanDepth\` (\`cloudMeanDepth\`) and in the view's pixel \`pixel\`, which finds the local fog
+ *  volumes' tile, and its transmittance, the grey of the three channels' mean, nothing under the
+ *  opacity limit. */
+fn cloudFinish(a:CloudAccum,meanDepth:f32,dir:vec3f,pixel:vec2f)->vec4f{
  let mean=dot(a.transmittance,vec3f(1.0/3.0));
- var luminance=a.luminance;
- let eye=frame.eye.xyz;
+ var luminance=select(a.luminance,vec3f(0.0),cloudTrace.local.y!=0.0);
+ let eye=cloudOrigin;
  let there=eye+dir*(meanDepth*CLOUD_CM_TO_M);
  let inTrace=cloudTrace.switches.x==1u;
  let everywhere=inTrace&&cloudTrace.switches.y==1u;
@@ -100,17 +117,18 @@ fn cloudFinish(a:CloudAccum,meanDepth:f32,dir:vec3f)->vec4f{
   luminance=air.rgb*(1.0-mean)+air.a*luminance;
  }
  if(inTrace&&(everywhere||a.tapWeights>0.0)){
-  let fog=fogOverNoHaze(there,eye);
+  let fog=fogOverNoHaze(there,eye,pixel);
   luminance=fog.rgb*(1.0-mean)+fog.a*luminance;
  }
  return vec4f(luminance,select(mean,0.0,mean<cloudTrace.layer.w));
 }
 /** How far the sample at \`t\` along the ray moves for a pixel to the right and one below, from the
- *  rays of the neighbouring pixels (\`rayX\`, \`rayY\`): what the material picks the level of its
- *  textures from (\`cloudDdx\`). The shadow samples keep the main sample's. */
-fn cloudFootprint(t:f32,dir:vec3f,rayX:vec3f,rayY:vec3f){
- let dx=(rayX-dir)*t;
- let dy=(rayY-dir)*t;
+ *  rays of the neighbouring pixels (\`rayX\`, \`rayY\`: their origins, which differ in an orthographic
+ *  view, and their directions): what the material picks the level of its textures from
+ *  (\`cloudDdx\`). The shadow samples keep the main sample's. */
+fn cloudFootprint(t:f32,dir:vec3f,rayX:CloudViewRay,rayY:CloudViewRay){
+ let dx=(rayX.origin-cloudOrigin)*CLOUD_M_TO_CM+(rayX.dir-dir)*t;
+ let dy=(rayY.origin-cloudOrigin)*CLOUD_M_TO_CM+(rayY.dir-dir)*t;
  cloudDdx=vec3f(dx.x,dx.z,dx.y);
  cloudDdy=vec3f(dy.x,dy.z,dy.y);
 }
@@ -126,8 +144,8 @@ fn cloudMarch(r:CloudRay,closestCm:f32,p:vec2u)->CloudMarched{
  let octaves=cloudOctaves();
  let lights=cloudLights(r.dir);
  let pixel=vec2u((vec2f(p)+0.5)*f32(cloudTrace.mapping.y));
- let rayX=normalize(cloudUnproject(cloudNdc(p+vec2u(1u,0u)),0.5)-frame.eye.xyz);
- let rayY=normalize(cloudUnproject(cloudNdc(p+vec2u(0u,1u)),0.5)-frame.eye.xyz);
+ let rayX=cloudViewRay(cloudNdc(p+vec2u(1u,0u)));
+ let rayY=cloudViewRay(cloudNdc(p+vec2u(0u,1u)));
  var jitter=0.5;
  if(cloudTrace.options.y==0u){jitter=blueNoiseScalar(pixel,cloudTrace.sizes.x);}
  var t=r.tMin+jitter*stepT;
@@ -136,13 +154,14 @@ fn cloudMarch(r:CloudRay,closestCm:f32,p:vec2u)->CloudMarched{
   if(i>=steps){break;}
   let rel=r.dir*t;
   cloudFootprint(t,r.dir,rayX,rayY);
-  let here=cloudPointAt(rel);
-  if(here.spot.conservativeDensity.x<=0.0){
+  let probe=cloudProbeAt(rel);
+  if(!cloudProbeDense(probe)){
    i+=onEmpty;
    t+=f32(onEmpty)*stepT;
    continue;
   }
-  if(here.norm<=0.0||here.norm>=1.0){continue;}
+  if(probe.norm<=0.0||probe.norm>=1.0){continue;}
+  let here=cloudPointOf(probe,rel);
   cloudSampleStep(rel,t,here.norm,here.spot,lights,octaves,stepT*CLOUD_CM_TO_M,closestCm,&m);
   if(all(m.seen.transmittance<vec3f(cloudTrace.layer.w))){break;}
   continuing{

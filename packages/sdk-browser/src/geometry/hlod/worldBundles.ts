@@ -9,8 +9,8 @@
  * the queue's transfers are in flight whatever the cells in reach, and the bundles queued end to
  * end in the binary are one request. The queue is the one shared read: a bundle on its way is one
  * read whoever asks it, and one no hold waits on is dropped unread while it waits. A read that
- * fails and may pass waits its turn in the queue, the holds still waiting
- * (`../streaming/failures.ts`); one that fails for good is refused at once. A hold whose session
+ * fails is asked again at once by the queue, the holds still waiting, as many times as its tries
+ * allow (`../streaming/failures.ts`); one that failed past them is refused at once. A hold whose session
  * closed while it read waits for the next session's queue (`bind`), and reads there.
  *
  * A bundle held is pinned in the page cache of the session it was read through, its pages served
@@ -139,14 +139,40 @@ function createBinding(table: WorldRoots, url: string, kept: (session: PageQueue
   }
 }
 
-/** The bundles of `table`'s binary at `url` the HLOD cells hold, read through the queue each
- *  session binds (`bind`). */
-export function createWorldBundles(table: WorldRoots, url: string) {
-  // Per HLOD cell, the bundles of its actor's roots: the table's own list.
-  const cellBundles = (cell: number): readonly number[] => table.hlod[cell] ?? []
-  const watchers = createListeners<Parameters<Watcher>>(),
-    counts = createBundleCounts(table, url, watchers, cellBundles),
-    { held, take, listed } = counts
+type BundleCounts = ReturnType<typeof createBundleCounts>
+
+/** The bundles of `bundles` not read yet, held as `owns`, read through `session` as `asked` and
+ *  pinned there by `pinIn`. A bundle of no bytes holds no page: nothing to read. */
+const readOn = (
+  table: WorldRoots,
+  url: string,
+  counts: BundleCounts,
+  pinIn: (own: Held, bundle: number, session: PageQueue) => void,
+  session: PageQueue,
+  bundles: readonly number[],
+  owns: Held[],
+  asked: WorldHold,
+) => {
+  const signal = asked.signal ?? session.signal,
+    priority = asked.priority ?? PRIORITY_VISIBLE
+  const reads = owns.map((own, at) =>
+    own.pinnedIn || table.bundles[bundles[at]].bytes === 0
+      ? undefined
+      : session.readBytes(worldBundleAddress(table, url, bundles[at]), signal, priority).then(
+          () => pinIn(own, bundles[at], session),
+          (error: unknown) => {
+            // Refused for good, not let go: no read of this session would pass.
+            if (!signal.aborted && !session.signal.aborted) counts.failed(bundles[at])
+            throw error
+          },
+        ),
+  )
+  return Promise.all(reads)
+}
+
+/** The reads of the bundles `counts` holds, through the queue each session binds. */
+function createBundleReads(table: WorldRoots, url: string, counts: BundleCounts) {
+  const { held } = counts
   /** `own`, bundle `bundle` read, pinned in `session`'s cache: there alone. */
   const pinIn = (own: Held, bundle: number, session: PageQueue) => {
     if (own.pinnedIn === session || !held.has(bundle)) return
@@ -159,30 +185,6 @@ export function createWorldBundles(table: WorldRoots, url: string) {
   const binding = createBinding(table, url, (session) => {
     for (const [bundle, own] of held) if (own.pinnedIn) pinIn(own, bundle, session)
   })
-  /** The bundles of `bundles` not read yet, held as `owns`, read through `session` as `asked` and
-   *  pinned there. A bundle of no bytes holds no page: nothing to read. */
-  const readOn = (
-    session: PageQueue,
-    bundles: readonly number[],
-    owns: Held[],
-    asked: WorldHold,
-  ) => {
-    const signal = asked.signal ?? session.signal,
-      priority = asked.priority ?? PRIORITY_VISIBLE
-    const reads = owns.map((own, at) =>
-      own.pinnedIn || table.bundles[bundles[at]].bytes === 0
-        ? undefined
-        : session.readBytes(worldBundleAddress(table, url, bundles[at]), signal, priority).then(
-            () => pinIn(own, bundles[at], session),
-            (error: unknown) => {
-              // Refused for good, not let go: no read of this session would pass.
-              if (!signal.aborted && !session.signal.aborted) counts.failed(bundles[at])
-              throw error
-            },
-          ),
-    )
-    return Promise.all(reads)
-  }
   /** What `use` reads through the queue bound now, else the next one bound, till `signal` lets
    *  go: a read its session's close stopped is asked again of the next session's queue. */
   const onBound = async <T>(
@@ -198,9 +200,26 @@ export function createWorldBundles(table: WorldRoots, url: string) {
       }
     }
   }
-  /** The pages of `bundles`, held as `owns`, read as `asked`. */
-  const read = (bundles: readonly number[], owns: Held[], asked: WorldHold) =>
-    onBound(asked.signal, (session) => readOn(session, bundles, owns, asked))
+  return {
+    binding,
+    onBound,
+    /** The pages of `bundles`, held as `owns`, read as `asked`. */
+    read: (bundles: readonly number[], owns: Held[], asked: WorldHold) =>
+      onBound(asked.signal, (session) =>
+        readOn(table, url, counts, pinIn, session, bundles, owns, asked),
+      ),
+  }
+}
+
+/** The bundles of `table`'s binary at `url` the HLOD cells hold, read through the queue each
+ *  session binds (`bind`). */
+export function createWorldBundles(table: WorldRoots, url: string) {
+  // Per HLOD cell, the bundles of its actor's roots: the table's own list.
+  const cellBundles = (cell: number): readonly number[] => table.hlod[cell] ?? []
+  const watchers = createListeners<Parameters<Watcher>>(),
+    counts = createBundleCounts(table, url, watchers, cellBundles),
+    { held, take, listed } = counts
+  const { binding, onBound, read } = createBundleReads(table, url, counts)
   return {
     /** `cell` holds its actor's roots: their bundles are held, those neither read nor on their way
      *  read. Each hold is released once (`release`), landed or not: a hold

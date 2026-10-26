@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeDagKernels } from './encode.ts'
-import { witnessEncoder, cutResources, LIVE, CAND, DRAWN, QUEUE } from './encode.fixture.ts'
+import { witnessEncoder, cutResources, VISIBLE, CAND, QUEUE } from './encode.fixture.ts'
 
 test('a frame opens one command, whatever the depth', () => {
   // What the GPU pays between two kernels is counted in COMMANDS, not threads: each compute pass
@@ -23,31 +23,26 @@ test('each list is armed in the pass after the kernel that fills it, before the 
   encodeDagKernels(witness.encoder, cutResources())
   const { dispatches, armements, boundGroups } = witness.read()
   const kernels = dispatches.map((l) => l.kernel)
-  // Before the journal's clear (the previous frame's drawn count), before each level past pass 0
-  // (the queue the level before it filled), after the descent (the candidates), after `dagWanted`
-  // (the live clusters), after `dagDrawPrefix` (the live list whole, both passes' entries).
+  // Before each level past pass 0 (the queue the level before it filled), after the descent (the
+  // candidates), after the cut's finish (the visible clusters of both passes).
   assert.deepEqual(armements, [
-    kernels.indexOf('dagClearDrawn'),
     kernels.indexOf('dagLevel1'),
     kernels.indexOf('dagLevel2'),
     kernels.indexOf('dagWanted'),
-    kernels.indexOf('dagMask'),
-    kernels.indexOf('dagDrawScatter'),
+    kernels.indexOf('dagDrawn'),
   ])
   assert.deepEqual(
     dispatches.filter((l) => l.groups === 'indirect').map((l) => [l.kernel, l.list]),
     [
-      ['dagClearDrawn', DRAWN],
       ['dagLevel1', QUEUE + 1],
       ['dagLevel2', QUEUE + 2],
       ['dagWanted', CAND],
-      ['dagMask', LIVE],
-      ['dagDrawScatter', LIVE],
+      ['dagDrawn', VISIBLE],
     ],
   )
   // The arming group in place, then the selection's back before any kernel of the cut.
   const arm = boundGroups.flatMap((g, at) => ((g as { nom?: string }).nom ? [at] : []))
-  assert.equal(arm.length, 6)
+  assert.equal(arm.length, 4)
   for (const at of arm) assert.notEqual((boundGroups[at + 1] as { nom?: string }).nom, 'armGroup')
 })
 

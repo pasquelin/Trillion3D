@@ -5,6 +5,7 @@
 
 use super::BitReader;
 use core::f32::consts::{PI, TAU};
+use trillion3d_math::vector::octahedral::{project, unproject_unfolded};
 use trillion3d_math::vector::vec3::{cross, divide, unit_where_squared};
 use trillion3d_math::vector::vecn::{add, dot, length, scale};
 
@@ -91,26 +92,6 @@ pub(crate) fn tangent_decode_stream(words: &[u32], bits: u32, normals: &[u32], o
     }
 }
 
-/// The octahedral map's point of the normal `[x, y, z]`: its components over the sum of their
-/// magnitudes, the lower half (`z < 0`) folded over the upper one.
-fn project([x, y, z]: [f32; 3]) -> [f32; 2] {
-    let sum = x.abs() + y.abs() + z.abs();
-    let (x, y, z) = (x / sum, y / sum, z / sum);
-    // Each axis `1 − |other|`, on its own side.
-    let fold = |side: f32, other: f32| {
-        if side >= 0.0 {
-            1.0 - other.abs()
-        } else {
-            other.abs() - 1.0
-        }
-    };
-    if z < 0.0 {
-        [fold(x, y), fold(y, x)]
-    } else {
-        [x, y]
-    }
-}
-
 /// A normal's two cells on the octahedron of `bits` bits an axis, `x` first: the projected point
 /// scaled to the cells and cut to the one below it on each axis, then of the four cells around it —
 /// that cell, the next in `x`, the next in `y`, both — the one whose decoded direction lies
@@ -148,14 +129,11 @@ pub(crate) fn normal_code(n: [f32; 3], bits: u32) -> [u32; 2] {
 
 /// The unit normal two cells stand for on the octahedron of `bits` bits an axis (`normal_code`):
 /// each cell times the grid's step less one, `z` one less their magnitudes, the lower half unfolded
-/// by what `z` lacks of zero, the vector divided by its length.
+/// by what `z` lacks of zero (`unproject_unfolded`), the vector divided by its length.
 pub(crate) fn normal_decode([cx, cy]: [u32; 2], bits: u32) -> [f32; 3] {
     let step = 2.0 / ((1u32 << bits) - 1) as f32;
     let (x, y) = (cx as f32 * step - 1.0, cy as f32 * step - 1.0);
-    let z = (1.0 - x.abs()) - y.abs();
-    let lack = if z < 0.0 { (-z).min(1.0) } else { 0.0 };
-    let unfold = |v: f32| if v >= 0.0 { v - lack } else { v + lack };
-    let v = [unfold(x), unfold(y), z];
+    let v = unproject_unfolded([x, y]);
     divide(v, length(v))
 }
 

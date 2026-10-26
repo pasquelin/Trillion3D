@@ -1,5 +1,6 @@
 use super::*;
 use crate::compiler::accessor::codes::UNSIGNED_INT;
+use crate::compiler::primitive::triangles::{primitive_mode, TRIANGLES};
 use crate::compiler::source::buffers::append_accessor;
 use draco_core::{DecodeLimits, DecoderBuffer, FaceIndex, Mesh, MeshDecoder};
 mod attributes;
@@ -22,8 +23,8 @@ pub(super) fn expand(g: &mut Value, binary: Binary, budget: &Budget<'_>) -> Resu
     for (mi, pi) in jobs {
         let primitive = g["meshes"][mi]["primitives"][pi].clone();
         let ext = &primitive["extensions"][DRACO];
-        let mode = optional_index(primitive.get("mode"), "primitive.mode", 4)?;
-        if !matches!(mode, 4 | 5) {
+        let mode = primitive_mode(&primitive)?;
+        if !matches!(mode, TRIANGLES | 5) {
             return Err(invalid(
                 "Draco requires triangle or triangle strip primitives",
             ));
@@ -114,7 +115,7 @@ pub(super) fn expand(g: &mut Value, binary: Binary, budget: &Budget<'_>) -> Resu
         let primitive = &mut g["meshes"][mi]["primitives"][pi];
         primitive["attributes"] = attributes;
         primitive["indices"] = json!(id);
-        primitive["mode"] = json!(4);
+        primitive["mode"] = json!(TRIANGLES);
         primitive["extensions"]
             .as_object_mut()
             .unwrap()

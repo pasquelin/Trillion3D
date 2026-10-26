@@ -41,7 +41,7 @@ function placeGroups(g: GroupParts, kernels: CastKernels) {
         ...common,
         ...records,
         ...surface,
-        history: r.history[last],
+        meta: r.meta[last],
         vectors: inputs.vectors,
         blue: inputs.blue,
         ...buffers({ brdf: r.brdf, disocclusion: r.disocclusion }),
@@ -127,16 +127,14 @@ function createGroups(
   }
 }
 
-/** The inputs that are one resource each, those of `ScreenProbeInputs` but the proxy, which names three: a field added to the
+/** The inputs that are one resource each, those of `ScreenProbeInputs` but the field and the hit's, which name several: a field added to the
  *  inputs and left out of this table fails the compile. The identity names them in this order. */
-const INPUT_SLOT: Record<Exclude<keyof ScreenProbeInputs, 'proxy'>, true> = {
+const INPUT_SLOT: Record<Exclude<keyof ScreenProbeInputs, 'field' | 'hit'>, true> = {
   normals: true,
   flags: true,
   lights: true,
-  lightLists: true,
   bounceGrid: true,
   probes: true,
-  lightFunction: true,
   vectors: true,
   blue: true,
   cacheFinal: true,
@@ -146,6 +144,8 @@ const INPUT_SLOT: Record<Exclude<keyof ScreenProbeInputs, 'proxy'>, true> = {
   cachePdf: true,
 }
 const INPUT_KEYS = Object.keys(INPUT_SLOT) as (keyof typeof INPUT_SLOT)[]
+/** The hit's resources the identity names after the inputs and the field's generation. */
+const HIT_KEYS = ['tables', 'depth', 'final', 'grid', 'instances'] as const
 
 /**
  * The groups of a view's kernels over its resources, one set for each parity of the history's turn about, made
@@ -158,15 +158,14 @@ export function createScreenProbeGroups(
   resources: ScreenProbeResources,
   passes: number,
 ) {
-  const identity = createWebgpuBindIdentity(INPUT_KEYS.length + 3)
+  const identity = createWebgpuBindIdentity(INPUT_KEYS.length + 1 + HIT_KEYS.length)
   const sets: (ScreenProbeGroups | undefined)[] = [undefined, undefined]
   return (turn: 0 | 1, inputs: ScreenProbeInputs) => {
     const { next } = identity
     let at = 0
     for (const key of INPUT_KEYS) next[at++] = inputs[key]
-    next[at++] = inputs.proxy.buffer
-    next[at++] = inputs.proxy.worlds
-    next[at] = inputs.proxy.tree
+    next[at++] = inputs.field.readGeneration
+    for (const key of HIT_KEYS) next[at++] = inputs.hit[key]
     if (identity.moved()) sets[0] = sets[1] = undefined
     return (sets[turn] ??= createGroups(device, kernels, resources, inputs, turn, passes))
   }

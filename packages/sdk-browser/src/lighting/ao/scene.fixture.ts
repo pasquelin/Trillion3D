@@ -1,13 +1,13 @@
 // A small synthetic view for the occlusion's tests: a floor and a wall met at a right angle (a concave corner),
 // the depth the engine would draw (reversed, `near / distance`), its surfaces' normals and the farthest-depth
-// pyramid's first level, which the half-size depth map holds, with the uniform a pass reads and the functions the
-// shader's bindings stand for (`sceneScope`). No GPU: `shaderRun` runs the shipped WGSL against them.
+// pyramid's first level, with the uniform a pass reads and the functions the shader's bindings stand for (`sceneScope`).
+// No GPU: `shaderRun` runs the shipped WGSL against them.
+import { hizCellSpan } from '../../../../sdk-core/src/hiz/oracles.fixture.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
 import { AO_PARAMS } from './layout.ts'
-import { AO_FAR_CM, AO_DEPTH_SCALE } from './commonWgsl.ts'
 import { aoPasses } from './plan.ts'
-import { writeAoParams, type AoImage } from './params.ts'
+import { createDepthTerms, writeAoParams, type AoImage } from './params.ts'
 import { resolveAmbientOcclusion } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import {
   AMBIENT_OCCLUSION_RULES,
@@ -19,8 +19,11 @@ export const WIDTH = 64
 export const HEIGHT = 36
 const NEAR = 0.1
 const FOV_DEGREES = 60
-const FOV_HALF_TAN = Math.tan((FOV_DEGREES / 2 / 180) * Math.PI)
-const ASPECT = WIDTH / HEIGHT
+export const FOV_HALF_TAN = Math.tan((FOV_DEGREES / 2 / 180) * Math.PI)
+export const ASPECT = WIDTH / HEIGHT
+
+/** A device depth (near over distance) as centimetres ahead. */
+export const cm = (z: number) => Math.min(NEAR / Math.max(z, 1e-30), 1e7) * 100
 
 /** What the view holds: a floor at `floor` metres under the eye and a wall `wall` metres ahead, or an open sky. */
 export interface Geometry {
@@ -63,15 +66,20 @@ export function createScene(geometry: Geometry) {
   return {
     surfaceAt: at,
     device,
-    /** The farthest of a 2 × 2 block's depths (the smallest device depth), the pyramid's first level. */
-    farthest: (x: number, y: number) => {
-      const [cx, cy] = [clamp(x, 0, WIDTH / 2 - 1), clamp(y, 0, HEIGHT / 2 - 1)]
-      return Math.min(
-        device(2 * cx, 2 * cy),
-        device(2 * cx + 1, 2 * cy),
-        device(2 * cx, 2 * cy + 1),
-        device(2 * cx + 1, 2 * cy + 1),
-      )
+    /** The farthest depth (the smallest device depth) of the cell `(x, y)` of the pyramid's level `level` from 1 up: a block of
+     *  `2^level` pixels a side, the last cell of a level covering the image's edge and its last two pixels (`hizCellSpan`). */
+    farthest: (x: number, y: number, level = 1) => {
+      const block = 2 ** level
+      const [cx, cy] = [
+        clamp(x, 0, Math.ceil(WIDTH / block) - 1),
+        clamp(y, 0, Math.ceil(HEIGHT / block) - 1),
+      ]
+      const [x0, x1] = hizCellSpan(cx, level, WIDTH)
+      const [y0, y1] = hizCellSpan(cy, level, HEIGHT)
+      let nearest = Infinity
+      for (let py = y0; py < y1; py++)
+        for (let px = x0; px < x1; px++) nearest = Math.min(nearest, device(px, py))
+      return nearest
     },
     normal: (x: number, y: number) => [...at(x, y).normal, 0.5],
   }
@@ -93,13 +101,24 @@ export function imageOf(noiseIndex = 0): AoImage {
     world,
     perspective: true,
     noiseIndex,
+    frame: noiseIndex,
+    viewProjection: new Float64Array(16),
+    historyCut: false,
+    before: undefined,
+    accumulates: false,
   }
 }
 
 /** The uniform of pass `at` of a plan of `levels` as the shader reads it: each `vec4f` an array, by name. */
-export function uniformOf(levels: number, at: number, settings = settingsOf(), image = imageOf()) {
+export function uniformOf(
+  levels: number,
+  at: number,
+  settings = settingsOf(),
+  image = imageOf(),
+  smooth = false,
+) {
   const words = new Float32Array(AO_PARAMS.words)
-  writeAoParams(words, aoPasses(levels)[at], settings, image)
+  writeAoParams(words, aoPasses(levels, smooth)[at], settings, image, createDepthTerms())
   return Object.fromEntries(
     Object.entries(AO_PARAMS.at).map(([name, word]) => [
       name,
@@ -108,11 +127,15 @@ export function uniformOf(levels: number, at: number, settings = settingsOf(), i
   )
 }
 
-/** What the textures a pass reads hold, besides the surfaces and the half-size depth map: the setup texture's texels (rgba,
- *  rows of `width`) and the coarser occlusion's value at a texel. */
+/** What the textures a pass reads hold, besides the surfaces and the pyramid: the setup texture's texels (rgba,
+ *  rows of `width`) and the coarser occlusion's value at a texel — the horizon search's: the last pass's result, the
+ *  history, and the vectors of motion, each as a word at a texel. */
 export interface Textures {
   setup?: { texels: Float32Array; width: number }
   lower?: (x: number, y: number) => number
+  input?: (x: number, y: number) => number
+  history?: (x: number, y: number) => number
+  vectors?: (x: number, y: number) => number
 }
 
 /** The pyramid's and the textures' reads, the names the shader's bindings carry, over `scene`, with `view` the pass's uniform. */
@@ -121,29 +144,28 @@ export function sceneScope(
   view: object,
   textures: Textures = {},
 ) {
-  const { setup, lower } = textures
+  const { setup, lower, input, history, vectors } = textures
   return {
     view,
     hizOpaqueDepth: ([x, y]: number[]) => scene.device(x, y),
-    hizCellCullFarthest: ([x, y]: number[]) => scene.farthest(x, y),
+    hizCellCullFarthest: ([x, y]: number[], level: number) => scene.farthest(x, y, level),
     hizLevelCount: () => 5,
     // The pyramid's levels: the first holds the drawn size (the width and height in its second and third words).
     hizLevels: { level: [[0, WIDTH, HEIGHT, 0]], count: [5, 0, 0, 0] },
     textureLoad: (texture: string, [x, y]: number[]) => {
       if (texture === 'normals') return scene.normal(x, y)
-      // The half-size depth map: the first level's farthest depth, in centimetres over the setup's scale, in the alpha,
-      // by the near plane as the uniform holds it (single precision), as the pixels' own depths are read.
-      if (texture === 'half') {
-        const cm = Math.min((Math.fround(NEAR) / scene.farthest(x, y)) * 100, AO_FAR_CM)
-        return [0, 0, 0, cm / AO_DEPTH_SCALE]
-      }
       if (texture === 'lower') return [lower ? lower(x, y) : 0, 0, 0, 1]
+      if (texture === 'aoIn') return [input ? input(x, y) : 0, 0, 0, 1]
+      if (texture === 'historyTex') return [history ? history(x, y) : 0, 0, 0, 1]
+      if (texture === 'vectors') return [vectors ? vectors(x, y) : 0, 0, 0, 0]
       const at = setup ? 4 * (y * setup.width + x) : 0
       return setup ? Array.from(setup.texels.slice(at, at + 4)) : [0, 0, 0, 0]
     },
     normals: 'normals',
-    halfDepth: 'half',
     setupTex: 'setup',
     lowerAo: 'lower',
+    aoIn: 'aoIn',
+    historyTex: 'historyTex',
+    vectors: 'vectors',
   }
 }

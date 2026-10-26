@@ -33,6 +33,27 @@ test('a frame after a pause spans one interval the loop ran, a late one its own'
   assert.equal(deltas.at(-1), 0.048)
 })
 
+test('the world clock sums the seconds the steps integrated: a pause of the loop is one interval', (t) => {
+  let now = 1000
+  t.mock.method(performance, 'now', () => now)
+  const frames = createWorldFrames()
+  assert.equal(frames.clock(), 0, 'nothing integrated before the first step')
+  for (const at of [1000, 1016, 1032]) {
+    now = at
+    frames.advance()
+    frames.dispatch({ ...NOT_DRAWN })
+  }
+  assert.equal(frames.clock(), 0.032)
+  // Five seconds the loop slept — a hidden tab, a still scene — are one running interval of the
+  // world's time, not five seconds: what adapts on the clock never jumps over them.
+  now = 6032
+  frames.advance()
+  assert.equal(frames.clock(), 0.048)
+  // A step read again within the display frame advances nothing.
+  frames.advance()
+  assert.equal(frames.clock(), 0.048)
+})
+
 test('the controllers integrate from step to step, the render time included', (t) => {
   let now = 1000
   t.mock.method(performance, 'now', () => now)

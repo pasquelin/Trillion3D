@@ -54,7 +54,7 @@ export const clippingFor = (
     : undefined
 
 /** The directive that turns the builtin on, in a module made for a device that has the feature. */
-export const CLIP_DISTANCES_WGSL = wgslBlock('CLIP_DISTANCES_WGSL', [], 'enable clip_distances;')
+const CLIP_DISTANCES_WGSL = wgslBlock('CLIP_DISTANCES_WGSL', [], 'enable clip_distances;')
 
 /** The declarations a module made with `clipping` lists for it: the directive, where the way is the
  *  distance. */

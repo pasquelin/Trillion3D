@@ -3,6 +3,7 @@ import {
   computeUniformEntry,
   sequentialEntries,
 } from '../../gpu/core/computeBindings.ts'
+import { standInBuffer, standInTexture } from '../../gpu/core/standIns.ts'
 import { HIZ_FORMAT, HIZ_LEVELS } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import type { HizDepth } from '../../visibility/hiz/gpu/types.ts'
 
@@ -17,17 +18,15 @@ export function createCullBinding(device: GPUDevice) {
   const layout = device.createBindGroupLayout({
     entries: [computeTextureEntry(0, 'uint', '2d-array'), computeUniformEntry(1)],
   })
-  const texture = device.createTexture({
-    label: 'Trillion3D light grid cull stand-in',
-    size: [1, 1, 3],
-    format: HIZ_FORMAT,
-    usage: GPUTextureUsage.TEXTURE_BINDING,
+  const texture = standInTexture(device, 'Trillion3D light grid cull stand-in', HIZ_FORMAT, {
+    layers: 3,
   })
-  const levels = device.createBuffer({
-    label: 'Trillion3D light grid cull levels stand-in',
-    size: HIZ_LEVELS.words * 4,
-    usage: GPUBufferUsage.UNIFORM,
-  })
+  const levels = standInBuffer(
+    device,
+    'Trillion3D light grid cull levels stand-in',
+    HIZ_LEVELS.words * 4,
+    GPUBufferUsage.UNIFORM,
+  )
   const made = (resources: GPUBindingResource[]) =>
     device.createBindGroup({ layout, entries: sequentialEntries(resources) })
   const none = made([texture.createView({ dimension: '2d-array' }), { buffer: levels }])

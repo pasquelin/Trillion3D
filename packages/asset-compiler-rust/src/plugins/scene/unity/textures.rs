@@ -8,8 +8,7 @@
 //! setting for filtering.
 use super::*;
 use crate::compiler::accessor::codes::{
-    CLAMP_TO_EDGE, DEFAULT_FILTER, LINEAR, LINEAR_MIPMAP_NEAREST, MIRRORED_REPEAT, NEAREST,
-    NEAREST_MIPMAP_NEAREST, REPEAT,
+    CLAMP_TO_EDGE, DEFAULT_FILTER, LINEAR, LINEAR_MIPMAP_NEAREST, MIRRORED_REPEAT, NEAREST, REPEAT,
 };
 use crate::plugins::scene::convert::tables::media::relative_under;
 use std::collections::HashMap;
@@ -17,10 +16,11 @@ use std::collections::HashMap;
 /// glTF wrap modes, in the order Unity numbers them: repeat (the editor's default), clamp, mirror.
 const WRAPS: [u32; 3] = [REPEAT, CLAMP_TO_EDGE, MIRRORED_REPEAT];
 /// glTF `magFilter`, `minFilter` pairs, in the order of Unity `filterMode`: nearest, bilinear,
-/// trilinear — each with the mipmap chain the editor builds. The last is also the default
-/// filtering, the one a texture without a `.meta` keeps.
+/// trilinear — nearest reads no mipmap, as the engine's nearest does, the others with the mipmap
+/// chain the editor builds. The last is also the default filtering, the one a texture without a
+/// `.meta` keeps.
 const FILTERS: [[u32; 2]; 3] = [
-    [NEAREST, NEAREST_MIPMAP_NEAREST],
+    [NEAREST, NEAREST],
     [LINEAR, LINEAR_MIPMAP_NEAREST],
     DEFAULT_FILTER,
 ];

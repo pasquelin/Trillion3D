@@ -1,5 +1,5 @@
 // The shape of a material fixture (`materialFixtures.ts`): the viewport it is drawn in, the one
-// light of the lit fixtures, the renderers that draw it and what a fixture declares.
+// light of the lit fixtures and what a fixture declares.
 import { VIEWPORT } from '../../kit/device/sharedSceneProof.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import type { PageSurface } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
@@ -20,26 +20,17 @@ export const SUN: SceneLight = {
   castsShadow: false,
 }
 
-/** A renderer that draws a fixture: the witness renderer, or the engine. */
-export type Renderer = 'witness' | 'webgpu'
-
-/** The pair every fixture is read on: the engine against the witness. */
-export const WITNESS_PAIR: readonly [Renderer, Renderer] = ['witness', 'webgpu']
-
 export interface Fixture {
   name: string
   material: () => PageSurface
   lit?: boolean
   points: number[][]
-  difference: number[]
-  reason: string
   back?: boolean
   /** Turn of the square about its horizontal axis, radians: a grazing view. */
   tilt?: number
   behind?: number
   tangents?: boolean
   /** Measured against its ground truth (#443, `groundTruth.ts`): the pixels over one level the
-   *  engine may show there beyond the witness's — CONTRIBUTING's 0 px, 4 on a masked cut-out —,
-   *  `null` when both gaps are only reported. */
-  truth?: number | null
+   *  engine shows there are reported. */
+  truth?: boolean
 }

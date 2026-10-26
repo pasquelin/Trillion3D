@@ -31,4 +31,13 @@ export const CLASS_FEATURE = {
   /** A voxel brick's row (`FLAG_VOXEL`): its colour, roughness, metalness and occlusion are its
    *  voxel's, its shading normal drawn from its fitted distribution of normals (`voxelSampledNormal`). */
   VOXEL: 16384,
+  /** A sprite or a line row (`FLAG_SPRITE`, `FLAG_LINE`): only this class reads the surface's shape
+   *  record and places its corners as a billboard quad or a widened segment (`pixelTriangleWgsl.ts`). */
+  SHAPED: 32768,
+  /** A matcap material (`SURFACE_MODEL.matcap`): only this class takes its image coordinate from the
+   *  view-space normal (`shadeWgsl.ts`). */
+  MATCAP: 65536,
+  /** The record names a shading model beside the default lit one (`shadingModelCode` above 0: skin, subsurface profile, eye, hair,
+   *  unlit, thin subsurface): only this class compiles the model's statements (`materialModelWgsl.ts`). */
+  HAS_SHADING_MODEL: 131072,
 } as const

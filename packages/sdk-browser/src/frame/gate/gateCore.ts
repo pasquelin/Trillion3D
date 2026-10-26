@@ -3,15 +3,7 @@ import type { ViewHold } from '../view/viewRevision.ts'
 import { createEngineCamera } from '../../camera/engineCamera.ts'
 import type { HostWorldPlacements } from '../../scene/host/world/placements.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import {
-  enterFrame,
-  gateState,
-  held,
-  useViewHold,
-  viewChanged,
-  type FrameEntry,
-  type ViewRead,
-} from './gateState.ts'
+import { enterFrame, gateState, held, useViewHold, viewChanged } from './gateState.ts'
 import {
   engineWriting,
   movedInPlace,
@@ -58,7 +50,11 @@ export function createFrameGateCore(holdValues: number) {
     resourcesChanged: () => bumpResources(revisions),
     /** The drawn view's target will no longer carry its held frame: its own hold alone breaks. */
     viewReplaced: () => bumpView(revisions),
-    viewChanged: (...view: ViewRead) => viewChanged(core, ...view),
+    viewChanged: (
+      view: Parameters<typeof viewChanged>[1],
+      viewport: Parameters<typeof viewChanged>[2],
+      error: number,
+    ) => viewChanged(core, view, viewport, error),
     readScene: (source: Object3D, drawn: FrameGateSources) => readScene(core, source, drawn),
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => held(core),
@@ -80,7 +76,14 @@ export function createFrameGateCore(holdValues: number) {
     },
     /** Lets go of the source graph: its writes no longer reach this gate. */
     release: () => core.sceneWatch.release(),
-    enterFrame: (...frame: FrameEntry) => enterFrame(core, gate.cam, ...frame),
+    enterFrame: (
+      context: Parameters<typeof enterFrame>[2],
+      camera: Parameters<typeof enterFrame>[3],
+      viewport: Parameters<typeof enterFrame>[4],
+      source: Object3D,
+      drawn: FrameGateSources,
+      aspect?: number,
+    ) => enterFrame(core, gate.cam, context, camera, viewport, source, drawn, aspect),
   }
   return gate
 }

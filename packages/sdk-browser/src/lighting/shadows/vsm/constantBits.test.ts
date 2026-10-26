@@ -1,6 +1,6 @@
 // The bit and index constants the shaders and the host share: the projection flags are single
-// distinct bits of the five the record's word holds, the extended page marks sit above the four
-// page mark bits and inside the twelve a page's flag word keeps for them, the counters are distinct
+// distinct bits of the 32-bit word the record keeps them in (`flags`, `projectionData.ts`), the extended page marks sit above the four
+// page mark bits and inside the sixteen a page's flag word keeps for them (the reference's extended flags run to bit 15), the counters are distinct
 // indices of the stats row.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -55,16 +55,16 @@ const extended = () =>
   Object.entries(shader).filter(([name]) => name.startsWith('VSM_META_') && !name.includes('_ANY_'))
 const stats = () => exported('VSM_COUNT_').filter(([name]) => name !== 'VSM_COUNTERS')
 
-test('the projection flags are distinct bits below the sixth', () => {
-  assert.equal(projection().length, 5)
-  assertDistinctBits(projection(), 1 << 5)
+test('the projection flags are distinct bits of the record’s 32-bit word', () => {
+  assert.equal(projection().length, 6)
+  assertDistinctBits(projection(), 2 ** 31)
 })
 
-test('the extended page marks clear the page mark bits and fit in twelve', () => {
+test('the extended page marks clear the page mark bits and fit in sixteen', () => {
   const mask = shader.VSM_PAGE_MARK_MASK
   assert.equal(mask, 0xf)
-  assert.equal(extended().length, 8)
-  assertExtendedBits(extended(), mask, 12)
+  assert.equal(extended().length, 10)
+  assertExtendedBits(extended(), mask, 16)
 })
 
 test('the page counters are distinct indices of the stats row', () => {
@@ -73,21 +73,21 @@ test('the page counters are distinct indices of the stats row', () => {
 })
 
 test('the guards fail on a repeated bit, an overlap, a bit out of range or a repeated counter', () => {
-  assert.throws(() => assertDistinctBits([...projection(), ['VSM_MAP_X', 1]], 1 << 5), /repeats/)
+  assert.throws(() => assertDistinctBits([...projection(), ['VSM_MAP_X', 1]], 2 ** 31), /repeats/)
   assert.throws(
-    () => assertDistinctBits([...projection(), ['VSM_MAP_X', 1 << 5]], 1 << 5),
+    () => assertDistinctBits([...projection(), ['VSM_MAP_X', 2 ** 31]], 2 ** 31),
     /not below/,
   )
   assert.throws(
-    () => assertDistinctBits([...projection(), ['VSM_MAP_X', 3]], 1 << 5),
+    () => assertDistinctBits([...projection(), ['VSM_MAP_X', 3]], 2 ** 31),
     /not one bit/,
   )
   assert.throws(
-    () => assertExtendedBits([...extended(), ['VSM_META_X', 1 << 3]], 0xf, 12),
+    () => assertExtendedBits([...extended(), ['VSM_META_X', 1 << 3]], 0xf, 16),
     /overlaps/,
   )
   assert.throws(
-    () => assertExtendedBits([...extended(), ['VSM_META_X', 1 << 12]], 0xf, 12),
+    () => assertExtendedBits([...extended(), ['VSM_META_X', 1 << 16]], 0xf, 16),
     /not below/,
   )
   assert.throws(

@@ -27,7 +27,10 @@ fn odd_dimensions_reduce_without_panicking() {
     let source = rgba_from(width, height, |_x, _y| [37, 201, 88, 255]);
     let (first, pixels) = tail_of(&source, AtlasKind::Color);
     assert_eq!(first, 0);
-    assert_eq!(pixels.len(), preview_pixel_bytes(width, height));
+    assert_eq!(
+        pixels.len(),
+        preview_pixel_bytes(width, height, AtlasKind::Color)
+    );
     assert_eq!(preview_level_count(width, height), 5);
     for index in 0..preview_level_count(width, height) as usize {
         for texel in level_bytes(width, height, &pixels, index).chunks(4) {
@@ -42,7 +45,24 @@ fn odd_dimensions_reduce_without_panicking() {
 fn the_srgb_curve_round_trips_every_byte() {
     for value in 0..=255u8 {
         let source = rgba_from(2, 2, |_, _| [value, value, value, 255]);
-        let chain = crate::texture::reduce::chain(&source, AtlasKind::Color);
+        let chain = crate::texture::reduce::chain(&source, &[], AtlasKind::Color);
         assert_eq!(&chain[1][..3], &[value, value, value], "byte {value}");
     }
+}
+
+// The levels a file stores below level 0 are the chain's own, byte for byte; only the levels past
+// them are reduced, from the last stored one.
+#[test]
+fn stored_levels_are_kept_and_the_rest_reduces_from_the_last() {
+    let source = rgba_from(8, 8, |x, y| [(x * 30) as u8, (y * 30) as u8, 9, 255]);
+    let stored = vec![vec![200u8; 4 * 4 * 4], vec![100u8; 2 * 2 * 4]];
+    let chain = crate::texture::reduce::chain(&source, &stored, AtlasKind::Data);
+    assert_eq!(chain.len(), 4, "8, 4, 2, 1");
+    assert_eq!(chain[1][..], stored[0][..]);
+    assert_eq!(chain[2][..], stored[1][..]);
+    assert_eq!(
+        chain[3][..],
+        [100, 100, 100, 100],
+        "the mean of the last stored level"
+    );
 }

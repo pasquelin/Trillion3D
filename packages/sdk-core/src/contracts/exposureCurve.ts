@@ -1,3 +1,4 @@
+import { isFiniteNumber } from '../../../math/src/scalar/reals.ts'
 import { isRecord, refusal } from './nameMatch.ts'
 
 /**
@@ -10,7 +11,7 @@ import { isRecord, refusal } from './nameMatch.ts'
  * weights on them. Before the first key and after the last the curve follows an extrapolation
  * (`before`, `after`; held by default). No curve (the default) is no compensation. The curve
  * multiplies the exposure's bias (`exposureBias`, `exposureOptions.ts`) by `2^compensation`; it is
- * read from a table baked once (`bakeExposureCurve`, `exposureCurveTable`), so the exposure never waits on the curve's
+ * read from a table baked once (`exposureCurveTable`), so the exposure never waits on the curve's
  * own evaluation.
  */
 
@@ -89,10 +90,10 @@ export const EXPOSURE_CURVE_MAX_EV = 20
 
 /** The smallest time span a computed tangent divides by. */
 const KINDA_SMALL = 1e-4
-const INTERPOLATIONS = ['linear', 'constant', 'cubic'] as const
-const TANGENT_MODES = ['auto', 'user', 'break', 'none', 'smartAuto'] as const
-const WEIGHT_MODES = ['none', 'arrive', 'leave', 'both'] as const
-const EXTRAPOLATIONS = [
+export const INTERPOLATIONS = ['linear', 'constant', 'cubic'] as const
+export const TANGENT_MODES = ['auto', 'user', 'break', 'none', 'smartAuto'] as const
+export const WEIGHT_MODES = ['none', 'arrive', 'leave', 'both'] as const
+export const EXTRAPOLATIONS = [
   'cycle',
   'cycleWithOffset',
   'oscillate',
@@ -123,8 +124,7 @@ function finite(
   refuse: ReturnType<typeof refusal>,
 ) {
   if (value === undefined) return fallback
-  if (typeof value !== 'number' || !Number.isFinite(value))
-    return refuse(`${what} must be a finite number, got ${String(value)}`)
+  if (!isFiniteNumber(value)) return refuse(`${what} must be a finite number, got ${String(value)}`)
   return value
 }
 

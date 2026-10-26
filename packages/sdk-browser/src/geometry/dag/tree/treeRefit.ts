@@ -4,7 +4,7 @@
  * the pass fits them and every node above them, bottom up, in one compute pass of one command
  * buffer — a dispatch a level, a thread a node, the engine's one level loop (`treeRefitLevels.ts`) —
  * and nothing else of the tree is read or written.
- * The leaves it fits over are the table `members` holds, six doubles a placement, which the GPU
+ * The leaves it fits over are the table `members` holds, `leafStride` doubles a placement, which the GPU
  * alone writes (`../../../placement/tree/treeLeaves.ts`, through `treeFollow.ts`) before `run`: no leaf is
  * taken nor kept on the CPU. The pass is the one entry point of a refit — the placement tree's, and
  * whatever else bounds its boxes the same way.
@@ -13,12 +13,13 @@
  * words in theirs (`../frameTable.ts`). Nothing is ever left unfitted, and no group is held open for
  * want of a binding.
  */
+import { chainReady } from '../../../lighting/deferred/fullscreen.ts'
 import { TREE_REFIT_PASS } from '../../../diagnostic/stage/passLabels.ts'
-import { treeNodeCount, type PlacementTree } from '../placement/placementTree.ts'
+import { leafStride, treeNodeCount, type PlacementTree } from '../placement/placementTree.ts'
+import { leafKernels } from './treeKernels.ts'
 import { refitLevels } from '../refitSchedule.ts'
 import { REFIT_PARAM_WORDS, TREE_REFIT_WGSL } from './treeRefitWgsl.ts'
 import type { PackedDag } from '../types.ts'
-import { autoKernel } from '../../../gpu/core/computeStages.ts'
 import { sequentialEntries } from '../../../gpu/core/computeBindings.ts'
 import { createRefitLevels } from './treeRefitLevels.ts'
 
@@ -28,30 +29,36 @@ export type RefitTables = { tree: GPUTextureView; frames: GPUTextureView }
 
 export function createTreeRefit(
   device: GPUDevice,
-  packed: Pick<PackedDag, 'worldCount'>,
+  packed: Pick<PackedDag, 'worldCount' | 'parentNode'>,
   tree: PlacementTree,
   tables: RefitTables,
 ) {
-  const worlds = Math.max(1, packed.worldCount)
+  const worlds = Math.max(1, packed.worldCount),
+    // A packing that names no group above an instance's root holds the box alone in each leaf.
+    parented = !!packed.parentNode
   // Written by the leaves pass alone; a proof of the refit on a device sends the leaves it fits.
   const members = device.createBuffer({
     label: 'Trillion3D placement tree leaf boxes',
-    size: worlds * 6 * 8,
+    size: worlds * leafStride(parented) * 8,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   /** A level's own parameters past its ids (`Params`): what it fits and the level below it. */
   const extra = new Uint32Array(REFIT_PARAM_WORDS - 2)
   // Compiled off the thread as the tree is followed: the frames wait for it, none compiles it.
-  const kernel = refitKernel(device).ask()
+  const kernel = refitKernel(parented)(device).ask()
   let program: ReturnType<typeof refitProgram> | undefined
   return {
     members,
+    /** Whether each leaf holds the ball of its group above an instance's root (`leafStride`). */
+    parented,
+    /** Whether the refit kernel is compiled (asked now where not): a fit runs it or takes nothing. */
+    ready: () => chainReady(kernel),
     /** The groups `groups` and every node above them fit again, encoded in `encoder`: the leaves
      *  they hold are those `members` holds when it runs. */
     run(encoder: GPUCommandEncoder, groups: Iterable<number>) {
       const levels = refitLevels(tree, groups)
       if (!levels.length) return
-      program ??= refitProgram(device, tree, tables, members, kernel.get())
+      program ??= refitProgram(device, tree, tables, members, kernel.get()!)
       const { groups: bound, steps } = program
       let at = 0
       for (let step = 0; step < levels.length; step++) {
@@ -81,8 +88,8 @@ export function createTreeRefit(
   }
 }
 
-/** The refit kernel of a device, made once. */
-const refitKernel = autoKernel(TREE_REFIT_PASS, TREE_REFIT_WGSL, 'main')
+/** The refit kernel of a device, made once for each width of leaf. */
+const refitKernel = leafKernels(TREE_REFIT_PASS, TREE_REFIT_WGSL)
 
 /** The pipeline's lists and parameters, made when the first pass runs: the tables' group once, and
  *  one group of the pass's own per level — the tree's depth is fixed. */

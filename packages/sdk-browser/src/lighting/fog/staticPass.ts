@@ -1,7 +1,8 @@
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import type { VolumetricLightmapGpu } from '../volumetricLightmap/gpu.ts'
 import { FOG_BINDING } from './bindings.ts'
-import { heldGroup, keptGroup, threads } from './groupKeeping.ts'
+import { heldProgramGroup, keptProgramGroup } from '../../gpu/bind/programGroups.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import type { FogPassContext, FogPassInputs } from './passes.ts'
 import type { VolumeTextures } from './resources.ts'
 
@@ -17,6 +18,8 @@ export function encodeStatic(
 ) {
   const { device, resources, groups, ping, whiteCubemap } = context
   const { programs } = resources
+  const pipeline = programs.static.pipeline.get()
+  if (!pipeline) return
   const { next } = groups.static.identity
   next[0] = input.depth
   next[1] = input.lights
@@ -27,26 +30,26 @@ export function encodeStatic(
   next[6] = input.sky.params
   next[7] = baked
   next[8] = lightmap
-  pass.setPipeline(programs.static.pipeline.get())
+  pass.setPipeline(pipeline)
   pass.setBindGroup(
     0,
-    heldGroup(groups.static) ??
-      keptGroup(device, programs.static.layout, groups.static, [
+    heldProgramGroup(groups.static) ??
+      keptProgramGroup(device, programs.static.layout, groups.static, [
         ...namedEntries(FOG_BINDING, {
           frame: { buffer: resources.frame.buffer },
           lights: { buffer: input.lights },
           depth: input.depth,
-          furthest: textures.furthest[ping].view,
-          previousFurthest: textures.furthest[1 - ping].view,
+          furthest: textures.furthest[ping],
+          previousFurthest: textures.furthest[1 - ping],
           sampler: resources.sampler,
           cubemap: input.cubemap ?? whiteCubemap,
           skyHarmonics: { buffer: input.sky.harmonics },
           skyParams: { buffer: input.sky.params },
-          staticOut: baked.view,
+          staticOut: baked,
         }),
         ...lightmap.entries(FOG_BINDING.lightmap),
       ]),
   )
   const { cells } = context
-  pass.dispatchWorkgroups(threads(cells.x, 4), threads(cells.y, 4), threads(cells.z, 4))
+  pass.dispatchWorkgroups(ceilDiv(cells.x, 4), ceilDiv(cells.y, 4), ceilDiv(cells.z, 4))
 }

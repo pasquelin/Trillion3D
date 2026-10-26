@@ -28,6 +28,12 @@ export type DiagnosticMode =
   | 'taa-motion'
   | 'taa-thin'
   | 'taa-material-history'
+  | 'surface-cache-albedo'
+  | 'surface-cache-normal'
+  | 'surface-cache-depth'
+  | 'surface-cache-cards'
+  | 'surface-cache-fill'
+  | 'surface-cache-age'
 /** Whether a view mode is available here, and why not. */
 export interface DiagnosticCapability {
   /** Whether it can be shown. */
@@ -52,7 +58,13 @@ export interface DiagnosticCapability {
  *  measure. @property taa-shading - The shading rejection, stage by stage.
  *  @property taa-reprojection - The reprojection's restarts. @property taa-motion - The motion the
  *  temporal analysis sees. @property taa-thin - The thin geometry detection.
- *  @property taa-material-history - The most of its history each pixel's material keeps. */
+ *  @property taa-material-history - The responsiveness each pixel carries into the temporal analysis.
+ *  @property surface-cache-albedo - The atlas of the cards' surfaces: their albedo.
+ *  @property surface-cache-normal - The atlas: the normals the cards captured, in their frames.
+ *  @property surface-cache-depth - The atlas: the depth of each texel in its card's box.
+ *  @property surface-cache-cards - The atlas: one colour for each card.
+ *  @property surface-cache-fill - The atlas: which texels hold a page, the coarsest levels apart.
+ *  @property surface-cache-age - The atlas: how long ago each page was captured. */
 export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability>
 /**
  * The view modes a world can show instead of the normal image, each with whether it is available.
@@ -99,10 +111,21 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  *   motion is flat).
  * @property taa-thin - The thin geometry detection at each pixel: red how far its history clamp
  *   relaxes, green a cluster hole region, blue the coverage history.
- * @property taa-material-history - The most of its history the temporal anti-aliasing keeps at
- *   each pixel, by its material — the opaque surface's or, at their coverage, the transparents'
- *   over it, the least —, as grey: white the whole history (1, the default), 0.75 a responsive
- *   material, black none (0, the current image alone).
+ * @property taa-material-history - The responsiveness each pixel carries into the temporal
+ *   analysis, by its material — the opaque surface's and the transparents' over it, the largest —,
+ *   as grey: black none (the default), a third a pixel animation (`'medium'`, or a dynamic
+ *   surface), white a pixel animation whose history restarts (`'full'`).
+ * @property surface-cache-albedo - The atlas the cards of the meshes are captured into, as an image
+ *   of the whole atlas: the albedo of each texel, black where none was captured.
+ * @property surface-cache-normal - The same atlas: the normal of each texel in its card's frame,
+ *   `x` and `y` as read, black where none was captured.
+ * @property surface-cache-depth - The same atlas: the depth of each texel in its card's box, white at
+ *   the card's inner face, black at its outer one, magenta where none was captured.
+ * @property surface-cache-cards - The same atlas: a colour for each card, black where no page is.
+ * @property surface-cache-fill - The same atlas: a texel that holds a page in green where it is of a
+ *   card's coarsest level, always kept, blue where it is a finer page, black where it is free.
+ * @property surface-cache-age - The same atlas: the images since each page was captured, white under
+ *   one, from red to blue as it ages, black where no page is.
  */
 export const DIAGNOSTICS: DiagnosticCapabilities = {
   beauty: { available: true, reason: 'glTF materials' },
@@ -217,6 +240,35 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
   'taa-material-history': {
     available: true,
     reason:
-      'The most of its history the temporal anti-aliasing keeps at each pixel, by its material, opaque or transparent at its coverage, raw: white the whole history, 0.75 grey a responsive material, black none',
+      'The responsiveness each pixel carries into the temporal analysis, by its material, opaque or transparent, raw: black none, a third grey a pixel animation, white a pixel animation whose history restarts',
+  },
+  'surface-cache-albedo': {
+    available: true,
+    reason:
+      'The whole atlas of the cards of the meshes, its albedo layer as stored, black where no surface was captured; needs a raster of the cards plugged in to show a capture',
+  },
+  'surface-cache-normal': {
+    available: true,
+    reason:
+      "The whole atlas, each texel's normal in its card's frame (x and y, z recovered), black where no surface was captured",
+  },
+  'surface-cache-depth': {
+    available: true,
+    reason:
+      "The whole atlas, each texel's depth in its card's box as grey (white the inner face), magenta where no surface was captured",
+  },
+  'surface-cache-cards': {
+    available: true,
+    reason: 'The whole atlas, one colour for each card, black where no page of the atlas is held',
+  },
+  'surface-cache-fill': {
+    available: true,
+    reason:
+      "The whole atlas, green where a texel is of a card's coarsest level (always kept), blue of a finer page, black free",
+  },
+  'surface-cache-age': {
+    available: true,
+    reason:
+      'The whole atlas, the images since each page was captured: white under one, red to blue as it ages, black where no page is held',
   },
 }

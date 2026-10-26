@@ -13,6 +13,7 @@ const empty = { levels: [], blocks: { bc7: [], astc: [], etc2: [] } }
 const raw = () => ({
   layout: tileLayout(4096, 4096),
   lane: 'lossless' as const,
+  tap: 0,
   source: { kind: 'bytes' as const, tail: empty },
 })
 
@@ -21,7 +22,7 @@ test('a tail pinned late into a pool its streamed tiles fill takes the place one
   const atlas = createWebgpuTileAtlas(gpu, {
     kind: 'color',
     encoding: poolEncoding(undefined),
-    layers: { lossless: 1, rgba: 0, 'two-channel': 0 },
+    layers: { lossless: 1, rgba: 0, 'two-channel': 0, hdr: 0 },
     feedbackOffset: 0,
     clock: () => 1,
     textures: [raw(), raw()],

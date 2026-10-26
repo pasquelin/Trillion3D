@@ -1,10 +1,12 @@
 use crate::compiler::cache::format::SOURCE_FORMAT_VERSION;
 use crate::*;
 
+/// The oracle's albedo palette: only the oracle reads it.
+#[cfg(any(test, feature = "oracle"))]
 pub mod albedo;
 mod factors;
 pub(crate) mod textures;
-pub(crate) use factors::{triple, AlphaMode, MaterialFactors};
+pub(crate) use factors::{triple, AlphaMode, MaterialFactors, ALPHA_CUTOFF_DEFAULT};
 
 pub(crate) fn transmissive_material(material: Option<&Value>) -> bool {
     material.is_some_and(|m| MaterialFactors::of(m).transmission > 0.0)
@@ -16,8 +18,8 @@ pub(crate) fn transmissive_material(material: Option<&Value>) -> bool {
 /// which the material table writes `OPAQUE` (`tables/materials.rs`). A transmissive
 /// `BLEND` tints what crosses it by its base colour whatever its alpha
 /// (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 too. Any other `BLEND` takes
-/// coverage, at no cutoff of its own (`None` inside). The texture chains and the traced
-/// surfaces (`surface_trace`) both judge by it.
+/// coverage, at no cutoff of its own (`None` inside). The traced surfaces (`trace/surface/material.rs`)
+/// and the volumetric lightmap's bake (`volumetric_lightmap/bake/world.rs`) judge by it.
 pub(crate) fn coverage_cutoff(material: &Value) -> Option<Option<f32>> {
     match AlphaMode::of(material) {
         AlphaMode::Mask(cutoff) => (cutoff as f32 > 0.0).then_some(Some(cutoff as f32)),

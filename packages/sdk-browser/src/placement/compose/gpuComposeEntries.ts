@@ -20,20 +20,6 @@ export const rootEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) => [
   ...sequentialEntries([liveBuffer(() => gpu.frameList)], ROOTS_CUT_WORLDS_BINDING + 1),
 ]
 
-/** The motion pass's entries (`COMPOSE_MOTION_WGSL`), read live: its parameters, the
- *  roots' double worlds, the parents' indices, the motion the roots pass bound and its mode, the
- *  previous worlds and the motion's roots. */
-export const motionEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) =>
-  sequentialEntries([
-    liveBuffer(() => gpu.motionParams.buffer),
-    liveBuffer(() => rt.rootWorlds?.worlds),
-    liveBuffer(() => gpu.parentOf),
-    liveBuffer(() => rt.compose?.motionBound),
-    liveBuffer(() => gpu.motionMode),
-    liveBuffer(() => gpu.previous),
-    liveBuffer(() => gpu.motionList),
-  ])
-
 /** The worlds pass's entries (`COMPOSE_WORLDS_WGSL`), read live: its parameters, the links, the
  *  parents' indices, the parents, the roots' double worlds and the frame's composed roots. */
 export const worldEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) =>

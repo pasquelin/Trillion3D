@@ -3,6 +3,9 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid
 import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL, normalAtlasWgsl } from '../shader/pageWgsl.ts'
 import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL } from '../shader/pageGeometryWgsl.ts'
 import { visPageIndex } from '../visWords.ts'
+import { NO_WPO, type WpoSet } from '../../materials/graph/wpoProgram.ts'
+import { materialTableWgsl } from '../../materials/table/materialWgsl.ts'
+import { wpoGraphWgsl } from '../shader/wpoGraphWgsl.ts'
 import { TESS_BINDINGS, TESS_DECLARATIONS as D } from './bindings.ts'
 import { ARG_END, ARG_OCCLUDED, ARG_START, OCCLUSION_MAIN } from './contract.ts'
 import { QUEUE_WGSL } from './queueWgsl.ts'
@@ -53,9 +56,10 @@ fn occludePatch(p:vec4u){
 
 /** The splitting's program, made for the project switch when `clipping`: its entry point
  *  `tessSplit`. The normal atlas it
- *  reads a float geometry's normals from is bound at `TESS_BINDINGS.normals`. */
-export const splitSource = (clipping = false) =>
-  wgslProgram(SPLIT, [
+ *  reads a float geometry's normals from is bound at `TESS_BINDINGS.normals`. With `wpo`, a patch is
+ *  placed on its triangle where its surface's offset puts the corners. */
+export const splitSource = (clipping = false, wpo: WpoSet = NO_WPO) =>
+  wgslProgram(`${SPLIT}\n${wpo.programs.length ? D.uvs : ''}`, [
     PAGE_INFO_STRUCT_WGSL,
     VIS_UNIFORMS_WGSL,
     normalAtlasWgsl(TESS_BINDINGS.normals),
@@ -68,4 +72,5 @@ export const splitSource = (clipping = false) =>
     WORKGROUP_THREADS_WGSL,
     visPageIndex,
     patchSightWgsl(clipping),
+    ...(wpo.programs.length ? [materialTableWgsl(wpo.table), wpoGraphWgsl(wpo)] : []),
   ])

@@ -1,20 +1,26 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { sampleWebgpuFrame } from './signature.ts'
-import { CPU_STEP } from '../render/cpuStepTable.ts'
+import { CPU_STEP } from '../../diagnostic/stage/cpuStepTable.ts'
 import { beginTaaFrame } from '../../post/taa/frame.ts'
 import { taaRuns } from '../backend/state/renderScale.ts'
 import { taaConverged } from '../../post/taa/landing.ts'
+import { readTemporalSetting } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { effectsMoved } from '../render/encodeEffects.ts'
 import { guidesMoved } from '../render/encodeGuides.ts'
 import { particlesMoved } from '../../particles/gpu/webgpuParticleFrame.ts'
 import { frameTargetsAwaited } from '../prepare/targetGrant.ts'
 import { asidePending, swapAsideTargets } from '../prepare/targetsAside.ts'
+import { freshDisplay } from '../io/displayRead.ts'
 import { deviceAnswering } from './deviceAnswer.ts'
 import { unsettledMask } from './unsettled.ts'
 import { traceDrawnFrame } from './holdTrace.ts'
 import { lightFunctionsWaiting } from '../../lighting/lightFunction/frame.ts'
+import { surfaceCacheBusy } from '../../lighting/surfaceCache/frame.ts'
 import { cloudsMoved } from '../render/encodeClouds.ts'
+import { skyCubemapsPending } from '../render/encodeCloudsSky.ts'
+import { finishAnimated } from '../../post/finish/frame.ts'
+import { blendGraphsAnimated } from '../../blend/graphWgsl.ts'
 /**
  * What a held frame actually did, published as such.
  *
@@ -50,6 +56,31 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
   timing.cpuSample = undefined
 }
 /**
+ * Whether a quiet view is drawn again all the same. Guides and effects may still require drawing
+ * this quiet source; a temporal pass runs on every image until its history is whole
+ * (`taaConverging`): a still view converges, then is held on its converged image; the
+ * frame-difference view compares each image with the one before, so it draws every one; so does a
+ * surface cache that has captures left (`surfaceCacheBusy`), a
+ * surface — opaque or translucent — or a fog object whose graph reads the time, a sky light whose
+ * cubemap is still being written (`skyCubemapsPending`), and a view whose film grain is drawn: its
+ * pattern follows the image's number (`finishAnimated`).
+ */
+const drawsEveryImage = (rt: WebgpuPagesRuntime) =>
+  taaConverging(rt) ||
+  rt.run.diagnostic === 'frame-difference' ||
+  surfaceCacheBusy(rt) ||
+  guidesMoved(rt) ||
+  effectsMoved(rt) ||
+  particlesMoved(rt) ||
+  lightFunctionsWaiting(rt) ||
+  rt.vis.graphsAnimated ||
+  blendGraphsAnimated(rt.vis.blendPipelines?.graphs) ||
+  rt.gpu.fogVolume?.gpu?.animated ||
+  cloudsMoved(rt) ||
+  skyCubemapsPending(rt) ||
+  finishAnimated(rt)
+
+/**
  * A frame whose targets the device has not granted (`targetGrant.ts`) would be drawn without
  * them, an incomplete image (#483): it is held instead, showing the previous image or nothing yet,
  * and `pendingWebgpuFrame` asks the next frame once the device answered. So is a lit frame whose
@@ -74,22 +105,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     // Targets the device granted aside enter here, before anything is drawn: this frame is drawn
     // into them, never held on a display colour they never had. Its stillness is the scene's.
     const swapped = !awaited && answered && swapAsideTargets(rt, device)
-    // Guides and effects may still require drawing this quiet source; a temporal pass runs on every
-    // image until its history is whole (`taaConverging`): a still view converges, then is held on
-    // its converged image; the frame-difference view compares each image with the one before, so
-    // it draws every one; so does a surface whose graph reads the time.
-    if (
-      swapped ||
-      !quiet ||
-      taaConverging(rt) ||
-      run.diagnostic === 'frame-difference' ||
-      guidesMoved(rt) ||
-      effectsMoved(rt) ||
-      particlesMoved(rt) ||
-      lightFunctionsWaiting(rt) ||
-      rt.vis.graphsAnimated ||
-      cloudsMoved(rt)
-    ) {
+    if (swapped || !quiet || drawsEveryImage(rt)) {
       if (rt.diag.traceEnabled) traceDrawnFrame(rt, unsettled, swapped)
       // Only an image that is drawn enters the accumulation: a held one leaves it as is (#26).
       beginTaaFrame(rt, run.gate.cam)
@@ -117,6 +133,8 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     !awaited &&
     (at || !presenter.holds(displayTexture, width, height))
   ) {
+    // The canvas lost the image: the display colour is composed again where it was not written.
+    freshDisplay(rt)
     const encoder = device.createCommandEncoder({ label: 'Trillion3D held frame' })
     presented = presenter.present(encoder, displayTexture, width, height, at)
     device.queue.submit([encoder.finish()])
@@ -135,7 +153,12 @@ function taaConverging(rt: WebgpuPagesRuntime) {
   const frame = rt.gpu.temporal?.frame
   if (!taaRuns(rt) || !frame) return false
   if (rt.context.drawConverged === true) return true
-  return !taaConverged(frame, rt.gpu.targetSize[0], rt.gpu.displaySize[0])
+  return !taaConverged(
+    frame,
+    rt.gpu.targetSize[0],
+    rt.gpu.displaySize[0],
+    readTemporalSetting(rt, 'temporalHistorySampleCount'),
+  )
 }
 
 /** Stores the frame that has just been fully encoded and submitted: it alone allows a hold. The

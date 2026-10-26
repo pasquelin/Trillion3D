@@ -12,6 +12,8 @@ const RESSOURCES: [string, string][] = [
   ['sdk-browser/src/wasm', 'kernels.wasm'],
   // The blue noise masks the passes' random numbers are read from (`scripts/dev/blue-noise.ts` makes them).
   ['sdk-browser/src/gpu/noise', 'blueNoise.bin'],
+  // The preintegrated skin table the skin shading model reads.
+  ['sdk-browser/src/lighting/direct', 'skinTable.bin'],
   ['sdk-browser/src/physics', 'joltPhysics.wasm'],
   ['sdk-browser/src/physics', 'joltPhysicsThreads.wasm'],
   ['sdk', 'package.json'],

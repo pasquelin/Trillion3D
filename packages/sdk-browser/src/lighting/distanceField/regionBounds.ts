@@ -22,7 +22,7 @@ export interface UpdateBound {
 }
 
 /** The squared distance between two boxes of six numbers: zero where they touch. */
-export function squaredBoxDistance(a: ArrayLike<number>, b: ArrayLike<number>) {
+function squaredBoxDistance(a: ArrayLike<number>, b: ArrayLike<number>) {
   let sum = 0
   for (let k = 0; k < 3; k++) {
     const apart =

@@ -10,25 +10,22 @@ import { rootsOnGpu } from '../../placement/roots/rootPasses.ts'
 import { deriveEveryRoot } from '../../placement/roots/rootMoves.ts'
 import { admitCutTables } from './targetFunding.ts'
 import { log } from '../../diagnostic/log.ts'
-import { createRowEviction } from '../../geometry/rows/rowEviction.ts'
 import { cutListCaps } from '../../geometry/dag/lists/cutListCaps.ts'
 import { requestBounds } from '../../geometry/dag/lists/requestSize.ts'
 
 /**
  * The GPU cut, the engine's one cut (#1483): one thread per cluster, each with its own error band.
- * Its rows are a cache of what it draws, sized by the view (`../../geometry/rows/slots.ts`), so neither grows
- * with the placements (#1232). A device that cannot hold it refuses the scene by name: nothing else
- * would draw it. `step` is prepare's, which a close or a loss stops.
+ * The clusters it draws are a list it writes each frame, sized by what the view asks
+ * (`../../geometry/dag/visible/visibleGrowth.ts`), so nothing grows with the placements (#1232). A
+ * device that cannot hold it refuses the scene by name: nothing else would draw it. `step` is prepare's, which a close or a loss stops.
  */
 export async function prepareGpuCut(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
   step: <T>(name: string, work: () => Promise<T>) => Promise<T>,
 ) {
-  const { vis } = rt,
-    { selectionRoots } = rt.layout
+  const { selectionRoots } = rt.layout
   if (!selectionRoots.length) return
-  if (!vis.gpuDraw) throw new Error('WEBGPU_DRAW_UNAVAILABLE')
   const made = await step('GPU cut', () => createSessionCut(rt, gpuDevice, selectionRoots))
   if (!made.cut) throw new Error(`GPU_SELECTION_REFUSED: ${made.refused}`)
   adoptCut(rt, made.cut)
@@ -66,18 +63,9 @@ export async function createSessionCut(
       })
     },
     roots: rootsOnGpu(rt),
-    rows: rt.layout.rows.casterSlots,
     admit: (bytes) => admitCutTables(rt, bytes),
     progress,
     timed: ({ took, ms }) => reportCutSteps(rt, { took: [pack, ...took], ms: pack.ms + ms }),
-    // The row cache on the cut: its map and use words sent, its rows stamped, its queue ranked.
-    rowPass: createRowEviction({
-      map: rt.layout.rows.rowMap,
-      words: rt.services.rowWords,
-      table: rt.layout.rows,
-      frame: () => rt.run.frame,
-      order: rt.services.followRowOrder,
-    }),
     // Its lists at the session's caps, their warnings said as the engine's (`cutMaxNodes`, …), its
     // readout within the session's bounds (`streamingMinRequests`, `streamingMaxRequests`).
     lists: cutListCaps(rt.context),
@@ -121,6 +109,9 @@ export function adoptCut(
   const { run, layout } = rt,
     old = run.gpuSelection
   linkWorldCells(cut, layout.selectionRoots)
+  // The poses the last drawn frame drew, which the velocity and the occlusion measure from, cross
+  // the swap: the new tables were packed at older ones.
+  if (old) cut.keepPosesOf(old)
   old?.dispose()
   run.gpuSelection = cut
   // Its frame words were packed from the CPU's stretches: the GPU's are written into them again.

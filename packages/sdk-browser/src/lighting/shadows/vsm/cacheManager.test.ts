@@ -3,25 +3,29 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  VSM_PRESSURE_LOAD,
-  VSM_PRESSURE_BIAS_MAX,
   VSM_PRESSURE_CALM_FRAMES,
-  VSM_STILL_FRAMES,
-  VSM_LIGHT_KEEP_FRAMES,
   VSM_POOL_PAGES,
   VSM_PRESSURE_RISE,
   VSM_PRESSURE_FALL,
 } from './constants.ts'
 import { VsmCacheManager } from './cacheManager.ts'
+import { VSM_DEFAULT_SHADOWS } from './mapSettings.ts'
 
 test('the cache and budget values', () => {
-  assert.equal(VSM_STILL_FRAMES, 100)
-  assert.equal(VSM_LIGHT_KEEP_FRAMES, 10)
-  assert.equal(VSM_POOL_PAGES, 2048)
+  const s = VSM_DEFAULT_SHADOWS
   assert.deepEqual(
     [
-      VSM_PRESSURE_LOAD,
-      VSM_PRESSURE_BIAS_MAX,
+      s.shadowCacheFramesStaticThreshold,
+      s.shadowCacheMaxPageAgeSinceLastRequest,
+      s.shadowCacheMaxLightAgeSinceLastRequest,
+    ],
+    [100, 1000, 10],
+  )
+  assert.equal(VSM_POOL_PAGES, 4096)
+  assert.deepEqual(
+    [
+      s.shadowDynamicResolutionMaxPagePoolLoadFactor,
+      s.shadowDynamicResolutionMaxResolutionLodBias,
       VSM_PRESSURE_RISE,
       VSM_PRESSURE_FALL,
       VSM_PRESSURE_CALM_FRAMES,

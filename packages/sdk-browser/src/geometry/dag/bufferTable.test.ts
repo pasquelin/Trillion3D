@@ -16,7 +16,7 @@ test('the camera cut makes the buffers its table names', async () => {
   const resources = (await createDagResources(fake.device, dag))!
   const made = (label: string) => fake.buffers.filter((b) => b.label === label).map((b) => b.size)
   const camera = cameraCutBuffers(dag)
-  const out = readoutRow(resources.listCap, 0, resources.heldSlots)
+  const out = readoutRow(resources.listCap, resources.heldSlots)
   for (const row of [...Object.values(camera.rows), out])
     assert.deepEqual(made(row.label), [row.size], row.label)
 })

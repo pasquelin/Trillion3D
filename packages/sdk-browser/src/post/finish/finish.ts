@@ -1,4 +1,5 @@
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
+import { standInTexture } from '../../gpu/core/standIns.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { uniformBlock } from '../../gpu/core/uniformBlock.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
@@ -6,7 +7,7 @@ import { filterPrograms } from '../filters/filterPrograms.ts'
 import { createSceneChain, type SceneChain } from '../filters/sceneChain.ts'
 import { FINISH, FINISH_BYTES, finishLayout } from './finishLayout.ts'
 import { writeFinishParams, type FinishInput } from './finishParams.ts'
-import type { ExposureSettings } from '../exposure/meterParams.ts'
+import type { ExposureValues } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { FilmValues } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import type { GaussianBlurValues } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import { lazyGrain } from './grain.ts'
@@ -24,11 +25,16 @@ export type PostFrame = {
   layers: GPUBindGroup
   local: boolean
   uniform: GPUBuffer
+  /** The lens' principal point of the image's camera (`lensOf`), which the dirt mask is read by. */
+  lens: readonly number[]
 }
 
 /** The byte of the finishing's uniform that holds the exposure the frame is shown at, copied on the
  *  GPU (`copyExposure`). */
 export const EXPOSURE_BYTE = (FINISH.at.look + 1) * 4
+/** The byte that holds the log2 of the middle grey the local exposure pulls toward, copied on the
+ *  GPU from the exposure buffer (`ExposureMeter.copyGrey`). */
+export const GREY_BYTE = FINISH.at.base * 4
 
 /** A view's display finishing (`createFinish`). */
 export type Finish = ReturnType<typeof createFinish>
@@ -55,12 +61,8 @@ function createFinishGroups(device: GPUDevice, uniform: GPUBuffer) {
   const layout = finishLayout(device),
     filters = filterPrograms(device),
     grain = lazyGrain(device)
-  const volume = device.createTexture({
-    label: 'Trillion3D display finish empty grid',
-    size: { width: 1, height: 1, depthOrArrayLayers: 1 },
+  const volume = standInTexture(device, 'Trillion3D display finish empty grid', HDR_FORMAT, {
     dimension: '3d',
-    format: HDR_FORMAT,
-    usage: GPUTextureUsage.TEXTURE_BINDING,
   })
   const emptyGrid = volume.createView({ dimension: '3d' })
   const build = ({ grid, blurred, glow, noise, mask }: GroupImages) =>
@@ -122,7 +124,7 @@ export function createFinish(device: GPUDevice) {
   const scene = createSceneChain(device)
   const local = createLocalExposure(device, uniform, groups.bare)
   // The settings the last image was drawn with: a view that rests is drawn again when they move.
-  const used = {} as ExposureSettings,
+  const used = {} as ExposureValues,
     usedFilm = {} as FilmValues,
     images: GroupImages = {}
   return {

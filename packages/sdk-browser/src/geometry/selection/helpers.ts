@@ -62,6 +62,13 @@ const NO_CLUSTER_ERROR = {
   group: undefined,
   source: undefined,
 } as const
+/** The finite parent error of `page`, none for a cluster no replacement stands over: a root of the cut. */
+export function parentErrorOf(page: { parentError?: unknown }): number | null {
+  return typeof page.parentError === 'number' && Number.isFinite(page.parentError)
+    ? page.parentError
+    : null
+}
+
 /**
  * The error band of a cluster, in object units, as the cut certifies it: the cluster's own, and
  * its replacement's, as the compiler published them, nothing added.
@@ -76,10 +83,7 @@ export function clusterErrorFields(
   'level' | 'lodError' | 'sphere' | 'parentError' | 'parentSphere' | 'group' | 'source'
 > {
   if (!pageCarriesClusterError(page)) return NO_CLUSTER_ERROR
-  const parent =
-    typeof page.parentError === 'number' && Number.isFinite(page.parentError)
-      ? page.parentError
-      : null
+  const parent = parentErrorOf(page)
   if (parent !== null && !(Array.isArray(page.parentSphere) && page.parentSphere.length === 4))
     throw new Error(`Page ${page.id}: parentError without parentSphere`)
   if (parent !== null && parent < page.lodError!)

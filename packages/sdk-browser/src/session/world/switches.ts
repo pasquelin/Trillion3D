@@ -6,8 +6,11 @@ import { createGuideSet, type Guides } from '../../guides/guideSet.ts'
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 import type { RenderScale } from '../../frame/scale/renderScaleOption.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
+import type { UnionToIntersection } from '../../../../sdk-core/src/runtime/joined.ts'
 import { createWorldSettings, type WorldSettings } from './settings.ts'
 import { createWorldQuality, renderScaleOf } from './quality.ts'
+import { QUALITY_LEVELS } from '../../../../sdk-core/src/runtime/qualityLevels.ts'
+import type { QualityBenchmark } from './benchmarkSource.ts'
 import type { TemporalAntialiasingLevel } from '../../../../sdk-core/src/contracts/compilerAbi.ts'
 import {
   temporalAntialiasingLevel,
@@ -15,7 +18,6 @@ import {
 } from '../../../../sdk-core/src/contracts/materialOptions.ts'
 import { worldFamilies } from './ruledSwitches.ts'
 import { rasterAccessors, ruledAccessors } from './ruledAccessors.ts'
-import { imageAccessors, lightAccessors } from './drawingSwitches.ts'
 
 /** What of the world's runtime the switches reach: its open session and a frame. */
 interface SwitchedRuntime {
@@ -39,13 +41,14 @@ function heldSwitches(options: WorldOptions, settings: WorldSettings, invalidate
     get pixelError() {
       return settings.get('pixelError')
     },
-    renderScale: options.renderScale ?? (asked ? renderScaleOf(asked) : ('auto' as RenderScale)),
+    renderScale: (options.renderScale ?? (asked ? renderScaleOf(asked) : undefined)) as
+      RenderScale | undefined,
     maxFrameRate: options.maxFrameRate ?? Infinity,
     // One chain for the world's life: every session draws it, a change asks for a frame. It starts
     // with the bloom a view draws by default.
     effects: createWorldEffects(invalidate),
     guides: createGuideSet(invalidate),
-    // The particle pools the measurement entry attaches (`attachParticles`); none by default.
+    // The particle pools the world's emitters attach (`world.particles`); none by default.
     particles: [] as ParticlePool[],
   }
 }
@@ -97,11 +100,6 @@ function composed<T extends object, P extends object[]>(base: T, ...parts: P) {
   for (const part of parts) Object.defineProperties(base, Object.getOwnPropertyDescriptors(part))
   return base as T & UnionToIntersection<P[number]>
 }
-type UnionToIntersection<U> = (U extends unknown ? (u: U) => void : never) extends (
-  i: infer I,
-) => void
-  ? I
-  : never
 
 /** The switches with a setting of the registry of their own: bounced light, temporal antialiasing
  *  (and the scene's level) and the cut's screen error, written at the page's priority. */
@@ -137,6 +135,32 @@ function pageAccessors(held: Held, settings: WorldSettings) {
   }
 }
 
+/** Writes `scale` into the held switches and the open session. */
+function writeRenderScale(
+  held: Held,
+  runtime: () => SwitchedRuntime,
+  invalidate: () => void,
+  scale: RenderScale | undefined,
+) {
+  if (scale === held.renderScale) return
+  held.renderScale = scale
+  runtime().explorer?.setRenderScale(scale)
+  invalidate()
+}
+
+/** The render scale as the world's quality writes it (`createWorldQuality`): the page asks through
+ *  `ask`. */
+function qualityScale(
+  options: WorldOptions,
+  held: Held,
+  runtime: () => SwitchedRuntime,
+  invalidate: () => void,
+  frames: { readonly last: FrameMetrics | null },
+  ask: (next: RenderScale) => void,
+) {
+  return { asked: () => held.renderScale, ask, drawn: () => frames.last }
+}
+
 /** The switches the open session answers: the render scale and the frame cap. */
 function sessionAccessors(held: Held, runtime: () => SwitchedRuntime, invalidate: () => void) {
   return {
@@ -145,10 +169,7 @@ function sessionAccessors(held: Held, runtime: () => SwitchedRuntime, invalidate
       return runtime().explorer?.renderScale() ?? 1
     },
     set renderScale(scale: RenderScale) {
-      if (scale === held.renderScale) return
-      held.renderScale = scale
-      runtime().explorer?.setRenderScale(scale)
-      invalidate()
+      writeRenderScale(held, runtime, invalidate, scale)
     },
     /** The world's frame cap, frames a second (`WorldOptions.maxFrameRate`). */
     get maxFrameRate() {
@@ -186,14 +207,17 @@ function sessionAccessors(held: Held, runtime: () => SwitchedRuntime, invalidate
  * reference: a session reads it at every frame.
  * A session is given the switches when it starts opening and draws frames before it is open,
  * which no setter reaches: what the page changed meanwhile is written into it once open (`apply`).
+ * `benchmark` makes the quality's hardware benchmark (`benchmarkSource.ts`), stopped by `dispose`;
+ * without it, the world has none.
  */
 export function worldSwitches(
   options: WorldOptions,
   runtime: () => SwitchedRuntime,
   frames: { readonly last: FrameMetrics | null },
+  benchmark?: (signal: AbortSignal) => QualityBenchmark,
 ) {
   const invalidate = () => runtime().invalidate()
-  const settings = createWorldSettings()
+  const settings: WorldSettings = createWorldSettings()
   // The page's own level, `true` included: it holds over a scene's and a preset's.
   if (options.temporalAntialiasing != null)
     settings.set('antialiasing', temporalAntialiasingLevel(options.temporalAntialiasing), 'page')
@@ -201,13 +225,12 @@ export function worldSwitches(
   // resolver; they hold over a preset's.
   const families = worldFamilies(settings)
   for (const family of Object.values(families)) family.page(options)
-  const scale = {
-    asked: () => held.renderScale,
-    ask: (next: RenderScale) => void (switches.renderScale = next),
-    drawn: () => frames.last,
-  }
-  const quality = createWorldQuality(settings, scale, options.quality)
   const held = heldSwitches(options, settings, invalidate)
+  const ask = (next: RenderScale) => void (switches.renderScale = next)
+  const scale = qualityScale(options, held, runtime, invalidate, frames, ask)
+  const stop = new AbortController()
+  const made = benchmark?.(stop.signal)
+  const quality = createWorldQuality(settings, scale, options.quality, QUALITY_LEVELS, made)
   watchSettings(settings, runtime, invalidate)
   for (const family of Object.values(families)) family.watch(() => runtime().explorer, invalidate)
   const switches = composed(
@@ -222,13 +245,15 @@ export function worldSwitches(
       },
       /** The page's guides: one set for the world's life, drawn by every session it opens. */
       guides: held.guides as Guides,
+      /** Stops a benchmark run the world's quality asked: the world is disposed. */
+      dispose: () => stop.abort(),
     },
     pageAccessors(held, settings),
     rasterAccessors(families),
     ruledAccessors(families),
-    lightAccessors(families),
-    imageAccessors(families),
     sessionAccessors(held, runtime, invalidate),
   )
   return switches
 }
+/** What `worldSwitches` builds: named, so the types that hold it refer to it rather than spell it out. */
+export type WorldSwitches = ReturnType<typeof worldSwitches>

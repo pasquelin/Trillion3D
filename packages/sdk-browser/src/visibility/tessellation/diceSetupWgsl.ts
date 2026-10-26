@@ -1,6 +1,5 @@
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
-import { PAGE_UV_SET_WGSL } from '../shader/pageUvSetWgsl.ts'
 import {
   edgeFactors,
   patchBarycentrics,
@@ -9,18 +8,19 @@ import {
   sortedFactors,
   unpackCorner,
 } from './patchWgsl.ts'
-import { domainPoint, fadeLine, setDensities, uvDerivative } from './domainWgsl.ts'
+import { domainPoint, fadeLine, setDensity, uvDerivative } from './domainWgsl.ts'
 import { TESS_VIEW } from './viewWgsl.ts'
 
-/** The coordinate a height map is read at, at the vertex `vertex` of a page: the texture set the
- *  displacement names where the geometry stores it, the first set else (`pageUvSet`). */
-export const DISPLACE_UV = wgslBlock(
-  'DISPLACE_UV_WGSL',
-  [PAGE_UV_SET_WGSL],
-  `fn displaceUv(page:PageInfo,h:ClusterHeader,vertex:u32,uvSet:u32)->vec2f{
- if(uvSet!=0u&&pageHasUvSet(page,h,uvSet)){return pageUvSet(page,h,vertex,uvSet,normalTexels());}
- return pageUv(page,h,vertex);
+/** The height of the displacement at \`uv\`, read at the footprint \`step\`: the height map's — this
+ *  default — unless the program lists the graph's height in its place (\`graphHeightWgsl\`), which is a
+ *  graph's where the surface's record says so. */
+const DICE_HEIGHT_MAP = wgslFn(
+  'diceHeight',
+  [],
+  `fn diceHeight(rec:DisplacementRecord,uv:vec2f,step:f32)->f32{
+ return dataSample(rec.map.x,uv,vec2f(step),vec2f(step),true).x;
 }`,
+  { weak: true },
 )
 
 /**
@@ -28,15 +28,16 @@ export const DISPLACE_UV = wgslBlock(
  * read it: the source triangle's corners, normals and coordinates, its placement, the pattern the
  * edge factors of the patch's corners in the world pick (`dicePatch`), the corners of the patch in
  * the pattern's order, the fade of the displacement over depth and the material's density of each
- * texture-coordinate set at the object's scale; then each vertex of the pattern (`diceVertex`): a point of the displaced
+ * the two texture-coordinate sets it reads, the height map's and the base map's, at the object's scale; then each vertex of the pattern (`diceVertex`): a point of the displaced
  * surface's domain with the height the map holds there, read at the level its micro-triangle's size
  * asks for. The program declares `tu`, the patterns (`PATTERN_WGSL`, or its plain twin where `tess`
- * is read-only), the data atlas (`dataSample`) and the page geometry.
+ * is read-only), the data atlas (`dataSample`), the page geometry and `pageMaskSet`.
  */
 export const DICE_PATCH_WGSL = wgslBlock(
   'DICE_PATCH_WGSL',
   [
     TESS_VIEW,
+    DICE_HEIGHT_MAP,
     worldMatrix3,
     unpackCorner,
     edgeFactors,
@@ -46,10 +47,10 @@ export const DICE_PATCH_WGSL = wgslBlock(
     patchBarycentrics,
     fadeLine,
     domainPoint,
-    setDensities,
+    setDensity,
     uvDerivative,
   ],
-  `struct DicePatch{p:mat3x3f,normal:mat3x3f,uv:mat3x2f,world:mat4x4f,pattern:Pattern,ordered:mat3x3f,fade:vec2f,density:vec4f,}
+  `struct DicePatch{p:mat3x3f,normal:mat3x3f,uv:mat3x2f,world:mat4x4f,pattern:Pattern,ordered:mat3x3f,fade:vec2f,heightDensity:f32,maskDensity:f32,}
 fn dicePatch(page:PageInfo,rec:DisplacementRecord,piece:vec4u,view:TessView,p:mat3x3f,nrm:mat3x3f,uv:mat3x2f)->DicePatch{
  let world=page.world;
  let parent=mat3x3f(unpackCorner(piece.y),unpackCorner(piece.z),unpackCorner(piece.w));
@@ -62,7 +63,7 @@ fn dicePatch(page:PageInfo,rec:DisplacementRecord,piece:vec4u,view:TessView,p:ma
  let pattern=patternAt(patternOf(sorted.factors,sorted.flip));
  let ordered=mat3x3f(parent[sorted.corners.x],parent[sorted.corners.y],parent[sorted.corners.z]);
  let fade=fadeLine(rec.scale,rec.bounds,scale,view.edgesPerUnit,tu.edgesPerPixel,view.perspective);
- return DicePatch(p,nrm,uv,world,pattern,ordered,fade,setDensities(rec.density,scale));
+ return DicePatch(p,nrm,uv,world,pattern,ordered,fade,setDensity(rec.density,rec.densityHigh,scale,rec.map.y),setDensity(rec.density,rec.densityHigh,scale,pageMaskSet(page)));
 }
 struct DiceVertex{point:DomainPoint,height:f32,b:vec3f,}
 /** Vertex \`v\` of the patch's pattern: its point of the domain, the map's height there and its weights on
@@ -70,8 +71,8 @@ struct DiceVertex{point:DomainPoint,height:f32,b:vec3f,}
 fn diceVertex(d:DicePatch,rec:DisplacementRecord,view:TessView,v:u32)->DiceVertex{
  let b=patchBarycentrics(d.ordered[0],d.ordered[1],d.ordered[2],patternVertex(d.pattern,v));
  let point=domainPoint(b,d.p,d.normal,d.uv,d.world,view.clip);
- let step=uvDerivative(point.clip.w,d.density[rec.map.y],view.edgesPerUnit,tu.piecesPerEdge,view.perspective);
- return DiceVertex(point,dataSample(rec.map.x,point.uv,vec2f(step),vec2f(step),true).x,b);
+ let step=uvDerivative(point.clip.w,d.heightDensity,view.edgesPerUnit,tu.piecesPerEdge,view.perspective);
+ return DiceVertex(point,diceHeight(rec,point.uv,step),b);
 }`,
 )
 
@@ -87,7 +88,7 @@ export const DICE_CUTOUT_WGSL = wgslBlock(
   'DICE_CUTOUT_WGSL',
   [uvDerivative],
   `fn dicedKept(page:PageInfo,d:DicePatch,view:TessView,at:DiceVertex,uv:mat3x2f,alpha:vec3f)->bool{
- let m=uvDerivative(at.point.clip.w,d.density[pageMaskSet(page)],view.edgesPerUnit,tu.piecesPerEdge,view.perspective);
+ let m=uvDerivative(at.point.clip.w,d.maskDensity,view.edgesPerUnit,tu.piecesPerEdge,view.perspective);
  return maskKeep(page,uv*at.b,dot(alpha,at.b),vec2f(m),vec2f(m));
 }`,
 )

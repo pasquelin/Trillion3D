@@ -62,6 +62,19 @@ function axisPlane(axis: Vector3, view: Vector3) {
   return axis.clone().cross(view.clone().cross(axis)).normalize()
 }
 
+/** The normal of the plane a drag reads its two rays on: the view's for the centre, the axis of
+ *  a ring, the plane holding an axis and facing the view most, or the axis a plane square faces. */
+function dragNormal(start: DragStart, single: Vector3 | null) {
+  const { mode, handle, view } = start
+  if (handle === 'xyz') return view.clone()
+  if (mode === 'rotate') return single!
+  if (single) return axisPlane(single, view)
+  return handleAxis(
+    start,
+    (['x', 'y', 'z'] as const).find((c) => !handle.includes(c))!,
+  )
+}
+
 /**
  * The pose a drag from `start.from` to `to` asks for, rounded to `snap`; null when the pointer
  * left every plane the drag can be read on (an axis seen end-on, a plane seen edge-on).
@@ -76,7 +89,7 @@ export function dragTransform(
   to: Ray,
   snap: TransformSnap = {},
 ): DragPose | null {
-  const { mode, handle, position: p0, view } = start
+  const { mode, handle, position: p0 } = start
   const pose = {
     position: p0.clone(),
     quaternion: start.quaternion.clone(),
@@ -84,17 +97,7 @@ export function dragTransform(
   }
   const axes = (handle === 'xyz' ? [] : [...handle]) as ('x' | 'y' | 'z')[]
   const single = handle.length === 1 ? handleAxis(start, handle as 'x') : null
-  const normal =
-    handle === 'xyz'
-      ? view.clone()
-      : mode === 'rotate'
-        ? single!
-        : single
-          ? axisPlane(single, view)
-          : handleAxis(
-              start,
-              (['x', 'y', 'z'] as const).find((c) => !handle.includes(c))!,
-            )
+  const normal = dragNormal(start, single)
   const size = normal.lengthSq()
   if (!Number.isFinite(size) || size === 0) return null
   const a = onPlane(start.from, normal, p0),

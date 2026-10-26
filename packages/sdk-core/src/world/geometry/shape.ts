@@ -71,14 +71,8 @@ function offsetRing(ring: P[], by: number): P[] {
   })
 }
 
-/**
- * A shape swept along `z` over `depth`, its rims rounded by a bevel when enabled: `bevelThickness`
- * deep, `bevelSize` wide, in `bevelSegments` quarter-circle steps. Faces are flat, as a solid cut
- * from a plank is.
- * @param outline - The flat shape to push.
- * @param options - How far and how it is pushed.
- */
-export function extrude(outline: Shape, options: ExtrudeOptions = {}) {
+/** The rings of an extrusion as `[z, grow]` pairs, front bevel to back bevel. */
+function extrusionLayers(options: ExtrudeOptions): [number, number][] {
   const depth = options.depth ?? 1,
     steps = Math.max(1, options.steps ?? 1),
     bevel = options.bevelEnabled ?? true,
@@ -95,10 +89,12 @@ export function extrude(outline: Shape, options: ExtrudeOptions = {}) {
     const a = (s / segments) * HALF_PI
     layers.push([depth + thickness * Math.cos(a), size * Math.sin(a)])
   }
-  const { outline: ring, holes } = rings(outline, options.curveSegments ?? 12)
-  const b = new GeometryBuilder()
+  return layers
+}
+
+/** The two flat faces of the triangulated outline, at `front` and `back`. */
+function addCaps(b: GeometryBuilder, ring: P[], holes: P[][], front: number, back: number) {
   const { points, triangles } = triangulate(ring, holes)
-  const [front, back] = [layers[0][0], layers[layers.length - 1][0]]
   for (let t = 0; t < triangles.length; t += 3) {
     const [i, j, k] = [triangles[t], triangles[t + 1], triangles[t + 2]]
     const at = (v: number, z: number) =>
@@ -106,7 +102,11 @@ export function extrude(outline: Shape, options: ExtrudeOptions = {}) {
     b.triangle(at(i, front), at(k, front), at(j, front))
     b.triangle(at(i, back), at(j, back), at(k, back))
   }
-  for (const contour of [ring, ...holes]) {
+}
+
+/** The side walls of each contour, a quad between each two layers. */
+function addWalls(b: GeometryBuilder, contours: P[][], layers: [number, number][]) {
+  for (const contour of contours) {
     const walls = layers.map(([z, grow]) =>
       offsetRing(contour, grow).map(([x, y]) => [x, y, z] as const),
     )
@@ -120,5 +120,20 @@ export function extrude(outline: Shape, options: ExtrudeOptions = {}) {
         b.triangle(v[0], v[2], v[3])
       }
   }
+}
+
+/**
+ * A shape swept along `z` over `depth`, its rims rounded by a bevel when enabled: `bevelThickness`
+ * deep, `bevelSize` wide, in `bevelSegments` quarter-circle steps. Faces are flat, as a solid cut
+ * from a plank is.
+ * @param outline - The flat shape to push.
+ * @param options - How far and how it is pushed.
+ */
+export function extrude(outline: Shape, options: ExtrudeOptions = {}) {
+  const layers = extrusionLayers(options)
+  const { outline: ring, holes } = rings(outline, options.curveSegments ?? 12)
+  const b = new GeometryBuilder()
+  addCaps(b, ring, holes, layers[0][0], layers[layers.length - 1][0])
+  addWalls(b, [ring, ...holes], layers)
   return flatGeometry(b)
 }

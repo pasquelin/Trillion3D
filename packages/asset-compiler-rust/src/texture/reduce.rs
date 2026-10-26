@@ -2,63 +2,57 @@ use super::curves::{linear_to_srgb, srgb_table};
 use super::*;
 use rayon::prelude::*;
 use std::borrow::Cow;
+use std::sync::OnceLock;
+use trillion3d_math::color::srgb_to_linear_f32;
 use trillion3d_math::scalar::{byte_to_unit_f32, mean_f32, unit_to_byte_f32};
-use trillion3d_math::vector::vecn::weighted_mean;
 
 /// What the atlas layer does with the bytes, and therefore what reduction must do
 /// with the same: the colour atlas is `rgba8unorm-srgb`, its first three channels
 /// go through the sRGB curve; the data atlas is `rgba8unorm`, everything there is
 /// linear. Alpha goes through no curve in either case — that is how WebGPU defines
-/// these formats.
+/// these formats. The half-float atlas holds the colour textures a file stores in floating
+/// point (`rgba16float`, every channel linear): it has its own chain (`hdr.rs`), which this
+/// module's does not read.
 ///
-/// `Coverage` is a chain of the colour atlas too, the one of a texture EVERY
-/// reader of which reads its alpha as coverage — the base colour of MASK or BLEND
-/// materials —: the only chain whose colours `halve` weighs by alpha. It carries
-/// the texture's cutoff byte, whose share of covered texels every level keeps
-/// (`coverage.rs`); 0 when a reader blends, and the chain keeps the median alone.
-/// Each cutoff has its own word and name, so its
-/// files never mix with the plain chain of the same image, nor with another
-/// cutoff's, read in another scene. Entries sort by the atlas that samples the
-/// chain (`atlas`), so one texture carries a plain or a coverage colour entry, never both.
+/// Entries sort by the atlas that samples the chain, so one texture carries a colour
+/// entry and a data entry at most, or its half-float entry alone.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum AtlasKind {
     Color,
     Data,
-    Coverage(u8),
+    Hdr,
 }
 impl AtlasKind {
-    /// The sidecar's atlas word: 0, 1 or 2 in the low byte, a coverage chain's
-    /// cutoff in the next one.
+    /// The sidecar's atlas word: 0, 1 or 2.
     pub fn word(self) -> u32 {
         match self {
             Self::Color => 0,
             Self::Data => 1,
-            Self::Coverage(cutoff) => 2 | u32::from(cutoff) << 8,
+            Self::Hdr => 2,
         }
     }
-    pub fn name(self) -> String {
+    pub fn name(self) -> &'static str {
         match self {
-            Self::Color => "srgb".into(),
-            Self::Data => "linear".into(),
-            Self::Coverage(0) => "srgb-coverage".into(),
-            Self::Coverage(cutoff) => format!("srgb-coverage-{cutoff}"),
-        }
-    }
-    /// The atlas the chain is sampled in: a `Coverage` chain is the colour atlas's.
-    pub fn atlas(self) -> Self {
-        match self {
-            Self::Coverage(_) => Self::Color,
-            kind => kind,
+            Self::Color => "srgb",
+            Self::Data => "linear",
+            Self::Hdr => "hdr",
         }
     }
     /// The atlas a sidecar word names; `None` for a word this version never wrote.
     pub fn from_word(word: u32) -> Option<Self> {
-        let cutoff = u8::try_from(word >> 8).ok()?;
-        match (word & 0xff, cutoff) {
-            (0, 0) => Some(Self::Color),
-            (1, 0) => Some(Self::Data),
-            (2, cutoff) => Some(Self::Coverage(cutoff)),
+        match word {
+            0 => Some(Self::Color),
+            1 => Some(Self::Data),
+            2 => Some(Self::Hdr),
             _ => None,
+        }
+    }
+    /// Bytes of one texel of the atlas's chain as the sidecar's pixel column holds it: four
+    /// 8-bit channels, or four half-floats.
+    pub fn texel_bytes(self) -> usize {
+        match self {
+            Self::Color | Self::Data => 4,
+            Self::Hdr => super::hdr::HALF_TEXEL_BYTES,
         }
     }
 }
@@ -66,39 +60,112 @@ impl AtlasKind {
 /// The ENTIRE mip chain of a source, level 0 included: `levels[k]` is level `k` in
 /// RGBA8, at `preview_level_size` dimensions, level 0 the source's own texels, borrowed.
 ///
-/// The rule is the one the engine applied on the GPU by regenerating the chain
-/// after full resolution (`packages/sdk-browser/src/materials/texture/mips.ts`), reproduced here
-/// so baking levels instead of regenerating them does not change the image: each
-/// level is computed from the PREVIOUS level already quantised to bytes, never
-/// from a kept float; colours are the mean of the four texels, decoded then
-/// re-encoded by the atlas curve, weighted by alpha in a `Coverage` chain
-/// (`halve`); alpha is the MEDIAN of the four, the mean of the two middle
-/// values, then scaled in a `Coverage` chain with a cutoff so that the share of
-/// covered texels stays level 0's (`coverage.rs`); an
-/// odd side repeats its last texel, like `min(p + 1, hi)` in the shader. No curve
-/// declared by the file: the atlas does not know it, and the pyramid follows
-/// display, not the file.
-pub(crate) fn chain<C: std::ops::Deref<Target = [u8]>>(
-    source: &image::ImageBuffer<image::Rgba<u8>, C>,
+/// Each level is computed from the PREVIOUS level already quantised to bytes, never
+/// from a kept float, so that baking levels instead of regenerating them does not
+/// change the image: all four channels are the plain mean of the four texels —
+/// colours decoded by the atlas curve and re-encoded, alpha as it is, no texel weighing
+/// another and no coverage kept —; an odd side repeats its last texel. No curve declared
+/// by the file: the atlas does not know it, and the pyramid follows display, not the file.
+///
+/// The levels the file stores below level 0 (`stored`, levels 1 on, a DDS's) are kept as they are,
+/// and only the levels past them are reduced, from the last stored one.
+pub(crate) fn chain<'a, C: std::ops::Deref<Target = [u8]>>(
+    source: &'a image::ImageBuffer<image::Rgba<u8>, C>,
+    stored: &'a [Vec<u8>],
     kind: AtlasKind,
-) -> Vec<Cow<'_, [u8]>> {
+) -> Vec<Cow<'a, [u8]>> {
+    debug_assert!(
+        kind != AtlasKind::Hdr,
+        "a half-float chain is `hdr::chain`'s"
+    );
     let (width, height) = source.dimensions();
     let last = preview_last_level(width, height);
     let mut levels = Vec::with_capacity(last as usize + 1);
     levels.push(Cow::Borrowed(&**source.as_raw()));
-    let covered = super::coverage::Covered::of(&levels[0], width as usize, kind);
-    let mut size = (width, height);
-    for level in 1..=last {
+    levels.extend(
+        stored
+            .iter()
+            .take(last as usize)
+            .map(|level| Cow::Borrowed(&level[..])),
+    );
+    for level in levels.len() as u32..=last {
+        let size = preview_level_size(width, height, level - 1);
         let next = preview_level_size(width, height, level);
         let previous = levels.last().expect("previous level");
-        let mut halved = halve(previous, size, next, kind);
-        if let Some(covered) = &covered {
-            covered.preserve(&mut halved, next.0 as usize);
-        }
-        levels.push(Cow::Owned(halved));
-        size = next;
+        levels.push(Cow::Owned(halve(previous, size, next, kind)));
     }
     levels
+}
+
+/// The chain of a source stored at 16 bits a channel, level 0 included: `wide` its RGBA samples,
+/// `source` the bytes they round to (`ImageDecoded::wide`). Level 0 is `source`, borrowed; every
+/// level past it is reduced in `f32` — the colours decoded by the atlas curve from the 16-bit
+/// sample, never from a level's bytes — and rounded to bytes once, when it is written: the
+/// accumulated rounding of eight bits a level is gone, the precision the file holds reaches the
+/// last level.
+pub(crate) fn chain_wide<'a, C: std::ops::Deref<Target = [u8]>>(
+    source: &'a image::ImageBuffer<image::Rgba<u8>, C>,
+    wide: &[u16],
+    kind: AtlasKind,
+) -> Vec<Cow<'a, [u8]>> {
+    debug_assert!(
+        kind != AtlasKind::Hdr,
+        "a half-float chain is `hdr::chain`'s"
+    );
+    let (width, height) = source.dimensions();
+    let last = preview_last_level(width, height);
+    let table = wide_table(kind);
+    let sample = |i: usize| table[i % 4 / 3][wide[i] as usize];
+    let mut levels = vec![Cow::Borrowed(&**source.as_raw())];
+    let mut current: Option<Vec<f32>> = None;
+    for level in 1..=last {
+        let size = preview_level_size(width, height, level - 1);
+        let next = preview_level_size(width, height, level);
+        let (size, next) = (
+            (size.0 as usize, size.1 as usize),
+            (next.0 as usize, next.1 as usize),
+        );
+        let reduced = match &current {
+            None => super::hdr::halve(sample, size, next),
+            Some(above) => super::hdr::halve(|i| above[i], size, next),
+        };
+        levels.push(Cow::Owned(encode_level(&reduced, kind)));
+        current = Some(reduced);
+    }
+    levels
+}
+
+/// The linear value of each 16-bit sample, one table for the colours — by the atlas's curve — and
+/// one for alpha, which goes through none: `[colour, alpha]`.
+fn wide_table(kind: AtlasKind) -> [&'static [f32]; 2] {
+    static SRGB: OnceLock<Vec<f32>> = OnceLock::new();
+    static LINEAR: OnceLock<Vec<f32>> = OnceLock::new();
+    let unit = |of: fn(f32) -> f32| (0..=u16::MAX).map(|v| of(f32::from(v) / 65535.0)).collect();
+    let linear = LINEAR.get_or_init(|| unit(|v| v));
+    match kind {
+        AtlasKind::Color => [SRGB.get_or_init(|| unit(srgb_to_linear_f32)), linear],
+        _ => [linear, linear],
+    }
+}
+
+/// A reduced level's linear texels as the bytes the atlas stores: the colours encoded by its
+/// curve, alpha as it is, each rounded to nearest. Each chunk writes its own span of one buffer.
+fn encode_level(level: &[f32], kind: AtlasKind) -> Vec<u8> {
+    let mut bytes = vec![0u8; level.len()];
+    bytes
+        .par_chunks_mut(4096)
+        .zip(level.par_chunks(4096))
+        .for_each(|(out, texels)| {
+            for (texel, bytes) in texels.chunks_exact(4).zip(out.chunks_exact_mut(4)) {
+                for (channel, byte) in bytes.iter_mut().enumerate() {
+                    *byte = match channel {
+                        3 => unit_to_byte_f32(texel[3]),
+                        _ => encode(texel[channel], kind),
+                    };
+                }
+            }
+        });
+    bytes
 }
 
 /// Tail the sidecar carries: levels from `preview_first_level` on, end to end.
@@ -110,30 +177,20 @@ pub(super) fn tail(levels: &[Cow<'_, [u8]>], first: u32) -> Vec<u8> {
 /// averages: the sRGB curve for colours of a colour atlas, division by 255 everywhere else.
 fn decode_table(kind: AtlasKind) -> &'static [f32; 256] {
     match kind {
-        AtlasKind::Color | AtlasKind::Coverage(_) => srgb_table(),
-        AtlasKind::Data => super::curves::linear_table(),
+        AtlasKind::Color => srgb_table(),
+        AtlasKind::Data | AtlasKind::Hdr => super::curves::linear_table(),
     }
 }
 
 fn encode(value: f32, kind: AtlasKind) -> u8 {
     match kind {
-        AtlasKind::Color | AtlasKind::Coverage(_) => linear_to_srgb(value),
-        AtlasKind::Data => unit_to_byte_f32(value),
+        AtlasKind::Color => linear_to_srgb(value),
+        AtlasKind::Data | AtlasKind::Hdr => unit_to_byte_f32(value),
     }
 }
 
-/// Next level from the previous bytes. `(u + v) / 2` is the median of four
-/// values: `u` the second and `v` the third once sorted, six comparisons without a sort.
-///
-/// Colours are the plain mean of the four, except in a `Coverage` chain when their
-/// alphas differ: there a transparent texel is no colour — its RGB, often black,
-/// would darken the borders of alpha-masked foliage at the coarse levels
-/// —, so the four linear colours are premultiplied, averaged and divided by the
-/// summed alpha, the atlas storing straight alpha. Four equal alphas keep the plain
-/// mean byte for byte, which weighting could not change. Every other chain always
-/// keeps it: where no reader takes alpha for coverage — an opaque base colour, an
-/// emissive, a packed channel, a height beside a normal — the RGB under alpha 0 is
-/// drawn, and weighting would change it. Rows are computed in parallel, each texel from its own
+/// Next level from the previous bytes: the mean of the four texels of each channel, the three
+/// colours in the atlas's linear space. Rows are computed in parallel, each texel from its own
 /// four alone.
 fn halve(previous: &[u8], size: (u32, u32), next: (u32, u32), kind: AtlasKind) -> Vec<u8> {
     let table = decode_table(kind);
@@ -150,21 +207,13 @@ fn halve(previous: &[u8], size: (u32, u32), next: (u32, u32), kind: AtlasKind) -
                 let x1 = (column * 2 + 1).min(width - 1);
                 let at = |x: usize, y: usize| (y * width + x) * 4;
                 let texels = [at(x0, y0), at(x1, y0), at(x0, y1), at(x1, y1)];
-                let a: [f32; 4] =
-                    std::array::from_fn(|i| byte_to_unit_f32(previous[texels[i] + 3]));
+                let alpha = texels.map(|t| byte_to_unit_f32(previous[t + 3]));
                 let colours: [[f32; 3]; 4] = texels
                     .map(|t| std::array::from_fn(|channel| table[previous[t + channel] as usize]));
-                let means = if matches!(kind, AtlasKind::Coverage(_))
-                    && a.iter().any(|&w| w != a[0])
-                {
-                    weighted_mean(colours, a)
-                } else {
-                    std::array::from_fn(|channel| mean_f32(colours.map(|colour| colour[channel])))
-                };
-                let u = a[0].max(a[1]).min(a[2].max(a[3]));
-                let v = a[0].min(a[1]).max(a[2].min(a[3]));
-                let [r, g, b] = means.map(|mean| encode(mean, kind));
-                texel.copy_from_slice(&[r, g, b, unit_to_byte_f32(mean_f32([u, v]))]);
+                let [r, g, b] = std::array::from_fn(|channel| {
+                    encode(mean_f32(colours.map(|colour| colour[channel])), kind)
+                });
+                texel.copy_from_slice(&[r, g, b, unit_to_byte_f32(mean_f32(alpha))]);
             }
         });
     out

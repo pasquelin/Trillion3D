@@ -9,13 +9,13 @@
  */
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import type { HostAttributes, HostMaterials, HostMesh } from '../../session/host/resources.ts'
 import type { PageSurface } from '../pages/surface.ts'
 import { meshes } from '../../scene/meshes.ts'
 import { nodeCasting } from '../../visibility/shader/castingMark.ts'
 import type { PlacementRows } from '../../placement/rows/rows.ts'
 import type { DrawDistance, RootParent } from './types.ts'
 import type { TableRootParent } from '../../../../sdk-core/src/scene/core/tableCell.ts'
+import type { PageMaterials, PageMesh } from '../pages/pageMesh.ts'
 
 /** The association a manifest gave a source: its mesh and primitive ranks, the rows that place it. */
 export type DrawRanks = {
@@ -38,14 +38,14 @@ export type DrawSource = {
   /** The triangles it draws. */
   readonly geometry: Geometry
   /** The named vertex attributes of that geometry: what its GPU buffers are keyed by. */
-  readonly attributes: HostAttributes
+  readonly attributes: Geometry['attributes']
   /** The host rewrites the vertices in place: the engine reads them as floats. */
   readonly dynamic: boolean
   /** What the surface is read from, one declaration or one per geometry group. */
-  readonly declaration: HostMaterials
+  readonly declaration: PageMaterials
   /** The node the host watches for this source and poses it by; its chain decides hiding.
    *  Absent where rows place it: their owner writes the pose and the flags. */
-  readonly node?: HostMesh
+  readonly node?: PageMesh
   /** How it casts, as its node says (`nodeCasting`): no shadow, far shadows. */
   readonly casting: number
   /** The distances a node placed at its own world is drawn at (`holdDrawDistance`); a row says
@@ -56,7 +56,6 @@ export type DrawSource = {
    *  otherwise. */
   readonly rootParent?: RootParent
   /** Whether the host lets it be skipped outside the view. */
-  readonly frustumCulled: boolean
   /** The source wears `surface` from now on, in place of its declaration. */
   wear(surface: PageSurface): void
   /** The instance rows that place it, one root each, parked rows included. */
@@ -70,9 +69,9 @@ export type DrawSource = {
 }
 
 class MeshSource implements DrawSource {
-  readonly node: HostMesh
+  readonly node: PageMesh
   ranks: DrawRanks | undefined
-  constructor(node: HostMesh) {
+  constructor(node: PageMesh) {
     this.node = node
   }
   get geometry() {
@@ -99,9 +98,6 @@ class MeshSource implements DrawSource {
   get rootParent() {
     return rootParents.get(this.node)?.[this.primitives ?? 0] ?? undefined
   }
-  get frustumCulled() {
-    return this.node.frustumCulled
-  }
   get rows() {
     return this.ranks?.placements
   }
@@ -116,31 +112,31 @@ class MeshSource implements DrawSource {
   }
 }
 
-const sources = new WeakMap<HostMesh, MeshSource>()
+const sources = new WeakMap<PageMesh, MeshSource>()
 
 /** The distances each drawn mesh of a prepared scene's core is drawn at, from its node table
  *  (`../../scene/host/prepared/graph.ts`): engine data no host object carries. */
-const drawDistances = new WeakMap<HostMesh, DrawDistance>()
+const drawDistances = new WeakMap<PageMesh, DrawDistance>()
 
 /** The group that replaces the root of each primitive of each drawn mesh of a prepared scene's core
  *  that is an instance of an assembly, by the primitive's rank in its mesh (`graph.ts`). */
-const rootParents = new WeakMap<HostMesh, readonly (RootParent | null)[]>()
+const rootParents = new WeakMap<PageMesh, readonly (RootParent | null)[]>()
 
 /** Mesh `mesh` is an instance of an assembly: the group above the root of each primitive of its
  *  part, `null` for one none replaces (`TableNode.rootParents`). */
-export const holdRootParents = (mesh: HostMesh, parents: readonly (TableRootParent | null)[]) =>
+export const holdRootParents = (mesh: PageMesh, parents: readonly (TableRootParent | null)[]) =>
   void rootParents.set(
     mesh,
     parents.map((p) => p && { error: p[0], sphere: [p[1], p[2], p[3], p[4]] as const }),
   )
 
 /** Mesh `mesh` is drawn at `distance` from now on. */
-export const holdDrawDistance = (mesh: HostMesh, distance: DrawDistance) =>
+export const holdDrawDistance = (mesh: PageMesh, distance: DrawDistance) =>
   void drawDistances.set(mesh, distance)
 
 /** The source of a drawn graph node, one per node however many records name it; `ranks` is the
  *  association the manifest gave it, kept when given. */
-export function drawSourceOf(mesh: HostMesh, ranks?: DrawRanks): DrawSource {
+export function drawSourceOf(mesh: PageMesh, ranks?: DrawRanks): DrawSource {
   let source = sources.get(mesh)
   if (!source) sources.set(mesh, (source = new MeshSource(mesh)))
   if (ranks) source.ranks = ranks

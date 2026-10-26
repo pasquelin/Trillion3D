@@ -1,200 +1,155 @@
-// The projection's mask (`engineVsm.ts`), the opaque surfaces': its array, a layer per four
-// shadowed lights, its tile words and, with translucent casters, its transmission, a layer a light,
-// made whole or not at all at the targets' size, and the bytes it takes.
-import { workgroupCount } from '../../../../../../math/src/scalar/integers.ts'
-import { clampLowWins } from '../../../../../../math/src/scalar/reals.ts'
+// The projection's masks (`engineVsm.ts`), the opaque surfaces': the suns' array, a layer a sun, and the
+// local lights' texture, a texel a pixel, made whole or not at all at the targets' size, and the bytes
+// they take.
 import { arrayView } from '../../../../gpu/core/textureViews.ts'
-import { constructGpuResources } from '../../../../gpu/core/errorScope.ts'
+import { constructGpuResources } from '../../../../gpu/core/deviceLedger.ts'
 import { retire } from '../../../../gpu/core/frameRetire.ts'
 import { madeTextureBytes, textureBytesOf } from '../../../../gpu/core/textureBytes.ts'
-import {
-  VSM_PROJECTION_MASK_FORMAT,
-  VSM_PROJECTION_THROUGH_FORMAT,
-  VSM_PROJECTION_TILE_FORMAT,
-  vsmProjectionTiles,
-} from '../projection/projectionWgsl.ts'
-import { VSM_PROJECTION_MAX_LIGHTS } from '../constants.ts'
-import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../projection/projectionView.ts'
+import { onePassMaskFormat, VSM_SUN_MASK_FORMAT } from '../projection/maskFormat.ts'
 import type { EngineVsm } from './engineVsm.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import { viewGpu, type WebgpuView } from '../../../../frame/backend/state/view.ts'
 
-/** The projection's mask, made and freed as one (`ensureMask`): its array, a layer per four
- *  shadowed lights, its tile words, a texel per projection group naming the layers it stored, and,
- *  while the frame holds translucent casters, what their panes let through along each light's
- *  missed rays (`through`, a layer a light), each with the one view the projection and the
- *  lighting bind. */
-export interface VsmMask {
-  array: GPUTexture
-  view: GPUTextureView
-  tiles: GPUTexture
-  tilesView: GPUTextureView
-  through?: GPUTexture
-  throughView?: GPUTextureView
+/** What the masks are made for: the suns the frame shadows (a layer each, one at least) and the most
+ *  local lights a pixel keeps (`shadowOnePassProjectionMaxLightsPerPixel`, which sets the format of the
+ *  local lights' mask). */
+export interface VsmMaskNeeds {
+  suns: number
+  localLights: number
 }
 
-/** The mask array's layers for `lights` shadowed lights: one per four, one at least, and no more
- *  than the projection's one pass reads (`VSM_PROJECTION_MAX_PASS_LIGHTS`, `vsmProject.ts`). */
-const maskLayersFor = (lights: number) =>
-  workgroupCount(Math.min(lights, VSM_PROJECTION_MAX_PASS_LIGHTS), VSM_PROJECTION_MAX_LIGHTS)
+/** The projection's masks, made and freed as one (`ensureMask`): the suns' array and the local lights'
+ *  texture, each with the one view the projection and the lighting bind. */
+export interface VsmMask {
+  suns: GPUTexture
+  sunsView: GPUTextureView
+  locals: GPUTexture
+  localsView: GPUTextureView
+  localFormat: ReturnType<typeof onePassMaskFormat>
+}
 
-const maskDescriptor = (width: number, height: number, layers: number) => ({
-  label: 'vsm.engine.shadowMask',
-  size: [width, height, layers],
-  format: VSM_PROJECTION_MASK_FORMAT,
+const sunLayers = (suns: number) => Math.max(1, suns)
+
+const sunsDescriptor = (width: number, height: number, suns: number) => ({
+  label: 'vsm.engine.sunMask',
+  size: [width, height, sunLayers(suns)],
+  format: VSM_SUN_MASK_FORMAT,
   usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
 })
 
-/** The transmission's layers for `lights` shadowed lights: one a light the projection reads. */
-const throughLayersFor = (lights: number) => clampLowWins(lights, 1, VSM_PROJECTION_MAX_PASS_LIGHTS)
-
-const throughDescriptor = (width: number, height: number, lights: number) => ({
-  label: 'vsm.engine.shadowThrough',
-  size: [width, height, throughLayersFor(lights)],
-  format: VSM_PROJECTION_THROUGH_FORMAT,
+const localsDescriptor = (width: number, height: number, localLights: number) => ({
+  label: 'vsm.engine.localMask',
+  size: [width, height],
+  format: onePassMaskFormat(localLights),
   usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
 })
 
-/** The mask's tile words at `width` × `height`: a texel per projection group. */
-const maskTilesDescriptor = (width: number, height: number) => ({
-  label: 'vsm.engine.shadowMaskTiles',
-  size: vsmProjectionTiles(width, height),
-  format: VSM_PROJECTION_TILE_FORMAT,
-  usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-})
+/** Bytes of the masks `ensureMask` makes for `needs` at `width` × `height`. */
+const maskBytes = (width: number, height: number, needs: VsmMaskNeeds) =>
+  textureBytesOf(sunsDescriptor(width, height, needs.suns))! +
+  textureBytesOf(localsDescriptor(width, height, needs.localLights))!
 
-/** Bytes of the mask `ensureMask` makes for `lights` shadowed lights at `width` × `height`: its
- *  array, its tile words and, with translucent casters (`transmits`), its transmission. */
-const maskBytes = (width: number, height: number, lights: number, transmits: boolean) =>
-  textureBytesOf(maskDescriptor(width, height, maskLayersFor(lights)))! +
-  textureBytesOf(maskTilesDescriptor(width, height))! +
-  (transmits ? textureBytesOf(throughDescriptor(width, height, lights))! : 0)
-
-/** Bytes `mask` holds: its array, its tile words and its transmission, none without one. */
+/** Bytes `mask` holds: its two textures. */
 const slotBytes = (mask: VsmMask | undefined) =>
-  mask
-    ? madeTextureBytes(mask.array) +
-      madeTextureBytes(mask.tiles) +
-      (mask.through ? madeTextureBytes(mask.through) : 0)
-    : 0
+  mask ? madeTextureBytes(mask.suns) + madeTextureBytes(mask.locals) : 0
 
-/** Bytes the mask of `vsm` holds: its array and its tile words. */
+/** Bytes the masks of `vsm` hold. */
 export const heldMaskBytes = (vsm: EngineVsm) => slotBytes(vsm.mask)
 
 export const destroyMask = (mask: VsmMask | undefined) => {
-  mask?.array.destroy()
-  mask?.tiles.destroy()
-  mask?.through?.destroy()
+  mask?.suns.destroy()
+  mask?.locals.destroy()
 }
 
-/** Whether the frame of `vsm` holds translucent casters: its mask then carries their transmission. */
-const transmitsOf = (vsm: EngineVsm) => !!vsm.transmission
-
-/** Bytes the mask asks beyond the one `vsm` holds, to be made at `width` × `height` for exactly
- *  `lights` shadowed lights (`ensureMask` frees the held one first). */
-function maskGrowth(vsm: EngineVsm, width: number, height: number, lights: number) {
-  const transmits = transmitsOf(vsm)
-  if (maskKept(vsm.mask, width, height, lights, transmits, true)) return 0
-  return maskBytes(width, height, lights, transmits) - heldMaskBytes(vsm)
+/** Bytes the masks ask beyond the ones `vsm` holds, to be made at `width` × `height` for exactly
+ *  `needs` (`ensureMask` frees the held ones first). */
+function maskGrowth(vsm: EngineVsm, width: number, height: number, needs: VsmMaskNeeds) {
+  const held = vsm.mask
+  const keepSuns = !!held && fitsSuns(held.suns, width, height, needs.suns, true),
+    keepLocals = !!held && fitsLocals(held, width, height, needs.localLights, true)
+  if (keepSuns && keepLocals) return 0
+  return maskBytes(width, height, needs) - heldMaskBytes(vsm)
 }
 
-/** Whether `texture` holds `layers` layers over `width` × `height`: exactly when `exact`, else at
+/** Whether the suns' array holds `suns` layers over `width` × `height`: exactly when `exact`, else at
  *  least. */
-const fits = (
+const fitsSuns = (
   texture: GPUTexture,
   width: number,
   height: number,
-  layers: number,
+  suns: number,
   exact: boolean,
 ) =>
   exact
-    ? texture.width === width && texture.height === height && texture.depthOrArrayLayers === layers
-    : texture.width >= width && texture.height >= height && texture.depthOrArrayLayers >= layers
+    ? texture.width === width &&
+      texture.height === height &&
+      texture.depthOrArrayLayers === sunLayers(suns)
+    : texture.width >= width &&
+      texture.height >= height &&
+      texture.depthOrArrayLayers >= sunLayers(suns)
 
-/** Whether `mask` serves `lights` shadowed lights over `width` × `height`, its transmission held
- *  exactly while the frame `transmits`: exactly when `exact` (the plan's reservation at the targets'
- *  size, so a mask shrinks with them), else at least — its texels are read at the pixel's own
- *  coordinates, so views of other shapes drawn in turn (`world.addView`) share the largest. */
-const maskKept = (
-  mask: VsmMask | undefined,
+/** Whether the local lights' texture is of the format `localLights` asks over `width` × `height`:
+ *  exactly when `exact`, else at least the size. */
+const fitsLocals = (
+  mask: VsmMask,
   width: number,
   height: number,
-  lights: number,
-  transmits: boolean,
+  localLights: number,
   exact: boolean,
 ) =>
-  !!mask &&
-  fits(mask.array, width, height, maskLayersFor(lights), exact) &&
-  (mask.through
-    ? transmits && fits(mask.through, width, height, throughLayersFor(lights), exact)
-    : !transmits)
+  mask.localFormat === onePassMaskFormat(localLights) &&
+  (exact
+    ? mask.locals.width === width && mask.locals.height === height
+    : mask.locals.width >= width && mask.locals.height >= height)
 
-/** The mask at the targets' size at least for `lights` shadowed lights at least, its transmission
- *  while the frame holds translucent casters — `exact` when the plan reserves it for every casting
- *  light (`reserveProjection`, `vsmBeside.ts`), the frame then drawing into as many as its own
- *  lights take —, made whole or not at all (`constructGpuResources`). Each of its textures that
- *  still serves is kept: a count of translucent lights that moves remakes the transmission alone,
- *  a count that keeps its layers of four the array and its tiles. */
+/** The masks at the targets' size at least for `needs` at least — `exact` when the plan reserves them
+ *  for every casting light (`reserveProjection`, `vsmBeside.ts`), the frame then drawing into as many as
+ *  its own lights take —, made whole or not at all (`constructGpuResources`). Each of its textures that
+ *  still serves is kept. Their texels are read at the pixel's own coordinates, so views of other shapes
+ *  drawn in turn (`world.addView`) share the largest. */
 export function ensureMask(
   device: GPUDevice,
   vsm: EngineVsm,
   width: number,
   height: number,
-  lights: number,
+  needs: VsmMaskNeeds,
   exact = false,
 ): VsmMask {
-  const held = vsm.mask,
-    transmits = transmitsOf(vsm)
-  const keepArray = !!held && fits(held.array, width, height, maskLayersFor(lights), exact),
-    keepTiles = !!held && fits(held.tiles, ...vsmProjectionTiles(width, height), 1, exact),
-    keepThrough = held?.through
-      ? transmits && fits(held.through, width, height, throughLayersFor(lights), exact)
-      : !transmits
-  if (held && keepArray && keepTiles && keepThrough) return held
+  const held = vsm.mask
+  const keepSuns = !!held && fitsSuns(held.suns, width, height, needs.suns, exact),
+    keepLocals = !!held && fitsLocals(held, width, height, needs.localLights, exact)
+  if (held && keepSuns && keepLocals) return held
   // Never a retired texture left in place should the new ones be refused (`ledgerTentative`).
   vsm.mask = undefined
-  if (held) retireMask(device, held, !keepArray, !keepTiles, !keepThrough)
+  if (held) retireMask(device, held, !keepSuns, !keepLocals)
   try {
     return (vsm.mask = constructGpuResources(device, () => {
-      const array = keepArray
-        ? held!.array
-        : device.createTexture(maskDescriptor(width, height, maskLayersFor(lights)))
-      const tiles = keepTiles
-        ? held!.tiles
-        : device.createTexture(maskTilesDescriptor(width, height))
-      const through = !transmits
-        ? undefined
-        : keepThrough
-          ? held!.through
-          : device.createTexture(throughDescriptor(width, height, lights))
+      const suns = keepSuns
+        ? held!.suns
+        : device.createTexture(sunsDescriptor(width, height, needs.suns))
+      const locals = keepLocals
+        ? held!.locals
+        : device.createTexture(localsDescriptor(width, height, needs.localLights))
       return {
-        array,
-        view: keepArray ? held!.view : arrayView(array),
-        tiles,
-        tilesView: keepTiles ? held!.tilesView : tiles.createView(),
-        through,
-        throughView: keepThrough && through ? held!.throughView : through && arrayView(through),
+        suns,
+        sunsView: keepSuns ? held!.sunsView : arrayView(suns),
+        locals,
+        localsView: keepLocals ? held!.localsView : locals.createView(),
+        localFormat: onePassMaskFormat(needs.localLights),
       }
     }))
   } catch (error) {
-    // Refused: the mask is made whole or not at all, and what it kept goes with it.
-    if (held) retireMask(device, held, keepArray, keepTiles, keepThrough)
+    // Refused: the masks are made whole or not at all, and what they kept goes with them.
+    if (held) retireMask(device, held, keepSuns, keepLocals)
     throw error
   }
 }
 
 /** Retires the textures of `mask` each flag names: they may be named by this image's commands, so
  *  destroyed after the submit. */
-function retireMask(
-  device: GPUDevice,
-  mask: VsmMask,
-  array: boolean,
-  tiles: boolean,
-  through: boolean,
-) {
-  if (array) retire(device, mask.array)
-  if (tiles) retire(device, mask.tiles)
-  if (through && mask.through) retire(device, mask.through)
+function retireMask(device: GPUDevice, mask: VsmMask, suns: boolean, locals: boolean) {
+  if (suns) retire(device, mask.suns)
+  if (locals) retire(device, mask.locals)
 }
 
 /** The one size `sharedMaskSize` answers with: read at once, so a frame allocates none. */
@@ -226,23 +181,23 @@ export function sharedMaskSize(
   return sharedSize
 }
 
-/** Bytes the frame's mask for `lights` shadowed lights at `width` × `height` asks beyond the one
- *  `vsm` holds (`maskGrowth`), all of it without a set. */
+/** Bytes the frame's masks for `needs` at `width` × `height` ask beyond the ones `vsm` holds
+ *  (`maskGrowth`), all of them without a set. */
 export const masksGrowth = (
   vsm: EngineVsm | undefined,
   width: number,
   height: number,
-  lights: number,
-) => (vsm ? maskGrowth(vsm, width, height, lights) : maskBytes(width, height, lights, false))
+  needs: VsmMaskNeeds,
+) => (vsm ? maskGrowth(vsm, width, height, needs) : maskBytes(width, height, needs))
 
-/** The frame's mask made exactly at `width` × `height` — every view's largest targets
- *  (`sharedMaskSize`) — for `lights` shadowed lights (`ensureMask`). */
+/** The frame's masks made exactly at `width` × `height` — every view's largest targets
+ *  (`sharedMaskSize`) — for `needs` (`ensureMask`). */
 export function ensureMasks(
   device: GPUDevice,
   vsm: EngineVsm,
   width: number,
   height: number,
-  lights: number,
+  needs: VsmMaskNeeds,
 ) {
-  ensureMask(device, vsm, width, height, lights, true)
+  ensureMask(device, vsm, width, height, needs, true)
 }

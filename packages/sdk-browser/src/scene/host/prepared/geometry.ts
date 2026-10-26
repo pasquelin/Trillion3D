@@ -29,6 +29,10 @@ const NAMES: Record<string, string> = {
   TEXCOORD_1: 'uv1',
   TEXCOORD_2: 'uv2',
   TEXCOORD_3: 'uv3',
+  TEXCOORD_4: 'uv4',
+  TEXCOORD_5: 'uv5',
+  TEXCOORD_6: 'uv6',
+  TEXCOORD_7: 'uv7',
   COLOR_0: 'color',
   WEIGHTS_0: 'skinWeight',
   JOINTS_0: 'skinIndex',
@@ -71,6 +75,56 @@ const MORPHED = [
   ['COLOR_0', 'color'],
 ] as const
 
+/** A run's declared corner, at the scale a normalised run is read at. */
+function corner(document: TableDocument, rank: number, which: 'min' | 'max') {
+  const accessor = document.accessors[rank]
+  const scale = accessor.normalized ? normalisedScale(accessor.componentType) : 1
+  const at = accessor[which]
+  return at && [at[0] * scale, at[1] * scale, at[2] * scale]
+}
+
+/** The box the positions declare, grown by the largest displacement a morph target declares
+ *  (the loader's rule: not conservative, but the size of the shapes it blends). */
+function bound(document: TableDocument, geometry: Geometry, declared: TablePrimitive) {
+  const position = declared.attributes.POSITION
+  const low = position === undefined ? null : corner(document, position, 'min')
+  const high = position === undefined ? null : corner(document, position, 'max')
+  if (!low || !high) return
+  const displacement = [0, 0, 0]
+  for (const target of declared.targets ?? []) {
+    if (target.POSITION === undefined) continue
+    const [min, max] = [
+      corner(document, target.POSITION, 'min'),
+      corner(document, target.POSITION, 'max'),
+    ]
+    if (!min || !max) continue
+    for (let c = 0; c < 3; c++)
+      displacement[c] = Math.max(displacement[c], Math.max(Math.abs(min[c]), Math.abs(max[c])))
+  }
+  if (declared.targets)
+    for (let c = 0; c < 3; c++) {
+      low[c] -= displacement[c]
+      high[c] += displacement[c]
+    }
+  geometry.boundingBox = new Box3(
+    new Vector3(low[0], low[1], low[2]),
+    new Vector3(high[0], high[1], high[2]),
+  )
+  // The core's sphere of the box (`sphereFromBounds`): an empty box gives the empty sphere.
+  geometry.boundingSphere = geometry.boundingBox.getBoundingSphere(new Sphere())
+}
+
+/** The host's attribute name of a glTF semantic: a skin's joints and weights are numbered. */
+function attributeName(semantic: string) {
+  const skin = /^(JOINTS|WEIGHTS)_(\d+)$/.exec(semantic)
+  return (
+    NAMES[semantic] ??
+    (skin
+      ? `${skin[1] === 'JOINTS' ? 'skinIndex' : 'skinWeight'}${skin[2]}`
+      : semantic.toLowerCase())
+  )
+}
+
 /**
  * The geometry of each primitive of `document`, built on first request and shared after it; its
  * vertices are read by `binary` when a reader loads them (`Geometry.loadVertices`).
@@ -78,43 +132,6 @@ const MORPHED = [
 export function preparedGeometries(document: TableDocument, binary: PreparedBinary) {
   const attributeOf = preparedAccessors(document, binary)
   const geometries = new Map<string, Geometry>()
-
-  /** A run's declared corner, at the scale a normalised run is read at. */
-  const corner = (rank: number, which: 'min' | 'max') => {
-    const accessor = document.accessors[rank]
-    const scale = accessor.normalized ? normalisedScale(accessor.componentType) : 1
-    const at = accessor[which]
-    return at && [at[0] * scale, at[1] * scale, at[2] * scale]
-  }
-
-  /** The box the positions declare, grown by the largest displacement a morph target declares
-   *  (the loader's rule: not conservative, but the size of the shapes it blends). */
-  const bound = (geometry: Geometry, declared: TablePrimitive) => {
-    const position = declared.attributes.POSITION
-    const low = position === undefined ? null : corner(position, 'min')
-    const high = position === undefined ? null : corner(position, 'max')
-    if (!low || !high) return
-    const displacement = [0, 0, 0]
-    for (const target of declared.targets ?? []) {
-      if (target.POSITION === undefined) continue
-      const [min, max] = [corner(target.POSITION, 'min'), corner(target.POSITION, 'max')]
-      if (!min || !max) continue
-      for (let c = 0; c < 3; c++)
-        displacement[c] = Math.max(displacement[c], Math.max(Math.abs(min[c]), Math.abs(max[c])))
-    }
-    if (declared.targets)
-      for (let c = 0; c < 3; c++) {
-        low[c] -= displacement[c]
-        high[c] += displacement[c]
-      }
-    geometry.boundingBox = new Box3(
-      new Vector3(low[0], low[1], low[2]),
-      new Vector3(high[0], high[1], high[2]),
-    )
-    // The core's sphere of the box (`sphereFromBounds`): an empty box gives the empty sphere.
-    geometry.boundingSphere = geometry.boundingBox.getBoundingSphere(new Sphere())
-  }
-
   return (mesh: number, primitive: number): Geometry => {
     const declared = document.meshes[mesh].primitives[primitive]
     const semantics = Object.keys(declared.attributes)
@@ -126,18 +143,13 @@ export function preparedGeometries(document: TableDocument, binary: PreparedBina
     geometry = new Geometry()
     geometry._owner = 'host'
     for (const semantic of semantics) {
-      const skin = /^(JOINTS|WEIGHTS)_(\d+)$/.exec(semantic)
-      const name =
-        NAMES[semantic] ??
-        (skin
-          ? `${skin[1] === 'JOINTS' ? 'skinIndex' : 'skinWeight'}${skin[2]}`
-          : semantic.toLowerCase())
+      const name = attributeName(semantic)
       if (!(name in geometry.attributes))
         geometry.setAttribute(name, attributeOf(declared.attributes[semantic]))
     }
     if (declared.indices !== null)
       geometry.setIndex(attributeOf(declared.indices) as BufferAttribute)
-    bound(geometry, declared)
+    bound(document, geometry, declared)
     morph(geometry, declared, attributeOf)
     geometries.set(key, geometry)
     return geometry

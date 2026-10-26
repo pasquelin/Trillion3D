@@ -15,7 +15,7 @@ const ANISOTROPY_SLACK = 0.01
 export const TILE_SLOT_WGSL = wgslStruct(
   'TileSlot',
   [],
-  'struct TileSlot{size:vec2f,tail:u32,last:u32,levels:u32,tailWord:u32,tap:u32,sampling:u32,wrap:u32,}',
+  'struct TileSlot{size:vec2f,tail:u32,last:u32,levels:u32,tailWord:u32,tap:u32,sampling:u32,wrap:u32,bias:f32,}',
 )
 
 /** The level of detail of a footprint `px`, `py` in texels — the log of the longer gradient —,
@@ -44,7 +44,8 @@ fn tapOffset(i:u32,n:u32)->f32{return (f32(i)+0.5)/f32(n)-0.5;}
  * how a footprint reads a texture with a filter word, its coordinate and derivatives already
  * transformed. The level is the GPU's — the log of the longer gradient —; with `aniso`, the
  * hardware's anisotropic rule: N taps, the elongation rounded up within the grant, at
- * log2(Pmax / N). It is clamped to the texture's levels, then rounded under a `nearest` mip rule.
+ * log2(Pmax / N). The residency bias (`TileSlot.bias`) raises that level. It is clamped to the
+ * texture's levels, then rounded under a `nearest` mip rule.
  * Magnification — a level at or under 0, the WebGPU switch — reads level 0 with the magnification
  * filter, anything else the minification one. The level comes from `lod`, the pool's
  * `atlasLod` (`atlasLodWgsl`), whose variants share one name.
@@ -56,7 +57,7 @@ export const samplingFootprintWgsl = (lod: WgslDecl) =>
     `fn tileRead(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
  let px=ddx*s.size;let py=ddy*s.size;
  let granted=((s.sampling>>${SAMPLE_ANISOTROPY_SHIFT}u)&15u)+1u;
- var raw=atlasLod(px,py);
+ var raw=atlasLod(px,py)+s.bias;
  var taps=1u;var axis=vec2f(0.0);
  if(aniso&&granted>1u){
   let lx=dot(px,px);let ly=dot(py,py);

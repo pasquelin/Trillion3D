@@ -1,4 +1,3 @@
-import type { SelectionResult } from '../../gpu/core/selection.ts'
 import { parseDagOutput, type DagOutputScratch } from './uniforms.ts'
 import { listDemand } from './lists/listCap.ts'
 import type { ListFeedback } from './lists/listFeedback.ts'
@@ -20,14 +19,12 @@ export type SlotRead = {
  * into the read's arrays, the ranks the cut asked of its readout (`listDemand`) — a cut past the
  * readout's list is read by its head (`../cut/adoption/adoption.ts`) —, what it asked of its lists
  * noted against the caps they hold (`lists/listFeedback.ts`), and given back. A cut past a list's
- * cap drew what fit: its readback is the image's, adopted as any. `land` reads the mapped words
- * before they go.
+ * cap drew what fit: its readback is the image's, adopted as any.
  */
 export function readDagSlot(
   range: ArrayBuffer,
   read: SlotRead,
   lists: { feedback: ListFeedback; caps: CutListCaps },
-  land?: (words: ArrayBuffer, parsed: SelectionResult | null) => void,
 ) {
   const demand = listDemand(range, read.drawnWordOffset)
   const at = {
@@ -37,6 +34,5 @@ export function readDagSlot(
   }
   const parsed = parseDagOutput(range, 0, read.bytes, at, read.scratch)
   if (parsed?.peaks) lists.feedback(parsed.peaks, lists.caps)
-  land?.(range, parsed)
   return { parsed, demand }
 }

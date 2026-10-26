@@ -1,8 +1,7 @@
 /**
  * THE RAY THROUGH A LIGHT'S MAPS (`traceWgsl.ts`), every light's: its line on the map its far end
  * lies in and, where its start lies in another cube face, on that face too; the march over the
- * stored depths along it, from its far end to its start; and the proof that it misses, read from the
- * pages' tile depths alone.
+ * stored depths along it, from its far end to its start.
  *
  * The march holds the last stored depth it saw and the slope from the one before; where a stored
  * depth lies far behind the ray (past the tolerance), the occluder held is extended along that slope
@@ -19,10 +18,8 @@ import { NO_INDEX } from '../../../../../../math/src/wgsl/constants.ts'
 
 const CM = `${VSM_UNIT_PER_CM}`
 
-/** The last page a walk over a map read, kept for the next read: what the ray's march and the
- *  panes' walk each look a page up through (\`vsmTraceRayWgsl\`, \`transmissionRayWgsl.ts\`), on the
- *  pages of \`pool\`. */
-export const vsmPageCacheWgsl = (pool: WgslDecl) =>
+/** The last page the march read, kept for the next read, on the pages of \`pool\`. */
+const vsmPageCacheWgsl = (pool: WgslDecl) =>
   wgslBlock(
     'vsmPageCacheWgsl',
     [vsmTraceMapWgsl(pool), VSM_PAGE_LOOKUP_WGSL],
@@ -50,30 +47,14 @@ fn vsmPageRead(h:VsmHandle,clipmap:bool,mip:u32,key:vec2u)->VsmPageCache{
 `,
   )
 
-/** The ray and its march, sampling the pages of `pool`. */
-export const vsmTraceRayWgsl = (pool: WgslDecl) =>
-  wgslBlock(
-    'vsmTraceRayWgsl',
-    [
-      VSM_TRACE_COMMON_WGSL,
-      vsmTraceMapWgsl(pool),
-      vsmPageCacheWgsl(pool),
-      VSM_HANDLE_WGSL,
-      VSM_PAGE_ADDRESS_WGSL,
-      VSM_PAGE_LOOKUP_WGSL,
-      VSM_PROJECTION_DATA_READ_WGSL,
-      perspectiveDivide,
-      NO_INDEX,
-    ],
-    `
-/** A ray's line on map \`h\`: its start (UV, depth biased by the receiver's plane: \`planeBias\` less the
- *  depth the start gained over the receiver's own point \`origin\`, never below 0) and its step to the
+const rayLineAndBiasText = /* wgsl */ `/** A ray's line on map \`h\`: its start (UV, its depth raised by \`bias\`, the receiver-plane bias
+ *  of the ray: \`vsmSunDitherBias\`, \`vsmSunTapBias\`, \`vsmLocalPlaneBias\`) and its step to the
  *  far end, and the steepest slope the march extends an occluder with — a
- *  clipmap level's \`VSM_TRACE_SLOPE_CAP_SUN\` in its centimetre arithmetic (·${CM}), a perspective
+ *  clipmap level's \`traceSlopeCapSun\` in its centimetre arithmetic (·${CM}), a perspective
  *  map's a share of the line's own depth step. It reads the two fields it needs from the map's
  *  record, never a copy of the record: re-reading is cheaper than the registers a copy holds. */
 struct VsmRayLine{uvz:vec3f,step:vec3f,slopeCap:f32,}
-fn vsmRayLine(h:VsmHandle,clipmap:bool,origin:vec3f,start:vec3f,end:vec3f,clampStart:bool,planeBias:f32)->VsmRayLine{
+fn vsmRayLine(h:VsmHandle,clipmap:bool,start:vec3f,end:vec3f,clampStart:bool,bias:f32,uvOffset:vec2f)->VsmRayLine{
  let toUv=vsmProjectionData[h.id].shiftedToMapUv;
  let s4=toUv*vec4f(start,1.0);
  let e4=toUv*vec4f(end,1.0);
@@ -82,10 +63,57 @@ fn vsmRayLine(h:VsmHandle,clipmap:bool,origin:vec3f,start:vec3f,end:vec3f,clampS
  r.step=perspectiveDivide(e4)-a;
  r.uvz=a;
  if(clampStart){r.uvz=vec3f(saturate(a.xy),a.z);}
- let gained=abs(a.z-perspectiveDivide(toUv*vec4f(origin,1.0)).z);
- r.uvz.z+=max(0.0,planeBias-gained);
- r.slopeCap=select(VSM_TRACE_SLOPE_CAP_LOCAL*r.step.z,abs(VSM_TRACE_SLOPE_CAP_SUN*${CM}*vsmProjectionData[h.id].lightViewToClip[2][2]),clipmap);
+ r.uvz=vec3f(r.uvz.xy+uvOffset,r.uvz.z+bias);
+ r.slopeCap=select(vsm.traceSlopeCapLocal*r.step.z,abs(vsm.traceSlopeCapSun*${CM}*vsmProjectionData[h.id].lightViewToClip[2][2]),clipmap);
  return r;
+}
+/** The size, in map UV, of a sun ray's start dither on a receiver \`distance\` from the eye: a
+ *  texel of the level's resolution at the distance, scaled by the setting and the light's own,
+ *  over the level's size in centimetres (the centimetres of the distance: \`VSM_CM_PER_UNIT\`). */
+fn vsmSunDitherUv(pd:VsmProjectionData,distance:f32)->f32{
+ let scale=vsm.traceDitherSun*pd.ditherTexels;
+ if(!(scale>0.0)){return 0.0;}
+ return (0.5/f32(VSM_LEVEL0_TEXELS))*scale*distance*VSM_CM_PER_UNIT/exp2(f32(pd.mapLevel)-pd.levelBias);
+}
+/** The bias of a sun ray whose start is moved \`offsetUv\` (a step in the map's UV) off its receiver, the start moved
+ *  \`startOffset\` along the ray: the plane's lift over that step, its slope held to
+ *  \`VSM_TRACE_PLANE_SLOPE_SUN\`, less the depth the start offset gained already (never below 0). */
+fn vsmSunDitherBias(m:VsmLightMap,offsetUv:vec2f,startOffset:f32,uvDepthSlope:vec2f)->f32{
+ let slope=clamp(uvDepthSlope,vec2f(-VSM_TRACE_PLANE_SLOPE_SUN),vec2f(VSM_TRACE_PLANE_SLOPE_SUN));
+ let gained=abs(startOffset*vsmProjectionData[m.handle.id].lightViewToClip[2][2]);
+ return max(0.0,vsmPlaneLift(slope,offsetUv)-gained);
+}
+/** The plane's lift from a receiver to the centre of its texel \`texelXY\` (the receiver at
+ *  \`texelPos\` of a map \`texels\` wide), held to \`cap\`. */
+fn vsmCentreLift(texelXY:vec2u,texelPos:vec2f,texels:u32,uvDepthSlope:vec2f,cap:f32)->f32{
+ let toCentre=(vec2f(texelXY)+0.5-texelPos)/f32(texels);
+ return min(cap,vsmPlaneLift(uvDepthSlope,toCentre));
+}
+/** The bias of a sun's one tap, which takes no ray: the plane's lift from the receiver to the
+ *  centre of the texel its level maps it on, held to \`VSM_TRACE_ONE_TAP_BIAS_CAP\`. */
+fn vsmSunTapBias(m:VsmLightMap,uvDepthSlope:vec2f)->f32{
+ let t=vsmClipmapTexel(m.level,m.page,m.levelPoint.xy);
+ if(!t.valid){return 0.0;}
+ let cap=VSM_TRACE_ONE_TAP_BIAS_CAP*${CM}*abs(vsmProjectionData[m.handle.id].lightViewToClip[2][2]);
+ return vsmCentreLift(t.mapTexelXY,t.mapTexelPos,vsmTexelsAtLevel(0u),uvDepthSlope,cap);
+}`
+
+const rayBeginText = /* wgsl */ `
+/** The largest plane bias of a local ray (\`vsmLocalPlaneBias\`) on a receiver of texel \`texel\` (a
+ *  world width): \`tracePlaneBiasCap\` of its texels, in the depth they span there; a light
+ *  with no ray (\`single\`), \`VSM_TRACE_ONE_TAP_BIAS_CAP\` times the map's depth scale. */
+fn vsmLocalBiasCap(m:VsmLightMap,texel:f32,single:bool)->f32{
+ let pd=vsmProjectionOf(m.handle);
+ return select(vsm.tracePlaneBiasCap*texel*vsmDepthPerDistance(pd,m.mapPoint.w),VSM_TRACE_ONE_TAP_BIAS_CAP*abs(pd.lightViewToClip[2][2]),single);
+}
+/** The bias of a local ray starting at \`rayStart\`: the plane's lift from there to the centre of the
+ *  texel it falls in on the receiver's map, at the page's resolution, held to \`cap\`. */
+fn vsmLocalPlaneBias(m:VsmLightMap,rayStart:vec3f,uvDepthSlope:vec2f,cap:f32)->f32{
+ let uv=saturate(perspectiveDivide(vsmProjectionData[m.handle.id].shiftedToMapUv*vec4f(rayStart,1.0)).xy);
+ let key=vsmPageKey(false,m.mip,uv);
+ let page=vsmLocalPageFrom(vsmTableWord(vsmTableEntryOf(m.handle,m.mip,key)),uv,m.mip);
+ if(!page.valid){return 0.0;}
+ return vsmCentreLift(page.mapTexelXY,page.mapTexelPos,vsmTexelsAtLevel(page.coarserLevels),uvDepthSlope,cap);
 }
 /** A ray: its far map's line and, where its start lies in another cube face (\`crosses\`), the near
  *  face's, which the march takes over where the far face holds no more sample (\`inFar\` false). A
@@ -94,7 +122,7 @@ fn vsmRayLine(h:VsmHandle,clipmap:bool,origin:vec3f,start:vec3f,end:vec3f,clampS
 struct VsmRay{far:VsmHandle,near:VsmHandle,clipmap:bool,mip:u32,crosses:bool,inFar:bool,farLine:VsmRayLine,nearLine:VsmRayLine,pages:VsmPageCache,}
 /** The ray of light map \`m\` (\`vsmLightMapAt\`): its far map's line and, where it crosses, its
  *  near face's. */
-fn vsmRayBegin(light:VsmProjectionLight,m:VsmLightMap,origin:vec3f,start:vec3f,end:vec3f,planeBias:f32)->VsmRay{
+fn vsmRayBegin(light:VsmProjectionLight,m:VsmLightMap,start:vec3f,end:vec3f,bias:f32,uvOffset:vec2f)->VsmRay{
  var r:VsmRay;
  r.clipmap=m.clipmap;
  r.mip=m.mip;
@@ -108,11 +136,13 @@ fn vsmRayBegin(light:VsmProjectionLight,m:VsmLightMap,origin:vec3f,start:vec3f,e
  }
  r.crosses=r.far.id!=r.near.id;
  r.inFar=true;
- r.farLine=vsmRayLine(r.far,r.clipmap,origin,start,end,!r.crosses,planeBias);
+ r.farLine=vsmRayLine(r.far,r.clipmap,start,end,!r.crosses,bias,uvOffset);
  r.nearLine=r.farLine;
- if(r.crosses){r.nearLine=vsmRayLine(r.near,r.clipmap,origin,start,end,false,planeBias);}
+ if(r.crosses){r.nearLine=vsmRayLine(r.near,r.clipmap,start,end,false,bias,uvOffset);}
  return r;
-}
+}`
+
+const rayTexelText = /* wgsl */ `
 /** The texel a sample at \`uv\` of the ray's map \`h\` reads (\`VsmMapTexel\`). The page table is
  *  read where the sample's page is not the last one the ray read (\`vsmPageKept\`). */
 fn vsmRayTexel(ray:ptr<function,VsmRay>,h:VsmHandle,uv:vec2f)->VsmMapTexel{
@@ -157,10 +187,13 @@ fn vsmRayStep(ray:ptr<function,VsmRay>,rayTime:f32)->VsmMarchStep{
   return n;
  }
  return vsmRaySampleOn(ray,(*ray).near,(*ray).nearLine,rayTime);
-}
+}`
+
+const rayMarchText = /* wgsl */ `
 /** The march: from the far end to the start, each sample's stored depth against the ray's; whether
- *  it hit. */
-fn vsmMarch(ray:ptr<function,VsmRay>,stepCount:i32,stepJitter:f32)->bool{
+ *  it hit, and, where it did, the depth it hit at (\`hitDepth\`: the stored depth of the sample that
+ *  hit, or the depth the march held across a gap). */
+fn vsmMarch(ray:ptr<function,VsmRay>,stepCount:i32,stepJitter:f32,hitDepth:ptr<function,f32>)->bool{
  // Declared: a value far from every stored depth (device depths lie in [0, 1]): nothing held yet.
  let noHistory=-10000.0;
  var heldDepth=noHistory;
@@ -178,7 +211,7 @@ fn vsmMarch(ray:ptr<function,VsmRay>,stepCount:i32,stepJitter:f32)->bool{
    if(heldDepth==noHistory){
     heldDepth=storedDepth;
     heldTime=rayTime;
-    if(storedDepth>marchRayDepth){return true;}
+    if(storedDepth>marchRayDepth){*hitDepth=storedDepth;return true;}
    }else{
     let rayDepthStep=marchRayDepth-prevRayDepth;
     // Declared: the comparison's tolerance, 5 % over the ray's depth step between two samples.
@@ -196,59 +229,51 @@ fn vsmMarch(ray:ptr<function,VsmRay>,stepCount:i32,stepJitter:f32)->bool{
     }
     let depthGap=marchRayDepth-comparedDepth;
     let halfTolerance=0.5*depthTolerance;
-    if(abs(depthGap+halfTolerance)<halfTolerance){return true;}
+    if(abs(depthGap+halfTolerance)<halfTolerance){*hitDepth=comparedDepth;return true;}
    }
    prevRayDepth=marchRayDepth;
   }
  }
  return false;
-}
-`,
-  )
+}`
 
-/**
- * WHY A PROOF BEFORE THE MARCH: a pool held in a texture array is read through the texture cache
- * and can be marched directly; WebGPU has no texture atomics, so this pool is a storage buffer the raster's atomicMax writes, read with no texture
- * cache. A lit pixel's first ray would read the whole pool's scattered words; this proof reads the
- * tile depths instead (a 256th of the pool), and the march runs only where it fails.
- *
- * Whether a ray on one map provably misses, from its samples' tiles alone (`tileDepths`): every
- * valid sample it would take is at or above (no closer to the light than) the closest depth of the
- * tile of 8×8 pool texels its texel is in. A march (`vsmMarch`) whose every valid sample has
- * storedDepth ≤ marchRayDepth returns no hit: its first valid sample hits only for storedDepth >
- * marchRayDepth; a later one is never behind (storedDepth − marchRayDepth ≤ 0 ≤ its tolerance), so it
- * compares its own depth, and hits only for marchRayDepth < storedDepth; f32 keeps both signs
- * (rounding is monotonic). A tile's word is the greatest of its texels' words whose float is not
- * below 0 (a texel below 0, or NaN, never hits: any bound holds it), so its float bounds each
- * texel's, and taken to the map's depth as a texel's raw depth is (`vsmMapTexelDepth`) it bounds each
- * sample's. The samples are the march's own: the same times, UVs, pages and texels, nearest the
- * receiver first, where an occluder ends the test soonest; a tile is read once for the samples in a
- * row inside it; the page words it reads stay in the ray (\`vsmRayTexel\`), where the march, if it
- * fails, reads them again. A ray across two cube faces is not proved: which face a sample reads follows the
- * march's own history. Not proven: that a GPU compiler evaluates those helpers to the same bits at
- * both call sites (it may fuse a multiply-add at one alone).
- */
-export const vsmRayMissesWgsl = (pool: WgslDecl) =>
-  wgslBlock(
-    'vsmRayMissesWgsl',
-    [VSM_TRACE_COMMON_WGSL, vsmTraceRayWgsl(pool), VSM_PAGE_ADDRESS_WGSL],
-    `
-fn vsmRayMisses(ray:ptr<function,VsmRay>,stepCount:i32,stepJitter:f32)->bool{
- if((*ray).crosses){return false;}
- let time=vsmMarchTimeLine(stepCount,stepJitter);
- let line=(*ray).farLine;
- var tile=0xFFFFFFFFu;
- var raw=0.0;
- for(var i=stepCount;i>=0;i--){
-  let uvz=line.uvz+line.step*vsmMarchTime(i,stepCount,time);
-  let t=vsmRayTexel(ray,(*ray).far,uvz.xy);
-  if(t.valid){
-   let k=vsmTileDepthIndex(t.poolTexel);
-   if(k!=tile){tile=k;raw=bitcast<f32>(vsmTileDepthsLoad(k));}
-   if(!(vsmMapTexelDepth(t,raw)<=uvz.z)){return false;}
-  }
+const rayOccluderText = /* wgsl */ `
+/** How far the receiver lies from what stopped a ray that hit at \`hitDepth\`, on the map the ray's
+ *  last sample was on: a sun's ortho map by the difference of the two view depths, a local light's by
+ *  similar triangles from the receiver's distance \`receiverDistance\` to the light; never under a
+ *  millionth of a centimetre. */
+fn vsmRayOccluderDistance(ray:ptr<function,VsmRay>,hitDepth:f32,receiverDistance:f32)->f32{
+ var h=(*ray).near;
+ var line=(*ray).nearLine;
+ if((*ray).inFar){h=(*ray).far;line=(*ray).farLine;}
+ let m=vsmProjectionData[h.id].lightViewToClip;
+ let floorDistance=1e-6*${VSM_UNIT_PER_CM};
+ if((*ray).clipmap){
+  let occluderViewZ=(hitDepth-m[3][2])/m[2][2];
+  let receiverViewZ=(line.uvz.z-m[3][2])/m[2][2];
+  return max(floorDistance,receiverViewZ-occluderViewZ);
  }
- return true;
-}
+ let occluderViewZ=m[3][2]/(hitDepth-m[2][2]);
+ let receiverViewZ=m[3][2]/(saturate(line.uvz.z)-m[2][2]);
+ return max(floorDistance,receiverDistance-(receiverDistance/receiverViewZ)*occluderViewZ);
+}`
+
+/** The ray and its march, sampling the pages of `pool`. */
+export const vsmTraceRayWgsl = (pool: WgslDecl) =>
+  wgslBlock(
+    'vsmTraceRayWgsl',
+    [
+      VSM_TRACE_COMMON_WGSL,
+      vsmTraceMapWgsl(pool),
+      vsmPageCacheWgsl(pool),
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PAGE_LOOKUP_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      perspectiveDivide,
+      NO_INDEX,
+    ],
+    `
+${rayLineAndBiasText}${rayBeginText}${rayTexelText}${rayMarchText}${rayOccluderText}
 `,
   )

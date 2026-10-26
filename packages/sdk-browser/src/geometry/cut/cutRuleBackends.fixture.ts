@@ -9,7 +9,7 @@ import { ruleResidency } from '../dag/readiness.fixture.ts'
 import type { RuleDag } from './cutRule.fixture.ts'
 import { dagViewFrames } from '../dag/oracle/math.fixture.ts'
 import { dagNodeFloor } from '../dag/oracle/nodeVerdict.fixture.ts'
-import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
+import { DAG_SELECTION_SHADER } from '../dag/shader/selectionShader.fixture.ts'
 import type { CutRuleAt } from '../dag/oracle/predicates.fixture.ts'
 import type { PackedDag } from '../dag/types.ts'
 import { wgslScope } from './wgslPredicate.fixture.ts'
@@ -93,10 +93,10 @@ export function wgslBackend(dag: RuleDag, threshold: number, source = DAG_SELECT
       packed.coldWords.length,
     )
     // The view block the residency reads name.
-    const views = [{ clusterCount: packed.pageCount }]
+    const cutView = { clusterCount: packed.pageCount }
     const scope = wgslScope(source, {
       ...wgslConstants(source),
-      views,
+      cutView,
       // The cold table's one-texel record `r`: its word in `x` (`../dag/cut/cutTables.ts`).
       coldWord: (r: number) => ({ x: cold[r] }),
     })

@@ -6,8 +6,9 @@
 //! winding number passes `SHELL_WINDING`, else zero. The sum stops at the first instance whose
 //! value reaches `SHELL_WINDING` in magnitude: the point is inside. Without thickening, the scene
 //! holds no solid of its own: every instance is read wherever the point lies, and the sum never
-//! stops early. The meshes' fields are built here, side by side, with a tree over the instances'
-//! boxes; the field is read on the GPU (`gpu/winding.wgsl`), packed for it in `pack`.
+//! stops early. The meshes' fields are built here, side by side; the field is read on the GPU
+//! (`gpu/winding.wgsl`), packed for it in `pack`, in as many parts as one binding needs: the parts'
+//! values are joined as the one walk's sum (`gpu::Pass::join`).
 use trillion3d_math::geometry::aabb::merge_aabb;
 mod affine;
 mod field;
@@ -42,17 +43,13 @@ pub(crate) struct Instance {
     pub bounds: Bounds,
 }
 
-/// The scene's winding field: each wrapped mesh's field and shell radius, the instances, whether
-/// the scene is read as solids — each instance only within its box, the sum stopped early —, and
-/// for solids a tree over the instances' boxes, per node its box apart from its link (`Link`).
+/// The scene's winding field: each wrapped mesh's field and shell radius, the instances, and
+/// whether the scene is read as solids — each instance only within its box, the sum stopped
+/// early. The tree over the instances' boxes is made as the field is packed (`pack`).
 pub(crate) struct Winding {
     fields: Vec<(Field, Option<f64>)>,
     instances: Vec<Instance>,
     solids: bool,
-    bounds: Vec<Bounds>,
-    links: Vec<Link>,
-    /// The leaves' instances, end to end, each leaf a range of them.
-    ranks: Vec<u32>,
 }
 
 /// The box tree over `ranks` of `boxes`, its nodes appended in preorder to `bounds` and `links`,
@@ -89,8 +86,7 @@ fn box_tree(
 
 impl Winding {
     /// The field of the `wrapped` meshes placed by `instances`, each mesh's field built on its
-    /// own, side by side; read as `solids`, the tree over the instances' boxes, else every
-    /// instance in order.
+    /// own, side by side; read as `solids` or not.
     pub fn new(wrapped: Vec<Wrapped>, mut instances: Vec<Instance>, solids: bool) -> Self {
         use rayon::prelude::*;
         let fields: Vec<(Field, Option<f64>)> = (wrapped.into_par_iter())
@@ -98,21 +94,10 @@ impl Winding {
             .collect();
         // A mesh none of whose triangles is finite has no field: its instances read nothing.
         instances.retain(|instance| !fields[instance.wrapped].0.links.is_empty());
-        let (mut bounds, mut links, mut ranks) = (Vec::new(), Vec::new(), Vec::new());
-        if solids && !instances.is_empty() {
-            let boxes: Vec<Bounds> = instances.iter().map(|i| i.bounds).collect();
-            let tree = (&mut bounds, &mut links, &mut ranks);
-            box_tree(&boxes, (0..boxes.len()).collect(), tree);
-        } else {
-            ranks.extend(0..instances.len() as u32);
-        }
         Self {
             fields,
             instances,
             solids,
-            bounds,
-            links,
-            ranks,
         }
     }
 }

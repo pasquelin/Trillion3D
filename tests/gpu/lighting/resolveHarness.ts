@@ -1,11 +1,12 @@
 /**
- * The shipped direct-lighting resolve (`directLightingWgsl`, narrow or wide) in one compute pass:
- * each thread shades one sample through `contractLighting` — the function the deferred program
- * calls per pixel —, on the cell whose record starts the list buffer, with the resolve's own
- * bindings on the engine's numbers, and writes the f32 sum's bits. Only the entry points are the
- * proofs' (`narrow-resolve.gpu.ts`, `lobes-resolve.gpu.ts`).
+ * The shipped light terms (`directLightingWgsl` of the light loop's fixture, narrow or wide: what the sun's
+ * pass and the local lights' hold) in one compute pass: each thread shades one sample through
+ * `contractLighting` — the sum of the lights of a cell, which the lit passes' loops are made of —, on the
+ * cell whose record starts the list buffer, with the passes' own bindings on the engine's numbers, and
+ * writes the f32 sum's bits. Only the entry points are the proofs' (`narrow-resolve.gpu.ts`,
+ * `lobes-resolve.gpu.ts`).
  */
-import { directLightingWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
+import { directLightingWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightLoop.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
 import { wgslModule, wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { DEFERRED_BINDINGS } from '../../../packages/sdk-browser/src/lighting/deferred/bindings.ts'
@@ -28,13 +29,19 @@ function lighting(
 ) {
   // The lights with the standard lobe they shade with, each declaration once.
   const shipped = wgslModule(
-    directLightingWgsl({ narrow, unshadowed: !shadowed, rectless: !rects, lobeless: !lobes }),
+    directLightingWgsl(
+      { narrow, unshadowed: !shadowed, rectless: !rects, lobeless: !lobes },
+      false,
+    ),
     STANDARD_LIGHTING_WGSL,
   )
-  const term = '(surfaceLight(shading,N,V,'
+  const term = 'listedLight(slice,index),rgb,metal,rough,N,V,P,ao,shading);'
   if (!per) return shipped
   if (lobes || shipped.split(term).length !== 2) throw new Error('PER_LIGHT_TERM_UNMATCHED')
-  return shipped.replace(term, '(surfaceLight(lobeSurface(rgb,metal,rough,N,V),N,V,')
+  return shipped.replace(
+    term,
+    'listedLight(slice,index),rgb,metal,rough,N,V,P,ao,lobeSurface(rgb,metal,rough,N,V));',
+  )
 }
 
 /** With `lobes`, the program with the anisotropic and clear-coat lobes (`lobesWgsl.ts`) and its two
@@ -54,8 +61,6 @@ export const resolveHarness = (
 @group(0) @binding(${DEFERRED_BINDINGS.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${DEFERRED_BINDINGS.tiles}) var<storage,read> tileLights:array<u32>;
 ${lighting(narrow, shadowed, rects, lobes, perLight)}${lobes ? LOBE_ENTRIES_WGSL : ''}
-/** No bounced light, as the direct program answers a thin surface's back: the harness lists no probe. */
-fn sampleBounce(P:vec3f,N:vec3f)->vec3f{return vec3f(0.0);}
 struct Sample{albedoMetal:vec4f,normalRough:vec4f,pointAo:vec4f,eyeFlag:vec4f,}
 @group(0) @binding(${SAMPLES_BINDING}) var<storage,read> samples:array<Sample>;
 @group(0) @binding(${SUMS_BINDING}) var<storage,read_write> sums:array<vec4u>;

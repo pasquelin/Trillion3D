@@ -13,6 +13,7 @@ import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import type { PageRec } from '../../geometry/selection/types.ts'
 import { describePageSlots, pageAddress } from '../../geometry/rows/page/pageSlots.ts'
 import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../../sdk-core/src/page/format.ts'
+import { residentGeometryPage } from '../../geometry/codec/geometryPage.ts'
 
 /** The quad as two clusters whose two widths disagree: the first draws both triangles from
  *  positions alone — six corners in the fewest bytes the format can hold them — while the second
@@ -46,7 +47,7 @@ test('the draw ceiling is the catalogue largest corner count, not the slot width
   try {
     await backend.prepare()
     const corners = fixture.encoded.map((page) => page.indexCount),
-      bytes = fixture.encoded.map((page) => page.data.byteLength)
+      bytes = fixture.encoded.map((page) => page.residentBytes)
     // The fixture is only worth something while the two widest are not the same page.
     assert.equal(corners.indexOf(Math.max(...corners)), 0)
     assert.equal(bytes.indexOf(Math.max(...bytes)), 1)
@@ -104,9 +105,13 @@ test('a paged cluster is admitted and drawn without its index page', async () =>
     const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex')
     const slot = Number(geometryPages(events).context.slotBytes)
     const held = fixture.encoded.map((page, at) =>
-      hex(pool.data.subarray(at * slot, at * slot + page.data.byteLength)),
+      hex(pool.data.subarray(at * slot, at * slot + page.residentBytes)),
     )
-    assert.deepEqual(held.sort(), fixture.encoded.map((page) => hex(page.data)).sort())
+    // The pool holds each page as the install pass writes it.
+    assert.deepEqual(
+      held.sort(),
+      fixture.encoded.map((page) => hex(residentGeometryPage(page.data))).sort(),
+    )
   } finally {
     await disposePagedQuad(backend, fixture)
   }
@@ -138,13 +143,13 @@ test('two clusters sharing an index page each keep their own page and draw', asy
     // A pool that holds the whole catalogue lays each page at its own width, one after the other
     // (`pageHomes`); a smaller one, in slots of the widest. Either way a page is found by its bytes.
     const bytes = Buffer.from(pool.data.buffer, pool.data.byteOffset, pool.data.byteLength)
-    const at = fixture.encoded.map((page) => bytes.indexOf(page.data))
+    const at = fixture.encoded.map((page) => bytes.indexOf(residentGeometryPage(page.data)))
     // Each page opens a place of its own: under one address, one of the two would be missing.
     assert.ok(
       at.every((offset) => offset >= 0),
       'both pages are in the pool',
     )
-    const [one, other] = fixture.encoded.map((page) => page.data.byteLength)
+    const [one, other] = fixture.encoded.map((page) => page.residentBytes)
     assert.ok(
       at[0] + one <= at[1] || at[1] + other <= at[0],
       'each page holds a place of its own: the two do not overlap',
@@ -159,6 +164,8 @@ const descriptor = (url: string) => ({
   url,
   sha256: '',
   bytes: 64,
+  residentBytes: 64,
+  residentOffset: 0,
   vertexCount: 3,
   indexCount: 3,
   flags: 0,

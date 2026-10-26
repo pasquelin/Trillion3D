@@ -145,9 +145,12 @@ test('a worker held for room takes every step asked, in order, at its own pace',
   const bound = resultWords(budget) * 4
   receive({ type: 'buffer', buffer: new ArrayBuffer(bound) })
   assert.ok(results()[2].steps < 88, `held for room: ${results()[2].steps} steps, not 88`)
-  while (results().reduce((n, m) => n + m.steps, 0) < 90)
-    receive({ type: 'buffer', buffer: new ArrayBuffer(bound) })
-  assert.equal(results().at(-1)!.step, 90)
+  // The crates come to rest before the last frame: from then on the worker steps no more.
+  const rest = () => sent.find((m) => m.type === 'rest')
+  const taken = () => results().reduce((n, m) => n + m.steps, 0)
+  while (taken() < 90 && !rest()) receive({ type: 'buffer', buffer: new ArrayBuffer(bound) })
+  assert.equal(results().at(-1)!.step, taken(), 'every step taken, in order')
+  assert.ok(taken() === 90 || rest()!.step >= taken(), 'all 90, or at rest from the last one sent')
   // The same steps straight on the module, the lighter gravity at the first step of its frame.
   const jolt = await startModule({ bodies: 8, contactEvents: 1 })
   const last = new Map<number, string>(),

@@ -50,6 +50,7 @@ export function createWorldLink(parts: Parts): WorldSceneLink {
     },
     structure(parent: Object3D) {
       contents.changed(parent)
+      contents.poses.structure(parent)
       lights.structure()
       schedule()
     },

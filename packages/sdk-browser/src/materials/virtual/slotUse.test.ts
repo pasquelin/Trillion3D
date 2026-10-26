@@ -6,6 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { losslessAtlas } from './losslessAtlas.fixture.ts'
+import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { createTileEvictions } from './evictSort.ts'
 import { entryIndex, reduceRequests, stampedPlace } from './stamp.fixture.ts'
 import { REDUCE_WGSL } from './reduceWgsl.ts'
@@ -47,7 +48,9 @@ function scene() {
     now.clock++
   }
   const level0 = (i: number) => ({ slot: 0, level: 0, tx: i % 32, ty: Math.floor(i / 32) })
-  return { atlas, device, frame, level0, pool: atlas.pools[0] }
+  /** Settles the sort's stages, asked as the evictions are made: no cut before. */
+  const compiled = () => pipelinesSettled(device)
+  return { atlas, device, frame, level0, pool: atlas.pools[0], compiled }
 }
 
 test('a stamp finds the texture of its entry, an all-tail texture between two streamed ones included', () => {
@@ -55,7 +58,7 @@ test('a stamp finds the texture of its entry, an all-tail texture between two st
   // Slot 1 streams nothing: its level-0 start is its base all the same, the starts climb.
   const layouts = [tileLayout(2048, 1024), tileLayout(1, 1), tileLayout(512, 512)]
   const table = createWebgpuTilePageTable(device, layouts, { kind: 'data', feedbackOffset: 0 })
-  const taps = [1, 0, 3]
+  const taps = [1, 0, 6]
   taps.forEach((tap, slot) => table.setTail(slot, placeOf(slot), tap))
   const keys = [
     { slot: 0, level: 0, tx: 0, ty: 0 },
@@ -72,8 +75,9 @@ test('a stamp finds the texture of its entry, an all-tail texture between two st
   )
 })
 
-test('the ancestor a streaming tile reads is stamped, and never the victim while the tile is asked', () => {
-  const { atlas, frame, level0, pool } = scene()
+test('the ancestor a streaming tile reads is stamped, and never the victim while the tile is asked', async () => {
+  const { atlas, frame, level0, pool, compiled } = scene()
+  await compiled()
   const ancestor = { slot: 0, level: 1, tx: 0, ty: 0 },
     child = level0(0)
   const place = atlas.place(ancestor)!
@@ -94,10 +98,11 @@ test('the ancestor a streaming tile reads is stamped, and never the victim while
   assert.equal(atlas.resides(ancestor), true)
 })
 
-test('a tile past the feedback cap, read every frame, is stamped and stays resident', () => {
+test('a tile past the feedback cap, read every frame, is stamped and stays resident', async () => {
   // The reduction stamps before the cap: the kernel's order, and its mirror's.
   assert.ok(REDUCE_WGSL.indexOf('tileStampRank(rank') < REDUCE_WGSL.indexOf('if(at<uni.cap)'))
-  const { atlas, frame, level0, pool } = scene()
+  const { atlas, frame, level0, pool, compiled } = scene()
+  await compiled()
   for (let i = 0; pool.resident < pool.tiles; i++) atlas.place(level0(i))
   // A view reading the first 600 tiles, a list of 16 entries: 584 of them never listed.
   const seen = Array.from({ length: 600 }, (_, i) => level0(i))

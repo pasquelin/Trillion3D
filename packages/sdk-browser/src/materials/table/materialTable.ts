@@ -21,8 +21,8 @@ import {
  * blend item and a shadow caster name their surface by rank (`word`), four bytes, and hold none of
  * its values: a material's edit writes its one record, and no row or item.
  *
- * A surface with an anisotropic or clear-coat lobe (`hasPhysicalLobes`) adds a lobe extension of
- * three texels, three to a record's place, which its record names (`lobes`): the surfaces without
+ * A surface with an anisotropic, clear-coat or cloth lobe (`hasPhysicalLobes`) adds a lobe extension of
+ * five texels, two to a record's place, which its record names (`lobes`): the surfaces without
  * one pay nothing for it.
  *
  * A record is written when its surface's version (`surfaceWritten`) or the atlases' slots
@@ -59,6 +59,14 @@ export function createMaterialTable() {
      *  beside its record — their flags, their resolve class, a fact the frame derives from them —,
      *  which are then to be written again. */
     follow: (layers: MaterialLayers) => follow(p, layers),
+    /** Whether a surface that dithers its cutout was written (`MaterialRecords.dithers`). */
+    get dithers() {
+      return p.dithers
+    },
+    /** How many times a surface's offset facts changed (`MaterialRecords.offsetEpoch`). */
+    get offsetEpoch() {
+      return p.offsetEpoch
+    },
     /** The atlases' slots moved — a census, a texture appended or released: every record is
      *  written again at the next `follow`, or at its surface's next read. */
     forget() {
@@ -121,7 +129,15 @@ function refresh(
     seen = surfaceSeen(entry.rank)
     p.seen.set(mat, seen)
   }
+  if (mat.ditherOpacityMask === true) p.dithers = true
+  const { wpo, wpoMost, graph } = seen.row
   if (summarize(seen, mat, layers, changed, first)) p.moved = true
+  // A surface that wears no offset, and wore none, is no change of the roots' offsets.
+  if (
+    wpo !== seen.row.wpo ||
+    (seen.row.wpo !== 0 && (wpoMost !== seen.row.wpoMost || graph !== seen.row.graph))
+  )
+    p.offsetEpoch++
   seen.version = mat.version
   seen.epoch = entry.epoch = p.epoch
   if (entry.source?.deref() !== mat) entry.source = new WeakRef(mat)

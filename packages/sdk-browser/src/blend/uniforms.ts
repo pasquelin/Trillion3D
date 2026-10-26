@@ -1,5 +1,5 @@
 import { viewProj } from '../frame/backend/helpers.ts'
-import { length3 } from '../../../math/src/vector/vector.ts'
+import { writeDividedVector3 } from '../../../math/src/vector/vector.ts'
 import { renderMipBias, renderPixelRatio } from '../frame/backend/state/renderScale.ts'
 import {
   DIAGNOSTIC_CODE_SHIFT,
@@ -10,11 +10,20 @@ import { diagnosticCode, drawsLit } from '../visibility/shader/shadeMode.ts'
 import { writeBlendDiagnostic } from './diagnostic.ts'
 import { directTiles } from '../frame/render/encodeLights.ts'
 import { DIRECT_AT } from '../lighting/deferred/view.ts'
-import { wantsContractLighting } from '../frame/prepare/contractLight.ts'
+import { wantsContractLighting } from '../frame/prepare/lit.ts'
 import type { DiagnosticMode } from '../../../sdk-core/src/runtime/diagnostics.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { BLEND_VIEW_SIZE, VIEW } from './viewLayout.ts'
 import { writeViewClipPlane } from '../frame/render/viewClip.ts'
+import {
+  SHADING,
+  markShadingDrawn,
+  switchOn,
+  writeNormalCurvature,
+} from '../materials/surface/pixelModel.ts'
+import { writeTranslucencyVolumeView } from '../lighting/translucency/frame.ts'
+import { writeTranslucencyGiView } from '../lighting/translucencyGi/frame.ts'
+import { holdoutOn } from '../frame/prepare/alphaHoldout.ts'
 
 /** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. None for beauty
  *  and a view of the lit image, which the transparents light as beauty (`drawsLit`). */
@@ -69,13 +78,7 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
 
 /** The unit axis of column `column` of the camera's world matrix `world`, at word `at`. */
 function writeAxis(packed: Float32Array, at: number, world: Float64Array, column: number) {
-  const x = world[column],
-    y = world[column + 1],
-    z = world[column + 2],
-    length = length3(x, y, z) || 1
-  packed[at] = x / length
-  packed[at + 1] = y / length
-  packed[at + 2] = z / length
+  writeDividedVector3(packed, at, world[column], world[column + 1], world[column + 2])
 }
 
 /** The camera's axes, the distortion parameters and the render matrix's clip-w row
@@ -99,7 +102,7 @@ function writeDistortionView(rt: WebgpuPagesRuntime) {
 
 /** The view's words this image sets past its camera and its lamp tiles: the flags, the
  *  texture-feedback phase, the target, the fog's eye, the pixel ratio, the
- *  texture level offset and the display curve. */
+ *  texture level offset, the display curve and the colours the tone table gives. */
 function writeViewFrame(rt: WebgpuPagesRuntime, tiles: ReturnType<typeof directTiles>) {
   const { run, blendState } = rt,
     packed = blendState.viewPacked,
@@ -129,10 +132,26 @@ function writeViewFrame(rt: WebgpuPagesRuntime, tiles: ReturnType<typeof directT
   packed[VIEW.exposure] = tiles[DIRECT_AT.shown]
   packed[VIEW.preExposure] = tiles[DIRECT_AT.preExposure]
   ints[VIEW.toneCurve] = tiles[4]
+  // The colours the tone table gives, for the layers drawn on display values (`displayRoute`): the
+  // baking's words, baked before the image's transparents are bound (`encodeSurfaceLighting`).
+  const bake = rt.gpu.deferred?.toneLut.words
+  if (bake) packed.set(bake, VIEW.bake)
   // The cut's threshold the screen-error view measures against (`diagnosticScreenError`).
   packed[VIEW.pixelError] = run.diagnosticPixelError
-  // What a material graph reads of the clock, the opaque resolve's (`../visibility/passes/uniforms.ts`).
-  packed[VIEW.time] = performance.now() / 1000
+  // What a material graph reads of the clocks, the opaque resolve's (`../visibility/passes/uniforms.ts`).
+  packed[VIEW.time] = run.graphClocks.time
+  packed[VIEW.realTime] = run.graphClocks.realTime
+  // Whether a clear coat keeps a bottom normal, the opaque resolve's (`../visibility/passes/uniforms.ts`).
+  ints[VIEW.clearCoatNormal] = switchOn(run.shading[SHADING.switches], 'clearCoatNormal')
   // The view's clip plane: every vertex stage cuts its primitives by it (`../gpu/core/clipDistances.ts`).
   writeViewClipPlane(rt, run.gate.cam, packed, VIEW.clipPlane)
+  // The translucency lighting volume this image built, where the surfaces lit from it read it.
+  writeTranslucencyVolumeView(rt, packed, VIEW.volumeCorner, VIEW.volumeScale, VIEW.volumeRead)
+  // The translucency global illumination volume this image built, where the surfaces read their indirect light.
+  writeTranslucencyGiView(rt, packed, VIEW.giGrid, VIEW.giZ)
+  // The alpha holdout, which the layers of a held-out primitive read.
+  ints[VIEW.holdout] = holdoutOn(rt) ? 1 : 0
+  // The curve a material's normal curvature takes its roughness by, the opaque resolve's.
+  writeNormalCurvature(run.shading, packed, VIEW.normalCurvature)
+  markShadingDrawn(run)
 }

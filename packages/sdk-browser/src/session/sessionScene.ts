@@ -1,5 +1,5 @@
 import type { ExplorerSession } from './session.ts'
-import type { HostCamera } from '../camera/world.ts'
+import type { ViewCamera } from '../camera/world.ts'
 import type { PageQueue } from '../geometry/streaming/types.ts'
 import type { PartitionCells } from '../geometry/partition/cells.ts'
 import { openingKeeps, sceneThrough, type ExplorerPageSources } from './pageSources.ts'
@@ -49,7 +49,7 @@ export async function sessionScene(
 export async function primeFirstView(
   session: ExplorerSession,
   scene: { partitions: readonly PartitionCells[] },
-  camera: HostCamera,
+  camera: ViewCamera,
   streamer: ExplorerPageSources['streamer'],
   streaming = resolveWorldStreaming(session.options),
 ) {

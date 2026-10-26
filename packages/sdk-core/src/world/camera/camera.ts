@@ -3,7 +3,11 @@ import { readVec3, type Vec3Input } from '../math/vector3.ts'
 import { Ray } from '../math/volumes.ts'
 import { Matrix4 } from '../math/matrix4.ts'
 import { referenceProjection } from './referenceProjection.ts'
-import { drawnView, perspectiveSlope } from '../../../../math/src/projection/camera.ts'
+import {
+  DEFAULT_NEAR,
+  drawnView,
+  perspectiveSlope,
+} from '../../../../math/src/projection/camera.ts'
 import {
   hasClipPlane,
   resolveClipPlane,
@@ -30,7 +34,8 @@ export interface CameraParameters {
   fov?: number
   /** The closest distance the camera draws. */
   near?: number
-  /** The farthest distance the camera draws. */
+  /** The farthest distance an orthographic camera draws; a perspective one draws to infinity, and
+   *  reads `far` for the ranges that follow its view (the shadow range). */
   far?: number
   /** Width divided by height of the picture. */
   aspect?: number
@@ -45,7 +50,7 @@ export interface CameraParameters {
   /** Bottom edge of an orthographic camera's view box. */
   bottom?: number
   /** An orthographic camera keeps its box's height and centre and takes its width from the
-   *  picture's shape, so a resized canvas never stretches the drawing. Off by default. */
+   *  picture's shape, so a resized canvas never stretches the drawing. On by default. */
   fitAspect?: boolean
 }
 
@@ -66,7 +71,8 @@ export class Camera extends Object3D {
   declare fov: number
   /** Nearest distance drawn. */
   declare near: number
-  /** Farthest distance drawn. */
+  /** Farthest distance an orthographic camera draws; a perspective one draws to infinity (see
+   *  `CameraParameters.far`). */
   declare far: number
   /** Width over height of the picture. */
   declare aspect: number
@@ -95,7 +101,7 @@ export class Camera extends Object3D {
     this.type = projection === 'perspective' ? 'PerspectiveCamera' : 'OrthographicCamera'
     this._optics = {
       fov: p.fov ?? 50,
-      near: p.near ?? 0.1,
+      near: p.near ?? DEFAULT_NEAR,
       far: p.far ?? 2000,
       aspect: p.aspect ?? 1,
       zoom: p.zoom ?? 1,
@@ -104,7 +110,7 @@ export class Camera extends Object3D {
       top: p.top ?? 1,
       bottom: p.bottom ?? -1,
     }
-    this._fitAspect = p.fitAspect ?? false
+    this._fitAspect = p.fitAspect ?? true
   }
   /** An orthographic box as high as declared and as wide as the picture's shape makes it. */
   get fitAspect() {
@@ -152,9 +158,8 @@ export class Camera extends Object3D {
   set _viewSet(set: ViewSet) {
     this._set = set
   }
-  private write(change: Partial<Omit<ViewSet, 'jitters'>>) {
-    const set = { ...this._set, ...change }
-    this._set = Object.freeze({ ...set, jitters: !hasClipPlane(set.clipPlane) })
+  private write(change: Partial<ViewSet>) {
+    this._set = Object.freeze({ ...this._set, ...change })
     this._link?.pose(this)
   }
   protected override get looksDownNegativeZ() {

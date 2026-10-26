@@ -1,10 +1,8 @@
-import { markRootRows } from '../frame/render/movedRoot.ts'
 import { worldStretch } from '../geometry/selection/rootWorld.ts'
 import { noteDeformed } from '../frame/render/movedGeometry.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
-import { ANIMATION_RULES } from '../../../sdk-core/src/contracts/animationOptions.ts'
-import { contextReader } from '../../../sdk-core/src/contracts/settingRules.ts'
+import { readAnimationSetting } from '../../../sdk-core/src/contracts/animationOptions.ts'
 import { holdReach } from './halfFloat.ts'
 import { updateWavePages } from './wavePages.ts'
 import { followRootBlocks } from './outputs.ts'
@@ -12,7 +10,6 @@ import type { SessionDeformation } from './session.ts'
 
 /** The animation's setting `field` the session holds (`animationOptions.ts`), by its one
  *  resolver, read at each frame. */
-const animationSetting = contextReader(ANIMATION_RULES)
 
 /** Root `rank` reaches `reach` this frame, `moved` saying whether what it draws moved: its reach
  *  set for the CPU cut (`ClusterRoot.reach`) and in its mark for the GPU cut, and, when it moved
@@ -22,8 +19,6 @@ function followReach(rt: WebgpuPagesRuntime, rank: number, reach: number, moved:
   const root = rt.layout.selectionRoots[rank],
     before = root.reach ?? 0
   const grew = holdReach(rt, rank, reach)
-  // Another reach grows its rows' boxes: their inputs are written again, no pose moved.
-  if (grew) markRootRows(rt, root, 0, root.pages.length - 1)
   if (moved || grew) noteDeformed(rt, rank, Math.max(before, reach) * worldStretch(root))
 }
 
@@ -35,14 +30,14 @@ function playTracks(rt: WebgpuPagesRuntime, deformation: SessionDeformation, cam
   const { tracks } = deformation
   if (!tracks.count) return
   tracks.write(
-    animationSetting(rt, 'animationBankTimeScale'),
-    animationSetting(rt, 'animationBankInterpolation'),
+    readAnimationSetting(rt, 'animationBankTimeScale'),
+    readAnimationSetting(rt, 'animationBankInterpolation'),
   )
-  tracks.play(cam, animationSetting(rt, 'animationMinScreenSize'))
+  tracks.play(cam, readAnimationSetting(rt, 'animationMinScreenSize'))
   const { roots } = tracks
   for (let k = 0; k < roots.length; k++) {
     const { rank, root, flipped, reach, moved } = roots[k]
-    if (flipped) followRootBlocks(rt, root, deformation.rowWord(rank))
+    if (flipped) followRootBlocks(rt, root, rank)
     followReach(rt, rank, reach, moved)
   }
 }

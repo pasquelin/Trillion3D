@@ -8,8 +8,9 @@ import {
 } from '../descriptor.ts'
 import { validateSceneAtmosphere, type ResolvedAtmosphere } from '../../scene/core/atmosphere.ts'
 import { validateSceneFog, type SceneFog } from '../../scene/core/fog.ts'
-import { resolveCloudPart, type CloudPart } from './clouds.ts'
-import { resolveSkyLight, type SkyLightPart } from './skyLight.ts'
+import { cloudPartAt, resolveCloudPart, type CloudPart } from './clouds.ts'
+import { DEFAULT_SKY_QUALITY, type SkyQualityValues } from './quality.ts'
+import { resolveSkyLight, skyLightPartAt, type SkyLightPart } from './skyLight.ts'
 import { resolveSunPart, type SunPart } from './sunPart.ts'
 
 /** The parts of the sky module, in the order they start. */
@@ -31,8 +32,15 @@ export const SKY_MODULE = defineModule({
   parts: SKY_PARTS,
 })
 
-/** The height fog of the level: a density of 0.0436 of the reference's centimetre numbers, which
- *  is 0.00436 per metre (`scene/core/fogHeight.ts`), at a base 68.5 metres below the origin. */
+/**
+ * The height fog of the level the module stands for: the fog the engines' default level places, an
+ * object of its own — a density of 0.0436 of their centimetre numbers, which is 0.00436 per metre
+ * (`scene/core/fogHeight.ts`), at a base 68.5 metres below the origin, where the fog is placed — over
+ * the defaults of the fog component, which hold for every other field (`HEIGHT_FOG_DEFAULTS`: 0.002
+ * and 0 are the component's, not the level's). A part that names no field, `true` and `{}`, is this
+ * fog; one that names a density keeps the level's base height, as the fog placed keeps its place
+ * when its density is edited.
+ */
 const HEIGHT_FOG_LEVEL = { baseDensity: 0.00436, baseHeight: -68.5 } as const
 
 /** The fields that make a fog a linear one or an extinction one: a part naming one of them is
@@ -64,11 +72,12 @@ export interface ResolvedSky {
 
 /**
  * Every part of the module's merged `parts` resolved, a part that is off left out. The sky light
- * and the clouds are read with the quality settings' defaults here: a pass reads them with the
- * live ones through `resolveSkyLight` and `resolveCloudPart` on the same fields.
+ * and the clouds are read under `quality`: a caller that holds no live settings gives the defaults
+ * (`DEFAULT_SKY_QUALITY`), and the frame puts the live ones on the parts each image
+ * (`skyAtQuality`).
  * @throws a refusal naming the part, for a field it does not have or a value it does not take.
  */
-export function resolveSky(parts: ModuleState['parts']): ResolvedSky {
+export function resolveSky(parts: ModuleState['parts'], quality: SkyQualityValues): ResolvedSky {
   const on = (name: SkyPartName) => parts[name] || undefined
   const atmosphere = on('atmosphere'),
     sun = on('sun'),
@@ -78,9 +87,24 @@ export function resolveSky(parts: ModuleState['parts']): ResolvedSky {
   return {
     ...(atmosphere && { atmosphere: validateSceneAtmosphere(atmosphere) }),
     ...(sun && { sun: resolveSunPart(sun) }),
-    ...(skyLight && { skyLight: resolveSkyLight(skyLight) }),
+    ...(skyLight && { skyLight: resolveSkyLight(skyLight, quality) }),
     ...(fog && { fog: resolveHeightFog(fog) }),
-    ...(clouds && { clouds: resolveCloudPart(clouds) }),
+    ...(clouds && { clouds: resolveCloudPart(clouds, quality) }),
+  }
+}
+
+/**
+ * The sky as the frame follows it under the quality settings `quality`: the sky light's and the
+ * clouds' parts take them (`skyLightPartAt`, `cloudPartAt`), and the clouds are out where those
+ * settings switch the clouds off (`cloudsOn`), the first of the conditions under which they are
+ * drawn. The other parts hold no quality setting and are the same.
+ */
+export function skyAtQuality(sky: ResolvedSky, quality: SkyQualityValues): ResolvedSky {
+  const { skyLight, clouds, ...rest } = sky
+  return {
+    ...rest,
+    ...(skyLight && { skyLight: skyLightPartAt(skyLight, quality) }),
+    ...(clouds && quality.cloudsOn && { clouds: cloudPartAt(clouds, quality) }),
   }
 }
 
@@ -91,5 +115,5 @@ export function resolveSky(parts: ModuleState['parts']): ResolvedSky {
  */
 export function checkSkyOption(option: ModuleOption) {
   const decision = resolveModuleOption(SKY_MODULE, option)
-  if (decision) resolveSky(mergeModuleParts(SKY_MODULE, [decision]))
+  if (decision) resolveSky(mergeModuleParts(SKY_MODULE, [decision]), DEFAULT_SKY_QUALITY)
 }

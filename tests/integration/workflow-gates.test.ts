@@ -48,7 +48,7 @@ function makeRepo() {
     recursive: true,
   })
   // The hooks run git and the gates through the scripts' own helpers.
-  for (const helper of ['git/git-paths.ts', 'test/run.ts']) {
+  for (const helper of ['git/git-paths.ts', 'check/run.ts']) {
     mkdirSync(dirname(join(work, 'scripts', helper)), { recursive: true })
     cpSync(join(REPOSITORY_ROOT, 'scripts', helper), join(work, 'scripts', helper))
   }
@@ -99,17 +99,17 @@ test('the gates of the checkout hold a commit and a push: format-staged, then ch
   // The push is checked against origin/develop, the base the CI's pull request merges into, by
   // every gate but the tests, which stay the CI's.
   gate(
-    'test/check-changed.ts',
+    'check/check-changed.ts',
     "import { writeFileSync } from 'node:fs'\n" +
       "writeFileSync('base.log', [process.env.TRILLION3D_BASE_REF, ...process.argv.slice(2)].join(' '))\n" +
       'process.exit(1)\n',
   )
   assert.match(
     git(work, 'push', '-q', 'origin', '12-thing').stderr,
-    /test\/check-changed\.ts failed/,
+    /check\/check-changed\.ts failed/,
   )
   assert.equal(readFileSync(join(work, 'base.log'), 'utf8'), 'origin/develop --push')
-  gate('test/check-changed.ts', '')
+  gate('check/check-changed.ts', '')
   assert.equal(git(work, 'push', '-q', 'origin', '12-thing').status, 0)
 })
 

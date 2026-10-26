@@ -68,3 +68,21 @@ fn the_v_coordinate_is_flipped_like_in_the_other_drivers() {
         "u is kept, v is flipped"
     );
 }
+
+// Behaviour: the scene root carries the active scene's `scale_length`, the metres one Blender unit
+// stands for, as a file in centimetres declares it; a scene with no unit system has no metres, and
+// stays at one.
+#[test]
+fn the_root_carries_the_scale_of_the_scene_units() {
+    let root_scale = |bytes: &[u8], tag: &str| {
+        let (gltf, _) = output::compiled(bytes, tag);
+        gltf["nodes"][0]["matrix"][0].as_f64().expect("the scale")
+    };
+    assert_eq!(root_scale(&surgery::fixture(), "unit-file"), 1.0);
+    let centimetres = root_scale(&surgery::with_unit(0.01, 1), "unite-cm");
+    assert!((centimetres - 0.01).abs() < 1e-9, "{centimetres}");
+    assert_eq!(
+        root_scale(&surgery::with_unit(0.01, 0), "unite-aucune"),
+        1.0
+    );
+}

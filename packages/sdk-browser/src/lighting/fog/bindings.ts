@@ -58,78 +58,67 @@ export const FOG_BINDING = {
   cloudShadow: 29,
   cloudShadowMap0: 30,
   cloudShadowMap1: 31,
-  /** The global distance field's four bindings (`globalDistanceFieldReadWgsl`) from this one, read by the sky scatter. */
-  field: 32,
   /** The sky light's harmonics and the view's uniform (`skyLightDiffuseWgsl`), read by the scatter's sky. */
   skyHarmonics: 36,
   skyParams: 37,
-  /** The volumetric lightmap's twelve bindings (`volumetricLightmapWgsl`) from this one, read by the static
+  /** The volumetric lightmap's eleven bindings (`volumetricLightmapWgsl`) from this one, read by the static
    *  term's pass. */
   lightmap: 40,
   /** The static term's volume: written by its pass, read by the scatter. */
   staticOut: 52,
   staticIn: 53,
+  /** The graphs of the voxelised objects (`voxelGraph.ts`): their values, read, and — where a graph
+   *  reads a texture — the colour atlas's pools and page table and the sampler it is read through. */
+  graphValues: 60,
+  graphPool0: 61,
+  graphPool1: 62,
+  graphPool2: 63,
+  graphPages: 64,
+  graphSampler: 65,
+  /** The lists of the local fog volumes over each tile of the view (`localFogTileWord`), read by the
+   *  scatter's cells: a read-only storage buffer of words. */
+  localTiles: 66,
+  /** The global distance field's six bindings (`globalDistanceFieldReadWgsl`) from this one, read by the sky scatter. */
+  field: 70,
 } as const
 
 /** What a program binds, by name. */
 export type FogBindings = Partial<Record<keyof typeof FOG_BINDING, true>>
 
+/** What the scatter binds; the one that sees the sky adds the global distance field's. */
+const SCATTER_BINDINGS = {
+  lights: true,
+  tiles: true,
+  frame: true,
+  depth: true,
+  furthest: true,
+  previousFurthest: true,
+  previousVolume: true,
+  sampler: true,
+  scattering: true,
+  cubemap: true,
+  pageTable: true,
+  projectionData: true,
+  shadowUniforms: true,
+  shadowPool: true,
+  shadowView: true,
+  voxelIn: true,
+  voxelEmitIn: true,
+  lightFunction: true,
+  cloudShadow: true,
+  cloudShadowMap0: true,
+  cloudShadowMap1: true,
+  skyHarmonics: true,
+  skyParams: true,
+  staticIn: true,
+  localTiles: true,
+} as const
+
 /** The bindings of the programs. */
 export const FOG_PROGRAM_BINDINGS = {
   furthest: { frame: true, hiz: true, furthestOut: true },
-  scatter: {
-    lights: true,
-    tiles: true,
-    frame: true,
-    depth: true,
-    furthest: true,
-    previousFurthest: true,
-    previousVolume: true,
-    sampler: true,
-    scattering: true,
-    cubemap: true,
-    pageTable: true,
-    projectionData: true,
-    shadowUniforms: true,
-    shadowPool: true,
-    shadowView: true,
-    voxelIn: true,
-    voxelEmitIn: true,
-    lightFunction: true,
-    cloudShadow: true,
-    cloudShadowMap0: true,
-    cloudShadowMap1: true,
-    skyHarmonics: true,
-    skyParams: true,
-    staticIn: true,
-  },
-  scatterSky: {
-    lights: true,
-    tiles: true,
-    frame: true,
-    depth: true,
-    furthest: true,
-    previousFurthest: true,
-    previousVolume: true,
-    sampler: true,
-    scattering: true,
-    cubemap: true,
-    pageTable: true,
-    projectionData: true,
-    shadowUniforms: true,
-    shadowPool: true,
-    shadowView: true,
-    voxelIn: true,
-    voxelEmitIn: true,
-    lightFunction: true,
-    cloudShadow: true,
-    cloudShadowMap0: true,
-    cloudShadowMap1: true,
-    skyHarmonics: true,
-    skyParams: true,
-    staticIn: true,
-    field: true,
-  },
+  scatter: SCATTER_BINDINGS,
+  scatterSky: { ...SCATTER_BINDINGS, field: true },
   static: {
     lights: true,
     frame: true,
@@ -152,6 +141,20 @@ export const FOG_PROGRAM_BINDINGS = {
     voxelSpansRead: true,
     voxelOut: true,
     voxelEmitOut: true,
+  },
+} as const satisfies Record<string, FogBindings>
+
+/** What the voxelisation of the objects that wear a graph binds beside its own (`voxelize`): the
+ *  graphs' values, and the colour atlas where one reads a texture. */
+export const FOG_GRAPH_BINDINGS = {
+  values: { graphValues: true },
+  textured: {
+    graphValues: true,
+    graphPool0: true,
+    graphPool1: true,
+    graphPool2: true,
+    graphPages: true,
+    graphSampler: true,
   },
 } as const satisfies Record<string, FogBindings>
 

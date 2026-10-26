@@ -1,4 +1,5 @@
 import type { JsonSchemaObject } from './types.ts'
+import { choiceOrFlag } from './schemaParts.ts'
 import { ASSET_SCOPES, DEFAULT_SCOPE } from '../contracts/base.ts'
 import { BOUNCE_PROBE_QUEUE, BOUNCE_SETTINGS } from '../bounce/contracts.ts'
 import { explorerSwitchDefault } from '../runtime/explorerSwitches.ts'
@@ -15,16 +16,9 @@ import {
   streamingProperties,
 } from './settingProperties.ts'
 
-/**
- * Comprehensive JSON Schema documenting all initialization options for the Trillion3D explorer (MeasuredWorldOptions).
- * Enables LLMs to understand, validate, and tune the 3D engine configuration. Built by a call
- * marked pure: its defaults read the settings, and a bundle that never reads the schema drops it.
- */
-export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => ({
-  type: 'object',
-  description:
-    'Initialization options for the Trillion3D rendering engine (openMeasuredWorld). Configures virtualized geometry (clusters streamed through a DAG), temporal antialiasing (TAA), fixed GPU memory pools, dynamic lighting, and virtual shadow maps.',
-  properties: {
+/** The manifest, the asset scope and the memory pools of the explorer. */
+const SESSION_OPTIONS = /* @__PURE__ */ (() =>
+  ({
     // Each on/off default is the engine's own (`EXPLORER_SWITCHES`), read through a pure call so a
     // bundle that never reads the schema drops it.
     interactive: {
@@ -64,15 +58,21 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => 
       minimum: 0,
       maximum: 16.0,
       description:
-        'CPU time budget per frame for copying virtual texture tiles into the pools (in milliseconds). Default 1.0 ms; tiles beyond it wait for the next frame and show their coarser level meanwhile.',
+        'CPU time budget per frame for copying virtual texture tiles into the pools (in milliseconds), besides the cap of 32 tiles a frame. Default 1.0 ms; tiles beyond it wait for the next frame and show their coarser level meanwhile.',
     },
+  }) satisfies JsonSchemaObject['properties'])()
+
+/** The antialiasing, the geometric error, the rasterizer, the settings and the bounce. */
+const QUALITY_OPTIONS = /* @__PURE__ */ (() =>
+  ({
     temporalAntialiasing: {
-      anyOf: [
-        { type: 'string', enum: [...TEMPORAL_AA_LEVELS], description: 'A quality level.' },
-        { type: 'boolean', description: `true ${DEFAULT_TEMPORAL_AA_LEVEL}, false off.` },
-      ],
+      ...choiceOrFlag(
+        `Temporal antialiasing (TAA): Halton(2,3) sub-pixel jitter and reprojection accumulation, at a quality level (${TEMPORAL_AA_LEVELS.join(', ')}), ${DEFAULT_TEMPORAL_AA_LEVEL} by default. Disable ('off' or false) for pixel-exact benchmarks without history.`,
+        TEMPORAL_AA_LEVELS,
+        'A quality level.',
+        `true ${DEFAULT_TEMPORAL_AA_LEVEL}, false off.`,
+      ),
       default: DEFAULT_TEMPORAL_AA_LEVEL,
-      description: `Temporal antialiasing (TAA): Halton(2,3) sub-pixel jitter and reprojection accumulation, at a quality level (${TEMPORAL_AA_LEVELS.join(', ')}), ${DEFAULT_TEMPORAL_AA_LEVEL} by default. Disable ('off' or false) for pixel-exact benchmarks without history.`,
     },
     pixelError: {
       type: 'number',
@@ -96,6 +96,11 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => 
       maximum: BOUNCE_PROBE_QUEUE,
       description: `Probes the bounce traces a frame, in the cost of a whole map each (a probe far from the eye costs a quarter of one), those never traced first (such a probe is never held back, up to the queue). A count, not a duration: lower it on a slow device, raise it for a field that converges sooner. Default ${BOUNCE_SETTINGS.probesPerFrame}, the budget of the default level of the screen probes: each level holds its own (100 high, 150 ultra, 350 cinematic), scaled by screenProbeUpdateSpeed, where this is not set. At most ${BOUNCE_PROBE_QUEUE}.`,
     },
+  }) satisfies JsonSchemaObject['properties'])()
+
+/** The imported lights, the preloading, the diagnostics, the replicas and the clear colour. */
+const SCENE_OPTIONS = /* @__PURE__ */ (() =>
+  ({
     importedLights: {
       type: 'boolean',
       default: explorerSwitchDefault('importedLights'),
@@ -132,6 +137,21 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => 
       type: 'integer',
       description: 'Clear color in 0xRRGGBB hexadecimal format (e.g., 0x000000 for pure black).',
     },
+  }) satisfies JsonSchemaObject['properties'])()
+
+/**
+ * Comprehensive JSON Schema documenting all initialization options for the Trillion3D explorer (MeasuredWorldOptions).
+ * Enables LLMs to understand, validate, and tune the 3D engine configuration. Built by a call
+ * marked pure: its defaults read the settings, and a bundle that never reads the schema drops it.
+ */
+export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => ({
+  type: 'object',
+  description:
+    'Initialization options for the Trillion3D rendering engine (openMeasuredWorld). Configures virtualized geometry (clusters streamed through a DAG), temporal antialiasing (TAA), fixed GPU memory pools, dynamic lighting, and virtual shadow maps.',
+  properties: {
+    ...SESSION_OPTIONS,
+    ...QUALITY_OPTIONS,
+    ...SCENE_OPTIONS,
   },
   required: ['manifestUrl'],
   additionalProperties: true,

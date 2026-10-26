@@ -53,7 +53,7 @@ pub(super) fn validate(g: &Value, primitive: &Value, mesh: &Mesh, mode: usize) -
                 a.get("componentType"),
                 "indices.componentType",
             )?)
-            || (mode == 4
+            || (mode == TRIANGLES
                 && required_index(a.get("count"), "indices.count")?
                     != product(mesh.num_faces(), 3)?)
         {

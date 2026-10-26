@@ -1,37 +1,29 @@
 import { previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels.ts'
-import { coverageGroups, LEVEL_BIN_BYTES } from './coverageMips.ts'
 import { levelTurnPipeline, levelView, MATERIAL_MIP_FORMAT, materialMipPipeline } from './mips.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
-/** One texture of a batch: its pool format — its levels stored as `materialMipTexture` says —, its
- *  size, its colour rule — weighted by alpha when every reader takes alpha for coverage, in
- *  straight alpha (`../virtual/scratch.ts`) — and its readers' cutoff (`CoverageReaders.cutoff`),
- *  0 for none. */
+/** Bytes of a level's uniform block (`LEVEL_WGSL`, `mipsWgsl.ts`). */
+export const LEVEL_BYTES = 16
+
+/** One texture of a batch: its pool format — its levels stored as `materialMipTexture` says — and
+ *  its size. */
 export type MipChain = {
   texture: GPUTexture
   format: GPUTextureFormat
   width: number
   height: number
-  weighted: boolean
-  cutoff?: number
   /** Raw texels to store into level 0 turned by `flags` (`turnLevel`, `mipsWgsl.ts`) before any
    *  level reads it: what `writeTexture` put in `raw`, an `rgba8unorm` texture of the picture's
    *  size. */
   turn?: { raw: GPUTexture; flags: number }
 }
 
-/** A chain of a batch: its texture's rule and size, its levels, its first uniform block, and its
- *  bins' first byte when it cuts its coverage. */
-export type ChainPlace = {
-  chain: Omit<MipChain, 'cutoff'>
-  levels: number
-  first: number
-  bins?: number
-}
+/** A chain of a batch: its texture and size, its levels and its first uniform block. */
+export type ChainPlace = { chain: MipChain; levels: number; first: number }
 
-/** The buffers a batch binds: its uniforms, their stride, and the bins. */
-export type BatchBuffers = { uniforms: GPUBuffer; stride: number; bins: GPUBuffer }
+/** The buffer a batch binds: its uniforms, and their stride. */
+export type BatchBuffers = { uniforms: GPUBuffer; stride: number }
 
 /** What a texture keeps for its reductions: its level views — read in the pool format, written
  *  through its own; one list when they are the same —, and its groups with the identity of the
@@ -43,7 +35,6 @@ type Held = {
   place: WebgpuBindIdentity
   sizes: (readonly [number, number])[]
   reduce: GPUBindGroup[]
-  counts?: GPUBindGroup[]
 }
 // Kept with the texture, as long as it: the batches reduce many textures at once, each its own
 // groups (`bindIdentity.ts`, its one exception).
@@ -51,27 +42,26 @@ const held = new WeakMap<GPUTexture, Held>()
 
 /** The views of `texture`'s first `count` mip levels, one a level, in `format` when given
  *  (`levelView`). */
-export const levelViews = (
+const levelViews = (
   texture: GPUTexture,
   count = texture.mipLevelCount,
   format?: GPUTextureFormat,
 ) => Array.from({ length: count }, (_, level) => levelView(texture, level, format))
 
 /**
- * The dispatch inputs of one chain of a batch: its pipeline, its level sizes, the group reducing
- * each level from the one above (`reduce[level - 1]`) and its count groups when it cuts. Views are
- * made once per texture; groups once per batch place — the uniform block it starts at, its bins,
- * the buffers' identities —: a live texture reduced alone at every new picture makes neither
- * again.
+ * The dispatch inputs of one chain of a batch: its pipeline, its level sizes and the group reducing
+ * each level from the one above (`reduce[level - 1]`). Views are made once per texture; groups once
+ * per batch place — the uniform block it starts at, the buffer's identity —: a live texture
+ * reduced alone at every new picture makes neither again.
  */
 export function chainGroups(
   device: GPUDevice,
   shared: GPUDevice,
-  { chain, levels, first, bins: at }: ChainPlace,
-  { uniforms, stride, bins }: BatchBuffers,
+  { chain, levels, first }: ChainPlace,
+  { uniforms, stride }: BatchBuffers,
 ) {
-  const { texture, format, width, height, weighted } = chain
-  const { layout, pipeline } = materialMipPipeline(shared, format, weighted)
+  const { texture, format, width, height } = chain
+  const { layout, pipeline } = materialMipPipeline(shared, format)
   let kept = held.get(texture)
   if (!kept || kept.reads.length < levels) {
     const reads = levelViews(texture, levels, format)
@@ -85,33 +75,22 @@ export function chainGroups(
   const { next } = kept.place
   next[0] = layout
   next[1] = uniforms
-  next[2] = bins
-  next[3] = stride
-  next[4] = first
-  next[5] = at
-  next[6] = levels
+  next[2] = stride
+  next[3] = first
+  next[4] = levels
   if (kept.place.moved()) {
     const { reads, writes } = kept
-    const cover: GPUBufferBinding =
-      at === undefined
-        ? { buffer: bins, offset: 0, size: LEVEL_BIN_BYTES }
-        : { buffer: bins, offset: at, size: levels * LEVEL_BIN_BYTES }
     // Group `level - 1` reduces level `level` from the one above.
     kept.reduce = Array.from({ length: levels - 1 }, (_, above) =>
       device.createBindGroup({
         layout,
         entries: sequentialEntries([
           reads[above],
-          { buffer: uniforms, offset: (first + above + 1) * stride, size: 32 },
-          cover,
+          { buffer: uniforms, offset: (first + above + 1) * stride, size: LEVEL_BYTES },
           writes[above + 1],
         ]),
       }),
     )
-    kept.counts =
-      at === undefined
-        ? undefined
-        : coverageGroups(device, { views: reads, uniforms, first, stride, bins: cover }, levels)
     kept.sizes = Array.from({ length: levels }, (_, level) =>
       previewLevelSize(width, height, level),
     )
@@ -123,13 +102,19 @@ export function chainGroups(
       layout,
       entries: sequentialEntries([
         chain.turn.raw.createView(),
-        { buffer: uniforms, offset: first * stride, size: 32 },
-        { buffer: bins, offset: 0, size: LEVEL_BIN_BYTES },
+        { buffer: uniforms, offset: first * stride, size: LEVEL_BYTES },
         kept.writes[0],
       ]),
     }),
   }
-  return { levels, sizes: kept.sizes, pipeline, reduce: kept.reduce, counts: kept.counts, turn }
+  // A chain whose turn is not compiled reduces nothing: the levels would read an unwritten level 0.
+  return {
+    levels,
+    sizes: kept.sizes,
+    pipeline: turn && !turn.pipeline ? undefined : pipeline,
+    reduce: kept.reduce,
+    turn,
+  }
 }
 
 export type ChainGroups = ReturnType<typeof chainGroups>

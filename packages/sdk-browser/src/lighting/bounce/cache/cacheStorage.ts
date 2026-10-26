@@ -1,6 +1,5 @@
-import { constructGpuResources } from '../../../gpu/core/errorScope.ts'
+import { constructGpuResources } from '../../../gpu/core/deviceLedger.ts'
 import { createList } from '../../../gpu/dispatch/list.ts'
-import { BOUNCE_PROBE_QUEUE } from '../../../../../sdk-core/src/bounce/contracts.ts'
 import {
   CACHE_PDF_WORDS,
   CACHE_TAG_WORDS,
@@ -46,7 +45,7 @@ function cacheAtlases(device: GPUDevice, shape: CacheShape, slots: number) {
 /** What the radiance cache keeps for maps of the shape `shape` in a pool of `slots` probes: the raw and the final atlases — the final
  *  one with its levels of detail, each a view of its own to be written —, the sky's share atlas where the sky is kept apart (a texel
  *  else), the tags of the final maps and the importance functions of the probes — a buffer a slot, zero: no map was made, no screen
- *  probe has read it —, the flags of the probes traced this frame, the list of the trace tiles and the parameters. */
+ *  probe has read it —, the list of the trace tiles and the parameters. */
 export function createCacheStorage(device: GPUDevice, shape: CacheShape, slots: number) {
   return constructGpuResources(device, () => {
     const buffer = (label: string, words: number) =>
@@ -60,7 +59,6 @@ export function createCacheStorage(device: GPUDevice, shape: CacheShape, slots: 
       ...cacheAtlases(device, shape, slots),
       tags: buffer('tags', slots * CACHE_TAG_WORDS),
       pdf: buffer('importance', slots * CACHE_PDF_WORDS),
-      entries: buffer('traced', BOUNCE_PROBE_QUEUE),
       tiles: createList(
         device,
         'Trillion3D radiance cache tiles v1',
@@ -80,15 +78,6 @@ export function createCacheStorage(device: GPUDevice, shape: CacheShape, slots: 
 export type CacheStorage = ReturnType<typeof createCacheStorage>
 
 /** Destroys every resource of `storage`. */
-export function destroyCacheStorage({
-  raw,
-  final,
-  sky,
-  tags,
-  pdf,
-  entries,
-  tiles,
-  params,
-}: CacheStorage) {
-  for (const resource of [raw, final, sky, tags, pdf, entries, tiles, params]) resource.destroy()
+export function destroyCacheStorage({ raw, final, sky, tags, pdf, tiles, params }: CacheStorage) {
+  for (const resource of [raw, final, sky, tags, pdf, tiles, params]) resource.destroy()
 }

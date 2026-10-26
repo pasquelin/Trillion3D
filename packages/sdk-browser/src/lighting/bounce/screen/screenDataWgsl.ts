@@ -8,7 +8,7 @@ import { spProbes, spSurface } from './probesWgsl.ts'
 import { bindingTable } from './screenProbeLayout.ts'
 
 /** The screen data's bindings: the probes' records and pixels, the image's normals and flags, the last
- *  image's history, and what it writes — nine coefficients of the directions the probe's pixels face, a
+ *  image's meta words (the history's depths and frames), and what it writes — nine coefficients of the directions the probe's pixels face, a
  *  word a probe saying whether most of them hold no history. */
 export const SCREEN_DATA_BINDINGS = bindingTable({
   params: [0, 'uniform'],
@@ -18,7 +18,7 @@ export const SCREEN_DATA_BINDINGS = bindingTable({
   pixels: [4, 'buffer-read'],
   normals: [5, 'float'],
   flags: [6, 'uint'],
-  history: [7, 'uint'],
+  meta: [7, 'uint'],
   brdf: [8, 'buffer'],
   disocclusion: [9, 'buffer'],
   vectors: [10, 'uint'],
@@ -98,7 +98,7 @@ export const screenDataShader = (samples: readonly [number, number]) =>
     spCommon(samples),
     spSurface(B.normals, B.flags),
     spProbes(B.info, B.normal, B.counts),
-    spHistory(B.history, B.vectors),
+    spHistory(B.meta, B.vectors),
     blueNoiseWgsl(0, B.blue),
     SCREEN_DATA_WGSL,
   ])

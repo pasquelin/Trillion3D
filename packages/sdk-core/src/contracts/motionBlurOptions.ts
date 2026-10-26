@@ -1,9 +1,8 @@
 import {
-  ANY_NUMBER,
+  atLeast,
   choiceSetting,
   flagSetting,
   integerSetting,
-  nonNegativeSetting,
   numberSetting,
   resolveSettings,
   rulesOf,
@@ -92,8 +91,8 @@ export const MOTION_BLUR_RULES = /* @__PURE__ */ (() =>
     flagSetting('motionBlurScatter', false),
     integerSetting('motionBlurDirections', 1, [1, 2]),
     numberSetting('motionBlurScale', 1, [0, 50]),
-    numberSetting('motionBlurAmountOverride', -1, [-1, ANY_NUMBER[1]]),
-    numberSetting('motionBlurMaxOverride', -1, [-1, ANY_NUMBER[1]]),
+    numberSetting('motionBlurAmountOverride', -1, atLeast(-1)),
+    numberSetting('motionBlurMaxOverride', -1, atLeast(-1)),
     integerSetting('motionBlurTargetFpsOverride', -1, [-1, 120]),
   ] as const))()
 /** The field of one setting of how the motion blur is drawn. */
@@ -107,18 +106,21 @@ export type MotionBlurValues = SettingValues<typeof MOTION_BLUR_RULES>
 /** What each quality level below the top writes of the quality and the half-resolution gather,
  *  the reference's own scalability levels: no blur at `smooth`, the high level at `balanced` and
  *  `fine`, the half-resolution gather on at the first two; `max` writes nothing, the very high
- *  level and the full-resolution gather (`runtime/qualityLevels.ts`). */
+ *  level and the full-resolution gather (`runtime/qualityLevels.ts`), which `cinematic` writes
+ *  too, the reference's last row. */
 export const MOTION_BLUR_PRESET_LEVELS = {
   smooth: { motionBlurQuality: 'off', motionBlurHalfResGather: true },
   balanced: { motionBlurQuality: 'high', motionBlurHalfResGather: true },
   fine: { motionBlurQuality: 'high', motionBlurHalfResGather: false },
+  cinematic: { motionBlurQuality: 'veryHigh', motionBlurHalfResGather: false },
 } as const
 
 /**
- * The settings of the pass (`effect.motionBlur`), by field, each with the reference's default:
- * - `amount` (0.5), from 0 to 1: the strength of the blur — the streak is this share of the motion
- *   of one `targetFps` frame, a shutter open half the frame at the default; linear: 1 doubles the
- *   streak, 0 removes it, and is off;
+ * The settings of the pass (`effect.motionBlur`), by field, each with the reference's default but
+ * `amount`:
+ * - `amount` (0.2, where the reference opens the shutter half the frame, 0.5), from 0 to 1: the
+ *   strength of the blur — the streak is this share of the motion of one `targetFps` frame; linear:
+ *   1 doubles the streak, 0 removes it, and is off;
  * - `max` (5), from 0 to 100: the longest streak, in percent of the image's width, which keeps a
  *   fast turn legible; 0 is off. A streak of more than three 16-pixel tiles of a 1920-pixel image
  *   (a `max` over 5, or a wider image) is spread by drawing its tile's motion over the tiles it
@@ -129,21 +131,15 @@ export const MOTION_BLUR_PRESET_LEVELS = {
  *   60 frames a second sees as the shutter of a frame twice as long as its own; 0 makes it follow
  *   the rate the page runs at;
  * - `cameraMotion` (true): whether the motion of the camera blurs the image as an object's does;
- *   off, only what moves in the scene does;
- * - `perObjectSize` (0), a number of at least 0: the smallest object whose own motion is
- *   measured, the diameter of its bounding sphere — the one about its world box — in percent of
- *   the screen, along the axis the projection magnifies most, scaled by the view's field of view
- *   over 90 degrees. A smaller object is measured as still, the camera's motion alone moving it,
- *   for every pass that reads the motion (the blur, the temporal pass, the indirect light); one
- *   of no world box is never left out. 0 leaves no object out.
+ *   off, only what moves in the scene does. Every object's own motion is measured, whatever its size
+ *   on the screen.
  */
 const MOTION_BLUR_PASS_RULES = /* @__PURE__ */ (() =>
   rulesOf([
-    numberSetting('amount', 0.5, [0, 1]),
+    numberSetting('amount', 0.2, [0, 1]),
     numberSetting('max', 5, [0, 100]),
     integerSetting('targetFps', 30, [0, 120]),
     flagSetting('cameraMotion', true),
-    nonNegativeSetting('perObjectSize', 0),
   ] as const))()
 
 /** What a page may pass to `effect.motionBlur`: each setting of the pass (`MOTION_BLUR_PASS_RULES`)

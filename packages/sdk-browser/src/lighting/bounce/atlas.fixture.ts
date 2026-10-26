@@ -1,11 +1,8 @@
-// A bounce atlas (`atlas.ts`) simulated for the shaders run as JavaScript (`shaderRun`): its texels,
+// The bounce cell table (`atlas.ts`) simulated for the shaders run as JavaScript (`shaderRun`): its texels,
 // layer by layer, and the `textureLoad` and `textureStore` the kernels call on it.
 import assert from 'node:assert/strict'
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
-import { ATLAS_WIDTH, PROBE_TEXELS, probeAtlasExtent } from './atlas.ts'
-
-/** Probes along a row of the pool's layer, as the atlas lays them (`ATLAS_WIDTH` texels of `PROBE_TEXELS`). */
-export const POOL_ROW_PROBES = ATLAS_WIDTH / PROBE_TEXELS
+import { TABLE_WIDTH, tableExtent } from './atlas.ts'
 
 /** A simulated atlas: its extent and its texels, row by row, layer by layer. */
 type SimulatedAtlas = { width: number; height: number; layers: number; texels: number[][] }
@@ -51,20 +48,16 @@ export const oneLevel = (cells = 48) => ({
   levels: [{ base: [-cells / 2, -cells / 2, -cells / 2], spacing: 1 }],
 })
 
-/** A probes' atlas of one level (`oneLevel`) in which the probe of slot `k` holds `cells[k]` — its table entry, its cell and its level
- *  written, the slot named plus one — and nothing else. */
+/** The cell table of one level (`oneLevel`) in which the probe of slot `k` holds `cells[k]` — its table entry written, the slot named plus
+ *  one — and nothing else. */
 export function cellProbes(cells: number[][], side = 48) {
-  const atlas = simulatedAtlas(probeAtlasExtent(BOUNCE_SETTINGS.probePool, 4 * side ** 3), () => 0)
+  const atlas = simulatedAtlas(tableExtent(4 * side ** 3), () => 0)
   const wrap = (v: number) => ((v % side) + side) % side
   cells.forEach((cell, k) => {
     const entry = (wrap(cell[2]) * side + wrap(cell[1])) * side + wrap(cell[0])
     const texel = Math.floor(entry / 4)
-    const table =
-      (atlas.height + Math.floor(texel / ATLAS_WIDTH)) * atlas.width + (texel % ATLAS_WIDTH)
-    atlas.texels[table][entry % 4] = k + 1
-    const first = (k >> 7) * atlas.width + (k & 127) * PROBE_TEXELS
-    cell.forEach((c, axis) => (atlas.texels[first + 3 + axis][3] = c))
-    atlas.texels[first + 7][3] = 0
+    atlas.texels[Math.floor(texel / TABLE_WIDTH) * atlas.width + (texel % TABLE_WIDTH)][entry % 4] =
+      k + 1
   })
   return atlas
 }

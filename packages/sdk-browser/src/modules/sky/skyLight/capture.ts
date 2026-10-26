@@ -2,7 +2,7 @@ import type { skyLightSource } from '../../../../../sdk-core/src/modules/sky/sky
 import type { AirShape } from '../../../lighting/atmosphere/shape.ts'
 import { cloudsCompiled } from './captureClouds.ts'
 import { createCubemapCapture } from './captureCubemap.ts'
-import { createFaceDrawer } from './captureFaces.ts'
+import { createFaceDrawer, skyCompiled } from './captureFaces.ts'
 import { createFollower } from './captureFollow.ts'
 import { createSceneCapture, type SceneCaptureHost } from './captureScene.ts'
 import { createFilterStage } from './captureFilter.ts'
@@ -11,52 +11,33 @@ import type { SkyLightInputs } from './captureInputs.ts'
 import { createSkyLightPipelines } from './pipelines.ts'
 import { newCaptureState, type CaptureState } from './schedule.ts'
 import type { SkyLightTargets } from './targets.ts'
+import { readCaptured } from './readCaptured.ts'
 
 export type { SkyLightInputs } from './captureInputs.ts'
 
-/** What the lighting reads: the filtered cubes as an array, with their mips, the layer of the ready
- *  one, the harmonics' buffer and the
- *  rescale of a 32-bit float cubemap that goes into the light's colour (`skyLightColor`'s
- *  `cubemapScale`, 1 for the rest); none before the first frame, and none while a specified
- *  cubemap or a scene is not captured yet. */
-function readCaptured(
-  targets: SkyLightTargets | undefined,
-  source: ReturnType<typeof skyLightSource> | undefined,
+/** What a frame of the capture is encoded with (`encodeFrame`). */
+interface CaptureParts {
+  readonly made: ReturnType<typeof createSkyLightPipelines>
+  readonly stage: ReturnType<typeof createFilterStage>
+  readonly faces: ReturnType<typeof createFaceDrawer>
+  readonly cubemap: ReturnType<typeof createCubemapCapture>
+}
+
+/** This frame's work on `encoder`, the light's source now being `now`. The scene drawn into the cube
+ *  once (`'capturedScene'`) is drawn between two frames (`captureScene`), not in this one; the
+ *  real-time capture waits for the clouds' program and the shaded sky's. */
+function encodeFrame(
+  { made, stage, faces, cubemap }: CaptureParts,
   state: CaptureState,
-  cubemap: ReturnType<typeof createCubemapCapture>,
-  scene: ReturnType<typeof createSceneCapture>,
+  encoder: GPUCommandEncoder,
+  t: SkyLightTargets,
+  now: ReturnType<typeof skyLightSource>,
+  input: SkyLightInputs,
 ) {
-  if (!targets) return undefined
-  if (source === 'specifiedCubemap')
-    return cubemap.done
-      ? {
-          cube: targets.filteredArray,
-          mips: targets.mips,
-          harmonics: targets.harmonics,
-          layer: cubemap.layer,
-          blend: cubemap.blend,
-          colorScale: cubemap.scales.light,
-        }
-      : undefined
-  if (source === 'capturedScene')
-    return scene.done
-      ? {
-          cube: targets.filteredArray,
-          layer: 0,
-          mips: targets.mips,
-          harmonics: targets.harmonics,
-          colorScale: 1,
-          blend: 0,
-        }
-      : undefined
-  return {
-    cube: targets.filteredArray,
-    layer: state.ready,
-    mips: targets.mips,
-    harmonics: targets.harmonics,
-    colorScale: 1,
-    blend: 0,
-  }
+  stage.slot = 0
+  if (now === 'specifiedCubemap') return cubemap.encode(encoder, t, input)
+  if (now === 'realTime' && cloudsCompiled(made, input) && skyCompiled(made, input))
+    encodeRealTime(stage, faces, state, encoder, t, input)
 }
 
 /**
@@ -83,6 +64,7 @@ export function createSkyLightCapture(
   const followed = createFollower(device, made, restart)
   const scene = createSceneCapture(device, failed, stage, cubemap.pipelines, () => followed.targets)
   const ready = () => Object.values(pipelines).every((p) => p.ready)
+  const parts = { made, stage, faces, cubemap }
 
   /** The capture starts again: the slices, the specified cubemap's capture and the scene's. */
   function restart() {
@@ -99,12 +81,7 @@ export function createSkyLightCapture(
     /** This frame's work on `encoder`, once a frame. */
     encode(encoder: GPUCommandEncoder, input: SkyLightInputs) {
       const { t, now } = followed.follow(input)
-      stage.slot = 0
-      // The scene drawn into the cube once (`'capturedScene'`) is drawn between two frames
-      // (`captureScene`), not in this one.
-      if (now === 'specifiedCubemap') return cubemap.encode(encoder, t, input)
-      if (now === 'realTime' && cloudsCompiled(made, input))
-        encodeRealTime(stage, faces, state, encoder, t, input)
+      encodeFrame(parts, state, encoder, t, now, input)
     },
     /** Whether a scene capture is due now: the light captures a scene, it was asked one, none is
      *  drawing, and the programs are compiled. Looks at the light, once a frame. */
@@ -118,14 +95,13 @@ export function createSkyLightCapture(
     /** Asks a capture of the scene at the next look: the host's `recapture`. */
     recapture: () => scene.recapture(),
     /** What the lighting reads: the ready filtered cube with its mips, the harmonics' buffer and
-     *  the rescale of a 32-bit float cubemap that goes into the light's colour (`skyLightColor`'s
-     *  `cubemapScale`, 1 for the rest); none before the first frame, and none while a specified
-     *  cubemap or a scene is not captured yet. */
+     *  the rescale of a cubemap written to fit the half float that goes into the light's colour
+     *  (`skyLightColor`'s `cubemapScale`, 1 for the rest); none before the first frame, and none
+     *  while a specified cubemap or a scene is not captured yet. */
     read() {
       return readCaptured(followed.targets, followed.source, state, cubemap, scene)
     },
     dispose() {
-      cubemap.dispose()
       followed.destroy()
     },
   }

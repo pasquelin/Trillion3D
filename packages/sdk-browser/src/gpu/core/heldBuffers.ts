@@ -1,3 +1,4 @@
+import { retire } from './frameRetire.ts'
 import { oncePerDevice } from './oncePerDevice.ts'
 import { sizedBuffer } from './sizedBuffer.ts'
 import { later } from '../../frame/scheduling.ts'
@@ -70,9 +71,9 @@ export function heldBuffers(idleMs?: number) {
     give(device: GPUDevice, slot: string, buffer: GPUBuffer, larger = false) {
       const hold = holdOf(device),
         kept = hold.held.get(slot)
-      if (larger && kept && kept.size >= buffer.size) buffer.destroy()
+      if (larger && kept && kept.size >= buffer.size) retire(device, buffer)
       else {
-        if (kept !== buffer) kept?.destroy()
+        if (kept && kept !== buffer) retire(device, kept)
         hold.held.set(slot, buffer)
       }
       rest(hold)

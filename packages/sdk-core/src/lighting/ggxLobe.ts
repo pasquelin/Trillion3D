@@ -13,9 +13,11 @@ export function ggxDistribution(nh: number, alpha2: number) {
   return alpha2 / (PI * denominator * denominator)
 }
 
-/** The height-correlated visibility for the view and light cosines `nv`, `nl`, for α². */
+/** The height-correlated visibility for the view and light cosines `nv`, `nl`, for α², in the
+ *  joint approximation the shader takes: each cosine blended toward 1 by α. */
 export function ggxVisibility(nv: number, nl: number, alpha2: number) {
-  const gv = nl * Math.sqrt(nv * nv * (1 - alpha2) + alpha2),
-    gl = nv * Math.sqrt(nl * nl * (1 - alpha2) + alpha2)
+  const alpha = Math.sqrt(alpha2),
+    gv = nl * (nv * (1 - alpha) + alpha),
+    gl = nv * (nl * (1 - alpha) + alpha)
   return 0.5 / (gv + gl + 1e-7)
 }

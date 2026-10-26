@@ -3,23 +3,21 @@ import assert from 'node:assert/strict'
 import { setFlagsFromString } from 'node:v8'
 import { runInNewContext } from 'node:vm'
 import { createMaterialTable, materialWord } from './materialTable.ts'
-import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
-import { DISPLACEMENT_RECORD, DISPLACEMENT_WORDS } from './displacementRecord.ts'
-import {
-  fadeOutPixels,
-  displacementRange,
-  pagesDisplacementReach,
-} from '../../visibility/tessellation/numbers.ts'
+import { F, layers, lit, sentWords } from './materialTable.fixture.ts'
+import { MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
+import { LOBE_RECORD_TEXELS } from './lobeRecord.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
-import { surfaceOf } from '../../geometry/pages/surface.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { TESS_READ_PLAIN_WGSL } from '../../visibility/tessellation/queueWgsl.ts'
-import { MATERIAL_RANK_MASK } from '../../visibility/types.ts'
-import { material } from '../../../../sdk-core/src/world/material/index.ts'
-import { Texture as WorldTexture } from '../../../../sdk-core/src/world/texture/texture.ts'
+import { PIXEL_MODEL } from '../surface/pixelModel.ts'
+import {
+  SURFACE_MODEL_MASK,
+  SUBSURFACE_OPACITY_MODEL_SHIFT,
+  TRANSLUCENCY_LIGHTING_MODEL_SHIFT,
+  TRANSLUCENT_SHADOW_MARK,
+  TRANSLUCENT_SHADOW_MODEL_SHIFT,
+} from '../surface/surfaceModelWord.ts'
+import { LIGHTLESS_MODEL, TRANSLUCENCY_LIGHTING_CODE } from '../surface/translucencyLighting.ts'
 
 /** The collector, called on demand: what the open world's churn waits for. */
 function gcOf() {
@@ -27,17 +25,7 @@ function gcOf() {
   return runInNewContext('gc') as (() => void) | undefined
 }
 
-const F = MATERIAL_RECORD.at
-const lit = () => ({ ...surfaceOf([]), lit: true })
-const layers = () => ({
-  mapLayer: new Map<Texture, number>(),
-  dataLayer: new Map<Texture, number>(),
-})
-/** The words the last upload sent, whole: record `r` from word `r · MATERIAL_RECORD_WORDS`. */
-const sentWords = (writes: { data: ArrayBufferView }[]) =>
-  new Uint32Array(writes.at(-1)!.data.buffer as ArrayBuffer)
-
-test('every surface takes a rank; a lobed one names its lobe extension, three to a place', () => {
+test('every surface takes a rank; a lobed one names its lobe extension, two to a place', () => {
   const { device, textureWrites } = fakeDevice()
   const table = createMaterialTable()
   const l = layers()
@@ -53,7 +41,7 @@ test('every surface takes a rank; a lobed one names its lobe extension, three to
   const lobes = (rank: number) => words[rank * MATERIAL_RECORD_WORDS + F.lobes]
   assert.deepEqual(
     [lobes(0), lobes(1), lobes(3)],
-    [0, 2 * MATERIAL_RECORD_TEXELS + 1, 2 * MATERIAL_RECORD_TEXELS + 4],
+    [0, 2 * MATERIAL_RECORD_TEXELS + 1, 2 * MATERIAL_RECORD_TEXELS + 1 + LOBE_RECORD_TEXELS],
   )
   // The coat's extension: its clamped factors and its coat normal's scales.
   const floats = new Float32Array(words.buffer)
@@ -83,11 +71,69 @@ test('a record holds the factors, the cut, both normal factors, the slots and th
   assert.deepEqual([floats[F.cut], floats[F.dash], floats[F.dash + 1]], [0, 0, 3])
   assert.deepEqual([floats[F.normalScaleY], floats[F.tangentNormalScaleY]], [-1, 1])
   assert.deepEqual([words[F.mapIndex], words[F.normalIndex], words[F.aoIndex]], [4, 7, 0])
-  assert.equal(words[F.model], 3 | 8, 'the model, the fog opt-out above it')
+  assert.equal(
+    words[F.model],
+    3 |
+      8 |
+      (TRANSLUCENCY_LIGHTING_CODE.volumetricNonDirectional << TRANSLUCENCY_LIGHTING_MODEL_SHIFT) |
+      (255 << SUBSURFACE_OPACITY_MODEL_SHIFT),
+    'the model, the fog opt-out above it, the lighting of a material made in code, the subsurface opacity (one unsaid)',
+  )
   assert.equal(floats[F.invIor], Math.fround(1 / 1.5))
   // k = log2(c) / d, a black channel's past any path but zero.
   assert.deepEqual([floats[F.attenuation], floats[F.attenuation + 1]], [0, -0.5])
   assert.ok(floats[F.attenuation + 2] < -1e18)
+})
+
+test('a record holds how its surface reads the shadows of the lights, a mark each, a quality above 0 asking the trace', () => {
+  const { device, textureWrites } = fakeDevice()
+  const table = createMaterialTable()
+  const l = layers()
+  const marks = (asked: object) => {
+    const { rank } = table.surface({ ...lit(), ...asked }, l)
+    table.viewFor(device)
+    const word = sentWords(textureWrites)[rank * MATERIAL_RECORD_WORDS + F.model]
+    return (word >>> TRANSLUCENT_SHADOW_MODEL_SHIFT) & 7
+  }
+  const { local, localTrace, directionalTrace } = TRANSLUCENT_SHADOW_MARK
+  assert.equal(marks({}), 0, 'a surface that asks nothing')
+  assert.equal(marks({ translucentLocalLightShadow: true }), local)
+  assert.equal(marks({ translucentLocalLightShadowQuality: 0.01 }), localTrace)
+  assert.equal(marks({ translucentLocalLightShadowQuality: 0 }), 0)
+  assert.equal(marks({ translucentDirectionalLightShadowQuality: 1 }), directionalTrace)
+  assert.equal(
+    marks({
+      ...{ translucentLocalLightShadow: true, translucentLocalLightShadowQuality: 1 },
+      translucentDirectionalLightShadowQuality: 1,
+    }),
+    local | localTrace | directionalTrace,
+  )
+})
+
+test('a record holds the lightless rank in its model lane for a standard surface of a shading model the volume does not light, in a volume mode', () => {
+  const { device, textureWrites } = fakeDevice()
+  const table = createMaterialTable()
+  const l = layers()
+  const lane = (asked: object) => {
+    const { rank } = table.surface({ ...lit(), ...asked }, l)
+    table.viewFor(device)
+    return sentWords(textureWrites)[rank * MATERIAL_RECORD_WORDS + F.model] & SURFACE_MODEL_MASK
+  }
+  const hair = PIXEL_MODEL.hair
+  assert.equal(lane({ shadingModel: hair }), LIGHTLESS_MODEL, 'hair in the default volume mode')
+  assert.equal(lane({ shadingModel: hair, translucencyLighting: 'volume' }), LIGHTLESS_MODEL)
+  assert.equal(
+    lane({ shadingModel: hair, translucencyLighting: 'forward' }),
+    0,
+    'forward lights it',
+  )
+  assert.equal(
+    lane({ shadingModel: PIXEL_MODEL.subsurface }),
+    0,
+    'the thin subsurface is lit by the volume',
+  )
+  assert.equal(lane({}), 0, 'the default lit model')
+  assert.equal(lane({ shadingModel: hair, model: 2 }), 2, 'a toon surface keeps its model')
 })
 
 test('a surface whose version and atlas held is not written again; a new one is', () => {
@@ -191,163 +237,4 @@ test('the rank of a surface the collector took goes to the next surface', async 
   }
   assert.ok(taken, 'the first surface was never collected')
   assert.equal(materialWord(table.surface(held[0], l).rank, false), 1)
-})
-
-test('a displaced surface has its record written at its rank beside the table, and cleared with it', () => {
-  const table = createMaterialTable()
-  const height = { channel: 2 } as Texture
-  const l = { mapLayer: new Map<Texture, number>(), dataLayer: new Map([[height, 6]]) }
-  const D = DISPLACEMENT_RECORD.at
-  assert.equal(table.displaced.count, 0, 'a scene without one holds none')
-  assert.equal(table.displaced.ints.length, 0, 'and allocates none')
-  table.surface(lit(), l)
-  const surface = {
-    ...lit(),
-    version: 0,
-    displacementMap: height,
-    displacement: { magnitude: 4, center: 0.5, fade: { start: 4, end: 1 } },
-  }
-  const { rank } = table.surface(surface, l)
-  const words = table.displaced.ints,
-    floats = new Float32Array(words.buffer),
-    at = rank * DISPLACEMENT_WORDS
-  assert.equal(rank, 1)
-  assert.deepEqual([...floats.slice(at + D.scale, at + D.scale + 4)], [4, 0.5, 4, 1])
-  assert.deepEqual([words[at + D.map], words[at + D.map + 1]], [6, 2], 'the slot, the texture set')
-  assert.deepEqual(
-    [...floats.slice(at + D.density, at + D.density + 4)],
-    [0, 0, 0, 0],
-    'unmeasured',
-  )
-  assert.equal(table.displaced.count, 1)
-  // The densities the compiler measured, 0 for a set it did not: a change of them alone is one.
-  const measured = table.displaced.version
-  surface.displacement = { ...surface.displacement, uvDensities: [2, 0.5, 0, 8] } as never
-  surface.version = 1
-  table.surface(surface, l)
-  assert.deepEqual([...floats.slice(at + D.density, at + D.density + 4)], [2, 0.5, 0, 8])
-  assert.ok(table.displaced.version > measured)
-  // A fade that never fades writes zero for both ends; the count holds, the version moves.
-  const version = table.displaced.version
-  surface.displacement = { magnitude: 2, center: 0, fade: null }
-  surface.version = 2
-  table.surface(surface, l)
-  assert.deepEqual([...floats.slice(at, at + 4)], [2, 0, 0, 0])
-  assert.deepEqual([table.displaced.count, table.displaced.version > version], [1, true])
-  // A surface that stops being displaced, or whose height map the atlas lost, is drawn flat.
-  surface.version = 3
-  l.dataLayer.delete(height)
-  table.surface(surface, l)
-  assert.deepEqual(
-    [...words.slice(at, at + DISPLACEMENT_WORDS)],
-    new Array(DISPLACEMENT_WORDS).fill(0),
-  )
-  assert.equal(table.displaced.count, 0)
-})
-
-test('the tessellation reads a row’s record from the region of its buffer the records fill, by rank', () => {
-  // Three records written as the table sends them, at word 100 of the buffer, each its rank's.
-  const tess = new Uint32Array(100 + 3 * DISPLACEMENT_WORDS),
-    floats = new Float32Array(tess.buffer)
-  for (let rank = 0; rank < 3; rank++) {
-    const at = 100 + rank * DISPLACEMENT_WORDS,
-      D = DISPLACEMENT_RECORD.at
-    floats.set([rank + 1, 0.5, 4, 1], at + D.scale)
-    floats.set([-1, rank + 2, 0, 0], at + D.bounds)
-    tess.set([20 + rank, 1, 0, 0], at + D.map)
-    floats.set([rank + 3, 0, 0.25, 0], at + D.density)
-  }
-  const { displacementOf } = shaderRun<{
-    displacementOf(page: { material: number }): Record<string, number[]>
-  }>(wgslBlock('records', [TESS_READ_PLAIN_WGSL], ''), ['tw', 'tw4', 'displacementOf'], {
-    tess,
-    tu: { dispBase: 100 },
-    MATERIAL_RANK_MASK,
-  })
-  const row = displacementOf({ material: 1 | (1 << 31) })
-  const words = (name: 'scale' | 'bounds' | 'map' | 'density') => row[name]
-  assert.deepEqual(words('scale'), [2, 0.5, 4, 1])
-  assert.deepEqual(words('bounds'), [-1, 3, 0, 0])
-  assert.deepEqual(words('map'), [21, 1, 0, 0])
-  assert.deepEqual(words('density'), [4, 0, 0.25, 0])
-})
-
-test('the distances a displacement moves a point by hold zero, ordered whichever way the magnitude points', () => {
-  // The heights 0 and 1 against the centre that stays on the surface, times the magnitude.
-  assert.deepEqual(displacementRange({ magnitude: 2, center: 0.25 }), { min: -0.5, max: 1.5 })
-  assert.deepEqual(displacementRange({ magnitude: -2, center: 0.25 }), { min: -1.5, max: 0.5 })
-  // A centre of zero never goes in; of one, never out; the range still holds zero.
-  assert.deepEqual(displacementRange({ magnitude: 3, center: 0 }), { min: 0, max: 3 })
-  assert.deepEqual(displacementRange({ magnitude: 3, center: 1 }), { min: -3, max: 0 })
-  // Faded out at the smaller of the two ends, never for a displacement that does not fade.
-  assert.equal(fadeOutPixels({ fade: { start: 4, end: 2 } }), 2)
-  assert.equal(fadeOutPixels({ fade: null }), 0)
-  // What a primitive's boxes grow by: the greatest reach of the displaced surfaces of its pages.
-  const height = {} as Texture
-  const page = (displacement: { magnitude: number; center: number; fade: null } | undefined) => ({
-    material: { displacement, displacementMap: displacement && { texture: height, channel: 0 } },
-  })
-  assert.equal(pagesDisplacementReach([]), 0)
-  assert.equal(pagesDisplacementReach([page(undefined), page(undefined)]), 0)
-  assert.equal(
-    pagesDisplacementReach([
-      page({ magnitude: 2, center: 0.25, fade: null }),
-      page(undefined),
-      page({ magnitude: 4, center: 0.5, fade: null }),
-    ]),
-    2,
-  )
-})
-
-test('a surface that wears a graph has its values written beside its record, in places it owns', () => {
-  const tex = new WorldTexture()
-  const graph = material.graph('surface')
-  const tint = graph.channel(graph.vectorParameter('tint', [0.25, 0.5, 1, 1]), 'rgb')
-  graph.output('baseColor', graph.multiply(graph.channel(graph.textureSample(tex), 'rgb'), tint))
-  const sent = (slot: number | undefined, written?: () => void) => {
-    const { device, textureWrites } = fakeDevice()
-    const table = createMaterialTable()
-    const l = layers()
-    if (slot) l.mapLayer.set(tex as unknown as Texture, slot)
-    const surface = { ...lit(), graph }
-    const record = table.surface(surface, l).rank
-    written?.()
-    table.viewFor(device)
-    const words = sentWords(textureWrites)
-    const first = words[record * MATERIAL_RECORD_WORDS + F.graph] - 1
-    const texel = (k: number) => words.slice((first + k) * 4, (first + k) * 4 + 4)
-    return { record, first, texel, floats: new Float32Array(words.buffer) }
-  }
-  const held = sent(undefined)
-  assert.equal(held.record, 0)
-  // The block takes the place after the record, ten texels to a place: its header is texel 10.
-  assert.equal(held.first, MATERIAL_RECORD_TEXELS)
-  assert.ok(held.texel(0)[0] > 0, 'the header names its graph’s program')
-  const tintAt = (held.first + 1) * 4
-  assert.deepEqual([...held.floats.slice(tintAt, tintAt + 3)], [0.25, 0.5, 1])
-  assert.equal(held.texel(2)[0], 0, 'a texture the atlas lacks reads the fill texel')
-  assert.equal(sent(7).texel(2)[0], 7, 'the slot of its texture in the colour atlas')
-})
-
-test('a surface that loses its graph gives its block back, which the next graph takes', () => {
-  const { device, textureWrites } = fakeDevice()
-  const table = createMaterialTable()
-  const l = layers()
-  const graph = material.graph('surface')
-  graph.output('baseColor', graph.vectorParameter('tint', [1, 1, 1, 1]) as never)
-  const surface = { ...lit(), graph, version: 1 } as ReturnType<typeof lit> & {
-    graph?: typeof graph
-  }
-  table.surface(surface, l)
-  table.viewFor(device)
-  const worn = sentWords(textureWrites)[0 * MATERIAL_RECORD_WORDS + F.graph]
-  assert.ok(worn > 0)
-  surface.graph = undefined
-  surface.version = 2
-  table.surface(surface, l)
-  const other = { ...lit(), graph, version: 1 }
-  const next = table.surface(other, l)
-  table.viewFor(device)
-  const words = sentWords(textureWrites)
-  assert.equal(words[next.rank * MATERIAL_RECORD_WORDS + F.graph], worn, 'the freed block again')
 })

@@ -31,6 +31,44 @@ export interface JobSnapshot<T> {
   /** What went wrong. */
   error: { code: string; message: string } | null
 }
+/** A job's snapshot, its observers and its telemetry: `publish` replaces the snapshot by a frozen
+ *  copy patched, and tells both without letting either turn the work into a failure. */
+function createSnapshotFeed<T>(id: string, telemetry: (snapshot: JobSnapshot<T>) => void) {
+  const listeners = new Set<() => void>()
+  let snapshot: JobSnapshot<T> = {
+    eventVersion: 1,
+    id,
+    status: 'queued',
+    progress: null,
+    result: null,
+    error: null,
+  }
+  return {
+    publish(patch: Partial<JobSnapshot<T>>) {
+      snapshot = Object.freeze({ ...snapshot, ...patch })
+      for (const listener of listeners) {
+        try {
+          listener()
+        } catch {
+          /* Observers do not own job execution. */
+        }
+      }
+      try {
+        telemetry(snapshot)
+      } catch {
+        /* Telemetry cannot turn successful work into failure. */
+      }
+    },
+    getSnapshot: () => snapshot,
+    subscribe(listener: () => void) {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+  }
+}
+
 /** No timers, DOM, filesystem or UI. Hosts inject work, cancellation and telemetry. */
 export function createJob<T>(
   id: string,
@@ -42,32 +80,9 @@ export function createJob<T>(
   } = {},
 ) {
   const controller = new AbortController(),
-    listeners = new Set<() => void>(),
     // Read once: the caller may reuse or edit its options object while the job runs.
     { signal: external, telemetry = noop, disposeResult = noop } = options
-  let snapshot: JobSnapshot<T> = {
-    eventVersion: 1,
-    id,
-    status: 'queued',
-    progress: null,
-    result: null,
-    error: null,
-  }
-  const publish = (patch: Partial<JobSnapshot<T>>) => {
-    snapshot = Object.freeze({ ...snapshot, ...patch })
-    for (const listener of listeners) {
-      try {
-        listener()
-      } catch {
-        /* Observers do not own job execution. */
-      }
-    }
-    try {
-      telemetry(snapshot)
-    } catch {
-      /* Telemetry cannot turn successful work into failure. */
-    }
-  }
+  const { publish, getSnapshot, subscribe } = createSnapshotFeed<T>(id, telemetry)
   const unfollow = followSignal(controller, external)
   const promise = Promise.resolve().then(async () => {
     let result: T | undefined
@@ -100,12 +115,7 @@ export function createJob<T>(
   return {
     promise,
     cancel: (reason?: unknown) => controller.abort(reason),
-    getSnapshot: () => snapshot,
-    subscribe(listener: () => void) {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
+    getSnapshot,
+    subscribe,
   }
 }

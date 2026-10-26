@@ -15,13 +15,14 @@ type Inputs = {
   budget: FrameClock
 }
 
-/** A page read failed, at its first failure or given up: `degraded` while the coarse cover the engine
- *  already holds is whole — the view stays drawn on it —, `fatal` otherwise (no engine yet, or no
- *  cover resident); said once per failure by its caller, `failedPages` the reads failing now. */
+/** A page read failed, at its first failure or given up (`givenUp`): `fatal` once it is given up
+ *  while the engine holds no whole coarse cover (no engine yet, or none resident); `degraded` else —
+ *  a first failure is asked again at once and may pass, and a view on a whole cover stays drawn on
+ *  it —; said once per failure by its caller, `failedPages` the reads failing now. */
 export function streamFailed(
   session: Pick<ExplorerSession, 'scope' | 'emit' | 'diagnose'>,
   engine: Engine | undefined,
-  failedPages: number,
+  { failedPages, givenUp }: { failedPages: number; givenUp: boolean },
   detail: string,
 ) {
   const { scope, emit, diagnose } = session
@@ -41,10 +42,10 @@ export function streamFailed(
       scope,
     },
   }
-  // A fatal is said by the one builder of a fatal (`sayFatal`); a recovered failure is a
-  // diagnostic event of its own type.
-  if (!recovered) return sayFatal(session, code, detail, record)
-  emit({ eventVersion: 1, type: 'degraded', audience: 'diagnostic', recovered, code, detail })
+  // A fatal is said by the one builder of a fatal (`sayFatal`); a first failure, or one a whole
+  // cover outlives, is a diagnostic event of its own type.
+  if (givenUp && !recovered) return sayFatal(session, code, detail, record)
+  emit({ eventVersion: 1, type: 'degraded', audience: 'diagnostic', recovered: true, code, detail })
   diagnose(record.phase, record.message, record.context)
 }
 

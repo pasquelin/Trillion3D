@@ -192,3 +192,24 @@ fn nodes_bending_one_mesh_each_take_a_copy_bent_under_their_own_curve() {
         .expect("one byte short");
     assert_eq!(refusal.code, "RAM_ADMISSION_BUDGET_EXCEEDED");
 }
+
+// Behaviour: a bend that sends a vertex to a point that is not a number is refused at the bend,
+// naming the node whose spline did it and what it was: a curve of no tangent has no direction at its
+// ends, where the mesh's first and last vertices lie.
+#[test]
+fn a_bend_that_leaves_a_vertex_not_a_number_is_refused_naming_its_node() {
+    let (mut g, bin) = document(json!({"startTangent": [0, 0, 0], "endTangent": [0, 0, 0]}));
+    // A node before the bent one, so that the node named is not the first.
+    g["nodes"]
+        .as_array_mut()
+        .expect("nodes")
+        .insert(0, json!({"name": "first"}));
+    let refusal = run(&mut g, bin, usize::MAX).err().expect("not a number");
+    assert_eq!(refusal.code, "NONFINITE_POSITION");
+    let message = &refusal.message;
+    assert!(message.contains("nodes[1].extras.splineMesh"), "{message}");
+    assert!(
+        message.contains("Position is not finite once bent"),
+        "{message}"
+    );
+}

@@ -17,8 +17,11 @@ export function uploadProjectionData(state: VsmFrameState, ids: VsmMapIds) {
     image = state.projectionImage
   for (const entry of cache.entries.values()) {
     const maps = entry.mapCaches
-    for (let index = 0; index < maps.length; index++)
-      writeVsmProjectionData(image, entry.mapId + index, maps[index].projectionData)
+    for (let index = 0; index < maps.length; index++) {
+      const data = maps[index].projectionData
+      data.viewSlot = cache.viewSlotOf(entry.view)
+      writeVsmProjectionData(image, entry.mapId + index, data)
+    }
   }
   const words = wordViews(image).u
   writeChanged(

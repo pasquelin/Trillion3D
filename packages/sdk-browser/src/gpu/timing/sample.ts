@@ -61,6 +61,29 @@ export function timingEntries(parts: Iterable<TimingPart>, initialTruncated: boo
 
 export type TimingEntry = { slot: number; name: string; part: number }
 
+/** Each submission's passes and span, in the order they were submitted. */
+const submissionsOf = (submissionSpans: SubmissionSpans) =>
+  [...submissionSpans]
+    .sort((a, b) => a[0] - b[0])
+    .map(([part, span]) => ({
+      part,
+      passes: span.passes,
+      spanMs: nanosecondsToMs(Number(span.endNs - span.beginNs)),
+    }))
+
+/** The milliseconds the submission `spans` cover, an overlap once. */
+const coveredMs = (spans: ImageSpan[]) =>
+  nanosecondsToMs(
+    Number(
+      coveredLength(
+        spans,
+        (span) => span.beginNs,
+        (span) => span.endNs,
+        0n,
+      ),
+    ),
+  )
+
 /**
  * Reconstruct one image from device timestamp pairs without counting host gaps as GPU work. A
  * pass's pair is `unwritten` when neither timestamp is this image's (zero, or the value its slot
@@ -95,29 +118,12 @@ export function summarizeTimestamps(
     whole = truncated ? null : image,
     frameMsReason: FrameMsReason | null = truncated ? 'truncated' : image ? null : 'no-valid-pair',
     frameMs = whole && nanosecondsToMs(Number(whole.endNs - whole.beginNs))
-  const submissions = [...submissionSpans]
-    .sort((a, b) => a[0] - b[0])
-    .map(([part, span]) => ({
-      part,
-      passes: span.passes,
-      spanMs: nanosecondsToMs(Number(span.endNs - span.beginNs)),
-    }))
+  const submissions = submissionsOf(submissionSpans)
   // A submission is one contiguous GPU execution, so the image's GPU time is what the submission
   // spans cover — not `frameMs`, which also holds the host time between two submissions. Two
   // submissions the device overlaps cover their overlap once: never a sum of the spans, which would
   // pass `frameMs` and leave a negative host gap.
-  const submittedMs =
-    whole &&
-    nanosecondsToMs(
-      Number(
-        coveredLength(
-          spans,
-          (span) => span.beginNs,
-          (span) => span.endNs,
-          0n,
-        ),
-      ),
-    )
+  const submittedMs = whole && coveredMs(spans)
   const hostGapMs = frameMs === null || submittedMs === null ? null : frameMs - submittedMs
   // The image's two ends on the device timeline, whole or none: a truncated image's last timed
   // pass is not its last, a pass whose pair cannot be read may be, and the idle to the next image

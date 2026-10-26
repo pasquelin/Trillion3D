@@ -7,8 +7,8 @@
 //! translation and the rotation quaternion of the joint's transform in the frame's space
 //! (`poses.rs`). Each of those transforms must be rigid — its linear part's columns orthonormal
 //! within `RIGID_TOLERANCE`, its determinant positive —, or the bake is refused with why and the
-//! object left to its host's skeleton (`bake`). Two bakes of the same joints, frames and float
-//! bits — the crowds made of copied skins — are one (`Bakes`).
+//! object left to its host's skeleton (`bake`). Two bakes of the same joints, frames, rate and
+//! float bits — the crowds made of copied skins — are one (`Bakes`).
 use super::poses::{each_frame, translation};
 use super::*;
 use crate::compiler::source::node_transform::Mat4;
@@ -60,12 +60,13 @@ pub(super) struct Bakes {
 }
 
 impl Bakes {
-    /// The rank of `bake`: the one of the same joints, frames and float bits already held, else a
-    /// new one.
+    /// The rank of `bake`: the one of the same joints, frames, rate and float bits already held,
+    /// else a new one.
     pub(super) fn rank(&mut self, bake: Bake) -> usize {
         let counts = [bake.joints, bake.frames].map(|count| count as u64);
-        let mut bytes = Vec::with_capacity(16 + 4 * bake.floats.len());
+        let mut bytes = Vec::with_capacity(24 + 4 * bake.floats.len());
         bytes.extend(counts.iter().flat_map(|count| count.to_le_bytes()));
+        bytes.extend(bake.rate.to_le_bytes());
         bytes.extend(bake.floats.iter().flat_map(|float| float.to_le_bytes()));
         *self.seen.entry(digest_bytes(&bytes)).or_insert_with(|| {
             self.list.push(bake);
@@ -130,6 +131,7 @@ pub(super) fn bake(
     let bake = Bake {
         joints,
         frames,
+        rate: clip.rate,
         floats,
     };
     Ok(Ok((bake, reach)))

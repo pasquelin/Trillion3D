@@ -6,23 +6,32 @@ import {
   computeUniformEntry,
 } from '../../gpu/core/computeBindings.ts'
 import { velocityInputEntries } from './inputs.ts'
-import { CLOSEST_FORMAT, MARKS_FORMAT, VECTOR_FORMAT } from './velocityWgsl.ts'
+import { FUSED_FLATTEN_SLOTS } from '../effects/motionBlur/flattenWgsl.ts'
+import {
+  FLAT_FORMS,
+  TILE_FORMAT,
+  type BlurVariant,
+} from '../effects/motionBlur/motionBlurLayout.ts'
+import { CLOSEST_FORMAT, MARKS_FORMAT } from './velocityWgsl.ts'
 import { VELOCITY_BINDINGS } from './nearestVelocityWgsl.ts'
+import { FIELD_FORMAT } from './reprojectionFieldWgsl.ts'
+import { REPROJECT_BINDINGS, REPROJECTED_FORMAT, FLICKER_FORMAT } from './reprojectWgsl.ts'
 import {
-  REPROJECT_BINDINGS,
-  REPROJECTED_FORMAT,
-  SHADING_HISTORY_FORMAT,
-  FLICKER_FORMAT,
-} from './reprojectWgsl.ts'
-import { FLICKER_BINDINGS, FLICKER_ERROR_FORMAT } from './flickerWgsl.ts'
-import { THIN_GEOMETRY_BINDINGS, THIN_GEOMETRY_FORMAT } from './thinGeometryWgsl.ts'
+  THIN_GEOMETRY_BINDINGS,
+  THIN_GEOMETRY_FORMAT,
+  THIN_RELAXATION_BINDINGS,
+} from './thinGeometryWgsl.ts'
+import { MEASURE_BINDINGS } from './flickerLumaWgsl.ts'
+import { REJECT_SHADING_BINDINGS, REJECTION_FORMAT } from './rejectionWgsl.ts'
+import { SPATIAL_AA_BINDINGS } from './spatialAntiAliasingWgsl.ts'
+import type { HistoryFormats } from './historyShape.ts'
 import {
-  HELD_MEASURE_BINDINGS,
-  HELD_MEASURE_FORMAT,
-  REJECTION_BINDINGS,
-  REJECTION_FORMAT,
-} from './rejectionWgsl.ts'
-import { LDR_LUMA_FORMAT, SPATIAL_AA_BINDINGS } from './spatialAntiAliasingWgsl.ts'
+  ANTI_ALIAS_MASK,
+  LDR_LUMA,
+  storageEntry,
+  type StorageForm,
+  type StorageForms,
+} from './storageForms.ts'
 
 /** Makes the bind group layout of `entries`. */
 type LayoutOf = (entries: GPUBindGroupLayoutEntry[]) => GPUBindGroupLayout
@@ -30,17 +39,46 @@ type LayoutOf = (entries: GPUBindGroupLayoutEntry[]) => GPUBindGroupLayout
 const readOnly = (binding: number) =>
   computeBufferEntry(binding, 'read-only-storage', GPUShaderStage.COMPUTE)
 
+/** The entries of the nearest velocity's layout: what it reads of the frame, the velocity stage and
+ *  the responsiveness of the layers over each pixel, and the closest depth, the marks, the occluders
+ *  and the reprojection field's words it writes. */
+const velocityEntries = (): GPUBindGroupLayoutEntry[] => [
+  ...velocityInputEntries(),
+  computeStorageTextureEntry(VELOCITY_BINDINGS.closest, CLOSEST_FORMAT),
+  computeStorageTextureEntry(VELOCITY_BINDINGS.marks, MARKS_FORMAT),
+  computeBufferEntry(VELOCITY_BINDINGS.occluders, 'storage', GPUShaderStage.COMPUTE),
+  computeTextureEntry(VELOCITY_BINDINGS.vectors, 'uint'),
+  computeTextureEntry(VELOCITY_BINDINGS.responsive, 'float'),
+  computeStorageTextureEntry(VELOCITY_BINDINGS.jacobian, FIELD_FORMAT),
+  computeStorageTextureEntry(VELOCITY_BINDINGS.boundary, FIELD_FORMAT),
+]
+
+/** The entries of the nearest velocity's layout when it flattens the motion blur's motion of
+ *  `variant` too: the blur's uniform, the flattened motion and the tile ranges it writes beside. */
+const fusedVelocityEntries = ({ directions, flat }: BlurVariant): GPUBindGroupLayoutEntry[] => [
+  ...velocityEntries(),
+  computeUniformEntry(FUSED_FLATTEN_SLOTS.params),
+  computeStorageTextureEntry(FUSED_FLATTEN_SLOTS.flat, FLAT_FORMS[flat].format),
+  computeStorageTextureEntry(FUSED_FLATTEN_SLOTS.tiles, TILE_FORMAT),
+  ...(directions > 1
+    ? [computeStorageTextureEntry(FUSED_FLATTEN_SLOTS.tilesSecond, TILE_FORMAT)]
+    : []),
+]
+
+/** Whether a device of `limits` holds the storage textures the nearest velocity binds when it
+ *  flattens a blur's motion of `variant` too. */
+export const fusedVelocityFits = (limits: GPUSupportedLimits, variant: BlurVariant) =>
+  fusedVelocityEntries(variant).filter((entry) => entry.storageTexture).length <=
+  limits.maxStorageTexturesPerShaderStage
+
 /** The layouts of the analysis's first two passes: the nearest velocity, which reads the frame's
- *  surfaces and writes the closest depth, the marks and the occluders, and the reprojection, which
- *  reads the velocity stage's vectors, the depth, the marks and the histories. */
-function texelLayouts(layoutOf: LayoutOf) {
+ *  surfaces and the velocity stage's vectors and writes the closest depth, the marks, the occluders
+ *  and the reprojection field's words, and the reprojection, which reads the velocity stage's
+ *  vectors, the depth, the marks and the histories — the frame's a pixel may be resurrected from
+ *  among them — and writes the reprojected shading histories' layers. */
+function texelLayouts(layoutOf: LayoutOf, guide: GPUTextureFormat) {
   return {
-    velocity: layoutOf([
-      ...velocityInputEntries(),
-      computeStorageTextureEntry(VELOCITY_BINDINGS.closest, CLOSEST_FORMAT),
-      computeStorageTextureEntry(VELOCITY_BINDINGS.marks, MARKS_FORMAT),
-      computeBufferEntry(VELOCITY_BINDINGS.occluders, 'storage', GPUShaderStage.COMPUTE),
-    ]),
+    velocity: layoutOf(velocityEntries()),
     reproject: layoutOf([
       computeUniformEntry(REPROJECT_BINDINGS.view),
       computeTextureEntry(REPROJECT_BINDINGS.marks, 'uint'),
@@ -50,94 +88,135 @@ function texelLayouts(layoutOf: LayoutOf) {
       computeTextureEntry(REPROJECT_BINDINGS.prevShading, 'float'),
       computeSamplerEntry(REPROJECT_BINDINGS.historySampler, 'filtering'),
       computeTextureEntry(REPROJECT_BINDINGS.prevFlicker, 'float'),
-      computeStorageTextureEntry(REPROJECT_BINDINGS.shading, SHADING_HISTORY_FORMAT),
+      computeStorageTextureEntry(REPROJECT_BINDINGS.shading, guide, 'write-only', '2d-array'),
       computeStorageTextureEntry(REPROJECT_BINDINGS.flicker, FLICKER_FORMAT),
       computeStorageTextureEntry(REPROJECT_BINDINGS.word, REPROJECTED_FORMAT),
-      computeStorageTextureEntry(REPROJECT_BINDINGS.filled, VECTOR_FORMAT),
-      computeTextureEntry(REPROJECT_BINDINGS.prevThin, 'uint'),
+      computeStorageTextureEntry(REPROJECT_BINDINGS.field, FIELD_FORMAT, 'write-only', '2d-array'),
+      computeTextureEntry(REPROJECT_BINDINGS.prevThin, 'float'),
       computeTextureEntry(REPROJECT_BINDINGS.depth, 'depth'),
+      computeTextureEntry(REPROJECT_BINDINGS.resurrectGuide, 'float'),
     ]),
   }
 }
 
-/** The layouts of the thin geometry detection, the flicker measure and the held measure. */
-function measureLayouts(layoutOf: LayoutOf) {
-  return {
-    thin: layoutOf([
-      computeUniformEntry(THIN_GEOMETRY_BINDINGS.view),
-      computeTextureEntry(THIN_GEOMETRY_BINDINGS.depth, 'depth'),
-      computeTextureEntry(THIN_GEOMETRY_BINDINGS.ids, 'uint'),
-      readOnly(THIN_GEOMETRY_BINDINGS.pages),
-      computeTextureEntry(THIN_GEOMETRY_BINDINGS.marks, 'uint'),
-      computeTextureEntry(THIN_GEOMETRY_BINDINGS.word, 'uint'),
-      computeTextureEntry(THIN_GEOMETRY_BINDINGS.current, 'unfilterable-float'),
-      computeTextureEntry(THIN_GEOMETRY_BINDINGS.reactive, 'float'),
-      computeStorageTextureEntry(THIN_GEOMETRY_BINDINGS.thinOut, THIN_GEOMETRY_FORMAT),
-    ]),
-    flicker: layoutOf([
-      computeUniformEntry(FLICKER_BINDINGS.view),
-      computeTextureEntry(FLICKER_BINDINGS.current, 'unfilterable-float'),
-      computeTextureEntry(FLICKER_BINDINGS.reactive, 'float'),
-      computeTextureEntry(FLICKER_BINDINGS.word, 'uint'),
-      computeTextureEntry(FLICKER_BINDINGS.flicker, 'float'),
-      computeTextureEntry(FLICKER_BINDINGS.marks, 'uint'),
-      computeStorageTextureEntry(FLICKER_BINDINGS.flickerOut, FLICKER_FORMAT),
-      computeStorageTextureEntry(FLICKER_BINDINGS.error, FLICKER_ERROR_FORMAT),
-      computeTextureEntry(FLICKER_BINDINGS.thin, 'uint'),
-    ]),
-    held: layoutOf([
-      computeUniformEntry(HELD_MEASURE_BINDINGS.view),
-      computeTextureEntry(HELD_MEASURE_BINDINGS.current, 'unfilterable-float'),
-      computeTextureEntry(HELD_MEASURE_BINDINGS.word, 'uint'),
-      computeTextureEntry(HELD_MEASURE_BINDINGS.shading, 'float'),
-      computeStorageTextureEntry(HELD_MEASURE_BINDINGS.filteredInput, HELD_MEASURE_FORMAT),
-      computeStorageTextureEntry(HELD_MEASURE_BINDINGS.filteredHistory, HELD_MEASURE_FORMAT),
-      computeStorageTextureEntry(HELD_MEASURE_BINDINGS.filteredError, HELD_MEASURE_FORMAT),
-      computeBufferEntry(HELD_MEASURE_BINDINGS.occluders, 'storage', GPUShaderStage.COMPUTE),
-    ]),
-  }
-}
-
-/** The layout of the shading rejection. */
-const rejectionLayout = (layoutOf: LayoutOf) =>
+/** The layout of the thin geometry detection: the flicker luma and the material's coverage measured
+ *  before the translucency among what it reads. */
+const thinLayout = (layoutOf: LayoutOf) =>
   layoutOf([
-    computeUniformEntry(REJECTION_BINDINGS.view),
-    computeTextureEntry(REJECTION_BINDINGS.current, 'unfilterable-float'),
-    computeTextureEntry(REJECTION_BINDINGS.word, 'uint'),
-    computeTextureEntry(REJECTION_BINDINGS.shading, 'float'),
-    computeTextureEntry(REJECTION_BINDINGS.flicker, 'uint'),
-    computeStorageTextureEntry(REJECTION_BINDINGS.shadingOut, SHADING_HISTORY_FORMAT),
-    computeStorageTextureEntry(REJECTION_BINDINGS.rejection, REJECTION_FORMAT),
-    computeStorageTextureEntry(REJECTION_BINDINGS.luma, LDR_LUMA_FORMAT),
-    computeTextureEntry(REJECTION_BINDINGS.flickerHistory, 'float'),
-    computeTextureEntry(REJECTION_BINDINGS.reactive, 'float'),
-    computeTextureEntry(REJECTION_BINDINGS.marks, 'uint'),
-    computeTextureEntry(REJECTION_BINDINGS.thin, 'uint'),
-    computeTextureEntry(REJECTION_BINDINGS.filteredInput, 'float'),
-    computeTextureEntry(REJECTION_BINDINGS.filteredHistory, 'float'),
-    computeTextureEntry(REJECTION_BINDINGS.filteredError, 'float'),
+    computeUniformEntry(THIN_GEOMETRY_BINDINGS.view),
+    computeTextureEntry(THIN_GEOMETRY_BINDINGS.depth, 'depth'),
+    computeTextureEntry(THIN_GEOMETRY_BINDINGS.luma, 'float'),
+    computeTextureEntry(THIN_GEOMETRY_BINDINGS.coverage, 'float'),
+    computeTextureEntry(THIN_GEOMETRY_BINDINGS.marks, 'uint'),
+    computeTextureEntry(THIN_GEOMETRY_BINDINGS.word, 'uint'),
+    computeStorageTextureEntry(THIN_GEOMETRY_BINDINGS.thinOut, THIN_GEOMETRY_FORMAT),
   ])
 
-/** The layout of the spatial anti-aliaser's draw. */
-const antiAliasLayout = (layoutOf: LayoutOf) => {
-  const fragment = GPUShaderStage.FRAGMENT
-  return layoutOf([
-    computeTextureEntry(SPATIAL_AA_BINDINGS.luma, 'float', '2d', fragment),
-    computeUniformEntry(SPATIAL_AA_BINDINGS.view, {}, fragment),
-    computeSamplerEntry(SPATIAL_AA_BINDINGS.lumaSampler, 'filtering', fragment),
-    computeTextureEntry(SPATIAL_AA_BINDINGS.rejection, 'float', '2d', fragment),
+/** The layout of the thin geometry's weight relaxation: the detection's output, the image and the
+ *  translucency it reads, the mask's and the coverage history's layers it writes in `measure`. */
+const relaxationLayout = (layoutOf: LayoutOf, measure: GPUTextureFormat) =>
+  layoutOf([
+    computeUniformEntry(THIN_RELAXATION_BINDINGS.view),
+    computeTextureEntry(THIN_RELAXATION_BINDINGS.thin, 'uint'),
+    computeTextureEntry(THIN_RELAXATION_BINDINGS.current, 'unfilterable-float'),
+    computeTextureEntry(THIN_RELAXATION_BINDINGS.translucency, 'float'),
+    computeStorageTextureEntry(THIN_RELAXATION_BINDINGS.maskOut, measure),
+    computeStorageTextureEntry(THIN_RELAXATION_BINDINGS.historyOut, measure),
   ])
-}
+
+/** The layouts of the measures taken before the translucency: the flicker luma's, of the image, and
+ *  the material coverage's, of the visibility buffer, each writing its layer in `measure`. */
+const measureLayouts = (layoutOf: LayoutOf, measure: GPUTextureFormat) => ({
+  luma: layoutOf([
+    computeUniformEntry(MEASURE_BINDINGS.view),
+    computeTextureEntry(MEASURE_BINDINGS.image, 'unfilterable-float'),
+    computeStorageTextureEntry(MEASURE_BINDINGS.out, measure),
+  ]),
+  coverage: layoutOf([
+    computeUniformEntry(MEASURE_BINDINGS.view),
+    computeTextureEntry(MEASURE_BINDINGS.ids, 'uint'),
+    readOnly(MEASURE_BINDINGS.pages),
+    computeStorageTextureEntry(MEASURE_BINDINGS.out, measure),
+    computeTextureEntry(MEASURE_BINDINGS.flags, 'uint'),
+  ]),
+})
+
+/** The entries of the shading rejection's layout: the image, the translucency, the reprojection word,
+ *  the reprojected shading histories' layers and flicker history, the marks, the thin geometry mask
+ *  and the depth it reads; the shading history, the flicker history, the rejection and the
+ *  reprojection field's layers, the anti-aliaser's mask and its LDR luma it writes — four storage
+ *  textures, and up to six where the device grants them, the mask taking priority for the fifth
+ *  (`rejectionStorageForms`), each a buffer else —, the occluder words it empties, and the scene
+ *  colour it writes as a storage buffer. */
+const rejectShadingEntries = (
+  guide: GPUTextureFormat,
+  { mask, luma }: StorageForms,
+): GPUBindGroupLayoutEntry[] => [
+  computeUniformEntry(REJECT_SHADING_BINDINGS.view),
+  computeTextureEntry(REJECT_SHADING_BINDINGS.current, 'unfilterable-float'),
+  computeTextureEntry(REJECT_SHADING_BINDINGS.translucency, 'float'),
+  computeTextureEntry(REJECT_SHADING_BINDINGS.word, 'uint'),
+  computeTextureEntry(REJECT_SHADING_BINDINGS.guides, 'float', '2d-array'),
+  computeTextureEntry(REJECT_SHADING_BINDINGS.moire, 'float'),
+  computeTextureEntry(REJECT_SHADING_BINDINGS.marks, 'uint'),
+  computeTextureEntry(REJECT_SHADING_BINDINGS.thin, 'float'),
+  computeTextureEntry(REJECT_SHADING_BINDINGS.measureLuma, 'float'),
+  computeTextureEntry(REJECT_SHADING_BINDINGS.thinHistory, 'float'),
+  computeTextureEntry(REJECT_SHADING_BINDINGS.depth, 'depth'),
+  computeStorageTextureEntry(REJECT_SHADING_BINDINGS.guideOut, guide),
+  computeStorageTextureEntry(REJECT_SHADING_BINDINGS.moireOut, FLICKER_FORMAT),
+  computeStorageTextureEntry(REJECT_SHADING_BINDINGS.rejection, REJECTION_FORMAT),
+  computeStorageTextureEntry(REJECT_SHADING_BINDINGS.field, FIELD_FORMAT, 'write-only', '2d-array'),
+  computeBufferEntry(REJECT_SHADING_BINDINGS.occluders, 'storage', GPUShaderStage.COMPUTE),
+  computeBufferEntry(REJECT_SHADING_BINDINGS.sceneColor, 'storage', GPUShaderStage.COMPUTE),
+  storageEntry(LDR_LUMA, luma, 'write', REJECT_SHADING_BINDINGS.luma),
+  storageEntry(ANTI_ALIAS_MASK, mask, 'write', REJECT_SHADING_BINDINGS.antiAliasMask),
+]
+
+/** The layout of the spatial anti-aliaser's dispatch, its target stored to in `format` (the
+ *  device's, `HistoryFormats.antiAlias`). */
+const antiAliasLayout = (
+  layoutOf: LayoutOf,
+  format: GPUTextureFormat,
+  mask: StorageForm,
+  luma: StorageForm,
+) =>
+  layoutOf([
+    storageEntry(LDR_LUMA, luma, 'read', SPATIAL_AA_BINDINGS.luma),
+    computeUniformEntry(SPATIAL_AA_BINDINGS.view),
+    storageEntry(ANTI_ALIAS_MASK, mask, 'read', SPATIAL_AA_BINDINGS.mask),
+    computeStorageTextureEntry(SPATIAL_AA_BINDINGS.out, format),
+  ])
 
 /** The bind group layouts of the temporal pass's analysis, one for each of its passes
- *  (`createTaaAnalysis`). */
-export function createAnalysisLayouts(device: GPUDevice) {
+ *  (`createTaaAnalysis`), the shading histories and the anti-aliaser's target stored in the device's
+ *  formats (`HistoryFormats`), and `fusedVelocity` the nearest velocity's that also flattens the
+ *  blur's motion of a variant, made at the first ask. */
+export function createAnalysisLayouts(
+  device: GPUDevice,
+  {
+    antiAlias,
+    guide,
+    measure,
+    mask,
+    luma,
+  }: Pick<HistoryFormats, 'antiAlias' | 'guide' | 'measure' | 'mask' | 'luma'>,
+) {
   const layoutOf: LayoutOf = (entries) => device.createBindGroupLayout({ entries })
+  const fused = new Map<string, GPUBindGroupLayout>()
   return {
-    ...texelLayouts(layoutOf),
-    ...measureLayouts(layoutOf),
-    rejection: rejectionLayout(layoutOf),
-    antiAlias: antiAliasLayout(layoutOf),
+    ...texelLayouts(layoutOf, guide),
+    fusedVelocity(variant: BlurVariant) {
+      const key = `${variant.directions} ${variant.flat}`
+      let layout = fused.get(key)
+      if (!layout) fused.set(key, (layout = layoutOf(fusedVelocityEntries(variant))))
+      return layout
+    },
+    thin: thinLayout(layoutOf),
+    relaxation: relaxationLayout(layoutOf, measure),
+    measure: measureLayouts(layoutOf, measure),
+    rejectShading: layoutOf(rejectShadingEntries(guide, { mask, luma })),
+    antiAlias: antiAliasLayout(layoutOf, antiAlias, mask, luma),
   }
 }
 

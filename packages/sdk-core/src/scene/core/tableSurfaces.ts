@@ -3,7 +3,7 @@
  * `packages/asset-compiler-rust/src/compiler/tables/materials.rs`): each material the prepared
  * scene wears, in the engine's own words, and the sampler state of each texture it samples.
  */
-import type { DisplacementWire } from '../../contracts/materialAbi.ts'
+import type { DisplacementWire, ResponsiveLevel } from '../../contracts/materialAbi.ts'
 import type { TextureFilter, WrapMode } from '../../texture/contract.ts'
 
 /** The six map slots the engine reads of a surface, in the engine's own field names. */
@@ -132,10 +132,10 @@ export type TableMaterial = {
   /** What the physical extensions add, under the host's own parameter names: a factor, a colour
    *  or a range as numbers, a map as a slot. */
   extensions: Readonly<Record<string, number | readonly number[] | TableTextureSlot>>
-  /** The most of its history the temporal anti-aliasing keeps where it is worn, in [0, 1] — the
-   *  compiler's one resolution of the job's `materials`, its `responsive` match and the material's
-   *  `extras` —; written only below 1, absent for the engine's own blend. */
-  temporalAntialiasing?: number
+  /** How far the temporal anti-aliasing trusts the history where it is worn — the compiler's one
+   *  resolution of the job's `materials`, its `responsive` match and the material's `extras` —;
+   *  written only above `off`, absent for the normal accumulation. */
+  responsive?: ResponsiveLevel
   /** The displacement the material names and switches on, absent for every other material: the
    *  tessellation draws it displaced (`tessellation`, `TESSELLATION_RULES`). */
   displacement?: TableDisplacement

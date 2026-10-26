@@ -1,92 +1,56 @@
-import { MOBILITY_CORNER_SHIFT, MOBILITY_CUTOUT, MOBILITY_PLACEMENT_BITS } from '../mobilityBits.ts'
-import { rankBits, rebuildRowIndex, type MobilityState } from './mobilityState.ts'
-
-/** The row words of rows `[from, last]`, each from its row's placement, as one span pushed. */
-function writeRowSpan(
-  s: MobilityState,
-  placementOf: (row: number) => number,
-  from: number,
-  last: number,
-  alwaysMoving: number,
-  corners: (row: number) => number,
-  cutout: (row: number) => boolean,
-  castFlags: (rank: number) => number,
-) {
-  for (let row = from; row <= last; row++) {
-    const placement = placementOf(row),
-      blended = row >= alwaysMoving,
-      flags = rankBits(s, placement, castFlags) | (!blended && cutout(row) ? MOBILITY_CUTOUT : 0),
-      word = (corners(row) << MOBILITY_CORNER_SHIFT) | flags
-    if (s.rowRank[row] !== placement) {
-      s.rowRank[row] = placement
-      s.indexStale = true
-    }
-    s.rows[row] = word
-  }
-}
-
-/** The rows of every placement `touch`ed since, written again where their bits changed, each run
- *  of rows in a row pushed as one span. */
-function writeDirtyRows(
-  s: MobilityState,
-  push: (first: number, count: number) => void,
-  castFlags: (rank: number) => number,
-) {
-  if (s.indexStale) rebuildRowIndex(s)
-  const kept = ~MOBILITY_PLACEMENT_BITS
-  for (const rank of s.dirtyList) {
-    s.dirty[rank] = 0
-    const bits = rankBits(s, rank, castFlags)
-    let runFirst = -1,
-      runLast = -2
-    for (let k = s.indexStart[rank]; k < s.indexStart[rank + 1]; k++) {
-      const row = s.indexRows[k],
-        word = (s.rows[row] & kept) | bits
-      if (word === s.rows[row]) continue
-      s.rows[row] = word
-      if (row !== runLast + 1) {
-        if (runFirst >= 0) push(runFirst, runLast - runFirst + 1)
-        runFirst = row
-      }
-      runLast = row
-    }
-    if (runFirst >= 0) push(runFirst, runLast - runFirst + 1)
-  }
-  s.dirtyList.length = 0
-}
+import { rankBits, type MobilityState } from './mobilityState.ts'
+import { MOBILITY_WORLD_SPACE } from '../mobilityBits.ts'
 
 /**
- * Writes the row words of rows `[from, to]` — every row on a new table — from each row's
- * placement, then the rows of every placement `touch`ed since (moving or static, casting or
- * not), and hands each written span to push. A row from `alwaysMoving` on is a blended
- * caster's: moving as its placement is. A row `cutout` says is filed with the casters drawn
- * with the fragment test; a blended caster's never is: the transmittance pass reads the
- * other list alone. `corners` is the count a row draws, what its region's command is sized by.
- * `castFlags` says how a placement casts: `MOBILITY_SHADOWLESS` where it casts no shadow —
- * `castShadow = false`, hidden or parked —, which every caster pass skips, and `MOBILITY_FAR_SHADOW`
- * where it casts far shadows (`castFarShadow`), which a sun's far-shadow test never leaves out.
+ * Writes the words of the placements that need it — every placement once on a new layout, else the
+ * ones `touch`ed since (they started or stopped moving, casting or casting far, were parked or
+ * taken, turned static) — and hands each run of words that changed to `push`, as one span. A word
+ * `touch`ed with nothing changed is not pushed. `castFlags` says how a placement casts:
+ * `MOBILITY_SHADOWLESS` where it casts no shadow — `castShadow = false`, hidden or parked —, which
+ * every caster pass skips, `MOBILITY_FAR_SHADOW` where it casts far shadows (`castFarShadow`), which
+ * a sun's far-shadow test never leaves out, and the others of `castFlagsOf`. `disableSq` gives the
+ * square of the distance past which a placement's object stops evaluating its offset (0 for never),
+ * written beside the word; a placement whose distance changed is pushed too.
  */
-export function writeMobilityRows(
+export function writeRootWords(
   s: MobilityState,
-  placementOf: (row: number) => number,
-  rowCount: number,
-  from: number,
-  to: number,
   push: (first: number, count: number) => void,
-  corners: (row: number) => number,
-  alwaysMoving = rowCount,
-  cutout: (row: number) => boolean = () => false,
-  castFlags: (rank: number) => number = () => 0,
+  castFlags: (rank: number) => number,
+  disableSq: (rank: number) => number = () => 0,
 ) {
-  if (s.wholeRows) {
-    from = 0
-    to = rowCount - 1
-    s.wholeRows = false
+  const placements = s.moving.length
+  if (s.wholeWords) {
+    s.wholeWords = false
+    s.changed.clear()
+    s.worldSpace = 0
+    for (let rank = 0; rank < placements; rank++) {
+      s.words[rank] = rankBits(s, rank, castFlags)
+      s.disable[rank] = disableSq(rank)
+      if (s.words[rank] & MOBILITY_WORLD_SPACE) s.worldSpace++
+    }
+    if (placements) push(0, placements)
+    return
   }
-  const last = Math.min(to, s.rows.length - 1)
-  if (last >= from) {
-    writeRowSpan(s, placementOf, from, last, alwaysMoving, corners, cutout, castFlags)
-    push(from, last - from + 1)
+  if (!s.changed.count) return
+  const { count, pairs } = s.changed.runs()
+  let first = -1,
+    last = -2
+  for (let run = 0; run < count; run++) {
+    for (let rank = pairs[2 * run]; rank <= pairs[2 * run + 1]; rank++) {
+      const word = rankBits(s, rank, castFlags),
+        disable = disableSq(rank)
+      if (word === s.words[rank] && disable === s.disable[rank]) continue
+      const was = s.words[rank]
+      s.worldSpace += +((word & MOBILITY_WORLD_SPACE) !== 0) - +((was & MOBILITY_WORLD_SPACE) !== 0)
+      s.words[rank] = word
+      s.disable[rank] = disable
+      if (rank !== last + 1) {
+        if (first >= 0) push(first, last - first + 1)
+        first = rank
+      }
+      last = rank
+    }
   }
-  if (s.dirtyList.length) writeDirtyRows(s, push, castFlags)
+  if (first >= 0) push(first, last - first + 1)
+  s.changed.clear()
 }

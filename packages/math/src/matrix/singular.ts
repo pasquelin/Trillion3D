@@ -1,5 +1,4 @@
-import { linearPartDeterminant } from './matrix4.ts'
-import { LINEAR_PART } from './matrixElements.ts'
+import { linearPartDeterminantOf } from './matrix4.ts'
 /**
  * THE ENGINE "SINGULAR MATRIX" RULE, written once, for the CPU AND for the GPU.
  *
@@ -86,14 +85,20 @@ export function linearPartIdentityDistanceSq(m: ArrayLike<number>, at = 0) {
 export function normalizedLinearDeterminant(m: ArrayLike<number>) {
   const t = linearPartScale(m)
   if (!(t > 0) || !Number.isFinite(t)) return NaN
-  // The three columns divided first, then `linearPartDeterminant`: its first-column expansion is
+  // The three columns divided first, then `linearPartDeterminantOf`: its first-column expansion is
   // the triple product `a · (b × c)` term for term, the same bits.
-  for (const k of LINEAR_PART) SCALED[k] = m[k] / t
-  return linearPartDeterminant(SCALED)
+  return linearPartDeterminantOf(
+    m[0] / t,
+    m[1] / t,
+    m[2] / t,
+    m[4] / t,
+    m[5] / t,
+    m[6] / t,
+    m[8] / t,
+    m[9] / t,
+    m[10] / t,
+  )
 }
-
-/** `normalizedLinearDeterminant`'s divided columns, held between the division and the product. */
-const SCALED = /* @__PURE__ */ new Float64Array(16)
 
 /**
  * THE DECISION, in the very form of the WGSL kernel (`invTranspose3Prep`): the factor that multiplies

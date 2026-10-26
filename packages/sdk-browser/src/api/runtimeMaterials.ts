@@ -11,7 +11,7 @@ import {
 } from './createdMaterials.ts'
 import { runtimeMaps } from './runtimeMaps.ts'
 
-const unknownMaterial = (id: string): never => {
+export const unknownMaterial = (id: string): never => {
   throw new EngineError('UNKNOWN_MATERIAL', `the page created no material ${id}`, { id })
 }
 

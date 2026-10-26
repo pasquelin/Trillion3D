@@ -38,6 +38,14 @@ fn place_primitive(
 /// acceleration structure is shared, never geometry or cuts.
 pub fn load(path: &Path) -> Result<World> {
     let (mut g, binary) = crate::compiler::source::flat_document(path)?;
+    // The compiled scene draws strips and fans as lists of triangles and no points or lines.
+    let cancelled = std::sync::atomic::AtomicBool::new(false);
+    let budget = crate::compiler::source::load::compressed::Budget {
+        limit: usize::MAX,
+        cancelled: &cancelled,
+    };
+    let (binary, _) =
+        crate::compiler::source::primitive_modes::triangulate_primitives(&mut g, binary, &budget)?;
     let bin = binary.bytes();
     // The compiled scene draws every GPU instance; the reference world must hold them too.
     crate::compiler::source::instancing::expand_gpu_instances(&mut g, bin)?;
@@ -64,9 +72,6 @@ pub fn load(path: &Path) -> Result<World> {
             .get(mesh as usize)
             .ok_or_else(|| bad("node.mesh is out of bounds"))?;
         for primitive in values(mesh, "primitives")? {
-            if primitive.get("mode").and_then(Value::as_u64).unwrap_or(4) != 4 {
-                continue;
-            }
             let colour = palette.of(primitive.get("material"));
             place_primitive(&g, bin, primitive, &matrices[id], colour, &mut world)?;
         }

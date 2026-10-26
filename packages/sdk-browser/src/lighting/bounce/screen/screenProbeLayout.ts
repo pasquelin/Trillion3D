@@ -32,10 +32,10 @@ export const SCREEN_PROBE_FORMATS = {
   /** A probe's normal, and the speed of its surface in `w` (metres an image). */
   normal: 'rgba16float',
   /** A ray's radiance, the three channels in one word (`packLight`, the 11-11-10 float): written by the screen
-   *  stage, then added to by the field's and the scene's, read and written in place. */
+   *  stage, then by the scene's. */
   trace: 'r32uint',
-  /** A ray's end: the distance it reached, whether it met a surface and whether that surface moves
-   *  (`spHitWord`), read and written in place by the stages. */
+  /** A ray's end: the distance it reached and whether what it met moves
+   *  (`spHitWord`), written by the screen stage, then read and written in place by the scene's. */
   hit: 'r32uint',
   /** A ray's direction, the texel of the octahedron and its level (`spPackRay`). */
   ray: 'r32uint',
@@ -43,11 +43,16 @@ export const SCREEN_PROBE_FORMATS = {
   gather: 'rgba16float',
   /** A probe's spherical harmonics, a texel a coefficient, or its octahedral irradiance. */
   irradiance: 'rgba16float',
-  /** A pixel's accumulated irradiance (`packLight`) and its meta word (`spMetaOf`: the depth it was measured at, its
-   *  amount of fast update, the frames it holds, its occlusion): what the lighting reads. */
-  history: 'rg32uint',
-  /** A pixel's short-range occlusion. */
+  /** What the lighting reads of a pixel (`SCREEN_INDIRECT_WGSL`), four words accumulated over the images: its irradiance, its rough
+   *  specular light and the irradiance of its backface (each `packLight`), and its short-range occlusion with the direction of the
+   *  open sky, the bent normal times the amount (`spBentPack`). A pixel on no lit surface, or that read nothing and held nothing, is zero. */
+  history: 'rgba32uint',
+  /** What the temporal pass alone keeps of a pixel (`spMetaOf`): the depth it was measured at, its amount of fast update and the
+   *  frames it holds. */
+  meta: 'r32uint',
+  /** A pixel's short-range occlusion: its amount, or, with the bent normal, the direction of the open sky times the amount (`spBentPack`). */
   occlusion: 'r32float',
+  bentOcclusion: 'r32uint',
 } as const satisfies Record<string, GPUTextureFormat>
 
 /** What a kernel binds and how: a uniform, a read-only or writable storage buffer, a sampled float or
@@ -195,7 +200,6 @@ export const SCREEN_PROBE_FLAGS = {
   octahedral: 1 << 7,
   occlusion: 1 << 8,
   sceneTraces: 1 << 9,
-  meshTraces: 1 << 10,
   velocity: 1 << 11,
   fastUpdateClamp: 1 << 12,
   disocclusion: 1 << 13,
@@ -203,6 +207,7 @@ export const SCREEN_PROBE_FLAGS = {
   fullResDepth: 1 << 15,
   skipFoliageHits: 1 << 16,
   cacheSky: 1 << 17,
+  backfaceDiffuse: 1 << 18,
 } as const
 
 /**
@@ -214,15 +219,18 @@ export const SCREEN_PROBE_FLAGS = {
  * then the fallback's, as exponents), the probability under which a ray is not traced and the intensity a ray is
  * held to; `spatial`, the spatial filter's position scale and its angle, the width the probes a pixel reads are
  * jittered and the furthest a ray looks; `occlusion`, the horizon search's slices, steps and foreground fraction and the scale of
- * the neighbourhood the history's occlusion is held to; `scene`, the detail trace's distance, the distance from the eye it is
- * made within, the bias off a surface and the history's relative depth threshold; `cache`, the radiance cache's radius scale (the
+ * the neighbourhood the history's occlusion is held to; `scene`, the bias off a surface a ray starts at and the history's relative
+ * depth threshold; `cache`, the radiance cache's radius scale (the
  * multiple of a probe's nearest ray start the direction a ray reads it by is moved onto a sphere of), the texels a side of its maps and
  * the levels of detail they hold; `motion`, the relative speed
  * difference from which a ray's end moves, the inverse of the share of moving light from which the history gives
  * way, and the most it gives way by; `tuning`, the frames and the share of a probe's pixels that make it
  * disoccluded, the history's depth thickness and the relative thickness of the screen trace times the projection's
- * depth scale (`screenRelativeThickness`); `trace`, the scale of a surface's thickness where it has no distance field and
- * the linear steps that look for a thin feature past a hit; `previous`, the inverse of
+ * depth scale (`screenRelativeThickness`); `trace`, the scale of a surface's thickness where it has no distance field, the
+ * linear steps that look for a thin feature past a hit, and the roughness past which a pixel's rough specular is its diffuse's
+ * (`screenProbeMaxRoughnessToEvaluateRoughSpecular`, then the thin double-sided sheets'); `foliage`, the most the short-range
+ * occlusion applies on a thin double-sided sheet's pixels (`screenProbeOcclusionFoliageStrength`, `x`) and the occlusion's intensity
+ * (`screenProbeOcclusionIntensity`, `y`), which the rough specular's directions are weighed by; `previous`, the inverse of
  * the view-projection the last lit image was drawn with.
  */
 export const SCREEN_PROBE_PARAMS = fieldLayout('ScreenProbeParams', [
@@ -233,11 +241,12 @@ export const SCREEN_PROBE_PARAMS = fieldLayout('ScreenProbeParams', [
   ['weights', 'vec4f'],
   ['spatial', 'vec4f'],
   ['occlusion', 'vec4f'],
-  ['scene', 'vec4f'],
+  ['scene', 'vec2f'],
   ['cache', 'vec4f'],
   ['motion', 'vec4f'],
   ['tuning', 'vec4f'],
   ['trace', 'vec4f'],
+  ['foliage', 'vec4f'],
   ['previous', 'mat4x4f'],
 ] as const)
 /** Bytes of the parameters. */

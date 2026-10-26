@@ -15,11 +15,24 @@ import type { ResolvedFogVolume } from '../../../../sdk-core/src/scene/volume/co
  * which decides the slices an object reaches.
  */
 
+/** The unsigned view of a record buffer's words, made once. */
+const views = new WeakMap<Float32Array, Uint32Array>()
+const wordsOf = (out: Float32Array) => {
+  let ints = views.get(out)
+  if (!ints) views.set(out, (ints = new Uint32Array(out.buffer, out.byteOffset, out.length)))
+  return ints
+}
+
+/** The program's place and the values' first texel of an object's graph (`createGraphValues`). */
+type GraphWords = (object: ResolvedFogVolume) => readonly [number, number]
+
 /** The shapes' codes in a record's `boundsMin.w`. */
 const VOXEL_SHAPE = { sphere: 0, box: 1 } as const
 
 /** One object: its placement and the inverse, the corners of its box (the shape beside the first),
- *  the sphere around it, its albedo with the extinction beside, its emissive light. */
+ *  the sphere around it, its albedo with the extinction beside, its emissive light, and its graph:
+ *  the program's place in the image's set (zero without one) and the first texel of its values
+ *  (`voxelGraph.ts`). */
 export const FOG_VOXEL_OBJECT = fieldLayout('FogVoxelObject', [
   ['toWorld', 'mat4x4f'],
   ['toLocal', 'mat4x4f'],
@@ -28,6 +41,7 @@ export const FOG_VOXEL_OBJECT = fieldLayout('FogVoxelObject', [
   ['sphere', 'vec4f'],
   ['albedo', 'vec4f'],
   ['emissive', 'vec4f'],
+  ['graph', 'vec4u'],
 ] as const)
 
 /** What the first pass derives of an object: its sphere in view space, the box's rectangle in view
@@ -39,13 +53,15 @@ export const FOG_VOXEL_SPAN = fieldLayout('FogVoxelSpan', [
 ] as const)
 
 /** The frame of the voxelisation: the inverse of the matrix the depth was drawn with (the one a
- *  surface's position is read through), the camera's right and up, the passes' numbers. */
+ *  surface's position is read through), the camera's right and up, the passes' numbers — the last
+ *  of them the world's time a graph reads — and the wall clock's, `realTime`. */
 export const FOG_VOXEL_FRAME = fieldLayout('FogVoxelFrame', [
   ['inverseDepthViewProj', 'mat4x4f'],
   ['right', 'vec4f'],
   ['up', 'vec4f'],
   ['passes', 'vec4f'],
   ['count', 'vec4u'],
+  ['realTime', 'f32'],
 ] as const)
 
 /** What the voxelisation of an image is told besides the objects. */
@@ -60,6 +76,10 @@ export interface VoxelImage {
   slicesPerPass: number
   showOnlyPass: number
   count: number
+  /** The clocks, seconds, which a graph reads: the world's and the wall clock's
+   *  (`../../materials/graph/clocks.ts`). */
+  time: number
+  realTime: number
 }
 
 /** A count as the float that holds its bits, for the frame's integer word. */
@@ -87,9 +107,10 @@ export function writeVoxelFrame(out: Float32Array, image: VoxelImage) {
   copyMatrix4(out, inverse, at.inverseDepthViewProj)
   putAxis(out, at.right, image.world, 0)
   putAxis(out, at.up, image.world, 1)
-  put(out, at.passes, image.slicesPerPass, image.showOnlyPass, image.farEnd)
+  put(out, at.passes, image.slicesPerPass, image.showOnlyPass, image.farEnd, image.time)
   bits[0] = image.count
   out[at.count] = asFloat[0]
+  out[at.realTime] = image.realTime
 }
 
 /** The largest scale of the placement's axes: how much it can stretch a length. */
@@ -105,6 +126,7 @@ function writeObject(
   object: ResolvedFogVolume,
   eye: ArrayLike<number>,
   farEnd: number,
+  graphOf?: GraphWords,
 ) {
   const m = object.matrix
   const { boundsMin: lo, boundsMax: hi } = object
@@ -130,13 +152,16 @@ function writeObject(
   put(out, base + at.sphere, centre[0], centre[1], centre[2], radius)
   put(out, base + at.albedo, albedo[0], albedo[1], albedo[2], extinction)
   put(out, base + at.emissive, emissive[0], emissive[1], emissive[2])
+  const [program, texel] = graphOf?.(object) ?? [0, 0]
+  put(wordsOf(out), base + at.graph, program, texel)
   return true
 }
 
 /**
  * Writes the objects that reach the volume into `out`, record by record from the first, and
  * returns how many: an object whose sphere lies farther from the eye than the fog's distance plus
- * its radius is left out. `out` must hold `capacity` records.
+ * its radius is left out. `out` must hold `capacity` records. `graphOf` gives the graph word of an object
+ * written (`createGraphValues`'s `add`).
  */
 export function writeVoxelObjects(
   out: Float32Array,
@@ -144,11 +169,12 @@ export function writeVoxelObjects(
   objects: Iterable<ResolvedFogVolume>,
   eye: ArrayLike<number>,
   farEnd: number,
+  graphOf?: GraphWords,
 ) {
   let count = 0
   for (const object of objects) {
     if (count === capacity) break
-    if (writeObject(out, count, object, eye, farEnd)) count++
+    if (writeObject(out, count, object, eye, farEnd, graphOf)) count++
   }
   return count
 }

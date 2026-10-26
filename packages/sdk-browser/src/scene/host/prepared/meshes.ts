@@ -10,6 +10,7 @@ import { Mesh } from '../../../../../sdk-core/src/world/object/mesh.ts'
 import { Group, type Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import type { Geometry } from '../../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { PageSurface } from '../../../geometry/pages/surface.ts'
+import type { PageMesh } from '../../../geometry/pages/pageMesh.ts'
 import { variantOf, type SurfaceVariant } from '../../../geometry/pages/surfaceVariant.ts'
 import type { RowLink } from '../../../geometry/partition/rows.ts'
 import { weigh, type uniqueNames } from './nodes.ts'
@@ -22,6 +23,35 @@ export type MeshInputs = {
   materialOf: (rank: number, variant: SurfaceVariant) => Promise<PageSurface>
   /** Whether a cloth draws the primitive (`drawnTwoSided`), once its manifest lists it. */
   clothOf?: (mesh: number, primitive: number) => Promise<boolean>
+}
+
+/** The node each rank builds, its ranks recorded in the order the meshes were first named: the
+ *  mesh itself, or a group of one mesh per primitive. */
+function nodesOfRanks(
+  order: readonly number[],
+  made: PageMesh[][],
+  cloths: boolean[][],
+  ranks: Map<Object3D, RowLink>,
+) {
+  const built = new Map<number, Object3D>()
+  for (const [at, rank] of order.entries()) {
+    const parts = made[at]
+    parts.forEach((mesh, p) =>
+      ranks.set(mesh, {
+        meshes: rank,
+        primitives: p,
+        ...(cloths[at][p] ? { twoSided: true } : {}),
+      }),
+    )
+    if (parts.length === 1) built.set(rank, parts[0])
+    else {
+      const group = new Group()
+      ranks.set(group, { meshes: rank })
+      for (const part of parts) group.add(part)
+      built.set(rank, group)
+    }
+  }
+  return built
 }
 
 /** The host meshes of `order`, each mesh's primitives, and the node each rank builds: a mesh, or
@@ -67,24 +97,7 @@ export async function buildMeshes(
       }),
     ),
   )
-  const built = new Map<number, Object3D>()
-  for (const [at, rank] of order.entries()) {
-    const parts = made[at]
-    parts.forEach((mesh, p) =>
-      ranks.set(mesh, {
-        meshes: rank,
-        primitives: p,
-        ...(cloths[at][p] ? { twoSided: true } : {}),
-      }),
-    )
-    if (parts.length === 1) built.set(rank, parts[0])
-    else {
-      const group = new Group()
-      ranks.set(group, { meshes: rank })
-      for (const part of parts) group.add(part)
-      built.set(rank, group)
-    }
-  }
+  const built = nodesOfRanks(order, made, cloths, ranks)
   return { made, built }
 }
 

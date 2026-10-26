@@ -6,14 +6,7 @@ import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import { gpuHarness } from './contractLighting.fixture.ts'
 import { BLEND_SHADER, contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
 import { DEFERRED_BINDINGS } from './bindings.ts'
-import { deferredLayoutEntries } from './layoutEntries.ts'
-import { limitOf, stageBindingCounts } from '../../../../../tests/kit/fakeDevice/limitRules.ts'
-import { AO_NOISE_BYTES, AO_QUALITY_SHAPES, AO_RANDOM_BASIS, AO_SAMPLE_SETS } from '../ao/tables.ts'
-import { referenceNoiseBytes } from '../ao/reference.fixture.ts'
-import { AO_HALF_DEPTH, aoExtentOf, aoPasses, aoTargetExtent, aoTargetRect } from '../ao/plan.ts'
-import { aoViewBytes } from '../ao/view.ts'
-import { AO_PARAMS_BYTES } from '../ao/layout.ts'
-import { HEIGHT, settingsOf, uniformOf, WIDTH } from '../ao/scene.fixture.ts'
+import { FULL_CONTRACT } from './contractCuts.ts'
 
 const CLEAR = clearValueOf(0x204060)
 
@@ -99,13 +92,16 @@ test('diagnostic composition retains the display-space flag and unbound calls fa
   assert.equal(h.passes.length, 0)
 })
 
-test('an image is composed with the share it read, one group per pair', async () => {
+// Every image is composed with the surfaces' flags and base colour, a debug view's as-is pixels drawn
+// from them after the temporal pass (a TAA history was composed with the share it accumulated, the
+// lit image with the flags).
+test('an image is composed with the surface flags and base colour, one group per image and surface', async () => {
   const h = gpuHarness(),
     lighting = await createDeferredLighting(h.device)
   const hdr = h.view()
   lighting.bind(h.surface, h.view(), hdr, false)
-  // The two TAA histories, each its colour beside its share, written in turn.
-  const images = [0, 1].map(() => ({ color: h.view(), share: h.view() }))
+  // The two TAA histories, written in turn.
+  const images = [0, 1].map(() => ({ color: h.view() }))
   for (let frame = 0; frame < 4; frame++)
     lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, images[frame % 2])
   for (let frame = 0; frame < 2; frame++) lighting.compose(h.encoder, h.view(), [0, 0, 0, 1])
@@ -117,22 +113,28 @@ test('an image is composed with the share it read, one group per pair', async ()
     } as unknown as SurfaceBuffer
   lighting.bind(resized, h.view(), hdr, false)
   lighting.compose(h.encoder, h.view(), [0, 0, 0, 1])
-  // The effect chain's target without TAA has no share of its own: it reads the flags.
+  // The effect chain's target without TAA reads the same.
   const target = h.view()
   lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, { color: target })
-  // A composition group reads three resources; the lighting groups read more.
+  // A composition group reads the image first.
+  const read = new Set<unknown>([...images.map(({ color }) => color), hdr, target])
   const composed = h.bindGroups
     .map((group) => Array.from(group.entries))
-    .filter((entries) => entries.length === 3)
-  assert.equal(composed.length, 5, 'each history, the lit image, its new flags, the effect target')
+    .filter((entries) => read.has(entries[0]!.resource))
+  assert.equal(
+    composed.length,
+    5,
+    'each history, the lit image, its new surface, the effect target',
+  )
+  const [base, flagsOf] = [h.surface.views()[0], h.surface.views()[3]]
   assert.deepEqual(
-    composed.map((entries) => [entries[0]!.resource, entries[2]!.resource]),
+    composed.map((entries) => entries.map(({ resource }) => resource).filter((r, i) => i !== 1)),
     [
-      [images[0].color, images[0].share],
-      [images[1].color, images[1].share],
-      [hdr, h.surface.views()[3]],
-      [hdr, flags[3]],
-      [target, flags[3]],
+      [images[0].color, flagsOf, base],
+      [images[1].color, flagsOf, base],
+      [hdr, flagsOf, base],
+      [hdr, flags[3], flags[0]],
+      [target, flags[3], flags[0]],
     ],
   )
   lighting.dispose()
@@ -142,8 +144,13 @@ test('the lit pass reads the screen probes where it bounces; a program with no b
   const bounced = contractLightingShader(true)
   assert.ok(bounced.includes(`@binding(${DEFERRED_BINDINGS.screenIndirect}) var screenIndirect`))
   assert.ok(bounced.includes('fn screenIndirectAt(coord:vec2i)'))
-  // The pixel's choice is made where the pixel is known, in the resolve's own indirect light: no global, no flag.
-  assert.equal(bounced.split('screenIndirectAt(coord)').length - 1, 1, 'read once a pixel')
+  // The pixel's choice is made where the pixel is known, in the resolve's own indirect light and in its irradiance view: no global, no flag.
+  assert.equal(
+    bounced.split('screenIndirectAt(coord)').length - 1,
+    2,
+    'read where the pixel is known',
+  )
+  assert.ok(!bounced.includes('bounceGrid') && !bounced.includes('cellTable'), 'and no world probe')
   for (const text of [contractLightingShader(false), BLEND_SHADER])
     for (const word of ['screenIndirect', 'surfaceCoord']) assert.ok(!text.includes(word), word)
   assert.ok(!bounced.includes('surfaceCoord'), 'no private pixel left for the lighting to set')
@@ -151,142 +158,34 @@ test('the lit pass reads the screen probes where it bounces; a program with no b
   assert.equal(new Set(bindings).size, bindings.length, 'no two resources share a binding')
 })
 
-test('the lit pass names the screen probes result: a group is made for each result and kept for its turn', async () => {
+test('the indirect pass names the screen probes result: a group is made for each result and kept for its turn', async () => {
   const h = gpuHarness(),
-    lighting = await createDeferredLighting(h.device)
+    lighting = await createDeferredLighting(h.device, undefined, {
+      precompile: true,
+      bounce: true,
+      key: { ...FULL_CONTRACT, lobeless: true },
+    })
   const hdr = h.view(),
     depth = h.view(),
     turns = [h.view(), h.view()]
-  const bindWith = (screenIndirect: GPUTextureView | undefined) =>
-    lighting.bind(h.surface, depth, hdr, false, { screenIndirect })
-  bindWith(turns[0])
+  const bounced = { lights: {} as GPUBuffer, bounceGrid: {} as GPUBuffer }
+  const frame = (screenIndirect: GPUTextureView | undefined) => {
+    lighting.bind(h.surface, depth, hdr, true, { ...bounced, screenIndirect })
+    lighting.light(h.encoder, hdr)
+  }
+  // The bounce program asked, and compiled: the frames before it are lit by the one without bounce.
+  frame(turns[0])
+  await lighting.settle()
+  assert.equal(lighting.bouncing, false, 'bound, not yet picked')
+  frame(turns[0])
+  assert.equal(lighting.bouncing, true)
   const first = h.bindGroups.length
-  bindWith(turns[1])
-  assert.equal(h.bindGroups.length, first + 1, 'another result: another group')
-  bindWith(turns[0])
-  bindWith(turns[1])
+  frame(turns[1])
+  assert.equal(h.bindGroups.length, first + 1, 'another result: another group, the indirect pass’s')
+  frame(turns[0])
+  frame(turns[1])
   assert.equal(h.bindGroups.length, first + 1, 'each result finds its group held')
-  bindWith(undefined)
+  frame(undefined)
   assert.equal(h.bindGroups.length, first + 2, 'none cast: the stand-in, a group of its own')
   lighting.dispose()
-})
-
-test('the bounce layout binds the screen probes result as a sampled texture, within the default limits of its stage', () => {
-  gpuHarness()
-  const entries = deferredLayoutEntries(true, true)
-  const screen = entries.find((entry) => entry.binding === DEFERRED_BINDINGS.screenIndirect)
-  assert.ok(
-    screen?.texture && !screen.storageTexture,
-    'read by load, never a fifth storage texture',
-  )
-  assert.equal(screen?.texture?.sampleType, 'uint', 'the history it reads is words')
-  const bindGroupLayouts = [{ entries }] as unknown as GPUBindGroupLayout[]
-  const counts = stageBindingCounts({ bindGroupLayouts }).filter((c) => c.kind.endsWith('Fragment'))
-  for (const { limit, kind, count } of counts)
-    assert.ok(count <= limitOf(limit), `${count} ${kind}`)
-  const storage = counts.find((c) => c.limit === 'maxStorageTexturesPerShaderStage')
-  assert.equal(storage?.count, 4, 'lobes, subsurface, reflection and mask tiles')
-})
-
-test('the occlusion’s qualities, sample sets and noise directions are the reference’s', () => {
-  assert.deepEqual(
-    AO_QUALITY_SHAPES.map(({ sampleSet, steps, quadBlur }) => [sampleSet, steps, quadBlur]),
-    [
-      [1, 1, false],
-      [1, 1, true],
-      [1, 2, true],
-      [1, 3, false],
-      [3, 3, false],
-    ],
-  )
-  assert.deepEqual(AO_SAMPLE_SETS[3][5], [0.06, 0.9])
-  assert.deepEqual(
-    AO_SAMPLE_SETS[1].map((p) => p.map((x) => +x.toFixed(4))),
-    [
-      [0, -0.43],
-      [0.406, 0.5698],
-      [-0.58, 0.814],
-    ],
-  )
-  // The sixteen byte pairs of the 4 × 4 block, written out, are what a single-precision derivation of them gives.
-  assert.deepEqual(AO_NOISE_BYTES, referenceNoiseBytes())
-  assert.deepEqual(
-    AO_RANDOM_BASIS.slice(0, 2).map((p) => p.map((x) => +x.toFixed(6))),
-    [
-      [0.882353, 0.003922],
-      [-0.47451, 0.717647],
-    ],
-  )
-})
-
-test('the occlusion draws as many resolutions as its quality asks, each a half of the one before', () => {
-  const targets = (levels: number) => aoPasses(levels).map((p) => `${p.kind}:${p.target}`)
-  assert.deepEqual(targets(1), ['setup:setup1', 'final:ao'])
-  assert.deepEqual(targets(2), ['setup:setup1', 'step:ao1', 'final:ao'])
-  assert.deepEqual(targets(3), ['setup:setup1', 'setup:setup2', 'step:ao2', 'step:ao1', 'final:ao'])
-  const last = aoPasses(3).at(-1)!
-  assert.deepEqual([last.setup, last.lower], ['setup1', 'ao1'])
-  assert.equal(aoPasses(3)[3].lower, 'ao2')
-  // The first setup's texture is every search's half-size depth map, one texel a tap: even the one resolution draws it.
-  assert.equal(AO_HALF_DEPTH, 'setup1')
-  // A texture is made at a multiple of eight, and its half and quarter are whole pixels.
-  assert.deepEqual(aoExtentOf([1366, 768]), [1368, 768])
-  assert.deepEqual(aoTargetExtent('setup2', [1368, 768]), [342, 192])
-  assert.deepEqual(aoTargetRect('ao1', [1367, 767]), [684, 384])
-  // The setups hold eight bytes a pixel, the occlusions one, and each pass a uniform.
-  assert.equal(aoViewBytes(2, [64, 32]), 32 * 16 * 8 + 32 * 16 + 64 * 32 + 3 * AO_PARAMS_BYTES)
-})
-
-test('the occlusion’s uniform holds the reference’s numbers, the radius grown for each halving', () => {
-  const words = (levels: number, pass: number) => uniformOf(levels, pass)
-  const full = words(2, 2)
-  // Radius 200 over the 400 units of the view, shared out by four; power 2, bias 3 a thousand, intensity 0.5, blend 0.6.
-  assert.deepEqual(
-    full.shape.map((x) => +x.toFixed(6)),
-    [2, 0.003, 0.5, 0.6],
-  )
-  assert.deepEqual(
-    full.reach.map((x) => +x.toFixed(6)),
-    [0.125, 0, 1, 0.4],
-  )
-  // The half pass takes the scale once: 1.7 times the radius; its depth threshold is halved.
-  const half = words(2, 1)
-  assert.deepEqual(
-    half.reach.map((x) => +x.toFixed(6)),
-    [0.2125, 0, 2, 0.4],
-  )
-  assert.equal(+half.fade[2].toFixed(6), 0.005)
-  assert.equal(+words(3, 2).reach[0].toFixed(6), +((0.5 * 1.7 ** 2) / 4).toFixed(6))
-  // The fade: a multiplier over the fade radius and an addend that ends it at the fade distance, in centimetres.
-  assert.deepEqual(
-    full.fade.slice(0, 2).map((x) => +x.toFixed(6)),
-    [0.0002, -0.6],
-  )
-  // The drawn rectangle, the texture, the coarser texture and the setup it reads.
-  assert.deepEqual(half.rects, [WIDTH / 2, HEIGHT / 2, WIDTH / 2, HEIGHT / 2])
-  assert.deepEqual(full.low, [WIDTH / 2, HEIGHT / 2, WIDTH / 2, HEIGHT / 2])
-  assert.deepEqual(full.upper.slice(0, 2), [WIDTH / 2, HEIGHT / 2])
-  // The camera looks down -z: its forward is -z. The projection's depth terms are the temporal passes' (`writeDepthTerms`): a
-  // perspective's depth is near over distance, and a pixel's radius a share of the distance.
-  assert.deepEqual(
-    [full.right, full.up, full.forward].map((v) => v.slice(0, 3)),
-    [
-      [1, 0, 0],
-      [0, 1, 0],
-      [0, 0, -1],
-    ],
-  )
-  assert.deepEqual(
-    full.depth.map((x) => +x.toFixed(6)),
-    [0, 0.1, -1, 0],
-  )
-  assert.deepEqual(
-    full.radius.map((x) => +x.toFixed(6)),
-    [0.016038, 0, -1, 0],
-  )
-  // In the world's units the radius is the settings' own, in centimetres, shared out by four.
-  assert.equal(
-    +uniformOf(1, 1, settingsOf({ ambientOcclusionRadiusInWorldSpace: true })).reach[0].toFixed(6),
-    50,
-  )
 })

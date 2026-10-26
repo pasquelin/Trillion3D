@@ -1,25 +1,31 @@
 import { namedEntries } from '../../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
-import type { ProxyResources } from '../../../geometry/dag/cut/cutReaders.ts'
+import type { GlobalFieldRead } from '../../distanceField/view.ts'
 import type { FrontLayer } from '../frontLayer.ts'
 import type { ReflectionCensus } from '../census.ts'
 import type { ReflectionGrids } from '../grids.ts'
-import { REFLECTION_TRACE_BINDINGS, traceLayouts } from './traceBindings.ts'
+import { surfaceHitEntries, type SurfaceHitResources } from '../../surfaceCache/hitWgsl.ts'
+import {
+  REFLECTION_HIT_BINDINGS,
+  REFLECTION_TRACE_BINDINGS,
+  traceLayouts,
+} from './traceBindings.ts'
 
-/** What the trace reads of the frame: its surface targets, the lights and the bounce cascades; the
- *  proxy is the reflection group's (`../group.ts`). */
+/** What the trace reads of the frame: its surface targets, the lights, the global
+ *  distance field its scene stage marches and the surface cache its hits are read in. */
 export type TraceInputs = {
   base: GPUTextureView
   flags: GPUTextureView
   normals: GPUTextureView
   lobes: GPUTextureView
   lights: GPUBuffer
-  /** The light grid's buffer (`bounceLightSlice`). */
-  lightLists: GPUBuffer
-  bounceGrid: GPUBuffer
-  probes: GPUTextureView
-  /** The proxy the scene stage's rays walk (`reflectionProxy`). */
-  proxy: ProxyResources
+  /** The global distance field the scene stage's rays are marched through (`reflectionField`). */
+  field: GlobalFieldRead
+  /** The surface cache and the object grid the scene stage's hits are read in (`createHitCards().resources`). */
+  hit: SurfaceHitResources
+  /** The surfaces' vectors of the image, which the accumulation reprojects a moving surface's history by
+   *  (`../../bounce/screen/vectorSource.ts`); the view's stand-in of none where the velocity stage drew none. */
+  vectors: GPUTextureView
 }
 
 /** The kernels a surface runs, in their order (`trace.ts`): the screen stage over its tracing tiles
@@ -56,7 +62,7 @@ export const createTraceGroups = () => ({
 
 /** What a view's trace holds: the target the opaque last pass writes, the resolved pixels both
  *  surfaces resolve into in turn, the opaque surface's grids, the counters its rays add to
- *  (`../census.ts`), the transparents' front layer and its groups. */
+ *  (`../census.ts`, none where nothing is counted), the transparents' front layer and its groups. */
 export type TraceResources = {
   device: GPUDevice
   targetView: GPUTextureView
@@ -77,7 +83,6 @@ function classifyGroup(
   layout: GPUBindGroupLayout,
   surface: { flags: GPUTextureView; normals: GPUTextureView; lobes: GPUTextureView },
   grids: ReflectionGrids,
-  bounceGrid: Named['bounceGrid'],
 ) {
   return device.createBindGroup({
     layout,
@@ -85,7 +90,6 @@ function classifyGroup(
       flags: surface.flags,
       normals: surface.normals,
       lobes: surface.lobes,
-      bounceGrid,
       rays: grids.rays,
       tracingOut: list(grids.tracing),
       clearTracingOut: list(grids.clearTracing),
@@ -95,46 +99,40 @@ function classifyGroup(
   })
 }
 
-/** The groups of one surface — its targets `surface`, its grids `grids` — over the resolved pixels
- *  `resolved`, for both parities: the classification's and each kernel's, the last pass and its clear
- *  writing `out` through their layouts `last`. */
-function surfaceGroups(
-  device: GPUDevice,
-  layouts: TraceLayouts,
-  scene: Named,
-  surface: { flags: GPUTextureView; normals: GPUTextureView; lobes: GPUTextureView },
-  grids: ReflectionGrids,
-  resolved: GPUTextureView,
-  last: { bilateral: GPUBindGroupLayout; clear: GPUBindGroupLayout; out: Named },
-): SurfaceGroups {
-  const { flags, normals, lobes } = surface
-  const { rays, history } = grids
-  const field = { bounceGrid: scene.bounceGrid, probes: scene.probes, lights: scene.lights }
-  // The ray words sampled (`raysRead`) but by their writers, the classification, the screen stage and
-  // the clear of the unused tracing tiles, which bind them as storage.
-  const group = (layout: GPUBindGroupLayout, named: Named) =>
-    device.createBindGroup({
-      layout,
-      entries: namedEntries(REFLECTION_TRACE_BINDINGS, {
-        flags,
-        normals,
-        lobes,
-        ...(named.rays ? {} : { raysRead: rays }),
-        ...named,
-      }),
-    })
-  const parities = (make: (p: number) => GPUBindGroup) => [make(0), make(1)]
-  // A group that names no history is the same at both parities: made once, served at both.
-  const shared = (group: GPUBindGroup) => [group, group]
-  const resolve = list(grids.resolve)
+/** What the groups of one surface are made over. */
+interface SurfaceKit {
+  readonly device: GPUDevice
+  readonly layouts: TraceLayouts
+  readonly scene: Named
+  readonly surface: { flags: GPUTextureView; normals: GPUTextureView; lobes: GPUTextureView }
+  readonly grids: ReflectionGrids
+  readonly resolved: GPUTextureView
+  readonly field: Named
+  /** A group over `layout` naming `named` and `more`. The ray words are sampled (`raysRead`) but by their
+   *  writers, the classification, the screen stage and the clear of the unused tracing tiles, which bind
+   *  them as storage. */
+  readonly group: (
+    layout: GPUBindGroupLayout,
+    named: Named,
+    more?: GPUBindGroupEntry[],
+  ) => GPUBindGroup
+}
+
+const parities = (make: (p: number) => GPUBindGroup) => [make(0), make(1)]
+// A group that names no history is the same at both parities: made once, served at both.
+const shared = (group: GPUBindGroup) => [group, group]
+
+/** The groups of the classification and of the kernels that trace: the screen stage, the clear of the
+ *  unused tracing tiles and the scene stage. */
+function tracingGroups(kit: SurfaceKit, sceneEntries: GPUBindGroupEntry[]) {
+  const { device, layouts, scene, surface, grids, field, group } = kit
+  const { rays } = grids
   return {
     // The classification picks the blocks' pixels into the ray words and fills the four lists; the
     // screen stage writes the fresh grid and the rays beside the words, and the partial answers of the
-    // rays it left into the scratch, which the scene stage finishes into the fresh grid; the clear of
-    // the clear tiles empties the resolved pixels and the history the accumulation writes, the resolve
-    // reads the fresh grid into the resolved pixels, the accumulation reads them and the last history
-    // into the other, and the last pass reads both.
-    classify: shared(classifyGroup(device, layouts.classify, surface, grids, scene.bounceGrid)),
+    // rays it left into the scratch, which the scene stage — reading the words as the storage they are
+    // written through — finishes into the fresh grid.
+    classify: shared(classifyGroup(device, layouts.classify, surface, grids)),
     screen: shared(
       group(layouts.screen, {
         rays,
@@ -144,18 +142,38 @@ function surfaceGroups(
         partialOut: grids.partial,
         rayDataOut: grids.rayData,
         pendingOut: list(grids.pending),
-        census: scene.census,
+        ...(scene.census && { census: scene.census }),
       }),
     ),
     clearTracing: shared(group(layouts.clearTracing, { rays, tiles: list(grids.clearTracing) })),
     scene: shared(
-      group(layouts.scene, {
-        ...scene,
-        traceOut: grids.fresh,
-        partialIn: grids.partial,
-        pendingIn: list(grids.pending),
-      }),
+      group(
+        layouts.scene,
+        {
+          ...scene,
+          rays,
+          traceOut: grids.fresh,
+          partialIn: grids.partial,
+          pendingIn: list(grids.pending),
+        },
+        sceneEntries,
+      ),
     ),
+  }
+}
+
+/** The groups of the kernels that resolve: the clear of the clear tiles empties the resolved pixels and
+ *  the history the accumulation writes, the resolve reads the fresh grid into the resolved pixels, the
+ *  accumulation reads them and the last history into the other, and the last pass reads both. */
+function resolvingGroups(
+  kit: SurfaceKit,
+  vectors: GPUTextureView,
+  last: { bilateral: GPUBindGroupLayout; clear: GPUBindGroupLayout; out: Named },
+) {
+  const { layouts, scene, grids, resolved, field, group } = kit
+  const { history } = grids
+  const resolve = list(grids.resolve)
+  return {
     clear: parities((p) =>
       group(last.clear, {
         ...field,
@@ -167,7 +185,6 @@ function surfaceGroups(
     ),
     resolve: shared(
       group(layouts.resolve, {
-        bounceGrid: scene.bounceGrid,
         tiles: resolve,
         freshIn: grids.fresh,
         rayDataIn: grids.rayData,
@@ -178,6 +195,7 @@ function surfaceGroups(
       group(layouts.temporal, {
         tiles: resolve,
         temporalIn: resolved,
+        vectors,
         historyIn: history[1 - p],
         historyOut: history[p],
       }),
@@ -193,6 +211,48 @@ function surfaceGroups(
   }
 }
 
+/** The groups of one surface — its targets `surface`, its grids `grids` — over the resolved pixels
+ *  `resolved`, for both parities: the classification's and each kernel's, the last pass and its clear
+ *  writing `out` through their layouts `last`. */
+function surfaceGroups(
+  device: GPUDevice,
+  layouts: TraceLayouts,
+  scene: Named,
+  sceneEntries: GPUBindGroupEntry[],
+  surface: { flags: GPUTextureView; normals: GPUTextureView; lobes: GPUTextureView },
+  grids: ReflectionGrids,
+  resolved: GPUTextureView,
+  vectors: GPUTextureView,
+  last: { bilateral: GPUBindGroupLayout; clear: GPUBindGroupLayout; out: Named },
+): SurfaceGroups {
+  const { flags, normals, lobes } = surface
+  const { rays } = grids
+  const kit: SurfaceKit = {
+    device,
+    layouts,
+    scene,
+    surface,
+    grids,
+    resolved,
+    field: { lights: scene.lights },
+    group: (layout, named, more = []) =>
+      device.createBindGroup({
+        layout,
+        entries: [
+          ...namedEntries(REFLECTION_TRACE_BINDINGS, {
+            flags,
+            normals,
+            lobes,
+            ...(named.rays ? {} : { raysRead: rays }),
+            ...named,
+          }),
+          ...more,
+        ],
+      }),
+  }
+  return { ...tracingGroups(kit, sceneEntries), ...resolvingGroups(kit, vectors, last) }
+}
+
 /** The bind groups of `reflection`'s trace over `inputs` on `layouts`, made again when a resource
  *  they name is not the one they were made over (`stages`, the pipelines they serve, among them). */
 export function traceGroups(
@@ -206,30 +266,47 @@ export function traceGroups(
   next.length = 0
   next.push(stages, targetView, resolvedView, grids, front.grids, front.views.flags, census.buffer)
   next.push(front.views.normals, front.views.lobes, front.views.traced, inputs.base, inputs.flags)
-  next.push(inputs.normals, inputs.lobes, inputs.lights, inputs.lightLists, inputs.bounceGrid)
-  next.push(inputs.probes, inputs.proxy.buffer, inputs.proxy.worlds, inputs.proxy.tree)
+  next.push(inputs.normals, inputs.lobes, inputs.lights)
+  next.push(inputs.field, inputs.field.readGeneration, inputs.vectors)
+  const { hit } = inputs
+  next.push(hit.tables, hit.depth, hit.final, hit.feedback, hit.grid, hit.instances)
   if (!trace.identity.moved() && trace.groups) return trace.groups
-  // What a ray reads of the scene, the scene stage's: the proxy it walks among it.
+  // What a ray reads of the scene, the scene stage's.
   const scene: Named = {
     lights: { buffer: inputs.lights },
-    lightLists: { buffer: inputs.lightLists },
-    bounceGrid: { buffer: inputs.bounceGrid },
-    probes: inputs.probes,
-    census: { buffer: census.buffer },
-    proxy: { buffer: inputs.proxy.buffer },
-    worlds: inputs.proxy.worlds,
-    tree: inputs.proxy.tree,
+    ...(census.buffer && { census: { buffer: census.buffer } }),
   }
+  const sceneEntries = surfaceHitEntries(REFLECTION_HIT_BINDINGS, inputs.field, inputs.hit)
   return (trace.groups = {
-    opaque: surfaceGroups(device, layouts, scene, inputs, grids, resolvedView, {
-      bilateral: layouts.bilateral,
-      clear: layouts.clear,
-      out: { base: inputs.base, target: targetView },
-    }),
-    front: surfaceGroups(device, layouts, scene, front.views, front.grids, resolvedView, {
-      bilateral: layouts.bilateralFront,
-      clear: layouts.clearFront,
-      out: { frontTarget: front.views.traced },
-    }),
+    opaque: surfaceGroups(
+      device,
+      layouts,
+      scene,
+      sceneEntries,
+      inputs,
+      grids,
+      resolvedView,
+      inputs.vectors,
+      {
+        bilateral: layouts.bilateral,
+        clear: layouts.clear,
+        out: { base: inputs.base, target: targetView },
+      },
+    ),
+    front: surfaceGroups(
+      device,
+      layouts,
+      scene,
+      sceneEntries,
+      front.views,
+      front.grids,
+      resolvedView,
+      inputs.vectors,
+      {
+        bilateral: layouts.bilateralFront,
+        clear: layouts.clearFront,
+        out: { frontTarget: front.views.traced },
+      },
+    ),
   })
 }

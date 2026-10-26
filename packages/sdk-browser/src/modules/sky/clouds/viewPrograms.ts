@@ -5,20 +5,24 @@ import {
 } from '../../../lighting/deferred/fullscreen.ts'
 import { airShapeKey, type AirShape } from '../../../lighting/atmosphere/shape.ts'
 import type { CloudSetup } from './cloudModes.ts'
-import { RECONSTRUCT_SAMPLER } from './reconstructLayout.ts'
+import { postSamplers } from '../../../gpu/core/postSamplers.ts'
 import { describeCompose } from './compose.ts'
+import type { HeldClouds } from './composeWgsl.ts'
 import { describeDepthRange } from './depthRange.ts'
 import type { DepthRangePass } from './depthRangeWgsl.ts'
 import { describeReconstruct } from './reconstruct.ts'
 import { createCloudHazePass } from './traceHaze.ts'
 import { createCloudTracePass } from './trace.ts'
+import { createCloudEmptySpacePass } from './emptySpace.ts'
 import { cloudTraceKeyText, type CloudTraceKey } from './traceExtraLayout.ts'
 import type { CloudFramePlan } from './reconstruct.ts'
 
 /**
  * THE VIEW'S CLOUD PROGRAMS, made once for a device and a shape of the air and kept: the scene's
- * depth range passes, the tracing (one pipeline for each key of its options), the haze pass, the
- * reconstruction and the composition (one for each kind of image). Each is asked when first wanted,
+ * depth range passes, the tracing (one pipeline for each key of its options) with the pass that
+ * builds its empty-space table, the haze pass, the
+ * reconstruction (which lays the fog on the image for the translucent surfaces where the setup asks)
+ * and the composition. Each is asked when first wanted,
  * off the frame, and a frame that finds it not compiled draws no cloud and is held on it. The
  * description of each is its module's (`depthRange.ts`, `trace.ts`, `traceHaze.ts`,
  * `reconstruct.ts`, `compose.ts`); nothing is decided here.
@@ -30,17 +34,23 @@ interface DrawnPass {
   readonly pipeline: PreparedPipeline<GPURenderPipeline>
 }
 
-/** The composition's pass: the air's layout besides the cloud images'. */
+/** A pass of the air's family: the air's layout besides the cloud images'. */
 interface ComposePass extends DrawnPass {
   readonly air: GPUBindGroupLayout
 }
 
-/** What a fullscreen pass is made of. */
+/** The reconstruction's pass: of the air's family where it lays the fog on its image. */
+interface ReconstructPass extends DrawnPass {
+  readonly air?: GPUBindGroupLayout
+}
+
+/** What a fullscreen pass is made of; `air` its first group's entries, where it has one. */
 interface DrawnDescription {
   readonly code: string
   readonly fragmentEntry: string
   readonly entries: GPUBindGroupLayoutEntry[]
   readonly targets: GPUColorTargetState[]
+  readonly air?: GPUBindGroupLayoutEntry[]
 }
 
 /** Placeholder sizes for the descriptions, whose programs do not depend on them. */
@@ -55,22 +65,32 @@ const NOMINAL_PLAN = (setup: CloudSetup, history: boolean) =>
     history: history ? { texture: SIZE, view: SIZE } : null,
   }) as unknown as CloudFramePlan
 
-function drawnPass(device: GPUDevice, label: string, d: DrawnDescription): DrawnPass {
+function drawnPass(device: GPUDevice, label: string, d: DrawnDescription): ReconstructPass {
   const layout = device.createBindGroupLayout({ label, entries: d.entries })
+  const air = d.air && device.createBindGroupLayout({ entries: d.air })
   const module = device.createShaderModule({ label, code: d.code })
   return {
+    air,
     layout,
     pipeline: preparedPipeline(
       device,
-      fullscreenDescriptor(device, module, layout, d.fragmentEntry, d.targets, label),
+      fullscreenDescriptor(
+        device,
+        module,
+        air ? [air, layout] : layout,
+        d.fragmentEntry,
+        d.targets,
+        label,
+      ),
     ).ask(),
   }
 }
 
 /** The kinds of image, as a key: what makes one reconstruction or composition program. */
 const reconstructKey = (s: CloudSetup, history: boolean) =>
-  `${history}|${s.mode.index}|${s.minMaxDepth}|${s.boxConstraint}`
-const composeKey = (s: CloudSetup) => `${s.direct}|${s.upsampling}|${s.minMaxDepth}`
+  `${history}|${s.mode.index}|${s.minMaxDepth}|${s.boxConstraint}|${s.lateFogOnTranslucent}`
+const composeKey = (s: CloudSetup, held?: HeldClouds) =>
+  `${s.direct}|${s.upsampling}|${s.minMaxDepth}|${held ? `held ${held.cloud}` : ''}`
 
 /** The value `make` makes for `key`, made on the first ask and kept in `held`. */
 function memo<V>(held: Map<string, V>, key: string, make: () => V) {
@@ -90,25 +110,37 @@ function depthRangePass(device: GPUDevice, pass: DepthRangePass) {
   })
 }
 
-/** The reconstruction of an image of `setup`, with or without a history; none for a setup that does
- *  not reconstruct. */
-function reconstructPass(device: GPUDevice, setup: CloudSetup, history: boolean) {
-  const d = describeReconstruct(NOMINAL_PLAN(setup, history))
+/** The reconstruction of an image of `setup`, with or without a history, over the air's `localFog`; none
+ *  for a setup that does not reconstruct. */
+function reconstructPass(
+  device: GPUDevice,
+  setup: CloudSetup,
+  history: boolean,
+  localFog: boolean,
+) {
+  const d = describeReconstruct(NOMINAL_PLAN(setup, history), localFog)
   if (!d) return undefined
   return drawnPass(device, 'Trillion3D cloud reconstruction', {
     code: d.code,
     fragmentEntry: d.fragmentEntry,
     entries: d.entries,
     targets: d.targets.map((format) => ({ format })),
+    air: d.air,
   })
 }
 
 /** The composition of an image of `setup` over the lit image: group 0 the air's, group 1 the cloud
  *  images'. */
-function composePass(device: GPUDevice, setup: CloudSetup): ComposePass {
-  const d = describeCompose(SIZE, setup)
+function composePass(
+  device: GPUDevice,
+  setup: CloudSetup,
+  localFog: boolean,
+  held?: HeldClouds,
+): ComposePass {
+  const label = 'Trillion3D cloud composition'
+  const d = describeCompose(SIZE, setup, localFog, held)
   const [air, layout] = d.groups.map((entries) => device.createBindGroupLayout({ entries }))
-  const module = device.createShaderModule({ label: 'Trillion3D cloud composition', code: d.code })
+  const module = device.createShaderModule({ label, code: d.code })
   return {
     air,
     layout,
@@ -119,34 +151,42 @@ function composePass(device: GPUDevice, setup: CloudSetup): ComposePass {
   }
 }
 
-export function createCloudViewPrograms(
+function createCloudViewPrograms(
   device: GPUDevice,
   shape: AirShape,
   failed: (error: unknown) => void,
 ) {
   const ranges = new Map<string, DrawnPass>()
   const traces = new Map<string, ReturnType<typeof createCloudTracePass>>()
-  const reconstructions = new Map<string, DrawnPass | undefined>()
+  const emptySpaces = new Map<string, ReturnType<typeof createCloudEmptySpacePass>>()
+  const reconstructions = new Map<string, ReconstructPass | undefined>()
   const compositions = new Map<string, ComposePass>()
   let haze: ReturnType<typeof createCloudHazePass> | undefined
   return {
     shape,
     /** The linear, clamped sampler the reconstruction and the composition read the images through. */
-    sampler: device.createSampler(RECONSTRUCT_SAMPLER),
+    sampler: postSamplers(device).clamped,
     depthRange: (pass: DepthRangePass) => memo(ranges, pass, () => depthRangePass(device, pass)),
     /** The tracing of the options `key`. */
     trace: (key: CloudTraceKey) =>
       memo(traces, cloudTraceKeyText(key), () => createCloudTracePass(device, failed, key, shape)),
+    /** The pass that builds the empty-space table, with the corners option `corners`. */
+    emptySpace: (corners: boolean) =>
+      memo(emptySpaces, String(corners), () =>
+        createCloudEmptySpacePass(device, failed, corners, shape),
+      ),
     /** The haze pass. */
     get haze() {
       return (haze ??= createCloudHazePass(device, failed, shape))
     },
     reconstruct: (setup: CloudSetup, history: boolean) =>
       memo(reconstructions, reconstructKey(setup, history), () =>
-        reconstructPass(device, setup, history),
+        reconstructPass(device, setup, history, shape.localFog),
       ),
-    compose: (setup: CloudSetup) =>
-      memo(compositions, composeKey(setup), () => composePass(device, setup)),
+    compose: (setup: CloudSetup, held?: HeldClouds) =>
+      memo(compositions, composeKey(setup, held), () =>
+        composePass(device, setup, shape.localFog, held),
+      ),
   }
 }
 

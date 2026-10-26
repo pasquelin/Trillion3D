@@ -11,7 +11,7 @@ test('a pose that moves its box by less than a float32 step is no move; a millim
   const mobility = createShadowMobility()
   const box = [-1.8, -0.5, -3.5, 1.8, 0.5, 3.5],
     parked = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 40, 2, -25, 1]
-  mobility.ensure(1, 1, () => parked)
+  mobility.ensure(1, () => parked)
   // The engine's route (`../../../placement/webgpuPlacements.ts`): weighed once, then taken as a move.
   const pose = (world: number[]) =>
     mobility.holds(0, world, box) ? MOVE_NONE : mobility.move(0, world, true)

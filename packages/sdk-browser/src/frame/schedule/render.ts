@@ -10,7 +10,7 @@ import type { createExplorerStreaming } from '../../scene/drive/streaming.ts'
 import type { FrameClock } from '../../geometry/integration/frameBudget.ts'
 import type { PageStreaming } from '../../geometry/streaming/pageStreamer.ts'
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts'
-import type { HostCamera } from '../../camera/world.ts'
+import type { ViewCamera } from '../../camera/world.ts'
 
 type Inputs = {
   check: () => void
@@ -20,7 +20,7 @@ type Inputs = {
   guides?: { follow(): void }
   state: SessionState
   engine: Engine
-  camera: HostCamera
+  camera: ViewCamera
   lookAtTarget: { x: number; y: number; z: number }
   setPose: (pose: CameraPose) => void
   streaming: ReturnType<typeof createExplorerStreaming>

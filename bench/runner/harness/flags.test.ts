@@ -64,7 +64,7 @@ const SHAPES = [
 
 test('no key of the published report, the page reply or the oracle report is French', () => {
   const keys = SHAPES.flatMap((file) => captures(read(file), /^\s+(\w+)\??: /gm))
-  for (const known of ['pageBudget', 'witnessLights', 'captureStatus', 'error'])
+  for (const known of ['pageBudget', 'captureStatus', 'error'])
     assert.ok(keys.includes(known), known)
   assert.deepEqual(french(new Set(keys)), [])
 })

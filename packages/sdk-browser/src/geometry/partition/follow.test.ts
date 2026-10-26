@@ -10,12 +10,7 @@ import { between, io, noBudget, opened, world } from './cells.fixture.ts'
 import { createPlacementWrites, type CellFrame, type Placement } from './follow.ts'
 import { createTouchedRows, placedMesh } from './rows.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import {
-  FAR_SHADOW_ROOT,
-  FAR_SKIP_ROOT,
-  FAR_TEST_ROOT,
-  SHADOWLESS_ROOT,
-} from '../../visibility/shader/castingMark.ts'
+import { FAR_SHADOW_ROOT, MARK_BITS, SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
 
 for (const { flag, on, bit } of [
   { flag: 'castShadow', on: false, bit: SHADOWLESS_ROOT },
@@ -56,7 +51,7 @@ test('a cell’s rows carry whether a sun’s far-shadow test reaches their host
   const { cells, links, bytes } = world(0, null, meshes)
   await opened(cells, bytes, false, between)
   const casting = () => links.map((link) => link.placements!.casting[0])
-  assert.deepEqual(casting(), [FAR_TEST_ROOT, FAR_SKIP_ROOT], 'reached, never reached')
+  assert.deepEqual(casting(), [MARK_BITS.farTest, MARK_BITS.farSkip], 'reached, never reached')
   const { port, updates } = io(bytes)
   cells.frame(between, port, noBudget)
   assert.equal(updates.length, 0, 'a still flag writes no row')
@@ -64,7 +59,7 @@ test('a cell’s rows carry whether a sun’s far-shadow test reaches their host
   cells.frame(between, port, noBudget)
   assert.deepEqual(
     casting(),
-    [0, FAR_TEST_ROOT],
+    [0, MARK_BITS.farTest],
     'each follows its mesh: as the view says, reached',
   )
 })

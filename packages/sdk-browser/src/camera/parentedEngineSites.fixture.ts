@@ -10,7 +10,7 @@ import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { camera, quadScene } from '../frame/backend/testScenes.fixture.ts'
 import { DAG, dagLevel } from '../session/engine/pagesEngine.fixture.ts'
 import { fanScene, quadCluster } from '../session/engine/pagesEngineScenes.fixture.ts'
-import type { HostCamera } from './world.ts'
+import type { ViewCamera } from './world.ts'
 import type { EngineContext, Engine } from '../session/engine/types.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../geometry/selection/drawSource.ts'
@@ -36,7 +36,7 @@ const FAN_MANIFEST: Omit<ClusterManifest, 'primitives'> = {
 export interface Site {
   name: string
   create?: () => unknown
-  measure: (state: unknown, camera: HostCamera) => unknown
+  measure: (state: unknown, camera: ViewCamera) => unknown
 }
 
 const COUNTS = ['clusters', 'selectedTriangles', 'frustumRejected', 'lodLevel', 'residentPages']
@@ -91,7 +91,7 @@ async function webgpuEngine(scene: SceneContext): Promise<EngineState> {
 }
 
 /** One frame per pose, recorded as the host requests it; residency follows after. */
-async function webgpuImage({ gpu, backend }: EngineState, camera: HostCamera) {
+async function webgpuImage({ gpu, backend }: EngineState, camera: ViewCamera) {
   gpu.writes.length = 0
   clock.ms += 1000 / 60
   backend.render(camera)

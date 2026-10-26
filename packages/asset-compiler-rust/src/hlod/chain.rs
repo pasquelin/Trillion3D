@@ -5,8 +5,9 @@
 //! every object under it, never an actor of a level below, its shape nor its texture —:
 //! approximated by a closed shell or merged, given unique texture coordinates and baked into one
 //! atlas of those objects' materials, voxelized, or instanced, each object its source mesh placed,
-//! a chain's top always loaded or streamed on its last grid (`../flatten.rs`, `builds.rs`). Each actor
-//! is its own DAG; its clusters
+//! a chain's top always loaded or streamed on its last grid (`../flatten.rs`, `builds.rs`). Each
+//! actor is its own mesh, a cluster DAG where its layer asks for one and its level 0 alone, drawn
+//! whole, where it does not (`builds.rs`); its clusters
 //! wear its flattened material, a material of the published scene like any other, named by the
 //! actor's rank (`dag_records.rs`, the scene tables' `hlodMaterials`). Each cluster names
 //! its HLOD cell, whose switch shows it in place of the cells below once the view is far enough,
@@ -36,7 +37,7 @@ pub(crate) use cook::{cook, merged_lods, Cooked, Instance};
 
 /// Version of the world-roots products; what each version changed is told in `docs/FORMAT.md`
 /// (World HLOD).
-pub(crate) const WORLD_ROOTS_VERSION: u32 = 34;
+pub(crate) const WORLD_ROOTS_VERSION: u32 = 37;
 /// The table a load reads: bundles, pages and HLOD cells, as records (`records.rs`).
 pub(crate) const WORLD_ROOTS_FILE: &str = "world-roots.table";
 /// The world clusters and groups the world stream reads on its first use, as records.
@@ -45,12 +46,46 @@ pub(crate) const WORLD_ROOTS_DAG: &str = "world-roots.dag";
 pub(crate) const WORLD_ROOTS_BIN: &str = "world-roots.bin";
 
 /// What the world stage hands back: its products, its report, the published scene with the
-/// flattened materials and their glTF ranks, and their textures' chains.
+/// flattened materials and their glTF ranks, their textures' chains, and the distance field and the
+/// cards of each HLOD cell whose layer allows a distance field (`allowDistanceField`), for the
+/// distance field and the mesh cards stages to write.
 pub(crate) struct Staged {
     pub products: Vec<Product>,
     pub report: Value,
     pub materials: crate::compiler::tables::WorldMaterials,
     pub previews: Vec<crate::texture::TexturePreview>,
+    pub fields: Vec<crate::distance_field::Placed>,
+    pub cards: Vec<crate::card_representation::PlacedCards>,
+}
+
+impl Staged {
+    /// A stage that built nothing: a job naming no HLOD, or no object any layer takes.
+    fn nothing() -> Self {
+        Self {
+            products: Vec::new(),
+            report: Value::Null,
+            materials: None,
+            previews: Vec::new(),
+            fields: Vec::new(),
+            cards: Vec::new(),
+        }
+    }
+}
+
+/// The distance field of each HLOD cell whose layer allows one, taken off its first actor
+/// (`Actor::field`) before the actors go on to publish their materials.
+fn take_fields(actors: &mut [builds::Actor]) -> Vec<crate::distance_field::Placed> {
+    (actors.iter_mut())
+        .filter_map(|actor| actor.field.take())
+        .collect()
+}
+
+/// The cards of each HLOD cell whose layer allows a distance field, taken off its first actor
+/// (`Actor::cards`) as its field is.
+fn take_cards(actors: &mut [builds::Actor]) -> Vec<crate::card_representation::PlacedCards> {
+    (actors.iter_mut())
+        .filter_map(|actor| actor.cards.take())
+        .collect()
 }
 
 /// Compilation stage: the HLOD layers of the objects the partition placed, `cells` naming the
@@ -69,25 +104,24 @@ pub(crate) fn stage_world_roots(
     cells: &CellMembers,
     source: (&Value, &[u8], &Path),
 ) -> Result<Staged> {
-    let nothing = || Staged {
-        products: Vec::new(),
-        report: Value::Null,
-        materials: None,
-        previews: Vec::new(),
-    };
     let hlod = o.hlod()?;
     // A job naming no HLOD builds no actor.
     if hlod.layers.is_empty() {
-        return Ok(nothing());
+        return Ok(Staged::nothing());
     }
     let nodes = values(published, "nodes")?;
-    let instances = instances::gather(cells, (nodes, source.0), (primitives, &covers, placement))?;
+    let instances = instances::gather(
+        cells,
+        (nodes, source.0),
+        (primitives, &covers, placement),
+        &fallbacks_of(published),
+    )?;
     if instances.iter().all(|i| i.cover.indices.is_empty()) {
-        return Ok(nothing());
+        return Ok(Staged::nothing());
     }
     let materials: BTreeSet<Option<u64>> = instances.iter().map(|i| i.material).collect();
     let classes = crate::hlod::flatten::merge::classes(source.0, &materials);
-    let (cooked, actors) = pool.install(|| {
+    let (cooked, mut actors) = pool.install(|| {
         let library = crate::hlod::flatten::Library::new(source, &materials, (o, reserved))?;
         // Its chains on the device before any job starts, when a layer bakes: the admission then
         // measures them in what the process holds, never in a job's estimate.
@@ -108,6 +142,9 @@ pub(crate) fn stage_world_roots(
         cook(&instances, &cells.tree, &builder)
     })?;
     let mut report = cooked.report;
+    let fields = take_fields(&mut actors);
+    let cards = take_cards(&mut actors);
+    report["actorFields"] = json!(fields.len());
     report["assignmentWarnings"] = json!(assignment_warnings(cells, hlod, nodes));
     let mut products = vec![
         product(directory, WORLD_ROOTS_BIN, &cooked.payload)?,
@@ -121,7 +158,20 @@ pub(crate) fn stage_world_roots(
         report,
         materials: Some(materials),
         previews,
+        fields,
+        cards,
     })
+}
+
+/// The fallback mesh of each mesh of the published scene that has one, by published rank.
+fn fallbacks_of(published: &Value) -> BTreeMap<u64, u64> {
+    let meshes = published["meshes"].as_array().into_iter().flatten();
+    (meshes.enumerate())
+        .filter_map(|(rank, mesh)| {
+            let source = crate::compiler::source::fallback::of(mesh)?;
+            Some((source as u64, rank as u64))
+        })
+        .collect()
 }
 
 /// What the job tells of how its objects were assigned: each layer that lost its parent

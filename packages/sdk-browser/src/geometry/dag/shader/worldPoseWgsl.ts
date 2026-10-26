@@ -53,8 +53,8 @@ export const DAG_WORLD_POSE_WGSL = wgslBlock(
   [worldAtEyeWgsl('worlds'), worldAtEyeWgsl('previous')],
   `
 /** Primitive \`w\`'s world at the eye, read in its record (\`worldsWorldAtEye\`). */
-fn worldPose(w:u32)->mat4x4f{return worldsWorldAtEye(w,views[0u].eye[0],views[0u].eye[1]);}
+fn worldPose(w:u32)->mat4x4f{return worldsWorldAtEye(w,cutView.eye[0],cutView.eye[1]);}
 /** Primitive \`w\`'s world at the eye as the previous image drew it (\`previousWorldAtEye\`). */
-fn previousPose(w:u32)->mat4x4f{return previousWorldAtEye(w,views[0u].eye[0],views[0u].eye[1]);}
+fn previousPose(w:u32)->mat4x4f{return previousWorldAtEye(w,cutView.eye[0],cutView.eye[1]);}
 `,
 )

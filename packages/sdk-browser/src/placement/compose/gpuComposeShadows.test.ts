@@ -1,8 +1,6 @@
-// A parent composed on the GPU moves its children with no CPU row write: their shadows follow from
-// their rows, which the rows pass derives from the composed worlds and which stale the pages they
-// left and entered (`../rows/rowCastWgsl.ts`, `../rows/rowCast.test.ts`). The CPU declares no box of the move: its
-// first move makes the children moving casters, and at rest every child turns static on its own —
-// its rows then stale the static pages it belongs to.
+// A parent composed on the GPU moves its children with no CPU row write. The CPU declares no box of
+// the move: its first move makes the children moving casters, and at rest every child turns static
+// on its own.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { composeWebgpuPlacements } from './gpuCompose.ts'
@@ -22,7 +20,7 @@ test("a linked parent's move declares no CPU box: its children turn moving, then
     })),
   )
   const { mobility, changes } = rt.lights
-  mobility.ensure(2, 2, (rank) => rt.layout.selectionRoots[rank].world.elements)
+  mobility.ensure(2, (rank) => rt.layout.selectionRoots[rank].world.elements)
   const parent = {},
     links = [0, 1].map((index) => ({ rows, index, local: at(index * 2) }))
   composeWebgpuPlacements(rt, parent, at(0), links, true)
@@ -32,17 +30,12 @@ test("a linked parent's move declares no CPU box: its children turn moving, then
   composeWebgpuPlacements(rt, parent, at(10), [], false)
   assert.equal(mobility.moves(0) && mobility.moves(1), true, 'its first move: moving casters')
   composeWebgpuPlacements(rt, parent, at(11), [], false)
-  assert.equal(changes.count, 0, 'no move declared a box on the CPU')
+  assert.equal(changes.count(), 0, 'no move declared a box on the CPU')
 
-  // At rest past the threshold, each child turns static, handed on its own: its rows stale.
-  const settled: number[] = []
-  for (let frame = 0; frame < 5; frame++) mobility.settle(3, (rank) => settled.push(rank))
-  assert.deepEqual(
-    settled.sort((a, b) => a - b),
-    [0, 1],
-  )
-  assert.equal(mobility.moves(0) || mobility.moves(1), false)
+  // At rest past the threshold, each child turns static, handed on its own.
+  for (let frame = 0; frame < 5; frame++) mobility.settle(3)
+  assert.equal(mobility.moves(0) || mobility.moves(1), false, 'each child turned static')
   composeWebgpuPlacements(rt, parent, at(12), [], false)
   assert.equal(mobility.moves(0) && mobility.moves(1), true, 'the next move promotes them again')
-  assert.equal(changes.count, 0)
+  assert.equal(changes.count(), 0)
 })

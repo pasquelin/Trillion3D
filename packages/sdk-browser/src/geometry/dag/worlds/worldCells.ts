@@ -29,6 +29,10 @@ export type WorldCells = {
   show(instance: number, cell: number, word: number): boolean
   /** Whether the cell was visible at the last cut. */
   visible(instance: number, cell: number): boolean
+  /** Whether the actor of the cell draws as of the last cut: the cell's word says its actor stands
+   *  for it (`CELL_DRAW.hlod`) — the cell itself not shown, the actor drawn —; what a pass beside
+   *  the cut asks to follow an actor (`../../../lighting/distanceField/hlodObjects.ts`). */
+  draws(instance: number, cell: number): boolean
   /** Whether cell file `file` of instance `instance` was shown as its main cell at the last cut
    *  (`worldFiles.ts`). */
   fileShown(instance: number, file: number): boolean
@@ -57,10 +61,10 @@ export type WorldCells = {
   /** The HLOD actors load and draw (`hlodEnabled`), or not: off, no cell draws its actor nor its
    *  placements as its HLOD 0 actor, and no switch waits on a warm-up. */
   hlodEnabled(on: boolean): void
-  /** The cells and files the partition places draw (`activated`), or are loaded and not activated:
-   *  placed, counted and switched as ever, and drawing nothing — no file, no HLOD 0 actor, no HLOD
-   *  actor a cell holds (`worldFiles.ts`, `hide`) —, but the actors always loaded, which no cell
-   *  holds: they stay activated. */
+  /** The cells the partition places are activated (`activated`), or only loaded: every cell and
+   *  file stays placed, counted and switched as ever, none is shown and drawn — no file, no HLOD 0
+   *  actor, no actor a cell holds (`worldFiles.ts`, `worldFollow.ts`) —, but the actors always
+   *  loaded, which no cell holds, draw over every cell, wished or not. */
   activated(on: boolean): void
   /** The cell files of instance `instance` a load blocking on slow streaming waits for, read as
    *  they stand at each cut, none once it blocks no more (`../../partition/slowStreaming.ts`):

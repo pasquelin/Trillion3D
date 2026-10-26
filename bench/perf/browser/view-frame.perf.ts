@@ -9,7 +9,7 @@ const buildSurfaces = (): SurfaceBuffer => {
   return {
     ...{ version: 1, width: 1, height: 1, allocationBytes: 0 },
     ...{ colours: DUMMY_TEXTURE, words: DUMMY_TEXTURE, layers: 0 },
-    ...{ subsurfaceView: {} as GPUTextureView, receiverView: {} as GPUTextureView },
+    ...{ subsurfaceView: {} as GPUTextureView },
     ...{ lobes: DUMMY_TEXTURE, lobesView: {} as GPUTextureView },
     ...{ hasEmissiveAo: true, hasSubsurface: false },
     views: () => views,

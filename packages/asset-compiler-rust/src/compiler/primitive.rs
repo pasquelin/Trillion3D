@@ -1,10 +1,12 @@
-use crate::compiler::pages::record::PageSource;
+use crate::compiler::pages::record::Deformation;
 use crate::compiler::primitive::warn::primitive_event;
-use crate::compiler::source::assembly::plan::{AssemblyPlan, RootParent, TOP_EXTRA};
-use crate::dag::assembly::{part_space, Instance, RootCover};
+use crate::compiler::source::assembly::plan::{AssemblyPlan, RootParent};
+use crate::dag::assembly::RootCover;
 use crate::*;
-use climb::Assembly;
+use carrying::Carrying;
+use reading::{page_data, read_primitive, shaping_of};
 use trillion3d_page_codec::bits::grid::PageGrid;
+pub(crate) mod carrying;
 pub(crate) mod checks;
 pub(crate) mod climb;
 pub(crate) mod compiled;
@@ -12,12 +14,13 @@ pub(crate) mod cost;
 pub(crate) mod dag;
 pub(crate) mod displaced;
 pub(crate) mod pages;
+mod reading;
 pub(crate) mod stalls;
 pub(crate) mod triangles;
 pub(crate) mod warn;
 /// What the merged layers of a job take: the source meshes a merged layer may take
 /// (`Hlod::merged_meshes`), and what the layers take of them (`chain::merged_lods`).
-pub(crate) type Merged = (BTreeSet<usize>, crate::hlod::flatten::merge::Taken);
+pub(crate) type Merged = BTreeMap<usize, crate::hlod::flatten::merge::Taken>;
 pub(crate) struct PrimitiveInputs<'a> {
     pub o: &'a Options,
     pub g: &'a Value,
@@ -30,23 +33,26 @@ pub(crate) struct PrimitiveInputs<'a> {
     /// layers take of them (`chain::merged_lods`), none for a job with no merged layer: the LODs
     /// of the other meshes are never cut for the merge (`flatten::merge::Lods`).
     pub merged: Option<&'a Merged>,
+    /// The fallbacks of the source meshes the fallback meshes stand for, by fallback job: handed on
+    /// by the compile of each source (`source/fallback.rs`), which every fallback job runs after.
+    pub fallbacks: &'a BTreeMap<(usize, usize), crate::hlod::chain::SourceCover>,
     /// Each source mesh's build settings, by its rank (`MeshBuildOptions::meshes`).
     pub mesh_builds: &'a [crate::compiler::args::mesh_build::MeshBuild],
-    /// The displacement each source mesh bakes into its triangles, by its rank, none for a mesh
-    /// that bakes nothing (`displace::load_bakes`).
-    pub bakes: &'a [Option<crate::displace::Bake>],
+    /// The displacement each source mesh bakes into its triangles, by its rank, and the maps'
+    /// images, read when a primitive that bakes asks for them (`displace::Bakes`).
+    pub bakes: &'a crate::displace::Bakes<'a>,
+    /// The most triangles a mesh that bakes is tessellated to: what the room allows
+    /// (`BufferPlan::bake_cap`).
+    pub bake_cap: usize,
     /// Largest world scale under which each source mesh is placed: it is what
-    /// brings the proxy threshold, expressed in metres, into the primitive's
-    /// object space.
+    /// brings its bundles' bands to metres.
     pub mesh_scales: &'a BTreeMap<usize, f64>,
     /// The assemblies the load laid out: the primitives that carry their levels and those whose
     /// roots they climb over (`source::assembly::plan`).
     pub assemblies: &'a AssemblyPlan,
     /// The roots the primitives of a first wave handed on (`CompiledPrimitive::cover`), which a
     /// carrier of the second climbs over: none in the first.
-    pub covers: &'a BTreeMap<(usize, usize), RootCover>,
-    /// Triangles of the whole scene, every instance placed: the denominator of budget shares.
-    pub scene_triangles: usize,
+    pub covers: &'a BTreeMap<(usize, usize), &'a RootCover>,
     /// Accessors that `plan_buffers` has already validated once, on the same bytes.
     pub validated: &'a BTreeSet<usize>,
     pub progress: &'a (dyn Fn(Value) + Sync),
@@ -55,9 +61,6 @@ pub(crate) struct PrimitiveInputs<'a> {
 pub(crate) struct CompiledPrimitive {
     pub value: Value,
     pub cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>>,
-    /// The resident proxy's coarse cut, in object space, and the threshold in metres it requested.
-    pub proxy_cut: Vec<f32>,
-    pub proxy_threshold: f64,
     pub collision: Value,
     pub source_cover: crate::hlod::chain::SourceCover,
     /// The groups its far field may draw as voxels.
@@ -71,16 +74,11 @@ pub(crate) struct CompiledPrimitive {
     pub parents: Vec<RootParent>,
 }
 /// Whether the engine draws `material` blended, sorted back to front and never merged with another
-/// surface: `alphaMode` `BLEND` once the cutout decisions have rewritten the scene
-/// (`cutout::apply_decisions`), or a transmission, whatever its mode (`transmissive_material`). The one
-/// test of a primitive's `pass`.
+/// surface: `alphaMode` `BLEND` as the source authored it, or a transmission, whatever its mode
+/// (`transmissive_material`). The one test of a primitive's `pass`.
 pub(crate) fn drawn_blended(material: Option<&Value>) -> bool {
     transmissive_material(material)
         || material.is_some_and(|m| AlphaMode::of(m) == AlphaMode::Blend)
-}
-/// Whether primitive `p` draws triangles (`mode` 4, the default).
-fn triangle_mode(p: &Value) -> Result<bool> {
-    Ok(optional_index(p.get("mode"), "primitive.mode", 4)? == 4)
 }
 /// The material primitive `p` names, if any.
 fn primitive_material<'g>(g: &'g Value, p: &Value) -> Result<Option<&'g Value>> {
@@ -91,209 +89,133 @@ fn primitive_material<'g>(g: &'g Value, p: &Value) -> Result<Option<&'g Value>> 
         None => Ok(None),
     }
 }
-/// `compile_primitive` of one planned `(mesh, primitive)` job, its error naming the job.
+/// `compile_primitive` of one planned `(mesh, primitive)` job, its error naming the job; none for a
+/// carrier the load added that fewer than two instances can join (`Carrying::vacant`): it builds no
+/// job, and its instances keep their own roots.
 pub(crate) fn compile_job(
     inputs: &PrimitiveInputs<'_>,
     &(m, p): &(usize, usize),
-) -> Result<CompiledPrimitive> {
+) -> Result<Option<CompiledPrimitive>> {
     compile_primitive(inputs, m, p).map_err(|e| e.within(m, p))
 }
+
+/// The largest world scale source mesh `old` is placed at, which brings its bundles' bands to metres.
+fn mesh_scale(inputs: &PrimitiveInputs<'_>, old: usize) -> Option<f64> {
+    inputs.mesh_scales.get(&old).copied()
+}
+
+/// The DAG of the primitive `arrays` describe — positions, the attributes it carries beside them,
+/// the corners of its triangles —, built under its mesh's `shaping` and what its `carrying` asks.
+/// Every primitive joins the DAG, a blended one too, transmissive or not: its draw order is restored
+/// at runtime from the recorded source rank, so spatial clustering does not scramble the blend
+/// order, and the water pass composes its pages over the backdrop as any.
+fn build_primitive(
+    inputs: &PrimitiveInputs<'_>,
+    (old, primitive): (usize, usize),
+    arrays: (&[f32], &[&encode::Attribute], &[u32]),
+    (deformation, shaping, carrying): (&Deformation, crate::dag::MeshShaping, &Carrying<'_>),
+) -> Result<DagResult> {
+    let build = &inputs.mesh_builds[old];
+    let scale = mesh_scale(inputs, old);
+    let encode = |slice: &[u32], pos: &[f32], carried: &[&_], origin: &[u32], grid: PageGrid| {
+        super::pages::record::encode_page(slice, (pos, carried), (deformation, origin), grid)
+    };
+    // What the merged layers take of it, when one may take it.
+    let taken = inputs.merged.and_then(|merged| merged.get(&old).copied());
+    let dag = DagInputs {
+        taken,
+        shaping,
+        root_pages: build.root_pages,
+        precision: build.precision,
+        scale,
+        exact: inputs.fallbacks.contains_key(&(old, primitive)),
+    };
+    let assembly = carrying.assembly(inputs.assemblies.takes_roots_of(&(old, primitive)));
+    build_dag_primitive(inputs.o, arrays, dag, assembly, &encode)
+}
+
+/// What the compile of a primitive has to say: the instances its carrier left out, in the report
+/// of its DAG (`clusters.json`, which a warm run replays) and, with the DAG's own warnings and its
+/// stage timings, on its progress event.
+fn announce(
+    progress: &(dyn Fn(Value) + Sync),
+    (mesh, primitive): (usize, usize),
+    dag: &mut DagResult,
+    carrying: &Carrying<'_>,
+) {
+    carrying.tell(&mut dag.dag_report, &mut dag.warnings);
+    let (timings, warnings) = (
+        std::mem::take(&mut dag.timings),
+        std::mem::take(&mut dag.warnings),
+    );
+    progress(primitive_event(
+        mesh,
+        primitive,
+        dag.pages.len(),
+        timings,
+        warnings,
+    ));
+}
+
+/// Primitive `primitive` of source mesh `old`, compiled; none when it is a carrier the load added
+/// that no instance, or only one, can join: it has no triangle of its own and nothing to climb
+/// over, builds no job, and tells the instances it left out on its progress event.
 pub(crate) fn compile_primitive(
     inputs: &PrimitiveInputs<'_>,
     old: usize,
     primitive: usize,
-) -> Result<CompiledPrimitive> {
-    let PrimitiveInputs {
-        o,
-        g,
-        bin,
-        mesh_values,
-        mesh_map,
-        voxelized,
-        merged,
-        mesh_builds,
-        mesh_scales,
-        assemblies,
-        covers,
-        scene_triangles,
-        validated,
-        progress,
-        ..
-    } = inputs;
-    check(o)?;
-    let source_mesh = item(mesh_values, old, "mesh")?;
-    let p = item(values(source_mesh, "primitives")?, primitive, "primitive")?;
-    if !triangle_mode(p)? {
-        return Err(CompilerError::new(
-            "UNSUPPORTED_PRIMITIVE",
-            "Only static triangles are supported",
-        ));
-    }
-    let (positions, index_values, triangle_count) = triangles::read(g, bin, p, Some(validated))?;
-    // A primitive the load added to carry an assembly's levels holds a placeholder: its one
-    // triangle is never read (`carriers.rs`).
-    let placeholder = p.pointer(&format!("/extras/{TOP_EXTRA}")).is_some();
-    let (index_values, triangle_count) = match placeholder {
-        true => (Vec::new(), 0),
-        false => (index_values, triangle_count),
+) -> Result<Option<CompiledPrimitive>> {
+    check(inputs.o)?;
+    let read = read_primitive(inputs, old, primitive)?;
+    let blended = drawn_blended(primitive_material(inputs.g, read.primitive)?);
+    let mesh = *(inputs.mesh_map.get(&old)).ok_or_else(|| invalid("Missing mesh mapping"))?;
+    let shaping = shaping_of(inputs, &read, old)?;
+    let (deformation, attributes) = page_data(inputs, &read, old)?;
+    // The displacement baked into its triangles (`displaced.rs`): its build reads the mesh as made.
+    let declared = displaced::Source::declared(read.pos, attributes, read.indices);
+    let source = match inputs.fallbacks.get(&(old, primitive)) {
+        // A fallback mesh's triangles are its source's fallback, as made.
+        Some(cover) => displaced::Source::fallback(cover),
+        None => displaced::displace(
+            inputs,
+            (old, primitive),
+            declared,
+            (&deformation, read.placeholder),
+        )?,
     };
-    let pos = {
-        let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::Decode);
-        positions.collect_f32()?
-    };
-    let material = primitive_material(g, p)?;
-    // Skin and morph pages share the GPU deformation stage before cut/raster.
-    let blended = drawn_blended(material);
-    let mesh = *mesh_map
-        .get(&old)
-        .ok_or_else(|| invalid("Missing mesh mapping"))?;
-    // How its source mesh is built: the job's `meshBuild` over the mesh's own extras.
-    let build = &mesh_builds[old];
-    let shaping = crate::dag::MeshShaping {
-        trim: build.trim,
-        drop_near_collapsed: build.drop_near_collapsed,
-        input: build.input,
-        ..crate::dag::MeshShaping::read(source_mesh, voxelized.contains(&old))?
-    };
-    let mut deformation =
-        super::pages::record::page_deformation(g, bin, p, positions.count, validated)?;
-    // A mesh without bones whose build rebuilds every normal makes them when its source has none;
-    // a skinned one's build keeps the frames it reads (`dag/input/frames.rs`). A primitive without
-    // tangents fills them when another of its mesh has some.
-    let made_normals = build.input.recompute_normals && deformation.skin.is_none();
-    let mesh_tangents = (values(source_mesh, "primitives")?.iter())
-        .any(|q| q.pointer("/attributes/TANGENT").is_some());
-    let source = PageSource {
-        count: positions.count,
-        stored_tangents: build.stored_tangents,
-        made_normals,
-        mesh_tangents,
-    };
-    let attributes = super::pages::record::page_attributes(g, bin, p, source, validated)?;
-    crate::geometry_page::deform::declare_soft(&mut deformation, g, old, &pos)?;
-    // The displacement baked into its triangles, where its mesh names height maps and a trimmed
-    // error (`displaced.rs`): its build then reads the displaced mesh as made.
-    let baked = displaced::baked(
-        inputs.bakes.get(old).and_then(Option::as_ref),
-        build,
-        (&deformation, placeholder),
-        (&pos, &attributes, &index_values),
-    );
-    let is_baked = baked.is_some();
-    let (pos, attributes, index_values) = match baked {
-        Some(baked) => (baked.positions, baked.attributes, baked.indices),
-        None => (pos, attributes, index_values),
-    };
-    let triangle_count = if is_baked {
-        index_values.len() / 3
-    } else {
-        triangle_count
-    };
-    // Every texture set the primitive has, read by its material or not.
-    let carried: Vec<&encode::Attribute> = attributes.iter().collect();
-    // The DAG carries the bones beside them, which no page reads from there.
+    let shaping = source.shaped(shaping);
+    // Every texture set the primitive has, and the bones beside them, which no page reads from there.
     let bones = crate::dag::attributes::bones(&deformation);
-    let carried: Vec<&encode::Attribute> = carried.into_iter().chain(&bones).collect();
+    let carried: Vec<&encode::Attribute> = source.attributes.iter().chain(&bones).collect();
     // The instances whose roots climb with this primitive, when it carries an assembly's levels.
     let layout: Vec<(u32, usize)> = carried.iter().map(|a| (a.flag, a.width)).collect();
-    let uses = (assemblies.carriers.get(&(old, primitive)).into_iter()).flatten();
-    let joined: Vec<_> = uses
-        .filter_map(|joined| Some((joined, covers.get(&joined.part)?)))
-        .filter(|(_, cover)| cover.joins(&layout))
-        .collect();
-    if placeholder && joined.len() < 2 {
-        return Err(CompilerError::new(
-            "INVALID_ASSEMBLY",
-            "An assembly primitive built for its instances has fewer than two that can join it",
-        ));
+    let job = (old, primitive);
+    let from = (inputs.assemblies, inputs.covers);
+    let carrying = Carrying::of(from, &job, (read.placeholder, &layout));
+    if carrying.vacant() {
+        let event = primitive_event(mesh, primitive, 0, Value::Null, carrying.warnings());
+        (inputs.progress)(event);
+        return Ok(None);
     }
-    let instances: Vec<Instance<'_>> = (joined.iter())
-        .map(|(joined, cover)| Instance {
-            cover,
-            matrix: joined.matrix,
-        })
-        .collect();
-    let assembly = Assembly {
-        instances: &instances,
-        cover: assemblies.takes_roots_of(&(old, primitive)),
-    };
-    let encode = |slice: &[u32], pos: &[f32], carried: &[&_], origin: &[u32], grid: PageGrid| {
-        super::pages::record::encode_page(slice, (pos, carried), (&deformation, origin), grid)
-    };
-    // Every primitive joins the DAG, a blended one too, transmissive or not: its draw order is
-    // restored at runtime from the recorded source rank, so spatial clustering does not scramble
-    // the blend order, and the water pass composes its pages over the backdrop as any.
-    let scale = mesh_scales.get(&old).copied();
-    let demand = crate::proxy::cut::cut_demand(
-        scale,
-        trillion3d_page_codec::proxy::PROXY_TRIANGLE_BUDGET,
-        triangle_count,
-        *scene_triangles,
-    );
-    // What the merged layers take of it, when one may take it.
-    let taken = merged.and_then(|(meshes, taken)| meshes.contains(&old).then_some(*taken));
-    let DagResult {
-        pages,
-        cluster_planes,
-        proxy_cut,
-        proxy_threshold,
-        page_run,
-        dag_report,
-        timings,
-        warnings,
-        culling_report,
-        structure_report,
-        collision,
-        source_cover,
-        voxel_seed,
-        cover,
+    let triangles = source.indices.len() / 3;
+    let arrays = (&source.positions[..], &carried[..], &source.indices[..]);
+    let mut dag = build_primitive(inputs, job, arrays, (&deformation, shaping, &carrying))?;
+    announce(inputs.progress, (mesh, primitive), &mut dag, &carrying);
+    let parents = carrying.parents(old, dag.parents);
+    let reach = crate::geometry_page::deform::reach(&deformation, &source.positions[..]);
+    // The voxels sample the triangles their seed's ranks index: a baked mesh's, kept for them.
+    let mut voxel_seed = dag.voxel_seed;
+    if !voxel_seed.groups.is_empty() {
+        voxel_seed.traced = source.traced();
+    }
+    Ok(Some(CompiledPrimitive {
+        page_run: dag.page_run,
+        cover: dag.cover,
         parents,
-    } = build_dag_primitive(
-        o,
-        (&pos, &carried, &index_values),
-        DagInputs {
-            proxy_demand: demand,
-            taken,
-            shaping: if is_baked {
-                crate::dag::MeshShaping {
-                    input: crate::dag::InputRules::as_made(),
-                    ..shaping
-                }
-            } else {
-                shaping
-            },
-            root_pages: build.root_pages,
-            precision: build.precision,
-            scale,
-        },
-        assembly,
-        &encode,
-    )?;
-    let parents: Vec<RootParent> = (joined.iter().zip(parents))
-        .filter_map(|((joined, _), parent)| {
-            let parent = parent?;
-            let values = part_space(&joined.matrix, parent.error, parent.sphere)?;
-            Some(RootParent {
-                assembly: old,
-                at: joined.at,
-                primitive: joined.part.1,
-                values,
-            })
-        })
-        .collect();
-    let event = primitive_event(mesh, primitive, pages.len(), timings, warnings);
-    progress(event);
-    let reach = crate::geometry_page::deform::reach(&deformation, &pos);
-    Ok(CompiledPrimitive {
-        page_run,
-        cover,
-        parents,
-        cluster_planes,
-        proxy_cut,
-        collision,
-        source_cover,
+        cluster_planes: dag.cluster_planes,
+        collision: dag.collision,
+        source_cover: dag.source_cover,
         voxel_seed,
-        proxy_threshold: proxy_threshold * scale.unwrap_or(1.0), // back in metres for the report
-        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if blended {"clustered-blend"} else {"exact-clusters"},"clusterStrategy":DAG_CLUSTER_STRATEGY,"dag":dag_report,"culling":culling_report,"structure":structure_report,"pages":pages,"deformation":reach}),
-    })
+        value: json!({"mesh":mesh,"primitive":primitive,"material":read.primitive.get("material"),"triangles":triangles,"pass":if blended {"clustered-blend"} else {"exact-clusters"},"clusterStrategy":DAG_CLUSTER_STRATEGY,"dag":dag.dag_report,"culling":dag.culling_report,"structure":dag.structure_report,"pages":dag.pages,"deformation":reach}),
+    }))
 }

@@ -34,3 +34,7 @@ export const SUBGROUP_ALL_WGSL = wgslBlock(
 diagnostic(off,subgroup_uniformity);
 fn subgroupAllTrue(c:bool)->bool{return subgroupAll(c);}`,
 )
+
+/** The first of `sizes` that every subgroup of `device` holds exactly, none where it states none. */
+export const uniformSubgroupLanes = <T extends number>(device: GPUDevice, sizes: readonly T[]) =>
+  sizes.find((lanes) => hasSubgroupsOf(device, lanes))

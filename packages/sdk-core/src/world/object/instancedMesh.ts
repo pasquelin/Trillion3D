@@ -1,6 +1,7 @@
 import { BufferAttribute } from '../buffer/attribute.ts'
 import type { Geometry } from '../geometry/geometry.ts'
 import type { Material } from '../material/material.ts'
+import { drawnCount } from '../math/box3.ts'
 import { Mesh } from './mesh.ts'
 import type { Object3D } from './object3d.ts'
 import { release } from '../../runtime/releasable.ts'
@@ -34,7 +35,7 @@ export class InstancedMesh<M extends object = Material> extends Mesh<M> {
     const from = instanced.instanceMatrix.array
     this.instanceMatrix.array.set(from.subarray(0, this.instanceMatrix.array.length))
     this.instanceMatrix.needsUpdate = true
-    this.count = Math.min(instanced.count, this.instanceMatrix.count)
+    this.count = drawnCount({ count: instanced.count, instanceMatrix: this.instanceMatrix })
     return this
   }
   /** Called when the matrices are given back: what a renderer's copy of them listens to. */

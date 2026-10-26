@@ -11,13 +11,13 @@ import { functionsOf } from '../../../materials/texture/shaderRule.fixture.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../../shaderRunF32.fixture.ts'
 import { vsmPixelPageMarkingWgsl } from './markingWgsl.ts'
-import { vsmProjectionWgsl } from './projection/projectionWgsl.ts'
+import { vsmLocalsProjectionWgsl } from './projection/projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 import { saturate } from '../../../../../math/src/scalar/reals.ts'
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
 const MARKING = vsmPixelPageMarkingWgsl(LAYOUT),
-  PROJECTION = vsmProjectionWgsl(LAYOUT)
+  PROJECTION = vsmLocalsProjectionWgsl(LAYOUT, 'rg32uint')
 type V3 = [number, number, number]
 type Backface = (toLight: V3, normal: V3, radius: number) => boolean
 const run = (code: string) =>

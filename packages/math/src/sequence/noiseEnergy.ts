@@ -1,3 +1,5 @@
+import { isPow2 } from '../scalar/integers.ts'
+
 /**
  * THE ENERGY A SPATIOTEMPORAL BLUE-NOISE MASK IS MADE BY (Wolfe, Morrical, Akenine-Möller and Ramamoorthi, "Spatiotemporal
  * Blue Noise Masks", 2022, on the void-and-cluster method of Ulichney, 1993).
@@ -24,6 +26,9 @@ export interface NoiseVolume {
 /** The Gaussian's spread, in pixels, a mask is made at on every axis. */
 export const NOISE_SIGMA = 1.9
 
+/** The seed of a mask's first pattern, so that a mask is the same on every run. */
+export const NOISE_SEED = 0x1337feed
+
 /** The energy a Gaussian may lose where it is cut: the cut lies where it falls to `exp(−5.298)`. */
 const CUT_LOSS = 0.005
 
@@ -40,7 +45,7 @@ export interface AxisWeights {
  * all of them. A cut wider than the axis (`2 · reach + 1 > size`) reaches `reach − 1` pixels one way and `reach` the other,
  * so that no offset names a pixel twice.
  */
-export function axisWeights(size: number, sigma: number, centre: boolean): AxisWeights {
+function axisWeights(size: number, sigma: number, centre: boolean): AxisWeights {
   const reach = Math.min(
     Math.floor(Math.sqrt(-2 * sigma * sigma * Math.log(CUT_LOSS))),
     Math.max(1, size >> 1),
@@ -77,7 +82,7 @@ export interface VolumeAddress {
 /** The addressing of `volume`, whose sizes must be powers of two, at least two. */
 export function volumeAddress({ width, height, depth }: NoiseVolume): VolumeAddress {
   for (const size of [width, height, depth])
-    if (size < 2 || (size & (size - 1)) !== 0) throw new RangeError('a mask side is a power of two')
+    if (size < 2 || !isPow2(size)) throw new RangeError('a mask side is a power of two')
   const yShift = Math.log2(width)
   return {
     count: width * height * depth,

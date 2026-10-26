@@ -3,6 +3,7 @@ import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts'
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 import type { World } from './world.ts'
+import type { BeforeFrameInfo } from './frames/frames.ts'
 import { families } from '../host/families.ts'
 
 /** What the families that read a world's engine reach it by, without the page holding it. */
@@ -25,13 +26,18 @@ export function drawing(session: MeasuredWorld | null | undefined): MeasuredWorl
 /** The session drawing `world` now (`drawing`). */
 export const sessionOf = (world: object) => drawing(worlds.get(world)?.session())
 
-/** Steps `pool` on the GPU at every frame `world` draws, its time advanced by the world's frames:
+/** The hooks of a world a pool is stepped by: its frame hooks and its request for a frame. */
+export interface PoolHooks {
+  beforeFrame(hook: (frame: BeforeFrameInfo) => void): () => void
+  onFrame(hook: () => void): () => void
+  invalidate(): void
+}
+
+/** Steps `pool` on the GPU at every frame a world draws, its time advanced by the world's frames:
  *  the world's own loop draws on while the pool moves, a world its page leads at each `render()`.
- * The measurement entry's way in until particles have a public face. Returns the
- *  remover. A pool is attached once, to a made world. */
-export function attachParticles(world: World, pool: ParticlePool) {
-  const pools = worlds.get(world)?.particles
-  if (!pools || pools.includes(pool)) throw new Error('PARTICLES_ATTACH: attached, or no world')
+ *  `pools` are the world's held pools. Returns the remover. A pool is attached once. */
+export function attachPool(pools: ParticlePool[], world: PoolHooks, pool: ParticlePool) {
+  if (pools.includes(pool)) throw new Error('PARTICLES_ATTACH: attached already')
   pools.push(pool)
   families.particles.get() // started now: the next frame, which draws the pool, waits for it
   const stops = [
@@ -45,6 +51,13 @@ export function attachParticles(world: World, pool: ParticlePool) {
     if (at >= 0) pools.splice(at, 1)
     world.invalidate() // the next image gives the pool's buffers back
   }
+}
+
+/** `attachPool` for a made world, the measurement entry's way in: a pool of its own. */
+export function attachParticles(world: World, pool: ParticlePool) {
+  const pools = worlds.get(world)?.particles
+  if (!pools) throw new Error('PARTICLES_ATTACH: no world')
+  return attachPool(pools, world, pool)
 }
 
 /** The metrics of the last frame `world` drew, null before its first. */

@@ -120,6 +120,6 @@ test('every triangle is drawn by exactly one side, whatever its shape', () => {
 
 test('the blend module runs the facing test and discards on front_facing', () => {
   assert.match(BLEND_SHADER, /fn vertexFacing\(/)
-  assert.match(BLEND_SHADER, /facingDiscarded\(in\.material>>30u,front\)/)
+  assert.match(BLEND_SHADER, /facingDiscarded\(in\.words\.z>>30u,front\)/)
   assert.doesNotMatch(BLEND_SHADER, /fn vertexCulled\(/, 'one facing test, not two')
 })

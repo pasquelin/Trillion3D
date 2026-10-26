@@ -38,14 +38,13 @@ export const DEFAULT_FOV = 55,
   ARRIVAL_QUEUE_BATCH = PAGE_REQUEST_BATCH,
   /**
    * The main thread's share of a frame, in milliseconds: ONE CLOCK its streaming stages spend in
-   * priority order — the cells and the arrived pages integrated, then the row records the cut's
-   * requests claim and the texture tiles (`../../geometry/integration/frameBudget.ts`) —, each
-   * stage's first piece always admitted. The programme's 2 ms main-thread frame, widened to the
+   * priority order — the cells and the arrived pages integrated, then the texture tiles
+   * (`../../geometry/integration/frameBudget.ts`) —, each stage's first piece always admitted. The programme's 2 ms main-thread frame, widened to the
    * whole frame until the session's first image is shown (`../../frame/loop/firstImage.ts`).
    * Fetching and decoding run in workers and spend none of it; the geometry pool's streaming pages
-   * neither, nor the rows of the pages they bring: a frame installs a count of streaming pages
-   * (`streamingMaxInstallsPerFrame`, `../../geometry/residency/queue.ts`) and writes their rows
-   * whole (`../../geometry/rows/rowPasses.ts`, `followArrivals`).
+   * neither, nor the cluster records of the pages they bring: a frame installs a count of streaming
+   * pages (`streamingMaxInstallsPerFrame`, `../../geometry/residency/queue.ts`) and writes their
+   * records whole (`../../geometry/clusters/clusterResidency.ts`).
    */
   MAIN_THREAD_FRAME_MS = 2
 /**
@@ -57,15 +56,16 @@ export const devicePixels = (logical: number, pixelRatio: number | undefined) =>
   Math.floor(logical * (pixelRatio ?? DEFAULT_PIXEL_RATIO))
 /** The adapter's own limits the session's device asks for, each up to the ceiling beside it: WebGPU
  *  grants the portable defaults otherwise.
- *  - `Infinity`, all the adapter offers: a virtual shadow page pool is as wide as
- *    `maxTextureDimension2D` (`../../lighting/shadows/vsm/resources.ts`), and the water surface stage writes more
+ *  - `Infinity`, all the adapter offers: a virtual shadow page pool slice is one buffer, bound whole
+ *    (`maxStorageBufferBindingSize`, `maxBufferSize`: 256 MiB at 4096 pages, 512 MiB at 8192;
+ *    `vsmPoolPagesBound`, `../../lighting/shadows/vsm/layoutBytes.ts`), and the water surface stage writes more
  *    colour bytes per sample than the default 32; an adapter below what it needs refuses the pass
- *    by name (`water-pass-refused`).
+ *    by name (`water-pass-refused`), a pool a binding cannot hold is the largest one that fits.
  *  - A count, the most bindings of that kind one stage of the engine's layouts holds: the device
  *    asks no more than it binds, and a layout that outgrows the count fails its unit test
  *    (`gpu/core/stageLimits.test.ts`) before any device sees it. Sampled textures: WebGPU's
- *    guaranteed 16, which every adapter grants; the opaque resolve with bounce binds 11 in its own
- *    group (`deferredLayoutEntries`, its targets read by load alone being read-only storage
+ *    guaranteed 16, which every adapter grants; the widest of the lighting's passes, the sun's, binds 9 in its own
+ *    group (`sunLayoutEntries`, its targets read by load alone being read-only storage
  *    textures). */
 export const WEBGPU_REQUIRED_LIMITS = {
   maxTextureDimension2D: Infinity,
@@ -73,6 +73,9 @@ export const WEBGPU_REQUIRED_LIMITS = {
   maxStorageBufferBindingSize: Infinity,
   maxBufferSize: Infinity,
   maxStorageBuffersPerShaderStage: Infinity,
+  // The vertex stage's own count, where the browser has one: the shadow maps' masked patches bind
+  // nine in it (`../../lighting/shadows/vsm/tessellation/maskedPatches.ts`, `vsmMaskedPatches`).
+  maxStorageBuffersInVertexStage: Infinity,
   maxColorAttachmentBytesPerSample: Infinity,
   // The virtual shadow maps (`../../lighting/shadows/vsm/`): workgroup votes and page lists, mask storage textures.
   maxComputeWorkgroupStorageSize: Infinity,

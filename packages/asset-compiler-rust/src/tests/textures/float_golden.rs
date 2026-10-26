@@ -1,16 +1,16 @@
 //! Floating point driver golden test: real glTF scene with single
 //! color texture (EXR or Radiance HDR), compiled via common harness.
 //!
-//! What these goldens fix is not an image but a **refusal**: progressive previews are
-//! sRGB RGBA8, floating point image does not enter without tone mapping (lossy).
-//! Compilation succeeds, texture counted, reason `image-float-unsupported`
-//! reported. Decoded values tested in `src/plugins/tests/`.
+//! What these goldens fix is the half-float chain: a floating point image read as a base colour
+//! is not cut down to eight bits — it is chained in float and held in the half-float atlas, its
+//! tail in the sidecar and the levels above it as files. The decoded values are tested in
+//! `src/plugins/tests/`, the chain's in `src/texture/tests/half_chain.rs`.
 use super::*;
 
 // Behavior: floating point texture passes through compiler without failure or 8-bit clipping;
-// reported in previews report, per image contract reason.
+// its half-float chain is baked and counted in the previews report.
 #[test]
-fn a_float_texture_is_named_in_the_report_rather_than_reduced_to_eight_bits() {
+fn a_float_texture_is_baked_in_half_floats_rather_than_reduced_to_eight_bits() {
     for format in ["exr", "hdr"] {
         let fixture_dir = golden_dir(format);
         let run = compile_golden(&fixture_dir, "scene");
@@ -23,7 +23,7 @@ fn a_float_texture_is_named_in_the_report_rather_than_reduced_to_eight_bits() {
 }
 
 /// Golden comparison: image contract binary publishes, driver claiming
-/// texture, preview report — origin of named refusal —, and scene.
+/// texture, preview report — the baked levels —, and scene.
 fn float_digest(run: &GoldenRun) -> Value {
     json!({
       "imageContract": plugins::image::VERSION,

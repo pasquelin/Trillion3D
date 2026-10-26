@@ -12,6 +12,22 @@ fn cost_follows_the_counts() {
     assert!(large.working >= 24_000_000, "{large:?}");
 }
 
+// Behaviour: the climb of a carrier over the roots of its instances' parts is charged for every
+// instance's copy of them — 65,535 instances of a part that ends in 128 triangles hold about eight
+// million triangles — not as the one triangle of its placeholder.
+#[test]
+fn a_carriers_climb_is_charged_for_every_instance() {
+    let instances = 65_535;
+    let one = of_counts(1, 3).expect("fits").working;
+    let root = (DAG_CLUSTER_TRIANGLES, DAG_CLUSTER_TRIANGLES + 2);
+    let climb = climb_working(std::iter::repeat_n(root, instances));
+    // At least the DAG's index lists over every level: 24 bytes per triangle.
+    assert!(climb >= 24 * DAG_CLUSTER_TRIANGLES * instances, "{climb}");
+    let room = 256 << 20;
+    assert!(one < room && climb > room, "{one} {climb}");
+    assert_eq!(climb_working([(usize::MAX, 3)]), usize::MAX);
+}
+
 // Behaviour: a count whose cost cannot be represented is refused, never wrapped.
 #[test]
 fn an_overflowing_count_is_refused() {
@@ -90,8 +106,60 @@ fn page_constants_are_the_page_record() {
     );
     record["stream"] = 0.into();
     record["streamOffset"] = 0.into();
+    record["geometry"]["residentOffset"] = 0.into();
     let mut found = (0, 0, 0, 0);
     shape(&record, &mut found);
     let role = record["role"].as_str().expect("role").len();
     assert_eq!(found, (PAGE_ENTRIES, PAGE_ARRAY_VALUES, role, KEY_BYTES));
+}
+
+// Behaviour: a primitive whose displacement is baked is charged for the triangles the tessellation
+// may make under its cap, whatever the counts it was read at, its source's indices apart; the baked
+// arrays a voxelized mesh keeps are in what stays; a map held is charged per texel, once each.
+#[test]
+fn a_primitive_that_bakes_is_charged_for_its_cap() {
+    let cap = 1_000_000;
+    let plain = of_counts(1_000, 600).expect("fits");
+    let baked = of_baked_counts(1_000, 600, 0, cap).expect("fits");
+    let at_the_cap = of_counts(cap, 600 + cap / 2).expect("fits");
+    assert!(
+        baked.working >= at_the_cap.working,
+        "{baked:?} {at_the_cap:?}"
+    );
+    assert!(
+        baked.retained > at_the_cap.retained,
+        "the arrays a voxel stage reads stay"
+    );
+    assert_eq!(baked.indices, plain.indices);
+    // A mesh already past the cap is not tessellated: it is charged as it is.
+    let past = of_baked_counts(12_000_000, 6_000_000, 0, cap).expect("fits");
+    assert!(past.working >= of_counts(12_000_000, 6_000_000).expect("fits").working);
+    // The decode of the largest map joins the tessellation's peak.
+    let with_map = of_baked_counts(cap, cap / 2, 1 << 26, cap).expect("fits");
+    assert!(with_map.working >= of_baked_counts(cap, cap / 2, 0, cap).expect("fits").working);
+    assert_eq!(maps_bytes([2, 3]), Some(5 * MAP_TEXEL_BYTES));
+    assert_eq!(maps_bytes([usize::MAX]), None);
+}
+
+// Behaviour: the cap follows the room: the charge at the cap the room allows fits the room, one
+// triangle more does not, and a room that holds the most the tessellation makes lets it make it. A
+// bake charged at the cap of no room would refuse every job that names a height map.
+#[test]
+fn the_cap_of_a_bake_follows_the_room_it_is_charged_in() {
+    for share in [1 << 20, 64 << 20, 1 << 30] {
+        let cap = bake_cap(share, 1);
+        let at = |cap| of_baked_counts(cap, cap, 0, cap).expect("fits");
+        assert!(
+            at(cap).working <= share && at(cap).retained <= share,
+            "{share}"
+        );
+        assert!(
+            cap == MAX_TRIANGLES || at(cap + 1).working > share || at(cap + 1).retained > share
+        );
+    }
+    assert!(bake_cap(64 << 20, 1) < bake_cap(1 << 30, 1));
+    assert_eq!(bake_cap(usize::MAX, 1), MAX_TRIANGLES);
+    // The records of every primitive that bakes stay: a hundred share the room one has.
+    assert!(bake_cap(1 << 30, 100) < bake_cap(1 << 30, 1));
+    assert_eq!(bake_cap(0, 1), 0);
 }

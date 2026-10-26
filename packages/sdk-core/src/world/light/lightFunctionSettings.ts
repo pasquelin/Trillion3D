@@ -1,4 +1,3 @@
-import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
 import type { SceneLight } from '../../scene/light/contracts.ts'
 import { LIGHT_FUNCTION_DEFAULTS } from '../../scene/light/lightFunction.ts'
 import { lightFunctionIdOf } from '../material/lightFunctionMaterial.ts'
@@ -6,6 +5,7 @@ import type { Material } from '../material/material.ts'
 import { Vector3 } from '../math/vector3.ts'
 import { listen } from '../observed.ts'
 import type { Light } from './light.ts'
+import { lightChanged } from './lightNumbers.ts'
 
 /** What a page may pass to a light about its light function. */
 export interface LightFunctionParameters {
@@ -69,15 +69,9 @@ function stateOf(light: Light): State {
       coneAngle: LIGHT_FUNCTION_DEFAULTS.coneAngle,
     }
     STATES.set(light, state)
-    listen(state.scale, () => changed(light))
+    listen(state.scale, () => lightChanged(light))
   }
   return state
-}
-
-/** A write to the light's light function: noted on the light, and told to the world. */
-function changed(light: Light) {
-  noteNodeWrite(light)
-  light._link?.content(light)
 }
 
 /** Writes into `record` the light function `light` wears: the material's id, and each setting that
@@ -103,7 +97,7 @@ export function hear(light: Light, on: boolean) {
   const state = STATES.get(light)
   if (!state) return
   state.stop?.()
-  state.stop = on ? state.material?._listeners.subscribe(() => changed(light)) : undefined
+  state.stop = on ? state.material?._listeners.subscribe(() => lightChanged(light)) : undefined
 }
 
 /** Gives `light` the material `material`. */
@@ -158,7 +152,7 @@ export function define(proto: Light) {
     },
     set(this: Light, value: Material | null) {
       wear(this, value ?? null)
-      changed(this)
+      lightChanged(this)
     },
   })
   Object.defineProperty(proto, 'lightFunctionScale', {
@@ -173,7 +167,7 @@ export function define(proto: Light) {
       },
       set(this: Light, value: number) {
         stateOf(this)[FIELD_OF[name]] = value
-        changed(this)
+        lightChanged(this)
       },
     })
 }

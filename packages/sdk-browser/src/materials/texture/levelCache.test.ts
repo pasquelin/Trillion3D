@@ -1,6 +1,6 @@
 // The texture levels are entries of the one host cache (`geometry/streaming/pageCache.ts`): held across a
 // device loss, counted once, evicted by last use within the one budget before a page a frame
-// keeps, the proxy after them, and following `world.budget.cpu` live.
+// keeps, and following `world.budget.cpu` live.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -89,13 +89,11 @@ test('a level read by both sides of a device loss is counted once', async () => 
   assert.equal(cache.levelBytes, recordBytes(1024))
 })
 
-test('a small CPU total: no page a frame keeps is refused for a texture level, the proxy stays', async () => {
+test('a small CPU total: no page a frame keeps is refused for a texture level', async () => {
   const urls = ['http://cache/a', 'http://cache/b']
-  const proxy = 32
-  // Room for the tables, one transfer, the two pages and the proxy, not for the level beside.
+  // Room for the tables, one transfer and the two pages, not for the level beside.
   const tables = manifestTableBytes(urls.map((url) => ({ url })))
-  const cache = createPageCache(tables + 64 + 24 + proxy)
-  await cache.keep('proxy', proxy, async () => new ArrayBuffer(proxy))
+  const cache = createPageCache(tables + 64 + 24)
   const { levels, ask } = session(cache, 'k1', 8)
   await ask(0)
   assert.equal(levels.bytes, 64, 'held while no session reserves its room')
@@ -105,7 +103,7 @@ test('a small CPU total: no page a frame keeps is refused for a texture level, t
   await streamer.request(urls, { signal: streamer.signal })
   const { evictions, admissionBlocked } = streamer.stats()
   assert.deepEqual([urls.every(streamer.has), evictions, admissionBlocked], [true, 0, 0])
-  assert.deepEqual([levels.bytes, cache.weight('proxy')], [0, proxy], 'the level left first')
+  assert.equal(levels.bytes, 0, 'the level left first')
   for (let frame = 1; frame < 4; frame++) await ask(0)
   assert.deepEqual(fetched, urls, 'a level that cannot fit is not read again')
   assert.equal(askTile(levels, address(0), 8), 'refused', 'refused, not waited for')
@@ -122,7 +120,10 @@ test('the texture levels follow world.budget.cpu live, the least recently read l
     [across, down] = tilesAt(side, side, 0)
   let bytes = 0
   for (let t = 0; t < across * down; t++)
-    bytes += tileLevelBytes(tileRecord(side, side, t % across, (t / across) | 0).bytes, true)
+    bytes += tileLevelBytes(tileRecord(side, side, t % across, (t / across) | 0).bytes, {
+      format: 'bc7',
+      rgba: true,
+    })
   const { levels, askEvery } = session(pools.pageCache, 'k1', side, true)
   await askEvery(0)
   await askEvery(1)

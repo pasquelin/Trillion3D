@@ -6,7 +6,7 @@ import { hypot4, squares4 } from '../float/hypot.ts'
 import { fdlibmAcos, fdlibmSin } from '../float/trig.ts'
 import { HALF_PI } from '../constants.ts'
 import type { NumberSink } from '../matrix/matrix4.ts'
-import { NORMAL_SQUARES } from '../vector/vector.ts'
+import { NORMAL_SQUARES, plainLength3 } from '../vector/vector.ts'
 
 /** Quaternion of a rotation of `angle` radians about a unit axis. */
 export function axisAngleQuaternion(out: Float64Array, axis: ArrayLike<number>, angle: number) {
@@ -126,7 +126,8 @@ export function normalizeQuaternion(q: Float64Array) {
 }
 
 /** `(x, y, z, w)` scaled to unit length as `normalizeQuaternion` scales it, written into `out` at
- *  `at`: for a caller holding many quaternions in one flat array. */
+ *  `at`: for a caller holding many quaternions in one flat array. An already unit quaternion is
+ *  written as it is: its length is exactly 1. */
 export function normalizeQuaternionAt(
   out: Float64Array,
   at: number,
@@ -136,6 +137,14 @@ export function normalizeQuaternionAt(
   w: number,
 ) {
   const squared = squares4(x, y, z, w)
+  if (squared === 1) {
+    // Already unit: its length is exactly 1, so the quotients are the components themselves.
+    out[at] = x
+    out[at + 1] = y
+    out[at + 2] = z
+    out[at + 3] = w
+    return out
+  }
   const length =
     squared >= SQUARED_MIN && squared <= SQUARED_MAX ? Math.sqrt(squared) : hypot4(x, y, z, w) || 1
   out[at] = x / length
@@ -175,7 +184,7 @@ export function turnByAngularVelocity(
     ty = q[qAt + 1],
     tz = q[qAt + 2],
     tw = q[qAt + 3]
-  const rate = Math.sqrt(wx * wx + wy * wy + wz * wz),
+  const rate = plainLength3(wx, wy, wz),
     half = rate * Math.abs(h),
     small = !(half >= SMALL_HALF_ANGLE),
     k = small ? h : (Math.sign(h) * fdlibmSin(half)) / rate,
@@ -308,7 +317,11 @@ export function localTurnQuaternion(
   roll: number,
   order = 'XYZ',
 ) {
-  const [sx, sy, sz, sw] = ORDER_SIGNS[order] ?? ORDER_SIGNS.XYZ
+  const signs = ORDER_SIGNS[order] ?? ORDER_SIGNS.XYZ
+  const sx = signs[0],
+    sy = signs[1],
+    sz = signs[2],
+    sw = signs[3]
   const c1 = Math.cos(pitch / 2),
     s1 = Math.sin(pitch / 2),
     c2 = Math.cos(yaw / 2),

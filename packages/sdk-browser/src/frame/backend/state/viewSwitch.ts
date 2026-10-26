@@ -1,6 +1,9 @@
 import { tradeCamera, tradeView } from '../../view/viewTrade.ts'
 import { releaseTargets } from '../../prepare/targets.ts'
 import { disposeFogVolume } from '../../render/encodeFogVolume.ts'
+import { disposeTranslucencyVolume } from '../../../lighting/translucency/frame.ts'
+import { disposeTranslucencyGi } from '../../../lighting/translucencyGi/frame.ts'
+import { disposeLocalFog } from '../../render/localFogGpu.ts'
 import { disposeLightShafts } from '../../../modules/sky/lightShafts/frame.ts'
 import { disposeCloudView } from '../../../modules/sky/clouds/viewTargets.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -80,7 +83,12 @@ export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   view.gpu.screenProbes = undefined
   view.gpu.ambientOcclusion?.dispose()
   view.gpu.ambientOcclusion = undefined
+  view.gpu.subsurface?.dispose()
+  view.gpu.subsurface = undefined
   disposeFogVolume(view.gpu)
+  disposeTranslucencyVolume(view.gpu)
+  disposeTranslucencyGi(view.gpu)
+  disposeLocalFog(view.gpu)
   disposeLightShafts(view.gpu)
   disposeCloudView(view.gpu)
   view.gpu.temporal = view.gpu.velocity = view.gpu.exposure = undefined

@@ -4,7 +4,7 @@
 use crate::bits::{ColorRange, PositionGrid, UvRange};
 use crate::triangles::{CornerCode, Spans};
 use crate::writer::BitWriter;
-use crate::{decode, Header, PageError, MAX_UV_SETS};
+use crate::{decode_resident, Header, PageError, MAX_UV_SETS, RESIDENT_VERSION};
 
 /// The grid of the pages: a cell a centimetre.
 fn grid() -> PositionGrid {
@@ -42,12 +42,15 @@ fn page(positions: usize, links: &[u32]) -> Vec<u8> {
     if h.links_positions() {
         out.stream(links.iter().copied(), h.link_bits());
     }
-    let words = h.words().into_iter().chain(out.words().iter().copied());
+    let words = h
+        .words(RESIDENT_VERSION)
+        .into_iter()
+        .chain(out.words().iter().copied());
     words.flat_map(u32::to_le_bytes).collect()
 }
 
 fn xs(data: &[u8]) -> Result<Vec<f32>, PageError> {
-    let page = decode(data, 1 << 20)?;
+    let page = decode_resident(data, 1 << 20)?;
     let positions = page.attribute(0).expect("positions");
     Ok(positions.iter().step_by(3).copied().collect())
 }

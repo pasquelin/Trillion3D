@@ -76,8 +76,8 @@ export type {
 } from '../../sdk-core/src/page/integrationContracts.ts'
 export {
   PREVIEW_ATLAS_COLOR,
-  PREVIEW_ATLAS_COVERAGE,
   PREVIEW_ATLAS_DATA,
+  PREVIEW_ATLAS_HDR,
   PREVIEW_ATLAS_NAMES,
   PREVIEW_BLOCK_BYTES,
   PREVIEW_BLOCK_FORMATS,

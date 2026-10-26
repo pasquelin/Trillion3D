@@ -4,6 +4,9 @@ import {
   type CutOptions,
 } from '../../../../../sdk-core/src/contracts/cutOptions.ts'
 import { readSetting } from '../../../../../sdk-core/src/contracts/settingRules.ts'
+import { clamp } from '../../../../../math/src/scalar/reals.ts'
+import { storageBufferCap } from '../../../session/memory/pools.ts'
+import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 
 /**
  * THE CAPS OF THE CUT'S LISTS, read from their settings (`cutMaxNodes`, `cutMaxCandidateClusters`,
@@ -38,6 +41,19 @@ export function cutListCaps(options: CutOptions = {}): CutListCaps {
     readSetting(CUT_RULES, options, LIST_SETTINGS[list].field) & -LIST_SETTINGS[list].batch
   return { nodes: cap('nodes'), candidates: cap('candidates'), visible: cap('visible') }
 }
+
+/** `caps` held to what one storage binding of the device holds: the clusters drawn are a record each
+ *  in the decoded clusters, the widest table the list's room sizes (`PAGE_INFO_STRIDE` bytes
+ *  a record, the list's own rows and the bins' instances being narrower). The one place the device
+ *  bounds the list, so that its growth, its readback warnings and its refusals all speak of the
+ *  same number. */
+export const limitedCaps = (
+  caps: CutListCaps,
+  limits: Parameters<typeof storageBufferCap>[0],
+): CutListCaps => ({
+  ...caps,
+  visible: clamp(Math.floor(storageBufferCap(limits) / PAGE_INFO_STRIDE), 1, caps.visible),
+})
 
 /** Whether two sets of caps are the same. */
 export const sameListCaps = (a: CutListCaps, b: CutListCaps) =>

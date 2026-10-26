@@ -4,21 +4,38 @@ use crate::deform::{morph_words, skin_words, FLAG_MORPH, FLAG_SKIN};
 use crate::triangles::CornerCode;
 pub(crate) use crate::{
     deform, Header, FLAG_COLOR, FLAG_NORMAL, FLAG_TANGENT, FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3,
-    HEADER_BYTES, MAX_UV_SETS,
+    FLAG_UV4, FLAG_UV5, FLAG_UV6, FLAG_UV7, HEADER_BYTES, MAX_UV_SETS, RESIDENT_TABLE_WORDS,
 };
-/// Optional stream flags and float widths, after position: normal, the four texture sets, colour,
+/// Optional stream flags and float widths, after position: normal, the eight texture sets, colour,
 /// tangent (its direction and its bitangent's sign).
-pub const OPTIONAL: [(u32, usize); 7] = [
+pub const OPTIONAL: [(u32, usize); 11] = [
     (FLAG_NORMAL, 3),
     (FLAG_UV, 2),
     (FLAG_UV1, 2),
     (FLAG_UV2, 2),
     (FLAG_UV3, 2),
+    (FLAG_UV4, 2),
+    (FLAG_UV5, 2),
+    (FLAG_UV6, 2),
+    (FLAG_UV7, 2),
     (FLAG_COLOR, 4),
     (FLAG_TANGENT, 4),
 ];
 /// The presence bit of each texture set, in set order.
-pub const UV_FLAGS: [u32; MAX_UV_SETS] = [FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3];
+pub const UV_FLAGS: [u32; MAX_UV_SETS] = [
+    FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3, FLAG_UV4, FLAG_UV5, FLAG_UV6, FLAG_UV7,
+];
+/// The presence bits of every texture set together: `flag & UV_MASK != 0` tells a texture
+/// coordinate attribute from any other, as a test and not a search of `UV_FLAGS`.
+pub const UV_MASK: u32 = {
+    let mut mask = 0;
+    let mut set = 0;
+    while set < MAX_UV_SETS {
+        mask |= UV_FLAGS[set];
+        set += 1;
+    }
+    mask
+};
 /// Floats per vertex of each attribute rank, `None` for one the page does not carry: position,
 /// `OPTIONAL` in order, skin joints and weights (`influences` each), morph deltas (six per
 /// target). The one walk of a decoded vertex, which `attribute` and `Header::vertex_floats` read.
@@ -86,6 +103,21 @@ impl core::fmt::Debug for DecodedPage {
     }
 }
 
+/// The greatest word offset a stream of a page of the format's bounds starts at, which the resident
+/// page's table holds in 16 bits: the largest header (23 words, 255 morph records of 9, the four
+/// extension ranges of 2 words each for the sets past the fourth, the table), then the block table
+/// and the corner stream (a corner takes at most `MAX_WIDTH` bits), then at most a word per vertex
+/// and bit of width for each of the 27 other streams before the skin (3 positions, links,
+/// 2 normals, 16 texture streams, 4 colours, tangents).
+pub const MAX_TABLE_OFFSET: usize = crate::HEADER_WORDS
+    + deform::MAX_MORPH_TARGETS * deform::MORPH_WORDS
+    + (MAX_UV_SETS - crate::HEADER_UV_SETS) * crate::UV_EXTENSION_WORDS
+    + RESIDENT_TABLE_WORDS
+    + crate::MAX_PAGE_CORNERS
+    + crate::MAX_PAGE_CORNERS * crate::triangles::MAX_WIDTH / 32
+    + 27 * crate::MAX_PAGE_VERTICES;
+const _: () = assert!(MAX_TABLE_OFFSET <= u16::MAX as usize);
+
 /// Stream word offsets derived from counts and widths, never trusted header offsets.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Layout {
@@ -107,7 +139,8 @@ pub struct Layout {
     pub skin: usize,
     /// The first morph target's first stream; each target's own start is in its record.
     pub morph: usize,
-    /// Bytes before the first stream: the header and the morph records.
+    /// Bytes before the first stream of the resident page: the header, the morph records, the
+    /// extension and the table (`Header::body_at`).
     pub header_bytes: usize,
     /// Words of every stream together.
     pub words: usize,
@@ -171,9 +204,32 @@ impl Layout {
             tangent,
             skin,
             morph,
-            header_bytes: h.bytes(),
+            header_bytes: h.body_at(),
             words: at,
         }
+    }
+
+    /// The resident page's table (`RESIDENT_TABLE_WORDS`): the word offset of each stream from the
+    /// page's first word, 16 bits each — a page of the format's bounds never passes them
+    /// (`MAX_TABLE_OFFSET`, proved at compile time); only the test-only reading of a resident page
+    /// of up to `MAX_VERTICES` vertices does, and saturates alike on both sides — in this order: the block table and the corners, the three
+    /// positions, the links, the two normals, the two streams of each texture set, the four
+    /// colours, the tangents, the skin. An absent stream's offset is where it would start.
+    pub fn table(&self) -> [u32; RESIDENT_TABLE_WORDS] {
+        let base = self.header_bytes / 4;
+        let offsets = (self.triangles.into_iter())
+            .chain(self.position)
+            .chain([self.links])
+            .chain(self.normal)
+            .chain(self.uv.into_iter().flatten())
+            .chain(self.color)
+            .chain([self.tangent, self.skin])
+            .map(|at| at.saturating_add(base).min(0xffff) as u32);
+        let mut table = [0u32; RESIDENT_TABLE_WORDS];
+        for (k, at) in offsets.enumerate() {
+            table[k / 2] |= at << (16 * (k % 2));
+        }
+        table
     }
 
     /// True when each morph record names the word its streams start at, in stream order.

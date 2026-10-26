@@ -1,4 +1,4 @@
-//! BC5 block writer: two BC4 channels, X then Y of a normal map, each a byte
+//! BC5 and BC4 block writer: two BC4 channels, X then Y of a normal map, each a byte
 //! pair of endpoints and sixteen 3-bit ranks on the eight-point ladder every
 //! decoder rebuilds as `(e0 · (7 − r) + e1 · r) / 7`. Each channel has its own
 //! segment, which is what a normal map needs: X and Y vary in directions of
@@ -31,8 +31,8 @@ fn index_of(rank: u8) -> u64 {
 }
 
 /// One BC4 block of `channel`: the endpoints rounded to bytes, the ranks
-/// reassigned on what decodes.
-fn channel_block(texels: &Texels, channel: usize) -> [u8; 8] {
+/// reassigned on what decodes. A BC4 level is these blocks alone (`blocks.rs`, `encode_one_channel`).
+pub fn channel_block(texels: &Texels, channel: usize) -> [u8; 8] {
     let (mut e0, mut e1, mut rank) = fit_channel(texels, channel, &LADDER);
     if e0 < e1 {
         std::mem::swap(&mut e0, &mut e1);

@@ -5,7 +5,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import type { HostMesh } from '../../session/host/resources.ts'
 import { MATERIAL_SURFACES_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND, dispatchedEntries } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
@@ -15,6 +14,7 @@ import { webgpuPagesEngine } from '../backend/pages.ts'
 import type { Engine } from '../../session/engine/types.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 const FEEDBACK_TARGET = 'Trillion3D texture feedback target'
 type Gpu = ReturnType<typeof fakeDevice>
@@ -25,7 +25,7 @@ async function opened(textured: boolean) {
   const fixture = quadScene()
   // The pages read their material when the backend is made.
   if (textured)
-    (fixture.source.children[0] as HostMesh).material = G.standardSurface({
+    (fixture.source.children[0] as PageMesh).material = G.standardSurface({
       map: G.dataTexture(new Uint8Array(16).fill(255), 2, 2),
     })
   const backend = webgpuPagesEngine({

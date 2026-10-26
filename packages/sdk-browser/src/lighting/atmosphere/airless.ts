@@ -1,5 +1,6 @@
+import { postSamplers } from '../../gpu/core/postSamplers.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
-import { standInTexture } from '../../gpu/core/standInTexture.ts'
+import { standInBuffer, standInTexture } from '../../gpu/core/standIns.ts'
 import { FRAME_FLOATS } from './frame.ts'
 
 /**
@@ -33,22 +34,18 @@ export const airlessAirOf = oncePerDevice((device: GPUDevice): AirlessAir => {
   return {
     transmittance: white.createView(),
     multiScatter: none.createView(),
-    sampler: device.createSampler({
-      label: 'Trillion3D no air tables',
-      magFilter: 'linear',
-      minFilter: 'linear',
-      addressModeU: 'clamp-to-edge',
-      addressModeV: 'clamp-to-edge',
-    }),
-    volumes: device.createBuffer({
-      label: 'Trillion3D no air volumes',
-      size: VOLUMES_BYTES,
-      usage: GPUBufferUsage.STORAGE,
-    }),
-    frame: device.createBuffer({
-      label: 'Trillion3D no air frame',
-      size: FRAME_FLOATS * 4,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    }),
+    sampler: postSamplers(device).clamped,
+    volumes: standInBuffer(
+      device,
+      'Trillion3D no air volumes',
+      VOLUMES_BYTES,
+      GPUBufferUsage.STORAGE,
+    ),
+    frame: standInBuffer(
+      device,
+      'Trillion3D no air frame',
+      FRAME_FLOATS * 4,
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    ),
   }
 })

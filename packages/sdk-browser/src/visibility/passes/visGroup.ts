@@ -9,7 +9,7 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 export function visGroupFor(rt: WebgpuPagesRuntime, device: GPUDevice, slot: number) {
   const { vis } = rt,
     layout = vis.visBindGroupLayout
-  if (!layout || !vis.gpuDraw || !vis.zeroRows) return
+  if (!layout || !vis.gpuBins || !vis.zeroRows) return
   if (vis.visSlotGroups[slot]) return vis.visSlotGroups[slot]
   // The surfaces' records go up before a group names their texture.
   vis.materialTable.viewFor(device)

@@ -1,45 +1,48 @@
-import { ROW_WORDS } from '../../visibility/types.ts'
-import { rowsMoved, rowsUnread, type RowsReading } from '../../geometry/rows/dirty.ts'
-import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts'
-import { PAGE_INFO } from '../../visibility/pageInfo.ts'
-
-/** Which classes an image draws: a stamp per class key, the keys stamped by the last walk, and
- *  the rows that walk read. */
+/** Which classes the image's clusters wear: a count of the resident clusters of each class key, the
+ *  keys that hold some, and whether a count came to hold some or to hold none since the keys were
+ *  listed. */
 export type PresentClasses = {
-  stamps: Uint32Array
+  counts: Map<number, number>
   keys: number[]
-  stamp: number
-  read: RowsReading
+  moved: boolean
+  /** Advances every time the keys are listed again: a reader of the keys caches on it. */
+  revision: number
 }
 
-/** No class stamped yet, no row read. */
+/** No cluster of any class yet. */
 export const createPresentClasses = (): PresentClasses => ({
-  stamps: new Uint32Array(MATERIAL_CLASS_KEYS),
+  counts: new Map(),
   keys: [],
-  stamp: 0,
-  read: rowsUnread(),
+  moved: false,
+  revision: 0,
 })
 
 /**
- * Classes of the packed rows: one word read per row, on the same table the GPU draws from, each
- * key listed once. A class the image has no row of is not drawn: its full-screen triangle would
- * be refused pixel by pixel, at the cost of a clear. The rows are walked again only when one was
- * written since (`writes`, `rowsMoved`); an image over the same rows reuses the keys.
+ * A resident cluster of class `key` joins the classes (`delta` 1) or leaves them (`delta` -1), as
+ * the cluster residency writes or drops its record (`../../geometry/clusters/clusterResidency.ts`):
+ * the classes of the clusters in the pool, which are those the image's clusters wear.
  */
-export function markPresentClasses(
-  ints: Uint32Array,
-  packedCount: number,
-  into: PresentClasses,
-  writes: number,
-) {
-  if (!rowsMoved(into.read, ints, packedCount, writes)) return into.keys
-  const stamp = ++into.stamp
+export function noteClass(into: PresentClasses, key: number, delta: 1 | -1) {
+  const before = into.counts.get(key) ?? 0,
+    after = before + delta
+  if (after < 0) return
+  if (after === 0) into.counts.delete(key)
+  else into.counts.set(key, after)
+  if (before === 0 || after === 0) into.moved = true
+}
+
+/**
+ * Classes of the resident clusters, each key listed once, in increasing order. A class the pool has
+ * no cluster of is not shaded; a class it has one of, but the image sees none, is shaded over an
+ * empty bin, one indirect dispatch that launches no group. The keys are listed again only when a
+ * class came or went (`noteClass`); an image over the same classes reuses them.
+ */
+export function presentClassKeys(into: PresentClasses) {
+  if (!into.moved) return into.keys
+  into.moved = false
+  into.revision++
   into.keys.length = 0
-  for (let row = 0; row < packedCount; row++) {
-    const key = ints[row * ROW_WORDS + PAGE_INFO.at.materialClass]
-    if (into.stamps[key] === stamp) continue
-    into.stamps[key] = stamp
-    into.keys.push(key)
-  }
+  for (const key of into.counts.keys()) into.keys.push(key)
+  into.keys.sort((a, b) => a - b)
   return into.keys
 }

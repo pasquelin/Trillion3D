@@ -1,7 +1,15 @@
+import { NO_RASTERS } from '../../materials/graph/graphRasters.ts'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { taaShape } from './frame.fixture.ts'
 import { inertTaaDevice } from './device.fixture.ts'
-import { prepareTemporalAntialiasing, setWebgpuTemporalAntialiasing } from './prepare.ts'
+import {
+  prepareTemporalAntialiasing,
+  rigTemporalAgain,
+  setWebgpuTemporalAntialiasing,
+} from './prepare.ts'
+import { graphRastersOf } from '../../materials/graph/graphRasters.ts'
+import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { TAA_CAPABILITIES } from './capability.ts'
 import { beginTaaFrame } from './frame.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
@@ -28,7 +36,7 @@ function runtime(temporalAntialiasing: boolean) {
     layout: { selectionRoots: [] },
     signal: new AbortController().signal,
     capture: { capturing: false },
-    vis: {},
+    vis: { rasters: NO_RASTERS },
     bounce: { wanted: false },
     run: {
       diagnostic: 'beauty',
@@ -73,7 +81,7 @@ test('switched off, the history leaves its targets; on again, it is made at once
   await prepareTemporalAntialiasing(rt, rt.gpu.device!)
   const temporal = rt.gpu.temporal!
   Object.assign(rt.gpu, { hdrTexture: {}, displaySize: [4, 2] })
-  temporal.resize(4, 2, 4, 2)
+  temporal.resize(taaShape(4, 2), 4, 2)
   const bytes = temporal.historyBytes
   assert.ok(bytes > 0)
   rt.gpu.targetBytes = 1000 + bytes
@@ -156,4 +164,25 @@ test('temporal antialiasing rigged during a capture lands on the main view', asy
   for (let turn = 0; turn < 5; turn++) await new Promise(setImmediate)
   assert.ok(main.gpu.temporal, 'held by the main view')
   assert.equal(rt.gpu.temporal, undefined, 'the capture view holds none')
+})
+
+// A graph with an offset joins the session: the pass, its history and the velocity stage it reads are
+// made again over the offsets, once; a session whose offsets stand keeps them.
+test('the temporal pass is rigged again over the offsets of a session that gained one', async () => {
+  const { rt } = runtime(true)
+  await prepareTemporalAntialiasing(rt, rt.gpu.device!)
+  const { temporal, velocity } = rt.gpu
+  assert.ok(temporal && velocity)
+  await rigTemporalAgain(rt, rt.gpu.device!)
+  assert.ok(rt.gpu.temporal === temporal && rt.gpu.velocity === velocity, 'the offsets stand')
+  const g = material.graph('surface')
+  g.output('worldPositionOffset', g.multiply(g.time(), g.constant(1, 0, 0)))
+  rt.vis.rasters = graphRastersOf([{ graph: g }], rt.vis.rasters)
+  await rigTemporalAgain(rt, rt.gpu.device!)
+  assert.ok(rt.gpu.temporal && rt.gpu.temporal !== temporal, 'a pass of its own')
+  assert.ok(rt.gpu.velocity && rt.gpu.velocity !== velocity)
+  assert.equal(rt.gpu.velocity.wpo.programs, rt.vis.rasters.offsets)
+  const again = rt.gpu.temporal
+  await rigTemporalAgain(rt, rt.gpu.device!)
+  assert.equal(rt.gpu.temporal, again, 'once')
 })

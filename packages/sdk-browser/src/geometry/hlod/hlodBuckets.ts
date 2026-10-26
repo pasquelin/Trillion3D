@@ -9,7 +9,7 @@ import type { StreamingSource } from '../partition/source.ts'
 import { NO_CELLS } from '../partition/coarser.ts'
 import type { PartitionGrid } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
-import { appendTo } from '../../../../math/src/sequence/counts.ts'
+import { appendTo, entryOf } from '../../../../math/src/sequence/counts.ts'
 
 /** A bucket's key from its two coordinates: exact while each lies within ±2²⁵. */
 const bucketKey = (ix: number, iz: number) => (ix + 0x2000000) * 0x4000000 + (iz + 0x2000000)
@@ -29,12 +29,12 @@ export function createGridBuckets(
     count = level.length
   const reaches = grids.map(({ range }) => source.radius(range))
   const filed = new Map<number, { side: number; buckets: Map<number, number[]> }>()
+  const newGrid = (grid: number) => ({ side: reaches[grid], buckets: new Map<number, number[]>() })
   for (let cell = 0; cell < count; cell++) {
     // A grid the view reaches nowhere streams no cell.
     const side = reaches[gridOf[cell]]
     if (level[cell] === 0 || !(side > 0)) continue
-    let grid = filed.get(gridOf[cell])
-    if (!grid) filed.set(gridOf[cell], (grid = { side, buckets: new Map() }))
+    const grid = entryOf(filed, gridOf[cell], newGrid)
     const { buckets } = grid,
       at = BOX_VALUES * cell
     for (let ix = Math.floor(bounds[at] / side); ix <= Math.floor(bounds[at + 3] / side); ix++)

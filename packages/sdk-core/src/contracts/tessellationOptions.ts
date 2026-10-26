@@ -3,6 +3,7 @@ import {
   flagSetting as flag,
   integerSetting as integer,
   positiveSetting as positive,
+  contextReader,
   rulesOf,
   type SettingOptions,
   type SettingValues,
@@ -23,7 +24,7 @@ import {
 /** The patches a queue may hold at most: the 16 bytes a patch takes, addressed in 32 bits. */
 const PATCH_ENTRIES: readonly [number, number] = [1, 134217727]
 /** The patches a queue holds when none is named: 2 Mi, the reference's own. */
-const DEFAULT_PATCHES = 2 * 1048576
+const DEFAULT_PATCHES = 2_097_152
 
 /**
  * The tessellation's settings by field, each with the reference's default:
@@ -50,6 +51,9 @@ export const TESSELLATION_RULES = /* @__PURE__ */ (() =>
     flag('tessellationShadowsDirectional', true),
     flag('tessellationShadowsLocal', true),
   ] as const))()
+/** The tessellation setting `field` of a runtime's context (`contextReader`): its default where the
+ *  context holds none. */
+export const readTessellationSetting = /* @__PURE__ */ contextReader(TESSELLATION_RULES)
 /** The field of one tessellation setting. */
 export type TessellationField = keyof typeof TESSELLATION_RULES
 /** The tessellation's settings as a host writes them: each its value, or nothing for its default. */

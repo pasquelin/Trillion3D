@@ -31,7 +31,13 @@ export async function startPhysics(
   const pool =
     message.threads > 1 ? joltWorkerPool(scope.location.href, message.threads, fail) : null
   const opened = await openJolt(await response.arrayBuffer(), budget.memoryBytes, pool)
-  const jolt = startJolt(opened, budget, message.threads, message.step)
+  const jolt = startJolt(
+    opened,
+    budget,
+    message.threads,
+    message.step,
+    message.restitutionThreshold,
+  )
   await pool?.ready()
   return {
     jolt,

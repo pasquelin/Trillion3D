@@ -38,15 +38,13 @@ export const AO_PARAMS = fieldLayout('AoParams', [
 export const AO_PARAMS_BYTES = AO_PARAMS.words * 4
 
 /** The bindings of every occlusion pass's group 0: the uniform, the depth pyramid (`depth`, three bindings), the
- *  surfaces' normals, the half-size depth every search reads its taps from (`half`), the setup texture a pass
- *  reads and the coarser occlusion. */
+ *  surfaces' normals, the setup texture a pass reads and the coarser occlusion. */
 export const AO_BINDINGS = {
   params: 0,
   depth: 1,
   normals: 4,
-  half: 5,
-  setup: 6,
-  lower: 7,
+  setup: 5,
+  lower: 6,
 } as const
 
 /** The formats of the textures the passes draw: the setup's normal and depth, and the occlusion. */

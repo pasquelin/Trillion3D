@@ -38,10 +38,13 @@ fn run_path(o: &Options) -> PathBuf {
 pub(crate) type DagPages = (Vec<Value>, Vec<Option<ClusterPlane>>, Option<PageRun>);
 
 /// One cluster's page as encoded, by DAG slot, before any rank is known: its geometry descriptor,
-/// its bytes and the plane it lies in, when it lies in one.
+/// its bytes on disk alone (the page names only its own vertices: laid with its streaming page it
+/// names those of other clusters too, and its descriptor's `bytes` then say the bytes it takes),
+/// the bytes it takes resident in the pool and the plane it lies in, when it lies in one.
 pub(crate) struct EncodedCluster {
     geometry: Value,
     pub bytes: Vec<u8>,
+    pub resident: usize,
     plane: Option<ClusterPlane>,
 }
 
@@ -67,9 +70,18 @@ pub(crate) fn encode_clusters(
             // The plane is the source's, which the coplanar merge reads.
             let crosses = face_crosses(pos, &cluster.indices);
             let plane = plane_of_triangles((&cluster.indices, pos), &crosses, (min, max), flatness);
+            // A cluster without a size would take no room in its page and every page after it
+            // would overlap it (`lay_bundles`): the record always carries it.
+            let resident = geometry["residentBytes"].as_u64().ok_or_else(|| {
+                CompilerError::new(
+                    "INVALID_PAGE",
+                    "A geometry page record names no resident size",
+                )
+            })? as usize;
             Ok(EncodedCluster {
                 geometry,
                 bytes,
+                resident,
                 plane,
             })
         })
@@ -79,7 +91,8 @@ pub(crate) fn encode_clusters(
 /// The records of the pages of `dag` in culling `order` (rank → slot), each from its cluster's
 /// page as `encoded`, assigned to streaming pages as `assigned` (`assign_pages`, whose fill order
 /// `order` is) and laid end to end in the primitive's run (`PageRun`, `lay_bundles`). A page names
-/// its streaming page (`stream`) and its place there (`streamOffset`).
+/// its streaming page (`stream`) and its place there on disk (`streamOffset`) and in the pool
+/// (`geometry.residentOffset`).
 pub(crate) fn dag_pages(
     o: &Options,
     (dag, groups, boxes): (&[DagCluster], &[DagGroup], &[CullingCluster]),
@@ -98,6 +111,7 @@ pub(crate) fn dag_pages(
         geometry,
         bytes,
         plane,
+        ..
     } in encoded
     {
         bytes_of.push(bytes);
@@ -112,11 +126,13 @@ pub(crate) fn dag_pages(
         pages.push(record);
         planes.push(planes_of[slot].take());
     }
-    let laid = lay_bundles((dag, groups), bytes_of, (assigned, laying))?;
+    let laid = lay_bundles((dag, groups), &bytes_of, (assigned, laying))?;
     for (rank, page) in pages.iter_mut().enumerate() {
         let (stream, offset) = laid.at[order[rank]];
         page["stream"] = json!(stream);
         page["streamOffset"] = json!(offset);
+        page["geometry"]["bytes"] = json!(laid.lengths[order[rank]]);
+        page["geometry"]["residentOffset"] = json!(laid.resident[order[rank]]);
     }
     let max_dependencies = (laid.bundles.iter())
         .map(|bundle| bundle.dependencies.len())

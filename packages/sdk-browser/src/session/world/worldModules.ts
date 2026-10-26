@@ -6,6 +6,7 @@ import {
   SKY_MODULE,
   type ResolvedSky,
 } from '../../../../sdk-core/src/modules/sky/descriptor.ts'
+import { DEFAULT_SKY_QUALITY } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { STATS_MODULE, statsParts } from '../../../../sdk-core/src/modules/stats/descriptor.ts'
 import type { RenderSettingSource } from '../../../../sdk-core/src/runtime/renderSettings.ts'
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
@@ -35,7 +36,7 @@ type Context = { world: StatsSource | undefined; panel: HTMLElement | undefined 
 const IDLE_STATS: StatsHandle = { read: () => null, stop() {}, ready: Promise.resolve() }
 
 const skyRun = (parts: ModuleState['parts']): SkyRun => {
-  const resolved = resolveSky(parts)
+  const resolved = resolveSky(parts, DEFAULT_SKY_QUALITY)
   return { resolved, lights: skyLights(resolved) }
 }
 

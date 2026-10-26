@@ -10,12 +10,14 @@ import type { VolumetricLightmapData } from '../../../../sdk-core/src/lighting/v
 export const VOLUMETRIC_LIGHTMAP_VIEW_WORDS = 16
 
 /** Writes the block of `data` at word `at` of `words`; zeros for no data, or when it is not
- *  `shown` (the option `volumetricLightmap`). */
+ *  `shown` (the option `volumetricLightmap`). `atlasSize` is the atlas texture's, wider than the
+ *  file's where bricks stream into it. */
 export function writeVolumetricLightmapView(
   words: Float32Array,
   at: number,
   data: VolumetricLightmapData | undefined,
   shown: boolean,
+  atlasSize: readonly [number, number, number] | undefined = data?.atlasSize,
 ) {
   words.fill(0, at, at + VOLUMETRIC_LIGHTMAP_VIEW_WORDS)
   if (!data || !shown) return
@@ -24,7 +26,7 @@ export function writeVolumetricLightmapView(
     words[at + axis] = inverseSize
     words[at + 4 + axis] = -data.min[axis] * inverseSize
     words[at + 8 + axis] = data.indirectionSize[axis]
-    words[at + 12 + axis] = 1 / data.atlasSize[axis]
+    words[at + 12 + axis] = 1 / atlasSize![axis]
   }
   words[at + 3] = data.brickSize
 }

@@ -10,7 +10,7 @@ use super::*;
 
 /// A full-scope compilation of the fixture with `nodes` as the scene, `roots` its roots and `edit`
 /// any other change to the document: its options, its tables and its folder.
-fn compiled_with(
+pub(super) fn compiled_with(
     nodes: Vec<Value>,
     roots: Vec<usize>,
     edit: impl FnOnce(&mut Value),

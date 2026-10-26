@@ -26,7 +26,7 @@ test('one write among ten thousand textures visits one slot', () => {
   const colour = atlas(records),
     data = atlas([])
   const journal = textureJournals.open()
-  const follow = samplingHeaders(colour.atlas, data.atlas, journal, new Set())
+  const follow = samplingHeaders(colour.atlas, data.atlas, journal)
   follow(true)
   assert.equal(colour.set.length, 10_000, 'the first follow writes every header once')
   colour.set.length = 0
@@ -41,46 +41,5 @@ test('one write among ten thousand textures visits one slot', () => {
   follow(false)
   assert.equal(visits, 1, 'one record written: one slot visited')
   assert.deepEqual(colour.set, [6790])
-  textureJournals.close(journal)
-})
-
-// A still scene weighs no coverage rule: the host maps' rules are read again only where a reader
-// was filed since the last weighing — by a written surface or by anyone else —, or on a sync. Old
-// code: every render weighed every host colour map's readers.
-test('a still scene weighs no host map’s coverage rule', () => {
-  let weighed = 0
-  const readers = {
-    filings: 0,
-    cutoff: () => (weighed++, 128),
-    follow() {
-      readers.filings++
-    },
-  }
-  const map = new Texture(null)
-  const colour = atlas([map]),
-    data = atlas([])
-  const texture: { source: unknown } = colour.atlas.textures[1]
-  texture.source = {
-    kind: 'host',
-    map,
-    coverage: readers,
-  }
-  const journal = textureJournals.open()
-  const surfaces = new Set<never>()
-  const follow = samplingHeaders(colour.atlas, data.atlas, journal, surfaces)
-  const copies = { refresh: () => true, reduce: () => true }
-  follow(true, new Set(), copies)
-  weighed = 0
-  for (let image = 0; image < 4; image++) follow(false, new Set(), copies)
-  assert.equal(weighed, 0, 'nothing filed: no rule weighed')
-  surfaces.add(undefined as never)
-  follow(false, new Set(), copies)
-  assert.equal(weighed, 1, 'a reader filed: its maps weighed once')
-  follow(false, new Set(), copies)
-  assert.equal(weighed, 1, 'weighed once only')
-  // A surface added at run time is filed by `read`, outside the journal: its maps are weighed.
-  readers.filings++
-  follow(false, new Set(), copies)
-  assert.equal(weighed, 2, 'a reader filed by anyone: its maps weighed')
   textureJournals.close(journal)
 })

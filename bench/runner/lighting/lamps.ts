@@ -69,6 +69,7 @@ function gridLights(
       position: [bounds.min.x + (column + 0.5) * stepX, height, bounds.min.z + (row + 0.5) * stepZ],
       color: [1, 0.96, 0.88],
       intensity,
+      intensityUnits: 'candelas',
       range: cell * rangeFactor,
       castsShadow: shadows,
     })

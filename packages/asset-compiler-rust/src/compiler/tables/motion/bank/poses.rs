@@ -13,7 +13,7 @@
 //! frame's world.
 use super::*;
 use crate::compiler::source::node_transform::{local_matrix, Mat4};
-use crate::compiler::tables::graph::node_parents;
+use crate::compiler::source::nodes::node_parents;
 use crate::compiler::tables::motion::frame::Chain;
 use crate::compiler::tables::motion::sample::{local, rest, Clip, Posed, Trs};
 use trillion3d_math::geometry::aabb::extend_flat;
@@ -63,7 +63,7 @@ pub(super) fn each_frame(
     let mut framed = vec![IDENTITY; chain.nodes.len()];
     let mut joints = vec![IDENTITY; chain.joints.len()];
     for frame in 0..clip.frames() {
-        let t = frame as f64 / ANIMATION_BANK_SAMPLE_RATE;
+        let t = frame as f64 / clip.rate;
         for (at, (&(_, parent), pose)) in chain.nodes.iter().zip(&poses).enumerate() {
             let matrix = match pose {
                 Pose::Still(still) => *still,

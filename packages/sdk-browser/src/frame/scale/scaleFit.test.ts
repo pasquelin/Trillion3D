@@ -5,8 +5,7 @@
 // presented intervals and fits the scale to it by the area ratio (`createScaleControl`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createScaleControl } from './scaleControl.ts'
-import { fitting, HZ120, simulate } from './scaleFit.fixture.ts'
+import { fitting, HZ120, refreshControl, simulate } from './scaleFit.fixture.ts'
 import { HISTORY } from './scaleTargets.ts'
 import { NO_TIMING } from './dynamicResolution.ts'
 
@@ -20,7 +19,7 @@ const tail = <T>(list: T[], n: number) => list.slice(list.length - n)
 
 for (const g of [6, 8, 10, 14]) {
   test(`${g} ms GPU at full scale, 120 Hz: the largest scale that fits one refresh, then held`, () => {
-    const control = createScaleControl('auto'),
+    const control = refreshControl('auto'),
       { shown, scales } = simulate(control, RUN, { gpu: (s) => g * s * s, other: () => OTHER }),
       fit = fitting(g, OTHER),
       last = tail(scales, 240)
@@ -36,7 +35,7 @@ for (const g of [6, 8, 10, 14]) {
 }
 
 test('a 2/3 refresh mix at the floor: the clock reads the refresh, the scale stays at the floor', () => {
-  const control = createScaleControl('auto'),
+  const control = refreshControl('auto'),
     // At the floor, 15 and 18 ms in turn: two refreshes, then three.
     { shown, scales } = simulate(control, RUN, { gpu: (s, f) => (f % 2 ? 60 : 72) * s * s })
   assert.ok(Math.abs(control.refreshMs! - HZ120) < 1e-6, `${control.refreshMs}`)
@@ -51,7 +50,7 @@ test('a 2/3 refresh mix at the floor: the clock reads the refresh, the scale sta
 
 /** A controller converged on a 10 ms page at 120 Hz, and the clock it ran on. */
 function converged() {
-  const control = createScaleControl('auto'),
+  const control = refreshControl('auto'),
     clock = { now: 0, frame: 0 }
   simulate(control, RUN, { gpu: (s) => 10 * s * s, other: () => OTHER }, clock)
   return { control, clock, at: control.wanted() }
@@ -89,7 +88,7 @@ test('a hidden tab: its pause is no frame, and the scale holds', () => {
 })
 
 test('a fixed scale is never moved', () => {
-  const control = createScaleControl(0.75)
+  const control = refreshControl(0.75)
   simulate(control, RUN, { gpu: (s) => 20 * s * s, other: () => OTHER })
   assert.equal(control.wanted(), 0.75)
 })
@@ -103,7 +102,7 @@ for (const [hz, g, holds] of [
 ] as const) {
   test(`a page heavy from its first frame on a ${hz} Hz display ${holds}`, () => {
     const refresh = 1000 / hz,
-      control = createScaleControl('auto'),
+      control = refreshControl('auto'),
       { shown, scales } = simulate(
         control,
         RUN,
@@ -125,7 +124,7 @@ for (const [hz, g, holds] of [
 /** An 'auto' control past its refresh measure, the edge budget 10 ms, and its images: each takes
  *  `ms` on the GPU in all, `edgeMs` for the cut and its raster, drawn at the fractions in force. */
 function budgeted() {
-  const control = createScaleControl('auto'),
+  const control = refreshControl('auto'),
     clock = { now: 0 }
   for (let i = 0; i < 8; i++) {
     control.tick((clock.now += HZ120), true)
@@ -209,7 +208,7 @@ test('a silent timer, another display and other bounds forget both budgets', () 
 })
 
 test('a fixed render scale has no dynamic resolution: the edge scale stays at 1', () => {
-  const control = createScaleControl(1)
+  const control = refreshControl(1)
   control.edge.ask(10, 30)
   for (let i = 0; i < 40; i++) {
     control.tick(i * HZ120, true)

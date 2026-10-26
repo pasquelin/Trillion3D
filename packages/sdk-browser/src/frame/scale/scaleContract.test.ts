@@ -3,26 +3,26 @@
 // (`createScaleControl`; the rule's own search is `scaleFit.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createScaleControl } from './scaleControl.ts'
-import { HZ120, HZ60, lowered, simulate } from './scaleFit.fixture.ts'
+import { HZ120, HZ60, lowered, refreshControl, simulate } from './scaleFit.fixture.ts'
+import type { ScaleControl } from './scaleControl.ts'
 
 /** A display at 120 Hz, measured over a few frames. */
-function at120(control: ReturnType<typeof createScaleControl>) {
+function at120(control: ScaleControl) {
   for (let frame = 0; frame < 4; frame++) control.tick((frame * 1000) / 120)
 }
 
 // The targets followed the drawn size on a ladder of eighths, remade at each rung crossed.
 test('the targets are made at the bounds maximum, whatever the controller draws', () => {
-  const control = createScaleControl({ min: 0.5, max: 1 })
+  const control = refreshControl({ min: 0.5, max: 1 })
   assert.equal(control.allocated(), 1)
   simulate(control, 300, { gpu: (s) => 40 * s * s })
   assert.equal(control.wanted(), 0.5)
   assert.equal(control.allocated(), 1, 'the controller at its minimum remakes nothing')
-  assert.equal(createScaleControl(0.6).allocated(), 0.6, 'a fixed scale is its own')
+  assert.equal(refreshControl(0.6).allocated(), 0.6, 'a fixed scale is its own')
 })
 
 test('a scale the GPU budget refused holds the targets an eighth below it at that view size', () => {
-  const control = createScaleControl('auto')
+  const control = refreshControl('auto')
   at120(control)
   const view = '3456x2234'
   assert.equal(control.allocated(view), 1)
@@ -36,13 +36,13 @@ test('a scale the GPU budget refused holds the targets an eighth below it at tha
   assert.ok(control.wanted() <= 6 / 8, 'the scale holds under the cap')
   control.uncapMemory()
   assert.equal(control.allocated(view), 1, 'the room came back: the targets grow again')
-  const fixed = createScaleControl({ min: 1, max: 1 })
+  const fixed = refreshControl({ min: 1, max: 1 })
   assert.equal(fixed.capMemory(), false, 'no eighth below the bounds')
   assert.equal(fixed.allocated(), 1)
 })
 
 test('a light page capped by the memory budget stays under the cap, then grows when it lifts', () => {
-  const control = createScaleControl('auto'),
+  const control = refreshControl('auto'),
     clock = { now: 0, frame: 0 }
   simulate(control, 120, { gpu: () => 2 }, clock)
   assert.equal(control.capMemory('v'), true)
@@ -58,7 +58,7 @@ test('a light page capped by the memory budget stays under the cap, then grows w
 
 // The wait a refusal sets was kept in a table of its own beside the grant's retry frame.
 test('a refused size waits, twice as long at each refusal at its view size, the cap lifted after', () => {
-  const control = createScaleControl('auto')
+  const control = refreshControl('auto')
   at120(control)
   assert.equal(control.memoryRefused('v', 0), 300)
   assert.equal(control.memoryRefused('v', 300), 900, 'twice the wait at the same view size')
@@ -71,7 +71,7 @@ test('a refused size waits, twice as long at each refusal at its view size, the 
 })
 
 test('the control reads back the measured refresh and the last frame interval', () => {
-  const control = createScaleControl('auto')
+  const control = refreshControl('auto')
   assert.equal(control.refreshMs, null, 'no period before the clock finds one')
   control.tick(0)
   assert.equal(control.frameIntervalMs, null, 'one frame holds no interval')
@@ -83,7 +83,7 @@ test('the control reads back the measured refresh and the last frame interval', 
 })
 
 test('a fixed scale ignores the timings, and asking again restarts at the maximum', () => {
-  const control = createScaleControl(0.7)
+  const control = refreshControl(0.7)
   simulate(control, 120, { gpu: () => 40 })
   assert.equal(control.wanted(), 0.7)
   control.set({ min: 0.5, max: 0.9 })
@@ -92,8 +92,8 @@ test('a fixed scale ignores the timings, and asking again restarts at the maximu
 })
 
 test('asking another scale restarts the controller, which then measures its own scale', () => {
-  const control = createScaleControl('auto'),
-    clock = lowered(createScaleControl('auto'), 20)
+  const control = refreshControl('auto'),
+    clock = lowered(refreshControl('auto'), 20)
   simulate(control, 120, { gpu: (s) => 20 * s * s }, clock)
   assert.ok(control.wanted() < 1)
   control.set({ min: 0.5, max: 1 })
@@ -105,7 +105,7 @@ test('asking another scale restarts the controller, which then measures its own 
 // At a fixed scale the budget followed a GPU-bound cadence, and the refresh read it: a
 // 120 Hz display at 109 ms frames read 94.76 ms. The display's refresh is what the display shows.
 test("frames held many refreshes at a fixed scale leave the display's refresh as it is", () => {
-  const control = createScaleControl(1)
+  const control = refreshControl(1)
   let now = 0
   for (let frame = 0; frame < 120; frame++) control.tick((now += HZ120))
   // Eleven and thirteen refreshes a frame for three seconds: the thirteen are pauses to the clock.
@@ -115,7 +115,7 @@ test("frames held many refreshes at a fixed scale leave the display's refresh as
 
 test('a second tick within one display frame counts no frame', () => {
   const run = (twice: boolean) => {
-    const control = createScaleControl('auto'),
+    const control = refreshControl('auto'),
       scales: number[] = []
     let now = 0
     for (let frame = 0; frame < 120; frame++) {
@@ -144,14 +144,14 @@ for (const [hz, refresh] of [
   [60, HZ60],
 ] as const)
   test(`a device that holds ${hz} Hz without GPU times keeps the full scale`, () => {
-    const control = createScaleControl('auto'),
+    const control = refreshControl('auto'),
       { scales } = simulate(control, 600, { gpu: () => 2, timed: false }, undefined, refresh)
     assert.ok(scales.every((s) => s === 0 || s === 1))
     assert.equal(control.wanted(), 1)
   })
 
 test('one late frame at 120 Hz leaves an idle scene at the full scale', () => {
-  const control = createScaleControl('auto')
+  const control = refreshControl('auto')
   const clock = { now: 0, frame: 0 }
   simulate(control, 240, { gpu: () => 2 }, clock)
   clock.now += 6
@@ -162,7 +162,7 @@ test('one late frame at 120 Hz leaves an idle scene at the full scale', () => {
 // A period held on its grid never rose: a window moved to 60 Hz kept 8.3 ms.
 for (const timed of [true, false])
   test(`a window moved from 120 to 60 Hz goes back to the full scale, ${timed ? 'with' : 'without'} GPU times`, () => {
-    const control = createScaleControl('auto'),
+    const control = refreshControl('auto'),
       clock = { now: 0, frame: 0 },
       screen = { width: 1728, height: 1117 }
     Object.assign(globalThis, { screen, devicePixelRatio: 2 })

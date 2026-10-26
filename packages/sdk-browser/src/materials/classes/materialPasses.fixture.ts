@@ -1,12 +1,10 @@
-import { ROW_WORDS } from '../../visibility/types.ts'
-import { createPresentClasses } from '../../gpu/core/presentClasses.ts'
+import { createPresentClasses, noteClass } from '../../gpu/core/presentClasses.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import {
   commandArgs,
   type PassCommands,
 } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
-import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /** The pipelines a pass set, in order. */
 export const pipelinesOf = (pass: { commands: PassCommands }) =>
@@ -16,13 +14,14 @@ export const drawsOf = (pass: { commands: PassCommands }) =>
   commandArgs(pass.commands, 'draw').length
 
 /** A runtime reduced to what the resolve reads, on the kit's device and one of its encoders: its
- *  render passes and compute passes are the device's records. Its class set holds `compiled`;
+ *  render passes and compute passes are the device's records. A resident cluster wears each of
+ *  `classes` (`PresentClasses`), none a displaced one. Its class set holds `compiled`;
  *  `made` names each class a pipeline's `get` had to compile — one nothing asked
  *  (`PreparedPipeline.get`). Its bins record what the resolve asks of them (`bins`): the keys
  *  assigned, the images laid, binned and the classes dispatched, by their rank among the keys. */
 export function resolveFixture(classes: number[], compiled: number[]) {
-  const ints = new Uint32Array(ROW_WORDS * classes.length)
-  classes.forEach((key, row) => (ints[row * ROW_WORDS + PAGE_INFO.at.materialClass] = key))
+  const presentClasses = createPresentClasses()
+  for (const key of classes) noteClass(presentClasses, key, 1)
   const made: number[] = []
   const bins = {
     assigned: [] as number[][],
@@ -41,7 +40,6 @@ export function resolveFixture(classes: number[], compiled: number[]) {
     run: { feedbackWritten: false, gpuComputeDispatches: 0 },
     // The shading's settings at their defaults (`shadingOptions.ts`).
     context: {},
-    layout: { rows: { pageTableInts: ints, packedCount: classes.length } },
     vis: {
       // No displaced surface: no class shades through the displaced pipelines.
       materialTable: { displaced: { count: 0 } },
@@ -56,8 +54,10 @@ export function resolveFixture(classes: number[], compiled: number[]) {
         }),
         keys: () => ordinary.keys(),
       },
-      presentClasses: createPresentClasses(),
+      presentClasses,
+      displacedClasses: createPresentClasses(),
       visView: 'ids',
+      gpuRaster: { shadingMask: 'masks' },
       pageTable: 'pages',
       shadeUniform: 'uniform',
       shadeBins: {

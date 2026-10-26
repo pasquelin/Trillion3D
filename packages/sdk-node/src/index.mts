@@ -35,9 +35,6 @@ export type {
   CompilationResult,
   CompilationSummary,
   CompilerEvent,
-  CutoutModel,
-  CutoutReviewOptions,
-  CutoutReviewSummary,
   PrepareOptions,
   ProgressPointer,
   ProgressStream,
@@ -89,49 +86,27 @@ export {
   resolveMaterials,
   resolveResponsive,
   resolveTemporalAntialiasing,
-  temporalAntialiasingShare,
+  responsiveLevel,
 } from '../../sdk-core/src/contracts/materialOptions.ts'
 export type {
   MaterialSettings,
   MaterialsOption,
   ResponsiveOption,
+  ResponsiveSetting,
   TemporalAntialiasingOption,
-  TemporalAntialiasingShare,
 } from '../../sdk-core/src/contracts/materialOptions.ts'
 export type { TemporalAntialiasingLevel } from '../../sdk-core/src/contracts/compilerAbi.ts'
 export { resolveHlod } from '../../sdk-core/src/contracts/hlodOptions.ts'
 export type {
   HlodExpert,
-  HlodGroup,
-  HlodMatch,
   HlodOptions,
   HlodPattern,
   HlodSimple,
 } from '../../sdk-core/src/contracts/hlodOptions.ts'
 export type { HlodBuilder, HlodLayer } from '../../sdk-core/src/contracts/compilerAbi.ts'
-// The wire forms a job's options are written in, named where the resolvers' signatures carry them.
-export type {
-  DrawDistanceWire,
-  HlodApproximation,
-  HlodExpertOf,
-  HlodMatchOf,
-  HlodMeshBuildWire,
-  HlodSimplifySettings,
-  HlodWire,
-  HlodWireMatch,
-  HlodWirePattern,
-  MaterialSettingsWire,
-  MeshBuildSettingsWire,
-  MeshBuildWire,
-  MeshInputSettingsWire,
-  MeshVoxelSettingsWire,
-  ObjectSettingsJobWire,
-  ObjectSettingsWire,
-  SkinnedInstanceWire,
-} from '../../sdk-core/src/contracts/compilerAbi.ts'
+export type * from './wireForms.mts'
 export type { NameMatch, NamePattern } from '../../sdk-core/src/contracts/nameMatch.ts'
 export { createTerminalProgress, createBatchProgress } from './cli/progress.mts'
-export { reviewCutouts } from './cutout/review.mts'
 /**
  * Compiles a source model into the cache a page loads. Native is the production path: the host
  * supplies the executable explicitly or through the environment.

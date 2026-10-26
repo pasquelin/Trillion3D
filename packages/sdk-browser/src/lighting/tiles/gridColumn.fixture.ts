@@ -13,7 +13,7 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.t
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 
-/** The view grid's compaction: a column's depth slices. */
+/** The view grid's compaction, which drops past its pool: a column's depth slices. */
 export const GRID_COMPACT_WGSL = gridCompactWgsl(LIGHT_SETTINGS.gridSlices)
 
 const W = { ...wgslConstants(directLightWgsl()), ...wgslConstants(GRID_COMPACT_WGSL) }
@@ -50,7 +50,7 @@ const u32 = (op: string, a: unknown, b: unknown) => {
   return builtins.$b(op, a, b)
 }
 /** The pass's workgroup scalars, read through one object the harness sees too. */
-const SCALARS = /\b(cached|resume|walked)\b/g
+const SCALARS = /\b(cached|resume|walked|granted)\b/g
 const NAMES = ['markEntry', 'countSlices', 'writeSlices', 'cacheEntry', 'laneRun', 'ceilDiv']
 const BATCH = ['wholeLanes', 'keptCount', 'clearBatch']
 const ROOM = ['roomBefore', 'takeRoom', 'dealRoom']
@@ -58,7 +58,7 @@ const ROOM = ['roomBefore', 'takeRoom', 'dealRoom']
 /** The shipped routines over one workgroup's memory and the pool, its batch `lanes` wide. */
 function workgroup(pool: Pool, words: Map<number, number>, lanes: number) {
   const laneWords = bitWords(lanes)
-  const ws = { cached: 0, resume: ALL_CACHED, walked: [0, 0, 0, 0], marks: 0 }
+  const ws = { cached: 0, resume: ALL_CACHED, walked: [0, 0, 0, 0], granted: 0, marks: 0 }
   // A slice's mask set to anything but zero: one lane's bit marked there.
   const marked = (masks: number[], at: string | symbol, value: number) => (
     value && ws.marks++,
@@ -74,6 +74,7 @@ function workgroup(pool: Pool, words: Map<number, number>, lanes: number) {
     keptLanes: new Array<number>(laneWords).fill(0),
     counts: new Array<number>(GRID_SLICES).fill(0),
     cursor: new Array<number>(GRID_SLICES).fill(0),
+    ends: new Array<number>(GRID_SLICES).fill(0),
     cache: [] as number[][],
   }
   const tiles = new Proxy([], { set: (_, at, value) => (words.set(Number(at), value), true) })
@@ -112,13 +113,13 @@ function dealRoom({ ws, fns, lanes: width }: ReturnType<typeof workgroup>, count
   for (const lane of lanes) fns.dealRoom(spans[lane], before[lane], ws.walked[3] as never)
 }
 
-/** A column of slice counts `counts` taking its room in `pool`: its cursors, and whether its
- *  second walk writes. */
+/** A column of slice counts `counts` taking its room in `pool`: its counts cut to the room, its
+ *  cursors, and whether its second walk writes. */
 export function columnRoom(counts: number[], pool: Pool) {
   const group = workgroup(pool, new Map(), WORKGROUP_THREADS)
   group.memory.counts.splice(0, GRID_SLICES, ...counts)
   dealRoom(group, 0)
-  return { cursor: group.memory.cursor, room: group.ws.walked[0] }
+  return { counts: group.memory.counts, cursor: group.memory.cursor, room: group.ws.walked[0] }
 }
 
 /** The column of lights `runs`, its room taken in `pool`, as the pass runs it in batches of
@@ -159,30 +160,33 @@ export function shippedColumn(runs: Run[], pool: Pool, lanes = WORKGROUP_THREADS
   return { ...records, marks: ws.marks }
 }
 
-/** The same column, serially: each slice's lights in increasing order, its room after the last. */
+/** The same column, serially: each slice's lights in increasing order, its room after the last; the
+ *  pool's room used up, the slices after keep fewer lights, none at the end. */
 export function serialColumn(runs: Run[], pool: Pool): Column {
   const lists = Array.from({ length: GRID_SLICES }, (_, slice) =>
     runs.flatMap((run, i) => (run && run.first <= slice && slice <= run.last ? [i] : [])),
   )
-  const counts = lists.map(
-    (list) => (list.length | (list.some((i) => runs[i]!.slot) ? TILE_SHADOWED : 0)) >>> 0,
-  )
   const total = lists.reduce((sum, list) => sum + list.length, 0)
   let at = 0,
-    fits = true
+    kept = 0
   if (total > 0) {
     at = pool.head < 0x80000000 ? pool.head : 0xffffffff
     if (pool.head < 0x80000000) pool.head = (pool.head + total) >>> 0
-    fits = at < pool.capacity && total <= pool.capacity - at
-    if (!fits) pool.overflow = 1
+    if (at < pool.capacity) kept = Math.min(total, pool.capacity - at)
+    else at = pool.capacity
+    if (kept < total) pool.overflow = 1
   }
   const words = new Map<number, number>()
-  let next = pool.start + at
-  const cursor = lists.map((list) => {
-    const start = fits ? next >>> 0 : TILE_NO_SLICE
-    if (fits) list.forEach((light, k) => words.set(start + k, light))
-    next += list.length
-    return start
+  let offset = 0
+  const counts: number[] = [],
+    cursor: number[] = []
+  lists.forEach((list, slice) => {
+    const take = offset < kept ? Math.min(list.length, kept - offset) : 0
+    const start = (pool.start + at + Math.min(offset, kept)) >>> 0
+    list.slice(0, take).forEach((light, k) => words.set(start + k, light))
+    counts[slice] = (take | (list.some((i) => runs[i]!.slot) ? TILE_SHADOWED : 0)) >>> 0
+    cursor[slice] = start
+    offset += list.length
   })
   return { counts, cursor, words }
 }

@@ -6,11 +6,13 @@
  * depth, its fragment writing no colour (`../../blend/frontStageWgsl.ts`):
  *
  * - a fragment that covers its pixel (`REFLECTION_FRONT_COVERAGE`) writes its depth, a step behind
- *   the surface, into the front layer of the Hi-Z's level 0 (`GpuHiz.front`), which the nearest build
+ *   the surface, into the front layer of the Hi-Z's level 0 (`GpuHiz.front`), which the full build
  *   folds in (`hizFrontDepth`): the same march, pyramid and radiance answer a pane as a wall, this
  *   very image's, for the reflections and the lights' screen rays alike;
  * - a fragment that reflects (lit, of the physical model) writes the surface the trace reads, as the
- *   surface buffer holds the opaque one's: its flags, its normal and roughness, its lobes.
+ *   surface buffer holds the opaque one's: its flags, its normal and roughness, its lobes — where the settings trace the front
+ *   layer (`ReflectionSettings.frontLayer`, `reflectionFrontLayer`: off by default, never at the level `high`, always at
+ *   `cinematic`); without it the pass writes the covering depth alone and no front surface is traced.
  *
  * The nearest of the fragments that do either is kept (its depth, `depth`). The trace answers the
  * front surface as the opaque one (`trace/trace.ts`), on its own grids (`grids`) and history, through the
@@ -18,7 +20,7 @@
  * here (`traced`), both lobes' on a shared exponent. A forward fragment whose depth
  * is the front depth, in an image whose trace answered the front (`reflectionView.front.x`), reads its
  * reflection there, one load; any other — a surface behind the front one — reads the chain without
- * the proxy: the screen, the probes and the environment, never a ray.
+ * the scene trace: the screen, the probes and the environment, never a ray.
  *
  * Made with the reflection (`gpu.ts`): its depth and flags at the view's size where the scene has
  * blends, a texel without; its normals, lobes, grids and radiance a texel until the first pass of a
@@ -29,7 +31,7 @@
  * base map's read, the material's where they reflect, no lighting —; the trace over the view, T pixels
  * traced, reused and accumulated as the opaque surface's (`trace/trace.ts`), the rest a flag load each; a
  * forward fragment of the front layer, a depth texel and an 8-byte load. Worst case of
- * a fragment: a deeper one, the screen march (`reflectionScreenSteps` iterations) and the probes, no proxy
+ * a fragment: a deeper one, the screen march (`reflectionScreenSteps` iterations) and the probes, no scene
  * ray. Floor: the opaque trace's own cost, on the T pixels the reflecting transparents cover.
  *
  * Bytes: 4 + 4 a pixel (depth, flags) with blends; 8 + 8 + 23 more (normals, radiance, the grid's 28

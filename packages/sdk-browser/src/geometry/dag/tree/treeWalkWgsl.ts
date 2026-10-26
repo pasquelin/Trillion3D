@@ -70,29 +70,8 @@ const childEntry = (t: TreeWalk) => {
     }`
 }
 
-/**
- * THE ONE WALK OF THE PLACEMENT TREE BY A RAY (`../placement/placementTree.ts`): FRONT TO BACK, from its top. One scan of a
- * node reads its children's boxes — a cell's nodes, a group's members by theirs (`entry`) — and keeps the
- * `WALK_LIST` nearest the ray meets before the best hit (`best`), by entry then index; the walk enters them
- * in that order, and a kept child past the best hit ends the node: every later one is farther. A node with
- * more children met than its list holds is scanned again from after the last one kept. So a ray's budget
- * goes to the surfaces nearest it: in index order, a long ray across a dense field spent it on the far
- * patches it met first. A host that reads no member's box (the ray query, bounded by its steps alone)
- * enters a group's members in turn, each testing its own.
- *
- * A level holds its node, its list (`WALK_LIST` indices and entries), how many it holds and has entered,
- * the last kept and whether the scan left any out: `2 · WALK_LIST + 6` words, `WALK_DEPTH` levels. Cost: a
- * scan is `count` box tests (at most `TREE_SPAN`), a step and a `visit` each — as one child each cost in
- * index order —, entering a child none; a node is scanned again only where more than `WALK_LIST` of its
- * children lie nearer than every hit they hold. The walk is bounded by `steps`: the proxy's ray by
- * `2 · RAY_WORK`, a unit a box (`../../../lighting/bounce/runtime/runtimeSceneWgsl.ts`).
- *
- * The run-time proxy's rays and the ray query (`../../../lighting/rays/rayQueryWgsl.ts`) walk it so, each
- * reading the tree in its record table (`treeTable.ts`). The text is a function's body: it reads
- * `origin`, `inverse` and `best`, and declares `at`, `held`, `heldEntry`, `size`, `taken`, `last`,
- * `lastEntry`, `more`, `slot`, `level`, `step` and `done`.
- */
-export const placementTreeWalk = (t: TreeWalk) => `
+/** The walk's levels declared, its first level, and the head of each step. */
+const walkHeadWgsl = (t: TreeWalk) => `
   var at:array<u32,WALK_DEPTH>;
   var held:array<u32,WALK_HELD>;
   var heldEntry:array<f32,WALK_HELD>;
@@ -115,10 +94,13 @@ export const placementTreeWalk = (t: TreeWalk) => `
    let count=${t.table}Word(node,WALK_NODE_COUNT);
    let first=${t.table}Word(node,WALK_NODE_FIRST);
    let group=${t.table}Word(node,WALK_NODE_KIND)==WALK_GROUP;
-   ${
-     t.entry
-       ? ''
-       : `if(group){
+   `
+
+/** A group's next member, entered in turn, for a host that reads no member's box. */
+const walkGroupWgsl = (t: TreeWalk) => `${
+  t.entry
+    ? ''
+    : `if(group){
     // The group's next member, from its first: \`last\` its cursor.
     let k=last[level]+1u;
     if(k>=count){
@@ -135,8 +117,11 @@ export const placementTreeWalk = (t: TreeWalk) => `
     }
     continue;
    }`
-   }
-   if(taken[level]>=size[level]){
+}
+`
+
+/** The scan of a node: its nearest children met before the best hit, held in order. */
+const walkScanWgsl = (t: TreeWalk) => `   if(taken[level]>=size[level]){
     if(!more[level]){
      if(level==0u){done=true;break;}
      level--;
@@ -172,7 +157,10 @@ export const placementTreeWalk = (t: TreeWalk) => `
     if(n>0u){last[level]=held[level*WALK_LIST+n-1u];lastEntry[level]=heldEntry[level*WALK_LIST+n-1u];}
     continue;
    }
-   let slot=level*WALK_LIST+taken[level];
+`
+
+/** The next child held, entered, and the answer of a walk that ran out of steps. */
+const walkEnterWgsl = (t: TreeWalk) => `   let slot=level*WALK_LIST+taken[level];
    taken[level]++;
    // Past the best hit: so is every child after it, kept or not.
    if(!(heldEntry[slot]<=best.distance)){taken[level]=size[level];more[level]=false;continue;}
@@ -192,59 +180,25 @@ export const placementTreeWalk = (t: TreeWalk) => `
   // A walk that ran out of steps, not of tree, answers nothing it can vouch for.
   if(!done){${t.cut}}`
 
-/** What differs between the any-hit walks (`placementTreeAnyHit`): the walk's own fields, none of its ordering. */
-type AnyHitWalk = Pick<TreeWalk, 'root' | 'table' | 'enter' | 'stop' | 'visit' | 'steps' | 'cut'>
-
 /**
- * THE ANY-HIT WALK OF THE PLACEMENT TREE, for a ray that asks only whether something stands on its
- * segment — a shadow ray —: no nearest surface, so no order, and nothing kept to order by. The tree is
- * walked once, in index order: a child's box is tested a single time, a cell the ray meets is entered at
- * once and its parent resumed after it, a group's members are entered in turn (`enter` tests each one's own
- * box, and `return`s at the first surface it meets). A node's children cost one `visit` each however many
- * of them the ray meets, where the front-to-back walk (`placementTreeWalk`) reads a node again for every
- * `WALK_LIST` of them. The same bound (`steps`), the same `cut` for a walk that ran out of steps; the text
- * is a function's body reading `origin`, `inverse` and `best`, and declaring `at`, `next`, `level`, `step`
- * and `done`.
+ * THE ONE WALK OF THE PLACEMENT TREE BY A RAY (`../placement/placementTree.ts`): FRONT TO BACK, from its top. One scan of a
+ * node reads its children's boxes — a cell's nodes, a group's members by theirs (`entry`) — and keeps the
+ * `WALK_LIST` nearest the ray meets before the best hit (`best`), by entry then index; the walk enters them
+ * in that order, and a kept child past the best hit ends the node: every later one is farther. A node with
+ * more children met than its list holds is scanned again from after the last one kept. So a ray's budget
+ * goes to the surfaces nearest it: in index order, a long ray across a dense field spent it on the far
+ * patches it met first. A host that reads no member's box (the ray query, bounded by its steps alone)
+ * enters a group's members in turn, each testing its own.
+ *
+ * A level holds its node, its list (`WALK_LIST` indices and entries), how many it holds and has entered,
+ * the last kept and whether the scan left any out: `2 · WALK_LIST + 6` words, `WALK_DEPTH` levels. Cost: a
+ * scan is `count` box tests (at most `TREE_SPAN`), a step and a `visit` each — as one child each cost in
+ * index order —, entering a child none; a node is scanned again only where more than `WALK_LIST` of its
+ * children lie nearer than every hit they hold. The walk is bounded by `steps`, a unit a box.
+ *
+ * The ray query (`../../../lighting/rays/rayQueryWgsl.ts`) walks it so, reading the tree in its record table (`treeTable.ts`). The text is a function's body: it reads
+ * `origin`, `inverse` and `best`, and declares `at`, `held`, `heldEntry`, `size`, `taken`, `last`,
+ * `lastEntry`, `more`, `slot`, `level`, `step` and `done`.
  */
-export const placementTreeAnyHit = (t: AnyHitWalk) => `
-  var at:array<u32,WALK_DEPTH>;
-  var next:array<u32,WALK_DEPTH>;
-  var level=0u;
-  var step=0u;
-  var done=false;
-  at[0]=${t.root};
-  next[0]=0u;
-  while(step<${t.steps}){
-   ${t.stop}
-   let node=at[level];
-   let count=${t.table}Word(node,WALK_NODE_COUNT);
-   let first=${t.table}Word(node,WALK_NODE_FIRST);
-   let group=${t.table}Word(node,WALK_NODE_KIND)==WALK_GROUP;
-   var into=false;
-   for(var k=next[level];k<count;k++){
-    if(step>=${t.steps}){break;}
-    ${t.stop}
-    step++;
-    ${t.visit}
-    if(group){
-     let w=${t.table}Member(first+k);
-     if(w!=NO_INDEX){
-      ${t.enter}
-     }
-    }else if(level+1u<WALK_DEPTH&&rayBoxEntry(${t.table}Low(first+k),${t.table}High(first+k),origin,inverse,best.distance)<=best.distance){
-     next[level]=k+1u;
-     level++;
-     at[level]=first+k;
-     next[level]=0u;
-     into=true;
-     break;
-    }
-   }
-   if(done||step>=${t.steps}){break;}
-   if(into){continue;}
-   // Every child of this node is read: back to its parent, or the tree's end.
-   if(level==0u){done=true;break;}
-   level--;
-  }
-  // A walk that ran out of steps, not of tree, answers nothing it can vouch for.
-  if(!done){${t.cut}}`
+export const placementTreeWalk = (t: TreeWalk) =>
+  walkHeadWgsl(t) + walkGroupWgsl(t) + walkScanWgsl(t) + walkEnterWgsl(t)

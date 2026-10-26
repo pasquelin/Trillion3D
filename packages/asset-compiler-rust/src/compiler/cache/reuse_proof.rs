@@ -21,11 +21,6 @@ pub(crate) fn prove(
     let root: Value = serde_json::from_slice(head).map_err(|e| format!("manifest: {e}"))?;
     // The root first: a folder of another job or format is refused before a page is read.
     let format = check_head(&root, key, &o.scope)?;
-    // The answer sheet is a product of every compilation, at the cache root: a
-    // host reads "nothing to answer" in its absence, so a folder without it is not whole.
-    if !o.cache.join(crate::cutout::DECISIONS_FILE).is_file() {
-        return Err("cutout answer sheet is missing".into());
-    }
     // The objects are named by the manifest's head by the rule prune keeps them by
     // (`object_descriptors`), the chains by the sidecar columns (`baked_chains`), each sidecar proven as its page is read, and read once: the digests and
     // levels proven are what prune keeps.

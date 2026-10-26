@@ -51,9 +51,9 @@ fn identical_fingerprint_reuses_the_folder_without_rebuilding() {
         report["textureLevels"], 1,
         "one baked level proven, in the stored blocks: {report}"
     );
-    // source.gltf, source.bin, proxy.bin, lights.json, scene-tables.json, physics.json,
-    // voxels.bin.
-    assert_eq!(report["files"], 7, "every product recorded: {report}");
+    // source.gltf, source.bin, lights.json, scene-tables.json, physics.json, voxels.bin,
+    // distanceFields.bin and meshCards.bin: a mesh builds its field and its cards unless told not to.
+    assert_eq!(report["files"], 8, "every product recorded: {report}");
     assert!(
         second["metrics"]["clusterHierarchyPagesMs"].is_null(),
         "no DAG built"

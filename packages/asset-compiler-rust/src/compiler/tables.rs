@@ -5,8 +5,7 @@
 //! parsed at runtime.
 //!
 //! Source of every value: the glTF this same compilation publishes as `source.gltf` — after the
-//! slice kept its nodes, after the cutout answers rewrote their materials, after the mesh ranks
-//! were remapped. Anything read from the input document instead would describe a scene nobody
+//! slice kept its nodes, after the mesh ranks were remapped. Anything read from the input document instead would describe a scene nobody
 //! draws.
 //!
 //! No lamp is written here: `lights.json` (`lights.rs`) is the one reading of a light —
@@ -25,11 +24,13 @@ mod motion;
 pub(crate) mod partition;
 mod physical;
 mod sparse;
+mod staging;
 mod textures;
 pub(crate) mod uv_density;
 use documents::document_table;
-use graph::{camera_table, name_of, node_table, scene_roots};
+use graph::{camera_table, name_object_settings, name_of, node_table, scene_roots};
 use materials::material_entry;
+use staging::{banks_product, surface_tables, write_tables};
 use textures::texture_table;
 
 /// Version of the `scene-tables.json` cache product. It lives outside the manifest: its version is
@@ -54,23 +55,27 @@ const SCENE_TABLES_VERSION: u32 = 9;
 /// an instanced skinned node the core keeps plays, hung under its skin's frame at no pose
 /// (`"bank"`, `partition.rs`).
 const NODE_TABLE_VERSION: u32 = 7;
-/// The material table's version. An entry's `temporalAntialiasing`, its history share written only
-/// below 1, is optional: a reader that does not know it reads the material as before. Version 5
-/// names the share in place of version 4's `responsive: true`.
-const MATERIAL_TABLE_VERSION: u32 = 5;
+/// The material table's version. An entry's `responsive`, its temporal responsiveness level
+/// written only above `off`, is optional: a reader that does not know it reads the material as
+/// before. Version 6 names the level; versions 4 and 5 wrote `responsive: true` and a
+/// `temporalAntialiasing` number in its place.
+const MATERIAL_TABLE_VERSION: u32 = 6;
 const GEOMETRY_TABLE_VERSION: u32 = 1;
 const SCENE_TABLES_FILE: &str = "scene-tables.json";
 
 /// The material table, filled as the document meets the surfaces that are actually worn. A
 /// glTF material is one entry per tangent variant: that is how many the runtime builds of it, and an
-/// entry nothing wears would describe a surface no pixel is drawn with. `shares` gives, by glTF
-/// material rank, the most of its history the temporal anti-aliasing keeps on its pixels
-/// (`MaterialOptions::history_shares`): an entry below 1 carries it as `"temporalAntialiasing"`,
-/// the others no field at all.
+/// entry nothing wears would describe a surface no pixel is drawn with. `responsive` gives, by glTF
+/// material rank, how far the temporal anti-aliasing trusts the history on its pixels
+/// (`MaterialOptions::responsive_levels`): an entry above `off` carries its level as
+/// `"responsive"`, the others no field at all.
 struct Materials {
     table: Vec<Value>,
     interned: BTreeMap<(Option<usize>, bool), usize>,
-    shares: Vec<f64>,
+    responsive: Vec<&'static str>,
+    /// The warnings of the tables: the `extras` levels that were no level and were ignored (`responsive_levels`),
+    /// and the physical extensions a material declares that the image does not show (`physical::unrendered`).
+    ignored: Vec<Value>,
     /// The UV density of each displaced glTF material, by rank (`uv_density`): written into its
     /// entry's `displacement` as `uvDensities`, which no other entry carries.
     densities: BTreeMap<usize, [f64; uv_density::UV_SETS]>,
@@ -92,11 +97,18 @@ impl Materials {
             None => json!({}),
         };
         let mut entry = material_entry(&source, key.1);
-        if let Some(&share) = declared
-            .and_then(|id| self.shares.get(id))
-            .filter(|s| **s < 1.0)
+        // What the file declares and the image does not show, told once for the material.
+        for code in physical::unrendered(&source) {
+            let told = json!({"code": code, "material": source.get("name")});
+            if !self.ignored.contains(&told) {
+                self.ignored.push(told);
+            }
+        }
+        if let Some(&level) = declared
+            .and_then(|id| self.responsive.get(id))
+            .filter(|level| **level != RESPONSIVE_LEVELS[0])
         {
-            entry[TEMPORAL_AA_EXTRA] = json!(share);
+            entry[RESPONSIVE_EXTRA] = json!(level);
         }
         // A displaced material says so in its entry, and no other has the field.
         if let Some(displaced) = displacement::displacement(&source)? {
@@ -168,23 +180,14 @@ pub(crate) fn stage_scene_tables(
     world_roots: impl FnOnce(&partition::CellMembers) -> Result<WorldMaterials>,
 ) -> Result<StagedTables> {
     let started = Instant::now();
-    let mut table = node_table(published, (objects, parents))?;
+    let mut table = node_table(published, parents)?;
     let mut roots =
         crate::compiler::source::nodes::scene_roots(published, values(published, "nodes")?)?;
     // The input scene's meshes' boxes, by its own ranks: what the banks' and the plain skinned
     // objects' bounds grow from.
     let boxes = partition::boxes::mesh_boxes(g);
     let banks = motion::bank::bake_banks(g, bin, objects, &boxes, mesh_map)?;
-    let animation_banks = match &banks.file {
-        Some(bytes) => {
-            let written = product(directory, motion::bank::ANIMATION_BANKS_FILE, bytes)?;
-            let descriptor = json!({"url": written.name, "bytes": written.bytes,
-                "version": motion::bank::ANIMATION_BANKS_VERSION, "sha256": written.sha256,
-                "items": banks.items});
-            Some((written, descriptor))
-        }
-        None => None,
-    };
+    let animation_banks = banks_product(&banks, directory)?;
     let (split, members) = partition::partition(
         (published, world),
         (hlod, assignments, grid),
@@ -198,72 +201,20 @@ pub(crate) fn stage_scene_tables(
         Some((scene, ranks)) => (scene, ranks.as_slice()),
         None => (published, &[][..]),
     };
-    let mut surfaces = Materials {
-        table: Vec::new(),
-        interned: BTreeMap::new(),
-        shares: materials.history_shares(described)?,
-        densities: uv_density::by_material(g, bin, mesh_map.keys().copied())?,
-    };
-    let document = document_table(described, "source.bin", &mut surfaces)?;
-    // Each flattened material's entry in its no-tangent variant: a merged actor's pages hold no
-    // tangents, an approximated shell's do (`hlod/chain/pages.rs`), and there each cluster's
-    // tangent flag picks the stored-frame normal factor (`tangentNormalScaleY`), so one entry
-    // serves both.
-    let hlod_materials: Vec<usize> = hlod
-        .iter()
-        .map(|&id| surfaces.rank(described, &json!({"material": id})))
-        .collect::<Result<_>>()?;
-    let (mut skins, mut animations) = (
-        motion::skin_table(g, bin)?,
-        motion::animation_table(g, bin)?,
-    );
-    let (nodes, roots, partition, cells) = match split {
-        Some(split) => {
-            motion::renumber(&mut skins, &mut animations, &split.rank);
-            (split.nodes, split.roots, split.partition, split.cells)
-        }
-        None => (table, roots, Value::Null, 0),
-    };
-    let cameras = camera_table(published)?;
-    let textures = texture_table(described);
-    let counts = json!({"nodes":nodes.len(),"cells":cells,"materials":surfaces.table.len(),"textures":textures.len()});
-    let tables = json!({
-        "version": SCENE_TABLES_VERSION,
-        "nodeTableVersion": NODE_TABLE_VERSION,
-        "materialTableVersion": MATERIAL_TABLE_VERSION,
-        "geometryTableVersion": GEOMETRY_TABLE_VERSION,
-        "scene": scene_roots(published, roots)?,
-        "nodes": nodes,
-        "partition": partition,
-        "meshPages": core_pages(&nodes, &mesh_pages.by_mesh),
-        "cameras": cameras,
-        "skins": skins,
-        "animations": animations,
-        "materials": surfaces.table,
-        "textures": textures,
-        "document": document,
-        "hlodMaterials": hlod_materials,
-    });
-    let written = product(directory, SCENE_TABLES_FILE, &serde_json::to_vec(&tables)?)?;
-    progress(
-        json!({"phase":"tables","completed":1,"total":1,"ms":shared_math::elapsed_ms(started),"counts":counts}),
-    );
+    let surfaces = surface_tables((g, bin, mesh_map), materials, (described, hlod))?;
+    let written = write_tables(
+        (g, bin, published, objects),
+        (&mesh_pages.by_mesh, directory),
+        (split, table, roots),
+        (texture_table(described), surfaces),
+        (&progress, started),
+    )?;
     Ok((
         written,
         animation_banks,
         members,
         flattened.map(|(scene, _)| scene),
     ))
-}
-
-/// The slots of the mesh pages the meshes `nodes` draw lie in, sorted and each once: what a runtime
-/// reads before its first frame, the cells naming the rest (#751).
-fn core_pages(nodes: &[Value], by_mesh: &partition::pages::MeshSlots) -> Vec<String> {
-    let meshes = nodes.iter().filter_map(|node| node["mesh"].as_u64());
-    partition::pages::slots_of(meshes, by_mesh)
-        .into_iter()
-        .cloned()
-        .collect()
 }
 
 /// The cell records of the tables in `directory` by file name, read through their partition's pages,

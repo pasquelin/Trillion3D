@@ -3,16 +3,24 @@
 // lamps. `world-partition-follow.test.ts` and `world-partition-parents.test.ts` compile it and open it the way a page does, on
 // a machine stand-in: every byte fetched is counted, and the GPU is a context that answers all.
 import type { TestContext } from 'node:test'
-import { execFileSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { promisify } from 'node:util'
 import { TAU } from '../../packages/math/src/constants.ts'
 import { axisAngleQuaternion } from '../../packages/math/src/quaternion/quaternion.ts'
 
 export const compiler = fileURLToPath(
   new URL('../../packages/asset-compiler-rust/target/release/trillion3d-compiler', import.meta.url),
 )
+
+const execFileAsync = promisify(execFile)
+
+/** Runs the native compiler with `args` in `root`, off the event loop so a test timeout can fire. */
+export async function runCompiler(root: string, args: string[]) {
+  await execFileAsync(compiler, args, { cwd: root, maxBuffer: Infinity })
+}
 
 /** Compiles `gltf` under `root` with this checkout's native compiler; returns its pointer file. */
 export async function compiled(root: string, { gltf, bin }: { gltf: object; bin: Buffer }) {
@@ -21,7 +29,7 @@ export async function compiled(root: string, { gltf, bin }: { gltf: object; bin:
   await writeFile(join(source, 'world.gltf'), JSON.stringify(gltf))
   await writeFile(join(source, 'world.bin'), bin)
   const args = ['source', 'cache', 'full', '150000', '2', '256', '../../../../source/', 'none']
-  execFileSync(compiler, args, { cwd: root, stdio: 'ignore' })
+  await runCompiler(root, args)
   return pathToFileURL(join(root, 'cache/native/full/manifest.json'))
 }
 

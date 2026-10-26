@@ -1,223 +1,107 @@
 import type { BounceCascades } from '../../../../../sdk-core/src/bounce/cascades.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
-import type { ProbePool } from '../../../../../sdk-core/src/bounce/probePool.ts'
 import { BOUNCE_PASS } from '../../../diagnostic/stage/passLabels.ts'
-import type { ProxyResources } from '../../../geometry/dag/cut/cutReaders.ts'
+import type { SurfaceHitReads } from '../../surfaceCache/hitWgsl.ts'
 import type { RadianceCache } from '../cache/radianceCache.ts'
-import type { createBounceCensus } from '../census.ts'
-import type { createBounceMarks, MarkSurface } from '../marks.ts'
-import type { createBounceSchedule } from '../schedule.ts'
-import type { SnapshotFollow } from '../snapshotFollow.ts'
+import type { BouncePool, MarkSurface } from '../pool/pool.ts'
 import type { createBounceUniform } from '../uniform.ts'
-import type { worldLightLists } from '../worldLightLists.ts'
-import type { probeBinder } from './probeGroup.ts'
-import { PROBE_QUEUE_WORDS } from './probeQueueWgsl.ts'
-import type { ProxyBoxes } from './probeSync.ts'
-import type { TableWrite } from './tableWrite.ts'
+import type { PlacementBoxes } from '../../../geometry/dag/placement/placementBoxes.ts'
 import type { SkyLightReadSet } from '../../../modules/sky/skyLight/read.ts'
-import type { CloudShadowSet } from '../../atmosphere/cloudShadowRead.ts'
-import { TABLE_RECORD_WORDS } from './tableWgsl.ts'
 
-/** What the probes read of the scene's proxy (`geometry/dag/proxy/proxyInstances.ts`, through the selection): what its
- *  rays are traced through, when a placement wears a proxy, and the extent of the placements that do,
- *  which the world light grid and the rays' reach are laid on. */
+/** What the probes read of the scene's placements (`geometry/dag/placement/placementBoxes.ts`, through the selection): their extent,
+ *  which the rays' reach is laid on. The rays march the global distance field. */
 export type ProbeScene = {
-  proxy(): ProxyResources | undefined
-  boxes(): ProxyBoxes
+  boxes(): PlacementBoxes
 }
 
-/** What the encoding of an image works with: the levels, the pool and its schedule, the buffers and the pipelines of the pass. */
+/** What the encoding of an image works with: the levels, the pool, the levels' uniform and the radiance cache. */
 export type ProbeParts = {
-  device: GPUDevice
   cascades: BounceCascades
-  pool: ProbePool
-  schedule: ReturnType<typeof createBounceSchedule>
+  pool: BouncePool
   uniform: ReturnType<typeof createBounceUniform>
-  queue: GPUBuffer
-  records: GPUBuffer
-  bind: ReturnType<typeof probeBinder>
-  pipeline: GPUComputePipeline
-  follow: SnapshotFollow
-  table: TableWrite
-  marks: Awaited<ReturnType<typeof createBounceMarks>>
-  census: Awaited<ReturnType<typeof createBounceCensus>>
-  /** The census's buffer: the update adds its counts to it. */
-  counts: GPUBuffer
-  lists: ReturnType<typeof worldLightLists>
   /** The radiance cache: the maps of the probes queued, made after the pass (`../cache/radianceCache.ts`). */
   cache: RadianceCache
 }
 
-/** The work of an image: whether it marks, the probes it queues, the texels of the table it writes and
- *  whether it counts the field after their update. */
+/** The work of an image: whether it marks and whether the levels slid. */
 type Work = {
   marking: boolean
-  counting: boolean
-  groups: number
-  texels: number
+  slid: boolean
 }
 
-/** The frame's queue, the table's records and the levels' uniform, written for the work in hand. */
-function upload(
-  parts: ProbeParts,
-  work: Work,
-  generation: number,
-  frame: number,
-  eye: ArrayLike<number>,
-) {
-  const { device, schedule } = parts
-  if (work.groups)
-    device.queue.writeBuffer(parts.queue, 0, schedule.queue, 0, work.groups * PROBE_QUEUE_WORDS)
-  if (work.texels)
-    device.queue.writeBuffer(
-      parts.records,
-      0,
-      schedule.records,
-      0,
-      (work.texels + 1) * TABLE_RECORD_WORDS,
-    )
-  parts.uniform.write(generation, work.groups, frame, eye)
-}
+/** What the pool is asked to trace an image: the budget, in probes' cost, and the squares of the distances from the eye at which the
+ *  cost of a probe changes, as the screen probes' settings give them. */
+type PoolBudget = { probesPerFrame: number; downsampleSq: number; supersampleSq: number }
 
-/** The bounce pass of an image: the cells it reads marked, the table's writes, the probes' update and its
- *  snapshot's follow-up — the snapshot equals the probes here, the last update's texels followed it: the
- *  update reads it — and the field's census. */
+/** The bounce pass of an image: the pool's work — the cells it reads marked, the probes given and taken back, the ones to trace chosen
+ *  and the queue and the table written. The probes queued are the GPU's to count: every dispatch over them takes the arguments the pool wrote. */
 function encodePass(
   parts: ProbeParts,
   encoder: GPUCommandEncoder,
-  group: GPUBindGroup,
   surface: MarkSurface | undefined,
   work: Work,
+  budget: PoolBudget,
 ) {
-  const { marks, table, pipeline, follow, census } = parts
-  if (work.marking) marks.clear(encoder)
-  if (work.counting) census.clear(encoder)
+  const { pool } = parts
+  pool.clear(encoder, work)
   const pass = encoder.beginComputePass({ label: BOUNCE_PASS })
-  if (work.marking) marks.dispatch(pass, surface!)
-  if (work.texels) table(pass, work.texels)
-  if (work.groups) {
-    pass.setPipeline(pipeline)
-    pass.setBindGroup(0, group)
-    pass.dispatchWorkgroups(work.groups, 1, 1)
-    follow(pass, work.groups)
-    if (work.counting) census.dispatch(pass)
-  }
+  pool.dispatch(pass, { ...work, ...budget }, surface)
   pass.end()
-  if (work.marking) marks.copy(encoder)
-  if (work.counting) census.copy(encoder)
-}
-
-/** What image `frame` traces, filled into `work`: the probes queued for an eye at `viewpoint` — a budget of `probesPerFrame`
- *  probes' cost, the cost of a probe by its distance from the eye as `settings` give it —, the texels of the table to write and
- *  whether the field is counted after the update. */
-function plan(
-  parts: ProbeParts,
-  work: Work,
-  frame: number,
-  viewpoint: ArrayLike<number>,
-  probesPerFrame: number,
-  { cache }: ScreenProbeSettings,
-) {
-  const { schedule, census } = parts
-  work.groups = schedule.plan(frame, viewpoint, probesPerFrame, {
-    downsampleSq: cache.downsampleSq,
-    supersampleSq: cache.supersampleSq,
-  })
-  work.counting = work.groups > 0 && census.begin(frame)
-  work.texels = schedule.texels
+  pool.copy(encoder)
 }
 
 /**
- * The encoding of an image of probes: its marks and a probe batch, what the lit passes will read of them
- * and what the series says of itself. `generation` rises when the lights change: a sleeping probe
- * wakes; `frame` counts the images that encoded something, the clock of the pool.
+ * The encoding of an image of probes: its marks and a probe batch, whose maps the radiance cache makes after, and what the series says
+ * of itself. `frame` counts the images that encoded something, the clock of the pool.
  */
 export function createProbeEncoder(
   parts: ProbeParts,
-  scene: ProbeScene,
   lights: () => GPUBuffer,
   /** The probes an image traces, in the cost of a whole map each: read at each image. */
   probesPerFrame: () => number,
-  /** The empty lists bound where no grid holds them. */
-  noLists: GPUBuffer,
   /** The screen probes' settings, which the radiance cache follows: read at each image. */
   settings: () => ScreenProbeSettings,
 ) {
-  const { cascades, pool, marks, lists } = parts
-  let generation = 1,
-    frame = 0
-  /** The work of the image in hand, refilled each image: what the last one did when it is over. */
-  const work: Work = { marking: false, counting: false, groups: 0, texels: 0 }
-  const retrace = () => {
-    generation++
-    pool.restart()
-  }
+  const { cascades, pool } = parts
+  let frame = 0
+  const budget: PoolBudget = { probesPerFrame: 0, downsampleSq: 0, supersampleSq: 0 }
+  /** The work of the image in hand, refilled each image. */
+  const work: Work = { marking: false, slid: false }
   return {
-    /** Every probe is traced again, sleeping probes wake: the maps of the radiance cache were made again. */
-    retrace,
-    /** A light changed: every probe is updated again, sleeping probes wake. */
+    /** Every probe is traced again: the maps of the radiance cache were made again. */
+    retrace: pool.restart,
+    /** A light changed, or the placements: every probe is traced again, and the cells the image reads are marked again. */
     restart() {
-      retrace()
-      lists.stale()
+      pool.restart()
+      pool.stale()
     },
-    /** The series is open: a probe holding nothing or short of its updates, a texel of the table to
-     *  write, a mark owed or in flight. */
+    /** The series is open: a probe holding nothing or short of its traces, a mark owed or statistics still to come back. */
     get working() {
-      return pool.working || marks.pending
+      return pool.working
     },
-    get lastProbes() {
-      return work.groups
-    },
-    get lastTexels() {
-      return work.texels
-    },
-    /** Encodes an image's marks (`surface`: what it drew) and a probe batch, the lights lit through the atlas
-     *  `lightFunction` (the stand-in where the bounce's lights wear none) and the clouds' shade, the rays that leave the scene
-     *  reaching the sky light (`shade`); `false` when there was
-     *  nothing to do: the view still and marked, the series closed, no proxy to trace. */
+    /** Encodes an image's marks (`surface`: what it drew) and a probe batch, whose maps the radiance cache traces through the global
+     *  distance field, its hits reading the surface cache (`reads`), those that leave the scene reaching the sky light (`sky`); `false`
+     *  when there was nothing to do: the view still and marked, the series closed, no light. */
     encode(
       encoder: GPUCommandEncoder,
       lightsActive: number,
       viewpoint: ArrayLike<number>,
-      lightFunction: GPUTextureView,
-      shade: { sky: SkyLightReadSet; cloudShadow: CloudShadowSet },
+      sky: SkyLightReadSet,
+      reads: SurfaceHitReads,
       surface?: MarkSurface,
     ) {
-      work.groups = work.texels = 0
-      const proxy = scene.proxy()
-      const slid = cascades.follow(viewpoint)
-      if (slid) pool.slide()
-      // The world lists before every pass that reads them — this one, the reflections, the
-      // blends —, listed again only when a light, the lattice or the grid's buffer changed.
-      const listing = lightsActive
-        ? lists.encode(encoder, cascades, lightsActive, frame)
-        : undefined
-      if (!proxy || !lightsActive) return false
-      work.marking = marks.begin(surface, frame + 1, slid)
-      if (!work.marking && !pool.working) return false
-      const group = parts.bind(
-        proxy,
-        lights(),
-        listing ?? noLists,
-        lightFunction,
-        shade.sky,
-        shade.cloudShadow,
-      )
+      work.slid = cascades.follow(viewpoint)
+      if (!lightsActive) return false
+      work.marking = pool.begin(surface, work.slid)
+      if (!work.marking && !work.slid && !pool.working) return false
       const now = settings()
       frame++
-      plan(parts, work, frame, viewpoint, probesPerFrame(), now)
-      upload(parts, work, generation, frame, viewpoint)
-      encodePass(parts, encoder, group, surface, work)
-      parts.cache.queued(now, {
-        groups: work.groups,
-        proxy,
-        lights: lights(),
-        lists: listing ?? noLists,
-        lightFunction,
-        sky: shade.sky,
-        cloudShadow: shade.cloudShadow,
-        eye: viewpoint,
-      })
+      budget.probesPerFrame = probesPerFrame()
+      budget.downsampleSq = now.cache.downsampleSq
+      budget.supersampleSq = now.cache.supersampleSq
+      parts.uniform.write(frame, viewpoint)
+      encodePass(parts, encoder, surface, work, budget)
+      parts.cache.queued(now, { args: pool.args, lights: lights(), sky, reads, eye: viewpoint })
       return true
     },
   }

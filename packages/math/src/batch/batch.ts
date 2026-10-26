@@ -1,4 +1,4 @@
-import { BOX_VALUES, boxUnion } from '../geometry/box.ts'
+import { BOX_VALUES } from '../geometry/box.ts'
 
 /**
  * Math foundation operations executed IN BATCHES: `n` flat elements, a single function
@@ -22,20 +22,28 @@ import { BOX_VALUES, boxUnion } from '../geometry/box.ts'
  * Reduces `n` bounding boxes into `into` by progressive union: `into = into ∪ boxes[0] ∪ … ∪ boxes[n - 1]`.
  * `into` carries six numbers, `boxes` carries six numbers per element flat.
  *
- * Repeats `boxUnion`.
+ * Repeats `boxUnion`'s min and max, the six bounds held in locals and written once.
  */
 export function boxUnionBatch(into: Float64Array, boxes: ArrayLike<number>, n: number): void {
+  let minX = into[0],
+    minY = into[1],
+    minZ = into[2],
+    maxX = into[3],
+    maxY = into[4],
+    maxZ = into[5]
   for (let i = 0; i < n; i++) {
     const at = i * BOX_VALUES
-    boxUnion(
-      into,
-      0,
-      boxes[at],
-      boxes[at + 1],
-      boxes[at + 2],
-      boxes[at + 3],
-      boxes[at + 4],
-      boxes[at + 5],
-    )
+    minX = Math.min(minX, boxes[at])
+    minY = Math.min(minY, boxes[at + 1])
+    minZ = Math.min(minZ, boxes[at + 2])
+    maxX = Math.max(maxX, boxes[at + 3])
+    maxY = Math.max(maxY, boxes[at + 4])
+    maxZ = Math.max(maxZ, boxes[at + 5])
   }
+  into[0] = minX
+  into[1] = minY
+  into[2] = minZ
+  into[3] = maxX
+  into[4] = maxY
+  into[5] = maxZ
 }
