@@ -57,7 +57,11 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
    leaves in the static layer and the box it enters in the dynamic one; a moving one names both ends
    in the dynamic layer, which a map that uses the receiver cover leaves out (it draws its dynamic
    layer again each frame); one that settles (`shadowCacheFramesStaticThreshold`, the frames without an
-   invalidation) names its box once in the static layer; a placement that pins its shadows
+   invalidation) names its box once in the static layer; one that deforms is cached as dynamic as one that moves is, and a
+   placement that arrives often moving (`mobility` `movable`, a skin or a morph, or an offset that invalidates its shadows)
+   starts as a moving one, its first box in the dynamic layer alone; each box carries the placement's offset facts, with
+   which the stale puts it in the dynamic layer of the maps that allow the offset and in the static layer of the others;
+   a placement that pins its shadows
    (`shadowCacheInvalidation` `static`) names nothing for a move. Then the CPU's boxes of what no
    placement says — a page entering or leaving residency, a cell's objects and HLOD actor, a
    surface or a texture that changed, a deforming geometry — records of the same format in their
@@ -108,7 +112,7 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
    cull (`render/renderCullWgsl.ts`, a thread a caster and a light) takes each map and each mip it
    draws as a view of its own: the engine's cut rule on the cluster's errors projected by that view
    (`vsmRenderLodAt`, at the cut's threshold times two to `shadowGeometryLodBias`, 1 by default, the
-   reference's own), the frustum, the
+   reference's own, over the streaming's quality scale), the frustum, the
    page rect clipped to the stale rect, its overlap with a page to draw, then the rect walked by
    windows of four pages a side, a record a window that holds a page of the caster's stale layer. The
    bin (`render/renderBinWgsl.ts`) sorts the records by raster pipeline and marks their pages drawn;
@@ -129,7 +133,7 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
    bin, the camera's one cluster raster (`visibility/raster/clusterWgsl.ts`, `clusterRasterKernels`)
    draws them: a group of 64 threads a record, the corners transformed once into the group's memory,
    a thread a triangle, the camera's subpixel setup and fill rule on a frame of one page, each pixel
-   joined to the pool by an atomic max where the emitter envelope and a masked row's cutout keep it,
+   joined to the pool by an atomic max where a masked row's cutout keeps it,
    as the hardware fragment does. Two entry points bind one pool slice each — the eight storage
    buffers a stage holds — : every record into slice 0, then the static layer's into the static
    slice. The reference translates the page of each pixel through an 8×8 cache of the window
@@ -392,7 +396,8 @@ static drawn, dynamic invalidated, static invalidated, an offset allowed, a leve
 a surface that wears an offset its placement evaluates (`MOBILITY_OFFSET_SILENT` off, or the surface always evaluating)
 invalidates the pages it draws when the map allows it — always, else the map's level is not past the distance the object stops
 at (`wpoThreshold` against the placement's square distance, the third section of `rootWords`) — and the object lets it
-(`shadowCacheInvalidation` not `rigid` or `static`), and is cached as dynamic then; an offset allowed where the main view's
+(`shadowCacheInvalidation` not `rigid` or `static`), and is cached as dynamic then — all the clusters of its placement are, the
+layer being decided for the placement (`MOBILITY_OFFSET_INVALIDATES`, `MOBILITY_OFFSET_ALWAYS`) and the map; an offset allowed where the main view's
 distance has stopped it marks the page for the next frame (the physical page's `FORCE_CACHED`: the page keeps its data, its
 dynamic layer marked stale so that the cull considers it, never drawn). `shadowInvalidateOnLodDelta` (false) marks the pages of a
 cluster drawn behind the level the view asks, for want of the finer one resident; the invalidation waits for the page's turn,

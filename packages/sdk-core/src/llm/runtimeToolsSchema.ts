@@ -215,7 +215,7 @@ const lightEmitterProperties = (): Record<string, JsonSchemaProperty> => ({
     type: 'number',
     exclusiveMinimum: 0,
     description:
-      "Point and spot only: the radius, in meters, of the envelope that holds the source, strictly less than the range. It is the light's source size: it sets how soft its shadow is and how the lamp lights a surface, and fragments within it cast no shadow; absent, a point.",
+      "Point and spot only: the radius, in meters, of the sphere the source is, strictly less than the range. It is the light's source size: it sets how soft its shadow is and how the lamp lights a surface; a housing that must not shadow its own light is a mesh with castShadow false; absent, a point.",
   },
   emitterLength: {
     type: 'number',

@@ -37,7 +37,11 @@ function playTracks(rt: WebgpuPagesRuntime, deformation: SessionDeformation, cam
   const { roots } = tracks
   for (let k = 0; k < roots.length; k++) {
     const { rank, root, flipped, reach, moved } = roots[k]
-    if (flipped) followRootBlocks(rt, root, rank)
+    if (flipped) {
+      followRootBlocks(rt, root, rank)
+      // Whether it deforms is what it reads: its shadow word is written again.
+      rt.lights.mobility.touch(rank)
+    }
     followReach(rt, rank, reach, moved)
   }
 }

@@ -19,14 +19,13 @@
  * the cull). A two-sided row (`FLAG_DOUBLE`) draws its corners twice, the second time swapped: one
  * of the two copies faces the light. A vertex decodes its own corner alone.
  *
- * Emitter envelope: a local light that declares an emitter radius (`emitterSize`, the scene light's
- * `emitterRadius`) accepts no depth from inside that sphere — the bulb, the glass or the shade that
- * wraps it never shadows its own light (the engine's light contract). A local view's shifted
- * position is relative to the light, so the test is |shifted|² < r².
+ * Depth: a clipmap level has no near clip (`vsmRecordNoNearClip`): its vertex hands the rasterizer
+ * z = w / 2, so that the hardware never clips on depth, and the map's own clip position in `clip`;
+ * the fragment's depth is the interpolated ratio of its z and w, clamped to [0,1].
  *
  * Masked materials keep the engine's cutout (`maskKeep`, the depth material's clip) at the VSM
- * texel's derivatives; an unmasked row, which `maskKeep` keeps whole, is told by a flat word and
- * reads no page. The depth itself is the fragment position z (= z/w), clamped to [0,1] before the
+ * texel's derivatives, its dither at the map's own pixel (`vsmRenderMapPixel`), whatever page holds
+ * the texel; an unmasked row, which `maskKeep` keeps whole, is told by a flat word and reads no page. The depth itself is the interpolated clip z / w, clamped to [0,1] before the
  * bitcast, and joins the pool's word only where it is greater (`vsmPoolAtomicMax`).
  *
  * Group 0 = the engine's shadow page group (`lighting/shadows/casters/pageGroup.ts`, the visibility
@@ -92,7 +91,21 @@ fn vsmRenderWindowAt(clip:vec4f,r:vec4u,side:u32)->vec4f{
  return vec4f(clip.x*s-clip.w*(first.x+1.0),clip.w*(first.y+1.0)-clip.y*s,clip.z,clip.w);
 }
 /** The hardware raster's window: \`VSM_RENDER_WINDOW_PAGES\` pages a side. */
-fn vsmRenderWindowPosition(clip:vec4f,r:vec4u)->vec4f{return vsmRenderWindowAt(clip,r,${VSM_RENDER_WINDOW_PAGES}u);}`,
+fn vsmRenderWindowPosition(clip:vec4f,r:vec4u)->vec4f{return vsmRenderWindowAt(clip,r,${VSM_RENDER_WINDOW_PAGES}u);}
+/** The position the hardware raster is given for a clip position: its window position, at z = w / 2
+ *  for a record with no near clip (\`vsmRecordNoNearClip\`), so that no depth clips it. */
+fn vsmRenderRasterPosition(clip:vec4f,r:vec4u)->vec4f{
+ let p=vsmRenderWindowPosition(clip,r);
+ return select(p,vec4f(p.xy,0.5*p.w,p.w),vsmRecordNoNearClip(r));
+}
+/** The map's own pixel at mip \`mip\` of a clip position on the map (before \`vsmRenderRasterPosition\`
+ *  places it on a window): the position a masked caster's dither is anchored on, whatever page holds
+ *  the texel. */
+fn vsmRenderMapPixel(clip:vec4f,mip:u32)->vec2f{
+ let ndc=clip.xy/clip.w;
+ let size=f32(VSM_LEVEL0_TEXELS>>mip);
+ return vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5)*(size-1.0)+0.5;
+}`,
 )
 
 /** What a vertex stage hands the depth fragment (`vsmRenderFs`), the tiers' and the tessellated
@@ -114,8 +127,9 @@ export const VSM_RENDER_OUT_WGSL = wgslBlock(
  @location(1) uv:vec2f,
  /** The window (\`vsmRenderWindowOf\`). */
  @location(2) @interpolate(flat) window:vec4u,
- /** Translated world (relative to a local light) and the emitter radius, 0 for none. */
- @location(3) fromEmitter:vec4f,
+ /** The map's clip position, before it is placed on the window: its z / w is the depth, its x and y
+  *  the map's pixel (\`vsmRenderMapPixel\`). */
+ @location(3) clip:vec4f,
  /** Whether the row is masked (\`maskKeep\` keeps every fragment of another). */
  @location(4) @interpolate(flat) masked:u32,
 }
@@ -123,12 +137,15 @@ export const VSM_RENDER_OUT_WGSL = wgslBlock(
  *  viewport, a zero-area triangle no rasterizer covers (a NaN constant does not compile in Tint). */
 fn vsmRenderNan()->vec4f{return vec4f(-4.0,-4.0,0.5,1.0);}
 /** The window record \`r\` draws, as its fragment reads it: the page table's index of its first page,
- *  its pages and the pages it draws (the record's z and w), whether it draws the static layer. */
+ *  its pages and the pages it draws (the record's z and w), whether it draws the static layer (bit 0)
+ *  and its mip (the bits above). */
 fn vsmRenderWindowOf(r:vec4u)->vec4u{
  let mip=vsmRecordMip(r);
  let cell=vsmTableEntryAt(vsmTableLevelOrigin(vsmHandleFromId(vsmRecordMap(r)),mip),mip,vsmRecordFirstPage(r));
- return vec4u(vsmTableIndex(cell.tableXY),r.z,r.w,vsmRecordStatic(r));
+ return vec4u(vsmTableIndex(cell.tableXY),r.z,r.w,vsmRecordStatic(r)|(mip<<1u));
 }
+/** The mip of a window (\`vsmRenderWindowOf\`). */
+fn vsmRenderWindowMip(window:vec4u)->u32{return window.w>>1u;}
 `,
 )
 
@@ -152,7 +169,7 @@ fn vsmRenderPoolTexel(window:vec4u,pixel:vec2f,texel:ptr<function,vec2u>)->bool{
  *  into slice 0, what every reader samples, after the raster (\`vsmMergePages\`). */
 fn vsmRenderJoin(window:vec4u,texel:vec2u,z:f32){
  let depth=bitcast<u32>(clamp(z,0.0,1.0));
- let staticLayer=window.w!=0u;
+ let staticLayer=(window.w&1u)!=0u;
  vsmPoolAtomicMax(texel,select(0u,vsm.staticSlice,staticLayer),depth);
 }`,
 )
@@ -168,7 +185,7 @@ override VSM_RENDER_CORNERS:u32=96u;
  let record=vsmRenderRecords[vertexIndex/VSM_RENDER_CORNERS];
  let recordCorner=vertexIndex%VSM_RENDER_CORNERS;
  var out:VsmRenderOut;
- out.row=record.x;out.uv=vec2f(0.0);out.window=vsmRenderWindowOf(record);out.fromEmitter=vec4f(0.0);
+ out.row=record.x;out.uv=vec2f(0.0);out.window=vsmRenderWindowOf(record);out.clip=vec4f(0.0);
  // A tessellated record's triangles are not drawn: its patches are (\`vsmTessellatedVs\`).
  if(vsmRecordTessellated(record)){out.position=vsmRenderNan();return out;}
  let page=pages[record.x];
@@ -186,34 +203,32 @@ ${wpo.programs.length ? ' // The map decides whether the offset of an object is 
  let world=vsmRenderWorld(page,h,id);
  // Translated world of the VSM view, then its clip, placed on the record's window.
  let shifted=vsmRenderShifted(raw,world);
- let isOrthoView=raw.lightViewToClip[3][3]>=1.0;
- out.fromEmitter=vec4f(shifted,select(raw.emitterSize,0.0,isOrthoView));
- out.position=vsmRenderWindowPosition(vsmRenderClip(raw,shifted,vsmRecordFlatten(record)),record);
+ let clip=vsmRenderClip(raw,shifted);
+ out.position=vsmRenderRasterPosition(clip,record);out.clip=clip;
  // The fragment's cutout reads the UV of a masked row alone (\`maskKeep\`).
  if((page.flags&${UV_READ}u)==${UV_READ}u){out.uv=pageMaskUv(page,h,id);}
  return out;
 }`
 
 const renderRasterFragment = (masks: MaskSet) => /* wgsl */ `
-/** The depth fragment: its page and pool texel, the emitter envelope and the material clip of a
- *  masked row, then an atomic max into the pool. */
+/** The depth fragment: its page and pool texel and the material clip of a masked row, then an atomic
+ *  max into the pool. */
 @fragment fn vsmRenderFs(in:VsmRenderOut){
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  var texel:vec2u;
  if(!vsmRenderPoolTexel(in.window,in.position.xy,&texel)){discard;}
- let r=in.fromEmitter.w;
- let onEmitter=r>0.0&&dot(in.fromEmitter.xyz,in.fromEmitter.xyz)<r*r;
- if(onEmitter||(in.masked!=0u&&!${
+ if(in.masked!=0u&&!${
    maskKnowsPixel(masks)
-     ? 'maskKeepAt(pages[in.row],in.uv,1.0,gx,gy,vec2f(texel))'
+     ? 'maskKeepAt(pages[in.row],in.uv,1.0,gx,gy,vsmRenderMapPixel(in.clip,vsmRenderWindowMip(in.window)))'
      : 'maskKeep(pages[in.row],in.uv,1.0,gx,gy)'
- })){discard;}
- vsmRenderJoin(in.window,texel,in.position.z);
+ }){discard;}
+ vsmRenderJoin(in.window,texel,in.clip.z/in.clip.w);
 }`
 
 /** The depth fragment and vertex of the casters' draw; a surface whose graph wires an `opacityMask` is
- *  cut by the graph's mask at the texel (`masks`), dithered where its surface asks (`maskKeepAt`, the texel of the physical page), and one that
- *  wires a `worldPositionOffset` casts the shadow of the vertices it moves (`wpo`). */
+ *  cut by the graph's mask at the texel (`masks`), dithered where its surface asks (`maskKeepAt`, at
+ *  the map's virtual pixel), and one that wires a `worldPositionOffset` casts the shadow of the
+ *  vertices it moves (`wpo`). */
 export const vsmRenderRasterWgsl = (
   layout: VsmLayout,
   masks: MaskSet = NO_MASKS,

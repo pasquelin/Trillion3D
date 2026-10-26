@@ -139,6 +139,8 @@ export interface RenderListGroups {
   params: GPUBufferBinding
   lights: GPUBuffer
   counts: GPUBuffer
+  /** The placements' words, which the shadow views' descent reads too. */
+  rootWords: GPUBuffer
   sorted: GPUBuffer
   cand: GPUBindGroup
   /** The casters' closing kernels' group 0, over the stats buffer they flag an overflow in. */
@@ -205,6 +207,7 @@ function listGroups(
     params,
     lights,
     counts,
+    rootWords: scene.rootWords,
     sorted,
     cand: group(ctx.candidates.groups[0], [
       params,

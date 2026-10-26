@@ -41,7 +41,7 @@ test('a map’s view hands the clusters small in its pixels to the software rast
   // Clip w = −z: the view's position is the clip's x, y over the projection's scale, and −w.
   const perspective = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0])
   const cand = (edge: number, flags = 0, corners = 3) => ({
-    ...{ c: [0, 0, 0, 5], l: [0, 0, 0], row: 0, corners, flags, farDepth: 0, screenRatio: 1 },
+    ...{ c: [0, 0, 0, 5], l: [0, 0, 0], row: 0, corners, flags, farDepth: 0 },
     ...{ own: [0, 0, 0, 0.5], parent: [0, 0, 0, 1], errors: [0, 0], prevShift: [0, 0, 0], edge },
   })
   const inside = { pastNear: false, pastFar: false }

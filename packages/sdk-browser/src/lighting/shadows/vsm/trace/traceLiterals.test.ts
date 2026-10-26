@@ -1,7 +1,7 @@
 // The traces' decimal literals are the exact powers of two their comments derive them from: the
 // f32 a shader compiles from each is that value, bit for bit, and the guard of the square-to-disk
-// map leaves every quotient it can see as it is. The greatest f32 below 1 the traces and the
-// casters' flattening share is 1 - 2^-24 too.
+// map leaves every quotient it can see as it is. The greatest f32 below 1 the traces use is
+// 1 - 2^-24 too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionsOf } from '../../../../materials/texture/shaderRule.fixture.ts'

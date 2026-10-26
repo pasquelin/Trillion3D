@@ -28,7 +28,7 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: (...args: never[]
     },
     timing: { worldCounts: { rootsUploaded: 0 } },
     blendState: { blendGpu: [], blendIndex: { revision: 0 } },
-    lights: { mobility: { moves: () => false } },
+    lights: { mobility: { cachedDynamic: () => false } },
     run: {
       gate: {
         updateWorlds: () => walked && { reshaped: true, flipped: [] },

@@ -1,6 +1,6 @@
 // The shadow settings read by their rules: the sun's distance, its far-shadow edge and distance-field
 // cascade follow the light's own settings, the view's and the quality levels; the shadow maps' own
-// (`shadowMapOptions.ts`: clipmap levels, coarse pages, resolution biases, radius threshold, a trace's
+// (`shadowMapOptions.ts`: clipmap levels, coarse pages, resolution biases, a trace's
 // rays and steps, the page pool) take the numbers of the reference's scalability rows.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -21,11 +21,12 @@ const SHADOW_MAP_DEFAULTS = {
   ...{ shadowClipmapFirstLevel: 6, shadowClipmapLastLevel: 22 },
   ...{ shadowClipmapFirstCoarseLevel: 15, shadowClipmapLastCoarseLevel: 18 },
   ...{ shadowClipmapZRangeScale: 1000, shadowMarkCoarsePagesDirectional: 2 },
+  shadowClipmapMinCameraViewportWidth: 0,
   ...{ shadowClipmapWpoDisableDistance: true, shadowClipmapWpoDisableDistanceLodBias: 3 },
+  ...{ shadowClipmapWpoDisableDistanceInvalidateOnScaleChange: false },
   ...{ shadowMarkCoarsePagesLocal: 1, shadowResolutionLodBiasDirectional: -1.5 },
   ...{ shadowResolutionLodBiasDirectionalMoving: -1.5, shadowResolutionLodBiasLocal: 0 },
   ...{ shadowResolutionLodBiasLocalMoving: 1, shadowLightActiveFrameCount: 10 },
-  ...{ shadowRadiusThreshold: 0.01, shadowRadiusThresholdUncached: true },
   ...{ shadowRayCountDirectional: 8, shadowSamplesPerRayDirectional: 4 },
   ...{ shadowRayCountLocal: 8, shadowSamplesPerRayLocal: 4, shadowMaxPhysicalPages: 4096 },
   ...{ shadowDistantLightMode: 1, shadowMaxDistantUpdatePerFrame: 1 },
@@ -140,7 +141,6 @@ const ROWS = {
   shadowResolutionLodBiasDirectionalMoving: [0, 0, 0],
   shadowResolutionLodBiasLocal: [1, 1, 0],
   shadowResolutionLodBiasLocalMoving: [2, 2, 1],
-  shadowRadiusThreshold: [0.06, 0.05, 0.04],
   shadowRayCountDirectional: [0, 4, 8],
   shadowSamplesPerRayDirectional: [2, 2, 4],
   shadowRayCountLocal: [0, 4, 4],
@@ -175,18 +175,19 @@ test('the shadow maps’ settings refuse what they cannot take, in words', () =>
   refuses('shadowSamplesPerRayLocal', 65, /from 0 to 64/)
   refuses('shadowClipmapLastLevel', 31, /from 0 to 30/)
   refuses('shadowClipmapZRangeScale', 0, /above 0/)
+  refuses('shadowClipmapMinCameraViewportWidth', 16385, /from 0 to 16384/)
+  refuses('shadowClipmapMinCameraViewportWidth', 0.5, /whole/)
   refuses('shadowClipmapWpoDisableDistance', 1, /true or false/)
   refuses('shadowClipmapWpoDisableDistanceLodBias', 31, /from 0 to 30/)
+  refuses('shadowClipmapWpoDisableDistanceInvalidateOnScaleChange', 1, /true or false/)
   refuses('shadowLightActiveFrameCount', 0, /at least 1/)
   refuses('shadowMaxPhysicalPages', 0, /at least 1/)
-  refuses('shadowRadiusThreshold', -1, /at least 0/)
   refuses('shadowDistantLightMode', 3, /from 0 to 2/)
   refuses('shadowMaxDistantUpdatePerFrame', -2, /from -1/)
   refuses('shadowMaxResolution', 0, /from 1 to 8192/)
   for (const field of ['shadowMinResolution', 'shadowTexelsPerPixelRect'] as const)
     refuses(field, -1, /at least 0/)
-  for (const field of ['shadowPointLightCubemaps', 'shadowRadiusThresholdUncached'] as const)
-    refuses(field, 1, /true or false/)
+  refuses('shadowPointLightCubemaps', 1, /true or false/)
   refuses('shadowResolutionLodBiasLocal', 17, /from -16 to 16/)
   for (const quality of [6, -1]) refuses('shadowQuality', quality, /from 0 to 5/)
   refuses('shadowQuality', 2.5, /whole/)
@@ -196,7 +197,6 @@ test('the shadow maps’ settings refuse what they cannot take, in words', () =>
   // (0 turns every shadow off); a bias of 20 (its one bound: 2 to it a finite, normal f32 factor).
   assert.equal(resolveSetting(SHADOW_RULES.shadowRayCountLocal, 16), 16)
   assert.equal(resolveSetting(SHADOW_RULES.shadowResolutionLodBiasDirectional, -16), -16)
-  assert.equal(resolveSetting(SHADOW_RULES.shadowRadiusThreshold, 0), 0)
   assert.equal(resolveSetting(SHADOW_RULES.shadowMaxDistantUpdatePerFrame, -1), -1, 'all of them')
   assert.deepEqual(
     [0, 5].map((q) => resolveSetting(SHADOW_RULES.shadowQuality, q)),

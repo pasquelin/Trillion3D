@@ -9,6 +9,7 @@ import { rootSource } from '../../placement/hidden.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { offsetSwitchEdits } from '../../../../sdk-core/src/world/object/offsetSwitches.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { MOBILITY_SHADOWLESS } from '../../lighting/shadows/mobilityBits.ts'
 import { markRootEntries } from './movedRoot.ts'
 import { noteDeformed } from './movedGeometry.ts'
 
@@ -126,15 +127,17 @@ function stale(rt: WebgpuPagesRuntime, epoch: number) {
 
 /**
  * Follows the offsets of the session's roots for this image: reads them again where something they
- * depend on changed (`readRoots`), then declares to the shadow scheduler every root whose node asks
- * `always`.
+ * depend on changed (`readRoots`), then declares to the shadow scheduler every root that casts and
+ * whose node asks `always`, with its instance bounds alone: the pages its offset moves vertices in
+ * are marked as the raster draws them.
  */
 export function followOffsets(rt: WebgpuPagesRuntime) {
   const { rootOffsets: held } = rt.vis
   if (stale(rt, rt.vis.materialTable.offsetEpoch)) readRoots(rt)
   for (const rank of held.ranks()) {
     const row = held.rowOf(rank)!
-    if (row.cache === 'always') noteDeformed(rt, rank, row.most)
+    if (row.cache === 'always' && !(rt.lights.mobility.words[rank] & MOBILITY_SHADOWLESS))
+      noteDeformed(rt, rank, 0)
   }
 }
 

@@ -306,8 +306,9 @@ function planNoShadows({ lights }: WebgpuPagesRuntime) {
 }
 
 /** The maps of `list` planned from `cam` over `vsm`'s state. The sun's clipmap is sized for the
- *  display, whatever scale this frame draws at; local lights keep the drawn size. More maps than the
- *  page table holds: twice the room, in the same frame when the tables grow in place. */
+ *  width this frame draws at, floored by `shadowClipmapMinCameraViewportWidth`; local lights keep
+ *  the drawn size. More maps than the page table holds: twice the room, in the same frame when the
+ *  tables grow in place. */
 function planMaps(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -327,7 +328,11 @@ function planMaps(
       // Each view keeps its suns' clipmaps, centred on its own eye.
       viewId: rt.views.active.id,
     },
-    { width: gpu.targetSize[0], height: gpu.targetSize[1], minScreenWidth: gpu.displaySize[0] },
+    {
+      width: gpu.targetSize[0],
+      height: gpu.targetSize[1],
+      minScreenWidth: vsm.state.maps.shadows.shadowClipmapMinCameraViewportWidth,
+    },
     (maps) =>
       growEngineVsm(
         device,

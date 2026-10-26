@@ -14,8 +14,9 @@
  * (`vsmRenderWorld`, `vsmRenderShifted`, `vsmRenderClip`) on the page's window
  * (`vsmRenderWindowAt`, one page a side); a face toward the light is the front one (the record's
  * swapped bit turns the winding the setup reads, `det`); a pixel joins the pool by `atomicMax`
- * where the emitter envelope and a masked row's cutout keep it, as the hardware fragment does
- * (`renderRasterWgsl.ts`).
+ * where a masked row's cutout keeps it, as the hardware fragment does
+ * (`renderRasterWgsl.ts`), its dither at the map's virtual pixel: the page's first texel plus the
+ * pixel's offset in the page, at its centre.
  *
  * Two entry points: `vsmRenderSoftware` writes the dynamic layer's records into the pool's slice 0,
  * what every reader samples; `vsmRenderSoftwareStatic` writes the static layer's records into the
@@ -89,8 +90,7 @@ const shadowClusterTarget = (wpo: boolean): ClusterRasterTarget => ({
    if(vsmUnpackTableEntry(r.w).thisLevelDrawable&&select(vsmRecordStatic(r)!=0u,vsmRecordStatic(r)==0u||vsm.staticSlice==0u,mode==0u)){groupRow=r.x;}
   }`,
   itemOwn: `swRecord=vsmSoftwareRecords[at];
- swRaw=vsmProjectionData[vsmRecordMap(swRecord)];
- swEmitter=select(swRaw.emitterSize,0.0,swRaw.lightViewToClip[3][3]>=1.0);${
+ swRaw=vsmProjectionData[vsmRecordMap(swRecord)];${
    wpo ? '\n wpoThreshold=swRaw.wpoThreshold;' : ''
  }`,
   frame: 'let det=select(1.0,-1.0,vsmRecordSwapped(swRecord));',
@@ -98,11 +98,6 @@ const shadowClusterTarget = (wpo: boolean): ClusterRasterTarget => ({
   setupPage: 'vsmSoftwareSides(page)',
   triangle: `if(t.ok!=0u&&masked){
     t.ua=vec3f(pageMaskUv(page,h,k.x),1.0);t.ub=vec3f(pageMaskUv(page,h,k.y),1.0);t.uc=vec3f(pageMaskUv(page,h,k.z),1.0);
-   }
-   if(t.ok!=0u&&swEmitter>0.0){
-    swShifted[0]=vsmRenderShifted(swRaw,vsmRenderWorld(page,h,k.x));
-    swShifted[1]=vsmRenderShifted(swRaw,vsmRenderWorld(page,h,k.y));
-    swShifted[2]=vsmRenderShifted(swRaw,vsmRenderWorld(page,h,k.z));
    }`,
   entries: `@compute @workgroup_size(WORKGROUP_THREADS) fn ${VSM_RENDER_SOFTWARE_ENTRY}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){clusterGroup(g,lane,n,0u);}
 @compute @workgroup_size(WORKGROUP_THREADS) fn ${VSM_RENDER_SOFTWARE_STATIC_ENTRY}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){clusterGroup(g,lane,n,1u);}`,
@@ -114,38 +109,30 @@ ${PAGE_BINDING.pages}
 ${materialDeclarations()}
 @group(1) @binding(0) var<storage,read> vsmSoftwareRecords:array<vec4u>;
 @group(1) @binding(4) var<uniform> params:VsmRenderParams;
-/** The record a thread rasters, its map's record, its emitter radius (0 for none) and, a triangle
- *  at a time, its corners in the map's translated world (the emitter envelope's). */
+/** The record a thread rasters and its map's record. */
 var<private> swRecord:vec4u;
 var<private> swRaw:VsmProjectionRecord;
-var<private> swEmitter:f32;
-var<private> swShifted:array<vec3f,3>;
 /** Corner \`v\`'s clip position on the record's page, as the hardware raster's vertex places it. */
 fn vsmSoftwareClip(page:PageInfo,h:ClusterHeader,v:u32)->vec4f{
  let shifted=vsmRenderShifted(swRaw,vsmRenderWorld(page,h,v));
- return vsmRenderWindowAt(vsmRenderClip(swRaw,shifted,vsmRecordFlatten(swRecord)),swRecord,1u);
+ return vsmRenderWindowAt(vsmRenderClip(swRaw,shifted),swRecord,1u);
 }
 /** The sides the setup reads of a row: its back-side flag left out, as the record's swapped bit
  *  holds it with the placement's mirroring (\`vsmRenderSwapped\`), a two-sided row's kept. */
 fn vsmSoftwareSides(page:PageInfo)->PageInfo{var p=page;p.flags&=~${FLAG_BACK}u;return p;}`
 
 const softwarePixelAndKernels = (masks: MaskSet, wpo: WpoSet, subgroups: boolean) => /* wgsl */ `
-/** A covered pixel of the record's page: kept by the emitter envelope and a masked row's cutout, its
+/** A covered pixel of the record's page: kept by a masked row's cutout, its
  *  depth joins the bound slice's texel by \`atomicMax\` (\`vsmRenderJoin\`'s rule). */
 fn writePixel(t:Tri,pixel:vec2i,c:vec3f,mode:u32){
  if(pixel.x>t.maxPixel.x||pixel.y>t.maxPixel.y){return;}
- if(swEmitter>0.0){
-  let w=c*t.invW;let uvw=w*(1.0/(w.x+w.y+w.z));
-  let p=swShifted[0]*uvw.x+swShifted[1]*uvw.y+swShifted[2]*uvw.z;
-  if(dot(p,p)<swEmitter*swEmitter){return;}
- }
  let texel=vsmUnpackTableEntry(swRecord.w).physicalAddress*VSM_PAGE_TEXELS+vec2u(pixel);
  let page=pages[t.row];
  if((page.flags&${FLAG_MASK}u)!=0u){
   let cut=triCutout(t,c);
   if(!${
     maskKnowsPixel(masks)
-      ? 'maskKeepAt(page,cut.at.xy,1.0,cut.ddx,cut.ddy,vec2f(texel))'
+      ? `maskKeepAt(page,cut.at.xy,1.0,cut.ddx,cut.ddy,vec2f(vsmRecordFirstPage(swRecord)*${VSM_PAGE_TEXELS}u+vec2u(pixel))+vec2f(0.5))`
       : 'maskKeep(page,cut.at.xy,1.0,cut.ddx,cut.ddy)'
   }){return;}
  }

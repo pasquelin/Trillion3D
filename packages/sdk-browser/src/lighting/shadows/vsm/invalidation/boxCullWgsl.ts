@@ -150,6 +150,11 @@ fn vsmTouchesMappedPage(h:VsmHandle,mipLevel:u32,pagesRectIn:vec4u,askedMarks:u3
  let entryCell=vsmTableEntryOf(h,mipLevel,pagesRectIn.xy);
  return vsmMarksMatch(vsmRectMarks(entryCell.tableXY,pagesRectIn),wantedMarks);
 }
+/** Whether any valid page overlaps a pixel rect (\`vsmTouchesMappedPage\` on its pages). */
+fn vsmTouchesMappedPixelRect(h:VsmHandle,mipLevel:u32,pixels:vec4i,askedMarks:u32,fineCaster:bool)->bool{
+ if(any(pixels.zw<pixels.xy)){return false;}
+ return vsmTouchesMappedPage(h,mipLevel,vec4u(pixels)>>vec4u(VSM_LOG2_PAGE),askedMarks,fineCaster);
+}
 /** The clip-space radius estimate of a bounding sphere. */
 fn vsmClipRadius(isOrtho:bool,radius:f32,shiftedCenter:vec3f,viewToClip:mat4x4f)->f32{
  if(isOrtho){return radius*viewToClip[0][0];}

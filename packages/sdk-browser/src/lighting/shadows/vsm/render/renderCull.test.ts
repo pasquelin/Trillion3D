@@ -83,7 +83,6 @@ function viewCull(
     vsmHandleFromId: (id: number) => ({ id }),
     vsmProjectionOf: () => map,
     vsmShiftedToClip: (m: Mat) => m,
-    vsmRadiusCulled: () => false,
     vsmBoxCullPoint: () => [0, 0, 0],
     vsmBoxInView: () => inView,
     vsmClipRadius: () => 1,
@@ -102,12 +101,12 @@ function viewCull(
   })
   const caster = (prevShift: number[]) => ({
     ...{ c: [10, 0, 0, 1], l: [0, 0, 0], row: 3, corners: 3, flags: 0, farDepth: 0 },
-    ...{ screenRatio: 1, own: [0, 0, 0, 1], parent: [0, 0, 0, 1], errors: [0, 0], edge: 0 },
+    ...{ own: [0, 0, 0, 1], parent: [0, 0, 0, 1], errors: [0, 0], edge: 0 },
     ...{ inst: [0, 0, 0, 1], viewBits: 0, offsetDisableSq: 0 },
     prevShift,
   })
   const kind = (name: 'FIRST' | 'SECOND' | 'POST') => C[`VSM_RENDER_CULL_${name}`]
-  return { run, held, drawn, caster, kind }
+  return { run, held, drawn, caster, kind, map }
 }
 
 // The first cull holds a caster back where the previous image drew it (the candidate's `prevShift`
@@ -170,4 +169,31 @@ test('the second half’s arguments size the post cull over the casters found si
   assert.deepEqual(found.post, [1, 1, 3], '60 casters: a group, three lights')
   assert.equal(found.counts[C.VSM_RENDER_COUNT_TAKEN], 130, 'the places start beside the held')
   assert.deepEqual(argsFor(40, 40).post.slice(2), [0], 'none found: no light, nothing dispatched')
+})
+
+// The layer of a caster is the placement's, map by map: every cluster of a placement whose offset
+// invalidates its shadows is cached as dynamic in the maps that allow the offset (the cluster wears
+// one or not), and in the static layer of the others.
+test('every cluster of a placement whose offset invalidates its shadows is drawn dynamic where the map allows the offset', () => {
+  const { run, drawn, caster, kind, map } = viewCull(() => false)
+  const C = wgslConstants(CULL)
+  const STATIC_LAYER = 1 << 21
+  const layerOf = (flags: number, offsetDisableSq: number, threshold: number) => {
+    drawn.length = 0
+    map.wpoThreshold = threshold
+    const cand = { ...caster([0, 0, 0]), flags, offsetDisableSq }
+    run.vsmRenderCullView(cand, 5, 0, false, kind('FIRST'), 0)
+    assert.equal(drawn.length, 1)
+    return (drawn[0]![1] as number) & STATIC_LAYER ? 'static' : 'dynamic'
+  }
+  const placement = C.VSM_RENDER_CAND_PLACEMENT_OFFSET
+  assert.equal(layerOf(0, 0, 0), 'static', 'a plain caster')
+  assert.equal(layerOf(placement, 0, 1e9), 'dynamic', 'an offset that never stops')
+  assert.equal(layerOf(placement, 100, 99), 'dynamic', 'a level not past the distance')
+  assert.equal(layerOf(placement, 100, 101), 'static', 'a level past the distance')
+  const always = placement | C.VSM_RENDER_CAND_PLACEMENT_ALWAYS
+  assert.equal(layerOf(always, 100, 101), 'dynamic', 'a surface that always evaluates it')
+  const bare = C.VSM_RENDER_CAND_PLACEMENT_ALWAYS
+  assert.equal(layerOf(bare, 100, 101), 'static', 'the always bit alone')
+  assert.equal(layerOf(C.VSM_RENDER_CAND_DYNAMIC, 0, 0), 'dynamic', 'a placement that moves')
 })

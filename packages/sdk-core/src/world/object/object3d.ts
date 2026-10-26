@@ -12,6 +12,7 @@ import { Matrix4 } from '../math/matrix4.ts'
 import type { Box3 } from '../math/box3.ts'
 import type { SceneLink } from './sceneLink.ts'
 import { defineOffsetSwitches, type ShadowCacheInvalidation } from './offsetSwitches.ts'
+import type { ObjectMobility } from '../../contracts/objectAbi.ts'
 
 /** Scratch values of the pose methods below — the world reads too: none of them allocates. */
 const aim = new Vector3(),
@@ -109,6 +110,11 @@ export class Object3D extends TransformNode {
   declare worldPositionOffsetWritesVelocity: boolean
   /** How its shadows are kept while its offset moves it: `auto`, `always`, `rigid` or `static`. */
   declare shadowCacheInvalidation: ShadowCacheInvalidation
+  /** Whether the object is often moving: `movable` has its shadows cached in the dynamic layer from
+   *  the frame it joins the scene, `static` and `stationary` in the static layer until it first moves;
+   *  `undefined` (the default) is `movable` for an object a skin or a morph deforms, `static` for
+   *  any other. */
+  declare mobility: ObjectMobility | undefined
   /** Whether the object is drawn as a first-person one (the hands and the weapon of a player): it
    *  casts no dynamic shadow of its own, and its pixels wear the first-person mark the shadows treat
    *  apart; `false` by default, and never with `firstPersonWorldSpaceRepresentation`. */

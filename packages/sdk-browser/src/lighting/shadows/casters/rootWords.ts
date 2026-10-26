@@ -39,7 +39,13 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
         count,
       )
     },
-    castFlags: (rank) => castFlagsOf(selectionRoots[rank], rt.vis.rootOffsets.rowOf(rank)),
+    // A banked root that reads its rest pose rests: no deformation moves its vertices.
+    castFlags: (rank) =>
+      castFlagsOf(
+        selectionRoots[rank],
+        rt.vis.rootOffsets.rowOf(rank),
+        rt.vis.deformation?.tracks.named(rank) === -1,
+      ),
     disableSq: (rank) => {
       const row = rt.vis.rootOffsets.rowOf(rank)
       return row ? row.disable * row.disable : 0

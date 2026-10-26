@@ -7,8 +7,11 @@
  * box of its new one, in the layer it is cached in now; one that began to cast, or arrived, its new
  * box; one that stopped casting, or left, its previous; one whose cache state or far-shadow flags
  * changed where it stands, its box once. A placement cached as dynamic is a box of casters already
- * moving (sign `-1`): the static layer never held it. A placement whose transform never invalidates
- * its cache (`MOBILITY_CACHE_STATIC`) is followed without a record for its moves. The first diff of
+ * moving (sign `-1`): the static layer never held it; so is one that deforms. Beside the sign, a box
+ * carries the placement's offset facts (it wears an offset that invalidates its shadows, one that
+ * always evaluates, and the square of the distance past which its object stops evaluating it), from
+ * which the stale decides, map by map, the layer the box was cached in (`vsmCachesAsStatic`). A
+ * placement whose transform never invalidates its cache (`MOBILITY_CACHE_STATIC`) is followed without a record for its moves. The first diff of
  * a memory made anew (`quiet`) remembers every placement and appends none. Beside the bounds, the
  * instance's cache-as-dynamic state: a tracked placement that began to deform appends its box in
  * the dynamic layer alone, the static one kept; its stop appends nothing.
@@ -41,6 +44,8 @@ import {
   MOBILITY_CAST_BITS,
   MOBILITY_DEFORMS,
   MOBILITY_MOVING,
+  MOBILITY_OFFSET_ALWAYS,
+  MOBILITY_OFFSET_INVALIDATES,
   MOBILITY_SHADOWLESS,
 } from '../mobilityBits.ts'
 import { CAST_BOXED, CAST_SEEN, CAST_STATE_WORDS } from './castChanges.ts'
@@ -72,6 +77,8 @@ ${wgslConsts({
   MOBILITY_DEFORMS,
   MOBILITY_CACHE_STATIC,
   MOBILITY_CAST_BITS,
+  MOBILITY_OFFSET_ALWAYS,
+  MOBILITY_OFFSET_INVALIDATES,
   CAST_SEEN,
   CAST_BOXED,
   CAST_STATE_WORDS,
@@ -129,9 +136,13 @@ fn instanceBox(r:u32)->InstanceBox{
  b.ax=widened(ax,pad);b.ay=widened(ay,pad);b.az=widened(az,pad);
  return b;
 }
-/** Appends the oriented box \`b\`. */
-fn emitBox(b:InstanceBox,moving:bool,views:u32){
- emitCast(b.centre,b.ax,b.ay,b.az,moving,views);
+/** The bits of a word the stale reads the layer of a box by: its offset invalidates, always evaluated. */
+fn offsetFacts(word:u32)->u32{return word&(MOBILITY_OFFSET_INVALIDATES|MOBILITY_OFFSET_ALWAYS);}
+/** Whether a word's placement is cached as dynamic: it moves or it deforms. */
+fn cachedDynamic(word:u32)->bool{return (word&(MOBILITY_MOVING|MOBILITY_DEFORMS))!=0u;}
+/** Appends the oriented box \`b\` of a placement whose word is \`word\`, \`disableSq\` its offset's distance. */
+fn emitBox(b:InstanceBox,dynamic:bool,views:u32,word:u32,disableSq:f32){
+ emitCast(b.centre,b.ax,b.ay,b.az,dynamic,views,offsetFacts(word),disableSq);
 }
 /** Stores \`b\` as placement state \`at\`: its centre, its half axes (zero for a placement with no box). */
 fn storeBox(at:u32,b:InstanceBox){
@@ -171,7 +182,9 @@ fn worldDigest(r:u32)->vec2u{
  if(at+CAST_STATE_WORDS>arrayLength(&castState)){return;}
  let cur=instanceBox(r);
  var word=0u;
- if(r<arrayLength(&rootWords)/3u){word=rootWords[r];}
+ var disableSq=0.0;
+ let placements=arrayLength(&rootWords)/3u;
+ if(r<placements){word=rootWords[r];disableSq=bitcast<f32>(rootWords[2u*placements+r]);}
  let was=castState[at+7u];
  let seen=(was&CAST_SEEN)!=0u;
  let wasBoxed=(was&CAST_BOXED)!=0u;
@@ -189,19 +202,22 @@ fn worldDigest(r:u32)->vec2u{
  let castsWas=seen&&wasBoxed&&(wasWord&MOBILITY_SHADOWLESS)==0u;
  let movingNow=(word&MOBILITY_MOVING)!=0u;
  let movingWas=(wasWord&MOBILITY_MOVING)!=0u;
+ // The layer a box was and is cached in: the dynamic one for a placement that moves or deforms.
+ let dynamicNow=cachedDynamic(word);
+ let dynamicWas=cachedDynamic(wasWord);
  // A placement that left casts nothing from now on, and its pages hold it where it was.
- if(castsWas&&!castsNow){emitBox(wasBox,movingWas,ALL_VIEWS);return;}
+ if(castsWas&&!castsNow){emitBox(wasBox,dynamicWas,ALL_VIEWS,wasWord,disableSq);return;}
  if(!castsNow){return;}
- if(!castsWas){emitBox(cur,movingNow,ALL_VIEWS);return;}
+ if(!castsWas){emitBox(cur,dynamicNow,ALL_VIEWS,word,disableSq);return;}
  let pinned=(word&MOBILITY_CACHE_STATIC)!=0u;
  let moved=!pinned&&(worldMoved||!sameBox(cur,wasBox));
  if(moved){
-  emitBox(wasBox,movingWas,ALL_VIEWS);
-  emitBox(cur,movingNow,ALL_VIEWS);
+  emitBox(wasBox,dynamicWas,ALL_VIEWS,wasWord,disableSq);
+  emitBox(cur,dynamicNow,ALL_VIEWS,word,disableSq);
  }else if(movingNow!=movingWas||((word^wasWord)&MOBILITY_CAST_BITS)!=0u){
   // Where it stands: a cache state turned (it began to move, or settled and the static layer must
   // draw it), or its casting flags changed.
-  emitBox(cur,movingNow&&movingWas,ALL_VIEWS);
+  emitBox(cur,dynamicNow&&dynamicWas,ALL_VIEWS,word,disableSq);
  }
 }
 /** The instances' cache state per view, one thread a placement (the reference's per-view bit arrays,
@@ -220,6 +236,7 @@ fn worldDigest(r:u32)->vec2u{
  let at=r*CAST_STATE_WORDS;
  if(at+CAST_STATE_WORDS>arrayLength(&castState)||base+r>=arrayLength(&rootWords)){return;}
  let word=rootWords[r];
+ let disableSq=bitcast<f32>(rootWords[2u*base+r]);
  let deforming=(word&MOBILITY_DEFORMS)!=0u;
  let previous=castState[at+10u];
  var dynamic=0u;
@@ -242,7 +259,7 @@ fn worldDigest(r:u32)->vec2u{
  rootWords[base+r]=dynamic|(changed<<16u);
  if(diff.quiet!=0u||invalidate==0u||(word&MOBILITY_SHADOWLESS)!=0u){return;}
  let cur=instanceBox(r);
- if(cur.has){emitBox(cur,true,invalidate);}
+ if(cur.has){emitBox(cur,true,invalidate,word,disableSq);}
 }
 `,
   [toF32, CAST_EMIT_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],

@@ -21,7 +21,6 @@ import {
   VSM_RENDER_PARAMS,
 } from './renderParamsWgsl.ts'
 import { vsmRenderCandidatesWgsl } from './renderCandidatesWgsl.ts'
-import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
 import { vsmLayout } from '../layout.ts'
 import { vsmRenderComputePipes } from './renderPipes.ts'
 import { vsmDescentPipes } from '../traversal/traversalPass.ts'
@@ -41,7 +40,7 @@ import {
   MARK_WORD,
 } from '../../../../geometry/dag/frameTable.ts'
 import { f32Bits } from '../../../../../../math/src/float/bits.ts'
-import { functionsOf, wgslConstants } from '../../../../materials/texture/shaderRule.fixture.ts'
+import { wgslConstants } from '../../../../materials/texture/shaderRule.fixture.ts'
 
 const LIMITS = { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 }
 
@@ -130,23 +129,6 @@ test('the main view’s filter reaches the candidates: its buffer in their group
   }
 })
 
-test('every view pass’s parameters carry the radius threshold, squared: none where it is 0 or absent', () => {
-  for (const radiusThreshold of [undefined, 0, 0.05]) {
-    const { stats, words, stride } = encoded({ radiusThreshold })
-    const floats = new Float32Array(words.buffer)
-    for (let c = 0; c < stats.passes; c++)
-      assert.equal(
-        floats[c * stride + VSM_RENDER_PARAMS.at.radiusThresholdSq],
-        Math.fround((radiusThreshold ?? 0) ** 2),
-        `${c}`,
-      )
-  }
-})
-
-// The software half of the raster (`renderSoftwareWgsl.ts`) runs in the view pass's compute pass,
-// once its bin sorted its records first: a group a record from its own indirect arguments, every
-// record into the pool's slice 0, then the static layer's into the static slice. Without the page
-// rows' compute twin no cluster is handed to it: the edge it is judged by is zero.
 test('the software half runs after each bin over its records, off without its page rows', async () => {
   const page = { layout: {} as GPUBindGroupLayout, group: {} as GPUBindGroup }
   for (const pageCompute of [undefined, page]) {
@@ -170,35 +152,6 @@ test('the software half runs after each bin over its records, off without its pa
       pageCompute ? [`vsmRenderSoftware${software}`, `vsmRenderSoftwareStatic${software}`] : [],
     )
   }
-})
-
-test('a map redrawn whole leaves out a caster whose object spans too little of the main view', () => {
-  const candidates = vsmRenderCandidatesWgsl()
-  const cull = vsmRenderCullWgsl(vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }))
-  const culled = shaderRun<{
-    vsmRadiusCulled: (ratio: number, thresholdSq: number, uncached: boolean) => boolean
-  }>(cull, ['vsmRadiusCulled'], wgslConstants(cull)).vsmRadiusCulled
-  // Radius over distance under 0.05: 10 m of radius at 400 m is 0.025, 30 m at 400 m is 0.075.
-  const [small, large] = [(10 / 400) ** 2, (30 / 400) ** 2]
-  assert.equal(culled(small, 0.05 ** 2, true), true, 'too small, redrawn whole: left out')
-  assert.equal(culled(large, 0.05 ** 2, true), false, 'large enough')
-  assert.equal(culled(small, 0.05 ** 2, false), false, 'a cached map keeps its pages')
-  assert.equal(culled(small, 0, true), false, 'threshold 0: none')
-  // The ratio is the whole object's radius squared over its squared distance from the main view's
-  // eye; the greatest float at its centre, so that it is never left out there.
-  const run = shaderRun<{ vsmRenderScreenRatio: (object: number[]) => number }>(
-    candidates,
-    ['vsmRenderScreenRatio'],
-    wgslConstants(candidates),
-  )
-  assert.equal(run.vsmRenderScreenRatio([499.75, 0, 0, 50]), 2500 / 499.75 ** 2)
-  assert.equal(run.vsmRenderScreenRatio([529.75, 0, 0, 120]), 14400 / 529.75 ** 2)
-  assert.equal(run.vsmRenderScreenRatio([0, 0, 0, 5]), 3.4028234663852886e38)
-  // The candidate kernel gives every candidate its ratio; the cull tests it first of a view's work.
-  assert.ok(candidates.includes('flags,farDepth,vsmRenderScreenRatio(object),'))
-  const view = functionsOf(cull, ['vsmRenderCullView'])
-  const test = 'if(vsmRadiusCulled(cand.screenRatio,params.radiusThresholdSq,pd.uncached)){return;}'
-  assert.ok(view.includes(test) && view.indexOf(test) < view.indexOf('vsmBoxInView('), 'first')
 })
 
 test('an object says whether a sun’s far-shadow test reaches it, over the view’s rule: reached, never reached, or as the view says', () => {

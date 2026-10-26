@@ -52,7 +52,7 @@ test('a rect width axis is the right minus its part along the normal, then unit,
   }
 })
 
-test('a rect casts a shadow as a point does, and shadows the fog; it has no emitter envelope', () => {
+test('a rect casts a shadow as a point does, and shadows the fog; it has no source radius', () => {
   const casting = { ...panel([0, -1, 0], [1, 0, 0]), castsShadow: true }
   const kept = validateSceneLight({ ...casting, shadowsFog: true })
   assert.equal(kept.castsShadow, true)
@@ -66,7 +66,7 @@ test('a rect casts a shadow as a point does, and shadows the fog; it has no emit
     size: undefined,
   }
   assert.equal(validateSceneLight({ ...point, shadowsFog: true } as SceneLight).shadowsFog, true)
-  // The envelope of a point's or a spot's source is not a rectangle's: it has none.
+  // The radius of a point's or a spot's source is not a rectangle's: it has none.
   assert.throws(
     () => validateSceneLight({ ...casting, emitterRadius: 0.1 }),
     /emitterRadius exists only for a point or a spot/,

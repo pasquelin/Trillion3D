@@ -12,7 +12,9 @@
  *
  * A box is four vectors of four words, the same in the list and in the CPU's buffer: its centre and
  * a sign (floats), negative for casters already moving, then its three half axes (floats, one a
- * vector; the first's fourth word the bits of the views whose maps it stales).
+ * vector; the first's fourth word the bits of the views whose maps it stales, the second's the bits of
+ * its placement's word that say its offset invalidates its shadows or always evaluates, the third's
+ * the square of the distance past which its object stops evaluating it: the CPU's boxes hold none).
  * A list that overflowed reads as one box holding the world: every page goes stale, never fewer.
  *
  * The dispatch's size is the GPU's: a one-thread kernel (`CAST_ARGS_WGSL`) writes its indirect
@@ -104,7 +106,7 @@ fn ${CAST_INVALIDATION_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_work
  let records=castRecords(arrayLength(&vsmCasts));
  let box=thread/maps;
  if(box>=castTotal(header,records,vsmCast.boxCount)){return;}
- var inst=VsmInvalidationInstance(vec3f(0.0),0u,vec3f(UNBOUNDED_EXTENT,0.0,0.0),0xffffffffu,vec3f(0.0,UNBOUNDED_EXTENT,0.0),0u,vec3f(0.0,0.0,UNBOUNDED_EXTENT),0u);
+ var inst=VsmInvalidationInstance(vec3f(0.0),0u,vec3f(UNBOUNDED_EXTENT,0.0,0.0),0xffffffffu,vec3f(0.0,UNBOUNDED_EXTENT,0.0),0u,vec3f(0.0,0.0,UNBOUNDED_EXTENT),0.0);
  if(!castsWhole(header,records)){
   var record:vec4u;
   var axes:array<vec4u,3>;
@@ -123,6 +125,8 @@ fn ${CAST_INVALIDATION_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_work
   inst.axisZ=bitcast<vec3f>(axes[2].xyz);
   inst.views=axes[0].w;
   inst.flags=select(0u,VSM_BOX_MOVING,bitcast<f32>(record.w)<0.0);
+  inst.offsetBits=axes[1].w;
+  inst.offsetDisableSq=bitcast<f32>(axes[2].w);
  }
  let mapId=vsmCastMaps[thread%maps];
  if(mapId>=arrayLength(&vsmProjectionData)){return;}

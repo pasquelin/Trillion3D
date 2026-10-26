@@ -44,8 +44,8 @@ import {
  *  `packages/sdk-browser/src/lighting/shadows/vsm/render/renderViewPasses.ts`) are drawn in several
  *  passes, each light whole in one, or, off, every light in one pass: the pages are the same either
  *  way —, the level of detail the shadow maps take of the clusters: `shadowGeometryLodBias`, 1 —
- *  each map's view selects its own clusters, at the error the cut allows times two to this bias, in
- *  the map's pixels: 0 the cut's own error, higher coarser —, the occlusion culling of the shadow
+ *  each map's view selects its own clusters, at the error the cut allows times two to this bias over
+ *  the streaming's quality scale, in the map's pixels: 0 the cut's own error, higher coarser —, the occlusion culling of the shadow
  *  maps' casters: `shadowOcclusionCulling`, on — whether the raster culls the casters hidden in a
  *  map behind what its pages already hold, in two passes against the maps' depth pyramid (the
  *  previous frame's, then this frame's) —, `shadowDynamicHzb`, off — whether the pyramid holds a

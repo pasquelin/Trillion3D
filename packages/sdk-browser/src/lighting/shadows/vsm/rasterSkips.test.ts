@@ -21,6 +21,8 @@ import { FLAG_MASK } from '../../../visibility/types.ts'
 import { vsmBindingsWgsl } from './resources.ts'
 import { VSM_RENDER_RASTER_FRAGMENT_SPECS, vsmRenderRasterWgsl } from './render/renderRasterWgsl.ts'
 import { vsmLayout } from './layout.ts'
+import { vsmRenderSoftwareWgsl } from './render/renderSoftwareWgsl.ts'
+import { maskGraphSets } from '../../../gpu/core/engineShaders.mask.fixture.ts'
 
 import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
 import { Mat } from '../../../materials/texture/shaderRunMatrix.fixture.ts'
@@ -33,9 +35,7 @@ test('an unmasked row reads no page in the fragment: maskKeep keeps it whole', (
     fragment = functionsOf(CODE, ['vsmRenderFs'])
   assert.ok(vertex.includes(`out.masked=page.flags&${FLAG_MASK}u;`))
   assert.ok(
-    fragment.includes(
-      'if(onEmitter||(in.masked!=0u&&!maskKeep(pages[in.row],in.uv,1.0,gx,gy))){discard;}',
-    ),
+    fragment.includes('if(in.masked!=0u&&!maskKeep(pages[in.row],in.uv,1.0,gx,gy)){discard;}'),
   )
   assert.equal(fragment.match(/pages\[/g)?.length, 1, 'the one page read, behind the flag')
   // maskKeep's first test: a row without the mask flag keeps the fragment, whatever it holds.
@@ -52,6 +52,31 @@ test('an unmasked row reads no page in the fragment: maskKeep keeps it whole', (
     },
   )
   assert.equal(maskKeep(unmasked, [0, 0], 1, [0, 0], [0, 0]), true)
+})
+
+test('a masked caster’s dither is read at the map’s virtual pixel, whatever page holds the texel', () => {
+  const masks = maskGraphSets().shadow
+  const hardware = vsmRenderRasterWgsl(LAYOUT, masks)
+  assert.ok(
+    functionsOf(hardware, ['vsmRenderFs']).includes(
+      'maskKeepAt(pages[in.row],in.uv,1.0,gx,gy,vsmRenderMapPixel(in.clip,vsmRenderWindowMip(in.window)))',
+    ),
+  )
+  // The software raster gives the page's first texel plus the pixel’s offset, at its centre.
+  assert.ok(
+    functionsOf(vsmRenderSoftwareWgsl(LAYOUT, masks), ['writePixel']).includes(
+      'maskKeepAt(page,cut.at.xy,1.0,cut.ddx,cut.ddy,vec2f(vsmRecordFirstPage(swRecord)*128u+vec2u(pixel))+vec2f(0.5))',
+    ),
+  )
+  const { vsmRenderMapPixel } = shaderRun<{
+    vsmRenderMapPixel(clip: number[], mip: number): number[]
+  }>(CODE, ['vsmRenderMapPixel'], wgslConstants(CODE))
+  const at = (clip: number[], mip: number) => Array.from(vsmRenderMapPixel(clip, mip))
+  assert.deepEqual(at([0, 0, 0.5, 1], 0), [(16384 - 1) / 2 + 0.5, (16384 - 1) / 2 + 0.5])
+  assert.deepEqual(at([0, 0, 0.5, 1], 1), [(8192 - 1) / 2 + 0.5, (8192 - 1) / 2 + 0.5])
+  assert.deepEqual(at([-1, 1, 0.5, 1], 0), [0.5, 0.5], 'the map’s top left corner')
+  assert.deepEqual(at([1, -1, 0.5, 1], 0), [16384 - 0.5, 16384 - 0.5], 'its bottom right')
+  assert.deepEqual(at([0, 0, 1, 4], 0), at([0, 0, 0.5, 1], 0), 'a perspective map divides by w')
 })
 
 test('the pool max writes only a greater depth, and every word ends the max of its depths', () => {
@@ -272,7 +297,7 @@ test('a map’s view draws the clusters its own texels ask: the cut rule in its 
   const CHILD = wgslConstants(CULL).VSM_RENDER_CAND_CHILD_RESIDENT
   const cand = (own: number, parent: number, child = true) => ({
     ...{ c: [0, 0, 0, 1], l: [0, 0, 0], row: 0, corners: 3, flags: child ? CHILD : 0 },
-    ...{ farDepth: 0, screenRatio: 1, own: [0, 0, 0, 0.5], parent: [0, 0, 0, 1] },
+    ...{ farDepth: 0, own: [0, 0, 0, 0.5], parent: [0, 0, 0, 1] },
     errors: [own, parent],
   })
   const draws = (own: number, parent: number, child?: boolean) =>

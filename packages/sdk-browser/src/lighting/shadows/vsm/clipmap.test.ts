@@ -4,7 +4,13 @@
 // depth range (a Z range scale of 1000 radii).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { VSM_MAP_COARSE, VSM_MAP_COARSE_KEEPS_DYNAMIC, VSM_SUN_DEPTH_KEEP } from './constants.ts'
+import {
+  VSM_MAP_COARSE,
+  VSM_MAP_COARSE_KEEPS_DYNAMIC,
+  VSM_NEXT_KEEPS_PAGES,
+  VSM_SUN_DEPTH_KEEP,
+  vsmLocalMipLevel,
+} from './constants.ts'
 import { createVsmClipmap, type VsmClipmap, type VsmViewport } from './clipmap.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { addVsmLocalLightShadow, vsmLocalViewData } from './localLight.ts'
@@ -113,7 +119,23 @@ test("the clipmap's bias is max(0, -1.5 + the screen term)", () => {
   assert.equal(frame(new VsmCacheManager(), [0, 0, 0], 3456).levelBias, 0)
 })
 
-test("a frame drawn below the display keeps the display's clipmap: levels, bias and projection data", () => {
+test('the screen term reads the drawn width, floored by the setting (0 floors nothing)', () => {
+  const eye = [0, 0, 0]
+  const biasAt = (width: number, minScreenWidth: number) =>
+    createVsmClipmap(
+      new VsmCacheManager(),
+      SUN,
+      { view: VIEW, projection: PROJECTION, perspective: true, eye },
+      { width, height: width, minScreenWidth },
+    ).levelBias
+  // log2(0.5 / P00 * 16384 / width) less the sun's resolution bias of 1.5 (P00 = 1 here).
+  const expected = (width: number) => Math.max(0, -1.5 + Math.log2((0.5 * 16384) / width))
+  assert.ok(Math.abs(biasAt(512, 0) - expected(512)) < 1e-6, 'floor 0: the drawn 512')
+  assert.ok(Math.abs(biasAt(512, 1024) - expected(1024)) < 1e-6, 'floor 1024: that of 1024')
+  assert.ok(Math.abs(biasAt(2048, 1024) - expected(2048)) < 1e-6, 'a floor under the drawn width')
+})
+
+test("a frame drawn below the floor keeps the floor's clipmap: levels, bias and projection data", () => {
   const eye = [3.7, 1.2, -8.4]
   const build = (viewport: VsmViewport) =>
     createVsmClipmap(
@@ -144,7 +166,7 @@ test("a frame drawn below the display keeps the display's clipmap: levels, bias 
   }
 })
 
-test("the display's floor is the sun's alone: a local light keeps the drawn size", () => {
+test("the width floor is the sun's alone: a local light keeps the drawn size", () => {
   const camera = { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] }
   const drawn = { width: 512, height: 384 },
     floored = { ...drawn, minScreenWidth: 1024 },
@@ -208,6 +230,34 @@ test("a local light reads the moving bias as the sun does, and marks its last mi
   )
 })
 
+test('a movable local light is moving when its pose changes, not its shape', () => {
+  const camera = { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] }
+  const views = [vsmLocalViewData(camera, { width: 1024, height: 768 })]
+  const spot = {
+    ...{ id: 'spot', kind: 'spot' as const, position: [0, 3, -20], direction: [0, -1, 0] },
+    ...{ range: 6, outerCone: 0.601, movable: true },
+  }
+  const cache = new VsmCacheManager()
+  const moving = { shadowResolutionLodBiasLocal: 0, shadowResolutionLodBiasLocalMoving: 3 }
+  const biasAt = (frameNumber: number, light: typeof spot) =>
+    addVsmLocalLightShadow(cache, light, views, mapsOf(moving, frameNumber)).cacheEntry.mapCaches[0]
+      .projectionData.levelBias
+  assert.equal(biasAt(0, spot), 3, 'made: moving')
+  assert.equal(biasAt(20, spot), 0, 'at rest')
+  assert.equal(biasAt(21, { ...spot, range: 8 }), 0, 'a new range keeps it at rest')
+  assert.equal(biasAt(22, { ...spot, range: 8, outerCone: 0.9 }), 0, 'a new cone too')
+  assert.equal(biasAt(23, { ...spot, range: 8, outerCone: 0.9, position: [1, 3, -20] }), 3)
+})
+
+test('a local light’s finest mip takes the mip mode: all, the even ones, the odd ones', () => {
+  // Footprints of 4.5, 9 and 200 texels: floors of log2 of 2, 3 and 7.
+  const mips = (mode: number) =>
+    [4.5, 9, 200].map((footprint) => vsmLocalMipLevel(footprint, 0, 0, 0, mode))
+  assert.deepEqual(mips(0), [2, 3, 7])
+  assert.deepEqual(mips(1), [2, 2, 6])
+  assert.deepEqual(mips(2), [3, 3, 7])
+})
+
 // An object that names a distance past which its offset stops is moved in the levels whose threshold
 // (`wpoThreshold`, the square of the distance in map units) it does not pass: it grows four times for a
 // level, the bias holds it back by whole levels, and the setting off leaves no threshold.
@@ -227,4 +277,39 @@ test('each level of the sun’s clipmap says the distance past which it shows no
     'the bias of 3 holds it back by three levels (a distance 8×)',
   )
   assert.ok(thresholds({ shadowClipmapWpoDisableDistance: false }).every((value) => value === 0))
+})
+
+// The threshold counts the clipmap's whole resolution bias: the sun's at rest, -1.5, plus the screen's
+// term, log2 of the level-0 texels a pixel spans (8192 over the width, for this 90° view).
+test('a level’s offset threshold is two to twice its level less the bias and the clipmap’s resolution bias, which follows the view’s width', () => {
+  const thresholds = (width: number) => {
+    const clipmap = frame(new VsmCacheManager(), [0, 0, 0], width)
+    const bias = -1.5 + Math.log2(8192 / width)
+    assert.ok(Math.abs(clipmap.levelBias - bias) < 1e-5, `width ${width}: the bias is ${bias}`)
+    return clipmap.cacheEntry.mapCaches.map(({ projectionData }, i) => {
+      const level = clipmap.firstLevel + i,
+        expected = 2 ** (2 * Math.ceil(level - 3 - bias)) / 1e4
+      assert.ok(Math.abs(projectionData.wpoThreshold / expected - 1) < 1e-6, `level ${level}`)
+      return projectionData.wpoThreshold
+    })
+  }
+  const narrow = thresholds(1024),
+    wide = thresholds(2048)
+  assert.equal(wide[0] / narrow[0], 4, 'a view twice as wide: the level shifts by one')
+})
+
+test('a shift of the offset threshold redraws a cached level only where the setting asks it', () => {
+  const kept = (invalidates: boolean, width: number) => {
+    const cache = new VsmCacheManager(),
+      maps = mapsOf({ shadowClipmapWpoDisableDistanceInvalidateOnScaleChange: invalidates })
+    for (let n = 0; n < 2; n++) {
+      cache.frameStamp = n
+      frame(cache, [0, 0, 0], 1024, maps).cacheEntry.markRendered(n)
+    }
+    cache.frameStamp = 2
+    return frame(cache, [0, 0, 0], width, maps).cacheEntry.mapCaches[0].nextMaps.flags
+  }
+  assert.equal(kept(false, 2048), VSM_NEXT_KEEPS_PAGES, 'off: kept')
+  assert.equal(kept(true, 2048), 0, 'on: the threshold shifted, drawn again')
+  assert.equal(kept(true, 1024), VSM_NEXT_KEEPS_PAGES, 'on, the threshold the same: kept')
 })

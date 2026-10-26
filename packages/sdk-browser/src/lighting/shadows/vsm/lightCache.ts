@@ -31,6 +31,9 @@ interface VsmLevelCache {
   levelPageOrigin: [number, number]
   depthCentre: number
   depthRadius: number
+  /** The level's world-position-offset threshold (metres squared) when its pages were last drawn
+   *  afresh. */
+  wpoThreshold: number
 }
 
 /** One shadow map's cache entry (clipmap level, cube face or spot map). */
@@ -42,18 +45,23 @@ export class VsmMapCache {
     levelPageOrigin: [0, 0],
     depthCentre: 0,
     depthRadius: 0,
+    wpoThreshold: 0,
   }
   /** The view the occlusion pyramid last held the map by, and the one before
    *  (`occlusion/occlusionView.ts`). */
   occlusionView = { current: occlusionViewOf(), prev: occlusionViewOf() }
 
-  /** Updates a clipmap level's cache state (centimetres). */
+  /** Updates a clipmap level's cache state (centimetres): its pages are kept unless the light has
+   *  not been drawn, the depth range changed or left its margin, or — `wpoInvalidates` — the level's
+   *  world-position-offset threshold `wpoThreshold` is not the one its pages were drawn with. */
   updateLevel(
     perLight: VsmLightCache,
     levelPageOrigin: [number, number],
     levelRadius: number,
     depthCentre: number,
     depthRadius: number,
+    wpoThreshold: number,
+    wpoInvalidates: boolean,
   ) {
     moveOcclusionView(this.occlusionView)
     const c = this.clipmap
@@ -63,6 +71,7 @@ export class VsmMapCache {
       const deltaZ = Math.abs(depthCentre - c.depthCentre)
       if (deltaZ + levelRadius > VSM_SUN_DEPTH_KEEP * c.depthRadius) cacheValid = false
     }
+    if (cacheValid && wpoInvalidates && wpoThreshold !== c.wpoThreshold) cacheValid = false
     if (cacheValid) {
       // Leave the view centre and radius where they were for the cached pages.
       this.nextMaps.flags = VSM_NEXT_KEEPS_PAGES
@@ -73,6 +82,7 @@ export class VsmMapCache {
       this.nextMaps.pageShift[0] = this.nextMaps.pageShift[1] = 0
       c.depthCentre = depthCentre
       c.depthRadius = depthRadius
+      c.wpoThreshold = wpoThreshold
     }
     c.levelPageOrigin[0] = levelPageOrigin[0]
     c.levelPageOrigin[1] = levelPageOrigin[1]
@@ -219,14 +229,18 @@ export class VsmLightCache {
     return changed
   }
 
-  /** Whether a local light's `key` is not the one the entry last held. */
-  localKeyChanged(key: VsmLocalLightCacheKey) {
+  /** Whether a local light's `key` puts it elsewhere than the entry last held: its pose, not its shape. */
+  localPoseChanged(key: VsmLocalLightCacheKey) {
     const k = this.localCacheKey
     return (
       !sameValues(key.worldToLight, k.worldToLight) ||
-      !sameValues(key.lightOriginShift, k.lightOriginShift) ||
-      !sameValues(key.shape, k.shape)
+      !sameValues(key.lightOriginShift, k.lightOriginShift)
     )
+  }
+
+  /** Whether a local light's `key` is not the one the entry last held: its pose or its shape. */
+  localKeyChanged(key: VsmLocalLightCacheKey) {
+    return this.localPoseChanged(key) || !sameValues(key.shape, this.localCacheKey.shape)
   }
 
   /** Updates a local light's cache entry; whether its key changed, as a clipmap's. */

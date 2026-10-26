@@ -116,7 +116,7 @@ function localInputOf(light: SceneLight): VsmLocalLightInput {
   input.position = light.position!
   input.range = light.range!
   input.movable = mobilityOf(light) === 'movable'
-  input.emitterEnvelope = light.emitterRadius
+  input.sourceRadius = light.emitterRadius
   if (input.kind === 'spot') {
     input.direction = light.direction!
     input.outerCone = spotConesOf(light)[1]

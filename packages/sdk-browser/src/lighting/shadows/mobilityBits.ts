@@ -8,9 +8,15 @@
  *  invalidated by that offset (`shadowCacheInvalidation` `'rigid'` or `'static'`); its object stands for a
  *  first-person one (`firstPersonWorldSpaceRepresentation`), so that it casts into the suns'
  *  first-person clipmaps alone; its object casts while hidden (`castHiddenShadow`), so that the
- *  view's filter, which hides it, does not take it out of the shadows. One word a placement, never
+ *  view's filter, which hides it, does not take it out of the shadows; one of its surfaces wears an
+ *  offset whose evaluation may invalidate its shadows (its object does not keep them), so that its
+ *  clusters may draw into the dynamic layer (`vsmDescentNoPage`), and one of them evaluates it
+ *  whatever the distance says (`alwaysEvaluateWorldPositionOffset`); its object is often moving
+ *  (`mobility` `'movable'`, or a skin or a morph deforms it, unless it says otherwise), so that it
+ *  arrives cached as dynamic. One word a placement, never
  *  a word a cluster: what a cluster adds (a cutout, its corners) is read where it is drawn. */
 export const MOBILITY_MOVING = 1,
+  MOBILITY_OFFSET_ALWAYS = 2,
   MOBILITY_SHADOWLESS = 4,
   MOBILITY_FAR_SHADOW = 8,
   MOBILITY_DEFORMS = 16,
@@ -18,6 +24,8 @@ export const MOBILITY_MOVING = 1,
   MOBILITY_OFFSET_KEEPS_CACHE = 64,
   MOBILITY_WORLD_SPACE = 128,
   MOBILITY_HIDDEN_SHADOW = 256,
+  MOBILITY_OFFSET_INVALIDATES = 512,
+  MOBILITY_OFTEN_MOVING = 1024,
   MOBILITY_FAR_TESTED = 1 << 28,
   MOBILITY_FAR_SKIPPED = 1 << 29,
   MOBILITY_CACHE_STATIC = 1 << 30

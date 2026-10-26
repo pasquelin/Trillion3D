@@ -144,10 +144,6 @@ export interface VsmRenderScene {
   /** The greatest far-shadow distance of the frame's lights when each is a sun that has one, else 0
    *  or absent (`farDropOf`): a caster past it is in no map view. */
   farDrop?: number
-  /** The least share of the main view's distance a caster's object may span, as a radius over its
-   *  distance, to be drawn into a map that is redrawn whole (`shadowRadiusThreshold`): the cull
-   *  leaves a smaller one out of such a map; 0 or absent, none. */
-  radiusThreshold?: number
   /** The tessellation of the displaced surfaces' records, while the frame has one
    *  (`vsmShadowTessellation`): its `kinds` say which maps take it, and each view pass runs it. */
   tessellation?: VsmShadowTessellation

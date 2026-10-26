@@ -36,9 +36,8 @@ interface VsmLocalLightCommon {
   position: ArrayLike<number>
   /** Attenuation radius. */
   range: number
-  /** The radius, metres, of the envelope of a point or spot's source, whose casters the raster
-   *  leaves out of the light's maps (`emitterRadius`); default 0, a rectangle's too. */
-  emitterEnvelope?: number
+  /** The radius, metres, of a point or spot's source (`emitterRadius`); default 0, a rectangle's too. */
+  sourceRadius?: number
   /** Whether the light is `movable`: only a movable light takes the moving bias (`vsmLightMobility`);
    *  a static or stationary light never moves, so its maps rest at the still bias from its first frame. */
   movable?: boolean
@@ -99,6 +98,7 @@ function coarsestMipNeeded(
   footprintPerDistance: number,
   levelBias: number,
   pressureBias: number,
+  mipMode: number,
 ) {
   const v = view.view
   // The light's depth is along +Z of its view; the engine's camera looks down −Z.
@@ -108,7 +108,7 @@ function coarsestMipNeeded(
       view.clipToSizeBias,
   )
   const shadowFootprint = Math.fround((worldRadius * footprintPerDistance) / lightRange)
-  return vsmLocalMipLevel(shadowFootprint, levelBias, pressureBias)
+  return vsmLocalMipLevel(shadowFootprint, levelBias, pressureBias, 0, mipMode)
 }
 
 /** The finest mip level any of `views` needs of the light, conservatively. */
@@ -119,6 +119,7 @@ function finestMipNeeded(
   projectionScale: number,
   levelBias: number,
   cache: VsmCacheManager,
+  mipMode: number,
 ) {
   const footprintPerDistance = Math.fround(Math.fround(projectionScale) * VSM_LEVEL0_TEXELS)
   let finestMip = VSM_MIPS
@@ -130,6 +131,7 @@ function finestMipNeeded(
       footprintPerDistance,
       levelBias,
       cache.pressureBias,
+      mipMode,
     )
     finestMip = Math.min(finestMip, needed)
   }
@@ -200,7 +202,7 @@ function writeMapRecords(entry: VsmLightCache, light: VsmLocalLightInput, fields
       data.levelsLeft = -1
     }
     data.lightKind = LIGHT_KIND[light.kind]
-    data.emitterSize = light.emitterEnvelope ?? 0
+    data.emitterSize = light.sourceRadius ?? 0
     data.lightRange = fields.radius
     data.ditherTexels = light.ditherTexels ?? 1
     data.levelBias = fields.levelBias
@@ -236,14 +238,23 @@ export function addVsmLocalLightShadow(
   // The light's bias: the view's, coarser while the light moves (`vsmLightMobility`), its own added.
   const { shadows } = maps
   const frame = maps.frame ?? cache.frameStamp
-  // Moved: the light's own key changed, whether it is distant left as the entry holds it.
+  // Moved: the light's pose changed (a new entry counts), not its shape; read before `updateLocal`
+  // copies the key. Whether it is distant is left as the entry holds it.
   shape[3] = cacheEntry.distant ? 1 : 0
-  const moved = cacheEntry.localKeyChanged(localKey)
+  const moved = cacheEntry.localPoseChanged(localKey)
   const mobility = light.movable
     ? vsmLightMobility(cacheEntry, moved, frame, shadows.shadowLightActiveFrameCount)
     : 0
   const localLevelBias = vsmLocalBias(shadows, mobility, light.levelBias ?? 0)
-  const needed = finestMipNeeded(views, origin, radius, viewToClip[0], localLevelBias, cache)
+  const needed = finestMipNeeded(
+    views,
+    origin,
+    radius,
+    viewToClip[0],
+    localLevelBias,
+    cache,
+    shadows.shadowMarkPixelPagesMipModeLocal,
+  )
   const distant = vsmDistantOf(shadows.shadowDistantLightMode, needed)
   const finestMip = distant ? VSM_MIPS - 1 : needed
   shape[3] = distant ? 1 : 0

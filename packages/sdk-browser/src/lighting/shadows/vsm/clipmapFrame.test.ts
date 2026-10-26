@@ -127,12 +127,7 @@ test('along the light, a cached level keeps its depth range until 0.9 of it; pas
     return transformAffinePoint(v, level.viewToClip, v[0], v[1], v[2])[2]
   }
   const point = along([0, 0, 0], z, 50)
-  const before = createVsmClipmap(
-    new VsmCacheManager(),
-    SUN,
-    { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] },
-    { width: 1024, height: 1024 },
-  )
+  const before = frame(new VsmCacheManager(), [0, 0, 0])
   assert.ok(Math.abs(depth(kept, point) - depth(before, point)) < 1e-6)
   kept.cacheEntry.markRendered(2)
   cache.frameStamp = 3
@@ -148,15 +143,15 @@ test('along the light, a cached level keeps its depth range until 0.9 of it; pas
 test('the cache rule alone: a radius change or a light never rendered keeps nothing', () => {
   const light = new VsmLightCache('sun', 1),
     level = new VsmMapCache()
-  level.updateLevel(light, [64, 64], 128, 0, 128000)
+  level.updateLevel(light, [64, 64], 128, 0, 128000, 0, false)
   assert.equal(level.nextMaps.flags, 0, 'never rendered')
   light.markRendered(0)
-  level.updateLevel(light, [96, 64], 128, 1000, 128000)
+  level.updateLevel(light, [96, 64], 128, 1000, 128000, 0, false)
   assert.deepEqual(
     [level.nextMaps.flags, level.nextMaps.pageShift],
     [VSM_NEXT_KEEPS_PAGES, [32, 0]],
   )
-  level.updateLevel(light, [96, 64], 128, 1000, 256000)
+  level.updateLevel(light, [96, 64], 128, 1000, 256000, 0, false)
   assert.equal(level.nextMaps.flags, 0, 'another depth range')
   assert.equal(level.clipmap.depthRadius, 256000)
 })

@@ -158,7 +158,7 @@ test('a lamp’s source — radius, soft radius, a tube along its own up — rea
     [0.2, 0.1, 2],
   )
   near(again.emitterAxis, [-1, 0, 0], 'and comes back')
-  // No tube, no axis; a radius past the range is left out, as the envelope's is.
+  // No tube, no axis; a radius past the range is left out, as the source radius is.
   const sphere = lampRecord(new Light('point', { radius: 0.2 }), 'p', () => 9)!
   assert.deepEqual([sphere.emitterLength, sphere.emitterAxis], [undefined, undefined])
   assert.equal(

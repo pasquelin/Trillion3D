@@ -104,7 +104,6 @@ type VsmParamsScene = Pick<
   | 'farDrop'
   | 'drawDistance'
   | 'tessellation'
-  | 'radiusThreshold'
   | 'pageCount'
   | 'hardwareEdge'
   | 'pageCompute'
@@ -130,7 +129,6 @@ function vsmRenderParams(
     farDrop,
     drawDistance,
     tessellation,
-    radiusThreshold,
     pageCount,
     hardwareEdge,
     pageCompute,
@@ -172,7 +170,6 @@ function vsmRenderParams(
     u[o + at.drawDistances] = drawDistance ? (drawDistance.instances ? 3 : 1) : 0
     f[o + at.viewDistanceScale] = drawDistance?.scale ?? 1
     u[o + at.tessellated] = tessellation?.kinds ?? 0
-    f[o + at.radiusThresholdSq] = (radiusThreshold ?? 0) ** 2
     // No software half without its page rows: every cluster the hardware raster's.
     f[o + at.hardwareEdge] = pageCompute ? (hardwareEdge ?? 0) : 0
   })

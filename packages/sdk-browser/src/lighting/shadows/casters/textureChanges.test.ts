@@ -46,7 +46,7 @@ function forest(casting = true, resident = [0, 1, 2, 3]) {
   const rt = {
     lights: {
       store: { count: casting ? 1 : 0 },
-      mobility: { moves: (rank: number) => moving.has(rank) },
+      mobility: { cachedDynamic: (rank: number) => moving.has(rank) },
       changes: {
         worldChanged: (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
           void boxes.push({ box: [...Array.from(min), ...Array.from(max)], moving: movingOnly }),

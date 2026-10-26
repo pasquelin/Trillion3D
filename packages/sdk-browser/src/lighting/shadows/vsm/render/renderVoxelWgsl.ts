@@ -4,7 +4,7 @@ import { PAGE_BINDING, PAGE_INFO_WGSL } from '../../../../visibility/shader/page
 import { VIS_BINDINGS } from '../../../../gpu/bind/bindLayout.ts'
 import { VOXEL_HIT_WGSL } from '../../../../visibility/shader/voxelHitWgsl.ts'
 import { VOXEL_BRICK_CORNERS } from '../../../../../../sdk-core/src/page/voxelPage.ts'
-import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE } from '../constants.ts'
+import { VSM_CONSTANTS_WGSL } from '../constants.ts'
 import { VSM_PROJECTION_DATA_WGSL } from '../projection/projectionDataWgsl.ts'
 import { vsmBindingsWgsl } from '../resources.ts'
 import {
@@ -30,13 +30,11 @@ struct VsmVoxelOut{
  @builtin(position) position:vec4f,
  /** The window (\`vsmRenderWindowOf\`). */
  @location(0) @interpolate(flat) window:vec4u,
- /** Translated world (relative to a local light) and the emitter radius, 0 for none. */
- @location(1) fromEmitter:vec4f,
- /** The light's ray through the box point (\`voxelRay\`); \`cells.w\` whether a sun level flattens. */
- @location(2) start:vec3f,
- @location(3) dir:vec3f,
- @location(4) depth:vec4f,
- @location(5) @interpolate(flat) cells:vec4u,
+ /** The light's ray through the box point (\`voxelRay\`). */
+ @location(1) start:vec3f,
+ @location(2) dir:vec3f,
+ @location(3) depth:vec4f,
+ @location(4) @interpolate(flat) cells:vec3u,
 }
 @vertex fn vsmRenderVs(@builtin(vertex_index) vertexIndex:u32)->VsmVoxelOut{
  let record=vsmRenderRecords[vertexIndex/VSM_RENDER_CORNERS];
@@ -55,30 +53,22 @@ ${wpo.programs.length ? ' wpoThreshold=raw.wpoThreshold;\n' : ''} var corner=rec
  let toShifted=mat4x4f(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,shift.x,shift.y,shift.z,1.0);
  let cells=page.world*voxelCarry(page,brick)*voxelCells(page,brick);
  let shifted=vsmRenderShifted(raw,(cells*vec4f(o,1.0)).xyz);
- let isOrthoView=raw.lightViewToClip[3][3]>=1.0;
- out.fromEmitter=vec4f(shifted,select(raw.emitterSize,0.0,isOrthoView));
- let flatten=vsmRecordFlatten(record);
- let clip=vsmRenderClip(raw,shifted,flatten);
+ let clip=vsmRenderClip(raw,shifted);
  let r=voxelRay(mask,box,o,raw.shiftedToMapUv*toShifted*cells);
- out.start=r.start;out.dir=r.dir;out.depth=r.depth;out.cells=vec4u(r.cells,select(0u,1u,flatten));
+ out.start=r.start;out.dir=r.dir;out.depth=r.depth;out.cells=r.cells;
  // Placed on the record's window, as the raster places every corner.
- out.position=vsmRenderWindowPosition(clip,record);
+ out.position=vsmRenderRasterPosition(clip,record);
  return out;
 }`
 
 const voxelFragment = () => /* wgsl */ `
-/** The depth fragment: the emitter envelope, then the first voxel's depth on the light's ray, an
- *  atomic max into the pool. */
+/** The depth fragment: the first voxel's depth on the light's ray, an atomic max into the pool. */
 @fragment fn vsmRenderFs(in:VsmVoxelOut){
  var texel:vec2u;
  if(!vsmRenderPoolTexel(in.window,in.position.xy,&texel)){discard;}
- let r=in.fromEmitter.w;
- if(r>0.0&&dot(in.fromEmitter.xyz,in.fromEmitter.xyz)<r*r){discard;}
- let hit=voxelPixel(in.start,in.dir,in.cells.xyz);
+ let hit=voxelPixel(in.start,in.dir,in.cells);
  if(!hit.found){discard;}
- var z=voxelDepth(in.depth,hit.t);
- if(in.cells.w!=0u){z=min(z,${VSM_F32_BELOW_ONE});}
- vsmRenderJoin(in.window,texel,z);
+ vsmRenderJoin(in.window,texel,voxelDepth(in.depth,hit.t));
 }`
 
 /**
@@ -88,8 +78,8 @@ const voxelFragment = () => /* wgsl */ `
  * voxel row (`renderPipes.ts`). Its vertex draws a corner of a brick's box, carried by its joint, on
  * the record's window as the raster places every corner, and hands its pixels
  * the light's ray through it (`voxelRay`, the camera's one sequence); its fragment traces it
- * (`voxelPixel`) and joins the first voxel's depth to the pool, or nothing — a sun level's hit in
- * front of its near plane flattened onto it, as the raster flattens a corner (`vsmRenderClip`). A
+ * (`voxelPixel`) and joins the first voxel's depth to the pool, which clamps it to [0,1], or nothing;
+ * a sun level's boxes are given the rasterizer at z = w / 2, as the raster's corners are. A
  * voxel row draws one side of its boxes, no cutout, and reads no page in its fragment. With `wpo`, a
  * brick whose surface wires a `worldPositionOffset` is carried by it where the map's level shows the
  * motion (`wpoThreshold`), as the raster moves a vertex.

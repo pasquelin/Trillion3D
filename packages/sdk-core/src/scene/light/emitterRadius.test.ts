@@ -24,7 +24,7 @@ test('the emitter radius passes validation, and is accepted only in (0, range)',
     assert.throws(() => validateSceneLight(lanterne(refuse)), /emitter radius/)
 })
 
-test('a directional light has no envelope, and the contract refuses to lend it one', () => {
+test('a directional light has no source radius, and the contract refuses to lend it one', () => {
   assert.throws(
     () =>
       validateSceneLight({

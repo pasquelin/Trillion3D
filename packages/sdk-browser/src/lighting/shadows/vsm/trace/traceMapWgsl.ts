@@ -90,11 +90,12 @@ fn vsmDepthGradientUv(pd:VsmProjectionData,pointInMap:vec3f,n:vec3f)->vec2f{
 fn vsmPlaneLift(slope:vec2f,offset:vec2f)->f32{
  return 2.0*max(0.0,dot(slope,offset));
 }
-/** The depth a unit of view depth takes in the map at a point of clip w \`w\`: |M22·M33 − M32·M23| / w², the
- *  derivative of the map's z/w — an orthographic map's |M22|, a perspective one's |M32| / w². */
-fn vsmDepthPerDistance(pd:VsmProjectionData,w:f32)->f32{
+/** The depth a unit of distance takes in a local light's map at a squared distance \`distSq\` from the
+ *  light: |M22·M33 − M32·M23| / distSq, the derivative of the map's z/w taken radially, the same on
+ *  every face. */
+fn vsmDepthPerDistance(pd:VsmProjectionData,distSq:f32)->f32{
  let m=pd.lightViewToClip;
- return abs(m[2][2]*m[3][3]-m[3][2]*m[2][3])/(w*w);
+ return abs(m[2][2]*m[3][3]-m[3][2]*m[2][3])/distSq;
 }
 /** The receiver's texel in the world: a pixel's size at its view depth, at the map's resolution
  *  bias. The 0.1 floor is 0.1 cm (·${CM}). */

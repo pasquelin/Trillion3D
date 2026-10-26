@@ -10,9 +10,11 @@ import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
  * page requests, which the pool's page carry (step 4) folds into the pool page info.
  *
  * An instance (`VsmInvalidationInstance`) is an oriented world box and one flag (cached as dynamic): its
- * centre and its three half axes. The one entry that builds them is
+ * centre and its three half axes, and what says whether its offset puts it in the dynamic layer of a
+ * map (`vsmCachesAsStatic`). The one entry that builds them is
  * the shadow changes' (`invalidation/castInvalidationWgsl.ts`), from the list's records.
  */
+import { MOBILITY_OFFSET_ALWAYS, MOBILITY_OFFSET_INVALIDATES } from '../mobilityBits.ts'
 import { VSM_BOX_CULL_WGSL } from './invalidation/boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
@@ -53,8 +55,8 @@ const VSM_INVALIDATION_INSTANCE_WGSL = wgslBlock(
   'VSM_INVALIDATION_INSTANCE_WGSL',
   [],
   `
-struct VsmInvalidationInstance{centre:vec3f,flags:u32,axisX:vec3f,views:u32,axisY:vec3f,_padY:u32,axisZ:vec3f,_padZ:u32,}
-${wgslConsts({ VSM_BOX_MOVING })}
+struct VsmInvalidationInstance{centre:vec3f,flags:u32,axisX:vec3f,views:u32,axisY:vec3f,offsetBits:u32,axisZ:vec3f,offsetDisableSq:f32,}
+${wgslConsts({ VSM_BOX_MOVING, MOBILITY_OFFSET_ALWAYS, MOBILITY_OFFSET_INVALIDATES })}
 `,
 )
 
@@ -75,9 +77,16 @@ fn vsmMappedRectPages(pixels:vec4i,h:VsmHandle,mipLevel:u32)->vec4u{
  if(i<arrayLength(&vsmMappedRects)){bounds=vsmMappedRects[i];}
  return vec4u(max(pagesRect.xy,bounds.xy),min(pagesRect.zw,bounds.zw));
 }
-/** Whether an instance is cached as static: its view is cached and its box does not move. */
-fn vsmCachesAsStatic(inst:VsmInvalidationInstance,viewUncached:bool)->bool{
- return !viewUncached&&(inst.flags&VSM_BOX_MOVING)==0u;
+/** Whether an instance's offset is allowed in a map: its placement's offset invalidates its shadows,
+ *  and a surface always evaluates it or the map's level is not past the distance its object stops at. */
+fn vsmOffsetAllowed(inst:VsmInvalidationInstance,pd:VsmProjectionData)->bool{
+ return (inst.offsetBits&MOBILITY_OFFSET_INVALIDATES)!=0u&&((inst.offsetBits&MOBILITY_OFFSET_ALWAYS)!=0u
+  ||inst.offsetDisableSq<=0.0||pd.wpoThreshold<=inst.offsetDisableSq);
+}
+/** Whether an instance is cached as static in a map: its view is cached, its box does not move, and
+ *  its offset is not allowed there. */
+fn vsmCachesAsStatic(inst:VsmInvalidationInstance,pd:VsmProjectionData)->bool{
+ return !pd.uncached&&(inst.flags&VSM_BOX_MOVING)==0u&&!vsmOffsetAllowed(inst,pd);
 }
 
 fn vsmMarkStale(o:VsmTableCell,flags:u32){
@@ -86,9 +95,6 @@ fn vsmMarkStale(o:VsmTableCell,flags:u32){
 }
 /** Invalidates the pages of one instance. */
 fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
- // A box of casters already moving needs no explicit dynamic stale in a map that uses the receiver
- // cover: that map draws its dynamic layer again each frame (\`KeepPages\`).
- if(pd.useCover&&(inst.flags&VSM_BOX_MOVING)!=0u){return;}
  // A box staled in some views' maps alone (an instance whose cache state turned there).
  if(((inst.views>>pd.viewSlot)&1u)==0u){return;}
  let sunMap=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
@@ -127,7 +133,7 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
   vsmMarkStale(vsmTableEntryAt(vsmTableLevelOrigin(pd.handle,lastMip),lastMip,vec2u(0u,0u)),VSM_META_STATIC_STALE);
   return;
  }
- let staticBox=vsmCachesAsStatic(inst,pd.uncached);
+ let staticBox=vsmCachesAsStatic(inst,pd);
  let staleBits=select(VSM_META_DYNAMIC_STALE,VSM_META_STATIC_STALE,staticBox);
  let staleStatic=(staleBits&VSM_META_STATIC_STALE)!=0u;
  let mipCount=select(1,i32(VSM_MIPS),pd.levelsLeft<=0);

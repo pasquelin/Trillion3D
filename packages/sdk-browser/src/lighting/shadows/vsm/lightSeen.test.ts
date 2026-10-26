@@ -119,7 +119,7 @@ test('a rectangle that casts takes the six faces of a point light’s cube, its 
       `${face}`,
     )
     assert.equal(data.lightKind, LIGHT_KIND.rect)
-    assert.equal(data.emitterSize, 0, 'a rectangle has no emitter envelope')
+    assert.equal(data.emitterSize, 0, 'a rectangle has no source radius')
   })
   assert.equal(twin.mapCaches[0].projectionData.lightKind, LIGHT_KIND.point)
   // A rectangle at rest keeps its pages (its frame is cached); turned, or rolled, it starts again

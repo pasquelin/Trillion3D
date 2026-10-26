@@ -15,6 +15,7 @@
  * (`blueNoiseVec2`).
  * World unit = metre; a literal in centimetres is converted with `VSM_UNIT_PER_CM`.
  */
+import { wgslF32 } from '../../../../../../math/src/wgsl/number.ts'
 import { VSM_PROJECTION_LIGHT_STRUCT } from '../projection/projectionView.ts'
 import { VSM_CONSTANTS_WGSL, VSM_UNIT_PER_CM } from '../constants.ts'
 import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL } from '../pageTableWgsl.ts'
@@ -139,7 +140,7 @@ const traceLightSetupText = /* wgsl */ `fn vsmTraceLight(light:VsmProjectionLigh
   }else{
    let texel=vsmReceiverPixelSize(pd,pixel.sceneDepth);
    ditherWorld=select(vsm.traceDitherLocal*pd.ditherTexels*texel,0.0,single);
-   biasCap=vsmLocalBiasCap(lightMap,texel,single);
+   biasCap=vsmLocalBiasCap(lightMap,texel,dist*dist,single);
   }
  }`
 
@@ -149,6 +150,9 @@ const traceLightRaysText = (lone: boolean) => /* wgsl */ `
  let rayCap=max(rays,1u);
  var stopped=false;
  var stopIndex=0u;
+ // The march's step offset: the pixel's noise for every ray of a sun; a local light's rays each take
+ // the next of a Sobol seed's congruential steps from it, the top 24 bits of the word.
+ var stepOffset=pixel.noise;
  for(var i=0u;i<rayCap;i++){
   let running=traced&&!stopped;
   var hit=false;
@@ -179,9 +183,10 @@ const traceLightRaysText = (lone: boolean) => /* wgsl */ `
    else{bias=vsmSunDitherBias(lightMap,uvOffset,t0,uvDepthSlope);}
    var ray=vsmRayBegin(light,lightMap,rayStart,rayEnd,bias,uvOffset);
    var hitDepth=0.0;
-   hit=vsmMarch(&ray,stepCount,vsmRayJitter(pixel.noise,i),&hitDepth);
+   hit=vsmMarch(&ray,stepCount,stepOffset,&hitDepth);
    if(hit){occluderSum+=vsmRayOccluderDistance(&ray,hitDepth,length(rayStart));}
    else{missed|=1u<<i;}
+   if(!directional){stepOffset=f32((bitcast<u32>(stepOffset)*0x915f77f5u+0x93d765ddu)>>8u)*${wgslF32(2 ** -24)};}
   }
 ${rayCountStatement(lone)} }
  if(traced){

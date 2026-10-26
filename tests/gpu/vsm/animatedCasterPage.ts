@@ -23,7 +23,7 @@ import { compareImages } from '../../../packages/sdk-core/src/runtime/compareIma
 
 /** Frames the lamp moves, then frames the image settles. */
 const MOVE_FRAMES = 240
-const SETTLE_FRAMES = Number((globalThis as any).process?.env?.ZZ_SETTLE ?? 120)
+const SETTLE_FRAMES = 120
 /** The clip plays this fast, so that its stop falls inside a hop, away from its rest pose. */
 const SPEED = 1.5
 const STRIDE = 1.6
@@ -160,20 +160,15 @@ const poseOf = (hero: Object3D): Pose => ({
 
 /** Writes a pose into the hero's nodes, as a frame loop of a page does. */
 function writePose(hero: Object3D, pose: Pose) {
-  const F = (globalThis as any).__ZZ_FINAL as Pose | undefined
-  const still = (globalThis as any).__ZZ_STILLHERO && F
-  hero.position.set(still ? F.x : pose.x, still ? F.y : pose.y, 0.3)
-  hero.rotation.y = still ? F.heading : pose.heading
-  if ((globalThis as any).__ZZ_STILLJOINTS && F) {
-    pose = { ...pose, lower: F.lower, upper: F.upper, head: F.head }
-  }
+  hero.position.set(pose.x, pose.y, 0.3)
+  hero.rotation.y = pose.heading
   hero.getObjectByName('lower')!.rotation.z = pose.lower
   hero.getObjectByName('upper')!.rotation.z = pose.upper
   hero.getObjectByName('head')!.rotation.z = pose.head
 }
 
 /** A fresh world with the example's desk, lamp and lights; the lamp at its rest place. */
-export async function openScene(canvas: HTMLCanvasElement) {
+async function openScene(canvas: HTMLCanvasElement) {
   const world = createWorld(canvas, {
     interactive: false,
     pixelRatio: 1,
@@ -181,7 +176,6 @@ export async function openScene(canvas: HTMLCanvasElement) {
     renderScale: 1,
     exposureMethod: 'manual',
     exposureApplyPhysicalCamera: false,
-    ...JSON.parse((globalThis as any).process?.env?.ZZ_OPTS ?? '{}'),
   } as Parameters<typeof createWorld>[1])
   await world.ready
   world.exposure = 1
@@ -201,7 +195,7 @@ export async function openScene(canvas: HTMLCanvasElement) {
     target: [2, 0, 0],
     castShadow: false,
   })
-  if (!(globalThis as any).__ZZ_NOBEAM) hero.getObjectByName('head')!.add(beam, beam.target)
+  hero.getObjectByName('head')!.add(beam, beam.target)
   const put = (
     shape: ReturnType<typeof geometry.box>,
     paintOf: ReturnType<typeof paint>,
@@ -336,10 +330,6 @@ export type Reading = {
 }
 
 export async function run(): Promise<Reading> {
-  const E = (globalThis as any).process?.env ?? {}
-  ;(globalThis as any).__ZZ_NOBEAM = !!E.ZZ_NOBEAM
-  ;(globalThis as any).__ZZ_STILLHERO = !!E.ZZ_STILLHERO
-  ;(globalThis as any).__ZZ_STILLJOINTS = !!E.ZZ_STILLJOINTS
   // 1. MIXER: the clip plays, each frame's pose is kept; then it stops where it stands.
   const trajectory: Pose[] = []
   let mixer: ReturnType<typeof animation.createMixer> | undefined
@@ -355,7 +345,6 @@ export async function run(): Promise<Reading> {
     after: () => mixer!.stopAll(),
   })
   const finalPose = trajectory[trajectory.length - 1]
-  ;(globalThis as any).__ZZ_FINAL = finalPose
   // 2. SCRIPT: the same poses, frame by frame, written by the loop; nothing else moves.
   const viaScript = await runCase({ drive: (hero, i) => writePose(hero, trajectory[i]) })
   // 3. FRESH: the final pose set before the first frame.

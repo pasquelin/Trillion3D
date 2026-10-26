@@ -19,10 +19,9 @@ const refused = (id: string, what: string, field: string, value: unknown, range?
   })
 
 /**
- * Radius of the envelope that holds the source, in metres: strictly positive and strictly
- * less than the range. An envelope as wide as the range would let no shadow out,
- * and the map near plane would meet its far plane: the contract rejects it instead of
- * returning a degenerate map.
+ * Radius of the source, in metres: strictly positive and strictly less than the range: the source
+ * sphere lies inside the light's reach, and the contract rejects a wider one instead of lighting
+ * from a source the range cuts.
  */
 function emitterRadius(value: unknown, range: number, id: string): number {
   if (!isFiniteNumber(value) || value <= 0 || value >= range)
@@ -31,7 +30,7 @@ function emitterRadius(value: unknown, range: number, id: string): number {
 }
 
 /** A point or spot's tube and soft radius: each strictly positive, the soft radius below the range
- *  as the envelope's is; the axis, a unit direction, belongs to a tube alone. */
+ *  as the source radius is; the axis, a unit direction, belongs to a tube alone. */
 function validateSource(light: SceneLight, validated: SceneLight, range: number) {
   const { id } = light
   if (light.emitterSoftRadius !== undefined) {
@@ -69,7 +68,7 @@ function validateFalloff(light: SceneLight, validated: SceneLight) {
   validated.radialExponent = radialExponent
 }
 
-/** The fields of a point or a spot's source and fall-off into `validated`, its envelope's radius
+/** The fields of a point or a spot's source and fall-off into `validated`, its source radius
  *  among them; `range` is the light's validated range. */
 export function validateLampFields(light: SceneLight, validated: SceneLight, range: number) {
   if (light.emitterRadius !== undefined)

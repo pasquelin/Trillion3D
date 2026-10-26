@@ -13,6 +13,7 @@ import { followOffsets } from '../frame/render/offsetReach.ts'
 import { graphRastersOf } from '../materials/graph/graphRasters.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { material } from '../../../sdk-core/src/world/material/index.ts'
+import { MOBILITY_SHADOWLESS } from '../lighting/shadows/mobilityBits.ts'
 
 test('deformation grows CPU/GPU light and occlusion bounds, and stales the shadows of what moved only', () => {
   const world = new Matrix4(),
@@ -160,4 +161,17 @@ test('the root’s offset words carry the centre of its bounds and the greatest 
   assert.deepEqual(row.centre, [1, 3, 6])
   assert.equal(row.disable, 7)
   assert.equal(row.most, 2)
+})
+
+test('an object that asks `always` declares its instance bounds alone, grown by no offset, and a root that casts no shadow is left out', () => {
+  const always = offsetRoot(sway)
+  always.node.shadowCacheInvalidation = 'always'
+  followOffsets(always.rt)
+  assert.equal(always.root.reach, 2, 'the cut still reaches as far as the offset may')
+  assert.deepEqual(always.changed.at(-1), [-1, -1, -1, 1, 1, 1], 'the stale does not grow with it')
+  const shadowless = offsetRoot(sway)
+  shadowless.node.shadowCacheInvalidation = 'always'
+  shadowless.rt.lights.mobility.words[0] = MOBILITY_SHADOWLESS
+  followOffsets(shadowless.rt)
+  assert.equal(shadowless.changed.length, 0, 'it casts nothing: nothing is declared')
 })

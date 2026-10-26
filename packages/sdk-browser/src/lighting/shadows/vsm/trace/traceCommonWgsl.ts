@@ -13,7 +13,7 @@ import { Frame3, outOfFrame } from '../../../../../../math/src/wgsl/basis.ts'
 
 export const VSM_TRACE_COMMON_WGSL = wgslBlock(
   'VSM_TRACE_COMMON_WGSL',
-  [QUARTER_PI, FLOAT32_MIN_NORMAL, Frame3, outOfFrame, additive2d],
+  [QUARTER_PI, FLOAT32_MIN_NORMAL, Frame3, outOfFrame],
   `
 /** The march's sample times: t² with t = a·i + b (the two words returned, a = −1/stepCount), from
  *  the far end (i = 0) to the ray's start (i = stepCount, time 0), each step jittered by \`stepJitter\`. */
@@ -52,9 +52,6 @@ fn vsmConeDirection(basis:Frame3,s:f32,E:vec2f)->vec3f{
  let across=vsmSquareToDisk(E)*s;
  return outOfFrame(vec3f(across,sqrt(max(0.0,1.0-dot(across,across)))),basis);
 }
-/** Ray \`i\`'s step jitter: the pixel's blue noise turned by the engine's additive sequence, ray 0
- *  the noise itself; the rays of a pixel sample their segments at times spread over the step. */
-fn vsmRayJitter(noise:f32,i:u32)->f32{return additive2d(vec2f(noise),i).x;}
 `,
 )
 

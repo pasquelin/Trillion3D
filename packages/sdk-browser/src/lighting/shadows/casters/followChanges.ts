@@ -34,7 +34,7 @@ const perRoot = new Map<number, Float64Array>()
 /**
  * Declares, for each root with a resident cluster whose record `wants`, the box of those clusters:
  * the pages over them go stale at the next plan, only the moving casters' layer when the root already
- * moves. One scan of the resident clusters a call, however many tiles were served.
+ * moves or deforms. One scan of the resident clusters a call, however many tiles were served.
  */
 function declareResident(rt: FollowRuntime, wants: (rec: PageRec) => boolean) {
   const { lights, layout } = rt
@@ -56,7 +56,11 @@ function declareResident(rt: FollowRuntime, wants: (rec: PageRec) => boolean) {
     growClusterBox(rec, layout.selectionRoots, box, rank)
   }
   for (const [rank, box] of perRoot)
-    lights.changes.worldChanged(box.subarray(0, 3), box.subarray(3, 6), lights.mobility.moves(rank))
+    lights.changes.worldChanged(
+      box.subarray(0, 3),
+      box.subarray(3, 6),
+      lights.mobility.cachedDynamic(rank),
+    )
   perRoot.clear()
 }
 
@@ -123,7 +127,7 @@ export function shadowsFollowCells(rt: FollowRuntime) {
     if (!rec) return
     boxEmpty(incoming, 0)
     growClusterBox(rec, layout.selectionRoots, incoming, world)
-    const moving = lights.mobility.moves(world)
+    const moving = lights.mobility.cachedDynamic(world)
     if (open && moving === movingRun && boxesOverlap(run, 0, incoming, 0))
       boxUnion(run, 0, incoming[0], incoming[1], incoming[2], incoming[3], incoming[4], incoming[5])
     else {

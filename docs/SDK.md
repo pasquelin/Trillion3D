@@ -1735,15 +1735,17 @@ const leaf = material.meshStandard({ graph: g, maxWorldPositionOffset: 0.2 })
 const tree = new Mesh(geometry, leaf)
 tree.worldPositionOffsetDisableDistance = 80 // past 80 m from the camera the leaves stop swaying
 tree.shadowCacheInvalidation = 'rigid' // its shadows are not drawn again for the sway, only when it moves
+tree.mobility = 'movable' // it arrives cached in the dynamic layer of the shadow maps, as one often moving does
 scene.add(tree)
 ```
 
 The object decides whether and how far its surfaces' offsets are evaluated (properties of the node, saved with the world, written in place; the defaults are the reference's):
 
 - **`evaluateWorldPositionOffset`** (boolean, `true`): `false` leaves the object's vertices where the geometry puts them.
-- **`worldPositionOffsetDisableDistance`** (metres, `0`): past this distance from the camera to the centre of the object's bounds the offset stops (0 never stops it). In the shadow maps of a directional light the distance is the clipmap level's: an object that names one is moved in the levels whose threshold distance — the distance past which the level no longer shows the motion, which doubles for each level coarser — is not past its own, and left at rest in the coarser ones; a local light's maps move it whatever the distance. Two settings of the shadow maps name the rule: `shadowClipmapWpoDisableDistance` (`true`; `false` moves the object in every level) and `shadowClipmapWpoDisableDistanceLodBias` (3, from 0 to 30: the levels the rule is held back by).
+- **`worldPositionOffsetDisableDistance`** (metres, `0`): past this distance from the camera to the centre of the object's bounds the offset stops (0 never stops it). In the shadow maps of a directional light the distance is the clipmap level's: an object that names one is moved in the levels whose threshold distance — the distance past which the level no longer shows the motion, which doubles for each level coarser — is not past its own, and left at rest in the coarser ones; a local light's maps move it whatever the distance. A level's threshold counts the clipmap's whole resolution bias, the view's width and field of view included. Three settings of the shadow maps name the rule: `shadowClipmapWpoDisableDistance` (`true`; `false` moves the object in every level), `shadowClipmapWpoDisableDistanceLodBias` (3, from 0 to 30: the levels the rule is held back by) and `shadowClipmapWpoDisableDistanceInvalidateOnScaleChange` (`false`; `true` draws a level again when its threshold shifts with the view's resolution or field of view: steadier shadows of moving vegetation, at the price of redraw spikes).
 - **`worldPositionOffsetWritesVelocity`** (boolean, `true`): whether the temporal anti-aliasing reprojects a pixel of the object by where its vertex was. `false` costs less where the offset does not change; with an offset that moves, it leaves a trail. The previous place is the offset of the image before — its clocks and camera — on the object where its previous world matrix put it.
 - **`shadowCacheInvalidation`** (`'auto'`, `'always'`, `'rigid'` or `'static'`, `'auto'` by default): how the object's shadow pages are kept. `auto` draws them again while its offset is evaluated (not past its distance) or while it moves; `always` every image, for an animation the engine cannot know; `rigid` not for its offset, only when it moves; `static` not for its offset nor for its moves: a pose it takes later is not seen by its cached shadows, and the pages are drawn again when it joins or leaves the scene.
+- **`mobility`** (`'static'`, `'stationary'` or `'movable'`, unset by default): whether the object is often moving. A `movable` object has its shadow pages kept in the dynamic layer of the shadow maps from the frame it joins the scene, so that its arrival draws no page of the static layer; the others are kept in the static layer until they first move. Either returns to the static layer after `shadowCacheFramesStaticThreshold` frames without a move. Unset, the object is `movable` when a skin or a morph deforms it and `static` otherwise; an object whose surfaces wear an offset that invalidates its shadows (`shadowCacheInvalidation` neither `'rigid'` nor `'static'`) arrives in the dynamic layer whatever it says, and `shadowCacheInvalidation = 'static'` keeps it out of it. `undefined` gives back the default. It is saved with the world; a light keeps its own `mobility`, which is another setting.
 
 Four more switches of the object say what it is to a view: **`firstPerson`** (boolean, `false`) marks an object drawn as a
 first-person one — the hands and the weapon of a player, close to the camera: its pixels wear the first-person mark the shadows treat
@@ -2038,7 +2040,7 @@ world.quality.preset = 'max' // the page's preset wins
 - `viewDistance`: `cutViewDistanceScale` 10.
 - `edgeSmoothing`: `antialiasing: 'max'`.
 - `shadows`: `shadowDistanceScale` 1, `shadowNearLevels` 10, `shadowOverlapScale` 1, `shadowFarField` on,
-  `shadowMaxResolution` 4096, `shadowRadiusThreshold` 0, `shadowResolutionLodBiasLocalMoving` 0,
+  `shadowMaxResolution` 4096, `shadowResolutionLodBiasLocalMoving` 0,
   `shadowRayCountDirectional` and `shadowRayCountLocal` 16 (the most a lane holds),
   `shadowSamplesPerRayDirectional` and `shadowSamplesPerRayLocal` 8, `shadowMaxPhysicalPages` 8192 (a pool
   of 8192 pages needs a device whose binding holds 512 MiB; a device that holds less draws the largest pool that fits), `volumetricFogQuality` `'ultra'`.
@@ -3544,12 +3546,12 @@ material.meshStandard({ transparent: true, opacity: 0.5, translucencyPass: 'afte
 new ParticlePool({ capacity: 64, translucencyPass: 'afterMotionBlur' }) // a pool's, in its spec
 ```
 
-### A luminaire does not block its own light
+### A lamp's source radius and its housing
 
-A lamp's envelope (a lantern glass, a shade) would put its own light out. `SceneLight.emitterRadius`
-(metres, positive, below `range`, point and spot only) declares it: **that light's** shadow pass
-writes no depth within that sphere of its centre, per fragment, so a wall crossing it still
-occludes beyond. None declared means zero. Imported lamps:
+`SceneLight.emitterRadius` (metres, positive, below `range`, point and spot only) is the radius of
+the source sphere: it sets how soft the light's shadow is and how the lamp lights a surface. A
+lamp's housing (a lantern glass, a shade) that must not put its own light out is a mesh with
+`mesh.castShadow = false`, as any mesh. Imported lamps:
 [COMPILER.md](COMPILER.md#lightsjson--the-lamps-of-the-source-file).
 
 ### A lamp's cone, fall-off and share of light

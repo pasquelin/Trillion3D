@@ -6,7 +6,10 @@ import { VSM_BOX_CULL_WGSL } from '../invalidation/boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
 import { VSM_PAGE_MARKS_GATHER_WGSL } from '../pageGatherWgsl.ts'
 import { VSM_HANDLE_WGSL } from '../pageTableWgsl.ts'
-import { VSM_PROJECTION_DATA_READ_WGSL } from '../projection/projectionDataWgsl.ts'
+import {
+  VSM_PROJECTION_DATA_READ_WGSL,
+  VSM_PROJECTION_DATA_WGSL,
+} from '../projection/projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from '../resources.ts'
 import type { VsmLayout } from '../layout.ts'
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
@@ -74,6 +77,26 @@ fn vsmRenderViewPixels(error:f32,centre:vec3f,radius:f32,toClip:mat4x4f,viewToCl
  let clip=toClip*vec4f(centre,1.0);
  let v=vec3f(clip.x/viewToClip[0][0],clip.y/viewToClip[1][1],-clip.w);
  return projectedBound(error,v,radius,1.0,focal,near,perspective);
+}
+`,
+)
+
+/**
+ * The layer a caster draws into in a map, the reference's cache-as-static decision made for it (the cull's,
+ * \`vsmRenderCullView\`, and the shadow views' descent's, \`../traversal/traversalWgsl.ts\`): the static layer where the map
+ * is cached and the caster is neither dynamic (\`dynamicCaster\`) nor cached as dynamic in the map's view (\`viewBits\` bit
+ * \`viewSlot\`), else the dynamic one; one in the static layer whose cache state turned this frame (bit 16 + \`viewSlot\`)
+ * draws into every wanted page. With the marks of the pages it draws into.
+ */
+export const VSM_CASTER_LAYER_WGSL = wgslBlock(
+  'VSM_CASTER_LAYER_WGSL',
+  [VSM_CONSTANTS_WGSL, VSM_PROJECTION_DATA_WGSL],
+  `struct VsmCasterLayer{staticLayer:bool,transitioned:bool,markMask:u32,}
+fn vsmCasterLayer(dynamicCaster:bool,viewBits:u32,pd:VsmProjectionData)->VsmCasterLayer{
+ let staticLayer=!pd.uncached&&!dynamicCaster&&((viewBits>>pd.viewSlot)&1u)==0u;
+ let transitioned=staticLayer&&((viewBits>>(16u+pd.viewSlot))&1u)!=0u;
+ let markMask=select(select(VSM_PAGE_DYNAMIC_STALE,VSM_PAGE_STATIC_STALE,staticLayer),VSM_PAGE_WANTED,transitioned);
+ return VsmCasterLayer(staticLayer,transitioned,markMask);
 }
 `,
 )
@@ -181,8 +204,6 @@ fn vsmRenderCullView(cand:VsmRenderCandidate,k:u32,viewIndex:u32,directional:boo
  let view=views[viewIndex];
  let h=vsmHandleFromId(view.x);
  let pd=vsmProjectionOf(h);
- // A map redrawn whole leaves out a caster too small on the main view (\`shadowRadiusThreshold\`).
- if(vsmRadiusCulled(cand.screenRatio,params.radiusThresholdSq,pd.uncached)){return;}
  let nearClip=!directional;
  let viewToClip=pd.lightViewToClip;
  let isOrtho=viewToClip[3][3]>=1.0;
@@ -192,19 +213,22 @@ fn vsmRenderCullView(cand:VsmRenderCandidate,k:u32,viewIndex:u32,directional:boo
  // The static layer takes a caster that stands still (the engine's mobility) in a cached map; a
  // moving one draws into the dynamic layer: its mobility decides it, frame by frame.
  // A caster cached as dynamic in this view (its placement's per-view bit) draws as one that moves, as
- // does one whose offset this map allows and whose object lets it invalidate.
+ // does every cluster of a placement whose offset this map allows and whose object lets it invalidate.
  let offsetAlways=(cand.flags&VSM_RENDER_CAND_OFFSET_ALWAYS)!=0u;
  let offsetKept=(cand.flags&VSM_RENDER_CAND_OFFSET_KEEPS)!=0u;
  let offsetEvaluated=(cand.flags&VSM_RENDER_CAND_OFFSET)!=0u;
  // Whether the offset is allowed in this map: always, else the object evaluates it and the map's
  // level is not past the distance the object stops at.
  let offsetAllowed=offsetAlways||(offsetEvaluated&&(cand.offsetDisableSq<=0.0||pd.wpoThreshold<=cand.offsetDisableSq));
- let staticLayer=!pd.uncached&&!(offsetAllowed&&!offsetKept)&&(cand.flags&(VSM_RENDER_CAND_DYNAMIC|VSM_RENDER_CAND_DEFORMING))==0u&&((cand.viewBits>>pd.viewSlot)&1u)==0u;
+ let placementAllowed=(cand.flags&VSM_RENDER_CAND_PLACEMENT_OFFSET)!=0u
+  &&((cand.flags&VSM_RENDER_CAND_PLACEMENT_ALWAYS)!=0u||cand.offsetDisableSq<=0.0||pd.wpoThreshold<=cand.offsetDisableSq);
+ let layer=vsmCasterLayer(placementAllowed||(cand.flags&(VSM_RENDER_CAND_DYNAMIC|VSM_RENDER_CAND_DEFORMING))!=0u,cand.viewBits,pd);
+ let staticLayer=layer.staticLayer;
  // One that changed its cache state this frame redraws every page it overlaps, the stale ones of both layers.
- let transitioned=staticLayer&&((cand.viewBits>>(16u+pd.viewSlot))&1u)!=0u;
+ let transitioned=layer.transitioned;
  // The receiver cover and the mark mask depend on the cache state.
  let useCover=pd.useCover&&!staticLayer;
- let markMask=select(select(VSM_PAGE_DYNAMIC_STALE,VSM_PAGE_STATIC_STALE,staticLayer),VSM_PAGE_WANTED,transitioned);
+ let markMask=layer.markMask;
  // A view with no stale page of the caster's layer draws nothing of it (\`vsmRenderViews\`).
  if((view.w&select(1u,2u,staticLayer))==0u){return;}`
 
@@ -228,6 +252,7 @@ const cullViewFrustumText = /* wgsl */ `
  let tessKind=select(VSM_RENDER_TESSELLATE_LOCAL,VSM_RENDER_TESSELLATE_DIRECTIONAL,directional);
  let tessellated=(cand.flags&VSM_RENDER_CAND_TESSELLATED)!=0u&&(params.tessellated&tessKind)!=0u;
  let tier=vsmRenderTierOf(cand.corners);
+ // A clipmap level (directional) has no near clip: bit 20, \`vsmRecordNoNearClip\`.
  let word=view.x|select(0u,1u<<20u,directional)|select(0u,1u<<21u,staticLayer)
   |select(0u,1u<<22u,vsmRenderSwapped(pd.shiftedToMapUv,isOrtho,cand.flags))
   |select(0u,1u<<23u,tessellated)|(tier<<24u)|select(0u,1u<<28u,invalidates)|select(0u,1u<<29u,offsetMarked);
@@ -252,10 +277,10 @@ const cullViewMipsText = /* wgsl */ `
  for(var mipLevel=select(pd.finestMip,onlyMip,second);mipLevel<select(mips,onlyMip+1u,second);mipLevel++){
   let mipFocal=focal*exp2(-f32(mipLevel-pd.finestMip));
   let levelTexels=i32(VSM_LEVEL0_TEXELS>>mipLevel);
-  let pixels=vsmClipToStaleRect(vsmRectPixels(vec4i(0,0,levelTexels,levelTexels),cull),h,mipLevel,staticLayer,transitioned);
+  let pixels=vsmStalePixels(cull,h,mipLevel,staticLayer,transitioned);
   // The object first, by the pages it overlaps (the fine ones alone for a fine object), then the cluster.
   // Before the level of detail, which costs two projections: a mip with no page to draw asks none.
-  let objectRect=vsmClipToStaleRect(vsmRectPixels(vec4i(0,0,levelTexels,levelTexels),objectCull),h,mipLevel,staticLayer,transitioned);
+  let objectRect=vsmStalePixels(objectCull,h,mipLevel,staticLayer,transitioned);
   if(!vsmTouchesMappedPixels(h,mipLevel,objectRect,markMask,fineObject,useCover)){continue;}
   if(!vsmTouchesMappedPixels(h,mipLevel,pixels,markMask,false,useCover)){continue;}
   // The second cull keeps the level of detail the first chose; the verdict is asked of it only to
@@ -339,7 +364,7 @@ fn vsmRenderCullCandidate(wid:vec3u,nwg:vec3u,lane:u32,kind:u32){
  * pyramid and the kept tables — the previous frame's in the first, this frame's in the second and
  * the post cull.
  *
- * Record (vec4u, `VSM_RENDER_RECORD_WGSL`): x row; y VSM id | mip << 16 | clamp-to-near << 20 |
+ * Record (vec4u, `VSM_RENDER_RECORD_WGSL`): x row; y VSM id | mip << 16 | no near clip << 20 |
  * static << 21 | swapped << 22 (`vsmRenderSwapped`) | tessellated << 23 | tier << 24 | deforms << 28;
  * z the window's first page x | y << 8 and its last page x << 16 | y << 24 (pages of the mip,
  * inclusive); w the window's pages to draw, bit (y · `VSM_RENDER_WINDOW_PAGES` + x) from its first.
@@ -354,6 +379,7 @@ ${cullBindingsText}${cullSoftwareEmitText}${cullViewHeadText}${cullViewFrustumTe
     [
       VSM_RENDER_OVERLAP_WGSL,
       VSM_OCCLUSION_TEST_WGSL,
+      VSM_CASTER_LAYER_WGSL,
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       vsmBindingsWgsl(0, VSM_RENDER_CULL_SPECS, layout),

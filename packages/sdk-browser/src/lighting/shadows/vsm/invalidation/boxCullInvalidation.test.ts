@@ -39,7 +39,7 @@ const CASES = 12000
 const GOLDEN = 'f2099b9fc8b11818a59a31544424c196e362b4793e2bf137462ec4cd38602e92'
 const HELPERS = [
   ...['vsmStaleBoxPages', 'vsmTouchesMappedPage', 'vsmMarksMatch'],
-  ...['vsmLevelHoldingRect', 'vsmClipRadius', 'vsmCachesAsStatic'],
+  ...['vsmLevelHoldingRect', 'vsmClipRadius', 'vsmCachesAsStatic', 'vsmOffsetAllowed'],
   'perspectiveDivide',
   'floorLog2',
 ]
@@ -96,6 +96,7 @@ test("an instance's pages are invalidated as the golden holds: the same writes i
       coarseDynamicCached: d.bool(),
       levelShapeCutoffSq: d.f(),
       viewSlot: 0,
+      wpoThreshold: 0,
     }
     // A change's box: its centre, its half extent along the world's axes — finite, as a record's
     // is: past f32 math the list holds the unbounded box (`UNBOUNDED_EXTENT`).
@@ -110,17 +111,52 @@ test("an instance's pages are invalidated as the golden holds: the same writes i
       axisY: [0, extent[1], 0],
       axisZ: [0, 0, extent[2]],
       views: 0xffffffff,
+      offsetBits: 0,
+      offsetDisableSq: 0,
     }
     const now = use(tables(k, inputs(k)))
     is.vsmStaleBoxPages(pd, inst)
     digest.add(now.writes)
     writing += Number(now.writes.some((entry) => typeof entry[0] === 'number'))
-    // A map that uses the receiver cover draws its dynamic layer again each frame: a box of casters
-    // already moving writes nothing in it, whatever the light and the box.
-    const covered = use(tables(k, inputs(k)))
-    is.vsmStaleBoxPages({ ...pd, useCover: true }, { ...inst, flags: VSM_BOX_MOVING })
-    assert.deepEqual(covered.writes, [], `case ${k}`)
   }
   assert.equal(digest.hex(), GOLDEN)
   assert.ok(writing > CASES / 25, `${writing} cases write`)
+})
+
+// A box carries its placement's offset facts; the map says whether the offset is allowed there, and the
+// layer the box was cached in follows (`vsmCachesAsStatic`).
+test('an instance whose offset invalidates its shadows is cached as dynamic in the maps that allow the offset', () => {
+  const is = run(INVALIDATION, ['vsmCachesAsStatic', 'vsmOffsetAllowed'])
+  const { VSM_BOX_MOVING, MOBILITY_OFFSET_ALWAYS, MOBILITY_OFFSET_INVALIDATES } =
+    wgslConstants(INVALIDATION)
+  const statically = (
+    inst: { flags?: number; offsetBits?: number; offsetDisableSq?: number },
+    pd: { wpoThreshold?: number; uncached?: boolean },
+  ) =>
+    is.vsmCachesAsStatic(
+      { flags: 0, offsetBits: 0, offsetDisableSq: 0, ...inst },
+      { uncached: false, wpoThreshold: 0, ...pd },
+    )
+  const wears = MOBILITY_OFFSET_INVALIDATES
+  // No offset facts: static, unless it moves or the view is uncached.
+  assert.equal(statically({}, {}), true)
+  assert.equal(statically({ flags: VSM_BOX_MOVING }, {}), false)
+  assert.equal(statically({}, { uncached: true }), false)
+  // An offset that never stops is allowed in every map.
+  assert.equal(statically({ offsetBits: wears }, { wpoThreshold: 1e9 }), false)
+  // One that stops past a distance is allowed in the maps whose threshold is not past it.
+  assert.equal(statically({ offsetBits: wears, offsetDisableSq: 100 }, { wpoThreshold: 99 }), false)
+  assert.equal(
+    statically({ offsetBits: wears, offsetDisableSq: 100 }, { wpoThreshold: 100 }),
+    false,
+  )
+  assert.equal(statically({ offsetBits: wears, offsetDisableSq: 100 }, { wpoThreshold: 101 }), true)
+  // A surface that always evaluates it is allowed past the distance.
+  const always = wears | MOBILITY_OFFSET_ALWAYS
+  assert.equal(
+    statically({ offsetBits: always, offsetDisableSq: 100 }, { wpoThreshold: 101 }),
+    false,
+  )
+  // The always bit alone says nothing: the placement's offset must invalidate its shadows.
+  assert.equal(statically({ offsetBits: MOBILITY_OFFSET_ALWAYS }, {}), true)
 })

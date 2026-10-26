@@ -24,9 +24,11 @@ const CLIPMAP_AND_MARKING_RULES = /* @__PURE__ */ (() =>
     integer('shadowFirstPersonRequestMinLevelClamp', 8, [0, 30]),
     integer('shadowClipmapFirstCoarseLevel', 15, [0, 30]),
     integer('shadowClipmapLastCoarseLevel', 18, [0, 30]),
+    integer('shadowClipmapMinCameraViewportWidth', 0, [0, 16384]),
     positive('shadowClipmapZRangeScale', 1000),
     flag('shadowClipmapWpoDisableDistance', true),
     integer('shadowClipmapWpoDisableDistanceLodBias', 3, [0, 30]),
+    flag('shadowClipmapWpoDisableDistanceInvalidateOnScaleChange', false),
     integer('shadowMarkCoarsePagesDirectional', 2, [0, 2]),
     integer('shadowMarkCoarsePagesLocal', 1, [0, 2]),
     nonNegative('shadowCoarsePagePixelThresholdStatic', 1),
@@ -60,7 +62,7 @@ const BIAS_AND_CACHE_RULES = /* @__PURE__ */ (() =>
     nonNegative('shadowDynamicResolutionMaxPagePoolLoadFactor', 0.85),
   ] as const)()
 
-/** The soft shadow rays, the resolution biases and the radius threshold. */
+/** The soft shadow rays, and the resolution biases. */
 const FILTERING_AND_LOD_RULES = /* @__PURE__ */ (() =>
   [
     integer('shadowSmrtAdaptiveRayCount', 1, [0, SHADOW_RAY_COUNT_MAX]),
@@ -76,8 +78,6 @@ const FILTERING_AND_LOD_RULES = /* @__PURE__ */ (() =>
     number('shadowResolutionLodBiasLocal', 0, [-16, 16]),
     number('shadowResolutionLodBiasLocalMoving', 1, [-16, 16]),
     count('shadowLightActiveFrameCount', 10, 1),
-    nonNegative('shadowRadiusThreshold', 0.01),
-    flag('shadowRadiusThresholdUncached', true),
   ] as const)()
 
 /** The rays of the soft shadows, the page pool, the distant lights, the resolutions and the translucent surfaces. */
@@ -120,9 +120,11 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowClipmapLastLevel` | 22 | |
  * | `shadowClipmapFirstCoarseLevel` | 15 | |
  * | `shadowClipmapLastCoarseLevel` | 18 | |
+ * | `shadowClipmapMinCameraViewportWidth` | 0 | |
  * | `shadowClipmapZRangeScale` | 1000 | |
  * | `shadowClipmapWpoDisableDistance` | true | |
  * | `shadowClipmapWpoDisableDistanceLodBias` | 3 | |
+ * | `shadowClipmapWpoDisableDistanceInvalidateOnScaleChange` | false | |
  * | `shadowFirstPersonClipmap` | true | |
  * | `shadowFirstPersonClipmapFirstLevel` | 8 | |
  * | `shadowFirstPersonClipmapLastLevel` | 18 | |
@@ -167,8 +169,6 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowResolutionLodBiasLocal` | 0 | 1 1 0 0 |
  * | `shadowResolutionLodBiasLocalMoving` | 1 | 2 2 1 0 |
  * | `shadowLightActiveFrameCount` | 10 | |
- * | `shadowRadiusThreshold` | 0.01 | 0.06 0.05 0.04 0 |
- * | `shadowRadiusThresholdUncached` | true | |
  * | `shadowRayCountDirectional` | 8 | 0 4 8 16 |
  * | `shadowSamplesPerRayDirectional` | 4 | 2 2 4 8 |
  * | `shadowRayCountLocal` | 8 | 0 4 4 16 |
@@ -196,6 +196,10 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * footprints, in the map's finest level, under which an object is drawn into the fine pages alone
  * and not into the coarse ones, the object judged whole (its placement's bounds), by the layer it
  * is cached in: static (1) or dynamic (4, the reference's value for cluster geometry).
+ *
+ * `shadowClipmapMinCameraViewportWidth` is the narrowest view width, in pixels, the sun's clipmap resolution is
+ * judged at: 0, the default, reads the width the view is drawn at alone; raise it so that a lowered render
+ * resolution does not coarsen the sun's shadows.
  *
  * `shadowMarkPixelPagesMipModeLocal` limits the mips a local light's pixels mark: 0 all eight, 1 the even ones, 2 the
  * odd ones (fewer duplicated instances, a harsher fall-off between mips).
@@ -310,7 +314,6 @@ const SMOOTH_SHADOWS = {
   shadowResolutionLodBiasDirectionalMoving: 0,
   shadowResolutionLodBiasLocal: 1,
   shadowResolutionLodBiasLocalMoving: 2,
-  shadowRadiusThreshold: 0.06,
   shadowRayCountDirectional: 0,
   shadowSamplesPerRayDirectional: 2,
   shadowRayCountLocal: 0,
@@ -327,7 +330,6 @@ const BALANCED_SHADOWS = {
   shadowResolutionLodBiasDirectionalMoving: 0,
   shadowResolutionLodBiasLocal: 1,
   shadowResolutionLodBiasLocalMoving: 2,
-  shadowRadiusThreshold: 0.05,
   shadowRayCountDirectional: 4,
   shadowSamplesPerRayDirectional: 2,
   shadowRayCountLocal: 4,
@@ -344,7 +346,6 @@ const FINE_SHADOWS = {
   shadowResolutionLodBiasDirectionalMoving: 0,
   shadowResolutionLodBiasLocal: 0,
   shadowResolutionLodBiasLocalMoving: 1,
-  shadowRadiusThreshold: 0.04,
   shadowRayCountDirectional: 8,
   shadowSamplesPerRayDirectional: 4,
   shadowRayCountLocal: 4,
@@ -361,7 +362,6 @@ const CINEMATIC_SHADOWS = {
   shadowResolutionLodBiasDirectionalMoving: -1.5,
   shadowResolutionLodBiasLocal: 0,
   shadowResolutionLodBiasLocalMoving: 0,
-  shadowRadiusThreshold: 0,
   shadowRayCountDirectional: 16,
   shadowSamplesPerRayDirectional: 8,
   shadowRayCountLocal: 16,

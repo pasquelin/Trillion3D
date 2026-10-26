@@ -22,8 +22,11 @@ import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../../materials/texture/shaderRule.fixture.ts'
 import {
   MOBILITY_CACHE_STATIC,
+  MOBILITY_DEFORMS,
   MOBILITY_FAR_SHADOW,
   MOBILITY_MOVING,
+  MOBILITY_OFFSET_ALWAYS,
+  MOBILITY_OFFSET_INVALIDATES,
   MOBILITY_SHADOWLESS,
 } from '../mobilityBits.ts'
 
@@ -111,6 +114,7 @@ const double = (x: number) => {
 const bits = new Float32Array(1),
   asBits = new Uint32Array(bits.buffer)
 const floatOf = (word: number) => ((asBits[0] = word), bits[0])
+const bitsOf = (x: number) => ((bits[0] = x), asBits[0])
 
 /** The diff kernel over `ROOTS` placements, run in JavaScript on the shipped text: its boxes and
  *  words set by `place`, its memory kept from step to step, the records of each step returned. The
@@ -119,7 +123,8 @@ const floatOf = (word: number) => ((asBits[0] = word), bits[0])
 function diffKernel(roots: number, records = 16) {
   const rootBoxes: number[][] = Array.from({ length: roots * ROOT_BOX_DOUBLES }, () => double(0))
   const rootWorlds: number[][] = Array.from({ length: roots * 16 }, () => double(0))
-  const rootWords = new Array<number>(2 * roots).fill(0)
+  // The words, the instances' state, the squares of the offsets' distances (`ROOT_SECTIONS`).
+  const rootWords = new Array<number>(3 * roots).fill(0)
   const castState = new Array<number>(roots * CAST_STATE_WORDS).fill(0)
   const castChanges = new Array<number>(CAST_HEADER_WORDS + records * CAST_RECORD_WORDS).fill(0)
   const diff = { roots, quiet: 0 }
@@ -141,8 +146,9 @@ function diffKernel(roots: number, records = 16) {
     atomicStore: (p: { set: (v: number) => void }, v: number) => p.set(v),
   })
   return {
-    /** Placement `r` at the box `[lo, hi]` (none for `null`) with `word`. */
-    place(r: number, box: number[] | null, word = 0) {
+    /** Placement `r` at the box `[lo, hi]` (none for `null`) with `word`, its offset stopping at
+     *  `disableSq`. */
+    place(r: number, box: number[] | null, word = 0, disableSq = 0) {
       const at = r * ROOT_BOX_DOUBLES
       for (let k = 0; k < 6; k++) rootBoxes[at + k] = double(box ? box[k] : 0)
       // The oriented box of the same bounds, along the world's axes: the centre (doubles 7..9), the
@@ -155,14 +161,17 @@ function diffKernel(roots: number, records = 16) {
       for (let c = 0; c < 3; c++) view[3 * c + c] = half[c]!
       for (let k = 0; k < 5; k++) rootBoxes[at + 11 + k] = [singles[2 * k]!, singles[2 * k + 1]!]
       rootWords[r] = word
+      rootWords[2 * roots + r] = bitsOf(disableSq)
     },
-    /** One diff, over every placement: the records it appended, each its box and moving flag; the
+    /** One diff, over every placement: the records it appended, each its box and moving flag, and
+     *  beside them the offset facts each carries (the word bits, the distance's square); the
      *  header's overflow flag. */
     step(quiet = false) {
       castChanges.fill(0)
       diff.quiet = quiet ? 1 : 0
       for (let r = 0; r < roots; r++) run.castDiff([r, 0, 0], [roots, 1, 1])
-      const out = []
+      const out = [],
+        facts = []
       for (let k = 0; k < Math.min(castChanges[0], records); k++) {
         const at = CAST_HEADER_WORDS + k * CAST_RECORD_WORDS
         const f = (i: number) => floatOf(castChanges[at + i])
@@ -174,8 +183,9 @@ function diffKernel(roots: number, records = 16) {
           box: [f(0) - ex, f(1) - ey, f(2) - ez, f(0) + ex, f(1) + ey, f(2) + ez],
           moving: f(3) < 0,
         })
+        facts.push({ offset: castChanges[at + 11], disableSq: f(15) })
       }
-      return { records: out, overflow: castChanges[1] !== 0 }
+      return { records: out, facts, overflow: castChanges[1] !== 0 }
     },
   }
 }
@@ -221,6 +231,51 @@ test('a moving placement’s moves stale the dynamic layer alone, at both ends',
   assert.deepEqual(kernel.step().records, [
     { box: A, moving: true },
     { box: B, moving: true },
+  ])
+})
+
+test('a placement that deforms is cached as dynamic: its arrival and its moves stale the dynamic layer alone', () => {
+  const kernel = diffKernel(2)
+  kernel.place(0, A, MOBILITY_DEFORMS)
+  kernel.step(true)
+  kernel.place(1, B, MOBILITY_DEFORMS)
+  assert.deepEqual(kernel.step().records, [{ box: B, moving: true }], 'it arrives')
+  kernel.place(0, B, MOBILITY_DEFORMS)
+  assert.deepEqual(
+    kernel.step().records,
+    [
+      { box: A, moving: true },
+      { box: B, moving: true },
+    ],
+    'it moves',
+  )
+  // It begins to move and settles, and stays dynamic: the static layer is never staled.
+  kernel.place(0, B, MOBILITY_DEFORMS | MOBILITY_MOVING)
+  assert.deepEqual(kernel.step().records, [{ box: B, moving: true }], 'it begins to move')
+  kernel.place(0, B, MOBILITY_DEFORMS)
+  assert.deepEqual(kernel.step().records, [{ box: B, moving: true }], 'it settles')
+})
+
+test('a box carries the offset facts of its placement and the square of its distance, at both ends of a move', () => {
+  const kernel = diffKernel(2)
+  const wears = MOBILITY_OFFSET_INVALIDATES | MOBILITY_OFFSET_ALWAYS
+  kernel.place(0, A)
+  kernel.step(true)
+  kernel.place(1, B, wears | MOBILITY_FAR_SHADOW, 100)
+  assert.deepEqual(kernel.step().facts, [{ offset: wears, disableSq: 100 }], 'it arrives')
+  kernel.place(1, A, wears, 100)
+  assert.deepEqual(
+    kernel.step().facts,
+    [
+      { offset: wears, disableSq: 100 },
+      { offset: wears, disableSq: 100 },
+    ],
+    'it moves',
+  )
+  kernel.place(0, B)
+  assert.deepEqual(kernel.step().facts, [
+    { offset: 0, disableSq: 0 },
+    { offset: 0, disableSq: 0 },
   ])
 })
 

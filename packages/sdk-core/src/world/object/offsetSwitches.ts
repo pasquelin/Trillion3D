@@ -1,4 +1,5 @@
 import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
+import { OBJECT_MOBILITIES, type ObjectMobility } from '../../contracts/objectAbi.ts'
 
 /**
  * HOW A SCENE NODE HOLDS ITS WORLD POSITION OFFSET: the four switches of the object whose surfaces'
@@ -11,6 +12,12 @@ import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
  * moves, `always` every image, `rigid` not for its offset, `static` not for its offset nor its moves.
  * A material's own `alwaysEvaluateWorldPositionOffset` overrides the first two, its
  * `maxWorldPositionOffset` limits how far the vertices go.
+ *
+ * `mobility` (`static`, `stationary` or `movable`) says whether the object is often moving: a
+ * `movable` one is cached in the dynamic layer of the shadow maps from the frame it joins the scene,
+ * the others in the static layer until they first move. Left unset (the default, `undefined`) it is
+ * the object's own: `movable` for one whose vertices a skin or a morph moves, `static` otherwise;
+ * the engine resolves it where it reads the object's shadows (`castFlagsOf`).
  *
  * Two more switches of the object are held beside them, as they are as seldom set:
  * `firstPerson` (false), an object drawn as a first-person one — in the view's space, close to the
@@ -45,6 +52,7 @@ export interface OffsetSwitches {
   disableDistance: number
   writesVelocity: boolean
   shadowCache: ShadowCacheInvalidation
+  mobility: ObjectMobility | undefined
   firstPerson: boolean
   worldSpaceRepresentation: boolean
   castHiddenShadow: boolean
@@ -57,6 +65,7 @@ const DEFAULTS: Readonly<OffsetSwitches> = {
   disableDistance: 0,
   writesVelocity: true,
   shadowCache: 'auto',
+  mobility: undefined,
   firstPerson: false,
   worldSpaceRepresentation: false,
   castHiddenShadow: false,
@@ -81,6 +90,7 @@ const PROPERTIES = {
   worldPositionOffsetDisableDistance: 'disableDistance',
   worldPositionOffsetWritesVelocity: 'writesVelocity',
   shadowCacheInvalidation: 'shadowCache',
+  mobility: 'mobility',
   firstPerson: 'firstPerson',
   firstPersonWorldSpaceRepresentation: 'worldSpaceRepresentation',
   castHiddenShadow: 'castHiddenShadow',
@@ -97,6 +107,10 @@ function refusal(property: string, value: unknown): string | undefined {
     return SHADOW_CACHE_INVALIDATIONS.includes(value as ShadowCacheInvalidation)
       ? undefined
       : `shadowCacheInvalidation is one of ${SHADOW_CACHE_INVALIDATIONS.join(', ')}`
+  if (property === 'mobility')
+    return value === undefined || OBJECT_MOBILITIES.includes(value as ObjectMobility)
+      ? undefined
+      : `mobility is one of ${OBJECT_MOBILITIES.join(', ')}, or undefined for the object's own`
   return typeof value === 'boolean' ? undefined : `${property} is true or false`
 }
 
@@ -148,6 +162,8 @@ export function copyOffsetSwitches(into: object, source: object) {
   for (const turnedOn of [false, true])
     for (const [property, key] of entries) {
       const value = (from ?? DEFAULTS)[key]
-      if ((value === true) === turnedOn) target[property] = value
+      // A light's own `mobility` is not this switch: a value it already holds is not written.
+      if ((value === true) === turnedOn && offsetSwitchesOf(into)[key] !== value)
+        target[property] = value
     }
 }

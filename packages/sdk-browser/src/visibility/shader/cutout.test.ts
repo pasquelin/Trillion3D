@@ -253,10 +253,10 @@ test('every raster holds the graph masks it is made with, and none holds them ot
     ENGINE_SHADERS.RASTER_MASKED!,
     /maskKeepAt\(page,tc\.xy,tc\.z,ddx,ddy,vec2f\(pixel\)\+vec2f\(0\.5\)\)/,
   )
-  // The shadow raster gives the texel of the physical page, which the dither is read at.
+  // The shadow raster gives the map's virtual pixel, which the dither is read at.
   assert.match(
     ENGINE_SHADERS.VSM_RENDER_RASTER_MASKED!,
-    /maskKeepAt\(pages\[in\.row\],in\.uv,1\.0,gx,gy,vec2f\(texel\)\)/,
+    /maskKeepAt\(pages\[in\.row\],in\.uv,1\.0,gx,gy,vsmRenderMapPixel\(in\.clip,vsmRenderWindowMip\(in\.window\)\)\)/,
   )
   assert.match(
     ENGINE_SHADERS.TESSELLATION_DICE_MASKED!,

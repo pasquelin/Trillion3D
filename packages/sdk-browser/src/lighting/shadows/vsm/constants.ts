@@ -105,7 +105,7 @@ export const VSM_UNIFORMS_BYTES = 224
 
 /** Bytes of one candidate of the raster's cull (`VsmRenderCandidate`, `render/renderParamsWgsl.ts`)
  *  and of one record it emits (vec4u, `render/renderCullWgsl.ts`). */
-export const VSM_RENDER_CANDIDATE_BYTES = 144
+export const VSM_RENDER_CANDIDATE_BYTES = 128
 export const VSM_RENDER_RECORD_BYTES = 16
 /** Bytes of a light of the frame in the raster's table (`vsmWriteLights`): its first map's id and its map count, padded to
  *  a `vec4u`. */
@@ -209,22 +209,26 @@ export function vsmWriteDepthFromDeviceZ(
 }
 /**
  * The greatest f32 below 1: 1 − 2^-24, an f32 significand having 24 bits, written as the decimal a
- * shader reads back to it exactly. A sun level's caster in front of its near plane is flattened onto
- * that depth (`render/renderRasterWgsl.ts`); the square-to-disk map centres the
- * unit square on it (`trace/traceCommonWgsl.ts`).
+ * shader reads back to it exactly. The square-to-disk map centres the unit square on it
+ * (`trace/traceCommonWgsl.ts`).
  */
 export const VSM_F32_BELOW_ONE = 0.99999994
 
-/** The mip level of a local light's footprint. `extraBias` must be >= 0. */
+/** The mip level of a local light's footprint. `extraBias` must be >= 0. `mipMode` limits the
+ *  mips: 0 all eight, 1 the even ones, 2 the odd ones (`shadowMarkPixelPagesMipModeLocal`), applied
+ *  after the clamp to the last mip, as the marking's WGSL does. */
 export function vsmLocalMipLevel(
   footprint: number,
   mapBias: number,
   pressureBias: number,
   extraBias = 0,
+  mipMode = 0,
 ) {
   const mipLevelFloat = Math.log2(footprint) + mapBias + pressureBias + extraBias
   let mipLevel = Math.max(Math.floor(mipLevelFloat), 0) >>> 0
   mipLevel = Math.min(mipLevel, VSM_MIPS - 1)
+  if (mipMode === 1) mipLevel &= ~1
+  else if (mipMode === 2) mipLevel |= 1
   return mipLevel
 }
 

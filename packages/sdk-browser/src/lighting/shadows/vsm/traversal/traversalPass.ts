@@ -93,6 +93,7 @@ export function vsmDescentPipes(device: GPUDevice, layout: VsmLayout) {
       ...vsmBindGroupLayoutEntries(VSM_DESCENT_SPECS, COMPUTE),
       computeBufferEntry(3, 'read-only-storage', COMPUTE),
       computeBufferEntry(4, 'storage', COMPUTE),
+      computeBufferEntry(8, 'read-only-storage', COMPUTE),
     ],
   ]
   const sighted = [...groups, vsmOcclusionEntries()]
@@ -216,12 +217,14 @@ function listBytes({ info }: VsmDescentScene, { views, nodeBudget, candCap }: De
   }
 }
 
-/** The raster's lists the descent binds: the parameters' window, the frame's lights and the counters
- *  (`RenderListGroups`, the object the VSM group is held under, made again when one of them moved). */
+/** The raster's lists the descent binds: the parameters' window, the frame's lights, the counters and
+ *  the placements' words (`RenderListGroups`, the object the VSM group is held under, made again when
+ *  one of them moved). */
 export interface VsmDescentLists {
   params: GPUBufferBinding
   lights: GPUBuffer
   counts: GPUBuffer
+  rootWords: GPUBuffer
 }
 
 /**
@@ -325,7 +328,7 @@ function cullingGroups(d: VsmDescent, tables: VsmDescentScene['tables']) {
 
 /** The descent's VSM group over the tables of `res.current` and the raster's lists `d.lists`. */
 function vsmGroup(res: VsmResources, d: VsmDescent) {
-  const { params, lights, counts } = d.lists!
+  const { params, lights, counts, rootWords } = d.lists!
   return d.device.createBindGroup({
     label: `${LABEL}.vsm`,
     layout: d.pipes!.views.groups[1]!,
@@ -334,6 +337,7 @@ function vsmGroup(res: VsmResources, d: VsmDescent) {
       ...vsmBindGroupEntries(res, VSM_DESCENT_SPECS),
       { binding: 3, resource: { buffer: lights } },
       { binding: 4, resource: { buffer: counts } },
+      { binding: 8, resource: { buffer: rootWords } },
     ],
   })
 }

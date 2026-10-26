@@ -68,7 +68,7 @@ const movedAt = new WeakMap<VsmLightCache, number>()
 
 /**
  * The mobility factor of a light, from 0 to 1, at scene frame `frame`: 1 the frame it was made or
- * `moved` — its direction, its position, its shape changed —, then falling to 0 over the next
+ * `moved` — its direction or its position changed, not its shape —, then falling to 0 over the next
  * `activeFrames` frames in equal steps (`shadowLightActiveFrameCount`), and 0 from there until it
  * moves again. Only a `movable` light asks it (`VsmLocalLightInput.movable`): a static or
  * stationary one rests at the still bias from its first frame.
@@ -95,17 +95,17 @@ export interface VsmClipmapConfig {
   keepsDynamic: boolean
   /** Whether a level leaves out the offsets of the objects that stop theirs short of it
    *  (`shadowClipmapWpoDisableDistance`), the levels it keeps them past the distance
-   *  (`shadowClipmapWpoDisableDistanceLodBias`), and the resolution bias the rule counts levels with:
-   *  the sun's at rest, with no screen term and no moving one, so that it does not vary with the view. */
+   *  (`shadowClipmapWpoDisableDistanceLodBias`), and whether a shift of that distance's level redraws
+   *  the level's pages (`shadowClipmapWpoDisableDistanceInvalidateOnScaleChange`). */
   wpoDisable: boolean
   wpoLodBias: number
-  restingBias: number
+  wpoInvalidatesOnScale: boolean
 }
 
 /** The config of the clipmap being set up, rewritten by each `vsmClipmapConfig`. */
 const config: VsmClipmapConfig = {
   ...{ firstLevel: 0, lastLevel: 0, coarseFrom: -1, coarseTo: -1, keepsDynamic: false },
-  ...{ wpoDisable: false, wpoLodBias: 0, restingBias: 0 },
+  ...{ wpoDisable: false, wpoLodBias: 0, wpoInvalidatesOnScale: false },
 }
 
 /** The config of a sun's first-person clipmap (`shadowFirstPersonClipmap`): the regular config with its
@@ -131,6 +131,6 @@ export function vsmClipmapConfig(shadows: ShadowValues) {
   config.keepsDynamic = marks === 2
   config.wpoDisable = shadows.shadowClipmapWpoDisableDistance
   config.wpoLodBias = shadows.shadowClipmapWpoDisableDistanceLodBias
-  config.restingBias = shadows.shadowResolutionLodBiasDirectional
+  config.wpoInvalidatesOnScale = shadows.shadowClipmapWpoDisableDistanceInvalidateOnScaleChange
   return config
 }

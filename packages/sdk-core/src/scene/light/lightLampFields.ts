@@ -3,16 +3,13 @@
  *  of its diffuse and specular light it gives. */
 export interface SceneLightLamp {
   /**
-   * Point and spot only: the radius, in metres, of the envelope that holds the source.
-   * A real light is always housed in something — lantern glass, reflector, shade
-   * — and that envelope is geometry like any other: without this field, it enters its own
-   * light's shadow map and turns it off. Fragments within this sphere do not cast a shadow;
-   * the map's near plane continues to depend on range. This radius is also the source's: it sets
-   * the source size of the contact-hardening shadow filter, and the lamp lights a surface as a
-   * sphere of that radius (`emitterLength` for a tube): the horizon wraps the light, a highlight
-   * spreads. It is a property of the light, never an object name or a material type: the engine
-   * only knows surfaces. Strictly positive and strictly less than the range; if absent, nothing
-   * changes.
+   * Point and spot only: the radius, in metres, of the sphere the source is. It sets the source
+   * size of the contact-hardening shadow filter, and the lamp lights a surface as a sphere of that
+   * radius (`emitterLength` for a tube): the horizon wraps the light, a highlight spreads. A
+   * housing that must not shadow its own light (lantern glass, reflector, shade) is a mesh that
+   * does not cast shadows (`castShadow` false). It is a property of the light, never an object
+   * name or a material type: the engine only knows surfaces. Strictly positive and strictly less
+   * than the range; if absent, nothing changes.
    */
   emitterRadius?: number
   /** Point and spot only: the length, in metres, of the tube the source is (a capsule with its

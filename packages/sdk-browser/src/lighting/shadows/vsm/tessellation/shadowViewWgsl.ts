@@ -47,7 +47,7 @@ export const VSM_TESS_VIEW_WGSL = wgslBlock(
 }
 fn vsmTessOnWindow(box:Box3,world:mat4x4f,raw:VsmProjectionRecord,record:vec4u)->bool{
  let ortho=raw.lightViewToClip[3][3]>=1.0;
- let nearClip=!vsmRecordFlatten(record);
+ let nearClip=!vsmRecordNoNearClip(record);
  let extent=transformHalfExtent(world,0.5*(box.hi-box.lo));
  let center=(world*vec4f(0.5*(box.lo+box.hi),1.0)).xyz+(raw.originShiftHigh+raw.originShiftLow);
  let toClip=vsmShiftedToClip(raw.shiftedToMapUv);

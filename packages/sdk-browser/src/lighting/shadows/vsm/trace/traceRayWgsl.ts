@@ -100,11 +100,12 @@ fn vsmSunTapBias(m:VsmLightMap,uvDepthSlope:vec2f)->f32{
 
 const rayBeginText = /* wgsl */ `
 /** The largest plane bias of a local ray (\`vsmLocalPlaneBias\`) on a receiver of texel \`texel\` (a
- *  world width): \`tracePlaneBiasCap\` of its texels, in the depth they span there; a light
- *  with no ray (\`single\`), \`VSM_TRACE_ONE_TAP_BIAS_CAP\` times the map's depth scale. */
-fn vsmLocalBiasCap(m:VsmLightMap,texel:f32,single:bool)->f32{
+ *  world width) at a squared distance \`distSq\` from the light: \`tracePlaneBiasCap\` of its texels,
+ *  in the depth they span there; a light with no ray (\`single\`), \`VSM_TRACE_ONE_TAP_BIAS_CAP\`
+ *  times the map's depth scale. */
+fn vsmLocalBiasCap(m:VsmLightMap,texel:f32,distSq:f32,single:bool)->f32{
  let pd=vsmProjectionOf(m.handle);
- return select(vsm.tracePlaneBiasCap*texel*vsmDepthPerDistance(pd,m.mapPoint.w),VSM_TRACE_ONE_TAP_BIAS_CAP*abs(pd.lightViewToClip[2][2]),single);
+ return select(vsm.tracePlaneBiasCap*texel*vsmDepthPerDistance(pd,distSq),VSM_TRACE_ONE_TAP_BIAS_CAP*abs(pd.lightViewToClip[2][2]),single);
 }
 /** The bias of a local ray starting at \`rayStart\`: the plane's lift from there to the centre of the
  *  texel it falls in on the receiver's map, at the page's resolution, held to \`cap\`. */

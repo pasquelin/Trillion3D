@@ -42,8 +42,8 @@ import { FLAG_CLUSTER_PAGE, FLAG_MASK } from '../types.ts'
  * What a program's software raster rasters, and where: the one cluster kernel (`clusterRasterKernels`)
  * reads its item, transforms its vertices and writes its pixels through these, the camera's
  * (`clusterKernels`) and a shadow map's (`../../lighting/shadows/vsm/render/renderSoftwareWgsl.ts`).
- * - `item`: the text, run by the group's first lane with \`at\` (the group's flat rank), that sets
- *   \`groupRow\` to the row it rasters or \`NONE\`; `itemOwn`, run by every lane once the row is
+ * - `item`: the text, run by the group's first lane with \`at\` (the group's flat rank), that may
+ *   set \`groupRow\` to the row it rasters; it starts at \`NONE\`, a group with no row returns; `itemOwn`, run by every lane once the row is
  *   known, what each lane holds of the item (its private words).
  * - `frame`: what the group computes once for the row's triangles, \`page\` and \`h\` known, which
  *   declares \`det\` (the winding the setup turns faces by).
@@ -153,6 +153,7 @@ const clusterGroupText = (
 ) => `fn clusterGroup(group:vec3u,lane:u32,n:vec3u,mode:u32){
  let at=flatIndex(group,n,1u);
  if(lane==0u){
+  groupRow=NONE;
   ${target.item}
  }
  let row=workgroupUniformLoad(&groupRow);

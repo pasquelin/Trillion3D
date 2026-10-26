@@ -37,7 +37,7 @@ export function noteResidenceChange(
   const { store, changes } = lights
   if (!store.count) return
   const rank = rootOfPacked(placement, packed) ?? -1
-  const onlyMoving = moving ?? (rank >= 0 && lights.mobility.moves(rank))
+  const onlyMoving = moving ?? (rank >= 0 && lights.mobility.cachedDynamic(rank))
   boxEmpty(changeBox, 0)
   growClusterBox(rec, roots, changeBox, rank)
   if (atOnce) changes.residencyChanged(changeMin, changeMax, onlyMoving)

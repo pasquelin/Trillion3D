@@ -72,12 +72,16 @@ export function vsmRasterScene(
     rasters: rt.vis.rasters,
     voxels: holdsVoxels(rt),
     tessellation,
-    // The shadows' level of detail: the cut's threshold scaled by their bias, two to its power
-    // (`shadowGeometryLodBias`, the reference's 1; a view's most pixels an edge spans times one over that factor).
+    // The shadows' level of detail: the cut's pixels per edge times two to the shadows' bias
+    // (`shadowGeometryLodBias`), over the streaming quality scale
+    // (`../../../../geometry/residency/poolPressure.ts`) — coarser shadows where residency is under
+    // pressure, as the main view.
     camera: {
       eye: cam.eye,
       view: cam.view,
-      threshold: rt.run.gate.pixelError * 2 ** readShadowSetting(rt, 'shadowGeometryLodBias'),
+      threshold:
+        (rt.run.gate.pixelError * 2 ** readShadowSetting(rt, 'shadowGeometryLodBias')) /
+        rt.services.residency.qualityScale,
     },
     world: castersWorld(rt, cut, tables),
     // The draw distances the objects name: an object out of its own casts nothing.
@@ -108,7 +112,7 @@ function castersWorld(
 }
 
 /** What the raster reads of the settings: the software raster's edge, the suns' far-shadow test, the
- *  radius threshold, the lights' view passes and the pyramid's build. */
+ *  lights' view passes and the pyramid's build. */
 function rasterSettings(rt: WebgpuPagesRuntime, plan: NonNullable<EngineVsm['plan']>) {
   return {
     // The camera's rule picks each cluster's raster in each map's view: past this edge in the map's
@@ -120,9 +124,6 @@ function rasterSettings(rt: WebgpuPagesRuntime, plan: NonNullable<EngineVsm['pla
     // The suns' far-shadow test: the world's merged shells, or every caster, and the distance past
     // which no view of the frame takes a caster (`vsmFarShadowSkipped`).
     farMeshes: readShadowSetting(rt, 'farShadowCullsAllMeshes'),
-    radiusThreshold: readShadowSetting(rt, 'shadowRadiusThresholdUncached')
-      ? readShadowSetting(rt, 'shadowRadiusThreshold')
-      : 0,
     farDrop: farDropOf(plan.lights),
     // The lights whose views pass a pass's limit are drawn in several passes (`vsmViewPasses`).
     multipassViews: readShadowSetting(rt, 'shadowMultipassViews'),

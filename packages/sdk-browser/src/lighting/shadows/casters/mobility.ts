@@ -1,6 +1,7 @@
 import { createMobilityState, ensureLayout, holdsPose, touchRank } from './mobilityState.ts'
 import { followLead, moveLeadSlot, moveRank, settleMoving } from './mobilityMoves.ts'
 import { writeRootWords } from './mobilityWrite.ts'
+import { MOBILITY_DEFORMS } from '../mobilityBits.ts'
 
 /**
  * WHICH PLACEMENTS MOVE, as the shadow pages see them: the reference's per-primitive cache state
@@ -17,7 +18,8 @@ import { writeRootWords } from './mobilityWrite.ts'
  * casting changed (`touch`) are written again, them alone.
  *
  * Its members: `moves(rank)`, whether placement `rank` has moved: the static layer does not hold
- * it; `poseOf(rank)`, the pose it was last seen at, a view of the state, none past the placements it
+ * it; `cachedDynamic(rank)`, whether it is cached as dynamic: it has moved, or a deformation moves
+ * its vertices (the sign of the boxes the CPU declares); `poseOf(rank)`, the pose it was last seen at, a view of the state, none past the placements it
  * is sized for; `words`, one word a placement; `holds`, `ensure`, `move`, `follow`, `moveLead`,
  * `settle`, `touch` and `writeRoots`, those of `mobilityState.ts`, `mobilityMoves.ts` and
  * `mobilityWrite.ts`.
@@ -26,6 +28,8 @@ export function createShadowMobility() {
   const s = createMobilityState()
   return {
     moves: (rank: number) => s.moving[rank] === 1,
+    cachedDynamic: (rank: number) =>
+      s.moving[rank] === 1 || (s.words[rank] & MOBILITY_DEFORMS) !== 0,
     poseOf: (rank: number) =>
       rank >= 0 && rank < s.moving.length ? s.poses.subarray(rank * 16, rank * 16 + 16) : undefined,
     get words() {

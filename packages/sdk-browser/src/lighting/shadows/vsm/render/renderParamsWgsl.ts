@@ -70,7 +70,7 @@ const VSM_RENDER_COUNT_HELD = 8
 const VSM_RENDER_TIER_RECORDS = 9
 const VSM_RENDER_TIER_CURSOR = VSM_RENDER_TIER_RECORDS + VSM_RENDER_BINS
 export const VSM_RENDER_COUNT_WORDS = VSM_RENDER_TIER_CURSOR + VSM_RENDER_BINS
-/** Map view flag: directional (clipmap level, 1 mip, clamp to near plane — the near-plane clamp). */
+/** Map view flag: directional (clipmap level, 1 mip, no near clip). */
 const VSM_RENDER_VIEW_DIRECTIONAL = 1
 /** The cull's four kinds: with no occlusion test, the occlusion's first cull against the previous
  *  frame's pyramid, its second against this frame's over the records the first held back, and its
@@ -107,8 +107,6 @@ export const VSM_RENDER_TESSELLATE_LOCAL = 2
  * lights of the frame (`vsmRenderViews`: its table, and where the views' runs begin in its list);
  * `recordCapacity`, the records its list holds; `tessellated`, the kinds of light whose maps take a
  * displaced surface's tessellated shape (`VSM_RENDER_TESSELLATE_*`), zero for none;
- * `radiusThresholdSq`, the square of the least radius over distance an object may span on the main
- * view to be drawn into a map that is redrawn whole (`vsmRadiusCulled`), zero for none.
  *
  * `hardwareEdge`, the edge in a map's pixels past which a cluster is the hardware raster's
  * (`hardwareRasterEdgePixels`, the camera's rule), zero where the software raster is off
@@ -136,7 +134,6 @@ export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
   ['farDrop', 'f32'],
   ['filterBase', 'u32'],
   ['tessellated', 'u32'],
-  ['radiusThresholdSq', 'f32'],
   ['casterCap', 'u32'],
   ['listedBase', 'u32'],
   ['pageCount', 'u32'],
@@ -158,19 +155,18 @@ export const VSM_RENDER_PARAMS_WGSL = wgslBlock(
  *  sphere (centre high + radius, centre low), its row, corners and flags (bit 0 cache as dynamic, bit
  *  1 deforming: it invalidates the pages it draws), its far depth: the depth along the main view of
  *  the nearest point of the sphere of the whole object it belongs to, which a sun's far-shadow test
- *  reads (\`vsmFarShadowSkipped\`), and its screen ratio: that sphere's radius squared over its
- *  squared distance to the main view's eye, which a map redrawn whole tests (\`vsmRadiusCulled\`).
- *  Then what each map judges its level of detail by (\`vsmRenderLodAt\`): its own bounds and its
- *  parent group's, each a centre from the world sphere's and a radius in world units, and both
- *  errors in world units — the parent's negative for a root. Last, how far its centre moved since
- *  the previous image (\`prevShift\`): the occlusion's first cull tests it where that image drew it;
- *  its longest edge in world units (\`edge\`, 0 for none known), which picks its raster, and last the
- *  ball of the whole object the cluster belongs to, a centre from the world sphere's and a radius
- *  (\`inst\`): what a map judges whether the object stays out of the coarse pages by. Then the
- *  placement's cache state per view (\`viewBits\`: bits 0..15 cached as dynamic, 16..31 turned this
- *  frame) and the square of the distance past which its object stops evaluating its offset
- *  (\`offsetDisableSq\`, 0 for never). */
-struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,farDepth:f32,screenRatio:f32,own:vec4f,parent:vec4f,errors:vec2f,prevShift:vec3f,edge:f32,inst:vec4f,viewBits:u32,offsetDisableSq:f32,}
+ *  reads (\`vsmFarShadowSkipped\`), and its longest edge in world units (\`edge\`, 0 for none known),
+ *  which picks its raster. Then what each map judges its level of detail by (\`vsmRenderLodAt\`):
+ *  its own bounds and its parent group's, each a centre from the world sphere's and a radius in
+ *  world units, and both errors in world units — the parent's negative for a root; the square of
+ *  the distance past which its object stops evaluating its offset (\`offsetDisableSq\`, 0 for never,
+ *  given to every cluster of a placement whose offset may invalidate its shadows).
+ *  Last, how far its centre moved since the previous image (\`prevShift\`): the occlusion's first
+ *  cull tests it where that image drew it; the placement's cache state per view (\`viewBits\`: bits
+ *  0..15 cached as dynamic, 16..31 turned this frame), and the ball of the whole object the cluster
+ *  belongs to, a centre from the world sphere's and a radius (\`inst\`): what a map judges whether
+ *  the object stays out of the coarse pages by. */
+struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,farDepth:f32,edge:f32,own:vec4f,parent:vec4f,errors:vec2f,offsetDisableSq:f32,prevShift:vec3f,viewBits:u32,inst:vec4f,}
 const VSM_RENDER_CAND_DYNAMIC:u32=1u;
 const VSM_RENDER_CAND_DEFORMING:u32=2u;
 /** Bit 2: the row's triangles face the light clockwise in world space — a mirroring placement
@@ -198,6 +194,11 @@ const VSM_RENDER_CAND_OFFSET_KEEPS:u32=1024u;
 /** Bit 11: the object stands for a first-person one (\`MOBILITY_WORLD_SPACE\`): the suns' first-person
  *  clipmaps take it, the regular maps never. */
 const VSM_RENDER_CAND_WORLD_SPACE:u32=2048u;
+/** Bit 12: the placement wears an offset that may invalidate its shadows (\`MOBILITY_OFFSET_INVALIDATES\`),
+ *  which puts every cluster of it in the dynamic layer of a map that allows the offset; bit 13: a surface
+ *  of it evaluates the offset whatever the distance says (\`MOBILITY_OFFSET_ALWAYS\`). */
+const VSM_RENDER_CAND_PLACEMENT_OFFSET:u32=4096u;
+const VSM_RENDER_CAND_PLACEMENT_ALWAYS:u32=8192u;
 /** The cut rule's verdicts on a candidate in a map's mip view (\`vsmRenderLodAt\`). */
 const VSM_RENDER_LOD_NOT_DRAWN:u32=0u;
 const VSM_RENDER_LOD_OWN:u32=1u;
@@ -207,12 +208,6 @@ const VSM_RENDER_LOD_BEHIND:u32=2u;
  *  point (\`farDepth\`) lies past \`distance\` along the main view. */
 fn vsmFarShadowSkipped(flags:u32,farDepth:f32,distance:f32)->bool{
  return distance>0.0&&(flags&VSM_RENDER_CAND_FAR_TESTED)!=0u&&(flags&VSM_RENDER_CAND_FAR_CAST)==0u&&farDepth>distance;
-}
-/** Whether a map redrawn whole (\`uncached\`) leaves out a caster whose object spans less of the
- *  main view than the threshold (\`thresholdSq\`, the square of its radius over distance; 0 none):
- *  its \`ratio\`, radius squared over distance squared, is under it. */
-fn vsmRadiusCulled(ratio:f32,thresholdSq:f32,uncached:bool)->bool{
- return uncached&&ratio<thresholdSq;
 }
 ${wgslConsts({
   VSM_RENDER_VIEW_DIRECTIONAL,
@@ -258,7 +253,7 @@ fn vsmRenderRecordTotal(emitted:u32)->u32{return min(emitted,params.recordCapaci
 
 /**
  * A record of the raster, as the cull emits it (`vec4u`, `renderCullWgsl.ts`): x the caster's row;
- * y the map's id | mip << 16 | clamp-to-near << 20 | static << 21 | swapped << 22 | tessellated <<
+ * y the map's id | mip << 16 | no near clip << 20 | static << 21 | swapped << 22 | tessellated <<
  * 23 | tier << 24 | deforms << 28 | offset allowed << 29 | level of detail behind << 30; z the window's first page, x | y << 8, and its last (inclusive),
  * x << 16 | y << 24; w the window's pages to draw, bit (y · `VSM_RENDER_WINDOW_PAGES` + x) from its
  * first. The decoding the bin, the raster, the voxel raster and the tessellation share.
@@ -268,7 +263,8 @@ export const VSM_RENDER_RECORD_WGSL = wgslBlock(
   [],
   `fn vsmRecordMap(r:vec4u)->u32{return r.y&0xFFFFu;}
 fn vsmRecordMip(r:vec4u)->u32{return (r.y>>16u)&7u;}
-fn vsmRecordFlatten(r:vec4u)->bool{return ((r.y>>20u)&1u)!=0u;}
+/** A clipmap level has no near clip (a directional map). */
+fn vsmRecordNoNearClip(r:vec4u)->bool{return ((r.y>>20u)&1u)!=0u;}
 fn vsmRecordStatic(r:vec4u)->u32{return (r.y>>21u)&1u;}
 fn vsmRecordSwapped(r:vec4u)->bool{return ((r.y>>22u)&1u)!=0u;}
 fn vsmRecordTessellated(r:vec4u)->bool{return ((r.y>>23u)&1u)!=0u;}

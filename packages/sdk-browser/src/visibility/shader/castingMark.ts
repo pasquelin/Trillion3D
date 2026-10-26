@@ -22,6 +22,8 @@ export const MARK_BITS = {
   cacheStatic: 1024,
   worldSpaceRepresentation: 2048,
   hiddenShadow: 4096,
+  movable: 8192,
+  immovable: 16384,
 } as const
 
 /**
@@ -50,6 +52,11 @@ export const CACHE_STATIC_ROOT = MARK_BITS.cacheStatic
  *  (`firstPersonWorldSpaceRepresentation`): it casts into the suns' first-person clipmaps alone,
  *  never the regular ones. */
 export const WORLD_SPACE_ROOT = MARK_BITS.worldSpaceRepresentation
+/** The bit of a root whose node says it is often moving (`mobility` `'movable'`), and that of a root
+ *  whose node says it is not (`'static'`, `'stationary'`); neither, a root a skin or a morph deforms
+ *  is often moving and any other is not (`castFlagsOf`). */
+export const MOVABLE_ROOT = MARK_BITS.movable
+export const IMMOVABLE_ROOT = MARK_BITS.immovable
 /** The bit of a root whose node casts its shadow while it is hidden (`castHiddenShadow`): no view
  *  draws it then, the shadow maps do (`settleRoot`, `hiddenFromViews`). */
 export const HIDDEN_SHADOW_ROOT = MARK_BITS.hiddenShadow
@@ -61,7 +68,9 @@ const CASTING_BITS =
   FAR_SKIP_ROOT |
   CACHE_STATIC_ROOT |
   WORLD_SPACE_ROOT |
-  HIDDEN_SHADOW_ROOT
+  HIDDEN_SHADOW_ROOT |
+  MOVABLE_ROOT |
+  IMMOVABLE_ROOT
 
 /** The bit a far-shadow test setting sets: `FAR_TEST_ROOT` for `true`, `FAR_SKIP_ROOT` for `false`,
  *  none for a setting that is left out (`null`, `undefined`). */
@@ -72,12 +81,14 @@ const farTestBits = (test: boolean | null | undefined) =>
  *  first-person object), `WORLD_SPACE_ROOT` when it stands for one, `HIDDEN_SHADOW_ROOT` when it casts while hidden,
  *  `FAR_SHADOW_ROOT` when it casts far ones, `FAR_TEST_ROOT` or `FAR_SKIP_ROOT` when it says the
  *  far-shadow test reaches it or never does, `CACHE_STATIC_ROOT` when it says its transform never
- *  invalidates its cached shadows. */
+ *  invalidates its cached shadows, `MOVABLE_ROOT` or `IMMOVABLE_ROOT` when it says it is often moving
+ *  or not. */
 export const nodeCasting = (node: {
   castShadow: boolean
   castFarShadow?: boolean
   farShadowTest?: boolean | null
   shadowCacheInvalidation?: string
+  mobility?: string
   firstPerson?: boolean
   firstPersonWorldSpaceRepresentation?: boolean
   castHiddenShadow?: boolean
@@ -89,6 +100,7 @@ export const nodeCasting = (node: {
   (node.castHiddenShadow && !node.firstPersonWorldSpaceRepresentation ? HIDDEN_SHADOW_ROOT : 0) |
   (node.castFarShadow ? FAR_SHADOW_ROOT : 0) |
   (node.shadowCacheInvalidation === 'static' ? CACHE_STATIC_ROOT : 0) |
+  (node.mobility === 'movable' ? MOVABLE_ROOT : node.mobility ? IMMOVABLE_ROOT : 0) |
   farTestBits(node.farShadowTest)
 
 /**

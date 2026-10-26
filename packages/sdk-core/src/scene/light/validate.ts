@@ -220,7 +220,7 @@ export function validateSceneLight(light: SceneLight): SceneLight {
  * The fields of a rectangle: the normal of its emitting face, its width axis — made
  * perpendicular to that normal, then unit —, and its two sides, strictly positive. It casts a shadow
  * as a point light does, its source radius half its width (`projectionLight`): it takes no
- * `emitterRadius`, the envelope of a point or a spot's source, which a rectangle has none of.
+ * `emitterRadius`, the radius of a point or a spot's source, which a rectangle has none of.
  */
 function validateRect(light: SceneLight, validated: SceneLight): SceneLight {
   const { id } = light

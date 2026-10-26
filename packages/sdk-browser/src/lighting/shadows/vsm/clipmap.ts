@@ -115,9 +115,9 @@ export interface VsmViewport {
   width: number
   height: number
   /**
-   * The narrowest width, in pixels, the sun's clipmap sizes its texels for: the display's, so a
-   * frame drawn below it (dynamic render scale) keeps the display's shadow resolution. Local
-   * lights read `width` and `height` only.
+   * The narrowest width, in pixels, the sun's clipmap sizes its texels for
+   * (`shadowClipmapMinCameraViewportWidth`): a frame drawn below it keeps that width's shadow
+   * resolution; 0 floors nothing. Local lights read `width` and `height` only.
    */
   minScreenWidth?: number
 }
@@ -160,6 +160,9 @@ interface VsmClipmapLevel {
   worldCentre: [number, number, number]
   cornerQuarters: [number, number]
   cornerFromLast: [number, number]
+  /** Square of the distance, metres, past which the level draws no object's offset; 0 where the
+   *  rule is off (`vsmWpoThreshold`). */
+  wpoThreshold: number
 }
 
 export interface VsmClipmap {
@@ -217,6 +220,7 @@ const heldLevel = (levels: VsmClipmapLevel[], k: number) =>
     worldCentre: [0, 0, 0],
     cornerQuarters: [0, 0],
     cornerFromLast: [0, 0],
+    wpoThreshold: 0,
   })
 
 /** The projection's X scale in centimetre units: a perspective scale is unitless, an orthographic
@@ -225,7 +229,7 @@ const projectionScaleX = ({ projection, perspective }: VsmCameraInput) =>
   perspective ? projection[0] : projection[0] / VSM_CM_PER_UNIT
 
 /** The clipmap's resolution bias from the screen: log2 of the level-0 texels a pixel spans, the
- *  display's width the floor of the drawn one (`VsmViewport.minScreenWidth`); an orthographic view
+ *  setting's width (`VsmViewport.minScreenWidth`) the floor of the drawn one; an orthographic view
  *  takes the wider of its own width, `viewHalfWidth` doubled, and the drawn one. */
 function clipmapScreenBias(camera: VsmCameraInput, viewport: VsmViewport, viewHalfWidth: number) {
   let screenWidthPx = viewport.width
@@ -275,6 +279,7 @@ function buildLevel(
   levelIndex: number,
   firstLevel: number,
   depthSpanRatio: number,
+  config: VsmClipmapConfig,
 ) {
   const level = heldLevel(clipmap.levels, levelIndex)
   const absoluteLevel = levelIndex + firstLevel
@@ -305,7 +310,18 @@ function buildLevel(
   entryCell[0] = cornerQuarters[0] * (VSM_LEVEL0_PAGES >> 2)
   entryCell[1] = cornerQuarters[1] * (VSM_LEVEL0_PAGES >> 2)
 
-  levelEntry.updateLevel(clipmap.cacheEntry, entryCell, levelRadiusCm, eyeInLight[2], depthRadius)
+  level.wpoThreshold = config.wpoDisable
+    ? vsmWpoThreshold(absoluteLevel, config.wpoLodBias, clipmap.levelBias)
+    : 0
+  levelEntry.updateLevel(
+    clipmap.cacheEntry,
+    entryCell,
+    levelRadiusCm,
+    eyeInLight[2],
+    depthRadius,
+    level.wpoThreshold,
+    config.wpoInvalidatesOnScale,
+  )
   const eyeDepthShift = eyeInLight[2] - levelEntry.clipmap.depthCentre
   depthRadius = levelEntry.clipmap.depthRadius
 
@@ -403,7 +419,7 @@ export function createVsmClipmap(
   transformAffinePoint(eyeInLight, worldToLightView, ox, oy, oz)
   clipmap.levels.length = Math.min(clipmap.levels.length, levelCount)
   for (let levelIndex = 0; levelIndex < levelCount; levelIndex++)
-    buildLevel(clipmap, levelIndex, firstLevel, shadows.shadowClipmapZRangeScale)
+    buildLevel(clipmap, levelIndex, firstLevel, shadows.shadowClipmapZRangeScale, config)
   for (let i = 0; i < levelCount; i++)
     vsmClipmapProjectionData(clipmap, i, cacheEntry.mapCaches[i].projectionData, config)
   return clipmap
@@ -413,8 +429,9 @@ export function createVsmClipmap(
  * The square of the distance, in metres, past which a clipmap level draws no object's offset: the
  * level is shown from far enough that the motion of an object whose offset stops nearer than its
  * `lodBias` levels past the distance cannot be seen in it. Two to the power of twice the level less
- * the bias and the light's resting `resolutionBias`, rounded up to a whole level — as the levels are
- * powers of two, a change of the camera redraws no page for it —, the radius' centimetres taken to
+ * the bias and the clipmap's `resolutionBias` (that of its levels' records), rounded up to a whole
+ * level — the levels are powers of two, so a change of the view redraws no page for it unless
+ * `shadowClipmapWpoDisableDistanceInvalidateOnScaleChange` is on —, the radius' centimetres taken to
  * metres. An object evaluates its offset in the level while this does not pass its own square
  * (`wpoAllowed`, `../../../visibility/shader/wpoGraphWgsl.ts`).
  */
@@ -458,13 +475,7 @@ function vsmClipmapProjectionData(
   out.levelBias = clipmap.levelBias
   out.emitterSize = 0 // a directional light has no source radius
   out.mapLevel = mapLevel
-  out.wpoThreshold = config.wpoDisable
-    ? vsmWpoThreshold(
-        mapLevel,
-        config.wpoLodBias,
-        config.restingBias + (clipmap.light.levelBias ?? 0),
-      )
-    : 0
+  out.wpoThreshold = level.wpoThreshold
   out.levelsLeft = levelsAfterThis
   out.flags = flags
   out.ditherTexels = clipmap.light.ditherTexels ?? 1

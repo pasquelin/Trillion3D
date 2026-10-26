@@ -58,7 +58,7 @@ ${vertexCut ? tileDeclarations(B.color, 'color', 2) : ''}
 const tessellatedVertexBody = (vertexCut: boolean, wpo: WpoSet) => /* wgsl */ `
 @vertex fn vsmTessellatedVs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instance:u32)->VsmRenderOut{
  var out:VsmRenderOut;
- out.position=vsmRenderNan();out.row=0u;out.uv=vec2f(0.0);out.window=vec4u(0u);out.fromEmitter=vec4f(0.0);out.masked=0u;
+ out.position=vsmRenderNan();out.row=0u;out.uv=vec2f(0.0);out.window=vec4u(0u);out.clip=vec4f(0.0);out.masked=0u;
  if(instance>=min(tw(tu.args+${ARG_VISIBLE}u),tu.maxVisible)){return out;}
  let piece=loadPatch(tu.visible+instance*${PATCH_WORDS}u);
  let record=vsmRenderRecords[piece.x>>8u];
@@ -108,8 +108,8 @@ ${wpo.programs.length ? ' wpoThreshold=raw.wpoThreshold;\n' : ''} let view=vsmTe
  let shifted=vsmRenderShifted(raw,world);
  out.row=record.x;
  out.window=vsmRenderWindowOf(record);
- out.fromEmitter=vec4f(shifted,select(raw.emitterSize,0.0,raw.lightViewToClip[3][3]>=1.0));
- out.position=vsmRenderWindowPosition(vsmRenderClip(raw,shifted,vsmRecordFlatten(record)),record);
+ let clip=vsmRenderClip(raw,shifted);
+ out.position=vsmRenderRasterPosition(clip,record);out.clip=clip;
  return out;
 }`
 
@@ -125,7 +125,7 @@ ${wpo.programs.length ? ' wpoThreshold=raw.wpoThreshold;\n' : ''} let view=vsmTe
  * whichever triangle asks for it, so neighbours meet. The point is pushed along its normal by the
  * displacement, the least one where the fade has not left it whole (`pointDisplacement`), then
  * placed on the record's window as a caster's corner is (`vsmRenderVs`): same swap of a back face, a
- * two-sided row's second copy swapped once more, same emitter envelope. A masked row is cut out
+ * two-sided row's second copy swapped once more, same depth. A masked row is cut out
  * at the vertices of its micro-triangles, as the image's dicing does (`dicedKept`), where the
  * vertex stage may also bind the colour atlas's page table, a ninth storage buffer, which a device
  * that grants it takes (`vertexCut`, `vsmMaskedPatches`); on the eight WebGPU guarantees every

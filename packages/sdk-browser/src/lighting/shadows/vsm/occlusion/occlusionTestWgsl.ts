@@ -124,6 +124,12 @@ fn vsmClipToStaleRect(pixels:vec4i,h:VsmHandle,mipLevel:u32,staticLayer:bool,bot
  let bounds=vec4i(vec4u(rect.xy<<vec2u(VSM_LOG2_PAGE),(rect.zw<<vec2u(VSM_LOG2_PAGE))+vec2u(VSM_PAGE_TEXELS-1u)));
  return vec4i(max(pixels.xy,bounds.xy),min(pixels.zw,bounds.zw));
 }
+/** The pixels box cull \`cull\` covers of map \`h\`'s mip \`mip\` (\`vsmRectPixels\`), clipped to a layer's stale rect
+ *  (\`vsmClipToStaleRect\`). */
+fn vsmStalePixels(cull:VsmBoxInView,h:VsmHandle,mipLevel:u32,staticLayer:bool,both:bool)->vec4i{
+ let texels=i32(VSM_LEVEL0_TEXELS>>mipLevel);
+ return vsmClipToStaleRect(vsmRectPixels(vec4i(0,0,texels,texels),cull),h,mipLevel,staticLayer,both);
+}
 /** The kept stale rect of a (map, mip, layer). */
 fn vsmKeptRect(id:u32,mipLevel:u32,staticLayer:bool)->vec4u{
  let index=vsmStaleRectIndex(id,mipLevel,staticLayer);

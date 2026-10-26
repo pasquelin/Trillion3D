@@ -38,8 +38,9 @@ export type PlacementRows = {
   /** 1 where the row places the resource, 0 where it is parked. */
   readonly live: Uint8Array
   /** Per row, how its mesh casts (`nodeCasting`): `SHADOWLESS_ROOT` where it casts no shadow (its
-   *  `castShadow` is `false`), `FAR_SHADOW_ROOT` where it casts far ones, 0 where it casts alone. */
-  readonly casting: Uint8Array
+   *  `castShadow` is `false`), `FAR_SHADOW_ROOT` where it casts far ones, and its other casting
+   *  bits (up to `MARK_BITS.immovable`), 0 where it casts alone. */
+  readonly casting: Uint16Array
   /** Rows that fit before it grows. */
   readonly capacity: number
   /** The rows of the meshes of a loaded model (`session/world/models/models.ts`): each is the model's
@@ -127,7 +128,7 @@ export function createPlacementRows(capacity: number): PlacementRows {
   return {
     matrices: new Float64Array(rows * MATRIX_VALUES),
     live: new Uint8Array(rows),
-    casting: new Uint8Array(rows),
+    casting: new Uint16Array(rows),
     capacity: rows,
   }
 }

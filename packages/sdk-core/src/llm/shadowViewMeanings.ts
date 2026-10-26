@@ -19,7 +19,7 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
   shadowMultipassViews:
     'Whether the shadow raster draws the lights in several passes when their maps would pass what one pass takes: the cull runs one row of its dispatch a listed light, so a pass takes at most the rows a dispatch has, 65 535 on any device, counted in the maps of its lights, far more than a frame holds — the raster takes one pass for every frame of a device that grants it; each light whole in one pass; false, every light in one pass however many maps there are. The pages drawn are the same either way.',
   shadowGeometryLodBias:
-    "The level of detail the shadow maps take of the geometry: each map's view selects its own clusters, those whose error spans at most the scene's pixel error times two to this bias in the map's own pixels (1, the default: twice the error). 0 draws the shadows at the error the scene allows, higher coarser and faster.",
+    "The level of detail the shadow maps take of the geometry: each map's view selects its own clusters, those whose error spans at most the scene's pixel error times two to this bias in the map's own pixels (1, the default: twice the error), over the geometry streaming's quality scale, so that the shadows coarsen with the main view where residency is under pressure. 0 draws the shadows at the error the scene allows, higher coarser and faster.",
   shadowOcclusionCulling:
     "Whether the shadow raster leaves out the casters hidden, in a map, behind what its pages already hold (true, the default): each map keeps a depth pyramid of its pages; a node of the hierarchy or a caster hidden in the previous frame's pyramid waits, the visible ones are drawn, the pyramid is built again over the pages they drew, and the nodes and casters that waited are tested against it and drawn where visible. Fewer casters are drawn into the same pages; the image is the acceptance bench's to prove. Turned on or off, the shadow pool is made again and its pages drawn again.",
   shadowDynamicHzb:
@@ -34,12 +34,16 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     'The first clipmap level whose coarse page is marked, so that a low-resolution shadow lies everywhere around the eye (15, the default: a radius of 655 m); from here to shadowClipmapLastCoarseLevel, and the last level of the clipmap always. None while shadowMarkCoarsePagesDirectional is 0.',
   shadowClipmapLastCoarseLevel:
     'The last clipmap level whose coarse page is marked (18, the default: a radius of 5.2 km): higher gives dense coarse shadow over a longer radius for more pages.',
+  shadowClipmapMinCameraViewportWidth:
+    "The narrowest view width, in pixels, a directional light's clipmap resolution is judged at (0, the default: the width the view is drawn at, alone). Raise it so that a lowered render resolution does not coarsen the sun's shadows; a wider drawn view is not narrowed.",
   shadowClipmapZRangeScale:
     "Scale of each clipmap level's depth range on its radius (1000, the default): casters that far above a level still cast. Larger, the depth precision of a texel falls in proportion; a change redraws the light's pages.",
   shadowClipmapWpoDisableDistance:
     "Whether a directional light's clipmap leaves out, in the levels too coarse for it, the world position offset of an object that names a worldPositionOffsetDisableDistance (true, the default): a level whose radius is past that distance, less shadowClipmapWpoDisableDistanceLodBias levels, draws the object where its offset leaves it at rest, so that the far, coarse pages are not drawn again each frame for a motion they cannot show. false, every level draws every object's offset.",
   shadowClipmapWpoDisableDistanceLodBias:
     "How many clipmap levels past the distance an object evaluates its offset at still draw that offset in a directional light's shadow (3, the default; 2 to 4 suits most scenes): each level more doubles the radius of the shadow that is animated, at the cost of more pages drawn again each frame. Read where shadowClipmapWpoDisableDistance is on.",
+  shadowClipmapWpoDisableDistanceInvalidateOnScaleChange:
+    "Whether a clipmap level is drawn again when the level its world position offset stops at shifts with the view's resolution or field of view (false, the default). true can make the shadows of moving vegetation more consistent, at the price of unpredictable redraw spikes, since a change of the view then redraws whole levels. Read where shadowClipmapWpoDisableDistance is on.",
   shadowMarkCoarsePagesDirectional:
     "Coarse pages of a directional light's clipmap: 0 none, 1 marks them, 2 (the default) marks them and keeps the dynamic layer of those very large pages cached while casters move, so that a moving object does not redraw them.",
   shadowMarkCoarsePagesLocal:
@@ -128,10 +132,6 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     "Resolution bias of a point, spot or rectangle light while it moves or was just made (1, the default: half the resolution); it falls back to shadowResolutionLodBiasLocal over shadowLightActiveFrameCount frames, and is never finer than that. The quality levels write 2, 2 and 1 below the top one and 0 at 'cinematic'.",
   shadowLightActiveFrameCount:
     'The frames a light that was just made or moved counts as moving (10, the default): its moving bias falls back to its resting one in equal steps over them, and every light counts as able to move.',
-  shadowRadiusThreshold:
-    "The least radius of an object over its distance from the eye (0.01, the default: one hundredth) for it to be drawn into a shadow map redrawn whole — that of a light just made or moved: a smaller object is left out of such a map, and stays out of its pages until they are redrawn. 0 draws every caster; the quality levels write 0.06, 0.05 and 0.04 below the top one and 0 at 'cinematic'.",
-  shadowRadiusThresholdUncached:
-    'Whether shadowRadiusThreshold applies to the maps redrawn whole; false draws every caster into them.',
   shadowRayCountDirectional:
     "Rays a pixel's shadow trace takes across a directional light's disk, from 0 to 16 (8, the default): more smooth the penumbra, in proportion to the cost; 0 reads the shadow map once along the light's axis, a hard edge. The quality levels write 0, 4 and 8 below the top one and 16 at 'cinematic' (the most a lane holds).",
   shadowSamplesPerRayDirectional:

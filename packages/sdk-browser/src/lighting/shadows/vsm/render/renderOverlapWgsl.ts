@@ -40,10 +40,9 @@ fn vsmMaskRectHits(mask2x2:vec4u,mn:vec2u,mx:vec2u)->bool{
 /** Whether any valid page overlaps a pixel rect clamped to the valid page region, and, with the
  *  receiver cover, a receiver of the rect. */
 fn vsmTouchesMappedPixels(h:VsmHandle,mipLevel:u32,pixels:vec4i,askedMarks:u32,fineCaster:bool,useCover:bool)->bool{
- if(any(pixels.zw<pixels.xy)){return false;}
- let pagesRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE);
- if(!vsmTouchesMappedPage(h,mipLevel,pagesRect,askedMarks,fineCaster)){return false;}
+ if(!vsmTouchesMappedPixelRect(h,mipLevel,pixels,askedMarks,fineCaster)){return false;}
  if(!useCover){return true;}
+ let pagesRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE);
  let entryCell=vsmTableEntryOf(h,mipLevel,pagesRect.xy);
  let halfPageRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE-1u);
  let coverLevel=u32(vsmLevelHoldingRect(vec4i(halfPageRect),2));

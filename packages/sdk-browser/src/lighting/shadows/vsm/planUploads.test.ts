@@ -75,9 +75,13 @@
 // a local light just made reads its moving resolution bias (1, the reference's fourth row, over
 // 0 at rest: its records' bias word, hence the finest mip and the page-table blocks it takes) and
 // its maps' flags the coarse page of the last mip (marked in mode 1) without the keeps-dynamic bit
-// (mode 2 only); the render parameters took a last word (the radius threshold, 0 where the scene
-// names none, as here) and the view uniform one of rays and steps, neither written in this plan.
+// (mode 2 only); the view uniform took one word of rays and steps, not written in this plan.
 // A sun's records, its levels, depth range and coarse flags are the defaults': kept.
+// Retaken when a clipmap level's offset threshold took the clipmap's whole resolution bias, its
+// screen term and mobility included (`wpoThreshold`, byte 292 of a sun's records): only the sun's
+// records moved.
+// Retaken when the shadow-caster radius cull left (the render parameters lost `radiusThresholdSq`, the
+// words after it moved up one): only `vsm.render.params` moved.
 // Retaken when the distant lights came (`shadowDistantLightMode`, 1 by default): seed 1's second and
 // third frames hold a local light whose map fits one page, its last mip alone and always marked,
 // drawn once and kept; with the mode off (0) the three frames read as before, bit for bit — 75eb8b6b,
@@ -127,14 +131,14 @@ import { planFrames, randomWorld } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    '164579dde6ed233f1982b61ec4c265b8f59f4daf4fdcc0f2b8a3bb949c676324',
-    'bab9b6c1c28536b7de2d5f1f016d2fd51ef01f75ed462aad5bbfabbd1f4af14f',
-    '026ee3b35ecf196dd28471231c4ccdf695d30bbdae77df95151308ec2881dd96',
+    '3580cc061de74d0b826e924050e7fc352349f18a2536700aec3f5c2cf3057a3c',
+    'c77ae7d291730d17b79d9ef0416edeb219a2056814d0b1aa0f68c1f0cd5ea653',
+    '87954f1c90b8d97f4bfc0bca7e09b8dc2b02c2d72cda51cba499455c2bbe18f1',
   ],
   2: [
-    '3adfa3d4311e53003bb12ff4bdb3939f4abe60a57b665dbf80d97ad70c5bce64',
-    '6c08f804126a4268e7337acd5db85badbce3501eaeba7ee15eab7235f954517d',
-    'c14cc3c1f9c456f089e05496eb494108ad4a261eaaf0cb5b6336b9129aaf24bb',
+    'bd014f84ecc91ec5d5f8616ac7e894f4593f4bb31b7a6744b57898e0a975e481',
+    'a474654be8d8c7a6f0a9c4daeb1ff5c38edb994167440ef2f0b48a2bdfbe29a8',
+    'da98c9e7b73416f7737b87d79b9ab68f61464062d64e4db5c046fcf639843c22',
   ],
 }
 

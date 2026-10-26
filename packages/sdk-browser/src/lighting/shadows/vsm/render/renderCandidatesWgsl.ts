@@ -6,6 +6,8 @@ import {
   MOBILITY_FAR_SKIPPED,
   MOBILITY_FAR_TESTED,
   MOBILITY_MOVING,
+  MOBILITY_OFFSET_ALWAYS,
+  MOBILITY_OFFSET_INVALIDATES,
   MOBILITY_OFFSET_KEEPS_CACHE,
   MOBILITY_WORLD_SPACE,
   MOBILITY_HIDDEN_SHADOW,
@@ -342,12 +344,6 @@ fn vsmRenderInstance(w:u32,other:vec4f)->vec4f{
 /** The depth of the object along the main view, its radius taken off: what a sun's far-shadow test
  *  compares to its distance, all or nothing for every cluster of the object. */
 fn vsmRenderFarDepth(object:vec4f)->f32{return -dot(params.viewRow2.xyz,object.xyz)-object.w;}
-/** The radius of the object, squared, over its squared distance from the main view's eye: the share
- *  of the view it spans; the greatest float where the eye is at its centre. */
-fn vsmRenderScreenRatio(object:vec4f)->f32{
- let distanceSq=dot(object.xyz,object.xyz);
- return select(FLOAT32_MAX,object.w*object.w/distanceSq,distanceSq>0.0);
-}
 /** Whether the object of placement \`w\`, \`delta\` from the main view's eye, is out of the draw
  *  distances it names — its mark's bit, then its two frame words — and casts nothing: a shadow is
  *  of what the view draws, from the main view's eye in every pass of the light, tested at the
@@ -417,7 +413,11 @@ fn vsmRenderCaster(i:u32,w:u32){
  let wears=record.wpo!=0u;
  let offsetAlways=wears&&(record.wpo&WPO_ROW_ALWAYS)!=0u;
  let offsetEvaluated=wears&&((word&${MOBILITY_OFFSET_SILENT}u)==0u||offsetAlways);
+ // The placement's own offset facts, which decide the layer of all its clusters alike.
+ let placementOffset=(word&${MOBILITY_OFFSET_INVALIDATES}u)!=0u;
  let offsetFlags=select(0u,VSM_RENDER_CAND_OFFSET,offsetEvaluated)|select(0u,VSM_RENDER_CAND_OFFSET_ALWAYS,offsetAlways)
+  |select(0u,VSM_RENDER_CAND_PLACEMENT_OFFSET,placementOffset)
+  |select(0u,VSM_RENDER_CAND_PLACEMENT_ALWAYS,(word&${MOBILITY_OFFSET_ALWAYS}u)!=0u)
   |select(0u,VSM_RENDER_CAND_OFFSET_KEEPS,(word&${MOBILITY_OFFSET_KEEPS_CACHE}u)!=0u)
   |select(0u,VSM_RENDER_CAND_WORLD_SPACE,(word&${MOBILITY_WORLD_SPACE}u)!=0u);
  let flags=vsmRenderCandidateFlags(word)|select(0u,VSM_RENDER_CAND_FLIPPED,flipped)|vsmRenderFarFlags(word,w)|extra|offsetFlags;
@@ -436,7 +436,7 @@ fn vsmRenderCaster(i:u32,w:u32){
  let lod=vec4f(l*(own.xyz-centre),own.w*stretch);
  let parent=vec4f(l*(cluster.parentSphere.xyz-centre),cluster.parentSphere.w*stretch);
  let errors=vec2f(cluster.lodError,cluster.parentError)*stretch;
- candidates[slot]=VsmRenderCandidate(high,low,slot,corners,flags,farDepth,vsmRenderScreenRatio(object),lod,parent,errors,vsmRenderPrevShift(w,centre,high.xyz,low),vsmRenderEdge(n,record.flags,stretch),inst,viewBits,select(0.0,disableSq,offsetEvaluated));
+ candidates[slot]=VsmRenderCandidate(high,low,slot,corners,flags,farDepth,vsmRenderEdge(n,record.flags,stretch),lod,parent,errors,select(0.0,disableSq,offsetEvaluated||placementOffset),vsmRenderPrevShift(w,centre,high.xyz,low),viewBits,inst);
  let at=VISIBLE_HEADER_WORDS+VISIBLE_RECORD_WORDS*slot;
  casters[at]=i;
  casters[at+1u]=w;

@@ -32,7 +32,7 @@ function image(count: number, next: () => number) {
     // The main view, drawn, and no other: the moves are told to every view's motion.
     views: { main: {}, active: undefined, persistent: [] },
     blendState: { blendGpu: [], blendIndex: { revision: 0 } },
-    lights: { mobility: { moves: () => false } },
+    lights: { mobility: { cachedDynamic: () => false } },
     layout: {
       selectionRoots,
       rootIndex: { revision: 0 },

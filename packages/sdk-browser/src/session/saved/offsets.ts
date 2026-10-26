@@ -2,6 +2,7 @@ import {
   offsetSwitchesOf,
   type ShadowCacheInvalidation,
 } from '../../../../sdk-core/src/world/object/offsetSwitches.ts'
+import type { ObjectMobility } from '../../../../sdk-core/src/contracts/objectAbi.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /** What a saved node says of its world position offset (`Object3D.evaluateWorldPositionOffset` and
@@ -15,6 +16,9 @@ export interface SavedOffsets {
   worldPositionOffsetWritesVelocity?: false
   /** How its shadows are kept while its offset moves it; absent, `auto`. */
   shadowCacheInvalidation?: Exclude<ShadowCacheInvalidation, 'auto'>
+  /** Whether the object is often moving (`Object3D.mobility`); absent, its own (`movable` when a skin
+   *  or a morph deforms it, else `static`). */
+  mobility?: ObjectMobility
   /** An object drawn as a first-person one (`Object3D.firstPerson`); absent, it is not. */
   firstPerson?: true
   /** An object that stands for a first-person one in the world
@@ -34,6 +38,7 @@ export function savedOffsets(o: Object3D): SavedOffsets {
     ...(s.disableDistance === 0 ? {} : { worldPositionOffsetDisableDistance: s.disableDistance }),
     ...(s.writesVelocity ? {} : { worldPositionOffsetWritesVelocity: false as const }),
     ...(s.shadowCache === 'auto' ? {} : { shadowCacheInvalidation: s.shadowCache }),
+    ...(s.mobility === undefined ? {} : { mobility: s.mobility }),
     ...(s.firstPerson ? { firstPerson: true as const } : {}),
     ...(s.worldSpaceRepresentation ? { firstPersonWorldSpaceRepresentation: true as const } : {}),
     ...(s.castHiddenShadow ? { castHiddenShadow: true as const } : {}),
@@ -42,11 +47,13 @@ export function savedOffsets(o: Object3D): SavedOffsets {
 }
 
 /** Gives `o` the switches `saved` holds, the defaults where it holds none. */
-export function wearOffsets(o: Object3D, saved: SavedOffsets) {
+export function wearOffsets(o: Object3D, saved: SavedOffsets & { kind?: string }) {
   o.evaluateWorldPositionOffset = saved.evaluateWorldPositionOffset ?? true
   o.worldPositionOffsetDisableDistance = saved.worldPositionOffsetDisableDistance ?? 0
   o.worldPositionOffsetWritesVelocity = saved.worldPositionOffsetWritesVelocity ?? true
   o.shadowCacheInvalidation = saved.shadowCacheInvalidation ?? 'auto'
+  // A light's `mobility` is its own, read apart.
+  if (saved.mobility && saved.kind !== 'light') o.mobility = saved.mobility
   // The one turned off first: a first-person switch turned on is refused while its other is on.
   o.firstPerson = false
   o.firstPersonWorldSpaceRepresentation = false
