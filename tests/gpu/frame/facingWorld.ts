@@ -48,7 +48,10 @@ export function region(image: Uint8Array, [x0, x1]: number[], [y0, y1]: number[]
 /** A fixed exposure, for a proof whose subject is not the meter: an automatic one moves toward a
  *  light just added for a second or more (a stop takes some 160 images to come within 1/256 of a
  *  stop at the reference's speed), and every image it moves on is drawn again. */
-export const FIXED_EXPOSURE = { exposureMethod: 'manual', exposureApplyPhysicalCamera: false }
+export const FIXED_EXPOSURE = {
+  exposureMethod: 'manual',
+  exposureApplyPhysicalCamera: false,
+} as const
 
 /** The golden `name` compiled, opened on the WebGPU page raster in a readable canvas of `VIEW`
  *  pixels, no temporal accumulation, the exact leaves drawn, and posed at `FACING`; `options` added
