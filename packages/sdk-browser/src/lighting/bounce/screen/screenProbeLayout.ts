@@ -161,9 +161,9 @@ export const gatherMipSide = (gather: number, mips: number, level: number) =>
   (gather + 2 ** mips) >> level
 
 /** The widest a probe's texels run along an atlas row: its rays, its octahedral irradiance with the border, its nine
- *  coefficients, its first coarser level of the gathered radiance where there is one. */
+ *  coefficients, its gathered radiance with the border of its finest level. */
 const probeTexels = (tracing: number, gather: number, mips: number) =>
-  Math.max(tracing, IRRADIANCE_PROBE_SIDE + 2, 9, mips > 1 ? gatherMipSide(gather, mips, 0) : 0)
+  Math.max(tracing, IRRADIANCE_PROBE_SIDE + 2, 9, gatherMipSide(gather, mips, 0))
 
 /** What the shape of the probes depends on in the settings. */
 type ShapeSettings = Pick<
@@ -338,13 +338,20 @@ export const SCENE_RAY_WORDS = 1
 
 /** The side of the tiles of pixels the integration is classified and dispatched in. */
 export const INTEGRATE_TILE_SIDE = 8
-/** The tiles of a view of the geometry's size whose integration runs at the reduction `downsample`: a list of the integration holds that many for each of its two modes. */
+/** The tiles of a view of the geometry's size whose integration runs at the reduction `downsample`: a list of the integration holds that many for each of its three modes. */
 export const integrateTiles = (g: Pick<ScreenProbeGeometry, 'width' | 'height'>, downsample = 1) =>
   ceilDiv(ceilDiv(g.width, downsample), INTEGRATE_TILE_SIDE) *
   ceilDiv(ceilDiv(g.height, downsample), INTEGRATE_TILE_SIDE)
 /** The most workgroups a dispatch holds along an axis on every device (WebGPU's default `maxComputeWorkgroupsPerDimension`): a mode with more tiles is dispatched
  *  in rows of this many. */
 export const INTEGRATE_TILE_ROW = 65535
-/** Words of the integration's tile buffer: the indirect arguments of the integration of the tiles that run the rough specular (`x, y, z`), those of the tiles that
- *  do not, then the count of tiles each mode holds. */
-export const INTEGRATE_TILE_ARGS_WORDS = 8
+/** The modes the tiles of the integration are classified in, in the order of their lists and their arguments: the simple one (the rough specular is the diffuse light over pi),
+ *  the sampled one (the rough specular samples the lobe, and the diffuse light samples the pixel's BRDF where the integral method asks it) and the complete one (a tile with a hair
+ *  pixel, which samples the whole sphere). */
+export const INTEGRATE_TILE_MODES = ['simple', 'sampled', 'complete'] as const
+/** Words of the integration's tile buffer: the indirect arguments of the integration of each mode (`x, y, z`, in the order of `INTEGRATE_TILE_MODES`), then the count of tiles each mode holds. */
+export const INTEGRATE_TILE_ARGS_WORDS = INTEGRATE_TILE_MODES.length * 4
+/** The word at which the counts of the tiles of each mode start in the integration's tile buffer: after the arguments of every mode. */
+export const INTEGRATE_TILE_COUNTS_AT = INTEGRATE_TILE_MODES.length * 3
+/** Bytes at which the indirect arguments of the integration of the mode `mode` (an index of `INTEGRATE_TILE_MODES`) start. */
+export const integrateArgsAt = (mode: number) => mode * 3 * 4
