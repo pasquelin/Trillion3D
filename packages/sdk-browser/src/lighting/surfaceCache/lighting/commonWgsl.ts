@@ -4,7 +4,15 @@ import { DISTANCE_FIELD_UNITS_PER_METRE as CM } from '../../../../../sdk-core/sr
 import { LIGHTING_CONTEXTS } from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
 import { INVALID_DEPTH_WORD, TILE } from '../layout.ts'
 import { surfaceCacheRecordsWgsl } from '../sampleWgsl.ts'
-import { CONTEXT_ARGS, CONTEXT_AT, LIGHTING_FLAG, LIGHTING_PARAMS } from './layout.ts'
+import {
+  CONTEXT_ARGS,
+  CONTEXT_AT,
+  LIGHTING_FLAG,
+  LIGHTING_PARAMS,
+  STANDALONE_SCRATCH_WORDS,
+  TILE_LIGHT_RANK_BITS,
+  TILE_LIGHT_STANDALONE,
+} from './layout.ts'
 
 /**
  * WHAT EVERY KERNEL OF THE SURFACE CACHE'S LIGHTING SHARES: the parameters (`lp`, binding 0 of group 0), the
@@ -19,6 +27,10 @@ import { CONTEXT_ARGS, CONTEXT_AT, LIGHTING_FLAG, LIGHTING_PARAMS } from './layo
  * the card-space normal —, so that a program that reads the whole atlas through the read library (`sampleWgsl.ts`)
  * and one that writes one of its layers are the same text here.
  */
+
+/** The exposure of the view the cards' lights are strengthened under (\`lightStrength\`, \`lightStrengthWgsl.ts\`): the image's last measured one,
+ *  in the parameters — the reference's \`ViewOrigin.LastEyeAdaptationExposure\`. */
+export const VIEW_EXPOSURE = 'lp.exposure'
 
 /** The bindings a lighting program's common text names: the tables' (`tables`, read or written) and the context's, none
  *  for a program that reads no list. */
@@ -38,6 +50,7 @@ const CONSTANTS = wgslConsts({
   CTX_ALLOCATED: CONTEXT_AT.allocated,
   CTX_LISTED: CONTEXT_AT.listed,
   CTX_RADIOSITY_TILES: CONTEXT_AT.radiosityTiles,
+  CTX_PAGES_LISTED: CONTEXT_AT.pagesListed,
   CTX_ARGS: CONTEXT_AT.args,
   ARGS_DIRECT_TILES: CONTEXT_ARGS.directTiles,
   ARGS_INDIRECT_TILES: CONTEXT_ARGS.indirectTiles,
@@ -55,6 +68,11 @@ const CONSTANTS = wgslConsts({
   FLAG_ADAPTIVE_SHADOWS: LIGHTING_FLAG.adaptiveShadowTracing,
   FLAG_FORCE_TWO_SIDED: LIGHTING_FLAG.forceTwoSided,
   FLAG_FEEDBACK: LIGHTING_FLAG.feedback,
+  FLAG_CULL_TO_TILE_DEPTH_RANGE: LIGHTING_FLAG.cullToTileDepthRange,
+  FLAG_PROBE_OCCLUSION: LIGHTING_FLAG.probeOcclusion,
+  TILE_LIGHT_RANK_MASK: 2 ** TILE_LIGHT_RANK_BITS - 1,
+  TILE_LIGHT_STANDALONE,
+  SCRATCH_TILE_WORDS: STANDALONE_SCRATCH_WORDS,
 })
 
 const TILES_WGSL = wgslBlock(
@@ -74,6 +92,13 @@ fn pageMin(page:u32)->vec2u{
  let side=f32(lp.atlasSide);
  return vec2u(u32(round(scPageF(page,8u)*side)),u32(round(scPageF(page,9u)*side)));
 }
+/** The rank of the light a word of a tile's list names, and whether it is one the atlas of the light functions holds no slot of. */
+fn tileLightRank(word:u32)->u32{return word&TILE_LIGHT_RANK_MASK;}
+fn tileLightStandalone(word:u32)->bool{return (word&TILE_LIGHT_STANDALONE)!=0u;}
+/** The word of the scratch of the light functions (\`scratchAt\` words into the masks' buffer) that holds the texel \`i\` of the light tile
+ *  \`lightTile\`, and the factor that texel holds of it. */
+fn scratchWordOf(lightTile:u32,i:u32)->u32{return lp.scratchAt+lightTile*SCRATCH_TILE_WORDS+i/2u;}
+fn scratchFactorIn(word:u32,i:u32)->f32{return unpack2x16float(word)[i&1u];}
 /** The card's coordinates of the centre of the texel \`coord\` of a page. */
 fn texelCardUv(page:u32,coord:vec2u)->vec2f{
  return vec2f(scPageF(page,4u),scPageF(page,5u))+vec2f(scPageF(page,12u),scPageF(page,13u))*(vec2f(coord)+vec2f(0.5));

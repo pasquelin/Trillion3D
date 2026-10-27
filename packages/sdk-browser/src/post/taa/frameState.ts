@@ -6,7 +6,9 @@ import { createFrameRing, planFrame, type FrameRing, type FrameSlices } from './
 export interface TaaFrameState {
   /** Jitter rank of the next accumulated image; only advances on those, over `phases`. */
   sample: number
-  /** Lighting sample rank, independent of the spatial jitter cycle; owned by this view. */
+  /** Lighting sample rank, independent of the spatial jitter cycle; owned by this view. It advances once per image
+   *  drawn, at its entry (`beginTaaFrame`), whether it accumulates or not. A held image and a capture drawn aside with no pass
+   *  of its own leave it as it is. */
   stochasticSample: number
   /** Jitter phases of the frame's render-to-display ratio (`upscalePhases`): eleven at native size. */
   phases: number
@@ -28,9 +30,6 @@ export interface TaaFrameState {
   /** The render grid that image was drawn in, `(width, height)`: the render-resolution histories'
    *  viewport (`analysis.ts`). */
   previousRender: Float64Array
-  /** That image's scale (the exposure over its pre-exposure): the render-resolution histories are
-   *  kept exposed, and corrected by the ratio to this image's. */
-  previousExposure: number
   hasHistory: boolean
   /** The frames the history keeps and the walk over them (`historyFrames.ts`): replaced with the
    *  history when it is made as another shape (`resize`). */
@@ -77,7 +76,6 @@ export function createTaaFrameState(): TaaFrameState {
     seen: 0,
     before: NO_CAMERA,
     previousRender: new Float64Array(2),
-    previousExposure: 1,
     hasHistory: false,
     ring,
     slices: planFrame(ring, false),
@@ -94,10 +92,9 @@ export function createTaaFrameState(): TaaFrameState {
 }
 
 /** The image's stochastic phase, the one the lighting's noise turns with (the deferred view's
- *  `jitter.w`, `jitterWords.ts`): it advances on accumulated images alone; none without the
- *  temporal accumulation. */
-export const stochasticPhase = (taa: TaaFrameState | undefined) =>
-  taa?.active ? taa.stochasticSample : 0
+ *  `jitter.w`, `jitterWords.ts`): the view's count of images drawn (`stochasticSample`), accumulated
+ *  or not, so a view without the temporal accumulation meets a new noise at each image. */
+export const stochasticPhase = (taa: TaaFrameState | undefined) => taa?.stochasticSample ?? 0
 
 /** Slots of the resolve's stochastic pattern (`writeTaaView`): the accumulated image's own rank
  *  modulo them. */

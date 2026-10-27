@@ -14,10 +14,16 @@ import { bounceBindingsWgsl } from './gridWgsl.ts'
 import { ATLAS_CALLS, simulatedAtlas } from './atlas.fixture.ts'
 import { ensureBounceFits } from './limits.ts'
 import { simulatedPool } from './pool/pool.fixture.ts'
-import { kernelShapeOf, screenProbeSources } from './screen/kernels.ts'
+import { kernelShapeOf, raysKey, screenProbeSources, shapeKey } from './screen/kernels.ts'
+import { ensureScreenProbeView } from './screen/view.ts'
 import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
-import { adaptiveSamples, geometryOfTile, screenProbeGeometry } from './screen/screenProbeLayout.ts'
+import {
+  adaptiveSamples,
+  atlasFits,
+  geometryOfTile,
+  screenProbeGeometry,
+} from './screen/screenProbeLayout.ts'
 
 test('the table the pool writes is the one the shaders read: a cell names the probe it holds', () => {
   const cascades = { ...createBounceCascades([0, 0, 0, 10, 10, 10]), probes: 64 }
@@ -42,7 +48,7 @@ test('the table the pool writes is the one the shaders read: a cell names the pr
       }
   }
   // The pass: the cells marked take a probe each, the probes never traced are queued and published to the table.
-  const queued = pool.image({ rank: 2, eye: [5, 5, 5], marking: true, budget: 64 })
+  const queued = pool.image({ rank: 2, eye: [5, 5, 5], budget: 64 })
   assert.equal(queued.length, read.length)
   assert.ok(atlas.texels.some((texel) => texel.some((lane) => lane !== 0)))
   const size = cascades.size
@@ -130,6 +136,61 @@ test('the screen probes cut the image into tiles, an atlas row of adaptive probe
   assert.equal(screenProbeGeometry(3840, 2160, cinematic, 8192).tile, 8)
   const wide = screenProbeGeometry(5120, 2880, cinematic, 8192)
   assert.deepEqual([wide.tile, wide.tilesX * 16 <= 8192, wide.rows * 16 <= 8192], [16, true, true])
+  // Levels of detail whose border alone fills a texture: the tile doubles to its largest and the atlas still does not fit, which the view refuses.
+  const deep = screenProbeSettings({ screenProbeGatherNumMips: 12 })
+  const crowded = screenProbeGeometry(1920, 1080, deep, 8192)
+  assert.deepEqual([crowded.tile, atlasFits(crowded, deep, 8192)], [64, false])
+  assert.ok(atlasFits(wide, cinematic, 8192))
+})
+
+test('the key of the whole shape tells the settings that share the kernels from those that do not, and names the rays of the traced stage', () => {
+  const key = (options: ScreenProbeOptions) => shapeKey(kernelShapeOf(screenProbeSettings(options)))
+  assert.equal(
+    key({ screenProbeSpatialFilterPasses: 1 }),
+    key({}),
+    'a count the code does not hold',
+  )
+  for (const other of [
+    { screenProbeGatherNumMips: 2 },
+    { screenProbeExtraAmbientOcclusion: true },
+    { screenProbeTemporalFilterProbes: true },
+    { screenProbes: 'high' as const },
+  ])
+    assert.notEqual(key(other), key({}), JSON.stringify(other))
+  assert.equal(raysKey({ side: 8, samples: [4, 2], heightFog: false }), '8x4x2|false')
+  assert.notEqual(
+    raysKey({ side: 8, samples: [4, 2], heightFog: true }),
+    raysKey({ side: 8, samples: [4, 2], heightFog: false }),
+    'the fog on the rays makes another traced kernel',
+  )
+})
+
+test('a view is remade for what its resources read and left be for what only the kernels read', () => {
+  const { device } = fakeDevice()
+  const settings = screenProbeSettings({})
+  /** Whether a view made for `settings` is the one held for `next`. */
+  const held = (next: typeof settings) => {
+    const view = ensureScreenProbeView(undefined, device, [64, 64], settings).view!
+    return ensureScreenProbeView(view, device, [64, 64], next).view === view
+  }
+  assert.ok(held({ ...settings }), 'the same settings, a new object')
+  // The pyramid and the power of the occlusion are in the kernels' key (`shapeKey`) alone.
+  const kernelsOnly = {
+    ...settings,
+    occlusionPyramid: !settings.occlusionPyramid,
+    occlusionForegroundPower: settings.occlusionForegroundPower + 1,
+  }
+  assert.notEqual(shapeKey(kernelShapeOf(kernelsOnly)), shapeKey(kernelShapeOf(settings)))
+  assert.ok(held(kernelsOnly))
+  for (const other of [
+    { screenProbeGatherNumMips: 2 },
+    { screenProbeExtraAmbientOcclusion: true },
+    { screenProbeTemporalFilterProbes: true },
+    { screenProbeBentNormal: false },
+    { screenProbeAdaptiveFraction: 0.25 },
+    { screenProbes: 'high' as const },
+  ])
+    assert.ok(!held(screenProbeSettings(other)), JSON.stringify(other))
 })
 
 test('the kernels are keyed by what their code depends on: a switch of the occlusion recompiles those alone, the scene’s a flag of the parameters none', () => {
@@ -152,13 +213,15 @@ test('the kernels are keyed by what their code depends on: a switch of the occlu
     [
       'composite',
       'convert',
+      // The tiles' classification and the integration read the probes' samples a tile.
+      'integrate',
       'occlusion',
       'place',
       'rays',
-      'scatter',
       'screenData',
       'spatial',
       'temporal',
+      'tile',
       'traceScene',
       'traceScreen',
     ].sort(),

@@ -3,7 +3,7 @@ import { cardLimits } from './cardResolution.ts'
 import { processRequests, type CaptureWork } from './captures.ts'
 import type { Feedback } from './feedback.ts'
 import { removeAllMeshCards, updateAtlasSize } from './placements.ts'
-import { cullPlacements, maxCapturesPerFrame, planRequests, type CardView } from './requests.ts'
+import { cullPlacements, maxTileCapturesPerFrame, planRequests, type CardView } from './requests.ts'
 import type { SurfaceCache } from './state.ts'
 
 /**
@@ -11,7 +11,8 @@ import type { SurfaceCache } from './state.ts'
  * (`updateSurfaceCache`), and the two clocks the passes after it advance.
  *
  * In the order of the steps: the settings are taken; the atlas is made again if its size or its kind
- * (compressed or not) changed, and emptied if the sharing or the downsampling was switched; the
+ * (compressed or not) changed, and emptied if the sharing or the downsampling was switched, or at every image while
+ * `surfaceCacheRecaptureEveryFrame` is on; the
  * tables are consolidated; the placements are given mesh cards or lose them (`cullPlacements`); the
  * law is asked about every card, the feedback read, the requests cut at the budget (`planRequests`);
  * and the requests are served (`processRequests`). What comes out is what the GPU does: the pages to
@@ -47,6 +48,7 @@ export function updateSurfaceCache(
 ): CaptureWork {
   cache.settings = settings
   const switched =
+    settings.surfaceCacheRecaptureEveryFrame ||
     cache.allowCardSharing !== settings.surfaceCacheAllowCardSharing ||
     cache.allowDownsampleFromSelf !== settings.surfaceCacheAllowCardDownsampleFromSelf
   cache.allowCardSharing = settings.surfaceCacheAllowCardSharing
@@ -57,7 +59,7 @@ export function updateSurfaceCache(
   cache.stats.meshCardsToAdd = 0
   cache.stats.lockedCardsToUpdate = 0
   cache.stats.hiResPagesToAdd = 0
-  const budget = maxCapturesPerFrame(settings)
+  const budget = maxTileCapturesPerFrame(settings)
   let work: CaptureWork = { pages: [], texels: 0, hasCardCopy: false, reset: false }
   if (budget > 0) {
     const limits = cardLimits(settings, view.orthographic, view.clipmapExtent)

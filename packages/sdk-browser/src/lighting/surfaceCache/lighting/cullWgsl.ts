@@ -3,46 +3,61 @@ import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { luminance } from '../../../../../math/src/wgsl/color.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
+import { AIR_TINT_WGSL } from '../../atmosphere/airTintWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
+import { lightChannelsOf } from '../../direct/lightReachWgsl.ts'
+import { lightStrengthWgsl } from '../../direct/lightStrengthWgsl.ts'
 import { VOLUME_LAMP_WGSL } from '../../direct/lampSeenWgsl.ts'
 import { hasLightFunctionWgsl } from '../../lightFunction/readWgsl.ts'
-import {
-  CM_PER_M_WGSL,
-  lightingCommonWgsl,
-  lightingLayersWgsl,
-  surfaceTexelWgsl,
-} from './commonWgsl.ts'
+import { CM_PER_M_WGSL, lightingCommonWgsl, VIEW_EXPOSURE } from './commonWgsl.ts'
+import { LIGHT_CENTRE_FACING_WGSL } from './shadowMaskWgsl.ts'
+import { CONE_SPHERE_WGSL } from '../../direct/lightDrawWgsl.ts'
 
 /**
- * THE LIGHTS OF EACH TILE: a workgroup a tile of the direct update's list, a thread a texel of it for the tile's depth
- * range — the least and the greatest depth of the texels that hold a surface, 0 to 1 where none does —, which bounds the
- * tile's box in its card's space; the threads then walk the scene's lights between them, each its share, and keep the
- * `maxLights` of the most weight (`cullLights`, `lightSampleKey`): a light's weight is its luminance times how much of
- * it reaches the tile's centre (`volumeLamp`: its falloff, and a rectangle's form factor, its range window and a spot's
- * fade). A light is a candidate where its influence sphere reaches the tile's box — its range about its position, a spot's
+ * THE LIGHTS OF EACH TILE: a workgroup a tile of the direct update's list. The tile's depth range — the least and the
+ * greatest depth of the texels that hold a surface, kept as the two half floats of a word, which the pass before writes
+ * (`tileDepthRangeWgsl.ts`) — bounds the tile's box in its card's space (the card's whole depth, 0 to 1, where
+ * `surfaceCacheDirectLightingCullToTileDepthRange` is off); the threads walk the scene's lights between them, each its share, and keep the
+ * `maxLights` of the most weight (`cullLights`, `lightSampleKey`): a light's weight is the luminance of its colour as the
+ * cards take it (`lightBrightness`) times how much of it reaches the tile's centre (`tileLightReach`: a lamp's falloff, its range
+ * window and a spot's fade; a rectangle's range window times its integral with no normal, `rectTileForm`, none behind its face). A light is a candidate where it shares a lighting channel with the card's object (`ScCard.channels`, the light's `lightChannelsOf`; tested first, a sun's too) and its factor on the indirect lighting is above 0, and its influence sphere reaches the tile's box — its range about its position, a spot's
  * the sphere that bounds its cone (`influenceSphere`) —, and a spot's cone (`sphereIntersectCone`, between its tip and its
  * range) or a rectangle's front half space holds the box's bounding sphere; a sun always. Each
- * thread keeps its own best lights, ordered by key (the weight over the light's type and whether it has a shadow mask), and the workgroup takes the greatest of their heads `maxLights` times
+ * thread keeps its own best lights, ordered by key (the weight over the light's type and whether it needs a shadow mask), and the workgroup takes the greatest of their heads `maxLights` times
  * (`groupMax`): the list of a tile is its count and its lights' ranks, the heaviest first, at `(maxLights + 1)` words
  * a tile of the list's buffer.
  *
+ * A light that wears a light function the atlas holds no slot of (`standalone`, a bit a light) needs a shadow mask like one that
+ * casts a shadow, and is marked as such in the word that names it in the list of the tile (`TILE_LIGHT_STANDALONE`), so that the
+ * passes after read its function from the scratch (`lightFunctionPassWgsl.ts`).
+ *
  * The tile list and the pages' records are the update context's (`contextWgsl.ts`); bindings: 0 the parameters, 1 the tables,
- * 2 the context, 3 and 4 the depth and normal layers, 5 the lights of the tiles written, 6 the light buffer.
+ * 2 the context, 5 the lights of the tiles written, 6 the light buffer, 7 the depth ranges of the tiles, 8 the bits of the
+ * lights that hold no slot of the light functions' atlas.
  */
 
 export const CULL_ENTRY = 'cullLights'
 
-/** The cosine of π / 4: a spot whose outer cone's cosine is under it (a half angle past π / 4) is bounded by the sphere through
- *  its rim, any other by the sphere through its apex and its rim. */
-const COS_PI_OVER_4 = Math.SQRT1_2
+/** The binding of the depth ranges of the tiles (`tileDepthRangeWgsl.ts`), read. */
+export const CULL_DEPTH_RANGES_BINDING = 7
+
+/** The binding of the bits of the lights whose light function the atlas holds no slot of, read. */
+export const CULL_STANDALONE_BINDING = 8
+
+/** The floor under which a rectangle's edge cosine plus one is not taken, so that an edge a half turn about the point does not
+ *  blow its weight up. */
+const RECT_LIGHT_SAFE_THRESHOLD = 1e-4
 
 /** The cull program's bindings and the helpers of the workgroup's reduction and of a light's key and cone. */
 const cullHelpersWgsl = (maxLights: number) => `${wgslConsts({ MAX_LIGHTS: maxLights })}
-const COS_PI_OVER_4:f32=${wgslF32(COS_PI_OVER_4)};
+const RECT_LIGHT_SAFE_THRESHOLD:f32=${wgslF32(RECT_LIGHT_SAFE_THRESHOLD)};
 @group(0) @binding(5) var<storage,read_write> tileLights:array<u32>;
 @group(0) @binding(6) var<storage,read> directLights:DirectLights;
+@group(0) @binding(${CULL_DEPTH_RANGES_BINDING}) var<storage,read> depthRanges:array<u32>;
+@group(0) @binding(${CULL_STANDALONE_BINDING}) var<storage,read> standaloneLights:array<u32>;
+/** Whether light \`rank\` wears a light function the atlas holds no slot of. */
+fn standaloneLight(rank:u32)->bool{return ((standaloneLights[rank/32u]>>(rank%32u))&1u)!=0u;}
 var<workgroup> reduction:array<u32,${WORKGROUP_THREADS}>;
-var<workgroup> depthRange:array<atomic<u32>,2>;
 /** The greatest of \`value\` over the workgroup. */
 fn groupMax(lane:u32,value:u32)->u32{
  reduction[lane]=value;
@@ -61,25 +76,18 @@ fn lightType(light:DirectLight)->u32{
  if(isSpot(light)){return 2u;}
  return select(1u,3u,isRect(light));
 }
-/** Whether the light has a shadow mask: it casts shadows, or wears a light function. */
-fn hasShadowMask(light:DirectLight)->bool{return castsShadow(light)||hasLightFunction(light.params.x);}
-/** The light's key (\`lightSampleKey\`): its rank in bits 0 to 13, its type in bits 14 and 15, whether it has a shadow mask in
- *  bit 16, the weight's top bits over them. */
-fn lightKey(weight:f32,rank:u32,light:DirectLight)->u32{
- return ((bitcast<u32>(weight)<<1u)&0xfffe0000u)|(select(0u,0x10000u,hasShadowMask(light)))|((lightType(light)<<14u)&0xc000u)|(rank&0x3fffu);
+/** The light's key (\`lightSampleKey\`): its rank in bits 0 to 13, its type in bits 14 and 15 (0 for a standalone light, whatever its kind), whether it needs a shadow mask
+ *  (\`needsShadowMask\`) in bit 16, the weight's top bits over them. */
+fn lightKey(weight:f32,rank:u32,light:DirectLight,standalone:bool)->u32{
+ return ((bitcast<u32>(weight)<<1u)&0xfffe0000u)|(select(0u,0x10000u,needsShadowMask(rank,light,standalone)))|((select(lightType(light),0u,standalone)<<14u)&0xc000u)|(rank&0x3fffu);
 }
 /** The sphere that bounds the light's influence, its centre and radius in centimetres: its range about its position, a spot's
- *  that of its cone (its range along its outer cone). Its CPU twin is \`spotMapProjection\` (\`lighting/shadows/vsm/localFaces.ts\`):
- *  the same 45° rule and spheres. */
+ *  the sphere that holds its cone (\`coneSphere\`, its range along its outer cone). */
 fn influenceSphere(light:DirectLight)->vec4f{
  let position=light.positionRange.xyz*CM_PER_M;
  let range=light.positionRange.w*CM_PER_M;
  if(!isSpot(light)){return vec4f(position,range);}
- let axis=light.directionCone.xyz;
- let cosCone=light.directionCone.w;
- if(cosCone<COS_PI_OVER_4){return vec4f(position+axis*range*cosCone,range*sqrt(1.0-cosCone*cosCone));}
- let radius=range/(2.0*cosCone);
- return vec4f(position+axis*radius,radius);
+ return coneSphere(position,light.directionCone.xyz,range,light.directionCone.w);
 }
 /** Whether a sphere of \`radius\` about \`centre\` meets the cone of tip \`tip\` along \`axis\`, whose cosine and sine are given. */
 fn sphereIntersectCone(centre:vec3f,radius:f32,tip:vec3f,axis:vec3f,cosCone:f32,sinCone:f32)->bool{
@@ -115,11 +123,43 @@ fn tileBox(page:u32,tile:vec2u,depths:vec2f)->TileBox{
  b.reach=0.5*(highest-lowest);
  return b;
 }
-/** The weight of light \`rank\` for the tile, 0 where it does not reach it: the key's weight is its luminance times what reaches the centre. */
-fn tileLightWeight(light:DirectLight,b:TileBox)->f32 {
+/** The luminance of light \`rank\`'s colour as the cards take it: its colour times its strength (\`lightStrength\`), times the factor on its indirect
+ *  lighting (\`contactGi.w\`) and the air's tint toward it at the ground (\`airGroundTintOf\`, one for any light but a sun that asks
+ *  for its transmittance per point). */
+fn lightBrightness(rank:u32,light:DirectLight)->f32{
+ return luminance(light.colorIntensity.rgb*lightStrength(light)*light.contactGi.w*airGroundTintOf(rank));
+}
+/** The integral of a rectangle with no normal, of its view \`r\` from the point, as the reference's cheap form factor takes it: the unit
+ *  directions to its corners, each edge weighed by the angle it subtends, \`(1.5708 - 0.175 c) / sqrt(c + 1)\` for the cosine \`c\` of
+ *  the edge's two directions (the angle's polynomial over its sine), their vector sum's length half; nothing for a rectangle
+ *  with no width or no height. */
+fn rectTileForm(light:DirectLight,r:RectView)->f32{
+ if(!any(light.shape.xyz!=vec3f(0.0))||light.shape.w==0.0){return 0.0;}
+ let L0=normalize(r.a);let L1=normalize(r.b);let L2=normalize(r.c);let L3=normalize(r.d);
+ let c01=dot(L0,L1);let c12=dot(L1,L2);let c23=dot(L2,L3);let c30=dot(L3,L0);
+ let w01=(1.5708-0.175*c01)*inverseSqrt(max(c01+1.0,RECT_LIGHT_SAFE_THRESHOLD));
+ let w12=(1.5708-0.175*c12)*inverseSqrt(max(c12+1.0,RECT_LIGHT_SAFE_THRESHOLD));
+ let w23=(1.5708-0.175*c23)*inverseSqrt(max(c23+1.0,RECT_LIGHT_SAFE_THRESHOLD));
+ let w30=(1.5708-0.175*c30)*inverseSqrt(max(c30+1.0,RECT_LIGHT_SAFE_THRESHOLD));
+ let L=cross(L1,-w01*L0+w12*L2)+cross(L3,w30*L0-w23*L2);
+ return 0.5*length(L);
+}
+/** What of a local light reaches the point \`P\` (metres) before its colour: the lamp's falloff times its mask (\`volumeLamp\`, no
+ *  bias), a rectangle's range window times its integral (\`rectTileForm\`), nothing behind its face. */
+fn tileLightReach(light:DirectLight,P:vec3f)->f32{
+ if(!isRect(light)){return volumeLamp(light,P,0.0).w;}
+ if(dot(light.directionCone.xyz,P-light.positionRange.xyz)<0.0){return 0.0;}
+ let r=rectView(light,P);
+ return r.window*rectTileForm(light,r);
+}
+/** The weight of light \`rank\` for the tile, -1 where it does not reach it: first where it shares no lighting channel with the
+ *  card's object, then where its factor on the indirect lighting (\`contactGi.w\`) is not above 0, the cards gather none of it, then where its
+ *  range, cone or face leaves the box; the key's weight is its brightness times what reaches the centre. */
+fn tileLightWeight(rank:u32,light:DirectLight,b:TileBox)->f32 {
+ if((b.card.channels&lightChannelsOf(light))==0u){return -1.0;}
+ if(light.contactGi.w<=0.0){return -1.0;}
  let worldCentre=b.card.origin+b.card.axisX*b.centre.x+b.card.axisY*b.centre.y+b.card.axisZ*b.centre.z;
- let brightness=luminance(light.colorIntensity.rgb*light.colorIntensity.w);
- if(isSun(light)){return brightness;}
+ if(isSun(light)){return lightBrightness(rank,light);}
  let position=light.positionRange.xyz*CM_PER_M;
  let range=light.positionRange.w*CM_PER_M;
  let influence=influenceSphere(light);
@@ -138,7 +178,7 @@ fn tileLightWeight(light:DirectLight,b:TileBox)->f32 {
   let spread=abs(b.card.axisX)*b.reach.x+abs(b.card.axisY)*b.reach.y+abs(b.card.axisZ)*b.reach.z;
   if(!(dot(direction,worldCentre-position)+dot(spread,abs(direction))>0.0)){return -1.0;}
  }
- return brightness*volumeLamp(light,worldCentre/CM_PER_M,0.0).w;
+ return lightBrightness(rank,light)*tileLightReach(light,worldCentre/CM_PER_M);
 }
 /** Keeps \`key\` among the keys of \`best\`, in descending order, the least dropped. */
 fn keepKey(best:ptr<function,array<u32,MAX_LIGHTS>>,keyIn:u32){
@@ -152,30 +192,20 @@ fn keepKey(best:ptr<function,array<u32,MAX_LIGHTS>>,keyIn:u32){
 
 /** The kernel: a workgroup a tile of the direct update's list. */
 const cullKernelWgsl = () => `@compute @workgroup_size(8,8,1)
-fn ${CULL_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_id) at:vec3u,@builtin(local_invocation_index) lane:u32){
+fn ${CULL_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
  let tile=flatGroup(group,n);
  if(tile>=ctxListed(LG_LIST_DIRECT)){return;}
  let packed=ctxTile(LG_LIST_DIRECT,tile);
  let page=tilePage(packed);
  let coord=tileCoordOf(packed);
- if(lane==0u){atomicStore(&depthRange[0],0x7f800000u);atomicStore(&depthRange[1],0u);}
- workgroupBarrier();
- let texel=surfaceTexel(page,coord*LG_TILE+at.xy);
- if(texel.valid){
-  let depth=f32(texDepth(texel.atlas)&0xffffu)/65535.0;
-  atomicMin(&depthRange[0],bitcast<u32>(depth));
-  atomicMax(&depthRange[1],bitcast<u32>(depth));
- }
- workgroupBarrier();
- let lowest=atomicLoad(&depthRange[0]);
- let highest=atomicLoad(&depthRange[1]);
- let depths=select(vec2f(bitcast<f32>(lowest),bitcast<f32>(highest)),vec2f(0.0,1.0),lowest==0x7f800000u);
+ var depths=vec2f(0.0,1.0);
+ if(lgFlag(FLAG_CULL_TO_TILE_DEPTH_RANGE)){depths=unpack2x16float(depthRanges[tile]);}
  let box=tileBox(page,coord,depths);
  var best:array<u32,MAX_LIGHTS>;
  for(var i=0u;i<MAX_LIGHTS;i++){best[i]=0u;}
  for(var rank=lane;rank<directLights.count;rank+=${WORKGROUP_THREADS}u){
-  let weight=tileLightWeight(directLights.items[rank],box);
-  if(weight>=0.0){keepKey(&best,lightKey(weight,rank,directLights.items[rank]));}
+  let weight=tileLightWeight(rank,directLights.items[rank],box);
+  if(weight>=0.0){keepKey(&best,lightKey(weight,rank,directLights.items[rank],standaloneLight(rank)));}
  }
  var kept=0u;var cursor=0u;
  let at0=tile*(MAX_LIGHTS+1u);
@@ -185,7 +215,10 @@ fn ${CULL_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:v
   let picked=groupMax(lane,mine);
   if(picked!=0u){
    if(picked==mine){cursor++;}
-   if(lane==0u){tileLights[at0+1u+kept]=picked&0x3fffu;}
+   if(lane==0u){
+    let rank=picked&0x3fffu;
+    tileLights[at0+1u+kept]=rank|select(0u,TILE_LIGHT_STANDALONE,standaloneLight(rank));
+   }
    kept++;
   }
  }
@@ -196,10 +229,14 @@ fn ${CULL_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:v
 export const cullWgsl = (maxLights: number) =>
   wgslProgram(cullHelpersWgsl(maxLights) + CULL_TILE_TEXT + cullKernelWgsl(), [
     lightingCommonWgsl({ tables: 1, context: { binding: 2, access: 'read' } }),
-    surfaceTexelWgsl(lightingLayersWgsl(3, 4)),
     DIRECT_LIGHT_WGSL,
+    lightStrengthWgsl(VIEW_EXPOSURE),
     VOLUME_LAMP_WGSL,
+    LIGHT_CENTRE_FACING_WGSL,
+    AIR_TINT_WGSL,
     CM_PER_M_WGSL,
     hasLightFunctionWgsl,
+    lightChannelsOf,
+    CONE_SPHERE_WGSL,
     luminance,
   ])

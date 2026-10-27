@@ -1,5 +1,6 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import {
+  feedbackAllocated,
   feedbackBufferSize,
   feedbackTileJitter,
   feedbackTileSize,
@@ -22,9 +23,9 @@ import { FEEDBACK_COMPACTION_ENTRIES, FEEDBACK_COMPACTION_SHADER } from './feedb
  * the read-back of the list.
  *
  * `begin` makes ready the image's buffer — one element for each tile of the image (`feedbackBufferSize`),
- * the two last-read parts one word a page of the page table —, its header written: the count at zero,
+ * the last-read part one word a page of the page table —, its header written: the count at zero,
  * the parts' places, the tile's size and place in it (`feedbackTileJitter`, which the feedback clock moves
- * on from image to image), the cache's clock and the level bias. The last-read parts persist between
+ * on from image to image), the cache's clock and the level bias. The last-read part persists between
  * images: the buffer is made again, and they begin again, only when the image's size or the page table's
  * room changes. `end` then compacts it (`feedbackWgsl.ts`: the table of keys and the list cleared, the
  * two kernels, the list copied to a staging buffer of the ring) and moves the feedback clock on, the
@@ -149,7 +150,7 @@ function createFeedbackBuffer(device: GPUDevice) {
       return held
     },
     /** The buffer for an image of `elements` tiles and a page table of `pages` records: kept while it is what the image
-     *  asks, else made again (the last-read parts begin again), and its header written: the count at zero, the parts' places,
+     *  asks, else made again (the last-read part begins again), and its header written: the count at zero, the parts' places,
      *  the tile and where in it the rays write, the cache's clock. */
     begin(elements: number, pages: number, cache: SurfaceCache, tile: number) {
       const words = feedbackWords(elements, pages)
@@ -160,14 +161,14 @@ function createFeedbackBuffer(device: GPUDevice) {
       const [jitterX, jitterY] = feedbackTileJitter(cache.feedbackFrame, tile)
       header.fill(0)
       header[FEEDBACK_AT.elements] = held.words.elements
-      header[FEEDBACK_AT.lastUsed] = held.words.lastUsed
       header[FEEDBACK_AT.lastUsedHiRes] = held.words.lastUsedHiRes
       header[FEEDBACK_AT.size] = elements
       header[FEEDBACK_AT.wrapMask] = tile - 1
       header[FEEDBACK_AT.jitterX] = jitterX
       header[FEEDBACK_AT.jitterY] = jitterY
       header[FEEDBACK_AT.frame] = cache.frame
-      headerFloats[FEEDBACK_AT.resLevelBias] = cache.settings.surfaceCacheFeedbackResLevelBias
+      // The half level added turns the shader's cut of the level to an integer into a round.
+      headerFloats[FEEDBACK_AT.resLevelBias] = cache.settings.surfaceCacheFeedbackResLevelBias + 0.5
       device.queue.writeBuffer(held.buffer, 0, header)
       return held
     },
@@ -203,7 +204,7 @@ export function createSurfaceFeedback(device: GPUDevice) {
     begin(cache: SurfaceCache, size: readonly [number, number]) {
       ring.submitted()
       const { settings } = cache
-      active = settings.surfaceCacheFeedback && compaction.ready && ring.available()
+      active = feedbackAllocated(settings) && compaction.ready && ring.available()
       if (!active) return undefined
       const tile = feedbackTileSize(settings)
       const elements = Math.max(1, feedbackBufferSize(size[0], size[1], tile))

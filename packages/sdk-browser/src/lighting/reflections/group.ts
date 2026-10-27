@@ -7,7 +7,11 @@ import type { GlobalFieldRead } from '../distanceField/view.ts'
 import type { ScreenReflection } from './gpu.ts'
 import { skyLightReadBindEntries, type SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
 import { heldProgramGroup, keptProgramGroup } from '../../gpu/bind/programGroups.ts'
-import { reflectionForwardLayout, reflectionLayout } from './reflectionPipelines.ts'
+import {
+  reflectionSceneLayout,
+  reflectionForwardLayout,
+  reflectionLayout,
+} from './reflectionPipelines.ts'
 import {
   REFLECTION_DEPTH_BINDING,
   REFLECTION_FRONT_BINDING,
@@ -81,6 +85,33 @@ function forwardReflectionGroup(
         ...skyLightReadBindEntries(REFLECTION_SKY_LIGHT, sky),
       ],
       'Trillion3D reflection forward',
+    )
+  )
+}
+
+/** The reflection group of the screen probes' scene stages (`reflectionSceneLayout`): the view, the lighting's view `lightView` and the sky light, made again
+ *  when one of them is not the one it was made over. */
+export function reflectionSceneGroup(
+  reflection: ScreenReflection,
+  lightView: GPUBuffer,
+  sky: SkyLightReadSet,
+) {
+  const { device, scene } = reflection
+  const { next } = scene.identity
+  next.length = 0
+  next.push(lightView, sky.cube, sky.harmonics, sky.params)
+  return (
+    heldProgramGroup(scene) ??
+    keptProgramGroup(
+      device,
+      reflectionSceneLayout(device),
+      scene,
+      [
+        { binding: REFLECTION_VIEW_BINDING, resource: { buffer: reflection.uniform } },
+        { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: lightView } },
+        ...skyLightReadBindEntries(REFLECTION_SKY_LIGHT, sky),
+      ],
+      'Trillion3D reflection scene',
     )
   )
 }

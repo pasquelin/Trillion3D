@@ -9,7 +9,7 @@ import {
   REJECT_SHADING_TILE,
 } from './rejectionNetworkWgsl.ts'
 import { ANTI_ALIAS_MASK, LDR_LUMA, storageDeclaration, type StorageForm } from './storageForms.ts'
-import { HALF_MAX, MAX_10_BIT_FLOAT } from '../../../../math/src/constants.ts'
+import { MAX_10_BIT_FLOAT } from '../../../../math/src/constants.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -17,7 +17,6 @@ import { safeRcp } from '../../../../math/src/wgsl/reals.ts'
 import { TAA_VIEW_WGSL, packedStorageWgsl } from './bindingsWgsl.ts'
 import {
   colorSpacesWgsl,
-  DISPLAY_STEP_ERROR,
   ditherWgsl,
   FULL_PRECISION,
   HALF_PRECISION,
@@ -29,10 +28,23 @@ import {
   sceneColorWgsl,
   sceneColorWords,
 } from './colorSpaceWgsl.ts'
-import { FLICKER_CELL_WGSL, FLICKER_PLANES } from './flickerErrorCells.ts'
+import { flickerMeasureWgsl } from './flickerMeasureWgsl.ts'
+import { rcpOf, rejectionTypes, type RejectionTypes } from './rejectionTypes.ts'
 import { REJECTION_BITS } from './rejectionBits.ts'
+import {
+  annihilateWgsl,
+  DISPLAY_STEP_ERROR_WGSL,
+  FILTERING_WEIGHT,
+  FIRST_ANALYSIS_VIEW,
+  FLICKER_GATES_WGSL,
+} from './rejectionShared.ts'
 import { FIELD_FORMAT, FIELD_LAYERS } from './reprojectionFieldWgsl.ts'
-import { GUIDE_LAYERS, REPROJECT_BITS, REPROJECTED_WORD_WGSL } from './reprojectWgsl.ts'
+import {
+  FLICKER_FORMAT,
+  GUIDE_LAYERS,
+  REPROJECT_BITS,
+  REPROJECTED_WORD_WGSL,
+} from './reprojectWgsl.ts'
 import { RESURRECTION_WGSL } from './resurrectionWgsl.ts'
 import {
   antiAliasMaskWgsl,
@@ -61,15 +73,15 @@ export const REJECT_SHADING_BINDINGS = {
   luma: 13,
   thinHistory: 14,
   antiAliasMask: 15,
-  flickerError: 16,
+  flicker: 16,
+  measuredLuma: 17,
+  flickerOut: 18,
 } as const
 
 /** The shading rejection of each render texel, what the history update reads: the low frequency
  *  rejection, the clamp's lift, the validity's drop (stored as its complement) and `REJECTION_BITS`. */
 export const REJECTION_FORMAT: GPUTextureFormat = 'rgba8unorm'
 
-/** The filtering weight of the binomial 3×3's centre: `1 / (1 + 4·½ + 4·¼)`. */
-export const FILTERING_WEIGHT = 1 / (1 + 4 * 0.5 + 4 * 0.25)
 /** The half step an eight-bit store rounds by, which the rejection's words are biased against. */
 const HALF_STEP = quantizationError(REJECTION_FORMAT) / 2
 /** The sum, over a 3×3 and the channels, of how much closer to the image the resurrected frame is
@@ -85,44 +97,6 @@ const NOT_GOOD_ENOUGH = 0.5
  *  be resurrected. */
 const BETTER_BY = 0.1
 
-/**
- * The analysis views (`view.params.w`, `taa` of `LIT_VIEWS`,
- * `../../visibility/shader/shadeMode.ts`), from the first: the rejection's words of a texel hold, in
- * place of its own, three of the factors that can take its history away or what a pixel asks of
- * it, which the resolve shows raw (`resolveWgsl.ts`); the analysis and the shading history stay
- * those of the beauty image.
- * - 4, the flicker measure: its error (eight times) and its count (of its most);
- * - 5, the shading rejection: without the flicker error's widening, with it before the spread,
- *   then spread — the factor the history update applies;
- * - 6, the reprojection: disoccluded, hole-filled with the occluder's velocity, off screen;
- * - 7, the motion: how far the texel moves to the flicker measure (`marks`), a pixel animation, the
- *   reprojection edge (one where the velocity is flat);
- * - 8, the thin geometry (`thinGeometryWgsl.ts`): the history relaxation weight, the cluster hole
- *   region, the coverage history;
- * - 9, the responsiveness the pixel carries, as grey: black none, a third a pixel animation (a
- *   material at `medium`, or a dynamic surface), white a pixel animation whose history restarts
- *   (`full`).
- * Off, a uniform branch never taken.
- */
-export const FIRST_ANALYSIS_VIEW = 4
-
-/** The conditions the flicker measure's output (`flickerErrorCells.ts`) is made and read under, which
- *  the measure and the shading rejection both name: `flickerRejects`, the level rejects by the flicker
- *  (`view.quality.x`) and the error widens its clamp; `analysisShown`, an analysis view is shown,
- *  which alone holds the count; `flickerMeasured`, the measure ran — either of them — and its
- *  error is there to read. */
-export const FLICKER_GATES_WGSL = wgslBlock(
-  'FLICKER_GATES_WGSL',
-  [TAA_VIEW_WGSL],
-  `
-fn flickerRejects()->bool{return view.quality.x>0.0;}
-fn analysisShown()->bool{return view.params.w>=${FIRST_ANALYSIS_VIEW}.0;}
-fn flickerMeasured()->bool{return flickerRejects()||analysisShown();}`,
-)
-
-/** The reciprocal helper of a precision (`safeRcp`, with its suffix). */
-const rcpOf = ({ S }: Precision) => (S ? `safeRcp${S}` : 'safeRcp')
-
 /** The measure's structure, its helper and the start of the rejection: the inputs held onto each
  *  other, the boxes and the clamp error. */
 const measureHeadText = ({
@@ -134,7 +108,8 @@ fn minOf(v:${V3})->${F}{return min(min(v.x,v.y),v.z);}
  *  history \`heldInput\`, all in the measurement space: the filtered history held in the filtered
  *  input's box — moved toward the filtered history's own box by the thin geometry's relaxation
  *  \`relax\` where \`relaxing\` —, widened by the clamp error and by the flicker error \`cellError\` where
- *  \`flickerOn\`; the energy past it against the larger of the filtered difference and the box's size,
+ *  \`flickerOn\`, and by the blur of the lesser total variation of the input's change and of the input;
+ *  the energy past it against the larger of the filtered difference and the box's size,
  *  the least of the channels; its 3×3 median, then the maximum of the energy and the minimum of the
  *  raw rejection, the clamp's lift. */
 fn measureRejection(input:Px,heldInput:Px,heldHistory:Px,cellError:array<${F},${LANE_ROWS}>,relax:array<${F},${LANE_ROWS}>,relaxing:bool,flickerOn:bool)->Measured{
@@ -204,22 +179,6 @@ const measureEnergyText = (p: Precision) => {
 }`
 }
 
-/** Each of two values held in the 3×3 box of the other. */
-const annihilateText = () => `/** \`v\` held in the box \`b\`. */
-fn heldIn(v:Px,b:Box)->Px{
- var o:Px;
- for(var r=0;r<${LANE_ROWS};r++){o[r]=clamp(v[r],b.lo[r],b.hi[r]);}
- return o;
-}
-/** \`toClamp\` held in the 3×3 box of \`guide\` held in the 3×3 box of \`toClamp\` (\`own\`, its 3×3 box): each
- *  brought onto the other where they overlap. */
-fn annihilateToGuide(toClamp:Px,guide:Px,own:Box)->Px{return heldIn(toClamp,minMax3x3(heldIn(guide,own)));}`
-
-/** The values held in each other's box, which the shading rejection and the flicker measure
- *  (`flickerMeasureWgsl.ts`) both bring onto each other. */
-export const annihilateWgsl = (p: Precision, wave?: Wave) =>
-  wgslBlock(`REJECT_SHADING_ANNIHILATE${p.S}_WGSL`, networkOf(p, wave), annihilateText())
-
 /** What the shading rejection measures of a frame's history against the image
  *  (`measureRejection`): the rejection, the clamp's lift, and for the analysis view of the
  *  rejection the rejection without the flicker error's widening and the raw one. */
@@ -228,25 +187,14 @@ const measureText = (p: Precision) =>
 const measureWgsl = (p: Precision, wave?: Wave) =>
   wgslBlock(
     `REJECT_SHADING_MEASURE${p.S}_WGSL`,
-    [...networkOf(p, wave), annihilateWgsl(p, wave), p.S ? colorSpacesWgsl(p) : safeRcp],
+    [
+      ...networkOf(p, wave),
+      annihilateWgsl(p, wave),
+      DISPLAY_STEP_ERROR_WGSL,
+      p.S ? colorSpacesWgsl(p) : safeRcp,
+    ],
     measureText(p),
   )
-
-/** The names a precision gives the rejection's stages, and the conversions its types ask: `rcp` the
- *  reciprocal, `cast(T, e)` the expression `e` as type `T` where the precision is not 32 bits' (a
- *  conversion to or from it), `bounded(e)` a 32-bit bound `e` the 16-bit precision holds within its
- *  largest finite. */
-export interface RejectionTypes extends Precision {
-  readonly rcp: string
-  readonly cast: (T: string, e: string) => string
-  readonly bounded: (e: string) => string
-}
-export const rejectionTypes = (p: Precision): RejectionTypes => ({
-  ...p,
-  rcp: rcpOf(p),
-  cast: (T, e) => (p.S ? `${T}(${e})` : e),
-  bounded: (e) => (p.S ? `${p.F}(min(${e},${wgslF32(HALF_MAX)}))` : e),
-})
 
 /** The shading rejection's bindings. */
 const rejectionBindingsText = (
@@ -271,17 +219,17 @@ ${storageDeclaration(ANTI_ALIAS_MASK, maskForm, 'write', B.antiAliasMask)}
 @group(0) @binding(${B.occluders}) var<storage,read_write> occluders:array<u32>;
 @group(0) @binding(${B.sceneColor}) var<storage,read_write> sceneColorOut:array<u32>;
 ${storageDeclaration(LDR_LUMA, lumaForm, 'write', B.luma)}
-@group(0) @binding(${B.flickerError}) var<storage,read> flickerError:array<f32>;`
+@group(0) @binding(${B.flicker}) var flicker:texture_2d<f32>;
+@group(0) @binding(${B.measuredLuma}) var measuredLuma:texture_2d<f32>;
+@group(0) @binding(${B.flickerOut}) var flickerOut:texture_storage_2d<${FLICKER_FORMAT},write>;`
 }
 
-/** The display's step error and the thin geometry detection's history relaxation weight, which the
- *  shading rejection and the flicker measure (`flickerMeasureWgsl.ts`) read from a texture `thin`. */
-export const rejectionConstantsText = () => `const Q=${wgslF32(DISPLAY_STEP_ERROR)};
-/** The thin geometry detection's history relaxation weight of texel \`c\`, in 127ths. */
-fn relaxationOf(c:vec2i)->f32{return f32(measureByte(textureLoad(thin,c,0).r)>>${THIN_MASK_BITS.shift}u)/${THIN_MASK_BITS.most}.0;}`
-
-/** The resurrection switch, the constants and the helpers the stages share. */
-const rejectionHelpersText = () => `${rejectionConstantsText()}
+/** The thin geometry detection's history relaxation weight, which the
+ *  shading rejection and the flicker measure (`flickerMeasureWgsl.ts`) read from a texture `thin`,
+ *  the resurrection switch and the helpers the stages share. */
+const rejectionHelpersText =
+  () => `/** The thin geometry detection's history relaxation weight of texel \`c\`, in 127ths. */
+fn relaxationOf(c:vec2i)->f32{return f32(measureByte(textureLoad(thin,c,0).r)>>${THIN_MASK_BITS.shift}u)/${THIN_MASK_BITS.most}.0;}
 override RESURRECTION:bool=false;
 /** The words of analysis view \`mode\` (\`FIRST_ANALYSIS_VIEW\`) of texel \`c\`, its reprojection word
  *  \`word\`, its flicker error and count, and its rejection's three stages. */
@@ -301,19 +249,18 @@ fn analysisView(mode:u32,c:vec2i,word:u32,cellError:f32,cellCount:f32,plain:f32,
  return vec3f(f32(textureLoad(marks,c,0).b)/255.0,select(0.0,1.0,isAnimated(word)),reprojectionEdge(word));
 }`
 
-/** The head of an entry `name` over the shading rejection's tiles, which the flicker measure
- *  (`flickerMeasureWgsl.ts`) shares: the lane's place in the tile and the image's scale. A wave
- *  program fixes the size of its subgroups where the adapter runs others (`Wave.pinned`) and takes
- *  its column from its place in the subgroup (`subgroup_invocation_id`), the row of lanes the
- *  subgroup is, the shuffles' lanes; the rows are the workgroup's index's. */
-export const tileEntryText = (name: string, wave: Wave | undefined) => {
+/** The head of an entry `name` over the shading rejection's tiles: the lane's place in the tile and
+ *  the image's scale. A wave program fixes the size of its subgroups where the adapter runs others
+ *  (`Wave.pinned`) and takes its column from its place in the subgroup (`subgroup_invocation_id`),
+ *  the row of lanes the subgroup is, the shuffles' lanes; the rows are the workgroup's index's. */
+const tileEntryText = (name: string, wave: Wave | undefined) => {
   const tile = REJECT_SHADING_TILE
   return `@compute @workgroup_size(${REJECT_SHADING_LANES})${wave?.pinned ? ` @subgroup_size(${wave.lanes})` : ''}
 fn ${name}(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) groups:vec3u,@builtin(local_invocation_index) lane:u32${wave ? ',@builtin(subgroup_invocation_id) inSubgroup:u32' : ''}){
  laneX=i32(${wave ? 'inSubgroup' : `lane%${tile}u`});laneRow=i32(lane/${tile}u)*${LANE_ROWS};
  let origin=vec2i(wg.xy)*${REJECT_SHADING_STRIDE}-vec2i(${REJECT_SHADING_OVERSCAN});
  let size=vec2i(view.render.xy);
- let scale=view.exposure.x*view.preExposure.y;
+ let scale=view.preExposure.y;
  let most=${wgslF32(LARGEST_SCENE_COLOR)}/scale;`
 }
 
@@ -368,7 +315,7 @@ ${lumaStoreText(lumaForm)}
 }
 
 /** The thin geometry's relaxation, where the detection runs and some texel has one. */
-export const relaxationText = ({
+const relaxationText = ({
   F,
   cast,
 }: RejectionTypes) => ` // The thin geometry's relaxation, where the detection runs and some texel of the tile has one.
@@ -379,13 +326,12 @@ export const relaxationText = ({
   relaxing=anyThread(some);
  }`
 
-/** The flicker measure's error at each texel of the tile (`flickerMeasureWgsl.ts`), where the level
- *  rejects by it or an analysis view is shown: what it computed at the same texel of the same tile,
- *  else none, the value of a texel it did not measure. */
-const flickerReadText = ({ F, cast }: RejectionTypes) => ` var cellError:array<${F},${LANE_ROWS}>;
- if(flickerMeasured()){
-  for(var r=0;r<${LANE_ROWS};r++){cellError[r]=${cast(F, `flickerError[flickerCell(wg,groups,laneRow+r,laneX,${FLICKER_PLANES.error}u)]`)};}
- }`
+/** The flicker measure (`flickerMeasureWgsl.ts`) over the tile, where the level rejects by it or an
+ *  analysis view is shown: its error and count at each texel of the tile, none else. It is given the
+ *  thin geometry's relaxation only where `thinAntiFlickers`; the rejection after it takes it whole. */
+const flickerReadText = () => ` var flick:Flicker;
+ if(flickerMeasured()){flick=measureFlicker(pixel,place,writes,word,opaque,composed,layers,relax,relaxing&&thinAntiFlickers(),scale);}
+ let cellError=flick.error;`
 
 /** The histories and the rejection's input in the measurement space, and the texels the
  *  resurrected frame is closer to. */
@@ -504,8 +450,7 @@ const outputsText = (
   let bits=select(${REJECTION_BITS.kept}u,0u,restarted)|select(0u,${REJECTION_BITS.resurrected}u,resurrect[r]);
   var words=vec3f(${cast(V3, `blend[r]-${wgslF32(HALF_STEP)},lift-${wgslF32(HALF_STEP)},${wgslF32(1 - HALF_STEP)}-raise`)});
   if(analysisShown()){
-   let count=flickerError[flickerCell(wg,groups,laneRow+r,laneX,${FLICKER_PLANES.count}u)];
-   words=analysisView(u32(view.params.w),g,w,${cast('f32', 'cellError[r]')},count,${['measured.plain[r]', 'measured.raw[r]', 'blend[r]'].map((e) => cast('f32', e)).join(',')});
+   words=analysisView(u32(view.params.w),g,w,${cast('f32', 'cellError[r]')},${cast('f32', 'flick.count[r]')},${['measured.plain[r]', 'measured.raw[r]', 'blend[r]'].map((e) => cast('f32', e)).join(',')});
   }
   textureStore(rejectionOut,g,vec4f(words,f32(bits)/255.0));
   antiAliasMaskSet(g,antiAlias);
@@ -526,7 +471,7 @@ const entryText = (
     entryHeadText(t, wave),
     loadText(colorFormat, lumaForm),
     relaxationText(t),
-    flickerReadText(t),
+    flickerReadText(),
     historiesText(t),
     holdText(t),
     resurrectText(t),
@@ -538,10 +483,9 @@ const entryText = (
  * history reprojection and the thin geometry detection: how far each frame's history disagrees with
  * the image in shading, which history each pixel keeps, and what the later passes read of it —
  * every step in the workgroup's network (`networkOf`), no value of it stored between them.
- * - The flicker measure's error, where the level rejects by it (`view.quality.x`) or an analysis view
- *   is shown: read at each texel of the tile from what the measure's own dispatch, before this one,
- *   computed there over the same tiles (`flickerMeasureWgsl.ts`, `flickerErrorCells.ts`); none
- *   otherwise. The rejection widens by it.
+ * - The flicker measure (`flickerMeasureWgsl.ts`), first, where the level rejects by it
+ *   (`view.quality.x`) or an analysis view is shown: its error at each texel of the tile, none
+ *   otherwise, and the flicker history it writes. The rejection widens by the error.
  * - The input for the rejection: the scene under the translucency composed with the translucency's
  *   3×3 blur — a pixel animation taking its whole colour into that blur —; the history: the shading
  *   history reprojected (`reprojectWgsl.ts`), squared back to the measurement space. Written for
@@ -611,7 +555,6 @@ export const rejectShadingShader = (
       ditherWgsl(p),
       sceneColorWgsl(colorFormat),
       MEASURE_BYTE_WGSL,
-      FLICKER_CELL_WGSL,
       FLICKER_GATES_WGSL,
       LUMA_601_WGSL,
       antiAliasMaskWgsl(maskForm, 'write'),
@@ -619,6 +562,7 @@ export const rejectShadingShader = (
       RESURRECTION_WGSL,
       TRANSLUCENCY_WGSL,
       measureWgsl(p, wave),
+      flickerMeasureWgsl(rejectionTypes(p), wave),
       safeRcp,
     ],
   )

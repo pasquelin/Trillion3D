@@ -1,36 +1,58 @@
-// The radiance cache: its kernels are modules a device takes, its maps and their bytes, the ray's end word, the tiles of a probe and the filter's weights.
+// The radiance cache: its kernels are modules a device takes, its maps and their bytes, and the atlases of a frame.
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BOUNCE_PROBE_QUEUE, BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
-import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import {
   cacheFilterEntries,
-  cacheMipsEntries,
+  cacheFixupEntries,
+  cacheSplatEntries,
   cacheTilesEntries,
   cacheTraceEntries,
+  cacheTracedLayouts,
 } from './cache/cacheBindings.ts'
 import { reachedBindings } from './reachedBindings.fixture.ts'
 import { CACHE_FILTER_PROGRAM } from './cache/cacheFilterWgsl.ts'
-import { CACHE_MIPS_PROGRAM } from './cache/cacheMipsWgsl.ts'
-import { CACHE_WORDS_WGSL } from './cache/cacheWordsWgsl.ts'
-import { bounceBindingsWgsl } from './gridWgsl.ts'
-import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { cacheBytes, cacheExtent, cacheTileCapacity } from './cache/cacheLayout.ts'
+import { CACHE_FIXUP_PROGRAM } from './cache/cacheFixupWgsl.ts'
+import {
+  RADIANCE_CACHE_FLAGS,
+  RADIANCE_CACHE_FORMATS,
+  RADIANCE_CACHE_PARAMS,
+  RADIANCE_CACHE_PARAMS_BYTES,
+  cacheBytes,
+  cacheExtent,
+  cacheFinalSide,
+  cacheTempExtent,
+  cacheTileCapacity,
+  cacheTraceExtent,
+  cacheTraceTiles,
+} from './cache/cacheLayout.ts'
+import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
+import { writeCacheParams } from './cache/cacheGroups.ts'
+import { listBytes } from '../../gpu/dispatch/list.ts'
+import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
+import { POOL_ROW_PROBES } from './atlas.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { CACHE_TILES_PROGRAM } from './cache/cacheTilesWgsl.ts'
-import { spCommon } from './screen/commonWgsl.ts'
-import { oneLevel } from './atlas.fixture.ts'
-import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
-import { SCREEN_PROBE_CONSTANTS } from '../../../../sdk-core/src/bounce/screenProbeLevels.ts'
-import { CACHE_TRACE_PROGRAM } from './cache/cacheTraceWgsl.ts'
+import {
+  CACHE_SPLAT_PROGRAM,
+  CACHE_TRACED_PROGRAM,
+  CACHE_TRACE_PROGRAM,
+} from './cache/cacheTraceWgsl.ts'
 import { assertProgramAssembles } from '../../gpu/core/wgslNames.fixture.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { createRadianceCache } from './cache/radianceCache.ts'
+import type { CacheKernels } from './cache/cacheKernels.ts'
+import type { CacheWiring } from './cache/cacheGroups.ts'
 
 test('every kernel of the radiance cache is a module a device takes: its names declared, none reserved or twice, its bindings the layout holds', () => {
   const kernels = {
-    tiles: [CACHE_TILES_PROGRAM, cacheTilesEntries(), ['clearPdf', 'generateTiles']],
+    tiles: [CACHE_TILES_PROGRAM, cacheTilesEntries(), ['generateTiles']],
     trace: [CACHE_TRACE_PROGRAM, cacheTraceEntries(), ['traceTiles']],
+    traced: [CACHE_TRACED_PROGRAM, cacheTracedLayouts()[0], ['traceTiles']],
+    splat: [CACHE_SPLAT_PROGRAM, cacheSplatEntries(), ['spreadTiles']],
     filter: [CACHE_FILTER_PROGRAM, cacheFilterEntries(), ['filterMaps']],
-    mips: [CACHE_MIPS_PROGRAM, cacheMipsEntries(), ['buildMip']],
+    fixup: [CACHE_FIXUP_PROGRAM, cacheFixupEntries(), ['fixupMaps']],
   } as const
   for (const [name, [code, entries, points]] of Object.entries(kernels)) {
     assertProgramAssembles(code, undefined, name)
@@ -63,173 +85,158 @@ test('the radiance cache holds the pool’s own number of maps in two atlases an
     mipmaps,
     skyVisibility,
   })
-  const texels = 4096 * 4096
-  // The raw map eight bytes a texel, the final four.
-  const base = cacheBytes(shape(32), pool)
-  assert.equal(base - cacheBytes(shape(16), pool) > 8 * texels, true)
-  assert.equal(cacheBytes(shape(32, 3), pool) - base, 4 * texels * (1 / 4 + 1 / 16))
-  assert.equal(cacheBytes(shape(32, 1, true), pool) - base, 4 * texels)
+  // The raw map eight bytes a texel; the final one four, over the map and its border, each level of detail a quarter of the one before; the
+  // sky's share four, over the first level alone; and the tile list and the parameters.
+  const area = ([width, height]: number[]) => width * height
+  const finalBytes = (resolution: number, mipmaps: number, sky = false) => {
+    const extent = cacheExtent(cacheFinalSide(resolution, mipmaps), pool)
+    let bytes = sky ? 4 * area(extent) : 0
+    for (let level = 0; level < mipmaps; level++)
+      bytes += 4 * (extent[0] >> level) * (extent[1] >> level)
+    return bytes
+  }
+  const expected = (resolution: number, mipmaps: number, sky = false) =>
+    8 * area(cacheExtent(resolution, pool)) +
+    finalBytes(resolution, mipmaps, sky) +
+    listBytes(cacheTileCapacity(resolution, pool), 2) +
+    RADIANCE_CACHE_PARAMS_BYTES
+  for (const [resolution, mipmaps, sky] of [
+    [16, 1, false],
+    [32, 1, false],
+    [32, 3, false],
+    [32, 1, true],
+  ] as const)
+    assert.equal(
+      cacheBytes(shape(resolution, mipmaps, sky), pool),
+      expected(resolution, mipmaps, sky),
+      `${resolution} texels, ${mipmaps} levels, sky ${sky}`,
+    )
   // A map is traced in at most as many tiles as it has texels at twice its side, of eight by eight, for every probe a frame queues.
   assert.deepEqual(
-    [cacheTileCapacity(16), cacheTileCapacity(32)],
-    [BOUNCE_PROBE_QUEUE * 16, BOUNCE_PROBE_QUEUE * 64],
+    [cacheTileCapacity(16, pool), cacheTileCapacity(32, pool)],
+    [pool * 16, pool * 64],
   )
 })
 
-test('a ray’s end keeps its distance in a half float, whether it met a surface and the share of it that left the scene, and the level that covers a point is the first whose cube holds it half a cell inside', () => {
-  const levels = [1, 2, 4, 8].map((spacing) => ({ base: [-24, -24, -24], spacing }))
-  const kit = shaderRun<{
-    cacheDepthWord: (distance: number, hit: boolean, sky: number) => number
-    cacheDepthOf: (word: number) => number
-    cacheHitIs: (word: number) => boolean
-    cacheSkyOf: (word: number) => number
-    cacheTileOf: (slot: number, resolution: number) => number[]
-    cacheCoverage: (P: number[]) => { level: number; valid: boolean; minTrace: number }
-  }>(
-    wgslModule(bounceBindingsWgsl(0, 0, 1), CACHE_WORDS_WGSL),
-    ['cacheDepthWord', 'cacheDepthOf', 'cacheHitIs', 'cacheSkyOf', 'cacheTileOf', 'cacheCoverage'],
-    { bounce: { counts: [48, 4, 110592, 16384], levels }, cellTable: {} },
-  )
-  const word = kit.cacheDepthWord(12.5, true, 0.5)
-  assert.deepEqual([kit.cacheDepthOf(word), kit.cacheHitIs(word)], [12.5, true])
-  assert.ok(Math.abs(kit.cacheSkyOf(word) - 0.5) < 1 / 255)
-  const missed = kit.cacheDepthWord(200, false, 1)
-  assert.deepEqual([kit.cacheHitIs(missed), kit.cacheSkyOf(missed)], [false, 1])
-  assert.ok(kit.cacheDepthOf(missed) > 600, 'no hit: the half float’s largest')
-  assert.equal(
-    kit.cacheDepthOf(kit.cacheDepthWord(1e6, true, 0)) <= 655.04,
-    true,
-    'held to the half float',
-  )
-  // The slot's map in the pool's rows: a row of 128.
-  assert.deepEqual(kit.cacheTileOf(130, 16), [32, 16])
-  const inside = kit.cacheCoverage([0.2, 0.3, 0.1])
-  assert.deepEqual([inside.level, inside.valid], [0, true])
-  assert.ok(
-    Math.abs(inside.minTrace - 2 * Math.sqrt(3)) < 1e-6,
-    'the nearest a ray starts and the diagonal again',
-  )
-  assert.equal(
-    kit.cacheCoverage([23.6, 0, 0]).level,
-    1,
-    'half a cell inside the edge of the finest level, the next answers',
-  )
-  assert.deepEqual(
-    [kit.cacheCoverage([100, 0, 0]).level, kit.cacheCoverage([1000, 0, 0]).valid],
-    [3, false],
-  )
-})
-
-test('the tiles of a probe: a level a whole map, the pixels’ lobes refining the half-side tiles where they look, and nowhere where they gave none', () => {
-  const scene = (words: number[] = []) => {
-    const entries: number[][] = []
-    const tiles = { x: 0, y: 0, one: 1, count: 0, entries }
-    const pdf = Array<number>(40).fill(0)
-    words.forEach((word, k) => (pdf[k] = word))
-    const kit = shaderRun<{
-      cacheUniformTiles: (entry: number, level: number, lane: number) => void
-      cacheAdaptiveTiles: (entry: number, slot: number, levels: number, lane: number) => void
-      cachePdfAt: (slot: number, d: number[]) => number
-    }>(CACHE_TILES_PROGRAM, ['cacheUniformTiles', 'cacheAdaptiveTiles', 'cachePdfAt'], {
-      cache: { size: [32, 0, 0, 1], distances: [1600, 0, 0.1, 0.2], eye: [0, 0, 0, 0] },
-      cachePdf: pdf,
-      cacheTiles: tiles,
-      arrayLength: () => 1e6,
-      bounce: {},
-      cellTable: {},
-    })
-    const lanes = (run: (lane: number) => void) => {
-      for (let lane = 0; lane < 64; lane++) run(lane)
-      // One entry a tile: the level and the coordinates, each once.
-      return entries.map((entry) => `${entry[0] >> 16}:${entry[1] & 0xffff},${entry[1] >> 16}`)
-    }
-    return { kit, lanes, tiles }
-  }
-  const unique = (list: string[]) => new Set(list).size === list.length
-  for (const [level, count] of [
-    [0, 4],
-    [1, 16],
-    [2, 64],
+test('the final atlas holds the pool’s maps with a border of 2^(levels − 1) texels all round, at every level of detail at that level’s own side and border, for eight texels a map with three levels and for sixteen with one', () => {
+  const pool = BOUNCE_SETTINGS.probePool
+  for (const [resolution, mipmaps] of [
+    [8, 3],
+    [16, 3],
+    [16, 1],
   ] as const) {
-    const { kit, lanes } = scene()
-    const found = lanes((lane) => kit.cacheUniformTiles(7, level, lane))
-    assert.equal(found.length, count, `level ${level}`)
-    assert.ok(unique(found))
+    const border = 1 << (mipmaps - 1)
+    const side = cacheFinalSide(resolution, mipmaps)
+    assert.equal(side, resolution + 2 * border)
+    const [width, height] = cacheExtent(side, pool)
+    for (let level = 0; level < mipmaps; level++) {
+      const levelSide = side >> level
+      assert.equal(levelSide << level, side, `${resolution} texels: level ${level} is a whole side`)
+      assert.equal(
+        levelSide,
+        (resolution >> level) + 2 * (border >> level),
+        `level ${level} of ${resolution}: the map and its border, each halved`,
+      )
+      assert.ok(
+        border >> level >= 1,
+        `level ${level} of ${resolution}: a border of a texel at least`,
+      )
+      assert.equal(
+        width >> level,
+        POOL_ROW_PROBES * levelSide,
+        `level ${level} of ${resolution}: a row`,
+      )
+      assert.equal(
+        height >> level,
+        ceilDiv(pool, POOL_ROW_PROBES) * levelSide,
+        `level ${level} of ${resolution}: the rows`,
+      )
+    }
   }
-  // Without lobes, a probe's tiles stay at half the side whatever the levels it may go to.
-  const none = scene()
-  assert.equal(none.lanes((lane) => none.kit.cacheAdaptiveTiles(7, 1, 3, lane)).length, 4)
-  // Lobes that look everywhere (the constant term alone) refine every tile of level zero into four, and, past the threshold, those into four.
-  const scale = SCREEN_PROBE_CONSTANTS.radiancePdfScale
-  const all = scene([Math.round(scale), 0, 0, 0, 0, 0, 0, 0, 0, 1])
-  const two = all.lanes((lane) => all.kit.cacheAdaptiveTiles(7, 0, 2, lane))
-  assert.deepEqual([two.length, two.every((tile) => tile.startsWith('1:'))], [16, true])
-  const wide = scene([Math.round(scale), 0, 0, 0, 0, 0, 0, 0, 0, 1])
-  assert.equal(wide.lanes((lane) => wide.kit.cacheAdaptiveTiles(7, 0, 3, lane)).length, 64)
-  // The mean of the cosine lobes of a surface facing +z (nine coefficients, a count of one): positive along it, little behind it.
-  const lobe = shaderRun<{ spCosine: (n: number[]) => number[] }>(
-    wgslModule(spCommon([4, 2])),
-    ['spCosine'],
-    {},
-  ).spCosine([0, 0, 1])
-  const faced = scene([...lobe.map((c) => Math.round(c * scale)), 1])
-  assert.ok(faced.kit.cachePdfAt(0, [0, 0, 1]) > 0.1)
-  assert.ok(
-    faced.kit.cachePdfAt(0, [0, 0, -1]) < faced.kit.cachePdfAt(0, [0, 0, 1]) / 4,
-    'far less behind it',
-  )
-  assert.equal(none.kit.cachePdfAt(0, [0, 0, 1]), 0, 'no screen probe gave any')
+  assert.equal(cacheTileCapacity(8, pool), pool * 4)
+  assert.equal(cacheTileCapacity(16, pool), pool * 16)
 })
 
-test('a neighbour’s light weighs in the filter by the angle its ray makes seen from the probe — a contact keeps its shadow — and nothing where a surface stands between the two probes', () => {
-  const res = 16
-  const kit = (own: number, neighbour: number) =>
-    shaderRun<{
-      cacheNeighbourWeight: (
-        n: number,
-        own: number[],
-        centre: number[],
-        texel: number[],
-        res: number,
-        ownBase: number[],
-        begin: number,
-      ) => number
-    }>(CACHE_FILTER_PROGRAM, ['cacheNeighbourWeight'], {
-      cache: { size: [res, 0, 0, 1], distances: [0, 0, 0, 0.2], eye: [0, 0, 0, 0] },
-      bounce: oneLevel(),
-      cellTable: {},
-      // The neighbour on +x holds slot 2 (plus one), at the next cell's centre.
-      neighbourSlot: [0, 2, 0, 0, 0, 0],
-      neighbourCentre: [
-        [0, 0, 0],
-        [1.5, 0.5, 0.5],
-        [0, 0, 0],
-        [0, 0, 0],
-        [0, 0, 0],
-        [0, 0, 0],
-      ],
-      // Every texel of probe 0's map went `own` metres and met a surface, probe 1's `neighbour`.
-      cacheRaw: { load: (at: number[]) => [0, half(at[0] < res ? own : neighbour), 0, 0] },
-      textureLoad: (t: { load(at: number[]): number[] }, at: number[]) => t.load(at),
-      acos: Math.acos,
-    }).cacheNeighbourWeight
-  const half = (distance: number) => (builtins.pack2x16float([distance, 0]) as number) & 0xffff
-  const weight = (ownDistance: number, neighbourDistance: number, texel = [3, 5]) =>
-    kit(ownDistance, neighbourDistance)(
-      1,
-      [0, half(ownDistance), 0, 0],
-      [0.5, 0.5, 0.5],
-      texel,
-      res,
-      [0, 0],
-      Math.sqrt(3),
-    )
-  // Both rays far: the angle is a hundredth of a radian at most, the weight nearly whole.
-  const open = weight(100, 100)
-  assert.ok(open > 0.9 && open <= 1, `${open}`)
-  // The neighbour's ray ends much farther than the probe’s: held to the probe's own, so a contact (a short ray) is not blurred over.
-  const contact = weight(1, 100)
-  assert.ok(contact < open, `${contact}`)
-  // A surface between the two probes: the probe's ray toward the neighbour ends before it reaches it.
-  assert.equal(weight(0.3, 100), 0)
+test('the atlases of a frame follow the queue’s block of probes: a square of the map a probe, rows of the queue’s width; the trace atlas holds the tiles of every probe traced at half the side, four times that where the tiles are forced to twice the side', () => {
+  const queue = { row: 64, probes: 64 * 43 }
+  assert.deepEqual(cacheTempExtent(16, queue), [64 * 16, 43 * 16])
+  assert.deepEqual(cacheTempExtent(16, { row: 128, probes: 100 }), [128 * 16, 16])
+  // A map of sixteen texels is one tile at half its side, of thirty-two four.
+  assert.equal(cacheTraceTiles(16, queue, 'full'), queue.probes)
+  assert.equal(cacheTraceTiles(32, queue, 'full'), queue.probes * 4)
+  assert.equal(
+    cacheTraceTiles(8, queue, 'half'),
+    queue.probes,
+    'a map under sixteen texels is one tile',
+  )
+  assert.equal(cacheTraceTiles(16, queue, 'supersampled'), queue.probes * 4)
+  // The trace atlas lays its tiles in rows of 512.
+  assert.deepEqual(cacheTraceExtent(512), [4096, 8])
+  assert.deepEqual(cacheTraceExtent(513), [4096, 16])
+  assert.deepEqual(cacheTraceExtent(1), [4096, 8])
+})
+
+test('a cache holds its atlases, its tile list and its parameters and nothing else: no per-probe record rides beside the maps', () => {
+  const pool = BOUNCE_SETTINGS.probePool
+  const size = cacheExtent(16, pool)
+  const finalSize = cacheExtent(cacheFinalSide(16, 1), pool)
+  assert.equal(
+    cacheBytes({ resolution: 16, mipmaps: 1, skyVisibility: false }, pool),
+    textureBytesOf({ size, format: RADIANCE_CACHE_FORMATS.raw })! +
+      textureBytesOf({ size: finalSize, format: RADIANCE_CACHE_FORMATS.final })! +
+      listBytes(cacheTileCapacity(16, pool), 2) +
+      RADIANCE_CACHE_PARAMS_BYTES,
+  )
+})
+
+test('the cache’s parameters carry the levels of detail of the final maps, the row of the frame’s atlases, the tiles of the trace atlas and whether the frame is traced through it and is a full update', () => {
+  const settings = screenProbeSettings({ screenProbeRadianceCacheMipmaps: 3 })
+  const P = RADIANCE_CACHE_PARAMS.at
+  const written = (traced: boolean, full: boolean) => {
+    const image = new ArrayBuffer(RADIANCE_CACHE_PARAMS_BYTES)
+    writeCacheParams(settings, [0, 0, 0], image, {
+      queue: { row: 64, probes: 64 * 43 },
+      traceTiles: cacheTraceTiles(
+        settings.cache.resolution,
+        { row: 64, probes: 64 * 43 },
+        settings.cache.tiles,
+      ),
+      traced,
+      full,
+    })
+    return new Uint32Array(image)
+  }
+  const words = written(true, false)
+  assert.equal(words[P.mipmaps], 3)
+  assert.equal(words[P.tempRow], 64)
+  assert.equal(
+    words[P.traceTiles],
+    cacheTraceTiles(settings.cache.resolution, { row: 64, probes: 64 * 43 }, settings.cache.tiles),
+  )
+  const flag = (traced: boolean, full: boolean, bit: number) =>
+    (written(traced, full)[P.flags] & bit) !== 0
+  assert.deepEqual(
+    [
+      flag(true, false, RADIANCE_CACHE_FLAGS.traced),
+      flag(false, false, RADIANCE_CACHE_FLAGS.traced),
+      flag(false, true, RADIANCE_CACHE_FLAGS.full),
+      flag(true, false, RADIANCE_CACHE_FLAGS.full),
+    ],
+    [true, false, true, false],
+  )
+})
+
+test('the maps are made where the shape is chosen, and refused with the measurement where their final atlas is wider than the device’s textures', () => {
+  const { device } = fakeDevice({
+    limits: { maxTextureDimension2D: 8192, maxTextureArrayLayers: 256 },
+  })
+  const wiring = { slots: 1 << 20 } as unknown as CacheWiring
+  const cache = createRadianceCache(device, {} as CacheKernels, wiring, () => undefined)
+  cache.follow(screenProbeSettings(), 1)
+  assert.match(
+    cache.reason!,
+    /bounce atlas "radiance cache" needs \d+×\d+ texels, over this device's maxTextureDimension2D of 8192/,
+  )
+  assert.equal(cache.views, undefined)
+  assert.equal(cache.bytes, 0)
 })

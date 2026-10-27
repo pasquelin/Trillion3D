@@ -44,6 +44,9 @@ type OcclusionKnobs = {
   occlusionForegroundPower: number
   /** The slices of the horizon search a pixel makes. */
   occlusionSlices: number
+  /** The most the occlusion applies on the pixels with backface diffuse light: 1 (whole) where the world's probes' flatter light needs it, else less (a row of
+   *  each level; `screenProbeOcclusionFoliageStrength` replaces it). */
+  occlusionFoliageStrength: number
   /** Whether the occlusion keeps a direction, the bent normal, beside its amount: the pass writes it, the temporal pass accumulates
    *  it and the lighting reads the specular occlusion from it (a row of each level). */
   bentNormal: boolean
@@ -82,6 +85,7 @@ export const SCREEN_PROBE_LOW_KNOBS: Readonly<OcclusionKnobs> = {
   occlusionPyramid: true,
   occlusionForegroundPower: 1.5,
   occlusionSlices: 1,
+  occlusionFoliageStrength: 1,
   bentNormal: false,
 }
 
@@ -99,6 +103,7 @@ export const SCREEN_PROBE_LEVEL_KNOBS: Readonly<Record<CastingLevel, LevelKnobs>
     occlusionPyramid: true,
     occlusionForegroundPower: 1.5,
     occlusionSlices: 2,
+    occlusionFoliageStrength: 0.7,
     bentNormal: false,
     radianceProbeResolution: 16,
     radianceProbeBudget: 100,
@@ -115,6 +120,7 @@ export const SCREEN_PROBE_LEVEL_KNOBS: Readonly<Record<CastingLevel, LevelKnobs>
     occlusionPyramid: false,
     occlusionForegroundPower: 1,
     occlusionSlices: 2,
+    occlusionFoliageStrength: 0.7,
     bentNormal: true,
     radianceProbeResolution: 32,
     radianceProbeBudget: 150,
@@ -131,6 +137,7 @@ export const SCREEN_PROBE_LEVEL_KNOBS: Readonly<Record<CastingLevel, LevelKnobs>
     occlusionPyramid: false,
     occlusionForegroundPower: 1,
     occlusionSlices: 2,
+    occlusionFoliageStrength: 0.7,
     bentNormal: true,
     radianceProbeResolution: 32,
     radianceProbeBudget: 350,
@@ -208,12 +215,11 @@ export const SCREEN_PROBE_CONSTANTS = {
   radianceProbeMinTraceScale: 1,
   /** The inverse of the cells a level fades over at its edge. */
   radianceInvLevelFadeSize: 1,
-  /** The coefficients of a probe's importance function: nine harmonics and the weight they sum. */
-  radiancePdfCoefficients: 10,
-  /** The fixed point the coefficients are summed at (`0xFFFFFFFF / 100000`), whole numbers by atomic adds. */
-  radiancePdfScale: 42949.67295,
   /** The furthest a probe's ray distance is held to, metres: the half float's largest, in the reference's centimetres. */
   radianceMaxHitDistance: 655.04,
+  /** The furthest a radiance-cache probe's ray distance is held to, and the distance a ray that met no surface reads back as, metres: one
+   *  hundredth of a metre under the half float's largest, in the reference's centimetres (65503). */
+  radianceCacheMaxHitDistance: 655.03,
   /** Frames the temporal pass takes before a pixel's history is as heavy as it gets, at an update speed of 1. */
   maxFramesAccumulated: 10,
   /** The most a pixel's frames are coded by in the history's frames byte: four bits. */

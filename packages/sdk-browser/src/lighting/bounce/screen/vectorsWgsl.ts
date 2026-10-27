@@ -25,7 +25,9 @@ export const SURFACE_PAST_WGSL = wgslBlock(
  * stood, `before`, the world point it stood at, and its world displacement `speed`. A dynamic pixel stood at the device
  * position its vector names, at the device depth its depth step gives (`depthStepOf`, the reference's velocity depth), taken
  * back through the last lit image's view-projection inverse (`sp.previous`); a still one stood where it is. A program that
- * reads no vector (`SP_FLAG_VELOCITY` down) has none: its surfaces are still.
+ * reads no vector (`SP_FLAG_VELOCITY` down) has none: its surfaces are still. `spStoodClip` is the clip position of the point, in the
+ * last lit image's view-projection, that the surface stood at (the depth the last image kept it at): the point's own `clip` for a
+ * surface that did not move by itself, the position it stood at (`before`) for one that did.
  */
 export const spVectors = (binding: number) =>
   wgslBlock(
@@ -45,5 +47,9 @@ fn spMotionOf(pixel:vec2i,P:vec3f,camera:vec2f)->SpMotion{
  let at=sp.previous*vec4f(vector,now.z/now.w-depthStepOf(words.g),1.0);
  let before=at.xyz/at.w;
  return SpMotion(vector,length(P-before),before);
+}
+fn spStoodClip(motion:SpMotion,P:vec3f,clip:vec4f)->vec4f{
+ if(all(motion.before==P)){return clip;}
+ return reflectionView.radianceViewProj*vec4f(motion.before,1.0);
 }`,
   )

@@ -1,4 +1,5 @@
 import { wgslBlock, wgslFn, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
+import { LIGHTING_CHANNELS_WGSL } from '../lightingChannelsWgsl.ts'
 import { luminance } from '../../../../math/src/wgsl/color.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
@@ -10,6 +11,7 @@ import {
   SUB_ALLOCATION_RES_LEVEL,
 } from '../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
 import {
+  CARD_CHANNELS_SHIFT,
   CARD_WORDS,
   MESH_CARDS_WORDS,
 } from '../../../../sdk-core/src/lighting/surfaceCache/cardRecords.ts'
@@ -60,6 +62,7 @@ const CONSTANTS = wgslConsts({
   SC_PAGE_SIZE: PAGE_SIZE,
   SC_TILE: TILE,
   SC_CARD_WORDS: CARD_WORDS,
+  SC_CARD_CHANNELS_SHIFT: CARD_CHANNELS_SHIFT,
   SC_MESH_CARDS_WORDS: MESH_CARDS_WORDS,
   SC_NONE: NO_MESH_CARDS,
   SC_MIN_RES_LEVEL: MIN_RES_LEVEL,
@@ -147,7 +150,7 @@ fn scPlacementMeshCards(placement:u32)->u32{
  return scW(scW(SC_AT_PLACEMENTS_AT)+placement);
 }
 struct ScCard{
- flags:u32,direction:u32,visible:bool,resBias:vec2u,
+ flags:u32,direction:u32,visible:bool,channels:u32,resBias:vec2u,
  origin:vec3f,axisX:vec3f,axisY:vec3f,axisZ:vec3f,
  size:vec2u,first:u32,hiSize:vec2u,hiFirst:u32,
  meshCentre:vec3f,meshHalf:vec3f,axesWord:u32,extent:vec3f,
@@ -163,6 +166,7 @@ fn scCard(index:u32)->ScCard{
  c.resBias=vec2u(c.flags&255u,(c.flags>>8u)&255u);
  c.direction=(c.flags>>16u)&15u;
  c.visible=((c.flags>>24u)&1u)!=0u;
+ c.channels=storedToChannels(c.flags>>SC_CARD_CHANNELS_SHIFT);
  c.origin=vec3f(scF(b)+scF(b+7u),scF(b+1u)+scF(b+11u),scF(b+2u)+scF(b+15u));
  c.axisX=vec3f(scF(b+4u),scF(b+5u),scF(b+6u));
  c.axisY=vec3f(scF(b+8u),scF(b+9u),scF(b+10u));
@@ -294,7 +298,7 @@ export const surfaceCacheRecordsWgsl = (
 ): WgslDecl =>
   wgslBlock(
     `SURFACE_CACHE_RECORDS_WGSL(${group},${first},${access})`,
-    [luminance, CARD_NORMAL_WGSL],
+    [luminance, CARD_NORMAL_WGSL, LIGHTING_CHANNELS_WGSL],
     `${CONSTANTS}\n${recordTables(group, first, access)}${RECORD_READS}${RECORD_DECODES}`,
   )
 

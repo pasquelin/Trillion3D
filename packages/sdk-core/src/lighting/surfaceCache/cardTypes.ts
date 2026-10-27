@@ -103,6 +103,9 @@ export interface MeshCardsInstance {
   readonly resolutionScale: number
   readonly mostlyTwoSided: boolean
   readonly emissive: boolean
+  /** The mask of the lighting channels of the placement's object (`../../contracts/lightingChannelsAbi.ts`): a light
+   *  lights its cards only where it shares one. */
+  lightingChannels: number
   /** For each direction, the bit mask of its cards: bit `i` is its i-th card. */
   readonly lookup: Uint32Array
 }

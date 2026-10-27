@@ -289,7 +289,11 @@ export function buildMeshCards(
   world: ArrayLike<number>,
   mesh: MeshCards,
   settings: SurfaceCacheSettings,
-  properties: { readonly emissive: boolean; readonly shareId: number },
+  properties: {
+    readonly emissive: boolean
+    readonly shareId: number
+    readonly lightingChannels: number
+  },
 ): PlacedMeshCards | undefined {
   const m = matrixInCentimetres(world)
   const scale = new Float64Array(3)
@@ -308,6 +312,7 @@ export function buildMeshCards(
     resolutionScale: 1,
     mostlyTwoSided: mesh.mostlyTwoSided,
     emissive: properties.emissive,
+    lightingChannels: properties.lightingChannels,
     lookup: new Uint32Array(AXIS_DIRECTIONS),
   }
   placeInstance(instance, m)

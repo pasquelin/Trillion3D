@@ -1,7 +1,7 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
-import { spSurface, spWeights } from './probesWgsl.ts'
+import { spProbeWord, spSurface, spWeights } from './probesWgsl.ts'
 import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
 import { spVectors } from './vectorsWgsl.ts'
 
@@ -29,7 +29,7 @@ const B = PLACE_BINDINGS.at
 /** The bindings the placement writes, and the writing of a probe: the surface at a pixel, the speed it moves at. */
 const PLACE_DECLARATIONS = wgslBlock(
   'PLACE_DECLARATIONS',
-  [],
+  [spProbeWord],
   `@group(0) @binding(${B.info}) var info:texture_storage_2d<${F.info},write>;
 @group(0) @binding(${B.normal}) var normal:texture_storage_2d<${F.normal},write>;
 @group(0) @binding(${B.pixels}) var<storage,read_write> pixels:array<u32>;
@@ -41,14 +41,14 @@ const PLACE_DECLARATIONS = wgslBlock(
 /** The record of the uniform probe of \`tile\`: its surface at its pixel. */
 fn spCornerProbe(tile:vec2u)->SpProbe{
  let s=spSurfaceAt(spUniformPixel(tile,sp.mode.x));
- return SpProbe(s.P,select(-1.0,spDepthOf(s.P),s.lit),s.N,0.0);
+ return SpProbe(s.P,select(-1.0,spDepthOf(s.P),s.lit),s.N,0.0,s.foliage,s.hair);
 }
-/** Writes the probe \`index\` of the atlas: the surface at \`pix\`, and the speed it moves at. */
+/** Writes the probe \`index\` of the atlas: the surface at \`pix\`, the speed it moves at and its kind. */
 fn spWriteProbe(index:u32,pix:vec2u){
  let s=spSurfaceAt(pix);
  let at=vec2i(spAtlasOf(index));
  textureStore(info,at,vec4f(s.P,select(-1.0,spDepthOf(s.P),s.lit)));
- textureStore(normal,at,vec4f(s.N,select(0.0,spMotionOf(vec2i(pix),s.P,vec2f(0.0)).speed,s.lit)));
+ textureStore(normal,at,vec4u(spProbeWord(s.N,select(0.0,spMotionOf(vec2i(pix),s.P,vec2f(0.0)).speed,s.lit),s.foliage,s.hair),0u,0u,0u));
  pixels[index]=pix.x|(pix.y<<16u);
 }`,
 )
@@ -112,7 +112,7 @@ fn adaptiveMark(@builtin(global_invocation_id) id:vec3u){
  if(any(pix>=sp.size.xy)){return;}
  let s=spSurfaceAt(pix);
  if(!s.lit){return;}
- let covered=spInterpolation(pix,vec2f(0.0),s.P,s.N,spDepthOf(s.P));
+ let covered=spInterpolation(pix,vec2f(0.0),s.P,s.N,spDepthOf(s.P),s.foliage);
  if(dot(covered.w,vec4f(1.0))<SP_MIN_WEIGHT){atomicOr(&mask[at.tile.y*sp.grid.x+at.tile.x],1u<<at.rank);}
 }
 /** Whether the sample \`pix\` of rank \`rank\` is covered by a marked sample of a lower rank round it. */
@@ -128,7 +128,7 @@ fn spCovered(pix:vec2u,rank:u32,s:SpSurface,depth:f32)->bool{
    bits^=1u<<k;
    if(k>=rank){break;}
    let other=spAdaptivePixel(cornerTile,k);
-   let weight=spAdaptiveWeight(pix,s.P,s.N,depth,other,spSurfaceAt(other).P);
+   let weight=spAdaptiveWeight(pix,s.P,s.N,depth,s.foliage,other,spSurfaceAt(other).P);
    covered[corner]=max(covered[corner],weight.x);
    if(covered.x+covered.y+covered.z+covered.w>=SP_MIN_WEIGHT){return true;}
   }

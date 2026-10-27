@@ -16,7 +16,8 @@ import { SCREEN_INDIRECT_WGSL } from './screen/indirectWgsl.ts'
  *
  * The screen probes carry the sky the scene lets through (a ray of theirs that leaves the scene reaches it, `skyProbeRadiance`), so a
  * program that reads them takes the sky light's diffuse share from them alone, never added again beside them (`environmentSky`, zero
- * here); the pixel they did not read has the sky light's own irradiance (`indirectIrradiance`).
+ * here); the pixel they did not read has none where their level gathers light, and the sky light's own irradiance (`indirectIrradiance`) where it gathers none or they did not run
+ * (`screenOcclusionOnly`).
  */
 export const BOUNCE_APPLY_WGSL = wgslBlock(
   'BOUNCE_APPLY_WGSL',
@@ -36,6 +37,7 @@ fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{
  */
 fn bounceIrradiance(coord:vec2i,N:vec3f,P:vec3f,exposure:f32)->vec3f{
  let seen=screenIndirectAt(coord);
- return select(indirectIrradiance(P,N),seen.rgb,screenLights(seen))*exposure;
+ if(screenLights(seen)){return seen.rgb*exposure;}
+ return select(vec3f(0.0),indirectIrradiance(P,N),screenOcclusionOnly())*exposure;
 }`,
 )

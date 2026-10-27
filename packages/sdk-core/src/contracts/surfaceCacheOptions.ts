@@ -1,5 +1,6 @@
 import {
   ANY_NUMBER as ANY,
+  contextReader,
   countSetting as count,
   INT32_RANGE,
   flagSetting as flag,
@@ -24,6 +25,7 @@ const ATLAS_RULES = /* @__PURE__ */ (() =>
     count('surfaceCacheOrthographicCardMinResolution', 1, 0),
     integer('surfaceCacheCardMaxResolution', 512, [1, 2048]),
     nonNegative('surfaceCacheCardMaxTexelDensity', 0.2),
+    number('surfaceCacheCardFixedDebugResolution', -1, ANY),
     nonNegative('surfaceCacheMeshCardsMinSize', 10),
     flag('surfaceCacheMeshCardsCullFaces', true),
   ] as const))()
@@ -38,6 +40,8 @@ const CAPTURE_RULES = /* @__PURE__ */ (() =>
     count('surfaceCacheCardCapturesPerFrame', 300, 0),
     integer('surfaceCacheCardCaptureFactor', 64, [1, 1024]),
     count('surfaceCacheRemovesPerFrame', 512, 0),
+    count('surfaceCacheViewOriginDistanceThreshold', 100, 0),
+    flag('surfaceCacheUpdateViewOrigin', true),
     number('surfaceCacheCardCaptureRefreshFraction', 0.125, [0, 1]),
     flag('surfaceCacheCardCaptureEnableInvalidation', true),
     flag('surfaceCacheAllowCardSharing', true),
@@ -46,6 +50,7 @@ const CAPTURE_RULES = /* @__PURE__ */ (() =>
     integer('surfaceCacheDilationMode', 0, [0, 2]),
     number('surfaceCacheDiffuseColorBoost', 1, [1, 4]),
     flag('surfaceCacheFastCameraMode', false),
+    flag('surfaceCacheRecaptureEveryFrame', false),
   ] as const))()
 
 /** The feedback with which the rays that read the cards ask for finer pages. */
@@ -66,9 +71,11 @@ const UPDATE_RULES = /* @__PURE__ */ (() =>
     number('surfaceCacheLightingUpdateSpeed', 1, [0.5, 16]),
     number('surfaceCacheLightingQuality', 1, [0.5, 6]),
     flag('surfaceCacheLightingForceFullUpdate', false),
+    flag('surfaceCacheFreeze', false),
     integer('surfaceCacheFreezeUpdateFrame', 0, INT32_RANGE),
     number('surfaceCacheLightingMaxDistanceFromFrustumToPrioritize', 500, ANY),
     flag('surfaceCacheLightingFeedback', true),
+    flag('surfaceCachePropagateGlobalLightingChange', true),
   ] as const))()
 
 /** The direct light of the cache's texels, its shadows traced through the global field or the scene's triangles. */
@@ -76,6 +83,7 @@ const DIRECT_LIGHT_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('surfaceCacheDirectLighting', true),
     integer('surfaceCacheDirectLightingMaxLightsPerTile', 8, [1, MAX_LIGHTS_PER_TILE]),
+    flag('surfaceCacheDirectLightingCullToTileDepthRange', true),
     nonNegative('surfaceCacheDirectLightingGlobalSdfShadowRayBias', 1),
     flag('surfaceCacheDirectLightingCloudTransmittance', true),
     flag('surfaceCacheDirectLightingHardwareRayTracing', true),
@@ -84,6 +92,16 @@ const DIRECT_LIGHT_RULES = /* @__PURE__ */ (() =>
     flag('surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing', true),
     flag('surfaceCacheDirectLightingHardwareRayTracingForceTwoSided', false),
     count('surfaceCacheHardwareRayTracingMaxIterations', 8192, 1),
+  ] as const))()
+
+/** Which placements the rays through the scene's triangles can meet in an image: those not culled by distance and solid angle. */
+const RAY_CULLING_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    integer('rayTracingCulling', 3, [0, 3]),
+    nonNegative('rayTracingCullingRadius', 30000),
+    nonNegative('rayTracingCullingAngle', 1),
+    flag('rayTracingCullingUseMinDrawDistance', true),
+    flag('rayTracingCullingUseDistanceToBox', true),
   ] as const))()
 
 /** The indirect light: the probes, their rays through the global field or the scene's triangles, their filter and their
@@ -97,6 +115,8 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
     integer('surfaceCacheRadiositySpatialFilterProbesKernelSize', 1, [0, 2]),
     flag('surfaceCacheRadiosityProbePlaneWeighting', true),
     number('surfaceCacheRadiosityProbePlaneWeightingDepthScale', -100, ANY),
+    flag('surfaceCacheRadiosityProbeOcclusion', false),
+    number('surfaceCacheRadiosityProbeOcclusionStrength', 0.5, ANY),
     number('surfaceCacheRadiosityMaxRayIntensity', 40, [0, 1000000]),
     number('surfaceCacheRadiosityDistanceFieldSurfaceBias', 10, [0, 1000]),
     number('surfaceCacheRadiosityDistanceFieldSurfaceSlopeBias', 5, [0, 1000]),
@@ -106,6 +126,7 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
     integer('surfaceCacheHardwareRayTracingAvoidSelfIntersections', 3, [0, 3]),
     nonNegative('surfaceCacheHardwareRayTracingSkipBackFaceHitDistance', 5),
     nonNegative('surfaceCacheHardwareRayTracingSkipTwoSidedHitDistance', 1),
+    flag('surfaceCacheHardwareRayTracingMeshSectionVisibilityTest', true),
     nonNegative('surfaceCacheHardwareRayTracingMinTraceDistanceToSampleSurfaceCache', 10),
     nonNegative('surfaceCacheHardwareRayTracingSurfaceCacheSamplingDepthBias', 10),
     flag('surfaceCacheRadiosityTemporal', true),
@@ -154,7 +175,11 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
  *
  * THE UPDATE. Each image captures at most `surfaceCacheCardCapturesPerFrame` (300) cards, the
  * nearest first, adds the cards of twice as many meshes, and removes those of at most
- * `surfaceCacheRemovesPerFrame` (512); the capture atlas is the atlas's side over the square root of
+ * `surfaceCacheRemovesPerFrame` (512); every view drawn beside the main one that has drawn is a streaming view, whose eye
+ * the cards are kept for too, nearest eye first, when it lies `surfaceCacheViewOriginDistanceThreshold` (100) centimetres
+ * or more from the eyes held, and two eyes at most are held; the main view's eye is moved ahead by the camera's velocity
+ * offset of the global distance field (`globalDistanceFieldFastCameraMode`), and `surfaceCacheUpdateViewOrigin` (on), when off, leaves it
+ * where the eye was when it turned off, for debugging; the capture atlas is the atlas's side over the square root of
  * `surfaceCacheCardCaptureFactor` (64). A share `surfaceCacheCardCaptureRefreshFraction` (0.125) of
  * that budget captures pages again, the oldest first, to follow changes of the materials, and
  * `surfaceCacheCardCaptureEnableInvalidation` (on) lets a change of a mesh ask for the same at once.
@@ -162,10 +187,16 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
  * `surfaceCacheCaptureLodScaleFactor` (1): above 1, finer clusters; under 1, coarser.
  * `surfaceCacheResampleLighting` (on) carries the light a card held into its pages when they are captured
  * again or made anew, which the radiosity's accumulation over images needs, and `surfaceCacheDilationMode` (0) widens the captured data of a page by a texel: 0 never, 1 for
- * the two-sided meshes, 2 for all. `surfaceCacheFastCameraMode` (off), for a camera that moves
+ * the cards made from the bounds of a skinned mesh a quarter of whose triangles at least are two-sided (the scene has none, so 1 widens no page), 2 for all. `surfaceCacheFastCameraMode` (off), for a camera that moves
  * fast, lowers the density to a fifth, halves the greatest resolution and doubles the captures.
  * `surfaceCacheDiffuseColorBoost` (1, up to 4) raises the luminance of the albedo a read of the cards returns
  * to the power of its inverse, never to one: a dark surface bounces more light; 1 leaves the albedo as it is.
+ * For debugging, `surfaceCacheFreezeUpdateFrame` (0) holds the update clock where it is when it is any other number, so that
+ * every image updates the same subset of the pages, and `surfaceCacheFreeze` (off) freezes the cache altogether: no card is
+ * captured, no old page leaves the atlas, neither update lights a tile, the rays tell no feedback, and the clock is held too.
+ * Also for debugging, `surfaceCacheRecaptureEveryFrame` (off) empties the whole cache every image and lifts the budget of captures, so that every
+ * card is captured again each image, and `surfaceCacheCardFixedDebugResolution` (-1), from 1 on, gives every card that many texels along its
+ * longer side before the greatest resolution holds it, whatever its size and distance.
  *
  * THE LIGHTING. Each image lights the texels of a share of the cards' pages, the pages left longest unlit
  * first (`surfaceCacheDirectLightingUpdateFactor` 32 and `surfaceCacheRadiosityUpdateFactor` 64 divide the atlas's
@@ -174,8 +205,7 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
  * clipmap's half side, 1 over 1 + the distance over it), twice as fast within
  * `surfaceCacheLightingMaxDistanceFromFrustumToPrioritize` (500) centimetres of the view's frustum, -1 never, and at
  * the greatest speed, 4, for a page the rays read at its finest level in the last two images
- * (`surfaceCacheLightingFeedback`, on, where the scene has acceleration structures and
- * `surfaceCacheDirectLightingHardwareRayTracing` is on).
+ * (`surfaceCacheLightingFeedback`, on, where the scene has acceleration structures).
  * The direct light (`surfaceCacheDirectLighting`, on) goes to each tile of 8 × 8 texels from at most
  * `surfaceCacheDirectLightingMaxLightsPerTile` (8, raised to a power of two) lights, those of the most
  * luminance at the tile's depth range. Where the scene has acceleration structures
@@ -209,12 +239,22 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
  * where the triangles differ from the cards' surface: 0 culls the back faces, 1 traces again from past a back face
  * nearer than `surfaceCacheHardwareRayTracingSkipBackFaceHitDistance` (5) centimetres or a two-sided hit nearer than
  * `surfaceCacheHardwareRayTracingSkipTwoSidedHitDistance` (1), 2 passes such hits as it traverses, 3 takes 2 (the
- * traversal here is inline). No ray is brighter than
+ * traversal here is inline). Every ray through the scene's triangles — the screen probes', the radiance cache's, the reflections', the surface cache's — leaves out the
+ * primitives flagged translucent while `surfaceCacheHardwareRayTracingMeshSectionVisibilityTest` (on) tests the visibility of the mesh sections; off, it meets those of a mesh that has an opaque primitive as opaque ones. A mesh all of whose primitives are translucent is left out of every such ray, whatever that option is. Each image leaves out of the scene the rays go through the placements it culls
+ * (`rayTracingCulling`, 3, from 0 to 3): 0 none, 1 those behind the camera that are far and small, 2 all that are both far and
+ * small, 3 all that are far or small. A placement is far when its distance to the eye — to its box, or to its sphere where
+ * `rayTracingCullingUseDistanceToBox` is off — exceeds `rayTracingCullingRadius` (30000) centimetres, and small when its
+ * sphere subtends under `rayTracingCullingAngle` (1) degrees; a placement nearer than its least draw distance is culled too
+ * (`rayTracingCullingUseMinDrawDistance`, on). The screen's far trace of a reflection begins at that radius, nowhere with no
+ * culling. No ray is brighter than
  * `surfaceCacheRadiosityMaxRayIntensity` (40) times the exposure; a probe's rays are filtered with those of its
  * neighbours' probes (`surfaceCacheRadiositySpatialFilterProbes`, on, a kernel of
  * `surfaceCacheRadiositySpatialFilterProbesKernelSize` 1: 0 none, 1 four neighbours, 2 thirteen) unless they lie
  * off the texel's plane (`surfaceCacheRadiosityProbePlaneWeighting`, on, at
- * `surfaceCacheRadiosityProbePlaneWeightingDepthScale` -100), and a texel is the four nearest probes' harmonics
+ * `surfaceCacheRadiosityProbePlaneWeightingDepthScale` -100) or, with `surfaceCacheRadiosityProbeOcclusion` (off, for
+ * the rays through the scene's triangles alone) on, unless the surface its rays met along the line to the texel lies nearer
+ * than the texel, at a strength `surfaceCacheRadiosityProbeOcclusionStrength` (0.5, held from 0 to 1: 0 none, 1 stops all leaking
+ * at the price of self-occlusion), and a texel is the four nearest probes' harmonics
  * (a probe jitters over the images), blended into the last images' (`surfaceCacheRadiosityTemporal`, on, the
  * last `surfaceCacheRadiosityTemporalMaxFramesAccumulated` 4; `surfaceCacheRadiosityTemporalFixedJitterIndex` -1
  * jitters, else the jitter is held). A texel's final light is its albedo over π times the direct and indirect
@@ -235,8 +275,13 @@ export const SURFACE_CACHE_RULES = /* @__PURE__ */ (() => ({
   ...FEEDBACK_RULES,
   ...UPDATE_RULES,
   ...DIRECT_LIGHT_RULES,
+  ...RAY_CULLING_RULES,
   ...RADIOSITY_RULES,
 }))()
+
+/** The surface-cache setting `field` of a runtime's context (`contextReader`): its default where the
+ *  context holds none. */
+export const readSurfaceCacheSetting = /* @__PURE__ */ contextReader(SURFACE_CACHE_RULES)
 
 /** The field of one setting of the surface cache. */
 export type SurfaceCacheField = keyof typeof SURFACE_CACHE_RULES

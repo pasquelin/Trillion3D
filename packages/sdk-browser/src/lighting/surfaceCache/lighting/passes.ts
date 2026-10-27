@@ -8,8 +8,13 @@ import { sceneTraceBindEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
 import type { SurfaceHitResources } from '../hitWgsl.ts'
 import type { SurfaceAtlases } from '../atlases.ts'
 import { COMBINE_BINDINGS } from './combineWgsl.ts'
-import { CONTEXT_FEEDBACK_BINDING, CONTEXT_TRACES_BINDING } from './contextWgsl.ts'
-import { CULL_ENTRY } from './cullWgsl.ts'
+import {
+  CONTEXT_FEEDBACK_BINDING,
+  CONTEXT_PAGE_ARGS_BINDING,
+  CONTEXT_TRACES_BINDING,
+  SPLICE_CONTEXT_BINDING,
+} from './contextWgsl.ts'
+import { CULL_DEPTH_RANGES_BINDING, CULL_ENTRY, CULL_STANDALONE_BINDING } from './cullWgsl.ts'
 import {
   DIRECT_BINDINGS,
   DIRECT_CLOUD_SHADOW,
@@ -17,13 +22,16 @@ import {
   DIRECT_TRACED_ENTRY,
 } from './directWgsl.ts'
 import type {
-  staticKernels,
+  fixedKernels,
   ShapedKernels,
   tracedRadiosityKernels,
   tracedShadowKernels,
 } from './kernels.ts'
 import type { Kernel } from '../kernel.ts'
-import { CONTEXT_ARGS, CONTEXT_AT } from './layout.ts'
+import type { StandalonePrepared } from './lightFunctionPass.ts'
+import { LIGHT_FUNCTION_PASS_BINDINGS, LIGHT_FUNCTION_PASS_ENTRY } from './lightFunctionPassWgsl.ts'
+import { LIGHTING_CONTEXTS } from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
+import { CONTEXT_ARGS, CONTEXT_AT, PAGE_ARGS_SLOT_WORDS } from './layout.ts'
 import type { LightingInputs } from './surfaceLighting.ts'
 import { RADIOSITY_BUILD_BINDINGS } from './radiosityBuildWgsl.ts'
 import { RADIOSITY_FILTER_BINDINGS } from './radiosityFilterWgsl.ts'
@@ -50,6 +58,7 @@ import {
   SHADOW_TRACE_SCENE,
 } from './shadowTraceWgsl.ts'
 import type { LightingResources, TracedShadowBuffers } from './resources.ts'
+import { TILE_DEPTH_RANGE_BINDINGS, TILE_DEPTH_RANGE_ENTRY } from './tileDepthRangeWgsl.ts'
 
 /**
  * THE DISPATCHES OF AN IMAGE'S LIGHTING, each with the bind group of its program over what the image holds (`Encoding`): the
@@ -83,7 +92,7 @@ export interface Encoding {
   readonly inputs: LightingInputs
   readonly hit: SurfaceHitResources
   readonly noise: GPUTextureView
-  readonly fixed: ReturnType<typeof staticKernels>
+  readonly fixed: ReturnType<typeof fixedKernels>
   readonly shaped: ShapedKernels
   /** The workgroups a dispatch in rows is cut at, the pages of the cache and the capacity of the indirect list in tiles. */
   readonly width: number
@@ -91,10 +100,17 @@ export interface Encoding {
   readonly indirectTiles: number
   /** Whether the radiosity's rays are filtered. */
   readonly filtered: boolean
+  /** Whether the lights of a tile are culled to its depth range (`surfaceCacheDirectLightingCullToTileDepthRange`). */
+  readonly cullToTileDepthRange: boolean
   /** The traced shadows of the direct light; none, the direct light's shadow is one ray through the global distance field. */
   readonly traced?: TracedShadows
   /** The scene the radiosity's rays are cast through; none, they are marched through the global distance field. */
   readonly scene?: TracedScene
+  /** The light functions the atlas holds no slot of: their dispatches and the bits the cull marks their lights by. */
+  readonly standalone: StandalonePrepared
+  /** Where the scratch of those light functions is kept where the shadows are not traced (it follows the masks where they are);
+   *  none where no light function is evaluated apart. */
+  readonly scratch?: GPUBuffer
 }
 
 const buffer = (binding: number, resource: GPUBuffer) => ({
@@ -124,9 +140,10 @@ function fromContext(
   group: GPUBindGroup,
   slot: number,
   later: readonly GPUBindGroup[] = [],
+  offsets?: readonly number[],
 ) {
   e.pass.setPipeline(pipeline)
-  e.pass.setBindGroup(0, group)
+  e.pass.setBindGroup(0, group, offsets)
   later.forEach((bound, at) => e.pass.setBindGroup(at + 1, bound))
   e.pass.dispatchWorkgroupsIndirect(e.resources.context, (CONTEXT_AT.args + 4 * slot) * 4)
 }
@@ -146,22 +163,84 @@ function sceneGroup(
 
 /** The tiles of the updates this image lights, chosen. */
 export function contextPasses(e: Encoding) {
-  const { params, context, standIn, feedbackStandIn } = e.resources
+  const { params, context, pageArgs, standIn, feedbackStandIn } = e.resources
   const shadowTraces = e.traced?.buffers.traces ?? standIn
   const feedback = e.inputs.feedback ?? feedbackStandIn
   const kernel = e.fixed.context
-  const group = kernel.group([params, e.tables, context, shadowTraces, feedback], () => [
+  const group = kernel.group([params, e.tables, context, shadowTraces, feedback, pageArgs], () => [
     buffer(0, params),
     buffer(1, e.tables),
     buffer(2, context),
     buffer(CONTEXT_TRACES_BINDING, shadowTraces),
     buffer(CONTEXT_FEEDBACK_BINDING, feedback),
+    buffer(CONTEXT_PAGE_ARGS_BINDING, pageArgs),
+  ])
+  const splice = e.fixed.splice
+  const splicing = splice.group([params, e.tables, context], () => [
+    buffer(0, params),
+    buffer(1, e.tables),
+    buffer(SPLICE_CONTEXT_BINDING, context),
   ])
   single(e, kernel.pipeline('contextClear'), group)
   dispatch(e, kernel.pipeline('contextHistogram'), group, e.pages)
   single(e, kernel.pipeline('contextSelect'), group)
   dispatch(e, kernel.pipeline('contextList'), group, e.pages)
+  single(e, kernel.pipeline('contextPageArgs'), group)
+  for (const [entry, update] of [
+    ['spliceDirect', LIGHTING_CONTEXTS.direct],
+    ['spliceIndirect', LIGHTING_CONTEXTS.indirect],
+  ] as const) {
+    e.pass.setPipeline(splice.pipeline(entry))
+    e.pass.setBindGroup(0, splicing)
+    e.pass.dispatchWorkgroupsIndirect(pageArgs, update * PAGE_ARGS_SLOT_WORDS * 4)
+  }
   single(e, kernel.pipeline('contextArgs'), group)
+}
+
+/** The masks' buffer: the traced shadows' where they are traced, else the scratch of the light functions apart from the atlas alone,
+ *  else the stand-in. The scratch is in it at the word the parameters name (`scratchAt`). */
+const masksOf = (e: Encoding) => e.traced?.buffers.masks ?? e.scratch ?? e.resources.standIn
+
+/** The light functions the atlas holds no slot of, evaluated at the texels of the tiles that keep their lights, into the scratch. */
+function lightFunctionPasses(e: Encoding) {
+  const { params, context, tileLights } = e.resources
+  const { depth, normal } = e.atlases.physical
+  const masks = masksOf(e)
+  const B = LIGHT_FUNCTION_PASS_BINDINGS
+  for (const { kernel, offset, bytes, maps } of e.standalone.passes) {
+    const group = kernel.group(
+      [
+        params,
+        e.tables,
+        context,
+        depth,
+        normal,
+        tileLights,
+        masks,
+        e.standalone.given,
+        ...maps.map(({ resource }) => ('buffer' in resource ? resource.buffer : resource)),
+      ],
+      () => [
+        buffer(0, params),
+        buffer(B.tables, e.tables),
+        buffer(B.context, context),
+        view(B.depth, depth),
+        view(B.normal, normal),
+        buffer(B.tileLights, tileLights),
+        buffer(B.masks, masks),
+        { binding: B.given, resource: { buffer: e.standalone.given!, size: bytes } },
+        ...maps,
+      ],
+    )
+    fromContext(
+      e,
+      kernel.pipeline(LIGHT_FUNCTION_PASS_ENTRY),
+      group,
+      CONTEXT_ARGS.directTiles,
+      [],
+      [offset],
+    )
+  }
 }
 
 /** The shadow masks of the lights of the tiles, which list the traces they need. */
@@ -274,24 +353,43 @@ function shadowPasses(e: Encoding, traced: TracedShadows) {
   shadowTracePass(e, traced)
 }
 
+/** The depth range of each tile of the direct list, which the cull of the lights bounds the tile's box by. */
+function tileDepthRangePass(e: Encoding) {
+  const { params, context, depthRanges } = e.resources
+  const { depth, normal } = e.atlases.physical
+  const T = TILE_DEPTH_RANGE_BINDINGS
+  const kernel = e.fixed.tileDepthRanges
+  const ranges = kernel.group([params, e.tables, context, depth, normal, depthRanges], () => [
+    buffer(0, params),
+    buffer(T.tables, e.tables),
+    buffer(T.context, context),
+    view(T.depth, depth),
+    view(T.normal, normal),
+    buffer(T.ranges, depthRanges),
+  ])
+  fromContext(e, kernel.pipeline(TILE_DEPTH_RANGE_ENTRY), ranges, CONTEXT_ARGS.directTiles)
+}
+
 /** The lights of each tile, their light on its texels, and the final light of the tiles. */
 export function directPasses(e: Encoding) {
-  const { params, context, tileLights, standIn } = e.resources
-  const shadowMasks = e.traced?.buffers.masks ?? standIn
+  const { params, context, tileLights, depthRanges } = e.resources
+  const shadowMasks = masksOf(e)
   const { physical, factors } = e.atlases
   const common = [buffer(0, params), buffer(1, e.tables), buffer(2, context)]
+  if (e.cullToTileDepthRange) tileDepthRangePass(e)
   const cull = e.shaped.cull
   const culling = cull.group(
-    [params, e.tables, context, physical.depth, physical.normal, tileLights, e.inputs.lights],
+    [params, e.tables, context, tileLights, e.inputs.lights, depthRanges, e.standalone.flags],
     () => [
       ...common,
-      view(3, physical.depth),
-      view(4, physical.normal),
       buffer(5, tileLights),
       buffer(6, e.inputs.lights),
+      buffer(CULL_DEPTH_RANGES_BINDING, depthRanges),
+      buffer(CULL_STANDALONE_BINDING, e.standalone.flags),
     ],
   )
   fromContext(e, cull.pipeline(CULL_ENTRY), culling, CONTEXT_ARGS.directTiles)
+  lightFunctionPasses(e)
   if (e.traced) shadowPasses(e, e.traced)
   const D = DIRECT_BINDINGS
   const { cloudShadow, field } = e.inputs
@@ -370,24 +468,20 @@ function radiosityTiles(e: Encoding) {
   const { physical } = e.atlases
   const R = RADIOSITY_BUILD_BINDINGS
   const build = e.fixed.radiosityBuild
-  const tiles = build.group(
-    [params, e.tables, context, physical.depth, physical.normal, e.noise],
-    () => [
-      buffer(0, params),
-      buffer(R.tables, e.tables),
-      buffer(R.context, context),
-      view(R.depth, physical.depth),
-      view(R.normal, physical.normal),
-      view(R.noise, e.noise),
-    ],
-  )
+  const tiles = build.group([params, e.tables, context, physical.depth, physical.normal], () => [
+    buffer(0, params),
+    buffer(R.tables, e.tables),
+    buffer(R.context, context),
+    view(R.depth, physical.depth),
+    view(R.normal, physical.normal),
+  ])
   dispatch(e, build.pipeline('radiosityTiles'), tiles, e.indirectTiles)
   single(e, build.pipeline('radiosityArgs'), tiles)
 }
 
 /** The rays filtered and projected on the harmonics. */
 function radiosityFilter(e: Encoding) {
-  const { params, context, trace, filtered, harmonics } = e.resources
+  const { params, context, trace, filtered, harmonics, hits } = e.resources
   const { physical } = e.atlases
   const F = RADIOSITY_FILTER_BINDINGS
   const filter = e.fixed.radiosityFilter
@@ -402,6 +496,7 @@ function radiosityFilter(e: Encoding) {
       trace,
       filtered,
       harmonics,
+      hits,
     ],
     () => [
       buffer(0, params),
@@ -413,6 +508,7 @@ function radiosityFilter(e: Encoding) {
       view(F.trace, trace),
       buffer(F.filtered, filtered),
       view(F.harmonics, harmonics),
+      view(F.hits, hits),
     ],
   )
   if (e.filtered) fromContext(e, filter.pipeline('radiosityFilter'), probes, CONTEXT_ARGS.traces)
@@ -421,7 +517,7 @@ function radiosityFilter(e: Encoding) {
 
 /** The harmonics integrated into the indirect light of the tiles. */
 function radiosityIntegrate(e: Encoding) {
-  const { params, context, harmonics } = e.resources
+  const { params, context, harmonics, hits } = e.resources
   const { physical } = e.atlases
   const I = RADIOSITY_INTEGRATE_BINDINGS
   const integrate = e.fixed.radiosityIntegrate
@@ -432,10 +528,10 @@ function radiosityIntegrate(e: Encoding) {
       context,
       physical.depth,
       physical.normal,
-      e.noise,
       harmonics,
       physical.indirect,
       physical.frames,
+      hits,
     ],
     () => [
       buffer(0, params),
@@ -443,10 +539,10 @@ function radiosityIntegrate(e: Encoding) {
       buffer(I.context, context),
       view(I.depth, physical.depth),
       view(I.normal, physical.normal),
-      view(I.noise, e.noise),
       view(I.harmonics, harmonics),
       view(I.indirect, physical.indirect),
       view(I.frames, physical.frames),
+      view(I.hits, hits),
     ],
   )
   fromContext(e, integrate.pipeline(RADIOSITY_INTEGRATE_ENTRY), group, CONTEXT_ARGS.indirectTiles)
@@ -512,10 +608,15 @@ function rayTraceShared(
 /** The trace of the probes' rays through the scene's triangles, beside the cut's tables. */
 function traceRaysThroughScene(e: Encoding, { kernels, sceneTrace, views }: TracedScene) {
   const shared = rayTraceShared(e, RADIOSITY_TRACED_BINDINGS)
+  const { hits } = e.resources
   const kernel = kernels.radiosityTraced
   const group = kernel.group(
-    [...shared.identity, views.nodes, views.frames, views.worlds, views.tree],
-    () => [...shared.entries(), ...dagReadGroupEntries(views)],
+    [...shared.identity, hits, views.nodes, views.frames, views.worlds, views.tree],
+    () => [
+      ...shared.entries(),
+      view(RADIOSITY_TRACED_BINDINGS.hits, hits),
+      ...dagReadGroupEntries(views),
+    ],
   )
   const scene = sceneGroup(kernel, sceneTrace, RADIOSITY_TRACED_SCENE)
   fromContext(e, kernel.pipeline(RADIOSITY_TRACE_ENTRY), group, CONTEXT_ARGS.traces, [scene])

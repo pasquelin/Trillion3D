@@ -23,7 +23,7 @@ fn neighbourEdge(p:vec2i)->f32{
  }
  return saturate(edge*1.1);
 }
-fn exposedShading(g:vec3f)->vec3f{return exposedShadingBy(g,view.exposure.y);}
+fn exposedShading(g:vec3f)->vec3f{return exposedShadingBy(g,view.preExposure.x);}
 struct TaaParallax{disoccluded:bool,velocity:vec2f,canFill:bool}
 fn parallaxTest(screen:vec2f,v:vec2f,prevZ:f32,zError:f32,offScreen:bool)->TaaParallax{
  let size=vec2i(view.render.xy);

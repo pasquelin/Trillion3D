@@ -52,7 +52,7 @@ export function lawOf(
   tracing: number,
   near: number,
   v: TranslucencyGiValues,
-  cached: boolean,
+  bias: number,
 ) {
   out[0] = grid.x
   out[1] = grid.y
@@ -63,7 +63,7 @@ export function lawOf(
   out[6] = grid.zScale
   out[7] = near
   out[8] = tracing
-  out[9] = cached ? v.translucencyGiRadianceCacheClipmapBias : 0
+  out[9] = bias
   out[10] = v.translucencyGiTemporalJitter ? 1 : 0
 }
 

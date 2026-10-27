@@ -9,14 +9,15 @@ import {
   lightingLayersWgsl,
   surfaceTexelWgsl,
 } from './commonWgsl.ts'
-import { SHADOW_MASK_WGSL } from './shadowMaskWgsl.ts'
+import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
+import { shadowMaskBlockOf } from './shadowMaskWgsl.ts'
 
 /**
  * THE SHADOW TRACES OF THE DIRECT LIGHT: the arguments of their dispatch, and the trace itself.
  *
  * `shadowTraceArgs` writes the groups of 64 traces the mask pass listed (`shadowMaskWgsl.ts`) into the context's header
  * (`CONTEXT_ARGS.shadowTraces`). `shadowTrace` is a thread a trace: it reads its light tile's page, tile and
- * light (`lightTiles`, which the mask pass wrote), the texel's byte in the light tile's mask and, if it is not settled, casts a ray from the texel to the light through the scene's triangles (`sceneTraceWgsl.ts`, in the
+ * light (`lightTiles`, which the mask pass wrote), the texel's entry (a byte, two in the coloured format) in the light tile's mask and, if it is not settled, casts a ray from the texel to the light through the scene's triangles (`sceneTraceWgsl.ts`, in the
  * group after the first) — any hit ends it; the front faces of a primitive that is not two-sided are culled unless
  * `surfaceCacheDirectLightingHardwareRayTracingForceTwoSided` makes all so; a translucent primitive and a placement that
  * casts no shadow are passed; no hit is ignored for being near the texel. A sun's ray goes as far as the cache's trace
@@ -68,8 +69,9 @@ fn ${SHADOW_ARGS_ENTRY}(){
 
 export const SHADOW_TRACE_ENTRY = 'shadowTrace'
 
-export const SHADOW_TRACE_WGSL = wgslProgram(
-  `@group(0) @binding(${B.traces}) var<storage,read> traces:array<u32>;
+const shadowTraceProgram = (format: AtlasFormat) =>
+  wgslProgram(
+    `@group(0) @binding(${B.traces}) var<storage,read> traces:array<u32>;
 @group(0) @binding(${B.masks}) var<storage,read_write> masks:array<atomic<u32>>;
 @group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${B.lightTiles}) var<storage,read> lightTiles:array<u32>;
@@ -131,12 +133,16 @@ fn ${SHADOW_TRACE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgro
   }
  }
 }`,
-  [
-    lightingCommonWgsl({ tables: B.tables }),
-    surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
-    SHADOW_MASK_WGSL,
-    CM_PER_M_WGSL,
-    DIRECT_LIGHT_WGSL,
-    sceneTraceWgsl(SHADOW_TRACE_SCENE.group, SHADOW_TRACE_SCENE.first),
-  ],
-)
+    [
+      lightingCommonWgsl({ tables: B.tables }),
+      surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
+      shadowMaskBlockOf(format),
+      CM_PER_M_WGSL,
+      DIRECT_LIGHT_WGSL,
+      sceneTraceWgsl(SHADOW_TRACE_SCENE.group, SHADOW_TRACE_SCENE.first),
+    ],
+  )
+
+/** The trace over masks in the grey format, and over those of the light functions' coloured atlas (the texel's factor then a colour: the ray's answer is still 0 or 1 of all of it). */
+export const SHADOW_TRACE_WGSL = shadowTraceProgram('grey')
+export const SHADOW_TRACE_COLOURED_WGSL = shadowTraceProgram('colour')

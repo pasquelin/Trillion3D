@@ -71,18 +71,22 @@ test('a root the field’s scene does not hold has no instance, and is not told'
   assert.equal(table([[1, root()]], () => undefined).words[0], 0)
 })
 
-test('the stand-ins of an HLOD cell’s actors are told by the root of the world they stand for, and an instance of several is no placement', () => {
-  // Three cells' stand-ins for the root of rank 1, and a placement of its own at rank 0.
+test('the stand-ins of an HLOD cell’s actors are told by their own rank, and by the root of the world they stand for, where an instance of several is no placement', () => {
+  // A placement of its own at rank 0, the root of the world DAG at rank 1, three cells' stand-ins after the cut's roots.
+  const [own, ...standIns] = [root(), root(1), root(1), root(1)]
+  const ranks = new Map([[own, 0], ...standIns.map((stand, at) => [stand, 2 + at] as const)])
   const { listed } = table(
     [
-      [5, root(1)],
-      [6, root(1)],
-      [8, root(1)],
-      [2, root()],
+      [2, own],
+      [5, standIns[0]],
+      [6, standIns[1]],
+      [8, standIns[2]],
     ],
-    () => 0,
+    (r) => ranks.get(r),
   )
-  assert.deepEqual(listed, [2, 2, NO_PLACEMENT])
+  // The instance of the world's root is told no placement; each stand-in is its own object, the one a hit of
+  // the scene's triangles on its cell's actor names.
+  assert.deepEqual(listed, [5, 2, NO_PLACEMENT, 5, 6, 8])
 })
 
 test('a table that fits the array given is written in it, the words past its count left none; a larger instance grows it', () => {

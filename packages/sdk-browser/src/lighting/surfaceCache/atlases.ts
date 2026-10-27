@@ -195,6 +195,21 @@ function blocksOf(
   }
 }
 
+/** Clears the layer `name` of the physical atlas, a render pass's attachment, to `value` in one pass. */
+export function clearLayer(
+  encoder: GPUCommandEncoder,
+  name: string,
+  view: GPUTextureView,
+  value = 0,
+): void {
+  encoder
+    .beginRenderPass({
+      label: `${SURFACE_CACHE_ATLAS_LABEL} clear ${name}`,
+      colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store', clearValue: [value, 0, 0, 0] }],
+    })
+    .end()
+}
+
 /** Clears the layers of the physical atlas that a render pass can — the depth to a texel with no
  *  surface, the rest to nothing — one pass each; the layers in blocks are left to `createBlockClear`. */
 function clearLayers(
@@ -204,15 +219,7 @@ function clearLayers(
 ): void {
   for (const [name, view] of Object.entries(physical)) {
     if (compressed && name in BLOCK_FORMATS) continue
-    const value = name === 'depth' ? CLEAR.depth : 0
-    encoder
-      .beginRenderPass({
-        label: `${SURFACE_CACHE_ATLAS_LABEL} clear ${name}`,
-        colorAttachments: [
-          { view, loadOp: 'clear', storeOp: 'store', clearValue: [value, 0, 0, 0] },
-        ],
-      })
-      .end()
+    clearLayer(encoder, name, view, name === 'depth' ? CLEAR.depth : 0)
   }
 }
 

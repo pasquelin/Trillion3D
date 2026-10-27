@@ -82,13 +82,19 @@ test('the screen probes default to their ultra level with every pass on, and a l
       values.screenProbeHistoryDepthTestThickness,
       values.screenProbeRelativeDepthThickness,
       values.screenProbeMaxIterations,
+      values.screenProbeFixedJitterIndex,
+      values.screenProbeFixedStateFrameIndex,
+      values.stochasticLightingFixedStateFrameIndex,
+      values.screenProbeShortRangeAODownsampleFactor,
+      values.screenProbeIntegrateDownsampleFactor,
     ],
-    [4, 0.4, 0.005, 0.02, 50],
+    [4, 0.4, 0.005, 0.02, 50, -1, -1, -1, -1, 1],
   )
   // The reference's own defaults of the interpolation and the occlusion's search, units of the engine.
   assert.deepEqual(
     [
       values.screenProbeInterpolationDepthWeight,
+      values.screenProbeInterpolationDepthWeightForFoliage,
       values.screenProbeInterpolationDepthWeightFallback,
       values.screenProbeOcclusionSteps,
       values.screenProbeOcclusionForegroundFraction,
@@ -96,7 +102,7 @@ test('the screen probes default to their ultra level with every pass on, and a l
       values.screenProbeOcclusionClampScale,
       settings.occlusionSlices,
     ],
-    [1, 0.1, 3, 0.3, 0.5, 1, 2],
+    [1, 0.25, 0.1, 3, 0.3, 0.5, 1, 2],
   )
 })
 
@@ -156,6 +162,20 @@ test('each level holds its own row of the table, and true and false are the defa
     ['off', 'low', 'high', 'cinematic'],
   )
   assert.equal(SCREEN_PROBE_PRESET_LEVELS.smooth.bounce, false)
+})
+
+test('the short-range occlusion on the pixels with backface diffuse light is whole at the second level, whose world probes light them flatter, and 0.7 above, a setting replacing the row', () => {
+  const strength = (options: Parameters<typeof screenProbeSettings>[0]) =>
+    screenProbeSettings(options).occlusionFoliageStrength
+  assert.equal(strength({ screenProbes: 'low' }), 1)
+  for (const level of ['high', 'ultra', 'cinematic'] as const)
+    assert.equal(strength({ screenProbes: level }), 0.7, level)
+  assert.equal(strength({ screenProbes: 'low', screenProbeOcclusionFoliageStrength: 0.4 }), 0.4)
+  assert.equal(
+    strength({ screenProbes: 'ultra', screenProbeOcclusionFoliageStrength: 0 }),
+    0,
+    'zero is a strength, not the row',
+  )
 })
 
 test('the quality scales the rays and the tile, the update speed the history, each as the reference truncates and rounds it', () => {

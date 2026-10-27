@@ -16,7 +16,6 @@ export interface GiTraceInputs {
   cacheFinal: GPUTextureView
   cacheRaw: GPUTextureView
   cacheSky: GPUTextureView
-  cacheTags: GPUBuffer
   reads: SurfaceHitReads
 }
 
@@ -41,7 +40,6 @@ export function traceGroupOf(
     i.cacheFinal,
     i.cacheRaw,
     i.cacheSky,
-    i.cacheTags,
     i.reads.field,
     // The hit's resources, one by one: the object holding them is written in place each image (`hitCards.ts`).
     i.reads.hit.tables,
@@ -68,7 +66,6 @@ export function traceGroupOf(
         cacheFinal: i.cacheFinal,
         cacheRaw: i.cacheRaw,
         cacheSky: i.cacheSky,
-        cacheTags: { buffer: i.cacheTags },
       }),
       { binding: TRACE_GI_LIGHT, resource: cones[0] },
       { binding: TRACE_GI_PROBES, resource: i.probes },

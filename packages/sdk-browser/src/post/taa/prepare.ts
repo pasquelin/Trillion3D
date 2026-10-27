@@ -148,13 +148,16 @@ function releaseHistory(gpu: WebgpuView['gpu']) {
   temporal.release()
 }
 
-/** `view`'s own pass and history, when it accumulates — the main view's, or a persistent view's
- *  (`../../frame/backend/state/persistentView.ts`) —: never another view's history, never a
- *  capture's. The history joins the view's targets as they stand. Whether the pass was kept. */
+/** `view`'s own pass and history, when it accumulates — the main view's, a persistent view's
+ *  (`../../frame/backend/state/persistentView.ts`), or a capture's own when `aside`
+ *  (`../../frame/io/captureAside.ts`, its history the capture's alone, released with its view) —:
+ *  never another view's history. The history joins the view's targets as they stand. Whether the
+ *  pass was kept. */
 export async function rigViewTemporal(
   rt: WebgpuPagesRuntime,
   view: WebgpuView,
   device = rt.gpu.device,
+  aside = false,
 ) {
   const wanted = viewGpu(rt, view)
   if (!device || !taaWanted(wanted) || wanted.temporal) return false
@@ -167,14 +170,15 @@ export async function rigViewTemporal(
   )
   const gpu = viewGpu(rt, view)
   // Switched off, rigged, removed or closed while the program compiled: not kept.
-  const removed = view !== rt.views.main && !rt.views.persistent.includes(view)
+  const removed = !aside && view !== rt.views.main && !rt.views.persistent.includes(view)
   if (!taaWanted(gpu) || gpu.temporal || removed || isCancelled(rt.signal)) {
     temporal.dispose()
     return false
   }
   gpu.temporal = temporal
   joinTargets(rt, gpu)
-  rt.run.gate.resourcesChanged()
+  // A capture's pass changes nothing the other views draw.
+  if (!aside) rt.run.gate.resourcesChanged()
   return true
 }
 
@@ -224,17 +228,16 @@ function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {
  * History targets for the display size of `size`, at the level's percent of it, the analysis and
  * spatial anti-aliaser's for its render size, and their bytes (`taaTargetBytes`). They follow resolution
  * like the other targets: no budget makes them leave; switched off, they are not made
- * (`setWebgpuTemporalAntialiasing` makes them when it is on again). A surface capture renders
- * from another camera and does not accumulate: its targets do not touch the view's history,
- * which stays whole for the frame that follows restore. `aside`: targets made beside those in
+ * (`setWebgpuTemporalAntialiasing` makes them when it is on again). A capture drawn aside holds a
+ * pass of its own only while it accumulates (`startCaptureAccumulation`): its targets are funded and
+ * made with that history like any view's, and none otherwise; the main view's history stays whole
+ * for the frame that follows the restore. `aside`: targets made beside those in
  * place (`targetsAside.ts`), which the frames still draw into: counted, not made — the swap that
  * puts them in place makes them (`swapAsideTargets`).
  */
 export function ensureTaaTargets(rt: WebgpuPagesRuntime, size: FrameSize, aside = false) {
   const temporal = rt.gpu.temporal
   if (!temporal || !taaWanted(rt.gpu)) return 0
-  // Under a capture, the capture's reserve already carries history: it is not counted twice.
-  if (rt.capture.capturing) return 0
   const { width, height, renderWidth, renderHeight } = size
   const shape = wantedShapeOf(rt, temporal, rt.gpu.temporalLevel, width, height)
   if (!aside && temporal.resize(shape, renderWidth, renderHeight))

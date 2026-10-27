@@ -7,6 +7,7 @@ import {
   type SurfaceBuffer,
 } from '../../../materials/surface/surfaceBuffer.ts'
 import { SUBSURFACE_TARGET } from '../../../materials/surface/subsurface.ts'
+import { PHYSICAL_LOBES_TARGET } from '../../../materials/surface/physicalLobes.ts'
 import { shadeBindEntries, type ShadeBindResources } from '../../../gpu/bind/bindEntries.ts'
 import { createWebgpuBindIdentity, entriesReady } from '../../../gpu/bind/bindIdentity.ts'
 import { liveResources } from '../../../gpu/bind/liveEntries.ts'
@@ -23,7 +24,8 @@ import type { CardImage } from './raster.ts'
  * THE SHADING OF A CAPTURE: the engine's material classes shade the surfaces a card raster drew
  * (`raster.ts`) as they shade the image's — one compute stage a class over the texels of its bin —,
  * into surfaces of the capture atlas's size: the base colour and metalness, the normal and
- * roughness, the emission, the thin sheets' transmission colour. What the classes need beside is the capture's own, a second set of what
+ * roughness, the emission, the thin sheets' transmission colour, the lobes (a clear coat's weight and roughness, which the
+ * card's colour takes the haze of its coat from). What the classes need beside is the capture's own, a second set of what
  * the image's shading holds: its identifiers (`ids`) in the place of the image's visibility buffer, its
  * page table, its view as the resolve's uniform and its bins. The geometry, the
  * materials, the textures and the graphs are the scene's, bound as the image's own group binds them.
@@ -128,6 +130,7 @@ export function createCardShading(rt: WebgpuPagesRuntime, device: GPUDevice, sid
   const surfaces: SurfaceBuffer = createSurfaceBuffer(device, side, side, {
     emissiveAo: true,
     subsurface: true,
+    lobes: true,
   })
   const uniform = createResolveUniform(device)
   const words = new Float32Array(SHADE_UNIFORM.words)
@@ -195,4 +198,6 @@ export type CardShading = ReturnType<typeof createCardShading>
 /** The bytes the surfaces of a capture atlas of `side` texels hold, before they are made: what the
  *  budget is asked for beside the atlases. */
 export const cardShadingBytes = (side: number) =>
-  side * side * SURFACE_BYTES_PER_PIXEL + SUBSURFACE_TARGET.bytes(side, side, true)
+  side * side * SURFACE_BYTES_PER_PIXEL +
+  SUBSURFACE_TARGET.bytes(side, side, true) +
+  PHYSICAL_LOBES_TARGET.bytes(side, side, true)

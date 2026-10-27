@@ -3,7 +3,6 @@
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createGpuBounceProbes } from './probes/probes.ts'
 import { NO_PLACEMENT_BOXES } from '../../geometry/dag/placement/placementBoxes.ts'
-import { BOUNCE_PROBE_QUEUE } from '../../../../sdk-core/src/bounce/contracts.ts'
 import type { ScreenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 
 /** The eye the floor is read from: the tests encode with it. */
@@ -43,7 +42,6 @@ export async function floorProbes(read = true, settings?: () => ScreenProbeSetti
     [0, 0, 0, 8, 0.1, 4],
     scene,
     () => lights,
-    BOUNCE_PROBE_QUEUE,
     settings,
   )
   probes.cascades.follow(FLOOR_EYE)

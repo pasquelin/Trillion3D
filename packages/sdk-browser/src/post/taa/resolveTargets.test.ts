@@ -11,7 +11,6 @@ import { createVelocity } from './velocity.ts'
 import {
   TAA_DECIMATE_HISTORY_PASS,
   TAA_DETECT_THIN_GEOMETRY_PASS,
-  TAA_FLICKER_MEASURE_PASS,
   TAA_RELAX_THIN_GEOMETRY_PASS,
   TAA_DILATE_VELOCITY_PASS,
   TAA_MEASURE_FLICKERING_LUMA_PASS,
@@ -79,7 +78,7 @@ test('every update is a compute dispatch after the analysis, and the pass draws 
   assert.deepEqual(byDefault.compiled, ['TAA_UPDATE false true plain'])
   assert.equal(byDefault.drawn, 0, 'no render pass: the anti-aliaser and the update dispatch')
   // Each frame: the analysis's compute passes, one per step it times (the dilated velocity, the
-  // reprojection, the thin geometry detection, the flicker measure, the rejection with its merge,
+  // reprojection, the thin geometry detection, the rejection with its flicker measure and its merge,
   // the spatial anti-aliaser last: the whole analysis), then the history update — its
   // layered twin besides the layers —, and, the history being larger than the display, its resolve
   // (the image and the half-size image), the layers' resolve beside it in the layered
@@ -90,8 +89,6 @@ test('every update is a compute dispatch after the analysis, and the pass draws 
     TAA_DETECT_THIN_GEOMETRY_PASS,
     // The thin geometry's weight relaxation, its own pass after the detection whose mask it reads.
     TAA_RELAX_THIN_GEOMETRY_PASS,
-    // The flicker measure, its own pass before the shading rejection that reads its errors.
-    TAA_FLICKER_MEASURE_PASS,
     TAA_REJECT_SHADING_PASS,
     TAA_SPATIAL_ANTI_ALIASING_PASS,
   ]

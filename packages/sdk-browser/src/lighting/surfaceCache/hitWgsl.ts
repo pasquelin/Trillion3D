@@ -86,19 +86,41 @@ export interface SurfaceHitReads {
   hit: SurfaceHitResources
 }
 
-/** The layout entries of a hit's reads at `b`: the field's, its grid's, the cache's tables, depth and final layers and its feedback
- *  buffer where `b` says (the library's other layers are left out of the stage's layout: it holds nothing of a binding it does not
- *  reach), the instances'. */
-export function surfaceHitLayoutEntries(b: SurfaceHitBindings): GPUBindGroupLayoutEntry[] {
+/** The layout entries of what a hit reads of the cache at `b`: its tables, depth and final layers and its feedback buffer where `b` says
+ *  (the library's other layers are left out of the stage's layout: it holds nothing of a binding it does not reach), the instances'. */
+export function surfaceHitCardsLayoutEntries(
+  b: Pick<SurfaceHitBindings, 'cards' | 'instances' | 'feedback'>,
+): GPUBindGroupLayoutEntry[] {
   const read = SURFACE_HIT_CARDS_READ.map((at) => b.cards + at)
   if (b.feedback) read.push(b.cards + L.feedback)
   return [
-    ...globalReadLayoutEntries(b.field),
-    computeBufferEntry(b.grid, 'read-only-storage'),
     ...surfaceCacheReadLayoutEntries(b.cards, readOf(b)).filter(({ binding }) =>
       read.includes(binding),
     ),
     computeBufferEntry(b.instances, 'read-only-storage'),
+  ]
+}
+
+/** The layout entries of a hit's reads at `b`: the field's, its grid's, then the cache's (`surfaceHitCardsLayoutEntries`). */
+export function surfaceHitLayoutEntries(b: SurfaceHitBindings): GPUBindGroupLayoutEntry[] {
+  return [
+    ...globalReadLayoutEntries(b.field),
+    computeBufferEntry(b.grid, 'read-only-storage'),
+    ...surfaceHitCardsLayoutEntries(b),
+  ]
+}
+
+/** The bind group entries of what a hit reads of the cache at `b`, over the cache's `hit` resources. */
+export function surfaceHitCardsEntries(
+  b: Pick<SurfaceHitBindings, 'cards' | 'instances' | 'feedback'>,
+  hit: SurfaceHitResources,
+): GPUBindGroupEntry[] {
+  return [
+    { binding: b.cards, resource: { buffer: hit.tables } },
+    { binding: b.cards + L.depth, resource: hit.depth },
+    { binding: b.cards + L.final, resource: hit.final },
+    ...(b.feedback ? [{ binding: b.cards + L.feedback, resource: { buffer: hit.feedback } }] : []),
+    { binding: b.instances, resource: { buffer: hit.instances } },
   ]
 }
 
@@ -111,11 +133,7 @@ export function surfaceHitEntries(
   return [
     ...field.readEntries(b.field),
     { binding: b.grid, resource: { buffer: hit.grid } },
-    { binding: b.cards, resource: { buffer: hit.tables } },
-    { binding: b.cards + L.depth, resource: hit.depth },
-    { binding: b.cards + L.final, resource: hit.final },
-    ...(b.feedback ? [{ binding: b.cards + L.feedback, resource: { buffer: hit.feedback } }] : []),
-    { binding: b.instances, resource: { buffer: hit.instances } },
+    ...surfaceHitCardsEntries(b, hit),
   ]
 }
 

@@ -13,7 +13,11 @@ fn the_cut_holds_the_clusters_the_error_falls_in() {
         .collect();
     dag.extend((0..2).map(|_| cluster(vec![0, 1, 2], (1.0, 3.0), true)));
     dag.push(cluster(vec![0, 1, 2], (3.0, infinite), true));
-    let ranks = |error: f32| cut_clusters(&dag, error).collect::<Vec<_>>();
+    let ranks = |error: f32| {
+        (cut_clusters(dag.iter().enumerate(), error))
+            .map(|(rank, _)| rank)
+            .collect::<Vec<_>>()
+    };
     assert_eq!(ranks(0.5), [0, 1, 2, 3]);
     // The error of a cluster is its own: a group whose error equals it has replaced the finer.
     assert_eq!(ranks(1.0), [4, 5]);
@@ -33,7 +37,7 @@ fn the_error_is_a_share_of_the_size_of_the_finest_clusters() {
     ];
     let expected = FALLBACK_RELATIVE_ERROR * 0.01 * 2f32.sqrt();
     assert!((error_of(&positions, &dag) - expected).abs() < 1e-7);
-    let cut = cut_of(&positions, &dag);
+    let cut = cut_of(&positions, &dag).expect("a cut");
     assert_eq!(cut.triangles.len(), 2);
     assert_eq!(cut.triangles[1].triangle, 1);
     assert_eq!(cut.triangles[1].corners[1], [1.0, 1.0, 0.0]);

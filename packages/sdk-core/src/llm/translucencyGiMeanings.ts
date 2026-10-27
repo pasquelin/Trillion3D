@@ -8,9 +8,29 @@ export const TRANSLUCENCY_GI_MEANINGS: Readonly<Record<TranslucencyGiField, stri
   translucencyGiTraceFromVolume:
     'Whether each cell marches the global distance field before it reads the radiance cache; true by default. Off, the cells read the cache alone, which is cheaper and sees no near geometry.',
   translucencyGiRadianceCache:
-    "Whether the cells read the world's radiance cache (the screen probes' cache) for the light the march leaves; true by default. Off, what the march misses is the sky.",
+    "Whether the cells read a radiance cache for the light the march leaves; true by default. Off, what the march misses is the sky. The cache is one of the volume's own unless translucencyGiShareRadianceCacheWithOpaque is on.",
+  translucencyGiShareRadianceCacheWithOpaque:
+    "Whether the volume reads the world's radiance cache (the screen probes' cache) instead of one of its own; false by default. Shared, it costs less and gives less control over the probes' spacing: the cells mark the probes they read in the world's pool, translucencyGiRadianceCacheClipmapBias cascades coarser, and the cache settings below are not used.",
   translucencyGiRadianceCacheClipmapBias:
-    'Cascades, a whole number from 0; 3 by default. The cells read and mark the cache this many cascades coarser than the one covering them, so the cells that fill the view do not take the probes the opaque surfaces need.',
+    "Cascades, a whole number from 0; 3 by default. Only when the cache is shared (translucencyGiShareRadianceCacheWithOpaque): the cells read and mark the cache this many cascades coarser than the one covering them, so the cells that fill the view do not take the probes the opaque surfaces need. The volume's own cache is read and marked at the cascade that covers a cell.",
+  translucencyGiRadianceCacheClipmapWorldExtent:
+    "Metres, above 0; 25 by default (2500 centimetres in the reference). Half the side of the first level of the volume's own radiance cache, from the eye to a side of its cube; each next level is translucencyGiRadianceCacheClipmapDistributionBase times wider, and as many levels are made as cover translucencyGiEndDistance.",
+  translucencyGiRadianceCacheClipmapDistributionBase:
+    "From 1; 2 by default. How much wider each level of the volume's own radiance cache is than the one before it.",
+  translucencyGiRadianceCacheGridResolution:
+    "Whole number from 1 to 256; 24 by default. The cells a side of each level of the volume's own radiance cache, each of which may hold a probe: more cells make the probes closer and cost more probes.",
+  translucencyGiRadianceCacheProbeResolution:
+    "Whole number from 8 to 64; 8 by default. The texels a side of the map of the light by direction that each probe of the volume's own radiance cache keeps.",
+  translucencyGiRadianceCacheNumMipmaps:
+    "Whole number from 1 to 3; 3 by default. The levels of detail of the probes' maps in the volume's own radiance cache, which a cone wider than a texel reads.",
+  translucencyGiRadianceCacheNumProbesToTraceBudget:
+    "Whole number from 1; 100 by default. The probes of the volume's own radiance cache traced each image, counted in the cost of a whole map each. More probes follow a change of light faster and cost more.",
+  translucencyGiRadianceCacheProbeAtlasResolutionInProbes:
+    "Whole number from 1 to 1024; 128 by default. The probes along a side of the atlas of the volume's own radiance cache: it holds this number squared of probes (rounded up to rows of a power of two), and a cell asked for past that goes unanswered until a probe is given back.",
+  translucencyGiRadianceCacheReprojectionRadiusScale:
+    "From 0; 10 by default. A probe of the volume's own radiance cache is read along a direction moved onto a sphere round it, this many times the nearest its rays start: a larger sphere moves the direction less.",
+  translucencyGiLightingDataFormat:
+    "One of r11g11b10, rgba16 or rgba32; rgba16 by default. The format of the cones' light the volume traces and filters before it projects it, and of the ambient volume the surfaces read: half floats (eight bytes a texel), 11-11-10 floats (four bytes a texel) or single floats (the ambient volume keeps half floats for it). The default keeps more precision than the reference's 11-11-10 floats, on purpose; r11g11b10 gives the reference's format. The 11-11-10 format needs the device feature texture-formats-tier1; a device without it keeps half floats. The directional volume the surfaces read is always half floats.",
   translucencyGiGridPixelSize:
     'Pixels, a whole number from 1 to 1024; 32 by default. The side of a cell across the image (the largest power of two within it is used). Smaller cells resolve the light finer and cost more.',
   translucencyGiGridDistributionLogZScale:
@@ -20,7 +40,7 @@ export const TRANSLUCENCY_GI_MEANINGS: Readonly<Record<TranslucencyGiField, stri
   translucencyGiGridDistributionZScale:
     'Slices per doubling of the depth, above 0; 4 by default. More slices resolve depth finer.',
   translucencyGiEndDistance:
-    'Metres from the camera, 0.01 to 1000; 80 by default. The depth of the last slice; a surface past it reads that slice.',
+    'Metres from the camera, 0.01 to 1000; 80 by default. The depth of the last slice; a surface past it reads that slice. It is multiplied by globalDistanceFieldTraceViewDistance over 20000 (a scale held to 0.1 to 100, the result to the same range), so the default view distance leaves it as set.',
   translucencyGiTracingResolution:
     'Whole number from 1 to 16; 3 by default. A cell traces this number squared of cones, along the sides of its octahedron.',
   translucencyGiMaxRayIntensity:

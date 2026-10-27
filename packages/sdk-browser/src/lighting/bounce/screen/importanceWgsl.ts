@@ -2,7 +2,7 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { luminance } from '../../../../../math/src/wgsl/color.ts'
-import { clipToFramebuffer } from '../../../../../math/src/wgsl/projection.ts'
+import { ndcToPixel } from '../../../../../math/src/wgsl/projection.ts'
 import { SCREEN_PROBE_CONSTANTS } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
 import { workgroupSortWgsl } from '../../../gpu/core/workgroupSortWgsl.ts'
 import { workgroupSumLoop } from '../../../gpu/core/workgroupSumWgsl.ts'
@@ -12,16 +12,17 @@ import { bounceBindingsWgsl } from '../gridWgsl.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { spCacheRead } from './cacheReadWgsl.ts'
-import { spProbes } from './probesWgsl.ts'
+import { spPdfLobes, spProbes } from './probesWgsl.ts'
 import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
+import { spVectors } from './vectorsWgsl.ts'
 
 /** The rays' bindings: the probes' records and pixels, the last image's probes and their filtered radiance, the probes'
  *  coefficients of the pixels' directions, the ray words written, the cascades and the radiance cache's maps the far light is
- *  read from, the light buffer (the sky it holds). */
+ *  read from, the light buffer (the sky it holds), the surfaces' vectors of the image. */
 export const RAYS_BINDINGS = bindingTable({
   params: [0, 'uniform'],
   info: [1, 'float'],
-  normal: [2, 'float'],
+  normal: [2, 'uint'],
   counts: [3, 'buffer-read'],
   pixels: [4, 'buffer-read'],
   historyInfo: [5, 'float'],
@@ -34,7 +35,7 @@ export const RAYS_BINDINGS = bindingTable({
   cacheFinal: [13, 'uint'],
   cacheRaw: [14, 'uint'],
   cacheSky: [15, 'float'],
-  cacheTags: [16, 'buffer-read'],
+  vectors: [17, 'uint'],
 })
 /** The atlas of the cascades' probes, which the rays' layout adds (`atlasEntry`). */
 export const RAYS_PROBES = 10
@@ -45,27 +46,27 @@ const B = RAYS_BINDINGS.at
 /**
  * THE LIGHTING'S SHARE OF A PROBE'S DIRECTIONS: where the light is, the importance sampling's second half (`spLightLuminance`).
  * Its light comes from the last image, where there is one: the filtered radiance of the four probes round where the probe was
- * (`spHistoryLighting`: the last image's probes, those on its plane, `exp2(scale · (distance / depth)²)` over
+ * (`spHistoryLighting`: where its surface stood, by the camera's motion and its own (`spMotionOf`), none where that is off the last image, whose edge counts as in it; the last image's probes, those on its plane, `exp2(scale · (distance / depth)²)` over
  * `importanceHistoryMinWeight`), the share the last image does not give — one minus a quarter of the probes that did — from the
  * radiance cache through the direction (`spCacheSample`, the cone of the probe's rays one texel of its octahedron); where the cache covers no
  * point of the probe or is not read, one. A direction's luminance is that light's.
  */
 const SP_LIGHTING = wgslBlock(
   'SP_LIGHTING',
-  [clipToFramebuffer, luminance],
+  [ndcToPixel, luminance],
   `const SP_HISTORY_MIN_WEIGHT_PROBE:f32=${SCREEN_PROBE_CONSTANTS.importanceHistoryMinWeight};
 const SP_HISTORY_PLANE_SCALE:f32=${SCREEN_PROBE_CONSTANTS.depthWeightScale};
 @group(0) @binding(${B.historyInfo}) var historyInfo:texture_2d<f32>;
 @group(0) @binding(${B.historyGather}) var historyGather:texture_2d<f32>;
-/** The light of the last image's probes round the point \`P\` of normal \`N\`, direction texel \`t\`, its transparency — the share
- *  of the whole they did not give — in \`a\`. */
-fn spHistoryLighting(P:vec3f,N:vec3f,depth:f32,t:vec2u)->vec4f{
+/** The light of the last image's probes round the point \`P\` of normal \`N\`, standing on pixel \`pixel\`, direction texel \`t\`, its
+ *  transparency — the share of the whole they did not give — in \`a\`. */
+fn spHistoryLighting(P:vec3f,N:vec3f,depth:f32,pixel:vec2u,t:vec2u)->vec4f{
  var out=vec4f(0.0,0.0,0.0,1.0);
  let clip=reflectionView.radianceViewProj*vec4f(P,1.0);
  let size=reflectionView.radiance.xy;
  if(clip.w<=0.0){return out;}
- let px=clipToFramebuffer(clip,size).xy;
- if(any(px<vec2f(0.5))||any(px>size-vec2f(0.5))){return out;}
+ let px=ndcToPixel(spMotionOf(vec2i(pixel),P,clip.xy/clip.w).ndc,size);
+ if(any(px<vec2f(0.0))||any(px>size)){return out;}
  let at=(px-vec2f(0.5)-vec2f(spTileJitter(sp.mode.y)))/f32(sp.size.z);
  var radiance=vec3f(0.0);
  var total=0.0;
@@ -82,12 +83,12 @@ fn spHistoryLighting(P:vec3f,N:vec3f,depth:f32,t:vec2u)->vec4f{
  out.a=1.0-saturate(total/4.0);
  return out;
 }
-/** The luminance of the light arriving along \`direction\` at the probe, direction texel \`t\`. */
-fn spLightLuminance(probe:SpProbe,direction:vec3f,t:vec2u)->f32{
+/** The luminance of the light arriving along \`direction\` at the probe standing on pixel \`pixel\`, direction texel \`t\`. */
+fn spLightLuminance(probe:SpProbe,pixel:vec2u,direction:vec3f,t:vec2u)->f32{
  var lighting=vec3f(0.0);
  var transparency=1.0;
  if(spFlag(SP_FLAG_RADIANCE_HISTORY)){
-  let kept=spHistoryLighting(probe.P,probe.N,probe.depth,t);
+  let kept=spHistoryLighting(probe.P,probe.N,probe.depth,pixel,t);
   lighting=kept.rgb;
   transparency=kept.a;
  }
@@ -127,7 +128,6 @@ const RAYS_WGSL = wgslBlock(
   'RAYS_WGSL',
   [SP_LIGHTING, SP_RAY_INFO],
   `@group(0) @binding(${B.pixels}) var<storage,read> probePixels:array<u32>;
-@group(0) @binding(${B.brdf}) var<storage,read> brdfSh:array<f32>;
 @group(0) @binding(${B.ray}) var rayOut:texture_storage_2d<${F.ray},write>;
 /** The rays of the probe, sorted by their probability. */
 var<workgroup> rays:array<vec2u,SP_RAYS>;
@@ -137,7 +137,7 @@ var<workgroup> subdivided:atomic<u32>;
 fn spCosinePdf(index:u32,d:vec3f)->f32{
  let basis=spBasis(d);
  var pdf=0.0;
- for(var k=0u;k<9u;k++){pdf+=brdfSh[index*9u+k]*basis[k];}
+ for(var k=0u;k<9u;k++){pdf+=spPdfCoefficient(index,k)*basis[k];}
  return max(pdf,0.0);
 }
 /** The three rays of the lowest probabilities under the minimum take the place of the three the top ray's children fill. */
@@ -174,7 +174,8 @@ fn genRays(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) l
  var light=0.0;
  if(live&&lit){
   let direction=equalAreaDecode((vec2f(t)+blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w))/f32(SP_TRACE));
-  light=spLightLuminance(probe,direction,t);
+  let own=probePixels[index];
+  light=spLightLuminance(probe,vec2u(own&0xffffu,own>>16u),direction,t);
  }
  sums[lane]=light;
  ${workgroupSumLoop('SP_RAYS', 'sums[lane]+=sums[lane+stride];')}
@@ -183,7 +184,9 @@ fn genRays(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) l
   pdf=spCosinePdf(index,equalAreaDecode((vec2f(t)+vec2f(0.5))/f32(SP_TRACE)));
   if(lit){
    let kept=pdf>=sp.weights.z;
-   pdf*=light/max(sums[0],1e-4)*f32(SP_RAYS);
+   // The probability of the light is kept in a half float, as the reference's single-channel half target holds it.
+   let share=unpack2x16float(pack2x16float(vec2f(light/max(sums[0],1e-4),0.0))).x;
+   pdf*=share*f32(SP_RAYS);
    if(kept){pdf=max(pdf,sp.weights.z);}
   }
  }
@@ -207,8 +210,10 @@ ${wgslConsts({ SP_TRACE: side, SP_RAYS: count, SP_GATHER: gather })}
       bounceBindingsWgsl(0, B.bounceGrid, RAYS_PROBES),
       spCommon(samples),
       spProbes(B.info, B.normal, B.counts),
+      spPdfLobes(B.brdf),
+      spVectors(B.vectors),
       blueNoiseWgsl(0, B.blue),
-      spCacheRead(B.cacheFinal, B.cacheRaw, B.cacheSky, B.cacheTags),
+      spCacheRead(B.cacheFinal, B.cacheRaw, B.cacheSky),
       workgroupSortWgsl('rays', count),
       RAYS_WGSL,
     ],

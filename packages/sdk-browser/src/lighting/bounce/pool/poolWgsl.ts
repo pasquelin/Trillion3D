@@ -1,9 +1,7 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
-import { BOUNCE_SETTINGS } from '../../../../../sdk-core/src/bounce/contracts.ts'
 import { WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
-import { CACHE_PDF_WORDS } from '../cache/cacheLayout.ts'
 import { BOUNCE_ATLAS_FORMAT, TABLE_LANES, TABLE_LAYER, TABLE_WIDTH } from '../atlas.ts'
 import { BOUNCE_CELLS_WGSL, BOUNCE_GRID_STRUCTS_WGSL } from '../gridWgsl.ts'
 import { PROBE_QUEUE_WORDS, QUEUE_WORD_WGSL } from '../probes/probeQueueWgsl.ts'
@@ -13,10 +11,8 @@ import {
   POOL_ARGS,
   POOL_BINDINGS as B,
   POOL_COST,
-  POOL_DISTANCE_BUCKETS,
   POOL_PARAMS,
   POOL_PRIORITY_BUCKETS,
-  POOL_QUEUE,
   POOL_SLOT,
   POOL_WORK,
 } from './poolLayout.ts'
@@ -31,37 +27,28 @@ const POOL_CONSTS = wgslBlock(
     SLOT_CELL: POOL_SLOT.cell,
     SLOT_USED: POOL_SLOT.usedAt,
     SLOT_TRACED: POOL_SLOT.tracedAt,
-    SLOT_TRACES: POOL_SLOT.traces,
     SLOT_LEVEL: POOL_SLOT.level,
     W_FREE: POOL_WORK.free,
     W_REFUSED: POOL_WORK.refused,
     W_QUEUED: POOL_WORK.queued,
     W_SPENT: POOL_WORK.spent,
-    W_WAITING: POOL_WORK.waiting,
-    W_ELIGIBLE: POOL_WORK.eligible,
-    W_CUT_UNTRACED: POOL_WORK.cutUntraced,
-    W_ROOM_UNTRACED: POOL_WORK.roomUntraced,
-    W_CUT_TRACED: POOL_WORK.cutTraced,
-    W_ROOM_TRACED: POOL_WORK.roomTraced,
+    W_TAKEN: POOL_WORK.taken,
+    W_CUT: POOL_WORK.cut,
+    W_ROOM: POOL_WORK.room,
     W_MARKED: POOL_WORK.marked,
     W_LIVE: POOL_WORK.live,
     W_UNFILLED: POOL_WORK.unfilled,
     W_REFRESHING: POOL_WORK.refreshing,
     W_HIGH: POOL_WORK.high,
-    W_UNTRACED: POOL_WORK.untraced,
-    W_TRACED: POOL_WORK.traced,
+    W_CHANGED: POOL_WORK.changed,
+    W_PRIORITY: POOL_WORK.priority,
     W_STACK: POOL_WORK.stack,
-    DISTANCE_BUCKETS: POOL_DISTANCE_BUCKETS,
     PRIORITY_BUCKETS: POOL_PRIORITY_BUCKETS,
     COST_DOWNSAMPLED: POOL_COST.downsampled,
     COST_NORMAL: POOL_COST.normal,
     COST_SUPERSAMPLED: POOL_COST.supersampled,
-    QUEUE_ENTRIES: POOL_QUEUE,
     QUEUE_WORDS: PROBE_QUEUE_WORDS,
-    KEPT_MARKS: BOUNCE_SETTINGS.probeKeptMarks,
-    SETTLED_TRACES: BOUNCE_SETTINGS.settledTraces,
     NO_SLOT: 0xffffffff,
-    NONE_BUCKET: 0xffffffff,
     TABLE_WIDTH,
     TABLE_LAYER,
     TABLE_LANES,
@@ -71,8 +58,8 @@ const POOL_CONSTS = wgslBlock(
 /**
  * THE POOL'S STATE, as the kernels read it: the levels' uniform (`bounce`) and the pool's parameters (`pool`), the slots (`slots`, a record of
  * `SLOT_WORDS` words each, `POOL_SLOT`), the table (`table`: an entry a word — the slot plus one that holds the cell in the low sixteen
- * bits, the slot plus one the lit passes read for it in the high sixteen, which a probe takes at its first trace and gives back
- * with its cell), the work buffer (`work`, `POOL_WORK`) and the marks' bitmap (`marks`).
+ * bits, its indirection, cleared and made again every pass, the slot plus one the lit passes read for it in the high sixteen, which a
+ * probe takes at its first trace and gives back with its cell), the work buffer (`work`, `POOL_WORK`) and the marks' bitmap (`marks`).
  */
 const POOL_STATE = wgslBlock(
   'POOL_STATE',
@@ -85,16 +72,12 @@ const POOL_STATE = wgslBlock(
 @group(0) @binding(${B.work}) var<storage,read_write> work:array<atomic<u32>>;
 @group(0) @binding(${B.marks}) var<storage,read_write> marks:array<atomic<u32>>;
 fn entries()->u32{return bounce.counts.y*bounce.counts.z;}
-fn imageRank()->u32{return bounce.frame.z;}
+/** The frame number: the images the pool has worked in, from one. */
+fn frameNumber()->u32{return bounce.frame.z;}
 fn slotWord(slot:u32,word:u32)->u32{return slots[slot*SLOT_WORDS+word];}
 fn slotCell(slot:u32)->vec3i{
  let at=slot*SLOT_WORDS+SLOT_CELL;
  return bitcast<vec3i>(vec3u(slots[at],slots[at+1u],slots[at+2u]));
-}
-/** Whether the level holds the cell now: the cube it covers, moved with the eye. */
-fn levelHolds(level:u32,cell:vec3i)->bool{
- let base=vec3i(bounce.levels[level].base);
- return all(cell>=base)&&all(cell<base+vec3i(i32(bounce.counts.x)));
 }
 /** The cell of the entry \`entry\` of a level now: the cell of the level's cube whose remainders modulo the side the entry names. */
 fn entryLevel(entry:u32)->u32{return entry/bounce.counts.z;}
@@ -110,62 +93,48 @@ fn entryCell(entry:u32)->vec3i{
 /** What tracing the probe of \`cell\` of \`level\` costs by its distance from the eye: a quarter of a whole map past the downsample distance,
  *  four whole maps within the supersample distance, one else. */
 fn probeCost(level:u32,cell:vec3i)->u32{
- let away=probeCellCentre(cell,bounce.levels[level].spacing)-bounce.eye.xyz;
- let squared=dot(away,away);
+ let squared=cameraDistanceSq(bounce.eye.xyz-probePosition(cell,bounce.levels[level].spacing));
  return select(select(COST_NORMAL,COST_SUPERSAMPLED,squared<pool.distances.y),COST_DOWNSAMPLED,squared>=pool.distances.x);
 }
-fn probeCellCentre(cell:vec3i,spacing:f32)->vec3f{return (vec3f(cell)+vec3f(0.5))*spacing;}
-/** The bucket of a probe never traced: its level, then the whole cells of its distance from the eye's cell, the farthest bucket the rest. */
-fn untracedBucket(level:u32,cell:vec3i)->u32{
- let eye=vec3i(floor(bounce.eye.xyz/bounce.levels[level].spacing));
- let away=length(vec3f(cell-eye));
- return level*DISTANCE_BUCKETS+u32(min(f32(DISTANCE_BUCKETS-1u),floor(away)));
+/** The bucket of a probe: a probe never traced is in the first, which is always traced; else the frames from its trace to its last use (one
+ *  where it was not used since) over its level plus one, their log₂ held between none and the last but one, counted back from the last
+ *  bucket and cut to a whole number: the sooner the probe is wanted, the lower its bucket. */
+fn priorityBucket(level:u32,tracedAt:u32,usedAt:u32)->u32{
+ if(tracedAt==0u){return 0u;}
+ let between=select(1u,usedAt-tracedAt,usedAt>tracedAt);
+ let importance=f32(between)/(f32(level)+1.0);
+ return u32(f32(PRIORITY_BUCKETS-1u)-clamp(log2(importance),0.0,f32(PRIORITY_BUCKETS-2u)));
 }
-/** The bucket of a probe already traced: the log₂ of the images since its trace over its level plus one — held between none and
- *  the last but one —, the sooner the lower. */
-fn tracedBucket(level:u32,tracedAt:u32)->u32{
- let importance=f32(max(1u,imageRank()-tracedAt))/f32(level+1u);
- return PRIORITY_BUCKETS-1u-u32(clamp(floor(log2(importance)),0.0,f32(PRIORITY_BUCKETS-2u)));
-}
-/** Whether the probe of the slot is one never traced; one traced and still short of its updates. */
-fn untraced(slot:u32)->bool{return slotWord(slot,SLOT_OWNER)!=0u&&slotWord(slot,SLOT_TRACED)==0u;}
-fn refreshing(slot:u32)->bool{
- let traced=slotWord(slot,SLOT_TRACED);
- return slotWord(slot,SLOT_OWNER)!=0u&&traced>0u&&traced<imageRank()&&slotWord(slot,SLOT_TRACES)<SETTLED_TRACES;
-}
-/** Takes \`cost\` from the room in the work word \`word\` where all of it is left, one thread at a time. */
-fn takeRoom(word:u32,cost:u32)->bool{
- var held=atomicLoad(&work[word]);
- var took=false;
- loop{
-  if(took||held<cost){break;}
-  let taken=atomicCompareExchangeWeak(&work[word],held,held-cost);
-  took=taken.exchanged;
-  held=taken.old_value;
- }
- return took;
-}`,
+/** Whether the slot holds a probe: every probe the pool holds is in the histogram the budget chooses among. */
+fn holds(slot:u32)->bool{return slotWord(slot,SLOT_OWNER)!=0u;}
+/** Whether the marks name the entry: a cell some pixel of the image reads. */
+fn marked(entry:u32)->bool{return ((atomicLoad(&marks[entry>>5u])>>(entry&31u))&1u)!=0u;}`,
 )
 
 /**
  * The pool's kernels over the slots, the table and the work buffer, one program, dispatched in this order by `pool.ts`:
  *
- * - `clearWork`: the counters, histograms and cuts of the image, zeroed.
- * - `restartProbes`: where the lights changed, the traces every probe took since are forgotten: all are traced again, up to `settledTraces` times.
- * - `releaseProbes`, a thread a slot: the probe whose cell has left its level is given back (its entry cleared, its slot on the stack); in an
- *   image that marks, the probe the marks read keeps its age (the image's rank) and the one unread for `probeKeptMarks` images goes too.
+ * - `clearIndirection`, a thread an entry: the slot every entry named is forgotten; the published half is left. The marks of the image's cells
+ *   are made after it (`pool.ts`), the bitmap they set read from `updateProbes` on.
+ * - `updateProbes`, a thread a slot: the probe of the last pass's indirection is put back in it if its cell is still held by its level and the
+ *   marks read it now (stamped with the frame number) or it was read in the last `keep` frames; else it is given back (its published half cleared, its
+ *   slot on the stack); in a full update (`fullUpdate`) every probe is given back, so that the cells the image reads take new ones, all never traced.
+ *   It touches only the stack of free slots and the slots, nothing `clearWork` zeroes.
+ * - `clearWork`: the counters, the histogram and the cut of the image, zeroed.
+ * - `stampChange`, where the lights changed: the frame number kept as the frame of the change (`changed`).
  * - `allocateProbes`, a thread a word of the marks' bitmap: each cell marked that holds no probe takes one from the stack, or, with none
  *   left, is refused (`refused` counts them in all): the cell goes unanswered, and the next level or the sky light answers for it.
- * - `countProbes`, a thread a slot: the probes never traced are counted by level and distance (each in a unit, `eligible` in all, `waiting`
- *   in their cost), the others by priority (each in its cost).
- * - `cutUntraced`: the bucket the queue stops in, among those never traced, and how many of it fit; `spent` begins at the cheapest every
- *   one of them could cost.
- * - `emitUntraced`, a thread a slot: those within the cut are queued, each at its cost — at a quarter of it, whatever the distance, once
- *   what the budget leaves is spent: the first trace of a cell is what lets it answer at all —, published to the table (the lit passes
- *   read a probe once its map is made), and counted as a trace.
- * - `cutTraced`: what the budget leaves after the cost of every probe never traced — none, if nothing —, and the bucket of the others it stops in.
- * - `emitTraced`, a thread a slot: those within the cut that fit the room are queued, the sooner traced before.
- * - `tallyProbes`, a thread a slot: the probes alive, those that hold nothing yet and those short of their updates, counted for the CPU.
+ * - `countProbes`, a thread a slot: every probe is counted, at its cost, in the bucket of its priority (`priorityBucket`); those in the
+ *   first, never traced, also in the cheapest cost every one of them could take (`spent`).
+ * - `cutProbes`: the bucket the budget stops in, and what is left of it for that bucket.
+ * - `emitProbes`, a thread a slot: the probes in the buckets before the cut are queued; those in the cut's, as far as the room it has left is
+ *   not passed by their costs, taken in turn; those in the first bucket always, each at a quarter of its map's side once the cost already
+ *   spent has passed the budget —: the first trace of a cell is what lets it answer at all. No more than the frame's `cap` are queued, and the
+ *   count is held to it. A probe queued is counted as a trace, and its
+ *   first publishes it to the table (the lit passes read a probe once its map is made).
+ * - `finishQueue` (`POOL_FINISH_SHADER`), right after the probes are chosen: the arguments of the dispatches over the queue.
+ * - `tallyProbes`, a thread a slot: the probes alive, those that hold nothing yet and those not traced since the lights last changed (the first among them), counted
+ *   for the CPU.
  * - `publishTable`, a thread a texel of the table: the entries' slots written, four to a texel, into the published table.
  *
  * The kernels over the slots are dispatched indirectly over `high`, the slots ever given (the stack gives the lowest first, the rest are
@@ -176,11 +145,10 @@ fn takeRoom(word:u32,cost:u32)->bool{
 export const POOL_SHADER = wgslProgram(
   `@group(0) @binding(${B.queue}) var<storage,read_write> probeQueue:array<u32>;
 @group(0) @binding(${B.published}) var publishedOut:texture_storage_2d_array<${BOUNCE_ATLAS_FORMAT},write>;
-/** Gives the probe of the slot back: its entry cleared in both halves, its slot on the stack. */
+/** Gives the probe of the slot back: the slot the lit passes read for its entry forgotten, its slot on the stack. */
 fn giveBack(slot:u32){
  let at=slot*SLOT_WORDS;
  let entry=slots[at+SLOT_OWNER]-1u;
- if((table[entry]&0xffffu)==slot+1u){table[entry]=table[entry]&0xffff0000u;}
  if((table[entry]>>16u)==slot+1u){table[entry]=table[entry]&0xffffu;}
  slots[at+SLOT_OWNER]=0u;
  let top=atomicAdd(&work[W_FREE],1u);
@@ -207,50 +175,49 @@ fn queueProbe(rank:u32,slot:u32,downsampled:bool){
  probeQueue[at+2u]=bitcast<u32>(cell.y);
  probeQueue[at+3u]=bitcast<u32>(cell.z);
 }
-/** A trace of the probe of the slot at this image: its first publishes it to the table; the updates it took are counted, up to the settled ones. */
+/** A trace of the probe of the slot at this image: its first publishes it to the table. */
 fn traced(slot:u32){
  let at=slot*SLOT_WORDS;
  let first=slots[at+SLOT_TRACED]==0u;
- slots[at+SLOT_TRACED]=imageRank();
- slots[at+SLOT_TRACES]=min(slots[at+SLOT_TRACES]+1u,SETTLED_TRACES);
+ slots[at+SLOT_TRACED]=frameNumber();
  if(first){
   let entry=slots[at+SLOT_OWNER]-1u;
   table[entry]=(table[entry]&0xffffu)|((slot+1u)<<16u);
  }
 }
-/** Where the histogram of \`count\` words from \`first\` stops being able to give \`limit\` whole: the first bucket whose cost does not fit, and
- *  how much of it fits. */
+/** Where the histogram of \`count\` words from \`first\` stops being able to give \`limit\` whole: the first bucket whose cost brings the sum to the
+ *  limit or past it, and what is left of the limit for it; where none does, one past the last bucket, with the whole limit left. */
 fn cutOf(first:u32,count:u32,limit:u32)->vec2u{
- var room=limit;
+ var sum=0u;
  for(var bucket=0u;bucket<count;bucket++){
   let cost=atomicLoad(&work[first+bucket]);
-  if(cost>room){return vec2u(bucket,room);}
-  room-=cost;
+  if(sum+cost>=limit){return vec2u(bucket,limit-sum);}
+  sum+=cost;
  }
- return vec2u(count,0u);
+ return vec2u(count,limit);
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn clearWork(@builtin(global_invocation_id) id:vec3u){
- if(id.x<W_STACK&&id.x!=W_FREE&&id.x!=W_REFUSED&&id.x!=W_HIGH){atomicStore(&work[id.x],0u);}
+ if(id.x<W_STACK&&id.x!=W_FREE&&id.x!=W_REFUSED&&id.x!=W_HIGH&&id.x!=W_CHANGED){atomicStore(&work[id.x],0u);}
+}
+@compute @workgroup_size(1)
+fn stampChange(){atomicStore(&work[W_CHANGED],frameNumber());}
+@compute @workgroup_size(WORKGROUP_THREADS)
+fn clearIndirection(@builtin(global_invocation_id) id:vec3u){
+ if(id.x<entries()){table[id.x]=table[id.x]&0xffff0000u;}
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
-fn restartProbes(@builtin(global_invocation_id) id:vec3u){
- if(id.x<bounce.counts.w&&slotWord(id.x,SLOT_OWNER)!=0u){slots[id.x*SLOT_WORDS+SLOT_TRACES]=0u;}
-}
-@compute @workgroup_size(WORKGROUP_THREADS)
-fn releaseProbes(@builtin(global_invocation_id) id:vec3u){
+fn updateProbes(@builtin(global_invocation_id) id:vec3u){
  let slot=id.x;
- if(slot>=bounce.counts.w||slotWord(slot,SLOT_OWNER)==0u){return;}
- var gone=!levelHolds(slotWord(slot,SLOT_LEVEL),slotCell(slot));
- if(!gone&&pool.marking!=0u){
-  let entry=slotWord(slot,SLOT_OWNER)-1u;
-  if(((atomicLoad(&marks[entry>>5u])>>(entry&31u))&1u)!=0u){
-   slots[slot*SLOT_WORDS+SLOT_USED]=imageRank();
-  }else{
-   gone=imageRank()-slotWord(slot,SLOT_USED)>=KEPT_MARKS;
-  }
+ if(slot>=bounce.counts.w||!holds(slot)){return;}
+ let entry=slotWord(slot,SLOT_OWNER)-1u;
+ var kept=levelHolds(slotWord(slot,SLOT_LEVEL),slotCell(slot));
+ if(kept&&marked(entry)){
+  slots[slot*SLOT_WORDS+SLOT_USED]=frameNumber();
+ }else if(kept){
+  kept=frameNumber()-slotWord(slot,SLOT_USED)<pool.keep;
  }
- if(gone){giveBack(slot);}
+ if(kept&&pool.fullUpdate==0u){table[entry]=table[entry]|(slot+1u);}else{giveBack(slot);}
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn allocateProbes(@builtin(global_invocation_id) id:vec3u){
@@ -276,9 +243,8 @@ fn allocateProbes(@builtin(global_invocation_id) id:vec3u){
   slots[at+SLOT_CELL]=bitcast<u32>(cell.x);
   slots[at+SLOT_CELL+1u]=bitcast<u32>(cell.y);
   slots[at+SLOT_CELL+2u]=bitcast<u32>(cell.z);
-  slots[at+SLOT_USED]=imageRank();
+  slots[at+SLOT_USED]=frameNumber();
   slots[at+SLOT_TRACED]=0u;
-  slots[at+SLOT_TRACES]=0u;
   slots[at+SLOT_LEVEL]=entryLevel(entry);
   table[entry]=(table[entry]&0xffff0000u)|(slot+1u);
  }
@@ -286,73 +252,50 @@ fn allocateProbes(@builtin(global_invocation_id) id:vec3u){
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn countProbes(@builtin(global_invocation_id) id:vec3u){
  let slot=id.x;
- if(slot>=bounce.counts.w){return;}
- if(untraced(slot)){
-  let level=slotWord(slot,SLOT_LEVEL);
-  let cell=slotCell(slot);
-  atomicAdd(&work[W_UNTRACED+untracedBucket(level,cell)],1u);
-  atomicAdd(&work[W_WAITING],probeCost(level,cell));
-  atomicAdd(&work[W_ELIGIBLE],1u);
- }else if(refreshing(slot)){
-  let level=slotWord(slot,SLOT_LEVEL);
-  atomicAdd(&work[W_TRACED+tracedBucket(level,slotWord(slot,SLOT_TRACED))],probeCost(level,slotCell(slot)));
- }
+ if(slot>=bounce.counts.w||!holds(slot)){return;}
+ let level=slotWord(slot,SLOT_LEVEL);
+ let bucket=priorityBucket(level,slotWord(slot,SLOT_TRACED),slotWord(slot,SLOT_USED));
+ atomicAdd(&work[W_PRIORITY+bucket],probeCost(level,slotCell(slot)));
+ if(bucket==0u){atomicAdd(&work[W_SPENT],COST_DOWNSAMPLED);}
 }
 @compute @workgroup_size(1)
-fn cutUntraced(){
- let cut=cutOf(W_UNTRACED,bounce.counts.y*DISTANCE_BUCKETS,QUEUE_ENTRIES);
- atomicStore(&work[W_CUT_UNTRACED],cut.x);
- atomicStore(&work[W_ROOM_UNTRACED],cut.y);
- atomicStore(&work[W_SPENT],min(QUEUE_ENTRIES,atomicLoad(&work[W_ELIGIBLE]))*COST_DOWNSAMPLED);
+fn cutProbes(){
+ let cut=cutOf(W_PRIORITY,PRIORITY_BUCKETS,pool.room);
+ atomicStore(&work[W_CUT],cut.x);
+ atomicStore(&work[W_ROOM],cut.y);
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
-fn emitUntraced(@builtin(global_invocation_id) id:vec3u){
+fn emitProbes(@builtin(global_invocation_id) id:vec3u){
  let slot=id.x;
- if(slot>=bounce.counts.w||!untraced(slot)){return;}
+ if(slot>=bounce.counts.w||!holds(slot)){return;}
  let level=slotWord(slot,SLOT_LEVEL);
- let cell=slotCell(slot);
- let bucket=untracedBucket(level,cell);
- let cut=atomicLoad(&work[W_CUT_UNTRACED]);
- if(bucket>cut||(bucket==cut&&!takeRoom(W_ROOM_UNTRACED,1u))){return;}
- let rank=atomicAdd(&work[W_QUEUED],1u);
- if(rank>=QUEUE_ENTRIES){return;}
- let extra=probeCost(level,cell)-COST_DOWNSAMPLED;
- let spent=atomicAdd(&work[W_SPENT],extra);
- queueProbe(rank,slot,spent+extra>pool.room);
- traced(slot);
-}
-@compute @workgroup_size(1)
-fn cutTraced(){
- let first=atomicLoad(&work[W_QUEUED]);
- let left=i32(pool.room)-i32(atomicLoad(&work[W_WAITING]));
- atomicStore(&work[W_CUT_TRACED],NONE_BUCKET);
- if(left>0&&QUEUE_ENTRIES>first){
-  let cut=cutOf(W_TRACED,PRIORITY_BUCKETS,u32(left));
-  atomicStore(&work[W_CUT_TRACED],cut.x);
-  atomicStore(&work[W_ROOM_TRACED],cut.y);
+ let bucket=priorityBucket(level,slotWord(slot,SLOT_TRACED),slotWord(slot,SLOT_USED));
+ let cut=atomicLoad(&work[W_CUT]);
+ if(bucket>cut){return;}
+ let cost=probeCost(level,slotCell(slot));
+ var downsampled=false;
+ if(bucket==cut&&bucket>0u){
+  if(atomicAdd(&work[W_TAKEN],cost)+cost>atomicLoad(&work[W_ROOM])){return;}
+ }else if(bucket==0u){
+  let extra=cost-COST_DOWNSAMPLED;
+  downsampled=atomicAdd(&work[W_SPENT],extra)+extra>pool.room;
  }
-}
-@compute @workgroup_size(WORKGROUP_THREADS)
-fn emitTraced(@builtin(global_invocation_id) id:vec3u){
- let slot=id.x;
- if(slot>=bounce.counts.w||!refreshing(slot)){return;}
- let cut=atomicLoad(&work[W_CUT_TRACED]);
- let level=slotWord(slot,SLOT_LEVEL);
- let bucket=tracedBucket(level,slotWord(slot,SLOT_TRACED));
- if(cut==NONE_BUCKET||bucket>cut){return;}
- if(bucket==cut&&!takeRoom(W_ROOM_TRACED,probeCost(level,slotCell(slot)))){return;}
  let rank=atomicAdd(&work[W_QUEUED],1u);
- if(rank>=QUEUE_ENTRIES){return;}
- queueProbe(rank,slot,false);
+ if(rank>=pool.cap){
+  atomicStore(&work[W_QUEUED],pool.cap);
+  return;
+ }
+ queueProbe(rank,slot,downsampled);
  traced(slot);
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn tallyProbes(@builtin(global_invocation_id) id:vec3u){
  let slot=id.x;
- if(slot>=bounce.counts.w||slotWord(slot,SLOT_OWNER)==0u){return;}
+ if(slot>=bounce.counts.w||!holds(slot)){return;}
  atomicAdd(&work[W_LIVE],1u);
- if(slotWord(slot,SLOT_TRACED)==0u){atomicAdd(&work[W_UNFILLED],1u);}
- if(slotWord(slot,SLOT_TRACES)<SETTLED_TRACES){atomicAdd(&work[W_REFRESHING],1u);}
+ let tracedAt=slotWord(slot,SLOT_TRACED);
+ if(tracedAt==0u){atomicAdd(&work[W_UNFILLED],1u);}
+ if(tracedAt==0u||tracedAt<atomicLoad(&work[W_CHANGED])){atomicAdd(&work[W_REFRESHING],1u);}
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn publishTable(@builtin(global_invocation_id) id:vec3u){
@@ -370,10 +313,10 @@ fn publishTable(@builtin(global_invocation_id) id:vec3u){
 )
 
 /**
- * THE SLOTS' ARGUMENTS and THE END OF THE POOL'S PASS. `sizeSlots`: the dispatch over the slots ever given, in the buffer the kernels never bind
+ * THE SLOTS' ARGUMENTS and THE QUEUE'S. `sizeSlots`: the dispatch over the slots ever given, in the buffer the kernels never bind
  * (a buffer read as arguments is not written in the same dispatch). `finishQueue`: the probes queued are counted (held to the queue), the count written into the levels' uniform
  * (`frame.y`: the probes dispatched, which the cache's kernels bound themselves by) and the arguments of the dispatches over
- * the queue written — one group a probe for the radiance cache's tiles, its filter and its levels of detail, the clear of the importance functions over their words.
+ * the queue written — one group a probe for the radiance cache's tiles, its filter and its levels of detail.
  */
 export const POOL_FINISH_SHADER = wgslProgram(
   `@group(0) @binding(${F.work}) var<storage,read_write> work:array<atomic<u32>>;
@@ -388,14 +331,11 @@ fn sizeSlots(){
 }
 @compute @workgroup_size(1)
 fn finishQueue(){
- let count=min(atomicLoad(&work[W_QUEUED]),QUEUE_ENTRIES);
+ let count=atomicLoad(&work[W_QUEUED]);
  gridWords[${BOUNCE_GRID.at.frame + 1}u]=count;
  args[${POOL_ARGS.probes}u]=count;
  args[${POOL_ARGS.probes + 1}u]=1u;
  args[${POOL_ARGS.probes + 2}u]=1u;
- args[${POOL_ARGS.clear}u]=groupsOf(count*${CACHE_PDF_WORDS}u);
- args[${POOL_ARGS.clear + 1}u]=1u;
- args[${POOL_ARGS.clear + 2}u]=1u;
 }`,
   [POOL_CONSTS],
 )

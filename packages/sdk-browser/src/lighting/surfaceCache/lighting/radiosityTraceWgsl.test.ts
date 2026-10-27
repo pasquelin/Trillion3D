@@ -59,6 +59,7 @@ test('the traced trace binds clear of the cut’s tables, which keep the culling
     T.final,
     T.context,
     T.out,
+    T.hits,
     T.lights,
     T.sky.cube,
     T.sky.sampler,
@@ -121,12 +122,24 @@ test('the self-intersection modes are the reference’s: 0 culls the back faces,
   assert.match(T, /if\(past<=0\.0\)\{break;\}\n  tMin=past;/)
 })
 
-test('the hit is read as the reference reads it: a stopped trace is black, a miss reads the sky, a near or back-face hit brings nothing', () => {
+test('the hit is read as the reference reads it: a stopped trace that met nothing is black, a whole one that met nothing reads the sky, a hit of a stopped trace is a hit with no light, a near or back-face hit brings nothing', () => {
   const T = RADIOSITY_TRACED_WGSL
   const body = T.slice(T.indexOf('fn rayRadiance'))
-  const stopped = body.indexOf('if(!stComplete){return vec3f(0.0);}')
-  const miss = body.indexOf('if(!hit.hit){return skyProbeRadiance(dir);}')
-  assert.ok(stopped > 0 && stopped < miss, 'the stopped trace is judged before the miss')
+  assert.ok(
+    body.includes('if(!hit.hit){return select(skyProbeRadiance(dir),vec3f(0.0),!stComplete);}'),
+  )
+  // A hit of a trace that stopped keeps its distance (set before) and brings no light: the cards are read only where the walk was whole.
+  assert.ok(body.includes('if(!stComplete){return vec3f(0.0);}'))
+  assert.ok(
+    body.indexOf('rayHitDistance=length(') < body.indexOf('if(!stComplete){return vec3f(0.0);}') &&
+      body.indexOf('if(!stComplete){return vec3f(0.0);}') < body.indexOf('scEvaluateMeshCards('),
+    'the stopped hit is cut after its distance is kept and before the cards are read',
+  )
+  assert.equal(
+    body.split('stComplete').length,
+    3,
+    'the walk being whole is read for a miss and for a hit',
+  )
   assert.match(
     body,
     /hitCm<lp\.cardMinDistance\|\|\(!hit\.frontFace&&!hit\.twoSided\)\)\{return vec3f\(0\.0\);\}/,
@@ -136,7 +149,7 @@ test('the hit is read as the reference reads it: a stopped trace is black, a mis
     body,
     /scEvaluateMeshCards\(cards,start\+dir\*hitCm,hit\.normal,scConeTangent\(f32\(lp\.hemisphere\)\)\*hitCm,lp\.cardDepthBias,false,vec2u\(0u\)\)/,
   )
-  assert.match(body, /scPlacementMeshCards\(scHitPlacement\(hit\.placement\)\)/)
+  assert.match(body, /scPlacementMeshCards\(scHitPlacement\(hit\.object\)\)/)
 })
 
 test('both traces share the kernel: the thread, the intensity clamp and the write', () => {
@@ -150,4 +163,23 @@ test('both traces share the kernel: the thread, the intensity clamp and the writ
       /textureStore\(outTrace,vec2i\(place\),vec4u\(packLight\(radiance\*lp\.preExposure\),0u,0u,0u\)\)/,
     )
   }
+})
+
+test('the traced ray keeps the distance it met its surface at, from the texel, the longest trace where it met none, for the probes’ occlusion', () => {
+  const T = RADIOSITY_TRACED_WGSL
+  assert.match(T, /var outHits:texture_storage_2d<r32float,write>;/)
+  // Every thread starts at the longest trace, a texel with no surface and a ray that hit nothing included.
+  assert.match(T, /rayHitDistance=lp\.maxTrace;\n if\(texel\.valid\)\{/)
+  // A hit sets it before any of the early returns after: the length from the texel to the hit's point.
+  const radiance = T.slice(T.indexOf('fn rayRadiance('), T.indexOf('@compute'))
+  assert.ok(
+    radiance.indexOf('rayHitDistance=length(texel.position-(start+dir*hitCm));') <
+      radiance.indexOf('if(hitCm<lp.cardMinDistance'),
+  )
+  // Stored beside the radiance only where the occlusion is on; the field’s trace has none.
+  assert.match(
+    T,
+    /if\(lgFlag\(FLAG_PROBE_OCCLUSION\)\)\{textureStore\(outHits,vec2i\(place\),vec4f\(rayHitDistance,0\.0,0\.0,0\.0\)\);\}/,
+  )
+  assert.doesNotMatch(RADIOSITY_TRACE_WGSL, /rayHitDistance|outHits/)
 })

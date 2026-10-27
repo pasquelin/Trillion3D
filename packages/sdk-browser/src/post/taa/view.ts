@@ -41,11 +41,6 @@ export interface TaaHistoryTerms {
 /** The speed floor of the field's anti-aliasing, in render pixels an image: a 64th. */
 const FIELD_SPEED_FLOOR = 1 / 64
 
-/** The scale every measured colour of the pass is exposed by: the exposure over the image's
- *  pre-exposure (`../exposure/pre.ts`), kept above zero so its ratio to the last image's stays
- *  finite. */
-export const taaExposure = (exposure: number) => Math.max(exposure, 1e-6)
-
 /** Writes `(width, height, 1/width, 1/height)` of `grid` at `at`. */
 function writeGrid(into: Float32Array, at: number, grid: ArrayLike<number>) {
   const width = grid[0],
@@ -149,25 +144,20 @@ function writeThin(knobs: TaaLevelKnobs, settings: TemporalValues) {
   packed[T.thinFade + 3] = varying ? 1 : 0
 }
 
-/** The uniform's exposure words: the scale, the ratio of the exposures (the scale times the
- *  pre-exposure) of this image and the last, which brings the histories kept in an exposed space to
- *  this image's, the flicker count's two fade-in rates, and the ratio of the pre-exposures that the
- *  history's light is brought by. The ratios are 1 with no history. */
-function writeExposure(
+/** The uniform's pre-exposure words: the ratio of the pre-exposures of this image and the last,
+ *  which brings the histories kept in an exposed space, and the history's light, to this image's (1
+ *  with no history), the factor the shading rejection's measures are lifted by, and the flicker
+ *  count's two fade-in rates. */
+function writePreExposure(
   state: TaaFrameState,
-  exposure: number,
   preExposureRatio: number,
   frameIntervalMs: number | null,
   settings: TemporalValues,
 ) {
-  packed[T.exposure] = exposure
-  packed[T.exposure + 1] = state.hasHistory
-    ? (exposure / state.previousExposure) * preExposureRatio
-    : 1
-  packed[T.exposure + 2] = flickerCountRate(frameIntervalMs, 1, settings)
-  packed[T.exposure + 3] = flickerCountRate(frameIntervalMs, THIN_GEOMETRY_PERIODS, settings)
   packed[T.preExposure] = state.hasHistory ? preExposureRatio : 1
   packed[T.preExposure + 1] = 2 ** settings.temporalShadingExposureOffset
+  packed[T.preExposure + 2] = flickerCountRate(frameIntervalMs, 1, settings)
+  packed[T.preExposure + 3] = flickerCountRate(frameIntervalMs, THIN_GEOMETRY_PERIODS, settings)
 }
 
 /**
@@ -175,7 +165,7 @@ function writeExposure(
  * scale (`history`, `fraction`: `historySampleLaws` of its size over the display's), the field's
  * squared speed threshold in render pixels, whether the level reprojects by it, and, where this
  * image may resurrect a pixel, the frame it may resurrect from (`state.slices.resurrection`): its
- * grid, the ratios of this image's light and exposure to its, and this frame's clip space at this
+ * grid, the ratio of this image's light to its, and this frame's clip space at this
  * eye to its (`resurrection`, `resurrectGrid`, `toResurrection`). The display's grid and none of the
  * rest where the pass has no history yet.
  */
@@ -183,7 +173,6 @@ function writeHistory(
   state: TaaFrameState,
   render: readonly number[],
   display: readonly number[],
-  exposure: number,
   pre: number,
   eye: ArrayLike<number>,
   terms?: TaaHistoryTerms,
@@ -204,14 +193,13 @@ function writeHistory(
   packed[T.resurrection] = from ? 1 : 0
   if (!from) {
     // Nothing to resurrect from: the words that describe that frame hold no earlier image's.
-    packed.fill(0, T.resurrection + 1, T.resurrection + 4)
+    packed[T.resurrection + 1] = 0
     packed.fill(0, T.resurrectGrid, T.resurrectGrid + 4)
     packed.fill(0, T.toResurrection, T.toResurrection + 16)
     return
   }
   const light = pre / from.preExposure
   packed[T.resurrection + 1] = light
-  packed[T.resurrection + 2] = (exposure / from.exposure) * light
   writeGrid(packed, T.resurrectGrid, from.render)
   matrixAtRenderOrigin(packed, from.viewProjection, eye, T.toResurrection)
 }
@@ -242,8 +230,7 @@ function writeQuality(knobs: TaaLevelKnobs, work: AnalysisWork, settings: Tempor
  * display grid the history has, whether the history describes nothing (a cut), the display layers'
  * history holds the last image's (`layers`), a placement moved (`moved`), the `render` grid the frame
  * was drawn in, its jitter and its rank, the eye — and in doubles — and whether a GPU deformation moved (`deformed`);
- * the `exposure` scale every measured colour is exposed by (`taaExposure`), and its ratio to the last
- * image's; the flicker rates for a frame `frameIntervalMs` long; what the resolve outputs in place
+ * the ratio of the pre-exposures of this image and the last (`preExposureRatio`); the flicker rates for a frame `frameIntervalMs` long; what the resolve outputs in place
  * of the accumulated colour (`output`, `taaViewCode`); the camera's parallax since the last image; the blend factor a whole shading history takes the image at (`temporalHistorySampleCount`); the
  * projection's depth terms;
  * the last image's render grid and the render-resolution histories' allocated size (`analysisGrid`);
@@ -263,7 +250,6 @@ export function writeTaaView(
   moved: boolean,
   layers = false,
   deformed = false,
-  exposure = taaExposure(1),
   frameIntervalMs: number | null = null,
   output = 0,
   knobs: TaaLevelKnobs = TAA_LEVEL_KNOBS.max,
@@ -277,7 +263,7 @@ export function writeTaaView(
   // on its texel — re-read to the jitter, it would be resampled bilinearly every image and would
   // soften without end.
   writeReprojection(packed, state.before.viewProjection, cam.viewProjection, cam.eye, display)
-  writeHistory(state, render, display, exposure, pre, cam.eye, history)
+  writeHistory(state, render, display, pre, cam.eye, history)
   // A view cut or no history yet: every history is off screen, the image taken whole.
   packed[T.params] = state.hasHistory ? 0 : 1
   packed[T.params + 1] = layers ? 1 : 0
@@ -292,9 +278,11 @@ export function writeTaaView(
   packed[T.eye + 3] = deformed ? 1 : 0
   packDoubles(packedWords, T.exactEye, cam.eye, 0, 3)
   const settings = history?.settings ?? TEMPORAL_DEFAULTS
-  writeExposure(state, exposure, preExposureRatio, frameIntervalMs, settings)
+  writePreExposure(state, preExposureRatio, frameIntervalMs, settings)
   writeParallax(state, cam)
   packed[T.rates] = flickerParallaxInverse(render[0], frameIntervalMs, settings)
+  packed[T.rates + 2] = settings.temporalShadingRejectionMode === 'responsive' ? 1 : 0
+  packed[T.rates + 3] = settings.temporalThinGeometryAntiFlickering ? 1 : 0
   // The blend factor of a render pixel's history holding the image's samples, at this render scale.
   packed[T.rates + 1] =
     1 / (1 + settings.temporalHistorySampleCount / (render[0] / display[0]) ** 2)

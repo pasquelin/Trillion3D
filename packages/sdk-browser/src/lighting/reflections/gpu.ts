@@ -7,9 +7,11 @@ import { createFrontLayer, frontLayerBytes } from './frontLayer.ts'
 import { createLitImage, litImageBytes } from './litImage.ts'
 import { createTraceGroups, type TraceInputs } from './trace/traceGroups.ts'
 import {
+  REFLECTION_DEPTH_FORMAT,
   REFLECTION_GRID_FORMAT,
   createKernelTexture,
   createReflectionGrids,
+  depthBytes,
   gridBytes,
   resolvedBytes,
   type ReflectionGrids,
@@ -18,7 +20,6 @@ import { createReflectionViewWriter, type ReflectionFrame } from './viewWrite.ts
 import { createReflectionSettingsReader } from './settings.ts'
 import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
 import { REFLECTION_PASS } from '../../diagnostic/stage/passLabels.ts'
-import { createSurroundings } from './surroundings.ts'
 import { viewProj } from '../../frame/backend/helpers.ts'
 import { REFLECTION_VIEW_BYTES } from './viewLayout.ts'
 import { REFLECTION_TARGET, REFLECTION_TARGET_LAYERS } from './weight.ts'
@@ -27,7 +28,7 @@ import { VECTOR_FORMAT } from '../../post/taa/velocityWgsl.ts'
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
  *  lit image — the other of the HDR targets that take turns (`litImageBytes`) —, its grids
- *  (`gridBytes`), the resolved pixels both surfaces share (`resolvedBytes`), its uniform and the
+ *  (`gridBytes`), the resolved pixels both surfaces share (`resolvedBytes`), the depth it keeps of its last image (`depthBytes`), its uniform and the
  *  transparents' front layer (`frontLayerBytes`, which `blends` sizes) and its census (`census.ts`); the
  *  depth it marches is the Hi-Z's, the front layer's covering depth folded in. */
 export function reflectionBytes(
@@ -42,13 +43,14 @@ export function reflectionBytes(
     frontLayerBytes(width, height, blends) +
     gridBytes(width, height) +
     resolvedBytes(width, height) +
+    depthBytes(width, height) +
     REFLECTION_VIEW_BYTES +
     (statistics ? REFLECTION_CENSUS_BYTES : 0)
   )
 }
 
-/** The target the last pass writes, the view uniform, and the resolved pixels the opaque surface's
- *  resolve then the front one's write in turn, in the same pass (`trace/trace.ts`). */
+/** The target the last pass writes, the view uniform, the resolved pixels the opaque surface's
+ *  resolve then the front one's write in turn, in the same pass (`trace/trace.ts`), and the depth the view keeps of its last image. */
 function createReflectionTargets(device: GPUDevice, width: number, height: number) {
   // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread the target and set it first;
   // no frame copies it.
@@ -69,19 +71,28 @@ function createReflectionTargets(device: GPUDevice, width: number, height: numbe
     [width, height],
     REFLECTION_GRID_FORMAT,
   )
-  return { target, uniform, resolved }
+  // The opaque depth of the last image the trace kept (`past.ts`).
+  const depth = createKernelTexture(
+    device,
+    'Trillion3D reflection depth',
+    [width, height],
+    REFLECTION_DEPTH_FORMAT,
+  )
+  return { target, uniform, resolved, depth }
 }
 
 /** What each image of a reflection writes in place, and the groups it keeps: the reflection group
  *  over the depth it was bound with (`GpuHiz.depth`), the lit image and the lighting's view — two
  *  kept, the two HDR targets taking turns (`reflectionGroup`) —, what the image tells its view, what
- *  the trace reads, the radiance a ray leaving the scene reaches (`createSurroundings`), and the Hi-Z
+ *  the trace reads, and the Hi-Z
  *  full build's pass. */
 function reflectionImageState() {
   return {
     group: { identity: createWebgpuBindIdentity(2), slots: [] as (GPUBindGroup | undefined)[] },
     /** The forward programs' group (`forwardReflectionGroup`). */
     forward: createProgramGroups(),
+    /** The screen probes' scene stages' group (`reflectionSceneGroup`). */
+    scene: createProgramGroups(),
     frame: {
       viewProjection: viewProj,
       eye: [0, 0, 0],
@@ -89,7 +100,6 @@ function reflectionImageState() {
       depthDrawn: false,
     } as ReflectionFrame,
     inputs: {} as TraceInputs,
-    surroundings: createSurroundings(),
     /** The Hi-Z full build's pass (the transparents' fold), timed alone, opened lazily. */
     depthPass: new LazyComputePass(REFLECTION_PASS),
   }
@@ -110,7 +120,7 @@ export function createScreenReflection(
   blends: boolean,
   statistics = false,
 ) {
-  const { target, uniform, resolved } = createReflectionTargets(device, width, height)
+  const { target, uniform, resolved, depth } = createReflectionTargets(device, width, height)
   const lit = createLitImage(device, width, height)
   let grids: ReflectionGrids | undefined
   const front = createFrontLayer(device, width, height, blends)
@@ -131,6 +141,14 @@ export function createScreenReflection(
     },
     /** The resolved pixels both surfaces resolve into in turn (`resolveWgsl.ts`). */
     resolvedView: resolved.createView(),
+    /** The opaque depth of the image the trace last ran on, written after it (`past.ts`), and that image's rank
+     *  (`ReflectionFrame.image`; 0 for none): the depth of the lit image held, where the two are the same image. */
+    depthView: depth.createView(),
+    depthImage: 0,
+    /** The number of the engine's image (`WebgpuRun.frame`) the lit image held was drawn at, and the view's explicit cut revision the last
+     *  image saw (`ReflectionFrame.historyCut`). */
+    litFrame: 0,
+    revision: undefined as number | undefined,
     uniform,
     /** The reflections' turn (`ReflectionView.temporal`), advanced every image
      *  (`stageReflectionImage`). */
@@ -142,7 +160,7 @@ export function createScreenReflection(
     writeView: createReflectionViewWriter(device, uniform),
     /** The trace's bind groups, every kernel's, kept while their inputs stay
      *  (`encodeReflectionTrace`). */
-    trace: createTraceGroups(),
+    trace: createTraceGroups(device),
     /** The counters the trace's rays add to, read back a few images late (`census.ts`). */
     census,
     /** The reflections' settings of the context, resolved once while none moves (`settings.ts`). */
@@ -153,6 +171,7 @@ export function createScreenReflection(
       lit.image.texture.destroy()
       grids?.destroy()
       resolved.destroy()
+      depth.destroy()
       uniform.destroy()
       front.dispose()
       census.dispose()

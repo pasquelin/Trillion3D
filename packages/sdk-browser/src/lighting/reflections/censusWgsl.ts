@@ -9,17 +9,14 @@ import { REFLECTION_SIDE } from './constants.ts'
  * counts of that image alone, both surfaces together.
  *
  * The screen stage counts the rays it casts (a grid texel whose picked pixel traces) by where they
- * ended: answered whole with nothing left (`whole`), or left to the scene stage (`left`), which add up to
- * the rays cast;
- * and, across them, those the screen answered in part or whole (`screen`: the march met a surface it
- * trusts).
+ * ended: a hit, which answers them whole (`screen`: the march met a surface it trusts), or a miss left to the scene
+ * stage (`left`), which add up to the rays cast.
  *
  * The scene stage counts each ray it takes once, by how its march through the global distance field ended
  * (`fates`, `REFLECTION_FATES`, `sceneTrace.ts`): no field to march (`noField`), a surface hit (the cache gave its
  * light), the ray leaving the scene to the environment, the screen's far trace answering it (`distant`, `wgsl.ts`), a
- * miss that went nowhere (the field answers it: the march met nothing before the surface the screen met, or a surface
- * none of the cards near it gave any light of), or no march at all because the screen's surface was closer than the
- * march can tell; and, for the rays that marched, the steps the march took (`work`: under 8, 16, 32, 64, 128, 256,
+ * miss that went nowhere (the field answers it: the march met a surface none of the cards near it gave any light of), or no march
+ * at all because the screen followed the ray to the longest ray; and, for the rays that marched, the steps the march took (`work`: under 8, 16, 32, 64, 128, 256,
  * 512, 1 024, 2 048, 4 096, 8 192, more).
  *
  * A workgroup counts in its own memory and adds its words to the buffer once (`workgroupTallyWgsl`).
@@ -30,10 +27,9 @@ export type ReflectionFate = (typeof REFLECTION_FATES)[number]
 export const REFLECTION_WORK_BUCKETS = 12
 export const REFLECTION_CENSUS = {
   screen: 0,
-  whole: 1,
-  left: 2,
-  fates: 3,
-  work: 3 + REFLECTION_FATES.length,
+  left: 1,
+  fates: 2,
+  work: 2 + REFLECTION_FATES.length,
 } as const
 export const REFLECTION_CENSUS_WORDS = REFLECTION_CENSUS.work + REFLECTION_WORK_BUCKETS
 
@@ -79,7 +75,6 @@ export const reflectionCensusWgsl = (binding: number) =>
     `${wgslConsts({
       REFLECTION_CENSUS_WORDS,
       REFLECTION_CENSUS_SCREEN: REFLECTION_CENSUS.screen,
-      REFLECTION_CENSUS_WHOLE: REFLECTION_CENSUS.whole,
       REFLECTION_CENSUS_LEFT: REFLECTION_CENSUS.left,
       REFLECTION_CENSUS_FATES: REFLECTION_CENSUS.fates,
       REFLECTION_CENSUS_WORK: REFLECTION_CENSUS.work,

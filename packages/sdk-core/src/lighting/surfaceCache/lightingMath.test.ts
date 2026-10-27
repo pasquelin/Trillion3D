@@ -2,7 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { SURFACE_CACHE_RULES } from '../../contracts/surfaceCacheOptions.ts'
 import { resolveSettingsInto, type SettingValues } from '../../contracts/settingRules.ts'
-import { hemisphereResolution, lightsPerTile, probeSpacing, updateTilesOf } from './lightingMath.ts'
+import {
+  hemisphereResolution,
+  lightsPerTile,
+  litTiles,
+  probeSpacing,
+  surfaceCacheFrozen,
+  updateFrameFrozen,
+  updateTilesOf,
+} from './lightingMath.ts'
 import {
   cullLights,
   decodeAlbedo,
@@ -177,4 +185,21 @@ test('a light that is not a number, or under zero, is kept at zero', () => {
     0.25 / Math.PI,
     0,
   ])
+})
+
+test('a frozen cache lights no tile and holds its clock, its lists keeping their size; a frozen update frame holds the clock alone', () => {
+  const frozen = { ...defaults, surfaceCacheFreeze: true }
+  assert.equal(defaults.surfaceCacheFreeze, false)
+  assert.equal(surfaceCacheFrozen(defaults), false)
+  assert.equal(surfaceCacheFrozen(frozen), true)
+  // The lists are made at the size of an unfrozen update, so that freezing leaves them as they are.
+  assert.deepEqual(updateTilesOf(frozen, 4096), updateTilesOf(defaults, 4096))
+  const { direct, indirect } = updateTilesOf(frozen, 4096)
+  assert.deepEqual([litTiles(frozen, direct), litTiles(frozen, indirect)], [0, 0])
+  assert.deepEqual([litTiles(defaults, direct), litTiles(defaults, indirect)], [direct, indirect])
+  assert.equal(updateFrameFrozen(defaults), false)
+  assert.equal(updateFrameFrozen(frozen), true)
+  const frameFrozen = { ...defaults, surfaceCacheFreezeUpdateFrame: 1 }
+  assert.equal(updateFrameFrozen(frameFrozen), true)
+  assert.equal(litTiles(frameFrozen, direct), direct)
 })

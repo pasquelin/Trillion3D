@@ -9,15 +9,18 @@ import { cloudShadowReadWgsl } from '../../atmosphere/cloudShadowRead.ts'
 import { globalDistanceFieldTraceWgsl } from '../../distanceField/globalTraceWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { declaredLightWgsl } from '../../direct/lightLoopWgsl.ts'
+import { lightStrengthWgsl } from '../../direct/lightStrengthWgsl.ts'
 import { lightFunctionReadWgsl, type LightFunctionBindings } from '../../lightFunction/readWgsl.ts'
 import {
   CM_PER_M_WGSL,
   lightingCommonWgsl,
+  VIEW_EXPOSURE,
   lightingLayersWgsl,
   surfaceTexelWgsl,
 } from './commonWgsl.ts'
 import { SHADOW_TEXELS } from './layout.ts'
-import { SHADOW_MASK_WGSL } from './shadowMaskWgsl.ts'
+import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
+import { LIGHT_CENTRE_FACING_WGSL, shadowMaskBlockOf } from './shadowMaskWgsl.ts'
 
 /**
  * THE DIRECT LIGHT OF THE CARDS' TEXELS: a workgroup a tile of the direct update's list (`contextWgsl.ts`), a thread a
@@ -27,7 +30,9 @@ import { SHADOW_MASK_WGSL } from './shadowMaskWgsl.ts'
  *
  * A light's irradiance at a texel (`cacheLight`) is the engine's one light term for a point that is not a pixel
  * (`declaredIrradiance`, `../../direct/lightLoopWgsl.ts`): the falloff, the range, a spot's fade, a rectangle's form factor, the
- * cosine, the light function and the clouds' shade, the air's tint toward a sun — everything but its shadow, which the term leaves out. The shadow of a light that casts one and lights the texel is one ray marched through the global distance field
+ * cosine, the light function and the clouds' shade, the air's tint toward a sun at the ground (`airGroundTintOf`: a tint a
+ * light, not a texel's) — everything but its shadow, which the term leaves out —, times the light's factor on its indirect lighting (`gathered`). A texel that does not face the light's centre
+ * takes none of it and casts no ray (`facesLightCentre`). The shadow of a light that casts one and lights the texel is one ray marched through the global distance field
  * (`cacheShadowed`) from the texel to the light, as far as the trace reaches or the lamp is: it starts off the surface by
  * `shadowBias` voxels of the clipmap it begins in, three where the surface turns from the light (`shadowRayBias`), and a lamp's
  * ray ends a bias short of it; it is shadowed where it meets a surface.
@@ -85,6 +90,7 @@ const CACHE_LIGHT_WGSL = wgslBlock(
   'CACHE_LIGHT_WGSL',
   [
     DIRECT_LIGHT_WGSL,
+    LIGHT_CENTRE_FACING_WGSL,
     CM_PER_M_WGSL,
     lightFunctionReadWgsl(DIRECT_LIGHT_FUNCTION),
     cloudShadowReadWgsl(DIRECT_CLOUD_SHADOW),
@@ -93,6 +99,9 @@ const CACHE_LIGHT_WGSL = wgslBlock(
     globalDistanceFieldTraceWgsl(0, DIRECT_BINDINGS.field),
   ],
   `
+/** What the cards gather of light \`rank\`'s \`irradiance\` on a texel: it times the light's factor on its indirect lighting (\`contactGi.w\`; the
+ *  cull keeps no light whose factor is not above 0). */
+fn gathered(rank:u32,irradiance:vec3f)->vec3f{return irradiance*directLights.items[rank].contactGi.w;}
 /** The distance, in voxels, a shadow ray starts off a texel whose normal makes the cosine \`nDotL\` with the light. */
 fn shadowRayBias(nDotL:f32,bias:f32)->f32{return bias+2.0*bias*saturate(1.0-nDotL);}
 /** Whether the ray from the world point \`at\` along \`toward\`, \`span\` long, meets a surface of the global field. */
@@ -102,14 +111,19 @@ fn cacheShadowed(at:vec3f,normal:vec3f,toward:vec3f,span:f32,lamp:bool)->bool{
  if(lamp){ray.rayEndBias=lp.shadowBias;}
  return gdfTrace(ray).hitTime>=0.0;
 }
-/** What a light gives a texel: its irradiance, shadow included, and what its shadow ray answered — \`visible\` where the light casts
+/** What a light gives a texel (\`share\` the part of it a light function the atlas holds no slot of lets through, 1 for any other): its irradiance, shadow included, and what its shadow ray answered — \`visible\` where the light casts
  *  none or the ray met nothing, \`shadowed\` where it met a surface or where the light gives the texel nothing, whether it casts
  *  a shadow or not — no ray cast, the attenuation nil as the masks have it (\`lightAttenuation\`). */
 struct CacheLight{irradiance:vec3f,visible:bool,shadowed:bool}
-fn cacheLight(rank:u32,position:vec3f,normal:vec3f)->CacheLight{
- var seen=CacheLight(declaredIrradiance(rank,position/CM_PER_M,normal,0.0),false,false);
+fn cacheLight(rank:u32,standalone:bool,share:f32,position:vec3f,normal:vec3f)->CacheLight{
+ var seen=CacheLight(gathered(rank,declaredIrradiance(rank,position/CM_PER_M,normal,0.0)),false,false);
  let light=directLights.items[rank];
  if(all(seen.irradiance==vec3f(0.0))){seen.shadowed=true;return seen;}
+ if(!facesLightCentre(rank,light,position/CM_PER_M,normal,standalone)){seen.irradiance=vec3f(0.0);seen.shadowed=true;return seen;}
+ if(standalone){
+  seen.irradiance*=share;
+  if(!isVisibleScalar(share)){seen.shadowed=true;return seen;}
+ }
  if(!castsShadow(light)){seen.visible=true;return seen;}
  let sun=isSun(light);
  let offset=light.positionRange.xyz*CM_PER_M-position;
@@ -127,8 +141,9 @@ export const DIRECT_TRACED_ENTRY = 'directShadeTraced'
 export const DIRECT_ENTRIES = [DIRECT_ENTRY, DIRECT_TRACED_ENTRY] as const
 
 /** The direct light's program. */
-export const DIRECT_WGSL = wgslProgram(
-  `${wgslConsts({ MAX_LIGHTS: MAX_LIGHTS_PER_TILE, TILE_TEXELS: SHADOW_TEXELS })}
+const directProgram = (format: AtlasFormat) =>
+  wgslProgram(
+    `${wgslConsts({ MAX_LIGHTS: MAX_LIGHTS_PER_TILE, TILE_TEXELS: SHADOW_TEXELS })}
 @group(0) @binding(${DIRECT_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
 @group(0) @binding(${DIRECT_BINDINGS.out}) var outDirect:texture_storage_2d<r32uint,write>;
 @group(0) @binding(${DIRECT_BINDINGS.lights}) var<storage,read> directLights:DirectLights;
@@ -165,7 +180,7 @@ fn recordUniformLights(head:DirectTexel,lane:u32){
   var seen=array<u32,FACTOR_TILE_WORDS>();
   for(var k=0u;k<head.lights;k++){
    if(atomicLoad(&visibleTexels[k])==TILE_TEXELS||atomicLoad(&shadowedTexels[k])==TILE_TEXELS){
-    let rank=tileLights[head.first+1u+k];
+    let rank=tileLightRank(tileLights[head.first+1u+k]);
     seen[factorWordOf(rank)]|=factorBitOf(rank);
    }
   }
@@ -183,7 +198,14 @@ fn ${DIRECT_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n
   // A texel that holds no surface counts as seeing the light and as shadowed from it.
   var seen=CacheLight(vec3f(0.0),true,true);
   if(head.texel.valid){
-   seen=cacheLight(tileLights[head.first+1u+k],head.texel.position,head.texel.normal);
+   let listed=tileLights[head.first+1u+k];
+   let standalone=tileLightStandalone(listed);
+   var share=1.0;
+   if(standalone){
+    let i=at.x+at.y*LG_TILE;
+    share=scratchFactorIn(masks[scratchWordOf(tile*lp.maxLights+k,i)],i);
+   }
+   seen=cacheLight(tileLightRank(listed),standalone,share,head.texel.position,head.texel.normal);
    irradiance+=seen.irradiance;
   }
   countLight(k,seen.visible,seen.shadowed);
@@ -206,23 +228,31 @@ fn ${DIRECT_TRACED_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgr
    let ray=shadowRayOf(shadowByteIn(masks[(tile*lp.maxLights+k)*SHADOW_MASK_TILE_WORDS+bit/32u],bit));
    visible=isVisibleToLight(ray.factor);
    shadowed=!visible;
-   if(ray.factor>0.0){irradiance+=declaredBareIrradiance(tileLights[head.first+1u+k],head.texel.position/CM_PER_M,head.texel.normal,0.0)*ray.factor;}
+   if(shadowReaches(ray.factor)){
+    let rank=tileLightRank(tileLights[head.first+1u+k]);
+    irradiance+=gathered(rank,declaredBareIrradiance(rank,head.texel.position/CM_PER_M,head.texel.normal,0.0))*ray.factor;
+   }
   }
   countLight(k,visible,shadowed);
  }
  recordUniformLights(head,lane);
  storeDirect(head.page,head.texel,irradiance);
 }`,
-  [
-    lightingCommonWgsl({
-      tables: DIRECT_BINDINGS.tables,
-      context: { binding: DIRECT_BINDINGS.context, access: 'read' },
-    }),
-    surfaceTexelWgsl(lightingLayersWgsl(DIRECT_BINDINGS.depth, DIRECT_BINDINGS.normal)),
-    CACHE_LIGHT_WGSL,
-    SHADOW_MASK_WGSL,
-    packLight,
-    ditherLight,
-    rand3dPcg16,
-  ],
-)
+    [
+      lightingCommonWgsl({
+        tables: DIRECT_BINDINGS.tables,
+        context: { binding: DIRECT_BINDINGS.context, access: 'read' },
+      }),
+      surfaceTexelWgsl(lightingLayersWgsl(DIRECT_BINDINGS.depth, DIRECT_BINDINGS.normal)),
+      CACHE_LIGHT_WGSL,
+      lightStrengthWgsl(VIEW_EXPOSURE),
+      shadowMaskBlockOf(format),
+      packLight,
+      ditherLight,
+      rand3dPcg16,
+    ],
+  )
+
+/** The direct light's program over masks in the grey format, and over those of the light functions' coloured atlas. */
+export const DIRECT_WGSL = directProgram('grey')
+export const DIRECT_COLOURED_WGSL = directProgram('colour')

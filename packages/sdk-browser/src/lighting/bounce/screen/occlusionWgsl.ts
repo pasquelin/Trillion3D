@@ -2,6 +2,8 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { PI } from '../../../../../math/src/wgsl/constants.ts'
+import { fastAcos } from '../../../../../math/src/wgsl/geometry.ts'
+import { fourRooksJitter } from '../../../../../math/src/wgsl/sampling.ts'
 import { computeStorageTextureEntry } from '../../../gpu/core/computeBindings.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
@@ -62,7 +64,7 @@ fn spHorizonCos(at:vec2f,P:vec3f,V:vec3f,depth:f32,invForeground:f32,low:f32,cur
  let Q=worldAt(at,z);
  let delta=Q-P;
  let cosine=dot(delta/max(length(delta),1e-6),V);
- let held=mix(cosine,low,saturate(pow(abs(surfaceLinearDepth(Q)-depth)*invForeground,SP_FOREGROUND_POWER)));
+ let held=mix(cosine,low,saturate(pow(abs(spDepthOf(Q)-depth)*invForeground,SP_FOREGROUND_POWER)));
  return max(current,held);
 }`,
   )
@@ -106,7 +108,7 @@ fn spSliceArcs(phi:f32,centre:vec2f,s:SpSurface,V:vec3f,right:vec3f,up:vec3f,bac
  let projected=s.N-axis*dot(s.N,axis);
  let span=max(length(projected),1e-6);
  let cosNormal=saturate(dot(projected,V)/span);
- let angle=sign(dot(orthogonal,projected))*acos(cosNormal);
+ let angle=sign(dot(orthogonal,projected))*fastAcos(cosNormal);
  let sinNormal=sin(angle);
  let low0=cos(angle+0.5*PI);
  let low1=cos(angle-0.5*PI);
@@ -119,8 +121,8 @@ fn spSliceArcs(phi:f32,centre:vec2f,s:SpSurface,V:vec3f,right:vec3f,up:vec3f,bac
   horizon0=spHorizonCos(centre+offset,s.P,V,depth,invForeground,low0,horizon0);
   horizon1=spHorizonCos(centre-offset,s.P,V,depth,invForeground,low1,horizon1);
  }
- let h0=-acos(clamp(horizon1,-1.0,1.0));
- let h1=acos(clamp(horizon0,-1.0,1.0));
+ let h0=-fastAcos(horizon1);
+ let h1=fastAcos(horizon0);
  let arc0=(cosNormal+2.0*h0*sinNormal-cos(2.0*h0-angle))/4.0;
  let arc1=(cosNormal+2.0*h1*sinNormal-cos(2.0*h1-angle))/4.0;
  let arcs=span*vec2f(arc0+arc1,angle*sinNormal+cosNormal);
@@ -129,18 +131,17 @@ fn spSliceArcs(phi:f32,centre:vec2f,s:SpSurface,V:vec3f,right:vec3f,up:vec3f,bac
 
 /**
  * THE PIXEL A TEXEL OF THE OCCLUSION STANDS FOR (`spOcclusionPixel`): where the occlusion is downsampled, the texel is not the
- * image's pixel at a fixed corner of its cell but one of the cell's four, which the image's stochastic phase (`sp.size.w`) and the
+ * image's pixel at a fixed corner of its cell but one of the cell's four, which the probes' gather state frame (`sp.frames.x`) and the
  * cell's place in its two by two block turn (a four-rooks pattern, each of the four pixels of a block taken in turn over four
  * images, `spOcclusionJitter`): the pixel the pass searches the horizon from, and the one the temporal pass weighs the texel by. At
  * the image's size the jitter is none.
  */
 export const SP_OCCLUSION_CELLS = wgslBlock(
   'SP_OCCLUSION_CELLS',
-  [],
+  [fourRooksJitter],
   `fn spOcclusionJitter(cell:vec2u)->vec2u{
  if(SP_OCCLUSION_DOWNSAMPLE==1u){return vec2u(0u);}
- let rank=((cell.x&1u)+(cell.y&1u)*2u+sp.size.w)&3u;
- return vec2u((rank>>1u)&1u,1u-(rank&1u));
+ return fourRooksJitter(cell,sp.frames.x);
 }
 fn spOcclusionPixel(cell:vec2u)->vec2u{
  return min(cell*SP_OCCLUSION_DOWNSAMPLE+spOcclusionJitter(cell),sp.size.xy-vec2u(1u));
@@ -153,17 +154,17 @@ fn occlusion(@builtin(global_invocation_id) id:vec3u){
  if(any(id.xy*SP_OCCLUSION_DOWNSAMPLE>=sp.size.xy)){return;}
  let pixel=spOcclusionPixel(id.xy);
  let s=spSurfaceAt(pixel);
- var visibility=1.0;
- var opening=s.N;
+ var visibility=0.0;
+ var stored=vec3f(0.0,0.0,1.0);
  if(s.lit){
   let centre=vec2f(pixel)+vec2f(0.5);
-  let depth=max(surfaceLinearDepth(s.P),1e-3);
+  let depth=spDepthOf(s.P);
   let V=viewToEye(s.P);
   let right=normalize(worldAt(centre+vec2f(1.0,0.0),s.z)-s.P);
   let up=normalize(worldAt(centre-vec2f(0.0,1.0),s.z)-s.P);
   let across=normalize(cross(right,up));
   let back=select(across,-across,dot(across,V)<0.0);
-  let noise=blueNoiseVec2(pixel,sp.size.w);
+  let noise=blueNoiseVec2(pixel,sp.frames.x);
   var arcs=vec2f(0.0);
   var bent=vec3f(0.0);
   for(var slice=0u;slice<u32(sp.occlusion.x);slice++){
@@ -172,9 +173,9 @@ fn occlusion(@builtin(global_invocation_id) id:vec3u){
    bent+=found.bent;
   }
   visibility=max(arcs.x/max(arcs.y,1e-6),0.03);
-  opening=select(s.N,normalize(bent),dot(bent,bent)>1e-12);
+  stored=select(s.N,normalize(bent),dot(bent,bent)>1e-12)*visibility;
  }
- ${shape.bentNormal ? 'textureStore(occlusionOut,vec2i(id.xy),vec4u(spBentPack(opening*visibility),0u,0u,0u));' : 'textureStore(occlusionOut,vec2i(id.xy),vec4f(visibility,0.0,0.0,0.0));'}
+ ${shape.bentNormal ? 'textureStore(occlusionOut,vec2i(id.xy),vec4u(spBentPack(stored),0u,0u,0u));' : 'textureStore(occlusionOut,vec2i(id.xy),vec4f(round(saturate(visibility)*255.0)/255.0,0.0,0.0,0.0));'}
 }`
 
 /**
@@ -187,14 +188,15 @@ fn occlusion(@builtin(global_invocation_id) id:vec3u){
  * normal's projections could have given, never under a thirtieth. The planes are the world's: the camera's right and up read as
  * the world's displacement of one pixel at the pixel's own depth, the depth along the view the linear depth. With the bent normal
  * the pass also sums the slices' directions of open sky (`spBentSlice`), and writes the unit direction of the sum,
- * times the visibility, in one word (`spBentPack`): a pixel with no open sky keeps its normal as the direction.
+ * times the visibility, in one word (`spBentPack`): a pixel with no open sky keeps its normal as the direction. A pixel that is no lit surface
+ * has no visibility (zero) and, in the word, the direction `(0, 0, 1)` at full length.
  */
 const SP_OCCLUSION = (shape: OcclusionShape) =>
   wgslBlock(
     `SP_OCCLUSION(${shape.bentNormal})`,
     shape.bentNormal
-      ? [PI, SP_OCCLUSION_CELLS, SP_BENT_SLICE, SP_BENT_WGSL]
-      : [PI, SP_OCCLUSION_CELLS],
+      ? [PI, fastAcos, SP_OCCLUSION_CELLS, SP_BENT_SLICE, SP_BENT_WGSL]
+      : [PI, fastAcos, SP_OCCLUSION_CELLS],
     [spSliceWgsl(shape), spOcclusionKernel(shape)].join('\n'),
   )
 

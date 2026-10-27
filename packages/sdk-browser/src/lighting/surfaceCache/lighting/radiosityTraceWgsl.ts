@@ -16,7 +16,7 @@ import {
   surfaceTexelWgsl,
 } from './commonWgsl.ts'
 import { SELF_INTERSECTION } from './layout.ts'
-import { radiosityCommonWgsl } from './radiosityCommonWgsl.ts'
+import { radiosityCommonWgsl, radiosityRayWgsl } from './radiosityCommonWgsl.ts'
 
 /**
  * THE RADIOSITY'S RAYS: a thread a ray of the radiosity tiles' probes (`radiosityBuildWgsl.ts`), which holds the radiance
@@ -40,13 +40,17 @@ import { radiosityCommonWgsl } from './radiosityCommonWgsl.ts'
  * the translucent primitives, and avoids the geometry it starts on as `selfIntersections` says (`SELF_INTERSECTION`): the back
  * faces of the primitives that are not two-sided culled; or, traced again from past a first hit that is a back face nearer than
  * the trace's `skipBackFaceDistance` or a two-sided hit nearer than its `skipTwoSidedDistance`; or such hits passed as it
- * travels. A trace that stopped before its walk was whole, hit or not, is a black hit. A hit reads the cards of the placement
- * it met (`scHitPlacement`, by the rank of its root: the table of instances names every root of a placement's mesh) at its
+ * travels. A trace that stopped before its walk was whole and met nothing is a black hit; one that met a surface is a hit too
+ * (its distance is kept) but brings no light, the cards being read only where the walk was whole. A hit reads the cards of the placement
+ * it met (`scHitPlacement`, by the object the hit names: the rank of its root — the table of instances names every root of a placement's mesh — or the stand-in of its HLOD cell's actor) at its
  * point, with the hit's normal facing the ray, the cone's footprint at its distance and `cardDepthBias` for the depth of a
  * texel from it; it brings nothing from nearer than `cardMinDistance`, nor from the back face of a primitive that is not
  * two-sided; a ray that hits nothing reads the sky. Its bindings (group 0) clear the cut's tables, which keep the culling's:
  * the cards' tables from 10 with the atlas's layers after them, 18 the context, 19 the probes' trace
- * atlas, 20 the lights, 21 to 24 the sky light, 25 the table of instances, 26 the blue noise.
+ * atlas, 20 the lights, 21 to 24 the sky light, 25 the table of instances, 26 the blue noise, 27 the distances the rays met their surfaces at.
+ * Where the probes' occlusion is on (`FLAG_PROBE_OCCLUSION`) it writes, beside each ray's radiance, that distance: from its texel to the point
+ * of the triangle the ray hit, the longest trace where it hit nothing (the probes' occlusion reads it in the filter and the integration,
+ * `probeVisibility`).
  */
 
 /** The cards' tables at `tables` and the atlas's layers after them, as the read library binds them (`SURFACE_CACHE_LAYER_AT`). */
@@ -94,6 +98,7 @@ export const RADIOSITY_TRACED_BINDINGS = {
   sky: { group: 0, cube: 21, sampler: 22, harmonics: 23, params: 24 } satisfies SkyLightBindings,
   instances: 25,
   noise: 26,
+  hits: 27,
 } as const
 
 /** The bindings of the layers the traced variant never reads. */
@@ -113,8 +118,14 @@ const kernelBindings = (b: { out: number; lights: number }) =>
 @group(0) @binding(${b.lights}) var<storage,read> directLights:DirectLights;`
 
 /** The kernel both variants share: a thread a ray, `bindings` the variant's declarations and `rayRadiance` its function
- *  `rayRadiance(texel:RadTexel,dir:vec3f)->vec3f`, the radiance the texel sees along `dir`. */
-const radiosityKernel = (bindings: string, rayRadiance: string) => `${bindings}
+ *  `rayRadiance(texel:RadTexel,dir:vec3f)->vec3f`, the radiance the texel sees along `dir`. `hitDistances`, the traced variant's, is the
+ *  distance the ray met its surface at, which `rayRadiance` leaves in `rayHitDistance`: the kernel starts it at the longest trace and
+ *  stores it beside the radiance where the probes' occlusion is on. */
+const radiosityKernel = (
+  bindings: string,
+  rayRadiance: string,
+  hitDistances = false,
+) => `${bindings}
 ${rayRadiance}
 @compute @workgroup_size(${WORKGROUP_THREADS})
 fn ${RADIOSITY_TRACE_ENTRY}(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
@@ -123,7 +134,7 @@ fn ${RADIOSITY_TRACE_ENTRY}(@builtin(global_invocation_id) id:vec3u,@builtin(num
  let at=thread.at;
  let texel=thread.texel;
  var radiance=vec3f(0.0);
- if(texel.valid){
+${hitDistances ? ' rayHitDistance=lp.maxTrace;\n' : ''} if(texel.valid){
   let dir=radiosityRay(texel.normal,texel.temporal,texel.cardCoord>>vec2u(lp.spacingShift),at.ray);
   radiance=rayRadiance(texel,dir);
   let brightest=max(radiance.x,max(radiance.y,radiance.z));
@@ -131,14 +142,15 @@ fn ${RADIOSITY_TRACE_ENTRY}(@builtin(global_invocation_id) id:vec3u,@builtin(num
  }
  let place=probeAtlasCoord(texel.atlas)*lp.hemisphere+at.ray;
  textureStore(outTrace,vec2i(place),vec4u(packLight(radiance*lp.preExposure),0u,0u,0u));
-}`
+${hitDistances ? ' if(lgFlag(FLAG_PROBE_OCCLUSION)){textureStore(outHits,vec2i(place),vec4f(rayHitDistance,0.0,0.0,0.0));}\n' : ''}}`
 
 /** What both variants read: the lighting's common text, the cards' layers, the radiosity's, the lights and the sky. */
 const sharedDeclarations = (b: typeof B | typeof TB): WgslDecl[] => [
   lightingCommonWgsl({ tables: b.tables, context: { binding: b.context, access: 'read' } }),
   READ_LIBRARY_LAYERS_WGSL,
   surfaceTexelWgsl(READ_LIBRARY_LAYERS_WGSL),
-  radiosityCommonWgsl(b.noise),
+  radiosityCommonWgsl(),
+  radiosityRayWgsl(b.noise),
   DIRECT_LIGHT_WGSL,
   skyLightReadWgsl(b.sky),
   SKY_READ_WGSL,
@@ -175,6 +187,8 @@ const TRACED_CONSTS = wgslConsts({
 
 /** The radiance the texel sees along `dir`, through the scene's triangles. */
 const TRACED_RADIANCE = `${TRACED_CONSTS}
+@group(0) @binding(${TB.hits}) var outHits:texture_storage_2d<r32float,write>;
+var<private> rayHitDistance:f32;
 fn rayRadiance(texel:RadTexel,dir:vec3f)->vec3f{
  let start=texel.position+texel.normal*lp.radiosityNormalBias;
  let origin=(start-lp.camera.xyz)/CM_PER_M;
@@ -195,18 +209,20 @@ fn rayRadiance(texel:RadTexel,dir:vec3f)->vec3f{
   if(past<=0.0){break;}
   tMin=past;
  }
- // A trace that stopped before its walk was whole is a black hit, whether or not it held one.
- if(!stComplete){return vec3f(0.0);}
- if(!hit.hit){return skyProbeRadiance(dir);}
+ // A trace that stopped before its walk was whole and met nothing is a black hit; one that met a surface is a hit with no light.
+ if(!hit.hit){return select(skyProbeRadiance(dir),vec3f(0.0),!stComplete);}
  let hitCm=hit.distance*CM_PER_M;
+ rayHitDistance=length(texel.position-(start+dir*hitCm));
+ // A hit of a trace that stopped before its walk was whole may not be the nearest: it is a hit with no light.
+ if(!stComplete){return vec3f(0.0);}
  // A hit too near to tell from the texel itself would light it with its own light; the back of a one-sided surface has no cards.
  if(hitCm<lp.cardMinDistance||(!hit.frontFace&&!hit.twoSided)){return vec3f(0.0);}
- let cards=scPlacementMeshCards(scHitPlacement(hit.placement));
+ let cards=scPlacementMeshCards(scHitPlacement(hit.object));
  return scEvaluateMeshCards(cards,start+dir*hitCm,hit.normal,scConeTangent(f32(lp.hemisphere))*hitCm,lp.cardDepthBias,false,vec2u(0u)).radiance;
 }`
 
 export const RADIOSITY_TRACED_WGSL = wgslProgram(
-  radiosityKernel(kernelBindings(TB), TRACED_RADIANCE),
+  radiosityKernel(kernelBindings(TB), TRACED_RADIANCE, true),
   [
     ...sharedDeclarations(TB),
     CM_PER_M_WGSL,

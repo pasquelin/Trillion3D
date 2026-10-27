@@ -4,8 +4,13 @@ import {
   REFLECTION_SCENE_PASS,
   REFLECTION_TRACE_PASS,
 } from '../../../diagnostic/stage/passLabels.ts'
+import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
+import { REFLECTION_SIDE } from '../constants.ts'
+import { resetListIn } from '../../../gpu/dispatch/list.ts'
 import { REFLECTION_GROUP } from '../viewLayout.ts'
 import { classifyGroups } from '../tiles.ts'
+import { REFLECTION_HARDWARE_SCENE } from './traceBindings.ts'
+import { hardwareTraceGroups } from './traceHardwareGroups.ts'
 import {
   KERNELS,
   traceGroups,
@@ -64,21 +69,34 @@ export async function createTraceStages(
       GPUComputePipeline
     >
   }
-  const [opaque, front, classify] = await Promise.all([
+  const [opaque, front, classify, keepDepth] = await Promise.all([
     surface(0),
     surface(1),
     buildComputeStages(device, [layouts.classify, groupLayout], modules.trace, ['classifyTiles']),
+    buildComputeStages(device, [layouts.keepDepth, groupLayout], modules.trace, ['keepDepth']),
   ])
-  return { layouts, opaque, front, classify: classify.classifyTiles }
+  return {
+    layouts,
+    opaque,
+    front,
+    classify: classify.classifyTiles,
+    keepDepth: keepDepth.keepDepth,
+  }
 }
 type TraceStages = Awaited<ReturnType<typeof createTraceStages>>
 
-/** The trace's passes, each timed alone under its label: the screen stage (the classification first)
- *  and the clear of the unused tracing tiles, the scene stage, the denoising — the last pass's clear
+/** The scene stage that casts its rays through the scene's triangles, compiled: its pipeline for the opaque surface (0) and the
+ *  transparents' front one (1) (`hardwareReflectionKernels`, `../reflectionPipelines.ts`). */
+interface HardwareStage {
+  pipeline(layer: number): GPUComputePipeline
+}
+
+/** The trace's passes, each timed alone under its label: the clear of the unused tracing tiles and the screen stage (the
+ *  classification first, the clear before the rays), the scene stage, the denoising — the last pass's clear
  *  over the clear tiles, then the resolve, the accumulation and the last pass over the resolve tiles —;
  *  and their kernels. */
 const PASSES = [
-  { label: REFLECTION_TRACE_PASS, kernels: ['screen', 'clearTracing'] },
+  { label: REFLECTION_TRACE_PASS, kernels: ['clearTracing', 'screen'] },
   { label: REFLECTION_SCENE_PASS, kernels: ['scene'] },
   { label: REFLECTION_DENOISE_PASS, kernels: ['clear', 'resolve', 'temporal', 'bilateral'] },
 ] as const satisfies readonly { label: string; kernels: readonly (typeof KERNELS)[number][] }[]
@@ -98,22 +116,34 @@ const LISTS = {
 const OPAQUE = ['opaque'] as const
 const BOTH = ['opaque', 'front'] as const
 
+/** Whether the resolve of `side` reads the ray words of texels outside its own tile: it reconstructs from its neighbours, or its blocks are larger than a pixel. */
+const readsNeighbours = (
+  side: (typeof BOTH)[number],
+  block: readonly [number, number],
+  frontBlock: readonly [number, number],
+  reconstruct: readonly [boolean, boolean],
+) => {
+  const [x, y] = side === 'opaque' ? block : frontBlock
+  return reconstruct[side === 'opaque' ? 0 : 1] || x !== 1 || y !== 1
+}
+
 /** The classification's workgroups, written in place each image (`classifyGroups`). */
 const classifying: [number, number] = [0, 0]
-
-/** Bytes of a list's head: its three dispatch arguments and its count (`createReflectionGrids`). */
-const HEAD_BYTES = 16
 
 /**
  * The reflections of the pixels of `size` in the trace's three passes on `encoder` (`PASSES`), each
  * opened, filled and ended in turn (`trace.ts`): for the opaque surface — and, with `front`, the image's
  * front pass having written a reflecting surface, for the front one —, its lists emptied on the encoder,
  * its tiles classified (`../tiles.ts`) over the grid of this image's blocks and its rays traced on the
- * screen; the rays the screen left traced through the scene; then resolved, accumulated and filtered
+ * screen; the rays the screen missed traced through the scene; then resolved, accumulated and filtered
  * over the resolve tiles, and answered by the field over the clear ones. Every kernel after the
- * classification is dispatched indirectly: over a list of tiles, the scene stage over the rays left.
+ * classification is dispatched indirectly: over a list of tiles, the scene stage over the rays missed.
  * `depthGroup` is the reflection group over the depth pyramid, `block` the blocks of pixels a grid texel
- * traces, across and down (the level's row), `frontBlock` the front layer's. The history's parity turns every call.
+ * traces, across and down (the level's row), `frontBlock` the front layer's, `reconstruct` whether the opaque surface's and
+ * the front one's resolve reads the neighbours' rays. The clear of the unused tracing tiles runs only where a resolve reads
+ * a texel of another tile: a surface reconstructing, or tracing for blocks larger than one pixel. With `hardware` and the scene
+ * trace of the image (`inputs.rays`) the scene stage is the program that casts its rays through the scene's triangles
+ * (`../sceneTraceHardware.ts`), over its own groups (`traceHardwareGroups.ts`). The history's parity turns every call.
  */
 export function encodeReflectionTrace(
   encoder: GPUCommandEncoder,
@@ -124,15 +154,21 @@ export function encodeReflectionTrace(
   size: readonly [number, number],
   block: readonly [number, number],
   frontBlock: readonly [number, number],
+  reconstruct: readonly [boolean, boolean],
   front: boolean,
+  hardware?: HardwareStage,
 ) {
   const groups = traceGroups(reflection, stages, stages.layouts, inputs)
+  const traced =
+    hardware && inputs.rays
+      ? { stage: hardware, groups: hardwareTraceGroups(reflection, inputs, inputs.rays) }
+      : undefined
   const parity = (reflection.trace.parity ^= 1)
   const sides = front ? BOTH : OPAQUE
   for (const side of sides) {
-    const { lists, head } = side === 'opaque' ? reflection.grids : reflection.front.grids
-    // Each head as an image starts it, the third argument one: one copy a list.
-    for (const list of lists) encoder.copyBufferToBuffer(head, 0, list, 0, HEAD_BYTES)
+    const { lists } = side === 'opaque' ? reflection.grids : reflection.front.grids
+    // Each head as an image starts it: one copy a list.
+    for (const list of lists) resetListIn(reflection.device, encoder, list)
   }
   for (const { label, kernels } of PASSES) {
     const pass = encoder.beginComputePass({ label })
@@ -147,10 +183,25 @@ export function encodeReflectionTrace(
         pass.dispatchWorkgroups(x, y)
       }
       for (const kernel of kernels) {
+        if (kernel === 'clearTracing' && !readsNeighbours(side, block, frontBlock, reconstruct))
+          continue
+        if (kernel === 'scene' && traced) {
+          pass.setPipeline(traced.stage.pipeline(side === 'opaque' ? 0 : 1))
+          pass.setBindGroup(0, traced.groups[side])
+          pass.setBindGroup(REFLECTION_HARDWARE_SCENE.group, traced.groups.scene)
+          pass.dispatchWorkgroupsIndirect(grids[LISTS[kernel]], 0)
+          continue
+        }
         pass.setPipeline(stages[side][kernel])
         pass.setBindGroup(0, groups[side][kernel][parity])
         pass.dispatchWorkgroupsIndirect(grids[LISTS[kernel]], 0)
       }
+    }
+    // The opaque depth of this image, kept after every kernel that reads the last image's, for the next image's hits.
+    if (label === REFLECTION_DENOISE_PASS) {
+      pass.setPipeline(stages.keepDepth)
+      pass.setBindGroup(0, groups.keepDepth)
+      pass.dispatchWorkgroups(ceilDiv(size[0], REFLECTION_SIDE), ceilDiv(size[1], REFLECTION_SIDE))
     }
     pass.end()
   }

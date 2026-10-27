@@ -2,6 +2,8 @@ import type { TranslucencyGiValues } from '../../../../sdk-core/src/contracts/tr
 import { ceilDiv, floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import { halton } from '../../../../math/src/sequence/halton.ts'
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
+import { hasFloat32Filterable } from '../../gpu/core/float32Filterable.ts'
+import { hasTextureFormatsTier1 } from '../../gpu/core/textureFormatsTier.ts'
 
 /**
  * THE TRANSLUCENCY GLOBAL ILLUMINATION VOLUME'S SHAPES: a grid fitted to the view (`TranslucencyGiGrid`) — a cell of `translucencyGiGridPixelSize`
@@ -10,10 +12,11 @@ import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
  * image before's (`integrateWgsl.ts`), and which the see-through surfaces read with one filtered fetch (`readWgsl.ts`).
  *
  * THE TEXTURES. The trace holds `tracing × tracing` cones a cell: a texture of `grid.x · tracing` by `grid.y · tracing` by `grid.z`
- * texels, the cone `(i, j)` of cell `(x, y, z)` at `(x · tracing + i, y · tracing + j, z)`. The volume the surfaces read is one
- * texture of the grid's size by twice its depth: the ambient light (the harmonics' constant band, one colour) in the first
- * half of the slices, the directional light (the three linear bands, the colours' luminance) in the second. Two such textures take turns:
- * the one written is the history of the next image.
+ * texels, the cone `(i, j)` of cell `(x, y, z)` at `(x · tracing + i, y · tracing + j, z)`. The volume the surfaces read is two
+ * textures of the grid's size (`volumeExtent`): the ambient light (the harmonics' constant band, one colour) in the lighting data format
+ * (`translucencyGiAmbientFormat`) and the directional light (the three linear bands, the colours' luminance, signed) in half floats. Two such
+ * pairs take turns: the one written is the history of the next image. The fog's volume, the light before its history and its intensity, is one
+ * texture of twice the grid's depth (`fogVolumeExtent`): the ambient light in the first half of the slices, the directional light in the second.
  *
  * THE FRAME. One uniform every pass reads (`TRANSLUCENCY_GI_FRAME`): `grid` the cells along the axes and the shift of the cell's side;
  * `extent` the view's size and its reciprocal; `zParams` the slices' logarithm (scale, offset, slices a doubling) and the camera's near
@@ -22,32 +25,56 @@ import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
  * `depth` how far in front of the depth a cell's point is held, the nearest it may lie behind it to be moved, the level of the depth
  * pyramid whose texel covers a cell's footprint (`translucencyGiFootprintLevel`), whether the march of the distance field is on; `temporal`
  * the history's weight, whether the history holds, the image's rank, the cascades the radiance cache is read coarser by; `spatial` the
- * cells either side of the filter, the Gaussian's two factors, whether the radiance cache is read; `previous` the image before's
+ * cells either side of the filter, the Gaussian's two factors, whether the radiance cache is read; `cache` how the cache read is shaped (the
+ * radius scale of the sphere a map is read through, the maps' side, their levels of detail, whether the sky is kept apart from their light);
+ * `previous` the image before's
  * view-projection set at its eye (`viewProjectionRelative`) and `eyeMoved` the eye of this image minus that one's (taken in double precision, so that a
  * place found relative to this eye is carried to the image before's without a large term), `inverse` this image's inverse (of the view-projection
  * set at the eye), all of the camera without the anti-aliasing jitter (the cells' places and the history's reprojection do not shake with it).
  */
 
-/** The format of the cones' light and of the volume: half floats. */
-export const TRANSLUCENCY_GI_FORMAT: GPUTextureFormat = 'rgba16float'
+/** The format of the directional volume the surfaces read, whose light has signs, and of the fog's volume: half floats. */
+export const TRANSLUCENCY_GI_VOLUME_FORMAT: GPUTextureFormat = 'rgba16float'
+
+/**
+ * The format of the cones' light, from the setting `translucencyGiLightingDataFormat` (the reference's lighting data format): `rgba16` half
+ * floats, the default, which keeps more precision than the reference's 11-11-10 floats, on purpose; `r11g11b10` the 11-11-10 floats, the
+ * reference's format; `rgba32` single floats. A storage texture of the 11-11-10 format needs the device feature `texture-formats-tier1`
+ * (`../../gpu/core/textureFormatsTier.ts`); a device without it keeps half floats (JUSTIFIED-WEB: the core of WebGPU lists no 11-11-10
+ * storage format), as the temporal history does.
+ */
+export function translucencyGiConeFormat(
+  features: { has(name: string): boolean },
+  setting: TranslucencyGiValues['translucencyGiLightingDataFormat'],
+): GPUTextureFormat {
+  if (setting === 'rgba32') return 'rgba32float'
+  return setting === 'r11g11b10' && hasTextureFormatsTier1(features)
+    ? 'rg11b10ufloat'
+    : 'rgba16float'
+}
+
+/**
+ * The format of the ambient volume the surfaces read, from the format of the cones' light (`translucencyGiConeFormat`): the same lighting data
+ * format. The surfaces read the volume through a filtering sampler, so single floats are kept where the device filters them
+ * (`float32-filterable`, `../../gpu/core/float32Filterable.ts`), half floats where it does not (JUSTIFIED-WEB: the core of WebGPU filters
+ * no `rgba32float` texture). The directional volume stays in half floats whatever the setting, as the reference keeps it.
+ */
+export const translucencyGiAmbientFormat = (
+  coneFormat: GPUTextureFormat,
+  features: { has(name: string): boolean },
+): GPUTextureFormat =>
+  coneFormat === 'rg11b10ufloat' || (coneFormat === 'rgba32float' && hasFloat32Filterable(features))
+    ? coneFormat
+    : TRANSLUCENCY_GI_VOLUME_FORMAT
 
 /** The side of a workgroup of the kernels over the cones and the cells, texels. */
 export const TRANSLUCENCY_GI_GROUP = 8
 
 /**
  * The most cells a side that a block of `TRANSLUCENCY_GI_GROUP` cone texels a side, from a multiple of it, touches where a cell holds two cones
- * or more a side (`giSlotSide`): the trace's workgroup keeps what the cells of its block share in as many slots.
+ * or more a side: the trace's workgroup keeps what the cells of its block share in as many slots.
  */
 export const TRANSLUCENCY_GI_SLOT_SIDE = 4
-
-/** The cells a side that a block of `group` cone texels a side, from a multiple of `group`, touches for `tracing` cones a cell side: the most over
- *  the blocks (the block's offset in its first cell takes every value the multiples of `group` give modulo `tracing`). */
-export function giSlotSide(tracing: number, group: number = TRANSLUCENCY_GI_GROUP) {
-  let most = 1
-  for (let block = 0; block < tracing; block++)
-    most = Math.max(most, Math.floor((((block * group) % tracing) + group - 1) / tracing) + 1)
-  return most
-}
 
 /** The frame's fields (`TranslucencyGiFrame`), in order. */
 export const TRANSLUCENCY_GI_FRAME = fieldLayout('TranslucencyGiFrame', [
@@ -59,6 +86,7 @@ export const TRANSLUCENCY_GI_FRAME = fieldLayout('TranslucencyGiFrame', [
   ['depth', 'vec4f'],
   ['temporal', 'vec4f'],
   ['spatial', 'vec4f'],
+  ['cache', 'vec4f'],
   ['previous', 'mat4x4f'],
   ['eyeMoved', 'vec4f'],
   ['inverse', 'mat4x4f'],
@@ -82,7 +110,8 @@ export type TranslucencyGiGridInto = { -readonly [K in keyof TranslucencyGiGrid]
 
 /**
  * The grid for a view of `width × height` pixels: `ceil(side / cell)` cells along each axis and, along the depth, the slices of the
- * logarithm of the distance (`slice = log2(depth · logZScale + logZOffset) · zScale`) from the near plane to the end distance, one
+ * logarithm of the distance (`slice = log2(depth · logZScale + logZOffset) · zScale`) from the near plane to the end distance `end`
+ * (`translucencyGiEndDistanceOf`, metres), one
  * more than their number of whole doublings, at least one. Written into `into` where one is given (an image allocates nothing).
  */
 export function translucencyGiGrid(
@@ -90,12 +119,13 @@ export function translucencyGiGrid(
   width: number,
   height: number,
   near: number,
+  end: number,
   into: TranslucencyGiGridInto = {} as TranslucencyGiGridInto,
 ): TranslucencyGiGrid {
   const cell = Math.max(1, Math.floor(values.translucencyGiGridPixelSize))
   const logZScale = values.translucencyGiGridDistributionLogZScale
   const zScale = values.translucencyGiGridDistributionZScale
-  const span = Math.max(values.translucencyGiEndDistance - near, 0) * logZScale
+  const span = Math.max(end - near, 0) * logZScale
   const slices = span > 0 ? Math.trunc(Math.log2(span) * zScale) + 1 : 1
   into.x = ceilDiv(width, cell)
   into.y = ceilDiv(height, cell)
@@ -137,8 +167,15 @@ export const traceExtent = (
   tracing: number,
 ): [number, number, number] => [grid.x * tracing, grid.y * tracing, grid.z]
 
-/** The size of the volume's texture: the grid's, twice as deep (the ambient light, then the directional). */
+/** The size of each of the two volumes the surfaces read: the grid's. */
 export const volumeExtent = (grid: TranslucencyGiGrid): [number, number, number] => [
+  grid.x,
+  grid.y,
+  grid.z,
+]
+
+/** The size of the fog's volume: the grid's, twice as deep (the ambient light, then the directional). */
+export const fogVolumeExtent = (grid: TranslucencyGiGrid): [number, number, number] => [
   grid.x,
   grid.y,
   grid.z * 2,

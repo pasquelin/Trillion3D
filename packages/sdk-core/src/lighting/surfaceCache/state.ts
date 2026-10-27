@@ -112,6 +112,8 @@ export interface Placement {
   /** Whether its material is opaque or masked: a translucent one has no cards unless the scene asks
    *  for them. */
   readonly opaqueOrMasked: boolean
+  /** The mask of the lighting channels of its object (`../../contracts/lightingChannelsAbi.ts`). */
+  lightingChannels: number
   /** Its box in the world, centimetres: `minX, minY, minZ, maxX, maxY, maxZ`, and its greater half
    *  side. */
   readonly bounds: Float64Array

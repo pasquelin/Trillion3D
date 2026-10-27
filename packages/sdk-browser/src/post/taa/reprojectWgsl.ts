@@ -142,7 +142,7 @@ fn reprojectHistories(@builtin(global_invocation_id) gid:vec3u){
 /** The kernel past the parallax test: the resurrection, the words and the field written. */
 const reprojectKernelTail = () =>
   ` // The frame a pixel may be resurrected from: its shading history at the point the texel's closest
- // surface falls at in that frame, in its grid, brought to this image's exposure.
+ // surface falls at in that frame, in its grid, brought to this image's light.
  var resurrectionOff=false;
  if(RESURRECTION&&view.resurrection.x!=0.0){
   let there=resurrectionPoint(screen,closestDepthOf(p));
@@ -150,7 +150,7 @@ const reprojectKernelTail = () =>
   let place=ndcToPixel(there.xy,view.resurrectGrid.xy)*view.analysisGrid.zw;
   let highest=(view.resurrectGrid.xy-0.5)*view.analysisGrid.zw;
   let past=textureSampleLevel(resurrectGuide,historySampler,clamp(place,lo,highest),0.0);
-  textureStore(shadingOut,p,${GUIDE_LAYERS.resurrected},vec4f(exposedShadingBy(past.rgb,view.resurrection.z),past.a));
+  textureStore(shadingOut,p,${GUIDE_LAYERS.resurrected},vec4f(exposedShadingBy(past.rgb,view.resurrection.y),past.a));
  }
  let bits=select(0u,${REPROJECT_BITS.offScreen}u,offScreen)|select(0u,${REPROJECT_BITS.disoccluded}u,parallax.disoccluded)|select(0u,${REPROJECT_BITS.animated}u,animated)|select(0u,${REPROJECT_BITS.filled}u,filled)|select(0u,${REPROJECT_BITS.restarts}u,(mark.a&${RESTART_MARK}u)!=0u&&view.resurrection.x!=0.0)|select(0u,${REPROJECT_BITS.resurrectionOffScreen}u,resurrectionOff);
  textureStore(shadingOut,p,${GUIDE_LAYERS.previous},vec4f(shading,raw.a));
@@ -177,7 +177,7 @@ const reprojectKernelTail = () =>
  *   along its own offset, the least of them, times 1.1; the velocity pass's own edge where it exceeds
  *   0.9, and none (one) where the texel took no neighbour's velocity, whose vectors are not read;
  * - the shading history read at the reprojected point with the five-tap Catmull-Rom (`catmullRomTaps`), its
- *   exposure corrected (`view.exposure.y`), dithered to the bits of `guideFormat`; the flicker measure read at
+ *   exposure corrected (`view.preExposure.x`), dithered to the bits of `guideFormat`; the flicker measure read at
  *   the nearest texel to the point moved by up to half a texel at random. Off the last screen or on
  *   a cut, the histories are read but marked off screen;
  * - the parallax disocclusion: the closest occluders scattered where they stood (`velocityWgsl.ts`)
@@ -192,7 +192,7 @@ const reprojectKernelTail = () =>
  * - where the history resurrects (`RESURRECTION`) and this image may (`view.resurrection.x`), the
  *   shading history of the frame a pixel may be resurrected from, read bilinearly at the point the
  *   texel's closest surface falls at in that frame (`resurrectionPoint`), in its grid, brought to this
- *   image's exposure (`view.resurrection.z`), into the second layer (`GUIDE_LAYERS`); a texel off
+ *   image's light (`view.resurrection.y`), into the second layer (`GUIDE_LAYERS`); a texel off
  *   that frame's screen reads the edge's texel and carries the bit that says so.
  * A vector load, a marks load and a depth load where the texel took a neighbour's velocity, and 9
  * of each for its edge, 5 bilinear shading history taps, a flicker history load, a coverage history load (where the detection runs) and 4 occluder words per render texel;

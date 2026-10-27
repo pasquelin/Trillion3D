@@ -2,13 +2,14 @@
 //! collapse it ("Efficient Incoherent Ray Traversal on GPUs Through Compressed Wide BVHs", 2017):
 //! a node opens the child of largest surface until it has eight children, or none of them has
 //! children of its own; a binary leaf becomes a leaf child of one to three triangles. The children
-//! take the slots of the eight octants of a ray's direction, each in the slot of the octant that
-//! meets it first, so a walk visits them near to far without sorting.
+//! take the slots in the order they were opened. The paper orders them by the octants of a ray's
+//! direction so that its walk needs no sorting; the walk here measures the span of every child it
+//! meets and goes to the nearest (`wideTraversalWgsl.ts`), so no order is written.
 //!
 //! The nodes lie breadth first, the internal children of a node one after the other in slot order,
 //! and so do the triangles of its leaf children.
 use super::abi::RAY_TRACING_WIDTH;
-use super::bvh::{centre_of, Binary, Box3, Kind, Node};
+use super::bvh::{Binary, Box3, Kind, Node};
 use trillion3d_math::geometry::aabb::half_area;
 
 /// A child of a node.
@@ -83,38 +84,23 @@ fn opened(nodes: &[Node], at: usize) -> ([usize; RAY_TRACING_WIDTH], usize) {
     (children, count)
 }
 
-/// The direction of the octant `slot`: negative along the axes whose bit it has set.
-fn octant(slot: usize) -> [f32; 3] {
-    [0, 1, 2].map(|axis| if (slot >> axis) & 1 == 0 { 1.0 } else { -1.0 })
-}
-
-/// The binary node in each slot: the pairs of a child and a slot taken from the cheapest, the
-/// cost of a pair being the dot of the vector from the node's centre to the child's with the
-/// octant's direction — the less, the sooner a ray of that octant meets the child.
-fn placed(
-    nodes: &[Node],
-    centre: [f32; 3],
-    children: &[usize],
-) -> [Option<usize>; RAY_TRACING_WIDTH] {
-    let mut pairs = [(0.0, 0, 0); RAY_TRACING_WIDTH * RAY_TRACING_WIDTH];
-    for (k, &child) in children.iter().enumerate() {
-        let at = centre_of(nodes[child].bounds);
-        for slot in 0..RAY_TRACING_WIDTH {
-            let direction = octant(slot);
-            let cost = (0..3).map(|axis| (at[axis] - centre[axis]) * direction[axis]);
-            pairs[k * RAY_TRACING_WIDTH + slot] = (cost.sum::<f32>(), k, slot);
+/// The most nodes the walk's stack holds going down `wide` (`RAY_TRACING_STACK`). At a node the walk
+/// keeps on its stack every internal child it meets but the nearest, so at most one fewer than the node
+/// has internal children, and goes on into a child: the stack needed is that count and the greatest
+/// of its children's. A node without internal children needs none.
+pub(super) fn stack_need(wide: &Wide) -> usize {
+    let mut need = vec![0; wide.nodes.len()];
+    // A node's internal children lie after it.
+    for (rank, node) in wide.nodes.iter().enumerate().rev() {
+        let inner = (node.slots.iter())
+            .filter(|slot| matches!(slot, Slot::Inner(_)))
+            .count();
+        if inner > 0 {
+            let deepest = (node.child_base..node.child_base + inner).map(|child| need[child]);
+            need[rank] = inner - 1 + deepest.max().unwrap_or(0);
         }
     }
-    let pairs = &mut pairs[..children.len() * RAY_TRACING_WIDTH];
-    pairs.sort_unstable_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
-    let mut taken = [false; RAY_TRACING_WIDTH];
-    let mut slots = [None; RAY_TRACING_WIDTH];
-    for &(_, k, slot) in pairs.iter() {
-        if slots[slot].is_none() && !taken[k] {
-            (slots[slot], taken[k]) = (Some(children[k]), true);
-        }
-    }
-    slots
+    need.first().copied().unwrap_or(0)
 }
 
 /// The wide tree of `binary`.
@@ -132,11 +118,7 @@ pub(super) fn collapse(binary: &Binary) -> Wide {
         let (children, count) = opened(nodes, queue[wide.nodes.len()]);
         let (child_base, triangle_base) = (queue.len(), wide.triangles.len());
         let mut slots = [Slot::Empty; RAY_TRACING_WIDTH];
-        for (slot, child) in placed(nodes, centre_of(bounds), &children[..count])
-            .into_iter()
-            .enumerate()
-        {
-            let Some(child) = child else { continue };
+        for (slot, &child) in children[..count].iter().enumerate() {
             let bounds = nodes[child].bounds;
             slots[slot] = match nodes[child].kind {
                 Kind::Inner(_) => {

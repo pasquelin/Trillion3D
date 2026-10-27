@@ -1,6 +1,7 @@
 import { fieldLayout, vec4Array } from '../../../gpu/core/fieldLayout.ts'
 import { CARD_TILE_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
 import { CARD_PAGE_WORDS } from '../../../../../sdk-core/src/lighting/surfaceCache/pageRecords.ts'
+import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
 
 /**
  * WHAT THE SURFACE CACHE'S LIGHTING PASSES AND THEIR HOST AGREE ON: the numbers an image gives every kernel
@@ -10,11 +11,12 @@ import { CARD_PAGE_WORDS } from '../../../../../sdk-core/src/lighting/surfaceCac
  * THE CONTEXT BUFFER. Header words first: for each of the two updates (`LIGHTING_CONTEXTS`, the direct light and the
  * radiosity) a histogram of the tiles each priority bucket holds, the cut (the last bucket listed and the tiles of it that
  * fit), the tiles given out and the tiles given out in the cut's bucket — a page counts its tiles whether or not
- * it fits, as the cut asks —, and the tiles listed; the radiosity's tiles and the arguments of the dispatches that
- * follow the lists, `args`, four words each: a group a tile of the direct and of the indirect list, the radiosity's
- * traces and its probes (a thread each) and a group of 64 shadow traces. The lists come after the header: the tiles of each
- * update, a tile one word — its page in the low 24 bits, its tile along x and y in four bits each —, and the
- * radiosity's tiles — the page in 22 bits, then 5 bits each of the probe's tile along x and y.
+ * it fits, as the cut asks —, the pages listed and the tiles listed (the tiles the pages are cut into); the radiosity's
+ * tiles and the arguments of the dispatches that follow the lists, `args`, four words each: a group a tile of the direct and
+ * of the indirect list, the radiosity's traces and its probes (a thread each) and a group of 64 shadow traces. The lists
+ * come after the header: the tiles of each update, a tile one word — its page in the low 24 bits, its tile along x and y in four bits each —, the
+ * radiosity's tiles — the page in 22 bits, then 5 bits each of the probe's tile along x and y — and the pages of each
+ * update, a page one word.
  */
 
 /** The words of the header and where each part begins. */
@@ -24,6 +26,7 @@ export const CONTEXT_AT = {
   allocated: 36,
   listed: 40,
   radiosityTiles: 42,
+  pagesListed: 44,
   args: 48,
 } as const
 
@@ -38,15 +41,30 @@ export const CONTEXT_ARGS = {
   shadowTraces: 4,
 } as const
 
+/** The words of the buffer of the dispatch arguments that cut each update's pages into tiles, a slot of 4 words an update
+ *  (`LIGHTING_CONTEXTS`): the cut writes the context, and a dispatch cannot take its size from a buffer it writes. */
+export const PAGE_ARGS_SLOT_WORDS = 4
+export const PAGE_ARGS_WORDS = 2 * PAGE_ARGS_SLOT_WORDS
+
 /** The words of the header: what a clear of the context writes. */
 export const CONTEXT_HEADER_WORDS = 80
 
-/** Where the lists begin and the words the buffer holds, for lists of the given capacities in tiles. */
+/** Where the lists begin and the words the buffer holds, for lists of the given capacities in tiles. A listed page has
+ *  at least a tile, so each page list holds no more pages than its update has tiles. */
 export function contextLayout(directTiles: number, indirectTiles: number, radiosityTiles: number) {
   const directAt = CONTEXT_HEADER_WORDS
   const indirectAt = directAt + directTiles
   const radiosityAt = indirectAt + indirectTiles
-  return { directAt, indirectAt, radiosityAt, words: radiosityAt + radiosityTiles }
+  const directPagesAt = radiosityAt + radiosityTiles
+  const indirectPagesAt = directPagesAt + directTiles
+  return {
+    directAt,
+    indirectAt,
+    radiosityAt,
+    directPagesAt,
+    indirectPagesAt,
+    words: indirectPagesAt + indirectTiles,
+  }
 }
 
 /** The words of a page's record (`pageRecords.ts`) that hold the lighting's own state: the image of the last
@@ -58,8 +76,9 @@ export const PAGE_LIGHTING = {
 
 /**
  * THE SHADOW MASKS of the direct light. A tile of 8 × 8 texels keeps, for each light it is lit by, a mask of
- * `SHADOW_MASK.tileWords` words: a byte a texel, the light's factor on 7 bits (the light function and the clouds'
- * shade, then the ray's answer) and, in the top bit, whether the texel is settled. The texels whose mask is not
+ * `shadowMaskOf(format).tileWords` words: a texel is a byte (`'grey'`) — the light's factor on 7 bits (the light function and
+ * the clouds' shade, then the ray's answer) — or, with the light functions' coloured atlas (`'colour'`), two bytes — the factor of
+ * each of its three colour channels on 5 bits —; the top bit of the byte or the two bytes says whether the texel is settled. The texels whose mask is not
  * settled are listed as shadow traces: one word each after the count that opens the buffer, the light tile in the low
  * `SHADOW_TRACE.lightTileBits`, then the texel along x and along y in 3 bits each and the downsample
  * level in the bits above. The light tiles, a tile of the direct list and a light of it, keep where they are
@@ -69,17 +88,23 @@ export const PAGE_LIGHTING = {
  * update (`SHADOW_FACTOR_TILE_WORDS` words a tile).
  */
 export const SHADOW_TEXELS = CARD_TILE_SIZE * CARD_TILE_SIZE
-const RAY_BITS = 8
 const TRACE_COORD_BITS = Math.log2(CARD_TILE_SIZE)
 const TRACE_LIGHT_TILE_BITS = 24
 const TRACE_DOWNSAMPLE_BITS = 2
-export const SHADOW_MASK = {
-  rayBits: RAY_BITS,
-  factorBits: RAY_BITS - 1,
-  /** The words of a tile's mask, and the quads of four texels it holds. */
-  tileWords: (SHADOW_TEXELS * RAY_BITS) / 32,
-  quads: SHADOW_TEXELS / 4,
-} as const
+/** The bits a texel's mask takes: 8 in the grey format, 16 in the colour one. */
+const RAY_BITS = { grey: 8, colour: 16 } as const satisfies Record<AtlasFormat, number>
+/** The shape of a mask in `format`: the bits of a texel, those of its factor (all but the one that says it is settled) and the
+ *  words of a tile's mask. */
+export const shadowMaskOf = (format: AtlasFormat) => {
+  const rayBits = RAY_BITS[format]
+  return {
+    rayBits,
+    factorBits: rayBits - 1,
+    tileWords: (SHADOW_TEXELS * rayBits) / 32,
+  }
+}
+/** The quads of four texels a tile holds. */
+export const SHADOW_QUADS = SHADOW_TEXELS / 4
 export const SHADOW_TRACE = {
   least: 1024,
   lightTileBits: TRACE_LIGHT_TILE_BITS,
@@ -95,12 +120,32 @@ export const SHADOW_TRACE = {
 export const SHADOW_LIGHT_TILE_WORDS = 2
 export const SHADOW_FACTOR_TILE_WORDS = 8
 
+/**
+ * THE LIGHT FUNCTIONS THAT HOLD NO SLOT OF THE ATLAS, which the cache evaluates apart (`lightFunctionPassWgsl.ts`): a light
+ * that wears one the atlas does not hold (the atlas is off, or the cache is not among its readers, or a limit left the light
+ * out) is marked in the word that names it in its tile's list, the top bit, over the rank in its low `TILE_LIGHT_RANK_BITS`.
+ * The function of such a light is evaluated at each texel of the tiles that keep it, before the masks, into the scratch: a half
+ * float a texel, two to a word, `STANDALONE_SCRATCH_WORDS` words a light tile, after the masks of the light tiles in the same
+ * buffer (`standaloneScratchAt` words in) or, where the shadows are not traced and there are no masks, alone in a buffer of
+ * their own (`standaloneScratchWords`).
+ */
+export const TILE_LIGHT_RANK_BITS = 14
+export const TILE_LIGHT_STANDALONE = 2 ** 31
+export const STANDALONE_SCRATCH_WORDS = SHADOW_TEXELS / 2
+/** The word of a buffer of masks, in `format`, for `lightTiles` light tiles, where the scratch of the light functions begins. */
+export const standaloneScratchAt = (lightTiles: number, format: AtlasFormat) =>
+  lightTiles * shadowMaskOf(format).tileWords
+/** The words of a buffer that holds the scratch of `lightTiles` light tiles alone. */
+export const standaloneScratchWords = (lightTiles: number) => lightTiles * STANDALONE_SCRATCH_WORDS
+
 /** The words of each buffer the traced shadows keep for `lightTiles` light tiles (a tile of the direct list's, a
- *  light of its): what they are made at and what the device must hold. The masks are `SHADOW_MASK.tileWords` a light
- *  tile; the traces are one word for each texel of each, at least `SHADOW_TRACE.least`, after the count; the light
- *  tiles are `SHADOW_LIGHT_TILE_WORDS` each. */
-export const tracedShadowWords = (lightTiles: number) => ({
-  masks: lightTiles * SHADOW_MASK.tileWords,
+ *  light of its), their masks in `format`: what they are made at and what the device must hold. The masks are
+ *  `shadowMaskOf(format).tileWords` a light tile, the scratch of the light functions after them where an image
+ *  has any (`scratch`); the traces are one word for each texel of each, at least `SHADOW_TRACE.least`, after the
+ *  count; the light tiles are `SHADOW_LIGHT_TILE_WORDS` each. */
+export const tracedShadowWords = (lightTiles: number, format: AtlasFormat, scratch: boolean) => ({
+  masks:
+    standaloneScratchAt(lightTiles, format) + (scratch ? standaloneScratchWords(lightTiles) : 0),
   traces: 1 + Math.max(SHADOW_TEXELS * lightTiles, SHADOW_TRACE.least),
   lightTiles: lightTiles * SHADOW_LIGHT_TILE_WORDS,
 })
@@ -121,6 +166,8 @@ export const LIGHTING_FLAG = {
   adaptiveShadowTracing: 256,
   forceTwoSided: 512,
   feedback: 1024,
+  cullToTileDepthRange: 2048,
+  probeOcclusion: 4096,
 } as const
 
 /** How a radiosity ray through the scene's triangles avoids the geometry it starts on, the setting
@@ -130,7 +177,8 @@ export const LIGHTING_FLAG = {
 export const SELF_INTERSECTION = { cull: 0, retrace: 1, skip: 2 } as const
 
 /** The parameters of an image's lighting passes: the atlas and the pages, the update clock, the lists' places and
- *  capacities, the eye, the frustum (five planes, outward, in centimetres from the eye), the direct light's numbers and the
+ *  capacities, the eye, the frustum (five planes, outward, in centimetres from the eye), the exposure the lights are strengthened
+ *  under, where the scratch of the light functions begins in the masks' buffer, the direct light's numbers and the
  *  radiosity's, those of its rays through the scene's triangles among them (the biases, how far a hit is read from the cards and
  *  how near it lights nothing, in centimetres, and the way the ray avoids self-intersections). */
 export const LIGHTING_PARAMS = fieldLayout('LightingParams', [
@@ -143,6 +191,8 @@ export const LIGHTING_PARAMS = fieldLayout('LightingParams', [
   ['directAt', 'u32'],
   ['indirectAt', 'u32'],
   ['radiosityAt', 'u32'],
+  ['directPagesAt', 'u32'],
+  ['indirectPagesAt', 'u32'],
   ['radiosityTiles', 'u32'],
   ['firstClipmapRcp', 'f32'],
   ['frustumDistance', 'f32'],
@@ -167,6 +217,9 @@ export const LIGHTING_PARAMS = fieldLayout('LightingParams', [
   ['cardDepthBias', 'f32'],
   ['cardMinDistance', 'f32'],
   ['selfIntersections', 'u32'],
+  ['probeOcclusionStrength', 'f32'],
+  ['scratchAt', 'u32'],
+  ['exposure', 'f32'],
   ['camera', 'vec4f'],
   ['eye', 'vec4f'],
   ['frustum', vec4Array(5)],

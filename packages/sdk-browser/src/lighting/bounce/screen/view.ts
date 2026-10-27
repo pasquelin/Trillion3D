@@ -3,6 +3,7 @@ import { ledgerAdmitted } from '../../../gpu/core/deviceLedger.ts'
 import { retire } from '../../../gpu/core/frameRetire.ts'
 import { gpuAllocator } from '../../../gpu/core/resourceAllocator.ts'
 import { createScreenProbeGroups } from './groups.ts'
+import type { PassRanks } from './groupParts.ts'
 import type { ScreenProbeKernels } from './kernels.ts'
 import { createScreenProbeParams } from './params.ts'
 import {
@@ -11,6 +12,7 @@ import {
   type ScreenProbeResources,
 } from './resources.ts'
 import {
+  atlasFits,
   geometryOfTile,
   screenProbeGeometry,
   type ScreenProbeGeometry,
@@ -27,8 +29,10 @@ export interface ScreenProbeView {
   /** The kernels the groups were made for, and the groups: made again where the kernels changed. */
   kernels?: ScreenProbeKernels
   groups?: ReturnType<typeof createScreenProbeGroups>
-  /** The parity of the spatial filter's passes the groups were made for: it names the gathered texture the conversion reads. */
-  parity?: number
+  /** The spatial filter's passes the groups were made for: their parity names the gathered texture the conversion reads. */
+  passes?: number
+  /** The uniforms of the spatial filter's passes, one each: made with the groups, destroyed with them. */
+  ranks?: PassRanks
   write: ReturnType<typeof createScreenProbeParams>
   /** The history's parity this image takes, and the images this view has had. */
   turn: 0 | 1
@@ -50,7 +54,11 @@ export interface ScreenProbeView {
   dispose(): void
 }
 
-/** What the shape of the resources depends on in the settings, once a settings object: the key two views of the same shape agree on. */
+/** What the resources depend on in the settings, once a settings object: exactly what `createScreenProbeResources` and the geometry it is made
+ *  at (`geometryOfTile`) read — whether the level casts, the tile, the adaptive probes and their share of the rows, the tracing and gather sides,
+ *  the levels of the gather, the irradiance's format, the temporal filter of the probes, the extra ambient occlusion, the occlusion's reduction,
+ *  the integration's and the occlusion's bent normal —, so that two views of the same shape agree on it. What only the kernels read (the occlusion's pyramid and power) is
+ *  in their own key (`shapeKey`) and does not remake the view. */
 const keys = new WeakMap<ScreenProbeSettings, string>()
 function settingsKeyOf(settings: ScreenProbeSettings) {
   let key = keys.get(settings)
@@ -64,8 +72,12 @@ function settingsKeyOf(settings: ScreenProbeSettings) {
         settings.values.screenProbeAdaptiveFraction,
         settings.tracingResolution,
         settings.gatherResolution,
+        settings.gatherMips,
         settings.irradianceFormat,
+        settings.temporalFilterProbes,
+        settings.extraAo,
         settings.occlusionDownsample,
+        settings.integrateDownsample,
         settings.bentNormal,
       ].join('|')),
     )
@@ -94,7 +106,7 @@ function makeView(
   const resources = createScreenProbeResources(allocator, capacity, settings)
   device.queue.writeBuffer(resources.listHead, 0, new Uint32Array([0, 0, 1, 0]))
   const bytes = allocator.bytes()
-  return {
+  const view: ScreenProbeView = {
     key: settingsKeyOf(settings),
     size,
     resources,
@@ -106,15 +118,19 @@ function makeView(
     previousInverse: new Float64Array(16),
     indirect: undefined,
     bytes,
-    dispose: () => retire(device, allocator),
+    dispose() {
+      retire(device, allocator)
+      if (view.ranks) retire(device, view.ranks)
+    },
   }
+  return view
 }
 
 /**
  * THE VIEW'S SCREEN PROBES at `size`, the size its targets are made at — never the size an image is drawn at in them, which a render
  * scale moves without remaking a thing —: the one it holds while it was made for these settings and this size, else made, the old
  * one given back. Made where the device's budget leaves room (`ledgerAdmitted`, the bytes the old one gives back credited), the tile
- * raised until the atlas fits the device's textures; none where it does not, and the reason: the pixels then take the sky light's irradiance.
+ * raised until the atlas fits the device's textures; none where it does not even at the largest tile, and the reason: the pixels then take the sky light's irradiance.
  */
 export function ensureScreenProbeView(
   held: ScreenProbeView | undefined,
@@ -129,12 +145,12 @@ export function ensureScreenProbeView(
     held.size[1] === size[1]
   )
     return { view: held }
-  const capacity = screenProbeGeometry(
-    size[0],
-    size[1],
-    settings,
-    device.limits?.maxTextureDimension2D,
-  )
+  const side = device.limits?.maxTextureDimension2D ?? Infinity
+  const capacity = screenProbeGeometry(size[0], size[1], settings, side)
+  if (!atlasFits(capacity, settings, side)) {
+    held?.dispose()
+    return { why: `the screen probes' atlas is wider than this device's textures (${side} texels)` }
+  }
   const { value, why } = ledgerAdmitted(device, {
     held,
     asked: screenProbeBytes(capacity, settings),

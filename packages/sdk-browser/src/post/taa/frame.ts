@@ -1,5 +1,5 @@
 import { jitterViewProjection, taaJitter, upscalePhases } from './jitter.ts'
-import { taaExposure, writeTaaView, type TaaHistoryTerms } from './view.ts'
+import { writeTaaView, type TaaHistoryTerms } from './view.ts'
 import { preExposureOf } from '../exposure/pre.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
@@ -22,8 +22,8 @@ import {
   type TemporalValues,
 } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { resolveSettingsStamped } from '../../../../sdk-core/src/contracts/settingRules.ts'
-import { SURFACE_OUTPUTS } from '../../materials/surface/surfaceOutputs.ts'
-import { FIRST_ANALYSIS_VIEW } from './rejectionWgsl.ts'
+import { FLAGS_VIEW } from '../../materials/surface/surfaceOutputs.ts'
+import { FIRST_ANALYSIS_VIEW } from './rejectionShared.ts'
 import { writesResponsive } from '../../frame/prepare/responsiveTarget.ts'
 import { keepFrame, planFrame, type FrameSlices } from './historyFrames.ts'
 import { sameShape, wantedShapeOf, type HistoryShape } from './historyShape.ts'
@@ -52,9 +52,6 @@ function workOf(knobs: ReturnType<typeof taaKnobs>, viewCode: number) {
   return !shown && settings.temporalFlickeringPeriod === 0 ? flickerlessOf(work) : work
 }
 
-/** The place of the flags in the surfaces' views (`SurfaceBuffer.views`). */
-const FLAGS_VIEW = SURFACE_OUTPUTS.findIndex(({ name }) => name === 'flags')
-
 /** What the thin coverage measure reads of this image, rewritten by each. */
 const measured = {} as MeasuredScene
 
@@ -65,8 +62,7 @@ const measuredAt = new WeakMap<object, number>()
  * The measures the analysis takes on the scene before any translucency is composed onto `image` —
  * the lit image, or the one its depth of field blurred where no near layer came before —, once an image, where the flicker measure or the thin geometry
  * detection runs (`TemporalAntialiasing.measure`): the flicker luma exposed as the shading rejection
- * measures it (the image's scale times the shading's exposure offset, `view.exposure.x`,
- * `view.preExposure.y`), the material's coverage where the detection runs. Called before each
+ * measures it (the shading's exposure offset, `view.preExposure.y`), the material's coverage where the detection runs. Called before each
  * composition of the translucency (`../../frame/render/encodeBlend.ts`, `surfaceLighting.ts`), the
  * first one measuring.
  */
@@ -82,7 +78,7 @@ export function measureBeforeTranslucency(
   resolveSettingsStamped(TEMPORAL_RULES, rt.context, settings)
   const work = workOf(taaKnobs(gpu.temporalLevel, settings), taaViewCode(run.diagnostic))
   if (!work.flicker && !work.thin) return
-  const scale = taaExposure(preExposureOf(rt).shown) * 2 ** settings.temporalShadingExposureOffset
+  const scale = 2 ** settings.temporalShadingExposureOffset
   measured.ids = vis.visView
   measured.pages = vis.pageTable
   measured.flags = gpu.surfaces.views()[FLAGS_VIEW]
@@ -106,10 +102,11 @@ function keepAnalysis(state: TaaFrameState, work: AnalysisWork, restart: boolean
 }
 
 /**
- * Image entry of the pass, called once per image drawn, where the image's motion is known. A
- * surface capture and a diagnostic view do not accumulate: they render at the centre of the
- * pixel, as their contract says; so does an image with the pass off, drawn at the controller's
- * scale, which the composition upscales. Otherwise the current
+ * Image entry of the pass, called once per image drawn, where the image's motion is known. A view
+ * with no pass — a surface capture, a capture image drawn with it off — and a diagnostic view do
+ * not accumulate: they render at the centre of the pixel, as their contract says; so does an image
+ * with the pass off, drawn at the controller's scale, which the composition upscales. A colour
+ * capture holds a pass of its own and accumulates its images (`startCaptureAccumulation`). Otherwise the current
  * rank's jitter is set on the render view-projection, selection always reads the engine camera's
  * own planes. The pass runs on every image drawn, so a still view keeps converging; its history
  * is reset on a view cut alone (`dropTaaHistory`), the jitter back to phase zero with it;
@@ -122,6 +119,9 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   if (temporal) temporal.frame.active = active
   // The motion the passes read is measured once, by the velocity stage (`encodeVelocity`).
   followVelocity(rt, active)
+  // The lighting's noise turns on every image drawn, with the pass or without it; a capture drawn aside, with no pass of its
+  // own, is not the view's, and leaves its sequence as it was.
+  if (temporal && (active || !rt.capture.capturing)) temporal.frame.stochasticSample++
   if (!temporal || !active) {
     // No temporal upscaler: the dynamic scale still steers a beauty image, which the composition
     // upscales spatially; a capture or a diagnostic view is drawn at the bounds' maximum.
@@ -213,14 +213,13 @@ function fitHistory(rt: WebgpuPagesRuntime, temporal: Temporal) {
 }
 
 /** What the uniform of an image says besides the camera and the settings: the history's shape and
- *  frames, the level's knobs and analysis, the view, the exposures, and whether a placement moved. */
+ *  frames, the level's knobs and analysis, the view, the pre-exposures, and whether a placement moved. */
 interface ImageTerms {
   readonly shape: HistoryShape
   readonly slices: FrameSlices
   readonly knobs: ReturnType<typeof taaKnobs>
   readonly work: AnalysisWork
   readonly viewCode: number
-  readonly exposure: number
   readonly pre: ReturnType<typeof preExposureOf>
   readonly moved: boolean
 }
@@ -231,7 +230,7 @@ function writeImageUniform(
   device: GPUDevice,
   temporal: Temporal,
   cam: EngineCamera,
-  { shape, slices, knobs, work, viewCode, exposure, pre, moved }: ImageTerms,
+  { shape, slices, knobs, work, viewCode, pre, moved }: ImageTerms,
 ) {
   const { gpu, vis, views } = rt
   const { inputs, frame, filterHistory } = temporal
@@ -253,8 +252,7 @@ function writeImageUniform(
     moved,
     !!inputs.filter && filterHistory.written,
     !!vis.deformationCompute || vis.rasters.offsets.length > 0,
-    exposure,
-    // The display's interval, the world's controller's (`rt.views.main`), whichever view is drawn.
+    // The interval between the two last images drawn, the world's controller's (`rt.views.main`), whichever view is drawn.
     views.main.scale.frameIntervalMs,
     viewCode,
     knobs,
@@ -266,29 +264,27 @@ function writeImageUniform(
   )
 }
 
-/** Keeps what the next image reads of this one: its camera and frame, the exposure, the number of
+/** Keeps what the next image reads of this one: its camera and frame, the number of
  *  still images, and the ranks of the jitter and of the lighting samples. */
 function keepTaaImage(
   rt: WebgpuPagesRuntime,
   state: TaaFrameState,
   cam: EngineCamera,
-  { slices, exposure, pre }: ImageTerms,
+  { slices, pre }: ImageTerms,
   holds: boolean,
   still: boolean,
 ) {
   const { targetSize } = rt.gpu
   keepImage(rt, state, cam, targetSize)
-  keepFrame(state.ring, slices, holds, cam.viewProjection, cam.eye, exposure, pre.now, targetSize)
-  state.previousExposure = exposure
+  keepFrame(state.ring, slices, holds, cam.viewProjection, cam.eye, pre.now, targetSize)
   state.accumulated = still ? state.accumulated + 1 : 1
   state.sample = (state.sample + 1) % state.phases
-  state.stochasticSample++
 }
 
 /**
  * Encodes this image's temporal pass and its display layers; returns the accumulated image
  * composition reads, `undefined` when none. Writes the uniform, advances the jitter, keeps the
- * unjittered view-projection, the render grid and the exposure the render-resolution histories are
+ * unjittered view-projection, the render grid the render-resolution histories are
  * kept at; its motion is the velocity stage's (`encodeVelocity`); the image is reconstructed to the
  * display from whatever size it was drawn at. `responsive`, cleared when blends draw, holds the
  * responsiveness the blends and transmissive layers carry (`../../blend/responsive.ts`), which the
@@ -337,8 +333,9 @@ export function encodeTaaPass(
   if (!temporal.ready(inputs, slices, work, half, execution)) return undefined
   keepAnalysis(state, work, restart)
   state.slices = slices
-  const exposure = taaExposure(pre.shown)
-  const terms = { shape, slices, knobs, work, viewCode, exposure, pre, moved }
+  // The pass weighs the pre-exposed colour as the image holds it: the tone weights `1 / (luma + 4)` and the measures do not
+  // follow the exposure the composition applies later.
+  const terms = { shape, slices, knobs, work, viewCode, pre, moved }
   writeImageUniform(rt, device, temporal, cam, terms)
   readSharedInputs(rt, inputs, current, responsive)
   // The motion blur flattens its motion in the nearest velocity, which dilates it: the blur's

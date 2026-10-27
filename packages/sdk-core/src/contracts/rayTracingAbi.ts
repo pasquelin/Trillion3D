@@ -7,6 +7,13 @@
  * child box quantised in the node's own frame, and writes the trees of all the primitives in
  * `rayTracing.bin`, one record per primitive that has a triangle. The lengths are metres, in the
  * primitive's object space.
+ *
+ * Each HLOD actor of the world is a mesh of its own, as in a scene where it is an instance: it has
+ * a record (`RAY_TRACING_FLAG_ACTOR`) over the cut of its DAG at its own error, in the world's space,
+ * naming the HLOD cell whose switch shows it. The world's last record (`RAY_TRACING_FLAG_WORLD`) is
+ * the directory of the actors: a tree over their boxes, whose entries name the actors' records. A
+ * ray entering a placement of the world DAG walks the directory and enters only the actors whose cell
+ * the cut draws this frame.
  */
 
 /** The product holding every primitive's tree, and the manifest's section naming it. */
@@ -15,16 +22,18 @@ export const RAY_TRACING_FILE = 'rayTracing.bin'
 export const RAY_TRACING_MAGIC = 0x54523354
 /** Format of `rayTracing.bin` and of the manifest's `rayTracing` section
  *  (`asset-compiler-rust/src/ray_tracing/encode.rs` lays it out). */
-export const RAY_TRACING_VERSION = 2
+export const RAY_TRACING_VERSION = 3
 /** The bytes of the file's head: the magic, the version, the record count, the node count and the
  *  triangle count (five `u32`), then three zero words. */
 export const RAY_TRACING_HEAD_BYTES = 32
 /** The bytes of a primitive's record: its compiled mesh and its number in the mesh (the two
- *  numbers a cluster root names its primitive by, `ClusterRoot.mesh` and `ClusterRoot.primitive`),
+ *  numbers a cluster root names its primitive by, `ClusterRoot.mesh` and `ClusterRoot.primitive`;
+ *  both `RAY_TRACING_NO_PRIMITIVE` in the world's record),
  *  its flags (`RAY_TRACING_FLAG_*`), the error of its cut in metres (`f32`), the rank of its first
  *  node and how many it has, the rank of its first triangle and how many it has (four `u32`, ranks
  *  within the file's node and triangle tables), the low and the high corner of its box in metres
- *  (six `f32`) and two zero words. */
+ *  (six `f32`), the HLOD cell of an actor's record (`RAY_TRACING_RECORD_AT.cell`; zero in the others)
+ *  and a zero word. */
 export const RAY_TRACING_RECORD_BYTES = 64
 /** The bytes of a node: the low corner of its box (three `f32`), the exponent of the scale its
  *  children's boxes are quantised at on each axis (three `i8`), the mask of its internal children
@@ -37,11 +46,16 @@ export const RAY_TRACING_RECORD_BYTES = 64
  *  `childBase` plus the number of internal children in the slots before `s`. */
 export const RAY_TRACING_NODE_BYTES = 80
 /** The bytes of a triangle: its three corners in metres (nine `f32`), the rank of its cluster in
- *  the primitive's DAG and its own rank in the cluster (two `u32`) and a zero word. */
+ *  the primitive's DAG and its own rank in the cluster (two `u32`) and its tag, a zero word. An entry
+ *  of the world's directory (`RAY_TRACING_FLAG_WORLD`) takes the place of a triangle: the low and the
+ *  high corner of an actor's box and the low corner again, the actor's rank among the actors' records
+ *  (`cluster`, the records just before the directory's, in order), zero, and the actor's HLOD cell
+ *  (the tag). */
 export const RAY_TRACING_TRIANGLE_BYTES = 48
-/** The children of a node: the slots of its metas and its masks, the eight octants of a ray's
- *  direction (the child in slot `s` is the first met by a ray whose direction has the signs of
- *  octant `s`, the bit of an axis set when the ray goes towards its negative side). */
+/** The words of a triangle after its nine corner floats, by name (`RAY_TRACING_TRIANGLE_BYTES`). */
+export const RAY_TRACING_TRIANGLE_AT = { cluster: 9, triangle: 10, tag: 11 } as const
+/** The children of a node: the slots of its metas and its masks, in no order the walk reads — it
+ *  measures the span of every child it meets and goes to the nearest. */
 export const RAY_TRACING_WIDTH = 8
 /** The most triangles a leaf child holds. */
 export const RAY_TRACING_LEAF_TRIANGLES = 3
@@ -62,6 +76,7 @@ export const RAY_TRACING_RECORD_AT = {
   triangleCount: 7,
   boxMin: 8,
   boxMax: 11,
+  cell: 14,
 } as const
 /** The bit of a record's flags that says the primitive's material is double-sided. */
 export const RAY_TRACING_FLAG_TWO_SIDED = 1
@@ -72,3 +87,29 @@ export const RAY_TRACING_FLAG_MASKED = 2
 /** The bit of a record's flags that says the primitive's material is translucent (blended or
  *  transmissive): it is not an occluder as an opaque surface is. */
 export const RAY_TRACING_FLAG_TRANSLUCENT = 4
+/** The bit of a record's flags that says it is the world's directory: a tree over the boxes of the
+ *  HLOD actors, whose entries stand where triangles do (`RAY_TRACING_TRIANGLE_BYTES`). It names no
+ *  primitive, and the actors' records are the ones just before it. */
+export const RAY_TRACING_FLAG_WORLD = 8
+/** The bit of a record's flags that says it is an HLOD actor's: the cut of its DAG at its own error, in
+ *  the world's space, wearing its material's flags (`RAY_TRACING_FLAG_*`), shown by the HLOD cell the
+ *  record names (`RAY_TRACING_RECORD_AT.cell`). It names no primitive. */
+export const RAY_TRACING_FLAG_ACTOR = 16
+/** The bit of a record's flags that says every primitive of its mesh is translucent (an HLOD actor
+ *  being a mesh of one material): a mesh no part of which is opaque is left out of every ray whatever
+ *  the ray asks, as the scene a ray tracer builds leaves it out unless it traces translucent geometry. The
+ *  compiler sets it on each record of such a mesh, each of which has `RAY_TRACING_FLAG_TRANSLUCENT`
+ *  too; a mesh with an opaque primitive has it on none, its translucent primitives being left out
+ *  only of the rays that ask. */
+export const RAY_TRACING_FLAG_ALL_TRANSLUCENT = 32
+/** The compiled mesh and primitive number the world's records name: none. */
+export const RAY_TRACING_NO_PRIMITIVE = 0xffffffff
+/** The nodes a walk of any tree of the file holds on its stack at most: the compiler gives a tree no
+ *  walk of which needs more (the walk keeps, at a node, all the hit internal children but the nearest,
+ *  so a tree needs at the deepest the sum along a path of its internal children less one), and the
+ *  shader's stack holds as many. */
+export const RAY_TRACING_STACK = 64
+/** The least exponent a node's scale takes (`RAY_TRACING_NODE_BYTES`): a box that is flat along an
+ *  axis gets it, its children's coordinates there being zero whatever the scale. The compiler writes no
+ *  lesser and the shader reads no lesser, so that both read the same power of two. */
+export const RAY_TRACING_MIN_EXPONENT = -126

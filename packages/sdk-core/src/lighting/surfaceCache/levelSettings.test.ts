@@ -41,6 +41,7 @@ test('the rays through the scene’s triangles are the reference’s: radiosity 
     surfaceCacheHardwareRayTracingAvoidSelfIntersections: 3,
     surfaceCacheHardwareRayTracingSkipBackFaceHitDistance: 5,
     surfaceCacheHardwareRayTracingSkipTwoSidedHitDistance: 1,
+    surfaceCacheHardwareRayTracingMeshSectionVisibilityTest: true,
     surfaceCacheHardwareRayTracingMinTraceDistanceToSampleSurfaceCache: 10,
     surfaceCacheHardwareRayTracingSurfaceCacheSamplingDepthBias: 10,
   }
@@ -56,6 +57,30 @@ test('the rays through the scene’s triangles are the reference’s: radiosity 
   assert.equal(settingFits(rule, 4), false)
   assert.equal(settingFits(rule, 1.5), false)
   assert.equal(settingFits(rule, -1), false)
+})
+
+test('the culling of the placements the rays can meet is the reference’s: mode 3, 300 m, 1 degree, the least draw distance and the box distance on, and no level changes it', () => {
+  const culling = {
+    rayTracingCulling: 3,
+    rayTracingCullingRadius: 30000,
+    rayTracingCullingAngle: 1,
+    rayTracingCullingUseMinDrawDistance: true,
+    rayTracingCullingUseDistanceToBox: true,
+  }
+  for (const [field, value] of Object.entries(culling)) {
+    for (const level of SCREEN_PROBE_LEVELS)
+      assert.equal(at(level)[field as keyof SurfaceCacheSettings], value, `${field} at ${level}`)
+  }
+  // The mode is a whole number from 0 to 3.
+  const mode = SURFACE_CACHE_RULES.rayTracingCulling as SettingRule
+  assert.deepEqual(
+    [0, 3].map((v) => settingFits(mode, v)),
+    [true, true],
+  )
+  assert.deepEqual(
+    [4, -1, 1.5].map((v) => settingFits(mode, v)),
+    [false, false, false],
+  )
 })
 
 test('the high and low levels hold the reference’s rows of the atlas, the cards, the lights and the radiosity', () => {
@@ -107,4 +132,16 @@ test('every row names settings of the cache and takes values they take', () => {
       assert.ok(rule, `${level}: ${field} is a setting of the surface cache`)
       assert.ok(settingFits(rule, value), `${level}: ${field} takes ${String(value)}`)
     }
+})
+
+test('a big change of the lighting is followed at once by default, at every level, as the setting says', () => {
+  for (const level of SCREEN_PROBE_LEVELS) {
+    assert.equal(at(level).surfaceCachePropagateGlobalLightingChange, true, level)
+    assert.equal(
+      at(level, { surfaceCachePropagateGlobalLightingChange: false })
+        .surfaceCachePropagateGlobalLightingChange,
+      false,
+      level,
+    )
+  }
 })

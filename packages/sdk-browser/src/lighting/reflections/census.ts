@@ -1,12 +1,7 @@
 import type { ReflectionFrameMetrics } from '../../../../sdk-core/src/contracts/reflectionMetrics.ts'
 import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
-import {
-  REFLECTION_CENSUS,
-  REFLECTION_CENSUS_WORDS,
-  REFLECTION_FATES,
-  REFLECTION_WORK_BUCKETS,
-  type ReflectionFate,
-} from './censusWgsl.ts'
+import { REFLECTION_CENSUS_WORDS } from './censusWgsl.ts'
+import { WAITING, countedBy } from './censusCount.ts'
 
 /** The bytes of a view's census buffer (its staging ring maps apart). */
 export const REFLECTION_CENSUS_BYTES = REFLECTION_CENSUS_WORDS * 4
@@ -14,51 +9,16 @@ export const REFLECTION_CENSUS_BYTES = REFLECTION_CENSUS_WORDS * 4
 /** Censuses in flight at once: an image whose buffers are all in flight counts nothing, never waits. */
 const IN_FLIGHT = 3
 
-/** The metrics before any census came back: every count unknown. */
-const WAITING: ReflectionFrameMetrics = {
-  censusReads: null,
-  censusFrame: null,
-  rays: null,
-  screenRays: null,
-  screenWholeRays: null,
-  sceneRays: null,
-  sceneEnded: null,
-  sceneWork: null,
-}
-
-/** The metrics a census `words` of image `frame` gives, `reads` the censuses that came back. */
-function countedBy(words: Uint32Array, reads: number, frame: number): ReflectionFrameMetrics {
-  const at = REFLECTION_CENSUS
-  const fate = (name: ReflectionFate) => words[at.fates + REFLECTION_FATES.indexOf(name)]
-  return {
-    ...WAITING,
-    censusReads: reads,
-    censusFrame: frame,
-    // Every ray the screen stage casts ends in exactly one of these two.
-    rays: words[at.whole] + words[at.left],
-    screenRays: words[at.screen],
-    screenWholeRays: words[at.whole],
-    sceneRays: words[at.left],
-    sceneEnded: {
-      noField: fate('noField'),
-      hit: fate('hit'),
-      open: fate('open'),
-      miss: fate('miss'),
-      bound: fate('bound'),
-      distant: fate('distant'),
-    },
-    sceneWork: Array.from(words.subarray(at.work, at.work + REFLECTION_WORK_BUCKETS)),
-  }
-}
-
 /** What the census keeps between images: the censuses that came back and the image the last counted, the metrics
- *  shown for them, and whether the view traces this image. */
+ *  shown for them, whether the view traces this image and whether its scene stage marched its rays through the field (`countedBy`). */
 interface CensusState {
   reads: number
   frame: number
   shownReads: number
   shown: ReflectionFrameMetrics
   tracing: boolean
+  marched: boolean
+  shownMarched: boolean
 }
 
 /** What the last census that came back counted: the same object until the next one does; null while the view
@@ -66,9 +26,10 @@ interface CensusState {
 function metricsOf(state: CensusState, words: Uint32Array): ReflectionFrameMetrics | null {
   if (!state.tracing) return null
   const { reads } = state
-  if (state.shownReads !== reads) {
-    state.shown = reads ? countedBy(words, reads, state.frame) : WAITING
+  if (state.shownReads !== reads || state.shownMarched !== state.marched) {
+    state.shown = reads ? countedBy(words, reads, state.frame, state.marched) : WAITING
     state.shownReads = reads
+    state.shownMarched = state.marched
   }
   return state.shown
 }
@@ -78,7 +39,7 @@ export interface ReflectionCensus {
   buffer: GPUBuffer | undefined
   idle(): void
   clear(encoder: GPUCommandEncoder): void
-  copy(encoder: GPUCommandEncoder, image: number): void
+  copy(encoder: GPUCommandEncoder, image: number, marched?: boolean): void
   submitted(): void
   metrics(): ReflectionFrameMetrics | null
   dispose(): void
@@ -119,6 +80,8 @@ export function createReflectionCensus(device: GPUDevice, statistics: boolean): 
     shownReads: 0,
     shown: WAITING,
     tracing: false,
+    marched: true,
+    shownMarched: true,
   }
   const ring = createReadbackRing(
     device,
@@ -142,9 +105,10 @@ export function createReflectionCensus(device: GPUDevice, statistics: boolean): 
     /** The counters emptied, before the image's trace. */
     clear: (encoder: GPUCommandEncoder) => encoder.clearBuffer(buffer),
     /** The image `image` traced: its counts copied to a staging buffer of the ring, if one is free,
-     *  after its trace. */
-    copy(encoder: GPUCommandEncoder, image: number) {
+     *  after its trace; `marched`, whether its scene stage marched its rays through the field (the default), the metrics then holding how they ended. */
+    copy(encoder: GPUCommandEncoder, image: number, marched = true) {
       state.tracing = true
+      state.marched = marched
       const staging = ring.take(image)
       if (staging) encoder.copyBufferToBuffer(buffer, 0, staging, 0, REFLECTION_CENSUS_BYTES)
     },

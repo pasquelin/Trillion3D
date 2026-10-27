@@ -31,7 +31,7 @@ const forwardReflectionWgsl = (group: number, lobes: boolean, traced: number) =>
   wgslBlock(
     `forwardReflectionWgsl(${group}, ${lobes}, ${traced})`,
     [
-      reflectionWeighWgsl(lobes),
+      reflectionWeighWgsl(lobes, 'slab'),
       reflectionEnvironmentLobesWgsl(lobes),
       reflectionFrontWgsl(group),
       surfaceReflects,

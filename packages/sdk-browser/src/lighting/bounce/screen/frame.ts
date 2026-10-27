@@ -2,24 +2,34 @@ import { skyLightReadOf } from '../../../frame/render/skyLightState.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import type { ReflectionSettings } from '../../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import type { ScreenProbeFrameMetrics } from '../../../../../sdk-core/src/contracts/shadowMetrics.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { readHizSetting } from '../../../../../sdk-core/src/contracts/hizOptions.ts'
 import { screenRelativeThickness } from '../../../visibility/hiz/gpu/screenSlab.ts'
 import { blueNoiseNow, blueNoiseRefused } from '../../../gpu/noise/blueNoiseTextures.ts'
-import { reflectionGroup, reflectionLightView } from '../../reflections/group.ts'
+import { retire } from '../../../gpu/core/frameRetire.ts'
+import { FLAGS_VIEW, viewOf } from '../../../materials/surface/surfaceOutputs.ts'
+import { waterFrontOf } from '../../../blend/water/waterReflection.ts'
+import {
+  reflectionSceneGroup,
+  reflectionGroup,
+  reflectionLightView,
+} from '../../reflections/group.ts'
+import { rayFogReadOf } from '../../reflections/rayFog.ts'
 import { demandSurfaceCache, surfaceHitReads } from '../../surfaceCache/frame.ts'
+import { sceneRaysOf, type SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
 import type { MarkProbes } from '../pool/pool.ts'
 import { stochasticPhase } from '../../../post/taa/frameState.ts'
-import { screenProbesCast } from './cast.ts'
+import { castsThroughTriangles, screenProbesCast } from './cast.ts'
 import {
   encodeProbePlacement,
   encodeProbeTrace,
   type CastRun,
   type ScreenProbeRun,
 } from './encode.ts'
-import { createScreenProbeGroups } from './groups.ts'
-import type { ScreenProbeInputs } from './groupParts.ts'
+import { createScreenProbeGroups, type ScreenProbeGroups } from './groups.ts'
+import { passRanks, type ScreenProbeInputs } from './groupParts.ts'
 import { createScreenProbeStore, type ScreenProbeStore } from './store.ts'
 import type { ScreenProbeGeometry } from './screenProbeLayout.ts'
 import { ensureScreenProbeView, imageGeometry, type ScreenProbeView } from './view.ts'
@@ -33,6 +43,7 @@ function metricsOf(
     history?: boolean
     screen?: boolean
     velocity?: boolean
+    traced?: boolean
     bytes?: number
     cacheBytes?: number
   },
@@ -50,7 +61,7 @@ function metricsOf(
     history: !!read.history,
     screenTraces: settings.casts && !!read.screen && settings.values.screenProbeScreenTraces,
     sceneTraces: !!g && settings.casts && settings.values.screenProbeSceneTraces,
-    meshTraces: false,
+    meshTraces: !!read.traced,
     velocity: !!read.velocity,
     bytes: read.bytes ?? 0,
     radianceCache: !!read.cacheBytes && settings.radianceCache,
@@ -105,7 +116,11 @@ const noiseWhy = (device: GPUDevice | undefined) =>
 /** The frame's resources the probes read, handed to `placeProbes`. */
 type Needed = NonNullable<ReturnType<typeof neededOf>>
 
-/** What the groups name of the frame: its normals and flags, the lights, the cascades (or the lighting's stand-ins), the global
+const BASE_VIEW = viewOf('baseMetal')
+const NORMALS_VIEW = viewOf('normalRough')
+const EMISSIVE_AO_VIEW = viewOf('emissiveAo')
+
+/** What the groups name of the frame, filled in `store.inputs` (made on the first image, then written over, nothing allocated): its normals, flags and lobes, its base colours and metalness and its emission and occlusion, the lights, the cascades (or the lighting's stand-ins), the global
  *  distance field the rays are marched through and the surface cache their hits read, the vectors of the image (or the stand-in of
  *  none) and the blue noise (made: the image asked for it before it cast). */
 function inputsOf(
@@ -117,54 +132,85 @@ function inputsOf(
   const frames = surfaces.views(),
     probes = rt.bounce.probes
   const cache = probes?.cache.views ?? store.noCache(device)
-  return {
-    normals: frames[1],
-    flags: frames[3],
-    lights,
-    bounceGrid: probes?.uniform ?? deferred.placeholders.bounceGrid,
-    probes: probes?.table ?? deferred.placeholders.probes,
-    ...surfaceHitReads(rt, device),
-    vectors: vectors ?? store.noVectors(device),
-    blue: noise.view,
-    cacheFinal: cache.final,
-    cacheRaw: cache.raw,
-    cacheSky: cache.sky,
-    cacheTags: cache.tags,
-    cachePdf: cache.pdf,
-  }
+  // The groups tell a change by each resource they name (`createScreenProbeGroups`), not by the object that holds them.
+  const inputs = (store.inputs ??= {} as ScreenProbeInputs)
+  inputs.normals = frames[NORMALS_VIEW]
+  inputs.flags = frames[FLAGS_VIEW]
+  inputs.base = frames[BASE_VIEW]
+  inputs.emissiveAo = frames[EMISSIVE_AO_VIEW]
+  inputs.lobes = surfaces.lobesView
+  inputs.lights = lights
+  inputs.fog = rayFogReadOf(rt.gpu, deferred.placeholders)
+  inputs.bounceGrid = probes?.uniform ?? deferred.placeholders.bounceGrid
+  inputs.probes = probes?.table ?? deferred.placeholders.probes
+  surfaceHitReads(rt, device, inputs)
+  inputs.vectors = vectors ?? store.noVectors(device)
+  inputs.blue = noise.view
+  inputs.cacheFinal = cache.final
+  inputs.cacheRaw = cache.raw
+  inputs.cacheSky = cache.sky
+  return inputs
 }
 
-/** The groups of the view for the kernels and the filter's passes asked: made again where either changed, the history dropped where the
- *  passes' parity did (the rays read the gathered texture the last passes wrote). */
+/** The groups of the view for the kernels and the filter's passes asked: made again where either changed (each pass has a group of its own),
+ *  the history dropped where the passes' parity did (the rays read the gathered texture the last passes wrote). The passes' uniforms are
+ *  made again only where their count changed. */
 function groupsOf(
   view: ScreenProbeView,
   device: GPUDevice,
   kernels: NonNullable<ScreenProbeView['kernels']>,
   settings: ScreenProbeSettings,
 ) {
-  const parity = settings.casts ? settings.spatialFilterPasses & 1 : 0
-  if (view.kernels !== kernels || view.parity !== parity) {
-    if (view.parity !== undefined && view.parity !== parity) view.history = false
-    view.kernels = kernels
-    view.parity = parity
-    view.groups = createScreenProbeGroups(
-      device,
-      kernels,
-      view.resources,
-      settings.spatialFilterPasses,
-    )
+  const passes = settings.casts ? settings.spatialFilterPasses : 0
+  let ranks = view.ranks
+  if (!ranks || view.passes !== passes) {
+    if (view.passes !== undefined && (view.passes & 1) !== (passes & 1)) view.history = false
+    view.passes = passes
+    // The passes' uniforms of the groups it replaces may still be named by this image's commands: they go with the frame's retire list.
+    if (ranks) retire(device, ranks)
+    ranks = view.ranks = passRanks(device, passes)
+    view.groups = undefined
   }
-  return view.groups!
+  if (view.kernels !== kernels || !view.groups) {
+    view.kernels = kernels
+    view.groups = createScreenProbeGroups(device, kernels, view.resources, ranks.buffers)
+  }
+  return view.groups
+}
+
+/** What the lighting is told of the probes (`mode`, the bits of the parameters' mode word it reads): the setting's occlusion strengths and albedo ceiling, and the mode. */
+function tellLighting(
+  deferred: Pick<Needed['deferred'], 'setScreenProbes'>,
+  settings: ScreenProbeSettings,
+  mode: number,
+) {
+  const { values } = settings
+  deferred.setScreenProbes(
+    settings.occlusionFoliageStrength,
+    values.screenProbeOcclusionMaxAlbedo,
+    values.screenProbeOcclusionIntensity,
+    mode,
+  )
+}
+
+/** The lighting told the probes left it nothing this image: it reads their occlusion alone, which is none, over the sky light's irradiance (mode bit 0),
+ *  never the black a pixel the probes could not read has where they gather. */
+function leaveToSkyLight(rt: WebgpuPagesRuntime, settings: ScreenProbeSettings) {
+  if (rt.gpu.deferred) tellLighting(rt.gpu.deferred, settings, 1)
 }
 
 /** The result handed to the lighting, and the view moved on to its next image. */
 function handOver(needed: Needed, state: ScreenProbeView, settings: ScreenProbeSettings) {
-  const { values } = settings
-  needed.deferred.setScreenProbes(
-    +values.screenProbeMaterialAO,
-    values.screenProbeOcclusionMaxAlbedo,
-    values.screenProbeOcclusionIntensity,
-    (settings.casts ? 0 : 1) + (settings.backfaceDiffuse ? 0 : 2),
+  tellLighting(
+    needed.deferred,
+    settings,
+    (settings.casts ? 0 : 1) +
+      (settings.backfaceDiffuse ? 0 : 2) +
+      (settings.casts &&
+      settings.occlusion &&
+      settings.values.screenProbeShortRangeAOApplyDuringIntegration
+        ? 4
+        : 0),
   )
   state.indirect = state.resources.history[state.turn]
   state.viewProjection.set(needed.reflection.frame.viewProjection)
@@ -174,7 +220,7 @@ function handOver(needed: Needed, state: ScreenProbeView, settings: ScreenProbeS
 }
 
 /** An image of probes placed and not yet traced: what its trace and its hand-over to the lighting read. */
-export interface PlacedProbes {
+interface PlacedProbes {
   /** The probes just placed, which the pool's pass marks the cells they stand in from: none where the level casts none. */
   marks: MarkProbes | undefined
   store: ScreenProbeStore
@@ -185,8 +231,8 @@ export interface PlacedProbes {
   /** The run of the probes placed (`encodeProbePlacement`), none where the level casts none. */
   cast: CastRun | undefined
   geometry: ScreenProbeGeometry
-  /** What the image read of the last one, for its metrics. */
-  read: { history: boolean; screen: boolean; velocity: boolean }
+  /** What the image read of the last one, and whether its rays went through the scene's triangles, for its metrics. */
+  read: { history: boolean; screen: boolean; velocity: boolean; traced: boolean }
 }
 
 /** Writes the parameters of an image: the stochastic phase, what the image reads of the last one (`read`),
@@ -198,6 +244,8 @@ function writeImageParameters(
   settings: ScreenProbeSettings,
   reflection: Needed['reflection'],
   { history, screen, velocity }: PlacedProbes['read'],
+  lobes: ReflectionSettings,
+  rays: SceneRays | undefined,
 ) {
   const { held } = reflection.lit
   const cacheViews = rt.bounce.probes?.cache.views
@@ -206,7 +254,7 @@ function writeImageParameters(
   invertMatrix4(state.previousInverse, held.viewProjection)
   state.write(geometry, settings, {
     frame: phase,
-    previousFrame: taa?.active ? Math.max(phase - 1, 0) : phase,
+    previousFrame: Math.max(phase - 1, 0),
     history,
     screen,
     cache: !!cacheViews && settings.radianceCache,
@@ -216,8 +264,44 @@ function writeImageParameters(
       reflection.frame.viewProjection,
       settings.values.screenProbeRelativeDepthThickness,
     ),
+    historyThickness: screenRelativeThickness(
+      reflection.frame.viewProjection,
+      settings.values.screenProbeHistoryDepthTestThickness,
+    ),
     fullResDepth: readHizSetting(rt, 'hizFullResDepth'),
+    skylightLeak: lobes.skylightLeakColor,
+    roughSpecularFoliage: lobes.maxRoughnessEvaluateFoliage,
+    posesMoving: !!rt.run.gpuSelection?.posesMoving,
+    rays,
   })
+}
+
+/**
+ * The scene stage that casts the rays the screen left through the scene's triangles, or none where this image marches them through the
+ * global distance field: the level casts probes with scene traces and `screenProbeHardwareRayTracing` on, the lighting made the scene
+ * trace for this image (`sceneRaysOf`) and the stage's program is compiled (`ScreenProbeStore.tracedFor`, not waited for). The scene trace it
+ * answers with is the one the image's parameters are written for.
+ */
+function tracedSceneOf(
+  rt: WebgpuPagesRuntime,
+  store: ScreenProbeStore,
+  device: GPUDevice,
+  settings: ScreenProbeSettings,
+  groups: ScreenProbeGroups,
+) {
+  if (!groups.cast || !castsThroughTriangles(settings.values)) return undefined
+  const rays = sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame)
+  const previous = rt.run.gpuSelection?.previous
+  if (!rays || !previous) return undefined
+  const kernel = store.tracedFor(device, settings)
+  if (!kernel.ready) return undefined
+  return {
+    rays,
+    traced: {
+      pipeline: kernel.pipeline(),
+      groups: groups.cast.tracedScene(kernel.layouts, rays, previous),
+    },
+  }
 }
 
 /**
@@ -243,6 +327,7 @@ function placeProbes(
   const { held } = reflection.lit
   const geometry = imageGeometry(state, rt.gpu.targetSize, settings)
   const history =
+    !rt.bounce.historyLost &&
     state.history &&
     held.valid &&
     held.size[0] === geometry.width &&
@@ -250,14 +335,28 @@ function placeProbes(
     sameValues(held.viewProjection, state.viewProjection)
   const screen = reflection.frame.depthDrawn && held.valid
   const velocity = history && !!vectors
-  writeImageParameters(rt, state, geometry, settings, reflection, { history, screen, velocity })
+  const bound = groups(state.turn, inputsOf(rt, needed, store, vectors))
+  const traced = tracedSceneOf(rt, store, device, settings, bound)
+  const read = { history, screen, velocity, traced: !!traced }
+  writeImageParameters(
+    rt,
+    state,
+    geometry,
+    settings,
+    reflection,
+    read,
+    reflection.settings(rt.context, waterFrontOf(rt)),
+    traced?.rays,
+  )
   const run: ScreenProbeRun = {
     kernels,
     resources: state.resources,
-    groups: groups(state.turn, inputsOf(rt, needed, store, vectors)),
+    groups: bound,
     reflection: reflectionGroup(reflection, depth, lightView, skyLightReadOf(rt)),
+    sceneReflection: reflectionSceneGroup(reflection, lightView, skyLightReadOf(rt)),
     settings,
     cache: rt.bounce.probes?.cache,
+    traced: traced?.traced,
   }
   // The turn the records are marked from is this image's: the hand-over, after the trace, moves it on.
   const cast = encodeProbePlacement(encoder, run)
@@ -270,7 +369,7 @@ function placeProbes(
     run,
     cast,
     geometry,
-    read: { history, screen, velocity },
+    read,
   }
 }
 
@@ -297,10 +396,12 @@ export function placeScreenProbes(
   const settings = store.read(rt.context)
   if (!screenProbesCast(rt)) {
     release(rt)
+    leaveToSkyLight(rt, settings)
     store.metrics = undefined
     return
   }
   const skip = (why: string) => {
+    leaveToSkyLight(rt, settings)
     if (gpu.screenProbes) {
       gpu.screenProbes.indirect = undefined
       gpu.screenProbes.history = false
@@ -353,7 +454,6 @@ export function traceScreenProbes(
 function probesOf(view: ScreenProbeView, geometry: ScreenProbeGeometry, turn: number): MarkProbes {
   return {
     info: view.resources.info[turn],
-    normal: view.resources.normal,
     counts: view.resources.counts,
     uniform: geometry.uniform,
     maxAdaptive: geometry.maxAdaptive,

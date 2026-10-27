@@ -6,8 +6,6 @@ import assert from 'node:assert/strict'
 import {
   RAY_TRACING_FLAG_TWO_SIDED,
   RAY_TRACING_HEAD_BYTES,
-  RAY_TRACING_LEAF_COUNT_SHIFT,
-  RAY_TRACING_MAGIC,
   RAY_TRACING_NODE_BYTES,
   RAY_TRACING_RECORD_AT,
   RAY_TRACING_RECORD_BYTES,
@@ -15,45 +13,7 @@ import {
   RAY_TRACING_VERSION,
 } from '../contracts/rayTracingAbi.ts'
 import { assertRayTracingSection, parseRayTracing } from './rayTracingFile.ts'
-
-/** A file of the one record of primitive `primitive` of mesh `mesh`, one node (a leaf child of
- *  `triangles` triangles at its slot 0) and two triangles, `mutate` altering the bytes. */
-function fileOf(
-  options: { mesh?: number; primitive?: number; triangles?: number } = {},
-  mutate: (view: DataView) => void = () => {},
-) {
-  const { mesh = 5, primitive = 3, triangles = 2 } = options
-  const nodesAt = RAY_TRACING_HEAD_BYTES + RAY_TRACING_RECORD_BYTES
-  const trianglesAt = nodesAt + RAY_TRACING_NODE_BYTES
-  const bytes = new Uint8Array(trianglesAt + 2 * RAY_TRACING_TRIANGLE_BYTES)
-  const view = new DataView(bytes.buffer)
-  ;[RAY_TRACING_MAGIC, RAY_TRACING_VERSION, 1, 1, 2].forEach((word, k) =>
-    view.setUint32(k * 4, word, true),
-  )
-  const record = RAY_TRACING_HEAD_BYTES
-  const R = RAY_TRACING_RECORD_AT
-  view.setUint32(record + R.mesh * 4, mesh, true)
-  view.setUint32(record + R.primitive * 4, primitive, true)
-  view.setUint32(record + R.flags * 4, RAY_TRACING_FLAG_TWO_SIDED, true)
-  view.setFloat32(record + R.error * 4, 0.25, true)
-  view.setUint32(record + R.nodeCount * 4, 1, true)
-  view.setUint32(record + R.triangleCount * 4, 2, true)
-  ;[-1, -2, -3, 1, 2, 3].forEach((v, k) => view.setFloat32(record + (R.boxMin + k) * 4, v, true))
-  // The node: its corner, an exponent of 0 a side and no child that is a node, then the metas:
-  // slot 0 a leaf of `triangles` triangles at offset 0, the others empty.
-  // The corner is the node's words 0 to 2 and the metas start at its word 6.
-  ;[-1, -2, -3].forEach((v, k) => view.setFloat32(nodesAt + k * 4, v, true))
-  view.setUint8(nodesAt + 6 * 4, triangles << RAY_TRACING_LEAF_COUNT_SHIFT)
-  // The triangles: the corners, then the cluster and the rank in it.
-  for (let t = 0; t < 2; t++) {
-    const at = trianglesAt + t * RAY_TRACING_TRIANGLE_BYTES
-    ;[0, 0, 0, 1, 0, 0, 0, 1, t].forEach((v, k) => view.setFloat32(at + k * 4, v, true))
-    view.setUint32(at + 36, 7 + t, true)
-    view.setUint32(at + 40, t, true)
-  }
-  mutate(view)
-  return bytes
-}
+import { fileOf, twoRecords } from './rayTracingFile.fixture.ts'
 
 test('the file is read as the records, nodes and triangles the GPU reads, the mesh and primitive naming its record', () => {
   const file = parseRayTracing(fileOf())
@@ -114,10 +74,10 @@ test('a file whose head, sizes or records do not close is refused', () => {
     () =>
       parseRayTracing(
         fileOf({}, (v) =>
-          v.setUint32(RAY_TRACING_HEAD_BYTES + RAY_TRACING_RECORD_AT.flags * 4, 8, true),
+          v.setUint32(RAY_TRACING_HEAD_BYTES + RAY_TRACING_RECORD_AT.flags * 4, 64, true),
         ),
       ),
-    /flags 8/,
+    /flags 64/,
   )
   assert.throws(
     () =>
@@ -131,28 +91,12 @@ test('a file whose head, sizes or records do not close is refused', () => {
 })
 
 test('a primitive named twice is refused, in two meshes it is two', () => {
-  const twice = (second: { mesh: number; primitive: number }) => {
-    const one = fileOf()
-    const bytes = new Uint8Array(one.length + RAY_TRACING_RECORD_BYTES)
-    const record = RAY_TRACING_HEAD_BYTES
-    const nodesAt = record + RAY_TRACING_RECORD_BYTES
-    // The head, the first record, a second one that holds no node and no triangle, then the rest.
-    bytes.set(one.subarray(0, nodesAt))
-    bytes.set(one.subarray(nodesAt), nodesAt + RAY_TRACING_RECORD_BYTES)
-    const view = new DataView(bytes.buffer)
-    view.setUint32(8, 2, true)
-    bytes.set(one.subarray(record, nodesAt), nodesAt)
-    const R = RAY_TRACING_RECORD_AT
-    view.setUint32(nodesAt + R.mesh * 4, second.mesh, true)
-    view.setUint32(nodesAt + R.primitive * 4, second.primitive, true)
-    view.setUint32(nodesAt + R.firstNode * 4, 1, true)
-    view.setUint32(nodesAt + R.nodeCount * 4, 0, true)
-    view.setUint32(nodesAt + R.firstTriangle * 4, 2, true)
-    view.setUint32(nodesAt + R.triangleCount * 4, 0, true)
-    return bytes
+  const named = (mesh: number, primitive: number) => (view: DataView, at: number) => {
+    view.setUint32(at + RAY_TRACING_RECORD_AT.mesh * 4, mesh, true)
+    view.setUint32(at + RAY_TRACING_RECORD_AT.primitive * 4, primitive, true)
   }
-  assert.throws(() => parseRayTracing(twice({ mesh: 5, primitive: 3 })), /5\/3 twice/)
-  const file = parseRayTracing(twice({ mesh: 6, primitive: 3 }))
+  assert.throws(() => parseRayTracing(twoRecords(named(5, 3))), /5\/3 twice/)
+  const file = parseRayTracing(twoRecords(named(6, 3)))
   assert.deepEqual([file.byPrimitive.get(5)?.get(3), file.byPrimitive.get(6)?.get(3)], [0, 1])
 })
 

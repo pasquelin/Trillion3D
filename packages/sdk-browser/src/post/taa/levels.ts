@@ -19,23 +19,20 @@ export interface AnalysisWork {
   readonly flicker: boolean
   readonly antiAlias: boolean
   readonly thin: boolean
-  /** Whether an analysis view shows it: the flicker measure then keeps its count too. */
-  readonly shown: boolean
 }
 /** Every pass of the analysis, an analysis view's whatever the level (`taaViewCode`). */
 export const FULL_ANALYSIS: AnalysisWork = {
   flicker: true,
   antiAlias: true,
   thin: true,
-  shown: true,
 }
 /** The analysis of a level running the flicker measure and the spatial anti-aliaser as asked: the
  *  thin geometry detection off (`work`), the reference's default — it relaxes the history only
  *  where geometry is thinner than a pixel, and costs every image the finding of where —, and on
  *  (`thinWork`). */
 const analysisOf = (flicker: boolean, antiAlias: boolean) => ({
-  work: { flicker, antiAlias, thin: false, shown: false },
-  thinWork: { flicker, antiAlias, thin: true, shown: false },
+  work: { flicker, antiAlias, thin: false },
+  thinWork: { flicker, antiAlias, thin: true },
 })
 
 /** What a temporal anti-aliasing level sets in the pass (`TaaView.quality`, `bindingsWgsl.ts`):

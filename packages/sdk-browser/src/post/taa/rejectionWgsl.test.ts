@@ -5,8 +5,13 @@ import assert from 'node:assert/strict'
 import { near } from '../../../../math/src/float/near.fixture.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { REPROJECT_BITS, reprojectShader } from './reprojectWgsl.ts'
+import { REPROJECT_BITS, REPROJECTED_WORD_WGSL, reprojectShader } from './reprojectWgsl.ts'
+import { TAA_VIEW_WGSL } from './bindingsWgsl.ts'
+import { FULL_PRECISION } from './colorSpaceWgsl.ts'
+import { flickerMeasureWgsl } from './flickerMeasureWgsl.ts'
 import { rejectShadingShader } from './rejectionWgsl.ts'
+import { rejectionTypes } from './rejectionTypes.ts'
+import { DISPLAY_STEP_ERROR_WGSL, FLICKER_GATES_WGSL } from './rejectionShared.ts'
 import {
   LANES,
   overTile,
@@ -160,4 +165,34 @@ test('the LDR luma a texel writes is the byte the anti-aliaser reads, the other 
     assert.equal(lumaAt(at), Math.round(255 * (luma / (0.5 + luma))) / 255, `texel ${at}`)
   })
   assert.equal(lumaAt(8), 0, 'the next word is untouched')
+})
+
+test('the rejection widens its clamp by the blur of the lesser total variation in both modes; the mode is the flicker measure’s alone', () => {
+  const text = wgslSource(rejectShadingShader('rgba8unorm', 'rgba16float'))
+  // The shading rejection (the reference's `MeasureRejection`) takes the total variation term whatever the mode.
+  assert.match(text, /clampError\[r\]=max\(max\(vec3f\(Q\),leastBlurred\[r\]\.rgb\),boxSize\[r\]\*/)
+  assert.doesNotMatch(text, /select\(vec3f\(0\.0\),leastBlurred/)
+  assert.match(text, /relaxing,flickerOn\);/)
+  assert.equal(text.match(/,flickerOn\)/g)?.length, 2)
+  // The mode is the uniform's, read once, by the flicker measure, which follows it with a branch the whole workgroup takes together
+  // (the reference's `ComputeMoireError`).
+  assert.equal(text.match(/view\.rates\.z/g)?.length, 1)
+  assert.match(text, /fn shadingResponsive\(\)->bool\{return view\.rates\.z>0\.0;\}/)
+  assert.equal(text.match(/if\(shadingResponsive\(\)\)\{/g)?.length, 1)
+  assert.match(text, /let clampError=max\(max\(Q,variation\[r\]\),boxSize\*/)
+})
+
+test('the flicker measure lists what it reads that the rejection’s bindings do not declare: the view, the gates, the reprojection word, the display step error', () => {
+  const measure = flickerMeasureWgsl(rejectionTypes(FULL_PRECISION))
+  const listed = new Set(measure.deps.map((dep) => dep.name))
+  for (const dep of [
+    TAA_VIEW_WGSL,
+    FLICKER_GATES_WGSL,
+    REPROJECTED_WORD_WGSL,
+    DISPLAY_STEP_ERROR_WGSL,
+  ])
+    assert.ok(listed.has(dep.name), dep.name)
+  // The program holds the display step error once, for the rejection and the measure both.
+  const text = wgslSource(rejectShadingShader('rgba8unorm', 'rgba16float'))
+  assert.equal(text.match(/const Q=/g)?.length, 1)
 })

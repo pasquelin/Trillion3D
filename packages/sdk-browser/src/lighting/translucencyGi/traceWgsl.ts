@@ -7,20 +7,16 @@ import { surfaceHitLayoutEntries } from '../surfaceCache/hitWgsl.ts'
 import { atlasEntry } from '../bounce/atlas.ts'
 import { bounceBindingsWgsl } from '../bounce/gridWgsl.ts'
 import { spCacheRead } from '../bounce/screen/cacheReadWgsl.ts'
-import { spCommon, spParams } from '../bounce/screen/commonWgsl.ts'
+import { spCommon } from '../bounce/screen/commonWgsl.ts'
 import { spReach } from '../bounce/screen/probesWgsl.ts'
 import { bindingTable } from '../bounce/screen/screenProbeLayout.ts'
 import { SP_MARCH, TRACE_SCENE_HIT } from '../bounce/screen/traceSceneWgsl.ts'
-import { GI_QUANTIZE_WGSL, GI_VISIBLE_WGSL } from './frameWgsl.ts'
-import {
-  TRANSLUCENCY_GI_FORMAT,
-  TRANSLUCENCY_GI_GROUP,
-  TRANSLUCENCY_GI_SLOT_SIDE,
-} from './layout.ts'
+import { giFormatWgsl, giQuantizeWgsl, GI_VISIBLE_WGSL } from './frameWgsl.ts'
+import { TRANSLUCENCY_GI_GROUP, TRANSLUCENCY_GI_SLOT_SIDE } from './layout.ts'
 
 /** The trace's bindings in group 0, numbered as the screen probes' scene stage numbers what it shares (the parameters, the cascades, the
  *  lights, the blue noise, the radiance cache's maps from 18, the distance field and surface cache from `TRACE_SCENE_HIT`): the
- *  screen probes' parameters (`sp`), this volume's frame, the cones' light written, the cascades' uniform and atlas. */
+ *  screen probes' parameters (`spBase`, copied to `sp` by `giParams`), this volume's frame, the cones' light written, the cascades' uniform and atlas. */
 export const TRACE_GI_BINDINGS = bindingTable({
   params: [0, 'uniform'],
   frame: [1, 'uniform'],
@@ -30,15 +26,14 @@ export const TRACE_GI_BINDINGS = bindingTable({
   cacheFinal: [18, 'uint'],
   cacheRaw: [19, 'uint'],
   cacheSky: [20, 'float'],
-  cacheTags: [21, 'buffer-read'],
 })
 /** The cones' light written, the cascades' atlas. */
 export const TRACE_GI_LIGHT = 2
 export const TRACE_GI_PROBES = 9
-/** The layout of the trace's group 0. */
-export const traceGiEntries = () => [
+/** The layout of the trace's group 0, the cones' light written in `format`. */
+export const traceGiEntries = (format: GPUTextureFormat) => [
   ...TRACE_GI_BINDINGS.entries,
-  computeStorageTextureEntry(TRACE_GI_LIGHT, TRANSLUCENCY_GI_FORMAT, 'write-only', '3d'),
+  computeStorageTextureEntry(TRACE_GI_LIGHT, format, 'write-only', '3d'),
   atlasEntry(TRACE_GI_PROBES),
   ...surfaceHitLayoutEntries(TRACE_SCENE_HIT),
 ]
@@ -71,44 +66,72 @@ const GI_TRACE_POINT_WGSL = wgslBlock(
 )
 
 /**
+ * THE PARAMETERS THE TRACE READS (`giParams`): the screen probes' (`spBase`, the march's: its reach, its biases, the scene traces) copied into the
+ * thread's own `sp` — the name every shared function reads them by —, with the radiance cache's numbers (the radius scale of the sphere a map is
+ * read through, the maps' side and their levels of detail, `sp.cache`) and flags (the cache is read, the sky is kept apart from its light, `sp.mode.z`)
+ * the ones of the cache the volume reads, which is its own and not the world's unless shared (`gi.cache`, `gi.spatial.w`).
+ */
+const GI_PARAMS_WGSL = wgslBlock(
+  'GI_PARAMS_WGSL',
+  [],
+  `fn giParams(){
+ sp=spBase;
+ let cached=gi.spatial.w!=0.0;
+ sp.cache=vec4f(gi.cache.xyz,sp.cache.w);
+ let flags=select(0u,SP_FLAG_CACHE,cached)|select(0u,SP_FLAG_CACHE_SKY,cached&&gi.cache.w!=0.0);
+ sp.mode.z=(sp.mode.z&~(SP_FLAG_CACHE|SP_FLAG_CACHE_SKY))|flags;
+}`,
+)
+
+/**
  * THE LIGHT ALONG ONE CONE (`giCone`) of the cell in hand, from its point `giOrigin` along `d`: the march through the global distance field
  * from the cell's point itself (no bias off a surface, no dither: the point is a cell's, not a surface's; `spMarchRay`) to where the
  * radiance cache is trusted (`giReach`: `spLocalReachBiased`, the cascade `gi.temporal.w` coarser than the one that covers the point), the
  * surface cache's light at a hit; for a ray the march leaves — or where it is off — the radiance cache's light along it, interpolated between
- * the eight probes round the point (`spFarOf`), the sky where the cache covers none. The cone is the width of a texel of the octahedron of
+ * the eight probes round the point (`spFarOf`), the sky where the cache covers none. The sky light that leaks joins it last (`spSkyLeak`, the screen probes'
+ * own, from their parameters: the same share, tint, roughness and distance), at the end of the ray: the hit's distance from the point, the
+ * distance the cache holds, the furthest a ray looks (`spMaxTrace`) where the cache covers none. The cone is the width of a texel of the octahedron of
  * `gi.trace.x` texels a side. `giCellSetup` is what the cell's cones share, done once for them: where they start, how far they march and
  * the eight probes round the start.
  */
 const GI_CONE_WGSL = wgslBlock(
   'GI_CONE_WGSL',
   [SP_MARCH],
-  `var<private> giOrigin:vec3f;
+  `/** The number the cache's level is chosen with at the volume's cell (\`cacheCoverage\`): a half, so that a level answers only while the point lies more than half the fade's width inside its edge. */
+const GI_COVERAGE_RANDOM:f32=0.5;
+var<private> giOrigin:vec3f;
 var<private> giReach:f32;
 fn giCellSetup(cell:vec3u){
  let bias=u32(gi.temporal.w);
  let cached=gi.spatial.w!=0.0;
  giOrigin=giTracePoint(cell);
- if(cached){spCacheGatherOwnBiased(giOrigin,bias);}
- giReach=select(spMaxTrace(),spLocalReachBiased(giOrigin,bias),cached);
+ if(cached){spCacheGatherOwnBiased(giOrigin,bias,GI_COVERAGE_RANDOM);}
+ giReach=select(spMaxTrace(),spLocalReachBiased(giOrigin,bias,GI_COVERAGE_RANDOM),cached);
 }
 fn giCone(d:vec3f)->vec3f{
  let cached=gi.spatial.w!=0.0;
  var light=vec3f(0.0);
  var hit=false;
+ var end=spMaxTrace();
  if(gi.depth.w!=0.0&&spFlag(SP_FLAG_SCENE_TRACES)){
   let marched=spMarchRay(giOrigin,d,0.0,giReach,gi.trace.x,false,vec2u(0u));
   light=marched.lighting;
   hit=marched.hit;
+  if(hit){end=marched.distance;}
  }
- if(!hit&&cached){light+=spFarOf(giOrigin,d,gi.trace.x).radiance;}
+ if(!hit&&cached){
+  let far=spFarOf(giOrigin,d,gi.trace.x);
+  light+=far.radiance;
+  end=far.distance;
+ }
  else if(!hit){light+=reflectionEnvironment(d,0.0);}
- return light;
+ return light+spSkyLeak(d,end);
 }`,
 )
 
 /**
  * WHAT THE CELLS OF A WORKGROUP SHARE (`GI_SHARED_WGSL`): a workgroup traces a block of `TRANSLUCENCY_GI_GROUP` cone texels a side, which
- * touches at most `TRANSLUCENCY_GI_SLOT_SIDE` cells a side (`giSlotSide`), each with the setup its cones have in common — whether it is
+ * touches at most `TRANSLUCENCY_GI_SLOT_SIDE` cells a side, each with the setup its cones have in common — whether it is
  * seen, where its cones start, how far they march, the eight probes round the start (`CacheGathered`, copied whole) and the noise —, made once by a lane
  * of the workgroup (`giCellStore`) and read by the threads of the cell's cones (`giCellLoad`) into the private state `giCone` reads.
  */
@@ -144,13 +167,22 @@ fn giCellLoad(slot:u32){
  * down to it) and written to the format's precision (`giQuantize`, the draw of the written texel). The barrier is reached by every thread,
  * the ones beyond the grid included.
  */
-const GI_TRACE_ENTRY = wgslBlock(
-  'GI_TRACE_ENTRY',
-  [GI_TRACE_POINT_WGSL, GI_SHARED_WGSL, GI_QUANTIZE_WGSL, DIRECT_LIGHT_WGSL],
-  `@group(0) @binding(${TRACE_GI_LIGHT}) var coneLight:texture_storage_3d<${TRANSLUCENCY_GI_FORMAT},write>;
+const giTraceEntry = (format: GPUTextureFormat) =>
+  wgslBlock(
+    `GI_TRACE_ENTRY(${format})`,
+    [
+      GI_PARAMS_WGSL,
+      GI_TRACE_POINT_WGSL,
+      GI_SHARED_WGSL,
+      giQuantizeWgsl(format),
+      ...giFormatWgsl(format),
+      DIRECT_LIGHT_WGSL,
+    ],
+    `@group(0) @binding(${TRACE_GI_LIGHT}) var coneLight:texture_storage_3d<${format},write>;
 @group(0) @binding(${C.lights}) var<storage,read> directLights:DirectLights;
 @compute @workgroup_size(${TRANSLUCENCY_GI_GROUP},${TRANSLUCENCY_GI_GROUP},1)
 fn traceCones(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) block:vec3u,@builtin(local_invocation_index) lane:u32){
+ giParams();
  let res=u32(gi.trace.x);
  let cell=vec3u(id.xy/res,id.z);
  let inside=all(cell<gi.grid.xyz);
@@ -184,19 +216,21 @@ fn traceCones(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) blo
  }
  textureStore(coneLight,id,vec4f(giQuantize(radiance,id.xy,id.z),0.0));
 }`,
-)
+  )
 
-/** The trace's program over cones of `side` texels a side an octahedron (the screen probes' kernels' constants, a cone as wide as a texel). */
-export const TRACE_GI_PROGRAM = wgslProgram(
-  `${spParams(C.params)}
+/** The trace's program, writing the cones' light in `format`, over cones of `side` texels a side an octahedron (the screen probes' kernels' constants, a cone as wide as a texel). */
+export const traceGiProgram = (format: GPUTextureFormat) =>
+  wgslProgram(
+    `@group(0) @binding(${C.params}) var<uniform> spBase:ScreenProbeParams;
+var<private> sp:ScreenProbeParams;
 @group(0) @binding(${C.frame}) var<uniform> gi:TranslucencyGiFrame;`,
-  [
-    spCommon([1, 1]),
-    bounceBindingsWgsl(0, C.bounceGrid, TRACE_GI_PROBES),
-    spReach,
-    spCacheRead(C.cacheFinal, C.cacheRaw, C.cacheSky, C.cacheTags, 'private'),
-    blueNoiseWgsl(0, C.blue),
-    GI_VISIBLE_WGSL,
-    GI_TRACE_ENTRY,
-  ],
-)
+    [
+      spCommon([1, 1]),
+      bounceBindingsWgsl(0, C.bounceGrid, TRACE_GI_PROBES),
+      spReach,
+      spCacheRead(C.cacheFinal, C.cacheRaw, C.cacheSky, 'private'),
+      blueNoiseWgsl(0, C.blue),
+      GI_VISIBLE_WGSL,
+      giTraceEntry(format),
+    ],
+  )

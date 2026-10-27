@@ -12,7 +12,10 @@ use crate::tests::random::Xorshift;
 mod cut;
 mod file;
 mod nodes;
+mod stack;
 mod walk;
+mod word;
+mod world;
 
 /// A cluster of `indices` at `level` whose error is `lod_error` and its group's `parent_error`;
 /// made by a group unless it is a finest one.
@@ -35,6 +38,7 @@ fn soup(count: usize, seed: u64) -> Vec<CutTriangle> {
                 corners: [0; 3].map(|_| centre.map(|c| c + rng.unit() - 0.5)),
                 cluster: (rank / 7) as u32,
                 triangle: (rank % 7) as u32,
+                tag: 0,
             }
         })
         .collect()
@@ -42,7 +46,7 @@ fn soup(count: usize, seed: u64) -> Vec<CutTriangle> {
 
 fn wide_of(triangles: &[CutTriangle]) -> Wide {
     let items: Vec<Item> = triangles.iter().map(Item::of).collect();
-    collapse(&build(&items))
+    collapse(&build(&items, false))
 }
 
 /// A node as the file holds it.

@@ -88,7 +88,6 @@ export const TAA_VIEW = fieldLayout('TaaView', [
   ['render', 'vec4f'],
   ['jitter', 'vec4f'],
   ['eye', 'vec4f'],
-  ['exposure', 'vec4f'],
   ['parallax', 'vec4f'],
   ['rates', 'vec4f'],
   ['depth', 'vec4f'],
@@ -125,17 +124,14 @@ export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
  *   among eight.
  * - `eye`: the eye in the world, and in `w` whether a GPU deformation moved this frame
  *   (`deformWgsl.ts`).
- * - `exposure`: the scale composition applies to the image (`x`: the exposure over the image's
- *   pre-exposure), every measured colour multiplied by it; the
- *   ratio of this image's exposure (the scale times the pre-exposure) to the last one's, which
- *   corrects the histories kept in an exposed space (`y`); the flicker count's fade-in rate (`z`, `flickerCountRate`), and a thin
- *   geometry region's, over three flicker periods (`w`, `THIN_GEOMETRY_PERIODS`).
  * - `parallax`: the last view-projection's image of the eye's move since the last image,
  *   `prevViewProj · (lastEye − eye, 0)`: what a point's last projection gains when the camera only
  *   turned.
  * - `rates`: the inverse of the parallax speed past which a pixel is moving to the flicker measure,
  *   in render pixels an image (`x`), and the blend factor a history fully kept takes the image at
- *   (`y`); `zw` unused.
+ *   (`y`), and whether the shading rejection is in its responsive mode (`z`, 1 or 0,
+ *   `temporalShadingRejectionMode`), and whether the flicker measure considers the thin geometry
+ *   detection's relaxation (`w`, 1 or 0, `temporalThinGeometryAntiFlickering`).
  * - `depth`: the projection's third and fourth rows' depth terms `(z·z, z·w, w·z, w·w)`, which turn a
  *   device depth into a scene depth and back (`depthWgsl.ts`); `radius`: a render pixel's world
  *   radius per unit of scene depth and at none (`xy`), and the sign of the view axis (`z`).
@@ -144,10 +140,11 @@ export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
  *   update's kernel moving its far neighbour (`z`, 1 or 0), and whether the thin geometry detection
  *   runs this image (`w`, 1 or 0: else the passes that read its mask read none).
  * - `preExposure`: the ratio of this image's pre-exposure to the last one's (`x`), which the
- *   history's colour is multiplied by, to hold the light of the image before as this one holds its
- *   own (`historyRead`); the factor the measures of the shading rejection are lifted by, two to the
- *   power of `temporalShadingExposureOffset` (`y`: a measure is a colour times `exposure.x` times
- *   it); `zw` unused.
+ *   history's colour and the histories kept in an exposed space are multiplied by, to hold the light
+ *   of the image before as this one holds its own (`historyRead`); the factor the measures of the
+ *   shading rejection are lifted by, two to the power of `temporalShadingExposureOffset` (`y`); the
+ *   flicker count's fade-in rate (`z`, `flickerCountRate`), and a thin geometry region's, over three
+ *   flicker periods (`w`, `THIN_GEOMETRY_PERIODS`).
  * - `history`: the history's sample laws (`historySampleLaws`): the most samples a history pixel
  *   holds (`x`), the weight an image of full alignment takes (`y`), the validity's drop after a
  *   full rejection (`z`) and at the speed setting (`w`).
@@ -156,8 +153,8 @@ export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
  *   the reprojection field anti-aliases its dilation by the depth (`z`); whether the level
  *   reprojects by the field (`w`, 1 or 0).
  * - `resurrection`: whether this image may resurrect a pixel from another frame (`x`, 1 or 0),
- *   the ratio of this image's pre-exposure to that frame's, which its colour is multiplied by (`y`),
- *   and the ratio of the exposures the render-resolution measures were kept at (`z`); `w` unused.
+ *   the ratio of this image's pre-exposure to that frame's, which its colour is multiplied by (`y`);
+ *   `zw` unused.
  *   `resurrectGrid`: the grid of that frame, as `render` is of this one; `toResurrection`: this
  *   frame's clip space, at the eye of this one, to that frame's.
  * - `thin`: the thin geometry detection's thresholds (`temporalThinGeometryErrorMultiplier` and its

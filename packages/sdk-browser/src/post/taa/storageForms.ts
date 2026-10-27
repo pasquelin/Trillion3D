@@ -29,11 +29,11 @@ export const BUFFER_FORMS: StorageForms = { mask: 'buffer', luma: 'buffer' }
 export const GUARANTEED_STORAGE_TEXTURES = 4
 
 /** The storage textures per stage the rejection always binds, whatever the forms: the shading
- *  history, the rejection and the field (`rejectShadingEntries`,
+ *  history, the flicker history, the rejection and the field (`rejectShadingEntries`,
  *  `analysisLayouts.ts`, which a test counts against this; the layouts' module is not imported here, it
  *  would draw every program of the analysis into the history's shape). A count of its own, not the
  *  guaranteed limit. */
-const REJECTION_STORAGE_TEXTURES = 3
+const REJECTION_STORAGE_TEXTURES = 4
 
 /** The rejection's optional resources, in the order they are granted a texture: the mask first,
  *  its buffer form costing more (a word a texel against a byte). */

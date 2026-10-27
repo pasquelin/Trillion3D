@@ -10,9 +10,6 @@ import { DAG_BINDING, dagBindEntries } from '../../../geometry/dag/shader/bindin
 import { dagArmPipe } from '../../../geometry/dag/shader/armWgsl.ts'
 import { rasterLayoutEntries } from '../../../visibility/raster/raster.ts'
 import { MODE_DEPTH, MODE_ID, rasterEntry } from '../../../visibility/raster/contract.ts'
-import { cameraMasks } from '../../../visibility/shader/maskSets.ts'
-import { visibilityWpo } from '../../../visibility/shader/wpoSets.ts'
-import type { GraphRasters } from '../../../materials/graph/graphRasters.ts'
 import { vsmComputePipe, type VsmComputePipe } from '../../shadows/vsm/passKit.ts'
 import { CAPTURE_FORMATS } from '../layout.ts'
 import { CARD_DESCENT_ENTRY, cardDescentWgsl } from './cardDescentWgsl.ts'
@@ -28,8 +25,8 @@ import {
 /**
  * THE PIPELINES OF THE CARDS' CAPTURE, compiled off the frame (`prepared`) the first time a session
  * asks for them: the descent and the cull of the views (`cardDescentWgsl.ts`), the rows' views, the
- * raster of the clusters and the export (`cardRasterWgsl.ts`). The raster's module holds the session's
- * graphs, as the camera's does (`cameraMasks`, `visibilityWpo`), and is made again when they change.
+ * raster of the clusters and the export (`cardRasterWgsl.ts`). The raster holds no graph of the session:
+ * the capture draws no alpha mask and no world position offset.
  */
 
 /** The descent's group 1: the parameters, the table of views, the counters. */
@@ -86,36 +83,21 @@ export const cardEndPipes = oncePerDevice((device: GPUDevice) => ({
   exportViews: exportPipe(device, 'views', CARD_EXPORT_VIEWS_ENTRY),
 }))
 
-/** The raster's pipes of a session whose graphs are `rasters`: the depth phase and the identifier phase. */
-const rasterPipesOf = (device: GPUDevice, rasters: GraphRasters) => {
-  const code = cardRasterSource(cameraMasks(rasters), visibilityWpo(rasters), hasSubgroups(device))
+/** The raster's pipes, one a device: the depth phase and the identifier phase. */
+export const cardRasterPipes = oncePerDevice((device: GPUDevice) => {
+  const code = cardRasterSource(hasSubgroups(device))
   const phase = (mode: number) =>
     vsmComputePipe(device, `${LABEL} raster ${mode}`, code, rasterEntry(mode), [
       rasterLayoutEntries(),
     ])
   return { depth: phase(MODE_DEPTH), ids: phase(MODE_ID) }
-}
-const rasterCache = new WeakMap<
-  GPUDevice,
-  WeakMap<GraphRasters, ReturnType<typeof rasterPipesOf>>
->()
-export function cardRasterPipes(device: GPUDevice, rasters: GraphRasters) {
-  let byRasters = rasterCache.get(device)
-  if (!byRasters) rasterCache.set(device, (byRasters = new WeakMap()))
-  let pipes = byRasters.get(rasters)
-  if (!pipes) byRasters.set(rasters, (pipes = rasterPipesOf(device, rasters)))
-  return pipes
-}
+})
 
 /** Every pipe of the capture asked now, off the frame; `failed` hears the first compile a device refuses. */
-export function askCardPipes(
-  device: GPUDevice,
-  rasters: GraphRasters,
-  failed: (error: unknown) => void,
-) {
+export function askCardPipes(device: GPUDevice, failed: (error: unknown) => void) {
   const descent = cardDescentPipes(device),
     end = cardEndPipes(device),
-    raster = cardRasterPipes(device, rasters)
+    raster = cardRasterPipes(device)
   const pipes: VsmComputePipe[] = [
     descent.prepare,
     ...descent.levels,

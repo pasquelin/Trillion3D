@@ -5,62 +5,97 @@ import { SCREEN_PROBE_LEVELS } from '../../../../sdk-core/src/bounce/screenProbe
 import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { createScreenProbeStore } from './screen/store.ts'
-import { SP_BENT_WGSL, spHistory } from './screen/historyWgsl.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { TRACE_SCENE_HIT } from './screen/traceSceneWgsl.ts'
 import { BLUE_NOISE_HALF_PERIOD } from '../../gpu/noise/blueNoiseWgsl.ts'
-import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { assertProgramAssembles } from '../../gpu/core/wgslNames.fixture.ts'
 
 test('every screen-probe kernel is a module a device takes, at every level: its names declared, none reserved or twice, its bindings the layout holds', () => {
   const levels = SCREEN_PROBE_LEVELS.filter((level) => level !== 'off')
   assert.deepEqual(levels, ['low', 'high', 'ultra', 'cinematic'])
-  for (const level of levels) {
-    const shape = kernelShapeOf(screenProbeSettings({ screenProbes: level }))
-    const sources = screenProbeSources(shape)
-    assert.deepEqual(
-      Object.keys(sources).filter((name) => name !== 'occlusion' && name !== 'temporal').length > 0,
-      level !== 'low',
-      `${level} makes the kernels over the probes only where it casts them`,
-    )
-    for (const [name, { code, entries, points }] of Object.entries(sources)) {
-      const where = `${level} ${name}`
-      assertProgramAssembles(code, undefined, where)
-      const declared = [...code.matchAll(/@group\(0\)\s*@binding\((\d+)\)/g)].map((m) => +m[1])
-      const bound = entries.map((entry) => entry.binding)
-      assert.deepEqual(
-        bound.filter((binding) => !declared.includes(binding)),
-        [],
-        `${where}: a binding the layout holds and the code does not declare`,
+  for (const level of levels)
+    for (const screenProbeHeightFogOnGI of [false, true]) {
+      const shape = kernelShapeOf(
+        screenProbeSettings({ screenProbes: level, screenProbeHeightFogOnGI }),
       )
-      // The surface cache's layers a hit does not read are declared by its library and bound by no layout.
-      const unread = (binding: number) =>
-        binding >= TRACE_SCENE_HIT.cards + 2 && binding <= TRACE_SCENE_HIT.cards + 6
+      const sources = screenProbeSources(shape)
       assert.deepEqual(
-        declared.filter((binding) => !bound.includes(binding) && !unread(binding)),
-        [],
-        `${where}: a binding the code declares and the layout does not hold`,
+        Object.keys(sources).filter((name) => name !== 'occlusion' && name !== 'temporal').length > 0,
+        level !== 'low',
+        `${level} makes the kernels over the probes only where it casts them`,
       )
-      for (const point of points) assert.ok(code.includes(`fn ${point}(`), `${where} ${point}`)
+      for (const [name, { code, entries, points }] of Object.entries(sources)) {
+        const where = `${level} ${name}${screenProbeHeightFogOnGI ? ' with the fog' : ''}`
+        assertProgramAssembles(code, undefined, where)
+        const declared = [...code.matchAll(/@group\(0\)\s*@binding\((\d+)\)/g)].map((m) => +m[1])
+        const bound = entries.map((entry) => entry.binding)
+        assert.deepEqual(
+          bound.filter((binding) => !declared.includes(binding)),
+          [],
+          `${where}: a binding the layout holds and the code does not declare`,
+        )
+        // The surface cache's layers a hit does not read are declared by its library and bound by no layout.
+        const unread = (binding: number) =>
+          binding >= TRACE_SCENE_HIT.cards + 2 && binding <= TRACE_SCENE_HIT.cards + 6
+        assert.deepEqual(
+          declared.filter((binding) => !bound.includes(binding) && !unread(binding)),
+          [],
+          `${where}: a binding the code declares and the layout does not hold`,
+        )
+        for (const point of points) assert.ok(code.includes(`fn ${point}(`), `${where} ${point}`)
+      }
     }
-  }
 })
 
-test('every kernel reads the blue noise where the probes need a random number — the rays and their texels by the tile and the rays turn, the pixels by the frame — and keeps no hash', () => {
-  const sources = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })))
+test('every kernel reads the blue noise where the probes need a random number — the rays and their texels by the tile and the rays turn, the pixels by the frame — and keeps no hash but the dither of the 11-11-10 targets (a hash of the texel and the frame; the spatial filter’s blue noise of the pass)', () => {
+  const sources = {
+    ...screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' }))),
+    // The kernels the temporal filter of the probes and the levels of the filtered radiance add.
+    ...Object.fromEntries(
+      Object.entries(
+        screenProbeSources(
+          kernelShapeOf(
+            screenProbeSettings({
+              screenProbes: 'ultra',
+              screenProbeTemporalFilterProbes: true,
+              screenProbeGatherNumMips: 2,
+            }),
+          ),
+        ),
+      ).filter(([name]) => ['probeFilter', 'fixup', 'mip1'].includes(name)),
+    ),
+  }
   const reads = {
-    composite: ['blueNoiseVec2(tile,sp.mode.w)', 'blueNoiseVec2(tile,sp.mode.w+31u)'],
-    spatial: ['blueNoiseVec2(tile,sp.mode.w)'],
+    composite: [
+      'blueNoiseVec2(tile,sp.mode.w)',
+      'blueNoiseVec2(tile,sp.mode.w+31u)',
+      'rand3dPcg16(vec3i(vec2i(texel),i32(sp.size.w%SP_TILE_JITTERS)+salt))',
+    ],
+    convert: ['rand3dPcg16(vec3i(vec2i(texel),i32(sp.size.w%SP_TILE_JITTERS)+salt))'],
+    probeFilter: ['spTargetDither(id.xy,10)'],
+    fixup: ['spTargetDither(id.xy,0)'],
+    mip1: ['spTargetDither(id.xy,i32(SP_MIP_LEVEL)+13)'],
+    spatial: [
+      'blueNoiseVec2(tile,sp.mode.w)',
+      'blueNoiseScalar(id.xy,sp.size.w%SP_TILE_JITTERS+spatialPass.x+11u)',
+    ],
     rays: ['blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)'],
-    traceScreen: ['blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)'],
+    traceScreen: [
+      'blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)',
+      'f32(sp.frames.x%SP_TILE_JITTERS)',
+    ],
     traceField: ['blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)'],
     traceScene: ['blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)'],
-    screenData: ['blueNoiseScalar(pixel,sp.size.w)'],
-    occlusion: ['blueNoiseVec2(pixel,sp.size.w)'],
+    screenData: ['blueNoiseScalar(pixel,sp.frames.z)'],
+    occlusion: ['blueNoiseVec2(pixel,sp.frames.x)', 'fourRooksJitter(cell,sp.frames.x)'],
+    integrate: [
+      'blueNoiseScalar(pixel,sp.frames.y)',
+      'blueNoiseScalar(cell,sp.size.w%8u)',
+      'blueNoiseVec2(pixel,sp.frames.y)',
+    ],
     temporal: [
-      'blueNoiseScalar(id.xy,sp.size.w)',
-      'blueNoiseScalar(pixel,sp.size.w)',
-      'blueNoiseVec2(pixel,sp.size.w)',
+      'blueNoiseScalar(id.xy,sp.frames.z)',
+      'blueNoiseScalar(id.xy,sp.frames.x)',
       'ditherLight(',
     ],
   }
@@ -86,125 +121,87 @@ test('the screen probes settings are read again at each image, and resolved only
   assert.equal(store.read(options).enabled, false)
 })
 
-test('the frames byte keeps the fast update and the frames as it packs them, and only none is none', () => {
-  const longest = 10
-  const frames = shaderRun<{
-    spFramesOf: (frames: number, fast: number) => number
-    spFramesHeld: (code: number) => number
-    spFastHeld: (code: number) => number
-  }>(wgslModule(spHistory(7, 9, 8)), ['spFramesOf', 'spFramesHeld', 'spFastHeld'], {
-    sp: { counts: [longest, 0, 0, 0] },
-  })
-  for (const held of [0, 1, 4, 9.5, 10]) {
-    const code = frames.spFramesOf(held, 0)
-    assert.ok(code < 256, 'one byte')
-    assert.ok(Math.abs(frames.spFramesHeld(code) - held) <= longest / 30 + 1e-9, `${held} frames`)
-    assert.equal(frames.spFastHeld(code), 0)
-  }
-  assert.equal(frames.spFramesHeld(frames.spFramesOf(longest, 0)), longest, 'the most is the most')
-  assert.equal(frames.spFramesHeld(frames.spFramesOf(3 * longest, 0)), longest, 'held to it')
+test('the traced scene kernel is kept by the rays a side of a probe, the samples of a tile and the fog on the rays: an option that changes none keeps it, one that does makes another', () => {
+  const { device } = fakeDevice()
+  const store = createScreenProbeStore()
+  const kernel = store.tracedFor(device, screenProbeSettings({ screenProbes: 'ultra' }))
   assert.equal(
-    frames.spFastHeld(frames.spFramesOf(5, 0.001)),
-    1 / 15,
-    'a fast update, however small, is one',
+    store.tracedFor(
+      device,
+      screenProbeSettings({ screenProbes: 'ultra', screenProbeGatherNumMips: 2 }),
+    ),
+    kernel,
+    'the levels of the gather',
   )
-  assert.equal(frames.spFastHeld(frames.spFramesOf(5, 0.9)), 14 / 15)
-  assert.equal(frames.spFastHeld(frames.spFramesOf(5, 2)), 1, 'held to one')
-  assert.equal(
-    frames.spFramesHeld(frames.spFramesOf(5, 1)),
-    frames.spFramesHeld(frames.spFramesOf(5, 0)),
-    'the fast update leaves the frames alone',
+  assert.notEqual(
+    store.tracedFor(device, screenProbeSettings({ screenProbes: 'ultra', screenProbeQuality: 4 })),
+    kernel,
+    'sixteen rays a side',
   )
-  const fifteen = shaderRun<typeof frames>(
-    wgslModule(spHistory(7, 9, 8)),
-    ['spFramesOf', 'spFramesHeld'],
-    {
-      sp: { counts: [15, 0, 0, 0] },
-    },
+  assert.notEqual(
+    store.tracedFor(
+      device,
+      screenProbeSettings({ screenProbes: 'ultra', screenProbeHeightFogOnGI: true }),
+    ),
+    kernel,
+    'the fog on the rays',
   )
-  assert.equal(
-    fifteen.spFramesHeld(fifteen.spFramesOf(14, 0)),
-    14,
-    'fourteen of fifteen stay fourteen',
-  )
-  // A longest history past the four bits: the frames are coded over fifteen at most, and the code 15 is the longest, whatever it is.
-  const wide = shaderRun<typeof frames>(
-    wgslModule(spHistory(7, 9, 8)),
-    ['spFramesOf', 'spFramesHeld'],
-    {
-      sp: { counts: [40, 0, 0, 0] },
-    },
-  )
-  assert.equal(wide.spFramesHeld(wide.spFramesOf(14, 0)), 14)
-  assert.equal(wide.spFramesHeld(wide.spFramesOf(15, 0)), 40, 'fifteen frames code the most')
-  assert.equal(wide.spFramesHeld(wide.spFramesOf(40, 0)), 40)
 })
 
-test('the shading word keeps the normal in 10-10-10 bits and the hair and backface marks in the two above, each apart from the others', () => {
-  const shading = shaderRun<{
-    spShadingPack: (N: number[], hair: boolean, backface: boolean) => number
-    spShadingNormal: (word: number) => number[]
-    spShadingHair: (word: number) => boolean
-    spShadingBackface: (word: number) => boolean
-  }>(
-    wgslModule(spHistory(7, 9, 8)),
-    ['spShadingPack', 'spShadingNormal', 'spShadingHair', 'spShadingBackface'],
-    {},
-  )
-  const marks = [
-    [false, false],
-    [true, false],
-    [false, true],
-    [true, true],
-  ] as const
-  for (const v of [
-    [0, 0, 1],
-    [0, 0, -1],
-    [1, 0, 0],
-    [0.3, -0.5, 0.8],
-    [-1, -1, -1],
-    [0.2, 0.9, -0.1],
-  ]) {
-    const length = Math.hypot(...v)
-    const normal = v.map((x) => x / length)
-    for (const [hair, backface] of marks) {
-      const word = shading.spShadingPack(normal, hair, backface)
-      // The normal is `n · ½ + ½` rounded to a thousand and twenty-four steps an axis: a half step either way of the unit.
-      const kept = shading.spShadingNormal(word)
-      normal.forEach((x, i) =>
-        assert.ok(Math.abs(kept[i] - x) <= 1 / 1023 + 1e-6, `${v} axis ${i}`),
-      )
-      assert.equal(shading.spShadingHair(word), hair, `${v} hair`)
-      assert.equal(shading.spShadingBackface(word), backface, `${v} backface`)
-    }
-    assert.equal(
-      shading.spShadingNormal(shading.spShadingPack(normal, true, true)).join(),
-      shading.spShadingNormal(shading.spShadingPack(normal, false, false)).join(),
-      'the marks leave the normal alone',
+test('the scene stage of the screen probes is built over the reflection group it reads, and lays the fog only where the option is on: no other kernel is made for it', () => {
+  const sources = (screenProbeHeightFogOnGI: boolean) =>
+    screenProbeSources(
+      kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra', screenProbeHeightFogOnGI })),
     )
+  for (const on of [false, true]) {
+    const all = sources(on)
+    assert.equal(all.traceScene?.scene, true, 'the scene stage reads the reduced reflection group')
+    assert.equal(all.traceScreen?.scene, undefined, 'the screen stage reads the whole')
+    assert.equal(all.traceScene?.code.includes('reflectionFogged'), on)
   }
+  assert.deepEqual(
+    Object.keys(sources(true)),
+    Object.keys(sources(false)),
+    'the fog is laid in the stages that write the light, by no pass of its own',
+  )
+  assert.notEqual(sources(false).traceScene?.key, sources(true).traceScene?.key)
+  assert.equal(sources(false).traceScreen?.key, sources(true).traceScreen?.key)
 })
 
-test('the bent normal word keeps the open sky’s direction and its amount, and a word of zero is none', () => {
-  const bent = shaderRun<{
-    spBentPack: (v: number[]) => number
-    spBentUnpack: (word: number) => number[]
-  }>(wgslModule(SP_BENT_WGSL), ['spBentPack', 'spBentUnpack'], {})
-  for (const v of [
-    [0, 1, 0],
-    [0.3, 0.4, -0.5],
-    [-0.1, -0.2, 0.05],
-  ]) {
-    const amount = Math.hypot(...v)
-    const [x, y, z, w] = bent.spBentUnpack(bent.spBentPack(v))
-    assert.ok(Math.abs(w - amount) < 2e-3, `the amount ${amount}`)
-    for (const [got, want] of [
-      [x, v[0] / amount],
-      [y, v[1] / amount],
-      [z, v[2] / amount],
-    ])
-      assert.ok(Math.abs(got - want) < 5e-3, `the direction ${v}`)
-  }
+test('a device that refused the kernels is the store’s reason only while it is the owner: a new owner starts clean, and a late refusal of the old one says nothing', async () => {
+  const settings = screenProbeSettings({ screenProbes: 'ultra' })
+  const settled = () => new Promise((resolve) => setTimeout(resolve, 0))
+  const store = createScreenProbeStore()
+  const refusing = fakeDevice({ failCompile: true }).device
+  assert.equal(store.kernelsFor(refusing, settings), undefined)
+  await settled()
+  assert.ok(store.reason, 'the owner’s refusal is the reason')
+  const next = fakeDevice().device
+  store.kernelsFor(next, settings)
+  assert.equal(store.reason, null, 'the new owner starts without the old one’s reason')
+  await settled()
+  assert.equal(store.reason, null, 'the new owner compiled')
+  const late = createScreenProbeStore()
+  late.kernelsFor(fakeDevice({ failCompile: true }).device, settings)
+  late.kernelsFor(fakeDevice().device, settings)
+  await settled()
+  assert.equal(late.reason, null, 'a refusal of a device that is no longer the owner is ignored')
+})
+
+test('the sources the store wrote for a device are written again for the next one: its dispatch width is the new device’s', async () => {
+  const settings = screenProbeSettings({ screenProbes: 'ultra' })
+  const store = createScreenProbeStore()
+  const first = fakeDevice({
+    failCompile: true,
+    limits: { maxComputeWorkgroupsPerDimension: 1000 },
+  })
+  store.kernelsFor(first.device, settings)
+  const second = fakeDevice({ limits: { maxComputeWorkgroupsPerDimension: 2000 } })
+  store.kernelsFor(second.device, settings)
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  const widths = second.computePipelines.map((pipeline) => pipeline.compute.constants?.GROUP_WIDTH)
+  assert.ok(widths.includes(2000), 'built at the second device’s width')
+  assert.ok(!widths.includes(1000), 'none at the first one’s')
 })
 
 test('the scene stage lists a ray by its texel alone, the disocclusion is read only where its flag is up, the occlusion search takes its slices and steps from the parameters', () => {

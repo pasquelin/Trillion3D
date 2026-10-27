@@ -2,6 +2,7 @@
 // `marchFront.test.ts`).
 import { reflectionRunner, viewOf } from './scene.fixture.ts'
 import { depthField, depthImage } from './depthField.fixture.ts'
+import { defaultReflections } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 
 /** An orthographic view of `width × height` pixels whose world is its NDC: depth along +z, toward
  *  the eye. */
@@ -31,9 +32,9 @@ export function marcher(
   const size = [width, height]
   return {
     /** Where the ray from `o` along `d` stops on the screen, or undefined: a miss; the cells it
-     *  read, the iterations it may take, and how far it proved the ray in front of the depth (`above`);
-     *  `cap` its iterations. */
-    hit(o: number[], d: number[], { cap = 2 ** 32 - 1 } = {}) {
+     *  read, the iterations it took, and how far it proved the ray in front of the depth (`above`);
+     *  `cap` its iterations, the reflections' default. */
+    hit(o: number[], d: number[], { cap = defaultReflections().screenSteps } = {}) {
       run.counter.loads = 0
       const end = run.screenMarchEnd(o.slice(0, 2), d.slice(0, 2), size)
       // The planes' march takes the thickness in pixels, the reference's walk a share of the depth.
@@ -41,6 +42,7 @@ export function marcher(
         t,
         plane,
         front: transparent,
+        steps,
         above,
       } = run.screenMarch(o, d, end, run.thickness, run.relativeThickness, run.slab, cap, true)
       const at = t < 0 ? undefined : o.map((x, k) => x + d[k] * t)
@@ -51,7 +53,8 @@ export function marcher(
         above,
         end,
         loads: run.counter.loads,
-        bound: run.screenMarchBudget(d, end, run.levels),
+        steps,
+        cap,
       }
     },
   }

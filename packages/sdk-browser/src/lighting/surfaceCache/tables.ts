@@ -193,8 +193,9 @@ function sectionsOf(source: TableSource) {
       },
       words: CARD_WORDS,
       fill: (w: CardWords, at: number, index: number) => {
-        const { cards } = source.cache
-        writeCardWords(w, at, cards.has(index) ? cards.at(index) : undefined)
+        const { cards, meshCards } = source.cache
+        const card = cards.has(index) ? cards.at(index) : undefined
+        writeCardWords(w, at, card, card ? meshCards.at(card.meshCards).lightingChannels : 0)
       },
     },
     pageTable: {

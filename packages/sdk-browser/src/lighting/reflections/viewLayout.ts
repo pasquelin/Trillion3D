@@ -20,24 +20,27 @@ import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
  *    thickness spans (`z`), and whether the projection is a perspective (`w`);
  *  - `thickness`, the share of a surface's depth the reference walk takes for its thickness:
  *    `reflectionRelativeDepthThickness` times the projection's scale, `screenRelativeThickness`;
+ *  - `historyThickness`, how far the depth the last image kept where a screen hit lands may lie from the depth the hit is expected
+ *    at there, in device depth: `reflectionHistoryDepthTestRelativeThickness` times the projection's scale (`screenRelativeThickness`);
+ *  - `reconstructionScale`, the scale of the roughness the reconstruction weighs the neighbours' rays on
+ *    (`reflectionReconstructionRoughnessScale`);
  *  - `traced`, whether the screen is traced this image (`x`: the depth pyramid holds this image's
- *    depth and the view an earlier lit image of it);
+ *    depth and the view an earlier lit image of it, which no cut of the view since has made another) and whether the depth the last image kept is
+ *    that of the lit image held (`y`, `ReflectionFrame.depthKept`: else a hit's expected depth is compared with this image's);
  *  - `front`, whether this image's trace answers the transparents' front surface (`x`, one or zero,
  *    `frontLayer.ts`), and the blocks of pixels a texel of the front layer traces one ray of, across and down
  *    (`yz`, which the scene's water may set apart from the level's, even not square);
  *  - `temporal`, the reflections' turn (`x`: the image's rank in the samples' sequence, advanced
- *    every image, `stageReflectionImage`; `yzw` unused);
+ *    every image, `stageReflectionImage`; `y`: the frame index modulo eight, which dithers the noise of the hits, the
+ *    resolve's discs, the history's clamp and the march's step; `z`: the frame index itself, which turns the pixel a block of
+ *    pixels traces its ray from, `reflectionJitter`, whatever the period of the ray directions; `w` unused);
  *  - `grid`, the grid's extent over the drawn size (`xy`, `gridExtent`, `grids.ts`), the blocks of pixels a texel
- *    traces one ray of, across and down (`zw`, the level's row, square);
- *  - `surroundings`, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`):
- *    the background the screen draws, as the scene radiance the lit image holds there
- *    (`createSurroundings`, `./surroundings.ts`);
+ *    traces one ray of, across (`z`) and down (`w`, the level's row: the same unless the checkerboard);
  *  - `scene`, what a ray may spend (`../../../../sdk-core/src/contracts/reflectionOptions.ts`): the iterations of
  *    its march of the screen (`x`) and the steps of the far screen trace (`y`), and the flags of what is traced
  *    and done (`z`, `REFLECTION_SCENE_TRACES` and the bits after it; `w` the front layer's, whose denoising
  *    switches the scene's water may set apart);
- *  - `reach`, the metres a ray leaves a surface by at least (`x`), the far screen trace's length (`y`) and the hard bound of a ray
- *    the scene walks (`z`, `reflectionSceneReach`: the bounce cascades' reach, `REFLECTION_FAR` without probes);
+ *  - `reach`, the metres a ray leaves a surface by at least (`x`) and the far screen trace's length (`y`), the roughness past which a lobe of a foliage pixel — the thin transmission's models — casts no ray (`z`), and the scale of the bilateral filter's depth weight (`w`);
  *  - `march`, the thickness of a surface of the screen march as a share of its depth (`x`), the far trace's slope
  *    tolerance (`y`) and offset bias (`z`), the longest ray (`w`);
  *  - `light`, the most radiance a ray brings back (`x`), the depth thickness (`y`) and the cosine of the facing
@@ -46,10 +49,18 @@ import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
  *    the tonemap range (`w`);
  *  - `spread`, the reconstruction's radius (`x`), the bilateral filter's (`y`), the reconstruction's least weight
  *    (`z`), the disocclusion frames (`w`);
- *  - `lobe`, the roughness past which a lobe casts no ray (`x`), the fade to it (`y`), the sampling's bias (`z`);
- *  - `taps`, the reconstruction's samples (`x`), the bilateral filter's (`y`), the period of the ray directions (`z`);
- *  - `leak`, the share of the sky light's diffuse light that leaks onto a hit of the scene, by channel (`xyz`: the leaking,
- *    its tint and the average albedo multiplied; `w` unused);
+ *  - `lobe`, the roughness past which a lobe casts no ray (`x`), the fade to it (`y`), the sampling's bias (`z`), the smooth
+ *    bias of every roughness (`w`, `reflectionSmoothed`, `surfacesWgsl.ts`);
+ *  - `taps`, the reconstruction's samples (`x`), the bilateral filter's (`y`); `zw` unused (the period of the ray directions is the CPU's, `stageReflectionImage`);
+ *  - `leak`, the share of the sky light's diffuse light that leaks onto a hit of the scene, by channel (`xyz`: the leaking
+ *    times its tint, shared with the screen probes; `w`: the albedo a hit is taken to reflect it with);
+ *  - `eyeSpread`, the angle one pixel spans at the eye (`eyeToPixelSpread`, `screenSlab.ts`), none under an orthographic projection;
+ *  - `hardware`, for a ray cast through the scene's triangles (`sceneTraceHardware.ts`): the metres it goes along itself at least (`x`), how far its
+ *    start is moved off the surface along the normal as far as the ray leans on it (`y`), the metres its start is pulled back from where the screen
+ *    stopped knowing it (`z`), and the centimetres a texel of a card may lie from the point it hit (`w`, the surface cache's sampling depth bias);
+ *  - `firstPerson`, the sphere that holds the stand-ins of the first-person objects (`firstPersonBounds.ts`): its centre in the world (`xyz`) and its
+ *    radius (`w`), none when it is 0; `firstPersonMinimum`, the metres at least a ray the screen missed is handed to the scene trace at when it meets that
+ *    sphere (`reflectionClipFirstPerson`, `firstPerson.ts`);
  *  - `jitter`, the device offset the temporal anti-aliasing shifts `viewProj` by (`xy`) and the one it shifted
  *    `radianceViewProj` by (`zw`): what the surfaces' vectors, drawn without it, are compared after.
  */
@@ -59,11 +70,13 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['radiance', 'vec4f'],
   ['slab', 'vec4f'],
   ['thickness', 'f32'],
+  ['historyThickness', 'f32'],
+  ['reconstructionScale', 'f32'],
+  ['eyeSpread', 'f32'],
   ['traced', 'vec4u'],
   ['front', 'vec4u'],
   ['temporal', 'vec4u'],
   ['grid', 'vec4u'],
-  ['surroundings', 'vec4f'],
   ['scene', 'vec4u'],
   ['reach', 'vec4f'],
   ['march', 'vec4f'],
@@ -73,7 +86,10 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['lobe', 'vec4f'],
   ['taps', 'vec4u'],
   ['leak', 'vec4f'],
+  ['hardware', 'vec4f'],
   ['jitter', 'vec4f'],
+  ['firstPerson', 'vec4f'],
+  ['firstPersonMinimum', 'f32'],
 ] as const)
 
 /** Each field's first word in the view. */
@@ -118,8 +134,7 @@ export const REFLECTION_SKY_LIGHT = {
 
 /**
  * The reflection's view in bind group `group` — what the forward programs bind (`reflectionForwardLayout`): its
- * view (`REFLECTION_VIEW_WGSL`), the sky light's resources, `reflectionPixelAt`, the world size of a
- * pixel at the point `P` — its clip `w` times the pixel at a unit `w` (`slab.x`) —, the side of the blocks of
+ * view (`REFLECTION_VIEW_WGSL`), the sky light's resources, the side of the blocks of
  * pixels a texel traces (`reflectionBlock`) and whether a flag of the trace is set (`reflectionDone`). The program names the deferred lighting's view (`view`, the pixel's world point
  * `worldAt`, the eye `viewToEye`, the drawn size, the exposure, the display curve, the background)
  * itself: it already has it, or declares it in this group (`reflectionLightViewWgsl`).
@@ -129,7 +144,6 @@ const reflectionViewWgsl = (group: number) =>
     `reflectionViewWgsl(${group})`,
     [REFLECTION_VIEW_WGSL, WORLD_AT_WGSL, skyLightReadWgsl({ ...REFLECTION_SKY_LIGHT, group })],
     `@group(${group}) @binding(${REFLECTION_VIEW_BINDING}) var<uniform> reflectionView:ReflectionView;
-fn reflectionPixelAt(P:vec3f)->f32{return (reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.slab.x;}
 // The surface a trace kernel works on, 0 the opaque or 1 the transparents' front, set by the
 // pipeline (frontLayer.ts); the forward programs leave it at 0.
 override REFLECTION_LAYER:u32=0u;

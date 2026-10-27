@@ -33,7 +33,7 @@ export const MEASURE_TILE = 16
 const LANES = 8
 const ROWS = MEASURE_TILE / LANES
 
-/** The measures' bindings: their uniform (the exposure's scale, the size drawn), the image or the
+/** The measures' bindings: their uniform (the shading's exposure offset, the size drawn), the image or the
  *  visibility buffer, and the layer each writes. */
 export const MEASURE_BINDINGS = { view: 0, image: 1, ids: 2, pages: 3, out: 4, flags: 5 } as const
 /** The words of the measures' uniform. */
@@ -59,7 +59,7 @@ ${visit}
 /**
  * THE FLICKER LUMA MEASURED BEFORE THE TRANSLUCENCY, a pass of its own before the transparent layers
  * are composed onto the image (`../../blend/translucency.ts`): each render texel's luma of the scene,
- * exposed by the image's scale and the shading's exposure offset (`measure.scale`), in the
+ * exposed by the shading's exposure offset (`measure.scale`), in the
  * measurement space's luma taken back to the gamma space, stored in eight bits — what the shading
  * rejection's flicker measure and the thin geometry detection read. One load, one store a texel.
  */

@@ -1,4 +1,5 @@
 import { DEG2RAD } from '../../../math/src/constants.ts'
+import { CENTIMETRES_PER_METRE } from '../page/format.ts'
 import {
   resolveScreenProbes,
   SCREEN_PROBE_RULES,
@@ -6,6 +7,8 @@ import {
 } from '../bounce/screenProbeOptions.ts'
 import {
   ANY_NUMBER,
+  atLeast,
+  INT32_RANGE,
   choiceSetting as choice,
   countSetting as count,
   flagSetting as flag,
@@ -43,7 +46,10 @@ import {
  * surface (`reflectionScreenTraces`), `reflectionScreenSteps` iterations at most (50), a surface being as thick
  * as `reflectionRelativeDepthThickness` (0.5 %) of its depth. The march is strict: a ray that passes behind a
  * surface gives the screen up, one that spends its iterations has hit nothing, and either hands the ray over to the
- * scene where it stopped knowing.
+ * scene where it stopped knowing. A hit near the border of the image, or of the last, is answered by the screen by chance
+ * alone, and a hit whose place in the last image's depth is not the depth it is expected at there, within
+ * `reflectionHistoryDepthTestRelativeThickness` (0.5 %) of the depth, was not visible then: the ray goes on to the scene from before it. The hit's place in
+ * the last image follows the motion of the surface it lands on.
  *
  * THE SCENE, marched through the global distance field: a ray the screen did not answer goes on from where
  * the screen stopped knowing it, less four voxels of the clipmap that holds that point, stepping through the
@@ -59,7 +65,8 @@ import {
  * on to the screen's far trace, then to the environment. The scene trace has one switch, the screen probes'
  * (`screenProbeSceneTraces`, `../bounce/screenProbeOptions.ts`): off, a ray goes from the screen to the sky, in
  * the reflections as in the probes. The lighting of every trace is fogged along the ray
- * (`reflectionHeightFog`) and none brings back more than `reflectionMaxRayIntensity` (40).
+ * (`reflectionHeightFog`) and none brings back more than `reflectionMaxRayIntensity` (40) in the display's white, the radiance times the
+ * image's pre-exposure.
  *
  * THE FAR SCREEN TRACE, after the field: a ray that left the outermost clipmap looks once more at what the
  * screen shows, linearly, from where it left the clipmap up to `reflectionDistantScreenDistance` (2 000 m), in
@@ -67,12 +74,40 @@ import {
  * surface within `reflectionDistantScreenDepthThreshold` (2) of the slope of the ray hit, before the
  * environment answers; `reflectionDistantScreenTraces` turns it off.
  *
+ * THE SCENE THROUGH ITS TRIANGLES (`reflectionHardwareRayTracing`, on): where the scene has acceleration structures, the rays the screen missed go through the scene's triangles (`../lighting/rays/sceneTrace/`) instead of
+ * being marched through the field: from `reflectionHardwareRayTracingBias` (0.1 cm) along the ray, or from where the screen
+ * stopped knowing it less `hardwareRayTracingPullbackBias` (the screen probes' shared one, 8 cm), off the surface by `reflectionHardwareRayTracingNormalBias`
+ * (0.1 cm) along its normal as far as the ray leans on it, to the longest ray, culling the back faces of the primitives that are not
+ * two-sided and passing the translucent ones; the surface cache is read at the triangle it meets, with the cone of the ray, the
+ * hit bringing no light where no card gives any, and a trace that stopped after `surfaceCacheHardwareRayTracingMaxIterations`
+ * triangles having met nothing being a black hit (one that met a triangle keeps its hit's light). A ray that meets nothing goes on as a march's would: to the screen's far trace, which
+ * begins where the ray leaves the scene trace's culling radius, then to the environment. Off, or where the scene has
+ * no acceleration structures, the rays are marched through the global distance field.
+ *
+ * THE FIRST-PERSON STAND-INS (`reflectionHardwareRayTracingFirstPersonMinimumHitDistance`, 4 cm): the objects that stand, in the world,
+ * for a first-person one are invisible to the camera, so the screen can miss them. A ray the screen missed, where one lies in its way, is
+ * handed to the scene trace where it enters the bounding sphere of all the stand-ins, at least that far from its surface, so that the
+ * scene trace has a chance to meet them while the screen still covers the distance that keeps the two copies of a mesh from meeting each other.
+ *
  * THE DENOISER: a pixel resolves its reflection from the rays round it (`reflectionReconstruction`, over
- * `reflectionReconstructionRadius` pixels), accumulates it over `reflectionMaxFramesAccumulated` images under a
+ * `reflectionReconstructionRadius` pixels, weighing them on the roughness times `reflectionReconstructionRoughnessScale`), accumulates it over `reflectionMaxFramesAccumulated` images under a
  * clamp (`reflectionTemporal`, `reflectionNeighborhoodClampScale`, `reflectionHistoryDistanceThreshold`) and filters
- * it last where its history is short (`reflectionBilateralFilter`); a lobe rougher than
- * `reflectionMaxRoughnessToTrace` casts no ray, the probes' field answering it, over a fade of
+ * it last where its history is short (`reflectionBilateralFilter`, over `reflectionBilateralRadius` pixels, `reflectionBilateralSamples`
+ * neighbours, `reflectionBilateralDisocclusionFrames` images of boost and the depth weight `reflectionBilateralDepthWeightScale`); a lobe rougher than
+ * `reflectionMaxRoughnessToTrace` casts no ray (a pixel of the subsurface or two-sided foliage models, past
+ * `reflectionMaxRoughnessToTraceForFoliage`, −1 by default: the level's row), the probes' field answering it, over a fade of
  * `reflectionRoughnessFadeLength`.
+ *
+ * THE RAYS' DENSITY: the level's block of pixels a ray is traced for (`reflectionQuality`) is doubled by a quality
+ * scale at the lowest end (`reflectionQualityScale`, at most 0.25: 2 × 2 pixels a ray) and, where the checkerboard is on
+ * (`reflectionDownsampleCheckerboard`), kept one pixel high (2 × 1); the same scale, over 1, raises the neighbours' rays the
+ * reconstruction reads (the level's count times the scale, at most 64). A global bias on every surface's roughness
+ * (`reflectionSmoothBias`, 0: none) pulls the rougher lobes toward a mirror, a smoothstep up to the bias.
+ *
+ * THE LOOK of the light a surface reflects, two art-direction knobs of the final composite (`reflectionContrast`, from 0.001 to 1, 1 by default;
+ * `reflectionSpecularScale`, 0 or more, 1 by default: neither is physically correct, both are best left at 1): the light a pixel reflects, the rays' answer
+ * and the rough light of the screen probes blended, is raised to the contrast about the mid grey (0.18, so that the overall exposure does not change)
+ * and multiplied by the scale, before the environment BRDF weighs it; a pixel with a clear coat does it to its coat's light and to the light of its base lobe apart.
  *
  * THE SKYLIGHT LEAKING of the reflections' hits: the light a hit surface takes from the sky light whatever hides it, an art
  * direction knob that keeps interiors from going fully black (`reflectionSkylightLeaking`, from 0 to 1, 0 by default: none),
@@ -93,7 +128,12 @@ import {
  * screen and the screen probes alone, never a ray.
  */
 
-const METRES = 'a finite number of metres above 0'
+/** The most neighbours the bilateral filter reads, whatever the setting asks. */
+const BILATERAL_SAMPLES_MAX = 1024
+const METRES_NOTE = 'a finite number of metres above 0'
+const CENTIMETRES_NOTE = 'a finite number of centimetres of at least 0'
+/** The least the first-person stand-ins' hand-off distance is held to, in centimetres: a zero distance would hand the ray off inside the surface it left. */
+const LEAST_FIRST_PERSON_HIT_DISTANCE = 1e-8
 
 /** The reflections' settings by field, each with the reference's default; `'ultra'` the level. */
 export const REFLECTION_RULES = /* @__PURE__ */ (() =>
@@ -102,9 +142,10 @@ export const REFLECTION_RULES = /* @__PURE__ */ (() =>
     flag('reflectionScreenTraces', true),
     count('reflectionScreenSteps', 50, 1),
     positive('reflectionRelativeDepthThickness', 0.005),
+    positive('reflectionHistoryDepthTestRelativeThickness', 0.005),
     flag('reflectionDistantScreenTraces', true),
     count('reflectionDistantScreenSteps', 16, 1),
-    positive('reflectionDistantScreenDistance', 2000, METRES),
+    positive('reflectionDistantScreenDistance', 2000, METRES_NOTE),
     positive('reflectionDistantScreenDepthThreshold', 2),
     number('reflectionDistantScreenOffsetBias', 0, ANY_NUMBER),
     integer('reflectionSampleSceneColor', 1, [0, 2]),
@@ -112,23 +153,36 @@ export const REFLECTION_RULES = /* @__PURE__ */ (() =>
     number('reflectionSampleSceneColorNormalThreshold', 85, [0, 180]),
     flag('reflectionHeightFog', true),
     flag('reflectionHiResSurface', true),
-    positive('reflectionMinDistanceForFoggingSky', 1000, METRES),
+    flag('reflectionHardwareRayTracing', true),
+    nonNegative('reflectionHardwareRayTracingBias', 0.1, CENTIMETRES_NOTE),
+    nonNegative('reflectionHardwareRayTracingNormalBias', 0.1, CENTIMETRES_NOTE),
+    nonNegative('reflectionHardwareRayTracingFirstPersonMinimumHitDistance', 4, CENTIMETRES_NOTE),
+    positive('reflectionMinDistanceForFoggingSky', 1000, METRES_NOTE),
     positive('reflectionMaxRayIntensity', 40),
     flag('reflectionTemporal', true),
     count('reflectionMaxFramesAccumulated', 12, 1),
     number('reflectionNeighborhoodClampScale', 1, ANY_NUMBER),
     count('reflectionMaxRayDirections', 1024, 1),
+    integer('reflectionFixedStateFrameIndex', -1, [-1, INT32_RANGE[1]]),
     positive('reflectionHistoryDistanceThreshold', 0.03),
     nonNegative('reflectionDenoiserTonemapRange', 10),
+    flag('reflectionDownsampleCheckerboard', false),
+    number('reflectionQualityScale', 1, atLeast(0.25)),
+    nonNegative('reflectionSmoothBias', 0),
     flag('reflectionReconstruction', true),
     positive('reflectionReconstructionRadius', 8, 'a finite number of pixels above 0'),
+    positive('reflectionReconstructionRoughnessScale', 1),
     flag('reflectionBilateralFilter', true),
     positive('reflectionBilateralRadius', 8, 'a finite number of pixels above 0'),
     count('reflectionBilateralSamples', 4, 0),
-    count('reflectionBilateralDisocclusionFrames', 2, 1),
+    count('reflectionBilateralDisocclusionFrames', 2, 0),
+    nonNegative('reflectionBilateralDepthWeightScale', 10000),
     number('reflectionMaxRoughnessToTrace', 0.4, [0, 1]),
+    number('reflectionMaxRoughnessToTraceForFoliage', -1, [-1, 1]),
     positive('reflectionRoughnessFadeLength', 0.1),
     number('reflectionGGXSamplingBias', 0.1, [0, 1]),
+    number('reflectionContrast', 1, [0.001, 1]),
+    nonNegative('reflectionSpecularScale', 1),
     flag('reflectionFrontLayer', false),
     number('reflectionSkylightLeaking', 0, [0, 1]),
     nonNegative('reflectionSkylightLeakingTintRed', 1),
@@ -165,9 +219,11 @@ export interface ReflectionSettings {
   /** The level the settings were resolved at, and whether the view traces at all: false at `'off'`. */
   level: ReflectionLevel
   enabled: boolean
-  /** The level's row: the side of the blocks a ray is traced for, the neighbours' rays a pixel reads at most, and the
+  /** The level's row: the blocks a ray is traced for, across (`block`) and down (`blockY`: the same unless the
+   *  checkerboard keeps it at one pixel), the neighbours' rays a pixel reads at most, and the
    *  least share of its own weight they weigh. */
   block: number
+  blockY: number
   reconstructionSamples: number
   reconstructionMinWeight: number
   /** Whether the transparents' front layer is traced: where the level allows it and the level or the project asks for it. */
@@ -196,12 +252,24 @@ export interface ReflectionSettings {
   heightFog: boolean
   /** Whether a scene hit reads the finest pages of the cards that are in the atlas, or the coarsest, always resident. */
   hiResSurface: boolean
+  /** Whether the rays the screen missed go through the scene's triangles where the scene has acceleration structures, and, in metres, the least
+   *  a ray goes along itself, how far the ray's start is moved off its surface along the normal as far as it leans on it, and how far the start
+   *  the screen stopped knowing it at is pulled back. */
+  hardwareTraces: boolean
+  hardwareBias: number
+  hardwareNormalBias: number
+  hardwarePullbackBias: number
+  /** The least distance, in metres, at which a ray the screen missed is handed to the scene trace where it meets the sphere that holds the
+   *  stand-ins of the first-person objects. */
+  firstPersonMinimumHitDistance: number
   /** The metres a ray leaves a surface by at least, and the far trace's length. */
   surfaceBias: number
   distantDistance: number
-  /** The thickness of a surface of the screen march in its depth, the far trace's slope tolerance and offset
+  /** The thickness of a surface of the screen march in its depth, the thickness a hit's place in the last image's depth may differ
+   *  from the depth the hit is expected at by, the far trace's slope tolerance and offset
    *  bias, the longest ray in metres, the most radiance a ray brings back. */
   relativeThickness: number
+  historyDepthThickness: number
   distantTolerance: number
   distantOffsetBias: number
   traceDistance: number
@@ -213,35 +281,73 @@ export interface ReflectionSettings {
   fogSkyDistance: number
   /** The denoiser: its three passes, the images a history holds, the clamp's scale, the sequence of ray directions
    *  (its period), the history's distance threshold, the tonemap range, the reconstruction's radius, the bilateral
-   *  filter's radius, taps and disocclusion frames, the roughness past which a lobe casts no ray, the fade to it
-   *  and the sampling's bias. */
+   *  filter's radius, taps (held to 1024), disocclusion frames and depth weight scale, the roughness past which a lobe casts no ray,
+   *  the fade to it and the sampling's bias. */
   temporal: boolean
   reconstruction: boolean
   bilateral: boolean
   historyFrames: number
   clampScale: number
   rayDirections: number
+  /** The frame index the view's noise is held at, for debugging (`reflectionFixedStateFrameIndex`): from 0 on, the index of every pass of the reflections; -1, none. */
+  fixedStateFrameIndex: number
   historyDistance: number
   tonemapRange: number
   reconstructionRadius: number
+  /** The scale of the roughness the reconstruction weighs the neighbours' rays on. */
+  reconstructionRoughnessScale: number
   bilateralRadius: number
   bilateralSamples: number
+  /** The images of history under which the bilateral filter boosts itself (the setting, held to the images a history holds), and
+   *  the scale of its depth weight. */
   disocclusionFrames: number
+  bilateralDepthScale: number
   maxRoughness: number
+  /** The same bar for the pixels of the thin transmission (the subsurface and two-sided foliage models). */
+  maxRoughnessFoliage: number
+  /** The roughness past which the screen probes read the rough specular of those pixels no more: the probes' setting
+   *  (`screenProbeMaxRoughnessToEvaluateRoughSpecularForFoliage`) where it names one, else the level's row, which sets it with the bar above. */
+  maxRoughnessEvaluateFoliage: number
   roughnessFade: number
   samplingBias: number
-  /** The light a hit of the scene takes from the sky light's diffuse light, whatever hides it, as a share of it, by channel: the
-   *  leaking, its tint and the average albedo of a hit multiplied (zero by default). */
-  skylightLeak: readonly [number, number, number]
+  /** The look of the light a pixel reflects: the contrast it is raised to about the mid grey and the scale it is multiplied by, before the environment BRDF weighs it. */
+  contrast: number
+  specularScale: number
+  /** The global bias that pulls every surface's roughness toward a mirror (0: none). */
+  smoothBias: number
+  /** The share of the sky light's diffuse light that leaks onto a hit of the scene, whatever hides it, by channel: the leaking times
+   *  its tint (zero by default). The screen probes' rays take it as it is; the reflections multiply it by `skylightLeakAlbedo`. */
+  skylightLeakColor: readonly [number, number, number]
+  /** The albedo a hit surface is taken to have when it reflects the leaking sky light: it scales `skylightLeakColor` in the reflections only. */
+  skylightLeakAlbedo: number
 }
 
-/** The channels of the skylight leaking a hit takes: its strength, its tint and the average albedo of the surface multiplied. */
-function skylightLeakOf(values: ReflectionValues): readonly [number, number, number] {
-  const strength = values.reflectionSkylightLeaking * values.reflectionSkylightLeakingAverageAlbedo
-  const red = values.reflectionSkylightLeakingTintRed,
-    green = values.reflectionSkylightLeakingTintGreen,
-    blue = values.reflectionSkylightLeakingTintBlue
-  return [strength * red, strength * green, strength * blue]
+type Density = ReturnType<typeof densityOf>
+
+/** The blocks of pixels a ray is traced for, across and down, and the neighbours' rays the reconstruction reads at most: the level's
+ *  row, its block doubled (two at most) by a quality scale of 0.25 or less, its height kept at one pixel by the checkerboard,
+ *  its count raised by the scale, from the level's own up to 64. */
+function densityOf(values: ReflectionValues, knobs: ReflectionKnobs) {
+  const scale = values.reflectionQualityScale
+  const block = Math.min(Math.max(knobs.downsample * (scale <= 0.25 ? 2 : 1), 1), 2)
+  return {
+    block,
+    blockY: values.reflectionDownsampleCheckerboard ? 1 : block,
+    samples: Math.min(
+      Math.max(Math.round(scale * knobs.reconstructionSamples), knobs.reconstructionSamples),
+      64,
+    ),
+  }
+}
+
+/** The channels of the skylight leaking a hit takes: its strength times its tint. */
+function skylightLeakColorOf(values: ReflectionValues): readonly [number, number, number] {
+  const strength = values.reflectionSkylightLeaking
+  return [
+    strength * values.reflectionSkylightLeakingTintRed,
+    strength * values.reflectionSkylightLeakingTintGreen,
+    strength * values.reflectionSkylightLeakingTintBlue,
+  ]
 }
 
 type FrontLayerSettings = Pick<
@@ -255,12 +361,14 @@ type FrontLayerSettings = Pick<
   | 'frontDistantTraces'
 >
 
-/** The settings of the front layer: the level's knobs, over which the water's own side and settings win. */
+/** The settings of the front layer: the level's knobs, over which the water's own side and settings win. Its blocks are the opaque
+ *  trace's (`density`): the front layer is traced at the factor of the opaque pass, its quality scale and its checkerboard included. */
 function frontLayerOf(
   values: ReflectionValues,
   probes: ScreenProbeSettings,
   enabled: boolean,
   knobs: ReflectionKnobs,
+  density: Density,
   water?: WaterFrontSettings,
 ): FrontLayerSettings {
   return {
@@ -268,7 +376,7 @@ function frontLayerOf(
       enabled &&
       (!!water ||
         (knobs.frontLayerAllowed && (knobs.frontLayerTraced || values.reflectionFrontLayer))),
-    frontBlock: water ? water.block : [knobs.downsample, knobs.downsample],
+    frontBlock: water ? water.block : [density.block, density.blockY],
     frontReconstruction: values.reflectionReconstruction && (water?.reconstruction ?? true),
     frontTemporal: values.reflectionTemporal && (water?.temporal ?? true),
     frontBilateral: values.reflectionBilateralFilter && (water?.bilateral ?? true),
@@ -299,27 +407,49 @@ export function resolveReflections(
   const level = values.reflectionQuality
   const enabled = level !== 'off'
   const knobs = REFLECTION_LEVEL_KNOBS[enabled ? level : DEFAULT_REFLECTION_LEVEL]
-  const screenTraces = values.reflectionScreenTraces
-  const sample = values.reflectionSampleSceneColor
+  const density = densityOf(values, knobs)
   return {
     level,
     enabled,
-    block: knobs.downsample,
-    reconstructionSamples: knobs.reconstructionSamples,
+    block: density.block,
+    blockY: density.blockY,
+    reconstructionSamples: density.samples,
     reconstructionMinWeight: knobs.reconstructionMinWeight,
-    ...frontLayerOf(values, probes, enabled, knobs, water),
+    ...frontLayerOf(values, probes, enabled, knobs, density, water),
+    ...marchOf(values, probes),
+    marchesField: enabled && probes.values.screenProbeSceneTraces,
+    ...denoiserOf(values),
+    ...lobeOf(values, probes, knobs, enabled),
+  }
+}
+
+/** The settings of the rays' march: the screen's, the scene's and the far trace's budgets and tolerances, what a hit takes of the lit
+ *  image, the hardware rays' biases (in metres) and the fog and the ceiling a ray's radiance is held to. */
+function marchOf(values: ReflectionValues, probes: ScreenProbeSettings) {
+  const screenTraces = values.reflectionScreenTraces
+  const sample = values.reflectionSampleSceneColor
+  return {
     screenSteps: values.reflectionScreenSteps,
     distantSteps: values.reflectionDistantScreenSteps,
     screenTraces,
     sceneTraces: probes.values.screenProbeSceneTraces,
-    marchesField: enabled && probes.values.screenProbeSceneTraces,
     distantTraces: values.reflectionDistantScreenTraces && screenTraces,
     sampleSceneColor: sample === 2 || (sample === 1 && screenTraces),
     heightFog: values.reflectionHeightFog,
     hiResSurface: values.reflectionHiResSurface,
+    hardwareTraces: values.reflectionHardwareRayTracing,
+    hardwareBias: values.reflectionHardwareRayTracingBias / CENTIMETRES_PER_METRE,
+    hardwareNormalBias: values.reflectionHardwareRayTracingNormalBias / CENTIMETRES_PER_METRE,
+    hardwarePullbackBias: probes.values.hardwareRayTracingPullbackBias,
+    firstPersonMinimumHitDistance:
+      Math.max(
+        values.reflectionHardwareRayTracingFirstPersonMinimumHitDistance,
+        LEAST_FIRST_PERSON_HIT_DISTANCE,
+      ) / CENTIMETRES_PER_METRE,
     surfaceBias: probes.values.screenProbeSurfaceBias,
     distantDistance: values.reflectionDistantScreenDistance,
     relativeThickness: values.reflectionRelativeDepthThickness,
+    historyDepthThickness: values.reflectionHistoryDepthTestRelativeThickness,
     distantTolerance: values.reflectionDistantScreenDepthThreshold,
     distantOffsetBias: values.reflectionDistantScreenOffsetBias,
     traceDistance: probes.values.screenProbeMaxTraceDistance,
@@ -327,22 +457,55 @@ export function resolveReflections(
     sampleDepthThickness: values.reflectionSampleSceneColorDepthThickness,
     sampleFacing: Math.cos(values.reflectionSampleSceneColorNormalThreshold * DEG2RAD),
     fogSkyDistance: values.reflectionMinDistanceForFoggingSky,
+  }
+}
+
+/** The settings of the denoiser: its three passes, the history it keeps and the radii, taps and weights of its filters. */
+function denoiserOf(values: ReflectionValues) {
+  return {
     temporal: values.reflectionTemporal,
     reconstruction: values.reflectionReconstruction,
     bilateral: values.reflectionBilateralFilter,
     historyFrames: values.reflectionMaxFramesAccumulated,
     clampScale: values.reflectionNeighborhoodClampScale,
     rayDirections: values.reflectionMaxRayDirections,
+    fixedStateFrameIndex: values.reflectionFixedStateFrameIndex,
     historyDistance: values.reflectionHistoryDistanceThreshold,
     tonemapRange: values.reflectionDenoiserTonemapRange,
     reconstructionRadius: values.reflectionReconstructionRadius,
+    reconstructionRoughnessScale: values.reflectionReconstructionRoughnessScale,
     bilateralRadius: values.reflectionBilateralRadius,
-    bilateralSamples: values.reflectionBilateralSamples,
-    disocclusionFrames: values.reflectionBilateralDisocclusionFrames,
+    bilateralSamples: Math.min(values.reflectionBilateralSamples, BILATERAL_SAMPLES_MAX),
+    disocclusionFrames: Math.min(
+      values.reflectionBilateralDisocclusionFrames,
+      values.reflectionMaxFramesAccumulated,
+    ),
+    bilateralDepthScale: values.reflectionBilateralDepthWeightScale,
+  }
+}
+
+/** The settings of the lobes a ray is cast for: the roughness past which one casts none (the foliage's bar a setting names, else the level's
+ *  row), the fade to it, the sampling's and the smooth bias and the skylight leaking. */
+function lobeOf(
+  values: ReflectionValues,
+  probes: ScreenProbeSettings,
+  knobs: ReflectionKnobs,
+  enabled: boolean,
+) {
+  const foliage = values.reflectionMaxRoughnessToTraceForFoliage
+  const evaluated = probes.values.screenProbeMaxRoughnessToEvaluateRoughSpecularForFoliage
+  return {
     maxRoughness: enabled ? values.reflectionMaxRoughnessToTrace : 0,
-    roughnessFade: values.reflectionRoughnessFadeLength,
+    maxRoughnessFoliage: enabled ? (foliage >= 0 ? foliage : knobs.maxRoughnessFoliage) : 0,
+    maxRoughnessEvaluateFoliage: evaluated >= 0 ? evaluated : knobs.maxRoughnessEvaluateFoliage,
+    // Held to a thousandth up to one, as the width it is divided by.
+    roughnessFade: Math.min(Math.max(values.reflectionRoughnessFadeLength, 0.001), 1),
     samplingBias: values.reflectionGGXSamplingBias,
-    skylightLeak: skylightLeakOf(values),
+    contrast: values.reflectionContrast,
+    specularScale: values.reflectionSpecularScale,
+    smoothBias: values.reflectionSmoothBias,
+    skylightLeakColor: skylightLeakColorOf(values),
+    skylightLeakAlbedo: values.reflectionSkylightLeakingAverageAlbedo,
   }
 }
 

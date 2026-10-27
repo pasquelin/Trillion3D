@@ -1,7 +1,7 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { GI_FRAME_WGSL, GI_QUANTIZE_WGSL } from './frameWgsl.ts'
-import { TRANSLUCENCY_GI_FORMAT, TRANSLUCENCY_GI_GROUP } from './layout.ts'
+import { GI_FRAME_WGSL, giFormatWgsl, giQuantizeWgsl } from './frameWgsl.ts'
+import { TRANSLUCENCY_GI_GROUP } from './layout.ts'
 
 /** Where the spatial filter binds what it reads and writes, in group 0: the frame, the cones' light read and the light written. */
 export const FILTER_GI_BINDING = { frame: 0, input: 1, output: 2 } as const
@@ -13,10 +13,11 @@ const b = FILTER_GI_BINDING
  * Gaussian of the distance in cells (`gi.spatial.y`, `gi.spatial.z`: its two factors from the standard deviation), the cells off the grid
  * left out and the weights summed to one, written to the format's precision (`giQuantize`, the draw of the texel, the slice and the axis).
  */
-const FILTER_GI_WGSL = wgslBlock(
-  'FILTER_GI_WGSL',
-  [GI_FRAME_WGSL, GI_QUANTIZE_WGSL],
-  `fn giGauss(distance:f32)->f32{return gi.spatial.z*exp(-distance*distance*gi.spatial.y);}
+const filterGiWgsl = (format: GPUTextureFormat) =>
+  wgslBlock(
+    `FILTER_GI_WGSL(${format})`,
+    [GI_FRAME_WGSL, giQuantizeWgsl(format)],
+    `fn giGauss(distance:f32)->f32{return gi.spatial.z*exp(-distance*distance*gi.spatial.y);}
 fn giFilter(id:vec3u,axis:vec3i){
  let res=u32(gi.trace.x);
  let cell=vec3u(id.xy/res,id.z);
@@ -41,12 +42,13 @@ fn filterX(@builtin(global_invocation_id) id:vec3u){giFilter(id,vec3i(1,0,0));}
 fn filterY(@builtin(global_invocation_id) id:vec3u){giFilter(id,vec3i(0,1,0));}
 @compute @workgroup_size(${TRANSLUCENCY_GI_GROUP},${TRANSLUCENCY_GI_GROUP},1)
 fn filterZ(@builtin(global_invocation_id) id:vec3u){giFilter(id,vec3i(0,0,1));}`,
-)
+  )
 
-/** The filter's program: its three entry points. */
-export const FILTER_GI_PROGRAM = wgslProgram(
-  `@group(0) @binding(${b.frame}) var<uniform> gi:TranslucencyGiFrame;
+/** The filter's program over cones' light in `format`: its three entry points. */
+export const filterGiProgram = (format: GPUTextureFormat) =>
+  wgslProgram(
+    `@group(0) @binding(${b.frame}) var<uniform> gi:TranslucencyGiFrame;
 @group(0) @binding(${b.input}) var coneIn:texture_3d<f32>;
-@group(0) @binding(${b.output}) var coneOut:texture_storage_3d<${TRANSLUCENCY_GI_FORMAT},write>;`,
-  [FILTER_GI_WGSL],
-)
+@group(0) @binding(${b.output}) var coneOut:texture_storage_3d<${format},write>;`,
+    [filterGiWgsl(format), ...giFormatWgsl(format)],
+  )

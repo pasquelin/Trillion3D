@@ -1,23 +1,82 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BOUNCE_PROBE_QUEUE, BOUNCE_SETTINGS, resolveProbesPerFrame } from './contracts.ts'
+import {
+  BOUNCE_SETTINGS,
+  probePoolOf,
+  probeQueueFor as queueFor,
+  probeQueueShapeFor,
+  probeQueueShapeOf,
+} from './contracts.ts'
 import { DEFAULT_SCREEN_PROBE_LEVEL, SCREEN_PROBE_LEVEL_KNOBS } from './screenProbeLevels.ts'
 import { screenProbeSettings } from './screenProbeOptions.fixture.ts'
 import { REFLECTION_RULES, resolveReflections } from '../contracts/reflectionOptions.ts'
 import { resolveSettings, type SettingRule } from '../contracts/settingRules.ts'
 
-test('the probes a frame traces: the default when none is asked, a whole count within the queue otherwise', () => {
-  assert.equal(resolveProbesPerFrame(undefined), BOUNCE_SETTINGS.probesPerFrame)
-  // The default is the row of the default level: a host that names none gets the level's own budget.
+/** The probes a frame queues for `budget`, at the temporary atlas's factor the settings default to. */
+const probeQueueFor = (budget: number) =>
+  queueFor(budget, screenProbeSettings().cache.temporaryAtlasDownsample)
+
+test('the temporary atlas’s factor defaults to 6, and the settings carry the one a host names', () => {
+  assert.equal(screenProbeSettings().cache.temporaryAtlasDownsample, 6)
   assert.equal(
-    BOUNCE_SETTINGS.probesPerFrame,
+    screenProbeSettings({ screenProbeRadianceCacheTemporaryAtlasDownsampleFactor: 12 }).cache
+      .temporaryAtlasDownsample,
+    12,
+  )
+  assert.ok(queueFor(0, 12) < queueFor(0, 6), 'a larger factor leaves a smaller queue')
+})
+
+test('the probes one frame queues are the greater of the pool over the temporary atlas’s factor and four times the budget, in rows of a power of two', () => {
+  const { probePool } = BOUNCE_SETTINGS
+  // A small budget leaves the pool's share: a block of rows a power of two wide within a row of a sixth of the pool.
+  assert.ok(Math.abs(probeQueueFor(0) - probePool / 6) < 128)
+  assert.equal(
+    probeQueueFor(100),
+    probeQueueFor(0),
+    '400 probes are under the pool’s share of 2 731',
+  )
+  // Past it, four times the budget: a budget of 1 000 names 4 000 probes, a block of 63 rows of 64 — the next power of two over its side.
+  assert.equal(probeQueueFor(1000), 64 * Math.ceil(63 ** 2 / 64))
+  assert.ok(probeQueueFor(1000) >= 3900 && probeQueueFor(1000) < 4000 + 64)
+  // Never more than the pool holds.
+  assert.equal(probeQueueFor(1e6), probePool)
+})
+
+test('the queue is laid in the rows of the temporary atlas its probes are traced into: a frame’s shape holds the probes it queues, a full update’s the whole pool in the pool’s own rows', () => {
+  const { probePool } = BOUNCE_SETTINGS
+  const shape = probeQueueShapeFor(8, 6)
+  assert.equal(shape.probes, queueFor(8, 6))
+  assert.equal(shape.row & (shape.row - 1), 0, 'a row a power of two wide')
+  assert.equal(shape.probes % shape.row, 0, 'whole rows')
+  assert.deepEqual(probeQueueShapeOf(8, 6, false), shape)
+  assert.deepEqual(probeQueueShapeOf(8, 6, true), { row: 128, probes: probePool })
+})
+
+test('a pool of its own is a row a power of two wide of as many rows as hold the square of the side asked, within 1 to 1 024', () => {
+  assert.equal(probePoolOf(128), BOUNCE_SETTINGS.probePool)
+  assert.equal(probePoolOf(100), 128 * 79)
+  assert.equal(probePoolOf(0), 1)
+  assert.equal(probePoolOf(1e6), 1024 * 1024)
+  // The queue of a pool is never more than it holds, and the world's pool is the default.
+  assert.equal(queueFor(1e6, 6, 4096), 4096)
+  assert.equal(queueFor(0, 6, probePoolOf(100)) <= probePoolOf(100), true)
+  assert.equal(queueFor(100, 6), queueFor(100, 6, BOUNCE_SETTINGS.probePool))
+})
+
+test('the update speed scales the budget the levels hold, within its range', () => {
+  const budget = (options: object) => screenProbeSettings(options).cache.budget
+  // The levels' own rows, at the default update speed: 100, 150 and 350 probes.
+  assert.equal(
+    budget({}),
     SCREEN_PROBE_LEVEL_KNOBS[DEFAULT_SCREEN_PROBE_LEVEL as 'ultra'].radianceProbeBudget,
   )
-  assert.ok(BOUNCE_SETTINGS.probesPerFrame <= BOUNCE_PROBE_QUEUE)
-  assert.equal(resolveProbesPerFrame(1), 1)
-  assert.equal(resolveProbesPerFrame(BOUNCE_PROBE_QUEUE), BOUNCE_PROBE_QUEUE)
-  for (const asked of [0, -3, 1.5, NaN, Infinity, BOUNCE_PROBE_QUEUE + 1])
-    assert.throws(() => resolveProbesPerFrame(asked), RangeError, `${asked}`)
+  assert.equal(budget({ screenProbes: 'cinematic' }), 350)
+  // The fastest update speed on the greatest row is the greatest budget, and it is not held back: 1 400 maps name 5 600 probes, a block of
+  // 43 rows of 128 (the side of 74 probes, floored, laid in rows of the next power of two).
+  const greatest = budget({ screenProbes: 'cinematic', screenProbeUpdateSpeed: 4 })
+  assert.equal(greatest, 1400)
+  assert.equal(probeQueueFor(greatest), 128 * 43)
+  assert.equal(budget({ screenProbes: 'cinematic', screenProbeUpdateSpeed: 100 }), greatest)
 })
 
 /** The reflections' settings the options give, over the screen probes' the options give too. */
@@ -52,13 +111,32 @@ test('the reflections trace with the reference’s budgets: 50 screen iterations
     { reflectionSampleSceneColor: 3 },
     { reflectionSampleSceneColorNormalThreshold: 181 },
     { reflectionMaxRoughnessToTrace: 1.5 },
-    { reflectionBilateralDisocclusionFrames: 0 },
+    { reflectionBilateralDisocclusionFrames: -1 },
+    { reflectionBilateralDepthWeightScale: -1 },
     { reflectionMaxRayIntensity: 0 },
+    { reflectionHistoryDepthTestRelativeThickness: 0 },
+    { reflectionReconstructionRoughnessScale: 0 },
   ])
     assert.throws(() => resolveSettings(anyRules, refused), TypeError, JSON.stringify(refused))
   // The iterations have no upper bound: the reference takes any count.
   assert.equal(reflections({ reflectionScreenSteps: 300 }).screenSteps, 300)
   assert.equal(reflections({ reflectionDistantScreenSteps: 1000 }).distantSteps, 1000)
+  // The bilateral filter's boost: zero turns it off, and it never passes the images a history holds; its depth weight is 10 000.
+  assert.equal(reflections({}).disocclusionFrames, 2)
+  assert.equal(reflections({ reflectionBilateralDisocclusionFrames: 0 }).disocclusionFrames, 0)
+  assert.equal(reflections({ reflectionMaxFramesAccumulated: 1 }).disocclusionFrames, 1)
+  assert.equal(reflections({}).bilateralDepthScale, 10000)
+  // The depth test of a screen hit against the last image holds 0.5 % of the depth, the reconstruction weighs on the surface's own roughness.
+  assert.equal(reflections({}).historyDepthThickness, 0.005)
+  assert.equal(reflections({}).reconstructionRoughnessScale, 1)
+  assert.equal(
+    reflections({ reflectionHistoryDepthTestRelativeThickness: 0.02 }).historyDepthThickness,
+    0.02,
+  )
+  assert.equal(
+    reflections({ reflectionReconstructionRoughnessScale: 2 }).reconstructionRoughnessScale,
+    2,
+  )
 })
 
 test('the reflections have the reference’s levels: off, then the rows high, ultra — the default — and cinematic', () => {

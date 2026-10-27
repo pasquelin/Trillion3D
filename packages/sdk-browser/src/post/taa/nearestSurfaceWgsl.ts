@@ -9,7 +9,7 @@ import { visPageIndex } from '../../visibility/visWords.ts'
 import { WPO_ROW_VELOCITY } from '../../visibility/types.ts'
 import { TAA_VIEW_WGSL } from './bindingsWgsl.ts'
 import { worldTableWgsl } from '../../geometry/dag/worlds/worldTable.ts'
-import { worldAtEyeWgsl } from '../../geometry/dag/shader/worldPoseWgsl.ts'
+import { PLACEMENT_MOTION_AT_EYE_WGSL } from '../../geometry/dag/shader/worldPoseWgsl.ts'
 import { TAA_REPROJECT_WGSL } from './deformWgsl.ts'
 import { DEPTH_WGSL } from './depthWgsl.ts'
 import { TILE_CLAMP_WGSL } from './tileWgsl.ts'
@@ -60,25 +60,14 @@ const PLACEMENT_MOTION_WGSL = wgslBlock(
       binding: VELOCITY_INPUT_BINDINGS.previous,
       access: 'read',
     }),
-    worldAtEyeWgsl('worlds'),
-    worldAtEyeWgsl('previous'),
+    PLACEMENT_MOTION_AT_EYE_WGSL,
   ],
   `
 fn placementMoved(w:u32)->bool{
  for(var k=0u;k<4u;k++){if(any(worldsMatrix(w,k)!=previousMatrix(w,k))){return true;}}
  return any(worldsOrigin(w,0u)!=previousOrigin(w,0u))||any(worldsOrigin(w,1u)!=previousOrigin(w,1u));
 }
-fn affineInverse(m:mat4x4f)->mat4x4f{
- let a=m[0].xyz;let b=m[1].xyz;let c=m[2].xyz;
- let s=1.0/dot(a,cross(b,c));
- let r0=cross(b,c)*s;let r1=cross(c,a)*s;let r2=cross(a,b)*s;
- let t=m[3].xyz;
- return mat4x4f(vec4f(r0.x,r1.x,r2.x,0.0),vec4f(r0.y,r1.y,r2.y,0.0),vec4f(r0.z,r1.z,r2.z,0.0),vec4f(-dot(r0,t),-dot(r1,t),-dot(r2,t),1.0));
-}
-fn placementMotion(w:u32)->mat4x4f{
- let now=worldsWorldAtEye(w,view.exactEye[0],view.exactEye[1]);
- return previousWorldAtEye(w,view.exactEye[0],view.exactEye[1])*affineInverse(now);
-}`,
+fn placementMotion(w:u32)->mat4x4f{return placementMotionAtEye(w,view.exactEye[0],view.exactEye[1]);}`,
 )
 
 /**

@@ -17,28 +17,29 @@
 //! A child box is rounded outwards: the low corner down, the high corner up.
 use super::abi::{
     RAY_TRACING_LEAF_COUNT_SHIFT, RAY_TRACING_LEAF_OFFSET_MASK, RAY_TRACING_LEAF_TRIANGLES,
-    RAY_TRACING_NODE_BYTES, RAY_TRACING_TRIANGLE_BYTES, RAY_TRACING_WIDTH,
+    RAY_TRACING_MIN_EXPONENT, RAY_TRACING_NODE_BYTES, RAY_TRACING_TRIANGLE_BYTES,
+    RAY_TRACING_WIDTH,
 };
 use super::bvh::Box3;
 use super::cut::CutTriangle;
 use super::wide::{Slot, WideNode};
 
-/// The exponent a flat box gets, whose scale is as good as any.
-const FLAT_EXPONENT: i8 = -127;
 /// The largest quantised coordinate.
 const STEPS: f64 = 255.0;
 
-/// The exponent `e` of the least power of two that `STEPS` steps of `2^e` span `extent`.
+/// The exponent `e` of the least power of two that `STEPS` steps of `2^e` span `extent`, no less
+/// than `RAY_TRACING_MIN_EXPONENT`, which a flat box gets: its scale is as good as any, its steps
+/// being zero. The shader reads no less (`sceneTraceWgsl.ts`).
 pub(super) fn exponent(extent: f64) -> i8 {
     if extent <= 0.0 {
-        return FLAT_EXPONENT;
+        return RAY_TRACING_MIN_EXPONENT;
     }
     let mut e = (extent / STEPS).log2().ceil();
     // `log2` is rounded: make sure the steps reach.
     while 2f64.powf(e) * STEPS < extent {
         e += 1.0;
     }
-    e.clamp(f64::from(FLAT_EXPONENT), 127.0) as i8
+    e.clamp(f64::from(RAY_TRACING_MIN_EXPONENT), 127.0) as i8
 }
 
 /// The coordinate `value` of a child's box, in steps of `scale` from `origin`, taken to a whole
@@ -96,13 +97,14 @@ pub(super) fn write_node(node: &WideNode, out: &mut Vec<u8>) {
     debug_assert_eq!(out.len() - start, RAY_TRACING_NODE_BYTES);
 }
 
-/// Writes the bytes of the triangle `triangle` to the end of `out`.
+/// Writes the bytes of the triangle `triangle` to the end of `out`: its corners, its cluster and its
+/// rank in the cluster, its tag (zero but in the world's directory).
 pub(super) fn write_triangle(triangle: &CutTriangle, out: &mut Vec<u8>) {
     let start = out.len();
     for corner in triangle.corners.iter().flatten() {
         out.extend_from_slice(&corner.to_le_bytes());
     }
-    for word in [triangle.cluster, triangle.triangle, 0] {
+    for word in [triangle.cluster, triangle.triangle, triangle.tag] {
         out.extend_from_slice(&word.to_le_bytes());
     }
     debug_assert_eq!(out.len() - start, RAY_TRACING_TRIANGLE_BYTES);

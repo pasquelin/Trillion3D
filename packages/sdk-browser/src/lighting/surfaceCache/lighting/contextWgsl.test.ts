@@ -7,7 +7,15 @@ import { wgslBufferBindings } from '../../../gpu/core/wgslBindings.fixture.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../../materials/texture/shaderRule.fixture.ts'
 import { FEEDBACK_AT, FEEDBACK_HEADER_WORDS } from '../feedbackLayout.ts'
-import { CONTEXT_ENTRIES, CONTEXT_FEEDBACK_BINDING, CONTEXT_WGSL } from './contextWgsl.ts'
+import {
+  CONTEXT_ENTRIES,
+  CONTEXT_FEEDBACK_BINDING,
+  CONTEXT_PAGE_ARGS_BINDING,
+  CONTEXT_WGSL,
+  SPLICE_CONTEXT_BINDING,
+  SPLICE_ENTRIES,
+  SPLICE_WGSL,
+} from './contextWgsl.ts'
 import { LIGHTING_FLAG } from './layout.ts'
 
 test('the program assembles and binds the rays’ feedback read-only, where the kernel lays it', () => {
@@ -19,6 +27,34 @@ test('the program assembles and binds the rays’ feedback read-only, where the 
   const named = wgslConstants(CONTEXT_WGSL)
   assert.equal(named.FLAG_FEEDBACK, LIGHTING_FLAG.feedback)
   assert.equal(named.FEEDBACK_HI_RES, FEEDBACK_AT.lastUsedHiRes)
+})
+
+test('the pages are cut into tiles by a program that writes the context and leaves the dispatch arguments to a buffer of their own', () => {
+  for (const entry of SPLICE_ENTRIES) assertProgramAssembles(SPLICE_WGSL, entry)
+  const splice = wgslBufferBindings(SPLICE_WGSL)
+  assert.deepEqual(
+    splice.find(({ binding }) => binding === SPLICE_CONTEXT_BINDING),
+    { binding: SPLICE_CONTEXT_BINDING, type: 'storage' },
+  )
+  assert.ok(!splice.some(({ binding }) => binding === CONTEXT_PAGE_ARGS_BINDING))
+  assert.deepEqual(
+    wgslBufferBindings(CONTEXT_WGSL).find(({ binding }) => binding === CONTEXT_PAGE_ARGS_BINDING),
+    { binding: CONTEXT_PAGE_ARGS_BINDING, type: 'storage' },
+  )
+})
+
+test('a splice workgroup takes its threads in Z order over a square of 8 × 8 tiles', () => {
+  const { zOrderDecode } = shaderRun<{ zOrderDecode: (index: number) => number[] }>(
+    SPLICE_WGSL,
+    ['zOrderDecode'],
+    { ...wgslConstants(SPLICE_WGSL) },
+  )
+  assert.deepEqual(zOrderDecode(0), [0, 0])
+  assert.deepEqual(zOrderDecode(1), [1, 0])
+  assert.deepEqual(zOrderDecode(2), [0, 1])
+  assert.deepEqual(zOrderDecode(3), [1, 1])
+  assert.deepEqual(zOrderDecode(4), [2, 0])
+  assert.deepEqual(zOrderDecode(63), [7, 7])
 })
 
 /** A page's update speed (`updateSpeed`), run in JavaScript over the parameters and the feedback buffer it reads. */

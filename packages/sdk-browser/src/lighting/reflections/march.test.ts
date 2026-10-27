@@ -1,7 +1,7 @@
 // The engine's screen march as the reflection calls it, shipped WGSL run as JavaScript over depth
 // images in an orthographic view: a hit on a surface's front, through a pixel's side, a gap, a depth
 // thinner than a pixel, a pixel's plane; a ray behind a slab passes behind it; a miss in front of
-// everything — each within its bound, the iterations of the screen distance (`screenMarchBudget`).
+// everything — each within the iterations of the reflections' cap.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { REFLECTION_CONSTANTS } from './constants.ts'
@@ -120,34 +120,34 @@ test('a ray skimming a surface seen edge-on never stops on the centres it passes
   assert.ok(at && Math.abs(at[2] - plane(y)) < 1e-6, `${at}`)
 })
 
-test('a ray across a wide image finds a far one-pixel depth within its iteration bound', () => {
+test('a ray across a wide image finds a far one-pixel depth within its iterations', () => {
   const march = marcher(640, 360, (x, y) => (x === 150 && y === 90 ? 0.5 : 0.05))
   const scale = 1.05
-  const { at, loads, bound } = march.hit(
+  const { at, steps, cap } = march.hit(
     [20.5, 10.5, 0.5 + 0.1 / scale],
     [(150.5 - 20.5) * scale, (90.5 - 10.5) * scale, -0.1],
   )
   assert.ok(at, 'hit')
   assert.deepEqual([Math.floor(at[0]), Math.floor(at[1])], [150, 90])
-  assert.ok(loads <= bound, `${loads} reads of ${bound}`)
+  assert.ok(steps <= cap, `${steps} iterations of ${cap}`)
 })
 
-test('a ray that skims a tilted plane for the whole image stays within its bound, a miss', () => {
+test('a ray that skims a tilted plane for the whole image stays within its iterations, a miss', () => {
   // A plane tilted 0.0008 a row, the ray parallel to it a pixel and a half above: the cells of
   // the pyramid bound it away from the plane only where their tilt allows, and the pixels below
-  // are crossed one by one — the bound of the screen distance covers them.
+  // are crossed one by one — the floor level rising over the last iterations covers them.
   const slope = 0.0008
   const march = marcher(640, 360, (_, y) => 0.1 + slope * y)
-  const { at, loads, bound } = march.hit([20.5, 100.5, 0.1 + slope * 102], [200, 0, 0])
+  const { at, steps, cap } = march.hit([20.5, 100.5, 0.1 + slope * 102], [200, 0, 0])
   assert.equal(at, undefined)
-  assert.ok(loads <= bound, `${loads} reads of ${bound}`)
+  assert.ok(steps <= cap, `${steps} iterations of ${cap}`)
 })
 
-test('a ray in front of everything leaves the screen: a miss, within its bound', () => {
+test('a ray in front of everything leaves the screen: a miss, within its iterations', () => {
   const march = marcher(W, H, (x) => (x < 64 ? 0.2 : 0.1))
-  const { at, loads, bound } = march.hit([5.5, 5.5, 0.6], [200, 100, 0.2])
+  const { at, steps, cap } = march.hit([5.5, 5.5, 0.6], [200, 100, 0.2])
   assert.equal(at, undefined)
-  assert.ok(loads <= bound)
+  assert.ok(steps <= cap)
 })
 
 test('a ray meets a grazing plane in the half of its pixel past the centre, in whatever cell it enters', () => {
@@ -206,7 +206,7 @@ test('the reference walk gives a ray up behind a thin surface at the surface, wh
   assert.equal(strict.at, undefined)
   // It proved the ray in front of everything up to the pole's pixel, x = 50: t = 0.295.
   assert.ok(strict.above > 0.29 && strict.above < 0.3055, `${strict.above}`)
-  assert.ok(strict.loads <= plain.bound)
+  assert.ok(strict.steps <= strict.cap)
 })
 
 test('the reference walk that spends its iterations meets nothing, and says how far it proved the ray clear', () => {
@@ -225,4 +225,16 @@ test('the reference walk of a ray in front of everything proves it clear to the 
   const { at, above, end } = march.hit([5.5, 5.5, 0.6], [200, 100, 0.2])
   assert.equal(at, undefined)
   assert.ok(Math.abs(above - end) < 1e-6, `${above} of ${end}`)
+})
+
+test('the reference walk of a ray the first step out of its texel carries to the end is rewound to its start: it proves nothing clear, where one that walks proves its way', () => {
+  const march = reference(() => 0.1)
+  // A ray of a third of a pixel ends inside the texel it starts in: the step out of it passes the end.
+  const short = march.hit([20.5, 30.5, 0.6], [0.3, 0, 0])
+  assert.equal(short.at, undefined)
+  assert.equal(short.above, 0)
+  // A ray that leaves its texel with ground to cover is clear to its end.
+  const long = march.hit([20.5, 30.5, 0.6], [30, 0, 0])
+  assert.equal(long.at, undefined)
+  assert.ok(Math.abs(long.above - long.end) < 1e-6, `${long.above} of ${long.end}`)
 })

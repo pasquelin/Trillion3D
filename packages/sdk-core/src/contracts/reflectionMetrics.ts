@@ -28,10 +28,8 @@ export interface ReflectionFrameMetrics {
   censusFrame: number | null
   /** Rays cast. */
   rays: number | null
-  /** Of them: met by the screen in part or whole (a surface it trusts). */
+  /** Of them: answered whole by the screen (it met a surface it trusts), nothing left for the scene stage. */
   screenRays: number | null
-  /** Of them: answered whole by the screen, nothing left for the scene stage. */
-  screenWholeRays: number | null
   /** Of them: left to the scene stage, whose rays end as `sceneEnded` counts. */
   sceneRays: number | null
   sceneEnded: ReflectionSceneEnded | null

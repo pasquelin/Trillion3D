@@ -33,7 +33,7 @@ impl Item {
 }
 
 /// The centre of `bounds`.
-pub(super) fn centre_of((low, high): Box3) -> [f32; 3] {
+fn centre_of((low, high): Box3) -> [f32; 3] {
     [0, 1, 2].map(|axis| (low[axis] + high[axis]) * 0.5)
 }
 
@@ -210,12 +210,14 @@ fn halved(items: &[Item], ids: &mut [usize]) -> (usize, [Box3; 2]) {
 
 /// How `ids`, the items of a node, divide: the size of the first part and the box
 /// of each, none for a leaf — a node of no more than `RAY_TRACING_LEAF_TRIANGLES` items. A larger
-/// one is always split, at its cheapest cut, or in halves where it has none.
-fn split(items: &[Item], ids: &mut [usize]) -> Option<(usize, [Box3; 2])> {
+/// one is always split, at its cheapest cut, or in halves where it has none or where `even` asks
+/// for halves.
+fn split(items: &[Item], ids: &mut [usize], even: bool) -> Option<(usize, [Box3; 2])> {
     if ids.len() <= RAY_TRACING_LEAF_TRIANGLES {
         return None;
     }
-    Some(match cheapest_cut(items, ids) {
+    let cut = if even { None } else { cheapest_cut(items, ids) };
+    Some(match cut {
         Some(cut) => (partition(items, ids, &cut), cut.sides),
         None => halved(items, ids),
     })
@@ -229,14 +231,15 @@ fn unset() -> Node {
     }
 }
 
-/// The tree over `items`, of which there is at least one.
-pub(super) fn build(items: &[Item]) -> Binary {
+/// The tree over `items`, of which there is at least one: every node split at its cheapest cut, or,
+/// `even`, in halves, which is as shallow as a tree of the same leaves can be.
+pub(super) fn build(items: &[Item], even: bool) -> Binary {
     let mut order: Vec<usize> = (0..items.len()).collect();
     let mut nodes = vec![unset()];
     // The nodes to fill: where each lies, the range of the order it covers and its box.
     let mut pending = vec![(0, 0, items.len(), bounds_of(items, &order))];
     while let Some((at, from, to, bounds)) = pending.pop() {
-        let kind = match split(items, &mut order[from..to]) {
+        let kind = match split(items, &mut order[from..to], even) {
             None => Kind::Leaf {
                 first: from,
                 count: to - from,

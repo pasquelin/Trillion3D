@@ -1,19 +1,29 @@
+import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { constructGpuResources } from '../../../gpu/core/deviceLedger.ts'
 import { createList } from '../../../gpu/dispatch/list.ts'
 import {
-  CACHE_PDF_WORDS,
-  CACHE_TAG_WORDS,
+  CACHE_FIXUP_LEVELS,
+  CACHE_TRACE_ATLAS_TILES,
   RADIANCE_CACHE_FORMATS as F,
   RADIANCE_CACHE_PARAMS_BYTES,
+  RADIANCE_CACHE_TEMP_FORMATS as T,
   cacheExtent,
+  cacheFinalSide,
+  cacheTempBytes,
+  cacheTempExtent,
   cacheTileCapacity,
+  cacheTraceBytes,
+  cacheTraceExtent,
   type CacheShape,
+  type CacheTemp,
 } from './cacheLayout.ts'
 
-/** The atlases of the cache: the raw one, the final one with its levels of detail and the sky's share (a texel where it is not kept). */
+/** The atlases of the cache: the raw one, the final one with its border and levels of detail and the sky's share (a texel where it is not
+ *  kept), and, for the levels of detail the final atlas does not hold, a texel each that the fixup's kernel writes to. */
 function cacheAtlases(device: GPUDevice, shape: CacheShape, slots: number) {
   const { resolution, mipmaps, skyVisibility } = shape
   const size = cacheExtent(resolution, slots)
+  const finalSize = cacheExtent(cacheFinalSide(resolution, mipmaps), slots)
   const usage = GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
   const atlas = (label: string, extent: [number, number], format: GPUTextureFormat, mips = 1) =>
     device.createTexture({
@@ -24,60 +34,111 @@ function cacheAtlases(device: GPUDevice, shape: CacheShape, slots: number) {
       usage,
     })
   const raw = atlas('raw', size, F.raw)
-  const final = atlas('final', size, F.final, mipmaps)
-  const sky = atlas('sky', skyVisibility ? size : [1, 1], F.sky)
+  const final = atlas('final', finalSize, F.final, mipmaps)
+  const sky = atlas('sky', skyVisibility ? finalSize : [1, 1], F.sky)
+  const spare = Array.from({ length: CACHE_FIXUP_LEVELS - mipmaps }, () =>
+    atlas('spare', [1, 1], F.final),
+  )
+  const read = { raw: raw.createView(), final: final.createView(), sky: sky.createView() }
   return {
     raw,
     final,
     sky,
+    spare,
+    /** The views the screen probes read the maps by: the raw atlas's, the final atlas's with its levels of detail, the sky's share. */
+    read,
     views: {
-      raw: raw.createView(),
-      final: final.createView(),
-      sky: sky.createView(),
-      /** The levels of detail of the final maps, each alone: written, then read by the next. */
-      levels: Array.from({ length: mipmaps }, (_, level) =>
-        final.createView({ baseMipLevel: level, mipLevelCount: 1 }),
-      ),
+      ...read,
+      /** The levels of detail of the final maps, each alone, as the fixup's kernel writes them: the levels the atlas holds, then a texel each
+       *  for the levels it does not. */
+      levels: [
+        ...Array.from({ length: mipmaps }, (_, level) =>
+          final.createView({ baseMipLevel: level, mipLevelCount: 1 }),
+        ),
+        ...spare.map((texture) => texture.createView()),
+      ],
     },
   }
 }
 
 /** What the radiance cache keeps for maps of the shape `shape` in a pool of `slots` probes: the raw and the final atlases — the final
- *  one with its levels of detail, each a view of its own to be written —, the sky's share atlas where the sky is kept apart (a texel
- *  else), the tags of the final maps and the importance functions of the probes — a buffer a slot, zero: no map was made, no screen
- *  probe has read it —, the list of the trace tiles and the parameters. */
+ *  one with its border and levels of detail, each a view of its own to be written —, the sky's share atlas where the sky is kept apart (a
+ *  texel else), the list of the trace tiles and the parameters. */
 export function createCacheStorage(device: GPUDevice, shape: CacheShape, slots: number) {
-  return constructGpuResources(device, () => {
-    const buffer = (label: string, words: number) =>
-      device.createBuffer({
-        label: `Trillion3D radiance cache ${label} v1`,
-        size: Math.max(16, words * 4),
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      })
-    return {
-      shape,
-      ...cacheAtlases(device, shape, slots),
-      tags: buffer('tags', slots * CACHE_TAG_WORDS),
-      pdf: buffer('importance', slots * CACHE_PDF_WORDS),
-      tiles: createList(
-        device,
-        'Trillion3D radiance cache tiles v1',
-        cacheTileCapacity(shape.resolution),
-        2,
-      ),
-      params: device.createBuffer({
-        label: 'Trillion3D radiance cache parameters v1',
-        size: RADIANCE_CACHE_PARAMS_BYTES,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-      }),
-    }
-  })
+  return constructGpuResources(device, () => ({
+    shape,
+    ...cacheAtlases(device, shape, slots),
+    tiles: createList(
+      device,
+      'Trillion3D radiance cache tiles v1',
+      cacheTileCapacity(shape.resolution, slots),
+      2,
+    ),
+    params: device.createBuffer({
+      label: 'Trillion3D radiance cache parameters v1',
+      size: RADIANCE_CACHE_PARAMS_BYTES,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    }),
+  }))
 }
 
 /** The storage of a cache, made. */
 export type CacheStorage = ReturnType<typeof createCacheStorage>
 
 /** Destroys every resource of `storage`. */
-export function destroyCacheStorage({ raw, final, sky, tags, pdf, tiles, params }: CacheStorage) {
-  for (const resource of [raw, final, sky, tags, pdf, tiles, params]) resource.destroy()
+export function destroyCacheStorage({ raw, final, sky, spare, tiles, params }: CacheStorage) {
+  for (const resource of [raw, final, sky, ...spare, tiles, params]) resource.destroy()
 }
+
+/** The atlases a frame keeps for the queue's block of probes `temp` (`cacheTempExtent`): the filter's light, and its sky's share where the
+ *  sky is kept apart (a texel else). */
+export function createCacheTemp(device: GPUDevice, shape: CacheShape, temp: CacheTemp) {
+  const size = cacheTempExtent(shape.resolution, temp)
+  const atlas = (label: string, extent: [number, number], format: GPUTextureFormat) =>
+    device.createTexture({
+      label: `Trillion3D radiance cache ${label} v1`,
+      size: extent,
+      format,
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+    })
+  const filtered = atlas('filtered', size, T.filtered)
+  const filteredSky = atlas('filtered sky', shape.skyVisibility ? size : [1, 1], T.filteredSky)
+  return {
+    shape,
+    /** The extent of the atlases, which a block of probes of no greater extent (`cacheTempExtent`) is laid out in. */
+    extent: size,
+    bytes: cacheTempBytes(shape, temp),
+    filtered,
+    filteredSky,
+    views: { filtered: filtered.createView(), filteredSky: filteredSky.createView() },
+    destroy() {
+      filtered.destroy()
+      filteredSky.destroy()
+    },
+  }
+}
+
+/** The frame's atlases, made. */
+export type CacheTempStorage = ReturnType<typeof createCacheTemp>
+
+/** The trace atlas for `tiles` tiles: the rays of the trace through the scene's triangles, in the order of the tile list. */
+export function createTraceAtlas(device: GPUDevice, tiles: number) {
+  const texture = device.createTexture({
+    label: 'Trillion3D radiance cache trace v1',
+    size: cacheTraceExtent(tiles),
+    format: T.trace,
+    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+  })
+  // What the atlas holds: whole rows of tiles, so an update asking a few more tiles within the last row keeps it.
+  const capacity = Math.max(1, ceilDiv(tiles, CACHE_TRACE_ATLAS_TILES)) * CACHE_TRACE_ATLAS_TILES
+  return {
+    tiles: capacity,
+    bytes: cacheTraceBytes(capacity),
+    texture,
+    view: texture.createView(),
+    destroy: () => texture.destroy(),
+  }
+}
+
+/** The trace atlas, made. */
+export type TraceAtlas = ReturnType<typeof createTraceAtlas>

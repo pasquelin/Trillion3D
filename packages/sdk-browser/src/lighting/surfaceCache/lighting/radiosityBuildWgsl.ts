@@ -11,7 +11,7 @@ import { radiosityCommonWgsl } from './radiosityCommonWgsl.ts'
  * a thread a ray (`ARGS_TRACES`: the trace, the filter) and a thread a probe (`ARGS_PROBES`: the harmonics). A tile past the
  * list's capacity is counted and not kept.
  *
- * Bindings: 0 the parameters, 1 the tables, 2 the context (written), 3 and 4 the depth and normal layers, 5 the blue noise.
+ * Bindings: 0 the parameters, 1 the tables, 2 the context (written), 3 and 4 the depth and normal layers.
  */
 
 export const RADIOSITY_BUILD_BINDINGS = {
@@ -19,7 +19,6 @@ export const RADIOSITY_BUILD_BINDINGS = {
   context: 2,
   depth: 3,
   normal: 4,
-  noise: 5,
 } as const
 
 export const RADIOSITY_BUILD_ENTRIES = ['radiosityTiles', 'radiosityArgs'] as const
@@ -60,7 +59,7 @@ fn radiosityArgs(){
     surfaceTexelWgsl(
       lightingLayersWgsl(RADIOSITY_BUILD_BINDINGS.depth, RADIOSITY_BUILD_BINDINGS.normal),
     ),
-    radiosityCommonWgsl(RADIOSITY_BUILD_BINDINGS.noise),
+    radiosityCommonWgsl(),
     ARGS_WRITER_WGSL,
   ],
 )

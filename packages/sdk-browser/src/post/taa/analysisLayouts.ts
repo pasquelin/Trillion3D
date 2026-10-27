@@ -22,7 +22,6 @@ import {
   THIN_RELAXATION_BINDINGS,
 } from './thinGeometryWgsl.ts'
 import { MEASURE_BINDINGS } from './flickerLumaWgsl.ts'
-import { FLICKER_MEASURE_BINDINGS } from './flickerMeasureWgsl.ts'
 import { REJECT_SHADING_BINDINGS, REJECTION_FORMAT } from './rejectionWgsl.ts'
 import { SPATIAL_AA_BINDINGS } from './spatialAntiAliasingWgsl.ts'
 import type { HistoryFormats } from './historyShape.ts'
@@ -142,29 +141,13 @@ const measureLayouts = (layoutOf: LayoutOf, measure: GPUTextureFormat) => ({
   ]),
 })
 
-/** The entries of the flicker measure's layout: the image, the translucency, the reprojection word,
- *  the reprojected flicker history, the marks, the thin geometry mask and the flicker luma it reads;
- *  the flicker history it writes and the buffer of the errors and counts the shading rejection
- *  reads back. */
-const flickerMeasureEntries = (): GPUBindGroupLayoutEntry[] => [
-  computeUniformEntry(FLICKER_MEASURE_BINDINGS.view),
-  computeTextureEntry(FLICKER_MEASURE_BINDINGS.current, 'unfilterable-float'),
-  computeTextureEntry(FLICKER_MEASURE_BINDINGS.translucency, 'float'),
-  computeTextureEntry(FLICKER_MEASURE_BINDINGS.word, 'uint'),
-  computeTextureEntry(FLICKER_MEASURE_BINDINGS.flicker, 'float'),
-  computeTextureEntry(FLICKER_MEASURE_BINDINGS.marks, 'uint'),
-  computeTextureEntry(FLICKER_MEASURE_BINDINGS.thin, 'float'),
-  computeTextureEntry(FLICKER_MEASURE_BINDINGS.measureLuma, 'float'),
-  computeStorageTextureEntry(FLICKER_MEASURE_BINDINGS.flickerOut, FLICKER_FORMAT),
-  computeBufferEntry(FLICKER_MEASURE_BINDINGS.flickerError, 'storage', GPUShaderStage.COMPUTE),
-]
-
 /** The entries of the shading rejection's layout: the image, the translucency, the reprojection word,
  *  the reprojected shading histories' layers, the marks, the thin geometry mask and the depth it
- *  reads, and the flicker measure's errors and counts; the shading history, the rejection and the
- *  reprojection field's layers, the anti-aliaser's mask and its LDR luma it writes — three storage
- *  textures, and up to five where the device grants them, the mask taking priority for the fourth
- *  (`rejectionStorageForms`), each a buffer else —, the occluder words it empties, and the scene
+ *  reads, with the reprojected flicker history and the flicker luma the flicker measure reads; the
+ *  shading history, the flicker history, the rejection and the reprojection field's layers, the
+ *  anti-aliaser's mask and its LDR luma it writes — four storage textures, and up to six where the
+ *  device grants them, the mask taking priority for the fifth (`rejectionStorageForms`), each a
+ *  buffer else —, the occluder words it empties, and the scene
  *  colour it writes as a storage buffer. */
 const rejectShadingEntries = (
   guide: GPUTextureFormat,
@@ -186,7 +169,9 @@ const rejectShadingEntries = (
   computeBufferEntry(REJECT_SHADING_BINDINGS.sceneColor, 'storage', GPUShaderStage.COMPUTE),
   storageEntry(LDR_LUMA, luma, 'write', REJECT_SHADING_BINDINGS.luma),
   storageEntry(ANTI_ALIAS_MASK, mask, 'write', REJECT_SHADING_BINDINGS.antiAliasMask),
-  readOnly(REJECT_SHADING_BINDINGS.flickerError),
+  computeTextureEntry(REJECT_SHADING_BINDINGS.flicker, 'float'),
+  computeTextureEntry(REJECT_SHADING_BINDINGS.measuredLuma, 'float'),
+  computeStorageTextureEntry(REJECT_SHADING_BINDINGS.flickerOut, FLICKER_FORMAT),
 ]
 
 /** The layout of the spatial anti-aliaser's dispatch, its target stored to in `format` (the
@@ -231,7 +216,6 @@ export function createAnalysisLayouts(
     thin: thinLayout(layoutOf),
     relaxation: relaxationLayout(layoutOf, measure),
     measure: measureLayouts(layoutOf, measure),
-    flicker: layoutOf(flickerMeasureEntries()),
     rejectShading: layoutOf(rejectShadingEntries(guide, { mask, luma })),
     antiAlias: antiAliasLayout(layoutOf, antiAlias, mask, luma),
   }

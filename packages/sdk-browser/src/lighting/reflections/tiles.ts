@@ -3,7 +3,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { surfaceReflects } from '../../materials/surface/surfaceModel.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { listWgsl } from '../../gpu/dispatch/list.ts'
-import { REFLECTION_REACH_WGSL } from './reach.ts'
+import { REFLECTION_PIXEL_TRACES_WGSL } from './reach.ts'
 import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
 import { REFLECTION_TILES_WGSL, REFLECTION_TRACE_BINDINGS as B } from './trace/traceBindings.ts'
 
@@ -37,7 +37,7 @@ export const REFLECTION_CLASSIFY_WGSL = wgslBlock(
   'REFLECTION_CLASSIFY_WGSL',
   [
     REFLECTION_SURFACES_WGSL,
-    REFLECTION_REACH_WGSL,
+    REFLECTION_PIXEL_TRACES_WGSL,
     REFLECTION_TILES_WGSL,
     surfaceReflects,
     listWgsl({ name: 'tracingOut', group: 0, binding: B.tracingOut, entry: 'u32', append: true }),
@@ -53,20 +53,12 @@ export const REFLECTION_CLASSIFY_WGSL = wgslBlock(
   ],
   `/** The resolve tiles of the workgroup's tracing tile a pixel traces in, a bit each. */
 var<workgroup> tileTraces:atomic<u32>;
-/** Whether the reflecting pixel \`coord\` of flags \`flags\` traces: where the lobe it traces — its clear
- *  coat where it carries one, its base elsewhere (\`surfaceTopAt\`) — answers a share of its rays
- *  (\`reflectionTraceShare\`, \`reach.ts\`): its roughness under the roughness a lobe traces to.
- *  The pixel's roughness alone decides it: the narrower width an anisotropy gives its base lobe,
- *  α(1 − s) (\`lobesWgsl.ts\`), is not read here. */
-fn reflectionPixelTraces(coord:vec2i,flags:u32)->bool{
- return reflectionTraceShare(lobeAlpha(surfaceTopAt(coord,flags).w))>0.0;
-}
 /** The pixel texel \`g\` casts from this image: its jitter (\`reflectionJitter\`), held to the viewport,
  *  so a block cut by the viewport's edge still casts from a pixel inside it. */
 fn classifyPicked(g:vec2u)->vec2u{
  return min(g*reflectionBlock()+reflectionJitter(g),reflectionViewport()-vec2u(1u));
 }
-/** The ray word (\`rayPack\`) of texel \`g\`, whose block's traced pixels are \`mask\`, a bit each in its
+/** The ray word of texel \`g\`, whose block's traced pixels are \`mask\`, a bit each in its
  *  pixels' order: the rank of the pixel this image picks (\`classifyPicked\`), under the traced bit where
  *  it traces — a picked pixel that does not trace casts no ray, never handing it to a block neighbour. */
 fn classifyTraced(mask:u32,g:vec2u)->u32{
@@ -94,7 +86,7 @@ fn classifyTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id)
  if(mask!=0u){atomicOr(&tileTraces,1u<<(resolve.x+resolves.x*resolve.y));}
  workgroupBarrier();
  let traced=atomicLoad(&tileTraces);
- if(traced!=0u&&inside){textureStore(surfaceRays,coord,vec4u(classifyTraced(mask,coord),0u,0u,0u));}
+ if(traced!=0u&&inside){textureStore(surfaceRays,coord,REFLECTION_RAY_WORD,vec4u(classifyTraced(mask,coord),0u,0u,0u));}
  if(lane==0u){
   let entry=tile.x|(tile.y<<16u);
   if(traced!=0u){tracingOut.entries[tracingOutAppend(1u,1u)]=entry;}
@@ -116,7 +108,7 @@ fn clearTracing(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) group
  let t=reflectionTileOf(tile,groups);
  if(t==REFLECTION_NO_TILE){return;}
  let g=reflectionTileOrigin(t)+local.xy;
- if(all(g<reflectionGridSize())){textureStore(surfaceRays,vec2i(g),vec4u(0u));}
+ if(all(g<reflectionGridSize())){textureStore(surfaceRays,vec2i(g),REFLECTION_RAY_WORD,vec4u(0u));}
 }`,
 )
 

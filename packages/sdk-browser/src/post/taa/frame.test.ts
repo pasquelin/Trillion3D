@@ -25,14 +25,26 @@ const CUT = TAA_VIEW.at.params,
 
 test("without accumulation this frame, the render matrix is the camera's and composition reads the lit image", () => {
   const { rt, cam, encoded, frame } = runtime()
+  // A capture drawn aside whose view has the pass off: the last image of a capture of fewer than
+  // four, drawn without temporal antialiasing.
   rt.capture.capturing = true
+  rt.gpu.temporalLevel = 'off'
   assert.equal(frame(false), null)
   assert.equal(taaRenderMatrix(rt, cam), cam.viewProjection)
   assert.equal(encoded.length, 0)
   rt.capture.capturing = false
+  rt.gpu.temporalLevel = 'max'
   rt.run.diagnostic = 'screen-error' as never
   assert.equal(frame(false), null)
   assert.equal(taaRenderMatrix(rt, cam), cam.viewProjection)
+})
+
+test('a capture whose view holds the pass accumulates its images like any view (the screenshot run-up of the reference)', () => {
+  const { rt, cam, encoded, frame } = runtime()
+  rt.capture.capturing = true
+  assert.ok(frame(false))
+  assert.notEqual(taaRenderMatrix(rt, cam), cam.viewProjection, 'the matrix carries the jitter')
+  assert.equal(encoded.length, 1)
 })
 
 test('an accumulated frame advances jitter, writes the uniform and returns the written target', () => {

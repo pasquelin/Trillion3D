@@ -1,52 +1,45 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { clipToFramebuffer, slabPerspective } from '../../../../math/src/wgsl/projection.ts'
-import { interleavedGradientNoise } from '../../../../math/src/wgsl/sampling.ts'
+import { slabPerspective } from '../../../../math/src/wgsl/projection.ts'
 import { SCREEN_MARCH_WGSL } from '../../visibility/hiz/gpu/screenMarch.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
-import {
-  RADIANCE_ANSWER,
-  REFLECTION_CLAMP_WGSL,
-  REFLECTION_CONE_WGSL,
-  REFLECTION_LOBE_WGSL,
-} from './field.ts'
+import { RADIANCE_ANSWER, REFLECTION_CLAMP_WGSL, REFLECTION_LOBE_WGSL } from './field.ts'
 import { reflectionRayWgsl } from './ray.ts'
 import { reflectionRayLightWgsl } from './rayLightWgsl.ts'
+import { reflectionPastWgsl } from './past.ts'
 import { REFLECTION_REACH_WGSL } from './reach.ts'
-import { REFLECTION_FIELD_WGSL } from './trace/traceBindings.ts'
 import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 
 const SEEN_TEXT = `fn reflectionThickness()->f32{
  return select(REFLECTION_THICKNESS,reflectionView.march.x/reflectionView.slab.x,slabPerspective(reflectionView.slab));
 }
-fn reflectionSlabAt(P:vec3f,R:vec3f,d:f32)->f32{return reflectionThickness()*reflectionPixelAt(P+R*d);}
-fn reflectionSeenAnswer(P:vec3f,H:vec2f,cell:vec2f,plane:vec3f)->RadianceAnswer{
- var seen=RadianceAnswer(vec3f(0.0),0.0,0.0);
- let size=view.viewport.xy;
+fn reflectionSeenAnswer(P:vec3f,H:vec2f,cell:vec2f,plane:vec3f,coord:vec2u,tested:bool)->RadianceAnswer{
+ var seen=RadianceAnswer(vec3f(0.0),false,0.0);
  if(plane.x<=0.0){return seen;}
  let depth=plane.x+dot(H-cell,plane.yz);
  let hit=worldAt(H,depth);
- let previous=reflectionView.radianceViewProj*vec4f(hit,1.0);
- if(previous.w<=0.0){return seen;}
- let Q=clipToFramebuffer(previous,reflectionView.radiance.xy).xy;
- // How surely the hit is the screen's to answer: the fades of the image's border, in this image and in the last.
- let trust=reflectionEdgeFade(H,size)*reflectionEdgeFade(Q,reflectionView.radiance.xy);
- if(!(trust>0.0)){return seen;}
+ let past=reflectionPast(hit,H,depth);
+ if(!past.valid){return seen;}
+ let noise=reflectionEdgeNoise(coord);
+ // A hit near the border of this image or of the last is the screen's to answer by chance: its vignette against the pixel's noise.
+ if(reflectionHitVignette(H,past.pixel)<noise){return seen;}
+ // A hit on what the last image did not show at that place (hidden, or moved) is not the screen's, but for the far trace's.
+ if(tested&&!reflectionPastAgrees(past,noise,reflectionView.historyThickness)){return seen;}
  // The last lit image at the texel the hit lands in: one point of its level 0, as the denoiser averages it.
- let lit=textureLoad(reflectionImage,vec2i(Q),0);
+ let lit=textureLoad(reflectionImage,reflectionPastTexel(past),0);
  seen.color=reflectionClampRay(lit.rgb*reflectionView.radiance.w);
- seen.confidence=trust;
+ seen.hit=true;
  seen.distance=distance(hit,P);
  return seen;
 }
 struct ReflectionSeen{answer:RadianceAnswer,left:f32,}
-fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,bias:f32)->ReflectionSeen{
+fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,bias:f32,coord:vec2u)->ReflectionSeen{
  let ray=reflectionRaySpan(P,N,lobe,bias,0.0,reflectionView.march.w);
  let marched=screenMarch(ray.o,ray.d,ray.end,reflectionThickness(),reflectionView.thickness,reflectionView.slab,reflectionView.scene.x,true);
- var out=ReflectionSeen(RadianceAnswer(vec3f(0.0),0.0,0.0),reflectionRayDistance(ray,marched.above));
+ var out=ReflectionSeen(RadianceAnswer(vec3f(0.0),false,0.0),reflectionRayDistance(ray,marched.above));
  if(marched.t<0.0){return out;}
  let H=ray.o+ray.d*marched.t;
- out.answer=reflectionSeenAnswer(P,H.xy,marched.pixel,marched.plane);
- if(out.answer.confidence>0.0){out.left=out.answer.distance;}
+ out.answer=reflectionSeenAnswer(P,H.xy,marched.pixel,marched.plane,coord,true);
+ if(out.answer.hit){out.left=out.answer.distance;}
  return out;
 }`
 
@@ -78,18 +71,17 @@ fn reflectionLinearTrace(ray:ReflectionRay,dither:f32)->vec3f{
  return vec3f(0.0);
 }
 fn reflectionDistant(P:vec3f,N:vec3f,lobe:ReflectionLobe,coord:vec2u)->RadianceAnswer{
- let none=RadianceAnswer(vec3f(0.0),0.0,0.0);
- if(!reflectionDone(REFLECTION_DISTANT_TRACES)||gdfView.clipmaps==0u){return none;}
+ let none=RadianceAnswer(vec3f(0.0),false,0.0);
+ if(!reflectionDone(REFLECTION_DISTANT_TRACES)){return none;}
  let stop=reflectionView.reach.y;
- let clipped=gdfClipRayOutside(gdfTranslated(P*REFLECTION_CENTIMETRES),lobe.R,stop*REFLECTION_CENTIMETRES,reflectionView.scene.y);
- let start=clipped.start/REFLECTION_CENTIMETRES;
+ let start=reflectionDistantStart(P,lobe.R,stop);
  if(start>=stop){return none;}
  let ray=reflectionRaySpan(P,N,lobe,reflectionRayBias(P,N),start,stop);
  if(!(ray.end>0.0)){return none;}
- let hit=reflectionLinearTrace(ray,interleavedGradientNoise(vec2f(coord)+vec2f(0.5),0.0));
+ let hit=reflectionLinearTrace(ray,reflectionEdgeNoise(coord));
  if(hit.z==0.0){return none;}
  let cell=vec2i(hit.xy);
- return reflectionSeenAnswer(P,hit.xy,vec2f(cell)+vec2f(0.5),hizPlane(cell));
+ return reflectionSeenAnswer(P,hit.xy,vec2f(cell)+vec2f(0.5),hizPlane(cell),coord,false);
 }`
 
 /**
@@ -102,44 +94,45 @@ fn reflectionDistant(P:vec3f,N:vec3f,lobe:ReflectionLobe,coord:vec2u)->RadianceA
  * the depth over the pixel's own, under an orthographic projection the constant `REFLECTION_THICKNESS`). It answers what the lit
  * image holds where the ray meets the depth (`reflectionSeenAnswer`) and, beside it, where the screen stopped knowing
  * the ray (`left`, a distance along it): the hit's, or, where the ray met nothing, gave the screen up behind a surface
- * or spent its iterations, the last point the march proved it in front of the depth — where the scene's walk begins.
+ * or spent its iterations, the last point the march proved it in front of the depth — where the scene's walk begins
+ * (`reflectionScreenStage`, `wgsl.ts`).
  * `reflectionSeenAnswer`: the hit at the screen point `H` on the plane `plane` of the depth cell `cell` — the hit on its
- * plane, the lit image's texel it lands in, read as one point of its level 0 (the denoiser averages the rays) and its
- * confidence: how surely the screen answers — the fades of the image's border (in this image and in the one the
- * light is read from) — times the texel's coverage, continuous both: a hit near
- * the border answers part of its ray, the scene stage the rest, never a coin toss between the two that leaves the denoiser
- * a field of dots to average. A hit has no fade of its own, neither by its depth in the slab nor by the side its plane
+ * plane, the lit image's texel it lands in (`reflectionPast`, `past.ts`: where the point stood in the last image, a surface that moves by
+ * itself by its own vector), read as one point of its level 0 (the denoiser averages the rays). It is a hit, or a miss that
+ * goes to the next stage: a miss where the hit's vignette (`reflectionHitVignette`: the smaller of this image's and the one the light is
+ * read from at the hit) is under the noise of the pixel `coord` (`reflectionEdgeNoise`), or — `tested`, the march's hits, not the far trace's — the depth the last image
+ * kept at that place is not the depth the hit is expected at there (`reflectionPastAgrees`): a hit near
+ * the border is answered by the screen only by chance, one on what the last image did not show there not at all, the scene stage taking the rest. A hit has no fade of its own, neither by its depth in the slab nor by the side its plane
  * faces: either gate turns on and off between neighbouring pixels at a thin surface, whose plane and slab depth jump from
  * one to the next, and breaks the reflection of a body the ray passes through into shards of its edges. Its radiance
  * is held to the ceiling of a ray (`reflectionClampRay`).
- * `reflectionSlabAt`: the thickness of a surface of the march at distance `d` along the ray from `P`, in metres.
  *
- * `reflectionDistant`: the screen's far trace of a ray that left the outermost clipmap of the global distance field
- * (`gdfClipRayOutside`, from where it leaves the clipmap, pulled back by the share of the trace a jittered step spans):
+ * `reflectionDistant`: the screen's far trace of a ray that left the scene the trace walks, from where `reflectionDistantStart` says —
+ * the march's (`sceneTrace.ts`): where the ray leaves the outermost clipmap of the global distance field, pulled back by the share
+ * of the trace a jittered step spans; the scene trace's (`sceneTraceHardware.ts`): where it leaves the trace's culling radius:
  * a LINEAR march of `ReflectionView.scene.y` equal steps of the ray's screen span, jittered by the pixel's noise and
- * the offset bias (`march.z`), each step read in the furthest depth of its 2 × 2 block (the pyramid's first level) — a hit
+ * the offset bias (`march.z`) — the noise the vignette is held against too —, each step read in the furthest depth of its 2 × 2 block (the pyramid's first level) — a hit
  * where the ray lies behind it by less than twice a tolerance, the steepest the depth changes along a step or `march.y` times
  * the depth the whole ray's length spans, never on the far plane —, placed where the segment between the last step and
  * this one crosses the depth. A hit is read as the march's (`reflectionSeenAnswer`); none, where the ray starts off the
  * image, is out of the setting's range, or the settings turn the far trace off.
+ *
+ * `stored`: how the depth the last image kept is bound (`reflectionPastWgsl`).
  */
-export const reflectionSeenWgsl = (group: number) =>
+export const reflectionSeenWgsl = (group: number, stored = false) =>
   wgslBlock(
-    `reflectionSeenWgsl(${group})`,
+    `reflectionSeenWgsl(${group},${stored})`,
     [
       RADIANCE_ANSWER,
       REFLECTION_CLAMP_WGSL,
-      REFLECTION_CONE_WGSL,
       REFLECTION_LOBE_WGSL,
       reflectionRayWgsl(group),
-      reflectionRayLightWgsl(group),
+      reflectionRayLightWgsl(group, stored),
+      reflectionPastWgsl(group, stored),
       REFLECTION_REACH_WGSL,
-      REFLECTION_FIELD_WGSL,
       SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING),
       REFLECTION_CONSTANTS_WGSL,
-      clipToFramebuffer,
       slabPerspective,
-      interleavedGradientNoise,
     ],
     `${SEEN_TEXT}\n${DISTANT_TEXT}`,
   )

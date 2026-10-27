@@ -1,7 +1,9 @@
 // Where in its tile an image writes the feedback (`feedbackTileJitter`, `feedback.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { feedbackTileJitter } from './feedback.ts'
+import { SURFACE_CACHE_RULES } from '../../contracts/surfaceCacheOptions.ts'
+import { resolveSettingsInto, type SettingValues } from '../../contracts/settingRules.ts'
+import { feedbackAllocated, feedbackTileJitter } from './feedback.ts'
 
 test('the images of a tile cover its every place once, the first four its four quadrants', () => {
   const places = new Set<string>()
@@ -31,4 +33,13 @@ test('the sequence repeats with the tile’s square, and a tile of a pixel has o
       [0, 0],
     ],
   )
+})
+
+test('the feedback’s buffer is made while the setting is on, and not while the cache is frozen', () => {
+  const settings = {} as SettingValues<typeof SURFACE_CACHE_RULES>
+  resolveSettingsInto(SURFACE_CACHE_RULES, {}, settings)
+  assert.equal(feedbackAllocated(settings), true)
+  assert.equal(feedbackAllocated({ ...settings, surfaceCacheFeedback: false }), false)
+  assert.equal(feedbackAllocated({ ...settings, surfaceCacheFreeze: true }), false)
+  assert.equal(feedbackAllocated({ ...settings, surfaceCacheFreezeUpdateFrame: 1 }), true)
 })

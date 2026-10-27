@@ -22,7 +22,14 @@ import {
   type CardView,
 } from '../../../../sdk-core/src/lighting/surfaceCache/cardViews.ts'
 import type { CapturePage } from '../../../../sdk-core/src/lighting/surfaceCache/captures.ts'
-import { maxCapturesPerFrame } from '../../../../sdk-core/src/lighting/surfaceCache/requests.ts'
+import { updateFrameFrozen } from '../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
+import {
+  addStreamingViewOrigins,
+  createViewOriginHold,
+  maxCapturesPerFrame,
+  viewOriginOf,
+  type ViewOriginHold,
+} from '../../../../sdk-core/src/lighting/surfaceCache/requests.ts'
 import { confirmPages } from '../../../../sdk-core/src/lighting/surfaceCache/virtualSurface.ts'
 import {
   advanceFrame,
@@ -53,6 +60,7 @@ import { createAtlasViewer, type AtlasViewer } from './debug.ts'
 import { ATLAS_VIEWS } from './debugWgsl.ts'
 import { createSurfaceFeedback, type SurfaceFeedback } from './feedbackBuffer.ts'
 import { disposeSurfaceLighting, type SurfaceLightingState } from './lighting/surfaceLighting.ts'
+import { placementChannelsOf } from '../../geometry/dag/info/placementInfoLayout.ts'
 import { cacheRootsOf, createCardPlacements, type CardPlacements } from './placements.ts'
 import type { SurfaceHitReads } from './hitWgsl.ts'
 import { createSurfaceTables, type SurfaceTables } from './tables.ts'
@@ -117,18 +125,25 @@ export interface SurfaceCacheFrameState {
   readonly pass: LazyComputePass
   /** The settings of the global distance field, which say how far the cards are kept. */
   readonly field: GlobalDistanceFieldSettings
+  /** Where the main view's origin was left when it stopped following the eye (`surfaceCacheUpdateViewOrigin`). */
+  readonly originHold: ViewOriginHold
   /** Whether this image updated the cache: the lighting (`lighting/frame.ts`) follows it. */
   updated: boolean
   /** The lighting's own state (`lighting/surfaceLighting.ts`), made when it first lights. */
   lighting?: SurfaceLightingState
 }
 
+/** The eyes the image keeps the cards for: the main view's, then those of the streaming views; each slot is reused. */
+const eye: [number, number, number] = [0, 0, 0]
 const origin: [number, number, number] = [0, 0, 0]
+const NO_OFFSET: readonly [number, number, number] = [0, 0, 0]
+const origins: [number, number, number][] = [origin]
+const streamingOrigins: [number, number, number][] = []
+const streamingSlots: [number, number, number][] = []
 const cardViews: CardView[] = []
 const drawnPages: CapturePage[] = []
 /** The page-table indices an image confirms, reused. */
 const confirmed: number[] = []
-const NO_PAGES: ReadonlySet<CapturePage> = new Set()
 
 function createState(rt: WebgpuPagesRuntime, device: GPUDevice): SurfaceCacheFrameState {
   const settings = resolveSurfaceCacheSettings(
@@ -157,6 +172,7 @@ function createState(rt: WebgpuPagesRuntime, device: GPUDevice): SurfaceCacheFra
     refused: false,
     pass: new LazyComputePass(SURFACE_CACHE_PASS),
     field: {} as GlobalDistanceFieldSettings,
+    originHold: createViewOriginHold(),
     updated: false,
   }
 }
@@ -276,17 +292,14 @@ function resample(
   state.pass.end()
 }
 
-/** Captures the pages of the image: drawn, shaded, resolved, copied. The account of it. */
-function capture(
+/** The pages of `toDraw` drawn by the raster of the cards' views, none where there are none. */
+function drawCards(
   encoder: GPUCommandEncoder,
   state: SurfaceCacheFrameState,
-  pages: readonly CapturePage[],
-  settings: CaptureSettings,
+  toDraw: readonly CapturePage[],
 ) {
-  const { cache, atlases, raster, shading, kernels } = state
-  if (!atlases || !shading?.ready || !kernels?.ready)
-    return { ...NO_WORK, waiting: askAgain(cache, pages, NO_PAGES) }
-  const toDraw = pages.filter((page) => page.copyCard < 0)
+  const { cache, raster } = state
+  const atlases = state.atlases!
   cardViews.length = 0
   for (const page of toDraw)
     cardViews.push(cardPageView(cache.cards.at(page.card), page.uv, page.captureRect))
@@ -296,9 +309,38 @@ function capture(
     ids: atlases.capture.ids,
     depth: atlases.capture.depth,
   }
-  const image = toDraw.length
-    ? raster.draw(encoder, targets, toDraw, cardViews, cache.frame)
-    : undefined
+  return toDraw.length ? raster.draw(encoder, targets, toDraw, cardViews) : undefined
+}
+
+/** The pages drawn and the pages copied read from now on, whole or not: what a budget cut from a view is
+ *  not drawn, and the page is not asked again for it. The pages copied and refreshed among them. */
+function confirmDrawn(cache: SurfaceCache) {
+  confirmed.length = 0
+  let copied = 0,
+    refreshed = 0
+  for (const page of drawnPages) {
+    confirmed.push(page.page)
+    if (page.copyCard >= 0) copied++
+    if (page.refresh) refreshed++
+  }
+  confirmPages(cache, confirmed)
+  return { copied, refreshed }
+}
+
+/** Captures the pages of the image: drawn, shaded, resolved, copied. The account of it. */
+function capture(
+  encoder: GPUCommandEncoder,
+  state: SurfaceCacheFrameState,
+  pages: readonly CapturePage[],
+  settings: CaptureSettings,
+) {
+  // The image checked that the shading and the kernels are ready before it planned these pages (`updateImage`).
+  const { cache } = state
+  const atlases = state.atlases!,
+    shading = state.shading!,
+    kernels = state.kernels!
+  const toDraw = pages.filter((page) => page.copyCard < 0)
+  const image = drawCards(encoder, state, toDraw)
   state.pass.begin(encoder)
   // Every page of the image is shaded in one go: the shading places a texel by the view of its row.
   const shaded = new Set<CapturePage>()
@@ -309,42 +351,25 @@ function capture(
   kernels.encode(
     state.pass,
     drawnPages,
-    { atlases, tables: state.tables.buffer!, colours: shading.surfaces.stores()[0] },
+    {
+      atlases,
+      tables: state.tables.buffer!,
+      colours: shading.surfaces.stores()[0],
+      words: shading.surfaces.stores()[1],
+      lobes: shading.surfaces.lobesView,
+    },
     settings,
   )
   state.pass.end()
   kernels.copyBlocks(encoder, atlases)
   // A page mapped for a capture that was not made stays pending: nothing reads it, and it is asked again.
-  // The pages the raster drew are confirmed when their counters come back (`settleDrawn`); a copy has none.
-  confirmed.length = 0
-  for (const page of drawnPages) if (page.copyCard >= 0) confirmed.push(page.page)
-  confirmPages(cache, confirmed)
-  const copied = confirmed.length
-  let refreshed = 0
-  for (const page of drawnPages) if (page.refresh) refreshed++
+  const { copied, refreshed } = confirmDrawn(cache)
   return {
     captured: drawnPages.length - copied - refreshed,
     copied,
     refreshed,
     waiting: askAgain(cache, pages, shaded),
   }
-}
-
-/**
- * The pages of the batches whose counters came back: each whose view was drawn whole reads from now on
- * (`confirmPages`), each whose view a budget cut short is asked again. A page captured again since the
- * batch was drawn is left to the capture that followed.
- */
-function settleDrawn(cache: SurfaceCache, raster: CardRaster) {
-  confirmed.length = 0
-  for (const batch of raster.landed())
-    for (let rank = 0; rank < batch.pages.length; rank++) {
-      const index = batch.pages[rank]!
-      if (!cache.captured.has(index) || cache.captured.keyOf(index) !== batch.stamp) continue
-      if (batch.lost[rank]) cache.recapture.add(cache.frame, index)
-      else confirmed.push(index)
-    }
-  confirmPages(cache, confirmed)
 }
 
 /** The account of the last image. */
@@ -489,17 +514,46 @@ function closeImage(state: SurfaceCacheFrameState, account: Parameters<typeof me
   else if (raster.failure)
     state.why = `the cards' raster could not be made: ${String(raster.failure)}`
   // The requests the image left; the refresh of the pages captured longest ago goes on whatever the view
-  // does, and keeps nothing unheld: it leaves the light of its pages (`CapturePage.refresh`), and a batch
-  // of refreshes alone is not awaited (`CardRaster.awaiting`).
+  // does, and keeps nothing unheld: it leaves the light of its pages (`CapturePage.refresh`).
   const { meshCardsToAdd, lockedCardsToUpdate, hiResPagesToAdd } = cache.stats
-  state.busy =
-    meshCardsToAdd + lockedCardsToUpdate + hiResPagesToAdd > 0 ||
-    account.waiting > 0 ||
-    raster.awaiting
-  // A frozen update frame keeps the clock where it is (`surfaceCacheFreezeUpdateFrame`).
-  if (state.settings.surfaceCacheFreezeUpdateFrame === 0) advanceFrame(cache)
+  state.busy = meshCardsToAdd + lockedCardsToUpdate + hiResPagesToAdd > 0 || account.waiting > 0
+  // A frozen cache or update frame keeps the clock where it is (`surfaceCacheFreeze`, `surfaceCacheFreezeUpdateFrame`).
+  if (!updateFrameFrozen(state.settings)) advanceFrame(cache)
   state.updated = true
   state.metrics = metricsOf(state, account)
+}
+
+/** The eyes of an image, centimetres: the main view's origin (the camera's eye moved ahead by the global distance field's velocity
+ *  offset, held where it stopped while `surfaceCacheUpdateViewOrigin` is off), then the eyes of the views drawn beside the main one
+ *  that have drawn, which are streaming views: each kept only if it lies `surfaceCacheViewOriginDistanceThreshold` or more from the eyes held, two at most
+ *  (`addStreamingViewOrigins`). */
+function eyesOf(rt: WebgpuPagesRuntime, cam: EngineCamera, state: SurfaceCacheFrameState) {
+  const { settings } = state
+  const field = fieldSettingsOf(rt, state)
+  for (let k = 0; k < 3; k++) eye[k] = cam.eye[k] * CM
+  viewOriginOf(
+    origin,
+    eye,
+    rt.distanceFields?.scene.field.cameraOffset ?? NO_OFFSET,
+    state.originHold,
+    settings.surfaceCacheUpdateViewOrigin,
+    numClipmaps(field) - 1,
+    field,
+  )
+  origins.length = 1
+  streamingOrigins.length = 0
+  rt.views.persistent.forEach((view, at) => {
+    if (view.drawnBeside === undefined) return
+    const slot = (streamingSlots[at] ??= [0, 0, 0])
+    for (let k = 0; k < 3; k++) slot[k] = view.cam.eye[k] * CM
+    streamingOrigins.push(slot)
+  })
+  addStreamingViewOrigins(
+    origins,
+    streamingOrigins,
+    settings.surfaceCacheViewOriginDistanceThreshold,
+  )
+  return origins
 }
 
 /** One image's work of the cache: `encodeSurfaceCache` after it knows the cache is asked for. */
@@ -518,10 +572,11 @@ function updateImage(
   const atlases = state.atlases!
   const { cache } = state
   // The roots the distance fields' scene placed, the HLOD cells' stand-ins among them: one list for both.
-  state.placements.sync(cache, cacheRootsOf(rt), 0)
-  for (let k = 0; k < 3; k++) origin[k] = cam.eye[k] * CM
+  state.placements.sync(cache, cacheRootsOf(rt), 0, (rank) =>
+    placementChannelsOf(rt.vis.rootOffsets.rowOf(rank)?.bits ?? 0),
+  )
+  const eyes = eyesOf(rt, cam, state)
   const { raster } = state
-  settleDrawn(cache, raster)
   // The clocks wait for the capture's shading and kernels to compile: the cache's evolution counts the images it could
   // work in, never how long a compile took, so two runs of one scene meet the same cache at the same image.
   if (!state.shading?.ready || !state.kernels?.ready) {
@@ -531,10 +586,9 @@ function updateImage(
   }
   const preExposure = cachedLightingPreExposureOf(rt)
   const colorBoost = 1 / state.settings.surfaceCacheDiffuseColorBoost
-  // The pages whose counters came back read from now on — the resample below among the readers.
   state.tables.update(cache, preExposure, colorBoost, encoder)
   const work = updateSurfaceCache(cache, state.settings, {
-    origins: [origin],
+    origins: eyes,
     orthographic: cam.perspective === 0,
     clipmapExtent: reachOf(rt, state),
     compressed: atlases.compressed,
@@ -544,7 +598,7 @@ function updateImage(
   const settings = captureSettingsOf(state, preExposure)
   if (work.reset || !atlases.cleared) {
     atlases.clear(encoder)
-    state.kernels?.clearBlocks(encoder, atlases)
+    state.kernels.clearBlocks(encoder, atlases)
     // Every page lost its light, and the radiosity's probes with it.
     if (state.lighting) state.lighting.historyLost = true
   }

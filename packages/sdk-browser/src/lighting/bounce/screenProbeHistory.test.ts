@@ -1,43 +1,42 @@
-// The screen probes' history and light: a history texel's validity, a pixel's motion, and the occlusions the light goes under.
+// The screen probes' history: a history texel's validity and a pixel's motion.
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { nearRelative } from '../../../../math/src/float/near.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
 import { spCommon } from './screen/commonWgsl.ts'
 import { spHistory } from './screen/historyWgsl.ts'
-import { SCREEN_INDIRECT_WGSL } from './screen/indirectWgsl.ts'
 import { spVectors } from './screen/vectorsWgsl.ts'
+import { traceScreenShader } from './screen/traceWgsl.ts'
 import { SCREEN_PROBE_FLAGS } from './screen/screenProbeLayout.ts'
 
 /** The history of a 64 by 64 image run on the shipped text, seen at a perspective whose device depth is `A + B / w` (`slab` `[1, A, B, 1]`, the
  *  view-projection adding `A + B` to the clip depth): `set` the linear depths the four texels round its centre kept, `mark` which of them
- *  light their backface, `reproject` the pixel at the centre over the point at the origin. */
+ *  have backface diffuse light, `reproject` the pixel at the centre over the point at the origin. */
 function historyOf(A = 0) {
   const B = 0.1
   const identity = builtins.mat4x4f(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, A + B, 1)
   const depths = new Map<string, number>()
-  const backfaces = new Map<string, boolean>()
+  const foliages = new Map<string, boolean>()
   const texels = [
     [31, 31],
     [32, 31],
     [31, 32],
     [32, 32],
   ]
-  const depthIn = {},
-    shadingIn = {}
+  const shadingIn = {},
+    depthIn = {}
   const run = shaderRun<{
     spReproject: (
       pixel: number[],
       P: number[],
       N: number[],
-      backface: boolean,
+      foliage: boolean,
       noise: number,
     ) => { texel: number[]; weights: number[]; codes: number[] }
-    spShadingPack: (N: number[], hair: boolean, backface: boolean) => number
-  }>(wgslModule(spCommon([4, 2]), spHistory(7, 9, 8)), ['spReproject', 'spShadingPack'], {
+    spShadingPack: (N: number[], foliage: boolean) => number
+  }>(wgslModule(spCommon([4, 2]), spHistory(9, 10, 8)), ['spReproject', 'spShadingPack'], {
     sp: {
       size: [64, 64, 16, 0],
       counts: [10, 0, 0, 0],
@@ -46,21 +45,21 @@ function historyOf(A = 0) {
       motion: [0.005, 10, 0.9, 0],
     },
     reflectionView: { radianceViewProj: identity, radiance: [64, 64, 0, 0], slab: [1, A, B, 1] },
-    depthIn,
     shadingIn,
+    depthIn,
     viewToEye: () => [0, 0, 1],
     textureLoad: (texture: unknown, texel: number[]) => {
       const at = String(texel)
       // A texel the test sets no depth keeps none: a device depth of zero.
       if (texture === depthIn) return [depths.has(at) ? A + B / depths.get(at)! : 0, 0, 0, 0]
-      return [run.spShadingPack([0, 0, 1], false, backfaces.get(at) ?? false), 0x2b, 0, 0]
+      return [run.spShadingPack([0, 0, 1], foliages.get(at) ?? false), 0x2b, 0, 0]
     },
   })
   return {
     set: (values: number[]) => texels.forEach((t, i) => depths.set(String(t), values[i])),
-    mark: (values: boolean[]) => texels.forEach((t, i) => backfaces.set(String(t), values[i])),
-    reproject: (N: number[], noise: number, backface = false) =>
-      run.spReproject([32, 32], [0, 0, 0], N, backface, noise),
+    mark: (values: boolean[]) => texels.forEach((t, i) => foliages.set(String(t), values[i])),
+    reproject: (N: number[], noise: number, foliage = false) =>
+      run.spReproject([32, 32], [0, 0, 0], N, foliage, noise),
   }
 }
 
@@ -100,13 +99,13 @@ test("a history texel counts where its depth is the expected one within a thresh
   )
 })
 
-test('a pixel that lights its backface takes the history of such pixels alone, within a wider threshold', () => {
+test('a pixel with backface diffuse light takes the history of such pixels alone, within a wider threshold', () => {
   const { set, mark, reproject } = historyOf()
   // A depth 2 % off: past the threshold (1 %) of a solid surface, within a foliage pixel's (3 %).
   set([1, 1.02, 1, 1.02])
-  const sheet = (backface: boolean, flags: boolean[]) => {
+  const sheet = (foliage: boolean, flags: boolean[]) => {
     mark(flags)
-    return reproject([0, 0, 1], 0.5, backface).weights
+    return reproject([0, 0, 1], 0.5, foliage).weights
   }
   assert.deepEqual(
     sheet(true, [true, true, true, true]),
@@ -175,66 +174,34 @@ test('a pixel the camera alone moves keeps its exact reprojection and no speed, 
   assert.ok(!near(slow.ndc, camera, 1e-5), 'not the camera’s reprojection')
 })
 
-test('the probes’ light goes under the material’s occlusion through the albedo’s multi-bounce, then under the short-range occlusion at its strength; their occlusion alone goes over the world’s light', () => {
-  type Seen = [number, number, number, number]
-  const lit = shaderRun<{
-    screenDiffuse: (rgb: number[], metal: number, seen: Seen, ao: number) => number[]
-    screenLights: (seen: Seen) => boolean
-    screenShortRange: (rgb: number[], metal: number, seen: Seen) => number[]
-    lambertDiffuse: (rgb: number[], metal: number, irradiance: number[], ao: number) => number[]
-  }>(
-    wgslModule(SCREEN_INDIRECT_WGSL),
-    ['screenDiffuse', 'screenLights', 'screenShortRange', 'lambertDiffuse'],
-    { view: { screenProbes: [1, 0.5, 1, 0] }, screenIndirect: {}, textureLoad: () => [0, 0, 0, 0] },
+test('the depth the last image kept a point at is the point’s own where its surface did not move by itself, the depth it stood at where it did', () => {
+  const view = builtins.mat4x4f(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0.5, 0, 0, 0, 0.25, 1)
+  const { spStoodClip } = shaderRun<{
+    spStoodClip: (motion: object, P: number[], clip: number[]) => number[]
+  }>(wgslModule(spCommon([4, 2]), spVectors(9)), ['spStoodClip'], {
+    sp: { size: [64, 64, 16, 0] },
+    reflectionView: { radianceViewProj: view, viewProj: view, slab: [1, 0, 0, 1] },
+    sceneVectors: {},
+  })
+  const P = [0.2, -0.1, 0.6],
+    clip = [0.2, -0.1, 0.55, 1]
+  const still = { ndc: [0.2, -0.1], speed: 0, before: P }
+  assert.deepEqual(spStoodClip(still, P, clip), clip, 'a still surface stood where it is')
+  // A surface that moved stood at z = 1 against its 0.6 now: the last image’s view-projection puts it at the depth that z gives.
+  const moved = { ndc: [0.15, -0.1], speed: 0.4, before: [0.2, -0.1, 1.0] }
+  const stood = spStoodClip(moved, P, clip)
+  assert.ok(Math.abs(stood[2] - 0.75) < 1e-6 && stood[3] === 1, `${stood}`)
+  assert.notEqual(stood[2], clip[2], 'not the depth of where it is now')
+})
+
+test('the screen trace expects a moving hit at the depth it stood at, as the history of a pixel is read', () => {
+  const trace = traceScreenShader(8, [4, 4])
+  assert.match(
+    trace,
+    /let stood=spStoodClip\(motion,hitPoint,expected\);\n if\(stood\.w<=0\.0\)\{return out;\}/,
   )
-  const multi = (albedo: number[], ao: number) =>
-    albedo.map((a) =>
-      Math.max(
-        ao,
-        ((ao * (2.0404 * a - 0.3324) + (-4.7951 * a + 0.6417)) * ao + (2.7552 * a + 0.6903)) * ao,
-      ),
-    )
-  const rgb = [0.8, 0.4, 0.2],
-    seen: Seen = [2, 1, 0.5, 0.4],
-    ao = 0.6
-  const capped = rgb.map((v) => Math.min(v, 0.5))
-  const base = lit.lambertDiffuse(rgb, 0, [2, 1, 0.5], 1)
-  const factor = (made: number[]) => made.map((v, i) => v / base[i])
-  const material = multi(capped, ao),
-    occlusion = multi(capped, 0.4)
-  const near3 = (actual: number[], expected: number[], label: string) =>
-    expected.forEach((v, i) => nearRelative(actual[i], v, label, 1e-5))
-  near3(
-    factor(lit.screenDiffuse(rgb, 0, seen, ao)),
-    material.map((v, i) => v * occlusion[i]),
-    'the material’s multi-bounce, then the occlusion’s',
-  )
-  assert.ok(lit.screenLights(seen), 'mode 0: the probes’ light')
-  assert.deepEqual(lit.screenShortRange(rgb, 0, seen), [1, 1, 1], 'nothing over the world’s light')
-  // The material's occlusion off: the light is under the short-range occlusion alone, and a strength of a half takes half of it.
-  const off = shaderRun<typeof lit>(
-    wgslModule(SCREEN_INDIRECT_WGSL),
-    ['screenDiffuse', 'screenLights', 'screenShortRange', 'lambertDiffuse'],
-    {
-      view: { screenProbes: [0, 0.5, 0.5, 1] },
-      screenIndirect: {},
-      textureLoad: () => [0, 0, 0, 0],
-    },
-  )
-  near3(
-    factor(off.screenDiffuse(rgb, 0, seen, ao)),
-    occlusion.map((v) => 1 + (v - 1) * 0.5),
-    'the strength is taken after the multi-bounce',
-  )
-  assert.ok(!off.screenLights(seen), 'mode 1: the probes’ occlusion alone')
-  near3(
-    off.screenShortRange(rgb, 0, seen),
-    occlusion.map((v) => 1 + (v - 1) * 0.5),
-    'over the world’s light',
-  )
-  assert.deepEqual(
-    off.screenShortRange(rgb, 0, [2, 1, 0.5, 0]),
-    [1, 1, 1],
-    'none where they left none',
-  )
+  assert.match(trace, /return SpHistoryHit\(texel,stood,motion\.speed,vignette>=noise\);/)
+  assert.doesNotMatch(trace, /SpHistoryHit\(texel,expected,/)
+  const history = wgslModule(spCommon([4, 2]), spHistory(9, 10, 8))
+  assert.match(history, /let stood=spStoodClip\(motion,P,clip\);/)
 })

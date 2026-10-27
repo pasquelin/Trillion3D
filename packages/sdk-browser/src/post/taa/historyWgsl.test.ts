@@ -83,10 +83,14 @@ test('the uniform carries the parallax, the flicker rates, the blend factor and 
   const u = writes.at(-1)!.data as Float32Array
   // `previous · (lastEye − eye, 0)`: the identity's image of (−0.5, 0, 0, 0).
   assert.deepEqual([...u.subarray(T.parallax, T.parallax + 4)], [-0.5, 0, 0, 0])
-  assert.ok(Math.abs(u[T.exposure + 2] - (1 - 0.95 ** 2)) < 1e-7, 'two images a period: 1 − 0.95²')
-  assert.ok(Math.abs(u[T.exposure + 3] - (1 - 0.95 ** 6)) < 1e-7, 'thin geometry: three periods')
+  assert.ok(
+    Math.abs(u[T.preExposure + 2] - (1 - 0.95 ** 2)) < 1e-7,
+    'two images a period: 1 − 0.95²',
+  )
+  assert.ok(Math.abs(u[T.preExposure + 3] - (1 - 0.95 ** 6)) < 1e-7, 'thin geometry: three periods')
   assert.ok(Math.abs(u[T.rates] - 1 / 5) < 1e-7, 'ten 1080p pixels at 60 Hz: five of 960')
   assert.ok(Math.abs(u[T.rates + 1] - 1 / (1 + 16 / 0.25)) < 1e-7, 'half the display: 1 / 65')
+  assert.equal(u[T.rates + 2], 0, 'the shading rejection is in its stability mode by default')
   assert.deepEqual(
     [...u.subarray(T.depth, T.depth + 4)].map((v) => Math.fround(v)),
     [0, Math.fround(0.1), -1, 0],
@@ -96,7 +100,7 @@ test('the uniform carries the parallax, the flicker rates, the blend factor and 
   assert.equal(u[T.params], 1, 'no history yet: a cut')
   assert.equal(u[T.jitter + 3], 13 % 8, 'the image rank among eight')
   // The settings' defaults: the thin geometry detection's depth step ten errors, its contrast and
-  // weights, and the measures' exposure factor one.
+  // weights, and the shading exposure offset one.
   assert.deepEqual(
     [...u.subarray(T.thin, T.thin + 4)].map((v) => Math.fround(v)),
     [10, 0.3, 0.6, 0.6].map((v) => Math.fround(v)),
@@ -157,7 +161,6 @@ test('the uniform carries the settings of the thin geometry detection, the flick
     false,
     false,
     false,
-    undefined,
     null,
     0,
     undefined,
@@ -176,10 +179,53 @@ test('the uniform carries the settings of the thin geometry detection, the flick
     [Math.fround(0.2), Math.fround(0.05), 0.5],
   )
   assert.equal(u[T.preExposure + 1], 4, 'two stops')
-  assert.equal(u[T.exposure + 2], 0, 'a period of 0 fades in nothing')
+  assert.equal(u[T.preExposure + 2], 0, 'a period of 0 fades in nothing')
   assert.equal(u[T.quality], 0, 'and runs no flicker rejection')
   assert.equal(u[T.history], 8, 'the history holds eight samples a pixel')
   assert.ok(Math.abs(u[T.rates + 1] - 1 / (1 + 8)) < 1e-7, 'the blend factor of a whole history')
+})
+
+test('the uniform carries the shading rejection mode and the thin geometry anti-flickering in the rates', () => {
+  const identity = { viewProjection: IDENTITY_MATRIX4, eye: [0, 0, 0] }
+  const ratesOf = (overrides: Partial<typeof TEMPORAL_DEFAULTS>) => {
+    const { device, writes } = fakeDevice(),
+      state = createTaaFrameState()
+    const projection = new Float64Array(16)
+    projection[0] = 2
+    projection[11] = -1
+    writeTaaView(
+      device,
+      {} as GPUBuffer,
+      state,
+      { ...identity, projection } as unknown as EngineCamera,
+      [1920, 1080],
+      [1920, 1080],
+      [1920, 1080],
+      false,
+      false,
+      false,
+      null,
+      0,
+      undefined,
+      undefined,
+      1,
+      {
+        width: 1920,
+        height: 1080,
+        scale: 1,
+        field: false,
+        fieldSpeed: 0.125,
+        resurrects: false,
+        settings: { ...TEMPORAL_DEFAULTS, ...overrides },
+      },
+    )
+    const u = writes.at(-1)!.data as Float32Array
+    return [u[T.rates + 2], u[T.rates + 3]]
+  }
+  // Stability is the default and writes 0; responsive writes 1. Anti-flickering is on by default.
+  assert.deepEqual(ratesOf({}), [0, 1])
+  assert.deepEqual(ratesOf({ temporalShadingRejectionMode: 'responsive' }), [1, 1])
+  assert.deepEqual(ratesOf({ temporalThinGeometryAntiFlickering: false }), [0, 0])
 })
 
 test('the display history holds 16 samples a pixel: an image weighs one, a rejection keeps two, motion four', () => {

@@ -1,22 +1,19 @@
-// The pool's rules (`pool/poolWgsl.ts`) on its kernels run as JavaScript (`pool.fixture.ts`): which cells hold a probe, which probes are
-// traced, in what order and at what cost, and what the lit passes may read of the table.
+// The pool's rules (`pool/poolWgsl.ts`) on its kernels run as JavaScript (`pool.fixture.ts`): which cells hold a probe, what the lit passes
+// may read of the table, and the counts that stay exact under any run.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  BOUNCE_PROBE_QUEUE,
-  BOUNCE_SETTINGS,
-} from '../../../../../sdk-core/src/bounce/contracts.ts'
+import { BOUNCE_SETTINGS } from '../../../../../sdk-core/src/bounce/contracts.ts'
 import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
-import { poolAt } from './pool.fixture.ts'
+import { poolAt, queueFor } from './pool.fixture.ts'
 
-const { cascadeSize: SIDE, probeKeptMarks, settledTraces } = BOUNCE_SETTINGS
+const { cascadeSize: SIDE } = BOUNCE_SETTINGS
 
 test('a cell the image reads takes a probe from the pool, and keeps it while it is read', () => {
   const eye = [5, 5, 5]
   const { pool, around, entryOf } = poolAt(eye)
   const cell = around(0, 0, 0, 0)
   pool.mark(0, ...cell)
-  pool.image({ rank: 1, eye, marking: true, budget: 1 })
+  pool.image({ rank: 1, eye, budget: 1 })
   assert.equal(pool.tally().live, 1)
   assert.equal(
     pool.tally().unfilled,
@@ -26,46 +23,31 @@ test('a cell the image reads takes a probe from the pool, and keeps it while it 
   const slot = pool.visible(entryOf(0, cell))
   assert.ok(slot >= 1)
   pool.mark(0, ...cell)
-  pool.image({ rank: 2, eye, marking: true, budget: 1 })
+  pool.image({ rank: 2, eye, budget: 1 })
   assert.equal(pool.tally().live, 1, 'the same cell, the same probe')
   assert.equal(pool.visible(entryOf(0, cell)), slot)
   pool.mark(1, ...around(1, 0, 0, 0))
-  pool.image({ rank: 3, eye, marking: true, budget: 1 })
+  pool.image({ rank: 3, eye, budget: 1 })
   assert.equal(pool.tally().live, 2, 'the same place in another level is another cell')
 })
 
 test('a pool with no probe left refuses a mark, and the cell goes unanswered', () => {
   const { pool, around } = poolAt([5, 5, 5], 3)
   for (let i = 0; i < 5; i++) pool.mark(0, ...around(0, i, 0, 0))
-  pool.image({ rank: 1, eye: [5, 5, 5], marking: true, budget: 1 })
+  pool.image({ rank: 1, eye: [5, 5, 5], budget: 1 })
   assert.equal(pool.tally().live, 3)
   assert.equal(pool.tally().refused, 2)
   assert.equal(pool.tally().free, 0)
 })
 
-test('the probes that hold nothing come before every refresh, whatever the budget; filled, the frame holds to the budget again', () => {
-  const eye = [5, 5, 5]
-  const { pool, around } = poolAt(eye)
-  for (const d of [10, 3, 0, 1, 20, 2]) pool.mark(0, ...around(0, d, 0, 0))
-  pool.mark(1, ...around(1, 0, 0, 0))
-  // A budget of one: the cells that hold nothing are not throttled by it.
-  const first = pool.image({ rank: 2, eye, marking: true, budget: 1 })
-  assert.equal(first.length, 7)
-  assert.ok(first.every((entry) => entry.fresh))
-  assert.equal(pool.tally().unfilled, 0)
-  // Filled, the frame holds to the budget: ages are all alike, a budget of two names two.
-  const refreshed = pool.image({ rank: 40, eye, marking: false, budget: 2 })
-  assert.equal(refreshed.length, 2)
-  assert.ok(refreshed.every((entry) => !entry.fresh))
-})
-
 test('a probe is told to the lit passes by its first trace, and forgotten the moment it is given back', () => {
   const eye = [5, 5, 5]
-  const slots = BOUNCE_PROBE_QUEUE + 1000
+  const queue = queueFor(1)
+  const slots = queue + 1000
   const { pool, around, entryOf, cascades } = poolAt(eye, slots)
   // More cells than the queue holds — a cube whose side is past the queue's cube root —: those it leaves hold nothing and are
   // named by no entry.
-  const reach = Math.ceil(Math.cbrt(BOUNCE_PROBE_QUEUE) / 2)
+  const reach = Math.ceil(Math.cbrt(queue) / 2)
   const cells: [number, number, number][] = []
   for (let dx = -reach; dx <= reach; dx++)
     for (let dy = -reach; dy <= reach; dy++)
@@ -78,10 +60,10 @@ test('a probe is told to the lit passes by its first trace, and forgotten the mo
       .filter((c) => cascades.holds(0, ...c)),
   )
   for (const cell of cells) pool.mark(0, ...cell)
-  const queued = pool.image({ rank: 2, eye, marking: true, budget: 1 })
+  const queued = pool.image({ rank: 2, eye, budget: 1 })
   const entries = new Set(cells.map((cell) => entryOf(0, cell)))
   const named = [...entries].filter((entry) => pool.visible(entry) > 0)
-  assert.equal(queued.length, BOUNCE_PROBE_QUEUE)
+  assert.equal(queued.length, queue)
   assert.equal(named.length, queued.length, 'the cells named are the probes traced')
   assert.equal(pool.tally().live - pool.tally().unfilled, named.length)
   assert.ok(pool.tally().unfilled > 0, 'and the cells the queue left hold nothing')
@@ -90,7 +72,7 @@ test('a probe is told to the lit passes by its first trace, and forgotten the mo
   // Slid out of its level, the probe goes and the entry with it.
   const far = cascades.levels[0].spacing * (SIDE + 8)
   assert.equal(cascades.follow([5 + far, 5, 5]), true)
-  pool.image({ rank: 3, eye: [5 + far, 5, 5], marking: false, slid: true, budget: 1 })
+  pool.image({ rank: 3, eye: [5 + far, 5, 5], budget: 1 })
   assert.equal(pool.tally().live, 0)
   assert.ok(named.every((entry) => pool.visible(entry) === 0))
 })
@@ -102,75 +84,16 @@ test('a level that slides keeps the probes of the cells it still holds, in the s
     gone = [cascades.levels[0].base[0], kept[1], kept[2]]
   pool.mark(0, ...kept)
   pool.mark(0, gone[0], gone[1], gone[2])
-  pool.image({ rank: 1, eye, marking: true, budget: 8 })
+  pool.image({ rank: 1, eye, budget: 8 })
   const slot = pool.visible(entryOf(0, kept))
   assert.ok(slot >= 1)
   // One cell of the finest level to the east: the lowest cell leaves, the middle one stays.
   const east = [5 + cascades.levels[0].spacing, 5, 5]
   assert.equal(cascades.follow(east), true)
-  pool.image({ rank: 2, eye: east, marking: false, slid: true, budget: 8 })
+  pool.image({ rank: 2, eye: east, budget: 8 })
   assert.equal(pool.tally().live, 1)
   assert.equal(pool.visible(entryOf(0, gone)), 0, 'the cell that left is forgotten')
   assert.equal(pool.visible(entryOf(0, kept)), slot, 'the other is untouched')
-})
-
-test('a probe nothing reads for the kept marks is given back, one that is read is not', () => {
-  const eye = [5, 5, 5]
-  const { pool, around } = poolAt(eye)
-  const read = around(0, 0, 0, 0),
-    unread = around(0, 1, 0, 0)
-  pool.mark(0, ...read)
-  pool.mark(0, ...unread)
-  pool.image({ rank: 1, eye, marking: true, budget: 8 })
-  for (let rank = 2; rank < 1 + probeKeptMarks; rank++) {
-    pool.mark(0, ...read)
-    pool.image({ rank, eye, marking: true, budget: 8 })
-    assert.equal(pool.tally().live, 2, `image ${rank}`)
-  }
-  pool.mark(0, ...read)
-  pool.image({ rank: 1 + probeKeptMarks, eye, marking: true, budget: 8 })
-  assert.equal(pool.tally().live, 1)
-})
-
-test('a probe traced before is traced again by the age it has, over its level plus one', () => {
-  const eye = [5, 5, 5]
-  const { pool, around } = poolAt(eye)
-  pool.mark(0, ...around(0, 0, 0, 0))
-  pool.mark(0, ...around(0, 5, 0, 0))
-  pool.mark(1, ...around(1, 0, 0, 0))
-  const first = pool.image({ rank: 2, eye, marking: true, budget: 8 })
-  const levels = new Map(first.map((entry) => [entry.slot, entry.level]))
-  // Same age everywhere: the finer level's probes are worth more of a frame, so a budget of two takes both.
-  const aged = pool.image({ rank: 40, eye, marking: false, budget: 2 })
-  assert.deepEqual(aged.map((entry) => levels.get(entry.slot)).sort(), [0, 0])
-  // The coarse probe, traced a long time ago, goes before the fine ones just traced.
-  const next = pool.image({ rank: 41, eye, marking: false, budget: 1 })
-  assert.equal(next.length, 1)
-  assert.equal(levels.get(next[0].slot), 1, 'the oldest first')
-})
-
-test('a probe stops being traced after its updates, and the pool closes; a light brings them back', () => {
-  const eye = [5, 5, 5]
-  const { pool, around } = poolAt(eye)
-  pool.mark(0, ...around(0, 0, 0, 0))
-  let traced = 0
-  let rank = 2
-  traced += pool.image({ rank, eye, marking: true, budget: 8 }).length
-  for (rank++; pool.tally().refreshing > 0; rank++) {
-    assert.ok(rank < 1000, 'the series closes')
-    traced += pool.image({ rank, eye, marking: false, budget: 8 }).length
-  }
-  assert.equal(traced, settledTraces, 'a probe takes exactly its updates')
-  assert.deepEqual(
-    pool.image({ rank, eye, marking: false, budget: 8 }),
-    [],
-    'a closed pool queues nothing',
-  )
-  assert.equal(
-    pool.image({ rank: rank + 1, eye, marking: false, restart: true, budget: 8 }).length,
-    1,
-  )
-  assert.equal(pool.tally().refreshing, 1)
 })
 
 test('a probe queued names its cell, not the remainder of it', () => {
@@ -187,7 +110,7 @@ test('a probe queued names its cell, not the remainder of it', () => {
     [2, coarse],
   ] as const)
     pool.mark(level, cell[0], cell[1], cell[2])
-  const queued = pool.image({ rank: 7, eye, marking: true, slid: true, budget: 8 })
+  const queued = pool.image({ rank: 7, eye, budget: 8 })
   assert.equal(pool.tally().marked, 3, 'every bit is a cell read')
   assert.equal(queued.length, 3)
   assert.deepEqual(
@@ -208,11 +131,8 @@ test('under any run of marks, slides, expiries and lights, the counts and the ta
   let refused = 0
   for (let rank = 2; rank < 400; rank++) {
     const roll = draw()
-    let slid = false,
-      marking = false,
-      restart = false
+    let restart = false
     if (roll < 0.6) {
-      marking = true
       for (let k = 0; k < 8; k++) {
         const level = Math.floor(draw() * 4)
         const [x, y, z] = cellOf(level)
@@ -221,9 +141,9 @@ test('under any run of marks, slides, expiries and lights, the counts and the ta
     } else if (roll < 0.7) {
       for (let axis = 0; axis < 3; axis++)
         eye[axis] += (draw() - 0.5) * 6 * cascades.levels[0].spacing
-      slid = cascades.follow(eye)
+      cascades.follow(eye)
     } else if (roll < 0.83) restart = roll < 0.73
-    pool.image({ rank, eye, marking: marking || slid, slid, restart, budget: 6 })
+    pool.image({ rank, eye, restart, budget: 6 })
     const t = pool.tally()
     const named: number[] = []
     for (let entry = 0; entry < cascades.levels.length * cascades.cells; entry += 1) {
@@ -233,7 +153,7 @@ test('under any run of marks, slides, expiries and lights, the counts and the ta
     assert.equal(named.length, t.live - t.unfilled, `image ${rank}: published = traced`)
     assert.equal(new Set(named).size, named.length, 'a probe is named by one cell')
     assert.ok(t.live <= capacity && t.unfilled <= t.live)
-    assert.ok(t.refreshing >= t.unfilled && t.refreshing <= t.live)
+    assert.ok(t.unfilled <= t.refreshing && t.refreshing <= t.live)
     assert.equal(t.free + t.live, capacity, 'every slot is held or free')
     refused = t.refused
   }

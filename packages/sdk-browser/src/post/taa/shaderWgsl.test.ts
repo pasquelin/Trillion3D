@@ -66,16 +66,16 @@ test('shader bindings are those of the layout, and the uniform has the declared 
     )
   for (const [layer, binding] of Object.entries({ tint: 21, add: 22 }))
     assert.match(filtered, new RegExp(`@binding\\(${binding}\\) var ${layer}Out:`), layer)
-  // Two matrices, then fourteen quadruplets — the level's knobs and the pre-exposure's ratio
-  // (`quality`, `preExposure`) —, then the history's laws and scale, the resurrection's terms and
+  // Two matrices, then thirteen quadruplets — the level's knobs and the pre-exposure's ratio
+  // (`quality`, `preExposure`, which holds the flicker rates too) —, then the history's laws and scale, the resurrection's terms and
   // grid (`history`, `fraction`, `resurrection`, `resurrectGrid`), the thin geometry detection's
   // thresholds (`thin`, `thinFade`) and the matrix to the frame a pixel is resurrected from: no
   // filter weights, the window is evaluated where it is read. Last, the eye in doubles, at which the
   // velocity takes a placement's two poses since it reads them from the cut (`placementMotion`).
-  assert.equal(TAA_VIEW_BYTES, 3 * 64 + 20 * 16 + 2 * 16)
+  assert.equal(TAA_VIEW_BYTES, 3 * 64 + 19 * 16 + 2 * 16)
   assert.match(
     TAA_SHADER,
-    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,render:vec4f,jitter:vec4f,eye:vec4f,exposure:vec4f,parallax:vec4f,rates:vec4f,depth:vec4f,radius:vec4f,prevRender:vec4f,analysisGrid:vec4f,quality:vec4f,preExposure:vec4f,history:vec4f,fraction:vec4f,resurrection:vec4f,resurrectGrid:vec4f,thin:vec4f,thinFade:vec4f,toResurrection:mat4x4f,exactEye:array<vec4u,2>,\}/,
+    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,render:vec4f,jitter:vec4f,eye:vec4f,parallax:vec4f,rates:vec4f,depth:vec4f,radius:vec4f,prevRender:vec4f,analysisGrid:vec4f,quality:vec4f,preExposure:vec4f,history:vec4f,fraction:vec4f,resurrection:vec4f,resurrectGrid:vec4f,thin:vec4f,thinFade:vec4f,toResurrection:mat4x4f,exactEye:array<vec4u,2>,\}/,
   )
   assert.doesNotMatch(TAA_SHADER, /view\.weights/)
 })

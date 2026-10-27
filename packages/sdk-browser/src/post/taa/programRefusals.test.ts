@@ -79,12 +79,12 @@ test('a device that refuses the programs of the packed formats keeps the core’
 })
 
 // The anti-aliasing mask is an r8uint storage texture, one byte a texel, where the device has
-// `texture-formats-tier1` and grants the four storage textures the rejection then binds; else the
+// `texture-formats-tier1` and grants the five storage textures the rejection then binds; else the
 // buffer of a word a texel. The programs, the layouts and the bytes follow the one choice.
 test('the anti-aliasing mask is a texture where the device allows it, a buffer else', async () => {
   const on = {
     features: ['texture-formats-tier1' as GPUFeatureName],
-    limits: { maxStorageTexturesPerShaderStage: 4 },
+    limits: { maxStorageTexturesPerShaderStage: 5 },
   }
   const shapeFor = (options: Parameters<typeof fakeDevice>[0]) =>
     createShapeMemo(fakeDevice(options).device)(
@@ -95,7 +95,11 @@ test('the anti-aliasing mask is a texture where the device allows it, a buffer e
     )
   const texture = shapeFor(on)
   assert.equal(texture.formats.mask, 'texture')
-  assert.equal(shapeFor({ features: on.features }).formats.mask, 'texture', 'four storage textures')
+  assert.equal(
+    shapeFor({ features: on.features }).formats.mask,
+    'buffer',
+    'the four storage textures a device is guaranteed, which the rejection binds itself',
+  )
   const cinematic = createShapeMemo(fakeDevice(on).device)(
     TAA_LEVEL_KNOBS.max,
     { frames: 2, interval: 31, packed: false },
@@ -122,10 +126,10 @@ test('the anti-aliasing mask is a texture where the device allows it, a buffer e
   )
   assert.match(spatialAntiAliasingShader(), /var<storage,read> antiAliasMask:array<u32>/)
   // The bytes a texel of the analysis takes: one for the texture, four for the buffer.
-  // The shape alone, on a limit under the four the analysis's layouts need: the mask's form follows it.
+  // The shape alone, on a limit under the five that give the mask a texture: its form follows it.
   const buffer = shapeFor({
     features: on.features,
-    limits: { maxStorageTexturesPerShaderStage: 3 },
+    limits: { maxStorageTexturesPerShaderStage: 4 },
   })
   assert.equal(
     analysisBytesPerPixel(buffer.sequence, buffer.field, true, buffer.formats) -
@@ -167,7 +171,7 @@ test('the anti-aliasing mask is a texture where the device allows it, a buffer e
 
 // The LDR luma is an r8unorm storage texture, a plain store a texel, where the device has
 // `texture-formats-tier1` and grants the storage texture it takes beside the rejection's others:
-// four with the mask a buffer, five with the mask a texture; else the packed buffer of atomics.
+// five with the mask a buffer, six with the mask a texture; else the packed buffer of atomics.
 test('the LDR luma is a texture where the device allows it, a buffer else', async () => {
   const shapeFor = (options: Parameters<typeof fakeDevice>[0]) =>
     createShapeMemo(fakeDevice(options).device)(
@@ -185,9 +189,9 @@ test('the LDR luma is a texture where the device allows it, a buffer else', asyn
     const { mask, luma } = shapeFor(limit(n))
     return [mask, luma]
   }
-  assert.deepEqual(formsAt(3), ['buffer', 'buffer'], 'three storage textures: neither')
-  assert.deepEqual(formsAt(4), ['texture', 'buffer'], 'four: the mask, five are needed for both')
-  assert.deepEqual(formsAt(5), ['texture', 'texture'], 'five: both')
+  assert.deepEqual(formsAt(4), ['buffer', 'buffer'], 'four storage textures: neither')
+  assert.deepEqual(formsAt(5), ['texture', 'buffer'], 'five: the mask, six are needed for both')
+  assert.deepEqual(formsAt(6), ['texture', 'texture'], 'six: both')
   assert.equal(shapeFor({ limits: limit(8).limits }).luma, 'buffer', 'no tier 1')
   // The programs: one plain store, no atomic; the anti-aliaser loads the texture.
   const writes = rejectShadingShader('rgb10a2unorm', 'rg11b10ufloat', false, 'texture', 'texture')

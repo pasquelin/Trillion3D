@@ -58,12 +58,10 @@ function uniforms(intervals: number[], handed: number | null = null) {
         false,
         false,
         false,
-        undefined,
         handed,
       )
       frame.hasHistory = true
       frame.sample = (frame.sample + 1) % frame.phases
-      frame.stochasticSample++
     }
   } finally {
     Object.assign(globalThis, { document: saved })
@@ -78,7 +76,7 @@ test('two runs of the same images write the same uniform, however long their fra
 })
 
 test('the flicker period is two images down to 60 Hz, shorter below it', () => {
-  const rate = TAA_VIEW.at.exposure + 2
+  const rate = TAA_VIEW.at.preExposure + 2
   const fast = uniforms([1000 / 120], 1000 / 120).at(-1)!
   assert.deepEqual(uniforms([1000 / 60], 1000 / 60).at(-1)![rate], fast[rate], '60 Hz: two images')
   assert.ok(Math.abs(fast[rate] - (1 - 0.95 ** 2)) < 1e-6, `${fast[rate]}`)

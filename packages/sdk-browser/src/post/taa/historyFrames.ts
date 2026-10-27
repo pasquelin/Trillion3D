@@ -99,14 +99,12 @@ function resurrectionRolling(sequence: FrameSequence, accumulated: number, last:
 }
 
 /** What a history keeps of the image in each slot, for the resurrection that reprojects by it: its
- *  camera, the scales its light and its measures are exposed by, and the grid it was drawn in. */
+ *  camera, the scale its light is exposed by, and the grid it was drawn in. */
 interface StoredFrame {
   /** Its view-projection without jitter, and its eye (`CameraImage`). */
   readonly viewProjection: Float64Array
   readonly eye: Float64Array
-  /** The exposure its measures were scaled by (`taaExposure`) and the pre-exposure its light was
-   *  multiplied by (`PreExposure.now`). */
-  exposure: number
+  /** The pre-exposure its light was multiplied by (`PreExposure.now`). */
   preExposure: number
   /** The grid it was drawn in, `(width, height)`. */
   readonly render: Float64Array
@@ -115,7 +113,6 @@ interface StoredFrame {
 const newFrame = (): StoredFrame => ({
   viewProjection: new Float64Array(16),
   eye: new Float64Array(3),
-  exposure: 1,
   preExposure: 1,
   render: new Float64Array(2),
 })
@@ -189,14 +186,12 @@ export function keepFrame(
   holds: boolean,
   viewProjection: ArrayLike<number>,
   eye: ArrayLike<number>,
-  exposure: number,
   preExposure: number,
   render: ArrayLike<number>,
 ) {
   const frame = ring.frames[plan.current]
   frame.viewProjection.set(viewProjection)
   frame.eye.set(eye)
-  frame.exposure = exposure
   frame.preExposure = preExposure
   frame.render[0] = render[0]
   frame.render[1] = render[1]

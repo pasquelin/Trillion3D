@@ -1,8 +1,5 @@
 import { bitWords, ceilDiv } from '../../../../../math/src/scalar/integers.ts'
-import {
-  BOUNCE_PROBE_QUEUE,
-  BOUNCE_SETTINGS,
-} from '../../../../../sdk-core/src/bounce/contracts.ts'
+import type { BounceCascades } from '../../../../../sdk-core/src/bounce/cascades.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { TABLE_LANES } from '../atlas.ts'
 
@@ -11,67 +8,63 @@ import { TABLE_LANES } from '../atlas.ts'
  * which probes are traced each image. Everything the pool is made of lives on the GPU; the CPU reads back a few counters.
  */
 
-/** Words a slot of the pool holds (`slots`): the entry plus one of the cell it holds — zero for a free slot —, the cell's three
- *  coordinates, the image that last read it, the image that last traced it (zero: never), the traces it took since the lights last changed
- *  (at most `settledTraces`) and its level. */
+/** Words a slot of the pool holds (`slots`): the entry plus one of the cell it holds — zero for a free slot; the entry the last pass's
+ *  indirection named it by —, the cell's three coordinates, the frame that last read it, the frame that last traced it (zero: never) and
+ *  its level. */
 export const POOL_SLOT = {
-  words: 8,
+  words: 7,
   owner: 0,
   cell: 1,
   usedAt: 4,
   tracedAt: 5,
-  traces: 6,
-  level: 7,
+  level: 6,
 } as const
 
-/** Cells from the eye a probe never traced is told apart by, a bucket a cell, the farthest bucket the rest. */
-export const POOL_DISTANCE_BUCKETS = 64
-/** Priority buckets of a probe already traced. */
+/** Priority buckets: the first holds the probes never traced. */
 export const POOL_PRIORITY_BUCKETS = 16
 
 /** What tracing a probe costs by where it stands: its map at half the side, at the whole side, at twice it — rays a side squared, so a
  *  quarter, one and four times the whole side's. The frame's budget is `normal` for each probe it names. */
 export const POOL_COST = { downsampled: 1, normal: 4, supersampled: 16 } as const
 
-const LEVELS = BOUNCE_SETTINGS.cascadeLevels
-const SIDE = BOUNCE_SETTINGS.cascadeSize
-/** Entries of the table: a cell of every level. */
-const POOL_ENTRIES = LEVELS * SIDE ** 3
-/** Words of the marks' bitmap: a bit an entry. */
-export const POOL_MARK_WORDS = bitWords(POOL_ENTRIES)
-/** Texels of the table in the probes' atlas: `TABLE_LANES` entries each. */
-export const POOL_TABLE_TEXELS = ceilDiv(POOL_ENTRIES, TABLE_LANES)
+/** The sizes of a pool of the levels `cascades` hold: `entries`, a cell of every level; `markWords`, the words of the marks' bitmap, a bit an
+ *  entry; `tableTexels`, the texels of the table in the probes' atlas, `TABLE_LANES` entries each. */
+export function poolShapeOf({ levels, cells }: Pick<BounceCascades, 'levels' | 'cells'>) {
+  const entries = levels.length * cells
+  return { entries, markWords: bitWords(entries), tableTexels: ceilDiv(entries, TABLE_LANES) }
+}
+
+/** The sizes of a pool (`poolShapeOf`). */
+export type PoolShape = ReturnType<typeof poolShapeOf>
 
 /**
- * The words of the pool's work buffer (`work`, atomic): the counters, the histograms and the stack of free slots.
+ * The words of the pool's work buffer (`work`, atomic): the counters, the histogram and the stack of free slots.
  * What lasts from one image to the next: `free` (the slots on the stack), `refused` (the marks the pool had no probe left for, in all),
- * `high` (one past the highest slot ever given, which the slots' kernels are dispatched over, `POOL_ARGS.slots`) and the stack. The rest is cleared at the start of each pass: `queued`, the probes the image traces (its entries' count);
- * `spent`, `waiting`, `eligible`, the cost the probes first traced take above their cheapest, the cost of all that wait and
- * their count; the cut of the selection of the probes never traced (`cutUntraced`: the bucket the budget stops in, `roomUntraced`: how
- * many of that bucket fit) and of the others'; `marked`, the cells the image marked; the tally the CPU reads (`live`, `unfilled`, `refreshing`);
- * then the histograms — the probes never traced by level and distance, the others by priority, each in its cost.
+ * `high` (one past the highest slot ever given, which the slots' kernels are dispatched over, `POOL_ARGS.slots`), `changed` (the frame of
+ * the last change of the lights: a probe traced before it is short of a trace) and the stack. The rest is cleared at the start of each pass: `queued`, the probes the image traces (its entries' count);
+ * `spent`, the cost the probes first traced take, begun at the cheapest every one of them could cost, and `taken`, what the probes of the
+ * bucket the budget stops in have taken of its room; the cut of the selection (`cut`: the bucket the budget stops in, `room`: what is left
+ * of it for that bucket); `marked`, the cells the image marked; the tally the CPU reads (`live`, `unfilled`, `refreshing`: the probes not traced since the last change);
+ * then the histogram of the probes by priority, each in its cost.
  * `stats` words from the first are what the CPU reads back.
  */
-const COUNTERS = 16
+const COUNTERS = 13
 export const POOL_WORK = {
   free: 0,
   refused: 1,
   queued: 2,
   spent: 3,
-  waiting: 4,
-  eligible: 5,
-  cutUntraced: 6,
-  roomUntraced: 7,
-  cutTraced: 8,
-  roomTraced: 9,
-  marked: 10,
-  live: 11,
-  unfilled: 12,
-  refreshing: 13,
-  high: 14,
-  untraced: COUNTERS,
-  traced: COUNTERS + LEVELS * POOL_DISTANCE_BUCKETS,
-  stack: COUNTERS + LEVELS * POOL_DISTANCE_BUCKETS + POOL_PRIORITY_BUCKETS,
+  taken: 4,
+  cut: 5,
+  room: 6,
+  marked: 7,
+  live: 8,
+  unfilled: 9,
+  refreshing: 10,
+  high: 11,
+  changed: 12,
+  priority: COUNTERS,
+  stack: COUNTERS + POOL_PRIORITY_BUCKETS,
   /** The counters the CPU reads back. */
   stats: COUNTERS,
 } as const
@@ -89,14 +82,20 @@ export function freshWork(slots: number) {
 
 /**
  * The uniform the pool's kernels read beside the levels' (`pool`): `room`, the frame's budget in cost (`probesPerFrame` times the cost of
- * a whole map) and `marking`, whether this image marks (the probes unread for `probeKeptMarks` images are given back); `distances`,
+ * a whole map, unlimited in a full update), `keep`, the frames a probe nothing reads is kept (`screenProbeRadianceCacheFramesToKeepProbes`);
+ * `cap`, the probes the frame may queue (the block of its queue, `probeQueueShapeOf`: what its budget names, the whole pool in a full update); `fullUpdate`, whether every probe is
+ * given back at the start of the pass (a full update); `distances`,
  * the squares of the distances, in metres, from the eye past which a probe is traced at half its side and within which it is traced at
- * twice it.
+ * twice it; `markDownsample`, the factors the image is downsampled by to mark the cells it reads where it cast no screen probe: the mark's,
+ * on top of the interpolation's, then the interpolation's.
  */
 export const POOL_PARAMS = fieldLayout('PoolParams', [
   ['room', 'u32'],
-  ['marking', 'u32'],
+  ['keep', 'u32'],
+  ['cap', 'u32'],
+  ['fullUpdate', 'u32'],
   ['distances', 'vec2f'],
+  ['markDownsample', 'vec2u'],
 ] as const)
 /** Bytes of the pool's parameters. */
 export const POOL_PARAMS_BYTES = POOL_PARAMS.words * 4
@@ -119,8 +118,8 @@ export const POOL_BINDINGS = {
  *  uniform, written. */
 export const FINISH_BINDINGS = { work: 0, args: 1, grid: 2 } as const
 
-/** The mark pass over the image's depth (`MARK_IMAGE_SHADER`): the levels' uniform, the view's, the depth and the normals, the bitmap. */
-export const MARK_IMAGE_BINDINGS = { grid: 0, view: 1, depth: 2, normals: 3, marks: 4 } as const
+/** The mark pass over the image's depth (`MARK_IMAGE_SHADER`): the levels' uniform, the view's, the depth, the pool's parameters, the bitmap. */
+export const MARK_IMAGE_BINDINGS = { grid: 0, view: 1, depth: 2, params: 3, marks: 4 } as const
 
 /** The mark pass over the last image's screen probes (`MARK_PROBES_SHADER`): the levels' uniform, the probes the last image cast
  *  (their count and the most adaptive ones), their records and the number of adaptive ones placed, the bitmap. */
@@ -128,14 +127,24 @@ export const MARK_PROBES_BINDINGS = {
   grid: 0,
   source: 1,
   info: 2,
-  normal: 3,
-  counts: 4,
-  marks: 5,
+  counts: 3,
+  marks: 4,
 } as const
 
 /** The arguments of the dispatches over the probes the image traces, in words from each one's start: the probes (one group each), the
- *  clear of the importance functions (a thread a word), the kernels over the slots ever given (a thread a slot). */
-export const POOL_ARGS = { probes: 0, clear: 3, slots: 6, words: 9 } as const
+ *  kernels over the slots ever given (a thread a slot). */
+export const POOL_ARGS = { probes: 0, slots: 3, words: 6 } as const
 
-/** The queue's entries, at most: those the radiance cache's kernels are dispatched over. */
-export const POOL_QUEUE = BOUNCE_PROBE_QUEUE
+/** The budget of a full update, in cost: no limit. */
+const UNLIMITED = 0xffffffff
+
+/**
+ * What a frame's pass is limited by (`POOL_PARAMS`): `room`, the budget in cost; `cap`, the probes it may queue, which the block of its
+ * queue holds (`probeQueueShapeOf`); `fullUpdate`, whether every probe is given back. A full update has no budget, queues the whole pool
+ * and gives every probe back.
+ */
+export const poolLimits = (probesPerFrame: number, full: boolean, cap: number) => ({
+  room: full ? UNLIMITED : probesPerFrame * POOL_COST.normal,
+  cap,
+  fullUpdate: full ? 1 : 0,
+})

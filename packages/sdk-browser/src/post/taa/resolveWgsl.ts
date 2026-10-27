@@ -14,7 +14,7 @@ import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import type { Wave } from './waveOps.ts'
 import { ANTI_ALIAS_NEUTRAL } from './spatialAntiAliasingWgsl.ts'
 import { TILE_CLAMP_WGSL } from './tileWgsl.ts'
-import { FIRST_ANALYSIS_VIEW } from './rejectionWgsl.ts'
+import { FIRST_ANALYSIS_VIEW } from './rejectionShared.ts'
 import { REJECTION_BITS } from './rejectionBits.ts'
 import { REPROJECTION_FIELD_WGSL } from './reprojectionFieldWgsl.ts'
 
@@ -33,7 +33,7 @@ const kernelText = (filtered: boolean, p: Precision) => {
   const bound = S ? `${wgslF32(HALF_MAX)}` : 'RANGE_BOUND'
   return ` var sum=${V4}(0.0);var total=${F}(0.0);var lo=${V4}(${bound});var hi=${V4}(-${bound});
 ${layerText(filtered, 'vars', V4)} let side=select(vec2i(1),vec2i(-1),ko<${V2}(0.0));let square=abs(ko)>=${V2}(0.25);
- let footprint=factor*factor;let inputMost=${wgslF32(MAX_10_BIT_FLOAT)}/exposure;let movesFar=view.quality.z!=0.0;
+ let footprint=factor*factor;let inputMost=${wgslF32(MAX_10_BIT_FLOAT)};let movesFar=view.quality.z!=0.0;
  for(var dy=-1;dy<=1;dy++){for(var dx=-1;dx<=1;dx++){
   let d=vec2i(dx,dy);
   let zero=d==vec2i(0);let near=d==side;let far=d==-side;
@@ -44,10 +44,10 @@ ${layerText(filtered, 'vars', V4)} let side=select(vec2i(1),vec2i(-1),ko<${V2}(0
   let at=clampTexel(k+d);
   let sample=${V4}(min(sceneColorAt(at),vec4f(inputMost)));
   let offset=${V2}(d)-ko;
-  let weight=taaWindow${S}(dot(offset,offset)*footprint)*toneWeight${S}(sample.rgb*exposureP);
+  let weight=taaWindow${S}(dot(offset,offset)*footprint)*toneWeight${S}(sample.rgb);
   sum+=sample*weight;total+=weight;lo=min(lo,sample);hi=max(hi,sample);
 ${layerText(filtered, 'tap', V4)} }}
- let filtered=min(sum/total,${V4}(${F}(min(${wgslF32(LARGEST_SCENE_COLOR)}/exposure,${wgslF32(HALF_MAX)}))));
+ let filtered=min(sum/total,${V4}(${F}(min(${wgslF32(LARGEST_SCENE_COLOR)},${wgslF32(HALF_MAX)}))));
 ${layerText(filtered, 'scaled', V4)}`
 }
 
@@ -142,11 +142,10 @@ interface UpdateText {
   readonly down: number
 }
 
-/** The entry, the exposure, and the history pixel a lane takes: its place, its uv and the render texel it falls in. */
+/** The entry and the history pixel a lane takes: its place, its uv and the render texel it falls in. */
 const updateHeadText = ({ p, pixels, down, wave, half }: UpdateText) => {
   const { F, S } = p
   return `${LANE_PIXEL}${updateEntry(wave, half, pixels)}
- let exposure=view.exposure.x;let exposureP=${S ? `${F}(clamp(exposure,${wgslF32(p.tiny)},${wgslF32(HALF_MAX)}))` : 'exposure'};
  let ratio=view.viewport.x*view.render.z;let ratioP=${F}(ratio);
  for(var px=0;px<${pixels};px++){
  let hp=vec2i(wg.xy)*vec2i(${UPDATE_TILE_ACROSS},${down * pixels})+lanePixel(lane)+vec2i(0,px*${down});
@@ -246,10 +245,10 @@ const updateWeightsText = ({ p }: UpdateText) => {
 const updateBlendText = ({ p, down, filtered, historyFormat }: UpdateText) => {
   const { F, V3, V4, S } = p
   return `${kernelText(filtered, p)} let clamped=clamp(past.color,lo,hi);
- let boxed=(1.0-clampLift)*toneWeight${S}(clamped.rgb*exposureP);let lifted=clampLift*toneWeight${S}(past.color.rgb*exposureP);
+ let boxed=(1.0-clampLift)*toneWeight${S}(clamped.rgb);let lifted=clampLift*toneWeight${S}(past.color.rgb);
  let liftScale=safeRcp${S}(boxed+lifted);
  let blended=clamped*(boxed*liftScale)+past.color*(lifted*liftScale);
- let prevLuma=luma4${S}(blended.rgb*exposureP);let nowLuma=luma4${S}(filtered.rgb*exposureP);
+ let prevLuma=luma4${S}(blended.rgb);let nowLuma=luma4${S}(filtered.rgb);
  // Held from zero: WGSL leaves 0/0 indeterminate, where a black pixel's two lumas are both zero.
  let stable=abs(nowLuma-prevLuma)/max(max(nowLuma,prevLuma),${wgslF32(p.tiny)});
  prevWeight=min(prevWeight,max(1.0-${F}(movingValidityDrop())*saturate(speed*${F}(movingSpeedInverse())),stable));
@@ -261,7 +260,7 @@ const updateBlendText = ({ p, down, filtered, historyFormat }: UpdateText) => {
  var color=blended*whScaled+filtered*wcScaled;
  // One draw a lane, at its first pixel, for each pixel it takes.
  let random=${F}(frameRandom(hp-vec2i(0,px*${down}),u32(view.jitter.w)).x);
- color=${V4}(clamp(ditherFloat${S}(color.rgb,random,${V3}(${quantizationErrorsOf(historyFormat)})),${V3}(0.0),${V3}(${F}(min(${wgslF32(MAX_10_BIT_FLOAT)}/exposure,${wgslF32(HALF_MAX)})))),color.a);`
+ color=${V4}(clamp(ditherFloat${S}(color.rgb,random,${V3}(${quantizationErrorsOf(historyFormat)})),${V3}(0.0),${V3}(${F}(min(${wgslF32(MAX_10_BIT_FLOAT)},${wgslF32(HALF_MAX)})))),color.a);`
 }
 
 /** The diagnostic view's output, the layers, the stores of the frame and the half-size image. */

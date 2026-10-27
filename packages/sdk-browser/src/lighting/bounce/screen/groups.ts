@@ -3,7 +3,6 @@ import { namedEntries } from '../../../gpu/core/computeBindings.ts'
 import { buffers, groupOf, type GroupParts, type ScreenProbeInputs } from './groupParts.ts'
 import { RAYS_BINDINGS, RAYS_PROBES } from './importanceWgsl.ts'
 import type { CastKernels, ScreenProbeKernels } from './kernels.ts'
-import { SCATTER_BINDINGS, SCATTER_PROBES } from './cacheScatterWgsl.ts'
 import { PLACE_BINDINGS } from './placeWgsl.ts'
 import type { ScreenProbeResources } from './resources.ts'
 import { SCREEN_DATA_BINDINGS } from './screenDataWgsl.ts'
@@ -41,8 +40,8 @@ function placeGroups(g: GroupParts, kernels: CastKernels) {
         ...common,
         ...records,
         ...surface,
-        depth: r.depth[last],
         shading: r.shading[last],
+        keptDepth: r.keptDepth[last],
         vectors: inputs.vectors,
         blue: inputs.blue,
         ...buffers({ brdf: r.brdf, disocclusion: r.disocclusion }),
@@ -51,23 +50,10 @@ function placeGroups(g: GroupParts, kernels: CastKernels) {
   }
 }
 
-/** The scatter of the pixels' importance into the radiance cache and the directions of the rays. */
+/** The directions of the rays. */
 function rayGroups(g: GroupParts, kernels: CastKernels) {
-  const { device, r, inputs, last, final, common, probe, records } = g
+  const { device, r, inputs, last, final, common, records } = g
   return {
-    scatter: groupOf(device, kernels.scatter, [
-      ...namedEntries(SCATTER_BINDINGS.at, {
-        ...common,
-        ...probe,
-        ...buffers({
-          counts: r.counts,
-          brdf: r.brdf,
-          pdf: inputs.cachePdf,
-          bounceGrid: inputs.bounceGrid,
-        }),
-      }),
-      { binding: SCATTER_PROBES, resource: inputs.probes },
-    ]),
     rays: groupOf(device, kernels.rays, [
       ...namedEntries(RAYS_BINDINGS.at, {
         ...common,
@@ -79,11 +65,11 @@ function rayGroups(g: GroupParts, kernels: CastKernels) {
         cacheFinal: inputs.cacheFinal,
         cacheRaw: inputs.cacheRaw,
         cacheSky: inputs.cacheSky,
+        vectors: inputs.vectors,
         ...buffers({
           brdf: r.brdf,
           bounceGrid: inputs.bounceGrid,
           lights: inputs.lights,
-          cacheTags: inputs.cacheTags,
         }),
       }),
       { binding: RAYS_PROBES, resource: inputs.probes },
@@ -93,23 +79,25 @@ function rayGroups(g: GroupParts, kernels: CastKernels) {
 
 /** The groups of a frame of parity `turn` (0 or 1): this frame's resources are the turn's, the last frame's
  *  — the history — the other. `passes` is the spatial filter's count: its last pass writes the one of
- *  the two gathered textures the rays read next frame and the conversion reads now. */
+ *  the two gathered textures the rays read next frame and the conversion reads now; `ranks` the uniform of each pass. */
 function createGroups(
   device: GPUDevice,
   kernels: ScreenProbeKernels,
   r: ScreenProbeResources,
   inputs: ScreenProbeInputs,
   turn: 0 | 1,
-  passes: number,
+  ranks: GPUBuffer[],
 ) {
   const probe = { info: r.info[turn], normal: r.normal }
   const parts: GroupParts = {
     device,
     r,
     inputs,
+    features: kernels.features,
     turn,
     last: (1 - turn) as 0 | 1,
-    final: (passes % 2) as 0 | 1,
+    final: (ranks.length % 2) as 0 | 1,
+    ranks,
     common: { params: { buffer: r.params } },
     probe,
     records: { ...probe, ...buffers({ counts: r.counts, pixels: r.pixels }) },
@@ -130,9 +118,12 @@ function createGroups(
 
 /** The inputs that are one resource each, those of `ScreenProbeInputs` but the field and the hit's, which name several: a field added to the
  *  inputs and left out of this table fails the compile. The identity names them in this order. */
-const INPUT_SLOT: Record<Exclude<keyof ScreenProbeInputs, 'field' | 'hit'>, true> = {
+const INPUT_SLOT: Record<Exclude<keyof ScreenProbeInputs, 'field' | 'hit' | 'fog'>, true> = {
   normals: true,
   flags: true,
+  lobes: true,
+  base: true,
+  emissiveAo: true,
   lights: true,
   bounceGrid: true,
   probes: true,
@@ -141,33 +132,34 @@ const INPUT_SLOT: Record<Exclude<keyof ScreenProbeInputs, 'field' | 'hit'>, true
   cacheFinal: true,
   cacheRaw: true,
   cacheSky: true,
-  cacheTags: true,
-  cachePdf: true,
 }
 const INPUT_KEYS = Object.keys(INPUT_SLOT) as (keyof typeof INPUT_SLOT)[]
 /** The hit's resources the identity names after the inputs and the field's generation. */
 const HIT_KEYS = ['tables', 'depth', 'final', 'grid', 'instances'] as const
 
 /**
- * The groups of a view's kernels over its resources, one set for each parity of the history's turn about, made
- * again only when what the image gives them (`ScreenProbeInputs`) was replaced — the G-buffer grew, the light
- * buffer was replaced — or the spatial filter's passes changed parity: `of(turn, inputs)`.
+ * The groups of a view's kernels over its resources, one set for each turn of the history, made again only when what the image gives them
+ * (`ScreenProbeInputs`) was replaced — the G-buffer grew, the light buffer was replaced —: the function it returns takes the turn and
+ * the inputs. A change of the spatial filter's passes makes the whole family again (`groupsOf`, `frame.ts`). The spatial filter has a pass
+ * for each of `ranks`, the uniform of each holding its rank.
  */
 export function createScreenProbeGroups(
   device: GPUDevice,
   kernels: ScreenProbeKernels,
   resources: ScreenProbeResources,
-  passes: number,
+  ranks: GPUBuffer[],
 ) {
-  const identity = createWebgpuBindIdentity(INPUT_KEYS.length + 1 + HIT_KEYS.length)
+  const identity = createWebgpuBindIdentity()
   const sets: (ScreenProbeGroups | undefined)[] = [undefined, undefined]
   return (turn: 0 | 1, inputs: ScreenProbeInputs) => {
     const { next } = identity
     let at = 0
     for (const key of INPUT_KEYS) next[at++] = inputs[key]
+    next[at++] = inputs.fog.cubemap
+    next[at++] = inputs.fog.sampler
     next[at++] = inputs.field.readGeneration
     for (const key of HIT_KEYS) next[at++] = inputs.hit[key]
     if (identity.moved()) sets[0] = sets[1] = undefined
-    return (sets[turn] ??= createGroups(device, kernels, resources, inputs, turn, passes))
+    return (sets[turn] ??= createGroups(device, kernels, resources, inputs, turn, ranks))
   }
 }

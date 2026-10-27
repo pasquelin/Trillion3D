@@ -8,8 +8,3 @@ export function screenProbeSettingsOf(rt: WebgpuPagesRuntime): ScreenProbeSettin
   const store = (rt.bounce.screen ??= createScreenProbeStore())
   return store.read(rt.context)
 }
-
-/** The probes an image traces, in the cost of a whole map each (`../pool/poolWgsl.ts`): the host's count (`bounceProbesPerFrame`), else the
- *  level's row of the radiance cache scaled by the update speed. */
-export const probesPerFrameOf = (rt: WebgpuPagesRuntime) =>
-  rt.bounce.probesPerFrame ?? screenProbeSettingsOf(rt).cache.budget

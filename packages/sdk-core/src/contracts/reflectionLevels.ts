@@ -2,7 +2,8 @@
  * THE REFLECTIONS' LEVELS: the values each quality level holds (`REFLECTION_LEVEL_KNOBS`), apart from the settings
  * that read them (`./reflectionOptions.ts`). The levels are the reference's own scalability rows of its reflections:
  * the two lowest allow none, the third traces one ray in a block of two pixels a side, reads three of the rays
- * around a pixel, filters at least a little and traces no ray for the transparents' front layer, the top one traces a
+ * around a pixel, filters at least a little, stops the rays of foliage pixels at a roughness of 0.2 (and the screen probes' rough specular
+ * of them at 0.4) and traces no ray for the transparents' front layer, the top one traces a
  * ray a pixel, reads five and filters only where a ray found nothing and allows that front layer to be traced where the
  * project asks for it (`reflectionFrontLayer`); the cinematic row holds the top one's values and traces it itself.
  */
@@ -22,6 +23,11 @@ export type ReflectionKnobs = {
   reconstructionSamples: number
   /** The least share of the pixel's own weight the neighbours' rays weigh together, a filter where none is good. */
   reconstructionMinWeight: number
+  /** The roughness past which a pixel of the subsurface or two-sided foliage models casts no ray. */
+  maxRoughnessFoliage: number
+  /** The roughness past which the screen probes read the rough specular of those pixels no more
+   *  (`screenProbeMaxRoughnessToEvaluateRoughSpecularForFoliage`): the reflections' level sets it with their bar. */
+  maxRoughnessEvaluateFoliage: number
   /** Whether the level allows the transparents' front layer to be traced at all, and whether it traces it whatever the
    *  project says: the layer is traced where it is allowed and either the level or the project's setting
    *  (`reflectionFrontLayer`) asks for it. */
@@ -37,6 +43,8 @@ export const REFLECTION_LEVEL_KNOBS: Readonly<
     downsample: 2,
     reconstructionSamples: 3,
     reconstructionMinWeight: 1,
+    maxRoughnessFoliage: 0.2,
+    maxRoughnessEvaluateFoliage: 0.4,
     frontLayerAllowed: false,
     frontLayerTraced: false,
   },
@@ -44,6 +52,8 @@ export const REFLECTION_LEVEL_KNOBS: Readonly<
     downsample: 1,
     reconstructionSamples: 5,
     reconstructionMinWeight: 0,
+    maxRoughnessFoliage: 0.4,
+    maxRoughnessEvaluateFoliage: 0.8,
     frontLayerAllowed: true,
     frontLayerTraced: false,
   },
@@ -51,6 +61,8 @@ export const REFLECTION_LEVEL_KNOBS: Readonly<
     downsample: 1,
     reconstructionSamples: 5,
     reconstructionMinWeight: 0,
+    maxRoughnessFoliage: 0.4,
+    maxRoughnessEvaluateFoliage: 0.8,
     frontLayerAllowed: true,
     frontLayerTraced: true,
   },

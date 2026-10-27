@@ -1,8 +1,14 @@
 import { clipmapExtent } from '../../../../../sdk-core/src/lighting/globalDistanceField.ts'
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
+import { cameraForward } from '../../../camera/forward.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { cachedLightingPreExposureOf } from '../../../post/exposure/frame.ts'
+import { preExposureOf } from '../../../post/exposure/pre.ts'
 import type { SkyLightReadSet } from '../../../modules/sky/skyLight/read.ts'
+import { radianceCacheTraced } from '../../bounce/cache/cacheFrame.ts'
+import { screenProbesTraced } from '../../bounce/screen/cast.ts'
+import { screenProbeSettingsOf } from '../../bounce/screen/settingsOf.ts'
+import { reflectionsTraced } from '../../reflections/hardware.ts'
 import { cloudShadowStandIn } from '../../atmosphere/cloudShadowStandIn.ts'
 import type { CloudShadowSet } from '../../atmosphere/cloudShadowRead.ts'
 import { fieldSettingsOf, surfaceHitReads } from '../frame.ts'
@@ -63,13 +69,17 @@ export function lightSurfaceCache(
       lightFunction: frame.lightFunction,
       ...surfaceHitReads(rt, device),
       feedback: state.feedback.buffer,
+      direction: cameraForward<[number, number, number]>([0, 0, 0], frame.cam.world),
       transportEpoch: lights.store.transportEpoch,
+      probes: radianceCacheTraced(rt) || screenProbesTraced(rt) || reflectionsTraced(rt),
       image: {
         eye: frame.cam.eye,
         viewProjection: frame.viewProjection,
         preExposure: cachedLightingPreExposureOf(rt),
+        exposure: preExposureOf(rt).exposure,
         viewPreExposure: frame.viewPreExposure,
         firstClipmapExtent: clipmapExtent(field, 0),
+        maxTraceDistance: screenProbeSettingsOf(rt).values.screenProbeMaxTraceDistance,
       },
     },
   )

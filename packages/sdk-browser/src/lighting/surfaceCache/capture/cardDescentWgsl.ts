@@ -79,20 +79,21 @@ export const CARD_PARAMS = fieldLayout('CardParams', [
   ['pad', 'u32'],
 ] as const)
 
-/** The counters (`counts`): the pages the descent listed, the clusters the cull emitted, from `args`
- *  the dispatch of the rasters over them, a workgroup a cluster, and from `descentLost` the words the
- *  readback brings back: whether the descent dropped a node or a page past its budget (every view is
- *  then incomplete), then a word a view, set where a record of the view was dropped past the rows' room. */
-export const CARD_COUNT = { listed: 0, rows: 1, args: 4, descentLost: 8, viewLost: 9 } as const
+/** The counters (`counts`): the pages the descent listed, the clusters the cull emitted, and from `args`
+ *  the dispatch of the rasters over them, a workgroup a cluster. A node, a page or a record past its
+ *  budget is dropped, and nothing counts it. */
+export const CARD_COUNT = { listed: 0, rows: 1, args: 4 } as const
 
-/** The counters' words for `views` views. */
-export const cardCountWords = (views: number) => CARD_COUNT.viewLost + views
+/** The counters' words: the dispatch's three come last. */
+export const CARD_COUNT_WORDS = CARD_COUNT.args + 3
 
 /** The card views' descent (`../../../geometry/dag/shader/descentShape.ts`). */
 export const CARD_DESCENT_SHAPE: DescentShape = {
   views: true,
+  begin: '',
   subtreeNeeded: 'cardNeeded(node,w)',
   cameraSubtree: false,
+  floor: 'none',
   cellOutside: 'cardCellOutside',
   priority: 'cardPriority(node,w)',
   resets: '',
@@ -124,8 +125,6 @@ ${wgslConsts({
   CARD_COUNT_LISTED: CARD_COUNT.listed,
   CARD_COUNT_ROWS: CARD_COUNT.rows,
   CARD_COUNT_ARGS: CARD_COUNT.args,
-  CARD_COUNT_DESCENT_LOST: CARD_COUNT.descentLost,
-  CARD_COUNT_VIEW_LOST: CARD_COUNT.viewLost,
   CARD_CLUSTER_NEVER: CLUSTER_NEVER | CLUSTER_TRANSPARENT,
   CARD_ROW_SKIPPED: FLAG_LINE | FLAG_SPRITE | FLAG_VOXEL,
   CARD_CAND_WORDS: CAND_WORDS,
@@ -190,8 +189,6 @@ fn cardPriority(node:CullNode,w:u32)->u32{
 fn cardCellOutside(lo:vec3f,hi:vec3f)->bool{return false;}
 /** No pyramid hides a box in a card's view. */
 fn boxSight(lo:vec3f,hi:vec3f,w:u32)->u32{return BOX_SEEN;}
-/** The pose of a placement times a view, which the subtree test of the floor reads (\`floorPrunes\`): none. */
-fn viewWorld(w:u32)->mat4x4f{return mat4x4f(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);}
 `
 
 const descentKernelsText = /* wgsl */ `
@@ -205,16 +202,12 @@ const descentKernelsText = /* wgsl */ `
  }
  if(i<blockCount()){for(var k=0u;k<BLOCK_MASK_WORDS;k++){atomicStore(&work[drawMaskBase()+BLOCK_MASK_WORDS*i+k],0u);}}
  if(i>=params.views){return;}
- atomicStore(&counts[CARD_COUNT_VIEW_LOST+i],0u);
  descentView=i;
  let w=cardPlace(i);
  putEntry(0u,select(NO_INDEX,rootOf(w)|ENTRY_TEST,w!=NO_INDEX&&rootOf(w)!=NO_INDEX&&!worldCovers(w)),w);
 }
-/** Once the descent ran: the pages it listed (held to the room) for the cull, and the clusters found so far, none;
- *  and whether a node or a page was asked past a budget (both count what they were asked, past it too). */
+/** Once the descent ran: the pages it listed (held to the room) for the cull, and the clusters found so far, none. */
 @compute @workgroup_size(1) fn ${CARD_DESCENT_ENTRY.close}(){
- let dropped=atomicLoad(&work[nodeTotalWord(CUT_MAIN)])>cutView.nodeBudget||atomicLoad(&work[clusterTotalWord()])>cutView.candCap;
- atomicStore(&counts[CARD_COUNT_DESCENT_LOST],select(0u,1u,dropped));
  atomicStore(&counts[CARD_COUNT_LISTED],min(atomicLoad(&work[candCounter()]),cutView.candCap));
  atomicStore(&counts[CARD_COUNT_ROWS],0u);
 }
@@ -251,7 +244,7 @@ fn cardEmitPage(i:u32,w:u32){
   let ownWithin=cluster.lodError*scale*ppm<=params.threshold;
   if(!drawsCompared(true,parentAbove,ownWithin,childIn)){continue;}
   let slot=atomicAdd(&counts[CARD_COUNT_ROWS],1u);
-  if(slot>=params.rowCap){atomicStore(&counts[CARD_COUNT_VIEW_LOST+view],1u);continue;}
+  if(slot>=params.rowCap){continue;}
   let at=VISIBLE_HEADER_WORDS+VISIBLE_RECORD_WORDS*slot;
   atomicStore(&visible[at],i);
   atomicStore(&visible[at+1u],w);

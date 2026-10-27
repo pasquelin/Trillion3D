@@ -2,6 +2,7 @@
 // layer by layer, and the `textureLoad` and `textureStore` the kernels call on it.
 import assert from 'node:assert/strict'
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
+import { SCREEN_PROBE_CONSTANTS } from '../../../../sdk-core/src/bounce/screenProbeLevels.ts'
 import { TABLE_WIDTH, tableExtent } from './atlas.ts'
 
 /** A simulated atlas: its extent and its texels, row by row, layer by layer. */
@@ -35,17 +36,15 @@ export const ATLAS_CALLS = {
     void (a.texels[texelOf(a, at, layer)] = [...value]),
 }
 
-/** The cells of the finest level round the point `(0.3, 0.4, 0.2)`: the eight of a cube, `[-1, -1, -1]` the first. */
-export const CORNER_CELLS = Array.from({ length: 8 }, (_, k) => [
-  -1 + (k & 1),
-  -1 + ((k >> 1) & 1),
-  -1 + (k >> 2),
-])
+/** The cells of the finest level round the point `(0.3, 0.4, 0.2)`, whose probes stand on the whole metres: the eight of a cube, `[0, 0, 0]` the first. */
+export const CORNER_CELLS = Array.from({ length: 8 }, (_, k) => [k & 1, (k >> 1) & 1, k >> 2])
 
 /** The levels' uniform a world of one level (`cells` a side, one metre a cell, its lowest cell `-cells / 2`) puts in the shaders' scope. */
 export const oneLevel = (cells = 48) => ({
+  reach: [200, SCREEN_PROBE_CONSTANTS.radianceProbeMinTraceScale, 1, 1],
   counts: [cells, 1, cells ** 3, BOUNCE_SETTINGS.probePool],
   levels: [{ base: [-cells / 2, -cells / 2, -cells / 2], spacing: 1 }],
+  forward: [0, 0, 0, 0],
 })
 
 /** The cell table of one level (`oneLevel`) in which the probe of slot `k` holds `cells[k]` — its table entry written, the slot named plus

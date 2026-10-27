@@ -59,8 +59,6 @@ test('every frame dispatches the one update, which reads no flag, and compiles n
     'TAA_VELOCITY',
     'TAA_REPROJECT',
     'TAA_REJECT_SHADING',
-    // The flicker measure, which the shading rejection reads the errors of, compiled beside it.
-    'TAA_FLICKER_MEASURE',
     'TAA_THIN_GEOMETRY',
     'TAA_SPATIAL_AA',
     // The thin geometry's weight relaxation and the measures taken before the translucency, passes

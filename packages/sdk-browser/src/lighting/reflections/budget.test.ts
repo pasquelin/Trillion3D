@@ -1,8 +1,7 @@
-// The march's iterations are bounded by the screen distance the ray covers, `K(M) = 4M + 6ℓ + 1`
-// for `M` pixels of L1 length (to the image's edge) and `ℓ` levels, on every ray, never
-// out of the iterations it is given: 10⁵ mirror rays of generated floors seen at 0.5° to 89° from
+// The march takes at most the iterations it is given (`reflectionScreenSteps`, the reference's
+// maximum of iterations), on every ray: 10⁵ mirror rays of generated floors seen at 0.5° to 89° from
 // their plane, flat and under waves, before a wall, the shipped WGSL run as JavaScript
-// (`scene.fixture.ts`). The mean and the 99th percentile of the iterations are published.
+// (`scene.fixture.ts`). The mean and the 99th percentile of the cells it reads are published.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -12,6 +11,7 @@ import { dotVector3 } from '../../../../math/src/vector/vector.ts'
 import { reflectionRunner, sceneFromDepth } from './scene.fixture.ts'
 import { camera } from './boxes.fixture.ts'
 import { REFLECTION_CONSTANTS } from './constants.ts'
+import { defaultReflections } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 
 const RAYS = 100_000
 const SCENES = 40
@@ -83,10 +83,10 @@ function seen(
   return { depth, surfaces }
 }
 
-test('every ray of floors and waves stays within K(M) iterations and none runs out', () => {
+test('every ray of floors and waves takes at most the iterations of the reflections’ cap', () => {
   const rand = lcgRandom(1521)
+  const cap = defaultReflections().screenSteps
   const iterations: number[] = []
-  let outOfBound = 0
   for (let scene = 0; scene < SCENES; scene++) {
     // Pitch of the view below the floor's plane: 0.5° to 89°, geometrically spaced, flat floors
     // and waves in turn.
@@ -135,20 +135,16 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
         run.thickness,
         run.relativeThickness,
         run.slab,
-        2 ** 32 - 1,
+        cap,
         true,
       )
-      const bound = run.screenMarchBudget(ray.d, ray.end, run.levels)
-      const reads = run.counter.loads
-      assert.ok(reads <= bound, `scene ${scene}, ray ${k}: ${reads} reads of ${bound}`)
-      if (hit.t < 0 && reads === bound) outOfBound++
-      iterations.push(reads)
+      assert.ok(hit.steps <= cap, `scene ${scene}, ray ${k}: ${hit.steps} iterations of ${cap}`)
+      iterations.push(run.counter.loads)
     }
   }
   iterations.sort((a, b) => a - b)
   const mean = iterations.reduce((sum, count) => sum + count, 0) / iterations.length
   const p99 = iterations[Math.floor(iterations.length * 0.99)]
   console.log(JSON.stringify({ rays: iterations.length, meanIterations: mean, p99Iterations: p99 }))
-  assert.equal(outOfBound, 0, 'no ray ran out of its iterations')
   assert.ok(iterations.length > 0.9 * RAYS, `${iterations.length} rays measured`)
 })

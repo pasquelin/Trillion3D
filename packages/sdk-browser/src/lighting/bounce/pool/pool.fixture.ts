@@ -1,6 +1,11 @@
 // The pool's kernels (`poolWgsl.ts`) run as JavaScript (`shaderRun`), a thread after the other in the order the pass dispatches them: its
 // slots, its table, its marks and its queue as plain arrays a test reads, the images it is given one at a time.
 import {
+  BOUNCE_SETTINGS,
+  probeQueueFor,
+  probeQueueShapeOf,
+} from '../../../../../sdk-core/src/bounce/contracts.ts'
+import {
   createBounceCascades,
   type BounceCascades,
 } from '../../../../../sdk-core/src/bounce/cascades.ts'
@@ -8,16 +13,19 @@ import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { simulatedAtlas, ATLAS_CALLS } from '../atlas.fixture.ts'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { PROBE_QUEUE_WORDS } from '../probes/probeQueueWgsl.ts'
+import { screenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { POOL_SHADER } from './poolWgsl.ts'
-import {
-  POOL_COST,
-  POOL_MARK_WORDS,
-  POOL_QUEUE,
-  POOL_SLOT,
-  POOL_TABLE_TEXELS,
-  POOL_WORK,
-  freshWork,
-} from './poolLayout.ts'
+import { POOL_SLOT, POOL_WORK, freshWork, poolLimits, poolShapeOf } from './poolLayout.ts'
+
+/** The probes the fixture's pool queues at most, whatever its slots: the world's pool. */
+export const POOL_QUEUE = BOUNCE_SETTINGS.probePool
+
+/** The frames a probe nothing reads is kept by default, and the factor the temporary atlas is divided by: the screen probes' own. */
+const { framesToKeepProbes: KEEP_FRAMES, temporaryAtlasDownsample: ATLAS_DOWNSAMPLE } =
+  screenProbeSettings().cache
+
+/** The probes a frame queues for `budget` at the default factor of the temporary atlas (`probeQueueFor`). */
+export const queueFor = (budget: number) => probeQueueFor(budget, ATLAS_DOWNSAMPLE)
 
 /** A probe the pool queued: its slot, its level, whether it is a first trace (read from the slot as the pass found it), whether its map is
  *  traced at half its side, its cell. */
@@ -29,29 +37,31 @@ export type QueuedProbe = {
   cell: number[]
 }
 
-/** What an image asks of the pool: its rank (the clock of the ages), the eye, whether it marks, whether the levels slid, whether the lights
- *  changed, the budget in probes (`probesPerFrame`) and the squares of the distances, in metres, the cost of a probe changes at: past the
- *  first a quarter of a map, within the second four maps (the pass's own are the screen probes' settings, `pool.ts`). */
+/** What an image asks of the pool: its rank (the frame number), the eye, whether the lights changed, whether it is a full update (every probe
+ *  given back and traced, at no budget), the budget in probes (`probesPerFrame`), the frames a probe nothing reads is kept (the default of the screen probes' settings without) and the squares of
+ *  the distances, in metres, the cost of a probe changes at: past the first a quarter of a map, within the second four maps (the pass's
+ *  own are the screen probes' settings, `pool.ts`) and, under an orthographic view, the direction it looks along. */
 export type PoolImage = {
   rank: number
   eye: ArrayLike<number>
-  marking: boolean
-  slid?: boolean
   restart?: boolean
+  full?: boolean
   budget: number
+  keep?: number
   distances?: [number, number]
+  /** The direction an orthographic view looks along; none under a perspective one. */
+  forward?: number[]
 }
 
 const NAMES = [
   'clearWork',
-  'restartProbes',
-  'releaseProbes',
+  'stampChange',
+  'clearIndirection',
+  'updateProbes',
   'allocateProbes',
   'countProbes',
-  'cutUntraced',
-  'emitUntraced',
-  'cutTraced',
-  'emitTraced',
+  'cutProbes',
+  'emitProbes',
   'tallyProbes',
   'publishTable',
 ] as const
@@ -97,18 +107,19 @@ export function simulatedPool(
   published?: ReturnType<typeof simulatedAtlas>,
 ) {
   const slots = new Uint32Array(slotCount * POOL_SLOT.words)
-  const entries = cascades.levels.length * cascades.cells
-  const table = new Uint32Array(entries)
+  const shape = poolShapeOf(cascades)
+  const table = new Uint32Array(shape.entries)
   const work = freshWork(slotCount)
-  const marks = new Uint32Array(POOL_MARK_WORDS)
+  const marks = new Uint32Array(shape.markWords)
   const probeQueue = new Uint32Array(POOL_QUEUE * PROBE_QUEUE_WORDS)
   const bounce: Record<string, unknown> = {
     counts: [cascades.size, cascades.levels.length, cascades.cells, slotCount],
     frame: [1, 0, 0, 0],
     eye: [0, 0, 0, 0],
+    forward: [0, 0, 0, 0],
     levels: [],
   }
-  const pool = { room: 0, marking: 0, distances: [0, 0] }
+  const pool = { room: 0, keep: 0, cap: 0, fullUpdate: 0, distances: [0, 0] }
   const kit = shaderRun<Record<(typeof NAMES)[number], (id?: number[]) => void>>(
     POOL_SHADER,
     [...NAMES],
@@ -143,7 +154,7 @@ export function simulatedPool(
       const entry = poolEntryOf(cascades, level, x, y, z)
       marks[entry >> 5] |= 1 << (entry & 31)
     },
-    /** What the last pass counted: probes alive, those holding nothing, those short of their updates, the marks refused in all. */
+    /** What the last pass counted: probes alive, those holding nothing, those not traced since the lights last changed, the marks refused in all. */
     tally: () => ({
       live: work[POOL_WORK.live],
       unfilled: work[POOL_WORK.unfilled],
@@ -158,16 +169,24 @@ export function simulatedPool(
     image(image: PoolImage): QueuedProbe[] {
       bounce.frame = [1, 0, image.rank, 0]
       bounce.eye = [...Array.from(image.eye), 0]
+      bounce.forward = image.forward ? [...image.forward, 1] : [0, 0, 0, 0]
       bounce.levels = cascades.levels.map(({ base, spacing }) => ({ base: [...base], spacing }))
-      pool.room = image.budget * POOL_COST.normal
-      pool.marking = image.marking ? 1 : 0
+      const full = image.full ?? false
+      Object.assign(
+        pool,
+        poolLimits(
+          image.budget,
+          full,
+          probeQueueShapeOf(image.budget, ATLAS_DOWNSAMPLE, full, POOL_QUEUE).probes,
+        ),
+      )
+      pool.keep = image.keep ?? KEEP_FRAMES
       pool.distances = image.distances ?? [40 * 40, 0]
+      over('clearIndirection', table.length)
+      overSlots('updateProbes')
       over('clearWork', POOL_WORK.stack)
-      if (image.restart) overSlots('restartProbes')
-      if (image.marking || image.slid) overSlots('releaseProbes')
-      if (image.marking) {
-        over('allocateProbes', POOL_MARK_WORDS)
-      }
+      if (image.restart) kit.stampChange()
+      over('allocateProbes', shape.markWords)
       marks.fill(0)
       overSlots('countProbes')
       // The probes first traced in this pass: those the slots hold never traced as the pass finds them.
@@ -178,12 +197,10 @@ export function simulatedPool(
           !slots[slot * POOL_SLOT.words + POOL_SLOT.tracedAt]
         )
           first.add(slot)
-      kit.cutUntraced()
-      overSlots('emitUntraced')
-      kit.cutTraced()
-      overSlots('emitTraced')
+      kit.cutProbes()
+      overSlots('emitProbes')
       overSlots('tallyProbes')
-      if (published) over('publishTable', POOL_TABLE_TEXELS)
+      if (published) over('publishTable', shape.tableTexels)
       const queued = Math.min(work[POOL_WORK.queued], POOL_QUEUE)
       return Array.from({ length: queued }, (_, at) => {
         const word = probeQueue[at * PROBE_QUEUE_WORDS]

@@ -107,17 +107,11 @@ test('only the elements the counter and the buffer’s size both allow are taken
   )
 })
 
-test('the buffer’s parts follow the header, the last-read parts a power of two of pages each, 256 at least', () => {
+test('the buffer’s parts follow the header, the last-read part a power of two of pages, 256 at least', () => {
   const words = feedbackWords(100, 1000)
   assert.deepEqual(
-    [words.elements, words.lastUsed, words.lastUsedHiRes, words.pages, words.words],
-    [
-      FEEDBACK_HEADER_WORDS,
-      FEEDBACK_HEADER_WORDS + 200,
-      FEEDBACK_HEADER_WORDS + 200 + 1024,
-      1024,
-      FEEDBACK_HEADER_WORDS + 200 + 2048,
-    ],
+    [words.elements, words.lastUsedHiRes, words.pages, words.words],
+    [FEEDBACK_HEADER_WORDS, FEEDBACK_HEADER_WORDS + 200, 1024, FEEDBACK_HEADER_WORDS + 200 + 1024],
   )
   assert.equal(feedbackWords(1, 3).pages, 256)
 })
@@ -127,10 +121,8 @@ test('the header’s words are the ones the read library indexes the feedback bu
   const indexed = new Set(
     [...text.matchAll(/scFeedback\[(\d+)\]/g)].map((match) => Number(match[1])),
   )
-  // A read of any level (`lastUsed`) is the library's to write where it asks no finer page; every other word it names.
-  const named = Object.entries(FEEDBACK_AT).filter(([name]) => name !== 'lastUsed')
   assert.deepEqual(
     [...indexed].sort((a, b) => a - b),
-    named.map(([, word]) => word).sort((a, b) => a - b),
+    Object.values(FEEDBACK_AT).sort((a, b) => a - b),
   )
 })

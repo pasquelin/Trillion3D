@@ -11,7 +11,7 @@ import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
 import { blurUniform } from '../effects/motionBlur/motionBlurRun.fixture.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { WORLD_TABLE } from '../../geometry/dag/worlds/worldTable.ts'
+import { doubleWords, poseTexel } from '../../geometry/dag/worlds/worldPoses.fixture.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { transformAffinePoint } from '../../../../math/src/vector/vector.ts'
 import { worldToRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
@@ -142,25 +142,8 @@ test('the reprojection dilates the stage’s vectors by the closest surface its 
   close(run([0, 0], encodeOwnVector([0.7, 0.7], false)), [-0.1, 0])
 })
 
-/** A double's two words, high then low, as the roots' world boxes keep them. */
-const doubleWords = (value: number) => {
-  const words = new Uint32Array(new Float64Array([value]).buffer)
-  return [words[1], words[0]]
-}
-
 /** Two record tables of one placement, its pose now and before (`poseTexel` reads them). */
 const poses = { now: { pose: [...IDENTITY_MATRIX4] }, before: { pose: [] as number[] } }
-/** Texel `x` of placement 0's record in `table`, each field in its own block of a row
- *  (`WORLD_TABLE`): a matrix column's single-precision words, the exact translation's double words
- *  (x and y, then z), its instance. */
-const poseTexel = (table: unknown, x: number) => {
-  const m = (table as { pose: number[] }).pose
-  const origin = 1024 * WORLD_TABLE.fields.Matrix
-  if (x < 4) return [...new Uint32Array(new Float32Array(m.slice(4 * x, 4 * x + 4)).buffer)]
-  if (x === origin) return [...doubleWords(m[12]), ...doubleWords(m[13])]
-  if (x === origin + 1) return [...doubleWords(m[14]), 0, 0]
-  return [0, 0, 0, 0]
-}
 
 // Every surface's own motion is measured whatever its size on the screen, as the visibility buffer's
 // are (the per-object size option is gone): a placement whose pose moved draws its motion, from its
@@ -241,5 +224,38 @@ test('a placement’s motion from its two poses is previous · current⁻¹ at t
         Math.abs(got[k] - expected[k]) < 1e-4,
         `entry ${k}: ${got[k]} against ${expected[k]}`,
       )
+  }
+})
+
+// A placement whose two poses are the same words moves nothing, and a singular one has no inverse to
+// move by: both are the identity, exactly (`placementMotionAtEye`), where a product of a world and
+// its inverse would leave rounding behind.
+test('a placement that did not move, or whose world is singular, has exactly the identity for its motion', () => {
+  const c = 1.7 * Math.cos(0.3),
+    s = 1.7 * Math.sin(0.3)
+  const turned = [c, s, 0, 0, -s, c, 0, 0, 0, 0, 1.7, 0, 4.25, -2.5, 7.125, 1]
+  const flat = [2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1]
+  for (const [now, before] of [
+    [turned, turned],
+    [flat, turned],
+  ]) {
+    poses.now.pose = now
+    poses.before.pose = before
+    const { placementMotion } = shaderRun<{ placementMotion: (w: number) => { m: number[][] } }>(
+      SURFACE_VELOCITY_WGSL,
+      ['placementMotion'],
+      {
+        view: {
+          exactEye: [
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+          ],
+        },
+        worlds: poses.now,
+        previous: poses.before,
+        textureLoad: (table: unknown, at: number[]) => poseTexel(table, at[0]),
+      },
+    )
+    assert.deepEqual(placementMotion(0).m.flat(), Array.from(IDENTITY_MATRIX4))
   }
 })

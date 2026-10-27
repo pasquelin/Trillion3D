@@ -48,6 +48,29 @@ test('the levels are four cubes of 48 cells whose cell doubles: 1.04, 2.08, 4.17
   assert.equal(cellSpacing(3), cellSpacing(0) * cascadeBase ** 3)
 })
 
+test('a cache of its own shapes its levels: three cubes of 24 cells whose first cell is 2.08 m, centred on the eye', () => {
+  const shape = {
+    cascadeLevels: 3,
+    cascadeSize: 24,
+    cascadeHalfExtentMetres: 25,
+    cascadeBase: 2,
+    probePool: 4096,
+  }
+  const { levels, size, cells, probes } = createBounceCascades([0, 0, 0, 10, 10, 10], shape)
+  assert.deepEqual([levels.length, size, cells, probes], [3, 24, 24 ** 3, 4096])
+  near(
+    levels.map((level) => level.spacing),
+    [2.0833333, 4.1666667, 8.3333333],
+    'the cells',
+    1e-6,
+  )
+  assert.equal(cellSpacing(2, shape), levels[2].spacing)
+  const cascades = createBounceCascades([0, 0, 0, 10, 10, 10], shape)
+  cascades.follow([100, 0, 0])
+  assert.equal(cascades.holds(0, Math.floor(100 / cellSpacing(0, shape)), 0, 0), true)
+  assert.equal(cascades.holds(0, Math.floor(100 / cellSpacing(0, shape)) + 12, 0, 0), false)
+})
+
 test('the cells never depend on the scene: a street is as many cells across wherever it lies', () => {
   const fine = createBounceCascades([0, 0, 0, 3, 3, 3]).levels.map((level) => level.spacing)
   for (const sizes of SIZES)
@@ -127,40 +150,4 @@ test('a level holds exactly the cells of its cube, and no cell past it', () => {
     assert.ok(!cascades.holds(level, bx, by + cascadeSize, bz))
     assert.ok(!cascades.holds(level, bx, by, bz + cascadeSize))
   }
-})
-
-test('a replan moves the reach, never a level', () => {
-  const cascades = createBounceCascades([0, 0, 0, 1000, 1, 1])
-  cascades.follow([7, 7, 7])
-  const levels = structuredClone(cascades.levels)
-  const moved = [100, 200, 300, 1100, 201, 301]
-  cascades.replan(moved)
-  assert.deepEqual(cascades.levels, levels)
-  assert.equal(cascades.reach, createBounceCascades(moved).reach)
-})
-
-test('rays reach across the extent, wherever it lies, and no further than the distance the sky answers past', () => {
-  const diagonal = (bounds: number[]) =>
-    Math.hypot(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2])
-  for (const bounds of [
-    [0, 0, 0, 1, 1, 1],
-    [-4, 7, -2, 6, 11, 3],
-    [100, -200, 300, 1100, -199, 301],
-    [0, 0, 0, 3000, 100, 3000],
-  ])
-    near(
-      [createBounceCascades(bounds).reach],
-      [
-        Math.min(
-          diagonal(bounds) * BOUNCE_SETTINGS.rayReachFraction,
-          BOUNCE_SETTINGS.rayReachMetres,
-        ),
-      ],
-      `${bounds}`,
-      1e-9,
-    )
-  assert.equal(
-    createBounceCascades([0, 0, 0, 3000, 100, 3000]).reach,
-    BOUNCE_SETTINGS.rayReachMetres,
-  )
 })

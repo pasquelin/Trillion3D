@@ -8,6 +8,7 @@ import {
   sequentialEntries,
 } from '../../gpu/core/computeBindings.ts'
 import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
+import { SHADING_ENERGY_ALONG_NORMAL } from '../../../../sdk-core/src/lighting/shadingEnergy.ts'
 import type { OpenPass } from '../../gpu/core/lazyComputePass.ts'
 import type { SurfaceAtlases } from './atlases.ts'
 import { createKernel, type Kernel as CacheKernel } from './kernel.ts'
@@ -16,6 +17,7 @@ import { ENCODE_ENTRIES, ENCODE_WGSL, TILES_PER_GROUP } from './compressWgsl.ts'
 import {
   COPY_COMPRESSED_WGSL,
   COPY_WGSL,
+  copyEntryPoints,
   LIGHTS_WGSL,
   RESAMPLE_COMPRESSED_WGSL,
   RESAMPLE_LIGHTING_COMPRESSED_WGSL,
@@ -92,7 +94,10 @@ function programsOf(compressed: boolean) {
       entries: ['resampleLightingPages'],
     },
     resolve: { code: RESOLVE_WGSL, entries: ['resolvePages'] },
-    copy: { code: compressed ? COPY_COMPRESSED_WGSL : COPY_WGSL, entries: ['copyPages'] },
+    copy: {
+      code: compressed ? COPY_COMPRESSED_WGSL : COPY_WGSL,
+      entries: copyEntryPoints(compressed),
+    },
   }
   if (compressed) kernels.encode = { code: ENCODE_WGSL, entries: ENCODE_ENTRIES }
   kernels.lights = { code: LIGHTS_WGSL, entries: ['lightsPages'] }
@@ -120,6 +125,9 @@ const resolveEntries = () => [
   write(6, CAPTURE_FORMATS.albedo),
   write(7, CAPTURE_FORMATS.normal),
   write(8, CAPTURE_FORMATS.emissive),
+  computeTextureEntry(9, 'uint', '2d-array'),
+  computeTextureEntry(10, 'uint'),
+  computeBufferEntry(11, ro),
 ]
 
 /** The resample's entries: the pages of the atlas read, the capture atlas's layers written. */
@@ -196,6 +204,10 @@ interface ResampleInputs {
 interface CaptureInputs extends ResampleInputs {
   /** The colours of the surfaces the classes shaded (`CardShading.surfaces`). */
   readonly colours: GPUTextureView
+  /** The words of the surfaces the classes shaded: their flags, which hold the specular. */
+  readonly words: GPUTextureView
+  /** Their lobes: the clear coat's weight and roughness, where the flags say a surface has a lobe. */
+  readonly lobes: GPUTextureView
 }
 
 /** What the kernels run with in an image. */
@@ -226,12 +238,24 @@ const resampleReads = ({ physical: p }: SurfaceAtlases, tables: GPUBuffer) => [
   p.final,
 ]
 
-/** The resources of the resolve: the tables, the capture's ids and shaded surfaces, its layers but the depth. */
+/** The resources of the resolve: the tables, the capture's ids and shaded surfaces, its layers but the depth, the words, the
+ *  lobes and the energy table's column along the normal. */
 const resolveReads = (
   { capture: c }: SurfaceAtlases,
   tables: GPUBuffer,
-  colours: GPUTextureView,
-) => [{ buffer: tables }, c.ids, colours, c.albedo, c.normal, c.emissive]
+  shaded: Pick<CaptureInputs, 'colours' | 'words' | 'lobes'>,
+  energy: GPUBuffer,
+) => [
+  { buffer: tables },
+  c.ids,
+  shaded.colours,
+  c.albedo,
+  c.normal,
+  c.emissive,
+  shaded.words,
+  shaded.lobes,
+  { buffer: energy },
+]
 
 /** The resources of the resample: the pages' reads, then the capture's layers. */
 const resampleCaptureReads = (atlases: SurfaceAtlases, tables: GPUBuffer) => {
@@ -284,17 +308,18 @@ const lightsReads = (atlases: SurfaceAtlases, tables: GPUBuffer) => {
 }
 
 /** The bind group entries of `kernel` after its parameters, the pages' entries and the tile lists: the resources it names,
- *  numbered as its layout lists them (`layoutEntriesOf`) from binding 3. `colours` are the shaded surfaces of the capture's
+ *  numbered as its layout lists them (`layoutEntriesOf`) from binding 3. `shaded` are the shaded surfaces of the capture's
  *  kernels, which the resolve alone reads. */
 function bindingsOf(
   kernel: Kernel,
   atlases: SurfaceAtlases,
   tables: GPUBuffer,
-  colours: GPUTextureView | undefined,
+  shaded: Pick<CaptureInputs, 'colours' | 'words' | 'lobes'> | undefined,
+  energy: GPUBuffer,
 ) {
   switch (kernel) {
     case 'resolve':
-      return sequentialEntries(resolveReads(atlases, tables, colours!), 3)
+      return sequentialEntries(resolveReads(atlases, tables, shaded!, energy), 3)
     case 'resample':
       return sequentialEntries(resampleCaptureReads(atlases, tables), 3)
     case 'resampleLighting':
@@ -321,6 +346,8 @@ interface CaptureContext {
   readonly order: Kernel[]
   readonly kernels: Record<Kernel, CacheKernel<string>>
   readonly params: Record<Kernel, GPUBuffer>
+  /** The energy table's column a view along the normal reads (`SHADING_ENERGY_ALONG_NORMAL`), which the resolve binds. */
+  readonly energy: GPUBuffer
   readonly width: number
   readonly paramWords: Uint32Array<ArrayBuffer>
   readonly paramFloats: Float32Array
@@ -454,13 +481,15 @@ function groupOf(ctx: CaptureContext, kernel: Kernel, inputs: ResampleInputs | C
   named[1] = held.tileBuffer
   named[2] = inputs.atlases
   named[3] = inputs.tables
-  const colours = 'colours' in inputs ? inputs.colours : undefined
-  named[4] = colours
+  const shaded = 'colours' in inputs ? inputs : undefined
+  named[4] = shaded?.colours
+  named[5] = shaded?.words
+  named[6] = shaded?.lobes
   return ctx.kernels[kernel].group(named, () => [
     { binding: 0, resource: { buffer: ctx.params[kernel] } },
     { binding: 1, resource: { buffer: held.pageBuffer! } },
     { binding: 2, resource: { buffer: held.tileBuffer! } },
-    ...bindingsOf(kernel, inputs.atlases, inputs.tables, colours),
+    ...bindingsOf(kernel, inputs.atlases, inputs.tables, shaded, ctx.energy),
   ])
 }
 
@@ -523,12 +552,19 @@ function createCaptureContext(device: GPUDevice, compressed: boolean): CaptureCo
   const programs = programsOf(compressed)
   const order = Object.keys(programs) as Kernel[]
   const paramWords = new Uint32Array(CAPTURE_PARAMS.words)
+  const energy = device.createBuffer({
+    label: 'Trillion3D surface cache shading energy',
+    size: SHADING_ENERGY_ALONG_NORMAL.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
+  device.queue.writeBuffer(energy, 0, SHADING_ENERGY_ALONG_NORMAL)
   return {
     device,
     programs,
     order,
     kernels: pipelinesOf(device, programs, order, compressed),
     params: paramBuffersOf(device, order),
+    energy,
     width: groupWidth(device.limits),
     paramWords,
     paramFloats: new Float32Array(paramWords.buffer),
@@ -616,6 +652,7 @@ export function createCaptureKernels(device: GPUDevice, compressed: boolean) {
       }
       clear?.dispose()
       for (const buffer of Object.values(ctx.params)) buffer.destroy()
+      ctx.energy.destroy()
     },
   }
 }

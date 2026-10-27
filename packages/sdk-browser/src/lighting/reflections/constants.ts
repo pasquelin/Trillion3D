@@ -1,4 +1,4 @@
-import { DEG2RAD, HALF_PI } from '../../../../math/src/constants.ts'
+import { HALF_MAX, HALF_PI } from '../../../../math/src/constants.ts'
 import { CENTIMETRES_PER_METRE } from '../../../../sdk-core/src/page/format.ts'
 
 /**
@@ -7,43 +7,30 @@ import { CENTIMETRES_PER_METRE } from '../../../../sdk-core/src/page/format.ts'
  * that state a rule in their terms read it here.
  */
 export const REFLECTION_CONSTANTS = {
-  /** The image border, a fraction of its height, over which a hit fades into the next stage. */
-  REFLECTION_EDGE: 1 / 16,
   /** The thickness of a surface the march assumes, in pixels of its footprint: a ray behind a
    *  pixel's surface by more passes behind it and goes on (a pole, a fence), by less is inside it
    *  and hits. The same thickness at every depth and under every projection (`screenBack`). The
    *  planes' march (`hizTrace` `'planes'`) reads it; the reference's walk takes
    *  a share of the surface's depth instead (`reflectionRelativeDepthThickness`). */
   REFLECTION_THICKNESS: 4,
-  /** The roughness of the top layer from which the history of a pixel traced at full resolution has all the images the
-   *  setting gives it: under it the history is lerped down to two images, a mirror's noise left to the temporal
-   *  anti-aliasing. */
+  /** The roughness of the top layer under which a lobe is a mirror: the resolve reconstructs it from no neighbour's ray, and
+   *  the history of a pixel traced at full resolution is lerped down to two images (`reflectionMaxFrames`), its noise left to the
+   *  temporal anti-aliasing; from it up, the history has all the images the setting gives it. */
   REFLECTION_MIRROR_ROUGHNESS: 0.05,
-  /** The weight under which a stage of the chain is not evaluated: 2⁻¹¹, under half a step of an
-   *  8-bit channel of a radiance of one. */
+  /** The least value of a divisor of radiance and of a weight that scales it (the denoiser's tonemap, the history's clamp): 2⁻¹¹, under half
+   *  a step of an 8-bit channel of a radiance of one. */
   REFLECTION_EPSILON: 2 ** -11,
   /** The coverage from which a blended fragment is a surface of the depth a ray meets
    *  (`fsFront`, `../../blend/frontStageWgsl.ts`): one that hides more than half of what lies behind it. A fainter one
    *  tints its backdrop and is no wall to a ray. */
   REFLECTION_FRONT_COVERAGE: 0.5,
-  /** The bound of the half-vector's angle (`REFLECTION_CONE_WGSL`): tan 40°. */
-  REFLECTION_CONE_LIMIT: Math.tan(40 * DEG2RAD),
   /** The distance past which a ray is taken as infinite: 2²³ world units, where a float32 no
    *  longer holds a unit step. */
   REFLECTION_FAR: 2 ** 23,
-  /** The same-surface test's normals (`reflectionSameSurface`): two normals within this angle's cosine
-   *  are one surface, whole. A normal map tilts a pixel's normal from its neighbours' by up to about
-   *  20° on a bumpy road: a test that weighed it down (a power of N·Nₜ) would let one neighbour of
-   *  several answer a pixel, and show blocks. Cos 25°. */
-  REFLECTION_CREASE_NEAR: Math.cos(25 * DEG2RAD),
-  /** The same-surface test's crease: normals this far apart and more (cos 50°) are two surfaces — a
-   *  modelled body's edge is 45° or more —, the weight falling smoothly from `REFLECTION_CREASE_NEAR`. */
-  REFLECTION_CREASE_FAR: Math.cos(50 * DEG2RAD),
-  /** The least N·V the same-surface test (`reflectionSameSurface`) divides by: a surface seen this
-   *  close to edge-on spans ⌈1/8⌉ = eight pixels' depth across a pixel, a steeper one no more. */
-  REFLECTION_GRAZING: 1 / 8,
+  /** The distance of a ray that met nothing, in metres: the greatest half in centimetres, 65504 cm, the one distance a miss is told at. */
+  REFLECTION_MISS_DISTANCE: HALF_MAX / CENTIMETRES_PER_METRE,
   /** The least extent of that window the clamp's move is measured against (`temporalPixel`), in
-   *  the display's white (the view's exposure applied): the window's extent, held at 0.1 at least,
+   *  the display's white (the image's pre-exposure applied): the window's extent, held at 0.1 at least,
    *  a tenth of the display's white. A window of near-equal texels — a smooth glass reflecting a
    *  smooth sky — has a width near zero, against which any history moved across the whole window and
    *  counted for a quarter of its images, image after image. */
@@ -59,6 +46,10 @@ export const REFLECTION_CONSTANTS = {
   /** The half voxels of the clipmap that holds the point the screen stopped knowing a ray at, by which the march
    *  through the field begins before it: the surface expansion needs a start outside the surface. */
   REFLECTION_PULLBACK: 4,
+  /** The metres (2 cm) by which the screen stage lengthens the distance of a ray it traced and missed: the distance a screen march
+   *  reports is not reliable, so a ray that reached the longest ray stays past it and is not traced again by the scene stage, one that did
+   *  not is corrected by the pull back of the march that follows (`reflectionScreenStage`). */
+  REFLECTION_MISS_OFFSET: 0.02,
   /** The factor of a march's step, drawn about 1 near a mirror between this and its reciprocal, and the cone angle
    *  (π/256) from which it is no longer drawn. */
   REFLECTION_STEP_DITHER: 0.95,

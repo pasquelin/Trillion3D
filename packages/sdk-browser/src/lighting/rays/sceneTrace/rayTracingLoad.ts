@@ -8,9 +8,10 @@ import type { ByteMeter } from '../../../geometry/cluster/byteMeter.ts'
 import { readSidecar } from '../../../geometry/cluster/sidecarFile.ts'
 
 /**
- * THE PRIMITIVES' ACCELERATION STRUCTURES OF A CACHE (`rayTracing.bin`, the manifest's `rayTracing`
- * section): the file read once beside the manifest (`readSidecar`), and parsed (`parseRayTracing`).
- * A cache whose primitives built none has neither the section nor the file, and none is read.
+ * THE ACCELERATION STRUCTURES OF A CACHE (`rayTracing.bin`, the manifest's `rayTracing` section):
+ * the primitives' and the world's HLOD actors', the file read once beside the manifest
+ * (`readSidecar`), and parsed (`parseRayTracing`). A cache whose primitives and actors built none
+ * has neither the section nor the file, and none is read.
  */
 export async function readRayTracing(
   metadata: ClusterManifest,

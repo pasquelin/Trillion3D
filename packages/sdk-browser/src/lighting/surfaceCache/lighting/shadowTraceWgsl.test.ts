@@ -10,6 +10,7 @@ import {
   SHADOW_ARGS_ENTRY,
   SHADOW_ARGS_WGSL,
   SHADOW_TRACE_BINDINGS,
+  SHADOW_TRACE_COLOURED_WGSL,
   SHADOW_TRACE_ENTRY,
   SHADOW_TRACE_SCENE,
   SHADOW_TRACE_WGSL,
@@ -18,6 +19,7 @@ import {
 for (const [name, text, entry] of [
   ['the arguments', SHADOW_ARGS_WGSL, SHADOW_ARGS_ENTRY],
   ['the trace', SHADOW_TRACE_WGSL, SHADOW_TRACE_ENTRY],
+  ['the trace over coloured masks', SHADOW_TRACE_COLOURED_WGSL, SHADOW_TRACE_ENTRY],
 ] as const)
   test(`${name}: the program assembles, every name declared once, none reserved, the braces paired`, () => {
     assertProgramAssembles(text, entry)
@@ -73,4 +75,21 @@ test('a texel at the lamp, or within the end bias of it, casts no ray: it is not
   assert.ok(guard > 0)
   assert.ok(guard < body.indexOf('normalize(offset)'), 'the guard comes before the direction')
   assert.ok(guard < body.indexOf('stTrace('), 'the guard comes before the trace')
+})
+
+test('over coloured masks the trace settles a texel as over grey ones: the ray’s answer is 0 or all of the factor, whatever its colour, and a quad’s others follow it', () => {
+  // The trace is one text; the constants of the format give it 15 bits of factor under the complete bit, two bytes an entry.
+  assert.match(SHADOW_TRACE_COLOURED_WGSL, /const SHADOW_FACTOR_MAX:u32=32767u;/)
+  assert.match(SHADOW_TRACE_COLOURED_WGSL, /const SHADOW_COMPLETE:u32=32768u;/)
+  assert.match(SHADOW_TRACE_COLOURED_WGSL, /const SHADOW_RAY_BITS:u32=16u;/)
+  assert.match(SHADOW_TRACE_WGSL, /const SHADOW_COMPLETE:u32=128u;/)
+  assert.match(SHADOW_TRACE_COLOURED_WGSL, /atomicXor\(&masks\[/)
+  assert.match(
+    SHADOW_TRACE_COLOURED_WGSL,
+    /setMaskByte\(lightTile,coord,byte,select\(byte,0u,blocked\)\|SHADOW_COMPLETE\);/,
+  )
+  assert.match(
+    SHADOW_TRACE_COLOURED_WGSL,
+    /let shadowed=blocked\|\|\(byte&SHADOW_FACTOR_MAX\)==0u;/,
+  )
 })

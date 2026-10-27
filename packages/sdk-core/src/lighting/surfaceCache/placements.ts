@@ -1,5 +1,6 @@
 import { boxTransform } from '../../../../math/src/geometry/box.ts'
 import { DISTANCE_FIELD_UNITS_PER_METRE as CM } from '../../contracts/distanceFieldAbi.ts'
+import { DEFAULT_LIGHTING_CHANNELS_MASK } from '../../contracts/lightingChannelsAbi.ts'
 import { buildMeshCards, isTracked, moveMeshCards } from './cardScene.ts'
 import { mipOf, cardIsAllocated, type Card, type MeshCards } from './cardTypes.ts'
 import { atlasPages, createPageAllocator } from './pageAllocator.ts'
@@ -26,6 +27,9 @@ export interface PlacementSource {
   readonly emissive?: boolean
   /** Whether its material is opaque or masked, true by default: a translucent one has no cards. */
   readonly opaqueOrMasked?: boolean
+  /** The mask of the lighting channels of its object, channel 0 alone by default: a light lights its cards only
+   *  where it shares one (`../../contracts/lightingChannelsAbi.ts`). */
+  readonly lightingChannels?: number
 }
 
 /** Puts the box of `placement` in the world, centimetres, and its greater half side. */
@@ -117,6 +121,17 @@ function moveCards(cache: SurfaceCache, placement: Placement) {
     cache.changes.cards.add(at)
 }
 
+/** Gives `placement` the lighting channels `mask`: its cards' records are written again, nothing else of them changes. */
+function setChannels(cache: SurfaceCache, placement: Placement, mask: number) {
+  if (placement.lightingChannels === mask) return
+  placement.lightingChannels = mask
+  if (placement.meshCards < 0) return
+  const instance = cache.meshCards.at(placement.meshCards)
+  instance.lightingChannels = mask
+  for (let at = instance.firstCard; at < instance.firstCard + instance.numCards; at++)
+    cache.changes.cards.add(at)
+}
+
 /**
  * Tells the cache that the placement `id` — a small whole number, the placement's rank in the table
  * that takes it to its mesh cards — is a mesh at a matrix. A placement the cache follows already
@@ -127,6 +142,7 @@ export function setPlacement(cache: SurfaceCache, id: number, source: PlacementS
   const emissive = source.emissive ?? false
   const shareId = source.shareId ?? -1
   const opaqueOrMasked = source.opaqueOrMasked ?? true
+  const lightingChannels = source.lightingChannels ?? DEFAULT_LIGHTING_CHANNELS_MASK
   const known = cache.placements.get(id)
   if (
     known &&
@@ -138,6 +154,7 @@ export function setPlacement(cache: SurfaceCache, id: number, source: PlacementS
     known.world.set(source.world)
     updateBounds(known)
     moveCards(cache, known)
+    setChannels(cache, known, lightingChannels)
     return
   }
   if (known) removePlacement(cache, id)
@@ -149,6 +166,7 @@ export function setPlacement(cache: SurfaceCache, id: number, source: PlacementS
     shareId,
     emissive,
     opaqueOrMasked,
+    lightingChannels,
     bounds: new Float64Array(6),
     extentMax: 0,
     visible: false,

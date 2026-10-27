@@ -6,20 +6,17 @@ import {
 /** What a sync of the probes with the placements touches. */
 type ProbeSyncParts = {
   boxes(): PlacementBoxes
-  cascades: { replan(bounds: readonly number[]): void }
   /** The bounce series starts over: the light the probes hold is not the scene's now. */
   restart(): void
 }
 
 /**
- * Motion places the rays' reach on the placements' new extent and restarts the series: the probes
- * hold the light of a scene that was. Nothing moved, nothing is touched.
- * Whether anything did.
+ * Motion restarts the series: the probes hold the light of a scene that was. Nothing moved, nothing
+ * is touched. Whether anything did.
  */
 function syncBounceProbes(parts: ProbeSyncParts) {
-  const { moved, extent } = parts.boxes()
+  const { moved } = parts.boxes()
   if (!moved.count) return false
-  parts.cascades.replan(extent)
   parts.restart()
   return true
 }

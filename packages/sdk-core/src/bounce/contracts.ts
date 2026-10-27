@@ -2,8 +2,7 @@
  * Indirect bounce lighting: published parameters and bounded limits.
  *
  * The world's probes hold a radiance cache: a map of the light by direction in each, traced through the global
- * distance field and read by the screen probes, which light the pixels. Light requires declared sources: without
- * active lights, indirect irradiance is strictly zero.
+ * distance field and read by the screen probes, which light the pixels.
  */
 
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
@@ -32,72 +31,67 @@ export const BOUNCE_SETTINGS = {
    * pool and gives it back when it is no longer read or leaves its level. 128 rows of 128 probes.
    */
   probePool: 16384,
-  /**
-   * Marks a cell survives without being read by the image: its probe is given back after that many.
-   */
-  probeKeptMarks: 8,
-  /**
-   * Pixels along the side of a tile of the image: where the last image cast no screen probe, each tile marks, at every mark, the
-   * eight cells around the visible surface point it holds, a point that moves from one mark to the next. Where it cast them, the
-   * points they stand on are the ones marked, one a tile of the level that places them.
-   */
-  markTilePixels: 16,
-  /** Marks a view change owes, the jitter of a tile's point taking as many to come round. */
-  markJitter: 8,
-  /**
-   * Probes a frame traces: a count, the refresh's budget, in the cost of a whole map each (a probe past the downsample distance costs a
-   * quarter of one, `pool/poolWgsl.ts` of the browser engine). The default is the row of the default level of the screen probes
-   * (`radianceProbeBudget` of `SCREEN_PROBE_LEVEL_KNOBS`; each level holds its own, scaled by `screenProbeUpdateSpeed`), what a host that
-   * names none gets. A probe never traced comes before every refresh and is never held back, up to the queue (`BOUNCE_PROBE_QUEUE`),
-   * and past what the budget has room for at a quarter of a map (`pool/poolWgsl.ts` of the browser engine). The host sets it with
-   * `bounceProbesPerFrame`.
-   */
-  probesPerFrame: 150,
-  /** Updates a probe's map takes after a light changed, past which it is left alone and the pass skips encoding. */
-  settledTraces: 16,
-  /** Surface normal offset bias as fraction of level spacing, where a surface point marks the cells that hold its light. */
-  normalBias: 0.35,
-  /** Ray reach as fraction of scene bounding diagonal. */
-  rayReachFraction: 1,
-  /**
-   * The furthest a ray looks for a surface, in metres, whatever the scene's size: past it the ray has
-   * left the scene, and the sky light answers. A ray is cut at this distance. 200 m by default.
-   */
-  rayReachMetres: 200,
 } as const
 
-/** The share of the pool's probes one frame may trace at most: the pool over this many. */
-const QUEUE_POOL_DIVISOR = 6
-
-/**
- * The most probes one frame queues, first traces included: the static ceiling bounding the compute dispatches over them, and the
- * most `probesPerFrame` can be. A sixth of the pool (`QUEUE_POOL_DIVISOR`), or four times the default budget where that is more —
- * room for every probe of the budget traced at a quarter of a map —, laid as a block of probes whose rows are a power of two wide, no
- * wider than a row of the pool (`BOUNCE_SETTINGS.probePool`). A probe never traced is never held back below it, so a view that moves fast fills every cell it
- * reaches in the frame that first reads it.
- */
-export const BOUNCE_PROBE_QUEUE = /* @__PURE__ */ (() => {
-  const wanted = Math.max(
-    ceilDiv(BOUNCE_SETTINGS.probePool, QUEUE_POOL_DIVISOR),
-    4 * BOUNCE_SETTINGS.probesPerFrame,
-  )
-  const side = Math.floor(Math.sqrt(wanted))
-  const row = nextPow2(side)
-  // Never more than the pool's own rows of probes hold.
-  const poolRow = Math.sqrt(BOUNCE_SETTINGS.probePool)
-  return Math.min(row, poolRow) * Math.min(ceilDiv(side * side, row), poolRow)
-})()
-
-/**
- * The probes a frame traces at most, from the host's `bounceProbesPerFrame`: absent, the default
- * (`BOUNCE_SETTINGS.probesPerFrame`); otherwise a whole count from one to the queue's — anything else
- * is refused, naming what is allowed.
- */
-export function resolveProbesPerFrame(asked: number | undefined) {
-  if (asked === undefined) return BOUNCE_SETTINGS.probesPerFrame
-  if (!Number.isInteger(asked) || asked < 1 || asked > BOUNCE_PROBE_QUEUE)
-    throw new RangeError(
-      `bounceProbesPerFrame ${asked}: a whole number of probes from 1 to ${BOUNCE_PROBE_QUEUE}`,
-    )
-  return asked
+/** What a cache of probes is shaped by: the levels, their cells, the first level's reach and the pool of probes. `BOUNCE_SETTINGS` is the
+ *  shape of the world's probes; a cache of its own shapes itself by its own values (`translucencyGiRadianceCache*`). */
+export interface BounceShape {
+  readonly cascadeLevels: number
+  readonly cascadeSize: number
+  readonly cascadeHalfExtentMetres: number
+  readonly cascadeBase: number
+  readonly probePool: number
 }
+
+/** The most levels a cache holds: what the declared uniform of the levels has room for. */
+export const BOUNCE_MAX_LEVELS = 6
+
+/** The most probes along a side of the atlas a pool is asked for. */
+const MAX_ATLAS_PROBES = 1024
+
+/** The width of a row of the atlas of a pool of `probes`: the power of two over the side of its square, so that a probe's row is a shift. */
+export const probeRowOf = (probes: number) => nextPow2(Math.ceil(Math.sqrt(probes)))
+
+/**
+ * The probes of a pool asked for `requested` probes along a side of its atlas, held to 1 to 1024: a row the next power of two over it wide,
+ * as many rows as hold the square of it.
+ */
+export function probePoolOf(requested: number) {
+  const side = Math.min(Math.max(Math.trunc(requested), 1), MAX_ATLAS_PROBES)
+  const width = nextPow2(side)
+  return width * ceilDiv(side * side, width)
+}
+
+/**
+ * The probes one frame queues, first traces included, for a frame budget of `budget` whole maps: the pool over `atlasDownsample` (the factor
+ * the temporary atlas their maps are traced into is divided by, `screenProbeRadianceCacheTemporaryAtlasDownsampleFactor`), or four times the
+ * budget — the probes it names where every one is traced at a quarter of a map —, the greater, laid as a block of probes whose rows are a
+ * power of two wide, no wider than a row of the pool (`probeRowOf`), so never more than the pool of `pool` probes (the world's, by default).
+ * `row` is the probes along a row of that block and `probes` their count.
+ */
+export function probeQueueShapeFor(
+  budget: number,
+  atlasDownsample: number,
+  pool: number = BOUNCE_SETTINGS.probePool,
+) {
+  const wanted = Math.max(ceilDiv(pool, atlasDownsample), 4 * budget)
+  const side = Math.floor(Math.sqrt(wanted))
+  // Never more than the pool's own rows of probes hold.
+  const poolRow = probeRowOf(pool)
+  const row = Math.min(nextPow2(side), poolRow)
+  return { row, probes: row * Math.min(ceilDiv(side * side, row), ceilDiv(pool, poolRow)) }
+}
+
+/** The probes one frame queues (`probeQueueShapeFor`). */
+export const probeQueueFor = (budget: number, atlasDownsample: number, pool?: number) =>
+  probeQueueShapeFor(budget, atlasDownsample, pool).probes
+
+/** The block of probes a frame's queue is laid in: the whole pool, in the rows of its own atlas, in a full update (every probe given back and
+ *  traced); else what the frame's budget names (`probeQueueShapeFor`). */
+export const probeQueueShapeOf = (
+  budget: number,
+  atlasDownsample: number,
+  full: boolean,
+  pool: number = BOUNCE_SETTINGS.probePool,
+) =>
+  full ? { row: probeRowOf(pool), probes: pool } : probeQueueShapeFor(budget, atlasDownsample, pool)

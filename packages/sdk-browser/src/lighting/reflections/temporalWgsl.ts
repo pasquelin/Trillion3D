@@ -2,6 +2,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { ndcToPixel, pixelToNdc, slabPerspective } from '../../../../math/src/wgsl/projection.ts'
 import { interleavedGradientNoise } from '../../../../math/src/wgsl/sampling.ts'
+import { makeFinite, makeFinite3 } from '../../../../math/src/wgsl/integer.ts'
 import { REFLECTION_HISTORY_FORMAT } from './grids.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import {
@@ -14,6 +15,7 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
 import { ACCUMULATION_WGSL } from '../../post/taa/accumulationWgsl.ts'
 import { YCOCG_WGSL } from '../../post/taa/ycocgWgsl.ts'
 import { SURFACE_PAST_WGSL } from '../bounce/screen/vectorsWgsl.ts'
+import { REFLECTION_VECTORS_WGSL } from './past.ts'
 
 /** The border of the resolved pixels a tile of the accumulation stages around its own, the
  *  neighbourhood's reach (a 5 × 5 window's half), and the side of what it stages. */
@@ -34,9 +36,9 @@ const SHARED = REFLECTION_SIDE + 2 * BORDER
  *   weighing one, gives their mean, the centre, and `clampScale` standard deviations, the extent.
  * - TWO HISTORIES: one reprojected from the surface,
  *   the pixel's point `P` through the last image's view-projection (`ReflectionView.radianceViewProj`,
- *   the one previous view of the engine) — carried further by the surface's own motion where the pixel
- *   moves by itself, the vector the velocity stage drew less the camera's (`temporalOwnMotion`), the hit's
- *   history by the same motion —, its four texels kept as their depth lies within
+ *   the one previous view of the engine), both images' jitter taken off (`temporalHistoryNdc`) — carried further by the surface's own motion where the pixel
+ *   moves by itself, the vector the velocity stage drew less the camera's (`temporalOwnMotion`) and the depth step it drew
+ *   less the camera's (`temporalOwnDepth`), the hit's history by the same motion —, its four texels kept as their depth lies within
  *   the history distance threshold of the reprojected one, jittered by the image's noise and widened as
  *   the surface turns edge-on; and, for a lobe narrow enough that its direction matters more than the
  *   surface's motion (its dominant-direction factor past ½), one reprojected from the hit, the point the
@@ -50,13 +52,14 @@ const SHARED = REFLECTION_SIDE + 2 * BORDER
  *   alone; the surface's taken whole, unless the hit's lies nearer the centre — then 0.8 of the
  *   surface's, a fifth of the hit's, so one error never loses the history at once —, the hit's alone
  *   where the surface has none. The farther the clamp moved it, `length(|Δ| / max(extent, 0.1))` — the
- *   0.1 of its pre-exposed space, this view's exposure divided out (`REFLECTION_CLAMP_FLOOR`) —, the
- *   less it is trusted, `0.75 · saturate(1 − d) + 0.25`. The history's own luminance moment is carried
- *   for the next image, moved with its mean, never widening the clamp.
+ *   0.1 of its pre-exposed space, this image's pre-exposure divided out (`REFLECTION_CLAMP_FLOOR`) —, the
+ *   less it is trusted, `0.75 · saturate(1 − d) + 0.25`. The history's second moment of luminance is
+ *   carried for the next image as it is, by the same share of the two histories.
  * - BLEND: the count of the history chosen (the surface's past 0.5 of it) times that
  *   trust, plus one, the history's images at most (`ACCUMULATION_WGSL`) — two images for a mirror traced at full
- *   resolution, lerped to the setting's by the top layer's roughness over `REFLECTION_MIRROR_ROUGHNESS` —; the resolved value
- *   taken at one over that count.
+ *   resolution, lerped to the setting's by the top layer's roughness over `REFLECTION_MIRROR_ROUGHNESS`,
+ *   `reflectionMaxFrames` —; the resolved value taken at one over that count. What is stored is made finite
+ *   and held above zero.
  *
  * A RECONSTRUCTED SAMPLE is a pixel that is not its 2 × 2 block's jitter pixel
  * (`reflectionJitter`): its resolved value was interpolated from its neighbours' rays, so its window,
@@ -76,12 +79,14 @@ export const REFLECTION_TEMPORAL_WGSL = wgslBlock(
     ndcToPixel,
     pixelToNdc,
     SURFACE_PAST_WGSL,
+    REFLECTION_VECTORS_WGSL,
     slabPerspective,
     interleavedGradientNoise,
+    makeFinite,
+    makeFinite3,
   ],
   `@group(0) @binding(${B.temporalIn}) var temporalIn:texture_2d<u32>;
 @group(0) @binding(${B.historyIn}) var historyIn:texture_2d<u32>;
-@group(0) @binding(${B.vectors}) var temporalVectors:texture_2d<u32>;
 @group(0) @binding(${B.historyOut}) var historyOut:texture_storage_2d<${REFLECTION_HISTORY_FORMAT},write>;
 /** The tile's resolved pixels and their border, denoised, in YCoCg, their weight in \`w\`, as halves. */
 var<workgroup> temporalShared:array<vec2u,${SHARED * SHARED}>;
@@ -142,23 +147,43 @@ fn temporalOwnMotion(coord:vec2i,camera:vec2f)->vec2f{
  let still=camera-jitter.zw;
  return still-surfacePast(word,here,still);
 }
+/** How far, in device depth, the surface of the pixel \`coord\` moves by itself beyond the camera's motion: the depth step the velocity stage
+ *  drew in its flags word (\`depthStepOf\`) less the depth the camera alone takes off the surface, \`nowZ\` its device depth in this image
+ *  less \`cameraZ\` the device depth of its point in the last view-projection. Zero for a pixel that moves by the camera alone, and for
+ *  the transparents' front surface. */
+fn temporalOwnDepth(coord:vec2i,nowZ:f32,cameraZ:f32)->f32{
+ if(REFLECTION_LAYER!=0u){return 0.0;}
+ let last=vec2i(textureDimensions(temporalVectors))-vec2i(1);
+ let words=textureLoad(temporalVectors,clamp(coord,vec2i(0),last),0);
+ if(!hasOwnMotion(words.r)){return 0.0;}
+ return depthStepOf(words.g)-(nowZ-cameraZ);
+}
 /** A history: its radiance in the denoiser's space, its luminance's second moment there, its count,
  *  whether it holds. */
 struct TemporalHistory{radiance:vec3f,moment:f32,count:f32,valid:bool,}
+/** Where a point seen at \`clip\` (its position through the last, jittered, view-projection) lies in the history, which holds the
+ *  pixels of every image at their centre: the jitter of either view-projection is taken off, as the vectors are drawn
+ *  (\`temporalOwnMotion\`), and the pixel's own centre put back (\`jitter.xy\`), so a still view reads its history texel for texel. */
+fn temporalHistoryNdc(clip:vec4f)->vec2f{
+ let jitter=reflectionView.jitter;
+ return clip.xy/clip.w-jitter.zw+jitter.xy;
+}
 /** The history of the point the last image saw at \`clip\` (its position through the last
- *  view-projection), carried by the surface's own motion \`own\` (\`temporalOwnMotion\`); \`surface\`,
+ *  view-projection), carried by the surface's own motion \`own\` (\`temporalOwnMotion\`, its device depth \`temporalOwnDepth\` in \`z\`:
+ *  the depth the history is expected at is the point's less that step); \`surface\`,
  *  whether that point is the pixel's own, of normal \`N\` seen from \`V\` — its texels then kept as their
  *  depth agrees —, or the hit's. */
-fn temporalHistory(clip:vec4f,own:vec2f,surface:bool,N:vec3f,V:vec3f,noise:f32)->TemporalHistory{
+fn temporalHistory(clip:vec4f,own:vec3f,surface:bool,N:vec3f,V:vec3f,noise:f32)->TemporalHistory{
  var held=TemporalHistory(vec3f(0.0),0.0,0.0,false);
  if(clip.w<=0.0){return held;}
  let size=reflectionView.radiance.xy;
- let screen=ndcToPixel(clip.xy/clip.w-own,size);
+ let screen=ndcToPixel(temporalHistoryNdc(clip)-own.xy,size);
  if(any(screen<vec2f(0.0))||any(screen>size)){return held;}
  let at=clamp(screen,vec2f(0.51),size-vec2f(0.51))-vec2f(0.5);
  let corner=vec2i(floor(at));
  let f=at-floor(at);
- let depth=reflectionLinearDepth(clip);
+ // A surface that moves by itself stood at the depth the camera puts it at less its own step; one that does not, at its clip depth.
+ let depth=select(reflectionLinearDepth(clip),reflectionLinearOfDevice(clip.z/clip.w-own.z),own.z!=0.0);
  var threshold=reflectionView.denoise.z*mix(0.5,1.5,noise);
  if(surface){threshold/=clamp(dot(V,N),0.1,1.0);}
  var sum=vec3f(0.0);
@@ -194,15 +219,17 @@ fn temporalPixel(coord:vec2i,local:vec2u,layer:u32)->vec4u{
  var lighting=fromYcocg(mine.xyz);
  // The fresh second moment: the resolved luminance squared, in the denoiser's space.
  var moment=luminance(lighting)*luminance(lighting);
- let top=surfaceTopAt(coord,surfaceFlagsAt(coord));
+ // The lobe's roughness as the material gives it: the bias toward a mirror (\`reflectionSmoothed\`) is the rays', the resolve's and the filter's, not the accumulation's.
+ let top=surfaceTopRawAt(coord,surfaceFlagsAt(coord));
  let P=surfacePointAt(layer,coord);
  let V=viewToEye(P);
  var count=0.0;
  if(reflectionView.traced.x!=0u&&reflectionDone(REFLECTION_TEMPORAL)){
   // The interleaved gradient noise at the pixel, the image's turn modulo eight.
-  let noise=interleavedGradientNoise(vec2f(coord),f32(reflectionView.temporal.x%8u));
+  let noise=interleavedGradientNoise(vec2f(coord),f32(reflectionView.temporal.y));
   let camera=reflectionView.radianceViewProj*vec4f(P,1.0);
-  let own=select(vec2f(0.0),temporalOwnMotion(coord,camera.xy/camera.w),camera.w>0.0);
+  let now=reflectionView.viewProj*vec4f(P,1.0);
+  let own=select(vec3f(0.0),vec3f(temporalOwnMotion(coord,camera.xy/camera.w),temporalOwnDepth(coord,now.z/now.w,camera.z/camera.w)),camera.w>0.0&&now.w>0.0);
   var fromHit=TemporalHistory(vec3f(0.0),0.0,0.0,false);
   // The dominant-direction factor of the lobe it traces, r its roughness: s·(√s + r), s = 1 − r
   // (Lagarde & de Rousiers 2014).
@@ -219,33 +246,31 @@ fn temporalPixel(coord:vec2i,local:vec2u,layer:u32)->vec4u{
    let hitY=toYcocg(fromHit.radiance);
    let surfaceY=toYcocg(fromSurface.radiance);
    var alpha=0.0;
-   if(length(window.centre-hitY)>length(window.centre-surfaceY)+0.01){alpha=0.8;}
+   if(length(window.centre-hitY)>length(window.centre-surfaceY)+0.01/max(view.preExposure.x,REFLECTION_EPSILON)){alpha=0.8;}
    alpha=select(1.0,alpha,fromHit.valid);
    let history=mix(hitY,surfaceY,alpha);
-   // The history's own spread, from its second moment: carried into the moment it stores.
+   // The history's second moment, by the share of the history chosen: carried into the moment it stores as it is.
    let heldMoment=mix(fromHit.moment,fromSurface.moment,alpha);
-   let heldLuminance=luminance(mix(fromHit.radiance,fromSurface.radiance,alpha));
-   let variance=max(heldMoment-heldLuminance*heldLuminance,0.0);
    let extent=window.extent*select(1.0,2.0,reconstructed);
    let lo=window.centre-extent;
    let hi=window.centre+extent;
    let clamped=mix(clamp(hitY,lo,hi),clamp(surfaceY,lo,hi),alpha);
-   let least=vec3f(REFLECTION_CLAMP_FLOOR/max(view.lightParams.w,REFLECTION_EPSILON));
+   let least=vec3f(REFLECTION_CLAMP_FLOOR/max(view.preExposure.x,REFLECTION_EPSILON));
    let trust=0.75*saturate(1.0-length(abs(clamped-history)/max(extent,least)))+0.25;
    let held=select(fromHit.count,fromSurface.count,alpha>0.5);
    // A full-resolution mirror leans on the temporal anti-aliasing for the rest of its noise: its history is two images,
    // widening to the setting's with the roughness of its top layer over 0.05.
    var most=reflectionView.denoise.x;
-   if(all(reflectionBlock()==vec2u(1u))){most=mix(2.0,most,saturate(top.w/REFLECTION_MIRROR_ROUGHNESS));}
+   if(all(reflectionBlock()==vec2u(1u))){most=reflectionMaxFrames(most,top.w);}
    count=accumulationCount(held*trust,1.0,most);
    let fresh=1.0/(count+select(0.0,4.0,reconstructed));
    let kept=fromYcocg(clamped);
-   // The history's moment moved with its mean: the clamp shifts the images' average, never their spread.
-   moment=mix(variance+luminance(kept)*luminance(kept),moment,fresh);
+   moment=mix(heldMoment,moment,fresh);
    lighting=mix(kept,lighting,fresh);
   }
  }
- return historyPack(reflectionLinear(max(lighting,vec3f(0.0))),surfaceLinearDepth(P),max(moment,0.0),count);
+ // Neither an infinity nor a NaN reaches the history: the radiance and its moment are made finite, then held above zero.
+ return historyPack(reflectionLinear(max(makeFinite3(lighting),vec3f(0.0))),surfaceLinearDepth(P),max(makeFinite(moment),0.0),count);
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn temporalSurface(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups:vec3u,@builtin(local_invocation_id) local:vec3u,@builtin(local_invocation_index) lane:u32){

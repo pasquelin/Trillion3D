@@ -13,7 +13,9 @@ import type { TrackedRoot } from '../distanceField/objectTable.ts'
  * its placement, so that a hit of the scene's triangles, which names the root of the primitive it met
  * (`../rays/sceneTrace/`: its rank among the cut's roots, which lead the list the cache follows, in order), finds the cards as a hit of the field does. The several stand-ins of one world DAG's root share its instance: an
  * instance that several placements answer to is told no placement — the hit finds no cards there and the field
- * answers it — until the grid's objects are named apart.
+ * answers it — until the grid's objects are named apart. A hit of the scene's triangles on an HLOD actor names
+ * its object apart: the rank, in the list, of the stand-in of its cell (`StHit.object`), told its placement as the
+ * instance of its own.
  */
 
 /** The word of an instance with no placement of the cache. */
@@ -34,19 +36,25 @@ export function instanceWords(
   let words = scratch.length ? scratch : new Uint32Array(16)
   let end = 0
   words.fill(NO_PLACEMENT, 1)
+  /** Instance `instance` is `placement`'s: told once, or an instance that several placements answer to. */
+  const tell = (instance: number, placement: number) => {
+    if (instance + 2 > words.length) {
+      const grown = new Uint32Array(Math.max(16, 2 * (instance + 2)))
+      grown.fill(NO_PLACEMENT, 1)
+      grown.set(words.subarray(0, end + 1))
+      words = grown
+    }
+    const told = words[1 + instance]
+    words[1 + instance] = told === NO_PLACEMENT || told === placement ? placement : SEVERAL
+    end = Math.max(end, instance + 1)
+  }
   for (const placement of ids) {
     for (const root of rootsOf(placement)) {
-      const instance = root.standsFor ?? rankOf(root)
-      if (instance === undefined) continue
-      if (instance + 2 > words.length) {
-        const grown = new Uint32Array(Math.max(16, 2 * (instance + 2)))
-        grown.fill(NO_PLACEMENT, 1)
-        grown.set(words.subarray(0, end + 1))
-        words = grown
-      }
-      const told = words[1 + instance]
-      words[1 + instance] = told === NO_PLACEMENT || told === placement ? placement : SEVERAL
-      end = Math.max(end, instance + 1)
+      const own = rankOf(root)
+      // A stand-in is told by its own rank too: the object a hit of the scene's triangles on its cell's actor names.
+      if (root.standsFor !== undefined && own !== undefined) tell(own, placement)
+      const instance = root.standsFor ?? own
+      if (instance !== undefined) tell(instance, placement)
     }
   }
   for (let at = 1; at <= end; at++) if (words[at] === SEVERAL) words[at] = NO_PLACEMENT

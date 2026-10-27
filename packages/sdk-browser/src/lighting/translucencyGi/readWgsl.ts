@@ -10,13 +10,14 @@ import { GI_LIGHT_WGSL, GI_SAMPLE_WGSL } from './frameWgsl.ts'
  * cosine lobe's (`giIrradiance`), the constant band alone for a surface lit as a medium (`translucentGiSingle`). The last half slice of the
  * grid fades to the sky light's irradiance (read only where the fade is not whole), which is also all a point reads where no volume is
  * made, none where no sky light shines. What a surface gives back of it is the albedo times the irradiance (`lambertDiffuse`), the caller's.
- * The program names the volume's texture and sampler (`binding`, `sampler`, group 0) and the view's uniform (`uni`, `BlendView`).
+ * The program names the volume's two textures and sampler (`ambient`, `directional`, `sampler`, group 0) and the view's uniform (`uni`, `BlendView`).
  */
-export const translucentGiWgsl = (binding: number, sampler: number) =>
+export const translucentGiWgsl = (ambient: number, directional: number, sampler: number) =>
   wgslBlock(
-    `translucentGiWgsl(${binding}, ${sampler})`,
+    `translucentGiWgsl(${ambient}, ${directional}, ${sampler})`,
     [GI_SAMPLE_WGSL, GI_LIGHT_WGSL, SKY_DIFFUSE_READ_WGSL],
-    `@group(0) @binding(${binding}) var translucencyGi:texture_3d<f32>;
+    `@group(0) @binding(${ambient}) var translucencyGiAmbient:texture_3d<f32>;
+@group(0) @binding(${directional}) var translucencyGiDirectional:texture_3d<f32>;
 @group(0) @binding(${sampler}) var translucencyGiSampler:sampler;
 /** Whether the surface in hand reads the constant band alone (a material lit as a medium without direction), set with its other state. */
 var<private> translucentGiSingle:bool=false;
@@ -33,7 +34,7 @@ fn translucentGiIrradiance(P:vec3f,N:vec3f,single:bool)->vec3f{
  let uvw=giVolumeCoord(clip,uni.giZ,slices);
  let fade=saturate((1.0-uvw.z)*(slices/0.5));
  if(fade<=0.0){return translucentSky(N);}
- let volume=giIrradiance(giSampleVolume(translucencyGi,translucencyGiSampler,uvw,slices),N,single);
+ let volume=giIrradiance(giSampleVolumes(translucencyGiAmbient,translucencyGiDirectional,translucencyGiSampler,uvw,slices),N,single);
  if(fade>=1.0){return volume;}
  return mix(translucentSky(N),volume,fade);
 }

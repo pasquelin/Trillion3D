@@ -4,7 +4,6 @@ import {
   TAA_DETECT_THIN_GEOMETRY_PASS,
   TAA_RELAX_THIN_GEOMETRY_PASS,
   TAA_DILATE_VELOCITY_PASS,
-  TAA_FLICKER_MEASURE_PASS,
   TAA_REJECT_SHADING_PASS,
   TAA_SPATIAL_ANTI_ALIASING_PASS,
 } from '../../diagnostic/stage/passLabels.ts'
@@ -22,7 +21,6 @@ import {
   thinRelaxationShader,
 } from './thinGeometryWgsl.ts'
 import { measureFlickerLumaShader, measureThinCoverageShader } from './flickerLumaWgsl.ts'
-import { flickerMeasureShader } from './flickerMeasureWgsl.ts'
 import { rejectShadingShader } from './rejectionWgsl.ts'
 import {
   REJECT_SHADING_STRIDE,
@@ -53,9 +51,9 @@ export const FUSED_TILE = FLATTEN_TILE
 /** The dispatches of the analysis, in the order of their compute passes, each timed under its
  *  `pass`, its descriptor and label: the render texels a workgroup writes across and
  *  down (`tile`) — the nearest velocity and the reprojection, a texel a lane, the thin geometry
- *  detection, a tile, the flicker measure and the shading rejection, the inner square of their tile,
+ *  detection, a tile, the shading rejection (the flicker measure inside it), the inner square of its tile,
  *  and the spatial anti-aliaser, a texel a lane —; the thin geometry's weight relaxation runs after
- *  the detection, the flicker measure before the shading rejection that reads its errors. */
+ *  the detection. */
 export const DISPATCHES = [
   {
     name: 'nearest',
@@ -76,11 +74,6 @@ export const DISPATCHES = [
     name: 'relaxation',
     pass: { label: TAA_RELAX_THIN_GEOMETRY_PASS },
     tile: [THIN_RELAXATION_TILE, THIN_RELAXATION_TILE],
-  },
-  {
-    name: 'flicker',
-    pass: { label: TAA_FLICKER_MEASURE_PASS },
-    tile: [REJECT_SHADING_STRIDE, REJECT_SHADING_STRIDE],
   },
   {
     name: 'reject',
@@ -176,15 +169,13 @@ function shaderFamily(
   }
 }
 
-/** The modules the twin stages are made from, checked off the thread: the shading rejection and the
- *  flicker measure, which runs as the rejection does, in the same twins. */
+/** The modules the twin stages are made from, checked off the thread: the shading rejection. */
 type TwinModules = Record<'velocity' | 'reproject', Promise<GPUShaderModule>> & {
   reject: Family<Promise<GPUShaderModule>>
-  flicker: Family<Promise<GPUShaderModule>>
 }
 
 /** The programs of the analysis's dispatches, compiled together, with the twins of the shading
- *  rejection and the flicker measure (`Family`), the 16-bit twin of the anti-aliaser (`halfFloats`:
+ *  rejection (`Family`), the 16-bit twin of the anti-aliaser (`halfFloats`:
  *  the device grants 16-bit shader floats): one a driver refuses is left out, the plain one the
  *  others'. */
 async function compileDispatches(
@@ -213,7 +204,7 @@ async function compileDispatches(
     ])
     return { plain, half, wave, waveHalf }
   }
-  const [velocity, reproject, thin, reject, flicker, antiAlias, antiAliasHalf, relaxation] =
+  const [velocity, reproject, thin, reject, antiAlias, antiAliasHalf, relaxation] =
     await Promise.all([
       stage(layouts.velocity, modules.velocity, 'nearestVelocity'),
       stage(layouts.reproject, modules.reproject, 'reprojectHistories'),
@@ -224,8 +215,6 @@ async function compileDispatches(
       ),
       // The shading rejection in its twins: run by an execution that asks them (`variantOf`).
       familyStages(layouts.rejectShading, modules.reject, 'rejectShading'),
-      // The flicker measure, in the same ones.
-      familyStages(layouts.flicker, modules.flicker, 'measureFlicker'),
       stage(
         layouts.antiAlias,
         createCheckedShaderModule(
@@ -253,7 +242,7 @@ async function compileDispatches(
         'relaxThinGeometryWeight',
       ),
     ])
-  return { velocity, reproject, thin, reject, flicker, antiAlias, antiAliasHalf, relaxation }
+  return { velocity, reproject, thin, reject, antiAlias, antiAliasHalf, relaxation }
 }
 
 /** The measures taken before the translucency (`TaaAnalysis.measure`), compiled together. */
@@ -353,10 +342,9 @@ async function computePipelines(
       half,
       wave,
     ),
-    flicker: shaderFamily(device, 'TAA_FLICKER_MEASURE', flickerMeasureShader, half, wave),
   }
   const [
-    { velocity, reproject, thin, reject, flicker, antiAlias, antiAliasHalf, relaxation },
+    { velocity, reproject, thin, reject, antiAlias, antiAliasHalf, relaxation },
     [measureLuma, measureCoverage],
   ] = await Promise.all([
     compileDispatches(device, layouts, formats, modules, half),
@@ -372,7 +360,6 @@ async function computePipelines(
       relaxation: built(relaxation),
     },
     reject: mapFamily(reject, built),
-    flicker: mapFamily(flicker, built),
     measures: { luma: built(measureLuma), coverage: built(measureCoverage) },
     resurrected,
     antiAliasHalf: antiAliasHalf && built(antiAliasHalf),
@@ -417,7 +404,6 @@ function dispatchStages({
   pipelines,
   resurrected,
   reject,
-  flicker,
   antiAliasHalf,
 }: Awaited<ReturnType<typeof computePipelines>>): readonly DispatchStages[] {
   const by = (plain: Variants, resurrecting = plain): DispatchStages => [plain, resurrecting]
@@ -429,7 +415,6 @@ function dispatchStages({
     ),
     thin: by(variants({ plain: pipelines.thin })),
     reject: by(variants(reject), variants(resurrected.reject)),
-    flicker: by(variants(flicker)),
     antiAlias: by(variants({ plain: pipelines.antiAlias, half: antiAliasHalf })),
     relaxation: by(variants({ plain: pipelines.relaxation })),
   }

@@ -34,7 +34,16 @@ function updateTiles(side: number, factor: number, speed: number, forceFull: boo
   return (along / CARD_TILE_SIZE) ** 2
 }
 
-/** The tiles each update lights in an image of a `side` atlas, under `settings`. */
+/** Whether the cache is frozen (`surfaceCacheFreeze`): its captures, its evictions, its feedback and the tiles its lighting
+ *  updates all stop, and its update clock with them. */
+export const surfaceCacheFrozen = (settings: SurfaceCacheSettings) => settings.surfaceCacheFreeze
+
+/** Whether the update clock is held: the cache is frozen, or its update frame is (`surfaceCacheFreezeUpdateFrame`). */
+export const updateFrameFrozen = (settings: SurfaceCacheSettings) =>
+  settings.surfaceCacheFreeze || settings.surfaceCacheFreezeUpdateFrame !== 0
+
+/** The tiles each update lights in an image of a `side` atlas, under `settings`: the size the lists are made at, which a
+ *  frozen cache keeps (its updates light none, `litTiles`). */
 export const updateTilesOf = (settings: SurfaceCacheSettings, side: number) => ({
   direct: updateTiles(
     side,
@@ -49,6 +58,10 @@ export const updateTilesOf = (settings: SurfaceCacheSettings, side: number) => (
     settings.surfaceCacheLightingForceFullUpdate,
   ),
 })
+
+/** The tiles an update that is made for `tiles` lights in an image: none while the cache is frozen. */
+export const litTiles = (settings: SurfaceCacheSettings, tiles: number) =>
+  surfaceCacheFrozen(settings) ? 0 : tiles
 
 /** The most lights a tile keeps: a tile's lights are counted in arrays of this size, and the setting is held to it. */
 export const MAX_LIGHTS_PER_TILE = 32

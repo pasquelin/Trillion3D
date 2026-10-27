@@ -62,6 +62,8 @@ export interface CardLimits {
   readonly minResolution: number
   /** The farthest a card is kept from the eye. */
   readonly maxDistance: number
+  /** The texels along a card's longer side that every card is given instead of the law's, for debugging; none while not above 0. */
+  readonly fixedResolution: number
 }
 
 /** The greatest resolution a card is kept at: the setting, halved for a fast camera, scaled by the
@@ -100,6 +102,7 @@ export function cardLimits(
     maxResolution: cardMaxResolution(settings),
     minResolution: cardMinResolution(settings, orthographic),
     maxDistance: clipmapExtent + settings.surfaceCacheCardCaptureMargin,
+    fixedResolution: settings.surfaceCacheCardFixedDebugResolution,
   }
 }
 
@@ -113,7 +116,7 @@ export const viewerDistance = (boxDistance: number) => Math.max(boxDistance, NEA
  * for an emissive mesh).
  *
  * The texels along the longest side are the density over the distance, held to the greatest density
- * and to the greatest resolution, cut to a whole number and rounded up to a power of two; the card
+ * (or the fixed debugging resolution, `surfaceCacheCardFixedDebugResolution`, in its place) and to the greatest resolution, cut to a whole number and rounded up to a power of two; the card
  * is kept when that reaches the least resolution and the eye is within the greatest distance.
  */
 export function cardResLevel(
@@ -124,10 +127,11 @@ export function cardResLevel(
   limits: CardLimits,
 ) {
   if (!(distance < limits.maxDistance)) return -1
-  const projected = Math.min(
+  const law = Math.min(
     (limits.texelDensity * maxExtent * resolutionScale) / distance,
     limits.maxTexelDensity * maxExtent,
   )
+  const projected = limits.fixedResolution > 0 ? limits.fixedResolution : law
   const snapped = nextPow2(Math.min(Math.trunc(projected), limits.maxResolution))
   if (snapped < minResolution) return -1
   return floorLog2(Math.max(snapped, MIN_CARD_RESOLUTION))

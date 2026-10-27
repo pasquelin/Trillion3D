@@ -1,3 +1,7 @@
+import {
+  ALL_LIGHTING_CHANNELS_MASK,
+  storedLightingChannels,
+} from '../../contracts/lightingChannelsAbi.ts'
 import { splitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { AXIS_DIRECTIONS } from './cardResolution.ts'
 import {
@@ -21,6 +25,9 @@ export interface CardWords {
 
 /** The words of a card's record. */
 export const CARD_WORDS = 28
+/** The bit of the card's flags word (word 3) its object's lighting channels start at, three bits, stored
+ *  (`storedLightingChannels`: zero is the default). */
+export const CARD_CHANNELS_SHIFT = 20
 /** The words of a mesh cards' record. */
 export const MESH_CARDS_WORDS = 24
 
@@ -49,10 +56,11 @@ function mipRecord(card: Card, resLevel: number) {
 
 /**
  * Writes the record of `card` at word `at` of `words`, `CARD_WORDS` words, zero for a card not
- * there (`undefined`). In order:
+ * there (`undefined`); `lightingChannels` is the mask of its object's lighting channels. In order:
  *
  * - 0..2 the centre's high part; 3 flags: the width's and the height's bias (bits 0-7 and 8-15), the
- *   direction (16-19), and bit 24 when the law keeps the card and it is in the atlas;
+ *   direction (16-19), its object's lighting channels, stored (`CARD_CHANNELS_SHIFT`, 20-22), and bit 24 when the law
+ *   keeps the card and it is in the atlas;
  * - 4..6, 8..10, 12..14 the unit axes X, Y and Z in the world; 7, 11 and 15 the low part of the
  *   centre's X, Y and Z;
  * - 16, 17 the page count and the first page of the coarsest mip in the atlas, 18, 19 those of the
@@ -61,7 +69,12 @@ function mipRecord(card: Card, resLevel: number) {
  * - 24..26 the half sides in that space, by object axis, 27 the mean size of a texel of the
  *   coarsest mip in the world, 100 where the card is not in the atlas.
  */
-export function writeCardWords(words: CardWords, at: number, card: Card | undefined) {
+export function writeCardWords(
+  words: CardWords,
+  at: number,
+  card: Card | undefined,
+  lightingChannels: number,
+) {
   const { f32, u32 } = words
   if (!card) {
     u32.fill(0, at, at + CARD_WORDS)
@@ -76,6 +89,8 @@ export function writeCardWords(words: CardWords, at: number, card: Card | undefi
     (card.resBiasX & 0xff) |
     ((card.resBiasY & 0xff) << 8) |
     ((card.direction & 0xf) << 16) |
+    ((storedLightingChannels(lightingChannels) & ALL_LIGHTING_CHANNELS_MASK) <<
+      CARD_CHANNELS_SHIFT) |
     (card.visible && allocated ? 1 << 24 : 0)
   ;[card.axisX, card.axisY, card.axisZ].forEach((axis, k) => {
     f32.set(axis, at + 4 + 4 * k)

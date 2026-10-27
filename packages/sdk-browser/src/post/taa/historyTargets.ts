@@ -22,7 +22,7 @@ export interface HistoryFrame {
  *  frames at its size, the half-size image beside the display's colour, the resolve's output where
  *  the history is larger than the display, the analysis's targets and render-resolution histories at
  *  its render size — the render targets' own, the largest a frame is drawn at, so no scale under it
- *  remakes them (`analysis.ts`), the flicker measure's tiles among them — and the guide of each
+ *  remakes them (`analysis.ts`) — and the guide of each
  *  frame beyond the first. */
 export const taaTargetBytes = (
   size: { width: number; height: number; renderWidth: number; renderHeight: number },

@@ -3,9 +3,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MARK_IMAGE_SHADER } from './pool/poolMarkWgsl.ts'
-import { POOL_MARK_WORDS } from './pool/poolLayout.ts'
+import { poolShapeOf } from './pool/poolLayout.ts'
 import { markedCells } from './pool/pool.fixture.ts'
-import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { createBounceCascades } from '../../../../sdk-core/src/bounce/cascades.ts'
 import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
 import { BOUNCE_APPLY_WGSL } from './applyWgsl.ts'
@@ -52,26 +51,23 @@ test('the sky light is the environment’s where no screen probe is read, the sc
 })
 
 /**
- * The mark pass over the image (`MARK_IMAGE_SHADER`) run as the shipped text over an image of 64 × 64 pixels, each
- * tile — 16 pixels a side — reading one surface point `P` of normal up: its bitmap decoded cell by cell, the cells it names are the
- * eight probes the lit passes read for the point.
+ * The mark pass over the image (`MARK_IMAGE_SHADER`) run as the shipped text over an image of 64 × 64 pixels, downsampled by two and
+ * then by two, each thread reading one surface point `P`: its bitmap decoded cell by cell, the cells it names are the eight probes the lit
+ * passes read for the point.
  */
-function marked(
-  P: number[],
-  { depth = 0.5, normal = [0, 1, 0, 0.5] }: { depth?: number; normal?: number[] } = {},
-) {
+function marked(P: number[], { depth = 0.5 }: { depth?: number } = {}) {
   const cascades = createBounceCascades([-2000, -10, -2000, 2000, 100, 2000])
   cascades.follow([0, 1.7, 0])
-  const bits = new Uint32Array(POOL_MARK_WORDS)
-  const run = shaderRun<{ markImage: (tile: number[]) => void }>(MARK_IMAGE_SHADER, ['markImage'], {
+  const bits = new Uint32Array(poolShapeOf(cascades).markWords)
+  const run = shaderRun<{ markImage: (id: number[]) => void }>(MARK_IMAGE_SHADER, ['markImage'], {
     bounce: {
       counts: [cascades.size, cascades.levels.length, cascades.cells, cascades.probes],
       frame: [1, 0, 5, 0],
       levels: cascades.levels.map(({ base, spacing }) => ({ base, spacing })),
     },
     view: { viewport: [64, 64, 0, 0] },
+    pool: { markDownsample: [2, 2] },
     sceneDepth: { load: () => depth },
-    sceneNormals: { load: () => normal },
     worldAt: () => P,
     marks: bits,
   })
@@ -83,10 +79,8 @@ test('the mark pass names the eight probes around each surface the image shows, 
   const P = [10.2, 0.3, -4.7]
   const { cells, cascades } = marked(P)
   const spacing = cascades.levels[0].spacing
-  // The point the lit passes read: a step of the normal bias off the surface, the corner a half cell back.
-  const corner = [P[0], P[1] + BOUNCE_SETTINGS.normalBias * spacing, P[2]].map((v) =>
-    Math.floor(v / spacing - 0.5),
-  )
+  // The point the lit passes read: the surface point itself, the probes standing on the multiples of the cell's side.
+  const corner = P.map((v) => Math.floor(v / spacing))
   const expected = Array.from({ length: 8 }, (_, k) => [
     corner[0] + (k & 1),
     corner[1] + ((k >> 1) & 1),
@@ -105,8 +99,7 @@ test('the mark pass names the eight probes around each surface the image shows, 
   assert.ok(far.cells.length === 8 && far.cells.every((entry) => entry.level === 1))
   assert.ok(marked([80, 0.3, 0]).cells.every((entry) => entry.level === 2))
   assert.ok(marked([150, 0.3, 0]).cells.every((entry) => entry.level === 3))
-  // Past every level, or at sky, or where the image holds no normal, nothing is read: the sky light answers.
+  // Past every level, or at sky, nothing is read: the sky light answers.
   assert.deepEqual(marked([900, 0.3, 0]).cells, [])
   assert.deepEqual(marked(P, { depth: 0 }).cells, [], 'reverse depth: zero is the background')
-  assert.deepEqual(marked(P, { normal: [0, 0, 0, 0] }).cells, [])
 })

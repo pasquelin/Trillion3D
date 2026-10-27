@@ -5,6 +5,7 @@ import type { SurfaceCacheSettings } from '../../contracts/surfaceCacheOptions.t
 import { MAX_RES_LEVEL, MIN_RES_LEVEL, distanceBin, mipDesc } from './cardResolution.ts'
 import { cardDistance } from './cardScene.ts'
 import { mipOf, type Vec3 } from './cardTypes.ts'
+import { surfaceCacheFrozen } from './lightingMath.ts'
 import { isMapped, type SurfaceCache, type SurfaceRequest } from './state.ts'
 
 /**
@@ -28,6 +29,10 @@ import { isMapped, type SurfaceCache, type SurfaceRequest } from './state.ts'
  * - the second: the page's column in the low 8 bits, its row in the next 8, the number of hits in the
  *   high 16.
  */
+
+/** Whether an image makes the feedback's buffer: the setting is on and the cache is not frozen. */
+export const feedbackAllocated = (settings: SurfaceCacheSettings) =>
+  settings.surfaceCacheFeedback && !surfaceCacheFrozen(settings)
 
 /** The side of a tile of the image the feedback writes one element in: a power of two. */
 export const feedbackTileSize = (settings: SurfaceCacheSettings) =>

@@ -86,13 +86,15 @@ test('one chain: only the trace marches the field and samples a lobe; a forward 
   ])
     assert.doesNotMatch(forwardText, new RegExp(`\\b${name}\\b`), name)
   assert.match(wgslModule(reflectionStagesWgsl(1)), /\breflectionSceneTrace\b/)
+  // Nor does it give its light a look: the contrast and the specular scale are the opaque composite's alone.
+  assert.doesNotMatch(forwardText, /\breflectionLook\b|view\.reflection\b/)
   // The front surface is traced, resolved and accumulated as the opaque one by the same kernels on its own
   // layer (the pipeline's, `createTraceStages`) — a pixel a thread of a listed tile, the scene stage a
-  // thread a ray the screen left —, and its last pass writes its radiance where the forward fragments
+  // thread a ray the screen missed —, and its last pass writes its radiance where the forward fragments
   // read it.
   for (const kernel of [
     'override REFLECTION_LAYER:u32=0u;',
-    'left=traceScreenTexel(id,REFLECTION_LAYER);',
+    'missed=traceScreenTexel(id,REFLECTION_LAYER);',
     'let own=reflectingPixelAt(REFLECTION_LAYER,coord,surfaceFlagsAt(coord));',
     'textureStore(resolvedOut,id,resolvePixel(vec2i(id),REFLECTION_LAYER));',
     'textureStore(historyOut,id,temporalPixel(vec2i(id),local.xy,REFLECTION_LAYER));',

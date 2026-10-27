@@ -34,10 +34,8 @@ type FusedDispatch = { pipeline: GPUComputePipeline; group: GPUBindGroup }
  *  group's among the groups of an image (`createAnalysisGroups`) — and its program: the nearest
  *  velocity of an image that draws displaced surfaces where `tessellated`, otherwise the one of
  *  `stages` for a history that `resurrects` where it does, as `run` executes it (`variantOf`): the 16-bit ones of
- *  the shading rejection, the flicker measure and the anti-aliaser where it asks them and the
- *  device has them, their wave ones where the wave is the tile's width. The flicker measure is
- *  left out where the level does not run it (`work.flicker`), which is where neither
- *  `view.quality.x` nor an analysis view asks the shading rejection for it (`flickerMeasured`). */
+ *  the shading rejection and the anti-aliaser where it asks them and the device has them, the
+ *  rejection's wave ones where the wave is the tile's width. */
 function* stagesOf(
   { stages, displaced }: Pipelines,
   work: AnalysisWork,
@@ -49,7 +47,6 @@ function* stagesOf(
   for (const [at, dispatch] of DISPATCHES.entries()) {
     const { name } = dispatch
     if ((name === 'thin' || name === 'relaxation') && !work.thin) continue
-    if (name === 'flicker' && !work.flicker) continue
     if (name === 'antiAlias' && !work.antiAlias) continue
     const varied = stages[at][Number(resurrects)][variant]
     yield { at, dispatch, stage: name === 'nearest' && tessellated ? displaced : varied }
@@ -264,8 +261,8 @@ function fusedDispatch(
  * The encoding of the analysis of the frame's `inputs` over the `render` size, drawn through an
  * `orthographic` projection or not: each dispatch in its compute pass, the anti-aliaser's last —
  * the `work` the level runs (`AnalysisWork`), the nearest velocity solving the flat points of
- * displaced texels where `tessellated` (`TaaFrameState.tessellated`). The flicker measure runs
- * where the level rejects by it or an analysis view is shown
+ * displaced texels where `tessellated` (`TaaFrameState.tessellated`). The flicker measure, inside the
+ * shading rejection, runs where the level rejects by it or an analysis view is shown
  * (`view.quality.x`, `view.params.w`); elsewhere the flicker history waits unwritten — an image
  * running it again drops the history (`encodeTaaPass`); the thin geometry detection is left out
  * where the level runs none, the passes that read its mask then reading none (`view.quality.w`).
@@ -274,7 +271,7 @@ function fusedDispatch(
  * anti-aliaser, its target is left as it is: the history update, which takes the neutral offset
  * where the level runs none, reads none (`view.quality.y`). The programs are those `run` executes
  * (`variantOf`): in 16 bits where it asks and the device grants them, the shading rejection and
- * the flicker measure as a subgroup where their wave is the tile's width.
+ * the shading rejection as a subgroup where its wave is the tile's width.
  */
 function createAnalysisEncoding(
   device: GPUDevice,
@@ -294,8 +291,6 @@ function createAnalysisEncoding(
   ) => {
     const t = targets.views
     if ((orthographic ? 2 : 1) > t.occluderSlices) targets.addOccluderSlice(t)
-    // The flicker count is held while an analysis view is shown, the work `workOf` gives them all.
-    targets.countFlicker(t, work.shown)
     // The groups first: the nearest velocity's that flattens the blur's motion follows their inputs.
     const set = groups.of(inputs, t, slices)
     const fused = fusedDispatch(device, programs, groups, inputs, t, tessellated)
@@ -337,13 +332,13 @@ function createMeasureEncoding(
  *    pixel may be resurrected from — and the occluder words;
  * 3. the thin geometry detection (`thinGeometryWgsl.ts`), which writes the thin geometry history
  *    and this image's mask, where the level runs it (`AnalysisWork`);
- * 4. the flicker measure (`flickerMeasureWgsl.ts`), where the level rejects by it, which writes
- *    the flicker history of this image's frame and the errors the shading rejection widens by;
- * 5. the shading rejection (`rejectionWgsl.ts`), which rejects each frame's history, decides the
+ * 4. the shading rejection (`rejectionWgsl.ts`), which measures the flicker first
+ *    (`flickerMeasureWgsl.ts`), where the level rejects by it, writing the flicker history of this
+ *    image's frame, rejects each frame's history widened by the flicker's error, decides the
  *    frame each pixel keeps, writes the rejection the history update reads, the shading history
  *    of this image's frame, the LDR luma, the reprojection of the pixels resurrected, and empties
  *    the occluder words for the next image;
- * 6. the spatial anti-aliaser (`spatialAntiAliasingWgsl.ts`), where the level runs one.
+ * 5. the spatial anti-aliaser (`spatialAntiAliasingWgsl.ts`), where the level runs one.
  * Its layouts, programs, targets and groups are `analysisLayouts.ts`, `analysisPipelines.ts`,
  * `analysisTargets.ts` and `analysisGroups.ts`.
  */

@@ -10,8 +10,9 @@
 //! (`nodes.rs`). The tree is built with the primitive's DAG (`primitive_tree`, `tree.rs`).
 //!
 //! `rayTracing.bin` (`encode.rs`) holds the trees of every primitive that has a triangle in its
-//! cut; the manifest's `rayTracing` section names it. A primitive of the world's HLOD cells has
-//! none: only the compiled primitives do.
+//! cut and, last, the world's (`world.rs`): a tree for each HLOD actor, cut at its own error and
+//! naming the cell that shows it, and the directory of them; the manifest's `rayTracing` section
+//! names it.
 pub(crate) mod abi;
 mod bvh;
 mod cut;
@@ -22,6 +23,9 @@ mod stage;
 mod tests;
 mod tree;
 mod wide;
+mod word;
+mod world;
 
 pub(crate) use stage::write_ray_tracing;
 pub(crate) use tree::{material_flags, primitive_tree, PrimitiveTree, Traced};
+pub(crate) use world::{world_trees, WorldGate, WorldTrees};

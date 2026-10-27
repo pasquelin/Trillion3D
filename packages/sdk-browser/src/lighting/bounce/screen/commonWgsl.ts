@@ -12,7 +12,10 @@ import {
   cosineLobeShader,
   harmonicsShader,
 } from '../../../../../sdk-core/src/scene/core/irradianceBasis.ts'
-import { SCREEN_PROBE_CONSTANTS } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
+import {
+  IRRADIANCE_PROBE_SIDE,
+  SCREEN_PROBE_CONSTANTS,
+} from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
 import { WORLD_AT_WGSL } from '../../deferred/worldAtWgsl.ts'
 import {
   REFLECTION_GROUP,
@@ -94,19 +97,63 @@ fn spProbeTile(word:u32)->vec2u{
 }`,
 )
 
+/** The dither a pass writing a float target takes (`spTargetDither`): a hash of the texel it writes and of the view's frame index modulo the jitters,
+ *  plus the pass's own `salt`, in [0, 1). */
+export const SP_TARGET_DITHER = wgslBlock(
+  'SP_TARGET_DITHER',
+  [rand3dPcg16],
+  `fn spTargetDither(texel:vec2u,salt:i32)->f32{
+ return f32(rand3dPcg16(vec3i(vec2i(texel),i32(sp.size.w%SP_TILE_JITTERS)+salt)).x)/65536.0;
+}`,
+)
+
 /**
- * A POINT'S DEPTH as the weights measure it: its view depth, the engine's linear one (`surfaceLinearDepth`); a constant
- * under an orthographic camera, where a plane's distance has no depth to be relative to (`spDepthOf`). Its distance
- * from the eye, which the detail trace's fade follows, is the view's (`viewEyeDistance`, `../../deferred/worldAtWgsl.ts`).
+ * WHERE A PROBE'S SPHERICAL HARMONICS lie in the irradiance texture (`spCoefficientTexel`, the texel of coefficient `k` of probe `atlas`): a texel a coefficient in a
+ * row of nine to a probe, or, where the probes keep an extra ambient occlusion, the first nine texels of the probe's block of the octahedral map's side and border,
+ * the alpha of whose texels holds the occlusion by normal (`spExtraAoCode`): the one texture carries both.
+ */
+export const spCoefficientTexel = (extraAo: boolean) =>
+  wgslBlock(
+    `spCoefficientTexel(${extraAo})`,
+    [],
+    extraAo
+      ? `fn spCoefficientTexel(atlas:vec2u,k:u32)->vec2i{
+ let border=${IRRADIANCE_PROBE_SIDE + 2}u;
+ return vec2i(atlas*border+vec2u(k%border,k/border));
+}`
+      : 'fn spCoefficientTexel(atlas:vec2u,k:u32)->vec2i{return vec2i(vec2u(atlas.x*9u+k,atlas.y));}',
+  )
+
+/**
+ * A POINT'S DEPTH as the weights measure it: its view depth, the engine's linear one (`surfaceLinearDepth`); under an orthographic camera,
+ * where the clip depth is not a length, its distance from the eye's plane along the view (`viewEyeDistance`, metres), so that a plane's distance
+ * is relative to a depth in both projections (`spDepthOf`). `spMaxRay` is the intensity a traced ray is held to (`screenProbeMaxRayIntensity`)
+ * in the units of the light the probes trace, which is not pre-exposed: the setting is a number of the pre-exposed light, so it is divided by
+ * the pre-exposure every light is written multiplied by (`view.preExposure`).
  */
 const SP_DEPTHS = wgslBlock(
   'SP_DEPTHS',
   [SP_REFLECTION, slabPerspective, WORLD_AT_WGSL],
   `fn spDepthOf(p:vec3f)->f32{
- return max(select(1000.0,surfaceLinearDepth(p),slabPerspective(reflectionView.slab)),1e-3);
+ return max(select(viewEyeDistance(p),surfaceLinearDepth(p),slabPerspective(reflectionView.slab)),1e-3);
 }
 /** The furthest a ray looks for a surface, in metres (\`screenProbeMaxTraceDistance\`). */
-fn spMaxTrace()->f32{return sp.spatial.w;}`,
+fn spMaxTrace()->f32{return sp.spatial.w;}
+fn spMaxRay()->f32{return sp.weights.w/view.preExposure.x;}`,
+)
+
+/**
+ * THE SKY LIGHT THAT LEAKS onto the surface a ray found, at `distance` metres along `d` (`spSkyLeak`): the sky light read along the ray at the roughness `sp.leak.w`, times the
+ * share that leaks by channel (`sp.leak.xyz`) and the share of the way to the distance it leaks whole at (`sp.cache.w` its inverse); none while the share is none
+ * or no sky light shines.
+ */
+const SP_SKY_LEAK = wgslBlock(
+  'SP_SKY_LEAK',
+  [SP_REFLECTION],
+  `fn spSkyLeak(d:vec3f,distance:f32)->vec3f{
+ if(!skyLightApplied()||all(sp.leak.xyz<=vec3f(0.0))){return vec3f(0.0);}
+ return skyLightReflection(d,sp.leak.w)*sp.leak.xyz*saturate(distance*sp.cache.w);
+}`,
 )
 
 /**
@@ -128,9 +175,10 @@ fn spRayCoord(word:u32)->vec2u{return vec2u(word&63u,(word>>6u)&63u);}
 fn spRayLevel(word:u32)->u32{return (word>>12u)&15u;}
 /** Texels a side of the grid a ray of level \`level\` is a texel of, for probes tracing \`trace\` rays a side. */
 fn spRayMip(level:u32,trace:u32)->u32{return (trace<<SP_IMPORTANCE_LEVELS)>>level;}
-/** A probe: its world point, its signed depth — negative where it stands on no lit surface —, its normal and
- *  the speed of its surface, in metres an image. */
-struct SpProbe{P:vec3f,depth:f32,N:vec3f,speed:f32,}`,
+/** A probe: its world point, its signed depth — negative where it stands on no lit surface —, its normal, the speed of its
+ *  surface, in metres an image, and whether its surface has backface diffuse light (\`foliage\`: a thin double-sided sheet or a subsurface
+ *  material) or is hair. */
+struct SpProbe{P:vec3f,depth:f32,N:vec3f,speed:f32,foliage:bool,hair:bool,}`,
 )
 
 /**
@@ -148,6 +196,7 @@ export const spCommon = (samples: readonly [number, number]) =>
       SP_BASIS,
       SP_PLACES,
       SP_DEPTHS,
+      SP_SKY_LEAK,
       SP_HITS,
       PI,
       WORLD_AT_WGSL,

@@ -2,11 +2,16 @@ import { skyLightReadOf } from '../../frame/render/skyLightState.ts'
 import { wantsContractLighting } from '../../frame/prepare/lit.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { frontStamp } from './frontLayer.ts'
+import { firstPersonBoundsOf } from './firstPersonBounds.ts'
 import type { ScreenReflection } from './gpu.ts'
 import { reflectionField, reflectionGroup, reflectionLightView } from './group.ts'
 import { readableCache } from './hitCards.ts'
+import { hardwareReflections } from './hardware.ts'
+import { rayFogReadOf } from './rayFog.ts'
+import { sceneRaysOf } from '../surfaceCache/lighting/surfaceLighting.ts'
 import { stageReflectionImage } from './image.ts'
 import { holdLitImage, vectorsReach } from './litImage.ts'
+import { cameraSeen, previousCameraOf } from '../../frame/backend/state/previousCamera.ts'
 import { demandSurfaceCache, surfaceHitReads } from '../surfaceCache/frame.ts'
 import { encodeReflectionTrace } from './trace/traceEncode.ts'
 import { screenProbeVectors } from '../bounce/screen/vectorSource.ts'
@@ -15,6 +20,8 @@ import { reflects } from '../../frame/backend/state/viewOverrides.ts'
 import { waterFrontOf } from '../../blend/water/waterReflection.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
 import { readHizSetting } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import type { ReflectionSettings } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
+import { blueNoiseNow, noiseViewOn } from '../../gpu/noise/blueNoiseTextures.ts'
 
 /** The device offset the temporal anti-aliasing shifts this image's view-projection by
  *  (`jitterViewProjection`), none when the image does not accumulate; the scratch tuple it fills is
@@ -29,27 +36,41 @@ function jitterOf({ gpu }: WebgpuPagesRuntime): readonly [number, number] {
   return jitter
 }
 
+/** The sphere that holds the first-person stand-ins, the scratch every image fills (`firstPersonBoundsOf`). */
+const firstPerson = new Float64Array(4)
+
 /** Stages the image's reflection view (`stageReflectionImage`), which the trace and the forward
  *  programs read: `traced`, whether the trace runs this image; unchanged, nothing is sent. */
-function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced: boolean) {
+function writeFrame(
+  rt: WebgpuPagesRuntime,
+  reflection: ScreenReflection,
+  settings: ReflectionSettings,
+  traced: boolean,
+) {
   const { gpu, run } = rt,
     { frame } = reflection
   frame.size = gpu.targetSize
   frame.depthDrawn = run.depthDrawn
+  frame.frameIndex = run.frame
   frame.eye = run.gate.cam.eye
   frame.preExposure = preExposureOf(rt).now
+  frame.firstPerson = firstPersonBoundsOf(rt, firstPerson)
+  // The view was cut, or the image the lit image was drawn at is not the one before: nothing of it describes this image, the history starts again.
+  const { held } = reflection.lit
+  const revision = run.gate.temporalRevision
+  frame.historyCut =
+    revision !== reflection.revision ||
+    (held.valid && !cameraSeen(previousCameraOf(rt), reflection.litFrame))
+  reflection.revision = revision
+  // The depth the last trace kept is the lit image's, where it is the same image.
+  frame.depthKept = held.valid && reflection.depthImage === held.image
   frame.jitter = jitterOf(rt)
-  frame.surroundings = reflection.surroundings(run.clearColor)
-  // The scene's extent bounds a ray the scene walks: the probes' cascades' reach, none without probes.
-  const cascades = rt.bounce.wanted ? rt.bounce.probes?.cascades : undefined
-  frame.sceneReach =
-    cascades && cascades.levels.length > 0 && cascades.probes > 0 ? cascades.reach : undefined
   // The transparents' front surface, answered where this very image's pass wrote it (`encodeFrontPass`).
   frame.front = traced && reflection.front.reflected === frontStamp(run.frame)
-  // What a ray may spend and which stages run, from the session's settings (`settings.ts`).
-  const settings = (frame.settings = reflection.settings(rt.context, waterFrontOf(rt)))
+  // The depth bias the hits of rays through the scene's triangles read the cards with, from the scene trace the lighting made for the image.
+  frame.cardDepthBias = sceneRaysOf(rt.surfaceCache?.lighting, run.frame)?.depthBias
+  frame.settings = settings
   stageReflectionImage(reflection, frame)
-  return settings
 }
 
 /**
@@ -96,17 +117,17 @@ export function opaquePyramidOf(rt: WebgpuPagesRuntime) {
 function bindTraceInputs(
   rt: WebgpuPagesRuntime,
   reflection: ScreenReflection,
-  settings: ReturnType<typeof writeFrame>,
+  settings: ReflectionSettings,
   surfaces: NonNullable<WebgpuPagesRuntime['gpu']['surfaces']>,
 ) {
   const { gpu, lights } = rt
   const views = surfaces.views()
   const { inputs } = reflection
-  inputs.base = views[0]
   inputs.flags = views[3]
   inputs.normals = views[1]
   inputs.lobes = surfaces.lobesView
   inputs.lights = lights.buffer!
+  inputs.fog = rayFogReadOf(gpu, gpu.deferred!.placeholders)
   inputs.field = reflectionField(rt)!
   // The rays marched through the field read the surface cache for their hits, and the main view's write what they
   // would have read finer (`feedbackBuffer.ts`).
@@ -118,11 +139,25 @@ function bindTraceInputs(
   // The vectors are this image's motion since the image before: read only against that image's history.
   const reach = vectorsReach(reflection.lit.held, reflection.frame.image ?? 0)
   inputs.vectors = (reach && screenProbeVectors(rt)) || reflection.noVectors
+  // The blue noise a ray's direction is drawn from: asked of the file here (`blueNoiseNow`), the stand-in bound until it is made.
+  blueNoiseNow(reflection.device)
+  inputs.blue = noiseViewOn(reflection.device)
   return writes
 }
 
+/** What the trace of an image's reflections needs of the view staged for it (`stageReflections`). */
+interface StagedReflections {
+  reflection: ScreenReflection
+  stages: NonNullable<WebgpuPagesRuntime['vis']['reflectionPipelines']>
+  depth: NonNullable<ReturnType<NonNullable<WebgpuPagesRuntime['vis']['gpuHiz']>['depth']>>
+  lightView: NonNullable<ReturnType<typeof reflectionLightView>>
+  surfaces: NonNullable<WebgpuPagesRuntime['gpu']['surfaces']>
+  settings: ReflectionSettings
+}
+
 /**
- * The image's reflections, before its lighting: the view uniform, then one compute pass — both
+ * The image's reflection view, staged before the screen probes, which read it (`stageReflections`), and the image's reflections traced after them
+ * (`traceReflections`), before its lighting, as the probes' light is what they read: the view uniform, then one compute pass — both
  * surfaces' rays, traced a pixel each, reused and accumulated (`trace/trace.ts`) into the reflection target the
  * resolve reads and the front radiance the forward fragments read, when the image is lit, its field
  * read from the bounce cascades, its hits from the surface cache. What the lighting's view holds of the image — its
@@ -131,12 +166,12 @@ function bindTraceInputs(
  * and accumulates, still or moving: a still view is how the history fills, a moving one how it
  * follows. A view that shows no lit image (`drawsLit`), or that does not `reflecting`, traces none (the view is still staged:
  * the screen probes and the translucency's light read it), and makes no grid for it.
+ * Staged here: the view, whether the image traces or not, and what the trace needs where it does (none else).
  */
-export function encodeReflections(
+export function stageReflections(
   rt: WebgpuPagesRuntime,
-  encoder: GPUCommandEncoder,
   reflecting: boolean,
-) {
+): StagedReflections | undefined {
   const { gpu, vis, lights, run } = rt,
     reflection = gpu.reflection,
     stages = vis.reflectionPipelines,
@@ -145,10 +180,19 @@ export function encodeReflections(
     lightView = reflectionLightView(rt)
   // This image traces nothing until its trace says so (`census.copy`).
   reflection?.census.idle()
-  if (!reflection || !stages || !lightView) return
+  if (!reflection || !stages || !lightView) {
+    // No reflection, no look: the view goes back to the plain light rather than keep the last one written.
+    gpu.deferred?.setReflectionLook(1, 1)
+    return undefined
+  }
+  // What a ray may spend and which stages run, from the session's settings (`settings.ts`): the `'off'` level traces nothing.
+  const settings = reflection.settings(rt.context, waterFrontOf(rt))
+  // The look of the light a surface reflects, which the lighting's passes read in the view whether this image traces or not.
+  gpu.deferred?.setReflectionLook(settings.contrast, settings.specularScale)
   const surfaces = gpu.surfaces,
     deferred = gpu.deferred,
     traced =
+      settings.enabled &&
       reflecting &&
       wantsContractLighting(rt) &&
       drawsLit(run.diagnostic) &&
@@ -156,30 +200,45 @@ export function encodeReflections(
       !!lights.buffer &&
       !!deferred
   // Every image whose radiance is built is staged, reflecting or not.
-  const settings = writeFrame(rt, reflection, traced)
-  if (!hiz || !depth) return
-  if (traced) {
-    const writes = bindTraceInputs(rt, reflection, settings, surfaces)
-    const group = reflectionGroup(reflection, depth, lightView, skyLightReadOf(rt))
-    // The rays count this image's alone: the counters emptied before the trace, copied after it.
-    reflection.census.clear(encoder)
-    encodeReflectionTrace(
-      encoder,
-      reflection,
-      stages,
-      reflection.inputs,
-      group,
-      gpu.targetSize,
-      [settings.block, settings.block],
-      settings.frontBlock,
-      !!reflection.frame.front,
-    )
-    reflection.census.copy(encoder, run.frame)
-    writes?.feedback.end(encoder, writes.cache)
-  }
+  writeFrame(rt, reflection, settings, traced)
+  if (!hiz || !depth || !traced) return undefined
+  return { reflection, stages, depth, lightView, surfaces, settings }
 }
 
-/** Whether the reflections have a lit image to keep: an image they staged (`encodeReflections` told its
+/** The image's reflections traced, over the view it staged (`stageReflections`) and the vectors the screen probes made of this image. */
+export function traceReflections(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  staged: StagedReflections | undefined,
+) {
+  if (!staged) return
+  const { reflection, stages, depth, lightView, surfaces, settings } = staged
+  const writes = bindTraceInputs(rt, reflection, settings, surfaces)
+  const group = reflectionGroup(reflection, depth, lightView, skyLightReadOf(rt))
+  // Where the scene has acceleration structures the scene stage's rays go through its triangles; else they are marched through the field.
+  const hardware = hardwareReflections(rt, reflection, settings)
+  reflection.inputs.rays = hardware?.rays
+  // The rays count this image's alone: the counters emptied before the trace, copied after it.
+  reflection.census.clear(encoder)
+  encodeReflectionTrace(
+    encoder,
+    reflection,
+    stages,
+    reflection.inputs,
+    group,
+    rt.gpu.targetSize,
+    [settings.block, settings.blockY],
+    settings.frontBlock,
+    [settings.reconstruction, settings.frontReconstruction],
+    !!reflection.frame.front,
+    hardware?.stage,
+  )
+  reflection.depthImage = reflection.frame.image ?? 0
+  reflection.census.copy(encoder, rt.run.frame, !hardware)
+  writes?.feedback.end(encoder, writes.cache)
+}
+
+/** Whether the reflections have a lit image to keep: an image they staged (`stageReflections` told its
  *  view of it). */
 const holdsLit = ({ gpu, vis }: WebgpuPagesRuntime) =>
   !!vis.reflectionPipelines && !!gpu.hdrTexture && !!gpu.deferred
@@ -196,6 +255,7 @@ export function holdReflectionImage(rt: WebgpuPagesRuntime) {
   const reflection = rt.gpu.reflection
   if (!reflection || !holdsLit(rt)) return
   const { frame } = reflection
+  reflection.litFrame = rt.run.frame
   holdLitImage(
     reflection.lit,
     frame.viewProjection,

@@ -1,8 +1,9 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { depthOfLogSlice, logSliceOfDepth, uvToNdc } from '../../../../math/src/wgsl/projection.ts'
+import { TEXTURE_FORMATS_TIER1_WGSL } from '../../gpu/core/textureFormatsTier.ts'
 import { DITHER_WGSL, quantizationErrorsOf } from '../../post/taa/colorSpaceWgsl.ts'
 import { STACKED_SAMPLE_WGSL, TV_SH_WGSL } from '../translucency/frameWgsl.ts'
-import { TRANSLUCENCY_GI_FORMAT, TRANSLUCENCY_GI_FRAME } from './layout.ts'
+import { TRANSLUCENCY_GI_FRAME } from './layout.ts'
 
 /** The frame's structure (`TranslucencyGiFrame`), which the program declares as `gi`. */
 export const GI_FRAME_WGSL = wgslBlock('GI_FRAME_WGSL', [], TRANSLUCENCY_GI_FRAME.wgsl)
@@ -52,25 +53,32 @@ export const GI_VISIBLE_WGSL = wgslBlock(
 }`,
 )
 
-/**
- * A LIGHT WRITTEN TO THE VOLUME'S FLOAT FORMAT (`giQuantize`): rounded stochastically, a draw of the texel and the image's rank among eight
- * (`xy` the texel, `z` the slice or the slice and the pass: the draw's third coordinate is `z · 8 + rank`) moving it by its own step times
- * the draw, so that the format's rounding averages to the value (`ditherFloat`, the format's `2^-mantissa`). Needs `gi.temporal.z`.
- */
-export const GI_QUANTIZE_WGSL = wgslBlock(
-  'GI_QUANTIZE_WGSL',
-  [GI_FRAME_WGSL, DITHER_WGSL],
-  `fn giQuantize(c:vec3f,xy:vec2u,z:u32)->vec3f{
- let slot=z*8u+u32(gi.temporal.z)%8u;
- return ditherFloat(c,frameRandom(vec2i(xy),slot).x,${quantizationErrorsOf(TRANSLUCENCY_GI_FORMAT)});
-}`,
-)
+/** What a program that binds a storage texture of `format` opens with: the 11-11-10 format is no core storage format (`TEXTURE_FORMATS_TIER1_WGSL`),
+ *  the others are. */
+export const giFormatWgsl = (format: GPUTextureFormat) =>
+  format === 'rg11b10ufloat' ? [TEXTURE_FORMATS_TIER1_WGSL] : []
 
 /**
- * THE VOLUME READ AT A POINT OF THE GRID (`giVolumeCoord`, `giSampleVolume`). The coordinate of a clip position is the image's across and the slice's
- * fraction of the grid's depth (the `slices` given, the slices' law `zParams`); the volume holds the ambient light in the first half of its depth and
- * the directional light in the second, each read trilinearly (`stackedSample`). The result is the ambient light in the first column, the directional
- * in the second.
+ * A LIGHT WRITTEN TO A FLOAT FORMAT (`giQuantize`), the texture's `format`: rounded stochastically, a draw of the texel and the image's rank among
+ * eight (`xy` the texel, `z` the slice or the slice and the pass: the draw's third coordinate is `z · 8 + rank`) moving it by its own step times
+ * the draw, so that the format's rounding averages to the value (`ditherFloat`, the format's `2^-mantissa`). Needs `gi.temporal.z`.
+ */
+export const giQuantizeWgsl = (format: GPUTextureFormat) =>
+  wgslBlock(
+    `giQuantizeWgsl(${format})`,
+    [GI_FRAME_WGSL, DITHER_WGSL],
+    `fn giQuantize(c:vec3f,xy:vec2u,z:u32)->vec3f{
+ let slot=z*8u+u32(gi.temporal.z)%8u;
+ return ditherFloat(c,frameRandom(vec2i(xy),slot).x,${quantizationErrorsOf(format)});
+}`,
+  )
+
+/**
+ * THE VOLUME READ AT A POINT OF THE GRID (`giVolumeCoord`, `giSampleVolumes`, `giSampleVolume`). The coordinate of a clip position is the image's across and the
+ * slice's fraction of the grid's depth (the `slices` given, the slices' law `zParams`). The volume the surfaces and the history read is two
+ * textures of the one grid, the ambient light and the directional light (`giSampleVolumes`); the fog's holds them in the two halves of one
+ * texture (`giSampleVolume`, `stackedSample`). Each is read trilinearly, the depth held half a slice inside; the result is the ambient light
+ * in the first column, the directional in the second.
  */
 export const GI_SAMPLE_WGSL = wgslBlock(
   'GI_SAMPLE_WGSL',
@@ -82,6 +90,11 @@ export const GI_SAMPLE_WGSL = wgslBlock(
 }
 fn giSampleVolume(volume:texture_3d<f32>,smp:sampler,uvw:vec3f,slices:f32)->mat2x3f{
  return mat2x3f(stackedSample(volume,smp,uvw,slices,0.0,2.0).xyz,stackedSample(volume,smp,uvw,slices,1.0,2.0).xyz);
+}
+/** The two lights of two textures of the one grid: the ambient light and the directional light, each read trilinear. */
+fn giSampleVolumes(ambient:texture_3d<f32>,directional:texture_3d<f32>,smp:sampler,uvw:vec3f,slices:f32)->mat2x3f{
+ let at=vec3f(uvw.xy,clamp(uvw.z*slices,0.5,slices-0.5)/slices);
+ return mat2x3f(textureSampleLevel(ambient,smp,at,0.0).xyz,textureSampleLevel(directional,smp,at,0.0).xyz);
 }`,
 )
 

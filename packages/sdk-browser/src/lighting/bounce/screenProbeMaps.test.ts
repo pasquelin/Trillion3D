@@ -4,6 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { spHistoryDepth } from './screen/historyWgsl.ts'
 import { spCommon } from './screen/commonWgsl.ts'
+import { spProbeRecords, spProbeWord, spSurface } from './screen/probesWgsl.ts'
 import {
   equalAreaDecode,
   equalAreaEncode,
@@ -95,4 +96,49 @@ test('a hit of the screen trace is kept by its gap in device depth, as the depth
     gap(0, [0, 0, 0.2, 1]) >= 1e30,
     'a texel that kept no surface holds no depth: it matches nothing',
   )
+})
+
+test("a probe's word keeps its normal as an 8-bit normalised octahedral pair rounds it, its speed as a half float and whether it has backface diffuse light or is hair in the speed's sign and last bit", () => {
+  const probe = shaderRun<{
+    spProbeWord: (normal: number[], speed: number, foliage: boolean, hair: boolean) => number
+    spProbeNormal: (word: number) => number[]
+    spProbeSpeed: (word: number) => number
+  }>(
+    wgslModule(spProbeWord, spProbeRecords(1, 2)),
+    ['spProbeWord', 'spProbeNormal', 'spProbeSpeed'],
+    {},
+  )
+  const word = (normal: number[], speed: number, foliage = false, hair = false) =>
+    probe.spProbeWord(normal, speed, foliage, hair) >>> 0
+  // (0, 0, 1) lies at the octahedron's middle: 0.5 · 255 + 0.5 is 128, on each byte; the speed 1.5 is 0x3e00 in half floats.
+  assert.equal(word([0, 0, 1], 1.5), ((0x3e00 << 16) | (128 << 8) | 128) >>> 0)
+  // (1, 0, 0) lies at the square's edge, x on 255 and y on the middle; (0, 0, -1) is the corner, folded to (1, 1).
+  assert.equal(word([1, 0, 0], 0), (128 << 8) | 255)
+  assert.equal(word([0, 0, -1], 0), (255 << 8) | 255)
+  assert.equal(probe.spProbeSpeed(word([0, 0, 1], 1.5)), 1.5)
+  // The kind: the sign bit of the speed half for backface diffuse light, the last bit of its mantissa for hair, neither changing the speed or the normal.
+  assert.equal(word([0, 0, 1], 1.5, true), (word([0, 0, 1], 1.5) | 0x80000000) >>> 0)
+  assert.equal(word([0, 0, 1], 1.5, false, true), (word([0, 0, 1], 1.5) | 0x10000) >>> 0)
+  assert.equal(probe.spProbeSpeed(word([0, 0, 1], 1.5, true, true)), 1.5)
+  assert.deepEqual(
+    probe.spProbeNormal(word([0, 0, 1], 1.5, true, true)),
+    probe.spProbeNormal(word([0, 0, 1], 1.5)),
+  )
+  // Both halves of the sphere come back unit, within the 8:8 octahedral map's worst angle (0.94 degrees).
+  for (const normal of [
+    [0.6, 0.0, 0.8],
+    [-0.36, 0.48, 0.8],
+    [0.48, -0.6, -0.64],
+    [-0.3, -0.5, -Math.sqrt(0.66)],
+  ]) {
+    const back = probe.spProbeNormal(word(normal, 2))
+    assert.ok(Math.abs(Math.hypot(...back) - 1) < 1e-5, `a unit normal ${normal}`)
+    const dot = back[0] * normal[0] + back[1] * normal[1] + back[2] * normal[2]
+    assert.ok(dot > Math.cos(0.0165), `${normal} -> ${back}: ${dot}`)
+  }
+})
+
+test('a pixel lit through its back is a thin double-sided sheet or a subsurface surface, whatever its colour', () => {
+  const code = wgslModule(spSurface(0, 1))
+  assert.match(code, /let foliage=\(flags&\d+u\)!=0u\|\|pixelModelOf\(flags\)==\d+u;/)
 })

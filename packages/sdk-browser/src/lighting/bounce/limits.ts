@@ -22,7 +22,7 @@ type BounceBinding = {
 type BounceAtlas = { name: string; extent: readonly number[] }
 
 /** The first atlas this device cannot make, written in the clear, or `null`. */
-function atlasLimitFailure(device: GPUDevice, atlases: readonly BounceAtlas[]) {
+export function atlasLimitFailure(device: GPUDevice, atlases: readonly BounceAtlas[]) {
   const { side, layers } = textureLimits(device.limits)
   for (const { name, extent } of atlases) {
     const [width, height, count = 1] = extent

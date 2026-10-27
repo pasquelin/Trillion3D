@@ -5,16 +5,11 @@ import {
 } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { resolveSettings } from '../../../../../sdk-core/src/contracts/settingRules.ts'
 import { createBounceCascades } from '../../../../../sdk-core/src/bounce/cascades.ts'
+import { BOUNCE_SETTINGS, type BounceShape } from '../../../../../sdk-core/src/bounce/contracts.ts'
 import { tableBytes, tableExtent } from '../atlas.ts'
 import { ensureBounceFits } from '../limits.ts'
 import { createBouncePool, type PoolStats } from '../pool/pool.ts'
-import {
-  POOL_MARK_WORDS,
-  POOL_QUEUE,
-  POOL_SLOT,
-  POOL_TABLE_TEXELS,
-  poolWorkWords,
-} from '../pool/poolLayout.ts'
+import { POOL_SLOT, poolShapeOf, poolWorkWords } from '../pool/poolLayout.ts'
 import { PROBE_QUEUE_WORDS } from './probeQueueWgsl.ts'
 import { createCacheKernels } from '../cache/cacheKernels.ts'
 import { createRadianceCache } from '../cache/radianceCache.ts'
@@ -30,19 +25,31 @@ const defaultScreenProbeSettings = (() => {
   return () => (made ??= resolveScreenProbes(resolveSettings(SCREEN_PROBE_RULES, {})))
 })()
 
+/** What a cache of probes is made to: the shape of its levels and pool, and whether the image's surfaces mark its cells (the world's probes) or
+ *  only the engine's other passes do (a cache of its own, like the translucency volume's). */
+export interface ProbeOptions {
+  shape?: BounceShape
+  surfaceMarks?: boolean
+}
+
 /**
  * What the probes are made of: the levels around the eye, the cell table and the levels' uniform, the pool and the radiance cache's
  * kernels — the storage released whole when one of them fails to build.
  */
-async function createProbeRig(device: GPUDevice, bounds: readonly number[]) {
-  const cascades = createBounceCascades(bounds)
+async function createProbeRig(
+  device: GPUDevice,
+  bounds: readonly number[],
+  { shape = BOUNCE_SETTINGS, surfaceMarks = true }: ProbeOptions,
+) {
+  const cascades = createBounceCascades(bounds, shape)
   const extent = tableExtent(cascades.levels.length * cascades.cells)
-  const queueBytes = POOL_QUEUE * PROBE_QUEUE_WORDS * 4
+  const queueBytes = cascades.probes * PROBE_QUEUE_WORDS * 4
+  const pool = poolShapeOf(cascades)
   ensureBounceFits(device, extent, queueBytes, [
     { name: 'pool slots', bytes: cascades.probes * POOL_SLOT.words * 4 },
-    { name: 'pool table', bytes: POOL_TABLE_TEXELS * 16 },
+    { name: 'pool table', bytes: pool.tableTexels * 16 },
     { name: 'pool work', bytes: poolWorkWords(cascades.probes) * 4 },
-    { name: 'marks', bytes: POOL_MARK_WORDS * 4 },
+    { name: 'marks', bytes: pool.markWords * 4 },
   ])
   const storage = createProbeStorage(device, cascades, queueBytes, extent)
   const { uniform, queue, table, view } = storage
@@ -52,12 +59,13 @@ async function createProbeRig(device: GPUDevice, bounds: readonly number[]) {
   }
   try {
     const cacheKernels = await createCacheKernels(device)
-    const pool = await createBouncePool(device, cascades, {
+    const bouncePool = await createBouncePool(device, cascades, {
       grid: uniform.buffer,
       published: view,
       queue,
+      surfaceMarks,
     })
-    return { cascades, uniform, queue, view, extent, pool, cacheKernels, release }
+    return { cascades, uniform, queue, view, extent, pool: bouncePool, cacheKernels, release }
   } catch (error) {
     release()
     throw error
@@ -76,15 +84,16 @@ function probeApi(
   const stats: PoolStats = pool.stats
   return {
     cascades,
-    /** The image's viewpoint taken before anything reads the levels or the cache this image: the maps made or given back — a
-     *  closed series finds work when they are made — and the levels re-centred on it. */
-    track(viewpoint: ArrayLike<number>) {
-      cache.follow(settings())
+    /** The image's viewpoint and the pre-exposure its light is cached under, taken before anything reads the levels or the cache this
+     *  image: the maps made or given back — a closed series finds work when they are made — and the levels re-centred on it. */
+    track(viewpoint: ArrayLike<number>, preExposure: number) {
+      cache.follow(settings(), preExposure)
       encoder.follow(viewpoint)
     },
     /** The image's probe pass, once `track` has taken its viewpoint (`probeEncode.ts`). */
     encode: encoder.encode,
     restart: encoder.restart,
+    discard: encoder.discard,
     get working() {
       return encoder.working
     },
@@ -92,12 +101,11 @@ function probeApi(
     get lastProbes() {
       return pool.stats.queued
     },
-    /** The placements moved or arrived: the reach re-placed, the series restarted, the cells the image reads marked again
-     *  (`probeSync.ts`), whether any did; `placements`: how many held a box then. */
+    /** The placements moved or arrived: the series restarted (`probeSync.ts`), whether any did; `placements`: how many held a box then. */
     sync: follow.sync,
     placements: () => follow.boxes.placements,
     /** The pool's last statistics that came back: probes alive, those holding nothing yet — zero once every cell the image reads
-     *  holds a map —, those short of their traces, marks refused for want of a probe, probes queued, cells marked (`pool/pool.ts`). */
+     *  holds a map —, those not traced since the lights last changed, marks refused for want of a probe, probes queued, cells marked (`pool/pool.ts`). */
     stats,
     uniform: uniform.buffer,
     /** The radiance cache: the maps of the light by direction in every probe, which the screen probes read. */
@@ -120,13 +128,11 @@ export async function createGpuBounceProbes(
   scene: ProbeScene,
   /** The declared-light buffer, read at each encode: it is replaced when the scene outgrows it. */
   lights: () => GPUBuffer,
-  /** The probes an image traces, those never traced first, in the cost of a whole map each (`resolveProbesPerFrame`): a count, or
-   *  what is read at each image. */
-  probesPerFrame: number | (() => number),
-  /** The screen probes' settings, which the radiance cache follows, read at each image. */
+  /** The settings the radiance cache follows (the screen probes', or a cache of its own), read at each image. */
   settings: () => ScreenProbeSettings = defaultScreenProbeSettings,
+  options: ProbeOptions = {},
 ) {
-  const rig = await createProbeRig(device, bounds)
+  const rig = await createProbeRig(device, bounds, options)
   const { cascades, uniform } = rig
   const restartCache = { remade: () => undefined as void }
   const cache = createRadianceCache(
@@ -136,16 +142,10 @@ export async function createGpuBounceProbes(
     () => restartCache.remade(),
   )
   const parts: ProbeParts = { cascades, pool: rig.pool, uniform, cache }
-  const encoder = createProbeEncoder(
-    parts,
-    lights,
-    typeof probesPerFrame === 'number' ? () => probesPerFrame : probesPerFrame,
-    settings,
-  )
-  restartCache.remade = encoder.retrace
+  const encoder = createProbeEncoder(parts, lights, settings)
+  restartCache.remade = encoder.discard
   const follow = createPlacementFollow({
     boxes: () => scene.boxes(),
-    cascades,
     restart: encoder.restart,
   })
   return probeApi(rig, cache, encoder, follow, settings)

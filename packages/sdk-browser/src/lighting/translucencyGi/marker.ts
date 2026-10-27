@@ -10,9 +10,9 @@ import { TRANSLUCENCY_GI_GROUP } from './layout.ts'
 import { MARK_GI_BINDING } from './markWgsl.ts'
 
 /**
- * The marks the pool runs for the cells' probes (`MarkSurface.markers`): the cells' mark while the volume is made and reads the radiance
- * cache — the reference registers its marking only then —, else none. The pool watches the list's length with the markers' revisions
- * (`createViewWatch`, `bounce/pool/pool.ts`): a volume that starts or stops marking marks again through the list alone.
+ * The marks a pool runs for the cells' probes (`MarkSurface.markers`): the cells' mark while the volume is made and reads the radiance
+ * cache — the reference registers its marking only then — of the pool that holds it: the world's (`'shared'`) or the volume's own
+ * (`'own'`), else none.
  *
  * WHEN IT RUNS. In the pool's pass (`encodePass`, `encodeDirectLights`), ahead of the update that consumes the marks, and AFTER the visibility passes of
  * this very image (`encodeVis.ts`: `encodeWebgpuVisibilityPasses` — the opaque depth in level 0 and the culling layer's farthest built from
@@ -24,28 +24,28 @@ import { MARK_GI_BINDING } from './markWgsl.ts'
  * WHAT IS THIS IMAGE'S, AND WHAT LAGS. The image has ONE submit (`submitColorCopy`), and every uniform is written with `queue.writeBuffer`,
  * which the queue runs before that submit's commands whatever the order the CPU wrote it in: the mark pass reads this image's frame of the
  * volume (`writeGiFrame`, written after the pool's pass is encoded), view of the lighting (`deferred.update`) and view of the reflections
- * (`writeFrame`). What the pool reads at ENCODE time is the volume's state as the image before left it: `marking` (a volume that starts or
- * stops marking does so one image later, through the list's length), its buffers (`held.resources`, replaced past a resize after the mark was
+ * (`writeFrame`). What the pool reads at ENCODE time is the volume's state as the image before left it: `marks` (a volume that starts or
+ * stops marking does so one image later), its buffers (`held.resources`, replaced past a resize after the mark was
  * encoded: that image marks with the old frame buffer, retired after the submit — `giveBack` — and the old grid) and `published.grid`,
  * the extent of the dispatch (a grid that grew is marked whole from the next image; a grid that shrank is cut by `gi.grid` in the pass).
  */
-export function translucencyGiMarkers(rt: WebgpuPagesRuntime): readonly PoolMarker[] {
+export function translucencyGiMarkers(
+  rt: WebgpuPagesRuntime,
+  pool: 'shared' | 'own',
+): readonly PoolMarker[] {
   const held = rt.gpu.translucencyGi
-  return held?.marking && held.resources ? held.markers : NO_MARKERS
+  return held?.marks === pool && held.resources ? held.markers : NO_MARKERS
 }
 
-/** The mark of the cells' probes (`PoolMarker`), its bind group made again only when the pool's buffers moved; its revision is the state's
- *  `markRevision` (`frame.ts`). */
+/** The mark of the cells' probes (`PoolMarker`), its bind group made again only when the pool's buffers moved. */
 export function markerOf(rt: WebgpuPagesRuntime, held: TranslucencyGiState): PoolMarker {
   const bound = createWebgpuBindIdentity()
   let group: GPUBindGroup | undefined
   return {
-    get revision() {
-      return held.markRevision
-    },
     mark(pass, grid, marks) {
       const device = rt.gpu.device
-      const kernels = device && translucencyGiKernels(device)
+      const kernels =
+        device && held.resources && translucencyGiKernels(device, held.resources.coneFormat)
       const reflection = reflectionGroupOf(rt)
       if (!device || !kernels || !reflection || !held.resources) return
       const { frame } = held.resources

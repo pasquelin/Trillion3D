@@ -1,7 +1,8 @@
 import { wgslBlock, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { hammersley16 } from '../../../../../math/src/wgsl/sampling.ts'
-import { TWO_PI } from '../../../../../math/src/wgsl/constants.ts'
+import { PI, TWO_PI } from '../../../../../math/src/wgsl/constants.ts'
+import { fastAtan2 } from '../../../../../math/src/wgsl/geometry.ts'
 import { PAGE_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { TV_SH_WGSL } from '../../translucency/frameWgsl.ts'
@@ -76,6 +77,18 @@ fn radTexel(page:u32,coord:vec2u)->RadTexel{
  r.cardCoord=vec2u(vec2f(scPageF(page,4u),scPageF(page,5u))*tiles*f32(LG_TILE)+vec2f(coord));
  return r;
 }
+/** The size, in probes, of the card of \`page\`'s mip. */
+fn cardSizeInProbes(page:u32)->vec2u{return vec2u(scPageW(page,PAGE_MIP_TILES_X),scPageW(page,PAGE_MIP_TILES_Y))*cardTileProbes();}
+/** The texel the probe \`probe\` of the card of \`page\`'s mip, a card \`sizeInProbes\` probes across, lies at, in the page of the mip
+ *  that holds it: none (\`inside\` down) where that page holds no lit probe. */
+fn cardProbeTexel(page:u32,sizeInProbes:vec2u,probe:vec2u)->RadTexel{
+ let coordInCard=probe*lp.spacing;
+ let pageCoord=coordInCard/vec2u(PHYSICAL_PAGE);
+ let pagesAcross=(sizeInProbes*lp.spacing)/vec2u(PHYSICAL_PAGE);
+ let neighbour=scPageW(page,PAGE_MIP_FIRST)+pageCoord.x+pageCoord.y*pagesAcross.x;
+ if(!pageHasProbes(neighbour)){var none:RadTexel;return none;}
+ return radTexel(neighbour,coordInCard-pageCoord*vec2u(PHYSICAL_PAGE)+pageJitter(neighbour));
+}
 /** The probe a texel of the atlas belongs to, in the probes' atlas. */
 fn probeAtlasCoord(atlas:vec2u)->vec2u{return atlas>>vec2u(lp.spacingShift);}
 /** Where the radiosity tile \`tile\` puts the probe \`probe\` of it, in the page, and the page it is of. */
@@ -122,6 +135,19 @@ fn planeWeight(position:vec3f,normal:vec3f,probe:vec3f)->f32{
  let relative=max(distance/(length(probe-position)+0.01),0.1);
  return select(0.0,1.0,exp2(lp.planeDepthScale*relative*relative)>0.01);
 }
+`,
+)
+
+/** The radiosity's shared text. */
+export const radiosityCommonWgsl = (): WgslDecl =>
+  wgslBlock('RADIOSITY_COMMON_WGSL', [hammersley16, RADIOSITY_WGSL], CONSTANTS)
+
+/** The rays of a probe, for the programs that draw them (`radiosityRay`); `noise` is the binding of the blue noise's mask. */
+export const radiosityRayWgsl = (noise: number): WgslDecl =>
+  wgslBlock(
+    `RADIOSITY_RAY_WGSL(${noise})`,
+    [TWO_PI, blueNoiseWgsl(0, noise), RADIOSITY_WGSL],
+    `
 /** The direction of ray \`ray\` of the probe \`probeCoord\` (its place on the card) of a texel of normal \`normal\`. */
 fn radiosityRay(normal:vec3f,temporal:u32,probeCoord:vec2u,ray:vec2u)->vec3f{
  let uv=(vec2f(ray)+blueNoiseVec2(probeCoord,jitterIndex(temporal)))/f32(lp.hemisphere);
@@ -131,12 +157,30 @@ fn radiosityRay(normal:vec3f,temporal:u32,probeCoord:vec2u,ray:vec2u)->vec3f{
  return b[0]*(sine*cos(phi))+b[1]*(sine*sin(phi))+b[2]*uv.y;
 }
 `,
-)
+  )
 
-/** The radiosity's shared text; `noise` is the binding of the blue noise's mask. */
-export const radiosityCommonWgsl = (noise: number): WgslDecl =>
+/** The probes' occlusion, for a program that reads the distances the radiosity's rays met their surfaces at (`probeHitDistance`, at `binding`
+ *  of group 0, one texel a ray, laid as the trace atlas is) and the visibility they give, beside the radiosity's shared text. */
+export const radiosityProbeVisibilityWgsl = (binding: number): WgslDecl =>
   wgslBlock(
-    `RADIOSITY_COMMON_WGSL(${noise})`,
-    [hammersley16, blueNoiseWgsl(0, noise), RADIOSITY_WGSL],
-    CONSTANTS,
+    `RADIOSITY_PROBE_VISIBILITY_WGSL(${binding})`,
+    [PI, TWO_PI, fastAtan2],
+    `@group(0) @binding(${binding}) var probeHitDistance:texture_2d<f32>;
+// A texel no trace has written yet holds 0 (the rays went through the distance field until the scene's triangles were traced): it is
+// read as a ray that met nothing within its reach, so a probe is not hidden before its first trace.
+fn traceHitDistance(ray:vec2u)->f32{let d=textureLoad(probeHitDistance,vec2i(ray),0).x;return select(d,lp.maxTrace,d<=0.0);}
+/** The visibility of the position \`tested\` from the probe \`probe\`: 1 where the surface the probe's ray met along the line to it lies beyond, 0 where
+ *  it lies nearer by the distance between them, eased over the part of that distance the strength (\`lp.probeOcclusionStrength\`) leaves. The ray is the
+ *  one the line falls on in the probe's hemisphere (the uniform mapping, as \`radiosityRay\` lays it), by the line's unit direction: its height
+ *  above the probe's plane is the ray's cosine, as the rays are laid. */
+fn probeVisibility(tested:vec3f,probe:RadTexel)->f32{
+ let toTested=tested-probe.position;
+ let distance2=dot(toTested,toTested);
+ if(distance2<=0.01){return 1.0;}
+ let distance=sqrt(distance2);
+ let inProbe=toTested*tangentBasis(probe.normal)/distance;
+ let uv=clamp(vec2f((fastAtan2(-inProbe.y,-inProbe.x)+PI)/TWO_PI,inProbe.z),vec2f(0.0),vec2f(0.99));
+ let ray=vec2u((vec2f(probeAtlasCoord(probe.atlas))+uv)*f32(lp.hemisphere));
+ return saturate((traceHitDistance(ray)-distance)/max((1.0-lp.probeOcclusionStrength)*distance,0.0001)+1.0);
+}`,
   )

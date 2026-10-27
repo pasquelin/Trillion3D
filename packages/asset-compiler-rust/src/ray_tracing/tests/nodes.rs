@@ -1,7 +1,10 @@
 //! The wide tree holds every triangle in one leaf, every box around its child, and a single item
 //! in one node.
 use super::{decode, node_of, soup, wide_of};
-use crate::ray_tracing::abi::{RAY_TRACING_LEAF_COUNT_SHIFT, RAY_TRACING_LEAF_TRIANGLES};
+use crate::ray_tracing::abi::{
+    RAY_TRACING_LEAF_COUNT_SHIFT, RAY_TRACING_LEAF_TRIANGLES, RAY_TRACING_MIN_EXPONENT,
+};
+use crate::ray_tracing::cut::CutTriangle;
 use crate::ray_tracing::nodes::exponent;
 use crate::ray_tracing::wide::Slot;
 
@@ -64,7 +67,30 @@ fn a_flat_or_a_single_item_tree_is_one_node() {
     let wide = wide_of(&one);
     assert_eq!(wide.nodes.len(), 1);
     assert_eq!(wide.triangles, [0]);
-    assert_eq!(exponent(0.0), -127);
+    assert_eq!(exponent(0.0), RAY_TRACING_MIN_EXPONENT);
+    assert_eq!(exponent(1e-300), RAY_TRACING_MIN_EXPONENT);
     assert!(2f64.powi(i32::from(exponent(255.0))) * 255.0 >= 255.0);
     assert!(2f64.powi(i32::from(exponent(1e-9))) * 255.0 >= 1e-9);
+}
+
+#[test]
+fn a_flat_tree_gets_the_least_exponent_the_shader_reads_and_its_boxes_stay_flat() {
+    // Triangles all in the plane z = 3: every box of the tree is flat along z.
+    let mut triangles = soup(40, 0xf1a7);
+    for CutTriangle { corners, .. } in &mut triangles {
+        corners.iter_mut().for_each(|corner| corner[2] = 3.0);
+    }
+    let wide = wide_of(&triangles);
+    for node in &wide.nodes {
+        let decoded = decode(&node_of(node));
+        // The least exponent, never a lesser one: the shader clamps there (`ST_MIN_EXPONENT`).
+        assert_eq!(decoded.exponents[2], RAY_TRACING_MIN_EXPONENT);
+        assert!(decoded.exponents[0] > RAY_TRACING_MIN_EXPONENT);
+        for slot in 0..8 {
+            if node.slots[slot].bounds().is_some() {
+                let (low, high) = decoded.child_box(slot);
+                assert_eq!((low[2], high[2]), (3.0, 3.0));
+            }
+        }
+    }
 }

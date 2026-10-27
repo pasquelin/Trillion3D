@@ -39,7 +39,7 @@ export function fogLights(fog: object | undefined) {
 /** What `sceneStage` is run with: the hit of the march through the field in metres from the point the ray leaves
  *  the surface at (none: the march meets nothing) and the steps it takes, the half-extent in centimetres of the clipmap
  *  that holds the ray (252 voxels across), the flags of the stages that run, the metres a ray leaves a surface by
- *  along itself, the scene's edge, the longest ray, and what the surface cache gives the hit. */
+ *  along itself, the longest ray, and what the surface cache gives the hit. */
 export type SceneStage = {
   hit?: number
   steps?: number
@@ -48,7 +48,6 @@ export type SceneStage = {
   clipmaps?: number
   traced?: boolean
   bias?: number
-  edge?: number
   longest?: number
   /** The light the cache gives the hit, none where no card gives any. */
   light?: Vec3 | null
@@ -95,7 +94,6 @@ export function sceneStage(stage: SceneStage = {}) {
     clipmaps = 1,
     traced = true,
     bias = 0,
-    edge = 200,
     longest = 200,
     light = [1, 0.5, 0.25],
     hiRes = true,
@@ -111,12 +109,13 @@ fn testWork()->u32{return reflectionWork;}`
   const run = shaderRun<{
     reflectionSceneTrace: (
       P: Vec3,
+      N: Vec3,
       lobe: object,
-      left: number,
-      bound: number,
+      begin: number,
       pixel: number[],
       cone: number,
-    ) => { answer: { color: Vec3; confidence: number; distance: number }; open: number }
+      firstPerson: boolean,
+    ) => { answer: { color: Vec3; hit: boolean; distance: number }; open: boolean }
     reflectionLobeOf: (R: Vec3, alpha: number, lobe: number[]) => object
     testFate: () => number
     testWork: () => number
@@ -140,9 +139,9 @@ fn testWork()->u32{return reflectionWork;}`
       return { hitTime: hit === undefined ? -1 : hit * 100, clipmap: 0, steps, expand: 0 }
     },
     reflectionView: {
-      slab: [1, 0, 0, 1],
+      slab: [0.01, 0, 0, 1],
       scene: [defaultReflections().screenSteps, 16, flags, 0],
-      reach: [bias, 2000, edge, 0],
+      reach: [bias, 2000, 0, 0],
       march: [0.005, 2, 0, longest],
       temporal: [0, 0, 0, 0],
     },
@@ -150,9 +149,8 @@ fn testWork()->u32{return reflectionWork;}`
     reflectionFate: 0,
     reflectionWork: 0,
     reflectionOrigin: [0, 0, 0],
-    // The pixel is a centimetre of the world at a metre: a tangent of 0.01.
-    reflectionPixelAt: () => 0.01,
-    viewEyeDistance: () => 1,
+    // The cone the cache is read with is the ray's cone angle itself, as `reflectionHitSpread`'s own test says what it makes of it.
+    reflectionHitSpread: (cone: number) => cone,
     scGlobalHit: (
       origin: Vec3,
       R: Vec3,
@@ -168,9 +166,9 @@ fn testWork()->u32{return reflectionWork;}`
     },
     reflectionSeenAt: (radiance: Vec3) => radiance,
   })
-  const walk = (origin: Vec3, direction: Vec3, bound = 1e9, pixel = [0, 0], left = 0, cone = 0) => {
+  const walk = (origin: Vec3, direction: Vec3, pixel = [0, 0], begin = 0, cone = 0) => {
     const lobe = run.reflectionLobeOf(direction, 0, [0, 0, 0, 0])
-    const out = run.reflectionSceneTrace(origin, lobe, left, bound, pixel, cone)
+    const out = run.reflectionSceneTrace(origin, [0, 1, 0], lobe, begin, pixel, cone, false)
     return { ...out, fate: REFLECTION_FATES[run.testFate()], work: run.testWork() }
   }
   return Object.assign(walk, { marches, reads })

@@ -1,3 +1,4 @@
+import { DEFAULT_LIGHTING_CHANNELS_MASK } from '../../../../sdk-core/src/contracts/lightingChannelsAbi.ts'
 import type { MeshCards } from '../../../../sdk-core/src/lighting/meshCardsFile.ts'
 import {
   invalidatePlacement,
@@ -56,6 +57,7 @@ interface Held {
   version: number
   live: boolean
   surfaceVersion: number
+  channels: number
 }
 
 /** The matrix of `root`, by column. */
@@ -107,7 +109,7 @@ function shareOf(state: PlacementState, cardsOfMesh: MeshCards, root: CardRoot) 
 }
 
 /** Tells the cache the placement `entry` stands as its root has it now. */
-function tell(state: PlacementState, cache: SurfaceCache, entry: Held) {
+function tell(state: PlacementState, cache: SurfaceCache, entry: Held, channels: number) {
   const surface = entry.root.worn?.surface
   setPlacement(cache, entry.id, {
     world: worldOf(entry.root),
@@ -115,7 +117,9 @@ function tell(state: PlacementState, cache: SurfaceCache, entry: Held) {
     shareId: shareOf(state, entry.cards, entry.root),
     emissive: surface ? emits(surface) : false,
     opaqueOrMasked: surface ? !surface.transparent : true,
+    lightingChannels: channels,
   })
+  entry.channels = channels
   entry.version = entry.root.worldAt ?? 0
   entry.key = keyOf(entry.cards, entry.root)
   entry.live = true
@@ -159,14 +163,16 @@ function resync(state: PlacementState, cache: SurfaceCache, roots: readonly Card
       version: NaN,
       live: false,
       surfaceVersion: root.worn?.surface.version ?? 0,
+      channels: DEFAULT_LIGHTING_CHANNELS_MASK,
     }
     state.held.add(entry)
     state.ids.set(id, entry)
   }
 }
 
-/** Brings each placement held to the state of its root: moved, shown or hidden, its material written. */
-function poll(state: PlacementState, cache: SurfaceCache) {
+/** Brings each placement held to the state of its root: moved, shown or hidden, its object's lighting channels
+ *  changed (`channelsOf`, by the placement), its material written. */
+function poll(state: PlacementState, cache: SurfaceCache, channelsOf: (entry: Held) => number) {
   for (const entry of state.held) {
     const visible = rootVisible(entry.root)
     if (!visible) {
@@ -177,7 +183,9 @@ function poll(state: PlacementState, cache: SurfaceCache) {
       continue
     }
     const version = entry.root.worldAt ?? 0
-    if (!entry.live || version !== entry.version) tell(state, cache, entry)
+    const channels = channelsOf(entry)
+    if (!entry.live || version !== entry.version || channels !== entry.channels)
+      tell(state, cache, entry, channels)
     const surfaceVersion = entry.root.worn?.surface.version ?? 0
     if (surfaceVersion !== entry.surfaceVersion) {
       entry.surfaceVersion = surfaceVersion
@@ -186,9 +194,27 @@ function poll(state: PlacementState, cache: SurfaceCache) {
   }
 }
 
-/** The placements of the scene whose meshes' cards are `cards`. */
-export function createCardPlacements(cards: readonly MeshCards[]) {
-  const state: PlacementState = {
+/** The rank, in the cut's tables, each root of a list stands as: kept for the list it was last asked of. */
+function createRanker() {
+  /** The rank of each root of the list the ranks were last asked of, in the cut's tables. */
+  const ranks = new Map<TrackedRoot, number>()
+  let ranked: readonly TrackedRoot[] | undefined
+  let rankedCount = -1
+  /** The rank, in the cut's tables, `root` of `roots` stands as, -1 for a root that is none of them. */
+  return (root: TrackedRoot | undefined, roots: readonly TrackedRoot[]) => {
+    if (ranked !== roots || rankedCount !== roots.length) {
+      ranks.clear()
+      roots.forEach((each, rank) => ranks.set(each, each.standsFor ?? rank))
+      ranked = roots
+      rankedCount = roots.length
+    }
+    return (root && ranks.get(root)) ?? -1
+  }
+}
+
+/** No placement held, for the meshes whose cards are `cards`. */
+function emptyPlacementState(cards: readonly MeshCards[]): PlacementState {
+  return {
     byMesh: new Map(cards.filter((c) => !c.hlodCell).map((c) => [c.mesh, c])),
     byCell: new Map(cards.filter((c) => c.hlodCell).map((c) => [c.mesh, c])),
     held: new Set<Held>(),
@@ -199,13 +225,15 @@ export function createCardPlacements(cards: readonly MeshCards[]) {
     surfaceCount: 0,
     nextId: 0,
   }
+}
+
+/** The placements of the scene whose meshes' cards are `cards`. */
+export function createCardPlacements(cards: readonly MeshCards[]) {
+  const state = emptyPlacementState(cards)
   let lastRoots: readonly TrackedRoot[] | undefined
   let lastCount = -1
   let lastEpoch = NaN
-  /** The rank of each root of the list the ranks were last asked of, in the cut's tables. */
-  const ranks = new Map<TrackedRoot, number>()
-  let ranked: readonly TrackedRoot[] | undefined
-  let rankedCount = -1
+  const rankOfRoot = createRanker()
 
   return {
     /** How many placements are held. */
@@ -221,29 +249,27 @@ export function createCardPlacements(cards: readonly MeshCards[]) {
      * stand-in for an actor of the world DAG (`TrackedRoot.standsFor`) the world DAG's. -1 for a number
      * that names none.
      */
-    rankOf(id: number, roots: readonly TrackedRoot[]) {
-      if (ranked !== roots || rankedCount !== roots.length) {
-        ranks.clear()
-        roots.forEach((root, rank) => ranks.set(root, root.standsFor ?? rank))
-        ranked = roots
-        rankedCount = roots.length
-      }
-      const root = state.ids.get(id)?.root
-      return (root && ranks.get(root)) ?? -1
-    },
+    rankOf: (id: number, roots: readonly TrackedRoot[]) =>
+      rankOfRoot(state.ids.get(id)?.root, roots),
     /**
      * Brings the cache's placements level with `roots` — the cut's, the HLOD cells' stand-ins joined to
      * them while the cut draws the cells' actors (`MeshFieldScene.roots`) —; `epoch` changes when the
-     * scene changed shape.
+     * scene changed shape; `channelsOfRank` gives the mask of the lighting channels of the object of the cut's root of a
+     * rank (`rankOf`).
      */
-    sync(cache: SurfaceCache, roots: readonly TrackedRoot[], epoch: number) {
+    sync(
+      cache: SurfaceCache,
+      roots: readonly TrackedRoot[],
+      epoch: number,
+      channelsOfRank: (rank: number) => number,
+    ) {
       if (roots !== lastRoots || roots.length !== lastCount || epoch !== lastEpoch) {
         lastRoots = roots
         lastCount = roots.length
         lastEpoch = epoch
         resync(state, cache, roots)
       }
-      poll(state, cache)
+      poll(state, cache, (entry) => channelsOfRank(rankOfRoot(entry.root, roots)))
     },
   }
 }

@@ -1,15 +1,18 @@
 import type { BounceCascades } from '../../../../../sdk-core/src/bounce/cascades.ts'
+import { probeQueueShapeOf } from '../../../../../sdk-core/src/bounce/contracts.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { BOUNCE_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import type { SurfaceHitReads } from '../../surfaceCache/hitWgsl.ts'
+import type { SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
 import type { RadianceCache } from '../cache/radianceCache.ts'
-import type { BouncePool, MarkSurface } from '../pool/pool.ts'
+import type { BouncePool, MarkSurface, PoolWork } from '../pool/pool.ts'
 import type { createBounceUniform } from '../uniform.ts'
 import type { PlacementBoxes } from '../../../geometry/dag/placement/placementBoxes.ts'
 import type { SkyLightReadSet } from '../../../modules/sky/skyLight/read.ts'
 
-/** What the probes read of the scene's placements (`geometry/dag/placement/placementBoxes.ts`, through the selection): their extent,
- *  which the rays' reach is laid on. The rays march the global distance field. */
+/** What the probes read of the scene's placements (`geometry/dag/placement/placementBoxes.ts`, through the selection): their extent, the
+ *  levels first centred on it, and the moves that restart the series. The rays march the global distance field, or are cast through the
+ *  scene's triangles where the image has the scene trace. */
 export type ProbeScene = {
   boxes(): PlacementBoxes
 }
@@ -23,31 +26,49 @@ export type ProbeParts = {
   cache: RadianceCache
 }
 
-/** The work of an image: whether it marks and whether the levels slid. */
-type Work = {
-  marking: boolean
-  slid: boolean
-}
-
-/** What the pool is asked to trace an image: the budget, in probes' cost, and the squares of the distances from the eye at which the
- *  cost of a probe changes, as the screen probes' settings give them. */
-type PoolBudget = { probesPerFrame: number; downsampleSq: number; supersampleSq: number }
-
 /** The bounce pass of an image: the pool's work — the cells it reads marked, the probes given and taken back, the ones to trace chosen
- *  and the queue and the table written. The probes queued are the GPU's to count: every dispatch over them takes the arguments the pool wrote. */
+ *  and the queue and the table written. The probes queued are the GPU's to count: every dispatch over them takes the arguments the pool wrote.
+ *  Returns the block of probes the queue is laid in, and whether the pass is a full update. */
 function encodePass(
   parts: ProbeParts,
   encoder: GPUCommandEncoder,
   surface: MarkSurface | undefined,
-  work: Work,
-  budget: PoolBudget,
+  work: PoolWork,
+  atlasDownsample: number,
 ) {
-  const { pool } = parts
-  pool.clear(encoder, work)
+  const { pool, cascades } = parts
+  const full = pool.full
+  const queue = probeQueueShapeOf(work.probesPerFrame, atlasDownsample, full, cascades.probes)
+  work.queueProbes = queue.probes
+  pool.clear(encoder)
   const pass = encoder.beginComputePass({ label: BOUNCE_PASS })
-  pool.dispatch(pass, { ...work, ...budget }, surface)
+  pool.dispatch(pass, work, surface)
   pass.end()
   pool.copy(encoder)
+  return { ...queue, full }
+}
+
+/** A pool's work before the first image fills it. */
+function newWork(): PoolWork {
+  return {
+    probesPerFrame: 0,
+    queueProbes: 0,
+    keepFrames: 0,
+    markDownsample: 1,
+    interpolateDownsample: 1,
+    downsampleSq: 0,
+    supersampleSq: 0,
+  }
+}
+
+/** The pool's work of an image, from the radiance cache's settings. */
+function fillWork(work: PoolWork, cache: ScreenProbeSettings['cache']) {
+  work.probesPerFrame = cache.budget
+  work.keepFrames = cache.framesToKeepProbes
+  work.markDownsample = cache.markDownsample
+  work.interpolateDownsample = cache.interpolateDownsample
+  work.downsampleSq = cache.downsampleSq
+  work.supersampleSq = cache.supersampleSq
 }
 
 /**
@@ -57,55 +78,64 @@ function encodePass(
 export function createProbeEncoder(
   parts: ProbeParts,
   lights: () => GPUBuffer,
-  /** The probes an image traces, in the cost of a whole map each: read at each image. */
-  probesPerFrame: () => number,
   /** The screen probes' settings, which the radiance cache follows: read at each image. */
   settings: () => ScreenProbeSettings,
 ) {
   const { cascades, pool } = parts
   let frame = 0
-  const budget: PoolBudget = { probesPerFrame: 0, downsampleSq: 0, supersampleSq: 0 }
   /** The work of the image in hand, refilled each image. */
-  const work: Work = { marking: false, slid: false }
+  const work = newWork()
   return {
-    /** Every probe is traced again: the maps of the radiance cache were made again. */
-    retrace: pool.restart,
-    /** A light changed, or the placements: every probe is traced again, and the cells the image reads are marked again. */
-    restart() {
-      pool.restart()
-      pool.stale()
-    },
-    /** The series is open: a probe holding nothing or short of its traces, a mark owed or statistics still to come back. */
+    /** The lights changed, or the placements, or the maps of the radiance cache were made again: the series is open till every probe is
+     *  traced since. */
+    restart: pool.restart,
+    /** The maps of the radiance cache were made again, or the lighting changed by a great deal: the next pass is a full update (`pool.discard`). */
+    discard: pool.discard,
+    /** The series is open: a probe holding nothing or not traced since the last change, or statistics still to come back. */
     get working() {
       return pool.working
     },
-    /** The levels re-centred on the image's viewpoint, before anything reads them this image: whether they slid. */
+    /** The levels re-centred on the image's viewpoint, before anything reads them this image. */
     follow(viewpoint: ArrayLike<number>) {
-      work.slid = cascades.follow(viewpoint)
+      cascades.follow(viewpoint)
     },
     /** Encodes an image's marks (`surface`: what it drew) and a probe batch, whose maps the radiance cache traces through the global
-     *  distance field, its hits reading the surface cache (`reads`), those that leave the scene reaching the sky light (`sky`); `false`
-     *  when there was nothing to do: the view still and marked, the series closed, no light. */
+     *  distance field — or, where the image made the scene trace (`rays`), through the scene's triangles —, its hits reading the
+     *  surface cache (`reads`), those that leave the scene reaching the sky light (`sky`), the light kept under the pre-exposure
+     *  `preExposure` (`cachedLightingPreExposureOf`). Under an orthographic view, `forward` is the
+     *  direction it looks along, which a probe's distance to the camera is measured along (`cameraDistanceSq`). */
     encode(
       encoder: GPUCommandEncoder,
-      lightsActive: number,
       viewpoint: ArrayLike<number>,
       sky: SkyLightReadSet,
       reads: SurfaceHitReads,
+      preExposure: number,
       surface?: MarkSurface,
+      rays?: SceneRays,
+      forward?: ArrayLike<number>,
     ) {
-      if (!lightsActive) return false
-      work.marking = pool.begin(surface, work.slid)
-      if (!work.marking && !work.slid && !pool.working) return false
       const now = settings()
       frame++
-      budget.probesPerFrame = probesPerFrame()
-      budget.downsampleSq = now.cache.downsampleSq
-      budget.supersampleSq = now.cache.supersampleSq
-      parts.uniform.write(frame, viewpoint)
-      encodePass(parts, encoder, surface, work, budget)
-      parts.cache.queued(now, { args: pool.args, lights: lights(), sky, reads, eye: viewpoint })
-      return true
+      fillWork(work, now.cache)
+      parts.uniform.write(
+        frame,
+        viewpoint,
+        now.values.screenProbeMaxTraceDistance,
+        now.cache.minTraceScale,
+        preExposure,
+        forward,
+      )
+      const queue = encodePass(parts, encoder, surface, work, now.cache.temporaryAtlasDownsample)
+      parts.cache.queued(now, {
+        args: pool.args,
+        lights: lights(),
+        sky,
+        reads,
+        eye: viewpoint,
+        rays,
+        preExposure,
+        queue,
+      })
     },
   }
 }

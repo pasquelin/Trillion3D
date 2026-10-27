@@ -7,19 +7,23 @@ import {
 } from '../../../gpu/core/computeBindings.ts'
 import { atlasEntry } from '../atlas.ts'
 import { skyLightReadLayoutEntries } from '../../../modules/sky/skyLight/read.ts'
-import { surfaceHitBindingsFrom, surfaceHitLayoutEntries } from '../../surfaceCache/hitWgsl.ts'
-import { RADIANCE_CACHE_FORMATS as F } from './cacheLayout.ts'
+import { dagReadLayoutEntries } from '../../../geometry/dag/shader/bindings.ts'
+import { sceneTraceLayoutEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
+import {
+  surfaceHitBindingsFrom,
+  surfaceHitCardsLayoutEntries,
+  surfaceHitLayoutEntries,
+} from '../../surfaceCache/hitWgsl.ts'
+import { RADIANCE_CACHE_FORMATS as F, RADIANCE_CACHE_TEMP_FORMATS as T } from './cacheLayout.ts'
 
 /** The bindings of the kernel that makes the trace tiles of the probes the frame queued (`cacheTilesWgsl.ts`): the levels' uniform,
- *  the cell table, the queue, the cache's parameters, the importance functions (read, written by the clear) and the list of the
- *  tiles. */
+ *  the cell table, the queue, the cache's parameters and the list of the tiles. */
 export const CACHE_TILES_BINDINGS = {
   grid: 0,
   table: 1,
   queue: 2,
   params: 3,
-  pdf: 4,
-  tiles: 5,
+  tiles: 4,
 } as const
 
 /** The layout of the tiles' kernel. */
@@ -30,14 +34,14 @@ export const cacheTilesEntries = () => {
     atlasEntry(B.table),
     computeBufferEntry(B.queue, 'read-only-storage'),
     computeUniformEntry(B.params),
-    computeBufferEntry(B.pdf, 'storage'),
     computeBufferEntry(B.tiles, 'storage'),
   ]
 }
 
 /** The bindings of the kernel that traces the tiles (`cacheTraceWgsl.ts`): the levels' uniform, the lights, the queue, the cell table,
- *  the sky light (the cubes its rays that leave the scene reach the sky by, and the harmonics' uniform), the tile list, the raw atlas
- *  written and the cache's parameters; and, from 22, what its rays' hits read (`CACHE_TRACE_HIT`). */
+ *  the sky light (the cubes its rays that leave the scene reach the sky by, and the harmonics' uniform), the tile list, the atlas
+ *  written — the raw atlas, or the trace atlas where the rays are cast through the scene's triangles — and the cache's parameters;
+ *  and, from 22, what its rays' hits read (`CACHE_TRACE_HIT`). */
 export const CACHE_TRACE_BINDINGS = {
   grid: 0,
   lights: 2,
@@ -64,8 +68,8 @@ export const CACHE_TRACE_SKY_LIGHT = {
   params: CACHE_TRACE_BINDINGS.skyParams,
 } as const
 
-/** The layout of the trace kernel. */
-export const cacheTraceEntries = () => {
+/** The layout of the trace kernel's first bindings, those of both its ways of casting the rays: all but what a hit reads. */
+const cacheTraceBaseEntries = () => {
   const B = CACHE_TRACE_BINDINGS
   return [
     computeUniformEntry(B.grid),
@@ -76,21 +80,70 @@ export const cacheTraceEntries = () => {
     computeStorageTextureEntry(B.raw, F.raw),
     computeUniformEntry(B.params),
     ...skyLightReadLayoutEntries(CACHE_TRACE_SKY_LIGHT, COMPUTE),
-    ...surfaceHitLayoutEntries(CACHE_TRACE_HIT),
+  ]
+}
+
+/** The layout of the trace kernel. */
+export const cacheTraceEntries = () => [
+  ...cacheTraceBaseEntries(),
+  ...surfaceHitLayoutEntries(CACHE_TRACE_HIT),
+]
+
+/** Where the trace that casts its rays through the scene's triangles reads what a hit finds, from 22 (`probeRayTracedWgsl.ts`): the
+ *  surface cache alone, the global field neither marched nor bound; the cut's tables it traces beside are at the culling's bindings
+ *  (1, 6, 7 and 9), and the scene trace's own group is the second. */
+export const CACHE_TRACED_HIT = { group: 0, cards: 22, instances: 30 } as const
+
+/** The scene trace's group and its first binding in it. */
+export const CACHE_TRACED_SCENE = { group: 1, first: 0 } as const
+
+/** The layouts of the trace kernel that casts its rays through the scene's triangles: its own group, then the scene trace's. */
+export const cacheTracedLayouts = () => [
+  [
+    ...cacheTraceBaseEntries(),
+    ...dagReadLayoutEntries(),
+    ...surfaceHitCardsLayoutEntries(CACHE_TRACED_HIT),
+  ],
+  sceneTraceLayoutEntries(CACHE_TRACED_SCENE.first),
+]
+
+/** The bindings of the kernel that spreads the trace atlas into the raw atlas (`cacheTraceWgsl.ts`): the levels' uniform, the cell table,
+ *  the queue, the cache's parameters, the tile list, the trace atlas and the raw atlas written. */
+export const CACHE_SPLAT_BINDINGS = {
+  grid: 0,
+  table: 1,
+  queue: 2,
+  params: 3,
+  tiles: 4,
+  trace: 5,
+  raw: 6,
+} as const
+
+/** The layout of the spread's kernel. */
+export const cacheSplatEntries = () => {
+  const B = CACHE_SPLAT_BINDINGS
+  return [
+    computeUniformEntry(B.grid),
+    atlasEntry(B.table),
+    computeBufferEntry(B.queue, 'read-only-storage'),
+    computeUniformEntry(B.params),
+    computeBufferEntry(B.tiles, 'read-only-storage'),
+    computeTextureEntry(B.trace, 'uint'),
+    computeStorageTextureEntry(B.raw, F.raw),
   ]
 }
 
 /** The bindings of the kernel that filters the maps (`cacheFilterWgsl.ts`): the levels' uniform, the cell table, the queue, the
- *  cache's parameters, the raw atlas, the final atlas written, the tags and the sky's share written. */
+ *  cache's parameters, the raw atlas, the filtered light and the filtered sky's share written, and the blue noise. */
 export const CACHE_FILTER_BINDINGS = {
   grid: 0,
   table: 1,
   queue: 2,
   params: 3,
   raw: 4,
-  final: 5,
-  tags: 6,
-  sky: 7,
+  filtered: 5,
+  filteredSky: 6,
+  noise: 7,
 } as const
 
 /** The layout of the filter kernel. */
@@ -102,32 +155,43 @@ export const cacheFilterEntries = () => {
     computeBufferEntry(B.queue, 'read-only-storage'),
     computeUniformEntry(B.params),
     computeTextureEntry(B.raw, 'uint'),
-    computeStorageTextureEntry(B.final, F.final),
-    computeBufferEntry(B.tags, 'storage'),
-    computeStorageTextureEntry(B.sky, F.sky),
+    computeStorageTextureEntry(B.filtered, T.filtered),
+    computeStorageTextureEntry(B.filteredSky, T.filteredSky),
+    computeTextureEntry(B.noise, 'float'),
   ]
 }
 
-/** The bindings of the kernel that makes a level of detail of the final maps from the one above (`cacheMipsWgsl.ts`): the levels'
- *  uniform, the cell table, the queue, the cache's parameters, the level above, read, and the level made, written. */
-export const CACHE_MIPS_BINDINGS = {
+/** The bindings of the kernel that fixes the borders of the final maps and makes their levels of detail (`cacheFixupWgsl.ts`): the levels'
+ *  uniform, the cell table, the queue, the cache's parameters, the raw atlas, the filtered light and sky's share, the first three levels of
+ *  detail of the final atlas written and its sky's share written. */
+export const CACHE_FIXUP_BINDINGS = {
   grid: 0,
   table: 1,
   queue: 2,
   params: 3,
-  above: 4,
-  below: 5,
+  raw: 4,
+  filtered: 5,
+  filteredSky: 6,
+  final0: 7,
+  final1: 8,
+  final2: 9,
+  sky: 10,
 } as const
 
-/** The layout of the levels' kernel. */
-export const cacheMipsEntries = () => {
-  const B = CACHE_MIPS_BINDINGS
+/** The layout of the fixup's kernel. */
+export const cacheFixupEntries = () => {
+  const B = CACHE_FIXUP_BINDINGS
   return [
     computeUniformEntry(B.grid),
     atlasEntry(B.table),
     computeBufferEntry(B.queue, 'read-only-storage'),
     computeUniformEntry(B.params),
-    computeTextureEntry(B.above, 'uint'),
-    computeStorageTextureEntry(B.below, F.final),
+    computeTextureEntry(B.raw, 'uint'),
+    computeTextureEntry(B.filtered, 'uint'),
+    computeTextureEntry(B.filteredSky, 'unfilterable-float'),
+    computeStorageTextureEntry(B.final0, F.final),
+    computeStorageTextureEntry(B.final1, F.final),
+    computeStorageTextureEntry(B.final2, F.final),
+    computeStorageTextureEntry(B.sky, F.sky),
   ]
 }

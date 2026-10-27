@@ -3,24 +3,9 @@ import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { SMALL_BINDINGS } from '../../../gpu/bind/bindLayout.ts'
-import {
-  COLOR_SAMPLE_WGSL,
-  TILE_POOL_WGSL,
-  maskAlphaWgsl,
-  tileDeclarations,
-} from '../../../materials/virtual/wgsl.ts'
-import { materialTableWgsl } from '../../../materials/table/materialWgsl.ts'
-import { NO_MASKS, maskKnowsPixel, type MaskSet } from '../../../materials/graph/maskProgram.ts'
-import { NO_WPO, type WpoSet } from '../../../materials/graph/wpoProgram.ts'
-import {
-  PAGE_INFO_STRUCT_WGSL,
-  VIS_UNIFORMS_WGSL,
-  maskKeepWgsl,
-} from '../../../visibility/shader/pageWgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL } from '../../../visibility/shader/pageWgsl.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../../visibility/shader/pageGeometryWgsl.ts'
-import { maskUvWgsl } from '../../../visibility/shader/pageUvSetWgsl.ts'
-import { wpoGraphWgsl } from '../../../visibility/shader/wpoGraphWgsl.ts'
-import { FLAG_DOUBLE, FLAG_MASK } from '../../../visibility/types.ts'
+import { FLAG_DOUBLE } from '../../../visibility/types.ts'
 import { visTriangle } from '../../../visibility/visWords.ts'
 import { MODE_DEPTH, MODE_ID, rasterEntry } from '../../../visibility/raster/contract.ts'
 import { RASTER_TRI_WGSL } from '../../../visibility/raster/triWgsl.ts'
@@ -69,12 +54,8 @@ const cardTarget = (): ClusterRasterTarget => ({
   frame: 'let vp=cardRowView.viewProj*page.world;\n let det=1.0;',
   clip: (v) => `vp*vec4f(pagePosition(page,h,${v}),1.0)`,
   setupPage: 'cardSides(page)',
-  triangle: `// A masked row's cutout coordinate and vertex alpha at its corners.
-   if(t.ok!=0u&&masked){
-    t.ua=vec3f(pageMaskUv(page,h,k.x),pageMaskAlpha(page,h,k.x));
-    t.ub=vec3f(pageMaskUv(page,h,k.y),pageMaskAlpha(page,h,k.y));
-    t.uc=vec3f(pageMaskUv(page,h,k.z),pageMaskAlpha(page,h,k.z));
-   }`,
+  triangle: '',
+  masked: 'false',
   entries: `@compute @workgroup_size(WORKGROUP_THREADS) fn ${rasterEntry(MODE_DEPTH)}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){clusterGroup(g,lane,n,${MODE_DEPTH}u);}
 @compute @workgroup_size(WORKGROUP_THREADS) fn ${rasterEntry(MODE_ID)}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){clusterGroup(g,lane,n,${MODE_ID}u);}`,
 })
@@ -95,7 +76,7 @@ fn cardSides(page:PageInfo)->PageInfo{var p=page;p.flags|=${FLAG_DOUBLE}u;return
 `
 
 /** The pixel stage: the fragment of a triangle of the card's picture, joining the atlas's buffer. */
-const pixelText = (keep: string) => `
+const pixelText = `
 fn writePixel(t:Tri,pixel:vec2i,c:vec3f,mode:u32){
  if(pixel.x>t.maxPixel.x||pixel.y>t.maxPixel.y){return;}
  let plane=t.depth.x+t.depth.y*c.y+t.depth.z*c.z;
@@ -106,49 +87,31 @@ fn writePixel(t:Tri,pixel:vec2i,c:vec3f,mode:u32){
  let offset=pixelOffset(vec2u(pixel)+cardRowView.rect.xy);
  let ids=mode==${MODE_ID}u;
  if(!visPasses(offset,key,ids)){return;}
- if((page.flags&${FLAG_MASK}u)!=0u){
-  let cut=triCutout(t,c);
-  let tc=cut.at;let ddx=cut.ddx;let ddy=cut.ddy;
-  if(!${keep}){return;}
- }
  visWrite(offset,key,page.packedBase|visTriangle(t.triangle),ids);
 }
 `
 
 /**
- * The raster's program. `masks` and `wpo` are the session's graphs, as the camera's raster holds them
- * (`cameraMasks`, `visibilityWpo`); `subgroups` the device's subgroup operations.
+ * The raster's program; `subgroups` the device's subgroup operations. The capture draws every
+ * surface through the fixed-function path — the programmable raster is off, as the reference's capture
+ * turns it off —: no alpha mask cuts a row (`cardTarget`: no row is masked) and no world position offset
+ * moves a vertex (`pageWpoLocal` stays its default of zero), whatever graphs the session holds.
  */
-export const cardRasterSource = (
-  masks: MaskSet = NO_MASKS,
-  wpo: WpoSet = NO_WPO,
-  subgroups = false,
-) =>
+export const cardRasterSource = (subgroups = false) =>
   wgslProgram(
     `@group(0) @binding(${SMALL_BINDINGS.indices}) var<storage,read> indices:array<u32>;
 @group(0) @binding(${SMALL_BINDINGS.positions}) var<storage,read> positions:array<f32>;
 @group(0) @binding(${SMALL_BINDINGS.pages}) var<storage,read> pages:array<PageInfo>;
 @group(0) @binding(${SMALL_BINDINGS.uniform}) var<uniform> uni:Uniforms;
 @group(0) @binding(${SMALL_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;
-${tileDeclarations(SMALL_BINDINGS.color, 'color')}
-@group(0) @binding(${SMALL_BINDINGS.sampler}) var mapsSampler:sampler;
 ${visWorkDeclaration(false, SMALL_BINDINGS.work)}
 // The table of views (\`cardViewTable.ts\`): the rows the image holds, then the views.
 @group(0) @binding(${SMALL_BINDINGS.lists}) var<storage,read> lists:array<u32>;
-${viewText}${pixelText(
-      maskKnowsPixel(masks)
-        ? 'maskKeepAt(page,tc.xy,tc.z,ddx,ddy,vec2f(pixel)+vec2f(0.5))'
-        : 'maskKeep(page,tc.xy,tc.z,ddx,ddy)',
-    )}${clusterRasterKernels(subgroups, cardTarget())}`,
+${viewText}${pixelText}${clusterRasterKernels(subgroups, cardTarget())}`,
     [
       PAGE_INFO_STRUCT_WGSL,
       VIS_UNIFORMS_WGSL,
-      TILE_POOL_WGSL,
-      COLOR_SAMPLE_WGSL,
       PAGE_GEOMETRY_WGSL,
-      materialTableWgsl(SMALL_BINDINGS.material),
-      maskUvWgsl(SMALL_BINDINGS.normals),
-      maskKeepWgsl(maskAlphaWgsl(false), masks),
       RASTER_TRI_WGSL,
       CARD_FRAME,
       CARD_BOX,
@@ -159,7 +122,6 @@ ${viewText}${pixelText(
       visTriangle,
       FLAT_INDEX_WGSL,
       WORKGROUP_THREADS_WGSL,
-      ...(wpo.programs.length ? [wpoGraphWgsl(wpo)] : []),
     ],
   )
 

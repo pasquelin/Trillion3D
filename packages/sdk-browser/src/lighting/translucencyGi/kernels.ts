@@ -10,11 +10,11 @@ import { validatedOrWhy } from '../../gpu/core/errorScope.ts'
 import { checkShaderModule } from '../../gpu/core/shaderModule.ts'
 import { track } from '../deferred/compileLedger.ts'
 import { reflectionLayout } from '../reflections/reflectionPipelines.ts'
-import { FILTER_GI_BINDING, FILTER_GI_PROGRAM } from './filterWgsl.ts'
-import { INTEGRATE_GI_BINDING, INTEGRATE_GI_PROGRAM } from './integrateWgsl.ts'
-import { TRANSLUCENCY_GI_FORMAT } from './layout.ts'
+import { FILTER_GI_BINDING, filterGiProgram } from './filterWgsl.ts'
+import { INTEGRATE_GI_BINDING, integrateGiProgram } from './integrateWgsl.ts'
+import { TRANSLUCENCY_GI_VOLUME_FORMAT, translucencyGiAmbientFormat } from './layout.ts'
 import { MARK_GI_BINDING, MARK_GI_PROGRAM } from './markWgsl.ts'
-import { TRACE_GI_PROGRAM, traceGiEntries } from './traceWgsl.ts'
+import { traceGiEntries, traceGiProgram } from './traceWgsl.ts'
 
 /** A kernel: its group 0's layout and its pipelines by entry point. */
 interface GiKernel<E extends string> {
@@ -70,11 +70,16 @@ async function kernelOf<E extends string>(
   return { layout, pipelines: await buildComputeStages(device, layouts, module, points) }
 }
 
-/** The four kernels, built together. */
-async function createTranslucencyGiKernels(device: GPUDevice): Promise<TranslucencyGiKernels> {
+/** The four kernels, built together, the trace and the filter over cones' light of the format `format`, the integration writing the ambient
+ *  volume in the format that follows from it (`translucencyGiAmbientFormat`). */
+async function createTranslucencyGiKernels(
+  device: GPUDevice,
+  format: GPUTextureFormat,
+): Promise<TranslucencyGiKernels> {
   const f = FILTER_GI_BINDING,
     i = INTEGRATE_GI_BINDING,
     m = MARK_GI_BINDING
+  const ambientFormat = translucencyGiAmbientFormat(format, device.features)
   const mark = partsOf(
     device,
     'MARK',
@@ -90,19 +95,19 @@ async function createTranslucencyGiKernels(device: GPUDevice): Promise<Transluce
   const trace = partsOf(
     device,
     'TRACE',
-    device.createShaderModule({ label: 'TRANSLUCENCY_GI_TRACE', code: TRACE_GI_PROGRAM }),
-    traceGiEntries(),
+    device.createShaderModule({ label: 'TRANSLUCENCY_GI_TRACE', code: traceGiProgram(format) }),
+    traceGiEntries(format),
     ['traceCones'],
     true,
   )
   const filter = partsOf(
     device,
     'FILTER',
-    device.createShaderModule({ label: 'TRANSLUCENCY_GI_FILTER', code: FILTER_GI_PROGRAM }),
+    device.createShaderModule({ label: 'TRANSLUCENCY_GI_FILTER', code: filterGiProgram(format) }),
     [
       computeUniformEntry(f.frame),
       computeTextureEntry(f.input, 'unfilterable-float', '3d'),
-      computeStorageTextureEntry(f.output, TRANSLUCENCY_GI_FORMAT, 'write-only', '3d'),
+      computeStorageTextureEntry(f.output, format, 'write-only', '3d'),
     ],
     ['filterX', 'filterY', 'filterZ'],
     false,
@@ -110,13 +115,19 @@ async function createTranslucencyGiKernels(device: GPUDevice): Promise<Transluce
   const integrate = partsOf(
     device,
     'INTEGRATE',
-    device.createShaderModule({ label: 'TRANSLUCENCY_GI_INTEGRATE', code: INTEGRATE_GI_PROGRAM }),
+    device.createShaderModule({
+      label: 'TRANSLUCENCY_GI_INTEGRATE',
+      code: integrateGiProgram(ambientFormat),
+    }),
     [
       computeUniformEntry(i.frame),
       computeTextureEntry(i.cones, 'unfilterable-float', '3d'),
-      computeTextureEntry(i.history, 'float', '3d'),
+      computeTextureEntry(i.historyAmbient, 'float', '3d'),
+      computeTextureEntry(i.historyDirectional, 'float', '3d'),
       computeSamplerEntry(i.sampler),
-      computeStorageTextureEntry(i.volume, TRANSLUCENCY_GI_FORMAT, 'write-only', '3d'),
+      computeStorageTextureEntry(i.ambient, ambientFormat, 'write-only', '3d'),
+      computeStorageTextureEntry(i.directional, TRANSLUCENCY_GI_VOLUME_FORMAT, 'write-only', '3d'),
+      computeStorageTextureEntry(i.fog, TRANSLUCENCY_GI_VOLUME_FORMAT, 'write-only', '3d'),
     ],
     ['integrateCells'],
     true,
@@ -130,24 +141,26 @@ async function createTranslucencyGiKernels(device: GPUDevice): Promise<Transluce
   return { mark: markKernel, trace: traceKernel, filter: filterKernel, integrate: integrateKernel }
 }
 
-/** What a device holds of the kernels: made once, off the frame; the reason the device refused them, when it did. */
+/** What a device holds of the kernels of a cones' format: made once, off the frame; the reason the device refused them, when it did. */
 interface KernelEntry {
   kernels?: TranslucencyGiKernels
   reason?: string
   /** Whether the refusal was told (`takeTranslucencyGiRefusal`). */
   told?: boolean
 }
-const entries = new WeakMap<GPUDevice, KernelEntry>()
+const entries = new WeakMap<GPUDevice, Map<GPUTextureFormat, KernelEntry>>()
 
-/** The kernels on `device`, asked of it off the frame the first time (the frames are drawn without the volume while they compile): none
- *  while they compile or if the device refused them (`takeTranslucencyGiRefusal`). */
-export function translucencyGiKernels(device: GPUDevice) {
-  let entry = entries.get(device)
+/** The kernels on `device` over cones' light of the format `format`, asked of it off the frame the first time (the frames are drawn without
+ *  the volume while they compile): none while they compile or if the device refused them (`takeTranslucencyGiRefusal`). */
+export function translucencyGiKernels(device: GPUDevice, format: GPUTextureFormat) {
+  let ofDevice = entries.get(device)
+  if (!ofDevice) entries.set(device, (ofDevice = new Map()))
+  let entry = ofDevice.get(format)
   if (entry) return entry.kernels
   entry = {}
-  entries.set(device, entry)
+  ofDevice.set(format, entry)
   const held = entry
-  const compile = validatedOrWhy(device, () => createTranslucencyGiKernels(device)).then(
+  const compile = validatedOrWhy(device, () => createTranslucencyGiKernels(device, format)).then(
     ({ value, refused }) => {
       if (value) held.kernels = value
       else held.reason = refused ?? 'the device refused the translucency volume'
@@ -158,9 +171,9 @@ export function translucencyGiKernels(device: GPUDevice) {
   return undefined
 }
 
-/** Why the device refused the kernels, once: none while they compile, if it did not, or once told. */
-export function takeTranslucencyGiRefusal(device: GPUDevice) {
-  const entry = entries.get(device)
+/** Why the device refused the kernels over cones' light of `format`, once: none while they compile, if it did not, or once told. */
+export function takeTranslucencyGiRefusal(device: GPUDevice, format: GPUTextureFormat) {
+  const entry = entries.get(device)?.get(format)
   if (!entry?.reason || entry.told) return undefined
   entry.told = true
   return entry.reason

@@ -3,7 +3,11 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { ditherLight, packLight, unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { lightingCommonWgsl, lightingLayersWgsl, surfaceTexelWgsl } from './commonWgsl.ts'
-import { radiosityCommonWgsl } from './radiosityCommonWgsl.ts'
+import {
+  radiosityCommonWgsl,
+  radiosityProbeVisibilityWgsl,
+  radiosityRayWgsl,
+} from './radiosityCommonWgsl.ts'
 
 /**
  * THE RADIOSITY'S PROBES, filtered and projected: two kernels over the radiosity tiles, which read the rays' radiance
@@ -13,7 +17,8 @@ import { radiosityCommonWgsl } from './radiosityCommonWgsl.ts'
  * - `radiosityFilter`, a thread a ray: the radiance is averaged with that ray of the probes about its own (four of
  *   them, or thirteen, `filterKernel`), weighted 2 for its own and 1 for each neighbour that lies in a page with
  *   probes and holds a surface on the texel's plane (`planeWeight`: a probe off it by more than the depth scale's limit is
- *   left out, `exp2(scale · (distance over the span between them)²) > 0.01`), the sum dithered in the last place of the
+ *   left out, `exp2(scale · (distance over the span between them)²) > 0.01`) and, with the probes' occlusion on (`FLAG_PROBE_OCCLUSION`),
+ *   no more than each of the two sees of the other (`probeVisibility`), the sum dithered in the last place of the
  *   word it is kept in. The neighbours' probes are found as the card lays them: the probe's place on the card
  *   over the card's page table, by the pages the card's mip spans (`PAGE_MIP_FIRST`), each page's own jitter. The result is
  *   kept in a buffer a ray a word, in the order the threads are;
@@ -22,7 +27,8 @@ import { radiosityCommonWgsl } from './radiosityCommonWgsl.ts'
  *   (2π) and the sum by one over the rays; written, one layer a channel, to the probes' harmonics at the probe's place.
  *
  * Bindings: 0 the parameters, 1 the tables, 2 the context, 3 and 4 the depth and normal layers, 5 the blue noise, 6 the
- * probes' trace atlas, 7 the filtered rays (`radiosityFilter` writes, `radiosityToSh` reads), 8 the probes' harmonics, written.
+ * probes' trace atlas, 7 the filtered rays (`radiosityFilter` writes, `radiosityToSh` reads), 8 the probes' harmonics, written, 9 the distances the rays
+ * met their surfaces at (read where the probes' occlusion is on).
  */
 
 export const RADIOSITY_FILTER_BINDINGS = {
@@ -34,6 +40,7 @@ export const RADIOSITY_FILTER_BINDINGS = {
   trace: 6,
   filtered: 7,
   harmonics: 8,
+  hits: 9,
 } as const
 
 const B = RADIOSITY_FILTER_BINDINGS
@@ -53,19 +60,16 @@ fn neighbourCount()->u32{return select(13u,4u,lp.filterKernel==1u);}
 fn traceAt(probeAtlas:vec2u,ray:vec2u)->vec3f{
  return unpackLight(textureLoad(probeTrace,vec2i(probeAtlas*lp.hemisphere+ray),0).x);
 }
-/** Adds the ray \`ray\` of the probe \`probeInCard\` of the page \`page\`'s card, if it lies in a lit page and holds a surface on the plane of the texel. */
+/** Adds the ray \`ray\` of the probe \`probeInCard\` of the page \`page\`'s card, if it lies on the card — a neighbour past its edge is no probe of it, never one of the
+ *  page that follows in the table — in a lit page, and holds a surface on the plane of the texel. */
 fn gatherNeighbour(texel:RadTexel,page:u32,probeInCard:vec2i,ray:vec2u,sum:ptr<function,vec3f>,weight:ptr<function,f32>){
- if(any(probeInCard<vec2i(0))){return;}
- let sizeInProbes=vec2u(scPageW(page,PAGE_MIP_TILES_X),scPageW(page,PAGE_MIP_TILES_Y))*cardTileProbes();
- let coordInCard=vec2u(probeInCard)*lp.spacing;
- let pageCoord=coordInCard/vec2u(PHYSICAL_PAGE);
- let pagesAcross=(sizeInProbes*lp.spacing)/vec2u(PHYSICAL_PAGE);
- let neighbour=scPageW(page,PAGE_MIP_FIRST)+pageCoord.x+pageCoord.y*pagesAcross.x;
- if(!pageHasProbes(neighbour)){return;}
- let at=radTexel(neighbour,coordInCard-pageCoord*vec2u(PHYSICAL_PAGE)+pageJitter(neighbour));
+ let size=cardSizeInProbes(page);
+ if(any(probeInCard<vec2i(0))||any(vec2u(probeInCard)>=size)){return;}
+ let at=cardProbeTexel(page,size,vec2u(probeInCard));
  if(!(at.inside&&at.valid)){return;}
  var w=1.0;
  if(lgFlag(FLAG_PLANE_WEIGHTING)){w=min(w,planeWeight(texel.position,texel.normal,at.position));}
+ if(lgFlag(FLAG_PROBE_OCCLUSION)){w=min(w,min(probeVisibility(texel.position,at),probeVisibility(at.position,texel)));}
  if(w>0.0){*sum+=traceAt(probeAtlasCoord(at.atlas),ray)*w;*weight+=w;}
 }
 `,
@@ -91,8 +95,7 @@ fn radiosityFilter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgrou
  if(texel.valid){
   var sum=unpackLight(centre)*2.0;
   var weight=2.0;
-  let sizeInProbes=vec2u(scPageW(probe.page,PAGE_MIP_TILES_X),scPageW(probe.page,PAGE_MIP_TILES_Y))*cardTileProbes();
-  let pageProbe=vec2u(vec2f(scPageF(probe.page,4u),scPageF(probe.page,5u))*vec2f(sizeInProbes));
+  let pageProbe=vec2u(vec2f(scPageF(probe.page,4u),scPageF(probe.page,5u))*vec2f(cardSizeInProbes(probe.page)));
   let probeInCard=vec2i(pageProbe+radTileCoord(radTileAt(at.tile))*radTileProbes()+at.probe);
   for(var k=0u;k<neighbourCount();k++){gatherNeighbour(texel,probe.page,probeInCard+neighbourOffset(k),at.ray,&sum,&weight);}
   let noise=blueNoiseScalar(own*lp.hemisphere+at.ray,texel.temporal+1u);
@@ -128,7 +131,9 @@ fn radiosityToSh(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups
   [
     lightingCommonWgsl({ tables: B.tables, context: { binding: B.context, access: 'read' } }),
     surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
-    radiosityCommonWgsl(B.noise),
+    radiosityCommonWgsl(),
+    radiosityRayWgsl(B.noise),
+    radiosityProbeVisibilityWgsl(B.hits),
     FILTER_WGSL,
     packLight,
     unpackLight,

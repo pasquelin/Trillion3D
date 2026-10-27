@@ -5,12 +5,14 @@ import type { SurfaceCacheSettings } from '../../../../../sdk-core/src/contracts
 import {
   hemisphereResolution,
   lightsPerTile,
+  litTiles,
   probeSpacing,
+  updateFrameFrozen,
   updateTilesOf,
 } from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
 import { CARD_TILE_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
-import { BOUNCE_SETTINGS } from '../../../../../sdk-core/src/bounce/contracts.ts'
-import type { SceneTraceWords } from '../../rays/sceneTrace/sceneTraceResources.ts'
+import type { SceneTrace, SceneTraceWords } from '../../rays/sceneTrace/sceneTraceResources.ts'
+import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
 import { contextLayout, LIGHTING_FLAG, LIGHTING_PARAMS, tracedShadowWords } from './layout.ts'
 
 /**
@@ -20,21 +22,25 @@ import { contextLayout, LIGHTING_FLAG, LIGHTING_PARAMS, tracedShadowWords } from
  * programs are made for (`shapeKey` says when they must be made again); `writeLightingParams` is the image's.
  */
 
-/** The longest a ray of the lighting travels, in centimetres: the bounce's reach. */
-const MAX_TRACE = BOUNCE_SETTINGS.rayReachMetres * CM
-
 /** The limits of the device that decide whether the traced rays' buffers fit: the most a storage buffer binds and a buffer holds. */
 export type BufferLimits = Pick<GPUSupportedLimits, 'maxStorageBufferBindingSize' | 'maxBufferSize'>
 
 /**
  * Whether every buffer of the rays through the scene's triangles fits a binding and a buffer of `limits`: the scene trace's
  * nodes, triangles and table of placements (`scene`, `sceneTraceWords`), and where the shadows are traced (`lightTiles`
- * light tiles, none where only the radiosity is) their masks, traces and light tiles (`tracedShadowWords`, the sizes they
- * are made at).
+ * light tiles, none where only the radiosity is) their masks in `format` — with the scratch of the light functions where `scratch` —,
+ * traces and light tiles (`tracedShadowWords`, the sizes they are made at).
  */
-export function tracedRaysFit(limits: BufferLimits, lightTiles: number, scene: SceneTraceWords) {
+export function tracedRaysFit(
+  limits: BufferLimits,
+  lightTiles: number,
+  scene: SceneTraceWords,
+  format: AtlasFormat,
+  scratch: boolean,
+) {
   const most = Math.min(limits.maxStorageBufferBindingSize, limits.maxBufferSize)
-  const shadows = lightTiles > 0 ? Object.values(tracedShadowWords(lightTiles)) : []
+  const shadows =
+    lightTiles > 0 ? Object.values(tracedShadowWords(lightTiles, format, scratch)) : []
   return [...shadows, ...Object.values(scene)].every((words) => words * 4 <= most)
 }
 
@@ -52,6 +58,8 @@ export interface LightingShape {
   readonly radiosityTiles: number
   readonly probesPerTile: number
   readonly raysPerProbe: number
+  /** Whether the radiosity keeps the distance each of its rays met a surface at, for the probes' occlusion (`probeOcclusionOf`). */
+  readonly probeOcclusion: boolean
 }
 
 /**
@@ -87,8 +95,21 @@ export function shapeOf(
     radiosityTiles: tiles.indirect * along * along,
     probesPerTile: (tileSize / spacing) ** 2,
     raysPerProbe: hemisphere * hemisphere,
+    probeOcclusion: probeOcclusionOf(settings),
   }
 }
+
+/** The strength of the probes' occlusion, held from 0 to 1. */
+const probeOcclusionStrength = (settings: SurfaceCacheSettings) =>
+  Math.min(Math.max(settings.surfaceCacheRadiosityProbeOcclusionStrength, 0), 1)
+
+/** Whether the probes' occlusion is asked for: it is on, with a strength over 0, for the radiosity's rays through the scene's triangles
+ *  (the rays marched through the field are too imprecise to tell the distance of a hit). */
+const probeOcclusionOf = (settings: SurfaceCacheSettings) =>
+  settings.surfaceCacheRadiosity &&
+  settings.surfaceCacheRadiosityHardwareRayTracing &&
+  settings.surfaceCacheRadiosityProbeOcclusion &&
+  probeOcclusionStrength(settings) > 0
 
 /** The shape as a key: two images with the same key use the same resources and programs. */
 export const shapeKey = (shape: LightingShape) => JSON.stringify(shape)
@@ -103,12 +124,14 @@ export function sizesOf(shape: LightingShape) {
   const probes = ceilDiv(shape.side, shape.spacing)
   return {
     context,
+    depthRangeWords: shape.directTiles,
     tileLightsWords: shape.directTiles * (shape.maxLights + 1),
     filteredWords: shape.radiosity
       ? shape.radiosityTiles * shape.probesPerTile * shape.raysPerProbe
       : 1,
     probeAtlas: shape.radiosity ? probes : 1,
     traceAtlas: shape.radiosity ? probes * shape.hemisphere : 1,
+    hitAtlas: shape.probeOcclusion ? probes * shape.hemisphere : 1,
   }
 }
 
@@ -152,12 +175,55 @@ export interface LightingImage {
   readonly viewPreExposure: number
   /** The first clipmap's half side of the global field, in centimetres. */
   readonly firstClipmapExtent: number
+  /** The longest a ray of the lighting travels, in metres: the furthest the view's rays look for a surface (`screenProbeMaxTraceDistance`). */
+  readonly maxTraceDistance: number
   /** Whether the radiosity's history was lost since the last image. */
   readonly historyLost: boolean
   /** Whether the rays' feedback can prioritise the pages: the feedback's buffer is made and the scene has acceleration
-   *  structures with `surfaceCacheDirectLightingHardwareRayTracing` on, whether or not the direct light is. It does where
-   *  `surfaceCacheLightingFeedback` is on. */
+   *  structures, whichever of the rays are cast through them. It does where `surfaceCacheLightingFeedback` is on. */
   readonly feedback: boolean
+  /** Whether the image's radiosity rays go through the scene's triangles, which write the distances the probes' occlusion reads. */
+  readonly tracedRadiosity: boolean
+  /** The word of the buffer the passes read the masks from where the scratch of the light functions begins (`standaloneScratchAt`):
+   *  after the masks where the shadows are traced, 0 where the buffer holds the scratch alone. */
+  readonly scratchAt: number
+  /** The exposure of the view the lights are strengthened under (`lightStrength`): the last image's, as the CPU knows it. */
+  readonly exposure: number
+}
+
+/** Whether the image's rays write the feedback: its buffer is made and the scene has acceleration structures — the scene's
+ *  hardware ray tracing as a whole, whichever of the lighting's own rays go through them. */
+export const feedbackWritten = (buffer: GPUBuffer | undefined, rayTracing: object | undefined) =>
+  buffer !== undefined && !!rayTracing
+
+/** The scene trace's view of this image (`SceneTrace.writeParams`): the eye, the cut's tree top, the bounds of a trace and the culling of the
+ *  placements, from the settings (centimetres taken to metres), the direction the camera looks along and the instances' draw
+ *  distances as the cut tests them: their scale (`viewDistanceFactor`) and whether they are tested (`cutDrawDistanceCulling`). */
+export function traceViewOf(
+  settings: SurfaceCacheSettings,
+  eye: ArrayLike<number>,
+  direction: readonly [number, number, number],
+  treeRoot: number,
+  instances: { readonly scale: number; readonly culled: boolean },
+): Parameters<SceneTrace['writeParams']>[0] {
+  return {
+    eye: [eye[0], eye[1], eye[2]],
+    treeRoot,
+    maxIterations: settings.surfaceCacheHardwareRayTracingMaxIterations,
+    skipBackFaceDistance: settings.surfaceCacheHardwareRayTracingSkipBackFaceHitDistance / CM,
+    skipTwoSidedDistance: settings.surfaceCacheHardwareRayTracingSkipTwoSidedHitDistance / CM,
+    skipsTranslucentSections: settings.surfaceCacheHardwareRayTracingMeshSectionVisibilityTest,
+    culling: {
+      mode: settings.rayTracingCulling,
+      radius: settings.rayTracingCullingRadius / CM,
+      angle: settings.rayTracingCullingAngle,
+      useDistanceToBox: settings.rayTracingCullingUseDistanceToBox,
+      useMinDrawDistance: settings.rayTracingCullingUseMinDrawDistance,
+      direction: [direction[0], direction[1], direction[2]],
+      viewDistanceScale: instances.scale,
+      instanceDrawDistance: instances.culled,
+    },
+  }
 }
 
 /** The flags word of an image: which of the lighting's passes and options are on. */
@@ -179,14 +245,18 @@ function lightingFlagsOf(
     (settings.surfaceCacheRadiosityTemporal ? LIGHTING_FLAG.temporal : 0) |
     (settings.surfaceCacheRadiosityProbePlaneWeighting ? LIGHTING_FLAG.planeWeighting : 0) |
     (image.historyLost ? 0 : LIGHTING_FLAG.historyValid) |
-    (settings.surfaceCacheFreezeUpdateFrame !== 0 ? LIGHTING_FLAG.freezeUpdateFrame : 0) |
+    (updateFrameFrozen(settings) ? LIGHTING_FLAG.freezeUpdateFrame : 0) |
     (settings.surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing
       ? LIGHTING_FLAG.adaptiveShadowTracing
       : 0) |
     (settings.surfaceCacheDirectLightingHardwareRayTracingForceTwoSided
       ? LIGHTING_FLAG.forceTwoSided
       : 0) |
-    (image.feedback && settings.surfaceCacheLightingFeedback ? LIGHTING_FLAG.feedback : 0)
+    (image.feedback && settings.surfaceCacheLightingFeedback ? LIGHTING_FLAG.feedback : 0) |
+    (settings.surfaceCacheDirectLightingCullToTileDepthRange
+      ? LIGHTING_FLAG.cullToTileDepthRange
+      : 0) |
+    (shape.probeOcclusion && image.tracedRadiosity ? LIGHTING_FLAG.probeOcclusion : 0)
   )
 }
 
@@ -207,18 +277,20 @@ export function writeLightingParams(
   words[at.frame] = image.frame
   words[at.pages] = image.pages
   words[at.flags] = flags
-  words[at.directTiles] = shape.directTiles
-  words[at.indirectTiles] = shape.indirectTiles
+  words[at.directTiles] = litTiles(settings, shape.directTiles)
+  words[at.indirectTiles] = litTiles(settings, shape.indirectTiles)
   words[at.directAt] = context.directAt
   words[at.indirectAt] = context.indirectAt
   words[at.radiosityAt] = context.radiosityAt
+  words[at.directPagesAt] = context.directPagesAt
+  words[at.indirectPagesAt] = context.indirectPagesAt
   words[at.radiosityTiles] = shape.radiosity ? shape.radiosityTiles : 0
   floats[at.firstClipmapRcp] = 1 / image.firstClipmapExtent
   floats[at.frustumDistance] = settings.surfaceCacheLightingMaxDistanceFromFrustumToPrioritize
   words[at.maxLights] = shape.maxLights
   floats[at.preExposure] = image.preExposure
   floats[at.shadowBias] = settings.surfaceCacheDirectLightingGlobalSdfShadowRayBias
-  floats[at.maxTrace] = MAX_TRACE
+  floats[at.maxTrace] = image.maxTraceDistance * CM
   words[at.spacing] = shape.spacing
   words[at.spacingShift] = Math.log2(nextPow2(shape.spacing))
   words[at.hemisphere] = shape.hemisphere
@@ -239,6 +311,9 @@ export function writeLightingParams(
   floats[at.cardMinDistance] =
     settings.surfaceCacheHardwareRayTracingMinTraceDistanceToSampleSurfaceCache
   words[at.selfIntersections] = settings.surfaceCacheHardwareRayTracingAvoidSelfIntersections
+  floats[at.probeOcclusionStrength] = probeOcclusionStrength(settings)
+  words[at.scratchAt] = image.scratchAt
+  floats[at.exposure] = image.exposure
   for (let k = 0; k < 3; k++) {
     floats[at.camera + k] = image.eye[k] * CM
     floats[at.eye + k] = image.eye[k]

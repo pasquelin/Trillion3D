@@ -2,6 +2,7 @@ import type { TranslucencyGiValues } from '../../../../sdk-core/src/contracts/tr
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { PoolMarker } from '../bounce/pool/pool.ts'
+import type { CacheRead } from './cache.ts'
 import { wordViews } from '../../gpu/core/wordViews.ts'
 import { TAU } from '../../../../math/src/constants.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
@@ -16,7 +17,7 @@ import {
 } from './layout.ts'
 import type { TranslucencyGiKernels } from './kernels.ts'
 import { markerOf } from './marker.ts'
-import { giSampler, type GiResources } from './resources.ts'
+import { giSampler, type GiResources, type GiVolume } from './resources.ts'
 import { traceGroupOf, type GiTraceInputs } from './traceGroup.ts'
 
 /** What a view keeps of the volume between two images: its resources at the size of the grid, the turn the two volumes take, whether the
@@ -37,16 +38,21 @@ export interface TranslucencyGiState {
   horizon: number
   /** The camera cuts seen: the history is none past one. */
   revision?: number
-  /** A number that moves when the cells the probes are marked from changed (the law, the point turning each image; `frame.ts`): the pool
-   *  marks again. */
-  markRevision: number
-  published: { view?: GPUTextureView; readonly grid: Float32Array; readonly z: Float32Array }
+  published: {
+    /** The two textures the surfaces read, ambient and directional. */
+    volume?: GiVolume
+    /** The light before its history and its intensity, which the fog reads (`integrateWgsl.ts`), in the same grid. */
+    fogView?: GPUTextureView
+    readonly grid: Float32Array
+    readonly z: Float32Array
+  }
   groups?: { filter: GPUBindGroup[]; integrate: GPUBindGroup[]; filtered: boolean }
   readonly trace: ReturnType<typeof createWebgpuBindIdentity>
   traceGroup?: GPUBindGroup
   readonly bytes: number
-  /** Whether the last image made a volume that reads the radiance cache, so the pool marks its cells' probes. */
-  marking: boolean
+  /** Which pool the last image made the volume mark its cells' probes in: the world's (a shared cache), the volume's own, or none (it reads no
+   *  radiance cache). */
+  marks: 'none' | 'shared' | 'own'
   /** The images since the volume was last wanted (`frame.ts`): the textures are given back past a few. */
   idle: number
   /** What the trace reads of the image, filled in place. */
@@ -67,8 +73,7 @@ export function newGiState(rt: WebgpuPagesRuntime): TranslucencyGiState {
     previousEye: new Float64Array(3),
     frames: 0,
     horizon: 0,
-    markRevision: 0,
-    marking: false,
+    marks: 'none',
     idle: 0,
     inputs: {} as GiTraceInputs,
     published: { grid: new Float32Array(4), z: new Float32Array(4) },
@@ -98,7 +103,8 @@ export interface GiImage {
 
 /** The numbers the history and the marks of an image depend on (`lawOf`, `frame.ts`), in `TranslucencyGiState.law`: the grid's cells
  *  (3) and the shift of its cell's side, the slices' law (3), the near plane and the cones a cell side — the history's —, then the
- *  marks' — the cascades the radiance cache is read coarser by (none where it is not read) and whether the point of a cell turns. */
+ *  marks' — the cascades the radiance cache is read coarser by (none where it is not read, nor in the volume's own cache) and whether the
+ *  point of a cell turns. */
 export const LAW_WORDS = 11
 /** The words of the law the history holds at: the volume's textures and the places of its cells. */
 export const LAW_HISTORY_WORDS = 9
@@ -114,6 +120,14 @@ function put(f: Float32Array, at: number, x: number, y: number, z: number, w: nu
   f[at + 3] = w
 }
 
+/** How an image reads the radiance cache: whether it does, the cascades it reads and marks coarser than the one that covers a cell (none in the
+ *  volume's own cache), and the shape of the maps. */
+export interface GiCacheRead {
+  cached: boolean
+  bias: number
+  cache: CacheRead
+}
+
 /** The frame's uniform written for an image: the grid, the view, the slices' law, the jitters, the settings of the trace, the filter and the
  *  history. Nothing is allocated by a call. */
 export function writeGiFrame(
@@ -122,7 +136,7 @@ export function writeGiFrame(
   grid: TranslucencyGiGrid,
   v: TranslucencyGiValues,
   image: GiImage,
-  cached: boolean,
+  read: GiCacheRead,
 ) {
   const { u, f } = FRAME_VIEWS
   const at = TRANSLUCENCY_GI_FRAME.at
@@ -155,7 +169,7 @@ export function writeGiFrame(
     v.translucencyGiTemporalHistoryWeight,
     image.history ? 1 : 0,
     image.frame,
-    cached ? v.translucencyGiRadianceCacheClipmapBias : 0,
+    read.bias,
   )
   const sigma = v.translucencyGiSpatialFilterStandardDeviation
   put(
@@ -164,7 +178,15 @@ export function writeGiFrame(
     v.translucencyGiSpatialFilterSampleCount,
     1 / (2 * sigma * sigma),
     1 / (sigma * Math.sqrt(TAU)),
-    cached ? 1 : 0,
+    read.cached ? 1 : 0,
+  )
+  put(
+    f,
+    at.cache,
+    read.cache.radiusScale,
+    read.cache.resolution,
+    read.cache.mipmaps,
+    read.cache.sky ? 1 : 0,
   )
   f.set(state.previous, at.previous)
   // The eye's travel since the image before, subtracted in double precision.
@@ -207,9 +229,12 @@ function fixedGroups(
       entries: [
         { binding: n.frame, resource: { buffer: r.frame } },
         { binding: n.cones, resource: cones },
-        { binding: n.history, resource: r.volumes[1 - turn] },
+        { binding: n.historyAmbient, resource: r.volumes[1 - turn].ambient },
+        { binding: n.historyDirectional, resource: r.volumes[1 - turn].directional },
         { binding: n.sampler, resource: giSampler(device) },
-        { binding: n.volume, resource: r.volumes[turn] },
+        { binding: n.ambient, resource: r.volumes[turn].ambient },
+        { binding: n.directional, resource: r.volumes[turn].directional },
+        { binding: n.fog, resource: r.fogVolume },
       ],
     }),
   )

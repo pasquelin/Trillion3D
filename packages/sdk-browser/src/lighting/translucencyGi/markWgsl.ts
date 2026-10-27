@@ -27,7 +27,7 @@ fn markCells(@builtin(global_invocation_id) id:vec3u){
  if(!giVisible(id)){return;}
  let bias=u32(gi.temporal.w);
  let offset=select(vec3f(0.5),gi.jitter.xyz,bias==0u);
- markPointBiased(giCellPoint(vec3f(id),offset),vec3f(0.0),bias);
+ markPointBiased(giCellPoint(vec3f(id),offset),0.01,bias);
 }`,
   [BOUNCE_GRID_STRUCTS_WGSL, SP_REFLECTION, GI_VISIBLE_WGSL, markPoint(b.marks)],
 )

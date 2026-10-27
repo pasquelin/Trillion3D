@@ -56,3 +56,17 @@ test('a card view takes a point of the decoded rows’ world to its page within 
       )
   }
 })
+
+test('a card view’s pixels to a metre follow the picture’s height alone, as the reference’s LOD scale does', () => {
+  // The projection's second row is 0.1 over the half side, the picture 128 pixels high: 0.5 · 128 · 0.1.
+  // The first row, 0.2 over a picture 256 wide, would give 25.6 and must not count.
+  const view: CardView = {
+    ...viewAt([0, 0, 0]),
+    rect: { minX: 0, minY: 0, maxX: 256, maxY: 128 },
+  }
+  view.viewProjection[5] = 0.1
+  const words = new Uint32Array(cardTableWords(1))
+  const image = { u: words, f: new Float32Array(words.buffer) }
+  writeCardViews(image, [{ view, place: 0 }], [])
+  assert.ok(Math.abs(image.f[CARD_TABLE_HEAD + CARD_VIEW.at.lod]! - 6.4) < 1e-5)
+})

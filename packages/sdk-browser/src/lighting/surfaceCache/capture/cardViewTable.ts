@@ -55,7 +55,7 @@ export interface CardViewSource {
 }
 
 /** The table's words, as integers and as floats. */
-export interface CardTableImage {
+interface CardTableImage {
   readonly u: Uint32Array
   readonly f: Float32Array
 }
@@ -94,11 +94,9 @@ export function writeCardViews(
     u[o + at.rect + 1] = rect.minY
     u[o + at.rect + 2] = width
     u[o + at.rect + 3] = height
-    // The pixels a metre spans along the picture's axes: the rows of the matrix are the axes over the
-    // half sides of the page, the picture is `width` and `height` pixels over [-1, 1].
-    const px = 0.5 * width * Math.hypot(m[0]!, m[4]!, m[8]!),
-      py = 0.5 * height * Math.hypot(m[1]!, m[5]!, m[9]!)
-    f[o + at.lod] = Math.max(px, py)
+    // The pixels a metre spans along the picture's height: the second row of the matrix is that axis over
+    // the half side of the page, the picture is `height` pixels over [-1, 1]; the width does not count.
+    f[o + at.lod] = 0.5 * height * Math.hypot(m[1]!, m[5]!, m[9]!)
     u[o + at.place] = place
   })
   return sources.length

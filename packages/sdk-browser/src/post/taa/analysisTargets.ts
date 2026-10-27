@@ -5,7 +5,6 @@ import { keptTexture } from './keptTexture.ts'
 import { CLOSEST_FORMAT, MARKS_FORMAT } from './velocityWgsl.ts'
 import { REPROJECTED_FORMAT, FLICKER_FORMAT } from './reprojectWgsl.ts'
 import { THIN_GEOMETRY_FORMAT } from './thinGeometryWgsl.ts'
-import { flickerErrorWords } from './flickerErrorCells.ts'
 import { REJECTION_FORMAT } from './rejectionWgsl.ts'
 import {
   ANTI_ALIAS_MASK,
@@ -57,7 +56,7 @@ const bytesOf = (formats: Record<string, GPUTextureFormat>) =>
  *  targets, the anti-aliaser's, the layers of the reprojected shading histories and of the field,
  *  the flicker and thin geometry histories, a shading history for each frame, the field's
  *  boundary where it reprojects by it, and a perspective's occluder word — an orthographic view adds
- *  one word more; the flicker measure's output is not a pixel's (`analysisBytes`). */
+ *  one word more. */
 export const analysisBytesPerPixel = (
   sequence: FrameSequence,
   field: boolean,
@@ -78,21 +77,17 @@ export const analysisBytesPerPixel = (
   OCCLUDER_BYTES
 
 /** The bytes of the analysis's targets at the render size `width × height` for a history of `shape`,
- *  `extraOccluderSlices` occluder words a texel beyond the first (an orthographic image's), and the
- *  flicker measure's output: a tile of cells to each workgroup, not a texel to each render texel
- *  (`flickerErrorWords`), with its count plane where `counted` (an analysis view is shown). */
+ *  `extraOccluderSlices` occluder words a texel beyond the first (an orthographic image's). */
 export const analysisBytes = (
   width: number,
   height: number,
   { sequence, field, antiAlias, formats }: AnalysisShape,
   extraOccluderSlices: number,
-  counted = false,
 ) =>
   width *
-    height *
-    (analysisBytesPerPixel(sequence, field, antiAlias, formats) +
-      extraOccluderSlices * OCCLUDER_BYTES) +
-  4 * flickerErrorWords(width, height, counted)
+  height *
+  (analysisBytesPerPixel(sequence, field, antiAlias, formats) +
+    extraOccluderSlices * OCCLUDER_BYTES)
 
 /** The formats an analysis stores to: the anti-aliaser's target, the shading histories and the
  *  scene colour, in the history's colour format. */
@@ -128,11 +123,6 @@ export type AnalysisTargetViews = Record<keyof typeof TRANSIENT_FORMATS, GPUText
   flicker: GPUTextureView
   /** The scene colour (`sceneColorWgsl`) of each render texel. */
   sceneColor: GPUBuffer
-  /** The flicker measure's error of each texel of each tile of the shading rejection, and its count
-   *  where `flickerCounted`, while an analysis view shows it (`flickerErrorCells.ts`): the flicker
-   *  measure writes them, the shading rejection reads them. */
-  flickerError: GPUBuffer
-  flickerCounted: boolean
   /** The LDR luma as the groups bind it: an `r8unorm` texture, or a buffer of packed bytes
    *  (`StorageForm`), where the level runs the anti-aliaser; a texel or a word standing in else. */
   luma: GPUTextureView | GPUBufferBinding
@@ -203,7 +193,7 @@ function createTextureMaker(
 }
 
 /** The textures and buffers of one size the analysis makes, given back together (`clear`):
- *  `occluders` and `flickerError` make the buffers the views remake and give back themselves. */
+ *  `occluders` makes the buffer the views remake and give back itself. */
 function createTargetPool(device: GPUDevice) {
   const textures: GPUTexture[] = [],
     buffers: GPUBuffer[] = []
@@ -219,12 +209,6 @@ function createTargetPool(device: GPUDevice) {
       buffers.push(made)
       return made
     },
-    /** The buffer of the flicker measure's output, with its count plane where `counted`. */
-    flickerError: (counted: boolean) =>
-      storageBuffer(
-        'Trillion3D TAA flicker error',
-        flickerErrorWords(size.width, size.height, counted),
-      ),
     /** The buffer of `slices` occluder words for each texel of the size. */
     occluders: (slices: number) =>
       device.createBuffer({
@@ -292,8 +276,6 @@ function makeViews(
       'Trillion3D TAA scene colour',
       pool.size.width * pool.size.height * sceneColorWords(shape.formats.color),
     ),
-    flickerError: pool.flickerError(false),
-    flickerCounted: false,
     luma: storageTarget(pool, LDR_LUMA, shape.formats.luma, shape.antiAlias),
     thin: pool.target('Trillion3D TAA thin geometry', THIN_GEOMETRY_FORMAT),
     measureLuma: measure.layer(MEASURE_LAYERS.luma),
@@ -324,15 +306,6 @@ function regrowthOf(
       views.occluderSlices = 2
       onDrop()
     },
-    /** The flicker measure's output with its count plane for an analysis view (`counted`) or without
-     *  it: the groups that name the buffer are made again. */
-    countFlicker(views: AnalysisTargetViews, counted: boolean) {
-      if (views.flickerCounted === counted) return
-      retire(device, views.flickerError)
-      views.flickerError = pool.flickerError(counted)
-      views.flickerCounted = counted
-      onDrop()
-    },
   }
 }
 
@@ -348,7 +321,6 @@ export function createAnalysisTargets(device: GPUDevice, onDrop: () => void) {
   const drop = () => {
     if (made) {
       retire(device, made.occluders)
-      retire(device, made.flickerError)
     }
     pool.clear()
     made = undefined
@@ -375,7 +347,7 @@ export function createAnalysisTargets(device: GPUDevice, onDrop: () => void) {
     get bytes() {
       if (!made || !kept) return 0
       const { width, height } = pool.size
-      return analysisBytes(width, height, kept, made.occluderSlices - 1, made.flickerCounted)
+      return analysisBytes(width, height, kept, made.occluderSlices - 1)
     },
     /** Makes the targets at `w × h` for `shape`, the former ones dropped: the render-resolution
      *  histories start empty. */

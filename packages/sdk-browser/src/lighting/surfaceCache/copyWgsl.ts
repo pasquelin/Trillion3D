@@ -3,6 +3,15 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
+import { SURFACE_WORDS } from '../../materials/surface/surfaceOutputs.ts'
+import { SURFACE_F0_WGSL, specularOfFlags } from '../../materials/surface/surfaceSpecular.ts'
+import { PIXEL_MODEL, pixelModelOf } from '../../materials/surface/pixelModel.ts'
+import { SUBSURFACE_FLAG } from '../../materials/surface/subsurface.ts'
+import { LOBE_PACK_WGSL, PHYSICAL_SURFACE_FLAG } from '../../materials/surface/physicalLobes.ts'
+import { SHADING_ENERGY_SIZE } from '../../../../sdk-core/src/lighting/shadingEnergy.ts'
+import { sheenLtcAlbedoAlongNormal } from '../sheenLtcWgsl.ts'
+import { sheenFuzzRoughness } from '../direct/sheenLobeWgsl.ts'
+import { slabF90 } from '../../../../math/src/wgsl/lighting.ts'
 import { packLight, unpackLight } from '../../gpu/core/smallFloatWgsl.ts'
 import { workgroupSumLoop } from '../../gpu/core/workgroupSumWgsl.ts'
 import { CARD_WORDS } from '../../../../sdk-core/src/lighting/surfaceCache/cardRecords.ts'
@@ -37,9 +46,9 @@ import { CAPTURE_PARAMS, INVALID_DEPTH_WORD, PAGE_FLAGS, TABLE_AT, TILE } from '
  *   share of the specular a fully rough surface shows added —, the card-space normal's first two
  *   components, the emission multiplied by the pre-exposure the light is kept at, the validity of the
  *   texel — a surface was drawn there — in the normal's last channel;
- * - `copy` writes the capture atlas's pages into the atlas: the depth as the card's — one minus
- *   the raster's, 1 for a texel with no surface —, the albedo and the normal as captured, the
- *   emission; a page that dilates (`PAGE_FLAGS.dilate`) gives a texel with no surface the mean of the
+ * - `copy` writes the capture atlas's pages into the atlas, a dispatch for each layer, in the order the depth, the albedo, the normal
+ *   and the emission: the depth as the card's — one minus the raster's, 1 for a texel with no surface —, the albedo and the normal as
+ *   captured, the emission; a page that dilates (`PAGE_FLAGS.dilate`) gives a texel with no surface the mean of the
  *   texels of its page around it that have one, by one texel (`finalTexel`, the texel a page ends
  *   as). In the compressed atlas it writes the depth alone: the other three layers are blocks, which
  *   the encoders of `compressWgsl.ts` make from the same texels;
@@ -95,13 +104,9 @@ fn work(group:vec3u,n:vec3u,lane:vec3u)->Work{return workAt(group.x+group.y*n.x,
 `,
 )
 
-/**
- * The directional albedo of a GGX lobe of roughness 1 seen along its normal, and the share of it that Schlick's
- * Fresnel term adds per unit of reflectance at grazing angles: the far corner of the tabulated directional albedo
- * of the lobe (32 × 32 texels over the cosine of the view and the roughness), as its 16-bit texture holds them.
- */
-const ROUGH_LOBE_ALBEDO = 21343 / 65535
-const ROUGH_LOBE_FRESNEL = 2 / 65535
+/** The reflectance of the clear coat's own lobe at normal incidence and at grazing angles: a dielectric's. */
+const HAZE_F0 = 0.04
+const HAZE_F90 = 1
 
 const ENTRY = (name: string, body: string) => `
 @compute @workgroup_size(${TILE},${TILE})
@@ -111,9 +116,11 @@ fn ${name}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@
 ${body}}
 `
 
-/** The kernel that makes the card's encodings of what the classes shaded. Bindings 3 to 8: the tables,
+/** The kernel that makes the card's encodings of what the classes shaded. Bindings 3 to 9: the tables,
  *  the identifiers, the surfaces' colours (base and metalness, normal and roughness, emission, the thin
- *  sheets' transmission colour), the albedo, the normal and the emission written. */
+ *  sheets' transmission colour), the albedo, the normal and the emission written, the surfaces' words
+ *  (their flags, which hold the specular), their lobes (the clear coat's weight and roughness) and the energy table's
+ *  column along the normal. */
 export const RESOLVE_WGSL = wgslProgram(
   `@group(0) @binding(3) var<storage,read> surfaceTables:array<u32>;
 @group(0) @binding(4) var capIds:texture_2d<u32>;
@@ -121,9 +128,46 @@ export const RESOLVE_WGSL = wgslProgram(
 @group(0) @binding(6) var outAlbedo:texture_storage_2d<rgba8unorm,write>;
 @group(0) @binding(7) var outNormal:texture_storage_2d<rgba8unorm,write>;
 @group(0) @binding(8) var outEmissive:texture_storage_2d<r32uint,write>;
-const ROUGH_LOBE_ALBEDO:f32=${wgslF32(ROUGH_LOBE_ALBEDO)};
-const ROUGH_LOBE_FRESNEL:f32=${wgslF32(ROUGH_LOBE_FRESNEL)};
+@group(0) @binding(9) var capWords:texture_2d_array<u32>;
+@group(0) @binding(10) var capLobes:texture_2d<u32>;
+@group(0) @binding(11) var<storage,read> energyAlongNormal:array<vec2f>;
+const HAZE_F0:f32=${wgslF32(HAZE_F0)};
+const HAZE_F90:f32=${wgslF32(HAZE_F90)};
+const ENERGY_ROWS:f32=${SHADING_ENERGY_SIZE}.0;
 fn tableFloat(i:u32)->f32{return bitcast<f32>(surfaceTables[i]);}
+/** The energy table read along the normal (view cosine 1, the last column, which the clamped sampler takes whole): the
+ *  directional albedo of a GGX lobe of roughness r under a Fresnel of one in x, the share weighted by the Fresnel's fifth power in y,
+ *  blended between the two rows around r. */
+fn energyAlongNormalAt(roughness:f32)->vec2f{
+ let row=clamp(roughness*ENERGY_ROWS-0.5,0.0,ENERGY_ROWS-1.0);
+ let low=u32(floor(row));
+ return mix(energyAlongNormal[low],energyAlongNormal[min(low+1u,u32(ENERGY_ROWS)-1u)],row-floor(row));
+}
+/** What a GGX lobe of reflectances \`f0\` and \`f90\` and roughness \`roughness\` sends back of the light of every direction, seen along its
+ *  normal as the card is: its directional albedo under the Fresnel's two terms, with the energy its single scattering misses
+ *  restored. */
+fn lobeEnergy(f0:vec3f,f90:vec3f,roughness:f32)->vec3f{
+ let e=energyAlongNormalAt(roughness);
+ let restored=vec3f(1.0)+f0*((1.0-e.x)/e.x);
+ return restored*(e.x*f0+e.y*(f90-f0));
+}
+/** What the clear coat of a surface sends back, seen along its normal: the lobe of a dielectric (reflectance HAZE_F0 to HAZE_F90) at
+ *  the coat's roughness. */
+fn coatEnergy(roughness:f32)->f32{return lobeEnergy(vec3f(HAZE_F0),vec3f(HAZE_F90),roughness).x;}
+/** The coat of a lobes texel, as a BSDF holds it packed: its weight to seven bits, its roughness to eight and no less than a thousandth. */
+struct Coat{weight:f32,energy:f32}
+fn coatOf(texel:vec4u)->Coat{
+ let weight=floor(saturate(unpack2x16unorm(texel.z).y)*127.0)/127.0;
+ let roughness=clamp(floor(saturate(bitcast<f32>(texel.w))*255.0)/255.0,0.001,1.0);
+ return Coat(weight,coatEnergy(roughness));
+}
+/** What a slab one metre thick lets through, per channel, of a surface that transmits \`colour\`: the colour sets its mean free path
+ *  (the extinction that gives it over a metre), and the slab is read over a metre again. Extinction holds a floor of a millionth. */
+fn slabTransmittance(colour:vec3f)->vec3f{
+ let extinction=-log(clamp(colour,vec3f(1e-12),vec3f(1.0)));
+ let freePath=vec3f(1.0)/max(vec3f(1e-12),extinction);
+ return exp(-max(vec3f(1e-6),vec3f(1.0)/max(vec3f(1e-12),freePath)));
+}
 /** The first two axes of card \`card\` in the world. */
 fn cardAxes(card:u32)->mat2x3f{
  let b=surfaceTables[AT_CARDS_AT]+card*CARD_WORDS;
@@ -140,17 +184,43 @@ ${ENTRY(
   let emission=textureLoad(capColours,p,2,0);
   let thin=textureLoad(capColours,p,3,0);
   let color=base.xyz;let metal=base.w;
-  // The diffuse colour of the surface made fully rough, lit and seen along its normal: the base colour less its
-  // metal, plus what its specular lobe sends back there — the lobe's directional albedo (ROUGH_LOBE_ALBEDO, and
-  // ROUGH_LOBE_FRESNEL its Fresnel share) weighted for the multiple scattering it misses, the reflectance at grazing
-  // angles occluded under 2% of reflectance at normal incidence (a dielectric's 4%, the base colour of a metal) —,
-  // plus the colour a thin double-sided sheet transmits (black for any other surface).
-  let f0=mix(vec3f(0.04),color,vec3f(metal));
-  let f90=vec3f(saturate(50.0*max(f0.x,max(f0.y,f0.z))));
-  let scatter=vec3f(1.0)+f0*((1.0-ROUGH_LOBE_ALBEDO)/ROUGH_LOBE_ALBEDO);
-  var diffuse=color-color*metal;
-  diffuse+=scatter*(ROUGH_LOBE_ALBEDO*f0+ROUGH_LOBE_FRESNEL*(f90-f0));
-  diffuse+=thin.xyz;
+  // The diffuse colour of the surface made fully rough, lit and seen along its normal, as the card sums its layers: the base colour less
+  // its metal, plus the specular lobe — the energy table's lobe of roughness one along the normal (\`lobeEnergy\`), the energy its single
+  // scattering misses restored, the reflectance at grazing angles occluded under 2% of reflectance at normal incidence (a dielectric's 0.08 times
+  // the surface's specular, the base colour of a metal) —, the diffuse colour keeping all of its energy under the lobe —,
+  // plus the colour a subsurface surface or a thin double-sided sheet transmits (nothing for any other surface: the skin, the profile and
+  // the eye hold other data in that layer), as the slab of its mean free path lets light through.
+  let flags=textureLoad(capWords,p,${SURFACE_WORDS.flags},0).x;
+  surfaceSpecular=specularOfFlags(flags);
+  // A cloth's fuzz takes the place of its specular lobe by its amount: the lobe's reflectance at normal incidence is scaled down by it.
+  let physical=(flags&${PHYSICAL_SURFACE_FLAG}u)!=0u;
+  let texel=textureLoad(capLobes,p,0);
+  let cloth=physical&&lobeIsCloth(texel);
+  let f0=surfaceF0(color,metal)*(1.0-select(0.0,packedCloth(texel),cloth));
+  let f90=vec3f(slabF90(f0));
+  let lobe=lobeEnergy(f0,f90,1.0);
+  // A clear coat over the surface, seen along its normal as the card is, the transmittance of its medium one there: the coat's own
+  // lobe adds its energy, and the specular and the diffuse colour under it keep what it lets through (one minus that energy, by the coat's
+  // weight). A cloth's texel holds its fuzz, not a coat: the fuzz is a lobe over the surface, of roughness half way between the
+  // surface's and one, floored; the card sees it along its normal, so it sends back the albedo of that lobe there (\`sheenLtcAlbedoAlongNormal\`)
+  // by its amount, keeping that much less of every lobe under it, and its colour times that is added to the diffuse colour.
+  var layers=1.0;var haze=0.0;var fuzzKeep=1.0;var fuzzAdded=vec3f(0.0);
+  if(cloth){
+   let amount=packedCloth(texel);
+   let fuzzAlbedo=sheenLtcAlbedoAlongNormal(sheenFuzzRoughness(surface.w));
+   fuzzKeep=mix(1.0,1.0-fuzzAlbedo,amount);
+   fuzzAdded=packedFuzz(texel)*fuzzAlbedo*amount;
+  }else if(physical){
+   let coat=coatOf(texel);
+   layers=mix(1.0,saturate(1.0-coat.energy),coat.weight);
+   haze=coat.weight*coat.energy;
+  }
+  var diffuse=(color-color*metal)*layers+lobe*layers+haze;
+  if((flags&${SUBSURFACE_FLAG}u)!=0u){
+   let transmitted=slabTransmittance(thin.xyz);
+   diffuse+=select(transmitted*INVERSE_PI,transmitted,pixelModelOf(flags)==${PIXEL_MODEL.subsurface}u);
+  }
+  diffuse=diffuse*fuzzKeep+fuzzAdded;
   // The normal in the card's frame, made unit first: a normal that is not a number faces the card.
   var xy=vec2f(0.0);
   if(all(abs(surface.xyz)<vec3f(1e30))){
@@ -167,7 +237,18 @@ ${ENTRY(
  textureStore(outEmissive,p,vec4u(emissive,0u,0u,0u));
 `,
 )}`,
-  [CAPTURE_COMMON, packLight],
+  [
+    CAPTURE_COMMON,
+    packLight,
+    specularOfFlags,
+    SURFACE_F0_WGSL,
+    LOBE_PACK_WGSL,
+    pixelModelOf,
+    sheenLtcAlbedoAlongNormal,
+    sheenFuzzRoughness,
+    slabF90,
+    INVERSE_PI,
+  ],
 )
 
 /** The kernel that fills the pages that take another card's texels, for an atlas `compressed` or not.
@@ -274,12 +355,12 @@ fn resampleLightingPages(@builtin(workgroup_id) group:vec3u,@builtin(num_workgro
   for(var i=0u;i<FACTOR_TILE_WORDS;i++){factors[i]=oldFactors[first+i];}
  }`
 
-/** The light-carrying resample from the factors kept on: the light stored to the capture atlas, the
- *  tile's accumulation and factors. */
-const RESAMPLE_LIGHTING_STORE = ` for(var i=0u;i<FACTOR_TILE_WORDS;i++){atomicAnd(&keptFactors[i],factors[i]);}
- workgroupBarrier();
- textureStore(outDirect,at,vec4u(packLight(direct),0u,0u,0u));
+/** The light-carrying resample from the light read on: the light stored to the capture atlas, then the
+ *  tile's factors merged and its accumulation. */
+const RESAMPLE_LIGHTING_STORE = ` textureStore(outDirect,at,vec4u(packLight(direct),0u,0u,0u));
  textureStore(outIndirect,at,vec4u(packLight(indirect),0u,0u,0u));
+ for(var i=0u;i<FACTOR_TILE_WORDS;i++){atomicAnd(&keptFactors[i],factors[i]);}
+ workgroupBarrier();
  // The tile's accumulation: the mean over its texels.
  framesSum[lane]=frames;
  ${workgroupSumLoop(TILE * TILE, 'framesSum[lane]+=framesSum[lane+stride];')}
@@ -370,35 +451,72 @@ fn finalTexel(w:Work)->EndTexel{
 `,
 )
 
-/** The kernel that copies the capture atlas's pages into the atlas (`finalTexel`). Bindings 3 to 6 are
- *  the capture atlas's layers, read; 7 the atlas's depth, written, and, unless the atlas is compressed,
+/** The layers the copy writes into the atlas, in the order of their dispatches: each one's entry point, the binding and format of its
+ *  texture and the value stored of the texel `f` (`finalTexel`). */
+const COPY_LAYERS = [
+  {
+    entry: 'copyDepth',
+    binding: 7,
+    out: 'outDepth',
+    format: 'r32uint',
+    value: 'vec4u(f.depth,0u,0u,0u)',
+  },
+  {
+    entry: 'copyAlbedo',
+    binding: 8,
+    out: 'outAlbedo',
+    format: 'rgba8unorm',
+    value: 'vec4f(f.albedo,0.0)',
+  },
+  {
+    entry: 'copyNormal',
+    binding: 9,
+    out: 'outNormal',
+    format: 'rgba8unorm',
+    value: 'vec4f(f.normal,0.0,0.0)',
+  },
+  {
+    entry: 'copyEmissive',
+    binding: 10,
+    out: 'outEmissive',
+    format: 'r32uint',
+    value: 'vec4u(f.emissive,0u,0u,0u)',
+  },
+] as const
+
+/** The layers an atlas `compressed` or not has the copy write: its depth alone where compressed. */
+const copyLayersOf = (compressed: boolean) =>
+  COPY_LAYERS.filter(({ entry }) => !compressed || entry === 'copyDepth')
+
+/** The entry points of the copy of an atlas `compressed` or not, in the order they are dispatched. */
+export const copyEntryPoints = (compressed: boolean) =>
+  copyLayersOf(compressed).map(({ entry }) => entry)
+
+/** The kernel that copies the capture atlas's pages into the atlas (`finalTexel`), an entry point for each layer (`COPY_LAYERS`).
+ *  Bindings 3 to 6 are the capture atlas's layers, read; 7 the atlas's depth, written, and, unless the atlas is compressed,
  *  8 to 10 its albedo, normal and emission. */
-const copyWgsl = (compressed: boolean) =>
-  wgslProgram(
-    `@group(0) @binding(7) var outDepth:texture_storage_2d<r32uint,write>;
-${
-  compressed
-    ? ''
-    : `@group(0) @binding(8) var outAlbedo:texture_storage_2d<rgba8unorm,write>;
-@group(0) @binding(9) var outNormal:texture_storage_2d<rgba8unorm,write>;
-@group(0) @binding(10) var outEmissive:texture_storage_2d<r32uint,write>;
-`
-}${ENTRY(
-      'copyPages',
-      ` let at=vec2i(w.info.xy+w.local);
+const copyWgsl = (compressed: boolean) => {
+  const layers = copyLayersOf(compressed)
+  return wgslProgram(
+    `${layers
+      .map(
+        ({ binding, out, format }) =>
+          `@group(0) @binding(${binding}) var ${out}:texture_storage_2d<${format},write>;\n`,
+      )
+      .join('')}${layers
+      .map(({ entry, out, value }) =>
+        ENTRY(
+          entry,
+          ` let at=vec2i(w.info.xy+w.local);
  let f=finalTexel(w);
- textureStore(outDepth,at,vec4u(f.depth,0u,0u,0u));
-${
-  compressed
-    ? ''
-    : ` textureStore(outAlbedo,at,vec4f(f.albedo,0.0));
- textureStore(outNormal,at,vec4f(f.normal,0.0,0.0));
- textureStore(outEmissive,at,vec4u(f.emissive,0u,0u,0u));
-`
-}`,
-    )}`,
+ textureStore(${out},at,${value});
+`,
+        ),
+      )
+      .join('')}`,
     [CAPTURE_TEXELS],
   )
+}
 
 export const COPY_WGSL = copyWgsl(false)
 export const COPY_COMPRESSED_WGSL = copyWgsl(true)

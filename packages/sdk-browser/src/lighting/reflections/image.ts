@@ -12,7 +12,13 @@ import type { ReflectionFrame } from './viewWrite.ts'
  * the sequence's length (`ReflectionSettings.rayDirections`), so a still view's history averages every direction of it.
  */
 export function stageReflectionImage(reflection: ScreenReflection, frame: ReflectionFrame) {
-  reflection.turn = (reflection.turn + 1) % (frame.settings ?? defaultReflections()).rayDirections
+  const { rayDirections, fixedStateFrameIndex } = frame.settings ?? defaultReflections()
+  // A fixed state frame index holds the view's noise, the turn of its sequence too, where it stands.
+  if (fixedStateFrameIndex >= 0) frame.frameIndex = fixedStateFrameIndex
+  reflection.turn =
+    fixedStateFrameIndex >= 0
+      ? fixedStateFrameIndex % rayDirections
+      : (reflection.turn + 1) % rayDirections
   frame.turn = reflection.turn
   frame.image = ++reflection.images
   reflection.writeView(frame, reflection.lit.held)

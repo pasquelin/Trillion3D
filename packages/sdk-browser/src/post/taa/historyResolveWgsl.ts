@@ -93,18 +93,16 @@ fn resolveHistory(@builtin(global_invocation_id) gid:vec3u,@builtin(local_invoca
  let o=vec2i(gid.xy);
  let top=tapsTop(o,size);
  let last=vec2i(textureDimensions(history))-vec2i(1);
- let exposure=view.exposure.x;
  var weighed=vec3f(0.0);var alpha=0.0;var lo=vec3f(1e30);var hi=vec3f(-1e30);
  for(var j=0;j<${KERNEL};j++){for(var i=0;i<${KERNEL};i++){
   let p=clamp(top+vec2i(i,j),vec2i(0),last);
   let w=tapsWeight(i,j);
   let c=textureLoad(history,p,0);
-  let exposed=c.rgb*exposure;
-  weighed+=exposed*(w*toneWeight(exposed));alpha+=c.a*w;
+  weighed+=c.rgb*(w*toneWeight(c.rgb));alpha+=c.a*w;
   lo=min(lo,c.rgb);hi=max(hi,c.rgb);
  }}
  // Held from zero: WGSL leaves a division by zero indeterminate, at a weighed luma of one.
- let found=weighed*(4.0/max(1.0-luma4(weighed),1e-4))/exposure;
+ let found=weighed*(4.0/max(1.0-luma4(weighed),1e-4));
  let colour=vec4f(clamp(clamp(found,lo,hi),vec3f(0.0),vec3f(${wgslF32(MAX_10_BIT_FLOAT)})),clamp(alpha,0.0,1.0));
  if(all(o<size)){textureStore(colorOut,o,colour);}
  if(HALF){

@@ -8,7 +8,6 @@ import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { TAA_BINDINGS } from './bindingsWgsl.ts'
-import { TAA_LEVEL_KNOBS, type AnalysisWork } from './levels.ts'
 
 // Each history carries its colour and, beside it, its metadata — the history's validity alone,
 // since the as-is pixels are composed after the temporal pass (it held the as-is share beside the
@@ -87,11 +86,10 @@ test('each history is a colour and its validity, stored together and counted', a
     ],
   )
   // The vectors the reprojection starts from are the velocity stage's, which the motion blur reads
-  // after the pass: the analysis keeps none, nor a texture for the flicker error, which is a buffer
-  // (the tiles' cells, no texel's); the hole-filled vectors are the field's first layer.
+  // after the pass: the analysis keeps none; the hole-filled vectors are the field's first layer.
   const named = (name: string) =>
     textures.filter(({ label }) => label === `Trillion3D TAA ${name}`).length
-  assert.deepEqual(['vectors', 'flickerError', 'closest', 'field'].map(named), [0, 0, 1, 1])
+  assert.deepEqual(['vectors', 'closest', 'field'].map(named), [0, 1, 1])
   // The four frames of the history at 16 × 8 (a half-float colour and the validity's four bytes on
   // the core's formats), the half-size image, the resolved image (its colour), then the analysis at
   // 8 × 4: five
@@ -100,35 +98,14 @@ test('each history is a colour and its validity, stored together and counted', a
   // histories (four half floats on the core's formats) and the field, the flicker and thin geometry
   // histories, a shading history of four half floats for
   // each of the four frames, the field's boundary, a perspective's occluder word and the word of the
-  // rejection's mask the anti-aliaser reads, and the flicker measure's output: the error's plane,
-  // 32 bits a cell, a tile of 32 × 32 cells to each workgroup (one here) — the count's plane is
-  // held only while an analysis view is shown.
+  // rejection's mask the anti-aliaser reads.
   assert.equal(
     temporal.historyBytes,
     4 * 16 * 8 * (8 + 4) +
       4 * 2 * 8 +
       8 * 4 * 8 +
-      8 * 4 * (5 * 4 + 4 * 4 + 8 + 1 + 4 + 2 * 8 + 2 * 4 + 4 + 4 + 4 * 8 + 4 + 4 + 4) +
-      4 * 32 * 32,
+      8 * 4 * (5 * 4 + 4 * 4 + 8 + 1 + 4 + 2 * 8 + 2 * 4 + 4 + 4 + 4 * 8 + 4 + 4 + 4),
   )
-  temporal.dispose()
-})
-
-test('the flicker measure keeps the count plane of its output only while an analysis view is shown', async () => {
-  const { device } = fakeDevice()
-  const temporal = await createTemporalAntialiasing(device, createVelocity(device))
-  temporal.resize(taaShape(8, 4), 8, 4)
-  const encoder = device.createCommandEncoder()
-  const encode = (work?: AnalysisWork) =>
-    temporal.encode(encoder, taaInputs(), [8, 4], taaSlices(), false, work)
-  const errorPlane = 4 * 32 * 32
-  const bytes = temporal.historyBytes
-  // The work every analysis view runs (`FULL_ANALYSIS`) holds the count: a plane more.
-  encode()
-  assert.equal(temporal.historyBytes, bytes + errorPlane)
-  // A level's own work, though it runs the same passes, gives it back.
-  encode(TAA_LEVEL_KNOBS.max.work)
-  assert.equal(temporal.historyBytes, bytes)
   temporal.dispose()
 })
 

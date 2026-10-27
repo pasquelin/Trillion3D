@@ -1,7 +1,10 @@
 import { boxPointDistance } from '../../../../math/src/geometry/boxDistance.ts'
+import { distanceSqVector3 } from '../../../../math/src/vector/vector.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { saturate } from '../../../../math/src/scalar/reals.ts'
+import type { GlobalDistanceFieldSettings } from '../../contracts/globalDistanceFieldOptions.ts'
 import type { SurfaceCacheSettings } from '../../contracts/surfaceCacheOptions.ts'
+import { clampCameraOffset } from '../globalDistanceField.ts'
 import {
   DISTANCE_BINS,
   cardResLevel,
@@ -11,6 +14,8 @@ import {
 } from './cardResolution.ts'
 import { setDesiredLevel, type MeshCardsInstance, type Vec3 } from './cardTypes.ts'
 import { feedbackRequests, type Feedback } from './feedback.ts'
+import { INT32_MAX } from '../../contracts/settingRules.ts'
+import { surfaceCacheFrozen } from './lightingMath.ts'
 import { addMeshCards, removeMeshCards } from './placements.ts'
 import { LOCKED_MIP, type Placement, type SurfaceCache, type SurfaceRequest } from './state.ts'
 import { removeCardFromAtlas } from './virtualSurface.ts'
@@ -52,12 +57,75 @@ export interface CardView {
   readonly addTranslucent?: boolean
 }
 
+/** What the cache remembers of the main view's origin between images, for the frozen origin: whether it follows the eye,
+ *  and the eye it was last left at. */
+export interface ViewOriginHold {
+  following: boolean
+  frozenAt: [number, number, number]
+}
+
+export const createViewOriginHold = (): ViewOriginHold => ({
+  following: true,
+  frozenAt: [0, 0, 0],
+})
+
+/**
+ * Writes into `out` the origin the cache keeps its cards for the view whose eye is `eye`: the eye moved ahead by the camera's
+ * velocity offset of the global distance field (`offset`, centimetres), which for the outermost clipmap `clipmap` past the
+ * first is held within three quarters of that clipmap's extent. While `update` is off (`surfaceCacheUpdateViewOrigin`) the
+ * origin stays where the eye was when it turned off; the offset is not applied to it.
+ */
+export function viewOriginOf(
+  out: [number, number, number],
+  eye: Vec3,
+  offset: Vec3,
+  hold: ViewOriginHold,
+  update: boolean,
+  clipmap: number,
+  field: GlobalDistanceFieldSettings,
+) {
+  const drift = clipmap > 0 ? clampCameraOffset(offset, field, clipmap) : offset
+  for (let k = 0; k < 3; k++) out[k] = eye[k] + drift[k]
+  if (update) hold.following = true
+  else if (hold.following) {
+    for (let k = 0; k < 3; k++) hold.frozenAt[k] = eye[k]
+    hold.following = false
+  }
+  if (!hold.following) for (let k = 0; k < 3; k++) out[k] = hold.frozenAt[k]
+  return out
+}
+
+/** The most views the cache keeps an origin for: one image's streaming origins fill the list up to it. */
+const MAX_VIEW_ORIGINS = 2
+
+/** Adds the origins of the streaming views to `origins`, which holds the main view's, kept whatever the threshold: each only if it lies
+ *  `threshold` centimetres (`surfaceCacheViewOriginDistanceThreshold`) or more from every origin held, and
+ *  while fewer than `MAX_VIEW_ORIGINS` are. */
+export function addStreamingViewOrigins(
+  origins: Vec3[],
+  streaming: readonly Vec3[],
+  threshold: number,
+) {
+  const squared = threshold * threshold
+  for (const origin of streaming) {
+    if (origins.length >= MAX_VIEW_ORIGINS) return
+    if (origins.every((held) => distanceSqVector3(origin, held) >= squared)) origins.push(origin)
+  }
+}
+
 /** The captures an image may make: the budget, doubled for a fast camera. */
 export const maxCapturesPerFrame = (settings: SurfaceCacheSettings) =>
   Math.max(
     settings.surfaceCacheCardCapturesPerFrame * (settings.surfaceCacheFastCameraMode ? 2 : 1),
     0,
   )
+
+/** The tiles an image may capture: none while the cache is frozen, all of them while it is recaptured every image
+ *  (`surfaceCacheRecaptureEveryFrame`), else the budget (`maxCapturesPerFrame`). */
+export const maxTileCapturesPerFrame = (settings: SurfaceCacheSettings) => {
+  if (surfaceCacheFrozen(settings)) return 0
+  return settings.surfaceCacheRecaptureEveryFrame ? INT32_MAX : maxCapturesPerFrame(settings)
+}
 
 /** The distance from the eyes to the box `bounds` (`minX..maxZ`): that of the nearest. */
 function nearestDistance(bounds: ArrayLike<number>, origins: readonly Vec3[]) {
