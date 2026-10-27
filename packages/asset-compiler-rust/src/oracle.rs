@@ -8,8 +8,9 @@
 //!
 //! It shares neither the proxy, nor the nodes written in the cache, nor the
 //! probe grid: it re-reads the source and integrates by Monte-Carlo. It builds
-//! its tree with `proxy::bvh`, the only BVH constructor in the repository on the
-//! Rust side — it is the code that is shared, never the geometry nor the cut.
+//! its tree with the page codec's `proxy::bvh`, the BVH constructor of the proxies and the traces
+//! (the ray-tracing product has its own for a ray tracer on the GPU, `ray_tracing/bvh.rs`): it is
+//! the code that is shared, never the geometry nor the cut.
 //! The other common model is that of lights and Lambert diffuse, the contract
 //! itself.
 use crate::Result;

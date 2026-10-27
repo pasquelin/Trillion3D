@@ -1,7 +1,7 @@
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { placementRay } from '../../geometry/dag/placement/placementRayWgsl.ts'
-import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
+import { matrixWindingCw, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { WIDE_TRAVERSAL_WGSL, wideTraversal } from './wideTraversalWgsl.ts'
 import { DAG_READ_TABLES_WGSL } from '../../geometry/dag/shader/bindings.ts'
@@ -18,6 +18,7 @@ import {
   RECORD_SHIFT_WORD,
   ROOT_WORD,
 } from '../../geometry/dag/frameTable.ts'
+import { markReachWgsl } from '../../deformation/halfFloat.ts'
 import { RAY_PAGE_WGSL } from './rayPageWgsl.ts'
 import { FILTER_INCLUDE } from './rayRecord.ts'
 import { rayQueryBindingsWgsl } from './deformIndexWgsl.ts'
@@ -68,6 +69,48 @@ fn rqChild(n:u32,slot:u32,reach:f32,pageBase:u32)->WideChild{
 )
 
 /**
+ * THE RAY ENTERING A PLACEMENT, for every ray that walks the placement tree (`placementEnter`): the
+ * placement `w`'s root and mark words, its world at the eye `eyeXY`, `eyeZ` (three doubles, as a
+ * ray holds its origin), and the ray taken into its space by the inverse of that world
+ * (`placementRay`) — `offset` the ray's origin from the eye, `direction` its direction. The entry
+ * says the world it took, the ray there, the root, the mark word and the deformation reach it
+ * carries (`markReach`), whether the world mirrors (`matrixWindingCw`), and whether there is
+ * anything to enter (`found`): a placement parked or hidden (its root none) or a singular world
+ * holds nothing a ray meets, and the first is turned back before its world is read.
+ */
+export const PLACEMENT_ENTER_WGSL = wgslBlock(
+  'PLACEMENT_ENTER_WGSL',
+  [
+    DAG_READ_TABLES_WGSL,
+    worldAtEyeWgsl('worlds'),
+    placementRay,
+    worldMatrix3,
+    matrixWindingCw,
+    markReachWgsl,
+    NO_INDEX,
+  ],
+  `${wgslConsts({
+    PE_ROOT_WORD: ROOT_WORD,
+    PE_MARK_WORD: MARK_WORD,
+  })}
+struct PlacementEntry{world:mat4x4f,origin:vec3f,direction:vec3f,root:u32,mark:u32,reach:f32,mirrored:bool,found:bool,}
+fn placementEnter(w:u32,eyeXY:vec4u,eyeZ:vec2u,offset:vec3f,direction:vec3f)->PlacementEntry{
+ let root=framesWord(w,PE_ROOT_WORD);
+ let mark=framesWord(w,PE_MARK_WORD);
+ var entry=PlacementEntry(mat4x4f(),vec3f(0.0),vec3f(0.0),root,mark,markReach(mark),false,false);
+ if(root==NO_INDEX){return entry;}
+ let m=worldsWorldAtEye(w,eyeXY,vec4u(eyeZ,0u,0u));
+ let placed=placementRay(worldMatrix3(m),offset-m[3].xyz,direction);
+ entry.world=m;
+ entry.origin=placed.origin;
+ entry.direction=placed.direction;
+ entry.mirrored=matrixWindingCw(m);
+ entry.found=placed.regular;
+ return entry;
+}`,
+)
+
+/**
  * THE RAY AGAINST ONE PLACEMENT: its hierarchy walked by the engine's one wide traversal
  * (`wideTraversal`), nearest child first, in the placement's own space — the ray taken there by the
  * inverse of its world at the ray's origin, as every ray walking the placement tree takes it
@@ -79,19 +122,9 @@ fn rqChild(n:u32,slot:u32,reach:f32,pageBase:u32)->WideChild{
  */
 export const RAY_PLACEMENT_WGSL = wgslBlock(
   'RAY_PLACEMENT_WGSL',
-  [
-    RAY_TABLES_WGSL,
-    worldAtEyeWgsl('worlds'),
-    RAY_NODES_WGSL,
-    RAY_PAGE_WGSL,
-    NO_INDEX,
-    placementRay,
-    worldMatrix3,
-  ],
+  [RAY_TABLES_WGSL, worldAtEyeWgsl('worlds'), RAY_NODES_WGSL, RAY_PAGE_WGSL, PLACEMENT_ENTER_WGSL],
   `${wgslConsts({
-    RQ_ROOT_WORD: ROOT_WORD,
     RQ_SHIFT_WORD: RECORD_SHIFT_WORD,
-    RQ_MARK_WORD: MARK_WORD,
     RQ_WORLD_ROOT: WORLD_ROOT_MARK,
     RQ_PAGE_BASE_WORD: PAGE_BASE_WORD,
     RQ_FILTER_INCLUDE: FILTER_INCLUDE,
@@ -136,23 +169,19 @@ fn rqAdmits(w:u32,first:u32,word:u32)->bool{
 /** The nearer of \`best\` and what the ray meets of placement \`w\`: none of the world DAG's
  *  (\`WORLD_ROOT_MARK\`), whose objects their own placements hold. */
 fn rqEnter(w:u32,ray:RqRay,best:RqHit)->RqHit{
- if((framesWord(w,RQ_MARK_WORD)&RQ_WORLD_ROOT)!=0u||!rqAdmits(w,ray.filterFirst,ray.filterWord)){return best;}
- let root=framesWord(w,RQ_ROOT_WORD);
- if(root==NO_INDEX){return best;}
- let m=worldsWorldAtEye(w,ray.eyeXY,vec4u(ray.eyeZ,0u,0u));
+ if((framesWord(w,PE_MARK_WORD)&RQ_WORLD_ROOT)!=0u||!rqAdmits(w,ray.filterFirst,ray.filterWord)){return best;}
  // The origin is the eye: at zero, the placement at its translation from it.
- let placed=placementRay(worldMatrix3(m),-m[3].xyz,ray.direction);
- if(!placed.regular){return best;}
- let reach=unpack2x16float(framesWord(w,RQ_MARK_WORD)).y;
+ let entry=placementEnter(w,ray.eyeXY,ray.eyeZ,vec3f(0.0),ray.direction);
+ if(!entry.found){return best;}
  // A world length in the placement's space: the unit world direction's length there.
- let lineReach=ray.lineReach*length(placed.direction);
+ let lineReach=ray.lineReach*length(entry.direction);
  let pageBase=framesWord(w,RQ_PAGE_BASE_WORD);
  let shift=framesWord(w,RQ_SHIFT_WORD);
  var hit=RqHit(best.distance,0u,0u,0u,vec3f(0.0),false);
- if(nodesWord(root,RQ_CHILD_COUNT)!=0u){hit=rqDag(placed.origin,placed.direction,best.distance,root,pageBase,shift,reach,lineReach,w);}
+ if(nodesWord(entry.root,RQ_CHILD_COUNT)!=0u){hit=rqDag(entry.origin,entry.direction,best.distance,entry.root,pageBase,shift,entry.reach,lineReach,w);}
  else{
-  let first=pageBase+nodesWord(root,RQ_FIRST_PAGE);
-  for(var k=0u;k<nodesWord(root,RQ_PAGE_COUNT);k++){hit=rqPage(placed.origin,placed.direction,lineReach,first+k,first+k+shift,w,hit);}
+  let first=pageBase+nodesWord(entry.root,RQ_FIRST_PAGE);
+  for(var k=0u;k<nodesWord(entry.root,RQ_PAGE_COUNT);k++){hit=rqPage(entry.origin,entry.direction,lineReach,first+k,first+k+shift,w,hit);}
  }
  if(hit.found&&hit.distance<best.distance){return hit;}
  return best;

@@ -16,9 +16,8 @@ import {
 } from './backendApi.ts'
 /** WebGPU raster of cluster pages, cut on the GPU — frustum and per-cluster error band —, its one
  *  cut (#1483). The state lives in the runtime; each method hands it to the module that owns that
- *  responsibility. */
-export const webgpuPagesEngine = ((context) => {
-  const rt = createWebgpuPagesRuntime(context)
+ *  responsibility. A caller that keeps the runtime it made hands it as the second argument. */
+export const webgpuPagesEngine = ((context, rt = createWebgpuPagesRuntime(context)) => {
   const { run, setup } = rt
   const session: PagesSession = {}
   const backend: ReturnType<EngineFactory> = {

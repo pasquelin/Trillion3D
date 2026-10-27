@@ -6,7 +6,6 @@ import {
 } from '../../../diagnostic/stage/passLabels.ts'
 import { REFLECTION_GROUP } from '../viewLayout.ts'
 import { classifyGroups } from '../tiles.ts'
-import { traceLayouts } from './traceBindings.ts'
 import {
   KERNELS,
   traceGroups,
@@ -28,14 +27,14 @@ const ENTRIES = {
 
 /** The reflections' kernels on the trace's module (`REFLECTION_TRACE_SHADER`) — the classification
  *  (`../tiles.ts`) and each surface's —, over the reflection group's layout `groupLayout`
- *  (`reflectionLayout`). */
+ *  (`reflectionLayout`) and their groups 0's layouts `layouts` (`traceLayouts`), made by the caller
+ *  before its first `await`, in its validation scope. */
 export async function createTraceStages(
   device: GPUDevice,
   modules: { trace: GPUShaderModule },
   groupLayout: GPUBindGroupLayout,
-  statistics: boolean,
+  layouts: TraceLayouts,
 ) {
-  const layouts: TraceLayouts = traceLayouts(device, statistics)
   const kernelLayouts = (layer: number) =>
     ({
       screen: layouts.screen,

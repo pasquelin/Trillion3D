@@ -16,7 +16,7 @@ export const SURFACE_VELOCITY_BINDINGS = { ...VELOCITY_INPUT_BINDINGS, vectors: 
  * moves by itself and measures large enough (`drawsMotion`), else the camera's alone. The word says
  * which (`hasOwnMotion`); a second word holds the flags of its pixel, `PIXEL_ANIMATED` where its
  * surface animates its own pixels together with the responsiveness code its material carries
- * (`pageOf`). No neighbour is read: the passes that dilate it — the temporal pass's
+ * (`pageOf`), and its depth step (`withDepthStep`). No neighbour is read: the passes that dilate it — the temporal pass's
  * analysis (`nearestVelocityWgsl.ts`), the depth of field, the motion blur — each do it with their
  * own rule. One depth load, one identifier load and one reprojection per texel. With `wpo`, the
  * vertices of a surface whose offset is a motion are placed where the offset puts them now and
@@ -38,7 +38,7 @@ fn surfaceVelocity(@builtin(global_invocation_id) gid:vec3u){
  let motion=surfaceMotion(screenOfTexel(p),textureLoad(depth,p,0),id,moves);
  let page=pageOf(id);
  let flags=select(0u,${PIXEL_ANIMATED}u,page.animated>0.0)|page.responsive;
- textureStore(vectorOut,p,vec4u(encodeOwnVector(motion.velocity.xy,moves),flags,0u,0u));
+ textureStore(vectorOut,p,vec4u(encodeOwnVector(motion.velocity.xy,moves),withDepthStep(flags,motion.velocity.z),0u,0u));
 }
 @group(1) @binding(0) var waterDepth:texture_depth_2d;
 @compute @workgroup_size(${TEXEL_TILE},${TEXEL_TILE})

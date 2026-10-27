@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { ndcToPixel, slabPerspective } from '../../../../../math/src/wgsl/projection.ts'
+import { octCellsDecode, octCellsEncode } from '../../../../../math/src/wgsl/octahedral.ts'
 import { SCREEN_PROBE_CONSTANTS } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
 import { spVectors } from './vectorsWgsl.ts'
 
@@ -26,27 +27,31 @@ fn spBentUnpack(word:u32)->vec4f{
 
 /**
  * The meta word a pixel keeps beside its light (`SCREEN_PROBE_FORMATS.meta`, which only the temporal pass and the probes' reads of the
- * last image's depths read), three fields: the depth the image measured it at — the view-space linear depth, in sixteen bits of a
+ * last image's depths read), four fields: the depth the image measured it at — the view-space linear depth, in sixteen bits of a
  * half float —, then in four bits each the amount of fast update it was left with (`ceil(amount · 15)`, so that only none is
- * none) and the frames it holds (`round(frames / min(longest, 15) · 15)`: the code 15 is the longest, whatever it is).
- * `spMetaDepth` and `spMetaFast` read it as it is; `spMetaOf` writes it and `spMetaFrames` reads the frames against the longest
- * history, which the parameters hold.
+ * none) and the frames it holds (`round(frames / min(longest, 15) · 15)`: the code 15 is the longest, whatever it is), and
+ * the surface's normal, two octahedral cells of four bits (`octCellsEncode`), what the history is told apart by where the
+ * setting asks it (`screenProbeRejectBasedOnNormal`). `spMetaDepth`, `spMetaFast` and `spMetaNormal` read it as it is;
+ * `spMetaOf` writes all four, from the depth, the frames, the amount of fast update and the normal, and `spMetaFrames` reads the
+ * frames against the longest history, which the parameters hold.
  */
 const SP_META_DECODE = wgslBlock(
   'SP_META_DECODE',
-  [],
+  [octCellsDecode],
   `fn spMetaDepth(word:u32)->f32{return unpack2x16float(word&0xffffu).x;}
-fn spMetaFast(word:u32)->f32{return f32((word>>16u)&15u)/15.0;}`,
+fn spMetaFast(word:u32)->f32{return f32((word>>16u)&15u)/15.0;}
+fn spMetaNormal(word:u32)->vec3f{return octCellsDecode(vec2u((word>>24u)&15u,word>>28u),4u);}`,
 )
 
 const SP_META_WGSL = wgslBlock(
   'SP_META_WGSL',
-  [SP_META_DECODE],
+  [SP_META_DECODE, octCellsEncode],
   `const SP_FRAME_CODES:f32=${SCREEN_PROBE_CONSTANTS.maxFramesCoded}.0;
-fn spMetaOf(w:f32,frames:f32,fast:f32)->u32{
+fn spMetaOf(w:f32,frames:f32,fast:f32,N:vec3f)->u32{
  let encodedFrames=u32(round(saturate(frames/min(f32(sp.counts.x),SP_FRAME_CODES))*SP_FRAME_CODES));
  let encodedFast=u32(ceil(saturate(fast)*15.0));
- return (pack2x16float(vec2f(w,0.0))&0xffffu)|(encodedFast<<16u)|(encodedFrames<<20u);
+ let cells=octCellsEncode(N,4u);
+ return (pack2x16float(vec2f(w,0.0))&0xffffu)|(encodedFast<<16u)|(encodedFrames<<20u)|(cells.x<<24u)|(cells.y<<28u);
 }
 fn spMetaFrames(word:u32)->f32{
  let code=(word>>20u)&15u;
@@ -62,7 +67,8 @@ fn spMetaFrames(word:u32)->f32{
  * that of `P` through the view-projection that image was drawn with (`radianceViewProj`), and names the four texels round
  * it with the weight each deserves: bilinear, and nil where the texel's own depth is not the expected one within
  * `sp.scene.y` of it times a share from a half to one and a half by `noise`, divided by the share of its normal facing the
- * eye (from a tenth to one) — the pixel there is another surface — or where its weight is under `historyMinWeight`. The
+ * eye (from a tenth to one) — the pixel there is another surface —, where the setting asks it (`SP_FLAG_REJECT_NORMAL`) where
+ * its normal lies further from `N` than the angle whose cosine is `sp.scene.z`, or where its weight is under `historyMinWeight`. The
  * meta words of the four texels come with it. A point the image did not show, or no history at all (`SP_FLAG_TEMPORAL` down),
  * has none. `spDeviceGap` is how far, in device depth, the depth a meta word kept lies from the one a point of the
  * clip position `expected` has: what the screen trace's hits are kept by.
@@ -78,11 +84,17 @@ const SP_HISTORY_MIN_WEIGHT:f32=${SCREEN_PROBE_CONSTANTS.historyMinWeight};
 struct SpHistory{texel:vec2i,weights:vec4f,metas:array<u32,4>,w:f32,}
 fn spReproject(pixel:vec2u,P:vec3f,N:vec3f,noise:f32)->SpHistory{
  let clip=reflectionView.radianceViewProj*vec4f(P,1.0);
- let depth=reflectionLinearDepth(clip);
- var out=SpHistory(vec2i(0),vec4f(0.0),array<u32,4>(),depth);
+ var out=SpHistory(vec2i(0),vec4f(0.0),array<u32,4>(),reflectionLinearDepth(clip));
  let size=reflectionView.radiance.xy;
  if(clip.w<=0.0||!spFlag(SP_FLAG_TEMPORAL)){return out;}
- let px=ndcToPixel(spMotionOf(vec2i(pixel),P,clip.xy/clip.w).ndc,size)-vec2f(0.5);
+ let motion=spMotionOf(vec2i(pixel),P,clip.xy/clip.w);
+ // The depth the last image kept the point at: where it stood then (\`before\`, a moving surface's last place), as the
+ // reference compares a history's depth to the reprojected one.
+ // A surface that did not move by itself stood where it is: the clip position above has its depth.
+ var depth=out.w;
+ if(any(motion.before!=P)){depth=reflectionLinearDepth(reflectionView.radianceViewProj*vec4f(motion.before,1.0));}
+ out.w=depth;
+ let px=ndcToPixel(motion.ndc,size)-vec2f(0.5);
  let base=floor(px);
  let f=px-base;
  let blend=vec4f((1.0-f.x)*(1.0-f.y),f.x*(1.0-f.y),(1.0-f.x)*f.y,f.x*f.y);
@@ -93,7 +105,7 @@ fn spReproject(pixel:vec2u,P:vec3f,N:vec3f,noise:f32)->SpHistory{
   let t=out.texel+vec2i(i32(i&1u),i32(i>>1u));
   if(blend[i]>SP_HISTORY_MIN_WEIGHT&&all(t>=vec2i(0))&&all(vec2f(t)<size)){
    let word=textureLoad(metaIn,t,0).r;
-   if(abs(spMetaDepth(word)-depth)<threshold){out.weights[i]=blend[i];out.metas[i]=word;}
+   if(abs(spMetaDepth(word)-depth)<threshold&&(!spFlag(SP_FLAG_REJECT_NORMAL)||dot(spMetaNormal(word),N)>=sp.scene.z)){out.weights[i]=blend[i];out.metas[i]=word;}
   }
  }
  return out;

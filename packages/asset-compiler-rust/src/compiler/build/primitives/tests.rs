@@ -13,6 +13,7 @@ fn handing_on(cover: Option<RootCover>) -> CompiledPrimitive {
         page_run: None,
         cover,
         parents: Vec::new(),
+        ray_tracing: None,
     }
 }
 

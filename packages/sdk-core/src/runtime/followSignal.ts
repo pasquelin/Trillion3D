@@ -15,3 +15,7 @@ export function followSignal(child: AbortController, parent: AbortSignal | undef
   parent.addEventListener('abort', leave, { once: true })
   return () => parent.removeEventListener('abort', leave)
 }
+
+/** A signal that aborts with `own` or with `outer`, where an asker gave one: `own` alone otherwise. */
+export const signalWith = (own: AbortSignal, outer: AbortSignal | undefined) =>
+  outer ? AbortSignal.any([outer, own]) : own

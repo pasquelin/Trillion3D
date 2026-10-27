@@ -7,6 +7,7 @@ import { packLight, unpackLight } from '../../gpu/core/smallFloatWgsl.ts'
 import { workgroupSumLoop } from '../../gpu/core/workgroupSumWgsl.ts'
 import { CARD_WORDS } from '../../../../sdk-core/src/lighting/surfaceCache/cardRecords.ts'
 import { FINITE_LIGHT_WGSL } from './lighting/combineWgsl.ts'
+import { SHADOW_FACTOR_ATLAS_WGSL } from './lighting/shadowMaskWgsl.ts'
 import { CARD_NORMAL_WGSL, surfaceCacheRecordsWgsl, surfaceCacheSampleWgsl } from './sampleWgsl.ts'
 import { CAPTURE_PARAMS, INVALID_DEPTH_WORD, PAGE_FLAGS, TABLE_AT, TILE } from './layout.ts'
 
@@ -24,7 +25,10 @@ import { CAPTURE_PARAMS, INVALID_DEPTH_WORD, PAGE_FLAGS, TABLE_AT, TILE } from '
  * - `resampleLighting` carries the light a page's card held into the page's texels of the capture atlas
  *   (`PAGE_FLAGS.resampleLighting`: the card had pages before the image): each texel reads the card's
  *   finest page that holds it, bilinearly, the direct light and, with the radiosity, the indirect, and the
- *   tile the mean of the radiosity's accumulation over its texels; nothing for a card that held no page.
+ *   tile the mean of the radiosity's accumulation over its texels and the tile's factors of the direct light's shadows —
+ *   the bits of the lights the tile saw uniformly, kept only where every texel of the tile keeps them (the words
+ *   ANDed over its texels, a texel that holds no sample giving none) — into the capture atlas's factor atlas; nothing
+ *   for a card that held no page.
  *
  * Then, after the raster and the shading:
  *
@@ -42,7 +46,8 @@ import { CAPTURE_PARAMS, INVALID_DEPTH_WORD, PAGE_FLAGS, TABLE_AT, TILE } from '
  * - `lights` writes the light the pages start with into the atlas: where the light is resampled
  *   (`surfaceCacheResampleLighting`), the direct and indirect light and the accumulation `resampleLighting`
  *   left, and as final light the captured albedo over π times their sum plus the captured emission; none
- *   where it is not.
+ *   where it is not; the tile's factors are copied from the capture atlas's factor atlas where the light is resampled, else
+ *   they are none.
  *
  * The resample kernels read the atlas through the read library, whose emission layer is a float
  * texture where the atlas is compressed: they have a program for each (`RESAMPLE_WGSL`,
@@ -212,52 +217,93 @@ ${ENTRY(
 export const RESAMPLE_WGSL = resampleWgsl(false)
 export const RESAMPLE_COMPRESSED_WGSL = resampleWgsl(true)
 
-/** The kernel that carries the light of the pages' cards into their texels of the capture atlas, for an atlas
- *  `compressed` or not. Bindings 3 to 10 are the read library's (the tables and the atlas's layers; it
- *  declares neither the direct nor the indirect light, bound at 8 and 9, which are declared here), 11 the
- *  atlas's radiosity accumulation, 12 to 14 the capture atlas's direct and indirect light and accumulation,
- *  written. */
-const resampleLightingWgsl = (compressed: boolean) =>
-  wgslProgram(
-    `@group(0) @binding(8) var directAtlas:texture_2d<u32>;
+/** The declarations of the light-carrying resample: the atlas's light, the capture atlas's, the two factor
+ *  atlases, and what a workgroup keeps for its tile. */
+const RESAMPLE_LIGHTING_DECLARATIONS = `@group(0) @binding(8) var directAtlas:texture_2d<u32>;
 @group(0) @binding(9) var indirectAtlas:texture_2d<u32>;
 @group(0) @binding(11) var framesAtlas:texture_2d<u32>;
 @group(0) @binding(12) var outDirect:texture_storage_2d<r32uint,write>;
 @group(0) @binding(13) var outIndirect:texture_storage_2d<r32uint,write>;
 @group(0) @binding(14) var outFrames:texture_storage_2d<r32uint,write>;
+@group(0) @binding(15) var<storage,read> oldFactors:array<u32>;
+@group(0) @binding(16) var<storage,read_write> newFactors:array<u32>;
 var<workgroup> framesSum:array<f32,${TILE * TILE}>;
-@compute @workgroup_size(${TILE},${TILE})
+var<workgroup> keptFactors:array<atomic<u32>,FACTOR_TILE_WORDS>;
+var<workgroup> carried:u32;`
+
+/** The light-carrying resample up to the carry: the texel's work item, and the light and factors the
+ *  atlas held for its card, read before the image changed the tables. A page whose card held no light
+ *  (the flag is the tile's, shared by the workgroup) carries none: its texels, accumulation and factors are
+ *  written zero at once, without the sums below. */
+const RESAMPLE_LIGHTING_CARRY = `@compute @workgroup_size(${TILE},${TILE})
 fn resampleLightingPages(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_id) texel:vec3u,@builtin(local_invocation_index) lane:u32){
  let slot=group.x+group.y*n.x;
  if(slot>=params.tiles){return;}
  let w=workAt(slot,texel.xy);
+ let at=vec2i(w.capture);
+ if(lane==0u){carried=w.flags&FLAG_RESAMPLE_LIGHTING;}
+ if(workgroupUniformLoad(&carried)==0u){
+  textureStore(outDirect,at,vec4u(packLight(vec3f(0.0)),0u,0u,0u));
+  textureStore(outIndirect,at,vec4u(packLight(vec3f(0.0)),0u,0u,0u));
+  if(lane==0u){
+   textureStore(outFrames,at/i32(TILE_SIZE),vec4u(0u));
+   let first=factorTileWord(w.capture/TILE_SIZE,params.captureSide/TILE_SIZE);
+   for(var i=0u;i<FACTOR_TILE_WORDS;i++){newFactors[first+i]=0u;}
+  }
+  return;
+ }
  let size=vec2f(vec2u(w.rect.z-w.rect.x,w.rect.w-w.rect.y));
  let rectUv=(vec2f(w.local)+vec2f(0.5))/size;
  var direct=vec3f(0.0);var indirect=vec3f(0.0);var frames=0.0;
- if((w.flags&FLAG_RESAMPLE_LIGHTING)!=0u){
-  let cardUv=mix(w.uv.xy,w.uv.zw,rectUv);
-  // The tables still hold the card as it was before the image; its extent is taken as unchanged.
-  let card=scCard(w.info.z);
-  let local=scCardLocal(card.extent,cardUv,0.0).xy;
-  let s=scComputeSample(card,w.info.z,local,0.0,true);
-  if(s.valid){
-   let b=scGatherBase(s.uv);
-   direct=scLight4(directAtlas,b,s.weights);
-   if(params.radiosity!=0u){
-    indirect=scLight4(indirectAtlas,b,s.weights);
-    frames=f32(textureLoad(framesAtlas,vec2i(s.uv*scAtlasSide())/i32(TILE_SIZE),0).x);
-   }
+ var factors=array<u32,FACTOR_TILE_WORDS>();
+ if(lane<FACTOR_TILE_WORDS){atomicStore(&keptFactors[lane],0xffffffffu);}
+ workgroupBarrier();
+ let cardUv=mix(w.uv.xy,w.uv.zw,rectUv);
+ // The tables still hold the card as it was before the image; its extent is taken as unchanged.
+ let card=scCard(w.info.z);
+ let local=scCardLocal(card.extent,cardUv,0.0).xy;
+ let s=scComputeSample(card,w.info.z,local,0.0,true);
+ if(s.valid){
+  let b=scGatherBase(s.uv);
+  direct=scLight4(directAtlas,b,s.weights);
+  if(params.radiosity!=0u){
+   indirect=scLight4(indirectAtlas,b,s.weights);
+   frames=f32(textureLoad(framesAtlas,vec2i(s.uv*scAtlasSide())/i32(TILE_SIZE),0).x);
   }
- }
- let at=vec2i(w.capture);
+  let first=factorTileWord(vec2u(s.uv*scAtlasSide())/TILE_SIZE,u32(scAtlasSide())/TILE_SIZE);
+  for(var i=0u;i<FACTOR_TILE_WORDS;i++){factors[i]=oldFactors[first+i];}
+ }`
+
+/** The light-carrying resample from the factors kept on: the light stored to the capture atlas, the
+ *  tile's accumulation and factors. */
+const RESAMPLE_LIGHTING_STORE = ` for(var i=0u;i<FACTOR_TILE_WORDS;i++){atomicAnd(&keptFactors[i],factors[i]);}
+ workgroupBarrier();
  textureStore(outDirect,at,vec4u(packLight(direct),0u,0u,0u));
  textureStore(outIndirect,at,vec4u(packLight(indirect),0u,0u,0u));
  // The tile's accumulation: the mean over its texels.
  framesSum[lane]=frames;
  ${workgroupSumLoop(TILE * TILE, 'framesSum[lane]+=framesSum[lane+stride];')}
- if(lane==0u){textureStore(outFrames,at/i32(TILE_SIZE),vec4u(u32(round(framesSum[0]/f32(TILE_SIZE*TILE_SIZE))),0u,0u,0u));}
-}`,
-    [CAPTURE_COMMON, packLight, surfaceCacheSampleWgsl(0, 3, { feedback: false, compressed })],
+ if(lane==0u){
+  textureStore(outFrames,at/i32(TILE_SIZE),vec4u(u32(round(framesSum[0]/f32(TILE_SIZE*TILE_SIZE))),0u,0u,0u));
+  let first=factorTileWord(w.capture/TILE_SIZE,params.captureSide/TILE_SIZE);
+  for(var i=0u;i<FACTOR_TILE_WORDS;i++){newFactors[first+i]=atomicLoad(&keptFactors[i]);}
+ }
+}`
+
+/** The kernel that carries the light of the pages' cards into their texels of the capture atlas, for an atlas
+ *  `compressed` or not. Bindings 3 to 10 are the read library's (the tables and the atlas's layers; it
+ *  declares neither the direct nor the indirect light, bound at 8 and 9, which are declared here), 11 the
+ *  atlas's radiosity accumulation, 12 to 14 the capture atlas's direct and indirect light and accumulation,
+ *  written, 15 the atlas's factor atlas, read, and 16 the capture atlas's, written. */
+const resampleLightingWgsl = (compressed: boolean) =>
+  wgslProgram(
+    [RESAMPLE_LIGHTING_DECLARATIONS, RESAMPLE_LIGHTING_CARRY, RESAMPLE_LIGHTING_STORE].join('\n'),
+    [
+      CAPTURE_COMMON,
+      SHADOW_FACTOR_ATLAS_WGSL,
+      packLight,
+      surfaceCacheSampleWgsl(0, 3, { feedback: false, compressed }),
+    ],
   )
 
 export const RESAMPLE_LIGHTING_WGSL = resampleLightingWgsl(false)
@@ -359,7 +405,8 @@ export const COPY_COMPRESSED_WGSL = copyWgsl(true)
 
 /** The kernel that writes the light the pages start with into the atlas. Bindings 3 to 7: the capture atlas's
  *  albedo, emission, direct and indirect light and accumulation, read; 8 to 11 the atlas's direct, indirect
- *  and final light and the radiosity's accumulation, written; 12 the tables, for the albedo's decode. */
+ *  and final light and the radiosity's accumulation, written; 12 the tables, for the albedo's decode; 13 the capture
+ *  atlas's factor atlas, read, and 14 the atlas's, written. */
 export const LIGHTS_WGSL = wgslProgram(
   `@group(0) @binding(3) var capAlbedo:texture_2d<f32>;
 @group(0) @binding(4) var capEmissive:texture_2d<u32>;
@@ -370,6 +417,8 @@ export const LIGHTS_WGSL = wgslProgram(
 @group(0) @binding(9) var outIndirect:texture_storage_2d<r32uint,write>;
 @group(0) @binding(10) var outFinal:texture_storage_2d<r32uint,write>;
 @group(0) @binding(11) var outFrames:texture_storage_2d<r32uint,write>;
+@group(0) @binding(13) var<storage,read> capFactors:array<u32>;
+@group(0) @binding(14) var<storage,read_write> outFactors:array<u32>;
 ${ENTRY(
   'lightsPages',
   ` let p=vec2i(w.capture);
@@ -388,11 +437,22 @@ ${ENTRY(
  textureStore(outDirect,at,vec4u(direct,0u,0u,0u));
  textureStore(outIndirect,at,vec4u(indirect,0u,0u,0u));
  textureStore(outFinal,at,vec4u(lit,0u,0u,0u));
- if(all(lane.xy==vec2u(0u))){textureStore(outFrames,at/i32(TILE_SIZE),vec4u(frames,0u,0u,0u));}
+ if(all(lane.xy==vec2u(0u))){
+  textureStore(outFrames,at/i32(TILE_SIZE),vec4u(frames,0u,0u,0u));
+  // The tile keeps the factors of its lights as the capture atlas's tile held them, none where the light is not carried.
+  let captured=factorTileWord(w.capture/TILE_SIZE,params.captureSide/TILE_SIZE);
+  let placed=factorTileWord(vec2u(at)/TILE_SIZE,params.atlasSide/TILE_SIZE);
+  for(var i=0u;i<FACTOR_TILE_WORDS;i++){
+   var kept=0u;
+   if(params.resample!=0u){kept=capFactors[captured+i];}
+   outFactors[placed+i]=kept;
+  }
+ }
 `,
 )}`,
   [
     CAPTURE_COMMON,
+    SHADOW_FACTOR_ATLAS_WGSL,
     packLight,
     unpackLight,
     INVERSE_PI,

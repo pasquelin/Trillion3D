@@ -8,6 +8,7 @@ import { SUBSURFACE_FLAG } from '../../../materials/surface/subsurface.ts'
 import { ACCUMULATION_WGSL } from '../../../post/taa/accumulationWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { SP_BENT_WGSL, spHistory } from './historyWgsl.ts'
+import { SP_OCCLUSION_CELLS } from './occlusionWgsl.ts'
 import { spIntegrate } from './integrateWgsl.ts'
 import { spProbes, spSurface } from './probesWgsl.ts'
 import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
@@ -54,51 +55,76 @@ export const temporalEntries = (probes: boolean, bentNormal: boolean) =>
     entry.binding === B.occlusion && bentNormal ? computeTextureEntry(B.occlusion, 'uint') : entry,
   )
 
-/**
- * THE OCCLUSION OF THIS IMAGE at a pixel, as the search found it (`spOcclusionAt`; its texel, the
- * occlusion's own size being the image's over its downsample): the direction of the open sky in `xyz` and the amount of it in `w` —
- * with the bent normal the word the pass wrote (`spBentUnpack`), else the amount alone and a direction that is none (`(0, 0, 1)`
- * for every pixel) —, the mean and the deviation of the four numbers over the three by three
- * pixels round one (`spOcclusionHood`), and the lowest and the highest light and rough specular of the three by three pixels round one that read
- * some (`spLightRange`, the pixels integrated as the pass integrates its own).
- */
-const SP_TEMPORAL_HOODS = (bentNormal: boolean) =>
-  wgslBlock(
-    `SP_TEMPORAL_HOODS(${bentNormal})`,
-    [SP_BENT_WGSL],
-    `@group(0) @binding(${B.occlusion}) var occlusionIn:texture_2d<${bentNormal ? 'u32' : 'f32'}>;
-fn spOcclusionAt(pixel:vec2i)->vec4f{
- let last=(vec2i(sp.size.xy)-vec2i(1))/vec2i(i32(SP_OCCLUSION_DOWNSAMPLE));
- let at=clamp(pixel/vec2i(i32(SP_OCCLUSION_DOWNSAMPLE)),vec2i(0),last);
+/** The occlusion texels of this image: the texel a pixel picks among the four round it, and the mean and
+ *  deviation over the three by three round that one. */
+const spOcclusionTexels = (
+  bentNormal: boolean,
+) => `@group(0) @binding(${B.occlusion}) var occlusionIn:texture_2d<${bentNormal ? 'u32' : 'f32'}>;
+fn spOcclusionLast()->vec2i{return (vec2i(sp.size.xy)-vec2i(1))/vec2i(i32(SP_OCCLUSION_DOWNSAMPLE));}
+fn spOcclusionTexel(cell:vec2i)->vec4f{
+ let at=clamp(cell,vec2i(0),spOcclusionLast());
  ${bentNormal ? 'return spBentUnpack(textureLoad(occlusionIn,at,0).r);' : 'return vec4f(0.0,0.0,1.0,textureLoad(occlusionIn,at,0).r);'}
 }
-fn spOcclusionHood(pixel:vec2i)->array<vec4f,2>{
+fn spOcclusionCell(pixel:vec2i,s:SpSurface,noise:f32)->vec2i{
+ let last=spOcclusionLast();
+ if(SP_OCCLUSION_DOWNSAMPLE==1u){return clamp(pixel,vec2i(0),last);}
+ let base=vec2i(floor((vec2f(pixel)+vec2f(0.5))/f32(SP_OCCLUSION_DOWNSAMPLE)-vec2f(0.5)));
+ let depth=max(surfaceLinearDepth(s.P),1e-3);
+ var weights=vec4f(0.0);
+ for(var i=0;i<4;i++){
+  let cell=base+vec2i(i&1,i>>1);
+  if(any(cell<vec2i(0))||any(cell>last)){continue;}
+  let stand=vec2i(spOcclusionPixel(vec2u(cell)));
+  let apart=abs(vec2f(stand-pixel));
+  let triangle=max(2.0-apart.x,0.0)*max(2.0-apart.y,0.0);
+  if(triangle<=0.0){continue;}
+  let other=spSurfaceAt(vec2u(stand));
+  if(!other.lit){continue;}
+  let away=abs(dot(other.P-s.P,s.N))/depth;
+  let angle=1.0-saturate(acos(saturate(dot(other.N,s.N))));
+  weights[i]=triangle*exp2(-5000.0*away*away)*angle*angle;
+ }
+ let reach=vec4f(weights.x,weights.x+weights.y,weights.x+weights.y+weights.z,weights.x+weights.y+weights.z+weights.w);
+ let pick=noise*reach.w;
+ var k=3;
+ if(pick<=reach.x&&weights.x>0.0){k=0;}
+ else if(pick<=reach.y&&weights.y>0.0){k=1;}
+ else if(pick<=reach.z&&weights.z>0.0){k=2;}
+ return clamp(base+vec2i(k&1,k>>1),vec2i(0),last);
+}
+fn spOcclusionHood(cell:vec2i)->array<vec4f,2>{
  var sum=vec4f(0.0);
  var square=vec4f(0.0);
  for(var i=0;i<9;i++){
-  let value=spOcclusionAt(pixel+vec2i(i%3-1,i/3-1)*vec2i(i32(SP_OCCLUSION_DOWNSAMPLE)));
+  let value=spOcclusionTexel(cell+vec2i(i%3-1,i/3-1));
   sum+=value;
   square+=value*value;
  }
  let mean=sum/9.0;
  return array<vec4f,2>(mean,sqrt(max(square/9.0-mean*mean,vec4f(0.0))));
-}
-/** The occlusion \`o\` (direction in \`xyz\`, amount in \`w\`) with its amount mixed toward 1 by \`1 - strength\`. */
+}`
+
+/** The occlusion held to the setting at a pixel: the strength it applies with and the open sky it leaves. */
+const spOcclusionSky = (
+  bentNormal: boolean,
+) => `/** The occlusion \`o\` (direction in \`xyz\`, amount in \`w\`) with its amount mixed toward 1 by \`1 - strength\`. */
 fn spFoliageAmount(o:vec4f,strength:f32)->vec4f{return vec4f(o.xyz,mix(1.0,o.w,strength));}
 /** How strongly the occlusion applies at \`pixel\`: the setting's at a thin double-sided sheet, whole elsewhere. */
 fn spStrengthAt(pixel:vec2i)->f32{
  return select(1.0,sp.foliage.x,(textureLoad(sceneFlags,pixel,0).r&${SUBSURFACE_FLAG}u)!=0u);
 }
-/** The open sky of the pixel \`pixel\` of normal \`N\` that weighs the directions of its rough specular: the occlusion held to the setting's intensity
+/** The open sky of the pixel whose occlusion texel is \`cell\`, of normal \`N\` that weighs the directions of its rough specular: the occlusion held to the setting's intensity
  *  (\`sp.foliage.y\`) and the pixel's \`strength\`, its direction a unit vector (the surface's own normal where the level keeps the amount alone),
  *  none (the normal, all of it) where the occlusion is off. */
-fn spSkyAt(pixel:vec2i,N:vec3f,strength:f32)->vec4f{
+fn spSkyAt(cell:vec2i,N:vec3f,strength:f32)->vec4f{
  if(!spFlag(SP_FLAG_OCCLUSION)){return vec4f(N,1.0);}
- let o=spOcclusionAt(pixel);
+ let o=spOcclusionTexel(cell);
  let amount=mix(1.0,mix(1.0,o.w,sp.foliage.y),strength);
  ${bentNormal ? 'return vec4f(select(N,normalize(o.xyz),dot(o.xyz,o.xyz)>1e-8),amount);' : 'return vec4f(N,amount);'}
-}
-/** The workgroup's pixels and their border, the texels the fast update's neighbourhood reads, each integrated once for all the pixels
+}`
+
+/** The workgroup's tile of integrated neighbours, and the range of light and rough specular of the three by three round a pixel. */
+const SP_LIGHT_RANGE = `/** The workgroup's pixels and their border, the texels the fast update's neighbourhood reads, each integrated once for all the pixels
  *  that read it: the light in \`xyz\`, \`w\` whether the pixel is lit and read some; the rough specular. \`rangeNeeded\` marks the tile texel of each
  *  pixel that clamps (the centre of its three by three), \`rangeAsked\` whether any pixel of the workgroup did. */
 const SP_RANGE_SIDE:u32=SP_GROUP+2u;
@@ -140,7 +166,9 @@ fn spRangeFill(group:vec2u,lane:u32){
   var rough=vec3f(0.0);
   let s=spSurfaceAt(vec2u(near));
   if(s.lit){
-   let read=spIntegrate(vec2u(near),s,true,false,spSkyAt(near,s.N,spStrengthAt(near)));
+   var cell=vec2i(0);
+   if(spFlag(SP_FLAG_OCCLUSION)){cell=spOcclusionCell(near,s,blueNoiseScalar(vec2u(near),sp.size.w));}
+   let read=spIntegrate(vec2u(near),s,true,false,spSkyAt(cell,s.N,spStrengthAt(near)));
    if(read.light.a>0.0){
     light=vec4f(read.light.rgb,1.0);
     rough=read.rough;
@@ -167,7 +195,24 @@ fn spLightRange(local:vec2u,light:vec3f,rough:vec3f)->array<vec3f,4>{
   }
  }
  return array<vec3f,4>(low,high,lowRough,highRough);
-}`,
+}`
+
+/**
+ * THE OCCLUSION OF THIS IMAGE at a pixel, as the search found it (`spOcclusionTexel`, the occlusion's own size being the image's
+ * over its downsample). The texel a pixel reads is picked stochastically among the four round it (`spOcclusionCell`): each stands for
+ * the full-size pixel the search ran from (`spOcclusionPixel`), is weighed by its triangle distance to the pixel, how near the pixel's
+ * plane that pixel's point lies and how near its normal is the pixel's, and the pixel's blue noise picks one by those weights (the
+ * last where none weighs); the texel picked is also the centre of the neighbourhood the history's occlusion is clamped to. The texel holds: the direction of the open sky in `xyz` and the amount of it in `w` —
+ * with the bent normal the word the pass wrote (`spBentUnpack`), else the amount alone and a direction that is none (`(0, 0, 1)`
+ * for every pixel) —, the mean and the deviation of the four numbers over the three by three
+ * texels round the one picked (`spOcclusionHood`), and the lowest and the highest light and rough specular of the three by three pixels round one that read
+ * some (`spLightRange`, the pixels integrated as the pass integrates its own).
+ */
+const SP_TEMPORAL_HOODS = (bentNormal: boolean) =>
+  wgslBlock(
+    `SP_TEMPORAL_HOODS(${bentNormal})`,
+    [SP_BENT_WGSL, SP_OCCLUSION_CELLS],
+    [spOcclusionTexels(bentNormal), spOcclusionSky(bentNormal), SP_LIGHT_RANGE].join('\n'),
   )
 
 /**
@@ -203,10 +248,8 @@ fn spKeptOf(h:SpHistory)->SpKept{
 }`,
 )
 
-/** The temporal kernel up to the neighbourhood the fast update holds the history to: the pixel's fresh light and occlusion, its reprojected
- *  history, how fast its light moves, and the workgroup's texels the pixels that clamp read, integrated once. A thread past the image or on no lit
- *  surface goes through the barriers all the same and does nothing else. */
-const spTemporalFresh = (
+/** The temporal kernel's pixel: its fresh light and occlusion, its reprojected history and how fast its light moves. */
+const spTemporalPixel = (
   probes: boolean,
 ) => `@group(0) @binding(${B.historyOut}) var historyOut:texture_storage_2d<${F.history},write>;
 @group(0) @binding(${B.metaOut}) var metaOut:texture_storage_2d<${F.meta},write>;
@@ -229,12 +272,14 @@ fn temporal(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) group
  var fresh:SpIntegrated;
  var h:SpHistory;
  var kept:SpKept;
+ var cell=vec2i(0);
  var frames=0.0;
  var amount=0.0;
  var fast=0.0;
  if(live){
   noise=blueNoiseScalar(id.xy,sp.size.w);
-  fresh=spIntegrate(vec2u(at),s,${probes},backface,spSkyAt(at,s.N,strength));
+  if(occluded){cell=spOcclusionCell(at,s,noise);}
+  fresh=spIntegrate(vec2u(at),s,${probes},backface,spSkyAt(cell,s.N,strength));
   h=spReproject(vec2u(at),s.P,s.N,noise);
   kept=spKeptOf(h);
   if(kept.held>0.0){
@@ -245,8 +290,10 @@ fn temporal(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) group
    fast=max(fast,min(before.y,sp.motion.z));
    frames=min(min(before.x+1.0,longest),(1.0-fast)*longest);
   }
- }
- let local=vec2u(lane%SP_GROUP,lane/SP_GROUP);
+ }`
+
+/** The temporal kernel's tile: the workgroup's texels the pixels that clamp read, integrated once for all of them. */
+const SP_TEMPORAL_TILE = ` let local=vec2u(lane%SP_GROUP,lane/SP_GROUP);
  let clamped=live&&kept.held>0.0&&spFlag(SP_FLAG_FAST_UPDATE_CLAMP)&&fast>0.0;
  if(lane<4u){atomicStore(&rangeNeeded[lane],0u);}
  if(lane==4u){rangeAsked=0u;}
@@ -257,15 +304,23 @@ fn temporal(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) group
  if(workgroupUniformLoad(&rangeAsked)!=0u){
   spRangeFill(group.xy,lane);
   workgroupBarrier();
- }
- let reading=${probes ? 'fresh.light.a>0.0' : 'true'};
+ }`
+
+/** The temporal kernel's light, rough specular, back and occlusion as the pixel's own, before the blend with the history. */
+const spTemporalOwn = (probes: boolean) => ` let reading=${probes ? 'fresh.light.a>0.0' : 'true'};
  var light=fresh.light.rgb;
  var rough=fresh.rough;
  var back=fresh.back;
  // A thin double-sided sheet takes the occlusion at most as strongly as the setting says: its amount is mixed toward 1, the
  // light scattering through the sheet; the neighbourhood the history is held to is mixed the same way.
  var occlusion=vec4f(0.0);
- if(live){occlusion=spFoliageAmount(select(vec4f(0.0,0.0,1.0,1.0),spOcclusionAt(at),occluded),strength);}`
+ if(live){occlusion=spFoliageAmount(select(vec4f(0.0,0.0,1.0,1.0),spOcclusionTexel(cell),occluded),strength);}`
+
+/** The temporal kernel up to the neighbourhood the fast update holds the history to: the pixel's fresh light and occlusion, its reprojected
+ *  history, how fast its light moves, and the workgroup's texels the pixels that clamp read, integrated once. A thread past the image or on no lit
+ *  surface goes through the barriers all the same and does nothing else. */
+const spTemporalFresh = (probes: boolean) =>
+  [spTemporalPixel(probes), SP_TEMPORAL_TILE, spTemporalOwn(probes)].join('\n')
 
 /** The temporal kernel from the blend: the history held, mixed with the fresh light and written. */
 const spTemporalBlend = (bentNormal: boolean) => ` if(!live){return;}
@@ -279,7 +334,7 @@ const spTemporalBlend = (bentNormal: boolean) => ` if(!live){return;}
    historyRough=clamp(historyRough,range[2],range[3]);
   }
   if(occluded&&spFlag(SP_FLAG_OCCLUSION_TEMPORAL)&&sp.occlusion.w>0.0){
-   let hood=spOcclusionHood(at);
+   let hood=spOcclusionHood(cell);
    let around=spFoliageAmount(hood[0],strength);
    let spread=hood[1]*vec4f(1.0,1.0,1.0,strength)*sp.occlusion.w;
    historyOcclusion=clamp(historyOcclusion,around-spread,around+spread);
@@ -305,7 +360,7 @@ const spTemporalBlend = (bentNormal: boolean) => ` if(!live){return;}
   packLight(ditherLight(max(back,vec3f(0.0)),noise)),
   spBentPack(direction*clamp(occlusion.w,1.0/255.0,1.0)));
  textureStore(historyOut,at,select(word,vec4u(0u),noHistory));
- textureStore(metaOut,at,vec4u(select(spMetaOf(surfaceLinearDepth(s.P),frames,amount),0u,noHistory),0u,0u,0u));
+ textureStore(metaOut,at,vec4u(select(spMetaOf(surfaceLinearDepth(s.P),frames,amount,s.N),0u,noHistory),0u,0u,0u));
 }`
 
 /**

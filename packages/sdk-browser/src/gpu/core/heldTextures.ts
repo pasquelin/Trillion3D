@@ -33,6 +33,49 @@ export function listedBytes(list: (allocator: ResourceAllocator) => unknown) {
   return counting.bytes()
 }
 
+/** What a set of resources is, beside its buffers and textures: the key it was made for (the values it depends on, compared one by
+ *  one), its bytes and the means of giving it back. */
+export interface HeldSet {
+  readonly key: readonly unknown[]
+  readonly bytes: number
+  dispose(): void
+}
+
+/**
+ * The resources `allocate` names, for `key`: `held` where it is for that key, else made, those held given back (retired,
+ * the image being encoded may still name them) — where the device's budget leaves room (`ledgerAdmitted`); none where it
+ * does not, with the reason. The bytes the budget is asked for are the allocations themselves, counted. `extend` adds to
+ * what is made what is not an allocation (an upload, the writers over its buffers): it runs only on a making.
+ */
+export function ensureSet<S extends object, X extends object = Record<never, never>>(
+  held: (S & X & HeldSet) | undefined,
+  device: GPUDevice,
+  { key, what, label }: { key: readonly unknown[]; what: string; label: string },
+  allocate: (allocator: ResourceAllocator) => S,
+  extend?: (resources: S) => X,
+): { resources?: S & X & HeldSet; why?: string } {
+  if (held && held.key.length === key.length && held.key.every((part, at) => part === key[at]))
+    return { resources: held }
+  const bytes = listedBytes(allocate)
+  const { value, why } = ledgerAdmitted(device, {
+    held,
+    asked: bytes,
+    what,
+    make: () => {
+      const allocator = gpuAllocator(device, label)
+      const resources = allocate(allocator)
+      return {
+        ...resources,
+        ...extend?.(resources),
+        key,
+        bytes,
+        dispose: () => retire(device, { destroy: () => allocator.destroy() }),
+      } as S & X & HeldSet
+    },
+  })
+  return { resources: value, why }
+}
+
 /**
  * The textures a volume holds, made again, the old ones retired, when what it asks of them changes — the device's budget
  * to refuse them (`ledgerAdmitted`): the one place a volume's textures live and are given back. `release` retires them

@@ -20,32 +20,30 @@ export const SURFACE_PAST_WGSL = wgslBlock(
 )
 
 /**
- * WHAT THE SURFACES MOVE BY, from the vectors the velocity stage drew for this image (`sceneVectors` at `binding`, one
- * word a render texel). `spMotionOf` reads it at `pixel`, the surface at the world point `P`: `ndc`, where that surface
- * stood, and its world displacement `speed`, of a dynamic pixel: its point in the view-projection of
- * the last lit image (the camera's own motion, which depth it keeps) with the device position the vector names, taken
- * back through that view-projection's inverse (`sp.previous`); zero for a still one. A program that reads no vector
- * (`SP_FLAG_VELOCITY` down) has none: its surfaces are still.
+ * WHAT THE SURFACES MOVE BY, from the vectors the velocity stage drew for this image (`sceneVectors` at `binding`, two
+ * words a render texel). `spMotionOf` reads it at `pixel`, the surface at the world point `P`: `ndc`, where that surface
+ * stood, `before`, the world point it stood at, and its world displacement `speed`. A dynamic pixel stood at the device
+ * position its vector names, at the device depth its depth step gives (`depthStepOf`, the reference's velocity depth), taken
+ * back through the last lit image's view-projection inverse (`sp.previous`); a still one stood where it is. A program that
+ * reads no vector (`SP_FLAG_VELOCITY` down) has none: its surfaces are still.
  */
 export const spVectors = (binding: number) =>
   wgslBlock(
     `spVectors(${binding})`,
-    [VECTOR_CODEC_WGSL, pixelToNdc],
+    [SURFACE_PAST_WGSL, VECTOR_CODEC_WGSL, pixelToNdc],
     `@group(0) @binding(${binding}) var sceneVectors:texture_2d<u32>;
-struct SpMotion{ndc:vec2f,speed:f32,}
+struct SpMotion{ndc:vec2f,speed:f32,before:vec3f,}
 fn spMotionOf(pixel:vec2i,P:vec3f,camera:vec2f)->SpMotion{
- if(!spFlag(SP_FLAG_VELOCITY)){return SpMotion(camera,0.0);}
+ if(!spFlag(SP_FLAG_VELOCITY)){return SpMotion(camera,0.0,P);}
  let last=vec2i(sp.size.xy)-vec2i(1);
- let word=textureLoad(sceneVectors,clamp(pixel,vec2i(0),last),0).r;
- if(!hasOwnMotion(word)){return SpMotion(camera,0.0);}
- // A dynamic pixel stood at its own position less its vector, as surfacePast says.
- let vector=pixelToNdc(vec2f(pixel)+vec2f(0.5),vec2f(sp.size.xy))-decodeVector(word);
- let prev=reflectionView.radianceViewProj*vec4f(P,1.0);
- var speed=0.0;
- if(prev.w>0.0){
-  let at=sp.previous*vec4f(vector*prev.w,prev.z,prev.w);
-  speed=length(P-at.xyz/at.w);
- }
- return SpMotion(vector,speed);
+ let words=textureLoad(sceneVectors,clamp(pixel,vec2i(0),last),0);
+ if(!hasOwnMotion(words.r)){return SpMotion(camera,0.0,P);}
+ // A dynamic pixel stood at its own position less its vector, at its depth less its depth step.
+ let vector=surfacePast(words.r,pixelToNdc(vec2f(pixel)+vec2f(0.5),vec2f(sp.size.xy)),camera);
+ let now=reflectionView.viewProj*vec4f(P,1.0);
+ if(now.w<=0.0){return SpMotion(vector,0.0,P);}
+ let at=sp.previous*vec4f(vector,now.z/now.w-depthStepOf(words.g),1.0);
+ let before=at.xyz/at.w;
+ return SpMotion(vector,length(P-before),before);
 }`,
   )

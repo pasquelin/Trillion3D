@@ -1,26 +1,62 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { dispatchGrid, WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
+import { dagReadGroupEntries, type DagReadTables } from '../../../geometry/dag/shader/bindings.ts'
 import { skyLightReadBindEntries } from '../../../modules/sky/skyLight/read.ts'
 import { cloudShadowBindEntries } from '../../atmosphere/cloudShadowRead.ts'
+import type { SceneTrace } from '../../rays/sceneTrace/sceneTraceResources.ts'
+import { sceneTraceBindEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
 import type { SurfaceHitResources } from '../hitWgsl.ts'
 import type { SurfaceAtlases } from '../atlases.ts'
 import { COMBINE_BINDINGS } from './combineWgsl.ts'
-import { DIRECT_BINDINGS, DIRECT_CLOUD_SHADOW } from './directWgsl.ts'
-import type { staticKernels, ShapedKernels } from './kernels.ts'
+import { CONTEXT_TRACES_BINDING } from './contextWgsl.ts'
+import { CULL_ENTRY } from './cullWgsl.ts'
+import {
+  DIRECT_BINDINGS,
+  DIRECT_CLOUD_SHADOW,
+  DIRECT_ENTRY,
+  DIRECT_TRACED_ENTRY,
+} from './directWgsl.ts'
+import type { staticKernels, ShapedKernels, tracedKernels } from './kernels.ts'
 import { CONTEXT_ARGS, CONTEXT_AT } from './layout.ts'
 import type { LightingInputs } from './surfaceLighting.ts'
 import { RADIOSITY_BUILD_BINDINGS } from './radiosityBuildWgsl.ts'
 import { RADIOSITY_FILTER_BINDINGS } from './radiosityFilterWgsl.ts'
-import { RADIOSITY_INTEGRATE_BINDINGS } from './radiosityIntegrateWgsl.ts'
-import { RADIOSITY_TRACE_BINDINGS } from './radiosityTraceWgsl.ts'
-import type { LightingResources } from './resources.ts'
+import {
+  RADIOSITY_INTEGRATE_BINDINGS,
+  RADIOSITY_INTEGRATE_ENTRY,
+} from './radiosityIntegrateWgsl.ts'
+import { RADIOSITY_TRACE_BINDINGS, RADIOSITY_TRACE_ENTRY } from './radiosityTraceWgsl.ts'
+import {
+  SHADOW_MASK_BINDINGS,
+  SHADOW_MASK_CLOUD_SHADOW,
+  SHADOW_MASK_ENTRY,
+} from './shadowMaskWgsl.ts'
+import {
+  SHADOW_ARGS_BINDINGS,
+  SHADOW_ARGS_ENTRY,
+  SHADOW_TRACE_BINDINGS,
+  SHADOW_TRACE_ENTRY,
+  SHADOW_TRACE_SCENE,
+} from './shadowTraceWgsl.ts'
+import type { LightingResources, TracedShadowBuffers } from './resources.ts'
 
 /**
  * THE DISPATCHES OF AN IMAGE'S LIGHTING, each with the bind group of its program over what the image holds (`Encoding`): the
- * update context, the direct light and the radiosity, in the order `surfaceLighting.ts` says. A program's group is made again
+ * update context, the direct light (its shadows traced, where the image has the scene trace: the masks, the arguments and the
+ * trace come between its lights and its light) and the radiosity, in the order `surfaceLighting.ts`
+ * says. A program's group is made again
  * only where a resource it names moved (`Kernel.group`); the dispatches that follow a list the GPU made read their sizes
  * from its header (`CONTEXT_ARGS`).
  */
+
+/** What the direct light's shadows are traced with in an image: the programs, their buffers, the scene trace (its resources,
+ *  which the image wrote the parameters of) and the cut's tables it is cast through. */
+export interface TracedShadows {
+  readonly kernels: ReturnType<typeof tracedKernels>
+  readonly buffers: TracedShadowBuffers
+  readonly sceneTrace: SceneTrace
+  readonly views: DagReadTables
+}
 
 /** Everything the passes of one image read. */
 export interface Encoding {
@@ -39,6 +75,8 @@ export interface Encoding {
   readonly indirectTiles: number
   /** Whether the radiosity's rays are filtered. */
   readonly filtered: boolean
+  /** The traced shadows of the direct light; none, the direct light's shadow is one ray through the global distance field. */
+  readonly traced?: TracedShadows
 }
 
 const buffer = (binding: number, resource: GPUBuffer) => ({
@@ -61,21 +99,30 @@ function single(e: Encoding, pipeline: GPUComputePipeline, group: GPUBindGroup) 
   e.pass.dispatchWorkgroups(1)
 }
 
-/** A dispatch whose groups the context's header names in `slot`. */
-function fromContext(e: Encoding, pipeline: GPUComputePipeline, group: GPUBindGroup, slot: number) {
+/** A dispatch whose groups the context's header names in `slot`; `later` are the bind groups after the first. */
+function fromContext(
+  e: Encoding,
+  pipeline: GPUComputePipeline,
+  group: GPUBindGroup,
+  slot: number,
+  later: readonly GPUBindGroup[] = [],
+) {
   e.pass.setPipeline(pipeline)
   e.pass.setBindGroup(0, group)
+  later.forEach((bound, at) => e.pass.setBindGroup(at + 1, bound))
   e.pass.dispatchWorkgroupsIndirect(e.resources.context, (CONTEXT_AT.args + 4 * slot) * 4)
 }
 
 /** The tiles of the updates this image lights, chosen. */
 export function contextPasses(e: Encoding) {
-  const { params, context } = e.resources
+  const { params, context, standIn } = e.resources
+  const shadowTraces = e.traced?.buffers.traces ?? standIn
   const kernel = e.fixed.context
-  const group = kernel.group([params, e.tables, context], () => [
+  const group = kernel.group([params, e.tables, context, shadowTraces], () => [
     buffer(0, params),
     buffer(1, e.tables),
     buffer(2, context),
+    buffer(CONTEXT_TRACES_BINDING, shadowTraces),
   ])
   single(e, kernel.pipeline('contextClear'), group)
   dispatch(e, kernel.pipeline('contextHistogram'), group, e.pages)
@@ -84,10 +131,125 @@ export function contextPasses(e: Encoding) {
   single(e, kernel.pipeline('contextArgs'), group)
 }
 
+/** The shadow masks of the lights of the tiles, which list the traces they need. */
+function shadowMaskPass(e: Encoding, { kernels, buffers }: TracedShadows) {
+  const { params, context, tileLights } = e.resources
+  const { physical, factors } = e.atlases
+  const { masks: shadowMasks, traces: shadowTraces, lightTiles: shadowLightTiles } = buffers
+  const { cloudShadow, lights, lightFunction } = e.inputs
+  const M = SHADOW_MASK_BINDINGS
+  const masking = kernels.shadowMask.group(
+    [
+      params,
+      e.tables,
+      context,
+      physical.depth,
+      physical.normal,
+      tileLights,
+      shadowMasks,
+      lights,
+      lightFunction,
+      cloudShadow.block,
+      cloudShadow.maps[0],
+      cloudShadow.maps[1],
+      cloudShadow.sampler,
+      factors,
+      shadowTraces,
+      shadowLightTiles,
+    ],
+    () => [
+      buffer(0, params),
+      buffer(M.tables, e.tables),
+      buffer(M.context, context),
+      view(M.depth, physical.depth),
+      view(M.normal, physical.normal),
+      buffer(M.tileLights, tileLights),
+      buffer(M.masks, shadowMasks),
+      buffer(M.lights, lights),
+      view(M.lightFunction, lightFunction),
+      ...cloudShadowBindEntries(SHADOW_MASK_CLOUD_SHADOW, cloudShadow),
+      buffer(M.factors, factors),
+      buffer(M.traces, shadowTraces),
+      buffer(M.lightTiles, shadowLightTiles),
+    ],
+  )
+  fromContext(e, kernels.shadowMask.pipeline(SHADOW_MASK_ENTRY), masking, CONTEXT_ARGS.directTiles)
+}
+
+/** The arguments of the traces the masks listed. */
+function shadowArgsPass(e: Encoding, { kernels, buffers }: TracedShadows) {
+  const { params, context } = e.resources
+  const A = SHADOW_ARGS_BINDINGS
+  const args = kernels.shadowArgs.group([params, e.tables, context, buffers.traces], () => [
+    buffer(0, params),
+    buffer(A.tables, e.tables),
+    buffer(A.context, context),
+    buffer(A.traces, buffers.traces),
+  ])
+  single(e, kernels.shadowArgs.pipeline(SHADOW_ARGS_ENTRY), args)
+}
+
+/** The traces the masks listed, cast through the scene and the cut's tables. */
+function shadowTracePass(e: Encoding, { kernels, buffers, sceneTrace, views }: TracedShadows) {
+  const { params } = e.resources
+  const { physical } = e.atlases
+  const { masks: shadowMasks, traces: shadowTraces, lightTiles: shadowLightTiles } = buffers
+  const { lights } = e.inputs
+  const T = SHADOW_TRACE_BINDINGS
+  const tracing = kernels.shadowTrace.group(
+    [
+      params,
+      e.tables,
+      shadowTraces,
+      physical.depth,
+      physical.normal,
+      shadowMasks,
+      lights,
+      shadowLightTiles,
+      views.nodes,
+      views.frames,
+      views.worlds,
+      views.tree,
+    ],
+    () => [
+      buffer(0, params),
+      buffer(T.tables, e.tables),
+      buffer(T.traces, shadowTraces),
+      view(T.depth, physical.depth),
+      view(T.normal, physical.normal),
+      buffer(T.masks, shadowMasks),
+      buffer(T.lights, lights),
+      buffer(T.lightTiles, shadowLightTiles),
+      ...dagReadGroupEntries(views),
+    ],
+  )
+  const scene = kernels.shadowTrace.group(
+    [sceneTrace.params, sceneTrace.nodes, sceneTrace.triangles, sceneTrace.table],
+    () => sceneTraceBindEntries(sceneTrace, SHADOW_TRACE_SCENE.first),
+    SHADOW_TRACE_SCENE.group,
+  )
+  fromContext(
+    e,
+    kernels.shadowTrace.pipeline(SHADOW_TRACE_ENTRY),
+    tracing,
+    CONTEXT_ARGS.shadowTraces,
+    [scene],
+  )
+}
+
+/** The passes between the lights of the tiles and their light: the shadow masks, the traces' arguments
+ *  and the traces. */
+function shadowPasses(e: Encoding, traced: TracedShadows) {
+  shadowMaskPass(e, traced)
+  shadowArgsPass(e, traced)
+  shadowTracePass(e, traced)
+}
+
 /** The lights of each tile, their light on its texels, and the final light of the tiles. */
 export function directPasses(e: Encoding) {
-  const { params, context, tileLights } = e.resources
-  const { physical } = e.atlases
+  const { params, context, tileLights, standIn } = e.resources
+  const shadowMasks = e.traced?.buffers.masks ?? standIn
+  const { physical, factors } = e.atlases
   const common = [buffer(0, params), buffer(1, e.tables), buffer(2, context)]
   const cull = e.shaped.cull
   const culling = cull.group(
@@ -100,7 +262,8 @@ export function directPasses(e: Encoding) {
       buffer(6, e.inputs.lights),
     ],
   )
-  fromContext(e, cull.pipeline('cullLights'), culling, CONTEXT_ARGS.directTiles)
+  fromContext(e, cull.pipeline(CULL_ENTRY), culling, CONTEXT_ARGS.directTiles)
+  if (e.traced) shadowPasses(e, e.traced)
   const D = DIRECT_BINDINGS
   const { cloudShadow, field } = e.inputs
   const direct = e.fixed.direct.group(
@@ -119,6 +282,8 @@ export function directPasses(e: Encoding) {
       cloudShadow.maps[1],
       cloudShadow.sampler,
       field.readGeneration,
+      shadowMasks,
+      factors,
     ],
     () => [
       ...common,
@@ -130,9 +295,12 @@ export function directPasses(e: Encoding) {
       view(D.lightFunction, e.inputs.lightFunction),
       ...cloudShadowBindEntries(DIRECT_CLOUD_SHADOW, cloudShadow),
       ...field.readEntries(D.field),
+      buffer(D.masks, shadowMasks),
+      buffer(D.factors, factors),
     ],
   )
-  fromContext(e, e.fixed.direct.pipeline('directShade'), direct, CONTEXT_ARGS.directTiles)
+  const entry = e.traced ? DIRECT_TRACED_ENTRY : DIRECT_ENTRY
+  fromContext(e, e.fixed.direct.pipeline(entry), direct, CONTEXT_ARGS.directTiles)
   combine(e, 'combineDirect', CONTEXT_ARGS.directTiles)
 }
 
@@ -252,7 +420,7 @@ function radiosityIntegrate(e: Encoding) {
       view(I.frames, physical.frames),
     ],
   )
-  fromContext(e, integrate.pipeline('radiosityIntegrate'), group, CONTEXT_ARGS.indirectTiles)
+  fromContext(e, integrate.pipeline(RADIOSITY_INTEGRATE_ENTRY), group, CONTEXT_ARGS.indirectTiles)
 }
 
 /** The rays' probes: their tiles, the rays traced through the field, filtered, projected on the harmonics, integrated. */
@@ -306,5 +474,5 @@ function traceRays(e: Encoding) {
       view(T.noise, e.noise),
     ],
   )
-  fromContext(e, kernel.pipeline('radiosityTrace'), group, CONTEXT_ARGS.traces)
+  fromContext(e, kernel.pipeline(RADIOSITY_TRACE_ENTRY), group, CONTEXT_ARGS.traces)
 }

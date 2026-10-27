@@ -18,6 +18,8 @@ import {
   REPROJECTED_FORMAT,
 } from '../../../packages/sdk-browser/src/post/taa/reprojectWgsl.ts'
 import { THIN_GEOMETRY_FORMAT } from '../../../packages/sdk-browser/src/post/taa/thinGeometryWgsl.ts'
+import { REJECT_SHADING_STRIDE } from '../../../packages/sdk-browser/src/post/taa/rejectionNetworkWgsl.ts'
+import { flickerErrorWords } from '../../../packages/sdk-browser/src/post/taa/flickerErrorCells.ts'
 import { REJECTION_FORMAT } from '../../../packages/sdk-browser/src/post/taa/rejectionWgsl.ts'
 import { FIELD_FORMAT } from '../../../packages/sdk-browser/src/post/taa/reprojectionFieldWgsl.ts'
 import { sceneColorWords } from '../../../packages/sdk-browser/src/post/taa/colorSpaceWgsl.ts'
@@ -57,7 +59,17 @@ const TAA_HISTORY_PIXELS = (TAA_KNOBS.historyPercent / 100) ** 2,
     TAA_HISTORY_PIXELS > 1
       ? TAA_HISTORY_PIXELS * texelBytesOf(TAA_FORMATS.color) + outputBytes(1, 1, TAA_FORMATS.color)
       : 0,
-  TAA_INPUT_BYTES = 8 + 4 + 4 + 4 + 1
+  TAA_INPUT_BYTES = 8 + 4 + 4 + 4 + 1,
+  // The errors of the flicker measure's tiles a render pixel, 32 bits each, a tile for the texels a
+  // workgroup writes (`flickerErrorWords`): the count's plane only an analysis view holds, none here.
+  TAA_FLICKER_ERROR =
+    (4 * flickerErrorWords(REJECT_SHADING_STRIDE, REJECT_SHADING_STRIDE, false)) /
+    REJECT_SHADING_STRIDE ** 2,
+  // What the flicker measure's own dispatch adds to the analysis's traffic: the colour, the
+  // reprojection word and the thin geometry's mask it reads again, and the errors it writes for
+  // the shading rejection to read.
+  TAA_FLICKER_OWN =
+    8 + texelBytesOf(REPROJECTED_FORMAT) + texelBytesOf(TAA_FORMATS.measure) + 2 * TAA_FLICKER_ERROR
 export const TAA_DISPLAY_BYTES =
     2 * TAA_HISTORY_PIXELS * TAA_FRAME_BYTES + TAA_HALF_BYTES + TAA_RESOLVE_BYTES,
   TAA_RENDER_BYTES =
@@ -68,7 +80,8 @@ export const TAA_DISPLAY_BYTES =
         TAA_KNOBS.antiAliasIterations > 0,
         TAA_FORMATS,
       ) +
-    TAA_INPUT_BYTES
+    TAA_INPUT_BYTES +
+    TAA_FLICKER_OWN
 /**
  * Each temporal pass's bytes, a share of `TAA_DISPLAY_BYTES` a display pixel and of
  * `TAA_RENDER_BYTES` a render pixel: every analysis target written by the pass that writes it and
@@ -84,9 +97,12 @@ export const TAA_DISPLAY_BYTES =
  *   their layer of the measures (`MEASURE_LAYERS`);
  * - the thin geometry detection reads the coverage and writes its word, which its weight relaxation
  *   reads, writing the mask's and the coverage history's layers;
- * - the shading rejection reads the colour, the reprojection word, the flicker history reprojected,
- *   the shading history's layer, the flicker luma and the thin geometry's mask, and writes the rejection, the scene colour, the LDR luma, the
- *   flicker history and the shading histories;
+ * - the flicker measure reads the colour, the reprojection word, the flicker history reprojected,
+ *   the flicker luma and the thin geometry's mask, and writes the flicker history and the errors
+ *   (`TAA_FLICKER_ERROR`);
+ * - the shading rejection reads the colour, the reprojection word, the errors, the shading
+ *   history's layer and the thin geometry's mask, and writes the rejection, the scene colour, the
+ *   LDR luma and the shading histories;
  * - the spatial anti-aliaser reads the LDR luma and writes its offset;
  * - the history update reads the rejection, the scene colour, the offset, the field's vector and
  *   jacobian and the boundary, at render resolution, and a display pixel's history frame read and
@@ -138,19 +154,28 @@ export const TAA_PASS_BYTES: Record<TaaPass, { display: number; render: number }
     display: 0,
     render: texelBytesOf(THIN_GEOMETRY_FORMAT) + 2 * TAA_MEASURE,
   },
-  rejectShading: {
+  flickerMeasure: {
     display: 0,
     render:
       8 +
       texelBytesOf(REPROJECTED_FORMAT) +
       texelBytesOf(FLICKER_FORMAT) +
+      texelBytesOf(FLICKER_FORMAT) +
+      2 * TAA_MEASURE +
+      TAA_FLICKER_ERROR,
+  },
+  rejectShading: {
+    display: 0,
+    render:
+      8 +
+      texelBytesOf(REPROJECTED_FORMAT) +
+      TAA_FLICKER_ERROR +
       TAA_GUIDE +
       texelBytesOf(REJECTION_FORMAT) +
       TAA_SCENE_COLOR +
       TAA_LUMA +
-      texelBytesOf(FLICKER_FORMAT) +
       TAA_SLOTS +
-      2 * TAA_MEASURE +
+      TAA_MEASURE +
       TAA_MASK,
   },
   spatialAntiAliasing: { display: 0, render: TAA_LUMA + TAA_OFFSET + TAA_MASK },

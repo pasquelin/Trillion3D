@@ -79,6 +79,10 @@ export function createProbeEncoder(
     get working() {
       return pool.working
     },
+    /** The levels re-centred on the image's viewpoint, before anything reads them this image: whether they slid. */
+    follow(viewpoint: ArrayLike<number>) {
+      work.slid = cascades.follow(viewpoint)
+    },
     /** Encodes an image's marks (`surface`: what it drew) and a probe batch, whose maps the radiance cache traces through the global
      *  distance field, its hits reading the surface cache (`reads`), those that leave the scene reaching the sky light (`sky`); `false`
      *  when there was nothing to do: the view still and marked, the series closed, no light. */
@@ -90,7 +94,6 @@ export function createProbeEncoder(
       reads: SurfaceHitReads,
       surface?: MarkSurface,
     ) {
-      work.slid = cascades.follow(viewpoint)
       if (!lightsActive) return false
       work.marking = pool.begin(surface, work.slid)
       if (!work.marking && !work.slid && !pool.working) return false

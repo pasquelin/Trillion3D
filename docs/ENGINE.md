@@ -1107,7 +1107,7 @@ a compute pass, so its targets are storage textures, and WebGPU lets a compute p
 render-resolution shading history in `rgb10a2unorm` (ten bits a channel, its reprojection edge in two)
 and the anti-aliaser's target in `rg8uint`; without it in half floats, `rgba8unorm`, `rgba8unorm` and
 `rgba8uint`, the core's storage formats (`historyFormatsOf`, requested with the device,
-`session/gpuDevice.ts`). The mask of the texels the shading rejection asks the spatial anti-aliaser on is an `r8uint` storage texture, one byte a texel, whatever the history's formats, where the device has `texture-formats-tier1` (and its driver accepts it) and grants five storage textures a stage (the rejection then binds five), else a buffer of a 32-bit word a texel (`rejectionStorageForms`); a level without the anti-aliaser binds a one-texel stand-in. The update dithers the colour to the format's precision. A history
+`session/gpuDevice.ts`). The mask of the texels the shading rejection asks the spatial anti-aliaser on is an `r8uint` storage texture, one byte a texel, whatever the history's formats, where the device has `texture-formats-tier1` (and its driver accepts it) and grants four storage textures a stage (the rejection then binds four), else a buffer of a 32-bit word a texel (`rejectionStorageForms`); a level without the anti-aliaser binds a one-texel stand-in. The update dithers the colour to the format's precision. A history
 that would pass the device's widest texture is made at the display's size
 (`historyFactor`). The frames follow a sequence (`frameSequenceOf`): without
 resurrection, one frame in two textures taking turns, one read as the last image's while the other is
@@ -1143,7 +1143,7 @@ visibility buffer, each a layer of one texture of a byte a texel a layer (`flick
 64 lanes of 2×2 texels, 16×16 a workgroup), which also holds the thin geometry's mask and coverage
 history. Then the dilated velocity, the history reprojection (the resurrected frame's shading
 history in it), the thin geometry detection and its weight relaxation (the translucency's trim),
-the shading rejection, the spatial anti-aliaser, a texel a lane, then the history update, one
+the flicker measure, the shading rejection, the spatial anti-aliaser, a texel a lane, then the history update, one
 dispatch over the history in tiles of 8 across — 64 lanes, 8 down, a lane's place in the tile the
 bits of its index in the order that puts the four pixels of a half-size texel in four consecutive lanes
 (`lanePixel`). The update's lanes beyond the history compute with clamped reads and store nothing. The
@@ -1181,19 +1181,27 @@ core's (`createTaaResolves`). WebGPU has one queue per device
 descriptor names the one `defaultQueue`, § 4.3.1): the reference's asynchronous compute has no
 counterpart.
 
+**The flicker measure** (`flickerMeasureWgsl.ts`) is a dispatch of its own, run just before the
+shading rejection where the level rejects by it (or an analysis view is shown), on the same tiles and
+network: so that neither kernel keeps the other's arrays in its registers. It writes the flicker
+history of the texels the workgroup writes and, for every texel of its tile — the three each side that
+it only reads included, whose values are those of this tile's wrapped network alone — the flicker error
+and, in an analysis view, the count, in 32 bits whatever the precision, into a storage buffer of a tile
+of cells to each workgroup (`flickerErrorCells.ts`), which the shading rejection reads back as it was
+computed; the 16-bit and wave programs follow the shading rejection's.
+
 **The shading rejection** (`rejectionWgsl.ts`) is one dispatch, a workgroup of 256 lanes over a
 square of 32 × 32 render texels, four a lane down a column, of which it writes the inner 26 × 26: its
 3×3 operators exchange their values in workgroup memory, the tile's neighbourhood wrapping around
 past its edge, so a value several operators deep is wrong near the edge and the three texels each side
-are only read. In it, in this order: the flicker measure, where the level rejects by it; the
-rejection of the last image's history; where the history resurrects, that of the frame a pixel may be
+are only read. In it, in this order: the flicker measure's error read back, where the level rejects by
+it; the rejection of the last image's history; where the history resurrects, that of the frame a pixel may be
 resurrected from, measured only where some written texel of the workgroup is closer to it and rejected
-below a half; the shading history of this image's frame, the flicker history, the rejection the
+below a half; the shading history of this image's frame, the rejection the
 update reads (an analysis view's words in its place), the reprojection of the resurrected pixels, the
 scene colour the update reads and the LDR luma the anti-aliaser reads; and each written texel empties
-its occluder word. Four storage textures, what every device binds: the shading history, the flicker
-history, the rejection, and the reprojection field's vector and jacobian as two layers of one
-texture; the scene colour and the luma are storage buffers — the scene colour in the history's colour
+its occluder word. Three storage textures, what every device binds: the shading history, the
+rejection, and the reprojection field's vector and jacobian as two layers of one texture; the scene colour and the luma are storage buffers — the scene colour in the history's colour
 format, 11-11-10 floats in a word (or four half floats in two), each channel rounded toward zero as the
 format's texture would after the stochastic rounding, the luma a byte a texel, four to a word, each
 texel's byte cleared and set by two atomics, the texels of a word belonging to up to two workgroups.
@@ -1979,10 +1987,13 @@ the sky light answers (below).
 
 **Probes only where the image reads.** A level holds 110 592 cells, the four 442 368; a probe is made
 only for a cell the image reads, from a pool of 16 384 (`probePool`), all of it on the GPU, none of it read back to be
-decided (`bounce/pool/`). Each image that marks takes the points of the screen probes the last image cast — the uniform
-ones, one a tile, and the adaptive ones placed (`bounce/pool/poolMarkWgsl.ts`, `markProbes`) —, finds for each the finest level that holds it — the rule the lit passes read the field by, the
+decided (`bounce/pool/`). An image that casts screen probes marks from their points once it placed them — the uniform
+ones, one a tile, and the adaptive ones placed (`bounce/pool/poolMarkWgsl.ts`, `markProbes`) —: the pool's pass waits for
+the placement (`frame/render/preLight.ts`: `placeScreenProbes`, `encodeQueuedBounce`, then `traceScreenProbes`), so the radiance cache's
+update that follows fills every cell the probes read before they read it, however far the view moved. Each image that marks
+finds for each the finest level that holds it — the rule the lit passes read the field by, the
 normal bias a third of a cell included — and sets a bit for each of the eight probes around it; sky marks nothing.
-Where the last image cast no screen probe, a tile of 16 pixels, one thread, takes the pixel its jitter picks and reads the
+An image that casts none marks from the points the last image cast; where that one cast none either, a tile of 16 pixels, one thread, takes the pixel its jitter picks and reads the
 surface there (`markImage`). In the same pass (`bounce/pool/poolWgsl.ts`, the kernels in the order they run:
 `releaseProbes`, `allocateProbes`, then the choice of the probes to trace) a probe whose cell left its level when the
 level slid is given back, so is one nothing read for 8 marks (`probeKeptMarks`), and a cell marked with no probe takes
@@ -2001,8 +2012,9 @@ radiance cache's tags say which cell and level a map was made for, and a mismatc
 eight probes round a point in it and read their maps (`bounce/screen/cacheReadWgsl.ts`).
 
 **What is traced, in what order.** A probe that holds nothing yet comes before every refresh: the finest
-level first, the cells nearest the eye first, up to the frame's queue of 768 probes (49 152 rays of 64)
-rather than the count. The probes already traced take what the count leaves, by the priority a light
+level first, the cells nearest the eye first, up to the frame's queue of 2752 probes (176 128 rays of 64)
+rather than the count: a sixth of the pool laid in rows of 64, so that a view moving fast fills every cell it
+reaches in the image that first reads it. The probes already traced take what the count leaves, by the priority a light
 cache gives them — the longer since a probe was traced, over its level plus one, in log₂ buckets, the most
 important filled first (`bounce/pool/poolWgsl.ts`: the histograms of costs and the cuts the budget stops in) — each until it took `settledTraces`
 updates since the lights last changed: then the series closes and the frame holds. The count is a

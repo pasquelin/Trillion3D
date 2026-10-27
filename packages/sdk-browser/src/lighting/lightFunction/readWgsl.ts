@@ -17,6 +17,16 @@ export interface LightFunctionBindings {
 export const lightFunctionBindingsLabel = (b?: LightFunctionBindings) =>
   b ? `${b.group}, ${b.atlas}, ${b.eye}${b.storage ? ', storage' : ''}` : 'none'
 
+/** Whether a light wears a light function: the index in the high bits of its kind word (`word`, the light's
+ *  `params.x`) is not 0. The one place the shift is declared, for the programs that read the function and those
+ *  that only ask whether there is one. */
+export const hasLightFunctionWgsl = wgslBlock(
+  'LIGHT_FUNCTION_INDEX_WGSL',
+  [],
+  `const LF_SHIFT:u32=${LIGHT_FUNCTION_SHIFT}u;
+fn hasLightFunction(word:f32)->bool{return (u32(word)>>LF_SHIFT)!=0u;}`,
+)
+
 /** What a program that reads no light function answers: white, a light unchanged. */
 export const NO_LIGHT_FUNCTION_WGSL = wgslBlock(
   'NO_LIGHT_FUNCTION_WGSL',
@@ -32,7 +42,6 @@ const lightFunctionAtlasText = (
 };
 fn lightFunctionLoad(texel:vec2u)->vec4u{return textureLoad(lightFunctionAtlas,texel${b.storage ? '' : ',0'});}
 const LF_PI:f32=3.14159265358979;
-const LF_SHIFT:u32=${LIGHT_FUNCTION_SHIFT}u;
 const LF_ENTRY:u32=${ENTRY_VEC4S}u;
 const LF_POINT:u32=${KINDS.point}u;
 const LF_SPOT:u32=${KINDS.spot}u;
@@ -61,8 +70,8 @@ fn lightFunctionEye()->vec3f{return ${b.eye};}`
 
 /** The function of a light at a point, and the fog's local lights' share of it. */
 const LIGHT_FUNCTION_OF_TEXT = `fn lightFunctionOf(word:f32,P:vec3f)->vec3f{
+ if(!hasLightFunction(word)){return vec3f(1.0);}
  let index=u32(word)>>LF_SHIFT;
- if(index==0u){return vec3f(1.0);}
  let dims=textureDimensions(lightFunctionAtlas);
  let first=index*LF_ENTRY;
  if(dims.x+(first+LF_ENTRY-1u)/dims.x>=dims.y){return vec3f(1.0);}
@@ -90,7 +99,7 @@ const LIGHT_FUNCTION_OF_TEXT = `fn lightFunctionOf(word:f32,P:vec3f)->vec3f{
  *  to read the light functions (\`lightFunctionFog\`); the fog's sun always reads them. */
 fn lightFunctionFogLocalOf(word:f32,P:vec3f)->vec3f{
  let dims=textureDimensions(lightFunctionAtlas);
- if((u32(word)>>LF_SHIFT)==0u||dims.y<=dims.x||lightFunctionWord(${ATLAS_NUMBERS_AT}u).w<0.5){return vec3f(1.0);}
+ if(!hasLightFunction(word)||dims.y<=dims.x||lightFunctionWord(${ATLAS_NUMBERS_AT}u).w<0.5){return vec3f(1.0);}
  return lightFunctionOf(word,P);
 }`
 
@@ -109,7 +118,7 @@ fn lightFunctionFogLocalOf(word:f32,P:vec3f)->vec3f{
 export const lightFunctionReadWgsl = (b: LightFunctionBindings) =>
   wgslBlock(
     `lightFunctionReadWgsl(${lightFunctionBindingsLabel(b)})`,
-    [],
+    [hasLightFunctionWgsl],
     `${lightFunctionAtlasText(b)}
 ${LIGHT_FUNCTION_OF_TEXT}`,
   )

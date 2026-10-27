@@ -10,7 +10,8 @@ import {
 } from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
 import { CARD_TILE_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
 import { BOUNCE_SETTINGS } from '../../../../../sdk-core/src/bounce/contracts.ts'
-import { contextLayout, LIGHTING_FLAG, LIGHTING_PARAMS } from './layout.ts'
+import type { SceneTraceWords } from '../../rays/sceneTrace/sceneTraceResources.ts'
+import { contextLayout, LIGHTING_FLAG, LIGHTING_PARAMS, tracedShadowWords } from './layout.ts'
 
 /**
  * WHAT AN IMAGE'S LIGHTING IS SIZED BY, and the parameters written from it (`LIGHTING_PARAMS`): the settings' numbers made
@@ -21,6 +22,21 @@ import { contextLayout, LIGHTING_FLAG, LIGHTING_PARAMS } from './layout.ts'
 
 /** The longest a ray of the lighting travels, in centimetres: the bounce's reach. */
 const MAX_TRACE = BOUNCE_SETTINGS.rayReachMetres * CM
+
+/** The limits of the device that decide whether the traced shadows' buffers fit: the most a storage buffer binds and a buffer holds. */
+export type BufferLimits = Pick<GPUSupportedLimits, 'maxStorageBufferBindingSize' | 'maxBufferSize'>
+
+/**
+ * Whether every buffer of the traced shadows fits a binding and a buffer of `limits`: the masks, the traces and the light
+ * tiles of `lightTiles` light tiles (`tracedShadowWords`, the sizes they are made at), and the scene trace's nodes,
+ * triangles and table of placements (`scene`, `sceneTraceWords`).
+ */
+export function tracedShadowsFit(limits: BufferLimits, lightTiles: number, scene: SceneTraceWords) {
+  const most = Math.min(limits.maxStorageBufferBindingSize, limits.maxBufferSize)
+  return [...Object.values(tracedShadowWords(lightTiles)), ...Object.values(scene)].every(
+    (words) => words * 4 <= most,
+  )
+}
 
 /** What the lighting's resources and programs are made for. */
 export interface LightingShape {
@@ -38,7 +54,11 @@ export interface LightingShape {
   readonly raysPerProbe: number
 }
 
-/** The shape of the lighting of an atlas of `side` texels, `compressed` or not, under `settings`. */
+/**
+ * The shape of the lighting of an atlas of `side` texels, `compressed` or not, under `settings`. It names nothing of the
+ * traced shadows: their buffers are a set of their own (`ensureTracedShadows`), so that turning the traced path on or off
+ * leaves the lighting's memory, and the radiosity's history, as they were.
+ */
 export function shapeOf(
   settings: SurfaceCacheSettings,
   side: number,
@@ -136,18 +156,13 @@ export interface LightingImage {
   readonly historyLost: boolean
 }
 
-/** Writes the parameters of an image into `words`, `LIGHTING_PARAMS.words` long. */
-export function writeLightingParams(
-  words: Uint32Array,
+/** The flags word of an image: which of the lighting's passes and options are on. */
+function lightingFlagsOf(
   shape: LightingShape,
   settings: SurfaceCacheSettings,
   image: LightingImage,
-) {
-  const floats = new Float32Array(words.buffer, words.byteOffset, words.length)
-  const ints = new Int32Array(words.buffer, words.byteOffset, words.length)
-  const at = LIGHTING_PARAMS.at
-  const { context } = sizesOf(shape)
-  const flags =
+): number {
+  return (
     (settings.surfaceCacheDirectLighting ? LIGHTING_FLAG.direct : 0) |
     (shape.radiosity ? LIGHTING_FLAG.radiosity : 0) |
     (settings.surfaceCacheLightingMaxDistanceFromFrustumToPrioritize >= 0
@@ -159,7 +174,29 @@ export function writeLightingParams(
       : 0) |
     (settings.surfaceCacheRadiosityTemporal ? LIGHTING_FLAG.temporal : 0) |
     (settings.surfaceCacheRadiosityProbePlaneWeighting ? LIGHTING_FLAG.planeWeighting : 0) |
-    (image.historyLost ? 0 : LIGHTING_FLAG.historyValid)
+    (image.historyLost ? 0 : LIGHTING_FLAG.historyValid) |
+    (settings.surfaceCacheFreezeUpdateFrame !== 0 ? LIGHTING_FLAG.freezeUpdateFrame : 0) |
+    (settings.surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing
+      ? LIGHTING_FLAG.adaptiveShadowTracing
+      : 0) |
+    (settings.surfaceCacheDirectLightingHardwareRayTracingForceTwoSided
+      ? LIGHTING_FLAG.forceTwoSided
+      : 0)
+  )
+}
+
+/** Writes the parameters of an image into `words`, `LIGHTING_PARAMS.words` long. */
+export function writeLightingParams(
+  words: Uint32Array,
+  shape: LightingShape,
+  settings: SurfaceCacheSettings,
+  image: LightingImage,
+) {
+  const floats = new Float32Array(words.buffer, words.byteOffset, words.length)
+  const ints = new Int32Array(words.buffer, words.byteOffset, words.length)
+  const at = LIGHTING_PARAMS.at
+  const { context } = sizesOf(shape)
+  const flags = lightingFlagsOf(shape, settings, image)
   words.fill(0)
   words[at.atlasSide] = shape.side
   words[at.frame] = image.frame
@@ -189,6 +226,8 @@ export function writeLightingParams(
   floats[at.maxRayIntensity] = settings.surfaceCacheRadiosityMaxRayIntensity / image.viewPreExposure
   floats[at.surfaceBias] = settings.surfaceCacheRadiosityDistanceFieldSurfaceSlopeBias
   floats[at.minTrace] = settings.surfaceCacheRadiosityDistanceFieldSurfaceBias
+  floats[at.traceRayBias] = settings.surfaceCacheDirectLightingHardwareRayTracingShadowRayBias
+  floats[at.traceEndBias] = settings.surfaceCacheDirectLightingHardwareRayTracingEndBias
   for (let k = 0; k < 3; k++) {
     floats[at.camera + k] = image.eye[k] * CM
     floats[at.eye + k] = image.eye[k]

@@ -68,7 +68,7 @@ export interface CardRaster {
   readonly failure: unknown
   /**
    * Draws the pages `pages` — each with its view in `views`, at the same rank — into `targets` on
-   * `encoder`, the render frame's origin at `eye` (metres), and returns the image drawn, which holds
+   * `encoder`, and returns the image drawn, which holds
    * the pages drawn; a page it could not draw is in none and is asked again. None where nothing was drawn.
    * The batch of the pages drawn is told by `landed` under `stamp`.
    */
@@ -77,7 +77,6 @@ export interface CardRaster {
     targets: CaptureTargets,
     pages: readonly CapturePage[],
     views: readonly CardView[],
-    eye: ArrayLike<number>,
     stamp: number,
   ): CardImage | undefined
   /** The batches whose counters came back since the last call, valid until the next. Called once an

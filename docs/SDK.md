@@ -687,11 +687,19 @@ raised to a power of two), `surfaceCacheFeedbackMinPageHits` (`16`),
 `surfaceCacheRadiosityUpdateFactor` (`64`: the atlas's texels over the texels lit directly, and given indirect light, in an
 image, the pages left longest unlit first), `surfaceCacheLightingUpdateSpeed` (`1`, from 0.5 to 16: it divides both),
 `surfaceCacheLightingQuality` (`1`, from 0.5 to 6: it multiplies the radiosity probes' hemisphere by its square root and, from 6, halves their
-spacing), `surfaceCacheLightingForceFullUpdate` (`false`), `surfaceCacheLightingMaxDistanceFromFrustumToPrioritize` (`500`, `-1`
+spacing), `surfaceCacheLightingForceFullUpdate` (`false`), `surfaceCacheFreezeUpdateFrame` (`0`; any other number stops the update clock
+and the pages' record of being lit, so that every image lights the same subset, for debugging), `surfaceCacheLightingMaxDistanceFromFrustumToPrioritize` (`500`, `-1`
 never: the pages near the frustum are lit twice as soon), `surfaceCacheDirectLighting` (`true`),
 `surfaceCacheDirectLightingMaxLightsPerTile` (`8`, up to 32, a power of two), `surfaceCacheDirectLightingGlobalSdfShadowRayBias` (`1`:
 voxels the shadow ray starts off the surface, three where it grazes the light) and `surfaceCacheDirectLightingCloudTransmittance`
-(`true`); the radiosity, `surfaceCacheRadiosity` (`true`), `surfaceCacheRadiosityProbeSpacing` (`4`, texels, a power of two up to 8),
+(`true`). Where the scene has acceleration structures the direct light's shadow is traced through the scene's triangles instead:
+`surfaceCacheDirectLightingHardwareRayTracing` (`true`; `false` keeps the distance field's ray) keeps, for each light of a tile, a
+mask of the tile's texels (the light function and the clouds' shade, then whether a ray must settle it), and one ray goes from each
+texel the mask leaves open; `surfaceCacheDirectLightingHardwareRayTracingShadowRayBias` (`1` cm off the texel, three where it grazes
+the light), `…EndBias` (`1` cm: a lamp's ray stops short of it), `…AdaptiveShadowTracing` (`true`: a tile that every texel saw a light
+at, or none did, at its last update traces one texel of each quad of four, a different one each update), `…ForceTwoSided` (`false`:
+the front faces of a primitive that is not two-sided are culled; `true` takes all as two-sided) and
+`surfaceCacheHardwareRayTracingMaxIterations` (`8192` triangles a ray may test; a ray that stopped counts as blocked). The radiosity, `surfaceCacheRadiosity` (`true`), `surfaceCacheRadiosityProbeSpacing` (`4`, texels, a power of two up to 8),
 `surfaceCacheRadiosityHemisphereProbeResolution` (`4`, up to 16), `surfaceCacheRadiositySpatialFilterProbes` (`true`) with its
 `…KernelSize` (`1`: 0 none, 1 four neighbours, 2 thirteen), `surfaceCacheRadiosityProbePlaneWeighting` (`true`) with its
 `…DepthScale` (`-100`), `surfaceCacheRadiosityMaxRayIntensity` (`40`, times the exposure),

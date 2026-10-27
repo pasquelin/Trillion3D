@@ -25,6 +25,11 @@ const { encodeOwnVector, encodeVector, decodeVector, hasOwnMotion } = shaderRun<
   decodeVector: (word: number) => number[]
   hasOwnMotion: (word: number) => boolean
 }>(SURFACE_VELOCITY_WGSL, ['encodeOwnVector', 'encodeVector', 'decodeVector', 'hasOwnMotion'], {})
+/** The depth step a pixel's flags word carries in its high half (`velocityWgsl.ts`). */
+const { withDepthStep, depthStepOf } = shaderRun<{
+  withDepthStep: (flags: number, step: number) => number
+  depthStepOf: (flags: number) => number
+}>(SURFACE_VELOCITY_WGSL, ['withDepthStep', 'depthStepOf'], {})
 /** The view the camera moved by 0.1 along x, whose still surfaces are carried by `(−0.1, 0)`; an
  *  orthographic one where `ortho`, a cut where `cut`. */
 const movedView = ({ ortho = false, cut = false } = {}) => ({
@@ -53,6 +58,20 @@ test('a responsiveness code survives its mark in an 8-bit target, and the larges
   assert.equal(markedResponsive(both), 1 | 3)
   // Past its two bits a word reads as its low two.
   assert.equal(responsiveMark(4 | 1), responsiveMark(1))
+})
+
+test("a pixel's flags carry its depth step in their high half, the flags kept whole", () => {
+  for (const flags of [0, 1, 2, 3])
+    for (const step of [0, 1e-6, -1e-6, 3e-4, -3e-4, 0.25, -0.25]) {
+      const word = withDepthStep(flags, step)
+      assert.equal(word & 0xffff, flags, `flags ${flags} with step ${step}`)
+      const back = depthStepOf(word)
+      assert.ok(
+        Math.abs(back - step) <= Math.abs(step) * 2 ** -10 + 2 ** -24,
+        `step ${step} came back ${back}`,
+      )
+      assert.equal(Math.sign(back), Math.sign(step), `the sign of ${step}`)
+    }
 })
 
 test('a vector says in its first code whether the surface moved by itself, to a step of the code', () => {

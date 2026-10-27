@@ -1,6 +1,6 @@
 // The temporal anti-aliasing passes' WGSL texts of `ENGINE_SHADERS`: the resolve in each form, the velocity (and the
 // one that flattens the motion blur's motion too), the
-// reprojection, the thin geometry, the shading rejection, the history's resolve and the spatial
+// reprojection, the thin geometry, the flicker measure (in 16 bits and as a wave too), the shading rejection, the history's resolve and the spatial
 // anti-aliasing: the update too with the packed formats, with the half-size image and as each wave
 // variant runs it, the update, the shading rejection and the anti-aliasing in 16 bits, and the rejection and the anti-aliasing
 // with the mask and the LDR luma as textures.
@@ -15,6 +15,7 @@ import {
   measureFlickerLumaShader,
   measureThinCoverageShader,
 } from '../../post/taa/flickerLumaWgsl.ts'
+import { flickerMeasureShader } from '../../post/taa/flickerMeasureWgsl.ts'
 import { rejectShadingShader } from '../../post/taa/rejectionWgsl.ts'
 import { resolveHistoryShader, resolveLayersShader } from '../../post/taa/historyResolveWgsl.ts'
 import { TAA_SHADER } from './shaderTexts.fixture.ts'
@@ -81,6 +82,9 @@ export const TAA_SHADERS: Record<string, string> = {
     'texture',
     'texture',
   ),
+  TAA_FLICKER_MEASURE: flickerMeasureShader(),
+  TAA_FLICKER_MEASURE_F16: flickerMeasureShader(true),
+  TAA_FLICKER_MEASURE_WAVE: flickerMeasureShader(false, { lanes: 32, pinned: false }),
   TAA_RESOLVE_HISTORY: resolveHistoryShader('rgba16float'),
   TAA_RESOLVE_HISTORY_PACKED: resolveHistoryShader('rg11b10ufloat'),
   TAA_RESOLVE_LAYERS: resolveLayersShader(),

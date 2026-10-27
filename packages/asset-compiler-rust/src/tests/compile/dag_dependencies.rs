@@ -7,22 +7,17 @@ pub(super) fn cluster(
     group: Option<usize>,
     source: Option<usize>,
 ) -> DagCluster {
-    DagCluster {
-        indices: vec![0; indices],
+    let parent_error = if group.is_some() {
+        level as f64 + 1.0
+    } else {
+        f64::INFINITY
+    };
+    DagCluster::for_test(
+        vec![0; indices],
         level,
-        lod_error: level as f64,
-        parent_error: if group.is_some() {
-            level as f64 + 1.0
-        } else {
-            f64::INFINITY
-        },
-        sphere: [0.0; 4],
-        whole_box: None,
-        parent_sphere: [0.0; 4],
-        source_rank: 0,
-        group,
-        source,
-    }
+        (level as f64, parent_error),
+        (group, source),
+    )
 }
 
 pub(super) fn group(level: usize, children: Vec<usize>, outputs: Vec<usize>) -> DagGroup {

@@ -40,6 +40,12 @@ type WideTraversal = {
   /** A node's bounds and a child record of a node's slot, as expressions of `node`, `slot`, `frame`. */
   box: string
   child: string
+  /** A statement run once per visited node, before `box` and `child` are read: what a node's words
+   *  are loaded by, so that its box and its eight children read them from there. */
+  load?: string
+  /** A statement run once per visited node whose `box` the ray meets nearer than the best hit, before
+   *  its children are read: the words only the children need, which a node the ray misses never loads. */
+  open?: string
   /** Statements run once per visited node, and where a bound ends the ray, in each loop. */
   visit: string
   stop: string
@@ -63,13 +69,14 @@ type WideTraversal = {
 const stackBound = (t: WideTraversal) => `${t.stack}u`
 
 /** A hook's statement on its own line at `indent`, or nothing: a traversal without one keeps its text. */
-const hook = (statement: string, indent: number) =>
+const hook = (statement: string | undefined, indent: number) =>
   statement ? `\n${' '.repeat(indent)}${statement}` : ''
 
 /**
  * The one traversal of a wide tree, from which every ray of the engine is cast: written from this
- * text with the way a tree is read and what a hit is (`WideTraversal`) given by its caller. The ray query's walk of one
- * placement's hierarchy is its instance (`../rays/rayPlacementWgsl.ts`).
+ * text with the way a tree is read and what a hit is (`WideTraversal`) given by its caller. The ray
+ * query's walk of one placement's hierarchy is its instance (`rayPlacementWgsl.ts`), the scene
+ * trace's walk of a primitive's compressed tree another (`sceneTrace/sceneTraceWgsl.ts`).
  */
 export const wideTraversal = (t: WideTraversal) => `
 fn ${t.name}(origin:vec3f,direction:vec3f,limit:f32${t.params})->${t.returns}{
@@ -80,12 +87,12 @@ fn ${t.name}(origin:vec3f,direction:vec3f,limit:f32${t.params})->${t.returns}{
  var depth=0u;
  var node=${t.root};
  let steps=${t.steps};
- for(var step=0u;step<steps;step++){${hook(t.stop, 2)}${hook(t.visit, 2)}
+ for(var step=0u;step<steps;step++){${hook(t.stop, 2)}${hook(t.visit, 2)}${hook(t.load, 2)}
   let frame=${t.box};
   if(rayBoxEntry(frame.low,frame.high,origin,inverse,best.distance)>best.distance){
    if(depth==0u){break;}
    depth--;node=stack[depth];continue;
-  }
+  }${hook(t.open, 2)}
   var nearest=0u;
   var nearestSpan=best.distance+1.0;
   for(var slot=0u;slot<${t.children};slot++){${hook(t.stop, 3)}

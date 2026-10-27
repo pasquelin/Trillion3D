@@ -48,6 +48,7 @@ const TAA_PASSES: ReadonlyArray<readonly [TaaPass, string]> = [
   ['decimateHistory', 'temporal decimate history'],
   ['detectThinGeometry', 'temporal detect thin geometry'],
   ['relaxThinGeometry', 'temporal thin geometry weight relaxation'],
+  ['flickerMeasure', 'temporal flicker measure'],
   ['rejectShading', 'temporal reject shading'],
   ['spatialAntiAliasing', 'temporal spatial anti-aliasing'],
   ['updateHistory', 'temporal update history'],
@@ -123,7 +124,7 @@ export const PASSES: K.PassModel[] = [
     }),
     sources: [
       K.engine('visibility/shader/shadeBinKernelsWgsl.ts', 'SHADE_BINS_SHADER'),
-      K.engine('visibility/shader/shadeBinKernelsWgsl.ts', 'SHADE_BINS_SUBGROUP_SHADER'),
+      K.engine('visibility/shader/shadeBinKernelsWgsl.ts', 'SHADE_BINS_SUBGROUP_SHADERS'),
       { path: 'docs/ENGINE.md', symbol: 'Material surfaces' },
       K.engine('materials/surface/surfaceBuffer.ts', 'SURFACE_BYTES_PER_PIXEL'),
     ],

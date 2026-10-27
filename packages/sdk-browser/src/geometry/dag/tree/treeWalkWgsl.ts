@@ -1,6 +1,7 @@
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { rayBoxEntry } from '../../../../../math/src/wgsl/geometry.ts'
+import { toF32 } from '../../../../../math/src/wgsl/f32.ts'
+import { rayBoxEntry, rayInverseDirection } from '../../../../../math/src/wgsl/geometry.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { NODE_CHILD_COUNT, NODE_FIRST_CHILD, NODE_KIND } from '../nodeLayout.ts'
 import { TREE_GROUP } from '../placement/placementTree.ts'
@@ -9,6 +10,9 @@ import { TREE_GROUP } from '../placement/placementTree.ts'
 const TREE_DEPTH = 8
 /** Children a level holds ready, nearest first, from one scan of its node (`placementTreeWalk`). */
 const WALK_LIST = 4
+/** Steps a walk of the placement tree may take: a child a step, the members of every group a ray
+ *  meets — a dense field along the ray included. */
+export const TREE_STEPS = 1 << 16
 
 /**
  * What differs between the rays that walk the placement tree (`placementTreeWalk`): where its nodes
@@ -39,10 +43,10 @@ type TreeWalk = {
 }
 
 /** The constants the walk reads: its depth, the words of a tree node it reads, its group kind, and
- *  the slot no placement holds (`NO_INDEX`). */
+ *  the slot no placement holds (`NO_INDEX`), with the functions of its cast (`placementTreeCast`). */
 export const PLACEMENT_TREE_WALK_WGSL = wgslBlock(
   'PLACEMENT_TREE_WALK_WGSL',
-  [rayBoxEntry, NO_INDEX],
+  [rayBoxEntry, rayInverseDirection, toF32, NO_INDEX],
   wgslConsts({
     WALK_DEPTH: TREE_DEPTH,
     WALK_LIST,
@@ -196,9 +200,42 @@ const walkEnterWgsl = (t: TreeWalk) => `   let slot=level*WALK_LIST+taken[level]
  * index order —, entering a child none; a node is scanned again only where more than `WALK_LIST` of its
  * children lie nearer than every hit they hold. The walk is bounded by `steps`, a unit a box.
  *
- * The ray query (`../../../lighting/rays/rayQueryWgsl.ts`) walks it so, reading the tree in its record table (`treeTable.ts`). The text is a function's body: it reads
- * `origin`, `inverse` and `best`, and declares `at`, `held`, `heldEntry`, `size`, `taken`, `last`,
- * `lastEntry`, `more`, `slot`, `level`, `step` and `done`.
+ * The ray query (`../../../lighting/rays/rayQueryWgsl.ts`) and the scene trace
+ * (`../../../lighting/rays/sceneTrace/sceneTraceWgsl.ts`) walk it so, reading the tree in its record
+ * table (`treeTable.ts`). The text is a function's body: it reads `origin`, `inverse` and `best`, and
+ * declares `at`, `held`, `heldEntry`, `size`, `taken`, `last`, `lastEntry`, `more`, `slot`, `level`,
+ * `step` and `done`.
  */
-export const placementTreeWalk = (t: TreeWalk) =>
+const placementTreeWalk = (t: TreeWalk) =>
   walkHeadWgsl(t) + walkGroupWgsl(t) + walkScanWgsl(t) + walkEnterWgsl(t)
+
+/** What a ray cast through the placement tree is given beside the walk's own hooks
+ *  (`placementTreeCast`): the eye's exact position as the words the ray holds it in (`vec4u` of the
+ *  x and y doubles, `vec2u` of the z), the ray's origin from the eye (the eye itself when unset), its
+ *  direction, and the placements a packing holds. */
+type TreeCast = TreeWalk & {
+  eyeXY: string
+  eyeZ: string
+  offset?: string
+  direction: string
+  placements: string
+}
+
+/**
+ * THE ONE CAST OF A RAY THROUGH THE PLACEMENT TREE, in a function's body: the ray's origin rounded
+ * to single precision from the eye — the tree's boxes are world boxes in single precision, grown past
+ * its rounding, so the ray meets them from its origin rounded so, its distances those of the exact
+ * origin —, then the walk (`placementTreeWalk`) of the tree from its top; a packing too small for a
+ * tree (`root` none) enters its placements in turn. Reads `best`; declares `origin` and `inverse`
+ * with the walk's.
+ */
+export const placementTreeCast = (t: TreeCast) => {
+  const eye = `vec3f(bitcast<f32>(toF32(${t.eyeXY}.xy)),bitcast<f32>(toF32(${t.eyeXY}.zw)),bitcast<f32>(toF32(${t.eyeZ})))`
+  return ` let origin=${t.offset ? `${eye}+${t.offset}` : eye};
+ let inverse=rayInverseDirection(${t.direction});
+ if(${t.root}==NO_INDEX){
+  for(var w=0u;w<${t.placements};w++){${t.enter}}
+ }else{
+${placementTreeWalk(t)}
+ }`
+}

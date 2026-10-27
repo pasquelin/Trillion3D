@@ -10,6 +10,7 @@ pub mod oracle;
 pub mod physics_cook;
 pub mod plugins;
 pub mod proxy;
+pub(crate) mod ray_tracing;
 pub mod shared_math;
 mod simplify;
 pub mod texture;

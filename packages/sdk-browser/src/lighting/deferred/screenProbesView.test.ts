@@ -3,13 +3,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { encodeScreenProbes } from '../bounce/screen/frame.ts'
 import { SCREEN_PROBE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { dispatchedEntries } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts'
 import { blueNoiseTextures } from '../../gpu/noise/blueNoiseTextures.ts'
 import { pipelinesCompiling, pipelinesSettled } from './compileLedger.ts'
-import { probesRuntime, screenProbeWords } from './screenProbesRuntime.fixture.ts'
+import { encodeProbeImage, probesRuntime, screenProbeWords } from './screenProbesRuntime.fixture.ts'
+import { placeScreenProbes, traceScreenProbes } from '../bounce/screen/frame.ts'
 
 test('one image of screen probes encodes its passes in order, hands the lighting its result and counts what it cast', async () => {
   const { h, rt, encode } = await probesRuntime()
@@ -44,6 +44,38 @@ test('one image of screen probes encodes its passes in order, hands the lighting
   assert.equal(metrics.unavailable, null)
 })
 
+test('the placement is a pass of its own that hands the pool the probes it placed, and the trace follows in another; a level that casts none places nothing and shades in the trace', async () => {
+  const { h, rt, encode } = await probesRuntime()
+  await encode()
+  const before = h.dispatches.length
+  const passes = h.passDescriptors.length
+  const placed = placeScreenProbes(rt, h.encoder)
+  assert.deepEqual(dispatchedEntries(h.dispatches.slice(before)), [
+    'placeUniform',
+    'adaptiveMark',
+    'adaptiveSpawn',
+    'probeArgs',
+  ])
+  assert.equal(h.passDescriptors.length, passes + 1, 'the placement alone, a pass of its own')
+  const view = rt.gpu.screenProbes!
+  assert.equal(
+    placed?.marks?.info,
+    view.resources.info[view.turn],
+    'the records of the turn it placed',
+  )
+  traceScreenProbes(rt, h.encoder, placed)
+  assert.equal(h.passDescriptors.length, passes + 2, 'the trace in another')
+  assert.equal(dispatchedEntries(h.dispatches.slice(before)).at(-1), 'temporal')
+  const low = await probesRuntime({ screenProbes: 'low' })
+  await low.encode()
+  const lowBefore = low.h.dispatches.length
+  const none = placeScreenProbes(low.rt, low.h.encoder)
+  assert.equal(none?.marks, undefined, 'no probe placed')
+  assert.equal(low.h.dispatches.length, lowBefore, 'nothing encoded by the placement')
+  traceScreenProbes(low.rt, low.h.encoder, none)
+  assert.deepEqual(dispatchedEntries(low.h.dispatches.slice(lowBefore)), ['occlusion', 'temporal'])
+})
+
 test('the screen probes leave out the passes their settings leave out, and cast none at the level off', async () => {
   const lean = await probesRuntime({
     screenProbeSceneTraces: false,
@@ -63,7 +95,7 @@ test('the screen probes leave out the passes their settings leave out, and cast 
     'temporal',
   ])
   const off = await probesRuntime({ screenProbes: 'off' })
-  encodeScreenProbes(off.rt, off.h.encoder)
+  encodeProbeImage(off.rt, off.h.encoder)
   assert.deepEqual(off.h.dispatches, [])
   assert.equal(off.rt.bounce.screen!.metrics, undefined)
   // The level off gives the view's probes back: the budget holds none, the lighting is left none to read.
@@ -71,7 +103,7 @@ test('the screen probes leave out the passes their settings leave out, and cast 
   await held.encode()
   assert.ok(held.rt.gpu.screenProbes!.bytes > 0, 'the probes of the view are held')
   Object.assign(held.rt.context, { screenProbes: false })
-  encodeScreenProbes(held.rt, held.h.encoder)
+  encodeProbeImage(held.rt, held.h.encoder)
   assert.equal(held.rt.gpu.screenProbes, undefined, 'off gives them back')
 })
 
@@ -93,7 +125,7 @@ test('the level low runs the occlusion and the temporal pass alone over one prob
     screenProbes: 'low',
     screenProbeShortRangeOcclusion: false,
   })
-  encodeScreenProbes(bare.rt, bare.h.encoder)
+  encodeProbeImage(bare.rt, bare.h.encoder)
   assert.deepEqual(bare.h.dispatches, [], 'a level with no probe and no occlusion runs nothing')
   assert.equal(bare.rt.gpu.screenProbes, undefined)
 })
@@ -104,7 +136,7 @@ test('a render scale moves the size an image is drawn at, and the probes made fo
   const made = rt.gpu.screenProbes!
   const textures = h.textures.length
   rt.gpu.targetSize = [48, 32]
-  encodeScreenProbes(rt, h.encoder)
+  encodeProbeImage(rt, h.encoder)
   assert.equal(rt.gpu.screenProbes, made, 'the same probes, at the size the targets are made at')
   assert.equal(h.textures.length, textures, 'no texture made again')
   const metrics = rt.bounce.screen!.metrics!
@@ -123,7 +155,7 @@ test('a budget with no room for the probes leaves the lighting none to read, say
   installGpuDeviceLedger(h.device, { limit: () => 1024 })
   // The kernels compile off the frame; once they have, the first image that would make the probes finds no room for them.
   for (let waited = 0; waited < 100; waited++) {
-    encodeScreenProbes(rt, h.encoder)
+    encodeProbeImage(rt, h.encoder)
     if (rt.bounce.screen!.metrics?.unavailable?.includes('budget')) break
     await new Promise((done) => setImmediate(done))
   }
@@ -137,7 +169,9 @@ test('the frame runs the screen probes after the reflections, the radiance cache
   const preLight = read('../../frame/render/preLight.ts')
   const order = [
     'encodeReflections(rt, encoder, reflects(overrides))',
-    'encodeScreenProbes(rt, encoder)',
+    'placeScreenProbes(rt, encoder)',
+    'encodeQueuedBounce(rt, encoder, placed?.marks)',
+    'traceScreenProbes(rt, encoder, placed)',
     'flushRadianceCache(rt, encoder)',
     'encodeAmbientOcclusion(rt, encoder, cam)',
   ]
@@ -170,7 +204,7 @@ test('the probes cast nothing and give the view back where the image is not lit:
     if (unlit) Object.assign(made.rt.lights.store, { unlit: true })
     else made.rt.run.diagnostic = 'wireframe'
     const before = made.h.dispatches.length
-    encodeScreenProbes(made.rt, made.h.encoder)
+    encodeProbeImage(made.rt, made.h.encoder)
     assert.equal(made.h.dispatches.length, before, `${label}: no pass`)
     assert.equal(made.rt.gpu.screenProbes, undefined, `${label}: given back`)
   }
@@ -179,7 +213,7 @@ test('the probes cast nothing and give the view back where the image is not lit:
 test('the kernels compile while the frames go on: the first frame waits for them, a switch of the level never makes one wait', async () => {
   const made = await probesRuntime()
   await blueNoiseTextures(made.h.device)
-  encodeScreenProbes(made.rt, made.h.encoder)
+  encodeProbeImage(made.rt, made.h.encoder)
   assert.ok(
     pipelinesSettled(made.h.device),
     'the compile is in flight: the first frame waits for it',

@@ -902,7 +902,7 @@ field's coarsest first so that the mip always loaded leads: the indirection tabl
 bricks, `0xffffffff` where none is stored) and the bricks stored, 512 bytes each (8 × 8 × 8 voxels, a byte
 the distance to the surface over the band).
 
-The record's second word holds flags:
+The record's third word holds flags:
 
 | Bit     | Name                            | Meaning                                                                                                                                                                                                        |
 | ------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -961,7 +961,7 @@ axes (three `f32` each: unit vectors, the third facing out of the mesh) and the 
 | 1         | `+x`            | 4         | `-z`            |
 | 2         | `-y`            | 5         | `+z`            |
 
-The record's second word holds flags:
+The record's third word holds flags:
 
 | Bit     | Name                        | Meaning                                                                                                                                                                                                              |
 | ------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -991,6 +991,59 @@ cell's:
 card writes neither the file nor the section. Constants: `MESH_CARDS_VERSION`, `MESH_CARDS_MAGIC`,
 `MESH_CARDS_HEAD_BYTES`, `MESH_CARDS_MESH_BYTES`, `MESH_CARDS_CARD_BYTES`, `MESH_CARDS_DIRECTIONS`,
 `MESH_CARDS_FLAG_*` (`packages/sdk-core/src/contracts/meshCardsAbi.ts`).
+
+## `rayTracing.bin`
+
+The trees a ray tracer walks, one for each compiled primitive that has a triangle in its coarse cut
+(`rust/ray_tracing/encode.rs`, read by `sdk-core/src/lighting/rayTracingFile.ts`; the cut is in
+[COMPILER.md](COMPILER.md#ray-tracing)). Words are little-endian, lengths are metres in the primitive's object
+space. The head, 32 bytes: the magic `T3RT`, the version (1), the number of records, the number of nodes, the
+number of triangles (`u32` each) and three zero words. Then a record of 64 bytes for each primitive, in the order
+of the manifest's primitives: its compiled mesh and its number in the mesh (the two numbers a placed root names
+its primitive by), its flags, the error of its cut (`f32`), the rank of its first
+node and how many nodes it has, the rank of its first triangle and how many triangles it has (ranks in the
+file's tables, `u32` each), the low and high corners of the box of its triangles (six `f32`) and two zero
+words. The records are followed by the nodes of every primitive, 80 bytes each, one primitive after the other,
+then by their triangles, 48 bytes each.
+
+A node has up to eight children, in eight slots (the slot of the octant of a ray's direction that meets the
+child first: bit `a` of the slot set when the ray goes towards the negative side of axis `a`), and holds, in
+this order:
+
+| Bytes | Content                                                                                                                                                                                                                                                                   |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0-11  | `p`, the low corner of the node's box (three `f32`)                                                                                                                                                                                                                       |
+| 12-14 | `e`, the exponent of each axis (three `i8`): the least with `2^e · 255` at least the node's side; a flat side has -127                                                                                                                                                    |
+| 15    | the mask of the internal children: bit `s` set when slot `s` holds a node                                                                                                                                                                                                 |
+| 16-19 | the rank of the first internal child among the primitive's nodes, counted from the record's first node; the internal children lie one after the other, in slot order                                                                                                      |
+| 20-23 | the rank of the first triangle of the leaf children, counted from the record's first triangle; the leaves' triangles lie one after the other, in slot order                                                                                                               |
+| 24-31 | the meta of each slot: 0 when empty and for an internal child (the mask says it); for a leaf child, `(count << 5) \| offset`: the count is 1, 2 or 3, the offset (below 32) the rank of its first triangle from the node's first |
+| 32-79 | the boxes of the children, a byte a coordinate: the low x of the eight slots, the low y, the low z, then the high x, y and z                                                                                                                                              |
+
+A child's box is `p + 2^e · q` on each axis, `q` being the byte: the low corner is rounded down and the high
+corner up, so the box holds the child's. The internal child in slot `s` is the `popcount(mask & ((1 << s) - 1))`-th of the node's internal children. A triangle holds its three corners (nine `f32`), the rank of its
+cluster among the primitive's DAG clusters, its own rank in the cluster (`u32` each) and a zero word.
+
+The record's third word holds flags:
+
+| Bit     | Name                           | Meaning                                                                               |
+| ------- | ------------------------------ | ------------------------------------------------------------------------------------- |
+| 0 (`1`) | `RAY_TRACING_FLAG_TWO_SIDED`   | the primitive's material is double-sided                                              |
+| 1 (`2`) | `RAY_TRACING_FLAG_MASKED`      | its material is alpha-masked: a hit must be tested against the material's coverage    |
+| 2 (`4`) | `RAY_TRACING_FLAG_TRANSLUCENT` | its material is translucent (blended or transmissive): it is no occluder as opaque is |
+
+A primitive whose cut holds no triangle has no record; a skinned or morphed primitive has one, at its rest pose,
+and the reader decides what to do with it. The primitives of the world's HLOD cells have none. The manifest's
+`rayTracing` section names the file and its size:
+
+```json
+{ "rayTracing": { "version": 1, "file": "rayTracing.bin", "bytes": 2672 } }
+```
+
+A scene none of whose primitives has a triangle in its cut writes neither the file nor the section. Constants:
+`RAY_TRACING_VERSION`, `RAY_TRACING_MAGIC`, `RAY_TRACING_HEAD_BYTES`, `RAY_TRACING_RECORD_BYTES`,
+`RAY_TRACING_NODE_BYTES`, `RAY_TRACING_TRIANGLE_BYTES`, `RAY_TRACING_WIDTH`, `RAY_TRACING_LEAF_TRIANGLES`,
+`RAY_TRACING_LEAF_COUNT_SHIFT`, `RAY_TRACING_LEAF_OFFSET_MASK`, `RAY_TRACING_FLAG_*` (`packages/sdk-core/src/contracts/rayTracingAbi.ts`).
 
 ## `lights.json`
 

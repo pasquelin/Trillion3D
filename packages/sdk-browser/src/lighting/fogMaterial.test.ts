@@ -26,12 +26,7 @@ import {
   type ResolvedFogVolume,
 } from '../../../sdk-core/src/scene/volume/contracts.ts'
 import { createSceneFogVolumeStore } from '../../../sdk-core/src/scene/volume/store.ts'
-import {
-  reservedNames,
-  topLevelNames,
-  unbalanced,
-  unresolvedNames,
-} from '../gpu/core/wgslNames.fixture.ts'
+import { assertProgramAssembles } from '../gpu/core/wgslNames.fixture.ts'
 
 test('a fog-free material reaches both the opaque flag and transparent shader', () => {
   const material = G.familySurface('standard', { fog: false })
@@ -111,11 +106,7 @@ test('the voxelisation of an object that wears a graph evaluates it at each cell
   assert.match(text, /mgNeighbour\[0\]\.world=right\+frame\.eye\.xyz/)
   // A graph's context takes its two clocks from the frame: the world's time, the wall clock.
   assert.match(text, /ctx\.time=voxelFrame\.passes\.w;ctx\.realTime=voxelFrame\.realTime;/)
-  assert.deepEqual(unresolvedNames(text), [])
-  assert.deepEqual(reservedNames(text), [])
-  assert.equal(unbalanced(text), '')
-  const names = topLevelNames(text)
-  assert.equal(new Set(names).size, names.length, 'no name twice')
+  assertProgramAssembles(text)
 })
 
 test('the objects of a volume write their graph word, and their values one block after the other', () => {

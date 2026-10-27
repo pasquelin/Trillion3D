@@ -72,6 +72,8 @@ pub(crate) struct CompiledPrimitive {
     /// What the levels it carries give the instances that join it: none for a primitive that
     /// carries none.
     pub parents: Vec<RootParent>,
+    /// The tree its coarse cut is traced through (`ray_tracing`).
+    pub ray_tracing: Option<crate::ray_tracing::PrimitiveTree>,
 }
 /// Whether the engine draws `material` blended, sorted back to front and never merged with another
 /// surface: `alphaMode` `BLEND` as the source authored it, or a transmission, whatever its mode
@@ -105,15 +107,17 @@ fn mesh_scale(inputs: &PrimitiveInputs<'_>, old: usize) -> Option<f64> {
 }
 
 /// The DAG of the primitive `arrays` describe — positions, the attributes it carries beside them,
-/// the corners of its triangles —, built under its mesh's `shaping` and what its `carrying` asks.
-/// Every primitive joins the DAG, a blended one too, transmissive or not: its draw order is restored
-/// at runtime from the recorded source rank, so spatial clustering does not scramble the blend
-/// order, and the water pass composes its pages over the backdrop as any.
+/// the corners of its triangles —, built under its mesh's `shaping` and what its `carrying` asks,
+/// its ray-tracing tree named by `traced`. Every primitive joins the DAG, a blended one too,
+/// transmissive or not: its draw order is restored at runtime from the recorded source rank, so
+/// spatial clustering does not scramble the blend order, and the water pass composes its pages
+/// over the backdrop as any.
 fn build_primitive(
     inputs: &PrimitiveInputs<'_>,
     (old, primitive): (usize, usize),
     arrays: (&[f32], &[&encode::Attribute], &[u32]),
     (deformation, shaping, carrying): (&Deformation, crate::dag::MeshShaping, &Carrying<'_>),
+    traced: crate::ray_tracing::Traced,
 ) -> Result<DagResult> {
     let build = &inputs.mesh_builds[old];
     let scale = mesh_scale(inputs, old);
@@ -129,6 +133,7 @@ fn build_primitive(
         precision: build.precision,
         scale,
         exact: inputs.fallbacks.contains_key(&(old, primitive)),
+        traced,
     };
     let assembly = carrying.assembly(inputs.assemblies.takes_roots_of(&(old, primitive)));
     build_dag_primitive(inputs.o, arrays, dag, assembly, &encode)
@@ -167,7 +172,8 @@ pub(crate) fn compile_primitive(
 ) -> Result<Option<CompiledPrimitive>> {
     check(inputs.o)?;
     let read = read_primitive(inputs, old, primitive)?;
-    let blended = drawn_blended(primitive_material(inputs.g, read.primitive)?);
+    let material = primitive_material(inputs.g, read.primitive)?;
+    let blended = drawn_blended(material);
     let mesh = *(inputs.mesh_map.get(&old)).ok_or_else(|| invalid("Missing mesh mapping"))?;
     let shaping = shaping_of(inputs, &read, old)?;
     let (deformation, attributes) = page_data(inputs, &read, old)?;
@@ -199,7 +205,18 @@ pub(crate) fn compile_primitive(
     }
     let triangles = source.indices.len() / 3;
     let arrays = (&source.positions[..], &carried[..], &source.indices[..]);
-    let mut dag = build_primitive(inputs, job, arrays, (&deformation, shaping, &carrying))?;
+    let traced = crate::ray_tracing::Traced {
+        mesh: mesh as u32,
+        primitive: primitive as u32,
+        flags: crate::ray_tracing::material_flags(material, blended),
+    };
+    let mut dag = build_primitive(
+        inputs,
+        job,
+        arrays,
+        (&deformation, shaping, &carrying),
+        traced,
+    )?;
     announce(inputs.progress, (mesh, primitive), &mut dag, &carrying);
     let parents = carrying.parents(old, dag.parents);
     let reach = crate::geometry_page::deform::reach(&deformation, &source.positions[..]);
@@ -212,6 +229,7 @@ pub(crate) fn compile_primitive(
         page_run: dag.page_run,
         cover: dag.cover,
         parents,
+        ray_tracing: dag.ray_tracing,
         cluster_planes: dag.cluster_planes,
         collision: dag.collision,
         source_cover: dag.source_cover,

@@ -5,6 +5,7 @@ import {
   computeBufferEntry,
   computeStorageTextureEntry,
   computeTextureEntry,
+  sequentialEntries,
 } from '../../gpu/core/computeBindings.ts'
 import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 import type { OpenPass } from '../../gpu/core/lazyComputePass.ts'
@@ -98,63 +99,86 @@ function programsOf(compressed: boolean) {
   return kernels
 }
 
+const write = computeStorageTextureEntry
+
+/** The formats of the atlas's layers, for an atlas `compressed` or not. */
+type AtlasFormats = ReturnType<typeof atlasFormats>
+
+/** The capture atlas's layers, read: the copy's and the encoders' bindings 3 to 6. */
+const captureLayerEntries = () => [
+  computeTextureEntry(3, 'float'),
+  computeTextureEntry(4, 'float'),
+  computeTextureEntry(5, 'uint'),
+  computeTextureEntry(6, 'unfilterable-float'),
+]
+
+/** The resolve's entries: the cards' encodings from the shaded surfaces, written to the capture atlas. */
+const resolveEntries = () => [
+  computeBufferEntry(3, ro),
+  computeTextureEntry(4, 'uint'),
+  computeTextureEntry(5, 'float', '2d-array'),
+  write(6, CAPTURE_FORMATS.albedo),
+  write(7, CAPTURE_FORMATS.normal),
+  write(8, CAPTURE_FORMATS.emissive),
+]
+
+/** The resample's entries: the pages of the atlas read, the capture atlas's layers written. */
+const resampleEntries = (compressed: boolean) => [
+  ...surfaceCacheReadLayoutEntries(3, { feedback: false, compressed }),
+  write(11, CAPTURE_FORMATS.albedo),
+  write(12, CAPTURE_FORMATS.normal),
+  write(13, CAPTURE_FORMATS.emissive),
+  write(14, CAPTURE_FORMATS.depth),
+]
+
+/** The light-carrying resample's entries: the pages read, the capture atlas's light written. */
+const resampleLightingEntries = (compressed: boolean) => [
+  ...surfaceCacheReadLayoutEntries(3, { feedback: false, compressed }),
+  computeTextureEntry(11, 'uint'),
+  write(12, CAPTURE_FORMATS.direct),
+  write(13, CAPTURE_FORMATS.indirect),
+  write(14, CAPTURE_FORMATS.frames),
+  computeBufferEntry(15, ro),
+  computeBufferEntry(16, 'storage'),
+]
+
+/** The copy's entries: the capture atlas's layers read, the atlas's written (its depth alone where compressed). */
+const copyEntries = (formats: AtlasFormats, compressed: boolean) => [
+  ...captureLayerEntries(),
+  write(7, formats.depth),
+  ...(compressed
+    ? []
+    : [write(8, formats.albedo), write(9, formats.normal), write(10, formats.emissive)]),
+]
+
+/** The lights' entries: the capture atlas's light read, the atlas's light written. */
+const lightsEntries = (formats: AtlasFormats) => [
+  computeTextureEntry(3, 'float'),
+  computeTextureEntry(4, 'uint'),
+  computeTextureEntry(5, 'uint'),
+  computeTextureEntry(6, 'uint'),
+  computeTextureEntry(7, 'uint'),
+  write(8, formats.direct),
+  write(9, formats.indirect),
+  write(10, formats.final),
+  write(11, formats.frames),
+  computeBufferEntry(12, ro),
+  computeBufferEntry(13, ro),
+  computeBufferEntry(14, 'storage'),
+]
+
 /** The layout entries of the kernels of an atlas `compressed` or not, past their parameters (binding 0, the
  *  kernel's own): the pages' entries and the tile lists every kernel reads, then what it names. */
 function layoutEntriesOf(compressed: boolean): Record<Kernel, GPUBindGroupLayoutEntry[]> {
-  const write = (binding: number, format: GPUTextureFormat) =>
-    computeStorageTextureEntry(binding, format)
   const formats = atlasFormats(compressed)
-  /** The capture atlas's layers, read: the copy's and the encoders' bindings 3 to 6. */
-  const captureLayers = () => [
-    computeTextureEntry(3, 'float'),
-    computeTextureEntry(4, 'float'),
-    computeTextureEntry(5, 'uint'),
-    computeTextureEntry(6, 'unfilterable-float'),
-  ]
   const lists = [computeBufferEntry(1, ro), computeBufferEntry(2, ro)]
   const layouts: Record<Kernel, GPUBindGroupLayoutEntry[]> = {
-    resolve: [
-      computeBufferEntry(3, ro),
-      computeTextureEntry(4, 'uint'),
-      computeTextureEntry(5, 'float', '2d-array'),
-      write(6, CAPTURE_FORMATS.albedo),
-      write(7, CAPTURE_FORMATS.normal),
-      write(8, CAPTURE_FORMATS.emissive),
-    ],
-    resample: [
-      ...surfaceCacheReadLayoutEntries(3, { feedback: false, compressed }),
-      write(11, CAPTURE_FORMATS.albedo),
-      write(12, CAPTURE_FORMATS.normal),
-      write(13, CAPTURE_FORMATS.emissive),
-      write(14, CAPTURE_FORMATS.depth),
-    ],
-    resampleLighting: [
-      ...surfaceCacheReadLayoutEntries(3, { feedback: false, compressed }),
-      computeTextureEntry(11, 'uint'),
-      write(12, CAPTURE_FORMATS.direct),
-      write(13, CAPTURE_FORMATS.indirect),
-      write(14, CAPTURE_FORMATS.frames),
-    ],
-    copy: [
-      ...captureLayers(),
-      write(7, formats.depth),
-      ...(compressed
-        ? []
-        : [write(8, formats.albedo), write(9, formats.normal), write(10, formats.emissive)]),
-    ],
-    encode: [...captureLayers(), computeBufferEntry(7, 'storage')],
-    lights: [
-      computeTextureEntry(3, 'float'),
-      computeTextureEntry(4, 'uint'),
-      computeTextureEntry(5, 'uint'),
-      computeTextureEntry(6, 'uint'),
-      computeTextureEntry(7, 'uint'),
-      write(8, formats.direct),
-      write(9, formats.indirect),
-      write(10, formats.final),
-      write(11, formats.frames),
-      computeBufferEntry(12, ro),
-    ],
+    resolve: resolveEntries(),
+    resample: resampleEntries(compressed),
+    resampleLighting: resampleLightingEntries(compressed),
+    copy: copyEntries(formats, compressed),
+    encode: [...captureLayerEntries(), computeBufferEntry(7, 'storage')],
+    lights: lightsEntries(formats),
   }
   for (const entries of Object.values(layouts)) entries.unshift(...lists)
   return layouts
@@ -162,14 +186,14 @@ function layoutEntriesOf(compressed: boolean): Record<Kernel, GPUBindGroupLayout
 
 /** What the kernels that run before the tables go up read beside the pages: the atlases and the tables as
  *  they were before the image. */
-export interface ResampleInputs {
+interface ResampleInputs {
   readonly atlases: SurfaceAtlases
   readonly tables: GPUBuffer
 }
 
 /** What the kernels after the shading read beside the pages: the atlases, the tables as they are, the
  *  capture's shaded surfaces. */
-export interface CaptureInputs extends ResampleInputs {
+interface CaptureInputs extends ResampleInputs {
   /** The colours of the surfaces the classes shaded (`CardShading.surfaces`). */
   readonly colours: GPUTextureView
 }
@@ -187,81 +211,100 @@ export interface CaptureSettings {
   readonly preExposure: number
 }
 
-/** The bindings of each kernel's bind group after its parameters, the pages' entries and the tile lists: the resources it names. */
-function bindingsOf(
-  inputs: ResampleInputs | CaptureInputs,
-): Partial<Record<Kernel, GPUBindGroupEntry[]>> {
-  const { atlases } = inputs
+/** The capture atlas's layers read (`captureLayerEntries`): the copy's and the encoders' resources from binding 3. */
+const captureLayers = ({ capture: c }: SurfaceAtlases) => [c.albedo, c.normal, c.emissive, c.depth]
+
+/** The tables and the atlas's pages the two resamples read, their resources from binding 3. */
+const resampleReads = ({ physical: p }: SurfaceAtlases, tables: GPUBuffer) => [
+  { buffer: tables },
+  p.depth,
+  p.albedo,
+  p.normal,
+  p.emissive,
+  p.direct,
+  p.indirect,
+  p.final,
+]
+
+/** The resources of the resolve: the tables, the capture's ids and shaded surfaces, its layers but the depth. */
+const resolveReads = (
+  { capture: c }: SurfaceAtlases,
+  tables: GPUBuffer,
+  colours: GPUTextureView,
+) => [{ buffer: tables }, c.ids, colours, c.albedo, c.normal, c.emissive]
+
+/** The resources of the resample: the pages' reads, then the capture's layers. */
+const resampleCaptureReads = (atlases: SurfaceAtlases, tables: GPUBuffer) => {
+  const { capture: c } = atlases
+  return [...resampleReads(atlases, tables), c.albedo, c.normal, c.emissive, c.depth]
+}
+
+/** The resources of the resample that carries the light: the pages' reads, the frames, the capture's light and
+ *  frames, the two factor tables. */
+const resampleLightingReads = (atlases: SurfaceAtlases, tables: GPUBuffer) => {
   const { physical: p, capture: c } = atlases
-  const view = (resource: GPUTextureView, binding: number) => ({ binding, resource })
-  return {
-    ...('colours' in inputs && {
-      resolve: [
-        { binding: 3, resource: { buffer: inputs.tables } },
-        view(c.ids, 4),
-        view(inputs.colours, 5),
-        view(c.albedo, 6),
-        view(c.normal, 7),
-        view(c.emissive, 8),
-      ],
-    }),
-    resample: [
-      { binding: 3, resource: { buffer: inputs.tables } },
-      view(p.depth, 4),
-      view(p.albedo, 5),
-      view(p.normal, 6),
-      view(p.emissive, 7),
-      view(p.direct, 8),
-      view(p.indirect, 9),
-      view(p.final, 10),
-      view(c.albedo, 11),
-      view(c.normal, 12),
-      view(c.emissive, 13),
-      view(c.depth, 14),
-    ],
-    resampleLighting: [
-      { binding: 3, resource: { buffer: inputs.tables } },
-      view(p.depth, 4),
-      view(p.albedo, 5),
-      view(p.normal, 6),
-      view(p.emissive, 7),
-      view(p.direct, 8),
-      view(p.indirect, 9),
-      view(p.final, 10),
-      view(p.frames, 11),
-      view(c.direct, 12),
-      view(c.indirect, 13),
-      view(c.frames, 14),
-    ],
-    copy: [
-      view(c.albedo, 3),
-      view(c.normal, 4),
-      view(c.emissive, 5),
-      view(c.depth, 6),
-      view(p.depth, 7),
-      ...(atlases.compressed ? [] : [view(p.albedo, 8), view(p.normal, 9), view(p.emissive, 10)]),
-    ],
-    ...(atlases.blocks && {
-      encode: [
-        view(c.albedo, 3),
-        view(c.normal, 4),
-        view(c.emissive, 5),
-        view(c.depth, 6),
-        { binding: 7, resource: { buffer: atlases.blocks.staging } },
-      ],
-    }),
-    lights: [
-      view(c.albedo, 3),
-      view(c.emissive, 4),
-      view(c.direct, 5),
-      view(c.indirect, 6),
-      view(c.frames, 7),
-      view(p.direct, 8),
-      view(p.indirect, 9),
-      view(p.final, 10),
-      view(p.frames, 11),
-      { binding: 12, resource: { buffer: inputs.tables } },
-    ],
+  return [
+    ...resampleReads(atlases, tables),
+    p.frames,
+    c.direct,
+    c.indirect,
+    c.frames,
+    { buffer: atlases.factors },
+    { buffer: atlases.captureFactors },
+  ]
+}
+
+/** The resources of the copy: the capture's layers, the pages' depth, and the colour pages when the atlas is not compressed. */
+const copyReads = (atlases: SurfaceAtlases) => {
+  const { physical: p } = atlases
+  return [
+    ...captureLayers(atlases),
+    p.depth,
+    ...(atlases.compressed ? [] : [p.albedo, p.normal, p.emissive]),
+  ]
+}
+
+/** The resources of the lights: the capture's colours and light, the pages' light, the tables and the factors. */
+const lightsReads = (atlases: SurfaceAtlases, tables: GPUBuffer) => {
+  const { physical: p, capture: c } = atlases
+  return [
+    c.albedo,
+    c.emissive,
+    c.direct,
+    c.indirect,
+    c.frames,
+    p.direct,
+    p.indirect,
+    p.final,
+    p.frames,
+    { buffer: tables },
+    { buffer: atlases.captureFactors },
+    { buffer: atlases.factors },
+  ]
+}
+
+/** The bind group entries of `kernel` after its parameters, the pages' entries and the tile lists: the resources it names,
+ *  numbered as its layout lists them (`layoutEntriesOf`) from binding 3. `colours` are the shaded surfaces of the capture's
+ *  kernels, which the resolve alone reads. */
+function bindingsOf(
+  kernel: Kernel,
+  atlases: SurfaceAtlases,
+  tables: GPUBuffer,
+  colours: GPUTextureView | undefined,
+) {
+  switch (kernel) {
+    case 'resolve':
+      return sequentialEntries(resolveReads(atlases, tables, colours!), 3)
+    case 'resample':
+      return sequentialEntries(resampleCaptureReads(atlases, tables), 3)
+    case 'resampleLighting':
+      return sequentialEntries(resampleLightingReads(atlases, tables), 3)
+    case 'copy':
+      return sequentialEntries(copyReads(atlases), 3)
+    case 'encode':
+      return sequentialEntries([...captureLayers(atlases), { buffer: atlases.blocks!.staging }], 3)
+    case 'lights':
+      return sequentialEntries(lightsReads(atlases, tables), 3)
   }
 }
 
@@ -305,8 +348,7 @@ function pipelinesOf(
         programs[kernel]!.code,
         programs[kernel]!.entries,
         layoutEntries[kernel],
-        undefined,
-        CAPTURE_PARAMS.words * 4,
+        { parameterBytes: CAPTURE_PARAMS.words * 4 },
       ),
     ]),
   ) as Record<Kernel, CacheKernel<string>>
@@ -412,12 +454,13 @@ function groupOf(ctx: CaptureContext, kernel: Kernel, inputs: ResampleInputs | C
   named[1] = held.tileBuffer
   named[2] = inputs.atlases
   named[3] = inputs.tables
-  named[4] = 'colours' in inputs ? inputs.colours : undefined
+  const colours = 'colours' in inputs ? inputs.colours : undefined
+  named[4] = colours
   return ctx.kernels[kernel].group(named, () => [
     { binding: 0, resource: { buffer: ctx.params[kernel] } },
     { binding: 1, resource: { buffer: held.pageBuffer! } },
     { binding: 2, resource: { buffer: held.tileBuffer! } },
-    ...bindingsOf(inputs)[kernel]!,
+    ...bindingsOf(kernel, inputs.atlases, inputs.tables, colours),
   ])
 }
 
@@ -498,20 +541,9 @@ function createCaptureContext(device: GPUDevice, compressed: boolean): CaptureCo
   }
 }
 
-/** The capture's kernels on `device`, for an atlas `compressed` or not: their pipelines, compiled off
- *  the frame; the lists and parameters they are given each image. */
-export function createCaptureKernels(device: GPUDevice, compressed: boolean) {
-  const ctx = createCaptureContext(device, compressed)
-  const { kernels } = ctx
-  const clear = compressed ? createBlockClear(device) : undefined
-
+/** The two stages of an image: the kernels that read the cards as they were, and those after the shading. */
+function stagesOf(ctx: CaptureContext) {
   return {
-    /** Whether the atlas these kernels are for is compressed: the kernels are made again when it is not. */
-    compressed,
-    /** Whether every kernel is compiled. */
-    get ready() {
-      return Object.values(kernels).every((k) => k.ready) && (clear?.ready ?? true)
-    },
     /**
      * Dispatches the kernels that read the cards as they were over `pages`, every page the image
      * captures, on `open`, before the image's tables go up: resample (the pages that copy a card) and,
@@ -546,6 +578,24 @@ export function createCaptureKernels(device: GPUDevice, compressed: boolean) {
       ctx.encoded = pages
       dispatchKernels(ctx, 'capture', open, laid, inputs, settings)
     },
+  }
+}
+
+/** The capture's kernels on `device`, for an atlas `compressed` or not: their pipelines, compiled off
+ *  the frame; the lists and parameters they are given each image. */
+export function createCaptureKernels(device: GPUDevice, compressed: boolean) {
+  const ctx = createCaptureContext(device, compressed)
+  const { kernels } = ctx
+  const clear = compressed ? createBlockClear(device) : undefined
+
+  return {
+    /** Whether the atlas these kernels are for is compressed: the kernels are made again when it is not. */
+    compressed,
+    /** Whether every kernel is compiled. */
+    get ready() {
+      return Object.values(kernels).every((k) => k.ready) && (clear?.ready ?? true)
+    },
+    ...stagesOf(ctx),
     /**
      * Copies the blocks the last `encode` wrote into the compressed layers of `atlases`, on `encoder`: a
      * command of the encoder, so after the compute pass the encoders ran in. Nothing for an atlas that is

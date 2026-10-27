@@ -1,4 +1,6 @@
 import { fieldLayout, vec4Array } from '../../../gpu/core/fieldLayout.ts'
+import { CARD_TILE_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
+import { CARD_PAGE_WORDS } from '../../../../../sdk-core/src/lighting/surfaceCache/pageRecords.ts'
 
 /**
  * WHAT THE SURFACE CACHE'S LIGHTING PASSES AND THEIR HOST AGREE ON: the numbers an image gives every kernel
@@ -10,7 +12,7 @@ import { fieldLayout, vec4Array } from '../../../gpu/core/fieldLayout.ts'
  * fit), the tiles given out and the tiles given out in the cut's bucket — a page counts its tiles whether or not
  * it fits, as the cut asks —, and the tiles listed; the radiosity's tiles and the arguments of the dispatches that
  * follow the lists, `args`, four words each: a group a tile of the direct and of the indirect list, the radiosity's
- * traces and its probes (a thread each). The lists come after the header: the tiles of each
+ * traces and its probes (a thread each) and a group of 64 shadow traces. The lists come after the header: the tiles of each
  * update, a tile one word — its page in the low 24 bits, its tile along x and y in four bits each —, and the
  * radiosity's tiles — the page in 22 bits, then 5 bits each of the probe's tile along x and y.
  */
@@ -25,12 +27,15 @@ export const CONTEXT_AT = {
   args: 48,
 } as const
 
-/** The dispatch arguments of the header, in slots of 4 words from `CONTEXT_AT.args`. */
+/** The dispatch arguments of the header, in slots of 4 words from `CONTEXT_AT.args`: a group a tile of each list (the
+ *  direct list's also the shadow masks'), the radiosity's traces and its probes (a thread each) and a group of 64
+ *  shadow traces of the image. */
 export const CONTEXT_ARGS = {
   directTiles: 0,
   indirectTiles: 1,
   traces: 2,
   probes: 3,
+  shadowTraces: 4,
 } as const
 
 /** The words of the header: what a clear of the context writes. */
@@ -44,6 +49,65 @@ export function contextLayout(directTiles: number, indirectTiles: number, radios
   return { directAt, indirectAt, radiosityAt, words: radiosityAt + radiosityTiles }
 }
 
+/** The words of a page's record (`pageRecords.ts`) that hold the lighting's own state: the image of the last
+ *  direct and the last indirect update (`lastUpdate`, two words) and the number of each (`temporal`, two words). */
+export const PAGE_LIGHTING = {
+  lastUpdate: CARD_PAGE_WORDS - 4,
+  temporal: CARD_PAGE_WORDS - 2,
+} as const
+
+/**
+ * THE SHADOW MASKS of the direct light. A tile of 8 × 8 texels keeps, for each light it is lit by, a mask of
+ * `SHADOW_MASK.tileWords` words: a byte a texel, the light's factor on 7 bits (the light function and the clouds'
+ * shade, then the ray's answer) and, in the top bit, whether the texel is settled. The texels whose mask is not
+ * settled are listed as shadow traces: one word each after the count that opens the buffer, the light tile in the low
+ * `SHADOW_TRACE.lightTileBits`, then the texel along x and along y in 3 bits each and the downsample
+ * level in the bits above. The light tiles, a tile of the direct list and a light of it, keep where they are
+ * (`SHADOW_LIGHT_TILE_WORDS` words each: the tile's page and tile word as the list holds it, the light's rank), so that a
+ * trace finds its texel from its light tile alone. The tiles of the physical atlas keep, a
+ * word of 256 lights a light's bit, whether every texel of the tile saw the light, or none did, at its last
+ * update (`SHADOW_FACTOR_TILE_WORDS` words a tile).
+ */
+export const SHADOW_TEXELS = CARD_TILE_SIZE * CARD_TILE_SIZE
+const RAY_BITS = 8
+const TRACE_COORD_BITS = Math.log2(CARD_TILE_SIZE)
+const TRACE_LIGHT_TILE_BITS = 24
+const TRACE_DOWNSAMPLE_BITS = 2
+export const SHADOW_MASK = {
+  rayBits: RAY_BITS,
+  factorBits: RAY_BITS - 1,
+  /** The words of a tile's mask, and the quads of four texels it holds. */
+  tileWords: (SHADOW_TEXELS * RAY_BITS) / 32,
+  quads: SHADOW_TEXELS / 4,
+} as const
+export const SHADOW_TRACE = {
+  least: 1024,
+  lightTileBits: TRACE_LIGHT_TILE_BITS,
+  /** Where the texel along x and along y and the downsample level begin in a trace word. */
+  xShift: TRACE_LIGHT_TILE_BITS,
+  yShift: TRACE_LIGHT_TILE_BITS + TRACE_COORD_BITS,
+  downsampleShift: TRACE_LIGHT_TILE_BITS + 2 * TRACE_COORD_BITS,
+  /** The masks of a texel's coordinate, of the coordinate of the first texel of its quad, and of the downsample level. */
+  coordMask: CARD_TILE_SIZE - 1,
+  quadMask: CARD_TILE_SIZE - 2,
+  downsampleMask: 2 ** TRACE_DOWNSAMPLE_BITS - 1,
+} as const
+export const SHADOW_LIGHT_TILE_WORDS = 2
+export const SHADOW_FACTOR_TILE_WORDS = 8
+
+/** The words of each buffer the traced shadows keep for `lightTiles` light tiles (a tile of the direct list's, a
+ *  light of its): what they are made at and what the device must hold. The masks are `SHADOW_MASK.tileWords` a light
+ *  tile; the traces are one word for each texel of each, at least `SHADOW_TRACE.least`, after the count; the light
+ *  tiles are `SHADOW_LIGHT_TILE_WORDS` each. */
+export const tracedShadowWords = (lightTiles: number) => ({
+  masks: lightTiles * SHADOW_MASK.tileWords,
+  traces: 1 + Math.max(SHADOW_TEXELS * lightTiles, SHADOW_TRACE.least),
+  lightTiles: lightTiles * SHADOW_LIGHT_TILE_WORDS,
+})
+/** The words of the factor atlas of a physical atlas of `side` texels. */
+export const shadowFactorWords = (side: number) =>
+  (side / CARD_TILE_SIZE) ** 2 * SHADOW_FACTOR_TILE_WORDS
+
 /** The bits of the parameters' flags. */
 export const LIGHTING_FLAG = {
   direct: 1,
@@ -53,6 +117,9 @@ export const LIGHTING_FLAG = {
   temporal: 16,
   planeWeighting: 32,
   historyValid: 64,
+  freezeUpdateFrame: 128,
+  adaptiveShadowTracing: 256,
+  forceTwoSided: 512,
 } as const
 
 /** The parameters of an image's lighting passes: the atlas and the pages, the update clock, the lists' places and
@@ -85,6 +152,8 @@ export const LIGHTING_PARAMS = fieldLayout('LightingParams', [
   ['maxRayIntensity', 'f32'],
   ['surfaceBias', 'f32'],
   ['minTrace', 'f32'],
+  ['traceRayBias', 'f32'],
+  ['traceEndBias', 'f32'],
   ['camera', 'vec4f'],
   ['eye', 'vec4f'],
   ['frustum', vec4Array(5)],

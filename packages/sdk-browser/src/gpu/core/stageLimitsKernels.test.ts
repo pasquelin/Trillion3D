@@ -21,6 +21,7 @@ import { wgslComputeLayout } from './wgslBindings.fixture.ts'
 import { withinDefaults } from './stageLimits.fixture.ts'
 import { RAY_QUERY_WGSL } from '../../lighting/rays/rayQueryWgsl.ts'
 import { DEFORM_INDEX_SHADER } from '../../lighting/rays/deformIndexWgsl.ts'
+import { SCENE_TRACE_PROBE } from '../../lighting/rays/sceneTrace/sceneTraceProbe.fixture.ts'
 import { createCaptureKernels } from '../../lighting/surfaceCache/copy.ts'
 import { createAtlasViewer } from '../../lighting/surfaceCache/debug.ts'
 import { CLEAR_BLOCKS_WGSL, ENCODE_WGSL } from '../../lighting/surfaceCache/compressWgsl.ts'
@@ -34,7 +35,11 @@ import {
   RESAMPLE_WGSL,
   RESOLVE_WGSL,
 } from '../../lighting/surfaceCache/copyWgsl.ts'
-import { shapedKernels, staticKernels } from '../../lighting/surfaceCache/lighting/kernels.ts'
+import {
+  shapedKernels,
+  staticKernels,
+  tracedKernels,
+} from '../../lighting/surfaceCache/lighting/kernels.ts'
 import { combineWgsl } from '../../lighting/surfaceCache/lighting/combineWgsl.ts'
 import { CONTEXT_WGSL } from '../../lighting/surfaceCache/lighting/contextWgsl.ts'
 import { cullWgsl } from '../../lighting/surfaceCache/lighting/cullWgsl.ts'
@@ -43,6 +48,11 @@ import { RADIOSITY_BUILD_WGSL } from '../../lighting/surfaceCache/lighting/radio
 import { RADIOSITY_FILTER_WGSL } from '../../lighting/surfaceCache/lighting/radiosityFilterWgsl.ts'
 import { RADIOSITY_INTEGRATE_WGSL } from '../../lighting/surfaceCache/lighting/radiosityIntegrateWgsl.ts'
 import { RADIOSITY_TRACE_WGSL } from '../../lighting/surfaceCache/lighting/radiosityTraceWgsl.ts'
+import { SHADOW_MASK_PROGRAM_WGSL } from '../../lighting/surfaceCache/lighting/shadowMaskWgsl.ts'
+import {
+  SHADOW_ARGS_WGSL,
+  SHADOW_TRACE_WGSL,
+} from '../../lighting/surfaceCache/lighting/shadowTraceWgsl.ts'
 
 test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", async () => {
   const { device, pipelineLayouts: layouts } = fakeDevice()
@@ -66,6 +76,8 @@ test("the cut's programs fit WebGPU's default limits, whatever the world", () =>
     // them, at its bindings: four sampled textures, whatever the world's size.
     ['the ray trace', RAY_QUERY_WGSL],
     ['the deformation index', DEFORM_INDEX_SHADER],
+    // The scene trace reads the same four tables, and binds three storage buffers and a uniform of its own.
+    ['the scene trace', SCENE_TRACE_PROBE],
   ] as const)
     withinDefaults([wgslComputeLayout(text)], name)
 })
@@ -130,6 +142,8 @@ test("the surface cache's lighting kernels fit WebGPU's default limits", () => {
   // every binding they name, those the layouts leave out — two layers a trace never reads — counted too.
   const { device, pipelineLayouts: layouts } = fakeDevice()
   staticKernels(device)
+  // The traced shadows' kernels: the trace binds the scene trace's group beside its own, its own with the cut's tables.
+  tracedKernels(device)
   shapedKernels(device, 8, false)
   shapedKernels(device, 8, true)
   withinDefaults(layouts, 'the surface cache lighting')
@@ -137,6 +151,9 @@ test("the surface cache's lighting kernels fit WebGPU's default limits", () => {
     ['the update context', CONTEXT_WGSL],
     ['the lights of the tiles', cullWgsl(8)],
     ['the direct light', DIRECT_WGSL],
+    ['the shadow masks', SHADOW_MASK_PROGRAM_WGSL],
+    ['the shadow trace arguments', SHADOW_ARGS_WGSL],
+    ['the shadow trace', SHADOW_TRACE_WGSL],
     ['the final light', combineWgsl(false)],
     ['the final light of a compressed atlas', combineWgsl(true)],
     ['the radiosity tiles', RADIOSITY_BUILD_WGSL],

@@ -57,13 +57,7 @@ const NAMES = [
 ] as const
 
 /** The remainders of a cell modulo the side: the entry of the table that names it, in the order level, z, y, x. */
-export const poolEntryOf = (
-  cascades: BounceCascades,
-  level: number,
-  x: number,
-  y: number,
-  z: number,
-) => {
+const poolEntryOf = (cascades: BounceCascades, level: number, x: number, y: number, z: number) => {
   const { size } = cascades
   const wrap = (v: number) => ((v % size) + size) % size
   return ((level * size + wrap(z)) * size + wrap(y)) * size + wrap(x)
@@ -205,7 +199,11 @@ export function simulatedPool(
   }
 }
 
-/** A city-sized scene read around an eye: every cell within six of the cell the eye is in, in the two
+/** The cells, from the one the eye is in, a city-sized scene reads around it along each axis (`cityPool`): more cells in the finest level
+ *  than the queue holds. */
+export const CITY_REACH = 7
+
+/** A city-sized scene read around an eye: every cell within `CITY_REACH` of the cell the eye is in, in the two
  *  finest levels, marked; the pool run as its shipped kernels, and a pass of it (`image`) answering the probes it queued —
  *  each its slot, its level, whether it is a first trace, its cell. */
 export function cityPool(eye: number[]) {
@@ -216,10 +214,29 @@ export function cityPool(eye: number[]) {
     for (let level = 0; level < 2; level++) {
       const base = cascades.levels[level].spacing
       const at = eye.map((v) => Math.floor(v / base))
-      for (let dz = -6; dz <= 6; dz++)
-        for (let dy = -6; dy <= 6; dy++)
-          for (let dx = -6; dx <= 6; dx++) pool.mark(level, at[0] + dx, at[1] + dy, at[2] + dz)
+      for (let dz = -CITY_REACH; dz <= CITY_REACH; dz++)
+        for (let dy = -CITY_REACH; dy <= CITY_REACH; dy++)
+          for (let dx = -CITY_REACH; dx <= CITY_REACH; dx++)
+            pool.mark(level, at[0] + dx, at[1] + dy, at[2] + dz)
     }
   }
   return { cascades, pool, read }
+}
+
+/** The levels around an eye at `eye` and a pool of `capacity` probes over them. */
+export function poolAt(eye: number[], capacity = 64) {
+  const cascades = { ...createBounceCascades([0, 0, 0, 10, 10, 10]), probes: capacity }
+  cascades.follow(eye)
+  const pool = simulatedPool(cascades, capacity)
+  /** The cell `dx, dy, dz` cells from the one the eye is in, in the level. */
+  const around = (level: number, dx: number, dy: number, dz: number) => {
+    const spacing = cascades.levels[level].spacing
+    return [dx, dy, dz].map((d, axis) => Math.floor(eye[axis] / spacing) + d) as [
+      number,
+      number,
+      number,
+    ]
+  }
+  const entryOf = (level: number, [x, y, z]: number[]) => poolEntryOf(cascades, level, x, y, z)
+  return { cascades, pool, around, entryOf }
 }

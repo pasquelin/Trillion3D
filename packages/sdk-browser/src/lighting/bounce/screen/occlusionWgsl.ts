@@ -127,11 +127,31 @@ fn spSliceArcs(phi:f32,centre:vec2f,s:SpSurface,V:vec3f,right:vec3f,up:vec3f,bac
  ${shape.bentNormal ? 'return SpSlice(arcs,spBentSlice(h0,h1,angle,sinNormal,cs,sn,span,V,right,up,back));' : 'return SpSlice(arcs,vec3f(0.0));'}
 }`
 
-/** The kernel of the short-range occlusion: a pixel's slices summed to its visibility. */
+/**
+ * THE PIXEL A TEXEL OF THE OCCLUSION STANDS FOR (`spOcclusionPixel`): where the occlusion is downsampled, the texel is not the
+ * image's pixel at a fixed corner of its cell but one of the cell's four, which the image's stochastic phase (`sp.size.w`) and the
+ * cell's place in its two by two block turn (a four-rooks pattern, each of the four pixels of a block taken in turn over four
+ * images, `spOcclusionJitter`): the pixel the pass searches the horizon from, and the one the temporal pass weighs the texel by. At
+ * the image's size the jitter is none.
+ */
+export const SP_OCCLUSION_CELLS = wgslBlock(
+  'SP_OCCLUSION_CELLS',
+  [],
+  `fn spOcclusionJitter(cell:vec2u)->vec2u{
+ if(SP_OCCLUSION_DOWNSAMPLE==1u){return vec2u(0u);}
+ let rank=((cell.x&1u)+(cell.y&1u)*2u+sp.size.w)&3u;
+ return vec2u((rank>>1u)&1u,1u-(rank&1u));
+}
+fn spOcclusionPixel(cell:vec2u)->vec2u{
+ return min(cell*SP_OCCLUSION_DOWNSAMPLE+spOcclusionJitter(cell),sp.size.xy-vec2u(1u));
+}`,
+)
+
+/** The kernel of the short-range occlusion: the slices of the pixel a texel stands for (`spOcclusionPixel`) summed to its visibility. */
 const spOcclusionKernel = (shape: OcclusionShape) => `@compute @workgroup_size(8,8)
 fn occlusion(@builtin(global_invocation_id) id:vec3u){
- let pixel=id.xy*SP_OCCLUSION_DOWNSAMPLE;
- if(any(pixel>=sp.size.xy)){return;}
+ if(any(id.xy*SP_OCCLUSION_DOWNSAMPLE>=sp.size.xy)){return;}
+ let pixel=spOcclusionPixel(id.xy);
  let s=spSurfaceAt(pixel);
  var visibility=1.0;
  var opening=s.N;
@@ -172,7 +192,9 @@ fn occlusion(@builtin(global_invocation_id) id:vec3u){
 const SP_OCCLUSION = (shape: OcclusionShape) =>
   wgslBlock(
     `SP_OCCLUSION(${shape.bentNormal})`,
-    shape.bentNormal ? [PI, SP_BENT_SLICE, SP_BENT_WGSL] : [PI],
+    shape.bentNormal
+      ? [PI, SP_OCCLUSION_CELLS, SP_BENT_SLICE, SP_BENT_WGSL]
+      : [PI, SP_OCCLUSION_CELLS],
     [spSliceWgsl(shape), spOcclusionKernel(shape)].join('\n'),
   )
 

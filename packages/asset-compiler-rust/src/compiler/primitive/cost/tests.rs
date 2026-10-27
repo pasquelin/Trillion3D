@@ -86,18 +86,7 @@ fn page_constants_are_the_page_record() {
     let grid = trillion3d_page_codec::bits::grid::PageGrid::at(4);
     let packed =
         trillion3d_page_codec::encode::encode(&[0, 1, 2], &pos, &[], grid).expect("encode");
-    let cluster = DagCluster {
-        indices: vec![0, 1, 2],
-        level: 1,
-        lod_error: 0.5,
-        parent_error: 1.0,
-        sphere: [0.0; 4],
-        whole_box: None,
-        parent_sphere: [0.0; 4],
-        source_rank: 0,
-        group: Some(0),
-        source: Some(0),
-    };
+    let cluster = DagCluster::for_test(vec![0, 1, 2], 1, (0.5, 1.0), (Some(0), Some(0)));
     // The record as the job keeps it: placed in its bundle.
     let mut record = page_record(
         (0, &cluster),

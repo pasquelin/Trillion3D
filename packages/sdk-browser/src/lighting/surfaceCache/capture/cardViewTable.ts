@@ -8,9 +8,11 @@ import type { CardView } from '../../../../../sdk-core/src/lighting/surfaceCache
  * and the surfaces' shading reads again from the rows of the capture atlas's identifier texture past
  * the image (`../../../visibility/shader/pixelTriangleWgsl.ts`).
  *
- * A view is the page's orthographic view (`cardPageView`) taken to the render frame, whose origin is
- * the eye: the matrix `viewProj` takes a point of the render frame to the clip space of the page's
- * own picture, `rect` is where that picture lies in the capture atlas (`x, y, width, height`),
+ * A view is the page's orthographic view (`cardPageView`) taken to the world the decoded rows are
+ * placed in — their worlds are the roots' own, in single precision (`worldOf`,
+ * `../../../visibility/decode/decodeWgsl.ts`), as the camera's raster reads them —: the matrix
+ * `viewProj` takes a point of the world to the clip space of the page's own picture, `rect` is
+ * where that picture lies in the capture atlas (`x, y, width, height`),
  * `lod.x` its pixels to a metre — what an error of the mesh is projected by — and `place.x` the rank
  * of the placement whose mesh it draws, in the cut's tables. The records are laid in the order of
  * their placements, so that the clusters of one placement find their views as a run.
@@ -59,15 +61,14 @@ export interface CardTableImage {
 }
 
 /**
- * Lays the views `sources` in `image`, in the order of their placements, for an image whose render frame
- * has its origin at `eye` (metres): the matrix of a view is its own, which takes a point from its anchor,
- * taken from the eye — `M · (p + eye − anchor)`, composed in double. Fills `order` with the source each
+ * Lays the views `sources` in `image`, in the order of their placements: the matrix of a view is its
+ * own, which takes a point from its anchor, taken from the world's origin — `M · (p − anchor)`,
+ * composed in double. Fills `order` with the source each
  * record is, and returns the views laid.
  */
 export function writeCardViews(
   image: CardTableImage,
   sources: readonly CardViewSource[],
-  eye: ArrayLike<number>,
   order: number[],
 ) {
   order.length = sources.length
@@ -81,13 +82,11 @@ export function writeCardViews(
     const { view, place } = sources[index]!
     const m = view.viewProjection
     const o = CARD_TABLE_HEAD + CARD_VIEW_WORDS * rank
-    const d0 = eye[0]! - view.anchor[0],
-      d1 = eye[1]! - view.anchor[1],
-      d2 = eye[2]! - view.anchor[2]
+    const [a0, a1, a2] = view.anchor
     for (let c = 0; c < 3; c++)
       for (let r = 0; r < 4; r++) f[o + at.viewProj + c * 4 + r] = m[c * 4 + r]!
     for (let r = 0; r < 4; r++)
-      f[o + at.viewProj + 12 + r] = m[12 + r]! + m[r]! * d0 + m[4 + r]! * d1 + m[8 + r]! * d2
+      f[o + at.viewProj + 12 + r] = m[12 + r]! - m[r]! * a0 - m[4 + r]! * a1 - m[8 + r]! * a2
     const { rect } = view
     const width = rect.maxX - rect.minX,
       height = rect.maxY - rect.minY

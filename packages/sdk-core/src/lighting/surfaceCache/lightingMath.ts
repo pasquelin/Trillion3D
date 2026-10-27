@@ -47,8 +47,11 @@ export const updateTilesOf = (settings: SurfaceCacheSettings, side: number) => (
   ),
 })
 
-/** The lights a tile keeps: at most `n` raised to a power of two, held from 1 to 32. */
-export const lightsPerTile = (n: number) => nextPow2(clamp(Math.round(n), 1, 32))
+/** The most lights a tile keeps: a tile's lights are counted in arrays of this size, and the setting is held to it. */
+export const MAX_LIGHTS_PER_TILE = 32
+
+/** The lights a tile keeps: at most `n` raised to a power of two, held from 1 to `MAX_LIGHTS_PER_TILE`. */
+export const lightsPerTile = (n: number) => nextPow2(clamp(Math.round(n), 1, MAX_LIGHTS_PER_TILE))
 
 /** The probes' spacing in texels: the setting raised to a power of two and held from 1 to 8, halved from quality 6. */
 export const probeSpacing = (setting: number, quality: number) =>

@@ -147,7 +147,7 @@ export const VELOCITY_PASS = 'Trillion3D velocity'
 /** The temporal resolve's passes, in their order (`../../post/taa/`), each its own compute pass so
  *  each is timed: the velocity dilated to each texel's closest surface; the render-resolution
  *  histories reprojected (the last image's frame and the frame a pixel may be resurrected from);
- *  the thin geometry detection; the shading rejection, its flicker measure and the merge of the
+ *  the thin geometry detection; the flicker measure; the shading rejection and the merge of the
  *  frames; the spatial anti-aliaser; the history update; the history brought down to the display;
  *  the display layers brought down beside it. */
 export const TAA_DILATE_VELOCITY_PASS = 'Trillion3D temporal dilate velocity'
@@ -156,6 +156,7 @@ export const TAA_MEASURE_FLICKERING_LUMA_PASS = 'Trillion3D temporal measure fli
 export const TAA_MEASURE_THIN_COVERAGE_PASS = 'Trillion3D temporal measure thin geometry coverage'
 export const TAA_DETECT_THIN_GEOMETRY_PASS = 'Trillion3D temporal detect thin geometry'
 export const TAA_RELAX_THIN_GEOMETRY_PASS = 'Trillion3D temporal thin geometry weight relaxation'
+export const TAA_FLICKER_MEASURE_PASS = 'Trillion3D temporal flicker measure'
 export const TAA_REJECT_SHADING_PASS = 'Trillion3D temporal reject shading'
 export const TAA_SPATIAL_ANTI_ALIASING_PASS = 'Trillion3D temporal spatial anti-aliasing'
 export const TAA_UPDATE_HISTORY_PASS = 'Trillion3D temporal update history'
@@ -256,10 +257,11 @@ export const OTHER_PASS_FAMILIES = [
   ...family('surfaceCache', 'Trillion3D card capture', 'Trillion3D surface cache '),
   ...family('reflections', 'Trillion3D inspection reflection'),
 ]
-/** The material pass's detail passes, filed with the material pass (`geometry`, `materials`). */
-export const MATERIAL_DETAIL_FAMILIES = [MATERIAL_BINS_PASS, MATERIAL_SHADING_PASS_PREFIX].map(
-  (prefix) => definePassFamily({ prefix, stage: 'geometry', block: 'materials' }),
-)
+/** The material pass's per-class detail passes, filed with the material pass (`geometry`,
+ *  `materials`); its bins pass is declared below. */
+export const MATERIAL_DETAIL_FAMILIES = [
+  definePassFamily({ prefix: MATERIAL_SHADING_PASS_PREFIX, stage: 'geometry', block: 'materials' }),
+]
 
 /** The stage and block of each pass labelled above. */
 export const ENGINE_PASSES = [
@@ -282,6 +284,7 @@ export const ENGINE_PASSES = [
   definePass({ label: RASTER_DEPTH_EXPORT_PASS, stage: 'geometry', block: 'visibility' }),
   definePass({ label: EMPTY_SURFACES_PASS, stage: 'geometry', block: 'materials' }),
   definePass({ label: MATERIAL_COMPUTE_PASS, stage: 'geometry', block: 'materials' }),
+  definePass({ label: MATERIAL_BINS_PASS, stage: 'geometry', block: 'materials' }),
   definePass({ label: MATERIAL_SURFACES_PASS, stage: 'geometry', block: 'materials' }),
   definePass({ label: TEXTURE_FEEDBACK_REDUCE_PASS, stage: 'textures', block: 'other' }),
   definePass({ label: TEXTURE_EVICTION_PASS, stage: 'textures', block: 'other' }),
@@ -336,6 +339,7 @@ export const ENGINE_PASSES = [
   definePass({ label: TAA_MEASURE_THIN_COVERAGE_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: TAA_DETECT_THIN_GEOMETRY_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: TAA_RELAX_THIN_GEOMETRY_PASS, stage: 'antialiasing', block: 'other' }),
+  definePass({ label: TAA_FLICKER_MEASURE_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: TAA_REJECT_SHADING_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: TAA_SPATIAL_ANTI_ALIASING_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: TAA_UPDATE_HISTORY_PASS, stage: 'antialiasing', block: 'other' }),

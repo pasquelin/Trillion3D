@@ -81,8 +81,7 @@ export function createBlockClear(device: GPUDevice) {
     CLEAR_BLOCKS_WGSL,
     ['clearBlocks'],
     [computeBufferEntry(7, 'storage')],
-    undefined,
-    CAPTURE_PARAMS.words * 4,
+    { parameterBytes: CAPTURE_PARAMS.words * 4 },
   )
   const params = device.createBuffer({
     label: `${label} parameters`,

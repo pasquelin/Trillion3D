@@ -41,12 +41,15 @@ settles, never where; setting or removing water wakes every dynamic body.
 sleep, still when paused): `height(x, z)`, `point(x, z, out)` (where a grid's rest point is
 carried), `normal(x, z, out)`, `wavesNow()` (the waves with their phases, so water set again goes
 on from there); set again, the water is the same surface, carried by the new waves. **Drawn
-water**: a mesh that lies flat on the water at its `level` — a plane turned flat and placed there,
-its world box flat to a float32 step — is the water's surface: the engine sets its `mesh.waves` to
-`waterSurface` and the GPU moves each vertex where the waves carry it, on the physics' clock, with
-no vertex written on the page; moved off the level, it is released. A body, or a geometry the
-page rewrites (`usage: 'dynamic'`), is never carried, and `mesh.waves = null` (or a surface of the
-page's own) keeps a mesh out.
+water**: the page links the mesh that draws it, `sea.waves = world.physics.waterSurface`; the GPU
+then moves each of its vertices, a rest point of the plane at the water's `level`, where the waves
+carry it, on the physics' clock, with no vertex written on the page. Set again, the water keeps the
+same surface, so the link holds; `mesh.waves = null` unlinks the mesh.
+
+```js
+world.physics.water = { level: 0, waves: [{ direction: [1, 0.25], wavelength: 44, amplitude: 0.55, steepness: 0.3 }] }
+sea.waves = world.physics.waterSurface
+```
 
 ## Bodies
 

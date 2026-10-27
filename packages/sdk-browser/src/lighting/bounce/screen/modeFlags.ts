@@ -51,6 +51,7 @@ export function screenProbeFlags(settings: ScreenProbeSettings, image: ScreenPro
     bit(image.fullResDepth, F.fullResDepth) |
     bit(values.screenProbeSkipFoliageHits, F.skipFoliageHits) |
     bit(image.cache && settings.cache.skyVisibility, F.cacheSky) |
-    bit(settings.backfaceDiffuse, F.backfaceDiffuse)
+    bit(settings.backfaceDiffuse, F.backfaceDiffuse) |
+    bit(values.screenProbeRejectBasedOnNormal, F.rejectNormal)
   )
 }

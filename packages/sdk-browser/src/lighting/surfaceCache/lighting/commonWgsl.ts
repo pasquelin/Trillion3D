@@ -1,5 +1,6 @@
 import { wgslBlock, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
+import { DISTANCE_FIELD_UNITS_PER_METRE as CM } from '../../../../../sdk-core/src/contracts/distanceFieldAbi.ts'
 import { LIGHTING_CONTEXTS } from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
 import { INVALID_DEPTH_WORD, TILE } from '../layout.ts'
 import { surfaceCacheRecordsWgsl } from '../sampleWgsl.ts'
@@ -42,6 +43,7 @@ const CONSTANTS = wgslConsts({
   ARGS_INDIRECT_TILES: CONTEXT_ARGS.indirectTiles,
   ARGS_TRACES: CONTEXT_ARGS.traces,
   ARGS_PROBES: CONTEXT_ARGS.probes,
+  ARGS_SHADOW_TRACES: CONTEXT_ARGS.shadowTraces,
   FLAG_DIRECT: LIGHTING_FLAG.direct,
   FLAG_RADIOSITY: LIGHTING_FLAG.radiosity,
   FLAG_PRIORITIZE_FRUSTUM: LIGHTING_FLAG.prioritizeFrustum,
@@ -49,6 +51,9 @@ const CONSTANTS = wgslConsts({
   FLAG_TEMPORAL: LIGHTING_FLAG.temporal,
   FLAG_PLANE_WEIGHTING: LIGHTING_FLAG.planeWeighting,
   FLAG_HISTORY_VALID: LIGHTING_FLAG.historyValid,
+  FLAG_FREEZE_UPDATE_FRAME: LIGHTING_FLAG.freezeUpdateFrame,
+  FLAG_ADAPTIVE_SHADOWS: LIGHTING_FLAG.adaptiveShadowTracing,
+  FLAG_FORCE_TWO_SIDED: LIGHTING_FLAG.forceTwoSided,
 })
 
 const TILES_WGSL = wgslBlock(
@@ -128,6 +133,9 @@ export const lightingLayersWgsl = (depth: number, normal: number): WgslDecl =>
 fn texDepth(p:vec2u)->u32{return textureLoad(lgDepth,vec2i(p),0).x;}
 fn texNormal(p:vec2u)->vec2f{return textureLoad(lgNormal,vec2i(p),0).xy;}`,
   )
+
+/** The centimetres in a metre: the cards' unit is the centimetre, the light term's the metre. */
+export const CM_PER_M_WGSL = wgslBlock('LIGHTING_CM_PER_M_WGSL', [], `const CM_PER_M:f32=${CM}.0;`)
 
 /** What a program that reads the atlas through the read library reads the two layers with. */
 export const READ_LIBRARY_LAYERS_WGSL = wgslBlock(

@@ -4,6 +4,7 @@ import {
   TAA_DETECT_THIN_GEOMETRY_PASS,
   TAA_RELAX_THIN_GEOMETRY_PASS,
   TAA_DILATE_VELOCITY_PASS,
+  TAA_FLICKER_MEASURE_PASS,
   TAA_REJECT_SHADING_PASS,
   TAA_SPATIAL_ANTI_ALIASING_PASS,
 } from '../../diagnostic/stage/passLabels.ts'
@@ -21,6 +22,7 @@ import {
   thinRelaxationShader,
 } from './thinGeometryWgsl.ts'
 import { measureFlickerLumaShader, measureThinCoverageShader } from './flickerLumaWgsl.ts'
+import { flickerMeasureShader } from './flickerMeasureWgsl.ts'
 import { rejectShadingShader } from './rejectionWgsl.ts'
 import {
   REJECT_SHADING_STRIDE,
@@ -30,7 +32,7 @@ import {
 import { SPATIAL_AA_TILE, spatialAntiAliasingShader } from './spatialAntiAliasingWgsl.ts'
 import type { AnalysisFormats } from './analysisTargets.ts'
 import type { PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
-import { taaExecutionOf, type TaaExecution } from './waveOps.ts'
+import { taaExecutionOf, type TaaExecution, type Wave } from './waveOps.ts'
 
 /** A compute stage prepared off the frame (`preparedComputeStage`). */
 type PreparedStage = ReturnType<typeof preparedComputeStage>
@@ -49,44 +51,44 @@ type Stage = (
 export const FUSED_TILE = FLATTEN_TILE
 
 /** The dispatches of the analysis, in the order of their compute passes, each timed under its
- *  `pass`, its descriptor and label: its place `index` among the groups, the render texels a workgroup writes across and
+ *  `pass`, its descriptor and label: the render texels a workgroup writes across and
  *  down (`tile`) — the nearest velocity and the reprojection, a texel a lane, the thin geometry
- *  detection, a tile, the shading rejection, the inner square of its tile, and the spatial
- *  anti-aliaser, a texel a lane —; the thin geometry's weight relaxation runs after the detection. */
+ *  detection, a tile, the flicker measure and the shading rejection, the inner square of their tile,
+ *  and the spatial anti-aliaser, a texel a lane —; the thin geometry's weight relaxation runs after
+ *  the detection, the flicker measure before the shading rejection that reads its errors. */
 export const DISPATCHES = [
   {
     name: 'nearest',
-    index: 0,
     pass: { label: TAA_DILATE_VELOCITY_PASS },
     tile: [TEXEL_TILE, TEXEL_TILE],
   },
   {
     name: 'reproject',
-    index: 1,
     pass: { label: TAA_DECIMATE_HISTORY_PASS },
     tile: [TEXEL_TILE, TEXEL_TILE],
   },
   {
     name: 'thin',
-    index: 2,
     pass: { label: TAA_DETECT_THIN_GEOMETRY_PASS },
     tile: [THIN_GEOMETRY_PLAN.width, THIN_GEOMETRY_PLAN.height],
   },
   {
     name: 'relaxation',
-    index: 5,
     pass: { label: TAA_RELAX_THIN_GEOMETRY_PASS },
     tile: [THIN_RELAXATION_TILE, THIN_RELAXATION_TILE],
   },
   {
+    name: 'flicker',
+    pass: { label: TAA_FLICKER_MEASURE_PASS },
+    tile: [REJECT_SHADING_STRIDE, REJECT_SHADING_STRIDE],
+  },
+  {
     name: 'reject',
-    index: 3,
     pass: { label: TAA_REJECT_SHADING_PASS },
     tile: [REJECT_SHADING_STRIDE, REJECT_SHADING_STRIDE],
   },
   {
     name: 'antiAlias',
-    index: 4,
     pass: { label: TAA_SPATIAL_ANTI_ALIASING_PASS },
     tile: [SPATIAL_AA_TILE, SPATIAL_AA_TILE],
   },
@@ -130,24 +132,67 @@ const stageOf =
     return buildComputeStage(device, [layout], compiled, entryPoint, constants, compiled.label)
   }
 
-/** The modules the twin stages are made from, checked off the thread. */
-type TwinModules = Record<'velocity' | 'reproject' | 'reject', Promise<GPUShaderModule>> & {
-  /** The shading rejection in 16 bits, where the device grants them and the driver takes it. */
-  rejectHalf?: Promise<GPUShaderModule>
-  /** The shading rejection as a subgroup of the tile's width, in 32 and in 16 bits, where the device
-   *  runs one (`rejectionWaveOf`) and the driver takes it. */
-  rejectWave?: Promise<GPUShaderModule>
-  rejectWaveHalf?: Promise<GPUShaderModule>
+/** A program and the twins a device may run it as: in 16 bits (`half`, where the device grants
+ *  16-bit shader floats), as a subgroup of the tile's width (`wave`, `rejectionWaveOf`), and both
+ *  (`waveHalf`). A twin is left out where the device does not run it or the driver refuses it. */
+type Family<T> = {
+  plain: T
+  half?: T | undefined
+  wave?: T | undefined
+  waveHalf?: T | undefined
 }
 
-/** The programs of the analysis's dispatches, compiled together, with the 16-bit twins (`half`: the
- *  device grants 16-bit shader floats): one a driver refuses is left out, the 32-bit one the others'. */
+/** The family `family` with `make` applied to each of its members. */
+const mapFamily = <A, B>(family: Family<A>, make: (member: A) => B): Family<B> => ({
+  plain: make(family.plain),
+  half: family.half ? make(family.half) : undefined,
+  wave: family.wave ? make(family.wave) : undefined,
+  waveHalf: family.waveHalf ? make(family.waveHalf) : undefined,
+})
+
+/** The family of the program `shaderOf` writes for a precision and a wave (`half`, `runAs`), its
+ *  modules labelled `label` and checked off the thread: the twins the device runs, `half` and `wave`
+ *  as it has them. */
+function shaderFamily(
+  device: GPUDevice,
+  label: string,
+  shaderOf: (half: boolean, runAs?: Wave) => string,
+  half: boolean,
+  wave: Wave | undefined,
+): Family<Promise<GPUShaderModule>> {
+  const moduleOf = (precise: boolean, runAs?: Wave) => {
+    const waveLabel = runAs ? ` wave ${runAs.lanes}${runAs.pinned ? ' pinned' : ''}` : ''
+    return createCheckedShaderModule(
+      device,
+      shaderOf(precise, runAs),
+      `${label}${precise ? '_F16' : ''}${waveLabel}`,
+    )
+  }
+  return {
+    plain: moduleOf(false),
+    half: half ? moduleOf(true) : undefined,
+    wave: wave ? moduleOf(false, wave) : undefined,
+    waveHalf: wave && half ? moduleOf(true, wave) : undefined,
+  }
+}
+
+/** The modules the twin stages are made from, checked off the thread: the shading rejection and the
+ *  flicker measure, which runs as the rejection does, in the same twins. */
+type TwinModules = Record<'velocity' | 'reproject', Promise<GPUShaderModule>> & {
+  reject: Family<Promise<GPUShaderModule>>
+  flicker: Family<Promise<GPUShaderModule>>
+}
+
+/** The programs of the analysis's dispatches, compiled together, with the twins of the shading
+ *  rejection and the flicker measure (`Family`), the 16-bit twin of the anti-aliaser (`halfFloats`:
+ *  the device grants 16-bit shader floats): one a driver refuses is left out, the plain one the
+ *  others'. */
 async function compileDispatches(
   device: GPUDevice,
   layouts: AnalysisLayouts,
   { antiAlias: antiAliasFormat, measure, mask, luma }: AnalysisFormats,
   modules: TwinModules,
-  half: boolean,
+  halfFloats: boolean,
 ) {
   const stage = stageOf(device)
   const optionalStage = (
@@ -155,70 +200,60 @@ async function compileDispatches(
     module: Promise<GPUShaderModule> | undefined,
     entryPoint: string,
   ) => module && stage(layout, module, entryPoint).catch(() => undefined)
-  const [
-    velocity,
-    reproject,
-    thin,
-    reject,
-    rejectHalf,
-    rejectWave,
-    rejectWaveHalf,
-    antiAlias,
-    antiAliasHalf,
-    relaxation,
-  ] = await Promise.all([
-    stage(layouts.velocity, modules.velocity, 'nearestVelocity'),
-    stage(layouts.reproject, modules.reproject, 'reprojectHistories'),
-    stage(
-      layouts.thin,
-      createCheckedShaderModule(device, thinGeometryShader(), 'TAA_THIN_GEOMETRY'),
-      'detectThinGeometry',
-    ),
-    stage(layouts.rejectShading, modules.reject, 'rejectShading'),
-    // The shading rejection in 16 bits, as the anti-aliaser below: run by an execution that asks it.
-    optionalStage(layouts.rejectShading, modules.rejectHalf, 'rejectShading'),
-    // And as a subgroup of the tile's width, in 32 and 16 bits: run by an execution whose wave it is.
-    optionalStage(layouts.rejectShading, modules.rejectWave, 'rejectShading'),
-    optionalStage(layouts.rejectShading, modules.rejectWaveHalf, 'rejectShading'),
-    stage(
-      layouts.antiAlias,
-      createCheckedShaderModule(
-        device,
-        spatialAntiAliasingShader(antiAliasFormat, false, mask, luma),
-        'TAA_SPATIAL_AA',
-      ),
-      'spatialAntiAliasing',
-    ),
-    // The anti-aliaser in 16 bits: run by an execution that asks it (`TaaExecution.half`).
-    optionalStage(
-      layouts.antiAlias,
-      half
-        ? createCheckedShaderModule(
-            device,
-            spatialAntiAliasingShader(antiAliasFormat, true, mask, luma),
-            'TAA_SPATIAL_AA_F16',
-          )
-        : undefined,
-      'spatialAntiAliasing',
-    ),
-    stage(
-      layouts.relaxation,
-      createCheckedShaderModule(device, thinRelaxationShader(measure), 'TAA_THIN_RELAXATION'),
-      'relaxThinGeometryWeight',
-    ),
-  ])
-  return {
-    velocity,
-    reproject,
-    thin,
-    reject,
-    rejectHalf,
-    rejectWave,
-    rejectWaveHalf,
-    antiAlias,
-    antiAliasHalf,
-    relaxation,
+  const familyStages = async (
+    layout: GPUBindGroupLayout,
+    modules: Family<Promise<GPUShaderModule>>,
+    entryPoint: string,
+  ): Promise<Family<GPUComputePipeline>> => {
+    const [plain, half, wave, waveHalf] = await Promise.all([
+      stage(layout, modules.plain, entryPoint),
+      optionalStage(layout, modules.half, entryPoint),
+      optionalStage(layout, modules.wave, entryPoint),
+      optionalStage(layout, modules.waveHalf, entryPoint),
+    ])
+    return { plain, half, wave, waveHalf }
   }
+  const [velocity, reproject, thin, reject, flicker, antiAlias, antiAliasHalf, relaxation] =
+    await Promise.all([
+      stage(layouts.velocity, modules.velocity, 'nearestVelocity'),
+      stage(layouts.reproject, modules.reproject, 'reprojectHistories'),
+      stage(
+        layouts.thin,
+        createCheckedShaderModule(device, thinGeometryShader(), 'TAA_THIN_GEOMETRY'),
+        'detectThinGeometry',
+      ),
+      // The shading rejection in its twins: run by an execution that asks them (`variantOf`).
+      familyStages(layouts.rejectShading, modules.reject, 'rejectShading'),
+      // The flicker measure, in the same ones.
+      familyStages(layouts.flicker, modules.flicker, 'measureFlicker'),
+      stage(
+        layouts.antiAlias,
+        createCheckedShaderModule(
+          device,
+          spatialAntiAliasingShader(antiAliasFormat, false, mask, luma),
+          'TAA_SPATIAL_AA',
+        ),
+        'spatialAntiAliasing',
+      ),
+      // The anti-aliaser in 16 bits: run by an execution that asks it (`TaaExecution.half`).
+      optionalStage(
+        layouts.antiAlias,
+        halfFloats
+          ? createCheckedShaderModule(
+              device,
+              spatialAntiAliasingShader(antiAliasFormat, true, mask, luma),
+              'TAA_SPATIAL_AA_F16',
+            )
+          : undefined,
+        'spatialAntiAliasing',
+      ),
+      stage(
+        layouts.relaxation,
+        createCheckedShaderModule(device, thinRelaxationShader(measure), 'TAA_THIN_RELAXATION'),
+        'relaxThinGeometryWeight',
+      ),
+    ])
+  return { velocity, reproject, thin, reject, flicker, antiAlias, antiAliasHalf, relaxation }
 }
 
 /** The measures taken before the translucency (`TaaAnalysis.measure`), compiled together. */
@@ -262,12 +297,15 @@ async function twinStages(device: GPUDevice, layouts: AnalysisLayouts, modules: 
     const made = await module?.catch(() => undefined)
     return made && resurrecting(layouts.rejectShading, made, 'rejectShading')
   }
+  const { plain, half, wave, waveHalf } = modules.reject
   const resurrected = {
     reproject: resurrecting(layouts.reproject, await modules.reproject, 'reprojectHistories'),
-    reject: resurrecting(layouts.rejectShading, await modules.reject, 'rejectShading'),
-    rejectHalf: await rejecting(modules.rejectHalf),
-    rejectWave: await rejecting(modules.rejectWave),
-    rejectWaveHalf: await rejecting(modules.rejectWaveHalf),
+    reject: {
+      plain: resurrecting(layouts.rejectShading, await plain, 'rejectShading'),
+      half: await rejecting(half),
+      wave: await rejecting(wave),
+      waveHalf: await rejecting(waveHalf),
+    },
   }
   return { displaced, resurrected }
 }
@@ -305,51 +343,20 @@ async function computePipelines(
   // The wave the shading rejection runs as is the subgroup of the tile's width, the history update's
   // choice of it (`taaExecutionOf`, `waveOps.ts`): the one a device that runs it has.
   const wave = rejectionWaveOf(taaExecutionOf(device, true, REJECT_SHADING_TILE, false).wave)
-  const waveLabel = wave && ` wave ${wave.lanes}${wave.pinned ? ' pinned' : ''}`
   const modules: TwinModules = {
     velocity: createCheckedShaderModule(device, velocityShader(wpo), 'TAA_VELOCITY'),
     reproject: createCheckedShaderModule(device, reprojectShader(guide), 'TAA_REPROJECT'),
-    reject: createCheckedShaderModule(
+    reject: shaderFamily(
       device,
-      rejectShadingShader(guide, color, false, mask, luma),
       'TAA_REJECT_SHADING',
+      (precise, runAs) => rejectShadingShader(guide, color, precise, mask, luma, runAs),
+      half,
+      wave,
     ),
-    rejectHalf: half
-      ? createCheckedShaderModule(
-          device,
-          rejectShadingShader(guide, color, true, mask, luma),
-          'TAA_REJECT_SHADING_F16',
-        )
-      : undefined,
-    rejectWave: wave
-      ? createCheckedShaderModule(
-          device,
-          rejectShadingShader(guide, color, false, mask, luma, wave),
-          `TAA_REJECT_SHADING${waveLabel}`,
-        )
-      : undefined,
-    rejectWaveHalf:
-      wave && half
-        ? createCheckedShaderModule(
-            device,
-            rejectShadingShader(guide, color, true, mask, luma, wave),
-            `TAA_REJECT_SHADING_F16${waveLabel}`,
-          )
-        : undefined,
+    flicker: shaderFamily(device, 'TAA_FLICKER_MEASURE', flickerMeasureShader, half, wave),
   }
   const [
-    {
-      velocity,
-      reproject,
-      thin,
-      reject,
-      rejectHalf,
-      rejectWave,
-      rejectWaveHalf,
-      antiAlias,
-      antiAliasHalf,
-      relaxation,
-    },
+    { velocity, reproject, thin, reject, flicker, antiAlias, antiAliasHalf, relaxation },
     [measureLuma, measureCoverage],
   ] = await Promise.all([
     compileDispatches(device, layouts, formats, modules, half),
@@ -361,16 +368,14 @@ async function computePipelines(
       nearest: built(velocity),
       reproject: built(reproject),
       thin: built(thin),
-      reject: built(reject),
       antiAlias: built(antiAlias),
       relaxation: built(relaxation),
     },
+    reject: mapFamily(reject, built),
+    flicker: mapFamily(flicker, built),
     measures: { luma: built(measureLuma), coverage: built(measureCoverage) },
     resurrected,
     antiAliasHalf: antiAliasHalf && built(antiAliasHalf),
-    rejectHalf: rejectHalf && built(rejectHalf),
-    rejectWave: rejectWave && built(rejectWave),
-    rejectWaveHalf: rejectWaveHalf && built(rejectWaveHalf),
     displaced,
     /** The nearest velocity's stages that also flatten the motion of a blur of `variant`, made at
      *  the first ask. */
@@ -378,10 +383,7 @@ async function computePipelines(
     /** Asks the programs of a history that resurrects, compiled off the thread. */
     askResurrection: () => {
       resurrected.reproject.ask()
-      resurrected.reject.ask()
-      resurrected.rejectHalf?.ask()
-      resurrected.rejectWave?.ask()
-      resurrected.rejectWaveHalf?.ask()
+      for (const stage of Object.values(resurrected.reject)) stage?.ask()
     },
   }
 }
@@ -403,38 +405,33 @@ export const variantOf = ({ half, wave }: TaaExecution) =>
 
 /** The pipelines of a dispatch by variant: where a program is left out (a device that does not
  *  run it, a driver that refuses it) the one that does what it does with less. */
-const variants = (plain: Built, half = plain, wave = plain, waveHalf = half): Variants => [
+const variants = ({
   plain,
-  half,
-  wave,
-  waveHalf,
-]
+  half = plain,
+  wave = plain,
+  waveHalf = half,
+}: Family<Built>): Variants => [plain, half, wave, waveHalf]
 
 /** The pipeline of each dispatch of `DISPATCHES`, in their order, as `DispatchStages` orders them. */
 function dispatchStages({
   pipelines,
   resurrected,
+  reject,
+  flicker,
   antiAliasHalf,
-  rejectHalf,
-  rejectWave,
-  rejectWaveHalf,
 }: Awaited<ReturnType<typeof computePipelines>>): readonly DispatchStages[] {
   const by = (plain: Variants, resurrecting = plain): DispatchStages => [plain, resurrecting]
   const byName = {
-    nearest: by(variants(pipelines.nearest)),
-    reproject: by(variants(pipelines.reproject), variants(resurrected.reproject)),
-    thin: by(variants(pipelines.thin)),
-    reject: by(
-      variants(pipelines.reject, rejectHalf, rejectWave, rejectWaveHalf),
-      variants(
-        resurrected.reject,
-        resurrected.rejectHalf,
-        resurrected.rejectWave,
-        resurrected.rejectWaveHalf,
-      ),
+    nearest: by(variants({ plain: pipelines.nearest })),
+    reproject: by(
+      variants({ plain: pipelines.reproject }),
+      variants({ plain: resurrected.reproject }),
     ),
-    antiAlias: by(variants(pipelines.antiAlias, antiAliasHalf)),
-    relaxation: by(variants(pipelines.relaxation)),
+    thin: by(variants({ plain: pipelines.thin })),
+    reject: by(variants(reject), variants(resurrected.reject)),
+    flicker: by(variants(flicker)),
+    antiAlias: by(variants({ plain: pipelines.antiAlias, half: antiAliasHalf })),
+    relaxation: by(variants({ plain: pipelines.relaxation })),
   }
   return DISPATCHES.map(({ name }) => byName[name])
 }
@@ -443,7 +440,7 @@ function dispatchStages({
  * The analysis's programs: its dispatches' compute pipelines (`stages`), in the order of their
  * `DISPATCHES`, each with the reprojection's and the shading rejection's of a history that
  * resurrects (asked only by one) and the 16-bit twins of the shading rejection (its resurrecting
- * one too) and the anti-aliaser where the device grants 16-bit shader floats; the nearest velocity's pipeline for an image that draws displaced surfaces
+ * one too), of the flicker measure and the anti-aliaser where the device grants 16-bit shader floats; the nearest velocity's pipeline for an image that draws displaced surfaces
  * (`displaced`, asked only by one); the reprojection and the shading rejection store the shading
  * histories in `formats.guide`, the shading rejection the scene colour in `formats.color`; the
  * spatial anti-aliaser's, last, stores to a target of `formats.antiAlias`.

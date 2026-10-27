@@ -9,7 +9,7 @@ import type { ScreenProbeResources } from './resources.ts'
 import { SCREEN_PROBE_ARGS } from './screenProbeLayout.ts'
 
 /** What a frame's dispatches are made of. */
-interface ScreenProbeRun {
+export interface ScreenProbeRun {
   kernels: ScreenProbeKernels
   resources: ScreenProbeResources
   groups: ScreenProbeGroups
@@ -21,7 +21,7 @@ interface ScreenProbeRun {
 }
 
 /** What the passes over the probes are made of: the run of a level that casts them, its kernels and groups over the probes. */
-type CastRun = Omit<ScreenProbeRun, 'kernels' | 'groups'> & {
+export type CastRun = Omit<ScreenProbeRun, 'kernels' | 'groups'> & {
   kernels: CastKernels
   groups: NonNullable<ScreenProbeGroups['cast']>
 }
@@ -137,24 +137,50 @@ function shadePixels(pass: GPUComputePassEncoder, run: ScreenProbeRun) {
   dispatch(pass, kernels.temporal.pipelines.temporal, groups.temporal, ...image)
 }
 
-/**
- * ONE IMAGE OF THE SCREEN PROBES, in a compute pass of its own: the list of the rays the screen leaves emptied, then in order the
- * placement, the choice of the rays, the trace, the filter — the levels that cast probes —, the short-range occlusion and the
- * temporal pass, which integrates. The reflection group — the depth pyramid, the last lit image, the lighting's view — is group 1
- * of every kernel, set once. The kernels over the probes are dispatched over the atlas's rows that hold one (`probeArgs`), the
- * scene's over the rays listed. The result is the history of this image's turn (`ScreenProbeResources.history`), which the
- * lighting reads.
- */
-export function encodeScreenProbes(encoder: GPUCommandEncoder, run: ScreenProbeRun) {
-  const { resources } = run
-  const { cast: kernels } = run.kernels,
-    { cast: groups } = run.groups
-  const cast: CastRun | undefined = kernels && groups && { ...run, kernels, groups }
-  if (cast) encoder.copyBufferToBuffer(resources.listHead, 0, resources.sceneRays, 0, 16)
+/** The compute pass of the screen probes, its reflection group set: the group is group 1 of every kernel, set once a pass. */
+function beginPass(encoder: GPUCommandEncoder, run: ScreenProbeRun) {
   const pass = encoder.beginComputePass({ label: SCREEN_PROBE_PASS })
   pass.setBindGroup(REFLECTION_GROUP, run.reflection)
+  return pass
+}
+
+/** The run of a level that casts probes, or none where it casts none: made once an image, at its placement. */
+function castOf(run: ScreenProbeRun): CastRun | undefined {
+  const { cast: kernels } = run.kernels,
+    { cast: groups } = run.groups
+  return kernels && groups ? { ...run, kernels, groups } : undefined
+}
+
+/**
+ * THE FIRST HALF OF AN IMAGE OF THE SCREEN PROBES, in a compute pass of its own: the list of the rays the screen leaves emptied, then
+ * the placement. Nothing is encoded for a level that casts no probe; the answer is the run of the probes placed, none where the level
+ * casts none, which `encodeProbeTrace` takes. What follows the placement — the probe pool's marks of the cells the probes stand in,
+ * in passes of its own — is encoded between the two.
+ */
+export function encodeProbePlacement(encoder: GPUCommandEncoder, run: ScreenProbeRun) {
+  const cast = castOf(run)
+  if (!cast) return undefined
+  encoder.copyBufferToBuffer(run.resources.listHead, 0, run.resources.sceneRays, 0, 16)
+  const pass = beginPass(encoder, run)
+  placeProbes(pass, cast)
+  pass.end()
+  return cast
+}
+
+/**
+ * THE SECOND HALF OF AN IMAGE OF THE SCREEN PROBES, in a compute pass of its own: the choice of the rays, the trace, the filter — the
+ * levels that cast probes —, the short-range occlusion and the temporal pass, which integrates. The reflection group — the depth
+ * pyramid, the last lit image, the lighting's view — is group 1 of every kernel. The kernels over the probes are dispatched over the
+ * atlas's rows that hold one (`probeArgs`), the scene's over the rays listed. The result is the history of this image's turn
+ * (`ScreenProbeResources.history`), which the lighting reads. `cast` is the run of the probes the placement answered.
+ */
+export function encodeProbeTrace(
+  encoder: GPUCommandEncoder,
+  run: ScreenProbeRun,
+  cast: CastRun | undefined,
+) {
+  const pass = beginPass(encoder, run)
   if (cast) {
-    placeProbes(pass, cast)
     chooseRays(pass, cast)
     traceAndFilter(pass, cast)
   }

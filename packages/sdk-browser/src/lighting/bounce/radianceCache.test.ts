@@ -2,7 +2,7 @@
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
+import { BOUNCE_PROBE_QUEUE, BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import {
   cacheFilterEntries,
@@ -23,12 +23,7 @@ import { oneLevel } from './atlas.fixture.ts'
 import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
 import { SCREEN_PROBE_CONSTANTS } from '../../../../sdk-core/src/bounce/screenProbeLevels.ts'
 import { CACHE_TRACE_PROGRAM } from './cache/cacheTraceWgsl.ts'
-import {
-  reservedNames,
-  topLevelNames,
-  unbalanced,
-  unresolvedNames,
-} from '../../gpu/core/wgslNames.fixture.ts'
+import { assertProgramAssembles } from '../../gpu/core/wgslNames.fixture.ts'
 
 test('every kernel of the radiance cache is a module a device takes: its names declared, none reserved or twice, its bindings the layout holds', () => {
   const kernels = {
@@ -38,11 +33,7 @@ test('every kernel of the radiance cache is a module a device takes: its names d
     mips: [CACHE_MIPS_PROGRAM, cacheMipsEntries(), ['buildMip']],
   } as const
   for (const [name, [code, entries, points]] of Object.entries(kernels)) {
-    assert.deepEqual(unresolvedNames(code), [], name)
-    assert.deepEqual(reservedNames(code), [], name)
-    assert.equal(unbalanced(code), '', name)
-    const names = topLevelNames(code)
-    assert.equal(new Set(names).size, names.length, name)
+    assertProgramAssembles(code, undefined, name)
     const declared = [...code.matchAll(/@group\(0\)\s*@binding\((\d+)\)/g)].map((m) => +m[1])
     const held = entries.map((entry) => entry.binding)
     assert.ok(
@@ -79,7 +70,10 @@ test('the radiance cache holds the pool’s own number of maps in two atlases an
   assert.equal(cacheBytes(shape(32, 3), pool) - base, 4 * texels * (1 / 4 + 1 / 16))
   assert.equal(cacheBytes(shape(32, 1, true), pool) - base, 4 * texels)
   // A map is traced in at most as many tiles as it has texels at twice its side, of eight by eight, for every probe a frame queues.
-  assert.deepEqual([cacheTileCapacity(16), cacheTileCapacity(32)], [768 * 16, 768 * 64])
+  assert.deepEqual(
+    [cacheTileCapacity(16), cacheTileCapacity(32)],
+    [BOUNCE_PROBE_QUEUE * 16, BOUNCE_PROBE_QUEUE * 64],
+  )
 })
 
 test('a ray’s end keeps its distance in a half float, whether it met a surface and the share of it that left the scene, and the level that covers a point is the first whose cube holds it half a cell inside', () => {

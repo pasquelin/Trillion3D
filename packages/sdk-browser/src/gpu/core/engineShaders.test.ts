@@ -126,6 +126,7 @@ test('the list holds the text of every call that compiles a module', () => {
     'engineShaders.lighting.fixture.ts',
     'engineShaders.taa.fixture.ts',
     'engineShaders.surfaceCache.fixture.ts',
+    'engineShaders.sceneTrace.fixture.ts',
     'shaderTexts.fixture.ts',
   ]
     .map((name) => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8'))

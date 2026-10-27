@@ -8,7 +8,7 @@ import {
   isUpscaled,
   type HistoryShape,
 } from './historyShape.ts'
-import { analysisBytesPerPixel } from './analysisTargets.ts'
+import { analysisBytes } from './analysisTargets.ts'
 import { outputBytes } from './historyResolve.ts'
 import { halfSize } from '../filters/levelSizes.ts'
 
@@ -22,7 +22,8 @@ export interface HistoryFrame {
  *  frames at its size, the half-size image beside the display's colour, the resolve's output where
  *  the history is larger than the display, the analysis's targets and render-resolution histories at
  *  its render size — the render targets' own, the largest a frame is drawn at, so no scale under it
- *  remakes them (`analysis.ts`) — and the guide of each frame beyond the first. */
+ *  remakes them (`analysis.ts`), the flicker measure's tiles among them — and the guide of each
+ *  frame beyond the first. */
 export const taaTargetBytes = (
   size: { width: number; height: number; renderWidth: number; renderHeight: number },
   shape: HistoryShape,
@@ -30,9 +31,7 @@ export const taaTargetBytes = (
   shape.width * shape.height * historyBytesPerPixel(shape) +
   halfImageBytes(shape.displayWidth, shape.displayHeight, shape.formats.color) +
   (isUpscaled(shape) ? outputBytes(size.width, size.height, shape.formats.color) : 0) +
-  size.renderWidth *
-    size.renderHeight *
-    analysisBytesPerPixel(shape.sequence, shape.field, shape.antiAlias, shape.formats)
+  analysisBytes(size.renderWidth, size.renderHeight, shape, 0)
 
 /** The frames of a history of `shape` and the half-size image of the display's, their textures kept
  *  in `textures`. */

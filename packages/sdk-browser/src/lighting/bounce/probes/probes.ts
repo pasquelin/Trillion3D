@@ -76,11 +76,14 @@ function probeApi(
   const stats: PoolStats = pool.stats
   return {
     cascades,
-    // The maps are made or given back before the image looks for work: a closed series finds some when they are made.
-    encode: (...args: Parameters<typeof encoder.encode>) => {
+    /** The image's viewpoint taken before anything reads the levels or the cache this image: the maps made or given back — a
+     *  closed series finds work when they are made — and the levels re-centred on it. */
+    track(viewpoint: ArrayLike<number>) {
       cache.follow(settings())
-      return encoder.encode(...args)
+      encoder.follow(viewpoint)
     },
+    /** The image's probe pass, once `track` has taken its viewpoint (`probeEncode.ts`). */
+    encode: encoder.encode,
     restart: encoder.restart,
     get working() {
       return encoder.working

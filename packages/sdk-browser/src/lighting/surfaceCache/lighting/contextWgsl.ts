@@ -2,16 +2,15 @@ import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { WORKGROUP_THREADS, GROUP_GRID_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { PRIORITY_HISTOGRAM_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
-import { CARD_PAGE_WORDS } from '../../../../../sdk-core/src/lighting/surfaceCache/pageRecords.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { lightingCommonWgsl } from './commonWgsl.ts'
-import { CONTEXT_HEADER_WORDS } from './layout.ts'
+import { CONTEXT_HEADER_WORDS, PAGE_LIGHTING } from './layout.ts'
 
 /**
  * THE UPDATE CONTEXT: which tiles of which pages the image lights, chosen on the GPU from the pages' own records
  * (`lightingMath.ts` holds the laws). In this order, each its own dispatch:
  *
- * - `contextClear` empties the header;
+ * - `contextClear` empties the header and the count that opens the shadow traces' buffer (`shadowTraceWgsl.ts`);
  * - `contextHistogram`, a thread a page, puts the page's tiles in the bucket its priority gives it, for each of the two
  *   updates: a page's bucket is 15 less the log2 of four times the images since it was lit times its speed — one over
  *   one plus its distance from the eye over the first clipmap's half side, doubled within the prioritised distance of
@@ -20,8 +19,9 @@ import { CONTEXT_HEADER_WORDS } from './layout.ts'
  * - `contextList`, a thread a page, lists the page's tiles where its bucket is under the cut, or in it while its
  *   bucket's tiles fit, and the list keeps to the budget — the tiles are written where the page's count is added to the
  *   list's, so every page that did not fit leaves the list closed to the pages after it —; a page listed is lit this
- *   image (its last update is the image's, its temporal index one more). Where the radiosity's history was lost the
- *   pages' last radiosity is forgotten first;
+ *   image (its last update is the image's, its temporal index one more), unless the update frame is frozen
+ *   (`surfaceCacheFreezeUpdateFrame`): then the pages record nothing, and the next image lists the same. Where the
+ *   radiosity's history was lost the pages' last radiosity is forgotten first;
  * - `contextArgs` writes the dispatches that follow, a group a tile of each list.
  *
  * The pages' records are the tables' (`pageRecords.ts`): words 16 to 19 of a page's record hold the lighting's own state,
@@ -29,8 +29,8 @@ import { CONTEXT_HEADER_WORDS } from './layout.ts'
  */
 
 const PAGE_STATE = wgslConsts({
-  PAGE_LAST_UPDATE: CARD_PAGE_WORDS - 4,
-  PAGE_TEMPORAL: CARD_PAGE_WORDS - 2,
+  PAGE_LAST_UPDATE: PAGE_LIGHTING.lastUpdate,
+  PAGE_TEMPORAL: PAGE_LIGHTING.temporal,
   BUCKETS: PRIORITY_HISTOGRAM_SIZE,
   NEVER_LIT_FRAMES: 2048,
   CLEAR_WORDS: CONTEXT_HEADER_WORDS,
@@ -54,11 +54,16 @@ export const CONTEXT_ENTRIES = [
   'contextArgs',
 ] as const
 
+/** The context program's bindings beside the tables (1) and the context (2): the shadow traces, whose count it empties. */
+export const CONTEXT_TRACES_BINDING = 3
+
 export const CONTEXT_WGSL = wgslProgram(
   `${PAGE_STATE}
+@group(0) @binding(${CONTEXT_TRACES_BINDING}) var<storage,read_write> traces:array<atomic<u32>>;
 @compute @workgroup_size(${WORKGROUP_THREADS})
 fn contextClear(@builtin(local_invocation_index) lane:u32){
  for(var i=lane;i<CLEAR_WORDS;i+=${WORKGROUP_THREADS}u){atomicStore(&ctx[i],0u);}
+ if(lane==0u){atomicStore(&traces[0],0u);}
 }
 fn pageMapped(page:u32)->bool{return scPageW(page,0u)!=0xffffffffu;}
 fn pageTilesOf(page:u32)->u32{let s=pageSize(page);return (s.x*s.y)/(LG_TILE*LG_TILE);}
@@ -144,10 +149,14 @@ fn contextList(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) 
  if(tiles==0u){return;}
  let speed=updateSpeed(pageView(page));
  let state=scPageAt(page);
+ let record=!lgFlag(FLAG_FREEZE_UPDATE_FRAME);
  for(var c=0u;c<2u;c++){
   var last=scPageW(page,PAGE_LAST_UPDATE+c);
-  if(c==1u&&!lgFlag(FLAG_HISTORY_VALID)){last=0u;surfaceTables[state+PAGE_LAST_UPDATE+c]=0u;}
-  if(tryList(page,c,priorityBucket(last,speed),tiles)){
+  if(c==1u&&!lgFlag(FLAG_HISTORY_VALID)){
+   last=0u;
+   if(record){surfaceTables[state+PAGE_LAST_UPDATE+c]=0u;}
+  }
+  if(tryList(page,c,priorityBucket(last,speed),tiles)&&record){
    surfaceTables[state+PAGE_LAST_UPDATE+c]=lp.frame;
    surfaceTables[state+PAGE_TEMPORAL+c]=scPageW(page,PAGE_TEMPORAL+c)+1u;
   }

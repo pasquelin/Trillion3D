@@ -35,12 +35,13 @@ export interface ComputeReadbackOptions {
 
 /** Runs a diagnostic compute pipeline whose one storage output is a binding of group 0 — binding
  *  0 when it reads nothing else —, its `inputs` bound around it, and returns that output's words,
- *  f32 or u32, read back once the GPU ran it. */
+ *  f32 or u32, read back once the GPU ran it. `workgroups` is a count along x, or the grid
+ *  `[x, y]` (`dispatchGrid`) of a kernel that reads its rank from `num_workgroups`. */
 export async function computeReadback(
   device: GPUDevice,
   pipeline: GPUComputePipeline,
   bytes: number,
-  workgroups = 1,
+  workgroups: number | readonly [number, number] = 1,
   { inputs = [], output: at = inputs.length, words = 'f32', numbered }: ComputeReadbackOptions = {},
 ) {
   const output = device.createBuffer({
@@ -62,7 +63,8 @@ export async function computeReadback(
     const pass = encoder.beginComputePass()
     pass.setPipeline(pipeline)
     pass.setBindGroup(0, group)
-    pass.dispatchWorkgroups(workgroups)
+    const [x, y] = typeof workgroups === 'number' ? [workgroups, 1] : workgroups
+    pass.dispatchWorkgroups(x, y)
     pass.end()
     device.queue.submit([encoder.finish()])
     const read = (await readGpuBuffer(device, output, bytes))!

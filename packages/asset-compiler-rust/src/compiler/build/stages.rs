@@ -45,6 +45,8 @@ pub(super) struct Written {
     cluster_planes: Vec<Vec<Option<crate::coplanar::ClusterPlane>>>,
     collisions: Vec<Value>,
     voxel_seeds: Vec<crate::voxel::VoxelSeed>,
+    /// The tree of each primitive's coarse cut, in the primitives' order.
+    ray_tracing: Vec<Option<crate::ray_tracing::PrimitiveTree>>,
     /// What the levels above each assembly's instances gave them, which the node tables carry.
     parents: AssemblyParents,
 }
@@ -116,6 +118,7 @@ pub(super) fn written(
         covers,
         voxel_seeds,
         runs,
+        ray_tracing,
     } = split_compiled(compiled);
     validate_cluster_errors(&primitives)?;
     let geometry_files = {
@@ -132,6 +135,7 @@ pub(super) fn written(
         cluster_planes,
         collisions,
         voxel_seeds,
+        ray_tracing,
         parents,
     };
     Ok((written, covers))
@@ -235,6 +239,7 @@ fn products_of<'a>(
         geometry_files: &written.geometry_files,
         collisions: &written.collisions,
         voxel_seeds: &written.voxel_seeds,
+        ray_tracing: &written.ray_tracing,
         texture_previews: previews,
         scene_nodes: &job.picked.scene_nodes,
         hidden: &job.picked.hidden,

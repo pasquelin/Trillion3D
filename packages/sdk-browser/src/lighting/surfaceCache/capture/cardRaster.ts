@@ -460,7 +460,7 @@ export function createCardRaster(
       arrived.length = 0
       return handed
     },
-    draw(encoder, targets, pages, views, eye, stamp) {
+    draw(encoder, targets, pages, views, stamp) {
       const s = sessionOf(rt, session)
       const tables = s?.cut.cutTables()
       if (!s || !tables || !compiled()) return undefined
@@ -480,7 +480,7 @@ export function createCardRaster(
       }
       const b = buffers
       // The table of views in the order of their placements; the batch names the page of each record.
-      writeCardViews(b.table32, sources, eye, order)
+      writeCardViews(b.table32, sources, order)
       const batch: CardBatch = {
         stamp,
         refresh: drawn.every((at) => pages[at]!.refresh),

@@ -22,12 +22,7 @@ import {
   previousOf,
   sliceAtDepth,
 } from './fogVolumeRun.fixture.ts'
-import {
-  reservedNames,
-  topLevelNames,
-  unbalanced,
-  unresolvedNames,
-} from '../gpu/core/wgslNames.fixture.ts'
+import { assertProgramAssembles } from '../gpu/core/wgslNames.fixture.ts'
 
 test('the grid: a cell a side of pixels across the view, the depth spread by its logarithm', () => {
   assert.deepEqual(cellGrid(1920, 1080, 8, 128), { x: 240, y: 135, z: 128, pixelSize: 8 })
@@ -168,12 +163,7 @@ test('the view block: what a surface needs of the image, all zero where no volum
 
 test('the programs: every name declared, braces paired, none twice, no reserved word', () => {
   for (const [name, code] of Object.entries(FOG_PROGRAMS)) {
-    assert.deepEqual(unresolvedNames(code), [], `${name} names a name it does not declare`)
-    assert.deepEqual(reservedNames(code), [], `${name} spells a reserved word`)
-    assert.equal(unbalanced(code), '', `${name} braces`)
-    const seen = new Set<string>()
-    const twice = topLevelNames(code).filter((n) => seen.size === seen.add(n).size)
-    assert.deepEqual(twice, [], `${name} declares a name twice`)
+    assertProgramAssembles(code, undefined, name)
   }
 })
 

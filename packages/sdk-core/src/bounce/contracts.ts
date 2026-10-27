@@ -6,8 +6,7 @@
  * active lights, indirect irradiance is strictly zero.
  */
 
-/** The most probes one frame queues, first traces included: the static ceiling bounding the compute dispatches over them, and the most `probesPerFrame` can be. */
-export const BOUNCE_PROBE_QUEUE = 768
+import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
 
 /** Bounce lighting settings. Published operational limits consumed by the runtime engine. */
 export const BOUNCE_SETTINGS = {
@@ -66,6 +65,28 @@ export const BOUNCE_SETTINGS = {
    */
   rayReachMetres: 200,
 } as const
+
+/** The share of the pool's probes one frame may trace at most: the pool over this many. */
+const QUEUE_POOL_DIVISOR = 6
+
+/**
+ * The most probes one frame queues, first traces included: the static ceiling bounding the compute dispatches over them, and the
+ * most `probesPerFrame` can be. A sixth of the pool (`QUEUE_POOL_DIVISOR`), or four times the default budget where that is more —
+ * room for every probe of the budget traced at a quarter of a map —, laid as a block of probes whose rows are a power of two wide, no
+ * wider than a row of the pool (`BOUNCE_SETTINGS.probePool`). A probe never traced is never held back below it, so a view that moves fast fills every cell it
+ * reaches in the frame that first reads it.
+ */
+export const BOUNCE_PROBE_QUEUE = /* @__PURE__ */ (() => {
+  const wanted = Math.max(
+    ceilDiv(BOUNCE_SETTINGS.probePool, QUEUE_POOL_DIVISOR),
+    4 * BOUNCE_SETTINGS.probesPerFrame,
+  )
+  const side = Math.floor(Math.sqrt(wanted))
+  const row = nextPow2(side)
+  // Never more than the pool's own rows of probes hold.
+  const poolRow = Math.sqrt(BOUNCE_SETTINGS.probePool)
+  return Math.min(row, poolRow) * Math.min(ceilDiv(side * side, row), poolRow)
+})()
 
 /**
  * The probes a frame traces at most, from the host's `bounceProbesPerFrame`: absent, the default

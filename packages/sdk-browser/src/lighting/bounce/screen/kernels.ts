@@ -1,7 +1,7 @@
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { buildComputeStages } from '../../../gpu/core/computeStages.ts'
 import { validatedOrWhy } from '../../../gpu/core/errorScope.ts'
-import { createCheckedShaderModule } from '../../../gpu/core/shaderModule.ts'
+import { checkShaderModule } from '../../../gpu/core/shaderModule.ts'
 import { groupWidth, groupWidthConstants } from '../../../gpu/dispatch/grid.ts'
 import { reflectionLayout } from '../../reflections/reflectionPipelines.ts'
 import {
@@ -192,14 +192,18 @@ async function buildKernel(
   label: string,
   source: KernelSource<string>,
 ): Promise<Kernel<string>> {
-  const module = await createCheckedShaderModule(device, source.code, `SCREEN_PROBE_${label}`)
+  // The module and the layouts are made before the first `await`, in the scope of `compileScreenProbeKernels`.
+  const moduleLabel = `SCREEN_PROBE_${label}`
+  const made = device.createShaderModule({ label: moduleLabel, code: source.code })
   const layout = device.createBindGroupLayout({
     label: `Trillion3D screen probes ${label}`,
     entries: [...source.entries],
   })
+  const layouts = [layout, reflectionLayout(device)]
+  const module = await checkShaderModule(made, moduleLabel)
   const pipelines = await buildComputeStages(
     device,
-    [layout, reflectionLayout(device)],
+    layouts,
     module,
     source.points,
     source.constants,

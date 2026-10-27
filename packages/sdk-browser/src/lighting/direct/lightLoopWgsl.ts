@@ -55,7 +55,8 @@ export const airTintLabel = (airTint: boolean) => (airTint ? '' : ', no air tint
  *   world, mostly off screen: no shadow, the program that holds it traces its own, and its response
  *   the cosine alone — the cache multiplies by its albedo over π. The maps would leave an off-screen
  *   point unshadowed, or draw pages no view asks for: each term's visibility is the one its points
- *   can read.
+ *   can read. `bareIrradiance` (`declaredBareIrradiance`) is the same without the light function and the
+ *   clouds' shade, which the program that holds it keeps, with the shadow, in a mask of its own.
  * The lamp's falloff, the range, the rectangle's irradiance and the light's colour and intensity are
  * the same text in both. A light's colour is multiplied by its light function at the point
  * (`lightFunctionOf`, `../lightFunction/readWgsl.ts`) in the surface, split and irradiance terms.
@@ -96,11 +97,11 @@ export const declaredLightWgsl = (
   }: { term?: LightTerm; cut?: LightCut; airTint?: boolean } = {},
 ) => {
   const shadowed = !key.unshadowed
-  if (term === 'irradiance')
+  if (term === 'irradiance' || term === 'bareIrradiance')
     return wgslBlock(
       `declaredLightWgsl(${variantLabel(key)}, ${term})`,
       [LAMP_WGSL, AIR_TINT_WGSL],
-      `fn declaredIrradiance(rank:u32,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless)}
+      `fn ${term === 'irradiance' ? 'declaredIrradiance' : 'declaredBareIrradiance'}(rank:u32,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless, term === 'irradiance')}
 }`,
     )
   const split = term === 'split'
@@ -158,8 +159,8 @@ const SPLIT_TAIL = ` let share=sharesOf(light);
  return LightSplit(split[0]*(color*share.x),(split[1]*share.y+transmitted*share.x)*color);`
 
 /** What a light gives (`declaredLightWgsl`): a pixel's radiance through the maps, the same split
- *  into its diffuse and specular shares, or a point's irradiance. */
-type LightTerm = 'surface' | 'split' | 'irradiance'
+ *  into its diffuse and specular shares, or a point's irradiance, with or without its light function and clouds' shade. */
+type LightTerm = 'surface' | 'split' | 'irradiance' | 'bareIrradiance'
 
 const ZERO = 'vec3f(0.0)'
 

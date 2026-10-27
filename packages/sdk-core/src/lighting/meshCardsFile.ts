@@ -1,5 +1,5 @@
 import { EngineError } from '../contracts/cache.ts'
-import { assertSidecarSection } from '../contracts/sidecarSection.ts'
+import { assertSidecarSection, checkSidecarHead } from '../contracts/sidecarSection.ts'
 import {
   MESH_CARDS_CARD_BYTES,
   MESH_CARDS_DIRECTIONS,
@@ -103,16 +103,13 @@ function readCard(view: DataView, at: number): MeshCard {
  * mesh's cards follow the previous mesh's in the card table.
  */
 export function parseMeshCards(bytes: Uint8Array): MeshCards[] {
-  if (bytes.byteLength < MESH_CARDS_HEAD_BYTES) refuse('shorter than its head')
+  checkSidecarHead(bytes, {
+    magic: MESH_CARDS_MAGIC,
+    version: MESH_CARDS_VERSION,
+    headBytes: MESH_CARDS_HEAD_BYTES,
+    what: 'mesh cards',
+  })
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-  if (view.getUint32(0, true) !== MESH_CARDS_MAGIC) refuse('not a mesh cards file')
-  const version = view.getUint32(4, true)
-  if (version !== MESH_CARDS_VERSION)
-    throw new EngineError(
-      'UNSUPPORTED_FORMAT',
-      `mesh cards: version ${version}, this engine reads ${MESH_CARDS_VERSION}`,
-      {},
-    )
   const meshCount = view.getUint32(8, true)
   const cardCount = view.getUint32(12, true)
   const cardsAt = MESH_CARDS_HEAD_BYTES + meshCount * MESH_CARDS_MESH_BYTES

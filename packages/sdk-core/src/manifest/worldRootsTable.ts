@@ -9,6 +9,7 @@
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import { uint64FromWords } from '../../../math/src/scalar/uint64.ts'
 import { hexOfBytes } from '../../../math/src/scalar/hex.ts'
+import { wordsOf } from '../runtime/ownBuffer.ts'
 import type { ClusterGroup, CullingHierarchy } from '../contracts/geometry.ts'
 import {
   CHAIN_ACTOR,
@@ -53,12 +54,8 @@ function opened(
     refuseWorldRoots(`not a ${magic} file`)
   if (!WORLD_ROOTS_READABLE_VERSIONS.includes(word(4))) refuseWorldRoots(`version ${word(4)}`)
   const at = poolAt(word)
-  const words = (bytes.byteLength - at) / 4
   // Aligned it is viewed in place; a caller's unaligned view is copied once.
-  const pool =
-    (bytes.byteOffset + at) % 4 === 0
-      ? new Uint32Array(bytes.buffer, bytes.byteOffset + at, words)
-      : new Uint32Array(bytes.slice(at).buffer)
+  const pool = wordsOf(bytes, at)
   /** The list a record names at `at`: its first word and its length, inside the pool. */
   const list = (at: number) => {
     const first = word(at),

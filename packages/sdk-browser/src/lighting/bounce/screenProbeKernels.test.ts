@@ -9,13 +9,9 @@ import { SP_BENT_WGSL, spHistory } from './screen/historyWgsl.ts'
 import { TRACE_SCENE_HIT } from './screen/traceSceneWgsl.ts'
 import { BLUE_NOISE_HALF_PERIOD } from '../../gpu/noise/blueNoiseWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { octCellsDecode, octCellsEncode } from '../../../../math/src/wgsl/octahedral.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import {
-  reservedNames,
-  topLevelNames,
-  unbalanced,
-  unresolvedNames,
-} from '../../gpu/core/wgslNames.fixture.ts'
+import { assertProgramAssembles } from '../../gpu/core/wgslNames.fixture.ts'
 
 test('every screen-probe kernel is a module a device takes, at every level: its names declared, none reserved or twice, its bindings the layout holds', () => {
   const levels = SCREEN_PROBE_LEVELS.filter((level) => level !== 'off')
@@ -30,11 +26,7 @@ test('every screen-probe kernel is a module a device takes, at every level: its 
     )
     for (const [name, { code, entries, points }] of Object.entries(sources)) {
       const where = `${level} ${name}`
-      assert.deepEqual(unresolvedNames(code), [], where)
-      assert.deepEqual(reservedNames(code), [], where)
-      assert.equal(unbalanced(code), '', where)
-      const names = topLevelNames(code)
-      assert.equal(new Set(names).size, names.length, where)
+      assertProgramAssembles(code, undefined, where)
       const declared = [...code.matchAll(/@group\(0\)\s*@binding\((\d+)\)/g)].map((m) => +m[1])
       const bound = entries.map((entry) => entry.binding)
       assert.deepEqual(
@@ -97,8 +89,9 @@ test('the screen probes settings are read again at each image, and resolved only
 
 test('the history word keeps the depth, the fast update and the frames as it packs them, and only none is none', () => {
   const longest = 10
+  const up = [0, 0, 1]
   const meta = shaderRun<{
-    spMetaOf: (w: number, frames: number, fast: number) => number
+    spMetaOf: (w: number, frames: number, fast: number, normal: number[]) => number
     spMetaDepth: (word: number) => number
     spMetaFast: (word: number) => number
     spMetaFrames: (word: number) => number
@@ -106,20 +99,20 @@ test('the history word keeps the depth, the fast update and the frames as it pac
     sp: { counts: [longest, 0, 0, 0] },
   })
   for (const frames of [0, 1, 4, 9.5, 10]) {
-    const word = meta.spMetaOf(37.5, frames, 0)
+    const word = meta.spMetaOf(37.5, frames, 0, up)
     assert.ok(Math.abs(meta.spMetaFrames(word) - frames) <= longest / 30 + 1e-9, `${frames} frames`)
     assert.equal(meta.spMetaDepth(word), 37.5, 'a half float holds this depth')
     assert.equal(meta.spMetaFast(word), 0)
   }
-  assert.equal(meta.spMetaFrames(meta.spMetaOf(1, longest, 0)), longest, 'the most is the most')
-  assert.equal(meta.spMetaFrames(meta.spMetaOf(1, 3 * longest, 0)), longest, 'held to it')
+  assert.equal(meta.spMetaFrames(meta.spMetaOf(1, longest, 0, up)), longest, 'the most is the most')
+  assert.equal(meta.spMetaFrames(meta.spMetaOf(1, 3 * longest, 0, up)), longest, 'held to it')
   assert.equal(
-    meta.spMetaFast(meta.spMetaOf(1, 5, 0.001)),
+    meta.spMetaFast(meta.spMetaOf(1, 5, 0.001, up)),
     1 / 15,
     'a fast update, however small, is one',
   )
-  assert.equal(meta.spMetaFast(meta.spMetaOf(1, 5, 0.9)), 14 / 15)
-  assert.equal(meta.spMetaFast(meta.spMetaOf(1, 5, 2)), 1, 'held to one')
+  assert.equal(meta.spMetaFast(meta.spMetaOf(1, 5, 0.9, up)), 14 / 15)
+  assert.equal(meta.spMetaFast(meta.spMetaOf(1, 5, 2, up)), 1, 'held to one')
   const fifteen = shaderRun<typeof meta>(
     wgslModule(spHistory(7, 8)),
     ['spMetaOf', 'spMetaFrames'],
@@ -128,7 +121,7 @@ test('the history word keeps the depth, the fast update and the frames as it pac
     },
   )
   assert.equal(
-    fifteen.spMetaFrames(fifteen.spMetaOf(1, 14, 0)),
+    fifteen.spMetaFrames(fifteen.spMetaOf(1, 14, 0, up)),
     14,
     'fourteen of fifteen stay fourteen',
   )
@@ -136,9 +129,60 @@ test('the history word keeps the depth, the fast update and the frames as it pac
   const wide = shaderRun<typeof meta>(wgslModule(spHistory(7, 8)), ['spMetaOf', 'spMetaFrames'], {
     sp: { counts: [40, 0, 0, 0] },
   })
-  assert.equal(wide.spMetaFrames(wide.spMetaOf(1, 14, 0)), 14)
-  assert.equal(wide.spMetaFrames(wide.spMetaOf(1, 15, 0)), 40, 'fifteen frames code the most')
-  assert.equal(wide.spMetaFrames(wide.spMetaOf(1, 40, 0)), 40)
+  assert.equal(wide.spMetaFrames(wide.spMetaOf(1, 14, 0, up)), 14)
+  assert.equal(wide.spMetaFrames(wide.spMetaOf(1, 15, 0, up)), 40, 'fifteen frames code the most')
+  assert.equal(wide.spMetaFrames(wide.spMetaOf(1, 40, 0, up)), 40)
+})
+
+test('the history word keeps the surface’s normal in two cells of four bits, to the grid’s step', () => {
+  const meta = shaderRun<{
+    spMetaOf: (w: number, frames: number, fast: number, normal: number[]) => number
+    spMetaNormal: (word: number) => number[]
+    spMetaDepth: (word: number) => number
+  }>(wgslModule(spHistory(7, 8)), ['spMetaOf', 'spMetaNormal', 'spMetaDepth'], {
+    sp: { counts: [10, 0, 0, 0] },
+  })
+  for (const v of [
+    [0, 0, 1],
+    [0, 0, -1],
+    [1, 0, 0],
+    [0.3, -0.5, 0.8],
+    [-1, -1, -1],
+    [0.2, 0.9, -0.1],
+  ]) {
+    const length = Math.hypot(...v)
+    const normal = v.map((x) => x / length)
+    const word = meta.spMetaOf(12.5, 3, 0.5, normal)
+    const kept = meta.spMetaNormal(word)
+    // The cells are its square point rounded on the grid, not the nearest of all on the sphere: the
+    // worst kept is the diagonal's, 0.9623 of a unit (its point halfway between two cells).
+    assert.ok(normal.reduce((sum, x, i) => sum + x * kept[i], 0) > 0.962, `the normal ${v}`)
+    assert.equal(meta.spMetaDepth(word), 12.5, 'the normal leaves the depth alone')
+  }
+})
+
+test('the octahedral cells of a normal decode back to the cell, and to the same normal where the cell shares its point with another', () => {
+  const codec = shaderRun<{
+    octCellsEncode: (n: number[], bits: number) => number[]
+    octCellsDecode: (cells: number[], bits: number) => number[]
+  }>(
+    `${wgslModule(octCellsEncode)}\n${wgslModule(octCellsDecode)}`,
+    ['octCellsEncode', 'octCellsDecode'],
+    {},
+  )
+  for (const bits of [4, 8])
+    for (const x of [0, 1, 5, 7, 8, 9, (1 << bits) - 2, (1 << bits) - 1])
+      for (const y of [0, 2, 6, 7, 8, 11, (1 << bits) - 1]) {
+        const normal = codec.octCellsDecode([x, y], bits)
+        const back = codec.octCellsEncode(normal, bits)
+        if (normal[2] > 0.01) assert.deepEqual(back, [x, y], `the cell ${x}, ${y} of ${bits} bits`)
+        const again = codec.octCellsDecode(back, bits)
+        for (let k = 0; k < 3; k++)
+          assert.ok(
+            Math.abs(again[k] - normal[k]) < 1e-4,
+            `the normal of ${x}, ${y} of ${bits} bits`,
+          )
+      }
 })
 
 test('the bent normal word keeps the open sky’s direction and its amount, and a word of zero is none', () => {

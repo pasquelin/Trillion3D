@@ -1,7 +1,17 @@
 import { resolveProbesPerFrame } from '../../../../../sdk-core/src/bounce/contracts.ts'
 import type { BounceFrameMetrics } from '../../../../../sdk-core/src/contracts/shadowMetrics.ts'
+import type { MarkSurface } from '../../../lighting/bounce/pool/pool.ts'
 import type { GpuBounceProbes } from '../../../lighting/bounce/probes/probes.ts'
 import type { ScreenProbeStore } from '../../../lighting/bounce/screen/store.ts'
+import type { SurfaceHitReads } from '../../../lighting/surfaceCache/hitWgsl.ts'
+
+/** What the image's probe pass is encoded with, taken when the image's lights are encoded: the lights lit, what the rays' hits read
+ *  and what the image drew. */
+export interface QueuedBounce {
+  lightsActive: number
+  reads: SurfaceHitReads
+  surface: MarkSurface | undefined
+}
 
 /**
  * State of bouncing light: the probe pool and its radiance cache, what the host asked of it, and what the last image
@@ -35,6 +45,9 @@ export interface WebgpuBounceState {
   probesUpdated: number
   /** True when the last image actually encoded the probe pass. */
   encoded: boolean
+  /** What the probe pass this image holds back until its screen probes are placed is encoded with (`../../render/encodeLights.ts`,
+   *  `encodeBounce`, `encodeQueuedBounce`); none once encoded, or where the image casts no screen probe. */
+  queued?: QueuedBounce
   firstFrameLogged: boolean
 }
 

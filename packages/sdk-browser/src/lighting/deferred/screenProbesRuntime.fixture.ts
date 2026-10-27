@@ -7,9 +7,14 @@ import { createWebgpuTimingState } from '../../frame/backend/state/timing.ts'
 import { createScaleControl } from '../../frame/scale/scaleControl.ts'
 import { createGpuHiz } from '../../visibility/hiz/gpu/factory.ts'
 import { createScreenReflection } from '../reflections/gpu.ts'
-import { encodeScreenProbes } from '../bounce/screen/frame.ts'
+import { placeScreenProbes, traceScreenProbes } from '../bounce/screen/frame.ts'
 import { createDeferredLighting } from './deferred.ts'
 import { gpuHarness } from './contractLighting.fixture.ts'
+
+/** A whole image of the screen probes, the pool's pass between the placement and the trace left out: placed, then traced. */
+export function encodeProbeImage(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+  traceScreenProbes(rt, encoder, placeScreenProbes(rt, encoder))
+}
 
 /** A runtime reduced to what the screen probes read of a frame, over the kit's device: real lighting, depth
  *  pyramid and reflection, a G-buffer of stand-in views. */
@@ -42,7 +47,7 @@ export async function probesRuntime(options: Record<string, unknown> = {}) {
   const encode = async () => {
     for (let waited = 0; waited < 100; waited++) {
       const before = h.dispatches.length
-      encodeScreenProbes(rt, h.encoder)
+      encodeProbeImage(rt, h.encoder)
       if (h.dispatches.length > before) return h
       await new Promise((done) => setImmediate(done))
     }

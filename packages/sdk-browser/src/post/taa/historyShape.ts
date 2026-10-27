@@ -36,8 +36,8 @@ export interface HistoryFormats {
   /** The history's metadata: its validity in red, eight bits (the weights' sum, kept rounded up). */
   readonly validity: GPUTextureFormat
   /** The render-resolution shading history (`rejectionWgsl.ts`): the colour in the perceptual space,
-   *  ten bits a channel where the device stores to it, beside the reprojection edge in two bits;
-   *  eight bits each else. */
+   *  ten bits a channel, beside the reprojection edge in two bits; where the device stores no
+   *  packed format, half floats, whose ten bits of mantissa keep the same steps. */
   readonly guide: GPUTextureFormat
   /** The anti-aliaser's target: its offset in red, its noise filtering in green, eight bits each. */
   readonly antiAlias: GPUTextureFormat
@@ -63,7 +63,7 @@ const PACKED_FORMATS = {
 const CORE_FORMATS = {
   color: HDR_FORMAT,
   validity: 'rgba8unorm',
-  guide: 'rgba8unorm',
+  guide: 'rgba16float',
   antiAlias: 'rgba8uint',
   measure: 'rgba8unorm',
 } as const satisfies Omit<HistoryFormats, 'mask' | 'luma'>

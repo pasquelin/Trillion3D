@@ -1,5 +1,5 @@
 import { EngineError } from '../contracts/cache.ts'
-import { assertSidecarSection } from '../contracts/sidecarSection.ts'
+import { assertSidecarSection, checkSidecarHead } from '../contracts/sidecarSection.ts'
 import {
   DISTANCE_FIELD_BRICK,
   DISTANCE_FIELD_FLAG_HLOD_CELL,
@@ -161,16 +161,13 @@ export function parseDistanceFields(
   bytes: Uint8Array,
   parts?: DistanceFieldParts,
 ): MeshDistanceField[] {
-  if (bytes.byteLength < DISTANCE_FIELD_HEAD_BYTES) refuse('shorter than its head')
+  checkSidecarHead(bytes, {
+    magic: DISTANCE_FIELD_MAGIC,
+    version: DISTANCE_FIELD_VERSION,
+    headBytes: DISTANCE_FIELD_HEAD_BYTES,
+    what: 'distance fields',
+  })
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-  if (view.getUint32(0, true) !== DISTANCE_FIELD_MAGIC) refuse('not a distance field file')
-  const version = view.getUint32(4, true)
-  if (version !== DISTANCE_FIELD_VERSION)
-    throw new EngineError(
-      'UNSUPPORTED_FORMAT',
-      `distance fields: version ${version}, this engine reads ${DISTANCE_FIELD_VERSION}`,
-      {},
-    )
   const count = view.getUint32(8, true)
   if (DISTANCE_FIELD_HEAD_BYTES + count * DISTANCE_FIELD_MESH_BYTES > bytes.byteLength)
     refuse('shorter than its records')

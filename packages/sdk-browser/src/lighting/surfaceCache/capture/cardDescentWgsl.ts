@@ -2,7 +2,8 @@ import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { FLOAT32_MAX, NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { bitMask, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
-import { markReachWgsl } from '../../../deformation/halfFloat.ts'
+import { casterReachWgsl, markReachWgsl } from '../../../deformation/halfFloat.ts'
+import { worldWgsl } from '../../../geometry/dag/shader/worldPoseWgsl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { CLUSTER_NEVER, CLUSTER_TRANSPARENT } from '../../../geometry/dag/clusterFlags.ts'
@@ -31,7 +32,6 @@ import {
   DAG_PRIMITIVE_READS,
 } from '../../../geometry/dag/shader/shader.ts'
 import { requestPriorityOf } from '../../../geometry/dag/shader/error.ts'
-import { worldAtEyeWgsl } from '../../../geometry/dag/shader/worldPoseWgsl.ts'
 import type { DescentShape } from '../../../geometry/dag/shader/descentShape.ts'
 import { CAND_WORDS } from '../../../geometry/dag/flagSections.ts'
 import { CUT_RULE_WGSL } from '../../../geometry/cut/rule.ts'
@@ -155,7 +155,7 @@ fn cardFirstView(w:u32)->u32{
  }
  return lo;
 }
-/** Whether view \`v\` does not hold the box \`lo\`..\`hi\` of a placement of pose \`pose\` (at the eye),
+/** Whether view \`v\` does not hold the box \`lo\`..\`hi\` of a placement of pose \`pose\`,
  *  grown by \`reach\`: the box carried to the view's clip space, an orthographic one's box
  *  [-1, 1] × [-1, 1] × [0, 1] the card's volume. */
 fn cardBoxOutside(v:u32,pose:mat4x4f,lo:vec3f,hi:vec3f,reach:f32)->bool{
@@ -169,9 +169,8 @@ fn cardBoxOutside(v:u32,pose:mat4x4f,lo:vec3f,hi:vec3f,reach:f32)->bool{
 `
 
 const hooksText = /* wgsl */ `
-fn poseAtEye(w:u32)->mat4x4f{return worldsWorldAtEye(w,cutView.eye[0],cutView.eye[1]);}
 /** Whether the running entry's view does not hold the box \`lo\`..\`hi\` of placement \`w\`. */
-fn outsideFrustum(w:u32,lo:vec3f,hi:vec3f)->bool{return cardBoxOutside(descentView,poseAtEye(w),lo,hi,deformReach);}
+fn outsideFrustum(w:u32,lo:vec3f,hi:vec3f)->bool{return cardBoxOutside(descentView,worldsWorld(w),lo,hi,deformReach);}
 /** The pixels an error of placement \`w\` spans in the running entry's view. */
 fn cardPixels(w:u32,error:f32)->f32{return error*bitcast<f32>(framesStretchBits(w))*cardPixelsPerMetre(descentView);}
 /** Whether the running entry's view needs the error \`node\`'s subtree replaces: it spans more than the
@@ -231,14 +230,13 @@ fn cardEmitPage(i:u32,w:u32){
  let record=info[n];
  if(record.indexCount==0u||(record.flags&CARD_ROW_SKIPPED)!=0u){return;}
  if(!worldDraws(i,w)){return;}
- var reach=markReach(markOf(w));
- if(!(reach<1.0e15)){reach=1.0e15;}
+ let reach=casterReach(markReach(markOf(w)));
  var lo=boxMin(r);var hi=boxMax(r);
  if(hasBox(r)==0.0){
   lo=cluster.sphere.xyz-vec3f(cluster.sphere.w);
   hi=cluster.sphere.xyz+vec3f(cluster.sphere.w);
  }
- let pose=poseAtEye(w);
+ let pose=worldsWorld(w);
  let stretch=bitcast<f32>(framesStretchBits(w));
  let childIn=childResident(i);
  var v=cardFirstView(w);
@@ -301,7 +299,8 @@ export const cardDescentWgsl = () =>
     CUT_RULE_WGSL,
     VISIBLE_LAYOUT_WGSL,
     markReachWgsl,
-    worldAtEyeWgsl('worlds'),
+    casterReachWgsl,
+    worldWgsl('worlds'),
     FLOAT32_MAX,
     NO_INDEX,
     bitMask,

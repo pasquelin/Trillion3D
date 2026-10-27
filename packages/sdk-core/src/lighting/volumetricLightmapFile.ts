@@ -1,4 +1,5 @@
 import { EngineError } from '../contracts/cache.ts'
+import { checkSidecarHead } from '../contracts/sidecarSection.ts'
 import { hexOfBytes } from '../../../math/src/scalar/hex.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import {
@@ -179,18 +180,15 @@ export function parseVolumetricLightmapCell(
  *  of the second version may be given as its first `baseBytes` alone: its cells' bytes are read
  *  apart (`parseVolumetricLightmapCell`). */
 export function parseVolumetricLightmap(bytes: Uint8Array): VolumetricLightmapData {
-  if (bytes.byteLength < VOLUMETRIC_LIGHTMAP_HEADER_WORDS * WORD) refuse('shorter than its head')
+  const version = checkSidecarHead(bytes, {
+    magic: VOLUMETRIC_LIGHTMAP_MAGIC,
+    version: [VOLUMETRIC_LIGHTMAP_FIRST_VERSION, VOLUMETRIC_LIGHTMAP_VERSION],
+    headBytes: VOLUMETRIC_LIGHTMAP_HEADER_WORDS * WORD,
+    what: 'volumetric lightmap',
+  })
   const words = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   const word = (i: number) => words.getUint32(i * WORD, true)
   const real = (i: number) => words.getFloat32(i * WORD, true)
-  if (word(0) !== VOLUMETRIC_LIGHTMAP_MAGIC) refuse('not a volumetric lightmap')
-  const version = word(1)
-  if (version < VOLUMETRIC_LIGHTMAP_FIRST_VERSION || version > VOLUMETRIC_LIGHTMAP_VERSION)
-    throw new EngineError(
-      'UNSUPPORTED_FORMAT',
-      `volumetric lightmap: version ${word(1)}, this engine reads ${VOLUMETRIC_LIGHTMAP_FIRST_VERSION} to ${VOLUMETRIC_LIGHTMAP_VERSION}`,
-      {},
-    )
   const triple = (at: number) => [word(at), word(at + 1), word(at + 2)] as const
   const brickSize = word(2)
   const indirectionSize = triple(9)

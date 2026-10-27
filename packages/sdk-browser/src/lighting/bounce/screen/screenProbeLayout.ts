@@ -208,6 +208,7 @@ export const SCREEN_PROBE_FLAGS = {
   skipFoliageHits: 1 << 16,
   cacheSky: 1 << 17,
   backfaceDiffuse: 1 << 18,
+  rejectNormal: 1 << 19,
 } as const
 
 /**
@@ -219,8 +220,8 @@ export const SCREEN_PROBE_FLAGS = {
  * then the fallback's, as exponents), the probability under which a ray is not traced and the intensity a ray is
  * held to; `spatial`, the spatial filter's position scale and its angle, the width the probes a pixel reads are
  * jittered and the furthest a ray looks; `occlusion`, the horizon search's slices, steps and foreground fraction and the scale of
- * the neighbourhood the history's occlusion is held to; `scene`, the bias off a surface a ray starts at and the history's relative
- * depth threshold; `cache`, the radiance cache's radius scale (the
+ * the neighbourhood the history's occlusion is held to; `scene`, the bias off a surface a ray starts at, the history's relative
+ * depth threshold and the cosine of the angle past which a history texel's normal is another surface's; `cache`, the radiance cache's radius scale (the
  * multiple of a probe's nearest ray start the direction a ray reads it by is moved onto a sphere of), the texels a side of its maps and
  * the levels of detail they hold; `motion`, the relative speed
  * difference from which a ray's end moves, the inverse of the share of moving light from which the history gives
@@ -241,7 +242,7 @@ export const SCREEN_PROBE_PARAMS = fieldLayout('ScreenProbeParams', [
   ['weights', 'vec4f'],
   ['spatial', 'vec4f'],
   ['occlusion', 'vec4f'],
-  ['scene', 'vec2f'],
+  ['scene', 'vec4f'],
   ['cache', 'vec4f'],
   ['motion', 'vec4f'],
   ['tuning', 'vec4f'],

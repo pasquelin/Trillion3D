@@ -7,7 +7,15 @@ import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { REPROJECT_BITS, reprojectShader } from './reprojectWgsl.ts'
 import { rejectShadingShader } from './rejectionWgsl.ts'
-import { REJECT_SHADING_TILE } from './rejectionNetworkWgsl.ts'
+import {
+  LANES,
+  overTile,
+  operatorsOf,
+  PROGRAM,
+  texelAt,
+  TILE,
+  wrapped,
+} from './rejectionNetwork.fixture.ts'
 import { spatialAntiAliasingShader } from './spatialAntiAliasingWgsl.ts'
 
 test('a texel whose material asks a restart is restarted as a disoccluded one is, and a pixel animation alone is not', () => {
@@ -35,69 +43,6 @@ test('a texel whose material asks a restart is restarted as a disoccluded one is
     /closer\[r\]=count\[r\]\.x>[^;]*&&!asksRestart\(word\[r\]\);/,
   )
 })
-
-/** The shading rejection's program, whose network (`minMax3x3`…) runs over a tile in workgroup
- *  memory, a column of texels to each lane. */
-const PROGRAM = wgslSource(rejectShadingShader('rgba8unorm', 'rgba16float'))
-const TILE = REJECT_SHADING_TILE
-/** The texels of a lane's column: what the program declares (`Px`). */
-const ROWS = Number(/alias Px=array<vec4f,(\d+)>;/.exec(PROGRAM)![1])
-
-type Texel = number[]
-type Column = Texel[]
-type Operators = {
-  minMax3x3: (v: Column) => { lo: Column; hi: Column }
-  weightedSum3x3: (v: Column, h: number[], w: number[]) => Column
-  totalVariation3x3: (v: Column) => Column
-  median3x3: (v: Column) => Column
-  anyThread: (x: boolean) => boolean
-}
-
-/** The value of texel (x, y) of the tile: four channels of a hash, each in [0, 1). */
-const texelAt = (x: number, y: number): Texel =>
-  [0, 1, 2, 3].map(
-    (k) => ((((x * 73856093) ^ (y * 19349663) ^ (k * 83492791)) >>> 0) % 1000) / 1000,
-  )
-const wrapped = (i: number) => ((i % TILE) + TILE) % TILE
-
-/** The lanes of the workgroup: the place of the first texel of each one's column. */
-const LANES = Array.from({ length: (TILE * TILE) / ROWS }, (_, lane) => ({
-  x: lane % TILE,
-  row: Math.floor(lane / TILE) * ROWS,
-}))
-
-/** The network's operators as the lane at column `x`, first row `row`, runs them over `network`, the
- *  tile's texels row by row. The barriers are no-ops: a run is one lane's, after the others'
- *  columns were shared, and the texels it shares are those already there. */
-const operatorsOf = (network: Texel[], x: number, row: number) =>
-  shaderRun<Operators>(
-    PROGRAM,
-    ['minMax3x3', 'weightedSum3x3', 'totalVariation3x3', 'median3x3', 'anyThread'],
-    {
-      network,
-      laneX: x,
-      laneRow: row,
-      workgroupBarrier: () => {},
-      workgroupUniformLoad: (pointer: { get(): Texel }) => pointer.get(),
-      // The structure and the alias the text declares by name, both empty at the start.
-      $zero: (type: string) => (type === 'Box' ? { lo: [], hi: [] } : []),
-    },
-  )
-
-/** What `operator` gives each texel of the tile, every lane running it over its column. */
-function overTile<T>(operator: (operators: Operators, column: Column) => T[]) {
-  const network = Array.from({ length: TILE * TILE }, (_, at) =>
-    texelAt(at % TILE, Math.floor(at / TILE)),
-  )
-  const found: T[] = []
-  for (const { x, row } of LANES) {
-    const column = Array.from({ length: ROWS }, (_, r) => network[(row + r) * TILE + x])
-    operator(operatorsOf(network, x, row), column).forEach((value, r) => {
-      found[(row + r) * TILE + x] = value
-    })
-  }
-  return (x: number, y: number) => found[y * TILE + x]
-}
 
 test('the network gives each texel the operators of its 3×3, the neighbourhood wrapping around at the tile’s edge', () => {
   const h = [1, 2, 3],

@@ -12,6 +12,7 @@ import {
 import { skyLightReadLayoutEntries } from '../../modules/sky/skyLight/read.ts'
 import { hizDepthEntries, hizLevelZeroEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { reflectionTraceShader } from './trace/trace.ts'
+import { traceLayouts } from './trace/traceBindings.ts'
 import { createTraceStages } from './trace/traceEncode.ts'
 import {
   REFLECTION_DEPTH_BINDING,
@@ -77,8 +78,11 @@ const kernelsOf = (statistics: boolean) =>
         label: 'Trillion3D reflection trace',
         code: reflectionTraceShader(statistics),
       })
+      // Every layout is made before the first `await`, in the scope.
+      const group = reflectionLayout(device),
+        layouts = traceLayouts(device, statistics)
       if (await shaderFailed(trace)) return undefined
-      return createTraceStages(device, { trace }, reflectionLayout(device), statistics)
+      return createTraceStages(device, { trace }, group, layouts)
     }),
   )
 const counting = kernelsOf(true),

@@ -1,3 +1,4 @@
+import { signalWith } from '../../../sdk-core/src/runtime/followSignal.ts'
 import type { EngineContext, Engine } from './engine/types.ts'
 import { configureExplorer } from './capabilities.ts'
 import { probeExplorerCapabilities } from './capabilityProbe.ts'
@@ -159,7 +160,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   // wait, not their sum. The queue is the opening's until the session takes it (`resources`).
   // Both branches stop once the opening fails (`failedOpening`): what lands later is released.
   const failed = (resources.opening = new AbortController()).signal
-  const live = signal ? AbortSignal.any([signal, failed]) : failed
+  const live = signalWith(failed, signal)
   // The streaming settings the queue reads its tries again from: the session's options till its
   // engine is built, then the engine's context, which `explorer.setStreaming` writes.
   let streaming: StreamingOptions = options

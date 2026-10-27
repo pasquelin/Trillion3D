@@ -41,6 +41,19 @@ export const worldAtEyeWgsl = (name: string) =>
   )
 
 /**
+ * The world of the world table bound as `name` as the decode gives the visible rows (`worldOf`,
+ * `../../../visibility/decode/decodeWgsl.ts`): `<name>World(w)`, its matrix's columns with the exact
+ * translation rounded once (`<name>Translation`) — the frame of a program that draws beside the
+ * camera's raster, which reads the rows' worlds whole.
+ */
+export const worldWgsl = (name: string) =>
+  wgslBlock(
+    `world(${name})`,
+    [],
+    `fn ${name}World(w:u32)->mat4x4f{return mat4x4f(${name}Column(w,0u),${name}Column(w,1u),${name}Column(w,2u),vec4f(${name}Translation(w),${name}Column(w,3u).w));}`,
+  )
+
+/**
  * A primitive's world pose at the cut's eye, and its frustum planes' first vec4 in `frames`, per
  * view slot. The matrices hold the linear part; the translation is read where the cut reads it,
  * the worlds' record, at the view's eye (`eye`, the view's `cameraWorld` in doubles, `TRANSLATION_AT_EYE_WGSL`). No

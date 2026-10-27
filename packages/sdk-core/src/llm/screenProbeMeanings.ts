@@ -81,6 +81,10 @@ const HISTORY_AND_SCREEN_TRACE_MEANINGS = /* @__PURE__ */ (() =>
       'The same weight for the probes a pixel falls back to where the first weights left none.',
     screenProbeHistoryDistanceThreshold:
       "The relative depth difference past which a pixel's history is another surface's and is dropped (raised at the grazing angles of the surface): lower removes ghosting, raises flicker.",
+    screenProbeRejectBasedOnNormal:
+      "Whether a pixel's history is also dropped where the surface kept there faces another way than the pixel's (past screenProbeNormalThreshold): it removes the streaks a moving object leaves on the ground under it, for a little more cost.",
+    screenProbeNormalThreshold:
+      "The angle, in degrees, past which a history texel's normal is another surface's (with screenProbeRejectBasedOnNormal on).",
     screenProbeRelativeSpeedThreshold:
       "The speed difference, over the probe's depth (a metre at least), from which the end of a ray counts as moving against its probe.",
     screenProbeFastUpdateFraction:

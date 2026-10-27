@@ -155,7 +155,9 @@ const reprojectKernelTail = () =>
  let bits=select(0u,${REPROJECT_BITS.offScreen}u,offScreen)|select(0u,${REPROJECT_BITS.disoccluded}u,parallax.disoccluded)|select(0u,${REPROJECT_BITS.animated}u,animated)|select(0u,${REPROJECT_BITS.filled}u,filled)|select(0u,${REPROJECT_BITS.restarts}u,(mark.a&${RESTART_MARK}u)!=0u&&view.resurrection.x!=0.0)|select(0u,${REPROJECT_BITS.resurrectionOffScreen}u,resurrectionOff);
  textureStore(shadingOut,p,${GUIDE_LAYERS.previous},vec4f(shading,raw.a));
  textureStore(flickerOut,p,flicker);
- let coverage=measureByte(textureLoad(prevThin,clampToExtent(vec2i(floor(uv*view.analysisGrid.xy)),grid),0).r);
+ // The coverage history is read only where the detection runs this image (\`view.quality.w\`), the one pass that reads the word's byte; else the byte is 0.
+ var coverage=0u;
+ if(view.quality.w!=0.0){coverage=measureByte(textureLoad(prevThin,clampToExtent(vec2i(floor(uv*view.analysisGrid.xy)),grid),0).r);}
  textureStore(reprojectedOut,p,vec4u(bits|(u32(round(edge*255.0))<<8u)|((coverage&0xffu)<<16u),0u,0u,0u));
  let vector=select(v,screenVelocity(parallax.velocity),filled);
  textureStore(fieldOut,p,${FIELD_LAYERS.vector},vec4u(encodeVector(vector),0u,0u,0u));
@@ -185,14 +187,15 @@ const reprojectKernelTail = () =>
  *   test is passed by that match; disoccluded below a half. A disoccluded texel takes that velocity
  *   as its reprojection, when it is one, so the history update reads the surface the occluder left;
  * - the thin geometry coverage history at the texel the reprojected point falls in, kept in the word
- *   for the thin geometry detection (`thinGeometryWgsl.ts`);
+ *   for the thin geometry detection (`thinGeometryWgsl.ts`), read only where it runs this image
+ *   (`view.quality.w`: a uniform branch, none taken else, the byte 0);
  * - where the history resurrects (`RESURRECTION`) and this image may (`view.resurrection.x`), the
  *   shading history of the frame a pixel may be resurrected from, read bilinearly at the point the
  *   texel's closest surface falls at in that frame (`resurrectionPoint`), in its grid, brought to this
  *   image's exposure (`view.resurrection.z`), into the second layer (`GUIDE_LAYERS`); a texel off
  *   that frame's screen reads the edge's texel and carries the bit that says so.
  * A vector load, a marks load and a depth load where the texel took a neighbour's velocity, and 9
- * of each for its edge, 5 bilinear shading history taps, a flicker history load, a coverage history load and 4 occluder words per render texel;
+ * of each for its edge, 5 bilinear shading history taps, a flicker history load, a coverage history load (where the detection runs) and 4 occluder words per render texel;
  * where it resurrects, a marks load, a depth load and a bilinear read more.
  */
 export const reprojectShader = (guideFormat: GPUTextureFormat) =>

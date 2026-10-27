@@ -1,3 +1,4 @@
+import { signalWith } from '../../../sdk-core/src/runtime/followSignal.ts'
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { trackSettings } from '../../../sdk-core/src/contracts/settingRules.ts'
 import { exposureCurveTable } from '../../../sdk-core/src/contracts/exposureCurveTable.ts'
@@ -7,6 +8,7 @@ import { isCancelled, pixelRatioOf } from './engine/common.ts'
 import { resolvedFamilies } from './engine/familySettings.ts'
 import { readDistanceFields } from '../lighting/distanceField/fieldsLoad.ts'
 import { readMeshCards } from '../lighting/surfaceCache/cardsLoad.ts'
+import { readRayTracing } from '../lighting/rays/sceneTrace/rayTracingLoad.ts'
 import {
   readVolumetricLightmap,
   type ReadLightmap,
@@ -14,6 +16,7 @@ import {
 import { unmetered } from '../geometry/cluster/byteMeter.ts'
 import type { MeshDistanceField } from '../../../sdk-core/src/lighting/distanceFieldFile.ts'
 import type { MeshCards } from '../../../sdk-core/src/lighting/meshCardsFile.ts'
+import type { RayTracing } from '../../../sdk-core/src/lighting/rayTracingFile.ts'
 import { createSceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
 import { createSceneFogVolumeStore } from '../../../sdk-core/src/scene/volume/store.ts'
 import { createSceneLocalFogStore } from '../../../sdk-core/src/scene/localFog/store.ts'
@@ -126,6 +129,7 @@ function engineContext(
   lights: Awaited<ReturnType<typeof sessionLights>>,
   distanceFields: MeshDistanceField[] | undefined,
   meshCards: MeshCards[] | undefined,
+  rayTracing: RayTracing | undefined,
   volumetricLightmap: ReadLightmap | undefined,
 ): EngineContext {
   const { canvas, metadata, signal, diagnosticChannel, diagnose } = session
@@ -165,6 +169,7 @@ function engineContext(
     ...lights,
     distanceFields,
     meshCards,
+    rayTracing,
     volumetricLightmapData: volumetricLightmap?.data,
     readVolumetricLightmapCell: volumetricLightmap?.readCell,
     frameBudget: inputs.frameBudget,
@@ -213,16 +218,25 @@ async function prepareEngine(session: ExplorerSession, engine: Engine) {
 export async function prepareExplorerEngine(session: ExplorerSession, inputs: Inputs) {
   const { indices, streamer, preload } = inputs.pageSources
   const lights = await sessionLights(session, inputs.base)
-  // The meshes' distance fields the cache carries, none for a cache whose meshes built none.
-  const distanceFields = await readDistanceFields(
-    session.metadata,
-    inputs.base,
-    session.signal,
-    unmetered,
-    inputs.pageSources.pageCache.readRange,
-  )
-  // The cards the meshes keep, none for a cache whose meshes kept none.
-  const meshCards = await readMeshCards(session.metadata, inputs.base, session.signal, unmetered)
+  // The sidecars the cache carries, read together: the meshes' distance fields and cards, none for a cache whose meshes built
+  // none, and the primitives' acceleration structures, none for a cache whose primitives built none. One that fails stops the
+  // others' reads.
+  const failed = new AbortController()
+  const reading = signalWith(failed.signal, session.signal)
+  const [distanceFields, meshCards, rayTracing] = await Promise.all([
+    readDistanceFields(
+      session.metadata,
+      inputs.base,
+      reading,
+      unmetered,
+      inputs.pageSources.pageCache.readRange,
+    ),
+    readMeshCards(session.metadata, inputs.base, reading, unmetered),
+    readRayTracing(session.metadata, inputs.base, reading, unmetered),
+  ]).catch((error) => {
+    failed.abort(error)
+    throw error
+  })
   // The scene's baked indirect light, none for a cache whose job baked none.
   const volumetricLightmap = await readVolumetricLightmap(
     session.metadata,
@@ -237,6 +251,7 @@ export async function prepareExplorerEngine(session: ExplorerSession, inputs: In
     lights,
     distanceFields,
     meshCards,
+    rayTracing,
     volumetricLightmap,
   )
   const engine = inputs.factory(context)

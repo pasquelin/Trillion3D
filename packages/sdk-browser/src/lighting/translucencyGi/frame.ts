@@ -165,7 +165,7 @@ const GRID = {} as TranslucencyGiGridInto
 const PASS = { label: TRANSLUCENCY_GI_PASS }
 
 /**
- * The translucency global illumination volume of this image, built after the screen probes and the radiance cache (`encodeScreenProbes`,
+ * The translucency global illumination volume of this image, built after the screen probes and the radiance cache (`traceScreenProbes`,
  * `flushRadianceCache`) and before the blends read it: the grid fitted to the view, its cells' cones traced, filtered and integrated into
  * the harmonics (`encodeGiPasses`). An image that casts no screen probe, a scene with no blended surface, a camera that is not a perspective
  * or a setting off makes nothing and publishes none: the surfaces read the sky light.

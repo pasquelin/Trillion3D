@@ -119,18 +119,12 @@ fn a_regular_grid_becomes_a_height_field() {
 }
 
 pub(super) fn cluster(level: usize, lod_error: f64, parent_error: f64) -> DagCluster {
-    DagCluster {
-        indices: vec![0, 1, 2],
+    DagCluster::for_test(
+        vec![0, 1, 2],
         level,
-        lod_error,
-        parent_error,
-        sphere: [0.0; 4],
-        whole_box: None,
-        parent_sphere: [0.0; 4],
-        source_rank: 0,
-        group: None,
-        source: None,
-    }
+        (lod_error, parent_error),
+        (None, None),
+    )
 }
 
 // Behaviour: the tolerance is the object's own — the median error of its first simplified level —

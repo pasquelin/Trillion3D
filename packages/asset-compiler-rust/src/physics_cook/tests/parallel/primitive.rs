@@ -34,6 +34,7 @@ fn primitive(
                 precision: Default::default(),
                 scale: None,
                 exact: false,
+                traced: Default::default(),
             },
             Assembly::default(),
             &encode,

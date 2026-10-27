@@ -132,7 +132,10 @@ test("the velocity stage writes each texel's own vector alone; the analysis dila
   ])
     assert.equal(occurrences(surface, gone), 0, gone)
   assert.equal(occurrences(surface, 'pageOf(id)'), 1, 'the record is read once')
-  assert.match(surface, /vec4u\(encodeOwnVector\(motion\.velocity\.xy,moves\),flags,0u,0u\)/)
+  assert.match(
+    surface,
+    /vec4u\(encodeOwnVector\(motion\.velocity\.xy,moves\),withDepthStep\(flags,motion\.velocity\.z\),0u,0u\)/,
+  )
   // The motion of a surface is one text for both: the analysis finds the closest surface by its
   // 3×3 and measures it, once, and leaves the vector to the stage and the dilation to the reprojection.
   for (const text of [VELOCITY_SHADER, surface]) {

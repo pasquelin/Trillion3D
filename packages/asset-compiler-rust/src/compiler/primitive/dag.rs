@@ -2,6 +2,7 @@ use super::climb::{Assembly, Role};
 use crate::dag::assembly::{Parent, RootCover};
 use crate::dag::DagStrategy;
 use crate::hlod::chain::SourceCover;
+use crate::ray_tracing::{primitive_tree, PrimitiveTree, Traced};
 use crate::*;
 use paged::{page_dag, Paged};
 use read::{read_dag, Read};
@@ -33,6 +34,9 @@ pub(crate) struct DagResult {
     /// The group that replaces each instance's root, when it carries an assembly's levels
     /// (`Assembly::instances`), in the order of the instances.
     pub parents: Vec<Option<Parent>>,
+    /// The tree its coarse cut is traced through (`ray_tracing`), none when the cut holds no
+    /// triangle.
+    pub ray_tracing: Option<PrimitiveTree>,
 }
 /// What a primitive's DAG is built under.
 pub(crate) struct DagInputs {
@@ -55,6 +59,8 @@ pub(crate) struct DagInputs {
     /// Whether its clusters are its level 0 alone, every one a root, whatever the job's strategy:
     /// the mesh is drawn whole at every distance (a fallback mesh, `source/fallback.rs`).
     pub exact: bool,
+    /// What names its tree for ray tracing and the flags of its material (`primitive_tree`).
+    pub traced: Traced,
 }
 /// How a page is encoded: the corners of its cluster, the positions and the attributes they index,
 /// the vertex each placed one deforms as, and the grid it lies on.
@@ -70,10 +76,11 @@ pub(crate) type EncodePage<'e> = &'e (dyn Fn(
 impl DagResult {
     /// What the stages of a primitive's DAG leave, with the roots it keeps for the assemblies that
     /// place it (`cover`), the group that replaces each instance's root (`parents`) and the stage
-    /// milliseconds (`timings`).
+    /// milliseconds (`timings`), and the tree of its cut (`ray_tracing`).
     fn of(
         (read, paged): (Read, Paged),
         (cover, parents): (Option<RootCover>, Vec<Option<Parent>>),
+        ray_tracing: Option<PrimitiveTree>,
         timings: Value,
     ) -> Self {
         Self {
@@ -90,6 +97,7 @@ impl DagResult {
             voxel_seed: read.voxel_seed,
             cover,
             parents,
+            ray_tracing,
         }
     }
 }
@@ -138,6 +146,10 @@ pub(crate) fn build_dag_primitive(
         (pos, &carried, &built.indices, &built.triangle_source),
         (&built.tallies, &built.stalls),
     )?;
+    laps.lap("readMs");
+    // The cut is taken of the clusters as the trim left them: the ranks the pages carry.
+    let ray_tracing = primitive_tree(pos, &built.clusters, inputs.traced);
+    laps.lap("rayTracingMs");
     let to_page = (read.grid, inputs.root_pages, inputs.scale, own_collider);
     let paged = page_dag(
         (o, &mut laps),
@@ -149,6 +161,7 @@ pub(crate) fn build_dag_primitive(
     Ok(DagResult::of(
         (read, paged),
         (cover, parents),
+        ray_tracing,
         laps.report(),
     ))
 }

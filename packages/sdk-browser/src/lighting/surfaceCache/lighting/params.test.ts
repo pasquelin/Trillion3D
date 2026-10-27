@@ -6,13 +6,19 @@ import {
   type SettingValues,
 } from '../../../../../sdk-core/src/contracts/settingRules.ts'
 import {
+  lightsPerTile,
+  MAX_LIGHTS_PER_TILE,
+} from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
+import {
+  CONTEXT_ARGS,
   CONTEXT_AT,
   CONTEXT_HEADER_WORDS,
   contextLayout,
   LIGHTING_FLAG,
   LIGHTING_PARAMS,
+  tracedShadowWords,
 } from './layout.ts'
-import { shapeOf, sizesOf, writeLightingParams } from './params.ts'
+import { shapeKey, shapeOf, sizesOf, tracedShadowsFit, writeLightingParams } from './params.ts'
 
 const settings = {} as SettingValues<typeof SURFACE_CACHE_RULES>
 resolveSettingsInto(SURFACE_CACHE_RULES, {}, settings)
@@ -51,7 +57,7 @@ test('the memory follows the shape: the probes at the spacing, a square of rays 
     ],
   )
   assert.ok(
-    CONTEXT_AT.args + 4 * 4 <= CONTEXT_HEADER_WORDS,
+    CONTEXT_AT.args + Object.keys(CONTEXT_ARGS).length * 4 <= CONTEXT_HEADER_WORDS,
     'the dispatch arguments are in the header',
   )
   // Without radiosity nothing of it is made.
@@ -154,8 +160,12 @@ test("an image's parameters carry the settings: the flags, the pre-exposed ray l
     LIGHTING_FLAG.filter |
     LIGHTING_FLAG.temporal |
     LIGHTING_FLAG.planeWeighting |
-    LIGHTING_FLAG.historyValid
+    LIGHTING_FLAG.historyValid |
+    LIGHTING_FLAG.adaptiveShadowTracing
   assert.equal(words[at.flags], all)
+  // The traced shadow's biases, in centimetres: the reference's defaults.
+  near(floats[at.traceRayBias], 1)
+  near(floats[at.traceEndBias], 1)
   // A lost history clears its flag; no prioritising near the frustum is the setting -1.
   writeLightingParams(
     words,
@@ -176,4 +186,86 @@ test("an image's parameters carry the settings: the flags, the pre-exposed ray l
     words[at.flags],
     all & ~LIGHTING_FLAG.historyValid & ~LIGHTING_FLAG.prioritizeFrustum,
   )
+})
+
+test('the frozen update frame and the two-sided shadow rays are flags of the settings, the adaptive tracing one off', () => {
+  const words = new Uint32Array(LIGHTING_PARAMS.words)
+  writeLightingParams(
+    words,
+    shapeOf(settings, 1024, false),
+    {
+      ...settings,
+      surfaceCacheFreezeUpdateFrame: 1,
+      surfaceCacheDirectLightingHardwareRayTracingForceTwoSided: true,
+      surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing: false,
+    },
+    {
+      frame: 1,
+      pages: 1,
+      eye: [0, 0, 0],
+      viewProjection: viewProjection([0, 0, 0]),
+      preExposure: 1,
+      viewPreExposure: 1,
+      firstClipmapExtent: 2500,
+      historyLost: false,
+    },
+  )
+  const flags = words[LIGHTING_PARAMS.at.flags]
+  assert.ok(flags & LIGHTING_FLAG.freezeUpdateFrame)
+  assert.ok(flags & LIGHTING_FLAG.forceTwoSided)
+  assert.equal(flags & LIGHTING_FLAG.adaptiveShadowTracing, 0)
+})
+
+test('the traced shadows fit only where every buffer — the masks, the traces, the light tiles, the scene trace’s nodes, triangles and table — fits a binding and a buffer of the device', () => {
+  const shape = shapeOf(settings, 4096, false)
+  const lightTiles = shape.directTiles * shape.maxLights
+  const roomy = { maxStorageBufferBindingSize: 2 ** 30, maxBufferSize: 2 ** 30 }
+  const scene = { nodes: 1000, triangles: 2000, table: 500 }
+  assert.equal(tracedShadowsFit(roomy, lightTiles, scene), true)
+  // The traces are the largest buffer: one word for each texel of each light tile.
+  const words = tracedShadowWords(lightTiles)
+  const bytes = words.traces * 4
+  assert.ok(bytes > words.masks * 4 && bytes > words.lightTiles * 4)
+  const binding = { ...roomy, maxStorageBufferBindingSize: bytes }
+  assert.equal(tracedShadowsFit(binding, lightTiles, scene), true)
+  assert.equal(
+    tracedShadowsFit({ ...binding, maxStorageBufferBindingSize: bytes - 4 }, lightTiles, scene),
+    false,
+  )
+  assert.equal(tracedShadowsFit({ ...roomy, maxBufferSize: bytes - 4 }, lightTiles, scene), false)
+  // Each of the scene trace's buffers decides alone, to the word.
+  const full = bytes / 4
+  assert.equal(
+    tracedShadowsFit(binding, lightTiles, { nodes: full, triangles: full, table: full }),
+    true,
+  )
+  for (const name of ['nodes', 'triangles', 'table'] as const)
+    assert.equal(tracedShadowsFit(binding, lightTiles, { ...scene, [name]: full + 1 }), false, name)
+})
+
+test('the traced shadows’ sizes are one list: the buffers are made at it and the fit is checked against it', () => {
+  // 16 words of masks a light tile, a trace for each of the 64 texels of each, two words a light tile.
+  assert.deepEqual(tracedShadowWords(100), { masks: 1600, traces: 1 + 64 * 100, lightTiles: 200 })
+  const sceneSmall = { nodes: 1, triangles: 1, table: 1 }
+  const most = Math.max(...Object.values(tracedShadowWords(100))) * 4
+  const limits = { maxStorageBufferBindingSize: most, maxBufferSize: most }
+  assert.equal(tracedShadowsFit(limits, 100, sceneSmall), true)
+  assert.equal(tracedShadowsFit({ ...limits, maxBufferSize: most - 4 }, 100, sceneSmall), false)
+})
+
+test('the shape names nothing of the traced shadows: turning them on or off keeps the lighting’s resources', () => {
+  const shape = shapeOf(settings, 4096, false)
+  assert.ok(!('traced' in shape))
+  const direct = { ...settings, surfaceCacheDirectLighting: !settings.surfaceCacheDirectLighting }
+  const traced = {
+    ...settings,
+    surfaceCacheDirectLightingHardwareRayTracing:
+      !settings.surfaceCacheDirectLightingHardwareRayTracing,
+  }
+  assert.equal(shapeKey(shapeOf(direct, 4096, false)), shapeKey(shape))
+  assert.equal(shapeKey(shapeOf(traced, 4096, false)), shapeKey(shape))
+})
+
+test('a tile’s lights are counted in arrays of the most a tile keeps', () => {
+  assert.equal(MAX_LIGHTS_PER_TILE, lightsPerTile(1000))
 })

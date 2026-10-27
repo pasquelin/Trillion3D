@@ -3,7 +3,7 @@
 // (`../generate-shared-rules.ts`): the settings' names and defaults, the brick, the band, the mips
 // and the magic of `distanceFields.bin`.
 import * as field from '../../../packages/sdk-core/src/contracts/distanceFieldAbi.ts'
-import { float, header } from './statements.ts'
+import { float, header, rustConsts } from './statements.ts'
 
 /** A Rust literal of a range's end: the largest and smallest numbers by their names, a float always with its point. */
 const end = (value: number) =>
@@ -30,20 +30,22 @@ pub const DEFAULT_DISTANCE_FIELD_MAX_RESOLUTION: u32 = ${rules.distanceFieldMaxR
 pub const DISTANCE_FIELD_DENSITY_RANGE: (f64, f64) = (${end(density[0])}, ${end(density[1])});
 /// The reference's length unit per metre, the brick, the band, the mips and the magic of
 /// \`distanceFields.bin\`.
-pub const DISTANCE_FIELD_UNITS_PER_METRE: f64 = ${field.DISTANCE_FIELD_UNITS_PER_METRE.toFixed(1)};
-pub const DISTANCE_FIELD_UNIQUE_BRICK: usize = ${field.DISTANCE_FIELD_UNIQUE_BRICK};
-pub const DISTANCE_FIELD_BRICK: usize = ${field.DISTANCE_FIELD_BRICK};
-pub const DISTANCE_FIELD_MIPS: usize = ${field.DISTANCE_FIELD_MIPS};
-pub const DISTANCE_FIELD_BAND_VOXELS: f64 = ${field.DISTANCE_FIELD_BAND_VOXELS.toFixed(1)};
-pub const DISTANCE_FIELD_OBJECT_BORDER: usize = ${field.DISTANCE_FIELD_OBJECT_BORDER};
-pub const DISTANCE_FIELD_MAX_INDIRECTION: usize = ${field.DISTANCE_FIELD_MAX_INDIRECTION};
-pub const DISTANCE_FIELD_FILE: &str = ${JSON.stringify(field.DISTANCE_FIELD_FILE)};
-pub const DISTANCE_FIELD_MAGIC: u32 = ${field.DISTANCE_FIELD_MAGIC};
-pub const DISTANCE_FIELD_VERSION: u32 = ${field.DISTANCE_FIELD_VERSION};
-pub const DISTANCE_FIELD_HEAD_BYTES: usize = ${field.DISTANCE_FIELD_HEAD_BYTES};
-pub const DISTANCE_FIELD_MESH_BYTES: usize = ${field.DISTANCE_FIELD_MESH_BYTES};
-pub const DISTANCE_FIELD_FLAG_TWO_SIDED: u32 = ${field.DISTANCE_FIELD_FLAG_TWO_SIDED};
-pub const DISTANCE_FIELD_FLAG_HLOD_CELL: u32 = ${field.DISTANCE_FIELD_FLAG_HLOD_CELL};
-pub const DISTANCE_FIELD_MIP_BYTES: usize = ${field.DISTANCE_FIELD_MIP_BYTES};
+${rustConsts({
+  DISTANCE_FIELD_UNITS_PER_METRE: [field.DISTANCE_FIELD_UNITS_PER_METRE, 'f64'],
+  DISTANCE_FIELD_UNIQUE_BRICK: [field.DISTANCE_FIELD_UNIQUE_BRICK, 'usize'],
+  DISTANCE_FIELD_BRICK: [field.DISTANCE_FIELD_BRICK, 'usize'],
+  DISTANCE_FIELD_MIPS: [field.DISTANCE_FIELD_MIPS, 'usize'],
+  DISTANCE_FIELD_BAND_VOXELS: [field.DISTANCE_FIELD_BAND_VOXELS, 'f64'],
+  DISTANCE_FIELD_OBJECT_BORDER: [field.DISTANCE_FIELD_OBJECT_BORDER, 'usize'],
+  DISTANCE_FIELD_MAX_INDIRECTION: [field.DISTANCE_FIELD_MAX_INDIRECTION, 'usize'],
+  DISTANCE_FIELD_FILE: [field.DISTANCE_FIELD_FILE, '&str'],
+  DISTANCE_FIELD_MAGIC: [field.DISTANCE_FIELD_MAGIC, 'u32'],
+  DISTANCE_FIELD_VERSION: [field.DISTANCE_FIELD_VERSION, 'u32'],
+  DISTANCE_FIELD_HEAD_BYTES: [field.DISTANCE_FIELD_HEAD_BYTES, 'usize'],
+  DISTANCE_FIELD_MESH_BYTES: [field.DISTANCE_FIELD_MESH_BYTES, 'usize'],
+  DISTANCE_FIELD_FLAG_TWO_SIDED: [field.DISTANCE_FIELD_FLAG_TWO_SIDED, 'u32'],
+  DISTANCE_FIELD_FLAG_HLOD_CELL: [field.DISTANCE_FIELD_FLAG_HLOD_CELL, 'u32'],
+  DISTANCE_FIELD_MIP_BYTES: [field.DISTANCE_FIELD_MIP_BYTES, 'usize'],
+})}
 `
 }

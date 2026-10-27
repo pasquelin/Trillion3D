@@ -21,6 +21,7 @@ export * from './meshBuildAbi.ts'
 export * from './meshCardsAbi.ts'
 export * from './objectAbi.ts'
 export * from './partitionAbi.ts'
+export * from './rayTracingAbi.ts'
 
 /** The triangle budget a compilation keeps when none is named. */
 export const DEFAULT_TRIANGLE_BUDGET = 150000

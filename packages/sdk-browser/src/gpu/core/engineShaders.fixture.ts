@@ -1,7 +1,3 @@
-import { MARK_GI_PROGRAM } from '../../lighting/translucencyGi/markWgsl.ts'
-import { TRACE_GI_PROGRAM } from '../../lighting/translucencyGi/traceWgsl.ts'
-import { FILTER_GI_PROGRAM } from '../../lighting/translucencyGi/filterWgsl.ts'
-import { INTEGRATE_GI_PROGRAM } from '../../lighting/translucencyGi/integrateWgsl.ts'
 import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts'
 import { ANIMATION_BANK_WGSL } from '../../deformation/bankWgsl.ts'
 import { PRESENT_AT_SHADER } from './presentWgsl.ts'
@@ -29,10 +25,9 @@ import { splitSource } from '../../visibility/tessellation/splitWgsl.ts'
 import { POST_SHADERS } from './engineShaders.post.fixture.ts'
 import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
 import { SURFACE_CACHE_SHADERS } from './engineShaders.surfaceCache.fixture.ts'
+import { SCENE_TRACE_SHADERS } from './engineShaders.sceneTrace.fixture.ts'
 import { BLUR_SHADERS } from './engineShaders.blur.fixture.ts'
 import { FOG_SHADERS, NO_LOCAL_FOG_SHADERS } from './engineShaders.fog.fixture.ts'
-import { FILTER_PROGRAM } from '../../lighting/translucency/filterWgsl.ts'
-import { INJECT_PROGRAM } from '../../lighting/translucency/injectWgsl.ts'
 import { wpoShaders } from './engineShaders.wpo.fixture.ts'
 import { SKY_SHADERS } from './engineShaders.sky.fixture.ts'
 import { LIGHTING_SHADERS, LIT_PASS_SHADERS } from './engineShaders.lighting.fixture.ts'
@@ -181,6 +176,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TESSELLATION_DICE_MASKED: diceSource(maskGraphSets().dice),
   ...COMPOSE_SHADERS,
   ...SURFACE_CACHE_SHADERS,
+  ...SCENE_TRACE_SHADERS,
   POOL_SHADER,
   POOL_FINISH_SHADER,
   MARK_IMAGE_SHADER,
@@ -296,17 +292,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
       reads: CLOUDS_AND_FOG,
     },
   ),
-  // The programs that read the translucency lighting volume (a scene with a surface whose material
-  // sets `translucencyLighting`), and the volume's own passes (`../../lighting/translucency/`).
-  BLEND_TRANSLUCENCY_VOLUME: blendShader({}, { translucencyVolume: true }),
-  BLEND_TRANSLUCENCY_VOLUME_LOBELESS: blendShader({ lobeless: true }, { translucencyVolume: true }),
-  TRANSLUCENCY_INJECT: INJECT_PROGRAM,
-  TRANSLUCENCY_FILTER: FILTER_PROGRAM,
-  // The translucency global illumination volume's passes (`../../lighting/translucencyGi/`).
-  TRANSLUCENCY_GI_MARK: MARK_GI_PROGRAM,
-  TRANSLUCENCY_GI_TRACE: TRACE_GI_PROGRAM,
-  TRANSLUCENCY_GI_FILTER: FILTER_GI_PROGRAM,
-  TRANSLUCENCY_GI_INTEGRATE: INTEGRATE_GI_PROGRAM,
   FRONT_STAGE_CLIP: blendFrontShader(2, 'distance'),
   FRONT_STAGE_CLIP_PIXEL: blendFrontShader(2, 'pixel'),
   PARTICLE_DRAW_CLIP: particleDrawShader('distance'),

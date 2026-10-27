@@ -2,34 +2,14 @@
 // traced, in what order and at what cost, and what the lit passes may read of the table.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createBounceCascades } from '../../../../../sdk-core/src/bounce/cascades.ts'
 import {
   BOUNCE_PROBE_QUEUE,
   BOUNCE_SETTINGS,
 } from '../../../../../sdk-core/src/bounce/contracts.ts'
 import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
-import { POOL_COST, POOL_WORK } from './poolLayout.ts'
-import { cityPool, poolEntryOf, simulatedPool } from './pool.fixture.ts'
+import { poolAt } from './pool.fixture.ts'
 
 const { cascadeSize: SIDE, probeKeptMarks, settledTraces } = BOUNCE_SETTINGS
-
-/** The levels around an eye at `eye` and a pool of `capacity` probes over them. */
-function poolAt(eye: number[], capacity = 64) {
-  const cascades = { ...createBounceCascades([0, 0, 0, 10, 10, 10]), probes: capacity }
-  cascades.follow(eye)
-  const pool = simulatedPool(cascades, capacity)
-  /** The cell `dx, dy, dz` cells from the one the eye is in, in the level. */
-  const around = (level: number, dx: number, dy: number, dz: number) => {
-    const spacing = cascades.levels[level].spacing
-    return [dx, dy, dz].map((d, axis) => Math.floor(eye[axis] / spacing) + d) as [
-      number,
-      number,
-      number,
-    ]
-  }
-  const entryOf = (level: number, [x, y, z]: number[]) => poolEntryOf(cascades, level, x, y, z)
-  return { cascades, pool, around, entryOf }
-}
 
 test('a cell the image reads takes a probe from the pool, and keeps it while it is read', () => {
   const eye = [5, 5, 5]
@@ -81,12 +61,15 @@ test('the probes that hold nothing come before every refresh, whatever the budge
 
 test('a probe is told to the lit passes by its first trace, and forgotten the moment it is given back', () => {
   const eye = [5, 5, 5]
-  const { pool, around, entryOf, cascades } = poolAt(eye, 2000)
-  // More cells than the queue holds: those it leaves hold nothing and are named by no entry.
+  const slots = BOUNCE_PROBE_QUEUE + 1000
+  const { pool, around, entryOf, cascades } = poolAt(eye, slots)
+  // More cells than the queue holds — a cube whose side is past the queue's cube root —: those it leaves hold nothing and are
+  // named by no entry.
+  const reach = Math.ceil(Math.cbrt(BOUNCE_PROBE_QUEUE) / 2)
   const cells: [number, number, number][] = []
-  for (let dx = -6; dx <= 6; dx++)
-    for (let dy = -6; dy <= 6; dy++)
-      for (let dz = -6; dz <= 6; dz++) cells.push(around(0, dx, dy, dz))
+  for (let dx = -reach; dx <= reach; dx++)
+    for (let dy = -reach; dy <= reach; dy++)
+      for (let dz = -reach; dz <= reach; dz++) cells.push(around(0, dx, dy, dz))
   for (const dz of [0, 1])
     for (const dy of [-8, -7]) for (const dx of [-20, 20]) cells.push(around(0, dx, dy, dz))
   cells.push(
@@ -103,7 +86,7 @@ test('a probe is told to the lit passes by its first trace, and forgotten the mo
   assert.equal(pool.tally().live - pool.tally().unfilled, named.length)
   assert.ok(pool.tally().unfilled > 0, 'and the cells the queue left hold nothing')
   const slot = pool.visible(named[0])
-  assert.ok(slot >= 1 && slot <= 2000, `the cell names its probe: ${slot}`)
+  assert.ok(slot >= 1 && slot <= slots, `the cell names its probe: ${slot}`)
   // Slid out of its level, the probe goes and the entry with it.
   const far = cascades.levels[0].spacing * (SIDE + 8)
   assert.equal(cascades.follow([5 + far, 5, 5]), true)
@@ -255,51 +238,4 @@ test('under any run of marks, slides, expiries and lights, the counts and the ta
     refused = t.refused
   }
   assert.ok(refused > 0, 'a pool of forty is outgrown by the run')
-})
-
-test('a probe costs by its distance from the eye — a quarter of a map past the downsample distance, four maps within the supersample distance — and the budget is spent in that cost; a first trace the budget has no room for is told to be traced at half its side', () => {
-  const eye = [100, 5, 100]
-  // A budget of one probe has no room for the first traces the queue holds: every one is told to be downsampled.
-  const starved = cityPool(eye)
-  starved.read()
-  const hungry = starved.pool.image({ rank: 2, eye, marking: true, budget: 1 })
-  assert.equal(hungry.length, BOUNCE_PROBE_QUEUE)
-  assert.ok(
-    hungry.every((entry) => entry.fresh && entry.down),
-    'no room: all downsampled',
-  )
-  // A budget of a thousand has room for each at its cost: none is.
-  const fed = cityPool(eye)
-  fed.read()
-  assert.ok(
-    fed.pool.image({ rank: 2, eye, marking: true, budget: 1000 }).every((entry) => !entry.down),
-  )
-  // The refreshes: the budget is four units a probe, a probe costs one, four or sixteen.
-  const { pool, read } = cityPool(eye)
-  read()
-  pool.image({ rank: 2, eye, marking: true, budget: 1000 })
-  for (let rank = 3; pool.tally().unfilled > 0; rank++)
-    pool.image({ rank, eye, marking: false, budget: 1000 })
-  const refreshed = (distances: [number, number], rank: number) =>
-    pool.image({ rank, eye, marking: false, budget: 10, distances })
-  const normal = refreshed([Infinity, 0], 200)
-  assert.equal(normal.length, 10, 'a budget of ten probes: ten probes at the cost of a whole map')
-  const far = refreshed([0, 0], 300)
-  assert.equal(far.length, 40, 'a quarter of a map each: forty')
-  const near = refreshed([Infinity, Infinity], 400)
-  assert.equal(near.length, 2, 'sixteen units each: two, the third does not fit')
-  assert.ok([...normal, ...far, ...near].every((entry) => !entry.fresh && !entry.down))
-  assert.equal(POOL_COST.supersampled / POOL_COST.downsampled, 16)
-})
-
-test('the kernels over the slots are bounded by the slots ever given, the lowest first', () => {
-  const eye = [5, 5, 5]
-  const { pool, around } = poolAt(eye, 256)
-  pool.image({ rank: 1, eye, marking: false, budget: 1 })
-  assert.equal(pool.work[POOL_WORK.high], 0, 'no slot given: no group dispatched')
-  for (let i = 0; i < 3; i++) pool.mark(0, ...around(0, i, 0, 0))
-  pool.image({ rank: 2, eye, marking: true, budget: 1 })
-  assert.equal(pool.work[POOL_WORK.high], 3)
-  pool.image({ rank: 3, eye, marking: false, budget: 1 })
-  assert.equal(pool.work[POOL_WORK.high], 3, 'what was given lasts')
 })

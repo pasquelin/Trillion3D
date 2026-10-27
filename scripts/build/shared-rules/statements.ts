@@ -115,6 +115,23 @@ export const rustStrings = (words: readonly string[]) =>
 /** A Rust float literal of `value`: a whole number always with its point. */
 export const float = (value: number) => (Number.isInteger(value) ? value.toFixed(1) : String(value))
 
+/** The `pub const` lines of `consts`, each name with its value and the Rust type it gives, in its order: a string printed as
+ *  a Rust string, a number of type `f64` with its point, any other number as it is. */
+export const rustConsts = (
+  consts: Record<string, readonly [value: string | number, type: string]>,
+) =>
+  Object.entries(consts)
+    .map(([name, [value, type]]) => {
+      const text =
+        typeof value === 'string'
+          ? JSON.stringify(value)
+          : type === 'f64'
+            ? float(value)
+            : String(value)
+      return `pub const ${name}: ${type} = ${text};`
+    })
+    .join('\n')
+
 /** `doc` as comment lines opening with `prefix`. */
 export const comment = (doc: readonly string[], prefix: string) =>
   doc.map((line) => `${prefix}${line}`.trimEnd()).join('\n')

@@ -13,6 +13,8 @@ pub(crate) struct SplitCompiled {
     pub voxel_seeds: Vec<crate::voxel::VoxelSeed>,
     /// The run of its pages' bundles, which the geometry containers take; `None` without pages.
     pub runs: Vec<Option<PageRun>>,
+    /// The tree of its coarse cut (`ray_tracing`), none when the cut holds no triangle.
+    pub ray_tracing: Vec<Option<crate::ray_tracing::PrimitiveTree>>,
 }
 pub(crate) fn split_compiled(compiled: Vec<CompiledPrimitive>) -> SplitCompiled {
     let mut split = SplitCompiled {
@@ -22,6 +24,7 @@ pub(crate) fn split_compiled(compiled: Vec<CompiledPrimitive>) -> SplitCompiled 
         covers: Vec::with_capacity(compiled.len()),
         voxel_seeds: Vec::with_capacity(compiled.len()),
         runs: Vec::with_capacity(compiled.len()),
+        ray_tracing: Vec::with_capacity(compiled.len()),
     };
     for entry in compiled {
         split.runs.push(entry.page_run);
@@ -30,6 +33,7 @@ pub(crate) fn split_compiled(compiled: Vec<CompiledPrimitive>) -> SplitCompiled 
         split.collisions.push(entry.collision);
         split.covers.push(entry.source_cover);
         split.voxel_seeds.push(entry.voxel_seed);
+        split.ray_tracing.push(entry.ray_tracing);
     }
     split
 }

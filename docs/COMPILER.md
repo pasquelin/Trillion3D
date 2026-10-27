@@ -1590,6 +1590,26 @@ Here every mesh keeps at most 6 cards, the trees up to 20 with a card kept at a 
 density, and the rubble none. On a mesh, `"extras": { "maxMeshCards": 0 }`. A setting of the wrong kind or
 out of its range refuses the job (`INVALID_OPTIONS`).
 
+## Ray tracing
+
+Every compiled primitive gets a tree a ray tracer walks, written with the others in `rayTracing.bin`
+(`ray_tracing/`), which the manifest's `rayTracing` section names ([FORMAT.md](FORMAT.md#raytracingbin)); the
+primitives of the world's HLOD cells have none. The tree is built over a coarse cut of the primitive's cluster
+DAG, taken as the pages carry it:
+
+1. **The cut.** Its error is one hundredth of the mesh's size (the square root of the smaller of twice the
+   area of the finest clusters and the surface of their box), and it holds every cluster whose error it does not
+   exceed and whose group's it exceeds: the surface is whole, with no triangle twice. Each triangle keeps the
+   rank of its cluster and its own in it.
+2. **The tree.** A binary tree over the cut's triangles, split by the surface area heuristic (16 bins on each
+   axis, leaves of at most 3 triangles), is collapsed into nodes of eight children by opening the child of
+   largest surface until a node has eight. The children take the slots of the eight octants of a ray's
+   direction, each in the one that meets it first, and their boxes are quantised in the node's own frame, on
+   a byte a coordinate.
+
+The tree is the same at every run, whatever the threads. A primitive's flags tell the reader whether its
+material is double-sided, alpha-masked or translucent.
+
 ## Volumetric lightmap
 
 A job that names `lightmapBake` (`true`, or an object of the settings below; `false` or none, the

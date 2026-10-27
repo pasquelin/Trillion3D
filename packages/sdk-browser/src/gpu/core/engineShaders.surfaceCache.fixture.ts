@@ -1,7 +1,15 @@
 // The surface cache's WGSL texts of `ENGINE_SHADERS`: the capture's kernels (the resolve, the resampling
 // of the texels and of the light, the copy and the encoders of a compressed atlas), the lights' kernels of its update (the context, the
-// direct light, the radiosity passes, the cull, the combine), the atlas view and the feedback's
-// compaction; and the translucency's composition and holdout.
+// direct light, the traced shadows' masks and trace, the radiosity passes, the cull, the combine), the atlas view and the feedback's
+// compaction; and the translucency's composition and holdout, the programs that read its lighting volume, the
+// volume's own passes and its global illumination's.
+import { blendShader } from '../../blend/shader.ts'
+import { FILTER_PROGRAM } from '../../lighting/translucency/filterWgsl.ts'
+import { INJECT_PROGRAM } from '../../lighting/translucency/injectWgsl.ts'
+import { MARK_GI_PROGRAM } from '../../lighting/translucencyGi/markWgsl.ts'
+import { TRACE_GI_PROGRAM } from '../../lighting/translucencyGi/traceWgsl.ts'
+import { FILTER_GI_PROGRAM } from '../../lighting/translucencyGi/filterWgsl.ts'
+import { INTEGRATE_GI_PROGRAM } from '../../lighting/translucencyGi/integrateWgsl.ts'
 import { COMPOSE_DUAL_WGSL, COMPOSE_WGSL, LATE_WGSL } from '../../blend/translucencyComposeWgsl.ts'
 import { HOLDOUT_APPLY_WGSL, HOLDOUT_START_WGSL } from '../../blend/holdoutWgsl.ts'
 import { CLEAR_BLOCKS_WGSL, ENCODE_WGSL } from '../../lighting/surfaceCache/compressWgsl.ts'
@@ -25,6 +33,11 @@ import { RADIOSITY_BUILD_WGSL } from '../../lighting/surfaceCache/lighting/radio
 import { RADIOSITY_FILTER_WGSL } from '../../lighting/surfaceCache/lighting/radiosityFilterWgsl.ts'
 import { RADIOSITY_INTEGRATE_WGSL } from '../../lighting/surfaceCache/lighting/radiosityIntegrateWgsl.ts'
 import { RADIOSITY_TRACE_WGSL } from '../../lighting/surfaceCache/lighting/radiosityTraceWgsl.ts'
+import { SHADOW_MASK_PROGRAM_WGSL } from '../../lighting/surfaceCache/lighting/shadowMaskWgsl.ts'
+import {
+  SHADOW_ARGS_WGSL,
+  SHADOW_TRACE_WGSL,
+} from '../../lighting/surfaceCache/lighting/shadowTraceWgsl.ts'
 
 /** The tile lights each tile of the cull keeps: any count, the text differs by one constant. */
 const CULL_LIGHTS = 16
@@ -49,6 +62,9 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   SURFACE_CACHE_FEEDBACK_COMPACTION_SHADER: FEEDBACK_COMPACTION_SHADER,
   SURFACE_CACHE_CONTEXT_WGSL: CONTEXT_WGSL,
   SURFACE_CACHE_DIRECT_WGSL: DIRECT_WGSL,
+  SURFACE_CACHE_SHADOW_MASK_WGSL: SHADOW_MASK_PROGRAM_WGSL,
+  SURFACE_CACHE_SHADOW_ARGS_WGSL: SHADOW_ARGS_WGSL,
+  SURFACE_CACHE_SHADOW_TRACE_WGSL: SHADOW_TRACE_WGSL,
   SURFACE_CACHE_RADIOSITY_BUILD_WGSL: RADIOSITY_BUILD_WGSL,
   SURFACE_CACHE_RADIOSITY_TRACE_WGSL: RADIOSITY_TRACE_WGSL,
   SURFACE_CACHE_RADIOSITY_FILTER_WGSL: RADIOSITY_FILTER_WGSL,
@@ -56,4 +72,15 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   SURFACE_CACHE_CULL: cullWgsl(CULL_LIGHTS),
   SURFACE_CACHE_COMBINE: combineWgsl(false),
   SURFACE_CACHE_COMBINE_COMPRESSED: combineWgsl(true),
+  // The programs that read the translucency lighting volume (a scene with a surface whose material
+  // sets `translucencyLighting`), and the volume's own passes (`../../lighting/translucency/`).
+  BLEND_TRANSLUCENCY_VOLUME: blendShader({}, { translucencyVolume: true }),
+  BLEND_TRANSLUCENCY_VOLUME_LOBELESS: blendShader({ lobeless: true }, { translucencyVolume: true }),
+  TRANSLUCENCY_INJECT: INJECT_PROGRAM,
+  TRANSLUCENCY_FILTER: FILTER_PROGRAM,
+  // The translucency global illumination volume's passes (`../../lighting/translucencyGi/`).
+  TRANSLUCENCY_GI_MARK: MARK_GI_PROGRAM,
+  TRANSLUCENCY_GI_TRACE: TRACE_GI_PROGRAM,
+  TRANSLUCENCY_GI_FILTER: FILTER_GI_PROGRAM,
+  TRANSLUCENCY_GI_INTEGRATE: INTEGRATE_GI_PROGRAM,
 }

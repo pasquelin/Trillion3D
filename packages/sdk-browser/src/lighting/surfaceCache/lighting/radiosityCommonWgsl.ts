@@ -3,9 +3,9 @@ import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { hammersley16 } from '../../../../../math/src/wgsl/sampling.ts'
 import { TWO_PI } from '../../../../../math/src/wgsl/constants.ts'
 import { PAGE_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
-import { CARD_PAGE_WORDS } from '../../../../../sdk-core/src/lighting/surfaceCache/pageRecords.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { TV_SH_WGSL } from '../../translucency/frameWgsl.ts'
+import { PAGE_LIGHTING } from './layout.ts'
 
 /**
  * WHAT THE RADIOSITY'S KERNELS SHARE: how its work is cut, the probes, the rays, the texels the probes lie at.
@@ -27,8 +27,8 @@ import { TV_SH_WGSL } from '../../translucency/frameWgsl.ts'
 
 const CONSTANTS = wgslConsts({
   PHYSICAL_PAGE: PAGE_SIZE,
-  PAGE_INDIRECT_LAST: CARD_PAGE_WORDS - 3,
-  PAGE_INDIRECT_TEMPORAL: CARD_PAGE_WORDS - 1,
+  PAGE_INDIRECT_LAST: PAGE_LIGHTING.lastUpdate + 1,
+  PAGE_INDIRECT_TEMPORAL: PAGE_LIGHTING.temporal + 1,
   PAGE_MIP_FIRST: 1,
   PAGE_MIP_TILES_X: 14,
   PAGE_MIP_TILES_Y: 15,

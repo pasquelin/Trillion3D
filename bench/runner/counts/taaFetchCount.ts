@@ -3,7 +3,7 @@
 // issues them (`packages/sdk-browser/src/post/taa/`), per render texel for the analysis — the nearest
 // velocity, the reprojection (the resurrected frame's guide in it where the level resurrects), the
 // thin geometry detection where the setting asks for it (`temporalThinGeometry`, off by default),
-// the shading rejection (its flicker measure where the level runs one), the spatial anti-aliaser —
+// the flicker measure where the level runs one, the shading rejection, the spatial anti-aliaser —
 // per history pixel for the history update, and per display pixel for the resolve that brings a
 // history larger than the display down. The resurrected pixels' field is written only where a pixel
 // is resurrected: none in a still image. A tiled pass's workgroup reads its inputs once for every
@@ -86,19 +86,26 @@ export const TAA_PASS_FETCHES = {
   // Its weight relaxation, a texel: the detection's word, the colour and the translucency the image
   // was composed with (the translucency's share of the colour's luma).
   relaxation: { perTexel: 3, sites: 3 },
+  // The flicker measure, a texel of the shading rejection's tile: the reprojection word, the colour,
+  // the translucency, the flicker luma measured before the translucency, the reprojected flicker
+  // history and the marks; the thin geometry mask where the detection runs. Its errors, a buffer's
+  // cells, are no fetch.
+  flicker: {
+    perTexel: perRejectTexel(6),
+    thin: perRejectTexel(1),
+    sites: 8,
+  },
   // The shading rejection, a texel of its tile: the reprojection word, the colour, the translucency
-  // and the reprojected shading history; the flicker history and the marks where the flicker is
-  // measured; the thin geometry mask where the detection runs; the resurrected frame's shading
-  // history where the level resurrects. Its text also holds the resurrected pixels' field (the
-  // marks and the depth) and the analysis views' reads.
+  // and the reprojected shading history; the thin geometry mask where the detection runs; the
+  // resurrected frame's shading history where the level resurrects. Its text also holds the
+  // resurrected pixels' field (the marks and the depth) and the analysis views' reads.
   reject: {
     perTexel: perRejectTexel(4),
-    flicker: perRejectTexel(3),
     thin: perRejectTexel(1),
     resurrection: perRejectTexel(1),
-    // The flicker luma measured before the translucency and the thin geometry's coverage history
-    // (an analysis view's) are two sites more since their passes are their own.
-    sites: 15,
+    // The thin geometry's coverage history (an analysis view's) is a site more since its pass is
+    // its own; the flicker's reads moved to its measure.
+    sites: 12,
   },
   // The rejection's bits; where they ask for it — a rejected or disoccluded edge, none in a still,
   // kept image — its 3×3 lumas and the samples a level browses, words of the LDR luma's buffer
@@ -147,11 +154,11 @@ export function countTaaFetches(
     decimateHistory: P.reproject.perTexel + (knobs.resurrection ? P.guide.perTexel : 0),
     detectThinGeometry: work.thin ? P.thin.perTexel : 0,
     relaxThinGeometry: work.thin ? P.relaxation.perTexel : 0,
+    flickerMeasure: work.flicker ? P.flicker.perTexel + (work.thin ? P.flicker.thin : 0) : 0,
     rejectShading:
       P.reject.perTexel +
       (knobs.resurrection ? P.reject.resurrection : 0) +
-      (work.thin ? P.reject.thin : 0) +
-      (work.flicker ? P.reject.flicker : 0),
+      (work.thin ? P.reject.thin : 0),
     spatialAntiAliasing: work.antiAlias ? P.antiAlias.perTexel : 0,
     updateHistory:
       (P.update.perPixel +
@@ -169,6 +176,7 @@ export function countTaaFetches(
     passes.decimateHistory +
     passes.detectThinGeometry +
     passes.relaxThinGeometry +
+    passes.flickerMeasure +
     passes.rejectShading +
     passes.spatialAntiAliasing
   const resolve = passes.updateHistory + passes.resolveHistory + passes.resolveDisplayLayers

@@ -14,7 +14,9 @@ import { uploadSceneLights } from '../backend/state/lightBuffer.ts'
 import { followSkinTable } from '../../lighting/direct/skinTableSource.ts'
 import { followSubsurfaceProfiles } from '../../lighting/subsurface/litRows.ts'
 import { ensureBounce, syncBouncePlacements } from '../prepare/bounce.ts'
-import { createMarkSurface } from '../../lighting/bounce/pool/pool.ts'
+import type { QueuedBounce } from '../backend/state/bounce.ts'
+import { createMarkSurface, type MarkProbes } from '../../lighting/bounce/pool/pool.ts'
+import { screenProbesCast } from '../../lighting/bounce/screen/cast.ts'
 import { lastCastProbes } from '../../lighting/bounce/screen/frame.ts'
 import { translucencyGiMarkers } from '../../lighting/translucencyGi/marker.ts'
 import { planVsmFrame } from '../../lighting/shadows/vsm/frame/vsmPlan.ts'
@@ -274,6 +276,7 @@ function encodeBounce(
   const probes = bounce.wanted ? bounce.probes : undefined
   bounce.probesUpdated = 0
   bounce.encoded = false
+  bounce.queued = undefined
   // The irradiance diagnostic view outputs raw values: composition skips ACES and sRGB.
   rt.gpu.deferred?.setRawOutput(lights.store.lightingView === 'bounce')
   if (!probes) return
@@ -294,17 +297,56 @@ function encodeBounce(
   // allocation. What the image draws tells which cells it reads (`drawnSurface`): a pivoting camera
   // marks the cells it turns to.
   viewpoint.set(cam.eye)
+  // The cache and the levels follow it now, before the screen probes and the reflections read them, whenever the pass is encoded.
+  probes.track(viewpoint)
   // The rays marched through the field read the surface cache at their hits: it is made for the images to come.
   demandSurfaceCache(rt)
+  const queued: QueuedBounce = {
+    lightsActive: active,
+    reads: surfaceHitReads(rt, device),
+    surface: drawnSurface(rt, cam),
+  }
+  // An image that casts screen probes marks the cells its own probes stand in: the pass waits for their placement, and the radiance
+  // cache's update that follows it fills every cell they read before they read it (`encodeQueuedBounce`, in the pre-light step).
+  if (screenProbesCast(rt)) bounce.queued = queued
+  else encodeBouncePass(rt, encoder, queued)
+}
+
+/** The image's probe pass, into `encoder`: the cells marked from the probes the image placed (`placed`), else from what `drawnSurface`
+ *  named. */
+function encodeBouncePass(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  { lightsActive, reads, surface }: QueuedBounce,
+  placed?: MarkProbes,
+) {
+  const { bounce } = rt,
+    probes = bounce.probes!
+  if (surface && placed) surface.probes = placed
+  // The sky the pass's rays reach is the one the image holds when it is encoded, the one its screen probes read.
   bounce.encoded = probes.encode(
     encoder,
-    active,
+    lightsActive,
     viewpoint,
     skyLightReadOf(rt),
-    surfaceHitReads(rt, device),
-    drawnSurface(rt, cam),
+    reads,
+    surface,
   )
   bounce.probesUpdated = probes.lastProbes
+}
+
+/** The probe pass the image waited with (`encodeBounce`), encoded now that its screen probes are placed: from the cells of the probes
+ *  `placed`, or, where they placed none, of the last image's. Nothing where the image waited with none. */
+export function encodeQueuedBounce(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  placed?: MarkProbes,
+) {
+  const { bounce } = rt,
+    { queued } = bounce
+  if (!queued) return
+  bounce.queued = undefined
+  encodeBouncePass(rt, encoder, queued, placed)
 }
 
 /** Configuration of the first image lit by the contract, logged once. */

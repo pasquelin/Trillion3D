@@ -8,6 +8,7 @@
  * `unbalanced` finds a brace or a parenthesis that pairs with none.
  */
 
+import assert from 'node:assert/strict'
 import { withoutComments } from '../../../../math/src/wgsl/comments.fixture.ts'
 
 /** The words WGSL's grammar takes as keywords: no member, variable nor parameter may spell one. */
@@ -32,7 +33,7 @@ const WGSL_OWN = new Set([
     'texture_storage_2d texture_storage_2d_array texture_storage_3d texture_multisampled_2d ' +
     'r32float r32uint r8uint r8unorm rg32float rg32uint rg8uint rg8unorm rg11b10ufloat rgb10a2unorm rgba8uint rgba8unorm rgba16float rgba32float rgba32uint ' +
     'abs acos all any arrayLength asin atan atan2 atomicAdd atomicAnd atomicCompareExchangeWeak atomicExchange atomicLoad ' +
-    'atomicMax atomicMin atomicOr atomicStore atomicStoreMax atomicStoreMin atomicSub ceil clamp cos countLeadingZeros countOneBits cross ' +
+    'atomicMax atomicMin atomicOr atomicStore atomicStoreMax atomicStoreMin atomicSub atomicXor ceil clamp cos countLeadingZeros countOneBits cross ' +
     'degrees determinant distance dot dpdx dpdxFine dpdy dpdyFine exp exp2 extractBits faceForward firstLeadingBit firstTrailingBit ' +
     'floor fma fract fwidth insertBits inverseSqrt ldexp length log log2 max min mix normalize ' +
     'pack2x16float pack2x16snorm pack2x16unorm pack4x8unorm pow quantizeToF16 reflect refract reverseBits round saturate select ' +
@@ -144,4 +145,21 @@ export function unbalanced(source: string) {
     .filter((open) => depth[open])
     .map((open) => `'${open}' open`)
     .join(', ')
+}
+
+/** Asserts that `source` is a program a device takes as far as its names go: every name declared,
+ *  none reserved, the braces paired, no top-level name twice and, where `entry` is given, that
+ *  entry declared. `where` heads every failure. */
+export function assertProgramAssembles(source: string, entry?: string, where = 'the program') {
+  assert.deepEqual(unresolvedNames(source), [], where)
+  assert.deepEqual(reservedNames(source), [], where)
+  assert.equal(unbalanced(source), '', where)
+  const names = topLevelNames(source)
+  const seen = new Set<string>()
+  assert.deepEqual(
+    names.filter((name) => seen.size === seen.add(name).size),
+    [],
+    where,
+  )
+  if (entry !== undefined) assert.ok(names.includes(entry), entry)
 }

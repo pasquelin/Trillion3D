@@ -10,6 +10,7 @@ import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometr
 import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 import type { MeshDistanceField } from '../../../../sdk-core/src/lighting/distanceFieldFile.ts'
 import type { MeshCards } from '../../../../sdk-core/src/lighting/meshCardsFile.ts'
+import type { RayTracing } from '../../../../sdk-core/src/lighting/rayTracingFile.ts'
 import type { VolumetricLightmapData } from '../../../../sdk-core/src/lighting/volumetricLightmapFile.ts'
 import type { ReadLightmap } from '../../lighting/volumetricLightmap/fileLoad.ts'
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
@@ -287,6 +288,8 @@ export interface EngineContext extends SettingOptions {
   distanceFields?: readonly MeshDistanceField[]
   /** The cards the meshes keep (`meshCards.bin`), none for a cache whose meshes kept none. */
   meshCards?: readonly MeshCards[]
+  /** The primitives' acceleration structures (`rayTracing.bin`), none for a cache whose primitives built none. */
+  rayTracing?: RayTracing
   /** The scene's volumetric lightmap (`volumetric-lightmap.bin`), none for a cache whose job baked none. */
   volumetricLightmapData?: VolumetricLightmapData
   /** Reads the bricks of one of its streaming cells (`readVolumetricLightmap`); none for a lightmap with all its bricks in its layers. */
@@ -295,7 +298,7 @@ export interface EngineContext extends SettingOptions {
   sceneLocalFog?: SceneLocalFogStore // the local fog volumes, shared likewise
   importedLightIds?: string[] // imported light ids in cache order, set by `importedLights()`
   /** Bounced light, on by default (`false` turns it off); `bounceProbesPerFrame`, the probes a frame traces,
-   *  those never traced first, a whole map each (the screen probes' level's budget where none is named, at most 768). */
+   *  those never traced first, a whole map each (the screen probes' level's budget where none is named, at most `BOUNCE_PROBE_QUEUE`). */
   bounce?: boolean
   bounceProbesPerFrame?: number
   stageProfile?: boolean // Off by default; the bench and harness time the frame steps.

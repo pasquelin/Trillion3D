@@ -25,6 +25,7 @@ pub(super) fn finish_job(
         voxels,
         distance_fields,
         mesh_cards,
+        ray_tracing,
         volumetric_lightmap,
         products,
         paged,
@@ -75,6 +76,10 @@ pub(super) fn finish_job(
     // Named only by a scene whose meshes keep some card.
     if let Some(cards) = mesh_cards {
         result["meshCards"] = cards;
+    }
+    // Named only by a scene some of whose primitives have a triangle in their cut.
+    if let Some(tracing) = ray_tracing {
+        result["rayTracing"] = tracing;
     }
     // Named only by a job that baked a volumetric lightmap.
     if let Some(lightmap) = volumetric_lightmap {

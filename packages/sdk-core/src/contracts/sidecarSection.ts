@@ -38,3 +38,39 @@ export function assertSidecarSection(
     )
   return named as SidecarSection
 }
+
+/** What `checkSidecarHead` checks a file's first two words against. */
+export interface SidecarHead {
+  /** The word at byte 0. */
+  readonly magic: number
+  /** The format's version at byte 4: one, or the first and the last this engine reads. */
+  readonly version: number | readonly [number, number]
+  /** The size of the head, in bytes. */
+  readonly headBytes: number
+  /** The file's content in the messages, as `assertSidecarSection` names it. */
+  readonly what: string
+}
+
+/**
+ * Checks the first words of a sidecar file and returns its version: a file shorter than its head or
+ * of another magic throws `INVALID_CACHE`, one of a version this engine does not read
+ * `UNSUPPORTED_FORMAT`.
+ */
+export function checkSidecarHead(bytes: Uint8Array, head: SidecarHead): number {
+  const { magic, headBytes, what } = head
+  if (bytes.byteLength < headBytes)
+    throw new EngineError('INVALID_CACHE', `${what}: shorter than its head`, {})
+  const words = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  if (words.getUint32(0, true) !== magic)
+    throw new EngineError('INVALID_CACHE', `${what}: not a ${what} file`, {})
+  const version = words.getUint32(4, true)
+  const [first, last] =
+    typeof head.version === 'number' ? [head.version, head.version] : head.version
+  if (version < first || version > last)
+    throw new EngineError(
+      'UNSUPPORTED_FORMAT',
+      `${what}: version ${version}, this engine reads ${first === last ? first : `${first} to ${last}`}`,
+      {},
+    )
+  return version
+}

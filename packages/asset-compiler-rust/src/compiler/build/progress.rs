@@ -53,6 +53,7 @@ pub(crate) fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sy
             // Written after the tables' stage (`products.rs`): past the HLOD actors' band.
             Some("distanceFields") => 0.9895,
             Some("meshCards") => 0.9898,
+            Some("rayTracing") => 0.9899,
             Some("volumetricLightmap") => 0.9785 + 0.0015 * frac(&event),
             Some("lights") => 0.98,
             // The HLOD actors build inside the tables' stage: one step per cell's job.

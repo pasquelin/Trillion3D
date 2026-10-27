@@ -142,6 +142,9 @@ export type ClusterRoot<T> = {
   packedBase?: number
   /** Compiled mesh number of its primitive (`Primitive.mesh`). */
   mesh?: number
+  /** Its number in the mesh (`Primitive.primitive`): with `mesh`, the primitive the root places
+   *  (`../../lighting/rays/sceneTrace/sceneTraceResources.ts`). */
+  primitive?: number
   /** The primitive's culling hierarchy; `links`: parent of each node and leaf node of each
    *  cluster, derived once at prepare time and shared by its placements. */
   culling?: {

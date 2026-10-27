@@ -2,12 +2,13 @@ import { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { encodeHeldVsmProjection } from '../../lighting/shadows/vsm/frame/vsmProject.ts'
 import { encodeDepthPyramid, encodeReflections } from '../../lighting/reflections/frame.ts'
 import { flushRadianceCache } from '../../lighting/bounce/cache/cacheFrame.ts'
-import { encodeScreenProbes } from '../../lighting/bounce/screen/frame.ts'
+import { placeScreenProbes, traceScreenProbes } from '../../lighting/bounce/screen/frame.ts'
 import { encodeAmbientOcclusion } from '../../lighting/ao/frame.ts'
 import { encodeFogVolume } from './encodeFogVolume.ts'
 import { encodeTranslucencyVolume } from '../../lighting/translucency/frame.ts'
 import { encodeTranslucencyGi } from '../../lighting/translucencyGi/frame.ts'
 import { encodeSkyLight } from './encodeSkyLight.ts'
+import { encodeQueuedBounce } from './encodeLights.ts'
 import { encodeLocalFog, encodeLocalFogSky } from './encodeLocalFog.ts'
 import { encodeSkyOcclusion } from './encodeSkyOcclusion.ts'
 import { encodeSunFieldShadow, encodeWaterSunFieldShadow } from './encodeSunFieldShadow.ts'
@@ -70,7 +71,12 @@ export function encodePreLight(
   encodeReflections(rt, encoder, reflects(overrides))
   // The pixels' indirect light, from the probes placed on the image: after the reflections, which made
   // the lit image of the last image readable, and before the lighting, which reads them.
-  encodeScreenProbes(rt, encoder)
+  const placed = placeScreenProbes(rt, encoder)
+  // The probe pass held for the placement: it marks the cells the probes just placed stand in — from the last image's, where they cast none this image —,
+  // before the radiance cache's update that follows fills every cell they read.
+  encodeQueuedBounce(rt, encoder, placed?.marks)
+  // The probes' rays, traced over the cells just filled, and the pixels' integration of them.
+  traceScreenProbes(rt, encoder, placed)
   // The world probes' radiance maps the image queued, where the screen probes made none of the update: before the lighting.
   flushRadianceCache(rt, encoder)
   // The see-through surfaces' indirect light, traced from the radiance cache just brought up to date: before the blends, which read it.

@@ -26,7 +26,10 @@ const ORTHO_DEPTH_STEPS = 8388607
  * The least bit of the first axis's code is spare — a vector is read to a step of the code at most
  * the less —: the velocity stage keeps in it whether the surface moved by itself
  * (`encodeOwnVector`, `hasOwnMotion`); a surface that did not has only the camera's motion, which a
- * pass that wants the surfaces' own motion computes where it wants it.
+ * pass that wants the surfaces' own motion computes where it wants it. The pixel's flags word (the
+ * stage's second) keeps in its high half the texel's depth step, its device depth less the one its
+ * surface had in the last image, a half float (`withDepthStep`, `depthStepOf`): the
+ * reference's velocity depth, what a pass that reprojects a moving surface finds the depth it had by.
  */
 export const VECTOR_CODEC_WGSL = wgslBlock(
   'VECTOR_CODEC_WGSL',
@@ -44,7 +47,9 @@ fn decodeVector(w:u32)->vec2f{
  return g*abs(g)*0.5;
 }
 fn encodeOwnVector(v:vec2f,own:bool)->u32{return (encodeVector(v)&~1u)|select(0u,1u,own);}
-fn hasOwnMotion(word:u32)->bool{return (word&1u)!=0u;}`,
+fn hasOwnMotion(word:u32)->bool{return (word&1u)!=0u;}
+fn withDepthStep(word:u32,step:f32)->u32{return word|(pack2x16float(vec2f(step,0.0))<<16u);}
+fn depthStepOf(word:u32)->f32{return unpack2x16float(word>>16u).x;}`,
 )
 
 /**

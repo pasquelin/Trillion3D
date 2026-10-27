@@ -282,7 +282,6 @@ function capture(
   state: SurfaceCacheFrameState,
   pages: readonly CapturePage[],
   settings: CaptureSettings,
-  eye: ArrayLike<number>,
 ) {
   const { cache, atlases, raster, shading, kernels } = state
   if (!atlases || !shading?.ready || !kernels?.ready)
@@ -298,7 +297,7 @@ function capture(
     depth: atlases.capture.depth,
   }
   const image = toDraw.length
-    ? raster.draw(encoder, targets, toDraw, cardViews, eye, cache.frame)
+    ? raster.draw(encoder, targets, toDraw, cardViews, cache.frame)
     : undefined
   state.pass.begin(encoder)
   // Every page of the image is shaded in one go: the shading places a texel by the view of its row.
@@ -481,6 +480,28 @@ export function encodeSurfaceCache(
   }
 }
 
+/** What closes an image: why the capture or the raster could not be made, if they could not; whether
+ *  the cache still waits for work; the clock; the image's metrics from its `account`. */
+function closeImage(state: SurfaceCacheFrameState, account: Parameters<typeof metricsOf>[1]) {
+  const { cache, raster } = state
+  if (state.shading?.failure)
+    state.why = `the capture's shading could not be made: ${String(state.shading.failure)}`
+  else if (raster.failure)
+    state.why = `the cards' raster could not be made: ${String(raster.failure)}`
+  // The requests the image left; the refresh of the pages captured longest ago goes on whatever the view
+  // does, and keeps nothing unheld: it leaves the light of its pages (`CapturePage.refresh`), and a batch
+  // of refreshes alone is not awaited (`CardRaster.awaiting`).
+  const { meshCardsToAdd, lockedCardsToUpdate, hiResPagesToAdd } = cache.stats
+  state.busy =
+    meshCardsToAdd + lockedCardsToUpdate + hiResPagesToAdd > 0 ||
+    account.waiting > 0 ||
+    raster.awaiting
+  // A frozen update frame keeps the clock where it is (`surfaceCacheFreezeUpdateFrame`).
+  if (state.settings.surfaceCacheFreezeUpdateFrame === 0) advanceFrame(cache)
+  state.updated = true
+  state.metrics = metricsOf(state, account)
+}
+
 /** One image's work of the cache: `encodeSurfaceCache` after it knows the cache is asked for. */
 function updateImage(
   rt: WebgpuPagesRuntime,
@@ -530,26 +551,10 @@ function updateImage(
   // The pages' copied texels and carried light read the cards as they were, before the image's tables go up.
   resample(encoder, state, work.pages, state.tables.buffer!, settings)
   state.tables.update(cache, preExposure, colorBoost, encoder)
-  const account = work.pages.length
-    ? capture(encoder, state, work.pages, settings, cam.eye)
-    : NO_WORK
+  const account = work.pages.length ? capture(encoder, state, work.pages, settings) : NO_WORK
   // The pages the image confirmed read from now on (`confirmPages`).
   state.tables.update(cache, preExposure, colorBoost, encoder)
-  if (state.shading?.failure)
-    state.why = `the capture's shading could not be made: ${String(state.shading.failure)}`
-  else if (raster.failure)
-    state.why = `the cards' raster could not be made: ${String(raster.failure)}`
-  // The requests the image left; the refresh of the pages captured longest ago goes on whatever the view
-  // does, and keeps nothing unheld: it leaves the light of its pages (`CapturePage.refresh`), and a batch
-  // of refreshes alone is not awaited (`CardRaster.awaiting`).
-  const { meshCardsToAdd, lockedCardsToUpdate, hiResPagesToAdd } = cache.stats
-  state.busy =
-    meshCardsToAdd + lockedCardsToUpdate + hiResPagesToAdd > 0 ||
-    account.waiting > 0 ||
-    raster.awaiting
-  advanceFrame(cache)
-  state.updated = true
-  state.metrics = metricsOf(state, account)
+  closeImage(state, account)
 }
 
 /** The surface cache's metrics for the last image, none while it is not made. */

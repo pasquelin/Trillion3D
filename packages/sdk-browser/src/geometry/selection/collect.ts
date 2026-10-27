@@ -39,6 +39,7 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
     const root: ClusterRoot<PageRec> = {
       world,
       mesh: primitive.mesh,
+      primitive: primitive.primitive,
       pages,
       // Nodes and their links are the primitive's, shared by all its placements.
       culling: sharedCulling,

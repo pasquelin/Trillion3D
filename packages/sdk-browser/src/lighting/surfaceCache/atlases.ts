@@ -2,6 +2,7 @@ import { ledgerAdmitted } from '../../gpu/core/deviceLedger.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { countingAllocator, gpuAllocator } from '../../gpu/core/resourceAllocator.ts'
 import { SURFACE_CACHE_ATLAS_LABEL } from '../../diagnostic/stage/passLabels.ts'
+import { shadowFactorWords } from './lighting/layout.ts'
 import {
   atlasFormats,
   BLOCK_FORMATS,
@@ -26,6 +27,11 @@ import {
  * textures can only be copied into and sampled, so they are made here by hand, kept by name
  * (`blocks`), and come with the staging buffer the encoders write the blocks of an image's pages
  * to (`stagingOf`). The budget is asked for all of it.
+ *
+ * Beside the layers, each atlas keeps the factor atlas of the direct light's shadows (`shadowFactorWords`): a word
+ * buffer of 8 words a tile of 8 × 8 texels, a bit a light, which tells the next update of the tile which lights it saw
+ * uniformly. The capture atlas's is the one the light of resampled pages is carried through; both are emptied with
+ * the layers.
  */
 
 /** The usage of every layer: written by a compute pass, drawn into by the pass that clears it, read
@@ -51,10 +57,14 @@ type LayerMaker = (
   height?: number,
 ) => GPUTextureView
 
-/** The textures of the physical atlas and of the capture atlas, asked of `layer`: the one list,
- *  made and counted. */
+/** What makes the buffer of a factor atlas, `words` long, named `name`. */
+type BufferMaker = (name: string, words: number) => GPUBuffer
+
+/** The textures of the physical atlas and of the capture atlas, asked of `layer`, and their factor atlases, asked of
+ *  `buffer`: the one list, made and counted. */
 function allocate(
   layer: LayerMaker,
+  buffer: BufferMaker,
   side: number,
   captureSide: number,
   compressed: boolean,
@@ -86,7 +96,12 @@ function allocate(
       CAPTURE_FORMATS.frames,
     ),
   }
-  return { physical, capture }
+  return {
+    physical,
+    capture,
+    factors: buffer('shadow factors', shadowFactorWords(side)),
+    captureFactors: buffer('capture shadow factors', shadowFactorWords(captureSide)),
+  }
 }
 
 /** The bytes the atlases of a `side` and a `captureSide` hold: the allocations themselves, counted, and,
@@ -100,6 +115,7 @@ function surfaceAtlasBytes(
   const counting = countingAllocator()
   allocate(
     (name, size, format, height = size) => counting.texture(name, [size, height], format),
+    (name, words) => counting.buffer(name, words),
     side,
     captureSide,
     compressed,
@@ -113,6 +129,9 @@ export interface SurfaceAtlases {
   /** The physical atlas's layers and the capture atlas's, as views. */
   readonly physical: ReturnType<typeof allocate>['physical']
   readonly capture: ReturnType<typeof allocate>['capture']
+  /** The factor atlases of the physical atlas and of the capture atlas (`shadowFactorWords`). */
+  readonly factors: GPUBuffer
+  readonly captureFactors: GPUBuffer
   /** Their sides, in texels. */
   readonly side: number
   readonly captureSide: number
@@ -132,8 +151,8 @@ export interface SurfaceAtlases {
   /** Whether they hold their first content: `clear` has been encoded for them. */
   cleared: boolean
   /** Clears every layer of the physical atlas that a render pass can — the depth to a texel with no
-   *  surface, the rest to nothing — in render passes on `encoder`; the layers in blocks are cleared by
-   *  `createBlockClear`. */
+   *  surface, the rest to nothing — in render passes on `encoder`, and the two factor atlases; the layers in
+   *  blocks are cleared by `createBlockClear`. */
   clear(encoder: GPUCommandEncoder): void
   dispose(): void
 }
@@ -157,6 +176,46 @@ function blockLayers(device: GPUDevice, allocator: ReturnType<typeof gpuAllocato
   return { layer, kept }
 }
 
+/** The three layers in blocks, by name, and the staging buffer the encoders write the blocks of an
+ *  image's pages to. */
+function blocksOf(
+  device: GPUDevice,
+  kept: ReadonlyMap<string, GPUTexture>,
+  captureSide: number,
+): NonNullable<SurfaceAtlases['blocks']> {
+  return {
+    textures: Object.fromEntries(
+      BLOCK_LAYERS.map((name) => [name, kept.get(name)!]),
+    ) as NonNullable<SurfaceAtlases['blocks']>['textures'],
+    staging: device.createBuffer({
+      label: `${SURFACE_CACHE_ATLAS_LABEL} block staging`,
+      size: stagingOf(captureSide).bytes,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    }),
+  }
+}
+
+/** Clears the layers of the physical atlas that a render pass can — the depth to a texel with no
+ *  surface, the rest to nothing — one pass each; the layers in blocks are left to `createBlockClear`. */
+function clearLayers(
+  encoder: GPUCommandEncoder,
+  physical: SurfaceAtlases['physical'],
+  compressed: boolean,
+): void {
+  for (const [name, view] of Object.entries(physical)) {
+    if (compressed && name in BLOCK_FORMATS) continue
+    const value = name === 'depth' ? CLEAR.depth : 0
+    encoder
+      .beginRenderPass({
+        label: `${SURFACE_CACHE_ATLAS_LABEL} clear ${name}`,
+        colorAttachments: [
+          { view, loadOp: 'clear', storeOp: 'store', clearValue: [value, 0, 0, 0] },
+        ],
+      })
+      .end()
+  }
+}
+
 function makeAtlases(
   device: GPUDevice,
   side: number,
@@ -167,22 +226,20 @@ function makeAtlases(
 ): SurfaceAtlases {
   const allocator = gpuAllocator(device, SURFACE_CACHE_ATLAS_LABEL)
   const { layer, kept } = blockLayers(device, allocator)
-  const { physical, capture } = allocate(layer, side, captureSide, compressed, viewRows)
-  const blocks: SurfaceAtlases['blocks'] = compressed
-    ? {
-        textures: Object.fromEntries(
-          BLOCK_LAYERS.map((name) => [name, kept.get(name)!]),
-        ) as NonNullable<SurfaceAtlases['blocks']>['textures'],
-        staging: device.createBuffer({
-          label: `${SURFACE_CACHE_ATLAS_LABEL} block staging`,
-          size: stagingOf(captureSide).bytes,
-          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-        }),
-      }
-    : undefined
+  const { physical, capture, factors, captureFactors } = allocate(
+    layer,
+    (name, words) => allocator.buffer(name, words, 'storage'),
+    side,
+    captureSide,
+    compressed,
+    viewRows,
+  )
+  const blocks = compressed ? blocksOf(device, kept, captureSide) : undefined
   return {
     physical,
     capture,
+    factors,
+    captureFactors,
     side,
     captureSide,
     viewRows,
@@ -191,18 +248,9 @@ function makeAtlases(
     bytes,
     cleared: false,
     clear(encoder) {
-      for (const [name, view] of Object.entries(physical)) {
-        if (compressed && name in BLOCK_FORMATS) continue
-        const value = name === 'depth' ? CLEAR.depth : 0
-        encoder
-          .beginRenderPass({
-            label: `${SURFACE_CACHE_ATLAS_LABEL} clear ${name}`,
-            colorAttachments: [
-              { view, loadOp: 'clear', storeOp: 'store', clearValue: [value, 0, 0, 0] },
-            ],
-          })
-          .end()
-      }
+      clearLayers(encoder, physical, compressed)
+      encoder.clearBuffer(factors)
+      encoder.clearBuffer(captureFactors)
       this.cleared = true
     },
     dispose: () =>

@@ -130,6 +130,29 @@ pub struct DagCluster {
     pub source: Option<usize>,
 }
 impl DagCluster {
+    /// A cluster for a test that varies what the cut reads of it: its triangles' `indices`, its
+    /// `level`, the errors `(lod_error, parent_error)` and the links `(group, source)` — no ball, no
+    /// halved box, the earliest source triangle first.
+    #[cfg(test)]
+    pub(crate) fn for_test(
+        indices: Vec<u32>,
+        level: usize,
+        (lod_error, parent_error): (f64, f64),
+        (group, source): (Option<usize>, Option<usize>),
+    ) -> Self {
+        Self {
+            indices,
+            level,
+            lod_error,
+            parent_error,
+            sphere: [0.0; 4],
+            whole_box: None,
+            parent_sphere: [0.0; 4],
+            source_rank: 0,
+            group,
+            source,
+        }
+    }
     pub fn triangles(&self) -> usize {
         self.indices.len() / 3
     }

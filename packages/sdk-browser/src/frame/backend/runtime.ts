@@ -1,3 +1,4 @@
+import { signalWith } from '../../../../sdk-core/src/runtime/followSignal.ts'
 import type { ComposeState } from '../../placement/compose/gpuComposeState.ts'
 import type { RootWorlds } from '../../placement/roots/rootWorlds.ts'
 import type { RootBoxesGpu } from '../../placement/roots/rootBoxes.ts'
@@ -124,7 +125,7 @@ const initialCapabilities = (): EngineCapabilities => ({
 export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRuntime {
   const traceEnabled = !!context.onDiagnostic && context.diagnosticDetail !== 'summary'
   const closer = new AbortController()
-  const signal = context.signal ? AbortSignal.any([context.signal, closer.signal]) : closer.signal
+  const signal = signalWith(closer.signal, context.signal)
   const diag = {
     ...createWebgpuDiagnostics(context.onDiagnostic, traceEnabled, signal),
     traceEnabled,

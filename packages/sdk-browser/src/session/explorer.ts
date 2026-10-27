@@ -1,3 +1,4 @@
+import { signalWith } from '../../../sdk-core/src/runtime/followSignal.ts'
 import { msSince } from '../diagnostic/stopwatch.ts'
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { resolveExplorerTarget, type MeasuredWorldTarget } from './target.ts'
@@ -111,10 +112,7 @@ export async function openMeasuredWorld(
   const { options, reference } = referenceOptions(interactiveOptions(canvas, original))
   options.signal?.throwIfAborted()
   const lifetime = explorerSwitch(options, 'interactive') ? new AbortController() : undefined
-  if (lifetime)
-    options.signal = options.signal
-      ? AbortSignal.any([options.signal, lifetime.signal])
-      : lifetime.signal
+  if (lifetime) options.signal = signalWith(lifetime.signal, options.signal)
   const manifestUrl = source?.manifestUrl ?? options.manifestUrl
   const opened = createExplorerSession(options, manifestUrl)
   const { diagnosticChannel, diagnose, preparationStart, signal, scope, progress } = opened

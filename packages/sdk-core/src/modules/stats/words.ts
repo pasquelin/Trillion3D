@@ -630,6 +630,10 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
     'temporal detect thin geometry',
     'Finds the thin geometry the history must keep; rises with the render size.',
   ),
+  'pass.temporal flicker measure': word(
+    'temporal flicker measure',
+    'Measures which pixels flicker from one image to the next, so their history is dropped; rises with the render size.',
+  ),
   'pass.temporal reject shading': word(
     'temporal reject shading',
     'Measures where the history no longer matches the image and must be dropped; rises with the render size.',

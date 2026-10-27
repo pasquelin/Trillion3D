@@ -7,6 +7,7 @@ import type { FrameSlices } from './historyFrames.ts'
 import { VELOCITY_BINDINGS } from './nearestVelocityWgsl.ts'
 import { REPROJECT_BINDINGS } from './reprojectWgsl.ts'
 import { THIN_GEOMETRY_BINDINGS, THIN_RELAXATION_BINDINGS } from './thinGeometryWgsl.ts'
+import { FLICKER_MEASURE_BINDINGS } from './flickerMeasureWgsl.ts'
 import { REJECT_SHADING_BINDINGS } from './rejectionWgsl.ts'
 import { SPATIAL_AA_BINDINGS } from './spatialAntiAliasingWgsl.ts'
 import { FUSED_FLATTEN_SLOTS } from '../effects/motionBlur/flattenWgsl.ts'
@@ -103,9 +104,9 @@ function reprojectGroup(
       occluders: { buffer: t.occluders },
       prevShading: t.guides[previous],
       historySampler: sampler,
-      prevFlicker: t.moire,
+      prevFlicker: t.flicker,
       shading: t.guidesReprojected,
-      flicker: t.moireReprojected,
+      flicker: t.flickerReprojected,
       word: t.reprojected,
       field: t.field,
       prevThin: t.thinHistory,
@@ -152,6 +153,30 @@ const relaxationGroup = (
     }),
   })
 
+/** The group of the flicker measure: the image, the translucency, the reprojection word, the
+ *  reprojected flicker history, the marks, the thin geometry mask and the flicker luma, and the
+ *  flicker history and the errors it writes. */
+const flickerGroup = (
+  { device, layouts, uniform }: Context,
+  inputs: TaaInputs,
+  t: AnalysisTargetViews,
+) =>
+  device.createBindGroup({
+    layout: layouts.flicker,
+    entries: namedEntries(FLICKER_MEASURE_BINDINGS, {
+      view: { buffer: uniform },
+      current: inputs.current,
+      translucency: inputs.translucency!,
+      word: t.reprojected,
+      flicker: t.flickerReprojected,
+      marks: t.marks,
+      thin: t.thinMask,
+      measureLuma: t.measureLuma,
+      flickerOut: t.flicker,
+      flickerError: { buffer: t.flickerError },
+    }),
+  })
+
 /** The group of the shading rejection writing the shading history of the frame `current`. */
 function rejectShadingGroup(
   { device, layouts, uniform }: Context,
@@ -167,20 +192,18 @@ function rejectShadingGroup(
       translucency: inputs.translucency!,
       word: t.reprojected,
       guides: t.guidesReprojected,
-      moire: t.moireReprojected,
       marks: t.marks,
       thin: t.thinMask,
-      measureLuma: t.measureLuma,
       thinHistory: t.thinHistory,
       depth: inputs.depth,
       guideOut: t.guides[current],
-      moireOut: t.moire,
       rejection: t.rejection,
       antiAliasMask: t.antiAliasMask,
       field: t.field,
       occluders: { buffer: t.occluders },
       sceneColor: { buffer: t.sceneColor },
       luma: t.luma,
+      flickerError: { buffer: t.flickerError },
     }),
   })
 }
@@ -219,7 +242,7 @@ const antiAliasGroup = ({ device, layouts, uniform }: Context, t: AnalysisTarget
 
 /** The places of the groups the slots of the frames decide, in the order of the dispatches. */
 const REPROJECT_AT = 1,
-  REJECT_SHADING_AT = 3
+  REJECT_SHADING_AT = 5
 
 /** The group `map` holds for `key`, made by `make` the first time. */
 function memo(map: Map<number, GPUBindGroup>, key: number, make: () => GPUBindGroup) {
@@ -237,9 +260,10 @@ function heldGroupsOf(context: Context, inputs: TaaInputs, t: AnalysisTargetView
       velocityGroup(context, inputs, t),
       placed,
       thinGroup(context, inputs, t),
+      relaxationGroup(context, inputs, t),
+      flickerGroup(context, inputs, t),
       placed,
       antiAliasGroup(context, t),
-      relaxationGroup(context, inputs, t),
     ],
     reproject: new Map(),
     rejectShading: new Map(),

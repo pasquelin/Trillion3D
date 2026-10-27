@@ -9,7 +9,7 @@ import { FLOOR_SKY, FLOOR_EYE, FLOOR_READS, floorProbes } from './floorProbes.fi
 import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { createMarkSurface } from './pool/pool.ts'
 import { POOL_WORK } from './pool/poolLayout.ts'
-import { cityPool } from './pool/pool.fixture.ts'
+import { CITY_REACH, cityPool } from './pool/pool.fixture.ts'
 import { BOUNCE_PROBE_QUEUE, BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 
 type Floor = Awaited<ReturnType<typeof floorProbes>>
@@ -30,6 +30,12 @@ function countAs(
   words[POOL_WORK.queued] = counted.queued ?? 0
 }
 
+/** An image's probe pass as the frame encodes it: the viewpoint taken (`track`), then the pass. */
+const encodeImage = (probes: Floor['probes'], ...args: Parameters<Floor['probes']['encode']>) => (
+  probes.track(args[2]),
+  probes.encode(...args)
+)
+
 /** Encodes images until the series closes, the statistics of each coming back before the next (`counted`: the GPU's count of the probes). */
 async function closeSeries(
   floor: Floor,
@@ -39,7 +45,7 @@ async function closeSeries(
   const { gpu, probes, encoder } = floor
   for (let frames = 0; probes.working; frames++) {
     assert.ok(frames < 1000, 'the series closes')
-    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS, ...surface)
+    encodeImage(probes, encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS, ...surface)
     countAs(gpu, counted)
     probes.submitted()
     await landed()
@@ -57,7 +63,7 @@ test('a closed bounce series encodes and writes nothing: a redraw reads what the
   const writes = gpu.writes.length,
     encoded = gpu.commands.length
   for (let frame = 0; frame < 8; frame++)
-    assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS), false)
+    assert.equal(encodeImage(probes, encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS), false)
   assert.deepEqual(gpu.commands.slice(encoded), [], 'no pass, copy or clear once closed')
   assert.equal(gpu.writes.length, writes, 'no buffer written once closed')
   assert.equal(probes.working, false)
@@ -73,7 +79,7 @@ test('a restart not yet encoded keeps the series open, whatever statistics land 
   assert.equal(probes.working, false)
   probes.restart()
   assert.equal(probes.working, true, 'the lights changed: the probes are to be traced anew')
-  probes.encode(encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS)
+  encodeImage(probes, encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS)
   countAs(gpu, { live: 3, refreshing: 3 })
   probes.submitted()
   await landed()
@@ -84,7 +90,7 @@ test("the probes the pass queued are the GPU's to count: every dispatch over the
   const floor = await floorProbes()
   const { gpu, probes, encoder } = floor
   probes.restart()
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS), true)
+  assert.equal(encodeImage(probes, encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS), true)
   assert.ok(
     gpu.dispatches.some((dispatch) => dispatch.entryPoint === 'finishQueue'),
     'the pool writes them last',
@@ -126,9 +132,9 @@ test('the probes that hold nothing fill before any refresh: finest level first, 
   const taken = new Set(queued.map((entry) => entry.cell.join()))
   const farthest = whole(Math.max(...away))
   let leftNearer = 0
-  for (let dz = -6; dz <= 6; dz++)
-    for (let dy = -6; dy <= 6; dy++)
-      for (let dx = -6; dx <= 6; dx++) {
+  for (let dz = -CITY_REACH; dz <= CITY_REACH; dz++)
+    for (let dy = -CITY_REACH; dy <= CITY_REACH; dy++)
+      for (let dx = -CITY_REACH; dx <= CITY_REACH; dx++) {
         const cell = eye.map((v, axis) => Math.floor(v / spacing) + [dx, dy, dz][axis])
         if (!taken.has(cell.join()) && whole(cellsFrom(spacing, eye, cell)) < farthest) leftNearer++
       }
@@ -159,12 +165,16 @@ test('an eye that jumps leaves the cells it lands among empty, and they fill nea
   for (let level = 0; level < 2; level++) {
     const spacing = cascades.levels[level].spacing
     const at = landed.map((v) => Math.floor(v / spacing))
-    for (let dz = -6; dz <= 6; dz++)
-      for (let dy = -6; dy <= 6; dy++)
-        for (let dx = -6; dx <= 6; dx++) pool.mark(level, at[0] + dx, at[1] + dy, at[2] + dz)
+    for (let dz = -CITY_REACH; dz <= CITY_REACH; dz++)
+      for (let dy = -CITY_REACH; dy <= CITY_REACH; dy++)
+        for (let dx = -CITY_REACH; dx <= CITY_REACH; dx++)
+          pool.mark(level, at[0] + dx, at[1] + dy, at[2] + dz)
   }
   const queued = pool.image({ rank: 40, eye: landed, marking: true, slid: true, budget: 10 })
-  assert.ok(pool.tally().live < 2 * 2 * 13 ** 3, 'the cells that left are given back')
+  assert.ok(
+    pool.tally().live < 2 * 2 * (2 * CITY_REACH + 1) ** 3,
+    'the cells that left are given back',
+  )
   assert.ok(pool.tally().unfilled >= 0)
   const spacing = cascades.levels[0].spacing
   const away = queued.map((entry) => cellsFrom(spacing, landed, entry.cell))
@@ -196,7 +206,7 @@ test('the cells an image reads are marked by its pass, their probes counted on t
   // Nothing is counted yet: the pool holds no probe, the series has none to trace, yet it is open.
   assert.equal(probes.stats.live, 0)
   assert.equal(
-    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS, surface),
+    encodeImage(probes, encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS, surface),
     true,
     'the image marks',
   )
@@ -220,7 +230,7 @@ test('the cells an image reads are marked by its pass, their probes counted on t
   // Closed, a still view marked in full costs nothing more.
   const writes = gpu.writes.length,
     commands = gpu.commands.length
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS, surface), false)
+  assert.equal(encodeImage(probes, encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS, surface), false)
   assert.equal(gpu.writes.length, writes)
   assert.equal(gpu.commands.length, commands)
   assert.ok(BOUNCE_SETTINGS.markJitter >= 1)
@@ -228,14 +238,14 @@ test('the cells an image reads are marked by its pass, their probes counted on t
   // the surfaces it now shows were never marked, so the image marks again, `markJitter` marks, then none.
   surface.signature[36] += 1
   assert.equal(
-    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS, surface),
+    encodeImage(probes, encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS, surface),
     true,
     'a changed cut marks again',
   )
   assert.equal(probes.working, true, 'marks owed and in flight')
   await closeSeries(floor, { live: 1 }, surface)
   assert.equal(
-    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS, surface),
+    encodeImage(probes, encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS, surface),
     false,
     'then a still image marks nothing',
   )
@@ -262,7 +272,7 @@ test('an image that cast screen probes marks the cells from their points, not fr
     tilesX: 8,
     rows: 3,
   }
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS, surface), true)
+  assert.equal(encodeImage(probes, encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS, surface), true)
   const entries = gpu.dispatches.map((dispatch) => dispatch.entryPoint)
   assert.ok(entries.includes('markProbes'))
   assert.ok(!entries.includes('markImage'))
@@ -275,10 +285,10 @@ test('a closed series finds work again when a level that casts is chosen: the ra
   probes.restart()
   await closeSeries(floor, { live: 3 })
   assert.equal(probes.cache.views, undefined, 'a level that casts none keeps no maps')
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS), false, 'closed')
+  assert.equal(encodeImage(probes, encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS), false, 'closed')
   level = 'ultra'
   assert.equal(
-    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS),
+    encodeImage(probes, encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS),
     true,
     'the maps are made: every probe is traced anew',
   )
@@ -286,7 +296,7 @@ test('a closed series finds work again when a level that casts is chosen: the ra
   assert.equal(probes.cache.pending, true)
   await closeSeries(floor, { live: 3 })
   level = 'low'
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS), false)
+  assert.equal(encodeImage(probes, encoder, 1, FLOOR_EYE, FLOOR_SKY, FLOOR_READS), false)
   assert.equal(probes.cache.views, undefined, 'given back')
   probes.dispose()
 })

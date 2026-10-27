@@ -1,25 +1,20 @@
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { toF32 } from '../../../../math/src/wgsl/f32.ts'
-import { rayInverseDirection } from '../../../../math/src/wgsl/geometry.ts'
 import { inverseTranspose3, unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import {
   PLACEMENT_TREE_WALK_WGSL,
-  placementTreeWalk,
+  placementTreeCast,
+  TREE_STEPS,
 } from '../../geometry/dag/tree/treeWalkWgsl.ts'
 import { HIT_CUT, HIT_FOUND, RAY_HIT, RAY_RECORD } from './rayRecord.ts'
 import { RAY_PLACEMENT_WGSL } from './rayPlacementWgsl.ts'
-
-/** Steps the walk of the placement tree may take: a child a step, the members of every group a ray
- *  meets — a dense field along the ray included. */
-const TREE_STEPS = 1 << 16
 
 /**
  * THE RAY QUERY (`rayQuery.ts`): one thread a ray, the nearest triangle it meets of what the engine
  * draws. Level 1 is the placement tree the cut refits (`../../geometry/dag/placement/placementTree.ts`), read in
  * its record table as the culling reads it, walked by the engine's one walk of it
- * (`placementTreeWalk`) on its world boxes, grown by how near a line the ray meets it, from the
+ * (`placementTreeCast`) on its world boxes, grown by how near a line the ray meets it, from the
  * ray's origin rounded to single precision — a packing too small for a tree tries its placements in
  * turn. Level 2 is each placement met: its hierarchy, its pages and their triangles, in its own
  * space from the ray's exact origin (`rayPlacementWgsl.ts`). One dispatch reads every placement,
@@ -68,16 +63,13 @@ fn rqAnswer(k:u32,best:RqHit){
  let k=flatIndex(g,n,WORKGROUP_THREADS);
  if(k>=params.rays){return;}
  let ray=rqRay(k);
- // The tree's boxes are world boxes in single precision, grown past its rounding: the ray meets them
- // from its origin rounded so, its distances those of the exact origin.
- let origin=vec3f(bitcast<f32>(toF32(ray.eyeXY.xy)),bitcast<f32>(toF32(ray.eyeXY.zw)),bitcast<f32>(toF32(ray.eyeZ)));
- let inverse=rayInverseDirection(ray.direction);
  rqCut=false;
  var best=RqHit(ray.reach,0u,0u,0u,vec3f(0.0),false);
- if(params.treeRoot==NO_INDEX){
-  for(var w=0u;w<params.placements;w++){best=rqEnter(w,ray,best);}
- }else{
-${placementTreeWalk({
+${placementTreeCast({
+  eyeXY: 'ray.eyeXY',
+  eyeZ: 'ray.eyeZ',
+  direction: 'ray.direction',
+  placements: 'params.placements',
   root: 'params.treeRoot',
   table: 'tree',
   enter: 'best=rqEnter(w,ray,best);',
@@ -87,7 +79,6 @@ ${placementTreeWalk({
   cut: 'rqCut=true;',
   grow: 'ray.lineReach',
 })}
- }
  rqAnswer(k,best);
 }`,
   [
@@ -95,8 +86,6 @@ ${placementTreeWalk({
     WORKGROUP_THREADS_WGSL,
     PLACEMENT_TREE_WALK_WGSL,
     RAY_PLACEMENT_WGSL,
-    toF32,
-    rayInverseDirection,
     inverseTranspose3,
     unitOrZero,
   ],

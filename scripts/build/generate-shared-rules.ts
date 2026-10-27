@@ -27,6 +27,7 @@ import { physicsLayoutHeader } from './shared-rules/layout.ts'
 import { physicsCookRulesRust } from './shared-rules/physicsCook.ts'
 import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 import { pageEncoderAbiTs, pageFormatTs } from './shared-rules/pageFormat.ts'
+import { rayTracingAbiRust } from './shared-rules/rayTracing.ts'
 import { waveModelHeader, waveTermsWgsl } from './shared-rules/waves.ts'
 
 /** `text` as the repository formats a file of `path`'s kind. */
@@ -60,6 +61,7 @@ const outputs: Record<string, () => string> = {
   'packages/asset-compiler-rust/src/distance_field/abi.rs': distanceFieldAbiRust,
   'packages/asset-compiler-rust/src/physics_cook/rules.rs': physicsCookRulesRust,
   'packages/asset-compiler-rust/src/card_representation/abi.rs': meshCardsAbiRust,
+  'packages/asset-compiler-rust/src/ray_tracing/abi.rs': rayTracingAbiRust,
   'packages/asset-compiler-rust/src/displace/abi.rs': displacementBakeAbiRust,
   'packages/asset-compiler-rust/src/volumetric_lightmap/bake/abi.rs': lightmapBakeAbiRust,
   'packages/sdk-browser/src/session/host/familyLoadFailedId.ts': familyLoadFailedId,

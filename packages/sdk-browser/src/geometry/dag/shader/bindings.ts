@@ -91,6 +91,17 @@ export const DAG_READ_TABLES_WGSL = wgslBlock(
 export const dagReadEntries = (tables: () => DagReadTables) =>
   READ_TABLES.map((name) => resourceEntry(DAG_BINDING[name], () => tables()[name]))
 
+/** The same entries for a pass that makes its bind group at once: each table's view at the culling's binding. */
+export const dagReadGroupEntries = (tables: DagReadTables): GPUBindGroupEntry[] =>
+  READ_TABLES.map((name) => ({ binding: DAG_BINDING[name], resource: tables[name] }))
+
+/** The layout entries of those tables (`DAG_READ_TABLES_WGSL`), each at the culling's binding: what a
+ *  pass beside the cut that lists them declares in its group 0. */
+export const dagReadLayoutEntries = () =>
+  dagBindEntries().filter(({ binding }) =>
+    READ_TABLES.some((name) => DAG_BINDING[name] === binding),
+  )
+
 /** Group-0 declarations of the selection kernel; its table accessors are `DAG_ACCESS_WGSL`. */
 export const DAG_BINDINGS_WGSL = wgslBlock(
   'DAG_BINDINGS_WGSL',

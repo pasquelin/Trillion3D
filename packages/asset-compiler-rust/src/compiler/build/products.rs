@@ -9,6 +9,7 @@ use crate::compiler::primitive::compiled::DepthLayerScene;
 use crate::compiler::source::assembly::plan::AssemblyParents;
 use crate::distance_field::{write_distance_fields, Placed};
 use crate::hlod::chain::SourceCover;
+use crate::ray_tracing::{write_ray_tracing, PrimitiveTree};
 use crate::texture::TexturePreview;
 use crate::voxel::VoxelSeed;
 use geometry::stage_geometry;
@@ -25,6 +26,9 @@ pub(super) struct Staged {
     /// The manifest's `meshCards` section, its file among the products; none for a scene whose
     /// meshes keep no card (`maxMeshCards`).
     pub mesh_cards: Option<Value>,
+    /// The manifest's `rayTracing` section, its file among the products; none for a scene none of
+    /// whose primitives has a triangle.
+    pub ray_tracing: Option<Value>,
     /// The manifest's `volumetricLightmap` section, its file among the products; none for a job
     /// that asks for no bake (`lightmapBake`).
     pub volumetric_lightmap: Option<Value>,
@@ -125,6 +129,8 @@ pub(super) struct Products<'a> {
     pub geometry_files: &'a [Value],
     pub collisions: &'a [Value],
     pub voxel_seeds: &'a [VoxelSeed],
+    /// The tree of each primitive's coarse cut, in the primitives' order.
+    pub ray_tracing: &'a [Option<PrimitiveTree>],
     pub texture_previews: &'a [TexturePreview],
     pub scene_nodes: &'a BTreeSet<usize>,
     pub hidden: &'a BTreeSet<usize>,
@@ -181,6 +187,8 @@ pub(super) fn stage_products(
     let (cards_file, mesh_cards) = pool
         .install(|| write_mesh_cards(&geometry.cards, directory, progress))?
         .unzip();
+    let (tracing_file, ray_tracing) =
+        write_ray_tracing(inputs.ray_tracing, directory, progress)?.unzip();
     let source_gltf = match tables.described {
         Some(scene) => product(directory, "source.gltf", &serde_json::to_vec(&scene)?)?,
         None => source_gltf,
@@ -192,6 +200,7 @@ pub(super) fn stage_products(
     products.extend([physics_file, geometry.voxel_file]);
     products.extend(distance_file);
     products.extend(cards_file);
+    products.extend(tracing_file);
     products.extend(geometry.lightmap_file);
     products.extend(banks_file);
     products.extend(world.products);
@@ -199,6 +208,7 @@ pub(super) fn stage_products(
         voxels: geometry.voxels,
         distance_fields,
         mesh_cards,
+        ray_tracing,
         volumetric_lightmap: geometry.volumetric_lightmap,
         products,
         paged,
