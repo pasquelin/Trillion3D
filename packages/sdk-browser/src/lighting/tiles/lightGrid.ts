@@ -17,6 +17,9 @@ import { LIGHT_TILES_PASS } from '../../diagnostic/stage/passLabels.ts'
 const UNIFORM_FLOATS = 44
 /** The uniform's word of the records' start (`TileView.start`). */
 export const START_WORD = 32
+/** The uniform's word of the words a cell has of its own in the pool, 0 for the lists made by
+ *  chains of links (`TileView.start`, `y`). */
+export const CELL_WORDS_WORD = 33
 /** The uniform's word of the cull (`cullView.ts`): its seven numbers, `cull` then `sliceMap`. */
 export const CULL_WORD = 36
 
@@ -40,6 +43,11 @@ export type Grid = {
    *  drawn in turn (`world.addView`) reuse the layout instead of laying the buffer out again. */
   columns: number
   poolWords: number
+  /** Whether the device's limit on a buffer cut the pool short of its cells times the setting. */
+  poolLimited: boolean
+  /** The words each cell has of its own in the pool (the setting `lightGridMaxCulledLightsPerCell`),
+   *  0 for the lists made by chains of links (the setting `lightGridLinkedLists`). */
+  cellWords: number
   /** Its records' first word in the buffer. */
   start: number
 }
@@ -68,6 +76,8 @@ export async function createGrid(device: GPUDevice, layouts: GPUBindGroupLayout[
     tilesY: 0,
     columns: 0,
     poolWords: 0,
+    poolLimited: false,
+    cellWords: 0,
     start: 0,
   }
   return grid

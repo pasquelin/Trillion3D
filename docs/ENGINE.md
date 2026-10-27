@@ -638,7 +638,15 @@ the image builds a fog volume, `pyramidFarthest` (`visibility/hiz/gpu/footprintW
 4 × 4 footprint read) gives the farthest depth; the cells whose nearest face lies behind it are left
 empty and every light's run ends at the cell that holds it (`lighting/tiles/cullWgsl.ts`). A column
 with a background pixel, or a pyramid that is not this image's, is not
-cut. The settings are world options by their field, changed by `world.hiz` from the next frame
+cut.
+
+A cell's list is made from chains of links when `lightGridLinkedLists` is on (the default): a column's lights
+go through in batches, each light a cell takes asks the view's pool for the next link and chains it before
+the cell's head, and once every batch is in, each chain is written as a contiguous list, in increasing
+light order. The pool holds `lightGridMaxCulledLightsPerCell` links for each cell of the grid, as a whole:
+when links run short, the lights asked last are dropped and each cell keeps the first lights of its list,
+with one console warning. With the option off, each cell has its own `lightGridMaxCulledLightsPerCell` words
+of the pool and keeps its first lights up to them. The settings are world options by their field, changed by `world.hiz` from the next frame
 (`packages/sdk-core/src/contracts/hizOptions.ts`):
 
 ```ts
@@ -647,22 +655,24 @@ world.hiz = { hizTrace: 'planes', hizFoldTransparents: true }
 world.hiz = { hizTrace: null } // back to the default, the reference's walk
 world.hiz = { hizFullResDepth: false } // the probes' walk stops at the half-resolution level
 world.hiz = { lightGridHizCull: false } // every cell the lights reach is listed
+world.hiz = { lightGridLinkedLists: false } // each cell keeps its own first lights, no shared links
 world.hiz = { lightGridMaxCulledLightsPerCell: 64 } // 64 light entries a cell instead of 32
 ```
 
-| Field                             | Meaning                                                                                    | Default       |
-| --------------------------------- | ------------------------------------------------------------------------------------------ | ------------- |
-| `hizTrace`                        | How the reflections' trace reads the pyramid: `'reference'`, or `'planes'`                 | `'reference'` |
-| `hizFoldTransparents`             | The trace layers hold the nearest transparent surface beside the opaque one                | `false`       |
-| `hizTransparentTest`              | How a transparent cluster is tested: `'finer'` (16 texels), or `'reference'`               | `'finer'`     |
-| `hizFullResDepth`                 | The screen probes' walk goes down to the full-resolution depth                             | `true`        |
-| `lightGridHizCull`                | The light grid leaves empty the cells behind their column's farthest depth                 | `true`        |
-| `lightGridMaxCulledLightsPerCell` | Light entries the view's light grid holds per cell; past it a column drops its last lights | `32`          |
-| `hizPrime`                        | When a primed pyramid is built: `'off'`, `'whenMissing'` or `'always'`                     | `'off'`       |
-| `hizPrimeSizeBias`                | The primed draw is the image shifted right by `1 + this`, a whole number from 0 to 30      | `2`           |
-| `hizPrimeDepthBias`               | Metres the primed depth is pushed away from the eye by, any number                         | `1.5`         |
-| `hizPrimeErrorScale`              | Factor on the cut's pixel error for the primed draw, any number                            | `32`          |
-| `hizPrimeFarFieldOnly`            | The primed draw holds the objects that set `farField` alone                                | `true`        |
+| Field                             | Meaning                                                                                         | Default       |
+| --------------------------------- | ----------------------------------------------------------------------------------------------- | ------------- |
+| `hizTrace`                        | How the reflections' trace reads the pyramid: `'reference'`, or `'planes'`                      | `'reference'` |
+| `hizFoldTransparents`             | The trace layers hold the nearest transparent surface beside the opaque one                     | `false`       |
+| `hizTransparentTest`              | How a transparent cluster is tested: `'finer'` (16 texels), or `'reference'`                    | `'finer'`     |
+| `hizFullResDepth`                 | The screen probes' walk goes down to the full-resolution depth                                  | `true`        |
+| `lightGridHizCull`                | The light grid leaves empty the cells behind their column's farthest depth                      | `true`        |
+| `lightGridLinkedLists`            | The cells' lists are chains of links from one shared pool; `false`: each cell has its own words | `true`        |
+| `lightGridMaxCulledLightsPerCell` | Light entries the view's light grid holds per cell; past it the lights asked last are dropped   | `32`          |
+| `hizPrime`                        | When a primed pyramid is built: `'off'`, `'whenMissing'` or `'always'`                          | `'off'`       |
+| `hizPrimeSizeBias`                | The primed draw is the image shifted right by `1 + this`, a whole number from 0 to 30           | `2`           |
+| `hizPrimeDepthBias`               | Metres the primed depth is pushed away from the eye by, any number                              | `1.5`         |
+| `hizPrimeErrorScale`              | Factor on the cut's pixel error for the primed draw, any number                                 | `32`          |
+| `hizPrimeFarFieldOnly`            | The primed draw holds the objects that set `farField` alone                                     | `true`        |
 
 **The primed pyramid** (`frame/render/primeHiz.ts`). The cut's main pass tests a box against the
 pyramid of the image before; a view with none (its first image, a resize, a cut of the camera) tests
@@ -993,14 +1003,14 @@ world.shading = { shadeBinningMode: null } // back to the preset's, here the def
 world.shading = { clearCoatNormal: true } // a clear coat keeps a bottom normal
 ```
 
-| Field              | Meaning                                                                                         | Default  |
-| ------------------ | ----------------------------------------------------------------------------------------------- | -------- |
-| `shadeBinningMode` | `'auto'` as each class asks, `'pixel'` every pixel alone, `'quad'` by 2 × 2 quad                | `'auto'` |
-| `irisNormal`       | `false`: the eye's iris by the direction of its `tangent`; `true`: by an iris normal of its own | `false`  |
-| `clearCoatNormal`  | `false`: a clear coat shares its base's normal; `true`: it keeps a bottom normal                | `false`  |
-| `normalCurvatureScale` | scale of the roughness a `normalCurvatureToRoughness` material takes from its vertex normal, any number, held to [0, 2] where read | `1`      |
-| `normalCurvatureBias`  | bias added to that roughness, any number, held to [-1, 1] where read                                                     | `0`      |
-| `normalCurvatureExponent` | exponent on the normal's change across a pixel, any number, held to [0.05, 20] where read                              | `0.333`  |
+| Field                     | Meaning                                                                                                                            | Default  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `shadeBinningMode`        | `'auto'` as each class asks, `'pixel'` every pixel alone, `'quad'` by 2 × 2 quad                                                   | `'auto'` |
+| `irisNormal`              | `false`: the eye's iris by the direction of its `tangent`; `true`: by an iris normal of its own                                    | `false`  |
+| `clearCoatNormal`         | `false`: a clear coat shares its base's normal; `true`: it keeps a bottom normal                                                   | `false`  |
+| `normalCurvatureScale`    | scale of the roughness a `normalCurvatureToRoughness` material takes from its vertex normal, any number, held to [0, 2] where read | `1`      |
+| `normalCurvatureBias`     | bias added to that roughness, any number, held to [-1, 1] where read                                                               | `0`      |
+| `normalCurvatureExponent` | exponent on the normal's change across a pixel, any number, held to [0.05, 20] where read                                          | `0.333`  |
 
 **The normal curvature** (`normalCurvatureRoughness`, `normalCurvatureApply`, `lighting/ormWgsl.ts`). A material with `normalCurvatureToRoughness` has its roughness raised to `saturate(max(dNdx·dNdx, dNdy·dNdy)^exponent · scale + bias)`, `dNdx` and `dNdy` the change of the interpolated vertex normal across one pixel, taken before the normal map, a graph's normal or a hair's tangent bends the normal. The option is bit 11 of the record's model word (`NORMAL_CURVATURE_MODEL_BIT`); the blend vertex stage carries it to bit 31 of the item's flags (`normalCurvatureFlag`, `NORMAL_CURVATURE_FLAG_MASK`). The opaque resolve builds the neighbouring weights only for a pixel whose material asks for it; a blended fragment reads the derivatives of its interpolated normal. The curve is three words of the resolve's and the blend view's uniforms (`normalCurvature`). A voxel pixel has no curvature (its shading normal is drawn, not interpolated); the clear coat takes the same curvature for its own roughness. The earlier widening of the roughness by the neighbours' bent normals is gone.
 
@@ -3549,6 +3559,7 @@ const glass = material.meshStandard({
   translucencyLighting: 'volume',
 })
 ```
+
 **The translucency global illumination volume.** The indirect light of every see-through surface (the blends, the water, the
 transmissive stages) is one filtered fetch of a grid fitted to the view (`lighting/translucencyGi/`), in place of the gather of the
 world's probes each of its fragments made. The grid is a cell of `translucencyGiGridPixelSize` pixels (32) across the image and
@@ -3576,7 +3587,6 @@ medium takes the constant band alone. The volume takes the sampled texture the w
 (16 of 16 sampled textures, 4 of 16 samplers, 9 of 12 uniform buffers: `gpu/core/stageLimits.test.ts`). What a fragment behind the
 front surface of its pixel reflects is the environment through its lobes (`reflectionEnvironmentOf`); the front's is the trace's.
 The radiance cache is the world's probes' (the shared path of the reference); a cache of its own for the volume is not made.
-
 
 ## Presentation
 

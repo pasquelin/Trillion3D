@@ -223,10 +223,14 @@ test('the frame draws the occlusion before it writes the sky light’s read unif
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
   const preLight = read('../../frame/render/preLight.ts')
   // The uniform says whether the image has an occlusion (`mode.y`): written first, it would say the last image’s.
-  const at = ['encodeSkyOcclusion(rt, encoder, cam)', 'encodeSkyLight(rt, device, encoder)'].map(
+  const at = ['encodeSkyOcclusion(rt, encoder, cam)', 'writeSkyLightParams(rt, device)'].map(
     (call) => preLight.indexOf(call),
   )
   assert.ok(at[0] >= 0 && at[0] < at[1], `each is called, the occlusion first: ${at}`)
+  // The capture (in the lights) precedes the uniform (in the pre-light passes) in the image.
+  const surfaces = read('../../frame/render/surfaceLighting.ts')
+  const frame = [surfaces.indexOf('encodeDirectLights('), surfaces.indexOf('encodePreLight(')]
+  assert.ok(frame[0] >= 0 && frame[0] < frame[1], `the lights, then the pre-light passes: ${frame}`)
   assert.match(
     read('../../frame/render/encodeSkyOcclusion.ts'),
     /rt\.bounce\.wanted \? undefined : skyOcclusionGate\(rt, false\)/,

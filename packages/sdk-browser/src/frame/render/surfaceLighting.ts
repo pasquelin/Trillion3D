@@ -23,14 +23,12 @@ import { clearResponsive } from '../prepare/responsiveTarget.ts'
 import { directLightResources, readsAsIs } from '../prepare/contractLight.ts'
 import { wantsContractLighting } from '../prepare/lit.ts'
 import { SHADING } from '../../materials/surface/pixelModel.ts'
-import { encodeAtmosphere } from './encodeAtmosphere.ts'
-import { encodeCloudShadow } from './encodeCloudShadow.ts'
 import {
   encodeSubsurfaceScattering,
   subsurfaceSwitches,
   subsurfaceTransmittanceDistance,
 } from '../../lighting/subsurface/frame.ts'
-import { encodeSkyAndClouds, requestSkyAir } from './encodeClouds.ts'
+import { encodeSkyAndClouds } from './encodeClouds.ts'
 import { encodeLightShaftBloom } from '../../modules/sky/lightShafts/frame.ts'
 import { encodePreLight } from './preLight.ts'
 import { encodeTranslucencyVolume } from '../../lighting/translucency/frame.ts'
@@ -284,17 +282,33 @@ function composeImage(
   return !!presentation
 }
 
-/** The air's tables and haze volume, which the lighting reads through the light buffer just pushed,
- *  and the clouds' shadow maps, which the air, the fog and the surfaces read. */
-function encodeAir(
+/** The tone table the composition reads the display value from, baked again where a setting or the
+ *  scene's display curve changed: first, so that the transparents drawn on display values, which
+ *  copy its words (`writeBlendView`, `drawParticles`), show the colours it gives; then the hair
+ *  strands' tangents, macro groups and bounds, once the surfaces are drawn and before the shadows'
+ *  pages are marked (`encodeDirectLights`). */
+function encodeToneAndHair(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
 ) {
-  requestSkyAir(rt, device)
-  encodeCloudShadow(rt, device, encoder, cam)
-  return encodeAtmosphere(rt, device, encoder, cam, viewProj, inverseViewProj)
+  encodeToneTable(rt, encoder)
+  encodeHairStrands(rt, device, encoder, cam)
+}
+
+/** The translucency lighting volume, built over the same shadow maps once the surfaces are lit (the
+ *  blends lit from it read it), then the diffuse light of the subsurface-profile pixels scattered
+ *  over the lit image, before the sky, the fog and the transparents. */
+function encodeVolumeAndScattering(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+) {
+  encodeTranslucencyVolume(rt, device, volumeRun.begin(encoder), cam)
+  volumeRun.end()
+  encodeSubsurfaceScattering(rt, encoder, cam)
 }
 
 /** Lights the surfaces into the HDR target, draws the forward transparents over it, and composes the
@@ -319,24 +333,18 @@ export function encodeSurfaceLighting(
   // the lit image otherwise goes through the display chain as the lit image does (`showsRaw`).
   const raw = showsRaw(run.diagnostic)
   invertMatrix4(inverseViewProj, viewProj)
-  // The tone table the composition reads the display value from, baked again where a setting or the
-  // scene's display curve changed: first, so that the transparents drawn on display values, which
-  // copy its words (`writeBlendView`, `drawParticles`), show the colours it gives.
-  encodeToneTable(rt, encoder)
-  // The hair strands' tangents, macro groups and bounds, once the surfaces are drawn and before the
-  // shadows' pages are marked (`encodeDirectLights`).
-  encodeHairStrands(rt, device, encoder, cam)
+  encodeToneAndHair(rt, device, encoder, cam)
   // The transparents are selected and ordered first; light lists encode before resolve, its inputs —
   // every lighting resource the blend group names made with them.
   const blendRuns = prepareBlend(rt, encoder)
   // What the sun's page marking reads of the transparents, in the lights (`encodeDirectLights`): the
   // water's depth, and the front layer where no image before left one.
   encodeMarkedLayers(rt, device, encoder, blendRuns)
-  const direct = encodeDirectLights(rt, device, encoder, cam, viewProj)
+  const air = encodeDirectLights(rt, device, encoder, cam, viewProj, inverseViewProj)
+  const direct = directTiles()
   // The local fog volumes of the view in the light buffer just pushed, and the buffer of their lists,
   // made before any group binds the fog's resources.
   prepareLocalFog(rt, device, cam)
-  const air = encodeAir(rt, device, encoder, cam)
   for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i]
   // The transparents bound for the image, and their front pass drawn: their nearest depth and the
   // surface the trace reads.
@@ -344,11 +352,7 @@ export function encodeSurfaceLighting(
   if (blendKey) encodeFrontPass(rt, device, encoder)
   encodePreLight(rt, device, encoder, cam, direct, overrides)
   lightSurfaces(rt, encoder, clear, raw, direct)
-  // The translucency lighting volume, built over the same shadow maps once the surfaces are lit: the blends lit from it read it.
-  encodeTranslucencyVolume(rt, device, volumeRun.begin(encoder), cam)
-  volumeRun.end()
-  // The diffuse light of the subsurface-profile pixels scattered over the lit image, before the sky, the fog and the transparents.
-  encodeSubsurfaceScattering(rt, encoder, cam)
+  encodeVolumeAndScattering(rt, device, encoder, cam)
   const { responsive, filter } = drawOverLit(
     rt,
     device,

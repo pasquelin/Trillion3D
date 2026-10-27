@@ -118,8 +118,9 @@ function describe(
 /**
  * THE SKY LIGHT'S DISTANCE-FIELD OCCLUSION OF THE IMAGE, drawn where its gate holds (`skyOcclusionGate`) and no
  * bounce lights the pixels — the bounce program's probes carry the sky themselves, its program applies no occlusion —, after
- * the distance fields' update (`encodeDistanceFields`) and the depth pyramid the image built, before the sky light's read
- * uniform (`encodeSkyLight`) and the lighting that read it. It leaves the buffers the lit pass reads the image from, their
+ * the distance fields' update (`encodeDistanceFields`) and the depth pyramid the image built, before the last write of the sky
+ * light's read uniform (`writeSkyLightParams`, `encodePreLight`), whose occlusion words only the lighting reads: the surface cards
+ * and the bounce, before, read its light and cube words alone. It leaves the buffers the lit pass reads the image from, their
  * uniform and how the light applies it on the state (`DistanceFieldFrameState.occlusion`); none, and the resources given
  * back, where the gate fails.
  */

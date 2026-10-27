@@ -47,7 +47,10 @@ import { lightSurfaceCache } from '../../lighting/surfaceCache/lighting/frame.ts
 import { sceneRaysOf } from '../../lighting/surfaceCache/lighting/surfaceLighting.ts'
 import { heldSkyLight } from './skyLightHeld.ts'
 import { skyLightPending, skyLightReadOf } from './skyLightState.ts'
-import { cloudShadowOf } from './encodeCloudShadow.ts'
+import { cloudShadowOf, encodeCloudShadow } from './encodeCloudShadow.ts'
+import { encodeAtmosphere } from './encodeAtmosphere.ts'
+import { requestSkyAir } from './encodeClouds.ts'
+import { encodeSkyCapture } from './encodeSkyLight.ts'
 import { cloudShadowStandIn } from '../../lighting/atmosphere/cloudShadowStandIn.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
@@ -115,14 +118,33 @@ function fillDirectParams(
   )
 }
 
+/** The air of this image, between the light buffer and the surface cards: the sky's requests, the clouds'
+ *  shadow maps, the atmosphere's tables and haze volume, then the sky light's capture over them. Returns
+ *  whether the atmosphere was encoded. */
+function encodeAir(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+  viewProjection: ArrayLike<number>,
+  inverseViewProjection: ArrayLike<number>,
+) {
+  requestSkyAir(rt, device)
+  encodeCloudShadow(rt, device, encoder, cam)
+  const air = encodeAtmosphere(rt, device, encoder, cam, viewProjection, inverseViewProjection)
+  encodeSkyCapture(rt, device, encoder)
+  return air
+}
+
 /** A view that lists no light: the scene's lights are followed as far as they exist. The world's
- *  change boxes stay for the first lit frame's plan. */
+ *  change boxes stay for the first lit frame's plan. Returns whether the atmosphere was encoded. */
 function encodeUnlitView(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
   viewProjection: ArrayLike<number>,
+  inverseViewProjection: ArrayLike<number>,
 ) {
   const {
     lights,
@@ -131,7 +153,9 @@ function encodeUnlitView(
   // A lit view with no lamp may still hold an environment: its irradiance goes to the GPU.
   if (!store.unlit) uploadSceneLights(device, lights)
   if (lights.buffer) followLitTables(rt, device, lights.buffer)
+  const air = encodeAir(rt, device, encoder, cam, viewProjection, inverseViewProjection)
   lightSurfaceCards(rt, device, encoder, cam, viewProjection)
+  return air
 }
 
 /** The light grid's buffer at this image's size. */
@@ -145,14 +169,19 @@ function ensureLightGrid(rt: WebgpuPagesRuntime) {
       height,
       lights.buffer,
       readHizSetting(rt, 'lightGridMaxCulledLightsPerCell'),
+      readHizSetting(rt, 'lightGridLinkedLists'),
     )
 }
 
 /**
- * Direct lighting of an image, in order: the virtual shadow maps' CPU plan, the light buffer,
- * the surface cache's lighting, bounce, the per-tile light lists (cut by the depth pyramid this image built), the virtual shadow maps' GPU work (`../../lighting/shadows/vsm/frame/vsmEncode.ts`), then
+ * Direct lighting of an image, in order: the virtual shadow maps' CPU plan, the light buffer, the per-tile
+ * light lists (cut by the depth pyramid this image built), the virtual shadow maps' GPU work
+ * (`../../lighting/shadows/vsm/frame/vsmEncode.ts`), the air (the sky's requests, the clouds' shadow maps,
+ * the atmosphere's tables, which read this image's shadow pages, and the sky light's capture over them), the
+ * surface cache's lighting, which reads the air, bounce, then
  * the parameters deferred resolve will reread. A scene with no declared light launches neither
- * shadows nor lists: it pays nothing, and the unlit view outputs its raw albedo.
+ * shadows nor lists: it pays nothing, and the unlit view outputs its raw albedo. Returns whether the
+ * atmosphere was encoded.
  */
 export function encodeDirectLights(
   rt: WebgpuPagesRuntime,
@@ -160,9 +189,10 @@ export function encodeDirectLights(
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
   viewProjection: ArrayLike<number>,
+  inverseViewProjection: ArrayLike<number>,
 ) {
   const { lights } = rt,
-    { store, tiles } = lights
+    { store } = lights
   const active = store.count
   lights.lightsActive = active
   // The meshes' distance fields and the global field, before any pass that reads them.
@@ -174,8 +204,7 @@ export function encodeDirectLights(
   // The world's change boxes wait: the first lit frame's invalidation stales its pages.
   // A view that is not lit (`ViewOverrides.lighting`) lists none either.
   if (!active || store.unlit || !rt.views.active.overrides.lighting) {
-    encodeUnlitView(rt, device, encoder, cam, viewProjection)
-    return directParams
+    return encodeUnlitView(rt, device, encoder, cam, viewProjection, inverseViewProjection)
   }
   // The light functions' indices are in the kind words before the buffer goes up.
   encodeLightFunctions(rt, device, encoder, cam)
@@ -183,8 +212,8 @@ export function encodeDirectLights(
   encodeLightProfiles(rt, device)
   // The virtual shadow maps (`../../lighting/shadows/vsm/frame/`): the CPU plan gives every shadowed light its
   // projection record before the light buffer goes up; the GPU work follows the light lists, which the
-  // per-pixel marking and the local lights' projection walk, and precedes the lighting pass that reads
-  // the masks.
+  // per-pixel marking and the local lights' projection walk, and precedes the air and the lighting pass
+  // that read the masks.
   planVsmFrame(rt, device, cam)
   // The buffer goes to the GPU before the per-tile lists: the blend pass reads it directly, without
   // tiles, and must stay lit even on a device that could not fit the lists.
@@ -198,20 +227,29 @@ export function encodeDirectLights(
     lightDrawViewOf(cam, store, vsmMapSettings(rt).shadows),
   )
   if (lights.buffer) followLitTables(rt, device, lights.buffer)
+  ensureLightGrid(rt)
+  const listed = encodeTileLists(rt, device, encoder, viewProjection, cam)
+  // Shadow pages of this image, which the air reads.
+  encodeVsmFrame(rt, device, encoder, cam)
+  // The air before the cards: their rays read the sky's light and the clouds' shade of this image, not the last.
+  const air = encodeAir(rt, device, encoder, cam, viewProjection, inverseViewProjection)
   // The light of the cards' texels, which the rays of the bounce and of the reflections read, brought up to date by the lights just pushed.
   lightSurfaceCards(rt, device, encoder, cam, viewProjection)
-  ensureLightGrid(rt)
   encodeBounce(rt, device, encoder, cam)
   // Kept bounce resources follow the placements even while bounce is toggled off.
   syncBouncePlacements(rt)
-  const listed = encodeTileLists(rt, device, encoder, viewProjection, cam)
-  encodeVsmFrame(rt, device, encoder, cam)
-  if (!listed || !tiles) return directParams
+  if (listed) postListSizes(rt, active)
+  return air
+}
+
+/** The lists' size, posted only when they were encoded. */
+function postListSizes(rt: WebgpuPagesRuntime, active: number) {
+  const { tiles } = rt.lights
+  if (!tiles) return
   directParams[0] = active
   directParams[1] = tiles.tilesX
   directParams[2] = tiles.tilesY
   logFirstDirectFrame(rt)
-  return directParams
 }
 
 /**
@@ -285,7 +323,7 @@ function encodeBounce(
   rt.gpu.deferred?.setRawOutput(lights.store.lightingView === 'bounce')
   if (!probes) return void releaseTranslucencyCache(bounce)
   syncBouncePlacements(rt)
-  // The sky light their rays reach is captured a frame after the first one that asks.
+  // The sky light their rays reach is captured this image, before the cards (`encodeSkyCapture`): the probes wait only while no cube of it is ready.
   if (skyLightPending(rt)) return
   // The store revision rises as soon as a light is added, set or removed: that is the signal the
   // grid needs to restart, and it costs no read. A change of fog alone is not one.

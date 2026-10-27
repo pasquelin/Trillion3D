@@ -1,51 +1,50 @@
 import { WORKGROUP_THREADS, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
-import { LANE_SCAN_WGSL, laneRunSum } from '../../gpu/core/laneScanWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { bitMask, bitWord, highHalf, lowBits, lowHalf } from '../../../../math/src/wgsl/integer.ts'
+import { bitMask, bitWord, highHalf, lowHalf } from '../../../../math/src/wgsl/integer.ts'
 import { lightUndrawn } from '../direct/lightReachWgsl.ts'
+import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts'
 
-/** Runs a column keeps between its two walks: a column of more kept lights tests the rest again. */
-const GRID_CACHE = 512
+/** Words of a link of a cell's chain: the light it lists, then the link that was the cell's head
+ *  before it. */
+export const LIGHT_LINK_STRIDE = 2
 
 /** The constants, bindings and what the workgroup shares. */
 const compactDeclsText = (slices: number) => `${wgslConsts({
-  CACHE: GRID_CACHE,
   COLUMN_SLICES: slices,
   LANE_WORDS: bitWords(WORKGROUP_THREADS),
+  LIGHT_LINK_STRIDE,
 })}
 /** A run \`first | last << 16\` that holds no slice; the one that holds them all. */
 const EMPTY_RUN:u32=0xffffu;
 const FULL_RUN:u32=${(slices - 1) << 16}u;
-/** \`resume\` before a batch past the cache's room. */
-const ALL_CACHED:u32=0xffffffffu;
-struct TilePool{start:u32,capacity:u32,head:atomic<u32>,overflow:atomic<u32>,}
+/** The end of a cell's chain of links. */
+const LINK_NONE:u32=0xffffffffu;
+/** The count of entries asked stops at half the word's range: it never wraps back under the capacity. */
+const ASKED_LIMIT:u32=0x80000000u;
+/** The view's pool: where the lists start, the entries it holds, the entries asked of it and the
+ *  entries the lists hold. The links have the pool's capacity, and so have the lists, which are
+ *  never longer than the links that made them; when the links run short, the entries asked last are
+ *  lost and \`links\` still counts them (more than \`head\`: the pool overflowed). */
+struct TilePool{start:u32,capacity:u32,links:atomic<u32>,head:atomic<u32>,}
 @group(0) @binding(3) var<storage,read_write> pool:TilePool;
+/** The links of every cell's chain, \`LIGHT_LINK_STRIDE\` words each. */
+@group(0) @binding(4) var<storage,read_write> culledLightLinks:array<u32>;
 /** The batch: each lane's light, its shadow slot in the high bit, and its run. */
 var<workgroup> chunk:array<vec2u,WORKGROUP_THREADS>;
-/** Per slice, the lanes of the batch whose run holds it; the lanes holding a shadow slot. */
+/** Per slice, the lanes of the batch whose run holds it. */
 var<workgroup> masks:array<atomic<u32>,${bitWords(WORKGROUP_THREADS) * slices}u>;
 /** The lanes whose entry holds every slice: their bit stands for every slice's mask. */
 var<workgroup> full:array<atomic<u32>,LANE_WORDS>;
-var<workgroup> slotted:array<atomic<u32>,LANE_WORDS>;
-var<workgroup> keptLanes:array<atomic<u32>,LANE_WORDS>;
-/** Per slice, its count (the high bit: a shadow slot listed), then where its list is written. */
+/** Per slice, its count (the high bit: a shadow slot listed), and the link its chain ends on. */
 var<workgroup> counts:array<u32,COLUMN_SLICES>;
-var<workgroup> cursor:array<u32,COLUMN_SLICES>;
-/** Per slice, where its list ends: the words the column was granted may stop it short. */
-var<workgroup> ends:array<u32,COLUMN_SLICES>;
-/** The words of the pool the column was granted, of the ones it asked. */
-var<workgroup> granted:u32;
-var<workgroup> cache:array<vec2u,CACHE>;
-/** The runs cached; the first light the cache does not hold. */
-var<workgroup> cached:u32;
-var<workgroup> resume:u32;
-/** What the first walk leaves, read at once: whether the second walk writes, the runs cached,
- *  the first light past them, and where the column's room starts in the pool. */
-var<workgroup> walked:vec4u;`
+var<workgroup> heads:array<u32,COLUMN_SLICES>;
+/** The first link the batch's lights take, and the first word of the column's lists in the pool. */
+var<workgroup> linkBase:u32;
+var<workgroup> listBase:u32;`
 
-/** The batch's entries, marked in the masks and counted slice by slice. */
+/** The batch's entries, marked in the masks. */
 const COMPACT_MARK_TEXT = `/** The entry of light \`index\`: its run in this column, cut at the column's last visible slice
  *  (\`Column.reach\`), \`EMPTY_RUN\` when it meets no cell or the view leaves it out (\`lightUndrawn\`: the bit
  *  of its kind word the CPU set, too small on the screen or past its draw distance, \`lightDrawn\`). A directional light reaches every
@@ -73,10 +72,7 @@ fn markEntry(lane:u32,entry:vec2u){
  }
  chunk[lane]=entry;
  let first=lowHalf(entry.y);let last=highHalf(entry.y);
- if(first>last){return;}
- atomicOr(&keptLanes[word],bit);
- if((entry.x&TILE_SHADOWED)!=0u){atomicOr(&slotted[word],bit);}
- if(whole){return;}
+ if(first>last||whole){return;}
  for(var slice=first;slice<=last;slice++){atomicOr(&masks[slice*LANE_WORDS+word],bit);}
 }
 /** The lanes whose entry holds every slice, read once by a lane before its slices. */
@@ -84,143 +80,162 @@ fn wholeLanes()->array<u32,LANE_WORDS>{
  var whole:array<u32,LANE_WORDS>;
  for(var word=0u;word<LANE_WORDS;word++){whole[word]=atomicLoad(&full[word]);}
  return whole;
-}
-/** The slices lane \`lane\` owns count the batch's lights in their mask, then clear it. */
-fn countSlices(lane:u32){
- let whole=wholeLanes();
- var shadow:array<u32,LANE_WORDS>;
- for(var word=0u;word<LANE_WORDS;word++){shadow[word]=atomicLoad(&slotted[word]);}
- for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){
-  var count=0u;var shadowed=0u;
-  for(var word=0u;word<LANE_WORDS;word++){
-   let mask=whole[word]|atomicLoad(&masks[slice*LANE_WORDS+word]);
-   count+=countOneBits(mask);
-   shadowed|=mask&shadow[word];
-   atomicStore(&masks[slice*LANE_WORDS+word],0u);
-  }
-  counts[slice]+=count;
-  if(shadowed!=0u){counts[slice]|=TILE_SHADOWED;}
- }
 }`
 
-/** The second walk's write of the lists, up to what the column was granted. */
-const COMPACT_WRITE_TEXT = `/** The slices lane \`lane\` owns write the batch's lights of their mask in increasing order. */
-fn writeSlices(lane:u32){
+/** The injection: the batch's lights put in the cells. */
+const COMPACT_INJECT_TEXT = `/** The lights of the batch the cells of the run \`span\` take: the bits of their masks. */
+fn batchLights(span:vec2u)->u32{
  let whole=wholeLanes();
- for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){
-  var at=cursor[slice];
-  let end=ends[slice];
+ var sum=0u;
+ for(var slice=span.x;slice<span.y;slice++){
+  for(var word=0u;word<LANE_WORDS;word++){
+   sum=sum+countOneBits(whole[word]|atomicLoad(&masks[slice*LANE_WORDS+word]));
+  }
+ }
+ return sum;
+}
+/** The links before those of lane \`lane\`'s run \`span\` in the batch: the lanes' counts, scanned.
+ *  Every lane calls it, from uniform control flow; \`laneSums[WORKGROUP_THREADS-1]\` is then the
+ *  batch's total. */
+fn linksBefore(lane:u32,span:vec2u)->u32{
+ let sum=batchLights(span);
+ return laneScan(lane,sum)-sum;
+}
+/** Lane zero, after \`linksBefore\`: the batch's entries counted in the pool in one atomic add, and
+ *  the first link they take; past the count's limit they are asked of nothing, and land past the
+ *  capacity. */
+fn reserveLinks(){
+ let total=laneSums[WORKGROUP_THREADS-1u];
+ var base=pool.capacity;
+ if(total>0u&&atomicLoad(&pool.links)<ASKED_LIMIT){base=atomicAdd(&pool.links,total);}
+ linkBase=base;
+}
+/** The cells of the run \`span\` take the batch's lights of their mask in increasing order, then
+ *  clear the mask: link \`first\` and those after it are theirs, in the cells' order. A light chains
+ *  its link before its cell's head, as a single thread's loop over the lights would; a link past the
+ *  pool's capacity is not written and its light is dropped. The count and the cell's shadow bit
+ *  follow what was kept. */
+fn pushLinks(span:vec2u,first:u32){
+ let whole=wholeLanes();
+ let capacity=pool.capacity;
+ var link=first;
+ for(var slice=span.x;slice<span.y;slice++){
   for(var word=0u;word<LANE_WORDS;word++){
    var mask=whole[word]|atomicLoad(&masks[slice*LANE_WORDS+word]);
+   atomicStore(&masks[slice*LANE_WORDS+word],0u);
    while(mask!=0u){
-    if(at<end){
-     tiles[at]=chunk[word*32u+firstTrailingBit(mask)].x&~TILE_SHADOWED;
-     at++;
+    let entry=chunk[word*32u+firstTrailingBit(mask)].x;
+    if(link<capacity){
+     culledLightLinks[link*LIGHT_LINK_STRIDE]=entry&~TILE_SHADOWED;
+     culledLightLinks[link*LIGHT_LINK_STRIDE+1u]=heads[slice];
+     heads[slice]=link;
+     counts[slice]=(counts[slice]+1u)|(entry&TILE_SHADOWED);
+    }
+    link++;
+    mask&=mask-1u;
+   }
+  }
+ }
+}
+/** The same batch for cells with \`perCell\` words of their own in the pool, the column's first being
+ *  cell \`columnCell\` of the grid: a cell keeps its first lights up to its share and to the pool's
+ *  capacity. The batch's entries were counted by \`reserveLinks\`. */
+fn pushOwn(span:vec2u,columnCell:u32,perCell:u32){
+ let whole=wholeLanes();
+ let capacity=pool.capacity;
+ let start=pool.start;
+ for(var slice=span.x;slice<span.y;slice++){
+  for(var word=0u;word<LANE_WORDS;word++){
+   var mask=whole[word]|atomicLoad(&masks[slice*LANE_WORDS+word]);
+   atomicStore(&masks[slice*LANE_WORDS+word],0u);
+   while(mask!=0u){
+    let entry=chunk[word*32u+firstTrailingBit(mask)].x;
+    let held=counts[slice]&~TILE_SHADOWED;
+    let at=(columnCell+slice)*perCell+held;
+    if(held<perCell&&at<capacity){
+     tiles[start+at]=entry&~TILE_SHADOWED;
+     counts[slice]=(counts[slice]+1u)|(entry&TILE_SHADOWED);
     }
     mask&=mask-1u;
    }
-   atomicStore(&masks[slice*LANE_WORDS+word],0u);
   }
-  cursor[slice]=at;
  }
 }`
 
-/** The cache of the first walk's runs, and the batch's bookkeeping. */
-const COMPACT_CACHE_TEXT = `/** Lane \`lane\`'s entry, in order among the batch's kept ones, into the cache at \`cached\`. */
-fn cacheEntry(lane:u32,entry:vec2u){
- let word=bitWord(lane);
- var rank=countOneBits(atomicLoad(&keptLanes[word])&lowBits(lane%32u));
- for(var w=0u;w<word;w++){rank+=countOneBits(atomicLoad(&keptLanes[w]));}
- if(lowHalf(entry.y)<=highHalf(entry.y)){cache[cached+rank]=entry;}
+/** The compaction: a cell's chain written as its list. */
+const COMPACT_OUTPUT_TEXT = `/** The chain that starts at link \`first\`, \`count\` links long, written as the list at \`start\`: the
+ *  chain runs from the last light listed to the first, so it is written from the list's end. */
+fn outputReversedLinks(first:u32,count:u32,start:u32){
+ var link=first;
+ var index=0u;
+ while(link!=LINK_NONE&&index<count){
+  tiles[start+count-index-1u]=culledLightLinks[link*LIGHT_LINK_STRIDE];
+  link=culledLightLinks[link*LIGHT_LINK_STRIDE+1u];
+  index++;
+ }
 }
-/** The lanes of the batch whose entry meets the column. */
-fn keptCount()->u32{
- var kept=0u;
- for(var word=0u;word<LANE_WORDS;word++){kept+=countOneBits(atomicLoad(&keptLanes[word]));}
- return kept;
-}
-/** Lane zero, after a batch: no lane kept nor slotted for the next. */
-fn clearBatch(){
- for(var word=0u;word<LANE_WORDS;word++){atomicStore(&keptLanes[word],0u);atomicStore(&slotted[word],0u);}
-}`
-
-/** The room of the slices before a lane's run, scanned over the lanes. */
-const COMPACT_SCAN_TEXT = `/** The room of the slices before lane \`lane\`'s run \`span\` (\`laneRun\`): the runs' totals,
- *  scanned over the lanes. Every lane calls it, from uniform control flow;
- *  \`laneSums[WORKGROUP_THREADS-1]\` is then the column's total. */
-fn roomBefore(lane:u32,span:vec2u)->u32{
- ${laneRunSum('slice', 'span', 'counts[slice]&~TILE_SHADOWED')}
+/** The lists of the column's cells in the pool: the words they hold, scanned over the lanes' runs
+ *  \`span\`. Every lane calls it, from uniform control flow, like \`linksBefore\`. */
+fn listsBefore(lane:u32,span:vec2u)->u32{
+ var sum=0u;
+ for(var slice=span.x;slice<span.y;slice++){sum=sum+(counts[slice]&~TILE_SHADOWED);}
  return laneScan(lane,sum)-sum;
-}`
-
-/** The column's room in the pool taken by lane zero, and its deal over the lanes. */
-const COMPACT_ROOM_TEXT = `/** Lane zero, after \`roomBefore\`: the column's room in the pool. A column with no light takes
- *  none; \`walked.x\` says whether the second walk has lists to write. */
-fn takeRoom(){
- let total=laneSums[WORKGROUP_THREADS-1u];
- var at=0u;
- var kept=0u;
- if(total>0u){
-  // The count of what was asked stops at half the word's range: it never wraps back into room.
-  at=0xffffffffu;
-  if(atomicLoad(&pool.head)<0x80000000u){at=atomicAdd(&pool.head,total);}
-  if(at<pool.capacity){kept=min(total,pool.capacity-at);}else{at=pool.capacity;}
-  if(kept<total){atomicStore(&pool.overflow,1u);}
- }
- granted=kept;
- walked.x=u32(kept>0u);
- walked.w=pool.start+at;
 }
-/** A lane deals the column's room, from \`start\`, out over its run \`span\`, \`before\` past it: each
- *  slice its lists' words up to what was granted, its count cut to them. */
-fn dealRoom(span:vec2u,before:u32,start:u32){
- var offset=before;
+/** Lane zero, after \`listsBefore\`: the column's list words counted in the pool by one atomic add,
+ *  and, for chains of links, taken there. */
+fn reserveLists(){
+ let total=laneSums[WORKGROUP_THREADS-1u];
+ if(total>0u){listBase=atomicAdd(&pool.head,total);}
+}
+/** The cells of the run \`span\`, once every batch is injected: each writes its chain as its list,
+ *  from word \`listAt\` of the buffer, the lists following one another, and its record at \`records\`
+ *  — its count and where its list starts. A cell with no light keeps the pool's start. With
+ *  \`perCell\` set the lists were written where each cell's words are, and only the records are. */
+fn emitSlices(span:vec2u,columnCell:u32,records:u32,perCell:u32,listAt:u32){
+ var at=listAt;
  for(var slice=span.x;slice<span.y;slice++){
   let held=counts[slice]&~TILE_SHADOWED;
-  let take=select(0u,min(held,granted-offset),offset<granted);
-  let first=start+min(offset,granted);
-  cursor[slice]=first;ends[slice]=first+take;
-  counts[slice]=(counts[slice]&TILE_SHADOWED)|take;
-  offset+=held;
+  var start=pool.start;
+  if(perCell>0u){
+   start+=(columnCell+slice)*perCell;
+  }else if(held>0u){
+   start=at;
+   outputReversedLinks(heads[slice],held,start);
+   at+=held;
+  }
+  let record=records+(columnCell+slice)*TILE_STRIDE;
+  tiles[record]=counts[slice];
+  tiles[record+1u]=start;
  }
-}`
+}
+`
 
 /**
- * The lists of a column's cells, in two walks of its kept lights, each a batch of
- * `WORKGROUP_THREADS` at a time, one per lane, every lane in step: a lane marks the light's bit in
- * the mask of each slice of its run — in one mask for all of them when the run holds every slice, a
- * sun's —, then each lane counts — in the first walk — or writes — in the second — the slices it
- * owns, bit after bit, so each list holds its lights in increasing order, as a single-thread loop.
- * Between the walks, the lanes scan their runs of slices (the engine's `laneRun` and `laneScan`)
- * and lane zero takes the column's room in the view's pool (`./pool.ts`, one atomic add), which
- * each lane then deals out over its run. The grid keeps what the pool has left: the column keeps its
- * first lights in cell order, each cell its lights in light order up to its share, the rest dropped
- * and the overflow raised, as the reference's cell writer drops a light once its links are used up.
- * The first walk keeps the runs it found, `GRID_CACHE` at most: the second walk reads them, and tests
- * again only the lights past them. All of it is integer: the counts, cursors and lists are the
- * single-thread loop's (`gridColumn.test.ts`).
+ * The lists of a column's cells, by a chain of links per cell. The column's lights go through in
+ * batches of `WORKGROUP_THREADS`, one per lane: a lane marks the light's bit in the mask of each slice
+ * of its run — in one mask for all of them when the run holds every slice, a sun's. Each lane then
+ * takes the lights of the masks of a run of slices; the lanes scan their counts so the whole batch
+ * asks the pool's link counter (`pool.links`) once, for as many links as it has lights, and a cell
+ * takes its links in order. Each light writes itself and the cell's previous head in its link and
+ * becomes the head. A link past the pool's capacity is not written and its light is dropped; the
+ * counter still counts it. Once every batch is in, the lanes scan the words their cells hold, one add
+ * to the list counter (`pool.head`) gives the column its place, and each chain is written from the
+ * list's end back to its start, so each list holds its lights in increasing order. The pool has as
+ * many list words as links, and a list is never longer than its chain: it never overflows; when
+ * links run short, the entries asked last are lost, `links` counting more than `head`.
+ * With the cell's words set (the setting `lightGridLinkedLists` off) the cell has a share of its own
+ * in the pool and keeps its first lights, the counters counting the entries asked and kept.
  *
- * A column holds `slices` cells (`COLUMN_SLICES`): the depth slices (`gridSlices`).
- * A lane mask is `LANE_WORDS` words, as many as the batch's lanes need, whatever
- * `WORKGROUP_THREADS` occupancy tunes it to.
+ * A column holds `slices` cells (`COLUMN_SLICES`): the depth slices (`gridSlices`). A lane mask is
+ * `LANE_WORDS` words, as many as the batch's lanes need, whatever `WORKGROUP_THREADS` occupancy tunes
+ * it to. All of it is integer: the counts and lists are the single-thread loop's (`gridColumn.test.ts`).
  */
 export const gridCompactWgsl = (slices: number) =>
   wgslBlock(
     `gridCompactWgsl(${slices})`,
-    [
-      LANE_SCAN_WGSL,
-      WORKGROUP_THREADS_WGSL,
-      lowHalf,
-      highHalf,
-      bitMask,
-      bitWord,
-      lowBits,
-      lightUndrawn,
-    ],
+    [LANE_SCAN_WGSL, WORKGROUP_THREADS_WGSL, lowHalf, highHalf, bitMask, bitWord, lightUndrawn],
     `${compactDeclsText(slices)}
 ${COMPACT_MARK_TEXT}
-${COMPACT_WRITE_TEXT}
-${COMPACT_CACHE_TEXT}
-${COMPACT_SCAN_TEXT}
-${COMPACT_ROOM_TEXT}`,
+${COMPACT_INJECT_TEXT}
+${COMPACT_OUTPUT_TEXT}`,
   )

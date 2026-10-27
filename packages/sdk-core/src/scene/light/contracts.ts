@@ -210,8 +210,8 @@ export const LIGHT_SETTINGS = /* @__PURE__ */ (() =>
      * The longest list of a cell of the light grid a MOVING image draws from (X2): past it, the
      * cell's lights are summed in full. A scene of at most this many lights resolves with a light
      * array that long. A cell's list holds the lights that reach it in a pool of fixed size, its cells
-     * times `lightGridMaxCulledLightsPerCell` (`hizOptions.ts`, 32): a column past it keeps the lights
-     * it got, in order, and drops the rest, as the reference does.
+     * times `lightGridMaxCulledLightsPerCell` (`hizOptions.ts`, 32), the links of its cells' chains
+     * taken from it as they are asked: the lights asked past it are dropped.
      */
     tileLights: 64,
     /** Side in pixels of a cell of the light grid. */

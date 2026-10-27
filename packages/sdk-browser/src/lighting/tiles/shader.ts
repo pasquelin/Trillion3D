@@ -5,7 +5,9 @@ import { GRID_CULL_WGSL } from './cullWgsl.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
-/** The pass's bindings and what its workgroup shares. */
+/** The pass's bindings and what its workgroup shares. `start` holds the word the records start at and,
+ *  in `y`, the words a cell has of its own in the pool, 0 for the lists made by chains of links
+ *  (the setting `lightGridLinkedLists`). */
 const TILE_PASS_HEAD_TEXT = `
 struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,depthRows:array<vec4f,2>,start:vec4u,cull:vec4f,sliceMap:vec3f,}
 @group(0) @binding(0) var<uniform> view:TileView;
@@ -21,67 +23,42 @@ var<workgroup> reach:u32;`
 const TILE_PASS_SETUP_TEXT = `@compute @workgroup_size(WORKGROUP_THREADS,1,1)
 fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index) lane:u32){
  var column=gridColumn(cell.xy);
- if(lane==0u){lightCount=directLights.count;reach=columnReach(cell.xy);cached=0u;resume=ALL_CACHED;}
- if(lane<LANE_WORDS){atomicStore(&keptLanes[lane],0u);atomicStore(&slotted[lane],0u);atomicStore(&full[lane],0u);}
+ if(lane==0u){lightCount=directLights.count;reach=columnReach(cell.xy);}
+ if(lane<LANE_WORDS){atomicStore(&full[lane],0u);}
  chunk[lane]=vec2u(0u,EMPTY_RUN);
  for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){
-  counts[slice]=0u;
+  counts[slice]=0u;heads[slice]=LINK_NONE;
   for(var word=0u;word<LANE_WORDS;word++){atomicStore(&masks[slice*LANE_WORDS+word],0u);}
  }
  let count=workgroupUniformLoad(&lightCount);
  column.reach=workgroupUniformLoad(&reach);`
 
-/** The first walk: each light's run, counted in the slices it holds. */
-const TILE_PASS_FIRST_WALK_TEXT = ` // First walk: each light's run, counted in the slices it holds; the runs kept while they fit.
+/** The injection: each light's run, put in the cells it holds, batch after batch. */
+const TILE_PASS_INJECT_TEXT = ` // Injection: each batch's lights put in the cells of their runs, in light order.
+ let columnCell=(cell.y*u32(view.viewport.z)+cell.x)*COLUMN_SLICES;
+ let perCell=view.start.y;
+ let span=laneRun(lane,COLUMN_SLICES);
  for(var first=0u;first<count;first+=WORKGROUP_THREADS){
   var entry=vec2u(first+lane,EMPTY_RUN);
   if(first+lane<count){entry=entryOf(column,first+lane);}
   markEntry(lane,entry);
   workgroupBarrier();
-  countSlices(lane);
-  let kept=keptCount();
-  let fits=resume==ALL_CACHED&&cached+kept<=CACHE;
-  if(fits){cacheEntry(lane,entry);}
-  workgroupBarrier();
-  if(lane==0u){
-   if(fits){cached+=kept;}else if(resume==ALL_CACHED){resume=first;}
-   clearBatch();
+  let before=linksBefore(lane,span);
+  if(lane==0u){reserveLinks();}
+  let base=workgroupUniformLoad(&linkBase);
+  if(perCell==0u){
+   pushLinks(span,base+before);
+  }else{
+   pushOwn(span,columnCell,perCell);
   }
   workgroupBarrier();
  }`
 
-/** The room taken for the column's lists and the records written. */
-const TILE_PASS_ROOM_TEXT = ` let span=laneRun(lane,COLUMN_SLICES);
- let before=roomBefore(lane,span);
- if(lane==0u){takeRoom();walked.y=cached;walked.z=select(resume,count,resume==ALL_CACHED);}
- let walk=workgroupUniformLoad(&walked);
- dealRoom(span,before,walk.w);
- workgroupBarrier();
- let base=view.start.x+(cell.y*u32(view.viewport.z)+cell.x)*COLUMN_SLICES*TILE_STRIDE;
- for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){
-  tiles[base+slice*TILE_STRIDE]=counts[slice];tiles[base+slice*TILE_STRIDE+1u]=cursor[slice];
- }
- if(walk.x==0u){return;}`
-
-/** The second walk: the cached runs, then the lights past them. */
-const TILE_PASS_SECOND_WALK_TEXT = ` // Second walk: the cached runs, then the lights past them tested again, written slice by slice.
- let held=walk.y;
- for(var at=0u;at<held;at+=WORKGROUP_THREADS){
-  var entry=vec2u(0u,EMPTY_RUN);
-  if(at+lane<held){entry=cache[at+lane];}
-  markEntry(lane,entry);
-  workgroupBarrier();
-  writeSlices(lane);
-  workgroupBarrier();
- }
- for(var first=walk.z;first<count;first+=WORKGROUP_THREADS){
-  var entry=vec2u(first+lane,EMPTY_RUN);
-  if(first+lane<count){entry=entryOf(column,first+lane);}
-  markEntry(lane,entry);
-  workgroupBarrier();
-  writeSlices(lane);
-  workgroupBarrier();
- }
+/** The compaction: the cells' chains written as lists, and the records. */
+const TILE_PASS_COMPACT_TEXT = ` // Compaction: each cell's chain written as its list, and its record.
+ let before=listsBefore(lane,span);
+ if(lane==0u){reserveLists();}
+ emitSlices(span,columnCell,view.start.x,perCell,pool.start+workgroupUniformLoad(&listBase)+before);
 }`
 
 /**
@@ -95,10 +72,11 @@ const TILE_PASS_SECOND_WALK_TEXT = ` // Second walk: the cached runs, then the l
  *
  * One workgroup per column of cells, a lane per light of each batch of `WORKGROUP_THREADS`: a
  * light out of the column's planes meets none of its cells; any other meets a run of them, whose two ends are solved
- * from its sphere and the column's section (`./boundsWgsl.ts`). The runs become the cells' lists,
- * in the view's pool, each in increasing light order (`./compactWgsl.ts`), the pool's fixed capacity
- * dropping the lights of a column past it; a cell's record holds its count, the high bit set when a
- * listed light holds a shadow slot, and where its list starts.
+ * from its sphere and the column's section (`./boundsWgsl.ts`). The runs become the cells' lists in
+ * the view's pool (`./compactWgsl.ts`), in this order: the pool's counters cleared with its state
+ * (`./pool.ts`), the lights injected into the cells as chains of links, the chains compacted into
+ * contiguous lists, each in increasing light order; the pool's fixed capacity of links dropping the lights asked past it; a cell's record holds its
+ * count, the high bit set when a listed light holds a shadow slot, and where its list starts.
  *
  * The pass works in the frame of the eye rounded to f32 (`tileViewInverse`, `./tileFrame.ts`): its
  * corners are unprojected there, a light's centre is brought there by one subtraction, and the
@@ -109,9 +87,8 @@ export const lightTilesShader = () =>
   wgslProgram(
     `${TILE_PASS_HEAD_TEXT}
 ${TILE_PASS_SETUP_TEXT}
-${TILE_PASS_FIRST_WALK_TEXT}
-${TILE_PASS_ROOM_TEXT}
-${TILE_PASS_SECOND_WALK_TEXT}`,
+${TILE_PASS_INJECT_TEXT}
+${TILE_PASS_COMPACT_TEXT}`,
     [
       directLightWgsl(),
       gridCompactWgsl(LIGHT_SETTINGS.gridSlices),

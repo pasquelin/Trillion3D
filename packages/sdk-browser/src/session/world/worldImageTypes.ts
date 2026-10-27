@@ -64,8 +64,9 @@ export interface WorldImageSettings {
    *  `hizTransparentTest`, how the transparent clusters are tested against it;
    *  `hizFullResDepth`, whether the screen probes' walk goes down to the full-resolution depth;
    *  `lightGridHizCull`, whether the light grid leaves empty the cells behind their column's
-   *  farthest depth; `lightGridMaxCulledLightsPerCell`, the light entries the view's light grid
-   *  holds per cell; `hizPrime` (`'off'`, `'whenMissing'`, `'always'`) with `hizPrimeSizeBias`,
+   *  farthest depth; `lightGridLinkedLists`, whether its cells' lists are made from chains of
+   *  links taken from one pool, else each cell has its share; `lightGridMaxCulledLightsPerCell`, the
+   *  light entries the view's light grid holds per cell; `hizPrime` (`'off'`, `'whenMissing'`, `'always'`) with `hizPrimeSizeBias`,
    *  `hizPrimeDepthBias`, `hizPrimeErrorScale` and `hizPrimeFarFieldOnly`, the pyramid built
    *  from a small, coarse draw of the objects that set `farField`. Written, the
    *  settings named apply from the next frame over the preset — one `null` gives it back to

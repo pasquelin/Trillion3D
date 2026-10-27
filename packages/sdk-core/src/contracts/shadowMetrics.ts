@@ -167,13 +167,13 @@ export interface ShadowFrameMetrics {
   shadowResolutionBias?: number | null
   /** GPU time of light lists. */
   gpuLightListsMs?: number | null
-  /** Words the tiles past their list reserved in the light-index pool, on the last sampled frame
-   *  of a scene of more lights than a list; `null` otherwise. */
+  /** Light entries the cells of the light grid asked of the light-index pool, on the last sampled
+   *  frame of a scene of more lights than a list; `null` otherwise. */
   tileLightPoolReserved?: number | null
   /** Words the light-index pool held on that sampled frame; `null` likewise. */
   tileLightPoolCapacity?: number | null
-  /** Whether a column found no room left in the pool on that sampled frame and dropped the lights
-   *  past it (`lightGridMaxCulledLightsPerCell`). */
+  /** Whether more entries were asked of the pool than its lists hold on that sampled frame, the
+   *  lights past it dropped (`lightGridMaxCulledLightsPerCell`). */
   tileLightPoolOverflowed?: boolean | null
   /** GPU time of the Shadows stage: every pass of the virtual shadow maps, and no other pass. */
   gpuShadowsMs?: number | null

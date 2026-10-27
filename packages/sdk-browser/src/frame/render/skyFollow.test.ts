@@ -10,18 +10,20 @@ import {
   SKY_QUALITY_RULES,
   type SkyQualityOptions,
 } from '../../../../sdk-core/src/modules/sky/quality.ts'
-import { skyLightColor } from '../../../../sdk-core/src/modules/sky/skyLight.ts'
+import { skyLightColor, skyLightSource } from '../../../../sdk-core/src/modules/sky/skyLight.ts'
 import { capturedClouds } from '../../modules/sky/skyLight/captureClouds.ts'
 import type { SkyLightInputs } from '../../modules/sky/skyLight/captureInputs.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { cloudsMoved } from './encodeClouds.ts'
 import { applySkyToRuntime, followSkyModule, skyStateOf } from './encodeCloudsSky.ts'
 import { captureCloudsOf } from './captureCloudsState.ts'
-import { encodeSkyLight } from './encodeSkyLight.ts'
+import { encodeSkyCapture, writeSkyLightParams } from './encodeSkyLight.ts'
+import { capturePreExposure } from './skyLightFog.ts'
+import { skyLightStandIn } from '../../modules/sky/skyLight/standIn.ts'
 import { writeAirlessFrame } from './airlessFrame.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { skyLightStateOf } from './skyLightState.ts'
+import { skyLightPending, skyLightReadOf, skyLightStateOf } from './skyLightState.ts'
 import { runtime, SCENE, word } from './skyFollow.fixture.ts'
 import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
 
@@ -151,7 +153,7 @@ test('the lights of the air are packed for a scene with no atmosphere only while
   assert.equal(lit(), 0, 'the module off, none')
 })
 
-test('the sky light’s capture is made by the main view alone, once a frame; a view beside it only reads the light', () => {
+test('the sky light’s capture is asked by the main view alone, once a frame', () => {
   const rt = runtime({})
   const main = { overrides: {} },
     aside = { overrides: {} }
@@ -165,16 +167,86 @@ test('the sky light’s capture is made by the main view alone, once a frame; a 
   followSkyModule(rt, DEVICE)
   const encoder = {} as GPUCommandEncoder
   asked = 0
-  encodeSkyLight(rt, DEVICE, encoder)
+  encodeSkyCapture(rt, DEVICE, encoder)
   assert.ok(asked > 0, 'the main view asks for the capture')
   asked = 0
   rt.views.active = aside as never
-  encodeSkyLight(rt, DEVICE, encoder)
+  encodeSkyCapture(rt, DEVICE, encoder)
   assert.equal(asked, 0, 'a view drawn beside the main one does not')
   rt.views.active = main as never
   Object.assign(rt.capture, { capturing: true })
-  encodeSkyLight(rt, DEVICE, encoder)
+  encodeSkyCapture(rt, DEVICE, encoder)
   assert.equal(asked, 0, 'nor the capture of an image aside')
+})
+
+/** A runtime whose sky light has a cube ready (a capture that reads one), over a device that records the
+ *  light's read uniform it is given; no capture is encoded (the runtime holds no device until `ready`). */
+function readyLight() {
+  installGpuGlobals()
+  const rt = runtime({})
+  const main = { overrides: { skyLighting: true } }
+  Object.assign(rt, { views: { main, active: main }, capture: { capturing: false } })
+  applySkyToRuntime(rt, word({ skyLight: true, clouds: false }), SCENE)
+  followSkyModule(rt, DEVICE)
+  const ready = { cube: {}, harmonics: {}, mips: 3, colorScale: 1, layer: 0, blend: 0 }
+  const state = skyLightStateOf(rt)
+  // A light that captures in real time, whatever the defaults, with a capture that reads a cube.
+  const { part } = state.source!
+  state.source = {
+    ...state.source!,
+    part: {
+      ...part,
+      light: { ...part.light, realTimeCapture: true, mobility: 'movable' },
+      quality: { ...part.quality, skyLightRealTimeCapture: true },
+    },
+  }
+  assert.equal(skyLightSource(state.source.part), 'realTime')
+  const capture = { read: () => ready } as never
+  state.capture = capture
+  // The words of each `writeBuffer`, read from the bytes the queue is given.
+  const writes: Float32Array[] = []
+  const recording = {
+    createBuffer: () => ({}),
+    queue: {
+      writeBuffer: (_b: unknown, _o: number, data: ArrayBuffer, at: number, bytes: number) =>
+        writes.push(new Float32Array(data.slice(at, at + bytes))),
+    },
+  } as unknown as GPUDevice
+  return { rt, main, state, capture, writes, device: recording }
+}
+
+test('the first image whose cube is ready is read as the sky, not the stand-in, by the cards and the bounce that follow the capture', () => {
+  const { rt, state, capture } = readyLight()
+  const { device } = fakeDevice()
+  state.capture = undefined
+  assert.equal(skyLightPending(rt), true, 'a real-time light with no cube waits')
+  state.capture = capture
+  assert.equal(state.params, undefined, 'no uniform before the capture’s step')
+  encodeSkyCapture(rt, device, {} as GPUCommandEncoder)
+  Object.assign(rt.gpu, { device })
+  assert.ok(state.params, 'the uniform exists once the capture’s step is done')
+  const read = skyLightReadOf(rt)
+  assert.equal(read.params, state.params)
+  assert.notEqual(read.params, skyLightStandIn(device).params, 'the cards do not read the stand-in')
+  assert.equal(
+    skyLightPending(rt),
+    false,
+    'the bounce does not wait: its probes trace this image’s sky',
+  )
+})
+
+test('the light’s read uniform follows the view’s sky lighting override: a view beside the main one is written dark, the main one lit', () => {
+  const { rt, main, state, writes, device } = readyLight()
+  const aside = { overrides: { skyLighting: false } }
+  const lit = skyLightColor(state.source!.part, true, 1, capturePreExposure(rt))
+  assert.ok(lit[0] > 0)
+  encodeSkyCapture(rt, device, {} as GPUCommandEncoder)
+  rt.views.active = aside as never
+  writeSkyLightParams(rt, device)
+  rt.views.active = main as never
+  writeSkyLightParams(rt, device)
+  const colours = writes.map((words) => words[0])
+  assert.deepEqual(colours, [Math.fround(lit[0]), 0, Math.fround(lit[0])])
 })
 
 test('the clouds drift by the world’s clock: a paused world with wind reaches a held frame, a running one is drawn on', () => {

@@ -12,8 +12,8 @@
  * first word of its record, where its list starts at the second, its list where the cell's list starts
  * in the pool. The readers read the pruned grid alone: the light grid's pool is laid out again every
  * image, and a projection held over images (`vsmProjectionHold.ts`) keeps the lists it packed by. A
- * cell always has its list, whatever the pool held (the view's grid drops the lights past its
- * capacity, `../../../tiles/compactWgsl.ts`), and a pixel past the grid reads its last cell
+ * cell always has its list, whatever the pool held (the view's grid drops the lights asked past
+ * its capacity, `../../../tiles/compactWgsl.ts`), and a pixel past the grid reads its last cell
  * (`gridCell`). Only an image with no grid (`TILE_NO_SLICE`) has no list: its readers walk every
  * light of the scene in the same order (`vsmShadowedWalk`).
  *

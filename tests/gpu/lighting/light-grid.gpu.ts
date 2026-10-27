@@ -1,9 +1,9 @@
 // The light grid's pass on a real GPU: the shipped `lighting/tiles` WGSL — each light's run
-// in each column, the two walks, the cache and the lights tested again past it, the pool — builds,
+// in each column, the chains of links of its cells and their lists in the pool — builds,
 // cell by cell, lists that hold every lamp reaching a point of the cell, in increasing order, with
 // the count's shadow bit where a listed lamp holds a slot; and those lists are its oracle's
 // (`gpuLightGridOracle.ts`), but for a run's end moved by a rounding. 48 lamps, and 800 whose
-// columns keep more than the 512 runs the cache holds, and those 800 again with the far and small ones the view
+// columns take more links than a batch holds lights, and those 800 again with the far and small ones the view
 // leaves out (`lightDrawn`, the bit of their kind word): absent from every list, and from the walk of every light
 // that a pixel with no list makes.
 //

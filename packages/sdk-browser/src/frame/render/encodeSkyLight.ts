@@ -20,9 +20,9 @@ import { skyLightStateOf, type SkyLightState } from './skyLightState.ts'
  * THE SKY LIGHT IN THE FRAME: the capture made over the air's tables that the sky module's light
  * (`SkyLightSource`, `./skyLightState.ts`) asks for, and the three steps of a frame — the air asked for what the
  * capture needs (`requestSkyAir`, before the air is encoded), the real-time capture encoded
- * (`encodeSkyLight`, before the passes that read the light), the static capture drawn between two
+ * (`encodeSkyCapture`, before the surface cards that read the light), the static capture drawn between two
  * frames once the frame is submitted (`skyLightSubmitted`) — and the light's read uniform written
- * for the view drawn now (`writeSkyLightParams`, which the view's `skyLighting` override switches).
+ * for the view drawn now (`writeSkyLightParams`, after the capture's step and the occlusion's, which the view's `skyLighting` override switches).
  */
 
 /** What the capture asks of the air this image, written before the air is encoded: the place it
@@ -139,20 +139,22 @@ const makesCapture = (rt: WebgpuPagesRuntime) =>
   rt.views.active === rt.views.main && !rt.capture.capturing
 
 /** The real-time capture's step of this image (`SkyLightCapture.encode`), on `encoder`, after the
- *  air's tables of the image are built and before the passes that read the light; the light's read
- *  uniform of the view drawn now is written in every view. */
-export function encodeSkyLight(
+ *  air's tables of the image are built (`encodeAir`) and before the surface cards and the bounce that read
+ *  the light, then the light's read uniform of the view drawn now: made and written here, so that the
+ *  first image whose cube is ready is read as the sky, not the stand-in. The uniform is written again
+ *  once the occlusion is known (`encodePreLight`). */
+export function encodeSkyCapture(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
 ) {
-  const state = skyLightStateOf(rt)
   if (makesCapture(rt)) {
+    const state = skyLightStateOf(rt)
     const input = inputsOf(rt, state)
     const capture = input && captureOf(rt, state, device)
     if (input && capture?.ready) capture.encode(encoder, input)
   }
-  writeSkyLightParams(rt, device, state)
+  writeSkyLightParams(rt, device)
 }
 
 /** The image was submitted: a captured scene that is due is drawn aside, between two images
@@ -168,12 +170,14 @@ export function skyLightSubmitted(rt: WebgpuPagesRuntime) {
 
 /**
  * The light's read uniform written for the view drawn now (`writeSkyLightRead`), after the capture's
- * step of the image: the light's colour, black where the view's `skyLighting` override is off, the
+ * step of the image, and again once the occlusion is drawn: the surface cards and the bounce read its
+ * light and cube words, the indirect pass the occlusion's (`mode`, `indirectPassWgsl.ts`). The words: the light's colour, black where the view's `skyLighting` override is off, the
  * cube of the ready capture, its last mip and the layer of it that is ready, and, for a real-time
  * capture, the inverse of the pre-exposure it is written with. Nothing while no cube is ready: the
  * programs read the stand-in.
  */
-function writeSkyLightParams(rt: WebgpuPagesRuntime, device: GPUDevice, state: SkyLightState) {
+export function writeSkyLightParams(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const state = skyLightStateOf(rt)
   const ready = state.capture?.read()
   if (!ready || !state.source) return
   const { skyLighting } = rt.views.active.overrides

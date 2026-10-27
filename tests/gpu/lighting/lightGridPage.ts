@@ -125,7 +125,7 @@ export async function run({
     const lights = createWebgpuLightState(store)
     lights.buffer = createSceneLightContractBuffer(device, store)
     uploadSceneLights(device, lights)
-    tiles.ensure(width, height, lights.buffer, 32) // the setting's default
+    tiles.ensure(width, height, lights.buffer, 32, true) // the settings' defaults
     tiles.update(view.viewProjection, view.eye, width, height, NO_CULL)
     const encoder = device.createCommandEncoder()
     tiles.encode(encoder, 1)

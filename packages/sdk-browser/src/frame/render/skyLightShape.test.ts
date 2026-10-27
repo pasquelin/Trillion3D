@@ -10,7 +10,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.t
 import { airShapeKey, airShapeOf } from '../../lighting/atmosphere/shape.ts'
 import { createFogStandIns } from '../../lighting/fog/read.ts'
 import { applySkyToRuntime, followSkyModule } from './encodeCloudsSky.ts'
-import { encodeSkyLight } from './encodeSkyLight.ts'
+import { encodeSkyCapture } from './encodeSkyLight.ts'
 import { runtime, SCENE, word } from './skyFollow.fixture.ts'
 import { skyLightStateOf } from './skyLightState.ts'
 
@@ -32,7 +32,7 @@ function captureShape(local: boolean) {
   Object.assign(rt.gpu, { device, deferred: { placeholders } })
   applySkyToRuntime(rt, word({ skyLight: true, clouds: true }), SCENE)
   followSkyModule(rt, device)
-  encodeSkyLight(rt, device, device.createCommandEncoder())
+  encodeSkyCapture(rt, device, device.createCommandEncoder())
   const state = skyLightStateOf(rt)
   assert.ok(state.capture, 'the capture is made')
   return state.shape

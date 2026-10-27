@@ -10,7 +10,7 @@ import { placeScreenProbes, traceScreenProbes } from '../../lighting/bounce/scre
 import { encodeAmbientOcclusion } from '../../lighting/ao/frame.ts'
 import { encodeFogVolume } from './encodeFogVolume.ts'
 import { encodeTranslucencyGi } from '../../lighting/translucencyGi/frame.ts'
-import { encodeSkyLight } from './encodeSkyLight.ts'
+import { writeSkyLightParams } from './encodeSkyLight.ts'
 import { encodeQueuedBounce } from './encodeLights.ts'
 import { encodeLocalFog, encodeLocalFogSky } from './encodeLocalFog.ts'
 import { encodeSkyOcclusion } from './encodeSkyOcclusion.ts'
@@ -57,10 +57,10 @@ export function encodePreLight(
   encodeLocalFog(rt, device, steps)
   steps.end()
   // The sky light's occlusion by the distance fields, where no bounce lights the pixels: before the light's read uniform is
-  // written (`encodeSkyLight`), which says whether the image has one.
+  // written (`writeSkyLightParams`), which says whether the image has one.
   encodeSkyOcclusion(rt, encoder, cam)
-  // The sky light's capture, on the air's tables of this image, before the passes that read the light.
-  encodeSkyLight(rt, device, encoder)
+  // The light's read uniform, written again with this image's occlusion: the capture and a first write were made on this image's air before the surface cards (`encodeDirectLights`).
+  writeSkyLightParams(rt, device)
   // The sky light's term in the local fog volumes, which the passes below lay over the surfaces.
   encodeLocalFogSky(rt, device, compute.begin(encoder))
   compute.end()

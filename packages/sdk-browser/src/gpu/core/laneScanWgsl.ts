@@ -19,7 +19,7 @@ import { WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
  * its offset, the lane walks the run handing each item its cursor.
  *
  * Shared by the sorts (`../sort/sortWgsl.ts`, `../sort/sortStableWgsl.ts`), the blend expansion
- * (`../../blend/expand/expandWgsl.ts`) and the light grid's room in its pool
+ * (`../../blend/expand/expandWgsl.ts`) and the light grid's links and lists in its pool
  * (`../../lighting/tiles/compactWgsl.ts`).
  */
 export const LANE_SCAN_WGSL = wgslBlock(
@@ -49,7 +49,7 @@ fn laneRun(lane:u32,len:u32)->vec2u{
 )
 
 /** A lane's `sum` of `size`, an expression of the item `g`, over its run `span`. */
-export const laneRunSum = (g: string, span: string, size: string) =>
+const laneRunSum = (g: string, span: string, size: string) =>
   `var sum=0u;
  for(var ${g}=${span}.x;${g}<${span}.y;${g}++){sum=sum+(${size});}`
 

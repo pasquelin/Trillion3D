@@ -1,23 +1,27 @@
-// S19.4: a column of the light grid marks a run holding every slice — a sun's — by one lane bit,
-// and deals its room out by a scan over its 64 lanes, never by two walks of its 256 slices on lane
-// zero. Everything is an integer: on random series — full depth, more lights than lanes and than
-// the cache holds, pools that overflow, dropping the lights past them, or stand past half the word — the shipped routines give
-// the serial column's counts, cursors, lists and overflow flag, column after column.
+// A column of the light grid injects its lights into its cells by chains of links and writes the
+// chains as lists, each in increasing light order. Everything is an integer: on random series —
+// full depth, more lights than lanes, pools that overflow — the shipped routines give the serial
+// column's counts and lists, column after column; a pool that overflows keeps, in each cell, the
+// first lights it was asked for.
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  CACHE,
-  GRID_COMPACT_WGSL,
   GRID_SLICES,
+  TILE_SHADOWED,
+  countWord,
+  fullLists,
+  listsOf,
+  openPool,
   serialColumn,
+  serialFixedColumn,
   shippedColumn,
   suns,
-  type Pool,
   type Run,
 } from './gridColumn.fixture.ts'
-import { lightTilesShader } from './shader.ts'
-import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
+import { createGpuLightTiles } from './tiles.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { withinDefaults } from '../../gpu/core/stageLimits.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** `count` lights of a column: a share full depth, a share meeting no cell, the others a run. */
@@ -36,41 +40,38 @@ function series(seed: number, count: number, full: number, none: number): Run[] 
   })
 }
 
-/** Columns `columns` in one pool, shipped in batches of `lanes` and serial: the same records,
- *  lists and pool. */
-function same(columns: Run[][], pool: Pool, lanes = WORKGROUP_THREADS) {
-  const shipped = { ...pool },
-    serial = { ...pool }
+/** Columns in one roomy pool, shipped in batches of `lanes` and serial: the same counts, lists and
+ *  allocators. */
+function same(columns: Run[][], lanes = WORKGROUP_THREADS) {
+  const shipped = openPool(1 << 22),
+    serial = openPool(1 << 22)
   columns.forEach((runs, i) => {
-    const got = shippedColumn(runs, shipped, lanes),
+    const got = shippedColumn(runs, shipped, { lanes }),
       want = serialColumn(runs, serial)
     assert.deepEqual(got.counts, want.counts, `column ${i}: counts`)
-    assert.deepEqual(got.cursor, want.cursor, `column ${i}: cursors`)
-    assert.deepEqual([...got.words].sort(byAt), [...want.words].sort(byAt), `column ${i}: lists`)
+    assert.deepEqual(listsOf(got), listsOf(want), `column ${i}: lists`)
     assert.deepEqual(shipped, serial, `column ${i}: pool`)
   })
   return shipped
 }
-const byAt = (a: [number, number], b: [number, number]) => a[0] - b[0]
 
-test('random columns: the counts, cursors, lists and pool of the serial column', () => {
+test('random columns: the counts, lists and allocators of the serial column, in light order', () => {
   for (let seed = 1; seed <= 24; seed++) {
     const r = lcgRandom(seed * 7919)
     const columns = [0, 1, 2].map((k) =>
       series(seed * 3 + k, Math.floor(r() * (seed % 4 === 0 ? 900 : 200)), r() * 0.3, r() * 0.4),
     )
-    // The pool: roomy, tight, or full from the start.
-    const capacity = [1 << 20, Math.floor(r() * 4000), 0][seed % 3]
-    same(columns, { start: 1000 + seed, capacity, head: Math.floor(r() * 50), overflow: 0 })
+    const pool = same(columns)
+    // Every link asked was held, and as many words of lists were handed out.
+    assert.equal(pool.head, pool.links, `seed ${seed}`)
   }
 })
 
-test('full depth: every light a sun, past the lanes and the cache', () => {
-  const roomy = (head: number): Pool => ({ start: 7, capacity: 1 << 22, head, overflow: 0 })
-  same([suns(1), suns(WORKGROUP_THREADS + 1), suns(CACHE + WORKGROUP_THREADS + 3)], roomy(0))
+test('full depth: every light a sun, past the lanes', () => {
+  same([suns(1), suns(WORKGROUP_THREADS + 1), suns(3 * WORKGROUP_THREADS + 3)])
   // Its lane bit stands for every slice: no slice's mask is ever marked.
-  assert.equal(shippedColumn(suns(CACHE + WORKGROUP_THREADS + 3), roomy(0)).marks, 0)
-  assert.equal(shippedColumn([{ first: 2, last: 4, slot: false }], roomy(0)).marks, 3 * 2)
+  assert.equal(shippedColumn(suns(3 * WORKGROUP_THREADS + 3), openPool(1 << 22)).marks, 0)
+  assert.equal(shippedColumn([{ first: 2, last: 4, slot: false }], openPool(1 << 22)).marks, 3)
   // A sun, then lights that leave its lane: its bit is cleared, its slices not marked again.
   const mixed: Run[] = [
     ...suns(WORKGROUP_THREADS),
@@ -79,37 +80,104 @@ test('full depth: every light a sun, past the lanes and the cache', () => {
     ),
     ...suns(5),
   ]
-  same([mixed, [], mixed], roomy(3))
+  same([mixed, [], mixed])
 })
 
 test('a batch of any width: its lane masks hold every lane, no slice reads its neighbour', () => {
   // A width occupancy may tune `WORKGROUP_THREADS` to: one mask word, or four.
-  for (const lanes of [32, 128]) {
-    const roomy: Pool = { start: 11, capacity: 1 << 22, head: 0, overflow: 0 }
-    same([series(3, 300, 0.1, 0.2), suns(lanes + 5), series(9, lanes * 3, 0, 0.1)], roomy, lanes)
+  for (const lanes of [32, 128])
+    same([series(3, 300, 0.1, 0.2), suns(lanes + 5), series(9, lanes * 3, 0, 0.1)], lanes)
+})
+
+test('a cell that holds a shadow slot says so in its count, and only then', () => {
+  const runs: Run[] = [
+    { first: 1, last: 3, slot: false },
+    { first: 3, last: 5, slot: true },
+  ]
+  const { counts } = shippedColumn(runs, openPool(1 << 10))
+  assert.deepEqual(
+    [counts[0], counts[1], counts[3], counts[4], counts[6]],
+    [0, 1, (2 | TILE_SHADOWED) >>> 0, (1 | TILE_SHADOWED) >>> 0, 0],
+  )
+})
+
+test('a pool of too few links keeps, in each cell, the first lights it was asked for', () => {
+  const columns = [series(5, 150, 0.1, 0.2), series(6, 150, 0.1, 0.2), []]
+  const total = columns.reduce(
+    (sum, runs) => sum + fullLists(runs).reduce((cells, list) => cells + list.length, 0),
+    0,
+  )
+  const asked = (all: Run[][]) =>
+    all.reduce((sum, runs) => sum + fullLists(runs).reduce((n, list) => n + list.length, 0), 0)
+  // The last: the links run out in the middle of a batch, of suns holding every slice.
+  const batch = [suns(40)]
+  const cases: [Run[][], number][] = [
+    ...[0, 1, 63, 2000, Math.floor(total / 2), total - 1].map((capacity): [Run[][], number] => [
+      columns,
+      capacity,
+    ]),
+    [batch, Math.floor(asked(batch) / 3)],
+  ]
+  for (const [all, capacity] of cases) {
+    const pool = openPool(capacity)
+    let kept = 0
+    all.forEach((runs, i) => {
+      const column = shippedColumn(runs, pool)
+      listsOf(column).forEach((list, slice) => {
+        kept += list.length
+        const wanted = fullLists(runs)[slice]
+        const where = `${capacity}, column ${i}, cell ${slice}`
+        assert.deepEqual(list, wanted.slice(0, list.length), where)
+        assert.equal(column.counts[slice], countWord(wanted.slice(0, list.length), runs))
+      })
+    })
+    // The pool counts every entry asked, the lists hold the first ones.
+    const want = [asked(all), Math.min(capacity, asked(all)), kept]
+    assert.deepEqual([pool.links, kept, pool.head], want)
   }
 })
 
-test('overflow: a column past the pool keeps the lights it got, a head past half the word takes none', () => {
-  const runs = series(5, 150, 0.1, 0.2)
-  const tight = same([runs, runs, []], { start: 64, capacity: 2000, head: 0, overflow: 0 })
-  assert.equal(tight.overflow, 1)
-  const past = same([runs], { start: 64, capacity: 2000, head: 0x80000000, overflow: 0 })
-  assert.deepEqual([past.head, past.overflow], [0x80000000, 1])
+test('past half the word’s range the count of entries asked stops, and the entries are dropped', () => {
+  for (const perCell of [0, 4]) {
+    const pool = { ...openPool(1 << 20), links: 0x80000000 }
+    const column = shippedColumn(series(2, 100, 0.1, 0.2), pool, { perCell })
+    assert.equal(pool.links, 0x80000000, 'not counted further')
+    assert.ok(pool.links > pool.head, 'an overflow still')
+    if (!perCell) assert.ok(column.counts.every((count) => count === 0))
+  }
 })
 
-test('the pass is the routines the harness runs, in its order', () => {
-  assert.match(wgslSource(GRID_COMPACT_WGSL), /laneScan\(lane,sum\)-sum/)
-  assert.doesNotMatch(
-    wgslSource(GRID_COMPACT_WGSL),
-    /for\(var slice=0u;slice<COLUMN_SLICES;slice\+\+\)/,
-  )
-  const between = [
-    'let span=laneRun(lane,COLUMN_SLICES);',
-    'let before=roomBefore(lane,span);',
-    'if(lane==0u){takeRoom();walked.y=cached;walked.z=select(resume,count,resume==ALL_CACHED);}',
-    'let walk=workgroupUniformLoad(&walked);',
-    'dealRoom(span,before,walk.w);',
-  ]
-  assert.ok(lightTilesShader().includes(between.join('\n ')))
+test('cells with words of their own: each keeps its first lights up to its share and the pool', () => {
+  const runs = series(7, 400, 0.1, 0.2)
+  for (const perCell of [1, 4, 32, 600]) {
+    const shipped = openPool(1 << 20),
+      serial = openPool(1 << 20)
+    const got = shippedColumn(runs, shipped, { perCell, columnCell: 3 * GRID_SLICES })
+    const want = serialFixedColumn(runs, serial, perCell, 3 * GRID_SLICES)
+    assert.deepEqual(got.counts, want.counts, `${perCell}: counts`)
+    assert.deepEqual(got.starts, want.starts, `${perCell}: starts`)
+    assert.deepEqual(listsOf(got), listsOf(want), `${perCell}: lists`)
+    assert.deepEqual(shipped, serial, `${perCell}: pool`)
+  }
+  // Cells past what the pool holds keep nothing: more entries asked than held.
+  const tight = openPool(40),
+    serial = openPool(40)
+  const column = shippedColumn(runs, tight, { perCell: 4 })
+  assert.deepEqual(column.counts, serialFixedColumn(runs, serial, 4).counts)
+  assert.ok(tight.links > tight.head)
+  assert.deepEqual(tight, serial)
+})
+
+test('with room for all, chains of links and cells with words of their own make the same lists', () => {
+  const runs = series(11, 250, 0.1, 0.2)
+  const chains = shippedColumn(runs, openPool(1 << 22))
+  const own = shippedColumn(runs, openPool(1 << 22), { perCell: 600 })
+  assert.deepEqual(listsOf(chains), listsOf(own))
+  assert.deepEqual(chains.counts, own.counts)
+})
+
+test('the pass binds the storage buffers a stage may', async () => {
+  const fake = fakeDevice()
+  await createGpuLightTiles(fake.device)
+  withinDefaults(fake.pipelineLayouts, 'lightTiles')
 })

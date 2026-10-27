@@ -1,26 +1,26 @@
 import { createGpuPeriodicReadback } from '../../gpu/core/periodicReadback.ts'
 import { log } from '../../diagnostic/log.ts'
 
-/** `TilePool` (`./compactWgsl.ts`): start, capacity, words reserved, overflow. */
+/** `TilePool` (`./compactWgsl.ts`): start, capacity, entries asked, entries the lists hold. */
 const STATE_BYTES = 16
-/** Takes the state the pool's pass left: the sample, and the overflow said once per rise of its demand. */
+/** Takes the state the pool's pass left: the sample, and the overflow said once per rise of the
+ *  entries asked. */
 function readPoolState(
   mapped: ArrayBuffer,
   sample: { reserved: number; capacity: number; overflowed: boolean },
   demand: { highWater: number },
+  limited: boolean,
 ) {
-  const [, capacity, reserved, overflow] = new Uint32Array(mapped, 0, 4)
-  sample.reserved = reserved
+  const [, capacity, asked, held] = new Uint32Array(mapped, 0, 4)
+  sample.reserved = asked
   sample.capacity = capacity
-  sample.overflowed = overflow !== 0
-  if (!sample.overflowed) return
-  if (reserved > demand.highWater) {
-    demand.highWater = reserved
-    log.warn(
-      `The light grid overflowed: ${reserved} light entries asked, ${capacity} held. ` +
-        'Raise lightGridMaxCulledLightsPerCell to keep the lights it dropped.',
-    )
-  }
+  sample.overflowed = asked > held
+  if (!sample.overflowed || asked <= demand.highWater) return
+  demand.highWater = asked
+  const cause = limited
+    ? 'The device binds no larger buffer for them.'
+    : 'Raise lightGridMaxCulledLightsPerCell to keep the lights it dropped.'
+  log.warn(`The light grid overflowed: ${asked} light entries asked, ${held} held. ${cause}`)
 }
 
 /**
@@ -29,19 +29,23 @@ function readPoolState(
  * (`tileLightPoolOverflowed`).
  *
  * The pool is FIXED: its cells (columns × `gridSlices`) times the setting
- * `lightGridMaxCulledLightsPerCell`, as the reference's global limit of light links; a column past
- * it keeps the lights it got, in order, and drops the rest, and the overflow is said once per rise
- * of its demand.
+ * `lightGridMaxCulledLightsPerCell`: that many links, and as many list words. The entries asked
+ * past it are dropped, a cell keeping the lights it got, in order; it overflowed when more were
+ * asked than the lists hold, said once per rise of the entries asked. With the setting
+ * `lightGridLinkedLists` off each cell has its words of its own in the pool and keeps its first
+ * lights, the entries asked and held counted the same way.
  */
 export function createTileLightPool(device: GPUDevice) {
-  const words = new Uint32Array(4)
+  const words = new Uint32Array(STATE_BYTES / 4)
   // What the last sampled frame asked of the pool, its fields moved together when it returns.
   const sample = { reserved: 0, capacity: 0, overflowed: false }
   const demand = { highWater: 0 }
+  // Whether the pool opened last was cut short by the device's limit on a buffer.
+  let limited = false
   const reader = createGpuPeriodicReadback(
     device,
     { label: 'Trillion3D light tile pool readback', bytes: STATE_BYTES, eager: true },
-    (mapped) => readPoolState(mapped, sample, demand),
+    (mapped) => readPoolState(mapped, sample, demand, limited),
   )
   const state = device.createBuffer({
     label: 'Trillion3D light tile pool v1',
@@ -54,8 +58,10 @@ export function createTileLightPool(device: GPUDevice) {
     sample() {
       return reader.ready ? sample : undefined
     },
-    /** Opens the frame's pool at word `start`, `capacity` words: nothing reserved, no overflow. */
-    open(start: number, capacity: number) {
+    /** Opens the frame's pool at word `start`, `capacity` words, `cut` when the device's limit on a
+     *  buffer made it smaller than the setting asks: nothing asked, nothing held. */
+    open(start: number, capacity: number, cut: boolean) {
+      limited = cut
       words[0] = start
       words[1] = capacity
       device.queue.writeBuffer(state, 0, words)

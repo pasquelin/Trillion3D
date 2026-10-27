@@ -129,6 +129,39 @@ test("the water's depth and the front layer the sun's marking reads are drawn be
   assert.ok(lights < frontPass, 'the front pass after the lights stands for the others')
 })
 
+test("the air is encoded before the surface cards read the sky's light and the clouds' shade", () => {
+  const source = readFileSync(new URL('./encodeLights.ts', import.meta.url), 'utf8')
+  const lit = source.slice(source.indexOf('export function encodeDirectLights'))
+  const uploaded = lit.indexOf('uploadSceneLights(device, lights)'),
+    shadows = lit.indexOf('encodeVsmFrame('),
+    air = lit.indexOf('encodeAir('),
+    cards = lit.indexOf('lightSurfaceCards(')
+  assert.ok(
+    uploaded >= 0 && uploaded < air,
+    'the light buffer is pushed before the atmosphere reads it',
+  )
+  assert.ok(
+    shadows > uploaded && shadows < air,
+    'the air reads this image shadow pages, not the last',
+  )
+  assert.ok(air < cards, 'the cards read this image air, not the last')
+  const unlit = source.slice(
+    source.indexOf('function encodeUnlitView'),
+    source.indexOf('function ensureLightGrid'),
+  )
+  const unlitAir = unlit.indexOf('encodeAir(')
+  assert.ok(unlitAir >= 0 && unlitAir < unlit.indexOf('lightSurfaceCards('), 'the unlit view too')
+  const airBody = source.slice(
+    source.indexOf('function encodeAir'),
+    source.indexOf('function encodeUnlitView'),
+  )
+  assert.ok(
+    airBody.indexOf('encodeAtmosphere(') >= 0 &&
+      airBody.indexOf('encodeAtmosphere(') < airBody.indexOf('encodeSkyCapture('),
+    'the sky light capture is made over this image air, before the cards',
+  )
+})
+
 test('the front pass drawn for this image is not drawn again', () => {
   const rt = {
     run: { frame: 7 },

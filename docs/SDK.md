@@ -481,9 +481,12 @@ that holds it; the image is the same, `'finer'` rejects more clusters), `hizFull
 the full-resolution depth; `false` stops at the half-resolution level, a little less exact and
 cheaper; the reflections' walk always goes down) and `lightGridHizCull` (`true`: the light grid
 leaves empty the cells behind the farthest depth of their column of the image, read from the pyramid
-the image built; `false` lists every cell the lights reach) and `lightGridMaxCulledLightsPerCell`
-(`32`: the light entries the view's light grid holds per cell, from 1 to 1024; a column that needs
-more keeps the lights it got, in order, and drops the rest, with one console warning). The cut's occlusion reads
+the image built; `false` lists every cell the lights reach), `lightGridLinkedLists` (`true`: the cells'
+lists are chains of links taken from one pool shared by the whole grid, and when links run short each
+cell keeps the first lights of its list; `false`: each cell has its own `lightGridMaxCulledLightsPerCell`
+words and keeps its first lights up to them) and `lightGridMaxCulledLightsPerCell`
+(`32`: the light entries the view's light grid holds per cell, from 1 to 1024; the pool holds that
+many for each cell; the lights asked past it are dropped, with one console warning). The cut's occlusion reads
 the culling layer, which no setting changes. A write names the settings it changes, `null` one's
 default; a value of another kind is refused by name.
 
@@ -491,6 +494,7 @@ default; a value of another kind is refused by name.
 const world = createWorld('viewer', { hizTrace: 'planes' })
 world.hiz = { hizTrace: null, hizFoldTransparents: true } // the default trace, glass in the pyramid
 world.hiz = { hizFullResDepth: false, lightGridHizCull: false } // half-resolution probe walk, no cull
+world.hiz = { lightGridLinkedLists: false, lightGridMaxCulledLightsPerCell: 64 } // 64 words of its own a cell
 ```
 
 `hizPrime` (`'off'`) builds, before a view's cut tests anything, a primed pyramid from a small,
@@ -1824,7 +1828,7 @@ cutout.holdout = true // a hole in the picture (film: propagateAlpha + primitive
 
 **Who sees an object.** Two more switches, both `false` by default and saved with the world, hide an object by who looks. A camera
 can name an **owner**, `camera.owner = node` (`null` by default): the node its view belongs to, the player's. An object that is the owner
-or under it is *owned* by that view. **`ownerNoSee`** hides the object from the views that own it and draws it for every other view;
+or under it is _owned_ by that view. **`ownerNoSee`** hides the object from the views that own it and draws it for every other view;
 **`onlyOwnerSee`** draws it for the views that own it alone and hides it from every other, those of cameras that name no owner
 included. A camera with no owner owns nothing. The two switches add to a camera's `hidden` and `showOnly` lists, which still apply
 (`hidden` wins). Until a camera names an owner, the stand-in of a first-person object (`firstPersonWorldSpaceRepresentation`) keeps
@@ -3234,17 +3238,17 @@ cascade traces nothing today: its passes run on empty lists, and the settings be
 until a mesh that is none of them is drawn. A sun with `angularRadius: 0` casts hard shadows there as in the
 maps (the angle is held between 0.001 and 5 degrees in the cascade). Its settings:
 
-| View option                          | Default                  | Meaning                                                                                                                                                                       |
-| ------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `distanceFieldShadowQuality`         | `3` (0 to 3)             | the steps of a ray: 0 none, 1 twenty, 2 thirty-two, 3 sixty-four (at 3 alone, a thin transmitting surface keeps the light that survives the thickness it has gone through, by its own opacity) |
-| `distanceFieldShadowFullResolution`  | `false`                  | traced at the display's resolution, else at half of it and upsampled keeping the depth edges                                                                                  |
-| `distanceFieldShadowTileSize`        | `2` m                    | the side of the tiles across the light the meshes are listed in                                                                                                               |
-| `distanceFieldShadowTwoSidedBias`    | `1`                      | the factor on the distance a two-sided mesh's surface is expanded by                                                                                                          |
-| `distanceFieldShadowObjectsPerTile`  | `128`                    | the meshes a tile has room for on average; a tile past it loses meshes (its shadow flickers)                                                                                  |
-| `distanceFieldShadowScatterTiles`    | `true`                   | the meshes' boxes are drawn onto a grid of tiles across the light and each pixel reads its tile's list; `false`: each group of 8 by 8 texels culls the meshes to its own bounds  |
-| `distanceFieldShadowCompactTiles`    | `true`                   | the tiles' lists lie one after the other; `false`: each tile has a place of its own and a tile past it loses meshes (acts with the scatter on)                                |
-| `distanceFieldShadowSubsampleDepth`  | `false`                  | a texel is reached by the depth at its top left alone (less bandwidth; artifacts on edges and holes of a pixel) rather than the farthest depth of its block                    |
-| `distanceFieldShadowSnapResolution`  | `2048` (at least 32)     | the texels across the cascade's shadow space the origin's snap grid is cut from (4 texels a step, 4 texels off each side): the tile grid moves in steps with the camera       |
+| View option                         | Default              | Meaning                                                                                                                                                                                        |
+| ----------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `distanceFieldShadowQuality`        | `3` (0 to 3)         | the steps of a ray: 0 none, 1 twenty, 2 thirty-two, 3 sixty-four (at 3 alone, a thin transmitting surface keeps the light that survives the thickness it has gone through, by its own opacity) |
+| `distanceFieldShadowFullResolution` | `false`              | traced at the display's resolution, else at half of it and upsampled keeping the depth edges                                                                                                   |
+| `distanceFieldShadowTileSize`       | `2` m                | the side of the tiles across the light the meshes are listed in                                                                                                                                |
+| `distanceFieldShadowTwoSidedBias`   | `1`                  | the factor on the distance a two-sided mesh's surface is expanded by                                                                                                                           |
+| `distanceFieldShadowObjectsPerTile` | `128`                | the meshes a tile has room for on average; a tile past it loses meshes (its shadow flickers)                                                                                                   |
+| `distanceFieldShadowScatterTiles`   | `true`               | the meshes' boxes are drawn onto a grid of tiles across the light and each pixel reads its tile's list; `false`: each group of 8 by 8 texels culls the meshes to its own bounds                |
+| `distanceFieldShadowCompactTiles`   | `true`               | the tiles' lists lie one after the other; `false`: each tile has a place of its own and a tile past it loses meshes (acts with the scatter on)                                                 |
+| `distanceFieldShadowSubsampleDepth` | `false`              | a texel is reached by the depth at its top left alone (less bandwidth; artifacts on edges and holes of a pixel) rather than the farthest depth of its block                                    |
+| `distanceFieldShadowSnapResolution` | `2048` (at least 32) | the texels across the cascade's shadow space the origin's snap grid is cut from (4 texels a step, 4 texels off each side): the tile grid moves in steps with the camera                        |
 
 Its passes run in the pre-light step of an image, before the projection of the sun's shadow maps, as long as
 the scene has a mesh with a distance field and the sun has a cascade; the sun's distance-field and shadow-map
@@ -3396,7 +3400,12 @@ Two more options say what the rays meet and what they shade, one of an object an
 ```js
 // A figure that does not shade its neighbours' pixels with a contact shadow, and a pane that receives them.
 statue.castContactShadow = false
-const glass = material.meshStandard({ transparent: true, opacity: 0.3, translucencyLighting: 'forward', contactShadows: true })
+const glass = material.meshStandard({
+  transparent: true,
+  opacity: 0.3,
+  translucencyLighting: 'forward',
+  contactShadows: true,
+})
 ```
 
 A light also holds `indirectLightingIntensity` (`1`, from 0): the factor on the light it gives the scene's indirect
