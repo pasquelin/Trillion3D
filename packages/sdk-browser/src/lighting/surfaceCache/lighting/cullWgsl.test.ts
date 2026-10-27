@@ -125,7 +125,7 @@ function referenceWeight(light: SceneLight, r: LightRecord, P: V, sunTransmittan
     )
     integral = 0.5 * Math.hypot(...world)
   } else {
-    const half = r.capsule.slice(0, 3)
+    const half = scale(r.capsule.slice(0, 3), r.traits[1]) // unit axis times half length
     let falloff: number
     if (half.some((c) => c !== 0)) {
       const [line0, line1] = [sub(toLight, half), add(toLight, half)]

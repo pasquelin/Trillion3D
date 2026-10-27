@@ -36,8 +36,9 @@ import { madeTextureBytes } from '../../../gpu/core/textureBytes.ts'
 import { keepOcclusionTables } from './occlusion/occlusionPass.ts'
 import { VSM_KEPT_RECTS_WIDTH } from './constants.ts'
 
-/** The shadows' GPU share in MiB (`SHADOW_POOL_BYTES`), the occlusion culling's resources in it. */
-const SHADOW_MIB = 902
+/** The shadows' GPU share in MiB (`SHADOW_POOL_BYTES`), the occlusion culling's resources in it, the receiver cover the default
+ *  settings' (`'suns'`): the 921 749 336 B of `session/world/budget.test.ts` (879.05 MiB) rounded up to whole MiB. */
+const SHADOW_MIB = 880
 /** Directional maps a sun takes: its clipmap levels (`encodeVsm.ts`). */
 const LEVELS = 17
 const SHARED = ['pageTable', 'receiverCover', 'staleRects'] as const
@@ -204,7 +205,8 @@ test('the projection buffer is a 400-byte record a slot, and the shadows hold th
   // the occlusion culling: its pyramid (85⅓ MiB at 4096 pages: 8192 × 2048 texels at level 0, seven
   // levels), both frame sets' kept tables (32 MiB: a page table, its marks and the stale rects each),
   // its page list and arguments, and the records' 96 more bytes (6.3 MiB over both frames); then
-  // the receiver cover of every map, the largest the settings make (22.5 MiB over the suns' alone).
+  // the receiver cover, the suns' alone at the default settings (every map's, which the local mask asks, is 22.5 MiB more: the
+  // budget grants it where it is asked).
   assert.equal(SHADOW_POOL_BYTES / MIB, SHADOW_MIB)
 })
 

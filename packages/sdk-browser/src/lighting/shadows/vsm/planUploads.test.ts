@@ -129,12 +129,12 @@
 // packed, as the reference sets it): each record of a previous id that has a next one carries bit 1 more in its
 // flags word, which only the compute throttle's process kernel reads; the frames' first
 // digests, with no previous id, and every other buffer kept.
-// To retake when the sun's far-shadow test left the shadow raster (it reaches the subjects that are no
+// Retaken when the sun's far-shadow test left the shadow raster (it reaches the subjects that are no
 // cluster geometry, none of which is a caster here): the render parameters lost the main view's depth row
 // (`viewRow2`), `farMeshes` and `farDrop`, three words no kernel reads any more, the candidate lost its
 // far depth, a pad, and the projection record its `farShadowEdge` word (the offsets from `wpoThreshold` on
 // moved up four bytes, the record's 400 bytes kept by the pad before `prevShiftedToClip`); the projection
-// buffers and `vsm.render.params` move, so the six digests are to be taken again from a run.
+// buffers and `vsm.render.params` move.
 import { mulberry32 } from '../../../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -142,14 +142,14 @@ import { planFrames, randomWorld } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    'd8aa7472f8052b536299d0212809e627a6baddf0b162fbcba28c69f9bf92cc93',
-    '322cf6a8568ab8e638994de70cad94f9b35d56171dd2fcba1d871f8d1ddb14d6',
-    '3e9f18eea0a258e4b7982b27878a063e932f2c69f8e2a1ff6965045645aef97a',
+    'e819168b943d307e82026b6f7d3f70c6650e29c13a3e675c943bfebeef7fb949',
+    '0da51756c1a438e34f06c1380df456f7af5c5f265c9b55da42e284e46f746709',
+    '00ac255403a6e5426a368131e5dfc1a307eaa8ea6d27aed2d8def6aec474415f',
   ],
   2: [
-    '71d2b6cafdcfb5b7febe6d0ca56cf026e74a51741ddd5a0b1f9c8f60a92c4a44',
-    'c896575008382c0514d5e116aa1bd93f4c9c32d6245c4422a479be6013710374',
-    'de3756905fec9db5679f87860e4c5fdc3b46215bf909f4735fd7f6708e7cd656',
+    'f06ef448853e0e9c3567ff27f4edba805a3472a70f7b6d93967c9fae077b2c22',
+    'e3520cc6634dc70218f2ea824aea2beb22025b94fd2e46ebc108cee2a8d9116a',
+    '337dd72c30239e36e72b1942b7def5fa68b558705c1cb4e1b3b2f67bba2f4877',
   ],
 }
 

@@ -64,6 +64,9 @@ test('a lamp’s bias is a cell’s radius, a square centimetre at least; a lamp
   // A tube: the half axis times its length, the falloff the integral of the inverse square along it,
   // `1 / ((1 + c) / 2 · |p₀||p₁| + bias)` for the cosine `c` between the directions to its two ends.
   const half = [0.5, 0, 1.5]
+  // The record holds the tube as its unit axis (`capsule.xyz`) and its half length (`traits.y`).
+  const halfLength = Math.hypot(...half)
+  const axis = half.map((v) => v / halfLength)
   const [p0, p1] = [subtract(offset, half), offset.map((v, i) => v + half[i])]
   const [r0, r1] = [Math.hypot(...p0), Math.hypot(...p1)]
   const c = p0.reduce((s, v, i) => s + v * p1[i], 0) / (r0 * r1)
@@ -71,7 +74,7 @@ test('a lamp’s bias is a cell’s radius, a square centimetre at least; a lamp
   const tube = 50 * window(Math.sqrt(d2)) * falloff
   // The phase function reads the direction to the lamp's centre, as the lamp's own light does.
   const want = tube * phase(G, unit(subtract(centre, P)), toEye)
-  const got = lit({ ...lamp, capsule: [...half, 0] })
+  const got = lit({ ...lamp, capsule: [...axis, 0], traits: [0, halfLength, 0, 0] })
   assert.ok(Math.abs(got / want - 1) < 1e-3, `${got} against ${want}`)
   assert.ok(Math.abs(got / point - 1) > 1e-3, 'not the point lamp’s')
 })

@@ -65,8 +65,9 @@ test('blended and transmissive surfaces, lit or unlit, are fogged from the eye o
     TRANSMIT_SHADER,
     /var fog=vec4f\(0\.0,0\.0,0\.0,1\.0\);\s+if\(!fogFree\)\{fog=blendFog\(in\);\}/,
   )
-  // The eye is the view's third-last vec4: 160 bytes of fields before it, 16 of its own; the pixel
-  // ratio a line's width is scaled by (#348), the texture level offset (#816) and the display
+  // The eye follows 176 bytes of fields (the matrix and four vec4 to 128, the light tiles' pair, five words — the view's flags, the vertex
+  // shift, the feedback, the rough diffuse and the accurate shading's switches — and the viewport's pair, the eye's vec3 aligned to 16);
+  // the pixel ratio a line's width is scaled by (#348), the texture level offset (#816) and the display
   // layers' exposure, the image's pre-exposure and the curve (#558) follow it, then the cut's pixel
   // error, the clocks a material graph reads (`time` and `realTime`) and the clear coat's switch
   // (`clearCoatNormal`), in the gap before the clip plane, in the struct's 16-byte alignment.
@@ -74,12 +75,12 @@ test('blended and transmissive surfaces, lit or unlit, are fogged from the eye o
     wgslSource(BLEND_VIEW_WGSL),
     /pixelRatio:f32,mipBias:f32,exposure:f32,preExposure:f32,toneCurve:u32,pixelError:f32,time:f32,realTime:f32,clearCoatNormal:u32,clipPlane:vec4f,bake:Bake,volumeCorner:array<vec4f,2>,volumeScale:array<vec4f,2>,volumeRead:vec4f,giGrid:vec4f,giZ:vec4f,holdout:u32,normalCurvature:vec3f,\}/,
   )
-  // The clip plane of the view's, a vec4 behind them at the next 16 bytes (`clipPlane`): 224 bytes, the
+  // The clip plane of the view's, a vec4 behind them at the next 16 bytes (`clipPlane`): 240 bytes, the
   // clock in the gap the plane's alignment left, then the copy of the tone table's baking words, then the translucency
   // lighting volume's five vec4 (two cascades' corners and scales, the read words), the global illumination volume's two (its grid and
   // slices' law), then the holdout word (`holdout`) and the normal curvature's three
   // words, which the struct's 16-byte alignment pads to 32 bytes.
-  assert.equal(BLEND_VIEW_SIZE, 224 + BAKE_BYTES + 7 * 16 + 32)
+  assert.equal(BLEND_VIEW_SIZE, 240 + BAKE_BYTES + 7 * 16 + 32)
 })
 
 /** The kind of resource a layout holds at each of `bindings`: a sampler, a texture by its dimension,

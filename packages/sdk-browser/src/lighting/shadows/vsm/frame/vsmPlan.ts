@@ -117,9 +117,9 @@ function aimGate(cam: EngineCamera, size: readonly number[]) {
   gateView.height = size[1]
 }
 
-/** Whether `light` takes a map this frame: it casts, and, seen from a
- *  view (`planes`), is in reach of it and passes the local lights' gates (`gateView`); before any
- *  view, a sun alone is. */
+/** Whether `light`, which casts, takes a map this frame: seen from a
+ *  view (`planes`), it is in reach of it and passes the local lights' gates (`gateView`); before any
+ *  view, a sun alone does. */
 const takesMap = (
   light: SceneLight,
   slot: number,
@@ -127,10 +127,9 @@ const takesMap = (
   draw: LightDrawView | undefined,
   shadows: ShadowValues,
 ) =>
-  light.castsShadow &&
-  (planes
+  planes
     ? vsmLightSeen(light, slot, planes, draw) && vsmLocalShadowGate(light, gateView, shadows)
-    : light.kind === 'directional')
+    : light.kind === 'directional'
 
 /** The light store as the frame plan reads it, into `lights`: every declared light, at its slot.
  *  Seen from `cam` — the plan's, else the last image's —, a local light no lit point of the frame
@@ -166,7 +165,7 @@ export function frameLights(
     const entry = (lights[count++] ??= { light, visible: true })
     entry.light = light
     const casts = light.castsShadow
-    entry.visible = takesMap(light, slot, planes, draw, shadows)
+    entry.visible = casts && takesMap(light, slot, planes, draw, shadows)
     // The reserve sizes the set only: it takes no cascades.
     if (which === 'plan' && casts) {
       entry.cascades = sunCascadesOf(rt, light, cam?.near ?? 0, shadows)

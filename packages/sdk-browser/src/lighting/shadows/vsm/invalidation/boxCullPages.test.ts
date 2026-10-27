@@ -5,7 +5,9 @@
 // tests were proved, case for case, the ones each module had of its own. Retaken when the maps
 // became one kind: the handle draws no single-page flag, and names one of the maps the tables hold
 // rects for (`boxCullTables.fixture.ts`); with the flag's draw kept, the kernels gave the goldens
-// of before, bit for bit.
+// of before, bit for bit. Retaken when the coarse-page thresholds became the reference's two
+// (static, dynamic clusters) and a non-cluster caster may join the coarse pages: the tables draw one
+// threshold less, which moves every case after it, and `vsmIsFineCaster` reads both.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { builtins } from '../../../../materials/texture/shaderRunBuiltins.fixture.ts'
@@ -24,9 +26,9 @@ import { bitsDigest, inputs } from '../bitsDigest.fixture.ts'
 const CASES = 12000
 /** The digests of the runs below (`bitsDigest`). */
 const GOLDEN = {
-  marks: '7a77eb3f68cce9cb45b614140b906713cfb76cde99035c481c3ac5a28c27ec25',
-  pixels: '48b7e5f09efca28ba8792580bc6133ef5fd8b1b4e82bd67754c27e4d276818b4',
-  pages: '1a94b6815b02e239a6b73f5f2833df5e9b88931ad86bfbedb87b4b6e6eddae47',
+  marks: '69b0bab5a35ba7df64034ab02d428cb11628478c4e7583d6539cab9742b0bbd4',
+  pixels: 'e49803dd271dc586e2695a89b199c42735db19440e8c61a5bc567737e62ed6ea',
+  pages: '198725573047f53a7628cd7487e6cb6fd3ebf9bbe9be3b07b0a3b6ef5f745891',
 }
 /** Case `k`'s draw, its tables in use. */
 const at = (k: number) => {

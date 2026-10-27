@@ -21,7 +21,9 @@
 // layer staled and is done; the hierarchical test looks for fine pages by the detail test alone, the
 // page test adding the fine bit only for a mover's box in a map whose coarse pages keep their dynamic
 // layer. Reverting any one of those three alone gives a third digest, all three together the digest
-// of before; the pages of the pyramid test are left out (occlusion off).
+// of before; the pages of the pyramid test are left out (occlusion off). Retaken when the coarse-page
+// thresholds became the reference's two (static, dynamic clusters), a non-cluster caster may join the
+// coarse pages, and a distant stream (finest mip 7) was added: the tables draw one threshold less.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslConstants } from '../../../../materials/texture/shaderRule.fixture.ts'
@@ -42,7 +44,7 @@ const INVALIDATION = castInvalidationWgsl(
 const LOCAL_KINDS = [LIGHT_KIND.point, LIGHT_KIND.spot, LIGHT_KIND.rect]
 const CASES = 12000
 /** The digest of every case's writes (`bitsDigest`). */
-const GOLDEN = 'f2099b9fc8b11818a59a31544424c196e362b4793e2bf137462ec4cd38602e92'
+const GOLDEN = '9f80333740e68c772402019175d367c602fc79c4f6f2cd3ba94070ecb0492101'
 const HELPERS = [
   ...['vsmStaleBoxPages', 'vsmTouchesMappedPage', 'vsmMarksMatch'],
   ...['vsmLevelHoldingRect', 'vsmClipRadius', 'vsmCachesAsStatic', 'vsmOffsetAllowed'],
