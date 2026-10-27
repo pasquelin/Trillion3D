@@ -14,7 +14,7 @@ export type RayFogRead = Pick<FogRead, 'cubemap' | 'sampler'>
 /** The fog a frame gives the rays: the fog's own cubemap, not the sky light's cube that stands in its place while the sky light lights the fog (a ray's fog
  *  reads the sky light on its own cube), or the `placeholders` stand-in white cube while the fog has none. */
 export const rayFogReadOf = (
-  gpu: { fogVolume?: { read: RayFogRead } },
+  gpu: { fogVolume?: { read?: RayFogRead } },
   placeholders: { fog: RayFogRead },
 ): RayFogRead => gpu.fogVolume?.read ?? placeholders.fog
 
