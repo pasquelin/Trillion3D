@@ -18,6 +18,7 @@ import {
 import {
   VSM_RENDER_ARGS_BIN,
   VSM_RENDER_ARGS_SOFTWARE,
+  VSM_RENDER_ARGS_SOFTWARE_STATIC,
   VSM_RENDER_PARAMS,
 } from './renderParamsWgsl.ts'
 import { vsmRenderCandidatesWgsl } from './renderCandidatesWgsl.ts'
@@ -145,11 +146,13 @@ test('the software half runs after each bin over its records, off without its pa
       assert.equal(floats[c * stride + VSM_RENDER_PARAMS.at.hardwareEdge], pageCompute ? 32 : 0)
     const order = fake.dispatches.map(({ entryPoint, offset }) => `${entryPoint}@${offset ?? ''}`)
     const bin = order.indexOf(`vsmRenderBin@${VSM_RENDER_ARGS_BIN * 4}`)
+    // Each layer's dispatch reads the group count of its own bin.
     const software = `@${VSM_RENDER_ARGS_SOFTWARE * 4}`
+    const staticLayer = `@${VSM_RENDER_ARGS_SOFTWARE_STATIC * 4}`
     assert.ok(bin > 0)
     assert.deepEqual(
       order.slice(bin + 1),
-      pageCompute ? [`vsmRenderSoftware${software}`, `vsmRenderSoftwareStatic${software}`] : [],
+      pageCompute ? [`vsmRenderSoftware${software}`, `vsmRenderSoftwareStatic${staticLayer}`] : [],
     )
   }
 })

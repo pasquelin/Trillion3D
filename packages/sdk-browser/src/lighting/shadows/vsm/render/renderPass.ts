@@ -65,6 +65,7 @@ import {
 } from './renderPipes.ts'
 import { vsmViewPasses, vsmViewsPerPass, type VsmViewPass } from './renderViewPasses.ts'
 import { renderGroups, vsmEncodeRaster, vsmWorldGroup } from './renderEncode.ts'
+import type { CompiledTiers } from './renderParamsWgsl.ts'
 import { vsmOcclusionContext, vsmTwoPass } from '../occlusion/occlusionPass.ts'
 import {
   prepareVsmDescent,
@@ -136,8 +137,9 @@ export interface VsmRenderScene {
    *  placement that names one; those of the instances of an instanced mesh only while the host did not
    *  turn their cull off (`instances`, `cutDrawDistanceCulling`). */
   drawDistance?: { scale: number; instances: boolean }
-  /** Whether the table holds a voxel row: its tiers are drawn then (`vsmEncodeRaster`). */
-  voxels?: boolean
+  /** The families the frame's pipelines were compiled for (the plan's `tiers`): the raster draws
+   *  no tier past them (`vsmEncodeRaster`). */
+  tiers: CompiledTiers
   /** Whether a sun's far-shadow test reaches every caster rather than the world's merged shells
    *  alone (`farShadowCullsAllMeshes`); false when absent. */
   farMeshes?: boolean

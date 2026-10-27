@@ -1,5 +1,6 @@
 import { halfCeilBits } from '../../../math/src/float/half.ts'
-import { wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { wgslConst, wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { REACH_UNBOUNDED } from '../geometry/dag/placement/placementTree.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import type { ClusterRoot, PageRec } from '../geometry/selection/types.ts'
@@ -44,6 +45,26 @@ export const markReachWgsl = wgslFn(
   'markReach',
   [],
   'fn markReach(mark:u32)->f32{return unpack2x16float(mark).y;}',
+)
+
+/** A box that bounds nothing finite reaches every page: as large an extent as f32 clip math
+ *  keeps. */
+export const UNBOUNDED_EXTENT = 1e15
+
+/** `UNBOUNDED_EXTENT` as a WGSL constant of the same name. */
+export const UNBOUNDED_EXTENT_WGSL = wgslConst(
+  'UNBOUNDED_EXTENT',
+  [],
+  `const UNBOUNDED_EXTENT:f32=${wgslF32(UNBOUNDED_EXTENT)};`,
+)
+
+/** A reach that bounds nothing (infinite, or not a number) as large as f32 clip math keeps
+ *  (`UNBOUNDED_EXTENT`): the casters' and the descent's boxes of a placement are the same finite
+ *  ones. */
+export const casterReachWgsl = wgslFn(
+  'casterReach',
+  [UNBOUNDED_EXTENT_WGSL],
+  'fn casterReach(reach:f32)->f32{return select(UNBOUNDED_EXTENT,reach,reach<UNBOUNDED_EXTENT);}',
 )
 
 /** Whether a mark word's reach is past every finite one (`REACH_UNBOUNDED`), read in WGSL. */

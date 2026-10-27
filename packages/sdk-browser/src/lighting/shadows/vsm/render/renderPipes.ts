@@ -46,9 +46,10 @@ import {
 } from './renderRasterWgsl.ts'
 import {
   VSM_RENDER_ARGS_WGSL,
-  VSM_RENDER_CORNER_TIERS,
+  VSM_RENDER_FAMILY,
   VSM_RENDER_SOFTWARE_BIN,
   vsmRenderTierCorners,
+  vsmRenderTierFamily,
 } from './renderParamsWgsl.ts'
 import {
   vsmCandidatesEntries,
@@ -144,7 +145,7 @@ interface RasterSource {
 }
 
 /** `make`'s pipeline, made — and its module with it — only when first prepared, asked or got: a
- *  scene that never holds a voxel row compiles none of the voxel tiers. */
+ *  scene that never holds a voxel row compiles none of its tiers. */
 function madeLater(
   make: () => PreparedPipeline<GPURenderPipeline>,
 ): PreparedPipeline<GPURenderPipeline> {
@@ -164,8 +165,9 @@ function madeLater(
   return later
 }
 
-/** The raster's render pipelines of `code`, one a tier (its corners an override) — the voxel
- *  tiers' of `voxelCode`, made later (`madeLater`) —, and their group 1's layout
+/** The raster's render pipelines of `code`, one a tier (its corners an override): the one-sided
+ *  rows' tiers cull the back faces, the two-sided rows' cull none, the voxel tiers', of
+ *  `voxelCode`, made later (`madeLater`), cull the back faces. And their group 1's layout
  *  (`vsmRasterPipe`). */
 function makeRaster(
   device: GPUDevice,
@@ -191,7 +193,7 @@ function makeRaster(
       code: voxelCode(),
     }))
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, layout1] })
-  const tier = (t: number, stages: GPUShaderModule) =>
+  const tier = (t: number, stages: GPUShaderModule, cullMode: GPUCullMode) =>
     preparedPipeline(device, {
       label: `${RENDER_LABEL}.raster${t}`,
       layout: pipelineLayout,
@@ -201,17 +203,25 @@ function makeRaster(
         constants: { VSM_RENDER_CORNERS: vsmRenderTierCorners(t) },
       },
       fragment: { module: stages, entryPoint: 'vsmRenderFs', targets: [] },
-      // Each vertex emits its triangle light-facing counter-clockwise (`vsmRenderSwapped`).
-      primitive: { topology: 'triangle-list', frontFace: 'ccw', cullMode: 'back' },
+      // Each vertex emits its triangle light-facing counter-clockwise (`vsmRenderSwapped`); a
+      // two-sided row's tier culls none.
+      primitive: { topology: 'triangle-list', frontFace: 'ccw', cullMode },
       depthStencil: {
         format: VSM_RENDER_TARGET_FORMAT,
         depthWriteEnabled: false,
         depthCompare: 'always',
       },
     })
-  const tiers = TIERS.map((t) =>
-    t < VSM_RENDER_CORNER_TIERS ? tier(t, module) : madeLater(() => tier(t, voxelStages())),
-  )
+  const tiers = TIERS.map((t) => {
+    switch (vsmRenderTierFamily(t)) {
+      case VSM_RENDER_FAMILY.oneSided:
+        return tier(t, module, 'back')
+      case VSM_RENDER_FAMILY.twoSided:
+        return tier(t, module, 'none')
+      default:
+        return madeLater(() => tier(t, voxelStages(), 'back'))
+    }
+  })
   return { layout1, tiers }
 }
 

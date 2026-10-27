@@ -3,12 +3,12 @@
  * two ranges of boxes of one format: the list the diff of the instances' boxes appended
  * (`../../casters/castChanges.ts`), read where it lies, never by the CPU, then the CPU's boxes
  * (`castBoxes.ts`), read from their own buffer. One thread a (box, map) pair stales a box's pages
- * (`vsmStaleBoxPages`) in every map: a box of casters already moving stales the dynamic layer of
- * each page it touches, whatever drew it, but for the coarse pages of a map whose coarse pages keep
- * their dynamic layer (`VSM_MAP_COARSE_KEEPS_DYNAMIC`): those keep the shadow a mover left until a
- * static change stales both their layers. A map that uses the receiver cover draws its dynamic
- * layer again each frame, so it skips such a box altogether: only the box of a first move (the
- * static layer's) and a change of the static casters stale it.
+ * (`vsmStaleBoxPages`) in every map: a box cached as static there (still, its offset not allowed in
+ * the map) stales the static layer of each page it touches, any other box the dynamic layer, but
+ * for the coarse pages of a map whose coarse pages keep their dynamic layer
+ * (`VSM_MAP_COARSE_KEEPS_DYNAMIC`): those keep the shadow a mover left until a static change stales
+ * both their layers. A map that uses the receiver cover draws its dynamic layer again each frame,
+ * so a box cached as dynamic stales nothing there: only a box cached as static stales its pages.
  *
  * A box is four vectors of four words, the same in the list and in the CPU's buffer: its centre and
  * a sign (floats), negative for casters already moving, then its three half axes (floats, one a
@@ -23,10 +23,10 @@
  */
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslFn, wgslStruct } from '../../../../../../math/src/wgsl/decl.ts'
-import { wgslF32 } from '../../../../../../math/src/wgsl/number.ts'
 import { ceilDivWgsl } from '../../../../../../math/src/wgsl/integer.ts'
 import { GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatch/grid.ts'
-import { UNBOUNDED_EXTENT, VSM_NO_HZB_WGSL, vsmInvalidationProgram } from '../invalidationWgsl.ts'
+import { VSM_NO_HZB_WGSL, vsmInvalidationProgram } from '../invalidationWgsl.ts'
+import { UNBOUNDED_EXTENT_WGSL } from '../../../../deformation/halfFloat.ts'
 import { VSM_OCCLUSION_PAGES_WGSL } from '../occlusion/occlusionTestWgsl.ts'
 import type { VsmLayout } from '../layout.ts'
 
@@ -96,7 +96,6 @@ export const castInvalidationWgsl = (layout: VsmLayout) =>
 @group(1) @binding(1) var<storage,read> vsmCastMaps:array<u32>;
 @group(1) @binding(2) var<storage,read> vsmCasts:array<vec4u>;
 @group(1) @binding(3) var<storage,read> vsmCastBoxes:array<vec4u>;
-const UNBOUNDED_EXTENT:f32=${wgslF32(UNBOUNDED_EXTENT)};
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn ${CAST_INVALIDATION_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lidx:u32){
  let thread=flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lidx;
@@ -133,7 +132,13 @@ fn ${CAST_INVALIDATION_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_work
  vsmStaleBoxPages(vsmProjectionOf(vsmHandleFromId(mapId)),inst);
 }
 `,
-    [CAST_PARAMS, CAST_TOTAL, CAST_RECORDS, layout.occlusion ? CAST_HZB_WGSL : VSM_NO_HZB_WGSL],
+    [
+      CAST_PARAMS,
+      CAST_TOTAL,
+      CAST_RECORDS,
+      UNBOUNDED_EXTENT_WGSL,
+      layout.occlusion ? CAST_HZB_WGSL : VSM_NO_HZB_WGSL,
+    ],
   )
 
 /** The arguments' kernel's entry. */

@@ -108,6 +108,24 @@ export const uniformDiskConcentric = wgslFn(
  return bitcast<vec2f>(unsigned|(bitcast<vec2u>(p)&vec2u(0x80000000u)))*hi;
 }`,
 )
+/**
+ * The approximate equal-area map of the unit square onto the unit disc, the one a soft shadow's or a
+ * blur's taps use where the exact map's trigonometry is not worth its cost: the square is centred
+ * and scaled to half a diagonal either side; the coordinate of the larger square (y when they tie)
+ * is replaced by the root of twice the larger square less the smaller, its sign kept. The points
+ * are not exactly uniform on the disc, and all of the square lands inside it.
+ */
+export const approxDiskMap = wgslFn(
+  'approxDiskMap',
+  [],
+  `fn approxDiskMap(e:vec2f)->vec2f{
+ var sf=e*sqrt(2.0)-sqrt(0.5);
+ let sq=sf*sf;
+ let root=sqrt(2.0*max(sq.x,sq.y)-min(sq.x,sq.y));
+ if(sq.x>sq.y){sf.x=select(-root,root,sf.x>0.0);}else{sf.y=select(-root,root,sf.y>0.0);}
+ return sf;
+}`,
+)
 
 export const bilinear4 = wgslFn(
   'bilinear4',

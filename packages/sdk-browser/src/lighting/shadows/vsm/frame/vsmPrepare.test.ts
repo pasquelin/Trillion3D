@@ -1,7 +1,8 @@
 // The shadow maps' pipelines are compiled off the thread before the first frame
 // (`prepareVsmPipelines`): for the set the scene's casting lights are first granted, every compute
 // pipe of the shadow passes — invalidation, marking, page management, the raster's candidates,
-// views, cull, expand and arguments —, the raster's render pipeline of every tier and the
+// views, cull, expand and arguments —, the raster's render pipeline of every one-sided and
+// two-sided tier (the voxel tiers' wait for a voxel brick) and the
 // projection's pipeline of every kind set. The first lit frame then creates no shadow pipeline, at
 // once or off the thread.
 import test from 'node:test'
@@ -17,7 +18,7 @@ import {
   disposeQuadRun,
   quadBackend,
 } from '../../../../frame/backend/testScenes.fixture.ts'
-import { VSM_RENDER_CORNER_TIERS, VSM_RENDER_SOFTWARE_BIN } from '../render/renderParamsWgsl.ts'
+import { VSM_RENDER_SOFTWARE_BIN, vsmRenderTiersDrawn } from '../render/renderParamsWgsl.ts'
 
 /** A pipeline's name, before the tag the session gives its label (`vsm.projection @t3d:1`). */
 const nameOf = (descriptor: { label?: string }) => (descriptor.label ?? '').split(' ')[0]
@@ -43,11 +44,14 @@ test('the first lit frame creates no shadow pipeline at once: prepare compiled t
     const prepared = shadow(made.async)
     assert.ok(prepared.length >= 20, `${prepared.length} shadow pipelines compiled by prepare`)
     assert.ok(prepared.includes('vsm.projection'), "the projection's pipeline")
-    for (let tier = 0; tier < VSM_RENDER_CORNER_TIERS; tier++)
+    // The one-sided and the two-sided tiers: a first double-sided material waits for no compile.
+    const drawn = vsmRenderTiersDrawn({ twoSided: true, voxels: false })
+    for (const tier of drawn)
       assert.ok(prepared.includes(`vsm.render.raster${tier}`), `the raster of tier ${tier}`)
-    // A scene with no voxel row compiles no voxel tier.
-    for (let tier = VSM_RENDER_CORNER_TIERS; tier < VSM_RENDER_SOFTWARE_BIN; tier++)
-      assert.ok(!prepared.includes(`vsm.render.raster${tier}`), `no raster of voxel tier ${tier}`)
+    // A scene with no voxel brick compiles no tier of theirs.
+    for (let tier = 0; tier < VSM_RENDER_SOFTWARE_BIN; tier++)
+      if (!drawn.includes(tier))
+        assert.ok(!prepared.includes(`vsm.render.raster${tier}`), `no raster of tier ${tier}`)
     made.sync.length = made.async.length = 0
     backend.render(camera())
     await backend.flush()

@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import { losslessAtlas } from './losslessAtlas.fixture.ts'
 import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { createTileEvictions } from './evictSort.ts'
+import { TILE_PROTECTED } from './evictSortWgsl.ts'
 import { entryIndex, reduceRequests, stampedPlace } from './stamp.fixture.ts'
 import { REDUCE_WGSL } from './reduceWgsl.ts'
 import { TILE_PLACE_WORD_WGSL, TILE_UNRANKED } from './slotUse.ts'
@@ -20,6 +21,9 @@ import { noTails } from '../texture/noTails.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { words } from '../../../../../tests/kit/fakeDevice/fakeBuffers.ts'
 import { createWebgpuTilePageTable, type TileKey } from './page/pageTable.ts'
+
+/** The last frame the loops run: one past the `TILE_PROTECTED` clocks a use protects. */
+const PAST_PROTECTED = TILE_PROTECTED + 1
 
 /** The shipped `tilePlaceWord`, run as the kernels find a place's first word. */
 const { tilePlaceWord: tilePlaceWordAt } = shaderRun<{
@@ -86,8 +90,9 @@ test('the ancestor a streaming tile reads is stamped, and never the victim while
   assert.deepEqual(read, { lane: 0, index: entryIndex(packEntry(place, 1)) })
   // Every other place of the layer holds a level-0 tile no pixel reads any more.
   for (let i = 1; pool.resident < pool.tiles; i++) atlas.place(level0(i))
-  // The child is asked frame after frame and streams: only its ancestor is read.
-  for (let f = 0; f < 6; f++) frame([child])
+  // The child is asked frame after frame and streams: only its ancestor is read. The others, used
+  // at clock 1, are old enough to leave once `TILE_PROTECTED` clocks have passed.
+  for (let f = 0; f <= PAST_PROTECTED; f++) frame([child])
   const victims: number[] = []
   for (let index = pool.victim(); index !== undefined; index = pool.victim()) {
     victims.push(index)
@@ -114,7 +119,7 @@ test('a tile past the feedback cap, read every frame, is stamped and stays resid
   )
   assert.equal(listed.length, 16)
   assert.equal(stamped.length, 600, 'every rank stamped, listed or not')
-  for (let f = 0; f < 6; f++) frame(seen)
+  for (let f = 0; f <= PAST_PROTECTED; f++) frame(seen)
   const victims = new Set<number>()
   for (let index = pool.victim(); index !== undefined; index = pool.victim()) {
     victims.add(index)

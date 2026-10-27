@@ -147,6 +147,7 @@ export function planFrames() {
         world: { cold: table, frames: table, clusters: table, worlds: table },
         pageLayout,
         pageGroup,
+        tiers: { twoSided: false, voxels: false },
         multipassViews: true,
         camera: { eye, view, threshold: 1 },
       },

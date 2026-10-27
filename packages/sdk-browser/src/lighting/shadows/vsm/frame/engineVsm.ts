@@ -26,6 +26,7 @@ import { releaseVsmPageManagement } from '../pageManagementPass.ts'
 import { releaseVsmOcclusion } from '../occlusion/occlusionPass.ts'
 import { createVsmFrameState, type VsmFrameState } from '../frameState.ts'
 import type { VsmFramePlan } from '../frameSetup.ts'
+import type { CompiledTiers } from '../render/renderParamsWgsl.ts'
 import { createVsmProjectionHold } from './vsmProjectionHold.ts'
 import { VsmFeedbackReadback, vsmFeedbackReadbackBytes } from '../feedbackReadback.ts'
 import { VsmOverflowLog } from '../overflowLog.ts'
@@ -70,8 +71,9 @@ export interface EngineVsm {
   mask: VsmMask | undefined
   /** What the mask was last projected from (`vsmProjectionHold.ts`). */
   projectionHold: ReturnType<typeof createVsmProjectionHold>
-  /** This frame's plan, until `finishVsmFrame`. */
-  plan: VsmFramePlan | undefined
+  /** This frame's plan, until `finishVsmFrame`, with the raster's families the frame's pipelines
+   *  were compiled for (`planVsmFrame`). */
+  plan: (VsmFramePlan & { tiers: CompiledTiers }) | undefined
   /** The plan whose pages the raster drew (or that had none to draw): another one's pages are not
    *  kept as cached (`finishVirtualShadowFrame`). */
   renderedPlan: VsmFramePlan | undefined

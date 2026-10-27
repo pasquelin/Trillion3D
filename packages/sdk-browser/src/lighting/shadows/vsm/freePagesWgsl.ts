@@ -6,8 +6,9 @@
  *
  * - A page no map holds — never drawn, its map gone, or not wanted for `shadowCacheMaxPageAgeSinceLastRequest` — is
  *   the oldest: taken first.
- * - A page holding a cached map is ranked by the frames since it was last wanted, a doubling a
- *   step, its level the tier: the finer level first within a step.
+ * - A page holding a cached map is ranked by the frames since it was last wanted, a step a frame
+ *   (`SHADOW_AGE_STEP_WGSL`): the least recently wanted first, strictly. Its level, the finer first,
+ *   only orders pages wanted on the same frame.
  * - A page wanted this frame is in use: never listed, never taken.
  *
  * `vsmFreePages` holds the sort's words (`POOL_SORT_WORDS`, zero at creation), then the count of
@@ -17,7 +18,7 @@
 import { POOL_AGES } from '../../../gpu/sort/rank.ts'
 import { POOL_SORT_WORDS } from '../../../gpu/sort/sortWords.ts'
 import { POOL_SORT_WGSL, poolSortWordsWgsl } from '../../../gpu/sort/sortWgsl.ts'
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 
 /**
  * THE ONE FREE STACK of the shadow pools, over the atomic words of \`buffer\`: its count at \`count\`,
@@ -65,6 +66,18 @@ fn pmPop()->i32{
 )
 
 /**
+ * The age step of a kept page unwanted `age` frames, one or more (`poolInUse` keeps the page wanted
+ * now out of the rank): a step a frame, the least recently wanted leaving first. Pages wanted fewer
+ * than `PM_AGE_KEPT_MAX` frames ago are told apart exactly; older ones share the last step, where
+ * the tier orders them.
+ */
+const SHADOW_AGE_STEP_WGSL = wgslFn(
+  'poolAgeStep',
+  [],
+  'fn poolAgeStep(age:u32)->u32{return age-1u;}',
+)
+
+/**
  * What the pool sort reads and writes for the shadow pool (`POOL_SORT_WGSL`'s host functions):
  * every pool page, its age and tier off its `vsmPoolPageInfo`, the whole pool a burst, and the
  * queue written top down into `vsmFreePages`.
@@ -73,6 +86,7 @@ export const VSM_POOL_SORT_WGSL = wgslBlock(
   'VSM_POOL_SORT_WGSL',
   [
     POOL_SORT_WGSL,
+    SHADOW_AGE_STEP_WGSL,
     VSM_FREE_PAGES_WGSL,
     poolSortWordsWgsl(
       'vsmFreePages',
@@ -83,7 +97,7 @@ export const VSM_POOL_SORT_WGSL = wgslBlock(
   `/** The age of a page no map holds: the last age step, the first taken. */
 const PM_AGE_EMPTY:u32=0xffffffffu;
 /** A kept page's age stops a step under the empty pages' (\`poolRank\`): taken after every one. */
-const PM_AGE_KEPT_MAX:u32=${2 ** (POOL_AGES - 2) - 1}u;
+const PM_AGE_KEPT_MAX:u32=${POOL_AGES - 1}u;
 fn poolSlotCount()->u32{return vsm.poolPages;}
 /** The pool page slot \`j\` stands for: itself, or without \`lruAllocation\` the pool taken from its
  *  end, so that the sort's lower slot first lists the highest page first — the order a list popped

@@ -1,22 +1,24 @@
 // The shadow pool's free pages (`freePagesWgsl.ts`): the shipped pool sort — its stages, workgroup
 // by workgroup (`sortRun.fixture.ts`) — run over a made-up pool, then the grant's pops. A page wanted this
-// frame is never taken; an empty page goes first; then the page wanted longest ago by age step,
-// the finer level first within a step — where the age order of before took the older page.
+// frame is never taken; an empty page goes first; then the page wanted longest ago, frame by frame
+// up to `LAST_STEP` frames, the finer level first among pages of one age.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { mulberry32 } from '../../../../../math/src/sequence/random.ts'
 import { vsmPhysicalPageKernels } from './physicalPagesWgsl.ts'
 import { vsmLayout } from './layout.ts'
-import { POOL_RANKS } from '../../../gpu/sort/rank.ts'
-import { ageStep } from '../../../gpu/sort/rank.fixture.ts'
+import { POOL_AGES, POOL_RANKS } from '../../../gpu/sort/rank.ts'
 import { POOL_SORT_WORDS, poolScratchWords } from '../../../gpu/sort/sortWords.ts'
 import { runPoolSort } from '../../../gpu/sort/sortRun.fixture.ts'
+
+/** The age of the last step: pages wanted this many frames ago or more share it (`PM_AGE_KEPT_MAX`). */
+const LAST_STEP = POOL_AGES - 1
 
 const CODE = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7 })).poolCount.code
 /** The shadow pool's side of the sort: its ranks, its words and its free pages. */
 const HOST = [
-  ...['poolSlotRank', 'poolRank', 'bitLength', 'poolSlotCount', 'poolSlotAge', 'poolSlotTier'],
+  ...['poolSlotRank', 'poolRank', 'poolAgeStep', 'poolSlotCount', 'poolSlotAge', 'poolSlotTier'],
   'poolPage',
   ...['poolInUse', 'poolBurst', 'poolPlaced', 'poolEmit', 'poolCountAdd', 'poolCountLoad'],
   ...['poolCountStore', 'poolScratchLoad', 'poolScratchStore', 'pmFreeCount', 'pmFreeAt'],
@@ -52,7 +54,7 @@ function popAll(pages: Page[], frame: number, mapLevels: number[], seed = 1, lru
   return { free: count, popped, counts: freePages.slice(0, POOL_RANKS) }
 }
 
-test('the free pages: the empty ones, then by age step, the finer level first; none wanted now', () => {
+test('the free pages: the empty ones, then the least recently wanted, the finer level first at one age; none wanted now', () => {
   const rand = mulberry32(27),
     frame = 5000
   const mapLevels = [0, 0, 9, 10, 11, 14]
@@ -86,9 +88,9 @@ test('the free pages: the empty ones, then by age step, the finer level first; n
     const kept = popped.slice(firstKept)
     for (let i = 1; i < kept.length; i++) {
       const [a, b] = [kept[i - 1], kept[i]]
-      const [stepA, stepB] = [a, b].map((p) => ageStep(frame - pages[p].lastWantedStamp))
-      assert.ok(stepA >= stepB, `${count}: the older step first at ${i}`)
-      if (stepA === stepB) assert.ok(tierOf(a) <= tierOf(b), `${count}: the finer first at ${i}`)
+      const [ageA, ageB] = [a, b].map((p) => Math.min(frame - pages[p].lastWantedStamp, LAST_STEP))
+      assert.ok(ageA >= ageB, `${count}: the older first at ${i}`)
+      if (ageA === ageB) assert.ok(tierOf(a) <= tierOf(b), `${count}: the finer first at ${i}`)
     }
     // The counts zeroed for the next frame's sort.
     assert.ok(counts.every((c) => c === 0))
@@ -97,15 +99,30 @@ test('the free pages: the empty ones, then by age step, the finer level first; n
   }
 })
 
-test('within an age step the finer page goes first, though the coarser one is older', () => {
+test('a page wanted longer ago goes first, whatever its level; the level orders one age', () => {
   const frame = 100
-  // Ages 5 and 6 share a step (both three bits): the age order of before took the older, coarse
-  // page; the pool rank takes the finer one.
+  // Ages 5 and 6 are two steps: the older, coarse page goes first. The two pages of age 5 are
+  // told apart by their level.
   const pages: Page[] = [
     { flags: 1, lastWantedStamp: frame - 6, mapId: 0, mipLevel: 3 },
     { flags: 1, lastWantedStamp: frame - 5, mapId: 0, mipLevel: 0 },
+    { flags: 1, lastWantedStamp: frame - 5, mapId: 0, mipLevel: 2 },
   ]
-  assert.deepEqual(popAll(pages, frame, [0]).popped, [1, 0])
+  assert.deepEqual(popAll(pages, frame, [0]).popped, [0, 1, 2])
+})
+
+test('the ages up to LAST_STEP are told apart; older ones share the last step', () => {
+  const frame = 1000
+  const levels = [2, 2, 5, 0, 2, 2]
+  const pages: Page[] = [3, 30, 31, 32, 500, 1].map((age, i) => ({
+    flags: 1,
+    lastWantedStamp: frame - age,
+    mapId: 0,
+    mipLevel: levels[i],
+  }))
+  // Ages 31, 32 and 500 (pages 2, 3, 4) tie on the last step: the lower level, the finer, first.
+  // Then ages 30, 3, 1.
+  assert.deepEqual(popAll(pages, frame, [0]).popped, [3, 4, 2, 1, 0, 5])
 })
 
 test('a page wanted last frame and not now may be taken; one wanted now never', () => {

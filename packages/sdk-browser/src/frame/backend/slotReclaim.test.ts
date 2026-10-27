@@ -9,7 +9,6 @@ import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { camera } from './testScenes.fixture.ts'
 import { deepCoarseQuadsScene } from './coarseQuads.fixture.ts'
-import { EVICT_IN_USE } from '../../gpu/sort/rank.fixture.ts'
 import { DAG_READBACK_SLOTS } from '../../geometry/dag/layout.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
@@ -17,6 +16,13 @@ import { VISIBLE_RECORD_WORDS } from '../../geometry/dag/visible/layout.ts'
 import { VIS_HW, VIS_SW, VISIBLE_HEADER_WORDS } from '../../geometry/dag/visible/layout.fixture.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+
+/**
+ * Frames a use protects its slot for: the frame that used it and the one after, so a slot any view
+ * — a light's, a view drawn beside the main one — used in the frame before is still in use, whatever
+ * order the views read in.
+ */
+const EVICT_IN_USE = 2
 
 test('GPU camera jumps reclaim detail slots while preserving pinned coarse coverage', async () => {
   installGpuGlobals()

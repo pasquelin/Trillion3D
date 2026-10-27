@@ -1,6 +1,6 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { PI } from '../../../../../math/src/wgsl/constants.ts'
-import { hammersley16, rand3dPcg16 } from '../../../../../math/src/wgsl/sampling.ts'
+import { approxDiskMap, hammersley16, rand3dPcg16 } from '../../../../../math/src/wgsl/sampling.ts'
 import { DOF_COC_WGSL, DOF_PARAMS_WGSL } from './dofCommonWgsl.ts'
 import { BOKEH_LUT_SIZE, COLOR_FORMAT, GROUP } from './dofLayout.ts'
 import { LAYERS_BINDINGS } from '../../../blend/translucencyLayers.ts'
@@ -98,7 +98,7 @@ fn amendTranslucency(color:ptr<function,vec4f>,translucency:ptr<function,f32>,mo
  */
 export const RECOMBINE_SLIGHT_WGSL = wgslBlock(
   'RECOMBINE_SLIGHT_WGSL',
-  [RECOMBINE_WEIGHTS_WGSL, hammersley16, rand3dPcg16],
+  [RECOMBINE_WEIGHTS_WGSL, hammersley16, rand3dPcg16, approxDiskMap],
   `
 struct Slight{color:vec4f,colorWeight:f32,opacity:f32,opacityWeight:f32}
 struct FullSample{color:vec4f,coc:f32,inter:f32}
@@ -143,17 +143,10 @@ fn samplePair(s:ptr<function,Slight>,base:vec2f,offset0:vec2f){
  }
  slightPair(s,pair[0],pair[1]);
 }
-fn approxDisk(e:vec2f)->vec2f{
- var sf=e*sqrt(2.0)-sqrt(0.5);
- let sq=sf*sf;
- let root=sqrt(2.0*max(sq.x,sq.y)-min(sq.x,sq.y));
- if(sq.x>sq.y){sf.x=select(-root,root,sf.x>0.0);}else{sf.y=select(-root,root,sf.y>0.0);}
- return sf;
-}
 fn slightGather(s:ptr<function,Slight>,base:vec2f,radius:f32,pairs:u32,seed:vec2u){
  for(var i=0u;i<pairs;i++){
   let e=hammersley16(i,select(${RECOMBINE_PAIRS[1]}u,${RECOMBINE_PAIRS[2]}u,QUALITY==2u),seed);
-  samplePair(s,base,radius*approxDisk(e));
+  samplePair(s,base,radius*approxDiskMap(e));
  }
 }`,
 )

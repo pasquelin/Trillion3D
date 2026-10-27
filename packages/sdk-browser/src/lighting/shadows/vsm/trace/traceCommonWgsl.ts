@@ -1,19 +1,19 @@
 /**
  * THE SHADOW RAYS' COMMON PIECES (`traceWgsl.ts`), every light's: the march's sample times, the
- * square-to-disk map and the cone a ray is drawn in, each ray's step jitter and blue-noise values,
- * and a trace's result. No binding but the noise pair the host gives (`vsmRayNoiseWgsl`).
+ * square-to-disk maps (a sun's exact, a local light's approximate) and the cone a ray is drawn in,
+ * each ray's step jitter and blue-noise values, and a trace's result. No binding but the noise pair the host gives (`vsmRayNoiseWgsl`).
  */
 import { SUBGROUP_ALL_WGSL } from '../../../../gpu/core/subgroups.ts'
 import { BLUE_NOISE_TILE } from '../../../../gpu/noise/blueNoiseWgsl.ts'
 import { VSM_F32_BELOW_ONE } from '../constants.ts'
 import { type WgslDecl, wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 import { FLOAT32_MIN_NORMAL, QUARTER_PI } from '../../../../../../math/src/wgsl/constants.ts'
-import { additive2d } from '../../../../../../math/src/wgsl/sampling.ts'
+import { additive2d, approxDiskMap } from '../../../../../../math/src/wgsl/sampling.ts'
 import { Frame3, outOfFrame } from '../../../../../../math/src/wgsl/basis.ts'
 
 export const VSM_TRACE_COMMON_WGSL = wgslBlock(
   'VSM_TRACE_COMMON_WGSL',
-  [QUARTER_PI, FLOAT32_MIN_NORMAL, Frame3, outOfFrame],
+  [QUARTER_PI, FLOAT32_MIN_NORMAL, Frame3, outOfFrame, approxDiskMap],
   `
 /** The march's sample times: t² with t = a·i + b (the two words returned, a = −1/stepCount), from
  *  the far end (i = 0) to the ray's start (i = stepCount, time 0), each step jittered by \`stepJitter\`. */
@@ -45,11 +45,17 @@ fn vsmSquareToDiskPolar(E:vec2f)->vec3f{
 }
 /** A uniform point on the unit disk: the square's point taken ring to circle. */
 fn vsmSquareToDisk(E:vec2f)->vec2f{let r=vsmSquareToDiskPolar(E);return r.xy*r.z;}
-/** A ray direction toward a uniform point of the light's disk as the receiver sees it: inside the
- *  cone of sine \`s\` around the frame's axis \`basis.z\`, the disk point \`E\` (\`vsmSquareToDisk\`) its
- *  sine across the axis — a sun's angular radius and a local light's emitter alike. Unit length. */
-fn vsmConeDirection(basis:Frame3,s:f32,E:vec2f)->vec3f{
- let across=vsmSquareToDisk(E)*s;
+/** The unit-disk point of a ray's noise \`E\`: a sun's exact map (\`vsmSquareToDisk\`), a local light's
+ *  approximate one (\`approxDiskMap\`); only the one map runs. */
+fn vsmLightDisk(directional:bool,E:vec2f)->vec2f{
+ if(directional){return vsmSquareToDisk(E);}
+ return approxDiskMap(E);
+}
+/** A ray direction toward a point of the light's disk as the receiver sees it: inside the cone of
+ *  sine \`s\` around the frame's axis \`basis.z\`, the unit-disk point \`disk\` (\`vsmLightDisk\`) its sine
+ *  across the axis — a sun's angular radius and a local light's emitter alike. Unit length. */
+fn vsmConeDirection(basis:Frame3,s:f32,disk:vec2f)->vec3f{
+ let across=disk*s;
  return outOfFrame(vec3f(across,sqrt(max(0.0,1.0-dot(across,across)))),basis);
 }
 `,

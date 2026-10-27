@@ -55,10 +55,11 @@
 // the uniform block one map count (no single-page count) and none of the page-table row words no
 // shader read, the cover size at word 12, two pad words before the mip offsets; `vsm.render.views`
 // no longer written by the CPU (`render/renderViewsWgsl.ts`), the render parameters carrying its bound.
-// Retaken when the raster took the voxel rows' four tiers beside the five of corners
-// (`VSM_RENDER_SOFTWARE_BIN`, `render/renderParamsWgsl.ts`): each chunk's counters and indirect arguments
-// hold three words more per tier and their arguments seven (`chunks/chunkSizing.ts`): those
-// buffers are hashed at their new size and stride; every other buffer kept.
+// Retaken when the raster's tiers became three families of four (one-sided, two-sided, voxel rows;
+// `VSM_RENDER_TIERS`, `render/renderParamsWgsl.ts`) and its software bin two, a layer each
+// (`VSM_RENDER_BINS`): a view pass's counters hold two words a bin (37 words) and its indirect
+// arguments four a tier and three a software dispatch (63 words): GPU-written buffers, none hashed
+// here; no hashed buffer moved.
 // Retaken when a sun's far-shadow distance took a word of its own at the end of the projection record
 // (`farShadowEdge`, 304 bytes a map for 288; 0 where a light names none, as every map here): the
 // projection buffers are hashed at their new size, each record's other words kept; the render

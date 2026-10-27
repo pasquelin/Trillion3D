@@ -29,9 +29,8 @@ import { vsmOcclusionPipes } from '../occlusion/occlusionPass.ts'
 import { vsmRasterPipe, vsmRenderComputePipes, vsmSoftwarePipes } from '../render/renderPipes.ts'
 import { vsmDescentPipes } from '../traversal/traversalPass.ts'
 import type { VsmLayout } from '../layout.ts'
-import { VSM_RENDER_CORNER_TIERS, VSM_RENDER_SOFTWARE_BIN } from '../render/renderParamsWgsl.ts'
+import { vsmRenderTiersDrawn, type CompiledTiers } from '../render/renderParamsWgsl.ts'
 import { chainReady, type PreparedPipeline } from '../../../deferred/fullscreen.ts'
-import { holdsVoxels } from './vsmRasterScene.ts'
 import { marksPixels, marksWaterSurface } from './vsmFrontLayer.ts'
 import { vsmProjectionPipeline } from '../projection/projectionPipelines.ts'
 import { onePassMaskFormat } from '../projection/maskFormat.ts'
@@ -163,7 +162,8 @@ export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
 
 /** The pipelines of the frame's passes over `layout`: every compute pipe of the marking, the page
  *  management, the descent, the cull, the bin, the software raster and the stale, the raster's
- *  corner tiers, with the voxel tiers where the session holds voxel bricks (`voxels`). */
+ *  one-sided and two-sided tiers — made from the start, so a first double-sided material waits for
+ *  no compile — and the voxel rows' where the session holds voxel bricks (`voxels`). */
 function framePipelines(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -177,6 +177,7 @@ function framePipelines(
   const fronts = tracesTranslucent(rt) ? [false, true] : [false],
     waters = marksWaterSurface(rt) ? [false, true] : [false]
   const froxels = !marksPixels(rt)
+  const raster = vsmRasterPipe(device, layout, pageLayout, rt.vis.rasters)
   const pipes = [
     casts.args,
     casts.stale,
@@ -192,7 +193,7 @@ function framePipelines(
     ...Object.values(vsmPageManagementPipes(device, layout, vsmCountersOn(device))).map(
       ({ pipe }) => pipe,
     ),
-    // The corner tiers alone: a voxel tier compiles the first time a table holds a voxel row.
+    // The one-sided tiers alone: the others compile the first time a table holds a row of theirs.
     ...[render.candidates, render.candidatesDone, render.views, render.cull, render.bin],
     // The software half of the raster, on the session's graphs as the raster's tiers.
     ...Object.values(vsmSoftwarePipes(device, layout, rt.vis.rasters)),
@@ -213,18 +214,16 @@ function framePipelines(
     ...pipes.map((pipe) => pipe?.prepared),
     // The diff of the instances' boxes feeds the stale: no shadow is planned without it.
     ...castDiffStages(device),
-    ...vsmRasterPipe(device, layout, pageLayout, rt.vis.rasters).tiers.slice(
-      0,
-      voxels ? VSM_RENDER_SOFTWARE_BIN : VSM_RENDER_CORNER_TIERS,
-    ),
+    ...vsmRenderTiersDrawn({ twoSided: true, voxels }).map((tier) => raster.tiers[tier]),
   ]
   return stages.filter((stage) => stage !== undefined)
 }
 
-/** What a layout's pipelines were last found compiled for (`framePipelinesCompiled`). */
+/** What a layout's pipelines were last found compiled for (`framePipelinesCompiled`); `tiers` the
+ *  families the frame draws, whose `twoSided` follows the table (the pipelines of both stand). */
 interface CompiledFor {
+  tiers: CompiledTiers
   rasters: unknown
-  voxels: boolean
   translucent: boolean
   froxels: boolean
   water: boolean
@@ -232,16 +231,28 @@ interface CompiledFor {
 }
 const compiledFor = new WeakMap<VsmLayout, CompiledFor>()
 
-/** Whether every pipeline of the frame's passes over `layout` is compiled, the missing ones asked
- *  at once (`chainReady`): the marking, the page management, the raster and the stale write what
- *  the next read and advance the cache, so the frame plans nothing while one compiles. Compiled
- *  pipelines stay so: nothing is looked up again for the same graphs and settings. */
-function framePipelinesCompiled(rt: WebgpuPagesRuntime, device: GPUDevice, layout: VsmLayout) {
+/** Whether the session holds voxel bricks. */
+function holdsVoxels(rt: WebgpuPagesRuntime) {
+  for (const block of rt.vis.geometryBlocks.values()) if (block.voxel) return true
+  return false
+}
+
+/** The families of the raster the frame draws, every pipeline of its passes over `layout` compiled
+ *  (the two-sided tiers' always, the voxel tiers' where the session holds voxel bricks), or none
+ *  while one compiles, the missing ones asked at once (`chainReady`): the marking, the page
+ *  management, the raster and the stale write what the next read and advance the cache, so the frame
+ *  plans nothing while one compiles. Compiled pipelines stay so: nothing is looked up again for the
+ *  same graphs and settings. */
+function framePipelinesCompiled(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  layout: VsmLayout,
+): CompiledTiers | undefined {
   const pageLayout = rt.lights.pageLayout
-  if (!pageLayout) return false
+  if (!pageLayout) return undefined
   const now: CompiledFor = {
+    tiers: { twoSided: rt.vis.materialTable.twoSided, voxels: holdsVoxels(rt) },
     rasters: rt.vis.rasters,
-    voxels: holdsVoxels(rt),
     translucent: tracesTranslucent(rt),
     froxels: !marksPixels(rt),
     water: marksWaterSurface(rt),
@@ -251,16 +262,19 @@ function framePipelinesCompiled(rt: WebgpuPagesRuntime, device: GPUDevice, layou
   if (
     known &&
     known.rasters === now.rasters &&
-    known.voxels === now.voxels &&
+    known.tiers.voxels === now.tiers.voxels &&
     known.translucent === now.translucent &&
     known.froxels === now.froxels &&
     known.water === now.water &&
     known.counters === now.counters
-  )
-    return true
-  if (!chainReady(...framePipelines(rt, device, layout, pageLayout, now.voxels))) return false
+  ) {
+    known.tiers.twoSided = now.tiers.twoSided
+    return known.tiers
+  }
+  if (!chainReady(...framePipelines(rt, device, layout, pageLayout, now.tiers.voxels)))
+    return undefined
   compiledFor.set(layout, now)
-  return true
+  return now.tiers
 }
 
 /** The shadow views' descent's kernels (`vsmDescentPipes`). */
@@ -365,7 +379,8 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
     return false
   }
   // The passes' pipelines compiled, or no plan: the cache advances only for a frame that runs.
-  if (!framePipelinesCompiled(rt, device, vsm.res.layout)) {
+  let tiers = framePipelinesCompiled(rt, device, vsm.res.layout)
+  if (!tiers) {
     unshadowLights(store)
     return false
   }
@@ -389,9 +404,12 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   const planned = vsm.res.layout
   const plan = planMaps(rt, device, cam, list, vsm)
   // The tables grown in place made the passes' pipelines anew: the frame waits for them too.
-  if (vsm.res.layout !== planned && !framePipelinesCompiled(rt, device, vsm.res.layout)) {
-    unshadowLights(store)
-    return false
+  if (vsm.res.layout !== planned) {
+    tiers = framePipelinesCompiled(rt, device, vsm.res.layout)
+    if (!tiers) {
+      unshadowLights(store)
+      return false
+    }
   }
   const slotsShort = plan.mapsAsked > vsm.res.layout.mapSlots
   if (slotsShort) vsm.overflow.note(VSM_OVERFLOW_MAP_SLOTS, performance.now())
@@ -420,7 +438,7 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
     unshadowLights(store)
     return false
   }
-  vsm.plan = plan
+  vsm.plan = { ...plan, tiers }
   vsm.pendingBoxes = boxes
   vsm.pendingDiff = diff
   vsm.pendingCastMaps = castMaps

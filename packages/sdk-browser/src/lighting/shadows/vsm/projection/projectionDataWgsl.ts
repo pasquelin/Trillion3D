@@ -134,8 +134,10 @@ fn vsmFacesAwayFromSun(normal:vec3f,lightDirection:vec3f,emitterSize:f32)->bool{
 /** Reads a map's projection data, through the module's `vsmProjectionData` binding. */
 export const VSM_PROJECTION_DATA_READ_WGSL = wgslBlock(
   'VSM_PROJECTION_DATA_READ_WGSL',
-  [VSM_HANDLE_WGSL, VSM_PROJECTION_DATA_WGSL],
+  [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, VSM_PROJECTION_DATA_WGSL],
   `
 fn vsmProjectionOf(h:VsmHandle)->VsmProjectionData{return vsmUnpackProjection(vsmProjectionData[h.id],h);}
+/** Whether the map is one page (a distant light's: its last mip alone). */
+fn vsmSinglePageMap(pd:VsmProjectionData)->bool{return pd.lightKind!=LIGHT_KIND_DIRECTIONAL&&pd.finestMip>=VSM_MIPS-1u;}
 `,
 )

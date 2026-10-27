@@ -44,6 +44,7 @@ function rasterScene(
     decode: () => {},
     world: { cold: table, frames: table, clusters: table, worlds: table },
     ...page,
+    tiers: { twoSided: false, voxels: false },
     multipassViews: true,
     camera: {
       eye: [0, 0, 0],

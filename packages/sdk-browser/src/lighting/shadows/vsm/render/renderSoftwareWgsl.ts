@@ -20,13 +20,17 @@
  *
  * Two entry points: `vsmRenderSoftware` writes the dynamic layer's records into the pool's slice 0,
  * what every reader samples; `vsmRenderSoftwareStatic` writes the static layer's records into the
- * static slice, merged into slice 0 after the raster (`vsmMergePages`).
- * Each binds the one slice it writes: the stage holds eight storage buffers — the page rows' five, the
- * sorted records, the projection data and that slice —, so a static caster is rastered once a slice.
+ * static slice, merged into slice 0 after the raster (`vsmMergePages`). The cull bins the two layers
+ * apart (`VSM_RENDER_SOFTWARE_BIN`, `_STATIC_BIN`): a layer's dispatch launches a group a record of
+ * its own, and a static record exists only where the set keeps a static slice (a static layer
+ * needs a cached map). Each binds the one slice it writes: the stage holds eight storage buffers —
+ * the page rows' five, the sorted records, the projection data and that slice —, so a static caster
+ * is rastered once a slice.
  *
  * Group 0: the shadow page group's compute twin (`../../casters/pageGroup.ts`). Group 1: 0 the sorted
- * records, the software records first and their count at the capacity's place; 1 the projection
- * data; 2 the pool slice (atomic); 3 the uniforms; 4 the parameters (uniform, dynamic).
+ * records, the software records first, the dynamic layer's then the static layer's, their two counts
+ * at the capacity's place; 1 the projection data; 2 the pool slice (atomic); 3 the uniforms; 4 the
+ * parameters (uniform, dynamic).
  */
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
 import { wgslFn } from '../../../../../../math/src/wgsl/decl.ts'
@@ -84,12 +88,11 @@ const PAGE_FRAME = wgslFn(
 /** The shadow raster's target of the one cluster kernel (`ClusterRasterTarget`), `wpo` naming
  *  whether the module holds the offsets' graph (whose threshold the map sets). */
 const shadowClusterTarget = (wpo: boolean): ClusterRasterTarget => ({
-  // The group's record, if its page is to be drawn and, in the static entry, it draws the static layer.
-  item: `if(at<vsmSoftwareRecords[params.recordCapacity].x){
-   let r=vsmSoftwareRecords[at];
-   if(vsmUnpackTableEntry(r.w).thisLevelDrawable&&select(vsmRecordStatic(r)!=0u,vsmRecordStatic(r)==0u||vsm.staticSlice==0u,mode==0u)){groupRow=r.x;}
+  // The group's record of its layer, if its page is to be drawn.
+  item: `if(at<vsmSoftwareCount(mode)&&vsmUnpackTableEntry(vsmSoftwareRecords[vsmSoftwareAt(at,mode)].w).thisLevelDrawable){
+   groupRow=vsmSoftwareRecords[vsmSoftwareAt(at,mode)].x;
   }`,
-  itemOwn: `swRecord=vsmSoftwareRecords[at];
+  itemOwn: `swRecord=vsmSoftwareRecords[vsmSoftwareAt(at,mode)];
  swRaw=vsmProjectionData[vsmRecordMap(swRecord)];${
    wpo ? '\n wpoThreshold=swRaw.wpoThreshold;' : ''
  }`,
@@ -109,6 +112,10 @@ ${PAGE_BINDING.pages}
 ${materialDeclarations()}
 @group(1) @binding(0) var<storage,read> vsmSoftwareRecords:array<vec4u>;
 @group(1) @binding(4) var<uniform> params:VsmRenderParams;
+/** The records of a layer (\`mode\`: 0 the dynamic layer's, 1 the static layer's): their count, and
+ *  the place of the layer's record \`at\` among the sorted ones, the static layer's after the dynamic. */
+fn vsmSoftwareCount(mode:u32)->u32{return vsmSoftwareRecords[params.recordCapacity][mode];}
+fn vsmSoftwareAt(at:u32,mode:u32)->u32{return select(0u,vsmSoftwareRecords[params.recordCapacity].x,mode==1u)+at;}
 /** The record a thread rasters and its map's record. */
 var<private> swRecord:vec4u;
 var<private> swRaw:VsmProjectionRecord;

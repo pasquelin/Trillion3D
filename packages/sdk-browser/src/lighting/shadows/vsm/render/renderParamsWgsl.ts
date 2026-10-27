@@ -9,44 +9,77 @@ import { GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatc
 /** THE SHADOW RASTER'S PARAMETERS AND INDIRECT ARGUMENTS (`renderCullWgsl.ts`): its view pass's
  *  uniform, its counters and the one-thread kernels that arm each next stage. */
 
-/** The raster's corner tiers, its bins: tier t draws `VSM_RENDER_TIER_CORNERS << t` corners a
+/** The raster's corner tiers: tier t of a family draws `VSM_RENDER_TIER_CORNERS << t` corners a
  *  record, a row taking the least tier that holds its corners (`vsmRenderTierOf`) — at most 256
- *  triangles a row, twice for a two-sided row: 1536 corners, the last tier's. */
-export const VSM_RENDER_CORNER_TIERS = 5
+ *  triangles a row, 768 corners, the last tier's. The hardware raster's tiers come in three
+ *  families of `VSM_RENDER_CORNER_TIERS` (`VSM_RENDER_FAMILY`): the one-sided rows', whose pipelines
+ *  cull the back faces; the two-sided rows' (`FLAG_DOUBLE`), no face culled, a row drawn once, its
+ *  corners its index count (`VSM_RENDER_DOUBLE_BIT`); and the voxel rows' (`FLAG_VOXEL`), their
+ *  records drawn by the voxel raster (`renderVoxelWgsl.ts`) — a page's bricks' boxes, one-sided, 36
+ *  corners a brick, 756 for its 21 at most: no record launches more than twice the corners its page
+ *  draws, nor fewer than 96 (`VSM_RENDER_VOXEL_BIT`). The two-sided tiers' pipelines are compiled with the
+ *  one-sided ones, the voxel tiers' only where the session holds voxel bricks; the tiers of those
+ *  two families are drawn only on a frame whose table holds a row of the family
+ *  (`vsmRenderTiersDrawn`). A candidate says its family by the bit of it in its corners, above any
+ *  count a row draws; a voxel row's wins. */
+export const VSM_RENDER_CORNER_TIERS = 4
 const VSM_RENDER_TIER_CORNERS = 96
-/** Then the voxel rows' tiers (`FLAG_VOXEL`), from `VSM_RENDER_CORNER_TIERS`: their records are
- *  drawn by the voxel raster (`renderVoxelWgsl.ts`), tier `VSM_RENDER_CORNER_TIERS + t` drawing
- *  `VSM_RENDER_TIER_CORNERS << t` corners a record as corner tier `t` does — a page's bricks'
- *  boxes, one-sided, 36 corners a brick, 756 for its 21 at most: no record launches more than twice
- *  the corners its page draws, nor fewer than 96 —, and only on a frame whose table holds a voxel
- *  row (`vsmEncodeRaster`). A candidate says it is one by `VSM_RENDER_VOXEL_BIT` in its corners,
- *  above any count a row draws. */
-const VSM_RENDER_VOXEL_TIERS = 4
+const VSM_RENDER_DOUBLE_BIT = 0x4000
 const VSM_RENDER_VOXEL_BIT = 0x8000
-const VSM_RENDER_TIERS = VSM_RENDER_CORNER_TIERS + VSM_RENDER_VOXEL_TIERS
-/** The software raster's bin (`renderSoftwareWgsl.ts`), after the hardware tiers: the records of
+export const VSM_RENDER_FAMILY = { oneSided: 0, twoSided: 1, voxel: 2 } as const
+const VSM_RENDER_TIERS = Object.keys(VSM_RENDER_FAMILY).length * VSM_RENDER_CORNER_TIERS
+/** The software raster's bins (`renderSoftwareWgsl.ts`), after the hardware tiers: the records of
  *  the clusters small enough in their map's mip view (`vsmRenderSoftware`), each a window of one
- *  page, rastered in compute. Its records lie first in the sorted list, its count in the list's word
- *  past the capacity (`vsmRenderBin`). */
+ *  page, rastered in compute, the dynamic layer's in the first bin and the static layer's in the
+ *  second (the second dispatch launches a group for the static layer's alone). Their records lie
+ *  first in the sorted list, their counts in the list's word past the capacity (`vsmRenderBin`). */
 export const VSM_RENDER_SOFTWARE_BIN = VSM_RENDER_TIERS
-/** The bins: the tiers and the software raster's. */
-const VSM_RENDER_BINS = VSM_RENDER_TIERS + 1
+const VSM_RENDER_SOFTWARE_STATIC_BIN = VSM_RENDER_SOFTWARE_BIN + 1
+/** The bins: the hardware tiers and the software raster's two. */
+const VSM_RENDER_BINS = VSM_RENDER_SOFTWARE_STATIC_BIN + 1
 /** The corners a record of tier `tier` draws. */
 export const vsmRenderTierCorners = (tier: number) =>
-  VSM_RENDER_TIER_CORNERS <<
-  (tier >= VSM_RENDER_CORNER_TIERS ? tier - VSM_RENDER_CORNER_TIERS : tier)
+  VSM_RENDER_TIER_CORNERS << (tier % VSM_RENDER_CORNER_TIERS)
+/** The family of a hardware tier (`VSM_RENDER_FAMILY`). */
+export const vsmRenderTierFamily = (tier: number) => Math.floor(tier / VSM_RENDER_CORNER_TIERS)
+/** The raster's families a frame draws: the two-sided rows' where the session holds a two-sided
+ *  surface (`FLAG_DOUBLE` on its rows), the voxel rows' where it holds voxel bricks. */
+export interface CompiledTiers {
+  twoSided: boolean
+  voxels: boolean
+}
+/** The bits of a frame's key into `TIERS_DRAWN`: the table holds a two-sided row, a voxel row. */
+const DRAWN_TWO_SIDED = 1
+const DRAWN_VOXEL = 2
+const drawnKey = (twoSided: boolean, voxels: boolean) =>
+  (twoSided ? DRAWN_TWO_SIDED : 0) | (voxels ? DRAWN_VOXEL : 0)
+const TIERS_DRAWN = Array.from({ length: drawnKey(true, true) + 1 }, (_, held) =>
+  [
+    VSM_RENDER_FAMILY.oneSided,
+    ...(held & DRAWN_TWO_SIDED ? [VSM_RENDER_FAMILY.twoSided] : []),
+    ...(held & DRAWN_VOXEL ? [VSM_RENDER_FAMILY.voxel] : []),
+  ].flatMap((family) =>
+    Array.from({ length: VSM_RENDER_CORNER_TIERS }, (_, t) => family * VSM_RENDER_CORNER_TIERS + t),
+  ),
+)
+/** The hardware tiers a frame draws: the one-sided rows', and those of the two-sided and the voxel
+ *  rows while the table holds a row of each. */
+export const vsmRenderTiersDrawn = ({ twoSided, voxels }: CompiledTiers) =>
+  TIERS_DRAWN[drawnKey(twoSided, voxels)]!
 /** The pages a side of the window a record draws spans: the reference's raster window
  *  (`VSM_RENDER_WINDOW_PAGES`), the cull emitting a record a window of a caster's page rect and the
  *  raster drawing it over a viewport of that many pages (`renderRasterWgsl.ts`). */
 export const VSM_RENDER_WINDOW_PAGES = 4
 /** Words of a view pass's indirect arguments: the cull's 3; the bin's 3, a thread a record
- *  (`vsmRenderBin`); then a draw of 4 a tier; then the software raster's 3, a group a record. */
+ *  (`vsmRenderBin`); then a draw of 4 a tier; then the software raster's 3 a layer, a group a record
+ *  of the layer (the dynamic layer's, then the static layer's). */
 export const VSM_RENDER_ARGS_CULL = 0
 export const VSM_RENDER_ARGS_BIN = 3
 export const VSM_RENDER_ARGS_DRAW = 6
 export const VSM_RENDER_ARGS_SOFTWARE = VSM_RENDER_ARGS_DRAW + 4 * VSM_RENDER_TIERS
+export const VSM_RENDER_ARGS_SOFTWARE_STATIC = VSM_RENDER_ARGS_SOFTWARE + 3
 /** And the post cull's: a thread a caster the descent's post pass found, a listed light a z. */
-export const VSM_RENDER_ARGS_POST = VSM_RENDER_ARGS_SOFTWARE + 3
+export const VSM_RENDER_ARGS_POST = VSM_RENDER_ARGS_SOFTWARE_STATIC + 3
 export const VSM_RENDER_ARGS_WORDS = VSM_RENDER_ARGS_POST + 3
 /** Counter words: [0] the candidates; [1] the pages the shadow views' descent listed within its
  *  room, which the casters' kernel runs over, [2] the first of them the running pass of the descent
@@ -55,8 +88,8 @@ export const VSM_RENDER_ARGS_WORDS = VSM_RENDER_ARGS_POST + 3
  *  listed — those with a page to draw —, [5] the maps listed in their runs (`renderViewsWgsl.ts`),
  *  [6] the records the cull stored to be drawn, [7] the places it asked of the list — the records
  *  to draw and those it holds back, past the capacity too —, [8] the records the occlusion's first
- *  cull held back, stored from the list's end (`vsmRenderHold`), and each tier's records and bin
- *  cursor (`VSM_RENDER_TIER_RECORDS`, `_CURSOR` + tier). */
+ *  cull held back, stored from the list's end (`vsmRenderHold`), and each bin's records and cursor
+ *  (`VSM_RENDER_TIER_RECORDS`, `_CURSOR` + bin). */
 const VSM_RENDER_COUNT_LISTED = 1
 const VSM_RENDER_COUNT_LISTED_FIRST = 2
 /** The casters found before the descent's post pass: where the post cull's candidates start. */
@@ -224,11 +257,15 @@ ${wgslConsts({
   VSM_RENDER_TIER_RECORDS,
   VSM_RENDER_TIER_CURSOR,
   VSM_RENDER_TIERS,
+  VSM_RENDER_BINS,
   VSM_RENDER_SOFTWARE_BIN,
+  VSM_RENDER_SOFTWARE_STATIC_BIN,
   VSM_RENDER_TIER_CORNERS,
   VSM_RENDER_CORNER_TIERS,
-  VSM_RENDER_VOXEL_TIERS,
+  VSM_RENDER_DOUBLE_BIT,
   VSM_RENDER_VOXEL_BIT,
+  VSM_RENDER_FAMILY_TWO_SIDED: VSM_RENDER_FAMILY.twoSided,
+  VSM_RENDER_FAMILY_VOXEL: VSM_RENDER_FAMILY.voxel,
   VSM_RENDER_TESSELLATE_DIRECTIONAL,
   VSM_RENDER_TESSELLATE_LOCAL,
   VSM_RENDER_WINDOW_PAGES,
@@ -237,28 +274,42 @@ ${wgslConsts({
   VSM_RENDER_CULL_SECOND,
   VSM_RENDER_CULL_POST,
 })}
-/** The least tier whose records draw \`corners\` corners: \`VSM_RENDER_TIER_CORNERS << tier\` ≥ corners;
- *  a voxel row's (\`VSM_RENDER_VOXEL_BIT\`) the same among the voxel tiers. */
+/** The least tier whose records draw \`corners\` corners: \`VSM_RENDER_TIER_CORNERS << level\` ≥ corners,
+ *  in the family of the row: a voxel row's (\`VSM_RENDER_VOXEL_BIT\`) the voxel one, else a two-sided
+ *  row's (\`VSM_RENDER_DOUBLE_BIT\`) the two-sided one. */
 fn vsmRenderTierOf(corners:u32)->u32{
- let n=corners&(VSM_RENDER_VOXEL_BIT-1u);
+ let n=corners&(VSM_RENDER_DOUBLE_BIT-1u);
  let q=max((n+VSM_RENDER_TIER_CORNERS-1u)/VSM_RENDER_TIER_CORNERS,1u);
  let t=select(firstLeadingBit(q-1u)+1u,0u,q==1u);
- if((corners&VSM_RENDER_VOXEL_BIT)!=0u){return VSM_RENDER_CORNER_TIERS+min(t,VSM_RENDER_VOXEL_TIERS-1u);}
- return min(t,VSM_RENDER_CORNER_TIERS-1u);
+ let family=select(select(0u,VSM_RENDER_FAMILY_TWO_SIDED,(corners&VSM_RENDER_DOUBLE_BIT)!=0u),VSM_RENDER_FAMILY_VOXEL,(corners&VSM_RENDER_VOXEL_BIT)!=0u);
+ return family*VSM_RENDER_CORNER_TIERS+min(t,VSM_RENDER_CORNER_TIERS-1u);
 }
 /** The corners a record of tier \`tier\` draws (\`vsmRenderTierCorners\`). */
-fn vsmRenderTierCorners(tier:u32)->u32{return VSM_RENDER_TIER_CORNERS<<select(tier,tier-VSM_RENDER_CORNER_TIERS,tier>=VSM_RENDER_CORNER_TIERS);}
+fn vsmRenderTierCorners(tier:u32)->u32{return VSM_RENDER_TIER_CORNERS<<(tier%VSM_RENDER_CORNER_TIERS);}
 /** The records the view pass draws: those the cull stored, within the list's capacity. */
 fn vsmRenderRecordTotal(emitted:u32)->u32{return min(emitted,params.recordCapacity);}
 `,
 )
 
+/** The software raster's two bins' records, the dynamic layer's and the static layer's, among the
+ *  \`total\` records the list holds: the counts the cull made (\`counts\`, the program's), held to
+ *  the list. */
+export const VSM_RENDER_SOFTWARE_COUNTS_WGSL = wgslBlock(
+  'VSM_RENDER_SOFTWARE_COUNTS_WGSL',
+  [VSM_RENDER_PARAMS_WGSL],
+  `fn vsmRenderSoftwareCounts(total:u32)->vec2u{
+ let dynamicHeld=min(atomicLoad(&counts[VSM_RENDER_TIER_RECORDS+VSM_RENDER_SOFTWARE_BIN]),total);
+ return vec2u(dynamicHeld,min(atomicLoad(&counts[VSM_RENDER_TIER_RECORDS+VSM_RENDER_SOFTWARE_STATIC_BIN]),total-dynamicHeld));
+}`,
+)
+
 /**
  * A record of the raster, as the cull emits it (`vec4u`, `renderCullWgsl.ts`): x the caster's row;
  * y the map's id | mip << 16 | no near clip << 20 | static << 21 | swapped << 22 | tessellated <<
- * 23 | tier << 24 | deforms << 28 | offset allowed << 29 | level of detail behind << 30; z the window's first page, x | y << 8, and its last (inclusive),
- * x << 16 | y << 24; w the window's pages to draw, bit (y · `VSM_RENDER_WINDOW_PAGES` + x) from its
- * first. The decoding the bin, the raster, the voxel raster and the tessellation share.
+ * 23 | bin << 24 | deforms << 28 | offset allowed << 29 | level of detail behind << 30 (the bin: the
+ * hardware tier or a software bin); z the window's first page, x | y << 8, and its last
+ * (inclusive), x << 16 | y << 24; w the window's pages to draw, bit (y · `VSM_RENDER_WINDOW_PAGES` + x)
+ * from its first. The decoding the bin, the raster, the voxel raster and the tessellation share.
  */
 export const VSM_RENDER_RECORD_WGSL = wgslBlock(
   'VSM_RENDER_RECORD_WGSL',
@@ -271,6 +322,8 @@ fn vsmRecordStatic(r:vec4u)->u32{return (r.y>>21u)&1u;}
 fn vsmRecordSwapped(r:vec4u)->bool{return ((r.y>>22u)&1u)!=0u;}
 fn vsmRecordTessellated(r:vec4u)->bool{return ((r.y>>23u)&1u)!=0u;}
 fn vsmRecordTier(r:vec4u)->u32{return (r.y>>24u)&15u;}
+/** Whether the record is a software bin's (\`renderSoftwareWgsl.ts\`): the software bins are the last. */
+fn vsmRecordSoftware(r:vec4u)->bool{return vsmRecordTier(r)>=${VSM_RENDER_SOFTWARE_BIN}u;}
 fn vsmRecordDeforms(r:vec4u)->bool{return ((r.y>>28u)&1u)!=0u;}
 fn vsmRecordOffsetAllowed(r:vec4u)->bool{return ((r.y>>29u)&1u)!=0u;}
 fn vsmRecordLodBehind(r:vec4u)->bool{return ((r.y>>30u)&1u)!=0u;}
@@ -313,27 +366,30 @@ fn vsmRenderArgsGrid(word:u32,groups:u32,z:u32){
  let held=atomicLoad(&counts[VSM_RENDER_COUNT_HELD]);
  atomicStore(&counts[VSM_RENDER_COUNT_TAKEN],held);
  atomicStore(&counts[VSM_RENDER_COUNT_RECORDS],0u);
- for(var t=0u;t<=VSM_RENDER_SOFTWARE_BIN;t++){atomicStore(&counts[VSM_RENDER_TIER_RECORDS+t],0u);}
+ for(var t=0u;t<VSM_RENDER_BINS;t++){atomicStore(&counts[VSM_RENDER_TIER_RECORDS+t],0u);}
  vsmRenderArgsGrid(${VSM_RENDER_ARGS_CULL}u,ceilDiv(held,WORKGROUP_THREADS),1u);
  let casters=atomicLoad(&counts[0]);
  let found=select(0u,casters-atomicLoad(&counts[VSM_RENDER_COUNT_CAST_FIRST]),casters>atomicLoad(&counts[VSM_RENDER_COUNT_CAST_FIRST]));
  let lights=min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.lightCount);
  vsmRenderArgsGrid(${VSM_RENDER_ARGS_POST}u,ceilDiv(found,WORKGROUP_THREADS),select(0u,lights,found>0u));
 }
-/** Once the cull ran: the reserve of the bins — the software raster's records first, then each
- *  tier's cursor at its first place, after the lower tiers' records —, the bin's dispatch, the
- *  software raster's (a group a record), a thread a record, the draws, one a tier, each from
- *  its first record by its first vertex (vertex k of record p is vertex p · corners + k). */
+/** Once the cull ran: the reserve of the bins — the software raster's records first, the dynamic
+ *  layer's then the static layer's, then each tier's cursor at its first place, after the lower
+ *  tiers' records —, the bin's dispatch, the software raster's (a group a record of each layer), a
+ *  thread a record, the draws, one a tier, each from its first record by its first vertex (vertex k
+ *  of record p is vertex p · corners + k). */
 @compute @workgroup_size(1) fn vsmRenderArgsBin(){
  let emitted=atomicLoad(&counts[VSM_RENDER_COUNT_RECORDS]);
  let total=vsmRenderRecordTotal(emitted);
  if(emitted>params.recordCapacity){atomicOr(&vsmStats[VSM_OVERFLOW_FLAGS],VSM_OVERFLOW_RECORDS);}
  vsmRenderArgsGrid(${VSM_RENDER_ARGS_BIN}u,ceilDiv(total,WORKGROUP_THREADS),1u);
- // The software raster's records first, a group each.
- let software=min(atomicLoad(&counts[VSM_RENDER_TIER_RECORDS+VSM_RENDER_SOFTWARE_BIN]),total);
+ // The software raster's records first, a group each: the dynamic layer's, then the static layer's.
+ let software=vsmRenderSoftwareCounts(total);
  atomicStore(&counts[VSM_RENDER_TIER_CURSOR+VSM_RENDER_SOFTWARE_BIN],0u);
- vsmRenderArgsGrid(${VSM_RENDER_ARGS_SOFTWARE}u,software,1u);
- var first=software;
+ atomicStore(&counts[VSM_RENDER_TIER_CURSOR+VSM_RENDER_SOFTWARE_STATIC_BIN],software.x);
+ vsmRenderArgsGrid(${VSM_RENDER_ARGS_SOFTWARE}u,software.x,1u);
+ vsmRenderArgsGrid(${VSM_RENDER_ARGS_SOFTWARE_STATIC}u,software.y,1u);
+ var first=software.x+software.y;
  for(var t=0u;t<VSM_RENDER_TIERS;t++){
   let start=min(first,total);
   let end=min(first+atomicLoad(&counts[VSM_RENDER_TIER_RECORDS+t]),total);
@@ -345,5 +401,12 @@ fn vsmRenderArgsGrid(word:u32,groups:u32,z:u32){
  }
 }
 `,
-  [VSM_RENDER_PARAMS_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL, ceilDivWgsl, VSM_OVERFLOW_WGSL],
+  [
+    VSM_RENDER_PARAMS_WGSL,
+    VSM_RENDER_SOFTWARE_COUNTS_WGSL,
+    GROUP_GRID_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    ceilDivWgsl,
+    VSM_OVERFLOW_WGSL,
+  ],
 )

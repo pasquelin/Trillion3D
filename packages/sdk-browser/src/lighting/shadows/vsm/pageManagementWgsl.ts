@@ -81,7 +81,9 @@ fn vsmPageFlagPyramid(@builtin(global_invocation_id) id:vec3u){
   atomicMin(&vsmStaleRects[s+1u],pageAddress.y);
   atomicMax(&vsmStaleRects[s+2u],pageAddress.x);
   atomicMax(&vsmStaleRects[s+3u],pageAddress.y);
- }`
+ }
+ // A map of one page (a distant light's) has no hierarchy to build: the cull reads its one page.
+ if(vsmSinglePageMap(projectionData)){return;}`
 
 const flagPyramidCoverText = /* wgsl */ `
  // H levels over each page-table mip; level 0 of this hierarchy is the page-table mip itself.

@@ -60,12 +60,11 @@ import { DAG_MARK_OF_WGSL } from '../../../../geometry/dag/shader/levelWgsl.ts'
 import { worldAtEyeWgsl } from '../../../../geometry/dag/shader/worldPoseWgsl.ts'
 import { worldTableWgsl } from '../../../../geometry/dag/worlds/worldTable.ts'
 import { VISIBLE_LAYOUT_WGSL } from '../../../../geometry/dag/visible/layout.ts'
-import { markReachWgsl } from '../../../../deformation/halfFloat.ts'
+import { casterReachWgsl, markReachWgsl } from '../../../../deformation/halfFloat.ts'
 import { ROOT_BOX_DOUBLES } from '../../../../placement/roots/rootWorldSends.ts'
 import { TESSELLATED_FLAGS_WGSL } from '../../../../visibility/tessellation/rowWgsl.ts'
 import { VSM_RENDER_PARAMS_WGSL } from './renderParamsWgsl.ts'
 import { VSM_OVERFLOW_WGSL } from '../overflowWgsl.ts'
-import { UNBOUNDED_EXTENT } from '../invalidationWgsl.ts'
 
 /** THE SHADOW RASTER'S CASTER CANDIDATES (`renderCullWgsl.ts`): one thread a page the shadow
  *  views' descent listed (`../traversal/traversalWgsl.ts`) — an instance, a (placement, page)
@@ -109,14 +108,10 @@ const CENTRE_ERROR = 2 ** -21
  *  worlds table its program binds as \`worlds\`. */
 export const VSM_CASTER_SPHERE_WGSL = wgslBlock(
   'VSM_CASTER_SPHERE_WGSL',
-  [dAdd, fromF32, splitDouble, unitOrZero],
+  [dAdd, fromF32, splitDouble, unitOrZero, casterReachWgsl],
   `const SPHERE_GROWTH:f32=${wgslF32(SPHERE_GROWTH)};
 const SPHERE_MARGIN:f32=${wgslF32(SPHERE_MARGIN)};
 const CENTRE_ERROR:f32=${wgslF32(CENTRE_ERROR)};
-/** A reach that bounds nothing (infinite, or not a number) as large as f32 clip math keeps
- *  (\`UNBOUNDED_EXTENT\`): the casters' and the descent's boxes of a placement are the same finite
- *  ones. */
-fn casterReach(reach:f32)->f32{return select(${wgslF32(UNBOUNDED_EXTENT)},reach,reach<${wgslF32(UNBOUNDED_EXTENT)});}
 /** The world sphere and the world box of a cluster of box \`lo\`..\`hi\` under the world \`w\` places it
  *  by: the centre a single-precision product of the linear part beside the exact translation, split
  *  into a high and a low single, the radius the farthest corner, grown past every rounding. Centre
@@ -272,6 +267,7 @@ const VSM_RENDER_CASTERS_WGSL = wgslBlock(
     FAR_TESTED_WGSL,
     DAG_MARK_OF_WGSL,
     markReachWgsl,
+    casterReachWgsl,
     ceilDivWgsl,
     bitWord,
     bitIsSet,
@@ -442,7 +438,8 @@ fn vsmRenderCaster(i:u32,w:u32){
  // Out of every map view's far-shadow distance: no view takes it, no cull need read it.
  let farDepth=vsmRenderFarDepth(object);
  if(vsmFarShadowSkipped(flags,farDepth,params.farDrop)){return;}
- let corners=select(record.indexCount,2u*record.indexCount,(record.flags&${FLAG_DOUBLE}u)!=0u)|select(0u,VSM_RENDER_VOXEL_BIT,(record.flags&${FLAG_VOXEL}u)!=0u);
+ // A two-sided row is drawn once with no face culled (its bit), a voxel row one-sided (its own).
+ let corners=min(record.indexCount,0x3FFFu)|select(select(0u,VSM_RENDER_DOUBLE_BIT,(record.flags&${FLAG_DOUBLE}u)!=0u),VSM_RENDER_VOXEL_BIT,(record.flags&${FLAG_VOXEL}u)!=0u);
  let slot=atomicAdd(&counts[0],1u);
  // Past the room the candidate is counted and not written (\`vsmRenderCastersDone\` holds the count to it).
  if(slot>=params.casterCap){return;}

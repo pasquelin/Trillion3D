@@ -26,7 +26,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslConstants } from '../../../../materials/texture/shaderRule.fixture.ts'
 import { handle, lightView, record, run, tables, use } from './boxCullTables.fixture.ts'
-import { UNBOUNDED_EXTENT } from '../invalidationWgsl.ts'
+import { UNBOUNDED_EXTENT } from '../../../../deformation/halfFloat.ts'
 import { castInvalidationWgsl } from './castInvalidationWgsl.ts'
 import { bitsDigest, inputs } from '../bitsDigest.fixture.ts'
 import { vsmLayout } from '../layout.ts'
@@ -40,6 +40,7 @@ const GOLDEN = 'f2099b9fc8b11818a59a31544424c196e362b4793e2bf137462ec4cd38602e92
 const HELPERS = [
   ...['vsmStaleBoxPages', 'vsmTouchesMappedPage', 'vsmMarksMatch'],
   ...['vsmLevelHoldingRect', 'vsmClipRadius', 'vsmCachesAsStatic', 'vsmOffsetAllowed'],
+  'vsmSinglePageMap',
   'perspectiveDivide',
   'floorLog2',
 ]
@@ -60,60 +61,66 @@ const logged = (source: string) => {
   } as Record<string, Fn>
 }
 
+const { LIGHT_KIND_DIRECTIONAL, VSM_BOX_MOVING } = wgslConstants(INVALIDATION)
+
+/** Case `k`'s light and box, drawn from its seed: the map's projection data and the instance, as the
+ *  golden and the receiver-cover test hand them to `vsmStaleBoxPages`. */
+function invalidationCase(k: number) {
+  // Two cases in three about the light, their values in a few metres; the third drawn whole.
+  const d = inputs(3 * 10 ** 5 + k, { edge: k % 3 ? 64 : 8 }),
+    light = lightView(d, k),
+    about = k % 3 !== 0
+  const near = (n: number) => d.vec(n, () => (about ? Math.fround((d.random() - 0.5) * 16) : d.f()))
+  const low = () => d.vec(3, () => Math.fround(d.random() * 1e-3))
+  const pd = {
+    // A local light's kind: a point, a spot or a rectangle (`LIGHT_KIND`), never a sun's.
+    lightKind: light.directional ? LIGHT_KIND_DIRECTIONAL : LOCAL_KINDS[d.int(1, 3) - 1],
+    originShiftHigh: near(3),
+    originShiftLow: low(),
+    handle: handle(d),
+    lightRange: about ? d.int(1, 40) : d.f(),
+    shiftedToMapUv: light.uv,
+    lightViewToClip: light.viewToClip,
+    uncached: d.bool(),
+    levelsLeft: d.int(-1, 3),
+    finestMip: d.int(0, 7),
+    coarseDynamicCached: d.bool(),
+    levelShapeCutoffSq: d.f(),
+    viewSlot: 0,
+    wpoThreshold: 0,
+    useCover: false,
+  }
+  // A change's box: its centre, its half extent along the world's axes — finite, as a record's
+  // is: past f32 math the list holds the unbounded box (`UNBOUNDED_EXTENT`).
+  const centre = near(3),
+    dynamic = d.bool(),
+    extent = near(3).map((x) => (Number.isFinite(x) ? Math.abs(x) : UNBOUNDED_EXTENT))
+  // Along the world's axes: the half axes are the extent on the diagonal.
+  const inst = {
+    centre,
+    flags: dynamic ? VSM_BOX_MOVING : 0,
+    axisX: [extent[0], 0, 0],
+    axisY: [0, extent[1], 0],
+    axisZ: [0, 0, extent[2]],
+    views: 0xffffffff,
+    offsetBits: 0,
+    offsetDisableSq: 0,
+  }
+  return { pd, inst }
+}
+
+const STALE_NAMES = [
+  ...HELPERS,
+  ...['vsmBoxCullPoint', 'vsmBoxInView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'],
+  ...['vsmRectPixels', 'vsmRectMarks'],
+]
+
 test("an instance's pages are invalidated as the golden holds: the same writes in the same order", () => {
-  const is = run(
-    INVALIDATION,
-    [
-      ...HELPERS,
-      ...['vsmBoxCullPoint', 'vsmBoxInView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'],
-      ...['vsmRectPixels', 'vsmRectMarks'],
-    ],
-    logged(INVALIDATION),
-  )
-  const { LIGHT_KIND_DIRECTIONAL, VSM_BOX_MOVING } = wgslConstants(INVALIDATION)
+  const is = run(INVALIDATION, STALE_NAMES, logged(INVALIDATION))
   let writing = 0
   const digest = bitsDigest()
   for (let k = 0; k < CASES; k++) {
-    // Two cases in three about the light, their values in a few metres; the third drawn whole.
-    const d = inputs(3 * 10 ** 5 + k, { edge: k % 3 ? 64 : 8 }),
-      light = lightView(d, k),
-      about = k % 3 !== 0
-    const near = (n: number) =>
-      d.vec(n, () => (about ? Math.fround((d.random() - 0.5) * 16) : d.f()))
-    const low = () => d.vec(3, () => Math.fround(d.random() * 1e-3))
-    const pd = {
-      // A local light's kind: a point, a spot or a rectangle (`LIGHT_KIND`), never a sun's.
-      lightKind: light.directional ? LIGHT_KIND_DIRECTIONAL : LOCAL_KINDS[d.int(1, 3) - 1],
-      originShiftHigh: near(3),
-      originShiftLow: low(),
-      handle: handle(d),
-      lightRange: about ? d.int(1, 40) : d.f(),
-      shiftedToMapUv: light.uv,
-      lightViewToClip: light.viewToClip,
-      uncached: d.bool(),
-      levelsLeft: d.int(-1, 3),
-      finestMip: d.int(0, 7),
-      coarseDynamicCached: d.bool(),
-      levelShapeCutoffSq: d.f(),
-      viewSlot: 0,
-      wpoThreshold: 0,
-    }
-    // A change's box: its centre, its half extent along the world's axes — finite, as a record's
-    // is: past f32 math the list holds the unbounded box (`UNBOUNDED_EXTENT`).
-    const centre = near(3),
-      dynamic = d.bool(),
-      extent = near(3).map((x) => (Number.isFinite(x) ? Math.abs(x) : UNBOUNDED_EXTENT))
-    // Along the world's axes: the half axes are the extent on the diagonal.
-    const inst = {
-      centre,
-      flags: dynamic ? VSM_BOX_MOVING : 0,
-      axisX: [extent[0], 0, 0],
-      axisY: [0, extent[1], 0],
-      axisZ: [0, 0, extent[2]],
-      views: 0xffffffff,
-      offsetBits: 0,
-      offsetDisableSq: 0,
-    }
+    const { pd, inst } = invalidationCase(k)
     const now = use(tables(k, inputs(k)))
     is.vsmStaleBoxPages(pd, inst)
     digest.add(now.writes)
@@ -123,12 +130,55 @@ test("an instance's pages are invalidated as the golden holds: the same writes i
   assert.ok(writing > CASES / 25, `${writing} cases write`)
 })
 
+// A map over a receiver cover draws its dynamic layer again each frame: a box cached as dynamic in
+// it stales nothing, a box cached as static stales what it stales in a map without a cover. A box
+// is dynamic by moving or by an offset allowed in the map; an offset the map does not allow leaves
+// it static.
+test('a map over a receiver cover is staled by the boxes cached as static alone', () => {
+  const is = run(INVALIDATION, STALE_NAMES, logged(INVALIDATION))
+  const { MOBILITY_OFFSET_INVALIDATES } = wgslConstants(INVALIDATION)
+  type Box = { flags?: number; offsetBits?: number; offsetDisableSq?: number }
+  const writes = (k: number, useCover: boolean, box: Box, wpoThreshold = 0) => {
+    const { pd, inst } = invalidationCase(k)
+    const now = use(tables(k, inputs(k)))
+    is.vsmStaleBoxPages({ ...pd, useCover, uncached: false, wpoThreshold }, { ...inst, ...box })
+    return now.writes.filter((entry) => typeof entry[0] === 'number')
+  }
+  // Cached as dynamic: it moves, or its offset invalidates and is allowed in every map.
+  const dynamic: Box[] = [
+    { flags: VSM_BOX_MOVING, offsetBits: 0 },
+    { flags: 0, offsetBits: MOBILITY_OFFSET_INVALIDATES },
+  ]
+  // Cached as static: the case's own flags cleared.
+  const STATIC: Box = { flags: 0, offsetBits: 0 }
+  // Cached as static: no offset, or an offset that stops before the map's level.
+  const OFFSET_STOPPED = { flags: 0, offsetBits: MOBILITY_OFFSET_INVALIDATES, offsetDisableSq: 100 }
+  const COVER_CASES = CASES / 4
+  let staticWrites = 0,
+    dynamicWrites = 0
+  for (let k = 0; k < COVER_CASES; k++) {
+    const free = writes(k, false, STATIC)
+    staticWrites += free.length
+    for (const box of dynamic) {
+      dynamicWrites += writes(k, false, box).length
+      assert.deepEqual(writes(k, true, box), [], `case ${k}: a dynamic box over a cover`)
+    }
+    assert.deepEqual(writes(k, true, STATIC), free, `case ${k}: a static box`)
+    assert.deepEqual(
+      writes(k, true, OFFSET_STOPPED, 101),
+      free,
+      `case ${k}: a box whose offset stops before the map is static there`,
+    )
+  }
+  assert.ok(staticWrites > 0, 'without a cover the static boxes write')
+  assert.ok(dynamicWrites > 0, 'without a cover the dynamic boxes write')
+})
+
 // A box carries its placement's offset facts; the map says whether the offset is allowed there, and the
 // layer the box was cached in follows (`vsmCachesAsStatic`).
 test('an instance whose offset invalidates its shadows is cached as dynamic in the maps that allow the offset', () => {
   const is = run(INVALIDATION, ['vsmCachesAsStatic', 'vsmOffsetAllowed'])
-  const { VSM_BOX_MOVING, MOBILITY_OFFSET_ALWAYS, MOBILITY_OFFSET_INVALIDATES } =
-    wgslConstants(INVALIDATION)
+  const { MOBILITY_OFFSET_ALWAYS, MOBILITY_OFFSET_INVALIDATES } = wgslConstants(INVALIDATION)
   const statically = (
     inst: { flags?: number; offsetBits?: number; offsetDisableSq?: number },
     pd: { wpoThreshold?: number; uncached?: boolean },

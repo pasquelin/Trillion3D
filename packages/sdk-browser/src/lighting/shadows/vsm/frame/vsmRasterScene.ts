@@ -32,16 +32,10 @@ export interface VsmRasterCasters {
   pageCompute?: VsmRenderScene['pageCompute']
 }
 
-/** Whether the session holds voxel bricks: the raster's voxel tiers are drawn then
- *  (`vsmEncodeRaster`). */
-export const holdsVoxels = (rt: WebgpuPagesRuntime) => {
-  for (const block of rt.vis.geometryBlocks.values()) if (block.voxel) return true
-  return false
-}
-
 /** The raster's scene of this frame over `casters`: the packed pages and the clusters that may cast
  *  among them, the camera, the cut's tables with its world switch, its filter and draw distances,
- *  and the settings the raster reads. */
+ *  and the settings the raster reads. The plan's `tiers` are the families the frame's pipelines
+ *  were compiled for: the raster draws no tier past them. */
 export function vsmRasterScene(
   rt: WebgpuPagesRuntime,
   cam: EngineCamera,
@@ -70,7 +64,7 @@ export function vsmRasterScene(
     pageGroup: casters.pageGroup,
     pageCompute: casters.pageCompute,
     rasters: rt.vis.rasters,
-    voxels: holdsVoxels(rt),
+    tiers: plan.tiers,
     tessellation,
     // The shadows' level of detail: the cut's pixels per edge times two to the shadows' bias
     // (`shadowGeometryLodBias`), over the streaming quality scale

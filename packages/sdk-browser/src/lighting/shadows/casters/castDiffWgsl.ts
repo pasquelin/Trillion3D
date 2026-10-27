@@ -38,7 +38,7 @@ import { toF32 } from '../../../../../math/src/wgsl/f32.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { MATRIX_VALUES } from '../../../../../math/src/batch/strides.ts'
 import { ROOT_BOX_AXES, ROOT_BOX_DOUBLES } from '../../../placement/roots/rootWorldSends.ts'
-import { UNBOUNDED_EXTENT } from '../vsm/invalidationWgsl.ts'
+import { UNBOUNDED_EXTENT_WGSL } from '../../../deformation/halfFloat.ts'
 import {
   MOBILITY_CACHE_STATIC,
   MOBILITY_CAST_BITS,
@@ -87,7 +87,6 @@ ${wgslConsts({
   MATRIX_VALUES,
 })}
 const BOX_SLACK:f32=${wgslF32(BOX_SLACK)};
-const UNBOUNDED:f32=${wgslF32(UNBOUNDED_EXTENT)};
 struct InstanceBox{centre:vec3f,ax:vec3f,ay:vec3f,az:vec3f,has:bool,}
 /** A bound of a world box, rounded to single precision. */
 fn bound(d:vec2u)->f32{return bitcast<f32>(toF32(d));}
@@ -123,12 +122,12 @@ fn instanceBox(r:u32)->InstanceBox{
  b.has=true;
  let centre=vec3f(bound(rootBoxes[o+7u]),bound(rootBoxes[o+8u]),bound(rootBoxes[o+9u]));
  let ax=boxAxis(o,0u);let ay=boxAxis(o,1u);let az=boxAxis(o,2u);
- let finite=all(lo==lo)&&all(hi==hi)&&all(hi>=lo)&&all(abs(lo)<vec3f(UNBOUNDED))&&all(abs(hi)<vec3f(UNBOUNDED))
-  &&all(centre==centre)&&all(abs(centre)<vec3f(UNBOUNDED))
-  &&all(ax==ax)&&all(ay==ay)&&all(az==az)&&all(abs(ax)<vec3f(UNBOUNDED))&&all(abs(ay)<vec3f(UNBOUNDED))&&all(abs(az)<vec3f(UNBOUNDED));
+ let finite=all(lo==lo)&&all(hi==hi)&&all(hi>=lo)&&all(abs(lo)<vec3f(UNBOUNDED_EXTENT))&&all(abs(hi)<vec3f(UNBOUNDED_EXTENT))
+  &&all(centre==centre)&&all(abs(centre)<vec3f(UNBOUNDED_EXTENT))
+  &&all(ax==ax)&&all(ay==ay)&&all(az==az)&&all(abs(ax)<vec3f(UNBOUNDED_EXTENT))&&all(abs(ay)<vec3f(UNBOUNDED_EXTENT))&&all(abs(az)<vec3f(UNBOUNDED_EXTENT));
  if(!finite){
   b.centre=vec3f(0.0);
-  b.ax=vec3f(UNBOUNDED,0.0,0.0);b.ay=vec3f(0.0,UNBOUNDED,0.0);b.az=vec3f(0.0,0.0,UNBOUNDED);
+  b.ax=vec3f(UNBOUNDED_EXTENT,0.0,0.0);b.ay=vec3f(0.0,UNBOUNDED_EXTENT,0.0);b.az=vec3f(0.0,0.0,UNBOUNDED_EXTENT);
   return b;
  }
  let pad=max(max(abs(centre.x),abs(centre.y)),abs(centre.z))*BOX_SLACK;
@@ -262,5 +261,5 @@ fn worldDigest(r:u32)->vec2u{
  if(cur.has){emitBox(cur,true,invalidate,word,disableSq);}
 }
 `,
-  [toF32, CAST_EMIT_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
+  [toF32, CAST_EMIT_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, UNBOUNDED_EXTENT_WGSL],
 )

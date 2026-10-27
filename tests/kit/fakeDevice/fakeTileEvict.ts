@@ -1,12 +1,20 @@
 import { shaderRun } from '../../../packages/sdk-browser/src/materials/texture/shaderRun.fixture.ts'
 import { boundWords, type BoundBuffer } from './fakeBuffers.ts'
 import { sortPool } from '../../../packages/sdk-browser/src/gpu/sort/sort.fixture.ts'
-import { poolRank, EVICT_IN_USE } from '../../../packages/sdk-browser/src/gpu/sort/rank.fixture.ts'
-import { TILE_BURST } from '../../../packages/sdk-browser/src/materials/virtual/evictSortWgsl.ts'
+import {
+  TILE_BURST,
+  TILE_PROTECTED,
+  TILE_SORT_WGSL,
+} from '../../../packages/sdk-browser/src/materials/virtual/evictSortWgsl.ts'
 import {
   TILE_UNRANKED,
   TILE_PLACE_WORD_WGSL,
 } from '../../../packages/sdk-browser/src/materials/virtual/slotUse.ts'
+
+/** The shipped `poolRank`, as the tile pools' program ranks (their age step, their protection). */
+export const { poolRank } = shaderRun<{
+  poolRank: (age: number, tier: number, inUse: number) => number
+}>(TILE_SORT_WGSL, ['poolRank'], {})
 
 /** The shipped `tilePlaceWord`, run as the kernels find a place's first word. */
 const { tilePlaceWord: tilePlaceWordAt } = shaderRun<{
@@ -26,8 +34,8 @@ export function fakeTileSort(entries: readonly BoundBuffer[], offsets: readonly 
   const [base, slots, clock, queueAt] = uni
   const rankOf = (j: number) => {
     const at = tilePlaceWordAt(base, j)
-    if (use[at + 1] === TILE_UNRANKED) return poolRank(0, 0, EVICT_IN_USE)
-    return poolRank(clock - Math.min(use[at], clock), use[at + 1], EVICT_IN_USE)
+    if (use[at + 1] === TILE_UNRANKED) return poolRank(0, 0, TILE_PROTECTED)
+    return poolRank(clock - Math.min(use[at], clock), use[at + 1], TILE_PROTECTED)
   }
   const { queue, total } = sortPool(slots, rankOf, TILE_BURST)
   queues[queueAt] = total

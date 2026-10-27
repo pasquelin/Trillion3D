@@ -85,6 +85,9 @@ export function createMaterialRecords(release: (entry: MaterialEntry) => void) {
     /** Whether a surface that dithers its cutout (`ditherOpacityMask`) was written: the blue noise is
      *  asked of the device then. Never unset. */
     dithers: false,
+    /** Whether a surface drawn on both sides (`side: 'double'`, the rows' `FLAG_DOUBLE`) was written:
+     *  the shadow raster makes the pipelines of its two-sided tiers then. Never unset. */
+    twoSided: false,
     journal: undefined as Set<PageSurface> | undefined,
   }
 }

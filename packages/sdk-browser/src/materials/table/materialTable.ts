@@ -63,6 +63,10 @@ export function createMaterialTable() {
     get dithers() {
       return p.dithers
     },
+    /** Whether a two-sided surface was written (`MaterialRecords.twoSided`). */
+    get twoSided() {
+      return p.twoSided
+    },
     /** How many times a surface's offset facts changed (`MaterialRecords.offsetEpoch`). */
     get offsetEpoch() {
       return p.offsetEpoch
@@ -130,6 +134,7 @@ function refresh(
     p.seen.set(mat, seen)
   }
   if (mat.ditherOpacityMask === true) p.dithers = true
+  if (mat.side === 'double') p.twoSided = true
   const { wpo, wpoMost, graph } = seen.row
   if (summarize(seen, mat, layers, changed, first)) p.moved = true
   // A surface that wears no offset, and wore none, is no change of the roots' offsets.

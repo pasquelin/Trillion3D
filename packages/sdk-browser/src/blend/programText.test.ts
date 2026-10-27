@@ -132,7 +132,7 @@ const VERTEX = 'cb30846adb070ab9fa93689bbbd0a1ea2957858ef121ecf62c42fb7d70560fda
 // The fragment took the lighting program a pipeline constant (`BLEND_LIGHTING`, `blendLightsOf`), the unlit one closing the lit path, and the vertex stage lost `otherPass`.
 // The reflection lobe lost its probe bands and long axis (`reflectionLobeOf`), the environment alone standing for the probes' field.
 // The standard material's Fresnel took the specular grazing value (`specularF90`, `fresnelSchlick(f0,f90,cosine)`) and the split sum its F90 (`math/src/wgsl/lighting.ts`).
-const BLEND = '2c0e1b180ca60f7e6eb552ebca6f0828afdda82cf2d53de9ca6e70a0017c7cc1'
+const BLEND = '28af2b11bb368735dd52e84a2af75c09093b925f85962aaeb34b8d4227cf59e9'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

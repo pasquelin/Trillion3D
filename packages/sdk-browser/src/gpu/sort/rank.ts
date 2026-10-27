@@ -3,8 +3,9 @@
  * The GPU stamps a last-use word on each slot where it is read, ranks the slots by
  * that word, and a counting sort publishes the highest ranks as the victim queue (`sortWgsl.ts`).
  *
- * A rank is an AGE STEP — by default a doubling of the age, its bit length (`poolAgeStep`, which a
- * pool may declare its own) — then a TIER inside the step: an older slot leaves first, and among slots of one step the higher rank of its tier first. The tier
+ * A rank is an AGE STEP — the pool's own `poolAgeStep`; a pool without its own gets the doubling of
+ * the age, its bit length (`rankWgsl.ts`) — then a TIER inside the step: an older slot leaves first,
+ * and among slots of one step the higher rank of its tier first. The tier
  * is the level for shadow pages and tiles — the finer first, so a child leaves before its parent
  * (#477) —, 0 for tiles with no level. A slot read less than `inUse` frames ago is in use and never ranked (`POOL_RANKS`).
  */

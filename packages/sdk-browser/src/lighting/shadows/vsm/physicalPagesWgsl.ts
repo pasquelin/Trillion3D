@@ -236,7 +236,7 @@ fn vsmKeepPages(@builtin(global_invocation_id) index:vec3u){
      var nextMarks=VSM_PAGE_WANTED;
      let requestFine=requestWord&VSM_PAGE_FINE;
      // A map of one page (a distant light's) takes no invalidation: its pages are refreshed in turn.
-     let singlePage=projection.lightKind!=LIGHT_KIND_DIRECTIONAL&&projection.finestMip>=VSM_MIPS-1u;
+     let singlePage=vsmSinglePageMap(projection);
      let staticStale=(prevMeta&VSM_META_STATIC_STALE)!=0u&&!singlePage;
      // A coarse page of a map whose coarse pages keep their dynamic layer is drawn again for its
      // static layer alone, both layers then.

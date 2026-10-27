@@ -35,10 +35,10 @@ import {
   VSM_RENDER_ARGS_DRAW,
   VSM_RENDER_ARGS_POST,
   VSM_RENDER_ARGS_SOFTWARE,
-  VSM_RENDER_CORNER_TIERS,
+  VSM_RENDER_ARGS_SOFTWARE_STATIC,
   VSM_RENDER_COUNT_PASS,
   VSM_RENDER_COUNT_WORDS,
-  VSM_RENDER_SOFTWARE_BIN,
+  vsmRenderTiersDrawn,
 } from './renderParamsWgsl.ts'
 import { VSM_RENDER_FIRST_SLOT, VSM_RENDER_PARAMS_BYTES } from './renderParams.ts'
 import { RASTER_PASS_MAIN, RASTER_PASS_POST } from '../../../../visibility/raster/contract.ts'
@@ -314,10 +314,6 @@ export function renderGroups(
   return { lists: ctx.groups, tables }
 }
 
-/** The tiers a frame draws: the corner tiers, and the voxel tiers too while the table holds a
- *  voxel row — the frame's plan waited for their pipelines (`framePipelinesCompiled`). */
-const tiersDrawn = (voxels: boolean) => (voxels ? VSM_RENDER_SOFTWARE_BIN : VSM_RENDER_CORNER_TIERS)
-
 /** What the raster's first pass descends: the shadow views' descent (`../traversal/`), its cut's
  *  levels and queue 0, and the frame's lights and the views they list at most. */
 export interface VsmRasterDescent {
@@ -430,10 +426,11 @@ function encodeBin(
   if (pageCompute) encodeSoftware(pass, ctx, tables, args, offset, pageCompute)
 }
 
-/** The software half (`renderSoftwareWgsl.ts`): a group a record the bin sorted first, every record
- *  into the pool's slice 0, then, where the set has a static slice, the static layer's into it. It
- *  writes the pool as the raster pass after it does, by an atomic max: the order of the two is
- *  free, and both are done before the occlusion's pyramid reads what they drew. */
+/** The software half (`renderSoftwareWgsl.ts`): a group a record the bin sorted first, the dynamic
+ *  layer's into the pool's slice 0, then, where the set has a static slice, a group a record of the
+ *  static layer's into it. It writes the pool as the raster pass after it does, by an atomic max:
+ *  the order of the two is free, and both are done before the occlusion's pyramid reads what they
+ *  drew. */
 function encodeSoftware(
   pass: GPUComputePassEncoder,
   ctx: VsmRenderContext,
@@ -453,7 +450,7 @@ function encodeSoftware(
   if (!staticLayer) return
   pass.setPipeline(staticSoftware)
   pass.setBindGroup(1, staticLayer, offset)
-  pass.dispatchWorkgroupsIndirect(args, VSM_RENDER_ARGS_SOFTWARE * 4)
+  pass.dispatchWorkgroupsIndirect(args, VSM_RENDER_ARGS_SOFTWARE_STATIC * 4)
 }
 
 /** The occlusion's second half of the culls in `pass`: their arguments — a thread a record the first
@@ -497,13 +494,13 @@ const RASTER: GPURenderPassDescriptor = {
   depthStencilAttachment: rasterDepth,
 }
 
-/** One view pass's raster: one drawIndirect a tier of the first `count` of `tiers`, of its sorted
+/** One view pass's raster: one drawIndirect a tier of `tiers` named by `drawn`, of its sorted
  *  records, into the window-sized dummy `target`, then the patches of the records the tessellation
  *  took, if it runs. */
 function encodeRaster(
   encoder: GPUCommandEncoder,
   label: string,
-  [tiers, count]: readonly [readonly PreparedPipeline<GPURenderPipeline>[], number],
+  [tiers, drawn]: readonly [readonly PreparedPipeline<GPURenderPipeline>[], readonly number[]],
   target: GPUTextureView,
   pageGroup: GPUBindGroup,
   raster1: GPUBindGroup,
@@ -515,7 +512,7 @@ function encodeRaster(
   const raster = encoder.beginRenderPass(RASTER)
   raster.setBindGroup(0, pageGroup)
   raster.setBindGroup(1, raster1)
-  for (let t = 0; t < count; t++) {
+  for (const t of drawn) {
     const tier = tiers[t].get()
     if (!tier) continue
     raster.setPipeline(tier)
@@ -575,7 +572,7 @@ export function vsmEncodeRaster(
   ctx: VsmRenderContext,
   groups: ReturnType<typeof renderGroups>,
   world: GPUBindGroup,
-  scene: Pick<VsmRenderScene, 'pageGroup' | 'decode' | 'voxels' | 'tessellation' | 'pageCompute'>,
+  scene: Pick<VsmRenderScene, 'pageGroup' | 'decode' | 'tiers' | 'tessellation' | 'pageCompute'>,
   args: GPUBuffer,
   { passes, lights }: { passes: number; lights: number },
   empty: boolean,
@@ -590,14 +587,14 @@ export function vsmEncodeRaster(
     encodeCountOnly(encoder, ctx, groups, world, descent)
     return
   }
-  const target = [ctx.raster.tiers, tiersDrawn(scene.voxels ?? false)] as const
+  const tiers = [ctx.raster.tiers, vsmRenderTiersDrawn(scene.tiers)] as const
   const tessellation = scene.tessellation
   const pageCompute = scene.pageCompute?.group
   const raster = (label: string) =>
     encodeRaster(
       encoder,
       label,
-      target,
+      tiers,
       ctx.target,
       scene.pageGroup,
       groups.tables.raster1,

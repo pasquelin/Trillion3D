@@ -124,8 +124,9 @@ ${wpo.programs.length ? ' wpoThreshold=raw.wpoThreshold;\n' : ''} let view=vsmTe
  * vertex dices on its own: the same barycentric point of the same patch is the same displaced point
  * whichever triangle asks for it, so neighbours meet. The point is pushed along its normal by the
  * displacement, the least one where the fade has not left it whole (`pointDisplacement`), then
- * placed on the record's window as a caster's corner is (`vsmRenderVs`): same swap of a back face, a
- * two-sided row's second copy swapped once more, same depth. A masked row is cut out
+ * placed on the record's window as a caster's corner is (`vsmRenderVs`): same swap of a back face, same
+ * depth; a two-sided row draws its pattern twice (`2 × n` triangles), the second copy with the swap
+ * inverted. A masked row is cut out
  * at the vertices of its micro-triangles, as the image's dicing does (`dicedKept`), where the
  * vertex stage may also bind the colour atlas's page table, a ninth storage buffer, which a device
  * that grants it takes (`vertexCut`, `vsmMaskedPatches`); on the eight WebGPU guarantees every

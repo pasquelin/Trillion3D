@@ -6,8 +6,8 @@ import { bitLength } from '../../../../math/src/wgsl/integer.ts'
 export const POOL_RANKS_WGSL = wgslConst('POOL_RANKS', [], `const POOL_RANKS:u32=${POOL_RANKS}u;`)
 
 /** The age step of a slot `age` clocks old, `inUse` or more: a doubling of the age, its bit length.
- *  A default: a pool that tells its older slots apart another way lists its own `poolAgeStep` and
- *  keeps this one out. */
+ *  A pool without its own `poolAgeStep` gets this doubling; a pool that lists its own keeps this
+ *  one out. */
 const POOL_AGE_STEP_WGSL = wgslFn(
   'poolAgeStep',
   [bitLength],
@@ -15,7 +15,7 @@ const POOL_AGE_STEP_WGSL = wgslFn(
   { weak: true },
 )
 
-/** `poolRank` (`rank.ts`; the tests run this text, `rank.fixture.ts`): `POOL_RANKS` while
+/** `poolRank` (`rank.ts`; the tests run this text): `POOL_RANKS` while
  *  `age < inUse`, else the age step (`poolAgeStep`) then the tier, the finer — higher rank — tier
  *  first. Integer only. */
 export const POOL_RANK_WGSL = wgslFn(

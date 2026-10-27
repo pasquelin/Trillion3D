@@ -72,7 +72,7 @@ const voxelFragment = () => /* wgsl */ `
 }`
 
 /**
- * The shadow raster's voxel tiers (from `VSM_RENDER_CORNER_TIERS`), a module of their own beside the
+ * The shadow raster's voxel tiers (`VSM_RENDER_FAMILY.voxel`), a module of their own beside the
  * raster (`renderRasterWgsl.ts`), whose text the other tiers compile as they did before voxels: the
  * same records, groups and pool, a voxel row's records alone, made the first time a table holds a
  * voxel row (`renderPipes.ts`). Its vertex draws a corner of a brick's box, carried by its joint, on

@@ -115,8 +115,8 @@ const cullBindingsText = /* wgsl */ `@group(1) @binding(0) var<uniform> params:V
  * of the UV matrix's u, v, w rows (the light at the shifted origin, those rows linear), for an
  * orthographic one det of its u, v, z rows (z toward the light, reversed Z); the page's NDC y turns
  * it once, and the rasterizer reads the winding in NDC, its framebuffer flip not counted. Swapped
- * where D > 0, against a row whose faces turn (\`VSM_RENDER_CAND_FLIPPED\`); a two-sided row's second
- * copy swaps once more.
+ * where D > 0, against a row whose faces turn (\`VSM_RENDER_CAND_FLIPPED\`); a two-sided row's tiers
+ * cull no face, where the swap changes no covered pixel.
  */
 fn vsmRenderSwapped(m:mat4x4f,ortho:bool,flags:u32)->bool{
  let r3=select(vec3f(m[0].w,m[1].w,m[2].w),vec3f(m[0].z,m[1].z,m[2].z),ortho);
@@ -164,8 +164,9 @@ fn vsmRenderSoftware(cand:VsmRenderCandidate,centre:vec3f,toClip:mat4x4f,viewToC
  *  \`side\` pages a side at a time — \`VSM_RENDER_WINDOW_PAGES\` for the hardware raster, one for the
  *  software raster —: the pages whose flags hold the caster's stale
  *  layer (\`markMask\`) in the window's mask, the window clipped to them, and one record a window
- *  that holds one, its tier counted with it — none past the list's capacity, counted all the same. */
-fn vsmRenderEmit(row:u32,word:u32,tier:u32,h:VsmHandle,mipLevel:u32,pagesRect:vec4u,markMask:u32,side:u32){
+ *  that holds one, in the bin \`bin\` and counted with it — none past the list's capacity, counted all
+ *  the same. */
+fn vsmRenderEmit(row:u32,word:u32,bin:u32,h:VsmHandle,mipLevel:u32,pagesRect:vec4u,markMask:u32,side:u32){
  let levelOffset=vsmTableLevelOrigin(h,mipLevel);
  for(var wy=pagesRect.y;wy<=pagesRect.w;wy+=side){
   for(var wx=pagesRect.x;wx<=pagesRect.z;wx+=side){
@@ -189,10 +190,10 @@ fn vsmRenderEmit(row:u32,word:u32,tier:u32,h:VsmHandle,mipLevel:u32,pagesRect:ve
    if(!vsmRenderTake()){continue;}
    let slot=atomicAdd(&counts[VSM_RENDER_COUNT_RECORDS],1u);
    if(slot>=params.recordCapacity){continue;}
-   atomicAdd(&counts[VSM_RENDER_TIER_RECORDS+tier],1u);
+   atomicAdd(&counts[VSM_RENDER_TIER_RECORDS+bin],1u);
    // The mask from the clipped window's first page: every page it holds lies right of and below it.
    let shift=(first.y-wy)*side+(first.x-wx);
-   records[slot]=vec4u(row,word,first.x|(first.y<<8u)|(last.x<<16u)|(last.y<<24u),mask>>shift);
+   records[slot]=vec4u(row,word|(bin<<24u),first.x|(first.y<<8u)|(last.x<<16u)|(last.y<<24u),mask>>shift);
   }
  }
 }`
@@ -258,7 +259,7 @@ const cullViewFrustumText = /* wgsl */ `
  // A clipmap level (directional) has no near clip: bit 20, \`vsmRecordNoNearClip\`.
  let word=view.x|select(0u,1u<<20u,directional)|select(0u,1u<<21u,staticLayer)
   |select(0u,1u<<22u,vsmRenderSwapped(pd.shiftedToMapUv,isOrtho,cand.flags))
-  |select(0u,1u<<23u,tessellated)|(tier<<24u)|select(0u,1u<<28u,invalidates)|select(0u,1u<<29u,offsetMarked);
+  |select(0u,1u<<23u,tessellated)|select(0u,1u<<28u,invalidates)|select(0u,1u<<29u,offsetMarked);
  // The view's level of detail: the projection's scale in pixels a unit at depth one, its near plane.
  let perspective=select(1.0,0.0,isOrtho);
  let near=select(viewToClip[3][2]/(1.0-viewToClip[2][2]),0.0,isOrtho);
@@ -302,10 +303,10 @@ const cullViewMipsText = /* wgsl */ `
    continue;
   }
   if(kind>=VSM_RENDER_CULL_SECOND&&vsmHiddenNow(h,mipLevel,cull,levelTexels,pixels,markMask,staticLayer)){continue;}
-  // The hardware raster's tier, or the software raster's bin and a window of one page.
+  // The hardware raster's tier, or the software raster's bin of the caster's layer and a window of one page.
   let software=vsmRenderSoftware(cand,center,shiftedToClip,viewToClip,mipFocal,near,perspective,cull,tessellated);
-  let bin=select(tier,VSM_RENDER_SOFTWARE_BIN,software);
-  vsmRenderEmit(cand.row,(word&~(15u<<24u))|(bin<<24u)|(mipLevel<<16u)|select(0u,1u<<30u,lodBehind),bin,h,mipLevel,vec4u(pixels)>>vec4u(VSM_LOG2_PAGE),markMask,select(VSM_RENDER_WINDOW_PAGES,1u,software));
+  let bin=select(tier,VSM_RENDER_SOFTWARE_BIN+select(0u,1u,staticLayer),software);
+  vsmRenderEmit(cand.row,word|(mipLevel<<16u)|select(0u,1u<<30u,lodBehind),bin,h,mipLevel,vec4u(pixels)>>vec4u(VSM_LOG2_PAGE),markMask,select(VSM_RENDER_WINDOW_PAGES,1u,software));
  }
 }`
 
@@ -370,7 +371,7 @@ fn vsmRenderCullCandidate(wid:vec3u,nwg:vec3u,lane:u32,kind:u32){
  * the post cull.
  *
  * Record (vec4u, `VSM_RENDER_RECORD_WGSL`): x row; y VSM id | mip << 16 | no near clip << 20 |
- * static << 21 | swapped << 22 (`vsmRenderSwapped`) | tessellated << 23 | tier << 24 | deforms << 28;
+ * static << 21 | swapped << 22 (`vsmRenderSwapped`) | tessellated << 23 | bin << 24 | deforms << 28;
  * z the window's first page x | y << 8 and its last page x << 16 | y << 24 (pages of the mip,
  * inclusive); w the window's pages to draw, bit (y · `VSM_RENDER_WINDOW_PAGES` + x) from its first.
  * A record held back, from the list's end: x the candidate, y its view's place in `views`, z the

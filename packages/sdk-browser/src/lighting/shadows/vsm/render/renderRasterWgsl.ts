@@ -10,14 +10,15 @@
  *
  * One non-indexed `drawIndirect` per corner tier (vertex pulling, `vsmRenderArgsBin`): a tier's
  * pipeline draws `VSM_RENDER_CORNERS` corners a record (an override), vertex k of record p being
- * `vertex_index` p · corners + k of one instance; corners past a row's own, culled triangles and the
- * corners of a tessellated record (bit 23) output a point no rasterizer covers.
+ * `vertex_index` p · corners + k of one instance; corners past a row's own and the corners of a
+ * tessellated record (bit 23) output a point no rasterizer covers.
  *
  * Face culling: the mesh's cull mode, by the rasterizer (`cullMode: 'back'`, `frontFace: 'ccw'`): each
  * vertex emits its triangle in the winding that makes a face toward the light counter-clockwise on
  * the framebuffer, the record's swapped bit (`vsmRenderSwapped`, decided once a candidate and map by
- * the cull). A two-sided row (`FLAG_DOUBLE`) draws its corners twice, the second time swapped: one
- * of the two copies faces the light. A vertex decodes its own corner alone.
+ * the cull). A two-sided row (`FLAG_DOUBLE`) is in a tier of its own family (`vsmRenderTierOf`),
+ * whose pipelines cull no face (`cullMode: 'none'`): its corners are drawn once, in either winding.
+ * A vertex decodes its own corner alone.
  *
  * Depth: a clipmap level has no near clip (`vsmRecordNoNearClip`): its vertex hands the rasterizer
  * z = w / 2, so that the hardware never clips on depth, and the map's own clip position in `clip`;
@@ -44,7 +45,7 @@ import {
   PAGE_INFO_WGSL,
   maskKeepWgsl,
 } from '../../../../visibility/shader/pageWgsl.ts'
-import { FLAG_DOUBLE, FLAG_MASK } from '../../../../visibility/types.ts'
+import { FLAG_MASK } from '../../../../visibility/types.ts'
 import {
   colorSampleWgsl,
   maskAlphaWgsl,
@@ -190,15 +191,12 @@ override VSM_RENDER_CORNERS:u32=96u;
  if(vsmRecordTessellated(record)){out.position=vsmRenderNan();return out;}
  let page=pages[record.x];
  out.masked=page.flags&${FLAG_MASK}u;
- let n=page.indexCount;
- let second=recordCorner>=n;
- if(recordCorner>=select(n,2u*n,(page.flags&${FLAG_DOUBLE}u)!=0u)){out.position=vsmRenderNan();return out;}
- let v=select(recordCorner,recordCorner-n,second);
+ if(recordCorner>=page.indexCount){out.position=vsmRenderNan();return out;}
  let raw=vsmProjectionData[vsmRecordMap(record)];
 ${wpo.programs.length ? ' // The map decides whether the offset of an object is drawn in it (`wpoAllowed`).\n wpoThreshold=raw.wpoThreshold;\n' : ''} let h=pageHeaderFor(page,pageSurfaceRead(page));
- let tri=pageTriangle(page,h,v/3u);
- var corner=v%3u;
- if(corner!=0u&&vsmRecordSwapped(record)!=second){corner=3u-corner;}
+ let tri=pageTriangle(page,h,recordCorner/3u);
+ var corner=recordCorner%3u;
+ if(corner!=0u&&vsmRecordSwapped(record)){corner=3u-corner;}
  let id=select(select(tri.z,tri.y,corner==1u),tri.x,corner==0u);
  let world=vsmRenderWorld(page,h,id);
  // Translated world of the VSM view, then its clip, placed on the record's window.

@@ -9,10 +9,14 @@ import {
 } from '../pageTableWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from '../resources.ts'
 import type { VsmLayout } from '../layout.ts'
-import { VSM_RENDER_PARAMS_WGSL, VSM_RENDER_RECORD_WGSL } from './renderParamsWgsl.ts'
+import {
+  VSM_RENDER_PARAMS_WGSL,
+  VSM_RENDER_RECORD_WGSL,
+  VSM_RENDER_SOFTWARE_COUNTS_WGSL,
+} from './renderParamsWgsl.ts'
 
 /** THE SHADOW RASTER'S BIN (`renderCullWgsl.ts`): a thread a record the cull emitted, placed among
- *  its tier's — the raster's bins, one draw each —, as the reference scatters its visible clusters
+ *  its bin's — the raster's bins, one draw each —, as the reference scatters its visible clusters
  *  into their raster bins, and the pages of its window it draws marked
  *  drawn. */
 
@@ -62,11 +66,11 @@ const binKernelText = /* wgsl */ `
  let levelOffset=vsmTableLevelOrigin(vsmHandleFromId(vsmRecordMap(r)),mip);
  let first=vsmRecordFirstPage(r);
  // A software record's one page translated here, once for its cluster (a one-page window): its table word in place of its mask (\`renderSoftwareWgsl.ts\`); the software
- // records' count at the capacity's place.
+ // records' counts, the dynamic layer's and the static layer's, at the capacity's place.
  var placed=r;
- if(vsmRecordTier(r)==VSM_RENDER_SOFTWARE_BIN){placed.w=vsmTableWord(vsmTableEntryAt(levelOffset,mip,first));}
+ if(vsmRecordSoftware(r)){placed.w=vsmTableWord(vsmTableEntryAt(levelOffset,mip,first));}
  sorted[atomicAdd(&counts[VSM_RENDER_TIER_CURSOR+vsmRecordTier(r)],1u)]=placed;
- if(index==0u){sorted[params.recordCapacity]=vec4u(min(atomicLoad(&counts[VSM_RENDER_TIER_RECORDS+VSM_RENDER_SOFTWARE_BIN]),vsmRenderRecordTotal(atomicLoad(&counts[VSM_RENDER_COUNT_RECORDS]))),0u,0u,0u);}
+ if(index==0u){sorted[params.recordCapacity]=vec4u(vsmRenderSoftwareCounts(vsmRenderRecordTotal(atomicLoad(&counts[VSM_RENDER_COUNT_RECORDS]))),0u,0u);}
  let markBits=vsmRasterMarkBits(vsmRecordStatic(r)!=0u,vsmRecordDeforms(r),vsmRecordOffsetAllowed(r),vsmRecordLodBehind(r));
  var mask=r.w;
  loop{
@@ -98,6 +102,7 @@ ${binHelpersText}${binKernelText}
       VSM_PAGE_LOOKUP_WGSL,
       VSM_RENDER_PARAMS_WGSL,
       VSM_RENDER_RECORD_WGSL,
+      VSM_RENDER_SOFTWARE_COUNTS_WGSL,
       FLAT_INDEX_WGSL,
       WORKGROUP_THREADS_WGSL,
     ],

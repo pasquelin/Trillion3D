@@ -28,10 +28,6 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/g
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 
-/** A box that bounds nothing finite reaches every page: as large an extent as f32 clip math
- *  keeps. */
-export const UNBOUNDED_EXTENT = 1e15
-
 /** The instance flag: its box is cached as dynamic (its casters already moving), else as static. */
 const VSM_BOX_MOVING = 1
 
@@ -65,7 +61,7 @@ ${wgslConsts({ VSM_BOX_MOVING, MOBILITY_OFFSET_ALWAYS, MOBILITY_OFFSET_INVALIDAT
  *  every invalidation entry runs over the previous frame's maps. */
 const VSM_STALE_PAGES_WGSL = wgslBlock(
   'VSM_STALE_PAGES_WGSL',
-  [VSM_INVALIDATION_INSTANCE_WGSL, VSM_BOX_CULL_WGSL],
+  [VSM_INVALIDATION_INSTANCE_WGSL, VSM_BOX_CULL_WGSL, VSM_PROJECTION_DATA_READ_WGSL],
   `
 /** A page rect that holds no page: its first corner past its last. */
 const VSM_EMPTY_PAGE_RECT:vec4u=vec4u(0xffffffffu,0xffffffffu,0u,0u);
@@ -97,6 +93,9 @@ fn vsmMarkStale(o:VsmTableCell,flags:u32){
 fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  // A box staled in some views' maps alone (an instance whose cache state turned there).
  if(((inst.views>>pd.viewSlot)&1u)==0u){return;}
+ // A map over a receiver cover draws its dynamic layer again each frame: a box cached as dynamic in it stales nothing.
+ let staticBox=vsmCachesAsStatic(inst,pd);
+ if(pd.useCover&&!staticBox){return;}
  let sunMap=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
  // The box's centre in the shadow view's shifted space (the origin shift split high and low).
  let translation=(inst.centre+pd.originShiftHigh)+pd.originShiftLow;
@@ -127,13 +126,13 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  var pixelRadius=vsmClipRadius(isOrtho,boxRadius,shiftedCenter,pd.lightViewToClip)*f32(VSM_LEVEL0_TEXELS);
  if(!cull.inMapView){return;}
  // A map of one page (a distant light's: its last mip alone) has that page's static layer staled and
- // is done, whatever layer the box was cached in.
- if(!sunMap&&pd.finestMip>=VSM_MIPS-1u){
+ // is done. Over a receiver cover only a box cached as static reaches here (a dynamic one returned
+ // above); without a cover a box of either layer does.
+ if(vsmSinglePageMap(pd)){
   let lastMip=VSM_MIPS-1u;
   vsmMarkStale(vsmTableEntryAt(vsmTableLevelOrigin(pd.handle,lastMip),lastMip,vec2u(0u,0u)),VSM_META_STATIC_STALE);
   return;
  }
- let staticBox=vsmCachesAsStatic(inst,pd);
  let staleBits=select(VSM_META_DYNAMIC_STALE,VSM_META_STATIC_STALE,staticBox);
  let staleStatic=(staleBits&VSM_META_STATIC_STALE)!=0u;
  let mipCount=select(1,i32(VSM_MIPS),pd.levelsLeft<=0);

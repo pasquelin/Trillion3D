@@ -1,7 +1,8 @@
 // The maps the shadow changes stale on the GPU (`castInvalidation.ts`) — an entry that may hold
-// cached pages, every map of it, by id —: a moving box stales each of them, a map drawing its
-// moving casters over a receiver cover too. None when the cache holds nothing to stale or nothing
-// changed. And the CPU's boxes as the records that stale reads after the list (`castBoxes.ts`).
+// cached pages, every map of it, by id —: a box has a thread in each of them, a map over a receiver
+// cover too (its thread leaves a box cached as dynamic, `vsmStaleBoxPages`). None when the cache
+// holds nothing to stale or nothing changed. And the CPU's boxes as the records that stale reads
+// after the list (`castBoxes.ts`).
 import { ComputeRun } from '../../../../gpu/core/lazyComputePass.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -9,7 +10,7 @@ import type { VsmCacheManager } from '../cacheManager.ts'
 import { VsmLightCache } from '../lightCache.ts'
 import { encodeCastInvalidation, endCastInvalidation, vsmCastMaps } from './castInvalidation.ts'
 import { CAST_BOX_WORDS, vsmCastBoxes } from './castBoxes.ts'
-import { UNBOUNDED_EXTENT } from '../invalidationWgsl.ts'
+import { UNBOUNDED_EXTENT } from '../../../../deformation/halfFloat.ts'
 import { createCastChanges, type CastChanges } from '../../casters/castChanges.ts'
 import { pipelinesSettled } from '../../../deferred/compileLedger.ts'
 import { createVsmResources } from '../resources.ts'

@@ -13,7 +13,7 @@
  * diff appends holds the same records (`../../casters/castChanges.ts`).
  */
 import type { VsmCacheManager } from '../cacheManager.ts'
-import { UNBOUNDED_EXTENT } from '../invalidationWgsl.ts'
+import { UNBOUNDED_EXTENT } from '../../../../deformation/halfFloat.ts'
 import { boxCenter } from '../../../../../../math/src/geometry/box.ts'
 import { grownLength } from '../../../../../../math/src/sequence/resized.ts'
 import { f32Up } from '../../../../../../math/src/float/bits.ts'

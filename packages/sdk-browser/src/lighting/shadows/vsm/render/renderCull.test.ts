@@ -62,6 +62,7 @@ test('the records to draw and those held back share the list’s places, every p
 function viewCull(
   hiddenBefore: (centre: number[]) => boolean,
   hiddenNow: () => boolean = () => false,
+  software = false,
 ) {
   const C = wgslConstants(CULL)
   const identity = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
@@ -95,7 +96,7 @@ function viewCull(
     vsmTouchesMappedPixels: () => true,
     vsmRenderSwapped: () => false,
     vsmRenderTierOf: () => 0,
-    vsmRenderSoftware: () => false,
+    vsmRenderSoftware: () => software,
     vsmHiddenBefore: (_map: object, centre: number[]) => hiddenBefore(centre),
     vsmHiddenNow: hiddenNow,
     vsmRenderHold: (...args: unknown[]) => held.push(args),
@@ -268,4 +269,26 @@ test('the cull tests the caster’s oriented box: a thin turned box off the frus
   assert.equal(cube(off).inMapView, true, 'the cube about the sphere reaches the frustum')
   assert.equal(box(off).inMapView, false, 'the box itself does not')
   assert.equal(box([0, 0, 0.5]).inMapView, true, 'through the frustum, it is kept')
+})
+
+// A cluster the software raster takes goes to the bin of its layer, the dynamic layer's or the static
+// layer's (the record's bin is its word's tier bits, put by the emit); a hardware one to its tier,
+// whatever the layer. The word the cull hands the emit holds no tier.
+test('a software cluster is binned by its layer, a hardware one by its tier', () => {
+  const C = wgslConstants(CULL)
+  for (const [software, flags, bin] of [
+    [true, 0, C.VSM_RENDER_SOFTWARE_STATIC_BIN],
+    [true, C.VSM_RENDER_CAND_DYNAMIC, C.VSM_RENDER_SOFTWARE_BIN],
+    [false, 0, 0],
+  ] as const) {
+    const { run, drawn, caster, kind } = viewCull(
+      () => false,
+      () => false,
+      software,
+    )
+    run.vsmRenderCullView({ ...caster([0, 0, 0]), flags }, 5, 0, false, kind('FIRST'), 0)
+    assert.equal(drawn.length, 1)
+    assert.equal(drawn[0]![2], bin, `software ${software}, flags ${flags}`)
+    assert.equal(((drawn[0]![1] as number) >>> 24) & 15, 0, 'the word holds no tier')
+  }
 })

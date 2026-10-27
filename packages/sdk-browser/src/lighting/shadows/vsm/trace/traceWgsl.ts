@@ -160,7 +160,7 @@ const traceLightRaysText = (lone: boolean) => /* wgsl */ `
   var hit=false;
   if(running){
    let noise4=vsmRayNoise4(pixel.pos,vsmView.frameIndex,i,rayCap);
-   let dir=vsmConeDirection(basis,s,noise4.xy);
+   let dir=vsmConeDirection(basis,s,vsmLightDisk(directional,noise4.xy));
    // The start, within the dither square across the light. A local ray's is moved along the light
    // onto the receiver's plane (its slope in the light's frame), never more than the cap, in the
    // world; a sun ray's is moved in the map's UV once projected, and lifted to the centre of the

@@ -44,7 +44,7 @@ export function vsmListSizes(
   into.candidates = casters * VSM_RENDER_CANDIDATE_BYTES
   into.counts = VSM_RENDER_COUNT_WORDS * 4
   into.records = records * VSM_RENDER_RECORD_BYTES
-  // The software records' count at the capacity's place (`vsmRenderBin`).
+  // The software records' counts at the capacity's place (`vsmRenderBin`).
   into.sorted = into.records + VSM_RENDER_RECORD_BYTES
   into.args = VSM_RENDER_ARGS_WORDS * 4
   return into
