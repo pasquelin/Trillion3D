@@ -302,6 +302,16 @@ page (`shadowForceInvalidateDirectional`, false; the first-person clipmap always
 `shadowClipmapCullDynamicTightly` its depth range itself is cut, from `depthRadius` on the near side to `cullingEnd` on
 the far side, with no shift for the eye's depth.
 
+**The width a sun's clipmap is sized for.** A sun's clipmap sizes its texels for the width the frame is drawn at, so a
+render resolution lowered by the dynamic resolution or a quality level coarsens its shadows too.
+`shadowClipmapMinCameraViewportWidth` (0, from 0 to 16384 pixels) floors that width (`VsmViewport.minScreenWidth`,
+`planMaps`): a frame drawn narrower keeps the shadow resolution of that width; 0 floors nothing. Local lights read the
+drawn size alone.
+
+```ts
+world.shadows = { shadowClipmapMinCameraViewportWidth: 1920 } // a lowered render resolution keeps 1920-pixel sun shadows
+```
+
 **The cache's and the receiver masks' switches.** Each is a view setting at the reference's default.
 `shadowCache` (true) keeps the pages from one frame to the next: off, every light is drawn uncached each frame, the
 distant lights are never kept, and the set is made without a static layer in its pool (`VsmLayout.cacheEnabled`), so
