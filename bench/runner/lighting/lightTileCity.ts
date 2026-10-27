@@ -15,6 +15,7 @@ import {
 import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts'
 import { slabCut } from '../../../packages/math/src/geometry/slab.ts'
 
+/** A lamp of the grid: its range sphere. */
 export type Light = { centre: Vec3; radius: number }
 /** `blocks`: each block's building height by `blockIndex`, 0 for an empty block. */
 export type City = { blocks: Uint8Array; lights: Light[] }

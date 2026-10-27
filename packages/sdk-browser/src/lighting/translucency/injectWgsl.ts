@@ -6,6 +6,7 @@ import { AIR_TINT_WGSL } from '../atmosphere/airTintWgsl.ts'
 import { cloudShadowReadWgsl } from '../atmosphere/cloudShadowRead.ts'
 import { DIRECT_LIGHT_WGSL } from '../direct/lightWgsl.ts'
 import { VOLUME_LAMP_WGSL } from '../direct/lampSeenWgsl.ts'
+import { lightStrengthWgsl } from '../direct/lightStrengthWgsl.ts'
 import { directShadowWgsl } from '../direct/shadowWgsl.ts'
 import { lightFunctionReadWgsl } from '../lightFunction/readWgsl.ts'
 import { VSM_TRACE_KINDS_BOTH } from '../shadows/vsm/trace/traceWgsl.ts'
@@ -111,14 +112,14 @@ fn tvInject(rank:u32,cascade:u32,P:vec3f,border:f32,ambient:ptr<function,vec4f>,
  if(!sun){attenuation=volumeLamp(light,lit,LAMP_BIAS).w;}
  if(attenuation<=0.0){return;}
  var shade=shadowFactor(i32(light.params.y),light,lit,vec3f(0.0),true);
- var colour=light.colorIntensity.rgb*(light.colorIntensity.w*INVERSE_PI);
+ var colour=light.colorIntensity.rgb*(lightStrength(light)*INVERSE_PI);
  if(sun){
-  shade*=dot(lightFunctionOf(light.params.x,lit),vec3f(0.3333))*cloudShadowOnSurface(rank,lit);
+  shade*=dot(lightFunctionOf(light,lit),vec3f(0.3333))*cloudShadowOnSurface(rank,lit);
   if(cascade==1u){shade=mix(1.0,shade,border);}
   colour*=airTintOf(rank,light,lit);
  }else{
   if(cascade==1u){attenuation*=border;shade*=border;}
-  colour*=lightFunctionOf(light.params.x,lit);
+  colour*=lightFunctionOf(light,lit);
  }
  let share=attenuation*shade;
  colour*=share;
@@ -153,5 +154,12 @@ export const INJECT_PROGRAM = wgslProgram(
 @group(0) @binding(${b.ranks}) var<storage,read> tvRanks:array<u32>;
 @group(0) @binding(${b.injected}) var tvInjected:texture_storage_3d<${VOLUME_FORMAT},write>;
 `,
-  [DIRECT_LIGHT_WGSL, SHADOW, LIGHT_FUNCTION, CLOUD_SHADOW, INJECT_WGSL],
+  [
+    DIRECT_LIGHT_WGSL,
+    lightStrengthWgsl('tv.weights.w'),
+    SHADOW,
+    LIGHT_FUNCTION,
+    CLOUD_SHADOW,
+    INJECT_WGSL,
+  ],
 )

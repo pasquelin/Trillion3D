@@ -1,6 +1,6 @@
 // The engine side of the staircase proof: the mirror spheres over a dark floor (`sphereFrame.ts`)
 // laid in the engine's inputs, still images through its kernels until the view is settled (`rig.ts`,
-// `rigImage.ts`), the held reflection target read back. No resident proxy: what the screen cannot answer is the sky's, so
+// `rigImage.ts`), the held reflection target read back. No resident proxy: what the screen cannot answer is black (no sky light shines), so
 // that every pixel of the floor's reflection is the screen march's alone.
 import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { sphereFrame } from './sphereFrame.ts'

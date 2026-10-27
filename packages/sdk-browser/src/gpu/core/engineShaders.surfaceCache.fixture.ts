@@ -7,9 +7,9 @@ import { blendShader } from '../../blend/shader.ts'
 import { FILTER_PROGRAM } from '../../lighting/translucency/filterWgsl.ts'
 import { INJECT_PROGRAM } from '../../lighting/translucency/injectWgsl.ts'
 import { MARK_GI_PROGRAM } from '../../lighting/translucencyGi/markWgsl.ts'
-import { TRACE_GI_PROGRAM } from '../../lighting/translucencyGi/traceWgsl.ts'
-import { FILTER_GI_PROGRAM } from '../../lighting/translucencyGi/filterWgsl.ts'
-import { INTEGRATE_GI_PROGRAM } from '../../lighting/translucencyGi/integrateWgsl.ts'
+import { traceGiProgram } from '../../lighting/translucencyGi/traceWgsl.ts'
+import { filterGiProgram } from '../../lighting/translucencyGi/filterWgsl.ts'
+import { integrateGiProgram } from '../../lighting/translucencyGi/integrateWgsl.ts'
 import { COMPOSE_DUAL_WGSL, COMPOSE_WGSL, LATE_WGSL } from '../../blend/translucencyComposeWgsl.ts'
 import { HOLDOUT_APPLY_WGSL, HOLDOUT_START_WGSL } from '../../blend/holdoutWgsl.ts'
 import { CLEAR_BLOCKS_WGSL, ENCODE_WGSL } from '../../lighting/surfaceCache/compressWgsl.ts'
@@ -26,9 +26,14 @@ import {
 import { ATLAS_VIEW_WGSL } from '../../lighting/surfaceCache/debugWgsl.ts'
 import { FEEDBACK_COMPACTION_SHADER } from '../../lighting/surfaceCache/feedbackWgsl.ts'
 import { combineWgsl } from '../../lighting/surfaceCache/lighting/combineWgsl.ts'
-import { CONTEXT_WGSL } from '../../lighting/surfaceCache/lighting/contextWgsl.ts'
+import { CONTEXT_WGSL, SPLICE_WGSL } from '../../lighting/surfaceCache/lighting/contextWgsl.ts'
 import { cullWgsl } from '../../lighting/surfaceCache/lighting/cullWgsl.ts'
-import { DIRECT_WGSL } from '../../lighting/surfaceCache/lighting/directWgsl.ts'
+import { TILE_DEPTH_RANGE_WGSL } from '../../lighting/surfaceCache/lighting/tileDepthRangeWgsl.ts'
+import {
+  DIRECT_COLOURED_WGSL,
+  DIRECT_WGSL,
+} from '../../lighting/surfaceCache/lighting/directWgsl.ts'
+import { lightFunctionPassWgsl } from '../../lighting/surfaceCache/lighting/lightFunctionPassWgsl.ts'
 import { RADIOSITY_BUILD_WGSL } from '../../lighting/surfaceCache/lighting/radiosityBuildWgsl.ts'
 import { RADIOSITY_FILTER_WGSL } from '../../lighting/surfaceCache/lighting/radiosityFilterWgsl.ts'
 import { RADIOSITY_INTEGRATE_WGSL } from '../../lighting/surfaceCache/lighting/radiosityIntegrateWgsl.ts'
@@ -36,9 +41,13 @@ import {
   RADIOSITY_TRACE_WGSL,
   RADIOSITY_TRACED_WGSL,
 } from '../../lighting/surfaceCache/lighting/radiosityTraceWgsl.ts'
-import { SHADOW_MASK_PROGRAM_WGSL } from '../../lighting/surfaceCache/lighting/shadowMaskWgsl.ts'
+import {
+  SHADOW_MASK_COLOURED_PROGRAM_WGSL,
+  SHADOW_MASK_PROGRAM_WGSL,
+} from '../../lighting/surfaceCache/lighting/shadowMaskWgsl.ts'
 import {
   SHADOW_ARGS_WGSL,
+  SHADOW_TRACE_COLOURED_WGSL,
   SHADOW_TRACE_WGSL,
 } from '../../lighting/surfaceCache/lighting/shadowTraceWgsl.ts'
 
@@ -64,15 +73,22 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   SURFACE_CACHE_ATLAS_VIEW_WGSL: ATLAS_VIEW_WGSL,
   SURFACE_CACHE_FEEDBACK_COMPACTION_SHADER: FEEDBACK_COMPACTION_SHADER,
   SURFACE_CACHE_CONTEXT_WGSL: CONTEXT_WGSL,
+  SURFACE_CACHE_SPLICE_WGSL: SPLICE_WGSL,
   SURFACE_CACHE_DIRECT_WGSL: DIRECT_WGSL,
+  SURFACE_CACHE_DIRECT_COLOURED_WGSL: DIRECT_COLOURED_WGSL,
+  SURFACE_CACHE_LIGHT_FUNCTION_PASS_WGSL: lightFunctionPassWgsl({ mapped: false }),
+  SURFACE_CACHE_LIGHT_FUNCTION_PASS_MAPPED_WGSL: lightFunctionPassWgsl({ mapped: true }),
   SURFACE_CACHE_SHADOW_MASK_WGSL: SHADOW_MASK_PROGRAM_WGSL,
+  SURFACE_CACHE_SHADOW_MASK_COLOURED_WGSL: SHADOW_MASK_COLOURED_PROGRAM_WGSL,
   SURFACE_CACHE_SHADOW_ARGS_WGSL: SHADOW_ARGS_WGSL,
   SURFACE_CACHE_SHADOW_TRACE_WGSL: SHADOW_TRACE_WGSL,
+  SURFACE_CACHE_SHADOW_TRACE_COLOURED_WGSL: SHADOW_TRACE_COLOURED_WGSL,
   SURFACE_CACHE_RADIOSITY_BUILD_WGSL: RADIOSITY_BUILD_WGSL,
   SURFACE_CACHE_RADIOSITY_TRACE_WGSL: RADIOSITY_TRACE_WGSL,
   SURFACE_CACHE_RADIOSITY_TRACED_WGSL: RADIOSITY_TRACED_WGSL,
   SURFACE_CACHE_RADIOSITY_FILTER_WGSL: RADIOSITY_FILTER_WGSL,
   SURFACE_CACHE_RADIOSITY_INTEGRATE_WGSL: RADIOSITY_INTEGRATE_WGSL,
+  SURFACE_CACHE_TILE_DEPTH_RANGE: TILE_DEPTH_RANGE_WGSL,
   SURFACE_CACHE_CULL: cullWgsl(CULL_LIGHTS),
   SURFACE_CACHE_COMBINE: combineWgsl(false),
   SURFACE_CACHE_COMBINE_COMPRESSED: combineWgsl(true),
@@ -84,7 +100,10 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   TRANSLUCENCY_FILTER: FILTER_PROGRAM,
   // The translucency global illumination volume's passes (`../../lighting/translucencyGi/`).
   TRANSLUCENCY_GI_MARK: MARK_GI_PROGRAM,
-  TRANSLUCENCY_GI_TRACE: TRACE_GI_PROGRAM,
-  TRANSLUCENCY_GI_FILTER: FILTER_GI_PROGRAM,
-  TRANSLUCENCY_GI_INTEGRATE: INTEGRATE_GI_PROGRAM,
+  TRANSLUCENCY_GI_TRACE: traceGiProgram('rgba16float'),
+  TRANSLUCENCY_GI_TRACE_PACKED: traceGiProgram('rg11b10ufloat'),
+  TRANSLUCENCY_GI_FILTER: filterGiProgram('rgba16float'),
+  TRANSLUCENCY_GI_FILTER_PACKED: filterGiProgram('rg11b10ufloat'),
+  TRANSLUCENCY_GI_INTEGRATE: integrateGiProgram('rgba16float'),
+  TRANSLUCENCY_GI_INTEGRATE_PACKED: integrateGiProgram('rg11b10ufloat'),
 }

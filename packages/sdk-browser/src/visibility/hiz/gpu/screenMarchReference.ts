@@ -26,14 +26,17 @@ const REFERENCE_RAMP = 10
  *
  * The ray is `o + d·t` like `screenMarchPlanes`'s, `t` from 0 to `end`; the walk's own time runs from
  * 0 to 1 over `d · end`. It steps out of the texel it starts in first, without a test, so that it
- * does not meet the surface it leaves. At each iteration it reads the closest depth of the tile
+ * does not meet the surface it leaves; a ray that step carries to the end is rewound to its start, the walk skipped, and proves
+ * nothing clear (`above` 0). At each iteration it reads the closest depth of the tile
  * under the ray at the walk's mip; the ray above that depth is taken to the nearest of the tile's edge
  * and the plane of that depth, one mip up when it reached the tile's edge first, else one down;
  * not above it, it stays and goes one mip down. Below the first mip it is behind a surface: a hit
  * when it lies less far behind the tile's depth than the thickness, else a miss (the exact
  * complement); the thickness is a share of the tile's depth (`screenRelativeBack`), `thickness` of
  * the call, not pixels.
- * A ray that runs out of iterations or leaves the screen meets nothing. A hit is the tile's depth,
+ * A ray that runs out of iterations or leaves the screen meets nothing, and so does one behind a surface by more than the thickness; the walk then
+ * reports, as the furthest the ray is proved clear (`above`), where it stopped for the first, and for the second the last time it
+ * passed above a tile, the ray being taken back to it. A hit is the tile's depth,
  * flat: its plane has no slopes, and its pixel is the centre of the tile.
  *
  * Level `l` of the pyramid is the mip `l - 1` here: the first level holds the closest of 2 × 2
@@ -61,9 +64,7 @@ fn screenPlaneTime(p:vec2f,start:vec2f,mip:i32,inv:vec2f,ahead:vec2<bool>)->f32{
 }
 fn screenMarchReference(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32,full:bool)->ScreenHit{
  let levels=hizLevelCount();
- let miss=screenMarchMissed(0u,0.0);
- if(levels<2){return miss;}
- let steps=min(screenMarchBudget(d,end,levels),cap);
+ if(levels<2){return screenMarchMissed(0u,0.0);}
  let dir=d*end;
  let tiny=vec2f(1e-6);
  let base=select(0,-1,full);
@@ -71,10 +72,12 @@ fn screenMarchReference(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32
  let ahead=dir.xy>=vec2f(0.0);
  let inv=1.0/select(dir.xy,select(-tiny,tiny,ahead),abs(dir.xy)<tiny);
  var time=screenPlaneTime(o.xy,o.xy,base,inv,ahead);
+ let stepped=time>=1.0;
  var ray=select(o,o+dir*time,time<1.0);
  var mip=base;
+ var lastAbove=0.0;
  var k=0u;
- for(var j=0u;j<steps;j++){
+ for(var j=0u;j<cap;j++){
   if(mip<base||time>=1.0){break;}
   let tile=screenTileDepth(ray.xy,mip,top)*select(mix(REFERENCE_START_SCALE,1.0,saturate(time*REFERENCE_RAMP)),1.0,full);
   var zTime=1.0;
@@ -82,15 +85,15 @@ fn screenMarchReference(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32
   let edge=min(screenPlaneTime(ray.xy,o.xy,mip,inv,ahead),zTime);
   let above=ray.z>tile;
   let skipped=above&&edge!=zTime;
+  if(skipped){lastAbove=edge;}
   if(above){time=edge;}
   ray=o+dir*min(time,1.0);
   mip+=select(-1,1,skipped);
   k++;
  }
- let above=min(time,1.0)*end;
- if(mip>=base||time>=1.0){return screenMarchMissed(k,above);}
+ if(mip>=base||time>=1.0){return screenMarchMissed(k,select(min(time,1.0),0.0,stepped)*end);}
  let tile=screenTileDepth(ray.xy,base,top);
- if(ray.z<=screenRelativeBack(tile,thickness,slab)){return screenMarchMissed(k,above);}
+ if(ray.z<=screenRelativeBack(tile,thickness,slab)){return screenMarchMissed(k,lastAbove*end);}
  let texel=exp2(f32(base+1));
  let centre=(floor(ray.xy/texel)+vec2f(0.5))*texel;
  return ScreenHit(time*end,vec3f(tile,0.0,0.0),centre,hizFrontOver(vec2i(floor(ray.xy))),k,0.0);

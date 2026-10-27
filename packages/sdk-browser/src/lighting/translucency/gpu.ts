@@ -51,6 +51,8 @@ export interface TranslucencyInputs {
   /** The number the light is written multiplied by this image and the image before's. */
   readonly preExposure: number
   readonly previousPreExposure: number
+  /** The exposure of this image, which a light's blend with it is taken at (`lightStrength`). */
+  readonly exposure: number
   /** A camera cut: the image before is no history. */
   readonly cut: boolean
 }
@@ -258,6 +260,7 @@ function writeFrame(
     input.preExposure,
     input.preExposure / input.previousPreExposure,
     input.settings.translucencyVolumeHistoryWeight,
+    input.exposure,
   )
   putVec4(f, at.eye, input.camera.eye[0], input.camera.eye[1], input.camera.eye[2], 1)
   resources.frame.send()

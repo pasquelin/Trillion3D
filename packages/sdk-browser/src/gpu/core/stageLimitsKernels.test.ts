@@ -2,7 +2,12 @@
 // WebGPU's default limits as the lighting's and the blends' programs do (`stageLimits.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createReflectionPipelines } from '../../lighting/reflections/reflectionPipelines.ts'
+import {
+  createReflectionPipelines,
+  hardwareReflectionKernels,
+  reflectionSceneLayout,
+  reflectionLayout,
+} from '../../lighting/reflections/reflectionPipelines.ts'
 import { createHizPipelines } from '../../visibility/hiz/gpu/pipelines.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { dagBindEntries } from '../../geometry/dag/shader/bindings.ts'
@@ -36,11 +41,24 @@ import {
   RESOLVE_WGSL,
 } from '../../lighting/surfaceCache/copyWgsl.ts'
 import {
+  fixedKernels,
   shapedKernels,
-  staticKernels,
   tracedRadiosityKernels,
   tracedShadowKernels,
 } from '../../lighting/surfaceCache/lighting/kernels.ts'
+import { tracedCacheKernels } from '../../lighting/bounce/cache/cacheKernels.ts'
+import {
+  CACHE_SPLAT_PROGRAM,
+  CACHE_TRACED_PROGRAM,
+} from '../../lighting/bounce/cache/cacheTraceWgsl.ts'
+import { CACHE_FIXUP_PROGRAM } from '../../lighting/bounce/cache/cacheFixupWgsl.ts'
+import { SCENE_CULL_WGSL } from '../../lighting/rays/sceneTrace/sceneCullWgsl.ts'
+import {
+  kernelShapeOf,
+  screenProbeSources,
+  tracedSceneKernel,
+} from '../../lighting/bounce/screen/kernels.ts'
+import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { SURFACE_CACHE_SHADERS as S } from './engineShaders.surfaceCache.fixture.ts'
 
 test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", async () => {
@@ -50,6 +68,13 @@ test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", a
   assert.ok(await createReflectionPipelines(device), 'the reflection kernels build')
   assert.ok(await createHizPipelines(device), 'the depth pyramid kernels build')
   withinDefaults(layouts, 'the reflections and the depth pyramid')
+})
+
+test("the reflections' scene stage through the scene's triangles fits WebGPU's defaults: its group with the cut's tables, the reflection group, the scene trace's", () => {
+  const { device, pipelineLayouts: layouts } = fakeDevice()
+  hardwareReflectionKernels(device)
+  assert.equal(layouts.length, 1)
+  withinDefaults(layouts, 'the reflection scene stage through the scene triangles')
 })
 
 test("the cut's programs fit WebGPU's default limits, whatever the world", () => {
@@ -130,21 +155,30 @@ test("the surface cache's lighting kernels fit WebGPU's default limits", () => {
   // global field, the sky and the object grid: the most of any program of the cache. The programs declare, beside,
   // every binding they name, those the layouts leave out — two layers a trace never reads — counted too.
   const { device, pipelineLayouts: layouts } = fakeDevice()
-  staticKernels(device)
+  fixedKernels(device, 'grey')
+  fixedKernels(device, 'colour')
   // The kernels that cast rays through triangles, the shadows' and the radiosity's: the trace binds the scene trace's group
   // beside its own, its own with the cut's tables.
-  tracedShadowKernels(device)
+  tracedShadowKernels(device, 'grey')
+  tracedShadowKernels(device, 'colour')
   tracedRadiosityKernels(device)
   shapedKernels(device, 8, false)
   shapedKernels(device, 8, true)
   withinDefaults(layouts, 'the surface cache lighting')
   for (const [name, text] of [
     ['the update context', S.SURFACE_CACHE_CONTEXT_WGSL],
+    ['the pages cut into tiles', S.SURFACE_CACHE_SPLICE_WGSL],
+    ['the depth ranges of the tiles', S.SURFACE_CACHE_TILE_DEPTH_RANGE],
     ['the lights of the tiles', S.SURFACE_CACHE_CULL],
     ['the direct light', S.SURFACE_CACHE_DIRECT_WGSL],
+    ['the direct light over coloured masks', S.SURFACE_CACHE_DIRECT_COLOURED_WGSL],
+    ['the light functions apart from the atlas', S.SURFACE_CACHE_LIGHT_FUNCTION_PASS_WGSL],
+    ['the same, over a map', S.SURFACE_CACHE_LIGHT_FUNCTION_PASS_MAPPED_WGSL],
     ['the shadow masks', S.SURFACE_CACHE_SHADOW_MASK_WGSL],
+    ['the shadow masks of the coloured atlas', S.SURFACE_CACHE_SHADOW_MASK_COLOURED_WGSL],
     ['the shadow trace arguments', S.SURFACE_CACHE_SHADOW_ARGS_WGSL],
     ['the shadow trace', S.SURFACE_CACHE_SHADOW_TRACE_WGSL],
+    ['the shadow trace over coloured masks', S.SURFACE_CACHE_SHADOW_TRACE_COLOURED_WGSL],
     ['the final light', S.SURFACE_CACHE_COMBINE],
     ['the final light of a compressed atlas', S.SURFACE_CACHE_COMBINE_COMPRESSED],
     ['the radiosity tiles', S.SURFACE_CACHE_RADIOSITY_BUILD_WGSL],
@@ -154,4 +188,58 @@ test("the surface cache's lighting kernels fit WebGPU's default limits", () => {
     ['the radiosity integration', S.SURFACE_CACHE_RADIOSITY_INTEGRATE_WGSL],
   ] as const)
     withinDefaults([wgslComputeLayout(text)], name)
+})
+
+test("the radiance cache's trace through the scene's triangles fits WebGPU's default limits: its group with the cut's tables, the scene trace's beside", () => {
+  const { device, pipelineLayouts: layouts } = fakeDevice()
+  tracedCacheKernels(device)
+  withinDefaults(layouts, 'the radiance cache traced kernels')
+  withinDefaults([wgslComputeLayout(CACHE_TRACED_PROGRAM)], 'the radiance cache traced trace')
+})
+
+test("the radiance cache's spread of the trace atlas and its final maps fit WebGPU's default limits: the fixup writes four storage textures", () => {
+  withinDefaults([wgslComputeLayout(CACHE_SPLAT_PROGRAM)], 'the radiance cache spread')
+  withinDefaults([wgslComputeLayout(CACHE_FIXUP_PROGRAM)], 'the radiance cache fixup')
+})
+
+test("the screen probes' scene stage through the scene's triangles fits WebGPU's default limits, with the fog on its rays or not: its group with the cut's tables, the reflection group the scene stages read, the scene trace's", () => {
+  const { device, pipelineLayouts: layouts } = fakeDevice()
+  tracedSceneKernel(device, { side: 8, samples: [4, 4], heightFog: false })
+  tracedSceneKernel(device, { side: 8, samples: [4, 4], heightFog: true })
+  withinDefaults(layouts, 'the screen probes traced scene stage')
+})
+
+test("the scene trace's culling pass fits WebGPU's default limits: the cut's tables in group 0, its parameters and the table it writes in group 1", () => {
+  withinDefaults([wgslComputeLayout(SCENE_CULL_WGSL)], 'the scene trace culling')
+})
+
+test("every kernel of the screen probes fits WebGPU's default limits at the levels that cast, with the extra occlusion, the filter of the probes, the levels of the gather and the fog on the rays on, the integration reduced or not: its group with the reflection group", () => {
+  const { device } = fakeDevice()
+  const group = reflectionLayout(device)
+  const sceneGroup = reflectionSceneLayout(device)
+  for (const screenProbes of ['ultra', 'cinematic'] as const)
+    for (const screenProbeIntegrateDownsampleFactor of [1, 2]) {
+      const shape = kernelShapeOf(
+        screenProbeSettings({
+          screenProbes,
+          screenProbeExtraAmbientOcclusion: true,
+          screenProbeTemporalFilterProbes: true,
+          screenProbeGatherNumMips: 2,
+          screenProbeHeightFogOnGI: true,
+          screenProbeIntegrateDownsampleFactor,
+        }),
+      )
+      for (const [name, source] of Object.entries(screenProbeSources(shape)))
+        withinDefaults(
+          [
+            {
+              bindGroupLayouts: [
+                { entries: [...source.entries] },
+                source.scene ? sceneGroup : group,
+              ] as never,
+            },
+          ],
+          `the screen probes' ${name} at ${screenProbes}, the integration reduced ${screenProbeIntegrateDownsampleFactor}`,
+        )
+    }
 })

@@ -1,8 +1,7 @@
 // A glass pane under an open sky, over a floor (`boxFrame.ts`): a polished vertical pane facing the
 // eye, whose mirror ray rises where the pane stands above the eye and meets nothing the screen or a
-// proxy holds — it leaves the scene, to the sky. What it reflects is what the screen draws there,
-// times its weight: the background — the declared one, or the engine's default where none is
-// declared (`RASTER_BACKGROUND`) — whatever light is declared around the scene.
+// proxy holds — it leaves the scene, to the sky. No sky light shines, so it reflects black: the background the screen draws is not
+// radiance a mirror reads, whatever light is declared around the scene.
 import {
   addUniformIrradiance,
   emptyIrradiance,

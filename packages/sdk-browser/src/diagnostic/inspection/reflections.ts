@@ -2,7 +2,6 @@ import { HALF_MAX } from '../../../../math/src/constants.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { octDecode } from '../../../../math/src/wgsl/octahedral.ts'
 import {
   dotVector3,
   transformHomogeneousPoint,
@@ -21,35 +20,37 @@ const PASS: GPUComputePassDescriptor = { label: 'Trillion3D inspection reflectio
 const SAMPLE_FLOATS = 8
 
 /**
- * One texel in `stride`² of a surface's grid (`grid`: the stride, the columns, the count and the side of the blocks of
- * pixels a texel stands for), read where the last image left it
+ * One texel in `stride`² of a surface's grid (`grid`: the stride, the columns and the count; then the blocks of
+ * pixels a texel stands for, across and down), read where the last image left it
  * (`../../lighting/reflections/trace/traceGroups.ts`): the history the accumulation wrote at the texel's
  * block's first pixel — its surface's linear depth (`historyDepth`) —, the fresh texel the trace wrote
- * — its hit's distance and valid bit (`freshPack`) —, and the ray's direction (`rayDirection`)
- * (`../../lighting/reflections/texelWgsl.ts` lays the words out).
+ * — its hit's distance and valid bit (`freshPack`) —, and the ray's direction
+ * (`surfaceDirections`; `../../lighting/reflections/texelWgsl.ts` lays the words out).
  */
 const SAMPLES_WGSL = wgslProgram(
   `@group(0) @binding(0) var history:texture_2d<u32>;
 @group(0) @binding(1) var fresh:texture_2d<u32>;
-@group(0) @binding(2) var rays:texture_2d<u32>;
+@group(0) @binding(2) var directions:texture_2d<f32>;
 @group(0) @binding(3) var<storage,read_write> samples:array<vec4f>;
-@group(0) @binding(4) var<uniform> grid:vec4u;
+@group(0) @binding(4) var<uniform> grid:array<vec4u,2>;
 @compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;
- if(i>=grid.z){return;}
- let t=min(vec2u(i%grid.y,i/grid.y)*grid.x,textureDimensions(rays)-1u);
+ if(i>=grid[0].z){return;}
+ let t=min(vec2u(i%grid[0].y,i/grid[0].y)*grid[0].x,textureDimensions(directions)-1u);
  let f=textureLoad(fresh,t,0).y>>16u;
- let h=textureLoad(history,min(t*grid.w,textureDimensions(history)-1u),0).y>>16u;
+ let h=textureLoad(history,min(t*grid[1].xy,textureDimensions(history)-1u),0).y>>16u;
  let depth=select(0.0,unpack2x16float((h&0xfff0u)|8u).x,(h>>4u)!=0u);
  let valid=(f&0x8000u)!=0u&&depth>0.0;
- let w=textureLoad(rays,t,0).x;
- let d=octDecode((vec2f(vec2u((w>>5u)&8191u,(w>>18u)&8191u))-4096.0)/4095.0);
+ let d=textureLoad(directions,t,0).xyz;
  samples[2u*i]=vec4f(d,unpack2x16float(f&0x7fffu).x);
  samples[2u*i+1u]=vec4f(vec2f(t),depth,select(0.0,1.0,valid));
 }`,
-  [octDecode, WORKGROUP_THREADS_WGSL],
+  [WORKGROUP_THREADS_WGSL],
 )
 const samplesKernel = autoKernel('Trillion3D inspection reflections', SAMPLES_WGSL, 'main')
+
+/** The blocks of pixels a texel of the grid stands for, across and down (`ReflectionSettings.block`, `blockY`). */
+export type Block = readonly [number, number]
 
 /** The samples' grid over `width × height` grid texels: one in `stride`² of them, at most
  *  `INSPECTION_REFLECTION_CAP`. */
@@ -72,7 +73,7 @@ export function encodeReflectionSamples(
   grids: ReflectionGrids,
   parity: number,
   grid: ReturnType<typeof sampleGrid>,
-  block: number,
+  block: Block,
 ) {
   const bytes = sampleBytes(grid)
   const samples = device.createBuffer({
@@ -82,13 +83,13 @@ export function encodeReflectionSamples(
   })
   const uniform = device.createBuffer({
     label: 'Trillion3D inspection reflection grid',
-    size: 16,
+    size: 32,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(
     uniform,
     0,
-    new Uint32Array([grid.stride, grid.columns, grid.count, block]),
+    new Uint32Array([grid.stride, grid.columns, grid.count, 0, block[0], block[1], 0, 0]),
   )
   const pipeline = samplesKernel(device).get()
   if (pipeline) {
@@ -97,7 +98,7 @@ export function encodeReflectionSamples(
       entries: sequentialEntries([
         grids.history[parity],
         grids.fresh,
-        grids.rays,
+        grids.directions,
         { buffer: samples },
         { buffer: uniform },
       ]),
@@ -137,7 +138,7 @@ function leavesView(
 /**
  * The rays of `samples` (`SAMPLE_FLOATS` each) placed in the world: a texel's ray leaves its
  * block's centre at the history's depth along the eye's ray through it (`view`, a perspective
- * camera, over a target `size` pixels, a texel a block of `block` pixels a side), toward its direction, as far as its distance.
+ * camera, over a target `size` pixels, a texel a block of `block` pixels, across and down), toward its direction, as far as its distance.
  */
 export function decodeReflections(
   samples: Float32Array,
@@ -145,7 +146,7 @@ export function decodeReflections(
   stride: number,
   view: InspectedView,
   size: readonly number[],
-  block: number,
+  block: Block,
 ): InspectedReflections {
   const inverse = invertMatrix4(new Float64Array(16), view.viewProjection),
     forward = viewForward(view.view),
@@ -163,8 +164,8 @@ export function decodeReflections(
     const at = i * SAMPLE_FLOATS
     if (samples[at + 7] === 0) continue
     // The eye's ray through the block's centre, and the surface where it is the history's depth.
-    const x = ((samples[at + 4] + 0.5) * block * 2) / size[0] - 1,
-      y = 1 - ((samples[at + 5] + 0.5) * block * 2) / size[1]
+    const x = ((samples[at + 4] + 0.5) * block[0] * 2) / size[0] - 1,
+      y = 1 - ((samples[at + 5] + 0.5) * block[1] * 2) / size[1]
     unprojectInto(point, 0, inverse, x, y, 0.5)
     writeNormalizedVector3(ray, 0, point[0] - eye[0], point[1] - eye[1], point[2] - eye[2])
     const along = samples[at + 6] / dotVector3(ray, forward)

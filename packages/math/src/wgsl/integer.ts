@@ -104,12 +104,35 @@ export const byteOf = wgslFn(
   'fn byteOf(word:u32,k:u32)->u32{return (word>>(8u*k))&255u;}',
 )
 
+/** `value`, its low byte, moved to byte `k` of a word, the lowest first: the operand of an `atomicOr`
+ *  that stores a byte into a byte holding 0 (a function taking the atomic by pointer would need a
+ *  language feature). */
+export const byteIn = wgslFn(
+  'byteIn',
+  [],
+  'fn byteIn(value:u32,k:u32)->u32{return (value&255u)<<(8u*k);}',
+)
+
 /** Whether the `f32` of bits `word` is finite: its exponent bits not all set. A compiler may assume
  *  no infinity nor NaN in float arithmetic; the bits decide whatever it assumes. */
 export const isFiniteWord = wgslFn(
   'isFiniteWord',
   [],
   'fn isFiniteWord(word:u32)->bool{return (word&0x7f800000u)!=0x7f800000u;}',
+)
+
+/** A float with its infinity or NaN taken to zero, finite as `isFiniteWord` reads its bits. */
+export const makeFinite = wgslFn(
+  'makeFinite',
+  [isFiniteWord],
+  'fn makeFinite(x:f32)->f32{return select(0.0,x,isFiniteWord(bitcast<u32>(x)));}',
+)
+
+/** A vector of three floats with each component's infinity or NaN taken to zero (`makeFinite`). */
+export const makeFinite3 = wgslFn(
+  'makeFinite3',
+  [makeFinite],
+  'fn makeFinite3(v:vec3f)->vec3f{return vec3f(makeFinite(v.x),makeFinite(v.y),makeFinite(v.z));}',
 )
 
 /** The 64-bit product of two words, through their 16-bit halves: no partial exceeds 32 bits. */

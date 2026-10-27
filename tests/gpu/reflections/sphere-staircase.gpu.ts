@@ -1,8 +1,9 @@
-// A mirror sphere over a dark floor under a sky shows the floor's reflection without a staircase
+// A mirror sphere over a dark floor under an open sky shows the floor's reflection without a staircase
 // (`sphereStaircasePage.ts`, `sphereFrame.ts`): along the reflected horizon and below it the image
 // is continuous at the pixel. The analytic image is each sphere pixel's exact mirror ray, the
 // floor's colour where it meets the floor the screen answers whole (inside the image's border),
-// the sky's where it meets nothing; between two neighbouring
+// black where it meets nothing (no sky light shines: the background drawn is not radiance a
+// mirror reads); between two neighbouring
 // pixels the engine's image may step by what the analytic image steps within a pixel of them (its
 // hard horizon) and by ε more.
 //
@@ -14,10 +15,10 @@ import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 import { pointOnScreen, rgbAt } from './rigFrame.ts'
 import { exactReflection, SPHERES, sphereFrame } from './sphereFrame.ts'
 
-/** The step ε two neighbours may take beyond the analytic one, a share of the sky's radiance over
- *  the floor's: the shipped march gives 0.03 (a pixel's reflected footprint a tap or two wide); a
- *  coarse cell of the Hi-Z that loses the far half of a grazing pixel's plane gives 0.995, a pixel
- *  of sky in the floor's reflection, in arcs along the cells' rows. */
+/** The step ε two neighbours may take beyond the analytic one, a share of the floor's radiance over
+ *  the black beyond the scene: the shipped march gives 0.03 (a pixel's reflected footprint a tap or
+ *  two wide); a coarse cell of the Hi-Z that loses the far half of a grazing pixel's plane gives
+ *  0.995, a pixel of black in the floor's reflection, in arcs along the cells' rows. */
 const EPSILON = 0.05
 
 /** The cosine of the angle between a sphere's normal and the eye under which a pixel is judged: the
@@ -39,8 +40,8 @@ test('the floor reflected in a mirror sphere has no pixel-to-pixel step the anal
   // Whether the floor shows at the pixel of the world point `at` and all around it: the screen sees
   // it (a point behind a sphere, or at a silhouette, is not in the depth the march reads).
   const floorSeen = (at: number[]) => {
-    // Inside the image's border: the screen's answer there is whole, its fades (`reflectionSeen`)
-    // are one.
+    // Inside the image's border: the screen's answer there is whole, its vignette (`reflectionSeen`)
+    // is one.
     const onScreen = pointOnScreen(view, at as [number, number, number])
     if (!onScreen) return false
     const [hx, hy] = onScreen
@@ -53,10 +54,10 @@ test('the floor reflected in a mirror sphere has no pixel-to-pixel step the anal
       }
     return true
   }
-  const range = sky - floor
+  const range = floor - sky
   const seen = (p: number) => rgbAt(result.words!, p)[0]
   // The analytic radiance of a sphere pixel: the floor's where its ray meets a floor the screen
-  // sees, the sky's where it meets nothing; NaN elsewhere (a sphere's, which the screen answers
+  // sees, black where it meets nothing; NaN elsewhere (a sphere's, which the screen answers
   // with the sphere's, or a floor the screen cannot see).
   const analytic = new Float64Array(width * height).fill(NaN)
   let floored = 0

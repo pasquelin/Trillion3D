@@ -21,8 +21,8 @@ import { fieldLayout, vec4Array } from '../../gpu/core/fieldLayout.ts'
  * `w` —, those of the image before for the history (`prevCorner`, `prevScale`), `lists` where each cascade's list of
  * lights lies in the buffer of ranks (offset and count, twice), `mode` the cells a side, whether the blur is on,
  * whether the history holds and whether the blur reads the temporal filter's volume, `weights` the pre-exposure the light is written
- * multiplied by (the half floats keep their range at any exposure), the ratio that brings the history's to it
- * and the history's weight, `eye` the camera, which the light functions fade from.
+ * multiplied by (the half floats keep their range at any exposure), the ratio that brings the history's to it,
+ * the history's weight and the image's exposure (a light's blend with it, `lightStrength`), `eye` the camera, which the light functions fade from.
  */
 
 /** The cascades: the inner one holds the view out to `translucencyVolumeInnerDistance`, the outer one the stretch to

@@ -73,6 +73,7 @@ const inputs: {
   cloudShadow: undefined,
   preExposure: 1,
   previousPreExposure: 1,
+  exposure: 1,
   cut: false,
 }
 
@@ -143,6 +144,7 @@ export function encodeTranslucencyVolume(
   inputs.cloudShadow = cloudShadowOf(rt) ?? cloudShadowStandIn(device)
   inputs.preExposure = pre.now
   inputs.previousPreExposure = pre.previous
+  inputs.exposure = pre.exposure
   inputs.cut = cut
   try {
     volume.encode(steps, inputs as TranslucencyInputs)

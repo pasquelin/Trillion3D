@@ -26,20 +26,29 @@ export const hgPhase = wgslFn(
 
 export const DIELECTRIC_F0 = wgslConst('DIELECTRIC_F0', [], 'const DIELECTRIC_F0=vec3f(0.04);')
 
-/** The grazing reflectance of a specular colour `f0`, `clamp(50·f0.g)`: no real material reflects
- *  under 2%, so a lower specular is taken as specular occlusion baked into the material and dims
- *  the grazing reflection with it. */
-export const specularF90 = wgslFn(
-  'specularF90',
+/** The grazing reflectance of a layer of the surface model (the slab: the lights', the reflection environment's) of specular colour
+ *  `f0`, `clamp(50·max(f0))`: no real material reflects under 2% in any channel, so a lower specular is taken as specular occlusion
+ *  baked into the material and dims the grazing reflection with it. The environment BRDF of the composites has its own rule
+ *  (`envBrdfF90`). */
+export const slabF90 = wgslFn(
+  'slabF90',
   [],
-  'fn specularF90(f0:vec3f)->f32{return clamp(50.0*f0.g,0.0,1.0);}',
+  'fn slabF90(f0:vec3f)->f32{return clamp(50.0*max(f0.x,max(f0.y,f0.z)),0.0,1.0);}',
+)
+
+/** The grazing reflectance of the environment BRDF of the composites (`direct/environmentBrdfWgsl.ts`) of specular colour `f0`:
+ *  `saturate(50·f0.g)`, the green channel alone. */
+export const envBrdfF90 = wgslFn(
+  'envBrdfF90',
+  [],
+  'fn envBrdfF90(f0:vec3f)->f32{return saturate(50.0*f0.y);}',
 )
 
 /** `x` to the fifth power, two products of the square: the Fresnel's falloff and the Burley diffuse's retro-reflection. */
 export const pow5 = wgslFn('pow5', [], 'fn pow5(x:f32)->f32{let x2=x*x;return x2*x2*x;}')
 
 /** Schlick's Fresnel (Schlick 1994) on a specular colour `f0` whose grazing value is `f90` (a
- *  specular's `specularF90`): the engine's one Fresnel term, of the standard, anisotropic and coat
+ *  specular's `slabF90`): the engine's one Fresnel term, of the standard, anisotropic and coat
  *  lobes and of a thin surface's two interfaces. Its fifth power is two products of the square. */
 export const fresnelSchlick = wgslFn(
   'fresnelSchlick',
@@ -47,14 +56,13 @@ export const fresnelSchlick = wgslFn(
   'fn fresnelSchlick(f0:vec3f,f90:f32,cosine:f32)->vec3f{let Fc=pow5(clamp(1.0-cosine,0.0,1.0));return f90*Fc+(1.0-Fc)*f0;}',
 )
 
-/** A cosine wrapped about the horizon of a sphere of sin² α `sinSq`: the Hermite curve from 0 at
+/** A cosine wrapped about the horizon of a sphere of sine `s` (sin α): the Hermite curve from 0 at
  *  −sin α to sin α at sin α, whose slope there is 1, joining the plain cosine. The wrap of a lamp
- *  of size and of a rectangle light's diffuse. */
+ *  of size, of a sun's disk and of a rectangle light's diffuse. */
 export const horizonWrap = wgslFn(
   'horizonWrap',
   [],
-  `fn horizonWrap(cosine:f32,sinSq:f32)->f32{
- let s=sqrt(sinSq);
+  `fn horizonWrap(cosine:f32,s:f32)->f32{
  if(cosine<s&&s>0.0){
   let c=max(cosine,-s);
   return (s+c)*(s+c)/(4.0*s);
@@ -79,18 +87,28 @@ export const lambertDiffuse = wgslFn(
 )
 
 /** The lobe's reflectance on `f0` from its table entry `t`: the magnitude `t.x` under a Fresnel of 1
- *  and the share `t.y` of it under the Fresnel's fifth power, whose grazing value is `specularF90`
+ *  and the share `t.y` of it under the Fresnel's fifth power, whose grazing value is `slabF90`
  *  as in the light's own term: `f0·t.x + (f90 − f0)·t.y`. */
 export const splitSumTerm = wgslFn(
   'splitSumTerm',
-  [specularF90],
-  'fn splitSumTerm(f0:vec3f,t:vec4f)->vec3f{return f0*t.x+(vec3f(specularF90(f0))-f0)*t.y;}',
+  [slabF90],
+  'fn splitSumTerm(f0:vec3f,t:vec4f)->vec3f{return f0*t.x+(vec3f(slabF90(f0))-f0)*t.y;}',
 )
 
+/** A cosine with the view as a lobe takes it: its magnitude — a view behind the shading normal (a normal-mapped grazing view, a flipped
+ *  normal) is seen as the same angle from the front —, held between the one epsilon, 1e-10, and 1. The one rule of every lobe's N·V: the
+ *  surface's, the clear coat's and the coat's reflections'. */
+export const clampNoV = wgslFn(
+  'clampNoV',
+  [],
+  'fn clampNoV(NoV:f32)->f32{return clamp(abs(NoV),1e-10,1.0);}',
+)
+
+/** The cosine of the view with the normal as a lobe takes it (`clampNoV`). */
 export const ndotvClamped = wgslFn(
   'ndotvClamped',
-  [],
-  'fn ndotvClamped(N:vec3f,V:vec3f)->f32{return clamp(dot(N,V),1e-4,1.0);}',
+  [clampNoV],
+  'fn ndotvClamped(N:vec3f,V:vec3f)->f32{return clampNoV(dot(N,V));}',
 )
 
 /**

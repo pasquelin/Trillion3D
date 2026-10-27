@@ -1,3 +1,4 @@
+import { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts'
 import { directTiles, encodeDirectLights } from './encodeLights.ts'
@@ -32,6 +33,8 @@ import {
 import { encodeSkyAndClouds, requestSkyAir } from './encodeClouds.ts'
 import { encodeLightShaftBloom } from '../../modules/sky/lightShafts/frame.ts'
 import { encodePreLight } from './preLight.ts'
+import { encodeTranslucencyVolume } from '../../lighting/translucency/frame.ts'
+import { encodeHairStrands } from '../../hair/frame.ts'
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
 import {
@@ -55,6 +58,9 @@ import { atlasViewReady, drawAtlasView } from '../../lighting/surfaceCache/frame
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { reflects, type ViewOverrides } from '../backend/state/viewOverrides.ts'
 import { encodeViewOverrides, finishUncomposed } from './viewOverrides.ts'
+
+/** The translucency lighting volume's compute pass, after the lit surfaces. */
+const volumeRun = new ComputeRun()
 
 const inverseViewProj = new Float64Array(16),
   cameraWorldArray: [number, number, number, number] = [0, 0, 0, 1]
@@ -317,6 +323,9 @@ export function encodeSurfaceLighting(
   // scene's display curve changed: first, so that the transparents drawn on display values, which
   // copy its words (`writeBlendView`, `drawParticles`), show the colours it gives.
   encodeToneTable(rt, encoder)
+  // The hair strands' tangents, macro groups and bounds, once the surfaces are drawn and before the
+  // shadows' pages are marked (`encodeDirectLights`).
+  encodeHairStrands(rt, device, encoder, cam)
   // The transparents are selected and ordered first; light lists encode before resolve, its inputs —
   // every lighting resource the blend group names made with them.
   const blendRuns = prepareBlend(rt, encoder)
@@ -335,6 +344,9 @@ export function encodeSurfaceLighting(
   if (blendKey) encodeFrontPass(rt, device, encoder)
   encodePreLight(rt, device, encoder, cam, direct, overrides)
   lightSurfaces(rt, encoder, clear, raw, direct)
+  // The translucency lighting volume, built over the same shadow maps once the surfaces are lit: the blends lit from it read it.
+  encodeTranslucencyVolume(rt, device, volumeRun.begin(encoder), cam)
+  volumeRun.end()
   // The diffuse light of the subsurface-profile pixels scattered over the lit image, before the sky, the fog and the transparents.
   encodeSubsurfaceScattering(rt, encoder, cam)
   const { responsive, filter } = drawOverLit(

@@ -19,8 +19,8 @@ const SCREEN_MARCH_NUDGE = 2 ** -8
  * (`screenBack`); a coarser cell's surfaces lie between its farthest depth of the finished image
  * (its planes to their far corner) and its nearest, and so do their slabs: between the farthest's
  * back and the nearest. It returns the `t` it stopped at, the plane (depth at its centre, slopes)
- * and centre of the pixel it stopped in (`ScreenHit`), and the iterations it took (`steps`, its budget
- * where it meets nothing); `t` −1 where it meets nothing. `front` says
+ * and centre of the pixel it stopped in (`ScreenHit`), and the iterations it took (`steps`, the `cap` where
+ * it meets nothing); `t` −1 where it meets nothing. `front` says
  * the hit is a transparent surface before the opaque depth: `hizFrontOver`, false where the pyramid holds none: the reflection keeps
  * it, the contact shadow skips it.
  *
@@ -35,30 +35,28 @@ const SCREEN_MARCH_NUDGE = 2 ** -8
  * consumes the pixel and goes on: it passes behind a thin surface, never in front of the surface
  * it stood on (the first pixel boundary opens the march).
  *
- * A FLOOR LEVEL: over the budget's last levels' worth of iterations, the march descends no lower than
- * one more level each, so that every ray crosses the screen within its budget and none is cut short.
+ * A FLOOR LEVEL: over the last levels' worth of the caller's iterations (`cap`), the march descends no lower than
+ * one more level each, so that every ray crosses the screen within them and none is cut short.
  * A cell of the floor that the ray does not consume is met where the ray lies within the slab of the
  * pixel under it (at or behind its surface, in front of its back: level 0's slab, so a thin surface
  * stays thin), at the point the ray crossed that pixel's plane — a hit as sharp as level 0's —, and
- * crossed elsewhere: what the cell holds beside that pixel is within the budget's reach. Every ray is
+ * crossed elsewhere: what the cell holds beside that pixel is within the iterations' reach. Every ray is
  * exact until then: a cone's width is no reason to step over a cell, whose surfaces beside the pixel
  * under the ray a coarse cell would cross unmet — a lobe's rays, each its own direction, then meeting
  * a wall or missing it at random.
  *
- * The iterations are bounded by the screen distance the ray covers, not by the pyramid
- * (`screenMarchBudget`): each cell of a level is crossed once, two levels' worth of ascents and
- * descents around each pixel the ray crosses, and the levels once more; a ray in front of the
+ * The iterations are bounded by the caller's one cap (`cap`, the reference's maximum of iterations, a setting): each cell of a level
+ * is crossed once, two levels' worth of ascents and descents around each pixel the ray crosses, and the levels once more; a ray in front of the
  * surfaces climbs a level an iteration, so `n` iterations cover up to 2ⁿ pixels of empty screen, and
  * a ray that leaves its surface takes O(log reach) of them. A pixel a ray crosses is never stepped
- * over below the floor level: the cells are exact bounds, never samples. A caller holds the march to
- * fewer iterations (`cap`): the floor rises over the last of them, so the ray's precision falls
- * gradually where the budget runs short, never its answer at once.
+ * over below the floor level: the cells are exact bounds, never samples. The floor rises over the last
+ * of the cap's iterations, so the ray's precision falls gradually where they run short, never its answer at once.
  *
  * The nearest first: a ray in front of every surface of a cell never reads its farthest. A ray in
  * front of every surface of the cell until it reaches the nearest depth moves there. A cell no finer
  * than the floor level is met where the ray lies inside the slab of the pixel under it — at or
  * behind its surface, not past its back, level 0's slab, so a thin surface stays thin —, and crossed
- * elsewhere: what it holds beside that pixel is within the budget's reach; the hit is where the ray
+ * elsewhere: what it holds beside that pixel is within the iterations' reach; the hit is where the ray
  * crossed that plane, within the cell: as sharp as level 0's.
  */
 const SCREEN_MARCH_PIXELS_WGSL = (group: number, binding: number) =>
@@ -108,7 +106,7 @@ fn screenMarchPlanes(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->
  let nudge=select(vec2f(-SCREEN_MARCH_NUDGE),vec2f(SCREEN_MARCH_NUDGE),ahead);
  let top=hizLevelCount()-1;
  let first=(floor(o.xy)+side+nudge-o.xy)*inv;
- let steps=min(screenMarchBudget(d,end,top+1),cap);
+ let steps=cap;
  var t=min(first.x,first.y);
  var level=0;
  for(var k=0u;k<steps;k++){

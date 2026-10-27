@@ -43,10 +43,10 @@ export const REFLECTION_PASSES: K.PassModel[] = [
   },
   {
     label: passKey(REFLECTION_SCENE_PASS),
-    formula: `at most P·reflecting/${K.TRACE_SHARE} rays the screen left, each ${K.SCENE_LOADS} loads and its ${K.GRID_BYTES} B entry read, ${K.GRID_BYTES} B written; the march's steps and the cache read unmodelled: a lower bound`,
+    formula: `at most P·reflecting/${K.TRACE_SHARE} rays the screen left, each ${K.SCENE_LOADS} loads and its ${K.PENDING_BYTES} B entry read, ${K.GRID_BYTES} B written; the march's steps and the cache read unmodelled: a lower bound`,
     work: (f) => ({
       texels: ((f.P * f.reflecting) / K.TRACE_SHARE) * K.SCENE_LOADS,
-      bytes: (2 * K.GRID_BYTES * f.P * f.reflecting) / K.TRACE_SHARE,
+      bytes: ((K.PENDING_BYTES + K.GRID_BYTES) * f.P * f.reflecting) / K.TRACE_SHARE,
       passes: 1,
     }),
     sources: [
@@ -58,13 +58,13 @@ export const REFLECTION_PASSES: K.PassModel[] = [
   },
   {
     label: passKey(REFLECTION_DENOISE_PASS),
-    formula: `P·reflecting/${K.TRACE_SHARE} grid texels reused (${K.SPATIAL_LOADS} loads) and accumulated (${K.TEMPORAL_LOADS} loads), ${K.GRID_BYTES} B written twice; P·reflecting traced pixels widened from the grid (${K.BILATERAL_LOADS} loads at most), ${K.TARGET_BYTES} B written; the field the untraced pixels read unmodelled`,
+    formula: `P·reflecting/${K.TRACE_SHARE} grid texels reused (${K.SPATIAL_LOADS} loads) and accumulated (${K.TEMPORAL_LOADS} loads), ${K.GRID_BYTES} + ${K.HISTORY_BYTES} B written; P·reflecting traced pixels widened from the grid (${K.BILATERAL_LOADS} loads at most), ${K.TARGET_BYTES} B written; the field the untraced pixels read unmodelled`,
     work: (f) => ({
       texels:
         ((f.P * f.reflecting) / K.TRACE_SHARE) * (K.SPATIAL_LOADS + K.TEMPORAL_LOADS) +
         f.P * f.reflecting * K.BILATERAL_LOADS,
       bytes:
-        (2 * K.GRID_BYTES * f.P * f.reflecting) / K.TRACE_SHARE +
+        ((K.GRID_BYTES + K.HISTORY_BYTES) * f.P * f.reflecting) / K.TRACE_SHARE +
         K.TARGET_BYTES * f.P * f.reflecting,
       passes: 1,
     }),

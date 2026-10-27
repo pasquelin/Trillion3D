@@ -5,7 +5,7 @@
 // or the field leaves exactly their fetches out, the thin geometry detection and the mask reads it
 // feeds are counted only where the setting asks. The held measure, the two rejections, the merge,
 // the resurrected guide and field are one shading rejection since they run in one workgroup
-// network: their rows are its row; the flicker measure is a pass of its own before it.
+// network: their rows are its row, and so is the flicker measure, the first stage of its entry.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { TAA_PASS_FETCHES, countTaaFetches } from './taaFetchCount.ts'
@@ -13,8 +13,10 @@ import { wgslSource } from '../../../packages/math/src/wgsl/source.fixture.ts'
 import { velocityShader } from '../../../packages/sdk-browser/src/post/taa/nearestVelocityWgsl.ts'
 import { reprojectShader } from '../../../packages/sdk-browser/src/post/taa/reprojectWgsl.ts'
 import { thinGeometryShader } from '../../../packages/sdk-browser/src/post/taa/thinGeometryWgsl.ts'
-import { flickerMeasureShader } from '../../../packages/sdk-browser/src/post/taa/flickerMeasureWgsl.ts'
+import { FULL_PRECISION } from '../../../packages/sdk-browser/src/post/taa/colorSpaceWgsl.ts'
+import { flickerMeasureWgsl } from '../../../packages/sdk-browser/src/post/taa/flickerMeasureWgsl.ts'
 import { rejectShadingShader } from '../../../packages/sdk-browser/src/post/taa/rejectionWgsl.ts'
+import { rejectionTypes } from '../../../packages/sdk-browser/src/post/taa/rejectionTypes.ts'
 import { resolveHistoryShader } from '../../../packages/sdk-browser/src/post/taa/historyResolveWgsl.ts'
 import { spatialAntiAliasingShader } from '../../../packages/sdk-browser/src/post/taa/spatialAntiAliasingWgsl.ts'
 import { taaResolveShader } from '../../../packages/sdk-browser/src/post/taa/resolveWgsl.ts'
@@ -29,7 +31,6 @@ test('each pass holds the fetch calls its table counts', () => {
     ['velocity', velocityShader(), P.velocity.sites],
     ['reproject', reprojectShader('rgba8unorm'), P.reproject.sites],
     ['thin', thinGeometryShader(), P.thin.sites],
-    ['flicker', flickerMeasureShader(), P.flicker.sites],
     ['reject', rejectShadingShader('rgba8unorm', 'rgba16float'), P.reject.sites],
     ['antiAlias', spatialAntiAliasingShader(), P.antiAlias.sites],
     // One update: the as-is pixels are composed after the temporal pass, no update reads a flag.
@@ -46,9 +47,12 @@ test('a tiled pass reads its span at every stage: the tile and its rings, over i
   assert.equal(P.thin.perTexel, (26 * 26 * 4 + 20 * 20 + 16 * 16) / 256)
   // The shading rejection reads each texel of its 32×32 tile once and writes the inner 26×26.
   assert.equal(P.reject.perTexel, (4 * 32 * 32) / (26 * 26))
-  // The flicker measure reads each texel of the same tile once too: the word, the colour, the
-  // translucency, its history, the marks and the flicker luma measured before the translucency.
-  assert.equal(P.flicker.perTexel, (6 * 32 * 32) / (26 * 26))
+  // The flicker measure, the first stage of its entry, takes the word, the colour and the
+  // translucency from the rejection's loads and reads of each texel of the tile once more the
+  // flicker luma measured before the translucency, its history and the marks.
+  const flickerFetches = fetchCalls(flickerMeasureWgsl(rejectionTypes(FULL_PRECISION)))
+  assert.equal(flickerFetches, 3)
+  assert.equal(P.reject.flicker, (flickerFetches * 32 * 32) / (26 * 26))
 })
 
 test('the analysis scales with the render texels a display pixel holds, the update with the history pixels', () => {
@@ -75,7 +79,7 @@ test('the thin geometry detection is counted where it runs', () => {
   const P = TAA_PASS_FETCHES
   const flat = countTaaFetches(1).analysis
   // On: the coverage measured before the translucency, the detection, its weight relaxation, and
-  // the mask once a texel of the flicker measure's tile and of the shading rejection's.
+  // the mask once a texel of the shading rejection's tile, which the flicker measure shares.
   assert.ok(
     Math.abs(
       countTaaFetches(1, { thin: true }).analysis -
@@ -83,7 +87,7 @@ test('the thin geometry detection is counted where it runs', () => {
           P.measure.coverage +
           P.thin.perTexel +
           P.relaxation.perTexel +
-          2 * ((32 * 32) / (26 * 26))),
+          1 * ((32 * 32) / (26 * 26))),
     ) < 1e-9,
   )
 })
@@ -96,7 +100,7 @@ test('a level leaves out what it does not run', () => {
   // To the last bits: the shading rejection's rows are shares of its tile (32² read, 26² written).
   const near = (actual: number, expected: number) => assert.ok(Math.abs(actual - expected) < 1e-9)
   // Without the flicker measure, nor its luma measured before the translucency.
-  near(medium, max - P.flicker.perTexel - P.measure.luma - P.velocity.field)
+  near(medium, max - P.reject.flicker - P.measure.luma - P.velocity.field)
   near(
     countTaaFetches(1, { level: 'low' }).analysis,
     medium - P.antiAlias.perTexel - P.guide.perTexel - P.reject.resurrection,

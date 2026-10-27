@@ -4,201 +4,98 @@
 // as the engine builds it — over the cut's tables and the roots in the cut's order — and 4096 rays
 // are cast, one a thread: from a grid near the eye, over the view and over all directions. Each
 // ray's nearest hit is compared with the oracle's (`sceneTraceOracle.ts`: every triangle of every
-// placement, in doubles), then 4096 shadow rays from the ground toward the sun (the first hit, the
+// placement, and, where the cut packs a world DAG, of every actor of the cells it draws, in doubles), then 4096 shadow rays from the ground toward the sun (the first hit, the
 // front faces culled, the shadow rules) against the oracle's "is anything in the way".
+//
+// A second scene, the same one far from the eye and compiled with two HLOD levels, has HLOD actors, a directory of them and
+// cells whose words say which the cut draws: 4096 rays aimed at the drawn actors' triangles are cast, and each hit's distance,
+// triangle and object are compared with the oracle's, which takes the actors' triangles from their records one by one and the
+// object from the roots the surface cache follows, never through the directory nor the cells' words the trace reads.
 //
 // A ray that passes within a hair of a triangle's edge is grazing — the oracle's answer then differs
 // when the triangles are grown or shrunk by 1e-4 in barycentric coordinates — and is counted, not
-// compared: at most 0.5 % of the rays. The rays, the kernel and the comparisons are in
-// `sceneTraceRays.ts`; the card shadows' chain is the proof `card-shadow-chain.gpu.ts`.
+// compared: at most 0.5 % of the rays. The rays and the kernel are in `sceneTraceRays.ts`, the
+// comparisons in `sceneTraceCompare.ts` and the held view in `sceneTraceHeld.ts`; the card shadows'
+// chain is the proof `card-shadow-chain.gpu.ts`.
 //
 //   node bench/dawn/proofs.ts tests/gpu/rays/scene-trace.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { runOnDawn } from '../../kit/device/onDawn.ts'
-import { bufferHolding } from '../../kit/device/computeReadback.ts'
-import { animationFrame } from '../../kit/device/frame.ts'
-import { settle } from '../world/proofWorld.ts'
+import { PLAIN_RULES, traceBruteForce } from './sceneTraceOracle.ts'
 import {
-  ensureSceneTrace,
-  type SceneTrace,
-} from '../../../packages/sdk-browser/src/lighting/rays/sceneTrace/sceneTraceResources.ts'
-import {
-  sceneTraceBindEntries,
-  sceneTraceLayoutEntries,
-} from '../../../packages/sdk-browser/src/lighting/rays/sceneTrace/sceneTraceWgsl.ts'
-import {
-  dagReadGroupEntries,
-  dagReadLayoutEntries,
-} from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.ts'
-import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
-import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { SURFACE_CACHE_RULES } from '../../../packages/sdk-core/src/contracts/surfaceCacheOptions.ts'
-import { PLAIN_RULES, placeTriangles, traceBruteForce } from './sceneTraceOracle.ts'
-import {
+  actorRays,
   Casts,
   GRAZING,
-  KERNEL,
   RAYS,
-  RAYS_BINDING,
-  compareNearest,
-  compareShadow,
   CULL_BACK,
-  decode,
   nearestRays,
   shadowRays,
   SKIP_NEAR,
   SKIP_TRANSLUCENT,
   surfaceRays,
 } from './sceneTraceRays.ts'
-import { openTraceWorld, POSE } from './traceWorld.ts'
+import { compareNearest, compareShadow } from './sceneTraceCompare.ts'
+import { type Held, measure } from './sceneTraceHeld.ts'
 
-/** Casts and compares the batches on the held view of the scene. */
-async function measure() {
-  const { world, canvas, runtime } = await openTraceWorld()
-  let trace: SceneTrace | undefined
-  const buffers: GPUBuffer[] = []
-  try {
-    world.setPose(POSE)
-    await world.awaitPages()
-    if ((await settle(world, POSE)) === null) throw new Error('the view never settled')
-    const rt = runtime()
-    if (!rt) throw new Error('the engine built no runtime')
-    // A few images more: the cut's tables are there, and the view is still.
-    for (let i = 0; i < 4 || !rt.run.gpuSelection?.cutTables(); i++) {
-      if (i > 60) throw new Error('the cut never published its tables')
-      await animationFrame()
-      world.render(POSE)
-    }
-    await world.flush()
-    const file = rt.context.rayTracing
-    if (!file)
-      throw new Error(
-        'the scene has no ray tracing file (rayTracing.bin): the compiler wrote none, or the session did not read it',
-      )
-    const cut = rt.run.gpuSelection!.cutTables()!
-    const device = rt.gpu.device!
-    const roots = rt.layout.selectionRoots
-    const eye = Array.from(world.engine.rasterView().cam.eye)
-
-    // The trace as the engine builds it: its placements the cut's roots, its eye the camera's. The
-    // view is not culled by distance or angle: every placement is met.
-    const made = ensureSceneTrace(undefined, device, file, roots.length)
-    assert.ok(made.sceneTrace, `the scene trace is made: ${made.why}`)
-    trace = made.sceneTrace
-    trace.syncPlacements(roots)
-    const view = {
-      eye: [eye[0], eye[1], eye[2]] as const,
-      treeRoot: cut.treeRoot,
-      cullRadius: 1e6,
-      cullAngle: 0,
-      maxIterations: SURFACE_CACHE_RULES.surfaceCacheHardwareRayTracingMaxIterations.default,
-    }
-    trace.writeParams({ ...view, skipBackFaceDistance: 0, skipTwoSidedDistance: 0 })
-
-    const module = device.createShaderModule({ label: 'scene trace proof', code: KERNEL })
-    const failed = (await module.getCompilationInfo()).messages.filter((m) => m.type === 'error')
-    if (failed.length)
-      throw new Error(
-        `the proof's kernel does not compile: ${failed.map((m) => `${m.lineNum}: ${m.message}`).join('; ')}`,
-      )
-    const tables = device.createBindGroupLayout({ entries: dagReadLayoutEntries() })
-    const own = device.createBindGroupLayout({
-      entries: [
-        ...sceneTraceLayoutEntries(0),
-        computeBufferEntry(RAYS_BINDING, 'read-only-storage'),
-        computeBufferEntry(RAYS_BINDING + 1, 'storage'),
-      ],
-    })
-    const pipeline = await device.createComputePipelineAsync({
-      layout: device.createPipelineLayout({ bindGroupLayouts: [tables, own] }),
-      compute: { module, entryPoint: 'traceRays' },
-    })
-    const answersBytes = RAYS * 16
-    const cast = async (casts: Casts) => {
-      const rays = bufferHolding(device, casts.floats, GPUBufferUsage.STORAGE)
-      const answers = bufferHolding(
-        device,
-        new Uint32Array(RAYS * 4),
-        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      )
-      buffers.push(rays, answers)
-      const encoder = device.createCommandEncoder()
-      const pass = encoder.beginComputePass()
-      pass.setPipeline(pipeline)
-      pass.setBindGroup(
-        0,
-        device.createBindGroup({ layout: tables, entries: dagReadGroupEntries(cut.views) }),
-      )
-      pass.setBindGroup(
-        1,
-        device.createBindGroup({
-          layout: own,
-          entries: [
-            ...sceneTraceBindEntries(trace!, 0),
-            { binding: RAYS_BINDING, resource: { buffer: rays } },
-            { binding: RAYS_BINDING + 1, resource: { buffer: answers } },
-          ],
-        }),
-      )
-      pass.dispatchWorkgroups(RAYS / 64)
-      pass.end()
-      device.queue.submit([encoder.finish()])
-      return decode((await readGpuBuffer(device, answers, answersBytes))!)
-    }
-
-    const placed = placeTriangles(file, roots)
-    const nearest = new Casts()
-    nearestRays(nearest)
-    const shadows = new Casts()
-    shadowRays(shadows, eye)
-    const plain = compareNearest(placed, nearest, await cast(nearest), eye)
-    const shadow = compareShadow(placed, shadows, await cast(shadows), eye)
-    // The rays of the radiosity, from the surfaces the view's rays met: the back faces culled, or the near hits passed by,
-    // the translucent primitives left out either way.
-    const NEAR = { backFace: 4, twoSided: 3 }
-    trace.writeParams({
-      ...view,
-      skipBackFaceDistance: NEAR.backFace,
-      skipTwoSidedDistance: NEAR.twoSided,
-    })
-    const rules = { ...PLAIN_RULES, skipTranslucent: true }
-    const culling = { ...rules, cullBack: true }
-    const skipping = { ...rules, skipNear: NEAR }
-    const culled = new Casts()
-    surfaceRays(culled, nearest, placed, eye, CULL_BACK | SKIP_TRANSLUCENT)
-    const skipped = new Casts()
-    surfaceRays(skipped, nearest, placed, eye, SKIP_NEAR | SKIP_TRANSLUCENT)
-    // How many rays the rules change: the oracle's hit with them against its hit without.
-    const changed = (casts: Casts, ruled: typeof culling | typeof skipping) =>
-      Array.from({ length: RAYS }, (_, i) => {
-        const a = traceBruteForce(placed, casts.oracle(i, eye, rules))
-        const b = traceBruteForce(placed, casts.oracle(i, eye, ruled))
-        return a.hit !== b.hit || a.t !== b.t
-      }).filter(Boolean).length
-    return {
-      nearest: plain,
-      shadow,
-      culled: {
-        ...compareNearest(placed, culled, await cast(culled), eye, culling),
-        changed: changed(culled, culling),
-      },
-      skipped: {
-        ...compareNearest(placed, skipped, await cast(skipped), eye, skipping),
-        changed: changed(skipped, skipping),
-      },
-    }
-  } finally {
-    trace?.dispose()
-    for (const buffer of buffers) buffer.destroy()
-    world.dispose()
-    canvas.remove()
+/** The batches of the plain scene: the view's rays, the shadow rays and the radiosity's rays against the oracle's. */
+async function plainBatches({ cast, placed, eye, view, trace }: Held) {
+  const nearest = new Casts()
+  nearestRays(nearest)
+  const shadows = new Casts()
+  shadowRays(shadows, eye)
+  const plain = compareNearest(placed, nearest, await cast(nearest), eye)
+  const shadow = compareShadow(placed, shadows, await cast(shadows), eye)
+  // The rays of the radiosity, from the surfaces the view's rays met: the back faces culled, or the near hits passed by,
+  // the translucent primitives left out either way.
+  const NEAR = { backFace: 4, twoSided: 3 }
+  trace.writeParams({
+    ...view,
+    skipBackFaceDistance: NEAR.backFace,
+    skipTwoSidedDistance: NEAR.twoSided,
+  })
+  const rules = { ...PLAIN_RULES, skipTranslucent: true }
+  const culling = { ...rules, cullBack: true }
+  const skipping = { ...rules, skipNear: NEAR }
+  const culled = new Casts()
+  surfaceRays(culled, nearest, placed, eye, CULL_BACK | SKIP_TRANSLUCENT)
+  const skipped = new Casts()
+  surfaceRays(skipped, nearest, placed, eye, SKIP_NEAR | SKIP_TRANSLUCENT)
+  // How many rays the rules change: the oracle's hit with them against its hit without.
+  const changed = (casts: Casts, ruled: typeof culling | typeof skipping) =>
+    Array.from({ length: RAYS }, (_, i) => {
+      const a = traceBruteForce(placed, casts.oracle(i, eye, rules))
+      const b = traceBruteForce(placed, casts.oracle(i, eye, ruled))
+      return a.hit !== b.hit || a.t !== b.t
+    }).filter(Boolean).length
+  return {
+    nearest: plain,
+    shadow,
+    culled: {
+      ...compareNearest(placed, culled, await cast(culled), eye, culling),
+      changed: changed(culled, culling),
+    },
+    skipped: {
+      ...compareNearest(placed, skipped, await cast(skipped), eye, skipping),
+      changed: changed(skipped, skipping),
+    },
   }
 }
 
-let measured: ReturnType<typeof measure> | undefined
+/** The batch of the HLOD scene: rays aimed at the drawn actors' triangles, each hit compared with the oracle's by distance,
+ *  triangle and object. */
+async function hlodBatches({ cast, placed, eye }: Held) {
+  const aimed = new Casts()
+  actorRays(aimed, placed, eye)
+  return { actors: compareNearest(placed, aimed, await cast(aimed), eye) }
+}
+
+let measured: Promise<Awaited<ReturnType<typeof plainBatches>>> | undefined
+let measuredHlod: Promise<Awaited<ReturnType<typeof hlodBatches>>> | undefined
 const errors: string[] = []
-const results = () => (measured ??= runOnDawn(measure, null, errors))
+const results = () => (measured ??= runOnDawn(() => measure('plain', plainBatches), null, errors))
+const hlodResults = () =>
+  (measuredHlod ??= runOnDawn(() => measure('hlod', hlodBatches), null, errors))
 
 test('the scene trace meets the nearest triangle a brute force over the same triangles meets', async () => {
   const { nearest } = await results()
@@ -216,6 +113,11 @@ test('the scene trace meets the nearest triangle a brute force over the same tri
     `${nearest.grazing} grazing rays, past ${GRAZING * 100} %`,
   )
   assert.equal(nearest.wrongHit, 0, `hit and miss part: ${detail}`)
+  assert.equal(
+    nearest.wrongObject,
+    0,
+    `hits told by another object than their placement: ${detail}`,
+  )
   assert.ok(nearest.worstGap <= 1, `a distance off by ${nearest.worstGap} tolerances: ${detail}`)
   assert.ok(
     nearest.wrongTriangle + nearest.wrongFace <= RAYS * GRAZING,
@@ -260,4 +162,26 @@ test('a ray of the radiosity culls the back faces, or passes the near hits, and 
       `${name}: ${batch.wrongTriangle} hits on another triangle, ${batch.wrongFace} on the other face: ${detail}`,
     )
   }
+})
+
+test('a ray aimed at an HLOD actor meets the triangle and the object a brute force over the actors’ records meets', async () => {
+  // Every trace here is of rays that reach an actor (or something nearer in front of it), so a hit is the rule.
+  const { actors } = await hlodResults()
+  console.log(JSON.stringify({ actors }))
+  assert.deepEqual(errors, [])
+  const detail = actors.problems.join(' | ')
+  assert.ok(actors.actorHits > RAYS / 4, `${actors.actorHits} rays met an HLOD actor`)
+  assert.equal(actors.incomplete, 0, 'every trace is complete')
+  assert.ok(actors.grazing <= RAYS * GRAZING, `${actors.grazing} grazing rays`)
+  assert.equal(actors.wrongHit, 0, `hit and miss part: ${detail}`)
+  assert.ok(actors.worstGap <= 1, `a distance off by ${actors.worstGap} tolerances: ${detail}`)
+  assert.ok(
+    actors.wrongTriangle + actors.wrongFace <= RAYS * GRAZING,
+    `${actors.wrongTriangle} hits on another triangle, ${actors.wrongFace} on the other face: ${detail}`,
+  )
+  assert.equal(actors.wrongObject, 0, `hits told by another object: ${detail}`)
+  assert.ok(
+    actors.standInHits > 0,
+    `${actors.standInHits} hits on an HLOD actor told by a stand-in: the proof never exercises the stand-in object`,
+  )
 })

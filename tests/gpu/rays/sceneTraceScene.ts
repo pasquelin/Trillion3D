@@ -7,6 +7,11 @@ import { measureOutput } from '../../../bench/core/paths.ts'
 import { bufferPacker } from '../../../scripts/dev/fixtures/gltf.ts'
 import { compileModel } from '../world/generatedShapes.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
+import {
+  DEFAULT_HLOD_CELL_SIZE,
+  DEFAULT_HLOD_LOADING_RANGE,
+} from '../../../packages/sdk-core/src/contracts/hlodAbi.ts'
+import type { HlodOptions } from '../../../packages/sdk-core/src/contracts/hlodOptions.ts'
 
 /** Half the side of the ground, which lies in the plane `y = 0`. */
 export const GROUND_HALF = 20
@@ -86,35 +91,44 @@ function turn(axis: Vec, degrees: number): [number, number, number, number] {
 }
 
 /** The nodes: the mesh each places, then its pose. */
-const NODES = [
-  { name: 'ground', mesh: 0 },
-  { name: 'cube', mesh: 1, translation: [-3, 1, 0], scale: [2, 2, 2] },
-  {
-    name: 'turned',
-    mesh: 1,
-    translation: [2, 0.75, -2],
-    rotation: turn([0, 1, 0], 30),
-    scale: [1.5, 1.5, 1.5],
-  },
-  {
-    name: 'stretched',
-    mesh: 1,
-    translation: [4, 1.5, 3],
-    rotation: turn([0, 0, 1], 20),
-    scale: [1, 3, 2],
-  },
-  { name: 'mirrored', mesh: 1, translation: [-6, 1, -4], scale: [-2, 2, 2] },
-  {
-    name: 'panel toward the eye',
-    mesh: 2,
-    translation: [0, 1.5, 4],
-    rotation: turn([0, 1, 0], 15),
-  },
-  { name: 'panel away', mesh: 2, translation: [-1, 1.5, -7], rotation: turn([0, 1, 0], 180) },
-]
+const NODES: { name: string; mesh: number; translation?: Vec; rotation?: number[]; scale?: Vec }[] =
+  [
+    { name: 'ground', mesh: 0 },
+    { name: 'cube', mesh: 1, translation: [-3, 1, 0], scale: [2, 2, 2] },
+    {
+      name: 'turned',
+      mesh: 1,
+      translation: [2, 0.75, -2],
+      rotation: turn([0, 1, 0], 30),
+      scale: [1.5, 1.5, 1.5],
+    },
+    {
+      name: 'stretched',
+      mesh: 1,
+      translation: [4, 1.5, 3],
+      rotation: turn([0, 0, 1], 20),
+      scale: [1, 3, 2],
+    },
+    { name: 'mirrored', mesh: 1, translation: [-6, 1, -4], scale: [-2, 2, 2] },
+    {
+      name: 'panel toward the eye',
+      mesh: 2,
+      translation: [0, 1.5, 4],
+      rotation: turn([0, 1, 0], 15),
+    },
+    { name: 'panel away', mesh: 2, translation: [-1, 1.5, -7], rotation: turn([0, 1, 0], 180) },
+  ]
 
-/** The glTF of the scene and its binary, written in `directory`. */
-function writeSource(directory: string) {
+/** The scene's nodes moved by `offset` metres. */
+const movedBy = (offset: Vec) =>
+  NODES.map((node) => ({
+    ...node,
+    translation: (node.translation ?? [0, 0, 0]).map((v, axis) => v + offset[axis]) as Vec,
+  }))
+
+/** The glTF of the scene and its binary, written in `directory`, the scene `offset` metres from the origin. */
+function writeSource(directory: string, offset: Vec) {
+  const nodes = movedBy(offset)
   const g = GROUND_HALF
   const ground = quad(
     [
@@ -153,8 +167,8 @@ function writeSource(directory: string) {
   const gltf = {
     asset: { version: '2.0' },
     scene: 0,
-    scenes: [{ nodes: NODES.map((_, i) => i) }],
-    nodes: NODES,
+    scenes: [{ nodes: nodes.map((_, i) => i) }],
+    nodes,
     meshes,
     materials: [
       colour([0.5, 0.5, 0.5]),
@@ -175,6 +189,48 @@ function writeSource(directory: string) {
 export function traceSceneManifest() {
   const out = measureOutput('gpu-proofs', 'scene-trace')
   const source = resolve(out, 'source')
-  writeSource(source)
+  writeSource(source, [0, 0, 0])
   return compileModel(out, source, 'none')
+}
+
+/** Where the HLOD scene lies: far enough from the proof's eye (`HLOD_POSE`) that the cells of its HLOD 0 are out of
+ *  their loading range, 512 metres, and those of its HLOD 1 within theirs, 1024: the cut draws the HLOD 0 cells' actors. */
+export const HLOD_OFFSET: Vec = [100, 0, -700]
+
+/** The two layers of the HLOD scene, in the expert form: the first instanced, the second merged, on the simple form's
+ *  grids (each twice as coarse as the one before it) and with its settings, but for `allowDistanceField`: the merged
+ *  layer's cells get a field, so the cut draws a stand-in for each of its actors, which tells a hit by that stand-in. */
+const HLOD_LAYERS: HlodOptions = {
+  layers: [
+    {
+      name: 'hlod0',
+      builder: 'instanced',
+      parent: 'hlod1',
+      cellSize: DEFAULT_HLOD_CELL_SIZE,
+      loadingRange: DEFAULT_HLOD_LOADING_RANGE,
+    },
+    {
+      name: 'hlod1',
+      builder: 'merge',
+      cellSize: DEFAULT_HLOD_CELL_SIZE * 2,
+      loadingRange: DEFAULT_HLOD_LOADING_RANGE * 2,
+      lodSelection: 'lowest',
+      mergeMaterials: true,
+      textureSizing: 'drawDistance',
+      allowDoubleSided: false,
+      maps: { normal: true, roughness: true, metallic: true, specular: true, emissive: true },
+      allowDistanceField: true,
+    },
+  ],
+  default: 'hlod0',
+}
+
+/** The same scene at `HLOD_OFFSET`, compiled with `HLOD_LAYERS`, so that its ray tracing file holds the HLOD actors'
+ *  records and the world's directory and the cells of its merged layer have a field, and the address of its full
+ *  manifest. */
+export function hlodSceneManifest() {
+  const out = measureOutput('gpu-proofs', 'scene-trace-hlod')
+  const source = resolve(out, 'source')
+  writeSource(source, HLOD_OFFSET)
+  return compileModel(out, source, 'none', HLOD_LAYERS)
 }

@@ -9,8 +9,8 @@ import { hizDepthWgsl } from './pyramidTexture.ts'
 const DEPTH_FLOOR_CENTIMETRES = 1e-5
 
 /**
- * WHAT THE SCREEN MARCHES SHARE (`screenMarch`): the hit they return (`ScreenHit`), the end and the
- * budget of a ray, and the geometry of a surface's thickness, over the depth pyramid
+ * WHAT THE SCREEN MARCHES SHARE (`screenMarch`): the hit they return (`ScreenHit`), the end of a
+ * ray, and the geometry of a surface's thickness, over the depth pyramid
  * (`hizDepthWgsl`, bound at `group`, `binding`).
  *
  * `slab` is the geometry of a surface's thickness (`screenSlab`): the world size of a pixel at a
@@ -58,8 +58,5 @@ fn screenMarchEnd(o:vec2f,d:vec2f,size:vec2f)->f32{
  let toward=select(-o,size-o,d>vec2f(0.0));
  let t=select(vec2f(1.0),toward/d,abs(d)>vec2f(1e-6));
  return min(min(t.x,t.y),1.0);
-}
-fn screenMarchBudget(d:vec3f,end:f32,levels:i32)->u32{
- return u32(ceil(4.0*(abs(d.x)+abs(d.y))*end))+6u*u32(levels)+1u;
 }`,
   )

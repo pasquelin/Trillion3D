@@ -3,7 +3,6 @@
 import { fromHalf, toHalf } from '../../../packages/math/src/float/half.ts'
 import type { RigFace } from './rigRuntime.ts'
 import type { Camera } from '../../../packages/sdk-browser/src/lighting/reflections/boxes.fixture.ts'
-import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/lighting/reflections/constants.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/materials/surface/surfaceModelWord.ts'
 import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 
@@ -25,7 +24,7 @@ export type RigFrame = {
   /** The faces of the scene, two triangles each, and the radiance each gives: the rig marches their field; no cache holds their light (`rigRuntime.ts`). */
   proxy?: { faces: RigFace[] }
   /** The background, `0xrrggbb`, as the display shows it: black by default. A ray that leaves the
-   *  scene reaches it (`createSurroundings`). */
+   *  scene reaches none of it: only a sky light shows in a mirror. */
   background?: number
   /** The irradiance of a light declared around the scene: nine RGB coefficients, 27 numbers
    *  (`SceneEnvironment.irradiance`); none by default. */
@@ -79,12 +78,12 @@ export const rgbAt = (words: ArrayLike<number>, p: number) =>
 export const HALF_NAN = 0x7e00
 
 /** Whether the world point `point`, reflected at a pixel, lies on the image, off its border
- *  (`REFLECTION_EDGE` of its height): the screen can answer it — its march goes to the image's edge.
+ *  (the vignette's margin, a tenth of each side: `reflectionVignette`): the screen answers it whole — its march goes to the image's edge.
  *  Returns its pixel, or undefined. */
 export function pointOnScreen(view: Camera, point: Vec3): [number, number] | undefined {
   const [hx, hy] = view.project(point)
-  const border = REFLECTION_CONSTANTS.REFLECTION_EDGE * view.height
-  if (hx <= border || hy <= border || hx >= view.width - border || hy >= view.height - border)
+  const [borderX, borderY] = [0.1 * view.width, 0.1 * view.height]
+  if (hx <= borderX || hy <= borderY || hx >= view.width - borderX || hy >= view.height - borderY)
     return undefined
   return [hx, hy]
 }

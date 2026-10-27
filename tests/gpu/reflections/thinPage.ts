@@ -82,8 +82,7 @@ export function run() {
       [0, 1e-4, 0],
       (d) => [d[0], -d[1], d[2]],
     )
-    // Whether the screen answers: the exact hit lies on the image, off its border (`REFLECTION_EDGE`
-    // of its height), and in the open — the pole or the fence does not stand over it in the image, which would show them
+    // Whether the screen answers: the exact hit lies on the image, off its border (the vignette's margin, a tenth of each side), and in the open — the pole or the fence does not stand over it in the image, which would show them
     // there, not the wall.
     const answered = (p: number) => {
       const at = hitOnScreen(view, boxes, origins[p], mirrors[p])

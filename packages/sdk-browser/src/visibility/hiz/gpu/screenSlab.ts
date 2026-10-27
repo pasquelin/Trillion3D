@@ -41,6 +41,16 @@ export function screenSlabInto(
 }
 
 /**
+ * The angle one pixel spans at the eye (`eyeToPixelSpread`), the reference's `EyeToPixelSpreadAngle`: the arctangent of
+ * 2 · tan(half the horizontal field of view) over the image's HEIGHT in pixels — the horizontal field of view the
+ * view-projection `m` (column-major) holds in its row x, the projection's horizontal scale —, none under an orthographic projection, which has no field of view.
+ */
+export function eyeToPixelSpread(m: ArrayLike<number>, height: number) {
+  if (m[3] === 0 && m[7] === 0 && m[11] === 0) return 0
+  return Math.atan(2 / (height * length3(m[0], m[4], m[8])))
+}
+
+/**
  * The thickness the reference walk (`screenMarchReference`) gives a surface under the view-projection
  * `m`: `relative` (`reflectionRelativeDepthThickness`, `screenProbeRelativeDepthThickness`) times the projection's depth scale. Under a
  * perspective the scale is 1. Under an orthographic projection depth does not shrink with distance,

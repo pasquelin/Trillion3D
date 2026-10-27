@@ -1,6 +1,7 @@
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { createGpuBounceProbes } from '../../lighting/bounce/probes/probes.ts'
-import { probesPerFrameOf, screenProbeSettingsOf } from '../../lighting/bounce/screen/settingsOf.ts'
+import { screenProbeSettingsOf } from '../../lighting/bounce/screen/settingsOf.ts'
+import { restartTranslucencyCache } from '../../lighting/translucencyGi/cache.ts'
 import { grantCapability } from '../io/drops.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
@@ -13,7 +14,7 @@ const BOUNCE_APPROXIMATIONS = [
   'a point no level holds a probe for reads no radiance cache: the sky light, where one shines, is all it gets',
   'a probe is given to a cell only once the screen probes of the last image stood in it, and traced a few images after: a view that turns finds the cells it turns to unanswered for an instant',
   'the pool holds a fixed count of probes: past it a cell asked for goes unanswered until a probe is given back',
-  'a probe stops being traced after a fixed count of traces, until a light changes',
+  'a probe is traced again at every image the budget has room for, and the series closes, the frame holding, once every probe has been traced since the lights last changed',
   "the sky reaches the radiance cache through the sky light's cube alone: a scene with no sky light has none to give",
   "a pixel reads its indirect light from the screen probes, one a tile of pixels; where they cast none (level off, no lit image yet), it reads the sky light's irradiance",
   'a screen probe ray the last lit image does not answer, and the scene trace does not, reads the radiance cache, traced over the frames at the budget of the level, so what is far is as the maps hold it, a few images late; and a surface that moved gives its pixel no history that image',
@@ -64,7 +65,6 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
     selection.placementBoxes().extent,
     { boxes: () => selection.placementBoxes() },
     () => lights.buffer!,
-    () => probesPerFrameOf(rt),
     () => screenProbeSettingsOf(rt),
   )
     .then((probes) => {
@@ -96,28 +96,27 @@ function publish(rt: WebgpuPagesRuntime) {
     cascadeLevels: probes?.cascades.levels.length ?? null,
     cascadeSize: probes?.cascades.size ?? null,
     cascadeSpacings: probes?.cascades.levels.map((level) => level.spacing) ?? null,
-    // The pool, and what it holds now: probes alive, those still short of their traces, the marks
-    // the pool had no probe left for.
+    // The pool, and what it holds now: probes alive, the marks the pool had no probe left for.
     probes: probes?.cascades.probes ?? null,
     liveProbes: probes?.stats.live ?? null,
     refusedMarks: probes?.stats.refused ?? null,
     tableBytes: probes?.tableBytes ?? null,
     // The probes a frame traces, those never traced first, and the last duration of the pass.
-    probesPerFrame: probesPerFrameOf(rt),
+    probesPerFrame: screenProbeSettingsOf(rt).cache.budget,
     passMs: probes ? bounce.passMs : null,
     unavailable: bounce.reason,
     approximations: BOUNCE_APPROXIMATIONS,
   })
 }
 
-/** Probes follow the placements: the first image after one moved or arrived places the rays' reach on
- *  their extent and restarts the series (`lighting/bounce/probes/probeSync.ts`). One look at the scene's
- *  revision when nothing was written. */
+/** Probes follow the placements: the first image after one moved or arrived restarts the series
+ *  (`lighting/bounce/probes/probeSync.ts`). One look at the scene's revision when nothing was written. */
 export function syncBouncePlacements(rt: WebgpuPagesRuntime) {
   const { probes } = rt.bounce
   if (!probes) return
   const epoch = rt.run.gate.revisions.scene
   if (rt.bounce.sceneEpoch === epoch) return
   rt.bounce.sceneEpoch = epoch
-  probes.sync()
+  // The volume's own cache reads no placements of its own: it follows the moves the world's probes saw.
+  if (probes.sync()) restartTranslucencyCache(rt.bounce)
 }

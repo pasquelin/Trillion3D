@@ -1,6 +1,6 @@
 // The light grid as its pass builds it, from its oracle (`gpuLightGridOracle.ts`): every
-// column of cells, each light tested against the column's planes, the run of slices it meets solved
-// for those it may meet, and each covered pixel handed its cell's list. The one walk the grid
+// column of cells, each light the view leaves out passed by, each other tested against the column's
+// planes, the run of slices it meets solved for those it may meet, and each covered pixel handed its cell's list. The one walk the grid
 // counters share (`lighting/lightGridCount.ts`, `lighting/resolveWorkCount.ts`). COUNTED,
 // never timed.
 import {
@@ -31,8 +31,14 @@ type GridWork = {
 }
 
 /** Each column's lists, slice by slice, the ranks in increasing order; the lights within its
- *  planes, which alone may reach its pixels; the pass's work. */
-export function gridLists(view: TileView, lights: Light[], grid = GRID) {
+ *  planes, which alone may reach its pixels; the pass's work. `drawn` says, per light, whether the view draws it (`lightDrawn`,
+ *  `lighting/lightDrawRange.ts`): a light it does not is passed by; every light is drawn without it. */
+export function gridLists(
+  view: TileView,
+  lights: Light[],
+  grid = GRID,
+  drawn?: readonly boolean[],
+) {
   const [columnsX, columnsY] = [view.width, view.height].map((n) => ceilDiv(n, grid.cell))
   const cells = columnsX * columnsY * grid.slices
   const work: GridWork = {
@@ -51,6 +57,7 @@ export function gridLists(view: TileView, lights: Light[], grid = GRID) {
       const within: number[] = []
       lights.forEach(({ centre, radius }, rank) => {
         work.columnTests++
+        if (drawn && !drawn[rank]) return
         const at = toTileFrame(view, centre)
         if (!sphereInColumn(planes, at, radius)) return
         within.push(rank)

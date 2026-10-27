@@ -6,7 +6,6 @@
 // still images, whose reflection targets are read back to the bit.
 import { rigField } from './rigField.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
-import { createSurroundings } from '../../../packages/sdk-browser/src/lighting/reflections/surroundings.ts'
 import {
   createScreenReflection,
   reflectionsPending,
@@ -43,6 +42,10 @@ import { SURFACE_FORMATS } from '../../../packages/sdk-browser/src/materials/sur
 import { PHYSICAL_LOBES_FORMAT } from '../../../packages/sdk-browser/src/materials/surface/physicalLobes.ts'
 import { defaultReflections } from '../../../packages/sdk-core/src/contracts/reflectionOptions.ts'
 import { skyLightStandIn } from '../../../packages/sdk-browser/src/modules/sky/skyLight/standIn.ts'
+import {
+  blueNoiseTextures,
+  noiseViewOn,
+} from '../../../packages/sdk-browser/src/gpu/noise/blueNoiseTextures.ts'
 import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 
 /**
@@ -81,6 +84,8 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
   write(normals, halves(frame.normals))
   write(hiz.level0, frame.depth)
   if (frame.lobes) write(lobes, frame.lobes)
+  // The blue noise made before the inputs name it: the rays are drawn from it, not from its stand-in.
+  await blueNoiseTextures(device)
   const store = createSceneLightStore()
   if (frame.environment) store.setEnvironment({ exposure: 1, irradiance: frame.environment })
   const lights = createSceneLightContractBuffer(device, store)
@@ -91,7 +96,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
   const inverse = new Float64Array(16)
   invertMatrix4(inverse, frame.viewProjection)
   // The lighting's view of the image: the eye, the background, an exposure of one, no display
-  // curve: a ray that meets nothing reflects the background as it is.
+  // curve.
   const lightView = createDeferredView(device)
   const direct = [0, 0, 0, 1, TONE_MAPPING_RANK.none, 0, 0, 0]
   lightView.write(
@@ -104,7 +109,6 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
     direct,
   )
   const over = { lightView: lightView.buffer }
-  const surroundings = createSurroundings()(frame.background ?? 0)
   // What each image tells its view: the frame's, no transparent, the settings' defaults (the level's
   // block is the trace's); the lights' epoch moves with `light`.
   const settings = defaultReflections()
@@ -115,9 +119,8 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
     depthDrawn: true,
     settings,
     front: false,
-    surroundings,
   }
-  // No bounce probes: the engine's stand-ins, as an image without them binds them.
+  // No fog and no bounce probes: the engine's stand-ins, as an image without them binds them.
   const standIns = createDeferredPlaceholders(device)
   // No surface cache: the stand-ins the scene stage's hits read, whose tables hold no placement, as an image whose cache is not
   // made binds them.
@@ -133,15 +136,19 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
     normals: normals.createView(),
     lobes: lobes.createView(),
     lights,
-    probes: standIns.probes,
+    fog: { cubemap: standIns.fog.cubemap, sampler: standIns.fog.sampler },
     // No screen probes: no vectors, every surface still, as an image without them binds.
     vectors: reflection.noVectors,
+    // The blue noise the rays are drawn from.
+    blue: noiseViewOn(device),
   }
   return {
     reflection,
     /** One image: staged, the depth pyramid built, the trace; then, when `radiance`, the lit image
      *  the next image reflects kept. */
     image(radiance = true) {
+      // The proof stands in for the engine's frame counter with the images it staged.
+      told.frameIndex = reflection.images
       stageReflectionImage(reflection, told)
       const encoder = device.createCommandEncoder()
       const pass = encoder.beginComputePass()
@@ -160,8 +167,9 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
         inputs,
         group,
         frame.size,
-        [settings.block, settings.block],
+        [settings.block, settings.blockY],
         settings.frontBlock,
+        [settings.reconstruction, settings.frontReconstruction],
         !!told.front,
       )
       if (radiance) {

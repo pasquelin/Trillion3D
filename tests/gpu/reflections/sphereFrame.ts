@@ -1,7 +1,8 @@
-// A still frame of mirror spheres standing on a dark floor under a bright sky (`rig.ts`), computed
+// A still frame of mirror spheres standing on a dark floor under an open sky (`rig.ts`), computed
 // analytically: each pixel's eye ray meets a sphere, the floor or the sky; a sphere is a polished
-// metal that reflects, the floor a dark diffuse one, the sky is the background (no resident proxy:
-// what the screen cannot answer is the sky's). `exactReflection`
+// metal that reflects, the floor a dark diffuse one, the sky is drawn bright but no sky light shines
+// (no resident proxy: what the screen cannot answer is black, as a ray that leaves the scene
+// reflects it). `exactReflection`
 // is the mirror ray of a sphere pixel followed exactly, the reference the engine's image is read
 // against.
 import { camera } from '../../../packages/sdk-browser/src/lighting/reflections/boxes.fixture.ts'
@@ -24,10 +25,11 @@ export const SPHERES = {
     [1.4, 1, -1.5],
   ] as Vec3[],
   radius: 1,
-  /** The floor's lit colour, the spheres' (their previous image's), the sky's (the background). */
+  /** The floor's lit colour, the spheres' (their previous image's), what a ray that leaves the scene
+   *  reflects: black, no sky light shines whatever background is drawn. */
   floor: 0.02,
   sphere: 0.5,
-  sky: 1,
+  sky: 0,
 }
 
 /** A sphere's two crossings, written by each cast. */

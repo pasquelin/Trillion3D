@@ -1,5 +1,5 @@
 import { wgslFn } from './decl.ts'
-import { DIVISOR_FLOOR } from './constants.ts'
+import { DIVISOR_FLOOR, PI } from './constants.ts'
 
 /**
  * Triangles, planes and rays, as the shaders compute them. A plane is a `vec4f`, its normal in
@@ -28,6 +28,52 @@ export const sinFromCosUnclamped = wgslFn(
   'sinFromCosUnclamped',
   [],
   'fn sinFromCosUnclamped(c:f32)->f32{return sqrt(1.0-c*c);}',
+)
+
+/** The angle in [0, π] of a cosine `x`, to within 0.009 radians: Eberly's polynomial of degree one,
+ *  `(0.5π − 0.156583·|x|)·√(1 − |x|)`, taken from π for a negative cosine. A cosine a hair past one — a dot product of unit
+ *  vectors rounded up — is read as one: the root of a negative number would make the angle, and all it touches, not a number. */
+export const fastAcos = wgslFn(
+  'fastAcos',
+  [PI],
+  `fn fastAcos(x:f32)->f32{
+ let a=min(abs(x),1.0);
+ let r=(-0.156583*a+0.5*PI)*sqrt(1.0-a);
+ return select(PI-r,r,x>=0.0);
+}`,
+)
+
+/** The angle of a tangent `x` of at least 0, in [0, ½π): a minimax polynomial of degree three in `x` below 1; above it,
+ *  ½π less the same polynomial of `1/x`. */
+export const fastAtan = wgslFn(
+  'fastAtan',
+  [PI],
+  `fn fastAtan(x:f32)->f32{
+ let below=x<1.0;
+ let a=select(1.0/x,x,below);
+ let base=select(0.5*PI,0.0,below);
+ let turn=select(-1.0,1.0,below);
+ return base+turn*(((-0.130234*a-0.0954105)*a+1.00712)*a-0.00001203333);
+}`,
+)
+
+/** The angle of the vector `(x, y)` in (−π, π], to within 0.0014 radian: the arctangent of the ratio of its smaller to its
+ *  larger coordinate by an odd polynomial of degree five (`((0.0872929·t² − 0.301895)·t² + 1)·t`), taken from ½π where
+ *  `y` is the larger, from π where `x` is negative, and negated where `y` is. At the origin the ratio is 0 over 0, which
+ *  would make the angle not a number: it is 0 there, as the arctangent of two zeros is by convention. */
+export const fastAtan2 = wgslFn(
+  'fastAtan2',
+  [PI],
+  `fn fastAtan2(y:f32,x:f32)->f32{
+ let larger=max(abs(x),abs(y));
+ let smaller=min(abs(x),abs(y));
+ let ratio=select(smaller/larger,0.0,larger==0.0);
+ let squared=ratio*ratio;
+ var angle=(((0.0872929*squared-0.301895)*squared)+1.0)*ratio;
+ angle=select(angle,0.5*PI-angle,abs(y)>abs(x));
+ angle=select(angle,PI-angle,x<0.0);
+ return select(angle,-angle,y<0.0);
+}`,
 )
 
 /** The signed distance of `point` to `plane`, in units of the plane normal's length. */

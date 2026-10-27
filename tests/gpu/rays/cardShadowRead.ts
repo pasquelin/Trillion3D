@@ -9,17 +9,19 @@ import {
   CONTEXT_ARGS,
   CONTEXT_AT,
   CONTEXT_HEADER_WORDS,
-  SHADOW_MASK,
   SHADOW_TRACE,
+  shadowMaskOf,
 } from '../../../packages/sdk-browser/src/lighting/surfaceCache/lighting/layout.ts'
 
-/** The mask byte's format, as literals on purpose and not read from `SHADOW_MASK`: this proof is an
+/** The mask byte's format, as literals on purpose and not read from `shadowMaskOf`: this proof is an
  *  independent oracle of it. A texel's byte holds its factor on 7 bits (at most 127) and, above them,
  *  the flag (0x80) that it is settled; a light tile's mask is 8 × 8 of them. */
 const FACTOR_MAX = 127,
   COMPLETE = 0x80,
   BYTE = 0xff,
   TILE = 8
+/** The masks' shape in the grey atlas format: the scenes of this proof wear no coloured light function. */
+const SHADOW_MASK = shadowMaskOf('grey')
 
 /** Words of a buffer the engine keeps, read back by a kernel of the proof: the engine's lighting
  *  buffers are storage and indirect buffers that cannot be copied from, but can be bound to read. */

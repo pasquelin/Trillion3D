@@ -14,7 +14,7 @@ import { sinFromCosUnclamped } from './geometry.ts'
  * One word of integer hash: an odd golden multiply, an xor-shift, a second multiply, a last
  * xor-shift (`mixWord` in `../scalar/integers.ts` on the processor, tested word for word). Every
  * hash that keys a table or settles a value reads it; a second word of one input is
- * `mixWord(x ^ GOLDEN_U32)`. The denoiser's filter taps hash a 3D point their own way
+ * `mixWord(x ^ 0x9e3779b9u)`. The denoiser's filter taps hash a 3D point their own way
  * (`rand3dPcg16`).
  */
 export const mixWord = wgslFn(
@@ -46,15 +46,23 @@ export const interleavedGradientNoise = wgslFn(
 }`,
 )
 
-export const hashUnit = wgslFn(
-  'hashUnit',
+/** Which pixel of its two by two block a texel `cell` of an image downsampled by two stands for: the block's four pixels taken in turn over four `frame`s (a four-rooks
+ *  pattern), the order moved by the cell's place in its own two by two block so that the four cells of a block take four different pixels in one image. */
+export const fourRooksJitter = wgslFn(
+  'fourRooksJitter',
   [],
-  `fn hashUnit(seed:u32)->f32{
- var x=seed*747796405u+2891336453u;
- x=((x>>((x>>28u)+4u))^x)*277803737u;
- x=(x>>22u)^x;
- return f32(x)*2.3283064e-10;
+  `fn fourRooksJitter(cell:vec2u,frame:u32)->vec2u{
+ let rank=((cell.x&1u)+(cell.y&1u)*2u+frame)&3u;
+ return vec2u((rank>>1u)&1u,1u-(rank&1u));
 }`,
+)
+
+/** The texel of an image downsampled by `factor` whose centre lies at or before the centre of `pixel` (the first of the four texels round it, minus one at the image's
+ *  first row or column): the one a pixel's pick among those four is counted from, and the one the texel it picked is read from. */
+export const downsampleBase = wgslFn(
+  'downsampleBase',
+  [],
+  'fn downsampleBase(pixel:vec2i,factor:i32)->vec2i{return vec2i(floor((vec2f(pixel)+vec2f(0.5))/f32(factor)-vec2f(0.5)));}',
 )
 
 /**
@@ -131,6 +139,12 @@ export const bilinear4 = wgslFn(
   'bilinear4',
   [],
   'fn bilinear4(a:vec4f,b:vec4f,c:vec4f,d:vec4f,f:vec2f)->vec4f{return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}',
+)
+
+export const bilinear1 = wgslFn(
+  'bilinear1',
+  [],
+  'fn bilinear1(a:f32,b:f32,c:f32,d:f32,f:vec2f)->f32{return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}',
 )
 
 export const bilinear3 = wgslFn(

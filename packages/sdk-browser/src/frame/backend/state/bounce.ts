@@ -1,15 +1,16 @@
-import { resolveProbesPerFrame } from '../../../../../sdk-core/src/bounce/contracts.ts'
 import type { BounceFrameMetrics } from '../../../../../sdk-core/src/contracts/shadowMetrics.ts'
 import type { MarkSurface } from '../../../lighting/bounce/pool/pool.ts'
 import type { GpuBounceProbes } from '../../../lighting/bounce/probes/probes.ts'
 import type { ScreenProbeStore } from '../../../lighting/bounce/screen/store.ts'
 import type { SurfaceHitReads } from '../../../lighting/surfaceCache/hitWgsl.ts'
+import type { SceneRays } from '../../../lighting/surfaceCache/lighting/surfaceLighting.ts'
+import type { TranslucencyCacheHold } from '../../../lighting/translucencyGi/cache.ts'
 
-/** What the image's probe pass is encoded with, taken when the image's lights are encoded: the lights lit, what the rays' hits read
- *  and what the image drew. */
+/** What the image's probe pass is encoded with, taken when the image's lights are encoded: the lights lit, what the rays' hits read,
+ *  the scene trace the rays may be cast through (none where the image made none) and what the image drew. */
 export interface QueuedBounce {
-  lightsActive: number
   reads: SurfaceHitReads
+  rays: SceneRays | undefined
   surface: MarkSurface | undefined
 }
 
@@ -19,6 +20,9 @@ export interface QueuedBounce {
  */
 export interface WebgpuBounceState {
   probes: GpuBounceProbes | undefined
+  /** The radiance cache of the translucency volume's own (`lighting/translucencyGi/cache.ts`), made where the volume reads one that is
+   *  not the world's. */
+  translucency?: TranslucencyCacheHold
   /** The screen probes of the views, made at the first image that casts them
    *  (`lighting/bounce/screen/frame.ts`). */
   screen?: ScreenProbeStore
@@ -26,9 +30,6 @@ export interface WebgpuBounceState {
   pending: Promise<unknown> | undefined
   /** What the host asked. */
   wanted: boolean
-  /** The probes an image traces, those never traced first, in the cost of a whole map each (`resolveProbesPerFrame`): the host's
-   *  count, none where it named none — the radiance cache's row of the level then (`probesPerFrameOf`). */
-  probesPerFrame: number | undefined
   /** The GPU duration of the bounce stage in the last timed image, in milliseconds: a measure, nothing
    *  steers by it; null until one was timed. */
   passMs: number | null
@@ -43,8 +44,13 @@ export interface WebgpuBounceState {
   sceneEpoch: number
   /** Probes queued by the last image; zero when nothing was encoded. */
   probesUpdated: number
-  /** True when the last image actually encoded the probe pass. */
-  encoded: boolean
+  /** The greatest channel of the colour of the sun the bounce follows (the first directional light that gives indirect light) and of the
+   *  sky light, as the last image held them, zero for none (`../../prepare/globalLighting.ts`, `followGlobalLighting`). */
+  sunColour: number
+  skyColour: number
+  /** Whether this image saw a big change of the lighting that the bounce follows at once: the screen probes read no history in it
+   *  (`../../prepare/globalLighting.ts`, `followGlobalLighting`; refilled each image). */
+  historyLost: boolean
   /** What the probe pass this image holds back until its screen probes are placed is encoded with (`../../render/encodeLights.ts`,
    *  `encodeBounce`, `encodeQueuedBounce`); none once encoded, or where the image casts no screen probe. */
   queued?: QueuedBounce
@@ -69,7 +75,6 @@ function rigState(bounce: WebgpuBounceState) {
     probesUpdated: bounce.probesUpdated,
     passMs: probes ? bounce.passMs : null,
     converged: probes ? !probes.working : null,
-    rayReach: probes?.cascades.reach ?? null,
     // What the placements held at the last sync of the probes with them.
     placements: probes?.placements() ?? null,
   }
@@ -84,23 +89,20 @@ export function bounceState(bounce: WebgpuBounceState): BounceFrameMetrics {
   }
 }
 
-export function createWebgpuBounceState(
-  wanted: boolean,
-  probesPerFrame?: number,
-): WebgpuBounceState {
+export function createWebgpuBounceState(wanted: boolean): WebgpuBounceState {
   return {
     probes: undefined,
     pending: undefined,
     wanted,
-    probesPerFrame:
-      probesPerFrame === undefined ? undefined : resolveProbesPerFrame(probesPerFrame),
     passMs: null,
     reason: null,
     lightEpoch: 0,
     lightFunctions: -1,
     sceneEpoch: -1,
     probesUpdated: 0,
-    encoded: false,
+    sunColour: 0,
+    skyColour: 0,
+    historyLost: false,
     firstFrameLogged: false,
   }
 }
