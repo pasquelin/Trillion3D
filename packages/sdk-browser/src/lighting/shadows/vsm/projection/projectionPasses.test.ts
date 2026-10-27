@@ -7,6 +7,9 @@ import { functionsOf } from '../../../../materials/texture/shaderRule.fixture.ts
 import { wgslSource } from '../../../../../../math/src/wgsl/source.fixture.ts'
 import { commandArgs } from '../../../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import { vsmLocalsProjectionWgsl, vsmSunsProjectionWgsl } from './projectionWgsl.ts'
+import { vsmPerLightProjectionWgsl } from './perLightProjectionWgsl.ts'
+import { vsmFragmentTraceWgsl } from '../../../direct/shadowTraceWgsl.ts'
+import { VSM_TRACE_KINDS_BOTH } from '../trace/traceWgsl.ts'
 import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_BYTES } from './projectionView.ts'
 import { writeVsmProjectionFrame, type VsmProjectionLight } from './projectionPass.ts'
 import { camera, sun } from './projectionScene.fixture.ts'
@@ -19,6 +22,7 @@ import { onePassMaskFormat } from './maskFormat.ts'
 const LAYOUT = vsmLayout({ coverMode: 'suns', fullMapCapacity: 127, sunMapCapacity: 35 })
 const SUNS = vsmSunsProjectionWgsl(LAYOUT)
 const LOCALS = vsmLocalsProjectionWgsl(LAYOUT, 'rg32uint')
+const LONE = wgslSource(vsmFragmentTraceWgsl(0, { view: 0, noise: 1 }, VSM_TRACE_KINDS_BOTH))
 
 test('the suns’ pass stores a layer a sun under the uniform sun count, the votes in uniform flow', () => {
   const entry = functionsOf(SUNS, ['vsmProjectSuns'])
@@ -179,6 +183,32 @@ test('no function that votes leaves before its first vote: a lane that returns e
   }
 })
 
+test('no vote is conditional on a lane: never the right side of a && or ||, in either vote or any variant, and the ray count that bounds the loop is the kind’s', () => {
+  const vote = /\b(?:vsmVoteAllTrue|vsmGroupVoted|workgroupBarrier|subgroupAllTrue)\(/
+  const modules = [
+    SUNS,
+    LOCALS,
+    vsmLocalsProjectionWgsl(LAYOUT, 'rg32uint', true),
+    vsmPerLightProjectionWgsl(LAYOUT),
+    vsmPerLightProjectionWgsl(LAYOUT, true),
+  ]
+  for (const module of modules) {
+    const source = wgslSource(module)
+    assert.match(source, /vsmGroupVoted\(halfStops\)/)
+    for (const line of source.split('\n')) {
+      // The votes' own bodies are the only lines to name them without calling them.
+      if (/\bfn \w+\(/.test(line)) continue
+      assert.doesNotMatch(line, new RegExp(`(?:&&|\\|\\|)\\s*!?${vote.source}`), line)
+    }
+    // The loop's bound is read from the kind, a lane's light not being known to be the group's.
+    const trace = functionsOf(source, ['vsmTraceLight'])
+    assert.match(
+      trace,
+      /let rays=select\(vsmView\.traceRays\.y,vsmView\.traceRays\.x,VSM_TRACE_KINDS==1u\);/,
+    )
+  }
+})
+
 // A group whose lists are all empty stores its zero masks and leaves, every lane at once (the bound is
 // the group's, read uniformly); the longest list is taken by one atomic a subgroup where the device has
 // subgroups, one a pixel without.
@@ -223,9 +253,14 @@ test('the view’s rays and steps are written into its uniform: a sun’s and a 
 })
 
 test('a trace takes the view’s rays and steps for its kind of light, one tap along the axis where its rays are 0', () => {
+  // A projection pass reads its rays from the kind of light it traces (the group votes in a loop they bound); a
+  // fragment's lone trace from the light itself.
+  const rays = (kind: string) => `let rays=select(vsmView.traceRays.y,vsmView.traceRays.x,${kind});`
+  for (const pass of [SUNS, LOCALS, vsmPerLightProjectionWgsl(LAYOUT)])
+    assert.ok(functionsOf(pass, ['vsmTraceLight']).includes(rays('VSM_TRACE_KINDS==1u')))
+  assert.ok(functionsOf(LONE, ['vsmTraceLight']).includes(rays('directional')))
   const trace = functionsOf(SUNS, ['vsmTraceLight'])
   for (const text of [
-    'let rays=select(vsmView.traceRays.y,vsmView.traceRays.x,directional);',
     'var stepCount=i32(select(vsmView.traceRays.w,vsmView.traceRays.z,directional));',
     'let rayCap=max(rays,1u);',
     'if(single){s=0.0;}',

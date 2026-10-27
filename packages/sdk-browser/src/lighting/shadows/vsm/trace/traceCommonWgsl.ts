@@ -85,7 +85,9 @@ fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(1.0,0u,-1.0);}
  *   later vote could stop no lane.
  * The group leaves the loop where both halves stopped (`vsmGroupVoted`): every lane idle, the
  * rays left trace nothing. A half stops at the first vote or the umbra one only, so the group
- * asks there, unless the loop ends anyway (`../projection/projectionGroupExit.test.ts`).
+ * asks there, unless the loop ends anyway (`../projection/projectionGroupExit.test.ts`). The votes
+ * barrier the group, so they are reached in uniform flow: `votes` and `rayCap` are the kind's, not the
+ * lane's light's, and no vote is the right side of a `&&` or `||`.
  *
  * A fragment's trace (`lone`): a sun's traces every ray, its vote kept to the compute projection's
  * groups; a local light's votes over its subgroup's active lanes where the device grants subgroups
@@ -108,5 +110,5 @@ export const rayCountStatement = (lone: boolean, subgroups: boolean) =>
    else{halfStops=vsmVoteAllTrue(!running||missed==0u);}
   }
   if(halfStops&&running){stopped=true;stopIndex=i;}
-  if(votes&&i+1u<rayCap&&vsmGroupVoted(halfStops)){break;}
+  if(votes&&i+1u<rayCap){if(vsmGroupVoted(halfStops)){break;}}
 `

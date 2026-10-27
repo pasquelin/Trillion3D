@@ -101,6 +101,7 @@ const SCREEN_RAY_TEXT = /* wgsl */ `
 
 const traceLightSetupText = (
   screenRay: boolean,
+  lone: boolean,
 ) => /* wgsl */ `fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,receiver:VsmReceiver,participating:bool)->VsmTraceResult{
  let P=receiver.P;
  let directional=vsmLightIsDirectional(light);
@@ -117,7 +118,10 @@ const traceLightSetupText = (
  var s=0.0;
  // The view's rays and steps for this kind of light (\`VsmProjectionView.traceRays\`): a light with no
  // rays (0) takes one tap, with no spread of the ray, no dither and no steps.
- let rays=select(vsmView.traceRays.y,vsmView.traceRays.x,directional);
+ // A projection group's pass traces one kind of light (\`VSM_TRACE_KINDS\`), so its ray count is read from the
+ // kind alone: the loop that votes (\`rayCountStatement\`) is bound by a value every lane of the group has,
+ // where the lane's own light (\`light\`, the one of its list) is not known to be one.
+ let rays=select(vsmView.traceRays.y,vsmView.traceRays.x,${lone ? 'directional' : `VSM_TRACE_KINDS==${VSM_TRACE_KINDS_SUN}u`});
  // A sun with no ray takes one tap along its axis; a local light with none one tap of its map (\`vsmLocalTap\`).
  let single=directional&&rays==0u;
  let tap=!directional&&rays==0u;
@@ -262,6 +266,6 @@ export const vsmTraceWgsl = ({
       ...(lone && subgroups ? [SUBGROUP_ALL_WGSL] : []),
     ],
     `/** 'participating' = the lane takes part in the group's votes and traces. */
-${traceLightSetupText(input !== 'strands')}${traceLightRaysText(lone, subgroups)}
+${traceLightSetupText(input !== 'strands', lone)}${traceLightRaysText(lone, subgroups)}
 `,
   )

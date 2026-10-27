@@ -46,7 +46,7 @@ export const PER_LIGHT_RECORD_BINDING_BYTES = Math.ceil((PER_LIGHT_RECORD_WORDS 
 export const perLightStride = (device: GPUDevice) => uniformStride(device.limits)
 
 /** The one dynamic offset a light's dispatch or draw binds its record at, written for each light: its groups hold one dynamic buffer. */
-const RECORD_OFFSET = new Uint32Array(1)
+const RECORD_OFFSET: number[] = [0]
 
 /** The offset of light `i`'s record among `offsets`, as the one dynamic offset of its group (`RECORD_OFFSET`, rewritten by each call). */
 export function recordOffset(offsets: Uint32Array, i: number) {
